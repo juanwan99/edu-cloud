@@ -1,0 +1,105 @@
+import logging
+import time
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone, timedelta
+from uuid import uuid4
+
+from fastapi import FastAPI, Request
+
+from edu_cloud.config import settings
+from edu_cloud.logging_config import request_id_var, setup_logging
+
+_BOOT_TIME = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Dev: create tables + seed platform admin
+    from edu_cloud.database import engine
+    from edu_cloud.models.base import Base
+    import edu_cloud.models.school  # noqa: F401
+    import edu_cloud.models.platform_user  # noqa: F401
+    import edu_cloud.models.joint_exam  # noqa: F401
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("database tables created")
+
+    # Seed platform admin
+    from edu_cloud.database import async_session
+    from edu_cloud.models.platform_user import PlatformUser
+    from sqlalchemy import select
+
+    async with async_session() as db:
+        existing = (
+            await db.execute(select(PlatformUser).where(PlatformUser.username == "admin"))
+        ).scalar_one_or_none()
+        if not existing:
+            admin = PlatformUser(
+                username="admin",
+                display_name="平台管理员",
+                role="platform_admin",
+            )
+            admin.set_password("123456")
+            db.add(admin)
+            await db.commit()
+            logger.info("seed: platform admin created (admin/123456)")
+        else:
+            logger.debug("seed: platform admin already exists, skipping")
+
+    yield
+
+
+def create_app() -> FastAPI:
+    setup_logging(
+        level=getattr(logging, settings.LOG_LEVEL.upper(), logging.DEBUG),
+        log_dir=settings.LOG_DIR,
+        file_level=getattr(logging, settings.LOG_FILE_LEVEL.upper(), logging.INFO),
+    )
+    logger.info("edu-cloud starting, boot_time=%s", _BOOT_TIME)
+
+    app = FastAPI(title="edu-cloud", version="0.1.0", lifespan=lifespan)
+
+    @app.middleware("http")
+    async def request_logging(request: Request, call_next):
+        req_id = request.headers.get("X-Request-ID") or uuid4().hex[:12]
+        token = request_id_var.set(req_id)
+
+        start = time.perf_counter()
+        try:
+            response = await call_next(request)
+            ms = (time.perf_counter() - start) * 1000
+            path = request.url.path
+            if not path.startswith(("/docs", "/openapi", "/favicon")):
+                log = logger.info if response.status_code < 400 else logger.warning
+                log("%s %s → %d (%.0fms)", request.method, path, response.status_code, ms)
+            response.headers["X-Request-ID"] = req_id
+            return response
+        except Exception:
+            ms = (time.perf_counter() - start) * 1000
+            path = request.url.path
+            logger.error("%s %s → 500 (%.0fms) unhandled exception", request.method, path, ms, exc_info=True)
+            from starlette.responses import PlainTextResponse
+            error_response = PlainTextResponse("Internal Server Error", status_code=500)
+            error_response.headers["X-Request-ID"] = req_id
+            return error_response
+        finally:
+            request_id_var.reset(token)
+
+    # Register routers
+    from edu_cloud.api.auth import router as auth_router
+    from edu_cloud.api.sync import router as sync_router
+    app.include_router(auth_router)
+    app.include_router(sync_router)
+
+    @app.get("/api/v1/health")
+    async def health():
+        return {"status": "ok", "service": "edu-cloud"}
+
+    @app.get("/api/v1/version")
+    async def version():
+        return {"version": "0.1.0", "boot_time": _BOOT_TIME}
+
+    return app
