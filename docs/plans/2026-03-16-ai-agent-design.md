@@ -432,7 +432,123 @@ src/exam_ai/api/
 
 | 项 | 说明 | 级别 |
 |----|------|------|
+| **API→Service 分层重构** | 14 个 API 文件的业务逻辑提取到 service 层。**阻塞级**：AI 工具和 API 路由必须共用 service 层，否则逻辑重复且耦合。详见 §14 | T3（阻塞） |
 | analytics.py class_ids 过滤 | teacher 角色能看全校成绩，AI 会放大此漏洞。**阻塞级**：Phase 1 不可在此修复之前启动 | T2（阻塞） |
 | 新增 grade-aggregates 端点 | `GET /api/analytics/exam/{id}/grade-aggregates`，返回年级聚合统计（不含个体），实现 k-匿名性（组 < 5 人不返回）。AI 的 `get_grade_aggregates` 工具直接调用此端点 | T2 |
+| **跨服务 Trace ID** | Request ID 扩展为 Trace ID，paper-seg→exam-ai→AI Agent 调用链可贯穿追踪。在 request logging 中间件中实现：优先从 `X-Trace-ID` header 读取，否则生成新 ID 并传递给下游调用 | T2 |
 | exam-ai + paper-seg 端到端打通 | AI 分析需要真实考试数据 | T3（另一窗口在做） |
 | 至少 1 次完整考试数据 | AI 查询助手没数据等于空壳 | 运营 |
+
+## §14 API→Service 分层重构方案
+
+### 问题
+
+当前 14 个 API 文件中，路由函数直接包含业务逻辑、数据库查询、队列调度。导致：
+1. AI Agent 工具无法复用业务逻辑（只能走 HTTP 调自己或硬 import 路由层）
+2. 模块间调用只能 import API 层代码，层级混乱
+3. 单元测试必须模拟完整 HTTP 请求，无法测试纯业务逻辑
+
+### 目标结构
+
+```
+src/exam_ai/
+  api/                          ← 只做 HTTP 转译（参数校验、认证、调 service、组装响应）
+    grading.py                    每个路由函数 < 10 行
+    scan.py
+    analytics.py
+    ...
+
+  services/                     ← 业务逻辑层（纯 Python，不依赖 FastAPI）
+    grading_service.py            接收 db session + 业务参数，返回领域对象
+    scan_service.py
+    analytics_service.py
+    exam_service.py
+    marking_service.py
+    student_service.py
+    card/                         已有，保持不变
+    ...
+
+  agent/                        ← AI Agent 工具层
+    tools/
+      analytics.py                直接调用 services/analytics_service.py
+      students.py                 直接调用 services/student_service.py
+      ...
+```
+
+### 分层规则
+
+```python
+# api 层（瘦路由）— 只做 HTTP 关注点
+@router.post("/tasks", status_code=201)
+async def create_grading_task(
+    req: GradingTaskCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    task = await grading_service.create_task(
+        db=db,
+        subject_id=req.subject_id,
+        school_id=current_user.school_id,
+        created_by=current_user.id,
+    )
+    return _task_response(task)
+
+# service 层（纯业务逻辑）— 不知道 HTTP、不知道 FastAPI
+async def create_task(
+    db: AsyncSession,
+    subject_id: str,
+    school_id: str,
+    created_by: str,
+) -> GradingTask:
+    subject = await _get_subject(db, subject_id, school_id)
+    if not subject:
+        raise NotFoundError("Subject not found")
+    task = GradingTask(
+        subject_id=subject_id,
+        school_id=school_id,
+        created_by=created_by,
+        status="pending",
+    )
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+    await enqueue_grading_task(task.id)
+    return task
+
+# AI Agent 工具层 — 调用同一个 service
+@ToolRegistry.register(name="get_grading_status", ...)
+async def get_grading_status(task_id, _school_id, _db):
+    return await grading_service.get_task(db=_db, task_id=task_id, school_id=_school_id)
+```
+
+### 分层顺序（按 AI Agent 工具依赖优先级）
+
+| 批次 | API 文件 | 提取为 service | AI 工具直接依赖? |
+|------|---------|---------------|-----------------|
+| 1 | analytics.py (245 行) | analytics_service.py | ✅ 8 个工具中 5 个依赖 |
+| 1 | student.py | student_service.py | ✅ 4 个工具依赖 |
+| 1 | exam.py (161 行) | exam_service.py | ✅ 3 个工具依赖 |
+| 2 | grading.py (343 行) | grading_service.py | Phase 2 工具依赖 |
+| 2 | scan.py (407 行) | scan_service.py | 否（paper-seg 用） |
+| 2 | marking.py (217 行) | marking_service.py | Phase 2 |
+| 3 | question.py | question_service.py | Phase 2 |
+| 3 | cards.py | 已有 services/card/ | 否 |
+| 3 | auth.py, school.py, template.py | 小文件，可后做 | 否 |
+
+**批次 1 是 AI Agent Phase 1 的阻塞项**（3 个文件，~550 行业务逻辑提取）。批次 2-3 可以后续逐步做。
+
+### Service 层异常约定
+
+```python
+# services/exceptions.py — 业务异常，不依赖 HTTP
+class NotFoundError(Exception): ...
+class PermissionDeniedError(Exception): ...
+class ValidationError(Exception): ...
+
+# api 层统一转换为 HTTP 异常
+@app.exception_handler(NotFoundError)
+async def not_found_handler(request, exc):
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+```
+
+这样 service 层不 import FastAPI 的任何东西，可以被 API 路由和 AI Agent 工具共同调用。
