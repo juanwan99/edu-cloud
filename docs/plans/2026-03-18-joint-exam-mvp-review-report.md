@@ -1,15 +1,31 @@
-[edu-cloud] GPT Reviewer | 2026-03-18 19:43:15
+[edu-cloud] GPT Reviewer | 2026-03-18 20:01:28
 ## 审查报告: Task 1-11
-结论: FAIL
+结论: PASS（Round 3）
 
-### 第一段：测试充分性（Test Adequacy）
-Phase 1 未通过，存在 3 HIGH + 1 MED test-gap。未进入 Phase 2/3。
+### 审查历程
 
-### 发现清单
+| Round | 结论 | Finding 数 | 说明 |
+|-------|------|-----------|------|
+| R1 | FAIL | 4 test-gap (3H+1M) | Phase 1 未通过，未进入 Phase 2/3 |
+| R2 | FAIL | 2 code-bug (1H+1M) | R1 全部修复确认；Phase 2 发现新问题 |
+| R3 | PASS | 0 | R2 修复确认，无新问题 |
 
-| ID | Severity | Category | Evidence | Impact | Suggested action |
-|----|----------|----------|----------|--------|-----------------|
-| T001 | HIGH | test-gap | plan:1196-1199; tests/test_services/test_joint_exam_service.py | 计划声明的 3 个边界条件无测试：空 student_results→ValidationError、已 completed 联考再提交→StateError、上传非联考科目模板→ValidationError | 补齐 3 个独立失败用例 |
-| T002 | HIGH | test-gap | plan:1465-1466; tests/test_api/test_sync_v2.py | "非参与校调用 /sync/scores 应返回 403"无测试覆盖 | 新增第三所非参与校，用其 key 调 /sync/scores 断言 403 |
-| T003 | HIGH | test-gap | plan:1483; tests/test_services/test_results_service.py:50 | test_rankings_all_subjects fixture 只有 1 科目，无法验证跨科汇总 | 改为 2 科目 + 构造"单科第一 ≠ 总分第一"数据 |
-| T004 | MED | test-gap | plan:548; tests/test_api/test_deps.py | 计划要求的 test_observer_cannot_create_school 未落地 | 增加 observer fixture + 403 断言 |
+### Round 1 发现（已修复 ✅）
+
+| ID | Severity | Category | 状态 |
+|----|----------|----------|------|
+| T001 | HIGH | test-gap | ✅ 补齐 3 个边界测试（空 results/已完成联考/非联考科目） |
+| T002 | HIGH | test-gap | ✅ 非参与校 /sync/scores → 403 测试 |
+| T003 | HIGH | test-gap | ✅ 全科排名改为 2 科目 + 单科第一≠总分第一 |
+| T004 | MED | test-gap | ✅ observer 权限拒绝测试 |
+
+### Round 2 发现（已修复 ✅）
+
+| ID | Severity | Category | 状态 |
+|----|----------|----------|------|
+| R2-01 | HIGH | code-bug | ✅ 模板上传校验出题校身份，下载校验参与校身份 |
+| R2-02 | MED | code-bug | ✅ student_detail 新增 school_id 参数隔离跨校学号重复 |
+
+### 最终验证
+- 58 tests passed
+- GPT Round 3 确认：修复实现与测试覆盖均符合要求
