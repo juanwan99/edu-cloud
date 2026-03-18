@@ -64,6 +64,28 @@ async def admin_headers(admin_user):
 
 
 @pytest.fixture
+async def observer_user(db):
+    """Seed an observer user and return it."""
+    user = PlatformUser(
+        username="observer_test",
+        display_name="Test Observer",
+        role="observer",
+    )
+    user.set_password("test123")
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+@pytest.fixture
+async def observer_headers(observer_user):
+    """JWT Authorization headers for observer."""
+    token = create_access_token({"sub": observer_user.id, "role": observer_user.role})
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
 async def seed_school(db):
     """Seed a test school with known API key."""
     secret = "test_secret_123"

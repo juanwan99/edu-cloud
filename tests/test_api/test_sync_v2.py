@@ -97,6 +97,37 @@ async def test_upload_scores_detail(client, admin_headers, sync_setup):
 
 
 @pytest.mark.asyncio
+async def test_non_participant_scores_rejected(client, admin_headers, sync_setup):
+    """非参与校调用 /sync/scores 应返回 403。"""
+    s = sync_setup
+    # Create a third school that is NOT a participant
+    r3 = await client.post("/api/v1/schools", json={
+        "name": "局外校", "code": "SY_OUT", "district": "X",
+    }, headers=admin_headers)
+    outsider_key = r3.json()["api_key"]
+
+    # Upload template + distribute
+    await client.post("/api/v1/sync/templates", files={
+        "skeleton": ("skeleton.json", io.BytesIO(b'{}'), "application/json"),
+        "pdf": ("template.pdf", io.BytesIO(b"%PDF"), "application/pdf"),
+    }, data={
+        "joint_exam_id": s["exam_id"], "subject_code": "YW",
+        "answer_schema": '[]',
+    }, headers={"X-API-Key": s["creator_key"]})
+    await client.post(f"/api/v1/joint-exams/{s['exam_id']}/distribute", headers=admin_headers)
+
+    # Non-participant tries to upload scores → 403
+    resp = await client.post("/api/v1/sync/scores", json={
+        "joint_exam_id": s["exam_id"],
+        "subject_code": "YW",
+        "student_results": [
+            {"student_name": "X", "student_number": "001", "total_score": 50, "detail_scores": []},
+        ],
+    }, headers={"X-API-Key": outsider_key})
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_inactive_school_rejected(client, admin_headers, sync_setup):
     """已停用学校的 API Key 应返回 401。"""
     s = sync_setup

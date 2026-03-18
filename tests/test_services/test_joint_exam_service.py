@@ -186,3 +186,52 @@ async def test_force_complete(setup, tmp_path):
 
     result = await svc.force_complete(exam.id)
     assert result.status == "completed"
+
+
+# --- T001 fix: 边界条件测试 ---
+
+
+@pytest.mark.asyncio
+async def test_submit_empty_results_raises(setup, tmp_path):
+    """空 student_results 列表 → ValidationError。"""
+    d = setup
+    svc = JointExamService(d["db"], upload_dir=str(tmp_path))
+    exam = await svc.create_exam(
+        name="E", subjects=[{"code": "YW", "name": "语文", "max_score": 150}],
+        creator_school_id=d["s1"].id, created_by=d["user"].id,
+    )
+    await svc.upload_template(exam.id, "YW", {}, b"pdf", [])
+    await svc.distribute(exam.id)
+    with pytest.raises(ValidationError):
+        await svc.submit_scores(exam.id, d["s1"].id, "YW", [])
+
+
+@pytest.mark.asyncio
+async def test_submit_to_completed_exam_raises(setup, tmp_path):
+    """对已 completed 的联考提交成绩 → StateError。"""
+    d = setup
+    svc = JointExamService(d["db"], upload_dir=str(tmp_path))
+    exam = await svc.create_exam(
+        name="E", subjects=[{"code": "YW", "name": "语文", "max_score": 150}],
+        creator_school_id=d["s1"].id, created_by=d["user"].id,
+    )
+    await svc.upload_template(exam.id, "YW", {}, b"pdf", [])
+    await svc.distribute(exam.id)
+    await svc.force_complete(exam.id)
+    with pytest.raises(StateError):
+        await svc.submit_scores(exam.id, d["s1"].id, "YW", [
+            {"student_name": "X", "student_number": "001", "total_score": 50, "detail_scores": []},
+        ])
+
+
+@pytest.mark.asyncio
+async def test_upload_template_wrong_subject_raises(setup, tmp_path):
+    """上传非联考科目的模板 → ValidationError。"""
+    d = setup
+    svc = JointExamService(d["db"], upload_dir=str(tmp_path))
+    exam = await svc.create_exam(
+        name="E", subjects=[{"code": "YW", "name": "语文", "max_score": 150}],
+        creator_school_id=d["s1"].id, created_by=d["user"].id,
+    )
+    with pytest.raises(ValidationError, match="SX"):
+        await svc.upload_template(exam.id, "SX", {}, b"pdf", [])
