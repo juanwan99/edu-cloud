@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24h
     ALGORITHM: str = "HS256"
 
+    # File storage
+    UPLOAD_DIR: str = "./uploads"
+
     # Logging
     LOG_LEVEL: str = "DEBUG"
     LOG_DIR: str = "./logs"

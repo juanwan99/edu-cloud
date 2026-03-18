@@ -1,48 +1,68 @@
 """联考模型：跨校考试的编排与追踪。"""
 
-from sqlalchemy import String, Integer, Float, Text, ForeignKey, JSON
+from datetime import datetime, timezone
+from sqlalchemy import String, Integer, Float, Text, ForeignKey, JSON, Boolean, DateTime, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column
 from edu_cloud.models.base import Base, IdMixin, TimestampMixin
 
 
 class JointExam(Base, IdMixin, TimestampMixin):
-    """联考主表：一次跨校联考。"""
+    """联考主表。"""
     __tablename__ = "joint_exams"
 
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, default=None)
     created_by: Mapped[str] = mapped_column(String(36), ForeignKey("platform_users.id"))
     status: Mapped[str] = mapped_column(String(20), default="draft")
-    # status: draft -> distributed -> scanning -> grading -> completed -> archived
+    # status: draft → templates_ready → distributed → collecting → completed → archived
 
-    # 考试配置
     subjects: Mapped[list] = mapped_column(JSON, default=list)
-    # e.g. [{"code": "YW", "name": "语文", "max_score": 150}, ...]
+    # [{"code": "YW", "name": "语文", "max_score": 150}, ...]
+
+    # 新增字段
+    creator_school_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("registered_schools.id"), default=None
+    )
+    template_file_path: Mapped[str | None] = mapped_column(String(500), default=None)
+    answer_detail_schema: Mapped[dict | None] = mapped_column(JSON, default=None)
+    # {"YW": [{"id": "q1", "max_score": 10, "type": "主观题"}, ...]}
 
 
 class JointExamParticipant(Base, IdMixin, TimestampMixin):
-    """联考参与学校：哪些学校参加了这次联考。"""
+    """联考参与学校。"""
     __tablename__ = "joint_exam_participants"
 
     joint_exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("joint_exams.id"))
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("registered_schools.id"))
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    # status: pending -> accepted -> scanning -> scores_uploaded -> completed
+    # status: pending → scores_uploaded
+    is_creator: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # 该校上报的数据摘要
     student_count: Mapped[int | None] = mapped_column(Integer, default=None)
     score_upload_count: Mapped[int | None] = mapped_column(Integer, default=None)
 
 
-class JointExamScore(Base, IdMixin, TimestampMixin):
-    """联考成绩：各校上报的学生成绩汇总。"""
-    __tablename__ = "joint_exam_scores"
+class JointExamStudentResult(Base, IdMixin, TimestampMixin):
+    """联考学生成绩明细（替代旧 JointExamScore）。"""
+    __tablename__ = "joint_exam_student_results"
 
     joint_exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("joint_exams.id"))
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("registered_schools.id"))
     subject_code: Mapped[str] = mapped_column(String(50))
-    student_id: Mapped[str] = mapped_column(String(100))  # 学校端的学生 ID
     student_name: Mapped[str] = mapped_column(String(100))
-    class_name: Mapped[str | None] = mapped_column(String(100), default=None)
-    score: Mapped[float] = mapped_column(Float)
-    max_score: Mapped[float] = mapped_column(Float)
+    student_number: Mapped[str] = mapped_column(String(100))
+    total_score: Mapped[float] = mapped_column(Float)
+    detail_scores: Mapped[list] = mapped_column(JSON, default=list)
+    # [{"question_id": "q1", "score": 5.0, "max_score": 10.0}, ...]
+    uploaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "joint_exam_id", "school_id", "subject_code", "student_number",
+            name="uq_result_student",
+        ),
+        Index("ix_result_ranking", "joint_exam_id", "subject_code", "total_score"),
+        Index("ix_result_school", "joint_exam_id", "school_id"),
+    )
