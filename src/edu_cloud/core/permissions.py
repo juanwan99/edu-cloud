@@ -28,6 +28,7 @@ class Permission(str, Enum):
 ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     "platform_admin": set(Permission),  # 全部权限
     "district_admin": {
+        Permission.MANAGE_SCHOOLS,
         Permission.VIEW_SCHOOLS,
         Permission.CREATE_JOINT_EXAM,
         Permission.MANAGE_JOINT_EXAM,

@@ -9,6 +9,9 @@ from edu_cloud.models.platform_user import PlatformUser
 from edu_cloud.shared.auth import decode_token
 from jose import ExpiredSignatureError, JWTError
 
+from edu_cloud.core.permissions import Permission, has_permission
+from edu_cloud.services.exceptions import PermissionDeniedError
+
 logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
@@ -36,3 +39,14 @@ async def get_current_user(
         logger.warning("token user_id=%s not found", user_id)
         raise HTTPException(401, "User not found")
     return user
+
+
+def require_permission(permission: Permission):
+    """Factory: returns a FastAPI dependency that checks the user has a permission."""
+    async def checker(user: PlatformUser = Depends(get_current_user)):
+        if not has_permission(user.role, permission):
+            raise PermissionDeniedError(
+                f"Role '{user.role}' lacks permission '{permission.value}'"
+            )
+        return user
+    return checker
