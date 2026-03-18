@@ -40,28 +40,54 @@
 
 ### 2.1 现有模型变更
 
-**RegisteredSchool** — 新增字段：
-- `name: str` — 学校名称（必填）
-- `is_active: bool = True` — 停用/启用
+**RegisteredSchool** — 确认已有字段（无需新增）：
+- `name: str` — 已存在（school.py:17）
+- `is_active: bool = True` — 已存在（school.py:24）
+- `district: str` — 已存在
+- 本次无新增字段，现有字段满足需求
 
 **JointExam** — 新增字段：
 - `creator_school_id: UUID (FK → registered_schools.id)` — 出题校
 - `template_file_path: str | None` — 模板存储根路径
-- `answer_detail_schema: JSON | None` — 各科目的题目结构（题号、满分、题型）
+- `answer_detail_schema: JSON | None` — 各科目的题目结构，由 `upload_template` 写入。格式: `{"YW": [{"id": "q1", "max_score": 10, "type": "主观题"}, ...], "SX": [...]}`。`pull_joint_exams` 响应中包含此字段，参与校据此了解每科题目结构。
 
 **JointExam 状态机改造**：
+
+现有状态 → 新状态对应表：
+
+| 现有 | 新 | 说明 |
+|------|-----|------|
+| draft | draft | 不变 |
+| distributed | templates_ready, distributed | 拆分：模板上传完成 vs 协调员下发 |
+| scanning | collecting | 云端不关心扫描细节，只关心成绩收集 |
+| grading | （删除） | 阅卷是学校本地状态，云端不追踪 |
+| completed | completed | 不变 |
+| archived | archived | 不变 |
+
 ```
 draft → templates_ready → distributed → collecting → completed → archived
 ```
 - `draft`: 联考创建，等待出题校上传模板
-- `templates_ready`: 所有科目模板上传完毕（自动推进）
+- `templates_ready`: 所有科目模板上传完毕（自动推进，判定: `subjects` JSON 的全部 `code` 对应的 `uploads/templates/{exam_id}/{code}/skeleton.json` 均存在）
 - `distributed`: 协调员手动下发给参与校
-- `collecting`: 参与校开始上报成绩（首次收到成绩时自动推进）
-- `completed`: 所有参与校所有科目上报完毕（自动推进）或协调员手动截止
+- `collecting`: 首次收到任意学校的成绩时自动推进（出题校和参与校的上报同等计入）
+- `completed`: 所有参与校（含出题校）所有科目上报完毕（自动推进）或协调员手动截止
 - `archived`: 归档
 
 **JointExamParticipant** — 新增字段：
 - `is_creator: bool = False` — 区分出题校和参与校
+
+**JointExamParticipant.status 改造**：
+
+| 现有 | 新 | 说明 |
+|------|-----|------|
+| pending | pending | 不变 |
+| accepted | （删除） | MVP 手动添加即参与，无审批流程 |
+| scanning | （删除） | 云端不追踪 |
+| scores_uploaded | scores_uploaded | 保留，表示该校已上报完成 |
+| completed | （删除） | 合并到 scores_uploaded |
+
+新 status: `pending → scores_uploaded`（按科目追踪上报进度，全部科目上报后自动推进）
 
 ### 2.2 新增模型
 
@@ -133,10 +159,38 @@ edu-cloud/uploads/templates/{joint_exam_id}/{subject_code}/
 | 方法 | 路径 | 方向 | 用途 |
 |------|------|------|------|
 | POST | `/api/v1/sync/heartbeat` | 校→云 | 保留不变 |
-| GET | `/api/v1/sync/joint-exams` | 校←云 | 改造：返回联考元数据+各科模板下载 URL |
+| GET | `/api/v1/sync/joint-exams` | 校←云 | 改造：返回联考元数据+各科模板下载 URL（服务端生成绝对 URL） |
 | POST | `/api/v1/sync/scores` | 校→云 | 改造：接收逐题明细 |
 | POST | `/api/v1/sync/templates` | 校→云 | 新增：出题校上传模板（multipart: skeleton JSON + PDF） |
 | GET | `/api/v1/sync/templates/{exam_id}/{subject_code}` | 校←云 | 新增：下载模板文件 |
+
+**`GET /api/v1/sync/joint-exams` 响应示例：**
+
+```json
+{
+  "joint_exams": [
+    {
+      "id": "uuid-xxx",
+      "name": "2026年春季联考",
+      "status": "distributed",
+      "subjects": [
+        {
+          "code": "YW",
+          "name": "语文",
+          "template_url": "http://cloud:9000/api/v1/sync/templates/uuid-xxx/YW",
+          "answer_detail_schema": [
+            {"id": "q1", "max_score": 10, "type": "主观题"},
+            {"id": "q2", "max_score": 5, "type": "选择题"}
+          ]
+        }
+      ],
+      "created_at": "2026-03-18T10:00:00+08:00"
+    }
+  ]
+}
+```
+
+`template_url` 由服务端拼接（`{base_url}/api/v1/sync/templates/{exam_id}/{subject_code}`），exam-ai 直接 GET 下载。
 
 ## §4 Service 层设计（edu-cloud）
 
@@ -164,17 +218,21 @@ class JointExamService:
     async def add_participant(exam_id, school_id) -> JointExamParticipant
     async def remove_participant(exam_id, school_id)
 
-    async def upload_template(exam_id, subject_code, skeleton_data, pdf_bytes)
+    async def upload_template(exam_id, subject_code, skeleton_data, pdf_bytes, answer_schema: list)
         # 保存文件到 uploads/templates/{exam_id}/{subject_code}/
-        # 所有科目上传完 → 自动推进 draft → templates_ready
+        # 将 answer_schema 写入 JointExam.answer_detail_schema[subject_code]
+        # 判定: subjects JSON 全部 code 对应的 skeleton.json 均存在 → draft → templates_ready
 
     async def distribute(exam_id)
         # 校验 status=templates_ready → 推进到 distributed
 
     async def submit_scores(exam_id, school_id, subject_code, student_results: list)
-        # 批量 upsert JointExamStudentResult
-        # 首次收到成绩 → distributed → collecting
-        # 所有校所有科目完成 → collecting → completed
+        # 批量 upsert JointExamStudentResult（student_number 去重）
+        # 出题校（is_creator=True）和参与校的上报同等处理，无特殊逻辑
+        # 状态推进:
+        #   首次收到任意学校的成绩 → distributed → collecting
+        #   所有 Participant（含出题校）所有科目均已上报 → collecting → completed
+        # 上报完成判定: Participant.status 推进到 scores_uploaded 当该校所有 subjects 都有成绩记录
 
     async def force_complete(exam_id)
         # 协调员手动截止（collecting → completed）
@@ -267,7 +325,10 @@ CLOUD_API_KEY=SCHOOL01:secret123
 CLOUD_ENABLED=false
 ```
 
-`CLOUD_ENABLED=false` 时 `/api/cloud/*` 全部返回 404，不影响单校独立使用。
+`CLOUD_ENABLED=false` 时：
+- `/api/cloud/*` 路由不注册（app.py 中条件判断），返回 404
+- `CloudSyncService` 不实例化（DI 中不注册），避免 `CLOUD_URL` 未设置时的配置错误
+- `CLOUD_URL` 和 `CLOUD_API_KEY` 在 `CLOUD_ENABLED=false` 时为 Optional，不校验
 
 ### 5.5 不改动的部分
 
