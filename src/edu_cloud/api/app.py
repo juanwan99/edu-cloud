@@ -5,8 +5,13 @@ from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from edu_cloud.config import settings
+from edu_cloud.services.exceptions import (
+    NotFoundError, PermissionDeniedError, ValidationError as SvcValidationError,
+    ConflictError, StateError,
+)
 from edu_cloud.logging_config import request_id_var, setup_logging
 
 _BOOT_TIME = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
@@ -62,6 +67,27 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="edu-cloud", version="0.1.0", lifespan=lifespan)
 
+    # Global exception handlers — map Service exceptions to HTTP status codes
+    @app.exception_handler(NotFoundError)
+    async def not_found_handler(request, exc):
+        return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+    @app.exception_handler(PermissionDeniedError)
+    async def permission_denied_handler(request, exc):
+        return JSONResponse(status_code=403, content={"detail": str(exc)})
+
+    @app.exception_handler(SvcValidationError)
+    async def validation_handler(request, exc):
+        return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+    @app.exception_handler(ConflictError)
+    async def conflict_handler(request, exc):
+        return JSONResponse(status_code=409, content={"detail": str(exc)})
+
+    @app.exception_handler(StateError)
+    async def state_error_handler(request, exc):
+        return JSONResponse(status_code=409, content={"detail": str(exc)})
+
     @app.middleware("http")
     async def request_logging(request: Request, call_next):
         req_id = request.headers.get("X-Request-ID") or uuid4().hex[:12]
@@ -77,7 +103,12 @@ def create_app() -> FastAPI:
                 log("%s %s → %d (%.0fms)", request.method, path, response.status_code, ms)
             response.headers["X-Request-ID"] = req_id
             return response
-        except Exception:
+        except Exception as exc:
+            # Let registered Service exceptions propagate to FastAPI exception_handlers
+            if isinstance(exc, (NotFoundError, PermissionDeniedError,
+                                SvcValidationError, ConflictError, StateError)):
+                raise
+            # Truly unknown exceptions → 500
             ms = (time.perf_counter() - start) * 1000
             path = request.url.path
             logger.error("%s %s → 500 (%.0fms) unhandled exception", request.method, path, ms, exc_info=True)
