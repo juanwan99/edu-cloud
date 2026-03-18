@@ -97,6 +97,48 @@ async def test_upload_scores_detail(client, admin_headers, sync_setup):
 
 
 @pytest.mark.asyncio
+async def test_non_creator_cannot_upload_template(client, admin_headers, sync_setup):
+    """非出题校不能上传模板 → 403。"""
+    s = sync_setup
+    # participant_key is NOT the creator → 403
+    resp = await client.post("/api/v1/sync/templates", files={
+        "skeleton": ("skeleton.json", io.BytesIO(b'{}'), "application/json"),
+        "pdf": ("template.pdf", io.BytesIO(b"%PDF"), "application/pdf"),
+    }, data={
+        "joint_exam_id": s["exam_id"], "subject_code": "YW",
+        "answer_schema": '[]',
+    }, headers={"X-API-Key": s["participant_key"]})
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_non_participant_cannot_download_template(client, admin_headers, sync_setup):
+    """非参与校不能下载模板 → 403。"""
+    s = sync_setup
+    # Upload template first (as creator)
+    await client.post("/api/v1/sync/templates", files={
+        "skeleton": ("skeleton.json", io.BytesIO(b'{}'), "application/json"),
+        "pdf": ("template.pdf", io.BytesIO(b"%PDF"), "application/pdf"),
+    }, data={
+        "joint_exam_id": s["exam_id"], "subject_code": "YW",
+        "answer_schema": '[]',
+    }, headers={"X-API-Key": s["creator_key"]})
+
+    # Create outsider school
+    r3 = await client.post("/api/v1/schools", json={
+        "name": "局外校DL", "code": "SY_DL", "district": "X",
+    }, headers=admin_headers)
+    outsider_key = r3.json()["api_key"]
+
+    # Outsider tries to download → 403
+    resp = await client.get(
+        f"/api/v1/sync/templates/{s['exam_id']}/YW",
+        headers={"X-API-Key": outsider_key},
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_non_participant_scores_rejected(client, admin_headers, sync_setup):
     """非参与校调用 /sync/scores 应返回 403。"""
     s = sync_setup

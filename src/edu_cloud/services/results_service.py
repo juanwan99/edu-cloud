@@ -94,12 +94,16 @@ class ResultsService:
             })
         return result
 
-    async def get_student_detail(self, exam_id: str, student_number: str) -> dict:
+    async def get_student_detail(
+        self, exam_id: str, student_number: str, school_id: str | None = None,
+    ) -> dict:
         q = (
             select(JointExamStudentResult)
             .where(JointExamStudentResult.joint_exam_id == exam_id)
             .where(JointExamStudentResult.student_number == student_number)
         )
+        if school_id:
+            q = q.where(JointExamStudentResult.school_id == school_id)
         results = (await self.db.execute(q)).scalars().all()
         if not results:
             raise NotFoundError(f"Student '{student_number}' not found in exam")

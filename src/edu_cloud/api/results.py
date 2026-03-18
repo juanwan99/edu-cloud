@@ -35,8 +35,9 @@ async def get_school_comparison(
 async def get_student_detail(
     exam_id: str,
     student_number: str,
+    school_id: str | None = None,
     user=Depends(require_permission(Permission.VIEW_JOINT_EXAM)),
     db: AsyncSession = Depends(get_db),
 ):
     svc = ResultsService(db)
-    return await svc.get_student_detail(exam_id, student_number)
+    return await svc.get_student_detail(exam_id, student_number, school_id=school_id)

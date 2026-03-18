@@ -109,6 +109,42 @@ async def test_student_detail(db, results_data):
 
 
 @pytest.mark.asyncio
+async def test_student_detail_cross_school_disambiguation(db):
+    """跨校学号重复时，school_id 参数正确隔离。"""
+    exam = JointExam(
+        name="重号测试", created_by="u", status="completed",
+        subjects=[{"code": "YW", "name": "语文", "max_score": 150}],
+    )
+    db.add(exam)
+    await db.commit()
+    # 两校同学号 001
+    db.add(JointExamStudentResult(
+        joint_exam_id=exam.id, school_id="s1", subject_code="YW",
+        student_name="张三", student_number="001", total_score=90.0, detail_scores=[],
+    ))
+    db.add(JointExamStudentResult(
+        joint_exam_id=exam.id, school_id="s2", subject_code="YW",
+        student_name="李四", student_number="001", total_score=80.0, detail_scores=[],
+    ))
+    await db.commit()
+
+    svc = ResultsService(db)
+    # 不带 school_id → 两条记录都返回（允许但可能混淆）
+    detail_all = await svc.get_student_detail(exam.id, "001")
+    assert len(detail_all["subjects"]) == 2
+
+    # 带 school_id → 只返回该校学生
+    detail_s1 = await svc.get_student_detail(exam.id, "001", school_id="s1")
+    assert detail_s1["student_name"] == "张三"
+    assert len(detail_s1["subjects"]) == 1
+    assert detail_s1["school_id"] == "s1"
+
+    detail_s2 = await svc.get_student_detail(exam.id, "001", school_id="s2")
+    assert detail_s2["student_name"] == "李四"
+    assert detail_s2["school_id"] == "s2"
+
+
+@pytest.mark.asyncio
 async def test_rankings_empty_exam(db):
     """无成绩数据的联考返回空列表。"""
     exam = JointExam(

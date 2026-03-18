@@ -126,6 +126,15 @@ async def upload_template(
     db: AsyncSession = Depends(get_db),
 ):
     """出题校上传试卷模板（skeleton.json + template.pdf）。"""
+    # 校验：只有出题校可以上传模板
+    exam = (await db.execute(
+        select(JointExam).where(JointExam.id == joint_exam_id)
+    )).scalar_one_or_none()
+    if not exam:
+        raise HTTPException(404, "Joint exam not found")
+    if exam.creator_school_id != school.id:
+        raise HTTPException(403, "Only the creator school can upload templates")
+
     skeleton_bytes = await skeleton.read()
     pdf_bytes = await pdf.read()
     schema = json.loads(answer_schema)
@@ -151,8 +160,19 @@ async def download_template(
     exam_id: str,
     subject_code: str,
     school: RegisteredSchool = Depends(get_school_by_api_key),
+    db: AsyncSession = Depends(get_db),
 ):
     """参与校下载试卷模板（zip 包）。"""
+    # 校验：只有参与校可以下载模板
+    participant = (await db.execute(
+        select(JointExamParticipant).where(
+            JointExamParticipant.joint_exam_id == exam_id,
+            JointExamParticipant.school_id == school.id,
+        )
+    )).scalar_one_or_none()
+    if not participant:
+        raise HTTPException(403, "School not participating in this exam")
+
     exam_dir = os.path.join(settings.UPLOAD_DIR, exam_id, subject_code)
     skeleton_path = os.path.join(exam_dir, "skeleton.json")
     pdf_path = os.path.join(exam_dir, "template.pdf")
