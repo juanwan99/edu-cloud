@@ -439,3 +439,9 @@ CLOUD_ENABLED=false
 | 模板 PDF 文件较大（>5MB） | 上传/下载慢 | MVP 不限制大小，后续加压缩 |
 | 跨校排名中学号重复 | 排名错误 | `(school_id, student_number)` 联合唯一 |
 | PostgreSQL JSONB 聚合性能 | 大数据量慢 | MVP 数据量小（2 校），后续加物化视图 |
+
+## §待处置（GPT Plan Review F004）
+
+**F004 — JointExamScore 删除无回滚策略**：设计要求首个 migration 直接删除旧表+新增新表，无 expand/contract。
+
+Planner 处置：**不阻塞 MVP**。理由：edu-cloud 当前无生产数据（0 所真实学校、0 条成绩记录），JointExamScore 从未被写入过。直接替换是合理的。生产部署前（P1 完成后）需补充 Alembic downgrade 脚本。
