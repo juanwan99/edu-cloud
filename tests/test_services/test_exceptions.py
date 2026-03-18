@@ -20,10 +20,10 @@ def test_exception_empty_message():
 
 
 @pytest.mark.asyncio
-async def test_not_found_returns_404(client):
+async def test_not_found_returns_404(client, admin_headers):
     """Global handler maps NotFoundError → 404."""
     resp = await client.get(
         "/api/v1/schools/nonexistent-id",
-        headers={"Authorization": "Bearer test"},
+        headers=admin_headers,
     )
     assert resp.status_code == 404
