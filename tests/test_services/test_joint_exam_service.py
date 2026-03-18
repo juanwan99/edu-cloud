@@ -88,3 +88,101 @@ async def test_add_duplicate_participant_fails(setup):
     await svc.add_participant(exam.id, d["s2"].id)
     with pytest.raises(ConflictError):
         await svc.add_participant(exam.id, d["s2"].id)
+
+
+# --- Task 7: 模板上传 + 成绩提交 + 状态推进 ---
+
+
+@pytest.mark.asyncio
+async def test_upload_template_auto_promotes(setup, tmp_path):
+    d = setup
+    svc = JointExamService(d["db"], upload_dir=str(tmp_path))
+    exam = await svc.create_exam(
+        name="E",
+        subjects=[{"code": "YW", "name": "语文", "max_score": 150}],
+        creator_school_id=d["s1"].id,
+        created_by=d["user"].id,
+    )
+    assert exam.status == "draft"
+
+    await svc.upload_template(
+        exam_id=exam.id,
+        subject_code="YW",
+        skeleton_data={"regions": []},
+        pdf_bytes=b"%PDF-fake",
+        answer_schema=[{"id": "q1", "max_score": 10, "type": "主观题"}],
+    )
+    await d["db"].refresh(exam)
+    assert exam.status == "templates_ready"  # auto-promoted (only 1 subject)
+    assert exam.answer_detail_schema["YW"][0]["id"] == "q1"
+
+
+@pytest.mark.asyncio
+async def test_submit_scores_full_cycle(setup, tmp_path):
+    d = setup
+    svc = JointExamService(d["db"], upload_dir=str(tmp_path))
+    exam = await svc.create_exam(
+        name="E",
+        subjects=[{"code": "YW", "name": "语文", "max_score": 150}],
+        creator_school_id=d["s1"].id,
+        created_by=d["user"].id,
+    )
+    # Upload template → promote → distribute
+    await svc.upload_template(exam.id, "YW", {}, b"pdf", [{"id": "q1", "max_score": 10}])
+    await svc.distribute(exam.id)
+    assert exam.status == "distributed"
+
+    # Submit scores from creator school
+    await svc.submit_scores(exam.id, d["s1"].id, "YW", [
+        {"student_name": "张三", "student_number": "001", "total_score": 85,
+         "detail_scores": [{"question_id": "q1", "score": 8, "max_score": 10}]},
+    ])
+    await d["db"].refresh(exam)
+    assert exam.status == "completed"  # only 1 participant (creator), 1 subject → auto-complete
+
+
+@pytest.mark.asyncio
+async def test_submit_scores_upsert(setup, tmp_path):
+    d = setup
+    svc = JointExamService(d["db"], upload_dir=str(tmp_path))
+    exam = await svc.create_exam(
+        name="E", subjects=[{"code": "YW", "name": "语文", "max_score": 150}],
+        creator_school_id=d["s1"].id, created_by=d["user"].id,
+    )
+    # Add s2 so auto-complete doesn't trigger on first submission
+    await svc.add_participant(exam.id, d["s2"].id)
+    await svc.upload_template(exam.id, "YW", {}, b"pdf", [])
+    await svc.distribute(exam.id)
+
+    # First submission
+    await svc.submit_scores(exam.id, d["s1"].id, "YW", [
+        {"student_name": "张三", "student_number": "001", "total_score": 80,
+         "detail_scores": []},
+    ])
+    # Second submission (upsert — same student, updated score)
+    await svc.submit_scores(exam.id, d["s1"].id, "YW", [
+        {"student_name": "张三", "student_number": "001", "total_score": 90,
+         "detail_scores": []},
+    ])
+    # Should have 1 record, not 2
+    from sqlalchemy import select, func
+    from edu_cloud.models.joint_exam import JointExamStudentResult
+    count = (await d["db"].execute(
+        select(func.count()).select_from(JointExamStudentResult)
+    )).scalar()
+    assert count == 1
+
+
+@pytest.mark.asyncio
+async def test_force_complete(setup, tmp_path):
+    d = setup
+    svc = JointExamService(d["db"], upload_dir=str(tmp_path))
+    exam = await svc.create_exam(
+        name="E", subjects=[{"code": "YW", "name": "语文", "max_score": 150}],
+        creator_school_id=d["s1"].id, created_by=d["user"].id,
+    )
+    await svc.upload_template(exam.id, "YW", {}, b"pdf", [])
+    await svc.distribute(exam.id)
+
+    result = await svc.force_complete(exam.id)
+    assert result.status == "completed"
