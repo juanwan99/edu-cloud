@@ -123,9 +123,11 @@ def create_app() -> FastAPI:
     from edu_cloud.api.auth import router as auth_router
     from edu_cloud.api.sync import router as sync_router
     from edu_cloud.api.schools import router as schools_router
+    from edu_cloud.api.joint_exams import router as joint_exams_router
     app.include_router(auth_router)
     app.include_router(sync_router)
     app.include_router(schools_router)
+    app.include_router(joint_exams_router)
 
     @app.get("/api/v1/health")
     async def health():
