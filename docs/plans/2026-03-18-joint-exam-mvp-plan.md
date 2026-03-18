@@ -269,7 +269,7 @@ async def admin_user(db):
 
 
 @pytest.fixture
-def admin_headers(admin_user):
+async def admin_headers(admin_user):
     """JWT Authorization headers for platform_admin."""
     token = create_access_token({"sub": admin_user.id, "role": admin_user.role})
     return {"Authorization": f"Bearer {token}"}
@@ -832,7 +832,7 @@ async def test_student_result_create(db):
 
 - [ ] **Step 3: Implement model changes**
 
-Rewrite `src/edu_cloud/models/joint_exam.py`:
+Rewrite `src/edu_cloud/models/joint_exam.py`（现有 49 行 < 200 行，全量重写合规）:
 
 ```python
 """联考模型：跨校考试的编排与追踪。"""
@@ -1150,7 +1150,25 @@ async def test_submit_scores_upsert(setup, tmp_path):
 
 Key implementation notes:
 - `upload_template`: write skeleton.json + template.pdf to upload_dir, update answer_detail_schema, check all subjects done → auto-promote
-- `submit_scores`: upsert via `INSERT ... ON CONFLICT UPDATE` (PostgreSQL) or merge pattern (SQLite test); update Participant.status; check completion
+- `submit_scores`: upsert 使用 select→update/insert 两步法（兼容 SQLite 和 PostgreSQL）：
+```python
+for item in student_results:
+    existing = (await self.db.execute(
+        select(JointExamStudentResult).where(
+            JointExamStudentResult.joint_exam_id == exam_id,
+            JointExamStudentResult.school_id == school_id,
+            JointExamStudentResult.subject_code == subject_code,
+            JointExamStudentResult.student_number == item["student_number"],
+        )
+    )).scalar_one_or_none()
+    if existing:
+        existing.total_score = item["total_score"]
+        existing.detail_scores = item["detail_scores"]
+        existing.student_name = item["student_name"]
+    else:
+        self.db.add(JointExamStudentResult(...))
+```
+Update Participant.status; check completion
 - `force_complete`: assert status in (distributed, collecting), set completed
 
 - [ ] **Step 4: Run tests**
@@ -1193,14 +1211,239 @@ git commit -m "feat: JointExamService — 模板上传+成绩提交+状态推进
 
 - [ ] **Step 1: Write failing tests**
 
-（API 集成测试，使用 client + admin_headers/school_api_headers fixtures）
+```python
+# tests/test_api/test_joint_exams.py
+import pytest
+
+
+@pytest.fixture
+async def exam_setup(client, admin_headers):
+    """Create 2 schools + return their IDs for exam tests."""
+    r1 = await client.post("/api/v1/schools", json={
+        "name": "出题校", "code": "JE_CR", "district": "区1",
+    }, headers=admin_headers)
+    r2 = await client.post("/api/v1/schools", json={
+        "name": "参与校", "code": "JE_PT", "district": "区1",
+    }, headers=admin_headers)
+    return {
+        "creator_id": r1.json()["id"],
+        "participant_id": r2.json()["id"],
+        "creator_key": r1.json()["api_key"],
+        "participant_key": r2.json()["api_key"],
+    }
+
+
+@pytest.mark.asyncio
+async def test_create_joint_exam_api(client, admin_headers, exam_setup):
+    setup = await exam_setup
+    resp = await client.post("/api/v1/joint-exams", json={
+        "name": "春季联考",
+        "subjects": [{"code": "YW", "name": "语文", "max_score": 150}],
+        "creator_school_id": setup["creator_id"],
+    }, headers=admin_headers)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["status"] == "draft"
+    assert data["creator_school_id"] == setup["creator_id"]
+
+
+@pytest.mark.asyncio
+async def test_add_participant_api(client, admin_headers, exam_setup):
+    setup = await exam_setup
+    # Create exam
+    er = await client.post("/api/v1/joint-exams", json={
+        "name": "E", "subjects": [], "creator_school_id": setup["creator_id"],
+    }, headers=admin_headers)
+    exam_id = er.json()["id"]
+    # Add participant
+    resp = await client.post(
+        f"/api/v1/joint-exams/{exam_id}/participants",
+        json={"school_id": setup["participant_id"]},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_distribute_api(client, admin_headers, exam_setup):
+    setup = await exam_setup
+    er = await client.post("/api/v1/joint-exams", json={
+        "name": "E",
+        "subjects": [{"code": "YW", "name": "语文", "max_score": 150}],
+        "creator_school_id": setup["creator_id"],
+    }, headers=admin_headers)
+    exam_id = er.json()["id"]
+    # Upload template via sync endpoint (as creator school)
+    import io
+    resp = await client.post("/api/v1/sync/templates", files={
+        "skeleton": ("skeleton.json", io.BytesIO(b'{"regions": []}'), "application/json"),
+        "pdf": ("template.pdf", io.BytesIO(b"%PDF-fake"), "application/pdf"),
+    }, data={
+        "joint_exam_id": exam_id,
+        "subject_code": "YW",
+        "answer_schema": '[{"id": "q1", "max_score": 10}]',
+    }, headers={"X-API-Key": setup["creator_key"]})
+    assert resp.status_code == 200
+    # Distribute
+    resp = await client.post(
+        f"/api/v1/joint-exams/{exam_id}/distribute", headers=admin_headers,
+    )
+    assert resp.status_code == 200
+```
+
+```python
+# tests/test_api/test_sync_v2.py
+import pytest
+import io
+
+
+@pytest.fixture
+async def sync_setup(client, admin_headers):
+    """Full setup: 2 schools + exam + template uploaded + distributed."""
+    r1 = await client.post("/api/v1/schools", json={
+        "name": "出题校", "code": "SY_CR", "district": "X",
+    }, headers=admin_headers)
+    r2 = await client.post("/api/v1/schools", json={
+        "name": "参与校", "code": "SY_PT", "district": "X",
+    }, headers=admin_headers)
+    creator_key = r1.json()["api_key"]
+    participant_key = r2.json()["api_key"]
+
+    er = await client.post("/api/v1/joint-exams", json={
+        "name": "同步测试联考",
+        "subjects": [{"code": "YW", "name": "语文", "max_score": 150}],
+        "creator_school_id": r1.json()["id"],
+    }, headers=admin_headers)
+    exam_id = er.json()["id"]
+
+    # Add participant
+    await client.post(f"/api/v1/joint-exams/{exam_id}/participants",
+        json={"school_id": r2.json()["id"]}, headers=admin_headers)
+
+    return {
+        "exam_id": exam_id, "creator_key": creator_key,
+        "participant_key": participant_key,
+        "creator_id": r1.json()["id"], "participant_id": r2.json()["id"],
+    }
+
+
+@pytest.mark.asyncio
+async def test_upload_template_sync(client, sync_setup):
+    s = await sync_setup
+    resp = await client.post("/api/v1/sync/templates", files={
+        "skeleton": ("skeleton.json", io.BytesIO(b'{"regions": []}'), "application/json"),
+        "pdf": ("template.pdf", io.BytesIO(b"%PDF-fake"), "application/pdf"),
+    }, data={
+        "joint_exam_id": s["exam_id"],
+        "subject_code": "YW",
+        "answer_schema": '[{"id": "q1", "max_score": 10}]',
+    }, headers={"X-API-Key": s["creator_key"]})
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_pull_exams_with_template_url(client, admin_headers, sync_setup):
+    s = await sync_setup
+    # Upload + distribute first
+    await client.post("/api/v1/sync/templates", files={
+        "skeleton": ("skeleton.json", io.BytesIO(b'{}'), "application/json"),
+        "pdf": ("template.pdf", io.BytesIO(b"%PDF"), "application/pdf"),
+    }, data={
+        "joint_exam_id": s["exam_id"], "subject_code": "YW",
+        "answer_schema": '[{"id": "q1", "max_score": 10}]',
+    }, headers={"X-API-Key": s["creator_key"]})
+    await client.post(f"/api/v1/joint-exams/{s['exam_id']}/distribute", headers=admin_headers)
+
+    # Pull as participant
+    resp = await client.get("/api/v1/sync/joint-exams",
+        headers={"X-API-Key": s["participant_key"]})
+    assert resp.status_code == 200
+    exams = resp.json()["joint_exams"]
+    assert len(exams) >= 1
+    subj = exams[0]["subjects"][0]
+    assert "template_url" in subj
+    assert "/sync/templates/" in subj["template_url"]
+
+
+@pytest.mark.asyncio
+async def test_upload_scores_detail(client, admin_headers, sync_setup):
+    s = await sync_setup
+    # Setup: upload template + distribute
+    await client.post("/api/v1/sync/templates", files={
+        "skeleton": ("skeleton.json", io.BytesIO(b'{}'), "application/json"),
+        "pdf": ("template.pdf", io.BytesIO(b"%PDF"), "application/pdf"),
+    }, data={
+        "joint_exam_id": s["exam_id"], "subject_code": "YW",
+        "answer_schema": '[]',
+    }, headers={"X-API-Key": s["creator_key"]})
+    await client.post(f"/api/v1/joint-exams/{s['exam_id']}/distribute", headers=admin_headers)
+
+    # Upload scores with detail
+    resp = await client.post("/api/v1/sync/scores", json={
+        "joint_exam_id": s["exam_id"],
+        "subject_code": "YW",
+        "student_results": [
+            {"student_name": "张三", "student_number": "001", "total_score": 85,
+             "detail_scores": [{"question_id": "q1", "score": 8, "max_score": 10}]},
+        ],
+    }, headers={"X-API-Key": s["creator_key"]})
+    assert resp.status_code == 200
+    assert resp.json()["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_inactive_school_rejected(client, admin_headers, sync_setup):
+    """已停用学校的 API Key 应返回 401。"""
+    s = await sync_setup
+    # Deactivate creator school
+    await client.patch(f"/api/v1/schools/{s['creator_id']}",
+        json={"is_active": False}, headers=admin_headers)
+    # Try sync
+    resp = await client.post("/api/v1/sync/heartbeat",
+        json={"client_version": "1.0", "exam_ai_port": 8000},
+        headers={"X-API-Key": s["creator_key"]})
+    assert resp.status_code == 401
+```
 
 - [ ] **Step 2: Run, verify fail**
 
 - [ ] **Step 3: Implement**
 
-`joint_exams.py`: 创建/列表/详情/下发/截止/参与校管理
-`sync.py`: 改造 pull_joint_exams（加 template_url + answer_schema），改造 upload_scores（接收 detail_scores），新增 POST /templates（multipart），新增 GET /templates/{exam_id}/{subject}（文件下载）
+**`joint_exams.py`**: 创建/列表/详情/下发/截止/参与校管理（参照 schools.py 模式）。所有端点通过 `JointExamService` 调用。
+
+**`sync.py` 改造** — 关键变更（旧 JointExamScore 引用全部替换）：
+
+1. 删除 `ScoreItem`/`ScoreUploadRequest` 旧模型，替换为新模型：
+```python
+class StudentResultItem(BaseModel):
+    student_name: str
+    student_number: str
+    total_score: float
+    detail_scores: list[dict]  # [{"question_id": "q1", "score": 5.0, "max_score": 10.0}]
+
+class ScoreUploadRequest(BaseModel):
+    joint_exam_id: str
+    subject_code: str
+    student_results: list[StudentResultItem]
+```
+
+2. `upload_scores` 端点改为调用 `JointExamService.submit_scores()`（不再直接操作模型）
+
+3. `pull_joint_exams` 过滤条件从 `["distributed", "scanning", "grading"]` 改为 `["distributed", "collecting"]`，响应增加 `template_url` 和 `answer_detail_schema`：
+```python
+resp["joint_exams"] = [{
+    "id": e.id, "name": e.name, "status": e.status,
+    "subjects": [
+        {**subj, "template_url": f"{base_url}/api/v1/sync/templates/{e.id}/{subj['code']}",
+         "answer_detail_schema": (e.answer_detail_schema or {}).get(subj["code"], [])}
+        for subj in e.subjects
+    ],
+} for e in exams]
+```
+
+4. 新增 `POST /sync/templates`（multipart: skeleton + pdf + answer_schema JSON string）
+5. 新增 `GET /sync/templates/{exam_id}/{subject_code}`（FileResponse 下载）
+6. 删除所有 `JointExamScore` 导入（Grep 确认零残留）
 
 - [ ] **Step 4: Run all tests**
 
@@ -1247,18 +1490,235 @@ git commit -m "feat: 联考管理 API + sync 端点改造（模板上传/下载 
 
 - [ ] **Step 1: Write failing tests**
 
-（Service 测试：seed 2 所学校各 3 个学生的成绩数据，验证排名/统计）
+```python
+# tests/test_services/test_results_service.py
+import pytest
+from edu_cloud.services.results_service import ResultsService
+from edu_cloud.models.joint_exam import JointExam, JointExamStudentResult
+
+
+@pytest.fixture
+async def results_data(db):
+    """Seed exam + 2 schools × 3 students × 1 subject."""
+    exam = JointExam(
+        name="排名测试联考", created_by="user-id", status="completed",
+        subjects=[{"code": "YW", "name": "语文", "max_score": 150}],
+    )
+    db.add(exam)
+    await db.commit()
+
+    students = [
+        # school_id, name, number, score
+        ("s1", "张三", "001", 90.0),
+        ("s1", "李四", "002", 85.0),
+        ("s1", "王五", "003", 70.0),
+        ("s2", "赵六", "004", 95.0),
+        ("s2", "孙七", "005", 60.0),
+        ("s2", "周八", "006", 80.0),
+    ]
+    for sid, name, num, score in students:
+        db.add(JointExamStudentResult(
+            joint_exam_id=exam.id, school_id=sid, subject_code="YW",
+            student_name=name, student_number=num, total_score=score,
+            detail_scores=[{"question_id": "q1", "score": score, "max_score": 150}],
+        ))
+    await db.commit()
+    return exam
+
+
+@pytest.mark.asyncio
+async def test_rankings_by_subject(db, results_data):
+    exam = await results_data
+    svc = ResultsService(db)
+    rankings = await svc.get_rankings(exam.id, subject_code="YW")
+    assert len(rankings) == 6
+    # First place: 赵六 (95)
+    assert rankings[0]["student_name"] == "赵六"
+    assert rankings[0]["total_score"] == 95.0
+    # Rank order is descending
+    scores = [r["total_score"] for r in rankings]
+    assert scores == sorted(scores, reverse=True)
+
+
+@pytest.mark.asyncio
+async def test_rankings_all_subjects(db, results_data):
+    exam = await results_data
+    svc = ResultsService(db)
+    # With only 1 subject, all-subjects ranking = single-subject ranking
+    rankings = await svc.get_rankings(exam.id, subject_code=None)
+    assert len(rankings) == 6
+    assert rankings[0]["total_score"] == 95.0
+
+
+@pytest.mark.asyncio
+async def test_school_comparison(db, results_data):
+    exam = await results_data
+    svc = ResultsService(db)
+    comparison = await svc.get_school_comparison(exam.id)
+    # 2 schools, each with 1 subject
+    assert len(comparison) == 2
+    for entry in comparison:
+        assert "avg_score" in entry
+        assert "max_score" in entry
+        assert "median_score" in entry
+        assert "student_count" in entry
+    # s1: avg=(90+85+70)/3=81.67, s2: avg=(95+60+80)/3=78.33
+    s1_entry = next(e for e in comparison if e["school_id"] == "s1")
+    assert abs(s1_entry["avg_score"] - 81.67) < 0.1
+    assert s1_entry["max_score"] == 90.0
+    assert s1_entry["median_score"] == 85.0  # median of [70, 85, 90]
+
+
+@pytest.mark.asyncio
+async def test_student_detail(db, results_data):
+    exam = await results_data
+    svc = ResultsService(db)
+    detail = await svc.get_student_detail(exam.id, "001")  # 张三
+    assert detail["student_name"] == "张三"
+    assert len(detail["subjects"]) == 1
+    assert detail["subjects"][0]["total_score"] == 90.0
+    assert detail["subjects"][0]["detail_scores"][0]["question_id"] == "q1"
+
+
+@pytest.mark.asyncio
+async def test_rankings_empty_exam(db):
+    """无成绩数据的联考返回空列表。"""
+    exam = JointExam(
+        name="空联考", created_by="u", status="completed", subjects=[],
+    )
+    db.add(exam)
+    await db.commit()
+    svc = ResultsService(db)
+    rankings = await svc.get_rankings(exam.id)
+    assert rankings == []
+```
 
 - [ ] **Step 2: Run, verify fail**
 
 - [ ] **Step 3: Implement**
 
-ResultsService:
-- `get_rankings`: `SELECT student_number, student_name, school_id, total_score ... ORDER BY total_score DESC`, subject_code=None 时 SUM(total_score) GROUP BY student_number
-- `get_school_comparison`: `GROUP BY school_id, subject_code` → AVG/MAX/median/COUNT
-- `get_student_detail`: WHERE student_number=X → 各科 detail_scores + 排名位次
+```python
+# src/edu_cloud/services/results_service.py
+"""成绩查看服务。"""
+import statistics
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 
-API: 3 个 GET 端点（§3.3），需要 VIEW_JOINT_EXAM 或 VIEW_CROSS_SCHOOL_ANALYTICS 权限。
+from edu_cloud.models.joint_exam import JointExamStudentResult
+from edu_cloud.services.exceptions import NotFoundError
+
+
+class ResultsService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_rankings(
+        self, exam_id: str, subject_code: str | None = None,
+    ) -> list[dict]:
+        if subject_code:
+            # Single subject ranking
+            q = (
+                select(JointExamStudentResult)
+                .where(JointExamStudentResult.joint_exam_id == exam_id)
+                .where(JointExamStudentResult.subject_code == subject_code)
+                .order_by(JointExamStudentResult.total_score.desc())
+            )
+            results = (await self.db.execute(q)).scalars().all()
+            return [
+                {"rank": i + 1, "student_name": r.student_name,
+                 "student_number": r.student_number, "school_id": r.school_id,
+                 "total_score": r.total_score}
+                for i, r in enumerate(results)
+            ]
+        else:
+            # All-subjects: SUM(total_score) GROUP BY student
+            q = (
+                select(
+                    JointExamStudentResult.student_number,
+                    JointExamStudentResult.student_name,
+                    JointExamStudentResult.school_id,
+                    func.sum(JointExamStudentResult.total_score).label("total"),
+                )
+                .where(JointExamStudentResult.joint_exam_id == exam_id)
+                .group_by(
+                    JointExamStudentResult.student_number,
+                    JointExamStudentResult.student_name,
+                    JointExamStudentResult.school_id,
+                )
+                .order_by(func.sum(JointExamStudentResult.total_score).desc())
+            )
+            rows = (await self.db.execute(q)).all()
+            return [
+                {"rank": i + 1, "student_name": r.student_name,
+                 "student_number": r.student_number, "school_id": r.school_id,
+                 "total_score": float(r.total)}
+                for i, r in enumerate(rows)
+            ]
+
+    async def get_school_comparison(self, exam_id: str) -> list[dict]:
+        """按学校+科目聚合。median 用 Python statistics.median（兼容 SQLite）。"""
+        q = (
+            select(
+                JointExamStudentResult.school_id,
+                JointExamStudentResult.subject_code,
+                func.avg(JointExamStudentResult.total_score).label("avg"),
+                func.max(JointExamStudentResult.total_score).label("max"),
+                func.count().label("count"),
+            )
+            .where(JointExamStudentResult.joint_exam_id == exam_id)
+            .group_by(
+                JointExamStudentResult.school_id,
+                JointExamStudentResult.subject_code,
+            )
+        )
+        rows = (await self.db.execute(q)).all()
+
+        result = []
+        for row in rows:
+            # Fetch individual scores for median (Python-side, compatible with SQLite)
+            scores_q = (
+                select(JointExamStudentResult.total_score)
+                .where(JointExamStudentResult.joint_exam_id == exam_id)
+                .where(JointExamStudentResult.school_id == row.school_id)
+                .where(JointExamStudentResult.subject_code == row.subject_code)
+            )
+            scores = [s for (s,) in (await self.db.execute(scores_q)).all()]
+            median = statistics.median(scores) if scores else 0.0
+
+            result.append({
+                "school_id": row.school_id,
+                "subject_code": row.subject_code,
+                "avg_score": round(float(row.avg), 2),
+                "max_score": float(row.max),
+                "median_score": median,
+                "student_count": row.count,
+            })
+        return result
+
+    async def get_student_detail(self, exam_id: str, student_number: str) -> dict:
+        q = (
+            select(JointExamStudentResult)
+            .where(JointExamStudentResult.joint_exam_id == exam_id)
+            .where(JointExamStudentResult.student_number == student_number)
+        )
+        results = (await self.db.execute(q)).scalars().all()
+        if not results:
+            raise NotFoundError(f"Student '{student_number}' not found in exam")
+        return {
+            "student_name": results[0].student_name,
+            "student_number": student_number,
+            "school_id": results[0].school_id,
+            "subjects": [
+                {"subject_code": r.subject_code, "total_score": r.total_score,
+                 "detail_scores": r.detail_scores}
+                for r in results
+            ],
+        }
+```
+
+API（`src/edu_cloud/api/results.py`）: 3 个 GET 端点，权限用 `require_permission(Permission.VIEW_JOINT_EXAM)`。注册到 `app.py`。
+
+> **median 实现决策**: 使用 Python `statistics.median()`（从 DB 取全量分数后计算），兼容 SQLite 和 PostgreSQL。数据量小（MVP 2 校），性能不是问题。
 
 - [ ] **Step 4: Run all tests**
 
@@ -1300,6 +1760,15 @@ git commit -m "feat: 成绩查看 — 排名+按校对比+学生明细（4 tests
 2. pull_joint_exams 解析响应 → test: `test_pull_exams_parses_response`
 3. push_scores 组装逐题明细 → test: `test_push_scores_detail_format`
 4. CLOUD_ENABLED=false 路由不注册 → test: `test_cloud_disabled_returns_404`
+
+- [ ] **Step 0: 调研 exam-ai GradingResult 数据结构**
+
+在 exam-ai 中 Grep `GradingResult` 模型，确认字段结构与 `detail_scores` 格式的映射关系：
+```bash
+cd C:/Users/Administrator/exam-ai && grep -n "class GradingResult" src/ -r
+# 确认字段: question_id, score, max_score 等字段名和类型
+```
+将调研结果记录在 push_scores 实现注释中。
 
 - [ ] **Step 1: Write failing tests (mock httpx)**
 
@@ -1357,8 +1826,106 @@ import asyncio
 import httpx
 
 CLOUD_URL = "http://localhost:9000"
-# ... (login → create schools → create exam → upload templates →
-#      distribute → pull exams → submit scores → view rankings)
+
+
+async def main():
+    async with httpx.AsyncClient(base_url=CLOUD_URL) as c:
+        # Step 1: Login as admin
+        r = await c.post("/api/v1/auth/login", json={"username": "admin", "password": "123456"})
+        assert r.status_code == 200, f"Login failed: {r.text}"
+        token = r.json()["access_token"]
+        auth = {"Authorization": f"Bearer {token}"}
+        print("✓ Step 1: Admin login")
+
+        # Step 2: Create 2 schools
+        r1 = await c.post("/api/v1/schools", json={"name": "出题校", "code": "E2E_S1", "district": "测试区"}, headers=auth)
+        assert r1.status_code == 201
+        r2 = await c.post("/api/v1/schools", json={"name": "参与校", "code": "E2E_S2", "district": "测试区"}, headers=auth)
+        assert r2.status_code == 201
+        s1_id, s1_key = r1.json()["id"], r1.json()["api_key"]
+        s2_id, s2_key = r2.json()["id"], r2.json()["api_key"]
+        print("✓ Step 2: 2 schools created")
+
+        # Step 3: Create joint exam (creator = s1)
+        er = await c.post("/api/v1/joint-exams", json={
+            "name": "E2E 联考", "creator_school_id": s1_id,
+            "subjects": [{"code": "YW", "name": "语文", "max_score": 150},
+                         {"code": "SX", "name": "数学", "max_score": 150}],
+        }, headers=auth)
+        assert er.status_code == 201
+        exam_id = er.json()["id"]
+        print(f"✓ Step 3: Exam created ({exam_id[:8]}...)")
+
+        # Step 4: Add participant school
+        await c.post(f"/api/v1/joint-exams/{exam_id}/participants",
+            json={"school_id": s2_id}, headers=auth)
+        print("✓ Step 4: Participant added")
+
+        # Step 5: Upload templates (as creator school via sync)
+        for subj in ["YW", "SX"]:
+            r = await c.post("/api/v1/sync/templates", files={
+                "skeleton": ("skeleton.json", b'{"regions": []}', "application/json"),
+                "pdf": ("template.pdf", b"%PDF-fake-content", "application/pdf"),
+            }, data={"joint_exam_id": exam_id, "subject_code": subj,
+                     "answer_schema": f'[{{"id": "q1", "max_score": 75}}, {{"id": "q2", "max_score": 75}}]'},
+               headers={"X-API-Key": s1_key})
+            assert r.status_code == 200, f"Template upload {subj} failed: {r.text}"
+        print("✓ Step 5: Templates uploaded (auto → templates_ready)")
+
+        # Step 6: Distribute
+        r = await c.post(f"/api/v1/joint-exams/{exam_id}/distribute", headers=auth)
+        assert r.status_code == 200
+        print("✓ Step 6: Distributed")
+
+        # Step 7: Pull exams (as participant school)
+        r = await c.get("/api/v1/sync/joint-exams", headers={"X-API-Key": s2_key})
+        assert r.status_code == 200
+        exams = r.json()["joint_exams"]
+        assert len(exams) >= 1
+        assert "template_url" in exams[0]["subjects"][0]
+        print("✓ Step 7: Participant pulled exams (with template URLs)")
+
+        # Step 8: Submit scores from both schools
+        for key, sid, prefix in [(s1_key, s1_id, "S1"), (s2_key, s2_id, "S2")]:
+            for subj in ["YW", "SX"]:
+                students = [
+                    {"student_name": f"{prefix}_学生{i}", "student_number": f"{prefix}_{i:03d}",
+                     "total_score": 60 + i * 10,
+                     "detail_scores": [{"question_id": "q1", "score": 30+i*5, "max_score": 75},
+                                       {"question_id": "q2", "score": 30+i*5, "max_score": 75}]}
+                    for i in range(1, 6)
+                ]
+                r = await c.post("/api/v1/sync/scores", json={
+                    "joint_exam_id": exam_id, "subject_code": subj,
+                    "student_results": students,
+                }, headers={"X-API-Key": key})
+                assert r.status_code == 200, f"Score upload failed: {r.text}"
+        print("✓ Step 8: Scores submitted (both schools, both subjects)")
+
+        # Step 9: Check exam status → completed
+        r = await c.get(f"/api/v1/joint-exams/{exam_id}", headers=auth)
+        assert r.json()["status"] == "completed"
+        print("✓ Step 9: Exam status → completed")
+
+        # Step 10: View rankings
+        r = await c.get(f"/api/v1/joint-exams/{exam_id}/results?subject_code=YW", headers=auth)
+        assert r.status_code == 200
+        rankings = r.json()
+        assert len(rankings) == 10  # 5 students × 2 schools
+        print(f"✓ Step 10: Rankings (top: {rankings[0]['student_name']} = {rankings[0]['total_score']})")
+
+        # Step 11: View school comparison
+        r = await c.get(f"/api/v1/joint-exams/{exam_id}/results/by-school", headers=auth)
+        assert r.status_code == 200
+        comparison = r.json()
+        assert len(comparison) >= 2
+        print(f"✓ Step 11: School comparison ({len(comparison)} entries)")
+
+        print("\n=== E2E 联考验证完成 ===")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 - [ ] **Step 2: Run against local dev server**
