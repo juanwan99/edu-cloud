@@ -96,7 +96,7 @@ tests/
 | Models | 5 表（school/user/exam/participant/student_result）| 题库模型（BankQuestion/BankCategory）|
 | Services | SchoolService, JointExamService, ResultsService, exceptions | EventBus handler, AI grading |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
-| Tests | 49 tests（API+Service+Model 全覆盖）| — |
+| Tests | 58 tests（API+Service+Model 全覆盖）| — |
 | Migrations | Alembic 脚手架 | 未写 migration 文件 |
 
 ## 技术栈
