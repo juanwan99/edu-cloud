@@ -54,6 +54,27 @@ cd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q
 ## 项目结构
 
 ```
+frontend/src/
+  layouts/
+    WorkbenchLayout.vue     # 三栏布局（左侧边栏 + 顶栏 + 中央内容 + 右侧边栏）
+  pages/
+    LoginPage.vue           # 登录页（Task 4 实现表单）
+    WorkbenchPage.vue       # 工作台主页（组装三栏布局 + 各占位组件）
+  components/
+    context/
+      ContextPanel.vue      # 左栏：数据源选择器（Step 5 实现）
+    workspace/
+      DataView.vue          # 中栏：数据呈现（Task 6 实现）
+    studio/
+      StudioPanel.vue       # 右栏：AI 产出物 + 行动队列（P2 实现）
+  stores/
+    auth.js                 # Pinia auth store（token/displayName/currentRole/roles/scope）
+  router/                   # Vue Router（/login + / 含 requiresAuth 守卫）
+  main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
+  App.vue                   # 根组件
+```
+
+```
 src/edu_cloud/
   api/
     app.py              # FastAPI 应用工厂 + lifespan + 请求日志中间件 + 全局异常处理器
