@@ -35,7 +35,7 @@ async def create_school(
     school, plaintext_key = await svc.create_school(
         name=req.name, code=req.code, district=req.district,
     )
-    logger.info("school created: code=%s by user=%s", req.code, user.username)
+    logger.info("school created: code=%s by user=%s", req.code, user["user"].username)
     return {
         "id": school.id, "name": school.name, "code": school.code,
         "district": school.district, "is_active": school.is_active,
@@ -98,5 +98,5 @@ async def rotate_key(
 ):
     svc = SchoolService(db)
     new_key = await svc.rotate_api_key(school_id)
-    logger.info("api key rotated: school=%s by user=%s", school_id, user.username)
+    logger.info("api key rotated: school=%s by user=%s", school_id, user["user"].username)
     return {"api_key": new_key}

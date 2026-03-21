@@ -5,11 +5,10 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.database import get_db
-from edu_cloud.models.platform_user import PlatformUser
 from edu_cloud.shared.auth import decode_token
 from jose import ExpiredSignatureError, JWTError
 
-from edu_cloud.core.permissions import Permission, has_permission
+from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
 from edu_cloud.services.exceptions import PermissionDeniedError
 
 logger = logging.getLogger(__name__)
@@ -20,8 +19,8 @@ security = HTTPBearer()
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
-) -> PlatformUser:
-    """平台用户认证（JWT）。用于管理端。"""
+) -> dict:
+    """平台用户认证（JWT）。返回 dict 含 user/roles/current_role/permissions。"""
     try:
         payload = decode_token(credentials.credentials)
     except ExpiredSignatureError:
@@ -33,20 +32,75 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(401, "Invalid token")
 
-    result = await db.execute(select(PlatformUser).where(PlatformUser.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        logger.warning("token user_id=%s not found", user_id)
+    # 优先查新 User 模型
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+
+    user = await db.get(User, user_id)
+    if user:
+        if not user.is_active:
+            raise HTTPException(401, "User not found or inactive")
+
+        roles = (
+            await db.execute(select(UserRole).where(UserRole.user_id == user.id))
+        ).scalars().all()
+        if not roles:
+            raise HTTPException(403, "No role assigned")
+
+        # 选择活跃角色
+        active_role_id = payload.get("active_role_id")
+        if active_role_id:
+            active = next((r for r in roles if r.id == active_role_id), None)
+        else:
+            active = next((r for r in roles if r.is_primary), roles[0])
+
+        if active is None:
+            active = roles[0]
+
+        return {
+            "user": user,
+            "roles": roles,
+            "current_role": active,
+            "permissions": ROLE_PERMISSIONS.get(active.role, set()),
+        }
+
+    # Fallback: 查旧 PlatformUser（迁移期兼容）
+    from edu_cloud.models.platform_user import PlatformUser
+
+    result = await db.execute(
+        select(PlatformUser).where(PlatformUser.id == user_id)
+    )
+    pu = result.scalar_one_or_none()
+    if not pu:
+        logger.warning("token user_id=%s not found in User or PlatformUser", user_id)
         raise HTTPException(401, "User not found")
-    return user
+
+    # 包装 PlatformUser 为统一 dict 格式
+    class _LegacyRole:
+        """Minimal role object for PlatformUser backward compat."""
+        def __init__(self, role: str):
+            self.id = None
+            self.role = role
+            self.school_id = None
+            self.grade_ids = None
+            self.class_ids = None
+            self.subject_codes = None
+            self.is_primary = True
+
+    return {
+        "user": pu,
+        "roles": [],
+        "current_role": _LegacyRole(pu.role),
+        "permissions": ROLE_PERMISSIONS.get(pu.role, set()),
+    }
 
 
 def require_permission(permission: Permission):
     """Factory: returns a FastAPI dependency that checks the user has a permission."""
-    async def checker(user: PlatformUser = Depends(get_current_user)):
-        if not has_permission(user.role, permission):
+    async def checker(current: dict = Depends(get_current_user)):
+        if permission not in current["permissions"]:
             raise PermissionDeniedError(
-                f"Role '{user.role}' lacks permission '{permission.value}'"
+                f"Role '{current['current_role'].role}' lacks permission '{permission.value}'"
             )
-        return user
+        return current
     return checker

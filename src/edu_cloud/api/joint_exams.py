@@ -36,10 +36,10 @@ async def create_exam(
         name=req.name,
         subjects=req.subjects,
         creator_school_id=req.creator_school_id,
-        created_by=user.id,
+        created_by=user["user"].id,
         description=req.description,
     )
-    logger.info("joint exam created via API: id=%s by user=%s", exam.id, user.username)
+    logger.info("joint exam created via API: id=%s by user=%s", exam.id, user["user"].username)
     return {
         "id": exam.id, "name": exam.name, "status": exam.status,
         "subjects": exam.subjects, "creator_school_id": exam.creator_school_id,

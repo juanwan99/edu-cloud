@@ -27,28 +27,36 @@ async def lifespan(app: FastAPI):
     import edu_cloud.models.school  # noqa: F401
     import edu_cloud.models.platform_user  # noqa: F401
     import edu_cloud.models.joint_exam  # noqa: F401
+    import edu_cloud.models.user  # noqa: F401
+    import edu_cloud.models.user_role  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("database tables created")
 
-    # Seed platform admin
+    # Seed platform admin (new User + UserRole model)
     from edu_cloud.database import async_session
-    from edu_cloud.models.platform_user import PlatformUser
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
     from sqlalchemy import select
 
     async with async_session() as db:
         existing = (
-            await db.execute(select(PlatformUser).where(PlatformUser.username == "admin"))
+            await db.execute(select(User).where(User.username == "admin"))
         ).scalar_one_or_none()
         if not existing:
-            admin = PlatformUser(
+            admin = User(
                 username="admin",
                 display_name="平台管理员",
-                role="platform_admin",
             )
             admin.set_password("123456")
             db.add(admin)
+            await db.flush()
+            db.add(UserRole(
+                user_id=admin.id,
+                role="platform_admin",
+                is_primary=True,
+            ))
             await db.commit()
             logger.info("seed: platform admin created (admin/123456)")
         else:
