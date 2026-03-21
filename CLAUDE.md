@@ -126,18 +126,22 @@ tests/
 
 ## 角色体系
 
-### 平台级角色（edu-cloud 管理）
+### 统一角色体系（edu-cloud 管理，P0 重构后）
+
+> 重构声明（2026-03-21）：edu-cloud 从联考后端升级为统一平台后，
+> 学校内角色由 edu-cloud 直接管理，不再由 exam-ai 管理。
+> exam-ai 退化为数据采集节点。详见 `docs/plans/2026-03-21-super-platform-design.md` §1。
 
 | 角色 | 权限 | 说明 |
 |------|------|------|
 | platform_admin | 全部 | 平台超管 |
 | district_admin | 管辖区域内学校 | 教育局管理员 |
-| exam_coordinator | 联考编排+查看 | 联考协调员 |
-| observer | 只读 | 数据查看 |
-
-### 学校内角色（exam-ai 管理，云端不介入）
-
-admin / principal / subject_leader / head_teacher / teacher
+| principal | 全校管理+分析 | 校长 |
+| academic_director | 教务+联考+分析 | 教务主任 |
+| grade_leader | 本年级分析 | 年级组长 |
+| homeroom_teacher | 本班管理+评语+通知 | 班主任 |
+| subject_teacher | 所教班+学科+论文 | 科任教师 |
+| parent | 只看自己孩子 | 家长（企微登录）|
 
 ## API 端点（已实现）
 

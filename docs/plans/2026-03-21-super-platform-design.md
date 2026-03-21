@@ -6,6 +6,11 @@
 > 参照: Google NotebookLM 三栏布局
 > GPT 架构审查: architecture-codex-review.md (2026-03-21, Q1-Q7 共识达成)
 
+### §待处置（GPT Plan Review design-concern）
+
+- **PR-07**: CLAUDE.md 角色边界已更新（2026-03-21），exam-ai 侧 CLAUDE.md 待同步
+- **PR-08**: 引入 Alembic migration 后应停用 `create_all()` 启动自动建表。P0 Task 8 实施时处理。
+
 ---
 
 ## §0 设计概要

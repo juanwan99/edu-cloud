@@ -409,6 +409,15 @@ def test_user_has_required_fields():
 
 def test_user_table_name():
     assert User.__tablename__ == "users"
+
+def test_username_unique_constraint():
+    """PR-05: username 必须有唯一约束"""
+    username_col = User.__table__.c.username
+    assert username_col.unique is True
+
+def test_username_not_nullable():
+    username_col = User.__table__.c.username
+    assert username_col.nullable is False
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
@@ -609,15 +618,22 @@ async def get_current_user(
         select(UserRole).where(UserRole.user_id == user.id)
     )
     roles = result.scalars().all()
-    primary = next((r for r in roles if r.is_primary), roles[0] if roles else None)
-    if not primary:
+    if not roles:
         raise HTTPException(403, "No role assigned")
+
+    # PR-01 修复：支持角色切换
+    # JWT payload 含 active_role_id（可选），前端切换角色时重新请求 token
+    active_role_id = payload.get("active_role_id")
+    if active_role_id:
+        active = next((r for r in roles if r.id == active_role_id), None)
+    else:
+        active = next((r for r in roles if r.is_primary), roles[0])
 
     return {
         "user": user,
         "roles": roles,
-        "current_role": primary,
-        "permissions": ROLE_PERMISSIONS.get(primary.role, set()),
+        "current_role": active,
+        "permissions": ROLE_PERMISSIONS.get(active.role, set()),
     }
 
 def require_permission(permission: Permission):
@@ -656,9 +672,26 @@ async def test_permission_denied_for_wrong_role(client, teacher_headers):
     assert resp.status_code == 403
 ```
 
-- [ ] **Step 11: 更新 auth.py 登录接口**
+- [ ] **Step 11: 更新 auth.py 登录接口 + seed 新管理员**
 
 修改 login 端点查询新 User + UserRole 表，返回角色列表。
+同时更新 `app.py` 的 lifespan seed 逻辑，改为创建新 `User` + `UserRole(platform_admin)` 而非旧 `PlatformUser`。
+新增 `POST /api/v1/auth/switch-role` 端点：接收 `role_id`，签发含 `active_role_id` 的新 JWT。
+
+```python
+# app.py lifespan seed 改造（PR-02）
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
+
+existing = await db.execute(select(User).where(User.username == "admin"))
+if not existing.scalar_one_or_none():
+    admin = User(username="admin", display_name="平台管理员",
+                 hashed_password=bcrypt.hashpw(b"123456", bcrypt.gensalt()).decode())
+    db.add(admin)
+    await db.flush()
+    db.add(UserRole(user_id=admin.id, role="platform_admin", is_primary=True))
+    await db.commit()
+```
 
 - [ ] **Step 12: 更新 conftest.py 添加新 fixture**
 
@@ -809,8 +842,15 @@ export const useAuthStore = defineStore('auth', () => {
     router.push('/')
   }
 
-  function switchRole(index) {
+  async function switchRole(index) {
+    // PR-01: 切换角色时请求新 token（后端按 active_role_id 签发）
     currentRoleIndex.value = index
+    const roleId = roles.value[index]?.id
+    if (roleId) {
+      const { data } = await client.post('/auth/switch-role', { role_id: roleId })
+      token.value = data.access_token
+      localStorage.setItem('token', data.access_token)
+    }
   }
 
   function logout() {
@@ -894,7 +934,27 @@ git commit -m "feat(P0-4): 登录页 + auth store + 角色切换器 + API 客户
 - ✓ Token 存储到 localStorage
 - ✓ 401 自动跳转登录页
 - ✓ 角色切换器显示所有角色
+- ✓ 切换角色后请求新 token（后端 active_role_id 生效）
 - ✗ 不应明文存储密码
+
+**边界条件（PR-06 补充）:**
+- 用户名密码为空 → 期望: 前端阻止提交或后端 422
+- 用户不存在 → 期望: 401 "用户名或密码错误"（不泄露是用户名还是密码错误）
+- 用户 is_active=False → 期望: 401 "账号已停用"
+
+**测试契约（PR-06 补充）:**
+1. 登录失败返回 401
+   - 入口: `POST /api/v1/auth/login` body=`{username: "wrong", password: "wrong"}`
+   - 反例: 错误实现可能返回 200 + 空 token
+   - 边界: 空用户名 / 空密码 / 已停用用户 / 正确用户名错误密码
+   - 回归: N/A
+   - 命令: `python -m pytest tests/test_api/test_auth_v2.py::test_login_failure -v`
+2. 角色切换后权限变化
+   - 入口: `POST /api/v1/auth/switch-role` + 后续 API 调用
+   - 反例: 错误实现可能只更新前端显示而不更新后端权限
+   - 边界: 切换到不存在的 role_id / 切换到非自有角色
+   - 回归: N/A
+   - 命令: `python -m pytest tests/test_api/test_auth_v2.py::test_switch_role -v`
 
 ---
 
@@ -959,6 +1019,11 @@ class Student(Base, IdMixin, TimestampMixin):
     class_id = Column(String, nullable=True)
     grade = Column(String, nullable=True)
     gender = Column(String, nullable=True)
+
+    # PR-09: upsert 幂等保证
+    __table_args__ = (
+        UniqueConstraint("school_id", "student_number", name="uq_student_school_number"),
+    )
 ```
 
 ```python
@@ -997,6 +1062,11 @@ class ExamResult(Base, IdMixin, TimestampMixin):
     school_id = Column(String, ForeignKey("registered_schools.id"), nullable=False)
     total_score = Column(Float, nullable=False)
     detail_scores = Column(JSON, nullable=True)
+
+    # PR-09: upsert 幂等保证
+    __table_args__ = (
+        UniqueConstraint("exam_id", "student_id", name="uq_result_exam_student"),
+    )
 ```
 
 - [ ] **Step 4: 运行确认通过**
@@ -1047,7 +1117,7 @@ async def test_sync_exam_results(client, school_api_headers):
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_school_by_api_key
+from edu_cloud.api.sync import get_school_by_api_key  # PR-04: 函数定义在 sync.py，非 deps.py；后续应提取到 deps.py
 
 router = APIRouter(prefix="/api/v1/sync", tags=["sync"])
 
@@ -1247,11 +1317,15 @@ class WorkspaceService:
             "exams": [{"id": e.id, "name": e.name, "subject_code": e.subject_code, "semester": e.semester} for e in exams],
         }
 
-    async def get_exam_dashboard(self, exam_id: str) -> dict:
-        """获取考试仪表盘数据（成绩分布 + 统计）"""
-        results = (await self.db.execute(
-            select(ExamResult).where(ExamResult.exam_id == exam_id)
-        )).scalars().all()
+    async def get_exam_dashboard(self, exam_id: str, school_id: str, scope: dict) -> dict:
+        """获取考试仪表盘数据（成绩分布 + 统计），按 scope 过滤"""
+        # PR-03: 必须按 school_id + class_ids 过滤，班主任只看本班
+        q = select(ExamResult).where(ExamResult.exam_id == exam_id, ExamResult.school_id == school_id)
+        if scope.get("class_ids"):
+            q = q.join(Student, ExamResult.student_id == Student.id).where(
+                Student.class_id.in_(scope["class_ids"])
+            )
+        results = (await self.db.execute(q)).scalars().all()
 
         scores = [r.total_score for r in results]
         if not scores:
@@ -1317,7 +1391,12 @@ async def get_exam_dashboard(
     db: AsyncSession = Depends(get_db),
 ):
     svc = WorkspaceService(db)
-    return await svc.get_exam_dashboard(exam_id)
+    role = current["current_role"]
+    # PR-03: 传入 scope 过滤
+    return await svc.get_exam_dashboard(exam_id, role.school_id, {
+        "class_ids": role.class_ids,
+        "grade_ids": role.grade_ids,
+    })
 ```
 
 - [ ] **Step 4: 运行后端测试**
