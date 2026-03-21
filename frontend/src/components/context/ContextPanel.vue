@@ -1,6 +1,33 @@
 <template>
   <div style="padding: 16px">
-    <n-h3>上下文</n-h3>
-    <n-text depth="3">P0: 数据源选择器将在 Step 5 实现</n-text>
+    <n-h4>考试</n-h4>
+    <n-menu
+      :options="examOptions"
+      :value="contextStore.selectedExamId"
+      @update:value="contextStore.selectExam"
+    />
+    <n-divider />
+    <n-h4>班级</n-h4>
+    <n-list>
+      <n-list-item v-for="cls in contextStore.classes" :key="cls.id">
+        {{ cls.name }}
+      </n-list-item>
+    </n-list>
   </div>
 </template>
+
+<script setup>
+import { computed, onMounted } from 'vue'
+import { useContextStore } from '../../stores/context.js'
+
+const contextStore = useContextStore()
+
+const examOptions = computed(() =>
+  contextStore.exams.map(e => ({
+    label: `${e.name} (${e.subject_code})`,
+    key: e.id,
+  }))
+)
+
+onMounted(() => contextStore.loadContext())
+</script>
