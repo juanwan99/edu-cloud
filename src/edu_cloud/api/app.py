@@ -29,6 +29,9 @@ async def lifespan(app: FastAPI):
     import edu_cloud.models.joint_exam  # noqa: F401
     import edu_cloud.models.user  # noqa: F401
     import edu_cloud.models.user_role  # noqa: F401
+    import edu_cloud.models.student  # noqa: F401
+    import edu_cloud.models.class_group  # noqa: F401
+    import edu_cloud.models.exam  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -130,11 +133,13 @@ def create_app() -> FastAPI:
     # Register routers
     from edu_cloud.api.auth import router as auth_router
     from edu_cloud.api.sync import router as sync_router
+    from edu_cloud.api.sync_students import router as sync_students_router
     from edu_cloud.api.schools import router as schools_router
     from edu_cloud.api.joint_exams import router as joint_exams_router
     from edu_cloud.api.results import router as results_router
     app.include_router(auth_router)
     app.include_router(sync_router)
+    app.include_router(sync_students_router)
     app.include_router(schools_router)
     app.include_router(joint_exams_router)
     app.include_router(results_router)
