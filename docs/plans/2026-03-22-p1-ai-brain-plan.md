@@ -535,6 +535,38 @@ async def test_get_class_stats(db, seed_exam_with_results):
     assert "count" in result
 
 @pytest.mark.asyncio
+async def test_compare_classes(db, seed_exam_with_results):
+    """GPT-F5: 班级对比工具返回统计"""
+    exam_id = seed_exam_with_results["exam_id"]
+    school_id = seed_exam_with_results["school_id"]
+    result = await compare_classes(
+        exam_id=exam_id, _db=db, _school_id=school_id, _class_ids=None
+    )
+    assert "classes" in result
+    assert len(result["classes"]) >= 1
+    assert "avg" in result["classes"][0]
+    assert "count" in result["classes"][0]
+
+@pytest.mark.asyncio
+async def test_get_student_profile(db, seed_exam_with_results):
+    """GPT-F5: 学生画像返回考试记录"""
+    school_id = seed_exam_with_results["school_id"]
+    result = await get_student_profile(
+        student_number="T000", _db=db, _school_id=school_id
+    )
+    assert "name" in result
+    assert "exams" in result
+    assert len(result["exams"]) >= 1
+
+@pytest.mark.asyncio
+async def test_get_student_profile_not_found(db, seed_exam_with_results):
+    """GPT-F5: 学生不存在"""
+    result = await get_student_profile(
+        student_number="NONEXIST", _db=db, _school_id=seed_exam_with_results["school_id"]
+    )
+    assert "error" in result
+
+@pytest.mark.asyncio
 async def test_get_exam_scores_empty(db, seed_exam_with_results):
     """空考试无成绩"""
     result = await get_exam_scores(
@@ -1136,14 +1168,16 @@ logger = logging.getLogger(__name__)
 # 2. LLM 最终回答 → 反匿名化后再返回前端
 # 3. 匿名映射绑定会话，run() 结束后 reset()
 
+# GPT-F1: 未知角色默认空列表（拒绝），不是 None（全部）
 ROLE_TOOL_CATEGORIES = {
-    "platform_admin": None,  # None = all
+    "platform_admin": None,  # None = all（仅超管）
     "district_admin": ["L2_cross_school"],
     "principal": ["L1_analytics", "L2_cross_school"],
     "academic_director": ["L1_analytics", "L2_cross_school"],
     "grade_leader": ["L1_analytics"],
     "homeroom_teacher": ["L1_analytics"],
     "subject_teacher": ["L1_analytics"],
+    # parent 不在列表中 → 默认走 else 分支 → 空工具集
 }
 
 class Agent:
@@ -1162,10 +1196,12 @@ class Agent:
         role: str,
         display_name: str,
         scope: dict,
+        audit: "AuditLogger | None" = None,  # GPT-F3: 审计日志器
     ) -> AsyncGenerator[AgentEvent, None]:
         """执行 ReAct 循环，yield AgentEvent 流"""
         # 1. 确定可用工具
-        categories = ROLE_TOOL_CATEGORIES.get(role)
+        # GPT-F1: 未知角色默认空工具集（拒绝），而非 None（全部）
+        categories = ROLE_TOOL_CATEGORIES.get(role, [])  # 默认 [] 而非 None
         tool_schemas = self.registry.get_schemas(categories=categories)
         tool_names = [s["function"]["name"] for s in tool_schemas]
 
@@ -1211,6 +1247,17 @@ class Agent:
                 except Exception as e:
                     logger.error(f"Tool {tc.name} failed: {e}")
                     result = {"error": str(e)}
+
+                # GPT-F3: 审计写入
+                import time as _time
+                duration = (_time.monotonic() - _time.monotonic())  # 实际实现用 start/end 计时
+                if audit:
+                    await audit.log_tool_call(
+                        session_id=session_id, user_id="", role=role,
+                        tool=tc.name, arguments=tc.arguments,
+                        result=json.dumps(result, ensure_ascii=False, default=str)[:500],
+                        duration_ms=0,
+                    )
 
                 # 匿名化工具结果中的学生姓名
                 student_names = self._extract_names(result)
@@ -1302,7 +1349,9 @@ class AiSession(Base, IdMixin, TimestampMixin):
     __tablename__ = "ai_sessions"
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     role = Column(String(50), nullable=False)
-    context_snapshot = Column(JSON, nullable=True)   # 会话开始时的左栏上下文
+    school_id = Column(String, nullable=True)         # GPT-F4: RLS 隔离
+    context_snapshot = Column(JSON, nullable=True)    # 会话开始时的左栏上下文
+    messages = Column(JSON, nullable=True)            # GPT-F4: 消息记录（设计要求）
 
 class AiToolCall(Base, IdMixin, TimestampMixin):
     __tablename__ = "ai_tool_calls"
@@ -1364,16 +1413,25 @@ async def test_ai_health(client):
 
 @pytest.mark.asyncio
 async def test_ai_chat_requires_auth(client):
-    """未认证时 401"""
+    """GPT-F6: 未认证时 401/403"""
     resp = await client.post("/api/v1/ai/chat", json={"message": "你好"})
     assert resp.status_code in (401, 403)
 
 @pytest.mark.asyncio
 async def test_ai_chat_empty_message(client, teacher_headers):
-    """空消息返回 422"""
-    resp = await client.post("/api/v1/ai/chat", json={"message": ""})
-    # 空消息应被拒绝或返回提示
-    assert resp.status_code in (422, 400) or resp.status_code == 200
+    """GPT-F6: 空消息返回错误"""
+    resp = await client.post("/api/v1/ai/chat", json={"message": ""}, headers=teacher_headers)
+    assert resp.status_code == 200  # SSE 或 JSON
+    data = resp.json()
+    assert "error" in data or "消息不能为空" in str(data)
+
+@pytest.mark.asyncio
+async def test_ai_chat_parent_forbidden(client):
+    """GPT-F1: parent 角色无 USE_AI_CHAT 权限，应 403"""
+    # 需要创建 parent 用户 fixture 并获取 token
+    # parent 角色在 ROLE_PERMISSIONS 中没有 USE_AI_CHAT
+    # 此测试由 executor 实现 parent_headers fixture 后补充
+    pass
 ```
 
 - [ ] **Step 5: 实现 AI API 路由**
@@ -1386,7 +1444,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
 from edu_cloud.ai.agent import Agent
 from edu_cloud.ai.llm import LLMClient
 from edu_cloud.ai.registry import tools
@@ -1405,7 +1464,7 @@ async def ai_health():
 @router.post("/chat")
 async def ai_chat(
     body: dict,
-    current=Depends(get_current_user),
+    current=Depends(require_permission(Permission.USE_AI_CHAT)),  # GPT-F1: 强制权限检查
     db: AsyncSession = Depends(get_db),
 ):
     message = body.get("message", "").strip()
@@ -1416,12 +1475,20 @@ async def ai_chat(
     role_obj = current["current_role"]
     role = role_obj.role if hasattr(role_obj, "role") else getattr(role_obj, "_role", "unknown")
 
-    # 构建 scope 描述
+    # GPT-F2: 构建完整 scope（贯穿 grade_ids/subject_codes）
     scope = {}
     if hasattr(role_obj, "school_id") and role_obj.school_id:
         scope["school"] = role_obj.school_id
     if hasattr(role_obj, "class_ids") and role_obj.class_ids:
         scope["classes"] = role_obj.class_ids
+    if hasattr(role_obj, "grade_ids") and role_obj.grade_ids:
+        scope["grades"] = role_obj.grade_ids
+    if hasattr(role_obj, "subject_codes") and role_obj.subject_codes:
+        scope["subjects"] = role_obj.subject_codes
+
+    # GPT-F3: 创建审计会话
+    audit = AuditLogger(db)
+    session_id = await audit.create_session(user.id, role, context=scope)
 
     llm = LLMClient()
     agent = Agent(llm=llm, registry=tools)
@@ -1429,13 +1496,14 @@ async def ai_chat(
     async def event_stream():
         async for event in agent.run(
             user_message=message,
-            session_id="temp",
+            session_id=session_id,
             db=db,
             school_id=getattr(role_obj, "school_id", None),
             class_ids=getattr(role_obj, "class_ids", None),
             role=role,
             display_name=user.display_name,
             scope=scope,
+            audit=audit,  # GPT-F3: 传入审计日志器
         ):
             yield f"data: {json.dumps(event.to_dict(), ensure_ascii=False)}\n\n"
 
@@ -1634,8 +1702,12 @@ const inputText = ref('')
 const messagesContainer = ref(null)
 
 function renderMarkdown(text) {
-  // 简单 Markdown：粗体、换行、代码块
-  return text
+  // GPT-XSS: 先转义 HTML 实体，再处理 Markdown
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  return escaped
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\n/g, '<br>')
 }
