@@ -13,7 +13,7 @@ from alembic import context
 from edu_cloud.models.base import Base  # noqa: F401
 from edu_cloud.models.user import User  # noqa: F401
 from edu_cloud.models.user_role import UserRole  # noqa: F401
-from edu_cloud.models.school import RegisteredSchool  # noqa: F401
+from edu_cloud.models.school import School  # noqa: F401
 from edu_cloud.models.student import Student  # noqa: F401
 from edu_cloud.models.class_group import ClassGroup  # noqa: F401
 from edu_cloud.models.exam import Exam, ExamResult  # noqa: F401

@@ -9,4 +9,4 @@ class ClassGroup(Base, IdMixin, TimestampMixin):
     name = Column(String, nullable=False)
     grade = Column(String, nullable=False)
     grade_number = Column(Integer, nullable=True)
-    school_id = Column(String, ForeignKey("registered_schools.id"), nullable=False)
+    school_id = Column(String, ForeignKey("schools.id"), nullable=False)

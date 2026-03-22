@@ -1,0 +1,788 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d1340-34ea-7cc0-bf06-f357f1723335
+--------
+user
+You are a code reviewer performing Round 2 review after the team fixed 4 findings.
+
+## Round 1 Findings (all fixed)
+- R1 (HIGH, code-bug): Tool category mismatch — analytics registered as "analytics" but ROLE_TOOL_CATEGORIES expected "L1_analytics". **Fix**: Changed all 4 registrations to category="L1_analytics".
+- R2 (HIGH, code-bug): get_class_stats/get_student_profile didn't check _class_ids scope. **Fix**: Added scope validation, returns error if class_id not in _class_ids.
+- R3 (HIGH, code-bug): Audit didn't persist (flush without commit), agent didn't call audit.log_tool_call(). **Fix**: Added commit() to audit methods, agent now calls log_tool_call with timing.
+- R4 (MED, test-gap): Tests used fake registry. **Fix**: Added integration tests with real registry, scope enforcement tests, audit call verification test.
+
+## Your Job
+1. Read the fix: git diff 2a10fd3..399a890
+2. Verify each finding is properly fixed
+3. Complete full 3-phase review
+
+Read plan: C:/Users/Administrator/edu-cloud/docs/plans/2026-03-22-p1-ai-brain-plan.md
+Commits: git log --oneline bba413e~1..399a890
+Fix diff: git diff 2a10fd3..399a890
+Also read: src/edu_cloud/ai/tools/analytics.py, src/edu_cloud/ai/agent.py, src/edu_cloud/ai/audit.py, tests/test_ai/test_registry.py, tests/test_ai/test_tools_analytics.py, tests/test_ai/test_agent.py
+
+Review all 3 phases. Finding Classification: code-bug / test-gap / design-concern / suggestion.
+PASS/FAIL: code-bug or test-gap HIGH/MED unfixed → FAIL.
+For each finding: ID, Severity, Category, Evidence, Impact, Suggested action.
+Conclude with PASS or FAIL. Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md' -TotalCount 220" in C:/Users/Administrator/edu-cloud succeeded in 817ms:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+Plan update
+按 3 个阶段执行复审：先确认范围与上下文，再逐项验证修复并检查回归，最后汇总结论。
+  → 阶段1：读取计划、提交记录、diff 与相关文件，梳理修复范围与上下文
+  • 阶段2：逐项验证 R1-R4 修复是否完整，并审查变更是否引入新的问题
+  • 阶段3：按分类与严重度整理发现，给出 PASS/FAIL 结论
+codex
+我会使用 `code-review:review-pr` 技能，因为这是一次明确的第二轮代码审查任务，需要按阶段系统验证修复并查找回归。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git log --oneline bba413e~1..399a890' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git status --short' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --stat 2a10fd3..399a890' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/docs/plans/2026-03-22-p1-ai-brain-plan.md'" in C:/Users/Administrator/edu-cloud succeeded in 1.04s:
+399a890 fix(ai): 修复 4 个 code-bug — 工具 category 对齐 + scope 越权阻断 + 审计持久化 + 真实 registry 测试
+829ae5f review: P1 AI 大脑 batch 1 审查交接单
+2a10fd3 feat(P1-7): AI 对话前端 — ChatPanel + SSE 流解析 + 工具调用标签
+37d9161 feat(P1-6): AI SSE 端点 + 审计模型 + 路由注册
+8895bef feat(P1-5): ReAct 循环引擎 — 角色工具过滤 + max_steps 保护 + 工具执行 + 事件流
+9621e04 feat(P1-3): L1 校本分析工具 — get_exam_scores + get_class_stats + compare_classes + get_student_profile
+b2d9936 feat(P1-1): AI schemas + LLM client + config（llm-proxy 8100）
+d60a3d8 feat(P1-4): 匿名化器 + 上下文构建（角色/scope/工具注入 system prompt）
+bba413e feat(P1-2): 工具注册表 — @register 装饰器 + category 过滤 + 框架参数注入
+ succeeded in 1.05s:
+ ...2026-03-22-p1-ai-brain-review-handoff-batch1.md | 114 +++++++++++++++++++++
+ src/edu_cloud/ai/agent.py                          |  19 ++++
+ src/edu_cloud/ai/audit.py                          |   2 +
+ src/edu_cloud/ai/tools/analytics.py                |  18 +++-
+ tests/test_ai/test_agent.py                        |  36 +++++++
+ tests/test_ai/test_registry.py                     |  35 +++++++
+ tests/test_ai/test_tools_analytics.py              |  70 +++++++++++++
+ 7 files changed, 290 insertions(+), 4 deletions(-)
+ succeeded in 1.13s:
+?? .task/
+?? docs/plans/.codex-code-review-r2-raw.log
+?? docs/plans/.codex-code-review-r3-raw.log
+?? docs/plans/.codex-code-review-raw.log
+?? docs/plans/.codex-p1-code-review-r2-raw.log
+?? docs/plans/.codex-p1-code-review-raw.log
+?? uploads/
+ succeeded in 2.08s:
+# P1 AI 澶ц剳瀹炴柦璁″垝
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 涓?edu-cloud 涓夋爮宸ヤ綔鍙版帴鍏?AI Agent 寮曟搸鈥斺€旀暀甯堝湪涓爮搴曢儴鐢ㄨ嚜鐒惰瑷€鎻愰棶锛孉I 璋冪敤宸ュ叿鏌ヨ鏁版嵁骞惰繑鍥炲垎鏋愮粨鏋溿€?
+**Architecture:** 鑷缓 ReAct 寰幆锛堝弬鑰?exam-ai锛夛紝宸ュ叿娉ㄥ唽琛ㄦ寜瑙掕壊杩囨护銆侺LM 璋冪敤璧?llm-proxy (port 8100)銆傚墠绔€氳繃 SSE 娴佸紡鎺ユ敹 AI 鍥炵瓟鍜屽伐鍏疯皟鐢ㄨ繃绋嬨€傚鐢熷鍚嶅湪鍙戦€佺粰 LLM 鍓嶅尶鍚嶅寲銆?
+**Tech Stack:** Python asyncio, httpx (LLM client), SSE (sse-starlette), Vue 3 + EventSource (鍓嶇)
+
+**Design Doc:** `docs/plans/2026-03-21-super-platform-design.md` 搂5
+
+**P0 鍩虹:** 94 tests, User + UserRole + scope RBAC, WorkspaceService, 涓夋爮鍓嶇
+
+**瀹屾垚鏍囧織:** 鐝富浠婚棶"鎴戜滑鐝暟瀛﹁€冨緱鎬庝箞鏍? 鈫?AI 璋冪敤 `get_exam_scores` 宸ュ叿 鈫?杩斿洖甯﹀垎鏋愮殑鍥炵瓟
+
+**Scope 璇存槑:** 璁捐鏂囨。 P1 鍒楀嚭 L2 璺ㄦ牎宸ュ叿锛?涓級锛屼絾瀹屾垚鏍囧織鍙渶 L1銆侺2 宸ュ叿锛坄cross_school.py`锛夊欢鏈熷埌 P1 鍚庣画杩唬锛屾枃浠剁粨鏋勪腑淇濈暀鍗犱綅銆倀oken 璁¤垂锛坄ai_cost_log`锛夊拰 k-鍖垮悕锛?5浜轰笉鏆撮湶锛夊悓鏍峰欢鏈熴€?
+---
+
+## 鏂囦欢缁撴瀯
+
+### 鏂板鏂囦欢锛堝悗绔?AI 寮曟搸锛?
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 2a10fd3..399a890 -- src/edu_cloud/ai/tools/analytics.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 2a10fd3..399a890 -- src/edu_cloud/ai/audit.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 2a10fd3..399a890 -- src/edu_cloud/ai/agent.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 2a10fd3..399a890 -- tests/test_ai/test_registry.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 2a10fd3..399a890 -- tests/test_ai/test_agent.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 2a10fd3..399a890 -- tests/test_ai/test_tools_analytics.py' in C:/Users/Administrator/edu-cloud succeeded in 1.06s:
+diff --git a/src/edu_cloud/ai/agent.py b/src/edu_cloud/ai/agent.py
+index 421557c..639b180 100644
+--- a/src/edu_cloud/ai/agent.py
++++ b/src/edu_cloud/ai/agent.py
+@@ -1,5 +1,6 @@
+ import json
+ import logging
++import time
+ from typing import AsyncGenerator
+ 
+ from edu_cloud.ai.anonymizer import Anonymizer
+@@ -114,6 +115,7 @@ class Agent:
+                 )
+ 
+                 # Execute tool
++                t0 = time.monotonic()
+                 try:
+                     result = await self.registry.execute(
+                         tc.name,
+@@ -125,6 +127,23 @@ class Agent:
+ succeeded in 1.09s:
+diff --git a/src/edu_cloud/ai/tools/analytics.py b/src/edu_cloud/ai/tools/analytics.py
+index 54530a0..2272e7a 100644
+--- a/src/edu_cloud/ai/tools/analytics.py
++++ b/src/edu_cloud/ai/tools/analytics.py
+@@ -37,7 +37,7 @@ def _compute_stats(scores: list[float]) -> dict:
+         },
+         "required": ["exam_id"],
+     },
+-    category="analytics",
++    category="L1_analytics",
+ )
+ async def get_exam_scores(
+     exam_id: str,
+@@ -98,18 +98,23 @@ async def get_exam_scores(
+         },
+         "required": ["exam_id", "class_id"],
+     },
+-    category="analytics",
++    category="L1_analytics",
+ )
+ succeeded in 1.13s:
+diff --git a/src/edu_cloud/ai/audit.py b/src/edu_cloud/ai/audit.py
+index e51fd79..5302f59 100644
+--- a/src/edu_cloud/ai/audit.py
++++ b/src/edu_cloud/ai/audit.py
+@@ -13,6 +13,7 @@ class AuditLogger:
+         session = AiSession(user_id=user_id, role=role, context_snapshot=context)
+         self.db.add(session)
+         await self.db.flush()
++        await self.db.commit()
+         return session.id
+ 
+     async def log_tool_call(self, session_id, user_id, role, tool, arguments, result, duration_ms):
+@@ -22,3 +23,4 @@ class AuditLogger:
+             tool=tool, arguments=arguments, result_summary=summary, duration_ms=duration_ms,
+         ))
+         await self.db.flush()
++        await self.db.commit()
+ succeeded in 1.17s:
+diff --git a/tests/test_ai/test_registry.py b/tests/test_ai/test_registry.py
+index 1782b7a..f447c5b 100644
+--- a/tests/test_ai/test_registry.py
++++ b/tests/test_ai/test_registry.py
+@@ -41,3 +41,38 @@ def test_execute_unknown_tool():
+     with pytest.raises(KeyError):
+         import asyncio
+         asyncio.get_event_loop().run_until_complete(registry.execute("nonexistent", {}))
++
++
++# ── Integration tests: real global registry with real tools ──────────────
++
++
++def test_real_registry_tool_visibility():
++    """Real analytics tools are visible via L1_analytics category."""
++    from edu_cloud.ai.registry import tools
++    import edu_cloud.ai.tools  # noqa: F401 — trigger registration
++
++    schemas = tools.get_schemas(categories=["L1_analytics"])
++    tool_names = [s["function"]["name"] for s in schemas]
+ succeeded in 1.07s:
+diff --git a/tests/test_ai/test_agent.py b/tests/test_ai/test_agent.py
+index 40445bf..7215886 100644
+--- a/tests/test_ai/test_agent.py
++++ b/tests/test_ai/test_agent.py
+@@ -197,6 +197,42 @@ async def test_agent_llm_error_yields_error_event(test_registry):
+     assert any(e.type == "error" for e in events)
+ 
+ 
++@pytest.mark.asyncio
++async def test_agent_calls_audit_log_tool_call(test_registry):
++    """Agent calls audit.log_tool_call() after each tool execution."""
++    mock_llm = AsyncMock()
++    mock_llm.chat.side_effect = [
++        ChatMessage(
++            role="assistant",
++            content=None,
++            tool_calls=[ToolCall(id="tc1", name="mock_tool", arguments={"q": "测试"})],
++        ),
++        ChatMessage(role="assistant", content="完成"),
++    ]
+ succeeded in 1.17s:
+diff --git a/tests/test_ai/test_tools_analytics.py b/tests/test_ai/test_tools_analytics.py
+index 758d2ef..622d76e 100644
+--- a/tests/test_ai/test_tools_analytics.py
++++ b/tests/test_ai/test_tools_analytics.py
+@@ -66,3 +66,73 @@ async def test_get_exam_scores_empty(db, seed_exam_with_results):
+     result = await get_exam_scores(exam_id="nonexistent", _db=db, _school_id="none", _class_ids=None)
+     assert result["students"] == []
+     assert result["stats"]["count"] == 0
++
++
++# ── Scope enforcement tests ─────────────────────────────────────────────
++
++
++@pytest.mark.asyncio
++async def test_get_class_stats_scope_denied(db, seed_exam_with_results):
++    """get_class_stats rejects class_id outside caller's _class_ids scope."""
++    exam_id = seed_exam_with_results["exam_id"]
++    class_id = seed_exam_with_results["class_id"]
++    result = await get_class_stats(
++        exam_id=exam_id, class_id=class_id, _db=db,
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'src/edu_cloud/ai/agent.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'tests/test_ai/test_agent.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'tests/test_ai/test_tools_analytics.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'src/edu_cloud/ai/tools/analytics.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'tests/test_ai/test_registry.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'src/edu_cloud/ai/audit.py'" in C:/Users/Administrator/edu-cloud succeeded in 904ms:
+import logging
+from sqlalchemy.ext.asyncio import AsyncSession
+from edu_cloud.models.ai_session import AiSession, AiToolCall
+
+logger = logging.getLogger(__name__)
+
+
+class AuditLogger:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def create_session(self, user_id: str, role: str, context: dict | None = None) -> str:
+        session = AiSession(user_id=user_id, role=role, context_snapshot=context)
+        self.db.add(session)
+        await self.db.flush()
+        await self.db.commit()
+        return session.id
+
+    async def log_tool_call(self, session_id, user_id, role, tool, arguments, result, duration_ms):
+        summary = result[:500] if result else ""
+ succeeded in 1.02s:
+import pytest
+from edu_cloud.ai.registry import ToolRegistry
+
+registry = ToolRegistry()
+
+@registry.register(
+    name="test_add", description="涓ゆ暟鐩稿姞",
+    parameters={"type": "object", "properties": {"a": {"type": "number"}, "b": {"type": "number"}}, "required": ["a", "b"]},
+    category="test",
+)
+async def _add_func(a: float, b: float, _db=None) -> dict:
+    return {"result": a + b}
+
+def test_register_tool():
+    assert "test_add" in registry.list_tools()
+
+def test_get_schemas():
+    schemas = registry.get_schemas()
+    assert len(schemas) >= 1
+    schema = next(s for s in schemas if s["function"]["name"] == "test_add")
+ succeeded in 1.16s:
+import pytest
+from unittest.mock import AsyncMock
+from edu_cloud.ai.agent import Agent
+from edu_cloud.ai.schemas import ChatMessage, ToolCall
+from edu_cloud.ai.registry import ToolRegistry
+
+
+@pytest.fixture
+def test_registry():
+    reg = ToolRegistry()
+
+    @reg.register(
+        name="mock_tool",
+        description="杩斿洖鍥哄畾鏁版嵁",
+        category="test",
+        parameters={
+            "type": "object",
+            "properties": {"q": {"type": "string"}},
+            "required": ["q"],
+        },
+ succeeded in 1.16s:
+import pytest
+from edu_cloud.ai.tools.analytics import get_exam_scores, get_class_stats, compare_classes, get_student_profile
+
+
+@pytest.mark.asyncio
+async def test_get_exam_scores(db, seed_exam_with_results):
+    exam_id = seed_exam_with_results["exam_id"]
+    school_id = seed_exam_with_results["school_id"]
+    result = await get_exam_scores(exam_id=exam_id, _db=db, _school_id=school_id, _class_ids=None)
+    assert "students" in result
+    assert len(result["students"]) > 0
+    assert "total_score" in result["students"][0]
+    assert "stats" in result
+
+
+@pytest.mark.asyncio
+async def test_get_exam_scores_with_class_filter(db, seed_exam_with_results):
+    exam_id = seed_exam_with_results["exam_id"]
+    school_id = seed_exam_with_results["school_id"]
+    class_id = seed_exam_with_results["class_id"]
+ succeeded in 1.27s:
+import json
+import logging
+import time
+from typing import AsyncGenerator
+
+from edu_cloud.ai.anonymizer import Anonymizer
+from edu_cloud.ai.context import build_system_prompt
+from edu_cloud.ai.registry import ToolRegistry
+from edu_cloud.ai.schemas import AgentEvent, ChatMessage, ToolCall  # noqa: F401
+from edu_cloud.config import settings
+
+logger = logging.getLogger(__name__)
+
+# Maps each role to the tool categories it may access.
+# None means unrestricted (all categories).
+ROLE_TOOL_CATEGORIES: dict[str, list[str] | None] = {
+    "platform_admin": None,  # all categories
+    "district_admin": ["L2_cross_school"],
+    "principal": ["L1_analytics", "L2_cross_school"],
+    "academic_director": ["L1_analytics", "L2_cross_school"],
+ succeeded in 1.49s:
+"""L1 鏍℃湰鍒嗘瀽宸ュ叿 鈥?4 涓牳蹇冨伐鍏凤紝娉ㄥ唽鍒板叏灞€ registry銆?""
+import statistics
+import logging
+from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.ai.registry import tools
+from edu_cloud.models.exam import Exam, ExamResult
+from edu_cloud.models.student import Student
+from edu_cloud.models.class_group import ClassGroup
+
+logger = logging.getLogger(__name__)
+
+
+def _compute_stats(scores: list[float]) -> dict:
+    """璁＄畻 count/avg/max/min/median 缁熻銆?""
+    if not scores:
+        return {"count": 0, "avg": None, "max": None, "min": None, "median": None}
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_ai/test_tools_analytics.py -q' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_ai/test_registry.py -q' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_ai/test_agent.py -q' in C:/Users/Administrator/edu-cloud succeeded in 5.54s:
+.........                                                                [100%]
+============================== warnings summary ===============================
+src\edu_cloud\config.py:57
+  C:\Users\Administrator\edu-cloud\src\edu_cloud\config.py:57: UserWarning: SECRET_KEY is using default value 'change-me'. Set SECRET_KEY in .env for production!
+    return Settings()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+9 passed, 1 warning in 0.25s
+ succeeded in 5.59s:
+........                                                                 [100%]
+============================== warnings summary ===============================
+src\edu_cloud\config.py:57
+  C:\Users\Administrator\edu-cloud\src\edu_cloud\config.py:57: UserWarning: SECRET_KEY is using default value 'change-me'. Set SECRET_KEY in .env for production!
+    return Settings()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+8 passed, 1 warning in 0.32s
+ succeeded in 6.75s:
+............                                                             [100%]
+============================== warnings summary ===============================
+src\edu_cloud\config.py:57
+  C:\Users\Administrator\edu-cloud\src\edu_cloud\config.py:57: UserWarning: SECRET_KEY is using default value 'change-me'. Set SECRET_KEY in .env for production!
+    return Settings()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+12 passed, 1 warning in 1.44s
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'src/edu_cloud/models/ai_session.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'src/edu_cloud/api/ai.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'src/edu_cloud/ai/registry.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "user_id" src/edu_cloud/ai src/edu_cloud/api tests/test_ai' in C:/Users/Administrator/edu-cloud succeeded in 878ms:
+from sqlalchemy import Column, String, JSON, Float, ForeignKey, Text
+from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+
+
+class AiSession(Base, IdMixin, TimestampMixin):
+    __tablename__ = "ai_sessions"
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    role = Column(String(50), nullable=False)
+    school_id = Column(String, nullable=True)
+    context_snapshot = Column(JSON, nullable=True)
+    messages = Column(JSON, nullable=True)
+
+
+class AiToolCall(Base, IdMixin, TimestampMixin):
+    __tablename__ = "ai_tool_calls"
+    session_id = Column(String, ForeignKey("ai_sessions.id"), nullable=False)
+    user_id = Column(String, nullable=False)
+    role = Column(String(50), nullable=False)
+    tool = Column(String(100), nullable=False)
+    arguments = Column(JSON, nullable=True)
+ succeeded in 887ms:
+import inspect
+import logging
+from typing import Any, Callable
+
+logger = logging.getLogger(__name__)
+
+class ToolRegistry:
+    def __init__(self):
+        self._tools: dict[str, dict] = {}
+
+    def register(self, name: str, description: str, parameters: dict, category: str = "general"):
+        def decorator(func: Callable):
+            self._tools[name] = {"name": name, "description": description, "parameters": parameters, "category": category, "func": func}
+            return func
+        return decorator
+
+    def list_tools(self) -> list[str]:
+        return list(self._tools.keys())
+
+    def get_schemas(self, categories: list[str] | None = None) -> list[dict]:
+ succeeded in 923ms:
+import json
+import logging
+from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from edu_cloud.database import get_db
+from edu_cloud.api.deps import require_permission
+from edu_cloud.core.permissions import Permission
+from edu_cloud.ai.agent import Agent
+from edu_cloud.ai.llm import LLMClient
+from edu_cloud.ai.registry import tools
+from edu_cloud.ai.audit import AuditLogger
+import edu_cloud.ai.tools  # noqa: F401 鈥?trigger tool registration
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
+
+
+@router.get("/health")
+async def ai_health():
+ succeeded in 2.29s:
+tests/test_ai\test_agent.py:223:        scope={"user_id": "u123"},
+src/edu_cloud/ai\agent.py:138:                            user_id=scope.get("user_id", ""),
+src/edu_cloud/api\app.py:61:                user_id=admin.id,
+src/edu_cloud/ai\audit.py:12:    async def create_session(self, user_id: str, role: str, context: dict | None = None) -> str:
+src/edu_cloud/ai\audit.py:13:        session = AiSession(user_id=user_id, role=role, context_snapshot=context)
+src/edu_cloud/ai\audit.py:19:    async def log_tool_call(self, session_id, user_id, role, tool, arguments, result, duration_ms):
+src/edu_cloud/ai\audit.py:22:            session_id=session_id, user_id=user_id, role=role,
+src/edu_cloud/api\auth.py:40:            select(UserRole).where(UserRole.user_id == user.id)
+src/edu_cloud/api\auth.py:113:            UserRole.user_id == user.id,
+src/edu_cloud/api\deps.py:31:    user_id = payload.get("sub")
+src/edu_cloud/api\deps.py:32:    if not user_id:
+src/edu_cloud/api\deps.py:39:    user = await db.get(User, user_id)
+src/edu_cloud/api\deps.py:45:            await db.execute(select(UserRole).where(UserRole.user_id == user.id))
+src/edu_cloud/api\deps.py:71:        select(PlatformUser).where(PlatformUser.id == user_id)
+src/edu_cloud/api\deps.py:75:        logger.warning("token user_id=%s not found in User or PlatformUser", user_id)
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content '"'src/edu_cloud/ai/audit.py' | ForEach-Object {('{0,4}: {1}' -f "'$i, $_); $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content '"'src/edu_cloud/ai/tools/analytics.py' | ForEach-Object {('{0,4}: {1}' -f "'$i, $_); $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content '"'src/edu_cloud/ai/agent.py' | ForEach-Object {('{0,4}: {1}' -f "'$i, $_); $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content '"'src/edu_cloud/api/ai.py' | ForEach-Object {('{0,4}: {1}' -f "'$i, $_); $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content '"'tests/test_ai/test_tools_analytics.py' | ForEach-Object {('{0,4}: {1}' -f "'$i, $_); $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content '"'tests/test_ai/test_agent.py' | ForEach-Object {('{0,4}: {1}' -f "'$i, $_); $i++ }' in C:/Users/Administrator/edu-cloud succeeded in 1.36s:
+   1: import json
+   2: import logging
+   3: from fastapi import APIRouter, Depends
+   4: from fastapi.responses import StreamingResponse
+   5: from sqlalchemy.ext.asyncio import AsyncSession
+   6: from edu_cloud.database import get_db
+   7: from edu_cloud.api.deps import require_permission
+   8: from edu_cloud.core.permissions import Permission
+   9: from edu_cloud.ai.agent import Agent
+  10: from edu_cloud.ai.llm import LLMClient
+  11: from edu_cloud.ai.registry import tools
+  12: from edu_cloud.ai.audit import AuditLogger
+  13: import edu_cloud.ai.tools  # noqa: F401 鈥?trigger tool registration
+  14: 
+  15: logger = logging.getLogger(__name__)
+  16: router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
+  17: 
+  18: 
+  19: @router.get("/health")
+  20: async def ai_health():
+ succeeded in 1.70s:
+   1: import pytest
+   2: from edu_cloud.ai.tools.analytics import get_exam_scores, get_class_stats, compare_classes, get_student_profile
+   3: 
+   4: 
+   5: @pytest.mark.asyncio
+   6: async def test_get_exam_scores(db, seed_exam_with_results):
+   7:     exam_id = seed_exam_with_results["exam_id"]
+   8:     school_id = seed_exam_with_results["school_id"]
+   9:     result = await get_exam_scores(exam_id=exam_id, _db=db, _school_id=school_id, _class_ids=None)
+  10:     assert "students" in result
+  11:     assert len(result["students"]) > 0
+  12:     assert "total_score" in result["students"][0]
+  13:     assert "stats" in result
+  14: 
+  15: 
+  16: @pytest.mark.asyncio
+  17: async def test_get_exam_scores_with_class_filter(db, seed_exam_with_results):
+  18:     exam_id = seed_exam_with_results["exam_id"]
+  19:     school_id = seed_exam_with_results["school_id"]
+  20:     class_id = seed_exam_with_results["class_id"]
+ succeeded in 1.67s:
+   1: import logging
+   2: from sqlalchemy.ext.asyncio import AsyncSession
+   3: from edu_cloud.models.ai_session import AiSession, AiToolCall
+   4: 
+   5: logger = logging.getLogger(__name__)
+   6: 
+   7: 
+   8: class AuditLogger:
+   9:     def __init__(self, db: AsyncSession):
+  10:         self.db = db
+  11: 
+  12:     async def create_session(self, user_id: str, role: str, context: dict | None = None) -> str:
+  13:         session = AiSession(user_id=user_id, role=role, context_snapshot=context)
+  14:         self.db.add(session)
+  15:         await self.db.flush()
+  16:         await self.db.commit()
+  17:         return session.id
+  18: 
+  19:     async def log_tool_call(self, session_id, user_id, role, tool, arguments, result, duration_ms):
+  20:         summary = result[:500] if result else ""
+ succeeded in 2.16s:
+   1: """L1 鏍℃湰鍒嗘瀽宸ュ叿 鈥?4 涓牳蹇冨伐鍏凤紝娉ㄥ唽鍒板叏灞€ registry銆?""
+   2: import statistics
+   3: import logging
+   4: from typing import Any
+   5: 
+   6: from sqlalchemy import select
+   7: from sqlalchemy.ext.asyncio import AsyncSession
+   8: 
+   9: from edu_cloud.ai.registry import tools
+  10: from edu_cloud.models.exam import Exam, ExamResult
+  11: from edu_cloud.models.student import Student
+  12: from edu_cloud.models.class_group import ClassGroup
+  13: 
+  14: logger = logging.getLogger(__name__)
+  15: 
+  16: 
+  17: def _compute_stats(scores: list[float]) -> dict:
+  18:     """璁＄畻 count/avg/max/min/median 缁熻銆?""
+  19:     if not scores:
+  20:         return {"count": 0, "avg": None, "max": None, "min": None, "median": None}
+ succeeded in 1.80s:
+   1: import json
+   2: import logging
+   3: import time
+   4: from typing import AsyncGenerator
+   5: 
+   6: from edu_cloud.ai.anonymizer import Anonymizer
+   7: from edu_cloud.ai.context import build_system_prompt
+   8: from edu_cloud.ai.registry import ToolRegistry
+   9: from edu_cloud.ai.schemas import AgentEvent, ChatMessage, ToolCall  # noqa: F401
+  10: from edu_cloud.config import settings
+  11: 
+  12: logger = logging.getLogger(__name__)
+  13: 
+  14: # Maps each role to the tool categories it may access.
+  15: # None means unrestricted (all categories).
+  16: ROLE_TOOL_CATEGORIES: dict[str, list[str] | None] = {
+  17:     "platform_admin": None,  # all categories
+  18:     "district_admin": ["L2_cross_school"],
+  19:     "principal": ["L1_analytics", "L2_cross_school"],
+  20:     "academic_director": ["L1_analytics", "L2_cross_school"],
+ succeeded in 1.78s:
+   1: import pytest
+   2: from unittest.mock import AsyncMock
+   3: from edu_cloud.ai.agent import Agent
+   4: from edu_cloud.ai.schemas import ChatMessage, ToolCall
+   5: from edu_cloud.ai.registry import ToolRegistry
+   6: 
+   7: 
+   8: @pytest.fixture
+   9: def test_registry():
+  10:     reg = ToolRegistry()
+  11: 
+  12:     @reg.register(
+  13:         name="mock_tool",
+  14:         description="杩斿洖鍥哄畾鏁版嵁",
+  15:         category="test",
+  16:         parameters={
+  17:             "type": "object",
+  18:             "properties": {"q": {"type": "string"}},
+  19:             "required": ["q"],
+  20:         },
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content '"'tests/test_ai/test_registry.py' | ForEach-Object {('{0,4}: {1}' -f "'$i, $_); $i++ }' in C:/Users/Administrator/edu-cloud succeeded in 577ms:
+   1: import pytest
+   2: from edu_cloud.ai.registry import ToolRegistry
+   3: 
+   4: registry = ToolRegistry()
+   5: 
+   6: @registry.register(
+   7:     name="test_add", description="涓ゆ暟鐩稿姞",
+   8:     parameters={"type": "object", "properties": {"a": {"type": "number"}, "b": {"type": "number"}}, "required": ["a", "b"]},
+   9:     category="test",
+  10: )
+  11: async def _add_func(a: float, b: float, _db=None) -> dict:
+  12:     return {"result": a + b}
+  13: 
+  14: def test_register_tool():
+  15:     assert "test_add" in registry.list_tools()
+  16: 
+  17: def test_get_schemas():
+  18:     schemas = registry.get_schemas()
+  19:     assert len(schemas) >= 1
+  20:     schema = next(s for s in schemas if s["function"]["name"] == "test_add")
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"create_session|log_tool_call|AiToolCall|AuditLogger|commit\\(\" tests/test_ai src/edu_cloud -g '"'!frontend/**'"'" in C:/Users/Administrator/edu-cloud succeeded in 689ms:
+tests/test_ai\test_agent.py:201:async def test_agent_calls_audit_log_tool_call(test_registry):
+tests/test_ai\test_agent.py:202:    """Agent calls audit.log_tool_call() after each tool execution."""
+tests/test_ai\test_agent.py:227:    # audit.log_tool_call should have been called once
+tests/test_ai\test_agent.py:228:    mock_audit.log_tool_call.assert_called_once()
+tests/test_ai\test_agent.py:229:    call_kwargs = mock_audit.log_tool_call.call_args[1]
+src/edu_cloud\models\ai_session.py:14:class AiToolCall(Base, IdMixin, TimestampMixin):
+src/edu_cloud\api\ai.py:12:from edu_cloud.ai.audit import AuditLogger
+src/edu_cloud\api\ai.py:49:    audit = AuditLogger(db)
+src/edu_cloud\api\ai.py:50:    session_id = await audit.create_session(user.id, role, context=scope)
+src/edu_cloud\api\app.py:65:            await db.commit()
+src/edu_cloud\api\sync.py:74:    await db.commit()
+src/edu_cloud\api\sync_students.py:76:    await db.commit()
+src/edu_cloud\api\sync_students.py:150:    await db.commit()
+src/edu_cloud\ai\agent.py:136:                        await audit.log_tool_call(
+src/edu_cloud\ai\agent.py:146:                        logger.warning("Audit log_tool_call failed: %s", audit_exc)
+src/edu_cloud\ai\audit.py:3:from edu_cloud.models.ai_session import AiSession, AiToolCall
+src/edu_cloud\ai\audit.py:8:class AuditLogger:
+src/edu_cloud\ai\audit.py:12:    async def create_session(self, user_id: str, role: str, context: dict | None = None) -> str:
+src/edu_cloud\ai\audit.py:16:        await self.db.commit()
+src/edu_cloud\ai\audit.py:19:    async def log_tool_call(self, session_id, user_id, role, tool, arguments, result, duration_ms):
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"arguments\\b|result_summary|AiToolCall\\b\" src tests -g '"'!frontend/**'"'" in C:/Users/Administrator/edu-cloud succeeded in 716ms:
+tests\test_ai\test_schemas.py:12:    tc = ToolCall(id="tc1", name="get_exam_scores", arguments={"exam_id": "e1"})
+tests\test_ai\test_schemas.py:14:    assert tc.arguments["exam_id"] == "e1"
+src\edu_cloud\ai\schemas.py:18:    arguments: dict[str, Any] = field(default_factory=dict)
+src\edu_cloud\ai\registry.py:35:    async def execute(self, name: str, arguments: dict[str, Any], **injected) -> Any:
+src\edu_cloud\ai\registry.py:40:        kwargs = dict(arguments)
+src\edu_cloud\ai\llm.py:45:                    arguments=(
+src\edu_cloud\ai\llm.py:46:                        json.loads(tc["function"]["arguments"])
+src\edu_cloud\ai\llm.py:47:                        if isinstance(tc["function"]["arguments"], str)
+src\edu_cloud\ai\llm.py:48:                        else tc["function"]["arguments"]
+src\edu_cloud\ai\llm.py:71:                        "arguments": json.dumps(tc.arguments, ensure_ascii=False),
+src\edu_cloud\ai\audit.py:3:from edu_cloud.models.ai_session import AiSession, AiToolCall
+src\edu_cloud\ai\audit.py:19:    async def log_tool_call(self, session_id, user_id, role, tool, arguments, result, duration_ms):
+src\edu_cloud\ai\audit.py:21:        self.db.add(AiToolCall(
+src\edu_cloud\ai\audit.py:23:            tool=tool, arguments=arguments, result_summary=summary, duration_ms=duration_ms,
+src\edu_cloud\models\ai_session.py:14:class AiToolCall(Base, IdMixin, TimestampMixin):
+src\edu_cloud\models\ai_session.py:20:    arguments = Column(JSON, nullable=True)
+src\edu_cloud\models\ai_session.py:21:    result_summary = Column(Text, nullable=True)
+src\edu_cloud\ai\agent.py:114:                    data={"tool": tc.name, "arguments": tc.arguments},
+src\edu_cloud\ai\agent.py:122:                        tc.arguments,
+src\edu_cloud\ai\agent.py:141:                            arguments=json.dumps(tc.arguments, ensure_ascii=False),
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+import asyncio
+from unittest.mock import AsyncMock
+from edu_cloud.ai.agent import Agent
+from edu_cloud.ai.schemas import ChatMessage, ToolCall
+from edu_cloud.ai.registry import ToolRegistry
+
+reg = ToolRegistry()
+@reg.register(name='mock_tool', description='d', category='L1_analytics', parameters={'type':'object','properties':{}})
+async def _tool(_db=None):
+    return {'ok': True}
+
+async def main():
+    mock_llm = AsyncMock()
+    mock_llm.chat.side_effect = [
+        ChatMessage(role='assistant', content=None, tool_calls=[ToolCall(id='tc1', name='mock_tool', arguments={})]),
+        ChatMessage(role='assistant', content='done'),
+    ]
+    mock_audit = AsyncMock()
+    agent = Agent(llm=mock_llm, registry=reg)
+    async for _ in agent.run('msg', session_id='s1', db=None, school_id=None, class_ids=None, role='principal', display_name='x', scope={'school':'sid'}, audit=mock_audit):
+        pass
+    print(mock_audit.log_tool_call.call_args.kwargs)
+
+asyncio.run(main())
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.51s:
+{'session_id': 's1', 'user_id': '', 'role': 'principal', 'tool': 'mock_tool', 'arguments': '{}', 'result': '{"ok": true}', 'duration_ms': 0}
+C:\Users\Administrator\edu-cloud\src\edu_cloud\config.py:57: UserWarning: SECRET_KEY is using default value 'change-me'. Set SECRET_KEY in .env for production!
+  return Settings()
+SECRET_KEY is using insecure default value
+Plan update
+已完成范围梳理、逐项验证和目标测试；正在整理发现与最终结论。
+  ✓ 阶段1：读取计划、提交记录、diff 与相关文件，梳理修复范围与上下文
+  ✓ 阶段2：逐项验证 R1-R4 修复是否完整，并审查变更是否引入新的问题
+  → 阶段3：按分类与严重度整理发现，给出 PASS/FAIL 结论
+Plan update
+已整理完发现与结论。
+  ✓ 阶段1：读取计划、提交记录、diff 与相关文件，梳理修复范围与上下文
+  ✓ 阶段2：逐项验证 R1-R4 修复是否完整，并审查变更是否引入新的问题
+  ✓ 阶段3：按分类与严重度整理发现，给出 PASS/FAIL 结论
+codex
+**发现**
+- `N1`｜严重度：高｜分类：代码缺陷  
+  证据：`src/edu_cloud/ai/agent.py:138` 从 `scope` 里取 `user_id`，默认回落为空字符串；但真实请求路径里，`src/edu_cloud/api/ai.py:39` 构造的 `scope` 只包含 `school/classes/grades/subjects`，`src/edu_cloud/api/ai.py:60` 也未单独把 `user.id` 传给 `Agent`。我又按这个真实 `scope` 形状做了最小复现，`audit.log_tool_call(...)` 实际收到的是 `user_id=''`。当前新增测试 `tests/test_ai/test_agent.py:223` 之所以通过，是因为手工塞了 `scope={"user_id": "u123"}`，没有覆盖真实调用链。  
+  影响：所有生产环境的 `AiToolCall` 审计记录都会丢失调用人标识，审计链路无法追责/检索到真实用户，等于把 R3 修到“会落库”，但没有修到“可用的审计记录”。  
+  建议：在 `src/edu_cloud/api/ai.py` 里显式传递 `user.id`（推荐作为独立参数传给 `Agent.run(...)`，不要依赖 `scope` 暗传），或至少在构造 `scope` 时补上 `scope["user_id"] = user.id`；同时补一个从 `ai_chat -> Agent -> AuditLogger` 的集成测试，断言 `AiToolCall.user_id` 等于当前用户。
+
+**阶段 1：范围与上下文**
+- 已阅读计划文件 `docs/plans/2026-03-22-p1-ai-brain-plan.md`、提交记录 `bba413e~1..399a890`、以及修复 diff `2a10fd3..399a890`。
+- 本次修复范围共 7 个文件、`290` 行新增、`4` 行删除，核心集中在 `src/edu_cloud/ai/tools/analytics.py`、`src/edu_cloud/ai/agent.py`、`src/edu_cloud/ai/audit.py` 和对应测试。
+- 已执行并通过：
+  - `python -m pytest tests/test_ai/test_registry.py -q`
+  - `python -m pytest tests/test_ai/test_tools_analytics.py -q`
+  - `python -m pytest tests/test_ai/test_agent.py -q`
+
+**阶段 2：Round 1 四项修复验证**
+- `R1` 已修复：4 个 analytics 工具的注册分类都已改为 `L1_analytics`，见 `src/edu_cloud/ai/tools/analytics.py:40`、`src/edu_cloud/ai/tools/analytics.py:101`、`src/edu_cloud/ai/tools/analytics.py:155`、`src/edu_cloud/ai/tools/analytics.py:225`；真实全局 registry 集成测试也已补上，见 `tests/test_ai/test_registry.py:49`。
+- `R2` 已修复：`get_class_stats` 与 `get_student_profile` 都新增了 `_class_ids` 越权校验，见 `src/edu_cloud/ai/tools/analytics.py:115`、`src/edu_cloud/ai/tools/analytics.py:247`；允许/拒绝/`None` 三类场景测试已补，见 `tests/test_ai/test_tools_analytics.py:75`、`tests/test_ai/test_tools_analytics.py:89`、`tests/test_ai/test_tools_analytics.py:103`、`tests/test_ai/test_tools_analytics.py:117`、`tests/test_ai/test_tools_analytics.py:129`。
+- `R3` 原始两处症状已修复：`AuditLogger` 现在确实 `commit()`，见 `src/edu_cloud/ai/audit.py:16`、`src/edu_cloud/ai/audit.py:26`；`Agent` 也确实调用了 `audit.log_tool_call(...)`，见 `src/edu_cloud/ai/agent.py:136`，对应测试见 `tests/test_ai/test_agent.py:201`。  
+  但本轮新增的 `N1` 说明这条链路在真实请求里仍然不完整，所以我不能判定 R3 的“最终效果”已经达标。
+- `R4` 已修复：不再只依赖 fake registry，新增了真实 registry 可见性测试、scope enforcement 测试、audit 调用验证测试，分别见 `tests/test_ai/test_registry.py:49`、`tests/test_ai/test_tools_analytics.py:75`、`tests/test_ai/test_agent.py:201`。
+
+**阶段 3：置信度与结论**
+- `N1` 置信度：高。原因是它不是推测，而是由修改后的 `src/edu_cloud/ai/agent.py:138` 与真实调用方 `src/edu_cloud/api/ai.py:39` / `src/edu_cloud/api/ai.py:60` 直接拼出来的必现路径。
+- `N1` 影响：高。原因是它会影响每一次工具调用审计记录的主体归属，不是边缘条件。
+- 除 `N1` 外，我这轮没有再看到新的高/中严重度问题。
+
+结论：FAIL
+tokens used
+577,027
+**发现**
+- `N1`｜严重度：高｜分类：代码缺陷  
+  证据：`src/edu_cloud/ai/agent.py:138` 从 `scope` 里取 `user_id`，默认回落为空字符串；但真实请求路径里，`src/edu_cloud/api/ai.py:39` 构造的 `scope` 只包含 `school/classes/grades/subjects`，`src/edu_cloud/api/ai.py:60` 也未单独把 `user.id` 传给 `Agent`。我又按这个真实 `scope` 形状做了最小复现，`audit.log_tool_call(...)` 实际收到的是 `user_id=''`。当前新增测试 `tests/test_ai/test_agent.py:223` 之所以通过，是因为手工塞了 `scope={"user_id": "u123"}`，没有覆盖真实调用链。  
+  影响：所有生产环境的 `AiToolCall` 审计记录都会丢失调用人标识，审计链路无法追责/检索到真实用户，等于把 R3 修到“会落库”，但没有修到“可用的审计记录”。  
+  建议：在 `src/edu_cloud/api/ai.py` 里显式传递 `user.id`（推荐作为独立参数传给 `Agent.run(...)`，不要依赖 `scope` 暗传），或至少在构造 `scope` 时补上 `scope["user_id"] = user.id`；同时补一个从 `ai_chat -> Agent -> AuditLogger` 的集成测试，断言 `AiToolCall.user_id` 等于当前用户。
+
+**阶段 1：范围与上下文**
+- 已阅读计划文件 `docs/plans/2026-03-22-p1-ai-brain-plan.md`、提交记录 `bba413e~1..399a890`、以及修复 diff `2a10fd3..399a890`。
+- 本次修复范围共 7 个文件、`290` 行新增、`4` 行删除，核心集中在 `src/edu_cloud/ai/tools/analytics.py`、`src/edu_cloud/ai/agent.py`、`src/edu_cloud/ai/audit.py` 和对应测试。
+- 已执行并通过：
+  - `python -m pytest tests/test_ai/test_registry.py -q`
+  - `python -m pytest tests/test_ai/test_tools_analytics.py -q`
+  - `python -m pytest tests/test_ai/test_agent.py -q`
+
+**阶段 2：Round 1 四项修复验证**
+- `R1` 已修复：4 个 analytics 工具的注册分类都已改为 `L1_analytics`，见 `src/edu_cloud/ai/tools/analytics.py:40`、`src/edu_cloud/ai/tools/analytics.py:101`、`src/edu_cloud/ai/tools/analytics.py:155`、`src/edu_cloud/ai/tools/analytics.py:225`；真实全局 registry 集成测试也已补上，见 `tests/test_ai/test_registry.py:49`。
+- `R2` 已修复：`get_class_stats` 与 `get_student_profile` 都新增了 `_class_ids` 越权校验，见 `src/edu_cloud/ai/tools/analytics.py:115`、`src/edu_cloud/ai/tools/analytics.py:247`；允许/拒绝/`None` 三类场景测试已补，见 `tests/test_ai/test_tools_analytics.py:75`、`tests/test_ai/test_tools_analytics.py:89`、`tests/test_ai/test_tools_analytics.py:103`、`tests/test_ai/test_tools_analytics.py:117`、`tests/test_ai/test_tools_analytics.py:129`。
+- `R3` 原始两处症状已修复：`AuditLogger` 现在确实 `commit()`，见 `src/edu_cloud/ai/audit.py:16`、`src/edu_cloud/ai/audit.py:26`；`Agent` 也确实调用了 `audit.log_tool_call(...)`，见 `src/edu_cloud/ai/agent.py:136`，对应测试见 `tests/test_ai/test_agent.py:201`。  
+  但本轮新增的 `N1` 说明这条链路在真实请求里仍然不完整，所以我不能判定 R3 的“最终效果”已经达标。
+- `R4` 已修复：不再只依赖 fake registry，新增了真实 registry 可见性测试、scope enforcement 测试、audit 调用验证测试，分别见 `tests/test_ai/test_registry.py:49`、`tests/test_ai/test_tools_analytics.py:75`、`tests/test_ai/test_agent.py:201`。
+
+**阶段 3：置信度与结论**
+- `N1` 置信度：高。原因是它不是推测，而是由修改后的 `src/edu_cloud/ai/agent.py:138` 与真实调用方 `src/edu_cloud/api/ai.py:39` / `src/edu_cloud/api/ai.py:60` 直接拼出来的必现路径。
+- `N1` 影响：高。原因是它会影响每一次工具调用审计记录的主体归属，不是边缘条件。
+- 除 `N1` 外，我这轮没有再看到新的高/中严重度问题。
+
+结论：FAIL

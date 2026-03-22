@@ -16,7 +16,7 @@ from edu_cloud.config import get_settings
 from edu_cloud.models.base import Base
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
-from edu_cloud.models.school import RegisteredSchool
+from edu_cloud.models.school import School
 from edu_cloud.models.class_group import ClassGroup
 from edu_cloud.models.student import Student
 from edu_cloud.models.exam import Exam, ExamResult
@@ -35,7 +35,7 @@ async def seed():
     Session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with Session() as db:
         # 1. School
-        school = RegisteredSchool(
+        school = School(
             name="实验中学",
             code="SYZX",
             district="城区",

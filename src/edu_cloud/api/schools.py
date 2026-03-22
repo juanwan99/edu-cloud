@@ -54,7 +54,7 @@ async def list_schools(
     schools = await svc.list_schools(district=district, is_active=is_active)
     return [
         {"id": s.id, "name": s.name, "code": s.code, "district": s.district,
-         "is_active": s.is_active, "last_heartbeat": str(s.last_heartbeat) if s.last_heartbeat else None}
+         "is_active": s.is_active}
         for s in schools
     ]
 
@@ -69,8 +69,7 @@ async def get_school(
     s = await svc.get_school(school_id)
     return {
         "id": s.id, "name": s.name, "code": s.code, "district": s.district,
-        "is_active": s.is_active, "last_heartbeat": str(s.last_heartbeat) if s.last_heartbeat else None,
-        "client_version": s.client_version,
+        "is_active": s.is_active,
     }
 
 

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from edu_cloud.models.base import Base
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
-from edu_cloud.models.school import RegisteredSchool
+from edu_cloud.models.school import School
 import edu_cloud.models.platform_user  # noqa: F401 — ensures platform_users table is in metadata
 import edu_cloud.models.joint_exam  # noqa: F401 — ensures joint_exam tables are in metadata
 import edu_cloud.models.student  # noqa: F401
@@ -103,7 +103,7 @@ async def seed_school(db):
     """Seed a test school with known API key."""
     secret = "test_secret_123"
     hashed = bcrypt.hashpw(secret.encode(), bcrypt.gensalt()).decode()
-    school = RegisteredSchool(
+    school = School(
         name="测试一校",
         code="SCHOOL01",
         api_key_hash=hashed,
@@ -125,13 +125,13 @@ def school_api_headers(seed_school):
 @pytest.fixture
 async def seed_exam_with_results(db):
     """Create school+class+students+exam+results for AI tool tests"""
-    from edu_cloud.models.school import RegisteredSchool
+    from edu_cloud.models.school import School
     from edu_cloud.models.class_group import ClassGroup
     from edu_cloud.models.student import Student
     from edu_cloud.models.exam import Exam, ExamResult
     import random
 
-    school = RegisteredSchool(name="AI测试校", code="AITEST", district="测试区", api_key_hash="x")
+    school = School(name="AI测试校", code="AITEST", district="测试区", api_key_hash="x")
     db.add(school)
     await db.flush()
 
@@ -172,7 +172,7 @@ async def seed_teacher(db):
     user.set_password("123456")
     db.add(user)
     await db.flush()
-    school = RegisteredSchool(
+    school = School(
         name="测试校",
         code="TEST01",
         district="测试区",
@@ -215,12 +215,12 @@ async def seed_approver(db):
     db.add(user)
     await db.flush()
 
-    from edu_cloud.models.school import RegisteredSchool
+    from edu_cloud.models.school import School
     from sqlalchemy import select
 
-    school = (await db.execute(select(RegisteredSchool))).scalars().first()
+    school = (await db.execute(select(School))).scalars().first()
     if not school:
-        school = RegisteredSchool(
+        school = School(
             name="审批测试校", code="APTEST", district="测试区", api_key_hash="x"
         )
         db.add(school)
@@ -249,9 +249,9 @@ async def seed_subject_teacher(db):
     await db.flush()
 
     from sqlalchemy import select
-    school = (await db.execute(select(RegisteredSchool))).scalars().first()
+    school = (await db.execute(select(School))).scalars().first()
     if not school:
-        school = RegisteredSchool(
+        school = School(
             name="论文测试校", code="PAPER01", district="测试区", api_key_hash="x"
         )
         db.add(school)
@@ -291,9 +291,9 @@ async def seed_grade_leader(db):
     await db.flush()
 
     from sqlalchemy import select
-    school = (await db.execute(select(RegisteredSchool))).scalars().first()
+    school = (await db.execute(select(School))).scalars().first()
     if not school:
-        school = RegisteredSchool(
+        school = School(
             name="组长测试校", code="GRADE01", district="测试区", api_key_hash="x"
         )
         db.add(school)

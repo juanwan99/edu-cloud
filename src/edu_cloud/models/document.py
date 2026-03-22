@@ -32,7 +32,7 @@ class Document(Base, IdMixin, TimestampMixin):
     execution_result: Mapped[dict | None] = mapped_column(JSON, default=None)
     version: Mapped[int] = mapped_column(Integer, default=1)
     school_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("registered_schools.id"), nullable=False
+        String(36), ForeignKey("schools.id"), nullable=False
     )
 
     def __init__(self, **kwargs):

@@ -1,0 +1,751 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d148c-61fe-7140-b119-5a685daa0c43
+--------
+user
+You are a code reviewer performing independent review (Round 2).
+
+Round 1 found 3 test-gap issues (T1 HIGH, T2 HIGH, T3 MED). All have been fixed in commit 1c82b63.
+Verify the fixes and check for any remaining issues.
+
+Read the review handoff: docs/plans/2026-03-22-p4-knowledge-review-handoff-batch1.md
+Read the plan: docs/plans/2026-03-22-p4-knowledge-plan.md
+Check the commits: git log --oneline 6bb1a18~1..1c82b63
+Read the full diff: git diff 6bb1a18~1..1c82b63
+Read modified files in full for context.
+
+R1 Findings to verify:
+- T1 (HIGH test-gap): 前端行为无测试 → 已补 paper 模板可见性 API 测试（subject_teacher only + homeroom_teacher excluded）
+- T2 (HIGH test-gap): paper API 未验证 Document 落库 → 已补 Document 创建 DB 断言 + 非 subject_teacher 403 + success=false + get_status 异常
+- T3 (MED test-gap): 知识库分支覆盖不足 → 已补 L1 坏文件容错 + search_curriculum 4 类分支 + 概念部分匹配/别名 + L3 空结果
+
+Review in 3 phases:
+
+Phase 1 — 测试充分性 (Test Adequacy):
+- Verify R1 fixes actually address the findings
+- Check if any plan-declared boundary conditions still lack tests
+- Ensure tests would fail under incorrect implementations
+
+Phase 2 — 行为正确性 (Behavioral Correctness):
+A. 正确性 B. 边界条件 C. 集成 D. 安全 E. 架构质量 G. 回归风险
+
+Phase 3 — 未测试风险 (Non-tested Risks)
+
+Finding Classification: code-bug / test-gap / design-concern / suggestion
+PASS/FAIL: code-bug 或 test-gap 的 HIGH/MED 未修复 → FAIL。
+
+For each finding use structured format: ID, Severity, Category, Evidence (file:line), Impact, Suggested action.
+Conclude with PASS or FAIL.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+Plan update
+  → 读取评审交接、计划、提交记录与完整 diff，确认修改范围
+  • 逐个核验 T1/T2/T3 修复对应测试及覆盖边界
+  • 审查修改文件实现与潜在剩余问题，形成结论
+codex
+我会先使用 `code-review:review-pr` 技能的流程来做这次独立复审，因为你的任务明确是 PR/提交评审，并且需要按发现项分类与 PASS/FAIL 结论输出。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'docs/plans/2026-03-22-p4-knowledge-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'docs/plans/2026-03-22-p4-knowledge-review-handoff-batch1.md'" in C:/Users/Administrator/edu-cloud succeeded in 1.13s:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+ succeeded in 1.15s:
+# P4 鐭ヨ瘑娣卞害瀹炴柦璁″垝
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 璁?AI 鑳藉紩鐢ㄨ鏍?鏁欐潗/楂樿€冪湡棰樺洖绛旀暀瀛﹂棶棰橈紝鏁欏笀鑳介€氳繃 Studio 鍙戣捣璁烘枃鍐欎綔銆?
+**Architecture:** 鐭ヨ瘑搴?JSON 鏂囦欢鍚姩鏃跺姞杞藉埌鍐呭瓨绱㈠紩锛圞nowledgeStore锛夛紝AI Agent 閫氳繃 L3 宸ュ叿鏌ヨ銆俻aper-skill 閫氳繃 httpx 璋冪敤鍏?REST API 鍒涘缓璁烘枃浠诲姟锛岃繘搴﹀洖鏄惧埌 Studio銆?
+**Tech Stack:** Python dict/list 鍐呭瓨绱㈠紩锛堜笉寮曞叆鍚戦噺搴擄級锛宧ttpx (paper-skill API client)
+
+**Design Doc:** `docs/plans/2026-03-21-super-platform-design.md` 搂5 L3 宸ュ叿 + 搂9 P4
+
+**P2 鍩虹:** 186 tests, AI Agent (ReAct + L1 + L4), Studio (鏂囨。 CRUD + 妯℃澘 + 瀹℃壒)
+
+**瀹屾垚鏍囧織:** (1) 鏁欏笀闂?璇炬爣瀵瑰熀鍥犺〃杈炬湁浠€涔堣姹? 鈫?AI 寮曠敤璇炬爣鍘熸枃鍥炵瓟 (2) 鏁欏笀鐐?璁烘枃" 鈫?paper-skill 鍒涘缓浠诲姟 鈫?Studio 鏄剧ず杩涘害
+
+**鐭ヨ瘑搴撹矾寰?** `C:\Users\Administrator\edu-knowledge-base\subjects\biology_senior\`
+
+---
+
+## 鏂囦欢缁撴瀯
+
+ succeeded in 1.11s:
+# P4 鐭ヨ瘑娣卞害 鈥?瀹℃煡浜ゆ帴鍗?Batch 1
+
+> **鏃堕棿**: 2026-03-22 15:41:19
+> **Executor**: Claude Opus 4.6 (subagent-driven-development)
+> **T 绾у埆**: T3
+> **Plan**: `docs/plans/2026-03-22-p4-knowledge-plan.md`
+
+## Batch 鑼冨洿
+
+| Task | 鎻忚堪 | Commits |
+|------|------|---------|
+| Task 1 | 鐭ヨ瘑搴撳姞杞戒笌鍐呭瓨绱㈠紩 | 6bb1a18 |
+| Task 2 | L3 鐭ヨ瘑鏌ヨ宸ュ叿 | 6bf9753 |
+| Task 3 | paper-skill 鎺ュ叆 | 60374d9 |
+| Task 4 | 鍓嶇璁烘枃杩涘害 + Studio 闆嗘垚 | cecccc1 |
+
+**Commit 鑼冨洿**: `da3df00..cecccc1` (4 commits)
+
+## 娴嬭瘯缁撴灉
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git status --short' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --stat 6bb1a18~1..1c82b63' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git log --oneline 6bb1a18~1..1c82b63' in C:/Users/Administrator/edu-cloud succeeded in 690ms:
+?? .task/
+?? docs/plans/.codex-code-review-p2-r2-raw.log
+?? docs/plans/.codex-code-review-p2-r3-raw.log
+?? docs/plans/.codex-code-review-p2-raw.log
+?? docs/plans/.codex-code-review-r2-raw.log
+?? docs/plans/.codex-code-review-r3-raw.log
+?? docs/plans/.codex-code-review-raw.log
+?? docs/plans/.codex-p1-code-review-r2-raw.log
+?? docs/plans/.codex-p1-code-review-raw.log
+?? uploads/
+ succeeded in 709ms:
+ CLAUDE.md                                          |  26 ++++-
+ ...026-03-22-p4-knowledge-review-handoff-batch1.md |  75 +++++++++++++
+ frontend/src/components/studio/PaperStatus.vue     |  48 ++++++++
+ frontend/src/components/studio/StudioPanel.vue     |  16 +++
+ frontend/src/stores/studio.js                      |  16 ++-
+ src/edu_cloud/ai/agent.py                          |  12 +-
+ src/edu_cloud/ai/tools/__init__.py                 |   1 +
+ src/edu_cloud/ai/tools/knowledge.py                |  73 ++++++++++++
+ src/edu_cloud/api/app.py                           |   8 ++
+ src/edu_cloud/api/studio.py                        |  40 +++++++
+ src/edu_cloud/config.py                            |   8 ++
+ src/edu_cloud/knowledge/__init__.py                |   0
+ src/edu_cloud/knowledge/loader.py                  |  87 +++++++++++++++
+ src/edu_cloud/knowledge/store.py                   | 117 ++++++++++++++++++++
+ src/edu_cloud/services/paper_service.py            |  53 +++++++++
+ src/edu_cloud/templates/document_templates.py      |  11 ++
+ tests/conftest.py                                  |  42 +++++++
+ tests/test_ai/test_tools_knowledge.py              |  81 ++++++++++++++
+ tests/test_api/test_paper_api.py                   | 110 +++++++++++++++++++
+ tests/test_knowledge/__init__.py                   |   0
+ succeeded in 677ms:
+1c82b63 fix(P4-R1): 补全测试覆盖 — T1 模板可见性 + T2 Document 落库/权限/error + T3 分支覆盖
+9e66e79 docs: P4 知识深度审查交接单
+cecccc1 feat(P4-4): 前端论文进度 + Studio 论文入口 + PaperStatus 轮询
+60374d9 feat(P4-3): paper-skill 接入 — 创建论文+查询进度+Studio关联+论文模板+API测试
+6bf9753 feat(P4-2): L3 知识查询工具 — 课标/教材/概念/高考 + 角色映射 + 启动加载
+6bb1a18 feat(P4-1): 知识库加载与内存索引 — 课标+L0+L1+高考题
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+for path in [
+    Path('docs/plans/2026-03-22-p4-knowledge-review-handoff-batch1.md'),
+    Path('docs/plans/2026-03-22-p4-knowledge-plan.md'),
+]:
+    print(f'===== {path} =====')
+    print(path.read_text(encoding='utf-8'))
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 516ms:
+===== docs\plans\2026-03-22-p4-knowledge-review-handoff-batch1.md =====
+# P4 知识深度 — 审查交接单 Batch 1
+
+> **时间**: 2026-03-22 15:41:19
+> **Executor**: Claude Opus 4.6 (subagent-driven-development)
+> **T 级别**: T3
+> **Plan**: `docs/plans/2026-03-22-p4-knowledge-plan.md`
+
+## Batch 范围
+
+| Task | 描述 | Commits |
+|------|------|---------|
+| Task 1 | 知识库加载与内存索引 | 6bb1a18 |
+| Task 2 | L3 知识查询工具 | 6bf9753 |
+| Task 3 | paper-skill 接入 | 60374d9 |
+| Task 4 | 前端论文进度 + Studio 集成 | cecccc1 |
+
+**Commit 范围**: `da3df00..cecccc1` (4 commits)
+
+## 测试结果
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --stat cecccc1..1c82b63' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff cecccc1..1c82b63 -- tests/conftest.py tests/test_api/test_paper_api.py tests/test_knowledge/test_loader.py tests/test_knowledge/test_store.py src/edu_cloud/api/studio.py src/edu_cloud/templates/document_templates.py src/edu_cloud/knowledge/store.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --name-only cecccc1..1c82b63' in C:/Users/Administrator/edu-cloud succeeded in 847ms:
+ ...026-03-22-p4-knowledge-review-handoff-batch1.md | 75 ++++++++++++++++++++++
+ tests/test_ai/test_tools_knowledge.py              | 20 ++++++
+ tests/test_api/test_paper_api.py                   | 65 ++++++++++++++++++-
+ tests/test_knowledge/test_loader.py                | 12 ++++
+ tests/test_knowledge/test_store.py                 | 52 +++++++++++++++
+ tests/test_services/test_paper_service.py          | 36 +++++++++++
+ 6 files changed, 259 insertions(+), 1 deletion(-)
+ succeeded in 844ms:
+diff --git a/tests/test_api/test_paper_api.py b/tests/test_api/test_paper_api.py
+index ff16ee5..6a1712b 100644
+--- a/tests/test_api/test_paper_api.py
++++ b/tests/test_api/test_paper_api.py
+@@ -1,5 +1,6 @@
+ import pytest
+-from unittest.mock import patch, AsyncMock
++from unittest.mock import patch, AsyncMock, MagicMock
++from sqlalchemy import select
+ 
+ @pytest.mark.asyncio
+ async def test_create_paper_requires_write_paper_permission(client):
+@@ -45,3 +46,65 @@ async def test_get_paper_status_success(client, subject_teacher_headers):
+         assert resp.status_code == 200
+         data = resp.json()
+         assert data["stage"] == "brainstorm"
++
++
++# ── T1: paper 模板可见性 ──────────────────────────────────────────
++
+ succeeded in 809ms:
+docs/plans/2026-03-22-p4-knowledge-review-handoff-batch1.md
+tests/test_ai/test_tools_knowledge.py
+tests/test_api/test_paper_api.py
+tests/test_knowledge/test_loader.py
+tests/test_knowledge/test_store.py
+tests/test_services/test_paper_service.py
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+paths = [
+    'tests/test_api/test_paper_api.py',
+    'tests/test_services/test_paper_service.py',
+    'tests/test_knowledge/test_loader.py',
+    'tests/test_knowledge/test_store.py',
+    'tests/test_ai/test_tools_knowledge.py',
+    'tests/conftest.py',
+    'src/edu_cloud/api/studio.py',
+    'src/edu_cloud/services/paper_service.py',
+    'src/edu_cloud/knowledge/store.py',
+    'src/edu_cloud/knowledge/loader.py',
+    'src/edu_cloud/templates/document_templates.py',
+]
+for rel in paths:
+    path = Path(rel)
+    print(f'===== {rel} =====')
+    for i, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+        print(f'{i:4}: {line}')
+    print()
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 932ms:
+===== tests/test_api/test_paper_api.py =====
+   1: import pytest
+   2: from unittest.mock import patch, AsyncMock, MagicMock
+   3: from sqlalchemy import select
+   4: 
+   5: @pytest.mark.asyncio
+   6: async def test_create_paper_requires_write_paper_permission(client):
+   7:     """未认证用户不能创建论文"""
+   8:     resp = await client.post("/api/v1/studio/paper/create", json={"budget_tier": "standard"})
+   9:     assert resp.status_code in (401, 403)
+  10: 
+  11: @pytest.mark.asyncio
+  12: async def test_create_paper_success(client, subject_teacher_headers):
+  13:     """subject_teacher 可以创建论文"""
+  14:     mock_svc = AsyncMock()
+  15:     mock_svc.create_paper.return_value = {
+  16:         "paper_id": "p-test-123", "stage": "intake", "status": "pending_intake"
+  17:     }
+  18:     with patch("edu_cloud.api.studio.PaperService", return_value=mock_svc):
+  19:         resp = await client.post(
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path = Path('tests/test_ai/test_tools_knowledge.py')
+for i, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+    print(f'{i:4}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path = Path('tests/test_knowledge/test_store.py')
+for i, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+    print(f'{i:4}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path = Path('src/edu_cloud/api/studio.py')
+for i, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+    print(f'{i:4}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.01s:
+   1: import pytest
+   2: from unittest.mock import patch, MagicMock
+   3: from edu_cloud.ai.tools.knowledge import search_curriculum, search_textbook, search_gaokao, get_concept_info
+   4: 
+   5: @pytest.fixture
+   6: def mock_store():
+   7:     store = MagicMock()
+   8:     store.search_curriculum.return_value = [
+   9:         {"module": "分子与细胞", "text": "阐明基因表达的过程", "requirement_id": "req:001"}
+  10:     ]
+  11:     store.search_knowledge.return_value = [
+  12:         {"id": "BK_002", "content": "基因表达包括转录和翻译", "category": "process"}
+  13:     ]
+  14:     store.get_concept.return_value = {
+  15:         "canonical_name": "基因表达",
+  16:         "description": "DNA→RNA→蛋白质",
+  17:         "l0_ids": ["BK_002"],
+  18:     }
+  19:     store.search_gaokao.return_value = [
+  20:         {"exam_id": "GK_2024_BJ", "year": 2024, "region": "北京", "question_count": 8}
+ succeeded in 1.05s:
+   1: import pytest
+   2: from edu_cloud.knowledge.store import KnowledgeStore
+   3: 
+   4: @pytest.fixture
+   5: def store():
+   6:     s = KnowledgeStore()
+   7:     s._curriculum = {
+   8:         "modules": [
+   9:             {"id": "mod:bio_sr:required_1", "name": "分子与细胞", "academic_requirements": [
+  10:                 {"id": "req:bio_sr:001", "text": "概述细胞学说的建立过程"},
+  11:                 {"id": "req:bio_sr:014", "text": "阐明基因表达的过程"},
+  12:             ]},
+  13:         ],
+  14:         "core_competencies": [
+  15:             {"id": "comp:bio_sr:life_concept", "name": "生命观念", "description": "对生命现象及相互关系的理解"},
+  16:         ],
+  17:     }
+  18:     s._l0_blocks = [
+  19:         {"id": "BK_001", "content": "细胞学说的建立者是施莱登和施旺", "category": "structure_fact", "module": "M1"},
+  20:         {"id": "BK_002", "content": "基因表达包括转录和翻译两个过程", "category": "process", "module": "M1"},
+ succeeded in 1.09s:
+   1: """Studio REST API: templates, document CRUD, status transitions."""
+   2: 
+   3: from fastapi import APIRouter, Depends, HTTPException
+   4: from sqlalchemy.ext.asyncio import AsyncSession
+   5: 
+   6: from edu_cloud.database import get_db
+   7: from edu_cloud.api.deps import get_current_user, require_permission
+   8: from edu_cloud.core.permissions import Permission
+   9: from edu_cloud.services.studio_service import StudioService
+  10: from edu_cloud.services.paper_service import PaperService
+  11: from edu_cloud.templates.document_templates import get_templates_for_role
+  12: 
+  13: router = APIRouter(prefix="/api/v1/studio", tags=["studio"])
+  14: 
+  15: 
+  16: @router.get("/templates")
+  17: async def list_templates(current=Depends(get_current_user)):
+  18:     role = current["current_role"]
+  19:     role_name = role.role if hasattr(role, "role") else "unknown"
+  20:     return get_templates_for_role(role_name)
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path = Path('tests/conftest.py')
+for i, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+    print(f'{i:4}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 801ms:
+   1: import pytest
+   2: import bcrypt
+   3: from httpx import ASGITransport, AsyncClient
+   4: from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+   5: 
+   6: from edu_cloud.models.base import Base
+   7: from edu_cloud.models.user import User
+   8: from edu_cloud.models.user_role import UserRole
+   9: from edu_cloud.models.school import RegisteredSchool
+  10: import edu_cloud.models.platform_user  # noqa: F401 — ensures platform_users table is in metadata
+  11: import edu_cloud.models.joint_exam  # noqa: F401 — ensures joint_exam tables are in metadata
+  12: import edu_cloud.models.student  # noqa: F401
+  13: import edu_cloud.models.class_group  # noqa: F401
+  14: import edu_cloud.models.exam  # noqa: F401
+  15: import edu_cloud.models.ai_session  # noqa: F401
+  16: import edu_cloud.models.document  # noqa: F401
+  17: import edu_cloud.models.approval  # noqa: F401
+  18: from edu_cloud.shared.auth import create_access_token
+  19: 
+  20: 
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path = Path('src/edu_cloud/ai/tools/knowledge.py')
+for i, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+    print(f'{i:4}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 465ms:
+   1: """L3 知识查询工具 — 课标/教材/概念/高考，注册到全局 registry。"""
+   2: 
+   3: from edu_cloud.ai.registry import tools
+   4: from edu_cloud.knowledge.store import knowledge_store
+   5: 
+   6: @tools.register(
+   7:     name="search_curriculum",
+   8:     description="搜索课程标准（课标）内容。输入关键词，返回匹配的学业要求和核心素养描述。",
+   9:     parameters={
+  10:         "type": "object",
+  11:         "properties": {
+  12:             "keyword": {"type": "string", "description": "搜索关键词，如'基因表达'、'细胞分裂'"},
+  13:         },
+  14:         "required": ["keyword"],
+  15:     },
+  16:     category="L3_knowledge",
+  17: )
+  18: async def search_curriculum(keyword: str) -> dict:
+  19:     results = knowledge_store.search_curriculum(keyword)
+  20:     return {"keyword": keyword, "results": results, "count": len(results)}
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"WRITE_PAPER|get_templates_for_role|paper\" src/edu_cloud/core src/edu_cloud/api src/edu_cloud/services src/edu_cloud/templates -g '"'!**/__pycache__/**'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "WRITE_PAPER" src tests' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 6bb1a18~1..1c82b63 -- src/edu_cloud/core/permissions.py src/edu_cloud/api/deps.py src/edu_cloud/services/studio_service.py src/edu_cloud/models/document.py' in C:/Users/Administrator/edu-cloud succeeded in 682ms:
+
+ succeeded in 1.75s:
+src/edu_cloud/templates\document_templates.py:115:    "paper": {
+src/edu_cloud/templates\document_templates.py:116:        "key": "paper",
+src/edu_cloud/templates\document_templates.py:124:        "external_service": "paper_skill",
+src/edu_cloud/templates\document_templates.py:129:def get_templates_for_role(role: str) -> list[dict]:
+src/edu_cloud/core\permissions.py:42:    WRITE_PAPER = "write_paper"
+src/edu_cloud/core\permissions.py:130:        Permission.WRITE_PAPER,
+src/edu_cloud/services\paper_service.py:1:"""paper-skill REST API 客户端。"""
+src/edu_cloud/services\paper_service.py:10:    """paper-skill REST API 客户端"""
+src/edu_cloud/services\paper_service.py:15:    async def create_paper(
+src/edu_cloud/services\paper_service.py:22:        """调用 paper-skill 创建论文任务"""
+src/edu_cloud/services\paper_service.py:26:                    f"{self.base_url}/api/paper/create",
+src/edu_cloud/services\paper_service.py:39:            logger.error(f"paper-skill create failed: {e}")
+src/edu_cloud/services\paper_service.py:42:    async def get_status(self, paper_id: str) -> dict:
+src/edu_cloud/services\paper_service.py:46:                resp = await client.get(f"{self.base_url}/api/paper/{paper_id}/status")
+src/edu_cloud/services\paper_service.py:52:            logger.error(f"paper-skill status failed: {e}")
+src/edu_cloud/api\studio.py:10:from edu_cloud.services.paper_service import PaperService
+src/edu_cloud/api\studio.py:11:from edu_cloud.templates.document_templates import get_templates_for_role
+src/edu_cloud/api\studio.py:20:    return get_templates_for_role(role_name)
+src/edu_cloud/api\studio.py:133:@router.post("/paper/create")
+src/edu_cloud/api\studio.py:134:async def create_paper(
+ succeeded in 1.73s:
+src\edu_cloud\core\permissions.py:42:    WRITE_PAPER = "write_paper"
+src\edu_cloud\core\permissions.py:130:        Permission.WRITE_PAPER,
+src\edu_cloud\api\studio.py:136:    current=Depends(require_permission(Permission.WRITE_PAPER)),
+tests\test_api\test_paper_api.py:104:    """T2: homeroom_teacher 没有 WRITE_PAPER 权限 → 403"""
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+for rel in ['src/edu_cloud/core/permissions.py','src/edu_cloud/api/deps.py','src/edu_cloud/services/studio_service.py','src/edu_cloud/models/document.py']:
+    path=Path(rel)
+    print(f'===== {rel} =====')
+    for i,line in enumerate(path.read_text(encoding='utf-8').splitlines(),1):
+        print(f'{i:4}: {line}')
+    print()
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 538ms:
+===== src/edu_cloud/core/permissions.py =====
+   1: """平台级 RBAC：基于角色的权限策略。"""
+   2: 
+   3: from enum import Enum
+   4: 
+   5: 
+   6: class Permission(str, Enum):
+   7:     # 学校管理（既有）
+   8:     MANAGE_SCHOOLS = "manage_schools"
+   9:     VIEW_SCHOOLS = "view_schools"
+  10: 
+  11:     # 联考管理（既有）
+  12:     CREATE_JOINT_EXAM = "create_joint_exam"
+  13:     MANAGE_JOINT_EXAM = "manage_joint_exam"
+  14:     VIEW_JOINT_EXAM = "view_joint_exam"
+  15: 
+  16:     # 跨校分析（既有）
+  17:     VIEW_CROSS_SCHOOL_ANALYTICS = "view_cross_school_analytics"
+  18: 
+  19:     # 题库管理（既有）
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff cecccc1..1c82b63 -- tests/test_services/test_paper_service.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff cecccc1..1c82b63 -- tests/test_ai/test_tools_knowledge.py' in C:/Users/Administrator/edu-cloud succeeded in 505ms:
+diff --git a/tests/test_ai/test_tools_knowledge.py b/tests/test_ai/test_tools_knowledge.py
+index 3bc3f9a..f4845e7 100644
+--- a/tests/test_ai/test_tools_knowledge.py
++++ b/tests/test_ai/test_tools_knowledge.py
+@@ -59,3 +59,23 @@ async def test_search_gaokao_no_filter(mock_store):
+     with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
+         result = await search_gaokao()
+         assert "exams" in result
++
++
++@pytest.mark.asyncio
++async def test_search_curriculum_empty_result(mock_store):
++    """T3: 知识库无匹配结果"""
++    mock_store.search_curriculum.return_value = []
++    with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
++        result = await search_curriculum(keyword="量子力学")
++        assert result["count"] == 0
++        assert result["results"] == []
++
++
+ succeeded in 492ms:
+diff --git a/tests/test_services/test_paper_service.py b/tests/test_services/test_paper_service.py
+index 070ad74..d4348e7 100644
+--- a/tests/test_services/test_paper_service.py
++++ b/tests/test_services/test_paper_service.py
+@@ -56,3 +56,39 @@ async def test_create_paper_failure():
+         svc = PaperService()
+         result = await svc.create_paper(budget_tier="standard")
+         assert "error" in result
++
++
++@pytest.mark.asyncio
++async def test_create_paper_success_false():
++    """T2: paper-skill 返回 success=false"""
++    mock_response = MagicMock()
++    mock_response.status_code = 200
++    mock_response.json.return_value = {
++        "success": False,
++        "error": "Invalid budget tier"
++    }
++
+Plan update
+已读取交接、计划、提交范围与关键文件；下一步执行针对性测试并核对新增用例是否真正约束实现。
+  ✓ 读取评审交接、计划、提交记录与完整 diff，确认修改范围
+  → 逐个核验 T1/T2/T3 修复对应测试及覆盖边界
+  • 审查修改文件实现与潜在剩余问题，形成结论
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_api/test_paper_api.py -q' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_services/test_paper_service.py -q' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_knowledge/test_loader.py tests/test_knowledge/test_store.py tests/test_ai/test_tools_knowledge.py -q' in C:/Users/Administrator/edu-cloud succeeded in 4.71s:
+.....                                                                    [100%]
+============================== warnings summary ===============================
+src\edu_cloud\config.py:65
+  C:\Users\Administrator\edu-cloud\src\edu_cloud\config.py:65: UserWarning: SECRET_KEY is using default value 'change-me'. Set SECRET_KEY in .env for production!
+    return Settings()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+5 passed, 1 warning in 0.26s
+ succeeded in 4.88s:
+.................................                                        [100%]
+============================== warnings summary ===============================
+src\edu_cloud\config.py:65
+  C:\Users\Administrator\edu-cloud\src\edu_cloud\config.py:65: UserWarning: SECRET_KEY is using default value 'change-me'. Set SECRET_KEY in .env for production!
+    return Settings()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+33 passed, 1 warning in 0.43s
+ succeeded in 9.75s:
+........                                                                 [100%]
+============================== warnings summary ===============================
+src\edu_cloud\config.py:65
+  C:\Users\Administrator\edu-cloud\src\edu_cloud\config.py:65: UserWarning: SECRET_KEY is using default value 'change-me'. Set SECRET_KEY in .env for production!
+    return Settings()
+
+tests/test_api/test_paper_api.py::test_create_paper_requires_write_paper_permission
+  C:\Users\Administrator\AppData\Roaming\Python\Python311\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+8 passed, 2 warnings in 5.26s
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+for rel in ['frontend/src/components/studio/StudioPanel.vue','frontend/src/stores/studio.js','frontend/src/components/studio/PaperStatus.vue','src/edu_cloud/api/app.py','src/edu_cloud/ai/agent.py']:
+    path=Path(rel)
+    print(f'===== {rel} =====')
+    for i,line in enumerate(path.read_text(encoding='utf-8').splitlines(),1):
+        print(f'{i:4}: {line}')
+    print()
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 468ms:
+===== frontend/src/components/studio/StudioPanel.vue =====
+   1: <template>
+   2:   <div style="padding: 12px; height: 100%; display: flex; flex-direction: column; overflow-y: auto;">
+   3:     <TemplateCards @select="handleTemplateSelect" />
+   4: 
+   5:     <n-divider />
+   6: 
+   7:     <n-h4>文档</n-h4>
+   8:     <n-list v-if="studioStore.documents.length">
+   9:       <n-list-item v-for="doc in studioStore.documents" :key="doc.id" style="cursor: pointer" @click="openDoc(doc)">
+  10:         <n-thing :title="doc.title">
+  11:           <template #description>
+  12:             <n-space size="small">
+  13:               <n-tag :type="statusType(doc.status)" size="small">{{ doc.status }}</n-tag>
+  14:               <n-text depth="3" style="font-size: 12px">v{{ doc.version }}</n-text>
+  15:             </n-space>
+  16:           </template>
+  17:         </n-thing>
+  18:       </n-list-item>
+  19:     </n-list>
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path = Path('src/edu_cloud/config.py')
+for i,line in enumerate(path.read_text(encoding='utf-8').splitlines(),1):
+    if 1 <= i <= 120:
+        print(f'{i:4}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 505ms:
+   1: import logging
+   2: import warnings
+   3: 
+   4: from pydantic_settings import BaseSettings
+   5: 
+   6: _logger = logging.getLogger(__name__)
+   7: 
+   8: 
+   9: class Settings(BaseSettings):
+  10:     # Database (PostgreSQL required for cloud)
+  11:     DATABASE_URL: str = "sqlite+aiosqlite:///:memory:"
+  12: 
+  13:     # Redis
+  14:     REDIS_URL: str = "redis://localhost:6379/0"
+  15: 
+  16:     # Security
+  17:     SECRET_KEY: str = "change-me"
+  18:     PLATFORM_API_KEY_SALT: str = "change-me"
+  19: 
+  20:     def __init__(self, **kwargs):
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "paper_id 不存在|budget_tier 非法值|知识库未加载|搜索无结果|概念名称部分匹配|paper-skill 不可用|paper 已完成|非 subject_teacher" docs/plans/2026-03-22-p4-knowledge-plan.md' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "T1|T2|T3|模板可见性|Document|success=false|get_status 异常|L1 坏文件|search_curriculum|概念部分匹配|别名|L3 空结果" docs/plans/2026-03-22-p4-knowledge-review-handoff-batch1.md' in C:/Users/Administrator/edu-cloud succeeded in 500ms:
+787:- 知识库未加载（KNOWLEDGE_ENABLED=False）→ 期望: 工具返回空结果
+788:- 搜索无结果 → 期望: 空列表 + count=0
+789:- 概念名称部分匹配 → 期望: 模糊匹配命中
+795:   - 边界: 空关键词 / 无匹配 / 知识库未加载
+869:    """paper-skill 不可用"""
+1082:- ✓ paper-skill 不可用时返回 error 而非崩溃
+1090:- paper_id 不存在 → 期望: paper-skill 返回 404，转为 error
+1091:- budget_tier 非法值 → 期望: paper-skill 处理
+1104:   - 边界: 未认证 / 非 subject_teacher / paper-skill mock 返回
+1244:- paper-skill 不可用 → 期望: 显示错误提示
+1245:- paper 已完成 → 期望: 停止轮询，进度 100%
+1246:- 非 subject_teacher 角色 → 期望: 看不到论文模板卡片
+1252:   - 边界: paper-skill 不可用 / paper_id 不存在
+ succeeded in 501ms:
+5:> **T 级别**: T3
+44:src/edu_cloud/ai/tools/knowledge.py        # 4 个 L3 工具（search_curriculum/textbook/gaokao + get_concept_info）
+68:4. **paper-skill 代理模式**: edu-cloud 只做 API 转发 + Studio Document 关联，不实现论文逻辑
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path = Path('frontend/src/components/studio/TemplateCards.vue')
+for i,line in enumerate(path.read_text(encoding='utf-8').splitlines(),1):
+    print(f'{i:4}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 447ms:
+   1: <template>
+   2:   <div>
+   3:     <n-h4 style="margin-bottom: 12px">生成</n-h4>
+   4:     <n-grid :cols="2" :x-gap="8" :y-gap="8">
+   5:       <n-gi v-for="tmpl in studioStore.templates" :key="tmpl.key">
+   6:         <n-card size="small" hoverable style="cursor: pointer" @click="$emit('select', tmpl)">
+   7:           <template #header>
+   8:             <n-text style="font-size: 13px">{{ tmpl.name }}</n-text>
+   9:           </template>
+  10:           <n-tag v-if="tmpl.requires_approval" size="tiny" type="warning">需审批</n-tag>
+  11:         </n-card>
+  12:       </n-gi>
+  13:     </n-grid>
+  14:   </div>
+  15: </template>
+  16: 
+  17: <script setup>
+  18: import { onMounted } from 'vue'
+  19: import { useStudioStore } from '../../stores/studio.js'
+  20: 
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 6bb1a18~1..1c82b63' in C:/Users/Administrator/edu-cloud succeeded in 411ms:
+diff --git a/CLAUDE.md b/CLAUDE.md
+index c436ef6..43de257 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -100,9 +100,16 @@ src/edu_cloud/
+   core/
+     events.py           # 进程内 EventBus（已定义，handler 未接入）
+     permissions.py      # 10 个 Permission 枚举 + 4 角色 RBAC 映射
++  knowledge/
++    __init__.py         # 包入口
++    loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
++    store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）
++  ai/
++    tools/
++      knowledge.py      # L3 知识查询工具（search_curriculum/search_textbook/get_concept_info/search_gaokao）
+   shared/
+     auth.py             # JWT create/decode 工具函数
+-  config.py             # Settings（DB/Redis/JWT/LLM/UPLOAD_DIR 配置，BaseSettings）
++  config.py             # Settings（DB/Redis/JWT/LLM/UPLOAD_DIR/知识库 配置，BaseSettings）
+   database.py           # async engine + session factory
+Plan update
+已完成定向测试、核验新增测试约束力，并检查实现代码与前端集成逻辑。
+  ✓ 读取评审交接、计划、提交记录与完整 diff，确认修改范围
+  ✓ 逐个核验 T1/T2/T3 修复对应测试及覆盖边界
+  ✓ 审查修改文件实现与潜在剩余问题，形成结论
+codex
+**发现**
+- ID: R2-01
+  严重性: HIGH
+  类别: 测试缺口（test-gap）
+  证据: `tests/test_api/test_paper_api.py:74`, `tests/test_api/test_paper_api.py:95`, `tests/conftest.py:35`, `tests/conftest.py:43`, `src/edu_cloud/services/studio_service.py:45`, `src/edu_cloud/api/studio.py:159`
+  影响: `test_create_paper_creates_document_in_db` 复用了和接口同一个 `AsyncSession`，而 `StudioService.create_document()` 在返回前已经 `flush()`；因此即使把 `src/edu_cloud/api/studio.py:159` 的 `await db.commit()` 删掉，这个测试仍然会在同一会话里查到记录并通过。也就是说，R1 的 T2 虽然补了“有 Document”断言，但还没有真正锁住“跨事务可见的落库”这个高优先级回归点。
+  建议: 把验证改成“请求完成后用一个新的会话重新查询”而不是复用 `db` fixture；最直接的做法是在测试里新建一个独立 `AsyncSession` 做二次查询，或者至少显式关闭当前会话后再重新打开新会话校验持久化结果。
+
+- ID: R2-02
+  严重性: MED
+  类别: 代码缺陷（code-bug）
+  证据: `frontend/src/components/studio/PaperStatus.vue:37`, `frontend/src/components/studio/PaperStatus.vue:43`, `frontend/src/components/studio/PaperStatus.vue:45`, `frontend/src/components/studio/StudioPanel.vue:23`, `frontend/src/components/studio/StudioPanel.vue:61`
+  影响: `PaperStatus` 在某篇论文进入 `completed` 后会 `clearInterval(timer)`，但组件没有监听 `paperId` 变化，也没有在父组件里加 `:key` 强制重建。结果是：同一页面里如果先打开一篇已完成论文，再切换到另一篇论文，轮询不会重启，界面会停留在旧状态或不再更新。这是正常操作路径下可触发的前端回归。
+  建议: 在 `PaperStatus.vue` 里对 `paperId` 加 `watch`，切换时先清旧定时器、重置 `status`、立即执行一次 `poll()` 并重新启动轮询；或者在 `StudioPanel.vue` 的组件实例上加 `:key="activePaperId"`。同时补一个组件测试或端到端用例覆盖“完成论文 -> 切换另一篇论文”的场景。
+
+**核验结果**
+- T1：已修复。`paper` 模板可见性现在有 API 级测试覆盖，`subject_teacher` 可见、`homeroom_teacher` 不可见，能有效拦住角色配置回归。
+- T3：已修复。L1 坏文件容错、`search_curriculum` 的 `big_concept/content_requirement/module_match/core_competency` 分支、概念部分匹配/别名、L3 空结果都补到了，新增用例对错误实现有实际约束力。
+- T2：部分修复。`non_subject_teacher` 403、`create_paper success=false`、`get_status` 异常路径都补到了，但“Document 真正落库”的核心断言仍然没有跨事务验证，所以我不能判定 T2 已完全关闭。
+
+**未测试风险**
+- `PaperService.get_status()` 的 `success=false/404` 分支仍无直接测试，当前只测了异常分支；计划里这个边界被单独列出。证据：`docs/plans/2026-03-22-p4-knowledge-plan.md:1090`, `tests/test_services/test_paper_service.py:83`
+- `KNOWLEDGE_ENABLED=False` 的“知识库未加载时工具返回空结果”仍无直接测试。证据：`docs/plans/2026-03-22-p4-knowledge-plan.md:787`, `tests/test_ai/test_tools_knowledge.py:64`
+
+**已执行验证**
+- 已跑 `python -m pytest tests/test_api/test_paper_api.py -q`
+- 已跑 `python -m pytest tests/test_services/test_paper_service.py -q`
+- 已跑 `python -m pytest tests/test_knowledge/test_loader.py tests/test_knowledge/test_store.py tests/test_ai/test_tools_knowledge.py -q`
+- 以上定向测试共 46 个用例全部通过，但通过结果不改变 R2-01 的测试充分性问题
+
+结论：FAIL
+tokens used
+1,218,555
+**发现**
+- ID: R2-01
+  严重性: HIGH
+  类别: 测试缺口（test-gap）
+  证据: `tests/test_api/test_paper_api.py:74`, `tests/test_api/test_paper_api.py:95`, `tests/conftest.py:35`, `tests/conftest.py:43`, `src/edu_cloud/services/studio_service.py:45`, `src/edu_cloud/api/studio.py:159`
+  影响: `test_create_paper_creates_document_in_db` 复用了和接口同一个 `AsyncSession`，而 `StudioService.create_document()` 在返回前已经 `flush()`；因此即使把 `src/edu_cloud/api/studio.py:159` 的 `await db.commit()` 删掉，这个测试仍然会在同一会话里查到记录并通过。也就是说，R1 的 T2 虽然补了“有 Document”断言，但还没有真正锁住“跨事务可见的落库”这个高优先级回归点。
+  建议: 把验证改成“请求完成后用一个新的会话重新查询”而不是复用 `db` fixture；最直接的做法是在测试里新建一个独立 `AsyncSession` 做二次查询，或者至少显式关闭当前会话后再重新打开新会话校验持久化结果。
+
+- ID: R2-02
+  严重性: MED
+  类别: 代码缺陷（code-bug）
+  证据: `frontend/src/components/studio/PaperStatus.vue:37`, `frontend/src/components/studio/PaperStatus.vue:43`, `frontend/src/components/studio/PaperStatus.vue:45`, `frontend/src/components/studio/StudioPanel.vue:23`, `frontend/src/components/studio/StudioPanel.vue:61`
+  影响: `PaperStatus` 在某篇论文进入 `completed` 后会 `clearInterval(timer)`，但组件没有监听 `paperId` 变化，也没有在父组件里加 `:key` 强制重建。结果是：同一页面里如果先打开一篇已完成论文，再切换到另一篇论文，轮询不会重启，界面会停留在旧状态或不再更新。这是正常操作路径下可触发的前端回归。
+  建议: 在 `PaperStatus.vue` 里对 `paperId` 加 `watch`，切换时先清旧定时器、重置 `status`、立即执行一次 `poll()` 并重新启动轮询；或者在 `StudioPanel.vue` 的组件实例上加 `:key="activePaperId"`。同时补一个组件测试或端到端用例覆盖“完成论文 -> 切换另一篇论文”的场景。
+
+**核验结果**
+- T1：已修复。`paper` 模板可见性现在有 API 级测试覆盖，`subject_teacher` 可见、`homeroom_teacher` 不可见，能有效拦住角色配置回归。
+- T3：已修复。L1 坏文件容错、`search_curriculum` 的 `big_concept/content_requirement/module_match/core_competency` 分支、概念部分匹配/别名、L3 空结果都补到了，新增用例对错误实现有实际约束力。
+- T2：部分修复。`non_subject_teacher` 403、`create_paper success=false`、`get_status` 异常路径都补到了，但“Document 真正落库”的核心断言仍然没有跨事务验证，所以我不能判定 T2 已完全关闭。
+
+**未测试风险**
+- `PaperService.get_status()` 的 `success=false/404` 分支仍无直接测试，当前只测了异常分支；计划里这个边界被单独列出。证据：`docs/plans/2026-03-22-p4-knowledge-plan.md:1090`, `tests/test_services/test_paper_service.py:83`
+- `KNOWLEDGE_ENABLED=False` 的“知识库未加载时工具返回空结果”仍无直接测试。证据：`docs/plans/2026-03-22-p4-knowledge-plan.md:787`, `tests/test_ai/test_tools_knowledge.py:64`
+
+**已执行验证**
+- 已跑 `python -m pytest tests/test_api/test_paper_api.py -q`
+- 已跑 `python -m pytest tests/test_services/test_paper_service.py -q`
+- 已跑 `python -m pytest tests/test_knowledge/test_loader.py tests/test_knowledge/test_store.py tests/test_ai/test_tools_knowledge.py -q`
+- 以上定向测试共 46 个用例全部通过，但通过结果不改变 R2-01 的测试充分性问题
+
+结论：FAIL

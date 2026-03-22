@@ -8,8 +8,6 @@ import json
 import logging
 import os
 import zipfile
-from datetime import datetime, timezone
-
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Header, File, Form, UploadFile
 from fastapi.responses import StreamingResponse
@@ -17,7 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.database import get_db
-from edu_cloud.models.school import RegisteredSchool
+from edu_cloud.models.school import School
 from edu_cloud.models.joint_exam import JointExamParticipant, JointExam
 from edu_cloud.services.joint_exam_service import JointExamService
 from edu_cloud.config import settings
@@ -30,7 +28,7 @@ router = APIRouter(prefix="/api/v1/sync", tags=["sync"])
 async def get_school_by_api_key(
     x_api_key: str = Header(..., alias="X-API-Key"),
     db: AsyncSession = Depends(get_db),
-) -> RegisteredSchool:
+) -> School:
     """从 API Key 识别学校。学校端每个请求都带 X-API-Key header。"""
     # API Key 格式: {school_code}:{secret}
     if ":" not in x_api_key:
@@ -38,9 +36,9 @@ async def get_school_by_api_key(
     school_code, secret = x_api_key.split(":", 1)
 
     result = await db.execute(
-        select(RegisteredSchool).where(
-            RegisteredSchool.code == school_code,
-            RegisteredSchool.is_active.is_(True),
+        select(School).where(
+            School.code == school_code,
+            School.is_active.is_(True),
         )
     )
     school = result.scalar_one_or_none()
@@ -58,20 +56,17 @@ async def get_school_by_api_key(
 # --- Heartbeat ---
 
 class HeartbeatRequest(BaseModel):
-    client_version: str
+    client_version: str = ""
     exam_ai_port: int = 8000
 
 
 @router.post("/heartbeat")
 async def heartbeat(
     req: HeartbeatRequest,
-    school: RegisteredSchool = Depends(get_school_by_api_key),
+    school: School = Depends(get_school_by_api_key),
     db: AsyncSession = Depends(get_db),
 ):
-    school.last_heartbeat = datetime.now(timezone.utc)
-    school.client_version = req.client_version
-    school.exam_ai_port = req.exam_ai_port
-    await db.commit()
+    # Fields removed from School model; heartbeat just confirms connectivity
     logger.debug("heartbeat: school=%s, version=%s", school.code, req.client_version)
     return {"status": "ok"}
 
@@ -80,7 +75,7 @@ async def heartbeat(
 
 @router.get("/joint-exams")
 async def pull_joint_exams(
-    school: RegisteredSchool = Depends(get_school_by_api_key),
+    school: School = Depends(get_school_by_api_key),
     db: AsyncSession = Depends(get_db),
 ):
     """学校端拉取分配给本校的联考列表。"""
@@ -122,7 +117,7 @@ async def upload_template(
     answer_schema: str = Form(...),
     skeleton: UploadFile = File(...),
     pdf: UploadFile = File(...),
-    school: RegisteredSchool = Depends(get_school_by_api_key),
+    school: School = Depends(get_school_by_api_key),
     db: AsyncSession = Depends(get_db),
 ):
     """出题校上传试卷模板（skeleton.json + template.pdf）。"""
@@ -159,7 +154,7 @@ async def upload_template(
 async def download_template(
     exam_id: str,
     subject_code: str,
-    school: RegisteredSchool = Depends(get_school_by_api_key),
+    school: School = Depends(get_school_by_api_key),
     db: AsyncSession = Depends(get_db),
 ):
     """参与校下载试卷模板（zip 包）。"""
@@ -211,7 +206,7 @@ class ScoreUploadRequest(BaseModel):
 @router.post("/scores")
 async def upload_scores(
     req: ScoreUploadRequest,
-    school: RegisteredSchool = Depends(get_school_by_api_key),
+    school: School = Depends(get_school_by_api_key),
     db: AsyncSession = Depends(get_db),
 ):
     """学校端上报联考成绩（逐题明细）。"""

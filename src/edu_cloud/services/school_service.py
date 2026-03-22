@@ -4,7 +4,7 @@ import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.models.school import RegisteredSchool
+from edu_cloud.models.school import School
 from edu_cloud.services.exceptions import NotFoundError, ConflictError
 
 
@@ -14,11 +14,11 @@ class SchoolService:
 
     async def create_school(
         self, name: str, code: str, district: str
-    ) -> tuple[RegisteredSchool, str]:
+    ) -> tuple[School, str]:
         # Check uniqueness
         existing = (
             await self.db.execute(
-                select(RegisteredSchool).where(RegisteredSchool.code == code)
+                select(School).where(School.code == code)
             )
         ).scalar_one_or_none()
         if existing:
@@ -28,7 +28,7 @@ class SchoolService:
         api_key_hash = bcrypt.hashpw(secret.encode(), bcrypt.gensalt()).decode()
         plaintext_key = f"{code}:{secret}"
 
-        school = RegisteredSchool(
+        school = School(
             name=name, code=code, district=district, api_key_hash=api_key_hash,
         )
         self.db.add(school)
@@ -38,25 +38,25 @@ class SchoolService:
 
     async def list_schools(
         self, district: str | None = None, is_active: bool | None = None,
-    ) -> list[RegisteredSchool]:
-        q = select(RegisteredSchool)
+    ) -> list[School]:
+        q = select(School)
         if district is not None:
-            q = q.where(RegisteredSchool.district == district)
+            q = q.where(School.district == district)
         if is_active is not None:
-            q = q.where(RegisteredSchool.is_active == is_active)
+            q = q.where(School.is_active == is_active)
         result = await self.db.execute(q)
         return list(result.scalars().all())
 
-    async def get_school(self, school_id: str) -> RegisteredSchool:
+    async def get_school(self, school_id: str) -> School:
         result = await self.db.execute(
-            select(RegisteredSchool).where(RegisteredSchool.id == school_id)
+            select(School).where(School.id == school_id)
         )
         school = result.scalar_one_or_none()
         if not school:
             raise NotFoundError(f"School '{school_id}' not found")
         return school
 
-    async def update_school(self, school_id: str, **fields) -> RegisteredSchool:
+    async def update_school(self, school_id: str, **fields) -> School:
         school = await self.get_school(school_id)
         for key, value in fields.items():
             if hasattr(school, key):

@@ -6,11 +6,11 @@ import pytest
 @pytest.fixture
 async def other_school_doc_id(db):
     """在另一个学校创建文档，用于跨校访问测试。"""
-    from edu_cloud.models.school import RegisteredSchool
+    from edu_cloud.models.school import School
     from edu_cloud.models.user import User
     from edu_cloud.models.document import Document
 
-    other_school = RegisteredSchool(
+    other_school = School(
         name="其他校", code="OTHER01", district="其他区", api_key_hash="x"
     )
     db.add(other_school)

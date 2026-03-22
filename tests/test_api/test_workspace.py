@@ -362,7 +362,7 @@ async def test_workspace_denied_for_parent(client, db):
     """
     from edu_cloud.models.user import User
     from edu_cloud.models.user_role import UserRole
-    from edu_cloud.models.school import RegisteredSchool
+    from edu_cloud.models.school import School
 
     # Create parent user
     user = User(username="parent1", display_name="家长")
@@ -370,7 +370,7 @@ async def test_workspace_denied_for_parent(client, db):
     db.add(user)
     await db.flush()
 
-    school = RegisteredSchool(
+    school = School(
         name="测试校P", code="TESTP", district="测试区", api_key_hash="x"
     )
     db.add(school)

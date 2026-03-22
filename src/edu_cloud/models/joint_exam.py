@@ -21,7 +21,7 @@ class JointExam(Base, IdMixin, TimestampMixin):
 
     # 新增字段
     creator_school_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("registered_schools.id"), default=None
+        String(36), ForeignKey("schools.id"), default=None
     )
     template_file_path: Mapped[str | None] = mapped_column(String(500), default=None)
     answer_detail_schema: Mapped[dict | None] = mapped_column(JSON, default=None)
@@ -33,7 +33,7 @@ class JointExamParticipant(Base, IdMixin, TimestampMixin):
     __tablename__ = "joint_exam_participants"
 
     joint_exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("joint_exams.id"))
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("registered_schools.id"))
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
     status: Mapped[str] = mapped_column(String(20), default="pending")
     # status: pending → scores_uploaded
     is_creator: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -47,7 +47,7 @@ class JointExamStudentResult(Base, IdMixin, TimestampMixin):
     __tablename__ = "joint_exam_student_results"
 
     joint_exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("joint_exams.id"))
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("registered_schools.id"))
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
     subject_code: Mapped[str] = mapped_column(String(50))
     student_name: Mapped[str] = mapped_column(String(100))
     student_number: Mapped[str] = mapped_column(String(100))

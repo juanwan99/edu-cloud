@@ -10,7 +10,7 @@ class Exam(Base, IdMixin, TimestampMixin):
     subject_code = Column(String, nullable=False)
     subject_name = Column(String, nullable=True)
     max_score = Column(Float, nullable=True)
-    school_id = Column(String, ForeignKey("registered_schools.id"), nullable=False)
+    school_id = Column(String, ForeignKey("schools.id"), nullable=False)
     exam_date = Column(DateTime, nullable=True)
     semester = Column(String, nullable=True)
     source = Column(String, default="sync")
@@ -21,7 +21,7 @@ class ExamResult(Base, IdMixin, TimestampMixin):
 
     exam_id = Column(String, ForeignKey("exams.id"), nullable=False)
     student_id = Column(String, ForeignKey("students.id"), nullable=False)
-    school_id = Column(String, ForeignKey("registered_schools.id"), nullable=False)
+    school_id = Column(String, ForeignKey("schools.id"), nullable=False)
     total_score = Column(Float, nullable=False)
     detail_scores = Column(JSON, nullable=True)
 

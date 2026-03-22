@@ -8,7 +8,7 @@ class CalendarEvent(Base, IdMixin, TimestampMixin):
     title = Column(String(200), nullable=False)
     description = Column(String(500), nullable=True)
     event_date = Column(Date, nullable=False)
-    school_id = Column(String(36), ForeignKey("registered_schools.id"), nullable=False)
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     semester = Column(String(20), nullable=True)      # "2025-2026-2"
     is_active = Column(Boolean, default=True, nullable=False)

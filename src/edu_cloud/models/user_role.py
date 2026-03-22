@@ -15,7 +15,7 @@ class UserRole(Base, IdMixin, TimestampMixin):
 
     # Scope: 角色作用域
     school_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("registered_schools.id"), default=None, nullable=True
+        String(36), ForeignKey("schools.id"), default=None, nullable=True
     )
     grade_ids: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
     class_ids: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
