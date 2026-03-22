@@ -147,14 +147,15 @@ async def generate_comment(
     from edu_cloud.models.student import Student
     from sqlalchemy import select
 
-    student = (
-        await _db.execute(
-            select(Student).where(
-                Student.student_number == student_number,
-                Student.school_id == _school_id,
-            )
-        )
-    ).scalar_one_or_none()
+    q = select(Student).where(
+        Student.student_number == student_number,
+        Student.school_id == _school_id,
+    )
+    # Scope check: restrict to classes the user has access to
+    if _class_ids:
+        q = q.where(Student.class_id.in_(_class_ids))
+
+    student = (await _db.execute(q)).scalar_one_or_none()
     if not student:
         return {"error": f"学生 {student_number} 不存在"}
 

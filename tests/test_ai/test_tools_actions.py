@@ -97,3 +97,22 @@ async def test_generate_comment_student_not_found(db, seed_exam_with_results):
     )
     assert "error" in result
     assert "不存在" in result["error"]
+
+
+# ── N2 fix: generate_comment class_ids scope ──────────────────────
+
+
+@pytest.mark.asyncio
+async def test_generate_comment_cross_class_denied(db, seed_exam_with_results):
+    """N2: 教师只能为自己班级的学生生成评语"""
+    # T000 属于 seed_exam_with_results 的 class_id
+    # 但如果 _class_ids 传入一个不同的班级，应该查不到学生
+    result = await generate_comment(
+        student_number="T000",
+        _db=db,
+        _school_id=seed_exam_with_results["school_id"],
+        _user_id="test_user",
+        _class_ids=["other-class-id"],  # 不包含学生所在班级
+    )
+    assert "error" in result
+    assert "不存在" in result["error"]

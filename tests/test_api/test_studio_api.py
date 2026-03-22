@@ -132,3 +132,65 @@ async def test_cross_school_access_denied(client, teacher_headers, other_school_
         headers=teacher_headers,
     )
     assert resp.status_code == 403
+
+
+# ── N1 fix: 无权限角色不能访问文档端点 ────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_observer_cannot_access_documents(client, observer_headers):
+    """N1: observer 角色没有 GENERATE_REPORT 权限 → 403"""
+    resp = await client.get("/api/v1/studio/documents", headers=observer_headers)
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_observer_cannot_get_document(client, observer_headers, teacher_headers):
+    """N1: observer 不能读取文档详情"""
+    # teacher 先创建文档
+    create_resp = await client.post(
+        "/api/v1/studio/documents",
+        json={"type": "report", "title": "权限测试", "content_json": {}},
+        headers=teacher_headers,
+    )
+    doc_id = create_resp.json()["id"]
+
+    # observer 尝试获取 → 403
+    resp = await client.get(
+        f"/api/v1/studio/documents/{doc_id}", headers=observer_headers
+    )
+    assert resp.status_code == 403
+
+
+# ── N4 fix: body 缺字段返回 422 ───────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_create_document_missing_fields(client, teacher_headers):
+    """N4: 缺少 type/title → 422"""
+    resp = await client.post(
+        "/api/v1/studio/documents",
+        json={"title": "只有标题"},
+        headers=teacher_headers,
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_document_missing_content_json(client, teacher_headers):
+    """N4: PATCH 缺少 content_json → 422"""
+    # 先创建
+    resp = await client.post(
+        "/api/v1/studio/documents",
+        json={"type": "report", "title": "测试", "content_json": {}},
+        headers=teacher_headers,
+    )
+    doc_id = resp.json()["id"]
+
+    # 缺 content_json
+    resp = await client.patch(
+        f"/api/v1/studio/documents/{doc_id}",
+        json={"change_summary": "无内容"},
+        headers=teacher_headers,
+    )
+    assert resp.status_code == 422

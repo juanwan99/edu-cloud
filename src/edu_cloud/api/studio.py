@@ -1,6 +1,6 @@
 """Studio REST API: templates, document CRUD, status transitions."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
@@ -41,6 +41,9 @@ async def create_document(
     current=Depends(require_permission(Permission.GENERATE_REPORT)),
     db: AsyncSession = Depends(get_db),
 ):
+    if "type" not in body or "title" not in body:
+        raise HTTPException(422, "缺少必填字段: type, title")
+
     user = current["user"]
     role = current["current_role"]
     svc = StudioService(db)
@@ -59,7 +62,7 @@ async def create_document(
 @router.get("/documents/{doc_id}")
 async def get_document(
     doc_id: str,
-    current=Depends(get_current_user),
+    current=Depends(require_permission(Permission.GENERATE_REPORT)),
     db: AsyncSession = Depends(get_db),
 ):
     role = current["current_role"]
@@ -73,9 +76,12 @@ async def get_document(
 async def update_document(
     doc_id: str,
     body: dict,
-    current=Depends(get_current_user),
+    current=Depends(require_permission(Permission.GENERATE_REPORT)),
     db: AsyncSession = Depends(get_db),
 ):
+    if "content_json" not in body:
+        raise HTTPException(422, "缺少必填字段: content_json")
+
     user = current["user"]
     role = current["current_role"]
     school_id = getattr(role, "school_id", None)
@@ -95,9 +101,12 @@ async def update_document(
 async def transition_document(
     doc_id: str,
     body: dict,
-    current=Depends(get_current_user),
+    current=Depends(require_permission(Permission.GENERATE_REPORT)),
     db: AsyncSession = Depends(get_db),
 ):
+    if "status" not in body:
+        raise HTTPException(422, "缺少必填字段: status")
+
     role = current["current_role"]
     school_id = getattr(role, "school_id", None)
     svc = StudioService(db)

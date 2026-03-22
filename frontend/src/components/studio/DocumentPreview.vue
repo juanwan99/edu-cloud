@@ -33,7 +33,9 @@ watch(() => props.doc, (newDoc) => {
   if (newDoc?.content_json) {
     const content = {}
     for (const [key, section] of Object.entries(newDoc.content_json)) {
-      content[key] = section.content || section || ''
+      content[key] = typeof section === 'object' && section !== null
+        ? (section.content ?? '')
+        : String(section ?? '')
     }
     editableContent.value = content
   }
