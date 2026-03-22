@@ -100,9 +100,13 @@ src/edu_cloud/
   core/
     events.py           # 进程内 EventBus（已定义，handler 未接入）
     permissions.py      # 10 个 Permission 枚举 + 4 角色 RBAC 映射
+  knowledge/
+    __init__.py         # 包入口
+    loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
+    store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）
   shared/
     auth.py             # JWT create/decode 工具函数
-  config.py             # Settings（DB/Redis/JWT/LLM/UPLOAD_DIR 配置，BaseSettings）
+  config.py             # Settings（DB/Redis/JWT/LLM/UPLOAD_DIR/知识库 配置，BaseSettings）
   database.py           # async engine + session factory
   logging_config.py     # 双输出（Console UTC+8 + JSONL RotatingFile）
 scripts/
@@ -112,6 +116,7 @@ tests/
   test_api/             # API 集成测试（health/deps/schools/joint_exams/sync_v2/results）
   test_models/          # 模型单测
   test_services/        # Service 单测（exceptions/school/joint_exam/results）
+  test_knowledge/       # 知识库单测（loader/store，18 tests）
 ```
 
 ### 实现状态
@@ -122,7 +127,8 @@ tests/
 | Models | 5 表（school/user/exam/participant/student_result）| 题库模型（BankQuestion/BankCategory）|
 | Services | SchoolService, JointExamService, ResultsService, exceptions | EventBus handler, AI grading |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
-| Tests | 58 tests（API+Service+Model 全覆盖）| — |
+| Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）| P4-Task2 L3 查询工具 |
+| Tests | 204 tests（API+Service+Model+Knowledge 全覆盖）| — |
 | Migrations | Alembic 脚手架 | 未写 migration 文件 |
 
 ## 技术栈

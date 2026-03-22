@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     LLM_MAX_RETRIES: int = 3
     LLM_MAX_STEPS: int = 8
 
+    # Knowledge base
+    KNOWLEDGE_BASE_DIR: str = "C:/Users/Administrator/edu-knowledge-base/subjects/biology_senior"
+    KNOWLEDGE_ENABLED: bool = True
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 
