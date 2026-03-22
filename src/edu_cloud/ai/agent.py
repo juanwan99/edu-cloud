@@ -15,12 +15,12 @@ logger = logging.getLogger(__name__)
 # None means unrestricted (all categories).
 ROLE_TOOL_CATEGORIES: dict[str, list[str] | None] = {
     "platform_admin": None,  # all categories
-    "district_admin": ["L2_cross_school"],
-    "principal": ["L1_analytics", "L2_cross_school", "L4_action"],
-    "academic_director": ["L1_analytics", "L2_cross_school", "L4_action"],
-    "grade_leader": ["L1_analytics", "L4_action"],
-    "homeroom_teacher": ["L1_analytics", "L4_action"],
-    "subject_teacher": ["L1_analytics", "L4_action"],
+    "district_admin": ["L2_cross_school", "L3_knowledge"],
+    "principal": ["L1_analytics", "L2_cross_school", "L3_knowledge", "L4_action"],
+    "academic_director": ["L1_analytics", "L2_cross_school", "L3_knowledge", "L4_action"],
+    "grade_leader": ["L1_analytics", "L3_knowledge", "L4_action"],
+    "homeroom_teacher": ["L1_analytics", "L3_knowledge", "L4_action"],
+    "subject_teacher": ["L1_analytics", "L3_knowledge", "L4_action"],
 }
 
 

@@ -104,6 +104,9 @@ src/edu_cloud/
     __init__.py         # 包入口
     loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
     store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）
+  ai/
+    tools/
+      knowledge.py      # L3 知识查询工具（search_curriculum/search_textbook/get_concept_info/search_gaokao）
   shared/
     auth.py             # JWT create/decode 工具函数
   config.py             # Settings（DB/Redis/JWT/LLM/UPLOAD_DIR/知识库 配置，BaseSettings）
@@ -127,8 +130,8 @@ tests/
 | Models | 5 表（school/user/exam/participant/student_result）| 题库模型（BankQuestion/BankCategory）|
 | Services | SchoolService, JointExamService, ResultsService, exceptions | EventBus handler, AI grading |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
-| Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）| P4-Task2 L3 查询工具 |
-| Tests | 204 tests（API+Service+Model+Knowledge 全覆盖）| — |
+| Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
+| Tests | 210 tests（API+Service+Model+Knowledge+AI Tools 全覆盖）| — |
 | Migrations | Alembic 脚手架 | 未写 migration 文件 |
 
 ## 技术栈
