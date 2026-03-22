@@ -200,3 +200,36 @@ async def teacher_headers(client, seed_teacher):
     )
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+async def seed_approver(db):
+    """创建一个教务主任（审批人）"""
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+
+    user = User(username="director1", display_name="王主任")
+    user.set_password("123456")
+    db.add(user)
+    await db.flush()
+
+    from edu_cloud.models.school import RegisteredSchool
+    from sqlalchemy import select
+
+    school = (await db.execute(select(RegisteredSchool))).scalars().first()
+    if not school:
+        school = RegisteredSchool(
+            name="审批测试校", code="APTEST", district="测试区", api_key_hash="x"
+        )
+        db.add(school)
+        await db.flush()
+    db.add(
+        UserRole(
+            user_id=user.id,
+            role="academic_director",
+            school_id=school.id,
+            is_primary=True,
+        )
+    )
+    await db.commit()
+    return {"user_id": user.id, "school_id": school.id}
