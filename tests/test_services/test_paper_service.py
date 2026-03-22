@@ -56,3 +56,39 @@ async def test_create_paper_failure():
         svc = PaperService()
         result = await svc.create_paper(budget_tier="standard")
         assert "error" in result
+
+
+@pytest.mark.asyncio
+async def test_create_paper_success_false():
+    """T2: paper-skill 返回 success=false"""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "success": False,
+        "error": "Invalid budget tier"
+    }
+
+    with patch("edu_cloud.services.paper_service.httpx.AsyncClient") as MockClient:
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.post.return_value = mock_response
+        MockClient.return_value = mock_client
+
+        svc = PaperService()
+        result = await svc.create_paper(budget_tier="invalid")
+        assert "error" in result
+        assert "Invalid budget tier" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_get_status_failure():
+    """T2: get_status 网络异常"""
+    with patch("edu_cloud.services.paper_service.httpx.AsyncClient") as MockClient:
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.get.side_effect = Exception("Timeout")
+        MockClient.return_value = mock_client
+
+        svc = PaperService()
+        result = await svc.get_status("p-nonexistent")
+        assert "error" in result

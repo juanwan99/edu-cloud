@@ -68,3 +68,55 @@ def test_store_stats(store):
     assert stats["l0_count"] == 3
     assert stats["l1_count"] == 2
     assert stats["gaokao_count"] == 2
+
+
+def test_search_curriculum_big_concept(store):
+    """T3: 搜索命中 big_concepts"""
+    store._curriculum["modules"][0]["big_concepts"] = ["细胞是生命的基本单位"]
+    results = store.search_curriculum("基本单位")
+    assert len(results) >= 1
+    assert any(r["type"] == "big_concept" for r in results)
+
+
+def test_search_curriculum_content_requirement(store):
+    """T3: 搜索命中 content_requirements"""
+    store._curriculum["modules"][0]["content_requirements"] = [
+        {"id": "cr1", "text": "理解光合作用的过程"}
+    ]
+    results = store.search_curriculum("光合作用")
+    assert len(results) >= 1
+    assert any(r["type"] == "content_requirement" for r in results)
+
+
+def test_search_curriculum_module_fallback(store):
+    """T3: 搜索命中 module 兜底（模块名包含关键词但其他字段不包含）"""
+    store._curriculum["modules"].append({
+        "id": "mod:bio_sr:m2", "name": "遗传与进化",
+        "academic_requirements": [], "big_concepts": [],
+        "hidden_field": "基因突变的类型与效应",
+    })
+    results = store.search_curriculum("基因突变")
+    assert len(results) >= 1
+    assert any(r["type"] == "module_match" for r in results)
+
+
+def test_search_curriculum_core_competency(store):
+    """T3: 搜索命中核心素养"""
+    results = store.search_curriculum("生命观念")
+    assert len(results) >= 1
+    assert any(r["type"] == "core_competency" for r in results)
+
+
+def test_get_concept_partial_match(store):
+    """T3: 概念部分匹配"""
+    concept = store.get_concept("基因")
+    assert concept is not None
+    assert "基因表达" in concept["canonical_name"]
+
+
+def test_get_concept_alias(store):
+    """T3: 概念别名匹配"""
+    store._l1_concepts[0]["aliases"] = ["细胞理论", "cell theory"]
+    concept = store.get_concept("细胞理论")
+    assert concept is not None
+    assert concept["canonical_name"] == "细胞学说"

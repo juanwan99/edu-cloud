@@ -59,3 +59,23 @@ async def test_search_gaokao_no_filter(mock_store):
     with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
         result = await search_gaokao()
         assert "exams" in result
+
+
+@pytest.mark.asyncio
+async def test_search_curriculum_empty_result(mock_store):
+    """T3: 知识库无匹配结果"""
+    mock_store.search_curriculum.return_value = []
+    with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
+        result = await search_curriculum(keyword="量子力学")
+        assert result["count"] == 0
+        assert result["results"] == []
+
+
+@pytest.mark.asyncio
+async def test_search_textbook_empty_result(mock_store):
+    """T3: 教材搜索无匹配"""
+    mock_store.search_knowledge.return_value = []
+    with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
+        result = await search_textbook(keyword="不存在")
+        assert result["count"] == 0
+        assert result["blocks"] == []

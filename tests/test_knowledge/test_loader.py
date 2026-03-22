@@ -106,3 +106,15 @@ class TestLoaderWithTmpPath:
         (gaokao_dir / "index.json").write_text("INVALID", encoding="utf-8")
         exams = load_gaokao_index(str(tmp_path))
         assert exams == []
+
+    def test_load_l1_concepts_bad_file_skipped(self, tmp_path):
+        """T3: L1 坏文件不影响其他文件加载"""
+        l1_dir = tmp_path / "skeleton" / "L1"
+        l1_dir.mkdir(parents=True)
+        (l1_dir / "M01_concepts.json").write_text("BAD JSON", encoding="utf-8")
+        (l1_dir / "M02_concepts.json").write_text(json.dumps([
+            {"id": "CP_002", "canonical_name": "good concept"}
+        ]), encoding="utf-8")
+        concepts = load_l1_concepts(str(tmp_path))
+        assert len(concepts) == 1
+        assert concepts[0]["canonical_name"] == "good concept"
