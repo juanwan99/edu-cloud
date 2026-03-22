@@ -42,12 +42,13 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
-    # LLM (shared AI grading)
-    LLM_API_URL: str = ""
-    LLM_API_KEY: str = ""
-    LLM_MODEL: str = ""
+    # LLM (shared AI grading + AI Agent)
+    LLM_API_URL: str = "http://localhost:8100/v1/chat/completions"
+    LLM_API_KEY: str = "not-needed-for-local-proxy"
+    LLM_MODEL: str = "claude-sonnet-4-6"
     LLM_TIMEOUT: int = 120
     LLM_MAX_RETRIES: int = 3
+    LLM_MAX_STEPS: int = 8
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
