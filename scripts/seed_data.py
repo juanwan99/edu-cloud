@@ -22,7 +22,6 @@ from edu_cloud.models.student import Student
 from edu_cloud.models.exam import Exam, ExamResult
 
 # Register all models so Base.metadata includes all tables
-import edu_cloud.models.platform_user  # noqa: F401
 import edu_cloud.models.joint_exam  # noqa: F401
 
 

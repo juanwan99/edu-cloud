@@ -7,7 +7,6 @@ from edu_cloud.models.base import Base
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.school import School
-import edu_cloud.models.platform_user  # noqa: F401 — ensures platform_users table is in metadata
 import edu_cloud.models.joint_exam  # noqa: F401 — ensures joint_exam tables are in metadata
 import edu_cloud.models.student  # noqa: F401
 import edu_cloud.models.class_group  # noqa: F401

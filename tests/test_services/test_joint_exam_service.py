@@ -2,15 +2,18 @@ import pytest
 from edu_cloud.services.joint_exam_service import JointExamService
 from edu_cloud.services.school_service import SchoolService
 from edu_cloud.services.exceptions import NotFoundError, StateError, ConflictError, ValidationError
-from edu_cloud.models.platform_user import PlatformUser
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
 
 
 @pytest.fixture
 async def setup(db):
     """Create user + 2 schools for testing."""
-    user = PlatformUser(username="coord", display_name="C", role="exam_coordinator")
+    user = User(username="coord", display_name="C")
     user.set_password("test")
     db.add(user)
+    await db.flush()
+    db.add(UserRole(user_id=user.id, role="exam_coordinator", is_primary=True))
     await db.commit()
 
     svc = SchoolService(db)

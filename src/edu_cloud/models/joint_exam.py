@@ -12,7 +12,7 @@ class JointExam(Base, IdMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, default=None)
-    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("platform_users.id"))
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
     status: Mapped[str] = mapped_column(String(20), default="draft")
     # status: draft → templates_ready → distributed → collecting → completed → archived
 

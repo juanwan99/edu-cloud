@@ -26,7 +26,6 @@ async def lifespan(app: FastAPI):
     from edu_cloud.database import engine
     from edu_cloud.models.base import Base
     import edu_cloud.models.school  # noqa: F401
-    import edu_cloud.models.platform_user  # noqa: F401
     import edu_cloud.models.joint_exam  # noqa: F401
     import edu_cloud.models.user  # noqa: F401
     import edu_cloud.models.user_role  # noqa: F401

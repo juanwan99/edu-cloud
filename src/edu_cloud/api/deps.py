@@ -64,35 +64,8 @@ async def get_current_user(
             "permissions": ROLE_PERMISSIONS.get(active.role, set()),
         }
 
-    # Fallback: 查旧 PlatformUser（迁移期兼容）
-    from edu_cloud.models.platform_user import PlatformUser
-
-    result = await db.execute(
-        select(PlatformUser).where(PlatformUser.id == user_id)
-    )
-    pu = result.scalar_one_or_none()
-    if not pu:
-        logger.warning("token user_id=%s not found in User or PlatformUser", user_id)
-        raise HTTPException(401, "User not found")
-
-    # 包装 PlatformUser 为统一 dict 格式
-    class _LegacyRole:
-        """Minimal role object for PlatformUser backward compat."""
-        def __init__(self, role: str):
-            self.id = None
-            self.role = role
-            self.school_id = None
-            self.grade_ids = None
-            self.class_ids = None
-            self.subject_codes = None
-            self.is_primary = True
-
-    return {
-        "user": pu,
-        "roles": [],
-        "current_role": _LegacyRole(pu.role),
-        "permissions": ROLE_PERMISSIONS.get(pu.role, set()),
-    }
+    logger.warning("token user_id=%s not found", user_id)
+    raise HTTPException(401, "User not found")
 
 
 def require_permission(permission: Permission):

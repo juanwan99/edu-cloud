@@ -18,7 +18,6 @@ from edu_cloud.models.student import Student  # noqa: F401
 from edu_cloud.models.class_group import ClassGroup  # noqa: F401
 from edu_cloud.models.exam import Exam, ExamResult  # noqa: F401
 from edu_cloud.models.joint_exam import JointExam, JointExamParticipant, JointExamStudentResult  # noqa: F401
-from edu_cloud.models.platform_user import PlatformUser  # noqa: F401  keep for compat
 
 # ---------------------------------------------------------------------------
 # Alembic Config object, which provides access to the values within the .ini

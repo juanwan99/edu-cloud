@@ -70,29 +70,8 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
             ],
         }
 
-    # Fallback: 查旧 PlatformUser
-    from edu_cloud.models.platform_user import PlatformUser
-
-    result = await db.execute(
-        select(PlatformUser).where(PlatformUser.username == req.username)
-    )
-    pu = result.scalar_one_or_none()
-    if not pu or not pu.verify_password(req.password):
-        logger.warning("login failed: username=%s", req.username)
-        raise HTTPException(401, "Invalid credentials")
-
-    token = create_access_token({"sub": pu.id, "role": pu.role})
-    logger.info("login ok (legacy): user=%s, role=%s", req.username, pu.role)
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {
-            "id": pu.id,
-            "username": pu.username,
-            "display_name": pu.display_name,
-            "role": pu.role,
-        },
-    }
+    logger.warning("login failed: username=%s", req.username)
+    raise HTTPException(401, "Invalid credentials")
 
 
 @router.post("/switch-role")
