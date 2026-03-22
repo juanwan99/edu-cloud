@@ -52,6 +52,7 @@ async function handleTemplateSelect(tmpl) {
     }
     return
   }
+  activePaperId.value = null
   await chatStore.sendMessage(`请帮我生成${tmpl.name}`)
   studioStore.loadDocuments()
 }
@@ -61,6 +62,7 @@ async function openDoc(doc) {
     activePaperId.value = doc.content_json.paper_id
     return
   }
+  activePaperId.value = null
   await studioStore.getDocument(doc.id)
   showPreview.value = true
 }

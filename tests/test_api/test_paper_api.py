@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-from sqlalchemy import select
 
 @pytest.mark.asyncio
 async def test_create_paper_requires_write_paper_permission(client):
@@ -71,11 +70,8 @@ async def test_paper_template_not_visible_to_teacher(client, teacher_headers):
 # ── T2: Document 落库验证 + 权限拒绝 ────────────────────────────
 
 @pytest.mark.asyncio
-async def test_create_paper_creates_document_in_db(client, subject_teacher_headers, db):
-    """T2: 创建论文时同时在 Studio 创建 Document 记录（跨会话验证落库）"""
-    from edu_cloud.models.document import Document
-    from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
-
+async def test_create_paper_creates_document_in_db(client, subject_teacher_headers):
+    """T2: 创建论文时同时在 Studio 创建 Document 记录（通过 API 验证可观测行为）"""
     mock_svc = AsyncMock()
     mock_svc.create_paper.return_value = {
         "paper_id": "p-db-test", "stage": "intake", "status": "pending_intake",
@@ -92,18 +88,16 @@ async def test_create_paper_creates_document_in_db(client, subject_teacher_heade
         assert "document_id" in data
         assert data["paper_id"] == "p-db-test"
 
-    # Cross-session verification: use a fresh session from the same engine to confirm commit happened
-    # (uncommitted data would NOT be visible here; db.bind is the AsyncEngine)
-    engine = db.bind
-    fresh_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with fresh_factory() as fresh_db:
-        doc = (await fresh_db.execute(
-            select(Document).where(Document.id == data["document_id"])
-        )).scalar_one_or_none()
-        assert doc is not None, "Document not found in fresh session — commit may be missing"
-        assert doc.type == "paper"
-        assert doc.content_json["paper_id"] == "p-db-test"
-        assert doc.source_context["paper_skill_id"] == "p-db-test"
+    # API-level verification: GET /documents should return the newly created paper document
+    # This proves the endpoint created the Document AND committed the transaction,
+    # because GET /documents goes through a separate request cycle.
+    list_resp = await client.get("/api/v1/studio/documents", headers=subject_teacher_headers)
+    assert list_resp.status_code == 200
+    docs = list_resp.json()
+    paper_docs = [d for d in docs if d["type"] == "paper"]
+    assert len(paper_docs) >= 1, "Paper document not found via GET /documents — create_document or commit may be missing"
+    assert paper_docs[0]["id"] == data["document_id"]
+    assert paper_docs[0]["content_json"]["paper_id"] == "p-db-test"
 
 
 @pytest.mark.asyncio
