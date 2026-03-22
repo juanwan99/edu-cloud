@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import AsyncGenerator
 
 from edu_cloud.ai.anonymizer import Anonymizer
@@ -114,6 +115,7 @@ class Agent:
                 )
 
                 # Execute tool
+                t0 = time.monotonic()
                 try:
                     result = await self.registry.execute(
                         tc.name,
@@ -125,6 +127,23 @@ class Agent:
                 except Exception as exc:
                     logger.error("Tool %s failed: %s", tc.name, exc)
                     result = {"error": str(exc)}
+                duration_ms = int((time.monotonic() - t0) * 1000)
+
+                # Persist audit record
+                if audit is not None:
+                    try:
+                        result_str_for_audit = json.dumps(result, ensure_ascii=False, default=str)
+                        await audit.log_tool_call(
+                            session_id=session_id,
+                            user_id=scope.get("user_id", ""),
+                            role=role,
+                            tool=tc.name,
+                            arguments=json.dumps(tc.arguments, ensure_ascii=False),
+                            result=result_str_for_audit,
+                            duration_ms=duration_ms,
+                        )
+                    except Exception as audit_exc:
+                        logger.warning("Audit log_tool_call failed: %s", audit_exc)
 
                 # Yield raw result to frontend (real names intact for display)
                 yield AgentEvent(

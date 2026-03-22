@@ -41,3 +41,38 @@ def test_execute_unknown_tool():
     with pytest.raises(KeyError):
         import asyncio
         asyncio.get_event_loop().run_until_complete(registry.execute("nonexistent", {}))
+
+
+# ── Integration tests: real global registry with real tools ──────────────
+
+
+def test_real_registry_tool_visibility():
+    """Real analytics tools are visible via L1_analytics category."""
+    from edu_cloud.ai.registry import tools
+    import edu_cloud.ai.tools  # noqa: F401 — trigger registration
+
+    schemas = tools.get_schemas(categories=["L1_analytics"])
+    tool_names = [s["function"]["name"] for s in schemas]
+    assert "get_exam_scores" in tool_names
+    assert "get_class_stats" in tool_names
+    assert "compare_classes" in tool_names
+    assert "get_student_profile" in tool_names
+    assert len(tool_names) >= 4
+
+
+def test_real_registry_empty_categories_no_tools():
+    """Empty categories list (e.g. parent role) returns zero tools."""
+    from edu_cloud.ai.registry import tools
+    import edu_cloud.ai.tools  # noqa: F401
+
+    schemas = tools.get_schemas(categories=[])
+    assert len(schemas) == 0
+
+
+def test_real_registry_wrong_category_no_tools():
+    """Non-matching category returns zero analytics tools."""
+    from edu_cloud.ai.registry import tools
+    import edu_cloud.ai.tools  # noqa: F401
+
+    schemas = tools.get_schemas(categories=["nonexistent_category"])
+    assert len(schemas) == 0

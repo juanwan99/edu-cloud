@@ -66,3 +66,73 @@ async def test_get_exam_scores_empty(db, seed_exam_with_results):
     result = await get_exam_scores(exam_id="nonexistent", _db=db, _school_id="none", _class_ids=None)
     assert result["students"] == []
     assert result["stats"]["count"] == 0
+
+
+# ── Scope enforcement tests ─────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_get_class_stats_scope_denied(db, seed_exam_with_results):
+    """get_class_stats rejects class_id outside caller's _class_ids scope."""
+    exam_id = seed_exam_with_results["exam_id"]
+    class_id = seed_exam_with_results["class_id"]
+    result = await get_class_stats(
+        exam_id=exam_id, class_id=class_id, _db=db,
+        _school_id=seed_exam_with_results["school_id"],
+        _class_ids=["other_class_id"],
+    )
+    assert "error" in result
+    assert "无权" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_get_class_stats_scope_allowed(db, seed_exam_with_results):
+    """get_class_stats allows class_id within caller's _class_ids scope."""
+    exam_id = seed_exam_with_results["exam_id"]
+    class_id = seed_exam_with_results["class_id"]
+    result = await get_class_stats(
+        exam_id=exam_id, class_id=class_id, _db=db,
+        _school_id=seed_exam_with_results["school_id"],
+        _class_ids=[class_id],
+    )
+    assert "error" not in result
+    assert "avg" in result
+
+
+@pytest.mark.asyncio
+async def test_get_class_stats_scope_none_means_unrestricted(db, seed_exam_with_results):
+    """_class_ids=None means no restriction (admin/principal)."""
+    exam_id = seed_exam_with_results["exam_id"]
+    class_id = seed_exam_with_results["class_id"]
+    result = await get_class_stats(
+        exam_id=exam_id, class_id=class_id, _db=db,
+        _school_id=seed_exam_with_results["school_id"],
+        _class_ids=None,
+    )
+    assert "error" not in result
+    assert "avg" in result
+
+
+@pytest.mark.asyncio
+async def test_get_student_profile_scope_denied(db, seed_exam_with_results):
+    """get_student_profile rejects student outside caller's _class_ids scope."""
+    result = await get_student_profile(
+        student_number="T000", _db=db,
+        _school_id=seed_exam_with_results["school_id"],
+        _class_ids=["other_class_id"],
+    )
+    assert "error" in result
+    assert "无权" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_get_student_profile_scope_allowed(db, seed_exam_with_results):
+    """get_student_profile allows student within caller's _class_ids scope."""
+    class_id = seed_exam_with_results["class_id"]
+    result = await get_student_profile(
+        student_number="T000", _db=db,
+        _school_id=seed_exam_with_results["school_id"],
+        _class_ids=[class_id],
+    )
+    assert "error" not in result
+    assert "name" in result

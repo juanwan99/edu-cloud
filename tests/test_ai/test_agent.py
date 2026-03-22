@@ -198,6 +198,42 @@ async def test_agent_llm_error_yields_error_event(test_registry):
 
 
 @pytest.mark.asyncio
+async def test_agent_calls_audit_log_tool_call(test_registry):
+    """Agent calls audit.log_tool_call() after each tool execution."""
+    mock_llm = AsyncMock()
+    mock_llm.chat.side_effect = [
+        ChatMessage(
+            role="assistant",
+            content=None,
+            tool_calls=[ToolCall(id="tc1", name="mock_tool", arguments={"q": "测试"})],
+        ),
+        ChatMessage(role="assistant", content="完成"),
+    ]
+    mock_audit = AsyncMock()
+    agent = Agent(llm=mock_llm, registry=test_registry)
+    events = []
+    async for event in agent.run(
+        "查数据",
+        session_id="test-session",
+        db=None,
+        school_id=None,
+        class_ids=None,
+        role="principal",
+        display_name="校长",
+        scope={"user_id": "u123"},
+        audit=mock_audit,
+    ):
+        events.append(event)
+    # audit.log_tool_call should have been called once
+    mock_audit.log_tool_call.assert_called_once()
+    call_kwargs = mock_audit.log_tool_call.call_args[1]
+    assert call_kwargs["session_id"] == "test-session"
+    assert call_kwargs["tool"] == "mock_tool"
+    assert call_kwargs["role"] == "principal"
+    assert call_kwargs["duration_ms"] >= 0
+
+
+@pytest.mark.asyncio
 async def test_agent_platform_admin_gets_all_tools():
     """platform_admin role gets access to all tool categories"""
     reg = ToolRegistry()

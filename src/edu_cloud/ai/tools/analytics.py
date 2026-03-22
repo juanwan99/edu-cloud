@@ -37,7 +37,7 @@ def _compute_stats(scores: list[float]) -> dict:
         },
         "required": ["exam_id"],
     },
-    category="analytics",
+    category="L1_analytics",
 )
 async def get_exam_scores(
     exam_id: str,
@@ -98,17 +98,22 @@ async def get_exam_scores(
         },
         "required": ["exam_id", "class_id"],
     },
-    category="analytics",
+    category="L1_analytics",
 )
 async def get_class_stats(
     exam_id: str,
     class_id: str,
     _db: AsyncSession = None,
     _school_id: str = None,
+    _class_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     """返回指定班级的成绩聚合统计。"""
     if _db is None:
         return {"error": "no database session"}
+
+    # Scope enforcement: restrict to caller's classes
+    if _class_ids is not None and class_id not in _class_ids:
+        return {"error": "无权访问此班级数据"}
 
     stmt = (
         select(ExamResult.total_score)
@@ -147,7 +152,7 @@ async def get_class_stats(
         },
         "required": ["exam_id"],
     },
-    category="analytics",
+    category="L1_analytics",
 )
 async def compare_classes(
     exam_id: str,
@@ -219,12 +224,13 @@ async def compare_classes(
         },
         "required": ["student_number"],
     },
-    category="analytics",
+    category="L1_analytics",
 )
 async def get_student_profile(
     student_number: str,
     _db: AsyncSession = None,
     _school_id: str = None,
+    _class_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     """返回学生基本信息及历次考试成绩。"""
     if _db is None:
@@ -238,6 +244,10 @@ async def get_student_profile(
     student = (await _db.execute(stmt)).scalar_one_or_none()
     if student is None:
         return {"error": f"学生 {student_number!r} 不存在"}
+
+    # Scope enforcement: restrict to caller's classes
+    if _class_ids is not None and student.class_id not in _class_ids:
+        return {"error": "无权访问此学生数据"}
 
     # 查询该学生的所有考试成绩（join Exam 取考试名称）
     results_stmt = (

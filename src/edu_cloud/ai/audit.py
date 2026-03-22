@@ -13,6 +13,7 @@ class AuditLogger:
         session = AiSession(user_id=user_id, role=role, context_snapshot=context)
         self.db.add(session)
         await self.db.flush()
+        await self.db.commit()
         return session.id
 
     async def log_tool_call(self, session_id, user_id, role, tool, arguments, result, duration_ms):
@@ -22,3 +23,4 @@ class AuditLogger:
             tool=tool, arguments=arguments, result_summary=summary, duration_ms=duration_ms,
         ))
         await self.db.flush()
+        await self.db.commit()
