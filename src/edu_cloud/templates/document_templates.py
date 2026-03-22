@@ -123,6 +123,47 @@ TEMPLATES = {
         "requires_approval": False,
         "external_service": "paper_skill",
     },
+    "holiday_safety": {
+        "key": "holiday_safety",
+        "name": "假期安全通知",
+        "sections": [
+            {"key": "greeting", "title": "称呼", "prompt": "尊敬的家长"},
+            {"key": "schedule", "title": "放假安排", "prompt": "根据事件日期生成放假时间安排"},
+            {"key": "safety", "title": "安全提醒", "prompt": "假期安全注意事项（交通/防溺水/饮食）"},
+            {"key": "closing", "title": "落款", "prompt": "学校名+日期"},
+        ],
+        "required_context": ["event_title", "event_date"],
+        "available_roles": ["homeroom_teacher", "academic_director", "principal"],
+        "requires_approval": True,
+        "approval_chain": "class_notification",
+    },
+    "exam_reminder": {
+        "key": "exam_reminder",
+        "name": "考试通知",
+        "sections": [
+            {"key": "greeting", "title": "称呼", "prompt": "尊敬的家长"},
+            {"key": "exam_info", "title": "考试信息", "prompt": "考试时间、科目、注意事项"},
+            {"key": "preparation", "title": "备考建议", "prompt": "家长如何配合备考"},
+            {"key": "closing", "title": "落款", "prompt": "学校名+日期"},
+        ],
+        "required_context": ["event_title", "event_date"],
+        "available_roles": ["homeroom_teacher", "academic_director", "principal"],
+        "requires_approval": True,
+        "approval_chain": "class_notification",
+    },
+    "meeting_invite": {
+        "key": "meeting_invite",
+        "name": "家长会邀请",
+        "sections": [
+            {"key": "greeting", "title": "称呼", "prompt": "尊敬的家长"},
+            {"key": "meeting_info", "title": "会议信息", "prompt": "时间、地点、议程"},
+            {"key": "closing", "title": "落款", "prompt": "学校名+日期"},
+        ],
+        "required_context": ["event_title", "event_date"],
+        "available_roles": ["homeroom_teacher", "academic_director", "principal"],
+        "requires_approval": True,
+        "approval_chain": "class_notification",
+    },
 }
 
 

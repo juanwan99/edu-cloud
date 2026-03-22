@@ -126,12 +126,12 @@ tests/
 
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
-| API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(paper/create + paper/:id/status) | 跨校分析(高级), 题库, 共享 AI 阅卷 |
+| API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(paper/create + paper/:id/status), calendar(events CRUD) | 跨校分析(高级), 题库, 共享 AI 阅卷 |
 | Models | 9 表（school/user/exam/participant/student_result/document+assigned_to/calendar_events/notification_rules/notifications）| 题库模型（BankQuestion/BankCategory）|
-| Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), exceptions | EventBus handler, AI grading, CalendarService, NotificationService |
+| Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), CalendarService(create/list/delete/triggered_rules), exceptions | EventBus handler, AI grading, NotificationService |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 238 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar 全覆盖）| — |
+| Tests | 247 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar 全覆盖）| — |
 | Migrations | Alembic 脚手架 | 未写 migration 文件 |
 
 ## 技术栈
@@ -247,6 +247,14 @@ API Key 格式：`{school_code}:{secret}`，bcrypt 验证。
 |------|------|------|------|
 | POST | `/api/v1/studio/paper/create` | WRITE_PAPER | 创建论文任务（调用 paper-skill，创建 Studio Document 关联记录） |
 | GET | `/api/v1/studio/paper/{paper_id}/status` | 已登录 | 查询论文进度（透传 paper-skill /api/paper/:id/status） |
+
+### 日历端点（JWT 认证，P3-2）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| POST | `/api/v1/calendar/events` | GENERATE_NOTIFICATION | 创建校历事件（含通知规则） |
+| GET | `/api/v1/calendar/events` | 已登录 | 列出本校校历事件（支持 start/end 日期过滤） |
+| DELETE | `/api/v1/calendar/events/{id}` | GENERATE_NOTIFICATION | 软删除校历事件（is_active=False） |
 
 ### 未实现端点（规划中）
 
