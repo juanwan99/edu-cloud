@@ -121,3 +121,111 @@ async def test_invalid_status_transition(db, seed_teacher):
 
     with pytest.raises(StateError):
         await svc.transition_status(doc.id, "approved")
+
+
+# ── F1 fix: DocumentVersion 持久化断言 + 连续编辑 ──────────────────
+
+
+@pytest.mark.asyncio
+async def test_update_document_persists_version_history(db, seed_teacher):
+    """F1: 编辑文档时旧版本必须持久化到 document_versions 表"""
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.models.document import DocumentVersion
+    from sqlalchemy import select
+
+    role = (
+        await db.execute(
+            select(UserRole).where(UserRole.user_id == seed_teacher.id)
+        )
+    ).scalar_one()
+
+    svc = StudioService(db)
+    doc = await svc.create_document(
+        type="report", title="版本测试",
+        content_json={"body": "original"},
+        school_id=role.school_id, created_by=seed_teacher.id,
+    )
+
+    # 编辑 3 次
+    for i in range(1, 4):
+        await svc.update_document(
+            doc.id, content_json={"body": f"v{i + 1}"},
+            edited_by=seed_teacher.id, change_summary=f"edit {i}",
+        )
+
+    # 文档本体应为 v4
+    assert doc.version == 4
+
+    # document_versions 应有 3 条历史记录
+    versions = (await db.execute(
+        select(DocumentVersion)
+        .where(DocumentVersion.document_id == doc.id)
+        .order_by(DocumentVersion.version)
+    )).scalars().all()
+    assert len(versions) == 3
+    assert [v.version for v in versions] == [1, 2, 3]
+    # 历史记录保存的是旧值，不是新值
+    assert versions[0].content_json == {"body": "original"}
+    assert versions[1].content_json == {"body": "v2"}
+    assert versions[2].content_json == {"body": "v3"}
+
+
+# ── F2 fix: 异常路径测试 ──────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_get_nonexistent_document(db):
+    """F2: 不存在的 doc_id → NotFoundError"""
+    from edu_cloud.services.exceptions import NotFoundError
+
+    svc = StudioService(db)
+    with pytest.raises(NotFoundError):
+        await svc.get_document("nonexistent-id")
+
+
+@pytest.mark.asyncio
+async def test_draft_cannot_transition_to_executed(db, seed_teacher):
+    """F2: draft → executed 跳转不合法"""
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.services.exceptions import StateError
+    from sqlalchemy import select
+
+    role = (
+        await db.execute(
+            select(UserRole).where(UserRole.user_id == seed_teacher.id)
+        )
+    ).scalar_one()
+
+    svc = StudioService(db)
+    doc = await svc.create_document(
+        type="report", title="测试", content_json={},
+        school_id=role.school_id, created_by=seed_teacher.id,
+    )
+    with pytest.raises(StateError):
+        await svc.transition_status(doc.id, "executed")
+
+
+@pytest.mark.asyncio
+async def test_executed_document_cannot_transition(db, seed_teacher):
+    """F2: executed 终态文档不能再转换"""
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.services.exceptions import StateError
+    from sqlalchemy import select
+
+    role = (
+        await db.execute(
+            select(UserRole).where(UserRole.user_id == seed_teacher.id)
+        )
+    ).scalar_one()
+
+    svc = StudioService(db)
+    doc = await svc.create_document(
+        type="report", title="测试", content_json={},
+        school_id=role.school_id, created_by=seed_teacher.id,
+    )
+    # draft → reviewed → executed
+    await svc.transition_status(doc.id, "reviewed")
+    await svc.transition_status(doc.id, "executed")
+
+    with pytest.raises(StateError):
+        await svc.transition_status(doc.id, "draft")
