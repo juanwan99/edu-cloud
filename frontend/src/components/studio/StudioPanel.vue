@@ -20,7 +20,7 @@
     <n-empty v-else description="暂无文档" size="small" />
 
     <DocumentPreview v-model:show="showPreview" :doc="studioStore.currentDoc" />
-    <PaperStatus v-if="activePaperId" :paperId="activePaperId" />
+    <PaperStatus v-if="activePaperId" :paperId="activePaperId" :key="activePaperId" />
   </div>
 </template>
 

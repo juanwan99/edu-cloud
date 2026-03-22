@@ -72,8 +72,9 @@ async def test_paper_template_not_visible_to_teacher(client, teacher_headers):
 
 @pytest.mark.asyncio
 async def test_create_paper_creates_document_in_db(client, subject_teacher_headers, db):
-    """T2: 创建论文时同时在 Studio 创建 Document 记录"""
+    """T2: 创建论文时同时在 Studio 创建 Document 记录（跨会话验证落库）"""
     from edu_cloud.models.document import Document
+    from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
     mock_svc = AsyncMock()
     mock_svc.create_paper.return_value = {
@@ -91,12 +92,18 @@ async def test_create_paper_creates_document_in_db(client, subject_teacher_heade
         assert "document_id" in data
         assert data["paper_id"] == "p-db-test"
 
-    # Verify Document was created in DB
-    doc = (await db.execute(select(Document).where(Document.id == data["document_id"]))).scalar_one_or_none()
-    assert doc is not None
-    assert doc.type == "paper"
-    assert doc.content_json["paper_id"] == "p-db-test"
-    assert doc.source_context["paper_skill_id"] == "p-db-test"
+    # Cross-session verification: use a fresh session from the same engine to confirm commit happened
+    # (uncommitted data would NOT be visible here; db.bind is the AsyncEngine)
+    engine = db.bind
+    fresh_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with fresh_factory() as fresh_db:
+        doc = (await fresh_db.execute(
+            select(Document).where(Document.id == data["document_id"])
+        )).scalar_one_or_none()
+        assert doc is not None, "Document not found in fresh session — commit may be missing"
+        assert doc.type == "paper"
+        assert doc.content_json["paper_id"] == "p-db-test"
+        assert doc.source_context["paper_skill_id"] == "p-db-test"
 
 
 @pytest.mark.asyncio

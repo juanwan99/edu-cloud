@@ -131,7 +131,7 @@ tests/
 | Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), exceptions | EventBus handler, AI grading |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 217 tests（API+Service+Model+Knowledge+AI Tools+Paper 全覆盖）| — |
+| Tests | 233 tests（API+Service+Model+Knowledge+AI Tools+Paper 全覆盖）| — |
 | Migrations | Alembic 脚手架 | 未写 migration 文件 |
 
 ## 技术栈

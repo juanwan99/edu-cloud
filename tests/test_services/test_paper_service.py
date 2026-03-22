@@ -92,3 +92,25 @@ async def test_get_status_failure():
         svc = PaperService()
         result = await svc.get_status("p-nonexistent")
         assert "error" in result
+
+
+@pytest.mark.asyncio
+async def test_get_status_success_false():
+    """R2: get_status 返回 success=false"""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "success": False,
+        "error": "Paper not found"
+    }
+
+    with patch("edu_cloud.services.paper_service.httpx.AsyncClient") as MockClient:
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.get.return_value = mock_response
+        MockClient.return_value = mock_client
+
+        svc = PaperService()
+        result = await svc.get_status("p-nonexistent")
+        assert "error" in result
+        assert "Paper not found" in result["error"]
