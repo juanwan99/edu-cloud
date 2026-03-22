@@ -33,6 +33,8 @@ class Settings(BaseSettings):
 
     # File storage
     UPLOAD_DIR: str = "./uploads"
+    STORAGE_ROOT: str = "./storage"  # scanned images from paper-seg
+    MAX_UPLOAD_SIZE_MB: int = 10
 
     # Logging
     LOG_LEVEL: str = "DEBUG"
@@ -46,9 +48,16 @@ class Settings(BaseSettings):
     LLM_API_URL: str = "http://localhost:8100/v1/chat/completions"
     LLM_API_KEY: str = "not-needed-for-local-proxy"
     LLM_MODEL: str = "claude-sonnet-4-6"
+    LLM_VISION_MODEL: str = ""
     LLM_TIMEOUT: int = 120
     LLM_MAX_RETRIES: int = 3
-    LLM_MAX_STEPS: int = 8
+
+    # AI Agent
+    AI_MAX_STEPS: int = 15
+    AI_SESSION_TTL: int = 7200  # seconds
+    AI_RATE_LIMIT_PER_MINUTE: int = 10
+    AI_RATE_LIMIT_PER_DAY: int = 200
+    AI_MAX_CALLS_PER_SESSION: int = 20
 
     # Knowledge base
     KNOWLEDGE_BASE_DIR: str = "C:/Users/Administrator/edu-knowledge-base/subjects/biology_senior"

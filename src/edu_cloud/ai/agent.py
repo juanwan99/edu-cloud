@@ -42,7 +42,7 @@ class Agent:
     ) -> None:
         self.llm = llm
         self.registry = registry
-        self.max_steps = max_steps if max_steps is not None else settings.LLM_MAX_STEPS
+        self.max_steps = max_steps if max_steps is not None else settings.AI_MAX_STEPS
 
     async def run(
         self,
