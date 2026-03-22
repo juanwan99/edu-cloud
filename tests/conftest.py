@@ -118,6 +118,46 @@ def school_api_headers(seed_school):
 
 
 @pytest.fixture
+async def seed_exam_with_results(db):
+    """Create school+class+students+exam+results for AI tool tests"""
+    from edu_cloud.models.school import RegisteredSchool
+    from edu_cloud.models.class_group import ClassGroup
+    from edu_cloud.models.student import Student
+    from edu_cloud.models.exam import Exam, ExamResult
+    import random
+
+    school = RegisteredSchool(name="AI测试校", code="AITEST", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+
+    cls = ClassGroup(name="七年级2班", grade="七年级", grade_number=7, school_id=school.id)
+    db.add(cls)
+    await db.flush()
+
+    students = []
+    for i in range(10):
+        s = Student(name=f"学生{i}", student_number=f"T{i:03d}", school_id=school.id,
+                    class_id=cls.id, grade="七年级")
+        db.add(s)
+        students.append(s)
+    await db.flush()
+
+    exam = Exam(name="期中数学", subject_code="SX", subject_name="数学",
+                max_score=150, school_id=school.id, semester="2025-2026-2")
+    db.add(exam)
+    await db.flush()
+
+    random.seed(42)
+    for s in students:
+        score = round(random.gauss(105, 20), 1)
+        score = max(0, min(150, score))
+        db.add(ExamResult(exam_id=exam.id, student_id=s.id, school_id=school.id, total_score=score))
+    await db.commit()
+
+    return {"school_id": school.id, "class_id": cls.id, "exam_id": exam.id, "student_ids": [s.id for s in students]}
+
+
+@pytest.fixture
 async def seed_teacher(db):
     """Seed a homeroom_teacher user with school scope."""
     user = User(
