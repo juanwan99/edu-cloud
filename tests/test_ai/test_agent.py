@@ -220,8 +220,9 @@ async def test_agent_calls_audit_log_tool_call(test_registry):
         class_ids=None,
         role="principal",
         display_name="校长",
-        scope={"user_id": "u123"},
+        scope={},
         audit=mock_audit,
+        user_id="u123",
     ):
         events.append(event)
     # audit.log_tool_call should have been called once
@@ -230,6 +231,7 @@ async def test_agent_calls_audit_log_tool_call(test_registry):
     assert call_kwargs["session_id"] == "test-session"
     assert call_kwargs["tool"] == "mock_tool"
     assert call_kwargs["role"] == "principal"
+    assert call_kwargs["user_id"] == "u123"
     assert call_kwargs["duration_ms"] >= 0
 
 

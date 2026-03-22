@@ -58,6 +58,7 @@ async def ai_chat(
             school_id=getattr(role_obj, "school_id", None),
             class_ids=getattr(role_obj, "class_ids", None),
             role=role, display_name=user.display_name, scope=scope, audit=audit,
+            user_id=user.id,
         ):
             yield f"data: {json.dumps(event.to_dict(), ensure_ascii=False)}\n\n"
 

@@ -55,6 +55,7 @@ class Agent:
         display_name: str,
         scope: dict,
         audit=None,
+        user_id: str = "",
     ) -> AsyncGenerator[AgentEvent, None]:
         # ── 1. Determine tools available to this role ──────────────────────
         # Roles not in the mapping get an empty list (no tool access).
@@ -135,7 +136,7 @@ class Agent:
                         result_str_for_audit = json.dumps(result, ensure_ascii=False, default=str)
                         await audit.log_tool_call(
                             session_id=session_id,
-                            user_id=scope.get("user_id", ""),
+                            user_id=user_id,
                             role=role,
                             tool=tc.name,
                             arguments=json.dumps(tc.arguments, ensure_ascii=False),
