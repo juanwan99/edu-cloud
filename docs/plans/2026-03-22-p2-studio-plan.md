@@ -4,15 +4,15 @@
 
 **Goal:** 实现右栏 Studio 文档生成——AI 按模板生成报告/评语，教师可编辑、导出 PDF，需审批的通知走审批流。
 
-**Architecture:** Document 模型（状态机 draft→reviewed→approved→executed）+ 模板系统 + L4 工具（AI Agent 可触发生成）+ Tiptap 富文本编辑 + WeasyPrint PDF 导出 + 固化审批链。
+**Architecture:** Document 模型（状态机 draft→reviewed→approved→executed）+ 模板系统 + L4 工具（AI Agent 可触发生成）+ 固化审批链。（Tiptap 富文本、WeasyPrint PDF 导出延期到 P2-后续迭代）
 
-**Tech Stack:** SQLAlchemy (Document/DocumentVersion/ApprovalFlow), WeasyPrint, Tiptap (Vue), L4 tools
+**Tech Stack:** SQLAlchemy (Document/DocumentVersion/ApprovalFlow), L4 tools, Vue 3 (Naive UI)
 
 **Design Doc:** `docs/plans/2026-03-21-super-platform-design.md` §6
 
 **P1 基础:** 138 tests, AI Agent (ReAct + 4 L1 tools), SSE chat, ToolRegistry
 
-**完成标志:** 班主任点击"班级报告"模板 → AI 生成四段报告 → 教师编辑措辞 → 导出 PDF
+**完成标志:** 班主任点击"班级报告"模板 → AI 生成四段报告（含真实数据填充）→ 教师编辑措辞 → 确认审阅（PDF 导出延期到 P2-后续迭代，可用浏览器打印替代）
 
 ---
 
@@ -29,7 +29,7 @@ src/edu_cloud/
 │   ├── studio_service.py    # 文档 CRUD + 状态机 + 版本管理
 │   └── approval_service.py  # 审批流创建/推进/驳回
 ├── api/
-│   └── studio.py            # Studio REST API（文档+审批+PDF导出）
+│   └── studio.py            # Studio REST API（文档 CRUD + 状态转换）
 ├── ai/tools/
 │   └── actions.py           # L4 执行动作工具（generate_report/generate_comment）
 └── templates/
@@ -43,8 +43,7 @@ frontend/src/
 ├── components/studio/
 │   ├── StudioPanel.vue      # 重写：模板卡片 + 行动队列
 │   ├── TemplateCards.vue     # 模板卡片网格
-│   ├── DocumentPreview.vue  # 文档预览 + Tiptap 编辑
-│   └── ApprovalBadge.vue    # 审批状态标签
+│   └── DocumentPreview.vue  # 文档预览 + 编辑（Tiptap 富文本延期到 P2-后续迭代）
 └── stores/
     └── studio.js            # Studio 状态管理
 ```
@@ -55,7 +54,7 @@ frontend/src/
 src/edu_cloud/api/app.py             # 注册 studio router
 src/edu_cloud/ai/agent.py            # ROLE_TOOL_CATEGORIES 添加 L4
 src/edu_cloud/ai/tools/__init__.py   # 导入 actions
-src/edu_cloud/core/permissions.py    # 确认 GENERATE_REPORT 等权限已存在
+src/edu_cloud/core/permissions.py    # 确认 GENERATE_REPORT 等权限已存在 + subject_teacher 角色添加 GENERATE_REPORT
 frontend/src/components/workspace/DataView.vue  # Studio 交互联动
 pyproject.toml                       # 添加 weasyprint 依赖
 ```
@@ -70,6 +69,8 @@ tests/
 ├── test_api/test_studio_api.py      # Studio API 集成测试
 └── test_ai/test_tools_actions.py    # L4 工具测试
 ```
+
+> **P2 范围声明:** 审批 API 接口（ApprovalBadge.vue 等）、Tiptap 富文本编辑器集成、WeasyPrint PDF 导出延期到 P2-后续迭代。本批次实现：Document 模型 + 模板 + StudioService + L4 工具 + Studio API (CRUD + 状态转换) + 前端基础交互。
 
 ---
 
@@ -415,7 +416,7 @@ def get_templates_for_role(role: str) -> list[dict]:
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.models.document import Document, DocumentVersion
-from edu_cloud.services.exceptions import NotFoundError, StateError
+from edu_cloud.services.exceptions import NotFoundError, StateError, PermissionDeniedError
 
 VALID_TRANSITIONS = {
     "draft": ["reviewed"],
@@ -451,8 +452,9 @@ class StudioService:
     async def update_document(
         self, doc_id: str, content_json: dict,
         edited_by: str, change_summary: str = "",
+        school_id: str = None,
     ) -> Document:
-        doc = await self._get_doc(doc_id)
+        doc = await self._get_doc(doc_id, school_id=school_id)
         # 保存旧版本
         self.db.add(DocumentVersion(
             document_id=doc.id, version=doc.version,
@@ -465,8 +467,8 @@ class StudioService:
         await self.db.flush()
         return doc
 
-    async def transition_status(self, doc_id: str, new_status: str) -> Document:
-        doc = await self._get_doc(doc_id)
+    async def transition_status(self, doc_id: str, new_status: str, school_id: str = None) -> Document:
+        doc = await self._get_doc(doc_id, school_id=school_id)
         allowed = VALID_TRANSITIONS.get(doc.status, [])
         if new_status not in allowed:
             raise StateError(f"Cannot transition from '{doc.status}' to '{new_status}'")
@@ -483,13 +485,15 @@ class StudioService:
         q = q.order_by(Document.created_at.desc())
         return (await self.db.execute(q)).scalars().all()
 
-    async def get_document(self, doc_id: str) -> Document:
-        return await self._get_doc(doc_id)
+    async def get_document(self, doc_id: str, school_id: str = None) -> Document:
+        return await self._get_doc(doc_id, school_id=school_id)
 
-    async def _get_doc(self, doc_id: str) -> Document:
+    async def _get_doc(self, doc_id: str, school_id: str = None) -> Document:
         doc = await self.db.get(Document, doc_id)
         if not doc:
             raise NotFoundError(f"Document {doc_id} not found")
+        if school_id and doc.school_id != school_id:
+            raise PermissionDeniedError("Cannot access documents from other schools")
         return doc
 ```
 
@@ -620,6 +624,21 @@ async def test_wrong_approver_denied(db, seed_teacher, seed_approver):
             approver_id="wrong_user_id",
             action="approved",
         )
+
+@pytest.mark.asyncio
+async def test_already_completed_flow_cannot_act(db, seed_teacher, seed_approver):
+    """F6 反例: 已 approved 的审批流不能再操作"""
+    svc = ApprovalService(db)
+    flow = await svc.create_flow(
+        document_id="doc1",
+        chain_type="class_notification",
+        approver_ids=[seed_approver["user_id"]],
+    )
+    # 先批准
+    await svc.act_on_step(flow_id=flow.id, approver_id=seed_approver["user_id"], action="approved")
+    # 再次操作应失败（流程已完成，current_step 越界）
+    with pytest.raises((StateError, PermissionDeniedError, IndexError)):
+        await svc.act_on_step(flow_id=flow.id, approver_id=seed_approver["user_id"], action="approved")
 ```
 
 - [ ] **Step 2: 添加 seed_approver fixture 到 conftest**
@@ -732,7 +751,7 @@ class ApprovalService:
 - [ ] **Step 5: 运行确认通过**
 
 Run: `python -m pytest tests/test_services/test_approval.py -v`
-Expected: PASS (5 tests)
+Expected: PASS (6 tests)
 
 - [ ] **Step 6: Commit**
 
@@ -812,6 +831,18 @@ async def test_generate_report_unknown_template(db, seed_exam_with_results):
     assert "error" in result
 
 @pytest.mark.asyncio
+async def test_generate_report_missing_context(db, seed_exam_with_results):
+    """F6 反例: 缺少必需 exam_id → 返回错误"""
+    result = await generate_report(
+        template="class_report",
+        context={},  # class_report 需要 exam_id + class_id
+        _db=db, _school_id=seed_exam_with_results["school_id"],
+        _user_id="test", _class_ids=[],
+    )
+    assert "error" in result
+    assert "缺少必需上下文" in result["error"]
+
+@pytest.mark.asyncio
 async def test_generate_comment(db, seed_exam_with_results):
     """生成学生评语"""
     result = await generate_comment(
@@ -861,14 +892,41 @@ async def generate_report(
         return {"error": f"未知模板: {template}"}
 
     tmpl = TEMPLATES[template]
+
+    # F3 fix: 验证 required_context
+    missing = [k for k in tmpl.get("required_context", []) if k not in context]
+    if missing:
+        return {"error": f"缺少必需上下文: {', '.join(missing)}"}
+
     svc = StudioService(_db)
 
-    # 生成结构化内容（各 section 的 prompt 作为占位，AI 后续填充）
+    # 获取真实数据填充 section 内容（基础文本摘要，非 AI 生成散文）
+    # AI 对话会话后续可进一步润色和细化
+    from edu_cloud.ai.tools.analytics import get_exam_scores, get_class_stats
+    data_summary = {}
+    try:
+        if "exam_id" in context:
+            scores = await get_exam_scores(
+                exam_id=context["exam_id"],
+                _db=_db, _school_id=_school_id, _class_ids=_class_ids,
+            )
+            data_summary["scores"] = scores
+        if "class_id" in context:
+            stats = await get_class_stats(
+                class_id=context["class_id"],
+                _db=_db, _school_id=_school_id, _class_ids=_class_ids,
+            )
+            data_summary["stats"] = stats
+    except Exception:
+        pass  # 数据获取失败时用空内容降级
+
     content = {}
     for section in tmpl["sections"]:
+        # 根据 section key 和 data_summary 生成基础内容
+        section_content = _build_section_content(section["key"], data_summary)
         content[section["key"]] = {
             "title": section["title"],
-            "content": "",  # AI Agent 会在后续步骤填充
+            "content": section_content,
             "prompt": section["prompt"],
         }
 
@@ -891,6 +949,22 @@ async def generate_report(
         "requires_approval": tmpl.get("requires_approval", False),
         "message": f"已创建{tmpl['name']}草稿，请在右栏 Studio 中查看和编辑。",
     }
+
+
+def _build_section_content(section_key: str, data_summary: dict) -> str:
+    """根据 section key 和查询数据生成基础文本内容（非 AI 散文）。"""
+    scores = data_summary.get("scores", {})
+    stats = data_summary.get("stats", {})
+    if section_key == "overview" and stats:
+        avg = stats.get("average", "N/A")
+        count = stats.get("student_count", "N/A")
+        pass_rate = stats.get("pass_rate", "N/A")
+        return f"全班 {count} 人参加考试，平均分 {avg}，及格率 {pass_rate}。"
+    if section_key == "subject_analysis" and scores:
+        return f"成绩数据已加载（共 {len(scores.get('items', []))} 条记录），待教师审阅和 AI 细化。"
+    if section_key == "student_tiers" and stats:
+        return f"优秀: {stats.get('excellent_count', 'N/A')} 人，良好: {stats.get('good_count', 'N/A')} 人，待提高: {stats.get('needs_improvement_count', 'N/A')} 人。"
+    return ""  # 无数据时留空，AI 对话后续填充
 
 
 @tools.register(
@@ -960,12 +1034,32 @@ ROLE_TOOL_CATEGORIES = {
     "homeroom_teacher": ["L1_analytics", "L4_action"],
     "subject_teacher": ["L1_analytics", "L4_action"],
 }
+
+# src/edu_cloud/ai/agent.py — registry.execute() 注入 _user_id（约第 121 行）
+# L4 工具需要 _user_id 来设置 Document.created_by，现有调用缺少此参数。
+# 将 registry.execute() 的 kwargs 从：
+#     _db=db, _school_id=school_id, _class_ids=class_ids,
+# 改为：
+#     _db=db, _school_id=school_id, _class_ids=class_ids, _user_id=user_id,
+# （user_id 已在 agent.run() 签名中，无需额外传入）
+
+# src/edu_cloud/core/permissions.py — subject_teacher 添加 GENERATE_REPORT
+# 当前 subject_teacher 缺少此权限，导致科任教师无法使用 Studio API
+# 在 "subject_teacher" 的权限集合中追加：
+#     Permission.GENERATE_REPORT,
+# 修改后应为：
+#     "subject_teacher": {
+#         Permission.VIEW_STUDENTS, Permission.VIEW_EXAMS, Permission.VIEW_SCORES,
+#         Permission.VIEW_QUESTION_BANK,
+#         Permission.GENERATE_REPORT,   # <-- 新增
+#         Permission.USE_AI_CHAT, Permission.WRITE_PAPER,
+#     },
 ```
 
 - [ ] **Step 5: 运行确认通过**
 
 Run: `python -m pytest tests/test_ai/test_tools_actions.py -v`
-Expected: PASS (3 tests)
+Expected: PASS (4 tests)
 
 - [ ] **Step 6: 全量测试**
 
@@ -975,8 +1069,8 @@ Expected: 138 + 新增全 PASS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/edu_cloud/ai/tools/ src/edu_cloud/ai/agent.py tests/
-git commit -m "feat(P2-4): L4 执行动作工具 — generate_report + generate_comment + 角色映射"
+git add src/edu_cloud/ai/tools/ src/edu_cloud/ai/agent.py src/edu_cloud/core/permissions.py tests/
+git commit -m "feat(P2-4): L4 执行动作工具 — generate_report + generate_comment + 角色映射 + subject_teacher 权限"
 ```
 
 **审查清单:**
@@ -1079,6 +1173,15 @@ async def test_studio_requires_auth(client):
     """未认证返回 401"""
     resp = await client.get("/api/v1/studio/templates")
     assert resp.status_code in (401, 403)
+
+@pytest.mark.asyncio
+async def test_cross_school_access_denied(client, teacher_headers, other_school_doc_id):
+    """F6 反例: 学校 A 的用户不能访问学校 B 的文档"""
+    resp = await client.get(
+        f"/api/v1/studio/documents/{other_school_doc_id}",
+        headers=teacher_headers,
+    )
+    assert resp.status_code == 403
 ```
 
 - [ ] **Step 2: 运行确认失败**
@@ -1144,8 +1247,10 @@ async def get_document(
     current=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    role = current["current_role"]
+    school_id = getattr(role, "school_id", None)
     svc = StudioService(db)
-    doc = await svc.get_document(doc_id)
+    doc = await svc.get_document(doc_id, school_id=school_id)
     return _doc_to_dict(doc)
 
 @router.patch("/documents/{doc_id}")
@@ -1155,12 +1260,15 @@ async def update_document(
     db: AsyncSession = Depends(get_db),
 ):
     user = current["user"]
+    role = current["current_role"]
+    school_id = getattr(role, "school_id", None)
     svc = StudioService(db)
     doc = await svc.update_document(
         doc_id,
         content_json=body["content_json"],
         edited_by=user.id,
         change_summary=body.get("change_summary", ""),
+        school_id=school_id,
     )
     await db.commit()
     return _doc_to_dict(doc)
@@ -1171,8 +1279,10 @@ async def transition_document(
     current=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    role = current["current_role"]
+    school_id = getattr(role, "school_id", None)
     svc = StudioService(db)
-    doc = await svc.transition_status(doc_id, body["status"])
+    doc = await svc.transition_status(doc_id, body["status"], school_id=school_id)
     await db.commit()
     return _doc_to_dict(doc)
 
@@ -1201,7 +1311,7 @@ app.include_router(studio_router)
 - [ ] **Step 5: 运行确认通过**
 
 Run: `python -m pytest tests/test_api/test_studio_api.py -v`
-Expected: PASS (6 tests)
+Expected: PASS (7 tests)
 
 - [ ] **Step 6: 全量测试**
 
