@@ -77,7 +77,9 @@ frontend/（Vue 3 + Naive UI，统一 SPA）
 | **JointExamParticipant** | edu-cloud | 原样保留 |
 | **JointExamStudentResult** | edu-cloud | 原样保留 |
 
-**edu-cloud 原有 Exam 和 ExamResult 模型处理**：edu-cloud 的 `Exam`（tablename "exams"，含 subject_code/source/exam_date 等同步元数据）和 `ExamResult`（tablename "exam_results"，含 total_score/detail_scores）是从 exam-ai 同步过来的精简副本。合并后不再需要——exam-ai 的完整 Exam 模型（含 status 状态机、card_title、exam_type 等）成为单一真源。**两个模型均删除**，其功能由 exam-ai 的 Exam + StudentAnswer + AIGradingResult + MarkingScore + analytics 覆盖。
+**edu-cloud 原有 Exam 和 ExamResult 模型处理**：edu-cloud 的 `Exam`（tablename "exams"，含 subject_code/source/exam_date 等同步元数据）是从 exam-ai 同步过来的精简副本。合并后不再需要——exam-ai 的完整 Exam 模型（含 status 状态机、card_title、exam_type 等）成为单一真源。**edu-cloud Exam 模型删除**。
+
+**ExamResult 保留为聚合视图**（ADR 2026-03-22）：ExamResult（tablename "exam_results"，含 total_score/detail_scores）被 ai/tools/analytics.py（~15 处查询）和 workspace_service.py 重度依赖。重写代价远大于保留。决策：**保留 ExamResult 模型**，但语义从"同步副本"变为"本地聚合视图"——由 pipeline 模块（data_pipeline.py）从 StudentAnswer + AIGradingResult + MarkingScore 聚合填充。
 
 Exam（校内考试）和 JointExam（联考）是不同业务实体，不合并。Exam 有 scanning/grading 状态机（对接 paper-seg），JointExam 有 distribute/collecting 状态机（跨校编排）。
 
@@ -578,7 +580,7 @@ class Settings(BaseSettings):
 | AiGradingService stub | edu-cloud/services/ | exam-ai 的完整实现替代 |
 | PlatformUser model | edu-cloud/models/ | User + UserRole 替代 |
 | Exam model (edu-cloud) | edu-cloud/models/exam.py | exam-ai 的完整 Exam 替代 |
-| ExamResult model (edu-cloud) | edu-cloud/models/exam.py | 由 StudentAnswer + AIGradingResult + MarkingScore 覆盖 |
+| ~~ExamResult model~~ | ~~edu-cloud/models/exam.py~~ | **保留为聚合视图**（ADR：ai/tools/analytics.py 和 workspace_service.py 重度依赖，重写代价 > 保留。改为由 pipeline 从细粒度数据聚合填充，而非同步副本） |
 | ClassGroup model | edu-cloud/models/class_group.py | exam-ai 的 Class 替代（合并 grade_number 字段） |
 | KnowledgeStore（部分） | edu-cloud/knowledge/store.py | 保留内存搜索，删除 DB 替代部分 |
 | exam-ai 的 School API | exam-ai/api/schools.py | edu-cloud 的学校管理替代 |
