@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI):
     import edu_cloud.models.student  # noqa: F401
     import edu_cloud.models.class_group  # noqa: F401
     import edu_cloud.models.exam  # noqa: F401
+    import edu_cloud.models.ai_session  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -148,6 +149,7 @@ def create_app() -> FastAPI:
     from edu_cloud.api.joint_exams import router as joint_exams_router
     from edu_cloud.api.results import router as results_router
     from edu_cloud.api.workspace import router as workspace_router
+    from edu_cloud.api.ai import router as ai_router
     app.include_router(auth_router)
     app.include_router(sync_router)
     app.include_router(sync_students_router)
@@ -155,6 +157,7 @@ def create_app() -> FastAPI:
     app.include_router(joint_exams_router)
     app.include_router(results_router)
     app.include_router(workspace_router)
+    app.include_router(ai_router)
 
     @app.get("/api/v1/health")
     async def health():

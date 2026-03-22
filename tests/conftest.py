@@ -12,6 +12,7 @@ import edu_cloud.models.joint_exam  # noqa: F401 — ensures joint_exam tables a
 import edu_cloud.models.student  # noqa: F401
 import edu_cloud.models.class_group  # noqa: F401
 import edu_cloud.models.exam  # noqa: F401
+import edu_cloud.models.ai_session  # noqa: F401
 from edu_cloud.shared.auth import create_access_token
 
 
