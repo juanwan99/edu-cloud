@@ -56,9 +56,11 @@ frontend/src/stores/studio.js         # 论文状态轮询
 tests/
 ├── test_knowledge/
 │   ├── test_store.py         # 内存索引加载+查询测试
-│   └── test_loader.py        # JSON 加载测试
+│   └── test_loader.py        # JSON 加载测试（含 tmp_path 自包含测试）
 ├── test_ai/
 │   └── test_tools_knowledge.py  # L3 工具测试
+├── test_api/
+│   └── test_paper_api.py     # 论文端点 API 集成测试（权限+创建+状态）
 └── test_services/
     └── test_paper_service.py # paper-skill 客户端测试（mock httpx）
 ```
@@ -86,40 +88,123 @@ tests/
 ```python
 # tests/test_knowledge/test_loader.py
 import pytest
-import os
+import json
 from edu_cloud.knowledge.loader import load_curriculum, load_l0_blocks, load_l1_concepts, load_gaokao_index
 
-KNOWLEDGE_DIR = "C:/Users/Administrator/edu-knowledge-base/subjects/biology_senior"
 
-@pytest.mark.skipif(not os.path.exists(KNOWLEDGE_DIR), reason="知识库目录不存在")
-class TestLoader:
-    def test_load_curriculum(self):
+class TestLoaderWithTmpPath:
+    """自包含测试，使用 tmp_path fixture 构造测试数据，不依赖绝对路径"""
+
+    def test_load_curriculum_from_tmp(self, tmp_path):
         """加载课标 JSON"""
-        data = load_curriculum(KNOWLEDGE_DIR)
+        curriculum_dir = tmp_path / "curriculum"
+        curriculum_dir.mkdir()
+        (curriculum_dir / "bio_senior_2025.json").write_text(json.dumps({
+            "modules": [
+                {"id": "m1", "name": "分子与细胞", "academic_requirements": [
+                    {"id": "r1", "text": "测试学业要求"}
+                ], "big_concepts": ["细胞是生命的基本单位"]},
+            ],
+            "core_competencies": [
+                {"id": "c1", "name": "生命观念", "description": "测试素养"}
+            ],
+        }), encoding="utf-8")
+        data = load_curriculum(str(tmp_path))
         assert "modules" in data
         assert "core_competencies" in data
-        assert len(data["modules"]) >= 3  # 必修1/2 + 选必
+        assert len(data["modules"]) == 1
+        assert data["modules"][0]["name"] == "分子与细胞"
 
-    def test_load_l0_blocks(self):
+    def test_load_curriculum_missing_dir(self, tmp_path):
+        """课标文件不存在 → 返回空默认值"""
+        data = load_curriculum(str(tmp_path))
+        assert data["modules"] == []
+
+    def test_load_curriculum_bad_json(self, tmp_path):
+        """课标 JSON 损坏 → 返回空默认值"""
+        curriculum_dir = tmp_path / "curriculum"
+        curriculum_dir.mkdir()
+        (curriculum_dir / "bio_senior_2025.json").write_text("NOT VALID JSON{{{", encoding="utf-8")
+        data = load_curriculum(str(tmp_path))
+        assert data["modules"] == []
+
+    def test_load_l0_blocks_from_tmp(self, tmp_path):
         """加载 L0 知识块"""
-        blocks = load_l0_blocks(KNOWLEDGE_DIR)
-        assert len(blocks) >= 100  # 预期 ~1197
-        assert "id" in blocks[0]
-        assert "content" in blocks[0]
+        l0_dir = tmp_path / "skeleton" / "L0"
+        l0_dir.mkdir(parents=True)
+        (l0_dir / "B01_L0.json").write_text(json.dumps([
+            {"id": "BK_001", "content": "细胞学说", "category": "fact", "module": "M1"},
+            {"id": "BK_002", "content": "DNA 双螺旋", "category": "fact", "module": "M1"},
+        ]), encoding="utf-8")
+        blocks = load_l0_blocks(str(tmp_path))
+        assert len(blocks) == 2
+        assert blocks[0]["id"] == "BK_001"
 
-    def test_load_l1_concepts(self):
+    def test_load_l0_blocks_bad_file_skipped(self, tmp_path):
+        """L0 单个坏文件不影响其他文件加载"""
+        l0_dir = tmp_path / "skeleton" / "L0"
+        l0_dir.mkdir(parents=True)
+        (l0_dir / "B01_L0.json").write_text("BAD JSON", encoding="utf-8")
+        (l0_dir / "B02_L0.json").write_text(json.dumps([
+            {"id": "BK_003", "content": "good block"}
+        ]), encoding="utf-8")
+        blocks = load_l0_blocks(str(tmp_path))
+        assert len(blocks) == 1  # 只加载了好文件
+
+    def test_load_l1_concepts_from_tmp(self, tmp_path):
         """加载 L1 概念"""
-        concepts = load_l1_concepts(KNOWLEDGE_DIR)
-        assert len(concepts) >= 20  # 预期 ~108
-        assert "canonical_name" in concepts[0]
-        assert "l0_ids" in concepts[0]
+        l1_dir = tmp_path / "skeleton" / "L1"
+        l1_dir.mkdir(parents=True)
+        (l1_dir / "M01_concepts.json").write_text(json.dumps([
+            {"id": "CP_001", "canonical_name": "细胞学说", "l0_ids": ["BK_001"]},
+        ]), encoding="utf-8")
+        concepts = load_l1_concepts(str(tmp_path))
+        assert len(concepts) == 1
+        assert concepts[0]["canonical_name"] == "细胞学说"
 
-    def test_load_gaokao_index(self):
-        """加载高考题索引"""
-        exams = load_gaokao_index(KNOWLEDGE_DIR)
-        assert len(exams) >= 10  # 预期 ~116
-        assert "exam_id" in exams[0]
-        assert "year" in exams[0]
+    def test_load_gaokao_index_object_wrapper(self, tmp_path):
+        """高考索引 index.json 为 {exams: [...]} 格式"""
+        gaokao_dir = tmp_path / "gaokao"
+        gaokao_dir.mkdir()
+        (gaokao_dir / "index.json").write_text(json.dumps({
+            "total_exams": 2,
+            "exams": [
+                {"exam_id": "GK_2024_BJ", "year": 2024, "region": "北京", "question_count": 8},
+                {"exam_id": "GK_2023_JS", "year": 2023, "region": "江苏", "question_count": 10},
+            ]
+        }), encoding="utf-8")
+        exams = load_gaokao_index(str(tmp_path))
+        assert len(exams) == 2
+        assert exams[0]["exam_id"] == "GK_2024_BJ"
+
+    def test_load_gaokao_index_plain_list(self, tmp_path):
+        """高考索引 index.json 为直接 [...] 格式"""
+        gaokao_dir = tmp_path / "gaokao"
+        gaokao_dir.mkdir()
+        (gaokao_dir / "index.json").write_text(json.dumps([
+            {"exam_id": "GK_2024_BJ", "year": 2024, "region": "北京", "question_count": 8},
+        ]), encoding="utf-8")
+        exams = load_gaokao_index(str(tmp_path))
+        assert len(exams) == 1
+
+    def test_load_gaokao_fallback_exam_dirs(self, tmp_path):
+        """无 index.json 时从 exams/ 目录扫描"""
+        exams_dir = tmp_path / "gaokao" / "exams" / "GK_2024_BJ"
+        exams_dir.mkdir(parents=True)
+        (exams_dir / "exam.json").write_text(json.dumps({
+            "exam_id": "GK_2024_BJ", "year": 2024, "region": "北京", "questions": [1, 2, 3]
+        }), encoding="utf-8")
+        exams = load_gaokao_index(str(tmp_path))
+        assert len(exams) == 1
+        assert exams[0]["question_count"] == 3
+
+    def test_load_gaokao_bad_index_json(self, tmp_path):
+        """index.json 损坏 → 返回空列表"""
+        gaokao_dir = tmp_path / "gaokao"
+        gaokao_dir.mkdir()
+        (gaokao_dir / "index.json").write_text("INVALID", encoding="utf-8")
+        exams = load_gaokao_index(str(tmp_path))
+        assert exams == []
 ```
 
 - [ ] **Step 3: 运行确认失败**
@@ -143,8 +228,12 @@ def load_curriculum(base_dir: str) -> dict:
     if not path.exists():
         logger.warning(f"Curriculum file not found: {path}")
         return {"modules": [], "core_competencies": [], "quality_levels": []}
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        logger.warning(f"Failed to load curriculum {path}: {e}")
+        return {"modules": [], "core_competencies": [], "quality_levels": []}
 
 def load_l0_blocks(base_dir: str) -> list[dict]:
     """加载所有 L0 知识块"""
@@ -153,10 +242,14 @@ def load_l0_blocks(base_dir: str) -> list[dict]:
     if not l0_dir.exists():
         return blocks
     for f in sorted(l0_dir.glob("B*_L0.json")):
-        with open(f, encoding="utf-8") as fh:
-            data = json.load(fh)
-            if isinstance(data, list):
-                blocks.extend(data)
+        try:
+            with open(f, encoding="utf-8") as fh:
+                data = json.load(fh)
+                if isinstance(data, list):
+                    blocks.extend(data)
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            logger.warning(f"Failed to load {f}: {e}")
+            continue
     logger.info(f"Loaded {len(blocks)} L0 blocks")
     return blocks
 
@@ -167,10 +260,14 @@ def load_l1_concepts(base_dir: str) -> list[dict]:
     if not l1_dir.exists():
         return concepts
     for f in sorted(l1_dir.glob("M*_concepts.json")):
-        with open(f, encoding="utf-8") as fh:
-            data = json.load(fh)
-            if isinstance(data, list):
-                concepts.extend(data)
+        try:
+            with open(f, encoding="utf-8") as fh:
+                data = json.load(fh)
+                if isinstance(data, list):
+                    concepts.extend(data)
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            logger.warning(f"Failed to load {f}: {e}")
+            continue
     logger.info(f"Loaded {len(concepts)} L1 concepts")
     return concepts
 
@@ -185,18 +282,28 @@ def load_gaokao_index(base_dir: str) -> list[dict]:
         exams = []
         for d in sorted(exams_dir.iterdir()):
             if d.is_dir() and (d / "exam.json").exists():
-                with open(d / "exam.json", encoding="utf-8") as fh:
-                    exam = json.load(fh)
-                    exams.append({
-                        "exam_id": exam.get("exam_id", d.name),
-                        "year": exam.get("year"),
-                        "region": exam.get("region"),
-                        "question_count": exam.get("question_count", len(exam.get("questions", []))),
-                    })
+                try:
+                    with open(d / "exam.json", encoding="utf-8") as fh:
+                        exam = json.load(fh)
+                        exams.append({
+                            "exam_id": exam.get("exam_id", d.name),
+                            "year": exam.get("year"),
+                            "region": exam.get("region"),
+                            "question_count": exam.get("question_count", len(exam.get("questions", []))),
+                        })
+                except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                    logger.warning(f"Failed to load {d / 'exam.json'}: {e}")
+                    continue
         return exams
 
-    with open(index_path, encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(index_path, encoding="utf-8") as f:
+            data = json.load(f)
+            # index.json 可能是 {total_exams, exams: [...]} 包装或直接 [...]
+            return data.get("exams", data) if isinstance(data, dict) else data
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        logger.warning(f"Failed to load gaokao index {index_path}: {e}")
+        return []
 ```
 
 - [ ] **Step 5: 运行 loader 测试**
@@ -317,9 +424,12 @@ class KnowledgeStore:
         logger.info(f"Knowledge base loaded: {self.stats()}")
 
     def search_curriculum(self, keyword: str, limit: int = 10) -> list[dict]:
-        """搜索课标内容（模块、学业要求）"""
+        """搜索课标内容（学业要求、大概念、嵌套文本字段）"""
+        import json as _json
         results = []
         for module in self._curriculum.get("modules", []):
+            module_matched = False
+            # 搜索学业要求（主要匹配源）
             for req in module.get("academic_requirements", []):
                 if keyword in req.get("text", ""):
                     results.append({
@@ -327,6 +437,38 @@ class KnowledgeStore:
                         "module_id": module.get("id", ""),
                         "requirement_id": req.get("id", ""),
                         "text": req["text"],
+                        "type": "academic_requirement",
+                    })
+                    module_matched = True
+            # 搜索大概念（big_concepts）
+            for concept in module.get("big_concepts", []):
+                if keyword in str(concept):
+                    results.append({
+                        "module": module.get("name", ""),
+                        "module_id": module.get("id", ""),
+                        "text": str(concept),
+                        "type": "big_concept",
+                    })
+                    module_matched = True
+            # 搜索内容要求（content_requirements）
+            for creq in module.get("content_requirements", []):
+                if keyword in str(creq):
+                    results.append({
+                        "module": module.get("name", ""),
+                        "module_id": module.get("id", ""),
+                        "text": str(creq),
+                        "type": "content_requirement",
+                    })
+                    module_matched = True
+            # 兜底：如果上面都没命中，递归搜整个 module JSON 文本
+            if not module_matched:
+                module_text = _json.dumps(module, ensure_ascii=False)
+                if keyword in module_text:
+                    results.append({
+                        "module": module.get("name", ""),
+                        "module_id": module.get("id", ""),
+                        "text": f"模块 {module.get('name')} 包含相关内容",
+                        "type": "module_match",
                     })
         # 搜索核心素养
         for comp in self._curriculum.get("core_competencies", []):
@@ -335,6 +477,7 @@ class KnowledgeStore:
                     "module": "核心素养",
                     "requirement_id": comp.get("id", ""),
                     "text": f"{comp['name']}: {comp.get('description', '')}",
+                    "type": "core_competency",
                 })
         return results[:limit]
 
@@ -399,12 +542,17 @@ git commit -m "feat(P4-1): 知识库加载与内存索引 — 课标+L0+L1+高�
 - ✓ KnowledgeStore 支持关键词搜索（课标/知识块/概念/高考）
 - ✓ 全局单例 knowledge_store
 - ✓ 文件不存在时返回空结果而非崩溃
+- ✓ JSON 解析错误时 try/except 捕获，单文件 skip + warning（不中断整体加载）
+- ✓ gaokao index.json 兼容 `{exams:[...]}` 对象包装和直接 `[...]` 两种格式
+- ✓ search_curriculum 搜索 academic_requirements + big_concepts + content_requirements + 兜底 module JSON
 - ✗ 不应引入向量库（YAGNI）
 
 **边界条件:**
 - 知识库目录不存在 → 期望: 空索引，不崩溃
 - 搜索关键词无匹配 → 期望: 空列表
-- JSON 文件格式错误 → 期望: 跳过该文件，记录 warning
+- JSON 文件格式错误 → 期望: 跳过该文件，记录 warning（loader try/except）
+- gaokao index.json 为 object 而非 list → 期望: 正确取 `exams` 字段
+- L0/L1 目录中混有坏文件 → 期望: 跳过坏文件，加载其余好文件
 
 **测试契约:**
 1. 知识库搜索准确性
@@ -413,6 +561,12 @@ git commit -m "feat(P4-1): 知识库加载与内存索引 — 课标+L0+L1+高�
    - 边界: 空关键词 / 无匹配 / 匹配多条
    - 回归: N/A
    - 命令: `python -m pytest tests/test_knowledge/test_store.py -v`
+2. loader 自包含测试（JSON 解析错误容错 + index.json 格式兼容）
+   - 入口: `load_curriculum(tmp_path)` / `load_gaokao_index(tmp_path)`
+   - 反例: 无 try/except 时一个坏文件导致整体加载失败；index.json 为 object 时返回 dict 而非 list
+   - 边界: 空目录 / 损坏 JSON / object 包装 / plain list / fallback 目录扫描
+   - 回归: F1(index.json object wrapper) + F2(JSON 错误处理)
+   - 命令: `python -m pytest tests/test_knowledge/test_loader.py -v`
 
 ---
 
@@ -665,13 +819,13 @@ git commit -m "feat(P4-2): L3 知识查询工具 — 课标/教材/概念/高考
 ```python
 # tests/test_services/test_paper_service.py
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from edu_cloud.services.paper_service import PaperService
 
 @pytest.mark.asyncio
 async def test_create_paper():
     """创建论文任务"""
-    mock_response = AsyncMock()
+    mock_response = MagicMock()  # httpx.Response.json() 是同步方法，用 MagicMock
     mock_response.status_code = 200
     mock_response.json.return_value = {
         "success": True,
@@ -692,7 +846,7 @@ async def test_create_paper():
 @pytest.mark.asyncio
 async def test_get_paper_status():
     """查询论文状态"""
-    mock_response = AsyncMock()
+    mock_response = MagicMock()  # httpx.Response.json() 是同步方法，用 MagicMock
     mock_response.status_code = 200
     mock_response.json.return_value = {
         "success": True,
@@ -847,10 +1001,66 @@ async def get_paper_status(
     return await svc.get_status(paper_id)
 ```
 
-- [ ] **Step 7: 运行测试**
+- [ ] **Step 7: 运行 service 测试**
 
 Run: `python -m pytest tests/test_services/test_paper_service.py -v`
 Expected: PASS (3 tests)
+
+- [ ] **Step 7.5: 写 paper API 端点测试**
+
+```python
+# tests/test_api/test_paper_api.py
+import pytest
+from unittest.mock import patch, MagicMock, AsyncMock
+
+@pytest.mark.asyncio
+async def test_create_paper_requires_write_paper_permission(client):
+    """未认证用户不能创建论文"""
+    resp = await client.post("/api/v1/studio/paper/create", json={"budget_tier": "standard"})
+    assert resp.status_code in (401, 403)
+
+@pytest.mark.asyncio
+async def test_create_paper_success(client, subject_teacher_headers):
+    """subject_teacher 可以创建论文"""
+    mock_svc = AsyncMock()
+    mock_svc.create_paper.return_value = {
+        "paper_id": "p-test-123", "stage": "intake", "status": "pending_intake"
+    }
+    with patch("edu_cloud.api.studio.PaperService", return_value=mock_svc):
+        resp = await client.post(
+            "/api/v1/studio/paper/create",
+            json={"budget_tier": "standard", "title": "测试论文"},
+            headers=subject_teacher_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "paper_id" in data
+
+@pytest.mark.asyncio
+async def test_get_paper_status_auth_required(client):
+    """未认证不能查询论文进度"""
+    resp = await client.get("/api/v1/studio/paper/p-123/status")
+    assert resp.status_code in (401, 403)
+
+@pytest.mark.asyncio
+async def test_get_paper_status_success(client, subject_teacher_headers):
+    """认证用户可查询论文进度"""
+    mock_svc = AsyncMock()
+    mock_svc.get_status.return_value = {
+        "id": "p-123", "stage": "brainstorm", "status": "brainstorming", "cost_yuan": 5.2
+    }
+    with patch("edu_cloud.api.studio.PaperService", return_value=mock_svc):
+        resp = await client.get(
+            "/api/v1/studio/paper/p-123/status",
+            headers=subject_teacher_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["stage"] == "brainstorm"
+```
+
+Run: `python -m pytest tests/test_api/test_paper_api.py -v`
+Expected: PASS (4 tests)
 
 - [ ] **Step 8: 全量测试**
 
@@ -861,8 +1071,9 @@ Expected: 全部 PASS
 
 ```bash
 git add src/edu_cloud/services/paper_service.py src/edu_cloud/config.py \
-        src/edu_cloud/templates/document_templates.py src/edu_cloud/api/studio.py tests/
-git commit -m "feat(P4-3): paper-skill 接入 — 创建论文+查询进度+Studio关联+论文模板"
+        src/edu_cloud/templates/document_templates.py src/edu_cloud/api/studio.py \
+        tests/test_services/test_paper_service.py tests/test_api/test_paper_api.py
+git commit -m "feat(P4-3): paper-skill 接入 — 创建论文+查询进度+Studio关联+论文模板+API测试"
 ```
 
 **审查清单:**
@@ -870,20 +1081,29 @@ git commit -m "feat(P4-3): paper-skill 接入 — 创建论文+查询进度+Stud
 - ✓ 创建论文同时在 Studio 创建 Document 记录
 - ✓ paper-skill 不可用时返回 error 而非崩溃
 - ✓ 论文模板只对 subject_teacher 可见
+- ✓ mock_response 使用 MagicMock（httpx.Response.json() 是同步方法，不用 AsyncMock）
+- ✓ API 端点测试覆盖权限检查（未认证 401/403）和正常流程
 - ✗ 不应在 edu-cloud 内实现论文写作逻辑（委托给 paper-skill）
 
 **边界条件:**
 - paper-skill 服务不可用 → 期望: error dict，不崩溃
 - paper_id 不存在 → 期望: paper-skill 返回 404，转为 error
 - budget_tier 非法值 → 期望: paper-skill 处理
+- 未认证用户调用论文端点 → 期望: 401/403
 
 **测试契约:**
-1. paper-skill API 调用
+1. paper-skill API 调用（service 层）
    - 入口: `svc.create_paper(budget_tier="standard")`
-   - 反例: 错误实现可能不 catch 网络异常
+   - 反例: 错误实现可能不 catch 网络异常；AsyncMock 做 mock_response 会导致 json() 返回 coroutine
    - 边界: 服务不可用 / 返回 success=false / 超时
-   - 回归: N/A
+   - 回归: F6(mock 类型修复)
    - 命令: `python -m pytest tests/test_services/test_paper_service.py -v`
+2. 论文端点 API 集成测试（API 层）
+   - 入口: `POST /api/v1/studio/paper/create` + `GET /api/v1/studio/paper/{id}/status`
+   - 反例: 错误实现可能遗漏权限检查，未认证用户可访问
+   - 边界: 未认证 / 非 subject_teacher / paper-skill mock 返回
+   - 回归: F4(端点测试缺失)
+   - 命令: `python -m pytest tests/test_api/test_paper_api.py -v`
 
 ---
 
