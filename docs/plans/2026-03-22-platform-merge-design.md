@@ -49,7 +49,7 @@ frontend/（Vue 3 + Naive UI，统一 SPA）
 
 ## §2 数据模型设计
 
-### 2.1 模型归属（37 个模型，去重后）
+### 2.1 模型归属（38 个模型，去重后）
 
 #### core/models/（跨模块共享）
 
@@ -62,7 +62,9 @@ frontend/（Vue 3 + Naive UI，统一 SPA）
 
 **User.subject_code/class_ids 冲突解决**：exam-ai 的 User 模型有 `subject_code: str` 和 `class_ids: JSON`，这是单角色设计。edu-cloud 的 UserRole 已有 `subject_codes: JSON` 和 `class_ids: JSON`，支持同一用户在不同角色下绑定不同科目/班级。**UserRole 方案胜出**，exam-ai 中读取 `User.subject_code` 的代码需改为读取 `UserRole.subject_codes`。
 
-**School 表重命名 FK 级联**：`__tablename__` 从 `"registered_schools"` 改为 `"schools"` 后，所有引用 `ForeignKey("registered_schools.id")` 的模型必须更新为 `ForeignKey("schools.id")`。影响范围：UserRole, Exam, Student, Class, Document, CalendarEvent, Notification, JointExamParticipant, JointExamStudentResult 等。这是机械性全局替换。
+**School 表重命名 FK 级联**：`__tablename__` 从 `"registered_schools"` 改为 `"schools"` 后，所有引用 `ForeignKey("registered_schools.id")` 的模型必须更新为 `ForeignKey("schools.id")`。影响范围：UserRole, Exam, Student, Class, Document, CalendarEvent, Notification, JointExam, JointExamParticipant, JointExamStudentResult 等。这是机械性全局替换。
+
+**PlatformUser 删除 FK 级联**：PlatformUser 被 User 替代后，所有引用 `ForeignKey("platform_users.id")` 的模型必须更新为 `ForeignKey("users.id")`。影响范围：JointExam.created_by, Document.created_by/approved_by, ApprovalStep.approver_id。同样是机械性替换。
 
 #### modules/exam/models.py
 
@@ -71,7 +73,7 @@ frontend/（Vue 3 + Naive UI，统一 SPA）
 | **Exam** | exam-ai | 加 `school_id` FK 指向 `"schools.id"`，代表校内考试（status: draft→scanning→grading→reviewing→completed） |
 | **Subject** | exam-ai | 通过 Exam 间接关联 school_id |
 | **Question** | exam-ai | 原样迁入 |
-| **JointExam** | edu-cloud | 原样保留，代表联考 |
+| **JointExam** | edu-cloud | FK 改造：`created_by` 从 `ForeignKey("platform_users.id")` 改为 `ForeignKey("users.id")`，`creator_school_id` 从 `ForeignKey("registered_schools.id")` 改为 `ForeignKey("schools.id")` |
 | **JointExamParticipant** | edu-cloud | 原样保留 |
 | **JointExamStudentResult** | edu-cloud | 原样保留 |
 
@@ -170,7 +172,7 @@ exam-ai 原为单校设计，迁入后关键改造：
 
 1. **顶层实体加 school_id FK**：Exam, Student, Class, BankQuestion, CardSkeleton, LLMSlot。FK 指向 `"schools.id"`（非裸 String）
 2. **exam-ai TenantMixin 改造**：exam-ai 的部分模型通过 `TenantMixin` 加入了 `school_id: str` 列但**无 ForeignKey 约束**。合并后所有 school_id 必须加 `ForeignKey("schools.id")`。受影响模型：CardSkeleton, BankQuestion, StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern, KnowledgePoint, StudentErrorBook
-3. **子实体通过父级间接关联**：Question → Subject → Exam → school_id，无需冗余 school_id
+3. **TenantMixin school_id 保留策略**：exam-ai 的 TenantMixin 给 Subject, Question, Template, ScanTask, StudentAnswer, Rubric, GradingTask, AIGradingResult, TeacherReview, MarkingAssignment, MarkingScore 等子实体都加了 `school_id` 列。虽然这些子实体可通过父级间接关联到 school，但**保留冗余 school_id**——简化迁移（不需要改查询逻辑），且提供查询便利（可直接按 school_id 过滤而无需 JOIN 父表）
 4. **Service 层强制 school_id 过滤**：所有查询方法签名包含 `school_id: str` 参数，不允许无作用域查询
 5. **Agent 工具注入 school_id**：通过 ToolRegistry 的 `_school_id` 参数自动注入，工具代码无需显式处理
 
@@ -225,10 +227,10 @@ modules/{module_name}/
 | `/api/v1/studio/` | 8 | 文档 CRUD + transition + 论文 create/status |
 | `/api/v1/calendar/` | 3 | 日历事件（创建/列表/删除） |
 | `/api/v1/workspace/` | 2 | 工作台数据 |
-| `/api/v1/ai/` | 1 | AI 对话（SSE） |
+| `/api/v1/ai/` | 2 | AI 对话（SSE）+ 健康检查 |
 | `/api/v1/health` + `/api/v1/version` | 2 | 健康检查 + 版本 |
 
-### 4.2 迁入的端点（exam-ai 来源）
+### 4.2 迁入的端点（exam-ai 来源，82 个）
 
 | 路由前缀 | 端点数 | 说明 | 改造 |
 |---------|--------|------|------|
@@ -236,15 +238,16 @@ modules/{module_name}/
 | `/api/v1/exams/{id}/subjects/` | 2 | 科目管理 | 原样 |
 | `/api/v1/questions/` | 5 | 题目 CRUD | 原样 |
 | `/api/v1/templates/` | 3 | 答案模板 | 原样 |
-| `/api/v1/card/` | 12 | 答题卡全套 | 原样 |
-| `/api/v1/scan/` | 4 | 扫描上传 | 原样 |
+| `/api/v1/card/` | 19 | 答题卡全套（编辑器布局/TQL参考/条码/解析/预览/导出/骨架/模板库/生成v2/发布） | 原样 |
+| `/api/v1/scan/` | 6 | 扫描上传（单张/批量/任务CRUD/客观题检测） | 原样 |
 | `/api/v1/grading/` | 9 | AI 阅卷 | 原样 |
-| `/api/v1/marking/` | 10 | 手动批改 | 原样 |
+| `/api/v1/marking/` | 11 | 手动批改（分配/查看/教师列表/导入/科目/下一题/图片/评分/进度/导出） | 原样 |
 | `/api/v1/analytics/` | 4 | 考情分析 | 原样 |
 | `/api/v1/students/` | 3 | 学生管理 | 加 school_id |
 | `/api/v1/knowledge/` | 6 | 知识点 | 原样 |
 | `/api/v1/llm-config/` | 3 | LLM slot 管理 | 加 school_id |
 | `/api/v1/pipeline/` | 3 | 数据管线 | 原样 |
+| `/api/v1/ai/` | 4 | AI Agent（health/chat/sessions/delete-session） | 与 edu-cloud 现有 ai/ 合并，取 exam-ai 的更完整版本（含 session 管理） |
 
 ### 4.3 删除的端点
 
@@ -258,7 +261,7 @@ modules/{module_name}/
 
 ### 4.4 合并后端点总计
 
-~100 个端点（edu-cloud 保留 32 + exam-ai 迁入 68 - 删除 ~11 + 合并去重）。
+~107 个端点（edu-cloud 保留 33 + exam-ai 迁入 82 - 删除 ~11 + AI 端点合并去重 2）。
 
 ### 4.5 认证方案调整
 
