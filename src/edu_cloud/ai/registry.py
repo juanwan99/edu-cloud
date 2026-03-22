@@ -18,9 +18,16 @@ class ToolRegistry:
         return list(self._tools.keys())
 
     def get_schemas(self, categories: list[str] | None = None) -> list[dict]:
+        """Return tool schemas filtered by category.
+
+        Args:
+            categories: ``None`` → all tools; ``[]`` → no tools (access denied);
+                        ``["cat1", ...]`` → only matching tools.
+        """
         result = []
         for tool in self._tools.values():
-            if categories and tool["category"] not in categories:
+            # None means unrestricted; empty list means no access at all
+            if categories is not None and tool["category"] not in categories:
                 continue
             result.append({"type": "function", "function": {"name": tool["name"], "description": tool["description"], "parameters": tool["parameters"]}})
         return result
