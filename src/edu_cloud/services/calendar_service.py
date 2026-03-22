@@ -39,7 +39,10 @@ class CalendarService:
     async def list_events(
         self, school_id: str, start_date: date | None = None, end_date: date | None = None,
     ) -> list[CalendarEvent]:
-        q = select(CalendarEvent).where(CalendarEvent.school_id == school_id)
+        q = select(CalendarEvent).where(
+            CalendarEvent.school_id == school_id,
+            CalendarEvent.is_active == True,
+        )
         if start_date:
             q = q.where(CalendarEvent.event_date >= start_date)
         if end_date:

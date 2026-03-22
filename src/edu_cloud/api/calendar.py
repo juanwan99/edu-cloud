@@ -20,12 +20,16 @@ async def create_event(
     for field in ("type", "title", "event_date"):
         if field not in body:
             raise HTTPException(422, f"缺少必填字段: {field}")
+    try:
+        event_date = date.fromisoformat(body["event_date"])
+    except (ValueError, TypeError):
+        raise HTTPException(422, f"日期格式无效: {body['event_date']}")
     user = current["user"]
     role = current["current_role"]
     svc = CalendarService(db)
     event = await svc.create_event(
         type=body["type"], title=body["title"],
-        event_date=date.fromisoformat(body["event_date"]),
+        event_date=event_date,
         school_id=getattr(role, "school_id", ""),
         created_by=user.id,
         semester=body.get("semester"),

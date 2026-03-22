@@ -69,7 +69,7 @@ async function handleCreate() {
     type: form.value.type,
     title: form.value.title,
     event_date: dateStr,
-    notification_rules: form.value.daysBefore > 0 ? [{
+    notification_rules: form.value.daysBefore >= 0 ? [{
       days_before: form.value.daysBefore,
       template_type: form.value.type === 'holiday' ? 'holiday_safety' : form.value.type === 'exam' ? 'exam_reminder' : 'meeting_invite',
       target_roles: ['parent'],
