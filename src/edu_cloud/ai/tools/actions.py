@@ -151,8 +151,11 @@ async def generate_comment(
         Student.student_number == student_number,
         Student.school_id == _school_id,
     )
-    # Scope check: restrict to classes the user has access to
-    if _class_ids:
+    # Scope check: restrict to classes the user has access to.
+    # _class_ids=None means unrestricted (platform_admin), [] means no access.
+    if _class_ids is not None:
+        if not _class_ids:
+            return {"error": f"学生 {student_number} 不存在"}
         q = q.where(Student.class_id.in_(_class_ids))
 
     student = (await _db.execute(q)).scalar_one_or_none()

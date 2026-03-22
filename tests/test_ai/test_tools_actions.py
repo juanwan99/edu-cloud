@@ -116,3 +116,16 @@ async def test_generate_comment_cross_class_denied(db, seed_exam_with_results):
     )
     assert "error" in result
     assert "不存在" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_generate_comment_empty_class_ids_denied(db, seed_exam_with_results):
+    """N2 R3: 空 _class_ids=[] 不能绕过 scope 检查"""
+    result = await generate_comment(
+        student_number="T000",
+        _db=db,
+        _school_id=seed_exam_with_results["school_id"],
+        _user_id="test_user",
+        _class_ids=[],  # 空列表 = 无班级权限
+    )
+    assert "error" in result

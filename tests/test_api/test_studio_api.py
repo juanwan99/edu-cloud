@@ -194,3 +194,60 @@ async def test_update_document_missing_content_json(client, teacher_headers):
         headers=teacher_headers,
     )
     assert resp.status_code == 422
+
+
+# ── R3 fix: 补全 PATCH/transition 权限 + transition 缺字段 ────────
+
+
+@pytest.mark.asyncio
+async def test_observer_cannot_patch_document(client, observer_headers, teacher_headers):
+    """R3: observer 不能 PATCH 文档"""
+    resp = await client.post(
+        "/api/v1/studio/documents",
+        json={"type": "report", "title": "权限测试", "content_json": {}},
+        headers=teacher_headers,
+    )
+    doc_id = resp.json()["id"]
+
+    resp = await client.patch(
+        f"/api/v1/studio/documents/{doc_id}",
+        json={"content_json": {"hacked": True}},
+        headers=observer_headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_observer_cannot_transition_document(client, observer_headers, teacher_headers):
+    """R3: observer 不能转换文档状态"""
+    resp = await client.post(
+        "/api/v1/studio/documents",
+        json={"type": "report", "title": "权限测试", "content_json": {}},
+        headers=teacher_headers,
+    )
+    doc_id = resp.json()["id"]
+
+    resp = await client.post(
+        f"/api/v1/studio/documents/{doc_id}/transition",
+        json={"status": "reviewed"},
+        headers=observer_headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_transition_missing_status_returns_422(client, teacher_headers):
+    """R3: transition 缺少 status → 422"""
+    resp = await client.post(
+        "/api/v1/studio/documents",
+        json={"type": "report", "title": "测试", "content_json": {}},
+        headers=teacher_headers,
+    )
+    doc_id = resp.json()["id"]
+
+    resp = await client.post(
+        f"/api/v1/studio/documents/{doc_id}/transition",
+        json={},
+        headers=teacher_headers,
+    )
+    assert resp.status_code == 422
