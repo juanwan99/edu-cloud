@@ -20,6 +20,9 @@ class Document(Base, IdMixin, TimestampMixin):
     created_by: Mapped[str] = mapped_column(
         String(36), ForeignKey("users.id"), nullable=False
     )
+    assigned_to: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), default=None, nullable=True
+    )
     approved_by: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id"), default=None
     )

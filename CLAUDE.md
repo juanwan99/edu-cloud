@@ -127,11 +127,11 @@ tests/
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
 | API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(paper/create + paper/:id/status) | 跨校分析(高级), 题库, 共享 AI 阅卷 |
-| Models | 5 表（school/user/exam/participant/student_result）| 题库模型（BankQuestion/BankCategory）|
-| Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), exceptions | EventBus handler, AI grading |
+| Models | 9 表（school/user/exam/participant/student_result/document+assigned_to/calendar_events/notification_rules/notifications）| 题库模型（BankQuestion/BankCategory）|
+| Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), exceptions | EventBus handler, AI grading, CalendarService, NotificationService |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 233 tests（API+Service+Model+Knowledge+AI Tools+Paper 全覆盖）| — |
+| Tests | 238 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar 全覆盖）| — |
 | Migrations | Alembic 脚手架 | 未写 migration 文件 |
 
 ## 技术栈
@@ -295,6 +295,10 @@ docker compose logs -f      # 查看日志
 | joint_exams | name, status(draft→templates_ready→distributed→collecting→completed→archived), subjects(JSON), created_by(FK), creator_school_id(FK), answer_detail_schema(JSON) | 联考 |
 | joint_exam_participants | joint_exam_id(FK), school_id(FK), status, is_creator, student/score_count | 参与校 |
 | joint_exam_student_results | joint_exam_id, school_id, subject_code, student_name/number, total_score, detail_scores(JSON) | 成绩明细（含逐题） |
+| documents | type, title, status, content_json, created_by(FK), assigned_to(FK,nullable), approved_by(FK), school_id(FK) | Studio 文档（assigned_to 支持自动拟稿指派可见性） |
+| calendar_events | type(holiday/exam/parent_meeting/deadline), title, event_date, school_id(FK), created_by(FK), semester, is_active | 校历事件 |
+| notification_rules | event_id(FK), days_before, template_type, target_roles(JSON), auto_draft, triggered | 通知触发规则（防重复 triggered 标记） |
+| notifications | document_id(FK), channel(wechat/sms/stub), status(pending/sent/partial/failed), target_scope(JSON), school_id(FK), sent_at, result_summary(JSON) | 通知发送记录 |
 
 ## 种子数据
 

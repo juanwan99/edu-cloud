@@ -90,7 +90,9 @@ class StudioService:
     ) -> list[Document]:
         q = select(Document).where(Document.school_id == school_id)
         if created_by:
-            q = q.where(Document.created_by == created_by)
+            # F2 fix: 同时匹配 created_by 和 assigned_to，确保自动拟稿文档对被指派教师可见
+            from sqlalchemy import or_
+            q = q.where(or_(Document.created_by == created_by, Document.assigned_to == created_by))
         if status:
             q = q.where(Document.status == status)
         q = q.order_by(Document.created_at.desc())
