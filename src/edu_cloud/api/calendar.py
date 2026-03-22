@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.api.deps import get_current_user, require_permission
@@ -17,6 +17,9 @@ async def create_event(
     current=Depends(require_permission(Permission.GENERATE_NOTIFICATION)),
     db: AsyncSession = Depends(get_db),
 ):
+    for field in ("type", "title", "event_date"):
+        if field not in body:
+            raise HTTPException(422, f"缺少必填字段: {field}")
     user = current["user"]
     role = current["current_role"]
     svc = CalendarService(db)
@@ -54,8 +57,9 @@ async def delete_event(
     current=Depends(require_permission(Permission.GENERATE_NOTIFICATION)),
     db: AsyncSession = Depends(get_db),
 ):
+    role = current["current_role"]
     svc = CalendarService(db)
-    await svc.delete_event(event_id)
+    await svc.delete_event(event_id, school_id=getattr(role, "school_id", ""))
     return {"status": "deleted"}
 
 

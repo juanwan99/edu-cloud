@@ -38,3 +38,13 @@ async def test_delete_event(client, teacher_headers):
 async def test_calendar_requires_auth(client):
     resp = await client.get("/api/v1/calendar/events")
     assert resp.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_create_event_missing_field_returns_422(client, teacher_headers):
+    """CB-4: 缺少必填字段返回 422"""
+    resp = await client.post("/api/v1/calendar/events", json={
+        "type": "holiday",
+        # missing title and event_date
+    }, headers=teacher_headers)
+    assert resp.status_code == 422

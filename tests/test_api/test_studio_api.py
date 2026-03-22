@@ -377,7 +377,8 @@ async def test_notification_executed_requires_send_permission(
 
 @pytest.mark.asyncio
 async def test_notification_pending_creates_approval_flow(client, teacher_headers, db):
-    """TG-001: 通知文档 transition 到 pending 时自动创建 ApprovalFlow"""
+    """TG-001/CB-3: 通知文档 transition 到 pending 时自动创建 ApprovalFlow；
+    空审批人列表 → flow 立即 approved，文档自动推进到 approved"""
     from edu_cloud.models.approval import ApprovalFlow
     from sqlalchemy import select
 
@@ -399,17 +400,50 @@ async def test_notification_pending_creates_approval_flow(client, teacher_header
     assert tr_resp.status_code == 200
 
     # 转到 pending → 应自动创建 ApprovalFlow
+    # CB-3: 空审批人 → flow.status="approved" → 文档自动推进到 approved
     pending_resp = await client.post(
         f"/api/v1/studio/documents/{doc_id}/transition",
         json={"status": "pending"},
         headers=teacher_headers,
     )
     assert pending_resp.status_code == 200
-    assert pending_resp.json()["status"] == "pending"
+    # 空审批人时文档自动推进到 approved
+    assert pending_resp.json()["status"] == "approved"
 
-    # 验证 ApprovalFlow 已在数据库中创建
+    # 验证 ApprovalFlow 已在数据库中创建，且状态为 approved（空审批人自动审批）
     flows = (await db.execute(
         select(ApprovalFlow).where(ApprovalFlow.document_id == doc_id)
     )).scalars().all()
     assert len(flows) == 1
-    assert flows[0].status == "pending"
+    assert flows[0].status == "approved"
+
+
+@pytest.mark.asyncio
+async def test_grade_leader_cannot_execute_notification(
+    client, grade_leader_headers, db
+):
+    """TG-4: grade_leader 有 GENERATE_NOTIFICATION 但无 SEND_NOTIFICATION → 403"""
+    from edu_cloud.models.document import Document
+
+    # grade_leader 自己创建通知文档（grade_leader 有 GENERATE_NOTIFICATION）
+    resp = await client.post(
+        "/api/v1/studio/documents",
+        json={"type": "notification", "title": "SEND测试", "content_json": {}},
+        headers=grade_leader_headers,
+    )
+    assert resp.status_code == 201
+    doc_id = resp.json()["id"]
+
+    # 手动设为 approved
+    doc = await db.get(Document, doc_id)
+    doc.status = "approved"
+    await db.commit()
+
+    # grade_leader 尝试 executed → 403 (有 GENERATE_NOTIFICATION，无 SEND_NOTIFICATION)
+    exec_resp = await client.post(
+        f"/api/v1/studio/documents/{doc_id}/transition",
+        json={"status": "executed"},
+        headers=grade_leader_headers,
+    )
+    assert exec_resp.status_code == 403
+    assert "SEND_NOTIFICATION" in exec_resp.json()["detail"]

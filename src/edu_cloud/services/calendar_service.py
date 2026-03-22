@@ -53,8 +53,11 @@ class CalendarService:
             raise NotFoundError(f"Event {event_id} not found")
         return event
 
-    async def delete_event(self, event_id: str):
+    async def delete_event(self, event_id: str, school_id: str | None = None):
         event = await self.get_event(event_id)
+        if school_id and event.school_id != school_id:
+            from edu_cloud.services.exceptions import PermissionDeniedError
+            raise PermissionDeniedError("Cannot delete events from other schools")
         event.is_active = False
         await self.db.commit()
 

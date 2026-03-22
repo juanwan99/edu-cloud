@@ -29,11 +29,12 @@ class ApprovalService:
         if chain_type not in APPROVAL_CHAINS:
             raise StateError(f"Unknown approval chain: {chain_type}")
 
+        # CB-3 fix: 空审批人列表时立即标记为 approved（无人等待，自动审批）
         flow = ApprovalFlow(
             document_id=document_id,
             chain_type=chain_type,
             current_step=0,
-            status="pending",
+            status="approved" if not approver_ids else "pending",
         )
         self.db.add(flow)
         await self.db.flush()

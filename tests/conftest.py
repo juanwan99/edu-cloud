@@ -277,3 +277,45 @@ async def subject_teacher_headers(client, seed_subject_teacher):
     )
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+async def seed_grade_leader(db):
+    """Seed a grade_leader user with school scope."""
+    user = User(
+        username="grade_leader1",
+        display_name="赵组长",
+    )
+    user.set_password("123456")
+    db.add(user)
+    await db.flush()
+
+    from sqlalchemy import select
+    school = (await db.execute(select(RegisteredSchool))).scalars().first()
+    if not school:
+        school = RegisteredSchool(
+            name="组长测试校", code="GRADE01", district="测试区", api_key_hash="x"
+        )
+        db.add(school)
+        await db.flush()
+
+    db.add(UserRole(
+        user_id=user.id,
+        role="grade_leader",
+        school_id=school.id,
+        is_primary=True,
+    ))
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+@pytest.fixture
+async def grade_leader_headers(client, seed_grade_leader):
+    """JWT headers for grade_leader (via login endpoint)."""
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "grade_leader1", "password": "123456"},
+    )
+    token = resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}

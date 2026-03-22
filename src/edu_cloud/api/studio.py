@@ -102,8 +102,9 @@ async def update_document(
 async def transition_document(
     doc_id: str,
     body: dict,
-    # F3 fix: 保留 GENERATE_NOTIFICATION 权限（不降级为 get_current_user）
-    current=Depends(require_permission(Permission.GENERATE_NOTIFICATION)),
+    # CB-2 fix: 改回 get_current_user，权限按文档类型在函数体内分别检查
+    # subject_teacher 有 GENERATE_REPORT 但无 GENERATE_NOTIFICATION，两者都需要 transition
+    current=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     if "status" not in body:
@@ -112,16 +113,23 @@ async def transition_document(
     user = current["user"]
     role = current["current_role"]
     school_id = getattr(role, "school_id", None)
+    role_name = getattr(role, "role", "unknown")
 
-    # F3 fix: 通知类文档 executed 需要额外的 SEND_NOTIFICATION 权限
-    if body["status"] == "executed":
-        svc_check = StudioService(db)
-        doc_check = await svc_check.get_document(doc_id, school_id=school_id)
-        if doc_check.type == "notification":
-            from edu_cloud.core.permissions import has_permission
-            role_name = getattr(role, "role", "unknown")
+    # CB-2 fix: 先查文档类型，再按类型检查权限
+    from edu_cloud.core.permissions import has_permission
+    svc_check = StudioService(db)
+    doc_check = await svc_check.get_document(doc_id, school_id=school_id)
+
+    if doc_check.type == "notification":
+        if not has_permission(role_name, Permission.GENERATE_NOTIFICATION):
+            raise HTTPException(403, "需要 GENERATE_NOTIFICATION 权限")
+        # F3: notification executed 需要额外的 SEND_NOTIFICATION 权限
+        if body["status"] == "executed":
             if not has_permission(role_name, Permission.SEND_NOTIFICATION):
                 raise HTTPException(403, "需要 SEND_NOTIFICATION 权限才能执行通知")
+    else:
+        if not has_permission(role_name, Permission.GENERATE_REPORT):
+            raise HTTPException(403, "需要 GENERATE_REPORT 权限")
 
     svc = StudioService(db)
     doc = await svc.transition_status(doc_id, body["status"], school_id=school_id)
@@ -132,11 +140,15 @@ async def transition_document(
         template_info = doc.source_context or {}
         chain_type = template_info.get("approval_chain", "class_notification")
         approval_svc = ApprovalService(db)
-        await approval_svc.create_flow(
+        flow = await approval_svc.create_flow(
             document_id=doc.id,
             chain_type=chain_type,
             approver_ids=[],  # 首期: 由管理员手动指定审批人
         )
+        # CB-3 fix: 空审批人时 flow 已标记为 approved，自动推进文档状态
+        if flow.status == "approved":
+            doc.status = "approved"
+            await db.flush()
 
     # P3: 通知类文档 transition 到 executed 时触发分发
     if body["status"] == "executed" and doc.type == "notification":
