@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from edu_cloud.config import settings
@@ -77,6 +78,15 @@ def create_app() -> FastAPI:
     logger.info("edu-cloud starting, boot_time=%s", _BOOT_TIME)
 
     app = FastAPI(title="edu-cloud", version="0.1.0", lifespan=lifespan)
+
+    # CORS — must be added before other middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     # Global exception handlers — map Service exceptions to HTTP status codes
     @app.exception_handler(NotFoundError)

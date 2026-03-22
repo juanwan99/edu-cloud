@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     LOG_DIR: str = "./logs"
     LOG_FILE_LEVEL: str = "INFO"
 
+    # CORS
+    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+
     # LLM (shared AI grading)
     LLM_API_URL: str = ""
     LLM_API_KEY: str = ""
