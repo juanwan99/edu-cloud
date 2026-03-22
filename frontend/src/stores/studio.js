@@ -40,5 +40,19 @@ export const useStudioStore = defineStore('studio', () => {
     await loadDocuments()
   }
 
-  return { templates, documents, currentDoc, loading, loadTemplates, loadDocuments, getDocument, updateDocument, transitionStatus }
+  async function createPaper(budgetTier, title, seedIdea) {
+    const { data } = await client.post('/studio/paper/create', {
+      budget_tier: budgetTier, title, seed_idea: seedIdea,
+    })
+    if (data.error) throw new Error(data.error)
+    await loadDocuments()
+    return data
+  }
+
+  async function getPaperStatus(paperId) {
+    const { data } = await client.get(`/studio/paper/${paperId}/status`)
+    return data
+  }
+
+  return { templates, documents, currentDoc, loading, loadTemplates, loadDocuments, getDocument, updateDocument, transitionStatus, createPaper, getPaperStatus }
 })
