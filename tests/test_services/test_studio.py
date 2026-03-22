@@ -229,3 +229,28 @@ async def test_executed_document_cannot_transition(db, seed_teacher):
 
     with pytest.raises(StateError):
         await svc.transition_status(doc.id, "draft")
+
+
+# ── TG-002: assigned_to 可见性 ────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_list_documents_shows_assigned_to(db):
+    """TG-002: assigned_to 教师能看到被指派的文档"""
+    svc = StudioService(db)
+    doc = await svc.create_document(
+        type="notification", title="测试", content_json={},
+        school_id="s1", created_by="creator1",
+    )
+    doc.assigned_to = "assignee1"
+    await db.flush()
+    await db.commit()
+
+    # assignee 能看到文档
+    docs = await svc.list_documents(school_id="s1", created_by="assignee1")
+    assert len(docs) == 1
+    assert docs[0].id == doc.id
+
+    # 无关用户看不到
+    docs2 = await svc.list_documents(school_id="s1", created_by="other_user")
+    assert len(docs2) == 0

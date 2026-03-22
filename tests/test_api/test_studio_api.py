@@ -251,3 +251,165 @@ async def test_transition_missing_status_returns_422(client, teacher_headers):
         headers=teacher_headers,
     )
     assert resp.status_code == 422
+
+
+# ── TG-001: 通知 transition 测试 ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_notification_reviewed_to_executed_blocked(client, teacher_headers):
+    """TG-001: 通知文档 reviewed → executed 必须返回 409（必须先走审批流）"""
+    # 创建通知文档
+    resp = await client.post(
+        "/api/v1/studio/documents",
+        json={"type": "notification", "title": "测试通知", "content_json": {}},
+        headers=teacher_headers,
+    )
+    assert resp.status_code == 201
+    doc_id = resp.json()["id"]
+
+    # 转到 reviewed
+    tr_resp = await client.post(
+        f"/api/v1/studio/documents/{doc_id}/transition",
+        json={"status": "reviewed"},
+        headers=teacher_headers,
+    )
+    assert tr_resp.status_code == 200
+
+    # 尝试直接从 reviewed 跳到 executed → 应被阻断（StateError → 409）
+    exec_resp = await client.post(
+        f"/api/v1/studio/documents/{doc_id}/transition",
+        json={"status": "executed"},
+        headers=teacher_headers,
+    )
+    assert exec_resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_notification_approved_to_executed_succeeds(client, teacher_headers, db):
+    """TG-001: 通知文档从 approved 状态转到 executed 成功"""
+    from edu_cloud.models.document import Document
+    from sqlalchemy import select
+
+    # 创建通知文档
+    resp = await client.post(
+        "/api/v1/studio/documents",
+        json={"type": "notification", "title": "审批后通知", "content_json": {}},
+        headers=teacher_headers,
+    )
+    assert resp.status_code == 201
+    doc_id = resp.json()["id"]
+
+    # 直接修改数据库状态到 approved（模拟已过审批流）
+    doc = await db.get(Document, doc_id)
+    doc.status = "approved"
+    await db.commit()
+
+    # 从 approved 转到 executed → 应成功
+    exec_resp = await client.post(
+        f"/api/v1/studio/documents/{doc_id}/transition",
+        json={"status": "executed"},
+        headers=teacher_headers,
+    )
+    assert exec_resp.status_code == 200
+    assert exec_resp.json()["status"] == "executed"
+
+
+@pytest.mark.asyncio
+async def test_report_reviewed_to_executed_succeeds(client, teacher_headers):
+    """TG-001: 非通知文档（report）reviewed → executed 不受审批流限制"""
+    # 创建 report 文档
+    resp = await client.post(
+        "/api/v1/studio/documents",
+        json={"type": "report", "title": "测试报告", "content_json": {}},
+        headers=teacher_headers,
+    )
+    assert resp.status_code == 201
+    doc_id = resp.json()["id"]
+
+    # 转到 reviewed
+    tr_resp = await client.post(
+        f"/api/v1/studio/documents/{doc_id}/transition",
+        json={"status": "reviewed"},
+        headers=teacher_headers,
+    )
+    assert tr_resp.status_code == 200
+
+    # 从 reviewed 转到 executed → 应成功（report 不需要审批）
+    exec_resp = await client.post(
+        f"/api/v1/studio/documents/{doc_id}/transition",
+        json={"status": "executed"},
+        headers=teacher_headers,
+    )
+    assert exec_resp.status_code == 200
+    assert exec_resp.json()["status"] == "executed"
+
+
+@pytest.mark.asyncio
+async def test_notification_executed_requires_send_permission(
+    client, subject_teacher_headers, teacher_headers, db
+):
+    """TG-001: subject_teacher 没有 GENERATE_NOTIFICATION 权限 → 403"""
+    from edu_cloud.models.document import Document
+
+    # teacher (homeroom_teacher) 先创建通知文档并设置为 approved
+    resp = await client.post(
+        "/api/v1/studio/documents",
+        json={"type": "notification", "title": "权限测试通知", "content_json": {}},
+        headers=teacher_headers,
+    )
+    assert resp.status_code == 201
+    doc_id = resp.json()["id"]
+
+    # 直接设为 approved 状态
+    doc = await db.get(Document, doc_id)
+    doc.status = "approved"
+    await db.commit()
+
+    # subject_teacher 尝试执行 → 403（没有 GENERATE_NOTIFICATION 权限）
+    exec_resp = await client.post(
+        f"/api/v1/studio/documents/{doc_id}/transition",
+        json={"status": "executed"},
+        headers=subject_teacher_headers,
+    )
+    assert exec_resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_notification_pending_creates_approval_flow(client, teacher_headers, db):
+    """TG-001: 通知文档 transition 到 pending 时自动创建 ApprovalFlow"""
+    from edu_cloud.models.approval import ApprovalFlow
+    from sqlalchemy import select
+
+    # 创建通知文档
+    resp = await client.post(
+        "/api/v1/studio/documents",
+        json={"type": "notification", "title": "待审批通知", "content_json": {}},
+        headers=teacher_headers,
+    )
+    assert resp.status_code == 201
+    doc_id = resp.json()["id"]
+
+    # 转到 reviewed
+    tr_resp = await client.post(
+        f"/api/v1/studio/documents/{doc_id}/transition",
+        json={"status": "reviewed"},
+        headers=teacher_headers,
+    )
+    assert tr_resp.status_code == 200
+
+    # 转到 pending → 应自动创建 ApprovalFlow
+    pending_resp = await client.post(
+        f"/api/v1/studio/documents/{doc_id}/transition",
+        json={"status": "pending"},
+        headers=teacher_headers,
+    )
+    assert pending_resp.status_code == 200
+    assert pending_resp.json()["status"] == "pending"
+
+    # 验证 ApprovalFlow 已在数据库中创建
+    flows = (await db.execute(
+        select(ApprovalFlow).where(ApprovalFlow.document_id == doc_id)
+    )).scalars().all()
+    assert len(flows) == 1
+    assert flows[0].status == "pending"

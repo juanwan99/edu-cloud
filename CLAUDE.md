@@ -135,7 +135,7 @@ tests/
 | Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 251 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification 全覆盖）| — |
+| Tests | 263 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification 全覆盖，含 TG-001/002/003 test-gap 补全）| — |
 | Migrations | Alembic 脚手架 | 未写 migration 文件 |
 
 ## 技术栈

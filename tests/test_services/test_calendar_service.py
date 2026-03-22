@@ -78,3 +78,36 @@ async def test_delete_event(db):
     events = await svc.list_events(school_id="s1")
     active = [e for e in events if e.is_active]
     assert len(active) == 0
+
+
+# ── TG-003: 边界条件测试 ──────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_days_before_zero_triggers_same_day(db):
+    """TG-003: days_before=0 当天触发"""
+    svc = CalendarService(db)
+    await svc.create_event(
+        type="exam", title="今天考试", event_date=date.today(),
+        school_id="s1", created_by="u1",
+        notification_rules=[
+            {"days_before": 0, "template_type": "exam_reminder", "target_roles": ["parent"], "auto_draft": True},
+        ],
+    )
+    rules = await svc.get_triggered_rules(check_date=date.today())
+    assert len(rules) == 1
+
+
+@pytest.mark.asyncio
+async def test_past_event_not_triggered(db):
+    """TG-003: 过期事件不触发"""
+    svc = CalendarService(db)
+    await svc.create_event(
+        type="holiday", title="过去的假期", event_date=date(2020, 1, 1),
+        school_id="s1", created_by="u1",
+        notification_rules=[
+            {"days_before": 7, "template_type": "holiday_safety", "target_roles": ["parent"], "auto_draft": True},
+        ],
+    )
+    rules = await svc.get_triggered_rules(check_date=date.today())
+    assert len(rules) == 0
