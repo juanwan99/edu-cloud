@@ -13,12 +13,15 @@
         {{ cls.name }}
       </n-list-item>
     </n-list>
+    <n-divider />
+    <CalendarPanel />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useContextStore } from '../../stores/context.js'
+import CalendarPanel from '../calendar/CalendarPanel.vue'
 
 const contextStore = useContextStore()
 

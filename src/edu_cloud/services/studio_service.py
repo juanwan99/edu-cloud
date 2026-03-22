@@ -78,6 +78,12 @@ class StudioService:
             raise StateError(
                 f"Cannot transition from '{doc.status}' to '{new_status}'"
             )
+        # F4 fix: 通知类文档必须走审批流，禁止 reviewed → executed 直接跳过
+        if doc.type == "notification" and new_status == "executed" and doc.status != "approved":
+            raise StateError(
+                "Notifications must be approved before execution. "
+                "Transition: reviewed → pending → approved → executed"
+            )
         doc.status = new_status
         await self.db.flush()
         return doc

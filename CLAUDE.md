@@ -67,6 +67,8 @@ frontend/src/
       DataView.vue          # 中栏：数据呈现（Task 6 实现）
     studio/
       StudioPanel.vue       # 右栏：AI 产出物 + 行动队列（P2 实现）
+    calendar/
+      CalendarPanel.vue     # 学期日历面板（P3-4：事件列表 + 新增弹窗，嵌入 ContextPanel）
   stores/
     auth.js                 # Pinia auth store（token/displayName/currentRole/roles/scope）
   router/                   # Vue Router（/login + / 含 requiresAuth 守卫）
@@ -126,7 +128,7 @@ tests/
 
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
-| API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(paper/create + paper/:id/status), calendar(events CRUD) | 跨校分析(高级), 题库, 共享 AI 阅卷 |
+| API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(documents CRUD+transition+paper/create+paper/:id/status), calendar(events CRUD) | 跨校分析(高级), 题库, 共享 AI 阅卷 |
 | Models | 9 表（school/user/exam/participant/student_result/document+assigned_to/calendar_events/notification_rules/notifications）| 题库模型（BankQuestion/BankCategory）|
 | Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), CalendarService(create/list/delete/triggered_rules), NotificationService(dispatch stub+幂等), exceptions | EventBus handler, AI grading |
 | Tasks | tasks.py: auto_draft_notifications（扫描日历→自动创建 notification 草稿，防重复 triggered 标记）| arq cron 生产接入 |
@@ -242,6 +244,17 @@ tests/
 | POST | `/api/v1/sync/scores` | 校→云 | 上报成绩（含逐题明细） |
 
 API Key 格式：`{school_code}:{secret}`，bcrypt 验证。
+
+### Studio 文档端点（JWT 认证）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/studio/templates` | 已登录 | 获取当前角色可用模板 |
+| GET | `/api/v1/studio/documents` | GENERATE_REPORT | 列出文档（本人创建或被指派） |
+| POST | `/api/v1/studio/documents` | GENERATE_REPORT | 创建文档 |
+| GET | `/api/v1/studio/documents/{id}` | GENERATE_REPORT | 文档详情 |
+| PATCH | `/api/v1/studio/documents/{id}` | GENERATE_REPORT | 更新文档内容 |
+| POST | `/api/v1/studio/documents/{id}/transition` | GENERATE_NOTIFICATION | 状态流转（P3-4 F3: 通知文档 executed 需额外 SEND_NOTIFICATION；F4: pending 自动创建审批流；executed 触发 NotificationService.dispatch） |
 
 ### Studio 论文端点（JWT 认证）
 

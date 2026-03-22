@@ -102,16 +102,56 @@ async def update_document(
 async def transition_document(
     doc_id: str,
     body: dict,
-    current=Depends(require_permission(Permission.GENERATE_REPORT)),
+    # F3 fix: 保留 GENERATE_NOTIFICATION 权限（不降级为 get_current_user）
+    current=Depends(require_permission(Permission.GENERATE_NOTIFICATION)),
     db: AsyncSession = Depends(get_db),
 ):
     if "status" not in body:
         raise HTTPException(422, "缺少必填字段: status")
 
+    user = current["user"]
     role = current["current_role"]
     school_id = getattr(role, "school_id", None)
+
+    # F3 fix: 通知类文档 executed 需要额外的 SEND_NOTIFICATION 权限
+    if body["status"] == "executed":
+        svc_check = StudioService(db)
+        doc_check = await svc_check.get_document(doc_id, school_id=school_id)
+        if doc_check.type == "notification":
+            from edu_cloud.core.permissions import has_permission
+            role_name = getattr(role, "role", "unknown")
+            if not has_permission(role_name, Permission.SEND_NOTIFICATION):
+                raise HTTPException(403, "需要 SEND_NOTIFICATION 权限才能执行通知")
+
     svc = StudioService(db)
     doc = await svc.transition_status(doc_id, body["status"], school_id=school_id)
+
+    # F4 fix: 通知类文档 transition 到 pending 时自动创建审批流
+    if body["status"] == "pending" and doc.type == "notification":
+        from edu_cloud.services.approval_service import ApprovalService
+        template_info = doc.source_context or {}
+        chain_type = template_info.get("approval_chain", "class_notification")
+        approval_svc = ApprovalService(db)
+        await approval_svc.create_flow(
+            document_id=doc.id,
+            chain_type=chain_type,
+            approver_ids=[],  # 首期: 由管理员手动指定审批人
+        )
+
+    # P3: 通知类文档 transition 到 executed 时触发分发
+    if body["status"] == "executed" and doc.type == "notification":
+        from edu_cloud.services.notification_service import NotificationService
+        from datetime import datetime, timezone
+        notif_svc = NotificationService(db)
+        dispatch_result = await notif_svc.dispatch(
+            document_id=doc.id,
+            target_scope=doc.source_context or {},
+            school_id=doc.school_id,
+            channel="stub",
+        )
+        doc.execution_result = dispatch_result
+        doc.executed_at = datetime.now(timezone.utc)
+
     await db.commit()
     return _doc_to_dict(doc)
 
