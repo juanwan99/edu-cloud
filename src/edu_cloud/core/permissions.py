@@ -128,6 +128,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.VIEW_QUESTION_BANK,
         Permission.USE_AI_CHAT,
         Permission.WRITE_PAPER,
+        Permission.GENERATE_REPORT,
     },
 
     # 家长

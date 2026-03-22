@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 ROLE_TOOL_CATEGORIES: dict[str, list[str] | None] = {
     "platform_admin": None,  # all categories
     "district_admin": ["L2_cross_school"],
-    "principal": ["L1_analytics", "L2_cross_school"],
-    "academic_director": ["L1_analytics", "L2_cross_school"],
-    "grade_leader": ["L1_analytics"],
-    "homeroom_teacher": ["L1_analytics"],
-    "subject_teacher": ["L1_analytics"],
+    "principal": ["L1_analytics", "L2_cross_school", "L4_action"],
+    "academic_director": ["L1_analytics", "L2_cross_school", "L4_action"],
+    "grade_leader": ["L1_analytics", "L4_action"],
+    "homeroom_teacher": ["L1_analytics", "L4_action"],
+    "subject_teacher": ["L1_analytics", "L4_action"],
 }
 
 
@@ -124,6 +124,7 @@ class Agent:
                         _db=db,
                         _school_id=school_id,
                         _class_ids=class_ids,
+                        _user_id=user_id,
                     )
                 except Exception as exc:
                     logger.error("Tool %s failed: %s", tc.name, exc)
