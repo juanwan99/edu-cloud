@@ -1,9 +1,10 @@
 # edu-cloud 超级智能平台设计文档
 
+> [2026-03-22 14:05:07 P2 实现完成] Commits: f8e712c..c9b3f1f (P2 Studio 6 Task + R1/R2/R3 修复, 186 tests)
 > [2026-03-22 10:02:25 P1 实现完成] Commits: bba413e..8936134 (P1 AI 大脑 7 Task + R1/R2 修复, 138 tests)
 > [2026-03-22 08:37:41 P0 实现完成] Commits: beab26e..03229e7 (P0 骨架 8 Task + R1/R2 修复, 94 tests)
 > 创建时间: 2026-03-21 22:55:42
-> 状态: P1 实现完成
+> 状态: P2 实现完成
 > 范围: edu-cloud 从"联考后端"重构为"学校超级智能管理平台"
 > 参照: Google NotebookLM 三栏布局
 > GPT 架构审查: architecture-codex-review.md (2026-03-21, Q1-Q7 共识达成)
@@ -13,6 +14,7 @@
 - **PR-07**: CLAUDE.md 角色边界已更新（2026-03-21），exam-ai 侧 CLAUDE.md 待同步
 - **PR-08**: 引入 Alembic migration 后应停用 `create_all()` 启动自动建表。P0 Task 8 实施时处理。
 - **R2-02**: WorkspaceService 的 grade_ids / subject_codes scope 过滤未实现。P0 只支持 homeroom_teacher + class_ids，grade_leader(grade_ids) 和 subject_teacher(subject_codes) 的完整 scope 隔离留待 P1 实现。
+- **P2-DC**: ApprovalService.act_on_step() 接受任意 action 字符串（只处理 approved/rejected），后续审批 API 暴露时需收窄验证。
 
 ---
 
