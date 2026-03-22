@@ -351,3 +351,49 @@ async def test_dashboard_all_max_scores(client, teacher_headers, seed_all_max_sc
     # All other bins should be 0
     for label in ["<40%", "40-59%", "60-69%", "70-79%", "80-89%"]:
         assert dist[label] == 0, f"Expected 0 in {label} bin, got {dist[label]}"
+
+
+@pytest.mark.asyncio
+async def test_workspace_denied_for_parent(client, db):
+    """Parent role (VIEW_SCORES only) should be denied access to workspace endpoints.
+
+    R2-01: workspace endpoints require VIEW_EXAMS. parent only has VIEW_SCORES,
+    so both /context and /exams/{id}/dashboard must return 403.
+    """
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.models.school import RegisteredSchool
+
+    # Create parent user
+    user = User(username="parent1", display_name="家长")
+    user.set_password("123456")
+    db.add(user)
+    await db.flush()
+
+    school = RegisteredSchool(
+        name="测试校P", code="TESTP", district="测试区", api_key_hash="x"
+    )
+    db.add(school)
+    await db.flush()
+
+    db.add(
+        UserRole(
+            user_id=user.id, role="parent", school_id=school.id, is_primary=True
+        )
+    )
+    await db.commit()
+
+    # Login as parent
+    resp = await client.post(
+        "/api/v1/auth/login", json={"username": "parent1", "password": "123456"}
+    )
+    assert resp.status_code == 200
+    token = resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Both workspace endpoints must return 403 for parent role
+    resp = await client.get("/api/v1/workspace/context", headers=headers)
+    assert resp.status_code == 403
+
+    resp = await client.get("/api/v1/workspace/exams/fake-id/dashboard", headers=headers)
+    assert resp.status_code == 403
