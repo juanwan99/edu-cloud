@@ -135,7 +135,7 @@ tests/
 | Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 263 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification 全覆盖，含 TG-001/002/003 test-gap 补全）| — |
+| Tests | 271 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot 全覆盖）| — |
 | Migrations | Alembic 脚手架 | 未写 migration 文件 |
 
 ## 技术栈
@@ -313,16 +313,18 @@ docker compose logs -f      # 查看日志
 
 | 表 | 关键字段 | 说明 |
 |---|---------|------|
-| registered_schools | code(唯一), api_key_hash, last_heartbeat, district | 学校档案 |
-| platform_users | username(唯一), role, districts(JSON), school_ids(JSON) | 平台用户 |
-| joint_exams | name, status(draft→templates_ready→distributed→collecting→completed→archived), subjects(JSON), created_by(FK), creator_school_id(FK), answer_detail_schema(JSON) | 联考 |
-| joint_exam_participants | joint_exam_id(FK), school_id(FK), status, is_creator, student/score_count | 参与校 |
-| joint_exam_student_results | joint_exam_id, school_id, subject_code, student_name/number, total_score, detail_scores(JSON) | 成绩明细（含逐题） |
-| documents | type, title, status, content_json, created_by(FK), assigned_to(FK,nullable), approved_by(FK), school_id(FK) | Studio 文档（assigned_to 支持自动拟稿指派可见性） |
-| calendar_events | type(holiday/exam/parent_meeting/deadline), title, event_date, school_id(FK), created_by(FK), semester, is_active | 校历事件 |
-| notification_rules | event_id(FK), days_before, template_type, target_roles(JSON), auto_draft, triggered | 通知触发规则（防重复 triggered 标记） |
-| notifications | document_id(FK), channel(wechat/sms/stub), status(pending/sent/partial/failed), target_scope(JSON), school_id(FK), sent_at, result_summary(JSON) | 通知发送记录 |
+| schools | code(唯一), api_key_hash(Optional), is_active, district | 学校档案（原 registered_schools） |
+| users | username(唯一), display_name, hashed_password, is_active | 统一用户（原 PlatformUser 已删除） |
+| user_roles | user_id(FK), role, school_id(FK), class_ids, is_primary | 多角色+scope |
+| llm_slots | school_id(FK,nullable), slot_number, api_url, api_key, model, is_enabled | LLM 槽位配置（学校覆盖>平台默认>.env） |
+| joint_exams | name, status(draft→...→archived), subjects(JSON), created_by(FK→users), creator_school_id(FK) | 联考 |
+| joint_exam_participants | joint_exam_id(FK), school_id(FK), status, is_creator | 参与校 |
+| joint_exam_student_results | joint_exam_id, school_id, subject_code, student_name/number, total_score, detail_scores(JSON) | 成绩明细 |
+| documents | type, title, status, content_json, created_by(FK→users), assigned_to(FK), school_id(FK) | Studio 文档 |
+| calendar_events | type, title, event_date, school_id(FK), created_by(FK→users), semester, is_active | 校历事件 |
+| notification_rules | event_id(FK), days_before, template_type, target_roles(JSON), auto_draft, triggered | 通知触发规则 |
+| notifications | document_id(FK), channel, status, target_scope(JSON), school_id(FK) | 通知发送记录 |
 
 ## 种子数据
 
-启动时自动创建：平台管理员 `admin/123456`（platform_admin 角色）。
+启动时自动创建：平台管理员 `admin/123456`（User + UserRole platform_admin）。
