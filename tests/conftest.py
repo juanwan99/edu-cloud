@@ -233,3 +233,45 @@ async def seed_approver(db):
     )
     await db.commit()
     return {"user_id": user.id, "school_id": school.id}
+
+
+@pytest.fixture
+async def seed_subject_teacher(db):
+    """Seed a subject_teacher user with school scope."""
+    user = User(
+        username="subject_teacher1",
+        display_name="李老师",
+    )
+    user.set_password("123456")
+    db.add(user)
+    await db.flush()
+
+    from sqlalchemy import select
+    school = (await db.execute(select(RegisteredSchool))).scalars().first()
+    if not school:
+        school = RegisteredSchool(
+            name="论文测试校", code="PAPER01", district="测试区", api_key_hash="x"
+        )
+        db.add(school)
+        await db.flush()
+
+    db.add(UserRole(
+        user_id=user.id,
+        role="subject_teacher",
+        school_id=school.id,
+        is_primary=True,
+    ))
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+@pytest.fixture
+async def subject_teacher_headers(client, seed_subject_teacher):
+    """JWT headers for subject_teacher (via login endpoint)."""
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "subject_teacher1", "password": "123456"},
+    )
+    token = resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}

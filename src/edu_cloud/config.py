@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     KNOWLEDGE_BASE_DIR: str = "C:/Users/Administrator/edu-knowledge-base/subjects/biology_senior"
     KNOWLEDGE_ENABLED: bool = True
 
+    # Paper-skill
+    PAPER_SKILL_URL: str = "http://localhost:9103"
+    PAPER_SKILL_ENABLED: bool = True
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

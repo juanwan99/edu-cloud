@@ -112,6 +112,17 @@ TEMPLATES = {
         "requires_approval": True,
         "approval_chain": "class_notification",
     },
+    "paper": {
+        "key": "paper",
+        "name": "教育论文",
+        "sections": [
+            {"key": "topic", "title": "选题方向", "prompt": "基于教学实践的论文选题"},
+        ],
+        "required_context": [],
+        "available_roles": ["subject_teacher"],
+        "requires_approval": False,
+        "external_service": "paper_skill",
+    },
 }
 
 

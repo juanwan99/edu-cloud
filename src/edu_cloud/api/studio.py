@@ -7,6 +7,7 @@ from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.services.studio_service import StudioService
+from edu_cloud.services.paper_service import PaperService
 from edu_cloud.templates.document_templates import get_templates_for_role
 
 router = APIRouter(prefix="/api/v1/studio", tags=["studio"])
@@ -127,3 +128,42 @@ def _doc_to_dict(doc) -> dict:
         "version": doc.version,
         "created_at": str(doc.created_at) if doc.created_at else None,
     }
+
+
+@router.post("/paper/create")
+async def create_paper(
+    body: dict,
+    current=Depends(require_permission(Permission.WRITE_PAPER)),
+    db: AsyncSession = Depends(get_db),
+):
+    svc = PaperService()
+    result = await svc.create_paper(
+        budget_tier=body.get("budget_tier", "standard"),
+        title=body.get("title"),
+        seed_idea=body.get("seed_idea"),
+    )
+    if "error" in result:
+        return result
+
+    # 在 Studio 中创建关联文档记录
+    user = current["user"]
+    role = current["current_role"]
+    studio_svc = StudioService(db)
+    doc = await studio_svc.create_document(
+        type="paper", title=result.get("title", "教育论文"),
+        content_json={"paper_id": result["paper_id"], "stage": result["stage"], "status": result.get("status")},
+        school_id=getattr(role, "school_id", ""),
+        created_by=user.id,
+        source_context={"paper_skill_id": result["paper_id"]},
+    )
+    await db.commit()
+    return {"document_id": doc.id, "paper_id": result["paper_id"], "stage": result["stage"]}
+
+
+@router.get("/paper/{paper_id}/status")
+async def get_paper_status(
+    paper_id: str,
+    current=Depends(get_current_user),
+):
+    svc = PaperService()
+    return await svc.get_status(paper_id)
