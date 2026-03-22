@@ -16,6 +16,7 @@ import edu_cloud.models.document  # noqa: F401
 import edu_cloud.models.approval  # noqa: F401
 import edu_cloud.models.calendar  # noqa: F401
 import edu_cloud.models.notification  # noqa: F401
+import edu_cloud.core.models.llm_slot  # noqa: F401
 from edu_cloud.shared.auth import create_access_token
 
 
