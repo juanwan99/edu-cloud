@@ -53,3 +53,32 @@ def test_agent_context_clear_session():
     ctx.add_user_message("你好", "s1")
     ctx.clear_session("s1")
     assert len(ctx.build_messages("s1")) == 1  # only system
+
+
+def test_agent_context_token_pruning():
+    """With a tiny token budget, oldest messages are pruned and newest kept."""
+    ctx = AgentContext(system_content="S")  # ~1 token for system
+    for i in range(20):
+        ctx.add_user_message(f"message number {i} with some padding text", "s1")
+    messages = ctx.build_messages("s1", max_tokens=50)
+    # system is always first
+    assert messages[0].role == "system"
+    # not all 20 user messages fit — some were pruned
+    assert len(messages) < 21
+    # newest messages are kept (last added should be present)
+    contents = [m.content for m in messages if m.role == "user"]
+    assert contents[-1] == "message number 19 with some padding text"
+    # oldest messages are gone
+    assert "message number 0 with some padding text" not in contents
+
+
+def test_agent_context_token_pruning_keeps_system():
+    """Even with an extremely small budget, system message is always present."""
+    ctx = AgentContext(system_content="你是一个非常有用的助手，请认真回答")
+    for i in range(10):
+        ctx.add_user_message(f"很长的消息内容用于测试裁剪逻辑 {i}", "s1")
+    # Budget so small that even the system message barely fits
+    messages = ctx.build_messages("s1", max_tokens=5)
+    assert len(messages) >= 1
+    assert messages[0].role == "system"
+    assert messages[0].content == "你是一个非常有用的助手，请认真回答"
