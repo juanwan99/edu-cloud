@@ -54,7 +54,7 @@ class ChatRequest(BaseModel):
 @router.get("/health")
 async def ai_health():
     tool_count = len(tools.list_tools())
-    return {"status": "ok", "tools": tool_count}
+    return {"status": "available", "tools": tool_count}
 
 
 @router.post("/chat")

@@ -40,30 +40,35 @@ import { useAuthStore } from '../stores/auth'
 const router = useRouter()
 const auth = useAuthStore()
 
-const role = computed(() => auth.user?.role || 'teacher')
+const role = computed(() => auth.currentRole?.role || '')
 
-// 角色可见菜单矩阵
+// 角色可见菜单矩阵（canonical + legacy 别名）
 function canSee(section) {
+  if (auth.isAdmin) return true
   const r = role.value
-  if (r === 'admin') return true
-  if (section === 'exams') return ['admin', 'principal'].includes(r)
-  if (section === 'analytics') return ['admin', 'principal', 'subject_leader', 'head_teacher'].includes(r)
+  if (section === 'exams') return true  // all authenticated users can see exams
+  if (section === 'analytics') return [
+    'grade_leader', 'homeroom_teacher', 'subject_teacher',
+    'head_teacher', 'teacher',  // legacy aliases
+  ].includes(r)
   return false
 }
 
 const allGradingMenu = [
-  { label: '人工阅卷', key: '/marking', roles: ['admin', 'teacher', 'subject_leader', 'head_teacher'] },
-  { label: '任务分配', key: '/marking/assign', roles: ['admin', 'principal'] },
-  { label: '阅卷进度', key: '/marking/progress', roles: ['admin', 'principal', 'subject_leader', 'head_teacher', 'teacher'] },
+  { label: '人工阅卷', key: '/marking', roles: ['platform_admin', 'admin', 'subject_teacher', 'teacher', 'homeroom_teacher', 'head_teacher'] },
+  { label: '任务分配', key: '/marking/assign', adminOnly: true },
+  { label: '阅卷进度', key: '/marking/progress', roles: ['platform_admin', 'admin', 'principal', 'academic_director', 'homeroom_teacher', 'head_teacher', 'subject_teacher', 'teacher'] },
   { type: 'divider' },
-  { label: 'AI 批改任务', key: '/grading/tasks', roles: ['admin'] },
-  { label: '教师复核', key: '/grading/review', roles: ['admin', 'teacher'] },
+  { label: 'AI 批改任务', key: '/grading/tasks', adminOnly: true },
+  { label: '教师复核', key: '/grading/review', roles: ['platform_admin', 'admin', 'subject_teacher', 'teacher'] },
 ]
 
 const filteredGradingMenu = computed(() =>
-  allGradingMenu.filter(item =>
-    item.type === 'divider' || !item.roles || item.roles.includes(role.value)
-  )
+  allGradingMenu.filter(item => {
+    if (item.type === 'divider') return true
+    if (item.adminOnly) return auth.isAdmin
+    return !item.roles || item.roles.includes(role.value)
+  })
 )
 
 const userMenuOptions = [
@@ -74,7 +79,12 @@ const userMenuOptions = [
       h('div', { style: 'padding: 8px 16px; border-bottom: 1px solid var(--color-border-light);' }, [
         h('div', { style: 'font-weight: 700; font-size: 14px;' }, auth.user?.display_name),
         h(NTag, { size: 'small', round: true, type: auth.isAdmin ? 'warning' : 'info', style: 'margin-top: 4px;' },
-          { default: () => ({ admin: '管理员', principal: '校长', subject_leader: '学科组长', head_teacher: '班主任', teacher: '教师' }[auth.user?.role] || auth.user?.role) }),
+          { default: () => ({
+            platform_admin: '平台管理员', district_admin: '区管理员', principal: '校长',
+            academic_director: '教务主任', grade_leader: '年级组长',
+            homeroom_teacher: '班主任', subject_teacher: '科任教师', parent: '家长',
+            admin: '管理员', teacher: '教师', head_teacher: '班主任',  // legacy
+          }[auth.currentRole?.role] || auth.currentRole?.role) }),
       ]),
   },
   { label: '退出登录', key: 'logout' },

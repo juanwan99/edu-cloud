@@ -25,6 +25,10 @@ ROLE_TOOL_CATEGORIES: dict[str, list[str] | None] = {
     "homeroom_teacher": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L5_bank", "L6_profile"],
     "subject_teacher": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L5_bank"],
     "parent": ["L6_profile"],
+    # Legacy aliases (exam-ai compatibility)
+    "admin": None,  # same as platform_admin
+    "teacher": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L5_bank"],  # same as subject_teacher
+    "head_teacher": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L5_bank", "L6_profile"],  # same as homeroom_teacher
 }
 
 

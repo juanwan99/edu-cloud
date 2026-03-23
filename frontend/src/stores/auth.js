@@ -13,6 +13,12 @@ export const useAuthStore = defineStore('auth', () => {
   const displayName = computed(() => user.value?.display_name || '')
   const roleName = computed(() => currentRole.value?.role || '')
 
+  const SCHOOL_ADMIN_ROLES = new Set([
+    'platform_admin', 'district_admin', 'principal', 'academic_director',
+    'admin',  // legacy alias
+  ])
+  const isAdmin = computed(() => SCHOOL_ADMIN_ROLES.has(currentRole.value?.role))
+
   async function login(username, password) {
     const { data } = await client.post('/auth/login', { username, password })
     token.value = data.access_token
@@ -41,5 +47,5 @@ export const useAuthStore = defineStore('auth', () => {
     router.push('/login')
   }
 
-  return { token, user, roles, currentRole, currentRoleIndex, displayName, roleName, login, switchRole, logout }
+  return { token, user, roles, currentRole, currentRoleIndex, displayName, roleName, isAdmin, login, switchRole, logout }
 })

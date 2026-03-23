@@ -81,7 +81,7 @@ import client from '../api/client'
 const auth = useAuthStore()
 const message = useMessage()
 const router = useRouter()
-const isManager = computed(() => ['admin', 'principal'].includes(auth.user?.role))
+const isManager = computed(() => auth.isAdmin)
 
 const selectedExamId = ref(null)
 const exams = ref([])

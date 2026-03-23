@@ -25,8 +25,7 @@ async def test_ai_health(client, ai_setup):
     resp = await client.get("/api/v1/ai/health", headers=ai_setup["headers"])
     assert resp.status_code == 200
     data = resp.json()
-    # edu-cloud returns "ok" status (not "available"/"unconfigured")
-    assert data["status"] == "ok"
+    assert data["status"] == "available"
     assert "tools" in data
 
 

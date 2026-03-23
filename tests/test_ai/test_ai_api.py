@@ -5,7 +5,7 @@ import pytest
 async def test_ai_health(client):
     resp = await client.get("/api/v1/ai/health")
     assert resp.status_code == 200
-    assert resp.json()["status"] == "ok"
+    assert resp.json()["status"] == "available"
 
 
 @pytest.mark.asyncio
