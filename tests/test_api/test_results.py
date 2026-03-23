@@ -1,51 +1,46 @@
 import pytest
-import io
 
 
 @pytest.fixture
-async def results_setup(client, admin_headers):
-    """Full setup: 2 schools + exam + template + distributed + scores submitted."""
+async def results_setup(client, admin_headers, db):
+    """Full setup: 2 schools + exam + distributed + scores — via direct DB."""
+    from edu_cloud.models.joint_exam import JointExam, JointExamParticipant, JointExamStudentResult
+
     r1 = await client.post("/api/v1/schools", json={
         "name": "排名出题校", "code": "RK_CR", "district": "X",
     }, headers=admin_headers)
     r2 = await client.post("/api/v1/schools", json={
         "name": "排名参与校", "code": "RK_PT", "district": "X",
     }, headers=admin_headers)
-    s1_key = r1.json()["api_key"]
-    s2_key = r2.json()["api_key"]
+    s1_id = r1.json()["id"]
+    s2_id = r2.json()["id"]
 
     er = await client.post("/api/v1/joint-exams", json={
         "name": "排名测试联考",
         "subjects": [{"code": "YW", "name": "语文", "max_score": 150}],
-        "creator_school_id": r1.json()["id"],
+        "creator_school_id": s1_id,
     }, headers=admin_headers)
     exam_id = er.json()["id"]
 
-    # Add participant
     await client.post(f"/api/v1/joint-exams/{exam_id}/participants",
-        json={"school_id": r2.json()["id"]}, headers=admin_headers)
+        json={"school_id": s2_id}, headers=admin_headers)
 
-    # Upload template + distribute
-    await client.post("/api/v1/sync/templates", files={
-        "skeleton": ("skeleton.json", io.BytesIO(b'{}'), "application/json"),
-        "pdf": ("template.pdf", io.BytesIO(b"%PDF"), "application/pdf"),
-    }, data={
-        "joint_exam_id": exam_id, "subject_code": "YW",
-        "answer_schema": '[]',
-    }, headers={"X-API-Key": s1_key})
+    # 直接设置 template_uploaded + distribute
+    from sqlalchemy import select
+    je = (await db.execute(select(JointExam).where(JointExam.id == exam_id))).scalar_one()
+    je.subjects = [{"code": "YW", "name": "语文", "max_score": 150, "template_uploaded": True}]
+    await db.commit()
     await client.post(f"/api/v1/joint-exams/{exam_id}/distribute", headers=admin_headers)
 
-    # Upload scores from both schools
-    for key, prefix in [(s1_key, "S1"), (s2_key, "S2")]:
-        students = [
-            {"student_name": f"{prefix}_学生{i}", "student_number": f"{prefix}_{i:03d}",
-             "total_score": 60 + i * 10, "detail_scores": []}
-            for i in range(1, 4)
-        ]
-        await client.post("/api/v1/sync/scores", json={
-            "joint_exam_id": exam_id, "subject_code": "YW",
-            "student_results": students,
-        }, headers={"X-API-Key": key})
+    # 直接插入成绩
+    for school_id, prefix in [(s1_id, "S1"), (s2_id, "S2")]:
+        for i in range(1, 4):
+            db.add(JointExamStudentResult(
+                joint_exam_id=exam_id, school_id=school_id, subject_code="YW",
+                student_name=f"{prefix}_学生{i}", student_number=f"{prefix}_{i:03d}",
+                total_score=60 + i * 10, detail_scores=[],
+            ))
+    await db.commit()
 
     return {"exam_id": exam_id}
 
@@ -59,7 +54,7 @@ async def test_rankings_api(client, admin_headers, results_setup):
     )
     assert resp.status_code == 200
     rankings = resp.json()
-    assert len(rankings) == 6  # 3 students × 2 schools
+    assert len(rankings) == 6
     scores = [r["total_score"] for r in rankings]
     assert scores == sorted(scores, reverse=True)
 

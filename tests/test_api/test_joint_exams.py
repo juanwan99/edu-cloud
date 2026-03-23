@@ -50,7 +50,8 @@ async def test_add_participant_api(client, admin_headers, exam_setup):
 
 
 @pytest.mark.asyncio
-async def test_distribute_api(client, admin_headers, exam_setup):
+async def test_distribute_api(client, admin_headers, exam_setup, db):
+    """distribute 需要模板已上传。直接写 DB 替代已删除的 sync 端点。"""
     setup = exam_setup
     er = await client.post("/api/v1/joint-exams", json={
         "name": "E",
@@ -58,17 +59,17 @@ async def test_distribute_api(client, admin_headers, exam_setup):
         "creator_school_id": setup["creator_id"],
     }, headers=admin_headers)
     exam_id = er.json()["id"]
-    # Upload template via sync endpoint (as creator school)
-    import io
-    resp = await client.post("/api/v1/sync/templates", files={
-        "skeleton": ("skeleton.json", io.BytesIO(b'{"regions": []}'), "application/json"),
-        "pdf": ("template.pdf", io.BytesIO(b"%PDF-fake"), "application/pdf"),
-    }, data={
-        "joint_exam_id": exam_id,
-        "subject_code": "YW",
-        "answer_schema": '[{"id": "q1", "max_score": 10}]',
-    }, headers={"X-API-Key": setup["creator_key"]})
-    assert resp.status_code == 200
+    # 直接写 DB：为联考科目设置 template_uploaded 标记
+    from sqlalchemy import select, update
+    from edu_cloud.models.joint_exam import JointExam
+    je = (await db.execute(select(JointExam).where(JointExam.id == exam_id))).scalar_one()
+    updated_subjects = []
+    for s in (je.subjects or []):
+        s["template_uploaded"] = True
+        updated_subjects.append(s)
+    je.subjects = updated_subjects
+    je.status = "templates_ready"
+    await db.commit()
     # Distribute
     resp = await client.post(
         f"/api/v1/joint-exams/{exam_id}/distribute", headers=admin_headers,

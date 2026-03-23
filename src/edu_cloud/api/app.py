@@ -25,26 +25,27 @@ async def lifespan(app: FastAPI):
     # Dev: create tables + seed platform admin
     from edu_cloud.database import engine
     from edu_cloud.models.base import Base
+    # Core models
     import edu_cloud.models.school  # noqa: F401
-    import edu_cloud.modules.exam.models  # noqa: F401
     import edu_cloud.models.user  # noqa: F401
     import edu_cloud.models.user_role  # noqa: F401
-    import edu_cloud.models.student  # noqa: F401
-    import edu_cloud.models.class_group  # noqa: F401
-    import edu_cloud.models.exam  # noqa: F401 — stub re-exports from modules.exam.models
-    import edu_cloud.models.ai_session  # noqa: F401
+    import edu_cloud.core.models.llm_slot  # noqa: F401
+    # Module models (canonical locations)
+    import edu_cloud.modules.exam.models  # noqa: F401 — Exam/Subject/Question/ExamResult/JointExam*
+    import edu_cloud.modules.student.models  # noqa: F401 — Class/Student
+    import edu_cloud.modules.card.models  # noqa: F401 — Template/CardSkeleton
+    import edu_cloud.modules.scan.models  # noqa: F401 — ScanTask/StudentAnswer
+    import edu_cloud.modules.grading.models  # noqa: F401 — Rubric/GradingTask/AIGradingResult/TeacherReview
+    import edu_cloud.modules.marking.models  # noqa: F401 — MarkingAssignment/MarkingScore
+    import edu_cloud.modules.knowledge.models  # noqa: F401 — KnowledgePoint/QuestionKnowledgePoint
+    import edu_cloud.modules.bank.models  # noqa: F401 — BankQuestion/StudentErrorBook
+    import edu_cloud.modules.profile.models  # noqa: F401 — StudentExamSnapshot/KnowledgeMastery/ErrorPattern
+    import edu_cloud.ai.models  # noqa: F401 — AiSession/AiToolCall
+    # Legacy models (re-export stubs, still needed for Document/Approval/Calendar/Notification)
     import edu_cloud.models.document  # noqa: F401
     import edu_cloud.models.approval  # noqa: F401
     import edu_cloud.models.calendar  # noqa: F401
     import edu_cloud.models.notification  # noqa: F401
-    import edu_cloud.core.models.llm_slot  # noqa: F401
-    import edu_cloud.modules.card.models  # noqa: F401
-    import edu_cloud.modules.scan.models  # noqa: F401
-    import edu_cloud.modules.grading.models  # noqa: F401
-    import edu_cloud.modules.marking.models  # noqa: F401
-    import edu_cloud.modules.knowledge.models  # noqa: F401
-    import edu_cloud.modules.bank.models  # noqa: F401
-    import edu_cloud.modules.profile.models  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -160,27 +161,39 @@ def create_app() -> FastAPI:
         finally:
             request_id_var.reset(token)
 
-    # Register routers
+    # Register routers — auth stays in api/
     from edu_cloud.api.auth import router as auth_router
-    from edu_cloud.api.sync import router as sync_router
-
-    from edu_cloud.api.schools import router as schools_router
-    from edu_cloud.api.joint_exams import router as joint_exams_router
-    from edu_cloud.api.results import router as results_router
-    from edu_cloud.api.workspace import router as workspace_router
-    from edu_cloud.api.ai import router as ai_router
-    from edu_cloud.api.studio import router as studio_router
-    from edu_cloud.api.calendar import router as calendar_router
     app.include_router(auth_router)
-    app.include_router(sync_router)
 
-    app.include_router(schools_router)
-    app.include_router(joint_exams_router)
-    app.include_router(results_router)
-    app.include_router(workspace_router)
+    # AI agent stays in api/ (Batch 4)
+    from edu_cloud.api.ai import router as ai_router
     app.include_router(ai_router)
-    app.include_router(studio_router)
-    app.include_router(calendar_router)
+
+    # All module routers
+    from edu_cloud.modules.school.router import router as schools_router
+    from edu_cloud.modules.exam.router import router as exam_router
+    from edu_cloud.modules.exam.router import question_router
+    from edu_cloud.modules.exam.joint_exam_router import router as joint_exams_router
+    from edu_cloud.modules.exam.results_router import router as results_router
+    from edu_cloud.modules.exam.workspace_router import router as workspace_router
+    from edu_cloud.modules.exam.llm_config_router import router as llm_config_router
+    from edu_cloud.modules.student.router import router as student_router
+    from edu_cloud.modules.card.router import router as card_router
+    from edu_cloud.modules.card.template_router import router as template_router
+    from edu_cloud.modules.scan.router import router as scan_router
+    from edu_cloud.modules.grading.router import router as grading_router
+    from edu_cloud.modules.marking.router import router as marking_router
+    from edu_cloud.modules.analytics.router import router as analytics_router
+    from edu_cloud.modules.knowledge.router import router as knowledge_router
+    from edu_cloud.modules.pipeline.router import router as pipeline_router
+    from edu_cloud.modules.studio.router import router as studio_router
+    from edu_cloud.modules.calendar.router import router as calendar_router
+    for r in [schools_router, exam_router, question_router, joint_exams_router,
+              results_router, workspace_router, llm_config_router, student_router,
+              card_router, template_router, scan_router, grading_router,
+              marking_router, analytics_router, knowledge_router, pipeline_router,
+              studio_router, calendar_router]:
+        app.include_router(r)
 
     @app.get("/api/v1/health")
     async def health():

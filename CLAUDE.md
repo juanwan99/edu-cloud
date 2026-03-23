@@ -81,11 +81,16 @@ src/edu_cloud/
   api/
     app.py              # FastAPI 应用工厂 + lifespan + 请求日志中间件 + 全局异常处理器
     deps.py             # 依赖注入（JWT 认证 get_current_user + require_permission）
+    permissions.py      # 数据权限过滤（get_visible_class_ids/get_visible_subject_codes）
     auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）
-    schools.py          # 学校管理 CRUD（创建/列表/详情/更新/API Key 轮换）
-    joint_exams.py      # 联考管理（创建/列表/详情/参与校/下发/截止）
-    results.py          # 成绩查看（排名/按校对比/学生明细）
-    sync.py             # 学校端↔云端同步（heartbeat/pull-exams/templates/scores）
+    ai.py               # AI Agent 路由（Batch 4 迁移）
+    # 以下为 re-export stubs，canonical → modules/
+    schools.py → modules/school/router.py
+    joint_exams.py → modules/exam/joint_exam_router.py
+    results.py → modules/exam/results_router.py
+    studio.py → modules/studio/router.py
+    calendar.py → modules/calendar/router.py
+    workspace.py → modules/exam/workspace_router.py
   models/
     base.py             # Base + IdMixin(UUID) + TimestampMixin(UTC)
     school.py           # RegisteredSchool（学校档案 + API Key + 心跳）
@@ -135,8 +140,8 @@ tests/
 | Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 275 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam模块 全覆盖）| — |
-| Modules | 15 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school）| 路由迁入(Batch 3) |
+| Tests | 300 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam/Student/Bank/Knowledge模块 全覆盖）| — |
+| Modules | 15 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school），路由已迁入 | — |
 | Migrations | Alembic 脚手架 | 未写 migration 文件 |
 
 ## 技术栈
@@ -234,17 +239,24 @@ tests/
 | GET | `/api/v1/joint-exams/{id}/results/by-school` | 按校对比（avg/max/median/count） |
 | GET | `/api/v1/joint-exams/{id}/results/students/{number}` | 学生明细（含每科排名） |
 
-### 同步端点（API Key 认证，X-API-Key header）
+### 考试管理端点（JWT 认证，Batch 3 迁入）
 
-| 方法 | 路径 | 方向 | 用途 |
-|------|------|------|------|
-| POST | `/api/v1/sync/heartbeat` | 校→云 | 心跳+版本上报 |
-| GET | `/api/v1/sync/joint-exams` | 校←云 | 拉取联考（含 template_url） |
-| POST | `/api/v1/sync/templates` | 校→云 | 上传试卷模板（multipart） |
-| GET | `/api/v1/sync/templates/{exam_id}/{subject}` | 校←云 | 下载模板（zip） |
-| POST | `/api/v1/sync/scores` | 校→云 | 上报成绩（含逐题明细） |
-
-API Key 格式：`{school_code}:{secret}`，bcrypt 验证。
+| 方法 | 路径 | 用途 |
+|------|------|------|
+| POST/GET | `/api/v1/exams` | 创建/列表考试 |
+| GET/PATCH | `/api/v1/exams/{id}` | 详情/更新考试 |
+| POST/GET | `/api/v1/exams/{id}/subjects` | 创建/列表科目 |
+| POST/GET/PATCH/DELETE | `/api/v1/questions` | 题目 CRUD |
+| GET/POST | `/api/v1/classes`, `/api/v1/students` | 班级/学生管理 |
+| * | `/api/v1/card/*` | 答题卡生成/骨架/条码（19 端点） |
+| * | `/api/v1/templates/*` | 模板 CRUD |
+| * | `/api/v1/scan/*` | 扫描上传/任务管理 |
+| * | `/api/v1/grading/*` | AI 阅卷/评分规则/教师审核 |
+| * | `/api/v1/marking/*` | 人工阅卷/分配/导出 |
+| * | `/api/v1/analytics/*` | 统计分析（摘要/分布/题目/年级） |
+| * | `/api/v1/knowledge/*` | 知识点 CRUD/树查询/关联 |
+| POST | `/api/v1/pipeline/run/{id}` | 数据流水线触发 |
+| * | `/api/v1/llm-config/slots` | LLM 槽位管理 |
 
 ### Studio 文档端点（JWT 认证）
 

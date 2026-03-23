@@ -14,7 +14,7 @@ async def test_create_paper_success(client, subject_teacher_headers):
     mock_svc.create_paper.return_value = {
         "paper_id": "p-test-123", "stage": "intake", "status": "pending_intake"
     }
-    with patch("edu_cloud.api.studio.PaperService", return_value=mock_svc):
+    with patch("edu_cloud.modules.studio.router.PaperService", return_value=mock_svc):
         resp = await client.post(
             "/api/v1/studio/paper/create",
             json={"budget_tier": "standard", "title": "测试论文"},
@@ -37,7 +37,7 @@ async def test_get_paper_status_success(client, subject_teacher_headers):
     mock_svc.get_status.return_value = {
         "id": "p-123", "stage": "brainstorm", "status": "brainstorming", "cost_yuan": 5.2
     }
-    with patch("edu_cloud.api.studio.PaperService", return_value=mock_svc):
+    with patch("edu_cloud.modules.studio.router.PaperService", return_value=mock_svc):
         resp = await client.get(
             "/api/v1/studio/paper/p-123/status",
             headers=subject_teacher_headers,
@@ -77,7 +77,7 @@ async def test_create_paper_creates_document_in_db(client, subject_teacher_heade
         "paper_id": "p-db-test", "stage": "intake", "status": "pending_intake",
         "title": "DB验证论文",
     }
-    with patch("edu_cloud.api.studio.PaperService", return_value=mock_svc):
+    with patch("edu_cloud.modules.studio.router.PaperService", return_value=mock_svc):
         resp = await client.post(
             "/api/v1/studio/paper/create",
             json={"budget_tier": "standard", "title": "DB验证论文"},
