@@ -1,0 +1,1228 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d190f-9b87-7350-9b35-76d6b7dd3c79
+--------
+user
+You are a code reviewer performing independent review.
+
+Read the review handoff: docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md
+Read the plan: docs/plans/2026-03-22-platform-merge-plan.md
+Check the commits: git log --oneline 590b7de~1..5a10279
+Read the full diff: git diff 590b7de~1..5a10279
+Read modified files in full for context.
+
+Review in 3 phases (按顺序，第一段不过则不进入第二段):
+
+Phase 1 — 测试充分性 (Test Adequacy):
+- plan 中声明的边界条件是否都有对应测试
+- 是否只测了 happy path
+- bug fix 是否有回归测试
+- 测试是否真的会在错误实现下失败
+- 如果没有有效测试 → 直接退回，不进入 Phase 2
+
+Phase 2 — 行为正确性 (Behavioral Correctness):
+A. 正确性: 实现匹配意图、边界输入、异常路径、条件判断
+B. 边界条件: 对每个新增/修改的函数，构造 3 类输入验证：空集合([]/{}/None)、单元素、溢出/极值
+C. 集成: 调用方更新、import 完整、迁移可回滚、API 兼容
+D. 安全: 无硬编码密钥、输入校验、无注入向量
+E. 架构质量: 新增 import 方向正确（下层不引用上层）、无跨模块内部变量访问、无新增硬编码常量、新文件 <300 行且职责单一
+F. 根因质量（bug fix 适用）: 证据是否真的支持根因结论（非事后合理化）、修复是否改变根因所在层（非症状层）、scope check 三维度覆盖（同模式/同边界/同不变量）、排除假设是否合理
+G. 回归风险: 修改是否影响计划外功能？共用函数/模块的其他调用方是否验证？旧逻辑是否完全清除（Grep 零残留）？跨角色/跨场景分支是否都覆盖？
+
+Phase 3 — 未测试风险 (Non-tested Risks):
+- 未被测试覆盖的副作用：状态、并发、权限、幂等性、时区、空值
+- 实现是否只为过测试而过拟合
+
+Finding Classification (REQUIRED for every finding):
+- code-bug: 代码实现缺陷（逻辑错误、异常未处理、边界遗漏）
+- test-gap: 测试覆盖缺陷（缺少边界测试、回归测试、contract 测试）
+- design-concern: 设计层面质疑（架构选型、优先级、接口设计）
+- suggestion: 改进建议（代码风格、命名、可选优化）
+
+PASS/FAIL 判定：code-bug 或 test-gap 的 HIGH/MED 未修复 → FAIL。
+design-concern 和 suggestion 不影响 PASS/FAIL，由 Planner 处置。
+
+For each finding use structured format: ID, Severity, Category, Evidence (file:line), Impact, Suggested action.
+Conclude with PASS or FAIL.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+本次工作是独立代码审查。我先按要求读取 `code-review` skill、review handoff、merge plan、提交范围和完整 diff，再基于修改文件全文做三阶段审查。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md'" in C:/Users/Administrator/edu-cloud succeeded in 591ms:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+codex
+我已经读取审查 skill，接下来按用户指定范围收集事实：计划文档、handoff、提交列表、完整 diff，以及所有被修改文件的全文上下文。
+Plan update
+  → 读取 handoff、plan、提交列表和 diff，确认审查范围
+  • 通读所有修改文件全文与相关测试，完成 Phase 1 测试充分性审查
+  • 若 Phase 1 通过，继续 Phase 2/3 行为正确性与未测试风险审查
+  • 整理结构化 findings 并给出 PASS/FAIL
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --stat 590b7de~1..5a10279' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --name-only 590b7de~1..5a10279' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git status --short' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git log --oneline 590b7de~1..5a10279' in C:/Users/Administrator/edu-cloud succeeded in 1.45s:
+CLAUDE.md
+src/edu_cloud/ai/agent.py
+src/edu_cloud/ai/anonymizer.py
+src/edu_cloud/ai/context.py
+src/edu_cloud/ai/llm.py
+src/edu_cloud/ai/schemas.py
+src/edu_cloud/ai/tools/__init__.py
+src/edu_cloud/ai/tools/analytics.py
+src/edu_cloud/ai/tools/analytics_compare.py
+src/edu_cloud/ai/tools/analytics_score.py
+src/edu_cloud/ai/tools/bank.py
+src/edu_cloud/ai/tools/exams.py
+src/edu_cloud/ai/tools/knowledge_db.py
+src/edu_cloud/ai/tools/profile.py
+src/edu_cloud/ai/tools/students.py
+src/edu_cloud/api/ai.py
+src/edu_cloud/worker.py
+src/edu_cloud/workers/grading.py
+tests/test_ai/test_anonymizer.py
+tests/test_ai/test_context.py
+ succeeded in 1.79s:
+ CLAUDE.md                                   |  33 +++-
+ src/edu_cloud/ai/agent.py                   |  88 ++++------
+ src/edu_cloud/ai/anonymizer.py              |  84 +++++++---
+ src/edu_cloud/ai/context.py                 | 116 ++++++++++++-
+ src/edu_cloud/ai/llm.py                     | 250 +++++++++++++++++++++-------
+ src/edu_cloud/ai/schemas.py                 |  48 +++++-
+ src/edu_cloud/ai/tools/__init__.py          |  13 +-
+ src/edu_cloud/ai/tools/analytics.py         | 158 +-----------------
+ src/edu_cloud/ai/tools/analytics_compare.py | 193 +++++++++++++++++++++
+ src/edu_cloud/ai/tools/analytics_score.py   | 189 +++++++++++++++++++++
+ src/edu_cloud/ai/tools/bank.py              |  57 +++++++
+ src/edu_cloud/ai/tools/exams.py             | 102 ++++++++++++
+ src/edu_cloud/ai/tools/knowledge_db.py      |  55 ++++++
+ src/edu_cloud/ai/tools/profile.py           | 135 +++++++++++++++
+ src/edu_cloud/ai/tools/students.py          | 122 ++++++++++++++
+ src/edu_cloud/api/ai.py                     | 135 ++++++++++++---
+ src/edu_cloud/worker.py                     |   7 +-
+ src/edu_cloud/workers/grading.py            | 193 +++++++++++++++++++++
+ tests/test_ai/test_anonymizer.py            |  58 ++++---
+ tests/test_ai/test_context.py               |  37 +++-
+ succeeded in 2.07s:
+ M docs/plans/.codex-code-review-r2-raw.log
+ M docs/plans/.codex-code-review-r3-raw.log
+ M docs/plans/.codex-code-review-raw.log
+?? docs/plans/.codex-code-review-batch4-raw.log
+?? docs/plans/2026-03-22-platform-merge-gates.json
+?? gates.json
+ succeeded in 2.47s:
+5a10279 feat(workers): 迁入 grading worker + pipeline 任务注册
+8a71b9b feat(ai): 合并 31 工具 + 9 类别 RBAC 映射 + parent 角色
+590b7de feat(ai): 合并 Agent 核心 — LLM 双协议/AgentContext 多轮/增强匿名化/sessions CRUD
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'CLAUDE.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'docs/plans/2026-03-22-platform-merge-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md'" in C:/Users/Administrator/edu-cloud succeeded in 805ms:
+---
+type: review-handoff
+batch: 4
+created: 2026-03-23 13:15:00
+plan: docs/plans/2026-03-22-platform-merge-plan.md
+design: docs/plans/2026-03-22-platform-merge-design.md
+---
+
+# Batch 4 瀹℃煡浜ゆ帴鍗?鈥?AI Agent & Workers
+
+## 鍙樻洿鎽樿
+
+| Task | 鎻忚堪 | Commits | 鏂囦欢鏁?|
+|------|------|---------|--------|
+| 16 | AI Agent 鏍稿績鍚堝苟 | 590b7de | 10 |
+| 17 | AI 宸ュ叿鍚堝苟 + RBAC | 8a71b9b | 14 |
+| 18 | Workers 鍚堝苟 | 5a10279 | 5 |
+
+**鎬昏**: 3 commits, 27 files changed, +1940/-405 lines, 350 tests (鍩虹嚎 332 鈫?350)
+
+ succeeded in 888ms:
+# edu-cloud 鈥?鏁欒偛浜戝钩鍙?
+
+<!-- key-start -->
+## 椤圭洰瀹氫綅
+
+edu-cloud 鏄?*澶氭牎鍗忓悓鐨勪簯绔钩鍙?*锛屾槸瀛︽牎绔紙exam-ai锛夌殑涓婃父璋冨害涓績銆?
+
+```
+[鐩戠绔痌                      [浜戠骞冲彴]                      [瀛︽牎绔痌
+鏁欒偛灞€/闆嗗洟鐪嬫澘  鈹€鈹€鈹€鈹€鈹€鈹€鈫? edu-cloud (port 9000)  鈫愨攢鈹€鈹€鈹€鈹€鈹€  exam-ai 脳 N 鎵€瀛︽牎
+  - 鍏ㄥ尯鎴愮哗鎬昏              - 鑱旇€冪紪鎺掍笌涓嬪彂                 - 鏈牎鑰冭瘯绠＄悊
+  - 瀛︽牎闂村姣?               - 璺ㄦ牎鏁版嵁姹囨€?                  - 鎵弿+AI闃呭嵎
+  - 鏁欏璐ㄩ噺鐩戞帶              - 鍏变韩 AI 闃呭嵎鏈嶅姟               - 鎴愮哗涓婃姤鍒颁簯绔?
+                              - 瀛︽牎娉ㄥ唽涓庣姸鎬佺洃鎺?
+                              - 缁熶竴棰樺簱绠＄悊
+```
+
+### 鑱岃矗杈圭晫
+
+| 鑱岃矗 | 褰掑睘 | 璇存槑 |
+ succeeded in 1.15s:
+# exam-ai 鈫?edu-cloud 鍚堝苟瀹炴柦璁″垝
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 灏?exam-ai 鍏ㄩ儴鍔熻兘鍚堝苟杩?edu-cloud锛屼骇鍑虹粺涓€鍚庣 + 缁熶竴鍓嶇銆?
+**Architecture:** 鐗规€фā鍧楀寲鍗曚綋锛?5 modules锛夛紝edu-cloud 楠ㄦ灦 + exam-ai 棰嗗煙妯″瀷/鏈嶅姟/璺敱杩佸叆銆?8 涓ā鍨嬶紝~107 绔偣锛?5 AI 宸ュ叿锛寏680 娴嬭瘯銆?
+**Tech Stack:** FastAPI, SQLAlchemy 2.0 async, PostgreSQL, Redis/arq, Vue 3 + Naive UI, Playwright (card PDF)
+
+**Design doc:** `docs/plans/2026-03-22-platform-merge-design.md`
+
+**Migration source:** `C:/Users/Administrator/exam-ai/src/exam_ai/` (13,375 LOC, 97 files)
+
+---
+
+## File Structure (鍚堝苟鍚庣洰鏍?
+
+```
+src/edu_cloud/
+鈹溾攢鈹€ core/                          # 鍏变韩鍩虹锛堝凡鏈夛紝鏀归€狅級
+鈹?  鈹溾攢鈹€ models/
+🌐 Searching the web...
+🌐 Searched the web
+codex
+计划文档和 handoff 在终端输出里有编码噪音，我改用文件系统读取，避免因为 PowerShell 编码影响审查判断。随后会把 diff 和关键文件拆段核对。
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md"})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md"}) success in 7ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "---\ntype: review-handoff\nbatch: 4\ncreated: 2026-03-23 13:15:00\nplan: docs/plans/2026-03-22-platform-merge-plan.md\ndesign: docs/plans/2026-03-22-platform-merge-design.md\n---\n\n# Batch 4 审查交接单 — AI Agent & Workers\n\n## 变更摘要\n\n| Task | 描述 | Commits | 文件数 |\n|------|------|---------|--------|\n| 16 | AI Agent 核心合并 | 590b7de | 10 |\n| 17 | AI 工具合并 + RBAC | 8a71b9b | 14 |\n| 18 | Workers 合并 | 5a10279 | 5 |\n\n**总计**: 3 commits, 27 files changed, +1940/-405 lines, 350 tests (基线 332 → 350)\n\n## Task 16: AI Agent 核心合并 (590b7de)\n\n### 变更内容\n\n| 文件 | 操作 | 说明 |\n|------|------|------|\n| ai/schemas.py | 替换 | 取 exam-ai 版本（75 LOC）：ChatMessage.to_dict, ToolCall.from_openai/to_openai（Gemini _raw 兼容），AgentEvent 保留 edu-cloud 的 data=dict 默认 |\n| ai/llm.py | 替换 | 取 exam-ai 版本（209 LOC）：LLMChatClient 双协议（OpenAI+Anthropic 自动检测），重试机制，llm-proxy slot 支持 |\n| ai/context.py | 合并 | 保留 build_system_prompt + ROLE_CN（edu-cloud 原有），新增 AgentContext 类（session 管理 + token 预算裁剪 80K，exam-ai 版本） |\n| ai/anonymizer.py | 替换 | 取 exam-ai 版本（66 LOC）：字段检测匿名化（_NAME_FIELDS 自动识别 name/student_name/display_name），student_number 自动剥离 |\n| ai/agent.py | 修改 | 保留 edu-cloud 结构（ROLE_TOOL_CATEGORIES/DB audit/scope 注入），集成 AgentContext 可选多轮（context 和 anonymizer 为 keyword-only 参数，向后兼容），移除 _extract_names（被 Anonymizer 字段检测替代） |\n| api/ai.py | 合并 | 新增 ChatRequest Pydantic 模型（消息验证），_sessions dict 缓存多轮会话，sessions CRUD 端点（GET/DELETE），LLMChatClient 替换 LLMClient，SSE done 事件 |\n| ai/audit.py | 保留 | edu-cloud DB 持久化方案不变 |\n\n### 设计决策\n\n1. **agent.py 保留 edu-cloud 结构而非取 exam-ai loop.py**：edu-cloud 版本已有 ROLE_TOOL_CATEGORIES、DB audit、scope injection、_class_ids/_user_id 注入，这些是平台必需功能。exam-ai 的改进（AgentContext、字段匿名化）以可选参数方式集成。\n2. **AgentContext 为可选**：`Agent.run()` 的 `context` 和 `anonymizer` 参数有默认值（None → 创建临时实例），既支持 api/ai.py 的多轮会话，又不破坏现有测试。\n3. **ChatRequest 验证返回 200+error 而非 400**：保持与现有 test_ai_api.py 测试兼容。\n\n### 审查关注点\n\n- [ ] LLMChatClient 的 Anthropic 路径是否正确处理 tool_result 格式（tool_call_id → tool_use_id）\n- [ ] AgentContext.build_messages 的 token 裁剪是否在多轮对话中正确保留最新消息\n- [ ] api/ai.py 的 _sessions 内存缓存是否有泄漏风险（无 TTL/eviction）\n\n## Task 17: AI 工具合并 + RBAC (8a71b9b)\n\n### 变更内容\n\n| 文件 | 操作 | 说明 |\n|------|------|------|\n| tools/analytics_score.py | 新建 | L2_analytics（5 tools）：exam_summary/distribution/question_analysis/student_scores/class_scores |\n| tools/analytics_compare.py | 新建 | L2_analytics（3 tools）：compare_classes/rank_students/grade_aggregates |\n| tools/exams.py | 新建 | L1_exam（3 tools）：exam_list/detail/subject_questions |\n| tools/students.py | 新建 | L1_student（4 tools）：class_list/roster/search/profile |\n| tools/bank.py | 新建 | L5_bank（2 tools）：error_book/question_stats |\n| tools/profile.py | 新建 | L6_profile（4 tools）：trend/knowledge_map/weakness/error_pattern |\n| tools/knowledge_db.py | 新建 | L3_knowledge_db（2 tools）：knowledge_tree/question_knowledge_points |\n| tools/analytics.py | 修改 | 移除 compare_classes/get_student_profile（被新工具替代），重分类 L1_analytics → L2_cross_school |\n| tools/__init__.py | 重写 | 注册全部 10 个工具模块（31 tools） |\n| ai/agent.py | 修改 | ROLE_TOOL_CATEGORIES 扩展为 9 类别，新增 parent 角色 |\n\n### RBAC 映射（设计文档 §5.2）\n\n| 角色 | 类别数 | 包含 |\n|------|--------|------|\n| platform_admin | 全部 | None（无限制） |\n| district_admin | 3 | L2_cross_school, L3_knowledge, L3_knowledge_db |\n| principal | 8 | L1_exam/student, L2_analytics/cross_school, L3_knowledge/db, L4_action, L6_profile |\n| academic_director | 7 | L1_exam/student, L2_analytics/cross_school, L3_knowledge/db, L4_action |\n| grade_leader | 6 | L1_exam/student, L2_analytics/cross_school, L3_knowledge/db |\n| homeroom_teacher | 8 | L1_exam/student, L2_analytics/cross_school, L3_knowledge/db, L5_bank, L6_profile |\n| subject_teacher | 7 | L1_exam/student, L2_analytics/cross_school, L3_knowledge/db, L5_bank |\n| parent | 1 | L6_profile |\n\n### 设计决策\n\n1. **旧 analytics.py 的 compare_classes/get_student_profile 被移除**：这两个工具使用旧模型（ExamResult/ClassGroup），被新工具（使用 service 层）替代。\n2. **工具注册采用全局装饰器模式**：exam-ai 使用 `register_xxx_tools(registry)` 函数式注册，edu-cloud 使用 `@tools.register()` 装饰器。统一为装饰器模式（更简洁）。\n3. **所有工具 import 使用 lazy loading**：service/model 的 import 在函数体内（`from edu_cloud.modules.xxx import ...`），避免循环依赖和启动时间开销。\n\n### 审查关注点\n\n- [ ] 7 个新工具文件的 import 路径是否全部正确指向 edu_cloud.modules.*\n- [ ] ROLE_TOOL_CATEGORIES 映射是否与设计文档 §5.2 一致（特别是 parent 角色）\n- [ ] analytics.py 删除的 compare_classes 是否有其他代码引用（已用 Grep 确认仅测试引用）\n- [ ] 工具注入参数 _visible_classes/_visible_subjects 在 Agent.run 中是否被传递（当前未传递，依赖 _class_ids）\n\n## Task 18: Workers 合并 (5a10279)\n\n### 变更内容\n\n| 文件 | 操作 | 说明 |\n|------|------|------|\n| workers/grading.py | 新建 | 迁入 exam-ai 的 process_grading_task（193 LOC）+ run_post_exam_pipeline stub |\n| worker.py | 修改 | functions 列表新增 process_grading_task + run_post_exam_pipeline |\n\n### 设计决策\n\n1. **_create_llm_client 使用 settings 而非 llm_router**：edu-cloud 没有 llm_router 服务，直接从 settings 读 LLM 配置。后续可集成 llm_slots 表。\n2. **run_post_exam_pipeline 为 stub**：profile 快照/错题本更新逻辑待后续实现。\n\n### 审查关注点\n\n- [ ] grading.py 中 LLMClient import 路径是否正确（from edu_cloud.modules.grading.llm_client）\n- [ ] process_grading_task 的 session_factory 容错逻辑是否合理（fallback 创建 local_engine）\n\n## 测试覆盖\n\n| 测试文件 | 新增/修改 | 测试数 |\n|---------|----------|--------|\n| test_schemas.py | +3 新增 | 7 |\n| test_anonymizer.py | 重写 | 6 |\n| test_context.py | +4 新增 | 6 |\n| test_ai_api.py | 无变更 | 5 |\n| test_registry.py | 修改 | 9 |\n| test_agent.py | 无变更 | 8 |\n| test_tools_analytics.py | -5 移除 | 6 |\n| test_tools_registration.py | 新建 | 10 |\n| test_grading_worker.py | 新建 | 5 |\n| **总计** | | **350** (基线 332) |\n"
+    }
+  ],
+  "structuredContent": {
+    "content": "---\ntype: review-handoff\nbatch: 4\ncreated: 2026-03-23 13:15:00\nplan: docs/plans/2026-03-22-platform-merge-plan.md\ndesign: docs/plans/2026-03-22-platform-merge-design.md\n---\n\n# Batch 4 审查交接单 — AI Agent & Workers\n\n## 变更摘要\n\n| Task | 描述 | Commits | 文件数 |\n|------|------|---------|--------|\n| 16 | AI Agent 核心合并 | 590b7de | 10 |\n| 17 | AI 工具合并 + RBAC | 8a71b9b | 14 |\n| 18 | Workers 合并 | 5a10279 | 5 |\n\n**总计**: 3 commits, 27 files changed, +1940/-405 lines, 350 tests (基线 332 → 350)\n\n## Task 16: AI Agent 核心合并 (590b7de)\n\n### 变更内容\n\n| 文件 | 操作 | 说明 |\n|------|------|------|\n| ai/schemas.py | 替换 | 取 exam-ai 版本（75 LOC）：ChatMessage.to_dict, ToolCall.from_openai/to_openai（Gemini _raw 兼容），AgentEvent 保留 edu-cloud 的 data=dict 默认 |\n| ai/llm.py | 替换 | 取 exam-ai 版本（209 LOC）：LLMChatClient 双协议（OpenAI+Anthropic 自动检测），重试机制，llm-proxy slot 支持 |\n| ai/context.py | 合并 | 保留 build_system_prompt + ROLE_CN（edu-cloud 原有），新增 AgentContext 类（session 管理 + token 预算裁剪 80K，exam-ai 版本） |\n| ai/anonymizer.py | 替换 | 取 exam-ai 版本（66 LOC）：字段检测匿名化（_NAME_FIELDS 自动识别 name/student_name/display_name），student_number 自动剥离 |\n| ai/agent.py | 修改 | 保留 edu-cloud 结构（ROLE_TOOL_CATEGORIES/DB audit/scope 注入），集成 AgentContext 可选多轮（context 和 anonymizer 为 keyword-only 参数，向后兼容），移除 _extract_names（被 Anonymizer 字段检测替代） |\n| api/ai.py | 合并 | 新增 ChatRequest Pydantic 模型（消息验证），_sessions dict 缓存多轮会话，sessions CRUD 端点（GET/DELETE），LLMChatClient 替换 LLMClient，SSE done 事件 |\n| ai/audit.py | 保留 | edu-cloud DB 持久化方案不变 |\n\n### 设计决策\n\n1. **agent.py 保留 edu-cloud 结构而非取 exam-ai loop.py**：edu-cloud 版本已有 ROLE_TOOL_CATEGORIES、DB audit、scope injection、_class_ids/_user_id 注入，这些是平台必需功能。exam-ai 的改进（AgentContext、字段匿名化）以可选参数方式集成。\n2. **AgentContext 为可选**：`Agent.run()` 的 `context` 和 `anonymizer` 参数有默认值（None → 创建临时实例），既支持 api/ai.py 的多轮会话，又不破坏现有测试。\n3. **ChatRequest 验证返回 200+error 而非 400**：保持与现有 test_ai_api.py 测试兼容。\n\n### 审查关注点\n\n- [ ] LLMChatClient 的 Anthropic 路径是否正确处理 tool_result 格式（tool_call_id → tool_use_id）\n- [ ] AgentContext.build_messages 的 token 裁剪是否在多轮对话中正确保留最新消息\n- [ ] api/ai.py 的 _sessions 内存缓存是否有泄漏风险（无 TTL/eviction）\n\n## Task 17: AI 工具合并 + RBAC (8a71b9b)\n\n### 变更内容\n\n| 文件 | 操作 | 说明 |\n|------|------|------|\n| tools/analytics_score.py | 新建 | L2_analytics（5 tools）：exam_summary/distribution/question_analysis/student_scores/class_scores |\n| tools/analytics_compare.py | 新建 | L2_analytics（3 tools）：compare_classes/rank_students/grade_aggregates |\n| tools/exams.py | 新建 | L1_exam（3 tools）：exam_list/detail/subject_questions |\n| tools/students.py | 新建 | L1_student（4 tools）：class_list/roster/search/profile |\n| tools/bank.py | 新建 | L5_bank（2 tools）：error_book/question_stats |\n| tools/profile.py | 新建 | L6_profile（4 tools）：trend/knowledge_map/weakness/error_pattern |\n| tools/knowledge_db.py | 新建 | L3_knowledge_db（2 tools）：knowledge_tree/question_knowledge_points |\n| tools/analytics.py | 修改 | 移除 compare_classes/get_student_profile（被新工具替代），重分类 L1_analytics → L2_cross_school |\n| tools/__init__.py | 重写 | 注册全部 10 个工具模块（31 tools） |\n| ai/agent.py | 修改 | ROLE_TOOL_CATEGORIES 扩展为 9 类别，新增 parent 角色 |\n\n### RBAC 映射（设计文档 §5.2）\n\n| 角色 | 类别数 | 包含 |\n|------|--------|------|\n| platform_admin | 全部 | None（无限制） |\n| district_admin | 3 | L2_cross_school, L3_knowledge, L3_knowledge_db |\n| principal | 8 | L1_exam/student, L2_analytics/cross_school, L3_knowledge/db, L4_action, L6_profile |\n| academic_director | 7 | L1_exam/student, L2_analytics/cross_school, L3_knowledge/db, L4_action |\n| grade_leader | 6 | L1_exam/student, L2_analytics/cross_school, L3_knowledge/db |\n| homeroom_teacher | 8 | L1_exam/student, L2_analytics/cross_school, L3_knowledge/db, L5_bank, L6_profile |\n| subject_teacher | 7 | L1_exam/student, L2_analytics/cross_school, L3_knowledge/db, L5_bank |\n| parent | 1 | L6_profile |\n\n### 设计决策\n\n1. **旧 analytics.py 的 compare_classes/get_student_profile 被移除**：这两个工具使用旧模型（ExamResult/ClassGroup），被新工具（使用 service 层）替代。\n2. **工具注册采用全局装饰器模式**：exam-ai 使用 `register_xxx_tools(registry)` 函数式注册，edu-cloud 使用 `@tools.register()` 装饰器。统一为装饰器模式（更简洁）。\n3. **所有工具 import 使用 lazy loading**：service/model 的 import 在函数体内（`from edu_cloud.modules.xxx import ...`），避免循环依赖和启动时间开销。\n\n### 审查关注点\n\n- [ ] 7 个新工具文件的 import 路径是否全部正确指向 edu_cloud.modules.*\n- [ ] ROLE_TOOL_CATEGORIES 映射是否与设计文档 §5.2 一致（特别是 parent 角色）\n- [ ] analytics.py 删除的 compare_classes 是否有其他代码引用（已用 Grep 确认仅测试引用）\n- [ ] 工具注入参数 _visible_classes/_visible_subjects 在 Agent.run 中是否被传递（当前未传递，依赖 _class_ids）\n\n## Task 18: Workers 合并 (5a10279)\n\n### 变更内容\n\n| 文件 | 操作 | 说明 |\n|------|------|------|\n| workers/grading.py | 新建 | 迁入 exam-ai 的 process_grading_task（193 LOC）+ run_post_exam_pipeline stub |\n| worker.py | 修改 | functions 列表新增 process_grading_task + run_post_exam_pipeline |\n\n### 设计决策\n\n1. **_create_llm_client 使用 settings 而非 llm_router**：edu-cloud 没有 llm_router 服务，直接从 settings 读 LLM 配置。后续可集成 llm_slots 表。\n2. **run_post_exam_pipeline 为 stub**：profile 快照/错题本更新逻辑待后续实现。\n\n### 审查关注点\n\n- [ ] grading.py 中 LLMClient import 路径是否正确（from edu_cloud.modules.grading.llm_client）\n- [ ] process_grading_task 的 session_factory 容错逻辑是否合理（fallback 创建 local_engine）\n\n## 测试覆盖\n\n| 测试文件 | 新增/修改 | 测试数 |\n|---------|----------|--------|\n| test_schemas.py | +3 新增 | 7 |\n| test_anonymizer.py | 重写 | 6 |\n| test_context.py | +4 新增 | 6 |\n| test_ai_api.py | 无变更 | 5 |\n| test_registry.py | 修改 | 9 |\n| test_agent.py | 无变更 | 8 |\n| test_tools_analytics.py | -5 移除 | 6 |\n| test_tools_registration.py | 新建 | 10 |\n| test_grading_worker.py | 新建 | 5 |\n| **总计** | | **350** (基线 332) |\n"
+  }
+}
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-03-22-platform-merge-plan.md"})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-03-22-platform-merge-plan.md"}) success in 3ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "# exam-ai → edu-cloud 合并实施计划\n\n> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.\n\n**Goal:** 将 exam-ai 全部功能合并进 edu-cloud，产出统一后端 + 统一前端。\n\n**Architecture:** 特性模块化单体（15 modules），edu-cloud 骨架 + exam-ai 领域模型/服务/路由迁入。38 个模型，~107 端点，25 AI 工具，~680 测试。\n\n**Tech Stack:** FastAPI, SQLAlchemy 2.0 async, PostgreSQL, Redis/arq, Vue 3 + Naive UI, Playwright (card PDF)\n\n**Design doc:** `docs/plans/2026-03-22-platform-merge-design.md`\n\n**Migration source:** `C:/Users/Administrator/exam-ai/src/exam_ai/` (13,375 LOC, 97 files)\n\n---\n\n## File Structure (合并后目标)\n\n```\nsrc/edu_cloud/\n├── core/                          # 共享基础（已有，改造）\n│   ├── models/\n│   │   ├── base.py                # 已有 Base + IdMixin + TimestampMixin\n│   │   ├── user.py                # 已有 User（保留）\n│   │   ├── user_role.py           # 已有 UserRole（保留）\n│   │   ├── school.py              # 改造：RegisteredSchool → School, tablename → \"schools\"\n│   │   └── llm_slot.py            # 迁入 exam-ai models/llm_slot.py + school_id FK\n│   ├── permissions.py             # 已有（扩展 Permission 枚举 + 角色映射）\n│   ├── events.py                  # 已有 EventBus\n│   ├── deps.py                    # 改造：get_current_user 改用 User+UserRole\n│   └── exceptions.py              # 合并两边异常类\n│\n├── modules/\n│   ├── exam/\n│   │   ├── models.py              # 迁入 Exam/Subject/Question + 保留 JointExam 系列\n│   │   ├── service.py             # 迁入 exam_service.py\n│   │   ├── joint_exam_service.py  # 已有（FK 改造）\n│   │   ├── results_service.py     # 已有\n│   │   ├── router.py              # 迁入 exam.py + question.py 路由\n│   │   ├── joint_exam_router.py   # 已有\n│   │   └── results_router.py      # 已有\n│   │\n│   ├── student/\n│   │   ├── models.py              # 合并 Student + Class（吸收 ClassGroup）\n│   │   ├── service.py             # 迁入 student_service.py\n│   │   └── router.py              # 迁入 student.py 路由\n│   │\n│   ├── card/\n│   │   ├── models.py              # 迁入 Template + CardSkeleton\n│   │   ├── router.py              # 迁入 cards.py（1,124 LOC）+ template.py\n│   │   ├── renderer.py            # 迁入（1,227 LOC）\n│   │   ├── layout.py              # 迁入（572 LOC）\n│   │   ├── subject_defaults.py    # 迁入（530 LOC）\n│   │   ├── answer_standardizer.py # 迁入（349 LOC）\n│   │   ├── defaults.py            # 迁入（294 LOC）\n│   │   ├── tpl_parser.py          # 迁入（279 LOC）\n│   │   ├── word_parser.py         # 迁入（269 LOC）\n│   │   ├── template_library.py    # 迁入（215 LOC）\n│   │   ├── barcode_gen.py         # 迁入（144 LOC）\n│   │   ├── export.py              # 迁入（112 LOC）\n│   │   ├── html_export.py         # 迁入（78 LOC）\n│   │   └── confidence.py          # 迁入（26 LOC）\n│   │\n│   ├── scan/\n│   │   ├── models.py              # 迁入 ScanTask + StudentAnswer\n│   │   ├── service.py             # 迁入 storage.py\n│   │   └── router.py              # 迁入 scan.py（422 LOC）\n│   │\n│   ├── grading/\n│   │   ├── models.py              # 迁入 Rubric/GradingTask/AIGradingResult/TeacherReview\n│   │   ├── llm_client.py          # 迁入（106 LOC）\n│   │   ├── prompts.py             # 迁入（29 LOC）\n│   │   └── router.py              # 迁入 grading.py（343 LOC）\n│   │\n│   ├── marking/\n│   │   ├── models.py              # 迁入 MarkingAssignment + MarkingScore\n│   │   ├── importer.py            # 迁入（149 LOC）\n│   │   ├── scorer.py              # 迁入（131 LOC）\n│   │   ├── exporter.py            # 迁入（95 LOC）\n│   │   └── router.py              # 迁入 marking.py（367 LOC）\n│   │\n│   ├── analytics/\n│   │   ├── service.py             # 迁入 analytics_service.py（358 LOC）\n│   │   └── router.py              # 迁入 analytics.py\n│   │\n│   ├── bank/\n│   │   ├── models.py              # 迁入 BankQuestion + StudentErrorBook\n│   │   ├── service.py             # 迁入 bank_service.py\n│   │   └── router.py              # 无独立路由（通过 AI Agent 访问）\n│   │\n│   ├── knowledge/\n│   │   ├── models.py              # 迁入 KnowledgePoint + QuestionKnowledgePoint\n│   │   ├── service.py             # 迁入 knowledge_service.py\n│   │   ├── store.py               # 已有（内存 KnowledgeStore，保留）\n│   │   ├── loader.py              # 已有（JSON 文件加载，保留）\n│   │   └── router.py              # 迁入 knowledge.py 路由\n│   │\n│   ├── profile/\n│   │   ├── models.py              # 迁入 StudentExamSnapshot/Mastery/ErrorPattern\n│   │   └── service.py             # 迁入 profile_service.py\n│   │\n│   ├── pipeline/\n│   │   └── service.py             # 迁入 data_pipeline.py（566 LOC）\n│   │   └── router.py              # 迁入 pipeline.py 路由\n│   │\n│   ├── studio/                    # 已有（保留）\n│   │   ├── models.py              # Document + DocumentVersion + ApprovalFlow + ApprovalStep\n│   │   ├── service.py             # StudioService + ApprovalService\n│   │   └── router.py              # studio.py\n│   │\n│   ├── calendar/                  # 已有（保留）\n│   │   ├── models.py              # CalendarEvent + NotificationRule + Notification\n│   │   ├── service.py             # CalendarService + NotificationService\n│   │   └── router.py              # calendar.py\n│   │\n│   └── paper/                     # 已有（保留）\n│       └── service.py             # PaperService\n│\n├── ai/                            # 合并 Agent + Tools\n│   ├── agent.py                   # 合并：取 exam-ai loop.py 为主体\n│   ├── registry.py                # 已有 ToolRegistry\n│   ├── llm.py                     # 合并：取 exam-ai 版本（更完整）\n│   ├── context.py                 # 合并：取 exam-ai 版本\n│   ├── schemas.py                 # 合并\n│   ├── anonymizer.py              # 迁入 exam-ai\n│   ├── audit.py                   # 已有\n│   └── tools/\n│       ├── __init__.py            # 已有\n│       ├── analytics.py           # 已有 L2_cross_school（保留）\n│       ├── analytics_score.py     # 迁入 exam-ai L2_analytics\n│       ├── analytics_compare.py   # 迁入 exam-ai\n│       ├── actions.py             # 已有 L4_action（保留）\n│       ├── knowledge.py           # 已有 L3_knowledge 内存源（保留）\n│       ├── knowledge_db.py        # 迁入 exam-ai L3_knowledge_db\n│       ├── exams.py               # 迁入 exam-ai L1_exam\n│       ├── students.py            # 迁入 exam-ai L1_student\n│       ├── bank.py                # 迁入 exam-ai L5_bank\n│       └── profile.py             # 迁入 exam-ai L6_profile\n│\n├── workers/\n│   ├── grading.py                 # 迁入 exam-ai workers/grading.py\n│   └── __init__.py\n│\n├── data/                          # 迁入 exam-ai seed/import 脚本\n│   ├── seed_demo.py\n│   ├── seed_knowledge_math.py\n│   └── import_real_exam.py\n│\n├── config.py                      # 合并两边 Settings\n├── database.py                    # 已有\n├── logging_config.py              # 已有\n├── worker.py                      # 已有（扩展 functions 列表）\n├── tasks.py                       # 已有\n└── api/\n    └── app.py                     # 改造：挂载全部模块路由\n```\n\n---\n\n## Batch 划分\n\n本计划分 5 个 Batch，每个 Batch 独立可测试，Batch 完成后走 codex-review (code)。\n\n| Batch | 内容 | 预估 Task 数 |\n|-------|------|-------------|\n| 1 | Foundation — 模块骨架 + core 模型改造 + config 合并 | 5 |\n| 2 | Domain Models & Services — 全部 12 模块的 models + services 迁入 | 6 |\n| 3 | API Routes & App — 全部路由迁入 + app.py 改造 + middleware | 4 |\n| 4 | AI Agent & Workers — Agent 合并 + 工具 + 后台任务 | 3 |\n| 5 | Frontend & Cleanup — 前端合并 + 测试迁移 + Alembic + Docker | 4 |\n\n---\n\n## 迁移策略：Re-export Stubs 防止中间态断裂\n\nBatch 2 会移动大量 models/ 和 services/ 文件到 modules/ 目录。如果直接删除旧文件，app.py 和 api/*.py 的 import 会立即断裂（它们在 Batch 3 才更新）。\n\n**策略**：每次移动文件时，在旧位置留一个 re-export stub：\n\n```python\n# src/edu_cloud/models/joint_exam.py (stub after move)\n# Re-export from new location for backwards compatibility\nfrom edu_cloud.modules.exam.models import JointExam, JointExamParticipant, JointExamStudentResult  # noqa: F401\n```\n\n这些 stub 在 Task 22（清理）时统一删除。这样每个 Batch 完成后测试都能 PASS。\n\n## ExamResult 删除的替代方案\n\n设计文档说删除 edu-cloud 的 ExamResult，但以下代码重度依赖它：\n- `ai/tools/analytics.py`（~15 处查询）\n- `services/workspace_service.py`（dashboard 数据）\n\n**决策**：**保留 ExamResult 模型**，但改为由 pipeline 模块（data_pipeline.py）从 exam-ai 的细粒度数据（StudentAnswer + AIGradingResult + MarkingScore）聚合填充。ExamResult 从\"同步副本\"变为\"本地聚合视图\"——数据来源变了，但模型和查询不变。这避免了重写 analytics 和 workspace 的大量代码。\n\nExamResult 移入 `modules/exam/models.py`，保留 exam_id + student_id + school_id + total_score + detail_scores 字段。\n\n---\n\n## Batch 1: Foundation (Task 1-5)\n\n### Task 1: 创建模块目录结构\n\n**Files:**\n- Create: `src/edu_cloud/modules/__init__.py`\n- Create: `src/edu_cloud/modules/{school,exam,student,card,scan,grading,marking,analytics,bank,knowledge,profile,pipeline,studio,calendar,paper}/__init__.py`\n- Create: `src/edu_cloud/core/models/__init__.py`\n- Create: `src/edu_cloud/workers/__init__.py`\n- Create: `src/edu_cloud/data/__init__.py`\n\n- [ ] **Step 1: 创建全部模块目录和 __init__.py**\n\n```bash\ncd C:/Users/Administrator/edu-cloud\nfor mod in school exam student card scan grading marking analytics bank knowledge profile pipeline studio calendar paper; do\n  mkdir -p src/edu_cloud/modules/$mod\n  touch src/edu_cloud/modules/$mod/__init__.py\ndone\nmkdir -p src/edu_cloud/core/models\ntouch src/edu_cloud/core/models/__init__.py\nmkdir -p src/edu_cloud/workers\ntouch src/edu_cloud/workers/__init__.py\nmkdir -p src/edu_cloud/data\ntouch src/edu_cloud/data/__init__.py\ntouch src/edu_cloud/modules/__init__.py\n```\n\n- [ ] **Step 2: 验证目录结构**\n\n```bash\nfind src/edu_cloud/modules -type f -name \"*.py\" | sort\n```\n\nExpected: 16 `__init__.py` files (15 modules + modules root)\n\n- [ ] **Step 3: Commit**\n\n```bash\ngit add src/edu_cloud/modules/ src/edu_cloud/core/models/ src/edu_cloud/workers/ src/edu_cloud/data/\ngit commit -m \"chore: 创建合并所需的模块目录结构\"\n```\n\n### Task 2: Core 模型改造 — School 重命名 + FK 级联\n\n**Files:**\n- Modify: `src/edu_cloud/models/school.py` — RegisteredSchool → School, tablename → \"schools\", 删除 sync 字段\n- Modify: `src/edu_cloud/models/joint_exam.py` — FK \"registered_schools.id\" → \"schools.id\"\n- Modify: `src/edu_cloud/models/student.py` — FK 更新\n- Modify: `src/edu_cloud/models/class_group.py` — 暂时保留（Task 3 处理）\n- Modify: `src/edu_cloud/models/document.py` — FK 更新\n- Modify: `src/edu_cloud/models/calendar.py` — FK 更新\n- Modify: `src/edu_cloud/models/notification.py` — FK 更新\n- Modify: `src/edu_cloud/models/approval.py` — FK 更新\n- Modify: `src/edu_cloud/models/ai_session.py` — FK 更新（如有）\n- Modify: `src/edu_cloud/models/user_role.py` — FK 更新\n- Modify: 所有引用 `RegisteredSchool` 的 service/api 文件\n- Test: `tests/` — 全量回归\n\n- [ ] **Step 1: 写迁移前的回归测试基线**\n\n```bash\ncd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q 2>&1 | tail -5\n```\n\n记录当前测试数和全部 PASS 状态。\n\n- [ ] **Step 2: 重命名 School 模型**\n\n在 `models/school.py` 中：\n- `class RegisteredSchool` → `class School`\n- `__tablename__ = \"registered_schools\"` → `__tablename__ = \"schools\"`\n- 删除字段：`api_key_hash`, `last_heartbeat`, `client_version`, `exam_ai_port`\n- 保留字段：`name`, `code`, `address`, `contact`, `contact_phone`, `is_active`, `district`\n\n- [ ] **Step 3: 全局替换 FK 引用**\n\n在所有 models/ 文件中：\n- `ForeignKey(\"registered_schools.id\")` → `ForeignKey(\"schools.id\")`\n- `from edu_cloud.models.school import RegisteredSchool` → `from edu_cloud.models.school import School`\n\n在所有 services/ 和 api/ 文件中：\n- `RegisteredSchool` → `School`\n\n```bash\ncd C:/Users/Administrator/edu-cloud\ngrep -rn \"RegisteredSchool\\|registered_schools\" src/edu_cloud/ --include=\"*.py\"\n```\n\n逐个文件替换，确保零残留。\n\n- [ ] **Step 4: 更新 conftest.py fixture**\n\n测试 fixture 中引用 `RegisteredSchool` 的地方改为 `School`。\n\n- [ ] **Step 5: 运行全量测试**\n\n```bash\npython -m pytest --tb=short -q\n```\n\nExpected: 全部 PASS（数量与 Step 1 相同）\n\n- [ ] **Step 6: Commit**\n\n```bash\ngit add -A && git commit -m \"refactor: RegisteredSchool → School, tablename → schools, 删除 sync 字段\"\n```\n\n### Task 3: Core 模型改造 — PlatformUser 删除 + Auth 改造\n\n**Files:**\n- Delete: `src/edu_cloud/models/platform_user.py`\n- Modify: `src/edu_cloud/api/auth.py` — login 改为认证 User + UserRole\n- Modify: `src/edu_cloud/api/deps.py` — get_current_user 改为查 User + UserRole\n- Modify: `src/edu_cloud/models/joint_exam.py` — created_by FK → \"users.id\"\n- Modify: `src/edu_cloud/models/document.py` — created_by/approved_by FK → \"users.id\"\n- Modify: `src/edu_cloud/models/approval.py` — approver_id FK → \"users.id\"\n- Modify: `src/edu_cloud/api/app.py` — lifespan seed admin 改为创建 User + UserRole\n- Modify: `tests/conftest.py` — admin fixture 改为 User + UserRole\n- Test: 全量回归\n\n- [ ] **Step 1: 写 auth 改造的测试**\n\n**测试契约（Task 3 关键行为变更：PlatformUser → User+UserRole 认证）：**\n- **入口**: `POST /api/v1/auth/login` body `{\"username\":\"admin\",\"password\":\"123456\"}`\n- **反例**: 用旧 PlatformUser 表的用户无法登录（错误实现：仍查 PlatformUser 表）\n- **边界**: (1) 错误密码 → 401 (2) 不存在用户 → 401 (3) 多角色用户 JWT 包含 roles 列表 (4) switch-role 切换后 school_id 变化\n- **回归**: 所有现有 API 端点的 `Depends(get_current_user)` 仍正常工作\n- **命令**: `python -m pytest tests/test_api/test_auth_v2.py -v`\n\n先更新 `tests/conftest.py`：admin fixture 改为创建 User + UserRole（platform_admin 角色），不再用 PlatformUser。\n\n- [ ] **Step 2: 改造 auth login 端点**\n\n`api/auth.py`：查询 `User` by username，验证密码，然后查 `UserRole` 获取角色列表，JWT payload 包含 `{\"sub\": user.id, \"roles\": [...], \"active_role\": primary_role, \"school_id\": ...}`。\n\n- [ ] **Step 3: 改造 get_current_user 依赖**\n\n`api/deps.py`：从 JWT 解码 user_id，查 User，查 UserRole 获取当前角色和权限。返回包含 `user, role, school_id, class_ids, subject_codes` 的上下文对象。\n\n- [ ] **Step 4: 更新 FK 引用**\n\n```bash\ngrep -rn \"platform_users\\|PlatformUser\" src/edu_cloud/ --include=\"*.py\"\n```\n\n- `ForeignKey(\"platform_users.id\")` → `ForeignKey(\"users.id\")`\n- 删除 `models/platform_user.py`\n- 更新 `models/__init__.py` 中的 import\n\n- [ ] **Step 5: 更新 lifespan seed admin**\n\n`api/app.py` lifespan：创建 User(username=\"admin\", hashed_password=bcrypt(\"123456\")) + UserRole(role=\"platform_admin\", is_primary=True)。\n\n- [ ] **Step 6: 运行全量测试**\n\n```bash\npython -m pytest --tb=short -q\n```\n\n修复任何因 auth 改造导致的测试失败。\n\n- [ ] **Step 7: Commit**\n\n```bash\ngit add -A && git commit -m \"refactor: 删除 PlatformUser, auth 改为 User+UserRole 认证\"\n```\n\n### Task 4: Config 合并\n\n**Files:**\n- Modify: `src/edu_cloud/config.py` — 加入 exam-ai 的配置项\n\n- [ ] **Step 1: 合并 Settings**\n\n在 `config.py` 的 Settings class 中加入：\n\n```python\n# Storage (scanned images from paper-seg)\nSTORAGE_ROOT: str = \"./storage\"\nMAX_UPLOAD_SIZE_MB: int = 10\n\n# LLM (exam-ai specific)\nLLM_VISION_MODEL: str = \"\"\nLLM_TIMEOUT: int = 60\nLLM_MAX_RETRIES: int = 3\n\n# AI Agent\nAI_MAX_STEPS: int = 15\nAI_SESSION_TTL: int = 7200\nAI_RATE_LIMIT_PER_MINUTE: int = 10\nAI_RATE_LIMIT_PER_DAY: int = 200\nAI_MAX_CALLS_PER_SESSION: int = 20\n```\n\n- [ ] **Step 2: 运行测试确认无回归**\n\n```bash\npython -m pytest --tb=short -q\n```\n\n- [ ] **Step 3: Commit**\n\n```bash\ngit add src/edu_cloud/config.py && git commit -m \"feat: 合并 exam-ai 配置项到 Settings\"\n```\n\n### Task 5: Core 异常类合并 + LLMSlot 模型\n\n**Files:**\n- Modify: `src/edu_cloud/services/exceptions.py` — 确保包含两边所有异常\n- Create: `src/edu_cloud/core/models/llm_slot.py` — 迁入 LLMSlot\n- Create: `src/edu_cloud/modules/exam/slot_selector.py` — 迁入 slot 选择逻辑（内部服务，非 HTTP 路由）\n\n- [ ] **Step 1: 合并异常类**\n\n确保 exceptions.py 包含：NotFoundError, PermissionDeniedError, ValidationError, ConflictError, StateError（edu-cloud 已有全部，exam-ai 的对应异常名称映射过来）。\n\n- [ ] **Step 2: 迁入 LLMSlot 模型**\n\n从 `exam-ai/src/exam_ai/models/llm_slot.py` 复制到 `src/edu_cloud/core/models/llm_slot.py`。\n改造：`school_id` 加 `ForeignKey(\"schools.id\")`。\n\n- [ ] **Step 3: 迁入 llm_router.py**\n\n从 `exam-ai/src/exam_ai/services/llm_router.py` 复制到 `src/edu_cloud/modules/exam/slot_selector.py`。\n更新 import 路径。\n\n- [ ] **Step 4: 写 LLMSlot 测试（含 slot 选择逻辑）**\n\n**测试契约（LLMSlot + slot_selector）：**\n- **入口**: `get_llm_config(db, slot=1, school_id=\"school-A\")`\n- **反例**: 学校 slot 存在时不应 fallback 到平台默认（错误实现：查询顺序反了）\n- **边界**: (1) 无学校 slot + 有平台默认 → 返回平台默认 (2) 无学校 + 无平台 → fallback .env (3) slot disabled → 跳过\n- **回归**: 无\n- **命令**: `python -m pytest tests/test_models/test_llm_slot.py -v`\n\n```python\n# tests/test_models/test_llm_slot.py\nasync def test_school_slot_overrides_platform_default(db):\n    \"\"\"学校级 slot 优先于平台默认\"\"\"\n    platform = LLMSlot(slot_number=1, api_url=\"http://platform\", ...)\n    school = LLMSlot(slot_number=1, school_id=\"school-A\", api_url=\"http://school\", ...)\n    db.add_all([platform, school])\n    await db.commit()\n    url, _, _ = await get_llm_config(db, slot=1, school_id=\"school-A\")\n    assert url == \"http://school\"  # 不是 \"http://platform\"\n\nasync def test_fallback_to_platform_when_no_school_slot(db):\n    \"\"\"无学校 slot 时 fallback 到平台默认\"\"\"\n    platform = LLMSlot(slot_number=1, api_url=\"http://platform\", ...)\n    db.add(platform)\n    await db.commit()\n    url, _, _ = await get_llm_config(db, slot=1, school_id=\"school-B\")\n    assert url == \"http://platform\"\n\nasync def test_disabled_slot_skipped(db):\n    \"\"\"disabled slot 不返回\"\"\"\n    slot = LLMSlot(slot_number=1, is_enabled=False, ...)\n    db.add(slot)\n    await db.commit()\n    url, _, _ = await get_llm_config(db, slot=1)\n    # should fallback to .env, not return disabled slot\n```\n\n- [ ] **Step 5: 运行测试**\n\n```bash\npython -m pytest tests/test_models/test_llm_slot.py -v\npython -m pytest --tb=short -q  # 全量回归\n```\n\n- [ ] **Step 6: Commit**\n\n```bash\ngit add -A && git commit -m \"feat: 迁入 LLMSlot 模型 + llm_router slot 选择逻辑\"\n```\n\n---\n\n## Batch 2: Domain Models & Services (Task 6-11)\n\n### Task 6: Exam 模块 — 模型 + 服务\n\n**Files:**\n- Create: `src/edu_cloud/modules/exam/models.py` — Exam, Subject, Question（从 exam-ai 迁入）\n- Create: `src/edu_cloud/modules/exam/service.py` — ExamService（从 exam-ai 迁入）\n- Create: `src/edu_cloud/modules/exam/schemas.py` — Pydantic schemas\n- Move: `src/edu_cloud/services/joint_exam_service.py` → `src/edu_cloud/modules/exam/joint_exam_service.py`\n- Move: `src/edu_cloud/services/results_service.py` → `src/edu_cloud/modules/exam/results_service.py`\n- Move: `src/edu_cloud/models/joint_exam.py` → 内容合入 `modules/exam/models.py`\n- Modify: `src/edu_cloud/models/exam.py` → re-export stub（指向新位置）\n- Test: 写 Exam/Subject/Question 基础 CRUD 测试\n\n- [ ] **Step 1: 迁入 Exam/Subject/Question 模型**\n\n从 exam-ai `models/exam.py` 复制 **Exam, Subject, Question** 类定义（注意：同文件还有 Template 和 CardSkeleton，这两个属于 card 模块，在 Task 8 迁入，此处不提取）。添加到 `modules/exam/models.py`。\n\n改造：\n- Exam: `school_id` 加 `ForeignKey(\"schools.id\")`\n- 将 JointExam/JointExamParticipant/JointExamStudentResult 从 `models/joint_exam.py` 合入同文件\n- **保留 ExamResult**（从 edu-cloud `models/exam.py` 移入，改为由 pipeline 聚合填充），保持 ai/tools/analytics.py 和 workspace_service.py 不断裂\n- 将 edu-cloud 的 `models/exam.py` 改为 re-export stub\n- 将 `models/joint_exam.py` 改为 re-export stub\n\n- [ ] **Step 2: 迁入 ExamService**\n\n从 exam-ai `services/exam_service.py`（130 LOC）复制到 `modules/exam/service.py`。\n更新所有 import 路径：`from exam_ai.models` → `from edu_cloud.modules.exam.models`。\n所有查询方法加 `school_id` 参数。\n\n- [ ] **Step 3: 移动已有 services + 留 re-export stubs**\n\n`services/joint_exam_service.py` → `modules/exam/joint_exam_service.py`（旧位置留 re-export stub）\n`services/results_service.py` → `modules/exam/results_service.py`（旧位置留 re-export stub）\n\n- [ ] **Step 3.5: 更新 app.py lifespan 的模型 import**\n\n将 app.py 中的 `import edu_cloud.models.exam`、`import edu_cloud.models.joint_exam` 改为 `import edu_cloud.modules.exam.models`（或通过 stub 兼容）。确保 Base.metadata.create_all() 覆盖新模型。\n\n- [ ] **Step 4: 写基础测试**\n\n```bash\n# tests/test_modules/test_exam/test_models.py\n# 测试 Exam, Subject, Question CRUD + school_id 隔离\n```\n\n- [ ] **Step 5: 运行测试**\n\n```bash\npython -m pytest tests/test_modules/test_exam/ -v\npython -m pytest --tb=short -q  # 全量（修复 import 断裂）\n```\n\n- [ ] **Step 6: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(exam): 迁入 Exam/Subject/Question 模型 + ExamService\"\n```\n\n### Task 7: Student 模块\n\n**Files:**\n- Create: `src/edu_cloud/modules/student/models.py` — 合并 Student + Class\n- Create: `src/edu_cloud/modules/student/service.py` — 迁入 student_service.py\n- Modify: `src/edu_cloud/models/student.py` → re-export stub\n- Modify: `src/edu_cloud/models/class_group.py` → re-export stub（ClassGroup = Class alias）\n- Modify: 所有引用 ClassGroup 的文件 → Class（可通过 stub 兼容先不改）\n\n- [ ] **Step 1: 创建合并后的 Student + Class 模型**\n\nStudent：取 exam-ai 字段（student_number/gender/enrollment_year/status）+ edu-cloud 的 grade + school_id FK。\nClass：取 exam-ai 的 Class（name/grade/head_teacher_id）+ ClassGroup 的 grade_number。tablename = \"classes\"。\n\n- [ ] **Step 2: 全局替换 ClassGroup → Class**\n\n```bash\ngrep -rn \"ClassGroup\\|class_group\\|class_groups\" src/edu_cloud/ tests/ --include=\"*.py\"\n```\n\n逐个替换。\n\n- [ ] **Step 3: 迁入 student_service.py + 测试**\n\n- [ ] **Step 4: 运行全量测试 + Commit**\n\n```bash\npython -m pytest --tb=short -q\ngit add -A && git commit -m \"feat(student): 合并 Student+Class 模型, 替换 ClassGroup\"\n```\n\n### Task 8: Card + Scan 模块\n\n**Files:**\n- Create: `src/edu_cloud/modules/card/models.py` — Template + CardSkeleton\n- Copy: exam-ai `services/card/` 全部 13 文件 → `src/edu_cloud/modules/card/`\n- Create: `src/edu_cloud/modules/scan/models.py` — ScanTask + StudentAnswer\n- Create: `src/edu_cloud/modules/scan/service.py` — StorageService（迁入 shared/storage.py）\n\nCard 模块是最大的迁入（4,095 LOC / 13 文件），但文件内部自包含，主要工作是更新 import 路径。\n\n- [ ] **Step 1: 迁入 Card 模型**\n\nTemplate + CardSkeleton 从 **exam-ai `models/exam.py`** 提取（与 Exam/Subject/Question 同文件，Task 6 已处理其余部分）。放入 `modules/card/models.py`。CardSkeleton 加 school_id FK。\n\n- [ ] **Step 2: 批量复制 card services（13 文件）**\n\n```bash\ncp exam-ai/src/exam_ai/services/card/*.py edu-cloud/src/edu_cloud/modules/card/\n```\n\n逐文件更新 import：`from exam_ai.` → `from edu_cloud.modules.`\n\n- [ ] **Step 3: 迁入 Scan 模型 + StorageService**\n\nScanTask + StudentAnswer → `modules/scan/models.py`。\nexam-ai `shared/storage.py` → `modules/scan/service.py`。\n\n- [ ] **Step 4: 写 Card 模型 + Scan 模型基础测试**\n\n- [ ] **Step 5: 运行测试 + Commit**\n\n```bash\npython -m pytest --tb=short -q\ngit add -A && git commit -m \"feat(card,scan): 迁入答题卡编辑器(13文件4095LOC) + 扫描模块\"\n```\n\n### Task 9: Grading + Marking 模块\n\n**Files:**\n- Create: `src/edu_cloud/modules/grading/models.py` — Rubric/GradingTask/AIGradingResult/TeacherReview\n- Create: `src/edu_cloud/modules/grading/llm_client.py` — 迁入\n- Create: `src/edu_cloud/modules/grading/prompts.py` — 迁入\n- Create: `src/edu_cloud/modules/marking/models.py` — MarkingAssignment/MarkingScore\n- Copy: exam-ai `services/marking/` → `src/edu_cloud/modules/marking/`\n\n- [ ] **Step 1: 迁入 Grading 全部模型和服务**\n\n- [ ] **Step 2: 迁入 Marking 全部模型和服务（4 文件 375 LOC）**\n\n- [ ] **Step 3: 写基础测试 + 全量回归**\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(grading,marking): 迁入 AI 阅卷 + 手动批改模块\"\n```\n\n### Task 10: Analytics + Bank + Profile + Pipeline 模块\n\n**Files:**\n- Create: `src/edu_cloud/modules/analytics/service.py` — 迁入 analytics_service.py（358 LOC）\n- Create: `src/edu_cloud/modules/bank/models.py` — BankQuestion + StudentErrorBook\n- Create: `src/edu_cloud/modules/bank/service.py` — 迁入 bank_service.py\n- Create: `src/edu_cloud/modules/profile/models.py` — 3 个画像模型\n- Create: `src/edu_cloud/modules/profile/service.py` — 迁入 profile_service.py\n- Create: `src/edu_cloud/modules/pipeline/service.py` — 迁入 data_pipeline.py（566 LOC）\n\n- [ ] **Step 1: 迁入 Analytics service**\n\n- [ ] **Step 2: 迁入 Bank 模型 + service**\n\n- [ ] **Step 3: 迁入 Profile 模型 + service**\n\n- [ ] **Step 4: 迁入 Pipeline service（566 LOC）**\n\n更新 import：pipeline 跨 bank/profile/knowledge/exam 聚合数据，需要正确引用各模块模型。\n\n- [ ] **Step 5: 写基础测试 + 全量回归**\n\n- [ ] **Step 6: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(analytics,bank,profile,pipeline): 迁入分析/题库/画像/管线模块\"\n```\n\n### Task 11a: Knowledge 模块合并\n\n**Files:**\n- Create: `src/edu_cloud/modules/knowledge/models.py` — 迁入 KnowledgePoint + QuestionKnowledgePoint\n- Create: `src/edu_cloud/modules/knowledge/service.py` — 迁入 knowledge_service.py\n- Move: `src/edu_cloud/knowledge/store.py` → `src/edu_cloud/modules/knowledge/store.py`（留 re-export stub）\n- Move: `src/edu_cloud/knowledge/loader.py` → `src/edu_cloud/modules/knowledge/loader.py`（留 re-export stub）\n\n- [ ] **Step 1: 迁入 Knowledge DB 模型 + service**\n- [ ] **Step 2: 移动 KnowledgeStore + loader 到 modules/knowledge/**\n- [ ] **Step 3: 运行全量测试 + Commit**\n\n```bash\npython -m pytest --tb=short -q\ngit add -A && git commit -m \"feat(knowledge): 迁入 DB 模型 + 移动 KnowledgeStore 到模块\"\n```\n\n### Task 11b: Studio + Calendar 重组\n\n**Files:**\n- Move: `src/edu_cloud/services/studio_service.py` → `src/edu_cloud/modules/studio/service.py`（留 stub）\n- Move: `src/edu_cloud/services/approval_service.py` → `src/edu_cloud/modules/studio/approval_service.py`（留 stub）\n- Move: `src/edu_cloud/models/document.py` → 合入 `modules/studio/models.py`（留 stub）\n- Move: `src/edu_cloud/models/approval.py` → 合入 `modules/studio/models.py`（留 stub）\n- Move: `src/edu_cloud/services/calendar_service.py` → `src/edu_cloud/modules/calendar/service.py`（留 stub）\n- Move: `src/edu_cloud/services/notification_service.py` → `src/edu_cloud/modules/calendar/notification_service.py`（留 stub）\n- Move: `src/edu_cloud/models/calendar.py` + `notification.py` → 合入 `modules/calendar/models.py`（留 stub）\n\n- [ ] **Step 1: 重组 Studio 模块** — models + services 移入，留 stubs\n- [ ] **Step 2: 重组 Calendar 模块** — models + services 移入，留 stubs\n- [ ] **Step 3: 运行全量测试 + Commit**\n\n```bash\npython -m pytest --tb=short -q\ngit add -A && git commit -m \"refactor: 重组 studio/calendar 到模块结构\"\n```\n\n### Task 11c: Paper/Workspace/School/AI Session 重组 + Sync 删除\n\n**Files:**\n- Move: `src/edu_cloud/services/paper_service.py` → `src/edu_cloud/modules/paper/service.py`（留 stub）\n- Move: `src/edu_cloud/services/workspace_service.py` → `src/edu_cloud/modules/exam/workspace_service.py`（留 stub）\n- Move: `src/edu_cloud/services/school_service.py` → `src/edu_cloud/modules/school/service.py`（留 stub）\n- Move: `src/edu_cloud/models/ai_session.py` → `src/edu_cloud/ai/models.py`（留 stub）\n- Move: `src/edu_cloud/services/exceptions.py` → `src/edu_cloud/core/exceptions.py`（留 stub）\n- Delete: `src/edu_cloud/api/sync_students.py`（sync 废弃，依赖旧模型）\n\n- [ ] **Step 1: 移动 Paper + Workspace + School service**（留 re-export stubs）\n- [ ] **Step 2: 移动 AI Session model + exceptions**（留 re-export stubs）\n- [ ] **Step 3: 删除 sync_students.py**\n- [ ] **Step 4: 运行全量测试（大量 import 变更，预计需要修复 ImportError）**\n\n```bash\npython -m pytest --tb=short -q\n```\n\n- [ ] **Step 5: Commit**\n\n```bash\ngit add -A && git commit -m \"refactor: 重组 paper/workspace/school/ai-session, 删除 sync_students\"\n```\n\n**→ Batch 2 完成后：codex-review (code)**\n\n---\n\n## Batch 3: API Routes & App (Task 12-15)\n\n### Task 12: 迁入 exam-ai 路由 — Exam/Student/Card/Scan\n\n**Files:**\n- Create: `src/edu_cloud/modules/exam/router.py` — 迁入 exam.py + question.py 路由\n- Create: `src/edu_cloud/modules/student/router.py` — 迁入 student.py 路由\n- Create: `src/edu_cloud/modules/card/router.py` — 迁入 cards.py（1,124 LOC）+ template.py\n- Create: `src/edu_cloud/modules/scan/router.py` — 迁入 scan.py（422 LOC）\n\n- [ ] **Step 1: 迁入每个路由文件**\n\n每个路由文件的改造：\n1. 更新 import（models, services, deps）\n2. 添加 `prefix=\"/api/v1/{module}\"` 和 `tags`\n3. 从 JWT 中提取 school_id 注入到 service 调用\n\n- [ ] **Step 2: 挂载到 app.py**\n\n在 `api/app.py` 的 `create_app()` 中 include 新路由。\n\n- [ ] **Step 3: 写 API 测试（含多租户隔离验证）**\n\n**测试契约（Task 12 关键行为变更：school_id 注入 + 多租户隔离）：**\n- **入口**: `POST /api/v1/exams`（JWT 认证，school_id 从 token 提取）\n- **反例**: school_A 的用户不能查看 school_B 的考试（错误实现：缺少 school_id 过滤时返回全部数据）\n- **边界**: (1) 无 JWT → 401 (2) school_id 不匹配 → 空列表或 403 (3) 已删除路由 `/api/v1/sync/*` → 404\n- **回归**: 原有 edu-cloud 端点（schools/joint-exams/studio/calendar）仍可正常访问\n- **命令**: `python -m pytest tests/test_modules/test_exam/test_api.py -v`\n\n每个迁入模块至少覆盖：成功路径 + 跨 school 越权 + 资源不存在。\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(api): 迁入 exam/student/card/scan 路由\"\n```\n\n### Task 13: 迁入 exam-ai 路由 — Grading/Marking/Analytics/Knowledge/Pipeline/LLMConfig\n\n**Files:**\n- Create: `src/edu_cloud/modules/grading/router.py` — 迁入 grading.py\n- Create: `src/edu_cloud/modules/marking/router.py` — 迁入 marking.py\n- Create: `src/edu_cloud/modules/analytics/router.py` — 迁入 analytics.py\n- Create: `src/edu_cloud/modules/knowledge/router.py` — 迁入 knowledge.py\n- Create: `src/edu_cloud/modules/pipeline/router.py` — 迁入 pipeline.py\n- Create: `src/edu_cloud/modules/exam/llm_config_router.py` — 迁入 llm_config.py\n\n- [ ] **Step 1-4: 同 Task 12 模式**\n\n- [ ] **Step 5: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(api): 迁入 grading/marking/analytics/knowledge/pipeline/llm-config 路由\"\n```\n\n### Task 14: 重组已有路由到模块\n\n**Files:**\n- Move: `src/edu_cloud/api/joint_exams.py` → `src/edu_cloud/modules/exam/joint_exam_router.py`\n- Move: `src/edu_cloud/api/results.py` → `src/edu_cloud/modules/exam/results_router.py`\n- Move: `src/edu_cloud/api/schools.py` → `src/edu_cloud/modules/school/router.py`\n- Move: `src/edu_cloud/api/studio.py` → `src/edu_cloud/modules/studio/router.py`\n- Move: `src/edu_cloud/api/calendar.py` → `src/edu_cloud/modules/calendar/router.py`\n- Move: `src/edu_cloud/api/workspace.py` → `src/edu_cloud/modules/exam/workspace_router.py`\n- Keep: `src/edu_cloud/api/app.py`（入口）\n- Keep: `src/edu_cloud/api/auth.py`（认证）\n- Delete: `src/edu_cloud/api/sync.py`\n- Delete: `src/edu_cloud/api/sync_students.py`\n\n- [ ] **Step 1: 移动路由文件到模块**\n\n- [ ] **Step 2: 删除 sync 路由**\n\n- [ ] **Step 3: 更新 app.py 路由挂载**\n\n`app.py` 只保留 auth router + health/version 端点，其余路由从 modules 导入。\n\n- [ ] **Step 4: 运行全量测试**\n\n```bash\npython -m pytest --tb=short -q\n```\n\n- [ ] **Step 5: Commit**\n\n```bash\ngit add -A && git commit -m \"refactor(api): 重组路由到模块, 删除 sync 端点\"\n```\n\n### Task 15: App factory 改造 + Middleware 统一\n\n**Files:**\n- Modify: `src/edu_cloud/api/app.py` — 更新 lifespan（加载所有模型）、挂载所有模块路由\n\n- [ ] **Step 1: 更新 lifespan**\n\n确保 `Base.metadata.create_all()` 覆盖全部 38 个模型。在 lifespan 中 import 所有模块的 models.py。\n\n- [ ] **Step 2: 更新路由挂载**\n\n确保所有模块路由都在 app.py 中注册。\n\n- [ ] **Step 3: 全量测试**\n\n```bash\npython -m pytest --tb=short -q\n```\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(app): 统一 app factory, 挂载全部模块路由\"\n```\n\n**→ Batch 3 完成后：codex-review (code)**\n\n---\n\n## Batch 4: AI Agent & Workers (Task 16-18)\n\n### Task 16: AI Agent 合并\n\n**Files:**\n- Modify: `src/edu_cloud/ai/agent.py` — 取 exam-ai loop.py 为主体（更完整的 ReAct 循环）\n- Modify: `src/edu_cloud/ai/llm.py` — 取 exam-ai 版本（208 LOC vs 80 LOC）\n- Modify: `src/edu_cloud/ai/context.py` — 取 exam-ai 版本（119 LOC vs 35 LOC）\n- Modify: `src/edu_cloud/ai/schemas.py` — 合并两边 schemas\n- Create: `src/edu_cloud/ai/anonymizer.py` — 迁入 exam-ai（65 LOC）\n- Modify: `src/edu_cloud/api/ai.py` — 合并：取 exam-ai 版本（含 session CRUD，228 LOC vs 65 LOC）\n\n- [ ] **Step 1: 替换 agent core**\n\n用 exam-ai 的 `agent/loop.py` 内容替换 `ai/agent.py`，更新 import。\n用 exam-ai 的 `agent/llm.py` 替换 `ai/llm.py`。\n用 exam-ai 的 `agent/context.py` 替换 `ai/context.py`。\n合并 schemas。\n迁入 anonymizer.py。\n\n- [ ] **Step 2: 合并 AI 路由**\n\n用 exam-ai 的 `api/ai.py`（228 LOC，含 sessions 端点）替换 edu-cloud 的 `api/ai.py`（65 LOC）。更新 import。\n\n- [ ] **Step 3: 写 Agent 基础测试**\n\n```bash\npython -m pytest tests/test_ai/ -v\n```\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(ai): 合并 Agent 核心(loop/llm/context/anonymizer/schemas)\"\n```\n\n### Task 17: AI 工具合并\n\n**Files:**\n- Keep: `src/edu_cloud/ai/tools/analytics.py` — L2_cross_school\n- Keep: `src/edu_cloud/ai/tools/actions.py` — L4_action\n- Keep: `src/edu_cloud/ai/tools/knowledge.py` — L3_knowledge（内存源）\n- Create: `src/edu_cloud/ai/tools/analytics_score.py` — 迁入 L2_analytics\n- Create: `src/edu_cloud/ai/tools/analytics_compare.py` — 迁入\n- Create: `src/edu_cloud/ai/tools/exams.py` — 迁入 L1_exam\n- Create: `src/edu_cloud/ai/tools/students.py` — 迁入 L1_student\n- Create: `src/edu_cloud/ai/tools/bank.py` — 迁入 L5_bank\n- Create: `src/edu_cloud/ai/tools/profile.py` — 迁入 L6_profile\n- Create: `src/edu_cloud/ai/tools/knowledge_db.py` — 迁入 L3_knowledge_db\n- Modify: `src/edu_cloud/ai/tools/__init__.py` — 注册全部 25 工具\n- Modify: `src/edu_cloud/ai/agent.py` — 更新 ROLE_TOOL_CATEGORIES（注意：此常量定义在 agent.py 而非 permissions.py）\n\n- [ ] **Step 1: 迁入 7 个工具文件**\n\n逐个复制，更新 import。\n\n- [ ] **Step 2: 更新工具注册**\n\n`tools/__init__.py` 注册全部 25 工具。\n\n- [ ] **Step 3: 更新 RBAC 映射**\n\n`ai/agent.py` 中 `ROLE_TOOL_CATEGORIES` 更新为 9 类别，按设计文档 §5.2 映射。注意：此常量定义在 agent.py（不是 permissions.py），permissions.py 只有 `ROLE_PERMISSIONS`。\n\n- [ ] **Step 4: 写工具注册测试**\n\n验证每个角色可访问的工具数量正确。\n\n- [ ] **Step 5: 运行测试 + Commit**\n\n```bash\npython -m pytest tests/test_ai/ -v\npython -m pytest --tb=short -q\ngit add -A && git commit -m \"feat(ai): 合并 25 工具 + 9 类别 RBAC 映射\"\n```\n\n### Task 18: Workers 合并\n\n**Files:**\n- Create: `src/edu_cloud/workers/grading.py` — 迁入 exam-ai workers/grading.py（211 LOC）\n- Modify: `src/edu_cloud/worker.py` — 注册 process_grading_task + run_post_exam_pipeline\n\n- [ ] **Step 1: 迁入 grading worker**\n\n复制 exam-ai `workers/grading.py` → `src/edu_cloud/workers/grading.py`。更新 import。\n\n- [ ] **Step 2: 更新 worker.py**\n\n```python\nfunctions = [\n    process_grading_task,\n    run_auto_draft,\n    run_post_exam_pipeline,\n]\n```\n\n- [ ] **Step 3: 写 worker 测试（mock Redis）**\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(workers): 迁入 grading worker, 注册 pipeline 任务\"\n```\n\n**→ Batch 4 完成后：codex-review (code)**\n\n---\n\n## Batch 5: Frontend & Cleanup (Task 19-22)\n\n### Task 19: 前端合并\n\n**Files:**\n- Modify: `frontend/package.json` — 升级到 exam-ai 的较新版本\n- Copy: exam-ai 前端页面组件 → `frontend/src/pages/`\n- Copy: exam-ai 前端 API 模块 → `frontend/src/api/`\n- Copy: exam-ai 前端 stores → `frontend/src/stores/`\n- Copy: exam-ai card-editor 模块 → `frontend/src/card-editor/`\n- Copy: exam-ai CardEditor.vue → `frontend/src/components/`\n- Modify: `frontend/src/router/index.js` — 加入 13 个路由\n- Modify: `frontend/src/stores/auth.js` — 保持 edu-cloud 多角色版本\n- Modify: `frontend/src/stores/aiChat.js` — 取 exam-ai 版本（更完整 SSE）\n- Modify: `frontend/src/api/client.js` — 统一 baseURL = `/api/v1`\n- Modify: `frontend/vite.config.js` — proxy 保持 9000\n\n- [ ] **Step 1: 升级 package.json 依赖版本**\n\n- [ ] **Step 2: 复制页面组件（14 个 .vue 文件）**\n\n- [ ] **Step 3: 复制 API 模块（11 个 .js 文件）**\n\n统一 baseURL：所有 API 调用使用 `/api/v1` 前缀。\n\n- [ ] **Step 4: 复制 card-editor 模块（5 文件 1,985 LOC）+ CardEditor.vue（28K）**\n\n- [ ] **Step 5: 合并 stores**\n\n- auth.js: 保持 edu-cloud 版本（多角色 + switchRole）\n- aiChat.js: 取 exam-ai 版本（SSE + tool_call 展示）\n- 新增 exam.js store（管理考试列表/详情）\n\n- [ ] **Step 6: 更新 router**\n\n加入 exam-ai 的 13 个路由。DashboardLayout 作为多数页面的 layout。\n\n- [ ] **Step 7: 验证前端构建**\n\n```bash\ncd C:/Users/Administrator/edu-cloud/frontend && npm install && npm run build\n```\n\n- [ ] **Step 8: Commit**\n\n```bash\ncd C:/Users/Administrator/edu-cloud\ngit add frontend/ && git commit -m \"feat(frontend): 合并 exam-ai 前端(14页面+28K卡片编辑器)\"\n```\n\n### Task 20: 测试迁移\n\n**Files:**\n- Copy: exam-ai `tests/` → `edu-cloud/tests/`（按模块重组）\n- Modify: 所有测试文件的 import 路径\n- Delete: `test_cloud_sync.py` 相关测试\n\n- [ ] **Step 1: 复制 exam-ai 测试文件**\n\n按模块重组：\n- `test_api/test_exam.py` → `tests/test_modules/test_exam/test_api.py`\n- `test_api/test_cards.py` → `tests/test_modules/test_card/test_api.py`\n- 以此类推\n\n- [ ] **Step 2: 批量替换 import 路径**\n\n```bash\n# 所有迁入的测试文件\nfind tests/ -name \"*.py\" -exec sed -i 's/from exam_ai\\./from edu_cloud.modules./g' {} +\nfind tests/ -name \"*.py\" -exec sed -i 's/import exam_ai\\./import edu_cloud.modules./g' {} +\n```\n\n注意：这只是初始替换，具体路径需要逐文件调整。\n\n- [ ] **Step 3: 更新 conftest.py**\n\n确保 fixture 创建所有 38 个模型的表。添加 school fixture。\n\n- [ ] **Step 4: 删除 sync 相关测试**\n\n- `test_api/test_cloud_sync.py`\n- `test_services/test_cloud_sync.py`\n- `test_api/test_sync_v2.py`\n- `test_api/test_sync_students.py`\n\n- [ ] **Step 5: 逐步修复测试**\n\n```bash\npython -m pytest --tb=short -q 2>&1 | head -50\n```\n\n逐个修复 ImportError 和 fixture 问题，直到全部 PASS。\n\n- [ ] **Step 6: 验证测试数量**\n\n```bash\npython -m pytest --co -q | tail -3\n```\n\nExpected: ~680 tests collected\n\n- [ ] **Step 7: Commit**\n\n```bash\ngit add -A && git commit -m \"test: 迁移 exam-ai 测试 (~446→~420 after sync 删除)\"\n```\n\n### Task 21: Alembic 迁移 + Docker 更新\n\n**Files:**\n- Create: `alembic/versions/xxxx_merge_exam_ai.py` — 新 initial migration\n- Modify: `Dockerfile` — 加入 Playwright + 中文字体\n- Modify: `docker-compose.yml` — 加 storage/uploads volumes\n\n- [ ] **Step 1: 重建 Alembic migration**\n\n**前提：当前无生产数据**，因此不需要 rename/backfill 策略。方案：\n1. 删除旧 migration `alembic/versions/bdd523549077_initial_all_tables.py`\n2. 更新 `alembic/env.py` 的 model imports 指向新模块路径\n3. 生成新 initial migration 覆盖全部 38 个模型\n\n```bash\ncd C:/Users/Administrator/edu-cloud\nrm alembic/versions/bdd523549077_initial_all_tables.py\n# 更新 env.py imports 后：\npython -m alembic revision --autogenerate -m \"initial_merged_schema\"\n```\n\n**注意**：如果未来有生产数据，需要写显式 rename migration（registered_schools→schools, platform_users→users, class_groups→classes）而非 drop+create。当前场景无此需求。\n\n- [ ] **Step 2: 更新 Dockerfile**\n\n加入 Playwright Chromium（用于答题卡 PDF 生成）和中文字体。\n\n- [ ] **Step 3: 更新 docker-compose.yml**\n\n加 volumes: `./storage:/app/storage`, `./uploads:/app/uploads`\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"chore: Alembic 合并迁移 + Docker Playwright 支持\"\n```\n\n### Task 22: 清理 + 文档更新\n\n**Files:**\n- Delete: `src/edu_cloud/models/platform_user.py`（如 Task 3 未删）\n- Delete: `src/edu_cloud/models/class_group.py`（如 Task 7 未删）\n- Delete: `src/edu_cloud/models/exam.py`（edu-cloud 旧版）\n- Delete: `src/edu_cloud/api/sync.py`\n- Delete: `src/edu_cloud/api/sync_students.py`\n- Delete: `src/edu_cloud/services/` 目录下已移入模块的旧文件\n- Delete: `src/edu_cloud/knowledge/` 旧目录（已移入 modules/knowledge/）\n- Modify: `CLAUDE.md` — 更新项目结构和端点列表\n- Modify: `src/edu_cloud/models/__init__.py` — 更新 re-exports\n\n- [ ] **Step 0: 迁入 data/ seed 脚本**\n\n从 exam-ai 复制：\n- `data/seed_demo.py`（256 LOC）\n- `data/seed_knowledge_math.py`（113 LOC）\n- `data/import_real_exam.py`（310 LOC）\n更新 import 路径。\n\n- [ ] **Step 1: 删除所有已废弃文件（包括 re-export stubs）**\n\n```bash\ngrep -rn \"from edu_cloud.services\\.\" src/edu_cloud/ --include=\"*.py\" | grep -v modules/\ngrep -rn \"from edu_cloud.models\\.\" src/edu_cloud/ --include=\"*.py\" | grep -v core/models\n```\n\n确保无残留引用后删除旧文件。\n\n- [ ] **Step 2: 更新 CLAUDE.md**\n\n反映合并后的项目结构、端点列表、模块组织。\n\n- [ ] **Step 3: 最终全量测试**\n\n```bash\npython -m pytest --tb=short -q\n```\n\nExpected: ~680 tests, all PASS\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"chore: 清理废弃文件, 更新 CLAUDE.md 反映合并后结构\"\n```\n\n**→ Batch 5 完成后：codex-review (code) + codex-review (integration)**\n\n---\n\n## 审查计划\n\n| 审查点 | 类型 | 触发时机 |\n|--------|------|---------|\n| Batch 1 完成 | codex-review (code) | Task 5 后 |\n| Batch 2 完成 | codex-review (code) | Task 11 后 |\n| Batch 3 完成 | codex-review (code) | Task 15 后 |\n| Batch 4 完成 | codex-review (code) | Task 18 后 |\n| Batch 5 完成 | codex-review (code) + codex-review (integration) | Task 22 后 |\n\n## 风险矩阵（per-batch 高风险区域）\n\n| Batch | 高风险区域 | 风险类型 | 额外验证要求 |\n|-------|-----------|---------|-------------|\n| 1 | **Auth 改造**（Task 3）| 安全 | 多角色 JWT 测试 + 旧 PlatformUser 不可登录验证 |\n| 1 | **School 表重命名 FK 级联**（Task 2）| 数据完整性 | 全量测试 + grep 零残留 |\n| 2 | **多租户隔离**（所有 service school_id）| 安全 | 跨 school 越权测试 |\n| 3 | **路由挂载**（~107 端点）| 集成 | 每个端点至少 1 个可达测试 |\n| 4 | **AI Agent RBAC**（Task 17）| 安全 | 每角色工具可见性验证 |\n| 5 | **28K 前端编辑器迁入**（Task 19）| 功能 | npm run build 无报错 |\n| 5 | **Alembic migration**（Task 21）| 数据 | 无生产数据，create_all 足够 |\n\n## 风险检查点\n\n每个 Batch 完成后，运行全量测试确认：\n1. `python -m pytest --tb=short -q` — 全部 PASS\n2. `python -m pytest --co -q | tail -3` — 测试数量符合预期\n3. `grep -rn \"from exam_ai\\.\" src/edu_cloud/` — 零残留旧 import\n4. `grep -rn \"RegisteredSchool\\|PlatformUser\\|ClassGroup\" src/edu_cloud/` — 零残留旧类名\n"
+    }
+  ],
+  "structuredContent": {
+    "content": "# exam-ai → edu-cloud 合并实施计划\n\n> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.\n\n**Goal:** 将 exam-ai 全部功能合并进 edu-cloud，产出统一后端 + 统一前端。\n\n**Architecture:** 特性模块化单体（15 modules），edu-cloud 骨架 + exam-ai 领域模型/服务/路由迁入。38 个模型，~107 端点，25 AI 工具，~680 测试。\n\n**Tech Stack:** FastAPI, SQLAlchemy 2.0 async, PostgreSQL, Redis/arq, Vue 3 + Naive UI, Playwright (card PDF)\n\n**Design doc:** `docs/plans/2026-03-22-platform-merge-design.md`\n\n**Migration source:** `C:/Users/Administrator/exam-ai/src/exam_ai/` (13,375 LOC, 97 files)\n\n---\n\n## File Structure (合并后目标)\n\n```\nsrc/edu_cloud/\n├── core/                          # 共享基础（已有，改造）\n│   ├── models/\n│   │   ├── base.py                # 已有 Base + IdMixin + TimestampMixin\n│   │   ├── user.py                # 已有 User（保留）\n│   │   ├── user_role.py           # 已有 UserRole（保留）\n│   │   ├── school.py              # 改造：RegisteredSchool → School, tablename → \"schools\"\n│   │   └── llm_slot.py            # 迁入 exam-ai models/llm_slot.py + school_id FK\n│   ├── permissions.py             # 已有（扩展 Permission 枚举 + 角色映射）\n│   ├── events.py                  # 已有 EventBus\n│   ├── deps.py                    # 改造：get_current_user 改用 User+UserRole\n│   └── exceptions.py              # 合并两边异常类\n│\n├── modules/\n│   ├── exam/\n│   │   ├── models.py              # 迁入 Exam/Subject/Question + 保留 JointExam 系列\n│   │   ├── service.py             # 迁入 exam_service.py\n│   │   ├── joint_exam_service.py  # 已有（FK 改造）\n│   │   ├── results_service.py     # 已有\n│   │   ├── router.py              # 迁入 exam.py + question.py 路由\n│   │   ├── joint_exam_router.py   # 已有\n│   │   └── results_router.py      # 已有\n│   │\n│   ├── student/\n│   │   ├── models.py              # 合并 Student + Class（吸收 ClassGroup）\n│   │   ├── service.py             # 迁入 student_service.py\n│   │   └── router.py              # 迁入 student.py 路由\n│   │\n│   ├── card/\n│   │   ├── models.py              # 迁入 Template + CardSkeleton\n│   │   ├── router.py              # 迁入 cards.py（1,124 LOC）+ template.py\n│   │   ├── renderer.py            # 迁入（1,227 LOC）\n│   │   ├── layout.py              # 迁入（572 LOC）\n│   │   ├── subject_defaults.py    # 迁入（530 LOC）\n│   │   ├── answer_standardizer.py # 迁入（349 LOC）\n│   │   ├── defaults.py            # 迁入（294 LOC）\n│   │   ├── tpl_parser.py          # 迁入（279 LOC）\n│   │   ├── word_parser.py         # 迁入（269 LOC）\n│   │   ├── template_library.py    # 迁入（215 LOC）\n│   │   ├── barcode_gen.py         # 迁入（144 LOC）\n│   │   ├── export.py              # 迁入（112 LOC）\n│   │   ├── html_export.py         # 迁入（78 LOC）\n│   │   └── confidence.py          # 迁入（26 LOC）\n│   │\n│   ├── scan/\n│   │   ├── models.py              # 迁入 ScanTask + StudentAnswer\n│   │   ├── service.py             # 迁入 storage.py\n│   │   └── router.py              # 迁入 scan.py（422 LOC）\n│   │\n│   ├── grading/\n│   │   ├── models.py              # 迁入 Rubric/GradingTask/AIGradingResult/TeacherReview\n│   │   ├── llm_client.py          # 迁入（106 LOC）\n│   │   ├── prompts.py             # 迁入（29 LOC）\n│   │   └── router.py              # 迁入 grading.py（343 LOC）\n│   │\n│   ├── marking/\n│   │   ├── models.py              # 迁入 MarkingAssignment + MarkingScore\n│   │   ├── importer.py            # 迁入（149 LOC）\n│   │   ├── scorer.py              # 迁入（131 LOC）\n│   │   ├── exporter.py            # 迁入（95 LOC）\n│   │   └── router.py              # 迁入 marking.py（367 LOC）\n│   │\n│   ├── analytics/\n│   │   ├── service.py             # 迁入 analytics_service.py（358 LOC）\n│   │   └── router.py              # 迁入 analytics.py\n│   │\n│   ├── bank/\n│   │   ├── models.py              # 迁入 BankQuestion + StudentErrorBook\n│   │   ├── service.py             # 迁入 bank_service.py\n│   │   └── router.py              # 无独立路由（通过 AI Agent 访问）\n│   │\n│   ├── knowledge/\n│   │   ├── models.py              # 迁入 KnowledgePoint + QuestionKnowledgePoint\n│   │   ├── service.py             # 迁入 knowledge_service.py\n│   │   ├── store.py               # 已有（内存 KnowledgeStore，保留）\n│   │   ├── loader.py              # 已有（JSON 文件加载，保留）\n│   │   └── router.py              # 迁入 knowledge.py 路由\n│   │\n│   ├── profile/\n│   │   ├── models.py              # 迁入 StudentExamSnapshot/Mastery/ErrorPattern\n│   │   └── service.py             # 迁入 profile_service.py\n│   │\n│   ├── pipeline/\n│   │   └── service.py             # 迁入 data_pipeline.py（566 LOC）\n│   │   └── router.py              # 迁入 pipeline.py 路由\n│   │\n│   ├── studio/                    # 已有（保留）\n│   │   ├── models.py              # Document + DocumentVersion + ApprovalFlow + ApprovalStep\n│   │   ├── service.py             # StudioService + ApprovalService\n│   │   └── router.py              # studio.py\n│   │\n│   ├── calendar/                  # 已有（保留）\n│   │   ├── models.py              # CalendarEvent + NotificationRule + Notification\n│   │   ├── service.py             # CalendarService + NotificationService\n│   │   └── router.py              # calendar.py\n│   │\n│   └── paper/                     # 已有（保留）\n│       └── service.py             # PaperService\n│\n├── ai/                            # 合并 Agent + Tools\n│   ├── agent.py                   # 合并：取 exam-ai loop.py 为主体\n│   ├── registry.py                # 已有 ToolRegistry\n│   ├── llm.py                     # 合并：取 exam-ai 版本（更完整）\n│   ├── context.py                 # 合并：取 exam-ai 版本\n│   ├── schemas.py                 # 合并\n│   ├── anonymizer.py              # 迁入 exam-ai\n│   ├── audit.py                   # 已有\n│   └── tools/\n│       ├── __init__.py            # 已有\n│       ├── analytics.py           # 已有 L2_cross_school（保留）\n│       ├── analytics_score.py     # 迁入 exam-ai L2_analytics\n│       ├── analytics_compare.py   # 迁入 exam-ai\n│       ├── actions.py             # 已有 L4_action（保留）\n│       ├── knowledge.py           # 已有 L3_knowledge 内存源（保留）\n│       ├── knowledge_db.py        # 迁入 exam-ai L3_knowledge_db\n│       ├── exams.py               # 迁入 exam-ai L1_exam\n│       ├── students.py            # 迁入 exam-ai L1_student\n│       ├── bank.py                # 迁入 exam-ai L5_bank\n│       └── profile.py             # 迁入 exam-ai L6_profile\n│\n├── workers/\n│   ├── grading.py                 # 迁入 exam-ai workers/grading.py\n│   └── __init__.py\n│\n├── data/                          # 迁入 exam-ai seed/import 脚本\n│   ├── seed_demo.py\n│   ├── seed_knowledge_math.py\n│   └── import_real_exam.py\n│\n├── config.py                      # 合并两边 Settings\n├── database.py                    # 已有\n├── logging_config.py              # 已有\n├── worker.py                      # 已有（扩展 functions 列表）\n├── tasks.py                       # 已有\n└── api/\n    └── app.py                     # 改造：挂载全部模块路由\n```\n\n---\n\n## Batch 划分\n\n本计划分 5 个 Batch，每个 Batch 独立可测试，Batch 完成后走 codex-review (code)。\n\n| Batch | 内容 | 预估 Task 数 |\n|-------|------|-------------|\n| 1 | Foundation — 模块骨架 + core 模型改造 + config 合并 | 5 |\n| 2 | Domain Models & Services — 全部 12 模块的 models + services 迁入 | 6 |\n| 3 | API Routes & App — 全部路由迁入 + app.py 改造 + middleware | 4 |\n| 4 | AI Agent & Workers — Agent 合并 + 工具 + 后台任务 | 3 |\n| 5 | Frontend & Cleanup — 前端合并 + 测试迁移 + Alembic + Docker | 4 |\n\n---\n\n## 迁移策略：Re-export Stubs 防止中间态断裂\n\nBatch 2 会移动大量 models/ 和 services/ 文件到 modules/ 目录。如果直接删除旧文件，app.py 和 api/*.py 的 import 会立即断裂（它们在 Batch 3 才更新）。\n\n**策略**：每次移动文件时，在旧位置留一个 re-export stub：\n\n```python\n# src/edu_cloud/models/joint_exam.py (stub after move)\n# Re-export from new location for backwards compatibility\nfrom edu_cloud.modules.exam.models import JointExam, JointExamParticipant, JointExamStudentResult  # noqa: F401\n```\n\n这些 stub 在 Task 22（清理）时统一删除。这样每个 Batch 完成后测试都能 PASS。\n\n## ExamResult 删除的替代方案\n\n设计文档说删除 edu-cloud 的 ExamResult，但以下代码重度依赖它：\n- `ai/tools/analytics.py`（~15 处查询）\n- `services/workspace_service.py`（dashboard 数据）\n\n**决策**：**保留 ExamResult 模型**，但改为由 pipeline 模块（data_pipeline.py）从 exam-ai 的细粒度数据（StudentAnswer + AIGradingResult + MarkingScore）聚合填充。ExamResult 从\"同步副本\"变为\"本地聚合视图\"——数据来源变了，但模型和查询不变。这避免了重写 analytics 和 workspace 的大量代码。\n\nExamResult 移入 `modules/exam/models.py`，保留 exam_id + student_id + school_id + total_score + detail_scores 字段。\n\n---\n\n## Batch 1: Foundation (Task 1-5)\n\n### Task 1: 创建模块目录结构\n\n**Files:**\n- Create: `src/edu_cloud/modules/__init__.py`\n- Create: `src/edu_cloud/modules/{school,exam,student,card,scan,grading,marking,analytics,bank,knowledge,profile,pipeline,studio,calendar,paper}/__init__.py`\n- Create: `src/edu_cloud/core/models/__init__.py`\n- Create: `src/edu_cloud/workers/__init__.py`\n- Create: `src/edu_cloud/data/__init__.py`\n\n- [ ] **Step 1: 创建全部模块目录和 __init__.py**\n\n```bash\ncd C:/Users/Administrator/edu-cloud\nfor mod in school exam student card scan grading marking analytics bank knowledge profile pipeline studio calendar paper; do\n  mkdir -p src/edu_cloud/modules/$mod\n  touch src/edu_cloud/modules/$mod/__init__.py\ndone\nmkdir -p src/edu_cloud/core/models\ntouch src/edu_cloud/core/models/__init__.py\nmkdir -p src/edu_cloud/workers\ntouch src/edu_cloud/workers/__init__.py\nmkdir -p src/edu_cloud/data\ntouch src/edu_cloud/data/__init__.py\ntouch src/edu_cloud/modules/__init__.py\n```\n\n- [ ] **Step 2: 验证目录结构**\n\n```bash\nfind src/edu_cloud/modules -type f -name \"*.py\" | sort\n```\n\nExpected: 16 `__init__.py` files (15 modules + modules root)\n\n- [ ] **Step 3: Commit**\n\n```bash\ngit add src/edu_cloud/modules/ src/edu_cloud/core/models/ src/edu_cloud/workers/ src/edu_cloud/data/\ngit commit -m \"chore: 创建合并所需的模块目录结构\"\n```\n\n### Task 2: Core 模型改造 — School 重命名 + FK 级联\n\n**Files:**\n- Modify: `src/edu_cloud/models/school.py` — RegisteredSchool → School, tablename → \"schools\", 删除 sync 字段\n- Modify: `src/edu_cloud/models/joint_exam.py` — FK \"registered_schools.id\" → \"schools.id\"\n- Modify: `src/edu_cloud/models/student.py` — FK 更新\n- Modify: `src/edu_cloud/models/class_group.py` — 暂时保留（Task 3 处理）\n- Modify: `src/edu_cloud/models/document.py` — FK 更新\n- Modify: `src/edu_cloud/models/calendar.py` — FK 更新\n- Modify: `src/edu_cloud/models/notification.py` — FK 更新\n- Modify: `src/edu_cloud/models/approval.py` — FK 更新\n- Modify: `src/edu_cloud/models/ai_session.py` — FK 更新（如有）\n- Modify: `src/edu_cloud/models/user_role.py` — FK 更新\n- Modify: 所有引用 `RegisteredSchool` 的 service/api 文件\n- Test: `tests/` — 全量回归\n\n- [ ] **Step 1: 写迁移前的回归测试基线**\n\n```bash\ncd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q 2>&1 | tail -5\n```\n\n记录当前测试数和全部 PASS 状态。\n\n- [ ] **Step 2: 重命名 School 模型**\n\n在 `models/school.py` 中：\n- `class RegisteredSchool` → `class School`\n- `__tablename__ = \"registered_schools\"` → `__tablename__ = \"schools\"`\n- 删除字段：`api_key_hash`, `last_heartbeat`, `client_version`, `exam_ai_port`\n- 保留字段：`name`, `code`, `address`, `contact`, `contact_phone`, `is_active`, `district`\n\n- [ ] **Step 3: 全局替换 FK 引用**\n\n在所有 models/ 文件中：\n- `ForeignKey(\"registered_schools.id\")` → `ForeignKey(\"schools.id\")`\n- `from edu_cloud.models.school import RegisteredSchool` → `from edu_cloud.models.school import School`\n\n在所有 services/ 和 api/ 文件中：\n- `RegisteredSchool` → `School`\n\n```bash\ncd C:/Users/Administrator/edu-cloud\ngrep -rn \"RegisteredSchool\\|registered_schools\" src/edu_cloud/ --include=\"*.py\"\n```\n\n逐个文件替换，确保零残留。\n\n- [ ] **Step 4: 更新 conftest.py fixture**\n\n测试 fixture 中引用 `RegisteredSchool` 的地方改为 `School`。\n\n- [ ] **Step 5: 运行全量测试**\n\n```bash\npython -m pytest --tb=short -q\n```\n\nExpected: 全部 PASS（数量与 Step 1 相同）\n\n- [ ] **Step 6: Commit**\n\n```bash\ngit add -A && git commit -m \"refactor: RegisteredSchool → School, tablename → schools, 删除 sync 字段\"\n```\n\n### Task 3: Core 模型改造 — PlatformUser 删除 + Auth 改造\n\n**Files:**\n- Delete: `src/edu_cloud/models/platform_user.py`\n- Modify: `src/edu_cloud/api/auth.py` — login 改为认证 User + UserRole\n- Modify: `src/edu_cloud/api/deps.py` — get_current_user 改为查 User + UserRole\n- Modify: `src/edu_cloud/models/joint_exam.py` — created_by FK → \"users.id\"\n- Modify: `src/edu_cloud/models/document.py` — created_by/approved_by FK → \"users.id\"\n- Modify: `src/edu_cloud/models/approval.py` — approver_id FK → \"users.id\"\n- Modify: `src/edu_cloud/api/app.py` — lifespan seed admin 改为创建 User + UserRole\n- Modify: `tests/conftest.py` — admin fixture 改为 User + UserRole\n- Test: 全量回归\n\n- [ ] **Step 1: 写 auth 改造的测试**\n\n**测试契约（Task 3 关键行为变更：PlatformUser → User+UserRole 认证）：**\n- **入口**: `POST /api/v1/auth/login` body `{\"username\":\"admin\",\"password\":\"123456\"}`\n- **反例**: 用旧 PlatformUser 表的用户无法登录（错误实现：仍查 PlatformUser 表）\n- **边界**: (1) 错误密码 → 401 (2) 不存在用户 → 401 (3) 多角色用户 JWT 包含 roles 列表 (4) switch-role 切换后 school_id 变化\n- **回归**: 所有现有 API 端点的 `Depends(get_current_user)` 仍正常工作\n- **命令**: `python -m pytest tests/test_api/test_auth_v2.py -v`\n\n先更新 `tests/conftest.py`：admin fixture 改为创建 User + UserRole（platform_admin 角色），不再用 PlatformUser。\n\n- [ ] **Step 2: 改造 auth login 端点**\n\n`api/auth.py`：查询 `User` by username，验证密码，然后查 `UserRole` 获取角色列表，JWT payload 包含 `{\"sub\": user.id, \"roles\": [...], \"active_role\": primary_role, \"school_id\": ...}`。\n\n- [ ] **Step 3: 改造 get_current_user 依赖**\n\n`api/deps.py`：从 JWT 解码 user_id，查 User，查 UserRole 获取当前角色和权限。返回包含 `user, role, school_id, class_ids, subject_codes` 的上下文对象。\n\n- [ ] **Step 4: 更新 FK 引用**\n\n```bash\ngrep -rn \"platform_users\\|PlatformUser\" src/edu_cloud/ --include=\"*.py\"\n```\n\n- `ForeignKey(\"platform_users.id\")` → `ForeignKey(\"users.id\")`\n- 删除 `models/platform_user.py`\n- 更新 `models/__init__.py` 中的 import\n\n- [ ] **Step 5: 更新 lifespan seed admin**\n\n`api/app.py` lifespan：创建 User(username=\"admin\", hashed_password=bcrypt(\"123456\")) + UserRole(role=\"platform_admin\", is_primary=True)。\n\n- [ ] **Step 6: 运行全量测试**\n\n```bash\npython -m pytest --tb=short -q\n```\n\n修复任何因 auth 改造导致的测试失败。\n\n- [ ] **Step 7: Commit**\n\n```bash\ngit add -A && git commit -m \"refactor: 删除 PlatformUser, auth 改为 User+UserRole 认证\"\n```\n\n### Task 4: Config 合并\n\n**Files:**\n- Modify: `src/edu_cloud/config.py` — 加入 exam-ai 的配置项\n\n- [ ] **Step 1: 合并 Settings**\n\n在 `config.py` 的 Settings class 中加入：\n\n```python\n# Storage (scanned images from paper-seg)\nSTORAGE_ROOT: str = \"./storage\"\nMAX_UPLOAD_SIZE_MB: int = 10\n\n# LLM (exam-ai specific)\nLLM_VISION_MODEL: str = \"\"\nLLM_TIMEOUT: int = 60\nLLM_MAX_RETRIES: int = 3\n\n# AI Agent\nAI_MAX_STEPS: int = 15\nAI_SESSION_TTL: int = 7200\nAI_RATE_LIMIT_PER_MINUTE: int = 10\nAI_RATE_LIMIT_PER_DAY: int = 200\nAI_MAX_CALLS_PER_SESSION: int = 20\n```\n\n- [ ] **Step 2: 运行测试确认无回归**\n\n```bash\npython -m pytest --tb=short -q\n```\n\n- [ ] **Step 3: Commit**\n\n```bash\ngit add src/edu_cloud/config.py && git commit -m \"feat: 合并 exam-ai 配置项到 Settings\"\n```\n\n### Task 5: Core 异常类合并 + LLMSlot 模型\n\n**Files:**\n- Modify: `src/edu_cloud/services/exceptions.py` — 确保包含两边所有异常\n- Create: `src/edu_cloud/core/models/llm_slot.py` — 迁入 LLMSlot\n- Create: `src/edu_cloud/modules/exam/slot_selector.py` — 迁入 slot 选择逻辑（内部服务，非 HTTP 路由）\n\n- [ ] **Step 1: 合并异常类**\n\n确保 exceptions.py 包含：NotFoundError, PermissionDeniedError, ValidationError, ConflictError, StateError（edu-cloud 已有全部，exam-ai 的对应异常名称映射过来）。\n\n- [ ] **Step 2: 迁入 LLMSlot 模型**\n\n从 `exam-ai/src/exam_ai/models/llm_slot.py` 复制到 `src/edu_cloud/core/models/llm_slot.py`。\n改造：`school_id` 加 `ForeignKey(\"schools.id\")`。\n\n- [ ] **Step 3: 迁入 llm_router.py**\n\n从 `exam-ai/src/exam_ai/services/llm_router.py` 复制到 `src/edu_cloud/modules/exam/slot_selector.py`。\n更新 import 路径。\n\n- [ ] **Step 4: 写 LLMSlot 测试（含 slot 选择逻辑）**\n\n**测试契约（LLMSlot + slot_selector）：**\n- **入口**: `get_llm_config(db, slot=1, school_id=\"school-A\")`\n- **反例**: 学校 slot 存在时不应 fallback 到平台默认（错误实现：查询顺序反了）\n- **边界**: (1) 无学校 slot + 有平台默认 → 返回平台默认 (2) 无学校 + 无平台 → fallback .env (3) slot disabled → 跳过\n- **回归**: 无\n- **命令**: `python -m pytest tests/test_models/test_llm_slot.py -v`\n\n```python\n# tests/test_models/test_llm_slot.py\nasync def test_school_slot_overrides_platform_default(db):\n    \"\"\"学校级 slot 优先于平台默认\"\"\"\n    platform = LLMSlot(slot_number=1, api_url=\"http://platform\", ...)\n    school = LLMSlot(slot_number=1, school_id=\"school-A\", api_url=\"http://school\", ...)\n    db.add_all([platform, school])\n    await db.commit()\n    url, _, _ = await get_llm_config(db, slot=1, school_id=\"school-A\")\n    assert url == \"http://school\"  # 不是 \"http://platform\"\n\nasync def test_fallback_to_platform_when_no_school_slot(db):\n    \"\"\"无学校 slot 时 fallback 到平台默认\"\"\"\n    platform = LLMSlot(slot_number=1, api_url=\"http://platform\", ...)\n    db.add(platform)\n    await db.commit()\n    url, _, _ = await get_llm_config(db, slot=1, school_id=\"school-B\")\n    assert url == \"http://platform\"\n\nasync def test_disabled_slot_skipped(db):\n    \"\"\"disabled slot 不返回\"\"\"\n    slot = LLMSlot(slot_number=1, is_enabled=False, ...)\n    db.add(slot)\n    await db.commit()\n    url, _, _ = await get_llm_config(db, slot=1)\n    # should fallback to .env, not return disabled slot\n```\n\n- [ ] **Step 5: 运行测试**\n\n```bash\npython -m pytest tests/test_models/test_llm_slot.py -v\npython -m pytest --tb=short -q  # 全量回归\n```\n\n- [ ] **Step 6: Commit**\n\n```bash\ngit add -A && git commit -m \"feat: 迁入 LLMSlot 模型 + llm_router slot 选择逻辑\"\n```\n\n---\n\n## Batch 2: Domain Models & Services (Task 6-11)\n\n### Task 6: Exam 模块 — 模型 + 服务\n\n**Files:**\n- Create: `src/edu_cloud/modules/exam/models.py` — Exam, Subject, Question（从 exam-ai 迁入）\n- Create: `src/edu_cloud/modules/exam/service.py` — ExamService（从 exam-ai 迁入）\n- Create: `src/edu_cloud/modules/exam/schemas.py` — Pydantic schemas\n- Move: `src/edu_cloud/services/joint_exam_service.py` → `src/edu_cloud/modules/exam/joint_exam_service.py`\n- Move: `src/edu_cloud/services/results_service.py` → `src/edu_cloud/modules/exam/results_service.py`\n- Move: `src/edu_cloud/models/joint_exam.py` → 内容合入 `modules/exam/models.py`\n- Modify: `src/edu_cloud/models/exam.py` → re-export stub（指向新位置）\n- Test: 写 Exam/Subject/Question 基础 CRUD 测试\n\n- [ ] **Step 1: 迁入 Exam/Subject/Question 模型**\n\n从 exam-ai `models/exam.py` 复制 **Exam, Subject, Question** 类定义（注意：同文件还有 Template 和 CardSkeleton，这两个属于 card 模块，在 Task 8 迁入，此处不提取）。添加到 `modules/exam/models.py`。\n\n改造：\n- Exam: `school_id` 加 `ForeignKey(\"schools.id\")`\n- 将 JointExam/JointExamParticipant/JointExamStudentResult 从 `models/joint_exam.py` 合入同文件\n- **保留 ExamResult**（从 edu-cloud `models/exam.py` 移入，改为由 pipeline 聚合填充），保持 ai/tools/analytics.py 和 workspace_service.py 不断裂\n- 将 edu-cloud 的 `models/exam.py` 改为 re-export stub\n- 将 `models/joint_exam.py` 改为 re-export stub\n\n- [ ] **Step 2: 迁入 ExamService**\n\n从 exam-ai `services/exam_service.py`（130 LOC）复制到 `modules/exam/service.py`。\n更新所有 import 路径：`from exam_ai.models` → `from edu_cloud.modules.exam.models`。\n所有查询方法加 `school_id` 参数。\n\n- [ ] **Step 3: 移动已有 services + 留 re-export stubs**\n\n`services/joint_exam_service.py` → `modules/exam/joint_exam_service.py`（旧位置留 re-export stub）\n`services/results_service.py` → `modules/exam/results_service.py`（旧位置留 re-export stub）\n\n- [ ] **Step 3.5: 更新 app.py lifespan 的模型 import**\n\n将 app.py 中的 `import edu_cloud.models.exam`、`import edu_cloud.models.joint_exam` 改为 `import edu_cloud.modules.exam.models`（或通过 stub 兼容）。确保 Base.metadata.create_all() 覆盖新模型。\n\n- [ ] **Step 4: 写基础测试**\n\n```bash\n# tests/test_modules/test_exam/test_models.py\n# 测试 Exam, Subject, Question CRUD + school_id 隔离\n```\n\n- [ ] **Step 5: 运行测试**\n\n```bash\npython -m pytest tests/test_modules/test_exam/ -v\npython -m pytest --tb=short -q  # 全量（修复 import 断裂）\n```\n\n- [ ] **Step 6: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(exam): 迁入 Exam/Subject/Question 模型 + ExamService\"\n```\n\n### Task 7: Student 模块\n\n**Files:**\n- Create: `src/edu_cloud/modules/student/models.py` — 合并 Student + Class\n- Create: `src/edu_cloud/modules/student/service.py` — 迁入 student_service.py\n- Modify: `src/edu_cloud/models/student.py` → re-export stub\n- Modify: `src/edu_cloud/models/class_group.py` → re-export stub（ClassGroup = Class alias）\n- Modify: 所有引用 ClassGroup 的文件 → Class（可通过 stub 兼容先不改）\n\n- [ ] **Step 1: 创建合并后的 Student + Class 模型**\n\nStudent：取 exam-ai 字段（student_number/gender/enrollment_year/status）+ edu-cloud 的 grade + school_id FK。\nClass：取 exam-ai 的 Class（name/grade/head_teacher_id）+ ClassGroup 的 grade_number。tablename = \"classes\"。\n\n- [ ] **Step 2: 全局替换 ClassGroup → Class**\n\n```bash\ngrep -rn \"ClassGroup\\|class_group\\|class_groups\" src/edu_cloud/ tests/ --include=\"*.py\"\n```\n\n逐个替换。\n\n- [ ] **Step 3: 迁入 student_service.py + 测试**\n\n- [ ] **Step 4: 运行全量测试 + Commit**\n\n```bash\npython -m pytest --tb=short -q\ngit add -A && git commit -m \"feat(student): 合并 Student+Class 模型, 替换 ClassGroup\"\n```\n\n### Task 8: Card + Scan 模块\n\n**Files:**\n- Create: `src/edu_cloud/modules/card/models.py` — Template + CardSkeleton\n- Copy: exam-ai `services/card/` 全部 13 文件 → `src/edu_cloud/modules/card/`\n- Create: `src/edu_cloud/modules/scan/models.py` — ScanTask + StudentAnswer\n- Create: `src/edu_cloud/modules/scan/service.py` — StorageService（迁入 shared/storage.py）\n\nCard 模块是最大的迁入（4,095 LOC / 13 文件），但文件内部自包含，主要工作是更新 import 路径。\n\n- [ ] **Step 1: 迁入 Card 模型**\n\nTemplate + CardSkeleton 从 **exam-ai `models/exam.py`** 提取（与 Exam/Subject/Question 同文件，Task 6 已处理其余部分）。放入 `modules/card/models.py`。CardSkeleton 加 school_id FK。\n\n- [ ] **Step 2: 批量复制 card services（13 文件）**\n\n```bash\ncp exam-ai/src/exam_ai/services/card/*.py edu-cloud/src/edu_cloud/modules/card/\n```\n\n逐文件更新 import：`from exam_ai.` → `from edu_cloud.modules.`\n\n- [ ] **Step 3: 迁入 Scan 模型 + StorageService**\n\nScanTask + StudentAnswer → `modules/scan/models.py`。\nexam-ai `shared/storage.py` → `modules/scan/service.py`。\n\n- [ ] **Step 4: 写 Card 模型 + Scan 模型基础测试**\n\n- [ ] **Step 5: 运行测试 + Commit**\n\n```bash\npython -m pytest --tb=short -q\ngit add -A && git commit -m \"feat(card,scan): 迁入答题卡编辑器(13文件4095LOC) + 扫描模块\"\n```\n\n### Task 9: Grading + Marking 模块\n\n**Files:**\n- Create: `src/edu_cloud/modules/grading/models.py` — Rubric/GradingTask/AIGradingResult/TeacherReview\n- Create: `src/edu_cloud/modules/grading/llm_client.py` — 迁入\n- Create: `src/edu_cloud/modules/grading/prompts.py` — 迁入\n- Create: `src/edu_cloud/modules/marking/models.py` — MarkingAssignment/MarkingScore\n- Copy: exam-ai `services/marking/` → `src/edu_cloud/modules/marking/`\n\n- [ ] **Step 1: 迁入 Grading 全部模型和服务**\n\n- [ ] **Step 2: 迁入 Marking 全部模型和服务（4 文件 375 LOC）**\n\n- [ ] **Step 3: 写基础测试 + 全量回归**\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(grading,marking): 迁入 AI 阅卷 + 手动批改模块\"\n```\n\n### Task 10: Analytics + Bank + Profile + Pipeline 模块\n\n**Files:**\n- Create: `src/edu_cloud/modules/analytics/service.py` — 迁入 analytics_service.py（358 LOC）\n- Create: `src/edu_cloud/modules/bank/models.py` — BankQuestion + StudentErrorBook\n- Create: `src/edu_cloud/modules/bank/service.py` — 迁入 bank_service.py\n- Create: `src/edu_cloud/modules/profile/models.py` — 3 个画像模型\n- Create: `src/edu_cloud/modules/profile/service.py` — 迁入 profile_service.py\n- Create: `src/edu_cloud/modules/pipeline/service.py` — 迁入 data_pipeline.py（566 LOC）\n\n- [ ] **Step 1: 迁入 Analytics service**\n\n- [ ] **Step 2: 迁入 Bank 模型 + service**\n\n- [ ] **Step 3: 迁入 Profile 模型 + service**\n\n- [ ] **Step 4: 迁入 Pipeline service（566 LOC）**\n\n更新 import：pipeline 跨 bank/profile/knowledge/exam 聚合数据，需要正确引用各模块模型。\n\n- [ ] **Step 5: 写基础测试 + 全量回归**\n\n- [ ] **Step 6: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(analytics,bank,profile,pipeline): 迁入分析/题库/画像/管线模块\"\n```\n\n### Task 11a: Knowledge 模块合并\n\n**Files:**\n- Create: `src/edu_cloud/modules/knowledge/models.py` — 迁入 KnowledgePoint + QuestionKnowledgePoint\n- Create: `src/edu_cloud/modules/knowledge/service.py` — 迁入 knowledge_service.py\n- Move: `src/edu_cloud/knowledge/store.py` → `src/edu_cloud/modules/knowledge/store.py`（留 re-export stub）\n- Move: `src/edu_cloud/knowledge/loader.py` → `src/edu_cloud/modules/knowledge/loader.py`（留 re-export stub）\n\n- [ ] **Step 1: 迁入 Knowledge DB 模型 + service**\n- [ ] **Step 2: 移动 KnowledgeStore + loader 到 modules/knowledge/**\n- [ ] **Step 3: 运行全量测试 + Commit**\n\n```bash\npython -m pytest --tb=short -q\ngit add -A && git commit -m \"feat(knowledge): 迁入 DB 模型 + 移动 KnowledgeStore 到模块\"\n```\n\n### Task 11b: Studio + Calendar 重组\n\n**Files:**\n- Move: `src/edu_cloud/services/studio_service.py` → `src/edu_cloud/modules/studio/service.py`（留 stub）\n- Move: `src/edu_cloud/services/approval_service.py` → `src/edu_cloud/modules/studio/approval_service.py`（留 stub）\n- Move: `src/edu_cloud/models/document.py` → 合入 `modules/studio/models.py`（留 stub）\n- Move: `src/edu_cloud/models/approval.py` → 合入 `modules/studio/models.py`（留 stub）\n- Move: `src/edu_cloud/services/calendar_service.py` → `src/edu_cloud/modules/calendar/service.py`（留 stub）\n- Move: `src/edu_cloud/services/notification_service.py` → `src/edu_cloud/modules/calendar/notification_service.py`（留 stub）\n- Move: `src/edu_cloud/models/calendar.py` + `notification.py` → 合入 `modules/calendar/models.py`（留 stub）\n\n- [ ] **Step 1: 重组 Studio 模块** — models + services 移入，留 stubs\n- [ ] **Step 2: 重组 Calendar 模块** — models + services 移入，留 stubs\n- [ ] **Step 3: 运行全量测试 + Commit**\n\n```bash\npython -m pytest --tb=short -q\ngit add -A && git commit -m \"refactor: 重组 studio/calendar 到模块结构\"\n```\n\n### Task 11c: Paper/Workspace/School/AI Session 重组 + Sync 删除\n\n**Files:**\n- Move: `src/edu_cloud/services/paper_service.py` → `src/edu_cloud/modules/paper/service.py`（留 stub）\n- Move: `src/edu_cloud/services/workspace_service.py` → `src/edu_cloud/modules/exam/workspace_service.py`（留 stub）\n- Move: `src/edu_cloud/services/school_service.py` → `src/edu_cloud/modules/school/service.py`（留 stub）\n- Move: `src/edu_cloud/models/ai_session.py` → `src/edu_cloud/ai/models.py`（留 stub）\n- Move: `src/edu_cloud/services/exceptions.py` → `src/edu_cloud/core/exceptions.py`（留 stub）\n- Delete: `src/edu_cloud/api/sync_students.py`（sync 废弃，依赖旧模型）\n\n- [ ] **Step 1: 移动 Paper + Workspace + School service**（留 re-export stubs）\n- [ ] **Step 2: 移动 AI Session model + exceptions**（留 re-export stubs）\n- [ ] **Step 3: 删除 sync_students.py**\n- [ ] **Step 4: 运行全量测试（大量 import 变更，预计需要修复 ImportError）**\n\n```bash\npython -m pytest --tb=short -q\n```\n\n- [ ] **Step 5: Commit**\n\n```bash\ngit add -A && git commit -m \"refactor: 重组 paper/workspace/school/ai-session, 删除 sync_students\"\n```\n\n**→ Batch 2 完成后：codex-review (code)**\n\n---\n\n## Batch 3: API Routes & App (Task 12-15)\n\n### Task 12: 迁入 exam-ai 路由 — Exam/Student/Card/Scan\n\n**Files:**\n- Create: `src/edu_cloud/modules/exam/router.py` — 迁入 exam.py + question.py 路由\n- Create: `src/edu_cloud/modules/student/router.py` — 迁入 student.py 路由\n- Create: `src/edu_cloud/modules/card/router.py` — 迁入 cards.py（1,124 LOC）+ template.py\n- Create: `src/edu_cloud/modules/scan/router.py` — 迁入 scan.py（422 LOC）\n\n- [ ] **Step 1: 迁入每个路由文件**\n\n每个路由文件的改造：\n1. 更新 import（models, services, deps）\n2. 添加 `prefix=\"/api/v1/{module}\"` 和 `tags`\n3. 从 JWT 中提取 school_id 注入到 service 调用\n\n- [ ] **Step 2: 挂载到 app.py**\n\n在 `api/app.py` 的 `create_app()` 中 include 新路由。\n\n- [ ] **Step 3: 写 API 测试（含多租户隔离验证）**\n\n**测试契约（Task 12 关键行为变更：school_id 注入 + 多租户隔离）：**\n- **入口**: `POST /api/v1/exams`（JWT 认证，school_id 从 token 提取）\n- **反例**: school_A 的用户不能查看 school_B 的考试（错误实现：缺少 school_id 过滤时返回全部数据）\n- **边界**: (1) 无 JWT → 401 (2) school_id 不匹配 → 空列表或 403 (3) 已删除路由 `/api/v1/sync/*` → 404\n- **回归**: 原有 edu-cloud 端点（schools/joint-exams/studio/calendar）仍可正常访问\n- **命令**: `python -m pytest tests/test_modules/test_exam/test_api.py -v`\n\n每个迁入模块至少覆盖：成功路径 + 跨 school 越权 + 资源不存在。\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(api): 迁入 exam/student/card/scan 路由\"\n```\n\n### Task 13: 迁入 exam-ai 路由 — Grading/Marking/Analytics/Knowledge/Pipeline/LLMConfig\n\n**Files:**\n- Create: `src/edu_cloud/modules/grading/router.py` — 迁入 grading.py\n- Create: `src/edu_cloud/modules/marking/router.py` — 迁入 marking.py\n- Create: `src/edu_cloud/modules/analytics/router.py` — 迁入 analytics.py\n- Create: `src/edu_cloud/modules/knowledge/router.py` — 迁入 knowledge.py\n- Create: `src/edu_cloud/modules/pipeline/router.py` — 迁入 pipeline.py\n- Create: `src/edu_cloud/modules/exam/llm_config_router.py` — 迁入 llm_config.py\n\n- [ ] **Step 1-4: 同 Task 12 模式**\n\n- [ ] **Step 5: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(api): 迁入 grading/marking/analytics/knowledge/pipeline/llm-config 路由\"\n```\n\n### Task 14: 重组已有路由到模块\n\n**Files:**\n- Move: `src/edu_cloud/api/joint_exams.py` → `src/edu_cloud/modules/exam/joint_exam_router.py`\n- Move: `src/edu_cloud/api/results.py` → `src/edu_cloud/modules/exam/results_router.py`\n- Move: `src/edu_cloud/api/schools.py` → `src/edu_cloud/modules/school/router.py`\n- Move: `src/edu_cloud/api/studio.py` → `src/edu_cloud/modules/studio/router.py`\n- Move: `src/edu_cloud/api/calendar.py` → `src/edu_cloud/modules/calendar/router.py`\n- Move: `src/edu_cloud/api/workspace.py` → `src/edu_cloud/modules/exam/workspace_router.py`\n- Keep: `src/edu_cloud/api/app.py`（入口）\n- Keep: `src/edu_cloud/api/auth.py`（认证）\n- Delete: `src/edu_cloud/api/sync.py`\n- Delete: `src/edu_cloud/api/sync_students.py`\n\n- [ ] **Step 1: 移动路由文件到模块**\n\n- [ ] **Step 2: 删除 sync 路由**\n\n- [ ] **Step 3: 更新 app.py 路由挂载**\n\n`app.py` 只保留 auth router + health/version 端点，其余路由从 modules 导入。\n\n- [ ] **Step 4: 运行全量测试**\n\n```bash\npython -m pytest --tb=short -q\n```\n\n- [ ] **Step 5: Commit**\n\n```bash\ngit add -A && git commit -m \"refactor(api): 重组路由到模块, 删除 sync 端点\"\n```\n\n### Task 15: App factory 改造 + Middleware 统一\n\n**Files:**\n- Modify: `src/edu_cloud/api/app.py` — 更新 lifespan（加载所有模型）、挂载所有模块路由\n\n- [ ] **Step 1: 更新 lifespan**\n\n确保 `Base.metadata.create_all()` 覆盖全部 38 个模型。在 lifespan 中 import 所有模块的 models.py。\n\n- [ ] **Step 2: 更新路由挂载**\n\n确保所有模块路由都在 app.py 中注册。\n\n- [ ] **Step 3: 全量测试**\n\n```bash\npython -m pytest --tb=short -q\n```\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(app): 统一 app factory, 挂载全部模块路由\"\n```\n\n**→ Batch 3 完成后：codex-review (code)**\n\n---\n\n## Batch 4: AI Agent & Workers (Task 16-18)\n\n### Task 16: AI Agent 合并\n\n**Files:**\n- Modify: `src/edu_cloud/ai/agent.py` — 取 exam-ai loop.py 为主体（更完整的 ReAct 循环）\n- Modify: `src/edu_cloud/ai/llm.py` — 取 exam-ai 版本（208 LOC vs 80 LOC）\n- Modify: `src/edu_cloud/ai/context.py` — 取 exam-ai 版本（119 LOC vs 35 LOC）\n- Modify: `src/edu_cloud/ai/schemas.py` — 合并两边 schemas\n- Create: `src/edu_cloud/ai/anonymizer.py` — 迁入 exam-ai（65 LOC）\n- Modify: `src/edu_cloud/api/ai.py` — 合并：取 exam-ai 版本（含 session CRUD，228 LOC vs 65 LOC）\n\n- [ ] **Step 1: 替换 agent core**\n\n用 exam-ai 的 `agent/loop.py` 内容替换 `ai/agent.py`，更新 import。\n用 exam-ai 的 `agent/llm.py` 替换 `ai/llm.py`。\n用 exam-ai 的 `agent/context.py` 替换 `ai/context.py`。\n合并 schemas。\n迁入 anonymizer.py。\n\n- [ ] **Step 2: 合并 AI 路由**\n\n用 exam-ai 的 `api/ai.py`（228 LOC，含 sessions 端点）替换 edu-cloud 的 `api/ai.py`（65 LOC）。更新 import。\n\n- [ ] **Step 3: 写 Agent 基础测试**\n\n```bash\npython -m pytest tests/test_ai/ -v\n```\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(ai): 合并 Agent 核心(loop/llm/context/anonymizer/schemas)\"\n```\n\n### Task 17: AI 工具合并\n\n**Files:**\n- Keep: `src/edu_cloud/ai/tools/analytics.py` — L2_cross_school\n- Keep: `src/edu_cloud/ai/tools/actions.py` — L4_action\n- Keep: `src/edu_cloud/ai/tools/knowledge.py` — L3_knowledge（内存源）\n- Create: `src/edu_cloud/ai/tools/analytics_score.py` — 迁入 L2_analytics\n- Create: `src/edu_cloud/ai/tools/analytics_compare.py` — 迁入\n- Create: `src/edu_cloud/ai/tools/exams.py` — 迁入 L1_exam\n- Create: `src/edu_cloud/ai/tools/students.py` — 迁入 L1_student\n- Create: `src/edu_cloud/ai/tools/bank.py` — 迁入 L5_bank\n- Create: `src/edu_cloud/ai/tools/profile.py` — 迁入 L6_profile\n- Create: `src/edu_cloud/ai/tools/knowledge_db.py` — 迁入 L3_knowledge_db\n- Modify: `src/edu_cloud/ai/tools/__init__.py` — 注册全部 25 工具\n- Modify: `src/edu_cloud/ai/agent.py` — 更新 ROLE_TOOL_CATEGORIES（注意：此常量定义在 agent.py 而非 permissions.py）\n\n- [ ] **Step 1: 迁入 7 个工具文件**\n\n逐个复制，更新 import。\n\n- [ ] **Step 2: 更新工具注册**\n\n`tools/__init__.py` 注册全部 25 工具。\n\n- [ ] **Step 3: 更新 RBAC 映射**\n\n`ai/agent.py` 中 `ROLE_TOOL_CATEGORIES` 更新为 9 类别，按设计文档 §5.2 映射。注意：此常量定义在 agent.py（不是 permissions.py），permissions.py 只有 `ROLE_PERMISSIONS`。\n\n- [ ] **Step 4: 写工具注册测试**\n\n验证每个角色可访问的工具数量正确。\n\n- [ ] **Step 5: 运行测试 + Commit**\n\n```bash\npython -m pytest tests/test_ai/ -v\npython -m pytest --tb=short -q\ngit add -A && git commit -m \"feat(ai): 合并 25 工具 + 9 类别 RBAC 映射\"\n```\n\n### Task 18: Workers 合并\n\n**Files:**\n- Create: `src/edu_cloud/workers/grading.py` — 迁入 exam-ai workers/grading.py（211 LOC）\n- Modify: `src/edu_cloud/worker.py` — 注册 process_grading_task + run_post_exam_pipeline\n\n- [ ] **Step 1: 迁入 grading worker**\n\n复制 exam-ai `workers/grading.py` → `src/edu_cloud/workers/grading.py`。更新 import。\n\n- [ ] **Step 2: 更新 worker.py**\n\n```python\nfunctions = [\n    process_grading_task,\n    run_auto_draft,\n    run_post_exam_pipeline,\n]\n```\n\n- [ ] **Step 3: 写 worker 测试（mock Redis）**\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"feat(workers): 迁入 grading worker, 注册 pipeline 任务\"\n```\n\n**→ Batch 4 完成后：codex-review (code)**\n\n---\n\n## Batch 5: Frontend & Cleanup (Task 19-22)\n\n### Task 19: 前端合并\n\n**Files:**\n- Modify: `frontend/package.json` — 升级到 exam-ai 的较新版本\n- Copy: exam-ai 前端页面组件 → `frontend/src/pages/`\n- Copy: exam-ai 前端 API 模块 → `frontend/src/api/`\n- Copy: exam-ai 前端 stores → `frontend/src/stores/`\n- Copy: exam-ai card-editor 模块 → `frontend/src/card-editor/`\n- Copy: exam-ai CardEditor.vue → `frontend/src/components/`\n- Modify: `frontend/src/router/index.js` — 加入 13 个路由\n- Modify: `frontend/src/stores/auth.js` — 保持 edu-cloud 多角色版本\n- Modify: `frontend/src/stores/aiChat.js` — 取 exam-ai 版本（更完整 SSE）\n- Modify: `frontend/src/api/client.js` — 统一 baseURL = `/api/v1`\n- Modify: `frontend/vite.config.js` — proxy 保持 9000\n\n- [ ] **Step 1: 升级 package.json 依赖版本**\n\n- [ ] **Step 2: 复制页面组件（14 个 .vue 文件）**\n\n- [ ] **Step 3: 复制 API 模块（11 个 .js 文件）**\n\n统一 baseURL：所有 API 调用使用 `/api/v1` 前缀。\n\n- [ ] **Step 4: 复制 card-editor 模块（5 文件 1,985 LOC）+ CardEditor.vue（28K）**\n\n- [ ] **Step 5: 合并 stores**\n\n- auth.js: 保持 edu-cloud 版本（多角色 + switchRole）\n- aiChat.js: 取 exam-ai 版本（SSE + tool_call 展示）\n- 新增 exam.js store（管理考试列表/详情）\n\n- [ ] **Step 6: 更新 router**\n\n加入 exam-ai 的 13 个路由。DashboardLayout 作为多数页面的 layout。\n\n- [ ] **Step 7: 验证前端构建**\n\n```bash\ncd C:/Users/Administrator/edu-cloud/frontend && npm install && npm run build\n```\n\n- [ ] **Step 8: Commit**\n\n```bash\ncd C:/Users/Administrator/edu-cloud\ngit add frontend/ && git commit -m \"feat(frontend): 合并 exam-ai 前端(14页面+28K卡片编辑器)\"\n```\n\n### Task 20: 测试迁移\n\n**Files:**\n- Copy: exam-ai `tests/` → `edu-cloud/tests/`（按模块重组）\n- Modify: 所有测试文件的 import 路径\n- Delete: `test_cloud_sync.py` 相关测试\n\n- [ ] **Step 1: 复制 exam-ai 测试文件**\n\n按模块重组：\n- `test_api/test_exam.py` → `tests/test_modules/test_exam/test_api.py`\n- `test_api/test_cards.py` → `tests/test_modules/test_card/test_api.py`\n- 以此类推\n\n- [ ] **Step 2: 批量替换 import 路径**\n\n```bash\n# 所有迁入的测试文件\nfind tests/ -name \"*.py\" -exec sed -i 's/from exam_ai\\./from edu_cloud.modules./g' {} +\nfind tests/ -name \"*.py\" -exec sed -i 's/import exam_ai\\./import edu_cloud.modules./g' {} +\n```\n\n注意：这只是初始替换，具体路径需要逐文件调整。\n\n- [ ] **Step 3: 更新 conftest.py**\n\n确保 fixture 创建所有 38 个模型的表。添加 school fixture。\n\n- [ ] **Step 4: 删除 sync 相关测试**\n\n- `test_api/test_cloud_sync.py`\n- `test_services/test_cloud_sync.py`\n- `test_api/test_sync_v2.py`\n- `test_api/test_sync_students.py`\n\n- [ ] **Step 5: 逐步修复测试**\n\n```bash\npython -m pytest --tb=short -q 2>&1 | head -50\n```\n\n逐个修复 ImportError 和 fixture 问题，直到全部 PASS。\n\n- [ ] **Step 6: 验证测试数量**\n\n```bash\npython -m pytest --co -q | tail -3\n```\n\nExpected: ~680 tests collected\n\n- [ ] **Step 7: Commit**\n\n```bash\ngit add -A && git commit -m \"test: 迁移 exam-ai 测试 (~446→~420 after sync 删除)\"\n```\n\n### Task 21: Alembic 迁移 + Docker 更新\n\n**Files:**\n- Create: `alembic/versions/xxxx_merge_exam_ai.py` — 新 initial migration\n- Modify: `Dockerfile` — 加入 Playwright + 中文字体\n- Modify: `docker-compose.yml` — 加 storage/uploads volumes\n\n- [ ] **Step 1: 重建 Alembic migration**\n\n**前提：当前无生产数据**，因此不需要 rename/backfill 策略。方案：\n1. 删除旧 migration `alembic/versions/bdd523549077_initial_all_tables.py`\n2. 更新 `alembic/env.py` 的 model imports 指向新模块路径\n3. 生成新 initial migration 覆盖全部 38 个模型\n\n```bash\ncd C:/Users/Administrator/edu-cloud\nrm alembic/versions/bdd523549077_initial_all_tables.py\n# 更新 env.py imports 后：\npython -m alembic revision --autogenerate -m \"initial_merged_schema\"\n```\n\n**注意**：如果未来有生产数据，需要写显式 rename migration（registered_schools→schools, platform_users→users, class_groups→classes）而非 drop+create。当前场景无此需求。\n\n- [ ] **Step 2: 更新 Dockerfile**\n\n加入 Playwright Chromium（用于答题卡 PDF 生成）和中文字体。\n\n- [ ] **Step 3: 更新 docker-compose.yml**\n\n加 volumes: `./storage:/app/storage`, `./uploads:/app/uploads`\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"chore: Alembic 合并迁移 + Docker Playwright 支持\"\n```\n\n### Task 22: 清理 + 文档更新\n\n**Files:**\n- Delete: `src/edu_cloud/models/platform_user.py`（如 Task 3 未删）\n- Delete: `src/edu_cloud/models/class_group.py`（如 Task 7 未删）\n- Delete: `src/edu_cloud/models/exam.py`（edu-cloud 旧版）\n- Delete: `src/edu_cloud/api/sync.py`\n- Delete: `src/edu_cloud/api/sync_students.py`\n- Delete: `src/edu_cloud/services/` 目录下已移入模块的旧文件\n- Delete: `src/edu_cloud/knowledge/` 旧目录（已移入 modules/knowledge/）\n- Modify: `CLAUDE.md` — 更新项目结构和端点列表\n- Modify: `src/edu_cloud/models/__init__.py` — 更新 re-exports\n\n- [ ] **Step 0: 迁入 data/ seed 脚本**\n\n从 exam-ai 复制：\n- `data/seed_demo.py`（256 LOC）\n- `data/seed_knowledge_math.py`（113 LOC）\n- `data/import_real_exam.py`（310 LOC）\n更新 import 路径。\n\n- [ ] **Step 1: 删除所有已废弃文件（包括 re-export stubs）**\n\n```bash\ngrep -rn \"from edu_cloud.services\\.\" src/edu_cloud/ --include=\"*.py\" | grep -v modules/\ngrep -rn \"from edu_cloud.models\\.\" src/edu_cloud/ --include=\"*.py\" | grep -v core/models\n```\n\n确保无残留引用后删除旧文件。\n\n- [ ] **Step 2: 更新 CLAUDE.md**\n\n反映合并后的项目结构、端点列表、模块组织。\n\n- [ ] **Step 3: 最终全量测试**\n\n```bash\npython -m pytest --tb=short -q\n```\n\nExpected: ~680 tests, all PASS\n\n- [ ] **Step 4: Commit**\n\n```bash\ngit add -A && git commit -m \"chore: 清理废弃文件, 更新 CLAUDE.md 反映合并后结构\"\n```\n\n**→ Batch 5 完成后：codex-review (code) + codex-review (integration)**\n\n---\n\n## 审查计划\n\n| 审查点 | 类型 | 触发时机 |\n|--------|------|---------|\n| Batch 1 完成 | codex-review (code) | Task 5 后 |\n| Batch 2 完成 | codex-review (code) | Task 11 后 |\n| Batch 3 完成 | codex-review (code) | Task 15 后 |\n| Batch 4 完成 | codex-review (code) | Task 18 后 |\n| Batch 5 完成 | codex-review (code) + codex-review (integration) | Task 22 后 |\n\n## 风险矩阵（per-batch 高风险区域）\n\n| Batch | 高风险区域 | 风险类型 | 额外验证要求 |\n|-------|-----------|---------|-------------|\n| 1 | **Auth 改造**（Task 3）| 安全 | 多角色 JWT 测试 + 旧 PlatformUser 不可登录验证 |\n| 1 | **School 表重命名 FK 级联**（Task 2）| 数据完整性 | 全量测试 + grep 零残留 |\n| 2 | **多租户隔离**（所有 service school_id）| 安全 | 跨 school 越权测试 |\n| 3 | **路由挂载**（~107 端点）| 集成 | 每个端点至少 1 个可达测试 |\n| 4 | **AI Agent RBAC**（Task 17）| 安全 | 每角色工具可见性验证 |\n| 5 | **28K 前端编辑器迁入**（Task 19）| 功能 | npm run build 无报错 |\n| 5 | **Alembic migration**（Task 21）| 数据 | 无生产数据，create_all 足够 |\n\n## 风险检查点\n\n每个 Batch 完成后，运行全量测试确认：\n1. `python -m pytest --tb=short -q` — 全部 PASS\n2. `python -m pytest --co -q | tail -3` — 测试数量符合预期\n3. `grep -rn \"from exam_ai\\.\" src/edu_cloud/` — 零残留旧 import\n4. `grep -rn \"RegisteredSchool\\|PlatformUser\\|ClassGroup\" src/edu_cloud/` — 零残留旧类名\n"
+  }
+}
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/CLAUDE.md"})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/CLAUDE.md"}) success in 3ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "# edu-cloud — 教育云平台\r\n\r\n<!-- key-start -->\r\n## 项目定位\r\n\r\nedu-cloud 是**多校协同的云端平台**，是学校端（exam-ai）的上游调度中心。\r\n\r\n```\r\n[监管端]                      [云端平台]                      [学校端]\r\n教育局/集团看板  ──────→  edu-cloud (port 9000)  ←──────  exam-ai × N 所学校\r\n  - 全区成绩总览              - 联考编排与下发                 - 本校考试管理\r\n  - 学校间对比                - 跨校数据汇总                   - 扫描+AI阅卷\r\n  - 教学质量监控              - 共享 AI 阅卷服务               - 成绩上报到云端\r\n                              - 学校注册与状态监控\r\n                              - 统一题库管理\r\n```\r\n\r\n### 职责边界\r\n\r\n| 职责 | 归属 | 说明 |\r\n|------|------|------|\r\n| 学校注册与授权 | edu-cloud | 审批学校接入、下发 API Key |\r\n| 联考生命周期 | edu-cloud | 创建→下发→汇总→报告 |\r\n| 跨校成绩聚合 | edu-cloud | 各校上报，云端汇总排名 |\r\n| 共享 AI 阅卷 | edu-cloud | 算力不足的学校可上传切图到云端阅卷 |\r\n| 统一题库 | edu-cloud | 各校贡献+云端审核+联考组卷 |\r\n| 本校考试管理 | exam-ai | 云端不介入单校日常考试 |\r\n| 扫描切割 | paper-seg | 始终在本地执行 |\r\n\r\n**关键关系**：exam-ai 是本项目的**下游客户端**，通过 REST API 同步数据。每所学校运行独立的 exam-ai 实例，edu-cloud 统一管理。\r\n<!-- key-end -->\r\n\r\n<!-- key-start -->\r\n## 启动命令\r\n\r\n```bash\r\n# 后端（WSL 内执行）\r\ncd /mnt/c/Users/Administrator/edu-cloud\r\npython -m uvicorn edu_cloud.api.app:create_app --factory --host 0.0.0.0 --port 9000 --reload\r\n\r\n# 前端（Windows Git Bash，port_guard 须用 serve.py）\r\ncd /c/Users/Administrator/edu-cloud/frontend\r\npython ~/.claude/scripts/serve.py \"C:/Program Files/nodejs/npm.cmd\" run dev\r\n# → http://localhost:5173，代理 /api → http://localhost:9000\r\n```\r\n\r\n## 测试命令\r\n\r\n```bash\r\ncd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q\r\n```\r\n<!-- key-end -->\r\n\r\n## 项目结构\r\n\r\n```\r\nfrontend/src/\r\n  layouts/\r\n    WorkbenchLayout.vue     # 三栏布局（左侧边栏 + 顶栏 + 中央内容 + 右侧边栏）\r\n  pages/\r\n    LoginPage.vue           # 登录页（Task 4 实现表单）\r\n    WorkbenchPage.vue       # 工作台主页（组装三栏布局 + 各占位组件）\r\n  components/\r\n    context/\r\n      ContextPanel.vue      # 左栏：数据源选择器（Step 5 实现）\r\n    workspace/\r\n      DataView.vue          # 中栏：数据呈现（Task 6 实现）\r\n    studio/\r\n      StudioPanel.vue       # 右栏：AI 产出物 + 行动队列（P2 实现）\r\n    calendar/\r\n      CalendarPanel.vue     # 学期日历面板（P3-4：事件列表 + 新增弹窗，嵌入 ContextPanel）\r\n  stores/\r\n    auth.js                 # Pinia auth store（token/displayName/currentRole/roles/scope）\r\n  router/                   # Vue Router（/login + / 含 requiresAuth 守卫）\r\n  main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）\r\n  App.vue                   # 根组件\r\n```\r\n\r\n```\r\nsrc/edu_cloud/\r\n  api/\r\n    app.py              # FastAPI 应用工厂 + lifespan + 请求日志中间件 + 全局异常处理器\r\n    deps.py             # 依赖注入（JWT 认证 get_current_user + require_permission）\r\n    permissions.py      # 数据权限过滤（get_visible_class_ids/get_visible_subject_codes）\r\n    auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）\r\n    ai.py               # AI Agent 路由（Batch 4 迁移）\r\n    # 以下为 re-export stubs，canonical → modules/\r\n    schools.py → modules/school/router.py\r\n    joint_exams.py → modules/exam/joint_exam_router.py\r\n    results.py → modules/exam/results_router.py\r\n    studio.py → modules/studio/router.py\r\n    calendar.py → modules/calendar/router.py\r\n    workspace.py → modules/exam/workspace_router.py\r\n  models/\r\n    base.py             # Base + IdMixin(UUID) + TimestampMixin(UTC)\r\n    school.py           # RegisteredSchool（学校档案 + API Key + 心跳）\r\n    platform_user.py    # PlatformUser（4 角色 + bcrypt 密码）\r\n    joint_exam.py       # JointExam + JointExamParticipant + JointExamStudentResult\r\n  services/\r\n    exceptions.py       # 5 个自定义异常（NotFound/Permission/Validation/Conflict/State）\r\n    school_service.py   # 学校 CRUD + API Key 管理\r\n    joint_exam_service.py # 联考生命周期（创建→模板→下发→成绩→完成）\r\n    results_service.py  # 排名 + 按校对比 + 学生明细\r\n    sync/               # 空 stub\r\n    ai_grading/         # 空 stub\r\n    analytics/          # 空 stub\r\n  core/\r\n    events.py           # 进程内 EventBus（已定义，handler 未接入）\r\n    permissions.py      # 10 个 Permission 枚举 + 4 角色 RBAC 映射\r\n  knowledge/\r\n    __init__.py         # 包入口\r\n    loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）\r\n    store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）\r\n  ai/\r\n    agent.py            # ReAct Agent（ROLE_TOOL_CATEGORIES 9 类别 RBAC）\r\n    llm.py              # LLMChatClient（OpenAI + Anthropic 双协议，重试，llm-proxy slot）\r\n    context.py          # build_system_prompt + AgentContext（session 管理/token 裁剪）\r\n    schemas.py          # ChatMessage/ToolCall/AgentEvent 数据模型\r\n    anonymizer.py       # 会话级姓名脱敏（字段检测 + student_number 剥离）\r\n    audit.py            # AuditLogger（DB 持久化 AiSession/AiToolCall）\r\n    registry.py         # ToolRegistry 全局实例 + 装饰器注册 + 依赖注入\r\n    models.py           # AiSession/AiToolCall 表\r\n    tools/\r\n      __init__.py       # 触发全部 10 个工具模块注册（31 tools）\r\n      analytics.py      # L2_cross_school（2）: get_exam_scores/get_class_stats\r\n      analytics_score.py # L2_analytics（5）: exam_summary/distribution/question/student/class scores\r\n      analytics_compare.py # L2_analytics（3）: compare_classes/rank_students/grade_aggregates\r\n      exams.py          # L1_exam（3）: exam_list/detail/subject_questions\r\n      students.py       # L1_student（4）: class_list/roster/search/profile\r\n      bank.py           # L5_bank（2）: error_book/question_stats\r\n      profile.py        # L6_profile（4）: trend/knowledge_map/weakness/error_pattern\r\n      knowledge.py      # L3_knowledge（4）: search_curriculum/textbook/concept/gaokao\r\n      knowledge_db.py   # L3_knowledge_db（2）: knowledge_tree/question_knowledge_points\r\n      actions.py        # L4_action（2）: generate_report/comment\r\n  workers/\r\n    grading.py          # process_grading_task（AI 阅卷）+ run_post_exam_pipeline（考后处理 stub）\r\n  shared/\r\n    auth.py             # JWT create/decode 工具函数\r\n  config.py             # Settings（DB/Redis/JWT/LLM/UPLOAD_DIR/知识库 配置，BaseSettings）\r\n  database.py           # async engine + session factory\r\n  logging_config.py     # 双输出（Console UTC+8 + JSONL RotatingFile）\r\n  worker.py             # arq WorkerSettings（3 functions: auto_draft/grading/pipeline）\r\nscripts/\r\n  e2e_joint_exam.py     # 端到端联考验证脚本（2 校完整流程）\r\ntests/\r\n  conftest.py           # SQLite in-memory + AsyncClient + admin/school fixtures\r\n  test_api/             # API 集成测试（health/deps/schools/joint_exams/sync_v2/results）\r\n  test_models/          # 模型单测\r\n  test_services/        # Service 单测（exceptions/school/joint_exam/results）\r\n  test_knowledge/       # 知识库单测（loader/store，18 tests）\r\n  test_workers/         # Worker 单测（grading task 注册/签名验证）\r\n```\r\n\r\n### 实现状态\r\n\r\n| 层 | 已实现 | 未实现（规划中）|\r\n|---|--------|--------------|\r\n| API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(documents CRUD+transition+paper/create+paper/:id/status), calendar(events CRUD) | 跨校分析(高级), 题库, 共享 AI 阅卷 |\r\n| Models | 29 表（modules/ 下 exam/student/card/scan/grading/marking/bank/profile/knowledge/pipeline + core school/user/user_role/llm_slot + studio/calendar/notification）| — |\r\n| Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), CalendarService(create/list/delete/triggered_rules), NotificationService(dispatch stub+幂等), exceptions | EventBus handler, AI grading |\r\n| Tasks | tasks.py: auto_draft_notifications（扫描日历→自动创建 notification 草稿，防重复 triggered 标记）| arq cron 生产接入 |\r\n| Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |\r\n| Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |\r\n| Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |\r\n| Tests | 300 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam/Student/Bank/Knowledge模块 全覆盖）| — |\r\n| Modules | 15 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school），路由已迁入 | — |\r\n| Migrations | Alembic 脚手架 | 未写 migration 文件 |\r\n\r\n## 技术栈\r\n\r\n**后端：**\r\n- FastAPI + Uvicorn\r\n- SQLAlchemy 2.0 (async) + asyncpg (PostgreSQL)\r\n- Alembic (migrations)\r\n- python-jose (JWT) + bcrypt\r\n- arq + Redis (后台任务：联考下发、批量阅卷、报表生成)\r\n- httpx (调用学校端 API)\r\n- Docker + docker-compose (部署)\r\n\r\n**前端（`frontend/`）：**\r\n- Vite 5 + Vue 3 (Composition API)\r\n- Naive UI（暗色主题）\r\n- Vue Router 4（`/login` + `/` 含 requiresAuth 守卫）\r\n- Pinia（状态管理）\r\n- Axios（HTTP 客户端）\r\n- ECharts + vue-echarts（图表）\r\n\r\n## 日志体系\r\n\r\n与 exam-ai 保持一致：双输出（Console + JSONL）、Request ID 追踪、UTC+8 时区。\r\n日志文件：`logs/app.jsonl`，10MB 轮转，5 份备份。\r\n\r\n<!-- key-start -->\r\n## 端口约定\r\n\r\n| 服务 | 端口 | 说明 |\r\n|------|------|------|\r\n| edu-cloud 后端 | 9000 | FastAPI（本项目） |\r\n| edu-cloud 前端 | 5173 | Vite dev server（开发）|\r\n| exam-ai | 8000 | 学校端阅卷服务 |\r\n| paper-seg | 8001 | 扫描客户端 |\r\n| paper-skill | 9103 | AI 论文写作服务（外部，REST 客户端通过 PaperService 调用）|\r\n<!-- key-end -->\r\n\r\n## 角色体系\r\n\r\n### 统一角色体系（edu-cloud 管理，P0 重构后）\r\n\r\n> 重构声明（2026-03-21）：edu-cloud 从联考后端升级为统一平台后，\r\n> 学校内角色由 edu-cloud 直接管理，不再由 exam-ai 管理。\r\n> exam-ai 退化为数据采集节点。详见 `docs/plans/2026-03-21-super-platform-design.md` §1。\r\n\r\n| 角色 | 权限 | 说明 |\r\n|------|------|------|\r\n| platform_admin | 全部 | 平台超管 |\r\n| district_admin | 管辖区域内学校 | 教育局管理员 |\r\n| principal | 全校管理+分析 | 校长 |\r\n| academic_director | 教务+联考+分析 | 教务主任 |\r\n| grade_leader | 本年级分析 | 年级组长 |\r\n| homeroom_teacher | 本班管理+评语+通知 | 班主任 |\r\n| subject_teacher | 所教班+学科+论文 | 科任教师 |\r\n| parent | 只看自己孩子 | 家长（企微登录）|\r\n\r\n## API 端点（已实现）\r\n\r\n### 平台端点（JWT 认证）\r\n\r\n| 方法 | 路径 | 用途 |\r\n|------|------|------|\r\n| POST | `/api/v1/auth/login` | 平台用户登录，返回 JWT |\r\n| GET | `/api/v1/health` | 健康检查 |\r\n| GET | `/api/v1/version` | 版本+启动时间 |\r\n\r\n### 学校管理端点（JWT 认证）\r\n\r\n| 方法 | 路径 | 权限 | 用途 |\r\n|------|------|------|------|\r\n| POST | `/api/v1/schools` | MANAGE_SCHOOLS | 创建学校（返回 API Key） |\r\n| GET | `/api/v1/schools` | VIEW_SCHOOLS | 列表（支持 district/is_active 过滤） |\r\n| GET | `/api/v1/schools/{id}` | VIEW_SCHOOLS | 学校详情 |\r\n| PATCH | `/api/v1/schools/{id}` | MANAGE_SCHOOLS | 更新学校信息 |\r\n| POST | `/api/v1/schools/{id}/rotate-key` | MANAGE_SCHOOLS | 轮换 API Key |\r\n\r\n### 联考管理端点（JWT 认证）\r\n\r\n| 方法 | 路径 | 权限 | 用途 |\r\n|------|------|------|------|\r\n| POST | `/api/v1/joint-exams` | CREATE_JOINT_EXAM | 创建联考 |\r\n| GET | `/api/v1/joint-exams` | VIEW_JOINT_EXAM | 联考列表 |\r\n| GET | `/api/v1/joint-exams/{id}` | VIEW_JOINT_EXAM | 联考详情（含参与校） |\r\n| POST | `/api/v1/joint-exams/{id}/participants` | MANAGE_JOINT_EXAM | 添加参与校 |\r\n| DELETE | `/api/v1/joint-exams/{id}/participants/{school_id}` | MANAGE_JOINT_EXAM | 移除参与校 |\r\n| POST | `/api/v1/joint-exams/{id}/distribute` | MANAGE_JOINT_EXAM | 下发联考 |\r\n| POST | `/api/v1/joint-exams/{id}/force-complete` | MANAGE_JOINT_EXAM | 强制截止 |\r\n\r\n### 成绩查看端点（JWT 认证）\r\n\r\n| 方法 | 路径 | 用途 |\r\n|------|------|------|\r\n| GET | `/api/v1/joint-exams/{id}/results` | 排名（支持 subject_code 过滤，无则全科总分） |\r\n| GET | `/api/v1/joint-exams/{id}/results/by-school` | 按校对比（avg/max/median/count） |\r\n| GET | `/api/v1/joint-exams/{id}/results/students/{number}` | 学生明细（含每科排名） |\r\n\r\n### 考试管理端点（JWT 认证，Batch 3 迁入）\r\n\r\n| 方法 | 路径 | 用途 |\r\n|------|------|------|\r\n| POST/GET | `/api/v1/exams` | 创建/列表考试 |\r\n| GET/PATCH | `/api/v1/exams/{id}` | 详情/更新考试 |\r\n| POST/GET | `/api/v1/exams/{id}/subjects` | 创建/列表科目 |\r\n| POST/GET/PATCH/DELETE | `/api/v1/questions` | 题目 CRUD |\r\n| GET/POST | `/api/v1/classes`, `/api/v1/students` | 班级/学生管理 |\r\n| * | `/api/v1/card/*` | 答题卡生成/骨架/条码（19 端点） |\r\n| * | `/api/v1/templates/*` | 模板 CRUD |\r\n| * | `/api/v1/scan/*` | 扫描上传/任务管理 |\r\n| * | `/api/v1/grading/*` | AI 阅卷/评分规则/教师审核 |\r\n| * | `/api/v1/marking/*` | 人工阅卷/分配/导出 |\r\n| * | `/api/v1/analytics/*` | 统计分析（摘要/分布/题目/年级） |\r\n| * | `/api/v1/knowledge/*` | 知识点 CRUD/树查询/关联 |\r\n| POST | `/api/v1/pipeline/run/{id}` | 数据流水线触发 |\r\n| * | `/api/v1/llm-config/slots` | LLM 槽位管理 |\r\n\r\n### Studio 文档端点（JWT 认证）\r\n\r\n| 方法 | 路径 | 权限 | 用途 |\r\n|------|------|------|------|\r\n| GET | `/api/v1/studio/templates` | 已登录 | 获取当前角色可用模板 |\r\n| GET | `/api/v1/studio/documents` | GENERATE_REPORT | 列出文档（本人创建或被指派） |\r\n| POST | `/api/v1/studio/documents` | GENERATE_REPORT | 创建文档 |\r\n| GET | `/api/v1/studio/documents/{id}` | GENERATE_REPORT | 文档详情 |\r\n| PATCH | `/api/v1/studio/documents/{id}` | GENERATE_REPORT | 更新文档内容 |\r\n| POST | `/api/v1/studio/documents/{id}/transition` | GENERATE_NOTIFICATION | 状态流转（P3-4 F3: 通知文档 executed 需额外 SEND_NOTIFICATION；F4: pending 自动创建审批流；executed 触发 NotificationService.dispatch） |\r\n\r\n### Studio 论文端点（JWT 认证）\r\n\r\n| 方法 | 路径 | 权限 | 用途 |\r\n|------|------|------|------|\r\n| POST | `/api/v1/studio/paper/create` | WRITE_PAPER | 创建论文任务（调用 paper-skill，创建 Studio Document 关联记录） |\r\n| GET | `/api/v1/studio/paper/{paper_id}/status` | 已登录 | 查询论文进度（透传 paper-skill /api/paper/:id/status） |\r\n\r\n### 日历端点（JWT 认证，P3-2）\r\n\r\n| 方法 | 路径 | 权限 | 用途 |\r\n|------|------|------|------|\r\n| POST | `/api/v1/calendar/events` | GENERATE_NOTIFICATION | 创建校历事件（含通知规则） |\r\n| GET | `/api/v1/calendar/events` | 已登录 | 列出本校校历事件（支持 start/end 日期过滤） |\r\n| DELETE | `/api/v1/calendar/events/{id}` | GENERATE_NOTIFICATION | 软删除校历事件（is_active=False） |\r\n\r\n### AI Agent 端点（JWT 认证，Batch 4 迁入）\r\n\r\n| 方法 | 路径 | 权限 | 用途 |\r\n|------|------|------|------|\r\n| GET | `/api/v1/ai/health` | 无 | 工具数量 + 状态 |\r\n| POST | `/api/v1/ai/chat` | USE_AI_CHAT | SSE 流式对话（multi-turn session） |\r\n| GET | `/api/v1/ai/sessions` | 已登录 | 列出活跃会话 |\r\n| DELETE | `/api/v1/ai/sessions/{session_id}` | 已登录 | 删除会话 |\r\n\r\n### 未实现端点（规划中）\r\n\r\n- 共享 AI 阅卷（`grading-request`/`grading-result`）\r\n- 统一题库\r\n- 高级跨校分析（趋势/对比图表）\r\n\r\n## 关联项目\r\n\r\n| 项目 | 路径 | 关系 |\r\n|------|------|------|\r\n| exam-ai | `C:/Users/Administrator/exam-ai` | 学校端，本项目的下游客户端 |\r\n| paper-seg | `C:/Users/Administrator/paper-seg` | 扫描端，不直接与云端通信 |\r\n| paper-skill | `C:/Users/Administrator/paper-skill` | AI 论文写作服务，edu-cloud 通过 PaperService 调用（端口 9103）|\r\n\r\n## 数据库\r\n\r\n```\r\n# .env\r\nDATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/edu_cloud\r\n```\r\n\r\n云端必须使用 PostgreSQL（跨校聚合查询、高并发写入）。不支持 SQLite。\r\n\r\n## Docker 部署\r\n\r\n```bash\r\ndocker compose up -d        # 启动\r\ndocker compose pull && docker compose up -d  # 升级\r\ndocker compose logs -f      # 查看日志\r\n```\r\n\r\n## 参考文档\r\n\r\n| 文档 | 路径 | 内容 |\r\n|------|------|------|\r\n| AI Agent 设计 | `docs/plans/2026-03-16-ai-agent-design.md` | Agent Phase 1-4 架构设计（554 行，§14 含 API→Service 分层）|\r\n| 平台交接单 | exam-ai `docs/plans/2026-03-16-platform-handoff.md` | A→B→C→D 四阶段全局规划 |\r\n\r\n## 数据模型概要\r\n\r\n| 表 | 关键字段 | 说明 |\r\n|---|---------|------|\r\n| schools | code(唯一), api_key_hash(Optional), is_active, district | 学校档案（原 registered_schools） |\r\n| users | username(唯一), display_name, hashed_password, is_active | 统一用户（原 PlatformUser 已删除） |\r\n| user_roles | user_id(FK), role, school_id(FK), class_ids, is_primary | 多角色+scope |\r\n| llm_slots | school_id(FK,nullable), slot_number, api_url, api_key, model, is_enabled | LLM 槽位配置（学校覆盖>平台默认>.env） |\r\n| joint_exams | name, status(draft→...→archived), subjects(JSON), created_by(FK→users), creator_school_id(FK) | 联考 |\r\n| joint_exam_participants | joint_exam_id(FK), school_id(FK), status, is_creator | 参与校 |\r\n| joint_exam_student_results | joint_exam_id, school_id, subject_code, student_name/number, total_score, detail_scores(JSON) | 成绩明细 |\r\n| documents | type, title, status, content_json, created_by(FK→users), assigned_to(FK), school_id(FK) | Studio 文档 |\r\n| calendar_events | type, title, event_date, school_id(FK), created_by(FK→users), semester, is_active | 校历事件 |\r\n| notification_rules | event_id(FK), days_before, template_type, target_roles(JSON), auto_draft, triggered | 通知触发规则 |\r\n| notifications | document_id(FK), channel, status, target_scope(JSON), school_id(FK) | 通知发送记录 |\r\n\r\n## 种子数据\r\n\r\n启动时自动创建：平台管理员 `admin/123456`（User + UserRole platform_admin）。\r\n"
+    }
+  ],
+  "structuredContent": {
+    "content": "# edu-cloud — 教育云平台\r\n\r\n<!-- key-start -->\r\n## 项目定位\r\n\r\nedu-cloud 是**多校协同的云端平台**，是学校端（exam-ai）的上游调度中心。\r\n\r\n```\r\n[监管端]                      [云端平台]                      [学校端]\r\n教育局/集团看板  ──────→  edu-cloud (port 9000)  ←──────  exam-ai × N 所学校\r\n  - 全区成绩总览              - 联考编排与下发                 - 本校考试管理\r\n  - 学校间对比                - 跨校数据汇总                   - 扫描+AI阅卷\r\n  - 教学质量监控              - 共享 AI 阅卷服务               - 成绩上报到云端\r\n                              - 学校注册与状态监控\r\n                              - 统一题库管理\r\n```\r\n\r\n### 职责边界\r\n\r\n| 职责 | 归属 | 说明 |\r\n|------|------|------|\r\n| 学校注册与授权 | edu-cloud | 审批学校接入、下发 API Key |\r\n| 联考生命周期 | edu-cloud | 创建→下发→汇总→报告 |\r\n| 跨校成绩聚合 | edu-cloud | 各校上报，云端汇总排名 |\r\n| 共享 AI 阅卷 | edu-cloud | 算力不足的学校可上传切图到云端阅卷 |\r\n| 统一题库 | edu-cloud | 各校贡献+云端审核+联考组卷 |\r\n| 本校考试管理 | exam-ai | 云端不介入单校日常考试 |\r\n| 扫描切割 | paper-seg | 始终在本地执行 |\r\n\r\n**关键关系**：exam-ai 是本项目的**下游客户端**，通过 REST API 同步数据。每所学校运行独立的 exam-ai 实例，edu-cloud 统一管理。\r\n<!-- key-end -->\r\n\r\n<!-- key-start -->\r\n## 启动命令\r\n\r\n```bash\r\n# 后端（WSL 内执行）\r\ncd /mnt/c/Users/Administrator/edu-cloud\r\npython -m uvicorn edu_cloud.api.app:create_app --factory --host 0.0.0.0 --port 9000 --reload\r\n\r\n# 前端（Windows Git Bash，port_guard 须用 serve.py）\r\ncd /c/Users/Administrator/edu-cloud/frontend\r\npython ~/.claude/scripts/serve.py \"C:/Program Files/nodejs/npm.cmd\" run dev\r\n# → http://localhost:5173，代理 /api → http://localhost:9000\r\n```\r\n\r\n## 测试命令\r\n\r\n```bash\r\ncd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q\r\n```\r\n<!-- key-end -->\r\n\r\n## 项目结构\r\n\r\n```\r\nfrontend/src/\r\n  layouts/\r\n    WorkbenchLayout.vue     # 三栏布局（左侧边栏 + 顶栏 + 中央内容 + 右侧边栏）\r\n  pages/\r\n    LoginPage.vue           # 登录页（Task 4 实现表单）\r\n    WorkbenchPage.vue       # 工作台主页（组装三栏布局 + 各占位组件）\r\n  components/\r\n    context/\r\n      ContextPanel.vue      # 左栏：数据源选择器（Step 5 实现）\r\n    workspace/\r\n      DataView.vue          # 中栏：数据呈现（Task 6 实现）\r\n    studio/\r\n      StudioPanel.vue       # 右栏：AI 产出物 + 行动队列（P2 实现）\r\n    calendar/\r\n      CalendarPanel.vue     # 学期日历面板（P3-4：事件列表 + 新增弹窗，嵌入 ContextPanel）\r\n  stores/\r\n    auth.js                 # Pinia auth store（token/displayName/currentRole/roles/scope）\r\n  router/                   # Vue Router（/login + / 含 requiresAuth 守卫）\r\n  main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）\r\n  App.vue                   # 根组件\r\n```\r\n\r\n```\r\nsrc/edu_cloud/\r\n  api/\r\n    app.py              # FastAPI 应用工厂 + lifespan + 请求日志中间件 + 全局异常处理器\r\n    deps.py             # 依赖注入（JWT 认证 get_current_user + require_permission）\r\n    permissions.py      # 数据权限过滤（get_visible_class_ids/get_visible_subject_codes）\r\n    auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）\r\n    ai.py               # AI Agent 路由（Batch 4 迁移）\r\n    # 以下为 re-export stubs，canonical → modules/\r\n    schools.py → modules/school/router.py\r\n    joint_exams.py → modules/exam/joint_exam_router.py\r\n    results.py → modules/exam/results_router.py\r\n    studio.py → modules/studio/router.py\r\n    calendar.py → modules/calendar/router.py\r\n    workspace.py → modules/exam/workspace_router.py\r\n  models/\r\n    base.py             # Base + IdMixin(UUID) + TimestampMixin(UTC)\r\n    school.py           # RegisteredSchool（学校档案 + API Key + 心跳）\r\n    platform_user.py    # PlatformUser（4 角色 + bcrypt 密码）\r\n    joint_exam.py       # JointExam + JointExamParticipant + JointExamStudentResult\r\n  services/\r\n    exceptions.py       # 5 个自定义异常（NotFound/Permission/Validation/Conflict/State）\r\n    school_service.py   # 学校 CRUD + API Key 管理\r\n    joint_exam_service.py # 联考生命周期（创建→模板→下发→成绩→完成）\r\n    results_service.py  # 排名 + 按校对比 + 学生明细\r\n    sync/               # 空 stub\r\n    ai_grading/         # 空 stub\r\n    analytics/          # 空 stub\r\n  core/\r\n    events.py           # 进程内 EventBus（已定义，handler 未接入）\r\n    permissions.py      # 10 个 Permission 枚举 + 4 角色 RBAC 映射\r\n  knowledge/\r\n    __init__.py         # 包入口\r\n    loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）\r\n    store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）\r\n  ai/\r\n    agent.py            # ReAct Agent（ROLE_TOOL_CATEGORIES 9 类别 RBAC）\r\n    llm.py              # LLMChatClient（OpenAI + Anthropic 双协议，重试，llm-proxy slot）\r\n    context.py          # build_system_prompt + AgentContext（session 管理/token 裁剪）\r\n    schemas.py          # ChatMessage/ToolCall/AgentEvent 数据模型\r\n    anonymizer.py       # 会话级姓名脱敏（字段检测 + student_number 剥离）\r\n    audit.py            # AuditLogger（DB 持久化 AiSession/AiToolCall）\r\n    registry.py         # ToolRegistry 全局实例 + 装饰器注册 + 依赖注入\r\n    models.py           # AiSession/AiToolCall 表\r\n    tools/\r\n      __init__.py       # 触发全部 10 个工具模块注册（31 tools）\r\n      analytics.py      # L2_cross_school（2）: get_exam_scores/get_class_stats\r\n      analytics_score.py # L2_analytics（5）: exam_summary/distribution/question/student/class scores\r\n      analytics_compare.py # L2_analytics（3）: compare_classes/rank_students/grade_aggregates\r\n      exams.py          # L1_exam（3）: exam_list/detail/subject_questions\r\n      students.py       # L1_student（4）: class_list/roster/search/profile\r\n      bank.py           # L5_bank（2）: error_book/question_stats\r\n      profile.py        # L6_profile（4）: trend/knowledge_map/weakness/error_pattern\r\n      knowledge.py      # L3_knowledge（4）: search_curriculum/textbook/concept/gaokao\r\n      knowledge_db.py   # L3_knowledge_db（2）: knowledge_tree/question_knowledge_points\r\n      actions.py        # L4_action（2）: generate_report/comment\r\n  workers/\r\n    grading.py          # process_grading_task（AI 阅卷）+ run_post_exam_pipeline（考后处理 stub）\r\n  shared/\r\n    auth.py             # JWT create/decode 工具函数\r\n  config.py             # Settings（DB/Redis/JWT/LLM/UPLOAD_DIR/知识库 配置，BaseSettings）\r\n  database.py           # async engine + session factory\r\n  logging_config.py     # 双输出（Console UTC+8 + JSONL RotatingFile）\r\n  worker.py             # arq WorkerSettings（3 functions: auto_draft/grading/pipeline）\r\nscripts/\r\n  e2e_joint_exam.py     # 端到端联考验证脚本（2 校完整流程）\r\ntests/\r\n  conftest.py           # SQLite in-memory + AsyncClient + admin/school fixtures\r\n  test_api/             # API 集成测试（health/deps/schools/joint_exams/sync_v2/results）\r\n  test_models/          # 模型单测\r\n  test_services/        # Service 单测（exceptions/school/joint_exam/results）\r\n  test_knowledge/       # 知识库单测（loader/store，18 tests）\r\n  test_workers/         # Worker 单测（grading task 注册/签名验证）\r\n```\r\n\r\n### 实现状态\r\n\r\n| 层 | 已实现 | 未实现（规划中）|\r\n|---|--------|--------------|\r\n| API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(documents CRUD+transition+paper/create+paper/:id/status), calendar(events CRUD) | 跨校分析(高级), 题库, 共享 AI 阅卷 |\r\n| Models | 29 表（modules/ 下 exam/student/card/scan/grading/marking/bank/profile/knowledge/pipeline + core school/user/user_role/llm_slot + studio/calendar/notification）| — |\r\n| Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), CalendarService(create/list/delete/triggered_rules), NotificationService(dispatch stub+幂等), exceptions | EventBus handler, AI grading |\r\n| Tasks | tasks.py: auto_draft_notifications（扫描日历→自动创建 notification 草稿，防重复 triggered 标记）| arq cron 生产接入 |\r\n| Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |\r\n| Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |\r\n| Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |\r\n| Tests | 300 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam/Student/Bank/Knowledge模块 全覆盖）| — |\r\n| Modules | 15 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school），路由已迁入 | — |\r\n| Migrations | Alembic 脚手架 | 未写 migration 文件 |\r\n\r\n## 技术栈\r\n\r\n**后端：**\r\n- FastAPI + Uvicorn\r\n- SQLAlchemy 2.0 (async) + asyncpg (PostgreSQL)\r\n- Alembic (migrations)\r\n- python-jose (JWT) + bcrypt\r\n- arq + Redis (后台任务：联考下发、批量阅卷、报表生成)\r\n- httpx (调用学校端 API)\r\n- Docker + docker-compose (部署)\r\n\r\n**前端（`frontend/`）：**\r\n- Vite 5 + Vue 3 (Composition API)\r\n- Naive UI（暗色主题）\r\n- Vue Router 4（`/login` + `/` 含 requiresAuth 守卫）\r\n- Pinia（状态管理）\r\n- Axios（HTTP 客户端）\r\n- ECharts + vue-echarts（图表）\r\n\r\n## 日志体系\r\n\r\n与 exam-ai 保持一致：双输出（Console + JSONL）、Request ID 追踪、UTC+8 时区。\r\n日志文件：`logs/app.jsonl`，10MB 轮转，5 份备份。\r\n\r\n<!-- key-start -->\r\n## 端口约定\r\n\r\n| 服务 | 端口 | 说明 |\r\n|------|------|------|\r\n| edu-cloud 后端 | 9000 | FastAPI（本项目） |\r\n| edu-cloud 前端 | 5173 | Vite dev server（开发）|\r\n| exam-ai | 8000 | 学校端阅卷服务 |\r\n| paper-seg | 8001 | 扫描客户端 |\r\n| paper-skill | 9103 | AI 论文写作服务（外部，REST 客户端通过 PaperService 调用）|\r\n<!-- key-end -->\r\n\r\n## 角色体系\r\n\r\n### 统一角色体系（edu-cloud 管理，P0 重构后）\r\n\r\n> 重构声明（2026-03-21）：edu-cloud 从联考后端升级为统一平台后，\r\n> 学校内角色由 edu-cloud 直接管理，不再由 exam-ai 管理。\r\n> exam-ai 退化为数据采集节点。详见 `docs/plans/2026-03-21-super-platform-design.md` §1。\r\n\r\n| 角色 | 权限 | 说明 |\r\n|------|------|------|\r\n| platform_admin | 全部 | 平台超管 |\r\n| district_admin | 管辖区域内学校 | 教育局管理员 |\r\n| principal | 全校管理+分析 | 校长 |\r\n| academic_director | 教务+联考+分析 | 教务主任 |\r\n| grade_leader | 本年级分析 | 年级组长 |\r\n| homeroom_teacher | 本班管理+评语+通知 | 班主任 |\r\n| subject_teacher | 所教班+学科+论文 | 科任教师 |\r\n| parent | 只看自己孩子 | 家长（企微登录）|\r\n\r\n## API 端点（已实现）\r\n\r\n### 平台端点（JWT 认证）\r\n\r\n| 方法 | 路径 | 用途 |\r\n|------|------|------|\r\n| POST | `/api/v1/auth/login` | 平台用户登录，返回 JWT |\r\n| GET | `/api/v1/health` | 健康检查 |\r\n| GET | `/api/v1/version` | 版本+启动时间 |\r\n\r\n### 学校管理端点（JWT 认证）\r\n\r\n| 方法 | 路径 | 权限 | 用途 |\r\n|------|------|------|------|\r\n| POST | `/api/v1/schools` | MANAGE_SCHOOLS | 创建学校（返回 API Key） |\r\n| GET | `/api/v1/schools` | VIEW_SCHOOLS | 列表（支持 district/is_active 过滤） |\r\n| GET | `/api/v1/schools/{id}` | VIEW_SCHOOLS | 学校详情 |\r\n| PATCH | `/api/v1/schools/{id}` | MANAGE_SCHOOLS | 更新学校信息 |\r\n| POST | `/api/v1/schools/{id}/rotate-key` | MANAGE_SCHOOLS | 轮换 API Key |\r\n\r\n### 联考管理端点（JWT 认证）\r\n\r\n| 方法 | 路径 | 权限 | 用途 |\r\n|------|------|------|------|\r\n| POST | `/api/v1/joint-exams` | CREATE_JOINT_EXAM | 创建联考 |\r\n| GET | `/api/v1/joint-exams` | VIEW_JOINT_EXAM | 联考列表 |\r\n| GET | `/api/v1/joint-exams/{id}` | VIEW_JOINT_EXAM | 联考详情（含参与校） |\r\n| POST | `/api/v1/joint-exams/{id}/participants` | MANAGE_JOINT_EXAM | 添加参与校 |\r\n| DELETE | `/api/v1/joint-exams/{id}/participants/{school_id}` | MANAGE_JOINT_EXAM | 移除参与校 |\r\n| POST | `/api/v1/joint-exams/{id}/distribute` | MANAGE_JOINT_EXAM | 下发联考 |\r\n| POST | `/api/v1/joint-exams/{id}/force-complete` | MANAGE_JOINT_EXAM | 强制截止 |\r\n\r\n### 成绩查看端点（JWT 认证）\r\n\r\n| 方法 | 路径 | 用途 |\r\n|------|------|------|\r\n| GET | `/api/v1/joint-exams/{id}/results` | 排名（支持 subject_code 过滤，无则全科总分） |\r\n| GET | `/api/v1/joint-exams/{id}/results/by-school` | 按校对比（avg/max/median/count） |\r\n| GET | `/api/v1/joint-exams/{id}/results/students/{number}` | 学生明细（含每科排名） |\r\n\r\n### 考试管理端点（JWT 认证，Batch 3 迁入）\r\n\r\n| 方法 | 路径 | 用途 |\r\n|------|------|------|\r\n| POST/GET | `/api/v1/exams` | 创建/列表考试 |\r\n| GET/PATCH | `/api/v1/exams/{id}` | 详情/更新考试 |\r\n| POST/GET | `/api/v1/exams/{id}/subjects` | 创建/列表科目 |\r\n| POST/GET/PATCH/DELETE | `/api/v1/questions` | 题目 CRUD |\r\n| GET/POST | `/api/v1/classes`, `/api/v1/students` | 班级/学生管理 |\r\n| * | `/api/v1/card/*` | 答题卡生成/骨架/条码（19 端点） |\r\n| * | `/api/v1/templates/*` | 模板 CRUD |\r\n| * | `/api/v1/scan/*` | 扫描上传/任务管理 |\r\n| * | `/api/v1/grading/*` | AI 阅卷/评分规则/教师审核 |\r\n| * | `/api/v1/marking/*` | 人工阅卷/分配/导出 |\r\n| * | `/api/v1/analytics/*` | 统计分析（摘要/分布/题目/年级） |\r\n| * | `/api/v1/knowledge/*` | 知识点 CRUD/树查询/关联 |\r\n| POST | `/api/v1/pipeline/run/{id}` | 数据流水线触发 |\r\n| * | `/api/v1/llm-config/slots` | LLM 槽位管理 |\r\n\r\n### Studio 文档端点（JWT 认证）\r\n\r\n| 方法 | 路径 | 权限 | 用途 |\r\n|------|------|------|------|\r\n| GET | `/api/v1/studio/templates` | 已登录 | 获取当前角色可用模板 |\r\n| GET | `/api/v1/studio/documents` | GENERATE_REPORT | 列出文档（本人创建或被指派） |\r\n| POST | `/api/v1/studio/documents` | GENERATE_REPORT | 创建文档 |\r\n| GET | `/api/v1/studio/documents/{id}` | GENERATE_REPORT | 文档详情 |\r\n| PATCH | `/api/v1/studio/documents/{id}` | GENERATE_REPORT | 更新文档内容 |\r\n| POST | `/api/v1/studio/documents/{id}/transition` | GENERATE_NOTIFICATION | 状态流转（P3-4 F3: 通知文档 executed 需额外 SEND_NOTIFICATION；F4: pending 自动创建审批流；executed 触发 NotificationService.dispatch） |\r\n\r\n### Studio 论文端点（JWT 认证）\r\n\r\n| 方法 | 路径 | 权限 | 用途 |\r\n|------|------|------|------|\r\n| POST | `/api/v1/studio/paper/create` | WRITE_PAPER | 创建论文任务（调用 paper-skill，创建 Studio Document 关联记录） |\r\n| GET | `/api/v1/studio/paper/{paper_id}/status` | 已登录 | 查询论文进度（透传 paper-skill /api/paper/:id/status） |\r\n\r\n### 日历端点（JWT 认证，P3-2）\r\n\r\n| 方法 | 路径 | 权限 | 用途 |\r\n|------|------|------|------|\r\n| POST | `/api/v1/calendar/events` | GENERATE_NOTIFICATION | 创建校历事件（含通知规则） |\r\n| GET | `/api/v1/calendar/events` | 已登录 | 列出本校校历事件（支持 start/end 日期过滤） |\r\n| DELETE | `/api/v1/calendar/events/{id}` | GENERATE_NOTIFICATION | 软删除校历事件（is_active=False） |\r\n\r\n### AI Agent 端点（JWT 认证，Batch 4 迁入）\r\n\r\n| 方法 | 路径 | 权限 | 用途 |\r\n|------|------|------|------|\r\n| GET | `/api/v1/ai/health` | 无 | 工具数量 + 状态 |\r\n| POST | `/api/v1/ai/chat` | USE_AI_CHAT | SSE 流式对话（multi-turn session） |\r\n| GET | `/api/v1/ai/sessions` | 已登录 | 列出活跃会话 |\r\n| DELETE | `/api/v1/ai/sessions/{session_id}` | 已登录 | 删除会话 |\r\n\r\n### 未实现端点（规划中）\r\n\r\n- 共享 AI 阅卷（`grading-request`/`grading-result`）\r\n- 统一题库\r\n- 高级跨校分析（趋势/对比图表）\r\n\r\n## 关联项目\r\n\r\n| 项目 | 路径 | 关系 |\r\n|------|------|------|\r\n| exam-ai | `C:/Users/Administrator/exam-ai` | 学校端，本项目的下游客户端 |\r\n| paper-seg | `C:/Users/Administrator/paper-seg` | 扫描端，不直接与云端通信 |\r\n| paper-skill | `C:/Users/Administrator/paper-skill` | AI 论文写作服务，edu-cloud 通过 PaperService 调用（端口 9103）|\r\n\r\n## 数据库\r\n\r\n```\r\n# .env\r\nDATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/edu_cloud\r\n```\r\n\r\n云端必须使用 PostgreSQL（跨校聚合查询、高并发写入）。不支持 SQLite。\r\n\r\n## Docker 部署\r\n\r\n```bash\r\ndocker compose up -d        # 启动\r\ndocker compose pull && docker compose up -d  # 升级\r\ndocker compose logs -f      # 查看日志\r\n```\r\n\r\n## 参考文档\r\n\r\n| 文档 | 路径 | 内容 |\r\n|------|------|------|\r\n| AI Agent 设计 | `docs/plans/2026-03-16-ai-agent-design.md` | Agent Phase 1-4 架构设计（554 行，§14 含 API→Service 分层）|\r\n| 平台交接单 | exam-ai `docs/plans/2026-03-16-platform-handoff.md` | A→B→C→D 四阶段全局规划 |\r\n\r\n## 数据模型概要\r\n\r\n| 表 | 关键字段 | 说明 |\r\n|---|---------|------|\r\n| schools | code(唯一), api_key_hash(Optional), is_active, district | 学校档案（原 registered_schools） |\r\n| users | username(唯一), display_name, hashed_password, is_active | 统一用户（原 PlatformUser 已删除） |\r\n| user_roles | user_id(FK), role, school_id(FK), class_ids, is_primary | 多角色+scope |\r\n| llm_slots | school_id(FK,nullable), slot_number, api_url, api_key, model, is_enabled | LLM 槽位配置（学校覆盖>平台默认>.env） |\r\n| joint_exams | name, status(draft→...→archived), subjects(JSON), created_by(FK→users), creator_school_id(FK) | 联考 |\r\n| joint_exam_participants | joint_exam_id(FK), school_id(FK), status, is_creator | 参与校 |\r\n| joint_exam_student_results | joint_exam_id, school_id, subject_code, student_name/number, total_score, detail_scores(JSON) | 成绩明细 |\r\n| documents | type, title, status, content_json, created_by(FK→users), assigned_to(FK), school_id(FK) | Studio 文档 |\r\n| calendar_events | type, title, event_date, school_id(FK), created_by(FK→users), semester, is_active | 校历事件 |\r\n| notification_rules | event_id(FK), days_before, template_type, target_roles(JSON), auto_draft, triggered | 通知触发规则 |\r\n| notifications | document_id(FK), channel, status, target_scope(JSON), school_id(FK) | 通知发送记录 |\r\n\r\n## 种子数据\r\n\r\n启动时自动创建：平台管理员 `admin/123456`（User + UserRole platform_admin）。\r\n"
+  }
+}
+codex
+我先转到 Phase 1。重点是把计划里要求验证的边界条件和实际新增测试逐一对照，再反查这些测试是否真的能挡住错误实现。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'tests/test_ai/test_registry.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'tests/test_ai/test_context.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'tests/test_ai/test_anonymizer.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'tests/test_ai/test_schemas.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'tests/test_ai/test_tools_analytics.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'tests/test_ai/test_tools_registration.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'tests/test_workers/test_grading_worker.py'" in C:/Users/Administrator/edu-cloud succeeded in 2.26s:
+from edu_cloud.ai.context import build_system_prompt, AgentContext
+
+
+def test_system_prompt_contains_role():
+    prompt = build_system_prompt(
+        role="homeroom_teacher", display_name="寮犺€佸笀",
+        scope={"school": "瀹為獙涓", "classes": ["涓冨勾绾?鐝?]},
+        tool_names=["get_exam_scores", "get_class_stats"],
+    )
+    assert "寮犺€佸笀" in prompt
+    assert "鐝富浠? in prompt or "homeroom_teacher" in prompt
+    assert "涓冨勾绾?鐝? in prompt
+    assert "get_exam_scores" in prompt
+
+
+def test_system_prompt_without_scope():
+    prompt = build_system_prompt(
+        role="platform_admin", display_name="绠＄悊鍛?, scope={}, tool_names=["get_exam_scores"],
+    )
+    assert "绠＄悊鍛? in prompt
+ succeeded in 2.27s:
+from edu_cloud.ai.schemas import ChatMessage, ToolCall, AgentEvent
+
+
+def test_chat_message_creation():
+    msg = ChatMessage(role="user", content="浣犲ソ")
+    assert msg.role == "user"
+    assert msg.content == "浣犲ソ"
+    assert msg.tool_calls is None
+
+
+def test_tool_call_creation():
+    tc = ToolCall(id="tc1", name="get_exam_scores", arguments={"exam_id": "e1"})
+    assert tc.name == "get_exam_scores"
+    assert tc.arguments["exam_id"] == "e1"
+
+
+def test_agent_event_serialization():
+    event = AgentEvent(type="tool_call", data={"tool": "get_exam_scores"})
+    d = event.to_dict()
+    assert d["type"] == "tool_call"
+ succeeded in 2.33s:
+from edu_cloud.ai.anonymizer import Anonymizer
+
+
+def test_anonymize_dict_with_name_fields():
+    """Anonymizer detects name fields and replaces with codes."""
+    anon = Anonymizer()
+    data = {"student_name": "寮犱笁", "score": 135}
+    result = anon.anonymize(data)
+    assert result["student_name"] == "S001"
+    assert result["score"] == 135
+    # Original not modified
+    assert data["student_name"] == "寮犱笁"
+
+
+def test_anonymize_nested():
+    """Nested dicts and lists are recursively anonymized."""
+    anon = Anonymizer()
+    data = {"students": [{"name": "寮犱笁", "score": 90}, {"name": "鏉庡洓", "score": 85}]}
+    result = anon.anonymize(data)
+    assert result["students"][0]["name"] == "S001"
+ succeeded in 2.32s:
+import pytest
+from edu_cloud.ai.registry import ToolRegistry
+
+registry = ToolRegistry()
+
+@registry.register(
+    name="test_add", description="涓ゆ暟鐩稿姞",
+    parameters={"type": "object", "properties": {"a": {"type": "number"}, "b": {"type": "number"}}, "required": ["a", "b"]},
+    category="test",
+)
+async def _add_func(a: float, b: float, _db=None) -> dict:
+    return {"result": a + b}
+
+def test_register_tool():
+    assert "test_add" in registry.list_tools()
+
+def test_get_schemas():
+    schemas = registry.get_schemas()
+    assert len(schemas) >= 1
+    schema = next(s for s in schemas if s["function"]["name"] == "test_add")
+ succeeded in 2.01s:
+import pytest
+from edu_cloud.ai.tools.analytics import get_exam_scores, get_class_stats
+
+
+@pytest.mark.asyncio
+async def test_get_exam_scores(db, seed_exam_with_results):
+    exam_id = seed_exam_with_results["exam_id"]
+    school_id = seed_exam_with_results["school_id"]
+    result = await get_exam_scores(exam_id=exam_id, _db=db, _school_id=school_id, _class_ids=None)
+    assert "students" in result
+    assert len(result["students"]) > 0
+    assert "total_score" in result["students"][0]
+    assert "stats" in result
+
+
+@pytest.mark.asyncio
+async def test_get_exam_scores_with_class_filter(db, seed_exam_with_results):
+    exam_id = seed_exam_with_results["exam_id"]
+    school_id = seed_exam_with_results["school_id"]
+    class_id = seed_exam_with_results["class_id"]
+ succeeded in 1.81s:
+"""Verify all 25+ tools are registered and RBAC mapping is correct."""
+import pytest
+from edu_cloud.ai.registry import tools
+import edu_cloud.ai.tools  # noqa: F401 鈥?trigger registration
+from edu_cloud.ai.agent import ROLE_TOOL_CATEGORIES
+
+
+def test_total_tool_count():
+    """All tool modules register the expected total (鈮?5 tools)."""
+    all_tools = tools.list_tools()
+    assert len(all_tools) >= 25, f"Expected 鈮?5 tools, got {len(all_tools)}: {all_tools}"
+
+
+def test_tool_categories_present():
+    """All 9 expected categories have at least one tool."""
+    expected_categories = {
+        "L1_exam", "L1_student",
+        "L2_analytics", "L2_cross_school",
+        "L3_knowledge", "L3_knowledge_db",
+        "L4_action", "L5_bank", "L6_profile",
+ succeeded in 2.06s:
+"""Grading worker tests 鈥?mock Redis, verify task registration."""
+import pytest
+from unittest.mock import AsyncMock, patch, MagicMock
+
+
+def test_worker_settings_has_grading_functions():
+    """WorkerSettings registers grading + pipeline functions."""
+    from edu_cloud.worker import WorkerSettings
+    func_names = [f.__name__ if hasattr(f, "__name__") else str(f) for f in WorkerSettings.functions]
+    assert "process_grading_task" in func_names
+    assert "run_post_exam_pipeline" in func_names
+    assert "run_auto_draft" in func_names
+
+
+def test_worker_settings_has_cron_jobs():
+    """WorkerSettings has at least 1 cron job."""
+    from edu_cloud.worker import WorkerSettings
+    assert len(WorkerSettings.cron_jobs) >= 1
+
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/schemas.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/anonymizer.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/context.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/agent.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/llm.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/workers/grading.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/api/ai.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/worker.py'" in C:/Users/Administrator/edu-cloud succeeded in 2.04s:
+"""Agent 鏁版嵁妯″瀷銆?""
+from __future__ import annotations
+import json
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class ChatMessage:
+    role: str  # system / user / assistant / tool
+    content: str | None = None
+    tool_calls: list[ToolCall] | None = None
+    tool_call_id: str | None = None  # role=tool 鏃跺繀濉?    name: str | None = None  # role=tool 鏃剁殑宸ュ叿鍚?
+    def to_dict(self) -> dict:
+        d: dict = {"role": self.role}
+        if self.content is not None:
+            d["content"] = self.content
+        if self.tool_calls:
+            d["tool_calls"] = [tc.to_openai() for tc in self.tool_calls]
+        if self.tool_call_id:
+ succeeded in 2.23s:
+"""浼氳瘽绾ф暟鎹劚鏁?鈥?濮撳悕鈫掍唬鍙锋槧灏勶紝student_number 绉婚櫎銆?""
+from __future__ import annotations
+import logging
+
+logger = logging.getLogger(__name__)
+
+# 闇€瑕佽劚鏁忕殑瀛楁鍚?_NAME_FIELDS = {"student_name", "name", "display_name"}
+# 闇€瑕佸畬鍏ㄧЩ闄ょ殑瀛楁锛堜笉鍙戦€佺粰 LLM锛?_STRIP_FIELDS = {"student_number"}
+
+
+class Anonymizer:
+    """浼氳瘽绾у鍚嶈劚鏁忋€傜嚎绋嬩笉瀹夊叏锛屾瘡涓細璇濈嫭绔嬪疄渚嬨€?""
+
+    def __init__(self):
+        self._name_to_code: dict[str, str] = {}
+        self._code_to_name: dict[str, str] = {}
+        self._counter = 0
+
+    def _get_or_create_code(self, name: str) -> str:
+        if name in self._name_to_code:
+warning: in-process app-server event stream lagged; dropped 2 events
+ succeeded in 1.54s:
+"""
+arq worker 鍏ュ彛銆?鍚姩鏂瑰紡: arq edu_cloud.worker.WorkerSettings
+PM2: pm2 start arq -- edu_cloud.worker.WorkerSettings
+"""
+import logging
+from arq import cron
+from arq.connections import RedisSettings
+from edu_cloud.config import settings
+from edu_cloud.database import async_session
+from edu_cloud.tasks import auto_draft_notifications
+from edu_cloud.workers.grading import process_grading_task, run_post_exam_pipeline
+
+logger = logging.getLogger(__name__)
+
+
+async def run_auto_draft(ctx):
+    """arq cron job: 姣忓ぉ 6:00 (UTC+8 = 22:00 UTC) 鎵弿鏃ュ巻"""
+    async with async_session() as db:
+        count = await auto_draft_notifications(db)
+        logger.info(f"Auto-draft job completed: {count} notifications created")
+ succeeded in 2.15s:
+"""Agent context 鈥?system prompt building + session-level context management."""
+from __future__ import annotations
+import json
+import logging
+from edu_cloud.ai.schemas import ChatMessage, ToolCall  # noqa: F401
+
+logger = logging.getLogger(__name__)
+
+# 鈹€鈹€ Role localization 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+ROLE_CN = {
+    "platform_admin": "骞冲彴绠＄悊鍛?, "district_admin": "鏁欒偛灞€绠＄悊鍛?,
+    "principal": "鏍￠暱", "academic_director": "鏁欏姟涓讳换",
+    "grade_leader": "骞寸骇缁勯暱", "homeroom_teacher": "鐝富浠?,
+    "subject_teacher": "绉戜换鏁欏笀", "parent": "瀹堕暱",
+}
+
+
+def build_system_prompt(role: str, display_name: str, scope: dict, tool_names: list[str]) -> str:
+    """Build platform system prompt for Agent."""
+    role_cn = ROLE_CN.get(role, role)
+ succeeded in 2.21s:
+"""閫氱敤 LLM Chat 瀹㈡埛绔?鈥?鏀寔 OpenAI Chat 鍜?Anthropic Messages 涓ょ API 鏍煎紡銆?
+鑷姩妫€娴嬶細URL 涓惈 "anthropic" 鈫?璧?Anthropic Messages API锛屽惁鍒欒蛋 OpenAI Chat銆?"""
+import json as _json
+import logging
+import httpx
+from edu_cloud.ai.schemas import ChatMessage, ToolCall
+
+logger = logging.getLogger(__name__)
+
+
+class LLMChatClient:
+    """闈炴祦寮?chat completion 瀹㈡埛绔紝鏀寔 tool_calls銆傝嚜鍔ㄩ€傞厤 OpenAI/Anthropic銆?""
+
+    def __init__(
+        self,
+        api_url: str,
+        api_key: str,
+        model: str,
+        timeout: int = 60,
+        max_retries: int = 3,
+ succeeded in 2.16s:
+"""ReAct Agent 鈥?寰幆鎵ц LLM鈫掑伐鍏封啋缁撴灉鈫扡LM 鐩村埌寰楀嚭鏈€缁堢瓟妗堛€?""
+import json
+import logging
+import time
+from typing import AsyncGenerator
+
+from edu_cloud.ai.anonymizer import Anonymizer
+from edu_cloud.ai.context import AgentContext, build_system_prompt
+from edu_cloud.ai.registry import ToolRegistry
+from edu_cloud.ai.schemas import AgentEvent, ChatMessage, ToolCall  # noqa: F401
+from edu_cloud.config import settings
+
+logger = logging.getLogger(__name__)
+
+# Maps each role to the tool categories it may access.
+# None means unrestricted (all categories).
+# 9 categories: L1_exam, L1_student, L2_analytics, L2_cross_school,
+#               L3_knowledge, L3_knowledge_db, L4_action, L5_bank, L6_profile
+ROLE_TOOL_CATEGORIES: dict[str, list[str] | None] = {
+    "platform_admin": None,  # all categories
+ succeeded in 2.65s:
+"""AI 闃呭嵎 Worker 鈥?鍚庡彴澶勭悊涓昏棰樿瘎鍒嗕换鍔°€?
+閫氳繃 arq 璋冨害锛屼粠 Redis 鎺ユ敹 task_id锛屾壒閲忚皟鐢?LLM 璇勫垎銆?"""
+import base64
+import logging
+import time
+import aiofiles
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+from edu_cloud.config import settings
+from edu_cloud.modules.exam.models import Question
+from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.modules.grading.models import Rubric, GradingTask, AIGradingResult
+
+logger = logging.getLogger(__name__)
+
+
+def _create_llm_client():
+    """Create LLM client for grading (reads from settings)."""
+ succeeded in 2.39s:
+"""AI Agent API 鈥?chat SSE + sessions CRUD + health銆?""
+import json
+import logging
+import uuid
+from dataclasses import dataclass
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.database import get_db
+from edu_cloud.api.deps import require_permission, get_current_user
+from edu_cloud.core.permissions import Permission
+from edu_cloud.ai.agent import Agent, ROLE_TOOL_CATEGORIES
+from edu_cloud.ai.llm import LLMChatClient
+from edu_cloud.ai.registry import tools
+from edu_cloud.ai.audit import AuditLogger
+from edu_cloud.ai.context import AgentContext, build_system_prompt
+from edu_cloud.ai.anonymizer import Anonymizer
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/tools/__init__.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/tools/analytics_compare.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/tools/analytics.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/tools/exams.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/tools/analytics_score.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/tools/students.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/tools/bank.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/tools/profile.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/tools/knowledge_db.py'" in C:/Users/Administrator/edu-cloud succeeded in 1.78s:
+from edu_cloud.ai.tools import analytics  # noqa: F401 鈥?L1_analytics (4): edu-cloud cross-school
+from edu_cloud.ai.tools import actions  # noqa: F401 鈥?L4_action (2): report/comment generation
+from edu_cloud.ai.tools import knowledge  # noqa: F401 鈥?L3_knowledge (4): in-memory knowledge store
+from edu_cloud.ai.tools import analytics_score  # noqa: F401 鈥?L2_analytics (5): score queries
+from edu_cloud.ai.tools import analytics_compare  # noqa: F401 鈥?L2_analytics (3): class comparison
+from edu_cloud.ai.tools import exams  # noqa: F401 鈥?L1_exam (3): exam/subject/question
+from edu_cloud.ai.tools import students  # noqa: F401 鈥?L1_student (4): class/student queries
+from edu_cloud.ai.tools import bank  # noqa: F401 鈥?L5_bank (2): error book/question stats
+from edu_cloud.ai.tools import profile  # noqa: F401 鈥?L6_profile (4): trend/knowledge map/weakness
+from edu_cloud.ai.tools import knowledge_db  # noqa: F401 鈥?L3_knowledge_db (2): DB knowledge tree
+ succeeded in 1.50s:
+"""棰樺簱 + 閿欓鏈伐鍏凤紙2 涓級銆侺5_bank 绫诲埆銆?""
+from edu_cloud.ai.registry import tools
+
+
+@tools.register(
+    name="get_student_error_book",
+    description="鑾峰彇鏌愬鐢熺殑閿欓鏈€傝繑鍥炶瀛︾敓鍋氶敊鐨勯鐩垪琛紝鍚?AI 鍙嶉鍜屾帉鎻＄姸鎬併€?,
+    category="L5_bank",
+    parameters={
+        "type": "object",
+        "properties": {
+            "student_id": {"type": "string", "description": "瀛︾敓 ID"},
+            "mastery_status": {"type": "string", "description": "杩囨护鎺屾彙鐘舵€侊細unmastered/practicing/mastered"},
+        },
+        "required": ["student_id"],
+    },
+)
+async def get_student_error_book(student_id: str, mastery_status: str | None = None, _school_id="", _db=None, **_):
+    from edu_cloud.modules.bank.service import get_student_error_book as svc_error_book, get_error_book_stats
+    errors = await svc_error_book(
+ succeeded in 1.74s:
+"""鑰冭瘯鍩熷伐鍏凤紙3 涓級銆侺1_exam 绫诲埆銆?""
+from edu_cloud.ai.registry import tools
+
+
+@tools.register(
+    name="get_exam_list",
+    description="鑾峰彇鑰冭瘯鍒楄〃銆傚彲鎸夌姸鎬佽繃婊わ紙draft/scanning/grading/reviewing/completed锛夈€?,
+    category="L1_exam",
+    parameters={
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "description": "鍙€夛紝鑰冭瘯鐘舵€佽繃婊?},
+        },
+        "required": [],
+    },
+)
+async def get_exam_list(
+    status: str | None = None,
+    _school_id: str = "",
+    _db=None,
+ succeeded in 2.03s:
+"""瀛︾敓/鐝骇鍩熷伐鍏凤紙4 涓級銆侺1_student 绫诲埆銆?""
+from edu_cloud.ai.registry import tools
+
+
+@tools.register(
+    name="get_class_list",
+    description="鑾峰彇鐝骇鍒楄〃銆傚彲鎸夊勾绾ц繃婊ゃ€傝繑鍥炵彮绾?ID銆佸悕绉般€佸勾绾с€?,
+    category="L1_student",
+    parameters={
+        "type": "object",
+        "properties": {
+            "grade": {"type": "string", "description": "鍙€夛紝骞寸骇杩囨护锛堝'楂樹簩'锛?},
+        },
+        "required": [],
+    },
+)
+async def get_class_list(
+    grade: str | None = None,
+    _school_id: str = "",
+    _visible_classes: list[str] | None = None,
+ succeeded in 2.18s:
+"""L2 璺ㄦ牎鍒嗘瀽宸ュ叿 鈥?鑱旇€?璺ㄦ牎鎴愮哗鏌ヨ銆?
+鏍℃湰鍒嗘瀽宸ュ叿宸茶縼绉诲埌 analytics_score.py / analytics_compare.py锛圔atch 4锛夈€?compare_classes / get_student_profile 宸茶鏂板伐鍏锋浛浠ｏ紝浠庢湰鏂囦欢绉婚櫎銆?"""
+import statistics
+import logging
+from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.ai.registry import tools
+from edu_cloud.models.exam import Exam, ExamResult
+from edu_cloud.models.student import Student
+from edu_cloud.models.class_group import ClassGroup
+
+logger = logging.getLogger(__name__)
+
+
+def _compute_stats(scores: list[float]) -> dict:
+    """璁＄畻 count/avg/max/min/median 缁熻銆?""
+    if not scores:
+ succeeded in 2.60s:
+"""瀵规瘮鑱氬悎宸ュ叿锛? 涓級銆侺2_analytics 绫诲埆銆?""
+from edu_cloud.ai.registry import tools
+
+
+@tools.register(
+    name="compare_classes",
+    description="澶氱彮绾ф垚缁╁姣斻€傝繑鍥炲悇鐝钩鍧囧垎銆佹渶楂樺垎銆佹渶浣庡垎銆?,
+    category="L2_analytics",
+    parameters={
+        "type": "object",
+        "properties": {
+            "exam_id": {"type": "string", "description": "鑰冭瘯 ID"},
+            "class_ids": {"type": "array", "items": {"type": "string"}, "description": "鐝骇 ID 鍒楄〃"},
+            "subject_id": {"type": "string", "description": "鍙€夛紝绉戠洰 ID"},
+        },
+        "required": ["exam_id", "class_ids"],
+    },
+)
+async def compare_classes(
+    exam_id: str,
+ succeeded in 2.80s:
+"""鎴愮哗鏌ヨ宸ュ叿锛? 涓級銆侺2_analytics 绫诲埆銆?""
+from edu_cloud.ai.registry import tools
+
+
+@tools.register(
+    name="get_exam_summary",
+    description="鑾峰彇鑰冭瘯鎬昏锛氬悇绉戝钩鍧囧垎銆佹渶楂樺垎銆佹渶浣庡垎銆佸緱鍒嗙巼銆?,
+    category="L2_analytics",
+    parameters={
+        "type": "object",
+        "properties": {
+            "exam_id": {"type": "string", "description": "鑰冭瘯 ID"},
+        },
+        "required": ["exam_id"],
+    },
+)
+async def get_exam_summary(
+    exam_id: str,
+    _school_id: str = "",
+    _visible_subjects: list[str] | None = None,
+ succeeded in 3.28s:
+"""瀛︾敓鐢诲儚宸ュ叿锛? 涓級銆侺6_profile 绫诲埆銆?""
+from edu_cloud.ai.registry import tools
+
+
+@tools.register(
+    name="get_student_trend",
+    description="鑾峰彇鏌愬鐢熺殑鎴愮哗瓒嬪娍銆傝繑鍥炶瀛︾敓鍘嗘鑰冭瘯鐨勫垎鏁般€佹帓鍚嶅彉鍖栥€?,
+    category="L6_profile",
+    parameters={
+        "type": "object",
+        "properties": {
+            "student_id": {"type": "string", "description": "瀛︾敓 ID"},
+            "subject_code": {"type": "string", "description": "瀛︾浠ｇ爜锛堝彲閫夛紝涓嶄紶鍒欒繑鍥炴墍鏈夌鐩級"},
+        },
+        "required": ["student_id"],
+    },
+)
+async def get_student_trend(student_id: str, subject_code: str | None = None, _school_id="", _db=None, **_):
+    from edu_cloud.modules.profile.service import get_student_trend as svc_trend
+    snaps = await svc_trend(
+ succeeded in 969ms:
+"""鐭ヨ瘑鐐?DB 鏌ヨ宸ュ叿锛? 涓級銆侺3_knowledge_db 绫诲埆銆?
+鍩轰簬 modules/knowledge 鐨勫叧绯诲瀷鏁版嵁搴撴煡璇紙涓?knowledge.py 鐨勫唴瀛樼储寮曚簰琛ワ級銆?"""
+from edu_cloud.ai.registry import tools
+
+
+@tools.register(
+    name="get_knowledge_tree",
+    description="鑾峰彇鏌愬绉戠殑鐭ヨ瘑鐐规爲銆傝繑鍥炴寚瀹氬眰绾х殑鐭ヨ瘑鐐瑰垪琛ㄣ€備笉浼?parent_id 杩斿洖椤跺眰鑺傜偣銆?,
+    category="L3_knowledge_db",
+    parameters={
+        "type": "object",
+        "properties": {
+            "course_code": {"type": "string", "description": "瀛︾浠ｇ爜锛屽 SX(鏁板)銆乊W(璇枃)銆乊Y(鑻辫)"},
+            "parent_id": {"type": "string", "description": "鐖剁煡璇嗙偣 ID锛屼笉浼犲垯杩斿洖椤跺眰"},
+        },
+        "required": ["course_code"],
+    },
+)
+async def get_knowledge_tree(course_code: str, parent_id: str | None = None, _db=None, _school_id=None, **_):
+    from edu_cloud.modules.knowledge.service import list_knowledge_points
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'tests/test_ai/test_agent.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'tests/test_api/test_ai_api.py'" in C:/Users/Administrator/edu-cloud succeeded in 1.04s:
+import pytest
+from unittest.mock import AsyncMock
+from edu_cloud.ai.agent import Agent
+from edu_cloud.ai.schemas import ChatMessage, ToolCall
+from edu_cloud.ai.registry import ToolRegistry
+
+
+@pytest.fixture
+def test_registry():
+    reg = ToolRegistry()
+
+    @reg.register(
+        name="mock_tool",
+        description="杩斿洖鍥哄畾鏁版嵁",
+        category="test",
+        parameters={
+            "type": "object",
+            "properties": {"q": {"type": "string"}},
+            "required": ["q"],
+        },
+ exited 1 in 1.39s:
+Get-Content : Cannot find path 'C:\Users\Administrator\edu-cloud\tests\test_api\test_ai_api.py' because it does not exi
+st.
+At line:2 char:1
++ Get-Content -Path 'tests/test_api/test_ai_api.py'
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\Admini...\test_ai_api.py:String) [Get-Content], ItemNotFoundEx 
+   ception
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetContentCommand
+ 
+codex
+现有 `test_agent.py` 我也拉进来了；它能覆盖 Agent 主循环的一部分，但还需要确认 AI API 的旧回归测试是否存在以及是否覆盖了新引入的 session/CRUD 行为。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg --files tests | rg "ai.*api|api.*ai"' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 590b7de~1..5a10279 -- tests/test_ai/ tests/test_workers/' in C:/Users/Administrator/edu-cloud succeeded in 531ms:
+diff --git a/tests/test_ai/test_anonymizer.py b/tests/test_ai/test_anonymizer.py
+index 63e8e49..f4984b9 100644
+--- a/tests/test_ai/test_anonymizer.py
++++ b/tests/test_ai/test_anonymizer.py
+@@ -1,37 +1,55 @@
+ from edu_cloud.ai.anonymizer import Anonymizer
+ 
+ 
+-def test_anonymize_names():
++def test_anonymize_dict_with_name_fields():
++    """Anonymizer detects name fields and replaces with codes."""
+     anon = Anonymizer()
+-    text = "张三的数学成绩是 135 分，李四的是 120 分"
+-    names = ["张三", "李四"]
+-    result = anon.anonymize(text, names)
+-    assert "张三" not in result
+-    assert "李四" not in result
+-    assert "S001" in result
+-    assert "S002" in result
++    data = {"student_name": "张三", "score": 135}
+ succeeded in 1.37s:
+tests\test_ai\test_ai_api.py
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'tests/test_ai/test_ai_api.py'" in C:/Users/Administrator/edu-cloud succeeded in 403ms:
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_ai_health(client):
+    resp = await client.get("/api/v1/ai/health")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_ai_health_includes_tool_count(client):
+    resp = await client.get("/api/v1/ai/health")
+    data = resp.json()
+    assert "tools" in data
+    assert isinstance(data["tools"], int)
+    assert data["tools"] >= 0
+
+
+@pytest.mark.asyncio
+codex
+我已经看到明显的覆盖失衡：新测试主要落在 schema/context/注册层，很多高风险新增路径还没被触碰。我再用全文搜索把“哪些新增行为完全没测到”落成可引用证据。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"LLMChatClient|_chat_anthropic|tool_use_id|Anthropic|/sessions|session_id|AgentContext\\(|Anonymizer\\(|process_grading_task\\(|compare_classes\\(|get_exam_list\\(|get_student_trend\\(|get_question_stats\\(|get_knowledge_tree\\(\" tests" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "tool_result|_visible_classes|_visible_subjects|AI_MAX_STEPS|max_steps|audit.log_tool_call|session_id" tests/test_ai' in C:/Users/Administrator/edu-cloud succeeded in 489ms:
+tests\test_ai\test_context.py:24:    ctx = AgentContext(system_content="你是助手")
+tests\test_ai\test_context.py:35:    ctx = AgentContext(system_content="系统提示")
+tests\test_ai\test_context.py:44:    ctx = AgentContext(system_content="系统提示")
+tests\test_ai\test_context.py:52:    ctx = AgentContext(system_content="系统提示")
+tests\test_ai\test_anonymizer.py:6:    anon = Anonymizer()
+tests\test_ai\test_anonymizer.py:17:    anon = Anonymizer()
+tests\test_ai\test_anonymizer.py:26:    anon = Anonymizer()
+tests\test_ai\test_anonymizer.py:34:    anon = Anonymizer()
+tests\test_ai\test_anonymizer.py:42:    anon = Anonymizer()
+tests\test_ai\test_anonymizer.py:51:    anon = Anonymizer()
+tests\test_ai\test_agent.py:37:        session_id="test",
+tests\test_ai\test_agent.py:67:        session_id="test",
+tests\test_ai\test_agent.py:95:        session_id="test",
+tests\test_ai\test_agent.py:117:        session_id="test",
+tests\test_ai\test_agent.py:161:        session_id="test",
+tests\test_ai\test_agent.py:188:        session_id="test",
+tests\test_ai\test_agent.py:217:        session_id="test-session",
+tests\test_ai\test_agent.py:231:    assert call_kwargs["session_id"] == "test-session"
+tests\test_ai\test_agent.py:259:        session_id="test",
+tests\test_models\test_document.py:14:    assert "ai_session_id" in cols
+ succeeded in 476ms:
+tests/test_ai\test_agent.py:37:        session_id="test",
+tests/test_ai\test_agent.py:67:        session_id="test",
+tests/test_ai\test_agent.py:78:    assert "tool_result" in types
+tests/test_ai\test_agent.py:83:async def test_agent_max_steps(test_registry):
+tests/test_ai\test_agent.py:84:    """Exceeds max_steps → forced stop"""
+tests/test_ai\test_agent.py:91:    agent = Agent(llm=mock_llm, registry=test_registry, max_steps=2)
+tests/test_ai\test_agent.py:95:        session_id="test",
+tests/test_ai\test_agent.py:117:        session_id="test",
+tests/test_ai\test_agent.py:161:        session_id="test",
+tests/test_ai\test_agent.py:172:    assert "tool_result" in types
+tests/test_ai\test_agent.py:174:    # tool_result should contain error info
+tests/test_ai\test_agent.py:175:    tool_result_event = next(e for e in events if e.type == "tool_result")
+tests/test_ai\test_agent.py:176:    assert "error" in tool_result_event.data["result"]
+tests/test_ai\test_agent.py:188:        session_id="test",
+tests/test_ai\test_agent.py:201:async def test_agent_calls_audit_log_tool_call(test_registry):
+tests/test_ai\test_agent.py:202:    """Agent calls audit.log_tool_call() after each tool execution."""
+tests/test_ai\test_agent.py:217:        session_id="test-session",
+tests/test_ai\test_agent.py:228:    # audit.log_tool_call should have been called once
+tests/test_ai\test_agent.py:229:    mock_audit.log_tool_call.assert_called_once()
+tests/test_ai\test_agent.py:230:    call_kwargs = mock_audit.log_tool_call.call_args[1]
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "get_exam_list|get_exam_detail|get_subject_questions|get_class_list|get_class_roster|search_students|get_student_profile|get_student_error_book|get_question_stats|get_student_trend|get_student_knowledge_map|get_class_knowledge_weakness|get_student_error_pattern|get_knowledge_tree|get_question_knowledge_points|compare_classes|rank_students|get_grade_aggregates|get_exam_summary|get_score_distribution|get_question_analysis|get_student_scores|get_class_scores" tests' in C:/Users/Administrator/edu-cloud succeeded in 624ms:
+tests\test_ai\test_tools_registration.py:42:    assert "get_knowledge_tree" in tool_names  # L3_knowledge_db
+tests\test_ai\test_tools_registration.py:44:    assert "get_exam_list" not in tool_names  # L1_exam
+tests\test_ai\test_tools_registration.py:53:    assert "get_student_trend" in tool_names
+tests\test_ai\test_tools_registration.py:62:    assert "get_student_error_book" in tool_names
+tests\test_ai\test_tools_registration.py:71:    assert "get_student_trend" in tool_names
+tests\test_ai\test_tools_registration.py:72:    assert "get_exam_list" not in tool_names
+tests\test_modules\test_student\test_service.py:4:from edu_cloud.modules.student.service import list_classes, list_students, search_students, get_student
+tests\test_modules\test_student\test_service.py:67:async def test_search_students(db):
+tests\test_modules\test_student\test_service.py:78:    results = await search_students(db, school_id=school.id, query="张")
+tests\test_services\test_joint_exam_service.py:38:    detail = await svc.get_exam_detail(exam.id)
+tests\test_services\test_joint_exam_service.py:57:    detail = await svc.get_exam_detail(exam.id)
+tests\test_modules\test_bank\test_service.py:5:    get_bank_question, list_bank_questions, get_student_error_book, get_error_book_stats,
+tests\test_modules\test_knowledge\test_service.py:5:    get_children, link_question, get_question_knowledge_points,
+tests\test_modules\test_knowledge\test_service.py:67:    kps = await get_question_knowledge_points(db, question_id=q.id)
+tests\test_api\test_joint_exams.py:92:async def test_get_exam_detail_api(client, admin_headers, exam_setup):
+tests\test_ai\test_tools_analytics.py:39:# compare_classes → moved to analytics_compare.py (L2_analytics)
+tests\test_ai\test_tools_analytics.py:40:# get_student_profile → moved to students.py (L1_student)
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_ai tests/test_workers -q' in C:/Users/Administrator/edu-cloud succeeded in 9.54s:
+........................................................................ [ 92%]
+......                                                                   [100%]
+============================== warnings summary ===============================
+src\edu_cloud\config.py:74
+  C:\Users\Administrator\edu-cloud\src\edu_cloud\config.py:74: UserWarning: SECRET_KEY is using default value 'change-me'. Set SECRET_KEY in .env for production!
+    return Settings()
+
+tests/test_ai/test_ai_api.py::test_ai_health
+  C:\Users\Administrator\AppData\Roaming\Python\Python311\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+78 passed, 2 warnings in 5.88s
+codex
+我已经确认测试套件本身是绿的，但“绿”主要来自浅层断言，不代表这些新增高风险路径被守住。现在把计划声明的必测边界和实际缺失的覆盖做成可定位证据。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "Anthropic|token 裁剪|_sessions|session CRUD|process_grading_task|session_factory|RBAC|每角色工具可见性验证|worker 测试|multi-turn|tool_result" docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md docs/plans/2026-03-22-platform-merge-plan.md' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"class LLMChatClient|def _chat_anthropic|tool_use_id|def build_messages|def ai_chat|@router.get\\(\\\"/sessions\\\"\\)|@router.delete\\(\\\"/sessions/\\{session_id\\}\\\"\\)|async def process_grading_task|async def compare_classes|async def get_exam_list|async def get_student_trend\" src/edu_cloud/ai/llm.py src/edu_cloud/ai/context.py src/edu_cloud/api/ai.py src/edu_cloud/workers/grading.py src/edu_cloud/ai/tools/*.py" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "LLMChatClient|Anthropic|tool_use_id|/sessions|session_id|max_tokens|compare_classes|get_exam_list|get_student_trend|get_question_stats|get_knowledge_tree|process_grading_task|session_factory|rubric|no rubric" tests/test_ai tests/test_workers' in C:/Users/Administrator/edu-cloud succeeded in 618ms:
+docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:16:| 17 | AI 工具合并 + RBAC | 8a71b9b | 14 |
+docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:28:| ai/llm.py | 替换 | 取 exam-ai 版本（209 LOC）：LLMChatClient 双协议（OpenAI+Anthropic 自动检测），重试机制，llm-proxy slot 支持 |
+docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:32:| api/ai.py | 合并 | 新增 ChatRequest Pydantic 模型（消息验证），_sessions dict 缓存多轮会话，sessions CRUD 端点（GET/DELETE），LLMChatClient 替换 LLMClient，SSE done 事件 |
+docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:43:- [ ] LLMChatClient 的 Anthropic 路径是否正确处理 tool_result 格式（tool_call_id → tool_use_id）
+docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:44:- [ ] AgentContext.build_messages 的 token 裁剪是否在多轮对话中正确保留最新消息
+docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:45:- [ ] api/ai.py 的 _sessions 内存缓存是否有泄漏风险（无 TTL/eviction）
+docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:47:## Task 17: AI 工具合并 + RBAC (8a71b9b)
+docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:64:### RBAC 映射（设计文档 §5.2）
+docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:96:| workers/grading.py | 新建 | 迁入 exam-ai 的 process_grading_task（193 LOC）+ run_post_exam_pipeline stub |
+docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:97:| worker.py | 修改 | functions 列表新增 process_grading_task + run_post_exam_pipeline |
+docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:107:- [ ] process_grading_task 的 session_factory 容错逻辑是否合理（fallback 创建 local_engine）
+docs/plans/2026-03-22-platform-merge-plan.md:852:- Modify: `src/edu_cloud/api/ai.py` — 合并：取 exam-ai 版本（含 session CRUD，228 LOC vs 65 LOC）
+docs/plans/2026-03-22-platform-merge-plan.md:902:- [ ] **Step 3: 更新 RBAC 映射**
+docs/plans/2026-03-22-platform-merge-plan.md:915:git add -A && git commit -m "feat(ai): 合并 25 工具 + 9 类别 RBAC 映射"
+docs/plans/2026-03-22-platform-merge-plan.md:922:- Modify: `src/edu_cloud/worker.py` — 注册 process_grading_task + run_post_exam_pipeline
+docs/plans/2026-03-22-platform-merge-plan.md:932:    process_grading_task,
+docs/plans/2026-03-22-platform-merge-plan.md:938:- [ ] **Step 3: 写 worker 测试（mock Redis）**
+docs/plans/2026-03-22-platform-merge-plan.md:1164:| 4 | **AI Agent RBAC**（Task 17）| 安全 | 每角色工具可见性验证 |
+ exited 1 in 625ms:
+rg: regex parse error:
+    (?:class LLMChatClient|def _chat_anthropic|tool_use_id|def build_messages|def ai_chat|@router.get\(" /sessions\\)|@router.delete\(\/sessions/\ -encodedCommand cwBlAHMAcwBpAG8AbgBfAGkAZABcAA== \\)|async)
+                                                                                                                                                                                                      ^
+error: unopened group
+ succeeded in 641ms:
+tests/test_workers\test_grading_worker.py:10:    assert "process_grading_task" in func_names
+tests/test_workers\test_grading_worker.py:29:def test_process_grading_task_is_importable():
+tests/test_workers\test_grading_worker.py:30:    """process_grading_task can be imported and has correct signature."""
+tests/test_workers\test_grading_worker.py:31:    from edu_cloud.workers.grading import process_grading_task
+tests/test_workers\test_grading_worker.py:33:    sig = inspect.signature(process_grading_task)
+tests/test_ai\test_tools_registration.py:42:    assert "get_knowledge_tree" in tool_names  # L3_knowledge_db
+tests/test_ai\test_tools_registration.py:44:    assert "get_exam_list" not in tool_names  # L1_exam
+tests/test_ai\test_tools_registration.py:53:    assert "get_student_trend" in tool_names
+tests/test_ai\test_tools_registration.py:71:    assert "get_student_trend" in tool_names
+tests/test_ai\test_tools_registration.py:72:    assert "get_exam_list" not in tool_names
+tests/test_ai\test_tools_analytics.py:39:# compare_classes → moved to analytics_compare.py (L2_analytics)
+tests/test_ai\test_agent.py:37:        session_id="test",
+tests/test_ai\test_agent.py:67:        session_id="test",
+tests/test_ai\test_agent.py:95:        session_id="test",
+tests/test_ai\test_agent.py:117:        session_id="test",
+tests/test_ai\test_agent.py:161:        session_id="test",
+tests/test_ai\test_agent.py:188:        session_id="test",
+tests/test_ai\test_agent.py:217:        session_id="test-session",
+tests/test_ai\test_agent.py:231:    assert call_kwargs["session_id"] == "test-session"
+tests/test_ai\test_agent.py:259:        session_id="test",
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "class LLMChatClient|def _chat_anthropic|tool_use_id" src/edu_cloud/ai/llm.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"def ai_chat|_sessions|@router.get\\(\\\"/sessions\\\"\\)|@router.delete\\(\\\"/sessions/\\{session_id\\}\\\"\\)\" src/edu_cloud/api/ai.py" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "def build_messages|max_tokens" src/edu_cloud/ai/context.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "async def get_student_trend|async def get_student_knowledge_map|async def get_class_knowledge_weakness|async def get_student_error_pattern" src/edu_cloud/ai/tools/profile.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "async def get_knowledge_tree|async def get_question_knowledge_points" src/edu_cloud/ai/tools/knowledge_db.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "async def get_exam_list|async def get_exam_detail|async def get_subject_questions" src/edu_cloud/ai/tools/exams.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "async def process_grading_task|session_factory|No rubric|no rubric|_create_llm_client" src/edu_cloud/workers/grading.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "async def compare_classes|async def rank_students|async def get_grade_aggregates" src/edu_cloud/ai/tools/analytics_compare.py' in C:/Users/Administrator/edu-cloud succeeded in 1.61s:
+13:class LLMChatClient:
+105:    async def _chat_anthropic(self, messages, tools, temperature) -> ChatMessage:
+118:                        "tool_use_id": m.tool_call_id,
+ succeeded in 1.44s:
+103:    def build_messages(self, session_id: str, max_tokens: int = 80000) -> list[ChatMessage]:
+109:        budget = max_tokens - system_tokens
+ succeeded in 1.39s:
+21:def _create_llm_client():
+39:async def process_grading_task(ctx: dict, task_id: str) -> None:
+44:    session_factory = ctx.get("db_session_factory")
+47:    if session_factory is None or not isinstance(session_factory, async_sessionmaker):
+49:        session_factory = async_sessionmaker(local_engine, class_=AsyncSession, expire_on_commit=False)
+51:    llm = _create_llm_client()
+53:        async with session_factory() as db:
+120:                    logger.warning("grading_task: no rubric for question=%s", question_id)
+121:                    errors.append({"answer_id": answer_id, "error": f"No rubric for question {question_id}"})
+ succeeded in 1.59s:
+17:async def get_exam_list(
+46:async def get_exam_detail(
+80:async def get_subject_questions(
+ exited 1 in 1.51s:
+rg: regex parse error:
+    (?:def ai_chat|_sessions|@router.get\(" /sessions\\)|@router.delete\(\/sessions/\ -encodedCommand cwBlAHMAcwBpAG8AbgBfAGkAZABcAA== \\) src/edu_cloud/api/ai.py -inputFormat xml -outputFormat text)
+                                                                                                                                         ^
+error: unopened group
+ succeeded in 1.28s:
+19:async def compare_classes(
+86:async def rank_students(
+155:async def get_grade_aggregates(
+ succeeded in 1.43s:
+21:async def get_knowledge_tree(course_code: str, parent_id: str | None = None, _db=None, _school_id=None, **_):
+47:async def get_question_knowledge_points(question_id: str, _db=None, **_):
+ succeeded in 1.49s:
+18:async def get_student_trend(student_id: str, subject_code: str | None = None, _school_id="", _db=None, **_):
+49:async def get_student_knowledge_map(student_id: str, course_code: str | None = None, _school_id="", _db=None, **_):
+82:async def get_class_knowledge_weakness(
+119:async def get_student_error_pattern(student_id: str, subject_code: str | None = None, _school_id="", _db=None, **_):
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "async def ai_chat" src/edu_cloud/api/ai.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"@router.get\\(\\\"/sessions\\\"\\)\" src/edu_cloud/api/ai.py" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "_sessions" src/edu_cloud/api/ai.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"@router.delete\\(\\\"/sessions/\\{session_id\\}\\\"\\)\" src/edu_cloud/api/ai.py" in C:/Users/Administrator/edu-cloud exited 1 in 1.13s:
+rg: regex parse error:
+    (?:@router.get\(\)
+    ^
+error: unclosed group
+ succeeded in 1.27s:
+35:_sessions: dict[str, _SessionState] = {}
+90:    if session_id not in _sessions:
+97:    if session_id not in _sessions:
+102:        _sessions[session_id] = _SessionState(
+106:    session_state = _sessions[session_id]
+148:async def list_sessions(current=Depends(get_current_user)):
+149:    return {"sessions": list(_sessions.keys())}
+157:    _sessions.pop(session_id, None)
+ exited 1 in 1.25s:
+rg: unrecognized file type: Format
+ succeeded in 1.27s:
+61:async def ai_chat(
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "test_agent_context_build_messages|test_agent_context_multi_turn|test_agent_context_session_isolation|test_agent_context_clear_session" tests/test_ai/test_context.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "test_ai_health|test_ai_health_includes_tool_count|test_ai_chat_requires_auth|test_ai_chat_empty_message|test_ai_chat_empty_message_returns_error_key" tests/test_ai/test_ai_api.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "test_total_tool_count|test_tool_categories_present|test_platform_admin_gets_all_tools|test_district_admin_limited|test_principal_has_profile|test_homeroom_teacher_has_bank|test_parent_only_profile" tests/test_ai/test_tools_registration.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "test_worker_settings_has_grading_functions|test_run_post_exam_pipeline_stub|test_process_grading_task_is_importable|test_run_post_exam_pipeline_is_importable" tests/test_workers/test_grading_worker.py' in C:/Users/Administrator/edu-cloud succeeded in 797ms:
+5:async def test_ai_health(client):
+12:async def test_ai_health_includes_tool_count(client):
+21:async def test_ai_chat_requires_auth(client):
+27:async def test_ai_chat_empty_message(client, teacher_headers):
+35:async def test_ai_chat_empty_message_returns_error_key(client, teacher_headers):
+ succeeded in 788ms:
+23:def test_agent_context_build_messages():
+34:def test_agent_context_multi_turn():
+43:def test_agent_context_session_isolation():
+51:def test_agent_context_clear_session():
+ succeeded in 787ms:
+8:def test_total_tool_count():
+14:def test_tool_categories_present():
+30:def test_platform_admin_gets_all_tools():
+36:def test_district_admin_limited():
+47:def test_principal_has_profile():
+56:def test_homeroom_teacher_has_bank():
+65:def test_parent_only_profile():
+ succeeded in 787ms:
+6:def test_worker_settings_has_grading_functions():
+22:async def test_run_post_exam_pipeline_stub():
+29:def test_process_grading_task_is_importable():
+38:def test_run_post_exam_pipeline_is_importable():
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "test_chat_message_to_dict|test_tool_call_from_openai|test_tool_call_to_openai_roundtrip" tests/test_ai/test_schemas.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "test_real_registry_tool_visibility|test_real_registry_empty_categories_no_tools|test_real_registry_wrong_category_no_tools" tests/test_ai/test_registry.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "test_get_exam_scores|test_get_class_stats|test_get_class_stats_scope_denied|test_get_class_stats_scope_allowed|test_get_class_stats_scope_none_means_unrestricted" tests/test_ai/test_tools_analytics.py' in C:/Users/Administrator/edu-cloud succeeded in 1.08s:
+29:def test_chat_message_to_dict():
+39:def test_tool_call_from_openai():
+47:def test_tool_call_to_openai_roundtrip():
+ succeeded in 1.11s:
+49:def test_real_registry_tool_visibility():
+61:def test_real_registry_empty_categories_no_tools():
+70:def test_real_registry_wrong_category_no_tools():
+ succeeded in 1.26s:
+6:async def test_get_exam_scores(db, seed_exam_with_results):
+17:async def test_get_exam_scores_with_class_filter(db, seed_exam_with_results):
+28:async def test_get_class_stats(db, seed_exam_with_results):
+44:async def test_get_exam_scores_empty(db, seed_exam_with_results):
+54:async def test_get_class_stats_scope_denied(db, seed_exam_with_results):
+68:async def test_get_class_stats_scope_allowed(db, seed_exam_with_results):
+82:async def test_get_class_stats_scope_none_means_unrestricted(db, seed_exam_with_results):
+codex
+我已经把修改文件全文过了一遍，再补一遍整段 `git diff`，确保没有遗漏某个文件里的测试或回归说明。之后就只保留 Phase 1 结论，不提前进入行为正确性。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 590b7de~1..5a10279' in C:/Users/Administrator/edu-cloud succeeded in 800ms:
+diff --git a/CLAUDE.md b/CLAUDE.md
+index fbf23ac..85c8831 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -112,13 +112,34 @@ src/edu_cloud/
+     loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
+     store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）
+   ai/
++    agent.py            # ReAct Agent（ROLE_TOOL_CATEGORIES 9 类别 RBAC）
++    llm.py              # LLMChatClient（OpenAI + Anthropic 双协议，重试，llm-proxy slot）
++    context.py          # build_system_prompt + AgentContext（session 管理/token 裁剪）
++    schemas.py          # ChatMessage/ToolCall/AgentEvent 数据模型
++    anonymizer.py       # 会话级姓名脱敏（字段检测 + student_number 剥离）
++    audit.py            # AuditLogger（DB 持久化 AiSession/AiToolCall）
++    registry.py         # ToolRegistry 全局实例 + 装饰器注册 + 依赖注入
++    models.py           # AiSession/AiToolCall 表
+     tools/
+-      knowledge.py      # L3 知识查询工具（search_curriculum/search_textbook/get_concept_info/search_gaokao）
++      __init__.py       # 触发全部 10 个工具模块注册（31 tools）
++      analytics.py      # L2_cross_school（2）: get_exam_scores/get_class_stats
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "async def get_exam_summary|async def get_score_distribution|async def get_question_analysis|async def get_student_scores|async def get_class_scores" src/edu_cloud/ai/tools/analytics_score.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "async def get_class_list|async def get_class_roster|async def search_students|async def get_student_profile" src/edu_cloud/ai/tools/students.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "compare_classes|student_profile" tests/test_ai/test_tools_analytics.py' in C:/Users/Administrator/edu-cloud succeeded in 538ms:
+17:async def get_exam_summary(
+44:async def get_score_distribution(
+77:async def get_question_analysis(
+103:async def get_student_scores(
+146:async def get_class_scores(
+ succeeded in 527ms:
+17:async def get_class_list(
+47:async def get_class_roster(
+77:async def search_students(
+105:async def get_student_profile(
+ succeeded in 530ms:
+39:# compare_classes → moved to analytics_compare.py (L2_analytics)
+40:# get_student_profile → moved to students.py (L1_student)
+96:# student_profile scope tests → moved to students.py tests
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "Task 16|Step 3: 写 Agent 基础测试|Task 17|Step 4: 写工具注册测试|Task 18|Step 3: 写 worker 测试" docs/plans/2026-03-22-platform-merge-plan.md' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "测试覆盖|test_ai_api|test_agent.py|test_tools_registration.py|test_grading_worker.py" docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md' in C:/Users/Administrator/edu-cloud succeeded in 514ms:
+842:## Batch 4: AI Agent & Workers (Task 16-18)
+844:### Task 16: AI Agent 合并
+866:- [ ] **Step 3: 写 Agent 基础测试**
+878:### Task 17: AI 工具合并
+906:- [ ] **Step 4: 写工具注册测试**
+918:### Task 18: Workers 合并
+938:- [ ] **Step 3: 写 worker 测试（mock Redis）**
+1153:| Batch 4 完成 | codex-review (code) | Task 18 后 |
+1164:| 4 | **AI Agent RBAC**（Task 17）| 安全 | 每角色工具可见性验证 |
+ succeeded in 510ms:
+39:3. **ChatRequest 验证返回 200+error 而非 400**：保持与现有 test_ai_api.py 测试兼容。
+109:## 测试覆盖
+116:| test_ai_api.py | 无变更 | 5 |
+118:| test_agent.py | 无变更 | 8 |
+120:| test_tools_registration.py | 新建 | 10 |
+121:| test_grading_worker.py | 新建 | 5 |
+codex
+Phase 1 未通过，停止进入 Phase 2/3。补充说明：我运行了 `python -m pytest tests/test_ai tests/test_workers -q`，78 项通过；但这些测试的有效性不足以覆盖本批次声明的高风险边界。
+
+1. ID: TG-01  
+Severity: MED  
+Category: test-gap  
+Evidence: [docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:43](C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md#L43), [src/edu_cloud/ai/llm.py:105](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/llm.py#L105), [src/edu_cloud/ai/llm.py:118](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/llm.py#L118), [tests/test_ai/test_schemas.py:39](C:/Users/Administrator/edu-cloud/tests/test_ai/test_schemas.py#L39)  
+Impact: handoff 明确把 Anthropic `tool_result/tool_use_id` 适配列为审查关注点，但现有新增测试只覆盖 `ToolCall` 的 OpenAI 序列化/反序列化，完全没有触达 `LLMChatClient._chat_anthropic()`、重试路径或 provider 选择逻辑。也就是说，把 Anthropic 转换写错、漏掉 `tool_use_id`、或重试失效，当前测试仍会全绿。  
+Suggested action: 增加 `LLMChatClient` 单测，至少覆盖 OpenAI/Anthropic 两条路径、`tool_result` 转换、空 `content`+`tool_use` 混合响应、非 200 重试和最终失败。
+
+2. ID: TG-02  
+Severity: MED  
+Category: test-gap  
+Evidence: [docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:32](C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md#L32), [docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:44](C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md#L44), [docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:45](C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md#L45), [src/edu_cloud/ai/context.py:103](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/context.py#L103), [src/edu_cloud/api/ai.py:35](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L35), [src/edu_cloud/api/ai.py:61](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L61), [src/edu_cloud/api/ai.py:148](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L148), [tests/test_ai/test_context.py:23](C:/Users/Administrator/edu-cloud/tests/test_ai/test_context.py#L23), [tests/test_ai/test_ai_api.py:5](C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api.py#L5), [tests/test_ai/test_ai_api.py:27](C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api.py#L27)  
+Impact: `AgentContext.build_messages()` 的核心新增行为是 token budget 裁剪，但测试只验证默认路径下“消息能加进去”，没有任何小 `max_tokens` 场景；`api/ai.py` 新增的 `_sessions` 多轮会话、`GET/DELETE /sessions`、SSE `done` 事件和 `session_id` 复用也没有 API 回归测试。错误实现仍能轻松通过当前套件。  
+Suggested action: 补充 1) `max_tokens` 很小时保留最新消息、丢弃最旧消息的失败用例；2) `/ai/chat` 的 session 复用与多轮上下文；3) `/ai/sessions` 的列出/删除；4) SSE 结束事件和 `X-Session-Id` 响应头。
+
+3. ID: TG-03  
+Severity: HIGH  
+Category: test-gap  
+Evidence: [src/edu_cloud/ai/tools/analytics_score.py:17](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/analytics_score.py#L17), [src/edu_cloud/ai/tools/analytics_compare.py:19](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/analytics_compare.py#L19), [src/edu_cloud/ai/tools/exams.py:17](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/exams.py#L17), [src/edu_cloud/ai/tools/students.py:17](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/students.py#L17), [src/edu_cloud/ai/tools/bank.py:17](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/bank.py#L17), [src/edu_cloud/ai/tools/profile.py:18](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/profile.py#L18), [src/edu_cloud/ai/tools/knowledge_db.py:21](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/knowledge_db.py#L21), [tests/test_ai/test_tools_registration.py:8](C:/Users/Administrator/edu-cloud/tests/test_ai/test_tools_registration.py#L8), [tests/test_ai/test_tools_registration.py:36](C:/Users/Administrator/edu-cloud/tests/test_ai/test_tools_registration.py#L36), [tests/test_ai/test_tools_analytics.py:39](C:/Users/Administrator/edu-cloud/tests/test_ai/test_tools_analytics.py#L39)  
+Impact: 本批次新增 7 个工具文件、20+ 个工具函数，但新增测试几乎全是“注册成功/角色能看到工具”。旧的 `compare_classes`、`get_student_profile` 行为测试还被删掉了，却没有对应的新行为测试补回。现在即使工具函数内部 service 调用参数传错、scope 判断失效、空集/不存在资源处理错误，测试也照样通过。  
+Suggested action: 每个新工具模块至少补一组合同测试，覆盖空集合、单元素、越权/不存在资源；对 `compare_classes`、`rank_students`、`get_exam_detail`、`get_student_profile`、`get_student_trend`、`get_knowledge_tree` 等入口做真实调用断言，而不只是注册断言。
+
+4. ID: TG-04  
+Severity: MED  
+Category: test-gap  
+Evidence: [docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:107](C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md#L107), [docs/plans/2026-03-22-platform-merge-plan.md:938](C:/Users/Administrator/edu-cloud/docs/plans/2026-03-22-platform-merge-plan.md#L938), [src/edu_cloud/workers/grading.py:39](C:/Users/Administrator/edu-cloud/src/edu_cloud/workers/grading.py#L39), [src/edu_cloud/workers/grading.py:44](C:/Users/Administrator/edu-cloud/src/edu_cloud/workers/grading.py#L44), [src/edu_cloud/workers/grading.py:120](C:/Users/Administrator/edu-cloud/src/edu_cloud/workers/grading.py#L120), [tests/test_workers/test_grading_worker.py:6](C:/Users/Administrator/edu-cloud/tests/test_workers/test_grading_worker.py#L6), [tests/test_workers/test_grading_worker.py:29](C:/Users/Administrator/edu-cloud/tests/test_workers/test_grading_worker.py#L29)  
+Impact: `process_grading_task()` 是 190+ 行的新 worker 主流程，包含 `session_factory` fallback、本地 engine 创建、无主观题、rubric 缺失、可恢复/不可恢复异常、状态落库等分支；现有测试只检查“函数被注册了、能 import、stub 不报错”。这类测试对错误实现几乎没有杀伤力。  
+Suggested action: 用 mock DB/LLM 补流程测试，至少覆盖 `ctx` 无 `db_session_factory`、无主观题直接 completed、缺 rubric 记 failed、LLM 抛可恢复异常时继续、不可恢复异常时任务置 failed、`AIGradingResult` 正确持久化。
+
+FAIL
+tokens used
+134,980
+Phase 1 未通过，停止进入 Phase 2/3。补充说明：我运行了 `python -m pytest tests/test_ai tests/test_workers -q`，78 项通过；但这些测试的有效性不足以覆盖本批次声明的高风险边界。
+
+1. ID: TG-01  
+Severity: MED  
+Category: test-gap  
+Evidence: [docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:43](C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md#L43), [src/edu_cloud/ai/llm.py:105](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/llm.py#L105), [src/edu_cloud/ai/llm.py:118](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/llm.py#L118), [tests/test_ai/test_schemas.py:39](C:/Users/Administrator/edu-cloud/tests/test_ai/test_schemas.py#L39)  
+Impact: handoff 明确把 Anthropic `tool_result/tool_use_id` 适配列为审查关注点，但现有新增测试只覆盖 `ToolCall` 的 OpenAI 序列化/反序列化，完全没有触达 `LLMChatClient._chat_anthropic()`、重试路径或 provider 选择逻辑。也就是说，把 Anthropic 转换写错、漏掉 `tool_use_id`、或重试失效，当前测试仍会全绿。  
+Suggested action: 增加 `LLMChatClient` 单测，至少覆盖 OpenAI/Anthropic 两条路径、`tool_result` 转换、空 `content`+`tool_use` 混合响应、非 200 重试和最终失败。
+
+2. ID: TG-02  
+Severity: MED  
+Category: test-gap  
+Evidence: [docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:32](C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md#L32), [docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:44](C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md#L44), [docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:45](C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md#L45), [src/edu_cloud/ai/context.py:103](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/context.py#L103), [src/edu_cloud/api/ai.py:35](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L35), [src/edu_cloud/api/ai.py:61](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L61), [src/edu_cloud/api/ai.py:148](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L148), [tests/test_ai/test_context.py:23](C:/Users/Administrator/edu-cloud/tests/test_ai/test_context.py#L23), [tests/test_ai/test_ai_api.py:5](C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api.py#L5), [tests/test_ai/test_ai_api.py:27](C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api.py#L27)  
+Impact: `AgentContext.build_messages()` 的核心新增行为是 token budget 裁剪，但测试只验证默认路径下“消息能加进去”，没有任何小 `max_tokens` 场景；`api/ai.py` 新增的 `_sessions` 多轮会话、`GET/DELETE /sessions`、SSE `done` 事件和 `session_id` 复用也没有 API 回归测试。错误实现仍能轻松通过当前套件。  
+Suggested action: 补充 1) `max_tokens` 很小时保留最新消息、丢弃最旧消息的失败用例；2) `/ai/chat` 的 session 复用与多轮上下文；3) `/ai/sessions` 的列出/删除；4) SSE 结束事件和 `X-Session-Id` 响应头。
+
+3. ID: TG-03  
+Severity: HIGH  
+Category: test-gap  
+Evidence: [src/edu_cloud/ai/tools/analytics_score.py:17](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/analytics_score.py#L17), [src/edu_cloud/ai/tools/analytics_compare.py:19](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/analytics_compare.py#L19), [src/edu_cloud/ai/tools/exams.py:17](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/exams.py#L17), [src/edu_cloud/ai/tools/students.py:17](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/students.py#L17), [src/edu_cloud/ai/tools/bank.py:17](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/bank.py#L17), [src/edu_cloud/ai/tools/profile.py:18](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/profile.py#L18), [src/edu_cloud/ai/tools/knowledge_db.py:21](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/knowledge_db.py#L21), [tests/test_ai/test_tools_registration.py:8](C:/Users/Administrator/edu-cloud/tests/test_ai/test_tools_registration.py#L8), [tests/test_ai/test_tools_registration.py:36](C:/Users/Administrator/edu-cloud/tests/test_ai/test_tools_registration.py#L36), [tests/test_ai/test_tools_analytics.py:39](C:/Users/Administrator/edu-cloud/tests/test_ai/test_tools_analytics.py#L39)  
+Impact: 本批次新增 7 个工具文件、20+ 个工具函数，但新增测试几乎全是“注册成功/角色能看到工具”。旧的 `compare_classes`、`get_student_profile` 行为测试还被删掉了，却没有对应的新行为测试补回。现在即使工具函数内部 service 调用参数传错、scope 判断失效、空集/不存在资源处理错误，测试也照样通过。  
+Suggested action: 每个新工具模块至少补一组合同测试，覆盖空集合、单元素、越权/不存在资源；对 `compare_classes`、`rank_students`、`get_exam_detail`、`get_student_profile`、`get_student_trend`、`get_knowledge_tree` 等入口做真实调用断言，而不只是注册断言。
+
+4. ID: TG-04  
+Severity: MED  
+Category: test-gap  
+Evidence: [docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md:107](C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-platform-merge-batch4-review-handoff.md#L107), [docs/plans/2026-03-22-platform-merge-plan.md:938](C:/Users/Administrator/edu-cloud/docs/plans/2026-03-22-platform-merge-plan.md#L938), [src/edu_cloud/workers/grading.py:39](C:/Users/Administrator/edu-cloud/src/edu_cloud/workers/grading.py#L39), [src/edu_cloud/workers/grading.py:44](C:/Users/Administrator/edu-cloud/src/edu_cloud/workers/grading.py#L44), [src/edu_cloud/workers/grading.py:120](C:/Users/Administrator/edu-cloud/src/edu_cloud/workers/grading.py#L120), [tests/test_workers/test_grading_worker.py:6](C:/Users/Administrator/edu-cloud/tests/test_workers/test_grading_worker.py#L6), [tests/test_workers/test_grading_worker.py:29](C:/Users/Administrator/edu-cloud/tests/test_workers/test_grading_worker.py#L29)  
+Impact: `process_grading_task()` 是 190+ 行的新 worker 主流程，包含 `session_factory` fallback、本地 engine 创建、无主观题、rubric 缺失、可恢复/不可恢复异常、状态落库等分支；现有测试只检查“函数被注册了、能 import、stub 不报错”。这类测试对错误实现几乎没有杀伤力。  
+Suggested action: 用 mock DB/LLM 补流程测试，至少覆盖 `ctx` 无 `db_session_factory`、无主观题直接 completed、缺 rubric 记 failed、LLM 抛可恢复异常时继续、不可恢复异常时任务置 failed、`AIGradingResult` 正确持久化。
+
+FAIL

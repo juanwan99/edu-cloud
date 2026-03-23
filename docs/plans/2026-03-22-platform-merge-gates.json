@@ -39,9 +39,9 @@
       "status": "pass",
       "reviewer": "gpt",
       "subject_ref": "commit:a958bcb..e4127d9",
-      "subject_hash": null,
+      "subject_hash": "1f13e1bc4166e3172cd65d23b920a952fe8c33db31069a43f7ed4be5a0a84280",
       "report_path": "docs/plans/.codex-integration-review-r2-raw.log",
-      "updated": "2026-03-23T20:40:16.775353+08:00"
+      "updated": "2026-03-23T20:45:34.719359+08:00"
     }
   }
 }
