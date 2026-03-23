@@ -1,10 +1,11 @@
+"""ReAct Agent — 循环执行 LLM→工具→结果→LLM 直到得出最终答案。"""
 import json
 import logging
 import time
 from typing import AsyncGenerator
 
 from edu_cloud.ai.anonymizer import Anonymizer
-from edu_cloud.ai.context import build_system_prompt
+from edu_cloud.ai.context import AgentContext, build_system_prompt
 from edu_cloud.ai.registry import ToolRegistry
 from edu_cloud.ai.schemas import AgentEvent, ChatMessage, ToolCall  # noqa: F401
 from edu_cloud.config import settings
@@ -56,34 +57,27 @@ class Agent:
         scope: dict,
         audit=None,
         user_id: str = "",
+        *,
+        context: AgentContext | None = None,
+        anonymizer: Anonymizer | None = None,
     ) -> AsyncGenerator[AgentEvent, None]:
         # ── 1. Determine tools available to this role ──────────────────────
-        # Roles not in the mapping get an empty list (no tool access).
         categories: list[str] | None = ROLE_TOOL_CATEGORIES.get(role, [])
         tool_schemas = self.registry.get_schemas(categories=categories)
         tool_names = [s["function"]["name"] for s in tool_schemas]
 
-        # ── 2. System prompt ────────────────────────────────────────────────
-        system_prompt = build_system_prompt(role, display_name, scope, tool_names)
+        # ── 2. Per-session anonymizer ──────────────────────────────────────
+        anonymizer = anonymizer or Anonymizer()
 
-        # ── 3. Initial message list ─────────────────────────────────────────
-        messages: list[ChatMessage] = [
-            ChatMessage(role="system", content=system_prompt),
-            ChatMessage(role="user", content=user_message),
-        ]
+        # ── 3. Context (multi-turn or single-turn) ─────────────────────────
+        if context is None:
+            system_content = build_system_prompt(role, display_name, scope, tool_names)
+            context = AgentContext(system_content=system_content)
+        context.add_user_message(user_message, session_id)
 
-        # ── 4. Per-session anonymizer ───────────────────────────────────────
-        anonymizer = Anonymizer()
-
-        # ── 5. ReAct loop ───────────────────────────────────────────────────
+        # ── 4. ReAct loop ─────────────────────────────────────────────────
         for step in range(self.max_steps):
-            logger.debug(
-                "Agent step %d/%d  session=%s role=%s",
-                step + 1,
-                self.max_steps,
-                session_id,
-                role,
-            )
+            messages = context.build_messages(session_id)
 
             # --- Call LLM ---------------------------------------------------
             try:
@@ -103,11 +97,14 @@ class Agent:
             if not response.tool_calls:
                 content: str = response.content or "抱歉，我无法回答这个问题。"
                 content = anonymizer.deanonymize(content)
+                context.add_assistant_message(content, session_id)
                 yield AgentEvent(type="answer", data={"content": content})
                 return
 
             # --- Tool calls → execute each ----------------------------------
-            messages.append(response)
+            context.add_assistant_message(
+                response.content, session_id, response.tool_calls
+            )
 
             for tc in response.tool_calls:
                 yield AgentEvent(
@@ -134,14 +131,13 @@ class Agent:
                 # Persist audit record
                 if audit is not None:
                     try:
-                        result_str_for_audit = json.dumps(result, ensure_ascii=False, default=str)
                         await audit.log_tool_call(
                             session_id=session_id,
                             user_id=user_id,
                             role=role,
                             tool=tc.name,
                             arguments=json.dumps(tc.arguments, ensure_ascii=False),
-                            result=result_str_for_audit,
+                            result=json.dumps(result, ensure_ascii=False, default=str),
                             duration_ms=duration_ms,
                         )
                     except Exception as audit_exc:
@@ -154,20 +150,10 @@ class Agent:
                 )
 
                 # Anonymize student names before feeding back to LLM
-                student_names = self._extract_names(result)
-                anon_result = anonymizer.anonymize_data(result, student_names)
-                result_str = json.dumps(anon_result, ensure_ascii=False, default=str)
+                anon_result = anonymizer.anonymize(result)
+                context.add_tool_result(tc, anon_result, session_id)
 
-                messages.append(
-                    ChatMessage(
-                        role="tool",
-                        content=result_str,
-                        tool_call_id=tc.id,
-                        name=tc.name,
-                    )
-                )
-
-        # ── Exceeded max_steps ──────────────────────────────────────────────
+        # ── Exceeded max_steps ────────────────────────────────────────────
         logger.warning(
             "Agent exceeded max_steps=%d  session=%s", self.max_steps, session_id
         )
@@ -175,18 +161,3 @@ class Agent:
             type="answer",
             data={"content": "分析步骤过多，请尝试更具体的问题。"},
         )
-
-    @staticmethod
-    def _extract_names(data) -> list[str]:
-        """Recursively extract student name values from tool result data."""
-        names: list[str] = []
-        if isinstance(data, dict):
-            for key in ("name", "student_name"):
-                if key in data and isinstance(data[key], str):
-                    names.append(data[key])
-            for v in data.values():
-                names.extend(Agent._extract_names(v))
-        elif isinstance(data, list):
-            for item in data:
-                names.extend(Agent._extract_names(item))
-        return list(set(names))

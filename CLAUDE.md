@@ -284,6 +284,15 @@ tests/
 | GET | `/api/v1/calendar/events` | 已登录 | 列出本校校历事件（支持 start/end 日期过滤） |
 | DELETE | `/api/v1/calendar/events/{id}` | GENERATE_NOTIFICATION | 软删除校历事件（is_active=False） |
 
+### AI Agent 端点（JWT 认证，Batch 4 迁入）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/ai/health` | 无 | 工具数量 + 状态 |
+| POST | `/api/v1/ai/chat` | USE_AI_CHAT | SSE 流式对话（multi-turn session） |
+| GET | `/api/v1/ai/sessions` | 已登录 | 列出活跃会话 |
+| DELETE | `/api/v1/ai/sessions/{session_id}` | 已登录 | 删除会话 |
+
 ### 未实现端点（规划中）
 
 - 共享 AI 阅卷（`grading-request`/`grading-result`）
