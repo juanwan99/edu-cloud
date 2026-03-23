@@ -27,12 +27,12 @@
     },
     "code_review_batch5": {
       "required": true,
-      "status": "pending",
-      "reviewer": null,
-      "subject_ref": null,
-      "subject_hash": null,
-      "report_path": null,
-      "updated": null
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_ref": "commit:7a8b944..509187d",
+      "subject_hash": "9592a00db02f9609830b68adf00d25720eba9b8a53f7200ab14ed1f915d7d448",
+      "report_path": "docs/plans/.codex-code-review-batch5-r3-raw.log",
+      "updated": "2026-03-23T19:26:16.798707+08:00"
     },
     "integration_review": {
       "required": true,
