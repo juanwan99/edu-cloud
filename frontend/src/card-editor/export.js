@@ -22,7 +22,7 @@ export function initExport() {
       btnPdf.textContent = '导出中...';
       try {
         const html = getCleanHTML();
-        const resp = await fetch('/api/card/export/pdf', {
+        const resp = await fetch('/api/v1/card/export/pdf', {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify({ html, paper_size: getCurrentPaperSize() }),
@@ -48,7 +48,7 @@ export function initExport() {
       btnSkeleton.textContent = '提取中...';
       try {
         const html = getCleanHTML();
-        const resp = await fetch('/api/card/export/skeleton', {
+        const resp = await fetch('/api/v1/card/export/skeleton', {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify({ html, paper_size: getCurrentPaperSize() }),
@@ -164,7 +164,7 @@ export async function publishCard(subjectId, filename = '答题卡.pdf') {
   const headers = getAuthHeaders();
 
   // Step 1: Export PDF
-  const pdfResp = await fetch('/api/card/export/pdf', {
+  const pdfResp = await fetch('/api/v1/card/export/pdf', {
     method: 'POST', headers,
     body: JSON.stringify({ html, paper_size: paperSize }),
   });
@@ -172,7 +172,7 @@ export async function publishCard(subjectId, filename = '答题卡.pdf') {
   const pdfBlob = await pdfResp.blob();
 
   // Step 2: Extract skeleton
-  const skelResp = await fetch('/api/card/export/skeleton', {
+  const skelResp = await fetch('/api/v1/card/export/skeleton', {
     method: 'POST', headers,
     body: JSON.stringify({ html, paper_size: paperSize }),
   });
@@ -186,7 +186,7 @@ export async function publishCard(subjectId, filename = '答题卡.pdf') {
     anchors: skeleton.anchors || [],
     regions: skeleton.regions || [],
   };
-  const tplResp = await fetch(`/api/templates/${subjectId}/A`, {
+  const tplResp = await fetch(`/api/v1/templates/${subjectId}/A`, {
     method: 'PUT', headers,
     body: JSON.stringify(templateData),
   });

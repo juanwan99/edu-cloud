@@ -162,7 +162,7 @@ async function switchToTql() {
   tqlLoading.value = true
   try {
     const token = localStorage.getItem('token')
-    const res = await fetch(`/api/card/tql-reference/${props.subjectId}`, {
+    const res = await fetch(`/api/v1/card/tql-reference/${props.subjectId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     const data = await res.json()
@@ -241,7 +241,7 @@ async function saveToServer(config) {
   try {
     // Save per-subject layout if subjectId is available
     if (props.subjectId && window._cardLayout) {
-      await fetch(`/api/card/editor-layout/${props.subjectId}`, {
+      await fetch(`/api/v1/card/editor-layout/${props.subjectId}`, {
         method: 'PUT', headers,
         body: JSON.stringify({
           layout: window._cardLayout,
@@ -366,7 +366,7 @@ async function loadFromServer() {
   // Try per-subject layout first
   if (props.subjectId) {
     try {
-      const resp = await fetch(`/api/card/editor-layout/${props.subjectId}`, { headers })
+      const resp = await fetch(`/api/v1/card/editor-layout/${props.subjectId}`, { headers })
       if (resp.ok) {
         const data = await resp.json()
         if (data.found && data.layout) {
