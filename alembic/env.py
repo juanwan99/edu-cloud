@@ -8,16 +8,44 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 # ---------------------------------------------------------------------------
-# Model imports — required so that Base.metadata knows about all tables
+# Model imports — required so that Base.metadata knows about all tables.
+# Every model that inherits from Base must be imported here so that
+# autogenerate can discover it.  38 models across 6 source locations.
 # ---------------------------------------------------------------------------
 from edu_cloud.models.base import Base  # noqa: F401
+
+# ── core models (src/edu_cloud/models/) ──────────────────────────────────
+from edu_cloud.models.school import School  # noqa: F401
 from edu_cloud.models.user import User  # noqa: F401
 from edu_cloud.models.user_role import UserRole  # noqa: F401
-from edu_cloud.models.school import School  # noqa: F401
-from edu_cloud.models.student import Student  # noqa: F401
-from edu_cloud.models.class_group import ClassGroup  # noqa: F401
-from edu_cloud.models.exam import Exam, ExamResult  # noqa: F401
-from edu_cloud.models.joint_exam import JointExam, JointExamParticipant, JointExamStudentResult  # noqa: F401
+from edu_cloud.models.document import Document, DocumentVersion  # noqa: F401
+from edu_cloud.models.approval import ApprovalFlow, ApprovalStep  # noqa: F401
+from edu_cloud.models.calendar import CalendarEvent, NotificationRule  # noqa: F401
+from edu_cloud.models.notification import Notification  # noqa: F401
+
+# ── core/models (src/edu_cloud/core/models/) ─────────────────────────────
+from edu_cloud.core.models.llm_slot import LLMSlot  # noqa: F401
+
+# ── AI models (src/edu_cloud/ai/) ────────────────────────────────────────
+from edu_cloud.ai.models import AiSession, AiToolCall  # noqa: F401
+
+# ── module models (src/edu_cloud/modules/*/models.py) ────────────────────
+from edu_cloud.modules.exam.models import (  # noqa: F401
+    Exam, Subject, Question, ExamResult,
+    JointExam, JointExamParticipant, JointExamStudentResult,
+)
+from edu_cloud.modules.student.models import Class, Student  # noqa: F401
+from edu_cloud.modules.card.models import Template, CardSkeleton  # noqa: F401
+from edu_cloud.modules.scan.models import ScanTask, StudentAnswer  # noqa: F401
+from edu_cloud.modules.grading.models import (  # noqa: F401
+    Rubric, GradingTask, AIGradingResult, TeacherReview,
+)
+from edu_cloud.modules.marking.models import MarkingAssignment, MarkingScore  # noqa: F401
+from edu_cloud.modules.bank.models import BankQuestion, StudentErrorBook  # noqa: F401
+from edu_cloud.modules.profile.models import (  # noqa: F401
+    StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern,
+)
+from edu_cloud.modules.knowledge.models import KnowledgePoint, QuestionKnowledgePoint  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Alembic Config object, which provides access to the values within the .ini

@@ -182,7 +182,7 @@ tests/
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
 | Tests | 764 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam迁入测试 全覆盖）| — |
 | Modules | 15 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school），路由已迁入 | — |
-| Migrations | Alembic 脚手架 | 未写 migration 文件 |
+| Migrations | Alembic 初始 migration（39 表，autogenerate） | — |
 
 ## 技术栈
 
@@ -367,6 +367,10 @@ DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/edu_cloud
 云端必须使用 PostgreSQL（跨校聚合查询、高并发写入）。不支持 SQLite。
 
 ## Docker 部署
+
+Dockerfile 包含 Playwright Chromium + 中文字体（Noto CJK），用于答题卡 PDF 生成。
+
+docker-compose 挂载卷：`./logs:/app/logs`、`./storage:/app/storage`（扫描图片）、`./uploads:/app/uploads`（上传文件）。
 
 ```bash
 docker compose up -d        # 启动
