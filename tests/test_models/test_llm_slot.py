@@ -58,3 +58,20 @@ async def test_env_fallback_when_no_slots(db):
     url, key, model = await get_llm_config(db, slot=99)
     assert url == settings.LLM_API_URL
     assert model == settings.LLM_MODEL
+
+
+@pytest.mark.asyncio
+async def test_duplicate_platform_defaults_no_crash(db):
+    """重复平台默认槽位（school_id=NULL）不会导致 MultipleResultsFound。"""
+    slot1 = LLMSlot(
+        slot_number=1, api_url="http://dup1", api_key="k1", model="m1",
+    )
+    slot2 = LLMSlot(
+        slot_number=1, api_url="http://dup2", api_key="k2", model="m2",
+    )
+    db.add_all([slot1, slot2])
+    await db.commit()
+
+    # Should return one of them, not crash
+    url, key, model = await get_llm_config(db, slot=1)
+    assert url in ("http://dup1", "http://dup2")

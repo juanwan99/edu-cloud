@@ -170,6 +170,17 @@ async def test_non_participant_scores_rejected(client, admin_headers, sync_setup
 
 
 @pytest.mark.asyncio
+async def test_heartbeat_success(client, sync_setup):
+    """活跃学校 heartbeat 成功路径 → 200 + status ok。"""
+    s = sync_setup
+    resp = await client.post("/api/v1/sync/heartbeat",
+        json={"client_version": "2.0", "exam_ai_port": 8000},
+        headers={"X-API-Key": s["creator_key"]})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
+
+
+@pytest.mark.asyncio
 async def test_inactive_school_rejected(client, admin_headers, sync_setup):
     """已停用学校的 API Key 应返回 401。"""
     s = sync_setup

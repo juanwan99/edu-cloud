@@ -37,13 +37,13 @@ async def get_llm_config(
             logger.debug("llm_router: slot=%d, school=%s → school override (%s)", slot, school_id, config.model)
             return config.api_url, config.api_key, config.model
 
-    # 2. 平台默认
+    # 2. 平台默认（school_id=NULL 不受 UNIQUE 约束，用 first() 防 MultipleResultsFound）
     result = await db.execute(
         select(LLMSlot).where(
             LLMSlot.school_id.is_(None),
             LLMSlot.slot_number == slot,
             LLMSlot.is_enabled.is_(True),
-        )
+        ).limit(1)
     )
     config = result.scalar_one_or_none()
     if config:
