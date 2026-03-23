@@ -1,2 +1,2 @@
 # Re-export from new location for backwards compatibility (Task 22 cleanup)
-from edu_cloud.modules.exam.models import Exam, ExamResult  # noqa: F401
+from edu_cloud.modules.exam.models import Exam, ExamResult, Subject, Question  # noqa: F401

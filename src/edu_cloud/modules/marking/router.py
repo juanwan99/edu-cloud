@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.api.deps import get_current_user
 from edu_cloud.database import get_db
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.exam.models import Exam, Question, Subject
 from edu_cloud.modules.marking.models import MarkingAssignment
@@ -78,10 +80,11 @@ async def assign_question(
     if not subject:
         raise HTTPException(400, "题目不属于该考试")
 
-    teacher = (await db.execute(
-        select(User).where(User.id == req.teacher_id, User.school_id == current["current_role"].school_id)
-    )).scalar_one_or_none()
-    if not teacher:
+    # Verify teacher exists and belongs to this school (via UserRole)
+    teacher_role = (await db.execute(
+        select(UserRole).where(UserRole.user_id == req.teacher_id, UserRole.school_id == current["current_role"].school_id)
+    )).scalars().first()
+    if not teacher_role:
         raise HTTPException(404, "教师不存在")
 
     # Check if already assigned
@@ -160,17 +163,18 @@ async def list_teachers(
     """获取本校教师列表（供分配使用）。"""
     if current["current_role"].role not in ("admin", "principal"):
         raise HTTPException(403, "仅管理员可查看教师列表")
+    # Join User+UserRole to find teachers in this school
     result = await db.execute(
-        select(User).where(
-            User.school_id == current["current_role"].school_id,
-            User.role.in_(["teacher", "subject_leader", "head_teacher"]),
+        select(User, UserRole).join(UserRole, UserRole.user_id == User.id).where(
+            UserRole.school_id == current["current_role"].school_id,
+            UserRole.role.in_(["teacher", "subject_teacher", "subject_leader", "head_teacher", "homeroom_teacher"]),
         )
     )
-    teachers = result.scalars().all()
+    rows = result.all()
     return [
-        {"id": t.id, "username": t.username, "display_name": t.display_name,
-         "role": t.role, "subject_code": t.subject_code}
-        for t in teachers
+        {"id": u.id, "username": u.username, "display_name": u.display_name,
+         "role": r.role, "subject_codes": r.subject_codes}
+        for u, r in rows
     ]
 
 

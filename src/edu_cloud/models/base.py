@@ -15,6 +15,11 @@ class IdMixin:
     )
 
 
+class TenantMixin:
+    """Row-level multi-tenancy: every tenant-scoped table has school_id."""
+    school_id: Mapped[str] = mapped_column(String(36), index=True)
+
+
 class TimestampMixin:
     """created_at / updated_at auto-managed."""
     created_at: Mapped[datetime] = mapped_column(

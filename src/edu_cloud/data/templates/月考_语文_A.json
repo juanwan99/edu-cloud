@@ -1,0 +1,395 @@
+{
+  "version": "1.0",
+  "exam_id": "月考",
+  "subject": "语文",
+  "side": "A",
+  "image_size": {
+    "width": 3308,
+    "height": 2300
+  },
+  "sample_image": "",
+  "anchors": [
+    {
+      "id": "TL",
+      "x": 86,
+      "y": 88,
+      "w": 50,
+      "h": 34,
+      "cx": 111,
+      "cy": 105
+    },
+    {
+      "id": "TR",
+      "x": 3188,
+      "y": 88,
+      "w": 50,
+      "h": 34,
+      "cx": 3213,
+      "cy": 105
+    },
+    {
+      "id": "BR",
+      "x": 3188,
+      "y": 2196,
+      "w": 50,
+      "h": 34,
+      "cx": 3213,
+      "cy": 2213
+    },
+    {
+      "id": "BL",
+      "x": 86,
+      "y": 2196,
+      "w": 50,
+      "h": 34,
+      "cx": 111,
+      "cy": 2213
+    }
+  ],
+  "regions": [
+    {
+      "id": "Q01",
+      "name": "3题",
+      "type": "subjective",
+      "rect": {
+        "x1": 142,
+        "y1": 1023,
+        "x2": 1172,
+        "y2": 1379
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q02",
+      "name": "4题",
+      "type": "subjective",
+      "rect": {
+        "x1": 125,
+        "y1": 1325,
+        "x2": 1178,
+        "y2": 1722
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q03",
+      "name": "5题",
+      "type": "subjective",
+      "rect": {
+        "x1": 117,
+        "y1": 1663,
+        "x2": 1179,
+        "y2": 2199
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q04",
+      "name": "8题",
+      "type": "subjective",
+      "rect": {
+        "x1": 1150,
+        "y1": 201,
+        "x2": 2197,
+        "y2": 733
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q05",
+      "name": "9题",
+      "type": "subjective",
+      "rect": {
+        "x1": 1154,
+        "y1": 662,
+        "x2": 2193,
+        "y2": 1249
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q06",
+      "name": "13题(1)",
+      "type": "subjective",
+      "rect": {
+        "x1": 1145,
+        "y1": 1198,
+        "x2": 2196,
+        "y2": 1535
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q07",
+      "name": "13题(2)",
+      "type": "subjective",
+      "rect": {
+        "x1": 1141,
+        "y1": 1435,
+        "x2": 2203,
+        "y2": 1741
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q08",
+      "name": "14题",
+      "type": "subjective",
+      "rect": {
+        "x1": 1137,
+        "y1": 1671,
+        "x2": 2197,
+        "y2": 2196
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q09",
+      "name": "16题",
+      "type": "subjective",
+      "rect": {
+        "x1": 2163,
+        "y1": 189,
+        "x2": 3240,
+        "y2": 742
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q10",
+      "name": "17题",
+      "type": "subjective",
+      "rect": {
+        "x1": 2161,
+        "y1": 657,
+        "x2": 3242,
+        "y2": 1079
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q11",
+      "name": "18题",
+      "type": "subjective",
+      "rect": {
+        "x1": 2168,
+        "y1": 1021,
+        "x2": 3245,
+        "y2": 1409
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q12",
+      "name": "21题",
+      "type": "subjective",
+      "rect": {
+        "x1": 2157,
+        "y1": 1337,
+        "x2": 3236,
+        "y2": 1725
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q13",
+      "name": "22题",
+      "type": "subjective",
+      "rect": {
+        "x1": 2153,
+        "y1": 1665,
+        "x2": 3234,
+        "y2": 2188
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q14",
+      "name": "23题作文",
+      "type": "subjective",
+      "rect": {
+        "x1": 49,
+        "y1": 85,
+        "x2": 3220,
+        "y2": 2198
+      },
+      "page": 1,
+      "score": 0
+    },
+    {
+      "id": "OBJ01",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 219,
+        "y1": 806,
+        "x2": 401,
+        "y2": 827
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ02",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 221,
+        "y1": 839,
+        "x2": 401,
+        "y2": 860
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ03",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 220,
+        "y1": 873,
+        "x2": 400,
+        "y2": 895
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ04",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 221,
+        "y1": 907,
+        "x2": 400,
+        "y2": 929
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ05",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 219,
+        "y1": 942,
+        "x2": 546,
+        "y2": 963
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 7,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D,E,F,G"
+    },
+    {
+      "id": "OBJ06",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 696,
+        "y1": 805,
+        "x2": 877,
+        "y2": 827
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ07",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 697,
+        "y1": 840,
+        "x2": 878,
+        "y2": 862
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ08",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 697,
+        "y1": 873,
+        "x2": 877,
+        "y2": 894
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ09",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 696,
+        "y1": 908,
+        "x2": 877,
+        "y2": 929
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ10",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 697,
+        "y1": 942,
+        "x2": 877,
+        "y2": 964
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    }
+  ],
+  "source": "external_tpl",
+  "source_file": "[191871002]语文.tpl"
+}

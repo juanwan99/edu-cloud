@@ -6,7 +6,7 @@
 
 def get_visible_class_ids(role) -> list[str] | None:
     """返回角色可见的班级 ID 列表，None = 全部可见。"""
-    if role.role in ("platform_admin", "district_admin", "principal", "academic_director"):
+    if role.role in ("platform_admin", "district_admin", "principal", "academic_director", "admin"):
         return None
     return role.class_ids or []
 
@@ -14,6 +14,7 @@ def get_visible_class_ids(role) -> list[str] | None:
 def get_visible_subject_codes(role) -> list[str] | None:
     """返回角色可见的学科代码列表，None = 全部可见。"""
     if role.role in ("platform_admin", "district_admin", "principal",
-                     "academic_director", "homeroom_teacher"):
+                     "academic_director", "homeroom_teacher", "admin",
+                     "head_teacher"):
         return None
     return role.subject_codes or []

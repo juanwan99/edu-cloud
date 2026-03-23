@@ -1,0 +1,346 @@
+{
+  "version": "1.0",
+  "exam_id": "月考",
+  "subject": "数学",
+  "side": "A",
+  "image_size": {
+    "width": 3308,
+    "height": 2300
+  },
+  "sample_image": "",
+  "anchors": [
+    {
+      "id": "TL",
+      "x": 78,
+      "y": 78,
+      "w": 50,
+      "h": 34,
+      "cx": 103,
+      "cy": 95
+    },
+    {
+      "id": "TR",
+      "x": 3178,
+      "y": 78,
+      "w": 51,
+      "h": 34,
+      "cx": 3203,
+      "cy": 95
+    },
+    {
+      "id": "BR",
+      "x": 3178,
+      "y": 2187,
+      "w": 51,
+      "h": 34,
+      "cx": 3203,
+      "cy": 2204
+    },
+    {
+      "id": "BL",
+      "x": 78,
+      "y": 2187,
+      "w": 50,
+      "h": 34,
+      "cx": 103,
+      "cy": 2204
+    }
+  ],
+  "regions": [
+    {
+      "id": "Q01",
+      "name": "12-14题",
+      "type": "subjective",
+      "rect": {
+        "x1": 85,
+        "y1": 953,
+        "x2": 1148,
+        "y2": 1334
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q02",
+      "name": "15题",
+      "type": "subjective",
+      "rect": {
+        "x1": 90,
+        "y1": 1271,
+        "x2": 1145,
+        "y2": 2191
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q03",
+      "name": "15题",
+      "type": "subjective",
+      "rect": {
+        "x1": 1137,
+        "y1": 142,
+        "x2": 2200,
+        "y2": 802
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q04",
+      "name": "16题",
+      "type": "subjective",
+      "rect": {
+        "x1": 1126,
+        "y1": 737,
+        "x2": 2195,
+        "y2": 2201
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q05",
+      "name": "17题",
+      "type": "subjective",
+      "rect": {
+        "x1": 2158,
+        "y1": 127,
+        "x2": 3260,
+        "y2": 2194
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q06",
+      "name": "18题",
+      "type": "subjective",
+      "rect": {
+        "x1": 84,
+        "y1": 150,
+        "x2": 1142,
+        "y2": 2179
+      },
+      "page": 1,
+      "score": 0
+    },
+    {
+      "id": "Q07",
+      "name": "18题",
+      "type": "subjective",
+      "rect": {
+        "x1": 1127,
+        "y1": 133,
+        "x2": 2206,
+        "y2": 1009
+      },
+      "page": 1,
+      "score": 0
+    },
+    {
+      "id": "Q08",
+      "name": "19题",
+      "type": "subjective",
+      "rect": {
+        "x1": 1102,
+        "y1": 910,
+        "x2": 2204,
+        "y2": 2194
+      },
+      "page": 1,
+      "score": 0
+    },
+    {
+      "id": "Q09",
+      "name": "19题",
+      "type": "subjective",
+      "rect": {
+        "x1": 2162,
+        "y1": 118,
+        "x2": 3237,
+        "y2": 2187
+      },
+      "page": 1,
+      "score": 0
+    },
+    {
+      "id": "OBJ01",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 204,
+        "y1": 807,
+        "x2": 235,
+        "y2": 908
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ02",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 253,
+        "y1": 807,
+        "x2": 284,
+        "y2": 909
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ03",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 301,
+        "y1": 806,
+        "x2": 332,
+        "y2": 909
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ04",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 350,
+        "y1": 806,
+        "x2": 381,
+        "y2": 909
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ05",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 400,
+        "y1": 806,
+        "x2": 431,
+        "y2": 909
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ06",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 446,
+        "y1": 807,
+        "x2": 478,
+        "y2": 908
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ07",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 495,
+        "y1": 807,
+        "x2": 526,
+        "y2": 909
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ08",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 545,
+        "y1": 807,
+        "x2": 576,
+        "y2": 908
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ09",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 640,
+        "y1": 807,
+        "x2": 671,
+        "y2": 909
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ10",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 689,
+        "y1": 807,
+        "x2": 720,
+        "y2": 909
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ11",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 738,
+        "y1": 807,
+        "x2": 769,
+        "y2": 909
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    }
+  ],
+  "source": "external_tpl",
+  "source_file": "[191871003]数学.tpl"
+}

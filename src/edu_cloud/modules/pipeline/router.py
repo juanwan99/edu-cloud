@@ -21,7 +21,7 @@ async def trigger_pipeline(
 ):
     """手动触发考试数据流水线（题库入库+错题收集+画像更新）。"""
     role = current["current_role"]
-    if role.role not in ("platform_admin", "principal", "academic_director"):
+    if role.role not in ("platform_admin", "principal", "academic_director", "admin"):
         raise HTTPException(403, "仅管理员和校长可触发数据流水线")
 
     results = await run_full_pipeline(db, exam_id=exam_id, school_id=role.school_id)

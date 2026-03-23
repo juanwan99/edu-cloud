@@ -1,0 +1,291 @@
+{
+  "version": "1.0",
+  "exam_id": "月考",
+  "subject": "物理",
+  "side": "A",
+  "image_size": {
+    "width": 3308,
+    "height": 2300
+  },
+  "sample_image": "",
+  "anchors": [
+    {
+      "id": "TL",
+      "x": 77,
+      "y": 79,
+      "w": 50,
+      "h": 34,
+      "cx": 102,
+      "cy": 96
+    },
+    {
+      "id": "TR",
+      "x": 3179,
+      "y": 79,
+      "w": 50,
+      "h": 34,
+      "cx": 3204,
+      "cy": 96
+    },
+    {
+      "id": "BR",
+      "x": 3179,
+      "y": 2188,
+      "w": 50,
+      "h": 34,
+      "cx": 3204,
+      "cy": 2205
+    },
+    {
+      "id": "BL",
+      "x": 77,
+      "y": 2188,
+      "w": 50,
+      "h": 34,
+      "cx": 102,
+      "cy": 2205
+    }
+  ],
+  "regions": [
+    {
+      "id": "Q01",
+      "name": "11题",
+      "type": "subjective",
+      "rect": {
+        "x1": 82,
+        "y1": 1004,
+        "x2": 1177,
+        "y2": 1426
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q02",
+      "name": "12题",
+      "type": "subjective",
+      "rect": {
+        "x1": 84,
+        "y1": 1349,
+        "x2": 1184,
+        "y2": 1681
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q03",
+      "name": "13题",
+      "type": "subjective",
+      "rect": {
+        "x1": 82,
+        "y1": 1606,
+        "x2": 1175,
+        "y2": 2182
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q04",
+      "name": "13题",
+      "type": "subjective",
+      "rect": {
+        "x1": 1138,
+        "y1": 109,
+        "x2": 2205,
+        "y2": 843
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q05",
+      "name": "14题",
+      "type": "subjective",
+      "rect": {
+        "x1": 1133,
+        "y1": 766,
+        "x2": 2195,
+        "y2": 2197
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q06",
+      "name": "15题",
+      "type": "subjective",
+      "rect": {
+        "x1": 2129,
+        "y1": 105,
+        "x2": 3210,
+        "y2": 2187
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "OBJ01",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 165,
+        "y1": 823,
+        "x2": 195,
+        "y2": 924
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ02",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 214,
+        "y1": 823,
+        "x2": 243,
+        "y2": 924
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ03",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 262,
+        "y1": 823,
+        "x2": 291,
+        "y2": 924
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ04",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 309,
+        "y1": 823,
+        "x2": 339,
+        "y2": 924
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ05",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 357,
+        "y1": 823,
+        "x2": 387,
+        "y2": 924
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ06",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 405,
+        "y1": 823,
+        "x2": 435,
+        "y2": 924
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ07",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 454,
+        "y1": 823,
+        "x2": 484,
+        "y2": 924
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ08",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 597,
+        "y1": 823,
+        "x2": 627,
+        "y2": 925
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ09",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 646,
+        "y1": 823,
+        "x2": 675,
+        "y2": 925
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ10",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 694,
+        "y1": 823,
+        "x2": 722,
+        "y2": 924
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    }
+  ],
+  "source": "external_tpl",
+  "source_file": "[191871005]物理.tpl"
+}

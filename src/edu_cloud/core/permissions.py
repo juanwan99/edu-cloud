@@ -136,7 +136,27 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.VIEW_SCORES,
     },
 
-    # 旧角色兼容
+    # 旧角色兼容（exam-ai 迁入）
+    "admin": set(Permission),  # exam-ai "admin" = edu-cloud "platform_admin"
+    "teacher": {               # exam-ai "teacher" ≈ edu-cloud "subject_teacher"
+        Permission.VIEW_STUDENTS,
+        Permission.VIEW_EXAMS,
+        Permission.VIEW_SCORES,
+        Permission.VIEW_QUESTION_BANK,
+        Permission.USE_AI_CHAT,
+        Permission.WRITE_PAPER,
+        Permission.GENERATE_REPORT,
+    },
+    "head_teacher": {          # exam-ai "head_teacher" ≈ edu-cloud "homeroom_teacher"
+        Permission.VIEW_STUDENTS,
+        Permission.VIEW_EXAMS,
+        Permission.VIEW_SCORES,
+        Permission.GENERATE_REPORT,
+        Permission.GENERATE_NOTIFICATION,
+        Permission.SEND_NOTIFICATION,
+        Permission.USE_AI_CHAT,
+    },
+
     "exam_coordinator": {
         Permission.VIEW_SCHOOLS,
         Permission.CREATE_JOINT_EXAM,

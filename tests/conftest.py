@@ -28,35 +28,56 @@ from edu_cloud.shared.auth import create_access_token
 
 
 @pytest.fixture
-async def db():
-    """In-memory SQLite session for tests."""
+async def db_engine():
+    """In-memory SQLite engine (shared with db fixture)."""
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with session_factory() as session:
-        yield session
-
+    yield engine
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
 
 
 @pytest.fixture
-async def client(db):
-    """Test client with DB dependency override."""
+async def db(db_engine):
+    """In-memory SQLite session for tests."""
+    session_factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+    async with session_factory() as session:
+        yield session
+
+
+@pytest.fixture
+async def client(db, db_engine, tmp_path):
+    """Test client with DB + Storage dependency overrides."""
+    import tempfile
+    import shutil
     from edu_cloud.api.app import create_app
     from edu_cloud.database import get_db
+    from edu_cloud.shared.storage import get_storage, StorageService
+    from edu_cloud.modules.scan.service import get_storage as get_scan_storage
 
     app = create_app()
+    session_factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
 
     async def override_get_db():
-        yield db
+        async with session_factory() as session:
+            yield session
+
+    storage_dir = tempfile.mkdtemp(prefix="edu_")
+
+    def _override_storage():
+        return StorageService(root=storage_dir)
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_storage] = _override_storage
+    app.dependency_overrides[get_scan_storage] = _override_storage
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
+
+    shutil.rmtree(storage_dir, ignore_errors=True)
 
 
 @pytest.fixture

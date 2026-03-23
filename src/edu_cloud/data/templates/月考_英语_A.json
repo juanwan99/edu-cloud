@@ -1,0 +1,985 @@
+{
+  "version": "1.0",
+  "exam_id": "月考",
+  "subject": "英语",
+  "side": "A",
+  "image_size": {
+    "width": 1655,
+    "height": 2300
+  },
+  "sample_image": "",
+  "anchors": [
+    {
+      "id": "TL",
+      "x": 79,
+      "y": 79,
+      "w": 48,
+      "h": 33,
+      "cx": 103,
+      "cy": 95
+    },
+    {
+      "id": "TR",
+      "x": 1528,
+      "y": 79,
+      "w": 48,
+      "h": 33,
+      "cx": 1552,
+      "cy": 95
+    },
+    {
+      "id": "BR",
+      "x": 1528,
+      "y": 2188,
+      "w": 48,
+      "h": 33,
+      "cx": 1552,
+      "cy": 2204
+    },
+    {
+      "id": "BL",
+      "x": 79,
+      "y": 2188,
+      "w": 48,
+      "h": 33,
+      "cx": 103,
+      "cy": 2204
+    }
+  ],
+  "regions": [
+    {
+      "id": "Q01",
+      "name": "56-65题",
+      "type": "subjective",
+      "rect": {
+        "x1": 112,
+        "y1": 1123,
+        "x2": 1581,
+        "y2": 1553
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q02",
+      "name": "写作第一节",
+      "type": "subjective",
+      "rect": {
+        "x1": 87,
+        "y1": 1476,
+        "x2": 1563,
+        "y2": 2176
+      },
+      "page": 0,
+      "score": 0
+    },
+    {
+      "id": "Q03",
+      "name": "写作第一节",
+      "type": "subjective",
+      "rect": {
+        "x1": 61,
+        "y1": 97,
+        "x2": 1590,
+        "y2": 650
+      },
+      "page": 1,
+      "score": 0
+    },
+    {
+      "id": "Q04",
+      "name": "写作第二节",
+      "type": "subjective",
+      "rect": {
+        "x1": 44,
+        "y1": 553,
+        "x2": 1583,
+        "y2": 2195
+      },
+      "page": 1,
+      "score": 0
+    },
+    {
+      "id": "OBJ01",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 648,
+        "x2": 377,
+        "y2": 666
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ02",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 677,
+        "x2": 377,
+        "y2": 695
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ03",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 707,
+        "x2": 377,
+        "y2": 724
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ04",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 735,
+        "x2": 377,
+        "y2": 753
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ05",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 764,
+        "x2": 377,
+        "y2": 782
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ06",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 648,
+        "x2": 653,
+        "y2": 666
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ07",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 677,
+        "x2": 653,
+        "y2": 695
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ08",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 706,
+        "x2": 653,
+        "y2": 724
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ09",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 735,
+        "x2": 653,
+        "y2": 753
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ10",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 764,
+        "x2": 653,
+        "y2": 782
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ11",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 648,
+        "x2": 930,
+        "y2": 666
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ12",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 677,
+        "x2": 929,
+        "y2": 695
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ13",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 809,
+        "y1": 706,
+        "x2": 929,
+        "y2": 724
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ14",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 809,
+        "y1": 735,
+        "x2": 930,
+        "y2": 753
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ15",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 765,
+        "x2": 929,
+        "y2": 782
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ16",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 1084,
+        "y1": 648,
+        "x2": 1205,
+        "y2": 666
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ17",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 1084,
+        "y1": 677,
+        "x2": 1205,
+        "y2": 695
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ18",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 1085,
+        "y1": 706,
+        "x2": 1206,
+        "y2": 724
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ19",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 1084,
+        "y1": 735,
+        "x2": 1206,
+        "y2": 753
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ20",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 1084,
+        "y1": 764,
+        "x2": 1206,
+        "y2": 782
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 3,
+      "que_count": 1,
+      "opt_symbol": "A,B,C"
+    },
+    {
+      "id": "OBJ21",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 809,
+        "x2": 423,
+        "y2": 827
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ22",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 838,
+        "x2": 423,
+        "y2": 856
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ23",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 865,
+        "x2": 423,
+        "y2": 883
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ24",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 894,
+        "x2": 423,
+        "y2": 912
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ25",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 923,
+        "x2": 423,
+        "y2": 941
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ26",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 809,
+        "x2": 699,
+        "y2": 827
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ27",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 838,
+        "x2": 699,
+        "y2": 856
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ28",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 865,
+        "x2": 699,
+        "y2": 883
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ29",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 894,
+        "x2": 699,
+        "y2": 912
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ30",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 922,
+        "x2": 699,
+        "y2": 941
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ31",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 809,
+        "x2": 977,
+        "y2": 826
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ32",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 838,
+        "x2": 977,
+        "y2": 855
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ33",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 865,
+        "x2": 977,
+        "y2": 882
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ34",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 894,
+        "x2": 977,
+        "y2": 911
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ35",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 923,
+        "x2": 977,
+        "y2": 939
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ36",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 1084,
+        "y1": 809,
+        "x2": 1389,
+        "y2": 826
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 7,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D,E,F,G"
+    },
+    {
+      "id": "OBJ37",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 1084,
+        "y1": 839,
+        "x2": 1390,
+        "y2": 856
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 7,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D,E,F,G"
+    },
+    {
+      "id": "OBJ38",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 1084,
+        "y1": 866,
+        "x2": 1390,
+        "y2": 883
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 7,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D,E,F,G"
+    },
+    {
+      "id": "OBJ39",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 1085,
+        "y1": 895,
+        "x2": 1389,
+        "y2": 912
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 7,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D,E,F,G"
+    },
+    {
+      "id": "OBJ40",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 1084,
+        "y1": 923,
+        "x2": 1389,
+        "y2": 940
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 7,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D,E,F,G"
+    },
+    {
+      "id": "OBJ41",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 971,
+        "x2": 423,
+        "y2": 988
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ42",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 996,
+        "x2": 423,
+        "y2": 1013
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ43",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 1023,
+        "x2": 423,
+        "y2": 1040
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ44",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 1049,
+        "x2": 423,
+        "y2": 1065
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ45",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 256,
+        "y1": 1073,
+        "x2": 423,
+        "y2": 1090
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ46",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 971,
+        "x2": 699,
+        "y2": 988
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ47",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 996,
+        "x2": 699,
+        "y2": 1013
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ48",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 1023,
+        "x2": 699,
+        "y2": 1040
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ49",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 1048,
+        "x2": 699,
+        "y2": 1065
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ50",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 532,
+        "y1": 1073,
+        "x2": 699,
+        "y2": 1090
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ51",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 971,
+        "x2": 977,
+        "y2": 988
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ52",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 997,
+        "x2": 977,
+        "y2": 1014
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ53",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 1023,
+        "x2": 977,
+        "y2": 1040
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ54",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 1049,
+        "x2": 977,
+        "y2": 1066
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    },
+    {
+      "id": "OBJ55",
+      "name": "选择",
+      "type": "objective",
+      "rect": {
+        "x1": 808,
+        "y1": 1075,
+        "x2": 977,
+        "y2": 1092
+      },
+      "page": 0,
+      "score": 0,
+      "opt_count": 4,
+      "que_count": 1,
+      "opt_symbol": "A,B,C,D"
+    }
+  ],
+  "source": "external_tpl",
+  "source_file": "[191871004]英语.tpl"
+}

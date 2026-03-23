@@ -4,6 +4,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from edu_cloud.models.base import Base, IdMixin, TimestampMixin
 
+GLOBAL_SCHOOL_ID = "__GLOBAL__"
+
 
 class KnowledgePoint(Base, IdMixin, TimestampMixin):
     __tablename__ = "knowledge_points"

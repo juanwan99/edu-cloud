@@ -107,7 +107,7 @@ src/edu_cloud/
     calendar.py → modules/calendar/router.py
     workspace.py → modules/exam/workspace_router.py
   models/
-    base.py             # Base + IdMixin(UUID) + TimestampMixin(UTC)
+    base.py             # Base + IdMixin(UUID) + TenantMixin(school_id) + TimestampMixin(UTC)
     school.py           # RegisteredSchool（学校档案 + API Key + 心跳）
     platform_user.py    # PlatformUser（4 角色 + bcrypt 密码）
     joint_exam.py       # JointExam + JointExamParticipant + JointExamStudentResult
@@ -158,11 +158,14 @@ src/edu_cloud/
 scripts/
   e2e_joint_exam.py     # 端到端联考验证脚本（2 校完整流程）
 tests/
-  conftest.py           # SQLite in-memory + AsyncClient + admin/school fixtures
-  test_api/             # API 集成测试（health/deps/schools/joint_exams/sync_v2/results）
+  conftest.py           # SQLite in-memory + AsyncClient + admin/school/db_engine fixtures
+  test_api/             # 平台 API 测试（health/deps/schools/joint_exams/sync_v2/results）
+  test_api_exam/        # 考试 API 测试（exam-ai 迁入，32 文件）
+  test_services/        # 平台 Service 单测（exceptions/school/joint_exam/results）
+  test_services_exam/   # 考试 Service 单测（exam-ai 迁入，27 文件）
+  test_exam_misc/       # 考试杂项测试（answer_standardizer/template_library/integration）
   test_models/          # 模型单测
-  test_services/        # Service 单测（exceptions/school/joint_exam/results）
-  test_knowledge/       # 知识库单测（loader/store，18 tests）
+  test_knowledge/       # 知识库单测（loader/store）
   test_workers/         # Worker 单测（grading task 注册/签名验证）
 ```
 
@@ -177,7 +180,7 @@ tests/
 | Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 300 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam/Student/Bank/Knowledge模块 全覆盖）| — |
+| Tests | 764 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam迁入测试 全覆盖）| — |
 | Modules | 15 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school），路由已迁入 | — |
 | Migrations | Alembic 脚手架 | 未写 migration 文件 |
 
@@ -237,6 +240,14 @@ tests/
 | homeroom_teacher | 本班管理+评语+通知 | 班主任 |
 | subject_teacher | 所教班+学科+论文 | 科任教师 |
 | parent | 只看自己孩子 | 家长（企微登录）|
+
+**exam-ai 旧角色兼容别名**（permissions.py + api/permissions.py）：
+
+| 旧角色 | 映射到 | 说明 |
+|--------|--------|------|
+| admin | platform_admin | exam-ai 迁入测试使用 |
+| teacher | subject_teacher | exam-ai 迁入测试使用 |
+| head_teacher | homeroom_teacher | exam-ai 迁入测试使用 |
 
 ## API 端点（已实现）
 
