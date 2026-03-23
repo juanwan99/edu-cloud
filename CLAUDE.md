@@ -47,7 +47,7 @@ python ~/.claude/scripts/serve.py "C:/Program Files/nodejs/npm.cmd" run dev
 ## 测试命令
 
 ```bash
-# 后端（770 tests）
+# 后端（780 tests）
 cd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q
 
 # 前端（Vitest + happy-dom，17 tests）
@@ -188,7 +188,7 @@ tests/
 | Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 770 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam迁入+Alembic迁移+权限边界 全覆盖）+ 27 前端 Vitest | — |
+| Tests | 780 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam迁入+Alembic迁移+权限边界+Dashboard 全覆盖）+ 27 前端 Vitest | — |
 | Modules | 15 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school），路由已迁入 | — |
 | Migrations | Alembic 初始 migration（39 表，autogenerate） | — |
 
