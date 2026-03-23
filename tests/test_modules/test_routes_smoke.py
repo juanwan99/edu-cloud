@@ -3,133 +3,217 @@ import pytest
 from httpx import AsyncClient
 
 
-@pytest.mark.asyncio
-async def test_sync_endpoints_return_404(client: AsyncClient):
-    """TG-002: 已删除的 sync 端点全部返回 404。"""
-    for path in [
-        "/api/v1/sync/heartbeat",
-        "/api/v1/sync/joint-exams",
-        "/api/v1/sync/templates",
-        "/api/v1/sync/scores",
-    ]:
-        resp = await client.post(path) if "heartbeat" in path or "scores" in path or "templates" == path.split("/")[-1] else await client.get(path)
-        assert resp.status_code in (404, 405), f"{path} should be 404/405, got {resp.status_code}"
-
+# ── TG-002: sync 删除回归 ──────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_all_module_routes_reachable(client: AsyncClient, teacher_headers):
-    """TG-001: 验证所有模块路由挂载正确（不含 401）。"""
-    # GET endpoints should return 200 or valid error (not 404 from missing route)
-    endpoints = [
-        ("GET", "/api/v1/exams"),
-        ("GET", "/api/v1/questions?subject_id=none"),
-        ("GET", "/api/v1/classes"),
-        ("GET", "/api/v1/students"),
-        ("GET", "/api/v1/analytics/exam/nonexistent/summary"),
-        ("GET", "/api/v1/knowledge/points?course_code=MATH"),
-        ("GET", "/api/v1/llm-config/slots"),
-    ]
-    for method, path in endpoints:
-        resp = await client.request(method, path, headers=teacher_headers)
-        # Should not be 404 (route missing) — 200/[] or domain error (404 from service) is OK
-        assert resp.status_code != 405, f"{path} returned 405 Method Not Allowed"
+async def test_sync_heartbeat_deleted(client: AsyncClient):
+    """POST /api/v1/sync/heartbeat → 严格 404。"""
+    resp = await client.post("/api/v1/sync/heartbeat", json={})
+    assert resp.status_code == 404
 
+@pytest.mark.asyncio
+async def test_sync_joint_exams_deleted(client: AsyncClient):
+    """GET /api/v1/sync/joint-exams → 严格 404。"""
+    resp = await client.get("/api/v1/sync/joint-exams")
+    assert resp.status_code == 404
+
+@pytest.mark.asyncio
+async def test_sync_templates_deleted(client: AsyncClient):
+    """POST /api/v1/sync/templates → 严格 404。"""
+    resp = await client.post("/api/v1/sync/templates")
+    assert resp.status_code == 404
+
+@pytest.mark.asyncio
+async def test_sync_scores_deleted(client: AsyncClient):
+    """POST /api/v1/sync/scores → 严格 404。"""
+    resp = await client.post("/api/v1/sync/scores", json={})
+    assert resp.status_code == 404
+
+
+# ── Student 模块 ────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_student_list_classes(client: AsyncClient, teacher_headers):
-    """Student 模块：成功路径 + 空列表。"""
     resp = await client.get("/api/v1/classes", headers=teacher_headers)
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
 
-
 @pytest.mark.asyncio
 async def test_student_list_students(client: AsyncClient, teacher_headers):
-    """Student 模块：成功路径 + 空列表。"""
     resp = await client.get("/api/v1/students", headers=teacher_headers)
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
 
+@pytest.mark.asyncio
+async def test_student_no_auth(client: AsyncClient):
+    resp = await client.get("/api/v1/classes")
+    assert resp.status_code in (401, 403)
+
+
+# ── Card 模块 ───────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_analytics_exam_not_found(client: AsyncClient, teacher_headers):
-    """Analytics 模块：资源不存在。"""
-    resp = await client.get("/api/v1/analytics/exam/nonexistent/summary",
-                            headers=teacher_headers)
+async def test_card_skeleton_list(client: AsyncClient, teacher_headers):
+    """Card: 骨架列表 — 成功路径（空列表）。"""
+    resp = await client.get("/api/v1/card/skeleton/list", headers=teacher_headers)
+    assert resp.status_code == 200
+
+@pytest.mark.asyncio
+async def test_card_skeleton_not_found(client: AsyncClient, teacher_headers):
+    """Card: 不存在的骨架 → 404。"""
+    resp = await client.get("/api/v1/card/skeleton/NONEXIST", headers=teacher_headers)
     assert resp.status_code == 404
 
+@pytest.mark.asyncio
+async def test_card_builtin_templates(client: AsyncClient, teacher_headers):
+    """Card: 内置模板列表。"""
+    resp = await client.get("/api/v1/card/templates/builtin", headers=teacher_headers)
+    assert resp.status_code == 200
+
+@pytest.mark.asyncio
+async def test_card_no_auth(client: AsyncClient):
+    resp = await client.get("/api/v1/card/skeleton/list")
+    assert resp.status_code in (401, 403)
+
+
+# ── Template 模块 ───────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_template_not_found(client: AsyncClient, teacher_headers):
+    resp = await client.get("/api/v1/templates/nonexistent/A", headers=teacher_headers)
+    assert resp.status_code == 404
+
+@pytest.mark.asyncio
+async def test_template_no_auth(client: AsyncClient):
+    resp = await client.get("/api/v1/templates/any/A")
+    assert resp.status_code in (401, 403)
+
+
+# ── Scan 模块 ───────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_scan_get_task_not_found(client: AsyncClient, teacher_headers):
+    """Scan: 不存在的扫描任务 → 404。"""
+    resp = await client.get("/api/v1/scan/tasks/nonexistent", headers=teacher_headers)
+    assert resp.status_code == 404
+
+@pytest.mark.asyncio
+async def test_scan_no_auth(client: AsyncClient):
+    resp = await client.get("/api/v1/scan/tasks/any")
+    assert resp.status_code in (401, 403)
+
+
+# ── Grading 模块 ────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_grading_list_tasks(client: AsyncClient, teacher_headers):
+    """Grading: 任务列表 — 成功路径（空列表）。"""
+    resp = await client.get("/api/v1/grading/tasks", headers=teacher_headers)
+    assert resp.status_code == 200
+
+@pytest.mark.asyncio
+async def test_grading_rubric_not_found(client: AsyncClient, teacher_headers):
+    """Grading: 不存在的评分规则 → 404。"""
+    resp = await client.get("/api/v1/grading/rubrics/nonexistent", headers=teacher_headers)
+    assert resp.status_code == 404
+
+@pytest.mark.asyncio
+async def test_grading_no_auth(client: AsyncClient):
+    resp = await client.get("/api/v1/grading/tasks")
+    assert resp.status_code in (401, 403)
+
+
+# ── Marking 模块 ────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_marking_assignments(client: AsyncClient, teacher_headers):
+    """Marking: 我的任务 — 成功路径（空列表）。"""
+    resp = await client.get("/api/v1/marking/my-assignments", headers=teacher_headers)
+    assert resp.status_code == 200
+
+@pytest.mark.asyncio
+async def test_marking_no_auth(client: AsyncClient):
+    resp = await client.get("/api/v1/marking/my-assignments")
+    assert resp.status_code in (401, 403)
+
+
+# ── Analytics 模块 ──────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_analytics_summary_not_found(client: AsyncClient, teacher_headers):
+    resp = await client.get("/api/v1/analytics/exam/nonexistent/summary", headers=teacher_headers)
+    assert resp.status_code == 404
 
 @pytest.mark.asyncio
 async def test_analytics_distribution_not_found(client: AsyncClient, teacher_headers):
-    """Analytics 模块：分布查询资源不存在。"""
-    resp = await client.get("/api/v1/analytics/exam/nonexistent/distribution",
-                            headers=teacher_headers)
+    resp = await client.get("/api/v1/analytics/exam/nonexistent/distribution", headers=teacher_headers)
     assert resp.status_code == 404
 
+@pytest.mark.asyncio
+async def test_analytics_no_auth(client: AsyncClient):
+    resp = await client.get("/api/v1/analytics/exam/x/summary")
+    assert resp.status_code in (401, 403)
+
+
+# ── Knowledge 模块 ─────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_knowledge_list_empty(client: AsyncClient, teacher_headers):
-    """Knowledge 模块：空列表。"""
-    resp = await client.get("/api/v1/knowledge/points?course_code=NONEXIST",
-                            headers=teacher_headers)
+    resp = await client.get("/api/v1/knowledge/points?course_code=NONEXIST", headers=teacher_headers)
     assert resp.status_code == 200
     assert resp.json() == []
 
-
 @pytest.mark.asyncio
 async def test_knowledge_point_not_found(client: AsyncClient, teacher_headers):
-    """Knowledge 模块：资源不存在。"""
-    resp = await client.get("/api/v1/knowledge/points/nonexistent",
-                            headers=teacher_headers)
+    resp = await client.get("/api/v1/knowledge/points/nonexistent", headers=teacher_headers)
     assert resp.status_code == 404
 
+@pytest.mark.asyncio
+async def test_knowledge_no_auth(client: AsyncClient):
+    resp = await client.get("/api/v1/knowledge/points?course_code=X")
+    assert resp.status_code in (401, 403)
+
+
+# ── Pipeline 模块 ──────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_pipeline_trigger_forbidden(client: AsyncClient, teacher_headers):
+    """Pipeline: 非管理员 → 403。"""
+    resp = await client.post("/api/v1/pipeline/run/nonexistent", headers=teacher_headers)
+    assert resp.status_code == 403
+
+@pytest.mark.asyncio
+async def test_pipeline_no_auth(client: AsyncClient):
+    resp = await client.post("/api/v1/pipeline/run/any")
+    assert resp.status_code in (401, 403)
+
+
+# ── LLM Config 模块 ────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_llm_config_list_slots(client: AsyncClient, teacher_headers):
-    """LLM Config 模块：成功路径。"""
     resp = await client.get("/api/v1/llm-config/slots", headers=teacher_headers)
     assert resp.status_code == 200
     assert "slots" in resp.json()
 
-
 @pytest.mark.asyncio
 async def test_llm_config_delete_nonexistent(client: AsyncClient, teacher_headers):
-    """LLM Config 模块：删除不存在的槽位。"""
+    """LLM Config: homeroom_teacher → 403（非管理员）。"""
     resp = await client.delete("/api/v1/llm-config/slots/99", headers=teacher_headers)
-    # teacher is homeroom_teacher, not admin → 403 or 404
-    assert resp.status_code in (403, 404)
-
-
-@pytest.mark.asyncio
-async def test_pipeline_trigger_forbidden(client: AsyncClient, teacher_headers):
-    """Pipeline 模块：非管理员 → 403。"""
-    resp = await client.post("/api/v1/pipeline/run/nonexistent",
-                             headers=teacher_headers)
     assert resp.status_code == 403
 
-
 @pytest.mark.asyncio
-async def test_template_not_found(client: AsyncClient, teacher_headers):
-    """Template 模块：资源不存在。"""
-    resp = await client.get("/api/v1/templates/nonexistent/A",
-                            headers=teacher_headers)
-    assert resp.status_code == 404
+async def test_llm_config_no_auth(client: AsyncClient):
+    resp = await client.get("/api/v1/llm-config/slots")
+    assert resp.status_code in (401, 403)
 
+
+# ── Question 模块 ──────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_question_create_invalid_subject(client: AsyncClient, teacher_headers):
-    """Question：跨 school / 不存在的 subject → 404。"""
     resp = await client.post("/api/v1/questions", json={
         "subject_id": "nonexistent", "name": "题1",
         "question_type": "objective", "max_score": 5,
     }, headers=teacher_headers)
     assert resp.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_no_auth_returns_error(client: AsyncClient):
-    """无认证 → 401/403 (不是 404)。"""
-    for path in ["/api/v1/exams", "/api/v1/classes", "/api/v1/students",
-                 "/api/v1/knowledge/points?course_code=X", "/api/v1/llm-config/slots"]:
-        resp = await client.get(path)
-        assert resp.status_code in (401, 403), f"{path} should require auth"
