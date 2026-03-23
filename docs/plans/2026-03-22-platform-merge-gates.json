@@ -36,12 +36,12 @@
     },
     "integration_review": {
       "required": true,
-      "status": "pending",
-      "reviewer": null,
-      "subject_ref": null,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_ref": "commit:a958bcb..e4127d9",
       "subject_hash": null,
-      "report_path": null,
-      "updated": null
+      "report_path": "docs/plans/.codex-integration-review-r2-raw.log",
+      "updated": "2026-03-23T20:40:16.775353+08:00"
     }
   }
 }
