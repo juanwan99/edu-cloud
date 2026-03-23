@@ -40,7 +40,8 @@ async def test_subject_unique_per_exam(db):
 
     s2 = Subject(exam_id=exam.id, name="语文重复", code="YW", school_id=school.id)
     db.add(s2)
-    with pytest.raises(Exception):  # IntegrityError
+    from sqlalchemy.exc import IntegrityError
+    with pytest.raises(IntegrityError):
         await db.commit()
     await db.rollback()
 
@@ -73,25 +74,27 @@ async def test_question_crud(db):
 
 
 @pytest.mark.asyncio
-async def test_exam_school_isolation(db):
-    """不同学校的考试互不可见（模型层验证 school_id 存在）。"""
+async def test_exam_school_isolation_via_service(db):
+    """不同学校的考试互不可见（通过 service 层验证隔离）。"""
+    from edu_cloud.modules.exam.service import create_exam, list_exams, get_exam
+    from edu_cloud.services.exceptions import NotFoundError
+
     s1 = School(name="校A", code="ISO_A", district="X")
     s2 = School(name="校B", code="ISO_B", district="X")
     db.add_all([s1, s2])
     await db.flush()
 
-    e1 = Exam(name="校A考试", school_id=s1.id)
-    e2 = Exam(name="校B考试", school_id=s2.id)
-    db.add_all([e1, e2])
-    await db.commit()
+    e1 = await create_exam(db, name="校A考试", card_title="A", school_id=s1.id)
+    e2 = await create_exam(db, name="校B考试", card_title="B", school_id=s2.id)
 
-    from sqlalchemy import select
-    result = await db.execute(
-        select(Exam).where(Exam.school_id == s1.id)
-    )
-    exams = result.scalars().all()
-    assert len(exams) == 1
-    assert exams[0].name == "校A考试"
+    # list_exams 只返回本校
+    exams_a = await list_exams(db, school_id=s1.id)
+    assert len(exams_a) == 1
+    assert exams_a[0].name == "校A考试"
+
+    # get_exam 跨校 → NotFoundError
+    with pytest.raises(NotFoundError):
+        await get_exam(db, exam_id=e1.id, school_id=s2.id)
 
 
 @pytest.mark.asyncio
