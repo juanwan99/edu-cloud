@@ -133,6 +133,8 @@ git commit -m "feat(api): login/switch-role 返回 context 对象（type+id+name
 
 **测试契约:** 入口=`GET /api/v1/dashboard/summary` | 反例=①不按 school_id 过滤→全库数据 ②不按 class_ids 过滤→全校数据 ③始终返回 0→精确计数断言失败 | 边界=①platform_admin 无 school_id→返回零值 ②班级有学生/无学生 ③deferred 字段返回 null | 回归=现有 770 tests | 命令=`pytest tests/test_api/test_dashboard.py -v`
 
+**已知限制（R3-03 deferred）:** grade_leader 的 scope 理论上由 `grade_ids` 决定（设计文档 §4.6），但当前 `api/permissions.py` 的 `get_visible_class_ids()` 只处理 `class_ids`，不解析 `grade_ids→class_ids`。本 T3 沿用现有行为：grade_leader 通过 `class_ids` 配置可见班级。grade_ids→class 解析延期到权限系统增强 T3。
+
 - [ ] **Step 1: 写失败测试**
 
 ```python
@@ -327,6 +329,8 @@ git commit -m "feat(api): GET /dashboard/summary — 角色 scope 聚合统计"
 
 **Why:** 通知铃 badge、ActivityFeed、校长 Dashboard "待审批/本周通知" KPI 均需要通知列表 API。
 
+**已知限制（R3-02 deferred）:** MVP 仅按 school_id 过滤，不按 target_scope 做角色级可见性过滤。校长看全校通知，同校教师也看全校通知。target_scope 过滤延期到通知增强 T3（JSON 查询增加显著复杂度）。
+
 - [ ] **Step 1: 写失败测试**
 
 ```python
@@ -338,22 +342,38 @@ TZ = timezone(timedelta(hours=8))
 
 @pytest.fixture
 async def seed_notifications(db):
-    """Seed 3 条通知：2 条 pending(本校)、1 条 sent(本校)、1 条 pending(他校)。"""
+    """Seed 4 条通知：2 pending(校A) + 1 sent(校A) + 1 pending(校B)。
+    R3-01 修复：Notification.document_id 为 NOT NULL，须先创建 Document。"""
     from edu_cloud.models.school import School
     from edu_cloud.models.notification import Notification
+    from edu_cloud.models.document import Document
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
     school_a = School(name="通知校A", code="NOTIA", district="测试区", api_key_hash="x")
     school_b = School(name="通知校B", code="NOTIB", district="测试区", api_key_hash="x")
     db.add_all([school_a, school_b])
     await db.flush()
+    # 创建最小 user + document（Notification 外键需要）
+    user = User(username="noti_seed", display_name="种子用户")
+    user.set_password("123456")
+    db.add(user)
+    await db.flush()
+    db.add(UserRole(user_id=user.id, role="principal", school_id=school_a.id, is_primary=True))
+    doc_a = Document(type="notification", title="通知A", status="executed",
+                     school_id=school_a.id, created_by=user.id)
+    doc_b = Document(type="notification", title="通知B", status="executed",
+                     school_id=school_b.id, created_by=user.id)
+    db.add_all([doc_a, doc_b])
+    await db.flush()
     now = datetime.now(TZ)
-    n1 = Notification(school_id=school_a.id, status="pending", channel="system",
-                      created_at=now - timedelta(hours=1))
-    n2 = Notification(school_id=school_a.id, status="pending", channel="approval",
-                      created_at=now - timedelta(days=10))
-    n3 = Notification(school_id=school_a.id, status="sent", channel="system",
-                      created_at=now - timedelta(hours=2))
-    n4 = Notification(school_id=school_b.id, status="pending", channel="system",
-                      created_at=now)
+    n1 = Notification(document_id=doc_a.id, school_id=school_a.id, status="pending",
+                      channel="system", created_at=now - timedelta(hours=1))
+    n2 = Notification(document_id=doc_a.id, school_id=school_a.id, status="pending",
+                      channel="approval", created_at=now - timedelta(days=10))
+    n3 = Notification(document_id=doc_a.id, school_id=school_a.id, status="sent",
+                      channel="system", created_at=now - timedelta(hours=2))
+    n4 = Notification(document_id=doc_b.id, school_id=school_b.id, status="pending",
+                      channel="system", created_at=now)
     db.add_all([n1, n2, n3, n4])
     await db.commit()
     return {"school_a_id": school_a.id, "school_b_id": school_b.id,

@@ -396,10 +396,10 @@ const MARKING_ROLES = [...SCHOOL_ADMIN_ROLES, 'homeroom_teacher', 'subject_teach
 
     // 三栏深度分析（原 WorkbenchPage 重命名为 AnalysisPage）
     { path: 'analysis', component: AnalysisPage,
-      meta: { permissions: ['USE_AI_CHAT'] } },  // parent 无此权限
+      meta: { permissions: ['use_ai_chat'] } },  // parent 无此权限（小写 = 后端 enum value）
 
     // 学校管理（现有页面）
-    { path: 'schools', component: SchoolsPage, meta: { permissions: ['MANAGE_SCHOOLS'] } },
+    { path: 'schools', component: SchoolsPage, meta: { permissions: ['manage_schools'] } },
   ]
 }
 ```
