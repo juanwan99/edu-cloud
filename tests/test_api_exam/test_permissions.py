@@ -10,7 +10,7 @@ from edu_cloud.shared.auth import create_access_token
 
 @pytest.fixture
 async def perm_setup(client, db):
-    """创建学校 + 两科 + 题目 + 答卷 + 多角色用户。"""
+    """创建学校 + 两科 + 题目 + 答卷 + 多角色用户（含未知角色）。"""
     school = School(id="ps1", name="权限测试校", code="PERM02")
     db.add(school)
     await db.commit()
@@ -44,13 +44,16 @@ async def perm_setup(client, db):
     teacher_sx.set_password("p")
     bare = User(id="pu_bare", username="pbare", display_name="裸教师")
     bare.set_password("p")
-    db.add_all([admin, teacher_yw, teacher_sx, bare])
+    unknown = User(id="pu_unknown", username="punknown", display_name="未知角色用户")
+    unknown.set_password("p")
+    db.add_all([admin, teacher_yw, teacher_sx, bare, unknown])
     await db.flush()
     db.add_all([
         UserRole(user_id="pu_admin", role="admin", school_id="ps1", is_primary=True),
         UserRole(user_id="pu_tyw", role="teacher", school_id="ps1", is_primary=True, subject_codes=["YW"]),
         UserRole(user_id="pu_tsx", role="teacher", school_id="ps1", is_primary=True, subject_codes=["SX"]),
         UserRole(user_id="pu_bare", role="teacher", school_id="ps1", is_primary=True),
+        UserRole(user_id="pu_unknown", role="unknown_role", school_id="ps1", is_primary=True),
     ])
     await db.commit()
 
@@ -63,6 +66,7 @@ async def perm_setup(client, db):
         "teacher_yw": headers_for("pu_tyw", "teacher"),
         "teacher_sx": headers_for("pu_tsx", "teacher"),
         "bare": headers_for("pu_bare", "teacher"),
+        "unknown": headers_for("pu_unknown", "unknown_role"),
         "exam_id": "pe1",
         "q_yw_id": "pqyw",
         "q_sx_id": "pqsx",
@@ -114,3 +118,32 @@ class TestMarkingPermissions:
         """管理员可以批改任何题。"""
         resp = await client.get(f"/api/v1/marking/next?question_id={perm_setup['q_sx_id']}", headers=perm_setup["admin"])
         assert resp.status_code == 200
+
+
+class TestUnknownRolePermissions:
+    """未知角色边界测试 — 验证不在 RBAC 映射中的角色被正确限制。"""
+
+    async def test_unknown_role_sees_empty_subjects(self, client, perm_setup):
+        """未知角色查看考试分析应返回空学科列表。"""
+        resp = await client.get(
+            f"/api/v1/analytics/exam/{perm_setup['exam_id']}/summary",
+            headers=perm_setup["unknown"],
+        )
+        assert resp.status_code == 200
+        assert resp.json()["subjects"] == []
+
+    async def test_unknown_role_cannot_see_subject_questions(self, client, perm_setup):
+        """未知角色不能查看任何学科的题目分析。"""
+        resp = await client.get(
+            "/api/v1/analytics/subject/psyw/questions",
+            headers=perm_setup["unknown"],
+        )
+        assert resp.status_code == 403
+
+    async def test_unknown_role_cannot_mark(self, client, perm_setup):
+        """未知角色不能批改任何题。"""
+        resp = await client.get(
+            f"/api/v1/marking/next?question_id={perm_setup['q_sx_id']}",
+            headers=perm_setup["unknown"],
+        )
+        assert resp.status_code == 403
