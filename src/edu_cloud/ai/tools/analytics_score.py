@@ -1,0 +1,189 @@
+"""成绩查询工具（5 个）。L2_analytics 类别。"""
+from edu_cloud.ai.registry import tools
+
+
+@tools.register(
+    name="get_exam_summary",
+    description="获取考试总览：各科平均分、最高分、最低分、得分率。",
+    category="L2_analytics",
+    parameters={
+        "type": "object",
+        "properties": {
+            "exam_id": {"type": "string", "description": "考试 ID"},
+        },
+        "required": ["exam_id"],
+    },
+)
+async def get_exam_summary(
+    exam_id: str,
+    _school_id: str = "",
+    _visible_subjects: list[str] | None = None,
+    _db=None,
+) -> dict:
+    from edu_cloud.modules.analytics.service import exam_summary
+    return await exam_summary(
+        _db, exam_id=exam_id, school_id=_school_id,
+        visible_subject_codes=_visible_subjects,
+    )
+
+
+@tools.register(
+    name="get_score_distribution",
+    description="获取成绩分布（分数段统计）。可按科目和班级过滤。",
+    category="L2_analytics",
+    parameters={
+        "type": "object",
+        "properties": {
+            "exam_id": {"type": "string", "description": "考试 ID"},
+            "subject_id": {"type": "string", "description": "可选，科目 ID"},
+            "class_id": {"type": "string", "description": "可选，班级 ID"},
+        },
+        "required": ["exam_id"],
+    },
+)
+async def get_score_distribution(
+    exam_id: str,
+    subject_id: str | None = None,
+    class_id: str | None = None,
+    _school_id: str = "",
+    _visible_subjects: list[str] | None = None,
+    _visible_classes: list[str] | None = None,
+    _db=None,
+) -> dict:
+    if _visible_classes is not None and class_id and class_id not in _visible_classes:
+        return {"error": "无权访问该班级"}
+    from edu_cloud.modules.analytics.service import exam_distribution
+    scope_classes = [class_id] if class_id else _visible_classes
+    return await exam_distribution(
+        _db, exam_id=exam_id, school_id=_school_id,
+        subject_id=subject_id,
+        visible_subject_codes=_visible_subjects,
+        visible_class_ids=scope_classes,
+    )
+
+
+@tools.register(
+    name="get_question_analysis",
+    description="获取某科目每道题的得分率分析。",
+    category="L2_analytics",
+    parameters={
+        "type": "object",
+        "properties": {
+            "subject_id": {"type": "string", "description": "科目 ID"},
+        },
+        "required": ["subject_id"],
+    },
+)
+async def get_question_analysis(
+    subject_id: str,
+    _school_id: str = "",
+    _visible_subjects: list[str] | None = None,
+    _db=None,
+) -> dict:
+    from edu_cloud.modules.analytics.service import subject_question_analysis
+    return await subject_question_analysis(
+        _db, subject_id=subject_id, school_id=_school_id,
+        visible_subject_codes=_visible_subjects,
+    )
+
+
+@tools.register(
+    name="get_student_scores",
+    description="获取某学生在某次考试的各科各题详细分数。",
+    category="L2_analytics",
+    parameters={
+        "type": "object",
+        "properties": {
+            "exam_id": {"type": "string", "description": "考试 ID"},
+            "student_id": {"type": "string", "description": "学生 ID"},
+        },
+        "required": ["exam_id", "student_id"],
+    },
+)
+async def get_student_scores(
+    exam_id: str,
+    student_id: str,
+    _school_id: str = "",
+    _visible_classes: list[str] | None = None,
+    _db=None,
+) -> dict:
+    from edu_cloud.modules.student.service import get_student
+    student = await get_student(_db, student_id=student_id, school_id=_school_id)
+    if not student:
+        return {"error": "学生不存在"}
+    if _visible_classes is not None and student.class_id not in _visible_classes:
+        return {"error": "无权查看该学生成绩"}
+
+    from edu_cloud.modules.analytics.service import get_student_exam_scores
+    all_scores = await get_student_exam_scores(
+        _db, exam_id=exam_id, student_id=student_id, school_id=_school_id,
+    )
+    total = sum(s["score"] for s in all_scores)
+    total_max = sum(s["max_score"] for s in all_scores)
+    return {
+        "student_id": student_id,
+        "student_name": student.name,
+        "total_score": total,
+        "total_max": total_max,
+        "details": all_scores,
+    }
+
+
+@tools.register(
+    name="get_class_scores",
+    description="获取某班级在某次考试的学生成绩列表。",
+    category="L2_analytics",
+    parameters={
+        "type": "object",
+        "properties": {
+            "exam_id": {"type": "string", "description": "考试 ID"},
+            "class_id": {"type": "string", "description": "班级 ID"},
+            "subject_id": {"type": "string", "description": "可选，科目 ID"},
+        },
+        "required": ["exam_id", "class_id"],
+    },
+)
+async def get_class_scores(
+    exam_id: str,
+    class_id: str,
+    subject_id: str | None = None,
+    _school_id: str = "",
+    _visible_classes: list[str] | None = None,
+    _visible_subjects: list[str] | None = None,
+    _db=None,
+) -> dict:
+    if _visible_classes is not None and class_id not in _visible_classes:
+        return {"error": "无权访问该班级"}
+
+    from sqlalchemy import select
+    from edu_cloud.modules.exam.models import Subject
+    from edu_cloud.modules.student.models import Student
+    from edu_cloud.modules.analytics.service import get_effective_scores
+
+    students_result = await _db.execute(
+        select(Student).where(Student.class_id == class_id, Student.school_id == _school_id)
+    )
+    students = {s.id: s for s in students_result.scalars().all()}
+
+    subj_query = select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == _school_id)
+    if subject_id:
+        subj_query = subj_query.where(Subject.id == subject_id)
+    if _visible_subjects is not None:
+        subj_query = subj_query.where(Subject.code.in_(_visible_subjects))
+    subjects = (await _db.execute(subj_query)).scalars().all()
+
+    student_totals: dict[str, float] = {}
+    for subj in subjects:
+        scores = await get_effective_scores(_db, subj.id, _school_id, [class_id])
+        for s in scores:
+            student_totals[s["student_id"]] = student_totals.get(s["student_id"], 0) + s["effective_score"]
+
+    results = []
+    for sid, total in sorted(student_totals.items(), key=lambda x: x[1], reverse=True):
+        st = students.get(sid)
+        results.append({
+            "student_id": sid,
+            "student_name": st.name if st else "",
+            "total_score": total,
+        })
+    return {"class_id": class_id, "students": results}

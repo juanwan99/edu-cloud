@@ -1,5 +1,5 @@
 import pytest
-from edu_cloud.ai.tools.analytics import get_exam_scores, get_class_stats, compare_classes, get_student_profile
+from edu_cloud.ai.tools.analytics import get_exam_scores, get_class_stats
 
 
 @pytest.mark.asyncio
@@ -35,30 +35,9 @@ async def test_get_class_stats(db, seed_exam_with_results):
     assert "count" in result
 
 
-@pytest.mark.asyncio
-async def test_compare_classes(db, seed_exam_with_results):
-    exam_id = seed_exam_with_results["exam_id"]
-    school_id = seed_exam_with_results["school_id"]
-    result = await compare_classes(exam_id=exam_id, _db=db, _school_id=school_id, _class_ids=None)
-    assert "classes" in result
-    assert len(result["classes"]) >= 1
-    assert "avg" in result["classes"][0]
-    assert "count" in result["classes"][0]
 
-
-@pytest.mark.asyncio
-async def test_get_student_profile(db, seed_exam_with_results):
-    school_id = seed_exam_with_results["school_id"]
-    result = await get_student_profile(student_number="T000", _db=db, _school_id=school_id)
-    assert "name" in result
-    assert "exams" in result
-    assert len(result["exams"]) >= 1
-
-
-@pytest.mark.asyncio
-async def test_get_student_profile_not_found(db, seed_exam_with_results):
-    result = await get_student_profile(student_number="NONEXIST", _db=db, _school_id=seed_exam_with_results["school_id"])
-    assert "error" in result
+# compare_classes → moved to analytics_compare.py (L2_analytics)
+# get_student_profile → moved to students.py (L1_student)
 
 
 @pytest.mark.asyncio
@@ -113,26 +92,5 @@ async def test_get_class_stats_scope_none_means_unrestricted(db, seed_exam_with_
     assert "avg" in result
 
 
-@pytest.mark.asyncio
-async def test_get_student_profile_scope_denied(db, seed_exam_with_results):
-    """get_student_profile rejects student outside caller's _class_ids scope."""
-    result = await get_student_profile(
-        student_number="T000", _db=db,
-        _school_id=seed_exam_with_results["school_id"],
-        _class_ids=["other_class_id"],
-    )
-    assert "error" in result
-    assert "无权" in result["error"]
 
-
-@pytest.mark.asyncio
-async def test_get_student_profile_scope_allowed(db, seed_exam_with_results):
-    """get_student_profile allows student within caller's _class_ids scope."""
-    class_id = seed_exam_with_results["class_id"]
-    result = await get_student_profile(
-        student_number="T000", _db=db,
-        _school_id=seed_exam_with_results["school_id"],
-        _class_ids=[class_id],
-    )
-    assert "error" not in result
-    assert "name" in result
+# student_profile scope tests → moved to students.py tests

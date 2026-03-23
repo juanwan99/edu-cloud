@@ -14,14 +14,17 @@ logger = logging.getLogger(__name__)
 
 # Maps each role to the tool categories it may access.
 # None means unrestricted (all categories).
+# 9 categories: L1_exam, L1_student, L2_analytics, L2_cross_school,
+#               L3_knowledge, L3_knowledge_db, L4_action, L5_bank, L6_profile
 ROLE_TOOL_CATEGORIES: dict[str, list[str] | None] = {
     "platform_admin": None,  # all categories
-    "district_admin": ["L2_cross_school", "L3_knowledge"],
-    "principal": ["L1_analytics", "L2_cross_school", "L3_knowledge", "L4_action"],
-    "academic_director": ["L1_analytics", "L2_cross_school", "L3_knowledge", "L4_action"],
-    "grade_leader": ["L1_analytics", "L3_knowledge", "L4_action"],
-    "homeroom_teacher": ["L1_analytics", "L3_knowledge", "L4_action"],
-    "subject_teacher": ["L1_analytics", "L3_knowledge", "L4_action"],
+    "district_admin": ["L2_cross_school", "L3_knowledge", "L3_knowledge_db"],
+    "principal": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L4_action", "L6_profile"],
+    "academic_director": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L4_action"],
+    "grade_leader": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db"],
+    "homeroom_teacher": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L5_bank", "L6_profile"],
+    "subject_teacher": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L5_bank"],
+    "parent": ["L6_profile"],
 }
 
 

@@ -112,8 +112,26 @@ src/edu_cloud/
     loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
     store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）
   ai/
+    agent.py            # ReAct Agent（ROLE_TOOL_CATEGORIES 9 类别 RBAC）
+    llm.py              # LLMChatClient（OpenAI + Anthropic 双协议，重试，llm-proxy slot）
+    context.py          # build_system_prompt + AgentContext（session 管理/token 裁剪）
+    schemas.py          # ChatMessage/ToolCall/AgentEvent 数据模型
+    anonymizer.py       # 会话级姓名脱敏（字段检测 + student_number 剥离）
+    audit.py            # AuditLogger（DB 持久化 AiSession/AiToolCall）
+    registry.py         # ToolRegistry 全局实例 + 装饰器注册 + 依赖注入
+    models.py           # AiSession/AiToolCall 表
     tools/
-      knowledge.py      # L3 知识查询工具（search_curriculum/search_textbook/get_concept_info/search_gaokao）
+      __init__.py       # 触发全部 10 个工具模块注册（31 tools）
+      analytics.py      # L2_cross_school（2）: get_exam_scores/get_class_stats
+      analytics_score.py # L2_analytics（5）: exam_summary/distribution/question/student/class scores
+      analytics_compare.py # L2_analytics（3）: compare_classes/rank_students/grade_aggregates
+      exams.py          # L1_exam（3）: exam_list/detail/subject_questions
+      students.py       # L1_student（4）: class_list/roster/search/profile
+      bank.py           # L5_bank（2）: error_book/question_stats
+      profile.py        # L6_profile（4）: trend/knowledge_map/weakness/error_pattern
+      knowledge.py      # L3_knowledge（4）: search_curriculum/textbook/concept/gaokao
+      knowledge_db.py   # L3_knowledge_db（2）: knowledge_tree/question_knowledge_points
+      actions.py        # L4_action（2）: generate_report/comment
   shared/
     auth.py             # JWT create/decode 工具函数
   config.py             # Settings（DB/Redis/JWT/LLM/UPLOAD_DIR/知识库 配置，BaseSettings）
