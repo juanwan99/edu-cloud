@@ -13,6 +13,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
+async def _build_role_context(role, db):
+    """构建角色的上下文对象。"""
+    if role.school_id is None:
+        if role.role in ("platform_admin", "admin"):
+            return {"type": "platform", "id": None, "name": "全平台"}
+        elif role.role == "district_admin":
+            return {"type": "district", "id": None, "name": "管辖区域"}
+        return {"type": "platform", "id": None, "name": "全平台"}
+
+    from edu_cloud.models.school import School
+    school = await db.get(School, role.school_id)
+    return {
+        "type": "school",
+        "id": role.school_id,
+        "name": school.name if school else "未知学校",
+    }
+
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -50,6 +68,16 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
             "active_role_id": primary.id,
         })
         logger.info("login ok: user=%s, role=%s", req.username, primary.role)
+        roles_data = []
+        for r in roles:
+            ctx = await _build_role_context(r, db)
+            roles_data.append({
+                "id": r.id,
+                "role": r.role,
+                "school_id": r.school_id,
+                "is_primary": r.is_primary,
+                "context": ctx,
+            })
         return {
             "access_token": token,
             "token_type": "bearer",
@@ -59,15 +87,7 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
                 "display_name": user.display_name,
                 "role": primary.role,
             },
-            "roles": [
-                {
-                    "id": r.id,
-                    "role": r.role,
-                    "school_id": r.school_id,
-                    "is_primary": r.is_primary,
-                }
-                for r in roles
-            ],
+            "roles": roles_data,
         }
 
     logger.warning("login failed: username=%s", req.username)
@@ -101,6 +121,7 @@ async def switch_role(
         "role": target_role.role,
         "active_role_id": target_role.id,
     })
+    ctx = await _build_role_context(target_role, db)
     logger.info("switch-role: user=%s, new_role=%s", user.username, target_role.role)
     return {
         "access_token": token,
@@ -110,5 +131,6 @@ async def switch_role(
             "role": target_role.role,
             "school_id": target_role.school_id,
             "is_primary": target_role.is_primary,
+            "context": ctx,
         },
     }

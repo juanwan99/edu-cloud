@@ -102,6 +102,7 @@ src/edu_cloud/
     deps.py             # 依赖注入（JWT 认证 get_current_user + require_permission）
     permissions.py      # 数据权限过滤（get_visible_class_ids/get_visible_subject_codes）
     auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）
+    dashboard.py        # GET /api/v1/dashboard/summary（角色 scope 聚合统计）
     ai.py               # AI Agent 路由（Batch 4 迁移）
     # 以下为 re-export stubs，canonical → modules/
     schools.py → modules/school/router.py
@@ -262,7 +263,8 @@ tests/
 
 | 方法 | 路径 | 用途 |
 |------|------|------|
-| POST | `/api/v1/auth/login` | 平台用户登录，返回 JWT |
+| POST | `/api/v1/auth/login` | 平台用户登录，返回 JWT + roles（含 context: type/id/name） |
+| POST | `/api/v1/auth/switch-role` | 切换活跃角色，返回新 JWT + active_role（含 context） |
 | GET | `/api/v1/health` | 健康检查 |
 | GET | `/api/v1/version` | 版本+启动时间 |
 
