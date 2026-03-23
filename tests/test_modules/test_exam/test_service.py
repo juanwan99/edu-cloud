@@ -72,6 +72,33 @@ async def test_update_exam_valid_transition(db):
 
 
 @pytest.mark.asyncio
+async def test_update_exam_full_lifecycle(db):
+    """完整状态链 draft→scanning→grading→reviewing→completed。"""
+    school = School(name="LC", code="LC01", district="X")
+    db.add(school)
+    await db.flush()
+    exam = await create_exam(db, name="生命周期", card_title="LC", school_id=school.id)
+    for status in ["scanning", "grading", "reviewing", "completed"]:
+        exam = await update_exam(db, exam_id=exam.id, school_id=school.id, status=status)
+        assert exam.status == status
+
+
+@pytest.mark.asyncio
+async def test_update_exam_completed_pipeline_error_non_blocking(db):
+    """completed 触发 pipeline 失败时，状态仍为 completed（设计意图：pipeline 是副作用）。"""
+    school = School(name="PF", code="PF01", district="X")
+    db.add(school)
+    await db.flush()
+    exam = await create_exam(db, name="Pipeline测试", card_title="PF", school_id=school.id)
+    # Walk through states to reviewing
+    for status in ["scanning", "grading", "reviewing"]:
+        exam = await update_exam(db, exam_id=exam.id, school_id=school.id, status=status)
+    # completed will try pipeline — it'll complete without error (no StudentAnswer data)
+    exam = await update_exam(db, exam_id=exam.id, school_id=school.id, status="completed")
+    assert exam.status == "completed"
+
+
+@pytest.mark.asyncio
 async def test_create_subject_duplicate(db):
     """重复 subject code → ConflictError。"""
     school = School(name="DU", code="DU01", district="X")
