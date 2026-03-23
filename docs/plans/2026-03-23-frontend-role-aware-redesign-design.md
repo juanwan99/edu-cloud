@@ -72,7 +72,19 @@
 - 不重写 15 个功能页面的内部逻辑
 - 不做移动端适配（后续独立设计）
 - 不实现"师资人事""后勤安全"等规划中板块的业务逻辑
-- 不新增后端 API（全部使用已有 endpoint）
+- 不实现 parent-child 绑定（家长端为简化版，后续独立设计）
+
+### 需要新增的后端变更（FR-03/FR-04/FR-08 修复）
+
+设计依赖以下后端变更，需在实现计划中安排：
+
+| 变更 | 原因 | 端点 |
+|------|------|------|
+| login/switch-role 返回 school_name | 顶栏显示学校名（教师/家长无 VIEW_SCHOOLS 权限） | `POST /auth/login`, `POST /auth/switch-role` |
+| dashboard summary API | KPI 卡片数据源（学生数/班级数/考试数/待批改数） | `GET /api/v1/dashboard/summary` |
+| notification list API | 通知中心下拉面板 | `GET /api/v1/notifications` |
+
+这些是轻量扩展，不涉及架构变更。
 
 ## §3 导航壳层设计
 
@@ -89,7 +101,7 @@
 | 区域 | 行为 |
 |------|------|
 | Logo + 品牌 | 「edu-cloud 智能平台」，点击回首页 |
-| 学校上下文 | 显示当前角色所属学校名。platform_admin/district_admin 可切换学校（下拉选择）；其他角色只读显示 |
+| 学校上下文 | 显示当前角色所属学校名（从 login/switch-role 响应的 `school_name` 字段获取）。platform_admin 的 `school_id` 为 null，此时显示「全平台」；district_admin 显示管辖区名。角色切换自动更新学校名。**不做独立的学校切换器**——平台/区级用户通过切换角色（同一用户可有多校角色）来切换上下文 |
 | 搜索 | 全局搜索入口（后期可接 AI 语义搜索） |
 | 通知铃 | 红色 badge 显示未读数。点击展开下拉面板，分 tab：待审批/消息/系统 |
 | 头像菜单 | 显示名 + 当前角色 tag。展开：角色切换列表 + 登出 |
@@ -99,27 +111,65 @@
 220px 宽，可折叠至 64px（只显示图标）。白底，右边框 `--color-border-light`。
 导航项按角色动态渲染，使用 `sidebarConfig.js` JSON 配置驱动。
 
-**校长/教务主任**：
+**平台管理员（platform_admin）**：
+- 平台概览（dashboard）
+- 学校管理
+- 联考管理
+- 用户管理（规划中）
+- 系统设置
+
+**区管理员（district_admin）**：
+- 区域概览（dashboard）
+- 学校管理
+- 联考管理
+- 跨校分析
+- 用户管理（规划中）
+
+**校长（principal）**：
 - 校务概览（dashboard）
 - 考试管理
 - 数据分析
 - 文档中心
 - 校历通知
-- 学校管理（仅 admin）
-- 系统设置
 
-**班主任/科任教师**：
+**教务主任（academic_director）**：
+- 教务概览（dashboard）
+- 考试管理
+- 联考管理
+- 阅卷调度
+- 数据分析
+- 文档中心
+- 系统设置（LLM 配置）
+
+**年级组长（grade_leader）**：
+- 年级概览（dashboard）
+- 考试管理
+- 数据分析（本年级 scope）
+- 文档
+
+**班主任（homeroom_teacher）**：
 - 我的工作台（dashboard）
 - 考试管理
 - 阅卷（我的任务/批改）
-- 成绩分析
+- 成绩分析（本班 scope）
+- 通知管理
 - 文档
-- AI 助手
 
-**家长**：
+**科任教师（subject_teacher）**：
+- 我的工作台（dashboard）
+- 考试管理
+- 阅卷（我的任务/批改）
+- 成绩分析（本科 scope）
+- 论文写作
+- 文档
+
+**家长（parent）**：
 - 孩子成绩
-- 学习画像
 - 学校通知
+
+**Legacy 别名处理**：auth store 中 role normalization — `admin` → `platform_admin`，`teacher` → `subject_teacher`，`head_teacher` → `homeroom_teacher`。Config 查找统一用 canonical 角色名。
+
+**AI 助手入口**：侧栏中仅对具备 `USE_AI_CHAT` 权限的角色显示（即除 parent 外所有角色）。AI 浮窗按钮同理。
 
 导航项样式：`padding: 10px 16px`，active 态左边框 3px `--color-primary` + 背景 `--color-bg-alt`。
 分组标题：12px，`--color-text-muted`，uppercase，`margin-top: 24px`。
@@ -160,7 +210,27 @@
 | 模块可扩展 | 新功能 = 新卡片，不改框架 |
 | 规划中板块灰度展示 | 告诉用户系统在成长，不留空白 |
 
-### 4.2 校长 Dashboard
+### 4.2 平台管理员 Dashboard（platform_admin）
+
+**视角**：跨校管理。school_id 为 null。
+
+**KPI 行**：学校总数 / 活跃学校 / 联考进行中 / 系统用户数（规划中）
+
+**模块卡片**：学校管理 / 联考管理 / 系统设置 / 用户管理（规划中）
+
+**数据源**：`GET /api/v1/schools`（学校数）、`GET /api/v1/joint-exams`（联考数）
+
+### 4.3 区管理员 Dashboard（district_admin）
+
+**视角**：管辖区内学校。scope = district。
+
+**KPI 行**：管辖学校数 / 联考进行中 / 跨校均分 / 待处理
+
+**模块卡片**：学校管理 / 联考管理 / 跨校分析 / 用户管理（规划中）
+
+**数据源**：`GET /api/v1/schools?district=X`、`GET /api/v1/joint-exams`
+
+### 4.4 校长 Dashboard（principal）
 
 **视角**：全校健康度概览。教学只是一个板块。
 
@@ -184,7 +254,7 @@
 
 **动态流（全宽）**：按时间倒序的事件列表，带日期分组。
 
-### 4.3 教务主任 Dashboard
+### 4.5 教务主任 Dashboard（academic_director）
 
 **视角**：执行调度。比校长多操作入口。
 
@@ -192,7 +262,17 @@
 
 **模块卡片**：考试管理 / 联考管理 / 阅卷调度 / 数据分析 / 文档中心 / AI 助手
 
-### 4.4 班主任 Dashboard
+### 4.6 年级组长 Dashboard（grade_leader）
+
+**视角**：本年级。scope = grade_ids。
+
+**KPI 行**：年级班级数 / 年级学生数 / 年级均分 / 最近考试
+
+**模块卡片**：年级成绩概览 / 考试管理 / 数据分析 / 文档
+
+**数据源**：`GET /api/v1/dashboard/summary`（后端按 grade scope 过滤）
+
+### 4.7 班主任 Dashboard（homeroom_teacher）
 
 **视角**：我的班级。scope = class_ids。
 
@@ -200,7 +280,7 @@
 
 **模块卡片**：我的班级（学生列表入口）/ 待办事项 / 成绩分析 / 通知管理 / AI 助手 / 文档中心
 
-### 4.5 科任教师 Dashboard
+### 4.8 科任教师 Dashboard（subject_teacher）
 
 **视角**：我的学科 + 我教的班。scope = class_ids + subject_codes。
 
@@ -208,19 +288,19 @@
 
 **模块卡片**：我的阅卷 / 学科成绩 / AI 助手 / 论文写作
 
-### 4.6 家长 Dashboard
+### 4.9 家长 Dashboard（parent）
 
-**视角**：只看自己孩子。最简洁。
+**视角**：简化版。parent-child 绑定机制待后续设计。
 
-**顶部**：孩子姓名 + 班级 + 准考证号（信息条）
+**当前实现**：显示学校通知列表（`GET /api/v1/calendar/events`）。成绩和画像功能待 parent-child 绑定后启用，当前显示"功能开发中"占位卡片。
 
-**模块卡片**：最近成绩 / 学习画像 / 学校通知（全宽列表）
+**模块卡片**：学校通知（全宽列表） / 孩子成绩（规划中）/ 学习画像（规划中）
 
 ## §5 AI 助手设计
 
-### 5.1 浮窗模式（全局）
+### 5.1 浮窗模式（仅限有 USE_AI_CHAT 权限的角色）
 
-右下角常驻悬浮按钮（48px 圆形，墨绿色，`--shadow-lg`），hover 上浮。
+右下角悬浮按钮（48px 圆形，墨绿色，`--shadow-lg`），hover 上浮。仅对具备 `USE_AI_CHAT` 权限的角色显示（即除 `parent` 外所有角色）。`parent` 角色不渲染浮窗按钮。
 点击从右侧滑出面板（400px 宽，`--shadow-xl`，左上/左下 `--radius-lg` 圆角）。
 
 面板内容：
@@ -278,29 +358,48 @@ src/
 
 ```javascript
 // AppShell 包裹所有需要导航的页面
+// meta.roles: 允许访问的角色列表（空 = 所有已认证用户）
+// meta.permissions: 允许访问的权限列表（可选，更细粒度）
 {
   path: '/',
   component: AppShell,
+  meta: { requiresAuth: true },
   children: [
+    // Dashboard（所有角色，内容由 config 决定）
     { path: '', name: 'Dashboard', component: DashboardPage },
+
+    // 考试管理（现有页面，保留）
     { path: 'exams', component: ExamListPage },
     { path: 'exams/:id', component: ExamDetailPage },
-    { path: 'analytics/:examId?', component: AnalyticsPage },
-    { path: 'analysis', component: AnalysisPage },  // 三栏
+    { path: 'card-dev/:examId', component: CardEditorDevPage },
+    { path: 'analytics/:examId', component: AnalyticsPage },  // examId 必填
+
+    // 阅卷（现有页面，保留）
     { path: 'marking', component: MarkingSelectPage },
     { path: 'marking/grade/:questionId', component: MarkingPage },
-    { path: 'marking/assign', component: MarkingAssignPage },
+    { path: 'marking/assign', component: MarkingAssignPage, meta: { roles: SCHOOL_ADMIN_ROLES } },
     { path: 'marking/progress', component: MarkingProgressPage },
-    { path: 'grading/tasks', component: GradingTasksPage },
+
+    // AI 阅卷（现有页面，保留）
+    { path: 'grading/tasks', component: GradingTasksPage, meta: { roles: SCHOOL_ADMIN_ROLES } },
     { path: 'grading/tasks/:id', component: GradingResultsPage },
     { path: 'grading/review', component: TeacherReviewPage },
-    { path: 'calendar', component: CalendarPage },
-    { path: 'studio', component: StudioPage },
-    { path: 'schools', component: SchoolsPage },
-    { path: 'settings', component: SettingsPage },
+
+    // 三栏深度分析（原 WorkbenchPage 重命名）
+    { path: 'analysis', component: AnalysisPage },
+
+    // 学校管理（现有页面，保留）
+    { path: 'schools', component: SchoolsPage, meta: { permissions: ['MANAGE_SCHOOLS'] } },
+
+    // Dashboard（现有页面，保留）
+    { path: 'dashboard', component: DashboardOldPage },  // 旧 dashboard 暂保留
   ]
 }
 ```
+
+**路由守卫增强**：`router.beforeEach` 除检查 token 外，还检查 `meta.roles`（角色白名单）和 `meta.permissions`（权限白名单）。不匹配则重定向到 Dashboard 并提示无权限。
+
+**注意**：CalendarPage、StudioPage、SettingsPage 暂不新增——这些功能通过 Dashboard 卡片直接链接到现有组件或三栏分析页。后续需要独立页面时再添加。
 
 ### 6.3 数据流
 
@@ -329,7 +428,30 @@ src/
 | 所有 exam-ai 功能页面 | 保留，移入 AppShell children |
 | LoginPage.vue | 保留，不在 AppShell 内 |
 
-## §7 样式规范（momowan 对齐）
+## §7 KPI 数据源矩阵
+
+每个 KPI widget 的数据来源必须有明确的 API 映射：
+
+| KPI | 角色 | API 端点 | 字段 | 状态 |
+|-----|------|---------|------|------|
+| 学校总数 | platform_admin | `GET /api/v1/schools` | `len(response)` | 已有 |
+| 联考进行中 | platform_admin, district_admin | `GET /api/v1/joint-exams` | filter `status=in_progress` | 已有 |
+| 在校学生 | principal+ | `GET /api/v1/dashboard/summary` | `total_students` | **需新增** |
+| 教职工 | principal | `GET /api/v1/dashboard/summary` | `total_staff` | **需新增** |
+| 班级数 | principal+ | `GET /api/v1/workspace/context` | `len(classes)` | 已有 |
+| 考试数 | all | `GET /api/v1/workspace/context` | `len(exams)` | 已有 |
+| 待批改 | teacher+ | `GET /api/v1/marking/my-assignments` | filter `status=pending` | 已有 |
+| 班级均分 | homeroom_teacher | `GET /api/v1/workspace/exams/{id}/dashboard` | `stats.avg` | 已有 |
+| 待审批 | principal+ | `GET /api/v1/notifications?status=pending` | `len(response)` | **需新增** |
+| 本周通知 | principal+ | `GET /api/v1/notifications?since=week` | `len(response)` | **需新增** |
+
+**需新增 API（2 个）**：
+1. `GET /api/v1/dashboard/summary` — 返回角色 scope 内的聚合统计（学生数/班级数/教职工数/考试数/待批改数）
+2. `GET /api/v1/notifications` — 通知列表（支持 status/since 过滤），校长看全校，教师看自己相关
+
+对于无法立即支撑的 KPI（如教职工数），widget 显示为 `--`（加载中/无数据），不隐藏卡片。
+
+## §8 样式规范（momowan 对齐）
 
 ### 卡片
 
@@ -411,3 +533,60 @@ src/
 }
 /* 每个图标用 mask-image: url("data:image/svg+xml,...") */
 ```
+
+### 完整 CSS Token 表
+
+variables.css 需补齐以下 token（当前缺失）：
+
+```css
+:root {
+  /* 颜色 */
+  --color-primary: #1a2e1f;
+  --color-primary-dark: #0f1c13;
+  --color-primary-light: #2d5a3d;
+  --color-bg: #ffffff;
+  --color-bg-alt: #f9fafb;
+  --color-bg-card: #ffffff;
+  --color-text: #1a2e1f;
+  --color-text-secondary: #5a6b5e;
+  --color-text-muted: #8a9a8e;
+  --color-border: #e2e8e4;
+  --color-border-light: #f0f4f1;
+
+  /* Macaron 柔彩 */
+  --macaron-mint: #c8f0d4;
+  --macaron-mint-light: #e8f8ee;
+  --macaron-yellow: #fef3c7;
+  --macaron-yellow-light: #fdf6e3;
+  --macaron-coral: #fde8e8;
+  --macaron-coral-light: #fef0f0;
+  --macaron-purple: #ede9fe;
+  --macaron-purple-light: #f3f0ff;
+  --macaron-blue: #e0f2fe;
+  --macaron-blue-light: #ecf6ff;
+
+  /* 圆角 */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-pill: 50px;
+
+  /* 阴影 */
+  --shadow-sm: 0 1px 3px rgba(26, 46, 31, 0.04);
+  --shadow-md: 0 4px 12px rgba(26, 46, 31, 0.06);
+  --shadow-lg: 0 12px 32px rgba(26, 46, 31, 0.08);
+  --shadow-xl: 0 24px 48px rgba(26, 46, 31, 0.1);
+
+  /* 动效 */
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+```
+
+### Naive UI 主题处理
+
+当前 App.vue 启用了 Naive UI `darkTheme`，与 momowan 白底风格冲突。实现时：
+
+1. 移除 `darkTheme`，切换为 light theme
+2. 通过 `theme.js` 的 `themeOverrides` 将 Naive UI 组件颜色对齐 momowan token
+3. Naive UI 组件（NButton, NCard, NDropdown 等）的 border-radius、色值通过 overrides 统一
