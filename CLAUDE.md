@@ -103,6 +103,7 @@ src/edu_cloud/
     permissions.py      # 数据权限过滤（get_visible_class_ids/get_visible_subject_codes）
     auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）
     dashboard.py        # GET /api/v1/dashboard/summary（角色 scope 聚合统计）
+    notifications_api.py # GET /api/v1/notifications（通知列表，status/since 过滤）
     ai.py               # AI Agent 路由（Batch 4 迁移）
     # 以下为 re-export stubs，canonical → modules/
     schools.py → modules/school/router.py
@@ -267,6 +268,7 @@ tests/
 | POST | `/api/v1/auth/switch-role` | 切换活跃角色，返回新 JWT + active_role（含 context） |
 | GET | `/api/v1/health` | 健康检查 |
 | GET | `/api/v1/version` | 版本+启动时间 |
+| GET | `/api/v1/dashboard/summary` | 仪表盘聚合统计（角色 scope 过滤：students/classes/exams） |
 
 ### 学校管理端点（JWT 认证）
 
@@ -342,6 +344,12 @@ tests/
 | POST | `/api/v1/calendar/events` | GENERATE_NOTIFICATION | 创建校历事件（含通知规则） |
 | GET | `/api/v1/calendar/events` | 已登录 | 列出本校校历事件（支持 start/end 日期过滤） |
 | DELETE | `/api/v1/calendar/events/{id}` | GENERATE_NOTIFICATION | 软删除校历事件（is_active=False） |
+
+### 通知端点（JWT 认证）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/notifications` | 已登录 | 列出本校通知（支持 status/since 过滤） |
 
 ### AI Agent 端点（JWT 认证，Batch 4 迁入）
 
