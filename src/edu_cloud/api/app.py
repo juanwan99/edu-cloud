@@ -38,6 +38,8 @@ async def lifespan(app: FastAPI):
     import edu_cloud.models.calendar  # noqa: F401
     import edu_cloud.models.notification  # noqa: F401
     import edu_cloud.core.models.llm_slot  # noqa: F401
+    import edu_cloud.modules.card.models  # noqa: F401
+    import edu_cloud.modules.scan.models  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
