@@ -132,11 +132,14 @@ src/edu_cloud/
       knowledge.py      # L3_knowledge（4）: search_curriculum/textbook/concept/gaokao
       knowledge_db.py   # L3_knowledge_db（2）: knowledge_tree/question_knowledge_points
       actions.py        # L4_action（2）: generate_report/comment
+  workers/
+    grading.py          # process_grading_task（AI 阅卷）+ run_post_exam_pipeline（考后处理 stub）
   shared/
     auth.py             # JWT create/decode 工具函数
   config.py             # Settings（DB/Redis/JWT/LLM/UPLOAD_DIR/知识库 配置，BaseSettings）
   database.py           # async engine + session factory
   logging_config.py     # 双输出（Console UTC+8 + JSONL RotatingFile）
+  worker.py             # arq WorkerSettings（3 functions: auto_draft/grading/pipeline）
 scripts/
   e2e_joint_exam.py     # 端到端联考验证脚本（2 校完整流程）
 tests/
@@ -145,6 +148,7 @@ tests/
   test_models/          # 模型单测
   test_services/        # Service 单测（exceptions/school/joint_exam/results）
   test_knowledge/       # 知识库单测（loader/store，18 tests）
+  test_workers/         # Worker 单测（grading task 注册/签名验证）
 ```
 
 ### 实现状态

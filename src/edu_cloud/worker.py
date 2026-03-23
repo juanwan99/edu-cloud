@@ -9,6 +9,7 @@ from arq.connections import RedisSettings
 from edu_cloud.config import settings
 from edu_cloud.database import async_session
 from edu_cloud.tasks import auto_draft_notifications
+from edu_cloud.workers.grading import process_grading_task, run_post_exam_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -26,4 +27,8 @@ class WorkerSettings:
     cron_jobs = [
         cron(run_auto_draft, hour=22, minute=0),  # 22:00 UTC = 06:00 UTC+8
     ]
-    functions = [run_auto_draft]
+    functions = [
+        run_auto_draft,
+        process_grading_task,
+        run_post_exam_pipeline,
+    ]
