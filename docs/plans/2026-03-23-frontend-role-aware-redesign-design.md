@@ -359,8 +359,13 @@ src/
 ### 6.2 路由结构调整
 
 ```javascript
+// 角色常量（在 config/roles.js 中定义，路由和 sidebar 共用）
+const SCHOOL_ADMIN_ROLES = ['platform_admin', 'district_admin', 'principal', 'academic_director']
+const EXAM_ROLES = [...SCHOOL_ADMIN_ROLES, 'grade_leader', 'homeroom_teacher', 'subject_teacher']  // 除 parent
+const MARKING_ROLES = [...SCHOOL_ADMIN_ROLES, 'homeroom_teacher', 'subject_teacher']  // 有阅卷职责的角色
+
 // AppShell 包裹所有需要导航的页面
-// meta.roles: 允许访问的角色列表（空 = 所有已认证用户）
+// meta.roles: 允许访问的角色列表（未声明 = 所有已认证用户，仅 Dashboard）
 // meta.permissions: 允许访问的权限列表（可选，更细粒度）
 // 角色名使用 canonical（normalization 在 auth store 中完成）
 {
@@ -371,17 +376,17 @@ src/
     // Dashboard（所有角色，内容由 dashboardConfig 决定）
     { path: '', name: 'Dashboard', component: DashboardPage },
 
-    // 考试管理（现有页面）
-    { path: 'exams', component: ExamListPage },
-    { path: 'exams/:id', component: ExamDetailPage },
-    { path: 'card-dev/:examId', component: CardEditorDevPage },
-    { path: 'analytics/:examId', component: AnalyticsPage },  // examId 必填
+    // 考试管理（除 parent 外所有角色）
+    { path: 'exams', component: ExamListPage, meta: { roles: EXAM_ROLES } },
+    { path: 'exams/:id', component: ExamDetailPage, meta: { roles: EXAM_ROLES } },
+    { path: 'card-dev/:examId', component: CardEditorDevPage, meta: { roles: EXAM_ROLES } },
+    { path: 'analytics/:examId', component: AnalyticsPage, meta: { roles: EXAM_ROLES } },
 
-    // 阅卷（现有页面）
-    { path: 'marking', component: MarkingSelectPage },
-    { path: 'marking/grade/:questionId', component: MarkingPage },
+    // 阅卷（教师+管理层，不含 parent/district_admin）
+    { path: 'marking', component: MarkingSelectPage, meta: { roles: MARKING_ROLES } },
+    { path: 'marking/grade/:questionId', component: MarkingPage, meta: { roles: MARKING_ROLES } },
     { path: 'marking/assign', component: MarkingAssignPage, meta: { roles: SCHOOL_ADMIN_ROLES } },
-    { path: 'marking/progress', component: MarkingProgressPage },
+    { path: 'marking/progress', component: MarkingProgressPage, meta: { roles: MARKING_ROLES } },
 
     // AI 阅卷（现有页面）
     { path: 'grading/tasks', component: GradingTasksPage, meta: { roles: SCHOOL_ADMIN_ROLES } },
@@ -415,7 +420,7 @@ src/
 | `/grading/tasks` | `GradingTasksPage.vue` | 保留 |
 | `/grading/tasks/:id` | `GradingResultsPage.vue` | 保留 |
 | `/grading/review` | `TeacherReviewPage.vue` | 保留 |
-| `/analysis` | `AnalysisPage.vue`（原 WorkbenchPage 重命名） | **重命名** |
+| `/analysis` | `AnalysisPage.vue`（当前为 `WorkbenchPage.vue`，实现时重命名） | **rename pending** |
 | `/schools` | `SchoolsPage.vue` | 保留 |
 | `/login` | `LoginPage.vue`（不在 AppShell 内） | 保留 |
 
@@ -459,18 +464,39 @@ src/
 
 每个 KPI widget 的数据来源必须有明确的 API 映射：
 
-| KPI | 角色 | API 端点 | 字段 | 状态 |
-|-----|------|---------|------|------|
+| KPI | 角色 | API 端点 | 字段/计算 | 状态 |
+|-----|------|---------|-----------|------|
 | 学校总数 | platform_admin | `GET /api/v1/schools` | `len(response)` | 已有 |
+| 活跃学校 | platform_admin | `GET /api/v1/schools?is_active=true` | `len(response)` | 已有 |
 | 联考进行中 | platform_admin, district_admin | `GET /api/v1/joint-exams` | filter `status=in_progress` | 已有 |
+| 管辖学校数 | district_admin | `GET /api/v1/schools?district=X` | `len(response)` | 已有 |
+| 跨校均分 | district_admin | `GET /api/v1/joint-exams/{id}/results/by-school` | 计算 avg of avgs | 已有 |
 | 在校学生 | principal+ | `GET /api/v1/dashboard/summary` | `total_students` | **需新增** |
 | 教职工 | principal | `GET /api/v1/dashboard/summary` | `total_staff` | **需新增** |
 | 班级数 | principal+ | `GET /api/v1/workspace/context` | `len(classes)` | 已有 |
 | 考试数 | all | `GET /api/v1/workspace/context` | `len(exams)` | 已有 |
-| 待批改 | teacher+ | `GET /api/v1/marking/my-assignments` | filter `status=pending` | 已有 |
-| 班级均分 | homeroom_teacher | `GET /api/v1/workspace/exams/{id}/dashboard` | `stats.avg` | 已有 |
+| 全校均分 | principal | `GET /api/v1/workspace/exams/{latest}/dashboard` | `stats.avg` | 已有 |
 | 待审批 | principal+ | `GET /api/v1/notifications?status=pending` | `len(response)` | **需新增** |
 | 本周通知 | principal+ | `GET /api/v1/notifications?since=week` | `len(response)` | **需新增** |
+| 本学期考试数 | academic_director | `GET /api/v1/workspace/context` | `len(exams)` | 已有 |
+| 待阅卷科目 | academic_director | `GET /api/v1/dashboard/summary` | `pending_subjects` | **需新增** |
+| AI批改完成率 | academic_director | `GET /api/v1/dashboard/summary` | `ai_grading_rate` | **需新增** (deferred) |
+| 年级班级数 | grade_leader | `GET /api/v1/workspace/context` | `len(classes)` (grade scope) | 已有 |
+| 年级学生数 | grade_leader | `GET /api/v1/dashboard/summary` | `total_students` (grade scope) | **需新增** |
+| 年级均分 | grade_leader | `GET /api/v1/workspace/exams/{latest}/dashboard` | `stats.avg` (grade scope) | 已有 |
+| 我的班级名 | homeroom_teacher | `GET /api/v1/workspace/context` | `classes[0].name` | 已有 |
+| 班级人数 | homeroom_teacher | `GET /api/v1/dashboard/summary` | `total_students` (class scope) | **需新增** |
+| 班级均分 | homeroom_teacher | `GET /api/v1/workspace/exams/{latest}/dashboard` | `stats.avg` (class scope) | 已有 |
+| 待批改 | homeroom_teacher, subject_teacher | `GET /api/v1/marking/my-assignments` | filter `status=pending` | 已有 |
+| 教授班级数 | subject_teacher | auth store | `currentRole.class_ids.length` | 前端本地 |
+| 学科均分 | subject_teacher | `GET /api/v1/workspace/exams/{latest}/dashboard` | `stats.avg` (subject scope) | 已有 |
+| AI工具数 | subject_teacher | `GET /api/v1/ai/health` | `tools` | 已有 |
+
+**标注说明**：
+- `已有`：当前后端 API 可直接支撑
+- `需新增`：需要 `GET /api/v1/dashboard/summary` 或 `GET /api/v1/notifications` 新端点
+- `deferred`：AI 批改完成率等指标待后续实现，KPI 卡片显示 `--`
+- `前端本地`：从 auth store 中已有数据计算，无需 API 调用
 
 **需新增 API（2 个）**：
 1. `GET /api/v1/dashboard/summary` — 返回角色 scope 内的聚合统计（学生数/班级数/教职工数/考试数/待批改数）
