@@ -15,7 +15,7 @@ from edu_cloud.models.user_role import UserRole
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.exam.models import Exam, Question, Subject
 from edu_cloud.modules.marking.models import MarkingAssignment
-from edu_cloud.api.permissions import get_visible_subject_codes
+from edu_cloud.api.permissions import get_visible_subject_codes, is_school_admin
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ async def assign_question(
     db: AsyncSession = Depends(get_db),
 ):
     """管理员将题目分配给指定教师阅卷。"""
-    if current["current_role"].role not in ("admin", "principal"):
+    if not is_school_admin(current["current_role"]):
         raise HTTPException(403, "仅管理员可分配阅卷任务")
 
     # Verify exam, question, teacher belong to school
@@ -141,7 +141,7 @@ async def list_all_assignments(
     db: AsyncSession = Depends(get_db),
 ):
     """管理员查看全部分配情况。"""
-    if current["current_role"].role not in ("admin", "principal"):
+    if not is_school_admin(current["current_role"]):
         raise HTTPException(403, "仅管理员可查看全部分配")
     query = select(MarkingAssignment).where(MarkingAssignment.school_id == current["current_role"].school_id)
     if exam_id:
@@ -161,7 +161,7 @@ async def list_teachers(
     db: AsyncSession = Depends(get_db),
 ):
     """获取本校教师列表（供分配使用）。"""
-    if current["current_role"].role not in ("admin", "principal"):
+    if not is_school_admin(current["current_role"]):
         raise HTTPException(403, "仅管理员可查看教师列表")
     # Join User+UserRole to find teachers in this school
     result = await db.execute(
@@ -231,7 +231,7 @@ async def next_answer(
                 raise HTTPException(403, "无权访问该科目的题目")
 
     # Permission check 2: assignment-level access (if assignments exist for this question)
-    if current["current_role"].role not in ("admin", "principal"):
+    if not is_school_admin(current["current_role"]):
         has_assignments = (await db.execute(
             select(MarkingAssignment.id).where(MarkingAssignment.question_id == question_id).limit(1)
         )).scalar_one_or_none()

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useAuthStore } from './auth'
+import { createSSEProcessor } from '../utils/sseParser'
 
 export const useAiChatStore = defineStore('aiChat', () => {
   const messages = ref([])
@@ -58,36 +59,21 @@ export const useAiChatStore = defineStore('aiChat', () => {
       let assistantMsg = { role: 'assistant', content: '', tools: [] }
       messages.value.push(assistantMsg)
 
-      let buffer = ''
+      const processor = createSSEProcessor({
+        onAnswer(content) { assistantMsg.content += content },
+        onToolCall(tool) { assistantMsg.tools.push({ name: tool, status: 'running' }) },
+        onToolResult(tool) {
+          const t = assistantMsg.tools.find(x => x.name === tool && x.status === 'running')
+          if (t) t.status = 'done'
+        },
+        onError(msg) { error.value = msg },
+        onDone(sid) { if (sid) sessionId.value = sid },
+      })
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        buffer += decoder.decode(value, { stream: true })
-
-        const lines = buffer.split('\n')
-        buffer = lines.pop() // 保留未完成的行
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const jsonStr = line.slice(6).trim()
-          if (!jsonStr) continue
-
-          try {
-            const event = JSON.parse(jsonStr)
-            if (event.type === 'answer') {
-              assistantMsg.content += event.data?.content || ''
-            } else if (event.type === 'tool_call') {
-              assistantMsg.tools.push({ name: event.data?.tool, status: 'running' })
-            } else if (event.type === 'tool_result') {
-              const tool = assistantMsg.tools.find(t => t.name === event.data?.tool && t.status === 'running')
-              if (tool) tool.status = 'done'
-            } else if (event.type === 'error') {
-              error.value = event.data?.message || 'Unknown error'
-            } else if (event.type === 'done') {
-              if (event.session_id) sessionId.value = event.session_id
-            }
-          } catch { /* ignore parse errors */ }
-        }
+        processor.push(decoder.decode(value, { stream: true }))
       }
     } catch (e) {
       error.value = e.message

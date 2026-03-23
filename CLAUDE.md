@@ -204,7 +204,7 @@ tests/
 **前端（`frontend/`）：**
 - Vite 7 + Vue 3.5 (Composition API)
 - Naive UI 2.44（暗色主题）
-- Vue Router 4（16 路由：login + workbench + 14 exam-ai 页面）
+- Vue Router 4（15 路由：login + workbench + 13 exam-ai 页面）
 - Pinia 3（状态管理）
 - Axios（HTTP 客户端，baseURL `/api/v1`）
 - ECharts 6 + vue-echarts（图表）

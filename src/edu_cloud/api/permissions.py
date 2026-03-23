@@ -4,6 +4,17 @@
 """
 
 
+SCHOOL_ADMIN_ROLES = frozenset({
+    "platform_admin", "district_admin", "principal", "academic_director",
+    "admin",  # legacy alias for platform_admin
+})
+
+
+def is_school_admin(role) -> bool:
+    """角色是否有校级管理权限（阅卷分配、查看全部分配等）。"""
+    return role.role in SCHOOL_ADMIN_ROLES
+
+
 def get_visible_class_ids(role) -> list[str] | None:
     """返回角色可见的班级 ID 列表，None = 全部可见。"""
     if role.role in ("platform_admin", "district_admin", "principal", "academic_director", "admin"):
