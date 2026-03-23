@@ -129,13 +129,14 @@ tests/
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
 | API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(documents CRUD+transition+paper/create+paper/:id/status), calendar(events CRUD) | 跨校分析(高级), 题库, 共享 AI 阅卷 |
-| Models | 9 表（school/user/exam/participant/student_result/document+assigned_to/calendar_events/notification_rules/notifications）| 题库模型（BankQuestion/BankCategory）|
+| Models | 29 表（modules/ 下 exam/student/card/scan/grading/marking/bank/profile/knowledge/pipeline + core school/user/user_role/llm_slot + studio/calendar/notification）| — |
 | Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), CalendarService(create/list/delete/triggered_rules), NotificationService(dispatch stub+幂等), exceptions | EventBus handler, AI grading |
 | Tasks | tasks.py: auto_draft_notifications（扫描日历→自动创建 notification 草稿，防重复 triggered 标记）| arq cron 生产接入 |
 | Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 271 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot 全覆盖）| — |
+| Tests | 275 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam模块 全覆盖）| — |
+| Modules | 15 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school）| 路由迁入(Batch 3) |
 | Migrations | Alembic 脚手架 | 未写 migration 文件 |
 
 ## 技术栈
