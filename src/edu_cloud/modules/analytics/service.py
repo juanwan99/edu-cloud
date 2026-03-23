@@ -193,6 +193,8 @@ async def grade_aggregates(
     await _verify_exam(db, exam_id, school_id)
     subjects = await _get_subjects(db, exam_id, school_id, visible_subject_codes, subject_id)
 
+    # 设计意图：年级统计基于全校样本（不用 visible_class_ids 缩分母），
+    # visible_class_ids 仅用于标记 my_class=true。与 exam-ai 原始行为一致。
     student_scores: dict[str, float] = {}
     for subj in subjects:
         scores = await get_effective_scores(db, subj.id, school_id)
