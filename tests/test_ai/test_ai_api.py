@@ -56,3 +56,37 @@ async def test_ai_sessions_delete(client, teacher_headers):
     assert resp.status_code == 200
     data = resp.json()
     assert data["deleted"] is True
+
+
+@pytest.mark.asyncio
+async def test_ai_session_lifecycle(client, teacher_headers):
+    """Seed a session → list shows it → delete it → list no longer shows it."""
+    from edu_cloud.api.ai import _sessions, _SessionState
+    from edu_cloud.ai.context import AgentContext
+    from edu_cloud.ai.anonymizer import Anonymizer
+
+    test_sid = "test-lifecycle-session"
+    # Seed a session directly into the in-memory store
+    _sessions[test_sid] = _SessionState(
+        context=AgentContext(system_content="test"),
+        anonymizer=Anonymizer(),
+    )
+    try:
+        # List should include our session
+        resp = await client.get("/api/v1/ai/sessions", headers=teacher_headers)
+        assert resp.status_code == 200
+        assert test_sid in resp.json()["sessions"]
+
+        # Delete it
+        resp = await client.delete(f"/api/v1/ai/sessions/{test_sid}", headers=teacher_headers)
+        assert resp.status_code == 200
+        assert resp.json()["deleted"] is True
+
+        # List should no longer include it
+        resp = await client.get("/api/v1/ai/sessions", headers=teacher_headers)
+        assert test_sid not in resp.json()["sessions"]
+
+        # Also verify in-memory state
+        assert test_sid not in _sessions
+    finally:
+        _sessions.pop(test_sid, None)
