@@ -1,57 +1,115 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { useAuthStore } from './auth'
 
 export const useAiChatStore = defineStore('aiChat', () => {
   const messages = ref([])
-  const isStreaming = ref(false)
-  const error = ref('')
+  const isLoading = ref(false)
+  const isAvailable = ref(false)
+  const sessionId = ref(null)
+  const error = ref(null)
 
-  async function sendMessage(text) {
-    if (!text.trim() || isStreaming.value) return
-    messages.value.push({ role: 'user', content: text })
-    isStreaming.value = true
-    error.value = ''
+  const authStore = useAuthStore()
 
-    const token = localStorage.getItem('token')
+  async function checkHealth() {
     try {
-      const response = await fetch('/api/v1/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ message: text }),
+      const resp = await fetch('/api/v1/ai/health', {
+        headers: { Authorization: `Bearer ${authStore.token}` },
       })
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      const msgIndex = messages.value.length
-      messages.value.push({ role: 'assistant', content: '', toolCalls: [], toolResults: [] })
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const data = JSON.parse(line.slice(6))
-            if (data.type === 'tool_call') messages.value[msgIndex].toolCalls.push(data.data)
-            else if (data.type === 'tool_result') messages.value[msgIndex].toolResults.push(data.data)
-            else if (data.type === 'answer') messages.value[msgIndex].content = data.data.content
-            else if (data.type === 'error') error.value = data.data.message
-          } catch (e) { /* skip malformed lines */ }
-        }
-      }
-    } catch (e) {
-      error.value = e.message || 'AI 服务不可用'
-    } finally {
-      isStreaming.value = false
+      const data = await resp.json()
+      isAvailable.value = data.status === 'available'
+    } catch {
+      isAvailable.value = false
     }
   }
 
-  function clearMessages() {
-    messages.value = []
-    error.value = ''
+  async function sendMessage(content) {
+    if (!content.trim() || isLoading.value) return
+
+    messages.value.push({ role: 'user', content })
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const resp = await fetch('/api/v1/ai/chat', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: content,
+          session_id: sessionId.value,
+        }),
+      })
+
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({}))
+        throw new Error(errBody.detail || `HTTP ${resp.status}`)
+      }
+
+      // 读取 session_id
+      const sid = resp.headers.get('X-Session-Id')
+      if (sid) sessionId.value = sid
+
+      // SSE 解析
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let assistantMsg = { role: 'assistant', content: '', tools: [] }
+      messages.value.push(assistantMsg)
+
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        const lines = buffer.split('\n')
+        buffer = lines.pop() // 保留未完成的行
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const jsonStr = line.slice(6).trim()
+          if (!jsonStr) continue
+
+          try {
+            const event = JSON.parse(jsonStr)
+            if (event.type === 'answer') {
+              assistantMsg.content += event.data?.content || ''
+            } else if (event.type === 'tool_call') {
+              assistantMsg.tools.push({ name: event.data?.tool, status: 'running' })
+            } else if (event.type === 'tool_result') {
+              const tool = assistantMsg.tools.find(t => t.name === event.data?.tool && t.status === 'running')
+              if (tool) tool.status = 'done'
+            } else if (event.type === 'error') {
+              error.value = event.data?.message || 'Unknown error'
+            } else if (event.type === 'done') {
+              if (event.session_id) sessionId.value = event.session_id
+            }
+          } catch { /* ignore parse errors */ }
+        }
+      }
+    } catch (e) {
+      error.value = e.message
+    } finally {
+      isLoading.value = false
+    }
   }
 
-  return { messages, isStreaming, error, sendMessage, clearMessages }
+  function clearChat() {
+    messages.value = []
+    sessionId.value = null
+    error.value = null
+  }
+
+  return {
+    messages,
+    isLoading,
+    isAvailable,
+    sessionId,
+    error,
+    checkHealth,
+    sendMessage,
+    clearChat,
+  }
 })

@@ -1,0 +1,108 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+/* 通用工具类 */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.page-header {
+  margin-bottom: 32px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+/* pill 按钮覆盖 */
+.btn-pill {
+  border-radius: var(--radius-pill) !important;
+}
+
+/* 统计卡片 */
+.stat-card {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-light);
+  transition: var(--transition);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.stat-card .stat-value {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.stat-card .stat-label {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+/* 马卡龙标签 */
+.tag-mint {
+  background: var(--macaron-mint-light);
+  color: #166534;
+}
+
+.tag-yellow {
+  background: var(--macaron-yellow-light);
+  color: #854d0e;
+}
+
+.tag-coral {
+  background: var(--macaron-coral-light);
+  color: #991b1b;
+}
+
+.tag-purple {
+  background: var(--macaron-purple-light);
+  color: #5b21b6;
+}
+
+.tag-blue {
+  background: var(--macaron-blue-light);
+  color: #0c4a6e;
+}
+
+/* 浮动装饰动画 */
+@keyframes floatSlow {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(15px, -20px); }
+  66% { transform: translate(-10px, 15px); }
+}

@@ -57,21 +57,36 @@ cd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q
 frontend/src/
   layouts/
     WorkbenchLayout.vue     # 三栏布局（左侧边栏 + 顶栏 + 中央内容 + 右侧边栏）
+    DashboardLayout.vue     # exam-ai 仪表盘布局（AppNavbar + 主内容区）
+    AuthLayout.vue          # 登录页布局
   pages/
-    LoginPage.vue           # 登录页（Task 4 实现表单）
-    WorkbenchPage.vue       # 工作台主页（组装三栏布局 + 各占位组件）
+    LoginPage.vue           # 登录页（edu-cloud 多角色版）
+    WorkbenchPage.vue       # 云平台工作台
+    ExamListPage.vue        # 考试列表（exam-ai 迁入）
+    ExamDetailPage.vue      # 考试详情（科目/题目/答题卡/扫描/阅卷）
+    DashboardPage.vue       # 仪表盘
+    AnalyticsPage.vue       # 成绩分析（ECharts）
+    GradingTasksPage.vue    # AI 阅卷任务
+    GradingResultsPage.vue  # 阅卷结果
+    TeacherReviewPage.vue   # 教师复核
+    MarkingSelectPage.vue   # 手动阅卷选题
+    MarkingPage.vue         # 手动阅卷
+    MarkingAssignPage.vue   # 分配阅卷任务
+    MarkingProgressPage.vue # 阅卷进度
+    SchoolsPage.vue         # 学校管理（admin）
+    CardEditorDevPage.vue   # 答题卡编辑器开发页
   components/
-    context/
-      ContextPanel.vue      # 左栏：数据源选择器（Step 5 实现）
-    workspace/
-      DataView.vue          # 中栏：数据呈现（Task 6 实现）
-    studio/
-      StudioPanel.vue       # 右栏：AI 产出物 + 行动队列（P2 实现）
-    calendar/
-      CalendarPanel.vue     # 学期日历面板（P3-4：事件列表 + 新增弹窗，嵌入 ContextPanel）
+    CardEditor.vue          # 可视化答题卡编辑器（封装 card-editor/）
+    AppNavbar.vue           # 顶部导航栏
+    ChatPanel.vue           # AI 对话面板（SSE 流式）
+    context/ workspace/ studio/ calendar/  # 云平台三栏组件
+  card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
+  api/                      # API 调用层（11 模块 + client.js，baseURL /api/v1）
   stores/
-    auth.js                 # Pinia auth store（token/displayName/currentRole/roles/scope）
-  router/                   # Vue Router（/login + / 含 requiresAuth 守卫）
+    auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
+    aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
+    context.js / studio.js  # 云平台上下文/Studio
+  router/                   # Vue Router（16 路由）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -178,12 +193,14 @@ tests/
 - Docker + docker-compose (部署)
 
 **前端（`frontend/`）：**
-- Vite 5 + Vue 3 (Composition API)
-- Naive UI（暗色主题）
-- Vue Router 4（`/login` + `/` 含 requiresAuth 守卫）
-- Pinia（状态管理）
-- Axios（HTTP 客户端）
-- ECharts + vue-echarts（图表）
+- Vite 7 + Vue 3.5 (Composition API)
+- Naive UI 2.44（暗色主题）
+- Vue Router 4（16 路由：login + workbench + 14 exam-ai 页面）
+- Pinia 3（状态管理）
+- Axios（HTTP 客户端，baseURL `/api/v1`）
+- ECharts 6 + vue-echarts（图表）
+- KaTeX + marked（数学公式渲染 + Markdown）
+- card-editor（答题卡可视化编辑器，5 模块 + CardEditor.vue）
 
 ## 日志体系
 

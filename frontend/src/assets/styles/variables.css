@@ -1,0 +1,48 @@
+:root {
+  /* 主色 - 深墨绿 */
+  --color-primary: #1a2e1f;
+  --color-primary-dark: #0f1c13;
+  --color-primary-light: #2d5a3d;
+
+  /* 背景 */
+  --color-bg: #ffffff;
+  --color-bg-alt: #f9fafb;
+
+  /* 文字 */
+  --color-text: #1a2e1f;
+  --color-text-secondary: #5a6b5e;
+  --color-text-muted: #8a9a8e;
+
+  /* 边框 */
+  --color-border: #e2e8e4;
+  --color-border-light: #f0f4f1;
+
+  /* 马卡龙色系 */
+  --macaron-mint: #c8f0d4;
+  --macaron-mint-light: #e8f8ee;
+  --macaron-yellow: #fef3c7;
+  --macaron-yellow-light: #fdf6e3;
+  --macaron-coral: #fde8e8;
+  --macaron-coral-light: #fef0f0;
+  --macaron-purple: #ede9fe;
+  --macaron-purple-light: #f3f0ff;
+  --macaron-blue: #e0f2fe;
+  --macaron-blue-light: #ecf6ff;
+
+  /* 阴影 */
+  --shadow-sm: 0 1px 3px rgba(26, 46, 31, 0.04);
+  --shadow-md: 0 4px 12px rgba(26, 46, 31, 0.06);
+  --shadow-lg: 0 12px 32px rgba(26, 46, 31, 0.08);
+
+  /* 圆角 */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-pill: 50px;
+
+  /* 字体 */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
