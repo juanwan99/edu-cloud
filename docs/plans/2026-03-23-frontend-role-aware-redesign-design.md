@@ -80,7 +80,7 @@
 
 | 变更 | 原因 | 端点 |
 |------|------|------|
-| login/switch-role 返回 school_name | 顶栏显示学校名（教师/家长无 VIEW_SCHOOLS 权限） | `POST /auth/login`, `POST /auth/switch-role` |
+| login/switch-role 返回上下文对象 | 顶栏显示学校名/区名/全平台（教师/家长无 VIEW_SCHOOLS 权限）。每个 role 返回 `context: { type: "platform"|"district"|"school", id, name }` | `POST /auth/login`, `POST /auth/switch-role` |
 | dashboard summary API | KPI 卡片数据源（学生数/班级数/考试数/待批改数） | `GET /api/v1/dashboard/summary` |
 | notification list API | 通知中心下拉面板 | `GET /api/v1/notifications` |
 
@@ -101,7 +101,7 @@
 | 区域 | 行为 |
 |------|------|
 | Logo + 品牌 | 「edu-cloud 智能平台」，点击回首页 |
-| 学校上下文 | 显示当前角色所属学校名（从 login/switch-role 响应的 `school_name` 字段获取）。platform_admin 的 `school_id` 为 null，此时显示「全平台」；district_admin 显示管辖区名。角色切换自动更新学校名。**不做独立的学校切换器**——平台/区级用户通过切换角色（同一用户可有多校角色）来切换上下文 |
+| 学校上下文 | 显示当前角色的上下文名称（从 login/switch-role 响应的 `context: { type, id, name }` 获取）。`type=platform` 显示「全平台」；`type=district` 显示区名；`type=school` 显示学校名。角色切换自动更新。**不做独立的学校切换器**——平台/区级用户通过切换角色来切换上下文 |
 | 搜索 | 全局搜索入口（后期可接 AI 语义搜索） |
 | 通知铃 | 红色 badge 显示未读数。点击展开下拉面板，分 tab：待审批/消息/系统 |
 | 头像菜单 | 显示名 + 当前角色 tag。展开：角色切换列表 + 登出 |
@@ -243,14 +243,16 @@
 **模块卡片行（2×N 网格）**：
 每张卡片 = 板块标题 + SVG 图标 + 2-3 行状态摘要 + "查看详情 →" 链接
 
-| 卡片 | 状态摘要示例 | 链接 |
-|------|-------------|------|
-| 教学质量 | 本学期 3 次考试 / 全校均分 89.2（↑2.1）/ 薄弱：物理 72% | → /analytics |
-| 校务行政 | 近期校历 2 件 / 待审批通知 3 件 / 已发送 12 件 | → /calendar |
-| AI 助手 | 引导语 + 示例问题 | → /analysis |
-| 文档中心 | 本月报告 N 份 / 草稿 N 份 | → /studio |
-| 师资人事 | 规划中（灰度） | — |
-| 后勤安全 | 规划中（灰度） | — |
+| 卡片 | 状态摘要示例 | 链接 | 说明 |
+|------|-------------|------|------|
+| 教学质量 | 本学期 3 次考试 / 全校均分 89.2（↑2.1） | → /exams | 跳到考试列表，用户自选考试进入分析 |
+| 校务行政 | 近期校历 2 件 / 待审批通知 3 件 | → /analysis | 三栏分析页（左栏日历面板） |
+| AI 助手 | 引导语 + 示例问题 | → /analysis | 三栏分析页（中栏 AI 对话） |
+| 文档中心 | 本月报告 N 份 / 草稿 N 份 | → /analysis | 三栏分析页（右栏 Studio 面板） |
+| 师资人事 | 规划中（灰度） | — | 后续扩展 |
+| 后勤安全 | 规划中（灰度） | — | 后续扩展 |
+
+> **路由策略**：所有需要上下文的功能统一跳转到 `/analysis`（三栏分析页）或 `/exams`（考试列表）。不引入 `/calendar`、`/studio`、`/settings` 等未实现的独立页面路由。
 
 **动态流（全宽）**：按时间倒序的事件列表，带日期分组。
 
@@ -360,46 +362,71 @@ src/
 // AppShell 包裹所有需要导航的页面
 // meta.roles: 允许访问的角色列表（空 = 所有已认证用户）
 // meta.permissions: 允许访问的权限列表（可选，更细粒度）
+// 角色名使用 canonical（normalization 在 auth store 中完成）
 {
   path: '/',
   component: AppShell,
   meta: { requiresAuth: true },
   children: [
-    // Dashboard（所有角色，内容由 config 决定）
+    // Dashboard（所有角色，内容由 dashboardConfig 决定）
     { path: '', name: 'Dashboard', component: DashboardPage },
 
-    // 考试管理（现有页面，保留）
+    // 考试管理（现有页面）
     { path: 'exams', component: ExamListPage },
     { path: 'exams/:id', component: ExamDetailPage },
     { path: 'card-dev/:examId', component: CardEditorDevPage },
     { path: 'analytics/:examId', component: AnalyticsPage },  // examId 必填
 
-    // 阅卷（现有页面，保留）
+    // 阅卷（现有页面）
     { path: 'marking', component: MarkingSelectPage },
     { path: 'marking/grade/:questionId', component: MarkingPage },
     { path: 'marking/assign', component: MarkingAssignPage, meta: { roles: SCHOOL_ADMIN_ROLES } },
     { path: 'marking/progress', component: MarkingProgressPage },
 
-    // AI 阅卷（现有页面，保留）
+    // AI 阅卷（现有页面）
     { path: 'grading/tasks', component: GradingTasksPage, meta: { roles: SCHOOL_ADMIN_ROLES } },
-    { path: 'grading/tasks/:id', component: GradingResultsPage },
-    { path: 'grading/review', component: TeacherReviewPage },
+    { path: 'grading/tasks/:id', component: GradingResultsPage, meta: { roles: SCHOOL_ADMIN_ROLES } },
+    { path: 'grading/review', component: TeacherReviewPage,
+      meta: { roles: [...SCHOOL_ADMIN_ROLES, 'subject_teacher', 'homeroom_teacher'] } },
 
-    // 三栏深度分析（原 WorkbenchPage 重命名）
-    { path: 'analysis', component: AnalysisPage },
+    // 三栏深度分析（原 WorkbenchPage 重命名为 AnalysisPage）
+    { path: 'analysis', component: AnalysisPage,
+      meta: { permissions: ['USE_AI_CHAT'] } },  // parent 无此权限
 
-    // 学校管理（现有页面，保留）
+    // 学校管理（现有页面）
     { path: 'schools', component: SchoolsPage, meta: { permissions: ['MANAGE_SCHOOLS'] } },
-
-    // Dashboard（现有页面，保留）
-    { path: 'dashboard', component: DashboardOldPage },  // 旧 dashboard 暂保留
   ]
 }
 ```
 
-**路由守卫增强**：`router.beforeEach` 除检查 token 外，还检查 `meta.roles`（角色白名单）和 `meta.permissions`（权限白名单）。不匹配则重定向到 Dashboard 并提示无权限。
+### 路由 → 文件映射
 
-**注意**：CalendarPage、StudioPage、SettingsPage 暂不新增——这些功能通过 Dashboard 卡片直接链接到现有组件或三栏分析页。后续需要独立页面时再添加。
+| 路由 | 文件 | 状态 |
+|------|------|------|
+| `/` | `DashboardPage.vue` | **重写** |
+| `/exams` | `ExamListPage.vue` | 保留 |
+| `/exams/:id` | `ExamDetailPage.vue` | 保留 |
+| `/card-dev/:examId` | `CardEditorDevPage.vue` | 保留 |
+| `/analytics/:examId` | `AnalyticsPage.vue` | 保留 |
+| `/marking` | `MarkingSelectPage.vue` | 保留 |
+| `/marking/grade/:questionId` | `MarkingPage.vue` | 保留 |
+| `/marking/assign` | `MarkingAssignPage.vue` | 保留 |
+| `/marking/progress` | `MarkingProgressPage.vue` | 保留 |
+| `/grading/tasks` | `GradingTasksPage.vue` | 保留 |
+| `/grading/tasks/:id` | `GradingResultsPage.vue` | 保留 |
+| `/grading/review` | `TeacherReviewPage.vue` | 保留 |
+| `/analysis` | `AnalysisPage.vue`（原 WorkbenchPage 重命名） | **重命名** |
+| `/schools` | `SchoolsPage.vue` | 保留 |
+| `/login` | `LoginPage.vue`（不在 AppShell 内） | 保留 |
+
+**路由守卫增强**：`router.beforeEach` 检查：
+1. token 存在（`requiresAuth`）
+2. `meta.roles` 白名单（角色在列表中）
+3. `meta.permissions` 白名单（当前角色权限集包含所需权限）
+
+不匹配则重定向到 Dashboard。
+
+**不新增的独立页面路由**：`/calendar`、`/studio`、`/settings` 暂不创建。这些功能通过 Dashboard 卡片链接到 `/analysis`（三栏页的对应面板），或后续需要时再独立。
 
 ### 6.3 数据流
 
