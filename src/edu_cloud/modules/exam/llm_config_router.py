@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.permissions import is_school_admin
 from edu_cloud.core.models.llm_slot import LLMSlot
 
 logger = logging.getLogger(__name__)
@@ -72,7 +73,7 @@ async def upsert_slot(
 ):
     """创建或更新学校级槽位配置。"""
     role = current["current_role"]
-    if role.role not in ("platform_admin", "principal", "academic_director"):
+    if not is_school_admin(role):
         raise HTTPException(403, "仅管理员可配置 LLM 模型")
     if not 1 <= req.slot_number <= 6:
         raise HTTPException(400, "槽位号必须在 1-6 之间")
@@ -115,7 +116,7 @@ async def delete_slot(
 ):
     """删除学校级槽位配置（回退到平台默认）。"""
     role = current["current_role"]
-    if role.role not in ("platform_admin", "principal", "academic_director"):
+    if not is_school_admin(role):
         raise HTTPException(403, "仅管理员可配置 LLM 模型")
 
     result = await db.execute(

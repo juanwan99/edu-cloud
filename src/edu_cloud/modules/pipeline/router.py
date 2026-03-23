@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.permissions import is_school_admin
 from edu_cloud.modules.pipeline.service import run_full_pipeline
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ async def trigger_pipeline(
 ):
     """手动触发考试数据流水线（题库入库+错题收集+画像更新）。"""
     role = current["current_role"]
-    if role.role not in ("platform_admin", "principal", "academic_director", "admin"):
+    if not is_school_admin(role):
         raise HTTPException(403, "仅管理员和校长可触发数据流水线")
 
     results = await run_full_pipeline(db, exam_id=exam_id, school_id=role.school_id)
