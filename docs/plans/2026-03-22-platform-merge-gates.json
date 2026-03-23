@@ -1,0 +1,23 @@
+{
+  "plan": "docs/plans/2026-03-22-platform-merge-plan.md",
+  "design": "docs/plans/2026-03-22-platform-merge-design.md",
+  "gates": [
+    {
+      "gate": "plan_review",
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "note": "Plan review completed in earlier session (pre gates.json)"
+    },
+    {
+      "gate": "code_review_batch4",
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "timestamp": "2026-03-23T13:25:02.306025+08:00",
+      "report": "docs/plans/.codex-code-review-batch4-r3-raw.log",
+      "rounds": "R1 FAIL (TG-01~04) → R2 FAIL (R2-01) → R3 PASS",
+      "subject_ref": "commit:590b7de..45244f6"
+    }
+  ]
+}
