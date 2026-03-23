@@ -18,40 +18,24 @@
 
 **Files:**
 - Modify: `src/edu_cloud/api/auth.py`
-- Modify: `tests/test_api/test_auth.py` (或新增测试)
-- Modify: `tests/conftest.py` (seed_school fixture 补 name)
+- Modify: `tests/test_api/test_auth_v2.py` (扩展现有 RBAC 测试)
 
 **Why:** 顶栏需要显示学校名，但登录只返回 school_id。教师/家长无 VIEW_SCHOOLS 权限，无法通过 /schools API 获取。
 
 - [ ] **Step 1: 写失败测试**
 
 ```python
-# tests/test_api/test_auth.py
-async def test_login_returns_context(client, db):
-    """登录响应应包含 context 对象（type + name）。"""
-    # seed user + school
-    from edu_cloud.models.school import School
-    from edu_cloud.models.user import User
-    from edu_cloud.models.user_role import UserRole
-    school = School(name="测试一校", code="CTX01", district="测试区")
-    db.add(school)
-    await db.flush()
-    user = User(username="ctx_user", display_name="上下文测试")
-    user.set_password("123456")
-    db.add(user)
-    await db.flush()
-    db.add(UserRole(user_id=user.id, role="principal", school_id=school.id, is_primary=True))
-    await db.commit()
-
-    resp = await client.post("/api/v1/auth/login", json={"username": "ctx_user", "password": "123456"})
+# tests/test_api/test_auth_v2.py — 在现有测试末尾追加
+async def test_login_returns_context(client, seed_teacher):
+    """登录响应每个 role 包含 context 对象（type + name）。
+    seed_teacher 已创建 school + homeroom_teacher role。"""
+    resp = await client.post("/api/v1/auth/login", json={"username": "teacher1", "password": "123456"})
     assert resp.status_code == 200
     data = resp.json()
-    # 每个 role 应该有 context
-    assert "roles" in data
     role = data["roles"][0]
     assert "context" in role
     assert role["context"]["type"] == "school"
-    assert role["context"]["name"] == "测试一校"
+    assert role["context"]["name"] == "测试校"  # seed_teacher fixture 的学校名
 
 
 async def test_login_platform_admin_context(client, admin_user):
@@ -61,14 +45,42 @@ async def test_login_platform_admin_context(client, admin_user):
     role = data["roles"][0]
     assert role["context"]["type"] == "platform"
     assert role["context"]["name"] == "全平台"
+
+
+async def test_switch_role_returns_context(client, db):
+    """switch-role 响应也包含 context 对象。"""
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.models.school import School
+
+    school = School(name="切换测试校", code="SW01", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+    user = User(username="sw_user", display_name="切换用户")
+    user.set_password("pass123")
+    db.add(user)
+    await db.flush()
+    role1 = UserRole(user_id=user.id, role="platform_admin", is_primary=True)
+    role2 = UserRole(user_id=user.id, role="principal", school_id=school.id, is_primary=False)
+    db.add_all([role1, role2])
+    await db.commit()
+    await db.refresh(role2)
+
+    login = await client.post("/api/v1/auth/login", json={"username": "sw_user", "password": "pass123"})
+    token = login.json()["access_token"]
+    resp = await client.post("/api/v1/auth/switch-role",
+        json={"role_id": role2.id}, headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert resp.json()["active_role"]["context"]["type"] == "school"
+    assert resp.json()["active_role"]["context"]["name"] == "切换测试校"
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_api/test_auth.py -v -k "context"`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_api/test_auth_v2.py -v -k "context"`
 Expected: FAIL — `"context" not in role`
 
-- [ ] **Step 3: 实现 — 修改 auth.py login 端点**
+- [ ] **Step 3: 实现 — 修改 auth.py login + switch-role 端点**
 
 在 `auth.py` 的 login 响应中，为每个 role 补 context 字段：
 
@@ -92,17 +104,17 @@ async def _build_role_context(role, db):
     }
 ```
 
-修改 login 响应的 roles 序列化，每个 role 加 `context` 字段。switch-role 响应同理。
+修改 login 响应的 roles 序列化，每个 role 加 `context` 字段。switch-role 响应的 `active_role` 同样加 `context` 字段。
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_api/test_auth.py -v -k "context"`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_api/test_auth_v2.py -v -k "context"`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/edu_cloud/api/auth.py tests/test_api/test_auth.py
+git add src/edu_cloud/api/auth.py tests/test_api/test_auth_v2.py
 git commit -m "feat(api): login/switch-role 返回 context 对象（type+id+name）"
 ```
 
@@ -121,15 +133,61 @@ git commit -m "feat(api): login/switch-role 返回 context 对象（type+id+name
 
 ```python
 # tests/test_api/test_dashboard.py
-async def test_dashboard_summary_principal(client, teacher_headers, seed_exam_with_results):
-    """校长级角色应看到全校聚合统计。"""
+async def test_dashboard_summary_principal(client, db, seed_exam_with_results):
+    """校长级角色应看到全校聚合统计，含 total_staff 和 pending_subjects。"""
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    school_id = seed_exam_with_results["school_id"]
+    user = User(username="dash_principal", display_name="仪表盘校长")
+    user.set_password("123456")
+    db.add(user)
+    await db.flush()
+    db.add(UserRole(user_id=user.id, role="principal", school_id=school_id, is_primary=True))
+    await db.commit()
+    login = await client.post("/api/v1/auth/login", json={"username": "dash_principal", "password": "123456"})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    resp = await client.get("/api/v1/dashboard/summary", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    # 核心字段
+    assert isinstance(data["total_students"], int)
+    assert isinstance(data["total_classes"], int)
+    assert isinstance(data["total_exams"], int)
+    # F-02: 新增字段（暂缓实现的返回 null）
+    assert "total_staff" in data   # 暂缓 → null
+    assert "pending_subjects" in data  # 暂缓 → null
+    assert "pending_grading" in data
+
+
+async def test_dashboard_summary_grade_leader(client, db, seed_exam_with_results):
+    """年级组长看到 scope 过滤后的统计。"""
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    school_id = seed_exam_with_results["school_id"]
+    class_id = seed_exam_with_results["class_id"]
+    user = User(username="dash_leader", display_name="仪表盘组长")
+    user.set_password("123456")
+    db.add(user)
+    await db.flush()
+    db.add(UserRole(user_id=user.id, role="grade_leader", school_id=school_id,
+                    class_ids=[class_id], is_primary=True))
+    await db.commit()
+    login = await client.post("/api/v1/auth/login", json={"username": "dash_leader", "password": "123456"})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    resp = await client.get("/api/v1/dashboard/summary", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["total_students"] >= 0
+
+
+async def test_dashboard_summary_homeroom_teacher(client, teacher_headers):
+    """班主任应返回 class scope 统计。"""
     resp = await client.get("/api/v1/dashboard/summary", headers=teacher_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert "total_students" in data
     assert "total_classes" in data
-    assert "total_exams" in data
-    assert isinstance(data["total_students"], int)
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
@@ -187,7 +245,9 @@ async def get_summary(
         "total_students": total_students,
         "total_classes": total_classes,
         "total_exams": total_exams,
-        "pending_grading": 0,  # placeholder
+        "total_staff": None,        # 暂缓：需 staff 表，前端显示 "--"
+        "pending_subjects": None,    # 暂缓：需阅卷状态聚合
+        "pending_grading": 0,        # placeholder
     }
 ```
 
@@ -203,6 +263,123 @@ Expected: PASS
 ```bash
 git add src/edu_cloud/api/dashboard.py src/edu_cloud/api/app.py tests/test_api/test_dashboard.py
 git commit -m "feat(api): GET /dashboard/summary — 角色 scope 聚合统计"
+```
+
+---
+
+### Task 2b: 后端 — Notifications List API
+
+**Files:**
+- Create: `src/edu_cloud/api/notifications_api.py`
+- Modify: `src/edu_cloud/api/app.py` (注册路由)
+- Create: `tests/test_api/test_notifications_api.py`
+
+**Why:** 通知铃 badge、ActivityFeed、校长 Dashboard "待审批/本周通知" KPI 均需要通知列表 API。
+
+- [ ] **Step 1: 写失败测试**
+
+```python
+# tests/test_api/test_notifications_api.py
+async def test_notifications_list(client, teacher_headers):
+    """已认证用户可获取通知列表。"""
+    resp = await client.get("/api/v1/notifications", headers=teacher_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+
+
+async def test_notifications_filter_status(client, teacher_headers):
+    """支持 status 过滤。"""
+    resp = await client.get("/api/v1/notifications?status=pending", headers=teacher_headers)
+    assert resp.status_code == 200
+
+
+async def test_notifications_filter_since(client, teacher_headers):
+    """支持 since 时间过滤。"""
+    resp = await client.get("/api/v1/notifications?since=week", headers=teacher_headers)
+    assert resp.status_code == 200
+
+
+async def test_notifications_unauth(client):
+    """未认证 → 401。"""
+    resp = await client.get("/api/v1/notifications")
+    assert resp.status_code in (401, 403)
+```
+
+- [ ] **Step 2: 运行测试确认失败**
+
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_api/test_notifications_api.py -v`
+Expected: FAIL — 404 (路由不存在)
+
+- [ ] **Step 3: 实现**
+
+```python
+# src/edu_cloud/api/notifications_api.py
+"""Notifications List API — 按角色 scope 过滤通知。"""
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timedelta, timezone
+
+from edu_cloud.database import get_db
+from edu_cloud.api.deps import get_current_user
+from edu_cloud.models.notification import Notification
+
+router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
+
+TZ = timezone(timedelta(hours=8))
+
+@router.get("")
+async def list_notifications(
+    status: str | None = Query(None),
+    since: str | None = Query(None),
+    current: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    role = current["current_role"]
+    school_id = role.school_id
+
+    q = select(Notification).order_by(Notification.created_at.desc())
+    if school_id:
+        q = q.where(Notification.school_id == school_id)
+    if status:
+        q = q.where(Notification.status == status)
+    if since == "week":
+        cutoff = datetime.now(TZ) - timedelta(days=7)
+        q = q.where(Notification.created_at >= cutoff)
+
+    result = await db.execute(q.limit(50))
+    rows = result.scalars().all()
+    return [
+        {
+            "id": n.id, "status": n.status, "channel": n.channel,
+            "created_at": str(n.created_at),
+        }
+        for n in rows
+    ]
+```
+
+在 `app.py` 注册路由：`from edu_cloud.api.notifications_api import router as notifications_router`
+
+- [ ] **Step 4: 运行测试确认通过**
+
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_api/test_notifications_api.py -v`
+Expected: PASS
+
+- [ ] **Step 5: 前端 API 封装**
+
+在 `frontend/src/api/` 添加 `notifications.js`：
+
+```javascript
+import client from './client.js'
+export const getNotifications = (params = {}) => client.get('/notifications', { params })
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add src/edu_cloud/api/notifications_api.py src/edu_cloud/api/app.py tests/test_api/test_notifications_api.py frontend/src/api/notifications.js
+git commit -m "feat(api): GET /notifications — 通知列表（status/since 过滤）"
 ```
 
 ---
@@ -248,6 +425,7 @@ git commit -m "style: CSS token 系统 + Naive UI 切换为 momowan light 主题
 
 **Files:**
 - Create: `frontend/src/config/roles.js`
+- Create: `frontend/src/config/permissions.js`
 - Create: `frontend/src/config/sidebarConfig.js`
 - Create: `frontend/src/config/dashboardConfig.js`
 - Create: `frontend/src/__tests__/config.test.js`
@@ -260,6 +438,7 @@ git commit -m "style: CSS token 系统 + Naive UI 切换为 momowan light 主题
 // frontend/src/__tests__/config.test.js
 import { describe, it, expect } from 'vitest'
 import { CANONICAL_ROLES, ROLE_LABELS, normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
+import { hasPermission, ROLE_PERMISSIONS } from '../config/permissions.js'
 import { getSidebarItems } from '../config/sidebarConfig.js'
 import { getDashboardConfig } from '../config/dashboardConfig.js'
 
@@ -277,6 +456,22 @@ describe('roles config', () => {
     expect(SCHOOL_ADMIN_ROLES).toContain('platform_admin')
     expect(SCHOOL_ADMIN_ROLES).toContain('principal')
     expect(SCHOOL_ADMIN_ROLES).not.toContain('parent')
+  })
+})
+
+describe('permissions config', () => {
+  it('hasPermission checks role→permission mapping', () => {
+    expect(hasPermission('platform_admin', 'manage_schools')).toBe(true)
+    expect(hasPermission('parent', 'manage_schools')).toBe(false)
+    expect(hasPermission('subject_teacher', 'use_ai_chat')).toBe(true)
+    expect(hasPermission('parent', 'use_ai_chat')).toBe(false)
+  })
+  it('uses lowercase values matching backend enum', () => {
+    for (const perms of Object.values(ROLE_PERMISSIONS)) {
+      for (const p of perms) {
+        expect(p).toBe(p.toLowerCase())
+      }
+    }
   })
 })
 
@@ -339,24 +534,60 @@ export const ROLE_LABELS = {
 }
 ```
 
-- [ ] **Step 4: 实现 sidebarConfig.js**
+- [ ] **Step 4: 实现 permissions.js**
+
+```javascript
+// frontend/src/config/permissions.js
+// 镜像后端 core/permissions.py ROLE_PERMISSIONS，值使用小写（与后端 enum value 一致）
+export const ROLE_PERMISSIONS = {
+  platform_admin: ['manage_schools', 'view_schools', 'create_joint_exam', 'manage_joint_exam',
+    'view_joint_exam', 'view_cross_school_analytics', 'manage_question_bank', 'view_question_bank',
+    'manage_users', 'manage_platform', 'view_students', 'view_exams', 'view_scores',
+    'generate_report', 'generate_notification', 'approve_notification', 'send_notification',
+    'use_ai_chat', 'write_paper'],
+  district_admin: ['manage_schools', 'view_schools', 'create_joint_exam', 'manage_joint_exam',
+    'view_joint_exam', 'view_cross_school_analytics', 'view_question_bank', 'manage_users',
+    'view_students', 'view_exams', 'view_scores', 'generate_report', 'approve_notification',
+    'send_notification', 'generate_notification', 'use_ai_chat'],
+  principal: ['view_schools', 'view_joint_exam', 'view_cross_school_analytics', 'view_question_bank',
+    'view_students', 'view_exams', 'view_scores', 'generate_report', 'approve_notification',
+    'send_notification', 'generate_notification', 'use_ai_chat'],
+  academic_director: ['view_schools', 'create_joint_exam', 'manage_joint_exam', 'view_joint_exam',
+    'view_question_bank', 'view_students', 'view_exams', 'view_scores', 'generate_report',
+    'generate_notification', 'send_notification', 'use_ai_chat'],
+  grade_leader: ['view_students', 'view_exams', 'view_scores', 'view_joint_exam',
+    'generate_report', 'generate_notification', 'use_ai_chat'],
+  homeroom_teacher: ['view_students', 'view_exams', 'view_scores', 'generate_report',
+    'generate_notification', 'send_notification', 'use_ai_chat'],
+  subject_teacher: ['view_students', 'view_exams', 'view_scores', 'view_question_bank',
+    'use_ai_chat', 'write_paper', 'generate_report'],
+  parent: ['view_scores'],
+}
+
+export function hasPermission(role, permission) {
+  const perms = ROLE_PERMISSIONS[role]
+  return perms ? perms.includes(permission) : false
+}
+```
+
+- [ ] **Step 5: 实现 sidebarConfig.js**
 
 按 spec §3.2 定义每个角色的侧栏导航项。每项包含 `{ icon, label, route, badge? }`。
 
-- [ ] **Step 5: 实现 dashboardConfig.js**
+- [ ] **Step 6: 实现 dashboardConfig.js**
 
 按 spec §4 定义每个角色的 KPI 列表和 widget 列表。每个 widget 包含 `{ type, id, title, icon, route?, planned? }`。
 
-- [ ] **Step 6: 运行测试确认通过**
+- [ ] **Step 7: 运行测试确认通过**
 
 Run: `cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run src/__tests__/config.test.js`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add frontend/src/config/ frontend/src/__tests__/config.test.js
-git commit -m "feat: 角色配置文件 — roles/sidebar/dashboard JSON 驱动"
+git commit -m "feat: 角色配置文件 — roles/permissions/sidebar/dashboard JSON 驱动"
 ```
 
 ---
@@ -373,11 +604,16 @@ git commit -m "feat: 角色配置文件 — roles/sidebar/dashboard JSON 驱动"
 
 - [ ] **Step 1: 修改 auth store**
 
-- login 时 normalize 每个 role 的 role name
+- login 时 normalize 每个 role 的 role name（使用 `normalizeRole`）
 - 存储 context 对象（来自 login 响应）
-- 添加 `currentContext` computed
+- 添加 `currentContext` computed（当前角色的 context）
 - 修改 `isAdmin` 使用 `normalizeRole`
-- 添加 `hasPermission(perm)` 方法（本地检查，不调 API）
+- 添加 `hasPermission(perm)` 方法（使用 `config/permissions.js`，本地检查不调 API）
+- **F-03 修复: Auth Bootstrap** — 持久化 `user`/`roles`/`currentRoleIndex` 到 localStorage：
+  - login 成功后：`localStorage.setItem('auth_state', JSON.stringify({ user, roles, currentRoleIndex }))`
+  - store 初始化时：从 localStorage 恢复（如果 token 存在）
+  - logout 时：清除 `auth_state`
+  - switchRole 后：更新 `auth_state`
 
 - [ ] **Step 2: 验证前端测试通过**
 
@@ -428,7 +664,19 @@ git commit -m "feat(auth): role normalization + context 存储 + hasPermission"
 </template>
 ```
 
-暂时 AppSidebar 和 AiFloatingButton 用空占位。
+- [ ] **Step 3b: 创建占位组件（F-05 修复）**
+
+AppShell 模板引用了 AppSidebar 和 AiFloatingButton，但这些组件在后续 Task 才实现。此步创建空占位避免构建报错：
+
+```vue
+<!-- frontend/src/components/shell/AppSidebar.vue -->
+<template><aside class="app-sidebar"><!-- Task 7 实现 --></aside></template>
+```
+
+```vue
+<!-- frontend/src/components/ai/AiFloatingButton.vue -->
+<template><div><!-- Task 12 实现 --></div></template>
+```
 
 - [ ] **Step 4: 验证构建**
 
@@ -705,6 +953,13 @@ git commit -m "feat: AI 浮窗 — 任意页面右下角调出 AI 助手"
 
 更新 router import。
 
+- [ ] **Step 3b: 移除 AnalysisPage 中的身份控件（F-08 修复）**
+
+WorkbenchPage 原有 header slot 中包含用户身份控件（角色标签/学校名等），这些已迁移到 AppShell 的 AppHeader。重命名后须移除 AnalysisPage 中的重复身份控件，避免双层头部。具体：
+- 检查 WorkbenchLayout.vue 的 header slot 是否有身份/角色显示
+- 如有，移除 AnalysisPage 传给 header slot 的身份控件
+- 保留功能性控件（搜索、上下文选择器等）
+
 - [ ] **Step 4: 运行全量验证**
 
 Run: `cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run`
@@ -755,7 +1010,7 @@ git commit -m "docs: 更新项目文档 + 设计文档标记实现完成"
 
 | Batch | Tasks | 可独立验证 | 审查 |
 |-------|-------|-----------|------|
-| 1 | T1-T4 | 后端 API + CSS + config 全部有测试 | codex-review (code) |
-| 2 | T5-T9 | 壳层完整，可视觉检查 | codex-review (code) |
+| 1 | T1, T2, T2b, T3, T4 | 后端 API（login context + dashboard + notifications）+ CSS + config（含 permissions.js）全部有测试 | codex-review (code) |
+| 2 | T5-T9 | 壳层完整（含 auth 持久化 + 占位组件），可视觉检查 | codex-review (code) |
 | 3 | T10-T11 | Dashboard 功能完整 | codex-review (code) |
-| 4 | T12-T14 | AI 浮窗 + 清理 + 最终验证 | codex-review (code) + integration |
+| 4 | T12-T14 | AI 浮窗 + 清理（含 AnalysisPage 去重复头部）+ 最终验证 | codex-review (code) + integration |
