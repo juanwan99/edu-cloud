@@ -12,7 +12,7 @@ async def test_create_paper():
         "data": {"paper_id": "p-123", "stage": "intake", "status": "pending_intake"}
     }
 
-    with patch("edu_cloud.services.paper_service.httpx.AsyncClient") as MockClient:
+    with patch("edu_cloud.modules.paper.service.httpx.AsyncClient") as MockClient:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.post.return_value = mock_response
@@ -33,7 +33,7 @@ async def test_get_paper_status():
         "data": {"id": "p-123", "stage": "brainstorm", "status": "brainstorming", "cost_yuan": 5.2}
     }
 
-    with patch("edu_cloud.services.paper_service.httpx.AsyncClient") as MockClient:
+    with patch("edu_cloud.modules.paper.service.httpx.AsyncClient") as MockClient:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.get.return_value = mock_response
@@ -47,7 +47,7 @@ async def test_get_paper_status():
 @pytest.mark.asyncio
 async def test_create_paper_failure():
     """paper-skill 不可用"""
-    with patch("edu_cloud.services.paper_service.httpx.AsyncClient") as MockClient:
+    with patch("edu_cloud.modules.paper.service.httpx.AsyncClient") as MockClient:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.post.side_effect = Exception("Connection refused")
@@ -68,7 +68,7 @@ async def test_create_paper_success_false():
         "error": "Invalid budget tier"
     }
 
-    with patch("edu_cloud.services.paper_service.httpx.AsyncClient") as MockClient:
+    with patch("edu_cloud.modules.paper.service.httpx.AsyncClient") as MockClient:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.post.return_value = mock_response
@@ -83,7 +83,7 @@ async def test_create_paper_success_false():
 @pytest.mark.asyncio
 async def test_get_status_failure():
     """T2: get_status 网络异常"""
-    with patch("edu_cloud.services.paper_service.httpx.AsyncClient") as MockClient:
+    with patch("edu_cloud.modules.paper.service.httpx.AsyncClient") as MockClient:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.get.side_effect = Exception("Timeout")
@@ -104,7 +104,7 @@ async def test_get_status_success_false():
         "error": "Paper not found"
     }
 
-    with patch("edu_cloud.services.paper_service.httpx.AsyncClient") as MockClient:
+    with patch("edu_cloud.modules.paper.service.httpx.AsyncClient") as MockClient:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.get.return_value = mock_response
