@@ -1,0 +1,258 @@
+"""演示数据生成 — 为 AI Agent 测试提供有意义的分析数据。
+
+生成内容：
+1. 2 次考试（期中+月考），各 3 科（语/数/英），考试 status=completed
+2. 数学 10 道题 + 英语 10 道题（语文已有 22 道）
+3. 160 名学生的完整答题数据（分数按正态分布 + 班级差异）
+4. 知识点标注（数学题关联知识点树）
+5. 运行 data_pipeline 生成题库+错题本+画像
+
+调用方式：POST /api/pipeline/seed-demo
+幂等：检查标记考试是否已存在。
+
+Migrated from exam-ai (Task 22).
+"""
+import logging
+import random
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.models.school import School
+from edu_cloud.modules.exam.models import Exam, Subject, Question
+from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.modules.student.models import Student
+from edu_cloud.modules.knowledge.models import KnowledgePoint, QuestionKnowledgePoint
+
+logger = logging.getLogger(__name__)
+
+# 数学题目定义：(题号, 题型, 满分, 正确答案(选择题), 知识点code)
+MATH_QUESTIONS = [
+    ("1", "objective", 5, "B", "MATH_FUNC_CONCEPT_DOMAIN"),
+    ("2", "objective", 5, "A", "MATH_FUNC_CONCEPT_MONO"),
+    ("3", "objective", 5, "C", "MATH_TRIG_DEF"),
+    ("4", "objective", 5, "D", "MATH_SEQ_ARITH"),
+    ("5", "objective", 5, "A", "MATH_GEOM_ANALYTIC_LINE"),
+    ("6", "subjective", 12, None, "MATH_FUNC_DERIV_APP"),
+    ("7", "subjective", 12, None, "MATH_TRIG_SINE_RULE"),
+    ("8", "subjective", 14, None, "MATH_GEOM_ANALYTIC_ELLIPSE"),
+    ("9", "subjective", 14, None, "MATH_PROB_DIST"),
+    ("10", "subjective", 18, None, "MATH_FUNC_DERIV_APP"),
+]
+
+ENGLISH_QUESTIONS = [
+    ("1", "objective", 3, "B", None),
+    ("2", "objective", 3, "A", None),
+    ("3", "objective", 3, "C", None),
+    ("4", "objective", 3, "D", None),
+    ("5", "objective", 3, "B", None),
+    ("6", "objective", 3, "A", None),
+    ("7", "objective", 3, "C", None),
+    ("8", "subjective", 15, None, None),
+    ("9", "subjective", 20, None, None),
+    ("10", "subjective", 25, None, None),
+]
+
+# 班级成绩特征（均值偏移，模拟不同班级水平差异）
+CLASS_PROFILES = {
+    0: {"name": "高二(1)班", "mean_shift": 0.05, "desc": "优秀班"},
+    1: {"name": "高二(2)班", "mean_shift": 0.0, "desc": "普通班"},
+    2: {"name": "高二(3)班", "mean_shift": -0.08, "desc": "薄弱班"},
+    3: {"name": "高二(4)班", "mean_shift": 0.02, "desc": "普通班"},
+}
+
+
+def _generate_score(max_score: float, question_type: str, base_rate: float) -> float:
+    """生成一个学生某题的得分。"""
+    if question_type == "objective":
+        # 选择题：全对或全错
+        return max_score if random.random() < base_rate else 0.0
+    else:
+        # 主观题：正态分布
+        rate = max(0, min(1, random.gauss(base_rate, 0.2)))
+        score = round(rate * max_score, 1)
+        return max(0.0, min(max_score, score))
+
+
+def _student_base_rate(student_idx: int, class_idx: int) -> float:
+    """学生基础得分率（0-1），受班级和个体差异影响。"""
+    class_shift = CLASS_PROFILES[class_idx]["mean_shift"]
+    # 个体差异：每个学生有一个固定的能力值
+    individual = random.gauss(0.65, 0.15) + class_shift
+    return max(0.15, min(0.95, individual))
+
+
+async def seed_demo_data(db: AsyncSession) -> dict:
+    """生成完整演示数据。返回统计信息。"""
+    # 检查是否已有第二次考试（幂等标记）
+    result = await db.execute(select(Exam).where(Exam.name == "2026年春季月考"))
+    if result.scalar_one_or_none():
+        return {"status": "already_seeded", "message": "演示数据已存在"}
+
+    # 获取现有学校和学生
+    school_result = await db.execute(select(School).where(School.code == "TEST01"))
+    school = school_result.scalar_one_or_none()
+    if not school:
+        return {"status": "error", "message": "请先启动服务生成基础 seed 数据（school=TEST01）"}
+
+    students_result = await db.execute(
+        select(Student).where(Student.school_id == school.id).order_by(Student.student_number)
+    )
+    students = list(students_result.scalars().all())
+    if len(students) < 40:
+        return {"status": "error", "message": f"学生数量不足（{len(students)}），需至少 40 名"}
+
+    # 按班级分组
+    from collections import defaultdict
+    class_students = defaultdict(list)
+    class_id_to_idx = {}
+    for s in students:
+        if s.class_id not in class_id_to_idx:
+            class_id_to_idx[s.class_id] = len(class_id_to_idx)
+        class_students[s.class_id].append(s)
+
+    # === 知识点 seed ===
+    from edu_cloud.data.seed_knowledge_math import seed_math_knowledge
+    kp_created = await seed_math_knowledge(db)
+
+    # 查知识点 code → id 映射
+    kp_result = await db.execute(select(KnowledgePoint).where(KnowledgePoint.course_code == "SX"))
+    kp_map = {kp.code: kp.id for kp in kp_result.scalars().all()}
+
+    stats = {"kp_seeded": kp_created, "exams": [], "total_answers": 0}
+
+    # === 两次考试 ===
+    exams_config = [
+        {"name": "2026年春季期中考试", "exam_type": "期中", "semester": "2025-2026-2"},
+        {"name": "2026年春季月考", "exam_type": "月考", "semester": "2025-2026-2"},
+    ]
+
+    for exam_cfg in exams_config:
+        # 检查考试是否已存在
+        existing_exam = await db.execute(
+            select(Exam).where(Exam.name == exam_cfg["name"], Exam.school_id == school.id)
+        )
+        exam = existing_exam.scalar_one_or_none()
+        if exam and exam.status == "completed":
+            stats["exams"].append({"name": exam_cfg["name"], "status": "already_exists"})
+            continue
+
+        if not exam:
+            exam = Exam(
+                name=exam_cfg["name"], card_title=exam_cfg["name"],
+                school_id=school.id, status="completed",
+                exam_type=exam_cfg["exam_type"], semester=exam_cfg["semester"],
+                grade_scope="高二",
+            )
+            db.add(exam)
+            await db.flush()
+
+        exam_answers = 0
+
+        # 3 个科目
+        subjects_config = [
+            ("YW", "语文", None),  # 语文题目已在 app.py seed 中创建，只为期中考试创建
+            ("SX", "数学", MATH_QUESTIONS),
+            ("YY", "英语", ENGLISH_QUESTIONS),
+        ]
+
+        for subj_code, subj_name, questions_def in subjects_config:
+            # 创建 Subject
+            subj = Subject(
+                exam_id=exam.id, name=subj_name, code=subj_code, school_id=school.id,
+            )
+            db.add(subj)
+            await db.flush()
+
+            # 创建题目（如果有定义）
+            questions = []
+            if questions_def:
+                for qname, qtype, max_score, correct, kp_code in questions_def:
+                    q = Question(
+                        subject_id=subj.id, school_id=school.id,
+                        name=qname, question_type=qtype,
+                        max_score=max_score, correct_answer=correct,
+                    )
+                    db.add(q)
+                    await db.flush()
+                    questions.append(q)
+
+                    # 关联知识点
+                    if kp_code and kp_code in kp_map:
+                        db.add(QuestionKnowledgePoint(
+                            question_id=q.id,
+                            knowledge_point_id=kp_map[kp_code],
+                            is_primary=True,
+                        ))
+            elif subj_code == "YW":
+                # 语文：创建简化题目（不复用 app.py 的，避免跨考试 Subject）
+                yw_simple = [
+                    ("1", "objective", 3, "A"), ("2", "objective", 3, "B"),
+                    ("3", "objective", 3, "C"), ("4", "objective", 3, "D"),
+                    ("5", "objective", 3, "A"),
+                    ("6", "subjective", 8, None), ("7", "subjective", 10, None),
+                    ("8", "subjective", 15, None), ("9", "subjective", 20, None),
+                    ("10", "subjective", 60, None),
+                ]
+                for qname, qtype, max_score, correct in yw_simple:
+                    q = Question(
+                        subject_id=subj.id, school_id=school.id,
+                        name=qname, question_type=qtype,
+                        max_score=max_score, correct_answer=correct,
+                    )
+                    db.add(q)
+                    questions.append(q)
+                await db.flush()
+
+            if not questions:
+                continue
+
+            # 为每个学生生成答题数据
+            random.seed(42 + hash(exam_cfg["name"] + subj_code))  # 可复现
+            for class_id, class_studs in class_students.items():
+                class_idx = class_id_to_idx[class_id]
+                for student in class_studs:
+                    base_rate = _student_base_rate(
+                        students.index(student), class_idx,
+                    )
+                    # 不同科目有不同的能力偏差
+                    subject_rate = base_rate + random.gauss(0, 0.05)
+
+                    for q in questions:
+                        score = _generate_score(q.max_score, q.question_type, subject_rate)
+                        detected = None
+                        if q.question_type == "objective" and q.correct_answer:
+                            if score > 0:
+                                detected = q.correct_answer
+                            else:
+                                wrong_options = [x for x in "ABCD" if x != q.correct_answer]
+                                detected = random.choice(wrong_options)
+
+                        sa = StudentAnswer(
+                            exam_id=exam.id, subject_id=subj.id,
+                            student_id=student.id, question_id=q.id,
+                            school_id=school.id, score=score,
+                            detected_answer=detected,
+                        )
+                        db.add(sa)
+                        exam_answers += 1
+
+            await db.flush()
+
+        await db.commit()
+        stats["exams"].append({"name": exam_cfg["name"], "answers": exam_answers})
+        stats["total_answers"] += exam_answers
+
+    # === 运行 data pipeline ===
+    from edu_cloud.modules.pipeline.service import run_full_pipeline
+    pipeline_results = {}
+    for exam_cfg in exams_config:
+        exam_result = await db.execute(
+            select(Exam).where(Exam.name == exam_cfg["name"], Exam.school_id == school.id)
+        )
+        exam = exam_result.scalar_one_or_none()
+        if exam:
+            pr = await run_full_pipeline(db, exam_id=exam.id, school_id=school.id)
+            pipeline_results[exam_cfg["name"]] = pr
+
+    stats["pipeline"] = pipeline_results
+    return stats

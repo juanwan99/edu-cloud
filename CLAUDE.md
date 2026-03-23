@@ -116,9 +116,10 @@ src/edu_cloud/
     school_service.py   # 学校 CRUD + API Key 管理
     joint_exam_service.py # 联考生命周期（创建→模板→下发→成绩→完成）
     results_service.py  # 排名 + 按校对比 + 学生明细
-    sync/               # 空 stub
-    ai_grading/         # 空 stub
-    analytics/          # 空 stub
+  data/
+    seed_demo.py          # 演示数据种子（exam-ai 迁入）
+    seed_knowledge_math.py # 数学知识点种子
+    import_real_exam.py   # 真实考试数据导入工具（exam-ai 迁入）
   core/
     events.py           # 进程内 EventBus（已定义，handler 未接入）
     permissions.py      # 10 个 Permission 枚举 + 4 角色 RBAC 映射
