@@ -1,5 +1,6 @@
 const DASHBOARD_CONFIGS = {
   platform_admin: {
+    title: '平台概览',
     kpis: [
       { id: 'total_schools', label: '学校总数', color: 'mint', source: 'schools' },
       { id: 'active_schools', label: '活跃学校', color: 'yellow', source: 'schools' },
@@ -14,6 +15,7 @@ const DASHBOARD_CONFIGS = {
     ],
   },
   district_admin: {
+    title: '管辖区域概览',
     kpis: [
       { id: 'district_schools', label: '管辖学校', color: 'mint', source: 'schools' },
       { id: 'joint_exams', label: '联考进行中', color: 'yellow', source: 'joint_exams' },
@@ -28,6 +30,7 @@ const DASHBOARD_CONFIGS = {
     ],
   },
   principal: {
+    title: '学校全局',
     kpis: [
       { id: 'total_students', label: '在校学生', color: 'mint', source: 'dashboard_summary' },
       { id: 'total_staff', label: '教职工', color: 'yellow', source: 'dashboard_summary' },
@@ -44,6 +47,7 @@ const DASHBOARD_CONFIGS = {
     ],
   },
   academic_director: {
+    title: '教务中心',
     kpis: [
       { id: 'total_exams', label: '本学期考试', color: 'mint', source: 'dashboard_summary' },
       { id: 'pending_subjects', label: '待阅卷科目', color: 'yellow', source: 'dashboard_summary' },
@@ -60,6 +64,7 @@ const DASHBOARD_CONFIGS = {
     ],
   },
   grade_leader: {
+    title: '年级概览',
     kpis: [
       { id: 'total_classes', label: '年级班级', color: 'mint', source: 'dashboard_summary' },
       { id: 'total_students', label: '年级学生', color: 'yellow', source: 'dashboard_summary' },
@@ -74,6 +79,7 @@ const DASHBOARD_CONFIGS = {
     ],
   },
   homeroom_teacher: {
+    title: '班级工作台',
     kpis: [
       { id: 'my_class', label: '我的班级', color: 'mint', source: 'local' },
       { id: 'total_students', label: '班级人数', color: 'yellow', source: 'dashboard_summary' },
@@ -90,6 +96,7 @@ const DASHBOARD_CONFIGS = {
     ],
   },
   subject_teacher: {
+    title: '教学工作台',
     kpis: [
       { id: 'total_classes', label: '教授班级', color: 'mint', source: 'local' },
       { id: 'subject_avg', label: '学科均分', color: 'yellow', source: null },
@@ -104,6 +111,7 @@ const DASHBOARD_CONFIGS = {
     ],
   },
   parent: {
+    title: '家校互通',
     kpis: [
       { id: 'child_score', label: '孩子成绩', color: 'mint', source: null },
       { id: 'school_notice', label: '学校通知', color: 'yellow', source: 'notifications' },
