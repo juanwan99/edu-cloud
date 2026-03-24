@@ -421,7 +421,7 @@ const MARKING_ROLES = [...SCHOOL_ADMIN_ROLES, 'homeroom_teacher', 'subject_teach
 | `/grading/tasks` | `GradingTasksPage.vue` | 保留 |
 | `/grading/tasks/:id` | `GradingResultsPage.vue` | 保留 |
 | `/grading/review` | `TeacherReviewPage.vue` | 保留 |
-| `/analysis` | `AnalysisPage.vue`（当前为 `WorkbenchPage.vue`，实现时重命名） | **rename pending** |
+| `/analysis` | `AnalysisPage.vue` | 已完成 |
 | `/schools` | `SchoolsPage.vue` | 保留 |
 | `/login` | `LoginPage.vue`（不在 AppShell 内） | 保留 |
 

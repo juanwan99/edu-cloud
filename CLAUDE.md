@@ -87,9 +87,9 @@ frontend/src/
       RoleSwitcher.vue      # 角色切换下拉菜单（NDropdown，含头像）
       NotificationBell.vue  # 通知铃铛（NBadge + NPopover，占位）
     ai/
-      AiFloatingButton.vue  # 右下角 AI 助手浮动按钮（占位）
+      AiFloatingButton.vue  # 右下角 AI 助手浮动按钮（权限 use_ai_chat 控制可见性）
+      AiSlidePanel.vue      # 右侧 400px 滑出 AI 面板（路由变化自动关闭）
     CardEditor.vue          # 可视化答题卡编辑器（封装 card-editor/）
-    ChatPanel.vue           # AI 对话面板（SSE 流式）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
   api/                      # API 调用层（11 模块 + client.js，baseURL /api/v1）
