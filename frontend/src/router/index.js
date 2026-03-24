@@ -37,7 +37,7 @@ export const routes = [
       { path: 'grading/review', name: 'TeacherReview', component: () => import('../pages/TeacherReviewPage.vue'), meta: { roles: [...SCHOOL_ADMIN_ROLES, 'subject_teacher', 'homeroom_teacher'] } },
 
       // Platform workbench (AI analysis)
-      { path: 'analysis', name: 'Analysis', component: () => import('../pages/WorkbenchPage.vue'), meta: { permissions: ['use_ai_chat'] } },
+      { path: 'analysis', name: 'Analysis', component: () => import('../pages/AnalysisPage.vue'), meta: { permissions: ['use_ai_chat'] } },
 
       // Admin
       { path: 'schools', name: 'Schools', component: () => import('../pages/SchoolsPage.vue'), meta: { permissions: ['manage_schools'] } },

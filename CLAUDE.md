@@ -62,11 +62,10 @@ frontend/src/
   layouts/
     AppShell.vue            # 角色感知壳层（AppHeader + AppSidebar + router-view + AiFloatingButton）
     WorkbenchLayout.vue     # 三栏布局（左侧边栏 + 顶栏 + 中央内容 + 右侧边栏）
-    DashboardLayout.vue     # exam-ai 仪表盘布局（AppNavbar + 主内容区）
     AuthLayout.vue          # 登录页布局
   pages/
     LoginPage.vue           # 登录页（edu-cloud 多角色版）
-    WorkbenchPage.vue       # 云平台工作台
+    AnalysisPage.vue        # 分析页（原 WorkbenchPage 重命名）
     ExamListPage.vue        # 考试列表（exam-ai 迁入）
     ExamDetailPage.vue      # 考试详情（科目/题目/答题卡/扫描/阅卷）
     DashboardPage.vue       # 仪表盘
@@ -90,7 +89,6 @@ frontend/src/
     ai/
       AiFloatingButton.vue  # 右下角 AI 助手浮动按钮（占位）
     CardEditor.vue          # 可视化答题卡编辑器（封装 card-editor/）
-    AppNavbar.vue           # 顶部导航栏（旧版，将被 AppHeader 替代）
     ChatPanel.vue           # AI 对话面板（SSE 流式）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
