@@ -20,6 +20,33 @@
       "report_path": "docs/plans/.codex-code-review-batch1-raw.log",
       "updated": "2026-03-24T08:15:34.871091+08:00",
       "subject_ref": "commit:5ad0d09..645f0b9"
+    },
+    "code_review_batch2": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "dbe5303fce846438c27407c386ab77042fe1a6485a1fc7dfc8f35a8fb2a2a275",
+      "report_path": "docs/plans/.codex-code-review-batch2-r2-raw.log",
+      "updated": "2026-03-24T09:25:10.309980+08:00",
+      "subject_ref": "commit:72651ee..7e93e8d"
+    },
+    "code_review_batch3": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "5c6a8f90404e347a8b7185f66c46fe18086b977a37f7a83fcdf5c14efce4f269",
+      "report_path": "docs/plans/.codex-code-review-batch3-r2-raw.log",
+      "updated": "2026-03-24T09:40:18.809683+08:00",
+      "subject_ref": "commit:b5bc468..eb3fc26"
+    },
+    "code_review_batch4": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "b6e972d3e271014192e7dd37a7fb498b946435859294be70c993907ee6439bd5",
+      "report_path": "docs/plans/.codex-code-review-batch4-raw.log",
+      "updated": "2026-03-24T09:41:20.789044+08:00",
+      "subject_ref": "commit:fa20c0c..f8c3af8"
     }
   }
 }

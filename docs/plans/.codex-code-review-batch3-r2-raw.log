@@ -1,0 +1,1071 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d1d77-dd09-7e81-a2c7-3a30b26241b4
+--------
+user
+You are a code reviewer performing R2 re-review after fixes.
+
+Read the plan: docs/plans/2026-03-24-frontend-role-aware-plan.md
+Check all commits: git log --oneline b5bc468~1..51aa582
+Read the full diff: git diff b5bc468~1..51aa582
+Read modified files in full for context.
+
+R1 findings and fixes applied:
+
+CR-001 (HIGH code-bug): DashboardPage only fetched KPI once on mount. Fix: added watch(role, fetchKpiData) + clear old data on switch.
+CR-002 (HIGH code-bug, contested): KPI sources for schools/joint_exams incorrectly read dashboard_summary. Fix: simplified getKpiValue to return '--' for non-dashboard_summary sources. Contested because design doc declares placeholder behavior.
+CR-003 (MED code-bug): AiSlidePanel router-link didn't close panel. Fix: AppShell watches route.path to auto-close.
+CR-004 (MED test-gap): Config tests too weak. Fix: added 3 tests for title differentiation, role-specific widgets, KPI required fields.
+
+Verify each fix is correct. Check for new issues.
+
+Finding Classification: code-bug, test-gap, design-concern, suggestion.
+PASS/FAIL: code-bug or test-gap HIGH/MED unresolved -> FAIL.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem failed: MCP client for `filesystem` timed out after 15 seconds. Add or adjust `startup_timeout_sec` in your config.toml:
+[mcp_servers.filesystem]
+startup_timeout_sec = XX
+mcp startup: failed: filesystem
+codex
+使用 `code-review:review-pr` 技能做这次 R2 复审，先按要求读取计划、提交范围、完整 diff，再把变更文件通读一遍核对 4 个 R1 修复是否真实闭环。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md' in C:/Users/Administrator/edu-cloud succeeded in 1.84s:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+codex
+先收集变更范围和上下文，再逐项回看 4 个修复点对应代码与测试，最后按是否还有 HIGH/MED 未解决给出 PASS/FAIL。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --stat b5bc468~1..51aa582' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git status --short' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git log --oneline b5bc468~1..51aa582' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content docs/plans/2026-03-24-frontend-role-aware-plan.md' in C:/Users/Administrator/edu-cloud succeeded in 1.17s:
+ .task/RESEARCH.md                                  | 482 ---------------------
+ CLAUDE.md                                          |   6 +-
+ ...26-03-23-frontend-role-aware-redesign-design.md |   3 +-
+ ...026-03-24-frontend-role-aware-handoff-resume.md |  96 ++++
+ frontend/src/__tests__/auth-store.test.js          | 102 ++++-
+ frontend/src/__tests__/config.test.js              |  28 ++
+ frontend/src/__tests__/router.test.js              |  48 +-
+ frontend/src/components/AppNavbar.vue              | 209 ---------
+ frontend/src/components/ai/AiFloatingButton.vue    |  16 +-
+ frontend/src/components/ai/AiSlidePanel.vue        | 184 ++++++++
+ frontend/src/components/dashboard/ActivityFeed.vue | 116 +++++
+ .../src/components/dashboard/DashboardCard.vue     | 139 ++++++
+ frontend/src/components/dashboard/KpiCard.vue      |  88 ++++
+ frontend/src/components/dashboard/WidgetGrid.vue   |  31 ++
+ frontend/src/config/dashboardConfig.js             |   8 +
+ frontend/src/layouts/AppShell.vue                  |  12 +-
+ frontend/src/layouts/DashboardLayout.vue           |  39 --
+ frontend/src/pages/AnalysisPage.vue                |  23 +
+ frontend/src/pages/DashboardPage.vue               | 186 +++-----
+ frontend/src/pages/WorkbenchPage.vue               |  42 --
+ succeeded in 1.17s:
+51aa582 fix: GPT CR Batch 3 — 3 个 verified findings 修复
+7e93e8d fix: GPT CR Batch 2 — 4 个 verified findings 修复
+91b2db3 docs: 设计文档标记 [实现完成] — 835 tests 全绿
+fa20c0c cleanup: 删除旧组件 AppNavbar/DashboardLayout，WorkbenchPage 重命名为 AnalysisPage
+e1fa07d handoff: 前端角色感知重设计 恢复交接卡（T13-T14 + 3 Batch review 待完成）
+1a047df feat: 角色定制 Dashboard — KPI + 模块卡片 + ActivityFeed
+9d0e0f0 feat: AI 浮窗 — 任意页面右下角调出 AI 助手
+b5bc468 feat: Dashboard 组件 — KpiCard + DashboardCard + WidgetGrid
+ succeeded in 1.20s:
+ M docs/plans/.codex-code-review-batch4-raw.log
+ M docs/plans/.codex-plan-review-raw.log
+ M docs/plans/2026-03-24-frontend-role-aware-gates.json
+?? docs/plans/.codex-code-review-batch1-raw.log
+?? docs/plans/.codex-code-review-batch2-r2-raw.log
+?? docs/plans/.codex-code-review-batch2-raw.log
+?? docs/plans/.codex-code-review-batch3-r2-raw.log
+?? docs/plans/.codex-code-review-batch3-raw.log
+?? docs/plans/.codex-plan-review-r3-raw.log
+?? docs/plans/frontend-role-aware-review-handoff-batch2.md
+?? docs/plans/frontend-role-aware-review-handoff-batch3.md
+?? docs/plans/frontend-role-aware-review-handoff-batch4.md
+?? test_output/
+ succeeded in 2.39s:
+# 鍓嶇瑙掕壊鎰熺煡閲嶈璁?鈥?瀹炵幇璁″垝
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 灏?edu-cloud 鍓嶇浠庢墎骞冲崟鏍?UI 鏀归€犱负澶氭牎澶氳鑹插垎灞?UI锛岃姣忎釜瑙掕壊鐧诲綍鍚庣湅鍒颁笓灞炵殑瀵艰埅鍜?Dashboard銆?
+**Architecture:** AppShell 澹冲眰锛圚eader + Sidebar + AI 娴獥锛夊寘瑁规墍鏈夐〉闈紝JSON 閰嶇疆椹卞姩瑙掕壊宸紓鍖栥€傚悗绔ˉ 3 涓交閲?API锛坙ogin context / dashboard summary / notifications锛夈€?
+**Tech Stack:** Vue 3.5, Naive UI 2.44, Pinia 3, Vite 7, Vitest 4, FastAPI
+
+**Design doc:** `docs/plans/2026-03-23-frontend-role-aware-redesign-design.md`
+
+---
+
+## Batch 1: 鍚庣 API + 鏍峰紡鍩虹锛堝彲鐙珛娴嬭瘯锛?
+### Task 1: 鍚庣 鈥?login/switch-role 杩斿洖 context 瀵硅薄
+
+**Files:**
+- Modify: `src/edu_cloud/api/auth.py`
+- Modify: `tests/test_api/test_auth_v2.py` (鎵╁睍鐜版湁 RBAC 娴嬭瘯)
+
+**Why:** 椤舵爮闇€瑕佹樉绀哄鏍″悕锛屼絾鐧诲綍鍙繑鍥?school_id銆傛暀甯?瀹堕暱鏃?VIEW_SCHOOLS 鏉冮檺锛屾棤娉曢€氳繃 /schools API 鑾峰彇銆?
+codex
+我已经拿到提交范围。下一步读取完整 diff 和所有改动文件的全文，重点会放在 `DashboardPage`、`AppShell`、配置测试和相关路由/store 上。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --name-only b5bc468~1..51aa582' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff b5bc468~1..51aa582' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content CLAUDE.md' in C:/Users/Administrator/edu-cloud succeeded in 2.58s:
+.task/RESEARCH.md
+CLAUDE.md
+docs/plans/2026-03-23-frontend-role-aware-redesign-design.md
+docs/plans/2026-03-24-frontend-role-aware-handoff-resume.md
+frontend/src/__tests__/auth-store.test.js
+frontend/src/__tests__/config.test.js
+frontend/src/__tests__/router.test.js
+frontend/src/components/AppNavbar.vue
+frontend/src/components/ai/AiFloatingButton.vue
+frontend/src/components/ai/AiSlidePanel.vue
+frontend/src/components/dashboard/ActivityFeed.vue
+frontend/src/components/dashboard/DashboardCard.vue
+frontend/src/components/dashboard/KpiCard.vue
+frontend/src/components/dashboard/WidgetGrid.vue
+frontend/src/config/dashboardConfig.js
+frontend/src/layouts/AppShell.vue
+frontend/src/layouts/DashboardLayout.vue
+frontend/src/pages/AnalysisPage.vue
+frontend/src/pages/DashboardPage.vue
+frontend/src/pages/WorkbenchPage.vue
+ succeeded in 3.00s:
+diff --git a/.task/RESEARCH.md b/.task/RESEARCH.md
+deleted file mode 100644
+index 1582b6d..0000000
+--- a/.task/RESEARCH.md
++++ /dev/null
+@@ -1,482 +0,0 @@
+----
+-updated: 2026-03-21
+-status: active
+-category: market-research
+-importance: 8
+-tags: [edu-cloud, market-research, AI-platform, RBAC, NotebookLM, home-school]
+----
+-
+-# edu-cloud 平台建设调研报告
+-
+-## 结论：国内智慧校园已进入 AI-native 时代，edu-cloud 应借鉴 NotebookLM 三栏范式 + 企业微信家校通道 + 分层 RBAC 数据隔离，构建差异化的 AI 驱动教育管理平台。
+-
+----
+-
+ succeeded in 6.77s:
+# edu-cloud 鈥?鏁欒偛浜戝钩鍙?
+
+<!-- key-start -->
+## 椤圭洰瀹氫綅
+
+edu-cloud 鏄?*澶氭牎鍗忓悓鐨勪簯绔钩鍙?*锛屾槸瀛︽牎绔紙exam-ai锛夌殑涓婃父璋冨害涓績銆?
+
+```
+[鐩戠绔痌                      [浜戠骞冲彴]                      [瀛︽牎绔痌
+鏁欒偛灞€/闆嗗洟鐪嬫澘  鈹€鈹€鈹€鈹€鈹€鈹€鈫? edu-cloud (port 9000)  鈫愨攢鈹€鈹€鈹€鈹€鈹€  exam-ai 脳 N 鎵€瀛︽牎
+  - 鍏ㄥ尯鎴愮哗鎬昏              - 鑱旇€冪紪鎺掍笌涓嬪彂                 - 鏈牎鑰冭瘯绠＄悊
+  - 瀛︽牎闂村姣?               - 璺ㄦ牎鏁版嵁姹囨€?                  - 鎵弿+AI闃呭嵎
+  - 鏁欏璐ㄩ噺鐩戞帶              - 鍏变韩 AI 闃呭嵎鏈嶅姟               - 鎴愮哗涓婃姤鍒颁簯绔?
+                              - 瀛︽牎娉ㄥ唽涓庣姸鎬佺洃鎺?
+                              - 缁熶竴棰樺簱绠＄悊
+```
+
+### 鑱岃矗杈圭晫
+
+| 鑱岃矗 | 褰掑睘 | 璇存槑 |
+codex
+现在开始核对实现与设计文档是否一致，尤其是 CR-002 是否确实按设计改成占位符，以及新增测试是不是覆盖到了真实回归面。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/config/dashboardConfig.js' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/pages/DashboardPage.vue' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/layouts/AppShell.vue' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/stores/auth.js' in C:/Users/Administrator/edu-cloud succeeded in 1.50s:
+<template>
+  <div class="dashboard-page">
+    <div class="page-header">
+      <h1 class="page-title">{{ config?.title || '姒傝' }}</h1>
+      <p class="page-subtitle">娆㈣繋鍥炴潵锛寋{ auth.user?.display_name }}</p>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="kpi-row">
+      <KpiCard
+        v-for="kpi in config?.kpis"
+        :key="kpi.id"
+        :value="getKpiValue(kpi)"
+        :label="kpi.label"
+        :color="kpi.color"
+      />
+    </div>
+
+    <!-- Module Cards Grid -->
+    <WidgetGrid :columns="2" class="module-grid">
+ succeeded in 1.45s:
+<template>
+  <div class="app-shell">
+    <AppHeader />
+    <div class="app-body">
+      <AppSidebar />
+      <main class="app-main">
+        <router-view />
+      </main>
+    </div>
+    <AiFloatingButton @toggle="aiPanelOpen = !aiPanelOpen" />
+    <AiSlidePanel :visible="aiPanelOpen" @close="aiPanelOpen = false" />
+  </div>
+</template>
+
+<script setup>
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import AppHeader from '../components/shell/AppHeader.vue'
+import AppSidebar from '../components/shell/AppSidebar.vue'
+import AiFloatingButton from '../components/ai/AiFloatingButton.vue'
+ succeeded in 1.79s:
+const DASHBOARD_CONFIGS = {
+  platform_admin: {
+    title: '骞冲彴姒傝',
+    kpis: [
+      { id: 'total_schools', label: '瀛︽牎鎬绘暟', color: 'mint', source: 'schools' },
+      { id: 'active_schools', label: '娲昏穬瀛︽牎', color: 'yellow', source: 'schools' },
+      { id: 'joint_exams', label: '鑱旇€冭繘琛屼腑', color: 'coral', source: 'joint_exams' },
+      { id: 'system_users', label: '绯荤粺鐢ㄦ埛', color: 'purple', source: null },
+    ],
+    widgets: [
+      { type: 'module', id: 'schools', title: '瀛︽牎绠＄悊', icon: 'school', route: '/schools' },
+      { type: 'module', id: 'joint_exams', title: '鑱旇€冪鐞?, icon: 'exam', route: '/exams' },
+      { type: 'module', id: 'settings', title: '绯荤粺璁剧疆', icon: 'settings', route: '/analysis' },
+      { type: 'module', id: 'users', title: '鐢ㄦ埛绠＄悊', icon: 'users', route: null, planned: true },
+    ],
+  },
+  district_admin: {
+    title: '绠¤緰鍖哄煙姒傝',
+    kpis: [
+      { id: 'district_schools', label: '绠¤緰瀛︽牎', color: 'mint', source: 'schools' },
+ succeeded in 1.95s:
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import client from '../api/client.js'
+import router from '../router/index.js'
+import { normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
+import { hasPermission } from '../config/permissions.js'
+
+/** Persist auth state to localStorage */
+function saveAuthState(userVal, rolesVal, indexVal) {
+  try {
+    localStorage.setItem('auth_state', JSON.stringify({
+      user: userVal,
+      roles: rolesVal,
+      currentRoleIndex: indexVal,
+    }))
+  } catch { /* quota exceeded 鈥?non-fatal */ }
+}
+
+/** Restore auth state from localStorage (returns null on failure) */
+function loadAuthState() {
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/__tests__/config.test.js' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/__tests__/router.test.js' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/router/index.js' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/__tests__/auth-store.test.js' in C:/Users/Administrator/edu-cloud succeeded in 1.98s:
+import { describe, it, expect } from 'vitest'
+import { CANONICAL_ROLES, ROLE_LABELS, normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
+import { hasPermission, ROLE_PERMISSIONS } from '../config/permissions.js'
+import { getSidebarItems } from '../config/sidebarConfig.js'
+import { getDashboardConfig } from '../config/dashboardConfig.js'
+
+describe('roles config', () => {
+  it('has 8 canonical roles', () => {
+    expect(CANONICAL_ROLES).toHaveLength(8)
+  })
+  it('normalizes legacy aliases', () => {
+    expect(normalizeRole('admin')).toBe('platform_admin')
+    expect(normalizeRole('teacher')).toBe('subject_teacher')
+    expect(normalizeRole('head_teacher')).toBe('homeroom_teacher')
+    expect(normalizeRole('principal')).toBe('principal')
+  })
+  it('SCHOOL_ADMIN_ROLES includes platform_admin and principal', () => {
+    expect(SCHOOL_ADMIN_ROLES).toContain('platform_admin')
+    expect(SCHOOL_ADMIN_ROLES).toContain('principal')
+    expect(SCHOOL_ADMIN_ROLES).not.toContain('parent')
+ succeeded in 2.24s:
+/**
+ * Router guard tests 鈥?TG-01 fix (R2 refactor: imports real routes & guard)
+ *
+ * Tests the actual route definitions and guard function from src/router/index.js.
+ * A regression in the real code (e.g. removing requiresAuth) will cause these to fail.
+ */
+import { describe, it, expect, beforeEach } from 'vitest'
+import { createRouter, createWebHistory } from 'vue-router'
+import { routes, authGuard } from '../router/index.js'
+
+// Stub lazy-loaded components so we don't need actual .vue files in test
+function stubRoutes(routeList) {
+  return routeList.map(r => ({
+    ...r,
+    component: r.children ? undefined : { template: '<div/>' },
+    ...(r.children && { children: stubRoutes(r.children) }),
+  }))
+}
+
+const stubbedRoutes = stubRoutes(routes)
+ succeeded in 2.29s:
+import { createRouter, createWebHistory } from 'vue-router'
+import AppShell from '../layouts/AppShell.vue'
+import { SCHOOL_ADMIN_ROLES, EXAM_ROLES, MARKING_ROLES, normalizeRole } from '../config/roles.js'
+import { hasPermission } from '../config/permissions.js'
+
+export const routes = [
+  // Auth 鈥?outside AppShell
+  { path: '/login', name: 'Login', component: () => import('../pages/LoginPage.vue') },
+
+  // All authenticated routes under AppShell
+  {
+    path: '/',
+    component: AppShell,
+    meta: { requiresAuth: true },
+    children: [
+      { path: '', name: 'Dashboard', component: () => import('../pages/DashboardPage.vue') },
+
+      // Exam management
+      { path: 'exams', name: 'ExamList', component: () => import('../pages/ExamListPage.vue'), meta: { roles: EXAM_ROLES } },
+      { path: 'exams/:id', name: 'ExamDetail', component: () => import('../pages/ExamDetailPage.vue'), meta: { roles: EXAM_ROLES } },
+ succeeded in 2.26s:
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useAuthStore } from '../stores/auth.js'
+import client from '../api/client.js'
+
+vi.mock('../api/client.js', () => ({
+  default: { post: vi.fn(), get: vi.fn() },
+}))
+
+vi.mock('../router/index.js', () => ({
+  default: { push: vi.fn() },
+}))
+
+describe('auth store persistence', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorage.clear()
+  })
+
+  it('hydrates state from localStorage on init', () => {
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/components/dashboard/ActivityFeed.vue' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/components/ai/AiSlidePanel.vue' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/components/ai/AiFloatingButton.vue' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/pages/AnalysisPage.vue' in C:/Users/Administrator/edu-cloud succeeded in 1.47s:
+<template>
+  <div v-if="canUseAi" class="ai-fab" title="AI 鍔╂墜" @click="$emit('toggle')">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 3a2 2 0 110 4 2 2 0 010-4zm-3 8h6v1a3 3 0 01-6 0v-1z"
+            fill="currentColor"/>
+    </svg>
+  </div>
+</template>
+
+<script setup>
+import { computed } from 'vue'
+import { useAuthStore } from '../../stores/auth.js'
+
+defineEmits(['toggle'])
+
+const authStore = useAuthStore()
+const canUseAi = computed(() => authStore.checkPermission('use_ai_chat'))
+</script>
+
+<style scoped>
+ succeeded in 1.40s:
+<template>
+  <WorkbenchLayout>
+    <template #header>
+      <n-h3 style="margin: 0">AI 鍒嗘瀽宸ヤ綔鍙?/n-h3>
+    </template>
+    <template #left>
+      <ContextPanel />
+    </template>
+    <template #center>
+      <DataView />
+    </template>
+    <template #right>
+      <StudioPanel />
+    </template>
+  </WorkbenchLayout>
+</template>
+
+<script setup>
+import WorkbenchLayout from '../layouts/WorkbenchLayout.vue'
+import ContextPanel from '../components/context/ContextPanel.vue'
+ succeeded in 1.88s:
+<template>
+  <div class="activity-feed">
+    <h3 class="activity-feed__title">鏈€杩戝姩鎬?/h3>
+    <div v-if="items.length === 0" class="activity-feed__empty">鏆傛棤鍔ㄦ€?/div>
+    <div v-else class="activity-feed__list">
+      <div
+        v-for="(group, dateKey) in groupedItems"
+        :key="dateKey"
+        class="activity-feed__group"
+      >
+        <div class="activity-feed__date">{{ dateKey }}</div>
+        <div
+          v-for="(item, idx) in group"
+          :key="idx"
+          class="activity-feed__item"
+        >
+          <span :class="['activity-feed__dot', `activity-feed__dot--${item.type}`]" />
+          <span class="activity-feed__time">{{ item.time }}</span>
+          <span class="activity-feed__text">{{ item.text }}</span>
+        </div>
+ succeeded in 2.32s:
+<template>
+  <Transition name="slide-right">
+    <div v-if="visible" class="ai-panel-overlay" @click.self="$emit('close')">
+      <aside class="ai-panel">
+        <header class="ai-panel-header">
+          <span class="ai-panel-title">AI 鍔╂墜</span>
+          <div class="ai-panel-actions">
+            <router-link to="/analysis" class="ai-panel-expand" title="鍦ㄥ伐浣滃彴涓墦寮€">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M2 1h5v1H3v4H2V1zm12 0h-5v1h4v4h1V1zM2 15h5v-1H3v-4H2v5zm12 0h-5v-1h4v-4h1v5z"/>
+              </svg>
+            </router-link>
+            <button class="ai-panel-close" title="鍏抽棴" @click="$emit('close')">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M3.7 3.7a1 1 0 011.4 0L8 6.6l2.9-2.9a1 1 0 111.4 1.4L9.4 8l2.9 2.9a1 1 0 01-1.4 1.4L8 9.4l-2.9 2.9a1 1 0 01-1.4-1.4L6.6 8 3.7 5.1a1 1 0 010-1.4z"/>
+              </svg>
+            </button>
+          </div>
+        </header>
+
+codex
+计划如下：
+1. 对照 R1 四个问题逐一验证修复是否直接命中根因。
+2. 运行与这些点相关的前端测试/构建，确认不是“只改代码不改行为”。
+3. 扫一遍 diff 中受影响的关联面，找回归或新引入的问题。
+4. 按 `code-bug / test-gap / design-concern / suggestion` 输出结论，并给出 PASS/FAIL。
+Plan update
+  → 核对 R1 四个修复点对应代码与设计文档
+  • 运行相关前端测试和必要构建验证
+  • 排查 diff 引入的新问题并形成结论
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"watch\\(|fetchKpiData|getKpiValue|route.path|aiPanelOpen|auth_state|currentRoleIndex\" frontend/src/pages/DashboardPage.vue frontend/src/layouts/AppShell.vue frontend/src/stores/auth.js frontend/src/router/index.js frontend/src/__tests__/*.js" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "placeholder|占位|dashboard_summary|notifications|joint_exams|schools|KPI|--|待阅卷科目|待审批|本周通知|联考进行中|学校总数" docs/plans/2026-03-23-frontend-role-aware-redesign-design.md frontend/src/config/dashboardConfig.js docs/plans/2026-03-24-frontend-role-aware-plan.md' in C:/Users/Administrator/edu-cloud exited 1 in 1.10s:
+frontend/src/router/index.js:62:  // Role/permission check for authenticated routes (fail-closed: deny if auth_state missing/corrupt)
+frontend/src/router/index.js:65:    const authState = localStorage.getItem('auth_state')
+frontend/src/router/index.js:70:      const { roles, currentRoleIndex } = JSON.parse(authState)
+frontend/src/router/index.js:71:      const currentRole = roles?.[currentRoleIndex]
+frontend/src/pages/DashboardPage.vue:13:        :value="getKpiValue(kpi)"
+frontend/src/pages/DashboardPage.vue:55:async function fetchKpiData() {
+frontend/src/pages/DashboardPage.vue:65:onMounted(fetchKpiData)
+frontend/src/pages/DashboardPage.vue:66:watch(role, fetchKpiData)
+frontend/src/pages/DashboardPage.vue:68:function getKpiValue(kpi) {
+frontend/src/stores/auth.js:11:    localStorage.setItem('auth_state', JSON.stringify({
+frontend/src/stores/auth.js:14:      currentRoleIndex: indexVal,
+frontend/src/stores/auth.js:22:    const raw = localStorage.getItem('auth_state')
+frontend/src/stores/auth.js:37:  const currentRoleIndex = ref(saved?.currentRoleIndex ?? 0)
+frontend/src/stores/auth.js:39:  const currentRole = computed(() => roles.value[currentRoleIndex.value] || null)
+frontend/src/stores/auth.js:62:    currentRoleIndex.value = primaryIdx >= 0 ? primaryIdx : 0
+frontend/src/stores/auth.js:64:    saveAuthState(user.value, roles.value, currentRoleIndex.value)
+frontend/src/stores/auth.js:69:    const oldIndex = currentRoleIndex.value
+frontend/src/stores/auth.js:74:        currentRoleIndex.value = index
+frontend/src/stores/auth.js:78:        currentRoleIndex.value = oldIndex
+frontend/src/stores/auth.js:82:      currentRoleIndex.value = index
+ succeeded in 1.11s:
+docs/plans/2026-03-24-frontend-role-aware-plan.md:7:**Architecture:** AppShell 壳层（Header + Sidebar + AI 浮窗）包裹所有页面，JSON 配置驱动角色差异化。后端补 3 个轻量 API（login context / dashboard summary / notifications）。
+docs/plans/2026-03-24-frontend-role-aware-plan.md:13:---
+docs/plans/2026-03-24-frontend-role-aware-plan.md:23:**Why:** 顶栏需要显示学校名，但登录只返回 school_id。教师/家长无 VIEW_SCHOOLS 权限，无法通过 /schools API 获取。
+docs/plans/2026-03-24-frontend-role-aware-plan.md:123:---
+docs/plans/2026-03-24-frontend-role-aware-plan.md:132:**Why:** KPI 卡片需要聚合统计（学生数/班级数/考试数/待批改数）。
+docs/plans/2026-03-24-frontend-role-aware-plan.md:169:async def test_dashboard_summary_principal(client, db, seed_two_classes):
+docs/plans/2026-03-24-frontend-role-aware-plan.md:198:async def test_dashboard_summary_grade_leader_scoped(client, db, seed_two_classes):
+docs/plans/2026-03-24-frontend-role-aware-plan.md:222:async def test_dashboard_summary_homeroom_teacher_scoped(client, db, seed_two_classes):
+docs/plans/2026-03-24-frontend-role-aware-plan.md:301:        "total_staff": None,        # 暂缓：需 staff 表，前端显示 "--"
+docs/plans/2026-03-24-frontend-role-aware-plan.md:303:        "pending_grading": 0,        # placeholder
+docs/plans/2026-03-24-frontend-role-aware-plan.md:321:---
+docs/plans/2026-03-24-frontend-role-aware-plan.md:326:- Create: `src/edu_cloud/api/notifications_api.py`
+docs/plans/2026-03-24-frontend-role-aware-plan.md:328:- Create: `tests/test_api/test_notifications_api.py`
+docs/plans/2026-03-24-frontend-role-aware-plan.md:330:**Why:** 通知铃 badge、ActivityFeed、校长 Dashboard "待审批/本周通知" KPI 均需要通知列表 API。
+docs/plans/2026-03-24-frontend-role-aware-plan.md:337:# tests/test_api/test_notifications_api.py
+docs/plans/2026-03-24-frontend-role-aware-plan.md:344:async def seed_notifications(db):
+docs/plans/2026-03-24-frontend-role-aware-plan.md:383:async def test_notifications_list_school_scope(client, db, seed_notifications):
+docs/plans/2026-03-24-frontend-role-aware-plan.md:388:    school_a_id = seed_notifications["school_a_id"]
+docs/plans/2026-03-24-frontend-role-aware-plan.md:398:    resp = await client.get("/api/v1/notifications", headers=headers)
+docs/plans/2026-03-24-frontend-role-aware-plan.md:408:async def test_notifications_filter_status_pending(client, db, seed_notifications):
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$lines = Get-Content docs/plans/2026-03-23-frontend-role-aware-redesign-design.md; $lines[236..286]' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$lines = Get-Content docs/plans/2026-03-23-frontend-role-aware-redesign-design.md; $lines[462..506]' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$lines = Get-Content docs/plans/2026-03-23-frontend-role-aware-redesign-design.md; $lines[304..310]' in C:/Users/Administrator/edu-cloud succeeded in 1.30s:
+  --color-text: #1a2e1f;
+  --color-text-secondary: #5a6b5e;
+  --color-text-muted: #8a9a8e;
+  --color-border: #e2e8e4;
+  --color-border-light: #f0f4f1;
+
+  /* Macaron 鏌斿僵 */
+  --macaron-mint: #c8f0d4;
+  --macaron-mint-light: #e8f8ee;
+  --macaron-yellow: #fef3c7;
+  --macaron-yellow-light: #fdf6e3;
+  --macaron-coral: #fde8e8;
+  --macaron-coral-light: #fef0f0;
+  --macaron-purple: #ede9fe;
+  --macaron-purple-light: #f3f0ff;
+  --macaron-blue: #e0f2fe;
+  --macaron-blue-light: #ecf6ff;
+
+  /* 鍦嗚 */
+  --radius-sm: 10px;
+ succeeded in 1.35s:
+      KpiCard.vue             # 鏂帮細KPI 鎸囨爣鍗?      ActivityFeed.vue        # 鏂帮細鍔ㄦ€佹祦鍒楄〃
+      WidgetGrid.vue          # 鏂帮細widget 缃戞牸瀹瑰櫒
+    ai/
+      AiFloatingButton.vue    # 鏂帮細鍙充笅瑙掓诞绐楁寜閽?      AiSlidePanel.vue        # 鏂帮細渚ф粦 AI 闈㈡澘
+      ChatPanel.vue           # 閲嶆瀯锛氱嫭绔嬩簬甯冨眬
+  pages/
+    DashboardPage.vue         # 閲嶅啓锛氳鑹插畾鍒?widget dashboard
+    AnalysisPage.vue          # 閲嶅懡鍚?WorkbenchPage 鈫?涓夋爮鍒嗘瀽
+  config/
+    dashboardConfig.js        # 鏂帮細瑙掕壊 鈫?widget 閰嶇疆
+    sidebarConfig.js          # 鏂帮細瑙掕壊 鈫?瀵艰埅椤归厤缃?  router/
+    index.js                  # 淇敼锛氳矾鐢辩粨鏋勮皟鏁?```
+
+### 6.2 璺敱缁撴瀯璋冩暣
+
+```javascript
+// 瑙掕壊甯搁噺锛堝湪 config/roles.js 涓畾涔夛紝璺敱鍜?sidebar 鍏辩敤锛?const SCHOOL_ADMIN_ROLES = ['platform_admin', 'district_admin', 'principal', 'academic_director']
+const EXAM_ROLES = [...SCHOOL_ADMIN_ROLES, 'grade_leader', 'homeroom_teacher', 'subject_teacher']  // 闄?parent
+const MARKING_ROLES = [...SCHOOL_ADMIN_ROLES, 'homeroom_teacher', 'subject_teacher']  // 鏈夐槄鍗疯亴璐ｇ殑瑙掕壊
+
+ succeeded in 1.25s:
+| `/grading/tasks/:id` | `GradingResultsPage.vue` | 淇濈暀 |
+| `/grading/review` | `TeacherReviewPage.vue` | 淇濈暀 |
+| `/analysis` | `AnalysisPage.vue`锛堝綋鍓嶄负 `WorkbenchPage.vue`锛屽疄鐜版椂閲嶅懡鍚嶏級 | **rename pending** |
+| `/schools` | `SchoolsPage.vue` | 淇濈暀 |
+| `/login` | `LoginPage.vue`锛堜笉鍦?AppShell 鍐咃級 | 淇濈暀 |
+
+**璺敱瀹堝崼澧炲己**锛歚router.beforeEach` 妫€鏌ワ細
+codex
+我在看一个潜在回归面：`DashboardPage` 现在只 watch 归一化后的 `role` 字符串，如果用户在两个同类型角色之间切换，这个 watcher 不会触发，KPI 仍可能停留在旧作用域。先确认后端角色模型是否允许这种场景。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/config/roles.js' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/api/client.js' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"class UserRole|Unique|unique|user_roles|is_primary|role_id|switch-role|roles\\]|current_role|school_id\" src tests -g '"'!**/__pycache__/**'"'" in C:/Users/Administrator/edu-cloud succeeded in 2.52s:
+import axios from 'axios'
+import router from '../router/index.js'
+
+const client = axios.create({ baseURL: '/api/v1' })
+
+client.interceptors.request.use(config => {
+  const token = localStorage.getItem('token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+client.interceptors.response.use(
+  res => res,
+  err => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('token')
+      router.push('/login')
+    }
+    return Promise.reject(err)
+  }
+ succeeded in 2.39s:
+tests\conftest.py:93:    db.add(UserRole(user_id=user.id, role="platform_admin", is_primary=True))
+tests\conftest.py:116:    db.add(UserRole(user_id=user.id, role="observer", is_primary=True))
+tests\conftest.py:166:    cls = ClassGroup(name="七年级2班", grade="七年级", grade_number=7, school_id=school.id)
+tests\conftest.py:172:        s = Student(name=f"学生{i}", student_number=f"T{i:03d}", school_id=school.id,
+tests\conftest.py:179:                max_score=150, school_id=school.id, semester="2025-2026-2")
+tests\conftest.py:187:        db.add(ExamResult(exam_id=exam.id, student_id=s.id, school_id=school.id, total_score=score))
+tests\conftest.py:190:    return {"school_id": school.id, "class_id": cls.id, "exam_id": exam.id, "student_ids": [s.id for s in students]}
+tests\conftest.py:214:        school_id=school.id,
+tests\conftest.py:216:        is_primary=True,
+tests\conftest.py:260:            school_id=school.id,
+tests\conftest.py:261:            is_primary=True,
+tests\conftest.py:265:    return {"user_id": user.id, "school_id": school.id}
+tests\conftest.py:291:        school_id=school.id,
+tests\conftest.py:292:        is_primary=True,
+tests\conftest.py:333:        school_id=school.id,
+tests\conftest.py:334:        is_primary=True,
+src\edu_cloud\workers\grading.py:65:                    Question.school_id == task.school_id,
+src\edu_cloud\workers\grading.py:82:                    StudentAnswer.school_id == task.school_id,
+src\edu_cloud\workers\grading.py:139:                        school_id=task.school_id,
+src\edu_cloud\workers\grading.py:189:async def run_post_exam_pipeline(ctx: dict, exam_id: str, school_id: str) -> None:
+ succeeded in 2.71s:
+export const CANONICAL_ROLES = [
+  'platform_admin', 'district_admin', 'principal', 'academic_director',
+  'grade_leader', 'homeroom_teacher', 'subject_teacher', 'parent',
+]
+
+export const LEGACY_ALIAS_MAP = {
+  admin: 'platform_admin',
+  teacher: 'subject_teacher',
+  head_teacher: 'homeroom_teacher',
+}
+
+export function normalizeRole(role) {
+  return LEGACY_ALIAS_MAP[role] || role
+}
+
+export const SCHOOL_ADMIN_ROLES = ['platform_admin', 'district_admin', 'principal', 'academic_director']
+export const EXAM_ROLES = [...SCHOOL_ADMIN_ROLES, 'grade_leader', 'homeroom_teacher', 'subject_teacher']
+export const MARKING_ROLES = [...SCHOOL_ADMIN_ROLES, 'homeroom_teacher', 'subject_teacher']
+
+export const ROLE_LABELS = {
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "class UserRole|__table_args__|user_roles|role:|school_id:|class_ids|is_primary" src/edu_cloud/models src/edu_cloud/api/auth.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content src/edu_cloud/api/auth.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content src/edu_cloud/models/user_role.py' in C:/Users/Administrator/edu-cloud succeeded in 2.27s:
+src/edu_cloud/api/auth.py:64:        primary = next((r for r in roles if r.is_primary), roles[0])
+src/edu_cloud/api/auth.py:78:                "is_primary": r.is_primary,
+src/edu_cloud/api/auth.py:116:    if not target_role:
+src/edu_cloud/api/auth.py:125:    logger.info("switch-role: user=%s, new_role=%s", user.username, target_role.role)
+src/edu_cloud/api/auth.py:133:            "is_primary": target_role.is_primary,
+src/edu_cloud/models\base.py:20:    school_id: Mapped[str] = mapped_column(String(36), index=True)
+src/edu_cloud/models\user_role.py:8:class UserRole(Base, IdMixin, TimestampMixin):
+src/edu_cloud/models\user_role.py:9:    __tablename__ = "user_roles"
+src/edu_cloud/models\user_role.py:14:    role: Mapped[str] = mapped_column(String(50), nullable=False)
+src/edu_cloud/models\user_role.py:17:    school_id: Mapped[str | None] = mapped_column(
+src/edu_cloud/models\user_role.py:21:    class_ids: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
+src/edu_cloud/models\user_role.py:24:    is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+src/edu_cloud/models\document.py:34:    school_id: Mapped[str] = mapped_column(
+src/edu_cloud/models\notification.py:10:    target_scope = Column(JSON, nullable=True)       # {"class_ids": [...]} 或 {"school_id": "..."}
+ succeeded in 2.29s:
+"""鐢ㄦ埛瑙掕壊鍏宠仈琛細鏀寔涓€浜哄瑙掕壊 + scope 绾︽潫銆?""
+
+from sqlalchemy import String, ForeignKey, Boolean, JSON
+from sqlalchemy.orm import Mapped, mapped_column
+from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+
+
+class UserRole(Base, IdMixin, TimestampMixin):
+    __tablename__ = "user_roles"
+
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    # Scope: 瑙掕壊浣滅敤鍩?    school_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("schools.id"), default=None, nullable=True
+    )
+    grade_ids: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
+    class_ids: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
+ succeeded in 3.38s:
+import logging
+
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from edu_cloud.database import get_db
+from edu_cloud.shared.auth import create_access_token
+from edu_cloud.api.deps import get_current_user
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
+async def _build_role_context(role, db):
+    """鏋勫缓瑙掕壊鐨勪笂涓嬫枃瀵硅薄銆?""
+    if role.school_id is None:
+        if role.role in ("platform_admin", "admin"):
+            return {"type": "platform", "id": None, "name": "鍏ㄥ钩鍙?}
+codex
+已经确认一个需要重点验证的新点：后端角色模型明确支持“一人多角色 + scope”，所以 `DashboardPage` 只 watch 角色名而不 watch 当前 role 实体，理论上会漏掉“同角色不同学校/班级”的切换。接下来用现有测试和构建结果确认有没有别的回归。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'npx vite build' in C:/Users/Administrator/edu-cloud/frontendexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'npx vitest run src/__tests__/config.test.js src/__tests__/router.test.js src/__tests__/auth-store.test.js' in C:/Users/Administrator/edu-cloud/frontend succeeded in 22.82s:
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90mC:/Users/Administrator/edu-cloud/frontend[39m
+
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m47 passed[39m[22m[90m (47)[39m
+[2m   Start at [22m 09:35:22
+[2m   Duration [22m 14.57s[2m (transform 1.57s, setup 0ms, import 12.51s, tests 215ms, environment 6.54s)[22m
+
+ succeeded in 1m 05s:
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 3517 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                                       [39m[1m[2m    0.46 kB[22m[1m[22m[2m │ gzip:   0.30 kB[22m
+[2mdist/[22m[32massets/KaTeX_Size3-Regular-CTq5MqoE.woff         [39m[1m[2m    4.42 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size4-Regular-Dl5lxZxV.woff2        [39m[1m[2m    4.93 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size2-Regular-Dy4dx90m.woff2        [39m[1m[2m    5.21 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size1-Regular-mCD8mA8B.woff2        [39m[1m[2m    5.47 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size4-Regular-BF-4gkZK.woff         [39m[1m[2m    5.98 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size2-Regular-oD1tc_U0.woff         [39m[1m[2m    6.19 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size1-Regular-C195tn64.woff         [39m[1m[2m    6.50 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Regular-Di6jR-x-.woff2  [39m[1m[2m    6.91 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Bold-Dq_IR9rO.woff2     [39m[1m[2m    6.91 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Size3-Regular-DgpXs0kz.ttf          [39m[1m[2m    7.59 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Regular-CTRA-rTL.woff   [39m[1m[2m    7.66 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Caligraphic-Bold-BEiXGLvX.woff      [39m[1m[2m    7.72 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_Script-Regular-D3wIWfF6.woff2       [39m[1m[2m    9.64 kB[22m[1m[22m
+[2mdist/[22m[32massets/KaTeX_SansSerif-Regular-DDBCnlJ7.woff2    [39m[1m[2m   10.34 kB[22m[1m[22m
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content frontend/src/pages/DashboardPage.vue | ForEach-Object { $i++; ('"'{0,4}: {1}' -f "'$i, $_) }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content src/edu_cloud/models/user_role.py | ForEach-Object { $i++; ('"'{0,4}: {1}' -f "'$i, $_) }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content frontend/src/layouts/AppShell.vue | ForEach-Object { $i++; ('"'{0,4}: {1}' -f "'$i, $_) }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content frontend/src/config/dashboardConfig.js | ForEach-Object { $i++; ('"'{0,4}: {1}' -f "'$i, $_) }' in C:/Users/Administrator/edu-cloud succeeded in 1.34s:
+   1: <template>
+   2:   <div class="dashboard-page">
+   3:     <div class="page-header">
+   4:       <h1 class="page-title">{{ config?.title || '姒傝' }}</h1>
+   5:       <p class="page-subtitle">娆㈣繋鍥炴潵锛寋{ auth.user?.display_name }}</p>
+   6:     </div>
+   7: 
+   8:     <!-- KPI Row -->
+   9:     <div class="kpi-row">
+  10:       <KpiCard
+  11:         v-for="kpi in config?.kpis"
+  12:         :key="kpi.id"
+  13:         :value="getKpiValue(kpi)"
+  14:         :label="kpi.label"
+  15:         :color="kpi.color"
+  16:       />
+  17:     </div>
+  18: 
+  19:     <!-- Module Cards Grid -->
+  20:     <WidgetGrid :columns="2" class="module-grid">
+ succeeded in 1.29s:
+   1: """鐢ㄦ埛瑙掕壊鍏宠仈琛細鏀寔涓€浜哄瑙掕壊 + scope 绾︽潫銆?""
+   2: 
+   3: from sqlalchemy import String, ForeignKey, Boolean, JSON
+   4: from sqlalchemy.orm import Mapped, mapped_column
+   5: from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+   6: 
+   7: 
+   8: class UserRole(Base, IdMixin, TimestampMixin):
+   9:     __tablename__ = "user_roles"
+  10: 
+  11:     user_id: Mapped[str] = mapped_column(
+  12:         String(36), ForeignKey("users.id"), nullable=False
+  13:     )
+  14:     role: Mapped[str] = mapped_column(String(50), nullable=False)
+  15: 
+  16:     # Scope: 瑙掕壊浣滅敤鍩?    school_id: Mapped[str | None] = mapped_column(
+  17:         String(36), ForeignKey("schools.id"), default=None, nullable=True
+  18:     )
+  19:     grade_ids: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
+  20:     class_ids: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
+ succeeded in 1.30s:
+   1: <template>
+   2:   <div class="app-shell">
+   3:     <AppHeader />
+   4:     <div class="app-body">
+   5:       <AppSidebar />
+   6:       <main class="app-main">
+   7:         <router-view />
+   8:       </main>
+   9:     </div>
+  10:     <AiFloatingButton @toggle="aiPanelOpen = !aiPanelOpen" />
+  11:     <AiSlidePanel :visible="aiPanelOpen" @close="aiPanelOpen = false" />
+  12:   </div>
+  13: </template>
+  14: 
+  15: <script setup>
+  16: import { ref, watch } from 'vue'
+  17: import { useRoute } from 'vue-router'
+  18: import AppHeader from '../components/shell/AppHeader.vue'
+  19: import AppSidebar from '../components/shell/AppSidebar.vue'
+  20: import AiFloatingButton from '../components/ai/AiFloatingButton.vue'
+ succeeded in 1.72s:
+   1: const DASHBOARD_CONFIGS = {
+   2:   platform_admin: {
+   3:     title: '骞冲彴姒傝',
+   4:     kpis: [
+   5:       { id: 'total_schools', label: '瀛︽牎鎬绘暟', color: 'mint', source: 'schools' },
+   6:       { id: 'active_schools', label: '娲昏穬瀛︽牎', color: 'yellow', source: 'schools' },
+   7:       { id: 'joint_exams', label: '鑱旇€冭繘琛屼腑', color: 'coral', source: 'joint_exams' },
+   8:       { id: 'system_users', label: '绯荤粺鐢ㄦ埛', color: 'purple', source: null },
+   9:     ],
+  10:     widgets: [
+  11:       { type: 'module', id: 'schools', title: '瀛︽牎绠＄悊', icon: 'school', route: '/schools' },
+  12:       { type: 'module', id: 'joint_exams', title: '鑱旇€冪鐞?, icon: 'exam', route: '/exams' },
+  13:       { type: 'module', id: 'settings', title: '绯荤粺璁剧疆', icon: 'settings', route: '/analysis' },
+  14:       { type: 'module', id: 'users', title: '鐢ㄦ埛绠＄悊', icon: 'users', route: null, planned: true },
+  15:     ],
+  16:   },
+  17:   district_admin: {
+  18:     title: '绠¤緰鍖哄煙姒傝',
+  19:     kpis: [
+  20:       { id: 'district_schools', label: '绠¤緰瀛︽牎', color: 'mint', source: 'schools' },
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content frontend/src/stores/auth.js | ForEach-Object { $i++; ('"'{0,4}: {1}' -f "'$i, $_) }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content frontend/src/__tests__/auth-store.test.js | ForEach-Object { $i++; ('"'{0,4}: {1}' -f "'$i, $_) }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content frontend/src/router/index.js | ForEach-Object { $i++; ('"'{0,4}: {1}' -f "'$i, $_) }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content frontend/src/__tests__/config.test.js | ForEach-Object { $i++; ('"'{0,4}: {1}' -f "'$i, $_) }' in C:/Users/Administrator/edu-cloud succeeded in 2.50s:
+   1: import { createRouter, createWebHistory } from 'vue-router'
+   2: import AppShell from '../layouts/AppShell.vue'
+   3: import { SCHOOL_ADMIN_ROLES, EXAM_ROLES, MARKING_ROLES, normalizeRole } from '../config/roles.js'
+   4: import { hasPermission } from '../config/permissions.js'
+   5: 
+   6: export const routes = [
+   7:   // Auth 鈥?outside AppShell
+   8:   { path: '/login', name: 'Login', component: () => import('../pages/LoginPage.vue') },
+   9: 
+  10:   // All authenticated routes under AppShell
+  11:   {
+  12:     path: '/',
+  13:     component: AppShell,
+  14:     meta: { requiresAuth: true },
+  15:     children: [
+  16:       { path: '', name: 'Dashboard', component: () => import('../pages/DashboardPage.vue') },
+  17: 
+  18:       // Exam management
+  19:       { path: 'exams', name: 'ExamList', component: () => import('../pages/ExamListPage.vue'), meta: { roles: EXAM_ROLES } },
+  20:       { path: 'exams/:id', name: 'ExamDetail', component: () => import('../pages/ExamDetailPage.vue'), meta: { roles: EXAM_ROLES } },
+ succeeded in 2.65s:
+   1: import { defineStore } from 'pinia'
+   2: import { ref, computed } from 'vue'
+   3: import client from '../api/client.js'
+   4: import router from '../router/index.js'
+   5: import { normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
+   6: import { hasPermission } from '../config/permissions.js'
+   7: 
+   8: /** Persist auth state to localStorage */
+   9: function saveAuthState(userVal, rolesVal, indexVal) {
+  10:   try {
+  11:     localStorage.setItem('auth_state', JSON.stringify({
+  12:       user: userVal,
+  13:       roles: rolesVal,
+  14:       currentRoleIndex: indexVal,
+  15:     }))
+  16:   } catch { /* quota exceeded 鈥?non-fatal */ }
+  17: }
+  18: 
+  19: /** Restore auth state from localStorage (returns null on failure) */
+  20: function loadAuthState() {
+ succeeded in 2.96s:
+   1: import { describe, it, expect } from 'vitest'
+   2: import { CANONICAL_ROLES, ROLE_LABELS, normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
+   3: import { hasPermission, ROLE_PERMISSIONS } from '../config/permissions.js'
+   4: import { getSidebarItems } from '../config/sidebarConfig.js'
+   5: import { getDashboardConfig } from '../config/dashboardConfig.js'
+   6: 
+   7: describe('roles config', () => {
+   8:   it('has 8 canonical roles', () => {
+   9:     expect(CANONICAL_ROLES).toHaveLength(8)
+  10:   })
+  11:   it('normalizes legacy aliases', () => {
+  12:     expect(normalizeRole('admin')).toBe('platform_admin')
+  13:     expect(normalizeRole('teacher')).toBe('subject_teacher')
+  14:     expect(normalizeRole('head_teacher')).toBe('homeroom_teacher')
+  15:     expect(normalizeRole('principal')).toBe('principal')
+  16:   })
+  17:   it('SCHOOL_ADMIN_ROLES includes platform_admin and principal', () => {
+  18:     expect(SCHOOL_ADMIN_ROLES).toContain('platform_admin')
+  19:     expect(SCHOOL_ADMIN_ROLES).toContain('principal')
+  20:     expect(SCHOOL_ADMIN_ROLES).not.toContain('parent')
+ succeeded in 3.46s:
+   1: import { describe, it, expect, beforeEach, vi } from 'vitest'
+   2: import { setActivePinia, createPinia } from 'pinia'
+   3: import { useAuthStore } from '../stores/auth.js'
+   4: import client from '../api/client.js'
+   5: 
+   6: vi.mock('../api/client.js', () => ({
+   7:   default: { post: vi.fn(), get: vi.fn() },
+   8: }))
+   9: 
+  10: vi.mock('../router/index.js', () => ({
+  11:   default: { push: vi.fn() },
+  12: }))
+  13: 
+  14: describe('auth store persistence', () => {
+  15:   beforeEach(() => {
+  16:     setActivePinia(createPinia())
+  17:     localStorage.clear()
+  18:   })
+  19: 
+  20:   it('hydrates state from localStorage on init', () => {
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$lines = Get-Content docs/plans/2026-03-23-frontend-role-aware-redesign-design.md; $lines[468..506]' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "我的班级|教授班级数|local|class_ids|我的班级名|AI工具数|dashboard summary|KPI 数据源矩阵|待批改数" docs/plans/2026-03-23-frontend-role-aware-redesign-design.md docs/plans/2026-03-24-frontend-role-aware-plan.md frontend/src/config/dashboardConfig.js' in C:/Users/Administrator/edu-cloud succeeded in 1.38s:
+  /* Macaron 鏌斿僵 */
+  --macaron-mint: #c8f0d4;
+  --macaron-mint-light: #e8f8ee;
+  --macaron-yellow: #fef3c7;
+  --macaron-yellow-light: #fdf6e3;
+  --macaron-coral: #fde8e8;
+  --macaron-coral-light: #fef0f0;
+  --macaron-purple: #ede9fe;
+  --macaron-purple-light: #f3f0ff;
+  --macaron-blue: #e0f2fe;
+  --macaron-blue-light: #ecf6ff;
+
+  /* 鍦嗚 */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-pill: 50px;
+
+  /* 闃村奖 */
+ succeeded in 1.31s:
+frontend/src/config/dashboardConfig.js:84:      { id: 'my_class', label: '我的班级', color: 'mint', source: 'local' },
+frontend/src/config/dashboardConfig.js:90:      { type: 'module', id: 'my_class', title: '我的班级', icon: 'class', route: '/analysis' },
+frontend/src/config/dashboardConfig.js:101:      { id: 'total_classes', label: '教授班级', color: 'mint', source: 'local' },
+docs/plans/2026-03-24-frontend-role-aware-plan.md:7:**Architecture:** AppShell 壳层（Header + Sidebar + AI 浮窗）包裹所有页面，JSON 配置驱动角色差异化。后端补 3 个轻量 API（login context / dashboard summary / notifications）。
+docs/plans/2026-03-24-frontend-role-aware-plan.md:132:**Why:** KPI 卡片需要聚合统计（学生数/班级数/考试数/待批改数）。
+docs/plans/2026-03-24-frontend-role-aware-plan.md:134:**测试契约:** 入口=`GET /api/v1/dashboard/summary` | 反例=①不按 school_id 过滤→全库数据 ②不按 class_ids 过滤→全校数据 ③始终返回 0→精确计数断言失败 | 边界=①platform_admin 无 school_id→返回零值 ②班级有学生/无学生 ③deferred 字段返回 null | 回归=现有 770 tests | 命令=`pytest tests/test_api/test_dashboard.py -v`
+docs/plans/2026-03-24-frontend-role-aware-plan.md:136:**已知限制（R3-03 deferred）:** grade_leader 的 scope 理论上由 `grade_ids` 决定（设计文档 §4.6），但当前 `api/permissions.py` 的 `get_visible_class_ids()` 只处理 `class_ids`，不解析 `grade_ids→class_ids`。本 T3 沿用现有行为：grade_leader 通过 `class_ids` 配置可见班级。grade_ids→class 解析延期到权限系统增强 T3。
+docs/plans/2026-03-24-frontend-role-aware-plan.md:200:    反例：如果不按 class_ids 过滤 → 返回 15 而非 10。"""
+docs/plans/2026-03-24-frontend-role-aware-plan.md:210:                    class_ids=[class_a_id], is_primary=True))
+docs/plans/2026-03-24-frontend-role-aware-plan.md:224:    反例：如果不按 class_ids 过滤 → 返回 15 而非 5。"""
+docs/plans/2026-03-24-frontend-role-aware-plan.md:234:                    class_ids=[class_b_id], is_primary=True))
+docs/plans/2026-03-24-frontend-role-aware-plan.md:262:from edu_cloud.api.permissions import get_visible_class_ids
+docs/plans/2026-03-24-frontend-role-aware-plan.md:278:    visible_classes = get_visible_class_ids(role)
+docs/plans/2026-03-24-frontend-role-aware-plan.md:766:- **F-03 修复: Auth Bootstrap** — 持久化 `user`/`roles`/`currentRoleIndex` 到 localStorage：
+docs/plans/2026-03-24-frontend-role-aware-plan.md:767:  - login 成功后：`localStorage.setItem('auth_state', JSON.stringify({ user, roles, currentRoleIndex }))`
+docs/plans/2026-03-24-frontend-role-aware-plan.md:768:  - store 初始化时：从 localStorage 恢复（如果 token 存在）
+docs/plans/2026-03-24-frontend-role-aware-plan.md:783:    localStorage.clear()
+docs/plans/2026-03-24-frontend-role-aware-plan.md:786:  it('hydrates state from localStorage on init', () => {
+docs/plans/2026-03-24-frontend-role-aware-plan.md:788:    localStorage.setItem('token', 'fake-jwt')
+docs/plans/2026-03-24-frontend-role-aware-plan.md:789:    localStorage.setItem('auth_state', JSON.stringify(saved))
+codex
+CR-002 我又往下追了一层：设计文档并不是“所有非 `dashboard_summary` 一律占位”。其中 `我的班级名`、`教授班级数`、`AI工具数` 都有明确数据源，所以现在这版 `getKpiValue()` 其实把一部分本来可用的 KPI 也压成了 `--`。我再确认这些数据源在仓库里是否已存在。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"ai/health|workspace/context|get_context_tree|get_exam_dashboard|/api/v1/workspace|class_ids|subject_codes\" frontend/src src/edu_cloud -g '"'!**/__pycache__/**'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/api/workspace.js' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content src/edu_cloud/modules/exam/workspace_router.py' in C:/Users/Administrator/edu-cloud succeeded in 1.37s:
+frontend/src\stores\context.js:13:    const { data } = await client.get('/workspace/context')
+frontend/src\stores\aiChat.js:17:      const resp = await fetch('/api/v1/ai/health', {
+src/edu_cloud\modules\student\service.py:18:    visible_class_ids: list[str] | None = None,
+src/edu_cloud\modules\student\service.py:21:    if visible_class_ids is not None:
+src/edu_cloud\modules\student\service.py:22:        query = query.where(Class.id.in_(visible_class_ids))
+src/edu_cloud\modules\student\service.py:34:    visible_class_ids: list[str] | None = None,
+src/edu_cloud\modules\student\service.py:37:    if visible_class_ids is not None:
+src/edu_cloud\modules\student\service.py:38:        if class_id and class_id not in visible_class_ids:
+src/edu_cloud\modules\student\service.py:40:        query = query.where(Student.class_id.in_(visible_class_ids))
+src/edu_cloud\modules\student\service.py:50:    db: AsyncSession, *, school_id: str, query: str, visible_class_ids: list[str] | None = None,
+src/edu_cloud\modules\student\service.py:53:    if visible_class_ids is not None:
+src/edu_cloud\modules\student\service.py:54:        stmt = stmt.where(Student.class_id.in_(visible_class_ids))
+src/edu_cloud\modules\student\service.py:75:    visible_class_ids: list[str] | None = None,
+src/edu_cloud\modules\student\service.py:89:    if visible_class_ids is not None and class_id not in visible_class_ids:
+src/edu_cloud\modules\exam\workspace_service.py:15:    async def get_context_tree(self, school_id: str | None, scope: dict) -> dict:
+src/edu_cloud\modules\exam\workspace_service.py:25:        if scope.get("class_ids"):
+src/edu_cloud\modules\exam\workspace_service.py:26:            q = q.where(ClassGroup.id.in_(scope["class_ids"]))
+src/edu_cloud\modules\exam\workspace_service.py:54:    async def get_exam_dashboard(
+src/edu_cloud\modules\exam\workspace_service.py:65:        if scope.get("class_ids"):
+src/edu_cloud\modules\exam\workspace_service.py:67:                Student.class_id.in_(scope["class_ids"])
+ succeeded in 1.55s:
+"""宸ヤ綔鍙?API锛氬乏鏍忎笂涓嬫枃 + 鑰冭瘯浠〃鏉裤€?""
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.database import get_db
+from edu_cloud.api.deps import require_permission
+from edu_cloud.core.permissions import Permission
+from edu_cloud.services.workspace_service import WorkspaceService
+
+router = APIRouter(prefix="/api/v1/workspace", tags=["workspace"])
+
+
+@router.get("/context")
+async def get_context(
+    current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
+    db: AsyncSession = Depends(get_db),
+):
+    """鑾峰彇宸︽爮涓婁笅鏂囨暟鎹紙鐝骇 + 杩戞湡鑰冭瘯锛夛紝鎸夎鑹?scope 杩囨护銆?""
+    svc = WorkspaceService(db)
+ exited 1 in 1.75s:
+Get-Content : Cannot find path 'C:\Users\Administrator\edu-cloud\frontend\src\api\workspace.js' because it does not exi
+st.
+At line:2 char:1
++ Get-Content frontend/src/api/workspace.js
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\Admini...pi\workspace.js:String) [Get-Content], ItemNotFoundEx 
+   ception
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetContentCommand
+ 
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content frontend/src/stores/context.js' in C:/Users/Administrator/edu-cloud succeeded in 953ms:
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import client from '../api/client.js'
+
+export const useContextStore = defineStore('context', () => {
+  const classes = ref([])
+  const exams = ref([])
+  const selectedExamId = ref(null)
+  const dashboard = ref(null)
+  const loading = ref(false)
+
+  async function loadContext() {
+    const { data } = await client.get('/workspace/context')
+    classes.value = data.classes
+    exams.value = data.exams
+  }
+
+  async function selectExam(examId) {
+    selectedExamId.value = examId
+    loading.value = true
+codex
+**发现**
+1. `MED code-bug`：CR-001 仍未完全修复。[DashboardPage.vue](/C:/Users/Administrator/edu-cloud/frontend/src/pages/DashboardPage.vue#L47) 把监听目标设成归一化后的 `role` 字符串，并在 [L65-L66](/C:/Users/Administrator/edu-cloud/frontend/src/pages/DashboardPage.vue#L65) 只 `watch(role, fetchKpiData)`。但后端角色模型明确支持“一人多角色 + scope”，见 [user_role.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/models/user_role.py#L8) 和 [L16-L21](/C:/Users/Administrator/edu-cloud/src/edu_cloud/models/user_role.py#L16)。用户如果在两个同类型角色之间切换，例如两个 `principal` 但学校不同，`role` 值不变，KPI 不会重新拉取，页面会继续显示旧学校/旧班级的数据。  
+2. `MED code-bug`：CR-002 的修复过度了。[DashboardPage.vue](/C:/Users/Administrator/edu-cloud/frontend/src/pages/DashboardPage.vue#L68) 现在对所有非 `dashboard_summary` 的 KPI 一律返回 `--`。这虽然避免了再去错误读取 `dashboard_summary`，但也把设计里已明确有数据源的 KPI 一并打成占位，包括 `schools`、`joint_exams`、`my_class`、`total_classes`、`ai_health`。设计文档在 [2026-03-23-frontend-role-aware-redesign-design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-frontend-role-aware-redesign-design.md#L470) 到 [L494](/C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-frontend-role-aware-redesign-design.md#L494) 已列出这些来源，其中 `学校总数`/`联考进行中` 为“已有”，`我的班级名` 为 `/workspace/context`，`教授班级数` 为 auth store 本地，`AI工具数` 为 `/api/v1/ai/health`。当前实现会让平台管理员、区管理员、班主任、学科教师的多项 KPI 恒为 `--`。
+
+**逐项核验**
+- CR-001：`FAIL`。只覆盖“角色名变化”的切换，未覆盖“同角色不同 scope”的切换。
+- CR-002：`FAIL`。停止误读是对的，但把已有/本地可得 KPI 也全部降成占位，不符合设计。
+- CR-003：`PASS`。[AppShell.vue](/C:/Users/Administrator/edu-cloud/frontend/src/layouts/AppShell.vue#L23) 到 [L27](/C:/Users/Administrator/edu-cloud/frontend/src/layouts/AppShell.vue#L27) 会在 `route.path` 变化时关闭面板，能解决从浮窗跳到 `/analysis` 后面板不收起的问题。
+- CR-004：`PASS`。[config.test.js](/C:/Users/Administrator/edu-cloud/frontend/src/__tests__/config.test.js#L62) 到 [L87](/C:/Users/Administrator/edu-cloud/frontend/src/__tests__/config.test.js#L87) 已补上标题区分、角色 widget 差异、KPI 必填字段校验。
+
+**验证**
+已运行：
+- `npx vitest run src/__tests__/config.test.js src/__tests__/router.test.js src/__tests__/auth-store.test.js`，47 项通过
+- `npx vite build`，构建通过（有 Node 版本和 chunk size 警告，但不影响本次结论）
+
+**结论**
+`FAIL`。仍有未解决的 `MED code-bug`。
+tokens used
+241,765
+**发现**
+1. `MED code-bug`：CR-001 仍未完全修复。[DashboardPage.vue](/C:/Users/Administrator/edu-cloud/frontend/src/pages/DashboardPage.vue#L47) 把监听目标设成归一化后的 `role` 字符串，并在 [L65-L66](/C:/Users/Administrator/edu-cloud/frontend/src/pages/DashboardPage.vue#L65) 只 `watch(role, fetchKpiData)`。但后端角色模型明确支持“一人多角色 + scope”，见 [user_role.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/models/user_role.py#L8) 和 [L16-L21](/C:/Users/Administrator/edu-cloud/src/edu_cloud/models/user_role.py#L16)。用户如果在两个同类型角色之间切换，例如两个 `principal` 但学校不同，`role` 值不变，KPI 不会重新拉取，页面会继续显示旧学校/旧班级的数据。  
+2. `MED code-bug`：CR-002 的修复过度了。[DashboardPage.vue](/C:/Users/Administrator/edu-cloud/frontend/src/pages/DashboardPage.vue#L68) 现在对所有非 `dashboard_summary` 的 KPI 一律返回 `--`。这虽然避免了再去错误读取 `dashboard_summary`，但也把设计里已明确有数据源的 KPI 一并打成占位，包括 `schools`、`joint_exams`、`my_class`、`total_classes`、`ai_health`。设计文档在 [2026-03-23-frontend-role-aware-redesign-design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-frontend-role-aware-redesign-design.md#L470) 到 [L494](/C:/Users/Administrator/edu-cloud/docs/plans/2026-03-23-frontend-role-aware-redesign-design.md#L494) 已列出这些来源，其中 `学校总数`/`联考进行中` 为“已有”，`我的班级名` 为 `/workspace/context`，`教授班级数` 为 auth store 本地，`AI工具数` 为 `/api/v1/ai/health`。当前实现会让平台管理员、区管理员、班主任、学科教师的多项 KPI 恒为 `--`。
+
+**逐项核验**
+- CR-001：`FAIL`。只覆盖“角色名变化”的切换，未覆盖“同角色不同 scope”的切换。
+- CR-002：`FAIL`。停止误读是对的，但把已有/本地可得 KPI 也全部降成占位，不符合设计。
+- CR-003：`PASS`。[AppShell.vue](/C:/Users/Administrator/edu-cloud/frontend/src/layouts/AppShell.vue#L23) 到 [L27](/C:/Users/Administrator/edu-cloud/frontend/src/layouts/AppShell.vue#L27) 会在 `route.path` 变化时关闭面板，能解决从浮窗跳到 `/analysis` 后面板不收起的问题。
+- CR-004：`PASS`。[config.test.js](/C:/Users/Administrator/edu-cloud/frontend/src/__tests__/config.test.js#L62) 到 [L87](/C:/Users/Administrator/edu-cloud/frontend/src/__tests__/config.test.js#L87) 已补上标题区分、角色 widget 差异、KPI 必填字段校验。
+
+**验证**
+已运行：
+- `npx vitest run src/__tests__/config.test.js src/__tests__/router.test.js src/__tests__/auth-store.test.js`，47 项通过
+- `npx vite build`，构建通过（有 Node 版本和 chunk size 警告，但不影响本次结论）
+
+**结论**
+`FAIL`。仍有未解决的 `MED code-bug`。
