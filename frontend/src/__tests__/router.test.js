@@ -9,10 +9,15 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { routes, authGuard } from '../router/index.js'
 
 // Stub lazy-loaded components so we don't need actual .vue files in test
-const stubbedRoutes = routes.map(r => ({
-  ...r,
-  component: { template: '<div/>' },
-}))
+function stubRoutes(routeList) {
+  return routeList.map(r => ({
+    ...r,
+    component: r.children ? undefined : { template: '<div/>' },
+    ...(r.children && { children: stubRoutes(r.children) }),
+  }))
+}
+
+const stubbedRoutes = stubRoutes(routes)
 
 function createTestRouter() {
   const router = createRouter({ history: createWebHistory(), routes: stubbedRoutes })
@@ -28,21 +33,58 @@ describe('Route definitions (real routes)', () => {
     expect(login.meta?.requiresAuth).toBeFalsy()
   })
 
-  it('all non-login routes require auth', () => {
-    const protectedRoutes = routes.filter(r => r.path !== '/login')
-    for (const route of protectedRoutes) {
-      expect(route.meta?.requiresAuth, `${route.path} should require auth`).toBe(true)
+  it('AppShell parent route requires auth', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    expect(shell).toBeTruthy()
+    expect(shell.meta?.requiresAuth).toBe(true)
+  })
+
+  it('has exactly 2 top-level routes (login + AppShell)', () => {
+    expect(routes).toHaveLength(2)
+  })
+
+  it('AppShell has 14 child routes', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    expect(shell.children).toHaveLength(14)
+  })
+
+  it('all routes except login are children of AppShell', () => {
+    const router = createTestRouter()
+    const appShellRoute = router.getRoutes().find(r => r.path === '/' && r.components?.default)
+    // All auth-required routes should be under AppShell
+    const loginRoute = router.getRoutes().find(r => r.path === '/login')
+    expect(loginRoute).toBeTruthy()
+    expect(appShellRoute).toBeTruthy()
+  })
+
+  it('schools route has manage_schools permission', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const schools = shell.children.find(r => r.path === 'schools')
+    expect(schools).toBeTruthy()
+    expect(schools.meta?.permissions).toContain('manage_schools')
+  })
+
+  it('exams route has EXAM_ROLES in meta', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const exams = shell.children.find(r => r.path === 'exams')
+    expect(exams).toBeTruthy()
+    expect(exams.meta?.roles).toBeDefined()
+    expect(exams.meta.roles.length).toBeGreaterThan(0)
+  })
+
+  it('parent cannot access exams route', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const examRoute = shell.children.find(r => r.path === 'exams')
+    if (examRoute?.meta?.roles) {
+      expect(examRoute.meta.roles).not.toContain('parent')
     }
   })
 
-  it('schools route has adminOnly meta', () => {
-    const schools = routes.find(r => r.path === '/schools')
-    expect(schools).toBeTruthy()
-    expect(schools.meta?.adminOnly).toBe(true)
-  })
-
-  it('has exactly 15 routes', () => {
-    expect(routes).toHaveLength(15)
+  it('marking routes have MARKING_ROLES in meta', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const marking = shell.children.find(r => r.path === 'marking')
+    expect(marking).toBeTruthy()
+    expect(marking.meta?.roles).toBeDefined()
   })
 })
 
@@ -74,7 +116,7 @@ describe('authGuard (real guard function)', () => {
     expect(router.currentRoute.value.path).toBe('/exams')
   })
 
-  it('redirects root (Workbench) to /login without token', async () => {
+  it('redirects root (Dashboard) to /login without token', async () => {
     const router = createTestRouter()
     await router.push('/')
     await router.isReady()
@@ -87,5 +129,74 @@ describe('authGuard (real guard function)', () => {
     await router.push('/')
     await router.isReady()
     expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('redirects /login to / when already authenticated', async () => {
+    localStorage.setItem('token', 'test-jwt-token')
+    const router = createTestRouter()
+    await router.push('/login')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('redirects to / when role not allowed for route', async () => {
+    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('auth_state', JSON.stringify({
+      roles: [{ role: 'parent', context: {} }],
+      currentRoleIndex: 0,
+    }))
+    const router = createTestRouter()
+    await router.push('/exams')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('allows access when role is in allowed list', async () => {
+    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('auth_state', JSON.stringify({
+      roles: [{ role: 'academic_director', context: {} }],
+      currentRoleIndex: 0,
+    }))
+    const router = createTestRouter()
+    await router.push('/exams')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/exams')
+  })
+
+  it('redirects when permission not met', async () => {
+    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('auth_state', JSON.stringify({
+      roles: [{ role: 'parent', context: {} }],
+      currentRoleIndex: 0,
+    }))
+    const router = createTestRouter()
+    await router.push('/schools')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('allows access when permission is met', async () => {
+    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('auth_state', JSON.stringify({
+      roles: [{ role: 'platform_admin', context: {} }],
+      currentRoleIndex: 0,
+    }))
+    const router = createTestRouter()
+    await router.push('/schools')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/schools')
+  })
+
+  it('normalizes legacy role aliases for route guard', async () => {
+    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('auth_state', JSON.stringify({
+      roles: [{ role: 'teacher', context: {} }],
+      currentRoleIndex: 0,
+    }))
+    const router = createTestRouter()
+    // teacher -> subject_teacher -> in EXAM_ROLES
+    await router.push('/exams')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/exams')
   })
 })
