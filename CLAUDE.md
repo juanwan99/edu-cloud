@@ -60,6 +60,7 @@ cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run
 ```
 frontend/src/
   layouts/
+    AppShell.vue            # 角色感知壳层（AppHeader + AppSidebar + router-view + AiFloatingButton）
     WorkbenchLayout.vue     # 三栏布局（左侧边栏 + 顶栏 + 中央内容 + 右侧边栏）
     DashboardLayout.vue     # exam-ai 仪表盘布局（AppNavbar + 主内容区）
     AuthLayout.vue          # 登录页布局
@@ -80,8 +81,16 @@ frontend/src/
     SchoolsPage.vue         # 学校管理（admin）
     CardEditorDevPage.vue   # 答题卡编辑器开发页
   components/
+    shell/
+      AppHeader.vue         # 68px 毛玻璃顶栏（Logo/SchoolContext/搜索/通知铃/角色切换）
+      AppSidebar.vue        # 角色过滤侧栏导航（220px/64px 折叠，sidebarConfig 驱动）
+      SchoolContext.vue     # 纯展示当前角色上下文名称
+      RoleSwitcher.vue      # 角色切换下拉菜单（NDropdown，含头像）
+      NotificationBell.vue  # 通知铃铛（NBadge + NPopover，占位）
+    ai/
+      AiFloatingButton.vue  # 右下角 AI 助手浮动按钮（占位）
     CardEditor.vue          # 可视化答题卡编辑器（封装 card-editor/）
-    AppNavbar.vue           # 顶部导航栏
+    AppNavbar.vue           # 顶部导航栏（旧版，将被 AppHeader 替代）
     ChatPanel.vue           # AI 对话面板（SSE 流式）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
