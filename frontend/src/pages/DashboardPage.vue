@@ -34,7 +34,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { getDashboardConfig } from '../config/dashboardConfig'
 import { normalizeRole } from '../config/roles'
@@ -52,21 +52,22 @@ const config = computed(() => getDashboardConfig(role.value))
 const kpiData = ref({})
 const loading = ref(true)
 
-onMounted(async () => {
+async function fetchKpiData() {
+  loading.value = true
+  kpiData.value = {}
   try {
     const { data } = await client.get('/dashboard/summary')
     kpiData.value = data
   } catch { /* API error — will show "--" for missing values */ }
   loading.value = false
-})
+}
+
+onMounted(fetchKpiData)
+watch(role, fetchKpiData)
 
 function getKpiValue(kpi) {
   if (kpi.source === 'dashboard_summary') return kpiData.value[kpi.id] ?? '--'
-  if (kpi.source === 'local') return '--'
-  if (kpi.source === 'notifications') return '--'
-  if (kpi.source === 'schools') return kpiData.value[kpi.id] ?? '--'
-  if (kpi.source === 'joint_exams') return kpiData.value[kpi.id] ?? '--'
-  if (kpi.source === 'ai_health') return '--'
+  // These sources need dedicated API endpoints (not yet implemented)
   return '--'
 }
 

@@ -13,13 +13,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import AppHeader from '../components/shell/AppHeader.vue'
 import AppSidebar from '../components/shell/AppSidebar.vue'
 import AiFloatingButton from '../components/ai/AiFloatingButton.vue'
 import AiSlidePanel from '../components/ai/AiSlidePanel.vue'
 
 const aiPanelOpen = ref(false)
+const route = useRoute()
+
+// Close AI panel on route change (e.g. "open in workbench" link)
+watch(() => route.path, () => { aiPanelOpen.value = false })
 </script>
 
 <style scoped>

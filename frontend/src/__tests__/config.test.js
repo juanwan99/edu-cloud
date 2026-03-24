@@ -58,4 +58,32 @@ describe('dashboard config', () => {
       expect(config.kpis?.length).toBeGreaterThan(0)
     }
   })
+
+  it('different roles have different titles', () => {
+    const titles = new Set()
+    for (const role of CANONICAL_ROLES) {
+      const config = getDashboardConfig(role)
+      if (config.title) titles.add(config.title)
+    }
+    // At least 4 distinct titles (admin/school/teacher/parent have different views)
+    expect(titles.size).toBeGreaterThanOrEqual(4)
+  })
+
+  it('platform_admin has schools widget, parent does not', () => {
+    const admin = getDashboardConfig('platform_admin')
+    const parent = getDashboardConfig('parent')
+    expect(admin.widgets.some(w => w.id === 'schools')).toBe(true)
+    expect(parent.widgets?.some(w => w.id === 'schools') ?? false).toBe(false)
+  })
+
+  it('each kpi has required fields', () => {
+    for (const role of CANONICAL_ROLES) {
+      const config = getDashboardConfig(role)
+      for (const kpi of config.kpis) {
+        expect(kpi.id, `${role} kpi missing id`).toBeTruthy()
+        expect(kpi.label, `${role} kpi missing label`).toBeTruthy()
+        expect(kpi.color, `${role} kpi missing color`).toBeTruthy()
+      }
+    }
+  })
 })
