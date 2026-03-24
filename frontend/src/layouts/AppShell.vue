@@ -7,14 +7,19 @@
         <router-view />
       </main>
     </div>
-    <AiFloatingButton />
+    <AiFloatingButton @toggle="aiPanelOpen = !aiPanelOpen" />
+    <AiSlidePanel :visible="aiPanelOpen" @close="aiPanelOpen = false" />
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import AppHeader from '../components/shell/AppHeader.vue'
 import AppSidebar from '../components/shell/AppSidebar.vue'
 import AiFloatingButton from '../components/ai/AiFloatingButton.vue'
+import AiSlidePanel from '../components/ai/AiSlidePanel.vue'
+
+const aiPanelOpen = ref(false)
 </script>
 
 <style scoped>
