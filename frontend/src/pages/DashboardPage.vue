@@ -63,7 +63,8 @@ async function fetchKpiData() {
 }
 
 onMounted(fetchKpiData)
-watch(role, fetchKpiData)
+// Watch currentRoleIndex (not just role name) to handle same-role-different-scope switches
+watch(() => auth.currentRoleIndex, fetchKpiData)
 
 function getKpiValue(kpi) {
   if (kpi.source === 'dashboard_summary') return kpiData.value[kpi.id] ?? '--'
