@@ -50,7 +50,7 @@ python ~/.claude/scripts/serve.py "C:/Program Files/nodejs/npm.cmd" run dev
 # 后端（780 tests）
 cd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q
 
-# 前端（Vitest + happy-dom，17 tests）
+# 前端（Vitest + happy-dom，35 tests）
 cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run
 ```
 <!-- key-end -->
@@ -86,6 +86,11 @@ frontend/src/
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
   api/                      # API 调用层（11 模块 + client.js，baseURL /api/v1）
+  config/
+    roles.js                # 8 角色枚举 + 旧别名映射 + normalizeRole()
+    permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
+    sidebarConfig.js        # 角色→侧边栏导航项 JSON 配置
+    dashboardConfig.js      # 角色→仪表盘 KPI/Widget JSON 配置
   stores/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）

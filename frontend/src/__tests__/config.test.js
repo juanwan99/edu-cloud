@@ -1,0 +1,61 @@
+import { describe, it, expect } from 'vitest'
+import { CANONICAL_ROLES, ROLE_LABELS, normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
+import { hasPermission, ROLE_PERMISSIONS } from '../config/permissions.js'
+import { getSidebarItems } from '../config/sidebarConfig.js'
+import { getDashboardConfig } from '../config/dashboardConfig.js'
+
+describe('roles config', () => {
+  it('has 8 canonical roles', () => {
+    expect(CANONICAL_ROLES).toHaveLength(8)
+  })
+  it('normalizes legacy aliases', () => {
+    expect(normalizeRole('admin')).toBe('platform_admin')
+    expect(normalizeRole('teacher')).toBe('subject_teacher')
+    expect(normalizeRole('head_teacher')).toBe('homeroom_teacher')
+    expect(normalizeRole('principal')).toBe('principal')
+  })
+  it('SCHOOL_ADMIN_ROLES includes platform_admin and principal', () => {
+    expect(SCHOOL_ADMIN_ROLES).toContain('platform_admin')
+    expect(SCHOOL_ADMIN_ROLES).toContain('principal')
+    expect(SCHOOL_ADMIN_ROLES).not.toContain('parent')
+  })
+})
+
+describe('permissions config', () => {
+  it('hasPermission checks role→permission mapping', () => {
+    expect(hasPermission('platform_admin', 'manage_schools')).toBe(true)
+    expect(hasPermission('parent', 'manage_schools')).toBe(false)
+    expect(hasPermission('subject_teacher', 'use_ai_chat')).toBe(true)
+    expect(hasPermission('parent', 'use_ai_chat')).toBe(false)
+  })
+  it('uses lowercase values matching backend enum', () => {
+    for (const perms of Object.values(ROLE_PERMISSIONS)) {
+      for (const p of perms) {
+        expect(p).toBe(p.toLowerCase())
+      }
+    }
+  })
+})
+
+describe('sidebar config', () => {
+  it('returns items for every canonical role', () => {
+    for (const role of CANONICAL_ROLES) {
+      const items = getSidebarItems(role)
+      expect(items.length, `${role} should have sidebar items`).toBeGreaterThan(0)
+    }
+  })
+  it('parent has minimal items', () => {
+    const items = getSidebarItems('parent')
+    expect(items.length).toBeLessThanOrEqual(3)
+  })
+})
+
+describe('dashboard config', () => {
+  it('returns config for every canonical role', () => {
+    for (const role of CANONICAL_ROLES) {
+      const config = getDashboardConfig(role)
+      expect(config, `${role} should have dashboard config`).toBeTruthy()
+      expect(config.kpis?.length).toBeGreaterThan(0)
+    }
+  })
+})
