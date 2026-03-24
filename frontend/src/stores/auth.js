@@ -58,19 +58,28 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = data.access_token
     user.value = data.user
     roles.value = data.roles
-    currentRoleIndex.value = roles.value.findIndex(r => r.is_primary) || 0
+    const primaryIdx = roles.value.findIndex(r => r.is_primary)
+    currentRoleIndex.value = primaryIdx >= 0 ? primaryIdx : 0
     localStorage.setItem('token', data.access_token)
     saveAuthState(user.value, roles.value, currentRoleIndex.value)
     try { router.push('/') } catch { /* test env */ }
   }
 
   async function switchRole(index) {
-    currentRoleIndex.value = index
+    const oldIndex = currentRoleIndex.value
     const roleId = roles.value[index]?.id
     if (roleId) {
-      const { data } = await client.post('/auth/switch-role', { role_id: roleId })
-      token.value = data.access_token
-      localStorage.setItem('token', data.access_token)
+      try {
+        const { data } = await client.post('/auth/switch-role', { role_id: roleId })
+        currentRoleIndex.value = index
+        token.value = data.access_token
+        localStorage.setItem('token', data.access_token)
+      } catch {
+        currentRoleIndex.value = oldIndex
+        return
+      }
+    } else {
+      currentRoleIndex.value = index
     }
     saveAuthState(user.value, roles.value, currentRoleIndex.value)
   }

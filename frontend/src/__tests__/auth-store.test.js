@@ -1,6 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '../stores/auth.js'
+import client from '../api/client.js'
+
+vi.mock('../api/client.js', () => ({
+  default: { post: vi.fn(), get: vi.fn() },
+}))
+
+vi.mock('../router/index.js', () => ({
+  default: { push: vi.fn() },
+}))
 
 describe('auth store persistence', () => {
   beforeEach(() => {
@@ -105,5 +114,96 @@ describe('auth store hasPermission', () => {
   it('returns false when no role is active', () => {
     const store = useAuthStore()
     expect(store.checkPermission('manage_schools')).toBe(false)
+  })
+})
+
+describe('auth store login()', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorage.clear()
+    vi.clearAllMocks()
+  })
+
+  it('login persists token and auth_state to localStorage', async () => {
+    client.post.mockResolvedValueOnce({
+      data: {
+        access_token: 'jwt-123',
+        user: { id: 'u1', display_name: 'Alice' },
+        roles: [
+          { id: 'r1', role: 'principal', is_primary: true, context: { type: 'school', name: 'X中' } },
+          { id: 'r2', role: 'subject_teacher', is_primary: false, context: null },
+        ],
+      },
+    })
+    const store = useAuthStore()
+    await store.login('alice', 'pass')
+    expect(localStorage.getItem('token')).toBe('jwt-123')
+    const saved = JSON.parse(localStorage.getItem('auth_state'))
+    expect(saved.user.display_name).toBe('Alice')
+    expect(saved.roles).toHaveLength(2)
+    expect(saved.currentRoleIndex).toBe(0) // is_primary at index 0
+  })
+
+  it('login defaults to index 0 when no is_primary role', async () => {
+    client.post.mockResolvedValueOnce({
+      data: {
+        access_token: 'jwt-456',
+        user: { id: 'u2', display_name: 'Bob' },
+        roles: [
+          { id: 'r1', role: 'subject_teacher', is_primary: false, context: null },
+        ],
+      },
+    })
+    const store = useAuthStore()
+    await store.login('bob', 'pass')
+    // findIndex returns -1 when no match, || 0 should fallback to 0
+    expect(store.currentRoleIndex).toBe(0)
+  })
+})
+
+describe('auth store switchRole()', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorage.clear()
+    vi.clearAllMocks()
+  })
+
+  it('switchRole updates index and token on success', async () => {
+    const saved = {
+      user: { id: 'u1', display_name: 'Alice' },
+      roles: [
+        { id: 'r1', role: 'principal', context: null },
+        { id: 'r2', role: 'subject_teacher', context: null },
+      ],
+      currentRoleIndex: 0,
+    }
+    localStorage.setItem('token', 'old-jwt')
+    localStorage.setItem('auth_state', JSON.stringify(saved))
+    const store = useAuthStore()
+    client.post.mockResolvedValueOnce({
+      data: { access_token: 'new-jwt' },
+    })
+    await store.switchRole(1)
+    expect(store.currentRoleIndex).toBe(1)
+    expect(store.token).toBe('new-jwt')
+    expect(localStorage.getItem('token')).toBe('new-jwt')
+  })
+
+  it('switchRole rolls back index on API failure', async () => {
+    const saved = {
+      user: { id: 'u1', display_name: 'Alice' },
+      roles: [
+        { id: 'r1', role: 'principal', context: null },
+        { id: 'r2', role: 'subject_teacher', context: null },
+      ],
+      currentRoleIndex: 0,
+    }
+    localStorage.setItem('token', 'old-jwt')
+    localStorage.setItem('auth_state', JSON.stringify(saved))
+    const store = useAuthStore()
+    client.post.mockRejectedValueOnce(new Error('network error'))
+    await store.switchRole(1)
+    expect(store.currentRoleIndex).toBe(0) // rolled back
+    expect(store.token).toBe('old-jwt') // unchanged
   })
 })

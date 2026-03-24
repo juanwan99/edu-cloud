@@ -59,26 +59,27 @@ export function authGuard(to, from, next) {
     return next('/')
   }
 
-  // Role/permission check for authenticated routes
+  // Role/permission check for authenticated routes (fail-closed: deny if auth_state missing/corrupt)
   const meta = to.meta
   if (meta.roles || meta.permissions) {
     const authState = localStorage.getItem('auth_state')
-    if (authState) {
-      try {
-        const { roles, currentRoleIndex } = JSON.parse(authState)
-        const currentRole = roles?.[currentRoleIndex]
-        const roleName = normalizeRole(currentRole?.role || '')
+    if (!authState) {
+      return next('/')
+    }
+    try {
+      const { roles, currentRoleIndex } = JSON.parse(authState)
+      const currentRole = roles?.[currentRoleIndex]
+      const roleName = normalizeRole(currentRole?.role || '')
 
-        if (meta.roles && !meta.roles.includes(roleName)) {
-          return next('/')
-        }
-        if (meta.permissions) {
-          const allowed = meta.permissions.some(p => hasPermission(roleName, p))
-          if (!allowed) return next('/')
-        }
-      } catch {
-        // ignore parse error, let through
+      if (meta.roles && !meta.roles.includes(roleName)) {
+        return next('/')
       }
+      if (meta.permissions) {
+        const allowed = meta.permissions.some(p => hasPermission(roleName, p))
+        if (!allowed) return next('/')
+      }
+    } catch {
+      return next('/')
     }
   }
 

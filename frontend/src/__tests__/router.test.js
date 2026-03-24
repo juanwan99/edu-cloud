@@ -108,8 +108,12 @@ describe('authGuard (real guard function)', () => {
     expect(router.currentRoute.value.path).toBe('/login')
   })
 
-  it('allows access to protected route with token', async () => {
+  it('allows access to protected route with token and valid auth_state', async () => {
     localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('auth_state', JSON.stringify({
+      roles: [{ role: 'academic_director', context: {} }],
+      currentRoleIndex: 0,
+    }))
     const router = createTestRouter()
     await router.push('/exams')
     await router.isReady()
@@ -198,5 +202,47 @@ describe('authGuard (real guard function)', () => {
     await router.push('/exams')
     await router.isReady()
     expect(router.currentRoute.value.path).toBe('/exams')
+  })
+
+  it('redirects subject_teacher from /marking/assign (requires SCHOOL_ADMIN_ROLES)', async () => {
+    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('auth_state', JSON.stringify({
+      roles: [{ role: 'subject_teacher', context: {} }],
+      currentRoleIndex: 0,
+    }))
+    const router = createTestRouter()
+    await router.push('/marking/assign')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('allows academic_director to access /marking/assign', async () => {
+    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('auth_state', JSON.stringify({
+      roles: [{ role: 'academic_director', context: {} }],
+      currentRoleIndex: 0,
+    }))
+    const router = createTestRouter()
+    await router.push('/marking/assign')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/marking/assign')
+  })
+
+  it('redirects to / when auth_state missing but token exists (fail-closed)', async () => {
+    localStorage.setItem('token', 'test-jwt-token')
+    // No auth_state set
+    const router = createTestRouter()
+    await router.push('/schools')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('redirects to / when auth_state is corrupt (fail-closed)', async () => {
+    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('auth_state', '{corrupt json')
+    const router = createTestRouter()
+    await router.push('/exams')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/')
   })
 })
