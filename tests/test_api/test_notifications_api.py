@@ -67,6 +67,14 @@ async def test_notifications_list_school_scope(client, db, seed_notifications):
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == 3
+    # CR-02: 字段语义断言
+    for item in data:
+        assert "title" in item and item["title"]  # 非空
+        assert item["kind"] in ("system", "message", "approval")
+        assert isinstance(item["unread"], bool)
+    # title 来自 Document.title（非占位串）
+    titles = {item["title"] for item in data}
+    assert "通知A" in titles  # seed 的 doc_a.title
 
 
 @pytest.mark.asyncio
@@ -90,6 +98,8 @@ async def test_notifications_filter_status_pending(client, db, seed_notification
     resp = await client.get("/api/v1/notifications?status=pending", headers=headers)
     assert resp.status_code == 200
     assert len(resp.json()) == 2
+    # CR-02: unread 只对 pending 为真
+    assert all(n["unread"] is True for n in resp.json())
 
 
 @pytest.mark.asyncio

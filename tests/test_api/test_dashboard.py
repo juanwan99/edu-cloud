@@ -2,6 +2,20 @@
 import pytest
 
 
+@pytest.mark.asyncio
+async def test_dashboard_summary_platform_admin_no_school(client, admin_user, admin_headers):
+    """platform_admin 无 school_id → 所有数值字段为 0，deferred 为 null。"""
+    resp = await client.get("/api/v1/dashboard/summary", headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_students"] == 0
+    assert data["total_classes"] == 0
+    assert data["total_exams"] == 0
+    assert data["total_staff"] is None
+    assert data["pending_subjects"] is None
+    assert data["pending_grading"] == 0
+
+
 @pytest.fixture
 async def seed_two_classes(db):
     """Seed 两个班级+不同数量学生，用于验证 scope 过滤。
