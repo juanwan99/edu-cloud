@@ -28,12 +28,12 @@
 | Create | `tests/test_api/test_school_settings.py` | API + middleware tests |
 | Create | `tests/test_services/test_school_settings_service.py` | Service tests |
 | Create | `frontend/src/api/schoolSettings.js` | API client |
-| Modify | `frontend/src/stores/auth.js` | Add enabledModules ref + loadModules function (setup store pattern) |
+| Modify | `frontend/src/stores/auth.js` | Add `enabledModules` + `modulesLoaded` refs and `loadModules` function (setup store pattern) |
 | Modify | `frontend/src/components/shell/AppSidebar.vue` | Filter nav by enabled modules |
 | Modify | `frontend/src/config/sidebarConfig.js` | Add moduleCode field to items (extend `{ icon, label, route }` to `{ icon, label, route, moduleCode }`) |
 | Create | `frontend/src/pages/SchoolSettingsPage.vue` | Management page |
-| Modify | `frontend/src/router/index.js` | Add route with `meta: { permissions: ['manage_schools'] }` |
-| Create | `frontend/tests/AppSidebar.test.js` | Vitest sidebar module filtering test |
+| Modify | `frontend/src/router/index.js` | Add school-settings route for school-scoped admin roles (`principal` / `academic_director`) |
+| Create | `frontend/src/__tests__/AppSidebar.test.js` | Vitest real-component sidebar module filtering test |
 
 > **Note (F-08 fix):** settings_router registers directly in app.py with its own full prefix `/api/v1/schools/{school_id}`. It does NOT register through `modules/school/router.py` (which has prefix `/api/v1/schools`). No modification to school/router.py is needed.
 
@@ -132,7 +132,6 @@ MODULE_CODES = {
     "grading": "阅卷系统",
     "homework": "作业管理",
     "study_analytics": "学情分析",
-    "report": "分析报告",
     "research": "教研题库",
     "teaching": "教学管理",
     "calendar": "校历日程",
@@ -424,7 +423,7 @@ async def test_get_modules(client, admin_headers, seed_school):
     resp = await client.get(f"/api/v1/schools/{school.id}/modules", headers=admin_headers)
     assert resp.status_code == 200
     modules = resp.json()
-    assert len(modules) == 9  # All MODULE_CODES
+    assert len(modules) == 8  # All MODULE_CODES
     codes = {m["code"] for m in modules}
     assert "exam" in codes
     assert "homework" in codes
@@ -917,7 +916,7 @@ ROUTE_MODULE_MAP = {
     "/api/v1/templates": "exam",
     "/api/v1/grading": "grading",
     "/api/v1/marking": "grading",
-    "/api/v1/analytics": "report",
+    "/api/v1/analytics": "study_analytics",
     "/api/v1/knowledge": "research",
     "/api/v1/calendar": "calendar",
     "/api/v1/studio": "studio",
@@ -1156,7 +1155,7 @@ git commit -m "migrate: add school_settings + school_modules tables"
 - Modify: `frontend/src/stores/auth.js`
 - Modify: `frontend/src/components/shell/AppSidebar.vue`
 - Modify: `frontend/src/config/sidebarConfig.js`
-- Create: `frontend/tests/AppSidebar.test.js` (F-07 fix: Vitest component test)
+- Create: `frontend/src/__tests__/AppSidebar.test.js` (F-07 fix: Vitest real-component test)
 
 - [ ] **Step 1: Create API client**
 
@@ -1180,7 +1179,7 @@ export const toggleModule = (schoolId, moduleCode, enabled) =>
   client.patch(`/schools/${schoolId}/modules/${moduleCode}`, { enabled })
 ```
 
-- [ ] **Step 2: Add enabledModules to auth store (F-05 fix: setup store pattern)**
+- [ ] **Step 2: Add enabledModules + modulesLoaded to auth store (F-05 fix: setup store pattern)**
 
 > The auth store uses the setup store pattern (`defineStore('auth', () => { ... })`), using `ref()` / `computed()`. Do NOT use options-store syntax (`this.xxx`).
 
@@ -1193,20 +1192,24 @@ import { getEnabledModules } from '../api/schoolSettings.js'
 // 2. Inside the defineStore('auth', () => { ... }) function body,
 //    after the existing ref declarations (after currentRoleIndex ref), add:
 const enabledModules = ref([])
+const modulesLoaded = ref(false)
 
 // 3. Add the loadModules function (after the switchRole function):
 async function loadModules() {
   const role = currentRole.value
   if (!role?.school_id) {
     enabledModules.value = []
+    modulesLoaded.value = false
     return
   }
   try {
     const { data } = await getEnabledModules(role.school_id)
     enabledModules.value = data
+    modulesLoaded.value = true
   } catch {
     // Fallback to defaults if API fails
     enabledModules.value = ['exam', 'grading', 'calendar', 'studio']
+    modulesLoaded.value = true
   }
 }
 
@@ -1218,12 +1221,13 @@ async function loadModules() {
 
 // 6. In the logout function, after resetting other state, add:
 //    enabledModules.value = []
+//    modulesLoaded.value = false
 
-// 7. In the return statement, add enabledModules and loadModules:
+// 7. In the return statement, add enabledModules, modulesLoaded and loadModules:
 return {
   token, user, roles, currentRole, currentRoleIndex,
   displayName, roleName, currentContext, isAdmin,
-  enabledModules,
+  enabledModules, modulesLoaded,
   checkPermission, login, switchRole, logout, loadModules,
 }
 ```
@@ -1241,7 +1245,6 @@ const SIDEBAR_ITEMS = {
     { icon: 'dashboard', label: '平台概览', route: '/' },
     { icon: 'school', label: '学校管理', route: '/schools' },
     { icon: 'exam', label: '联考管理', route: '/exams' },
-    { icon: 'settings', label: '学校配置', route: '/school-settings' },
   ],
   district_admin: [
     { icon: 'dashboard', label: '区域概览', route: '/' },
@@ -1253,17 +1256,18 @@ const SIDEBAR_ITEMS = {
     { icon: 'dashboard', label: '校务概览', route: '/' },
     { icon: 'exam', label: '考试管理', route: '/exams', moduleCode: 'exam' },
     { icon: 'chart', label: '数据分析', route: '/analysis' },
-    { icon: 'document', label: '文档中心', route: '/analysis', moduleCode: 'studio' },
-    { icon: 'calendar', label: '校历通知', route: '/analysis', moduleCode: 'calendar' },
+    { icon: 'document', label: '文档中心', route: '/studio', moduleCode: 'studio' },
+    { icon: 'calendar', label: '校历通知', route: '/calendar', moduleCode: 'calendar' },
     { icon: 'settings', label: '学校配置', route: '/school-settings' },
   ],
   academic_director: [
     { icon: 'dashboard', label: '教务概览', route: '/' },
     { icon: 'exam', label: '考试管理', route: '/exams', moduleCode: 'exam' },
-    { icon: 'exam', label: '联考管理', route: '/exams', moduleCode: 'exam' },
+    { icon: 'exam', label: '联考管理', route: '/joint-exams', moduleCode: 'exam' },
     { icon: 'marking', label: '阅卷调度', route: '/grading/tasks', moduleCode: 'grading' },
     { icon: 'chart', label: '数据分析', route: '/analysis' },
-    { icon: 'document', label: '文档中心', route: '/analysis', moduleCode: 'studio' },
+    { icon: 'document', label: '文档中心', route: '/studio', moduleCode: 'studio' },
+    { icon: 'settings', label: '学校配置', route: '/school-settings' },
   ],
   grade_leader: [
     { icon: 'dashboard', label: '年级概览', route: '/' },
@@ -1311,27 +1315,27 @@ Replace with:
 ```javascript
 const navItems = computed(() => {
   const items = getSidebarItems(currentNormalizedRole.value)
+  if (!auth.currentRole?.school_id) return items
+  if (!auth.modulesLoaded) return items
   const enabled = new Set(auth.enabledModules)
-  // If no modules loaded yet (or platform-level role), show all
-  if (enabled.size === 0) return items
   return items.filter(item => {
-    // Items without moduleCode are always shown (dashboard, settings, etc.)
     if (!item.moduleCode) return true
     return enabled.has(item.moduleCode)
   })
 })
 ```
 
-- [ ] **Step 5: Create Vitest component test for sidebar module filtering (F-07 fix)**
+- [ ] **Step 5: Create Vitest real-component test for sidebar module filtering (F-07 fix)**
 
 ```javascript
-// frontend/tests/AppSidebar.test.js
+// frontend/src/__tests__/AppSidebar.test.js
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createPinia, setActivePinia, defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { ref, reactive, nextTick } from 'vue'
 
-// Mock the config and router before importing the component
-vi.mock('../src/config/sidebarConfig.js', () => ({
+// Mock sidebarConfig to return predictable items
+vi.mock('../config/sidebarConfig.js', () => ({
   getSidebarItems: () => [
     { icon: 'dashboard', label: 'Dashboard', route: '/' },
     { icon: 'exam', label: 'Exams', route: '/exams', moduleCode: 'exam' },
@@ -1340,7 +1344,7 @@ vi.mock('../src/config/sidebarConfig.js', () => ({
   ],
 }))
 
-vi.mock('../src/config/roles.js', () => ({
+vi.mock('../config/roles.js', () => ({
   normalizeRole: (r) => r || 'subject_teacher',
 }))
 
@@ -1352,61 +1356,64 @@ vi.mock('vue-router', () => ({
   },
 }))
 
+// Reactive mock auth state so tests can mutate it
+const mockAuth = reactive({
+  currentRole: { role: 'principal', school_id: 'school-1' },
+  enabledModules: [],
+  modulesLoaded: false,
+  checkPermission: () => true,
+})
+
+vi.mock('../stores/auth.js', () => ({
+  useAuthStore: () => mockAuth,
+}))
+
+import AppSidebar from '../components/shell/AppSidebar.vue'
+
 describe('AppSidebar module filtering', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    // Reset mock state
+    mockAuth.currentRole = { role: 'principal', school_id: 'school-1' }
+    mockAuth.enabledModules = []
+    mockAuth.modulesLoaded = false
   })
 
-  it('shows all items when enabledModules is empty (fallback)', () => {
-    const allItems = [
-      { icon: 'dashboard', label: 'Dashboard', route: '/' },
-      { icon: 'exam', label: 'Exams', route: '/exams', moduleCode: 'exam' },
-      { icon: 'calendar', label: 'Calendar', route: '/calendar', moduleCode: 'calendar' },
-    ]
-    const enabled = new Set([])
-    // When enabled set is empty, show all (graceful fallback)
-    const filtered = enabled.size === 0 ? allItems : allItems.filter(item => {
-      if (!item.moduleCode) return true
-      return enabled.has(item.moduleCode)
-    })
-    expect(filtered).toHaveLength(3)
+  it('shows all items when modulesLoaded=false (not yet loaded)', async () => {
+    mockAuth.modulesLoaded = false
+    const wrapper = mount(AppSidebar)
+    await nextTick()
+    // All 4 items should render since modules not loaded yet
+    const labels = wrapper.findAll('[class*="nav"]').map(el => el.text())
+    // Fallback: all items visible
+    expect(wrapper.text()).toContain('Dashboard')
+    expect(wrapper.text()).toContain('Exams')
+    expect(wrapper.text()).toContain('Calendar')
+    expect(wrapper.text()).toContain('Studio')
   })
 
-  it('filters out items whose moduleCode is not in enabledModules', () => {
-    const allItems = [
-      { icon: 'dashboard', label: 'Dashboard', route: '/' },
-      { icon: 'exam', label: 'Exams', route: '/exams', moduleCode: 'exam' },
-      { icon: 'calendar', label: 'Calendar', route: '/calendar', moduleCode: 'calendar' },
-      { icon: 'document', label: 'Studio', route: '/studio', moduleCode: 'studio' },
-    ]
-
-    // Simulate: only exam and studio enabled, calendar disabled
-    const enabled = new Set(['exam', 'studio'])
-    const filtered = allItems.filter(item => {
-      if (!item.moduleCode) return true
-      return enabled.has(item.moduleCode)
-    })
-
-    expect(filtered).toHaveLength(3) // dashboard + exam + studio
-    expect(filtered.map(i => i.label)).toEqual(['Dashboard', 'Exams', 'Studio'])
-    expect(filtered.find(i => i.label === 'Calendar')).toBeUndefined()
+  it('hides calendar when modulesLoaded=true and enabledModules=[exam,studio]', async () => {
+    mockAuth.modulesLoaded = true
+    mockAuth.enabledModules = ['exam', 'studio']
+    const wrapper = mount(AppSidebar)
+    await nextTick()
+    expect(wrapper.text()).toContain('Dashboard')
+    expect(wrapper.text()).toContain('Exams')
+    expect(wrapper.text()).toContain('Studio')
+    expect(wrapper.text()).not.toContain('Calendar')
   })
 
-  it('always shows items without moduleCode', () => {
-    const allItems = [
-      { icon: 'dashboard', label: 'Dashboard', route: '/' },
-      { icon: 'exam', label: 'Exams', route: '/exams', moduleCode: 'exam' },
-    ]
-
-    // Only exam enabled; dashboard (no moduleCode) always shows
-    const enabled = new Set(['exam'])
-    const filtered = allItems.filter(item => {
-      if (!item.moduleCode) return true
-      return enabled.has(item.moduleCode)
-    })
-
-    expect(filtered).toHaveLength(2)
-    expect(filtered[0].label).toBe('Dashboard')
+  it('hides ALL module-bound items when enabledModules=[], keeps non-module items', async () => {
+    mockAuth.modulesLoaded = true
+    mockAuth.enabledModules = []
+    const wrapper = mount(AppSidebar)
+    await nextTick()
+    // Dashboard has no moduleCode -> always shown
+    expect(wrapper.text()).toContain('Dashboard')
+    // All module-bound items hidden
+    expect(wrapper.text()).not.toContain('Exams')
+    expect(wrapper.text()).not.toContain('Calendar')
+    expect(wrapper.text()).not.toContain('Studio')
   })
 })
 ```
@@ -1419,26 +1426,27 @@ Expected: All existing tests pass + 3 new sidebar tests
 - [ ] **Step 7: Commit**
 
 ```bash
-git add frontend/src/api/schoolSettings.js frontend/src/stores/auth.js frontend/src/components/shell/AppSidebar.vue frontend/src/config/sidebarConfig.js frontend/tests/AppSidebar.test.js
+git add frontend/src/api/schoolSettings.js frontend/src/stores/auth.js frontend/src/components/shell/AppSidebar.vue frontend/src/config/sidebarConfig.js frontend/src/__tests__/AppSidebar.test.js
 git commit -m "feat: frontend sidebar filters by enabled modules + Vitest tests"
 ```
 
 **审查清单:**
-- [x] Auth store uses setup store pattern: `const enabledModules = ref([])` and `async function loadModules()` (NOT `this.enabledModules`)
-- [x] Sidebar config extends to `{ icon, label, route, moduleCode }` matching existing pattern
+- [x] Auth store uses setup store pattern: `const enabledModules = ref([])` + `const modulesLoaded = ref(false)` and `async function loadModules()` (NOT `this.enabledModules`)
+- [x] `modulesLoaded` distinguishes "not loaded yet" from "loaded but empty" — `modulesLoaded=false` shows all items, `modulesLoaded=true` + empty enabledModules hides module-bound items
+- [x] Sidebar config extends to `{ icon, label, route, moduleCode }` matching existing pattern; platform_admin/district_admin have no moduleCode (no school scope)
 - [x] Items without `moduleCode` are always shown (dashboard, settings, analysis)
-- [x] Empty `enabledModules` (not loaded yet) -> show all items (graceful fallback)
-- [x] `loadModules()` called after login and switchRole
-- [x] `enabledModules` cleared on logout
-- [x] Vitest component tests verify filtering logic
+- [x] Sidebar computed checks `auth.currentRole?.school_id` and `auth.modulesLoaded` before filtering
+- [x] `loadModules()` called after login and switchRole; sets `modulesLoaded=true` on success and fallback
+- [x] `enabledModules` and `modulesLoaded` cleared on logout
+- [x] Vitest real-component tests (mount AppSidebar) verify 3 scenarios: not loaded / partial / empty
 
 **测试契约:**
-1. Sidebar filters by enabled modules
-   - 入口: Set `enabledModules = ['exam', 'studio']`, render sidebar
-   - 反例: 错误实现不检查 `moduleCode` -> 所有项都显示，禁用无效
-   - 边界: 空 `enabledModules` / 所有模块禁用 / 无 `moduleCode` 的项
+1. Sidebar filters by enabled modules (real component test)
+   - 入口: `mount(AppSidebar)` with mocked auth store reactive state
+   - 反例: 错误实现不检查 `modulesLoaded` -> 空 enabledModules 隐藏所有模块项（加载中误杀）
+   - 边界: modulesLoaded=false / modulesLoaded=true+enabledModules=['exam','studio'] / modulesLoaded=true+enabledModules=[]
    - 回归: N/A
-   - 命令: `cd frontend && npx vitest run tests/AppSidebar.test.js`
+   - 命令: `cd frontend && npx vitest run src/__tests__/AppSidebar.test.js`
 
 ---
 
@@ -1565,19 +1573,19 @@ onMounted(() => {
 </style>
 ```
 
-- [ ] **Step 2: Add route (F-01 fix: use `permissions` array, plural `manage_schools`)**
+- [ ] **Step 2: Add route (school-scoped admin roles)**
 
 In `frontend/src/router/index.js`, add to the AppShell children array (after the Schools route):
 
-> **F-01 fix:** Uses `meta: { permissions: ['manage_schools'] }` (plural array format) matching the existing router guard pattern that checks `meta.permissions` as an array (see `authGuard` in router/index.js line 77). NOT `meta: { permission: 'manage_school' }`.
+> School settings is for school-scoped admin roles (principal, academic_director), not permission-gated. Platform admin manages schools via SchoolsPage, not SchoolSettingsPage.
 
 ```javascript
-// School settings management
+// School settings management (school-scoped admin roles)
 {
   path: 'school-settings',
   name: 'SchoolSettings',
   component: () => import('../pages/SchoolSettingsPage.vue'),
-  meta: { permissions: ['manage_schools'] },
+  meta: { roles: ['principal', 'academic_director'] },
 },
 ```
 
@@ -1596,8 +1604,8 @@ git commit -m "feat: add school settings management page with module toggles"
 ```
 
 **审查清单:**
-- [x] Route uses `meta: { permissions: ['manage_schools'] }` (plural, array format, matching existing authGuard)
-- [x] Module toggle calls `auth.loadModules()` to sync sidebar
+- [x] Route uses `meta: { roles: ['principal', 'academic_director'] }` (school-scoped admin roles, not permission-gated)
+- [x] Module toggle calls `auth.loadModules()` to sync sidebar (updates both enabledModules and modulesLoaded)
 - [x] Page uses schoolId from `auth.currentRole?.school_id`
 - [x] Naive UI components match project style (n-card / n-tabs / n-switch / n-data-table)
 - [x] No hardcoded school_id
@@ -1620,7 +1628,7 @@ git commit -m "feat: add school settings management page with module toggles"
 
 完成后，edu-cloud 具备：
 - 学校级 KV 配置存储
-- 9 个功能模块的启用/禁用管理
+- 8 个功能模块的启用/禁用管理
 - API 层硬拦截 disabled 模块（通过 JWT active_role_id -> UserRole.school_id 查询）
 - 前端 sidebar 动态渲染（setup store pattern）
 - 管理员配置页面
@@ -1634,8 +1642,8 @@ git commit -m "feat: add school settings management page with module toggles"
 | F-01 | HIGH | code-bug | Fixed: `Permission.MANAGE_SCHOOLS` (plural) + `meta: { permissions: ['manage_schools'] }` (array) |
 | F-02 | HIGH | code-bug | Fixed: `decode_token` (not decode_access_token) + `async_session` (not async_session_factory) |
 | F-03 | HIGH | design-concern | Fixed: Middleware extracts `active_role_id` from JWT -> queries UserRole.school_id from DB. Platform admin (no school_id) skips check. |
-| F-04 | HIGH | code-bug | Fixed: Removed standalone `marking` (maps to grading). Added exam routes to exam module. Moved classes/students to exempt. |
-| F-05 | HIGH | code-bug | Fixed: Setup store pattern (`ref([])` / `async function`). Sidebar config uses `{ icon, label, route, moduleCode }`. |
+| F-04 | HIGH | code-bug | Fixed R2: Removed `report` from MODULE_CODES (8 entries). `/api/v1/analytics` maps to `study_analytics`. |
+| F-05 | HIGH | code-bug | Fixed R2: Setup store adds `modulesLoaded` ref. Sidebar computed checks `modulesLoaded` before filtering (distinguishes "not loaded" from "loaded empty"). |
 | F-06 | HIGH | code-bug | Fixed: Explicit import steps for `alembic/env.py`, `tests/test_alembic_migration.py`, and `tests/conftest.py`. |
-| F-07 | HIGH | test-gap | Fixed: Added multi-school isolation tests, middleware coverage tests, error case tests, Vitest sidebar tests. Total ~28 automated tests. |
+| F-07 | HIGH | test-gap | Fixed R2: Real component test (`mount(AppSidebar)`) with 3 scenarios: modulesLoaded=false / partial modules / empty modules. Multi-school isolation + middleware coverage unchanged. |
 | F-08 | MED | design-concern | Fixed: Removed "Modify school/router.py" from File Map. Settings router registers directly in app.py with full prefix. |
