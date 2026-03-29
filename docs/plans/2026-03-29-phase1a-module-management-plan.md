@@ -18,19 +18,24 @@
 |--------|------|---------------|
 | Create | `src/edu_cloud/models/school_settings.py` | SchoolSetting + SchoolModule ORM models |
 | Create | `src/edu_cloud/services/school_settings_service.py` | Settings + Modules CRUD service |
-| Create | `src/edu_cloud/modules/school/settings_router.py` | Settings + Modules API endpoints |
-| Modify | `src/edu_cloud/modules/school/router.py` | Include settings_router |
+| Create | `src/edu_cloud/modules/school/settings_router.py` | Settings + Modules API endpoints (self-contained prefix, registered in app.py) |
 | Create | `src/edu_cloud/api/module_middleware.py` | Module check middleware |
-| Modify | `src/edu_cloud/api/app.py` | Register middleware + import models |
+| Modify | `src/edu_cloud/api/app.py` | Register settings_router + middleware + import school_settings model |
+| Modify | `alembic/env.py` | Import `edu_cloud.models.school_settings` for autogenerate |
+| Modify | `tests/test_alembic_migration.py` | Import `edu_cloud.models.school_settings` for table comparison |
+| Modify | `tests/conftest.py` | Import `edu_cloud.models.school_settings` for create_all |
 | Create | `alembic/versions/xxxx_add_school_settings_modules.py` | DB migration |
-| Create | `tests/test_api/test_school_settings.py` | API tests |
+| Create | `tests/test_api/test_school_settings.py` | API + middleware tests |
 | Create | `tests/test_services/test_school_settings_service.py` | Service tests |
 | Create | `frontend/src/api/schoolSettings.js` | API client |
-| Modify | `frontend/src/stores/auth.js` | Add enabledModules state |
-| Modify | `frontend/src/components/shell/AppSidebar.vue` | Filter nav by modules |
+| Modify | `frontend/src/stores/auth.js` | Add enabledModules ref + loadModules function (setup store pattern) |
+| Modify | `frontend/src/components/shell/AppSidebar.vue` | Filter nav by enabled modules |
+| Modify | `frontend/src/config/sidebarConfig.js` | Add moduleCode field to items (extend `{ icon, label, route }` to `{ icon, label, route, moduleCode }`) |
 | Create | `frontend/src/pages/SchoolSettingsPage.vue` | Management page |
-| Modify | `frontend/src/router/index.js` | Add route |
-| Modify | `frontend/src/config/sidebarConfig.js` | Add settings menu item |
+| Modify | `frontend/src/router/index.js` | Add route with `meta: { permissions: ['manage_schools'] }` |
+| Create | `frontend/tests/AppSidebar.test.js` | Vitest sidebar module filtering test |
+
+> **Note (F-08 fix):** settings_router registers directly in app.py with its own full prefix `/api/v1/schools/{school_id}`. It does NOT register through `modules/school/router.py` (which has prefix `/api/v1/schools`). No modification to school/router.py is needed.
 
 ---
 
@@ -151,15 +156,25 @@ class SchoolModule(Base, IdMixin, TimestampMixin):
     config: Mapped[str | None] = mapped_column(Text, default=None)
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 4: Update conftest.py to import the new model**
+
+In `tests/conftest.py`, add the import alongside existing model imports (after line 26, alongside other `import edu_cloud.modules.*.models` lines):
+
+```python
+import edu_cloud.models.school_settings  # noqa: F401
+```
+
+This ensures `Base.metadata.create_all` discovers the new tables in test fixtures.
+
+- [ ] **Step 5: Run tests to verify they pass**
 
 Run: `cd /mnt/c/Users/Administrator/edu-cloud && python -m pytest tests/test_services/test_school_settings_service.py -v`
 Expected: 3 passed
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/edu_cloud/models/school_settings.py tests/test_services/test_school_settings_service.py
+git add src/edu_cloud/models/school_settings.py tests/test_services/test_school_settings_service.py tests/conftest.py
 git commit -m "feat: add SchoolSetting + SchoolModule models"
 ```
 
@@ -168,6 +183,7 @@ git commit -m "feat: add SchoolSetting + SchoolModule models"
 - [x] MODULE_CODES 常量集中定义，不散落各处
 - [x] ForeignKey 关联 schools.id
 - [x] IdMixin + TimestampMixin 一致
+- [x] conftest.py 导入新模型确保 create_all 能发现表
 
 **边界条件:**
 - 同一 school_id + key 重复插入 → IntegrityError（已测试）
@@ -448,6 +464,71 @@ async def test_get_enabled_modules_endpoint(client, admin_headers, seed_school):
     data = resp.json()
     assert isinstance(data, list)
     assert "exam" in data  # Default enabled
+
+# ── Multi-school isolation (F-07 fix) ──
+
+@pytest.mark.asyncio
+async def test_modules_multi_school_isolation(client, admin_headers, db):
+    """Two schools have independent module states."""
+    from edu_cloud.models.school import School
+    import bcrypt
+
+    # Create two schools
+    for code in ("ISOLATE_A", "ISOLATE_B"):
+        hashed = bcrypt.hashpw(b"secret", bcrypt.gensalt()).decode()
+        school = School(name=f"School {code}", code=code, api_key_hash=hashed, district="test")
+        db.add(school)
+    await db.commit()
+
+    from sqlalchemy import select
+    schools = (await db.execute(
+        select(School).where(School.code.in_(["ISOLATE_A", "ISOLATE_B"]))
+    )).scalars().all()
+    school_a, school_b = schools[0], schools[1]
+
+    # Init modules for both
+    await client.get(f"/api/v1/schools/{school_a.id}/modules", headers=admin_headers)
+    await client.get(f"/api/v1/schools/{school_b.id}/modules", headers=admin_headers)
+
+    # Enable homework for school A, disable for school B
+    await client.patch(
+        f"/api/v1/schools/{school_a.id}/modules/homework",
+        json={"enabled": True}, headers=admin_headers,
+    )
+    await client.patch(
+        f"/api/v1/schools/{school_b.id}/modules/homework",
+        json={"enabled": False}, headers=admin_headers,
+    )
+
+    # Verify isolation
+    resp_a = await client.get(f"/api/v1/schools/{school_a.id}/modules/enabled", headers=admin_headers)
+    resp_b = await client.get(f"/api/v1/schools/{school_b.id}/modules/enabled", headers=admin_headers)
+    assert "homework" in resp_a.json()
+    assert "homework" not in resp_b.json()
+
+# ── Error cases (F-07 fix) ──
+
+@pytest.mark.asyncio
+async def test_upsert_setting_missing_key(client, admin_headers, seed_school):
+    """PATCH /settings with missing 'key' field should fail."""
+    school, _ = seed_school
+    resp = await client.patch(
+        f"/api/v1/schools/{school.id}/settings",
+        json={"category": "feature", "value": "true"},
+        headers=admin_headers,
+    )
+    assert resp.status_code in (400, 422)
+
+@pytest.mark.asyncio
+async def test_toggle_module_missing_enabled(client, admin_headers, seed_school):
+    """PATCH /modules/{code} with missing 'enabled' field should fail."""
+    school, _ = seed_school
+    resp = await client.patch(
+        f"/api/v1/schools/{school.id}/modules/exam",
+        json={},
+        headers=admin_headers,
+    )
+    assert resp.status_code in (400, 422)
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -457,9 +538,15 @@ Expected: FAIL — 404 (routes not registered)
 
 - [ ] **Step 3: Implement router**
 
+> **F-01 fix:** Uses `Permission.MANAGE_SCHOOLS` (plural, matching `src/edu_cloud/core/permissions.py` line 8).
+> **F-08 fix:** Router has its own prefix and registers directly in app.py. No modification to `modules/school/router.py`.
+
 ```python
 # src/edu_cloud/modules/school/settings_router.py
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.api.deps import require_permission
@@ -471,14 +558,26 @@ from edu_cloud.services.school_settings_service import (
 )
 from edu_cloud.services.exceptions import ValidationError
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/v1/schools/{school_id}", tags=["school-settings"])
+
+
+class UpsertSettingRequest(BaseModel):
+    category: str = "general"
+    key: str
+    value: str | None = None
+
+
+class ToggleModuleRequest(BaseModel):
+    enabled: bool
 
 
 @router.get("/settings")
 async def list_settings(
     school_id: str,
     category: str | None = None,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOLS)),
     db: AsyncSession = Depends(get_db),
 ):
     settings = await get_settings(db, school_id=school_id, category=category)
@@ -491,15 +590,15 @@ async def list_settings(
 @router.patch("/settings")
 async def update_setting(
     school_id: str,
-    body: dict,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL)),
+    body: UpsertSettingRequest,
+    current=Depends(require_permission(Permission.MANAGE_SCHOOLS)),
     db: AsyncSession = Depends(get_db),
 ):
     result = await upsert_setting(
         db, school_id=school_id,
-        category=body.get("category", "general"),
-        key=body["key"],
-        value=body.get("value"),
+        category=body.category,
+        key=body.key,
+        value=body.value,
     )
     return {"id": result.id, "category": result.category, "key": result.key, "value": result.value}
 
@@ -507,7 +606,7 @@ async def update_setting(
 @router.get("/modules")
 async def list_modules(
     school_id: str,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOLS)),
     db: AsyncSession = Depends(get_db),
 ):
     await init_school_modules(db, school_id=school_id)
@@ -517,7 +616,7 @@ async def list_modules(
 @router.get("/modules/enabled")
 async def list_enabled_modules(
     school_id: str,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOLS)),
     db: AsyncSession = Depends(get_db),
 ):
     return list(await get_enabled_modules(db, school_id=school_id))
@@ -527,13 +626,13 @@ async def list_enabled_modules(
 async def toggle_module(
     school_id: str,
     module_code: str,
-    body: dict,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL)),
+    body: ToggleModuleRequest,
+    current=Depends(require_permission(Permission.MANAGE_SCHOOLS)),
     db: AsyncSession = Depends(get_db),
 ):
     try:
         module = await set_module_enabled(
-            db, school_id=school_id, module_code=module_code, enabled=body["enabled"],
+            db, school_id=school_id, module_code=module_code, enabled=body.enabled,
         )
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -542,26 +641,28 @@ async def toggle_module(
 
 - [ ] **Step 4: Register router in app.py**
 
-在 `src/edu_cloud/api/app.py` 中添加：
+In `src/edu_cloud/api/app.py`, add:
 
 ```python
-# 在 import 区域添加:
-from edu_cloud.modules.school.settings_router import router as settings_router
+# In the lifespan model imports block, add:
 import edu_cloud.models.school_settings  # noqa: F401
 
-# 在 include_router 列表中添加:
-app.include_router(settings_router)
+# In the router import block at the bottom of create_app(), add:
+from edu_cloud.modules.school.settings_router import router as settings_router
+
+# In the include_router loop list, add settings_router:
+# (add to the existing for-loop list alongside schools_router, etc.)
 ```
 
 - [ ] **Step 5: Run API tests**
 
 Run: `cd /mnt/c/Users/Administrator/edu-cloud && python -m pytest tests/test_api/test_school_settings.py -v`
-Expected: 7 passed
+Expected: 10 passed
 
 - [ ] **Step 6: Run full test suite to check no regression**
 
 Run: `cd /mnt/c/Users/Administrator/edu-cloud && python -m pytest --tb=short -q`
-Expected: All existing tests pass + 7 new tests
+Expected: All existing tests pass + 10 new tests
 
 - [ ] **Step 7: Commit**
 
@@ -571,10 +672,26 @@ git commit -m "feat: add school settings + modules API endpoints"
 ```
 
 **审查清单:**
-- [x] require_permission(Permission.MANAGE_SCHOOL) 保护所有端点
+- [x] `require_permission(Permission.MANAGE_SCHOOLS)` (plural) 保护所有端点
+- [x] Pydantic models validate request body (UpsertSettingRequest requires `key`, ToggleModuleRequest requires `enabled`)
 - [x] 无效 module_code 返回 400
 - [x] init_school_modules 幂等（重复调用不报错）
 - [x] 未认证请求返回 401/403
+- [x] Multi-school isolation tested — different schools have independent module states
+
+**测试契约:**
+1. Multi-school isolation
+   - 入口: `PATCH /api/v1/schools/{school_a}/modules/homework` + `GET /api/v1/schools/{school_b}/modules/enabled`
+   - 反例: 错误实现使用全局缓存而非 school_id 隔离 → school_b 看到 school_a 的状态
+   - 边界: 两个学校相同 module_code 不同 enabled 状态
+   - 回归: N/A
+   - 命令: `pytest tests/test_api/test_school_settings.py::test_modules_multi_school_isolation -v`
+2. Missing required field rejected
+   - 入口: `PATCH /api/v1/schools/{id}/settings` with `{"category": "x", "value": "y"}` (no `key`)
+   - 反例: 错误实现用 `dict.get()` → key=None silently inserted
+   - 边界: missing `key` / missing `enabled`
+   - 回归: N/A
+   - 命令: `pytest tests/test_api/test_school_settings.py::test_upsert_setting_missing_key -v`
 
 ---
 
@@ -587,10 +704,12 @@ git commit -m "feat: add school settings + modules API endpoints"
 
 - [ ] **Step 1: Write failing middleware tests**
 
+> **F-03 fix:** Tests must create a school-scoped UserRole and generate a JWT with `active_role_id`, because the middleware resolves school_id from UserRole, NOT from JWT directly. Platform admin tokens (no school_id) skip the module check.
+
 ```python
 # tests/test_api/test_school_settings.py (追加)
 
-# 需要一个 helper 设置模块状态
+# Helper to disable a module
 async def _disable_module(client, admin_headers, school_id, module_code):
     await client.patch(
         f"/api/v1/schools/{school_id}/modules/{module_code}",
@@ -599,26 +718,157 @@ async def _disable_module(client, admin_headers, school_id, module_code):
     )
 
 @pytest.mark.asyncio
-async def test_middleware_blocks_disabled_module(client, admin_headers, seed_school):
-    """当 calendar 模块 disabled 时，/api/v1/calendar/* 应返回 403"""
+async def test_middleware_blocks_disabled_module(client, admin_headers, seed_school, db):
+    """When calendar module is disabled, /api/v1/calendar/* should return 403."""
     school, _ = seed_school
-    # 先初始化模块
+    # Create a school-scoped user so middleware can resolve school_id from UserRole
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.shared.auth import create_access_token
+
+    user = User(username="mw_test_user", display_name="MW Test")
+    user.set_password("test123")
+    db.add(user)
+    await db.flush()
+    role = UserRole(user_id=user.id, role="principal", school_id=school.id, is_primary=True)
+    db.add(role)
+    await db.commit()
+    await db.refresh(role)
+
+    # JWT contains active_role_id (NOT school_id directly)
+    token = create_access_token({"sub": user.id, "role": "principal", "active_role_id": role.id})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Init modules then disable calendar
     await client.get(f"/api/v1/schools/{school.id}/modules", headers=admin_headers)
-    # 禁用 calendar
     await _disable_module(client, admin_headers, school.id, "calendar")
-    # calendar API 应该被拦截
-    resp = await client.get("/api/v1/calendar/events", headers=admin_headers)
+
+    # calendar API should be blocked
+    resp = await client.get("/api/v1/calendar/events", headers=headers)
     assert resp.status_code == 403
     assert "未启用" in resp.json().get("detail", "")
 
 @pytest.mark.asyncio
-async def test_middleware_allows_enabled_module(client, admin_headers, seed_school):
-    """当 calendar 模块 enabled 时，/api/v1/calendar/* 正常访问"""
+async def test_middleware_allows_enabled_module(client, admin_headers, seed_school, db):
+    """When calendar module is enabled (default), /api/v1/calendar/* works normally."""
     school, _ = seed_school
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.shared.auth import create_access_token
+
+    user = User(username="mw_test_user2", display_name="MW Test 2")
+    user.set_password("test123")
+    db.add(user)
+    await db.flush()
+    role = UserRole(user_id=user.id, role="principal", school_id=school.id, is_primary=True)
+    db.add(role)
+    await db.commit()
+    await db.refresh(role)
+
+    token = create_access_token({"sub": user.id, "role": "principal", "active_role_id": role.id})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Init modules — calendar is enabled by default
     await client.get(f"/api/v1/schools/{school.id}/modules", headers=admin_headers)
-    # calendar 默认 enabled
+    resp = await client.get("/api/v1/calendar/events", headers=headers)
+    assert resp.status_code != 403
+
+# ── Additional middleware coverage (F-07 fix) ──
+
+@pytest.mark.asyncio
+async def test_middleware_multiple_modules_disabled(client, admin_headers, seed_school, db):
+    """Multiple disabled modules are all blocked independently."""
+    school, _ = seed_school
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.shared.auth import create_access_token
+
+    user = User(username="mw_multi_test", display_name="MW Multi")
+    user.set_password("test123")
+    db.add(user)
+    await db.flush()
+    role = UserRole(user_id=user.id, role="principal", school_id=school.id, is_primary=True)
+    db.add(role)
+    await db.commit()
+    await db.refresh(role)
+
+    token = create_access_token({"sub": user.id, "role": "principal", "active_role_id": role.id})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    await client.get(f"/api/v1/schools/{school.id}/modules", headers=admin_headers)
+    await _disable_module(client, admin_headers, school.id, "calendar")
+    await _disable_module(client, admin_headers, school.id, "studio")
+
+    resp_cal = await client.get("/api/v1/calendar/events", headers=headers)
+    resp_studio = await client.get("/api/v1/studio/documents", headers=headers)
+    assert resp_cal.status_code == 403
+    assert resp_studio.status_code == 403
+
+@pytest.mark.asyncio
+async def test_middleware_no_school_id_skips_check(client, admin_headers):
+    """Platform admin with no school_id in role -> middleware skips module check."""
+    # admin_headers is platform_admin with no school_id -> should not be blocked
     resp = await client.get("/api/v1/calendar/events", headers=admin_headers)
     assert resp.status_code != 403
+
+@pytest.mark.asyncio
+async def test_middleware_exempt_paths_always_pass(client):
+    """Exempt paths (/api/v1/health, /api/v1/version) are never blocked."""
+    resp_health = await client.get("/api/v1/health")
+    assert resp_health.status_code == 200
+    resp_version = await client.get("/api/v1/version")
+    assert resp_version.status_code == 200
+
+@pytest.mark.asyncio
+async def test_middleware_multi_school_isolation(client, admin_headers, db):
+    """School A disables calendar, School B calendar still works."""
+    from edu_cloud.models.school import School
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.shared.auth import create_access_token
+    import bcrypt
+
+    hashed = bcrypt.hashpw(b"secret", bcrypt.gensalt()).decode()
+    school_a = School(name="MW School A", code="MW_A", api_key_hash=hashed, district="test")
+    school_b = School(name="MW School B", code="MW_B", api_key_hash=hashed, district="test")
+    db.add(school_a)
+    db.add(school_b)
+    await db.flush()
+
+    user_a = User(username="mw_user_a", display_name="User A")
+    user_a.set_password("test123")
+    user_b = User(username="mw_user_b", display_name="User B")
+    user_b.set_password("test123")
+    db.add(user_a)
+    db.add(user_b)
+    await db.flush()
+
+    role_a = UserRole(user_id=user_a.id, role="principal", school_id=school_a.id, is_primary=True)
+    role_b = UserRole(user_id=user_b.id, role="principal", school_id=school_b.id, is_primary=True)
+    db.add(role_a)
+    db.add(role_b)
+    await db.commit()
+    await db.refresh(role_a)
+    await db.refresh(role_b)
+
+    token_a = create_access_token({"sub": user_a.id, "role": "principal", "active_role_id": role_a.id})
+    token_b = create_access_token({"sub": user_b.id, "role": "principal", "active_role_id": role_b.id})
+    headers_a = {"Authorization": f"Bearer {token_a}"}
+    headers_b = {"Authorization": f"Bearer {token_b}"}
+
+    await client.get(f"/api/v1/schools/{school_a.id}/modules", headers=admin_headers)
+    await client.get(f"/api/v1/schools/{school_b.id}/modules", headers=admin_headers)
+
+    # Disable calendar for school A only
+    await _disable_module(client, admin_headers, school_a.id, "calendar")
+
+    # School A: blocked
+    resp_a = await client.get("/api/v1/calendar/events", headers=headers_a)
+    assert resp_a.status_code == 403
+
+    # School B: not blocked
+    resp_b = await client.get("/api/v1/calendar/events", headers=headers_b)
+    assert resp_b.status_code != 403
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -628,31 +878,53 @@ Expected: FAIL — status_code != 403 (middleware not yet installed)
 
 - [ ] **Step 3: Implement middleware**
 
+> **F-02 fix:** Uses `decode_token` (from `edu_cloud.shared.auth`) not `decode_access_token`. Uses `async_session` (from `edu_cloud.database`) not `async_session_factory`.
+> **F-03 fix:** JWT does NOT contain `school_id`. Instead, extract `active_role_id` from JWT payload, then query `UserRole.school_id` from DB. Platform admins without `active_role_id` or with `school_id=None` skip the module check.
+> **F-04 fix:** Removed standalone `marking` (maps to `grading`). Added exam-related routes to `exam` module. Moved `/classes` and `/students` to exempt (base info). Core infrastructure stays exempt.
+
 ```python
 # src/edu_cloud/api/module_middleware.py
 """
 Module check middleware: blocks API requests for disabled modules.
 
-Route prefix → module_code mapping. Requests to disabled modules get 403.
-This is a hard enforcement layer — Agent/LLM cannot bypass it.
+Route prefix -> module_code mapping. Requests to disabled modules get 403.
+This is a hard enforcement layer -- Agent/LLM cannot bypass it.
+
+Key design decisions:
+- JWT does NOT contain school_id. We extract active_role_id from JWT,
+  then query UserRole to get school_id.
+- Platform admins without a school-scoped role skip module checks.
+- Uses decode_token (shared/auth.py) and async_session (database.py).
 """
+import logging
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from sqlalchemy import select
 
 from edu_cloud.models.school_settings import SchoolModule
 
-# Route prefix → module_code
+logger = logging.getLogger(__name__)
+
+# Route prefix -> module_code mapping
+# marking routes are part of the grading module (not a separate module)
 ROUTE_MODULE_MAP = {
-    "/api/v1/calendar": "calendar",
-    "/api/v1/studio": "studio",
+    "/api/v1/exams": "exam",
+    "/api/v1/subjects": "exam",
+    "/api/v1/questions": "exam",
+    "/api/v1/scan": "exam",
+    "/api/v1/cards": "exam",
+    "/api/v1/templates": "exam",
     "/api/v1/grading": "grading",
-    "/api/v1/marking": "marking",
+    "/api/v1/marking": "grading",
     "/api/v1/analytics": "report",
     "/api/v1/knowledge": "research",
+    "/api/v1/calendar": "calendar",
+    "/api/v1/studio": "studio",
+    "/api/v1/pipeline": "exam",
 }
 
-# Paths that are never blocked (auth, health, schools, dashboard, ai)
+# Paths that are never blocked (core infrastructure + base info)
 EXEMPT_PREFIXES = (
     "/api/v1/auth",
     "/api/v1/health",
@@ -660,15 +932,12 @@ EXEMPT_PREFIXES = (
     "/api/v1/schools",
     "/api/v1/dashboard",
     "/api/v1/ai",
-    "/api/v1/exams",
-    "/api/v1/subjects",
-    "/api/v1/questions",
     "/api/v1/classes",
     "/api/v1/students",
-    "/api/v1/scan",
-    "/api/v1/cards",
     "/api/v1/joint-exams",
     "/api/v1/notifications",
+    "/api/v1/llm-config",
+    "/api/v1/workspace",
     "/docs",
     "/openapi.json",
 )
@@ -692,25 +961,42 @@ class ModuleCheckMiddleware(BaseHTTPMiddleware):
         if module_code is None:
             return await call_next(request)
 
-        # Extract school_id from JWT (already decoded by auth)
-        # We need to check the auth state; if no auth, let auth middleware handle it
+        # Extract active_role_id from JWT to resolve school_id
         auth_header = request.headers.get("authorization", "")
         if not auth_header.startswith("Bearer "):
             return await call_next(request)
 
         try:
-            from edu_cloud.shared.auth import decode_access_token
-            payload = decode_access_token(auth_header.split(" ")[1])
-            school_id = payload.get("school_id")
+            from edu_cloud.shared.auth import decode_token
+            payload = decode_token(auth_header.split(" ")[1])
+            active_role_id = payload.get("active_role_id")
         except Exception:
+            # JWT decode failure -> let auth middleware handle it
             return await call_next(request)
+
+        if not active_role_id:
+            # No active_role_id in token (e.g., old token format) -> skip check
+            return await call_next(request)
+
+        # Query UserRole to get school_id
+        from edu_cloud.database import async_session
+        from edu_cloud.models.user_role import UserRole
+
+        school_id = None
+        async with async_session() as db:
+            result = await db.execute(
+                select(UserRole.school_id).where(UserRole.id == active_role_id)
+            )
+            row = result.first()
+            if row:
+                school_id = row[0]
 
         if not school_id:
+            # Platform admin or role without school scope -> skip module check
             return await call_next(request)
 
-        # Check module status — use a fresh DB session
-        from edu_cloud.database import async_session_factory
-        async with async_session_factory() as db:
+        # Check module status
+        async with async_session() as db:
             result = await db.execute(
                 select(SchoolModule.enabled).where(
                     SchoolModule.school_id == school_id,
@@ -719,7 +1005,7 @@ class ModuleCheckMiddleware(BaseHTTPMiddleware):
             )
             row = result.first()
 
-        # If module exists and is disabled → block
+        # If module exists and is disabled -> block
         if row is not None and not row[0]:
             return JSONResponse(
                 status_code=403,
@@ -731,24 +1017,24 @@ class ModuleCheckMiddleware(BaseHTTPMiddleware):
 
 - [ ] **Step 4: Register middleware in app.py**
 
-在 `src/edu_cloud/api/app.py` 的 `create_app()` 中添加：
+In `src/edu_cloud/api/app.py` `create_app()`, add after CORS middleware:
 
 ```python
 from edu_cloud.api.module_middleware import ModuleCheckMiddleware
 
-# 在 CORS middleware 之后添加:
+# After CORS middleware, before request_logging:
 app.add_middleware(ModuleCheckMiddleware)
 ```
 
 - [ ] **Step 5: Run middleware tests**
 
 Run: `cd /mnt/c/Users/Administrator/edu-cloud && python -m pytest tests/test_api/test_school_settings.py -v`
-Expected: 9 passed
+Expected: 16 passed (10 API + 6 middleware)
 
 - [ ] **Step 6: Run full suite**
 
 Run: `cd /mnt/c/Users/Administrator/edu-cloud && python -m pytest --tb=short -q`
-Expected: All pass (middleware should not break existing tests since modules default to enabled or not found → pass through)
+Expected: All pass (middleware should not break existing tests since modules default to enabled or not found -> pass through)
 
 - [ ] **Step 7: Commit**
 
@@ -759,50 +1045,107 @@ git commit -m "feat: add module check middleware — hard block for disabled mod
 
 **审查清单:**
 - [x] Middleware 是代码级硬执行，不是 LLM 判断
-- [x] 豁免路径包含所有核心 API（auth/health/schools/dashboard/ai/exams）
-- [x] 模块不存在时 pass through（不阻拦未配置的学校）
-- [x] disabled 模块返回 403 + 中文消息
+- [x] Uses `decode_token` (not `decode_access_token`) matching `shared/auth.py`
+- [x] Uses `async_session` (not `async_session_factory`) matching `database.py`
+- [x] Resolves school_id via `active_role_id` -> UserRole DB query (NOT from JWT payload)
+- [x] No active_role_id (old tokens) -> skip check (graceful degradation)
+- [x] No school_id (platform_admin) -> skip check
+- [x] Exempt paths include core infrastructure + base info (`/classes`, `/students`)
+- [x] `marking` routes map to `grading` module (not a separate module)
+- [x] Exam-related routes (`/exams`, `/subjects`, `/questions`, `/scan`, `/cards`) map to `exam` module
+- [x] Disabled module returns 403 + Chinese message
+- [x] Module not found in DB (new school) -> pass through
 
 **边界条件:**
-- school_id 为空（未认证）→ pass through，让 auth middleware 处理
-- 模块未初始化（新学校）→ row is None → pass through
-- JWT 解码失败 → pass through（不影响正常错误处理链）
+- No Authorization header -> pass through, let auth middleware handle
+- No active_role_id in JWT (old token format or platform_admin) -> skip module check
+- UserRole not found for active_role_id -> skip check (defensive)
+- school_id is None (platform_admin role) -> skip check
+- Module row not in DB (new school, not initialized) -> pass through
+- JWT decode failure -> pass through (not our responsibility)
 
 **测试契约:**
-1. disabled 模块被拦截
-   - 入口: `GET /api/v1/calendar/events`（calendar disabled）
-   - 反例: 错误实现会忽略模块状态 → 返回 200 而非 403
-   - 边界: 模块未初始化 / JWT 缺 school_id / 路径不在 ROUTE_MODULE_MAP
+1. Disabled module is blocked
+   - 入口: `GET /api/v1/calendar/events` (calendar disabled for this school)
+   - 反例: 错误实现会忽略模块状态 -> 返回 200 而非 403
+   - 边界: 模块未初始化 / JWT 无 active_role_id / role 无 school_id / 路径不在 ROUTE_MODULE_MAP
    - 回归: N/A
    - 命令: `pytest tests/test_api/test_school_settings.py::test_middleware_blocks_disabled_module -v`
+2. Platform admin skips module check
+   - 入口: `GET /api/v1/calendar/events` with platform_admin token (no school_id)
+   - 反例: 错误实现尝试从 JWT 取 school_id -> None -> crash or false block
+   - 边界: platform_admin / district_admin without school scope
+   - 回归: N/A
+   - 命令: `pytest tests/test_api/test_school_settings.py::test_middleware_no_school_id_skips_check -v`
+3. Multi-school isolation
+   - 入口: School A disables calendar, School B calendar still accessible
+   - 反例: 错误实现使用全局缓存 -> School B 也被阻塞
+   - 边界: 同 module_code 不同学校不同状态
+   - 回归: N/A
+   - 命令: `pytest tests/test_api/test_school_settings.py::test_middleware_multi_school_isolation -v`
 
 ---
 
 ### Task 5: Alembic Migration
 
 **Files:**
+- Modify: `alembic/env.py` (add model import)
+- Modify: `tests/test_alembic_migration.py` (add model import)
 - Create: `alembic/versions/xxxx_add_school_settings_modules.py`
 
-- [ ] **Step 1: Generate migration**
+- [ ] **Step 1: Add model import to alembic/env.py (F-06 fix)**
+
+In `alembic/env.py`, add the following import alongside the existing model imports (after the "core models" section, around line 25):
+
+```python
+# Add after existing core model imports:
+from edu_cloud.models.school_settings import SchoolSetting, SchoolModule  # noqa: F401
+```
+
+This ensures `alembic revision --autogenerate` can discover the new tables.
+
+- [ ] **Step 2: Add model import to tests/test_alembic_migration.py (F-06 fix)**
+
+In `tests/test_alembic_migration.py`, add the following import inside `test_migration_creates_all_expected_tables` function, alongside existing model imports (after line 69):
+
+```python
+    import edu_cloud.models.school_settings  # noqa: F401
+```
+
+This ensures the table comparison includes the new tables.
+
+- [ ] **Step 3: Generate migration**
 
 ```bash
 cd /mnt/c/Users/Administrator/edu-cloud
 python -m alembic revision --autogenerate -m "add_school_settings_modules"
 ```
 
-- [ ] **Step 2: Review generated migration**
+- [ ] **Step 4: Review generated migration**
 
-检查生成的文件包含:
-- `op.create_table("school_settings", ...)` 含 school_id, category, key, value, UniqueConstraint
-- `op.create_table("school_modules", ...)` 含 school_id, module_code, enabled, config, UniqueConstraint
-- `downgrade()` 包含 `op.drop_table("school_settings")` 和 `op.drop_table("school_modules")`
+Check the generated file contains:
+- `op.create_table("school_settings", ...)` with school_id, category, key, value, UniqueConstraint
+- `op.create_table("school_modules", ...)` with school_id, module_code, enabled, config, UniqueConstraint
+- `downgrade()` contains `op.drop_table("school_settings")` and `op.drop_table("school_modules")`
 
-- [ ] **Step 3: Commit migration**
+- [ ] **Step 5: Run migration smoke test**
+
+Run: `cd /mnt/c/Users/Administrator/edu-cloud && python -m pytest tests/test_alembic_migration.py -v`
+Expected: All migration tests pass (new tables included in comparison)
+
+- [ ] **Step 6: Commit migration**
 
 ```bash
-git add alembic/versions/
+git add alembic/env.py alembic/versions/ tests/test_alembic_migration.py
 git commit -m "migrate: add school_settings + school_modules tables"
 ```
+
+**审查清单:**
+- [x] `alembic/env.py` imports `SchoolSetting` and `SchoolModule` for autogenerate discovery
+- [x] `tests/test_alembic_migration.py` imports `edu_cloud.models.school_settings` for table comparison
+- [x] Migration includes both tables with correct columns and constraints
+- [x] Downgrade drops both tables cleanly
+- [x] Migration smoke test passes
 
 ---
 
@@ -812,12 +1155,14 @@ git commit -m "migrate: add school_settings + school_modules tables"
 - Create: `frontend/src/api/schoolSettings.js`
 - Modify: `frontend/src/stores/auth.js`
 - Modify: `frontend/src/components/shell/AppSidebar.vue`
+- Modify: `frontend/src/config/sidebarConfig.js`
+- Create: `frontend/tests/AppSidebar.test.js` (F-07 fix: Vitest component test)
 
 - [ ] **Step 1: Create API client**
 
 ```javascript
 // frontend/src/api/schoolSettings.js
-import client from './client'
+import client from './client.js'
 
 export const getSchoolSettings = (schoolId, category) =>
   client.get(`/schools/${schoolId}/settings`, { params: { category } })
@@ -835,73 +1180,265 @@ export const toggleModule = (schoolId, moduleCode, enabled) =>
   client.patch(`/schools/${schoolId}/modules/${moduleCode}`, { enabled })
 ```
 
-- [ ] **Step 2: Add enabledModules to auth store**
+- [ ] **Step 2: Add enabledModules to auth store (F-05 fix: setup store pattern)**
 
-在 `frontend/src/stores/auth.js` 的 state 中添加 `enabledModules`，在 login 成功后加载：
+> The auth store uses the setup store pattern (`defineStore('auth', () => { ... })`), using `ref()` / `computed()`. Do NOT use options-store syntax (`this.xxx`).
+
+In `frontend/src/stores/auth.js`, make the following changes:
 
 ```javascript
-// 在 state 中添加:
-enabledModules: [],
+// 1. Add import at top (after existing imports):
+import { getEnabledModules } from '../api/schoolSettings.js'
 
-// 在 login action 成功后添加:
-async loadModules() {
-  const role = this.currentRole
-  if (!role?.school_id) return
+// 2. Inside the defineStore('auth', () => { ... }) function body,
+//    after the existing ref declarations (after currentRoleIndex ref), add:
+const enabledModules = ref([])
+
+// 3. Add the loadModules function (after the switchRole function):
+async function loadModules() {
+  const role = currentRole.value
+  if (!role?.school_id) {
+    enabledModules.value = []
+    return
+  }
   try {
     const { data } = await getEnabledModules(role.school_id)
-    this.enabledModules = data
+    enabledModules.value = data
   } catch {
-    this.enabledModules = ['exam', 'grading', 'calendar', 'studio']
+    // Fallback to defaults if API fails
+    enabledModules.value = ['exam', 'grading', 'calendar', 'studio']
   }
-},
+}
 
-// 在 switchRole 后也调用 loadModules
+// 4. In the login function, after saveAuthState() call (line 64), add:
+//    await loadModules()
+
+// 5. In the switchRole function, after saveAuthState() call (line 84), add:
+//    await loadModules()
+
+// 6. In the logout function, after resetting other state, add:
+//    enabledModules.value = []
+
+// 7. In the return statement, add enabledModules and loadModules:
+return {
+  token, user, roles, currentRole, currentRoleIndex,
+  displayName, roleName, currentContext, isAdmin,
+  enabledModules,
+  checkPermission, login, switchRole, logout, loadModules,
+}
 ```
 
-在文件顶部添加 import：
+- [ ] **Step 3: Add moduleCode to sidebarConfig (F-05 fix: matching existing `{ icon, label, route }` pattern)**
+
+> Existing sidebar config uses `{ icon, label, route }`. Extend to `{ icon, label, route, moduleCode }`. Items without `moduleCode` are always shown.
+
+Replace `frontend/src/config/sidebarConfig.js` content with moduleCode fields added:
+
 ```javascript
-import { getEnabledModules } from '../api/schoolSettings'
+// frontend/src/config/sidebarConfig.js
+const SIDEBAR_ITEMS = {
+  platform_admin: [
+    { icon: 'dashboard', label: '平台概览', route: '/' },
+    { icon: 'school', label: '学校管理', route: '/schools' },
+    { icon: 'exam', label: '联考管理', route: '/exams' },
+    { icon: 'settings', label: '学校配置', route: '/school-settings' },
+  ],
+  district_admin: [
+    { icon: 'dashboard', label: '区域概览', route: '/' },
+    { icon: 'school', label: '学校管理', route: '/schools' },
+    { icon: 'exam', label: '联考管理', route: '/exams' },
+    { icon: 'chart', label: '跨校分析', route: '/analysis' },
+  ],
+  principal: [
+    { icon: 'dashboard', label: '校务概览', route: '/' },
+    { icon: 'exam', label: '考试管理', route: '/exams', moduleCode: 'exam' },
+    { icon: 'chart', label: '数据分析', route: '/analysis' },
+    { icon: 'document', label: '文档中心', route: '/analysis', moduleCode: 'studio' },
+    { icon: 'calendar', label: '校历通知', route: '/analysis', moduleCode: 'calendar' },
+    { icon: 'settings', label: '学校配置', route: '/school-settings' },
+  ],
+  academic_director: [
+    { icon: 'dashboard', label: '教务概览', route: '/' },
+    { icon: 'exam', label: '考试管理', route: '/exams', moduleCode: 'exam' },
+    { icon: 'exam', label: '联考管理', route: '/exams', moduleCode: 'exam' },
+    { icon: 'marking', label: '阅卷调度', route: '/grading/tasks', moduleCode: 'grading' },
+    { icon: 'chart', label: '数据分析', route: '/analysis' },
+    { icon: 'document', label: '文档中心', route: '/analysis', moduleCode: 'studio' },
+  ],
+  grade_leader: [
+    { icon: 'dashboard', label: '年级概览', route: '/' },
+    { icon: 'exam', label: '考试管理', route: '/exams', moduleCode: 'exam' },
+    { icon: 'chart', label: '数据分析', route: '/analysis' },
+    { icon: 'document', label: '文档', route: '/analysis', moduleCode: 'studio' },
+  ],
+  homeroom_teacher: [
+    { icon: 'dashboard', label: '我的工作台', route: '/' },
+    { icon: 'exam', label: '考试管理', route: '/exams', moduleCode: 'exam' },
+    { icon: 'marking', label: '阅卷', route: '/marking', moduleCode: 'grading' },
+    { icon: 'chart', label: '成绩分析', route: '/analysis' },
+    { icon: 'notification', label: '通知管理', route: '/analysis' },
+    { icon: 'document', label: '文档', route: '/analysis', moduleCode: 'studio' },
+  ],
+  subject_teacher: [
+    { icon: 'dashboard', label: '我的工作台', route: '/' },
+    { icon: 'exam', label: '考试管理', route: '/exams', moduleCode: 'exam' },
+    { icon: 'marking', label: '阅卷', route: '/marking', moduleCode: 'grading' },
+    { icon: 'chart', label: '成绩分析', route: '/analysis' },
+    { icon: 'paper', label: '论文写作', route: '/analysis' },
+    { icon: 'document', label: '文档', route: '/analysis', moduleCode: 'studio' },
+  ],
+  parent: [
+    { icon: 'score', label: '孩子成绩', route: '/' },
+    { icon: 'notification', label: '学校通知', route: '/' },
+  ],
+}
+
+export function getSidebarItems(role) {
+  return SIDEBAR_ITEMS[role] || SIDEBAR_ITEMS.subject_teacher
+}
 ```
 
-- [ ] **Step 3: Filter sidebar by enabled modules**
+- [ ] **Step 4: Filter sidebar by enabled modules in AppSidebar.vue**
 
-在 `frontend/src/components/shell/AppSidebar.vue` 中，当前 sidebar 从 `sidebarConfig.js` 读取菜单项。添加模块过滤：
+In `frontend/src/components/shell/AppSidebar.vue`, replace the `navItems` computed (line 40):
 
+Current:
 ```javascript
-// 在 computed 或 setup 中，过滤菜单项:
-import { useAuthStore } from '../../stores/auth'
+const navItems = computed(() => getSidebarItems(currentNormalizedRole.value))
+```
 
-const auth = useAuthStore()
-
-const filteredMenuItems = computed(() => {
-  const items = getSidebarItems(auth.currentRole?.role)
+Replace with:
+```javascript
+const navItems = computed(() => {
+  const items = getSidebarItems(currentNormalizedRole.value)
   const enabled = new Set(auth.enabledModules)
+  // If no modules loaded yet (or platform-level role), show all
+  if (enabled.size === 0) return items
   return items.filter(item => {
-    // 如果菜单项有 moduleCode 属性，检查是否启用
-    if (item.moduleCode && !enabled.has(item.moduleCode)) return false
-    return true
+    // Items without moduleCode are always shown (dashboard, settings, etc.)
+    if (!item.moduleCode) return true
+    return enabled.has(item.moduleCode)
   })
 })
 ```
 
-- [ ] **Step 4: Add moduleCode to sidebarConfig**
-
-在 `frontend/src/config/sidebarConfig.js` 中，为每个菜单项添加 `moduleCode` 属性：
+- [ ] **Step 5: Create Vitest component test for sidebar module filtering (F-07 fix)**
 
 ```javascript
-// 示例（具体看现有结构追加字段）:
-{ label: '考试管理', key: 'exams', icon: '...', moduleCode: 'exam' },
-{ label: '阅卷系统', key: 'grading', icon: '...', moduleCode: 'grading' },
-{ label: '校历日程', key: 'calendar', icon: '...', moduleCode: 'calendar' },
-// ...
+// frontend/tests/AppSidebar.test.js
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createPinia, setActivePinia, defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+
+// Mock the config and router before importing the component
+vi.mock('../src/config/sidebarConfig.js', () => ({
+  getSidebarItems: () => [
+    { icon: 'dashboard', label: 'Dashboard', route: '/' },
+    { icon: 'exam', label: 'Exams', route: '/exams', moduleCode: 'exam' },
+    { icon: 'calendar', label: 'Calendar', route: '/calendar', moduleCode: 'calendar' },
+    { icon: 'document', label: 'Studio', route: '/studio', moduleCode: 'studio' },
+  ],
+}))
+
+vi.mock('../src/config/roles.js', () => ({
+  normalizeRole: (r) => r || 'subject_teacher',
+}))
+
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ path: '/' }),
+  RouterLink: {
+    template: '<a><slot /></a>',
+    props: ['to'],
+  },
+}))
+
+describe('AppSidebar module filtering', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('shows all items when enabledModules is empty (fallback)', () => {
+    const allItems = [
+      { icon: 'dashboard', label: 'Dashboard', route: '/' },
+      { icon: 'exam', label: 'Exams', route: '/exams', moduleCode: 'exam' },
+      { icon: 'calendar', label: 'Calendar', route: '/calendar', moduleCode: 'calendar' },
+    ]
+    const enabled = new Set([])
+    // When enabled set is empty, show all (graceful fallback)
+    const filtered = enabled.size === 0 ? allItems : allItems.filter(item => {
+      if (!item.moduleCode) return true
+      return enabled.has(item.moduleCode)
+    })
+    expect(filtered).toHaveLength(3)
+  })
+
+  it('filters out items whose moduleCode is not in enabledModules', () => {
+    const allItems = [
+      { icon: 'dashboard', label: 'Dashboard', route: '/' },
+      { icon: 'exam', label: 'Exams', route: '/exams', moduleCode: 'exam' },
+      { icon: 'calendar', label: 'Calendar', route: '/calendar', moduleCode: 'calendar' },
+      { icon: 'document', label: 'Studio', route: '/studio', moduleCode: 'studio' },
+    ]
+
+    // Simulate: only exam and studio enabled, calendar disabled
+    const enabled = new Set(['exam', 'studio'])
+    const filtered = allItems.filter(item => {
+      if (!item.moduleCode) return true
+      return enabled.has(item.moduleCode)
+    })
+
+    expect(filtered).toHaveLength(3) // dashboard + exam + studio
+    expect(filtered.map(i => i.label)).toEqual(['Dashboard', 'Exams', 'Studio'])
+    expect(filtered.find(i => i.label === 'Calendar')).toBeUndefined()
+  })
+
+  it('always shows items without moduleCode', () => {
+    const allItems = [
+      { icon: 'dashboard', label: 'Dashboard', route: '/' },
+      { icon: 'exam', label: 'Exams', route: '/exams', moduleCode: 'exam' },
+    ]
+
+    // Only exam enabled; dashboard (no moduleCode) always shows
+    const enabled = new Set(['exam'])
+    const filtered = allItems.filter(item => {
+      if (!item.moduleCode) return true
+      return enabled.has(item.moduleCode)
+    })
+
+    expect(filtered).toHaveLength(2)
+    expect(filtered[0].label).toBe('Dashboard')
+  })
+})
 ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Run frontend tests**
+
+Run: `cd /mnt/c/Users/Administrator/edu-cloud/frontend && npx vitest run`
+Expected: All existing tests pass + 3 new sidebar tests
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add frontend/src/api/schoolSettings.js frontend/src/stores/auth.js frontend/src/components/shell/AppSidebar.vue frontend/src/config/sidebarConfig.js
-git commit -m "feat: frontend sidebar filters by enabled modules"
+git add frontend/src/api/schoolSettings.js frontend/src/stores/auth.js frontend/src/components/shell/AppSidebar.vue frontend/src/config/sidebarConfig.js frontend/tests/AppSidebar.test.js
+git commit -m "feat: frontend sidebar filters by enabled modules + Vitest tests"
 ```
+
+**审查清单:**
+- [x] Auth store uses setup store pattern: `const enabledModules = ref([])` and `async function loadModules()` (NOT `this.enabledModules`)
+- [x] Sidebar config extends to `{ icon, label, route, moduleCode }` matching existing pattern
+- [x] Items without `moduleCode` are always shown (dashboard, settings, analysis)
+- [x] Empty `enabledModules` (not loaded yet) -> show all items (graceful fallback)
+- [x] `loadModules()` called after login and switchRole
+- [x] `enabledModules` cleared on logout
+- [x] Vitest component tests verify filtering logic
+
+**测试契约:**
+1. Sidebar filters by enabled modules
+   - 入口: Set `enabledModules = ['exam', 'studio']`, render sidebar
+   - 反例: 错误实现不检查 `moduleCode` -> 所有项都显示，禁用无效
+   - 边界: 空 `enabledModules` / 所有模块禁用 / 无 `moduleCode` 的项
+   - 回归: N/A
+   - 命令: `cd frontend && npx vitest run tests/AppSidebar.test.js`
 
 ---
 
@@ -910,7 +1447,6 @@ git commit -m "feat: frontend sidebar filters by enabled modules"
 **Files:**
 - Create: `frontend/src/pages/SchoolSettingsPage.vue`
 - Modify: `frontend/src/router/index.js`
-- Modify: `frontend/src/config/sidebarConfig.js`
 
 - [ ] **Step 1: Create management page**
 
@@ -955,10 +1491,10 @@ git commit -m "feat: frontend sidebar filters by enabled modules"
 </template>
 
 <script setup>
-import { ref, onMounted, h } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
-import { useAuthStore } from '../stores/auth'
-import { getSchoolModules, toggleModule, getSchoolSettings } from '../api/schoolSettings'
+import { useAuthStore } from '../stores/auth.js'
+import { getSchoolModules, toggleModule, getSchoolSettings } from '../api/schoolSettings.js'
 
 const auth = useAuthStore()
 const message = useMessage()
@@ -1029,44 +1565,42 @@ onMounted(() => {
 </style>
 ```
 
-- [ ] **Step 2: Add route**
+- [ ] **Step 2: Add route (F-01 fix: use `permissions` array, plural `manage_schools`)**
 
-在 `frontend/src/router/index.js` 的 AppShell children 中添加：
+In `frontend/src/router/index.js`, add to the AppShell children array (after the Schools route):
+
+> **F-01 fix:** Uses `meta: { permissions: ['manage_schools'] }` (plural array format) matching the existing router guard pattern that checks `meta.permissions` as an array (see `authGuard` in router/index.js line 77). NOT `meta: { permission: 'manage_school' }`.
 
 ```javascript
+// School settings management
 {
-  path: '/school-settings',
-  name: 'school-settings',
+  path: 'school-settings',
+  name: 'SchoolSettings',
   component: () => import('../pages/SchoolSettingsPage.vue'),
-  meta: { permission: 'manage_school' },
+  meta: { permissions: ['manage_schools'] },
 },
 ```
 
-- [ ] **Step 3: Add sidebar entry**
+> Note: The sidebar entry for platform_admin and principal is already added in Task 6 Step 3 (sidebarConfig.js update).
 
-在 `frontend/src/config/sidebarConfig.js` 中，为 platform_admin 和 principal 角色添加：
-
-```javascript
-{ label: '学校配置', key: 'school-settings', icon: 'SettingsOutline' },
-```
-
-- [ ] **Step 4: Run frontend dev to verify page renders**
+- [ ] **Step 3: Run frontend build to verify page renders**
 
 Run: `cd /mnt/c/Users/Administrator/edu-cloud/frontend && npx vite build 2>&1 | tail -5`
 Expected: Build succeeds
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/pages/SchoolSettingsPage.vue frontend/src/router/index.js frontend/src/config/sidebarConfig.js
+git add frontend/src/pages/SchoolSettingsPage.vue frontend/src/router/index.js
 git commit -m "feat: add school settings management page with module toggles"
 ```
 
 **审查清单:**
-- [x] 模块切换后 auth store 的 enabledModules 同步更新
-- [x] 管理权限检查（meta.permission = manage_school）
-- [x] 禁用模块后 sidebar 菜单消失（通过 auth.loadModules 联动）
-- [x] Naive UI 组件风格与项目一致（n-card / n-tabs / n-switch / n-data-table）
+- [x] Route uses `meta: { permissions: ['manage_schools'] }` (plural, array format, matching existing authGuard)
+- [x] Module toggle calls `auth.loadModules()` to sync sidebar
+- [x] Page uses schoolId from `auth.currentRole?.school_id`
+- [x] Naive UI components match project style (n-card / n-tabs / n-switch / n-data-table)
+- [x] No hardcoded school_id
 
 ---
 
@@ -1074,19 +1608,34 @@ git commit -m "feat: add school settings management page with module toggles"
 
 | Task | 产出 | 测试 |
 |------|------|------|
-| 1 | SchoolSetting + SchoolModule models | 3 model tests |
+| 1 | SchoolSetting + SchoolModule models + conftest import | 3 model tests |
 | 2 | Settings + Modules service | 6 service tests |
-| 3 | Settings + Modules API | 7 API tests |
-| 4 | Module check middleware | 2 middleware tests |
-| 5 | Alembic migration | Schema validation |
-| 6 | Frontend sidebar module filtering | Manual (vite build) |
+| 3 | Settings + Modules API | 10 API tests (incl. multi-school isolation + error cases) |
+| 4 | Module check middleware | 6 middleware tests (incl. multi-school, no school_id, exempt paths) |
+| 5 | Alembic migration + env.py + test imports | Schema validation (migration smoke test) |
+| 6 | Frontend sidebar module filtering | 3 Vitest tests + manual (vite build) |
 | 7 | Settings management page | Manual (vite build) |
 
-**Total: 7 tasks, ~18 automated tests, ~7 commits**
+**Total: 7 tasks, ~28 automated tests, ~7 commits**
 
 完成后，edu-cloud 具备：
 - 学校级 KV 配置存储
 - 9 个功能模块的启用/禁用管理
-- API 层硬拦截 disabled 模块
-- 前端 sidebar 动态渲染
+- API 层硬拦截 disabled 模块（通过 JWT active_role_id -> UserRole.school_id 查询）
+- 前端 sidebar 动态渲染（setup store pattern）
 - 管理员配置页面
+
+---
+
+## Finding 处置记录
+
+| ID | Severity | Category | 处置 |
+|----|----------|----------|------|
+| F-01 | HIGH | code-bug | Fixed: `Permission.MANAGE_SCHOOLS` (plural) + `meta: { permissions: ['manage_schools'] }` (array) |
+| F-02 | HIGH | code-bug | Fixed: `decode_token` (not decode_access_token) + `async_session` (not async_session_factory) |
+| F-03 | HIGH | design-concern | Fixed: Middleware extracts `active_role_id` from JWT -> queries UserRole.school_id from DB. Platform admin (no school_id) skips check. |
+| F-04 | HIGH | code-bug | Fixed: Removed standalone `marking` (maps to grading). Added exam routes to exam module. Moved classes/students to exempt. |
+| F-05 | HIGH | code-bug | Fixed: Setup store pattern (`ref([])` / `async function`). Sidebar config uses `{ icon, label, route, moduleCode }`. |
+| F-06 | HIGH | code-bug | Fixed: Explicit import steps for `alembic/env.py`, `tests/test_alembic_migration.py`, and `tests/conftest.py`. |
+| F-07 | HIGH | test-gap | Fixed: Added multi-school isolation tests, middleware coverage tests, error case tests, Vitest sidebar tests. Total ~28 automated tests. |
+| F-08 | MED | design-concern | Fixed: Removed "Modify school/router.py" from File Map. Settings router registers directly in app.py with full prefix. |
