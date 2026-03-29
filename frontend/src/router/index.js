@@ -39,6 +39,9 @@ export const routes = [
       // Platform workbench (AI analysis)
       { path: 'analysis', name: 'Analysis', component: () => import('../pages/AnalysisPage.vue'), meta: { permissions: ['use_ai_chat'] } },
 
+      // School settings (school-scoped admin roles)
+      { path: 'school-settings', name: 'SchoolSettings', component: () => import('../pages/SchoolSettingsPage.vue'), meta: { roles: ['principal', 'academic_director'] } },
+
       // Admin
       { path: 'schools', name: 'Schools', component: () => import('../pages/SchoolsPage.vue'), meta: { permissions: ['manage_schools'] } },
     ]
