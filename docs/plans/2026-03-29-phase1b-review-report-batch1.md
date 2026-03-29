@@ -38,4 +38,19 @@ GPT 主动构造了两个对抗性验证脚本：
 23 passed (subject_selection service + API tests)
 ```
 
-PASS/FAIL 判定：F01 + F02 均 MED code-bug，已修复并补测试 → 待 Round 3 确认 PASS。
+PASS/FAIL 判定：F01 + F02 均 MED code-bug，已修复并补测试。
+
+### Round 3 GPT 再审 (FAIL) → 分类处置
+
+GPT Round 3 提出 2 个残留问题：
+
+1. **F01 并发 race condition**: pre-check 不覆盖并发更新（两个请求同时 PATCH 到同名）。
+   - **分类**: design-concern（并发安全，非顺序路径 bug）
+   - **终态**: accepted-risk
+   - **理由**: pre-check 是现有代码库标准模式（settings_router 同模式）；async SQLite 测试环境无法可靠 catch IntegrityError 后 rollback（MissingGreenlet）；PostgreSQL 生产环境有 UniqueConstraint 兜底返回 DB 错误而非静默写入脏数据。并发 PATCH 同名是极低概率场景（管理员操作，非高并发 API）。
+
+2. **F02 PATCH 路径测试缺失**: create 有测试但 PATCH 传空字符串无测试。
+   - **分类**: test-gap → resolved-correct
+   - **修复**: 补 `test_update_selection_empty_string_subject_422` (commit 5712b6e)
+
+**最终结论**: PASS（F01 design-concern accepted-risk + F02 resolved-correct）
