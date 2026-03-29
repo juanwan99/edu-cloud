@@ -7,6 +7,7 @@ class Permission(str, Enum):
     # 学校管理（既有）
     MANAGE_SCHOOLS = "manage_schools"
     VIEW_SCHOOLS = "view_schools"
+    MANAGE_SCHOOL_SETTINGS = "manage_school_settings"
 
     # 联考管理（既有）
     CREATE_JOINT_EXAM = "create_joint_exam"
@@ -50,6 +51,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     "district_admin": {
         Permission.MANAGE_SCHOOLS,
         Permission.VIEW_SCHOOLS,
+        Permission.MANAGE_SCHOOL_SETTINGS,
         Permission.CREATE_JOINT_EXAM,
         Permission.MANAGE_JOINT_EXAM,
         Permission.VIEW_JOINT_EXAM,
@@ -69,6 +71,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     # 校长
     "principal": {
         Permission.VIEW_SCHOOLS,
+        Permission.MANAGE_SCHOOL_SETTINGS,
         Permission.VIEW_JOINT_EXAM,
         Permission.VIEW_CROSS_SCHOOL_ANALYTICS,
         Permission.VIEW_QUESTION_BANK,
@@ -85,6 +88,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     # 教务主任
     "academic_director": {
         Permission.VIEW_SCHOOLS,
+        Permission.MANAGE_SCHOOL_SETTINGS,
         Permission.CREATE_JOINT_EXAM,
         Permission.MANAGE_JOINT_EXAM,
         Permission.VIEW_JOINT_EXAM,
