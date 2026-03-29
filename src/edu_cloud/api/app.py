@@ -48,6 +48,7 @@ async def lifespan(app: FastAPI):
     import edu_cloud.models.notification  # noqa: F401
     import edu_cloud.models.school_settings  # noqa: F401
     import edu_cloud.models.teacher_assignment  # noqa: F401
+    import edu_cloud.models.subject_selection  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -201,7 +202,8 @@ def create_app() -> FastAPI:
     from edu_cloud.api.notifications_api import router as notifications_router
     from edu_cloud.modules.school.settings_router import router as settings_router
     from edu_cloud.modules.school.assignment_router import router as assignment_router
-    for r in [schools_router, settings_router, assignment_router, exam_router, question_router, joint_exams_router,
+    from edu_cloud.modules.school.selection_router import router as selection_router
+    for r in [schools_router, settings_router, assignment_router, selection_router, exam_router, question_router, joint_exams_router,
               results_router, workspace_router, llm_config_router, student_router,
               card_router, template_router, scan_router, grading_router,
               marking_router, analytics_router, knowledge_router, pipeline_router,
