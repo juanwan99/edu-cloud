@@ -130,3 +130,38 @@ async def test_principal_cannot_access_other_school_selections(client, db):
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
     resp = await client.get(f"/api/v1/schools/{school_b.id}/selections", headers=headers)
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_update_selection_duplicate_name_409(client, admin_headers, seed_school):
+    """F01 fix: PATCH to existing name → 409."""
+    school, _ = seed_school
+    await client.post(
+        f"/api/v1/schools/{school.id}/selections",
+        json={"name": "已有API", "subject_codes": ["physics"]},
+        headers=admin_headers,
+    )
+    create_resp = await client.post(
+        f"/api/v1/schools/{school.id}/selections",
+        json={"name": "待改API", "subject_codes": ["history"]},
+        headers=admin_headers,
+    )
+    sel_id = create_resp.json()["id"]
+    resp = await client.patch(
+        f"/api/v1/schools/{school.id}/selections/{sel_id}",
+        json={"name": "已有API"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_create_selection_empty_string_subject_422(client, admin_headers, seed_school):
+    """F02 fix: empty string in subject_codes → 422."""
+    school, _ = seed_school
+    resp = await client.post(
+        f"/api/v1/schools/{school.id}/selections",
+        json={"name": "空元素API", "subject_codes": ["physics", ""]},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 422

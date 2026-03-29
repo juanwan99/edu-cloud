@@ -118,3 +118,23 @@ async def test_delete_selection(db, seed_school):
     await delete_selection(db, school_id=school.id, selection_id=sel.id)
     rows = await list_selections(db, school_id=school.id)
     assert len(rows) == 0
+
+
+@pytest.mark.asyncio
+async def test_update_selection_duplicate_name(db, seed_school):
+    """F01 fix: PATCH to existing name in same school → ConflictError."""
+    from edu_cloud.services.exceptions import ConflictError
+    school, _ = seed_school
+    await create_selection(db, school_id=school.id, name="已有组合", subject_codes=["physics"])
+    sel_b = await create_selection(db, school_id=school.id, name="待改名", subject_codes=["history"])
+    with pytest.raises(ConflictError, match="同名"):
+        await update_selection(db, school_id=school.id, selection_id=sel_b.id, name="已有组合")
+
+
+@pytest.mark.asyncio
+async def test_create_selection_empty_string_subject(db, seed_school):
+    """F02 fix: subject_codes with empty string → ValidationError."""
+    from edu_cloud.services.exceptions import ValidationError
+    school, _ = seed_school
+    with pytest.raises(ValidationError, match="不能为空"):
+        await create_selection(db, school_id=school.id, name="空元素", subject_codes=["physics", ""])
