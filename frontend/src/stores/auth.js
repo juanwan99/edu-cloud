@@ -4,6 +4,7 @@ import client from '../api/client.js'
 import router from '../router/index.js'
 import { normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
 import { hasPermission } from '../config/permissions.js'
+import { getEnabledModules } from '../api/schoolSettings.js'
 
 /** Persist auth state to localStorage */
 function saveAuthState(userVal, rolesVal, indexVal) {
@@ -36,6 +37,9 @@ export const useAuthStore = defineStore('auth', () => {
   const roles = ref(saved?.roles ?? [])
   const currentRoleIndex = ref(saved?.currentRoleIndex ?? 0)
 
+  const enabledModules = ref([])
+  const modulesLoaded = ref(false)
+
   const currentRole = computed(() => roles.value[currentRoleIndex.value] || null)
   const displayName = computed(() => user.value?.display_name || '')
   const roleName = computed(() => currentRole.value?.role || '')
@@ -62,6 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
     currentRoleIndex.value = primaryIdx >= 0 ? primaryIdx : 0
     localStorage.setItem('token', data.access_token)
     saveAuthState(user.value, roles.value, currentRoleIndex.value)
+    await loadModules()
     try { router.push('/') } catch { /* test env */ }
   }
 
@@ -82,6 +87,24 @@ export const useAuthStore = defineStore('auth', () => {
       currentRoleIndex.value = index
     }
     saveAuthState(user.value, roles.value, currentRoleIndex.value)
+    await loadModules()
+  }
+
+  async function loadModules() {
+    const role = currentRole.value
+    if (!role?.school_id) {
+      enabledModules.value = []
+      modulesLoaded.value = false
+      return
+    }
+    try {
+      const { data } = await getEnabledModules(role.school_id)
+      enabledModules.value = data
+      modulesLoaded.value = true
+    } catch {
+      enabledModules.value = ['exam', 'grading', 'calendar', 'studio']
+      modulesLoaded.value = true
+    }
   }
 
   function logout() {
@@ -89,6 +112,8 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     roles.value = []
     currentRoleIndex.value = 0
+    enabledModules.value = []
+    modulesLoaded.value = false
     localStorage.removeItem('token')
     localStorage.removeItem('auth_state')
     try { router.push('/login') } catch { /* test env */ }
@@ -97,6 +122,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     token, user, roles, currentRole, currentRoleIndex,
     displayName, roleName, currentContext, isAdmin,
-    checkPermission, login, switchRole, logout,
+    enabledModules, modulesLoaded,
+    checkPermission, login, switchRole, logout, loadModules,
   }
 })

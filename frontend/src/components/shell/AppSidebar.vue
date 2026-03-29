@@ -37,7 +37,16 @@ const currentNormalizedRole = computed(() => {
   return raw ? normalizeRole(raw) : 'subject_teacher'
 })
 
-const navItems = computed(() => getSidebarItems(currentNormalizedRole.value))
+const navItems = computed(() => {
+  const items = getSidebarItems(currentNormalizedRole.value)
+  if (!auth.currentRole?.school_id) return items
+  if (!auth.modulesLoaded) return items
+  const enabled = new Set(auth.enabledModules)
+  return items.filter(item => {
+    if (!item.moduleCode) return true
+    return enabled.has(item.moduleCode)
+  })
+})
 
 // Re-compute on role change (watch is implicit via computed, but kept for clarity)
 watch(() => auth.currentRole, () => {
