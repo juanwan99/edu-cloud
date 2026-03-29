@@ -26,6 +26,7 @@ import edu_cloud.modules.bank.models  # noqa: F401
 import edu_cloud.modules.profile.models  # noqa: F401
 import edu_cloud.models.school_settings  # noqa: F401
 import edu_cloud.models.teacher_assignment  # noqa: F401
+import edu_cloud.models.subject_selection  # noqa: F401
 from edu_cloud.shared.auth import create_access_token
 
 
