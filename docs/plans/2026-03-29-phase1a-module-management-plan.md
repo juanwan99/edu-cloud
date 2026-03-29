@@ -537,7 +537,9 @@ Expected: FAIL — 404 (routes not registered)
 
 - [ ] **Step 3: Implement router**
 
-> **F-01 fix:** Uses `Permission.MANAGE_SCHOOLS` (plural, matching `src/edu_cloud/core/permissions.py` line 8).
+> **N-01 prerequisite:** Before implementing the router, add `MANAGE_SCHOOL_SETTINGS = "manage_school_settings"` to `Permission` enum in `src/edu_cloud/core/permissions.py`, and add it to the ROLE_PERMISSIONS for `district_admin`, `principal`, and `academic_director`. Also update `frontend/src/config/permissions.js` to mirror.
+
+> **F-01 fix:** Uses `Permission.MANAGE_SCHOOL_SETTINGS` (dedicated permission for school settings/modules endpoints).
 > **F-08 fix:** Router has its own prefix and registers directly in app.py. No modification to `modules/school/router.py`.
 
 ```python
@@ -576,7 +578,7 @@ class ToggleModuleRequest(BaseModel):
 async def list_settings(
     school_id: str,
     category: str | None = None,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOLS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
     db: AsyncSession = Depends(get_db),
 ):
     settings = await get_settings(db, school_id=school_id, category=category)
@@ -590,7 +592,7 @@ async def list_settings(
 async def update_setting(
     school_id: str,
     body: UpsertSettingRequest,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOLS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
     db: AsyncSession = Depends(get_db),
 ):
     result = await upsert_setting(
@@ -605,7 +607,7 @@ async def update_setting(
 @router.get("/modules")
 async def list_modules(
     school_id: str,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOLS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
     db: AsyncSession = Depends(get_db),
 ):
     await init_school_modules(db, school_id=school_id)
@@ -615,7 +617,7 @@ async def list_modules(
 @router.get("/modules/enabled")
 async def list_enabled_modules(
     school_id: str,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOLS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
     db: AsyncSession = Depends(get_db),
 ):
     return list(await get_enabled_modules(db, school_id=school_id))
@@ -626,7 +628,7 @@ async def toggle_module(
     school_id: str,
     module_code: str,
     body: ToggleModuleRequest,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOLS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -671,7 +673,7 @@ git commit -m "feat: add school settings + modules API endpoints"
 ```
 
 **审查清单:**
-- [x] `require_permission(Permission.MANAGE_SCHOOLS)` (plural) 保护所有端点
+- [x] `require_permission(Permission.MANAGE_SCHOOL_SETTINGS)` 保护所有端点
 - [x] Pydantic models validate request body (UpsertSettingRequest requires `key`, ToggleModuleRequest requires `enabled`)
 - [x] 无效 module_code 返回 400
 - [x] init_school_modules 幂等（重复调用不报错）
@@ -1256,17 +1258,17 @@ const SIDEBAR_ITEMS = {
     { icon: 'dashboard', label: '校务概览', route: '/' },
     { icon: 'exam', label: '考试管理', route: '/exams', moduleCode: 'exam' },
     { icon: 'chart', label: '数据分析', route: '/analysis' },
-    { icon: 'document', label: '文档中心', route: '/studio', moduleCode: 'studio' },
-    { icon: 'calendar', label: '校历通知', route: '/calendar', moduleCode: 'calendar' },
+    { icon: 'document', label: '文档中心', route: '/analysis', moduleCode: 'studio' },
+    { icon: 'calendar', label: '校历通知', route: '/analysis', moduleCode: 'calendar' },
     { icon: 'settings', label: '学校配置', route: '/school-settings' },
   ],
   academic_director: [
     { icon: 'dashboard', label: '教务概览', route: '/' },
     { icon: 'exam', label: '考试管理', route: '/exams', moduleCode: 'exam' },
-    { icon: 'exam', label: '联考管理', route: '/joint-exams', moduleCode: 'exam' },
+    { icon: 'exam', label: '联考管理', route: '/exams', moduleCode: 'exam' },
     { icon: 'marking', label: '阅卷调度', route: '/grading/tasks', moduleCode: 'grading' },
     { icon: 'chart', label: '数据分析', route: '/analysis' },
-    { icon: 'document', label: '文档中心', route: '/studio', moduleCode: 'studio' },
+    { icon: 'document', label: '文档中心', route: '/analysis', moduleCode: 'studio' },
     { icon: 'settings', label: '学校配置', route: '/school-settings' },
   ],
   grade_leader: [
@@ -1339,8 +1341,8 @@ vi.mock('../config/sidebarConfig.js', () => ({
   getSidebarItems: () => [
     { icon: 'dashboard', label: 'Dashboard', route: '/' },
     { icon: 'exam', label: 'Exams', route: '/exams', moduleCode: 'exam' },
-    { icon: 'calendar', label: 'Calendar', route: '/calendar', moduleCode: 'calendar' },
-    { icon: 'document', label: 'Studio', route: '/studio', moduleCode: 'studio' },
+    { icon: 'calendar', label: 'Calendar', route: '/analysis', moduleCode: 'calendar' },
+    { icon: 'document', label: 'Studio', route: '/analysis', moduleCode: 'studio' },
   ],
 }))
 
