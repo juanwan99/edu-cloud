@@ -24,6 +24,9 @@ import edu_cloud.modules.marking.models  # noqa: F401
 import edu_cloud.modules.knowledge.models  # noqa: F401
 import edu_cloud.modules.bank.models  # noqa: F401
 import edu_cloud.modules.profile.models  # noqa: F401
+import edu_cloud.models.school_settings  # noqa: F401
+import edu_cloud.models.teacher_assignment  # noqa: F401
+import edu_cloud.models.subject_selection  # noqa: F401
 from edu_cloud.shared.auth import create_access_token
 
 
@@ -73,10 +76,16 @@ async def client(db, db_engine, tmp_path):
     app.dependency_overrides[get_storage] = _override_storage
     app.dependency_overrides[get_scan_storage] = _override_storage
 
+    # Monkey-patch async_session so middleware (which bypasses DI) uses test DB
+    import edu_cloud.database as _db_mod
+    _orig_session = _db_mod.async_session
+    _db_mod.async_session = session_factory
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
 
+    _db_mod.async_session = _orig_session
     shutil.rmtree(storage_dir, ignore_errors=True)
 
 

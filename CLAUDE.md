@@ -47,10 +47,10 @@ python ~/.claude/scripts/serve.py "C:/Program Files/nodejs/npm.cmd" run dev
 ## 测试命令
 
 ```bash
-# 后端（770 tests）
+# 后端（815 tests）
 cd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q
 
-# 前端（Vitest + happy-dom，17 tests）
+# 前端（Vitest + happy-dom，35 tests）
 cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run
 ```
 <!-- key-end -->
@@ -60,12 +60,12 @@ cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run
 ```
 frontend/src/
   layouts/
+    AppShell.vue            # 角色感知壳层（AppHeader + AppSidebar + router-view + AiFloatingButton）
     WorkbenchLayout.vue     # 三栏布局（左侧边栏 + 顶栏 + 中央内容 + 右侧边栏）
-    DashboardLayout.vue     # exam-ai 仪表盘布局（AppNavbar + 主内容区）
     AuthLayout.vue          # 登录页布局
   pages/
     LoginPage.vue           # 登录页（edu-cloud 多角色版）
-    WorkbenchPage.vue       # 云平台工作台
+    AnalysisPage.vue        # 分析页（原 WorkbenchPage 重命名）
     ExamListPage.vue        # 考试列表（exam-ai 迁入）
     ExamDetailPage.vue      # 考试详情（科目/题目/答题卡/扫描/阅卷）
     DashboardPage.vue       # 仪表盘
@@ -78,19 +78,32 @@ frontend/src/
     MarkingAssignPage.vue   # 分配阅卷任务
     MarkingProgressPage.vue # 阅卷进度
     SchoolsPage.vue         # 学校管理（admin）
+    SchoolSettingsPage.vue  # 学校配置（模块开关 + KV 设置，principal/academic_director）
     CardEditorDevPage.vue   # 答题卡编辑器开发页
   components/
+    shell/
+      AppHeader.vue         # 68px 毛玻璃顶栏（Logo/SchoolContext/搜索/通知铃/角色切换）
+      AppSidebar.vue        # 角色过滤侧栏导航（220px/64px 折叠，sidebarConfig 驱动）
+      SchoolContext.vue     # 纯展示当前角色上下文名称
+      RoleSwitcher.vue      # 角色切换下拉菜单（NDropdown，含头像）
+      NotificationBell.vue  # 通知铃铛（NBadge + NPopover，占位）
+    ai/
+      AiFloatingButton.vue  # 右下角 AI 助手浮动按钮（权限 use_ai_chat 控制可见性）
+      AiSlidePanel.vue      # 右侧 400px 滑出 AI 面板（路由变化自动关闭）
     CardEditor.vue          # 可视化答题卡编辑器（封装 card-editor/）
-    AppNavbar.vue           # 顶部导航栏
-    ChatPanel.vue           # AI 对话面板（SSE 流式）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
-  api/                      # API 调用层（11 模块 + client.js，baseURL /api/v1）
+  api/                      # API 调用层（13 模块 + client.js，baseURL /api/v1）
+  config/
+    roles.js                # 8 角色枚举 + 旧别名映射 + normalizeRole()
+    permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
+    sidebarConfig.js        # 角色→侧边栏导航项 JSON 配置
+    dashboardConfig.js      # 角色→仪表盘 KPI/Widget JSON 配置
   stores/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
-  router/                   # Vue Router（16 路由）
+  router/                   # Vue Router（AppShell 根 + 角色/权限守卫 fail-closed，2 顶级 + 17 子路由）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -102,7 +115,10 @@ src/edu_cloud/
     deps.py             # 依赖注入（JWT 认证 get_current_user + require_permission）
     permissions.py      # 数据权限过滤（get_visible_class_ids/get_visible_subject_codes）
     auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）
+    dashboard.py        # GET /api/v1/dashboard/summary（角色 scope 聚合统计）
+    notifications_api.py # GET /api/v1/notifications（通知列表，status/since 过滤）
     ai.py               # AI Agent 路由（Batch 4 迁移）
+    module_middleware.py # ModuleCheckMiddleware — 禁用模块 API 硬拦截（JWT active_role_id → school_id 解析）
     # 以下为 re-export stubs，canonical → modules/
     schools.py → modules/school/router.py
     joint_exams.py → modules/exam/joint_exam_router.py
@@ -112,6 +128,9 @@ src/edu_cloud/
     workspace.py → modules/exam/workspace_router.py
   models/
     base.py             # Base + IdMixin(UUID) + TenantMixin(school_id) + TimestampMixin(UTC)
+    school_settings.py  # SchoolSetting（KV 配置）+ SchoolModule（模块开关）+ MODULE_CODES/DEFAULT_ENABLED
+    teacher_assignment.py # TeacherAssignment（教师排课记录：教师×班级×科目×学期）
+    subject_selection.py # SubjectSelection（学校选考科目组合：物化生/史地政等）
     school.py           # RegisteredSchool（学校档案 + API Key + 心跳）
     platform_user.py    # PlatformUser（4 角色 + bcrypt 密码）
     joint_exam.py       # JointExam + JointExamParticipant + JointExamStudentResult
@@ -120,6 +139,9 @@ src/edu_cloud/
     school_service.py   # 学校 CRUD + API Key 管理
     joint_exam_service.py # 联考生命周期（创建→模板→下发→成绩→完成）
     results_service.py  # 排名 + 按校对比 + 学生明细
+    school_settings_service.py # Settings/Modules CRUD + init_school_modules + get_enabled_modules
+    teacher_assignment_service.py # 排课 CRUD + 批量创建（幂等）+ FK 归属校验 + 聚合摘要
+    subject_selection_service.py # 选考 CRUD + 校验（mode 枚举 / 科目数量）+ 唯一约束冲突处理
   data/
     seed_demo.py          # 演示数据种子（exam-ai 迁入）
     seed_knowledge_math.py # 数学知识点种子
@@ -180,13 +202,13 @@ tests/
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
 | API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(documents CRUD+transition+paper/create+paper/:id/status), calendar(events CRUD) | 跨校分析(高级), 题库, 共享 AI 阅卷 |
-| Models | 29 表（modules/ 下 exam/student/card/scan/grading/marking/bank/profile/knowledge/pipeline + core school/user/user_role/llm_slot + studio/calendar/notification）| — |
+| Models | 33 表（modules/ 下 exam/student/card/scan/grading/marking/bank/profile/knowledge/pipeline + core school/user/user_role/llm_slot/school_settings/school_modules/teacher_assignment/subject_selection + studio/calendar/notification）| — |
 | Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), CalendarService(create/list/delete/triggered_rules), NotificationService(dispatch stub+幂等), exceptions | EventBus handler, AI grading |
 | Tasks | tasks.py: auto_draft_notifications（扫描日历→自动创建 notification 草稿，防重复 triggered 标记）| arq cron 生产接入 |
 | Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 770 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam迁入+Alembic迁移+权限边界 全覆盖）+ 27 前端 Vitest | — |
+| Tests | 780 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam迁入+Alembic迁移+权限边界+Dashboard 全覆盖）+ 27 前端 Vitest | — |
 | Modules | 15 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school），路由已迁入 | — |
 | Migrations | Alembic 初始 migration（39 表，autogenerate） | — |
 
@@ -204,7 +226,7 @@ tests/
 **前端（`frontend/`）：**
 - Vite 7 + Vue 3.5 (Composition API)
 - Naive UI 2.44（暗色主题）
-- Vue Router 4（15 路由：login + workbench + 13 exam-ai 页面）
+- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 14 子路由）
 - Pinia 3（状态管理）
 - Axios（HTTP 客户端，baseURL `/api/v1`）
 - ECharts 6 + vue-echarts（图表）
@@ -262,9 +284,11 @@ tests/
 
 | 方法 | 路径 | 用途 |
 |------|------|------|
-| POST | `/api/v1/auth/login` | 平台用户登录，返回 JWT |
+| POST | `/api/v1/auth/login` | 平台用户登录，返回 JWT + roles（含 context: type/id/name） |
+| POST | `/api/v1/auth/switch-role` | 切换活跃角色，返回新 JWT + active_role（含 context） |
 | GET | `/api/v1/health` | 健康检查 |
 | GET | `/api/v1/version` | 版本+启动时间 |
+| GET | `/api/v1/dashboard/summary` | 仪表盘聚合统计（角色 scope 过滤：students/classes/exams） |
 
 ### 学校管理端点（JWT 认证）
 
@@ -275,6 +299,34 @@ tests/
 | GET | `/api/v1/schools/{id}` | VIEW_SCHOOLS | 学校详情 |
 | PATCH | `/api/v1/schools/{id}` | MANAGE_SCHOOLS | 更新学校信息 |
 | POST | `/api/v1/schools/{id}/rotate-key` | MANAGE_SCHOOLS | 轮换 API Key |
+
+### 学校配置端点（JWT 认证）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/schools/{id}/settings` | MANAGE_SCHOOL_SETTINGS | 获取学校 KV 配置（支持 category 过滤） |
+| PATCH | `/api/v1/schools/{id}/settings` | MANAGE_SCHOOL_SETTINGS | 创建/更新配置项 |
+| GET | `/api/v1/schools/{id}/modules` | MANAGE_SCHOOL_SETTINGS | 获取全部模块状态（8 个） |
+| GET | `/api/v1/schools/{id}/modules/enabled` | MANAGE_SCHOOL_SETTINGS | 获取已启用模块代码列表 |
+| PATCH | `/api/v1/schools/{id}/modules/{code}` | MANAGE_SCHOOL_SETTINGS | 启用/禁用模块 |
+
+### 排课管理端点（JWT 认证）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/schools/{id}/assignments` | MANAGE_SCHOOL_SETTINGS | 列表（支持 semester/user_id/class_id/subject_code 过滤） |
+| POST | `/api/v1/schools/{id}/assignments` | MANAGE_SCHOOL_SETTINGS | 批量创建（一个教师+多班级，幂等） |
+| DELETE | `/api/v1/schools/{id}/assignments/{aid}` | MANAGE_SCHOOL_SETTINGS | 删除单条 |
+| GET | `/api/v1/schools/{id}/assignments/summary` | MANAGE_SCHOOL_SETTINGS | 按教师聚合摘要 |
+
+### 选考组合端点（JWT 认证）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/schools/{id}/selections` | MANAGE_SCHOOL_SETTINGS | 列表（支持 is_active/mode 过滤） |
+| POST | `/api/v1/schools/{id}/selections` | MANAGE_SCHOOL_SETTINGS | 创建（校验科目数量+模式枚举+唯一名） |
+| PATCH | `/api/v1/schools/{id}/selections/{sid}` | MANAGE_SCHOOL_SETTINGS | 更新（名称/科目/mode/启停） |
+| DELETE | `/api/v1/schools/{id}/selections/{sid}` | MANAGE_SCHOOL_SETTINGS | 删除 |
 
 ### 联考管理端点（JWT 认证）
 
@@ -340,6 +392,12 @@ tests/
 | POST | `/api/v1/calendar/events` | GENERATE_NOTIFICATION | 创建校历事件（含通知规则） |
 | GET | `/api/v1/calendar/events` | 已登录 | 列出本校校历事件（支持 start/end 日期过滤） |
 | DELETE | `/api/v1/calendar/events/{id}` | GENERATE_NOTIFICATION | 软删除校历事件（is_active=False） |
+
+### 通知端点（JWT 认证）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/notifications` | 已登录 | 列出本校通知（支持 status/since 过滤） |
 
 ### AI Agent 端点（JWT 认证，Batch 4 迁入）
 
@@ -407,6 +465,10 @@ docker compose logs -f      # 查看日志
 | calendar_events | type, title, event_date, school_id(FK), created_by(FK→users), semester, is_active | 校历事件 |
 | notification_rules | event_id(FK), days_before, template_type, target_roles(JSON), auto_draft, triggered | 通知触发规则 |
 | notifications | document_id(FK), channel, status, target_scope(JSON), school_id(FK) | 通知发送记录 |
+| school_settings | school_id(FK), category, key(唯一per school), value(Text,nullable) | 学校 KV 配置 |
+| school_modules | school_id(FK), module_code(唯一per school), enabled, config(Text,nullable) | 模块开关（8 codes: exam/grading/homework/study_analytics/research/teaching/calendar/studio） |
+| teacher_assignments | user_id(FK), class_id(FK), subject_code, semester, school_id(FK), is_active | 教师排课记录（唯一约束：user+class+subject+semester） |
+| subject_selections | school_id(FK), name(唯一per school), subject_codes(JSON), mode, is_active | 学校选考科目组合（模式: 3+1+2/3+3/custom） |
 
 ## 种子数据
 

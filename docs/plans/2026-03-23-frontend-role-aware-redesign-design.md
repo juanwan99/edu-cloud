@@ -1,7 +1,8 @@
-# edu-cloud 前端角色感知重设计
+# edu-cloud 前端角色感知重设计 [实现完成]
 
 > **snapshot: 2026-03-23**
 > **覆盖**: 当前 exam-ai 移植的扁平前端 → 多校多角色分层 UI
+> **实现完成**: 2026-03-24 | 835 tests (781 后端 + 54 前端) 全绿 | 分支 feat/frontend-role-aware
 
 ## §0 问题陈述
 
@@ -420,7 +421,7 @@ const MARKING_ROLES = [...SCHOOL_ADMIN_ROLES, 'homeroom_teacher', 'subject_teach
 | `/grading/tasks` | `GradingTasksPage.vue` | 保留 |
 | `/grading/tasks/:id` | `GradingResultsPage.vue` | 保留 |
 | `/grading/review` | `TeacherReviewPage.vue` | 保留 |
-| `/analysis` | `AnalysisPage.vue`（当前为 `WorkbenchPage.vue`，实现时重命名） | **rename pending** |
+| `/analysis` | `AnalysisPage.vue` | 已完成 |
 | `/schools` | `SchoolsPage.vue` | 保留 |
 | `/login` | `LoginPage.vue`（不在 AppShell 内） | 保留 |
 

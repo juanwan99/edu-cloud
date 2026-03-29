@@ -176,3 +176,54 @@ async def test_switch_role_jwt_and_scope(client, db):
     )
     # homeroom_teacher lacks VIEW_SCHOOLS → 403 (proves scope switch worked)
     assert health_resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_login_returns_context(client, seed_teacher):
+    """登录响应每个 role 包含 context 对象（type + name）。"""
+    resp = await client.post("/api/v1/auth/login", json={"username": "teacher1", "password": "123456"})
+    assert resp.status_code == 200
+    data = resp.json()
+    role = data["roles"][0]
+    assert "context" in role
+    assert role["context"]["type"] == "school"
+    assert role["context"]["name"] == "测试校"
+
+
+@pytest.mark.asyncio
+async def test_login_platform_admin_context(client, admin_user):
+    """platform_admin 的 context.type 应为 platform。"""
+    resp = await client.post("/api/v1/auth/login", json={"username": "admin_test", "password": "test123"})
+    data = resp.json()
+    role = data["roles"][0]
+    assert role["context"]["type"] == "platform"
+    assert role["context"]["name"] == "全平台"
+
+
+@pytest.mark.asyncio
+async def test_switch_role_returns_context(client, db):
+    """switch-role 响应也包含 context 对象。"""
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.models.school import School
+
+    school = School(name="切换测试校", code="SW01", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+    user = User(username="sw_user", display_name="切换用户")
+    user.set_password("pass123")
+    db.add(user)
+    await db.flush()
+    role1 = UserRole(user_id=user.id, role="platform_admin", is_primary=True)
+    role2 = UserRole(user_id=user.id, role="principal", school_id=school.id, is_primary=False)
+    db.add_all([role1, role2])
+    await db.commit()
+    await db.refresh(role2)
+
+    login = await client.post("/api/v1/auth/login", json={"username": "sw_user", "password": "pass123"})
+    token = login.json()["access_token"]
+    resp = await client.post("/api/v1/auth/switch-role",
+        json={"role_id": role2.id}, headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert resp.json()["active_role"]["context"]["type"] == "school"
+    assert resp.json()["active_role"]["context"]["name"] == "切换测试校"

@@ -46,6 +46,9 @@ async def lifespan(app: FastAPI):
     import edu_cloud.models.approval  # noqa: F401
     import edu_cloud.models.calendar  # noqa: F401
     import edu_cloud.models.notification  # noqa: F401
+    import edu_cloud.models.school_settings  # noqa: F401
+    import edu_cloud.models.teacher_assignment  # noqa: F401
+    import edu_cloud.models.subject_selection  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -109,6 +112,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Module check middleware — hard block for disabled modules
+    from edu_cloud.api.module_middleware import ModuleCheckMiddleware
+    app.add_middleware(ModuleCheckMiddleware)
+
     # Global exception handlers — map Service exceptions to HTTP status codes
     @app.exception_handler(NotFoundError)
     async def not_found_handler(request, exc):
@@ -165,6 +172,10 @@ def create_app() -> FastAPI:
     from edu_cloud.api.auth import router as auth_router
     app.include_router(auth_router)
 
+    # Dashboard summary (role-scoped aggregation)
+    from edu_cloud.api.dashboard import router as dashboard_router
+    app.include_router(dashboard_router)
+
     # AI agent stays in api/ (Batch 4)
     from edu_cloud.api.ai import router as ai_router
     app.include_router(ai_router)
@@ -188,11 +199,15 @@ def create_app() -> FastAPI:
     from edu_cloud.modules.pipeline.router import router as pipeline_router
     from edu_cloud.modules.studio.router import router as studio_router
     from edu_cloud.modules.calendar.router import router as calendar_router
-    for r in [schools_router, exam_router, question_router, joint_exams_router,
+    from edu_cloud.api.notifications_api import router as notifications_router
+    from edu_cloud.modules.school.settings_router import router as settings_router
+    from edu_cloud.modules.school.assignment_router import router as assignment_router
+    from edu_cloud.modules.school.selection_router import router as selection_router
+    for r in [schools_router, settings_router, assignment_router, selection_router, exam_router, question_router, joint_exams_router,
               results_router, workspace_router, llm_config_router, student_router,
               card_router, template_router, scan_router, grading_router,
               marking_router, analytics_router, knowledge_router, pipeline_router,
-              studio_router, calendar_router]:
+              studio_router, calendar_router, notifications_router]:
         app.include_router(r)
 
     @app.get("/api/v1/health")
