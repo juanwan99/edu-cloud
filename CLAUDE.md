@@ -78,6 +78,7 @@ frontend/src/
     MarkingAssignPage.vue   # 分配阅卷任务
     MarkingProgressPage.vue # 阅卷进度
     SchoolsPage.vue         # 学校管理（admin）
+    SchoolSettingsPage.vue  # 学校配置（模块开关 + KV 设置，principal/academic_director）
     CardEditorDevPage.vue   # 答题卡编辑器开发页
   components/
     shell/
@@ -117,6 +118,7 @@ src/edu_cloud/
     dashboard.py        # GET /api/v1/dashboard/summary（角色 scope 聚合统计）
     notifications_api.py # GET /api/v1/notifications（通知列表，status/since 过滤）
     ai.py               # AI Agent 路由（Batch 4 迁移）
+    module_middleware.py # ModuleCheckMiddleware — 禁用模块 API 硬拦截（JWT active_role_id → school_id 解析）
     # 以下为 re-export stubs，canonical → modules/
     schools.py → modules/school/router.py
     joint_exams.py → modules/exam/joint_exam_router.py
@@ -126,6 +128,7 @@ src/edu_cloud/
     workspace.py → modules/exam/workspace_router.py
   models/
     base.py             # Base + IdMixin(UUID) + TenantMixin(school_id) + TimestampMixin(UTC)
+    school_settings.py  # SchoolSetting（KV 配置）+ SchoolModule（模块开关）+ MODULE_CODES/DEFAULT_ENABLED
     school.py           # RegisteredSchool（学校档案 + API Key + 心跳）
     platform_user.py    # PlatformUser（4 角色 + bcrypt 密码）
     joint_exam.py       # JointExam + JointExamParticipant + JointExamStudentResult
@@ -134,6 +137,7 @@ src/edu_cloud/
     school_service.py   # 学校 CRUD + API Key 管理
     joint_exam_service.py # 联考生命周期（创建→模板→下发→成绩→完成）
     results_service.py  # 排名 + 按校对比 + 学生明细
+    school_settings_service.py # Settings/Modules CRUD + init_school_modules + get_enabled_modules
   data/
     seed_demo.py          # 演示数据种子（exam-ai 迁入）
     seed_knowledge_math.py # 数学知识点种子
@@ -194,7 +198,7 @@ tests/
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
 | API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(documents CRUD+transition+paper/create+paper/:id/status), calendar(events CRUD) | 跨校分析(高级), 题库, 共享 AI 阅卷 |
-| Models | 29 表（modules/ 下 exam/student/card/scan/grading/marking/bank/profile/knowledge/pipeline + core school/user/user_role/llm_slot + studio/calendar/notification）| — |
+| Models | 31 表（modules/ 下 exam/student/card/scan/grading/marking/bank/profile/knowledge/pipeline + core school/user/user_role/llm_slot/school_settings/school_modules + studio/calendar/notification）| — |
 | Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), CalendarService(create/list/delete/triggered_rules), NotificationService(dispatch stub+幂等), exceptions | EventBus handler, AI grading |
 | Tasks | tasks.py: auto_draft_notifications（扫描日历→自动创建 notification 草稿，防重复 triggered 标记）| arq cron 生产接入 |
 | Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |
@@ -291,6 +295,16 @@ tests/
 | GET | `/api/v1/schools/{id}` | VIEW_SCHOOLS | 学校详情 |
 | PATCH | `/api/v1/schools/{id}` | MANAGE_SCHOOLS | 更新学校信息 |
 | POST | `/api/v1/schools/{id}/rotate-key` | MANAGE_SCHOOLS | 轮换 API Key |
+
+### 学校配置端点（JWT 认证）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/schools/{id}/settings` | MANAGE_SCHOOL_SETTINGS | 获取学校 KV 配置（支持 category 过滤） |
+| PATCH | `/api/v1/schools/{id}/settings` | MANAGE_SCHOOL_SETTINGS | 创建/更新配置项 |
+| GET | `/api/v1/schools/{id}/modules` | MANAGE_SCHOOL_SETTINGS | 获取全部模块状态（8 个） |
+| GET | `/api/v1/schools/{id}/modules/enabled` | MANAGE_SCHOOL_SETTINGS | 获取已启用模块代码列表 |
+| PATCH | `/api/v1/schools/{id}/modules/{code}` | MANAGE_SCHOOL_SETTINGS | 启用/禁用模块 |
 
 ### 联考管理端点（JWT 认证）
 
@@ -429,6 +443,8 @@ docker compose logs -f      # 查看日志
 | calendar_events | type, title, event_date, school_id(FK), created_by(FK→users), semester, is_active | 校历事件 |
 | notification_rules | event_id(FK), days_before, template_type, target_roles(JSON), auto_draft, triggered | 通知触发规则 |
 | notifications | document_id(FK), channel, status, target_scope(JSON), school_id(FK) | 通知发送记录 |
+| school_settings | school_id(FK), category, key(唯一per school), value(Text,nullable) | 学校 KV 配置 |
+| school_modules | school_id(FK), module_code(唯一per school), enabled, config(Text,nullable) | 模块开关（8 codes: exam/grading/homework/study_analytics/research/teaching/calendar/studio） |
 
 ## 种子数据
 
