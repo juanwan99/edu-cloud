@@ -5,6 +5,8 @@
 > **参考源**: haofenshu-clone（好分数全站复刻，业务逻辑参考库）
 > **设计方法**: Claude × GPT 双模型两轮深度讨论
 
+> [2026-03-29 21:05:13 Phase 1a 实现完成] Commits: bbe6cc0..f84df5a — 模块管理核心（学校配置 KV + 模块开关 + 中间件硬拦截 + 前端 sidebar 过滤 + 管理页面）。Gate 1 PASS (R6) + Gate 2 PASS (R2)。810 后端 + 68 前端 tests。
+
 ---
 
 ## 0. 项目定位
