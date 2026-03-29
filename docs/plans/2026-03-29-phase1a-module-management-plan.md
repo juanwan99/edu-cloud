@@ -464,6 +464,53 @@ async def test_get_enabled_modules_endpoint(client, admin_headers, seed_school):
     assert isinstance(data, list)
     assert "exam" in data  # Default enabled
 
+@pytest.mark.asyncio
+async def test_principal_can_access_school_settings(client, db):
+    """principal has MANAGE_SCHOOL_SETTINGS and can read school settings."""
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.models.school import School
+
+    school = School(name="校长配置测试校", code="PRNSET01", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+    user = User(username="principal_settings", display_name="校长配置用户")
+    user.set_password("pass123")
+    db.add(user)
+    await db.flush()
+    db.add(UserRole(user_id=user.id, role="principal", school_id=school.id, is_primary=True))
+    await db.commit()
+
+    login = await client.post("/api/v1/auth/login", json={"username": "principal_settings", "password": "pass123"})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    resp = await client.get(f"/api/v1/schools/{school.id}/settings", headers=headers)
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_academic_director_can_access_school_modules(client, db):
+    """academic_director has MANAGE_SCHOOL_SETTINGS and can read school modules."""
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.models.school import School
+
+    school = School(name="教务配置测试校", code="ACDSET01", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+    user = User(username="director_settings", display_name="教务配置用户")
+    user.set_password("pass123")
+    db.add(user)
+    await db.flush()
+    db.add(UserRole(user_id=user.id, role="academic_director", school_id=school.id, is_primary=True))
+    await db.commit()
+
+    login = await client.post("/api/v1/auth/login", json={"username": "director_settings", "password": "pass123"})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    resp = await client.get(f"/api/v1/schools/{school.id}/modules", headers=headers)
+    assert resp.status_code == 200
+
 # ── Multi-school isolation (F-07 fix) ──
 
 @pytest.mark.asyncio
@@ -537,7 +584,22 @@ Expected: FAIL — 404 (routes not registered)
 
 - [ ] **Step 3: Implement router**
 
-> **N-01 prerequisite:** Before implementing the router, add `MANAGE_SCHOOL_SETTINGS = "manage_school_settings"` to `Permission` enum in `src/edu_cloud/core/permissions.py`, and add it to the ROLE_PERMISSIONS for `district_admin`, `principal`, and `academic_director`. Also update `frontend/src/config/permissions.js` to mirror.
+> **N-01 prerequisite:** Before implementing the router, add a dedicated permission for school settings/modules endpoints and mirror it on the frontend.
+
+```python
+# src/edu_cloud/core/permissions.py — add to Permission enum:
+MANAGE_SCHOOL_SETTINGS = "manage_school_settings"
+
+# Add to ROLE_PERMISSIONS for these roles:
+# district_admin: add Permission.MANAGE_SCHOOL_SETTINGS
+# principal: add Permission.MANAGE_SCHOOL_SETTINGS
+# academic_director: add Permission.MANAGE_SCHOOL_SETTINGS
+```
+
+```javascript
+// frontend/src/config/permissions.js — add 'manage_school_settings' to:
+// district_admin, principal, academic_director arrays
+```
 
 > **F-01 fix:** Uses `Permission.MANAGE_SCHOOL_SETTINGS` (dedicated permission for school settings/modules endpoints).
 > **F-08 fix:** Router has its own prefix and registers directly in app.py. No modification to `modules/school/router.py`.
@@ -674,6 +736,7 @@ git commit -m "feat: add school settings + modules API endpoints"
 
 **审查清单:**
 - [x] `require_permission(Permission.MANAGE_SCHOOL_SETTINGS)` 保护所有端点
+- [x] `principal` / `academic_director` 角色测试验证新权限已真正打通
 - [x] Pydantic models validate request body (UpsertSettingRequest requires `key`, ToggleModuleRequest requires `enabled`)
 - [x] 无效 module_code 返回 400
 - [x] init_school_modules 幂等（重复调用不报错）
@@ -1591,7 +1654,7 @@ In `frontend/src/router/index.js`, add to the AppShell children array (after the
 },
 ```
 
-> Note: The sidebar entry for platform_admin and principal is already added in Task 6 Step 3 (sidebarConfig.js update).
+> Note: The sidebar entry for `principal` and `academic_director` is already added in Task 6 Step 3 (sidebarConfig.js update).
 
 - [ ] **Step 3: Run frontend build to verify page renders**
 
@@ -1620,13 +1683,13 @@ git commit -m "feat: add school settings management page with module toggles"
 |------|------|------|
 | 1 | SchoolSetting + SchoolModule models + conftest import | 3 model tests |
 | 2 | Settings + Modules service | 6 service tests |
-| 3 | Settings + Modules API | 10 API tests (incl. multi-school isolation + error cases) |
+| 3 | Settings + Modules API | 12 API tests (incl. multi-school isolation + error cases) |
 | 4 | Module check middleware | 6 middleware tests (incl. multi-school, no school_id, exempt paths) |
 | 5 | Alembic migration + env.py + test imports | Schema validation (migration smoke test) |
 | 6 | Frontend sidebar module filtering | 3 Vitest tests + manual (vite build) |
 | 7 | Settings management page | Manual (vite build) |
 
-**Total: 7 tasks, ~28 automated tests, ~7 commits**
+**Total: 7 tasks, ~30 automated tests, ~7 commits**
 
 完成后，edu-cloud 具备：
 - 学校级 KV 配置存储
