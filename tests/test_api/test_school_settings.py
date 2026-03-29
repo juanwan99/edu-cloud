@@ -121,6 +121,56 @@ async def test_academic_director_can_access_school_modules(client, db):
     assert resp.status_code == 200
 
 
+# ── Cross-school scope guard (F-01 fix) ──
+
+
+@pytest.mark.asyncio
+async def test_principal_cannot_access_other_school_settings(client, db):
+    """principal from school A cannot read/write school B's settings (scope guard)."""
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.models.school import School
+    import bcrypt
+
+    hashed = bcrypt.hashpw(b"secret", bcrypt.gensalt()).decode()
+    school_a = School(name="Scope校A", code="SCOPE_A", district="测试区", api_key_hash=hashed)
+    school_b = School(name="Scope校B", code="SCOPE_B", district="测试区", api_key_hash=hashed)
+    db.add(school_a)
+    db.add(school_b)
+    await db.flush()
+
+    user = User(username="scope_test_principal", display_name="Scope测试校长")
+    user.set_password("pass123")
+    db.add(user)
+    await db.flush()
+    db.add(UserRole(user_id=user.id, role="principal", school_id=school_a.id, is_primary=True))
+    await db.commit()
+
+    login = await client.post("/api/v1/auth/login", json={"username": "scope_test_principal", "password": "pass123"})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    # Access own school: OK
+    resp_own = await client.get(f"/api/v1/schools/{school_a.id}/settings", headers=headers)
+    assert resp_own.status_code == 200
+
+    # Access other school: 403
+    resp_other = await client.get(f"/api/v1/schools/{school_b.id}/settings", headers=headers)
+    assert resp_other.status_code == 403
+
+    # Write to other school: 403
+    resp_write = await client.patch(
+        f"/api/v1/schools/{school_b.id}/settings",
+        json={"key": "hack", "value": "true"},
+        headers=headers,
+    )
+    assert resp_write.status_code == 403
+
+    # Modules of other school: 403
+    resp_modules = await client.get(f"/api/v1/schools/{school_b.id}/modules", headers=headers)
+    assert resp_modules.status_code == 403
+
+
 # ── Multi-school isolation (F-07 fix) ──
 
 @pytest.mark.asyncio
@@ -252,7 +302,7 @@ async def test_middleware_allows_enabled_module(client, admin_headers, seed_scho
     # Init modules — calendar is enabled by default
     await client.get(f"/api/v1/schools/{school.id}/modules", headers=admin_headers)
     resp = await client.get("/api/v1/calendar/events", headers=headers)
-    assert resp.status_code != 403
+    assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -289,7 +339,7 @@ async def test_middleware_multiple_modules_disabled(client, admin_headers, seed_
 async def test_middleware_no_school_id_skips_check(client, admin_headers):
     """Platform admin with no school_id in role -> middleware skips module check."""
     resp = await client.get("/api/v1/calendar/events", headers=admin_headers)
-    assert resp.status_code != 403
+    assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -350,4 +400,4 @@ async def test_middleware_multi_school_isolation(client, admin_headers, db):
 
     # School B: not blocked
     resp_b = await client.get("/api/v1/calendar/events", headers=headers_b)
-    assert resp_b.status_code != 403
+    assert resp_b.status_code == 200

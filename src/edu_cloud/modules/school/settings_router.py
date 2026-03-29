@@ -11,11 +11,23 @@ from edu_cloud.services.school_settings_service import (
     get_settings, upsert_setting, get_all_modules,
     set_module_enabled, get_enabled_modules, init_school_modules,
 )
-from edu_cloud.services.exceptions import ValidationError
+from edu_cloud.services.exceptions import ValidationError, PermissionDeniedError
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/schools/{school_id}", tags=["school-settings"])
+
+# Roles that are not bound to a single school (can manage any school)
+_CROSS_SCHOOL_ROLES = {"platform_admin", "district_admin"}
+
+
+def _check_school_scope(current: dict, school_id: str):
+    """Ensure school-scoped roles only access their own school."""
+    role = current["current_role"]
+    if role.role in _CROSS_SCHOOL_ROLES:
+        return
+    if role.school_id != school_id:
+        raise PermissionDeniedError("无权访问其他学校的配置")
 
 
 class UpsertSettingRequest(BaseModel):
@@ -35,6 +47,7 @@ async def list_settings(
     current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
     db: AsyncSession = Depends(get_db),
 ):
+    _check_school_scope(current, school_id)
     settings = await get_settings(db, school_id=school_id, category=category)
     return [
         {"id": s.id, "category": s.category, "key": s.key, "value": s.value}
@@ -49,6 +62,7 @@ async def update_setting(
     current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
     db: AsyncSession = Depends(get_db),
 ):
+    _check_school_scope(current, school_id)
     result = await upsert_setting(
         db, school_id=school_id,
         category=body.category,
@@ -64,6 +78,7 @@ async def list_modules(
     current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
     db: AsyncSession = Depends(get_db),
 ):
+    _check_school_scope(current, school_id)
     await init_school_modules(db, school_id=school_id)
     return await get_all_modules(db, school_id=school_id)
 
@@ -74,6 +89,7 @@ async def list_enabled_modules(
     current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
     db: AsyncSession = Depends(get_db),
 ):
+    _check_school_scope(current, school_id)
     await init_school_modules(db, school_id=school_id)
     return list(await get_enabled_modules(db, school_id=school_id))
 
@@ -86,6 +102,7 @@ async def toggle_module(
     current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
     db: AsyncSession = Depends(get_db),
 ):
+    _check_school_scope(current, school_id)
     try:
         module = await set_module_enabled(
             db, school_id=school_id, module_code=module_code, enabled=body.enabled,

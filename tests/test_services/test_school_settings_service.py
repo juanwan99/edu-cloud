@@ -43,6 +43,20 @@ async def test_school_module_model(db, seed_school):
 
 
 @pytest.mark.asyncio
+async def test_school_setting_unique_constraint(db, seed_school):
+    """Same school + same key → IntegrityError (F-05 fix)."""
+    from sqlalchemy.exc import IntegrityError
+    school, _ = seed_school
+    s1 = SchoolSetting(school_id=school.id, category="feature", key="ai_enabled", value="true")
+    s2 = SchoolSetting(school_id=school.id, category="feature", key="ai_enabled", value="false")
+    db.add(s1)
+    await db.flush()
+    db.add(s2)
+    with pytest.raises(IntegrityError):
+        await db.flush()
+
+
+@pytest.mark.asyncio
 async def test_school_module_unique_constraint(db, seed_school):
     from sqlalchemy.exc import IntegrityError
     school, _ = seed_school

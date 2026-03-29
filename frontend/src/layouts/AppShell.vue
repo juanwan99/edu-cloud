@@ -13,15 +13,24 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from '../components/shell/AppHeader.vue'
 import AppSidebar from '../components/shell/AppSidebar.vue'
 import AiFloatingButton from '../components/ai/AiFloatingButton.vue'
 import AiSlidePanel from '../components/ai/AiSlidePanel.vue'
+import { useAuthStore } from '../stores/auth.js'
 
 const aiPanelOpen = ref(false)
 const route = useRoute()
+const auth = useAuthStore()
+
+// Hydrate enabled modules on page refresh (F-03 fix)
+onMounted(() => {
+  if (auth.token && auth.currentRole?.school_id && !auth.modulesLoaded) {
+    auth.loadModules()
+  }
+})
 
 // Close AI panel on route change (e.g. "open in workbench" link)
 watch(() => route.path, () => { aiPanelOpen.value = false })

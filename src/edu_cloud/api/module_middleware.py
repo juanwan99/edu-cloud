@@ -24,7 +24,7 @@ ROUTE_MODULE_MAP = {
     "/api/v1/subjects": "exam",
     "/api/v1/questions": "exam",
     "/api/v1/scan": "exam",
-    "/api/v1/cards": "exam",
+    "/api/v1/card": "exam",
     "/api/v1/templates": "exam",
     "/api/v1/grading": "grading",
     "/api/v1/marking": "grading",
