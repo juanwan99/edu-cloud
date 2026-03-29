@@ -587,18 +587,38 @@ Expected: FAIL — 404 (routes not registered)
 > **N-01 prerequisite:** Before implementing the router, add a dedicated permission for school settings/modules endpoints and mirror it on the frontend.
 
 ```python
-# src/edu_cloud/core/permissions.py — add to Permission enum:
-MANAGE_SCHOOL_SETTINGS = "manage_school_settings"
+# src/edu_cloud/core/permissions.py — add ONE line to Permission enum (after VIEW_SCHOOLS):
+    MANAGE_SCHOOL_SETTINGS = "manage_school_settings"
 
-# Add to ROLE_PERMISSIONS for these roles:
-# district_admin: add Permission.MANAGE_SCHOOL_SETTINGS
-# principal: add Permission.MANAGE_SCHOOL_SETTINGS
-# academic_director: add Permission.MANAGE_SCHOOL_SETTINGS
+# Then add Permission.MANAGE_SCHOOL_SETTINGS to these 3 sets in ROLE_PERMISSIONS:
+#   "district_admin": add Permission.MANAGE_SCHOOL_SETTINGS,
+#   "principal":      add Permission.MANAGE_SCHOOL_SETTINGS,
+#   "academic_director": add Permission.MANAGE_SCHOOL_SETTINGS,
+# (platform_admin already gets it via set(Permission))
+```
+
+Exact edit commands:
+
+```
+Edit src/edu_cloud/core/permissions.py:
+  after line `VIEW_SCHOOLS = "view_schools"` insert:
+    MANAGE_SCHOOL_SETTINGS = "manage_school_settings"
+
+  in "district_admin" set, add:
+    Permission.MANAGE_SCHOOL_SETTINGS,
+
+  in "principal" set, add:
+    Permission.MANAGE_SCHOOL_SETTINGS,
+
+  in "academic_director" set, add:
+    Permission.MANAGE_SCHOOL_SETTINGS,
 ```
 
 ```javascript
-// frontend/src/config/permissions.js — add 'manage_school_settings' to:
-// district_admin, principal, academic_director arrays
+// frontend/src/config/permissions.js — exact edits:
+// In district_admin array, add: 'manage_school_settings'
+// In principal array, add: 'manage_school_settings'
+// In academic_director array, add: 'manage_school_settings'
 ```
 
 > **F-01 fix:** Uses `Permission.MANAGE_SCHOOL_SETTINGS` (dedicated permission for school settings/modules endpoints).
