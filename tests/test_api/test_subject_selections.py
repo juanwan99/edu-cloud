@@ -165,3 +165,21 @@ async def test_create_selection_empty_string_subject_422(client, admin_headers, 
         headers=admin_headers,
     )
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_selection_empty_string_subject_422(client, admin_headers, seed_school):
+    """F02 fix: PATCH with empty string in subject_codes → 422."""
+    school, _ = seed_school
+    create_resp = await client.post(
+        f"/api/v1/schools/{school.id}/selections",
+        json={"name": "PATCH空元素", "subject_codes": ["physics"]},
+        headers=admin_headers,
+    )
+    sel_id = create_resp.json()["id"]
+    resp = await client.patch(
+        f"/api/v1/schools/{school.id}/selections/{sel_id}",
+        json={"subject_codes": ["chemistry", ""]},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 422
