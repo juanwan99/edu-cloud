@@ -17,6 +17,8 @@ const SIDEBAR_ITEMS = {
     { icon: 'chart', label: '数据分析', route: '/analysis' },
     { icon: 'document', label: '文档中心', route: '/analysis', moduleCode: 'studio' },
     { icon: 'calendar', label: '校历通知', route: '/analysis', moduleCode: 'calendar' },
+    { icon: 'settings', label: '排课管理', route: '/assignments' },
+    { icon: 'exam', label: '选考组合', route: '/selections' },
     { icon: 'settings', label: '学校配置', route: '/school-settings' },
   ],
   academic_director: [
@@ -26,6 +28,8 @@ const SIDEBAR_ITEMS = {
     { icon: 'marking', label: '阅卷调度', route: '/grading/tasks', moduleCode: 'grading' },
     { icon: 'chart', label: '数据分析', route: '/analysis' },
     { icon: 'document', label: '文档中心', route: '/analysis', moduleCode: 'studio' },
+    { icon: 'settings', label: '排课管理', route: '/assignments' },
+    { icon: 'exam', label: '选考组合', route: '/selections' },
     { icon: 'settings', label: '学校配置', route: '/school-settings' },
   ],
   grade_leader: [

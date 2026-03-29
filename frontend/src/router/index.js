@@ -39,6 +39,10 @@ export const routes = [
       // Platform workbench (AI analysis)
       { path: 'analysis', name: 'Analysis', component: () => import('../pages/AnalysisPage.vue'), meta: { permissions: ['use_ai_chat'] } },
 
+      // Teacher assignments & subject selections
+      { path: 'assignments', name: 'TeacherAssignments', component: () => import('../pages/TeacherAssignmentsPage.vue'), meta: { roles: ['principal', 'academic_director'] } },
+      { path: 'selections', name: 'SubjectSelections', component: () => import('../pages/SubjectSelectionsPage.vue'), meta: { roles: ['principal', 'academic_director'] } },
+
       // School settings (school-scoped admin roles)
       { path: 'school-settings', name: 'SchoolSettings', component: () => import('../pages/SchoolSettingsPage.vue'), meta: { roles: ['principal', 'academic_director'] } },
 
