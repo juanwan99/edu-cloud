@@ -110,6 +110,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Module check middleware — hard block for disabled modules
+    from edu_cloud.api.module_middleware import ModuleCheckMiddleware
+    app.add_middleware(ModuleCheckMiddleware)
+
     # Global exception handlers — map Service exceptions to HTTP status codes
     @app.exception_handler(NotFoundError)
     async def not_found_handler(request, exc):

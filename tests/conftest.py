@@ -74,10 +74,16 @@ async def client(db, db_engine, tmp_path):
     app.dependency_overrides[get_storage] = _override_storage
     app.dependency_overrides[get_scan_storage] = _override_storage
 
+    # Monkey-patch async_session so middleware (which bypasses DI) uses test DB
+    import edu_cloud.database as _db_mod
+    _orig_session = _db_mod.async_session
+    _db_mod.async_session = session_factory
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
 
+    _db_mod.async_session = _orig_session
     shutil.rmtree(storage_dir, ignore_errors=True)
 
 
