@@ -1,5 +1,9 @@
 import pytest
-from edu_cloud.models.school_settings import SchoolSetting, SchoolModule
+from edu_cloud.models.school_settings import SchoolSetting, SchoolModule, DEFAULT_ENABLED
+from edu_cloud.services.school_settings_service import (
+    get_settings, upsert_setting, get_enabled_modules,
+    set_module_enabled, init_school_modules,
+)
 
 
 @pytest.mark.asyncio
@@ -49,3 +53,58 @@ async def test_school_module_unique_constraint(db, seed_school):
     db.add(m2)
     with pytest.raises(IntegrityError):
         await db.flush()
+
+
+# ── Service tests ──
+
+
+@pytest.mark.asyncio
+async def test_upsert_setting_create(db, seed_school):
+    school, _ = seed_school
+    result = await upsert_setting(db, school_id=school.id, category="feature", key="ai", value="true")
+    assert result.key == "ai"
+    assert result.value == "true"
+
+
+@pytest.mark.asyncio
+async def test_upsert_setting_update(db, seed_school):
+    school, _ = seed_school
+    await upsert_setting(db, school_id=school.id, category="feature", key="ai", value="true")
+    result = await upsert_setting(db, school_id=school.id, category="feature", key="ai", value="false")
+    assert result.value == "false"
+
+
+@pytest.mark.asyncio
+async def test_get_settings(db, seed_school):
+    school, _ = seed_school
+    await upsert_setting(db, school_id=school.id, category="feature", key="a", value="1")
+    await upsert_setting(db, school_id=school.id, category="exam", key="b", value="2")
+    all_settings = await get_settings(db, school_id=school.id)
+    assert len(all_settings) == 2
+    feature_only = await get_settings(db, school_id=school.id, category="feature")
+    assert len(feature_only) == 1
+
+
+@pytest.mark.asyncio
+async def test_init_school_modules(db, seed_school):
+    school, _ = seed_school
+    await init_school_modules(db, school_id=school.id)
+    enabled = await get_enabled_modules(db, school_id=school.id)
+    assert enabled == DEFAULT_ENABLED
+
+
+@pytest.mark.asyncio
+async def test_set_module_enabled(db, seed_school):
+    school, _ = seed_school
+    await init_school_modules(db, school_id=school.id)
+    await set_module_enabled(db, school_id=school.id, module_code="homework", enabled=True)
+    enabled = await get_enabled_modules(db, school_id=school.id)
+    assert "homework" in enabled
+
+
+@pytest.mark.asyncio
+async def test_set_module_invalid_code(db, seed_school):
+    from edu_cloud.services.exceptions import ValidationError
+    school, _ = seed_school
+    with pytest.raises(ValidationError, match="无效的模块代码"):
+        await set_module_enabled(db, school_id=school.id, module_code="nonexistent", enabled=True)
