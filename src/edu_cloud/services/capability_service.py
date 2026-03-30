@@ -62,32 +62,37 @@ DEFAULT_CAPABILITIES: dict[str, dict[str, dict[str, bool]]] = {
 async def init_school_capabilities(
     db: AsyncSession, *, school_id: str,
 ) -> None:
-    """按默认模板批量创建 capability 行（幂等）。"""
-    for role, domains in DEFAULT_CAPABILITIES.items():
-        for domain, actions in domains.items():
-            for action, enabled in actions.items():
-                existing = (await db.execute(
-                    select(Capability).where(
-                        Capability.school_id == school_id,
-                        Capability.role == role,
-                        Capability.domain == domain,
-                        Capability.action == action,
-                    )
-                )).scalar_one_or_none()
-                if not existing:
-                    db.add(Capability(
-                        school_id=school_id,
-                        role=role,
-                        domain=domain,
-                        action=action,
-                        enabled=enabled,
-                    ))
+    """按默认模板批量创建 capability 行（幂等，含并发安全）。"""
+    # CR-02 fix: disable autoflush to prevent IntegrityError during SELECT loop;
+    # IntegrityError caught on commit for concurrent safety.
+    prev_autoflush = db.autoflush
+    db.autoflush = False
     try:
+        for role, domains in DEFAULT_CAPABILITIES.items():
+            for domain, actions in domains.items():
+                for action, enabled in actions.items():
+                    existing = (await db.execute(
+                        select(Capability).where(
+                            Capability.school_id == school_id,
+                            Capability.role == role,
+                            Capability.domain == domain,
+                            Capability.action == action,
+                        )
+                    )).scalar_one_or_none()
+                    if not existing:
+                        db.add(Capability(
+                            school_id=school_id,
+                            role=role,
+                            domain=domain,
+                            action=action,
+                            enabled=enabled,
+                        ))
         await db.commit()
     except IntegrityError:
-        # CR-02: concurrent init → unique constraint hit → rollback + skip
         await db.rollback()
         logger.info("init_school_capabilities: concurrent conflict, skipped (school_id=%s)", school_id)
+    finally:
+        db.autoflush = prev_autoflush
 
 
 async def get_capabilities(
