@@ -15,6 +15,8 @@ def _snapshot(obj) -> dict | None:
     """Extract a JSON-serializable snapshot from an ORM object."""
     if obj is None:
         return None
+    if not hasattr(obj, "__table__"):
+        return None  # non-ORM return (e.g. int from batch create)
     data = {}
     for col in obj.__table__.columns:
         val = getattr(obj, col.name, None)

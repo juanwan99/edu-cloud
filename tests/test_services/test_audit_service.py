@@ -234,3 +234,121 @@ async def test_audited_decorator_no_user_context(db, seed_school):
     logs = (await db.execute(select(AuditLog))).scalars().all()
     assert len(logs) == 1
     assert logs[0].user_id is None  # F-02: None, not "-"
+
+
+# ── Integration tests: @audited on real services ──
+
+from edu_cloud.services import school_settings_service
+from edu_cloud.services import teacher_assignment_service
+from edu_cloud.services import subject_selection_service
+
+
+@pytest.mark.asyncio
+async def test_audited_upsert_setting(db, seed_school):
+    """F-04: upsert_setting create → action=create, update → action=update."""
+    from sqlalchemy import select
+
+    school, _ = seed_school
+    from edu_cloud.models.user import User
+    user = User(username="audit_settings_user", display_name="Settings审计")
+    user.set_password("test123")
+    db.add(user)
+    await db.flush()
+    await db.commit()
+
+    token_user = current_user_var.set(user.id)
+    try:
+        # First call = create
+        result = await school_settings_service.upsert_setting(
+            db, school_id=school.id, category="test", key="audit_key", value="val1",
+        )
+        assert result.key == "audit_key"
+
+        logs = (await db.execute(select(AuditLog))).scalars().all()
+        setting_logs = [log for log in logs if log.entity_type == "school_setting"]
+        assert len(setting_logs) >= 1
+        assert setting_logs[0].action == "create"
+
+        # Second call = update (F-04 fix)
+        await school_settings_service.upsert_setting(
+            db, school_id=school.id, category="test", key="audit_key", value="val2",
+        )
+        logs = (await db.execute(select(AuditLog))).scalars().all()
+        setting_logs = [log for log in logs if log.entity_type == "school_setting"]
+        assert len(setting_logs) >= 2
+        update_logs = [log for log in setting_logs if log.action == "update"]
+        assert len(update_logs) >= 1
+    finally:
+        current_user_var.reset(token_user)
+
+
+@pytest.mark.asyncio
+async def test_audited_create_assignments(db, seed_school):
+    """create_assignments 加 @audited 后产生审计日志。"""
+    from sqlalchemy import select
+    from edu_cloud.models.user import User
+    from edu_cloud.modules.student.models import Class
+
+    school, _ = seed_school
+    user = User(username="audit_assign_user", display_name="Assignment审计")
+    user.set_password("test123")
+    db.add(user)
+    await db.flush()
+    cls = Class(name="审计测试班", grade="高三", grade_number=12, school_id=school.id)
+    db.add(cls)
+    await db.commit()
+
+    token_user = current_user_var.set(user.id)
+    try:
+        count = await teacher_assignment_service.create_assignments(
+            db, school_id=school.id, user_id=user.id,
+            class_ids=[cls.id], subject_code="math", semester="2025-2026-2",
+        )
+        assert count == 1
+
+        logs = (await db.execute(select(AuditLog))).scalars().all()
+        assign_logs = [log for log in logs if log.entity_type == "teacher_assignment"]
+        assert len(assign_logs) >= 1
+        assert assign_logs[0].action == "create"
+    finally:
+        current_user_var.reset(token_user)
+
+
+@pytest.mark.asyncio
+async def test_audited_create_selection(db, seed_school):
+    """create_selection 加 @audited 后产生审计日志。"""
+    from sqlalchemy import select
+
+    school, _ = seed_school
+    from edu_cloud.models.user import User
+    user = User(username="audit_sel_user", display_name="Selection审计")
+    user.set_password("test123")
+    db.add(user)
+    await db.flush()
+    await db.commit()
+
+    token_user = current_user_var.set(user.id)
+    try:
+        sel = await subject_selection_service.create_selection(
+            db, school_id=school.id, name="审计理化生",
+            subject_codes=["physics", "chemistry", "biology"], mode="custom",
+        )
+        assert sel.name == "审计理化生"
+
+        logs = (await db.execute(select(AuditLog))).scalars().all()
+        sel_logs = [log for log in logs if log.entity_type == "subject_selection"]
+        assert len(sel_logs) >= 1
+        assert sel_logs[0].action == "create"
+    finally:
+        current_user_var.reset(token_user)
+
+
+@pytest.mark.asyncio
+async def test_existing_settings_tests_still_pass(db, seed_school):
+    """确认 @audited 不影响原有 service 返回值。"""
+    school, _ = seed_school
+    result = await school_settings_service.upsert_setting(
+        db, school_id=school.id, category="test", key="compat_key", value="compat_val",
+    )
+    assert result.key == "compat_key"
+    assert result.value == "compat_val"

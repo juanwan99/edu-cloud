@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.models.subject_selection import SubjectSelection, VALID_MODES
+from edu_cloud.services.audit_service import audited
 from edu_cloud.services.exceptions import ValidationError, NotFoundError, ConflictError
 
 
@@ -42,6 +43,7 @@ async def _check_name_conflict(db: AsyncSession, school_id: str, name: str, excl
         raise ConflictError(f"同名选考组合已存在: {name}")
 
 
+@audited("subject_selection", action="create")
 async def create_selection(
     db: AsyncSession, *, school_id: str, name: str,
     subject_codes: list[str], mode: str = "custom",
@@ -58,6 +60,7 @@ async def create_selection(
     return sel
 
 
+@audited("subject_selection", action="update", id_param="selection_id")
 async def update_selection(
     db: AsyncSession, *, school_id: str, selection_id: str, **kwargs,
 ) -> SubjectSelection:
@@ -84,6 +87,7 @@ async def update_selection(
     return sel
 
 
+@audited("subject_selection", action="delete", id_param="selection_id")
 async def delete_selection(
     db: AsyncSession, *, school_id: str, selection_id: str,
 ) -> None:

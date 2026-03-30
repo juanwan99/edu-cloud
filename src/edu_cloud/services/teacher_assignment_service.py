@@ -5,6 +5,7 @@ from edu_cloud.models.teacher_assignment import TeacherAssignment
 from edu_cloud.models.user import User
 from edu_cloud.modules.student.models import Class
 from edu_cloud.core.scope_filter import ScopeFilter
+from edu_cloud.services.audit_service import audited
 from edu_cloud.services.exceptions import NotFoundError, ValidationError
 
 
@@ -29,6 +30,7 @@ async def list_assignments(
     return list(result.scalars().all())
 
 
+@audited("teacher_assignment", action="create")
 async def create_assignments(
     db: AsyncSession, *, school_id: str, user_id: str,
     class_ids: list[str], subject_code: str, semester: str,
@@ -67,6 +69,7 @@ async def create_assignments(
     return created
 
 
+@audited("teacher_assignment", action="delete", id_param="assignment_id")
 async def delete_assignment(
     db: AsyncSession, *, school_id: str, assignment_id: str,
 ) -> None:
