@@ -8,7 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
 from edu_cloud.modules.exam.models import Question, Subject
 from edu_cloud.modules.exam import service as exam_service
 
@@ -235,3 +236,41 @@ async def delete_question(
     await db.delete(q)
     await db.commit()
     return {"deleted": True, "id": question_id}
+
+
+# ── Publish / Archive ────────────��─────────────────────────────────
+
+@router.post("/{exam_id}/publish")
+async def publish_exam(
+    exam_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAM_RESULTS)),
+):
+    from edu_cloud.modules.exam.publish_service import ExamPublishService
+    from edu_cloud.modules.exam.models import Exam
+    school_id = _school_id(current)
+    if not school_id:
+        # platform_admin: derive school_id from exam
+        exam = await db.get(Exam, exam_id)
+        if not exam:
+            raise HTTPException(404, "Exam not found")
+        school_id = exam.school_id
+    return await ExamPublishService.publish(db, exam_id=exam_id, school_id=school_id)
+
+
+@router.post("/{exam_id}/archive")
+async def archive_exam(
+    exam_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAM_RESULTS)),
+):
+    from edu_cloud.modules.exam.publish_service import ExamPublishService
+    from edu_cloud.modules.exam.models import Exam
+    school_id = _school_id(current)
+    if not school_id:
+        exam = await db.get(Exam, exam_id)
+        if not exam:
+            raise HTTPException(404, "Exam not found")
+        school_id = exam.school_id
+    await ExamPublishService.archive(db, exam_id=exam_id, school_id=school_id)
+    return {"exam_id": exam_id, "status": "archived"}
