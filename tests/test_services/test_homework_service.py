@@ -194,3 +194,188 @@ async def test_delete_task_only_draft(db, hw_fixtures):
     await HomeworkTaskService.delete_task(db, task_id=task.id, school_id=hw_fixtures["school_id"])
     with pytest.raises(NotFoundError):
         await HomeworkTaskService.get_task(db, task_id=task.id, school_id=hw_fixtures["school_id"])
+
+
+# ── Task 4: 状态机 + HomeworkSubmissionService ───────────────
+
+from edu_cloud.modules.homework.service import HomeworkSubmissionService
+from edu_cloud.services.exceptions import StateError
+
+
+@pytest.fixture
+async def hw_with_students(db, hw_fixtures):
+    """在 hw_fixtures 基础上创建 3 个学生。"""
+    from edu_cloud.models.student import Student
+
+    students = []
+    for i in range(3):
+        s = Student(
+            name=f"学生{i}", student_number=f"HW{i:03d}",
+            school_id=hw_fixtures["school_id"], grade="七年级",
+            class_id=hw_fixtures["class_id"],
+        )
+        db.add(s)
+        students.append(s)
+    await db.flush()
+    hw_fixtures["student_ids"] = [s.id for s in students]
+    return hw_fixtures
+
+
+@pytest.mark.asyncio
+async def test_publish_creates_submissions(db, hw_with_students):
+    """发布作业时自动为班级学生创建 pending 提交记录。"""
+    f = hw_with_students
+    task = await HomeworkTaskService.create_task(
+        db, school_id=f["school_id"], title="发布测试",
+        task_type="regular", subject_code="SX",
+        class_id=f["class_id"], assigned_by=f["teacher_id"],
+    )
+    result = await HomeworkTaskService.transition_status(
+        db, task_id=task.id, school_id=f["school_id"], action="publish",
+    )
+    assert result.status == "active"
+
+    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
+    assert len(subs) == 3
+    assert all(s.status == "pending" for s in subs)
+
+
+@pytest.mark.asyncio
+async def test_publish_requires_class_id(db, hw_fixtures):
+    """发布时 class_id 为空抛 ValidationError。"""
+    task = await HomeworkTaskService.create_task(
+        db, school_id=hw_fixtures["school_id"], title="无班级",
+        task_type="regular", subject_code="SX",
+        assigned_by=hw_fixtures["teacher_id"],
+    )
+    with pytest.raises(ValidationError, match="class_id"):
+        await HomeworkTaskService.transition_status(
+            db, task_id=task.id, school_id=hw_fixtures["school_id"], action="publish",
+        )
+
+
+@pytest.mark.asyncio
+async def test_invalid_transition(db, hw_fixtures):
+    """active 状态不能再 publish。"""
+    task = await HomeworkTaskService.create_task(
+        db, school_id=hw_fixtures["school_id"], title="状态测试",
+        task_type="regular", subject_code="SX",
+        class_id=hw_fixtures["class_id"], assigned_by=hw_fixtures["teacher_id"],
+    )
+    await HomeworkTaskService.transition_status(
+        db, task_id=task.id, school_id=hw_fixtures["school_id"], action="publish",
+    )
+    with pytest.raises(StateError):
+        await HomeworkTaskService.transition_status(
+            db, task_id=task.id, school_id=hw_fixtures["school_id"], action="publish",
+        )
+
+
+@pytest.mark.asyncio
+async def test_submit_homework(db, hw_with_students):
+    """学生提交作业：pending → submitted。"""
+    f = hw_with_students
+    task = await HomeworkTaskService.create_task(
+        db, school_id=f["school_id"], title="提交测试",
+        task_type="regular", subject_code="SX",
+        class_id=f["class_id"], assigned_by=f["teacher_id"],
+    )
+    await HomeworkTaskService.transition_status(
+        db, task_id=task.id, school_id=f["school_id"], action="publish",
+    )
+    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
+    updated = await HomeworkSubmissionService.submit(
+        db, submission_id=subs[0].id, content='{"answer": "A"}',
+    )
+    assert updated.status == "submitted"
+    assert updated.submit_time is not None
+
+
+@pytest.mark.asyncio
+async def test_grade_single(db, hw_with_students):
+    """教师批改单个提交：submitted → graded。"""
+    f = hw_with_students
+    task = await HomeworkTaskService.create_task(
+        db, school_id=f["school_id"], title="批改测试",
+        task_type="regular", subject_code="SX",
+        class_id=f["class_id"], assigned_by=f["teacher_id"],
+    )
+    await HomeworkTaskService.transition_status(
+        db, task_id=task.id, school_id=f["school_id"], action="publish",
+    )
+    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
+    await HomeworkSubmissionService.submit(db, submission_id=subs[0].id, content='{}')
+    graded = await HomeworkSubmissionService.grade_single(
+        db, submission_id=subs[0].id, score=85.0,
+        feedback="不错", graded_by=f["teacher_id"],
+    )
+    assert graded.status == "graded"
+    assert graded.score == 85.0
+    assert graded.graded_by == f["teacher_id"]
+
+
+@pytest.mark.asyncio
+async def test_grade_batch(db, hw_with_students):
+    """批量批改。"""
+    f = hw_with_students
+    task = await HomeworkTaskService.create_task(
+        db, school_id=f["school_id"], title="批量批改",
+        task_type="regular", subject_code="SX",
+        class_id=f["class_id"], assigned_by=f["teacher_id"],
+    )
+    await HomeworkTaskService.transition_status(
+        db, task_id=task.id, school_id=f["school_id"], action="publish",
+    )
+    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
+    for s in subs:
+        await HomeworkSubmissionService.submit(db, submission_id=s.id, content='{}')
+
+    grades = [
+        {"student_id": f["student_ids"][0], "score": 90, "feedback": "优秀"},
+        {"student_id": f["student_ids"][1], "score": 75, "feedback": "良好"},
+        {"student_id": "nonexistent_id", "score": 60, "feedback": "无效"},
+    ]
+    count = await HomeworkSubmissionService.grade_batch(
+        db, task_id=task.id, grades=grades, graded_by=f["teacher_id"],
+    )
+    assert count == 2  # 跳过 nonexistent
+
+
+@pytest.mark.asyncio
+async def test_submit_after_close_rejected(db, hw_with_students):
+    """关闭作业后不接受新提交。"""
+    f = hw_with_students
+    task = await HomeworkTaskService.create_task(
+        db, school_id=f["school_id"], title="关闭测试",
+        task_type="regular", subject_code="SX",
+        class_id=f["class_id"], assigned_by=f["teacher_id"],
+    )
+    await HomeworkTaskService.transition_status(
+        db, task_id=task.id, school_id=f["school_id"], action="publish",
+    )
+    await HomeworkTaskService.transition_status(
+        db, task_id=task.id, school_id=f["school_id"], action="close",
+    )
+    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
+    with pytest.raises(StateError, match="已关闭"):
+        await HomeworkSubmissionService.submit(db, submission_id=subs[0].id, content='{}')
+
+
+@pytest.mark.asyncio
+async def test_get_task_stats(db, hw_with_students):
+    """统计提交/批改/平均分。"""
+    f = hw_with_students
+    task = await HomeworkTaskService.create_task(
+        db, school_id=f["school_id"], title="统计测试",
+        task_type="regular", subject_code="SX",
+        class_id=f["class_id"], assigned_by=f["teacher_id"],
+    )
+    await HomeworkTaskService.transition_status(
+        db, task_id=task.id, school_id=f["school_id"], action="publish",
+    )
+    stats = await HomeworkSubmissionService.get_task_stats(db, task_id=task.id)
+    assert stats["total"] == 3
+    assert stats["pending"] == 3
+    assert stats["submitted"] == 0
+    assert stats["graded"] == 0
+    assert stats["submission_rate"] == 0.0
