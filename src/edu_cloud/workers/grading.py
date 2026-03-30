@@ -187,7 +187,11 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
 
 
 async def run_post_exam_pipeline(ctx: dict, exam_id: str, school_id: str) -> None:
-    """Post-exam pipeline stub — profile snapshots, error book updates, etc."""
+    """考后流水线 arq 任务 — 调用 pipeline 全流程。"""
     logger.info("post_exam_pipeline START: exam=%s, school=%s", exam_id, school_id)
-    # TODO: Implement profile snapshot generation, error book updates
-    logger.info("post_exam_pipeline DONE: exam=%s (stub)", exam_id)
+    from edu_cloud.database import async_session
+    from edu_cloud.modules.pipeline.service import run_full_pipeline
+    async with async_session() as db:
+        results = await run_full_pipeline(db, exam_id=exam_id, school_id=school_id)
+        await db.commit()
+    logger.info("post_exam_pipeline DONE: exam=%s, results=%s", exam_id, results)
