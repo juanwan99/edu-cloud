@@ -448,6 +448,24 @@ tests/
 | POST | `/api/v1/homework/tasks/{id}/grade-batch` | MANAGE_HOMEWORK | 批量批改 |
 | GET | `/api/v1/homework/tasks/{id}/stats` | VIEW_HOMEWORK | 提交/批改统计 |
 
+### 学情画像端点（JWT 认证，Phase 3.1）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/profile/students/{id}/trend` | VIEW_SCORES | 成绩趋势（历次快照，支持 subject_code 过滤） |
+| GET | `/api/v1/profile/students/{id}/knowledge` | VIEW_SCORES | 知识点掌握度列表（支持 course_code 过滤） |
+| GET | `/api/v1/profile/students/{id}/error-patterns` | VIEW_SCORES | 错误模式分析（支持 subject_code 过滤） |
+| GET | `/api/v1/profile/class/weakness` | VIEW_SCORES | 班级薄弱知识点 TOP N（需 class_id） |
+
+### 题库 + 错题本端点（JWT 认证，Phase 3.1）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/bank/questions` | VIEW_QUESTION_BANK | 题库列表（支持 type/difficulty 过滤） |
+| GET | `/api/v1/bank/questions/{id}` | VIEW_QUESTION_BANK | 题库题目详情 |
+| GET | `/api/v1/bank/error-book/{student_id}` | VIEW_SCORES | 学生错题本（支持 mastery_status 过滤） |
+| GET | `/api/v1/bank/error-book/{student_id}/stats` | VIEW_SCORES | 错题统计（按掌握状态分组） |
+
 ### AI Agent 端点（JWT 认证，Batch 4 迁入）
 
 | 方法 | 路径 | 权限 | 用途 |
