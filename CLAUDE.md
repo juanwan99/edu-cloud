@@ -131,6 +131,8 @@ src/edu_cloud/
     school_settings.py  # SchoolSetting（KV 配置）+ SchoolModule（模块开关）+ MODULE_CODES/DEFAULT_ENABLED
     teacher_assignment.py # TeacherAssignment（教师排课记录：教师×班级×科目×学期）
     subject_selection.py # SubjectSelection（学校选考科目组合：物化生/史地政等）
+    capability.py       # Capability（学校级角色能力配置：域×操作×角色）
+    audit_log.py        # AuditLog（实体变更审计日志）
     school.py           # RegisteredSchool（学校档案 + API Key + 心跳）
     platform_user.py    # PlatformUser（4 角色 + bcrypt 密码）
     joint_exam.py       # JointExam + JointExamParticipant + JointExamStudentResult
@@ -142,6 +144,8 @@ src/edu_cloud/
     school_settings_service.py # Settings/Modules CRUD + init_school_modules + get_enabled_modules
     teacher_assignment_service.py # 排课 CRUD + 批量创建（幂等）+ FK 归属校验 + 聚合摘要
     subject_selection_service.py # 选考 CRUD + 校验（mode 枚举 / 科目数量）+ 唯一约束冲突处理
+    capability_service.py # Capability init/get/set/check + DEFAULT_CAPABILITIES 模板
+    audit_service.py    # @audited 装饰器 + write_audit_log + list_audit_logs
   data/
     seed_demo.py          # 演示数据种子（exam-ai 迁入）
     seed_knowledge_math.py # 数学知识点种子
@@ -149,6 +153,7 @@ src/edu_cloud/
   core/
     events.py           # 进程内 EventBus（已定义，handler 未接入）
     permissions.py      # 10 个 Permission 枚举 + 4 角色 RBAC 映射
+    scope_filter.py     # ScopeFilter 工具类（基于 UserRole 注入 WHERE 条件）
   knowledge/
     __init__.py         # 包入口
     loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
@@ -328,6 +333,20 @@ tests/
 | PATCH | `/api/v1/schools/{id}/selections/{sid}` | MANAGE_SCHOOL_SETTINGS | 更新（名称/科目/mode/启停） |
 | DELETE | `/api/v1/schools/{id}/selections/{sid}` | MANAGE_SCHOOL_SETTINGS | 删除 |
 
+### 能力配置端点（JWT 认证）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/schools/{id}/capabilities` | MANAGE_SCHOOL_SETTINGS | 获取角色能力矩阵（支持 role 过滤） |
+| PATCH | `/api/v1/schools/{id}/capabilities` | MANAGE_SCHOOL_SETTINGS | 修改单个 capability（role + domain + action + enabled） |
+| POST | `/api/v1/schools/{id}/capabilities/init` | MANAGE_SCHOOL_SETTINGS | 按默认模板初始化（幂等） |
+
+### 审计日志端点（JWT 认证）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/schools/{id}/audit-logs` | MANAGE_SCHOOL_SETTINGS | 查询审计日志（支持 entity_type/user_id/action/date 过滤，分页） |
+
 ### 联考管理端点（JWT 认证）
 
 | 方法 | 路径 | 权限 | 用途 |
@@ -469,6 +488,8 @@ docker compose logs -f      # 查看日志
 | school_modules | school_id(FK), module_code(唯一per school), enabled, config(Text,nullable) | 模块开关（8 codes: exam/grading/homework/study_analytics/research/teaching/calendar/studio） |
 | teacher_assignments | user_id(FK), class_id(FK), subject_code, semester, school_id(FK), is_active | 教师排课记录（唯一约束：user+class+subject+semester） |
 | subject_selections | school_id(FK), name(唯一per school), subject_codes(JSON), mode, is_active | 学校选考科目组合（模式: 3+1+2/3+3/custom） |
+| capabilities | school_id(FK), role, domain, action, enabled(default True) | 学校级角色能力配置（唯一约束：school+role+domain+action） |
+| audit_logs | school_id(FK,nullable), user_id(FK,nullable), entity_type, entity_id, action, before_data(JSON), after_data(JSON), request_id | 变更审计日志 |
 
 ## 种子数据
 

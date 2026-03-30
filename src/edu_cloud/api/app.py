@@ -221,7 +221,8 @@ def create_app() -> FastAPI:
     from edu_cloud.modules.school.assignment_router import router as assignment_router
     from edu_cloud.modules.school.selection_router import router as selection_router
     from edu_cloud.modules.school.capability_router import router as capability_router
-    for r in [schools_router, settings_router, assignment_router, selection_router, capability_router, exam_router, question_router, joint_exams_router,
+    from edu_cloud.modules.school.audit_router import router as audit_router
+    for r in [schools_router, settings_router, assignment_router, selection_router, capability_router, audit_router, exam_router, question_router, joint_exams_router,
               results_router, workspace_router, llm_config_router, student_router,
               card_router, template_router, scan_router, grading_router,
               marking_router, analytics_router, knowledge_router, pipeline_router,
