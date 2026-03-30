@@ -29,7 +29,7 @@ MODULE_CODES = {
 }
 
 # Modules enabled by default for new schools
-DEFAULT_ENABLED = {"exam", "grading", "calendar", "studio"}
+DEFAULT_ENABLED = {"exam", "grading", "homework", "calendar", "studio"}
 
 
 class SchoolModule(Base, IdMixin, TimestampMixin):

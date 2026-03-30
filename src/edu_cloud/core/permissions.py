@@ -47,6 +47,10 @@ class Permission(str, Enum):
     VIEW_GRADING = "view_grading"
     MANAGE_EXAM_RESULTS = "manage_exam_results"
 
+    # 作业管理（Phase 2.2，新增）
+    MANAGE_HOMEWORK = "manage_homework"
+    VIEW_HOMEWORK = "view_homework"
+
 
 ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     # 平台超管 — 全部权限
@@ -74,6 +78,8 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.MANAGE_GRADING,
         Permission.VIEW_GRADING,
         Permission.MANAGE_EXAM_RESULTS,
+        Permission.MANAGE_HOMEWORK,
+        Permission.VIEW_HOMEWORK,
     },
 
     # 校长
@@ -92,6 +98,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.GENERATE_NOTIFICATION,
         Permission.USE_AI_CHAT,
         Permission.VIEW_GRADING,
+        Permission.VIEW_HOMEWORK,
     },
 
     # 教务主任
@@ -112,6 +119,8 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.MANAGE_GRADING,
         Permission.VIEW_GRADING,
         Permission.MANAGE_EXAM_RESULTS,
+        Permission.MANAGE_HOMEWORK,
+        Permission.VIEW_HOMEWORK,
     },
 
     # 年级组长
@@ -124,6 +133,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.GENERATE_NOTIFICATION,
         Permission.USE_AI_CHAT,
         Permission.VIEW_GRADING,
+        Permission.VIEW_HOMEWORK,
     },
 
     # 班主任
@@ -136,6 +146,8 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.SEND_NOTIFICATION,
         Permission.USE_AI_CHAT,
         Permission.VIEW_GRADING,
+        Permission.MANAGE_HOMEWORK,
+        Permission.VIEW_HOMEWORK,
     },
 
     # 科任教师
@@ -148,11 +160,14 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.WRITE_PAPER,
         Permission.GENERATE_REPORT,
         Permission.VIEW_GRADING,
+        Permission.MANAGE_HOMEWORK,
+        Permission.VIEW_HOMEWORK,
     },
 
     # 家长
     "parent": {
         Permission.VIEW_SCORES,
+        Permission.VIEW_HOMEWORK,
     },
 
     # 旧角色兼容（exam-ai 迁入）
@@ -166,6 +181,8 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.WRITE_PAPER,
         Permission.GENERATE_REPORT,
         Permission.VIEW_GRADING,
+        Permission.MANAGE_HOMEWORK,
+        Permission.VIEW_HOMEWORK,
     },
     "head_teacher": {          # exam-ai "head_teacher" ≈ edu-cloud "homeroom_teacher"
         Permission.VIEW_STUDENTS,
@@ -176,6 +193,8 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.SEND_NOTIFICATION,
         Permission.USE_AI_CHAT,
         Permission.VIEW_GRADING,
+        Permission.MANAGE_HOMEWORK,
+        Permission.VIEW_HOMEWORK,
     },
 
     "exam_coordinator": {

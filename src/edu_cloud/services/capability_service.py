@@ -29,6 +29,7 @@ DEFAULT_CAPABILITIES: dict[str, dict[str, dict[str, bool]]] = {
         for domain, actions in [
             ("exam", {"read": True}),
             ("grading", {"read": True}),
+            ("homework", {"read": True}),
             ("study_analytics", {"read": True}),
             ("studio", {"read": True}),
             ("calendar", {"read": True}),
@@ -39,6 +40,7 @@ DEFAULT_CAPABILITIES: dict[str, dict[str, dict[str, bool]]] = {
         for domain, actions in [
             ("exam", {"read": True, "write": True}),
             ("grading", {"read": True, "write": True}),
+            ("homework", {"read": True, "write": True}),
             ("study_analytics", {"read": True}),
             ("calendar", {"read": True}),
             ("studio", {"read": True}),
@@ -49,11 +51,13 @@ DEFAULT_CAPABILITIES: dict[str, dict[str, dict[str, bool]]] = {
         for domain, actions in [
             ("exam", {"read": True, "write": True}),
             ("grading", {"read": True, "write": True}),
+            ("homework", {"read": True, "write": True}),
             ("study_analytics", {"read": True}),
             ("research", {"read": True}),
         ]
     },
     "parent": {
+        "homework": {"read": True},
         "study_analytics": {"read": True},
     },
 }
