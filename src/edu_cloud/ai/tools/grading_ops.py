@@ -13,6 +13,10 @@ from edu_cloud.modules.grading.quality_service import QualityCheckService
         "required": ["exam_id"],
     },
     category="L1_exam",
+    module_code="grading",
+    domain="exam",
+    risk_level="low",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
 )
 async def get_grading_progress(exam_id: str, _db=None, _school_id: str = ""):
     return await GradingAssignmentService.get_progress(_db, exam_id, school_id=_school_id)
@@ -27,6 +31,10 @@ async def get_grading_progress(exam_id: str, _db=None, _school_id: str = ""):
         "required": ["exam_id"],
     },
     category="L2_analytics",
+    module_code="grading",
+    domain="exam",
+    risk_level="low",
+    allowed_roles=["platform_admin", "academic_director"],
 )
 async def get_quality_report(exam_id: str, _db=None, _school_id: str = ""):
     return await QualityCheckService.get_quality_report(_db, exam_id, school_id=_school_id)
@@ -42,14 +50,20 @@ async def get_quality_report(exam_id: str, _db=None, _school_id: str = ""):
             "subject_id": {"type": "string", "description": "科目 ID"},
             "question_ids": {"type": "string", "description": "题目 ID 列表，逗号分隔"},
             "teacher_ids": {"type": "string", "description": "教师 ID 列表，逗号分隔"},
+            "total_count_per_question": {"type": "string", "description": "每题答卷数量（整数字符串），默认 0"},
         },
         "required": ["exam_id", "subject_id", "question_ids", "teacher_ids"],
     },
     category="L4_action",
+    module_code="grading",
+    domain="exam",
+    risk_level="med",
+    allowed_roles=["platform_admin", "academic_director"],
 )
 async def assign_grading_task(
     exam_id: str, subject_id: str,
     question_ids: str, teacher_ids: str,
+    total_count_per_question: str = "0",
     _db=None, _school_id: str = "",
 ):
     q_list = [q.strip() for q in question_ids.split(",") if q.strip()]
@@ -57,6 +71,7 @@ async def assign_grading_task(
     assignments = await GradingAssignmentService.auto_assign(
         _db, exam_id=exam_id, subject_id=subject_id,
         question_ids=q_list, teacher_ids=t_list, school_id=_school_id,
+        total_count_per_question=int(total_count_per_question) if total_count_per_question else 0,
     )
     return {
         "assigned": len(assignments),

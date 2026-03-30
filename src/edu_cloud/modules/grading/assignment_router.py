@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/grading", tags=["grading-assignments"])
 
+_CROSS_SCHOOL_ROLES = {"platform_admin", "district_admin"}
+
 
 class AssignBlockRequest(BaseModel):
     exam_id: str
@@ -24,8 +26,11 @@ class AssignBlockRequest(BaseModel):
     total_count: int = 0
 
 
-def _school_id(current: dict) -> str | None:
-    return current["current_role"].school_id
+def _resolve_school_id(current: dict, requested_school_id: str | None = None) -> str:
+    role = current["current_role"]
+    if role.role in _CROSS_SCHOOL_ROLES and requested_school_id:
+        return requested_school_id
+    return role.school_id
 
 
 def _assignment_response(a) -> dict:
@@ -43,12 +48,13 @@ async def create_assignment(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
-    school_id = req.school_id or _school_id(current)
+    school_id = _resolve_school_id(current, req.school_id)
     result = await GradingAssignmentService.assign_block(
         db, exam_id=req.exam_id, subject_id=req.subject_id,
         question_ids=req.question_ids, teacher_id=req.teacher_id,
         school_id=school_id, total_count=req.total_count,
     )
+    await db.commit()
     return _assignment_response(result)
 
 
@@ -59,7 +65,7 @@ async def list_assignments(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
 ):
-    sid = school_id or _school_id(current)
+    sid = _resolve_school_id(current, school_id)
     if not sid:
         return []
     result = await GradingAssignmentService.list_assignments(db, exam_id, school_id=sid)
@@ -73,5 +79,5 @@ async def get_progress(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
 ):
-    sid = school_id or _school_id(current) or ""
+    sid = _resolve_school_id(current, school_id) or ""
     return await GradingAssignmentService.get_progress(db, exam_id, school_id=sid)

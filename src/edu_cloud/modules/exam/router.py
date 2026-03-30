@@ -255,7 +255,9 @@ async def publish_exam(
         if not exam:
             raise HTTPException(404, "Exam not found")
         school_id = exam.school_id
-    return await ExamPublishService.publish(db, exam_id=exam_id, school_id=school_id)
+    result = await ExamPublishService.publish(db, exam_id=exam_id, school_id=school_id)
+    await db.commit()
+    return result
 
 
 @router.post("/{exam_id}/archive")
@@ -273,4 +275,5 @@ async def archive_exam(
             raise HTTPException(404, "Exam not found")
         school_id = exam.school_id
     await ExamPublishService.archive(db, exam_id=exam_id, school_id=school_id)
+    await db.commit()
     return {"exam_id": exam_id, "status": "archived"}

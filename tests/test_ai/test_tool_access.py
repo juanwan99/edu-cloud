@@ -110,3 +110,24 @@ async def test_platform_admin_sees_all_role_restricted():
         enabled_modules=set(), capabilities={},
     )
     assert len(result) == 1
+
+
+@pytest.mark.asyncio
+async def test_enabled_modules_none_skips_module_filter():
+    """CR-05: enabled_modules=None 时跳过模块过滤（platform_admin 无 school_id）"""
+    specs = [
+        _make_spec("grading_tool", module_code="grading"),
+        _make_spec("exam_tool", module_code="exam"),
+        _make_spec("no_module_tool"),
+    ]
+    resolver = ToolAccessResolver()
+    result = await resolver.resolve(
+        all_specs=specs, role="platform_admin",
+        enabled_modules=None,  # platform_admin: 不过滤模块
+        capabilities={},
+    )
+    assert len(result) == 3
+    names = {s.name for s in result}
+    assert "grading_tool" in names
+    assert "exam_tool" in names
+    assert "no_module_tool" in names

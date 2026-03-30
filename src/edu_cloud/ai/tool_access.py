@@ -8,7 +8,7 @@ class ToolAccessResolver:
         self,
         all_specs: list[ToolSpec],
         role: str,
-        enabled_modules: set[str],
+        enabled_modules: set[str] | None,
         capabilities: dict[tuple[str, str], bool],
     ) -> list[ToolSpec]:
         result = []
@@ -16,8 +16,8 @@ class ToolAccessResolver:
             # 层 1: RBAC
             if spec.allowed_roles is not None and role not in spec.allowed_roles:
                 continue
-            # 层 2: Module
-            if spec.module_code and spec.module_code not in enabled_modules:
+            # 层 2: Module (enabled_modules=None → 不过滤，platform_admin 无 school_id 时)
+            if enabled_modules is not None and spec.module_code and spec.module_code not in enabled_modules:
                 continue
             # 层 3: Capability
             if not self._check_capabilities(spec.requires_capabilities, capabilities):

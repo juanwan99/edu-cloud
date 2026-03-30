@@ -111,7 +111,7 @@ async def ai_chat(
 
         # 2. 三重权限过滤
         all_specs = tools.get_all_specs()
-        enabled_modules = set(await get_enabled_modules(db, school_id=school_id)) if school_id else set()
+        enabled_modules = await get_enabled_modules(db, school_id=school_id) if school_id else None
         caps_list = await get_capabilities(db, school_id=school_id, role=role) if school_id else []
         capabilities = {(c.domain, c.action): c.enabled for c in caps_list}
 

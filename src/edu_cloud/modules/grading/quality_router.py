@@ -13,9 +13,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/grading", tags=["grading-quality"])
 
+_CROSS_SCHOOL_ROLES = {"platform_admin", "district_admin"}
 
-def _school_id(current: dict) -> str | None:
-    return current["current_role"].school_id
+
+def _resolve_school_id(current: dict, requested_school_id: str | None = None) -> str:
+    role = current["current_role"]
+    if role.role in _CROSS_SCHOOL_ROLES and requested_school_id:
+        return requested_school_id
+    return role.school_id
 
 
 @router.get("/quality-report/{exam_id}")
@@ -25,5 +30,5 @@ async def get_quality_report(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
 ):
-    sid = school_id or _school_id(current) or ""
+    sid = _resolve_school_id(current, school_id) or ""
     return await QualityCheckService.get_quality_report(db, exam_id, school_id=sid)
