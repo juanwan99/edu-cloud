@@ -13,7 +13,7 @@ from edu_cloud.services.exceptions import (
     NotFoundError, PermissionDeniedError, ValidationError as SvcValidationError,
     ConflictError, StateError,
 )
-from edu_cloud.logging_config import request_id_var, setup_logging
+from edu_cloud.logging_config import request_id_var, current_user_var, setup_logging
 
 _BOOT_TIME = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -49,6 +49,8 @@ async def lifespan(app: FastAPI):
     import edu_cloud.models.school_settings  # noqa: F401
     import edu_cloud.models.teacher_assignment  # noqa: F401
     import edu_cloud.models.subject_selection  # noqa: F401
+    import edu_cloud.models.capability  # noqa: F401
+    import edu_cloud.models.audit_log  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -142,6 +144,19 @@ def create_app() -> FastAPI:
         req_id = request.headers.get("X-Request-ID") or uuid4().hex[:12]
         token = request_id_var.set(req_id)
 
+        # Best-effort: extract user_id from JWT for audit logging
+        user_token = None
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            try:
+                from edu_cloud.shared.auth import decode_token
+                payload = decode_token(auth_header[7:])
+                uid = payload.get("sub")
+                if uid:
+                    user_token = current_user_var.set(uid)
+            except Exception:
+                pass
+
         start = time.perf_counter()
         try:
             response = await call_next(request)
@@ -167,6 +182,8 @@ def create_app() -> FastAPI:
             return error_response
         finally:
             request_id_var.reset(token)
+            if user_token:
+                current_user_var.reset(user_token)
 
     # Register routers — auth stays in api/
     from edu_cloud.api.auth import router as auth_router
@@ -203,7 +220,9 @@ def create_app() -> FastAPI:
     from edu_cloud.modules.school.settings_router import router as settings_router
     from edu_cloud.modules.school.assignment_router import router as assignment_router
     from edu_cloud.modules.school.selection_router import router as selection_router
-    for r in [schools_router, settings_router, assignment_router, selection_router, exam_router, question_router, joint_exams_router,
+    from edu_cloud.modules.school.capability_router import router as capability_router
+    from edu_cloud.modules.school.audit_router import router as audit_router
+    for r in [schools_router, settings_router, assignment_router, selection_router, capability_router, audit_router, exam_router, question_router, joint_exams_router,
               results_router, workspace_router, llm_config_router, student_router,
               card_router, template_router, scan_router, grading_router,
               marking_router, analytics_router, knowledge_router, pipeline_router,

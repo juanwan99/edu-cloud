@@ -178,3 +178,73 @@ async def test_create_assignments_rejects_cross_school_class(db, seed_school):
             db, school_id=school_a.id, user_id=user.id,
             class_ids=[cls_b.id], subject_code="math", semester="2025-2026-2",
         )
+
+
+# ── ScopeFilter integration ──
+
+from edu_cloud.core.scope_filter import ScopeFilter
+from edu_cloud.models.user_role import UserRole
+
+
+@pytest.mark.asyncio
+async def test_list_assignments_with_scope(db, seed_school):
+    school, _ = seed_school
+    user, classes = await _seed_teacher_and_classes(db, school.id)
+    await create_assignments(
+        db, school_id=school.id, user_id=user.id,
+        class_ids=[classes[0].id], subject_code="math", semester="2025-2026-2",
+    )
+    await create_assignments(
+        db, school_id=school.id, user_id=user.id,
+        class_ids=[classes[1].id], subject_code="english", semester="2025-2026-2",
+    )
+
+    role = UserRole(
+        user_id=user.id, role="subject_teacher",
+        school_id=school.id, subject_codes=["math"],
+    )
+    scope = ScopeFilter(role)
+    rows = await list_assignments(db, school_id=school.id, scope=scope)
+    assert len(rows) == 1
+    assert rows[0].subject_code == "math"
+
+
+@pytest.mark.asyncio
+async def test_list_assignments_without_scope(db, seed_school):
+    """scope=None 不过滤（向后兼容）。"""
+    school, _ = seed_school
+    user, classes = await _seed_teacher_and_classes(db, school.id)
+    await create_assignments(
+        db, school_id=school.id, user_id=user.id,
+        class_ids=[classes[0].id], subject_code="math", semester="2025-2026-2",
+    )
+    await create_assignments(
+        db, school_id=school.id, user_id=user.id,
+        class_ids=[classes[1].id], subject_code="english", semester="2025-2026-2",
+    )
+    rows = await list_assignments(db, school_id=school.id, scope=None)
+    assert len(rows) == 2
+
+
+@pytest.mark.asyncio
+async def test_list_assignments_with_scope_class_ids(db, seed_school):
+    """CR-01 fix: ScopeFilter class_ids 也应过滤。"""
+    school, _ = seed_school
+    user, classes = await _seed_teacher_and_classes(db, school.id)
+    await create_assignments(
+        db, school_id=school.id, user_id=user.id,
+        class_ids=[classes[0].id], subject_code="math", semester="2025-2026-2",
+    )
+    await create_assignments(
+        db, school_id=school.id, user_id=user.id,
+        class_ids=[classes[1].id], subject_code="math", semester="2025-2026-2",
+    )
+
+    role = UserRole(
+        user_id=user.id, role="homeroom_teacher",
+        school_id=school.id, class_ids=[classes[0].id],
+    )
+    scope = ScopeFilter(role)
+    rows = await list_assignments(db, school_id=school.id, scope=scope)
+    assert len(rows) == 1
+    assert rows[0].class_id == classes[0].id

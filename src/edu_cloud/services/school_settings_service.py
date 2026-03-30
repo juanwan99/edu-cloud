@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.models.school_settings import (
     SchoolSetting, SchoolModule, MODULE_CODES, DEFAULT_ENABLED,
 )
+from edu_cloud.services.audit_service import audited, write_audit_log, _snapshot
+from edu_cloud.logging_config import current_user_var, request_id_var
 from edu_cloud.services.exceptions import ValidationError
 
 
@@ -24,6 +26,9 @@ async def upsert_setting(
         SchoolSetting.school_id == school_id, SchoolSetting.key == key,
     )
     existing = (await db.execute(stmt)).scalar_one_or_none()
+    # F-04: runtime create/update detection for accurate audit
+    is_update = existing is not None
+    before = _snapshot(existing) if is_update else None
     if existing:
         existing.value = value
         existing.category = category
@@ -32,6 +37,16 @@ async def upsert_setting(
         db.add(existing)
     await db.commit()
     await db.refresh(existing)
+    try:
+        await write_audit_log(
+            db, school_id=school_id, user_id=current_user_var.get(),
+            entity_type="school_setting", entity_id=existing.id,
+            action="update" if is_update else "create",
+            before_data=before, after_data=_snapshot(existing),
+            request_id=request_id_var.get(),
+        )
+    except Exception:
+        pass
     return existing
 
 
@@ -59,6 +74,7 @@ async def init_school_modules(db: AsyncSession, *, school_id: str) -> None:
     await db.commit()
 
 
+@audited("school_module", action="update", id_param="module_code")
 async def set_module_enabled(
     db: AsyncSession, *, school_id: str, module_code: str, enabled: bool,
 ) -> SchoolModule:
