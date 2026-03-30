@@ -21,6 +21,7 @@ _configured = False
 _TZ_UTC8 = timezone(timedelta(hours=8))
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
+current_user_var: ContextVar[str | None] = ContextVar("current_user_id", default=None)
 
 
 class _UTC8Formatter(logging.Formatter):
