@@ -2,8 +2,12 @@
   "gates": {
     "plan_review": {
       "required": true,
-      "status": "pending",
-      "reviewer": "gpt"
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "8f048a82d66c2ef6e0316b9f34ae5c7fb6e8e29b92928cb71515f8c146aa0149",
+      "report_path": "docs/plans/2026-03-30-phase2.1-plan-review.md",
+      "updated": "2026-03-30T11:52:49.919512+08:00",
+      "subject_ref": "docs/plans/2026-03-30-phase2.1-exam-workflow-plan.md"
     }
   }
 }
