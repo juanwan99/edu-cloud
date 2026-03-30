@@ -15,7 +15,11 @@ _VALID_STATUS_TRANSITIONS = {
     "scanning": {"grading", "draft"},
     "grading": {"reviewing"},
     "reviewing": {"completed"},
+    # published 和 archived 只能通过 ExamPublishService 进入，不在此字典中
 }
+
+# published/archived 只能通过 ExamPublishService 进入，update_exam 不允许
+_PUBLISH_ONLY_STATUSES = {"published", "archived"}
 
 
 async def create_exam(
@@ -66,6 +70,10 @@ async def update_exam(
         changes["card_title"] = (exam.card_title, card_title)
         exam.card_title = card_title
     if status is not None:
+        if status in _PUBLISH_ONLY_STATUSES:
+            raise ValidationError(
+                f"无效的状态变更: {status} 只能通过 ExamPublishService 设置"
+            )
         allowed = _VALID_STATUS_TRANSITIONS.get(exam.status, set())
         if status not in allowed:
             raise ValidationError(f"无效的状态变更: {exam.status} → {status}")
