@@ -33,7 +33,7 @@ async def get_exam_summary(
 
 @tools.register(
     name="get_score_distribution",
-    description="获取成绩分布（分数段统计）。可按科目和班级过滤。",
+    description="获取成绩分布（分数段统计）。可按科目和班级过滤。支持 exam_subject_id 单参数替代 exam_id+subject_id。",
     category="L2_analytics",
     module_code="exam",
     domain="analytics",
@@ -42,22 +42,30 @@ async def get_exam_summary(
     parameters={
         "type": "object",
         "properties": {
-            "exam_id": {"type": "string", "description": "考试 ID"},
+            "exam_id": {"type": "string", "description": "考试 ID（与 exam_subject_id 二选一）"},
             "subject_id": {"type": "string", "description": "可选，科目 ID"},
+            "exam_subject_id": {"type": "string", "description": "科目 ID，自动解析 exam_id（与 exam_id 二选一）"},
             "class_id": {"type": "string", "description": "可选，班级 ID"},
         },
-        "required": ["exam_id"],
+        "required": [],
     },
 )
 async def get_score_distribution(
-    exam_id: str,
+    exam_id: str | None = None,
     subject_id: str | None = None,
+    exam_subject_id: str | None = None,
     class_id: str | None = None,
     _school_id: str = "",
     _visible_subjects: list[str] | None = None,
     _visible_classes: list[str] | None = None,
     _db=None,
 ) -> dict:
+    if exam_subject_id and not exam_id:
+        from edu_cloud.modules.analytics.service import resolve_subject_to_exam
+        exam_id, _ = await resolve_subject_to_exam(_db, exam_subject_id, _school_id)
+        subject_id = exam_subject_id
+    if not exam_id:
+        return {"error": "需要提供 exam_id 或 exam_subject_id"}
     if _visible_classes is not None and class_id and class_id not in _visible_classes:
         return {"error": "无权访问该班级"}
     from edu_cloud.modules.analytics.service import exam_distribution
@@ -147,7 +155,7 @@ async def get_student_scores(
 
 @tools.register(
     name="get_class_scores",
-    description="获取某班级在某次考试的学生成绩列表。",
+    description="获取某班级在某次考试的学生成绩列表。支持 exam_subject_id 单参数替代 exam_id+subject_id。",
     category="L2_analytics",
     module_code="exam",
     domain="analytics",
@@ -156,22 +164,30 @@ async def get_student_scores(
     parameters={
         "type": "object",
         "properties": {
-            "exam_id": {"type": "string", "description": "考试 ID"},
+            "exam_id": {"type": "string", "description": "考试 ID（与 exam_subject_id 二选一）"},
             "class_id": {"type": "string", "description": "班级 ID"},
             "subject_id": {"type": "string", "description": "可选，科目 ID"},
+            "exam_subject_id": {"type": "string", "description": "科目 ID，自动解析 exam_id（与 exam_id 二选一）"},
         },
-        "required": ["exam_id", "class_id"],
+        "required": ["class_id"],
     },
 )
 async def get_class_scores(
-    exam_id: str,
-    class_id: str,
+    exam_id: str | None = None,
+    class_id: str = "",
     subject_id: str | None = None,
+    exam_subject_id: str | None = None,
     _school_id: str = "",
     _visible_classes: list[str] | None = None,
     _visible_subjects: list[str] | None = None,
     _db=None,
 ) -> dict:
+    if exam_subject_id and not exam_id:
+        from edu_cloud.modules.analytics.service import resolve_subject_to_exam
+        exam_id, _ = await resolve_subject_to_exam(_db, exam_subject_id, _school_id)
+        subject_id = exam_subject_id
+    if not exam_id:
+        return {"error": "需要提供 exam_id 或 exam_subject_id"}
     if _visible_classes is not None and class_id not in _visible_classes:
         return {"error": "无权访问该班级"}
 

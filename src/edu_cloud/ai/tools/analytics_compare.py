@@ -4,7 +4,7 @@ from edu_cloud.ai.registry import tools
 
 @tools.register(
     name="compare_classes",
-    description="多班级成绩对比。返回各班平均分、最高分、最低分。",
+    description="多班级成绩对比。返回各班平均分、最高分、最低分。支持 exam_subject_id 单参数替代 exam_id+subject_id。",
     category="L2_analytics",
     module_code="exam",
     domain="analytics",
@@ -13,17 +13,19 @@ from edu_cloud.ai.registry import tools
     parameters={
         "type": "object",
         "properties": {
-            "exam_id": {"type": "string", "description": "考试 ID"},
+            "exam_id": {"type": "string", "description": "考试 ID（与 exam_subject_id 二选一）"},
             "class_ids": {"type": "array", "items": {"type": "string"}, "description": "班级 ID 列表"},
             "subject_id": {"type": "string", "description": "可选，科目 ID"},
+            "exam_subject_id": {"type": "string", "description": "科目 ID，自动解析 exam_id（与 exam_id 二选一）"},
         },
-        "required": ["exam_id", "class_ids"],
+        "required": ["class_ids"],
     },
 )
 async def compare_classes(
-    exam_id: str,
-    class_ids: list[str],
+    exam_id: str | None = None,
+    class_ids: list[str] | None = None,
     subject_id: str | None = None,
+    exam_subject_id: str | None = None,
     _school_id: str = "",
     _visible_classes: list[str] | None = None,
     _visible_subjects: list[str] | None = None,
@@ -33,7 +35,13 @@ async def compare_classes(
     from edu_cloud.modules.exam.models import Subject
     from edu_cloud.modules.analytics.service import get_effective_scores
 
-    allowed_ids = class_ids
+    if exam_subject_id and not exam_id:
+        from edu_cloud.modules.analytics.service import resolve_subject_to_exam
+        exam_id, _ = await resolve_subject_to_exam(_db, exam_subject_id, _school_id)
+        subject_id = exam_subject_id
+    if not exam_id:
+        return {"error": "需要提供 exam_id 或 exam_subject_id"}
+    allowed_ids = class_ids or []
     filtered_out = []
     if _visible_classes is not None:
         allowed_ids = [c for c in class_ids if c in _visible_classes]
@@ -74,7 +82,7 @@ async def compare_classes(
 
 @tools.register(
     name="rank_students",
-    description="学生排名表。可按科目、班级过滤，指定 top_n。",
+    description="学生排名表。可按科目、班级过滤，指定 top_n。支持 exam_subject_id 单参数替代 exam_id+subject_id。",
     category="L2_analytics",
     module_code="exam",
     domain="analytics",
@@ -83,17 +91,19 @@ async def compare_classes(
     parameters={
         "type": "object",
         "properties": {
-            "exam_id": {"type": "string", "description": "考试 ID"},
+            "exam_id": {"type": "string", "description": "考试 ID（与 exam_subject_id 二选一）"},
             "subject_id": {"type": "string", "description": "可选，科目 ID"},
+            "exam_subject_id": {"type": "string", "description": "科目 ID，自动解析 exam_id（与 exam_id 二选一）"},
             "class_id": {"type": "string", "description": "可选，班级 ID"},
             "top_n": {"type": "integer", "description": "可选，返回前 N 名（默认 20）"},
         },
-        "required": ["exam_id"],
+        "required": [],
     },
 )
 async def rank_students(
-    exam_id: str,
+    exam_id: str | None = None,
     subject_id: str | None = None,
+    exam_subject_id: str | None = None,
     class_id: str | None = None,
     top_n: int = 20,
     _school_id: str = "",
@@ -101,6 +111,12 @@ async def rank_students(
     _visible_subjects: list[str] | None = None,
     _db=None,
 ) -> dict:
+    if exam_subject_id and not exam_id:
+        from edu_cloud.modules.analytics.service import resolve_subject_to_exam
+        exam_id, _ = await resolve_subject_to_exam(_db, exam_subject_id, _school_id)
+        subject_id = exam_subject_id
+    if not exam_id:
+        return {"error": "需要提供 exam_id 或 exam_subject_id"}
     if _visible_classes is not None and class_id and class_id not in _visible_classes:
         return {"error": "无权访问该班级"}
 
@@ -149,7 +165,7 @@ async def rank_students(
 
 @tools.register(
     name="get_grade_aggregates",
-    description="获取年级聚合统计（均分/中位数/标准差）。不含个体数据。组 < 5 人不返回统计。",
+    description="获取年级聚合统计（均分/中位数/标准差）。不含个体数据。组 < 5 人不返回统计。支持 exam_subject_id 单参数。",
     category="L2_analytics",
     module_code="exam",
     domain="analytics",
@@ -158,19 +174,27 @@ async def rank_students(
     parameters={
         "type": "object",
         "properties": {
-            "exam_id": {"type": "string", "description": "考试 ID"},
+            "exam_id": {"type": "string", "description": "考试 ID（与 exam_subject_id 二选一）"},
             "subject_id": {"type": "string", "description": "可选，科目 ID"},
+            "exam_subject_id": {"type": "string", "description": "科目 ID，自动解析 exam_id（与 exam_id 二选一）"},
         },
-        "required": ["exam_id"],
+        "required": [],
     },
 )
 async def get_grade_aggregates(
-    exam_id: str,
+    exam_id: str | None = None,
     subject_id: str | None = None,
+    exam_subject_id: str | None = None,
     _school_id: str = "",
     _visible_subjects: list[str] | None = None,
     _db=None,
 ) -> dict:
+    if exam_subject_id and not exam_id:
+        from edu_cloud.modules.analytics.service import resolve_subject_to_exam
+        exam_id, _ = await resolve_subject_to_exam(_db, exam_subject_id, _school_id)
+        subject_id = exam_subject_id
+    if not exam_id:
+        return {"error": "需要提供 exam_id 或 exam_subject_id"}
     import statistics as stats_mod
     from sqlalchemy import select
     from edu_cloud.modules.exam.models import Subject

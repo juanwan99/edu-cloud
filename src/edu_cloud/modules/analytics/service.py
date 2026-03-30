@@ -15,6 +15,22 @@ logger = logging.getLogger(__name__)
 K_ANONYMITY_THRESHOLD = 5
 
 
+async def resolve_subject_to_exam(
+    db: AsyncSession, subject_id: str, school_id: str,
+) -> tuple[str, Subject]:
+    """Resolve a subject_id to its parent exam_id. Returns (exam_id, subject).
+
+    Raises NotFoundError if the subject doesn't exist or doesn't belong to the school.
+    """
+    result = await db.execute(
+        select(Subject).where(Subject.id == subject_id, Subject.school_id == school_id)
+    )
+    subject = result.scalar_one_or_none()
+    if not subject:
+        raise NotFoundError("Subject not found")
+    return subject.exam_id, subject
+
+
 async def _verify_exam(db: AsyncSession, exam_id: str, school_id: str) -> Exam:
     result = await db.execute(
         select(Exam).where(Exam.id == exam_id, Exam.school_id == school_id)
