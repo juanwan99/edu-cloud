@@ -30,6 +30,7 @@ import edu_cloud.models.subject_selection  # noqa: F401
 import edu_cloud.models.capability  # noqa: F401
 import edu_cloud.models.audit_log  # noqa: F401
 import edu_cloud.models.agent_profile  # noqa: F401
+import edu_cloud.modules.homework.models  # noqa: F401
 from edu_cloud.shared.auth import create_access_token
 
 
