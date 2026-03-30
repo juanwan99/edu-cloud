@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.models.teacher_assignment import TeacherAssignment
 from edu_cloud.models.user import User
 from edu_cloud.modules.student.models import Class
+from edu_cloud.core.scope_filter import ScopeFilter
 from edu_cloud.services.exceptions import NotFoundError, ValidationError
 
 
@@ -11,6 +12,7 @@ async def list_assignments(
     db: AsyncSession, *, school_id: str,
     semester: str | None = None, user_id: str | None = None,
     class_id: str | None = None, subject_code: str | None = None,
+    scope: ScopeFilter | None = None,
 ) -> list[TeacherAssignment]:
     stmt = select(TeacherAssignment).where(TeacherAssignment.school_id == school_id)
     if semester:
@@ -21,6 +23,8 @@ async def list_assignments(
         stmt = stmt.where(TeacherAssignment.class_id == class_id)
     if subject_code:
         stmt = stmt.where(TeacherAssignment.subject_code == subject_code)
+    if scope:
+        stmt = scope.apply(stmt, TeacherAssignment, subject_col="subject_code")
     result = await db.execute(stmt.order_by(TeacherAssignment.created_at))
     return list(result.scalars().all())
 
