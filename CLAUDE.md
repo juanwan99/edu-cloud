@@ -47,10 +47,10 @@ python ~/.claude/scripts/serve.py "C:/Program Files/nodejs/npm.cmd" run dev
 ## 测试命令
 
 ```bash
-# 后端（815 tests）
+# 后端（1037 tests）
 cd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q
 
-# 前端（Vitest + happy-dom，35 tests）
+# 前端（Vitest + happy-dom，68 tests）
 cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run
 ```
 <!-- key-end -->
@@ -103,7 +103,7 @@ frontend/src/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
-  router/                   # Vue Router（AppShell 根 + 角色/权限守卫 fail-closed，2 顶级 + 17 子路由）
+  router/                   # Vue Router（AppShell 根 + 角色/权限守卫 fail-closed，19 路由）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -153,8 +153,8 @@ src/edu_cloud/
     seed_knowledge_math.py # 数学知识点种子
     import_real_exam.py   # 真实考试数据导入工具（exam-ai 迁入）
   core/
-    events.py           # 进程内 EventBus（已定义，handler 未接入）
-    permissions.py      # 13 个 Permission 枚举 + 4 角色 RBAC 映射（+MANAGE_GRADING/VIEW_GRADING/MANAGE_EXAM_RESULTS）
+    events.py           # 进程内 EventBus（exam.published handler 已接入 pipeline）
+    permissions.py      # 25 个 Permission 枚举 + 8 角色 RBAC 映射
     scope_filter.py     # ScopeFilter 工具类（基于 UserRole 注入 WHERE 条件）
   knowledge/
     __init__.py         # 包入口
@@ -174,7 +174,7 @@ src/edu_cloud/
     llm_factory.py      # create_llm_for_tier()（LLMSlot tier 查询 + .env fallback）
     models.py           # AiSession/AiToolCall 表
     tools/
-      __init__.py       # 触发全部 12 个工具模块注册（39 tools）
+      __init__.py       # 触发全部 12 个工具模块注册（39 tools + exam_subject_id 统一查询）
       analytics.py      # L2_cross_school（2）: get_exam_scores/get_class_stats
       analytics_score.py # L2_analytics（5）: exam_summary/distribution/question/student/class scores
       analytics_compare.py # L2_analytics（3）: compare_classes/rank_students/grade_aggregates
@@ -184,10 +184,11 @@ src/edu_cloud/
       profile.py        # L6_profile（4）: trend/knowledge_map/weakness/error_pattern
       knowledge.py      # L3_knowledge（4）: search_curriculum/textbook/concept/gaokao
       knowledge_db.py   # L3_knowledge_db（2）: knowledge_tree/question_knowledge_points
+      grading_ops.py    # L1_exam（3）: grading_progress/quality_report/assign_grading
       actions.py        # L4_action（2）: generate_report/comment
       homework.py       # L2_homework（5）: task list/stats/submit/assign/remedial
   workers/
-    grading.py          # process_grading_task（AI 阅卷）+ run_post_exam_pipeline（考后处理 stub）
+    grading.py          # process_grading_task（AI 阅卷）+ run_post_exam_pipeline（考后处理，已接线 pipeline）
   shared/
     auth.py             # JWT create/decode 工具函数
   config.py             # Settings（DB/Redis/JWT/LLM/UPLOAD_DIR/知识库 配置，BaseSettings）
@@ -213,16 +214,15 @@ tests/
 
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
-| API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(documents CRUD+transition+paper/create+paper/:id/status), calendar(events CRUD) | 跨校分析(高级), 题库, 共享 AI 阅卷 |
-| Models | 39 表（modules/ 下 exam/student/card/scan/grading/marking/bank/profile/knowledge/pipeline/homework + core school/user/user_role/llm_slot/school_settings/school_modules/teacher_assignment/subject_selection + studio/calendar/notification + grading_assignments/grading_quality_checks + agent_profiles/agent_runs + homework_tasks/homework_submissions）| — |
-| Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), CalendarService(create/list/delete/triggered_rules), NotificationService(dispatch stub+幂等), HomeworkTaskService(CRUD+状态机), HomeworkSubmissionService(submit/grade/stats), exceptions | EventBus handler, AI grading |
-| Tasks | tasks.py: auto_draft_notifications（扫描日历→自动创建 notification 草稿，防重复 triggered 标记）| arq cron 生产接入 |
-| Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |
-| Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
+| API | 152 路由（auth/schools/joint-exams/results/sync/exam/grading/marking/analytics/knowledge/pipeline/studio/calendar/homework/profile/bank/ai/dashboard/notifications/llm-config） | 共享 AI 阅卷, 高级跨校分析 |
+| Models | 51 表（modules/ 下 16 模块 + core 平台表 + AI Agent 表） | — |
+| Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline + exceptions | AI grading 生产接入 |
+| Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 25 权限 + 8 角色映射 | — |
+| AI | 39 tools（12 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 780+ tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam迁入+Alembic迁移+权限边界+Dashboard+Homework 全覆盖）+ 68 前端 Vitest | — |
+| Tests | 1037 后端 + 68 前端 Vitest | — |
 | Modules | 16 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school/homework），路由已迁入 | — |
-| Migrations | Alembic 初始 migration（39 表，autogenerate） | — |
+| Migrations | Alembic 初始 migration（51 表，autogenerate） | — |
 
 ## 技术栈
 
@@ -514,6 +514,7 @@ docker compose logs -f      # 查看日志
 
 | 文档 | 路径 | 内容 |
 |------|------|------|
+| 业务逻辑反哺设计 | `docs/plans/2026-03-29-business-logic-backfill-design.md` | Phase 1-4 分层反哺 + Agent 深度嵌入架构 |
 | AI Agent 设计 | `docs/plans/2026-03-16-ai-agent-design.md` | Agent Phase 1-4 架构设计（554 行，§14 含 API→Service 分层）|
 | 平台交接单 | exam-ai `docs/plans/2026-03-16-platform-handoff.md` | A→B→C→D 四阶段全局规划 |
 
