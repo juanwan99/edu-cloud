@@ -20,3 +20,4 @@ class LLMSlot(Base, IdMixin, TimestampMixin):
     label: Mapped[str | None] = mapped_column(String(100), default=None)
     description: Mapped[str | None] = mapped_column(Text, default=None)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    tier: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
