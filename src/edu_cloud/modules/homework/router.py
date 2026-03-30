@@ -105,11 +105,12 @@ async def list_tasks(
     assigned_by = None
     if role.role == "subject_teacher":
         assigned_by = current["user"].id
-    # homeroom_teacher 强制限定本班（忽略外部传入的 class_id）
+    # homeroom_teacher 强制限定本班
     scope_class_id = class_id
     if role.role == "homeroom_teacher" and role.class_ids:
         if class_id and class_id not in role.class_ids:
-            scope_class_id = role.class_ids[0]  # 拒绝越权，回退到自己的班
+            from edu_cloud.services.exceptions import PermissionDeniedError
+            raise PermissionDeniedError("无权查看该班级的作业")
         elif not class_id:
             scope_class_id = role.class_ids[0] if len(role.class_ids) == 1 else None
     tasks = await HomeworkTaskService.list_tasks(
