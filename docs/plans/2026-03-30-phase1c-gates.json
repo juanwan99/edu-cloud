@@ -2,10 +2,21 @@
   "gates": {
     "plan_review": {
       "required": true,
-      "status": "pending",
+      "status": "pass",
       "reviewer": "gpt",
       "subject_ref": "docs/plans/2026-03-30-phase1c-permission-engine-plan.md",
-      "updated": "2026-03-30T07:36:55+08:00"
+      "updated": "2026-03-30T08:00:17.411001+08:00",
+      "subject_hash": "1696416d0a9f0c4a6cb5e5ac5281d16c81d7354a2b2333b6fdd3fa71508e3986",
+      "report_path": "docs/plans/2026-03-30-phase1c-plan-review.md"
+    },
+    "code_review_batch1": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "b3fbab07d79939d4e2aa59b9e832f086c13fa36f167e968fe5223b8823546989",
+      "report_path": "docs/plans/2026-03-30-phase1c-review-report-batch1.md",
+      "updated": "2026-03-30T09:37:14.671056+08:00",
+      "subject_ref": "commit:6773fd0..a1ec97b"
     }
   }
 }
