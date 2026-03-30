@@ -21,7 +21,7 @@ def test_tool_categories_present():
     }
     found_categories = set()
     for name in tools.list_tools():
-        cat = tools._tools[name]["category"]
+        cat = tools._tools[name].category
         found_categories.add(cat)
     for cat in expected_categories:
         assert cat in found_categories, f"Category {cat} has no tools"

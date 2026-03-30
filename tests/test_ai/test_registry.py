@@ -38,9 +38,9 @@ async def test_execute_with_injected_params():
     assert result == {"result": 3}
 
 def test_execute_unknown_tool():
-    with pytest.raises(KeyError):
-        import asyncio
-        asyncio.get_event_loop().run_until_complete(registry.execute("nonexistent", {}))
+    import asyncio
+    result = asyncio.get_event_loop().run_until_complete(registry.execute("nonexistent", {}))
+    assert "error" in result
 
 
 # ── Integration tests: real global registry with real tools ──────────────
