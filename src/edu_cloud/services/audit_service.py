@@ -156,6 +156,8 @@ def _entity_type_lookup(entity_type: str) -> tuple:
         "school_module": ("edu_cloud.models.school_settings:SchoolModule", "module_code"),
         "teacher_assignment": ("edu_cloud.models.teacher_assignment:TeacherAssignment", "id"),
         "subject_selection": ("edu_cloud.models.subject_selection:SubjectSelection", "id"),
+        "homework_task": ("edu_cloud.modules.homework.models:HomeworkTask", "id"),
+        "homework_submission": ("edu_cloud.modules.homework.models:HomeworkSubmission", "id"),
     }
     entry = mapping.get(entity_type)
     if not entry:
