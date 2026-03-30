@@ -32,6 +32,7 @@ ROUTE_MODULE_MAP = {
     "/api/v1/knowledge": "research",
     "/api/v1/calendar": "calendar",
     "/api/v1/studio": "studio",
+    "/api/v1/homework": "homework",
     "/api/v1/pipeline": "exam",
 }
 
