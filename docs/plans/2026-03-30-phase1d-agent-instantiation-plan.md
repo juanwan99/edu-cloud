@@ -25,7 +25,7 @@
 | Modify | `src/edu_cloud/ai/registry.py` | ToolSpec dataclass + register 扩展 |
 | Modify | `src/edu_cloud/ai/agent.py` | 删除 ROLE_TOOL_CATEGORIES + run() 接收 tools 参数 |
 | Modify | `src/edu_cloud/api/ai.py` | Pipeline 集成 |
-| Modify | `src/edu_cloud/ai/llm.py` | chat() 支持简单文本返回 |
+| — | `src/edu_cloud/ai/llm.py` | 不修改（chat() 签名不变，tier 路由由 llm_factory.py 处理） |
 | Modify | `src/edu_cloud/core/models/llm_slot.py` | 添加 tier 字段 |
 | Modify | `src/edu_cloud/ai/tools/*.py` | 31 工具添加元数据 |
 | Modify | `alembic/env.py` | 导入新模型 |
@@ -64,13 +64,13 @@ def test_toolspec_has_metadata_fields():
         domain="analytics",
         risk_level="low",
         allowed_roles=["platform_admin"],
-        requires_capabilities=[("exam", "view")],
+        requires_capabilities=[("exam", "read")],
     )
     assert spec.module_code == "exam"
     assert spec.domain == "analytics"
     assert spec.risk_level == "low"
     assert spec.allowed_roles == ["platform_admin"]
-    assert spec.requires_capabilities == [("exam", "view")]
+    assert spec.requires_capabilities == [("exam", "read")]
 
 
 def test_toolspec_defaults():
@@ -641,14 +641,14 @@ async def test_module_filter_blocks_disabled_module():
 @pytest.mark.asyncio
 async def test_capability_filter_blocks_denied():
     specs = [
-        _make_spec("cap_tool", requires_capabilities=[("exam", "view")]),
+        _make_spec("cap_tool", requires_capabilities=[("exam", "read")]),
         _make_spec("no_cap_tool"),
     ]
     resolver = ToolAccessResolver()
     result = await resolver.resolve(
         all_specs=specs, role="platform_admin",
         enabled_modules=set(),
-        capabilities={("exam", "view"): False},  # 显式拒绝
+        capabilities={("exam", "read"): False},  # 显式拒绝
     )
     assert len(result) == 1
     assert result[0].name == "no_cap_tool"
@@ -657,7 +657,7 @@ async def test_capability_filter_blocks_denied():
 @pytest.mark.asyncio
 async def test_capability_default_allow():
     """未配置的 capability 默认允许"""
-    specs = [_make_spec("cap_tool", requires_capabilities=[("exam", "view")])]
+    specs = [_make_spec("cap_tool", requires_capabilities=[("exam", "read")])]
     resolver = ToolAccessResolver()
     result = await resolver.resolve(
         all_specs=specs, role="platform_admin",
@@ -670,7 +670,7 @@ async def test_capability_default_allow():
 async def test_triple_filter_combined():
     specs = [
         _make_spec("full", allowed_roles=["academic_director"],
-                   module_code="exam", requires_capabilities=[("exam", "manage")]),
+                   module_code="exam", requires_capabilities=[("exam", "write")]),
         _make_spec("open"),
     ]
     resolver = ToolAccessResolver()
@@ -678,7 +678,7 @@ async def test_triple_filter_combined():
     result = await resolver.resolve(
         all_specs=specs, role="academic_director",
         enabled_modules={"exam"},
-        capabilities={("exam", "manage"): True},
+        capabilities={("exam", "write"): True},
     )
     assert len(result) == 2
 
@@ -1017,6 +1017,43 @@ def test_empty_domains_selects_standard():
     tools = [_make_spec("t1")]
     tier = router.select([], tools)
     assert tier == "standard"
+
+
+# --- LLM Factory 测试 ---
+
+@pytest.mark.asyncio
+async def test_tier_null_compat(db_engine):
+    """tier=NULL 的 slot 被 standard 查询命中"""
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from edu_cloud.ai.llm_factory import create_llm_for_tier
+    from edu_cloud.core.models.llm_slot import LLMSlot
+
+    async with AsyncSession(db_engine) as session:
+        # 创建一个 tier=NULL 的 slot（模拟旧数据）
+        slot = LLMSlot(
+            slot_number=1, api_url="http://test/v1", api_key="k",
+            model="gpt-test", is_enabled=True, school_id=None, tier=None,
+        )
+        session.add(slot)
+        await session.commit()
+
+        # standard 查询应命中 tier=NULL
+        client = await create_llm_for_tier("standard", None, session)
+        assert client.model == "gpt-test"
+
+
+@pytest.mark.asyncio
+async def test_fallback_to_env(db_engine):
+    """无匹配 slot 时 fallback 到 .env 配置"""
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from edu_cloud.ai.llm_factory import create_llm_for_tier
+    from edu_cloud.config import settings
+
+    async with AsyncSession(db_engine) as session:
+        # 不创建任何 slot
+        client = await create_llm_for_tier("advanced", None, session)
+        assert client.api_url == settings.LLM_API_URL.rstrip("/")
+        assert client.model == settings.LLM_MODEL
 ```
 
 - [ ] **Step 2: Implement ModelRouter**
@@ -1236,6 +1273,36 @@ async def test_pipeline_module_disabled():
     )
     assert len(available) == 1
     assert available[0].name == "open_tool"
+
+
+@pytest.mark.asyncio
+async def test_pipeline_fallback_on_error():
+    """Pipeline 中任意步骤异常时 fallback 到全工具集 + standard 模型"""
+    all_tools = [
+        _make_spec("tool_a", domain="exam"),
+        _make_spec("tool_b", domain="analytics"),
+    ]
+
+    # ToolAccessResolver 正常返回
+    resolver = ToolAccessResolver()
+    available = await resolver.resolve(
+        all_specs=all_tools, role="platform_admin",
+        enabled_modules=set(), capabilities={},
+    )
+
+    # IntentResolver 抛异常（模拟 LLM 故障）
+    intent = IntentResolver(llm_client=None)
+    with patch.object(intent, "resolve", side_effect=RuntimeError("LLM down")):
+        try:
+            selected = await intent.resolve("查成绩", available)
+        except RuntimeError:
+            # Pipeline 应 catch 并 fallback
+            selected = available  # fallback: 全工具集
+
+    # ModelRouter 应返回 standard 作为 fallback
+    tier = ModelRouter().select([], selected)
+    assert tier == "standard"
+    assert len(selected) == 2  # 全工具集
 ```
 
 - [ ] **Step 2: Modify agent.py — 删除 ROLE_TOOL_CATEGORIES，run() 接收 tools 参数**
@@ -1443,7 +1510,8 @@ Run: `cd C:/Users/Administrator/edu-cloud && alembic revision --autogenerate -m 
 
 - [ ] **Step 3: Update test_alembic_migration.py**
 
-在预期表集合中添加 `"agent_profiles"` 和 `"agent_runs"`。
+1. 在 `tests/test_alembic_migration.py` 顶部添加 `import edu_cloud.models.agent_profile  # noqa: F401`（确保 ORM 注册）
+2. 在预期表集合中添加 `"agent_profiles"` 和 `"agent_runs"`
 
 - [ ] **Step 4: Update CLAUDE.md**
 

@@ -170,7 +170,7 @@ class ToolSpec:
 |------|------|------|--------|
 | `module_code` | str | ToolAccessResolver 模块过滤 | None（不受模块开关限制） |
 | `domain` | str | IntentResolver 域分组 | "general" |
-| `requires_capabilities` | list[tuple] | Capability 检查，如 `[("exam", "view")]` | []（不需要额外 capability） |
+| `requires_capabilities` | list[tuple] | Capability 检查，如 `[("exam", "read")]` | []（不需要额外 capability） |
 | `risk_level` | str | ModelRouter 模型升级判据 | "low" |
 | `allowed_roles` | list[str] \| None | RBAC 过滤，None 表示不限 | None |
 
@@ -192,8 +192,8 @@ class ToolAccessResolver:
         result = []
 
         # 预加载：该校启用的模块 + capability 矩阵
-        enabled_modules = await get_enabled_module_codes(db, school_id)
-        capabilities = await get_school_capabilities(db, school_id, user_role.role)
+        enabled_modules = await get_enabled_modules(db, school_id=school_id)
+        capabilities = await get_capabilities(db, school_id=school_id, role=user_role.role)
 
         for tool in all_tools:
             # 层 1: RBAC
@@ -292,10 +292,12 @@ class IntentResolver:
             "只返回域名，用逗号分隔，不要其他内容。"
         )
         # self._llm 已绑定 mini 模型（在 ai.py 中初始化时指定）
+        from edu_cloud.ai.schemas import ChatMessage
+
         response = await self._llm.chat(
             messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": message},
+                ChatMessage(role="system", content=prompt),
+                ChatMessage(role="user", content=message),
             ],
         )
         # response 是 ChatMessage，取 content
@@ -420,7 +422,7 @@ async def ai_chat(request: Request, ...):
 | Create | `src/edu_cloud/services/agent_profile_service.py` | Profile CRUD + get_or_create |
 | Modify | `src/edu_cloud/ai/registry.py` | ToolSpec 扩展元数据字段 |
 | Modify | `src/edu_cloud/ai/agent.py` | 集成 Pipeline（入口插入） |
-| Modify | `src/edu_cloud/ai/llm.py` | LLMChatClient 支持 tier 参数 |
+| — | `src/edu_cloud/ai/llm.py` | 不修改（chat() 签名不变） |
 | Modify | `src/edu_cloud/ai/tools/*.py` | 31 个工具添加元数据 |
 | Create | `src/edu_cloud/ai/llm_factory.py` | _create_llm_for_tier() 工厂函数 |
 | Modify | `src/edu_cloud/core/models/llm_slot.py` | LLMSlot 添加 tier 字段 |
@@ -459,3 +461,11 @@ async def ai_chat(request: Request, ...):
 - Agent 管理前端页面（→ 后续 Phase）
 - Agent 记忆持久化/压缩（memory_summary 字段预留，逻辑不实现）
 - 对话历史摘要（context.py 现有裁剪逻辑不变）
+
+## 8. GPT 审查待处置项
+
+> Plan Review R2 design-concern，不阻塞执行，后续迭代处理。
+
+- **F-01**: design §3.8 迁移映射表中 L1_exam/L1_student/L3/L5 的 allowed_roles 应与 plan 一致（排除 parent）。当前 design 仍写 None，plan 已修正为显式列表。执行时以 plan 为准。
+- **N-03**: Pipeline 选出 selected_tools 后，需同步重建 AgentContext.system_content 中的 tool_names 列表，否则多轮会话中 system prompt 和实际可用工具不一致。
+- **N-04**: llm.py 无需修改签名，File Map 中"修改 llm.py"应改为"不修改 llm.py"，真正新增的是 llm_factory.py。
