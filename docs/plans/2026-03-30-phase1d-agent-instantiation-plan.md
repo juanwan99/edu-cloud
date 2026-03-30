@@ -378,8 +378,8 @@ from edu_cloud.models.base import Base, IdMixin, TimestampMixin
 class AgentProfile(Base, IdMixin, TimestampMixin):
     __tablename__ = "agent_profiles"
 
-    owner_user_id: Mapped[str] = mapped_column(String(36), index=True)
-    school_id: Mapped[str] = mapped_column(String(36), index=True)
+    owner_user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
     profile_type: Mapped[str] = mapped_column(String(20), default="employee")
     display_name: Mapped[str] = mapped_column(String(100))
     preferences: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
@@ -914,6 +914,8 @@ class IntentResolver:
         return selected if selected else available_tools
 
     async def _llm_classify(self, message: str) -> list[str]:
+        from edu_cloud.ai.schemas import ChatMessage
+
         prompt = (
             "你是意图分类器。根据用户消息，返回 1-3 个最相关的域。"
             f"可选域：{', '.join(DOMAIN_RULES.keys())}。"
@@ -922,8 +924,8 @@ class IntentResolver:
         try:
             response = await self._llm.chat(
                 messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": message},
+                    ChatMessage(role="system", content=prompt),
+                    ChatMessage(role="user", content=message),
                 ],
             )
             text = response.content if hasattr(response, "content") else str(response)
@@ -1052,12 +1054,19 @@ tier: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
 
 ```python
 # src/edu_cloud/ai/llm_factory.py
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.ai.llm import LLMChatClient
 from edu_cloud.config import settings
 from edu_cloud.core.models.llm_slot import LLMSlot
+
+
+def _tier_condition(tier: str):
+    """tier 查询条件：standard 时兼容旧数据（tier=NULL 视为 standard）"""
+    if tier == "standard":
+        return or_(LLMSlot.tier == "standard", LLMSlot.tier == None)
+    return LLMSlot.tier == tier
 
 
 async def create_llm_for_tier(
@@ -1069,7 +1078,7 @@ async def create_llm_for_tier(
     if school_id:
         stmt = select(LLMSlot).where(
             LLMSlot.school_id == school_id,
-            LLMSlot.tier == tier,
+            _tier_condition(tier),
             LLMSlot.is_enabled == True,
         ).limit(1)
         result = await db.execute(stmt)
@@ -1079,18 +1088,18 @@ async def create_llm_for_tier(
     if not slot:
         stmt = select(LLMSlot).where(
             LLMSlot.school_id == None,
-            LLMSlot.tier == tier,
+            _tier_condition(tier),
             LLMSlot.is_enabled == True,
         ).limit(1)
         result = await db.execute(stmt)
         slot = result.scalar_one_or_none()
 
-    # 兜底：.env 配置
+    # 兜底：.env 配置（字段名对齐 config.py: LLM_API_URL / LLM_API_KEY / LLM_MODEL）
     if not slot:
         return LLMChatClient(
             api_url=settings.LLM_API_URL,
             api_key=settings.LLM_API_KEY,
-            model=settings.LLM_DEFAULT_MODEL,
+            model=settings.LLM_MODEL,
         )
 
     return LLMChatClient(
@@ -1118,6 +1127,20 @@ git commit -m "feat: add ModelRouter + LLM factory + LLMSlot tier field"
 - ✓ LLM factory 三级 fallback（学校→平台→.env）
 - ✓ LLMSlot.tier nullable 向后兼容
 - ✗ create_llm_for_tier 在无任何 slot 且 .env 未配置时会抛异常
+
+**测试契约:**
+1. tier=NULL 的 slot 被 standard 查询命中
+   - 入口: `create_llm_for_tier("standard", school_id, db)`
+   - 反例: 错误实现只查 tier="standard" 会漏掉 NULL slot — 本测试验证兼容
+   - 边界: tier=NULL / tier="standard" / 无任何 slot
+   - 回归: N/A
+   - 命令: `pytest tests/test_ai/test_model_router.py::test_tier_null_compat -v`
+2. 三级 fallback 最终兜底到 .env
+   - 入口: `create_llm_for_tier("advanced", None, db)`（无匹配 slot）
+   - 反例: 错误实现在无 slot 时抛异常而非 fallback — 本测试验证 .env 兜底
+   - 边界: 无学校 slot / 无平台 slot / .env 配置缺失
+   - 回归: N/A
+   - 命令: `pytest tests/test_ai/test_model_router.py::test_fallback_to_env -v`
 
 ---
 
@@ -1179,9 +1202,12 @@ async def test_pipeline_end_to_end():
 
 @pytest.mark.asyncio
 async def test_pipeline_parent_sees_only_profile():
-    """parent 角色只能看到 profile 域工具"""
+    """parent 角色只能看到 allowed_roles=None 的工具（即 profile 域）。
+    F-01: analytics/student/exam/bank/knowledge/action/studio/calendar 工具的
+    allowed_roles 显式排除 parent，只有 L6_profile 保持 None。"""
     all_tools = [
-        _make_spec("get_scores", domain="analytics"),
+        _make_spec("get_scores", domain="analytics",
+                   allowed_roles=["platform_admin","academic_director","grade_leader"]),
         _make_spec("get_profile", domain="profile", allowed_roles=None),
         _make_spec("admin_tool", allowed_roles=["platform_admin"]),
     ]
@@ -1190,8 +1216,9 @@ async def test_pipeline_parent_sees_only_profile():
         all_specs=all_tools, role="parent",
         enabled_modules=set(), capabilities={},
     )
-    # parent: allowed_roles=None 的工具都能看到
-    assert len(available) == 2  # get_scores + get_profile
+    # parent: 只看到 allowed_roles=None 的工具（profile 域）
+    assert len(available) == 1  # get_profile only
+    assert available[0].name == "get_profile"
 
 
 @pytest.mark.asyncio
@@ -1222,8 +1249,12 @@ async def test_pipeline_module_disabled():
 
 在 `src/edu_cloud/api/ai.py` 的 `ai_chat()` 端点中，在 Agent.run() 调用前插入 Pipeline：
 1. 导入 ToolAccessResolver, IntentResolver, ModelRouter, create_llm_for_tier, AgentProfileService
-2. 用 Pipeline 替换现有的 `ROLE_TOOL_CATEGORIES` 工具过滤逻辑
-3. 将 selected_tools 和 model_tier 传给 Agent
+2. 预加载数据时使用正确的 service 函数名：
+   - `from edu_cloud.services.school_settings_service import get_enabled_modules` → `enabled_modules = await get_enabled_modules(db, school_id=school_id)`
+   - `from edu_cloud.services.capability_service import get_capabilities` → `caps = await get_capabilities(db, school_id=school_id, role=role)`
+   注意：**不是** `get_enabled_module_codes` 或 `get_school_capabilities`（这些函数不存在）
+3. 用 Pipeline 替换现有的 `ROLE_TOOL_CATEGORIES` 工具过滤逻辑
+4. 将 selected_tools 和 model_tier 传给 Agent
 
 - [ ] **Step 4: Run integration tests + existing AI tests**
 
@@ -1242,6 +1273,20 @@ git commit -m "feat: integrate Agent Pipeline (ToolAccess→Intent→ModelRouter
 - ✓ Pipeline 在 Agent.run() 之前执行
 - ✓ 现有 AI 测试仍通过
 - ✗ Pipeline 中任何步骤异常不应阻塞对话（应 fallback 到全工具集 + standard 模型）
+
+**测试契约:**
+1. Pipeline 异常不阻塞对话
+   - 入口: `POST /api/v1/ai/chat`（mock LLM）
+   - 反例: Pipeline 异常会导致 500 — 本测试验证 fallback 到全工具集+standard
+   - 边界: ToolAccessResolver 抛异常 / IntentResolver 抛异常 / ModelRouter 抛异常
+   - 回归: N/A
+   - 命令: `pytest tests/test_ai/test_agent_pipeline.py::test_pipeline_fallback_on_error -v`
+2. parent 角色只看到 profile 域工具
+   - 入口: `resolver.resolve(all_specs, role="parent", ...)`
+   - 反例: allowed_roles=None 的非 profile 工具会泄漏给 parent — 本测试验证拦截
+   - 边界: 全部 allowed_roles=None 的工具只剩 profile 域
+   - 回归: F-01 权限回归防护
+   - 命令: `pytest tests/test_ai/test_agent_pipeline.py::test_pipeline_parent_sees_only_profile -v`
 
 ---
 
@@ -1275,25 +1320,25 @@ git commit -m "feat: integrate Agent Pipeline (ToolAccess→Intent→ModelRouter
 | analytics_compare.py | compare_classes | L2_analytics | exam | analytics | ["platform_admin","academic_director","grade_leader"] | low |
 | analytics_compare.py | rank_students | L2_analytics | exam | analytics | ["platform_admin","academic_director","grade_leader"] | low |
 | analytics_compare.py | grade_aggregates | L2_analytics | exam | analytics | ["platform_admin","academic_director","grade_leader"] | low |
-| exams.py | exam_list | L1_exam | exam | exam | None | low |
-| exams.py | exam_detail | L1_exam | exam | exam | None | low |
-| exams.py | subject_questions | L1_exam | exam | exam | None | low |
-| students.py | class_list | L1_student | None | student | None | low |
-| students.py | student_roster | L1_student | None | student | None | low |
-| students.py | search_student | L1_student | None | student | None | low |
-| students.py | student_profile | L1_student | None | student | None | low |
-| bank.py | error_book | L5_bank | None | bank | None | low |
-| bank.py | question_stats | L5_bank | None | bank | None | low |
+| exams.py | exam_list | L1_exam | exam | exam | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| exams.py | exam_detail | L1_exam | exam | exam | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| exams.py | subject_questions | L1_exam | exam | exam | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| students.py | class_list | L1_student | None | student | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| students.py | student_roster | L1_student | None | student | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| students.py | search_student | L1_student | None | student | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| students.py | student_profile | L1_student | None | student | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| bank.py | error_book | L5_bank | None | bank | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| bank.py | question_stats | L5_bank | None | bank | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
 | profile.py | score_trend | L6_profile | None | profile | None | low |
 | profile.py | knowledge_map | L6_profile | None | profile | None | low |
 | profile.py | weakness_diagnosis | L6_profile | None | profile | None | low |
 | profile.py | error_pattern | L6_profile | None | profile | None | low |
-| knowledge.py | search_curriculum | L3_knowledge | None | knowledge | None | low |
-| knowledge.py | search_textbook | L3_knowledge | None | knowledge | None | low |
-| knowledge.py | search_concept | L3_knowledge | None | knowledge | None | low |
-| knowledge.py | search_gaokao | L3_knowledge | None | knowledge | None | low |
-| knowledge_db.py | knowledge_tree | L3_knowledge_db | None | knowledge | None | low |
-| knowledge_db.py | question_knowledge_points | L3_knowledge_db | None | knowledge | None | low |
+| knowledge.py | search_curriculum | L3_knowledge | None | knowledge | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| knowledge.py | search_textbook | L3_knowledge | None | knowledge | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| knowledge.py | search_concept | L3_knowledge | None | knowledge | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| knowledge.py | search_gaokao | L3_knowledge | None | knowledge | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| knowledge_db.py | knowledge_tree | L3_knowledge_db | None | knowledge | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
+| knowledge_db.py | question_knowledge_points | L3_knowledge_db | None | knowledge | ["platform_admin","district_admin","principal","academic_director","grade_leader","homeroom_teacher","subject_teacher"] | low |
 | actions.py | generate_report | L4_action | None | action | ["platform_admin","academic_director","subject_teacher","homeroom_teacher"] | med |
 | actions.py | generate_comment | L4_action | None | action | ["platform_admin","academic_director","subject_teacher","homeroom_teacher"] | med |
 
@@ -1322,9 +1367,25 @@ git commit -m "feat: integrate Agent Pipeline (ToolAccess→Intent→ModelRouter
 
 - [ ] **Step 2: Verify all 31 tools have metadata**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -c "from edu_cloud.ai.tools import *; from edu_cloud.ai.registry import tools; specs = tools.get_all_specs(); missing = [s.name for s in specs if s.domain == 'general' and s.category != 'general']; print(f'Total: {len(specs)}, Missing domain: {missing}')""`
+Run:
+```bash
+cd C:/Users/Administrator/edu-cloud && python -c "
+from edu_cloud.ai.tools import *
+from edu_cloud.ai.registry import tools
+specs = tools.get_all_specs()
+missing = [s.name for s in specs if s.domain == 'general' and s.category != 'general']
+parent_leak = [s.name for s in specs if s.allowed_roles is None and s.domain not in ('general', 'profile')]
+print(f'Total: {len(specs)}')
+print(f'Missing domain: {missing}')
+print(f'Parent leak (allowed_roles=None outside profile): {parent_leak}')
+assert len(specs) == 31, f'Expected 31 tools, got {len(specs)}'
+assert not missing, f'Tools missing domain: {missing}'
+assert not parent_leak, f'Tools leaking to parent: {parent_leak}'
+print('All checks passed')
+"
+```
 
-Expected: `Total: 31, Missing domain: []`
+Expected: `Total: 31`, `Missing domain: []`, `Parent leak: []`, `All checks passed`
 
 - [ ] **Step 3: Run all tests**
 
@@ -1344,6 +1405,21 @@ git commit -m "feat: add module_code/domain/risk_level/allowed_roles metadata to
 - ✓ module_code 与 SchoolModule.module_code 枚举一致
 - ✓ category 字段保留（向后兼容）
 - ✗ 工具名称拼写错误导致映射丢失
+- ✗ parent 角色看到非 profile 域的工具（权限回归）
+
+**测试契约:**
+1. 所有工具都有非 general 的 domain
+   - 入口: `tools.get_all_specs()` 遍历检查
+   - 反例: 遗漏某工具的 domain 会导致 IntentResolver 无法裁剪 — 本测试捕获遗漏
+   - 边界: 31 个工具全覆盖
+   - 回归: N/A
+   - 命令: `pytest tests/test_ai/test_registry_upgrade.py::test_all_tools_have_domain -v`
+2. 非 profile 域工具不泄漏给 parent
+   - 入口: `tools.get_all_specs()` 遍历检查 allowed_roles
+   - 反例: allowed_roles=None 的非 profile 工具让 parent 越权访问 — 本测试捕获
+   - 边界: 31 个工具全覆盖，只有 L6_profile 的 4 个工具允许 None
+   - 回归: F-01 权限回归防护
+   - 命令: `pytest tests/test_ai/test_registry_upgrade.py::test_no_parent_leak -v`
 
 ---
 
@@ -1391,3 +1467,17 @@ git commit -m "feat: add Alembic migration for agent_profiles/agent_runs + CLAUD
 - ✓ test_alembic_migration 更新了预期表集合
 - ✓ CLAUDE.md 同步了新模型和 API 架构变更
 - ✗ Migration downgrade 应能干净回退
+
+**测试契约:**
+1. Alembic migration 包含新表
+   - 入口: `alembic upgrade head` + 表集合检查
+   - 反例: 遗漏 import 导致 autogenerate 不生成新表 — 本测试验证表存在
+   - 边界: agent_profiles / agent_runs / llm_slots.tier 字段
+   - 回归: N/A
+   - 命令: `pytest tests/test_alembic_migration.py -v`
+2. 全量测试通过（无回归）
+   - 入口: 完整测试套件
+   - 反例: 新代码破坏现有功能 — 全量测试捕获回归
+   - 边界: ~930+ tests 全覆盖
+   - 回归: 所有已有功能
+   - 命令: `pytest --tb=short -q`
