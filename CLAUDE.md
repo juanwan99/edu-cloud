@@ -174,7 +174,7 @@ src/edu_cloud/
     llm_factory.py      # create_llm_for_tier()（LLMSlot tier 查询 + .env fallback）
     models.py           # AiSession/AiToolCall 表
     tools/
-      __init__.py       # 触发全部 11 个工具模块注册（34 tools）
+      __init__.py       # 触发全部 12 个工具模块注册（39 tools）
       analytics.py      # L2_cross_school（2）: get_exam_scores/get_class_stats
       analytics_score.py # L2_analytics（5）: exam_summary/distribution/question/student/class scores
       analytics_compare.py # L2_analytics（3）: compare_classes/rank_students/grade_aggregates
@@ -185,6 +185,7 @@ src/edu_cloud/
       knowledge.py      # L3_knowledge（4）: search_curriculum/textbook/concept/gaokao
       knowledge_db.py   # L3_knowledge_db（2）: knowledge_tree/question_knowledge_points
       actions.py        # L4_action（2）: generate_report/comment
+      homework.py       # L2_homework（5）: task list/stats/submit/assign/remedial
   workers/
     grading.py          # process_grading_task（AI 阅卷）+ run_post_exam_pipeline（考后处理 stub）
   shared/
@@ -213,14 +214,14 @@ tests/
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
 | API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(documents CRUD+transition+paper/create+paper/:id/status), calendar(events CRUD) | 跨校分析(高级), 题库, 共享 AI 阅卷 |
-| Models | 37 表（modules/ 下 exam/student/card/scan/grading/marking/bank/profile/knowledge/pipeline + core school/user/user_role/llm_slot/school_settings/school_modules/teacher_assignment/subject_selection + studio/calendar/notification + grading_assignments/grading_quality_checks + agent_profiles/agent_runs）| — |
-| Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), CalendarService(create/list/delete/triggered_rules), NotificationService(dispatch stub+幂等), exceptions | EventBus handler, AI grading |
+| Models | 39 表（modules/ 下 exam/student/card/scan/grading/marking/bank/profile/knowledge/pipeline/homework + core school/user/user_role/llm_slot/school_settings/school_modules/teacher_assignment/subject_selection + studio/calendar/notification + grading_assignments/grading_quality_checks + agent_profiles/agent_runs + homework_tasks/homework_submissions）| — |
+| Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), CalendarService(create/list/delete/triggered_rules), NotificationService(dispatch stub+幂等), HomeworkTaskService(CRUD+状态机), HomeworkSubmissionService(submit/grade/stats), exceptions | EventBus handler, AI grading |
 | Tasks | tasks.py: auto_draft_notifications（扫描日历→自动创建 notification 草稿，防重复 triggered 标记）| arq cron 生产接入 |
 | Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |
 | Core | EventBus 定义, RBAC 映射(10 权限 + require_permission) | EventBus handler 接入 |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 780 tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam迁入+Alembic迁移+权限边界+Dashboard 全覆盖）+ 27 前端 Vitest | — |
-| Modules | 15 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school），路由已迁入 | — |
+| Tests | 780+ tests（API+Service+Model+Knowledge+AI Tools+Paper+Calendar+Tasks+Notification+LLMSlot+Exam迁入+Alembic迁移+权限边界+Dashboard+Homework 全覆盖）+ 68 前端 Vitest | — |
+| Modules | 16 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school/homework），路由已迁入 | — |
 | Migrations | Alembic 初始 migration（39 表，autogenerate） | — |
 
 ## 技术栈
@@ -430,6 +431,23 @@ tests/
 |------|------|------|------|
 | GET | `/api/v1/notifications` | 已登录 | 列出本校通知（支持 status/since 过滤） |
 
+### 作业管理端点（JWT 认证，Phase 2.2）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| POST | `/api/v1/homework/tasks` | MANAGE_HOMEWORK | 创建作业 |
+| GET | `/api/v1/homework/tasks` | VIEW_HOMEWORK | 列出作业（支持 class_id/subject_code/status/task_type 过滤） |
+| GET | `/api/v1/homework/tasks/{id}` | VIEW_HOMEWORK | 作业详情（含内嵌 stats） |
+| PATCH | `/api/v1/homework/tasks/{id}` | MANAGE_HOMEWORK | 更新作业（仅 draft） |
+| POST | `/api/v1/homework/tasks/{id}/publish` | MANAGE_HOMEWORK | 发布作业（自动创建提交记录） |
+| POST | `/api/v1/homework/tasks/{id}/close` | MANAGE_HOMEWORK | 关闭作业 |
+| DELETE | `/api/v1/homework/tasks/{id}` | MANAGE_HOMEWORK | 删除作业（仅 draft） |
+| GET | `/api/v1/homework/tasks/{id}/submissions` | VIEW_HOMEWORK | 列出提交记录 |
+| POST | `/api/v1/homework/tasks/{id}/submissions/{sub_id}/submit` | VIEW_HOMEWORK | 学生提交作业 |
+| POST | `/api/v1/homework/tasks/{id}/submissions/{sub_id}/grade` | MANAGE_HOMEWORK | 单个批改 |
+| POST | `/api/v1/homework/tasks/{id}/grade-batch` | MANAGE_HOMEWORK | 批量批改 |
+| GET | `/api/v1/homework/tasks/{id}/stats` | VIEW_HOMEWORK | 提交/批改统计 |
+
 ### AI Agent 端点（JWT 认证，Batch 4 迁入）
 
 | 方法 | 路径 | 权限 | 用途 |
@@ -504,6 +522,8 @@ docker compose logs -f      # 查看日志
 | subject_selections | school_id(FK), name(唯一per school), subject_codes(JSON), mode, is_active | 学校选考科目组合（模式: 3+1+2/3+3/custom） |
 | capabilities | school_id(FK), role, domain, action, enabled(default True) | 学校级角色能力配置（唯一约束：school+role+domain+action） |
 | audit_logs | school_id(FK,nullable), user_id(FK,nullable), entity_type, entity_id, action, before_data(JSON), after_data(JSON), request_id | 变更审计日志 |
+| homework_tasks | school_id(FK), title, task_type(regular/pre_exam/post_exam), subject_code, class_id(FK,nullable), assigned_by(FK), exam_id(FK,nullable), deadline, status(draft→active→expired→closed), content(Text), grading_mode | 作业任务 |
+| homework_submissions | task_id(FK), student_id(FK), status(pending/submitted/graded), score(Float,nullable), feedback(Text), submit_time, content(Text), graded_by(FK,nullable), graded_at | 作业提交记录（唯一约束：task+student） |
 
 ## 种子数据
 

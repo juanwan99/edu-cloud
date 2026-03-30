@@ -95,9 +95,11 @@ async def test_get_capabilities_filter_by_role(db, seed_school):
     school, _ = seed_school
     await init_school_capabilities(db, school_id=school.id)
     parent_caps = await get_capabilities(db, school_id=school.id, role="parent")
-    assert len(parent_caps) == 1
-    assert parent_caps[0].domain == "study_analytics"
-    assert parent_caps[0].action == "read"
+    assert len(parent_caps) == 2  # study_analytics.read + homework.read
+    domains = {c.domain for c in parent_caps}
+    assert "study_analytics" in domains
+    assert "homework" in domains
+    assert all(c.action == "read" for c in parent_caps)
 
 
 @pytest.mark.asyncio

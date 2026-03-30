@@ -44,9 +44,11 @@ async def test_get_capabilities_filter_role(client, admin_headers, seed_school):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) == 1
-    assert data[0]["role"] == "parent"
-    assert data[0]["domain"] == "study_analytics"
+    assert len(data) == 2  # study_analytics.read + homework.read
+    assert all(d["role"] == "parent" for d in data)
+    domains = {d["domain"] for d in data}
+    assert "study_analytics" in domains
+    assert "homework" in domains
 
 
 @pytest.mark.asyncio

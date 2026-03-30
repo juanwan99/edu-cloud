@@ -19,7 +19,7 @@ from edu_cloud.modules.homework.service import HomeworkTaskService, HomeworkSubm
     module_code="homework",
     domain="homework",
     risk_level="low",
-    requires_capabilities={"homework.read"},
+    requires_capabilities=[("homework", "read")],
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director",
                    "grade_leader", "homeroom_teacher", "subject_teacher", "parent"],
 )
@@ -54,7 +54,7 @@ async def list_homework_tasks(
     module_code="homework",
     domain="homework",
     risk_level="low",
-    requires_capabilities={"homework.read"},
+    requires_capabilities=[("homework", "read")],
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director",
                    "grade_leader", "homeroom_teacher", "subject_teacher"],
 )
@@ -78,7 +78,7 @@ async def get_homework_stats(task_id: str, _db=None, _school_id: str = "") -> di
     module_code="homework",
     domain="homework",
     risk_level="low",
-    requires_capabilities={"homework.read"},
+    requires_capabilities=[("homework", "read")],
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director",
                    "grade_leader", "homeroom_teacher", "subject_teacher"],
 )
@@ -114,7 +114,7 @@ async def get_submission_details(
     module_code="homework",
     domain="homework",
     risk_level="med",
-    requires_capabilities={"homework.write"},
+    requires_capabilities=[("homework", "write")],
     allowed_roles=["homeroom_teacher", "subject_teacher", "academic_director", "platform_admin"],
 )
 async def assign_homework(
@@ -147,7 +147,7 @@ async def assign_homework(
     module_code="homework",
     domain="homework",
     risk_level="low",
-    requires_capabilities={"homework.read"},
+    requires_capabilities=[("homework", "read")],
     allowed_roles=["homeroom_teacher", "subject_teacher", "academic_director", "platform_admin"],
 )
 async def recommend_remedial(exam_id: str, _db=None, _school_id: str = "") -> dict:
