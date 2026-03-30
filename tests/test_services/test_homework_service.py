@@ -71,6 +71,39 @@ async def test_create_homework_submission(db):
     assert sub.score is None
 
 
+@pytest.mark.asyncio
+async def test_submission_unique_constraint(db):
+    """CR-4: 同一 task_id + student_id 重复插入抛 IntegrityError。"""
+    from edu_cloud.models.school import School
+    from edu_cloud.models.user import User
+    from edu_cloud.models.student import Student
+    from sqlalchemy.exc import IntegrityError
+
+    school = School(name="唯一约束校", code="HW03", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+    user = User(username="hw_teacher3", display_name="老师3")
+    user.set_password("123456")
+    db.add(user)
+    await db.flush()
+    task = HomeworkTask(
+        school_id=school.id, title="唯一测试", task_type="regular",
+        subject_code="SX", assigned_by=user.id, status="active",
+    )
+    db.add(task)
+    await db.flush()
+    student = Student(name="学生B", student_number="S002", school_id=school.id, grade="七年级")
+    db.add(student)
+    await db.flush()
+
+    db.add(HomeworkSubmission(task_id=task.id, student_id=student.id))
+    await db.flush()
+    db.add(HomeworkSubmission(task_id=task.id, student_id=student.id))
+    with pytest.raises(IntegrityError):
+        await db.flush()
+    await db.rollback()
+
+
 # ── Task 3: HomeworkTaskService CRUD ─────────────────────────
 
 from edu_cloud.modules.homework.service import HomeworkTaskService
@@ -285,7 +318,7 @@ async def test_submit_homework(db, hw_with_students):
     )
     subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
     updated = await HomeworkSubmissionService.submit(
-        db, submission_id=subs[0].id, content='{"answer": "A"}',
+        db, task_id=task.id, submission_id=subs[0].id, content='{"answer": "A"}',
     )
     assert updated.status == "submitted"
     assert updated.submit_time is not None
@@ -304,9 +337,9 @@ async def test_grade_single(db, hw_with_students):
         db, task_id=task.id, school_id=f["school_id"], action="publish",
     )
     subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
-    await HomeworkSubmissionService.submit(db, submission_id=subs[0].id, content='{}')
+    await HomeworkSubmissionService.submit(db, task_id=task.id, submission_id=subs[0].id, content='{}')
     graded = await HomeworkSubmissionService.grade_single(
-        db, submission_id=subs[0].id, score=85.0,
+        db, task_id=task.id, submission_id=subs[0].id, score=85.0,
         feedback="不错", graded_by=f["teacher_id"],
     )
     assert graded.status == "graded"
@@ -328,7 +361,7 @@ async def test_grade_batch(db, hw_with_students):
     )
     subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
     for s in subs:
-        await HomeworkSubmissionService.submit(db, submission_id=s.id, content='{}')
+        await HomeworkSubmissionService.submit(db, task_id=task.id, submission_id=s.id, content='{}')
 
     grades = [
         {"student_id": f["student_ids"][0], "score": 90, "feedback": "优秀"},
@@ -358,7 +391,7 @@ async def test_submit_after_close_rejected(db, hw_with_students):
     )
     subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
     with pytest.raises(StateError, match="已关闭"):
-        await HomeworkSubmissionService.submit(db, submission_id=subs[0].id, content='{}')
+        await HomeworkSubmissionService.submit(db, task_id=task.id, submission_id=subs[0].id, content='{}')
 
 
 @pytest.mark.asyncio

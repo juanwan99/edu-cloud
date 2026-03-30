@@ -199,3 +199,14 @@ async def test_delete_draft(client, hw_teacher_headers):
     task_id = create_resp.json()["id"]
     del_resp = await client.delete(f"/api/v1/homework/tasks/{task_id}", headers=hw_teacher_headers)
     assert del_resp.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_empty_title_422(client, hw_teacher_headers):
+    """CR-2/CR-5: 空标题应返回 422。"""
+    resp = await client.post(
+        "/api/v1/homework/tasks",
+        json={"title": "", "task_type": "regular", "subject_code": "SX"},
+        headers=hw_teacher_headers,
+    )
+    assert resp.status_code == 422

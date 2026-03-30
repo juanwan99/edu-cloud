@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/v1/homework", tags=["homework"])
 
 
 class TaskCreate(BaseModel):
-    title: str
+    title: str = Field(..., min_length=1, max_length=200)
     task_type: str = "regular"
     subject_code: str
     class_id: str | None = None
@@ -105,10 +105,13 @@ async def list_tasks(
     assigned_by = None
     if role.role == "subject_teacher":
         assigned_by = current["user"].id
-    # homeroom_teacher 限定本班
+    # homeroom_teacher 强制限定本班（忽略外部传入的 class_id）
     scope_class_id = class_id
-    if role.role == "homeroom_teacher" and not class_id and role.class_ids:
-        scope_class_id = role.class_ids[0] if len(role.class_ids) == 1 else None
+    if role.role == "homeroom_teacher" and role.class_ids:
+        if class_id and class_id not in role.class_ids:
+            scope_class_id = role.class_ids[0]  # 拒绝越权，回退到自己的班
+        elif not class_id:
+            scope_class_id = role.class_ids[0] if len(role.class_ids) == 1 else None
     tasks = await HomeworkTaskService.list_tasks(
         db, school_id=_school_id(current),
         class_id=scope_class_id, subject_code=subject_code,
@@ -206,7 +209,7 @@ async def submit_homework(
     current: dict = Depends(require_permission(Permission.VIEW_HOMEWORK)),
 ):
     await HomeworkTaskService.get_task(db, task_id=task_id, school_id=_school_id(current))
-    sub = await HomeworkSubmissionService.submit(db, submission_id=sub_id, content=req.content)
+    sub = await HomeworkSubmissionService.submit(db, task_id=task_id, submission_id=sub_id, content=req.content)
     await db.commit()
     return _submission_response(sub)
 
@@ -219,7 +222,7 @@ async def grade_single(
 ):
     await HomeworkTaskService.get_task(db, task_id=task_id, school_id=_school_id(current))
     sub = await HomeworkSubmissionService.grade_single(
-        db, submission_id=sub_id, score=req.score,
+        db, task_id=task_id, submission_id=sub_id, score=req.score,
         feedback=req.feedback, graded_by=current["user"].id,
     )
     await db.commit()

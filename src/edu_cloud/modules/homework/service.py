@@ -182,11 +182,13 @@ class HomeworkSubmissionService:
 
     @staticmethod
     async def submit(
-        db: AsyncSession, *, submission_id: str, content: str | None = None,
+        db: AsyncSession, *, task_id: str, submission_id: str, content: str | None = None,
     ) -> HomeworkSubmission:
         sub = await db.get(HomeworkSubmission, submission_id)
         if not sub:
             raise NotFoundError("提交记录不存在")
+        if sub.task_id != task_id:
+            raise ValidationError("提交记录不属于该作业")
         if sub.status != "pending":
             raise StateError(f"当前状态 {sub.status} 不允许提交")
         # F-04: 联查 task 状态，关闭/过期的作业不接受提交
@@ -201,12 +203,14 @@ class HomeworkSubmissionService:
 
     @staticmethod
     async def grade_single(
-        db: AsyncSession, *, submission_id: str, score: float,
+        db: AsyncSession, *, task_id: str, submission_id: str, score: float,
         feedback: str | None = None, graded_by: str,
     ) -> HomeworkSubmission:
         sub = await db.get(HomeworkSubmission, submission_id)
         if not sub:
             raise NotFoundError("提交记录不存在")
+        if sub.task_id != task_id:
+            raise ValidationError("提交记录不属于该作业")
         if sub.status != "submitted":
             raise StateError(f"当前状态 {sub.status} 不允许批改")
         sub.status = "graded"
