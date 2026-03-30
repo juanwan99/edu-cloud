@@ -1,0 +1,9 @@
+{
+  "gates": {
+    "plan_review": {
+      "required": true,
+      "status": "pending",
+      "reviewer": "gpt"
+    }
+  }
+}
