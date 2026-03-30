@@ -72,3 +72,52 @@ async def test_agent_profile_system_type(db):
     db.add(profile)
     await db.flush()
     assert profile.profile_type == "system"
+
+
+# ── AgentProfileService tests ──
+
+
+from edu_cloud.services.agent_profile_service import AgentProfileService
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_creates_new(db):
+    profile = await AgentProfileService.get_or_create(
+        db, user_id="user-new", school_id="school-1", display_name="新用户"
+    )
+    assert profile.id is not None
+    assert profile.owner_user_id == "user-new"
+    assert profile.display_name == "新用户"
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_returns_existing(db):
+    p1 = await AgentProfileService.get_or_create(
+        db, user_id="user-exist", school_id="school-1", display_name="First"
+    )
+    p2 = await AgentProfileService.get_or_create(
+        db, user_id="user-exist", school_id="school-1", display_name="Second"
+    )
+    assert p1.id == p2.id
+    assert p2.display_name == "First"  # 不覆盖已有
+
+
+@pytest.mark.asyncio
+async def test_create_agent_run_record(db):
+    profile = await AgentProfileService.get_or_create(
+        db, user_id="user-run", school_id="school-1", display_name="Run"
+    )
+    run = await AgentProfileService.record_run(
+        db,
+        profile_id=profile.id,
+        session_id="sess-456",
+        tools_resolved=["a", "b"],
+        tools_selected=["a"],
+        model_used="claude-sonnet-4",
+        model_tier="standard",
+        intent_domains=["exam", "student"],
+        token_input=200,
+        token_output=100,
+    )
+    assert run.id is not None
+    assert run.model_tier == "standard"
