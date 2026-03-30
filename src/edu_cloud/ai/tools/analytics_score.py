@@ -6,6 +6,10 @@ from edu_cloud.ai.registry import tools
     name="get_exam_summary",
     description="获取考试总览：各科平均分、最高分、最低分、得分率。",
     category="L2_analytics",
+    module_code="exam",
+    domain="analytics",
+    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -31,6 +35,10 @@ async def get_exam_summary(
     name="get_score_distribution",
     description="获取成绩分布（分数段统计）。可按科目和班级过滤。",
     category="L2_analytics",
+    module_code="exam",
+    domain="analytics",
+    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -66,6 +74,10 @@ async def get_score_distribution(
     name="get_question_analysis",
     description="获取某科目每道题的得分率分析。",
     category="L2_analytics",
+    module_code="exam",
+    domain="analytics",
+    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -91,6 +103,10 @@ async def get_question_analysis(
     name="get_student_scores",
     description="获取某学生在某次考试的各科各题详细分数。",
     category="L2_analytics",
+    module_code="exam",
+    domain="analytics",
+    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -133,6 +149,10 @@ async def get_student_scores(
     name="get_class_scores",
     description="获取某班级在某次考试的学生成绩列表。",
     category="L2_analytics",
+    module_code="exam",
+    domain="analytics",
+    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {

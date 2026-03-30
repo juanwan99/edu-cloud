@@ -9,6 +9,9 @@ from edu_cloud.ai.registry import tools
     name="get_knowledge_tree",
     description="获取某学科的知识点树。返回指定层级的知识点列表。不传 parent_id 返回顶层节点。",
     category="L3_knowledge_db",
+    domain="knowledge",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -36,6 +39,9 @@ async def get_knowledge_tree(course_code: str, parent_id: str | None = None, _db
     name="get_question_knowledge_points",
     description="获取某道题目关联的知识点列表。",
     category="L3_knowledge_db",
+    domain="knowledge",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {

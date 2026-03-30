@@ -6,6 +6,10 @@ from edu_cloud.ai.registry import tools
     name="get_exam_list",
     description="获取考试列表。可按状态过滤（draft/scanning/grading/reviewing/completed）。",
     category="L1_exam",
+    module_code="exam",
+    domain="exam",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -35,6 +39,10 @@ async def get_exam_list(
     name="get_exam_detail",
     description="获取考试详情，包括科目列表。",
     category="L1_exam",
+    module_code="exam",
+    domain="exam",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -69,6 +77,10 @@ async def get_exam_detail(
     name="get_subject_questions",
     description="获取某科目的题目列表。",
     category="L1_exam",
+    module_code="exam",
+    domain="exam",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {

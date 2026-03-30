@@ -6,6 +6,9 @@ from edu_cloud.ai.registry import tools
     name="get_student_error_book",
     description="获取某学生的错题本。返回该学生做错的题目列表，含 AI 反馈和掌握状态。",
     category="L5_bank",
+    domain="bank",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -39,6 +42,9 @@ async def get_student_error_book(student_id: str, mastery_status: str | None = N
     name="get_question_stats",
     description="获取题库中某道题的统计属性：难度、区分度、常见错误分布。",
     category="L5_bank",
+    domain="bank",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {

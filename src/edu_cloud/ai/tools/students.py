@@ -6,6 +6,9 @@ from edu_cloud.ai.registry import tools
     name="get_class_list",
     description="获取班级列表。可按年级过滤。返回班级 ID、名称、年级。",
     category="L1_student",
+    domain="student",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -36,6 +39,9 @@ async def get_class_list(
     name="get_class_roster",
     description="获取某班级的学生名单（姓名会被脱敏为代号）。",
     category="L1_student",
+    domain="student",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -66,6 +72,9 @@ async def get_class_roster(
     name="search_students",
     description="按姓名模糊搜索学生。",
     category="L1_student",
+    domain="student",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -94,6 +103,9 @@ async def search_students(
     name="get_student_profile",
     description="获取学生个人信息。",
     category="L1_student",
+    domain="student",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {

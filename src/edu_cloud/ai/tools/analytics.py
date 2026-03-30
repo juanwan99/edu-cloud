@@ -42,6 +42,10 @@ def _compute_stats(scores: list[float]) -> dict:
         "required": ["exam_id"],
     },
     category="L2_cross_school",
+    module_code="exam",
+    domain="analytics",
+    allowed_roles=["platform_admin", "district_admin"],
+    risk_level="low",
 )
 async def get_exam_scores(
     exam_id: str,
@@ -103,6 +107,10 @@ async def get_exam_scores(
         "required": ["exam_id", "class_id"],
     },
     category="L2_cross_school",
+    module_code="exam",
+    domain="analytics",
+    allowed_roles=["platform_admin", "district_admin"],
+    risk_level="low",
 )
 async def get_class_stats(
     exam_id: str,

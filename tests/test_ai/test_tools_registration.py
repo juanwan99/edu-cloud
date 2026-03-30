@@ -31,9 +31,11 @@ def test_tool_categories_present():
 async def test_platform_admin_gets_all_tools():
     """platform_admin 通过 ToolAccessResolver 看到所有工具。"""
     resolver = ToolAccessResolver()
+    # 启用所有模块（模拟完整学校配置）
+    all_modules = {"exam", "grading", "homework", "study_analytics", "research", "teaching", "calendar", "studio"}
     result = await resolver.resolve(
         all_specs=tools.get_all_specs(), role="platform_admin",
-        enabled_modules=set(), capabilities={},
+        enabled_modules=all_modules, capabilities={},
     )
     assert len(result) >= 25
 

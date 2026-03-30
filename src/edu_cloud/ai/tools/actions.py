@@ -25,6 +25,9 @@ from edu_cloud.templates.document_templates import TEMPLATES
         "required": ["template", "context"],
     },
     category="L4_action",
+    domain="action",
+    allowed_roles=["platform_admin", "academic_director", "subject_teacher", "homeroom_teacher"],
+    risk_level="med",
 )
 async def generate_report(
     template: str,
@@ -136,6 +139,9 @@ def _build_section_content(section_key: str, data_summary: dict) -> str:
         "required": ["student_number"],
     },
     category="L4_action",
+    domain="action",
+    allowed_roles=["platform_admin", "academic_director", "subject_teacher", "homeroom_teacher"],
+    risk_level="med",
 )
 async def generate_comment(
     student_number: str,

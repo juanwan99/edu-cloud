@@ -6,6 +6,8 @@ from edu_cloud.ai.registry import tools
     name="get_student_trend",
     description="获取某学生的成绩趋势。返回该学生历次考试的分数、排名变化。",
     category="L6_profile",
+    domain="profile",
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -37,6 +39,8 @@ async def get_student_trend(student_id: str, subject_code: str | None = None, _s
     name="get_student_knowledge_map",
     description="获取某学生的知识点掌握度。返回各知识点的掌握程度和趋势。",
     category="L6_profile",
+    domain="profile",
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -69,6 +73,8 @@ async def get_student_knowledge_map(student_id: str, course_code: str | None = N
     name="get_class_knowledge_weakness",
     description="获取某班级的知识薄弱点排名。返回掌握度最低的知识点列表。",
     category="L6_profile",
+    domain="profile",
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -107,6 +113,8 @@ async def get_class_knowledge_weakness(
     name="get_student_error_pattern",
     description="获取某学生的错误模式分析。返回各科目的错误类型分布和统计。",
     category="L6_profile",
+    domain="profile",
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {

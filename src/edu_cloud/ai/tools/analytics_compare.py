@@ -6,6 +6,10 @@ from edu_cloud.ai.registry import tools
     name="compare_classes",
     description="多班级成绩对比。返回各班平均分、最高分、最低分。",
     category="L2_analytics",
+    module_code="exam",
+    domain="analytics",
+    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -72,6 +76,10 @@ async def compare_classes(
     name="rank_students",
     description="学生排名表。可按科目、班级过滤，指定 top_n。",
     category="L2_analytics",
+    module_code="exam",
+    domain="analytics",
+    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {
@@ -143,6 +151,10 @@ async def rank_students(
     name="get_grade_aggregates",
     description="获取年级聚合统计（均分/中位数/标准差）。不含个体数据。组 < 5 人不返回统计。",
     category="L2_analytics",
+    module_code="exam",
+    domain="analytics",
+    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+    risk_level="low",
     parameters={
         "type": "object",
         "properties": {

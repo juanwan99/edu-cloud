@@ -14,6 +14,9 @@ from edu_cloud.knowledge.store import knowledge_store
         "required": ["keyword"],
     },
     category="L3_knowledge",
+    domain="knowledge",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
 )
 async def search_curriculum(keyword: str) -> dict:
     results = knowledge_store.search_curriculum(keyword)
@@ -31,6 +34,9 @@ async def search_curriculum(keyword: str) -> dict:
         "required": ["keyword"],
     },
     category="L3_knowledge",
+    domain="knowledge",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
 )
 async def search_textbook(keyword: str) -> dict:
     blocks = knowledge_store.search_knowledge(keyword)
@@ -48,6 +54,9 @@ async def search_textbook(keyword: str) -> dict:
         "required": ["concept_name"],
     },
     category="L3_knowledge",
+    domain="knowledge",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
 )
 async def get_concept_info(concept_name: str) -> dict:
     concept = knowledge_store.get_concept(concept_name)
@@ -67,6 +76,9 @@ async def get_concept_info(concept_name: str) -> dict:
         },
     },
     category="L3_knowledge",
+    domain="knowledge",
+    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+    risk_level="low",
 )
 async def search_gaokao(year: int | None = None, region: str | None = None) -> dict:
     exams = knowledge_store.search_gaokao(year=year, region=region)
