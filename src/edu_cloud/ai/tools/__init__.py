@@ -9,3 +9,4 @@ from edu_cloud.ai.tools import bank  # noqa: F401 — L5_bank (2): error book/qu
 from edu_cloud.ai.tools import profile  # noqa: F401 — L6_profile (4): trend/knowledge map/weakness
 from edu_cloud.ai.tools import knowledge_db  # noqa: F401 — L3_knowledge_db (2): DB knowledge tree
 from edu_cloud.ai.tools import grading_ops  # noqa: F401 — L1_exam+L2+L4 (3): grading progress/quality/assign
+from edu_cloud.ai.tools import homework  # noqa: F401 — L2_homework (5): task list/stats/submit/assign/remedial
