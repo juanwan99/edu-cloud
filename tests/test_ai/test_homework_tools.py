@@ -27,10 +27,10 @@ async def test_homework_tools_capabilities():
         assert t.requires_capabilities, f"工具 {t.name} 缺少 requires_capabilities"
     # write 工具需要 homework.write capability
     assign_tool = next(t for t in hw_tools if t.name == "assign_homework")
-    assert "homework.write" in assign_tool.requires_capabilities
+    assert ("homework", "write") in assign_tool.requires_capabilities
     # read 工具需要 homework.read capability
     list_tool = next(t for t in hw_tools if t.name == "list_homework_tasks")
-    assert "homework.read" in list_tool.requires_capabilities
+    assert ("homework", "read") in list_tool.requires_capabilities
 
 
 @pytest.mark.asyncio
