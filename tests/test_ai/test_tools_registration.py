@@ -1,8 +1,8 @@
-"""Verify all 25+ tools are registered and RBAC mapping is correct."""
+"""Verify all 25+ tools are registered and category/metadata structure is correct."""
 import pytest
 from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_access import ToolAccessResolver
 import edu_cloud.ai.tools  # noqa: F401 — trigger registration
-from edu_cloud.ai.agent import ROLE_TOOL_CATEGORIES
 
 
 def test_total_tool_count():
@@ -27,58 +27,49 @@ def test_tool_categories_present():
         assert cat in found_categories, f"Category {cat} has no tools"
 
 
-def test_platform_admin_gets_all_tools():
-    categories = ROLE_TOOL_CATEGORIES["platform_admin"]
-    schemas = tools.get_schemas(categories=categories)
-    assert len(schemas) >= 25
+@pytest.mark.asyncio
+async def test_platform_admin_gets_all_tools():
+    """platform_admin 通过 ToolAccessResolver 看到所有工具。"""
+    resolver = ToolAccessResolver()
+    result = await resolver.resolve(
+        all_specs=tools.get_all_specs(), role="platform_admin",
+        enabled_modules=set(), capabilities={},
+    )
+    assert len(result) >= 25
 
 
-def test_district_admin_limited():
-    categories = ROLE_TOOL_CATEGORIES["district_admin"]
-    schemas = tools.get_schemas(categories=categories)
-    tool_names = {s["function"]["name"] for s in schemas}
-    # Should have L2_cross_school + L3_knowledge + L3_knowledge_db only
-    assert "search_curriculum" in tool_names  # L3_knowledge
-    assert "get_knowledge_tree" in tool_names  # L3_knowledge_db
-    # Should NOT have L1/L4/L5/L6
-    assert "get_exam_list" not in tool_names  # L1_exam
+@pytest.mark.asyncio
+async def test_resolver_filters_by_allowed_roles():
+    """ToolAccessResolver 按 allowed_roles 过滤。"""
+    from edu_cloud.ai.registry import ToolSpec
+    from unittest.mock import AsyncMock
 
-
-def test_principal_has_profile():
-    """principal has L6_profile (per design §5.2)."""
-    categories = ROLE_TOOL_CATEGORIES["principal"]
-    assert "L6_profile" in categories
-    schemas = tools.get_schemas(categories=categories)
-    tool_names = {s["function"]["name"] for s in schemas}
-    assert "get_student_trend" in tool_names
-
-
-def test_homeroom_teacher_has_bank():
-    """homeroom_teacher has L5_bank (per design §5.2)."""
-    categories = ROLE_TOOL_CATEGORIES["homeroom_teacher"]
-    assert "L5_bank" in categories
-    schemas = tools.get_schemas(categories=categories)
-    tool_names = {s["function"]["name"] for s in schemas}
-    assert "get_student_error_book" in tool_names
-
-
-def test_parent_only_profile():
-    """parent only gets L6_profile."""
-    categories = ROLE_TOOL_CATEGORIES["parent"]
-    assert categories == ["L6_profile"]
-    schemas = tools.get_schemas(categories=categories)
-    tool_names = {s["function"]["name"] for s in schemas}
-    assert "get_student_trend" in tool_names
-    assert "get_exam_list" not in tool_names
+    specs = [
+        ToolSpec(name="open", description="open", parameters={}, func=AsyncMock(), allowed_roles=None),
+        ToolSpec(name="admin_only", description="admin", parameters={}, func=AsyncMock(),
+                 allowed_roles=["platform_admin"]),
+    ]
+    resolver = ToolAccessResolver()
+    # district_admin 看不到 admin_only
+    result = await resolver.resolve(all_specs=specs, role="district_admin",
+                                     enabled_modules=set(), capabilities={})
+    assert len(result) == 1
+    assert result[0].name == "open"
 
 
 def test_empty_categories_no_tools():
-    """Empty category list means no tool access."""
+    """Empty category list means no tool access via get_schemas."""
     schemas = tools.get_schemas(categories=[])
     assert len(schemas) == 0
 
 
-def test_unknown_role_gets_empty_list():
-    """Unknown role defaults to empty categories."""
-    categories = ROLE_TOOL_CATEGORIES.get("unknown_role", [])
-    assert categories == []
+def test_get_all_specs_returns_toolspec():
+    """get_all_specs() returns ToolSpec objects with correct fields."""
+    specs = tools.get_all_specs()
+    assert len(specs) >= 25
+    for spec in specs:
+        assert hasattr(spec, "name")
+        assert hasattr(spec, "domain")
+        assert hasattr(spec, "allowed_roles")
+        assert hasattr(spec, "module_code")
+        assert hasattr(spec, "risk_level")

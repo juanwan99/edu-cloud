@@ -6,30 +6,11 @@ from typing import AsyncGenerator
 
 from edu_cloud.ai.anonymizer import Anonymizer
 from edu_cloud.ai.context import AgentContext, build_system_prompt
-from edu_cloud.ai.registry import ToolRegistry
+from edu_cloud.ai.registry import ToolRegistry, ToolSpec
 from edu_cloud.ai.schemas import AgentEvent, ChatMessage, ToolCall  # noqa: F401
 from edu_cloud.config import settings
 
 logger = logging.getLogger(__name__)
-
-# Maps each role to the tool categories it may access.
-# None means unrestricted (all categories).
-# 9 categories: L1_exam, L1_student, L2_analytics, L2_cross_school,
-#               L3_knowledge, L3_knowledge_db, L4_action, L5_bank, L6_profile
-ROLE_TOOL_CATEGORIES: dict[str, list[str] | None] = {
-    "platform_admin": None,  # all categories
-    "district_admin": ["L2_cross_school", "L3_knowledge", "L3_knowledge_db"],
-    "principal": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L4_action", "L6_profile"],
-    "academic_director": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L4_action"],
-    "grade_leader": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db"],
-    "homeroom_teacher": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L5_bank", "L6_profile"],
-    "subject_teacher": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L5_bank"],
-    "parent": ["L6_profile"],
-    # Legacy aliases (exam-ai compatibility)
-    "admin": None,  # same as platform_admin
-    "teacher": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L5_bank"],  # same as subject_teacher
-    "head_teacher": ["L1_exam", "L1_student", "L2_analytics", "L2_cross_school", "L3_knowledge", "L3_knowledge_db", "L5_bank", "L6_profile"],  # same as homeroom_teacher
-}
 
 
 class Agent:
@@ -67,10 +48,18 @@ class Agent:
         *,
         context: AgentContext | None = None,
         anonymizer: Anonymizer | None = None,
+        tools: list[ToolSpec] | None = None,
     ) -> AsyncGenerator[AgentEvent, None]:
-        # ── 1. Determine tools available to this role ──────────────────────
-        categories: list[str] | None = ROLE_TOOL_CATEGORIES.get(role, [])
-        tool_schemas = self.registry.get_schemas(categories=categories)
+        # ── 1. Determine tools available ──────────────────────────────────
+        if tools is not None:
+            # Pipeline 已裁剪工具集：从 ToolSpec 转换为 OpenAI schema
+            tool_schemas = [
+                {"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.parameters}}
+                for t in tools
+            ]
+        else:
+            # 兜底：未提供 tools 时使用全量（向后兼容测试场景）
+            tool_schemas = self.registry.get_schemas(categories=None)
         tool_names = [s["function"]["name"] for s in tool_schemas]
 
         # ── 2. Per-session anonymizer ──────────────────────────────────────

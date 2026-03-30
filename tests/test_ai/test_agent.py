@@ -107,7 +107,7 @@ async def test_agent_max_steps(test_registry):
 
 @pytest.mark.asyncio
 async def test_agent_unknown_role_no_tools(test_registry):
-    """Unknown role gets no tool access"""
+    """Unknown role with empty tools list gets no tool access."""
     mock_llm = AsyncMock()
     mock_llm.chat.return_value = ChatMessage(role="assistant", content="我无法访问工具")
     agent = Agent(llm=mock_llm, registry=test_registry)
@@ -121,12 +121,12 @@ async def test_agent_unknown_role_no_tools(test_registry):
         role="unknown_role",
         display_name="未知用户",
         scope={},
+        tools=[],  # Pipeline 过滤后为空
     ):
         events.append(event)
-    # LLM should be called with no tools (unknown role → empty categories → no schemas)
+    # LLM should be called with no tools (empty tools list → None)
     call_kwargs = mock_llm.chat.call_args
     assert call_kwargs is not None
-    # tools arg should be None (empty list converted to None)
     tools_passed = call_kwargs[1].get("tools") if call_kwargs[1] else call_kwargs[0][1] if len(call_kwargs[0]) > 1 else None
     assert tools_passed is None
 
