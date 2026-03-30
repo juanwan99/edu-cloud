@@ -133,6 +133,7 @@ src/edu_cloud/
     subject_selection.py # SubjectSelection（学校选考科目组合：物化生/史地政等）
     capability.py       # Capability（学校级角色能力配置：域×操作×角色）
     audit_log.py        # AuditLog（实体变更审计日志）
+    agent_profile.py    # AgentProfile（Agent 身份）+ AgentRun（执行记录）
     school.py           # RegisteredSchool（学校档案 + API Key + 心跳）
     platform_user.py    # PlatformUser（4 角色 + bcrypt 密码）
     joint_exam.py       # JointExam + JointExamParticipant + JointExamStudentResult
@@ -146,29 +147,34 @@ src/edu_cloud/
     subject_selection_service.py # 选考 CRUD + 校验（mode 枚举 / 科目数量）+ 唯一约束冲突处理
     capability_service.py # Capability init/get/set/check + DEFAULT_CAPABILITIES 模板
     audit_service.py    # @audited 装饰器 + write_audit_log + list_audit_logs
+    agent_profile_service.py # AgentProfileService（get_or_create + record_run）
   data/
     seed_demo.py          # 演示数据种子（exam-ai 迁入）
     seed_knowledge_math.py # 数学知识点种子
     import_real_exam.py   # 真实考试数据导入工具（exam-ai 迁入）
   core/
     events.py           # 进程内 EventBus（已定义，handler 未接入）
-    permissions.py      # 10 个 Permission 枚举 + 4 角色 RBAC 映射
+    permissions.py      # 13 个 Permission 枚举 + 4 角色 RBAC 映射（+MANAGE_GRADING/VIEW_GRADING/MANAGE_EXAM_RESULTS）
     scope_filter.py     # ScopeFilter 工具类（基于 UserRole 注入 WHERE 条件）
   knowledge/
     __init__.py         # 包入口
     loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
     store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）
   ai/
-    agent.py            # ReAct Agent（ROLE_TOOL_CATEGORIES 9 类别 RBAC）
+    agent.py            # ReAct Agent（Pipeline 驱动工具集 + 模型选择）
     llm.py              # LLMChatClient（OpenAI + Anthropic 双协议，重试，llm-proxy slot）
     context.py          # build_system_prompt + AgentContext（session 管理/token 裁剪）
     schemas.py          # ChatMessage/ToolCall/AgentEvent 数据模型
     anonymizer.py       # 会话级姓名脱敏（字段检测 + student_number 剥离）
     audit.py            # AuditLogger（DB 持久化 AiSession/AiToolCall）
-    registry.py         # ToolRegistry 全局实例 + 装饰器注册 + 依赖注入
+    registry.py         # ToolRegistry + ToolSpec dataclass（元数据：domain/module_code/allowed_roles/risk_level）
+    tool_access.py      # ToolAccessResolver（RBAC ∩ Module ∩ Capability 三重过滤）
+    intent_resolver.py  # IntentResolver（规则引擎 + LLM fallback 意图分类）
+    model_router.py     # ModelRouter（intent + risk → tier 选择）
+    llm_factory.py      # create_llm_for_tier()（LLMSlot tier 查询 + .env fallback）
     models.py           # AiSession/AiToolCall 表
     tools/
-      __init__.py       # 触发全部 10 个工具模块注册（31 tools）
+      __init__.py       # 触发全部 11 个工具模块注册（34 tools）
       analytics.py      # L2_cross_school（2）: get_exam_scores/get_class_stats
       analytics_score.py # L2_analytics（5）: exam_summary/distribution/question/student/class scores
       analytics_compare.py # L2_analytics（3）: compare_classes/rank_students/grade_aggregates
@@ -207,7 +213,7 @@ tests/
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
 | API | auth/login, schools(CRUD+key), joint-exams(生命周期), results(排名/对比/明细), sync(heartbeat/exams/templates/scores), health, version, studio(documents CRUD+transition+paper/create+paper/:id/status), calendar(events CRUD) | 跨校分析(高级), 题库, 共享 AI 阅卷 |
-| Models | 33 表（modules/ 下 exam/student/card/scan/grading/marking/bank/profile/knowledge/pipeline + core school/user/user_role/llm_slot/school_settings/school_modules/teacher_assignment/subject_selection + studio/calendar/notification）| — |
+| Models | 37 表（modules/ 下 exam/student/card/scan/grading/marking/bank/profile/knowledge/pipeline + core school/user/user_role/llm_slot/school_settings/school_modules/teacher_assignment/subject_selection + studio/calendar/notification + grading_assignments/grading_quality_checks + agent_profiles/agent_runs）| — |
 | Services | SchoolService, JointExamService, ResultsService, PaperService(paper-skill REST 客户端), StudioService(list_documents OR assigned_to), CalendarService(create/list/delete/triggered_rules), NotificationService(dispatch stub+幂等), exceptions | EventBus handler, AI grading |
 | Tasks | tasks.py: auto_draft_notifications（扫描日历→自动创建 notification 草稿，防重复 triggered 标记）| arq cron 生产接入 |
 | Worker | worker.py: arq WorkerSettings（run_auto_draft cron 22:00 UTC = 06:00 UTC+8）| — |
@@ -380,6 +386,12 @@ tests/
 | * | `/api/v1/templates/*` | 模板 CRUD |
 | * | `/api/v1/scan/*` | 扫描上传/任务管理 |
 | * | `/api/v1/grading/*` | AI 阅卷/评分规则/教师审核 |
+| POST | `/api/v1/grading/assignments` | 创建阅卷分配（MANAGE_GRADING） |
+| GET | `/api/v1/grading/assignments` | 列出阅卷分配（VIEW_GRADING，需 exam_id） |
+| GET | `/api/v1/grading/progress/{exam_id}` | 阅卷进���汇总（VIEW_GRADING） |
+| GET | `/api/v1/grading/quality-report/{exam_id}` | 质量检查报告（VIEW_GRADING） |
+| POST | `/api/v1/exams/{id}/publish` | 发布成绩（MANAGE_EXAM_RESULTS，前置条件检查） |
+| POST | `/api/v1/exams/{id}/archive` | 归档考试（MANAGE_EXAM_RESULTS） |
 | * | `/api/v1/marking/*` | 人工阅卷/分配/导出 |
 | * | `/api/v1/analytics/*` | 统计分析（摘要/分布/题目/年级） |
 | * | `/api/v1/knowledge/*` | 知识点 CRUD/树查询/关联 |
@@ -476,7 +488,9 @@ docker compose logs -f      # 查看日志
 | schools | code(唯一), api_key_hash(Optional), is_active, district | 学校档案（原 registered_schools） |
 | users | username(唯一), display_name, hashed_password, is_active | 统一用户（原 PlatformUser 已删除） |
 | user_roles | user_id(FK), role, school_id(FK), class_ids, is_primary | 多角色+scope |
-| llm_slots | school_id(FK,nullable), slot_number, api_url, api_key, model, is_enabled | LLM 槽位配置（学校覆盖>平台默认>.env） |
+| llm_slots | school_id(FK,nullable), slot_number, api_url, api_key, model, is_enabled, tier(nullable) | LLM 槽位配置（学校覆盖>平台默认>.env，tier: mini/standard/advanced） |
+| agent_profiles | owner_user_id(FK→users), school_id(FK→schools), profile_type, display_name, preferences(JSON), memory_summary(Text) | Agent 身份（唯一约束：user+school） |
+| agent_runs | profile_id(FK→agent_profiles), session_id, tools_resolved(JSON), tools_selected(JSON), model_used, model_tier, intent_domains(JSON), token_input, token_output | Agent 执行记录 |
 | joint_exams | name, status(draft→...→archived), subjects(JSON), created_by(FK→users), creator_school_id(FK) | 联考 |
 | joint_exam_participants | joint_exam_id(FK), school_id(FK), status, is_creator | 参与校 |
 | joint_exam_student_results | joint_exam_id, school_id, subject_code, student_name/number, total_score, detail_scores(JSON) | 成绩明细 |

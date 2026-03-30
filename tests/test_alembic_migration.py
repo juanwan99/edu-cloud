@@ -72,6 +72,7 @@ def test_migration_creates_all_expected_tables(migration_db):
     import edu_cloud.models.subject_selection  # noqa: F401
     import edu_cloud.models.capability  # noqa: F401
     import edu_cloud.models.audit_log  # noqa: F401
+    import edu_cloud.models.agent_profile  # noqa: F401
 
     inspector = inspect(migration_db)
     migration_tables = set(inspector.get_table_names())

@@ -28,6 +28,7 @@ from edu_cloud.core.models.llm_slot import LLMSlot  # noqa: F401
 
 # ── AI models (src/edu_cloud/ai/) ────────────────────────────────────────
 from edu_cloud.ai.models import AiSession, AiToolCall  # noqa: F401
+from edu_cloud.models.agent_profile import AgentProfile, AgentRun  # noqa: F401
 
 # ── module models (src/edu_cloud/modules/*/models.py) ────────────────────
 from edu_cloud.modules.exam.models import (  # noqa: F401
@@ -39,6 +40,7 @@ from edu_cloud.modules.card.models import Template, CardSkeleton  # noqa: F401
 from edu_cloud.modules.scan.models import ScanTask, StudentAnswer  # noqa: F401
 from edu_cloud.modules.grading.models import (  # noqa: F401
     Rubric, GradingTask, AIGradingResult, TeacherReview,
+    GradingAssignment, GradingQualityCheck,
 )
 from edu_cloud.modules.marking.models import MarkingAssignment, MarkingScore  # noqa: F401
 from edu_cloud.modules.bank.models import BankQuestion, StudentErrorBook  # noqa: F401
