@@ -1,5 +1,10 @@
+import logging
+
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from edu_cloud.models.capability import Capability, CAPABILITY_DOMAINS, CAPABILITY_ACTIONS
 from edu_cloud.services.exceptions import ValidationError
@@ -77,7 +82,12 @@ async def init_school_capabilities(
                         action=action,
                         enabled=enabled,
                     ))
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # CR-02: concurrent init → unique constraint hit → rollback + skip
+        await db.rollback()
+        logger.info("init_school_capabilities: concurrent conflict, skipped (school_id=%s)", school_id)
 
 
 async def get_capabilities(

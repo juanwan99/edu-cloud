@@ -25,7 +25,7 @@ async def list_assignments(
     if subject_code:
         stmt = stmt.where(TeacherAssignment.subject_code == subject_code)
     if scope:
-        stmt = scope.apply(stmt, TeacherAssignment, subject_col="subject_code")
+        stmt = scope.apply(stmt, TeacherAssignment, class_col="class_id", subject_col="subject_code")
     result = await db.execute(stmt.order_by(TeacherAssignment.created_at))
     return list(result.scalars().all())
 

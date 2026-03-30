@@ -94,6 +94,41 @@ async def test_list_audit_logs_pagination(client, admin_headers, seed_school):
 
 
 @pytest.mark.asyncio
+async def test_list_audit_logs_date_filter(client, admin_headers, seed_school):
+    """CR-03: start_date/end_date filter must actually filter."""
+    school, _ = seed_school
+    await client.patch(
+        f"/api/v1/schools/{school.id}/settings",
+        json={"key": "date_filter_test", "value": "v1"},
+        headers=admin_headers,
+    )
+
+    # Future date → should return 0 results
+    resp = await client.get(
+        f"/api/v1/schools/{school.id}/audit-logs?start_date=2099-01-01T00:00:00",
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()) == 0
+
+    # Past date as end_date → should return 0 results
+    resp = await client.get(
+        f"/api/v1/schools/{school.id}/audit-logs?end_date=2000-01-01T00:00:00",
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()) == 0
+
+    # Wide range → should include the setting change
+    resp = await client.get(
+        f"/api/v1/schools/{school.id}/audit-logs?start_date=2020-01-01T00:00:00&end_date=2099-12-31T23:59:59",
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()) >= 1
+
+
+@pytest.mark.asyncio
 async def test_audit_logs_requires_auth(client, seed_school):
     school, _ = seed_school
     resp = await client.get(f"/api/v1/schools/{school.id}/audit-logs")
