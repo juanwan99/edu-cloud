@@ -1318,7 +1318,9 @@ async def test_pipeline_fallback_on_error():
 1. 导入 ToolAccessResolver, IntentResolver, ModelRouter, create_llm_for_tier, AgentProfileService
 2. 预加载数据时使用正确的 service 函数名：
    - `from edu_cloud.services.school_settings_service import get_enabled_modules` → `enabled_modules = await get_enabled_modules(db, school_id=school_id)`
-   - `from edu_cloud.services.capability_service import get_capabilities` → `caps = await get_capabilities(db, school_id=school_id, role=role)`
+   - `from edu_cloud.services.capability_service import get_capabilities` → `caps_list = await get_capabilities(db, school_id=school_id, role=role)`
+   - **F-05 转换**：`get_capabilities()` 返回 `list[Capability]`，需转为 dict：
+     `capabilities = {(c.domain, c.action): c.enabled for c in caps_list}`
    注意：**不是** `get_enabled_module_codes` 或 `get_school_capabilities`（这些函数不存在）
 3. 用 Pipeline 替换现有的 `ROLE_TOOL_CATEGORIES` 工具过滤逻辑
 4. 将 selected_tools 和 model_tier 传给 Agent
