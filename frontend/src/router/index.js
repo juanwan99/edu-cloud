@@ -48,6 +48,13 @@ export const routes = [
 
       // Admin
       { path: 'schools', name: 'Schools', component: () => import('../pages/SchoolsPage.vue'), meta: { permissions: ['manage_schools'] } },
+      { path: 'settings', name: 'Settings', component: () => import('../pages/DashboardPage.vue') },
+
+      // Placeholder routes (sidebar navigation targets)
+      { path: 'studio', name: 'Studio', component: () => import('../pages/AnalysisPage.vue'), meta: { permissions: ['use_ai_chat'] } },
+      { path: 'calendar', name: 'Calendar', component: () => import('../pages/DashboardPage.vue') },
+      { path: 'notifications', name: 'Notifications', component: () => import('../pages/DashboardPage.vue') },
+      { path: 'paper', name: 'Paper', component: () => import('../pages/AnalysisPage.vue'), meta: { permissions: ['use_ai_chat'] } },
     ]
   }
 ]

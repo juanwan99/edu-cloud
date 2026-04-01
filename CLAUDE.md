@@ -41,7 +41,7 @@ python -m uvicorn edu_cloud.api.app:create_app --factory --host 0.0.0.0 --port 9
 # 前端（Windows Git Bash，port_guard 须用 serve.py）
 cd /c/Users/Administrator/edu-cloud/frontend
 python ~/.claude/scripts/serve.py "C:/Program Files/nodejs/npm.cmd" run dev
-# → http://localhost:5173，代理 /api → http://localhost:9000
+# → http://localhost:5273，代理 /api → http://localhost:9000
 ```
 
 ## 测试命令
@@ -257,7 +257,7 @@ tests/
 | 服务 | 端口 | 说明 |
 |------|------|------|
 | edu-cloud 后端 | 9000 | FastAPI（本项目） |
-| edu-cloud 前端 | 5173 | Vite dev server（开发）|
+| edu-cloud 前端 | 5273 | Vite dev server（开发）|
 | exam-ai | 8000 | 学校端阅卷服务 |
 | paper-seg | 8001 | 扫描客户端 |
 | paper-skill | 9103 | AI 论文写作服务（外部，REST 客户端通过 PaperService 调用）|
@@ -546,4 +546,6 @@ docker compose logs -f      # 查看日志
 
 ## 种子数据
 
-启动时自动创建：平台管理员 `admin/123456`（User + UserRole platform_admin）。
+启动时自动创建：
+- 平台管理员 `admin/123456`（User + UserRole platform_admin）
+- 育才实验中学（YCSY2026）：36 班 / 1500 学生 / 200 教师+行政（幂等，密码均 123456）

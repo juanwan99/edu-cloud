@@ -93,6 +93,29 @@ async def lifespan(app: FastAPI):
         else:
             logger.debug("seed: platform admin already exists, skipping")
 
+    # Seed complete school (idempotent)
+    async with async_session() as db:
+        from edu_cloud.data.seed_school import seed_complete_school
+        result = await seed_complete_school(db)
+        if result["status"] == "seeded":
+            logger.info(
+                "seed: school created — %s students, %d teachers, %d classes",
+                result["students"], result["teachers"], result["classes"],
+            )
+        else:
+            logger.debug("seed: school already exists, skipping")
+
+    # Seed demo exam data for the school (idempotent)
+    async with async_session() as db:
+        from edu_cloud.data.seed_demo import seed_demo_data
+        demo_result = await seed_demo_data(db, school_code="YCSY2026")
+        if demo_result.get("status") == "already_seeded":
+            logger.debug("seed: demo data already exists, skipping")
+        elif demo_result.get("status") == "error":
+            logger.warning("seed: demo data skipped — %s", demo_result.get("message"))
+        else:
+            logger.info("seed: demo data created — %d answers", demo_result.get("total_answers", 0))
+
     yield
 
 

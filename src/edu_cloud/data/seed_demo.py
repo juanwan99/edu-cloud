@@ -75,13 +75,14 @@ def _generate_score(max_score: float, question_type: str, base_rate: float) -> f
 
 def _student_base_rate(student_idx: int, class_idx: int) -> float:
     """学生基础得分率（0-1），受班级和个体差异影响。"""
-    class_shift = CLASS_PROFILES[class_idx]["mean_shift"]
+    profile = CLASS_PROFILES.get(class_idx, {"mean_shift": 0.0})
+    class_shift = profile["mean_shift"]
     # 个体差异：每个学生有一个固定的能力值
     individual = random.gauss(0.65, 0.15) + class_shift
     return max(0.15, min(0.95, individual))
 
 
-async def seed_demo_data(db: AsyncSession) -> dict:
+async def seed_demo_data(db: AsyncSession, school_code: str = "TEST01") -> dict:
     """生成完整演示数据。返回统计信息。"""
     # 检查是否已有第二次考试（幂等标记）
     result = await db.execute(select(Exam).where(Exam.name == "2026年春季月考"))
@@ -89,10 +90,10 @@ async def seed_demo_data(db: AsyncSession) -> dict:
         return {"status": "already_seeded", "message": "演示数据已存在"}
 
     # 获取现有学校和学生
-    school_result = await db.execute(select(School).where(School.code == "TEST01"))
+    school_result = await db.execute(select(School).where(School.code == school_code))
     school = school_result.scalar_one_or_none()
     if not school:
-        return {"status": "error", "message": "请先启动服务生成基础 seed 数据（school=TEST01）"}
+        return {"status": "error", "message": f"学校 {school_code} 不存在"}
 
     students_result = await db.execute(
         select(Student).where(Student.school_id == school.id).order_by(Student.student_number)
