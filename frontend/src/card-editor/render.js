@@ -112,49 +112,33 @@ function buildChoiceGroupsHTML(v) {
     }
   }
 
-  // 编辑器统一网格：按选项数分段渲染，避免少选项题被 maxOpts 拉高
-  // 例：英语 55 题（3/4/7 选项混合），分段后节省约 19% 垂直空间
+  // 编辑器统一网格：连续流 + 每行自适应 maxOpts
+  // 题号连续不切断，每行高度由该行内最大选项数决定（而非全局 maxOpts）
   const allQs = groups.flatMap(g => g.questions.map(q => ({ ...q, options: q.options || g.options })));
-
-  // 按连续相同 options 分段（保持题号顺序）
-  const segments = [];
-  let seg = [allQs[0]];
-  for (let i = 1; i < allQs.length; i++) {
-    if (allQs[i].options === seg[0].options) {
-      seg.push(allQs[i]);
-    } else {
-      segments.push(seg);
-      seg = [allQs[i]];
-    }
-  }
-  segments.push(seg);
-
   let html = '';
   const colTemplate = `4mm repeat(${perRow}, 1fr) 4mm`;
-  for (const qs of segments) {
-    const segOpts = qs[0].options;
-    for (let start = 0; start < qs.length; start += perRow) {
-      const batch = qs.slice(start, start + perRow);
-      const count = batch.length;
-      const rows = segOpts + 1;
-      let cells = '<div class="omr-left"></div>';
-      for (const q of batch) cells += `<div class="choice-cell choice-header">${q.qno}</div>`;
-      for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
-      cells += '<div class="omr-right"></div>';
-      for (let o = 0; o < segOpts; o++) {
-        cells += '<div class="omr-left"><div class="omr-dot"></div></div>';
-        for (const q of batch) {
-          if (o < q.options) {
-            cells += `<div class="choice-cell"><span class="bracket">${symbols[o]}</span></div>`;
-          } else {
-            cells += '<div class="choice-cell"></div>';
-          }
+  for (let start = 0; start < allQs.length; start += perRow) {
+    const batch = allQs.slice(start, start + perRow);
+    const count = batch.length;
+    const batchMax = Math.max(...batch.map(q => q.options));
+    const rows = batchMax + 1;
+    let cells = '<div class="omr-left"></div>';
+    for (const q of batch) cells += `<div class="choice-cell choice-header">${q.qno}</div>`;
+    for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
+    cells += '<div class="omr-right"></div>';
+    for (let o = 0; o < batchMax; o++) {
+      cells += '<div class="omr-left"><div class="omr-dot"></div></div>';
+      for (const q of batch) {
+        if (o < q.options) {
+          cells += `<div class="choice-cell"><span class="bracket">${symbols[o]}</span></div>`;
+        } else {
+          cells += '<div class="choice-cell"></div>';
         }
-        for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
-        cells += '<div class="omr-right"><div class="omr-dot"></div></div>';
       }
-      html += `<div class="choice-group"><div class="choice-grid-inner" style="grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${rows}, auto);">${cells}</div></div>`;
+      for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
+      cells += '<div class="omr-right"><div class="omr-dot"></div></div>';
     }
+    html += `<div class="choice-group"><div class="choice-grid-inner" style="grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${rows}, auto);">${cells}</div></div>`;
   }
   return html;
 }
