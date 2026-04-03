@@ -25,7 +25,7 @@ async def test_pipeline_end_to_end():
 
     # Step 1: ToolAccessResolver (subject_teacher 看不到 admin_tool)
     resolver = ToolAccessResolver()
-    available = await resolver.resolve(
+    available = resolver.resolve(
         all_specs=all_tools, role="subject_teacher",
         enabled_modules=set(), capabilities={},
     )
@@ -55,7 +55,7 @@ async def test_pipeline_parent_sees_only_profile():
         _make_spec("admin_tool", allowed_roles=["platform_admin"]),
     ]
     resolver = ToolAccessResolver()
-    available = await resolver.resolve(
+    available = resolver.resolve(
         all_specs=all_tools, role="parent",
         enabled_modules=set(), capabilities={},
     )
@@ -71,7 +71,7 @@ async def test_pipeline_module_disabled():
         _make_spec("open_tool", domain="general"),
     ]
     resolver = ToolAccessResolver()
-    available = await resolver.resolve(
+    available = resolver.resolve(
         all_specs=all_tools, role="platform_admin",
         enabled_modules={"grading"},  # exam 未启用
         capabilities={},
@@ -90,7 +90,7 @@ async def test_pipeline_fallback_on_error():
 
     # ToolAccessResolver 正常返回
     resolver = ToolAccessResolver()
-    available = await resolver.resolve(
+    available = resolver.resolve(
         all_specs=all_tools, role="platform_admin",
         enabled_modules=set(), capabilities={},
     )

@@ -27,21 +27,19 @@ def test_tool_categories_present():
         assert cat in found_categories, f"Category {cat} has no tools"
 
 
-@pytest.mark.asyncio
-async def test_platform_admin_gets_all_tools():
+def test_platform_admin_gets_all_tools():
     """platform_admin 通过 ToolAccessResolver 看到所有工具。"""
     resolver = ToolAccessResolver()
     # 启用所有模块（模拟完整学校配置）
     all_modules = {"exam", "grading", "homework", "study_analytics", "research", "teaching", "calendar", "studio"}
-    result = await resolver.resolve(
+    result = resolver.resolve(
         all_specs=tools.get_all_specs(), role="platform_admin",
         enabled_modules=all_modules, capabilities={},
     )
     assert len(result) >= 25
 
 
-@pytest.mark.asyncio
-async def test_resolver_filters_by_allowed_roles():
+def test_resolver_filters_by_allowed_roles():
     """ToolAccessResolver 按 allowed_roles 过滤。"""
     from edu_cloud.ai.registry import ToolSpec
     from unittest.mock import AsyncMock
@@ -53,8 +51,8 @@ async def test_resolver_filters_by_allowed_roles():
     ]
     resolver = ToolAccessResolver()
     # district_admin 看不到 admin_only
-    result = await resolver.resolve(all_specs=specs, role="district_admin",
-                                     enabled_modules=set(), capabilities={})
+    result = resolver.resolve(all_specs=specs, role="district_admin",
+                               enabled_modules=set(), capabilities={})
     assert len(result) == 1
     assert result[0].name == "open"
 
