@@ -58,33 +58,70 @@ async def get_editor_layout(
     if not subject:
         raise HTTPException(404, "Subject not found")
 
+    from edu_cloud.modules.card.subject_defaults import get_default_layout
+    default_layout = get_default_layout(subject.name)
+
     path = _editor_layout_path(current["current_role"].school_id, subject_id)
     if not path.exists():
-        from edu_cloud.modules.card.subject_defaults import get_default_layout
-        layout = get_default_layout(subject.name)
-        return {"found": True, "layout": layout, "source": "default",
-                "config": layout.get("config", {}), "choices": []}
+        return {"found": True, "layout": default_layout, "source": "default",
+                "config": default_layout.get("config", {}), "choices": []}
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {"found": False}
 
-    # 合并 config 并补回历史坏数据中丢失的 choiceGroups
     layout = data.get("layout") or {}
-    layout_config = layout.get("config", {}) if isinstance(layout, dict) else {}
+    if not isinstance(layout, dict):
+        return {"found": True, "layout": default_layout, "source": "default",
+                "config": default_layout.get("config", {}), "choices": []}
+
+    # 结构校验：default 是 A4 但 saved 是 A3 → 历史坏数据，丢弃 saved 结构
+    saved_paper = layout.get("paper") or layout.get("config", {}).get("paperSize", "A3")
+    default_paper = default_layout.get("paper", "A3")
+
+    structure_mismatch = (default_paper == "A4" and saved_paper != "A4")
+
+    # 扩展 A4 结构校验：A4 每面应只有 1 column [F01 修复]
+    if not structure_mismatch and saved_paper == "A4":
+        saved_sides = layout.get("sides", [])
+        for side in saved_sides:
+            if len(side.get("columns", [])) > 1:
+                structure_mismatch = True
+                break
+
+    if structure_mismatch:
+        # 丢弃 saved 的结构，只合并样式类 config（排除结构性字段）
+        saved_config = data.get("config", {}) or {}
+        layout_config = layout.get("config", {}) if isinstance(layout, dict) else {}
+        style_keys = {
+            "examTitle", "titleSize", "subtitleSize", "titleSpacing", "subtitleSpacing",
+            "titleGap", "subtitleGap", "infoHeight", "infoPadding", "infoRowGap",
+            "infoFontSize", "infoBorderWidth", "nameLineWidth", "digitCount", "digitBoxSize",
+            "digitGap", "barcodeWidthPct", "barcodeTitleSize", "noticeHeight", "noticeLabelWidth",
+            "noticeLabelSize", "noticeFontSize", "exampleWidth", "noticeBorderWidth",
+            "absentPadding", "zoom",
+        }
+        style_config = {k: v for k, v in {**layout_config, **saved_config}.items() if k in style_keys}
+        result_layout = dict(default_layout)
+        result_config = {**default_layout.get("config", {}), **style_config}
+        result_layout["config"] = result_config
+        logger.info("get_editor_layout: structure mismatch (saved=%s, default=%s), discarding saved structure",
+                     saved_paper, default_paper)
+        return {"found": True, "layout": result_layout, "source": "default",
+                "config": result_config, "choices": []}
+
+    # 结构一致：合并 config 并补回历史坏数据中丢失的 choiceGroups
+    layout_config = layout.get("config", {})
     saved_config = data.get("config", {}) or {}
     merged_config = {**layout_config, **saved_config}
 
     if not merged_config.get("choiceGroups"):
-        from edu_cloud.modules.card.subject_defaults import get_default_layout
-        default_layout = get_default_layout(subject.name)
         default_groups = default_layout.get("config", {}).get("choiceGroups", [])
         if default_groups:
             merged_config["choiceGroups"] = default_groups
 
-    if isinstance(layout, dict):
-        layout["config"] = {**layout.get("config", {}), **merged_config}
+    layout["config"] = {**layout.get("config", {}), **merged_config}
 
     return {"found": True, "layout": layout, "source": "saved", "config": merged_config, "choices": data.get("choices", [])}
 

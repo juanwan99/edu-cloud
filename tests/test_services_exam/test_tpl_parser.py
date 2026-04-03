@@ -99,19 +99,21 @@ class TestMinimalTpl:
             assert "rect" in s
             assert "height_flexible" in s
 
-    def test_page1_offset(self, minimal_tpl):
-        """inpage=1 的主观题 x 坐标应加 page_width 偏移。"""
+    def test_a4_dual_no_offset(self, minimal_tpl):
+        """A4 双面模板：inpage=1 的 x 坐标不偏移，保持原始值。"""
         result = parse_tpl_file(minimal_tpl)
+        assert result["is_a4_dual"] is True
+        assert result["paper_size"] == "A4"
         slots = result["subjective_slots"]
-        page_width = result["page_width"]
-        # 第 3 个槽 (19题) 是 inpage=1
         q19 = [s for s in slots if s["slot_id"] == "Q19"][0]
-        assert q19["rect"]["x1"] >= page_width  # 偏移后 x1 >= 1654
+        # A4 双面不偏移，x1 保持原始值（< page_width）
+        assert q19["rect"]["x1"] < result["page_width"]
 
     def test_columns_inferred(self, minimal_tpl):
         result = parse_tpl_file(minimal_tpl)
         cols = result["columns"]
-        assert len(cols) >= 2  # A3 至少 2 栏
+        # A4 双面只有 1 栏（page0 的 slot 全在同一栏）
+        assert len(cols) >= 1
         for col in cols:
             assert "id" in col
             assert "x1" in col
@@ -120,13 +122,14 @@ class TestMinimalTpl:
     def test_source_dpi(self, minimal_tpl):
         result = parse_tpl_file(minimal_tpl)
         dpi = result["source_dpi"]
-        # A3 展开 420mm, image_width=3308 → dpi ≈ 200
+        # A4 双面: image_width=1654, 210mm → dpi ≈ 200
         assert 190 <= dpi <= 210
 
     def test_paper_size(self, minimal_tpl):
+        """A4 双面模板：paper_size=A4，image_width=单页宽。"""
         result = parse_tpl_file(minimal_tpl)
-        assert result["paper_size"] == "A3"
-        assert result["image_width"] == 1654 * 2
+        assert result["paper_size"] == "A4"
+        assert result["image_width"] == 1654  # A4 双面不翻倍
         assert result["image_height"] == 2283
 
 
@@ -169,6 +172,99 @@ class TestRealTpl:
         assert 190 <= dpi <= 210
 
     def test_paper_size(self, bio_skeleton):
-        assert bio_skeleton["paper_size"] == "A3"
+        # [188993007]生物 iwidth=1654 + 有 page1 slot = A4 双面
+        assert bio_skeleton["paper_size"] == "A4"
+        assert bio_skeleton["is_a4_dual"] is True
         assert bio_skeleton["image_width"] > 0
         assert bio_skeleton["image_height"] > 0
+
+
+class TestSubjectDefaults:
+    """A4 layout 契约测试。"""
+
+    def test_a4_layout_single_column_per_side(self):
+        """A4 布局每面只有 1 个 column。"""
+        from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+        config = dict(SUBJECT_CONFIGS["英语"])
+        config["subjectTitle"] = "英语"
+        layout = _fallback_layout(config)
+        assert layout["paper"] == "A4"
+        for side in layout["sides"]:
+            assert len(side["columns"]) == 1, f"Side {side['side']} should have 1 column"
+            assert side["columns"][0]["col"] == 0
+
+    def test_a4_side_a_has_fixed_and_essay(self):
+        """A4 A面 col 0 同时包含 fixed 和 essay regions。"""
+        from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+        config = dict(SUBJECT_CONFIGS["英语"])
+        config["subjectTitle"] = "英语"
+        layout = _fallback_layout(config)
+        side_a = layout["sides"][0]
+        regions = side_a["columns"][0]["regions"]
+        types = [r["type"] for r in regions]
+        assert "fixed" in types, "A面 col 0 应包含 fixed regions"
+        assert "essay" in types, "A面 col 0 应包含 essay regions"
+
+    def test_a4_side_b_no_fixed(self):
+        """A4 B面不包含 fixed regions。"""
+        from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+        config = dict(SUBJECT_CONFIGS["英语"])
+        config["subjectTitle"] = "英语"
+        layout = _fallback_layout(config)
+        side_b = layout["sides"][1]
+        regions = side_b["columns"][0]["regions"]
+        types = [r["type"] for r in regions]
+        assert "fixed" not in types, "B面不应包含 fixed regions"
+
+    def test_a4_chemistry_layout(self):
+        """化学也是 A4 双面（14 选择 + 4 解答跨面）。"""
+        from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+        config = dict(SUBJECT_CONFIGS["化学"])
+        config["subjectTitle"] = "化学"
+        layout = _fallback_layout(config)
+        paper = layout["paper"]
+        for side in layout["sides"]:
+            for col in side["columns"]:
+                for r in col["regions"]:
+                    if r.get("type") == "essay":
+                        assert "heightRatio" in r
+
+    def test_a3_subjects_unaffected(self):
+        """A3 科目布局不受影响：3 栏结构。"""
+        from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+        for name in ["数学", "物理", "生物", "历史", "政治", "地理"]:
+            config = dict(SUBJECT_CONFIGS[name])
+            config["subjectTitle"] = name
+            layout = _fallback_layout(config)
+            assert layout["paper"] == "A3", f"{name} should be A3"
+            assert len(layout["sides"][0]["columns"]) >= 2, f"{name} A面 should have ≥2 columns"
+
+
+@skip_no_tpl
+class TestTqlA4Contract:
+    """TQL 转换路径的 A4 契约测试（需要真实 .tpl 文件）。[F02 修复]"""
+
+    def test_tql_english_a4_single_column(self):
+        """TQL 英语模板转换后也满足 A4 单 column 契约。"""
+        from edu_cloud.modules.card.subject_defaults import get_default_layout
+        layout = get_default_layout("英语")
+        assert layout["paper"] == "A4"
+        for side in layout["sides"]:
+            assert len(side["columns"]) == 1, f"Side {side['side']} should have 1 column"
+
+    def test_tql_english_a_side_has_fixed_and_essay(self):
+        """TQL 英语 A 面 col 0 同时含 fixed + essay。"""
+        from edu_cloud.modules.card.subject_defaults import get_default_layout
+        layout = get_default_layout("英语")
+        regions = layout["sides"][0]["columns"][0]["regions"]
+        types = [r["type"] for r in regions]
+        assert "fixed" in types
+        assert "essay" in types
+
+    def test_tql_chemistry_a4_contract(self):
+        """TQL 化学模板转换后满足 A4 契约。"""
+        from edu_cloud.modules.card.subject_defaults import get_default_layout
+        layout = get_default_layout("化学")
+        if layout["paper"] == "A4":
+            for side in layout["sides"]:
+                assert len(side["columns"]) == 1

@@ -231,12 +231,12 @@ SUBJECT_CONFIGS: dict[str, dict] = {
 # 布局生成器
 # ══════════════════════════════════════════════════════════════
 
-def _build_subs(sub_count: int) -> list[dict]:
+def _build_subs(sub_count: int, blanks_per_sub: int = 3) -> list[dict]:
     """生成小问标记列表。"""
     if not sub_count or sub_count <= 0:
         return []
     return [
-        {"sub": i + 1, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}
+        {"sub": i + 1, "blanks": [{"w": "100%"}] * blanks_per_sub}
         for i in range(sub_count)
     ]
 
@@ -255,9 +255,9 @@ def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
     slots = sk["subjective_slots"]
     image_width = sk["image_width"]
     image_height = sk["image_height"]
-    # 直接用 tpl_parser 已判断的纸张大小，不自己重算
     paper_size = sk["paper_size"]
-    n_essay_cols = len(columns)  # TQL 已推导的栏数
+    is_a4_dual = sk.get("is_a4_dual", False)
+    n_essay_cols = len(columns)
 
     # ── choiceGroups（含 TQL 坐标用于前端布局） ──
     choice_groups = []
@@ -279,47 +279,96 @@ def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
     max_options = max((g["options"] for g in choice_groups), default=4)
 
     # ── 按 x 中点分配 slot 到最近的 column ──
+    # A4 双面：只有 1 栏，page0 → A 面，page1 → B 面
     col_slots_a: dict[str, list] = {c["id"]: [] for c in columns}  # page 0
     col_slots_b: dict[str, list] = {c["id"]: [] for c in columns}  # page 1
-    seen_slots: dict[str, dict] = {}  # 合并同题号子问
+    seen_slots_a: dict[str, dict] = {}  # page 0 已见 slot
+    seen_slots_b: dict[str, dict] = {}  # page 1 已见 slot（A4 双面用）
 
     for s in slots:
         r = s["rect"]
-        cx = (r["x1"] + r["x2"]) / 2
-        # page=1 的 x 坐标可能是独立坐标系，也按 x 中点匹配
-        best_col = min(columns, key=lambda c: abs((c["x1"] + c["x2"]) / 2 - cx))
+        page = s["inpage"]
+
+        # A4 双面时只有 1 栏，直接用；A3 时按 x 中点匹配最近栏
+        if is_a4_dual:
+            best_col = columns[0]
+        else:
+            cx = (r["x1"] + r["x2"]) / 2
+            best_col = min(columns, key=lambda c: abs((c["x1"] + c["x2"]) / 2 - cx))
+
         h = r["y2"] - r["y1"]
         col_h = best_col["y2"] - best_col["y1"]
         hr = h / col_h if col_h > 0 else 1.0
 
         slot_key = s["slot_id"]
-        page = s["inpage"]
 
-        if slot_key in seen_slots:
-            # 同题号子问：累加 score 和 sub_count，但不新增 region
-            # （子问在同一区域渲染，高度取并集）
-            existing = seen_slots[slot_key]
-            existing["score"] += s["score"]
-            existing["sub_count"] = existing.get("sub_count", 1) + 1
-            # 更新 heightRatio 为子问并集高度
-            existing["heightRatio"] = max(existing["heightRatio"], hr)
-            continue
+        if is_a4_dual:
+            # A4 双面：每面独立管理 region
+            # 跨面题（同 slot_key 出现在两面）→ A 面保留完整 score，B 面标记为续写
+            seen = seen_slots_a if page == 0 else seen_slots_b
+            if slot_key in seen:
+                # 同面内的同题号子问：合并
+                existing = seen[slot_key]
+                existing["score"] += s["score"]
+                existing["sub_count"] = existing.get("sub_count", 1) + 1
+                existing["heightRatio"] = max(existing["heightRatio"], hr)
+                continue
 
-        entry = {
-            "slot_id": slot_key,
-            "score": s["score"],
-            "heightRatio": round(hr, 4),
-            "page": page,
-            "col_id": best_col["id"],
-        }
-        if "sub_count" not in entry:
+            # 判断是否是跨面续写（A 面已有同题号）
+            is_continuation = (page == 1 and slot_key in seen_slots_a)
+            entry = {
+                "slot_id": slot_key,
+                "score": s["score"] if not is_continuation else 0,  # 续写不重复计分
+                "heightRatio": round(hr, 4),
+                "page": page,
+                "col_id": best_col["id"],
+                "continuation": is_continuation,
+            }
             entry["sub_count"] = 1
-        seen_slots[slot_key] = entry
+            seen[slot_key] = entry
 
-        if page == 0:
-            col_slots_a[best_col["id"]].append(entry)
+            if page == 0:
+                col_slots_a[best_col["id"]].append(entry)
+            else:
+                col_slots_b[best_col["id"]].append(entry)
         else:
-            col_slots_b[best_col["id"]].append(entry)
+            # A3：同题号合并（原有逻辑）
+            if slot_key in seen_slots_a:
+                existing = seen_slots_a[slot_key]
+                existing["score"] += s["score"]
+                existing["sub_count"] = existing.get("sub_count", 1) + 1
+                existing["heightRatio"] = max(existing["heightRatio"], hr)
+                continue
+
+            entry = {
+                "slot_id": slot_key,
+                "score": s["score"],
+                "heightRatio": round(hr, 4),
+                "page": page,
+                "col_id": best_col["id"],
+            }
+            entry["sub_count"] = 1
+            seen_slots_a[slot_key] = entry
+
+            if page == 0:
+                col_slots_a[best_col["id"]].append(entry)
+            else:
+                col_slots_b[best_col["id"]].append(entry)
+
+    # ── 推算小问数量 ──
+    def _infer_sub_count(entry: dict) -> int:
+        sc = entry.get("sub_count", 1)
+        if sc > 1:
+            return sc
+        # TQL 只有 1 个 slot 时，根据分值推算合理的小问数（约 2-3 分/小问）
+        score = entry.get("score", 0)
+        if entry.get("continuation"):
+            return 0  # 续写区域不生成小问
+        if score >= 10:
+            return max(2, round(score / 2.5))
+        if score >= 5:
+            return 2
+        return 0
 
     # ── 构建 essay regions ──
     def _make_regions(slot_list: list, side: str, col_idx: int, side_idx: int) -> list[dict]:
@@ -332,18 +381,30 @@ def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
             qno_str = e["slot_id"].replace("Q", "").replace("_", "")
             try:
                 qno = int(qno_str)
+                display_label = None
             except ValueError:
                 qno = 0
+                # 保留原始名称作为 displayLabel（去掉 Q 前缀，保留中文）
+                display_label = e["slot_id"].replace("Q_", "").replace("Q", "")
             hr = e["heightRatio"] / total_hr if total_hr > 0 else 1.0
+            is_cont = e.get("continuation", False)
             region: dict = {
-                "id": f"essay-{e['slot_id']}",
+                "id": f"essay-{e['slot_id']}{'-cont' if is_cont else ''}",
                 "type": "essay",
                 "qno": qno,
                 "score": e["score"],
-                "subs": _build_subs(e.get("sub_count", 1) if e.get("sub_count", 1) > 1 else 0),
+                "subs": _build_subs(
+                    _infer_sub_count(e) if is_a4_dual else
+                    (e.get("sub_count", 1) if e.get("sub_count", 1) > 1 else 0),
+                    blanks_per_sub=2 if is_a4_dual else 3,
+                ),
                 "heightRatio": round(hr, 4),
                 "_side": side, "_col": col_idx, "_sideIdx": side_idx,
             }
+            if display_label:
+                region["displayLabel"] = display_label
+            if is_cont:
+                region["continuation"] = True
             regions.append(region)
         return regions
 
@@ -367,20 +428,32 @@ def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
     # ── 组装 sides（按 TQL 栏数） ──
     col_ids = [c["id"] for c in columns]
 
-    a_columns = [{"col": 0, "regions": col0_regions}]
-    for i, cid in enumerate(col_ids):
-        a_columns.append({
-            "col": i + 1,
-            "regions": _make_regions(col_slots_a.get(cid, []), "A", i + 1, 0),
-        })
+    if is_a4_dual:
+        # A4: 所有 essay 合并到 col 0（与 fixed 同栏）
+        all_a_essays: list[dict] = []
+        for cid in col_ids:
+            all_a_essays.extend(_make_regions(col_slots_a.get(cid, []), "A", 0, 0))
+        a_columns = [{"col": 0, "regions": col0_regions + all_a_essays}]
 
-    has_b = any(len(v) > 0 for v in col_slots_b.values())
-    b_columns = []
-    for i, cid in enumerate(col_ids):
-        b_columns.append({
-            "col": i,
-            "regions": _make_regions(col_slots_b.get(cid, []), "B", i, 1) if has_b else [],
-        })
+        all_b_essays: list[dict] = []
+        for cid in col_ids:
+            all_b_essays.extend(_make_regions(col_slots_b.get(cid, []), "B", 0, 1))
+        b_columns = [{"col": 0, "regions": all_b_essays}]
+    else:
+        a_columns = [{"col": 0, "regions": col0_regions}]
+        for i, cid in enumerate(col_ids):
+            a_columns.append({
+                "col": i + 1,
+                "regions": _make_regions(col_slots_a.get(cid, []), "A", i + 1, 0),
+            })
+
+        has_b = any(len(v) > 0 for v in col_slots_b.values())
+        b_columns = []
+        for i, cid in enumerate(col_ids):
+            b_columns.append({
+                "col": i,
+                "regions": _make_regions(col_slots_b.get(cid, []), "B", i, 1) if has_b else [],
+            })
 
     # ── 组装 config ──
     full_config = dict(_BASE_STYLE)
@@ -394,9 +467,9 @@ def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
         "fillStart": 0,
         "fillScore": 5,
         "fillPerRow": 2,
-        "essayCount": len(seen_slots),
-        "essayConfig": [{"score": e["score"]} for e in seen_slots.values()],
-        "paperSize": "A4" if sk["page_width"] <= 2000 else "A3",
+        "essayCount": len(seen_slots_a) + len(set(seen_slots_b.keys()) - set(seen_slots_a.keys())),
+        "essayConfig": [{"score": e["score"]} for e in seen_slots_a.values()],
+        "paperSize": paper_size,
     })
 
     return {
@@ -475,6 +548,7 @@ def _fallback_layout(config: dict) -> dict:
     total_choices = sum(g["count"] for g in choice_groups)
     max_options = max((g["options"] for g in choice_groups), default=4)
     essays = config.get("essays", [])
+    use_side_b = config.get("useSideB", False)
 
     col0_regions: list[dict] = [
         {"id": "header", "type": "fixed", "role": "header", "_side": "A", "_col": 0, "_sideIdx": 0},
@@ -502,17 +576,39 @@ def _fallback_layout(config: dict) -> dict:
             "_side": side, "_col": ci, "_sideIdx": si,
         } for e in lst]
 
-    s0 = [e for i, e in enumerate(a_essays) if i % 2 == 0]
-    s1 = [e for i, e in enumerate(a_essays) if i % 2 == 1]
-
     full_config = dict(_BASE_STYLE)
+
+    # A4 双面判断：选择题多（>30）且有 B 面内容 → A4 双面
+    is_a4 = (total_choices > 30 and use_side_b and b_essays)
+    paper = "A4" if is_a4 else "A3"
+
     full_config.update({
         "subjectTitle": config.get("subjectTitle", ""),
         "choiceCount": total_choices, "optionCount": max_options,
         "choicePerRow": 15, "choiceGroups": choice_groups,
         "fillCount": 0, "essayCount": len(essays),
         "essayConfig": [{"score": e["score"]} for e in essays],
+        "paperSize": paper,
     })
+
+    if is_a4:
+        # A4 双面：单栏布局，A/B 各一栏
+        return {
+            "paper": "A4", "config": full_config,
+            "sides": [
+                {"side": "A", "columns": [
+                    {"col": 0, "regions": col0_regions + _mk(a_essays, "A", 0, 0)},
+                ]},
+                {"side": "B", "columns": [
+                    {"col": 0, "regions": _mk(b_essays, "B", 0, 1)},
+                ]},
+            ],
+        }
+
+    # A3：3 栏布局
+    s0 = [e for i, e in enumerate(a_essays) if i % 2 == 0]
+    s1 = [e for i, e in enumerate(a_essays) if i % 2 == 1]
+
     return {
         "paper": "A3", "config": full_config,
         "sides": [
