@@ -19,6 +19,16 @@
       "updated": "2026-04-03T18:37:59.696285+08:00",
       "subject_ref": "commit:ae568cb..fc82c93",
       "raw_output_hash": "2ff6e11338f2cc7f0fe9fc4e66d2e528bee7eaaf9956aad95eb7aae05c82ad37"
+    },
+    "code_review_batch2": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "3bad9316f96bef35fcb0b0064aca340707f9a997827a7a7f82a3dcc3a59ddf96",
+      "report_path": "docs/plans/2026-04-03-edu-agent-review-report-batch2.md",
+      "updated": "2026-04-03T19:09:51.642429+08:00",
+      "subject_ref": "commit:09f171b..22d95dc",
+      "raw_output_hash": "67e05b557bd6463d03d5d712faeaa2783b6cd3ed58850b38d6956730346da618"
     }
   }
 }
