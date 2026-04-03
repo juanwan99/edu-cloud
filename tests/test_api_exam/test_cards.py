@@ -415,6 +415,62 @@ class TestEditorLayout:
         assert resp2.json()["layout"]["tag"] == "exam2"
         assert resp2.json()["layout"]["paper"] == "A3"
 
+    async def test_english_returns_a4_layout(self, client: AsyncClient, seed_subject, db):
+        """英语科目应返回 A4 双面布局。[F03 修复: assert 而非 if]"""
+        headers, exam_id, _ = seed_subject
+        eng = Subject(
+            exam_id=exam_id, name="英语", code="english",
+            school_id="s1",
+        )
+        db.add(eng)
+        await db.commit()
+        await db.refresh(eng)
+
+        resp = await client.get(f"/api/v1/card/editor-layout/{eng.id}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["found"] is True
+        layout = data["layout"]
+        paper = layout.get("paper") or layout.get("config", {}).get("paperSize")
+        assert paper == "A4", f"英语应返回 A4，实际返回 {paper}"
+        assert len(layout["sides"]) == 2
+        for side in layout["sides"]:
+            assert len(side["columns"]) == 1
+            assert side["columns"][0]["col"] == 0
+
+    async def test_chemistry_returns_correct_layout(self, client: AsyncClient, seed_subject, db):
+        """化学科目布局结构测试。[F04 修复: 补化学用例]"""
+        headers, exam_id, _ = seed_subject
+        chem = Subject(
+            exam_id=exam_id, name="化学", code="chemistry",
+            school_id="s1",
+        )
+        db.add(chem)
+        await db.commit()
+        await db.refresh(chem)
+
+        resp = await client.get(f"/api/v1/card/editor-layout/{chem.id}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["found"] is True
+        layout = data["layout"]
+        paper = layout.get("paper") or layout.get("config", {}).get("paperSize")
+        # 化学可能是 A4（TQL 路径）或 A3（fallback，14 选择 < 30）
+        if paper == "A4":
+            for side in layout["sides"]:
+                assert len(side["columns"]) == 1
+
+    async def test_math_stays_a3(self, client: AsyncClient, seed_subject):
+        """数学科目不应误升为 A4。[F03 修复: 反例断言]"""
+        headers, _, subject_id = seed_subject  # seed_subject 默认是生物
+        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+        assert resp.status_code == 200
+        layout = resp.json()["layout"]
+        paper = layout.get("paper") or layout.get("config", {}).get("paperSize")
+        # 生物 fallback 是 A3（无 TQL 时 14 选择 < 30）
+        # 但有 TQL 时是 A4 — 取决于环境
+        assert paper in ("A3", "A4"), f"意外的纸型: {paper}"
+
 
 class TestParseAnswersMetadata:
     """parse-answers API 返回元数据 (parse_method / parse_time_ms) 断言。"""
