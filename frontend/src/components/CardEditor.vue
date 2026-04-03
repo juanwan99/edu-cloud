@@ -250,32 +250,19 @@ function getValues() {
   vals.optionCount = window._choices && window._choices.length > 0 ? Math.max(...window._choices.map(c => c.options)) : (base.optionCount || 4)
   // 同步 _choices 到 choiceGroups，确保渲染使用最新数据
   if (window._choices && window._choices.length > 0) {
-    const origGroups = base.choiceGroups || []
-    const hasTqlCoords = origGroups.some(g => g.x !== undefined)
-
-    if (hasTqlCoords) {
-      // TQL 模式：保留原始分组结构（start/count/x/y/w），但从 _choices 同步 options
-      vals.choiceGroups = origGroups.map(g => {
-        const gChoices = window._choices.filter(c => c.qno >= g.start && c.qno < g.start + g.count)
-        const opts = gChoices.length > 0 ? Math.max(...gChoices.map(c => c.options)) : g.options
-        return { ...g, options: opts }
-      })
-    } else {
-      // 非 TQL 模式：按连续题号+相同 options 重组
-      const groups = []
-      let cur = { start: window._choices[0].qno, options: window._choices[0].options, count: 1 }
-      for (let i = 1; i < window._choices.length; i++) {
-        const c = window._choices[i]
-        if (c.options === cur.options && c.qno === cur.start + cur.count) {
-          cur.count++
-        } else {
-          groups.push(cur)
-          cur = { start: c.qno, options: c.options, count: 1 }
-        }
+    const groups = []
+    let cur = { start: window._choices[0].qno, options: window._choices[0].options, count: 1 }
+    for (let i = 1; i < window._choices.length; i++) {
+      const c = window._choices[i]
+      if (c.options === cur.options && c.qno === cur.start + cur.count) {
+        cur.count++
+      } else {
+        groups.push(cur)
+        cur = { start: c.qno, options: c.options, count: 1 }
       }
-      groups.push(cur)
-      vals.choiceGroups = groups
     }
+    groups.push(cur)
+    vals.choiceGroups = groups
   }
   return vals
 }
