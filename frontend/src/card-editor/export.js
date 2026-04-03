@@ -292,7 +292,7 @@ export async function batchExportPdf(subjects, examTitle = '', onProgress = null
       const fullHTML = `<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="UTF-8"><style>
 ${styleContent}
-body { font-family: SimSun, "宋体", "Noto Serif CJK SC", serif; background: white !important; color: #000 !important; margin: 0; padding: 0; }
+body { font-family: SimSun, "宋体", "Noto Serif CJK SC", serif; background: white !important; color: #000 !important; display: block !important; height: auto !important; overflow: visible !important; margin: 0; padding: 0; }
 .panel, .preview-wrap, .status, .page-label, .ctx-menu, .divider-handle, .divider-gap, .empty-col-slot, .sub-del-btn, .cut-del-btn, .add-sub-hint, .img-del-btn { display: none !important; }
 .page { background: white !important; box-shadow: none !important; margin: 0 !important; }
 @page { margin: 0; }
