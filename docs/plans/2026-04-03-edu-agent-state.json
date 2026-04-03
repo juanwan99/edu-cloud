@@ -66,12 +66,12 @@
     {
       "id": "13",
       "desc": "AgentLoop — the core",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "id": "14",
       "desc": "SSE event contract tests",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "id": "15",
@@ -104,5 +104,5 @@
       "status": "pending"
     }
   ],
-  "updated_at": "2026-04-03 18:18:32"
+  "updated_at": "2026-04-03 20:50:00"
 }
