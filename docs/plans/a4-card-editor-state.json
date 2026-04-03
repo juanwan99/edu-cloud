@@ -1,0 +1,16 @@
+{
+  "topic": "a4-card-editor",
+  "plan_file": "docs/plans/2026-04-03-a4-card-editor-plan.md",
+  "design_file": "docs/plans/2026-04-03-a4-card-editor-design.md",
+  "tasks": [
+    {"id": "1", "desc": "后端 layout 契约统一 + 测试 + router 校验", "status": "pending"},
+    {"id": "2", "desc": "CSS 修复 — 新增 .a4-col + 删除 flex:none hack", "status": "pending"},
+    {"id": "3", "desc": "重写 _renderA4 + 提取 renderFixedRegions", "status": "pending"},
+    {"id": "4", "desc": "选择题竖排修复", "status": "pending"},
+    {"id": "5", "desc": "PDF 导出修复", "status": "pending"},
+    {"id": "6", "desc": "英语/化学/数学 editor-layout API 测试", "status": "pending"},
+    {"id": "7", "desc": "前端 Vitest 渲染回归测试", "status": "pending"},
+    {"id": "8", "desc": "最终回归验证 + 审查交接单", "status": "pending"}
+  ],
+  "updated_at": "2026-04-03 17:56:47"
+}
