@@ -12,6 +12,54 @@
 
 ---
 
+```yaml
+contract_pack:
+  invariants:
+    - id: INV-001
+      statement: "旧工具签名 func(**kwargs) 在 Batch 6 迁移完成前持续可用，现有 agent.py 和 test_registry.py 全绿"
+      verification: pending_test
+      note: "Task 2 的 execute() 双签名保证，Batch 6 完成后删除旧路径"
+    - id: INV-002
+      statement: "capability 缺省语义为'无记录默认允许'：caps 中不存在的 key 不拒绝工具"
+      verification: existing_test
+      test_ref: "tests/test_ai/test_tool_access.py::test_capability_default_allow"
+    - id: INV-003
+      statement: "39 个工具全部通过 ToolRegistry.list_tools() 可发现，且通过 RBAC + Module + Capability 三重过滤"
+      verification: pending_test
+      note: "Task 30 最终集成测试验证"
+    - id: INV-004
+      statement: "SSE 事件流向前兼容：旧 answer/tool_call/tool_result/done 事件格式不变，新增 thinking/plan/task_update 为追加类型"
+      verification: pending_test
+      note: "Task 14 集成测试验证"
+    - id: INV-005
+      statement: "碰过 student 敏感度工具的会话锁定到主通道，后续所有 LLM 调用不流向增强通道"
+      verification: pending_test
+      note: "Task 7 测试 test_student_tool_locks_channel 验证"
+  counter_examples:
+    - id: CE-001
+      scenario: "registry.execute() 只保留新签名 (input, ctx)，旧 agent.py 用 **kwargs 调用时参数丢失，工具返回空结果但不报错"
+      tests_that_still_pass: "test_registry_v2.py 全通过（只测新签名）"
+      mitigation: "Task 2 测试同时跑 test_registry_v2.py 和 test_registry.py，确认双签名并存"
+    - id: CE-002
+      scenario: "_check_capabilities 用 caps.get(req, False) 实现，未初始化 capability 的学校所有 requires_capabilities 工具被静默过滤"
+      tests_that_still_pass: "test_tool_access_v2.py 中 test_capability_denied 通过（测的是显式 False）"
+      mitigation: "Task 3 测试 test_capability_default_allow 验证空 caps 不拒绝"
+    - id: CE-003
+      scenario: "AgentLoop 只实现 answer/tool_calls 路径，plan 分支被跳过。用户发'全面分析三年级'时 Agent 直接单步回答，不做任务规划"
+      tests_that_still_pass: "test_simple_answer 和 test_tool_call_and_answer 通过"
+      mitigation: "Task 13 增加 test_plan_branch 验证规划路径"
+  risk_modules:
+    - module: src/edu_cloud/ai/registry.py
+      reason: "工具注册+执行入口，接口变更影响 39 个工具 + agent.py + 所有工具测试"
+    - module: src/edu_cloud/ai/tool_access.py
+      reason: "三层权限过滤，默认语义变更会影响所有学校的工具可见性"
+    - module: src/edu_cloud/ai/agent_loop.py
+      reason: "核心循环，设计 §3 状态机实现，所有 Agent 功能的枢纽"
+    - module: src/edu_cloud/api/ai.py
+      reason: "唯一公共 API 入口，SSE 事件格式面向前端"
+  test_debt: []
+```
+
 ## Batch 1: Foundation Layer
 
 > ToolContext, ToolResult, ToolSpec, ToolRegistry, ToolAccessResolver, AgentEvent schemas.
@@ -136,6 +184,25 @@ cd C:/Users/Administrator/edu-cloud
 git add src/edu_cloud/ai/tool_context.py tests/test_tool_context.py
 git commit -m "feat(agent): add ToolContext and ToolResult data structures"
 ```
+
+**测试契约:**
+1. ToolResult 成功/失败序列化
+   - 入口: `ToolResult(success=True/False, ...).to_dict()`
+   - 反例: 如果 to_dict 未处理 None metadata，会序列化为 `{"metadata": null}` 而非省略
+   - 边界: data=None / error=None / metadata=None
+   - 回归: N/A
+   - 命令: `pytest tests/test_tool_context.py::test_tool_result_to_dict -v`
+2. ToolContext 字段完整性
+   - 入口: `ToolContext(db=..., school_id=..., ...)`
+   - 反例: 如果遗漏 capabilities 字段默认值，构造时无 capabilities 参数会 TypeError
+   - 边界: class_ids=None / capabilities={} / enabled_modules=[]
+   - 回归: N/A
+   - 命令: `pytest tests/test_tool_context.py::test_tool_context_fields -v`
+
+**边界条件:**
+- data=None 且 success=True → 期望: to_dict 返回 `{"success": True, "data": None}`
+- metadata 为空 dict → 期望: to_dict 包含 `"metadata": {}`
+- error=None 且 success=False → 期望: to_dict 不包含 error key（或 error=None）
 
 ---
 
@@ -322,18 +389,38 @@ class ToolRegistry:
             for s in specs
         ]
 
-    async def execute(self, name: str, arguments: dict[str, Any], ctx: ToolContext) -> ToolResult:
+    async def execute(self, name: str, arguments: dict[str, Any], ctx_or_none=None, **injected) -> Any:
         spec = self._tools.get(name)
         if spec is None:
-            return ToolResult(success=False, error=f"Unknown tool: {name}")
+            if ctx_or_none is not None:
+                return ToolResult(success=False, error=f"Unknown tool: {name}")
+            return {"error": f"Unknown tool: {name}"}
         try:
-            result = spec.func(arguments, ctx)
-            if inspect.isawaitable(result):
-                result = await result
-            return result
+            if isinstance(ctx_or_none, ToolContext):
+                # New-style call: func(input, ctx) -> ToolResult
+                result = spec.func(arguments, ctx_or_none)
+                if inspect.isawaitable(result):
+                    result = await result
+                return result
+            else:
+                # Legacy call: func(**kwargs) -> dict (backward compat until Batch 6)
+                func = spec.func
+                sig = inspect.signature(func)
+                kwargs = {}
+                for param_name, param in sig.parameters.items():
+                    if param_name.startswith("_"):
+                        if param_name in injected:
+                            kwargs[param_name] = injected[param_name]
+                    elif param_name in arguments:
+                        kwargs[param_name] = arguments[param_name]
+                if inspect.iscoroutinefunction(func):
+                    return await func(**kwargs)
+                return func(**kwargs)
         except Exception as exc:
             logger.exception("Tool %s execution failed", name)
-            return ToolResult(success=False, error=str(exc))
+            if isinstance(ctx_or_none, ToolContext):
+                return ToolResult(success=False, error=str(exc))
+            return {"error": str(exc)}
 
 
 # Global registry instance
@@ -343,7 +430,7 @@ tools = ToolRegistry()
 - [ ] **Step 4: Run new tests + existing registry tests**
 
 Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_registry_v2.py tests/test_registry.py -v`
-Expected: test_registry_v2.py all PASS. test_registry.py will FAIL (old execute() signature uses **kwargs instead of ToolContext). That's expected — old tests will be updated in Batch 6 along with tool migration.
+Expected: test_registry_v2.py all PASS. test_registry.py all PASS (dual-signature execute() supports both new ToolContext and legacy **kwargs call patterns). INV-001 verified.
 
 - [ ] **Step 5: Commit**
 
@@ -352,6 +439,25 @@ cd C:/Users/Administrator/edu-cloud
 git add src/edu_cloud/ai/registry.py tests/test_registry_v2.py
 git commit -m "feat(agent): refactor ToolSpec with is_read_only + sensitivity, ToolRegistry new execute()"
 ```
+
+**测试契约:**
+1. 新签名 execute(name, args, ToolContext) 返回 ToolResult
+   - 入口: `await registry.execute("tool", {...}, ctx)`
+   - 反例: 如果 execute 不检查 isinstance(ctx_or_none, ToolContext)，旧签名调用会把 ctx 当 **kwargs 参数传
+   - 边界: args={} / ctx 全字段为默认值 / 未注册工具名
+   - 回归: N/A
+   - 命令: `pytest tests/test_registry_v2.py::test_registry_execute_new_style -v`
+2. 旧签名 execute(name, args, **kwargs) 保持兼容 (INV-001)
+   - 入口: `await registry.execute("tool", {"x": 1}, _db=db, _school_id=sid)`
+   - 反例: 如果旧路径被删除，现有 agent.py 调用时参数被忽略，工具收到空 kwargs
+   - 边界: injected 参数为空 / 参数名不以 _ 开头
+   - 回归: 现有 test_registry.py 全部 PASS
+   - 命令: `pytest tests/test_registry.py -v`
+
+**边界条件:**
+- execute 传入不存在的 tool name → 期望: 新签名返回 ToolResult(success=False)，旧签名返回 {"error": ...}
+- execute 传入 ctx_or_none=None（旧签名无 ToolContext）→ 期望: 走 legacy 路径
+- 工具函数抛异常 → 期望: 捕获后返回 error 结果，不抛到调用方
 
 ---
 
@@ -431,6 +537,16 @@ def test_capability_denied():
     caps = {("grading", "write"): False}
     result = resolver.resolve(specs, role="admin", enabled_modules=None, capabilities=caps)
     assert len(result) == 0
+
+
+def test_capability_default_allow():
+    """未配置的 capability 默认允许（INV-002：与现有行为一致）"""
+    resolver = ToolAccessResolver()
+    specs = [
+        _make_spec("t1", requires_capabilities=[("exam", "read")]),
+    ]
+    result = resolver.resolve(specs, role="admin", enabled_modules=None, capabilities={})
+    assert len(result) == 1  # 空 caps → 默认允许
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -476,13 +592,17 @@ class ToolAccessResolver:
         required: list[tuple[str, str]],
         caps: dict[tuple[str, str], bool],
     ) -> bool:
-        return all(caps.get(req, False) for req in required)
+        # INV-002: "无记录默认允许" — 只有显式 False 才拒绝
+        for req in required:
+            if req in caps and not caps[req]:
+                return False
+        return True
 ```
 
 - [ ] **Step 4: Run tests**
 
 Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_tool_access_v2.py -v`
-Expected: All 4 tests PASS
+Expected: All 5 tests PASS (including test_capability_default_allow verifying INV-002)
 
 - [ ] **Step 5: Commit**
 
@@ -491,6 +611,31 @@ cd C:/Users/Administrator/edu-cloud
 git add src/edu_cloud/ai/tool_access.py tests/test_tool_access_v2.py
 git commit -m "feat(agent): refactor ToolAccessResolver to sync three-layer filter"
 ```
+
+**测试契约:**
+1. RBAC 层过滤只允许匹配角色的工具
+   - 入口: `resolver.resolve(specs, role="teacher", ...)`
+   - 反例: 如果 RBAC 检查遗漏 allowed_roles=None（对所有角色开放），None 会被当空列表处理，拒绝所有人
+   - 边界: allowed_roles=None / allowed_roles=[] / role 不在列表中
+   - 回归: N/A
+   - 命令: `pytest tests/test_tool_access_v2.py::test_rbac_filter -v`
+2. Module 层过滤禁用模块的工具
+   - 入口: `resolver.resolve(specs, ..., enabled_modules={"exam"})`
+   - 反例: 如果 module_code=None 的工具也被 module 过滤，所有无模块归属的通用工具消失
+   - 边界: enabled_modules=None（不过滤） / module_code=None / enabled_modules=空集
+   - 回归: N/A
+   - 命令: `pytest tests/test_tool_access_v2.py::test_module_filter -v`
+3. Capability 层保持默认允许语义 (INV-002)
+   - 入口: `resolver.resolve(specs, ..., capabilities={})`
+   - 反例: 如果用 caps.get(req, False)，未初始化的学校所有带 requires_capabilities 的工具被静默拒绝
+   - 边界: capabilities={} / 显式 True / 显式 False
+   - 回归: 现有 test_tool_access.py::test_capability_default_allow
+   - 命令: `pytest tests/test_tool_access_v2.py::test_capability_default_allow -v`
+
+**边界条件:**
+- specs 为空列表 → 期望: 返回空列表
+- capabilities={} 且工具有 requires_capabilities → 期望: 默认允许（INV-002）
+- enabled_modules=空集 且工具有 module_code → 期望: 被过滤掉
 
 ---
 
@@ -635,6 +780,25 @@ cd C:/Users/Administrator/edu-cloud
 git add src/edu_cloud/ai/schemas.py tests/test_schemas_v2.py
 git commit -m "feat(agent): extend schemas with Message, Transition enum, new AgentEvent types"
 ```
+
+**测试契约:**
+1. AgentEvent 支持全部 8 种事件类型
+   - 入口: `AgentEvent(type="thinking", data={...}).to_dict()`
+   - 反例: 如果 to_dict 对未知 type 抛异常，新增事件类型会导致 SSE 中断
+   - 边界: data={} / data 含嵌套 dict / type 为空字符串
+   - 回归: N/A
+   - 命令: `pytest tests/test_schemas_v2.py::test_agent_event_new_types -v`
+2. Transition 枚举完整
+   - 入口: `Transition.NEXT_TURN.value`
+   - 反例: 如果遗漏 TIER_DOWNGRADE，AgentLoop 状态机无法表达降级转换
+   - 边界: 枚举成员数量 = 7
+   - 回归: N/A
+   - 命令: `pytest tests/test_schemas_v2.py::test_transition_enum -v`
+
+**边界条件:**
+- Message 的 content=None 且 tool_calls 非空 → 期望: to_dict 省略 content key
+- ToolCall.from_openai 传入 arguments 为字符串 → 期望: 自动 json.loads 解析
+- AgentEvent data 含非 ASCII 字符 → 期望: to_dict 正确保留中文
 
 ---
 
@@ -945,6 +1109,25 @@ git add src/edu_cloud/ai/llm_adapter.py tests/test_llm_adapter.py
 git commit -m "feat(agent): add LLMProxyAdapter with OpenAI-compatible llm-proxy integration"
 ```
 
+**测试契约:**
+1. chat() 解析 OpenAI 格式响应
+   - 入口: `await adapter.chat(LLMRequest(messages=[...], stream=False))`
+   - 反例: 如果 _parse_response 不处理 finish_reason="tool_calls"，tool_calls 响应会被当作普通回答
+   - 边界: 空 choices / 缺失 usage / tool_calls=null
+   - 回归: N/A
+   - 命令: `pytest tests/test_llm_adapter.py::test_proxy_adapter_chat_basic -v`
+2. chat() 提取 tool_calls
+   - 入口: `await adapter.chat(LLMRequest(messages=[...], tools=[...], stream=False))`
+   - 反例: 如果 ToolCall.from_openai 不解析 arguments 字符串，tool 会收到未解析的 JSON 字符串
+   - 边界: arguments="" / arguments="{}" / 多个 tool_calls
+   - 回归: N/A
+   - 命令: `pytest tests/test_llm_adapter.py::test_proxy_adapter_chat_with_tool_calls -v`
+
+**边界条件:**
+- HTTP 响应 200 但 choices 为空数组 → 期望: content=None, tool_calls=None
+- finish_reason 为 "function_call"（旧格式）→ 期望: stop_reason 映射为 "tool_use"
+- response 缺失 usage 字段 → 期望: 默认 TokenUsage(0, 0)
+
 ---
 
 ### Task 6: CapabilityProbe
@@ -1161,6 +1344,25 @@ git add src/edu_cloud/ai/capability_probe.py tests/test_capability_probe.py
 git commit -m "feat(agent): add CapabilityProbe with auto tier detection + manual override"
 ```
 
+**测试契约:**
+1. Tier 自动检测基于 context_window + tool_use
+   - 入口: `await probe.determine_tier(adapter)`
+   - 反例: 如果只看 context_window 不测 tool_use，一个不支持 tool_use 的 200K 模型会被判为 Tier 1
+   - 边界: context_window=100000（边界值） / tool_use=False / adapter 抛异常
+   - 回归: N/A
+   - 命令: `pytest tests/test_capability_probe.py -v`
+2. LoopStrategy 各 tier 参数正确
+   - 入口: `LoopStrategy.for_tier(1/2/3)`
+   - 反例: 如果 tier 3 的 task_planning=True，低能力模型会尝试规划，浪费 token 且输出不可靠
+   - 边界: tier=0（越界） / tier=4（越界）
+   - 回归: N/A
+   - 命令: `pytest tests/test_capability_probe.py::test_loop_strategy_tier1 -v`
+
+**边界条件:**
+- adapter.chat 连续超时 → 期望: tier 降级到 3，不抛异常
+- manual override 后调用 determine_tier → 期望: override 优先
+- context_window 恰好等于 TIER_1_MIN_CONTEXT (100000) → 期望: 判为 Tier 1（含边界值）
+
 ---
 
 ### Task 7: SensitivityRouter
@@ -1313,6 +1515,25 @@ cd C:/Users/Administrator/edu-cloud
 git add src/edu_cloud/ai/sensitivity_router.py tests/test_sensitivity_router.py
 git commit -m "feat(agent): add SensitivityRouter with dual-channel data protection"
 ```
+
+**测试契约:**
+1. Student 工具锁定通道 (INV-005)
+   - 入口: `router.on_tool_executed(state, student_spec)` → `router.route(state, [public_spec])`
+   - 反例: 如果锁定检查用 channel=="primary" 而非 "primary_locked"，锁定后仍可路由到 enhanced
+   - 边界: 连续锁定两次 / enhanced=None / tool_specs=[]
+   - 回归: N/A
+   - 命令: `pytest tests/test_sensitivity_router.py::test_student_tool_locks_channel -v`
+2. 全 public 工具路由到 enhanced
+   - 入口: `router.route(state, [public_spec1, public_spec2])`
+   - 反例: 如果 max() 在空 tool_specs 上调用会抛 ValueError
+   - 边界: tool_specs=[] / 混合 public+school / enhanced=None
+   - 回归: N/A
+   - 命令: `pytest tests/test_sensitivity_router.py::test_public_tools_use_enhanced -v`
+
+**边界条件:**
+- enhanced=None → 期望: 始终返回 primary，不报错
+- tool_specs=[] → 期望: 路由到 enhanced（无工具 = 无数据敏感性）
+- 已锁定后再次 on_tool_executed(student) → 期望: 保持锁定，无异常
 
 ---
 
@@ -1568,6 +1789,31 @@ git add src/edu_cloud/ai/tool_executor.py tests/test_tool_executor.py
 git commit -m "feat(agent): add ToolExecutor + ToolOrchestrator with concurrent batching"
 ```
 
+**测试契约:**
+1. Partition 将 read-only 工具分为并发批次
+   - 入口: `orchestrator.partition([read_call1, write_call, read_call2])`
+   - 反例: 如果 partition 不分割 write 前后的 reads，write 会和 reads 并发执行导致数据竞争
+   - 边界: 全 read / 全 write / 单个 call / 未注册工具
+   - 回归: N/A
+   - 命令: `pytest tests/test_tool_executor.py::test_partition_mixed -v`
+2. Execute 并发执行 read 批次
+   - 入口: `await orchestrator.execute(batches, ctx)`
+   - 反例: 如果 concurrent batch 内用串行循环，性能退化但功能不变——测试难以捕获，靠 partition 测试保证
+   - 边界: 空 batches / 单 call batch / 工具抛异常
+   - 回归: N/A
+   - 命令: `pytest tests/test_tool_executor.py::test_orchestrator_execute -v`
+3. 未知工具返回 error result
+   - 入口: `await executor.run_one(ToolCall(name="nonexistent"), ctx)`
+   - 反例: 如果未检查 spec is None 直接调用 spec.func，会抛 AttributeError 而非返回优雅错误
+   - 边界: name="" / name=None
+   - 回归: N/A
+   - 命令: `pytest tests/test_tool_executor.py::test_executor_unknown_tool -v`
+
+**边界条件:**
+- 工具执行时抛异常 → 期望: 返回 ToolResult(success=False, error=str(exc))，不中断批次
+- 空 tool_calls 列表 → 期望: partition 返回空 batches，execute 返回空 results
+- 超过 MAX_TOOL_CONCURRENCY (10) 的并发 reads → 期望: 截断到前 10 个
+
 ---
 
 ## Batch 4: Intelligence Layer
@@ -1760,6 +2006,25 @@ git add src/edu_cloud/ai/context_manager.py tests/test_context_manager.py
 git commit -m "feat(agent): add ContextManager with auto-compact and token estimation"
 ```
 
+**测试契约:**
+1. should_compact 基于 token 阈值判断
+   - 入口: `cm.should_compact(token_count=96000, context_window=128000)`
+   - 反例: 如果阈值计算不减去 SUMMARY_MAX_TOKENS，compact 后摘要可能超出上下文窗口
+   - 边界: token_count=0 / context_window=0 / 恰好等于阈值
+   - 回归: N/A
+   - 命令: `pytest tests/test_context_manager.py::test_should_compact_true -v`
+2. compact 保留 system prompt + 最近 4 轮
+   - 入口: `await cm.compact(messages, adapter)`
+   - 反例: 如果 keep_count 计算错误（用 turns 而非 messages 数），会保留过多或过少消息
+   - 边界: messages 少于 3 条 / 恰好等于 keep_count / system 消息不在首位
+   - 回归: N/A
+   - 命令: `pytest tests/test_context_manager.py::test_compact_preserves_system_and_recent -v`
+
+**边界条件:**
+- messages 只有 2 条（system + user）→ 期望: 原样返回，不 compact
+- LLM 摘要调用失败 → 期望: fallback 到简略摘要，不抛异常
+- 纯中文 text token 估算 → 期望: 每字 1.5 token（"你好" = 3 tokens）
+
 ---
 
 ### Task 10: AgentMemory model + SessionMemoryExtractor
@@ -1946,13 +2211,50 @@ class SessionMemoryExtractor:
 Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_session_memory.py -v`
 Expected: All 4 tests PASS
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Register AgentMemory in Alembic model discovery chain**
+
+Add `from edu_cloud.models.agent_memory import AgentMemory` to `alembic/env.py` (alongside existing model imports). Update `tests/test_alembic_migration.py` import list to include AgentMemory.
+
+- [ ] **Step 7: Generate Alembic migration**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/models/agent_memory.py src/edu_cloud/ai/session_memory.py tests/test_session_memory.py
-git commit -m "feat(agent): add AgentMemory model + SessionMemoryExtractor"
+python -m alembic revision --autogenerate -m "add agent_memories table"
 ```
+
+Verify the generated migration creates the `agent_memories` table with all columns (school_id, session_id, user_id, memory_type, content, entity_type, entity_id, expires_at, is_active).
+
+- [ ] **Step 8: Run migration smoke test**
+
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_alembic_migration.py -v`
+Expected: PASS — upgrade/downgrade cycle includes agent_memories table.
+
+- [ ] **Step 9: Commit**
+
+```bash
+cd C:/Users/Administrator/edu-cloud
+git add src/edu_cloud/models/agent_memory.py src/edu_cloud/ai/session_memory.py tests/test_session_memory.py alembic/
+git commit -m "feat(agent): add AgentMemory model + SessionMemoryExtractor + Alembic migration"
+```
+
+**测试契约:**
+1. SessionMemoryExtractor 解析 LLM JSON 输出
+   - 入口: `await extractor.extract(messages, adapter)`
+   - 反例: 如果 _parse 不处理 markdown 代码块包裹（```json...```），LLM 典型输出会解析失败返回空
+   - 边界: LLM 返回非 JSON / 返回空数组 / 返回嵌套 JSON
+   - 回归: N/A
+   - 命令: `pytest tests/test_session_memory.py::test_extract_returns_memories -v`
+2. AgentMemory ORM 模型列完整
+   - 入口: `AgentMemory.__table__.columns`
+   - 反例: 如果遗漏 is_active 列，查询活跃记忆时无法过滤已归档条目
+   - 边界: expires_at=None / entity_type=None
+   - 回归: N/A
+   - 命令: `pytest tests/test_session_memory.py::test_agent_memory_model_has_fields -v`
+
+**边界条件:**
+- LLM 返回 "This is not valid JSON" → 期望: 返回空列表，不抛异常
+- LLM 返回 `[]` → 期望: 返回空列表
+- messages 为空列表 → 期望: 仍调用 LLM（prompt + 空会话），不崩溃
 
 ---
 
@@ -2167,6 +2469,25 @@ git add src/edu_cloud/ai/task_planner.py tests/test_task_planner.py
 git commit -m "feat(agent): add TaskPlanner with LLM-driven decomposition and topological scheduling"
 ```
 
+**测试契约:**
+1. maybe_plan 对简单问题返回 None
+   - 入口: `await planner.maybe_plan("数学平均分多少", tier=2, adapter, tools)`
+   - 反例: 如果 maybe_plan 不检查 `{"plan": null}`，会尝试解析 null 为 task 列表导致 TypeError
+   - 边界: LLM 返回非 JSON / tier=3（跳过规划） / available_tools=[]
+   - 回归: N/A
+   - 命令: `pytest tests/test_task_planner.py::test_maybe_plan_returns_none_for_simple -v`
+2. schedule 按拓扑序产出任务
+   - 入口: `list(planner.schedule(plan))`
+   - 反例: 如果 schedule 不检查依赖是否在 completed 中，有循环依赖时会无限循环
+   - 边界: 无依赖（全并行） / 线性链 / 循环依赖（死锁检测）
+   - 回归: N/A
+   - 命令: `pytest tests/test_task_planner.py::test_schedule_topological_order -v`
+
+**边界条件:**
+- tier=3 → 期望: 直接返回 None，不调用 LLM
+- LLM 返回 `{"plan": []}` （空 plan）→ 期望: 返回 Plan 但 tasks 为空（或 None）
+- 循环依赖 A→B→A → 期望: 检测到死锁，仍然 yield 所有 remaining tasks
+
 ---
 
 ## Batch 5: Agent Loop + Prompts + API
@@ -2321,6 +2642,25 @@ git add src/edu_cloud/ai/prompts.py tests/test_prompts.py
 git commit -m "feat(agent): add system prompt templates with tier-aware instructions"
 ```
 
+**测试契约:**
+1. Tier 1/2 prompt 包含计划指令
+   - 入口: `build_teacher_prompt(role="teacher", ..., tier=1)`
+   - 反例: 如果 tier 检查用 `==` 而非 `<=`，tier=2 不会得到计划指令
+   - 边界: tier=1 / tier=2 / tier=3
+   - 回归: N/A
+   - 命令: `pytest tests/test_prompts.py::test_teacher_prompt_tier1_has_plan_instruction -v`
+2. Prompt 包含角色中文名和学校
+   - 入口: `build_teacher_prompt(role="academic_director", display_name="张老师", school_name="实验中学", ...)`
+   - 反例: 如果 ROLE_CN 映射遗漏角色，prompt 会显示原始英文 role 而非中文
+   - 边界: role 不在 ROLE_CN 映射中 / tool_names 超过 20 个 / memories=None
+   - 回归: N/A
+   - 命令: `pytest tests/test_prompts.py::test_teacher_prompt_contains_role -v`
+
+**边界条件:**
+- tool_names=[] → 期望: prompt 中工具段显示空串而非 crash
+- memories=None → 期望: 不生成历史记忆段
+- role="unknown_role" → 期望: fallback 显示原始 role 字符串
+
 ---
 
 ### Task 13: AgentLoop — the core
@@ -2436,6 +2776,94 @@ async def test_max_turns_stops():
     assert "done" in types
     done_event = next(e for e in events if e.type == "done")
     assert done_event.data["turns"] <= strategy.max_turns + 1
+
+
+@pytest.mark.asyncio
+async def test_plan_branch():
+    """Tier ≤ 2: AgentLoop produces plan + task_update events when planner returns a plan."""
+    import json as _json
+    reg, ctx = _setup()
+    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary")
+
+    plan_json = _json.dumps({"plan": [
+        {"description": "收集成绩", "tools_hint": ["get_score"], "depends_on": []},
+    ]})
+    call_count = 0
+    async def mock_chat(request):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # Planner call — returns plan
+            return LLMResponse(content=plan_json, usage=TokenUsage(30, 20))
+        if call_count == 2:
+            # Task execution — tool call
+            return LLMResponse(
+                tool_calls=[ToolCall(id="tc1", name="get_score", arguments={"exam_id": "E1"}, _raw={})],
+                usage=TokenUsage(20, 10), stop_reason="tool_use",
+            )
+        # Final answer
+        return LLMResponse(content="分析完成", usage=TokenUsage(20, 10), stop_reason="end_turn")
+
+    adapter.chat = mock_chat
+
+    strategy = LoopStrategy.for_tier(2)  # task_planning=True
+    loop = AgentLoop(registry=reg, adapter=adapter, strategy=strategy)
+    events = []
+    async for event in loop.run("全面分析三年级", ctx, tool_specs=reg.get_all_specs()):
+        events.append(event)
+
+    types = [e.type for e in events]
+    assert "plan" in types, f"Expected 'plan' event, got: {types}"
+    assert "task_update" in types, f"Expected 'task_update' event, got: {types}"
+    assert "done" in types
+
+
+@pytest.mark.asyncio
+async def test_thinking_event():
+    """When LLM returns content alongside tool_calls, emit a thinking event."""
+    reg, ctx = _setup()
+    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary")
+
+    call_count = 0
+    async def mock_chat(request):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return LLMResponse(
+                content="让我查一下成绩...",
+                tool_calls=[ToolCall(id="tc1", name="get_score", arguments={"exam_id": "E1"}, _raw={})],
+                usage=TokenUsage(30, 20), stop_reason="tool_use",
+            )
+        return LLMResponse(content="平均分 85.2", usage=TokenUsage(20, 10), stop_reason="end_turn")
+
+    adapter.chat = mock_chat
+
+    strategy = LoopStrategy.for_tier(3)
+    loop = AgentLoop(registry=reg, adapter=adapter, strategy=strategy)
+    events = []
+    async for event in loop.run("查成绩", ctx, tool_specs=reg.get_all_specs()):
+        events.append(event)
+
+    types = [e.type for e in events]
+    assert "thinking" in types, f"Expected 'thinking' event when content + tool_calls, got: {types}"
+
+
+@pytest.mark.asyncio
+async def test_error_count_threshold():
+    """error_count >= 3 → yield error event and stop."""
+    reg, ctx = _setup()
+    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary")
+    adapter.chat = AsyncMock(side_effect=Exception("connection refused"))
+
+    strategy = LoopStrategy.for_tier(3)
+    loop = AgentLoop(registry=reg, adapter=adapter, strategy=strategy)
+    events = []
+    async for event in loop.run("test", ctx, tool_specs=reg.get_all_specs()):
+        events.append(event)
+
+    types = [e.type for e in events]
+    assert "error" in types
+    assert "done" in types
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -2448,6 +2876,10 @@ Expected: FAIL with `ModuleNotFoundError`
 ```python
 # src/edu_cloud/ai/agent_loop.py
 """Core agent loop — plan, execute tools, verify, respond (Design §3).
+
+Implements the full state machine: CapabilityProbe → SensitivityRouter →
+plan branch (tier ≤ 2) → tool execution → thinking/plan/task_update events →
+error threshold → memory extract.
 
 Inspired by Claude Code's query.ts AsyncGenerator pattern.
 """
@@ -2462,6 +2894,8 @@ from edu_cloud.ai.context_manager import ContextManager, TokenCounter
 from edu_cloud.ai.llm_adapter import LLMProxyAdapter, LLMRequest, LLMResponse
 from edu_cloud.ai.registry import ToolRegistry, ToolSpec
 from edu_cloud.ai.schemas import AgentEvent, Message, ToolCall, Transition
+from edu_cloud.ai.sensitivity_router import SensitivityRouter
+from edu_cloud.ai.session_memory import SessionMemoryExtractor
 from edu_cloud.ai.task_planner import TaskPlanner
 from edu_cloud.ai.tool_context import ToolContext
 from edu_cloud.ai.tool_executor import ToolOrchestrator
@@ -2484,6 +2918,8 @@ class AgentLoop:
         registry: ToolRegistry,
         adapter: LLMProxyAdapter,
         strategy: LoopStrategy,
+        sensitivity_router: SensitivityRouter | None = None,
+        memory_extractor: SessionMemoryExtractor | None = None,
     ):
         self._registry = registry
         self._adapter = adapter
@@ -2491,6 +2927,8 @@ class AgentLoop:
         self._orchestrator = ToolOrchestrator(registry)
         self._context_mgr = ContextManager()
         self._planner = TaskPlanner()
+        self._sensitivity_router = sensitivity_router
+        self._memory_extractor = memory_extractor
 
     async def run(
         self,
@@ -2518,75 +2956,136 @@ class AgentLoop:
             for s in tool_specs
         ]
 
-        while state.turn_count < self._strategy.max_turns:
-            state.turn_count += 1
+        # --- Plan branch (tier ≤ 2) ---
+        plan = None
+        if self._strategy.task_planning:
+            plan = await self._planner.maybe_plan(
+                goal, tier=self._strategy.tier, adapter=self._adapter, available_tools=tool_specs
+            )
+            if plan is not None:
+                yield AgentEvent(type="plan", data={
+                    "tasks": [{"id": t.id, "description": t.description} for t in plan.tasks],
+                })
 
-            # Check if compaction needed
-            if self._strategy.context_compact and self._context_mgr.should_compact(
-                state.token_count, self._adapter.context_window_size()
-            ):
-                state.messages = await self._context_mgr.compact(state.messages, self._adapter)
-                state.token_count = TokenCounter.estimate_messages(state.messages)
-
-            # Call LLM
-            try:
-                resp = await self._adapter.chat(LLMRequest(
-                    messages=state.messages,
-                    tools=tool_schemas if tool_schemas else None,
-                    stream=False,
+        # --- Main loop ---
+        plan_tasks = list(self._planner.schedule(plan)) if plan else [None]
+        for task in plan_tasks:
+            if task is not None:
+                yield AgentEvent(type="task_update", data={
+                    "id": task.id, "description": task.description, "status": "in_progress",
+                })
+                # Inject task context into messages
+                state.messages.append(Message(
+                    role="user",
+                    content=f"[任务 {task.id}] {task.description}",
                 ))
-            except Exception as exc:
-                state.error_count += 1
-                logger.error("LLM call failed (attempt %d): %s", state.error_count, exc)
-                if state.error_count >= 3:
-                    yield AgentEvent(type="error", data={"message": f"LLM 调用失败: {exc}"})
+
+            while state.turn_count < self._strategy.max_turns:
+                state.turn_count += 1
+
+                # Check if compaction needed
+                if self._strategy.context_compact and self._context_mgr.should_compact(
+                    state.token_count, self._adapter.context_window_size()
+                ):
+                    state.messages = await self._context_mgr.compact(state.messages, self._adapter)
+                    state.token_count = TokenCounter.estimate_messages(state.messages)
+
+                # Select adapter via SensitivityRouter
+                active_adapter = self._adapter
+                if self._sensitivity_router is not None:
+                    active_adapter = self._sensitivity_router.route(state, tool_specs)
+
+                # Call LLM
+                try:
+                    resp = await active_adapter.chat(LLMRequest(
+                        messages=state.messages,
+                        tools=tool_schemas if tool_schemas else None,
+                        stream=False,
+                    ))
+                except Exception as exc:
+                    state.error_count += 1
+                    logger.error("LLM call failed (attempt %d): %s", state.error_count, exc)
+                    if state.error_count >= 3:
+                        yield AgentEvent(type="error", data={"message": f"LLM 调用失败: {exc}"})
+                        break
+                    continue
+
+                state.token_count += (resp.usage.input_tokens + resp.usage.output_tokens)
+
+                # Handle response
+                if resp.content and resp.tool_calls:
+                    # LLM produced thinking text alongside tool calls
+                    yield AgentEvent(type="thinking", data={"content": resp.content})
+
+                if resp.tool_calls:
+                    # Tool calls
+                    state.messages.append(Message(role="assistant", content=resp.content, tool_calls=resp.tool_calls))
+
+                    for tc in resp.tool_calls:
+                        yield AgentEvent(type="tool_call", data={"tool": tc.name, "args": tc.arguments, "id": tc.id})
+
+                    # Execute tools
+                    batches = self._orchestrator.partition(resp.tool_calls)
+                    if not self._strategy.parallel_tools:
+                        from edu_cloud.ai.tool_executor import ToolBatch
+                        batches = [ToolBatch(calls=[c], concurrent=False) for c in resp.tool_calls]
+
+                    results = await self._orchestrator.execute(batches, ctx)
+
+                    # Notify SensitivityRouter of executed tools (channel lock)
+                    for tc, result in zip(resp.tool_calls, results):
+                        spec = self._registry.get(tc.name)
+                        if spec and self._sensitivity_router:
+                            self._sensitivity_router.on_tool_executed(state, spec)
+
+                        state.messages.append(Message(
+                            role="tool",
+                            content=str(result.to_dict()),
+                            tool_call_id=tc.id,
+                            name=tc.name,
+                        ))
+                        yield AgentEvent(type="tool_result", data={
+                            "tool": tc.name, "id": tc.id, "success": result.success,
+                            "data": result.data, "error": result.error,
+                        })
+
+                    state.error_count = 0
+                    continue
+
+                if resp.stop_reason == "end_turn" and resp.content:
+                    # Direct answer — if in plan mode, mark task complete and break inner loop
+                    state.messages.append(Message(role="assistant", content=resp.content))
+                    if task is not None:
+                        yield AgentEvent(type="task_update", data={
+                            "id": task.id, "status": "completed",
+                        })
+                    else:
+                        yield AgentEvent(type="answer", data={"content": resp.content})
                     break
-                continue
 
-            state.token_count += (resp.usage.input_tokens + resp.usage.output_tokens)
-
-            # Handle response
-            if resp.stop_reason == "end_turn" and resp.content:
-                # Direct answer
-                state.messages.append(Message(role="assistant", content=resp.content))
-                yield AgentEvent(type="answer", data={"content": resp.content})
+                # No content and no tool calls — unexpected
+                logger.warning("LLM returned empty response at turn %d", state.turn_count)
                 break
 
-            if resp.tool_calls:
-                # Tool calls
-                state.messages.append(Message(role="assistant", content=resp.content, tool_calls=resp.tool_calls))
+            # Check if error threshold was hit
+            if state.error_count >= 3:
+                break
 
-                for tc in resp.tool_calls:
-                    yield AgentEvent(type="tool_call", data={"tool": tc.name, "args": tc.arguments, "id": tc.id})
+        # If no plan and last event was not answer, emit the final answer from messages
+        if plan is not None and state.messages:
+            last_assistant = next(
+                (m for m in reversed(state.messages) if m.role == "assistant" and m.content),
+                None,
+            )
+            if last_assistant:
+                yield AgentEvent(type="answer", data={"content": last_assistant.content})
 
-                # Execute tools
-                batches = self._orchestrator.partition(resp.tool_calls)
-                if not self._strategy.parallel_tools:
-                    # Tier 3: flatten to serial
-                    from edu_cloud.ai.tool_executor import ToolBatch
-                    batches = [ToolBatch(calls=[c], concurrent=False) for c in resp.tool_calls]
-
-                results = await self._orchestrator.execute(batches, ctx)
-
-                # Add results to messages
-                for tc, result in zip(resp.tool_calls, results):
-                    state.messages.append(Message(
-                        role="tool",
-                        content=str(result.to_dict()),
-                        tool_call_id=tc.id,
-                        name=tc.name,
-                    ))
-                    yield AgentEvent(type="tool_result", data={
-                        "tool": tc.name, "id": tc.id, "success": result.success,
-                        "data": result.data, "error": result.error,
-                    })
-
-                state.error_count = 0
-                continue
-
-            # No content and no tool calls — unexpected
-            logger.warning("LLM returned empty response at turn %d", state.turn_count)
-            break
+        # --- Post-loop: memory extraction ---
+        if self._strategy.memory_extract and self._memory_extractor is not None:
+            try:
+                await self._memory_extractor.extract(state.messages, self._adapter)
+            except Exception:
+                logger.warning("Post-loop memory extraction failed")
 
         yield AgentEvent(type="done", data={
             "turns": state.turn_count,
@@ -2598,33 +3097,76 @@ class AgentLoop:
 - [ ] **Step 4: Run tests**
 
 Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_agent_loop.py -v`
-Expected: All 3 tests PASS
+Expected: All 7 tests PASS (simple_answer, tool_call_and_answer, max_turns, plan_branch, thinking_event, error_count_threshold)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
 git add src/edu_cloud/ai/agent_loop.py tests/test_agent_loop.py
-git commit -m "feat(agent): add AgentLoop core with tool execution and max_turns protection"
+git commit -m "feat(agent): add AgentLoop with full state machine — plan/thinking/sensitivity/memory"
 ```
+
+**测试契约:**
+1. 简单问答路径：LLM 直接回答
+   - 入口: `async for event in loop.run("数学平均分", ctx, tool_specs=specs)`
+   - 反例: 如果 run() 不 yield answer event，SSE 流无内容但 done 状态是 success
+   - 边界: system_prompt="" / tool_specs=[] / goal 为空字符串
+   - 回归: N/A
+   - 命令: `pytest tests/test_agent_loop.py::test_simple_answer -v`
+2. 工具调用路径：LLM → tool_call → tool_result → answer
+   - 入口: `async for event in loop.run("查成绩", ctx, tool_specs=specs)`
+   - 反例: 如果 tool_result 未添加到 messages，LLM 第二轮看不到工具结果，无法生成答案
+   - 边界: 工具返回 ToolResult(success=False) / 多个并发 tool_calls
+   - 回归: N/A
+   - 命令: `pytest tests/test_agent_loop.py::test_tool_call_and_answer -v`
+3. Plan 分支路径 (tier ≤ 2)
+   - 入口: `async for event in loop.run("全面分析", ctx, tool_specs=specs)` (strategy=tier2)
+   - 反例: 如果 _planner.maybe_plan 被调用但返回的 plan 被忽略（CE-003），Agent 跳过规划直接单步回答
+   - 边界: planner 返回 None（简单问题） / planner 返回空 tasks / tier=3（跳过规划）
+   - 回归: N/A
+   - 命令: `pytest tests/test_agent_loop.py::test_plan_branch -v`
+4. Thinking event 当 content + tool_calls 共存
+   - 入口: `async for event in loop.run(...)` (LLM 返回 content 和 tool_calls)
+   - 反例: 如果不检测 content+tool_calls 共存，thinking 内容被丢弃，前端无法展示推理过程
+   - 边界: content="" + tool_calls / content=None + tool_calls
+   - 回归: N/A
+   - 命令: `pytest tests/test_agent_loop.py::test_thinking_event -v`
+5. error_count ≥ 3 → yield error + done
+   - 入口: `async for event in loop.run(...)` (adapter 连续 3 次异常)
+   - 反例: 如果 error_count 检查用 > 而非 >=，需要 4 次失败才停止
+   - 边界: error_count=2 后成功恢复 / max_turns 先触达
+   - 回归: N/A
+   - 命令: `pytest tests/test_agent_loop.py::test_error_count_threshold -v`
+
+**边界条件:**
+- tool_specs=[] → 期望: LLM 无工具可调用，直接回答
+- max_turns=1 → 期望: 最多循环一次后 yield done
+- LLM 返回空响应（no content, no tool_calls）→ 期望: break 循环，yield done
 
 ---
 
-### Task 14: API endpoint adaptation
+### Task 14: SSE event contract tests
 
 **Files:**
-- Modify: `src/edu_cloud/api/ai.py`
 - Test: `tests/test_ai_api_v2.py`
 
-> This task adapts the existing `/api/v1/ai/chat` endpoint to use the new AgentLoop instead of the old Agent class. The SSE streaming format stays the same but supports new event types (plan, task_update, thinking).
+> This task validates that all new AgentEvent types serialize correctly for SSE transport AND that the AgentLoop produces events consumable by an SSE endpoint. The actual `api/ai.py` wiring happens in Batch 7 (Task 27), but the contract is locked here (INV-004).
 
-- [ ] **Step 1: Write failing test**
+- [ ] **Step 1: Write tests**
 
 ```python
 # tests/test_ai_api_v2.py
+import json
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock
 from edu_cloud.ai.schemas import AgentEvent
+from edu_cloud.ai.agent_loop import AgentLoop
+from edu_cloud.ai.llm_adapter import LLMProxyAdapter, LLMResponse, TokenUsage
+from edu_cloud.ai.registry import ToolRegistry
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
+from edu_cloud.ai.capability_probe import LoopStrategy
+from edu_cloud.ai.schemas import ToolCall
 
 
 def test_agent_event_serialization_for_sse():
@@ -2642,33 +3184,126 @@ def test_agent_event_serialization_for_sse():
         d = event.to_dict()
         assert "type" in d
         assert "data" in d
-        import json
         line = f"data: {json.dumps(d, ensure_ascii=False)}\n\n"
         assert event.type in line
+
+
+def test_sse_event_backward_compat():
+    """INV-004: old event types (answer/tool_call/tool_result/done) format unchanged."""
+    answer = AgentEvent(type="answer", data={"content": "回答"})
+    d = answer.to_dict()
+    assert d == {"type": "answer", "data": {"content": "回答"}}
+
+    done = AgentEvent(type="done", data={"turns": 5, "tokens": 3000})
+    d = done.to_dict()
+    assert d["type"] == "done"
+    assert "turns" in d["data"]
+    assert "tokens" in d["data"]
+
+
+@pytest.mark.asyncio
+async def test_agentloop_produces_valid_sse_event_stream():
+    """Integration: AgentLoop → collect events → simulate SSE serialization."""
+    reg = ToolRegistry()
+
+    @reg.register(name="get_score", description="Get score", parameters={"exam_id": {"type": "string"}},
+                  is_read_only=True, sensitivity="school")
+    async def get_score(input: dict, ctx: ToolContext) -> ToolResult:
+        return ToolResult(success=True, data={"avg": 85.2})
+
+    ctx = ToolContext(db=None, school_id="S1", user_id="U1", role="teacher")
+    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary")
+
+    call_count = 0
+    async def mock_chat(request):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return LLMResponse(
+                tool_calls=[ToolCall(id="tc1", name="get_score", arguments={"exam_id": "E1"}, _raw={})],
+                usage=TokenUsage(20, 10), stop_reason="tool_use",
+            )
+        return LLMResponse(content="平均分 85.2", usage=TokenUsage(20, 10), stop_reason="end_turn")
+
+    adapter.chat = mock_chat
+
+    loop = AgentLoop(registry=reg, adapter=adapter, strategy=LoopStrategy.for_tier(3))
+    sse_lines = []
+    async for event in loop.run("查成绩", ctx, tool_specs=reg.get_all_specs()):
+        d = event.to_dict()
+        line = f"data: {json.dumps(d, ensure_ascii=False)}\n\n"
+        sse_lines.append(line)
+        # Verify each line is valid SSE format
+        assert line.startswith("data: ")
+        assert line.endswith("\n\n")
+        parsed = json.loads(line[6:].strip())
+        assert "type" in parsed
+        assert "data" in parsed
+
+    # Verify event stream contains expected types
+    types = [json.loads(line[6:].strip())["type"] for line in sse_lines]
+    assert "tool_call" in types
+    assert "tool_result" in types
+    assert "answer" in types
+    assert "done" in types
 ```
 
-- [ ] **Step 2: Run test to verify it passes** (this is a schema test, should pass with existing code)
+- [ ] **Step 2: Run tests**
 
 Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai_api_v2.py -v`
-Expected: PASS
+Expected: All 3 tests PASS
 
-- [ ] **Step 3: Document the API migration plan**
-
-The actual `api/ai.py` migration is deferred to Batch 7 (integration), because it requires all 39 tools to be migrated first. For now, the old Agent class and new AgentLoop coexist. The API endpoint will be updated last.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
 git add tests/test_ai_api_v2.py
-git commit -m "test(agent): add API SSE serialization tests for new AgentEvent types"
+git commit -m "test(agent): add SSE event contract tests — serialization + integration + backward compat"
 ```
+
+**测试契约:**
+1. AgentEvent 全类型序列化 (INV-004)
+   - 入口: `AgentEvent(type="thinking", data={...}).to_dict()`
+   - 反例: 如果 to_dict 做类型白名单检查，新增事件类型会被拒绝
+   - 边界: data 含嵌套 dict / data 含中文 / type 为空字符串
+   - 回归: N/A
+   - 命令: `pytest tests/test_ai_api_v2.py::test_agent_event_serialization_for_sse -v`
+2. SSE 向前兼容 (INV-004)
+   - 入口: `AgentEvent(type="answer", data={...}).to_dict()`
+   - 反例: 如果 to_dict 新增 "version" 等字段，旧前端解析会拿到意外 key
+   - 边界: 旧 4 种事件类型的格式不变
+   - 回归: N/A
+   - 命令: `pytest tests/test_ai_api_v2.py::test_sse_event_backward_compat -v`
+3. AgentLoop → SSE 集成
+   - 入口: `async for event in loop.run(...)` → `json.dumps(event.to_dict())`
+   - 反例: 如果 AgentLoop yield 的 event.data 含不可 JSON 序列化的对象（如 datetime），SSE 序列化会 crash
+   - 边界: 工具返回 data=None / 工具返回 data 含嵌套列表
+   - 回归: N/A
+   - 命令: `pytest tests/test_ai_api_v2.py::test_agentloop_produces_valid_sse_event_stream -v`
+
+**边界条件:**
+- event.data 含 None 值 → 期望: json.dumps 正常序列化为 null
+- event.type 为新增类型（如 "thinking"）→ 期望: SSE 格式不变，旧前端忽略即可
+- 空事件流（AgentLoop 立即 done）→ 期望: 至少有 done 事件
 
 ---
 
 ## Batch 6: Tool Migration
 
 > Migrate all 39 existing tools from the old `async def func(**kwargs)` signature to the new `async def func(input: dict, ctx: ToolContext) -> ToolResult` signature.
+
+**测试契约（Batch 6 通用，适用 Task 15-26 所有工具迁移）:**
+1. 迁移后工具签名接受 (input: dict, ctx: ToolContext) 并返回 ToolResult
+   - 入口: `await tools.execute("tool_name", {...}, ctx)`
+   - 反例: 如果签名未改但仍用旧 **kwargs，ToolContext 参数会被忽略，输出 dict 而非 ToolResult
+   - 边界: 空 input / ctx 全默认值 / 缺必填参数
+   - 回归: 旧签名 **kwargs 在迁移前仍可用（INV-001 双签名保证）
+   - 命令: `pytest tests/test_tools_{module}.py -v`
+
+**边界条件（Batch 6 通用）:**
+- input={} （所有可选参数缺失）→ 期望: 使用默认值或返回合理错误，不抛 KeyError
+- ctx.school_id 与 DB 数据不匹配 → 期望: 返回空结果或 ToolResult(success=False)
+- 工具内部异常 → 期望: 被 try/except 包裹，返回 ToolResult(success=False, error=str(exc))
 
 ### Task 15: Migrate exam tools (3 tools)
 
@@ -2787,7 +3422,7 @@ git commit -m "feat(agent): wire AgentLoop into /api/v1/ai/chat endpoint"
 
 ---
 
-### Task 28: Delete deprecated files
+### Task 28: Delete deprecated files (with rollback checkpoint)
 
 **Files:**
 - Delete: `src/edu_cloud/ai/agent.py`
@@ -2797,13 +3432,46 @@ git commit -m "feat(agent): wire AgentLoop into /api/v1/ai/chat endpoint"
 - Delete: `src/edu_cloud/ai/intent_resolver.py`
 - Delete: `src/edu_cloud/ai/context.py`
 
-- [ ] **Step 1: Delete files and remove old test files**
+- [ ] **Step 1: Create rollback checkpoint**
 
-- [ ] **Step 2: Run full test suite to confirm nothing breaks**
+```bash
+cd C:/Users/Administrator/edu-cloud
+git tag edu-agent-pre-cutover
+```
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q`
+- [ ] **Step 2: Run full test suite to confirm new+old coexistence is green**
 
-- [ ] **Step 3: Commit**
+```bash
+cd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q
+```
+
+Expected: All tests PASS before any deletion. This is the "safe baseline".
+
+- [ ] **Step 3: Delete deprecated files and remove old test files**
+
+```bash
+cd C:/Users/Administrator/edu-cloud
+git rm src/edu_cloud/ai/agent.py src/edu_cloud/ai/llm.py src/edu_cloud/ai/llm_factory.py \
+       src/edu_cloud/ai/model_router.py src/edu_cloud/ai/intent_resolver.py src/edu_cloud/ai/context.py
+```
+
+- [ ] **Step 4: Run full test suite to confirm nothing breaks**
+
+```bash
+cd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q
+```
+
+Expected: All tests PASS. If any test fails due to imports from deleted files, fix the import or remove the test.
+
+**Rollback procedure:** If Step 4 fails and fixes are non-trivial:
+```bash
+git checkout edu-agent-pre-cutover -- src/edu_cloud/ai/agent.py src/edu_cloud/ai/llm.py \
+    src/edu_cloud/ai/llm_factory.py src/edu_cloud/ai/model_router.py \
+    src/edu_cloud/ai/intent_resolver.py src/edu_cloud/ai/context.py
+```
+Then investigate which module still depends on the old files before retrying.
+
+- [ ] **Step 5: Commit**
 
 ```bash
 git commit -m "chore(agent): remove deprecated AI module files replaced by edu-agent"
@@ -2811,28 +3479,32 @@ git commit -m "chore(agent): remove deprecated AI module files replaced by edu-a
 
 ---
 
-### Task 29: Alembic migration for agent_memories table
+### Task 29: Verify Alembic migration head + downgrade
 
-**Files:**
-- Create: `alembic/versions/xxx_add_agent_memories.py`
+> Migration file was created in Task 10. This task verifies the migration chain integrity after all code changes.
 
-- [ ] **Step 1: Generate migration**
+- [ ] **Step 1: Verify migration head is consistent**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-python -m alembic revision --autogenerate -m "add agent_memories table"
+python -m alembic heads
+python -m alembic check
 ```
 
-- [ ] **Step 2: Run migration**
+Expected: single head, no drift.
+
+- [ ] **Step 2: Run full migration smoke test (upgrade + downgrade)**
 
 ```bash
-python -m alembic upgrade head
+cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_alembic_migration.py -v
 ```
 
-- [ ] **Step 3: Commit**
+Expected: PASS — all tables (including agent_memories) present after upgrade, clean after downgrade.
+
+- [ ] **Step 3: Commit** (only if smoke test revealed fixes needed)
 
 ```bash
-git commit -m "migration: add agent_memories table for session memory persistence"
+git commit -m "test(agent): verify Alembic migration head integrity after edu-agent integration"
 ```
 
 ---
