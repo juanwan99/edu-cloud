@@ -254,9 +254,12 @@ function getValues() {
     const hasTqlCoords = origGroups.some(g => g.x !== undefined)
 
     if (hasTqlCoords) {
-      // TQL 模式：保留原始分组（含坐标），不重建
-      // 只更新 questions 数据（题号/选项可能被编辑器修改）
-      vals.choiceGroups = origGroups
+      // TQL 模式：保留原始分组结构（start/count/x/y/w），但从 _choices 同步 options
+      vals.choiceGroups = origGroups.map(g => {
+        const gChoices = window._choices.filter(c => c.qno >= g.start && c.qno < g.start + g.count)
+        const opts = gChoices.length > 0 ? Math.max(...gChoices.map(c => c.options)) : g.options
+        return { ...g, options: opts }
+      })
     } else {
       // 非 TQL 模式：按连续题号+相同 options 重组
       const groups = []
