@@ -29,6 +29,7 @@ from edu_cloud.core.models.llm_slot import LLMSlot  # noqa: F401
 # ── AI models (src/edu_cloud/ai/) ────────────────────────────────────────
 from edu_cloud.ai.models import AiSession, AiToolCall  # noqa: F401
 from edu_cloud.models.agent_profile import AgentProfile, AgentRun  # noqa: F401
+from edu_cloud.models.agent_memory import AgentMemory  # noqa: F401
 
 # ── module models (src/edu_cloud/modules/*/models.py) ────────────────────
 from edu_cloud.modules.exam.models import (  # noqa: F401
