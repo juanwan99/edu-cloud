@@ -93,3 +93,60 @@ describe('renderFromLayout', () => {
     expect(container.querySelector('.a4-col')).toBeNull()
   })
 })
+
+describe('TQL choiceGroups sync logic (F005 regression)', () => {
+  // 复现 getValues() TQL 分支的核心逻辑（从 CardEditor.vue 提取）
+  function syncTqlChoiceGroups(origGroups, choices) {
+    const hasTqlCoords = origGroups.some(g => g.x !== undefined)
+    if (!hasTqlCoords || choices.length === 0) return origGroups
+
+    return origGroups.map(g => {
+      const gChoices = choices.filter(c => c.qno >= g.start && c.qno < g.start + g.count)
+      const opts = gChoices.length > 0 ? Math.max(...gChoices.map(c => c.options)) : g.options
+      return { ...g, options: opts }
+    })
+  }
+
+  it('TQL groups preserve structure but sync edited options from choices', () => {
+    const origGroups = [
+      { start: 1, count: 5, options: 4, x: 10, y: 20, w: 50 },
+      { start: 6, count: 5, options: 4, x: 60, y: 20, w: 50 },
+    ]
+    // 用户把选项数从 4 改成 5
+    const choices = Array.from({ length: 10 }, (_, i) => ({ qno: i + 1, options: 5 }))
+    const result = syncTqlChoiceGroups(origGroups, choices)
+
+    // 分组结构不变
+    expect(result.length).toBe(2)
+    expect(result[0].start).toBe(1)
+    expect(result[0].count).toBe(5)
+    expect(result[0].x).toBe(10)
+    expect(result[1].start).toBe(6)
+    expect(result[1].x).toBe(60)
+    // options 已同步为 5
+    expect(result[0].options).toBe(5)
+    expect(result[1].options).toBe(5)
+  })
+
+  it('TQL groups with no matching choices keep original options', () => {
+    const origGroups = [
+      { start: 1, count: 3, options: 4, x: 10, y: 20, w: 50 },
+      { start: 50, count: 3, options: 6, x: 60, y: 20, w: 50 },
+    ]
+    // choices 只覆盖第一组
+    const choices = [{ qno: 1, options: 5 }, { qno: 2, options: 5 }, { qno: 3, options: 5 }]
+    const result = syncTqlChoiceGroups(origGroups, choices)
+
+    expect(result[0].options).toBe(5)  // 同步
+    expect(result[1].options).toBe(6)  // 无匹配，保留原值
+  })
+
+  it('non-TQL groups are not affected by this logic', () => {
+    const origGroups = [{ start: 1, count: 10, options: 4 }]  // 无 x/y/w
+    const choices = Array.from({ length: 10 }, (_, i) => ({ qno: i + 1, options: 5 }))
+    const result = syncTqlChoiceGroups(origGroups, choices)
+
+    // hasTqlCoords=false → 返回原始组（未修改）
+    expect(result[0].options).toBe(4)
+  })
+})
