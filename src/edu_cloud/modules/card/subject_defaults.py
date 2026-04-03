@@ -468,7 +468,8 @@ def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
         "fillScore": 5,
         "fillPerRow": 2,
         "essayCount": len(seen_slots_a) + len(set(seen_slots_b.keys()) - set(seen_slots_a.keys())),
-        "essayConfig": [{"score": e["score"]} for e in seen_slots_a.values()],
+        "essayConfig": [{"score": e["score"]} for e in seen_slots_a.values()]
+                      + [{"score": e["score"]} for k, e in seen_slots_b.items() if k not in seen_slots_a],
         "paperSize": paper_size,
     })
 

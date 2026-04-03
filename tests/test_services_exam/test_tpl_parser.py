@@ -268,3 +268,11 @@ class TestTqlA4Contract:
         if layout["paper"] == "A4":
             for side in layout["sides"]:
                 assert len(side["columns"]) == 1
+
+    def test_tql_essay_config_matches_count(self):
+        """TQL 英语: essayConfig 长度 == essayCount（A+B 面）。[F003 修复]"""
+        from edu_cloud.modules.card.subject_defaults import get_default_layout
+        layout = get_default_layout("英语")
+        config = layout["config"]
+        assert len(config["essayConfig"]) == config["essayCount"], \
+            f"essayConfig({len(config['essayConfig'])}) != essayCount({config['essayCount']})"

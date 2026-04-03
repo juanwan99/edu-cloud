@@ -439,7 +439,7 @@ class TestEditorLayout:
             assert side["columns"][0]["col"] == 0
 
     async def test_chemistry_returns_correct_layout(self, client: AsyncClient, seed_subject, db):
-        """化学科目布局结构测试。[F04 修复: 补化学用例]"""
+        """化学科目布局结构一致性（无论 A3/A4，结构必须合法）。[F02 R2 修复]"""
         headers, exam_id, _ = seed_subject
         chem = Subject(
             exam_id=exam_id, name="化学", code="chemistry",
@@ -455,21 +455,37 @@ class TestEditorLayout:
         assert data["found"] is True
         layout = data["layout"]
         paper = layout.get("paper") or layout.get("config", {}).get("paperSize")
-        # 化学可能是 A4（TQL 路径）或 A3（fallback，14 选择 < 30）
+        assert paper in ("A3", "A4"), f"化学纸型应为 A3 或 A4，实际: {paper}"
+        # 无论哪种纸型，结构必须一致：A4 单 col，A3 多 col
         if paper == "A4":
             for side in layout["sides"]:
-                assert len(side["columns"]) == 1
+                assert len(side["columns"]) == 1, f"A4 side {side['side']} 应有 1 column"
+        else:
+            assert len(layout["sides"][0]["columns"]) >= 2, "A3 A面应有 ≥2 columns"
+        # essay regions 必须有 heightRatio
+        for side in layout["sides"]:
+            for col in side["columns"]:
+                for r in col.get("regions", []):
+                    if r.get("type") == "essay":
+                        assert "heightRatio" in r, f"essay region 缺 heightRatio: {r.get('id')}"
 
-    async def test_math_stays_a3(self, client: AsyncClient, seed_subject):
-        """数学科目不应误升为 A4。[F03 修复: 反例断言]"""
-        headers, _, subject_id = seed_subject  # seed_subject 默认是生物
-        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+    async def test_a3_fallback_subject_stays_a3(self, client: AsyncClient, seed_subject, db):
+        """A3 fallback 科目（数学，选择题≤30）不应被误升为 A4。[F02 R2 负向测试]"""
+        headers, exam_id, _ = seed_subject
+        math = Subject(
+            exam_id=exam_id, name="数学", code="math",
+            school_id="s1",
+        )
+        db.add(math)
+        await db.commit()
+        await db.refresh(math)
+
+        resp = await client.get(f"/api/v1/card/editor-layout/{math.id}", headers=headers)
         assert resp.status_code == 200
         layout = resp.json()["layout"]
         paper = layout.get("paper") or layout.get("config", {}).get("paperSize")
-        # 生物 fallback 是 A3（无 TQL 时 14 选择 < 30）
-        # 但有 TQL 时是 A4 — 取决于环境
-        assert paper in ("A3", "A4"), f"意外的纸型: {paper}"
+        assert paper == "A3", f"数学 fallback 应返回 A3，实际返回 {paper}"
+        assert len(layout["sides"][0]["columns"]) >= 2, "A3 A面应有 ≥2 columns"
 
 
 class TestParseAnswersMetadata:

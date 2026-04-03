@@ -250,31 +250,29 @@ function getValues() {
   vals.optionCount = window._choices && window._choices.length > 0 ? Math.max(...window._choices.map(c => c.options)) : (base.optionCount || 4)
   // 同步 _choices 到 choiceGroups，确保渲染使用最新数据
   if (window._choices && window._choices.length > 0) {
-    // 如果原始 config 有带坐标的 choiceGroups，保留坐标
     const origGroups = base.choiceGroups || []
-    const origMap = new Map()
-    for (const g of origGroups) {
-      if (g.x !== undefined) origMap.set(`${g.start}-${g.count}`, g)
-    }
+    const hasTqlCoords = origGroups.some(g => g.x !== undefined)
 
-    const groups = []
-    let cur = { start: window._choices[0].qno, options: window._choices[0].options, count: 1 }
-    for (let i = 1; i < window._choices.length; i++) {
-      const c = window._choices[i]
-      if (c.options === cur.options && c.qno === cur.start + cur.count) {
-        cur.count++
-      } else {
-        // 尝试从原始 groups 恢复坐标
-        const orig = origMap.get(`${cur.start}-${cur.count}`)
-        if (orig) { cur.x = orig.x; cur.y = orig.y; cur.w = orig.w }
-        groups.push(cur)
-        cur = { start: c.qno, options: c.options, count: 1 }
+    if (hasTqlCoords) {
+      // TQL 模式：保留原始分组（含坐标），不重建
+      // 只更新 questions 数据（题号/选项可能被编辑器修改）
+      vals.choiceGroups = origGroups
+    } else {
+      // 非 TQL 模式：按连续题号+相同 options 重组
+      const groups = []
+      let cur = { start: window._choices[0].qno, options: window._choices[0].options, count: 1 }
+      for (let i = 1; i < window._choices.length; i++) {
+        const c = window._choices[i]
+        if (c.options === cur.options && c.qno === cur.start + cur.count) {
+          cur.count++
+        } else {
+          groups.push(cur)
+          cur = { start: c.qno, options: c.options, count: 1 }
+        }
       }
+      groups.push(cur)
+      vals.choiceGroups = groups
     }
-    const orig = origMap.get(`${cur.start}-${cur.count}`)
-    if (orig) { cur.x = orig.x; cur.y = orig.y; cur.w = orig.w }
-    groups.push(cur)
-    vals.choiceGroups = groups
   }
   return vals
 }
