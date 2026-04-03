@@ -69,12 +69,12 @@ contract_pack:
 
 **Files:**
 - Create: `src/edu_cloud/ai/tool_context.py`
-- Test: `tests/test_tool_context.py`
+- Test: `tests/test_ai/test_tool_context.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/test_tool_context.py
+# tests/test_ai/test_tool_context.py
 import pytest
 from edu_cloud.ai.tool_context import ToolContext, ToolResult
 
@@ -121,7 +121,7 @@ def test_tool_context_fields():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_tool_context.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_tool_context.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'edu_cloud.ai.tool_context'`
 
 - [ ] **Step 3: Implement tool_context.py**
@@ -174,14 +174,14 @@ class ToolResult:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_tool_context.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_tool_context.py -v`
 Expected: All 4 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/ai/tool_context.py tests/test_tool_context.py
+git add src/edu_cloud/ai/tool_context.py tests/test_ai/test_tool_context.py
 git commit -m "feat(agent): add ToolContext and ToolResult data structures"
 ```
 
@@ -191,13 +191,13 @@ git commit -m "feat(agent): add ToolContext and ToolResult data structures"
    - 反例: 如果 to_dict 未处理 None metadata，会序列化为 `{"metadata": null}` 而非省略
    - 边界: data=None / error=None / metadata=None
    - 回归: N/A
-   - 命令: `pytest tests/test_tool_context.py::test_tool_result_to_dict -v`
+   - 命令: `pytest tests/test_ai/test_tool_context.py::test_tool_result_to_dict -v`
 2. ToolContext 字段完整性
    - 入口: `ToolContext(db=..., school_id=..., ...)`
    - 反例: 如果遗漏 capabilities 字段默认值，构造时无 capabilities 参数会 TypeError
    - 边界: class_ids=None / capabilities={} / enabled_modules=[]
    - 回归: N/A
-   - 命令: `pytest tests/test_tool_context.py::test_tool_context_fields -v`
+   - 命令: `pytest tests/test_ai/test_tool_context.py::test_tool_context_fields -v`
 
 **边界条件:**
 - data=None 且 success=True → 期望: to_dict 返回 `{"success": True, "data": None}`
@@ -210,12 +210,12 @@ git commit -m "feat(agent): add ToolContext and ToolResult data structures"
 
 **Files:**
 - Modify: `src/edu_cloud/ai/registry.py`
-- Modify: `tests/test_registry.py`
+- Modify: `tests/test_ai/test_registry.py`
 
 - [ ] **Step 1: Write failing tests for new ToolSpec fields and new register signature**
 
 ```python
-# tests/test_registry_v2.py
+# tests/test_ai/test_registry_v2.py
 import pytest
 from edu_cloud.ai.registry import ToolRegistry, ToolSpec
 from edu_cloud.ai.tool_context import ToolContext, ToolResult
@@ -289,7 +289,7 @@ def test_registry_get_schemas_includes_new_fields():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_registry_v2.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_registry_v2.py -v`
 Expected: FAIL (ToolSpec missing new fields, execute() signature mismatch)
 
 - [ ] **Step 3: Rewrite registry.py with new ToolSpec and ToolRegistry**
@@ -429,14 +429,14 @@ tools = ToolRegistry()
 
 - [ ] **Step 4: Run new tests + existing registry tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_registry_v2.py tests/test_registry.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_registry_v2.py tests/test_ai/test_registry.py -v`
 Expected: test_registry_v2.py all PASS. test_registry.py all PASS (dual-signature execute() supports both new ToolContext and legacy **kwargs call patterns). INV-001 verified.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/ai/registry.py tests/test_registry_v2.py
+git add src/edu_cloud/ai/registry.py tests/test_ai/test_registry_v2.py
 git commit -m "feat(agent): refactor ToolSpec with is_read_only + sensitivity, ToolRegistry new execute()"
 ```
 
@@ -446,13 +446,13 @@ git commit -m "feat(agent): refactor ToolSpec with is_read_only + sensitivity, T
    - 反例: 如果 execute 不检查 isinstance(ctx_or_none, ToolContext)，旧签名调用会把 ctx 当 **kwargs 参数传
    - 边界: args={} / ctx 全字段为默认值 / 未注册工具名
    - 回归: N/A
-   - 命令: `pytest tests/test_registry_v2.py::test_registry_execute_new_style -v`
+   - 命令: `pytest tests/test_ai/test_registry_v2.py::test_registry_execute_new_style -v`
 2. 旧签名 execute(name, args, **kwargs) 保持兼容 (INV-001)
    - 入口: `await registry.execute("tool", {"x": 1}, _db=db, _school_id=sid)`
    - 反例: 如果旧路径被删除，现有 agent.py 调用时参数被忽略，工具收到空 kwargs
    - 边界: injected 参数为空 / 参数名不以 _ 开头
    - 回归: 现有 test_registry.py 全部 PASS
-   - 命令: `pytest tests/test_registry.py -v`
+   - 命令: `pytest tests/test_ai/test_registry.py -v`
 
 **边界条件:**
 - execute 传入不存在的 tool name → 期望: 新签名返回 ToolResult(success=False)，旧签名返回 {"error": ...}
@@ -465,12 +465,12 @@ git commit -m "feat(agent): refactor ToolSpec with is_read_only + sensitivity, T
 
 **Files:**
 - Modify: `src/edu_cloud/ai/tool_access.py`
-- Create: `tests/test_tool_access_v2.py`
+- Create: `tests/test_ai/test_tool_access_v2.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/test_tool_access_v2.py
+# tests/test_ai/test_tool_access_v2.py
 import pytest
 from edu_cloud.ai.registry import ToolSpec
 from edu_cloud.ai.tool_access import ToolAccessResolver
@@ -551,7 +551,7 @@ def test_capability_default_allow():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_tool_access_v2.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_tool_access_v2.py -v`
 Expected: FAIL (resolve() signature changed from async to sync, parameters differ)
 
 - [ ] **Step 3: Rewrite tool_access.py**
@@ -601,14 +601,14 @@ class ToolAccessResolver:
 
 - [ ] **Step 4: Run tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_tool_access_v2.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_tool_access_v2.py -v`
 Expected: All 5 tests PASS (including test_capability_default_allow verifying INV-002)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/ai/tool_access.py tests/test_tool_access_v2.py
+git add src/edu_cloud/ai/tool_access.py tests/test_ai/test_tool_access_v2.py
 git commit -m "feat(agent): refactor ToolAccessResolver to sync three-layer filter"
 ```
 
@@ -618,19 +618,19 @@ git commit -m "feat(agent): refactor ToolAccessResolver to sync three-layer filt
    - 反例: 如果 RBAC 检查遗漏 allowed_roles=None（对所有角色开放），None 会被当空列表处理，拒绝所有人
    - 边界: allowed_roles=None / allowed_roles=[] / role 不在列表中
    - 回归: N/A
-   - 命令: `pytest tests/test_tool_access_v2.py::test_rbac_filter -v`
+   - 命令: `pytest tests/test_ai/test_tool_access_v2.py::test_rbac_filter -v`
 2. Module 层过滤禁用模块的工具
    - 入口: `resolver.resolve(specs, ..., enabled_modules={"exam"})`
    - 反例: 如果 module_code=None 的工具也被 module 过滤，所有无模块归属的通用工具消失
    - 边界: enabled_modules=None（不过滤） / module_code=None / enabled_modules=空集
    - 回归: N/A
-   - 命令: `pytest tests/test_tool_access_v2.py::test_module_filter -v`
+   - 命令: `pytest tests/test_ai/test_tool_access_v2.py::test_module_filter -v`
 3. Capability 层保持默认允许语义 (INV-002)
    - 入口: `resolver.resolve(specs, ..., capabilities={})`
    - 反例: 如果用 caps.get(req, False)，未初始化的学校所有带 requires_capabilities 的工具被静默拒绝
    - 边界: capabilities={} / 显式 True / 显式 False
    - 回归: 现有 test_tool_access.py::test_capability_default_allow
-   - 命令: `pytest tests/test_tool_access_v2.py::test_capability_default_allow -v`
+   - 命令: `pytest tests/test_ai/test_tool_access_v2.py::test_capability_default_allow -v`
 
 **边界条件:**
 - specs 为空列表 → 期望: 返回空列表
@@ -643,12 +643,12 @@ git commit -m "feat(agent): refactor ToolAccessResolver to sync three-layer filt
 
 **Files:**
 - Modify: `src/edu_cloud/ai/schemas.py`
-- Create: `tests/test_schemas_v2.py`
+- Create: `tests/test_ai/test_schemas_v2.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/test_schemas_v2.py
+# tests/test_ai/test_schemas_v2.py
 from edu_cloud.ai.schemas import AgentEvent, Message, ToolCall, Transition
 
 
@@ -684,7 +684,7 @@ def test_message_dataclass():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_schemas_v2.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_schemas_v2.py -v`
 Expected: FAIL (Transition and Message not yet defined in schemas.py)
 
 - [ ] **Step 3: Extend schemas.py**
@@ -770,14 +770,14 @@ class Transition(Enum):
 
 - [ ] **Step 4: Run new tests + existing schema tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_schemas_v2.py tests/test_schemas.py -v 2>/dev/null; python -m pytest tests/test_schemas_v2.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_schemas_v2.py tests/test_ai/test_schemas.py -v 2>/dev/null; python -m pytest tests/test_ai/test_schemas_v2.py -v`
 Expected: test_schemas_v2.py all PASS. Old tests may need minor adaptation (ChatMessage alias keeps them working).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/ai/schemas.py tests/test_schemas_v2.py
+git add src/edu_cloud/ai/schemas.py tests/test_ai/test_schemas_v2.py
 git commit -m "feat(agent): extend schemas with Message, Transition enum, new AgentEvent types"
 ```
 
@@ -787,13 +787,13 @@ git commit -m "feat(agent): extend schemas with Message, Transition enum, new Ag
    - 反例: 如果 to_dict 对未知 type 抛异常，新增事件类型会导致 SSE 中断
    - 边界: data={} / data 含嵌套 dict / type 为空字符串
    - 回归: N/A
-   - 命令: `pytest tests/test_schemas_v2.py::test_agent_event_new_types -v`
+   - 命令: `pytest tests/test_ai/test_schemas_v2.py::test_agent_event_new_types -v`
 2. Transition 枚举完整
    - 入口: `Transition.NEXT_TURN.value`
    - 反例: 如果遗漏 TIER_DOWNGRADE，AgentLoop 状态机无法表达降级转换
    - 边界: 枚举成员数量 = 7
    - 回归: N/A
-   - 命令: `pytest tests/test_schemas_v2.py::test_transition_enum -v`
+   - 命令: `pytest tests/test_ai/test_schemas_v2.py::test_transition_enum -v`
 
 **边界条件:**
 - Message 的 content=None 且 tool_calls 非空 → 期望: to_dict 省略 content key
@@ -810,12 +810,12 @@ git commit -m "feat(agent): extend schemas with Message, Transition enum, new Ag
 
 **Files:**
 - Create: `src/edu_cloud/ai/llm_adapter.py`
-- Test: `tests/test_llm_adapter.py`
+- Test: `tests/test_ai/test_llm_adapter.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/test_llm_adapter.py
+# tests/test_ai/test_llm_adapter.py
 import json
 import pytest
 import httpx
@@ -911,7 +911,7 @@ def test_proxy_adapter_name():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_llm_adapter.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_llm_adapter.py -v`
 Expected: FAIL with `ModuleNotFoundError`
 
 - [ ] **Step 3: Implement llm_adapter.py**
@@ -1098,14 +1098,14 @@ class LLMProxyAdapter:
 
 - [ ] **Step 4: Run tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_llm_adapter.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_llm_adapter.py -v`
 Expected: All 6 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/ai/llm_adapter.py tests/test_llm_adapter.py
+git add src/edu_cloud/ai/llm_adapter.py tests/test_ai/test_llm_adapter.py
 git commit -m "feat(agent): add LLMProxyAdapter with OpenAI-compatible llm-proxy integration"
 ```
 
@@ -1115,13 +1115,13 @@ git commit -m "feat(agent): add LLMProxyAdapter with OpenAI-compatible llm-proxy
    - 反例: 如果 _parse_response 不处理 finish_reason="tool_calls"，tool_calls 响应会被当作普通回答
    - 边界: 空 choices / 缺失 usage / tool_calls=null
    - 回归: N/A
-   - 命令: `pytest tests/test_llm_adapter.py::test_proxy_adapter_chat_basic -v`
+   - 命令: `pytest tests/test_ai/test_llm_adapter.py::test_proxy_adapter_chat_basic -v`
 2. chat() 提取 tool_calls
    - 入口: `await adapter.chat(LLMRequest(messages=[...], tools=[...], stream=False))`
    - 反例: 如果 ToolCall.from_openai 不解析 arguments 字符串，tool 会收到未解析的 JSON 字符串
    - 边界: arguments="" / arguments="{}" / 多个 tool_calls
    - 回归: N/A
-   - 命令: `pytest tests/test_llm_adapter.py::test_proxy_adapter_chat_with_tool_calls -v`
+   - 命令: `pytest tests/test_ai/test_llm_adapter.py::test_proxy_adapter_chat_with_tool_calls -v`
 
 **边界条件:**
 - HTTP 响应 200 但 choices 为空数组 → 期望: content=None, tool_calls=None
@@ -1134,12 +1134,12 @@ git commit -m "feat(agent): add LLMProxyAdapter with OpenAI-compatible llm-proxy
 
 **Files:**
 - Create: `src/edu_cloud/ai/capability_probe.py`
-- Test: `tests/test_capability_probe.py`
+- Test: `tests/test_ai/test_capability_probe.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/test_capability_probe.py
+# tests/test_ai/test_capability_probe.py
 import pytest
 from unittest.mock import AsyncMock
 from edu_cloud.ai.capability_probe import CapabilityProbe, LoopStrategy
@@ -1229,7 +1229,7 @@ def test_probe_manual_override():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_capability_probe.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_capability_probe.py -v`
 Expected: FAIL with `ModuleNotFoundError`
 
 - [ ] **Step 3: Implement capability_probe.py**
@@ -1333,14 +1333,14 @@ class CapabilityProbe:
 
 - [ ] **Step 4: Run tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_capability_probe.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_capability_probe.py -v`
 Expected: All 7 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/ai/capability_probe.py tests/test_capability_probe.py
+git add src/edu_cloud/ai/capability_probe.py tests/test_ai/test_capability_probe.py
 git commit -m "feat(agent): add CapabilityProbe with auto tier detection + manual override"
 ```
 
@@ -1350,13 +1350,13 @@ git commit -m "feat(agent): add CapabilityProbe with auto tier detection + manua
    - 反例: 如果只看 context_window 不测 tool_use，一个不支持 tool_use 的 200K 模型会被判为 Tier 1
    - 边界: context_window=100000（边界值） / tool_use=False / adapter 抛异常
    - 回归: N/A
-   - 命令: `pytest tests/test_capability_probe.py -v`
+   - 命令: `pytest tests/test_ai/test_capability_probe.py -v`
 2. LoopStrategy 各 tier 参数正确
    - 入口: `LoopStrategy.for_tier(1/2/3)`
    - 反例: 如果 tier 3 的 task_planning=True，低能力模型会尝试规划，浪费 token 且输出不可靠
    - 边界: tier=0（越界） / tier=4（越界）
    - 回归: N/A
-   - 命令: `pytest tests/test_capability_probe.py::test_loop_strategy_tier1 -v`
+   - 命令: `pytest tests/test_ai/test_capability_probe.py::test_loop_strategy_tier1 -v`
 
 **边界条件:**
 - adapter.chat 连续超时 → 期望: tier 降级到 3，不抛异常
@@ -1369,12 +1369,12 @@ git commit -m "feat(agent): add CapabilityProbe with auto tier detection + manua
 
 **Files:**
 - Create: `src/edu_cloud/ai/sensitivity_router.py`
-- Test: `tests/test_sensitivity_router.py`
+- Test: `tests/test_ai/test_sensitivity_router.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/test_sensitivity_router.py
+# tests/test_ai/test_sensitivity_router.py
 import pytest
 from edu_cloud.ai.sensitivity_router import SensitivityRouter
 from edu_cloud.ai.llm_adapter import LLMProxyAdapter
@@ -1445,7 +1445,7 @@ def test_empty_tools_use_enhanced():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_sensitivity_router.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_sensitivity_router.py -v`
 Expected: FAIL with `ModuleNotFoundError`
 
 - [ ] **Step 3: Implement sensitivity_router.py**
@@ -1505,14 +1505,14 @@ class SensitivityRouter:
 
 - [ ] **Step 4: Run tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_sensitivity_router.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_sensitivity_router.py -v`
 Expected: All 5 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/ai/sensitivity_router.py tests/test_sensitivity_router.py
+git add src/edu_cloud/ai/sensitivity_router.py tests/test_ai/test_sensitivity_router.py
 git commit -m "feat(agent): add SensitivityRouter with dual-channel data protection"
 ```
 
@@ -1522,13 +1522,13 @@ git commit -m "feat(agent): add SensitivityRouter with dual-channel data protect
    - 反例: 如果锁定检查用 channel=="primary" 而非 "primary_locked"，锁定后仍可路由到 enhanced
    - 边界: 连续锁定两次 / enhanced=None / tool_specs=[]
    - 回归: N/A
-   - 命令: `pytest tests/test_sensitivity_router.py::test_student_tool_locks_channel -v`
+   - 命令: `pytest tests/test_ai/test_sensitivity_router.py::test_student_tool_locks_channel -v`
 2. 全 public 工具路由到 enhanced
    - 入口: `router.route(state, [public_spec1, public_spec2])`
    - 反例: 如果 max() 在空 tool_specs 上调用会抛 ValueError
    - 边界: tool_specs=[] / 混合 public+school / enhanced=None
    - 回归: N/A
-   - 命令: `pytest tests/test_sensitivity_router.py::test_public_tools_use_enhanced -v`
+   - 命令: `pytest tests/test_ai/test_sensitivity_router.py::test_public_tools_use_enhanced -v`
 
 **边界条件:**
 - enhanced=None → 期望: 始终返回 primary，不报错
@@ -1545,12 +1545,12 @@ git commit -m "feat(agent): add SensitivityRouter with dual-channel data protect
 
 **Files:**
 - Create: `src/edu_cloud/ai/tool_executor.py`
-- Test: `tests/test_tool_executor.py`
+- Test: `tests/test_ai/test_tool_executor.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/test_tool_executor.py
+# tests/test_ai/test_tool_executor.py
 import asyncio
 import pytest
 from edu_cloud.ai.tool_executor import ToolExecutor, ToolOrchestrator, ToolBatch
@@ -1671,7 +1671,7 @@ async def test_executor_handles_exception():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_tool_executor.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_tool_executor.py -v`
 Expected: FAIL with `ModuleNotFoundError`
 
 - [ ] **Step 3: Implement tool_executor.py**
@@ -1778,14 +1778,14 @@ class ToolOrchestrator:
 
 - [ ] **Step 4: Run tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_tool_executor.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_tool_executor.py -v`
 Expected: All 7 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/ai/tool_executor.py tests/test_tool_executor.py
+git add src/edu_cloud/ai/tool_executor.py tests/test_ai/test_tool_executor.py
 git commit -m "feat(agent): add ToolExecutor + ToolOrchestrator with concurrent batching"
 ```
 
@@ -1795,19 +1795,19 @@ git commit -m "feat(agent): add ToolExecutor + ToolOrchestrator with concurrent 
    - 反例: 如果 partition 不分割 write 前后的 reads，write 会和 reads 并发执行导致数据竞争
    - 边界: 全 read / 全 write / 单个 call / 未注册工具
    - 回归: N/A
-   - 命令: `pytest tests/test_tool_executor.py::test_partition_mixed -v`
+   - 命令: `pytest tests/test_ai/test_tool_executor.py::test_partition_mixed -v`
 2. Execute 并发执行 read 批次
    - 入口: `await orchestrator.execute(batches, ctx)`
    - 反例: 如果 concurrent batch 内用串行循环，性能退化但功能不变——测试难以捕获，靠 partition 测试保证
    - 边界: 空 batches / 单 call batch / 工具抛异常
    - 回归: N/A
-   - 命令: `pytest tests/test_tool_executor.py::test_orchestrator_execute -v`
+   - 命令: `pytest tests/test_ai/test_tool_executor.py::test_orchestrator_execute -v`
 3. 未知工具返回 error result
    - 入口: `await executor.run_one(ToolCall(name="nonexistent"), ctx)`
    - 反例: 如果未检查 spec is None 直接调用 spec.func，会抛 AttributeError 而非返回优雅错误
    - 边界: name="" / name=None
    - 回归: N/A
-   - 命令: `pytest tests/test_tool_executor.py::test_executor_unknown_tool -v`
+   - 命令: `pytest tests/test_ai/test_tool_executor.py::test_executor_unknown_tool -v`
 
 **边界条件:**
 - 工具执行时抛异常 → 期望: 返回 ToolResult(success=False, error=str(exc))，不中断批次
@@ -1824,12 +1824,12 @@ git commit -m "feat(agent): add ToolExecutor + ToolOrchestrator with concurrent 
 
 **Files:**
 - Create: `src/edu_cloud/ai/context_manager.py`
-- Test: `tests/test_context_manager.py`
+- Test: `tests/test_ai/test_context_manager.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/test_context_manager.py
+# tests/test_ai/test_context_manager.py
 import pytest
 from unittest.mock import AsyncMock
 from edu_cloud.ai.context_manager import ContextManager, TokenCounter
@@ -1910,7 +1910,7 @@ async def test_compact_preserves_system_and_recent():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_context_manager.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_context_manager.py -v`
 Expected: FAIL with `ModuleNotFoundError`
 
 - [ ] **Step 3: Implement context_manager.py**
@@ -1995,14 +1995,14 @@ class ContextManager:
 
 - [ ] **Step 4: Run tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_context_manager.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_context_manager.py -v`
 Expected: All 7 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/ai/context_manager.py tests/test_context_manager.py
+git add src/edu_cloud/ai/context_manager.py tests/test_ai/test_context_manager.py
 git commit -m "feat(agent): add ContextManager with auto-compact and token estimation"
 ```
 
@@ -2012,13 +2012,13 @@ git commit -m "feat(agent): add ContextManager with auto-compact and token estim
    - 反例: 如果阈值计算不减去 SUMMARY_MAX_TOKENS，compact 后摘要可能超出上下文窗口
    - 边界: token_count=0 / context_window=0 / 恰好等于阈值
    - 回归: N/A
-   - 命令: `pytest tests/test_context_manager.py::test_should_compact_true -v`
+   - 命令: `pytest tests/test_ai/test_context_manager.py::test_should_compact_true -v`
 2. compact 保留 system prompt + 最近 4 轮
    - 入口: `await cm.compact(messages, adapter)`
    - 反例: 如果 keep_count 计算错误（用 turns 而非 messages 数），会保留过多或过少消息
    - 边界: messages 少于 3 条 / 恰好等于 keep_count / system 消息不在首位
    - 回归: N/A
-   - 命令: `pytest tests/test_context_manager.py::test_compact_preserves_system_and_recent -v`
+   - 命令: `pytest tests/test_ai/test_context_manager.py::test_compact_preserves_system_and_recent -v`
 
 **边界条件:**
 - messages 只有 2 条（system + user）→ 期望: 原样返回，不 compact
@@ -2032,12 +2032,12 @@ git commit -m "feat(agent): add ContextManager with auto-compact and token estim
 **Files:**
 - Create: `src/edu_cloud/models/agent_memory.py`
 - Create: `src/edu_cloud/ai/session_memory.py`
-- Test: `tests/test_session_memory.py`
+- Test: `tests/test_ai/test_session_memory.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/test_session_memory.py
+# tests/test_ai/test_session_memory.py
 import pytest
 from unittest.mock import AsyncMock
 from edu_cloud.ai.session_memory import SessionMemoryExtractor, MemoryEntry
@@ -2103,7 +2103,7 @@ async def test_extract_handles_bad_json():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_session_memory.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_session_memory.py -v`
 Expected: FAIL with `ModuleNotFoundError`
 
 - [ ] **Step 3: Create AgentMemory model**
@@ -2208,7 +2208,7 @@ class SessionMemoryExtractor:
 
 - [ ] **Step 5: Run tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_session_memory.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_session_memory.py -v`
 Expected: All 4 tests PASS
 
 - [ ] **Step 6: Register AgentMemory in Alembic model discovery chain**
@@ -2233,7 +2233,7 @@ Expected: PASS — upgrade/downgrade cycle includes agent_memories table.
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/models/agent_memory.py src/edu_cloud/ai/session_memory.py tests/test_session_memory.py alembic/
+git add src/edu_cloud/models/agent_memory.py src/edu_cloud/ai/session_memory.py tests/test_ai/test_session_memory.py alembic/
 git commit -m "feat(agent): add AgentMemory model + SessionMemoryExtractor + Alembic migration"
 ```
 
@@ -2243,13 +2243,13 @@ git commit -m "feat(agent): add AgentMemory model + SessionMemoryExtractor + Ale
    - 反例: 如果 _parse 不处理 markdown 代码块包裹（```json...```），LLM 典型输出会解析失败返回空
    - 边界: LLM 返回非 JSON / 返回空数组 / 返回嵌套 JSON
    - 回归: N/A
-   - 命令: `pytest tests/test_session_memory.py::test_extract_returns_memories -v`
+   - 命令: `pytest tests/test_ai/test_session_memory.py::test_extract_returns_memories -v`
 2. AgentMemory ORM 模型列完整
    - 入口: `AgentMemory.__table__.columns`
    - 反例: 如果遗漏 is_active 列，查询活跃记忆时无法过滤已归档条目
    - 边界: expires_at=None / entity_type=None
    - 回归: N/A
-   - 命令: `pytest tests/test_session_memory.py::test_agent_memory_model_has_fields -v`
+   - 命令: `pytest tests/test_ai/test_session_memory.py::test_agent_memory_model_has_fields -v`
 
 **边界条件:**
 - LLM 返回 "This is not valid JSON" → 期望: 返回空列表，不抛异常
@@ -2262,12 +2262,12 @@ git commit -m "feat(agent): add AgentMemory model + SessionMemoryExtractor + Ale
 
 **Files:**
 - Create: `src/edu_cloud/ai/task_planner.py`
-- Test: `tests/test_task_planner.py`
+- Test: `tests/test_ai/test_task_planner.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/test_task_planner.py
+# tests/test_ai/test_task_planner.py
 import json
 import pytest
 from unittest.mock import AsyncMock
@@ -2354,7 +2354,7 @@ def test_schedule_parallel_independent():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_task_planner.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_task_planner.py -v`
 Expected: FAIL with `ModuleNotFoundError`
 
 - [ ] **Step 3: Implement task_planner.py**
@@ -2458,14 +2458,14 @@ class TaskPlanner:
 
 - [ ] **Step 4: Run tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_task_planner.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_task_planner.py -v`
 Expected: All 5 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/ai/task_planner.py tests/test_task_planner.py
+git add src/edu_cloud/ai/task_planner.py tests/test_ai/test_task_planner.py
 git commit -m "feat(agent): add TaskPlanner with LLM-driven decomposition and topological scheduling"
 ```
 
@@ -2475,13 +2475,13 @@ git commit -m "feat(agent): add TaskPlanner with LLM-driven decomposition and to
    - 反例: 如果 maybe_plan 不检查 `{"plan": null}`，会尝试解析 null 为 task 列表导致 TypeError
    - 边界: LLM 返回非 JSON / tier=3（跳过规划） / available_tools=[]
    - 回归: N/A
-   - 命令: `pytest tests/test_task_planner.py::test_maybe_plan_returns_none_for_simple -v`
+   - 命令: `pytest tests/test_ai/test_task_planner.py::test_maybe_plan_returns_none_for_simple -v`
 2. schedule 按拓扑序产出任务
    - 入口: `list(planner.schedule(plan))`
    - 反例: 如果 schedule 不检查依赖是否在 completed 中，有循环依赖时会无限循环
    - 边界: 无依赖（全并行） / 线性链 / 循环依赖（死锁检测）
    - 回归: N/A
-   - 命令: `pytest tests/test_task_planner.py::test_schedule_topological_order -v`
+   - 命令: `pytest tests/test_ai/test_task_planner.py::test_schedule_topological_order -v`
 
 **边界条件:**
 - tier=3 → 期望: 直接返回 None，不调用 LLM
@@ -2498,12 +2498,12 @@ git commit -m "feat(agent): add TaskPlanner with LLM-driven decomposition and to
 
 **Files:**
 - Create: `src/edu_cloud/ai/prompts.py`
-- Test: `tests/test_prompts.py`
+- Test: `tests/test_ai/test_prompts.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/test_prompts.py
+# tests/test_ai/test_prompts.py
 from edu_cloud.ai.prompts import build_teacher_prompt, build_compact_prompt
 
 
@@ -2539,7 +2539,7 @@ def test_compact_prompt():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_prompts.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_prompts.py -v`
 Expected: FAIL with `ModuleNotFoundError`
 
 - [ ] **Step 3: Implement prompts.py**
@@ -2631,14 +2631,14 @@ def build_compact_prompt() -> str:
 
 - [ ] **Step 4: Run tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_prompts.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_prompts.py -v`
 Expected: All 4 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/ai/prompts.py tests/test_prompts.py
+git add src/edu_cloud/ai/prompts.py tests/test_ai/test_prompts.py
 git commit -m "feat(agent): add system prompt templates with tier-aware instructions"
 ```
 
@@ -2648,13 +2648,13 @@ git commit -m "feat(agent): add system prompt templates with tier-aware instruct
    - 反例: 如果 tier 检查用 `==` 而非 `<=`，tier=2 不会得到计划指令
    - 边界: tier=1 / tier=2 / tier=3
    - 回归: N/A
-   - 命令: `pytest tests/test_prompts.py::test_teacher_prompt_tier1_has_plan_instruction -v`
+   - 命令: `pytest tests/test_ai/test_prompts.py::test_teacher_prompt_tier1_has_plan_instruction -v`
 2. Prompt 包含角色中文名和学校
    - 入口: `build_teacher_prompt(role="academic_director", display_name="张老师", school_name="实验中学", ...)`
    - 反例: 如果 ROLE_CN 映射遗漏角色，prompt 会显示原始英文 role 而非中文
    - 边界: role 不在 ROLE_CN 映射中 / tool_names 超过 20 个 / memories=None
    - 回归: N/A
-   - 命令: `pytest tests/test_prompts.py::test_teacher_prompt_contains_role -v`
+   - 命令: `pytest tests/test_ai/test_prompts.py::test_teacher_prompt_contains_role -v`
 
 **边界条件:**
 - tool_names=[] → 期望: prompt 中工具段显示空串而非 crash
@@ -2667,12 +2667,12 @@ git commit -m "feat(agent): add system prompt templates with tier-aware instruct
 
 **Files:**
 - Create: `src/edu_cloud/ai/agent_loop.py`
-- Test: `tests/test_agent_loop.py`
+- Test: `tests/test_ai/test_agent_loop.py`
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/test_agent_loop.py
+# tests/test_ai/test_agent_loop.py
 import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock
@@ -2868,7 +2868,7 @@ async def test_error_count_threshold():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_agent_loop.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_agent_loop.py -v`
 Expected: FAIL with `ModuleNotFoundError`
 
 - [ ] **Step 3: Implement agent_loop.py**
@@ -3096,14 +3096,14 @@ class AgentLoop:
 
 - [ ] **Step 4: Run tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_agent_loop.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_agent_loop.py -v`
 Expected: All 7 tests PASS (simple_answer, tool_call_and_answer, max_turns, plan_branch, thinking_event, error_count_threshold)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/ai/agent_loop.py tests/test_agent_loop.py
+git add src/edu_cloud/ai/agent_loop.py tests/test_ai/test_agent_loop.py
 git commit -m "feat(agent): add AgentLoop with full state machine — plan/thinking/sensitivity/memory"
 ```
 
@@ -3113,31 +3113,31 @@ git commit -m "feat(agent): add AgentLoop with full state machine — plan/think
    - 反例: 如果 run() 不 yield answer event，SSE 流无内容但 done 状态是 success
    - 边界: system_prompt="" / tool_specs=[] / goal 为空字符串
    - 回归: N/A
-   - 命令: `pytest tests/test_agent_loop.py::test_simple_answer -v`
+   - 命令: `pytest tests/test_ai/test_agent_loop.py::test_simple_answer -v`
 2. 工具调用路径：LLM → tool_call → tool_result → answer
    - 入口: `async for event in loop.run("查成绩", ctx, tool_specs=specs)`
    - 反例: 如果 tool_result 未添加到 messages，LLM 第二轮看不到工具结果，无法生成答案
    - 边界: 工具返回 ToolResult(success=False) / 多个并发 tool_calls
    - 回归: N/A
-   - 命令: `pytest tests/test_agent_loop.py::test_tool_call_and_answer -v`
+   - 命令: `pytest tests/test_ai/test_agent_loop.py::test_tool_call_and_answer -v`
 3. Plan 分支路径 (tier ≤ 2)
    - 入口: `async for event in loop.run("全面分析", ctx, tool_specs=specs)` (strategy=tier2)
    - 反例: 如果 _planner.maybe_plan 被调用但返回的 plan 被忽略（CE-003），Agent 跳过规划直接单步回答
    - 边界: planner 返回 None（简单问题） / planner 返回空 tasks / tier=3（跳过规划）
    - 回归: N/A
-   - 命令: `pytest tests/test_agent_loop.py::test_plan_branch -v`
+   - 命令: `pytest tests/test_ai/test_agent_loop.py::test_plan_branch -v`
 4. Thinking event 当 content + tool_calls 共存
    - 入口: `async for event in loop.run(...)` (LLM 返回 content 和 tool_calls)
    - 反例: 如果不检测 content+tool_calls 共存，thinking 内容被丢弃，前端无法展示推理过程
    - 边界: content="" + tool_calls / content=None + tool_calls
    - 回归: N/A
-   - 命令: `pytest tests/test_agent_loop.py::test_thinking_event -v`
+   - 命令: `pytest tests/test_ai/test_agent_loop.py::test_thinking_event -v`
 5. error_count ≥ 3 → yield error + done
    - 入口: `async for event in loop.run(...)` (adapter 连续 3 次异常)
    - 反例: 如果 error_count 检查用 > 而非 >=，需要 4 次失败才停止
    - 边界: error_count=2 后成功恢复 / max_turns 先触达
    - 回归: N/A
-   - 命令: `pytest tests/test_agent_loop.py::test_error_count_threshold -v`
+   - 命令: `pytest tests/test_ai/test_agent_loop.py::test_error_count_threshold -v`
 
 **边界条件:**
 - tool_specs=[] → 期望: LLM 无工具可调用，直接回答
@@ -3149,14 +3149,16 @@ git commit -m "feat(agent): add AgentLoop with full state machine — plan/think
 ### Task 14: SSE event contract tests
 
 **Files:**
-- Test: `tests/test_ai_api_v2.py`
+- Test: `tests/test_ai/test_ai_api_v2.py`
 
 > This task validates that all new AgentEvent types serialize correctly for SSE transport AND that the AgentLoop produces events consumable by an SSE endpoint. The actual `api/ai.py` wiring happens in Batch 7 (Task 27), but the contract is locked here (INV-004).
+>
+> **Note (F003):** 入口级 SSE 契约测试（AsyncClient POST `/api/v1/ai/chat` 验证 SSE 流）在 Task 27 实现，因为 api/ai.py 的 AgentLoop wiring 在 Task 27 才发生。本 Task 仅验证 AgentEvent 序列化和 AgentLoop 事件产出。
 
 - [ ] **Step 1: Write tests**
 
 ```python
-# tests/test_ai_api_v2.py
+# tests/test_ai/test_ai_api_v2.py
 import json
 import pytest
 from unittest.mock import AsyncMock
@@ -3250,14 +3252,14 @@ async def test_agentloop_produces_valid_sse_event_stream():
 
 - [ ] **Step 2: Run tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai_api_v2.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_ai_api_v2.py -v`
 Expected: All 3 tests PASS
 
 - [ ] **Step 3: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add tests/test_ai_api_v2.py
+git add tests/test_ai/test_ai_api_v2.py
 git commit -m "test(agent): add SSE event contract tests — serialization + integration + backward compat"
 ```
 
@@ -3267,19 +3269,19 @@ git commit -m "test(agent): add SSE event contract tests — serialization + int
    - 反例: 如果 to_dict 做类型白名单检查，新增事件类型会被拒绝
    - 边界: data 含嵌套 dict / data 含中文 / type 为空字符串
    - 回归: N/A
-   - 命令: `pytest tests/test_ai_api_v2.py::test_agent_event_serialization_for_sse -v`
+   - 命令: `pytest tests/test_ai/test_ai_api_v2.py::test_agent_event_serialization_for_sse -v`
 2. SSE 向前兼容 (INV-004)
    - 入口: `AgentEvent(type="answer", data={...}).to_dict()`
    - 反例: 如果 to_dict 新增 "version" 等字段，旧前端解析会拿到意外 key
    - 边界: 旧 4 种事件类型的格式不变
    - 回归: N/A
-   - 命令: `pytest tests/test_ai_api_v2.py::test_sse_event_backward_compat -v`
+   - 命令: `pytest tests/test_ai/test_ai_api_v2.py::test_sse_event_backward_compat -v`
 3. AgentLoop → SSE 集成
    - 入口: `async for event in loop.run(...)` → `json.dumps(event.to_dict())`
    - 反例: 如果 AgentLoop yield 的 event.data 含不可 JSON 序列化的对象（如 datetime），SSE 序列化会 crash
    - 边界: 工具返回 data=None / 工具返回 data 含嵌套列表
    - 回归: N/A
-   - 命令: `pytest tests/test_ai_api_v2.py::test_agentloop_produces_valid_sse_event_stream -v`
+   - 命令: `pytest tests/test_ai/test_ai_api_v2.py::test_agentloop_produces_valid_sse_event_stream -v`
 
 **边界条件:**
 - event.data 含 None 值 → 期望: json.dumps 正常序列化为 null
@@ -3298,7 +3300,7 @@ git commit -m "test(agent): add SSE event contract tests — serialization + int
    - 反例: 如果签名未改但仍用旧 **kwargs，ToolContext 参数会被忽略，输出 dict 而非 ToolResult
    - 边界: 空 input / ctx 全默认值 / 缺必填参数
    - 回归: 旧签名 **kwargs 在迁移前仍可用（INV-001 双签名保证）
-   - 命令: `pytest tests/test_tools_{module}.py -v`
+   - 命令: `pytest tests/test_ai/test_tools_{module}.py -v`
 
 **边界条件（Batch 6 通用）:**
 - input={} （所有可选参数缺失）→ 期望: 使用默认值或返回合理错误，不抛 KeyError
@@ -3309,7 +3311,7 @@ git commit -m "test(agent): add SSE event contract tests — serialization + int
 
 **Files:**
 - Modify: `src/edu_cloud/ai/tools/exams.py`
-- Modify: `tests/test_tools_exams.py` (adapt tests)
+- Modify: `tests/test_ai/test_tools_exams.py` (adapt tests)
 
 - [ ] **Step 1: Migrate each tool**
 
@@ -3351,7 +3353,7 @@ assert result.success is True
 
 - [ ] **Step 3: Run tests**
 
-Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_tools_exams.py -v`
+Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_tools_exams.py -v`
 
 - [ ] **Step 4: Commit**
 
@@ -3397,6 +3399,7 @@ For each task, steps are identical to Task 15:
 
 **Files:**
 - Modify: `src/edu_cloud/api/ai.py`
+- Test: `tests/test_ai/test_ai_api.py` (extend existing)
 
 - [ ] **Step 1: Replace old Agent with AgentLoop in POST /chat endpoint**
 
@@ -3409,16 +3412,38 @@ To:
 CapabilityProbe.get_tier() → ToolAccessResolver → SensitivityRouter → AgentLoop.run()
 ```
 
-- [ ] **Step 2: Run full test suite**
+- [ ] **Step 2: Write entry-level SSE contract tests (F003)**
+
+> Task 14 验证了 AgentEvent 序列化和 AgentLoop 事件产出，但未经过 HTTP 入口。本步骤补充入口级 SSE 验证。
+
+Add tests to `tests/test_ai/test_ai_api.py` that use AsyncClient POST to `/api/v1/ai/chat` and verify:
+- SSE 流包含 answer + done 事件
+- 旧事件类型格式不变 (INV-004)
+- 新事件类型 (thinking/plan/task_update) 通过 SSE 正确传输
+
+- [ ] **Step 3: Run full test suite**
 
 Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q`
 Expected: All tests PASS
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(agent): wire AgentLoop into /api/v1/ai/chat endpoint"
 ```
+
+**测试契约:**
+1. POST /api/v1/ai/chat 返回 SSE 流，包含 answer + done 事件
+   - 入口: `AsyncClient.post("/api/v1/ai/chat", json={...})`
+   - 反例: 如果 wiring 遗漏 AgentLoop.run()，返回旧 Agent 格式而非 AgentEvent SSE
+   - 边界: 空消息 / 无权限用户 / session 不存在
+   - 回归: 旧 answer/tool_call/tool_result/done 格式不变
+   - 命令: `pytest tests/test_ai/test_ai_api.py -v -k agent_loop`
+
+**边界条件:**
+- 空消息体 → 期望: 400 错误
+- 无 JWT token → 期望: 401
+- LLM 返回空响应 → 期望: SSE 流中含 error + done 事件
 
 ---
 
@@ -3477,6 +3502,19 @@ Then investigate which module still depends on the old files before retrying.
 git commit -m "chore(agent): remove deprecated AI module files replaced by edu-agent"
 ```
 
+**测试契约:**
+1. 删除旧文件后全量测试仍绿
+   - 入口: `python -m pytest --tb=short -q`
+   - 反例: 如果有遗漏的 import 引用旧文件，测试会 ImportError
+   - 边界: grep 旧模块名确认零残留
+   - 回归: N/A
+   - 命令: `python -m pytest --tb=short -q`
+
+**边界条件:**
+- grep "from edu_cloud.ai.agent import" → 期望: 零结果
+- grep "from edu_cloud.ai.llm import" → 期望: 零结果
+- grep "from edu_cloud.ai.intent_resolver import" → 期望: 零结果
+
 ---
 
 ### Task 29: Verify Alembic migration head + downgrade
@@ -3506,6 +3544,19 @@ Expected: PASS — all tables (including agent_memories) present after upgrade, 
 ```bash
 git commit -m "test(agent): verify Alembic migration head integrity after edu-agent integration"
 ```
+
+**测试契约:**
+1. Alembic head 包含 agent_memories 表
+   - 入口: `python -m alembic upgrade head && python -m alembic downgrade -1 && python -m alembic upgrade head`
+   - 反例: 如果 env.py 未导入 AgentMemory，autogenerate 不发现表，upgrade 后表不存在
+   - 边界: upgrade/downgrade 循环 / 空数据库
+   - 回归: N/A
+   - 命令: `pytest tests/test_alembic_migration.py -v`
+
+**边界条件:**
+- 空数据库 upgrade → 期望: 所有表创建成功（含 agent_memories）
+- upgrade 后 downgrade → 期望: agent_memories 表删除，其他表保留
+- 重复 upgrade → 期望: 幂等，无报错
 
 ---
 
