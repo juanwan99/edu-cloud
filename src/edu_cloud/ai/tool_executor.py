@@ -22,32 +22,36 @@ class ToolBatch:
 
 
 class ToolExecutor:
-    """Executes a single tool call with error handling and timing."""
+    """Executes a single tool call with error handling and timing.
+
+    Delegates to ToolRegistry.execute() to preserve dual-signature
+    compatibility (INV-001: legacy **kwargs + new ToolContext).
+    """
 
     def __init__(self, registry: ToolRegistry):
         self._registry = registry
 
     async def run_one(self, call: ToolCall, ctx: ToolContext) -> ToolResult:
-        spec = self._registry.get(call.name)
-        if spec is None:
-            return ToolResult(success=False, error=f"Unknown tool: {call.name}")
-
         start = time.monotonic()
-        try:
-            result = await spec.func(call.arguments, ctx)
-            duration_ms = (time.monotonic() - start) * 1000
+        # Delegate to registry.execute() which handles both new (input, ctx)
+        # and legacy (**kwargs) tool signatures (F002 / INV-001).
+        result = await self._registry.execute(call.name, call.arguments, ctx)
+        duration_ms = (time.monotonic() - start) * 1000
+
+        if isinstance(result, ToolResult):
             if result.metadata is None:
                 result.metadata = {}
             result.metadata["duration_ms"] = round(duration_ms, 1)
             return result
-        except Exception as exc:
-            duration_ms = (time.monotonic() - start) * 1000
-            logger.exception("Tool %s failed after %.1fms", call.name, duration_ms)
-            return ToolResult(
-                success=False,
-                error=str(exc),
-                metadata={"duration_ms": round(duration_ms, 1)},
-            )
+
+        # Legacy tool returned dict — wrap into ToolResult
+        is_error = isinstance(result, dict) and "error" in result
+        return ToolResult(
+            success=not is_error,
+            data=result if not is_error else None,
+            error=result.get("error") if is_error else None,
+            metadata={"duration_ms": round(duration_ms, 1)},
+        )
 
 
 class ToolOrchestrator:
@@ -55,6 +59,10 @@ class ToolOrchestrator:
 
     Read-only tools run concurrently (up to MAX_TOOL_CONCURRENCY).
     Write tools run serially, one at a time.
+
+    F001 safety: When ctx.db is not None (real database session), concurrent
+    batches fall back to serial execution because AsyncSession is not safe
+    for concurrent use across tasks.
     """
 
     def __init__(self, registry: ToolRegistry):
@@ -83,9 +91,12 @@ class ToolOrchestrator:
         return batches
 
     async def execute(self, batches: list[ToolBatch], ctx: ToolContext) -> list[ToolResult]:
+        # F001: AsyncSession is not concurrent-safe. When a real db session
+        # exists, fall back to serial even for concurrent batches.
+        can_concurrent = ctx.db is None
         results: list[ToolResult] = []
         for batch in batches:
-            if batch.concurrent and len(batch.calls) > 1:
+            if batch.concurrent and can_concurrent and len(batch.calls) > 1:
                 batch_results = await asyncio.gather(
                     *[self._executor.run_one(call, ctx) for call in batch.calls[:MAX_TOOL_CONCURRENCY]]
                 )

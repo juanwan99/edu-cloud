@@ -98,6 +98,14 @@ class ToolRegistry:
             })
         return result
 
+    @staticmethod
+    def _is_new_style(func: Callable) -> bool:
+        """Check if func matches new-style (input: dict, ctx: ToolContext) signature."""
+        sig = inspect.signature(func)
+        params = [p for p in sig.parameters.values()
+                  if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+        return len(params) == 2 and not params[0].name.startswith("_")
+
     async def execute(self, name: str, arguments: dict[str, Any], ctx_or_none=None, **injected) -> Any:
         spec = self._tools.get(name)
         if spec is None:
@@ -105,7 +113,9 @@ class ToolRegistry:
                 return ToolResult(success=False, error=f"Unknown tool: {name}")
             return {"error": f"Unknown tool: {name}"}
         try:
-            if isinstance(ctx_or_none, ToolContext):
+            # Determine call style: signature-based (not caller-based) to handle
+            # ToolExecutor always passing ToolContext even for legacy tools.
+            if isinstance(ctx_or_none, ToolContext) and self._is_new_style(spec.func):
                 # New-style call: func(input, ctx) -> ToolResult
                 result = spec.func(arguments, ctx_or_none)
                 if inspect.isawaitable(result):
@@ -113,12 +123,20 @@ class ToolRegistry:
                 return result
             else:
                 # Legacy call: func(**kwargs) -> dict (backward compat until Batch 6)
+                # When called with ToolContext, extract injected params from it.
                 func = spec.func
                 sig = inspect.signature(func)
                 kwargs = {}
                 for param_name, param in sig.parameters.items():
                     if param_name.startswith("_"):
-                        if param_name in injected:
+                        if isinstance(ctx_or_none, ToolContext):
+                            if param_name == "_db":
+                                kwargs["_db"] = ctx_or_none.db
+                            elif param_name == "_school_id":
+                                kwargs["_school_id"] = ctx_or_none.school_id
+                            elif param_name == "_user_id":
+                                kwargs["_user_id"] = ctx_or_none.user_id
+                        elif param_name in injected:
                             kwargs[param_name] = injected[param_name]
                     elif param_name in arguments:
                         kwargs[param_name] = arguments[param_name]
