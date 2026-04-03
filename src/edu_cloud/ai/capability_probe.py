@@ -66,7 +66,7 @@ class CapabilityProbe:
         self._cached_tier = tier
         adapter.set_capabilities({
             "tool_use": has_tool_use,
-            "parallel_tools": has_tool_use and context_window >= TIER_1_MIN_CONTEXT,
+            "parallel_tools": has_tool_use and tier in (1, 2),
             "context_window": context_window,
         })
         logger.info("CapabilityProbe: tier=%d, tool_use=%s, context=%d", tier, has_tool_use, context_window)

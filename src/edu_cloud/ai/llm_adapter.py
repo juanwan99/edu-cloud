@@ -150,7 +150,8 @@ class LLMProxyAdapter:
 
     @staticmethod
     def _parse_response(data: dict) -> LLMResponse:
-        choice = data.get("choices", [{}])[0]
+        choices = data.get("choices") or [{}]
+        choice = choices[0]
         message = choice.get("message", {})
         usage_raw = data.get("usage", {})
 

@@ -80,6 +80,40 @@ async def test_proxy_adapter_chat_with_tool_calls():
     assert resp.content is None
     assert len(resp.tool_calls) == 1
     assert resp.tool_calls[0].name == "get_exam"
+    assert resp.tool_calls[0].arguments == {"exam_id": "E1"}  # F004: assert parsed arguments
+    assert resp.stop_reason == "tool_use"
+
+
+# -- F004: plan boundary condition tests --
+
+
+def test_parse_response_empty_choices():
+    """F002+F004: choices=[] should not raise, returns empty LLMResponse."""
+    from edu_cloud.ai.llm_adapter import LLMProxyAdapter
+    resp = LLMProxyAdapter._parse_response({"choices": [], "usage": {}})
+    assert resp.content is None
+    assert resp.tool_calls is None
+    assert resp.usage.input_tokens == 0
+
+
+def test_parse_response_missing_usage():
+    """F004: missing usage field defaults to TokenUsage(0, 0)."""
+    from edu_cloud.ai.llm_adapter import LLMProxyAdapter
+    resp = LLMProxyAdapter._parse_response({
+        "choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
+    })
+    assert resp.content == "ok"
+    assert resp.usage.input_tokens == 0
+    assert resp.usage.output_tokens == 0
+
+
+def test_parse_response_function_call_finish_reason():
+    """F004: legacy 'function_call' finish_reason maps to 'tool_use'."""
+    from edu_cloud.ai.llm_adapter import LLMProxyAdapter
+    resp = LLMProxyAdapter._parse_response({
+        "choices": [{"message": {"role": "assistant", "content": "hi"}, "finish_reason": "function_call"}],
+        "usage": {},
+    })
     assert resp.stop_reason == "tool_use"
 
 

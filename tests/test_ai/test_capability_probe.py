@@ -82,3 +82,51 @@ def test_probe_manual_override():
     probe = CapabilityProbe()
     probe.set_override(2)
     assert probe.get_tier() == 2
+
+
+# -- F003: capability writeback assertions --
+
+
+@pytest.mark.asyncio
+async def test_probe_tier1_capabilities_writeback():
+    """F003: determine_tier writes correct capabilities to adapter for Tier 1."""
+    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary", context_window=200_000)
+    adapter.chat = AsyncMock(return_value=LLMResponse(
+        tool_calls=[ToolCall(id="t1", name="test_tool", arguments={"x": 1}, _raw={})],
+        usage=TokenUsage(10, 5),
+        stop_reason="tool_use",
+    ))
+    probe = CapabilityProbe()
+    await probe.determine_tier(adapter)
+    assert adapter.supports_tool_use() is True
+    assert adapter.supports_parallel_tool_calls() is True
+    assert adapter.context_window_size() == 200_000
+
+
+@pytest.mark.asyncio
+async def test_probe_tier2_capabilities_writeback():
+    """F003: determine_tier writes correct capabilities to adapter for Tier 2."""
+    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary", context_window=64_000)
+    adapter.chat = AsyncMock(return_value=LLMResponse(
+        tool_calls=[ToolCall(id="t1", name="test_tool", arguments={"x": 1}, _raw={})],
+        usage=TokenUsage(10, 5),
+        stop_reason="tool_use",
+    ))
+    probe = CapabilityProbe()
+    await probe.determine_tier(adapter)
+    assert adapter.supports_tool_use() is True
+    assert adapter.supports_parallel_tool_calls() is True  # F001 fix: Tier 2 supports parallel
+    assert adapter.context_window_size() == 64_000
+
+
+@pytest.mark.asyncio
+async def test_probe_tier3_capabilities_writeback():
+    """F003: determine_tier writes correct capabilities for Tier 3 (no tool use)."""
+    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary", context_window=8_000)
+    adapter.chat = AsyncMock(return_value=LLMResponse(
+        content="I cannot use tools", usage=TokenUsage(10, 5), stop_reason="end_turn",
+    ))
+    probe = CapabilityProbe()
+    await probe.determine_tier(adapter)
+    assert adapter.supports_tool_use() is False
+    assert adapter.supports_parallel_tool_calls() is False
