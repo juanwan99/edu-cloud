@@ -58,3 +58,18 @@ async def test_extract_handles_bad_json():
     extractor = SessionMemoryExtractor()
     entries = await extractor.extract([Message(role="user", content="test")], adapter)
     assert entries == []
+
+
+def test_parse_fenced_json():
+    """F003: markdown fenced JSON should be parsed correctly."""
+    entries = SessionMemoryExtractor._parse(
+        '```json\n[{"type":"finding","content":"test finding"}]\n```'
+    )
+    assert len(entries) == 1
+    assert entries[0].content == "test finding"
+
+
+def test_parse_non_list_json():
+    """F003: top-level non-list JSON returns empty."""
+    entries = SessionMemoryExtractor._parse('{"type": "finding"}')
+    assert entries == []

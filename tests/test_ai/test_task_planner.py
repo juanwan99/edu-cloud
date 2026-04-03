@@ -80,3 +80,28 @@ def test_schedule_parallel_independent():
     ids = [t.id for t in order]
     assert ids[-1] == "2"
     assert set(ids[:2]) == {"0", "1"}
+
+
+def test_schedule_cyclic_dependency_no_hang():
+    """F004: circular dependency doesn't hang, yields all remaining tasks."""
+    planner = TaskPlanner()
+    plan = Plan(goal="test", tasks=[
+        Task(id="0", description="a", depends_on=["1"]),
+        Task(id="1", description="b", depends_on=["0"]),
+    ])
+    order = list(planner.schedule(plan))
+    assert len(order) == 2  # both yielded, no infinite loop
+    assert set(t.id for t in order) == {"0", "1"}
+
+
+@pytest.mark.asyncio
+async def test_maybe_plan_non_dict_json():
+    """F002: LLM returns valid JSON but not a dict (e.g. []) → None."""
+    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary")
+    adapter.chat = AsyncMock(return_value=LLMResponse(
+        content='[]',
+        usage=TokenUsage(10, 5),
+    ))
+    planner = TaskPlanner()
+    plan = await planner.maybe_plan("test", tier=2, adapter=adapter, available_tools=_make_specs())
+    assert plan is None

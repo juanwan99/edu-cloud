@@ -59,7 +59,7 @@ class TaskPlanner:
                 stream=False,
             ))
             data = json.loads(resp.content)
-            if data.get("plan") is None:
+            if not isinstance(data, dict) or data.get("plan") is None:
                 return None
 
             tasks = [

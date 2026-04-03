@@ -39,16 +39,29 @@ class ContextManager:
         if len(messages) < 3:
             return messages
 
-        keep_count = KEEP_RECENT_TURNS * 2
-        if len(messages) - 1 <= keep_count:
+        # F001: Count user turns backward to handle tool_calls/tool messages correctly.
+        # A "turn" starts with a user message and includes all subsequent non-user messages.
+        split_idx = self._find_turn_boundary(messages, KEEP_RECENT_TURNS)
+        if split_idx <= 1:
             return messages
 
         system_msg = messages[0]
-        early_messages = messages[1 : -keep_count]
-        recent_messages = messages[-keep_count:]
+        early_messages = messages[1:split_idx]
+        recent_messages = messages[split_idx:]
 
         summary = await self._summarize(early_messages, adapter)
         return [system_msg, Message(role="assistant", content=summary), *recent_messages]
+
+    @staticmethod
+    def _find_turn_boundary(messages: list[Message], keep_turns: int) -> int:
+        """Find the index where recent turns start (counting user messages backward)."""
+        user_count = 0
+        for i in range(len(messages) - 1, 0, -1):
+            if messages[i].role == "user":
+                user_count += 1
+                if user_count == keep_turns:
+                    return i
+        return 1  # keep everything except system
 
     async def _summarize(self, messages: list[Message], adapter: LLMProxyAdapter) -> str:
         prompt = (
