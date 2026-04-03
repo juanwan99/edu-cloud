@@ -116,7 +116,7 @@ async def ai_chat(
         capabilities = {(c.domain, c.action): c.enabled for c in caps_list}
 
         resolver = ToolAccessResolver()
-        available_tools = await resolver.resolve(
+        available_tools = resolver.resolve(
             all_specs=all_specs, role=role,
             enabled_modules=enabled_modules, capabilities=capabilities,
         )
