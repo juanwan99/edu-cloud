@@ -1,12 +1,45 @@
-"""Agent 数据模型。"""
+"""Agent event types, message types, and enumerations (Design §3)."""
 from __future__ import annotations
+
 import json
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
 
 
 @dataclass
-class ChatMessage:
+class ToolCall:
+    id: str
+    name: str
+    arguments: dict[str, Any] = field(default_factory=dict)
+    _raw: dict = field(default_factory=dict, repr=False)  # 保留原始数据，兼容 Gemini 等非标准字段
+
+    @classmethod
+    def from_openai(cls, raw: dict) -> ToolCall:
+        func = raw.get("function", {})
+        args_str = func.get("arguments", "{}")
+        try:
+            args = json.loads(args_str) if isinstance(args_str, str) else args_str
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid tool call arguments: {e}") from e
+        return cls(id=raw["id"], name=func.get("name", ""), arguments=args, _raw=raw)
+
+    def to_openai(self) -> dict:
+        base = {
+            "id": self.id,
+            "type": "function",
+            "function": {"name": self.name, "arguments": json.dumps(self.arguments, ensure_ascii=False)},
+        }
+        # 合并原始数据中的额外字段（如 Gemini 的 thought_signature）
+        for key, val in self._raw.items():
+            if key not in ("id", "type", "function"):
+                base[key] = val
+        return base
+
+
+@dataclass
+class Message:
+    """Unified message type for agent conversations."""
     role: str  # system / user / assistant / tool
     content: str | None = None
     tool_calls: list[ToolCall] | None = None
@@ -26,40 +59,24 @@ class ChatMessage:
         return d
 
 
-@dataclass
-class ToolCall:
-    id: str
-    name: str
-    arguments: dict[str, Any] = field(default_factory=dict)
-    _raw: dict = field(default_factory=dict, repr=False)  # 保留原始数据，兼容 Gemini 等非标准字段
-
-    @classmethod
-    def from_openai(cls, raw: dict) -> ToolCall:
-        func = raw["function"]
-        args_str = func.get("arguments", "{}")
-        try:
-            args = json.loads(args_str) if isinstance(args_str, str) else args_str
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid tool call arguments: {e}") from e
-        return cls(id=raw["id"], name=func["name"], arguments=args, _raw=raw)
-
-    def to_openai(self) -> dict:
-        base = {
-            "id": self.id,
-            "type": "function",
-            "function": {"name": self.name, "arguments": json.dumps(self.arguments, ensure_ascii=False)},
-        }
-        # 合并原始数据中的额外字段（如 Gemini 的 thought_signature）
-        for key, val in self._raw.items():
-            if key not in ("id", "type", "function"):
-                base[key] = val
-        return base
+# Backward compatibility alias
+ChatMessage = Message
 
 
 @dataclass
 class AgentEvent:
-    type: str  # answer / tool_call / tool_result / thinking / error / done
+    type: str  # thinking | plan | task_update | tool_call | tool_result | answer | error | done
     data: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {"type": self.type, "data": self.data}
+
+
+class Transition(Enum):
+    NEXT_TURN = "next_turn"
+    COMPACT = "compact"
+    ERROR_RETRY = "error_retry"
+    TIER_DOWNGRADE = "tier_downgrade"
+    MAX_TURNS = "max_turns"
+    BUDGET_EXHAUSTED = "budget_exhausted"
+    DONE = "done"
