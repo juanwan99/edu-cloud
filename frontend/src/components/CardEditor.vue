@@ -34,7 +34,7 @@
       <button id="btnExportSkeleton" class="panel-btn">导出 Skeleton JSON</button>
 
       <!-- 缩放 -->
-      <div class="ctrl" style="margin-top:8px;"><label>缩放(%)</label><input type="range" id="zoom" min="30" max="100" value="60"><span class="val" id="v_zoom"></span></div>
+      <div class="ctrl" style="margin-top:8px;"><label>缩放(%)</label><input type="range" id="zoom" min="20" max="100" value="60"><span class="val" id="v_zoom"></span></div>
 
       <!-- 高级选项 -->
       <details class="advanced-section">
@@ -75,7 +75,7 @@
         <div class="ctrl"><label>上下间距(mm)</label><input type="range" id="absentPadding" min="0" max="4" value="1.5" step="0.25"><span class="val" id="v_absentPadding"></span></div>
 
         <h2><i class="ico ico-grid"></i> 选择题（高级）</h2>
-        <div class="ctrl"><label>每排最多</label><input type="range" id="choicePerRow" min="4" max="20" value="15"><span class="val" id="v_choicePerRow"></span></div>
+        <div class="ctrl"><label>每排最多</label><input type="range" id="choicePerRow" min="4" max="20" value="16"><span class="val" id="v_choicePerRow"></span></div>
 
         <h2><i class="ico ico-edit"></i> 填空题</h2>
         <div class="ctrl"><label>题数</label><input type="range" id="fillCount" min="0" max="10" value="3"><span class="val" id="v_fillCount"></span></div>
@@ -92,7 +92,7 @@
         <div class="ctrl"><label>纸张</label>
           <select id="paperSize" style="background:#0f3460;color:#eee;border:1px solid #555;padding:2px;">
             <option value="A4">A4 (210mm)</option>
-            <option value="A3" selected>A3 (420mm)</option>
+            <option value="A3">A3 (420mm)</option>
           </select>
         </div>
       </details>
@@ -107,6 +107,7 @@
       <div v-if="subjectId" class="view-toggle">
         <button :class="{ active: viewMode === 'editor' }" @click="viewMode = 'editor'">编辑器</button>
         <button :class="{ active: viewMode === 'tql' }" @click="switchToTql">TQL 模板</button>
+        <button v-if="viewMode === 'editor'" class="fit-zoom-btn" :class="{ active: isFitMode }" @click="toggleFitMode">{{ isFitMode ? '适应' : '1:1' }}</button>
       </div>
       <div v-show="viewMode === 'editor'" class="preview-wrap" id="previewWrap" ref="previewWrapRef"></div>
       <div v-if="viewMode === 'tql'" class="tql-view">
@@ -152,6 +153,39 @@ const previewWrapRef = ref(null)
 
 // TQL 对照
 const viewMode = ref('editor')
+const isFitMode = ref(true)
+
+function toggleFitMode() {
+  isFitMode.value = !isFitMode.value
+  applyFitMode()
+}
+
+function applyFitMode() {
+  const zoomEl = document.getElementById('zoom')
+  if (!zoomEl) return
+  if (isFitMode.value) {
+    const panel = panelRef.value
+    const panelWidth = panel?.classList.contains('collapsed') ? 28 : 260
+    const availWidth = window.innerWidth - panelWidth - 20
+    const isA4 = window._cardLayout?.paper === 'A4'
+    if (isA4) {
+      // A4 纵向：按视口高度适配（一页高度 fit 进可用空间）
+      const availHeight = window.innerHeight - 160 // 减去顶栏+标签+余量
+      const pageHeight = 297 * 3.78
+      const zoomByHeight = Math.round((availHeight / pageHeight) * 100)
+      const pageWidth = 210 * 3.78
+      const zoomByWidth = Math.round((availWidth / pageWidth) * 100)
+      zoomEl.value = Math.max(20, Math.min(zoomByWidth, zoomByHeight))
+    } else {
+      // A3 横向：按宽度适配
+      const pageWidth = 420 * 3.78
+      zoomEl.value = Math.max(20, Math.round((availWidth / pageWidth) * 100))
+    }
+  } else {
+    zoomEl.value = 100
+  }
+  zoomEl.dispatchEvent(new Event('input', { bubbles: true }))
+}
 const tqlImages = ref({})
 const tqlLoading = ref(false)
 
@@ -201,6 +235,7 @@ const params = {
 
 const structuralKeys = ['choiceCount', 'optionCount', 'fillCount', 'essayCount', 'paperSize']
 let lastStructural = {}
+let layoutFromServer = false  // 从 API/TQL 加载的布局，不允许被 needsRebuild 覆盖
 
 function getValues() {
   const base = { ...(window._cardLayout?.config || {}) }
@@ -213,6 +248,34 @@ function getValues() {
   try { vals.essayConfig = JSON.parse(document.getElementById('essayConfig')?.value || '[]') } catch { vals.essayConfig = base.essayConfig || [] }
   vals.choiceCount = window._choices ? window._choices.length : (base.choiceCount || 11)
   vals.optionCount = window._choices && window._choices.length > 0 ? Math.max(...window._choices.map(c => c.options)) : (base.optionCount || 4)
+  // 同步 _choices 到 choiceGroups，确保渲染使用最新数据
+  if (window._choices && window._choices.length > 0) {
+    // 如果原始 config 有带坐标的 choiceGroups，保留坐标
+    const origGroups = base.choiceGroups || []
+    const origMap = new Map()
+    for (const g of origGroups) {
+      if (g.x !== undefined) origMap.set(`${g.start}-${g.count}`, g)
+    }
+
+    const groups = []
+    let cur = { start: window._choices[0].qno, options: window._choices[0].options, count: 1 }
+    for (let i = 1; i < window._choices.length; i++) {
+      const c = window._choices[i]
+      if (c.options === cur.options && c.qno === cur.start + cur.count) {
+        cur.count++
+      } else {
+        // 尝试从原始 groups 恢复坐标
+        const orig = origMap.get(`${cur.start}-${cur.count}`)
+        if (orig) { cur.x = orig.x; cur.y = orig.y; cur.w = orig.w }
+        groups.push(cur)
+        cur = { start: c.qno, options: c.options, count: 1 }
+      }
+    }
+    const orig = origMap.get(`${cur.start}-${cur.count}`)
+    if (orig) { cur.x = orig.x; cur.y = orig.y; cur.w = orig.w }
+    groups.push(cur)
+    vals.choiceGroups = groups
+  }
   return vals
 }
 
@@ -262,13 +325,18 @@ async function saveToServer(config) {
   }
 }
 
-function onAnyChange() {
+function onAnyChange(userEdit = false) {
   if (!modelModule) return
   const previewWrap = previewWrapRef.value
   if (!previewWrap) return
 
   const v = getValues()
-  if (!window._cardLayout || needsRebuild(v)) {
+  // 从 API/TQL 加载的布局：只同步样式参数，保护结构性字段（paperSize/sides）
+  if (layoutFromServer && window._cardLayout) {
+    const protectedPaperSize = window._cardLayout.config?.paperSize
+    window._cardLayout.config = { ...window._cardLayout.config, ...v }
+    if (protectedPaperSize) window._cardLayout.config.paperSize = protectedPaperSize
+  } else if (!window._cardLayout || needsRebuild(v)) {
     window._cardLayout = modelModule.createDefaultLayout(v)
     for (const k of structuralKeys) lastStructural[k] = v[k]
     lastStructural._essayConfigStr = JSON.stringify(v.essayConfig || [])
@@ -276,13 +344,16 @@ function onAnyChange() {
     window._cardLayout.config = { ...window._cardLayout.config, ...v }
   }
   const config = window._cardLayout.config || v
+  // 保持 layout.paper 和 config.paperSize 同步
+  if (window._cardLayout.paper) config.paperSize = window._cardLayout.paper
   renderModule.renderFromLayout(previewWrap, window._cardLayout, config)
   updateLabels(config)
   if (window._initInteraction) window._initInteraction()
 
   emit('layout-change', window._cardLayout)
 
-  if (!props.readonly) {
+  // 只在用户主动编辑时自动保存，系统事件（resize/autoFitZoom/初始化）不保存
+  if (userEdit && !props.readonly) {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => saveToServer(config), 500)
   }
@@ -308,31 +379,39 @@ function renderChoiceList() {
   list.querySelectorAll('.choice-qno').forEach(input => {
     input.addEventListener('input', (e) => {
       window._choices[parseInt(e.target.dataset.idx)].qno = parseInt(e.target.value) || 1
-      onAnyChange()
+      onAnyChange(true)
     })
   })
   list.querySelectorAll('.choice-opts').forEach(sel => {
     sel.addEventListener('change', (e) => {
       window._choices[parseInt(e.target.dataset.idx)].options = parseInt(e.target.value)
-      onAnyChange()
+      onAnyChange(true)
     })
   })
   list.querySelectorAll('.choice-del').forEach(btn => {
     btn.addEventListener('click', () => {
       window._choices.splice(parseInt(btn.dataset.idx), 1)
       renderChoiceList()
-      onAnyChange()
+      onAnyChange(true)
     })
   })
 }
 
 function autoFitZoom() {
+  if (!isFitMode.value) return
   const panel = panelRef.value
-  if (!panel) return
-  const panelWidth = panel.classList.contains('collapsed') ? 28 : 340
-  const availWidth = (previewWrapRef.value?.clientWidth || window.innerWidth - panelWidth) - 48
-  const pageWidth = 420 * 3.78
-  const fitZoom = Math.min(90, Math.max(30, Math.round((availWidth / pageWidth) * 100)))
+  const panelWidth = panel?.classList.contains('collapsed') ? 28 : 260
+  const availWidth = window.innerWidth - panelWidth - 20
+  const isA4 = window._cardLayout?.paper === 'A4'
+  let fitZoom
+  if (isA4) {
+    const availHeight = window.innerHeight - 160
+    const zoomByHeight = Math.round((availHeight / (297 * 3.78)) * 100)
+    const zoomByWidth = Math.round((availWidth / (210 * 3.78)) * 100)
+    fitZoom = Math.max(20, Math.min(zoomByWidth, zoomByHeight))
+  } else {
+    fitZoom = Math.max(20, Math.round((availWidth / (420 * 3.78)) * 100))
+  }
   const zoomEl = document.getElementById('zoom')
   if (zoomEl) zoomEl.value = fitZoom
 }
@@ -377,6 +456,57 @@ async function loadFromServer() {
           window._cardLayout = data.layout
           if (window._cardLayout) {
             window._cardLayout.config = mergedConfig
+            // paperSize 单一真值：layout.paper 为权威，同步到 config.paperSize
+            if (window._cardLayout.paper) {
+              mergedConfig.paperSize = window._cardLayout.paper
+            } else if (mergedConfig.paperSize) {
+              window._cardLayout.paper = mergedConfig.paperSize
+            }
+          }
+          // 语文 B 面 essay 默认为作文类型
+          if (window._cardLayout?.sides && mergedConfig.subjectTitle?.includes('语文')) {
+            const sideB = window._cardLayout.sides[1]
+            if (sideB) {
+              for (const col of sideB.columns) {
+                for (const r of (col.regions || [])) {
+                  if (r.type === 'essay' && !r.qtype) r.qtype = 'essay_cn'
+                }
+              }
+            }
+          }
+          // 结构修正：合并 col3+ 到 col2，填充空中间栏（仅 A3 布局）
+          const isA4Layout = (mergedConfig.paperSize === 'A4' || window._cardLayout.paper === 'A4')
+          if (window._cardLayout?.sides && !isA4Layout) {
+            for (const side of window._cardLayout.sides) {
+              const cols = side.columns || []
+              // 合并 col3+ 到 col2
+              if (cols.length > 3) {
+                for (let c = 3; c < cols.length; c++) {
+                  if (cols[2]) cols[2].regions = (cols[2].regions || []).concat(cols[c].regions || [])
+                }
+                side.columns = cols.slice(0, 3)
+              }
+              while (side.columns.length < 3) side.columns.push({ col: side.columns.length, regions: [] })
+              // 填充空中间栏（完全空 + 后面有内容）
+              for (let c = 0; c < 2; c++) {
+                if (side.columns[c].regions.length > 0) continue
+                // 找后面第一个有 non-fixed 内容的栏
+                for (let nc = c + 1; nc < 3; nc++) {
+                  const nfRegs = side.columns[nc].regions.filter(r => r.type !== 'fixed')
+                  if (nfRegs.length === 0) continue
+                  if (nfRegs.length === 1) {
+                    // 只有 1 个：整个移过来
+                    side.columns[c].regions = side.columns[nc].regions
+                    side.columns[nc].regions = []
+                  } else {
+                    // ≥2 个：借第一个
+                    const idx = side.columns[nc].regions.findIndex(r => r.type !== 'fixed')
+                    side.columns[c].regions = side.columns[nc].regions.splice(idx, 1)
+                  }
+                  break
+                }
+              }
+            }
           }
           if (data.choices && data.choices.length > 0) {
             window._choices = data.choices
@@ -412,6 +542,7 @@ async function loadFromServer() {
           for (const k of structuralKeys) lastStructural[k] = v[k]
           lastStructural._essayConfigStr = JSON.stringify(v.essayConfig || [])
           if (status) status.textContent = '已加载科目布局'
+          layoutFromServer = true
           loaded = true
         }
       }
@@ -462,11 +593,12 @@ onMounted(async () => {
   window._autoFitZoom = autoFitZoom
 
   // Bind input events
+  const onUserEdit = () => onAnyChange(true)
   for (const id of Object.keys(params)) {
     const el = document.getElementById(id)
-    if (el) el.addEventListener('input', onAnyChange)
+    if (el) el.addEventListener('input', onUserEdit)
   }
-  document.getElementById('essayConfig')?.addEventListener('input', onAnyChange)
+  document.getElementById('essayConfig')?.addEventListener('input', onUserEdit)
 
   // Quick generate button
   document.getElementById('choiceGenBtn')?.addEventListener('click', () => {
@@ -475,7 +607,7 @@ onMounted(async () => {
     window._choices = []
     for (let i = 1; i <= count; i++) window._choices.push({ qno: i, options: opts })
     renderChoiceList()
-    onAnyChange()
+    onAnyChange(true)
   })
 
   // Add single choice button
@@ -483,7 +615,7 @@ onMounted(async () => {
     const lastQno = window._choices.length > 0 ? Math.max(...window._choices.map(c => c.qno)) : 0
     window._choices.push({ qno: lastQno + 1, options: 4 })
     renderChoiceList()
-    onAnyChange()
+    onAnyChange(true)
   })
 
   // Load saved config, then init modules
@@ -631,13 +763,13 @@ defineExpose({
 .view-toggle {
   display: flex;
   gap: 0;
-  padding: 4px 8px;
+  padding: 2px 4px;
   background: #f5f5f5;
   border-bottom: 1px solid #e2e8e4;
   flex-shrink: 0;
 }
 .view-toggle button {
-  padding: 4px 16px;
+  padding: 3px 12px;
   border: 1px solid #ccc;
   background: #fff;
   cursor: pointer;
@@ -645,7 +777,12 @@ defineExpose({
   color: #666;
 }
 .view-toggle button:first-child { border-radius: 4px 0 0 4px; }
-.view-toggle button:last-child { border-radius: 0 4px 4px 0; border-left: none; }
+.view-toggle button:nth-child(2) { border-radius: 0 4px 4px 0; border-left: none; }
+.fit-zoom-btn {
+  margin-left: 8px; padding: 3px 12px; font-size: 12px; border: 1px solid #ccc;
+  border-radius: 4px; background: #fff; cursor: pointer; color: #666;
+}
+.fit-zoom-btn.active { background: #2d5a3d; color: #fff; border-color: #2d5a3d; }
 .view-toggle button.active {
   background: #2d5a3d;
   color: #fff;

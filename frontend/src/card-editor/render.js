@@ -112,7 +112,15 @@ function buildChoiceGroupsHTML(v) {
     }
   }
 
-  // 编辑器统一网格：所有题目合并，固定 perRow 列，左对齐（忽略 TQL 坐标）
+  // 判断是否有 TQL 坐标
+  const hasTqlCoords = groups.some(g => g.x !== undefined);
+
+  if (hasTqlCoords) {
+    // TQL 坐标模式：逐组渲染，用相对定位放置
+    return groups.map(g => renderGroup(g)).join('');
+  }
+
+  // 无坐标模式：所有题目合并，固定 perRow 列，横排（现有逻辑）
   const allQs = groups.flatMap(g => g.questions.map(q => ({ ...q, options: q.options || g.options })));
   const maxOpts = Math.max(...allQs.map(q => q.options));
   let html = '';
