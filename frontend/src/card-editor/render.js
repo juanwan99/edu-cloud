@@ -29,12 +29,17 @@ export function applyCSSToPage(el, v) {
   s.setProperty('--notice-border-width', v.noticeBorderWidth + 'px');
   s.setProperty('--absent-padding', v.absentPadding + 'mm 2mm');
   el.dataset.paper = v.paperSize;
-  el.style.transform = `scale(${v.zoom / 100})`;
+  const zoom = v.zoom / 100;
+  el.style.transform = `scale(${zoom})`;
+  // 补偿缩放后的多余布局空间
+  const h = 297; // mm — A3 横向和 A4 纵向都是 297mm 高
+  const hPx = h * 3.78; // mm→px
+  el.style.marginBottom = `${-(hPx * (1 - zoom))}px`;
 }
 
 function buildChoiceGroupsHTML(v) {
   const symbols = 'ABCDEFGH';
-  const perRow = v.choicePerRow || 15;
+  const perRow = Math.max(v.choicePerRow || 16, 16);
   const configGroups = v.choiceGroups || [];
   const choices = window._choices || [];
 
@@ -67,10 +72,10 @@ function buildChoiceGroupsHTML(v) {
   function renderGroup(g) {
     const opts = g.options;
     const qs = g.questions;
-    const vertical = qs.length <= opts;
+    const vertical = qs.length >= 4 && qs.length <= opts;
 
     if (vertical) {
-      const colTemplate = `3mm auto repeat(${opts}, 5.5mm) 3mm`;
+      const colTemplate = `3mm auto repeat(${opts}, 5mm) 3mm`;
       const rowCount = qs.length + 1;
       let cells = '<div class="omr-left"></div><div class="choice-cell"></div>';
       for (let o = 0; o < opts; o++) cells += `<div class="choice-cell choice-header">${symbols[o]}</div>`;
@@ -84,17 +89,21 @@ function buildChoiceGroupsHTML(v) {
       return `<div class="choice-group"><div class="choice-grid-inner" style="grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${rowCount}, auto);">${cells}</div></div>`;
     } else {
       let html = '';
+      // 固定列宽：始终按 perRow 列计算，不足的用空单元格填充，左对齐
+      const colW = `${Math.floor(100 / perRow * 0.95)}%`;
+      const colTemplate = `4mm repeat(${perRow}, ${colW}) 4mm`;
       for (let start = 0; start < qs.length; start += perRow) {
         const batch = qs.slice(start, start + perRow);
         const count = batch.length;
-        const colTemplate = `4mm repeat(${Math.min(perRow, count)}, 1fr) 4mm`;
         const rows = opts + 1;
         let cells = '<div class="omr-left"></div>';
         for (const q of batch) cells += `<div class="choice-cell choice-header">${q.qno}</div>`;
+        for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
         cells += '<div class="omr-right"></div>';
         for (let o = 0; o < opts; o++) {
           cells += '<div class="omr-left"><div class="omr-dot"></div></div>';
           for (let q = 0; q < count; q++) cells += `<div class="choice-cell"><span class="bracket">${symbols[o]}</span></div>`;
+          for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
           cells += '<div class="omr-right"><div class="omr-dot"></div></div>';
         }
         html += `<div class="choice-group"><div class="choice-grid-inner" style="grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${rows}, auto);">${cells}</div></div>`;
@@ -103,52 +112,33 @@ function buildChoiceGroupsHTML(v) {
     }
   }
 
-  // 有 TQL 坐标：x 聚类分列，列内合并同选项数相邻组
-  const hasCoords = groups[0] && groups[0].x != null;
-  if (hasCoords) {
-    // x 聚类 → 列
-    const xSorted = [...groups].sort((a, b) => a.x - b.x);
-    const xCols = [];
-    let curX = [xSorted[0]];
-    for (let i = 1; i < xSorted.length; i++) {
-      if (xSorted[i].x - curX[0].x > 5) { xCols.push(curX); curX = [xSorted[i]]; }
-      else { curX.push(xSorted[i]); }
-    }
-    xCols.push(curX);
-
-    // 列内：按 y 排序，合并相邻同选项数组（y 间距 < 4%）
-    const mergedCols = xCols.map(col => {
-      const sorted = col.sort((a, b) => a.y - b.y);
-      const merged = [{ ...sorted[0], questions: [...sorted[0].questions] }];
-      for (let i = 1; i < sorted.length; i++) {
-        const prev = merged[merged.length - 1];
-        if (sorted[i].options === prev.options && sorted[i].y - prev.y < 4) {
-          // 合并：追加题目
-          prev.questions.push(...sorted[i].questions);
+  // 编辑器统一网格：所有题目合并，固定 perRow 列，左对齐（忽略 TQL 坐标）
+  const allQs = groups.flatMap(g => g.questions.map(q => ({ ...q, options: q.options || g.options })));
+  const maxOpts = Math.max(...allQs.map(q => q.options));
+  let html = '';
+  const colTemplate = `4mm repeat(${perRow}, 1fr) 4mm`;
+  for (let start = 0; start < allQs.length; start += perRow) {
+    const batch = allQs.slice(start, start + perRow);
+    const count = batch.length;
+    const rows = maxOpts + 1;
+    let cells = '<div class="omr-left"></div>';
+    for (const q of batch) cells += `<div class="choice-cell choice-header">${q.qno}</div>`;
+    for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
+    cells += '<div class="omr-right"></div>';
+    for (let o = 0; o < maxOpts; o++) {
+      cells += '<div class="omr-left"><div class="omr-dot"></div></div>';
+      for (const q of batch) {
+        if (o < q.options) {
+          cells += `<div class="choice-cell"><span class="bracket">${symbols[o]}</span></div>`;
         } else {
-          merged.push({ ...sorted[i], questions: [...sorted[i].questions] });
+          cells += '<div class="choice-cell"></div>';
         }
       }
-      return merged;
-    });
-
-    // 渲染：CSS grid 行对齐（zip 各列的组，逐行输出）
-    const maxRows = Math.max(...mergedCols.map(c => c.length));
-    const numCols = mergedCols.length;
-    let html = `<div style="display:grid; grid-template-columns:repeat(${numCols},auto); gap:1mm 3mm; align-items:start;">`;
-    for (let r = 0; r < maxRows; r++) {
-      for (let c = 0; c < numCols; c++) {
-        const g = mergedCols[c][r];
-        html += '<div>' + (g ? renderGroup(g) : '') + '</div>';
-      }
+      for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
+      cells += '<div class="omr-right"><div class="omr-dot"></div></div>';
     }
-    html += '</div>';
-    return html;
+    html += `<div class="choice-group"><div class="choice-grid-inner" style="grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${rows}, auto);">${cells}</div></div>`;
   }
-
-  // 无坐标：直接渲染
-  let html = '';
-  for (const g of groups) { html += renderGroup(g); }
   return html;
 }
 
@@ -177,13 +167,24 @@ function renderSingleBlank(b, regionId, si, bi) {
   return `<div class="essay-line" data-region="${regionId}" data-sub="${si}" data-blank="${bi}" style="width:${b.w}"></div>`;
 }
 
-function renderSubsHTML(subs, regionId) {
+function renderSubsHTML(subs, regionId, cuts) {
   let html = '';
 
   // 没有小问：空白答题区，只显示添加按钮
   if (!subs || subs.length === 0) {
     html += `<div class="add-sub-hint" data-region="${regionId}" data-edit="add-sub">+ 添加小问</div>`;
     return html;
+  }
+
+  // 收集分割线位置（afterSub 值的 Map）
+  const cutPositions = new Map();
+  if (cuts && cuts.length > 0) {
+    cuts.forEach((c, ci) => {
+      // 防护：跳过无效或旧格式的 cut（没有 afterSub 字段）
+      if (typeof c.afterSub === 'number' && c.afterSub >= 0 && c.afterSub < subs.length - 1) {
+        cutPositions.set(c.afterSub, ci);
+      }
+    });
   }
 
   for (let si = 0; si < subs.length; si++) {
@@ -214,8 +215,15 @@ function renderSubsHTML(subs, regionId) {
     `</div>`;
 
     html += `<div class="essay-sub-block" data-region="${regionId}" data-sub="${si}">` +
+              `<span class="sub-del-btn" data-region="${regionId}" data-sub="${si}">×</span>` +
               blanksHTML + imgHTML +
             `</div>`;
+
+    // 在第 si 个小问后面插入分割线（如果有）
+    if (cutPositions.has(si) && si < subs.length - 1) {
+      const ci = cutPositions.get(si);
+      html += `<div class="essay-cut-line" data-region="${regionId}" data-cut="${ci}" data-after-sub="${si}"><span class="cut-del-btn" data-region="${regionId}" data-cut="${ci}">×</span></div>`;
+    }
   }
   html += `<div class="add-sub-hint" data-region="${regionId}" data-edit="add-sub">+ 添加小问</div>`;
   return html;
@@ -227,7 +235,37 @@ function renderEssayRegion(region, fillColumn) {
   const subs = region.subs || [];
   const flex = region.heightRatio || 1;
 
-  const header = `<div class="essay-item-header" contenteditable="true" data-region="${region.id}">${qno}.（本小题满分 ${score} 分）</div>`;
+  // 填空题：简洁横线格式
+  if (region.type === 'fill') {
+    return `<div class="fill-cell" style="flex:${flex} 1 0;" data-region-id="${region.id}" data-region-type="fill" data-qno="${qno}"><span class="fill-label">${qno}.</span><span class="fill-line"></span></div>`;
+  }
+
+  // 语文作文：标题行 + 方格纸 + 每100字标注
+  if (region.qtype === 'essay_cn') {
+    const totalChars = region.charCount || 800;
+    const perRow = 20;
+    const totalRows = Math.ceil(totalChars / perRow);
+    let gridHTML = '';
+    for (let row = 0; row < totalRows; row++) {
+      const charNum = (row + 1) * perRow;
+      const isMarker = charNum % 100 === 0 && charNum <= totalChars;
+      let rowHTML = '';
+      for (let c = 0; c < perRow; c++) rowHTML += '<div class="cn-grid-cell"></div>';
+      if (isMarker) {
+        rowHTML += `<span class="cn-grid-marker">${charNum}</span>`;
+      }
+      gridHTML += `<div class="cn-grid-row">${rowHTML}</div>`;
+    }
+    return `<div class="essay-item essay-cn" style="flex:${flex} 1 0;" data-region-id="${region.id}" data-region-type="essay" data-qno="${qno}">
+      <div class="essay-item-header" contenteditable="true" data-region="${region.id}">${qno}.（本小题满分 ${score} 分）</div>
+      <div class="cn-title-line">题目：<span class="cn-title-underline"></span></div>
+      <div class="cn-grid" data-chars="${totalChars}">${gridHTML}</div>
+    </div>`;
+  }
+
+  const label = region.displayLabel || qno;
+  const headerText = region.continuation ? `${label}.（续）` : `${label}.（本小题满分 ${score} 分）`;
+  const header = `<div class="essay-item-header" contenteditable="true" data-region="${region.id}">${headerText}</div>`;
 
   // 题目文本（题干、提示信息等）
   let textsHTML = '';
@@ -248,8 +286,34 @@ function renderEssayRegion(region, fillColumn) {
   return `<div class="essay-item" style="flex:${flex} 1 0;" data-region-id="${region.id}" data-region-type="essay" data-qno="${qno}">
     ${header}
     ${textsHTML}
-    ${renderSubsHTML(subs, region.id)}
+    ${renderSubsHTML(subs, region.id, region.cuts)}
   </div>`;
+}
+
+function renderCompositionCol(charStart, totalChars, perRow, rows, isFirst, region, cellH) {
+  const charEnd = Math.min(charStart + rows * perRow, totalChars);
+  let html = '';
+  if (isFirst && region) {
+    html += `<div class="essay-item-header" contenteditable="true" data-region="${region.id}">${region.qno}.（本小题满分 ${region.score || 60} 分）</div>`;
+    html += '<div class="cn-title-line">题目：<span class="cn-title-underline"></span></div>';
+  }
+  html += '<div class="cn-grid">';
+  let charPos = charStart;
+  while (charPos < charEnd) {
+    const rowEnd = Math.min(charPos + perRow, charEnd);
+    const cellCount = rowEnd - charPos;
+    let rowHTML = '';
+    for (let c = 0; c < cellCount; c++) {
+      const charNum = charPos + c + 1;
+      const isMarker = charNum % 200 === 0;
+      rowHTML += `<div class="cn-grid-cell${isMarker ? ' cn-marker-cell' : ''}" style="width:${cellH}mm;height:${cellH}mm">${isMarker ? `<span class="cn-cell-marker">${charNum}</span>` : ''}</div>`;
+    }
+    for (let c = cellCount; c < perRow; c++) rowHTML += `<div class="cn-grid-cell empty" style="width:${cellH}mm;height:${cellH}mm"></div>`;
+    html += `<div class="cn-grid-row">${rowHTML}</div>`;
+    charPos = rowEnd;
+  }
+  html += '</div>';
+  return html;
 }
 
 function renderA3Col(contentHTML) {
@@ -263,21 +327,80 @@ function renderA3Col(contentHTML) {
   </div>`;
 }
 
-function renderColumnRegions(regions, isLeftCol) {
+function renderFixedRegions(config, digitBoxes, choiceGroupsHTML, fillHTML) {
+  return `
+    <div class="title-area">
+      <div class="exam-title">${config.examTitle || ''}</div>
+      <div class="subject-title">${config.subjectTitle || ''} 答 题 卡</div>
+    </div>
+    <div class="info-box">
+      <div class="info-left">
+        <div class="info-row"><span class="info-label">姓\u3000名</span><span class="info-line"></span></div>
+        <div class="info-row"><span class="info-label">准考证号</span><span class="info-boxes">${digitBoxes}</span></div>
+      </div>
+      <div class="info-right"><div class="barcode-area">
+        <span class="barcode-title">贴条形码区</span>
+        <span class="barcode-hint">（正面朝上，切勿贴出虚线方框）</span>
+      </div></div>
+    </div>
+    <div class="notice-box">
+      <div class="notice-label-col"><span>注意事项</span></div>
+      <div class="notice-middle">
+        <div class="notice-content">
+          <p>1.答题前，考生先将自己的姓名、准考证号填写清楚，并认真核对条形码上的姓名、准考证号和科目；</p>
+          <p>2.选择题部分请用2B铅笔填涂方格，修改时用橡皮擦擦干净，不要留痕迹；</p>
+          <p>3.非选择题部分请用0.5毫米黑色墨水签字笔书写，字体工整、笔迹清楚；</p>
+          <p>4.在草稿纸、试题卷上答题无效；</p>
+          <p>5.请勿折叠答题卡，保持字体工整、笔迹清晰、卡面清洁。</p>
+        </div>
+        <div class="absent-in-notice">
+          <div class="absent-checkbox"></div>
+          <div class="absent-line"></div>
+          <span class="absent-hint">此方框为缺考考生标记，由监考员用2B铅笔填涂。</span>
+        </div>
+      </div>
+      <div class="notice-example">
+        <span>正确</span><span>填涂</span><span>示例</span>
+        <div class="example-marks"><span class="filled"></span></div>
+      </div>
+    </div>
+    <div class="section-bar">选 择 题（请用2B铅笔填涂）</div>
+    <div class="choice-box">
+      <div class="choice-groups">${choiceGroupsHTML}</div>
+    </div>
+    <div class="section-bar">非选择题（请用0.5毫米黑色墨水签字笔书写）</div>
+    ${fillHTML}`;
+}
+
+function renderColumnRegions(regions, isLeftCol, sideIdx = 0, colIdx = 0) {
   if (!regions || regions.length === 0) {
-    return '<div class="essay-item" style="flex:1;"></div>';
+    return `<div class="col-warning">${WARNING}</div><div class="empty-col-slot" data-empty-side="${sideIdx}" data-empty-col="${colIdx}">右键添加题目</div>`;
   }
 
   let html = `<div class="col-warning">${WARNING}</div>`;
   const editableRegions = regions.filter(r => r.type !== 'fixed');
 
-  for (let i = 0; i < editableRegions.length; i++) {
+  let i = 0;
+  while (i < editableRegions.length) {
     const region = editableRegions[i];
-    // 在相邻可编辑区域之间插入分割线手柄
-    if (i > 0) {
+    if (i > 0 && region.type !== 'fill') {
       html += `<div class="divider-gap"><div class="divider-handle" data-side="${region._side || 'A'}" data-col="${region._col || 0}" data-divider="${i - 1}"></div></div>`;
     }
-    html += renderEssayRegion(region, true);
+    // 连续 fill 合并为 2 列网格
+    if (region.type === 'fill') {
+      let fillHtml = '';
+      const fillStart = i;
+      while (i < editableRegions.length && editableRegions[i].type === 'fill') {
+        fillHtml += renderEssayRegion(editableRegions[i], true);
+        i++;
+      }
+      const count = i - fillStart;
+      const perRow = count <= 2 ? count : 2;
+      html += `<div class="fill-section"><div class="fill-grid" style="grid-template-columns: repeat(${perRow}, 1fr);">${fillHtml}</div></div>`;
+    } else {
+      html += renderEssayRegion(region, true);
+      i++;
+    }
   }
   return html;
 }
@@ -288,57 +411,14 @@ export function renderFromLayout(previewWrap, layout, v) {
   const choiceGroupsHTML = buildChoiceGroupsHTML(config);
   const fillHTML = buildFillHTML(config);
 
-  if ((config.paperSize || layout.paper) === 'A3') {
+  if ((layout.paper || config.paperSize) === 'A3') {
     const sideA = layout.sides[0];
     const sideB = layout.sides[1];
 
-    // A面左栏：固定区域
-    const leftCol = `
-      <div class="title-area">
-        <div class="exam-title">${config.examTitle || ''}</div>
-        <div class="subject-title">${config.subjectTitle || ''} 答 题 卡</div>
-      </div>
-      <div class="info-box">
-        <div class="info-left">
-          <div class="info-row"><span class="info-label">姓\u3000名</span><span class="info-line"></span></div>
-          <div class="info-row"><span class="info-label">准考证号</span><span class="info-boxes">${digitBoxes}</span></div>
-        </div>
-        <div class="info-right"><div class="barcode-area">
-          <span class="barcode-title">贴条形码区</span>
-          <span class="barcode-hint">（正面朝上，切勿贴出虚线方框）</span>
-        </div></div>
-      </div>
-      <div class="notice-box">
-        <div class="notice-label-col"><span>注意事项</span></div>
-        <div class="notice-middle">
-          <div class="notice-content">
-            <p>1.答题前，考生先将自己的姓名、准考证号填写清楚，并认真核对条形码上的姓名、准考证号和科目；</p>
-            <p>2.选择题部分请用2B铅笔填涂方格，修改时用橡皮擦擦干净，不要留痕迹；</p>
-            <p>3.非选择题部分请用0.5毫米黑色墨水签字笔书写，字体工整、笔迹清楚；</p>
-            <p>4.在草稿纸、试题卷上答题无效；</p>
-            <p>5.请勿折叠答题卡，保持字体工整、笔迹清晰、卡面清洁。</p>
-          </div>
-          <div class="absent-in-notice">
-            <div class="absent-checkbox"></div>
-            <div class="absent-line"></div>
-            <span class="absent-hint">此方框为缺考考生标记，由监考员用2B铅笔填涂。</span>
-          </div>
-        </div>
-        <div class="notice-example">
-          <span>正确</span><span>填涂</span><span>示例</span>
-          <div class="example-marks"><span class="filled"></span></div>
-        </div>
-      </div>
-      <div class="section-bar">选 择 题（请用2B铅笔填涂）</div>
-      <div class="choice-box">
-        <div class="choice-groups">${choiceGroupsHTML}</div>
-      </div>
-      <div class="section-bar">非选择题（请用0.5毫米黑色墨水签字笔书写）</div>
-      ${fillHTML}
-      <div class="no-answer-zone"><div class="no-answer-text">请勿在此区域答题</div></div>
-    `;
+    // A面左栏：固定区域（复用 renderFixedRegions）
+    const leftCol = renderFixedRegions(config, digitBoxes, choiceGroupsHTML, fillHTML);
 
-    // 为 regions 注入 _side/_col 用于 data attributes
+    // 为 regions 注入 _side/_col 用于 data attributes（必须在渲染前）
     function tagRegions(side, sideIdx) {
       for (const col of side.columns) {
         for (const r of col.regions) {
@@ -351,24 +431,66 @@ export function renderFromLayout(previewWrap, layout, v) {
     tagRegions(sideA, 0);
     tagRegions(sideB, 1);
 
+    // leftCol 追加 col0 非 fixed 区域（tagRegions 后渲染，确保 _side/_col 正确）
+    const leftColFull = leftCol + renderColumnRegions(sideA.columns[0]?.regions?.filter(r => r.type !== 'fixed') || [], false, 0, 0);
+
     const foldGuide = '<div class="fold-guide"></div>';
     const colGap = '<div class="a3-col-gap"></div>';
 
+    // 合并超出 3 栏的 regions 到最后一栏
+    function mergedRegions(side, colIdx) {
+      const cols = side.columns;
+      if (colIdx < 2) return cols[colIdx]?.regions || [];
+      // 最后一栏：合并 col 2 及之后所有列的 regions
+      let merged = [];
+      for (let c = colIdx; c < cols.length; c++) {
+        merged = merged.concat(cols[c]?.regions || []);
+      }
+      return merged;
+    }
+
     const pageA = `<div class="a3-layout">
-      ${renderA3Col(foldGuide + leftCol)}
+      ${renderA3Col(foldGuide + leftColFull)}
       ${colGap}
-      ${renderA3Col(renderColumnRegions(sideA.columns[1]?.regions || [], false))}
+      ${renderA3Col(renderColumnRegions(sideA.columns[1]?.regions || [], false, 0, 1))}
       ${colGap}
-      ${renderA3Col(renderColumnRegions(sideA.columns[2]?.regions || [], false))}
+      ${renderA3Col(renderColumnRegions(mergedRegions(sideA, 2), false, 0, 2))}
     </div>`;
 
-    const pageB = `<div class="a3-layout">
-      ${renderA3Col(renderColumnRegions(sideB.columns[0]?.regions || [], false))}
-      ${colGap}
-      ${renderA3Col(renderColumnRegions(sideB.columns[1]?.regions || [], false))}
-      ${colGap}
-      ${renderA3Col(renderColumnRegions(sideB.columns[2]?.regions || [], false))}
-    </div>`;
+    // B面：检测是否有语文作文，有则渲染为统一方格纸
+    const allBRegions = sideB.columns.flatMap(c => c.regions || []);
+    const cnRegion = allBRegions.find(r => r.qtype === 'essay_cn');
+    let pageB;
+    if (cnRegion) {
+      // 正方形格子，自动计算尺寸填满三栏且总数≈1200
+      const colW = 138; // mm（(420-6)/3）
+      const colH = 270; // mm（297 减上下 warning/margin）
+      const headerH = 18; // mm（题号+标题行）
+      const target = cnRegion.charCount || 1200;
+      // cellSize² = 3 × colW × colH / target（近似，col0 扣 header）
+      const cellSize = Math.floor(Math.sqrt(3 * colW * colH / target) * 10) / 10;
+      const perRow = Math.floor(colW / cellSize);
+      const rowsCol0 = Math.floor((colH - headerH) / cellSize);
+      const rowsOther = Math.floor(colH / cellSize);
+      const totalChars = perRow * (rowsCol0 + rowsOther * 2);
+      const c0End = rowsCol0 * perRow;
+      const c1End = c0End + rowsOther * perRow;
+      pageB = `<div class="a3-layout">
+        ${renderA3Col(`<div class="col-warning">${WARNING}</div>` + renderCompositionCol(0, totalChars, perRow, rowsCol0, true, cnRegion, cellSize))}
+        ${colGap}
+        ${renderA3Col(`<div class="col-warning">${WARNING}</div>` + renderCompositionCol(c0End, totalChars, perRow, rowsOther, false, null, cellSize))}
+        ${colGap}
+        ${renderA3Col(`<div class="col-warning">${WARNING}</div>` + renderCompositionCol(c1End, totalChars, perRow, rowsOther, false, null, cellSize))}
+      </div>`;
+    } else {
+      pageB = `<div class="a3-layout">
+        ${renderA3Col(renderColumnRegions(sideB.columns[0]?.regions || [], false, 1, 0))}
+        ${colGap}
+        ${renderA3Col(renderColumnRegions(sideB.columns[1]?.regions || [], false, 1, 1))}
+        ${colGap}
+        ${renderA3Col(renderColumnRegions(mergedRegions(sideB, 2), false, 1, 2))}
+      </div>`;
+    }
 
     previewWrap.innerHTML = `
       <div class="page-label">A 面（正面）</div>
@@ -377,90 +499,65 @@ export function renderFromLayout(previewWrap, layout, v) {
       <div class="page" data-paper="A3" id="pageB">${pageB}</div>
     `;
 
-    applyCSSToPage(document.getElementById('pageA'), config);
-    applyCSSToPage(document.getElementById('pageB'), config);
+    applyCSSToPage(previewWrap.querySelector('#pageA'), config);
+    applyCSSToPage(previewWrap.querySelector('#pageB'), config);
   } else {
     // A4 布局保留兼容（简化，不展开）
     _renderA4(previewWrap, layout, config, digitBoxes, choiceGroupsHTML, fillHTML);
   }
 }
 
-function _renderA4(previewWrap, layout, v, digitBoxes, choiceGroupsHTML, fillHTML) {
+function _renderA4(previewWrap, layout, config, digitBoxes, choiceGroupsHTML, fillHTML) {
   const sideA = layout.sides[0];
-  const essays = [];
-  for (const col of sideA.columns) {
-    for (const r of col.regions) {
-      if (r.type === 'essay') essays.push(r);
+  const sideB = layout.sides[1];
+
+  // 为 regions 注入 _side/_col（交互模块需要）
+  function tagRegions(side, sideIdx) {
+    for (const col of side.columns) {
+      for (const r of col.regions) {
+        r._side = side.side;
+        r._col = col.col;
+        r._sideIdx = sideIdx;
+      }
     }
   }
+  tagRegions(sideA, 0);
+  if (sideB) tagRegions(sideB, 1);
 
-  const totalScore = essays.reduce((s, e) => s + (e.score || 0), 0);
-  const cols = [[], [], []];
-  const colScores = [0, 0, 0];
-  for (const e of essays) {
-    let targetCol = 0;
-    for (let c = 0; c < 3; c++) {
-      if (cols[c].length === 0) { targetCol = c; break; }
-      targetCol = c;
+  // A 面 col 0 的非 fixed regions
+  const aEssayRegions = sideA.columns[0]?.regions?.filter(r => r.type !== 'fixed') || [];
+
+  const pageAContent = `
+    <div class="a4-content">
+      ${renderFixedRegions(config, digitBoxes, choiceGroupsHTML, fillHTML)}
+      <div class="a4-col">
+        ${renderColumnRegions(aEssayRegions, false, 0, 0)}
+      </div>
+    </div>`;
+
+  // B 面：有 regions 时渲染，无 regions 时不渲染 B 面 page [F05 修复]
+  let pageBHTML = '';
+  if (sideB && sideB.columns) {
+    const bRegions = sideB.columns[0]?.regions || [];
+    if (bRegions.length > 0) {
+      pageBHTML = `
+        <div class="page-label">B 面（背面）</div>
+        <div class="page" data-paper="A4" id="pageB">
+          <div class="a4-content">
+            <div class="a4-col a4-col--full">
+              ${renderColumnRegions(bRegions, false, 1, 0)}
+            </div>
+          </div>
+        </div>`;
     }
-    if (cols[targetCol].length > 0 && colScores[targetCol] >= totalScore / 3 && targetCol < 2) targetCol++;
-    cols[targetCol].push(e);
-    colScores[targetCol] += e.score || 0;
-  }
-
-  let colsHTML = '';
-  for (let c = 0; c < 3; c++) {
-    let itemsHTML = `<div class="col-warning">${WARNING}</div>`;
-    for (const e of cols[c]) itemsHTML += renderEssayRegion(e, false);
-    if (cols[c].length === 0) itemsHTML += '<div class="essay-item" style="flex:1;"></div>';
-    colsHTML += `<div class="essay-col">${itemsHTML}</div>`;
   }
 
   previewWrap.innerHTML = `
-    <div class="page" data-paper="A4" id="pageA">
-      <div class="title-area">
-        <div class="exam-title">${v.examTitle || ''}</div>
-        <div class="subject-title">${v.subjectTitle || ''} 答 题 卡</div>
-      </div>
-      <div class="info-box">
-        <div class="info-left">
-          <div class="info-row"><span class="info-label">姓\u3000名</span><span class="info-line"></span></div>
-          <div class="info-row"><span class="info-label">准考证号</span><span class="info-boxes">${digitBoxes}</span></div>
-        </div>
-        <div class="info-right"><div class="barcode-area">
-          <span class="barcode-title">贴条形码区</span>
-          <span class="barcode-hint">（正面朝上，切勿贴出虚线方框）</span>
-        </div></div>
-      </div>
-      <div class="notice-box">
-        <div class="notice-label-col"><span>注意事项</span></div>
-        <div class="notice-middle">
-          <div class="notice-content">
-            <p>1.答题前，考生先将自己的姓名、准考证号填写清楚，并认真核对条形码上的姓名、准考证号和科目；</p>
-            <p>2.选择题部分请用2B铅笔填涂方格，修改时用橡皮擦擦干净，不要留痕迹；</p>
-            <p>3.非选择题部分请用0.5毫米黑色墨水签字笔书写，字体工整、笔迹清楚；</p>
-            <p>4.在草稿纸、试题卷上答题无效；</p>
-            <p>5.请勿折叠答题卡，保持字体工整、笔迹清晰、卡面清洁。</p>
-          </div>
-          <div class="absent-in-notice">
-            <div class="absent-checkbox"></div>
-            <div class="absent-line"></div>
-            <span class="absent-hint">此方框为缺考考生标记，由监考员用2B铅笔填涂。</span>
-          </div>
-        </div>
-        <div class="notice-example">
-          <span>正确</span><span>填涂</span><span>示例</span>
-          <div class="example-marks"><span class="filled"></span></div>
-        </div>
-      </div>
-      <div class="section-bar">第 Ⅰ 卷　　选择题（请用2B铅笔填涂）</div>
-      <div class="choice-box">
-        <div class="choice-groups">${choiceGroupsHTML}</div>
-      </div>
-      <div class="section-bar">第 Ⅱ 卷　　非选择题（请用0.5毫米黑色墨水签字笔书写）</div>
-      ${fillHTML}
-      <div class="essay-columns">${colsHTML}</div>
-    </div>
-  `;
-  applyCSSToPage(document.getElementById('pageA'), v);
+    <div class="page-label">A 面（正面）</div>
+    <div class="page" data-paper="A4" id="pageA">${pageAContent}</div>
+    ${pageBHTML}`;
+
+  applyCSSToPage(previewWrap.querySelector('#pageA'), config);
+  const pageBEl = previewWrap.querySelector('#pageB');
+  if (pageBEl) applyCSSToPage(pageBEl, config);
 }
