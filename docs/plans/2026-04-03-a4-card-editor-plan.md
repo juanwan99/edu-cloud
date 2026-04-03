@@ -13,6 +13,7 @@
 **回归验证命令（每个 Task 完成后必跑）：**
 ```bash
 cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_services_exam/test_tpl_parser.py tests/test_api_exam/test_cards.py -x -q
+cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run
 ```
 
 ---
@@ -21,6 +22,7 @@ cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_services_exam
 
 **Files:**
 - Modify: `src/edu_cloud/modules/card/subject_defaults.py:428-470` (tql_to_editor_layout A4 路径)
+- Modify: `src/edu_cloud/modules/card/router.py:79-104` (A4 结构校验)
 - Test: `tests/test_services_exam/test_tpl_parser.py`
 
 **测试契约:**
@@ -110,6 +112,36 @@ class TestSubjectDefaults:
             assert layout["paper"] == "A3", f"{name} should be A3"
             # A3 A面至少 2 栏（col 0 fixed + col 1+ essay）
             assert len(layout["sides"][0]["columns"]) >= 2, f"{name} A面 should have ≥2 columns"
+
+
+@skip_no_tpl
+class TestTqlA4Contract:
+    """TQL 转换路径的 A4 契约测试（需要真实 .tpl 文件）。[F02 修复]"""
+
+    def test_tql_english_a4_single_column(self):
+        """TQL 英语模板转换后也满足 A4 单 column 契约。"""
+        from edu_cloud.modules.card.subject_defaults import get_default_layout
+        layout = get_default_layout("英语")
+        assert layout["paper"] == "A4"
+        for side in layout["sides"]:
+            assert len(side["columns"]) == 1, f"Side {side['side']} should have 1 column"
+
+    def test_tql_english_a_side_has_fixed_and_essay(self):
+        """TQL 英语 A 面 col 0 同时含 fixed + essay。"""
+        from edu_cloud.modules.card.subject_defaults import get_default_layout
+        layout = get_default_layout("英语")
+        regions = layout["sides"][0]["columns"][0]["regions"]
+        types = [r["type"] for r in regions]
+        assert "fixed" in types
+        assert "essay" in types
+
+    def test_tql_chemistry_a4_contract(self):
+        """TQL 化学模板转换后满足 A4 契约。"""
+        from edu_cloud.modules.card.subject_defaults import get_default_layout
+        layout = get_default_layout("化学")
+        if layout["paper"] == "A4":
+            for side in layout["sides"]:
+                assert len(side["columns"]) == 1
 ```
 
 - [ ] **Step 2: 运行测试确认 A3 测试通过、A4 测试状态**
@@ -168,7 +200,21 @@ else:
         })
 ```
 
-- [ ] **Step 4: 运行所有 tpl_parser + cards 测试**
+- [ ] **Step 4: 加固 router.py A4 结构校验 [F01 修复]**
+
+在 `router.py` 的 `get_editor_layout()` 中，扩展 `structure_mismatch` 检查。当前 L83 只检查 `default=A4 && saved!=A4`，新增：A4 saved layout 如果任一 side 有 >1 column，也视为 structure_mismatch：
+
+```python
+    # 扩展 A4 结构校验：A4 每面应只有 1 column
+    if not structure_mismatch and saved_paper == "A4":
+        saved_sides = layout.get("sides", [])
+        for side in saved_sides:
+            if len(side.get("columns", [])) > 1:
+                structure_mismatch = True
+                break
+```
+
+- [ ] **Step 5: 运行所有 tpl_parser + cards 测试**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_services_exam/test_tpl_parser.py tests/test_api_exam/test_cards.py -x -q
@@ -176,12 +222,12 @@ cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_services_exam
 
 预期: 全部 PASS（含新增的 A4 契约测试 + 旧的 A3 测试）。
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud
-git add src/edu_cloud/modules/card/subject_defaults.py tests/test_services_exam/test_tpl_parser.py
-git commit -m "feat: 统一 A4 layout 契约 — 每面单 column + 契约测试"
+git add src/edu_cloud/modules/card/subject_defaults.py src/edu_cloud/modules/card/router.py tests/test_services_exam/test_tpl_parser.py
+git commit -m "feat: 统一 A4 layout 契约 — 每面单 column + 结构校验 + 契约测试"
 ```
 
 ---
@@ -221,12 +267,17 @@ git commit -m "feat: 统一 A4 layout 契约 — 每面单 column + 契约测试
 }
 ```
 
-新增 `.a4-content` 容器样式：
+新增 `.a4-content` 容器样式和 B 面全高变体 [F05 修复]：
 ```css
 /* A4 页面内容容器（flex column，铺满 page） */
 .a4-content {
   display: flex;
   flex-direction: column;
+  height: 100%;
+}
+/* B 面全高变体：不需要 flex:1（没有固定区占位），直接铺满 */
+.a4-col--full {
+  flex: none;
   height: 100%;
 }
 ```
@@ -362,7 +413,7 @@ function _renderA4(previewWrap, layout, config, digitBoxes, choiceGroupsHTML, fi
       </div>
     </div>`;
 
-  // B 面
+  // B 面：有 regions 时渲染，无 regions 时不渲染 B 面 page [F05 修复]
   let pageBHTML = '';
   if (sideB && sideB.columns) {
     const bRegions = sideB.columns[0]?.regions || [];
@@ -371,7 +422,7 @@ function _renderA4(previewWrap, layout, config, digitBoxes, choiceGroupsHTML, fi
         <div class="page-label">B 面（背面）</div>
         <div class="page" data-paper="A4" id="pageB">
           <div class="a4-content">
-            <div class="a4-col" style="flex:none;height:100%;">
+            <div class="a4-col a4-col--full">
               ${renderColumnRegions(bRegions, false, 1, 0)}
             </div>
           </div>
@@ -658,10 +709,9 @@ git commit -m "fix: PDF 导出 — 清 marginBottom + CSS fetch 内联 + Noto CJ
 
 ```python
     async def test_english_returns_a4_layout(self, client: AsyncClient, seed_subject, db):
-        """英语科目应返回 A4 双面布局。"""
+        """英语科目应返回 A4 双面布局。[F03 修复: assert 而非 if]"""
         from edu_cloud.modules.exam.models import Subject
         headers, exam_id, _ = seed_subject
-        # 创建英语科目
         eng = Subject(
             exam_id=exam_id, name="英语", code="english",
             school_id="test-school-id", full_score=150, sort_order=2,
@@ -675,16 +725,48 @@ git commit -m "fix: PDF 导出 — 清 marginBottom + CSS fetch 内联 + Noto CJ
         data = resp.json()
         assert data["found"] is True
         layout = data["layout"]
-        # 验证 A4 契约
         paper = layout.get("paper") or layout.get("config", {}).get("paperSize")
+        assert paper == "A4", f"英语应返回 A4，实际返回 {paper}"
+        assert len(layout["sides"]) == 2
+        for side in layout["sides"]:
+            assert len(side["columns"]) == 1
+            assert side["columns"][0]["col"] == 0
+
+    async def test_chemistry_returns_correct_layout(self, client: AsyncClient, seed_subject, db):
+        """化学科目布局结构测试。[F04 修复: 补化学用例]"""
+        from edu_cloud.modules.exam.models import Subject
+        headers, exam_id, _ = seed_subject
+        chem = Subject(
+            exam_id=exam_id, name="化学", code="chemistry",
+            school_id="test-school-id", full_score=100, sort_order=3,
+        )
+        db.add(chem)
+        await db.commit()
+        await db.refresh(chem)
+
+        resp = await client.get(f"/api/v1/card/editor-layout/{chem.id}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["found"] is True
+        layout = data["layout"]
+        paper = layout.get("paper") or layout.get("config", {}).get("paperSize")
+        # 化学可能是 A4（TQL 路径）或 A3（fallback，14 选择 < 30）
+        # 无论哪种纸型，结构必须一致
         if paper == "A4":
-            assert len(layout["sides"]) == 2
             for side in layout["sides"]:
                 assert len(side["columns"]) == 1
-                assert side["columns"][0]["col"] == 0
+
+    async def test_math_stays_a3(self, client: AsyncClient, seed_subject):
+        """数学科目不应误升为 A4。[F03 修复: 反例断言]"""
+        headers, _, subject_id = seed_subject  # seed_subject 默认是数学
+        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+        assert resp.status_code == 200
+        layout = resp.json()["layout"]
+        paper = layout.get("paper") or layout.get("config", {}).get("paperSize")
+        assert paper == "A3", f"数学应返回 A3，实际返回 {paper}"
 ```
 
-注意：此测试取决于 TQL 文件是否存在。如果 TQL 不在测试环境中，`_fallback_layout` 会基于选择题数量（>30）判断。英语有 55 题选择 + B 面，满足条件。
+注意：英语 fallback 条件（>30 选择题 + B 面）在测试环境中满足。化学 fallback 为 A3（14 < 30），但 TQL 路径可能返回 A4。
 
 - [ ] **Step 2: 运行测试**
 
@@ -704,20 +786,163 @@ git commit -m "test: 英语 editor-layout A4 契约验证"
 
 ---
 
-### Task 7: 最终回归验证
+### Task 7: 前端 Vitest 渲染回归测试 [F06 修复]
+
+**Files:**
+- Create: `frontend/src/card-editor/__tests__/render.test.js`
+
+**测试契约:**
+1. renderFromLayout 对 A4 layout 生成正确 DOM 结构
+   - 入口: `renderFromLayout(container, a4Layout, config)` 在 happy-dom 中调用
+   - 反例: 错误实现不生成 `.a4-col` 容器 → 断言 querySelector('.a4-col') 为 null 时失败
+   - 边界: B 面无 regions → 无 #pageB 元素
+   - 回归: 防止 A4 渲染路径回退到旧的 flat HTML
+   - 命令: `cd frontend && npx vitest run src/card-editor/__tests__/render.test.js`
+
+**审查清单:**
+- ✓ A4 layout 生成 `.a4-content > .a4-col` 结构
+- ✓ A3 layout 生成 `.a3-layout > .a3-col` 结构（不变）
+- ✗ A4 layout 生成 `.a4-essay-area`（旧结构）
+
+**边界条件:**
+- A4 无 B 面 → 不生成 #pageB
+- A4 B 面有 regions → 生成 `.a4-col.a4-col--full`
+- A3 layout → 生成 3 个 `.a3-col`
+
+- [ ] **Step 1: 写 Vitest 渲染测试**
+
+```javascript
+// frontend/src/card-editor/__tests__/render.test.js
+import { describe, it, expect, beforeEach } from 'vitest'
+import { renderFromLayout, applyCSSToPage } from '../render.js'
+
+function makeA4Layout() {
+  return {
+    paper: 'A4',
+    config: { paperSize: 'A4', examTitle: 'Test', subjectTitle: '英语',
+      choiceCount: 0, optionCount: 4, choicePerRow: 15, choiceGroups: [],
+      fillCount: 0, essayCount: 1, essayConfig: [{ score: 10 }],
+      titleSize: 14, subtitleSize: 16, titleSpacing: 1, subtitleSpacing: 4,
+      titleGap: 1, subtitleGap: 1.5, infoHeight: 18, infoPadding: 2,
+      infoRowGap: 2, infoFontSize: 10, infoBorderWidth: 1, nameLineWidth: 35,
+      digitCount: 9, digitBoxSize: 4.5, digitGap: 0.8, barcodeWidthPct: 40,
+      barcodeTitleSize: 12, noticeHeight: 20, noticeLabelWidth: 6,
+      noticeLabelSize: 10, noticeFontSize: 7, exampleWidth: 10,
+      noticeBorderWidth: 1, absentPadding: 1, zoom: 100 },
+    sides: [
+      { side: 'A', columns: [{ col: 0, regions: [
+        { id: 'header', type: 'fixed', role: 'header' },
+        { id: 'essay-1', type: 'essay', qno: 1, score: 10, subs: [], heightRatio: 1 },
+      ]}]},
+      { side: 'B', columns: [{ col: 0, regions: [
+        { id: 'essay-2', type: 'essay', qno: 2, score: 10, subs: [], heightRatio: 1 },
+      ]}]},
+    ],
+  }
+}
+
+function makeA3Layout() {
+  return {
+    paper: 'A3',
+    config: { paperSize: 'A3', examTitle: 'Test', subjectTitle: '数学',
+      choiceCount: 0, optionCount: 4, choicePerRow: 15, choiceGroups: [],
+      fillCount: 0, essayCount: 1, essayConfig: [{ score: 10 }],
+      titleSize: 14, subtitleSize: 16, titleSpacing: 1, subtitleSpacing: 4,
+      titleGap: 1, subtitleGap: 1.5, infoHeight: 18, infoPadding: 2,
+      infoRowGap: 2, infoFontSize: 10, infoBorderWidth: 1, nameLineWidth: 35,
+      digitCount: 9, digitBoxSize: 4.5, digitGap: 0.8, barcodeWidthPct: 40,
+      barcodeTitleSize: 12, noticeHeight: 20, noticeLabelWidth: 6,
+      noticeLabelSize: 10, noticeFontSize: 7, exampleWidth: 10,
+      noticeBorderWidth: 1, absentPadding: 1, zoom: 100 },
+    sides: [
+      { side: 'A', columns: [
+        { col: 0, regions: [{ id: 'header', type: 'fixed', role: 'header' }] },
+        { col: 1, regions: [{ id: 'essay-1', type: 'essay', qno: 1, score: 10, subs: [], heightRatio: 1 }] },
+        { col: 2, regions: [] },
+      ]},
+      { side: 'B', columns: [
+        { col: 0, regions: [] }, { col: 1, regions: [] }, { col: 2, regions: [] },
+      ]},
+    ],
+  }
+}
+
+describe('renderFromLayout', () => {
+  let container
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    // mock window globals card-editor expects
+    window._choices = []
+  })
+
+  it('A4 layout generates .a4-content > .a4-col structure', () => {
+    const layout = makeA4Layout()
+    renderFromLayout(container, layout, layout.config)
+    expect(container.querySelector('.a4-content')).not.toBeNull()
+    expect(container.querySelector('.a4-col')).not.toBeNull()
+    expect(container.querySelector('.a3-layout')).toBeNull()
+  })
+
+  it('A4 B-side with regions generates #pageB with .a4-col--full', () => {
+    const layout = makeA4Layout()
+    renderFromLayout(container, layout, layout.config)
+    const pageB = container.querySelector('#pageB')
+    expect(pageB).not.toBeNull()
+    expect(pageB.querySelector('.a4-col--full')).not.toBeNull()
+  })
+
+  it('A4 B-side without regions does not generate #pageB', () => {
+    const layout = makeA4Layout()
+    layout.sides[1].columns[0].regions = []
+    renderFromLayout(container, layout, layout.config)
+    expect(container.querySelector('#pageB')).toBeNull()
+  })
+
+  it('A3 layout generates .a3-layout > .a3-col structure', () => {
+    const layout = makeA3Layout()
+    renderFromLayout(container, layout, layout.config)
+    expect(container.querySelector('.a3-layout')).not.toBeNull()
+    expect(container.querySelectorAll('.a3-col').length).toBe(3)
+    expect(container.querySelector('.a4-col')).toBeNull()
+  })
+})
+```
+
+- [ ] **Step 2: 运行 Vitest**
+
+```bash
+cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run src/card-editor/__tests__/render.test.js
+```
+
+预期: 全部 PASS。
+
+- [ ] **Step 3: Commit**
+
+```bash
+cd C:/Users/Administrator/edu-cloud
+git add frontend/src/card-editor/__tests__/render.test.js
+git commit -m "test: A4/A3 渲染 DOM 结构 Vitest 回归测试"
+```
+
+---
+
+### Task 8: 最终回归验证
 
 **审查清单:**
 - ✓ 全部后端测试通过
+- ✓ 全部前端 Vitest 测试通过
 - ✓ A3 科目（数学等）布局不受影响
 - ✓ design.md 标记状态
 
-- [ ] **Step 1: 跑完整回归**
+- [ ] **Step 1: 跑完整回归（后端 + 前端）**
 
 ```bash
 cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_services_exam/test_tpl_parser.py tests/test_api_exam/test_cards.py -v
+cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run
 ```
 
-预期: 所有测试 PASS，含 Task 1 和 Task 6 新增的测试。
+预期: 所有后端和前端测试 PASS。
 
 - [ ] **Step 2: 输出审查交接单**
 
