@@ -26,17 +26,17 @@
     {
       "id": "5",
       "desc": "LLM Adapter protocol and LLMProxyAdapter",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "id": "6",
       "desc": "CapabilityProbe",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "id": "7",
       "desc": "SensitivityRouter",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "id": "8",
