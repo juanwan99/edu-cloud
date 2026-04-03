@@ -21,7 +21,7 @@ export function initExport() {
       btnPdf.disabled = true;
       btnPdf.textContent = '导出中...';
       try {
-        const html = getCleanHTML();
+        const html = await getCleanHTML();
         const resp = await fetch('/api/v1/card/export/pdf', {
           method: 'POST',
           headers: getAuthHeaders(),
@@ -47,7 +47,7 @@ export function initExport() {
       btnSkeleton.disabled = true;
       btnSkeleton.textContent = '提取中...';
       try {
-        const html = getCleanHTML();
+        const html = await getCleanHTML();
         const resp = await fetch('/api/v1/card/export/skeleton', {
           method: 'POST',
           headers: getAuthHeaders(),
@@ -70,7 +70,29 @@ export function initExport() {
   }
 }
 
-function getCleanHTML() {
+let _cachedStyleCSS = null;
+
+async function fetchStyleCSS() {
+  if (_cachedStyleCSS) return _cachedStyleCSS;
+  try {
+    const resp = await fetch('/card-editor/styles.css');
+    if (resp.ok) {
+      _cachedStyleCSS = await resp.text();
+      return _cachedStyleCSS;
+    }
+  } catch { /* fetch 失败，降级 */ }
+  // fallback: 运行时扫描 document.styleSheets
+  for (const sheet of document.styleSheets) {
+    try {
+      if (sheet.href && sheet.href.includes('styles.css')) {
+        return Array.from(sheet.cssRules).map(r => r.cssText).join('\n');
+      }
+    } catch { /* 跨域 */ }
+  }
+  return '';
+}
+
+async function getCleanHTML() {
   const pages = document.querySelectorAll('.page');
   let pagesHTML = '';
 
@@ -82,8 +104,9 @@ function getCleanHTML() {
     clone.querySelectorAll('.divider-handle, .divider-gap, .ctx-menu').forEach(el => el.remove());
     clone.querySelectorAll('.region-selected').forEach(el => el.classList.remove('region-selected'));
 
-    // 移除编辑器 transform 缩放
+    // 移除编辑器 transform 缩放和 marginBottom
     clone.style.transform = '';
+    clone.style.marginBottom = '';
 
     // 复制 CSS 变量（从原始 page 元素的 style）
     const computed = page.style;
@@ -101,16 +124,8 @@ function getCleanHTML() {
     pagesHTML += clone.outerHTML;
   }
 
-  // 提取样式表内容（只要答题卡相关的，排除编辑器 UI）
-  let styleContent = '';
-  for (const sheet of document.styleSheets) {
-    try {
-      if (sheet.href && sheet.href.includes('styles.css')) {
-        const rules = Array.from(sheet.cssRules).map(r => r.cssText).join('\n');
-        styleContent = rules;
-      }
-    } catch (e) { /* 跨域 */ }
-  }
+  // CSS 获取：优先 fetch，fallback 到 document.styleSheets
+  const styleContent = await fetchStyleCSS();
 
   // 导出 HTML：覆盖 body 样式为打印友好
   return `<!DOCTYPE html>
@@ -121,7 +136,7 @@ function getCleanHTML() {
 ${styleContent}
 /* 导出覆盖：去除编辑器 UI 样式 */
 body {
-  font-family: SimSun, "宋体", serif;
+  font-family: SimSun, "宋体", "Noto Serif CJK SC", serif;
   background: white !important;
   color: #000 !important;
   display: block !important;
@@ -159,7 +174,7 @@ function downloadBlob(blob, filename) {
  * @returns {Promise<{pdf: Blob, skeleton: object}>}
  */
 export async function publishCard(subjectId, filename = '答题卡.pdf') {
-  const html = getCleanHTML();
+  const html = await getCleanHTML();
   const paperSize = getCurrentPaperSize();
   const headers = getAuthHeaders();
 
@@ -200,3 +215,108 @@ export async function publishCard(subjectId, filename = '答题卡.pdf') {
 
 // Expose getCleanHTML for external use
 export { getCleanHTML };
+
+/**
+ * 批量导出所有科目的答题卡 PDF。
+ * 在隐藏容器中逐科渲染布局 → 生成 HTML → 调用后端 PDF 接口 → 触发下载。
+ * @param {Array} subjects - [{id, name, code}, ...]
+ * @param {string} examTitle - 考试名称（用于答题卡标题）
+ * @param {function} onProgress - (current, total, subjectName) => void
+ */
+export async function batchExportPdf(subjects, examTitle = '', onProgress = null) {
+  const { renderFromLayout, applyCSSToPage } = await import('@/card-editor/render.js')
+  const headers = getAuthHeaders()
+
+  // 创建隐藏渲染容器
+  const container = document.createElement('div')
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:420mm;'
+  document.body.appendChild(container)
+
+  // 确保 styles.css 已加载
+  if (!document.getElementById('card-editor-styles')) {
+    const link = document.createElement('link')
+    link.id = 'card-editor-styles'
+    link.rel = 'stylesheet'
+    link.href = '/card-editor/styles.css'
+    document.head.appendChild(link)
+    await new Promise(r => { link.onload = r; setTimeout(r, 1000) })
+  }
+
+  const results = []
+
+  for (let i = 0; i < subjects.length; i++) {
+    const subj = subjects[i]
+    if (onProgress) onProgress(i + 1, subjects.length, subj.name)
+
+    try {
+      // 1. 加载科目布局
+      const resp = await fetch(`/api/v1/card/editor-layout/${subj.id}`, { headers })
+      if (!resp.ok) { results.push({ name: subj.name, error: `HTTP ${resp.status}` }); continue }
+      const data = await resp.json()
+      if (!data.found || !data.layout) { results.push({ name: subj.name, error: '无布局数据' }); continue }
+
+      const layout = data.layout
+      const config = { ...layout.config, ...(data.config || {}), examTitle, subjectTitle: subj.name }
+      layout.config = config
+      const paperSize = layout.paper || config.paperSize || 'A3'
+
+      // 2. 在隐藏容器中渲染
+      const previewWrap = document.createElement('div')
+      container.appendChild(previewWrap)
+      renderFromLayout(previewWrap, layout, config)
+
+      // 3. 提取干净 HTML（复用 getCleanHTML 逻辑）
+      const pages = previewWrap.querySelectorAll('.page')
+      let pagesHTML = ''
+      for (let pi = 0; pi < pages.length; pi++) {
+        const clone = pages[pi].cloneNode(true)
+        clone.querySelectorAll('.divider-handle, .divider-gap, .ctx-menu, .sub-del-btn, .cut-del-btn, .add-sub-hint, .img-del-btn').forEach(el => el.remove())
+        clone.querySelectorAll('.region-selected').forEach(el => el.classList.remove('region-selected'))
+        clone.style.transform = ''
+        clone.style.marginBottom = ''
+        // 复制 CSS 变量
+        const orig = pages[pi]
+        for (let si = 0; si < orig.style.length; si++) {
+          const prop = orig.style[si]
+          if (prop.startsWith('--')) clone.style.setProperty(prop, orig.style.getPropertyValue(prop))
+        }
+        if (pi > 0) pagesHTML += '<div style="page-break-before:always;"></div>'
+        pagesHTML += clone.outerHTML
+      }
+
+      // 提取样式表（复用 fetchStyleCSS）
+      const styleContent = await fetchStyleCSS()
+
+      const fullHTML = `<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><style>
+${styleContent}
+body { font-family: SimSun, "宋体", "Noto Serif CJK SC", serif; background: white !important; color: #000 !important; margin: 0; padding: 0; }
+.panel, .preview-wrap, .status, .page-label, .ctx-menu, .divider-handle, .divider-gap { display: none !important; }
+.page { background: white !important; box-shadow: none !important; margin: 0 !important; }
+@page { margin: 0; }
+</style></head><body>${pagesHTML}</body></html>`
+
+      // 4. 调用后端 PDF 接口
+      const pdfResp = await fetch('/api/v1/card/export/pdf', {
+        method: 'POST', headers,
+        body: JSON.stringify({ html: fullHTML, paper_size: paperSize }),
+      })
+      if (!pdfResp.ok) { results.push({ name: subj.name, error: `PDF 导出失败 HTTP ${pdfResp.status}` }); continue }
+
+      const blob = await pdfResp.blob()
+      downloadBlob(blob, `答题卡_${subj.name}.pdf`)
+      results.push({ name: subj.name, ok: true })
+
+      // 清理渲染容器
+      container.removeChild(previewWrap)
+
+      // 间隔 300ms 避免浏览器下载限制
+      await new Promise(r => setTimeout(r, 300))
+    } catch (e) {
+      results.push({ name: subj.name, error: e.message })
+    }
+  }
+
+  document.body.removeChild(container)
+  return results
+}
