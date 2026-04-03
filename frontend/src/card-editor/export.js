@@ -100,8 +100,8 @@ async function getCleanHTML() {
     const page = pages[pi];
     const clone = page.cloneNode(true);
 
-    // 移除交互层元素
-    clone.querySelectorAll('.divider-handle, .divider-gap, .ctx-menu').forEach(el => el.remove());
+    // 移除交互层 + 编辑器占位元素
+    clone.querySelectorAll('.divider-handle, .divider-gap, .ctx-menu, .empty-col-slot, .sub-del-btn, .cut-del-btn, .add-sub-hint, .img-del-btn').forEach(el => el.remove());
     clone.querySelectorAll('.region-selected').forEach(el => el.classList.remove('region-selected'));
 
     // 移除编辑器 transform 缩放和 marginBottom
@@ -145,7 +145,8 @@ body {
   margin: 0; padding: 0;
 }
 .panel, .preview-wrap, .status, .page-label, .ctx-menu,
-.divider-handle, .divider-gap { display: none !important; }
+.divider-handle, .divider-gap, .empty-col-slot,
+.sub-del-btn, .cut-del-btn, .add-sub-hint, .img-del-btn { display: none !important; }
 .page {
   background: white !important;
   box-shadow: none !important;
@@ -227,9 +228,9 @@ export async function batchExportPdf(subjects, examTitle = '', onProgress = null
   const { renderFromLayout, applyCSSToPage } = await import('@/card-editor/render.js')
   const headers = getAuthHeaders()
 
-  // 创建隐藏渲染容器
+  // 创建隐藏渲染容器（宽度按科目纸型动态设置）
   const container = document.createElement('div')
-  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:420mm;'
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;'
   document.body.appendChild(container)
 
   // 确保 styles.css 已加载
@@ -260,7 +261,8 @@ export async function batchExportPdf(subjects, examTitle = '', onProgress = null
       layout.config = config
       const paperSize = layout.paper || config.paperSize || 'A3'
 
-      // 2. 在隐藏容器中渲染
+      // 2. 在隐藏容器中渲染（宽度匹配纸型）
+      container.style.width = paperSize === 'A4' ? '210mm' : '420mm'
       const previewWrap = document.createElement('div')
       container.appendChild(previewWrap)
       renderFromLayout(previewWrap, layout, config)
@@ -270,7 +272,7 @@ export async function batchExportPdf(subjects, examTitle = '', onProgress = null
       let pagesHTML = ''
       for (let pi = 0; pi < pages.length; pi++) {
         const clone = pages[pi].cloneNode(true)
-        clone.querySelectorAll('.divider-handle, .divider-gap, .ctx-menu, .sub-del-btn, .cut-del-btn, .add-sub-hint, .img-del-btn').forEach(el => el.remove())
+        clone.querySelectorAll('.divider-handle, .divider-gap, .ctx-menu, .empty-col-slot, .sub-del-btn, .cut-del-btn, .add-sub-hint, .img-del-btn').forEach(el => el.remove())
         clone.querySelectorAll('.region-selected').forEach(el => el.classList.remove('region-selected'))
         clone.style.transform = ''
         clone.style.marginBottom = ''
@@ -291,7 +293,7 @@ export async function batchExportPdf(subjects, examTitle = '', onProgress = null
 <html lang="zh-CN"><head><meta charset="UTF-8"><style>
 ${styleContent}
 body { font-family: SimSun, "宋体", "Noto Serif CJK SC", serif; background: white !important; color: #000 !important; margin: 0; padding: 0; }
-.panel, .preview-wrap, .status, .page-label, .ctx-menu, .divider-handle, .divider-gap { display: none !important; }
+.panel, .preview-wrap, .status, .page-label, .ctx-menu, .divider-handle, .divider-gap, .empty-col-slot, .sub-del-btn, .cut-del-btn, .add-sub-hint, .img-del-btn { display: none !important; }
 .page { background: white !important; box-shadow: none !important; margin: 0 !important; }
 @page { margin: 0; }
 </style></head><body>${pagesHTML}</body></html>`
