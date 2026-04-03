@@ -1,0 +1,18 @@
+{
+  "topic": "a4-card-editor",
+  "plan_file": "docs/plans/2026-04-03-a4-card-editor-plan.md",
+  "design_file": "docs/plans/2026-04-03-a4-card-editor-design.md",
+  "gates": {
+    "plan_review": {
+      "status": "pending",
+      "required": true,
+      "reviewer": "gpt-codex"
+    },
+    "code_review": {
+      "status": "pending",
+      "required": true,
+      "reviewer": "gpt-codex"
+    }
+  },
+  "created_at": "2026-04-03 17:35:39"
+}
