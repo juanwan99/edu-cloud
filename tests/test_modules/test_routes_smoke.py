@@ -214,6 +214,6 @@ async def test_llm_config_no_auth(client: AsyncClient):
 async def test_question_create_invalid_subject(client: AsyncClient, teacher_headers):
     resp = await client.post("/api/v1/questions", json={
         "subject_id": "nonexistent", "name": "题1",
-        "question_type": "objective", "max_score": 5,
+        "question_type": "choice", "max_score": 5,
     }, headers=teacher_headers)
     assert resp.status_code == 404

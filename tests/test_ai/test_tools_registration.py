@@ -63,6 +63,21 @@ def test_empty_categories_no_tools():
     assert len(schemas) == 0
 
 
+def test_new_domain_tools_registered():
+    """All 6 new domain tools (W1-W3) are registered by name."""
+    all_tool_names = tools.list_tools()
+    expected = [
+        "get_exam_overview",
+        "get_class_report",
+        "get_student_diagnosis",
+        "get_findings",
+        "get_agent_tasks",
+        "get_student_learning_profile",
+    ]
+    for name in expected:
+        assert name in all_tool_names, f"Tool {name!r} not registered; have: {sorted(all_tool_names)}"
+
+
 def test_get_all_specs_returns_toolspec():
     """get_all_specs() returns ToolSpec objects with correct fields."""
     specs = tools.get_all_specs()

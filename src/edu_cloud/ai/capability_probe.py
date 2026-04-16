@@ -9,10 +9,6 @@ from edu_cloud.ai.schemas import Message
 
 logger = logging.getLogger(__name__)
 
-TIER_1_MIN_CONTEXT = 100_000
-TIER_2_MIN_CONTEXT = 30_000
-
-
 @dataclass(frozen=True)
 class LoopStrategy:
     tier: int
@@ -37,7 +33,9 @@ class LoopStrategy:
 
 
 class CapabilityProbe:
-    def __init__(self):
+    def __init__(self, tier_thresholds: list[int] | None = None):
+        from edu_cloud.config import settings
+        self._tier_thresholds = tier_thresholds or settings.TIER_CONTEXT_THRESHOLDS
         self._override: int | None = None
         self._cached_tier: int | None = None
 
@@ -56,9 +54,9 @@ class CapabilityProbe:
         has_tool_use = await self._test_tool_use(adapter)
         context_window = adapter.context_window_size()
 
-        if has_tool_use and context_window >= TIER_1_MIN_CONTEXT:
+        if has_tool_use and context_window >= self._tier_thresholds[0]:
             tier = 1
-        elif has_tool_use and context_window >= TIER_2_MIN_CONTEXT:
+        elif has_tool_use and context_window >= self._tier_thresholds[1]:
             tier = 2
         else:
             tier = 3

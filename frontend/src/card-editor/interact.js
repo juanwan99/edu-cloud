@@ -1,19 +1,22 @@
 // interact.js — 交互层：分割线拖拽、区域选中、右键菜单
-import { splitRegion, mergeRegions, resizeDivider } from './model.js';
+import { splitRegion, mergeRegions, resizeDivider, renumberAll } from './model.js';
 import { renderFromLayout } from './render.js';
 
 let selectedRegion = null;
 let selectedEl = null;
-let initialized = false;
+let abortCtrl = null;
 
 export function initInteraction() {
-  if (initialized) return; // 事件委托只绑定一次
-  initialized = true;
+  // HMR 安全：先清理旧监听器再注册新的
+  if (abortCtrl) abortCtrl.abort();
+  abortCtrl = new AbortController();
+  const signal = abortCtrl.signal;
 
-  initDividerDrag();
-  initRegionSelection();
-  initContextMenu();
-  initInlineEdit();
+  initDividerDrag(signal);
+  initCutLineDrag(signal);
+  initRegionSelection(signal);
+  initContextMenu(signal);
+  initInlineEdit(signal);
 }
 
 // 将可编辑区域的 divider 索引映射到 col.regions 的实际索引
@@ -29,7 +32,7 @@ function editableToRealIndex(col, editableIdx) {
 }
 
 // ── 分割线拖拽（事件委托到 document） ──
-function initDividerDrag() {
+function initDividerDrag(signal) {
   document.addEventListener('mousedown', (e) => {
     const handle = e.target.closest('.divider-handle');
     if (!handle) return;
@@ -52,15 +55,22 @@ function initDividerDrag() {
     let lastY = e.clientY;
     const colEl = handle.closest('.a3-col');
     const colHeight = colEl ? colEl.getBoundingClientRect().height : 800;
+    const LINE_H_PX = 28; // 一行高度 ≈ 7.5mm @96dpi
+    let accumDelta = 0; // 累积像素，达到一行才触发
 
     handle.classList.add('dragging');
 
     const onMouseMove = (moveEvt) => {
-      const deltaPixels = moveEvt.clientY - lastY;
+      accumDelta += moveEvt.clientY - lastY;
       lastY = moveEvt.clientY;
-      const deltaRatio = deltaPixels / colHeight;
-      resizeDivider(layout, sideIdx, colIdx, upperRealIdx, deltaRatio);
-      updateFlexValues(colEl, col);
+      // snap 到行：累积到整行才触发一次 resize
+      const lines = Math.trunc(accumDelta / LINE_H_PX);
+      if (lines !== 0) {
+        accumDelta -= lines * LINE_H_PX;
+        const deltaRatio = (lines * LINE_H_PX) / colHeight;
+        resizeDivider(layout, sideIdx, colIdx, upperRealIdx, deltaRatio);
+        updateFlexValues(colEl, col);
+      }
     };
 
     const onMouseUp = () => {
@@ -73,7 +83,71 @@ function initDividerDrag() {
 
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
-  });
+  }, { signal });
+}
+
+// ── 题内分割线拖拽（在小问之间 snap） ──
+function initCutLineDrag(signal) {
+  document.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return; // 只响应左键
+    const cutEl = e.target.closest('.essay-cut-line');
+    if (!cutEl) return;
+    e.preventDefault();
+
+    const layout = window._cardLayout;
+    if (!layout) return;
+
+    const regionId = cutEl.dataset.region;
+    const cutIdx = parseInt(cutEl.dataset.cut);
+    const region = findRegion(layout, regionId);
+    if (!region || !region.cuts || !region.subs || region.subs.length < 2) return;
+
+    const essayEl = cutEl.closest('.essay-item');
+    if (!essayEl) return;
+
+    // 收集所有小问 block 的中点 Y 坐标（用于 snap）
+    const subBlocks = essayEl.querySelectorAll('.essay-sub-block');
+    const gaps = []; // 小问间隙：{ afterSub, y } — y 是两个小问之间的中点
+    for (let i = 0; i < subBlocks.length - 1; i++) {
+      const rect1 = subBlocks[i].getBoundingClientRect();
+      const rect2 = subBlocks[i + 1].getBoundingClientRect();
+      gaps.push({ afterSub: i, y: (rect1.bottom + rect2.top) / 2 });
+    }
+
+    cutEl.classList.add('cut-dragging');
+    const usedPositions = new Set(region.cuts.filter((_, i) => i !== cutIdx).map(c => c.afterSub));
+
+    const onMove = (moveEvt) => {
+      const mouseY = moveEvt.clientY;
+      let closest = null;
+      let minDist = Infinity;
+      for (const gap of gaps) {
+        if (usedPositions.has(gap.afterSub)) continue;
+        const dist = Math.abs(mouseY - gap.y);
+        if (dist < minDist) { minDist = dist; closest = gap; }
+      }
+      if (closest && closest.afterSub !== region.cuts[cutIdx].afterSub) {
+        region.cuts[cutIdx].afterSub = closest.afterSub;
+        const targetBlock = subBlocks[closest.afterSub];
+        if (targetBlock && targetBlock.nextSibling !== cutEl) {
+          targetBlock.after(cutEl);
+        }
+        cutEl.dataset.afterSub = closest.afterSub;
+      }
+    };
+
+    const onUp = () => {
+      cutEl.classList.remove('cut-dragging');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      const v = window._getValues();
+      renderFromLayout(window._previewWrap, layout, v);
+      if (window._renderQuestionList) window._renderQuestionList();
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, { signal });
 }
 
 // 拖拽中轻量更新：只改 flex 比例，不重建 DOM
@@ -87,11 +161,56 @@ function updateFlexValues(colEl, col) {
 }
 
 // ── 区域选中（事件委托） ──
-function initRegionSelection() {
+function initRegionSelection(signal) {
   document.addEventListener('click', (e) => {
     if (e.target.closest('.ctx-menu')) return;
     if (e.target.closest('.region-props') || e.target.closest('#regionProps')) return;
     if (e.target.closest('.divider-handle')) return;
+
+    // 点击分割线删除按钮
+    const cutDelBtn = e.target.closest('.cut-del-btn');
+    if (cutDelBtn && cutDelBtn.dataset.region && cutDelBtn.dataset.cut != null) {
+      const layout = window._cardLayout;
+      if (!layout) return;
+      const r = findRegion(layout, cutDelBtn.dataset.region);
+      if (r && r.cuts) {
+        const cutIdx = parseInt(cutDelBtn.dataset.cut);
+        if (cutIdx >= 0 && cutIdx < r.cuts.length) {
+          r.cuts.splice(cutIdx, 1);
+        }
+        if (r.subs) {
+          r.cuts = r.cuts.filter(c => typeof c.afterSub === 'number' && c.afterSub >= 0 && c.afterSub < r.subs.length - 1);
+        }
+        const v = window._getValues();
+        renderFromLayout(window._previewWrap, layout, v);
+        if (window._renderQuestionList) window._renderQuestionList();
+      }
+      return;
+    }
+
+    // 点击小问删除按钮：整体删除该小问
+    const subDelBtn = e.target.closest('.sub-del-btn');
+    if (subDelBtn && subDelBtn.dataset.region && subDelBtn.dataset.sub != null) {
+      const layout = window._cardLayout;
+      if (!layout) return;
+      const r = findRegion(layout, subDelBtn.dataset.region);
+      const si = parseInt(subDelBtn.dataset.sub);
+      if (r && r.subs && si >= 0 && si < r.subs.length) {
+        r.subs.splice(si, 1);
+        r.subs.forEach((s, i) => { s.sub = i + 1; });
+        // 同步分割线
+        if (r.cuts) {
+          r.cuts = r.cuts
+            .filter(c => c.afterSub !== si)
+            .map(c => ({ ...c, afterSub: c.afterSub > si ? c.afterSub - 1 : c.afterSub }))
+            .filter(c => typeof c.afterSub === 'number' && c.afterSub >= 0 && c.afterSub < r.subs.length - 1);
+        }
+        const v = window._getValues();
+        renderFromLayout(window._previewWrap, layout, v);
+        if (window._renderQuestionList) window._renderQuestionList();
+      }
+      return;
+    }
 
     const regionEl = e.target.closest('[data-region-id]');
     if (regionEl) {
@@ -107,12 +226,43 @@ function initRegionSelection() {
       selectedRegion = null;
       if (window._onRegionSelect) window._onRegionSelect(null, null);
     }
-  });
+  }, { signal });
 }
 
 // ── 右键菜单（事件委托） ──
-function initContextMenu() {
+function initContextMenu(signal) {
   document.addEventListener('contextmenu', (e) => {
+    // 空栏占位：右键添加题目
+    const emptySlot = e.target.closest('.empty-col-slot');
+    if (emptySlot) {
+      e.preventDefault();
+      document.querySelectorAll('.ctx-menu').forEach(m => m.remove());
+      const layout = window._cardLayout;
+      if (!layout) return;
+      const si = parseInt(emptySlot.dataset.emptySide);
+      const ci = parseInt(emptySlot.dataset.emptyCol);
+      const targetCol = layout.sides[si]?.columns[ci];
+      if (!targetCol) return;
+      const menu = document.createElement('div');
+      menu.className = 'ctx-menu';
+      menu.style.left = e.clientX + 'px';
+      menu.style.top = e.clientY + 'px';
+      const addItem = document.createElement('div');
+      addItem.className = 'ctx-menu-item';
+      addItem.textContent = '在此处添加题目';
+      addItem.onclick = () => {
+        targetCol.regions.push({ id: `essay-new-${Date.now()}`, type: 'essay', qno: 0, score: 12, subs: [], heightRatio: 1.0 });
+        renumberAll(layout);
+        const v = window._getValues();
+        renderFromLayout(window._previewWrap, layout, v);
+        if (window._renderQuestionList) window._renderQuestionList();
+        menu.remove();
+      };
+      menu.appendChild(addItem);
+      document.body.appendChild(menu);
+      return;
+    }
+
     const regionEl = e.target.closest('[data-region-id]');
     if (!regionEl) return;
     e.preventDefault();
@@ -122,8 +272,99 @@ function initContextMenu() {
     const layout = window._cardLayout;
     if (!layout) return;
 
+    // 右键下划线：直接删除
+    const blankEl = e.target.closest('.essay-line');
+    if (blankEl && blankEl.dataset.sub != null && blankEl.dataset.blank != null) {
+      const rid = blankEl.dataset.region;
+      const si = parseInt(blankEl.dataset.sub);
+      const bi = parseInt(blankEl.dataset.blank);
+      const r = findRegion(layout, rid);
+      if (r && r.subs && r.subs[si] && r.subs[si].blanks && r.subs[si].blanks.length > 0) {
+        r.subs[si].blanks.splice(bi, 1);
+        const v = window._getValues();
+        renderFromLayout(window._previewWrap, layout, v);
+        if (window._renderQuestionList) window._renderQuestionList();
+      }
+      return;
+    }
+
+    // 右键小问标签（括号区）：删除整个小问
+    const subLabel = e.target.closest('.essay-sub-label');
+    if (subLabel && subLabel.dataset.sub != null) {
+      const rid = subLabel.dataset.region;
+      const si = parseInt(subLabel.dataset.sub);
+      const r = findRegion(layout, rid);
+      if (r && r.subs && r.subs.length > 0) {
+        r.subs.splice(si, 1);
+        // 重编小问序号
+        r.subs.forEach((s, i) => { s.sub = i + 1; });
+        // 同步分割线：删除引用被删小问的分割线，调整后续位置
+        if (r.cuts) {
+          r.cuts = r.cuts
+            .filter(c => c.afterSub !== si) // 删除恰好在被删小问后面的分割线
+            .map(c => ({ ...c, afterSub: c.afterSub > si ? c.afterSub - 1 : c.afterSub }))
+            .filter(c => c.afterSub >= 0 && c.afterSub < r.subs.length - 1); // 去掉越界的
+        }
+        const v = window._getValues();
+        renderFromLayout(window._previewWrap, layout, v);
+        if (window._renderQuestionList) window._renderQuestionList();
+      }
+      return;
+    }
+
+    // 右键题内分割线：直接删除
+    const cutEl = e.target.closest('.essay-cut-line');
+    if (cutEl && cutEl.dataset.region && cutEl.dataset.cut != null) {
+      const r = findRegion(layout, cutEl.dataset.region);
+      if (r && r.cuts) {
+        const cutIdx = parseInt(cutEl.dataset.cut);
+        if (cutIdx >= 0 && cutIdx < r.cuts.length) {
+          r.cuts.splice(cutIdx, 1);
+        }
+        // 清理无效 cuts（旧格式或越界）
+        if (r.subs) {
+          r.cuts = r.cuts.filter(c => typeof c.afterSub === 'number' && c.afterSub >= 0 && c.afterSub < r.subs.length - 1);
+        }
+        const v = window._getValues();
+        renderFromLayout(window._previewWrap, layout, v);
+        if (window._renderQuestionList) window._renderQuestionList();
+      }
+      return;
+    }
+
     const regionId = regionEl.dataset.regionId;
     const region = findRegion(layout, regionId);
+
+    // 空占位区域：解析 __empty_s{N}c{N} 添加题目到正确的列
+    const emptyMatch = regionId.match(/^__empty_s(\d+)c(\d+)$/);
+    if (!region && emptyMatch) {
+      const si = parseInt(emptyMatch[1]);
+      const ci = parseInt(emptyMatch[2]);
+      const targetCol = layout.sides[si]?.columns[ci];
+      if (!targetCol) return;
+      const menu = document.createElement('div');
+      menu.className = 'ctx-menu';
+      menu.style.left = e.clientX + 'px';
+      menu.style.top = e.clientY + 'px';
+      const addItem = document.createElement('div');
+      addItem.className = 'ctx-menu-item';
+      addItem.textContent = '在此处添加题目';
+      addItem.onclick = () => {
+        targetCol.regions.push({
+          id: `essay-new-${Date.now()}`, type: 'essay', qno: 0, score: 12, subs: [],
+          heightRatio: 1.0,
+        });
+        renumberAll(layout);
+        const v = window._getValues();
+        renderFromLayout(window._previewWrap, layout, v);
+        if (window._renderQuestionList) window._renderQuestionList();
+        menu.remove();
+      };
+      menu.appendChild(addItem);
+      document.body.appendChild(menu);
+      return;
+    }
+
     if (!region || region.type === 'fixed') return;
 
     const menu = document.createElement('div');
@@ -131,20 +372,48 @@ function initContextMenu() {
     menu.style.left = e.clientX + 'px';
     menu.style.top = e.clientY + 'px';
 
-    // 添加分割线
-    const addItem = document.createElement('div');
-    addItem.className = 'ctx-menu-item';
-    addItem.textContent = '在此处添加分割线';
-    addItem.onclick = () => {
+    // 添加题目分割线
+    const addSplitItem = document.createElement('div');
+    addSplitItem.className = 'ctx-menu-item';
+    addSplitItem.textContent = '添加题目分割线（拆为两道题）';
+    addSplitItem.onclick = () => {
       const loc = findRegionLocation(layout, regionId);
       if (loc) {
         splitRegion(layout, loc.sideIdx, loc.colIdx, loc.regionIdx);
         const v = window._getValues();
         renderFromLayout(window._previewWrap, layout, v);
+        if (window._renderQuestionList) window._renderQuestionList();
       }
       menu.remove();
     };
-    menu.appendChild(addItem);
+    menu.appendChild(addSplitItem);
+
+    // 题内分割线（同题号，按小问切割答题区域供阅卷分配）
+    if (region.type === 'essay' && region.subs && region.subs.length >= 2) {
+      const addCutItem = document.createElement('div');
+      addCutItem.className = 'ctx-menu-item';
+      addCutItem.textContent = '添加题内分割线（阅卷切割）';
+      addCutItem.onclick = () => {
+        if (!region.cuts) region.cuts = [];
+        // 找一个尚未被占用的小问间隙，默认放中间
+        const usedPositions = new Set(region.cuts.map(c => c.afterSub));
+        const maxPos = region.subs.length - 1; // 最后一个小问后面不放
+        let pos = Math.floor(maxPos / 2);
+        // 如果中间已占用，向后找空位
+        for (let i = 0; i < maxPos; i++) {
+          const candidate = (pos + i) % maxPos;
+          if (!usedPositions.has(candidate)) { pos = candidate; break; }
+        }
+        if (!usedPositions.has(pos)) {
+          region.cuts.push({ afterSub: pos });
+          const v = window._getValues();
+          renderFromLayout(window._previewWrap, layout, v);
+          if (window._renderQuestionList) window._renderQuestionList();
+        }
+        menu.remove();
+      };
+      menu.appendChild(addCutItem);
+    }
 
     // 删除分割线
     const loc = findRegionLocation(layout, regionId);
@@ -180,11 +449,11 @@ function initContextMenu() {
     menu.appendChild(editItem);
 
     document.body.appendChild(menu);
-  });
+  }, { signal });
 
   document.addEventListener('click', () => {
     document.querySelectorAll('.ctx-menu').forEach(m => m.remove());
-  });
+  }, { signal });
 }
 
 // ── 辅助函数 ──
@@ -215,7 +484,7 @@ function findRegionLocation(layout, regionId) {
 }
 
 // ── 内联编辑（双击题号/分值/答题线） ──
-function initInlineEdit() {
+function initInlineEdit(signal) {
   // 双击答题区 → 弹出粘贴框或插入横线
   document.addEventListener('dblclick', (e) => {
     const regionEl = e.target.closest('[data-region-id]');
@@ -247,7 +516,7 @@ function initInlineEdit() {
       rerender();
       return;
     }
-  });
+  }, { signal });
 
   // contenteditable 失焦时同步数据回 model
   document.addEventListener('focusout', (e) => {
@@ -297,7 +566,7 @@ function initInlineEdit() {
         }
       }
     }
-  });
+  }, { signal });
 
   // 文本块拖拽（和图片一样的自由定位）
   document.addEventListener('mousedown', (e) => {
@@ -367,7 +636,7 @@ function initInlineEdit() {
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-  });
+  }, { signal });
 
   // 文本块删除
   document.addEventListener('click', (e) => {
@@ -383,43 +652,39 @@ function initInlineEdit() {
       region.texts.splice(textIdx, 1);
       rerender();
     }
-  });
+  }, { signal });
 
-  // 点击「+ 添加小问」
+  // 点击「+ 添加小问」— 统一走 panel 的逻辑，预览区按钮只转发
   document.addEventListener('click', (e) => {
     const addBtn = e.target.closest('[data-edit="add-sub"]');
     if (!addBtn) return;
-    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
     const regionId = addBtn.dataset.region;
     const layout = window._cardLayout;
     if (!layout) return;
     const region = findRegion(layout, regionId);
     if (!region) return;
     if (!region.subs) region.subs = [];
-    region.subs.push({ sub: region.subs.length + 1, spaces: 3, spaceWidth: '100%' });
-    rerender();
-  });
+    region.subs.push({ sub: region.subs.length + 1, blanks: [] });
+    const v = window._getValues();
+    renderFromLayout(window._previewWrap, layout, v);
+    if (window._renderQuestionList) window._renderQuestionList();
+  }, { signal });
 
-  // 右键答题线 → 删除这条线（至少保留1条）
-  document.addEventListener('contextmenu', (e) => {
-    const lineEl = e.target.closest('.essay-line[data-region]');
-    if (!lineEl) return;
-    const regionId = lineEl.dataset.region;
-    const subIdx = parseInt(lineEl.dataset.sub) || 0;
-    const blankIdx = parseInt(lineEl.dataset.blank) || 0;
-    const layout = window._cardLayout;
-    if (!layout) return;
-    const region = findRegion(layout, regionId);
-    if (!region || !region.subs[subIdx]) return;
-    const blanks = region.subs[subIdx].blanks;
-    if (!blanks || blanks.length <= 1) return;
-    e.preventDefault();
-    e.stopPropagation();
-    blanks.splice(blankIdx, 1);
-    rerender();
-  }, true);
+  // 旧的右键删除逻辑已合并到上方统一 contextmenu 处理器
 
-  // 横线宽度拖拽（拖右边缘）
+  // 横线宽度拖拽（拖右边缘）— 三档吸附：30%（短）/ 48%（中）/ 100%（长）
+  const WIDTH_STOPS = [30, 48, 100];
+  function snapToStop(pct) {
+    let closest = WIDTH_STOPS[0], minDist = Infinity;
+    for (const s of WIDTH_STOPS) {
+      const d = Math.abs(pct - s);
+      if (d < minDist) { minDist = d; closest = s; }
+    }
+    return closest;
+  }
+
   document.addEventListener('mousedown', (e) => {
     const lineEl = e.target.closest('.essay-line[data-region]');
     if (!lineEl) return;
@@ -433,24 +698,27 @@ function initInlineEdit() {
     const parentWidth = lineEl.parentElement.getBoundingClientRect().width;
 
     const onMove = (me) => {
-      const newWidth = Math.max(15, Math.min(100, ((me.clientX - rect.left) / parentWidth) * 100));
-      lineEl.style.width = newWidth + '%';
+      const rawPct = Math.max(15, Math.min(100, ((me.clientX - rect.left) / parentWidth) * 100));
+      const snapped = snapToStop(rawPct);
+      lineEl.style.width = snapped + '%';
     };
     const onUp = (me) => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
-      const newWidth = Math.max(15, Math.min(100, ((me.clientX - rect.left) / parentWidth) * 100));
+      const rawPct = Math.max(15, Math.min(100, ((me.clientX - rect.left) / parentWidth) * 100));
+      const snapped = snapToStop(rawPct);
+      lineEl.style.width = snapped + '%';
       const layout = window._cardLayout;
       if (layout) {
         const region = findRegion(layout, regionId);
         if (region && region.subs[subIdx] && region.subs[subIdx].blanks) {
-          region.subs[subIdx].blanks[blankIdx] = {w: Math.round(newWidth) + '%'};
+          region.subs[subIdx].blanks[blankIdx] = {w: snapped + '%'};
         }
       }
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-  });
+  }, { signal });
 
   // 图片自由拖拽定位
   document.addEventListener('mousedown', (e) => {
@@ -543,7 +811,7 @@ function initInlineEdit() {
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     }
-  });
+  }, { signal });
 
   // 图片删除按钮
   document.addEventListener('click', (e) => {
@@ -560,7 +828,7 @@ function initInlineEdit() {
       rerender();
       if (window._renderQuestionList) window._renderQuestionList();
     }
-  });
+  }, { signal });
 }
 
 // ── 粘贴图片对话框 ──

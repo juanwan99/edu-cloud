@@ -1,0 +1,63 @@
+{
+  "topic": "agent-resilience",
+  "plan_file": "docs/plans/2026-04-06-agent-resilience-plan.md",
+  "design_file": "docs/plans/2026-04-06-agent-resilience-design.md",
+  "tasks": [
+    {
+      "id": "1",
+      "desc": "OutputValidator 接线修复",
+      "status": "completed"
+    },
+    {
+      "id": "2",
+      "desc": "并发批次截断修复",
+      "status": "completed"
+    },
+    {
+      "id": "3",
+      "desc": "深层 merge",
+      "status": "completed"
+    },
+    {
+      "id": "4",
+      "desc": "error_count 语义重构",
+      "status": "completed"
+    },
+    {
+      "id": "5",
+      "desc": "LLM 分级重试",
+      "status": "completed"
+    },
+    {
+      "id": "6",
+      "desc": "工具执行超时",
+      "status": "completed"
+    },
+    {
+      "id": "7",
+      "desc": "OutputValidator 结构化 + 百分数转换修复",
+      "status": "completed"
+    },
+    {
+      "id": "8",
+      "desc": "循环检测",
+      "status": "completed"
+    },
+    {
+      "id": "9",
+      "desc": "Tier 阈值配置外提",
+      "status": "completed"
+    },
+    {
+      "id": "10",
+      "desc": "Router 关键词配置外提",
+      "status": "completed"
+    },
+    {
+      "id": "11",
+      "desc": "全量回归测试",
+      "status": "completed"
+    }
+  ],
+  "updated_at": "2026-04-06 21:32:57"
+}

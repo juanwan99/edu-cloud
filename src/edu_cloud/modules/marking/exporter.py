@@ -8,26 +8,38 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.marking.models import MarkingScore
+from edu_cloud.modules.grading.models import GradingResult
 
 logger = logging.getLogger(__name__)
 
 
 async def export_scores_csv(
-    db: AsyncSession, exam_id: str, school_id: str,
+    db: AsyncSession,
+    exam_id: str,
+    school_id: str,
+    visible_codes: list[str] | None = None,
 ) -> str:
     """导出考试成绩为 CSV 字符串。
 
     列: 学生ID, 科目1_题1, 科目1_题2, ..., 科目1_总分, ..., 总分
+    分数来源：GradingResult.final_score（已 confirmed 的记录）
     """
-    subjects = (await db.execute(
-        select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
+    stmt = (
+        select(Subject)
+        .where(Subject.exam_id == exam_id, Subject.school_id == school_id)
         .order_by(Subject.name)
-    )).scalars().all()
+    )
+    if visible_codes is not None:
+        if not visible_codes:
+            empty_output = io.StringIO()
+            csv.writer(empty_output).writerow(["学生ID", "总分"])
+            return empty_output.getvalue()
+        stmt = stmt.where(Subject.code.in_(visible_codes))
+    subjects = (await db.execute(stmt)).scalars().all()
 
     columns = ["学生ID"]
-    question_order = []  # [(subject_name, question_id)]
-    subject_boundaries = []  # [(subject_name, start_idx, end_idx)]
+    question_order = []
+    subject_boundaries = []
 
     for subj in subjects:
         questions = (await db.execute(
@@ -46,20 +58,24 @@ async def export_scores_csv(
 
     columns.append("总分")
 
-    # 获取所有评分
+    # 查 confirmed 的 final_score
     scores = (await db.execute(
         select(
             StudentAnswer.student_id,
-            MarkingScore.question_id,
-            MarkingScore.score,
+            GradingResult.question_id,
+            GradingResult.final_score,
         )
-        .join(MarkingScore, MarkingScore.answer_id == StudentAnswer.id)
-        .where(StudentAnswer.exam_id == exam_id)
+        .join(GradingResult, GradingResult.answer_id == StudentAnswer.id)
+        .where(
+            StudentAnswer.exam_id == exam_id,
+            GradingResult.status == "confirmed",
+        )
     )).all()
 
     student_scores = defaultdict(dict)
     for student_id, question_id, score in scores:
-        student_scores[student_id][question_id] = score
+        if score is not None:
+            student_scores[student_id][question_id] = score
 
     all_students = (await db.execute(
         select(StudentAnswer.student_id).where(

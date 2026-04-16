@@ -52,7 +52,7 @@ async def test_create_question(client, seed_subject):
     resp = await client.post("/api/v1/questions", json={
         "subject_id": subject_id,
         "name": "第1题",
-        "question_type": "subjective",
+        "question_type": "essay",
         "max_score": 10.0,
     }, headers=headers)
     assert resp.status_code == 201
@@ -65,7 +65,7 @@ async def test_list_questions(client, seed_subject):
     headers, exam_id, subject_id = seed_subject
     await client.post("/api/v1/questions", json={
         "subject_id": subject_id, "name": "Q1",
-        "question_type": "objective", "max_score": 5.0,
+        "question_type": "choice", "max_score": 5.0,
     }, headers=headers)
     resp = await client.get(f"/api/v1/questions?subject_id={subject_id}", headers=headers)
     assert resp.status_code == 200
@@ -76,7 +76,7 @@ async def test_get_question(client, seed_subject):
     headers, exam_id, subject_id = seed_subject
     create_resp = await client.post("/api/v1/questions", json={
         "subject_id": subject_id, "name": "Q1",
-        "question_type": "subjective", "max_score": 8.0,
+        "question_type": "essay", "max_score": 8.0,
     }, headers=headers)
     qid = create_resp.json()["id"]
     resp = await client.get(f"/api/v1/questions/{qid}", headers=headers)
@@ -88,7 +88,7 @@ async def test_update_question(client, seed_subject):
     headers, exam_id, subject_id = seed_subject
     create_resp = await client.post("/api/v1/questions", json={
         "subject_id": subject_id, "name": "Q1",
-        "question_type": "subjective", "max_score": 5.0,
+        "question_type": "essay", "max_score": 5.0,
     }, headers=headers)
     qid = create_resp.json()["id"]
     resp = await client.patch(f"/api/v1/questions/{qid}", json={"max_score": 15.0}, headers=headers)
@@ -100,7 +100,7 @@ async def test_delete_question(client, seed_subject):
     headers, exam_id, subject_id = seed_subject
     create_resp = await client.post("/api/v1/questions", json={
         "subject_id": subject_id, "name": "Q-delete",
-        "question_type": "objective", "max_score": 3.0,
+        "question_type": "choice", "max_score": 3.0,
     }, headers=headers)
     qid = create_resp.json()["id"]
     resp = await client.delete(f"/api/v1/questions/{qid}", headers=headers)
@@ -114,7 +114,7 @@ async def test_cross_tenant_question(client, seed_subject, auth_headers_b):
     # School A creates a question
     await client.post("/api/v1/questions", json={
         "subject_id": subject_id, "name": "Secret Q",
-        "question_type": "subjective", "max_score": 10.0,
+        "question_type": "essay", "max_score": 10.0,
     }, headers=headers_a)
     # School B cannot see it
     resp = await client.get(f"/api/v1/questions?subject_id={subject_id}", headers=auth_headers_b)
@@ -127,7 +127,7 @@ async def test_create_question_invalid_subject(client, seed_subject):
     resp = await client.post("/api/v1/questions", json={
         "subject_id": "nonexistent",
         "name": "Q1",
-        "question_type": "subjective",
+        "question_type": "essay",
         "max_score": 5.0,
     }, headers=headers)
     assert resp.status_code == 404
@@ -150,7 +150,7 @@ async def test_cross_tenant_update_rejected(client, seed_subject, auth_headers_b
     headers_a, _, subject_id = seed_subject
     create_resp = await client.post("/api/v1/questions", json={
         "subject_id": subject_id, "name": "Q-cross",
-        "question_type": "subjective", "max_score": 5.0,
+        "question_type": "essay", "max_score": 5.0,
     }, headers=headers_a)
     qid = create_resp.json()["id"]
     resp = await client.patch(f"/api/v1/questions/{qid}", json={"max_score": 99.0}, headers=auth_headers_b)
@@ -162,8 +162,39 @@ async def test_cross_tenant_delete_rejected(client, seed_subject, auth_headers_b
     headers_a, _, subject_id = seed_subject
     create_resp = await client.post("/api/v1/questions", json={
         "subject_id": subject_id, "name": "Q-cross-del",
-        "question_type": "objective", "max_score": 3.0,
+        "question_type": "choice", "max_score": 3.0,
     }, headers=headers_a)
     qid = create_resp.json()["id"]
     resp = await client.delete(f"/api/v1/questions/{qid}", headers=auth_headers_b)
     assert resp.status_code == 404
+
+
+async def test_create_duplicate_question_returns_409(client, seed_subject):
+    """F003 T5 回归：POST 同 subject_id + 同 name → 409（非 500）。"""
+    headers, _, subject_id = seed_subject
+    payload = {
+        "subject_id": subject_id, "name": "DupQ",
+        "question_type": "choice", "max_score": 5.0,
+    }
+    resp1 = await client.post("/api/v1/questions", json=payload, headers=headers)
+    assert resp1.status_code == 201
+    resp2 = await client.post("/api/v1/questions", json=payload, headers=headers)
+    assert resp2.status_code == 409, f"Expected 409, got {resp2.status_code}"
+
+
+async def test_patch_rename_to_existing_name_returns_409(client, seed_subject):
+    """F003 T5 回归：PATCH rename 到已存在 name → 409（非 500）。"""
+    headers, _, subject_id = seed_subject
+    r1 = await client.post("/api/v1/questions", json={
+        "subject_id": subject_id, "name": "QA",
+        "question_type": "choice", "max_score": 5.0,
+    }, headers=headers)
+    assert r1.status_code == 201
+    r2 = await client.post("/api/v1/questions", json={
+        "subject_id": subject_id, "name": "QB",
+        "question_type": "choice", "max_score": 5.0,
+    }, headers=headers)
+    assert r2.status_code == 201
+    qb_id = r2.json()["id"]
+    resp = await client.patch(f"/api/v1/questions/{qb_id}", json={"name": "QA"}, headers=headers)
+    assert resp.status_code == 409, f"Expected 409, got {resp.status_code}"

@@ -1,0 +1,16 @@
+=== module_governance_guard 手动端到端验证 (Task 7 Step 3) ===
+Time: 2026-04-13 12:32:23
+
+--- 场景 1: edu-cloud 新建 modules/testmod/ 无 MODULE.md ---
+Result: {'decision': 'block', 'reason': "新建模块缺 MODULE.md (staged 未包含): ['testmod']。请按 docs/governance/MODULE-template.md 创建并 `git add`。"}
+ASSERT OK: decision=block + reason 含 testmod
+
+--- 场景 2: KILL_SWITCH (EDU_GOVERNANCE_GUARD_DISABLED=1) 重复场景 1 ---
+Result: None
+ASSERT OK: result is None (hook bypassed)
+
+--- 场景 3: 非 edu-cloud 仓库 (~/.claude) commit → 不干扰 ---
+Result: None
+ASSERT OK: result is None (not edu-cloud)
+
+=== 3 场景全部通过 ===

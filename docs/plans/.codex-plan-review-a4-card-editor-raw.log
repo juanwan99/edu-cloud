@@ -1,0 +1,636 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d52bb-4140-7660-acbd-9d0ef765d146
+--------
+user
+You are a senior architect reviewing an implementation plan.
+
+Read these files:
+1. docs/plans/2026-04-03-a4-card-editor-plan.md — the implementation plan
+2. docs/plans/2026-04-03-a4-card-editor-design.md — the design document
+3. CLAUDE.md — project rules (if exists)
+
+Perform plan review per checklist:
+A. 自洽性: Task 依赖完整、接口契约一致、无逻辑矛盾、破坏性操作有回滚
+B. 代码库对齐: 引用路径真实、不违反现有 API、不命名冲突、不重复功能
+C. 架构适配: 职责单一、依赖方向正确、接口隔离、配置集中、单功能变更影响 ≤3 文件
+D. 完整性: 每个行为变更 Task 须有测试契约段（5 字段：入口/反例/边界/回归/命令）和边界条件段（至少 3 个）、迁移考虑、批次边界合理
+D+. 测试契约质量（test-gap 硬判定）:
+   - 逻辑镜像测试（测试只是实现的对称复述，不能在错误实现下失败）→ test-gap HIGH
+   - 无入口级验证（测试只调内部函数，不经过用户可触达的入口）→ test-gap MED
+   - 无反例说明（测试契约未写明"错误实现会怎样失败"）→ test-gap MED
+E. 风险评估: 高风险区域标记
+
+Output structured findings with: ID, Severity, Category, Type, Before-behavior, After-behavior, Evidence, Impact, Repair hypothesis.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+我先读取计划、设计文档和项目规则，核对任务拆分、接口契约、测试契约与仓库现状是否一致，然后按你给的检查项输出结构化审查结论。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content docs/plans/2026-04-03-a4-card-editor-plan.md -TotalCount 400' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Name' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content C:\\Users\\Administrator\\.agents\\skills\\code-review-review-pr\\SKILL.md -TotalCount 250" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content docs/plans/2026-04-03-a4-card-editor-design.md -TotalCount 400' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "if (Test-Path CLAUDE.md) { Write-Output 'EXISTS'; Get-Content CLAUDE.md -TotalCount 250 } else { Write-Output 'MISSING' }" in C:\Users\Administrator\edu-cloud succeeded in 3.23s:
+.pytest_cache
+.task
+alembic
+docs
+frontend
+logs
+scripts
+src
+tests
+test_output
+uploads
+.env
+.env.example
+.gitignore
+alembic.ini
+CLAUDE.md
+docker-compose.yml
+Dockerfile
+edu_cloud.db
+findings.md
+ succeeded in 4.61s:
+# A4 鍙岄潰绛旈鍗＄紪杈戝櫒閲嶆瀯璁捐
+
+> 鍒涘缓: 2026-04-03 17:35:39
+> 鐘舵€? 璁捐瀹屾垚
+> GPT Codex 璇婃柇: threadId `019d5264-3357-7131-86bc-2c538e9ca588`
+
+## 鑳屾櫙
+
+绛旈鍗＄紪杈戝櫒鍘熸湰鍙敮鎸?A3 灞曞紑甯冨眬锛堟暟瀛?璇枃/鐗╃悊绛?9 绉戯級锛屽伐浣滄甯搞€備负鑻辫鍜屽寲瀛︽坊鍔?A4 鍙岄潰鏀寔鏃讹紝缁忓杞慨鏀规晥鏋滀笉鐞嗘兂銆侴PT Codex 鐙珛璇婃柇纭浜?5 涓牴鍥狅紝寤鸿閲嶅啓 `_renderA4` 鑰岄潪缁х画琛ヤ竵銆?
+## 鏍瑰洜璇婃柇锛圙PT Codex锛?
+1. **A4 缂哄皯 flex 瀹瑰櫒** 鈥?A3 闈?`.a3-col`锛坒lex column锛夋帶鍒堕珮搴﹀垎閰嶏紝A4 娌℃湁绛変环瀹瑰櫒锛宍heightRatio` 鐨?`flex:N` 鏃犳晥
+2. **搴曢儴璀﹀憡璐村簳澶辨晥** 鈥?`margin-top:auto` 鍙湪 flex 瀹瑰櫒鍐呯敓鏁堬紝A4 鐨?`.page` 涓嶆槸 flex
+3. **PDF 瀵煎嚭鎺掔増涔?* 鈥?`getCleanHTML` 鏈竻 `marginBottom`銆丆SS 闈犺繍琛屾椂鎵?`document.styleSheets` 涓嶇ǔ瀹?4. **閫夋嫨棰樻í鎺?* 鈥?`buildChoiceGroupsHTML` 鎶婃墍鏈夌粍 flatMap 鎴愭í鍚戝ぇ缃戞牸锛屽拷鐣?TQL x/y/w 鍧愭爣鍜岀珫鎺掗€昏緫
+5. **_renderA4 鏋舵瀯婕傜Щ** 鈥?缁曞紑 A3 鐨?`renderColumnRegions()` 涓昏酱锛屽浐瀹氬尯 HTML 浠?A3 澶嶅埗鑰岄潪澶嶇敤
+
+## 搂1 鏋舵瀯锛氱粺涓€椤甸潰楠ㄦ灦
+
+**鏂规锛?* A3/A4 鍏辩敤 `renderColumnRegions()` + `renderEssayRegion()`锛屽彧鍦ㄩ〉闈㈤鏋跺眰鍖哄垎绾稿瀷銆?
+**A3 楠ㄦ灦锛堜笉鍔級锛?*
+```
+ succeeded in 5.26s:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+ succeeded in 6.74s:
+# A4 鍙岄潰绛旈鍗＄紪杈戝櫒閲嶆瀯 瀹炵幇璁″垝
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** 鎸?GPT Codex 璇婃柇鐨?5 涓牴鍥犻噸鏋?A4 鍙岄潰绛旈鍗＄紪杈戝櫒锛岀粺涓€ A3/A4 娓叉煋鏋舵瀯銆?
+**Architecture:** A3/A4 鍏辩敤 `renderColumnRegions()` + `renderEssayRegion()`锛屽彧鍦ㄩ〉闈㈤鏋跺眰鍖哄垎绾稿瀷銆侫4 寮曞叆 `.a4-col` flex 瀹瑰櫒锛堢被浼?`.a3-col`锛夛紝璁?`heightRatio` 姝ｇ‘鍒嗛厤绌洪棿銆傚悗绔?layout 濂戠害缁熶竴涓?A4 姣忛潰 1 column銆?
+**Tech Stack:** 鍘熺敓 JS锛坈ard-editor/锛夈€丆SS銆丳ython锛團astAPI 鍚庣锛夈€乸ytest
+
+**Design:** `docs/plans/2026-04-03-a4-card-editor-design.md`
+
+**鍥炲綊楠岃瘉鍛戒护锛堟瘡涓?Task 瀹屾垚鍚庡繀璺戯級锛?*
+```bash
+cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_services_exam/test_tpl_parser.py tests/test_api_exam/test_cards.py -x -q
+```
+
+---
+
+### Task 1: 鍚庣 layout 濂戠害缁熶竴 + 娴嬭瘯
+
+**Files:**
+ succeeded in 2.78s:
+EXISTS
+# edu-cloud 鈥?鏁欒偛浜戝钩鍙?
+
+<!-- key-start -->
+## 椤圭洰瀹氫綅
+
+edu-cloud 鏄?*澶氭牎鍗忓悓鐨勪簯绔钩鍙?*锛屾槸瀛︽牎绔紙exam-ai锛夌殑涓婃父璋冨害涓績銆?
+
+```
+[鐩戠绔痌                      [浜戠骞冲彴]                      [瀛︽牎绔痌
+鏁欒偛灞€/闆嗗洟鐪嬫澘  鈹€鈹€鈹€鈹€鈹€鈹€鈫? edu-cloud (port 9000)  鈫愨攢鈹€鈹€鈹€鈹€鈹€  exam-ai 脳 N 鎵€瀛︽牎
+  - 鍏ㄥ尯鎴愮哗鎬昏              - 鑱旇€冪紪鎺掍笌涓嬪彂                 - 鏈牎鑰冭瘯绠＄悊
+  - 瀛︽牎闂村姣?               - 璺ㄦ牎鏁版嵁姹囨€?                  - 鎵弿+AI闃呭嵎
+  - 鏁欏璐ㄩ噺鐩戞帶              - 鍏变韩 AI 闃呭嵎鏈嶅姟               - 鎴愮哗涓婃姤鍒颁簯绔?
+                              - 瀛︽牎娉ㄥ唽涓庣姸鎬佺洃鎺?
+                              - 缁熶竴棰樺簱绠＄悊
+```
+
+### 鑱岃矗杈圭晫
+
+codex
+我已经拿到文档内容，下一步核对计划里引用的文件、函数和测试是否真实存在，并补读后半段任务以判断批次边界、迁移和回滚是否闭合。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+for p in [Path('docs/plans/2026-04-03-a4-card-editor-plan.md'), Path('docs/plans/2026-04-03-a4-card-editor-design.md'), Path('CLAUDE.md')]:
+    print(f'===== {p} =====')
+    text = p.read_text(encoding='utf-8')
+    for i, line in enumerate(text.splitlines(), 1):
+        if i <= 260:
+            print(f'{i:04d}: {line}')
+'@ | python -X utf8 -" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --line-number \"function _renderA4|function renderColumnRegions|function renderA3Col|function buildChoiceGroupsHTML|function getCleanHTML|fetchStyleCSS|tql_to_editor_layout|_fallback_layout|editor-layout|choiceGroups|paperSize\" frontend src tests -g '"'!**/node_modules/**'"'" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+paths = [
+    Path('frontend/src/card-editor/render.js'),
+    Path('frontend/public/card-editor/styles.css'),
+    Path('frontend/src/card-editor/export.js'),
+    Path('frontend/src/components/CardEditor.vue'),
+    Path('src/edu_cloud/modules/card/subject_defaults.py'),
+    Path('tests/test_services_exam/test_tpl_parser.py'),
+    Path('tests/test_api_exam/test_cards.py'),
+]
+for p in paths:
+    print(f'{p}: {p.exists()}')
+'@ | python -X utf8 -" in C:\Users\Administrator\edu-cloud succeeded in 2.11s:
+===== docs\plans\2026-04-03-a4-card-editor-plan.md =====
+0001: # A4 双面答题卡编辑器重构 实现计划
+0002: 
+0003: > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+0004: 
+0005: **Goal:** 按 GPT Codex 诊断的 5 个根因重构 A4 双面答题卡编辑器，统一 A3/A4 渲染架构。
+0006: 
+0007: **Architecture:** A3/A4 共用 `renderColumnRegions()` + `renderEssayRegion()`，只在页面骨架层区分纸型。A4 引入 `.a4-col` flex 容器（类似 `.a3-col`），让 `heightRatio` 正确分配空间。后端 layout 契约统一为 A4 每面 1 column。
+0008: 
+0009: **Tech Stack:** 原生 JS（card-editor/）、CSS、Python（FastAPI 后端）、pytest
+0010: 
+0011: **Design:** `docs/plans/2026-04-03-a4-card-editor-design.md`
+0012: 
+0013: **回归验证命令（每个 Task 完成后必跑）：**
+0014: ```bash
+0015: cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_services_exam/test_tpl_parser.py tests/test_api_exam/test_cards.py -x -q
+0016: ```
+0017: 
+0018: ---
+0019: 
+ succeeded in 2.14s:
+frontend\src\card-editor\render.js: True
+frontend\public\card-editor\styles.css: True
+frontend\src\card-editor\export.js: True
+frontend\src\components\CardEditor.vue: True
+src\edu_cloud\modules\card\subject_defaults.py: True
+tests\test_services_exam\test_tpl_parser.py: True
+tests\test_api_exam\test_cards.py: True
+ succeeded in 4.83s:
+src\editor_layouts\31c17116-8182-429b-b38d-47c89eec39ef_d27b05c7-037d-4351-a3c4-a7e83f66fa9d.json:1:{"layout": {"paper": "A3", "config": {"examTitle": "2026第一次月考", "titleSize": 14, "subtitleSize": 16, "titleSpacing": 1, "subtitleSpacing": 4, "titleGap": 1, "subtitleGap": 1.5, "infoHeight": 18, "infoPadding": 2, "infoRowGap": 2, "infoFontSize": 10, "infoBorderWidth": 1, "nameLineWidth": 35, "digitCount": 10, "digitBoxSize": 4.5, "digitGap": 0.8, "barcodeWidthPct": 40, "barcodeTitleSize": 12, "noticeHeight": 20, "noticeLabelWidth": 6, "noticeLabelSize": 10, "noticeFontSize": 7, "exampleWidth": 10, "noticeBorderWidth": 1, "absentPadding": 1, "paperSize": "A3", "zoom": 73, "subjectTitle": "地理", "choiceCount": 16, "optionCount": 4, "choicePerRow": 15, "choiceGroups": [{"start": 1, "options": 4, "count": 16}], "fillCount": 0, "fillStart": 0, "fillScore": 5, "fillPerRow": 2, "essayCount": 3, "essayConfig": [{"score": 16}, {"score": 16}, {"score": 20}]}, "sides": [{"side": "A", "columns": [{"col": 0, "regions": [{"id": "header", "type": "fixed", "role": "header", "_side": "A", "_col": 0, "_sideIdx": 0}, {"id": "info", "type": "fixed", "role": "info", "_side": "A", "_col": 0, "_sideIdx": 0}, {"id": "notice", "type": "fixed", "role": "notice", "_side": "A", "_col": 0, "_sideIdx": 0}, {"id": "choices", "type": "fixed", "role": "choices", "count": 16, "options": 4, "perRow": 15, "_side": "A", "_col": 0, "_sideIdx": 0}]}, {"col": 1, "regions": [{"id": "essay-Q17", "type": "essay", "qno": 17, "score": 16, "subs": [{"sub": 1, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 2, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 3, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}], "heightRatio": 1, "_side": "A", "_col": 1, "_sideIdx": 0}]}, {"col": 2, "regions": [{"id": "essay-Q18", "type": "essay", "qno": 18, "score": 16, "subs": [{"sub": 1, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 2, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 3, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}], "heightRatio": 1, "_side": "A", "_col": 2, "_sideIdx": 0}, {"id": "essay-Q19", "type": "essay", "qno": 19, "score": 20, "subs": [{"sub": 1, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 2, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 3, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 4, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}], "heightRatio": 1, "_side": "A", "_col": 2, "_sideIdx": 0}]}]}, {"side": "B", "columns": [{"col": 0, "regions": []}, {"col": 1, "regions": []}, {"col": 2, "regions": []}]}]}, "config": {"examTitle": "2026第一次月考", "titleSize": 14, "subtitleSize": 16, "titleSpacing": 1, "subtitleSpacing": 4, "titleGap": 1, "subtitleGap": 1.5, "infoHeight": 18, "infoPadding": 2, "infoRowGap": 2, "infoFontSize": 10, "infoBorderWidth": 1, "nameLineWidth": 35, "digitCount": 10, "digitBoxSize": 4.5, "digitGap": 0.8, "barcodeWidthPct": 40, "barcodeTitleSize": 12, "noticeHeight": 20, "noticeLabelWidth": 6, "noticeLabelSize": 10, "noticeFontSize": 7, "exampleWidth": 10, "noticeBorderWidth": 1, "absentPadding": 1, "paperSize": "A3", "zoom": 73, "subjectTitle": "地理", "choiceCount": 16, "optionCount": 4, "choicePerRow": 15, "choiceGroups": [{"start": 1, "options": 4, "count": 16}], "fillCount": 0, "fillStart": 0, "fillScore": 5, "fillPerRow": 2, "essayCount": 3, "essayConfig": [{"score": 16}, {"score": 16}, {"score": 20}]}, "choices": [{"qno": 1, "options": 4}, {"qno": 2, "options": 4}, {"qno": 3, "options": 4}, {"qno": 4, "options": 4}, {"qno": 5, "options": 4}, {"qno": 6, "options": 4}, {"qno": 7, "options": 4}, {"qno": 8, "options": 4}, {"qno": 9, "options": 4}, {"qno": 10, "options": 4}, {"qno": 11, "options": 4}, {"qno": 12, "options": 4}, {"qno": 13, "options": 4}, {"qno": 14, "options": 4}, {"qno": 15, "options": 4}, {"qno": 16, "options": 4}]}
+tests\test_api_exam\test_cards.py:308:        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+tests\test_api_exam\test_cards.py:322:        resp = await client.put(f"/api/v1/card/editor-layout/{subject_id}", json={
+tests\test_api_exam\test_cards.py:329:        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+tests\test_api_exam\test_cards.py:340:        resp = await client.put("/api/v1/card/editor-layout/nonexistent", json={
+tests\test_api_exam\test_cards.py:350:        await client.put(f"/api/v1/card/editor-layout/{subject_id}", json={
+tests\test_api_exam\test_cards.py:368:        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers_b)
+tests\test_api_exam\test_cards.py:375:        await client.put(f"/api/v1/card/editor-layout/{subject_id}", json={
+tests\test_api_exam\test_cards.py:379:        await client.put(f"/api/v1/card/editor-layout/{subject_id}", json={
+tests\test_api_exam\test_cards.py:383:        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+tests\test_api_exam\test_cards.py:402:        await client.put(f"/api/v1/card/editor-layout/{subject_id_1}", json={
+tests\test_api_exam\test_cards.py:405:        await client.put("/api/v1/card/editor-layout/sub2", json={
+tests\test_api_exam\test_cards.py:410:        resp1 = await client.get(f"/api/v1/card/editor-layout/{subject_id_1}", headers=headers)
+tests\test_api_exam\test_cards.py:411:        resp2 = await client.get("/api/v1/card/editor-layout/sub2", headers=headers)
+src\edu_cloud\modules\card\defaults.py:37:        "paperSize": "A3",
+src\edu_cloud\modules\card\subject_defaults.py:37:    "paperSize": "A3",
+src\edu_cloud\modules\card\subject_defaults.py:45:#   choiceGroups : [{start, count, options, multi?}, ...]  选择题分组（真实题号）
+src\edu_cloud\modules\card\subject_defaults.py:58:        "choiceGroups": [
+src\edu_cloud\modules\card\subject_defaults.py:75:        "choiceGroups": [
+src\edu_cloud\modules\card\subject_defaults.py:103:        "choiceGroups": [
+codex
+我现在对照仓库实现看具体断点，重点检查计划里声称“无需改动/已有测试覆盖”的地方是否成立，以及哪些任务缺少入口级测试或回滚安排。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+p = Path('docs/plans/2026-04-03-a4-card-editor-plan.md')
+text = p.read_text(encoding='utf-8').splitlines()
+for start in [255, 330, 430, 520, 610]:
+    print(f'===== {start+1}-{min(start+120, len(text))} =====')
+    for i in range(start, min(start+120, len(text))):
+        print(f'{i+1:04d}: {text[i]}')
+'@ | python -X utf8 -" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+files = {
+    'frontend/src/card-editor/render.js': [(1,170),(319,650)],
+    'frontend/src/card-editor/export.js': [(1,220),(220,360)],
+    'frontend/public/card-editor/styles.css': [(360,430)],
+    'frontend/src/components/CardEditor.vue': [(240,280),(430,520)],
+    'src/edu_cloud/modules/card/subject_defaults.py': [(230,610)],
+    'tests/test_services_exam/test_tpl_parser.py': [(1,260)],
+    'tests/test_api_exam/test_cards.py': [(260,470)],
+    'src/edu_cloud/modules/card/router.py': [(1,220)],
+}
+for path, ranges in files.items():
+    print(f'===== {path} =====')
+    lines = Path(path).read_text(encoding='utf-8').splitlines()
+    for a,b in ranges:
+        print(f'--- {a}-{min(b, len(lines))} ---')
+        for i in range(a-1, min(b, len(lines))):
+            print(f'{i+1:04d}: {lines[i]}')
+'@ | python -X utf8 -" in C:\Users\Administrator\edu-cloud succeeded in 1.22s:
+===== 256-375 =====
+0256: 
+0257: **测试契约:**
+0258: 1. A4 渲染使用 renderColumnRegions 复用 A3 的 essay 渲染逻辑
+0259:    - 入口: `renderFromLayout(previewWrap, a4Layout, config)` 在浏览器中调用
+0260:    - 反例: 错误实现会在 A4 中直接拼 HTML 绕过 renderColumnRegions，导致分割线拖拽/heightRatio 失效
+0261:    - 边界: B 面无 essay 时只渲染空 col-warning
+0262:    - 回归: 防止 A4 essay 区域丢失 flex 高度分配
+0263:    - 命令: 手动浏览器验证（前端无 pytest）
+0264: 
+0265: **审查清单:**
+0266: - ✓ `_renderA4` 调用 `renderColumnRegions()` 而非自己拼 essay HTML
+0267: - ✓ 固定区 HTML 通过 `renderFixedRegions()` 共享（A3 也调用）
+0268: - ✓ A4 B 面使用 `.a4-col` 容器
+0269: - ✗ 固定区 HTML 在 A3 和 A4 中有两份复制
+0270: - 关键行为: A3 渲染输出不变（仅将固定区 HTML 提取为函数，输出完全相同）
+0271: 
+0272: **边界条件:**
+0273: - B 面无 regions → 不渲染 B 面 page
+0274: - B 面有语文作文（essay_cn）→ 不走 a4-col，按现有 A3 作文逻辑渲染（此场景不存在于 A4，但防御性处理）
+ succeeded in 1.20s:
+===== frontend/src/card-editor/render.js =====
+--- 1-170 ---
+0001: // render.js — 根据 layout JSON 渲染答题卡 DOM
+0002: // 从 layout.sides[].columns[].regions[] 驱动渲染
+0003: 
+0004: const WARNING = '请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效';
+0005: 
+0006: export function applyCSSToPage(el, v) {
+0007:   const s = el.style;
+0008:   s.setProperty('--title-size', v.titleSize + 'pt');
+0009:   s.setProperty('--subtitle-size', v.subtitleSize + 'pt');
+0010:   s.setProperty('--title-spacing', v.titleSpacing + 'px');
+0011:   s.setProperty('--subtitle-spacing', v.subtitleSpacing + 'px');
+0012:   s.setProperty('--title-gap', v.titleGap + 'mm');
+0013:   s.setProperty('--subtitle-gap', v.subtitleGap + 'mm');
+0014:   s.setProperty('--info-height', v.infoHeight + 'mm');
+0015:   s.setProperty('--info-padding', v.infoPadding + 'mm');
+0016:   s.setProperty('--info-row-gap', v.infoRowGap + 'mm');
+0017:   s.setProperty('--info-font-size', v.infoFontSize + 'pt');
+0018:   s.setProperty('--info-border-width', v.infoBorderWidth + 'px');
+codex
+我已经看到几个潜在矛盾点了，尤其是前端任务多数只安排手工验证，而实际仓库已经有 Vitest；我再把相关实现片段抽出来，确认这些问题是不是硬缺口。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+snips = {
+ 'src/edu_cloud/modules/card/subject_defaults.py': [(244,620)],
+ 'frontend/src/card-editor/export.js': [(1,220),(220,330)],
+ 'frontend/public/card-editor/styles.css': [(360,420)],
+ 'frontend/src/components/CardEditor.vue': [(246,272),(490,516)],
+ 'frontend/src/card-editor/render.js': [(500,620)],
+ 'tests/test_services_exam/test_tpl_parser.py': [(1,220)],
+}
+for path, ranges in snips.items():
+    print(f'===== {path} =====')
+    lines = Path(path).read_text(encoding='utf-8').splitlines()
+    for a,b in ranges:
+        print(f'--- {a}-{min(b,len(lines))} ---')
+        for i in range(a-1, min(b, len(lines))):
+            print(f'{i+1:04d}: {lines[i]}')
+'@ | python -X utf8 -" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --line-number \"renderFromLayout\\(|buildChoiceGroupsHTML\\(|batchExportPdf|getCleanHTML|window\\._getCleanHTML|renderColumnRegions\\(|_renderA4\\(|choiceGroups.*x|x "'!== undefined|vitest|happy-dom" frontend tests src -g '"'"'!**/node_modules/**'"'" in C:\Users\Administrator\edu-cloud succeeded in 1.39s:
+frontend\vite.config.js:22:    environment: 'happy-dom',
+src\editor_layouts\31c17116-8182-429b-b38d-47c89eec39ef_d27b05c7-037d-4351-a3c4-a7e83f66fa9d.json:1:{"layout": {"paper": "A3", "config": {"examTitle": "2026第一次月考", "titleSize": 14, "subtitleSize": 16, "titleSpacing": 1, "subtitleSpacing": 4, "titleGap": 1, "subtitleGap": 1.5, "infoHeight": 18, "infoPadding": 2, "infoRowGap": 2, "infoFontSize": 10, "infoBorderWidth": 1, "nameLineWidth": 35, "digitCount": 10, "digitBoxSize": 4.5, "digitGap": 0.8, "barcodeWidthPct": 40, "barcodeTitleSize": 12, "noticeHeight": 20, "noticeLabelWidth": 6, "noticeLabelSize": 10, "noticeFontSize": 7, "exampleWidth": 10, "noticeBorderWidth": 1, "absentPadding": 1, "paperSize": "A3", "zoom": 73, "subjectTitle": "地理", "choiceCount": 16, "optionCount": 4, "choicePerRow": 15, "choiceGroups": [{"start": 1, "options": 4, "count": 16}], "fillCount": 0, "fillStart": 0, "fillScore": 5, "fillPerRow": 2, "essayCount": 3, "essayConfig": [{"score": 16}, {"score": 16}, {"score": 20}]}, "sides": [{"side": "A", "columns": [{"col": 0, "regions": [{"id": "header", "type": "fixed", "role": "header", "_side": "A", "_col": 0, "_sideIdx": 0}, {"id": "info", "type": "fixed", "role": "info", "_side": "A", "_col": 0, "_sideIdx": 0}, {"id": "notice", "type": "fixed", "role": "notice", "_side": "A", "_col": 0, "_sideIdx": 0}, {"id": "choices", "type": "fixed", "role": "choices", "count": 16, "options": 4, "perRow": 15, "_side": "A", "_col": 0, "_sideIdx": 0}]}, {"col": 1, "regions": [{"id": "essay-Q17", "type": "essay", "qno": 17, "score": 16, "subs": [{"sub": 1, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 2, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 3, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}], "heightRatio": 1, "_side": "A", "_col": 1, "_sideIdx": 0}]}, {"col": 2, "regions": [{"id": "essay-Q18", "type": "essay", "qno": 18, "score": 16, "subs": [{"sub": 1, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 2, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 3, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}], "heightRatio": 1, "_side": "A", "_col": 2, "_sideIdx": 0}, {"id": "essay-Q19", "type": "essay", "qno": 19, "score": 20, "subs": [{"sub": 1, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 2, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 3, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}, {"sub": 4, "blanks": [{"w": "100%"}, {"w": "100%"}, {"w": "100%"}]}], "heightRatio": 1, "_side": "A", "_col": 2, "_sideIdx": 0}]}]}, {"side": "B", "columns": [{"col": 0, "regions": []}, {"col": 1, "regions": []}, {"col": 2, "regions": []}]}]}, "config": {"examTitle": "2026第一次月考", "titleSize": 14, "subtitleSize": 16, "titleSpacing": 1, "subtitleSpacing": 4, "titleGap": 1, "subtitleGap": 1.5, "infoHeight": 18, "infoPadding": 2, "infoRowGap": 2, "infoFontSize": 10, "infoBorderWidth": 1, "nameLineWidth": 35, "digitCount": 10, "digitBoxSize": 4.5, "digitGap": 0.8, "barcodeWidthPct": 40, "barcodeTitleSize": 12, "noticeHeight": 20, "noticeLabelWidth": 6, "noticeLabelSize": 10, "noticeFontSize": 7, "exampleWidth": 10, "noticeBorderWidth": 1, "absentPadding": 1, "paperSize": "A3", "zoom": 73, "subjectTitle": "地理", "choiceCount": 16, "optionCount": 4, "choicePerRow": 15, "choiceGroups": [{"start": 1, "options": 4, "count": 16}], "fillCount": 0, "fillStart": 0, "fillScore": 5, "fillPerRow": 2, "essayCount": 3, "essayConfig": [{"score": 16}, {"score": 16}, {"score": 20}]}, "choices": [{"qno": 1, "options": 4}, {"qno": 2, "options": 4}, {"qno": 3, "options": 4}, {"qno": 4, "options": 4}, {"qno": 5, "options": 4}, {"qno": 6, "options": 4}, {"qno": 7, "options": 4}, {"qno": 8, "options": 4}, {"qno": 9, "options": 4}, {"qno": 10, "options": 4}, {"qno": 11, "options": 4}, {"qno": 12, "options": 4}, {"qno": 13, "options": 4}, {"qno": 14, "options": 4}, {"qno": 15, "options": 4}, {"qno": 16, "options": 4}]}
+frontend\package-lock.json:25:        "happy-dom": "^20.8.4",
+frontend\package-lock.json:27:        "vitest": "^4.1.0"
+frontend\package-lock.json:1192:    "node_modules/@vitest/expect": {
+frontend\package-lock.json:1194:      "resolved": "https://registry.npmjs.org/@vitest/expect/-/expect-4.1.0.tgz",
+frontend\package-lock.json:1200:        "@vitest/spy": "4.1.0",
+frontend\package-lock.json:1201:        "@vitest/utils": "4.1.0",
+frontend\package-lock.json:1206:        "url": "https://opencollective.com/vitest"
+frontend\package-lock.json:1209:    "node_modules/@vitest/mocker": {
+frontend\package-lock.json:1211:      "resolved": "https://registry.npmjs.org/@vitest/mocker/-/mocker-4.1.0.tgz",
+frontend\package-lock.json:1215:        "@vitest/spy": "4.1.0",
+frontend\package-lock.json:1220:        "url": "https://opencollective.com/vitest"
+frontend\package-lock.json:1235:    "node_modules/@vitest/mocker/node_modules/estree-walker": {
+frontend\package-lock.json:1244:    "node_modules/@vitest/pretty-format": {
+frontend\package-lock.json:1246:      "resolved": "https://registry.npmjs.org/@vitest/pretty-format/-/pretty-format-4.1.0.tgz",
+frontend\package-lock.json:1253:        "url": "https://opencollective.com/vitest"
+frontend\package-lock.json:1256:    "node_modules/@vitest/runner": {
+frontend\package-lock.json:1258:      "resolved": "https://registry.npmjs.org/@vitest/runner/-/runner-4.1.0.tgz",
+frontend\package-lock.json:1262:        "@vitest/utils": "4.1.0",
+ succeeded in 1.78s:
+===== src/edu_cloud/modules/card/subject_defaults.py =====
+--- 244-614 ---
+0244: def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
+0245:     """从 TQL 模板文件精确转换为编辑器布局 JSON。
+0246: 
+0247:     直接使用 TQL 的像素坐标计算 heightRatio 和栏分配，
+0248:     不做任何近似或 round-robin——精确复刻 TQL 布局。
+0249:     """
+0250:     from edu_cloud.modules.card.tpl_parser import parse_tpl_file
+0251: 
+0252:     sk = parse_tpl_file(tpl_path)
+0253:     columns = sk["columns"]
+0254:     obj_groups = sk["objective_groups"]
+0255:     slots = sk["subjective_slots"]
+0256:     image_width = sk["image_width"]
+0257:     image_height = sk["image_height"]
+0258:     paper_size = sk["paper_size"]
+0259:     is_a4_dual = sk.get("is_a4_dual", False)
+0260:     n_essay_cols = len(columns)
+0261: 
+codex
+我把仓库加载路径也对上了，接下来重点看兼容性：默认布局变成新 A4 契约后，已有保存布局会不会被错误放行，这决定了计划是不是缺了迁移任务。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+p = Path('frontend/src/card-editor/export.js')
+lines = p.read_text(encoding='utf-8').splitlines()
+for a,b in [(70,155),(155,215),(240,305)]:
+    print(f'--- {a}-{b} ---')
+    for i in range(a-1, min(b, len(lines))):
+        print(f'{i+1:04d}: {lines[i]}')
+'@ | python -X utf8 -" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg --line-number "editor_layouts|迁移|回滚|rollback|降级|兼容|saved|structure mismatch|A4" docs/plans/2026-04-03-a4-card-editor-plan.md docs/plans/2026-04-03-a4-card-editor-design.md src/edu_cloud/modules/card/router.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+p = Path('frontend/src/card-editor/model.js')
+lines = p.read_text(encoding='utf-8').splitlines()
+for i,l in enumerate(lines,1):
+    if i<=140:
+        print(f'{i:04d}: {l}')
+'@ | python -X utf8 -" in C:\Users\Administrator\edu-cloud succeeded in 3.07s:
+docs/plans/2026-04-03-a4-card-editor-plan.md:1:# A4 双面答题卡编辑器重构 实现计划
+docs/plans/2026-04-03-a4-card-editor-plan.md:5:**Goal:** 按 GPT Codex 诊断的 5 个根因重构 A4 双面答题卡编辑器，统一 A3/A4 渲染架构。
+docs/plans/2026-04-03-a4-card-editor-plan.md:7:**Architecture:** A3/A4 共用 `renderColumnRegions()` + `renderEssayRegion()`，只在页面骨架层区分纸型。A4 引入 `.a4-col` flex 容器（类似 `.a3-col`），让 `heightRatio` 正确分配空间。后端 layout 契约统一为 A4 每面 1 column。
+docs/plans/2026-04-03-a4-card-editor-plan.md:23:- Modify: `src/edu_cloud/modules/card/subject_defaults.py:428-470` (tql_to_editor_layout A4 路径)
+docs/plans/2026-04-03-a4-card-editor-plan.md:27:1. A4 layout 每面只有 1 个 column（col:0），A 面含 fixed + essay，B 面无 fixed
+docs/plans/2026-04-03-a4-card-editor-plan.md:29:   - 反例: 错误实现会生成多 column（col:0 只有 fixed，col:1 有 essay），前端渲染时 A4 col 1+ 被忽略导致 essay 丢失
+docs/plans/2026-04-03-a4-card-editor-plan.md:31:   - 回归: 防止 A4 layout 多 column 导致前端渲染丢题
+docs/plans/2026-04-03-a4-card-editor-plan.md:35:- ✓ A4 layout sides[0].columns 长度 == 1
+docs/plans/2026-04-03-a4-card-editor-plan.md:36:- ✓ A4 layout sides[0].columns[0].regions 包含 type=fixed 和 type=essay
+docs/plans/2026-04-03-a4-card-editor-plan.md:37:- ✓ A4 layout sides[1].columns[0].regions 不包含 type=fixed
+docs/plans/2026-04-03-a4-card-editor-plan.md:38:- ✗ A4 layout sides[0].columns 长度 > 1（旧的多 column 结构）
+docs/plans/2026-04-03-a4-card-editor-plan.md:43:- 只有 1 个 essay（极端 A4 科目）→ A 面 col 0 有 fixed + 1 个 essay
+docs/plans/2026-04-03-a4-card-editor-plan.md:46:- [ ] **Step 1: 写 A4 layout 契约测试**
+docs/plans/2026-04-03-a4-card-editor-plan.md:52:    """A4 layout 契约测试。"""
+docs/plans/2026-04-03-a4-card-editor-plan.md:55:        """A4 布局每面只有 1 个 column。"""
+docs/plans/2026-04-03-a4-card-editor-plan.md:60:        assert layout["paper"] == "A4"
+docs/plans/2026-04-03-a4-card-editor-plan.md:66:        """A4 A面 col 0 同时包含 fixed 和 essay regions。"""
+docs/plans/2026-04-03-a4-card-editor-plan.md:78:        """A4 B面不包含 fixed regions。"""
+docs/plans/2026-04-03-a4-card-editor-plan.md:89:        """化学也是 A4 双面（14 选择 + 4 解答跨面）。"""
+docs/plans/2026-04-03-a4-card-editor-plan.md:94:        # 化学: 14 选择 + 有 B 面 essays → 但 14 选择 < 30，fallback 判断不是 A4
+ succeeded in 4.23s:
+--- 70-155 ---
+0070:   }
+0071: }
+0072: 
+0073: function getCleanHTML() {
+0074:   const pages = document.querySelectorAll('.page');
+0075:   let pagesHTML = '';
+0076: 
+0077:   for (let pi = 0; pi < pages.length; pi++) {
+0078:     const page = pages[pi];
+0079:     const clone = page.cloneNode(true);
+0080: 
+0081:     // 移除交互层元素
+0082:     clone.querySelectorAll('.divider-handle, .divider-gap, .ctx-menu').forEach(el => el.remove());
+0083:     clone.querySelectorAll('.region-selected').forEach(el => el.classList.remove('region-selected'));
+0084: 
+0085:     // 移除编辑器 transform 缩放
+0086:     clone.style.transform = '';
+0087: 
+0088:     // 复制 CSS 变量（从原始 page 元素的 style）
+ succeeded in 3.18s:
+0001: // model.js — 答题卡布局数据模型
+0002: // 定义 layout JSON schema 和 CRUD 操作函数
+0003: 
+0004: function _buildSubs(subCount) {
+0005:   if (!subCount || subCount <= 0) return []
+0006:   return Array.from({ length: subCount }, (_, i) => ({
+0007:     sub: i + 1,
+0008:     blanks: [{ w: '100%' }, { w: '100%' }, { w: '100%' }],
+0009:   }))
+0010: }
+0011: 
+0012: export function createDefaultLayout(config) {
+0013:   const choiceCount = config.choiceCount || 11;
+0014:   const fillCount = config.fillCount || 3;
+0015:   const essayConfig = config.essayConfig || [];
+0016:   const fillStart = choiceCount + 1;
+0017:   const essayStart = choiceCount + fillCount + 1;
+0018: 
+0019:   // 构建所有 essay regions
+0020:   const essayRegions = essayConfig.map((ec, i) => ({
+codex
+我还差最后一块证据：前端测试入口的精确行号。拿到后我就能把“计划缺少前端自动化门禁”这一类问题写成可落地的修复建议。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+p = Path('docs/plans/2026-04-03-a4-card-editor-plan.md')
+lines = p.read_text(encoding='utf-8').splitlines()
+for a,b in [(188,248),(252,276),(638,703)]:
+    print(f'--- {a}-{b} ---')
+    for i in range(a-1,min(b,len(lines))):
+        print(f'{i+1:04d}: {lines[i]}')
+'@ | python -X utf8 -" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+for path in ['frontend/package.json','frontend/vite.config.js']:
+    print(f'===== {path} =====')
+    lines = Path(path).read_text(encoding='utf-8').splitlines()
+    for i,l in enumerate(lines,1):
+        print(f'{i:04d}: {l}')
+'@ | python -X utf8 -" in C:\Users\Administrator\edu-cloud succeeded in 1.41s:
+--- 188-248 ---
+0188: 
+0189: ### Task 2: CSS 修复 — 新增 .a4-col + 删除 flex:none hack
+0190: 
+0191: **Files:**
+0192: - Modify: `frontend/public/card-editor/styles.css:389-399`
+0193: 
+0194: **审查清单:**
+0195: - ✓ `.a4-col` 是 flex column 容器，`flex:1` 占剩余空间
+0196: - ✓ `.col-warning-bottom` 在 `.a4-col` 内通过 `margin-top:auto` 贴底
+0197: - ✗ `flex: none !important` 仍然存在
+0198: - 关键行为: A3 的 `.a3-col` 样式完全不动
+0199: 
+0200: - [ ] **Step 1: 修改 styles.css**
+0201: 
+0202: 删除 L396-399（`flex: none !important` hack）：
+0203: ```css
+0204: /* A4 页面内 essay-item 不用 flex 拉伸，用固定高度占比 */
+0205: .page[data-paper="A4"] .essay-item {
+0206:   flex: none !important;
+ succeeded in 1.64s:
+===== frontend/package.json =====
+0001: {
+0002:   "name": "edu-cloud-frontend",
+0003:   "private": true,
+0004:   "version": "0.0.0",
+0005:   "type": "module",
+0006:   "scripts": {
+0007:     "dev": "vite",
+0008:     "build": "vite build",
+0009:     "preview": "vite preview",
+0010:     "test": "vitest run",
+0011:     "test:watch": "vitest"
+0012:   },
+0013:   "dependencies": {
+0014:     "@vicons/ionicons5": "^0.13.0",
+0015:     "axios": "^1.13.6",
+0016:     "echarts": "^6.0.0",
+0017:     "katex": "^0.16.38",
+0018:     "marked": "^17.0.4",
+0019:     "naive-ui": "^2.44.0",
+codex
+**F01**  
+ID: F01  
+Severity: 高  
+Category: 完整性 / 风险评估  
+Type: migration-gap  
+Before-behavior: 现网已保存的 A4 `editor-layout` 只要 `paper=="A4"`，接口就会按 `source="saved"` 原样返回。  
+After-behavior: 计划把 A4 契约改成“每面仅 1 个 `col:0`”，且新 `_renderA4` 只消费 `side.columns[0]`。  
+Evidence: [plan#L7](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L7), [plan#L123-L169](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L123), [plan#L337-L390](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L337), [router.py#L79-L118](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/router.py#L79), [design#L118](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-design.md#L118)  
+Impact: 旧版多栏 A4 保存布局不会被识别为结构不兼容，升级后仍会被加载，前端会漏渲染 essay/B 面；如果“清空 `editor_layouts/`”被当作迁移手段，又是破坏性操作且计划里没有备份/回滚。  
+Repair hypothesis: 增加显式迁移任务。最小方案是在 `get_editor_layout()` 增加 A4 结构校验（每面仅 1 column、`col==0`），不符合则回退 default+样式合并；若要清理磁盘文件，先做备份目录和一键回滚脚本。
+
+**F02**  
+ID: F02  
+Severity: 高  
+Category: 完整性  
+Type: test-gap MED / contract-mismatch  
+Before-behavior: 当前待改的是 `tql_to_editor_layout()` 的 A4 路径。  
+After-behavior: 计划声称用测试锁定 `tql_to_editor_layout(tpl_path)` 的新契约。  
+Evidence: [plan#L26-L32](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L26), [plan#L50-L112](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L50), [subject_defaults.py#L244-L470](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/subject_defaults.py#L244)  
+Impact: Task 1 的示例测试全部打在 `_fallback_layout()`，没有覆盖真正改动的 TQL 转换路径；实现即使把 `tql_to_editor_layout()` 改坏，测试也可能全绿。  
+Repair hypothesis: 为 `tql_to_editor_layout()` 新增最小 A4 双面 TPL fixture，直接断言 `sides/columns/regions`；`_fallback_layout()` 另保留一组独立 fallback 回归测试，不要混用。
+
+**F03**  
+ID: F03  
+Severity: 高  
+Category: 完整性  
+Type: test-gap HIGH  
+Before-behavior: 错误实现可能让英语 API 继续返回 A3。  
+After-behavior: 计划希望 API 测试在这种错误下稳定失败。  
+Evidence: [plan#L643-L649](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L643), [plan#L677-L684](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L677)  
+Impact: 示例测试先取 `paper`，再写 `if paper == "A4": ...`；也就是返回 A3 时不会失败。这是硬性的假阳性测试，CI 无法阻止最关键的纸型回退缺陷。  
+Repair hypothesis: 先 `assert paper == "A4"`，再断言双面单栏契约；同时补一个明确反例断言，验证 A3 科目不会误升 A4。
+
+**F04**  
+ID: F04  
+Severity: 中  
+Category: 完整性 / 代码库对齐  
+Type: coverage-gap  
+Before-behavior: 设计和任务标题都把“英语、化学”列为 A4 API 回归对象。  
+After-behavior: 计划实际只新增英语测试。  
+Evidence: [design#L97-L99](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-design.md#L97), [plan#L638-L649](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L638), [plan#L657-L703](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L657), [plan#L88-L101](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L88)  
+Impact: 化学正是计划里自己承认“fallback 判断可能不是 A4”的特例，但最终没有被 API 测试覆盖；这会留下一个目标场景未验收。  
+Repair hypothesis: Task 6 至少补一条化学 API 用例，并明确测试前提是“走 TQL”还是“走 fallback”；如果依赖 TQL 存在，需在测试里构造可控 fixture，而不是依赖本机目录。
+
+**F05**  
+ID: F05  
+Severity: 中  
+Category: 自洽性 / 架构适配  
+Type: contract-conflict  
+Before-behavior: Task 2 明确要求删除 `flex:none` hack，并把 A4 布局收敛到 `.a4-col/.a4-content`。  
+After-behavior: Task 3 的 `_renderA4` 示例又在 B 面内联了 `style="flex:none;height:100%;"`，同时对“B 面无内容”的表现给了两个互斥定义。  
+Evidence: [plan#L202-L231](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L202), [plan#L261-L275](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L261), [plan#L370-L378](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L370)  
+Impact: 计划内部目标不一致，执行者很难判断 B 面空页到底应“渲染空 warning”还是“完全不渲染页面”；同时内联样式把本应集中在 CSS 的布局规则又散回 JS，架构回退。  
+Repair hypothesis: 先统一 B 面空内容的唯一行为，再把高度/伸缩规则全部回收到 CSS class，例如 `.a4-col--fullheight`，禁止在 `_renderA4` 中继续引入行内 hack。
+
+**F06**  
+ID: F06  
+Severity: 中  
+Category: 完整性  
+Type: missing-test-contract / test-gap MED  
+Before-behavior: Task 2-5 都是前端行为变更，仓库本身已经具备 Vitest + happy-dom。  
+After-behavior: 计划却只给 Task 2 审查清单，没有“测试契约段+边界条件段”；Task 3-5 则主要依赖手工浏览器验证，统一回归命令也只跑后端 pytest。  
+Evidence: [plan#L13-L16](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L13), [plan#L189-L248](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L189), [plan#L257-L263](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L257), [frontend/package.json#L6-L11](C:/Users/Administrator/edu-cloud/frontend/package.json#L6), [frontend/vite.config.js#L21-L24](C:/Users/Administrator/edu-cloud/frontend/vite.config.js#L21)  
+Impact: 不满足你给的“每个行为变更 Task 都要有测试契约和边界条件”的硬要求；而且前端主路径没有自动化门禁，A3/A4 渲染回归只能靠人工目测。  
+Repair hypothesis: 补前端 Vitest 任务。最小集合应覆盖 `renderFromLayout()` 的 A3/A4 DOM 结构、`buildChoiceGroupsHTML()` 的 TQL 坐标分支、`getCleanHTML()`/`batchExportPdf()` 的 HTML 与 CSS 注入行为；最终回归命令同时包含 `python -m pytest ...` 和 `cd frontend && npx vitest run`。
+tokens used
+113,095
+**F01**  
+ID: F01  
+Severity: 高  
+Category: 完整性 / 风险评估  
+Type: migration-gap  
+Before-behavior: 现网已保存的 A4 `editor-layout` 只要 `paper=="A4"`，接口就会按 `source="saved"` 原样返回。  
+After-behavior: 计划把 A4 契约改成“每面仅 1 个 `col:0`”，且新 `_renderA4` 只消费 `side.columns[0]`。  
+Evidence: [plan#L7](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L7), [plan#L123-L169](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L123), [plan#L337-L390](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L337), [router.py#L79-L118](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/router.py#L79), [design#L118](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-design.md#L118)  
+Impact: 旧版多栏 A4 保存布局不会被识别为结构不兼容，升级后仍会被加载，前端会漏渲染 essay/B 面；如果“清空 `editor_layouts/`”被当作迁移手段，又是破坏性操作且计划里没有备份/回滚。  
+Repair hypothesis: 增加显式迁移任务。最小方案是在 `get_editor_layout()` 增加 A4 结构校验（每面仅 1 column、`col==0`），不符合则回退 default+样式合并；若要清理磁盘文件，先做备份目录和一键回滚脚本。
+
+**F02**  
+ID: F02  
+Severity: 高  
+Category: 完整性  
+Type: test-gap MED / contract-mismatch  
+Before-behavior: 当前待改的是 `tql_to_editor_layout()` 的 A4 路径。  
+After-behavior: 计划声称用测试锁定 `tql_to_editor_layout(tpl_path)` 的新契约。  
+Evidence: [plan#L26-L32](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L26), [plan#L50-L112](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L50), [subject_defaults.py#L244-L470](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/subject_defaults.py#L244)  
+Impact: Task 1 的示例测试全部打在 `_fallback_layout()`，没有覆盖真正改动的 TQL 转换路径；实现即使把 `tql_to_editor_layout()` 改坏，测试也可能全绿。  
+Repair hypothesis: 为 `tql_to_editor_layout()` 新增最小 A4 双面 TPL fixture，直接断言 `sides/columns/regions`；`_fallback_layout()` 另保留一组独立 fallback 回归测试，不要混用。
+
+**F03**  
+ID: F03  
+Severity: 高  
+Category: 完整性  
+Type: test-gap HIGH  
+Before-behavior: 错误实现可能让英语 API 继续返回 A3。  
+After-behavior: 计划希望 API 测试在这种错误下稳定失败。  
+Evidence: [plan#L643-L649](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L643), [plan#L677-L684](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L677)  
+Impact: 示例测试先取 `paper`，再写 `if paper == "A4": ...`；也就是返回 A3 时不会失败。这是硬性的假阳性测试，CI 无法阻止最关键的纸型回退缺陷。  
+Repair hypothesis: 先 `assert paper == "A4"`，再断言双面单栏契约；同时补一个明确反例断言，验证 A3 科目不会误升 A4。
+
+**F04**  
+ID: F04  
+Severity: 中  
+Category: 完整性 / 代码库对齐  
+Type: coverage-gap  
+Before-behavior: 设计和任务标题都把“英语、化学”列为 A4 API 回归对象。  
+After-behavior: 计划实际只新增英语测试。  
+Evidence: [design#L97-L99](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-design.md#L97), [plan#L638-L649](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L638), [plan#L657-L703](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L657), [plan#L88-L101](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L88)  
+Impact: 化学正是计划里自己承认“fallback 判断可能不是 A4”的特例，但最终没有被 API 测试覆盖；这会留下一个目标场景未验收。  
+Repair hypothesis: Task 6 至少补一条化学 API 用例，并明确测试前提是“走 TQL”还是“走 fallback”；如果依赖 TQL 存在，需在测试里构造可控 fixture，而不是依赖本机目录。
+
+**F05**  
+ID: F05  
+Severity: 中  
+Category: 自洽性 / 架构适配  
+Type: contract-conflict  
+Before-behavior: Task 2 明确要求删除 `flex:none` hack，并把 A4 布局收敛到 `.a4-col/.a4-content`。  
+After-behavior: Task 3 的 `_renderA4` 示例又在 B 面内联了 `style="flex:none;height:100%;"`，同时对“B 面无内容”的表现给了两个互斥定义。  
+Evidence: [plan#L202-L231](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L202), [plan#L261-L275](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L261), [plan#L370-L378](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L370)  
+Impact: 计划内部目标不一致，执行者很难判断 B 面空页到底应“渲染空 warning”还是“完全不渲染页面”；同时内联样式把本应集中在 CSS 的布局规则又散回 JS，架构回退。  
+Repair hypothesis: 先统一 B 面空内容的唯一行为，再把高度/伸缩规则全部回收到 CSS class，例如 `.a4-col--fullheight`，禁止在 `_renderA4` 中继续引入行内 hack。
+
+**F06**  
+ID: F06  
+Severity: 中  
+Category: 完整性  
+Type: missing-test-contract / test-gap MED  
+Before-behavior: Task 2-5 都是前端行为变更，仓库本身已经具备 Vitest + happy-dom。  
+After-behavior: 计划却只给 Task 2 审查清单，没有“测试契约段+边界条件段”；Task 3-5 则主要依赖手工浏览器验证，统一回归命令也只跑后端 pytest。  
+Evidence: [plan#L13-L16](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L13), [plan#L189-L248](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L189), [plan#L257-L263](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L257), [frontend/package.json#L6-L11](C:/Users/Administrator/edu-cloud/frontend/package.json#L6), [frontend/vite.config.js#L21-L24](C:/Users/Administrator/edu-cloud/frontend/vite.config.js#L21)  
+Impact: 不满足你给的“每个行为变更 Task 都要有测试契约和边界条件”的硬要求；而且前端主路径没有自动化门禁，A3/A4 渲染回归只能靠人工目测。  
+Repair hypothesis: 补前端 Vitest 任务。最小集合应覆盖 `renderFromLayout()` 的 A3/A4 DOM 结构、`buildChoiceGroupsHTML()` 的 TQL 坐标分支、`getCleanHTML()`/`batchExportPdf()` 的 HTML 与 CSS 注入行为；最终回归命令同时包含 `python -m pytest ...` 和 `cd frontend && npx vitest run`。

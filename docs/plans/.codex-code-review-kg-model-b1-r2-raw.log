@@ -1,0 +1,3435 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d7521-c761-7861-bdc3-e6d448229c0c
+--------
+user
+You are a code reviewer performing Round 2 review after fixes.
+
+Round 1 FAIL findings (F001-F004, all test-gap defect_fix) have been addressed in commit 525255c.
+
+Read the fix commit diff: git diff 29691c2..525255c
+Read the full test files to verify coverage:
+- tests/test_knowledge_tree/test_edge_review.py (F001: 6 valid transitions + nonexistent edge_id)
+- tests/test_knowledge_tree/test_sync_edge_review.py (F002: 5 sync/backwrite tests)
+- tests/test_knowledge_tree/test_quality_check.py (F003: threshold boundary + reviewed exclusion)
+- tests/test_knowledge_tree/test_publish_filter.py (F004: NULL status + empty view + parent role)
+
+Run: cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_knowledge_tree/ -q --tb=short
+
+Verify each R1 finding is resolved:
+F001: edge state machine — are all 6 valid transitions tested with final state assertion?
+F002: sync/backwrite — is read/write/old-schema/backwrite/no-column all covered?
+F003: Q3 threshold — is confidence==0.7 vs 0.69 boundary tested? Is reviewed exclusion tested?
+F004: publish filter — is NULL→ai_draft, empty view, parent role enforcement all tested?
+
+Also check: do the new tests actually fail when core logic is removed (反证)?
+
+审查规范: ~/.claude/rules-t3/review-templates.md
+
+Conclude with PASS or FAIL. If new findings, use structured format.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+按你的要求做 Round 2 复审。我会先按 `code-review:review-pr` 技能和你给的审查模板读取差异、测试文件与相关实现，再跑 `pytest`，最后单独核对 F001-F004 是否被真实覆盖，并检查这些新测试对修复前逻辑是否具备反证能力。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md -TotalCount 220' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content C:/Users/Administrator/.claude/rules-t3/review-templates.md -TotalCount 260' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git status --short' in C:/Users/Administrator/edu-cloud succeeded in 496ms:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+ succeeded in 526ms:
+# 瀹℃煡宸ヤ綔娴佹ā鏉夸笌娴佺▼
+
+> 浠庡叏灞€ CLAUDE.md 鎶藉彇銆俆3/T4 鎵ц浼氳瘽鎸夐渶璇诲彇銆?
+
+## 娴佺▼缂栨帓
+
+### T3锛? 绐楀彛锛?
+
+```
+鈶?Claude: Design 鈫?Plan 鈫?commit (draft)
+鈶?GPT Codex: Plan Review 鈫?plan-review.md (Gate 1)
+鈶?Claude: 澶勭疆 finding 鈫?commit (final plan) 鈫?Execute 鈫?鑷浜ゆ帴鍗?
+鈶?GPT Codex: Code Review锛堝叏閲忥紝codex exec锛夆啋 review-report.md (Gate 2)
+鈶?Gate: 鎵€鏈?finding 宸插缃?鈫?design.md 鏍囪 [瀹炵幇瀹屾垚]
+```
+
+### T4锛? 鎸佷箙 + 涓€娆℃€?Executor锛?
+
+```
+鈶?Claude Planner: Design 鈫?Plan 鈫?commit (draft)
+ succeeded in 546ms:
+ M docs/plans/.codex-code-review-batch2-raw.log
+ M docs/plans/.codex-plan-review-r2-raw.log
+ M docs/plans/.codex-plan-review-raw.log
+ M frontend/public/card-editor/styles.css
+ M frontend/src/card-editor/render.js
+ M frontend/src/components/knowledge-tree/GraphPanel.vue
+ M src/edu_cloud/ai/tools/card_layout.py
+ M src/edu_cloud/modules/card/answer_parser.py
+ M src/edu_cloud/modules/card/answer_standardizer.py
+?? .superpowers/
+?? .task/
+?? docs/plans/.codex-code-review-adaptive-r2-raw.log
+?? docs/plans/.codex-code-review-adaptive-r3-raw.log
+?? docs/plans/.codex-code-review-adaptive-raw.log
+?? docs/plans/.codex-code-review-analytics-report-batch1-r2-raw.log
+?? docs/plans/.codex-code-review-analytics-report-batch1-raw.log
+?? docs/plans/.codex-code-review-analytics-report-r2-raw.log
+?? docs/plans/.codex-code-review-analytics-report-raw.log
+?? docs/plans/.codex-code-review-bio-demo-batch1-r2-raw.log
+?? docs/plans/.codex-code-review-bio-demo-batch1-r3-raw.log
+codex
+先把审查范围固定在 `29691c2..525255c`，并忽略当前工作区里与本次复审无关的脏文件。接下来我会并行读取 fix diff、4 个测试文件和对应实现，再执行测试，最后做一次“修复前是否会红”的反证检查。
+Plan update
+  → 读取 commit diff、目标测试文件与相关实现，建立 F001-F004 对应关系
+  • 运行知识树测试集并核对 F001-F004 的覆盖与断言强度
+  • 做反证检查，确认新测试在修复前/移除核心逻辑时会失败
+  • 按模板输出 Round 2 复审结论（PASS/FAIL）与发现
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --stat 29691c2..525255c' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 29691c2..525255c -- tests/test_knowledge_tree/test_edge_review.py tests/test_knowledge_tree/test_sync_edge_review.py tests/test_knowledge_tree/test_quality_check.py tests/test_knowledge_tree/test_publish_filter.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"edge_review|sync_edge_review|quality_check|publish_filter|reviewed|ai_draft|confidence|edge_id|status|parent role|review\" src tests/test_knowledge_tree -g '"'!**/__pycache__/**'"'" in C:/Users/Administrator/edu-cloud succeeded in 477ms:
+ tests/test_knowledge_tree/test_edge_review.py      |  86 +++++++++++-
+ tests/test_knowledge_tree/test_publish_filter.py   | 114 +++++++++++++++
+ tests/test_knowledge_tree/test_quality_check.py    | 100 ++++++++++++-
+ tests/test_knowledge_tree/test_sync_edge_review.py | 156 +++++++++++++++++++++
+ 4 files changed, 449 insertions(+), 7 deletions(-)
+ succeeded in 489ms:
+diff --git a/tests/test_knowledge_tree/test_edge_review.py b/tests/test_knowledge_tree/test_edge_review.py
+index f44a08e..6a69f17 100644
+--- a/tests/test_knowledge_tree/test_edge_review.py
++++ b/tests/test_knowledge_tree/test_edge_review.py
+@@ -46,12 +46,96 @@ async def test_edge_rejected(client, db, seed_graph_v2):
+     await db.refresh(edge)
+     assert edge.review_status == "rejected"
+ 
+-    # 撤回: rejected → ai_draft
++    # 撤回: rejected → ai_draft（验证最终状态落库）
+     resp2 = await client.post("/api/v1/knowledge-tree/edit",
+         json={"operations": [{"op": "set_review_status", "edge_id": edge.id, "status": "ai_draft"}]},
+         headers=seed_graph_v2["auth_headers"],
+     )
+     assert resp2.json()["applied"] == 1
++    await db.refresh(edge)
++    assert edge.review_status == "ai_draft"
++
++
++@pytest.mark.asyncio
+ succeeded in 2.34s:
+src\editor_layouts\docs\plans\editor_layouts-gates.json:8:      "status": "pending",
+src\editor_layouts\docs\plans\editor_layouts-gates.json:9:      "reviewer": null,
+src\editor_layouts\docs\plans\editor_layouts-gates.json:17:      "status": "pending",
+src\editor_layouts\docs\plans\editor_layouts-gates.json:18:      "reviewer": null,
+src\editor_layouts\docs\plans\editor_layouts-gates.json:26:      "status": "pending",
+src\editor_layouts\docs\plans\editor_layouts-gates.json:27:      "reviewer": null,
+src\edu_cloud\api\ai.py:94:    return {"status": "available", "tools": tool_count}
+src\edu_cloud\api\ai.py:260:        raise HTTPException(status_code=403, detail="无权删除他人会话")
+src\edu_cloud\workers\grading.py:57:            task.status = "processing"
+src\edu_cloud\workers\grading.py:59:            logger.info("grading_task: task=%s, subject=%s, status→processing", task_id, task.subject_id)
+src\edu_cloud\workers\grading.py:73:                task.status = "completed"
+src\edu_cloud\workers\grading.py:143:                        confidence=grade_result.confidence,
+src\edu_cloud\workers\grading.py:145:                        review_status="pending",
+src\edu_cloud\workers\grading.py:150:                    logger.info("grading_task: [%d/%d] answer=%s, score=%.1f/%.1f, confidence=%.2f",
+src\edu_cloud\workers\grading.py:152:                                grade_result.score, grade_result.max_score, grade_result.confidence)
+src\edu_cloud\workers\grading.py:168:                    task.status = "failed"
+src\edu_cloud\workers\grading.py:173:            # Final status
+src\edu_cloud\workers\grading.py:176:            task.status = "failed" if errors else "completed"
+src\edu_cloud\workers\grading.py:181:            logger.info("grading_task DONE: task=%s, status=%s, completed=%d, failed=%d, elapsed=%.1fs",
+src\edu_cloud\workers\grading.py:182:                        task_id, task.status, task.completed, task.failed, elapsed)
+codex
+差异里只有 4 个测试文件新增/扩充，没有业务代码改动，这意味着本轮重点是“测试是否真覆盖到既有核心逻辑”，不是重新审实现。现在我在把这 4 组测试和对应逻辑一一对上，确认它们不是只写了表面 happy path。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content tests/test_knowledge_tree/test_edge_review.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content tests/test_knowledge_tree/test_sync_edge_review.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content tests/test_knowledge_tree/test_quality_check.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"def _read_knowledge_db|def backwrite_to_knowledge_db|quality-check|include_draft|KNOWLEDGE_DRAFT_VISIBLE|set_review_status|VALID_EDGE_REVIEW_TRANSITIONS|Q3|review_status is null|coalesce\\(|teacher_reviewed|published|rejected\" src/edu_cloud/modules/knowledge_tree src/edu_cloud/api -g '"'!**/__pycache__/**'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content tests/test_knowledge_tree/test_publish_filter.py' in C:/Users/Administrator/edu-cloud succeeded in 1.36s:
+"""Edge 瀹℃牳鐘舵€佹満娴嬭瘯銆?""
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_edge_review_status_transition(client, db, seed_graph_v2):
+    """edge ai_draft 鈫?teacher_reviewed銆?""
+    from sqlalchemy import select
+    from edu_cloud.modules.knowledge_tree.models import ConceptGraphEdge
+    edge = (await db.execute(
+        select(ConceptGraphEdge).where(
+            ConceptGraphEdge.source_id == "TEST_M1_A",
+            ConceptGraphEdge.target_id == "TEST_M1_B",
+        )
+    )).scalar_one()
+
+    resp = await client.post("/api/v1/knowledge-tree/edit",
+        json={"operations": [{"op": "set_review_status", "edge_id": edge.id, "status": "teacher_reviewed"}]},
+        headers=seed_graph_v2["auth_headers"],
+    )
+warning: in-process app-server event stream lagged; dropped 205 events
+warning: in-process app-server event stream lagged; dropped 1 events
+warning: in-process app-server event stream lagged; dropped 1 events
+warning: in-process app-server event stream lagged; dropped 4 events
+warning: in-process app-server event stream lagged; dropped 3 events
+warning: in-process app-server event stream lagged; dropped 1 events
+warning: in-process app-server event stream lagged; dropped 7 events
+warning: in-process app-server event stream lagged; dropped 1 events
+warning: in-process app-server event stream lagged; dropped 3 events
+warning: in-process app-server event stream lagged; dropped 1 events
+warning: in-process app-server event stream lagged; dropped 1 events
+warning: in-process app-server event stream lagged; dropped 5 events
+warning: in-process app-server event stream lagged; dropped 1 events
+warning: in-process app-server event stream lagged; dropped 3 events
+warning: in-process app-server event stream lagged; dropped 1 events
+warning: in-process app-server event stream lagged; dropped 7 events
+warning: in-process app-server event stream lagged; dropped 1 events
+ succeeded in 1.28s:
+"""Sync/backwrite edge review_status 娴嬭瘯銆?""
+import sqlite3
+import tempfile
+from pathlib import Path
+
+import pytest
+from sqlalchemy import select
+
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphEdge
+from edu_cloud.modules.knowledge_tree.sync_service import _read_knowledge_db
+
+
+def _create_test_knowledge_db(path: str, with_review_status: bool = True):
+    """鍒涘缓涓存椂 knowledge.db锛屽惈 L1 concepts + concept_relations銆?""
+    conn = sqlite3.connect(path)
+    conn.execute("""
+        CREATE TABLE concepts (
+            id TEXT PRIMARY KEY, name TEXT, knowledge_level TEXT,
+            description TEXT, difficulty INTEGER, bloom_level TEXT,
+            aliases_json TEXT, evidence_ids_json TEXT, review_status TEXT
+ succeeded in 1.41s:
+"""璐ㄩ噺宸℃娴嬭瘯銆?""
+import pytest
+from datetime import datetime
+
+from edu_cloud.modules.knowledge_tree.models import (
+    ConceptGraphNode, ConceptGraphEdge, ConceptBigConceptMap,
+)
+
+
+@pytest.fixture
+async def seed_quality(db, admin_headers):
+    """璐ㄩ噺宸℃娴嬭瘯鏁版嵁銆?""
+    now = datetime.now()
+    db.add(ConceptGraphNode(
+        id="BC_QC", name="宸℃澶ф蹇?, knowledge_level="L1",
+        primary_module="M1", node_type="big_concept", synced_at=now,
+    ))
+    # A: 姝ｅ父锛堟湁 hard in/out锛? B: 姝ｅ父, C: 瀛ょ珛锛堝彧鏈?soft锛? D: 鏃犳弿杩? E: 鐙珛鍒嗛噺
+    for sid, desc, rs in [
+        ("A", "姒傚康A", "ai_draft"), ("B", "姒傚康B", "ai_draft"),
+ succeeded in 1.12s:
+src/edu_cloud/api\app.py:159:    trigger.register("exam.published", workflow_name="post_exam_analysis")
+src/edu_cloud/api\app.py:160:    logger.info("workflow: W1 post_exam_analysis registered on exam.published")
+src/edu_cloud/modules/knowledge_tree\schemas.py:75:    op: str  # add_node/remove_node/update_node/add_edge/remove_edge/update_edge/set_review_status/reorder
+src/edu_cloud/modules/knowledge_tree\schemas.py:86:    status: str | None = None  # for set_review_status
+src/edu_cloud/modules/knowledge_tree\schemas.py:87:    user_id: str | None = None  # for set_review_status
+src/edu_cloud/modules/knowledge_tree\schemas.py:88:    edge_id: int | None = None  # for set_review_status on edge
+src/edu_cloud/modules/knowledge_tree\quality_service.py:92:    # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+src/edu_cloud/modules/knowledge_tree\quality_service.py:99:            "rule_id": "Q3", "severity": "MED",
+src/edu_cloud/modules/knowledge_tree\quality_service.py:127:    # --- Q6: rejected 堆积（>20%）---
+src/edu_cloud/modules/knowledge_tree\quality_service.py:128:    rejected_count = sum(1 for e in edges if (e.review_status or "ai_draft") == "rejected")
+src/edu_cloud/modules/knowledge_tree\quality_service.py:129:    if edges and rejected_count / len(edges) > 0.2:
+src/edu_cloud/modules/knowledge_tree\quality_service.py:132:            "message": f"被驳回关系占比 {rejected_count}/{len(edges)}（>20%），建议清理",
+src/edu_cloud/modules/knowledge_tree\quality_service.py:134:            "edge_ids": [e.id for e in edges if (e.review_status or "ai_draft") == "rejected"],
+src/edu_cloud/modules/knowledge_tree\router.py:23:    include_draft: bool = Query(True, description="是否包含未审核内容"),
+src/edu_cloud/modules/knowledge_tree\router.py:28:    # 角色强制覆盖：学生/家长在非宽限期强制 include_draft=false
+src/edu_cloud/modules/knowledge_tree\router.py:32:        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
+src/edu_cloud/modules/knowledge_tree\router.py:33:            include_draft = False
+src/edu_cloud/modules/knowledge_tree\router.py:34:    return await service.get_graph(db, module=module, include_draft=include_draft)
+src/edu_cloud/modules/knowledge_tree\router.py:80:@router.get("/quality-check")
+src/edu_cloud/modules/knowledge_tree\sync_service.py:35:def _read_knowledge_db(db_path: str) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
+ succeeded in 1.51s:
+"""鍙戝竷杩囨护娴嬭瘯銆?""
+import pytest
+from datetime import datetime
+
+from edu_cloud.modules.knowledge_tree.models import (
+    ConceptGraphNode, ConceptGraphEdge, ConceptBigConceptMap,
+)
+
+
+@pytest.fixture
+async def seed_mixed_status(db, admin_headers):
+    """娣峰悎瀹℃牳鐘舵€佺殑鍥捐氨銆?""
+    now = datetime.now()
+    db.add(ConceptGraphNode(
+        id="BC_PF_TEST", name="杩囨护娴嬭瘯澶ф蹇?, knowledge_level="L1",
+        primary_module="M1", node_type="big_concept", synced_at=now,
+    ))
+    # A: teacher_reviewed, B: ai_draft, C: published
+    for sid, status in [("A", "teacher_reviewed"), ("B", "ai_draft"), ("C", "published")]:
+        db.add(ConceptGraphNode(
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/modules/knowledge_tree/service.py'; Get-Content "'$p | Select-Object -Skip 220 -First 330' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/modules/knowledge_tree/service.py'; Get-Content "'$p | Select-Object -First 220' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content src/edu_cloud/modules/knowledge_tree/sync_service.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content src/edu_cloud/modules/knowledge_tree/router.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content src/edu_cloud/modules/knowledge_tree/quality_service.py' in C:/Users/Administrator/edu-cloud succeeded in 885ms:
+        if not das:
+            concept_mastery.append({
+                "concept_id": node.id,
+                "mastery": 0.0,
+                "state": "unseen",
+                "da_count": 0,
+            })
+            module_scores[node.primary_module].append(0.0)
+            continue
+
+        da_masteries = [mastery_map.get(da_id, 0.0) for da_id in das]
+        avg_mastery = sum(da_masteries) / len(da_masteries)
+        concept_mastery.append({
+            "concept_id": node.id,
+            "mastery": round(avg_mastery, 4),
+            "state": _classify_state(avg_mastery),
+            "da_count": len(das),
+        })
+        module_scores[node.primary_module].append(avg_mastery)
+
+ succeeded in 894ms:
+"""鐭ヨ瘑鏍戜笟鍔￠€昏緫锛氬浘璋辨煡璇€佹帉鎻″害鑱氬悎銆佺紪杈戞搷浣溿€?""
+
+import json
+import logging
+from collections import defaultdict
+from datetime import datetime
+
+import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge, ConceptBigConceptMap
+from edu_cloud.modules.adaptive.models import StudentDaMastery, DaKnowledgePointMap
+
+logger = logging.getLogger(__name__)
+
+# BKT 4 鎬佸垎绫婚槇鍊硷紙涓?bkt_engine.py 涓€鑷达級
+_SOLID = 0.85
+_FRAGILE = 0.6
+_WEAK = 0.3
+
+ succeeded in 964ms:
+"""鐭ヨ瘑鏍?API 绔偣銆?""
+
+import logging
+from fastapi import APIRouter, Depends, Query, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.api.deps import get_db, get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
+from edu_cloud.modules.knowledge_tree.schemas import (
+    GraphResponse, MasteryResponse, EditRequest, EditResponse,
+)
+from edu_cloud.modules.knowledge_tree import service
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/knowledge-tree", tags=["knowledge-tree"])
+
+
+@router.get("/graph", response_model=GraphResponse)
+ succeeded in 927ms:
+"""鐭ヨ瘑鍥捐氨璐ㄩ噺宸℃鏈嶅姟銆?""
+from collections import defaultdict
+from typing import Any
+
+import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge
+
+
+async def run_quality_check(db: AsyncSession, module: str = "all") -> dict:
+    """鎵ц 6 鏉¤川閲忓贰妫€瑙勫垯锛岃繑鍥?issues 鍒楄〃銆?""
+    module_filter = None if module == "all" else module
+
+    # 鏌?concept 鑺傜偣
+    node_q = sa.select(ConceptGraphNode).where(ConceptGraphNode.node_type == "concept")
+    if module_filter:
+        node_q = node_q.where(ConceptGraphNode.primary_module == module_filter)
+    nodes = list((await db.execute(node_q)).scalars())
+    node_ids = {n.id for n in nodes}
+ succeeded in 1.01s:
+"""knowledge.db 鈫?PostgreSQL 鍚屾鏈嶅姟锛坅pp 鍚姩鏃惰皟鐢級銆?""
+import json
+import logging
+import re
+import sqlite3
+from datetime import datetime
+from pathlib import Path
+
+import sqlalchemy as sa
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge, ConceptBigConceptMap
+
+logger = logging.getLogger(__name__)
+
+# F003: 璺緞浠?settings 璇诲彇锛屼笉纭紪鐮?_MODULE_RE = re.compile(r"_M(\d+)_")
+
+
+def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+codex
+我已经确认 `525255c` 只补了测试，没有动知识树实现，所以 PASS/FAIL 将完全取决于这批测试的充分性与反证性。下一步直接跑你指定的 `pytest`，然后再针对每个 finding 做定点验证。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_knowledge_tree/ -q --tb=short' in C:/Users/Administrator/edu-cloud succeeded in 55.57s:
+........................................................................ [ 58%]
+....................................................                     [100%]
+============================== warnings summary ===============================
+tests/test_knowledge_tree/test_edge_review.py::test_edge_review_status_transition
+  C:\Users\Administrator\AppData\Roaming\Python\Python311\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+124 passed, 1 warning in 51.52s
+codex
+测试基线已通过：`tests/test_knowledge_tree/` 共 `124 passed`。接下来我不只停在“绿了”，会用临时 worktree 做反证，把关键逻辑故意削掉，确认这批新增测试确实会红。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$tmp='"'C:/Users/Administrator/edu-cloud-review-proof'; if (Test-Path "'$tmp) { Remove-Item -Recurse -Force $tmp }; git worktree add --detach $tmp HEAD' in C:/Users/Administrator/edu-cloud exited -1 in 0ms:
+`"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$tmp='"'C:/Users/Administrator/edu-cloud-review-proof'; if (Test-Path "'$tmp) { Remove-Item -Recurse -Force $tmp }; git worktree add --detach $tmp HEAD'` rejected: blocked by policy
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$tmp = '"'C:/Users/Administrator/edu-cloud-review-proof-' + (Get-Date -Format 'yyyyMMddHHmmss'); git worktree add --detach "'$tmp HEAD; Write-Output $tmp' in C:/Users/Administrator/edu-cloud succeeded in 3.45s:
+HEAD is now at 525255c fix(tests): address GPT R1 findings F001-F004 — comprehensive test coverage
+C:/Users/Administrator/edu-cloud-review-proof-20260410100724
+Preparing worktree (detached HEAD 525255c)
+Updating files:  28% (861/3058)Updating files:  29% (887/3058)Updating files:  30% (918/3058)Updating files:  31% (948/3058)Updating files:  32% (979/3058)Updating files:  33% (1010/3058)Updating files:  34% (1040/3058)Updating files:  35% (1071/3058)Updating files:  36% (1101/3058)Updating files:  37% (1132/3058)Updating files:  38% (1163/3058)Updating files:  39% (1193/3058)Updating files:  40% (1224/3058)Updating files:  41% (1254/3058)Updating files:  42% (1285/3058)Updating files:  43% (1315/3058)Updating files:  44% (1346/3058)Updating files:  45% (1377/3058)Updating files:  46% (1407/3058)Updating files:  47% (1438/3058)Updating files:  48% (1468/3058)Updating files:  49% (1499/3058)Updating files:  50% (1529/3058)Updating files:  51% (1560/3058)Updating files:  52% (1591/3058)Updating files:  53% (1621/3058)Updating files:  54% (1652/3058)Updating files:  55% (1682/3058)Updating files:  56% (1713/3058)Updating files:  57% (1744/3058)Updating files:  58% (1774/3058)Updating files:  59% (1805/3058)Updating files:  60% (1835/3058)Updating files:  61% (1866/3058)Updating files:  62% (1896/3058)Updating files:  63% (1927/3058)Updating files:  64% (1958/3058)Updating files:  65% (1988/3058)Updating files:  66% (2019/3058)Updating files:  67% (2049/3058)Updating files:  67% (2053/3058)Updating files:  68% (2080/3058)Updating files:  69% (2111/3058)Updating files:  70% (2141/3058)Updating files:  71% (2172/3058)Updating files:  72% (2202/3058)Updating files:  73% (2233/3058)Updating files:  74% (2263/3058)Updating files:  75% (2294/3058)Updating files:  76% (2325/3058)Updating files:  77% (2355/3058)Updating files:  78% (2386/3058)Updating files:  79% (2416/3058)Updating files:  80% (2447/3058)Updating files:  81% (2477/3058)Updating files:  82% (2508/3058)Updating files:  83% (2539/3058)Updating files:  84% (2569/3058)Updating files:  85% (2600/3058)Updating files:  86% (2630/3058)Updating files:  87% (2661/3058)Updating files:  88% (2692/3058)Updating files:  89% (2722/3058)Updating files:  90% (2753/3058)Updating files:  91% (2783/3058)Updating files:  92% (2814/3058)Updating files:  93% (2844/3058)Updating files:  94% (2875/3058)Updating files:  95% (2906/3058)Updating files:  96% (2936/3058)Updating files:  97% (2967/3058)Updating files:  98% (2997/3058)Updating files:  99% (3028/3058)Updating files: 100% (3058/3058)Updating files: 100% (3058/3058), done.
+codex
+开始做反证。第一组我会在临时 worktree 里故意删掉一条 edge 合法转移，让 `test_edge_review.py` 自己证明它不是摆设。
+file update
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -302,8 +302,8 @@
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+apply_patch(auto_approved=true) exited 0 in 84ms:
+Success. Updated the following files:
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/service.py
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..1ba8cf2fb1ad27439829daccf807ccf0a1ca7318
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..1ba8cf2fb1ad27439829daccf807ccf0a1ca7318
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_knowledge_tree/test_edge_review.py -q --tb=short' in C:/Users/Administrator/edu-cloud-review-proof-20260410100724 exited 1 in 15.13s:
+..F.F..                                                                  [100%]
+================================== FAILURES ===================================
+___________________ test_edge_teacher_reviewed_to_published ___________________
+tests\test_knowledge_tree\test_edge_review.py:78: in test_edge_teacher_reviewed_to_published
+    assert resp.json()["applied"] == 1
+E   assert 0 == 1
+---------------------------- Captured stderr setup ----------------------------
+2026-04-10 10:07:54 | edu_cloud.api.app | INFO  | edu-cloud starting, boot_time=2026-04-10 10:07:48
+---------------------------- Captured stderr call -----------------------------
+2026-04-10 10:07:54 | edu_cloud.modules.knowledge_tree.service | INFO  | backwrite to knowledge.db succeeded: 1 operations
+2026-04-10 10:07:54 | edu_cloud.modules.knowledge_tree.router | INFO  | knowledge tree edited: 1 operations applied
+2026-04-10 10:07:54 | edu_cloud.api.app | INFO  | POST /api/v1/knowledge-tree/edit → 200 (13ms)
+2026-04-10 10:07:54 | edu_cloud.modules.knowledge_tree.service | INFO  | backwrite to knowledge.db succeeded: 1 operations
+2026-04-10 10:07:54 | edu_cloud.modules.knowledge_tree.router | INFO  | knowledge tree edited: 0 operations applied
+2026-04-10 10:07:54 | edu_cloud.api.app | INFO  | POST /api/v1/knowledge-tree/edit → 200 (9ms)
+_______________________ test_edge_published_to_ai_draft _______________________
+tests\test_knowledge_tree\test_edge_review.py:127: in test_edge_published_to_ai_draft
+    assert resp.json()["applied"] == 1
+E   assert 0 == 1
+---------------------------- Captured stderr setup ----------------------------
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..1ba8cf2fb1ad27439829daccf807ccf0a1ca7318
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+
+file update
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -304,3 +304,3 @@
+     "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"rejected"},
++    "teacher_reviewed": {"published", "rejected"},
+     "published": {"ai_draft"},
+apply_patch(auto_approved=true) exited 0 in 76ms:
+Success. Updated the following files:
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/service.py
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+
+codex
+第二组反证针对 sync/backwrite。我会把 edge `review_status` 的读、写、回写都故意掐掉，看看 5 个新增测试会不会同时抓到。
+file update
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -479,11 +479,7 @@
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        pass
+                 else:
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -103,8 +103,8 @@
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": None,
++            })
+ 
+@@ -168,9 +168,9 @@
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=None,
++            synced_at=now,
++        ))
+     await db.flush()
+apply_patch(auto_approved=true) exited 0 in 98ms:
+Success. Updated the following files:
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/sync_service.py
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/service.py
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..2f57b081aae23de8c7e6ef8ae5f682d503ed8dc1
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,11 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        pass
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..8204177ed204404642078e218aa5d14e8eb6812a
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=None,
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..2f57b081aae23de8c7e6ef8ae5f682d503ed8dc1
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,11 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        pass
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..8204177ed204404642078e218aa5d14e8eb6812a
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=None,
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_knowledge_tree/test_sync_edge_review.py -q --tb=short' in C:/Users/Administrator/edu-cloud-review-proof-20260410100724 exited 1 in 5.02s:
+F.FF.                                                                    [100%]
+================================== FAILURES ===================================
+_______________ test_read_knowledge_db_with_edge_review_status ________________
+tests\test_knowledge_tree\test_sync_edge_review.py:66: in test_read_knowledge_db_with_edge_review_status
+    assert edges[0]["review_status"] == "teacher_reviewed"
+E   AssertionError: assert None == 'teacher_reviewed'
+_____________________ test_sync_writes_edge_review_status _____________________
+tests\test_knowledge_tree\test_sync_edge_review.py:93: in test_sync_writes_edge_review_status
+    assert edge.review_status == "teacher_reviewed"
+E   AssertionError: assert 'ai_draft' == 'teacher_reviewed'
+E     
+E     - teacher_reviewed
+E     + ai_draft
+______________________ test_backwrite_edge_review_status ______________________
+tests\test_knowledge_tree\test_sync_edge_review.py:133: in test_backwrite_edge_review_status
+    assert row["review_status"] == "teacher_reviewed"
+E   AssertionError: assert 'ai_draft' == 'teacher_reviewed'
+E     
+E     - teacher_reviewed
+E     + ai_draft
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..2f57b081aae23de8c7e6ef8ae5f682d503ed8dc1
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,11 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        pass
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..8204177ed204404642078e218aa5d14e8eb6812a
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=None,
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+file update
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -483,3 +483,7 @@
+                     if "review_status" in edge_review_cols:
+-                        pass
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -107,3 +107,3 @@
+                 "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": None,
++                "review_status": row["review_status"] if has_edge_review else None,
+             })
+@@ -172,3 +172,3 @@
+             confidence=e["confidence"],
+-            review_status=None,
++            review_status=e.get("review_status"),
+             synced_at=now,
+apply_patch(auto_approved=true) exited 0 in 254ms:
+Success. Updated the following files:
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/sync_service.py
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/service.py
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+codex
+第三组反证是 Q3 规则。我会把阈值条件改成 `<= 0.7` 且去掉 `ai_draft` 过滤，验证边界值和已审核排除这两类测试都会红。
+file update
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -92,6 +92,6 @@
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence <= 0.7
++    ]
+     if low_conf_edges:
+apply_patch(auto_approved=true) exited 0 in 167ms:
+Success. Updated the following files:
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/quality_service.py
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..5d9c2f21654e2b92e909bee3da5f9dfa377a92dd
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence <= 0.7
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..5d9c2f21654e2b92e909bee3da5f9dfa377a92dd
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence <= 0.7
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_knowledge_tree/test_quality_check.py -q --tb=short' in C:/Users/Administrator/edu-cloud-review-proof-20260410100724 exited 1 in 10.73s:
+...FF..                                                                  [100%]
+================================== FAILURES ===================================
+_________________________ test_q3_threshold_boundary __________________________
+tests\test_knowledge_tree\test_quality_check.py:143: in test_q3_threshold_boundary
+    assert edge_07.id not in all_edge_ids
+E   assert 1 not in {1, 2}
+E    +  where 1 = <edu_cloud.modules.knowledge_tree.models.ConceptGraphEdge object at 0x000002B667722C10>.id
+---------------------------- Captured stderr setup ----------------------------
+2026-04-10 10:09:39 | edu_cloud.api.app | INFO  | edu-cloud starting, boot_time=2026-04-10 10:09:36
+---------------------------- Captured stderr call -----------------------------
+2026-04-10 10:09:40 | edu_cloud.api.app | INFO  | GET /api/v1/knowledge-tree/quality-check → 200 (9ms)
+________________ test_q3_reviewed_low_confidence_not_reported _________________
+tests\test_knowledge_tree\test_quality_check.py:181: in test_q3_reviewed_low_confidence_not_reported
+    assert edge.id not in issue["edge_ids"]
+E   assert 1 not in [1]
+E    +  where 1 = <edu_cloud.modules.knowledge_tree.models.ConceptGraphEdge object at 0x000002B667BFE910>.id
+---------------------------- Captured stderr setup ----------------------------
+2026-04-10 10:09:40 | edu_cloud.api.app | INFO  | edu-cloud starting, boot_time=2026-04-10 10:09:36
+---------------------------- Captured stderr call -----------------------------
+2026-04-10 10:09:41 | edu_cloud.api.app | INFO  | GET /api/v1/knowledge-tree/quality-check → 200 (12ms)
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..5d9c2f21654e2b92e909bee3da5f9dfa377a92dd
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence <= 0.7
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+file update
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -94,3 +94,3 @@
+         e for e in edges
+-        if e.confidence <= 0.7
++        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+     ]
+apply_patch(auto_approved=true) exited 0 in 133ms:
+Success. Updated the following files:
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/quality_service.py
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..7d578e02ab24de3ebb561be49b300e4387c44a52
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..7d578e02ab24de3ebb561be49b300e4387c44a52
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+codex
+最后一组反证针对发布过滤。我会同时破坏两处核心逻辑：`include_draft=false` 时不再真正过滤草稿/NULL，且 `parent` 角色不再强制关草稿，这样能验证 F004 的 3 个子点不是空测。
+file update
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/router.py
+@@ -28,7 +28,7 @@
+     # 角色强制覆盖：学生/家长在非宽限期强制 include_draft=false
+-    role = current["current_role"].role
+-    if role in ("parent", "student"):
+-        from edu_cloud.config import settings
+-        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
+-            include_draft = False
++    role = current["current_role"].role
++    if role in ("parent", "student"):
++        from edu_cloud.config import settings
++        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
++            include_draft = include_draft
+     return await service.get_graph(db, module=module, include_draft=include_draft)
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -120,15 +120,13 @@
+     # 发布过滤（在 hard 计数之后，navigation 构建之前）
+-    if not include_draft:
+-        visible_statuses = {"teacher_reviewed", "published"}
+-        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
+-        concept_ids_in_view = {n.id for n in concept_nodes}
+-        # 重建 bc_concept_ids（只保留可见概念）
+-        for bc_id in bc_concept_ids:
+-            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
+-        # 过滤 edge：边自身状态 + 端点可见性
+-        edge_visible = {"teacher_reviewed", "published"}
+-        filtered_edges = [e for e in filtered_edges
+-                          if (e.review_status or "ai_draft") in edge_visible
+-                          and e.source_id in concept_ids_in_view
+-                          and e.target_id in concept_ids_in_view]
++    if not include_draft:
++        concept_nodes = [n for n in concept_nodes if n.review_status != "rejected"]
++        concept_ids_in_view = {n.id for n in concept_nodes}
++        # 重建 bc_concept_ids（只保留可见概念）
++        for bc_id in bc_concept_ids:
++            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
++        # 过滤 edge：边自身状态 + 端点可见性
++        filtered_edges = [e for e in filtered_edges
++                          if e.review_status != "rejected"
++                          and e.source_id in concept_ids_in_view
++                          and e.target_id in concept_ids_in_view]
+ 
+apply_patch(auto_approved=true) exited 0 in 145ms:
+Success. Updated the following files:
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/service.py
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/router.py
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..7d578e02ab24de3ebb561be49b300e4387c44a52
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/router.py b/src/edu_cloud/modules/knowledge_tree/router.py
+index 9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5..b6eaa73f5fc8ea68e893f20456f5f4291518a710
+--- a/src/edu_cloud/modules/knowledge_tree/router.py
++++ b/src/edu_cloud/modules/knowledge_tree/router.py
+@@ -26,11 +26,11 @@
+ ):
+     """获取知识图谱结构（节点+边）。"""
+     # 角色强制覆盖：学生/家长在非宽限期强制 include_draft=false
+-    role = current["current_role"].role
+-    if role in ("parent", "student"):
+-        from edu_cloud.config import settings
+-        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
+-            include_draft = False
++    role = current["current_role"].role
++    if role in ("parent", "student"):
++        from edu_cloud.config import settings
++        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
++            include_draft = include_draft
+     return await service.get_graph(db, module=module, include_draft=include_draft)
+ 
+ 
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..33b0f8fe78cbcc5075894bdd5d254d58139ebce9
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -118,19 +118,17 @@
+         filtered_edges = all_edges
+ 
+     # 发布过滤（在 hard 计数之后，navigation 构建之前）
+-    if not include_draft:
+-        visible_statuses = {"teacher_reviewed", "published"}
+-        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
+-        concept_ids_in_view = {n.id for n in concept_nodes}
+-        # 重建 bc_concept_ids（只保留可见概念）
+-        for bc_id in bc_concept_ids:
+-            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
+-        # 过滤 edge：边自身状态 + 端点可见性
+-        edge_visible = {"teacher_reviewed", "published"}
+-        filtered_edges = [e for e in filtered_edges
+-                          if (e.review_status or "ai_draft") in edge_visible
+-                          and e.source_id in concept_ids_in_view
+-                          and e.target_id in concept_ids_in_view]
++    if not include_draft:
++        concept_nodes = [n for n in concept_nodes if n.review_status != "rejected"]
++        concept_ids_in_view = {n.id for n in concept_nodes}
++        # 重建 bc_concept_ids（只保留可见概念）
++        for bc_id in bc_concept_ids:
++            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
++        # 过滤 edge：边自身状态 + 端点可见性
++        filtered_edges = [e for e in filtered_edges
++                          if e.review_status != "rejected"
++                          and e.source_id in concept_ids_in_view
++                          and e.target_id in concept_ids_in_view]
+ 
+     # 5. 构建 navigation
+     module_bcs: dict[str, list[dict]] = defaultdict(list)
+@@ -300,12 +298,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +475,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..7d578e02ab24de3ebb561be49b300e4387c44a52
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/router.py b/src/edu_cloud/modules/knowledge_tree/router.py
+index 9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5..b6eaa73f5fc8ea68e893f20456f5f4291518a710
+--- a/src/edu_cloud/modules/knowledge_tree/router.py
++++ b/src/edu_cloud/modules/knowledge_tree/router.py
+@@ -26,11 +26,11 @@
+ ):
+     """获取知识图谱结构（节点+边）。"""
+     # 角色强制覆盖：学生/家长在非宽限期强制 include_draft=false
+-    role = current["current_role"].role
+-    if role in ("parent", "student"):
+-        from edu_cloud.config import settings
+-        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
+-            include_draft = False
++    role = current["current_role"].role
++    if role in ("parent", "student"):
++        from edu_cloud.config import settings
++        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
++            include_draft = include_draft
+     return await service.get_graph(db, module=module, include_draft=include_draft)
+ 
+ 
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..33b0f8fe78cbcc5075894bdd5d254d58139ebce9
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -118,19 +118,17 @@
+         filtered_edges = all_edges
+ 
+     # 发布过滤（在 hard 计数之后，navigation 构建之前）
+-    if not include_draft:
+-        visible_statuses = {"teacher_reviewed", "published"}
+-        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
+-        concept_ids_in_view = {n.id for n in concept_nodes}
+-        # 重建 bc_concept_ids（只保留可见概念）
+-        for bc_id in bc_concept_ids:
+-            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
+-        # 过滤 edge：边自身状态 + 端点可见性
+-        edge_visible = {"teacher_reviewed", "published"}
+-        filtered_edges = [e for e in filtered_edges
+-                          if (e.review_status or "ai_draft") in edge_visible
+-                          and e.source_id in concept_ids_in_view
+-                          and e.target_id in concept_ids_in_view]
++    if not include_draft:
++        concept_nodes = [n for n in concept_nodes if n.review_status != "rejected"]
++        concept_ids_in_view = {n.id for n in concept_nodes}
++        # 重建 bc_concept_ids（只保留可见概念）
++        for bc_id in bc_concept_ids:
++            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
++        # 过滤 edge：边自身状态 + 端点可见性
++        filtered_edges = [e for e in filtered_edges
++                          if e.review_status != "rejected"
++                          and e.source_id in concept_ids_in_view
++                          and e.target_id in concept_ids_in_view]
+ 
+     # 5. 构建 navigation
+     module_bcs: dict[str, list[dict]] = defaultdict(list)
+@@ -300,12 +298,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +475,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_knowledge_tree/test_publish_filter.py -q --tb=short' in C:/Users/Administrator/edu-cloud-review-proof-20260410100724 exited 1 in 9.91s:
+FFF.FFF                                                                  [100%]
+================================== FAILURES ===================================
+___________________ test_include_draft_false_filters_nodes ____________________
+tests\test_knowledge_tree\test_publish_filter.py:52: in test_include_draft_false_filters_nodes
+    assert "PF_B" not in node_ids  # ai_draft → 被过滤
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: assert 'PF_B' not in {'PF_A', 'PF_B', 'PF_C'}
+---------------------------- Captured stderr setup ----------------------------
+2026-04-10 10:10:22 | edu_cloud.api.app | INFO  | edu-cloud starting, boot_time=2026-04-10 10:10:22
+2026-04-10 10:10:23 | edu_cloud.ai.agent_team | INFO  | Registered team: edu_data (3 agents)
+2026-04-10 10:10:23 | edu_cloud.ai.agent_team | INFO  | Registered team: knowledge (1 agents)
+2026-04-10 10:10:23 | edu_cloud.ai.agent_team | INFO  | Registered team: homework (1 agents)
+2026-04-10 10:10:23 | edu_cloud.core.events | DEBUG | event_bus: registered handler on_exam_published_agent for 'exam.published'
+2026-04-10 10:10:23 | edu_cloud.core.events | DEBUG | event_bus: registered handler on_exam_published for 'exam.published'
+---------------------------- Captured stderr call -----------------------------
+2026-04-10 10:10:24 | edu_cloud.api.app | INFO  | GET /api/v1/knowledge-tree/graph → 200 (18ms)
+___________________ test_include_draft_false_filters_edges ____________________
+tests\test_knowledge_tree\test_publish_filter.py:63: in test_include_draft_false_filters_edges
+    assert not any(e["target"] == "PF_B" for e in edges)
+E   assert not True
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..7d578e02ab24de3ebb561be49b300e4387c44a52
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/router.py b/src/edu_cloud/modules/knowledge_tree/router.py
+index 9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5..b6eaa73f5fc8ea68e893f20456f5f4291518a710
+--- a/src/edu_cloud/modules/knowledge_tree/router.py
++++ b/src/edu_cloud/modules/knowledge_tree/router.py
+@@ -26,11 +26,11 @@
+ ):
+     """获取知识图谱结构（节点+边）。"""
+     # 角色强制覆盖：学生/家长在非宽限期强制 include_draft=false
+-    role = current["current_role"].role
+-    if role in ("parent", "student"):
+-        from edu_cloud.config import settings
+-        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
+-            include_draft = False
++    role = current["current_role"].role
++    if role in ("parent", "student"):
++        from edu_cloud.config import settings
++        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
++            include_draft = include_draft
+     return await service.get_graph(db, module=module, include_draft=include_draft)
+ 
+ 
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..33b0f8fe78cbcc5075894bdd5d254d58139ebce9
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -118,19 +118,17 @@
+         filtered_edges = all_edges
+ 
+     # 发布过滤（在 hard 计数之后，navigation 构建之前）
+-    if not include_draft:
+-        visible_statuses = {"teacher_reviewed", "published"}
+-        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
+-        concept_ids_in_view = {n.id for n in concept_nodes}
+-        # 重建 bc_concept_ids（只保留可见概念）
+-        for bc_id in bc_concept_ids:
+-            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
+-        # 过滤 edge：边自身状态 + 端点可见性
+-        edge_visible = {"teacher_reviewed", "published"}
+-        filtered_edges = [e for e in filtered_edges
+-                          if (e.review_status or "ai_draft") in edge_visible
+-                          and e.source_id in concept_ids_in_view
+-                          and e.target_id in concept_ids_in_view]
++    if not include_draft:
++        concept_nodes = [n for n in concept_nodes if n.review_status != "rejected"]
++        concept_ids_in_view = {n.id for n in concept_nodes}
++        # 重建 bc_concept_ids（只保留可见概念）
++        for bc_id in bc_concept_ids:
++            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
++        # 过滤 edge：边自身状态 + 端点可见性
++        filtered_edges = [e for e in filtered_edges
++                          if e.review_status != "rejected"
++                          and e.source_id in concept_ids_in_view
++                          and e.target_id in concept_ids_in_view]
+ 
+     # 5. 构建 navigation
+     module_bcs: dict[str, list[dict]] = defaultdict(list)
+@@ -300,12 +298,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +475,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+file update
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -121,3 +121,4 @@
+     if not include_draft:
+-        concept_nodes = [n for n in concept_nodes if n.review_status != "rejected"]
++        visible_statuses = {"teacher_reviewed", "published"}
++        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
+         concept_ids_in_view = {n.id for n in concept_nodes}
+@@ -127,4 +128,5 @@
+         # 过滤 edge：边自身状态 + 端点可见性
++        edge_visible = {"teacher_reviewed", "published"}
+         filtered_edges = [e for e in filtered_edges
+-                          if e.review_status != "rejected"
++                          if (e.review_status or "ai_draft") in edge_visible
+                           and e.source_id in concept_ids_in_view
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/router.py
+@@ -32,3 +32,3 @@
+         if not settings.KNOWLEDGE_DRAFT_VISIBLE:
+-            include_draft = include_draft
++            include_draft = False
+     return await service.get_graph(db, module=module, include_draft=include_draft)
+apply_patch(auto_approved=true) exited 0 in 153ms:
+Success. Updated the following files:
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/service.py
+M C:/Users/Administrator/edu-cloud-review-proof-20260410100724/src/edu_cloud/modules/knowledge_tree/router.py
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..7d578e02ab24de3ebb561be49b300e4387c44a52
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/router.py b/src/edu_cloud/modules/knowledge_tree/router.py
+index 9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5..9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5
+--- a/src/edu_cloud/modules/knowledge_tree/router.py
++++ b/src/edu_cloud/modules/knowledge_tree/router.py
+@@ -26,11 +26,11 @@
+ ):
+     """获取知识图谱结构（节点+边）。"""
+     # 角色强制覆盖：学生/家长在非宽限期强制 include_draft=false
+-    role = current["current_role"].role
+-    if role in ("parent", "student"):
+-        from edu_cloud.config import settings
+-        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
+-            include_draft = False
++    role = current["current_role"].role
++    if role in ("parent", "student"):
++        from edu_cloud.config import settings
++        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
++            include_draft = False
+     return await service.get_graph(db, module=module, include_draft=include_draft)
+ 
+ 
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -118,19 +118,19 @@
+         filtered_edges = all_edges
+ 
+     # 发布过滤（在 hard 计数之后，navigation 构建之前）
+-    if not include_draft:
+-        visible_statuses = {"teacher_reviewed", "published"}
+-        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
+-        concept_ids_in_view = {n.id for n in concept_nodes}
+-        # 重建 bc_concept_ids（只保留可见概念）
+-        for bc_id in bc_concept_ids:
+-            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
+-        # 过滤 edge：边自身状态 + 端点可见性
+-        edge_visible = {"teacher_reviewed", "published"}
+-        filtered_edges = [e for e in filtered_edges
+-                          if (e.review_status or "ai_draft") in edge_visible
+-                          and e.source_id in concept_ids_in_view
+-                          and e.target_id in concept_ids_in_view]
++    if not include_draft:
++        visible_statuses = {"teacher_reviewed", "published"}
++        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
++        concept_ids_in_view = {n.id for n in concept_nodes}
++        # 重建 bc_concept_ids（只保留可见概念）
++        for bc_id in bc_concept_ids:
++            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
++        # 过滤 edge：边自身状态 + 端点可见性
++        edge_visible = {"teacher_reviewed", "published"}
++        filtered_edges = [e for e in filtered_edges
++                          if (e.review_status or "ai_draft") in edge_visible
++                          and e.source_id in concept_ids_in_view
++                          and e.target_id in concept_ids_in_view]
+ 
+     # 5. 构建 navigation
+     module_bcs: dict[str, list[dict]] = defaultdict(list)
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..7d578e02ab24de3ebb561be49b300e4387c44a52
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/router.py b/src/edu_cloud/modules/knowledge_tree/router.py
+index 9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5..9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5
+--- a/src/edu_cloud/modules/knowledge_tree/router.py
++++ b/src/edu_cloud/modules/knowledge_tree/router.py
+@@ -26,11 +26,11 @@
+ ):
+     """获取知识图谱结构（节点+边）。"""
+     # 角色强制覆盖：学生/家长在非宽限期强制 include_draft=false
+-    role = current["current_role"].role
+-    if role in ("parent", "student"):
+-        from edu_cloud.config import settings
+-        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
+-            include_draft = False
++    role = current["current_role"].role
++    if role in ("parent", "student"):
++        from edu_cloud.config import settings
++        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
++            include_draft = False
+     return await service.get_graph(db, module=module, include_draft=include_draft)
+ 
+ 
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -118,19 +118,19 @@
+         filtered_edges = all_edges
+ 
+     # 发布过滤（在 hard 计数之后，navigation 构建之前）
+-    if not include_draft:
+-        visible_statuses = {"teacher_reviewed", "published"}
+-        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
+-        concept_ids_in_view = {n.id for n in concept_nodes}
+-        # 重建 bc_concept_ids（只保留可见概念）
+-        for bc_id in bc_concept_ids:
+-            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
+-        # 过滤 edge：边自身状态 + 端点可见性
+-        edge_visible = {"teacher_reviewed", "published"}
+-        filtered_edges = [e for e in filtered_edges
+-                          if (e.review_status or "ai_draft") in edge_visible
+-                          and e.source_id in concept_ids_in_view
+-                          and e.target_id in concept_ids_in_view]
++    if not include_draft:
++        visible_statuses = {"teacher_reviewed", "published"}
++        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
++        concept_ids_in_view = {n.id for n in concept_nodes}
++        # 重建 bc_concept_ids（只保留可见概念）
++        for bc_id in bc_concept_ids:
++            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
++        # 过滤 edge：边自身状态 + 端点可见性
++        edge_visible = {"teacher_reviewed", "published"}
++        filtered_edges = [e for e in filtered_edges
++                          if (e.review_status or "ai_draft") in edge_visible
++                          and e.source_id in concept_ids_in_view
++                          and e.target_id in concept_ids_in_view]
+ 
+     # 5. 构建 navigation
+     module_bcs: dict[str, list[dict]] = defaultdict(list)
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+Plan update
+  ✓ 读取 commit diff、目标测试文件与相关实现，建立 F001-F004 对应关系
+  ✓ 运行知识树测试集并核对 F001-F004 的覆盖与断言强度
+  ✓ 做反证检查，确认新测试在修复前/移除核心逻辑时会失败
+  → 按模板输出 Round 2 复审结论（PASS/FAIL）与发现
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..7d578e02ab24de3ebb561be49b300e4387c44a52
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/router.py b/src/edu_cloud/modules/knowledge_tree/router.py
+index 9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5..9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5
+--- a/src/edu_cloud/modules/knowledge_tree/router.py
++++ b/src/edu_cloud/modules/knowledge_tree/router.py
+@@ -26,11 +26,11 @@
+ ):
+     """获取知识图谱结构（节点+边）。"""
+     # 角色强制覆盖：学生/家长在非宽限期强制 include_draft=false
+-    role = current["current_role"].role
+-    if role in ("parent", "student"):
+-        from edu_cloud.config import settings
+-        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
+-            include_draft = False
++    role = current["current_role"].role
++    if role in ("parent", "student"):
++        from edu_cloud.config import settings
++        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
++            include_draft = False
+     return await service.get_graph(db, module=module, include_draft=include_draft)
+ 
+ 
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -118,19 +118,19 @@
+         filtered_edges = all_edges
+ 
+     # 发布过滤（在 hard 计数之后，navigation 构建之前）
+-    if not include_draft:
+-        visible_statuses = {"teacher_reviewed", "published"}
+-        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
+-        concept_ids_in_view = {n.id for n in concept_nodes}
+-        # 重建 bc_concept_ids（只保留可见概念）
+-        for bc_id in bc_concept_ids:
+-            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
+-        # 过滤 edge：边自身状态 + 端点可见性
+-        edge_visible = {"teacher_reviewed", "published"}
+-        filtered_edges = [e for e in filtered_edges
+-                          if (e.review_status or "ai_draft") in edge_visible
+-                          and e.source_id in concept_ids_in_view
+-                          and e.target_id in concept_ids_in_view]
++    if not include_draft:
++        visible_statuses = {"teacher_reviewed", "published"}
++        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
++        concept_ids_in_view = {n.id for n in concept_nodes}
++        # 重建 bc_concept_ids（只保留可见概念）
++        for bc_id in bc_concept_ids:
++            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
++        # 过滤 edge：边自身状态 + 端点可见性
++        edge_visible = {"teacher_reviewed", "published"}
++        filtered_edges = [e for e in filtered_edges
++                          if (e.review_status or "ai_draft") in edge_visible
++                          and e.source_id in concept_ids_in_view
++                          and e.target_id in concept_ids_in_view]
+ 
+     # 5. 构建 navigation
+     module_bcs: dict[str, list[dict]] = defaultdict(list)
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+codex
+我已经完成基线测试和 4 组反证。现在在补齐精确行号，准备按你要求用中文给出最终 PASS/FAIL，并逐项回答 F001-F004 是否覆盖到位。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'tests/test_knowledge_tree/test_sync_edge_review.py'; "'$i=1; Get-Content $p | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'tests/test_knowledge_tree/test_publish_filter.py'; "'$i=1; Get-Content $p | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'tests/test_knowledge_tree/test_edge_review.py'; "'$i=1; Get-Content $p | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/modules/knowledge_tree/sync_service.py'; "'$i=1; Get-Content $p | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/modules/knowledge_tree/quality_service.py'; "'$i=1; Get-Content $p | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/modules/knowledge_tree/router.py'; "'$i=1; Get-Content $p | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/modules/knowledge_tree/service.py'; "'$i=1; Get-Content $p | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'tests/test_knowledge_tree/test_quality_check.py'; "'$i=1; Get-Content $p | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloud succeeded in 807ms:
+   1: """Sync/backwrite edge review_status 娴嬭瘯銆?""
+   2: import sqlite3
+   3: import tempfile
+   4: from pathlib import Path
+   5: 
+   6: import pytest
+   7: from sqlalchemy import select
+   8: 
+   9: from edu_cloud.modules.knowledge_tree.models import ConceptGraphEdge
+  10: from edu_cloud.modules.knowledge_tree.sync_service import _read_knowledge_db
+  11: 
+  12: 
+  13: def _create_test_knowledge_db(path: str, with_review_status: bool = True):
+  14:     """鍒涘缓涓存椂 knowledge.db锛屽惈 L1 concepts + concept_relations銆?""
+  15:     conn = sqlite3.connect(path)
+  16:     conn.execute("""
+  17:         CREATE TABLE concepts (
+  18:             id TEXT PRIMARY KEY, name TEXT, knowledge_level TEXT,
+  19:             description TEXT, difficulty INTEGER, bloom_level TEXT,
+  20:             aliases_json TEXT, evidence_ids_json TEXT, review_status TEXT
+ succeeded in 798ms:
+   1: """鍙戝竷杩囨护娴嬭瘯銆?""
+   2: import pytest
+   3: from datetime import datetime
+   4: 
+   5: from edu_cloud.modules.knowledge_tree.models import (
+   6:     ConceptGraphNode, ConceptGraphEdge, ConceptBigConceptMap,
+   7: )
+   8: 
+   9: 
+  10: @pytest.fixture
+  11: async def seed_mixed_status(db, admin_headers):
+  12:     """娣峰悎瀹℃牳鐘舵€佺殑鍥捐氨銆?""
+  13:     now = datetime.now()
+  14:     db.add(ConceptGraphNode(
+  15:         id="BC_PF_TEST", name="杩囨护娴嬭瘯澶ф蹇?, knowledge_level="L1",
+  16:         primary_module="M1", node_type="big_concept", synced_at=now,
+  17:     ))
+  18:     # A: teacher_reviewed, B: ai_draft, C: published
+  19:     for sid, status in [("A", "teacher_reviewed"), ("B", "ai_draft"), ("C", "published")]:
+  20:         db.add(ConceptGraphNode(
+ succeeded in 755ms:
+   1: """鐭ヨ瘑鍥捐氨璐ㄩ噺宸℃鏈嶅姟銆?""
+   2: from collections import defaultdict
+   3: from typing import Any
+   4: 
+   5: import sqlalchemy as sa
+   6: from sqlalchemy.ext.asyncio import AsyncSession
+   7: 
+   8: from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge
+   9: 
+  10: 
+  11: async def run_quality_check(db: AsyncSession, module: str = "all") -> dict:
+  12:     """鎵ц 6 鏉¤川閲忓贰妫€瑙勫垯锛岃繑鍥?issues 鍒楄〃銆?""
+  13:     module_filter = None if module == "all" else module
+  14: 
+  15:     # 鏌?concept 鑺傜偣
+  16:     node_q = sa.select(ConceptGraphNode).where(ConceptGraphNode.node_type == "concept")
+  17:     if module_filter:
+  18:         node_q = node_q.where(ConceptGraphNode.primary_module == module_filter)
+  19:     nodes = list((await db.execute(node_q)).scalars())
+  20:     node_ids = {n.id for n in nodes}
+ succeeded in 820ms:
+   1: """knowledge.db 鈫?PostgreSQL 鍚屾鏈嶅姟锛坅pp 鍚姩鏃惰皟鐢級銆?""
+   2: import json
+   3: import logging
+   4: import re
+   5: import sqlite3
+   6: from datetime import datetime
+   7: from pathlib import Path
+   8: 
+   9: import sqlalchemy as sa
+  10: from sqlalchemy import select, func
+  11: from sqlalchemy.ext.asyncio import AsyncSession
+  12: 
+  13: from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge, ConceptBigConceptMap
+  14: 
+  15: logger = logging.getLogger(__name__)
+  16: 
+  17: # F003: 璺緞浠?settings 璇诲彇锛屼笉纭紪鐮?_MODULE_RE = re.compile(r"_M(\d+)_")
+  18: 
+  19: 
+  20: def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+ succeeded in 807ms:
+   1: """Edge 瀹℃牳鐘舵€佹満娴嬭瘯銆?""
+   2: import pytest
+   3: 
+   4: 
+   5: @pytest.mark.asyncio
+   6: async def test_edge_review_status_transition(client, db, seed_graph_v2):
+   7:     """edge ai_draft 鈫?teacher_reviewed銆?""
+   8:     from sqlalchemy import select
+   9:     from edu_cloud.modules.knowledge_tree.models import ConceptGraphEdge
+  10:     edge = (await db.execute(
+  11:         select(ConceptGraphEdge).where(
+  12:             ConceptGraphEdge.source_id == "TEST_M1_A",
+  13:             ConceptGraphEdge.target_id == "TEST_M1_B",
+  14:         )
+  15:     )).scalar_one()
+  16: 
+  17:     resp = await client.post("/api/v1/knowledge-tree/edit",
+  18:         json={"operations": [{"op": "set_review_status", "edge_id": edge.id, "status": "teacher_reviewed"}]},
+  19:         headers=seed_graph_v2["auth_headers"],
+  20:     )
+ succeeded in 902ms:
+   1: """鐭ヨ瘑鏍?API 绔偣銆?""
+   2: 
+   3: import logging
+   4: from fastapi import APIRouter, Depends, Query, HTTPException
+   5: from sqlalchemy import select
+   6: from sqlalchemy.ext.asyncio import AsyncSession
+   7: 
+   8: from edu_cloud.api.deps import get_db, get_current_user, require_permission
+   9: from edu_cloud.core.permissions import Permission
+  10: from edu_cloud.modules.knowledge_tree.schemas import (
+  11:     GraphResponse, MasteryResponse, EditRequest, EditResponse,
+  12: )
+  13: from edu_cloud.modules.knowledge_tree import service
+  14: 
+  15: logger = logging.getLogger(__name__)
+  16: 
+  17: router = APIRouter(prefix="/api/v1/knowledge-tree", tags=["knowledge-tree"])
+  18: 
+  19: 
+  20: @router.get("/graph", response_model=GraphResponse)
+ succeeded in 958ms:
+   1: """璐ㄩ噺宸℃娴嬭瘯銆?""
+   2: import pytest
+   3: from datetime import datetime
+   4: 
+   5: from edu_cloud.modules.knowledge_tree.models import (
+   6:     ConceptGraphNode, ConceptGraphEdge, ConceptBigConceptMap,
+   7: )
+   8: 
+   9: 
+  10: @pytest.fixture
+  11: async def seed_quality(db, admin_headers):
+  12:     """璐ㄩ噺宸℃娴嬭瘯鏁版嵁銆?""
+  13:     now = datetime.now()
+  14:     db.add(ConceptGraphNode(
+  15:         id="BC_QC", name="宸℃澶ф蹇?, knowledge_level="L1",
+  16:         primary_module="M1", node_type="big_concept", synced_at=now,
+  17:     ))
+  18:     # A: 姝ｅ父锛堟湁 hard in/out锛? B: 姝ｅ父, C: 瀛ょ珛锛堝彧鏈?soft锛? D: 鏃犳弿杩? E: 鐙珛鍒嗛噺
+  19:     for sid, desc, rs in [
+  20:         ("A", "姒傚康A", "ai_draft"), ("B", "姒傚康B", "ai_draft"),
+ succeeded in 1.04s:
+   1: """鐭ヨ瘑鏍戜笟鍔￠€昏緫锛氬浘璋辨煡璇€佹帉鎻″害鑱氬悎銆佺紪杈戞搷浣溿€?""
+   2: 
+   3: import json
+   4: import logging
+   5: from collections import defaultdict
+   6: from datetime import datetime
+   7: 
+   8: import sqlalchemy as sa
+   9: from sqlalchemy.ext.asyncio import AsyncSession
+  10: 
+  11: from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge, ConceptBigConceptMap
+  12: from edu_cloud.modules.adaptive.models import StudentDaMastery, DaKnowledgePointMap
+  13: 
+  14: logger = logging.getLogger(__name__)
+  15: 
+  16: # BKT 4 鎬佸垎绫婚槇鍊硷紙涓?bkt_engine.py 涓€鑷达級
+  17: _SOLID = 0.85
+  18: _FRAGILE = 0.6
+  19: _WEAK = 0.3
+  20: 
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..7d578e02ab24de3ebb561be49b300e4387c44a52
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/router.py b/src/edu_cloud/modules/knowledge_tree/router.py
+index 9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5..9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5
+--- a/src/edu_cloud/modules/knowledge_tree/router.py
++++ b/src/edu_cloud/modules/knowledge_tree/router.py
+@@ -26,11 +26,11 @@
+ ):
+     """获取知识图谱结构（节点+边）。"""
+     # 角色强制覆盖：学生/家长在非宽限期强制 include_draft=false
+-    role = current["current_role"].role
+-    if role in ("parent", "student"):
+-        from edu_cloud.config import settings
+-        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
+-            include_draft = False
++    role = current["current_role"].role
++    if role in ("parent", "student"):
++        from edu_cloud.config import settings
++        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
++            include_draft = False
+     return await service.get_graph(db, module=module, include_draft=include_draft)
+ 
+ 
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -118,19 +118,19 @@
+         filtered_edges = all_edges
+ 
+     # 发布过滤（在 hard 计数之后，navigation 构建之前）
+-    if not include_draft:
+-        visible_statuses = {"teacher_reviewed", "published"}
+-        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
+-        concept_ids_in_view = {n.id for n in concept_nodes}
+-        # 重建 bc_concept_ids（只保留可见概念）
+-        for bc_id in bc_concept_ids:
+-            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
+-        # 过滤 edge：边自身状态 + 端点可见性
+-        edge_visible = {"teacher_reviewed", "published"}
+-        filtered_edges = [e for e in filtered_edges
+-                          if (e.review_status or "ai_draft") in edge_visible
+-                          and e.source_id in concept_ids_in_view
+-                          and e.target_id in concept_ids_in_view]
++    if not include_draft:
++        visible_statuses = {"teacher_reviewed", "published"}
++        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
++        concept_ids_in_view = {n.id for n in concept_nodes}
++        # 重建 bc_concept_ids（只保留可见概念）
++        for bc_id in bc_concept_ids:
++            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
++        # 过滤 edge：边自身状态 + 端点可见性
++        edge_visible = {"teacher_reviewed", "published"}
++        filtered_edges = [e for e in filtered_edges
++                          if (e.review_status or "ai_draft") in edge_visible
++                          and e.source_id in concept_ids_in_view
++                          and e.target_id in concept_ids_in_view]
+ 
+     # 5. 构建 navigation
+     module_bcs: dict[str, list[dict]] = defaultdict(list)
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+codex
+结论：PASS
+
+未发现新的 `code-bug` / `test-gap` 阻断项。按 `~/.claude/rules-t3/review-templates.md` 的要求先审测试充分性，这个 fix commit 主要补的是测试，4 个 R1 finding 现在都已被有效覆盖，而且做了反证，新增测试不是 tautology。
+
+核对结果：
+- F001 已解决。edge 6 条合法转移都被覆盖，并且都有最终状态落库断言：`ai_draft→teacher_reviewed`、`ai_draft→rejected`、`rejected→ai_draft`、`teacher_reviewed→published`、`teacher_reviewed→rejected`、`published→ai_draft`，外加 `nonexistent edge_id` 和非法跳转校验，见 [test_edge_review.py](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_edge_review.py#L5)；对应状态机实现见 [service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/service.py#L288) 和 [service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/service.py#L347)。
+- F002 已解决。`read/write/old-schema/backwrite/no-column` 5 个面都覆盖到了，见 [test_sync_edge_review.py](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_sync_edge_review.py#L60)；对应读取、同步写入、回写逻辑分别在 [sync_service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/sync_service.py#L91)、[sync_service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/sync_service.py#L162)、[service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/service.py#L459)。
+- F003 已解决。`confidence == 0.7` 不报、`0.69` 报，以及 `teacher_reviewed` 低置信度边排除，都有直接断言，见 [test_quality_check.py](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_quality_check.py#L89)；对应规则实现见 [quality_service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/quality_service.py#L90)。
+- F004 已解决。`NULL -> ai_draft` 过滤、空视图返回、`parent` 角色强制 draft filter 都覆盖到了，且原有节点/边/navigation 过滤用例还在，见 [test_publish_filter.py](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_publish_filter.py#L44)；对应实现见 [service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/service.py#L113) 和 [router.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/router.py#L20)。
+
+反证结果：
+- 基线执行 `python -m pytest tests/test_knowledge_tree/ -q --tb=short`：`124 passed, 1 warning`。
+- F001：在临时 worktree 中删掉 `teacher_reviewed -> published` 合法转移后，`test_edge_teacher_reviewed_to_published`、`test_edge_published_to_ai_draft` 失败。
+- F002：在临时 worktree 中去掉 edge `review_status` 的读取/PG 写入/backwrite 后，`test_read_knowledge_db_with_edge_review_status`、`test_sync_writes_edge_review_status`、`test_backwrite_edge_review_status` 失败；`old-schema` 与 `no-column` 两个兼容性用例仍按预期通过。
+- F003：把 Q3 改成 `<= 0.7` 且不区分 `ai_draft` 后，`test_q3_threshold_boundary`、`test_q3_reviewed_low_confidence_not_reported` 失败。
+- F004：削弱 `include_draft=false` 过滤并移除 `parent` 强制覆盖后，`test_null_review_status_treated_as_ai_draft`、`test_all_ai_draft_returns_empty`、`test_parent_role_forced_draft_filter` 以及基础过滤用例一起失败。
+
+这轮可以判定为 PASS。
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/quality_service.py b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+index 7d578e02ab24de3ebb561be49b300e4387c44a52..7d578e02ab24de3ebb561be49b300e4387c44a52
+--- a/src/edu_cloud/modules/knowledge_tree/quality_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/quality_service.py
+@@ -90,10 +90,10 @@
+         })
+ 
+     # --- Q3: 低置信度关系（<0.7 且 ai_draft）---
+-    low_conf_edges = [
+-        e for e in edges
+-        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
+-    ]
++    low_conf_edges = [
++        e for e in edges
++        if e.confidence < 0.7 and (e.review_status or "ai_draft") == "ai_draft"
++    ]
+     if low_conf_edges:
+         issues.append({
+             "rule_id": "Q3", "severity": "MED",
+diff --git a/src/edu_cloud/modules/knowledge_tree/router.py b/src/edu_cloud/modules/knowledge_tree/router.py
+index 9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5..9d1d7e97bfe9db850797da9ab6c3be8f692e2aa5
+--- a/src/edu_cloud/modules/knowledge_tree/router.py
++++ b/src/edu_cloud/modules/knowledge_tree/router.py
+@@ -26,11 +26,11 @@
+ ):
+     """获取知识图谱结构（节点+边）。"""
+     # 角色强制覆盖：学生/家长在非宽限期强制 include_draft=false
+-    role = current["current_role"].role
+-    if role in ("parent", "student"):
+-        from edu_cloud.config import settings
+-        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
+-            include_draft = False
++    role = current["current_role"].role
++    if role in ("parent", "student"):
++        from edu_cloud.config import settings
++        if not settings.KNOWLEDGE_DRAFT_VISIBLE:
++            include_draft = False
+     return await service.get_graph(db, module=module, include_draft=include_draft)
+ 
+ 
+diff --git a/src/edu_cloud/modules/knowledge_tree/service.py b/src/edu_cloud/modules/knowledge_tree/service.py
+index 5136303d95cd36745962f7b1e6e08ea8626cf212..5136303d95cd36745962f7b1e6e08ea8626cf212
+--- a/src/edu_cloud/modules/knowledge_tree/service.py
++++ b/src/edu_cloud/modules/knowledge_tree/service.py
+@@ -118,19 +118,19 @@
+         filtered_edges = all_edges
+ 
+     # 发布过滤（在 hard 计数之后，navigation 构建之前）
+-    if not include_draft:
+-        visible_statuses = {"teacher_reviewed", "published"}
+-        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
+-        concept_ids_in_view = {n.id for n in concept_nodes}
+-        # 重建 bc_concept_ids（只保留可见概念）
+-        for bc_id in bc_concept_ids:
+-            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
+-        # 过滤 edge：边自身状态 + 端点可见性
+-        edge_visible = {"teacher_reviewed", "published"}
+-        filtered_edges = [e for e in filtered_edges
+-                          if (e.review_status or "ai_draft") in edge_visible
+-                          and e.source_id in concept_ids_in_view
+-                          and e.target_id in concept_ids_in_view]
++    if not include_draft:
++        visible_statuses = {"teacher_reviewed", "published"}
++        concept_nodes = [n for n in concept_nodes if (n.review_status or "ai_draft") in visible_statuses]
++        concept_ids_in_view = {n.id for n in concept_nodes}
++        # 重建 bc_concept_ids（只保留可见概念）
++        for bc_id in bc_concept_ids:
++            bc_concept_ids[bc_id] = [c for c in bc_concept_ids[bc_id] if c in concept_ids_in_view]
++        # 过滤 edge：边自身状态 + 端点可见性
++        edge_visible = {"teacher_reviewed", "published"}
++        filtered_edges = [e for e in filtered_edges
++                          if (e.review_status or "ai_draft") in edge_visible
++                          and e.source_id in concept_ids_in_view
++                          and e.target_id in concept_ids_in_view]
+ 
+     # 5. 构建 navigation
+     module_bcs: dict[str, list[dict]] = defaultdict(list)
+@@ -300,12 +300,12 @@
+     "published": {"ai_draft"},
+ }
+ 
+-_EDGE_VALID_TRANSITIONS = {
+-    "ai_draft": {"teacher_reviewed", "rejected"},
+-    "teacher_reviewed": {"published", "rejected"},
+-    "published": {"ai_draft"},
+-    "rejected": {"ai_draft"},
+-}
++_EDGE_VALID_TRANSITIONS = {
++    "ai_draft": {"teacher_reviewed", "rejected"},
++    "teacher_reviewed": {"published", "rejected"},
++    "published": {"ai_draft"},
++    "rejected": {"ai_draft"},
++}
+ 
+ 
+ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+@@ -477,15 +477,15 @@
+                     )
+             elif op == "set_review_status":
+                 edge_id = op_data.get("edge_id")
+-                if edge_id is not None:
+-                    # Edge review status backwrite
+-                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
+-                    if "review_status" in edge_review_cols:
+-                        conn.execute(
+-                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
+-                            (op_data.get("status"), op_data.get("_edge_source"),
+-                             op_data.get("_edge_target"), op_data.get("_edge_type")),
+-                        )
++                if edge_id is not None:
++                    # Edge review status backwrite
++                    edge_review_cols = {r[1] for r in conn.execute("PRAGMA table_info(concept_relations)")}
++                    if "review_status" in edge_review_cols:
++                        conn.execute(
++                            "UPDATE concept_relations SET review_status=? WHERE source_id=? AND target_id=? AND relation_type=?",
++                            (op_data.get("status"), op_data.get("_edge_source"),
++                             op_data.get("_edge_target"), op_data.get("_edge_type")),
++                        )
+                 else:
+                     if "review_status" in existing_cols:
+                         conn.execute(
+diff --git a/src/edu_cloud/modules/knowledge_tree/sync_service.py b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+index fe36f599f922f7ebb53068c7bb951b0411cadde2..fe36f599f922f7ebb53068c7bb951b0411cadde2
+--- a/src/edu_cloud/modules/knowledge_tree/sync_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/sync_service.py
+@@ -101,12 +101,12 @@
+     edges = []
+     for row in conn.execute(f"SELECT {edge_cols} FROM concept_relations"):
+         if row["source_id"] in l1_ids and row["target_id"] in l1_ids:
+-            edges.append({
+-                "source_id": row["source_id"], "target_id": row["target_id"],
+-                "relation_type": row["relation_type"],
+-                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
+-                "review_status": row["review_status"] if has_edge_review else None,
+-            })
++            edges.append({
++                "source_id": row["source_id"], "target_id": row["target_id"],
++                "relation_type": row["relation_type"],
++                "strength": row["strength"] or 1.0, "confidence": row["confidence"] or 1.0,
++                "review_status": row["review_status"] if has_edge_review else None,
++            })
+ 
+     # 4. Map（容错）
+     maps = []
+@@ -166,13 +166,13 @@
+ 
+     # 写 edges
+     for e in edges:
+-        db.add(ConceptGraphEdge(
+-            source_id=e["source_id"], target_id=e["target_id"],
+-            relation_type=e["relation_type"], strength=e["strength"],
+-            confidence=e["confidence"],
+-            review_status=e.get("review_status"),
+-            synced_at=now,
+-        ))
++        db.add(ConceptGraphEdge(
++            source_id=e["source_id"], target_id=e["target_id"],
++            relation_type=e["relation_type"], strength=e["strength"],
++            confidence=e["confidence"],
++            review_status=e.get("review_status"),
++            synced_at=now,
++        ))
+     await db.flush()
+ 
+     # 写 map
+
+tokens used
+249,885
+结论：PASS
+
+未发现新的 `code-bug` / `test-gap` 阻断项。按 `~/.claude/rules-t3/review-templates.md` 的要求先审测试充分性，这个 fix commit 主要补的是测试，4 个 R1 finding 现在都已被有效覆盖，而且做了反证，新增测试不是 tautology。
+
+核对结果：
+- F001 已解决。edge 6 条合法转移都被覆盖，并且都有最终状态落库断言：`ai_draft→teacher_reviewed`、`ai_draft→rejected`、`rejected→ai_draft`、`teacher_reviewed→published`、`teacher_reviewed→rejected`、`published→ai_draft`，外加 `nonexistent edge_id` 和非法跳转校验，见 [test_edge_review.py](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_edge_review.py#L5)；对应状态机实现见 [service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/service.py#L288) 和 [service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/service.py#L347)。
+- F002 已解决。`read/write/old-schema/backwrite/no-column` 5 个面都覆盖到了，见 [test_sync_edge_review.py](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_sync_edge_review.py#L60)；对应读取、同步写入、回写逻辑分别在 [sync_service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/sync_service.py#L91)、[sync_service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/sync_service.py#L162)、[service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/service.py#L459)。
+- F003 已解决。`confidence == 0.7` 不报、`0.69` 报，以及 `teacher_reviewed` 低置信度边排除，都有直接断言，见 [test_quality_check.py](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_quality_check.py#L89)；对应规则实现见 [quality_service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/quality_service.py#L90)。
+- F004 已解决。`NULL -> ai_draft` 过滤、空视图返回、`parent` 角色强制 draft filter 都覆盖到了，且原有节点/边/navigation 过滤用例还在，见 [test_publish_filter.py](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_publish_filter.py#L44)；对应实现见 [service.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/service.py#L113) 和 [router.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/router.py#L20)。
+
+反证结果：
+- 基线执行 `python -m pytest tests/test_knowledge_tree/ -q --tb=short`：`124 passed, 1 warning`。
+- F001：在临时 worktree 中删掉 `teacher_reviewed -> published` 合法转移后，`test_edge_teacher_reviewed_to_published`、`test_edge_published_to_ai_draft` 失败。
+- F002：在临时 worktree 中去掉 edge `review_status` 的读取/PG 写入/backwrite 后，`test_read_knowledge_db_with_edge_review_status`、`test_sync_writes_edge_review_status`、`test_backwrite_edge_review_status` 失败；`old-schema` 与 `no-column` 两个兼容性用例仍按预期通过。
+- F003：把 Q3 改成 `<= 0.7` 且不区分 `ai_draft` 后，`test_q3_threshold_boundary`、`test_q3_reviewed_low_confidence_not_reported` 失败。
+- F004：削弱 `include_draft=false` 过滤并移除 `parent` 强制覆盖后，`test_null_review_status_treated_as_ai_draft`、`test_all_ai_draft_returns_empty`、`test_parent_role_forced_draft_filter` 以及基础过滤用例一起失败。
+
+这轮可以判定为 PASS。

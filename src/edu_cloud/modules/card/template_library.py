@@ -59,7 +59,8 @@ def extract_fixed_parts(template: dict) -> dict:
     regions = template.get("regions", [])
     image_size = template.get("image_size", {})
 
-    objective_regions = [r for r in regions if r.get("type") == "objective"]
+    # 容忍历史 type 值: "objective"（旧 seed JSON）等价于 "choice_group"
+    objective_regions = [r for r in regions if r.get("type") in ("objective", "choice_group")]
     subjective_regions = [r for r in regions if r.get("type") == "subjective"]
 
     # 从主观题 regions 推导栏配置

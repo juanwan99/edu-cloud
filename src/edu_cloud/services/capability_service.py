@@ -33,6 +33,7 @@ DEFAULT_CAPABILITIES: dict[str, dict[str, dict[str, bool]]] = {
             ("study_analytics", {"read": True}),
             ("studio", {"read": True}),
             ("calendar", {"read": True}),
+            ("system", {"read": True, "write": False}),
         ]
     },
     "homeroom_teacher": {
@@ -44,6 +45,7 @@ DEFAULT_CAPABILITIES: dict[str, dict[str, dict[str, bool]]] = {
             ("study_analytics", {"read": True}),
             ("calendar", {"read": True}),
             ("studio", {"read": True}),
+            ("system", {"read": True, "write": False}),
         ]
     },
     "subject_teacher": {
@@ -54,6 +56,7 @@ DEFAULT_CAPABILITIES: dict[str, dict[str, dict[str, bool]]] = {
             ("homework", {"read": True, "write": True}),
             ("study_analytics", {"read": True}),
             ("research", {"read": True}),
+            ("system", {"read": True, "write": False}),
         ]
     },
     "parent": {

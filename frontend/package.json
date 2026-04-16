@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@antv/g6": "^5.1.0",
     "@vicons/ionicons5": "^0.13.0",
     "axios": "^1.13.6",
     "echarts": "^6.0.0",

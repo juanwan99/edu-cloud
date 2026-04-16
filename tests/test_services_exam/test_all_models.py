@@ -9,7 +9,7 @@ async def test_all_tables_created(db):
     expected = {
         "schools", "users", "exams", "subjects", "templates", "questions",
         "scan_tasks", "student_answers",
-        "grading_tasks", "ai_grading_results", "teacher_reviews",
-        "classes", "students", "marking_assignments",
+        "grading_tasks", "grading_results", "grading_assignments", "grading_quality_checks",
+        "classes", "students",
     }
     assert expected.issubset(table_names)

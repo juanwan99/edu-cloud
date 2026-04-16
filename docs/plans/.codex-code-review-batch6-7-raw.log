@@ -1,0 +1,1243 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d55bc-9549-7d62-9284-49dfea856b1c
+--------
+user
+You are a code reviewer performing independent review.
+
+Read the review handoff: C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md
+Read the plan: C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md
+Check the commits: git log --oneline 2d16746~1..4bd1f29
+Read the full diff: git diff 2d16746~1..4bd1f29
+Read modified files in full for context.
+
+Review in 4 phases (按顺序):
+
+Phase 0 — Contract Pack 验证（最高优先级）:
+- 读取 plan 中的 Contract Pack 段落
+- 逐条核对 invariants：是否有测试覆盖？verification 映射是否准确？
+- 逐条核对 counter_examples：mitigation 是否已实施？tests_that_still_pass 是否已加固？
+- test_debt：理由是否合理？deadline 是否可接受？
+- freshness：如果实现路径偏离 Contract Pack（新增了未列出的 API / 推翻了不变量），→ process finding
+- 如果 Contract Pack 缺失或不完整 → 记 process finding，不阻断后续检查
+
+Phase 1 — 测试充分性 (Test Adequacy):
+- plan 中声明的边界条件是否都有对应测试
+- 是否只测了 happy path
+- bug fix 是否有回归测试
+- 测试是否真的会在错误实现下失败
+- 对每个测试函数回答：删除被测函数核心逻辑后，此测试会失败吗？如果不会 → test-gap HIGH
+- 识别 assert x is not None / assert result / assert len(x) > 0 等弱断言 → test-gap MED
+- 如果没有有效测试 → 直接退回，不进入 Phase 2
+
+Phase 2 — 行为正确性 (Behavioral Correctness):
+A. 正确性: 实现匹配意图、边界输入、异常路径、条件判断
+B. 边界条件: 对每个新增/修改的函数，构造 3 类输入验证：空集合([]/{}/None)、单元素、溢出/极值
+C. 集成: 调用方更新、import 完整、迁移可回滚、API 兼容
+D. 安全: 无硬编码密钥、输入校验、无注入向量
+E. 架构质量: 新增 import 方向正确（下层不引用上层）、无跨模块内部变量访问、无新增硬编码常量、新文件 <300 行且职责单一
+F. 根因质量（bug fix 适用）: 证据是否真的支持根因结论（非事后合理化）、修复是否改变根因所在层（非症状层）、scope check 三维度覆盖（同模式/同边界/同不变量）、排除假设是否合理
+G. 回归风险: 修改是否影响计划外功能？共用函数/模块的其他调用方是否验证？旧逻辑是否完全清除（Grep 零残留）？跨角色/跨场景分支是否都覆盖？
+
+Phase 3 — 未测试风险 (Non-tested Risks):
+- 未被测试覆盖的副作用：状态、并发、权限、幂等性、时区、空值
+- 实现是否只为过测试而过拟合
+
+**审查规范（必读）：** 先读以下文件中的对应段落，严格按其定义执行：
+- Finding 分类: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-classification -->
+- Finding Type: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-type -->
+- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: pass-fail -->
+- test-gap 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: test-gap-criteria -->
+- 三态 Finding 模型: ~/.claude/rules-t3/review-templates.md <!-- anchor: three-state-model -->
+- 行为变更守卫: ~/.claude/rules-t3/review-templates.md <!-- anchor: behavior-change-guard -->
+- Finding 转换规则: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-transition -->
+
+For each finding use structured format: ID, Severity, Category, Type (defect_fix/behavior_change), Before-behavior, After-behavior, Evidence (file:line), Impact, Repair hypothesis (optional, non-authoritative).
+Repair hypothesis is advisory only and has no execution authority.
+If the finding touches invariants, risk_modules, or red-flag patterns
+(state machine / fallback / selection strategy / threshold / lifecycle / evaluation cadence),
+do not prescribe a concrete code edit. Instead, describe:
+1. the likely repair direction
+2. forbidden fix patterns to avoid
+3. "requires independent fix design + Semantic Regression Gate"
+
+No semantic_regression section found in plan.
+
+If your Repair hypothesis would violate any oracle above, you MUST:
+1. Flag it as "⚠️ conflicts with ORC-XXX"
+2. Suggest alternative repair directions that preserve the oracle
+Conclude with PASS or FAIL.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+本轮是独立代码审查。我先读取审查规则、handoff、plan 和提交范围，确认 Contract Pack 与审查口径，再展开 diff 和完整文件上下文。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.claude/rules-t3/review-templates.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md'" in C:/Users/Administrator/edu-cloud succeeded in 1.92s:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+ succeeded in 2.07s:
+# edu-agent Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Replace edu-cloud's existing ReAct agent with a Claude Code-inspired multi-tier agent kernel that supports planning, parallel tool execution, context compression, session memory, and dual-channel LLM routing.
+
+**Architecture:** Bottom-up build in 7 batches. Each batch produces testable, committable code. Foundation layer first (data structures + registry), then LLM adapter, tool execution pipeline, intelligence layer (planning + memory), and finally the agent loop that wires everything together. Last batch migrates all 39 existing tools to the new interface.
+
+**Tech Stack:** Python 3.11+ / asyncio / FastAPI / SQLAlchemy async / httpx / Pydantic
+
+**Design Doc:** `docs/plans/2026-04-03-edu-agent-design.md`
+
+---
+
+```yaml
+contract_pack:
+  invariants:
+    - id: INV-001
+      statement: "鏃у伐鍏风鍚?func(**kwargs) 鍦?Batch 6 杩佺Щ瀹屾垚鍓嶆寔缁彲鐢紝鐜版湁 agent.py 鍜?test_registry.py 鍏ㄧ豢"
+      verification: pending_test
+warning: in-process app-server event stream lagged; dropped 2 events
+ succeeded in 1.39s:
+[edu-cloud] Executor鈫扲eviewer | 2026-04-04 00:10:13
+## 瀹℃煡浜ゆ帴鍗? Task 15-30
+璁″垝: C:\Users\Administrator\edu-cloud\docs\plans\2026-04-03-edu-agent-plan.md
+
+### 閫?Task 鑷
+| Task | 璁″垝瑕佹眰 | 瀹為檯鎵ц | 鐘舵€?| 璇存槑 |
+|------|---------|---------|------|------|
+| T15 | Migrate exams.py (3 tools) | commit 2d16746, 3 tools 杩佺Щ + test_tools_behavior 鏇存柊 | 鉁?| |
+| T16 | Migrate analytics.py (2 tools) | commit 7009b6d, 2 tools 杩佺Щ + test_tools_analytics 鏇存柊 | 鉁?| |
+| T17 | Migrate analytics_score.py (5 tools) | commit b1da89a, 5 tools 杩佺Щ | 鉁?| |
+| T18 | Migrate analytics_compare.py (3 tools) | commit 0659f74, 3 tools 杩佺Щ | 鉁?| |
+| T19 | Migrate students.py (4 tools) | commit 9a11f88, 4 tools 杩佺Щ + test_tools_behavior 鏇存柊 | 鉁?| |
+| T20 | Migrate knowledge.py (4 tools) | commit 50bedd4, 4 tools 杩佺Щ + test_tools_knowledge 鏇存柊, sensitivity=public | 鉁?| |
+| T21 | Migrate knowledge_db.py (2 tools) | commit b5142cf, 2 tools 杩佺Щ + test_tools_behavior 鏇存柊 | 鉁?| |
+| T22 | Migrate homework.py (5 tools) | commit f004a1b, 5 tools 杩佺Щ + test_homework_tools 鏇存柊 | 鉁?| |
+| T23 | Migrate grading_ops.py (3 tools) | commit d9bf177, 3 tools 杩佺Щ | 鉁?| |
+| T24 | Migrate bank.py (2 tools) | commit 61faff3, 2 tools 杩佺Щ, sensitivity=student | 鉁?| |
+| T25 | Migrate profile.py (4 tools) | commit c871239, 4 tools 杩佺Щ, sensitivity=student | 鉁?| |
+| T26 | Migrate actions.py (2 tools) | commit 600b2ba, 2 tools 杩佺Щ + 鍐呴儴 analytics 璋冪敤淇 | 馃攢 | actions.py 鍐呴儴璋冪敤 get_exam_scores/get_class_stats 鍚屾鏀逛负鏂扮鍚?(input, ctx) 璋冪敤 |
+| T27 | Wire AgentLoop into API endpoint | commit d77dca9, 鏃?pipeline 鏇挎崲涓烘柊 pipeline | 鉁?| |
+ succeeded in 1.39s:
+# 瀹℃煡宸ヤ綔娴佹ā鏉夸笌娴佺▼
+
+> 浠庡叏灞€ CLAUDE.md 鎶藉彇銆俆3/T4 鎵ц浼氳瘽鎸夐渶璇诲彇銆?
+
+## 娴佺▼缂栨帓
+
+### T3锛? 绐楀彛锛?
+
+```
+鈶?Claude: Design 鈫?Plan 鈫?commit (draft)
+鈶?GPT Codex: Plan Review 鈫?plan-review.md (Gate 1)
+鈶?Claude: 澶勭疆 finding 鈫?commit (final plan) 鈫?Execute 鈫?鑷浜ゆ帴鍗?
+鈶?GPT Codex: Code Review锛堝叏閲忥紝codex exec锛夆啋 review-report.md (Gate 2)
+鈶?Gate: 鎵€鏈?finding 宸插缃?鈫?design.md 鏍囪 [瀹炵幇瀹屾垚]
+```
+
+### T4锛? 鎸佷箙 + 涓€娆℃€?Executor锛?
+
+```
+鈶?Claude Planner: Design 鈫?Plan 鈫?commit (draft)
+codex
+我在按 `code-review:review-pr` 的流程收集上下文。下一步会抽取本次提交范围内的文件清单、完整 diff 和规则锚点，再逐相位核对 Contract Pack、测试与行为正确性。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --name-only 2d16746~1..4bd1f29' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --stat 2d16746~1..4bd1f29' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path; import re; text=Path(r'C:/Users/Administrator/.claude/rules-t3/review-templates.md').read_text(encoding='utf-8'); anchors=['finding-classification','finding-type','pass-fail','test-gap-criteria','three-state-model','behavior-change-guard','finding-transition'];
+for a in anchors:
+ m=re.search(r'<"'!-- anchor: %s -->'"' % re.escape(a), text)
+ print('===',a,'===')
+ if not m:
+  print('MISSING')
+  continue
+ start=m.start()
+ nxt=re.search(r'<"'!-- anchor: .*?-->'"', text[m.end():])
+ end=m.end()+nxt.start() if nxt else len(text)
+ print(text[start:end].strip())
+ print()\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git log --oneline 2d16746~1..4bd1f29' in C:/Users/Administrator/edu-cloud succeeded in 1.35s:
+CLAUDE.md
+docs/plans/.codex-plan-review-r3-raw.log
+docs/plans/.codex-plan-review-raw.log
+docs/plans/2026-03-30-phase1c-gates.json
+docs/plans/2026-03-30-phase1d-agent-instantiation-design.md
+docs/plans/2026-03-30-phase1d-gates.json
+docs/plans/2026-03-30-phase2.1-exam-workflow-design.md
+docs/plans/2026-03-30-phase2.1-gates.json
+docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md
+docs/plans/a4-card-editor-gates.json
+docs/plans/edu-agent-state.json
+docs/plans/phase2.2-homework-gates.json
+frontend/public/card-editor/styles.css
+frontend/src/__tests__/router.test.js
+frontend/src/card-editor/interact.js
+frontend/src/card-editor/model.js
+frontend/src/card-editor/panel.js
+frontend/src/card-editor/render.js
+frontend/src/pages/ExamDetailPage.vue
+src/edu_cloud/ai/agent.py
+ succeeded in 1.30s:
+4bd1f29 review: edu-agent batch 6-7 审查交接单
+e699a88 test(agent): verify edu-agent integration — 189 AI tests green, 39 tools registered
+283c551 chore(agent): remove deprecated AI module files replaced by edu-agent
+d77dca9 feat(agent): wire AgentLoop into /api/v1/ai/chat endpoint
+600b2ba refactor(agent): migrate actions tools to ToolContext/ToolResult interface
+c871239 refactor(agent): migrate profile tools to ToolContext/ToolResult interface (student sensitivity)
+61faff3 refactor(agent): migrate bank tools to ToolContext/ToolResult interface (student sensitivity)
+d9bf177 refactor(agent): migrate grading_ops tools to ToolContext/ToolResult interface
+f004a1b refactor(agent): migrate homework tools to ToolContext/ToolResult interface
+b5142cf refactor(agent): migrate knowledge_db tools to ToolContext/ToolResult interface
+50bedd4 refactor(agent): migrate knowledge tools to ToolContext/ToolResult interface (public sensitivity)
+9a11f88 refactor(agent): migrate students tools to ToolContext/ToolResult interface
+0659f74 refactor(agent): migrate analytics_compare tools to ToolContext/ToolResult interface
+b1da89a refactor(agent): migrate analytics_score tools to ToolContext/ToolResult interface
+7009b6d refactor(agent): migrate analytics tools to ToolContext/ToolResult interface
+2d16746 refactor(agent): migrate exam tools to ToolContext/ToolResult interface
+ succeeded in 1.45s:
+ CLAUDE.md                                          |   18 +-
+ docs/plans/.codex-plan-review-r3-raw.log           |  884 +++------
+ docs/plans/.codex-plan-review-raw.log              | 1917 ++++++++++++--------
+ docs/plans/2026-03-30-phase1c-gates.json           |   22 -
+ ...026-03-30-phase1d-agent-instantiation-design.md |    1 +
+ docs/plans/2026-03-30-phase1d-gates.json           |   22 -
+ .../2026-03-30-phase2.1-exam-workflow-design.md    |    1 +
+ docs/plans/2026-03-30-phase2.1-gates.json          |   22 -
+ ...2026-04-03-edu-agent-review-handoff-batch6-7.md |   89 +
+ docs/plans/a4-card-editor-gates.json               |   28 -
+ docs/plans/edu-agent-state.json                    |  184 +-
+ docs/plans/phase2.2-homework-gates.json            |   14 -
+ frontend/public/card-editor/styles.css             |   18 +-
+ frontend/src/__tests__/router.test.js              |    4 +-
+ frontend/src/card-editor/interact.js               |  354 +++-
+ frontend/src/card-editor/model.js                  |  107 +-
+ frontend/src/card-editor/panel.js                  |   47 +-
+ frontend/src/card-editor/render.js                 |  131 +-
+ frontend/src/pages/ExamDetailPage.vue              |  118 +-
+ src/edu_cloud/ai/agent.py                          |  159 --
+ succeeded in 1.44s:
+=== finding-classification ===
+<!-- anchor: finding-classification -->
+## 审查报告: Task {N}-{M}
+结论: PASS / FAIL
+
+### 第一段：测试充分性（Test Adequacy）
+先审测试，再审实现。没有有效测试 → 不进入深层代码审查，直接退回。
+- plan 中声明的边界条件是否都有对应测试
+- 是否存在"只测 happy path"的问题
+- bug fix 是否有回归测试
+- 接口变更是否有 contract/compatibility 测试
+- 测试是否真的会在错误实现下失败（非 tautology）
+
+### 第二段：行为正确性（Behavioral Correctness）
+- 变更理解：GPT 用自己的话描述变更内容和意图
+- Executor 自审抽检：从自审表随机抽 2-3 项独立验证。不实 → 直接 FAIL
+- 对抗性审查：边界输入构造 / 异常路径追踪 / 假阴性检测
+
+### 第三段：未测试风险（Non-tested Risks）
+- 未被测试覆盖的副作用：状态、并发、异常、权限、幂等性、时区、空值、重复提交
+codex
+我已经确认了审查模板和提交范围。现在转到实质核对：抽出 Contract Pack、Batch 6/7 任务与当前实现/测试的对应关系，重点看有没有计划声明了但实际没测、或实现偏离而未记账的地方。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 2d16746~1..4bd1f29 -- src/edu_cloud/ai/tools/exams.py src/edu_cloud/ai/tools/analytics.py src/edu_cloud/ai/tools/analytics_compare.py src/edu_cloud/ai/tools/analytics_score.py src/edu_cloud/ai/tools/students.py src/edu_cloud/ai/tools/knowledge.py src/edu_cloud/ai/tools/knowledge_db.py src/edu_cloud/ai/tools/homework.py src/edu_cloud/ai/tools/grading_ops.py src/edu_cloud/ai/tools/bank.py src/edu_cloud/ai/tools/profile.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path; text=Path(r'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md').read_text(encoding='utf-8'); start=text.index('"'```yaml'"\\ncontract_pack:'); end=text.index('"'```'"', start+1)+3; print(text[start:end])\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path; text=Path(r'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md').read_text(encoding='utf-8');
+for marker in ['## Batch 6: Tool Migration','### Task 27: Wire AgentLoop into API endpoint','### Task 28: Delete deprecated files','### Task 29: Verify Alembic migration head + downgrade','### Task 30: Final integration test']:
+ start=text.index(marker); nxt=text.find('\\n### ', start+1); nxt2=text.find('\\n## ', start+1); ends=[x for x in [nxt,nxt2] if x"'!=-1 and x>start]; end=min(ends) if ends else len(text); print('"'===',marker,'==='); print(text[start:end]); print()\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 2d16746~1..4bd1f29 -- src/edu_cloud/api/ai.py tests/test_ai/test_ai_api.py tests/test_ai/test_ai_api_v2.py src/edu_cloud/ai/tools/actions.py tests/test_ai/test_tools_actions.py tests/test_ai/test_tools_behavior.py tests/test_ai/test_tools_analytics.py tests/test_ai/test_homework_tools.py tests/test_ai/test_tools_knowledge.py' in C:/Users/Administrator/edu-cloud succeeded in 1.31s:
+diff --git a/src/edu_cloud/ai/tools/analytics.py b/src/edu_cloud/ai/tools/analytics.py
+index 6d219cd..dfaa391 100644
+--- a/src/edu_cloud/ai/tools/analytics.py
++++ b/src/edu_cloud/ai/tools/analytics.py
+@@ -11,6 +11,7 @@ from sqlalchemy import select
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+ from edu_cloud.ai.registry import tools
++from edu_cloud.ai.tool_context import ToolContext, ToolResult
+ from edu_cloud.models.exam import Exam, ExamResult
+ from edu_cloud.models.student import Student
+ from edu_cloud.models.class_group import ClassGroup
+@@ -46,53 +47,48 @@ def _compute_stats(scores: list[float]) -> dict:
+     domain="analytics",
+     allowed_roles=["platform_admin", "district_admin"],
+     risk_level="low",
++    is_read_only=True,
++    sensitivity="school",
+ )
+-async def get_exam_scores(
+ succeeded in 1.45s:
+=== ## Batch 6: Tool Migration ===
+## Batch 6: Tool Migration
+
+> Migrate all 39 existing tools from the old `async def func(**kwargs)` signature to the new `async def func(input: dict, ctx: ToolContext) -> ToolResult` signature.
+
+**测试契约（Batch 6 通用，适用 Task 15-26 所有工具迁移）:**
+1. 迁移后工具签名接受 (input: dict, ctx: ToolContext) 并返回 ToolResult
+   - 入口: `await tools.execute("tool_name", {...}, ctx)`
+   - 反例: 如果签名未改但仍用旧 **kwargs，ToolContext 参数会被忽略，输出 dict 而非 ToolResult
+   - 边界: 空 input / ctx 全默认值 / 缺必填参数
+   - 回归: 旧签名 **kwargs 在迁移前仍可用（INV-001 双签名保证）
+   - 命令: `pytest tests/test_ai/test_tools_{module}.py -v`
+
+**边界条件（Batch 6 通用）:**
+- input={} （所有可选参数缺失）→ 期望: 使用默认值或返回合理错误，不抛 KeyError
+- ctx.school_id 与 DB 数据不匹配 → 期望: 返回空结果或 ToolResult(success=False)
+- 工具内部异常 → 期望: 被 try/except 包裹，返回 ToolResult(success=False, error=str(exc))
+
+
+=== ### Task 27: Wire AgentLoop into API endpoint ===
+ succeeded in 1.56s:
+`yaml
+contract_pack:
+  invariants:
+    - id: INV-001
+      statement: "旧工具签名 func(**kwargs) 在 Batch 6 迁移完成前持续可用，现有 agent.py 和 test_registry.py 全绿"
+      verification: pending_test
+      note: "Task 2 的 execute() 双签名保证，Batch 6 完成后删除旧路径"
+    - id: INV-002
+      statement: "capability 缺省语义为'无记录默认允许'：caps 中不存在的 key 不拒绝工具"
+      verification: existing_test
+      test_ref: "tests/test_ai/test_tool_access.py::test_capability_default_allow"
+    - id: INV-003
+      statement: "39 个工具全部通过 ToolRegistry.list_tools() 可发现，且通过 RBAC + Module + Capability 三重过滤"
+      verification: pending_test
+      note: "Task 30 最终集成测试验证"
+    - id: INV-004
+      statement: "SSE 事件流向前兼容：旧 answer/tool_call/tool_result/done 事件格式不变，新增 thinking/plan/task_update 为追加类型"
+      verification: pending_test
+      note: "Task 14 集成测试验证"
+    - id: INV-005
+ succeeded in 1.48s:
+diff --git a/src/edu_cloud/ai/tools/actions.py b/src/edu_cloud/ai/tools/actions.py
+index 80a1765..e086fac 100644
+--- a/src/edu_cloud/ai/tools/actions.py
++++ b/src/edu_cloud/ai/tools/actions.py
+@@ -3,6 +3,7 @@
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+ from edu_cloud.ai.registry import tools
++from edu_cloud.ai.tool_context import ToolContext, ToolResult
+ from edu_cloud.services.studio_service import StudioService
+ from edu_cloud.templates.document_templates import TEMPLATES
+ 
+@@ -28,79 +29,74 @@ from edu_cloud.templates.document_templates import TEMPLATES
+     domain="action",
+     allowed_roles=["platform_admin", "academic_director", "subject_teacher", "homeroom_teacher"],
+     risk_level="med",
++    is_read_only=False,
++    sensitivity="school",
+ )
+-async def generate_report(
+Plan update
+按用户要求分四个阶段做独立审查，先收集合同与测试映射，再核对实现和未测风险。
+  ✓ 读取 Contract Pack、handoff、提交范围与审查规则，建立 Phase 0 检查表
+  → 核对测试覆盖与测试有效性，确认是否存在入口级/回归/边界缺口
+  • 审查实现行为、集成与安全，重点检查 ai.py 和 Batch 6 工具迁移
+  • 汇总未测试风险、分类 findings，并给出 PASS/FAIL
+codex
+测试面已经出现一个明显信号：Task 27 计划要求新增 HTTP 入口级 SSE 合同测试，但 `tests/test_ai/test_ai_api.py` 在本范围里只做了会话结构适配，没有补入口测试。我先把相关文件完整读出来，确认这是不是唯一缺口，还是还有行为回归被现有测试漏掉。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+files=[r'src/edu_cloud/api/ai.py',r'tests/test_ai/test_ai_api.py',r'tests/test_ai/test_ai_api_v2.py',r'src/edu_cloud/ai/agent_loop.py',r'src/edu_cloud/ai/sensitivity_router.py',r'tests/test_ai/test_sensitivity_router.py',r'tests/test_ai/test_agent_loop.py']
+for p in files:
+ print('===== %s =====' % p)
+ text=Path(p).read_text(encoding='utf-8')
+ for i,line in enumerate(text.splitlines(),1):
+  print(f'{i:4}: {line}')
+ print()\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+files=[r'src/edu_cloud/ai/tools/exams.py',r'src/edu_cloud/ai/tools/analytics_compare.py',r'src/edu_cloud/ai/tools/analytics_score.py',r'src/edu_cloud/ai/tools/students.py',r'src/edu_cloud/ai/tools/knowledge.py',r'src/edu_cloud/ai/tools/knowledge_db.py',r'src/edu_cloud/ai/tools/homework.py',r'src/edu_cloud/ai/tools/grading_ops.py',r'src/edu_cloud/ai/tools/bank.py',r'src/edu_cloud/ai/tools/profile.py']
+for p in files:
+ print('===== %s =====' % p)
+ text=Path(p).read_text(encoding='utf-8')
+ for i,line in enumerate(text.splitlines(),1):
+  print(f'{i:4}: {line}')
+ print()\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+files=[r'src/edu_cloud/ai/tools/actions.py',r'tests/test_ai/test_tools_actions.py',r'src/edu_cloud/ai/tools/analytics.py',r'tests/test_ai/test_tools_analytics.py',r'tests/test_ai/test_tools_behavior.py',r'tests/test_ai/test_homework_tools.py',r'tests/test_ai/test_tools_knowledge.py']
+for p in files:
+ print('===== %s =====' % p)
+ text=Path(p).read_text(encoding='utf-8')
+ for i,line in enumerate(text.splitlines(),1):
+  print(f'{i:4}: {line}')
+ print()\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+files=[r'tests/test_ai/test_tool_access.py',r'tests/test_ai/test_registry.py']
+for p in files:
+ print('===== %s =====' % p)
+ text=Path(p).read_text(encoding='utf-8')
+ for i,line in enumerate(text.splitlines(),1):
+  print(f'{i:4}: {line}')
+ print()\"" in C:/Users/Administrator/edu-cloud succeeded in 1.38s:
+===== src/edu_cloud/ai/tools/actions.py =====
+   1: """L4 执行动作工具 — generate_report + generate_comment，注册到全局 registry。"""
+   2: 
+   3: from sqlalchemy.ext.asyncio import AsyncSession
+   4: 
+   5: from edu_cloud.ai.registry import tools
+   6: from edu_cloud.ai.tool_context import ToolContext, ToolResult
+   7: from edu_cloud.services.studio_service import StudioService
+   8: from edu_cloud.templates.document_templates import TEMPLATES
+   9: 
+  10: 
+  11: @tools.register(
+  12:     name="generate_report",
+  13:     description="根据模板和上下文生成报告草稿。返回文档 ID，教师可在 Studio 中编辑。",
+  14:     parameters={
+  15:         "type": "object",
+  16:         "properties": {
+  17:             "template": {
+  18:                 "type": "string",
+  19:                 "description": "模板 key：class_report / subject_analysis / parent_notification",
+ succeeded in 1.62s:
+===== src/edu_cloud/ai/tools/exams.py =====
+   1: """考试域工具（3 个）。L1_exam 类别。"""
+   2: from edu_cloud.ai.registry import tools
+   3: from edu_cloud.ai.tool_context import ToolContext, ToolResult
+   4: 
+   5: 
+   6: @tools.register(
+   7:     name="get_exam_list",
+   8:     description="获取考试列表。可按状态过滤（draft/scanning/grading/reviewing/completed）。",
+   9:     category="L1_exam",
+  10:     module_code="exam",
+  11:     domain="exam",
+  12:     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+  13:     risk_level="low",
+  14:     is_read_only=True,
+  15:     sensitivity="school",
+  16:     parameters={
+  17:         "type": "object",
+  18:         "properties": {
+  19:             "status": {"type": "string", "description": "可选，考试状态过滤"},
+ succeeded in 1.60s:
+===== tests/test_ai/test_tool_access.py =====
+   1: import pytest
+   2: from unittest.mock import AsyncMock
+   3: from edu_cloud.ai.tool_access import ToolAccessResolver
+   4: from edu_cloud.ai.registry import ToolSpec
+   5: 
+   6: 
+   7: def _make_spec(name, category="general", module_code=None, domain="general",
+   8:                allowed_roles=None, requires_capabilities=None):
+   9:     return ToolSpec(
+  10:         name=name, description=f"Tool {name}", parameters={},
+  11:         func=AsyncMock(), category=category, module_code=module_code,
+  12:         domain=domain, allowed_roles=allowed_roles,
+  13:         requires_capabilities=requires_capabilities or [],
+  14:     )
+  15: 
+  16: 
+  17: def test_rbac_filter_blocks_unauthorized_role():
+  18:     specs = [
+  19:         _make_spec("admin_only", allowed_roles=["platform_admin"]),
+ succeeded in 1.74s:
+===== src/edu_cloud/api/ai.py =====
+   1: """AI Agent API — chat SSE + sessions CRUD + health。"""
+   2: import json
+   3: import logging
+   4: import uuid
+   5: from dataclasses import dataclass
+   6: 
+   7: from fastapi import APIRouter, Depends, HTTPException
+   8: from fastapi.responses import StreamingResponse
+   9: from pydantic import BaseModel
+  10: from sqlalchemy.ext.asyncio import AsyncSession
+  11: 
+  12: from edu_cloud.database import get_db
+  13: from edu_cloud.api.deps import require_permission, get_current_user
+  14: from edu_cloud.core.permissions import Permission
+  15: from edu_cloud.ai.registry import tools
+  16: from edu_cloud.ai.audit import AuditLogger
+  17: from edu_cloud.ai.anonymizer import Anonymizer
+  18: from edu_cloud.ai.tool_access import ToolAccessResolver
+  19: from edu_cloud.ai.tool_context import ToolContext
+codex
+入口层和会话层还需要再确认一遍。我要补看 `AgentLoop` 的路由/事件实现，以及 `test_ai_api_v2.py` 后半段断言，判断现有测试到底覆盖到哪一层、漏掉哪一层。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+p=Path(r'tests/test_ai/test_ai_api_v2.py'); lines=p.read_text(encoding='utf-8').splitlines();
+for start,end in [(1,220)]:
+ print('===== %s:%d-%d =====' % (p,start,end))
+ for i in range(start-1,min(end,len(lines))): print(f'{i+1:4}: {lines[i]}')\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+p=Path(r'tests/test_ai/test_tools_analytics.py'); lines=p.read_text(encoding='utf-8').splitlines();
+for start,end in [(1,220)]:
+ print('===== %s:%d-%d =====' % (p,start,end))
+ for i in range(start-1,min(end,len(lines))): print(f'{i+1:4}: {lines[i]}')\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+p=Path(r'src/edu_cloud/ai/agent_loop.py'); lines=p.read_text(encoding='utf-8').splitlines();
+for start,end in [(1,260)]:
+ print('===== %s:%d-%d =====' % (p,start,end))
+ for i in range(start-1,min(end,len(lines))): print(f'{i+1:4}: {lines[i]}')\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 2d16746~1..4bd1f29 -- tests/test_ai/test_tools_analytics.py tests/test_ai/test_tools_actions.py tests/test_ai/test_homework_tools.py tests/test_ai/test_tools_knowledge.py tests/test_ai/test_tools_behavior.py' in C:/Users/Administrator/edu-cloud succeeded in 1.54s:
+===== tests\test_ai\test_ai_api_v2.py:1-220 =====
+   1: """SSE event contract tests — serialization + integration + backward compat (Task 14)."""
+   2: import json
+   3: import pytest
+   4: from unittest.mock import AsyncMock
+   5: from edu_cloud.ai.schemas import AgentEvent
+   6: from edu_cloud.ai.agent_loop import AgentLoop
+   7: from edu_cloud.ai.llm_adapter import LLMProxyAdapter, LLMResponse, TokenUsage
+   8: from edu_cloud.ai.registry import ToolRegistry
+   9: from edu_cloud.ai.tool_context import ToolContext, ToolResult
+  10: from edu_cloud.ai.capability_probe import LoopStrategy
+  11: from edu_cloud.ai.schemas import ToolCall
+  12: 
+  13: 
+  14: def test_agent_event_serialization_for_sse():
+  15:     """Verify all new event types serialize correctly for SSE."""
+  16:     events = [
+  17:         AgentEvent(type="thinking", data={"content": "分析中..."}),
+  18:         AgentEvent(type="plan", data={"tasks": [{"id": "0", "description": "收集数据"}]}),
+  19:         AgentEvent(type="task_update", data={"id": "0", "status": "in_progress"}),
+ succeeded in 1.41s:
+diff --git a/tests/test_ai/test_homework_tools.py b/tests/test_ai/test_homework_tools.py
+index 5215e73..03acdba 100644
+--- a/tests/test_ai/test_homework_tools.py
++++ b/tests/test_ai/test_homework_tools.py
+@@ -1,5 +1,10 @@
+ """作业 Agent 工具测试。"""
+ import pytest
++from edu_cloud.ai.tool_context import ToolContext
++
++
++def _ctx(db, school_id, user_id="u1"):
++    return ToolContext(db=db, school_id=school_id, user_id=user_id, role="admin")
+ 
+ 
+ @pytest.mark.asyncio
+@@ -43,17 +48,18 @@ async def test_list_homework_tasks_tool(db):
+     db.add(school)
+     await db.flush()
+ 
+-    result = await list_homework_tasks(_db=db, _school_id=school.id)
+ succeeded in 1.57s:
+===== src\edu_cloud\ai\agent_loop.py:1-260 =====
+   1: """Core agent loop — plan, execute tools, verify, respond (Design §3).
+   2: 
+   3: Implements the full state machine: CapabilityProbe → SensitivityRouter →
+   4: plan branch (tier ≤ 2) → tool execution → thinking/plan/task_update events →
+   5: error threshold → memory extract.
+   6: 
+   7: Inspired by Claude Code's query.ts AsyncGenerator pattern.
+   8: """
+   9: from __future__ import annotations
+  10: 
+  11: import logging
+  12: from dataclasses import dataclass, field
+  13: from typing import AsyncGenerator
+  14: 
+  15: from edu_cloud.ai.capability_probe import LoopStrategy
+  16: from edu_cloud.ai.context_manager import ContextManager, TokenCounter
+  17: from edu_cloud.ai.llm_adapter import LLMProxyAdapter, LLMRequest, LLMResponse
+  18: from edu_cloud.ai.registry import ToolRegistry, ToolSpec
+  19: from edu_cloud.ai.schemas import AgentEvent, Message, ToolCall, Transition
+ succeeded in 1.71s:
+===== tests\test_ai\test_tools_analytics.py:1-220 =====
+   1: import pytest
+   2: from edu_cloud.ai.tools.analytics import get_exam_scores, get_class_stats
+   3: from edu_cloud.ai.tool_context import ToolContext
+   4: 
+   5: 
+   6: def _ctx(db, school_id, class_ids=None):
+   7:     return ToolContext(db=db, school_id=school_id, user_id="u1", role="admin", class_ids=class_ids)
+   8: 
+   9: 
+  10: @pytest.mark.asyncio
+  11: async def test_get_exam_scores(db, seed_exam_with_results):
+  12:     exam_id = seed_exam_with_results["exam_id"]
+  13:     school_id = seed_exam_with_results["school_id"]
+  14:     result = await get_exam_scores({"exam_id": exam_id}, _ctx(db, school_id))
+  15:     assert result.success
+  16:     assert len(result.data["students"]) > 0
+  17:     assert "total_score" in result.data["students"][0]
+  18:     assert "stats" in result.data
+  19: 
+codex
+我在追第二类风险：Batch 6 迁移了 12 个工具文件，但范围内只更新了 5 组测试文件。我要做一次反向检索，确认其余迁移文件有没有被现有测试实际触达，避免“迁了很多、测了很少”的假绿。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "compare_classes|rank_students|get_grade_aggregates|get_exam_summary|get_score_distribution|get_question_analysis|get_top_mistakes|get_improvement_suggestions|get_grading_progress|get_quality_report|assign_grading_task|get_student_error_book|get_question_stats|get_student_trend|get_student_knowledge_map|get_class_knowledge_weakness|get_student_error_pattern|get_question_knowledge_points" tests/test_ai' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show 2d16746~1:src/edu_cloud/api/ai.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "build_teacher_prompt|session_id|memories|SessionMemory|memory_extract|Anonymizer|AgentProfileService.record_run|tools_selected|intent_domains" src/edu_cloud/api/ai.py src/edu_cloud/ai/agent_loop.py src/edu_cloud/ai/prompts.py src/edu_cloud/ai/task_planner.py src/edu_cloud/ai/session_memory.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+for p in [r'src/edu_cloud/ai/prompts.py',r'src/edu_cloud/ai/task_planner.py',r'src/edu_cloud/ai/session_memory.py']:
+ print('===== %s =====' % p)
+ text=Path(p).read_text(encoding='utf-8')
+ for i,line in enumerate(text.splitlines(),1): print(f'{i:4}: {line}')
+ print()\"" in C:/Users/Administrator/edu-cloud succeeded in 1.27s:
+"""AI Agent API — chat SSE + sessions CRUD + health。"""
+import json
+import logging
+import uuid
+from dataclasses import dataclass
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.database import get_db
+from edu_cloud.api.deps import require_permission, get_current_user
+from edu_cloud.core.permissions import Permission
+from edu_cloud.ai.agent import Agent
+from edu_cloud.ai.llm import LLMChatClient
+from edu_cloud.ai.registry import tools
+from edu_cloud.ai.audit import AuditLogger
+from edu_cloud.ai.context import AgentContext, build_system_prompt
+from edu_cloud.ai.anonymizer import Anonymizer
+ succeeded in 1.43s:
+===== src/edu_cloud/ai/prompts.py =====
+   1: """System prompt templates for different agent scenarios (Design §8)."""
+   2: from __future__ import annotations
+   3: 
+   4: ROLE_CN = {
+   5:     "platform_admin": "平台管理员",
+   6:     "district_admin": "教育局管理员",
+   7:     "principal": "校长",
+   8:     "academic_director": "教务主任",
+   9:     "grade_leader": "年级组长",
+  10:     "homeroom_teacher": "班主任",
+  11:     "subject_teacher": "科任教师",
+  12:     "parent": "家长",
+  13: }
+  14: 
+  15: 
+  16: def build_teacher_prompt(
+  17:     role: str,
+  18:     display_name: str,
+  19:     school_name: str,
+ succeeded in 4.04s:
+src/edu_cloud/ai/prompts.py:16:def build_teacher_prompt(
+src/edu_cloud/ai/prompts.py:22:    memories: list[str] | None = None,
+src/edu_cloud/ai/prompts.py:61:    if memories:
+src/edu_cloud/ai/prompts.py:66:            *[f"- {m}" for m in memories],
+src/edu_cloud/ai/agent_loop.py:21:from edu_cloud.ai.session_memory import SessionMemoryExtractor
+src/edu_cloud/ai/agent_loop.py:45:        memory_extractor: SessionMemoryExtractor | None = None,
+src/edu_cloud/ai/agent_loop.py:54:        self._memory_extractor = memory_extractor
+src/edu_cloud/ai/agent_loop.py:63:        memories: list[str] | None = None,
+src/edu_cloud/ai/agent_loop.py:212:        if self._strategy.memory_extract and self._memory_extractor is not None:
+src/edu_cloud/ai/agent_loop.py:214:                await self._memory_extractor.extract(state.messages, self._adapter)
+src/edu_cloud/api/ai.py:17:from edu_cloud.ai.anonymizer import Anonymizer
+src/edu_cloud/api/ai.py:24:from edu_cloud.ai.prompts import build_teacher_prompt
+src/edu_cloud/api/ai.py:38:    anonymizer: Anonymizer
+src/edu_cloud/api/ai.py:47:    session_id: str | None = None
+src/edu_cloud/api/ai.py:93:    session_id = req.session_id or str(uuid.uuid4())
+src/edu_cloud/api/ai.py:96:    if session_id not in _sessions:
+src/edu_cloud/api/ai.py:160:        anonymizer=_sessions.setdefault(session_id, _SessionState(anonymizer=Anonymizer())).anonymizer,
+src/edu_cloud/api/ai.py:164:    system_prompt = build_teacher_prompt(
+src/edu_cloud/api/ai.py:188:                # AgentLoop emits done with turns/tokens; we also need session_id in done
+src/edu_cloud/api/ai.py:190:                    event.data["session_id"] = session_id
+ succeeded in 4.10s:
+tests/test_ai\test_grading_tools.py:8:    assert "get_grading_progress" in names
+tests/test_ai\test_grading_tools.py:9:    assert "get_quality_report" in names
+tests/test_ai\test_grading_tools.py:10:    assert "assign_grading_task" in names
+tests/test_ai\test_grading_tools.py:18:    progress = specs["get_grading_progress"]
+tests/test_ai\test_grading_tools.py:26:    quality = specs["get_quality_report"]
+tests/test_ai\test_grading_tools.py:35:    assign = specs["assign_grading_task"]
+tests/test_ai\test_prompts.py:9:        tool_names=["get_exam_summary", "get_class_stats"],
+tests/test_ai\test_prompts.py:14:    assert "get_exam_summary" in prompt
+tests/test_ai\test_tools_analytics.py:47:# compare_classes → moved to analytics_compare.py (L2_analytics)
+tests/test_ai\test_task_planner.py:13:        ToolSpec(name="get_exam_summary", description="Get exam summary", parameters={}, func=_noop,
+tests/test_ai\test_task_planner.py:37:        {"description": "收集成绩数据", "tools_hint": ["get_exam_summary", "get_class_stats"], "depends_on": []},
+codex
+我找到一个更实质的回归迹象：`/chat` 现在只保留 `Anonymizer`，不再把任何会话上下文带进新一轮 `AgentLoop`。这可能把原来的多轮会话退化成“带同一个 session_id 的单轮请求”。我再补读旧 `AgentContext` / `Agent.run` 接口，确认这是不是明确的行为回归。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show 2d16746~1:tests/test_ai/test_agent.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show 2d16746~1:src/edu_cloud/ai/agent.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"session|history|messages|context\" tests/test_ai -g '"'!test_ai_api.py'"' -g '"'!test_ai_api_v2.py'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show 2d16746~1:src/edu_cloud/ai/context.py' in C:/Users/Administrator/edu-cloud succeeded in 1.19s:
+"""ReAct Agent — 循环执行 LLM→工具→结果→LLM 直到得出最终答案。"""
+import json
+import logging
+import time
+from typing import AsyncGenerator
+
+from edu_cloud.ai.anonymizer import Anonymizer
+from edu_cloud.ai.context import AgentContext, build_system_prompt
+from edu_cloud.ai.registry import ToolRegistry, ToolSpec
+from edu_cloud.ai.schemas import AgentEvent, ChatMessage, ToolCall  # noqa: F401
+from edu_cloud.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+class Agent:
+    """ReAct loop engine.
+
+    Yields :class:`AgentEvent` objects as the conversation progresses:
+    - ``tool_call``  — LLM decided to invoke a tool
+ succeeded in 1.26s:
+import pytest
+from unittest.mock import AsyncMock
+from edu_cloud.ai.agent import Agent
+from edu_cloud.ai.schemas import ChatMessage, ToolCall
+from edu_cloud.ai.registry import ToolRegistry
+
+
+@pytest.fixture
+def test_registry():
+    reg = ToolRegistry()
+
+    @reg.register(
+        name="mock_tool",
+        description="返回固定数据",
+        category="test",
+        parameters={
+            "type": "object",
+            "properties": {"q": {"type": "string"}},
+            "required": ["q"],
+        },
+ succeeded in 1.12s:
+tests/test_ai\test_agent_loop.py:8:from edu_cloud.ai.tool_context import ToolContext, ToolResult
+tests/test_ai\test_capability_probe.py:14:    assert s.context_compact is True
+tests/test_ai\test_capability_probe.py:35:    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary", context_window=200_000)
+tests/test_ai\test_capability_probe.py:48:    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary", context_window=64_000)
+tests/test_ai\test_capability_probe.py:61:    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary", context_window=8_000)
+tests/test_ai\test_capability_probe.py:93:    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary", context_window=200_000)
+tests/test_ai\test_capability_probe.py:103:    assert adapter.context_window_size() == 200_000
+tests/test_ai\test_capability_probe.py:109:    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary", context_window=64_000)
+tests/test_ai\test_capability_probe.py:119:    assert adapter.context_window_size() == 64_000
+tests/test_ai\test_capability_probe.py:125:    adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary", context_window=8_000)
+tests/test_ai\test_context_manager.py:3:from edu_cloud.ai.context_manager import ContextManager, TokenCounter
+tests/test_ai\test_context_manager.py:23:def test_token_counter_messages():
+tests/test_ai\test_context_manager.py:28:    count = TokenCounter.estimate_messages(msgs)
+tests/test_ai\test_context_manager.py:34:    assert cm.should_compact(token_count=5000, context_window=128_000) is False
+tests/test_ai\test_context_manager.py:39:    assert cm.should_compact(token_count=96_000, context_window=128_000) is True
+tests/test_ai\test_context_manager.py:50:    messages = [
+tests/test_ai\test_context_manager.py:65:    new_messages = await cm.compact(messages, adapter)
+tests/test_ai\test_context_manager.py:67:    assert new_messages[0].role == "system"
+tests/test_ai\test_context_manager.py:68:    assert new_messages[0].content == "You are an assistant"
+tests/test_ai\test_context_manager.py:69:    assert "Summary" in new_messages[1].content
+ succeeded in 1.20s:
+"""Agent context — system prompt building + session-level context management."""
+from __future__ import annotations
+import json
+import logging
+from edu_cloud.ai.schemas import ChatMessage, ToolCall  # noqa: F401
+
+logger = logging.getLogger(__name__)
+
+# ── Role localization ──────────────────────────────────────────────────────
+ROLE_CN = {
+    "platform_admin": "平台管理员", "district_admin": "教育局管理员",
+    "principal": "校长", "academic_director": "教务主任",
+    "grade_leader": "年级组长", "homeroom_teacher": "班主任",
+    "subject_teacher": "科任教师", "parent": "家长",
+}
+
+
+def build_system_prompt(role: str, display_name: str, scope: dict, tool_names: list[str]) -> str:
+    """Build platform system prompt for Agent."""
+    role_cn = ROLE_CN.get(role, role)
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python - <<'PY'
+from pathlib import Path
+import re
+text=Path('docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md').read_text(encoding='utf-8')
+for s in ['T17','T18','T23','T24','T25','T27']:
+ idx=text.find(s)
+ print('===',s,'===')
+ print(text[idx:idx+300])
+PY" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+p=Path(r'src/edu_cloud/ai/tools/knowledge.py'); lines=p.read_text(encoding='utf-8').splitlines();
+for i,line in enumerate(lines,1): print(f'{i:4}: {line}')\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "test_ai_api.py|test_ai_api_v2.py|test_tools_analytics|test_tools_actions|test_homework_tools|test_tools_knowledge|test_tools_behavior|test_grading_tools|test_bank_tools|test_profile_tools" docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+for p in [r'tests/test_ai/test_grading_tools.py',r'tests/test_ai/test_bank_tools.py',r'tests/test_ai/test_profile_tools.py']:
+ import os
+ print('===== %s =====' % p)
+ if not os.path.exists(p):
+  print('MISSING')
+  continue
+ lines=Path(p).read_text(encoding='utf-8').splitlines()
+ for i,line in enumerate(lines,1): print(f'{i:4}: {line}')
+ print()\"" in C:/Users/Administrator/edu-cloud succeeded in 1.36s:
+8:| T15 | Migrate exams.py (3 tools) | commit 2d16746, 3 tools 迁移 + test_tools_behavior 更新 | ✅ | |
+9:| T16 | Migrate analytics.py (2 tools) | commit 7009b6d, 2 tools 迁移 + test_tools_analytics 更新 | ✅ | |
+12:| T19 | Migrate students.py (4 tools) | commit 9a11f88, 4 tools 迁移 + test_tools_behavior 更新 | ✅ | |
+13:| T20 | Migrate knowledge.py (4 tools) | commit 50bedd4, 4 tools 迁移 + test_tools_knowledge 更新, sensitivity=public | ✅ | |
+14:| T21 | Migrate knowledge_db.py (2 tools) | commit b5142cf, 2 tools 迁移 + test_tools_behavior 更新 | ✅ | |
+15:| T22 | Migrate homework.py (5 tools) | commit f004a1b, 5 tools 迁移 + test_homework_tools 更新 | ✅ | |
+28:| 迁移后工具签名接受 (input, ctx) 返回 ToolResult | test_tools_behavior.py::test_get_exam_list_empty | `pytest tests/test_ai/test_tools_behavior.py -v -k exam` | 4 passed | 不适用：已有测试非本次新增 |
+29:| analytics scope enforcement | test_tools_analytics.py::test_get_class_stats_scope_denied | `pytest tests/test_ai/test_tools_analytics.py -v` | 7 passed | 不适用：已有测试非本次新增 |
+30:| SSE event backward compat (INV-004) | test_ai_api_v2.py::test_sse_event_backward_compat | `pytest tests/test_ai/test_ai_api_v2.py -v` | 4 passed | 不适用：已有测试非本次新增 |
+31:| AgentLoop SSE stream | test_ai_api_v2.py::test_agentloop_produces_valid_sse_event_stream | `pytest tests/test_ai/test_ai_api_v2.py -v` | 4 passed | 不适用：已有测试非本次新增 |
+45:- ✅ 对应测试文件已更新（test_tools_behavior, test_tools_analytics, test_tools_knowledge, test_homework_tools, test_tools_actions）
+71:  运行命令: `pytest tests/test_ai/test_tools_actions.py -v`
+ exited 1 in 2.00s:
+At line:2 char:11
++ python - <<'PY'
++           ~
+Missing file specification after redirection operator.
+At line:2 char:10
++ python - <<'PY'
++          ~
+The '<' operator is reserved for future use.
+At line:2 char:11
++ python - <<'PY'
++           ~
+The '<' operator is reserved for future use.
+At line:3 char:1
++ from pathlib import Path
++ ~~~~
+The 'from' keyword is not supported in this version of the language.
+At line:5 char:83
++ ... /2026-04-03-edu-agent-review-handoff-batch6-7.md').read_text(encoding ...
++                                                                  ~
+Missing ')' in method call.
+ succeeded in 1.52s:
+   1: """L3 知识查询工具 — 课标/教材/概念/高考，注册到全局 registry。"""
+   2: 
+   3: from edu_cloud.ai.registry import tools
+   4: from edu_cloud.ai.tool_context import ToolContext, ToolResult
+   5: from edu_cloud.knowledge.store import knowledge_store
+   6: 
+   7: @tools.register(
+   8:     name="search_curriculum",
+   9:     description="搜索课程标准（课标）内容。输入关键词，返回匹配的学业要求和核心素养描述。",
+  10:     parameters={
+  11:         "type": "object",
+  12:         "properties": {
+  13:             "keyword": {"type": "string", "description": "搜索关键词，如'基因表达'、'细胞分裂'"},
+  14:         },
+  15:         "required": ["keyword"],
+  16:     },
+  17:     category="L3_knowledge",
+  18:     domain="knowledge",
+  19:     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+  20:     risk_level="low",
+ succeeded in 1.53s:
+===== tests/test_ai/test_grading_tools.py =====
+   1: import pytest
+   2: 
+   3: 
+   4: def test_grading_tools_registered():
+   5:     from edu_cloud.ai.tools import grading_ops  # noqa: F401
+   6:     from edu_cloud.ai.registry import tools
+   7:     names = tools.list_tools()
+   8:     assert "get_grading_progress" in names
+   9:     assert "get_quality_report" in names
+  10:     assert "assign_grading_task" in names
+  11: 
+  12: 
+  13: def test_grading_tools_metadata():
+  14:     """CR-04: 验证 grading 工具的完整元数据（domain/module_code/risk_level/allowed_roles）"""
+  15:     from edu_cloud.ai.registry import tools
+  16:     specs = {s.name: s for s in tools.get_all_specs()}
+  17: 
+  18:     progress = specs["get_grading_progress"]
+  19:     assert progress.category == "L1_exam"
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "anonymizer|deanonym|anonymize" src/edu_cloud/ai src/edu_cloud/api/ai.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"memories=|memory_extractor|SessionMemoryExtractor\\(|build_teacher_prompt\\(\" src/edu_cloud" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+p=Path(r'src/edu_cloud/ai/tool_executor.py'); lines=p.read_text(encoding='utf-8').splitlines();
+for i,line in enumerate(lines,1): print(f'{i:4}: {line}')\"" in C:/Users/Administrator/edu-cloud succeeded in 1.04s:
+src/edu_cloud/api/ai.py:17:from edu_cloud.ai.anonymizer import Anonymizer
+src/edu_cloud/api/ai.py:38:    anonymizer: Anonymizer
+src/edu_cloud/api/ai.py:160:        anonymizer=_sessions.setdefault(session_id, _SessionState(anonymizer=Anonymizer())).anonymizer,
+src/edu_cloud/ai\anonymizer.py:34:    def anonymize(self, data):
+src/edu_cloud/ai\anonymizer.py:37:            return [self.anonymize(item) for item in data]
+src/edu_cloud/ai\anonymizer.py:47:                result[key] = self.anonymize(value)
+src/edu_cloud/ai\anonymizer.py:49:                result[key] = self.anonymize(value)
+src/edu_cloud/ai\anonymizer.py:54:    def deanonymize(self, text: str) -> str:
+src/edu_cloud/ai\tool_context.py:23:    anonymizer: Any | None = None  # Anonymizer (avoid circular import)
+ succeeded in 1.22s:
+src/edu_cloud\ai\agent_loop.py:45:        memory_extractor: SessionMemoryExtractor | None = None,
+src/edu_cloud\ai\agent_loop.py:54:        self._memory_extractor = memory_extractor
+src/edu_cloud\ai\agent_loop.py:212:        if self._strategy.memory_extract and self._memory_extractor is not None:
+src/edu_cloud\ai\agent_loop.py:214:                await self._memory_extractor.extract(state.messages, self._adapter)
+src/edu_cloud\ai\prompts.py:16:def build_teacher_prompt(
+src/edu_cloud\api\ai.py:164:    system_prompt = build_teacher_prompt(
+ succeeded in 1.53s:
+   1: """Tool execution pipeline with concurrent batching (Design §4)."""
+   2: from __future__ import annotations
+   3: 
+   4: import asyncio
+   5: import logging
+   6: import time
+   7: from dataclasses import dataclass, field
+   8: 
+   9: from edu_cloud.ai.registry import ToolRegistry, ToolSpec
+  10: from edu_cloud.ai.schemas import ToolCall
+  11: from edu_cloud.ai.tool_context import ToolContext, ToolResult
+  12: 
+  13: logger = logging.getLogger(__name__)
+  14: 
+  15: MAX_TOOL_CONCURRENCY = 10
+  16: 
+  17: 
+  18: @dataclass
+  19: class ToolBatch:
+  20:     calls: list[ToolCall]
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --name-only 2d16746~1..4bd1f29 | rg "''^(frontend/|src/edu_cloud/data/seed_demo.py|src/edu_cloud/modules/card/|docs/plans/2026-03-30|docs/plans/a4-card-editor-gates.json)"' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "anonym|deanonym|S001|student names|姓名" tests/test_ai' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+p=Path(r'CLAUDE.md'); lines=p.read_text(encoding='utf-8').splitlines();
+for i,line in enumerate(lines,1): print(f'{i:4}: {line}')\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 2d16746~1..4bd1f29 -- CLAUDE.md frontend/src/pages/ExamDetailPage.vue frontend/src/card-editor/interact.js frontend/src/card-editor/model.js frontend/src/card-editor/panel.js frontend/src/card-editor/render.js frontend/public/card-editor/styles.css src/edu_cloud/data/seed_demo.py src/edu_cloud/modules/card/subject_defaults.py src/edu_cloud/modules/card/tpl_parser.py' in C:/Users/Administrator/edu-cloud succeeded in 1.43s:
+tests/test_ai\test_ai_api.py:65:    from edu_cloud.ai.anonymizer import Anonymizer
+tests/test_ai\test_ai_api.py:70:        anonymizer=Anonymizer(),
+tests/test_ai\test_anonymizer.py:1:from edu_cloud.ai.anonymizer import Anonymizer
+tests/test_ai\test_anonymizer.py:4:def test_anonymize_dict_with_name_fields():
+tests/test_ai\test_anonymizer.py:8:    result = anon.anonymize(data)
+tests/test_ai\test_anonymizer.py:9:    assert result["student_name"] == "S001"
+tests/test_ai\test_anonymizer.py:15:def test_anonymize_nested():
+tests/test_ai\test_anonymizer.py:16:    """Nested dicts and lists are recursively anonymized."""
+tests/test_ai\test_anonymizer.py:19:    result = anon.anonymize(data)
+tests/test_ai\test_anonymizer.py:20:    assert result["students"][0]["name"] == "S001"
+tests/test_ai\test_anonymizer.py:24:def test_anonymize_strips_student_number():
+tests/test_ai\test_anonymizer.py:28:    result = anon.anonymize(data)
+tests/test_ai\test_anonymizer.py:30:    assert result["student_name"] == "S001"
+tests/test_ai\test_anonymizer.py:33:def test_deanonymize():
+tests/test_ai\test_anonymizer.py:35:    anon.anonymize({"name": "张三"})
+tests/test_ai\test_anonymizer.py:36:    result = anon.deanonymize("S001考了满分")
+tests/test_ai\test_anonymizer.py:38:    assert "S001" not in result
+tests/test_ai\test_anonymizer.py:41:def test_anonymizer_reset():
+tests/test_ai\test_anonymizer.py:43:    anon.anonymize({"name": "张三"})
+tests/test_ai\test_anonymizer.py:49:def test_anonymize_same_name_reuses_code():
+ succeeded in 1.47s:
+diff --git a/CLAUDE.md b/CLAUDE.md
+index d95dfbe..8a79390 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -117,7 +117,7 @@ src/edu_cloud/
+     auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）
+     dashboard.py        # GET /api/v1/dashboard/summary（角色 scope 聚合统计）
+     notifications_api.py # GET /api/v1/notifications（通知列表，status/since 过滤）
+-    ai.py               # AI Agent 路由（Batch 4 迁移）
++    ai.py               # AI Agent 路由（AgentLoop pipeline: CapabilityProbe → ToolAccess → SensitivityRouter → AgentLoop）
+     module_middleware.py # ModuleCheckMiddleware — 禁用模块 API 硬拦截（JWT active_role_id → school_id 解析）
+     # 以下为 re-export stubs，canonical → modules/
+     schools.py → modules/school/router.py
+@@ -161,17 +161,21 @@ src/edu_cloud/
+     loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
+     store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）
+   ai/
+-    agent.py            # ReAct Agent（Pipeline 驱动工具集 + 模型选择）
+-    llm.py              # LLMChatClient（OpenAI + Anthropic 双协议，重试，llm-proxy slot）
+-    context.py          # build_system_prompt + AgentContext（session 管理/token 裁剪）
+ succeeded in 1.54s:
+docs/plans/2026-03-30-phase1c-gates.json
+docs/plans/2026-03-30-phase1d-agent-instantiation-design.md
+docs/plans/2026-03-30-phase1d-gates.json
+docs/plans/2026-03-30-phase2.1-exam-workflow-design.md
+docs/plans/2026-03-30-phase2.1-gates.json
+docs/plans/a4-card-editor-gates.json
+frontend/public/card-editor/styles.css
+frontend/src/__tests__/router.test.js
+frontend/src/card-editor/interact.js
+frontend/src/card-editor/model.js
+frontend/src/card-editor/panel.js
+frontend/src/card-editor/render.js
+frontend/src/pages/ExamDetailPage.vue
+src/edu_cloud/data/seed_demo.py
+src/edu_cloud/modules/card/subject_defaults.py
+src/edu_cloud/modules/card/tpl_parser.py
+ succeeded in 1.72s:
+   1: # edu-cloud — 教育云平台
+   2: 
+   3: <!-- key-start -->
+   4: ## 项目定位
+   5: 
+   6: edu-cloud 是**多校协同的云端平台**，是学校端（exam-ai）的上游调度中心。
+   7: 
+   8: ```
+   9: [监管端]                      [云端平台]                      [学校端]
+  10: 教育局/集团看板  ──────→  edu-cloud (port 9000)  ←──────  exam-ai × N 所学校
+  11:   - 全区成绩总览              - 联考编排与下发                 - 本校考试管理
+  12:   - 学校间对比                - 跨校数据汇总                   - 扫描+AI阅卷
+  13:   - 教学质量监控              - 共享 AI 阅卷服务               - 成绩上报到云端
+  14:                               - 学校注册与状态监控
+  15:                               - 统一题库管理
+  16: ```
+  17: 
+  18: ### 职责边界
+  19: 
+  20: | 职责 | 归属 | 说明 |
+codex
+我已经有足够上下文开始定性了，但先补一组快速验证，确认现有相关测试确实无法覆盖我刚才锁定的回归路径。重点跑 API 与工具迁移相关的现有测试。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_ai/test_ai_api.py tests/test_ai/test_ai_api_v2.py -q' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_ai/test_tools_analytics.py tests/test_ai/test_tools_actions.py tests/test_ai/test_homework_tools.py tests/test_ai/test_tools_knowledge.py tests/test_ai/test_tools_behavior.py -q' in C:/Users/Administrator/edu-cloud succeeded in 19.86s:
+......................................                                   [100%]
+38 passed in 10.73s
+ succeeded in 27.99s:
+...........                                                              [100%]
+============================== warnings summary ===============================
+tests/test_ai/test_ai_api.py::test_ai_health
+  C:\Users\Administrator\AppData\Roaming\Python\Python311\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+11 passed, 1 warning in 18.26s
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "/api/v1/ai/chat|agent_loop|session_id|multi-turn|SSE" tests/test_ai/test_ai_api.py tests/test_ai/test_ai_api_v2.py tests/test_ai' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "get_exam_summary|get_score_distribution|get_question_analysis|get_top_mistakes|get_improvement_suggestions|compare_classes|rank_students|get_grade_aggregates|get_student_error_book|get_question_stats|get_student_trend|get_student_knowledge_map|get_class_knowledge_weakness|get_student_error_pattern|assign_grading_task|get_quality_report|get_grading_progress" tests' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+p=Path(r'docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md'); lines=p.read_text(encoding='utf-8').splitlines();
+for i,line in enumerate(lines,1):
+ if any(tok in line for tok in ['T17','T18','T23','T24','T25','T27','test_tools_behavior','test_ai_api_v2.py','对应测试文件已更新']):
+  print(f'{i:4}: {line}')\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -c \"from pathlib import Path
+p=Path(r'src/edu_cloud/api/ai.py'); lines=p.read_text(encoding='utf-8').splitlines();
+for i in range(104,162): print(f'{i:4}: {lines[i-1]}')
+print('---')
+p=Path(r'src/edu_cloud/ai/agent_loop.py'); lines=p.read_text(encoding='utf-8').splitlines();
+for i in [65,68,149,168,175,183,191,218]: print(f'{i:4}: {lines[i-1]}')\"" in C:/Users/Administrator/edu-cloud succeeded in 1.16s:
+tests/test_ai/test_ai_api_v2.py:1:"""SSE event contract tests — serialization + integration + backward compat (Task 14)."""
+tests/test_ai/test_ai_api_v2.py:6:from edu_cloud.ai.agent_loop import AgentLoop
+tests/test_ai/test_ai_api_v2.py:15:    """Verify all new event types serialize correctly for SSE."""
+tests/test_ai/test_ai_api_v2.py:67:    """Integration: AgentLoop → collect events → simulate SSE serialization."""
+tests/test_ai/test_ai_api_v2.py:97:        # Verify each line is valid SSE format
+tests/test_ai/test_ai_api.py:22:    resp = await client.post("/api/v1/ai/chat", json={"message": "你好"})
+tests/test_ai/test_ai_api.py:28:    resp = await client.post("/api/v1/ai/chat", json={"message": ""}, headers=teacher_headers)
+tests/test_ai/test_ai_api.py:36:    resp = await client.post("/api/v1/ai/chat", json={"message": "   "}, headers=teacher_headers)
+tests/test_ai\test_agent_loop.py:5:from edu_cloud.ai.agent_loop import AgentLoop, AgentState
+tests/test_ai\test_ai_api.py:22:    resp = await client.post("/api/v1/ai/chat", json={"message": "你好"})
+tests/test_ai\test_ai_api.py:28:    resp = await client.post("/api/v1/ai/chat", json={"message": ""}, headers=teacher_headers)
+tests/test_ai\test_ai_api.py:36:    resp = await client.post("/api/v1/ai/chat", json={"message": "   "}, headers=teacher_headers)
+tests/test_ai\test_ai_api_v2.py:1:"""SSE event contract tests — serialization + integration + backward compat (Task 14)."""
+tests/test_ai\test_ai_api_v2.py:6:from edu_cloud.ai.agent_loop import AgentLoop
+tests/test_ai\test_ai_api_v2.py:15:    """Verify all new event types serialize correctly for SSE."""
+tests/test_ai\test_ai_api_v2.py:67:    """Integration: AgentLoop → collect events → simulate SSE serialization."""
+tests/test_ai\test_ai_api_v2.py:97:        # Verify each line is valid SSE format
+tests/test_ai\test_session_memory.py:23:    assert "session_id" in columns
+ succeeded in 1.24s:
+tests\test_ai\test_grading_tools.py:8:    assert "get_grading_progress" in names
+tests\test_ai\test_grading_tools.py:9:    assert "get_quality_report" in names
+tests\test_ai\test_grading_tools.py:10:    assert "assign_grading_task" in names
+tests\test_ai\test_grading_tools.py:18:    progress = specs["get_grading_progress"]
+tests\test_ai\test_grading_tools.py:26:    quality = specs["get_quality_report"]
+tests\test_ai\test_grading_tools.py:35:    assign = specs["assign_grading_task"]
+tests\test_ai\test_prompts.py:9:        tool_names=["get_exam_summary", "get_class_stats"],
+tests\test_ai\test_prompts.py:14:    assert "get_exam_summary" in prompt
+tests\test_modules\test_bank\test_service.py:5:    get_bank_question, list_bank_questions, get_student_error_book, get_error_book_stats,
+tests\test_services\test_quality_service.py:68:async def test_get_quality_report(db):
+tests\test_services\test_quality_service.py:80:    report = await QualityCheckService.get_quality_report(db, "e1", school_id="s1")
+tests\test_services\test_quality_service.py:88:async def test_get_quality_report_empty(db):
+tests\test_services\test_quality_service.py:89:    report = await QualityCheckService.get_quality_report(db, "nonexistent", school_id="s1")
+tests\test_ai\test_tools_analytics.py:47:# compare_classes → moved to analytics_compare.py (L2_analytics)
+tests\test_api\test_quality_checks.py:5:async def test_get_quality_report(client, admin_headers):
+tests\test_services_exam\test_bank_service.py:81:async def test_get_student_error_book_with_filters(db):
+tests\test_services_exam\test_bank_service.py:82:    """TG-003: get_student_error_book mastery_status + limit 过滤。"""
+tests\test_services_exam\test_bank_service.py:105:    result = await bank_service.get_student_error_book(
+tests\test_services_exam\test_bank_service.py:111:    result = await bank_service.get_student_error_book(
+tests\test_services_exam\test_bank_service.py:118:async def test_get_student_error_book_empty(db):
+ succeeded in 1.36s:
+ 104:     # === New Agent Pipeline (AgentLoop) ===
+ 105:     try:
+ 106:         # 1. Agent 身份
+ 107:         profile = await AgentProfileService.get_or_create(
+ 108:             db, user_id=user.id, school_id=school_id or "", display_name=user.display_name,
+ 109:         )
+ 110: 
+ 111:         # 2. 三重权限过滤 (ToolAccessResolver)
+ 112:         all_specs = tools.get_all_specs()
+ 113:         enabled_modules = await get_enabled_modules(db, school_id=school_id) if school_id else None
+ 114:         caps_list = await get_capabilities(db, school_id=school_id, role=role) if school_id else []
+ 115:         capabilities = {(c.domain, c.action): c.enabled for c in caps_list}
+ 116: 
+ 117:         resolver = ToolAccessResolver()
+ 118:         available_tools = resolver.resolve(
+ 119:             all_specs=all_specs, role=role,
+ 120:             enabled_modules=enabled_modules, capabilities=capabilities,
+ 121:         )
+ 122: 
+ 123:         # 3. CapabilityProbe → tier + strategy
+ succeeded in 1.70s:
+   8: | T15 | Migrate exams.py (3 tools) | commit 2d16746, 3 tools 迁移 + test_tools_behavior 更新 | ✅ | |
+  10: | T17 | Migrate analytics_score.py (5 tools) | commit b1da89a, 5 tools 迁移 | ✅ | |
+  11: | T18 | Migrate analytics_compare.py (3 tools) | commit 0659f74, 3 tools 迁移 | ✅ | |
+  12: | T19 | Migrate students.py (4 tools) | commit 9a11f88, 4 tools 迁移 + test_tools_behavior 更新 | ✅ | |
+  14: | T21 | Migrate knowledge_db.py (2 tools) | commit b5142cf, 2 tools 迁移 + test_tools_behavior 更新 | ✅ | |
+  16: | T23 | Migrate grading_ops.py (3 tools) | commit d9bf177, 3 tools 迁移 | ✅ | |
+  17: | T24 | Migrate bank.py (2 tools) | commit 61faff3, 2 tools 迁移, sensitivity=student | ✅ | |
+  18: | T25 | Migrate profile.py (4 tools) | commit c871239, 4 tools 迁移, sensitivity=student | ✅ | |
+  20: | T27 | Wire AgentLoop into API endpoint | commit d77dca9, 旧 pipeline 替换为新 pipeline | ✅ | |
+  28: | 迁移后工具签名接受 (input, ctx) 返回 ToolResult | test_tools_behavior.py::test_get_exam_list_empty | `pytest tests/test_ai/test_tools_behavior.py -v -k exam` | 4 passed | 不适用：已有测试非本次新增 |
+  30: | SSE event backward compat (INV-004) | test_ai_api_v2.py::test_sse_event_backward_compat | `pytest tests/test_ai/test_ai_api_v2.py -v` | 4 passed | 不适用：已有测试非本次新增 |
+  31: | AgentLoop SSE stream | test_ai_api_v2.py::test_agentloop_produces_valid_sse_event_stream | `pytest tests/test_ai/test_ai_api_v2.py -v` | 4 passed | 不适用：已有测试非本次新增 |
+  45: - ✅ 对应测试文件已更新（test_tools_behavior, test_tools_analytics, test_tools_knowledge, test_homework_tools, test_tools_actions）
+  49: - ✅ T27: API endpoint 替换为 AgentLoop pipeline（CapabilityProbe → ToolAccess → SensitivityRouter → AgentLoop.run）
+  50: - ✅ T27: 旧 session state 的 AgentContext 移除，简化为仅 Anonymizer
+codex
+**发现**
+
+**F001**  
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: `ai_chat()` 的 pipeline 初始化失败时，应进入 fallback 路径继续提供降级服务。  
+After-behavior: 只要异常发生在 `enabled_modules` 赋值之前，代码会在构造 `ToolContext` 时再次触发 `UnboundLocalError`，fallback 实际不可用。  
+Evidence: [ai.py#L105](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L105), [ai.py#L113](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L113), [ai.py#L136](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L136), [ai.py#L159](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L159)  
+Impact: `AgentProfileService.get_or_create()`、`get_enabled_modules()` 等任一前置依赖瞬时失败时，请求不会降级，而是直接把 `/api/v1/ai/chat` 打成 500。  
+Repair hypothesis: likely repair direction 是先把 fallback 所需局部状态完整初始化，再进入 pipeline；禁止继续依赖“异常后仍可读取部分已赋值局部变量”这种修法；requires independent fix design + Semantic Regression Gate。
+
+**F002**  
+Severity: HIGH  
+Category: code-bug  
+Type: behavior_change  
+Before-behavior: 同一 `session_id` 的 `/api/v1/ai/chat` 是 multi-turn session，后续请求会继承前序会话上下文。  
+After-behavior: 新实现只保留 `Anonymizer`，每次 `AgentLoop.run()` 都从空消息列表开始，`session_id` 不再携带历史对话。  
+Evidence: [CLAUDE.md#L478](/C:/Users/Administrator/edu-cloud/CLAUDE.md#L478), [ai.py#L35](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L35), [ai.py#L160](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L160), [ai.py#L182](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L182), [agent_loop.py#L65](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/agent_loop.py#L65), [handoff#L50](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L50)  
+Impact: 用户带着同一个 `session_id` 追问时会丢失上下文，API 合同里的“multi-turn session”被回退成“多次单轮请求”。  
+Repair hypothesis: likely repair direction 是恢复会话级消息/记忆在 API 边界与 AgentLoop 之间的传递；禁止只缓存 `session_id` 或只重建 system prompt 这种表面修补；requires independent fix design + Semantic Regression Gate。
+
+**F003**  
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 学生姓名等敏感字段应先在工具结果进入 LLM 上下文前脱敏，最终回答再按会话映射还原。  
+After-behavior: 新链路里 `ctx.anonymizer` 根本没有被消费，工具结果被原样写回消息历史，最终回答也不做反脱敏。  
+Evidence: [prompts.py#L39](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/prompts.py#L39), [ai.py#L160](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L160), [agent_loop.py#L168](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/agent_loop.py#L168), [agent_loop.py#L176](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/agent_loop.py#L176), [agent_loop.py#L191](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/agent_loop.py#L191)  
+Impact: LLM 将直接接触学生实名/学号相关字段，既破坏了既有隐私保护语义，也让 prompt 中“最终回复中会自动还原”的承诺失真。  
+Repair hypothesis: likely repair direction 是把会话级 anonymizer 重新接回 tool_result→LLM 和 answer→user 两个方向；禁止只在最终展示层做字符串替换或按工具白名单做局部脱敏；requires independent fix design + Semantic Regression Gate。
+
+**F004**  
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Task 27 明确要求在 `tests/test_ai/test_ai_api.py` 增加 HTTP 入口级 SSE 合同测试，覆盖 `/api/v1/ai/chat` 的事件流与向前兼容。  
+After-behavior: 现有 API 测试只覆盖鉴权、空消息和 session CRUD；SSE 断言仍停留在 `AgentLoop` 级别，根本没有经过 HTTP 入口。  
+Evidence: [tests/test_ai/test_ai_api.py#L21](/C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api.py#L21), [tests/test_ai/test_ai_api_v2.py#L65](/C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api_v2.py#L65), [handoff#L20](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L20), [handoff#L30](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L30), [handoff#L31](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L31)  
+Impact: 删除或破坏 `event_stream()` 的真实流式 glue code，现有测试依然会绿；这也是 F001/F002/F003 能直接漏过的根本原因。  
+Repair hypothesis: likely repair direction 是把 SSE 合同测试提升到 `/api/v1/ai/chat` 入口，覆盖 `answer/tool_call/tool_result/done` 与新增事件；禁止继续用纯 `AgentLoop` 单测替代 HTTP 合同测试；requires independent fix design + Semantic Regression Gate。
+
+**F005**  
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Batch 6 的每个迁移模块都应有对应入口测试，至少验证 `(input, ctx) -> ToolResult`、scope 和异常包装。  
+After-behavior: T17/T18/T23/T24/T25 共 17 个迁移工具没有任何执行级覆盖；现有测试最多验证注册元数据或在别处引用工具名。  
+Evidence: [handoff#L10](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L10), [handoff#L11](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L11), [handoff#L16](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L16), [handoff#L17](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L17), [handoff#L18](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L18), [handoff#L45](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L45), [tests/test_ai/test_grading_tools.py#L4](/C:/Users/Administrator/edu-cloud/tests/test_ai/test_grading_tools.py#L4), [tests/test_ai/test_tools_analytics.py#L47](/C:/Users/Administrator/edu-cloud/tests/test_ai/test_tools_analytics.py#L47)  
+Impact: `analytics_score.py`、`analytics_compare.py`、`grading_ops.py`、`bank.py`、`profile.py` 的核心逻辑哪怕被整段删空，当前 AI 测试仍大概率继续通过。  
+Repair hypothesis: 为这些模块补齐真正调用工具入口的测试，而不是继续停留在注册/元数据层；至少覆盖空输入、单元素/单班级、越权/异常包装三类边界。
+
+**P001**  
+Severity: MED  
+Category: design-concern  
+Type: defect_fix  
+Before-behavior: Batch 6-7 的 Contract Pack / handoff 应只覆盖 edu-agent 相关变更面。  
+After-behavior: 同一审查范围还混入了 card-editor、`seed_demo.py`、`tpl_parser.py`、旧 gates 清理等非 AI 改动，但 handoff/Contract Pack 未对这些文件建立任何验证映射。  
+Evidence: [handoff#L8](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L8), [handoff#L20](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L20), [CLAUDE.md](/C:/Users/Administrator/edu-cloud/CLAUDE.md), [frontend/src/pages/ExamDetailPage.vue](/C:/Users/Administrator/edu-cloud/frontend/src/pages/ExamDetailPage.vue), [src/edu_cloud/data/seed_demo.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/data/seed_demo.py), [src/edu_cloud/modules/card/tpl_parser.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/tpl_parser.py)  
+Impact: Contract Pack 的 freshness 已经失真，当前批次 PASS/FAIL 不能可靠代表这一整个 diff 范围的真实风险。  
+Repair hypothesis: 这类改动要么拆到独立批次，要么把 handoff/Contract Pack 扩展到实际变更面，否则审查结论会持续失焦。
+
+**Phase 0-3 摘要**
+
+Phase 0：Contract Pack 本身存在，CE-001/002/003 的 mitigation 都能在当前代码库里找到对应测试；但 `INV-004` 的 verification 映射不准确，Task 27 明确要求的入口级 SSE 测试没有落地，`test_debt: []` 因此不成立。freshness 也有明显漂移，diff 范围超出了 handoff 声明的 AI 批次。
+
+Phase 1：我实际跑了 `python -m pytest tests/test_ai/test_ai_api.py tests/test_ai/test_ai_api_v2.py -q` 和 `python -m pytest tests/test_ai/test_tools_analytics.py tests/test_ai/test_tools_actions.py tests/test_ai/test_homework_tools.py tests/test_ai/test_tools_knowledge.py tests/test_ai/test_tools_behavior.py -q`，分别是 `11 passed` 和 `38 passed`。这些绿灯不足以覆盖入口 glue code、fallback、multi-turn、anonymizer，以及 17 个未被执行级测试触达的迁移工具。
+
+Phase 2：实现层面最重的回归都集中在 Task 27 的 cutover：fallback 死路径、session 语义回退、脱敏链路丢失。  
+Phase 3：未测风险集中在状态、权限和敏感数据流向，当前实现有明显“只证明 AgentLoop 单体能工作，未证明 API 集成仍满足旧合同”的过拟合倾向。
+
+结论: FAIL
+tokens used
+196,249
+**发现**
+
+**F001**  
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: `ai_chat()` 的 pipeline 初始化失败时，应进入 fallback 路径继续提供降级服务。  
+After-behavior: 只要异常发生在 `enabled_modules` 赋值之前，代码会在构造 `ToolContext` 时再次触发 `UnboundLocalError`，fallback 实际不可用。  
+Evidence: [ai.py#L105](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L105), [ai.py#L113](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L113), [ai.py#L136](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L136), [ai.py#L159](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L159)  
+Impact: `AgentProfileService.get_or_create()`、`get_enabled_modules()` 等任一前置依赖瞬时失败时，请求不会降级，而是直接把 `/api/v1/ai/chat` 打成 500。  
+Repair hypothesis: likely repair direction 是先把 fallback 所需局部状态完整初始化，再进入 pipeline；禁止继续依赖“异常后仍可读取部分已赋值局部变量”这种修法；requires independent fix design + Semantic Regression Gate。
+
+**F002**  
+Severity: HIGH  
+Category: code-bug  
+Type: behavior_change  
+Before-behavior: 同一 `session_id` 的 `/api/v1/ai/chat` 是 multi-turn session，后续请求会继承前序会话上下文。  
+After-behavior: 新实现只保留 `Anonymizer`，每次 `AgentLoop.run()` 都从空消息列表开始，`session_id` 不再携带历史对话。  
+Evidence: [CLAUDE.md#L478](/C:/Users/Administrator/edu-cloud/CLAUDE.md#L478), [ai.py#L35](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L35), [ai.py#L160](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L160), [ai.py#L182](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L182), [agent_loop.py#L65](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/agent_loop.py#L65), [handoff#L50](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L50)  
+Impact: 用户带着同一个 `session_id` 追问时会丢失上下文，API 合同里的“multi-turn session”被回退成“多次单轮请求”。  
+Repair hypothesis: likely repair direction 是恢复会话级消息/记忆在 API 边界与 AgentLoop 之间的传递；禁止只缓存 `session_id` 或只重建 system prompt 这种表面修补；requires independent fix design + Semantic Regression Gate。
+
+**F003**  
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 学生姓名等敏感字段应先在工具结果进入 LLM 上下文前脱敏，最终回答再按会话映射还原。  
+After-behavior: 新链路里 `ctx.anonymizer` 根本没有被消费，工具结果被原样写回消息历史，最终回答也不做反脱敏。  
+Evidence: [prompts.py#L39](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/prompts.py#L39), [ai.py#L160](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/ai.py#L160), [agent_loop.py#L168](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/agent_loop.py#L168), [agent_loop.py#L176](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/agent_loop.py#L176), [agent_loop.py#L191](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/agent_loop.py#L191)  
+Impact: LLM 将直接接触学生实名/学号相关字段，既破坏了既有隐私保护语义，也让 prompt 中“最终回复中会自动还原”的承诺失真。  
+Repair hypothesis: likely repair direction 是把会话级 anonymizer 重新接回 tool_result→LLM 和 answer→user 两个方向；禁止只在最终展示层做字符串替换或按工具白名单做局部脱敏；requires independent fix design + Semantic Regression Gate。
+
+**F004**  
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Task 27 明确要求在 `tests/test_ai/test_ai_api.py` 增加 HTTP 入口级 SSE 合同测试，覆盖 `/api/v1/ai/chat` 的事件流与向前兼容。  
+After-behavior: 现有 API 测试只覆盖鉴权、空消息和 session CRUD；SSE 断言仍停留在 `AgentLoop` 级别，根本没有经过 HTTP 入口。  
+Evidence: [tests/test_ai/test_ai_api.py#L21](/C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api.py#L21), [tests/test_ai/test_ai_api_v2.py#L65](/C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api_v2.py#L65), [handoff#L20](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L20), [handoff#L30](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L30), [handoff#L31](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L31)  
+Impact: 删除或破坏 `event_stream()` 的真实流式 glue code，现有测试依然会绿；这也是 F001/F002/F003 能直接漏过的根本原因。  
+Repair hypothesis: likely repair direction 是把 SSE 合同测试提升到 `/api/v1/ai/chat` 入口，覆盖 `answer/tool_call/tool_result/done` 与新增事件；禁止继续用纯 `AgentLoop` 单测替代 HTTP 合同测试；requires independent fix design + Semantic Regression Gate。
+
+**F005**  
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Batch 6 的每个迁移模块都应有对应入口测试，至少验证 `(input, ctx) -> ToolResult`、scope 和异常包装。  
+After-behavior: T17/T18/T23/T24/T25 共 17 个迁移工具没有任何执行级覆盖；现有测试最多验证注册元数据或在别处引用工具名。  
+Evidence: [handoff#L10](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L10), [handoff#L11](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L11), [handoff#L16](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L16), [handoff#L17](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L17), [handoff#L18](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L18), [handoff#L45](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L45), [tests/test_ai/test_grading_tools.py#L4](/C:/Users/Administrator/edu-cloud/tests/test_ai/test_grading_tools.py#L4), [tests/test_ai/test_tools_analytics.py#L47](/C:/Users/Administrator/edu-cloud/tests/test_ai/test_tools_analytics.py#L47)  
+Impact: `analytics_score.py`、`analytics_compare.py`、`grading_ops.py`、`bank.py`、`profile.py` 的核心逻辑哪怕被整段删空，当前 AI 测试仍大概率继续通过。  
+Repair hypothesis: 为这些模块补齐真正调用工具入口的测试，而不是继续停留在注册/元数据层；至少覆盖空输入、单元素/单班级、越权/异常包装三类边界。
+
+**P001**  
+Severity: MED  
+Category: design-concern  
+Type: defect_fix  
+Before-behavior: Batch 6-7 的 Contract Pack / handoff 应只覆盖 edu-agent 相关变更面。  
+After-behavior: 同一审查范围还混入了 card-editor、`seed_demo.py`、`tpl_parser.py`、旧 gates 清理等非 AI 改动，但 handoff/Contract Pack 未对这些文件建立任何验证映射。  
+Evidence: [handoff#L8](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L8), [handoff#L20](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch6-7.md#L20), [CLAUDE.md](/C:/Users/Administrator/edu-cloud/CLAUDE.md), [frontend/src/pages/ExamDetailPage.vue](/C:/Users/Administrator/edu-cloud/frontend/src/pages/ExamDetailPage.vue), [src/edu_cloud/data/seed_demo.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/data/seed_demo.py), [src/edu_cloud/modules/card/tpl_parser.py](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/tpl_parser.py)  
+Impact: Contract Pack 的 freshness 已经失真，当前批次 PASS/FAIL 不能可靠代表这一整个 diff 范围的真实风险。  
+Repair hypothesis: 这类改动要么拆到独立批次，要么把 handoff/Contract Pack 扩展到实际变更面，否则审查结论会持续失焦。
+
+**Phase 0-3 摘要**
+
+Phase 0：Contract Pack 本身存在，CE-001/002/003 的 mitigation 都能在当前代码库里找到对应测试；但 `INV-004` 的 verification 映射不准确，Task 27 明确要求的入口级 SSE 测试没有落地，`test_debt: []` 因此不成立。freshness 也有明显漂移，diff 范围超出了 handoff 声明的 AI 批次。
+
+Phase 1：我实际跑了 `python -m pytest tests/test_ai/test_ai_api.py tests/test_ai/test_ai_api_v2.py -q` 和 `python -m pytest tests/test_ai/test_tools_analytics.py tests/test_ai/test_tools_actions.py tests/test_ai/test_homework_tools.py tests/test_ai/test_tools_knowledge.py tests/test_ai/test_tools_behavior.py -q`，分别是 `11 passed` 和 `38 passed`。这些绿灯不足以覆盖入口 glue code、fallback、multi-turn、anonymizer，以及 17 个未被执行级测试触达的迁移工具。
+
+Phase 2：实现层面最重的回归都集中在 Task 27 的 cutover：fallback 死路径、session 语义回退、脱敏链路丢失。  
+Phase 3：未测风险集中在状态、权限和敏感数据流向，当前实现有明显“只证明 AgentLoop 单体能工作，未证明 API 集成仍满足旧合同”的过拟合倾向。
+
+结论: FAIL

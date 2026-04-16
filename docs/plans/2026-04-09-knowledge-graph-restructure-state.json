@@ -1,0 +1,18 @@
+{
+  "topic": "knowledge-graph-restructure",
+  "plan_file": "docs/plans/2026-04-09-knowledge-graph-restructure-plan.md",
+  "design_file": "docs/plans/2026-04-09-knowledge-graph-restructure-design.md",
+  "tasks": [
+    {"id": "1", "desc": "knowledge.db Schema 变更 + 迁移脚本", "status": "completed"},
+    {"id": "2", "desc": "PG Models + Alembic Migration", "status": "completed"},
+    {"id": "3", "desc": "sync_service 适配", "status": "completed"},
+    {"id": "4", "desc": "Graph API — navigation + graph 响应 + mastery 过滤", "status": "completed"},
+    {"id": "5", "desc": "Detail API + Search API + Evidence", "status": "completed"},
+    {"id": "6", "desc": "编辑 API 扩展", "status": "completed"},
+    {"id": "7", "desc": "API 客户端适配 + TreeNavPanel 三级树改造", "status": "completed"},
+    {"id": "8", "desc": "GraphPanel 模块级渲染", "status": "completed"},
+    {"id": "9", "desc": "NodeDetailDrawer 扩展", "status": "completed"},
+    {"id": "10", "desc": "端到端验证 + CLAUDE.md 更新", "status": "completed"}
+  ],
+  "updated_at": "2026-04-09 16:25:20"
+}

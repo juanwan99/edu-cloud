@@ -34,7 +34,7 @@ async def api_list_audit_logs(
     end_date: str | None = None,
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_CONFIG)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)

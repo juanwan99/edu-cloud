@@ -217,23 +217,23 @@ body {
   font-family: SimHei, "黑体", sans-serif; font-size: 11pt;
   padding: 1.5mm 0; letter-spacing: 4px;
 }
-.choice-box { border: 1px solid #000; border-top: none; padding: 2mm 3mm; }
-.choice-title { text-align: center; font-family: SimHei, "黑体", sans-serif; font-size: 10pt; margin-bottom: 2mm; }
-.choice-groups { display: flex; flex-direction: column; gap: 3mm; }
+.choice-box { border: 1px solid #000; border-top: none; padding: 1.5mm 2mm; }
+.choice-title { text-align: center; font-family: SimHei, "黑体", sans-serif; font-size: 10pt; margin-bottom: 1mm; }
+.choice-groups { display: flex; flex-direction: column; gap: 0; }
 .choice-group { }
-.choice-grid-inner { display: grid; gap: 0.8mm 0; }
+.choice-grid-inner { display: grid; row-gap: var(--choice-row-gap, 0px); column-gap: 0; }
 .choice-grid-inner .omr-left { display: flex; align-items: center; justify-content: center; }
 .choice-grid-inner .omr-right { display: flex; align-items: center; justify-content: center; }
-.choice-grid-inner .omr-dot { width: 2.5mm; height: 2.5mm; background: #000; }
+.choice-grid-inner .omr-dot { width: 2mm; height: 2mm; background: #000; }
 .choice-row { display: contents; }
-.choice-cell { text-align: center; }
+.choice-cell { text-align: center; line-height: 1; padding: 0; }
 .choice-cell-spacer { }
 .choice-cell .bracket {
   display: inline-block; border: 1px solid #000;
-  width: 5.5mm; height: 3mm; line-height: 3mm;
-  text-align: center; font-family: SimHei, "黑体", sans-serif; font-size: 9pt;
+  width: 4.5mm; height: 2.2mm; line-height: 2.2mm;
+  text-align: center; font-family: SimHei, "黑体", sans-serif; font-size: 7.5pt;
 }
-.choice-header { font-family: SimHei, "黑体", sans-serif; font-size: 9pt; font-weight: bold; }
+.choice-header { font-family: SimHei, "黑体", sans-serif; font-size: 7.5pt; font-weight: bold; }
 
 /* ── A3 整页三栏布局 ── */
 .a3-layout {
@@ -311,15 +311,22 @@ body {
 
 /* 解答题区域 */
 .essay-item {
+  position: relative;
+  flex: 0 0 auto;
+  padding: var(--essay-item-pt) var(--essay-item-px) var(--essay-item-pb);
   border-bottom: 1px solid #000;
-  padding: 2mm 3mm;
-  flex: none;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
-.essay-item:last-child { border-bottom: none; flex: 1; }
+.essay-body {
+  grid-row: 3;
+}
+.essay-item:last-child { border-bottom: none; }
 .essay-item-header {
   font-family: SimHei, "黑体", sans-serif;
   font-size: 9pt;
-  margin-bottom: 3mm;
+  margin-bottom: 2mm;
 }
 .essay-item-text {
   font-family: SimSun, "宋体", serif;
@@ -371,11 +378,12 @@ body {
   margin-bottom: 2mm;
 }
 .essay-lines {
-  display: flex; flex-direction: column; gap: 3mm;
+  display: flex; flex-direction: column; gap: 3mm; flex: 1 1 0;
 }
 .essay-line {
   border-bottom: 1px solid #000;
-  height: 7.5mm; /* 原6mm×1.25 */
+  min-height: 7.5mm;
+  flex: 1 1 0;
 }
 
 /* ── A4 解答题三栏（兼容） ── */
@@ -896,27 +904,103 @@ body {
   background: rgba(45, 90, 61, 0.08);
   box-shadow: 0 0 0 2px rgba(45, 90, 61, 0.15);
 }
-.essay-lines, .essay-blanks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3.75mm 4mm; /* 行间距 3.75mm(原3mm×1.25)，列间距 4mm */
-  position: relative;
+/* ═══ 排版引擎 v2（GPT 设计方案，grid 驱动，无纵向 flex-grow 链）═══ */
+
+:root {
+  --essay-item-pt: 2mm;
+  --essay-item-pb: 2mm;
+  --essay-item-px: 3mm;
+  --essay-sub-gap: 3mm;
+  --essay-row-gap: 2.5mm;
+  --essay-line-h: 9.5mm;
+  --essay-line-min-h: 8mm;
+  --essay-line-max-h: 12mm;
+  --essay-label-gap: 2mm;
+  --essay-pair-gap: 4mm;
 }
+
+/* 标准答案虚化预览 */
+.blank-answer {
+  position: absolute;
+  left: 0;
+  bottom: 1px;
+  font-size: 10.5pt;
+  color: rgba(180, 80, 80, 0.45);
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: SimSun, "宋体", serif;
+}
+@media print { .blank-answer { display: none !important; } }
+
+/* 分号/句号 */
+.blank-separator {
+  position: absolute;
+  right: -4mm;
+  bottom: -1px;
+  font-size: 13pt;
+  font-weight: 700;
+  color: #000;
+  line-height: 1;
+}
+
+/* 横线：固定高度，不参与纵向 flex-grow */
 .essay-line {
-  height: 7.5mm; /* 原6mm×1.25 */
+  position: relative;
+  min-width: 0;
+  height: var(--essay-line-h);
+  min-height: var(--essay-line-min-h);
+  max-height: var(--essay-line-max-h);
+  flex: 0 0 var(--blank-w, 100%);
+  width: var(--blank-w, 100%);
   border-bottom: 1px solid #000;
   cursor: col-resize;
-  position: relative;
-  flex-shrink: 0;
+}
+/* 100% 宽空占满内容区 */
+.essay-line--full {
+  flex: 1 0 auto;
+  width: auto;
 }
 .essay-line:hover {
   border-bottom-color: #e94560 !important;
 }
-/* 小问块 */
+.essay-line.has-label {
+  display: flex;
+  align-items: end;
+  border-bottom: none;
+}
+.blank-label {
+  flex: 0 0 auto;
+  padding-right: 1mm;
+  font-family: SimHei, "黑体", sans-serif;
+  font-size: 8pt;
+  line-height: 1;
+}
+.blank-underline {
+  flex: 1 1 auto;
+  height: var(--essay-line-h);
+  min-height: var(--essay-line-min-h);
+  max-height: var(--essay-line-max-h);
+  border-bottom: 1px solid #000;
+}
+
+/* 题内主体：纵向撑满分配空间，小问间距自动拉大 */
+.essay-body {
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--essay-sub-gap);
+}
+
+/* 小问块：按内容自然高度，不 flex-grow */
 .essay-sub-block {
-  margin-bottom: 2mm;
-  margin-left: 0;
   position: relative;
+  min-width: 0;
+  display: grid;
+  grid-auto-rows: max-content;
+  row-gap: var(--essay-row-gap);
+  align-content: start;
 }
 .essay-sub-block .sub-del-btn {
   position: absolute;
@@ -940,27 +1024,44 @@ body {
   visibility: visible;
   pointer-events: auto;
 }
-/* 第一行：(1) + 第一条横线 同行 */
-.essay-first-line {
-  display: flex;
-  align-items: flex-end;
-  gap: 1mm;
-  width: 100%;
-}
-.essay-first-line .essay-line {
-  flex: 0 0 auto;
+
+/* 视觉行：非首行 */
+.essay-row {
   min-width: 0;
+  min-height: var(--essay-line-h);
+  display: flex;
+  align-items: end;
 }
+
+/* 首行：grid 分离标签列和内容列 */
+.essay-row--first {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--essay-label-gap);
+  align-items: end;
+}
+
+/* 行内容区：横向排列 blanks，双短空左右分开 */
+.essay-row-content {
+  min-width: 0;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+}
+
+/* 小问标签 */
 .essay-sub-label {
   font-family: SimHei, "黑体", sans-serif;
   font-size: 9pt;
   color: #000;
   white-space: nowrap;
-  flex-shrink: 0;
+  line-height: 1;
   cursor: text;
   padding-bottom: 1mm;
 }
 .essay-sub-label:hover { color: #e94560; }
+
+/* ═══ 排版引擎 v2 结束 ═══ */
 
 /* 图片：绝对定位在答题区内 */
 .essay-item { position: relative; }
@@ -1136,6 +1237,7 @@ body {
   text-align: center;
   font-size: 7pt;
   color: transparent;
+  flex: none; /* 不参与 flex 拉伸 */
   cursor: pointer;
   padding: 1mm 0;
   transition: color 0.2s;

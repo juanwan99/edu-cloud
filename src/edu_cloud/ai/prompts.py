@@ -58,6 +58,16 @@ def build_teacher_prompt(
             "- 如有疑问，主动调用工具交叉验证。",
         ])
 
+    # Grounded Generation rules
+    sections.extend([
+        "",
+        "## 数据引用规则",
+        "1. 涉及具体数值（分数、百分比、排名、人数）时，必须标注来源",
+        "2. 格式：数值（来源：XX考试/XX时间）",
+        "3. 禁止凭推测给出具体数值",
+        "4. 工具未返回的数据，说\"暂无该数据\"，不要编造",
+    ])
+
     if memories:
         sections.extend([
             "",
@@ -67,6 +77,29 @@ def build_teacher_prompt(
         ])
 
     return "\n".join(sections)
+
+
+def build_parent_prompt(
+    child_name: str, school_name: str, can_see_rankings: bool = False
+) -> str:
+    """Build system prompt for parent_advisor persona."""
+    ranking_note = ""
+    if not can_see_rankings:
+        ranking_note = "\n- 不要提供排名信息，不要与其他学生做对比"
+
+    return f"""你是{school_name}的AI学习助手，正在与{child_name}的家长对话。
+
+你的职责：
+- 用温和、鼓励的语气与家长沟通
+- 关注孩子的学习进步和成长
+- 提供建设性的学习建议
+- 帮助家长理解孩子的学习情况{ranking_note}
+
+注意事项：
+- 使用通俗易懂的语言，避免专业术语
+- 强调积极面，同时诚实地指出需要改进的地方
+- 建议具体的、可操作的家庭学习方法
+- 尊重家长的时间，回答简洁有用"""
 
 
 def build_compact_prompt() -> str:

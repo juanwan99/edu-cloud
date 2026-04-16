@@ -101,7 +101,7 @@ async def import_from_folder(
             if not question:
                 question = Question(
                     subject_id=subject.id, name=question_name,
-                    question_type="subjective", max_score=10.0,
+                    question_type="essay", max_score=10.0,
                     school_id=school_id,
                 )
                 db.add(question)

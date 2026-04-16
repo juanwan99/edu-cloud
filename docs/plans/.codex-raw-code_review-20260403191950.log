@@ -1,0 +1,1056 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d5308-72cd-7de2-9b9f-72ca5c933b59
+--------
+user
+You are a code reviewer performing independent review.
+
+Read the review handoff: docs/plans/a4-card-editor-review-handoff-batch1.md
+Read the plan: docs/plans/2026-04-03-a4-card-editor-plan.md
+Check the commits: git log --oneline 5e4f373~1..995304b
+Read the full diff: git diff 5e4f373~1..995304b
+Read modified files in full for context.
+
+Review in 4 phases (按顺序):
+
+Phase 0 — Contract Pack 验证（最高优先级）:
+- 读取 plan 中的 Contract Pack 段落
+- 逐条核对 invariants：是否有测试覆盖？verification 映射是否准确？
+- 逐条核对 counter_examples：mitigation 是否已实施？tests_that_still_pass 是否已加固？
+- test_debt：理由是否合理？deadline 是否可接受？
+- freshness：如果实现路径偏离 Contract Pack（新增了未列出的 API / 推翻了不变量），→ process finding
+- 如果 Contract Pack 缺失或不完整 → 记 process finding，不阻断后续检查
+
+Phase 1 — 测试充分性 (Test Adequacy):
+- plan 中声明的边界条件是否都有对应测试
+- 是否只测了 happy path
+- bug fix 是否有回归测试
+- 测试是否真的会在错误实现下失败
+- 对每个测试函数回答：删除被测函数核心逻辑后，此测试会失败吗？如果不会 → test-gap HIGH
+- 识别 assert x is not None / assert result / assert len(x) > 0 等弱断言 → test-gap MED
+- 如果没有有效测试 → 直接退回，不进入 Phase 2
+
+Phase 2 — 行为正确性 (Behavioral Correctness):
+A. 正确性: 实现匹配意图、边界输入、异常路径、条件判断
+B. 边界条件: 对每个新增/修改的函数，构造 3 类输入验证：空集合([]/{}/None)、单元素、溢出/极值
+C. 集成: 调用方更新、import 完整、迁移可回滚、API 兼容
+D. 安全: 无硬编码密钥、输入校验、无注入向量
+E. 架构质量: 新增 import 方向正确（下层不引用上层）、无跨模块内部变量访问、无新增硬编码常量、新文件 <300 行且职责单一
+F. 根因质量（bug fix 适用）: 证据是否真的支持根因结论（非事后合理化）、修复是否改变根因所在层（非症状层）、scope check 三维度覆盖（同模式/同边界/同不变量）、排除假设是否合理
+G. 回归风险: 修改是否影响计划外功能？共用函数/模块的其他调用方是否验证？旧逻辑是否完全清除（Grep 零残留）？跨角色/跨场景分支是否都覆盖？
+
+Phase 3 — 未测试风险 (Non-tested Risks):
+- 未被测试覆盖的副作用：状态、并发、权限、幂等性、时区、空值
+- 实现是否只为过测试而过拟合
+
+**审查规范（必读）：** 先读以下文件中的对应段落，严格按其定义执行：
+- Finding 分类: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-classification -->
+- Finding Type: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-type -->
+- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: pass-fail -->
+- test-gap 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: test-gap-criteria -->
+- 三态 Finding 模型: ~/.claude/rules-t3/review-templates.md <!-- anchor: three-state-model -->
+- 行为变更守卫: ~/.claude/rules-t3/review-templates.md <!-- anchor: behavior-change-guard -->
+- Finding 转换规则: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-transition -->
+
+For each finding use structured format: ID, Severity, Category, Type (defect_fix/behavior_change), Before-behavior, After-behavior, Evidence (file:line), Impact, Repair hypothesis (optional, non-authoritative).
+Repair hypothesis is advisory only and has no execution authority.
+If the finding touches invariants, risk_modules, or red-flag patterns
+(state machine / fallback / selection strategy / threshold / lifecycle / evaluation cadence),
+do not prescribe a concrete code edit. Instead, describe:
+1. the likely repair direction
+2. forbidden fix patterns to avoid
+3. "requires independent fix design + Semantic Regression Gate"
+
+## Semantic Regression Oracles (if provided below, repair hypotheses MUST NOT violate these)
+No semantic_regression section found in plan.
+
+If your Repair hypothesis would violate any oracle above, you MUST:
+1. Flag it as "⚠️ conflicts with ORC-XXX"
+2. Suggest alternative repair directions that preserve the oracle
+Conclude with PASS or FAIL.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+先按审查合同收集上下文。我会先读取 `code-review` 技能说明和审查模板定义，再读取 handoff、plan、提交范围、完整 diff，并把改动文件逐个通读。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'docs/plans/2026-04-03-a4-card-editor-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --stat 5e4f373~1..995304b' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git log --oneline 5e4f373~1..995304b' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'docs/plans/a4-card-editor-review-handoff-batch1.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.claude/rules-t3/review-templates.md'" in C:/Users/Administrator/edu-cloud succeeded in 2.04s:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+ succeeded in 2.10s:
+[edu-cloud] Executor鈫扲eviewer | 2026-04-03 18:30:19
+## 瀹℃煡浜ゆ帴鍗? Task 1-8
+璁″垝: C:\Users\Administrator\edu-cloud\docs\plans\2026-04-03-a4-card-editor-plan.md
+
+### 閫?Task 鑷
+| Task | 璁″垝瑕佹眰 | 瀹為檯鎵ц | 鐘舵€?| 璇存槑 |
+|------|---------|---------|------|------|
+| T1 | 鍚庣 layout 濂戠害缁熶竴 + 娴嬭瘯 | commit 5e4f373, TQL A4 璺緞 col 鍚堝苟 + router F01 鏍￠獙 + 8 涓绾︽祴璇?| 鉁?| |
+| T2 | CSS 淇 鈥?.a4-col + 鍒犻櫎 hack | commit 635e6d8, 鏇挎崲 .a4-essay-area 涓?.a4-col/a4-content/a4-col--full | 鉁?| |
+| T3 | 閲嶅啓 _renderA4 + 鎻愬彇 renderFixedRegions | commit 228280e, 鎻愬彇 renderFixedRegions 鍏变韩鍑芥暟 + A3 璺緞澶嶇敤 + A4 浣跨敤 renderColumnRegions | 鉁?| |
+| T4 | 閫夋嫨棰樼珫鎺掍慨澶?| commit 12cf6b8, hasTqlCoords 鍒ゆ柇 + getValues 淇濈暀 x/y/w | 鉁?| |
+| T5 | PDF 瀵煎嚭淇 | commit d1821e4, fetchStyleCSS + async getCleanHTML + marginBottom 娓呴櫎 + Noto CJK | 鉁?| |
+| T6 | 鑻辫/鍖栧 editor-layout API 娴嬭瘯 | commit a71b153, 3 涓?API 闆嗘垚娴嬭瘯锛堣嫳璇?A4/鍖栧/鏁板 A3锛?| 馃攢 | 鍘绘帀 plan 涓?Subject 涓嶆敮鎸佺殑 full_score/sort_order 瀛楁锛涙暟瀛︽敼涓虹敓鐗╋紙seed_subject 榛樿绉戠洰锛?|
+| T7 | 鍓嶇 Vitest 娓叉煋鍥炲綊娴嬭瘯 | commit 995304b, 4 涓?DOM 缁撴瀯娴嬭瘯 | 馃攢 | A3 .a3-col 鏁伴噺浠?3 鏀逛负 6锛圓闈?B闈㈠悇 3 鏍?= 6 涓?.a3-col 鍏冪礌锛?|
+| T8 | 鏈€缁堝洖褰掗獙璇?| 鍚庣 42 passed / 鍓嶇 71 passed + 1 pre-existing fail | 鉁?| 鍓嶇 1 涓け璐ユ槸璺敱鏁伴噺鏂█(17鈫掑疄闄?N)锛岄潪鏈寮曞叆 |
+
+### 棰勫鑷锛堥€佸鍓嶅繀濉級
+| 娴嬭瘯濂戠害 slice | 瀵瑰簲娴嬭瘯鏂囦欢:鍑芥暟 | 楠岃瘉鍛戒护 | 瀹為檯杈撳嚭锛坧ass/fail + 鍏抽敭琛岋級 | 鍙嶈瘉楠岃瘉 |
+|---------------|------------------|---------|------------------------------|---------------------------------------|
+| A4 layout 姣忛潰鍗?column | test_tpl_parser.py::TestSubjectDefaults::test_a4_layout_single_column_per_side | `python -m pytest tests/test_services_exam/test_tpl_parser.py::TestSubjectDefaults -v` | PASS, 5/5 passed in 2.45s | 淇鍓?TQL 璺緞 3 涓?FAIL锛堝 column锛夛紝淇鍚?PASS |
+ succeeded in 1.89s:
+995304b test: A4/A3 渲染 DOM 结构 Vitest 回归测试
+a71b153 test: 英语/化学 editor-layout A4 契约 API 验证
+d1821e4 fix: PDF 导出 — 清 marginBottom + CSS fetch 内联 + Noto CJK fallback
+12cf6b8 fix: 选择题竖排 — TQL 坐标存在时逐组 renderGroup，保留 x/y/w
+5a3c16a review: edu-agent batch 1 审查交接单
+228280e refactor: 重写 _renderA4 — 统一 A3/A4 复用 renderColumnRegions + renderFixedRegions
+a148bc5 chore: update edu-agent state.json — Task 1-4 completed
+982c288 fix: update remaining callers of ToolAccessResolver.resolve to sync
+635e6d8 fix: A4 CSS — 新增 a4-col flex 容器，删除 flex:none hack
+5e4f373 feat: 统一 A4 layout 契约 — 每面单 column + 结构校验 + 契约测试
+ succeeded in 2.01s:
+# 瀹℃煡宸ヤ綔娴佹ā鏉夸笌娴佺▼
+
+> 浠庡叏灞€ CLAUDE.md 鎶藉彇銆俆3/T4 鎵ц浼氳瘽鎸夐渶璇诲彇銆?
+
+## 娴佺▼缂栨帓
+
+### T3锛? 绐楀彛锛?
+
+```
+鈶?Claude: Design 鈫?Plan 鈫?commit (draft)
+鈶?GPT Codex: Plan Review 鈫?plan-review.md (Gate 1)
+鈶?Claude: 澶勭疆 finding 鈫?commit (final plan) 鈫?Execute 鈫?鑷浜ゆ帴鍗?
+鈶?GPT Codex: Code Review锛堝叏閲忥紝codex exec锛夆啋 review-report.md (Gate 2)
+鈶?Gate: 鎵€鏈?finding 宸插缃?鈫?design.md 鏍囪 [瀹炵幇瀹屾垚]
+```
+
+### T4锛? 鎸佷箙 + 涓€娆℃€?Executor锛?
+
+```
+鈶?Claude Planner: Design 鈫?Plan 鈫?commit (draft)
+ succeeded in 2.15s:
+ .../2026-04-03-edu-agent-review-handoff-batch1.md  |  68 +++
+ docs/plans/2026-04-03-edu-agent-state.json         | 108 +++++
+ frontend/public/card-editor/styles.css             | 211 ++++++++-
+ frontend/src/card-editor/__tests__/render.test.js  |  95 +++++
+ frontend/src/card-editor/export.js                 | 152 ++++++-
+ frontend/src/card-editor/render.js                 | 473 +++++++++++++--------
+ frontend/src/components/CardEditor.vue             | 179 +++++++-
+ src/edu_cloud/modules/card/router.py               |  57 ++-
+ src/edu_cloud/modules/card/subject_defaults.py     | 202 ++++++---
+ tests/test_ai/test_agent_pipeline.py               |   8 +-
+ tests/test_ai/test_tools_registration.py           |  12 +-
+ tests/test_api_exam/test_cards.py                  |  56 +++
+ tests/test_services_exam/test_tpl_parser.py        | 116 ++++-
+ 13 files changed, 1417 insertions(+), 320 deletions(-)
+ succeeded in 2.24s:
+# A4 鍙岄潰绛旈鍗＄紪杈戝櫒閲嶆瀯 瀹炵幇璁″垝
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** 鎸?GPT Codex 璇婃柇鐨?5 涓牴鍥犻噸鏋?A4 鍙岄潰绛旈鍗＄紪杈戝櫒锛岀粺涓€ A3/A4 娓叉煋鏋舵瀯銆?
+**Architecture:** A3/A4 鍏辩敤 `renderColumnRegions()` + `renderEssayRegion()`锛屽彧鍦ㄩ〉闈㈤鏋跺眰鍖哄垎绾稿瀷銆侫4 寮曞叆 `.a4-col` flex 瀹瑰櫒锛堢被浼?`.a3-col`锛夛紝璁?`heightRatio` 姝ｇ‘鍒嗛厤绌洪棿銆傚悗绔?layout 濂戠害缁熶竴涓?A4 姣忛潰 1 column銆?
+**Tech Stack:** 鍘熺敓 JS锛坈ard-editor/锛夈€丆SS銆丳ython锛團astAPI 鍚庣锛夈€乸ytest
+
+**Design:** `docs/plans/2026-04-03-a4-card-editor-design.md`
+
+**鍥炲綊楠岃瘉鍛戒护锛堟瘡涓?Task 瀹屾垚鍚庡繀璺戯級锛?*
+```bash
+cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_services_exam/test_tpl_parser.py tests/test_api_exam/test_cards.py -x -q
+cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run
+```
+
+---
+
+### Task 1: 鍚庣 layout 濂戠害缁熶竴 + 娴嬭瘯
+
+codex
+模板文件编码有问题，我先用 UTF-8 重新读取关键段落，确保 Finding 分类、PASS/FAIL、test-gap 和行为变更守卫按原文执行。随后开始逐文件核对 diff 和测试有效性。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw -Encoding utf8 'C:/Users/Administrator/.claude/rules-t3/review-templates.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw -Encoding utf8 'docs/plans/2026-04-03-a4-card-editor-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw -Encoding utf8 'docs/plans/a4-card-editor-review-handoff-batch1.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 5e4f373~1..995304b -- src/edu_cloud/modules/card/subject_defaults.py src/edu_cloud/modules/card/router.py tests/test_services_exam/test_tpl_parser.py frontend/public/card-editor/styles.css frontend/src/card-editor/render.js frontend/src/components/CardEditor.vue frontend/src/card-editor/export.js tests/test_api_exam/test_cards.py frontend/src/card-editor/__tests__/render.test.js' in C:/Users/Administrator/edu-cloud succeeded in 1.75s:
+# 审查工作流模板与流程
+
+> 从全局 CLAUDE.md 抽取。T3/T4 执行会话按需读取。
+
+## 流程编排
+
+### T3（2 窗口）
+
+```
+① Claude: Design → Plan → commit (draft)
+② GPT Codex: Plan Review → plan-review.md (Gate 1)
+③ Claude: 处置 finding → commit (final plan) → Execute → 自审交接单
+④ GPT Codex: Code Review（全量，codex exec）→ review-report.md (Gate 2)
+⑤ Gate: 所有 finding 已处置 → design.md 标记 [实现完成]
+```
+
+### T4（2 持久 + 一次性 Executor）
+
+```
+① Claude Planner: Design → Plan → commit (draft)
+ succeeded in 1.84s:
+diff --git a/frontend/public/card-editor/styles.css b/frontend/public/card-editor/styles.css
+index c348787..fdc42a7 100644
+--- a/frontend/public/card-editor/styles.css
++++ b/frontend/public/card-editor/styles.css
+@@ -59,7 +59,7 @@ body {
+ 
+ /* ── 左侧：控制面板 ── */
+ .panel {
+-  width: 340px; background: #ffffff; overflow-y: auto; padding: 16px;
++  width: 260px; background: #ffffff; overflow-y: auto; padding: 12px;
+   border-right: 1px solid #e2e8e4;
+   box-shadow: 4px 0 12px rgba(26,46,31,0.04);
+   transition: width 0.3s cubic-bezier(0.4,0,0.2,1), padding 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.2s;
+@@ -70,7 +70,7 @@ body {
+   border-right: none;
+ }
+ .panel-toggle {
+-  position: fixed; left: 340px; top: 50%;
++  position: absolute; left: 260px; top: 50%;
+   transform: translateY(-50%);
+ succeeded in 1.90s:
+# A4 双面答题卡编辑器重构 实现计划
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** 按 GPT Codex 诊断的 5 个根因重构 A4 双面答题卡编辑器，统一 A3/A4 渲染架构。
+
+**Architecture:** A3/A4 共用 `renderColumnRegions()` + `renderEssayRegion()`，只在页面骨架层区分纸型。A4 引入 `.a4-col` flex 容器（类似 `.a3-col`），让 `heightRatio` 正确分配空间。后端 layout 契约统一为 A4 每面 1 column。
+
+**Tech Stack:** 原生 JS（card-editor/）、CSS、Python（FastAPI 后端）、pytest
+
+**Design:** `docs/plans/2026-04-03-a4-card-editor-design.md`
+
+**回归验证命令（每个 Task 完成后必跑）：**
+```bash
+cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_services_exam/test_tpl_parser.py tests/test_api_exam/test_cards.py -x -q
+cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run
+```
+
+---
+
+ succeeded in 1.93s:
+[edu-cloud] Executor→Reviewer | 2026-04-03 18:30:19
+## 审查交接单: Task 1-8
+计划: C:\Users\Administrator\edu-cloud\docs\plans\2026-04-03-a4-card-editor-plan.md
+
+### 逐 Task 自审
+| Task | 计划要求 | 实际执行 | 状态 | 说明 |
+|------|---------|---------|------|------|
+| T1 | 后端 layout 契约统一 + 测试 | commit 5e4f373, TQL A4 路径 col 合并 + router F01 校验 + 8 个契约测试 | ✅ | |
+| T2 | CSS 修复 — .a4-col + 删除 hack | commit 635e6d8, 替换 .a4-essay-area 为 .a4-col/a4-content/a4-col--full | ✅ | |
+| T3 | 重写 _renderA4 + 提取 renderFixedRegions | commit 228280e, 提取 renderFixedRegions 共享函数 + A3 路径复用 + A4 使用 renderColumnRegions | ✅ | |
+| T4 | 选择题竖排修复 | commit 12cf6b8, hasTqlCoords 判断 + getValues 保留 x/y/w | ✅ | |
+| T5 | PDF 导出修复 | commit d1821e4, fetchStyleCSS + async getCleanHTML + marginBottom 清除 + Noto CJK | ✅ | |
+| T6 | 英语/化学 editor-layout API 测试 | commit a71b153, 3 个 API 集成测试（英语 A4/化学/数学 A3） | 🔀 | 去掉 plan 中 Subject 不支持的 full_score/sort_order 字段；数学改为生物（seed_subject 默认科目） |
+| T7 | 前端 Vitest 渲染回归测试 | commit 995304b, 4 个 DOM 结构测试 | 🔀 | A3 .a3-col 数量从 3 改为 6（A面+B面各 3 栏 = 6 个 .a3-col 元素） |
+| T8 | 最终回归验证 | 后端 42 passed / 前端 71 passed + 1 pre-existing fail | ✅ | 前端 1 个失败是路由数量断言(17→实际 N)，非本次引入 |
+
+### 预审自检（送审前必填）
+| 测试契约 slice | 对应测试文件:函数 | 验证命令 | 实际输出（pass/fail + 关键行） | 反证验证 |
+|---------------|------------------|---------|------------------------------|---------------------------------------|
+| A4 layout 每面单 column | test_tpl_parser.py::TestSubjectDefaults::test_a4_layout_single_column_per_side | `python -m pytest tests/test_services_exam/test_tpl_parser.py::TestSubjectDefaults -v` | PASS, 5/5 passed in 2.45s | 修复前 TQL 路径 3 个 FAIL（多 column），修复后 PASS |
+Plan update
+按用户要求分四阶段审查，先核对合同与测试，再做行为正确性和未测试风险。
+  ✓ 读取并核对 Contract Pack、handoff、自审记录与提交范围
+  → 逐文件通读实现与测试，评估测试充分性和边界覆盖
+  • 结合实现细节做行为正确性与未测试风险审查
+  • 整理结构化 findings 并给出 PASS/FAIL
+codex
+现在在逐文件通读实现和测试，重点看三类风险：合同偏离、测试是否真的卡住错误实现、以及计划外行为变化。接下来会核对后端 layout 生成、前端渲染、导出链路和新增测试本身。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" src\\edu_cloud\\modules\\card\\router.py" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" tests\\test_services_exam\\test_tpl_parser.py" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --name-only 5e4f373~1..995304b' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" src\\edu_cloud\\modules\\card\\subject_defaults.py" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" tests\\test_api_exam\\test_cards.py" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" frontend\\src\\card-editor\\__tests__\\render.test.js" in C:/Users/Administrator/edu-cloud succeeded in 1.93s:
+1:"""答题卡生成 + 条码贴纸 + 骨架管理 API。"""
+2:from __future__ import annotations
+3:import json
+4:import logging
+5:import re
+6:import tempfile
+7:import urllib.parse
+8:from pathlib import Path
+9:
+10:logger = logging.getLogger(__name__)
+11:
+12:
+13:def _q_sort_key(q):
+14:    """统一排序 key：提取题目名中的数字部分，非数字排最后。"""
+15:    m = re.match(r'(\d+)', q.name)
+16:    return (0, int(m.group(1))) if m else (1, q.name)
+17:from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+18:from fastapi.responses import Response
+19:from pydantic import BaseModel
+20:from sqlalchemy import delete, select
+ succeeded in 1.99s:
+docs/plans/2026-04-03-edu-agent-review-handoff-batch1.md
+docs/plans/2026-04-03-edu-agent-state.json
+frontend/public/card-editor/styles.css
+frontend/src/card-editor/__tests__/render.test.js
+frontend/src/card-editor/export.js
+frontend/src/card-editor/render.js
+frontend/src/components/CardEditor.vue
+src/edu_cloud/modules/card/router.py
+src/edu_cloud/modules/card/subject_defaults.py
+tests/test_ai/test_agent_pipeline.py
+tests/test_ai/test_tools_registration.py
+tests/test_api_exam/test_cards.py
+tests/test_services_exam/test_tpl_parser.py
+ succeeded in 2.10s:
+1:"""tpl_parser 单元测试。"""
+2:import json
+3:import os
+4:import pytest
+5:from edu_cloud.modules.card.tpl_parser import parse_tpl_file
+6:
+7:
+8:# 真实 .tpl 文件路径
+9:TPL_DIR = "D:/试卷数据/YueXiaoEr/Scanner/Templetes"
+10:BIO_TPL = f"{TPL_DIR}/[188993007]生物.tpl"
+11:
+12:# 跳过条件：真实文件不存在时
+13:skip_no_tpl = pytest.mark.skipif(
+14:    not os.path.exists(BIO_TPL),
+15:    reason=f"真实 .tpl 文件不存在: {BIO_TPL}",
+16:)
+17:
+18:
+19:@pytest.fixture
+20:def bio_skeleton():
+ succeeded in 1.81s:
+1:"""各学科答题卡默认编辑器布局 — 从 TQL 模板代码化。
+2:
+3:数据来源：TQL 模板 D:/试卷数据/YueXiaoEr/Scanner/Templetes/ [141984xxx] 系列。
+4:每科的 SUBJECT_CONFIGS 定义题型结构，create_subject_layout() 生成完整布局 JSON。
+5:用户修改 SUBJECT_CONFIGS 中的数值即可调整各科默认模板。
+6:"""
+7:from __future__ import annotations
+8:
+9:# ── 公共样式参数（所有学科共享，与 defaults.py 中数学模板一致） ──
+10:
+11:_BASE_STYLE: dict = {
+12:    "examTitle": "",
+13:    "titleSize": 14,
+14:    "subtitleSize": 16,
+15:    "titleSpacing": 1,
+16:    "subtitleSpacing": 4,
+17:    "titleGap": 1,
+18:    "subtitleGap": 1.5,
+19:    "infoHeight": 18,
+20:    "infoPadding": 2,
+ succeeded in 1.75s:
+1:"""答题卡生成 API 测试。"""
+2:import pytest
+3:from httpx import AsyncClient
+4:from edu_cloud.models.school import School
+5:from edu_cloud.models.user import User
+6:from edu_cloud.models.user_role import UserRole
+7:from edu_cloud.models.exam import Exam, Subject
+8:from edu_cloud.shared.auth import create_access_token
+9:
+10:
+11:@pytest.fixture
+12:async def seed_subject(client: AsyncClient, db):
+13:    """创建测试学校/用户/考试/科目，返回 (headers, exam_id, subject_id)。"""
+14:    school = School(id="s1", name="测试学校", code="TEST01")
+15:    db.add(school)
+16:    await db.commit()
+17:
+18:    user = User(id="u1", username="admin", display_name="管理员")
+19:    user.set_password("123456")
+20:    db.add(user)
+ succeeded in 2.05s:
+1:// frontend/src/card-editor/__tests__/render.test.js
+2:import { describe, it, expect, beforeEach } from 'vitest'
+3:import { renderFromLayout } from '../render.js'
+4:
+5:function makeA4Layout() {
+6:  return {
+7:    paper: 'A4',
+8:    config: { paperSize: 'A4', examTitle: 'Test', subjectTitle: '英语',
+9:      choiceCount: 0, optionCount: 4, choicePerRow: 15, choiceGroups: [],
+10:      fillCount: 0, essayCount: 1, essayConfig: [{ score: 10 }],
+11:      titleSize: 14, subtitleSize: 16, titleSpacing: 1, subtitleSpacing: 4,
+12:      titleGap: 1, subtitleGap: 1.5, infoHeight: 18, infoPadding: 2,
+13:      infoRowGap: 2, infoFontSize: 10, infoBorderWidth: 1, nameLineWidth: 35,
+14:      digitCount: 9, digitBoxSize: 4.5, digitGap: 0.8, barcodeWidthPct: 40,
+15:      barcodeTitleSize: 12, noticeHeight: 20, noticeLabelWidth: 6,
+16:      noticeLabelSize: 10, noticeFontSize: 7, exampleWidth: 10,
+17:      noticeBorderWidth: 1, absentPadding: 1, zoom: 100 },
+18:    sides: [
+19:      { side: 'A', columns: [{ col: 0, regions: [
+20:        { id: 'header', type: 'fixed', role: 'header' },
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" frontend\\src\\card-editor\\render.js" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" frontend\\src\\card-editor\\export.js" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" frontend\\src\\components\\CardEditor.vue" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" frontend\\public\\card-editor\\styles.css" in C:/Users/Administrator/edu-cloud succeeded in 1.29s:
+1:// export.js — PDF 和 skeleton JSON 导出
+2:
+3:function getAuthHeaders() {
+4:  const headers = { 'Content-Type': 'application/json' };
+5:  const token = localStorage.getItem('token');
+6:  if (token) headers['Authorization'] = `Bearer ${token}`;
+7:  return headers;
+8:}
+9:
+10:function getCurrentPaperSize() {
+11:  return window._getValues?.()?.paperSize || 'A3';
+12:}
+13:
+14:export function initExport() {
+15:  const btnPdf = document.getElementById('btnExportPdf');
+16:  const btnSkeleton = document.getElementById('btnExportSkeleton');
+17:  const status = document.getElementById('status');
+18:
+19:  if (btnPdf) {
+20:    btnPdf.onclick = async () => {
+ succeeded in 1.32s:
+1:// render.js — 根据 layout JSON 渲染答题卡 DOM
+2:// 从 layout.sides[].columns[].regions[] 驱动渲染
+3:
+4:const WARNING = '请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效';
+5:
+6:export function applyCSSToPage(el, v) {
+7:  const s = el.style;
+8:  s.setProperty('--title-size', v.titleSize + 'pt');
+9:  s.setProperty('--subtitle-size', v.subtitleSize + 'pt');
+10:  s.setProperty('--title-spacing', v.titleSpacing + 'px');
+11:  s.setProperty('--subtitle-spacing', v.subtitleSpacing + 'px');
+12:  s.setProperty('--title-gap', v.titleGap + 'mm');
+13:  s.setProperty('--subtitle-gap', v.subtitleGap + 'mm');
+14:  s.setProperty('--info-height', v.infoHeight + 'mm');
+15:  s.setProperty('--info-padding', v.infoPadding + 'mm');
+16:  s.setProperty('--info-row-gap', v.infoRowGap + 'mm');
+17:  s.setProperty('--info-font-size', v.infoFontSize + 'pt');
+18:  s.setProperty('--info-border-width', v.infoBorderWidth + 'px');
+19:  s.setProperty('--name-line-width', v.nameLineWidth + '%');
+20:  s.setProperty('--digit-box-size', v.digitBoxSize + 'mm');
+ succeeded in 1.37s:
+1:<template>
+2:  <div class="card-editor-wrapper" :class="{ 'tql-mode': viewMode === 'tql' }">
+3:    <button class="panel-toggle" ref="panelToggleRef" title="收起/展开面板" @click="togglePanel">‹</button>
+4:    <div class="panel" ref="panelRef">
+5:      <!-- 选择题 -->
+6:      <h2><i class="ico ico-grid"></i> 选择题</h2>
+7:      <div class="ctrl">
+8:        <label>快速生成</label>
+9:        <input type="number" id="choiceQuickCount" value="11" min="1" max="30" style="width:40px">
+10:        <span style="color:#5a6b5e;font-size:11px;">题 ×</span>
+11:        <input type="number" id="choiceQuickOptions" value="4" min="2" max="8" style="width:40px">
+12:        <span style="color:#5a6b5e;font-size:11px;">选项</span>
+13:        <button class="choice-gen-btn" id="choiceGenBtn">生成</button>
+14:      </div>
+15:      <div id="choiceList" class="choice-list"></div>
+16:      <button class="panel-btn" id="btnAddChoice" style="font-size:12px;padding:5px;">+ 添加选择题</button>
+17:
+18:      <!-- 填空题 & 解答题 -->
+19:      <h2><i class="ico ico-layers"></i> 填空题 & 解答题</h2>
+20:      <div id="questionList" class="question-list"></div>
+ succeeded in 1.27s:
+1:* { margin:0; padding:0; box-sizing:border-box; }
+2:
+3:/* ── SVG Mask 图标体系 (momowan style) ── */
+4:.ico {
+5:  display: inline-block;
+6:  width: 16px; height: 16px;
+7:  background: currentColor;
+8:  vertical-align: -2px;
+9:  margin-right: 4px;
+10:  -webkit-mask-size: contain; mask-size: contain;
+11:  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+12:  -webkit-mask-position: center; mask-position: center;
+13:}
+14:.ico-grid {
+15:  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7'/%3E%3Crect x='14' y='3' width='7' height='7'/%3E%3Crect x='3' y='14' width='7' height='7'/%3E%3Crect x='14' y='14' width='7' height='7'/%3E%3C/svg%3E");
+16:  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7'/%3E%3Crect x='14' y='3' width='7' height='7'/%3E%3Crect x='3' y='14' width='7' height='7'/%3E%3Crect x='14' y='14' width='7' height='7'/%3E%3C/svg%3E");
+17:}
+18:.ico-layers {
+19:  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='12 2 2 7 12 12 22 7 12 2'/%3E%3Cpolyline points='2 17 12 22 22 17'/%3E%3Cpolyline points='2 12 12 17 22 12'/%3E%3C/svg%3E");
+20:  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='12 2 2 7 12 12 22 7 12 2'/%3E%3Cpolyline points='2 17 12 22 22 17'/%3E%3Cpolyline points='2 12 12 17 22 12'/%3E%3C/svg%3E");
+🌐 Searching the web...
+🌐 Searched the web
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --unified=80 5e4f373~1..995304b -- frontend/src/card-editor/export.js' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "Contract Pack|semantic_regression|freshness|counter_examples|test_debt|invariants|verification" docs/plans/2026-04-03-a4-card-editor-plan.md' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --unified=80 5e4f373~1..995304b -- frontend/src/card-editor/render.js' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --unified=80 5e4f373~1..995304b -- frontend/src/components/CardEditor.vue' in C:/Users/Administrator/edu-cloud exited 1 in 1.25s:
+
+ succeeded in 1.27s:
+diff --git a/frontend/src/card-editor/render.js b/frontend/src/card-editor/render.js
+index 539b18f..cab44d6 100644
+--- a/frontend/src/card-editor/render.js
++++ b/frontend/src/card-editor/render.js
+@@ -1,466 +1,571 @@
+ // render.js — 根据 layout JSON 渲染答题卡 DOM
+ // 从 layout.sides[].columns[].regions[] 驱动渲染
+ 
+ const WARNING = '请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效';
+ 
+ export function applyCSSToPage(el, v) {
+   const s = el.style;
+   s.setProperty('--title-size', v.titleSize + 'pt');
+   s.setProperty('--subtitle-size', v.subtitleSize + 'pt');
+   s.setProperty('--title-spacing', v.titleSpacing + 'px');
+   s.setProperty('--subtitle-spacing', v.subtitleSpacing + 'px');
+   s.setProperty('--title-gap', v.titleGap + 'mm');
+   s.setProperty('--subtitle-gap', v.subtitleGap + 'mm');
+   s.setProperty('--info-height', v.infoHeight + 'mm');
+   s.setProperty('--info-padding', v.infoPadding + 'mm');
+ succeeded in 1.26s:
+diff --git a/frontend/src/components/CardEditor.vue b/frontend/src/components/CardEditor.vue
+index c76c023..62a6df4 100644
+--- a/frontend/src/components/CardEditor.vue
++++ b/frontend/src/components/CardEditor.vue
+@@ -1,674 +1,811 @@
+ <template>
+   <div class="card-editor-wrapper" :class="{ 'tql-mode': viewMode === 'tql' }">
+     <button class="panel-toggle" ref="panelToggleRef" title="收起/展开面板" @click="togglePanel">‹</button>
+     <div class="panel" ref="panelRef">
+       <!-- 选择题 -->
+       <h2><i class="ico ico-grid"></i> 选择题</h2>
+       <div class="ctrl">
+         <label>快速生成</label>
+         <input type="number" id="choiceQuickCount" value="11" min="1" max="30" style="width:40px">
+         <span style="color:#5a6b5e;font-size:11px;">题 ×</span>
+         <input type="number" id="choiceQuickOptions" value="4" min="2" max="8" style="width:40px">
+         <span style="color:#5a6b5e;font-size:11px;">选项</span>
+         <button class="choice-gen-btn" id="choiceGenBtn">生成</button>
+       </div>
+       <div id="choiceList" class="choice-list"></div>
+ succeeded in 1.32s:
+diff --git a/frontend/src/card-editor/export.js b/frontend/src/card-editor/export.js
+index ef58f80..ca21bd9 100644
+--- a/frontend/src/card-editor/export.js
++++ b/frontend/src/card-editor/export.js
+@@ -1,202 +1,322 @@
+ // export.js — PDF 和 skeleton JSON 导出
+ 
+ function getAuthHeaders() {
+   const headers = { 'Content-Type': 'application/json' };
+   const token = localStorage.getItem('token');
+   if (token) headers['Authorization'] = `Bearer ${token}`;
+   return headers;
+ }
+ 
+ function getCurrentPaperSize() {
+   return window._getValues?.()?.paperSize || 'A3';
+ }
+ 
+ export function initExport() {
+   const btnPdf = document.getElementById('btnExportPdf');
+codex
+我已经看到几处明显偏离计划的地方了，正在做最小复现确认，避免把设计偏差和真实缺陷混在一起。重点在 `subject_defaults.py` 的新增推断逻辑、`test_cards.py` 的回归测试失真，以及前端保存/导出链路有没有引入计划外行为。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+cfg = dict(SUBJECT_CONFIGS['英语']); cfg['subjectTitle']='英语'
+layout = _fallback_layout(cfg)
+print(layout['paper'])
+print(layout['config']['essayCount'])
+print(layout['config']['essayConfig'])
+print([r['score'] for r in layout['sides'][0]['columns'][0]['regions'] if r['type']=='essay'])
+print([r['score'] for r in layout['sides'][1]['columns'][0]['regions'] if r['type']=='essay'])
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+for name in ['数学','生物','化学','英语']:
+    cfg = dict(SUBJECT_CONFIGS[name]); cfg['subjectTitle']=name
+    layout = _fallback_layout(cfg)
+    print(name, layout['paper'], len(layout['sides'][0]['columns']), len(layout['sides'][1]['columns']))
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+from edu_cloud.modules.card.subject_defaults import tql_to_editor_layout, _resolve_tql_path, _TQL_FILES
+p = _resolve_tql_path(_TQL_FILES['英语'])
+print('exists', Path(p).exists(), p)
+if Path(p).exists():
+    layout = tql_to_editor_layout(p, '英语')
+    print(layout['paper'])
+    print('essayCount', layout['config']['essayCount'])
+    print('essayConfig', layout['config']['essayConfig'])
+    print('sideA essays', [(r.get('id'), r.get('score'), r.get('continuation')) for r in layout['sides'][0]['columns'][0]['regions'] if r['type']=='essay'])
+    print('sideB essays', [(r.get('id'), r.get('score'), r.get('continuation')) for r in layout['sides'][1]['columns'][0]['regions'] if r['type']=='essay'])
+'@ | python -" in C:/Users/Administrator/edu-cloud exited 1 in 1.01s:
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+KeyError: '??'
+ exited 1 in 1.02s:
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+KeyError: '??'
+ exited 1 in 1.14s:
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+KeyError: '??'
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+for name in list(SUBJECT_CONFIGS.keys()):
+    if len(name) < 5:
+        pass
+print(repr(list(SUBJECT_CONFIGS.keys())[0]))
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from edu_cloud.modules.card.subject_defaults import SUBJECT_CONFIGS
+print(list(SUBJECT_CONFIGS.keys()))
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 872ms:
+'数学'
+ succeeded in 879ms:
+['数学', '语文', '英语', '物理', '化学', '生物', '历史', '政治', '地理']
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+from edu_cloud.modules.card.subject_defaults import tql_to_editor_layout, _resolve_tql_path, _TQL_FILES
+name = list(_TQL_FILES.keys())[2]
+p = _resolve_tql_path(_TQL_FILES[name])
+print('name', name)
+print('exists', Path(p).exists())
+if Path(p).exists():
+    layout = tql_to_editor_layout(p, name)
+    print('paper', layout['paper'])
+    print('essayCount', layout['config']['essayCount'])
+    print('essayConfig', layout['config']['essayConfig'])
+    print('sideA essays', [(r.get('id'), r.get('score'), r.get('continuation')) for r in layout['sides'][0]['columns'][0]['regions'] if r['type']=='essay'])
+    print('sideB essays', [(r.get('id'), r.get('score'), r.get('continuation')) for r in layout['sides'][1]['columns'][0]['regions'] if r['type']=='essay'])
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+name = list(SUBJECT_CONFIGS.keys())[2]
+cfg = dict(SUBJECT_CONFIGS[name]); cfg['subjectTitle']=name
+layout = _fallback_layout(cfg)
+print('name', name)
+print('paper', layout['paper'])
+print('essayCount', layout['config']['essayCount'])
+print('essayConfig', layout['config']['essayConfig'])
+print('sideA essay scores', [r['score'] for r in layout['sides'][0]['columns'][0]['regions'] if r['type']=='essay'])
+print('sideB essay scores', [r['score'] for r in layout['sides'][1]['columns'][0]['regions'] if r['type']=='essay'])
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+for idx in [0,4,5,2]:
+    name = list(SUBJECT_CONFIGS.keys())[idx]
+    cfg = dict(SUBJECT_CONFIGS[name]); cfg['subjectTitle']=name
+    layout = _fallback_layout(cfg)
+    print(name, layout['paper'], len(layout['sides'][0]['columns']), len(layout['sides'][1]['columns']))
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.03s:
+name 英语
+paper A4
+essayCount 3
+essayConfig [{'score': 15}, {'score': 15}, {'score': 25}]
+sideA essay scores [15, 15]
+sideB essay scores [25]
+ succeeded in 1.02s:
+数学 A3 3 3
+化学 A3 3 3
+生物 A3 3 3
+英语 A4 1 1
+ succeeded in 1.19s:
+name 英语
+exists True
+paper A4
+essayCount 3
+essayConfig [{'score': 15.0}, {'score': 15.0}]
+sideA essays [('essay-Q56', 15.0, None), ('essay-Q_写作第一节', 15.0, None)]
+sideB essays [('essay-Q_写作第一节-cont', 0, True), ('essay-Q_写作第二节', 25.0, None)]
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "essayConfig|essayCount|choiceGroups|paperSize|createDefaultLayout|applyQuestions" frontend/src/card-editor/model.js frontend/src/components/CardEditor.vue frontend/src/card-editor/render.js' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" frontend\\src\\card-editor\\model.js" in C:/Users/Administrator/edu-cloud succeeded in 917ms:
+frontend/src/components/CardEditor.vue:87:        <div class="ctrl"><label>题数</label><input type="range" id="essayCount" min="1" max="20" value="5"><span class="val" id="v_essayCount"></span></div>
+frontend/src/components/CardEditor.vue:89:        <textarea id="essayConfig" style="width:100%;height:60px;background:#0f3460;color:#eee;border:1px solid #555;font-size:11px;padding:4px;" spellcheck="false">[{"score":10},{"score":12},{"score":12},{"score":12},{"score":14}]</textarea>
+frontend/src/components/CardEditor.vue:93:          <select id="paperSize" style="background:#0f3460;color:#eee;border:1px solid #555;padding:2px;">
+frontend/src/components/CardEditor.vue:232:  essayCount: 'range',
+frontend/src/components/CardEditor.vue:233:  paperSize: 'select', zoom: 'range',
+frontend/src/components/CardEditor.vue:236:const structuralKeys = ['choiceCount', 'optionCount', 'fillCount', 'essayCount', 'paperSize']
+frontend/src/components/CardEditor.vue:248:  try { vals.essayConfig = JSON.parse(document.getElementById('essayConfig')?.value || '[]') } catch { vals.essayConfig = base.essayConfig || [] }
+frontend/src/components/CardEditor.vue:251:  // 同步 _choices 到 choiceGroups，确保渲染使用最新数据
+frontend/src/components/CardEditor.vue:253:    // 如果原始 config 有带坐标的 choiceGroups，保留坐标
+frontend/src/components/CardEditor.vue:254:    const origGroups = base.choiceGroups || []
+frontend/src/components/CardEditor.vue:277:    vals.choiceGroups = groups
+frontend/src/components/CardEditor.vue:293:  const ec = JSON.stringify(v.essayConfig || [])
+frontend/src/components/CardEditor.vue:294:  if (ec !== (lastStructural._essayConfigStr || '')) return true
+frontend/src/components/CardEditor.vue:334:  // 从 API/TQL 加载的布局：只同步样式参数，保护结构性字段（paperSize/sides）
+frontend/src/components/CardEditor.vue:336:    const protectedPaperSize = window._cardLayout.config?.paperSize
+frontend/src/components/CardEditor.vue:338:    if (protectedPaperSize) window._cardLayout.config.paperSize = protectedPaperSize
+frontend/src/components/CardEditor.vue:340:    window._cardLayout = modelModule.createDefaultLayout(v)
+frontend/src/components/CardEditor.vue:342:    lastStructural._essayConfigStr = JSON.stringify(v.essayConfig || [])
+frontend/src/components/CardEditor.vue:347:  // 保持 layout.paper 和 config.paperSize 同步
+frontend/src/components/CardEditor.vue:348:  if (window._cardLayout.paper) config.paperSize = window._cardLayout.paper
+ succeeded in 912ms:
+1:// model.js — 答题卡布局数据模型
+2:// 定义 layout JSON schema 和 CRUD 操作函数
+3:
+4:function _buildSubs(subCount) {
+5:  if (!subCount || subCount <= 0) return []
+6:  return Array.from({ length: subCount }, (_, i) => ({
+7:    sub: i + 1,
+8:    blanks: [{ w: '100%' }, { w: '100%' }, { w: '100%' }],
+9:  }))
+10:}
+11:
+12:export function createDefaultLayout(config) {
+13:  const choiceCount = config.choiceCount || 11;
+14:  const fillCount = config.fillCount || 3;
+15:  const essayConfig = config.essayConfig || [];
+16:  const fillStart = choiceCount + 1;
+17:  const essayStart = choiceCount + fillCount + 1;
+18:
+19:  // 构建所有 essay regions
+20:  const essayRegions = essayConfig.map((ec, i) => ({
+codex
+已经定位到一个更严重的问题：`getValues()` 会把连续且选项数相同的 TQL 题组重新并成大组，直接把原有分组边界和坐标映射打碎。我先做一个最小复现，确认这不是阅读误差。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+# simulate CardEditor.getValues regrouping for English
+orig_groups = [
+    {'start':1,'count':5,'options':3,'x':1}, {'start':6,'count':5,'options':3,'x':2},
+    {'start':11,'count':5,'options':3,'x':3}, {'start':16,'count':5,'options':3,'x':4},
+    {'start':21,'count':5,'options':4,'x':5}, {'start':26,'count':5,'options':4,'x':6},
+    {'start':31,'count':5,'options':4,'x':7}, {'start':36,'count':5,'options':7,'x':8},
+    {'start':41,'count':5,'options':4,'x':9}, {'start':46,'count':5,'options':4,'x':10},
+    {'start':51,'count':5,'options':4,'x':11},
+]
+choices = []
+for g in orig_groups:
+    for i in range(g['count']):
+        choices.append({'qno': g['start'] + i, 'options': g['options']})
+orig_map = {f\"{g['start']}-{g['count']}\": g for g in orig_groups if 'x' in g}
+groups = []
+cur = {'start': choices[0]['qno'], 'options': choices[0]['options'], 'count': 1}
+for c in choices[1:]:
+    if c['options'] == cur['options'] and c['qno'] == cur['start'] + cur['count']:
+        cur['count'] += 1
+    else:
+        orig = orig_map.get(f\"{cur['start']}-{cur['count']}\")
+        if orig:
+            cur['x'] = orig['x']
+        groups.append(cur)
+        cur = {'start': c['qno'], 'options': c['options'], 'count': 1}
+orig = orig_map.get(f\"{cur['start']}-{cur['count']}\")
+if orig:
+    cur['x'] = orig['x']
+groups.append(cur)
+print(groups)
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+from edu_cloud.modules.card.subject_defaults import tql_to_editor_layout, _resolve_tql_path, _TQL_FILES
+name = list(_TQL_FILES.keys())[2]
+p = _resolve_tql_path(_TQL_FILES[name])
+layout = tql_to_editor_layout(p, name)
+print('choiceGroups', layout['config']['choiceGroups'])
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"choiceGroups = groups|origMap|cur = \\{ start: window\\._choices\\[0\\]\\.qno|hasTqlCoords|renderGroup\\(g\\)\" frontend/src/components/CardEditor.vue frontend/src/card-editor/render.js" in C:/Users/Administrator/edu-cloud succeeded in 1.15s:
+[{'start': 1, 'options': 3, 'count': 20}, {'start': 21, 'options': 4, 'count': 15}, {'start': 36, 'options': 7, 'count': 5, 'x': 8}, {'start': 41, 'options': 4, 'count': 15}]
+ succeeded in 1.21s:
+choiceGroups [{'start': 1, 'count': 5, 'options': 3, 'x': 14.6, 'y': 27.9, 'w': 7.5}, {'start': 6, 'count': 5, 'options': 3, 'x': 31.6, 'y': 27.9, 'w': 7.5}, {'start': 11, 'count': 5, 'options': 3, 'x': 48.6, 'y': 28.0, 'w': 7.5}, {'start': 16, 'count': 5, 'options': 3, 'x': 65.6, 'y': 28.0, 'w': 7.5}, {'start': 21, 'count': 5, 'options': 4, 'x': 14.5, 'y': 34.9, 'w': 10.3}, {'start': 26, 'count': 5, 'options': 4, 'x': 31.6, 'y': 34.9, 'w': 10.3}, {'start': 31, 'count': 5, 'options': 4, 'x': 48.6, 'y': 34.9, 'w': 10.4}, {'start': 36, 'count': 5, 'options': 7, 'x': 65.5, 'y': 34.9, 'w': 18.9}, {'start': 41, 'count': 5, 'options': 4, 'x': 14.5, 'y': 41.9, 'w': 10.3}, {'start': 46, 'count': 5, 'options': 4, 'x': 31.6, 'y': 41.9, 'w': 10.2}, {'start': 51, 'count': 5, 'options': 4, 'x': 48.6, 'y': 42.0, 'w': 10.4}]
+ succeeded in 928ms:
+frontend/src/card-editor/render.js:72:  function renderGroup(g) {
+frontend/src/card-editor/render.js:116:  const hasTqlCoords = groups.some(g => g.x !== undefined);
+frontend/src/card-editor/render.js:118:  if (hasTqlCoords) {
+frontend/src/card-editor/render.js:120:    return groups.map(g => renderGroup(g)).join('');
+frontend/src/components/CardEditor.vue:255:    const origMap = new Map()
+frontend/src/components/CardEditor.vue:257:      if (g.x !== undefined) origMap.set(`${g.start}-${g.count}`, g)
+frontend/src/components/CardEditor.vue:261:    let cur = { start: window._choices[0].qno, options: window._choices[0].options, count: 1 }
+frontend/src/components/CardEditor.vue:268:        const orig = origMap.get(`${cur.start}-${cur.count}`)
+frontend/src/components/CardEditor.vue:274:    const orig = origMap.get(`${cur.start}-${cur.count}`)
+frontend/src/components/CardEditor.vue:277:    vals.choiceGroups = groups
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+from edu_cloud.modules.card.subject_defaults import tql_to_editor_layout, _resolve_tql_path, _TQL_FILES
+name = list(_TQL_FILES.keys())[2]
+p = _resolve_tql_path(_TQL_FILES[name])
+layout = tql_to_editor_layout(p, name)
+print('essayCount', layout['config']['essayCount'])
+print('essayConfigLen', len(layout['config']['essayConfig']))
+print('essayConfig', layout['config']['essayConfig'])
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+import { createDefaultLayout } from './frontend/src/card-editor/model.js'
+const config = {
+  paperSize: 'A4',
+  choiceCount: 55,
+  fillCount: 0,
+  essayCount: 3,
+  essayConfig: [{ score: 15 }, { score: 15 }],
+}
+const layout = createDefaultLayout(config)
+console.log(layout.sides[0].columns[0].regions.filter(r => r.type === 'essay').length)
+console.log(layout.sides[1].columns[0].regions.filter(r => r.type === 'essay').length)
+'@ | node --input-type=module -" in C:/Users/Administrator/edu-cloud succeeded in 1.10s:
+1
+1
+ succeeded in 1.40s:
+essayCount 3
+essayConfigLen 2
+essayConfig [{'score': 15.0}, {'score': 15.0}]
+codex
+我在补验证当前测试状态，确认这些问题不是由未运行测试造成的假阳性。之后就整理成结构化 finding。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_services_exam/test_tpl_parser.py tests/test_api_exam/test_cards.py -q' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'npx vitest run src/card-editor/__tests__/render.test.js' in C:/Users/Administrator/edu-cloud/frontend succeeded in 11.68s:
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90mC:/Users/Administrator/edu-cloud/frontend[39m
+
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m   Start at [22m 19:15:36
+[2m   Duration [22m 3.40s[2m (transform 250ms, setup 0ms, import 321ms, tests 182ms, environment 1.92s)[22m
+
+ succeeded in 58.18s:
+..........................................                               [100%]
+============================== warnings summary ===============================
+tests/test_api_exam/test_cards.py::TestCardBarcode::test_barcode_upload
+  C:\Users\Administrator\AppData\Roaming\Python\Python311\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+42 passed, 1 warning in 47.81s
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --unified=40 5e4f373~1..995304b -- tests/test_ai/test_agent_pipeline.py tests/test_ai/test_tools_registration.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" tests\\test_ai\\test_tools_registration.py" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" tests\\test_ai\\test_agent_pipeline.py" in C:/Users/Administrator/edu-cloud succeeded in 1.64s:
+diff --git a/tests/test_ai/test_agent_pipeline.py b/tests/test_ai/test_agent_pipeline.py
+index 804228a..bcb25f1 100644
+--- a/tests/test_ai/test_agent_pipeline.py
++++ b/tests/test_ai/test_agent_pipeline.py
+@@ -1,110 +1,110 @@
+ import pytest
+ from unittest.mock import AsyncMock, patch
+ from edu_cloud.ai.tool_access import ToolAccessResolver
+ from edu_cloud.ai.intent_resolver import IntentResolver
+ from edu_cloud.ai.model_router import ModelRouter
+ from edu_cloud.ai.registry import ToolSpec
+ 
+ 
+ def _make_spec(name, domain="general", allowed_roles=None, module_code=None):
+     return ToolSpec(
+         name=name, description=f"Tool {name}", parameters={},
+         func=AsyncMock(return_value={"ok": True}),
+         domain=domain, allowed_roles=allowed_roles, module_code=module_code,
+     )
+ 
+ succeeded in 2.12s:
+1:"""Verify all 25+ tools are registered and category/metadata structure is correct."""
+2:import pytest
+3:from edu_cloud.ai.registry import tools
+4:from edu_cloud.ai.tool_access import ToolAccessResolver
+5:import edu_cloud.ai.tools  # noqa: F401 — trigger registration
+6:
+7:
+8:def test_total_tool_count():
+9:    """All tool modules register the expected total (≥25 tools)."""
+10:    all_tools = tools.list_tools()
+11:    assert len(all_tools) >= 25, f"Expected ≥25 tools, got {len(all_tools)}: {all_tools}"
+12:
+13:
+14:def test_tool_categories_present():
+15:    """All 9 expected categories have at least one tool."""
+16:    expected_categories = {
+17:        "L1_exam", "L1_student",
+18:        "L2_analytics", "L2_cross_school",
+19:        "L3_knowledge", "L3_knowledge_db",
+20:        "L4_action", "L5_bank", "L6_profile",
+ succeeded in 2.77s:
+1:import pytest
+2:from unittest.mock import AsyncMock, patch
+3:from edu_cloud.ai.tool_access import ToolAccessResolver
+4:from edu_cloud.ai.intent_resolver import IntentResolver
+5:from edu_cloud.ai.model_router import ModelRouter
+6:from edu_cloud.ai.registry import ToolSpec
+7:
+8:
+9:def _make_spec(name, domain="general", allowed_roles=None, module_code=None):
+10:    return ToolSpec(
+11:        name=name, description=f"Tool {name}", parameters={},
+12:        func=AsyncMock(return_value={"ok": True}),
+13:        domain=domain, allowed_roles=allowed_roles, module_code=module_code,
+14:    )
+15:
+16:
+17:@pytest.mark.asyncio
+18:async def test_pipeline_end_to_end():
+19:    """完整 Pipeline: 工具过滤 → 意图裁剪 → 模型选择"""
+20:    all_tools = [
+Plan update
+  ✓ 读取并核对 Contract Pack、handoff、自审记录与提交范围
+  ✓ 逐文件通读实现与测试，评估测试充分性和边界覆盖
+  ✓ 结合实现细节做行为正确性与未测试风险审查
+  → 整理结构化 findings 并给出 PASS/FAIL
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" docs\\plans\\2026-04-03-a4-card-editor-plan.md" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "cmd /c findstr /n \".*\" docs\\plans\\a4-card-editor-review-handoff-batch1.md" in C:/Users/Administrator/edu-cloud succeeded in 994ms:
+1:[edu-cloud] Executor→Reviewer | 2026-04-03 18:30:19
+2:## 审查交接单: Task 1-8
+3:计划: C:\Users\Administrator\edu-cloud\docs\plans\2026-04-03-a4-card-editor-plan.md
+4:
+5:### 逐 Task 自审
+6:| Task | 计划要求 | 实际执行 | 状态 | 说明 |
+7:|------|---------|---------|------|------|
+8:| T1 | 后端 layout 契约统一 + 测试 | commit 5e4f373, TQL A4 路径 col 合并 + router F01 校验 + 8 个契约测试 | ✅ | |
+9:| T2 | CSS 修复 — .a4-col + 删除 hack | commit 635e6d8, 替换 .a4-essay-area 为 .a4-col/a4-content/a4-col--full | ✅ | |
+10:| T3 | 重写 _renderA4 + 提取 renderFixedRegions | commit 228280e, 提取 renderFixedRegions 共享函数 + A3 路径复用 + A4 使用 renderColumnRegions | ✅ | |
+11:| T4 | 选择题竖排修复 | commit 12cf6b8, hasTqlCoords 判断 + getValues 保留 x/y/w | ✅ | |
+12:| T5 | PDF 导出修复 | commit d1821e4, fetchStyleCSS + async getCleanHTML + marginBottom 清除 + Noto CJK | ✅ | |
+13:| T6 | 英语/化学 editor-layout API 测试 | commit a71b153, 3 个 API 集成测试（英语 A4/化学/数学 A3） | 🔀 | 去掉 plan 中 Subject 不支持的 full_score/sort_order 字段；数学改为生物（seed_subject 默认科目） |
+14:| T7 | 前端 Vitest 渲染回归测试 | commit 995304b, 4 个 DOM 结构测试 | 🔀 | A3 .a3-col 数量从 3 改为 6（A面+B面各 3 栏 = 6 个 .a3-col 元素） |
+15:| T8 | 最终回归验证 | 后端 42 passed / 前端 71 passed + 1 pre-existing fail | ✅ | 前端 1 个失败是路由数量断言(17→实际 N)，非本次引入 |
+16:
+17:### 预审自检（送审前必填）
+18:| 测试契约 slice | 对应测试文件:函数 | 验证命令 | 实际输出（pass/fail + 关键行） | 反证验证 |
+19:|---------------|------------------|---------|------------------------------|---------------------------------------|
+20:| A4 layout 每面单 column | test_tpl_parser.py::TestSubjectDefaults::test_a4_layout_single_column_per_side | `python -m pytest tests/test_services_exam/test_tpl_parser.py::TestSubjectDefaults -v` | PASS, 5/5 passed in 2.45s | 修复前 TQL 路径 3 个 FAIL（多 column），修复后 PASS |
+ succeeded in 1.00s:
+1:# A4 双面答题卡编辑器重构 实现计划
+2:
+3:> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+4:
+5:**Goal:** 按 GPT Codex 诊断的 5 个根因重构 A4 双面答题卡编辑器，统一 A3/A4 渲染架构。
+6:
+7:**Architecture:** A3/A4 共用 `renderColumnRegions()` + `renderEssayRegion()`，只在页面骨架层区分纸型。A4 引入 `.a4-col` flex 容器（类似 `.a3-col`），让 `heightRatio` 正确分配空间。后端 layout 契约统一为 A4 每面 1 column。
+8:
+9:**Tech Stack:** 原生 JS（card-editor/）、CSS、Python（FastAPI 后端）、pytest
+10:
+11:**Design:** `docs/plans/2026-04-03-a4-card-editor-design.md`
+12:
+13:**回归验证命令（每个 Task 完成后必跑）：**
+14:```bash
+15:cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_services_exam/test_tpl_parser.py tests/test_api_exam/test_cards.py -x -q
+16:cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run
+17:```
+18:
+19:---
+20:
+codex
+**发现**
+1. `F001`  
+Severity: HIGH  
+Category: `code-bug`  
+Type: `defect_fix`  
+Before-behavior: 加载 TQL 布局后，样式编辑或自动保存不应改变原始 `choiceGroups` 的分组边界和坐标；英语这类 11 组选择题应继续按 TQL 分组渲染。  
+After-behavior: `getValues()` 按“题号连续 + 选项数相同”重组 `choiceGroups`，会把英语 11 组合并成 4 组；随后渲染侧只要任一组还带坐标就进入 TQL 分支，但该分支并未实际使用 `x/y/w` 做布局，结果是一次保存/编辑后原始 TQL 分组和布局都会被破坏。  
+Evidence: [CardEditor.vue:255](C:/Users/Administrator/edu-cloud/frontend/src/components/CardEditor.vue#L255), [CardEditor.vue:261](C:/Users/Administrator/edu-cloud/frontend/src/components/CardEditor.vue#L261), [CardEditor.vue:277](C:/Users/Administrator/edu-cloud/frontend/src/components/CardEditor.vue#L277), [render.js:72](C:/Users/Administrator/edu-cloud/frontend/src/card-editor/render.js#L72), [render.js:116](C:/Users/Administrator/edu-cloud/frontend/src/card-editor/render.js#L116), [render.js:120](C:/Users/Administrator/edu-cloud/frontend/src/card-editor/render.js#L120)  
+Impact: Task 4 的核心回归并未真正被修好；当前套件仍可通过，但英语/TQL 题组在真实编辑路径上会退化。  
+Repair hypothesis: likely repair direction: 让 TQL `choiceGroups` 成为稳定真源，只有显式改题组结构时才重建；TQL 渲染分支只在“全部组都有完整坐标”时启用，并真正按坐标放置。 forbidden fix patterns to avoid: 不要继续用 `some(g.x !== undefined)` 作为分支条件；不要再用“连续题号 + 相同 options”从 `_choices` 反推 TQL 题组。 requires independent fix design + Semantic Regression Gate
+
+2. `F002`  
+Severity: HIGH  
+Category: `test-gap`  
+Type: `defect_fix`  
+Before-behavior: Task 6 应该用可失败的回归测试保护“英语应返回 A4”和“A3 科目不应被误升为 A4”这两个契约。  
+After-behavior: `test_chemistry_returns_correct_layout` 只在 `paper == "A4"` 时才断言，错误地回退成 A3 也会通过；`test_math_stays_a3` 实际测的是 seed 出来的生物，而且断言接受 `("A3", "A4")` 两种结果，删除/破坏纸型判断后仍会绿。  
+Evidence: [test_cards.py:441](C:/Users/Administrator/edu-cloud/tests/test_api_exam/test_cards.py#L441), [test_cards.py:458](C:/Users/Administrator/edu-cloud/tests/test_api_exam/test_cards.py#L458), [test_cards.py:463](C:/Users/Administrator/edu-cloud/tests/test_api_exam/test_cards.py#L463), [test_cards.py:472](C:/Users/Administrator/edu-cloud/tests/test_api_exam/test_cards.py#L472), [a4-card-editor-review-handoff-batch1.md:13](C:/Users/Administrator/edu-cloud/docs/plans/a4-card-editor-review-handoff-batch1.md#L13)  
+Impact: plan 里声明的 counter-example “A3 科目仍返回 A3”并没有被有效覆盖，当前 PASS 不能说明回归风险已被锁住。  
+Repair hypothesis: 把化学/A3 反例改成硬失败断言，并补一个真正针对 A3 fallback 科目的负向测试。
+
+3. `F003`  
+Severity: MED  
+Category: `code-bug`  
+Type: `defect_fix`  
+Before-behavior: TQL 转出的 `layout.config` 应保持自洽，`essayCount` 与 `essayConfig` 应描述同一组 essay，保证后续 rebuild/编辑不会丢题。  
+After-behavior: `tql_to_editor_layout()` 对英语返回 `essayCount = 3`，但 `essayConfig` 只序列化了 A 面两题；`createDefaultLayout()` 又只按 `essayConfig` 重建 essay，因此任何从 config 的 rebuild 都会把 B 面独有的 essay 丢掉。  
+Evidence: [subject_defaults.py:470](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/subject_defaults.py#L470), [subject_defaults.py:471](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/subject_defaults.py#L471), [model.js:15](C:/Users/Administrator/edu-cloud/frontend/src/card-editor/model.js#L15), [model.js:57](C:/Users/Administrator/edu-cloud/frontend/src/card-editor/model.js#L57)  
+Impact: 当前加载出来的 TQL 布局不是 round-trip safe；一旦触发结构重建，就可能静默删掉最后一题。  
+Repair hypothesis: `essayConfig` 应从与 `essayCount` 相同的去重 essay 集合生成，而不是只取 A 面。
+
+4. `F004`  
+Severity: MED  
+Category: `design-concern`  
+Type: `defect_fix`  
+Before-behavior: Phase 0 依赖 plan 中的 `Contract Pack` 来逐条核对 invariants、counter_examples、test_debt 和 freshness。  
+After-behavior: 该 plan 没有 `Contract Pack` 段落，Phase 0 无法机械核对；同时这批 diff 还混入了 plan 外的新 surface（如批量导出 API 和 AI 测试改动），freshness 无从追踪。  
+Evidence: [2026-04-03-a4-card-editor-plan.md:1](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L1), [export.js:226](C:/Users/Administrator/edu-cloud/frontend/src/card-editor/export.js#L226), [test_agent_pipeline.py:28](C:/Users/Administrator/edu-cloud/tests/test_ai/test_agent_pipeline.py#L28)  
+Impact: 这批实现与计划/交接单的映射不完整，review confidence 被明显拉低。  
+Repair hypothesis: 先补齐 Contract Pack，再把计划外改动拆出独立批次。
+
+补充：我复跑了 `python -m pytest tests/test_services_exam/test_tpl_parser.py tests/test_api_exam/test_cards.py -q` 和 `npx vitest run src/card-editor/__tests__/render.test.js`，当前都通过；这恰好说明 `F001/F002/F003` 主要是“真实回归已存在，但现有测试没有拦住”。
+
+结论: FAIL
+tokens used
+213,526
+**发现**
+1. `F001`  
+Severity: HIGH  
+Category: `code-bug`  
+Type: `defect_fix`  
+Before-behavior: 加载 TQL 布局后，样式编辑或自动保存不应改变原始 `choiceGroups` 的分组边界和坐标；英语这类 11 组选择题应继续按 TQL 分组渲染。  
+After-behavior: `getValues()` 按“题号连续 + 选项数相同”重组 `choiceGroups`，会把英语 11 组合并成 4 组；随后渲染侧只要任一组还带坐标就进入 TQL 分支，但该分支并未实际使用 `x/y/w` 做布局，结果是一次保存/编辑后原始 TQL 分组和布局都会被破坏。  
+Evidence: [CardEditor.vue:255](C:/Users/Administrator/edu-cloud/frontend/src/components/CardEditor.vue#L255), [CardEditor.vue:261](C:/Users/Administrator/edu-cloud/frontend/src/components/CardEditor.vue#L261), [CardEditor.vue:277](C:/Users/Administrator/edu-cloud/frontend/src/components/CardEditor.vue#L277), [render.js:72](C:/Users/Administrator/edu-cloud/frontend/src/card-editor/render.js#L72), [render.js:116](C:/Users/Administrator/edu-cloud/frontend/src/card-editor/render.js#L116), [render.js:120](C:/Users/Administrator/edu-cloud/frontend/src/card-editor/render.js#L120)  
+Impact: Task 4 的核心回归并未真正被修好；当前套件仍可通过，但英语/TQL 题组在真实编辑路径上会退化。  
+Repair hypothesis: likely repair direction: 让 TQL `choiceGroups` 成为稳定真源，只有显式改题组结构时才重建；TQL 渲染分支只在“全部组都有完整坐标”时启用，并真正按坐标放置。 forbidden fix patterns to avoid: 不要继续用 `some(g.x !== undefined)` 作为分支条件；不要再用“连续题号 + 相同 options”从 `_choices` 反推 TQL 题组。 requires independent fix design + Semantic Regression Gate
+
+2. `F002`  
+Severity: HIGH  
+Category: `test-gap`  
+Type: `defect_fix`  
+Before-behavior: Task 6 应该用可失败的回归测试保护“英语应返回 A4”和“A3 科目不应被误升为 A4”这两个契约。  
+After-behavior: `test_chemistry_returns_correct_layout` 只在 `paper == "A4"` 时才断言，错误地回退成 A3 也会通过；`test_math_stays_a3` 实际测的是 seed 出来的生物，而且断言接受 `("A3", "A4")` 两种结果，删除/破坏纸型判断后仍会绿。  
+Evidence: [test_cards.py:441](C:/Users/Administrator/edu-cloud/tests/test_api_exam/test_cards.py#L441), [test_cards.py:458](C:/Users/Administrator/edu-cloud/tests/test_api_exam/test_cards.py#L458), [test_cards.py:463](C:/Users/Administrator/edu-cloud/tests/test_api_exam/test_cards.py#L463), [test_cards.py:472](C:/Users/Administrator/edu-cloud/tests/test_api_exam/test_cards.py#L472), [a4-card-editor-review-handoff-batch1.md:13](C:/Users/Administrator/edu-cloud/docs/plans/a4-card-editor-review-handoff-batch1.md#L13)  
+Impact: plan 里声明的 counter-example “A3 科目仍返回 A3”并没有被有效覆盖，当前 PASS 不能说明回归风险已被锁住。  
+Repair hypothesis: 把化学/A3 反例改成硬失败断言，并补一个真正针对 A3 fallback 科目的负向测试。
+
+3. `F003`  
+Severity: MED  
+Category: `code-bug`  
+Type: `defect_fix`  
+Before-behavior: TQL 转出的 `layout.config` 应保持自洽，`essayCount` 与 `essayConfig` 应描述同一组 essay，保证后续 rebuild/编辑不会丢题。  
+After-behavior: `tql_to_editor_layout()` 对英语返回 `essayCount = 3`，但 `essayConfig` 只序列化了 A 面两题；`createDefaultLayout()` 又只按 `essayConfig` 重建 essay，因此任何从 config 的 rebuild 都会把 B 面独有的 essay 丢掉。  
+Evidence: [subject_defaults.py:470](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/subject_defaults.py#L470), [subject_defaults.py:471](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/subject_defaults.py#L471), [model.js:15](C:/Users/Administrator/edu-cloud/frontend/src/card-editor/model.js#L15), [model.js:57](C:/Users/Administrator/edu-cloud/frontend/src/card-editor/model.js#L57)  
+Impact: 当前加载出来的 TQL 布局不是 round-trip safe；一旦触发结构重建，就可能静默删掉最后一题。  
+Repair hypothesis: `essayConfig` 应从与 `essayCount` 相同的去重 essay 集合生成，而不是只取 A 面。
+
+4. `F004`  
+Severity: MED  
+Category: `design-concern`  
+Type: `defect_fix`  
+Before-behavior: Phase 0 依赖 plan 中的 `Contract Pack` 来逐条核对 invariants、counter_examples、test_debt 和 freshness。  
+After-behavior: 该 plan 没有 `Contract Pack` 段落，Phase 0 无法机械核对；同时这批 diff 还混入了 plan 外的新 surface（如批量导出 API 和 AI 测试改动），freshness 无从追踪。  
+Evidence: [2026-04-03-a4-card-editor-plan.md:1](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-a4-card-editor-plan.md#L1), [export.js:226](C:/Users/Administrator/edu-cloud/frontend/src/card-editor/export.js#L226), [test_agent_pipeline.py:28](C:/Users/Administrator/edu-cloud/tests/test_ai/test_agent_pipeline.py#L28)  
+Impact: 这批实现与计划/交接单的映射不完整，review confidence 被明显拉低。  
+Repair hypothesis: 先补齐 Contract Pack，再把计划外改动拆出独立批次。
+
+补充：我复跑了 `python -m pytest tests/test_services_exam/test_tpl_parser.py tests/test_api_exam/test_cards.py -q` 和 `npx vitest run src/card-editor/__tests__/render.test.js`，当前都通过；这恰好说明 `F001/F002/F003` 主要是“真实回归已存在，但现有测试没有拦住”。
+
+结论: FAIL

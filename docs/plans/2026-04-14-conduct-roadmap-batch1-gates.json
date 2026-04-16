@@ -1,0 +1,52 @@
+{
+  "topic": "conduct-roadmap-batch1",
+  "gates": {
+    "plan_review": {
+      "required": true,
+      "status": "fail",
+      "reviewer": "gpt",
+      "subject_hash": "e9ebe2f6afd5cf17a7bad88e26cd431348e2faa2e384145fb4dba5599a6e2106",
+      "report_path": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review.md",
+      "raw_output_hash": "9554e5ee659b1feb1399c14d181e60de8c5e76b694523765ce5f4f0fd0fe114c",
+      "raw_output_path": "docs/plans/.codex-raw-plan-review-20260414-072451.log",
+      "subject_ref": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md",
+      "updated": "2026-04-14T07:39:47+08:00",
+      "round": 1,
+      "round1_status": "fail",
+      "findings_summary": {
+        "total": 9,
+        "high": 4,
+        "med": 5,
+        "behavior_change": 1,
+        "defect_fix": 8,
+        "code_bug": 4,
+        "test_gap": 3,
+        "design_concern": 2
+      },
+      "round1_findings": {
+        "F001": {"severity": "HIGH", "category": "code-bug", "type": "defect_fix", "summary": "T2 漏 admin_router.py:115,137 真实改动点 (data.date 残留)"},
+        "F002": {"severity": "HIGH", "category": "test-gap", "type": "defect_fix", "summary": "T2 测试假设 201+data[0]['date']，实际 200+{'created_ids':[...]}"},
+        "F003": {"severity": "MED", "category": "code-bug", "type": "defect_fix", "summary": "aggregate_modules.py 路径应为 scripts/governance/aggregate_modules.py"},
+        "F004": {"severity": "MED", "category": "code-bug", "type": "defect_fix", "summary": "state.json 创建时机错误 — 应 Gate 1 PASS 后立即创建，不是 Task 6"},
+        "F005": {"severity": "HIGH", "category": "design-concern", "type": "behavior_change", "summary": "subject_teacher 2→4 未单独批准即写入 plan (R-T3-followup)", "status": "approved", "approval": {"decision": "approved", "decided_at": "2026-04-14T07:45:00+08:00", "decided_by": "user", "precise_reply": "批准 F005", "rationale": "subject_teacher 可见 conduct 入口从 2 扩展到 4（概览/积分操作/记录/排行），plan 现状维持"}},
+        "F006": {"severity": "MED", "category": "test-gap", "type": "defect_fix", "summary": "T1/T3 测试契约只测内部 helper，缺入口级验证"},
+        "F007": {"severity": "MED", "category": "test-gap", "type": "defect_fix", "summary": "CONDUCT_ITEMS.perm typo 静默失败 — 缺治理契约测试"},
+        "F008": {"severity": "HIGH", "category": "design-concern", "type": "defect_fix", "summary": "plan 缺 Contract Pack 段 (invariants/counter_examples/risk_modules/test_debt)"},
+        "F009": {"severity": "MED", "category": "code-bug", "type": "defect_fix", "summary": "Task 6 改 workspace CLAUDE.md 与 design §8 声明矛盾"}
+      },
+      "next_action": "R2 启动前须: (1) 用户精确批准/拒绝 F005 (subject_teacher 2→4 behavior_change); (2) 修 F001~F004, F006~F009 八项 defect_fix; (3) 重算 plan.md hash + 重跑 Plan Review。"
+    },
+    "code_review_batch1": {
+      "required": true,
+      "status": "pending",
+      "reviewer": null,
+      "subject_hash": null,
+      "report_path": null,
+      "raw_output_hash": null,
+      "raw_output_path": null,
+      "subject_ref": null,
+      "updated": "2026-04-14T06:39:01+08:00",
+      "reason": "批次 1 Code Review 待启动（Plan Review R2 PASS 后才能触发）。"
+    }
+  }
+}

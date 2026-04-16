@@ -90,18 +90,48 @@ class ToolOrchestrator:
 
         return batches
 
-    async def execute(self, batches: list[ToolBatch], ctx: ToolContext) -> list[ToolResult]:
+    async def execute(
+        self,
+        batches: list[ToolBatch],
+        ctx: ToolContext,
+        *,
+        default_read_timeout: float = 30.0,
+        default_write_timeout: float = 60.0,
+    ) -> list[ToolResult]:
         # F001: AsyncSession is not concurrent-safe. When a real db session
         # exists, fall back to serial even for concurrent batches.
         can_concurrent = ctx.db is None
         results: list[ToolResult] = []
         for batch in batches:
             if batch.concurrent and can_concurrent and len(batch.calls) > 1:
-                batch_results = await asyncio.gather(
-                    *[self._executor.run_one(call, ctx) for call in batch.calls[:MAX_TOOL_CONCURRENCY]]
-                )
-                results.extend(batch_results)
+                # P0-2: chunk to avoid dropping calls beyond MAX_TOOL_CONCURRENCY
+                for i in range(0, len(batch.calls), MAX_TOOL_CONCURRENCY):
+                    chunk = batch.calls[i:i + MAX_TOOL_CONCURRENCY]
+                    chunk_results = await asyncio.gather(
+                        *[self._run_with_timeout(call, ctx, default_read_timeout, default_write_timeout)
+                          for call in chunk]
+                    )
+                    results.extend(chunk_results)
             else:
                 for call in batch.calls:
-                    results.append(await self._executor.run_one(call, ctx))
+                    results.append(
+                        await self._run_with_timeout(call, ctx, default_read_timeout, default_write_timeout)
+                    )
         return results
+
+    async def _run_with_timeout(
+        self,
+        call: ToolCall,
+        ctx: ToolContext,
+        read_timeout: float,
+        write_timeout: float,
+    ) -> ToolResult:
+        spec = self._registry.get(call.name)
+        timeout = read_timeout if (spec and spec.is_read_only) else write_timeout
+        try:
+            return await asyncio.wait_for(self._executor.run_one(call, ctx), timeout=timeout)
+        except asyncio.TimeoutError:
+            logger.warning("Tool %s timed out after %.0fs", call.name, timeout)
+            return ToolResult(success=False, error=f"工具执行超时({timeout:.0f}s)")
+        except asyncio.CancelledError:
+            return ToolResult(success=False, error="工具执行被取消")

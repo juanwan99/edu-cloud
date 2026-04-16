@@ -373,10 +373,8 @@ async def upload_objective(
         if not question:
             raise HTTPException(404, f"Question {ans.question_id} not found")
 
-        correct = question.correct_answer or ""
-        detected = ans.detected_answer or ""
-        is_correct = sorted(detected.upper()) == sorted(correct.upper())
-        score = question.max_score if is_correct else 0.0
+        from edu_cloud.modules.scan.objective_grading import grade_objective_answer
+        score, is_correct = grade_objective_answer(ans.detected_answer, question.correct_answer, question.max_score)
         if is_correct:
             correct_count += 1
 
@@ -396,7 +394,7 @@ async def upload_objective(
         results.append({
             "question_id": ans.question_id,
             "detected_answer": ans.detected_answer,
-            "correct_answer": correct,
+            "correct_answer": question.correct_answer or "",
             "score": score,
             "max_score": question.max_score,
             "is_correct": is_correct,

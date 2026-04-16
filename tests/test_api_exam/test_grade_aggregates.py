@@ -7,7 +7,7 @@ from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.exam import Exam, Subject, Question
 from edu_cloud.models.student import Class, Student
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.grading.models import GradingTask, AIGradingResult
+from edu_cloud.modules.grading.models import GradingTask, GradingResult
 from edu_cloud.shared.auth import create_access_token
 
 
@@ -37,7 +37,7 @@ async def agg_setup(client, db):
     db.add(subj)
     await db.commit()
     q = Question(id="ag_q1", subject_id="ag_subj", name="Q1",
-                 question_type="subjective", max_score=100.0, school_id="ag_s")
+                 question_type="essay", max_score=100.0, school_id="ag_s")
     db.add(q)
     await db.commit()
 
@@ -62,9 +62,9 @@ async def agg_setup(client, db):
                           question_id="ag_q1", image_path=f"/fake/{sid}.png", school_id="ag_s")
         db.add(a)
         await db.commit()
-        r = AIGradingResult(task_id=task.id, answer_id=a.id, question_id="ag_q1",
-                            school_id="ag_s", score=float(score), max_score=100.0,
-                            feedback="f", confidence=0.9, review_status="pending")
+        r = GradingResult(ai_task_id=task.id, answer_id=a.id, question_id="ag_q1",
+                            school_id="ag_s", ai_score=float(score), final_score=float(score), max_score=100.0,
+                            ai_feedback="f", ai_confidence=0.9, status="ai_done")
         db.add(r)
         await db.commit()
 
@@ -77,9 +77,9 @@ async def agg_setup(client, db):
                           question_id="ag_q1", image_path=f"/fake/{sid}.png", school_id="ag_s")
         db.add(a)
         await db.commit()
-        r = AIGradingResult(task_id=task.id, answer_id=a.id, question_id="ag_q1",
-                            school_id="ag_s", score=float(score), max_score=100.0,
-                            feedback="f", confidence=0.9, review_status="pending")
+        r = GradingResult(ai_task_id=task.id, answer_id=a.id, question_id="ag_q1",
+                            school_id="ag_s", ai_score=float(score), final_score=float(score), max_score=100.0,
+                            ai_feedback="f", ai_confidence=0.9, status="ai_done")
         db.add(r)
         await db.commit()
 
@@ -151,9 +151,9 @@ async def test_k_anonymity_suppression(client, db, agg_setup):
                           question_id="ag_q1", image_path=f"/fake/{sid}.png", school_id="ag_s")
         db.add(a)
         await db.commit()
-        r = AIGradingResult(task_id=task.id, answer_id=a.id, question_id="ag_q1",
-                            school_id="ag_s", score=90.0, max_score=100.0,
-                            feedback="f", confidence=0.9, review_status="pending")
+        r = GradingResult(ai_task_id=task.id, answer_id=a.id, question_id="ag_q1",
+                            school_id="ag_s", ai_score=90.0, final_score=90.0, max_score=100.0,
+                            ai_feedback="f", ai_confidence=0.9, status="ai_done")
         db.add(r)
         await db.commit()
 
@@ -175,7 +175,7 @@ async def test_filter_by_subject(client, db, agg_setup):
     db.add(subj2)
     await db.commit()
     q2 = Question(id="ag_q2", subject_id="ag_subj2", name="MQ1",
-                  question_type="subjective", max_score=100.0, school_id="ag_s")
+                  question_type="essay", max_score=100.0, school_id="ag_s")
     db.add(q2)
     await db.commit()
 
@@ -191,9 +191,9 @@ async def test_filter_by_subject(client, db, agg_setup):
                           question_id="ag_q2", image_path=f"/fake/{sid}_math.png", school_id="ag_s")
         db.add(a)
         await db.commit()
-        db.add(AIGradingResult(task_id=task.id, answer_id=a.id, question_id="ag_q2",
-                               school_id="ag_s", score=50.0, max_score=100.0,
-                               feedback="f", confidence=0.9, review_status="pending"))
+        db.add(GradingResult(ai_task_id=task.id, answer_id=a.id, question_id="ag_q2",
+                               school_id="ag_s", ai_score=50.0, final_score=50.0, max_score=100.0,
+                               ai_feedback="f", ai_confidence=0.9, status="ai_done"))
         await db.commit()
 
     # Query 语文 only → 12 students
@@ -237,7 +237,7 @@ async def test_grade_level_below_k_threshold(client, db, agg_setup):
     db.add(subj3)
     await db.commit()
     q3 = Question(id="ag_q3", subject_id="ag_subj3", name="EQ1",
-                  question_type="subjective", max_score=100.0, school_id="ag_s")
+                  question_type="essay", max_score=100.0, school_id="ag_s")
     db.add(q3)
     await db.commit()
     task = GradingTask(subject_id="ag_subj3", school_id="ag_s",
@@ -256,9 +256,9 @@ async def test_grade_level_below_k_threshold(client, db, agg_setup):
                           question_id="ag_q3", image_path=f"/fake/{sid}.png", school_id="ag_s")
         db.add(a)
         await db.commit()
-        r = AIGradingResult(task_id=task.id, answer_id=a.id, question_id="ag_q3",
-                            school_id="ag_s", score=80.0, max_score=100.0,
-                            feedback="f", confidence=0.9, review_status="pending")
+        r = GradingResult(ai_task_id=task.id, answer_id=a.id, question_id="ag_q3",
+                            school_id="ag_s", ai_score=80.0, final_score=80.0, max_score=100.0,
+                            ai_feedback="f", ai_confidence=0.9, status="ai_done")
         db.add(r)
         await db.commit()
 
@@ -329,9 +329,9 @@ async def test_k_threshold_exactly_4_suppressed(client, db, agg_setup):
                           question_id="ag_q1", image_path=f"/fake/{sid}.png", school_id="ag_s")
         db.add(a)
         await db.commit()
-        db.add(AIGradingResult(task_id=task.id, answer_id=a.id, question_id="ag_q1",
-                               school_id="ag_s", score=75.0, max_score=100.0,
-                               feedback="f", confidence=0.9, review_status="pending"))
+        db.add(GradingResult(ai_task_id=task.id, answer_id=a.id, question_id="ag_q1",
+                               school_id="ag_s", ai_score=75.0, final_score=75.0, max_score=100.0,
+                               ai_feedback="f", ai_confidence=0.9, status="ai_done"))
         await db.commit()
 
     resp = await client.get(
@@ -364,9 +364,9 @@ async def test_k_threshold_exactly_5_visible(client, db, agg_setup):
                           question_id="ag_q1", image_path=f"/fake/{sid}.png", school_id="ag_s")
         db.add(a)
         await db.commit()
-        db.add(AIGradingResult(task_id=task.id, answer_id=a.id, question_id="ag_q1",
-                               school_id="ag_s", score=82.0, max_score=100.0,
-                               feedback="f", confidence=0.9, review_status="pending"))
+        db.add(GradingResult(ai_task_id=task.id, answer_id=a.id, question_id="ag_q1",
+                               school_id="ag_s", ai_score=82.0, final_score=82.0, max_score=100.0,
+                               ai_feedback="f", ai_confidence=0.9, status="ai_done"))
         await db.commit()
 
     resp = await client.get(

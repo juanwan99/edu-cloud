@@ -1,0 +1,92 @@
+You are a code reviewer performing independent review — **Round 2 RE-REVIEW**.
+
+## Round 2 上下文
+
+Round 1 审查结论 **FAIL**，报告见 `${PROJECT_DIR}/docs/plans/2026-04-12-conduct-module-review-report-batch1.md`，共 6 个 finding (F001-F006)：
+- F001 (code-bug HIGH): Alembic 迁移缺失 conduct 8 表
+- F002 (code-bug HIGH): admin_router 缺 class-scope / resource-affinity 守卫（跨班越权）
+- F003 (code-bug HIGH): Agent 工具 6 个全部缺 DataScope 校验（跨班越权）
+- F004 (code-bug MED): get_children 未返回 class_id → ParentRules.vue 无法查询班规
+- F005 (code-bug MED): parent 绑定 phone 分支 verify_code 实现路径错误
+- F006 (test-gap MED): 缺入口级测试（phone/id_card 绑定 + Excel 导出）
+
+Round 2 修复 commits（与 Round 1 原始实现合并，range 覆盖全部变更）：
+- `d240ffa` — fix(conduct): Round 2 F001/F002/F003/F006 修复（主要代码）
+- `bf630b0` — edu-cloud 模块治理 plan commit（**误带了部分 Round 2 修复文件**：alembic/versions/c_add_conduct_module_tables.py / admin_router.py / permissions.py / ai/tools/conduct.py / ParentRules.vue / test_alembic_migration.py，请一并审查）
+- `f66d587` / `f275c75` — 另会话合入的 F004/F005 修复
+
+**本轮任务：**
+1. **首要任务**：逐条验证 F001-F006 是否真正修复（引用新代码位置 file:line + 新测试覆盖情况 + 反向验证：如果把修复回滚，测试会失败吗？）
+2. **独立 Phase 0-3 检查**：不局限于 F001-F006，独立发现 Round 2 修复可能引入的新问题、Round 1 遗漏的问题、跨批次一致性问题
+3. **关注点**：
+   - F002 class-scope：嵌套资源端点（如 /rules/categories/{cat_id}/items/{item_id}）归属校验是否完整覆盖 POST/PUT/DELETE
+   - F003 DataScope：6 个 Agent tools（conduct_rankings/conduct_records/conduct_rules/conduct_points/conduct_overview/conduct_summary）是否都接入 class_id scope 检查，能否通过 student_id 反向越权
+   - F005 phone/verify_code Option A 实现：phone 分支是否确实与 custom 分支共享 verify_code 路径
+   - PII 加密路径：AES-256-GCM 是否在所有 phone/id_card 入站点都加密，查询时透明解密
+
+## 审查输入
+
+Read the review handoff: ${HANDOFF_FILE}
+Read the plan: ${PLAN_FILE}
+Read the Round 1 report: ${PROJECT_DIR}/docs/plans/2026-04-12-conduct-module-review-report-batch1.md
+Read the Fix Intent Card: ${PROJECT_DIR}/docs/plans/.conduct-fix-intent-F002-F003.md
+
+Check the commits: git log --oneline ${FIRST_COMMIT}~1..${LAST_COMMIT}
+Read the full diff: git diff ${FIRST_COMMIT}~1..${LAST_COMMIT}
+Read modified files in full for context.
+
+**注意范围干扰：** commit `bf630b0` 附带了「edu-cloud 模块治理」plan 文件（`docs/plans/2026-04-13-module-governance-*.md` / `module-governance-gates.json`），这些是另一任务的 plan，不属 conduct 审查范围，请跳过。
+
+## 审查 Phases（按顺序）
+
+Phase 0 — Contract Pack 验证（如 plan 中存在）:
+- 读取 plan 中的 Contract Pack 段落
+- 逐条核对 invariants / counter_examples / risk_modules / test_debt
+- 如果 Contract Pack 缺失或不完整 → 记 process finding，不阻断
+
+Phase 1 — 测试充分性 (Test Adequacy):
+- Round 1 声称缺失的入口级测试（F006）是否新增？
+- F002 的 3 条跨班越权红测 / F003 的 4 条 scope 违反红测是否真能在未加守卫时失败？
+- 对每个新增测试函数回答：删除被测函数核心逻辑后，此测试会失败吗？→ 不会则 test-gap HIGH
+- 识别弱断言 → test-gap MED
+- conduct 106 tests / 全量 1896 tests 状态是否保持
+
+Phase 2 — 行为正确性 (Behavioral Correctness):
+A. 正确性: 实现匹配意图、边界输入、异常路径、条件判断
+B. 边界条件: 对每个新增/修改的函数，构造 3 类输入验证：空集合、单元素、溢出/极值
+C. 集成: 调用方更新、import 完整、迁移可回滚、API 兼容
+D. 安全: 无硬编码密钥、输入校验、无注入向量、PII 加密覆盖
+E. 架构质量: 新增 import 方向正确、无跨模块内部变量访问、无新增硬编码常量、新文件 <300 行且职责单一
+F. 根因质量（F001-F006 修复）: 证据是否真的支持根因结论、修复是否改变根因所在层、scope check 三维度覆盖
+G. 回归风险: 修改是否影响计划外功能？共用函数/模块的其他调用方是否验证？
+
+Phase 3 — 未测试风险 (Non-tested Risks):
+- 未被测试覆盖的副作用：状态、并发、权限、幂等性、时区、空值
+- 实现是否只为过测试而过拟合
+
+**审查规范（必读）：** 严格按以下文件段落执行：
+- Finding 分类: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-classification -->
+- Finding Type: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-type -->
+- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: pass-fail -->
+- test-gap 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: test-gap-criteria -->
+- 三态 Finding 模型: ~/.claude/rules-t3/review-templates.md <!-- anchor: three-state-model -->
+- 行为变更守卫: ~/.claude/rules-t3/review-templates.md <!-- anchor: behavior-change-guard -->
+
+## 输出要求
+
+1. **F001-F006 逐条验证表（必填）：** 每条给出 status（resolved-correct / resolved-partial / not-resolved / regressed）+ 证据（新代码 file:line + 新测试名称 + 反向验证方法）
+2. **新发现 findings（如有）：** 结构化格式 ID / Severity / Category / Type (defect_fix/behavior_change) / Before-behavior / After-behavior / Evidence / Impact / Repair hypothesis (optional, non-authoritative)
+3. 如果 finding 触及 invariants / risk_modules / 红旗模式（状态机 / fallback / 选择策略 / 阈值 / 生命周期 / 评估节奏），Repair hypothesis 不能直接给出具体代码修改，应给出:
+   - 可能的修复方向
+   - 必须避免的修复反模式
+   - "requires independent fix design + Semantic Regression Gate"
+4. **最终结论：** PASS or FAIL（F001-F006 任一未解决 + 有 HIGH/MED 新 finding 未修复 → FAIL）
+5. 写中文。
+
+## Semantic Regression Oracles
+
+${ORACLE_PACK}
+
+If your Repair hypothesis would violate any oracle above, you MUST:
+1. Flag it as "⚠️ conflicts with ORC-XXX"
+2. Suggest alternative repair directions that preserve the oracle

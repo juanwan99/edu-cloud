@@ -21,15 +21,19 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useContextStore } from '../../stores/context.js'
+import { formatExamStatus } from '../../utils/examStatus.js'
 import CalendarPanel from '../calendar/CalendarPanel.vue'
 
 const contextStore = useContextStore()
 
 const examOptions = computed(() =>
-  contextStore.exams.map(e => ({
-    label: `${e.name} (${e.subject_code})`,
-    key: e.id,
-  }))
+  contextStore.exams.map(e => {
+    const statusLabel = formatExamStatus(e.status)
+    return {
+      label: statusLabel ? `${e.name} (${statusLabel})` : e.name,
+      key: e.id,
+    }
+  })
 )
 
 onMounted(() => contextStore.loadContext())

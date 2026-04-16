@@ -21,8 +21,8 @@ async def assign_setup(client, db):
     db.add(subj)
     await db.commit()
 
-    q1 = Question(id="aq1", subject_id="asub1", name="第1题", question_type="subjective", max_score=10, school_id="as1")
-    q2 = Question(id="aq2", subject_id="asub1", name="第2题", question_type="subjective", max_score=10, school_id="as1")
+    q1 = Question(id="aq1", subject_id="asub1", name="第1题", question_type="essay", max_score=10, school_id="as1")
+    q2 = Question(id="aq2", subject_id="asub1", name="第2题", question_type="essay", max_score=10, school_id="as1")
     db.add_all([q1, q2])
     await db.commit()
 

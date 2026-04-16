@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.api.deps import require_permission
+from edu_cloud.api.deps import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.database import get_db
 from edu_cloud.services.school_settings_service import (
@@ -44,7 +44,7 @@ class ToggleModuleRequest(BaseModel):
 async def list_settings(
     school_id: str,
     category: str | None = None,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_CONFIG)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
@@ -59,7 +59,7 @@ async def list_settings(
 async def update_setting(
     school_id: str,
     body: UpsertSettingRequest,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_CONFIG)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
@@ -75,7 +75,7 @@ async def update_setting(
 @router.get("/modules")
 async def list_modules(
     school_id: str,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_CONFIG)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
@@ -86,7 +86,7 @@ async def list_modules(
 @router.get("/modules/enabled")
 async def list_enabled_modules(
     school_id: str,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
@@ -99,7 +99,7 @@ async def toggle_module(
     school_id: str,
     module_code: str,
     body: ToggleModuleRequest,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_CONFIG)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)

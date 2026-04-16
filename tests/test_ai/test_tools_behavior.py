@@ -1,12 +1,22 @@
 """Behavior tests for AI tools — mock service layer, verify real function logic.
 
-Tests cover: status filtering, permission gating (_visible_subjects/_visible_classes),
+Tests cover: status filtering, permission gating (ctx.subject_codes/ctx.class_ids),
 not-found handling, and correct delegation to service functions.
 """
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
+
+
+def _ctx(db="mock_db", school_id="s1", user_id="u1", role="admin",
+         class_ids=None, subject_codes=None):
+    return ToolContext(
+        db=db, school_id=school_id, user_id=user_id, role=role,
+        class_ids=class_ids, subject_codes=subject_codes,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -41,8 +51,9 @@ def _kp(id="kp1", code="SX-001", name="函数", level=1, grade_hint="高一"):
 async def test_get_exam_list_empty(mock_list):
     mock_list.return_value = []
     from edu_cloud.ai.tools.exams import get_exam_list
-    result = await get_exam_list(_db="mock_db", _school_id="s1")
-    assert result == {"exams": []}
+    result = await get_exam_list({}, _ctx())
+    assert result.success
+    assert result.data == {"exams": []}
     mock_list.assert_awaited_once_with("mock_db", school_id="s1")
 
 
@@ -57,14 +68,15 @@ async def test_get_exam_list_with_status_filter(mock_list):
         _exam(id="e2", status="completed"),
     ]
     from edu_cloud.ai.tools.exams import get_exam_list
-    result = await get_exam_list(status="completed", _db="mock_db", _school_id="s1")
-    assert len(result["exams"]) == 1
-    assert result["exams"][0]["id"] == "e2"
-    assert result["exams"][0]["status"] == "completed"
+    result = await get_exam_list({"status": "completed"}, _ctx())
+    assert result.success
+    assert len(result.data["exams"]) == 1
+    assert result.data["exams"][0]["id"] == "e2"
+    assert result.data["exams"][0]["status"] == "completed"
 
 
 # ---------------------------------------------------------------------------
-# 3. get_exam_detail — _visible_subjects filtering
+# 3. get_exam_detail — subject_codes filtering
 # ---------------------------------------------------------------------------
 
 @patch("edu_cloud.modules.exam.service.list_subjects", new_callable=AsyncMock)
@@ -80,14 +92,12 @@ async def test_get_exam_detail_filters_subjects(mock_get_exam, mock_list_subject
 
     # Only allow SX and YY — YW should be filtered out
     result = await get_exam_detail(
-        exam_id="e1",
-        _school_id="s1",
-        _visible_subjects=["SX", "YY"],
-        _db="mock_db",
+        {"exam_id": "e1"}, _ctx(subject_codes=["SX", "YY"]),
     )
-    assert result["id"] == "e1"
-    assert len(result["subjects"]) == 2
-    codes = {s["code"] for s in result["subjects"]}
+    assert result.success
+    assert result.data["id"] == "e1"
+    assert len(result.data["subjects"]) == 2
+    codes = {s["code"] for s in result.data["subjects"]}
     assert codes == {"SX", "YY"}
     assert "YW" not in codes
 
@@ -95,7 +105,7 @@ async def test_get_exam_detail_filters_subjects(mock_get_exam, mock_list_subject
 @patch("edu_cloud.modules.exam.service.list_subjects", new_callable=AsyncMock)
 @patch("edu_cloud.modules.exam.service.get_exam", new_callable=AsyncMock)
 async def test_get_exam_detail_no_filter_returns_all(mock_get_exam, mock_list_subjects):
-    """When _visible_subjects is None, all subjects are returned."""
+    """When subject_codes is None, all subjects are returned."""
     mock_get_exam.return_value = _exam(id="e1")
     mock_list_subjects.return_value = [
         _subject(id="s1", code="SX"),
@@ -103,8 +113,9 @@ async def test_get_exam_detail_no_filter_returns_all(mock_get_exam, mock_list_su
     ]
     from edu_cloud.ai.tools.exams import get_exam_detail
 
-    result = await get_exam_detail(exam_id="e1", _school_id="s1", _visible_subjects=None, _db="mock_db")
-    assert len(result["subjects"]) == 2
+    result = await get_exam_detail({"exam_id": "e1"}, _ctx(subject_codes=None))
+    assert result.success
+    assert len(result.data["subjects"]) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -119,10 +130,11 @@ async def test_get_class_list_filters_by_grade(mock_list):
     ]
     from edu_cloud.ai.tools.students import get_class_list
 
-    result = await get_class_list(grade="七年级", _db="mock_db", _school_id="s1")
-    assert len(result["classes"]) == 1
-    assert result["classes"][0]["id"] == "c1"
-    assert result["classes"][0]["grade"] == "七年级"
+    result = await get_class_list({"grade": "七年级"}, _ctx())
+    assert result.success
+    assert len(result.data["classes"]) == 1
+    assert result.data["classes"][0]["id"] == "c1"
+    assert result.data["classes"][0]["grade"] == "七年级"
 
 
 @patch("edu_cloud.modules.student.service.list_classes", new_callable=AsyncMock)
@@ -133,8 +145,9 @@ async def test_get_class_list_no_filter_returns_all(mock_list):
     ]
     from edu_cloud.ai.tools.students import get_class_list
 
-    result = await get_class_list(_db="mock_db", _school_id="s1")
-    assert len(result["classes"]) == 2
+    result = await get_class_list({}, _ctx())
+    assert result.success
+    assert len(result.data["classes"]) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -146,13 +159,13 @@ async def test_get_student_profile_not_found(mock_get):
     mock_get.return_value = None
     from edu_cloud.ai.tools.students import get_student_profile
 
-    result = await get_student_profile(student_id="nonexistent", _db="mock_db", _school_id="s1")
-    assert "error" in result
-    assert result["error"] == "学生不存在"
+    result = await get_student_profile({"student_id": "nonexistent"}, _ctx())
+    assert not result.success
+    assert result.error == "学生不存在"
 
 
 # ---------------------------------------------------------------------------
-# 6. get_student_profile — permission denied (class_id outside _visible_classes)
+# 6. get_student_profile — permission denied (class_id outside class_ids)
 # ---------------------------------------------------------------------------
 
 @patch("edu_cloud.modules.student.service.get_student", new_callable=AsyncMock)
@@ -162,31 +175,25 @@ async def test_get_student_profile_permission_denied(mock_get):
 
     # Teacher can only see class c1, but student is in c99
     result = await get_student_profile(
-        student_id="stu1",
-        _school_id="s1",
-        _visible_classes=["c1"],
-        _db="mock_db",
+        {"student_id": "stu1"}, _ctx(class_ids=["c1"]),
     )
-    assert "error" in result
-    assert result["error"] == "无权访问该学生信息"
+    assert not result.success
+    assert result.error == "无权访问该学生信息"
 
 
 @patch("edu_cloud.modules.student.service.get_student", new_callable=AsyncMock)
 async def test_get_student_profile_permission_allowed(mock_get):
-    """When student's class_id IS in _visible_classes, return profile."""
+    """When student's class_id IS in class_ids, return profile."""
     mock_get.return_value = _student(id="stu1", class_id="c1")
     from edu_cloud.ai.tools.students import get_student_profile
 
     result = await get_student_profile(
-        student_id="stu1",
-        _school_id="s1",
-        _visible_classes=["c1", "c2"],
-        _db="mock_db",
+        {"student_id": "stu1"}, _ctx(class_ids=["c1", "c2"]),
     )
-    assert "error" not in result
-    assert result["id"] == "stu1"
-    assert result["student_name"] == "张三"
-    assert result["class_id"] == "c1"
+    assert result.success
+    assert result.data["id"] == "stu1"
+    assert result.data["student_name"] == "张三"
+    assert result.data["class_id"] == "c1"
 
 
 # ---------------------------------------------------------------------------
@@ -201,9 +208,9 @@ async def test_get_knowledge_tree(mock_list):
     ]
     from edu_cloud.ai.tools.knowledge_db import get_knowledge_tree
 
-    result = await get_knowledge_tree(course_code="SX", _db="mock_db", _school_id="s1")
-    assert "knowledge_points" in result
-    kps = result["knowledge_points"]
+    result = await get_knowledge_tree({"course_code": "SX"}, _ctx())
+    assert result.success
+    kps = result.data["knowledge_points"]
     assert len(kps) == 2
     assert kps[0] == {"id": "kp1", "code": "SX-001", "name": "函数", "level": 1, "grade_hint": "高一"}
     assert kps[1]["code"] == "SX-002"
@@ -218,8 +225,9 @@ async def test_get_knowledge_tree_with_parent(mock_list):
     ]
     from edu_cloud.ai.tools.knowledge_db import get_knowledge_tree
 
-    result = await get_knowledge_tree(course_code="SX", parent_id="kp1", _db="mock_db", _school_id="s1")
-    assert len(result["knowledge_points"]) == 1
+    result = await get_knowledge_tree({"course_code": "SX", "parent_id": "kp1"}, _ctx())
+    assert result.success
+    assert len(result.data["knowledge_points"]) == 1
     mock_list.assert_awaited_once_with("mock_db", course_code="SX", parent_id="kp1", school_id="s1")
 
 
@@ -236,14 +244,12 @@ async def test_search_students_delegates_to_service(mock_search):
     from edu_cloud.ai.tools.students import search_students
 
     result = await search_students(
-        query_string="张",
-        _school_id="s1",
-        _visible_classes=["c1", "c2"],
-        _db="mock_db",
+        {"query_string": "张"}, _ctx(class_ids=["c1", "c2"]),
     )
-    assert len(result["students"]) == 2
-    assert result["students"][0]["student_name"] == "张三"
-    assert result["students"][1]["student_number"] == "T002"
+    assert result.success
+    assert len(result.data["students"]) == 2
+    assert result.data["students"][0]["student_name"] == "张三"
+    assert result.data["students"][1]["student_number"] == "T002"
     mock_search.assert_awaited_once_with(
         "mock_db", school_id="s1", query="张", visible_class_ids=["c1", "c2"],
     )

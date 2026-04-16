@@ -1,0 +1,1495 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d5779-a8b7-76c1-94ad-7ddf49603758
+--------
+user
+You are a senior architect reviewing an implementation plan.
+
+Read these files:
+1. docs/plans/2026-04-04-agent-evolution-plan.md — the implementation plan
+2. docs/plans/2026-04-04-agent-evolution-design.md — the design document
+3. CLAUDE.md — project rules (if exists)
+
+Perform plan review per checklist:
+A. 自洽性: Task 依赖完整、接口契约一致、无逻辑矛盾、破坏性操作有回滚
+B. 代码库对齐: 引用路径真实、不违反现有 API、不命名冲突、不重复功能
+C. 架构适配: 职责单一、依赖方向正确（无反向/循环）、接口隔离（无内部数据结构直连）、配置集中、单功能变更影响 ≤3 文件
+D. 完整性: 每个行为变更 Task 须有测试契约段（5 字段：入口/反例/边界/回归/命令）和边界条件段（至少 3 个）、迁移考虑、批次边界合理
+D+. 测试契约质量（test-gap 硬判定）:
+   - 逻辑镜像测试（测试只是实现的对称复述，不能在错误实现下失败）→ test-gap HIGH
+   - 无入口级验证（测试只调内部函数，不经过用户可触达的入口）→ test-gap MED
+   - 无反例说明（测试契约未写明"错误实现会怎样失败"）→ test-gap MED
+E. 风险评估: Tier 分级有据、高风险区域标记
+F. Contract Pack 完整性:
+   - plan 中是否包含结构化 Contract Pack 段落（invariants / counter_examples / risk_modules / test_debt）
+   - invariants ≥3 条，每条有 verification 映射（existing_test 须有 test_ref）
+   - counter_examples ≥2 个，每个标注 tests_that_still_pass 和 mitigation
+   - risk_modules 覆盖所有 public API 变更和治理基础设施变更
+   - test_debt 有具体理由和 deadline（不接受空理由或无期限）
+   - 不接受不可验证的 prose（"系统应正确运行"→ FAIL）
+   - 参考: ~/.claude/config/contract-pack-schema.md
+
+审查规范（必读）：先读以下文件中的对应段落，严格按其定义执行：
+- Finding 分类: ~/.claude/rules-t3/review-templates.md
+- Finding Type: ~/.claude/rules-t3/review-templates.md
+- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md
+- test-gap 判定: ~/.claude/rules-t3/review-templates.md
+- 行为变更守卫: ~/.claude/rules-t3/review-templates.md
+- Finding 转换规则: ~/.claude/rules-t3/review-templates.md
+
+Output structured findings with: ID, Severity, Category, Type, Before-behavior, After-behavior, Evidence, Impact, Repair hypothesis (optional, non-authoritative).
+Repair hypothesis is advisory only and has no execution authority.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+这次是文档级方案审查，不是改代码。我先读审查规范和目标计划/设计文档，再抽查计划里引用的真实路径与现有实现，按你给的 finding 模板输出结构化结论。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw C:\\Users\\Administrator\\.claude\\rules-t3\\review-templates.md" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw C:\\Users\\Administrator\\edu-cloud\\docs\\plans\\2026-04-04-agent-evolution-plan.md" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw C:\\Users\\Administrator\\edu-cloud\\docs\\plans\\2026-04-04-agent-evolution-design.md" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "if (Test-Path C:\\Users\\Administrator\\edu-cloud\\CLAUDE.md) { Get-Content -Raw C:\\Users\\Administrator\\edu-cloud\\CLAUDE.md }" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw C:\\Users\\Administrator\\.claude\\config\\contract-pack-schema.md" in C:\Users\Administrator\edu-cloud succeeded in 1.19s:
+# edu-agent 婕旇繘璁捐锛氫笓鐢ㄦ暟鎹眰 + 宸ヤ綔娴佸紩鎿?+ 宸ュ叿閲嶇粍
+
+> 璁捐鏃堕棿锛?026-04-04 15:16
+> 鍓嶇疆锛歟du-agent 鍐呮牳宸插畬鎴愶紙30 Tasks / 39 tools / 1124 tests / GPT 15 杞鏌ラ€氳繃锛?> 鑼冨洿锛氱涓€鏈?W1锛堣€冨悗鍒嗘瀽锛? W3锛堝鎯呯敾鍍忥級+ W6锛堝紓甯稿贰妫€锛?> GPT 琛ュ厖瀹℃煡锛?026-04-04锛?0 涓?HIGH + 7 涓?MED 鍏ㄩ儴鍚告敹
+
+## 搂0 璁捐鍐崇瓥璁板綍
+
+| # | 鍐崇瓥 | 缁撹 | 鐞嗙敱 |
+|---|------|------|------|
+| D1 | 鏋舵瀯妯″紡 | 鍙屾ā寮忥紙宸ヤ綔娴?+ 鑷敱鏌ヨ锛?| 宸茬煡鍦烘櫙璧扮‘瀹氭€ц建閬擄紙蹇?鍑?鐪侊級锛屾湭鐭ラ棶棰樹繚鐣?LLM 鐏垫椿鎬?|
+| D2 | 鏉冮檺鏋舵瀯 | DataScope锛堢‖杈圭晫 + 杞鍒欙級 | 纭竟鐣屼唬鐮佸眰涓嶅彲绐佺牬锛岃蒋瑙勫垯鏍＄骇绠＄悊鍛樺彲閰嶇疆 |
+| D3 | 鏁版嵁绛栫暐 | 棰勮绠?+ 澶嶇敤鐜版湁琛?| 閬垮厤鍙屽啓锛孉gent 涓撶敤琛ㄥ彧鏀剧幇鏈?pipeline 涓嶄骇鍑虹殑鏁版嵁 |
+| D4 | 宸ュ叿绛栫暐 | 鍩熷垎缁?+ 鍔ㄦ€佸姞杞?| 姣忔瀵硅瘽鍙姞杞?1-2 涓煙锛?-12 宸ュ叿锛夛紝涓嶆妸鍏ㄩ噺鎵旂粰 LLM |
+| D5 | 瑙掕壊浜烘牸 | 鏁欏笀/瀹堕暱鍙?Persona | 涓嶅悓宸ュ叿闆?+ 宸ヤ綔娴?+ 灞曠ず閫昏緫 + Prompt 椋庢牸 |
+| D6 | 宸ヤ綔娴佸紩鎿?| 鎸佷箙鍖栫姸鎬佹満 + 骞傜瓑 | GPT 瀹℃煡鎸囧嚭锛氭棤鐘舵€佹満/閲嶈瘯/琛ュ伩 = 涓嶅彲闈犮€傚繀椤绘湁 workflow_runs |
+| D7 | 榛樿鏉冮檺 | fail-closed | GPT 瀹℃煡鎸囧嚭锛氭棤鏄庣‘鍏佽 = 鎷掔粷銆傚闀?涓存椂鏉冮檺瀹夊叏搴曠嚎 |
+| D8 | 棰勮绠楄〃缁撴瀯 | 甯哥敤閿仛鍒?+ JSON 鏀剧█鐤忔暟鎹?| GPT 瀹℃煡鎸囧嚭锛氬ぇ JSON 涓嶅彲鏌ヨ |
+
+## 搂1 DataScope锛堟暟鎹綔鐢ㄥ煙锛?
+### 鏍稿績鍘熷垯
+ succeeded in 1.28s:
+# Contract Pack Schema
+
+> 鍗曚竴鐪熸簮銆侾lan Review prompt 寮曠敤姝ゆ枃浠躲€?
+
+## 鏍煎紡瑙勫垯锛團-008 淇锛?
+
+- **鏍归敭寮哄埗**: Contract Pack 蹇呴』浠?`contract_pack:` 涓?YAML 鏍归敭
+- **verification 鏋氫妇**: 鍙厑璁?`existing_test` / `pending_test` / `uncovered`锛屽娉ㄧ敤 `note` 瀛楁
+- **绌?test_debt**: `test_debt: []` 鏄悎娉曠殑锛岃〃绀?褰撳墠鏃犲欢鏈熼」"锛涚己灏?`test_debt` 閿笉鍚堟硶
+
+## 蹇呰娈佃惤锛圥lan Review 妫€鏌ュ畬鏁存€э級
+
+### invariants锛堚墺3 鏉★級
+
+| 瀛楁 | 蹇呭～ | 璇存槑 |
+|------|------|------|
+| id | 鉁?| INV-NNN |
+| statement | 鉁?| 涓嶅彲楠岃瘉鐨?prose 涓嶆帴鍙楋紙濡?绯荤粺搴旀纭繍琛?锛?|
+| verification | 鉁?| existing_test / pending_test / uncovered |
+| test_ref | 浠?existing_test | test_file:test_function |
+warning: in-process app-server event stream lagged; dropped 75 events
+warning: in-process app-server event stream lagged; dropped 1 events
+warning: in-process app-server event stream lagged; dropped 5 events
+warning: in-process app-server event stream lagged; dropped 6 events
+warning: in-process app-server event stream lagged; dropped 2 events
+warning: in-process app-server event stream lagged; dropped 1 events
+ succeeded in 1.40s:
+# edu-agent 婕旇繘瀹炴柦璁″垝
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 涓?edu-agent 鏋勫缓涓撶敤鏁版嵁灞傦紙DataScope + ScopedQuery锛夈€佸伐浣滄祦寮曟搸锛圵1/W3/W6锛夈€佹剰鍥捐矾鐢憋紙IntentRouter锛夊拰鍩熷伐鍏烽噸缁勶紝瀹炵幇鑰冨悗鍒嗘瀽銆佸鎯呯敾鍍忋€佸紓甯稿贰妫€涓夊ぇ鍦烘櫙銆?
+**Architecture:** 鍙屾ā寮忔灦鏋?鈥?宸茬煡鍦烘櫙璧板伐浣滄祦纭畾鎬ц建閬擄紙蹇?鍑?鐪侊級锛屾湭鐭ラ棶棰樹繚鐣?LLM 鑷敱鏌ヨ鐏垫椿鎬с€侱ataScope 鍦ㄤ細璇濆垱寤烘椂涓€娆℃€ц绠楋紝鍏ㄧ▼涓嶅彲鏀惧ぇ锛坒ail-closed锛夈€傚伐浣滄祦寮曟搸鍩轰簬鎸佷箙鍖栫姸鎬佹満 + 骞傜瓑閿?+ arq worker 鎵ц銆?
+**Tech Stack:** FastAPI + SQLAlchemy 2.0 async + arq + Redis + PostgreSQL銆傚鐢ㄧ幇鏈?AgentLoop / ToolRegistry / EventBus / LLMProxyAdapter銆?
+**Design:** `docs/plans/2026-04-04-agent-evolution-design.md`锛?17 琛岋紝GPT 琛ュ厖瀹℃煡 27 椤瑰凡澶勭疆锛?
+---
+
+## 鏂囦欢缁撴瀯
+
+### 鏂板缓鏂囦欢
+
+```
+src/edu_cloud/
+  ai/
+    data_scope.py              # DataScope frozen dataclass + DataScopeBuilder
+    scoped_query.py            # ScopedQuery 缁熶竴杩囨护灞傦紙鏇夸唬 AI 灞備腑鐨?ScopeFilter 鐢ㄦ硶锛?    intent_router.py           # IntentRouter + DomainClassifier锛堝叧閿瘝瑙勫垯 + 瀹炰綋妲戒綅锛?    entity_extractor.py        # EntityExtractor锛坋xam/class/student/subject/time 妲戒綅鎻愬彇锛?    workflow/
+      __init__.py              # 鍖呭叆鍙?      engine.py                # WorkflowEngine + WorkflowExecutor锛堢姸鎬佹満 + 鎸佷箙鍖?+ 閲嶈瘯锛?      registry.py              # WorkflowRegistry锛堝伐浣滄祦瀹氫箟娉ㄥ唽锛?      triggers.py              # EventTrigger + ScheduleTrigger + IntentTrigger
+codex
+规范文件已经读完。我看到控制台编码有问题，接下来会切到 UTF-8 重新读取关键文档，并抽取计划里引用的模块/路径去核对代码库现状。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Raw -Encoding UTF8 C:\\Users\\Administrator\\.claude\\config\\contract-pack-schema.md" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Raw -Encoding UTF8 C:\\Users\\Administrator\\edu-cloud\\docs\\plans\\2026-04-04-agent-evolution-design.md" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Raw -Encoding UTF8 C:\\Users\\Administrator\\.claude\\rules-t3\\review-templates.md" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Raw -Encoding UTF8 C:\\Users\\Administrator\\edu-cloud\\docs\\plans\\2026-04-04-agent-evolution-plan.md" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; if (Test-Path C:\\Users\\Administrator\\edu-cloud\\CLAUDE.md) { Get-Content -Raw -Encoding UTF8 C:\\Users\\Administrator\\edu-cloud\\CLAUDE.md }" in C:\Users\Administrator\edu-cloud succeeded in 1.37s:
+# 审查工作流模板与流程
+
+> 从全局 CLAUDE.md 抽取。T3/T4 执行会话按需读取。
+
+## 流程编排
+
+### T3（2 窗口）
+
+```
+① Claude: Design → Plan → commit (draft)
+② GPT Codex: Plan Review → plan-review.md (Gate 1)
+③ Claude: 处置 finding → commit (final plan) → Execute → 自审交接单
+④ GPT Codex: Code Review（全量，codex exec）→ review-report.md (Gate 2)
+⑤ Gate: 所有 finding 已处置 → design.md 标记 [实现完成]
+```
+
+### T4（2 持久 + 一次性 Executor）
+
+```
+① Claude Planner: Design → Plan → commit (draft)
+ succeeded in 1.30s:
+# edu-agent 演进设计：专用数据层 + 工作流引擎 + 工具重组
+
+> 设计时间：2026-04-04 15:16
+> 前置：edu-agent 内核已完成（30 Tasks / 39 tools / 1124 tests / GPT 15 轮审查通过）
+> 范围：第一期 W1（考后分析）+ W3（学情画像）+ W6（异常巡检）
+> GPT 补充审查：2026-04-04，10 个 HIGH + 7 个 MED 全部吸收
+
+## §0 设计决策记录
+
+| # | 决策 | 结论 | 理由 |
+|---|------|------|------|
+| D1 | 架构模式 | 双模式（工作流 + 自由查询） | 已知场景走确定性轨道（快+准+省），未知问题保留 LLM 灵活性 |
+| D2 | 权限架构 | DataScope（硬边界 + 软规则） | 硬边界代码层不可突破，软规则校级管理员可配置 |
+| D3 | 数据策略 | 预计算 + 复用现有表 | 避免双写，Agent 专用表只放现有 pipeline 不产出的数据 |
+| D4 | 工具策略 | 域分组 + 动态加载 | 每次对话只加载 1-2 个域（8-12 工具），不把全量扔给 LLM |
+| D5 | 角色人格 | 教师/家长双 Persona | 不同工具集 + 工作流 + 展示逻辑 + Prompt 风格 |
+| D6 | 工作流引擎 | 持久化状态机 + 幂等 | GPT 审查指出：无状态机/重试/补偿 = 不可靠。必须有 workflow_runs |
+| D7 | 默认权限 | fail-closed | GPT 审查指出：无明确允许 = 拒绝。家长/临时权限安全底线 |
+| D8 | 预计算表结构 | 常用键做列 + JSON 放稀疏数据 | GPT 审查指出：大 JSON 不可查询 |
+
+ succeeded in 1.37s:
+# edu-agent 演进实施计划
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 为 edu-agent 构建专用数据层（DataScope + ScopedQuery）、工作流引擎（W1/W3/W6）、意图路由（IntentRouter）和域工具重组，实现考后分析、学情画像、异常巡检三大场景。
+
+**Architecture:** 双模式架构 — 已知场景走工作流确定性轨道（快+准+省），未知问题保留 LLM 自由查询灵活性。DataScope 在会话创建时一次性计算，全程不可放大（fail-closed）。工作流引擎基于持久化状态机 + 幂等键 + arq worker 执行。
+
+**Tech Stack:** FastAPI + SQLAlchemy 2.0 async + arq + Redis + PostgreSQL。复用现有 AgentLoop / ToolRegistry / EventBus / LLMProxyAdapter。
+
+**Design:** `docs/plans/2026-04-04-agent-evolution-design.md`（617 行，GPT 补充审查 27 项已处置）
+
+---
+
+## 文件结构
+
+### 新建文件
+
+```
+src/edu_cloud/
+ succeeded in 1.40s:
+# Contract Pack Schema
+
+> 单一真源。Plan Review prompt 引用此文件。
+
+## 格式规则（F-008 修复）
+
+- **根键强制**: Contract Pack 必须以 `contract_pack:` 为 YAML 根键
+- **verification 枚举**: 只允许 `existing_test` / `pending_test` / `uncovered`，备注用 `note` 字段
+- **空 test_debt**: `test_debt: []` 是合法的，表示"当前无延期项"；缺少 `test_debt` 键不合法
+
+## 必要段落（Plan Review 检查完整性）
+
+### invariants（≥3 条）
+
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| id | ✓ | INV-NNN |
+| statement | ✓ | 不可验证的 prose 不接受（如"系统应正确运行"） |
+| verification | ✓ | existing_test / pending_test / uncovered |
+| test_ref | 仅 existing_test | test_file:test_function |
+ succeeded in 1.35s:
+# edu-cloud — 教育云平台
+
+<!-- key-start -->
+## 项目定位
+
+edu-cloud 是**多校协同的云端平台**，是学校端（exam-ai）的上游调度中心。
+
+```
+[监管端]                      [云端平台]                      [学校端]
+教育局/集团看板  ──────→  edu-cloud (port 9000)  ←──────  exam-ai × N 所学校
+  - 全区成绩总览              - 联考编排与下发                 - 本校考试管理
+  - 学校间对比                - 跨校数据汇总                   - 扫描+AI阅卷
+  - 教学质量监控              - 共享 AI 阅卷服务               - 成绩上报到云端
+                              - 学校注册与状态监控
+                              - 统一题库管理
+```
+
+### 职责边界
+
+| 职责 | 归属 | 说明 |
+codex
+这次不套用 `code-review:review-pr` skill，因为目标是计划/设计文档审查，不是 PR diff；我直接按仓库里的 `review-templates.md` 和 `contract-pack-schema.md` 执行。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "contract_pack:|Task 4:|Task 13:|Task 14:|Task 15:|Task 16:|Task 17:|Task 18:|Task 19:|state.json|rollback|回滚|迁移|边界条件:|测试契约:" docs/plans/2026-04-04-agent-evolution-plan.md' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg --files src/edu_cloud tests alembic | rg "(core/permissions.py|ai/tool_access.py|ai/prompts.py|ai/tools/__init__.py|api/ai.py|worker.py|api/permissions.py|ai/agent_loop.py|models/base.py|models/platform_user.py|models/teacher_assignment.py|models/school_settings.py|ai/registry.py|ai/tool_context.py|workers/grading.py|services/agent_profile_service.py)$"' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "class AgentLoop|def run|ToolSpec|tools=|scope|DataScope" src/edu_cloud/ai/agent_loop.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "router = APIRouter|/ai/chat|USE_AI_CHAT|AgentLoop|ToolAccess|SensitivityRouter|CapabilityProbe|session" src/edu_cloud/api/ai.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "class ToolAccessResolver|fail-closed|default|allowed_roles|school_modules|capabilities" src/edu_cloud/ai/tool_access.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "class Permission|USE_AI_CHAT|parent|subject_teacher|homeroom_teacher|platform_admin|district_admin" src/edu_cloud/core/permissions.py' in C:\Users\Administrator\edu-cloud succeeded in 2.52s:
+1:"""AI Agent API — chat SSE + sessions CRUD + health。"""
+18:from edu_cloud.ai.tool_access import ToolAccessResolver
+20:from edu_cloud.ai.agent_loop import AgentLoop
+22:from edu_cloud.ai.capability_probe import CapabilityProbe, LoopStrategy
+23:from edu_cloud.ai.sensitivity_router import SensitivityRouter
+32:router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
+55:_sessions: dict[str, _SessionState] = {}
+58:def _purge_expired_sessions():
+59:    """Remove sessions older than AI_SESSION_TTL."""
+63:    expired = [sid for sid, s in _sessions.items() if now - s.last_access > ttl]
+65:        del _sessions[sid]
+71:    session_id: str | None = None
+93:    current=Depends(require_permission(Permission.USE_AI_CHAT)),
+117:    session_id = req.session_id or str(uuid.uuid4())
+119:    # Create audit session for new conversations
+120:    if session_id not in _sessions:
+122:            await audit.create_session(user.id, role, context=scope)
+124:            logger.warning("Failed to create audit session: %s", e)
+128:    # === New Agent Pipeline (AgentLoop) ===
+141:        # 2. 三重权限过滤 (ToolAccessResolver)
+ succeeded in 2.38s:
+6:class Permission(str, Enum):
+40:    USE_AI_CHAT = "use_ai_chat"
+57:    "platform_admin": set(Permission),
+60:    "district_admin": {
+77:        Permission.USE_AI_CHAT,
+99:        Permission.USE_AI_CHAT,
+118:        Permission.USE_AI_CHAT,
+134:        Permission.USE_AI_CHAT,
+140:    "homeroom_teacher": {
+147:        Permission.USE_AI_CHAT,
+154:    "subject_teacher": {
+159:        Permission.USE_AI_CHAT,
+168:    "parent": {
+174:    "admin": set(Permission),  # exam-ai "admin" = edu-cloud "platform_admin"
+175:    "teacher": {               # exam-ai "teacher" ≈ edu-cloud "subject_teacher"
+180:        Permission.USE_AI_CHAT,
+187:    "head_teacher": {          # exam-ai "head_teacher" ≈ edu-cloud "homeroom_teacher"
+194:        Permission.USE_AI_CHAT,
+ succeeded in 2.29s:
+7:class ToolAccessResolver:
+15:        capabilities: dict[tuple[str, str], bool],
+20:            if spec.allowed_roles is not None and role not in spec.allowed_roles:
+27:            if not self._check_capabilities(spec.requires_capabilities, capabilities):
+33:    def _check_capabilities(
+ succeeded in 2.58s:
+18:from edu_cloud.ai.registry import ToolRegistry, ToolSpec
+38:class AgentLoop:
+56:    async def run(
+61:        tool_specs: list[ToolSpec],
+94:                goal, tier=self._strategy.tier, adapter=self._adapter, available_tools=tool_specs
+133:                        tools=tool_schemas if tool_schemas else None,
+ succeeded in 2.60s:
+426:**测试契约:**
+448:**边界条件:**
+711:**测试契约:**
+733:**边界条件:**
+917:**测试契约:**
+932:**边界条件:**
+946:### Task 4: fail-closed 改造 + parent 权限补全
+1004:**测试契约:**
+1012:**边界条件:**
+1129:**测试契约:**
+1137:**边界条件:**
+1440:**测试契约:**
+1462:**边界条件:**
+1753:**测试契约:**
+1768:**边界条件:**
+1913:**测试契约:**
+1928:**边界条件:**
+2050:**测试契约:**
+2058:**边界条件:**
+2167:**测试契约:**
+ exited 1 in 2.71s:
+
+codex
+计划正文确认到至少两处结构问题了：`contract_pack` 段看起来缺失，且并非所有行为变更 Task 都写了 `边界条件`。我继续核实现有代码里的真实接口/模型，避免把纯文档问题和代码库对齐问题混在一起。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/core/permissions.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg --files src/edu_cloud tests alembic | sort' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/api/permissions.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/worker.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/ai/tool_access.py' in C:\Users\Administrator\edu-cloud succeeded in 1.46s:
+"""数据权限过滤：根据用户角色限制可见的班级和学科。
+
+适配 edu-cloud 的 UserRole 模型（exam-ai 原版基于 User.role 单角色）。
+"""
+
+
+SCHOOL_ADMIN_ROLES = frozenset({
+    "platform_admin", "district_admin", "principal", "academic_director",
+    "admin",  # legacy alias for platform_admin
+})
+
+
+def is_school_admin(role) -> bool:
+    """角色是否有校级管理权限（阅卷分配、查看全部分配等）。"""
+    return role.role in SCHOOL_ADMIN_ROLES
+
+
+def get_visible_class_ids(role) -> list[str] | None:
+    """返回角色可见的班级 ID 列表，None = 全部可见。"""
+    if role.role in ("platform_admin", "district_admin", "principal", "academic_director", "admin"):
+ succeeded in 1.68s:
+"""Three-layer tool permission filtering (Design §4)."""
+from __future__ import annotations
+
+from edu_cloud.ai.registry import ToolSpec
+
+
+class ToolAccessResolver:
+    """三重过滤：RBAC → Module → Capability"""
+
+    def resolve(
+        self,
+        all_specs: list[ToolSpec],
+        role: str,
+        enabled_modules: set[str] | None,
+        capabilities: dict[tuple[str, str], bool],
+    ) -> list[ToolSpec]:
+        result = []
+        for spec in all_specs:
+            # Layer 1: RBAC
+            if spec.allowed_roles is not None and role not in spec.allowed_roles:
+ succeeded in 1.27s:
+"""
+arq worker 入口。
+启动方式: arq edu_cloud.worker.WorkerSettings
+PM2: pm2 start arq -- edu_cloud.worker.WorkerSettings
+"""
+import logging
+from arq import cron
+from arq.connections import RedisSettings
+from edu_cloud.config import settings
+from edu_cloud.database import async_session
+from edu_cloud.tasks import auto_draft_notifications
+from edu_cloud.workers.grading import process_grading_task, run_post_exam_pipeline
+
+logger = logging.getLogger(__name__)
+
+
+async def run_auto_draft(ctx):
+    """arq cron job: 每天 6:00 (UTC+8 = 22:00 UTC) 扫描日历"""
+    async with async_session() as db:
+        count = await auto_draft_notifications(db)
+ succeeded in 2.00s:
+"""平台级 RBAC：基于角色的权限策略。"""
+
+from enum import Enum
+
+
+class Permission(str, Enum):
+    # 学校管理（既有）
+    MANAGE_SCHOOLS = "manage_schools"
+    VIEW_SCHOOLS = "view_schools"
+    MANAGE_SCHOOL_SETTINGS = "manage_school_settings"
+
+    # 联考管理（既有）
+    CREATE_JOINT_EXAM = "create_joint_exam"
+    MANAGE_JOINT_EXAM = "manage_joint_exam"
+    VIEW_JOINT_EXAM = "view_joint_exam"
+
+    # 跨校分析（既有）
+    VIEW_CROSS_SCHOOL_ANALYTICS = "view_cross_school_analytics"
+
+    # 题库管理（既有）
+ succeeded in 1.90s:
+alembic\env.py
+alembic\script.py.mako
+alembic\versions\2bc5ab4977e5_add_assignments_selections.py
+alembic\versions\2cde4b537c7b_add_grading_assignments_and_grading_.py
+alembic\versions\4c337d512d00_add_capabilities_and_audit_logs_tables.py
+alembic\versions\835926e5c165_add_agent_memories_table.py
+alembic\versions\8b3f659c1a2a_initial_merged_schema.py
+alembic\versions\b511d87c55e6_add_homework_tasks_and_homework_.py
+alembic\versions\b71cef336bfa_add_school_settings_modules.py
+alembic\versions\c9587c787c6b_add_agent_profiles_and_agent_runs_.py
+src/edu_cloud\__init__.py
+src/edu_cloud\ai\__init__.py
+src/edu_cloud\ai\agent_loop.py
+src/edu_cloud\ai\anonymizer.py
+src/edu_cloud\ai\audit.py
+src/edu_cloud\ai\capability_probe.py
+src/edu_cloud\ai\context_manager.py
+src/edu_cloud\ai\llm_adapter.py
+src/edu_cloud\ai\models.py
+src/edu_cloud\ai\prompts.py
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 tests/test_api_exam/test_ai.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/api/ai.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 tests/test_ai/test_ai_api.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/ai/prompts.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 220 src/edu_cloud/ai/tools/__init__.py' in C:\Users\Administrator\edu-cloud succeeded in 1.36s:
+"""AI API 端点测试（adapted for edu-cloud）。"""
+import pytest
+from edu_cloud.models.school import School
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
+from edu_cloud.shared.auth import create_access_token
+
+
+@pytest.fixture
+async def ai_setup(client, db):
+    school = School(id="ai_s", name="AI测试学校", code="AI01")
+    db.add(school)
+    await db.commit()
+    admin = User(id="ai_u", username="aiadmin", display_name="管理员")
+    admin.set_password("p")
+    db.add(admin)
+    await db.commit()
+    db.add(UserRole(user_id=admin.id, role="admin", school_id="ai_s", is_primary=True))
+    await db.flush()
+    token = create_access_token({"sub": "ai_u", "school_id": "ai_s", "role": "admin"})
+ succeeded in 1.38s:
+"""System prompt templates for different agent scenarios (Design §8)."""
+from __future__ import annotations
+
+ROLE_CN = {
+    "platform_admin": "平台管理员",
+    "district_admin": "教育局管理员",
+    "principal": "校长",
+    "academic_director": "教务主任",
+    "grade_leader": "年级组长",
+    "homeroom_teacher": "班主任",
+    "subject_teacher": "科任教师",
+    "parent": "家长",
+}
+
+
+def build_teacher_prompt(
+    role: str,
+    display_name: str,
+    school_name: str,
+    tool_names: list[str],
+ succeeded in 1.53s:
+import json
+import pytest
+from unittest.mock import AsyncMock, patch
+
+
+@pytest.mark.asyncio
+async def test_ai_health(client):
+    resp = await client.get("/api/v1/ai/health")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "available"
+
+
+@pytest.mark.asyncio
+async def test_ai_health_includes_tool_count(client):
+    resp = await client.get("/api/v1/ai/health")
+    data = resp.json()
+    assert "tools" in data
+    assert isinstance(data["tools"], int)
+    assert data["tools"] >= 0
+
+ succeeded in 1.66s:
+"""AI Agent API — chat SSE + sessions CRUD + health。"""
+import json
+import logging
+import uuid
+from dataclasses import dataclass
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.database import get_db
+from edu_cloud.api.deps import require_permission, get_current_user
+from edu_cloud.core.permissions import Permission
+from edu_cloud.ai.registry import tools
+from edu_cloud.ai.audit import AuditLogger
+from edu_cloud.ai.anonymizer import Anonymizer
+from edu_cloud.ai.tool_access import ToolAccessResolver
+from edu_cloud.ai.tool_context import ToolContext
+from edu_cloud.ai.agent_loop import AgentLoop
+ succeeded in 1.14s:
+from edu_cloud.ai.tools import analytics  # noqa: F401 — L1_analytics (4): edu-cloud cross-school
+from edu_cloud.ai.tools import actions  # noqa: F401 — L4_action (2): report/comment generation
+from edu_cloud.ai.tools import knowledge  # noqa: F401 — L3_knowledge (4): in-memory knowledge store
+from edu_cloud.ai.tools import analytics_score  # noqa: F401 — L2_analytics (5): score queries
+from edu_cloud.ai.tools import analytics_compare  # noqa: F401 — L2_analytics (3): class comparison
+from edu_cloud.ai.tools import exams  # noqa: F401 — L1_exam (3): exam/subject/question
+from edu_cloud.ai.tools import students  # noqa: F401 — L1_student (4): class/student queries
+from edu_cloud.ai.tools import bank  # noqa: F401 — L5_bank (2): error book/question stats
+from edu_cloud.ai.tools import profile  # noqa: F401 — L6_profile (4): trend/knowledge map/weakness
+from edu_cloud.ai.tools import knowledge_db  # noqa: F401 — L3_knowledge_db (2): DB knowledge tree
+from edu_cloud.ai.tools import grading_ops  # noqa: F401 — L1_exam+L2+L4 (3): grading progress/quality/assign
+from edu_cloud.ai.tools import homework  # noqa: F401 — L2_homework (5): task list/stats/submit/assign/remedial
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"platform_user\\.py|registered_schools|ScopeFilter|scope_filter|student_exam_snapshots|student_knowledge_mastery|student_error_books|student_error_patterns|teaching_class_memberships|school_leader|DomainClassifier|WorkflowEngine.run_dialog|run_post_exam_pipeline|get_exam_summary|get_score_distribution|get_question_analysis|get_grade_aggregates|get_student_scores|get_student_trend|get_student_knowledge_map|get_error_pattern|get_class_scores|get_class_stats|get_class_knowledge_weakness\" docs/plans/2026-04-04-agent-evolution-plan.md docs/plans/2026-04-04-agent-evolution-design.md" in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/models/user_role.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "student_exam_snapshots|student_knowledge_mastery|student_error_books|student_error_patterns|teaching_class_memberships|DomainClassifier|run_post_exam_pipeline|get_exam_summary|get_score_distribution|get_question_analysis|get_grade_aggregates|get_student_scores|get_student_trend|get_student_knowledge_map|get_error_pattern|get_class_scores|get_class_stats|get_class_knowledge_weakness|WorkflowEngine|WorkflowExecutor|WorkflowRegistry" src tests' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 220 src/edu_cloud/models/base.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/models/user.py' in C:\Users\Administrator\edu-cloud succeeded in 1.30s:
+docs/plans/2026-04-04-agent-evolution-plan.md:23:    scoped_query.py            # ScopedQuery 统一过滤层（替代 AI 层中的 ScopeFilter 用法）
+docs/plans/2026-04-04-agent-evolution-plan.md:24:    intent_router.py           # IntentRouter + DomainClassifier（关键词规则 + 实体槽位）
+docs/plans/2026-04-04-agent-evolution-plan.md:37:      student_diagnosis.py     # get_student_diagnosis（读扩展后的 student_exam_snapshots）
+docs/plans/2026-04-04-agent-evolution-plan.md:519:    persona: str      # teacher_assistant / parent_advisor / admin_analyst / school_leader
+docs/plans/2026-04-04-agent-evolution-plan.md:596:    "principal": "school_leader",
+docs/plans/2026-04-04-agent-evolution-plan.md:1483:**说明：** 实现 W1 考后分析的前 3 步：compute_exam_snapshot、compute_class_reports、compute_student_diagnoses。从 scores + questions + classes 表读取，写入 exam_analysis_snapshot + class_exam_report + student_exam_snapshots。
+docs/plans/2026-04-04-agent-evolution-plan.md:1545:    """更新 student_exam_snapshots 扩展诊断字段。"""
+docs/plans/2026-04-04-agent-evolution-plan.md:1701:    """Step 3: 更新学生考试快照（复用 student_exam_snapshots 表）。"""
+docs/plans/2026-04-04-agent-evolution-plan.md:1775:- ✓ 复用 student_exam_snapshots 表
+docs/plans/2026-04-04-agent-evolution-plan.md:1991:    description="获取考试分析概览：全校统计 + 各科统计 + 异常告警。替代 get_exam_summary / get_score_distribution / get_question_analysis / get_grade_aggregates。",
+docs/plans/2026-04-04-agent-evolution-plan.md:2198:**说明：** W3 Step 1 增量更新 student_knowledge_mastery，Step 2 扩展 student_exam_snapshots 画像字段。
+docs/plans/2026-04-04-agent-evolution-plan.md:2248:    """Step 1: 增量更新知识点掌握度（复用 student_knowledge_mastery）。"""
+docs/plans/2026-04-04-agent-evolution-plan.md:2297:    """Step 2: 更新学生画像（扩展 student_exam_snapshots 的 error_summary 字段）。"""
+docs/plans/2026-04-04-agent-evolution-plan.md:2355:- ✓ 复用 student_knowledge_mastery 表
+docs/plans/2026-04-04-agent-evolution-design.md:86:| principal | None（本校全部） | None | None | None | school_leader |
+docs/plans/2026-04-04-agent-evolution-design.md:148:| 知识点掌握度 | student_knowledge_mastery（pipeline 产出） | **复用**，不新建 |
+docs/plans/2026-04-04-agent-evolution-design.md:149:| 错题本 | student_error_books（pipeline 产出） | **复用** |
+docs/plans/2026-04-04-agent-evolution-design.md:150:| 错误模式 | student_error_patterns（pipeline 产出） | **复用** |
+docs/plans/2026-04-04-agent-evolution-design.md:151:| 成绩快照 | student_exam_snapshots（pipeline 产出） | **复用**，扩展字段 |
+docs/plans/2026-04-04-agent-evolution-design.md:275:                   ├─ student_exam_snapshots (复用，更新)
+ succeeded in 1.27s:
+src\edu_cloud\workers\grading.py:189:async def run_post_exam_pipeline(ctx: dict, exam_id: str, school_id: str) -> None:
+src\edu_cloud\worker.py:12:from edu_cloud.workers.grading import process_grading_task, run_post_exam_pipeline
+src\edu_cloud\worker.py:33:        run_post_exam_pipeline,
+src\edu_cloud\ai\tools\actions.py:51:        from edu_cloud.ai.tools.analytics import get_exam_scores, get_class_stats
+src\edu_cloud\ai\tools\actions.py:62:                stats_result = await get_class_stats(
+src\edu_cloud\ai\tools\analytics.py:95:    name="get_class_stats",
+src\edu_cloud\ai\tools\analytics.py:113:async def get_class_stats(input: dict, ctx: ToolContext) -> ToolResult:
+tests\test_workers\test_grading_worker.py:12:    assert "run_post_exam_pipeline" in func_names
+tests\test_workers\test_grading_worker.py:23:async def test_run_post_exam_pipeline_stub():
+tests\test_workers\test_grading_worker.py:25:    from edu_cloud.workers.grading import run_post_exam_pipeline
+tests\test_workers\test_grading_worker.py:27:    await run_post_exam_pipeline(ctx, exam_id="test-exam", school_id="test-school")
+tests\test_workers\test_grading_worker.py:39:def test_run_post_exam_pipeline_is_importable():
+tests\test_workers\test_grading_worker.py:40:    """run_post_exam_pipeline can be imported and has correct signature."""
+tests\test_workers\test_grading_worker.py:41:    from edu_cloud.workers.grading import run_post_exam_pipeline
+tests\test_workers\test_grading_worker.py:43:    sig = inspect.signature(run_post_exam_pipeline)
+src\edu_cloud\ai\tools\analytics_score.py:7:    name="get_exam_summary",
+src\edu_cloud\ai\tools\analytics_score.py:24:async def get_exam_summary(input: dict, ctx: ToolContext) -> ToolResult:
+src\edu_cloud\ai\tools\analytics_score.py:38:    name="get_score_distribution",
+src\edu_cloud\ai\tools\analytics_score.py:58:async def get_score_distribution(input: dict, ctx: ToolContext) -> ToolResult:
+src\edu_cloud\ai\tools\analytics_score.py:86:    name="get_question_analysis",
+ succeeded in 1.54s:
+"""用户角色关联表：支持一人多角色 + scope 约束。"""
+
+from sqlalchemy import String, ForeignKey, Boolean, JSON
+from sqlalchemy.orm import Mapped, mapped_column
+from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+
+
+class UserRole(Base, IdMixin, TimestampMixin):
+    __tablename__ = "user_roles"
+
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    # Scope: 角色作用域
+    school_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("schools.id"), default=None, nullable=True
+    )
+    grade_ids: Mapped[list | None] = mapped_column(JSON, default=None, nullable=True)
+ succeeded in 1.67s:
+import uuid
+from datetime import datetime, timezone
+from sqlalchemy import DateTime, String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class IdMixin:
+    """UUID primary key."""
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+
+
+class TenantMixin:
+    """Row-level multi-tenancy: every tenant-scoped table has school_id."""
+    school_id: Mapped[str] = mapped_column(String(36), index=True)
+ succeeded in 1.51s:
+"""统一用户模型：替代 PlatformUser，支持多角色。"""
+
+import bcrypt
+from sqlalchemy import String, Boolean, DateTime
+from sqlalchemy.orm import Mapped, mapped_column
+from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+
+
+class User(Base, IdMixin, TimestampMixin):
+    __tablename__ = "users"
+
+    username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(200), default="", nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(50), default=None, nullable=True)
+    email: Mapped[str | None] = mapped_column(String(200), default=None, nullable=True)
+    last_login_at = mapped_column(DateTime(timezone=True), default=None, nullable=True)
+
+    def set_password(self, raw: str):
+codex
+我开始交叉验证现有测试基线了。这里很可能不仅是“加文件”，还会牵扯到迁移 smoke test、SSE AI 契约和已有 profile/pipeline 表结构，所以我在核对计划是否漏掉这些回归面。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/modules/profile/models.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/models/class_group.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 tests/test_alembic_migration.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/models/exam.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/models/student.py' in C:\Users\Administrator\edu-cloud succeeded in 1.19s:
+"""Profile 模块模型 — 学生画像（从 exam-ai 迁入）。"""
+from datetime import datetime, timezone
+
+from sqlalchemy import String, Float, Integer, ForeignKey, JSON, DateTime, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
+
+from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+
+
+class StudentExamSnapshot(Base, IdMixin, TimestampMixin):
+    """单次考试快照 — 成绩+排名+知识点维度，不可变。"""
+    __tablename__ = "student_exam_snapshots"
+    __table_args__ = (UniqueConstraint("student_id", "exam_id", "subject_code"),)
+
+    student_id: Mapped[str] = mapped_column(String(100))
+    exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("exams.id"))
+    subject_code: Mapped[str] = mapped_column(String(50))
+
+    total_score: Mapped[float] = mapped_column(Float)
+    max_score: Mapped[float] = mapped_column(Float)
+ succeeded in 1.19s:
+# Re-export from new location for backwards compatibility (Task 22 cleanup)
+from edu_cloud.modules.student.models import Class as ClassGroup  # noqa: F401
+ succeeded in 1.14s:
+# Re-export from new location for backwards compatibility (Task 22 cleanup)
+from edu_cloud.modules.exam.models import Exam, ExamResult, Subject, Question  # noqa: F401
+ succeeded in 1.23s:
+# Re-export from new location for backwards compatibility (Task 22 cleanup)
+from edu_cloud.modules.student.models import Student, Class  # noqa: F401
+ succeeded in 1.62s:
+"""Alembic migration smoke test — 验证迁移文件可执行且表集合与 ORM 一致。
+
+TG-02: 测试 conftest 用 Base.metadata.create_all() 建表完全绕过 Alembic，
+无法验证迁移文件本身的正确性（FK 顺序、约束声明等）。
+本测试用 subprocess 在空 SQLite 上执行 alembic upgrade head，然后对比表集合。
+使用 subprocess 避免 settings.DATABASE_URL 缓存覆盖问题。
+"""
+import os
+import subprocess
+import sys
+
+import pytest
+from sqlalchemy import create_engine, inspect
+
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _run_alembic(db_path, *args):
+    """Run alembic command via subprocess with SQLite DATABASE_URL override."""
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 220 src/edu_cloud/services/school_settings_service.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 220 tests/test_ai/test_tools_registration.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 240 src/edu_cloud/services/capability_service.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 260 src/edu_cloud/ai/registry.py' in C:\Users\Administrator\edu-cloud succeeded in 1.09s:
+"""Verify all 25+ tools are registered and category/metadata structure is correct."""
+import pytest
+from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_access import ToolAccessResolver
+import edu_cloud.ai.tools  # noqa: F401 — trigger registration
+
+
+def test_total_tool_count():
+    """All tool modules register the expected total (≥25 tools)."""
+    all_tools = tools.list_tools()
+    assert len(all_tools) >= 25, f"Expected ≥25 tools, got {len(all_tools)}: {all_tools}"
+
+
+def test_tool_categories_present():
+    """All 9 expected categories have at least one tool."""
+    expected_categories = {
+        "L1_exam", "L1_student",
+        "L2_analytics", "L2_cross_school",
+        "L3_knowledge", "L3_knowledge_db",
+        "L4_action", "L5_bank", "L6_profile",
+ succeeded in 1.16s:
+"""Tool registration and discovery (Design §4)."""
+from __future__ import annotations
+
+import inspect
+import logging
+from dataclasses import dataclass, field
+from typing import Any, Awaitable, Callable
+
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ToolSpec:
+    name: str
+    description: str
+    parameters: dict
+    func: Callable[[dict, ToolContext], Awaitable[ToolResult]]
+    category: str = "general"
+ succeeded in 1.29s:
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.models.school_settings import (
+    SchoolSetting, SchoolModule, MODULE_CODES, DEFAULT_ENABLED,
+)
+from edu_cloud.services.audit_service import audited, write_audit_log, _snapshot
+from edu_cloud.logging_config import current_user_var, request_id_var
+from edu_cloud.services.exceptions import ValidationError
+
+
+async def get_settings(
+    db: AsyncSession, *, school_id: str, category: str | None = None,
+) -> list[SchoolSetting]:
+    stmt = select(SchoolSetting).where(SchoolSetting.school_id == school_id)
+    if category:
+        stmt = stmt.where(SchoolSetting.category == category)
+    result = await db.execute(stmt.order_by(SchoolSetting.category, SchoolSetting.key))
+    return list(result.scalars().all())
+
+ succeeded in 1.32s:
+import logging
+
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
+
+from edu_cloud.models.capability import Capability, CAPABILITY_DOMAINS, CAPABILITY_ACTIONS
+from edu_cloud.services.exceptions import ValidationError
+
+
+# 默认模板: role → {domain: {action: enabled}}
+# platform_admin / district_admin 不生成 capability 行（跳过检查）
+DEFAULT_CAPABILITIES: dict[str, dict[str, dict[str, bool]]] = {
+    "principal": {
+        domain: {"read": True, "write": True}
+        for domain in CAPABILITY_DOMAINS
+    },
+    "academic_director": {
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$c=Get-Content -Encoding UTF8 docs/plans/2026-04-04-agent-evolution-plan.md; $c[940..1145]' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$c=Get-Content -Encoding UTF8 docs/plans/2026-04-04-agent-evolution-plan.md; $c[2438..2495]' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$c=Get-Content -Encoding UTF8 docs/plans/2026-04-04-agent-evolution-plan.md; $c[2884..3045]' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$c=Get-Content -Encoding UTF8 docs/plans/2026-04-04-agent-evolution-plan.md; $c[3030..3105]' in C:\Users\Administrator\edu-cloud succeeded in 1.10s:
+- [ ] **Step 3: 运行测试 + Commit**
+
+```bash
+git commit -m "feat(tools): register new domain tools + update __init__.py"
+```
+
+**测试契约:**
+1. 新工具全部注册
+   - 入口: `import edu_cloud.ai.tools; tools.get_all_specs()`
+   - 反例: 忘记 import → 工具不在 registry → LLM 看不到 → 无法调用
+   - 边界: 重复 import（幂等）/ registry 未初始化
+   - 回归: N/A
+   - 命令: `python -m pytest tests/test_ai/test_tool_registration.py -v`
+
+**审查清单:**
+- ✓ 6 个新工具全部在 __init__.py 中 import
+- ✓ 旧工具保留（渐进替换）
+- ✗ 不删除旧工具（B6 做）
+
+---
+ succeeded in 1.10s:
+### Task 13: 家长 Persona + 学生画像域工具
+
+**Files:**
+- Modify: `src/edu_cloud/ai/prompts.py`（追加 parent_advisor prompt）
+- Create: `src/edu_cloud/ai/tools/student_profile_tool.py`
+- Test: `tests/test_ai/test_parent_persona.py`
+
+- [ ] **Step 1: 写 parent prompt 测试**
+
+```python
+# tests/test_ai/test_parent_persona.py
+def test_build_parent_prompt_is_warm():
+    from edu_cloud.ai.prompts import build_parent_prompt
+    prompt = build_parent_prompt(child_name="小明", school_name="育才中学")
+    assert "小明" in prompt
+    assert "鼓励" in prompt or "建议" in prompt
+    assert "排名" not in prompt  # 默认不含排名
+```
+
+- [ ] **Step 2: 实现 parent_advisor prompt + get_student_profile 工具**
+ succeeded in 1.17s:
+- ✓ 家长 student_ids 锁定
+- ✗ 不修改查询结果（只注入 WHERE）
+
+---
+
+### Task 4: fail-closed 改造 + parent 权限补全
+
+**Files:**
+- Modify: `src/edu_cloud/core/permissions.py:168-171`
+- Modify: `src/edu_cloud/ai/tool_access.py`（如需加保险）
+- Test: `tests/test_ai/test_data_scope.py`（追加）
+- Test: `tests/test_api/test_deps.py`（追加 parent AI 权限测试）
+
+**说明：** parent 角色加 USE_AI_CHAT 权限（设计 §5, GPT #G-1），确认 tool_access 的 fail-closed 行为。
+
+- [ ] **Step 1: 写 parent 权限测试**
+
+```python
+# tests/test_api/test_parent_permission.py
+from edu_cloud.core.permissions import ROLE_PERMISSIONS, Permission
+ succeeded in 1.40s:
+---
+
+### Task 19: 端到端验证 + 全量测试
+
+**Files:**
+- Create: `scripts/e2e_agent_evolution.py`
+- Test: 全量测试套件
+
+**说明：** 端到端验证脚本 + 全量测试确认无回归。
+
+- [ ] **Step 1: 写 e2e 验证脚本**
+
+```python
+# scripts/e2e_agent_evolution.py
+"""端到端验证：DataScope → W1 → W3 → W6 → 对话。"""
+import asyncio
+import httpx
+
+BASE = "http://localhost:9000/api/v1"
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 280 src/edu_cloud/api/deps.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "active_role_id|current_role|switch-role|roles" src/edu_cloud/api/auth.py src/edu_cloud/shared/auth.py src/edu_cloud/api/deps.py src/edu_cloud/models/user.py src/edu_cloud/models/user_role.py tests' in C:\Users\Administrator\edu-cloud succeeded in 797ms:
+import logging
+
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from edu_cloud.database import get_db
+from edu_cloud.shared.auth import decode_token
+from jose import ExpiredSignatureError, JWTError
+
+from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
+from edu_cloud.services.exceptions import PermissionDeniedError
+
+logger = logging.getLogger(__name__)
+
+security = HTTPBearer()
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+ succeeded in 782ms:
+src/edu_cloud/models/user_role.py:9:    __tablename__ = "user_roles"
+src/edu_cloud/api/deps.py:23:    """平台用户认证（JWT）。返回 dict 含 user/roles/current_role/permissions。"""
+src/edu_cloud/api/deps.py:44:        roles = (
+src/edu_cloud/api/deps.py:47:        if not roles:
+src/edu_cloud/api/deps.py:51:        active_role_id = payload.get("active_role_id")
+src/edu_cloud/api/deps.py:52:        if active_role_id:
+src/edu_cloud/api/deps.py:53:            active = next((r for r in roles if r.id == active_role_id), None)
+src/edu_cloud/api/deps.py:55:            active = next((r for r in roles if r.is_primary), roles[0])
+src/edu_cloud/api/deps.py:58:            active = roles[0]
+src/edu_cloud/api/deps.py:62:            "roles": roles,
+src/edu_cloud/api/deps.py:63:            "current_role": active,
+src/edu_cloud/api/deps.py:76:                f"Role '{current['current_role'].role}' lacks permission '{permission.value}'"
+src/edu_cloud/api/auth.py:57:        roles_result = await db.execute(
+src/edu_cloud/api/auth.py:60:        roles = roles_result.scalars().all()
+src/edu_cloud/api/auth.py:61:        if not roles:
+src/edu_cloud/api/auth.py:64:        primary = next((r for r in roles if r.is_primary), roles[0])
+src/edu_cloud/api/auth.py:68:            "active_role_id": primary.id,
+src/edu_cloud/api/auth.py:71:        roles_data = []
+src/edu_cloud/api/auth.py:72:        for r in roles:
+src/edu_cloud/api/auth.py:74:            roles_data.append({
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"DataScopeBuilder|build\\(|active_role_id|current_role|role_id=\" docs/plans/2026-04-04-agent-evolution-plan.md" in C:\Users\Administrator\edu-cloud succeeded in 611ms:
+22:    data_scope.py              # DataScope frozen dataclass + DataScopeBuilder
+48:    test_data_scope.py         # DataScope + DataScopeBuilder
+463:### Task 2: DataScope 数据结构 + DataScopeBuilder
+469:**说明：** 实现设计 §1 的 DataScope frozen dataclass + DataScopeBuilder（从 user_roles + teacher_assignments + guardian_links + capabilities + school_settings 推导 8 角色的可见边界）。
+529:- [ ] **Step 5: 写 DataScopeBuilder 角色推导测试（8 角色）**
+534:    from edu_cloud.ai.data_scope import DataScopeBuilder
+535:    scope = await DataScopeBuilder(db).build(admin_user.id, role_id=admin_user.roles[0].id)
+544:    scope = await DataScopeBuilder(db).build(user.id, role_id=role.id)
+554:    scope = await DataScopeBuilder(db).build(user.id, role_id=role.id)
+565:    scope = await DataScopeBuilder(db).build(user.id, role_id=role.id)
+573:    from edu_cloud.ai.data_scope import DataScopeBuilder, DataScopeBuildError
+575:        await DataScopeBuilder(db).build("unknown-user", role_id="unknown-role")
+578:- [ ] **Step 6: 实现 DataScopeBuilder**
+580:DataScopeBuilder 核心逻辑（在 `data_scope.py` 中追加）：
+606:class DataScopeBuilder:
+610:    async def build(self, user_id: str, role_id: str) -> DataScope:
+708:git commit -m "feat(ai): DataScope + DataScopeBuilder — 8-role derivation with fail-closed"
+720:   - 入口: `DataScopeBuilder(db).build(parent_user_id, role_id)`
+727:   - 入口: `DataScopeBuilder(db).build("u", "bad-role")`
+2951:from edu_cloud.ai.data_scope import DataScopeBuilder
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 240 src/edu_cloud/api/auth.py' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n '\"token\"|\"access_token\"|/auth/login|teacher1|parent1' src/edu_cloud/api/auth.py tests src/edu_cloud/data/seed_demo.py" in C:\Users\Administrator\edu-cloud succeeded in 835ms:
+import logging
+
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from edu_cloud.database import get_db
+from edu_cloud.shared.auth import create_access_token
+from edu_cloud.api.deps import get_current_user
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
+async def _build_role_context(role, db):
+    """构建角色的上下文对象。"""
+    if role.school_id is None:
+        if role.role in ("platform_admin", "admin"):
+            return {"type": "platform", "id": None, "name": "全平台"}
+ succeeded in 816ms:
+src/edu_cloud/api/auth.py:8:from edu_cloud.shared.auth import create_access_token
+src/edu_cloud/api/auth.py:65:        token = create_access_token({
+src/edu_cloud/api/auth.py:82:            "access_token": token,
+src/edu_cloud/api/auth.py:83:            "token_type": "bearer",
+src/edu_cloud/api/auth.py:103:    """切换当前活跃角色，返回新 token。"""
+src/edu_cloud/api/auth.py:119:    token = create_access_token({
+src/edu_cloud/api/auth.py:127:        "access_token": token,
+src/edu_cloud/api/auth.py:128:        "token_type": "bearer",
+tests\conftest.py:34:from edu_cloud.shared.auth import create_access_token
+tests\conftest.py:115:    token = create_access_token({"sub": admin_user.id, "role": "platform_admin"})
+tests\conftest.py:116:    return {"Authorization": f"Bearer {token}"}
+tests\conftest.py:138:    token = create_access_token({"sub": observer_user.id, "role": "observer"})
+tests\conftest.py:139:    return {"Authorization": f"Bearer {token}"}
+tests\conftest.py:210:        username="teacher1",
+tests\conftest.py:241:        "/api/v1/auth/login",
+tests\conftest.py:242:        json={"username": "teacher1", "password": "123456"},
+tests\conftest.py:244:    token = resp.json()["access_token"]
+tests\conftest.py:245:    return {"Authorization": f"Bearer {token}"}
+tests\conftest.py:285:        username="subject_teacher1",
+tests\conftest.py:316:        "/api/v1/auth/login",
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"teacher_token|parent_token|teacher_headers|parent_headers|parent1|parent_user\" tests/conftest.py tests -g '"'!frontend'"'" in C:\Users\Administrator\edu-cloud succeeded in 630ms:
+tests/conftest.py:238:async def teacher_headers(client, seed_teacher):
+tests/conftest.py:313:async def subject_teacher_headers(client, seed_subject_teacher):
+tests\conftest.py:238:async def teacher_headers(client, seed_teacher):
+tests\conftest.py:313:async def subject_teacher_headers(client, seed_subject_teacher):
+tests\test_api\test_auth_v2.py:22:async def test_permission_denied_for_wrong_role(client, teacher_headers):
+tests\test_api\test_auth_v2.py:27:        headers=teacher_headers,
+tests\test_api\test_calendar_api.py:5:async def test_create_event(client, teacher_headers):
+tests\test_api\test_calendar_api.py:12:    }, headers=teacher_headers)
+tests\test_api\test_calendar_api.py:18:async def test_list_events(client, teacher_headers):
+tests\test_api\test_calendar_api.py:21:    }, headers=teacher_headers)
+tests\test_api\test_calendar_api.py:22:    resp = await client.get("/api/v1/calendar/events", headers=teacher_headers)
+tests\test_api\test_calendar_api.py:28:async def test_delete_event(client, teacher_headers):
+tests\test_api\test_calendar_api.py:31:    }, headers=teacher_headers)
+tests\test_api\test_calendar_api.py:33:    del_resp = await client.delete(f"/api/v1/calendar/events/{event_id}", headers=teacher_headers)
+tests\test_api\test_calendar_api.py:44:async def test_create_event_missing_field_returns_422(client, teacher_headers):
+tests\test_api\test_calendar_api.py:48:    }, headers=teacher_headers)
+tests\test_api\test_calendar_api.py:53:async def test_create_event_invalid_date_returns_422(client, teacher_headers):
+tests\test_api\test_calendar_api.py:57:    }, headers=teacher_headers)
+tests\test_api\test_calendar_api.py:62:async def test_deleted_event_not_in_list(client, teacher_headers):
+tests\test_api\test_calendar_api.py:66:    }, headers=teacher_headers)
+codex
+我已经有结论轮廓了，现在只在补精确行号，确保每条 finding 都能落到具体证据，而不是泛泛批评。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/api/deps.py'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=40;$i -le 66;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-04-agent-evolution-plan.md'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=2846;$i -le 3025;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-04-agent-evolution-plan.md'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=940;$i -le 1035;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/core/permissions.py'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=164;$i -le 176;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/api/auth.py'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=55;$i -le 90;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/ai/tool_access.py'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=31;$i -le 39;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/services/capability_service.py'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=120;$i -le 135;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloud succeeded in 1.26s:
+165:    },
+166:
+167:    # 家长
+168:    "parent": {
+169:        Permission.VIEW_SCORES,
+170:        Permission.VIEW_HOMEWORK,
+171:    },
+172:
+173:    # 旧角色兼容（exam-ai 迁入）
+174:    "admin": set(Permission),  # exam-ai "admin" = edu-cloud "platform_admin"
+175:    "teacher": {               # exam-ai "teacher" ≈ edu-cloud "subject_teacher"
+176:        Permission.VIEW_STUDENTS,
+177:        Permission.VIEW_EXAMS,
+ succeeded in 1.50s:
+41:        if not user.is_active:
+42:            raise HTTPException(401, "User not found or inactive")
+43:
+44:        roles = (
+45:            await db.execute(select(UserRole).where(UserRole.user_id == user.id))
+46:        ).scalars().all()
+47:        if not roles:
+48:            raise HTTPException(403, "No role assigned")
+49:
+50:        # 选择活跃角色
+51:        active_role_id = payload.get("active_role_id")
+52:        if active_role_id:
+53:            active = next((r for r in roles if r.id == active_role_id), None)
+54:        else:
+55:            active = next((r for r in roles if r.is_primary), roles[0])
+56:
+57:        if active is None:
+58:            active = roles[0]
+59:
+60:        return {
+ succeeded in 1.45s:
+32:    @staticmethod
+33:    def _check_capabilities(
+34:        required: list[tuple[str, str]],
+35:        caps: dict[tuple[str, str], bool],
+36:    ) -> bool:
+37:        # INV-002: "无记录默认允许" — 只有显式 False 才拒绝
+38:        for req in required:
+39:            if req in caps and not caps[req]:
+40:                return False
+ succeeded in 1.80s:
+56:        # 查询所有角色
+57:        roles_result = await db.execute(
+58:            select(UserRole).where(UserRole.user_id == user.id)
+59:        )
+60:        roles = roles_result.scalars().all()
+61:        if not roles:
+62:            raise HTTPException(403, "No role assigned")
+63:
+64:        primary = next((r for r in roles if r.is_primary), roles[0])
+65:        token = create_access_token({
+66:            "sub": user.id,
+67:            "role": primary.role,
+68:            "active_role_id": primary.id,
+69:        })
+70:        logger.info("login ok: user=%s, role=%s", req.username, primary.role)
+71:        roles_data = []
+72:        for r in roles:
+73:            ctx = await _build_role_context(r, db)
+74:            roles_data.append({
+75:                "id": r.id,
+ succeeded in 2.01s:
+941:- ✓ 家长 student_ids 锁定
+942:- ✗ 不修改查询结果（只注入 WHERE）
+943:
+944:---
+945:
+946:### Task 4: fail-closed 改造 + parent 权限补全
+947:
+948:**Files:**
+949:- Modify: `src/edu_cloud/core/permissions.py:168-171`
+950:- Modify: `src/edu_cloud/ai/tool_access.py`（如需加保险）
+951:- Test: `tests/test_ai/test_data_scope.py`（追加）
+952:- Test: `tests/test_api/test_deps.py`（追加 parent AI 权限测试）
+953:
+954:**说明：** parent 角色加 USE_AI_CHAT 权限（设计 §5, GPT #G-1），确认 tool_access 的 fail-closed 行为。
+955:
+956:- [ ] **Step 1: 写 parent 权限测试**
+957:
+958:```python
+959:# tests/test_api/test_parent_permission.py
+960:from edu_cloud.core.permissions import ROLE_PERMISSIONS, Permission
+ succeeded in 1.54s:
+121:        Capability.school_id == school_id,
+122:        Capability.role == role,
+123:        Capability.domain == domain,
+124:        Capability.action == action,
+125:    )
+126:    cap = (await db.execute(stmt)).scalar_one_or_none()
+127:    if cap:
+128:        cap.enabled = enabled
+129:    else:
+130:        cap = Capability(
+131:            school_id=school_id, role=role,
+132:            domain=domain, action=action, enabled=enabled,
+133:        )
+134:        db.add(cap)
+135:    await db.commit()
+136:    await db.refresh(cap)
+ succeeded in 2.17s:
+2847:
+2848:### Task 17: 工具合并上线 + __init__.py 更新
+2849:
+2850:**Files:**
+2851:- Modify: `src/edu_cloud/ai/tools/__init__.py`
+2852:- Test: `tests/test_ai/test_tool_registration.py`
+2853:
+2854:**说明：** 将新工具注册到 ToolRegistry，标记旧工具 deprecated。新工具在 import 时自动注册。
+2855:
+2856:- [ ] **Step 1: 写工具注册测试**
+2857:
+2858:```python
+2859:# tests/test_ai/test_tool_registration.py
+2860:def test_new_tools_registered():
+2861:    from edu_cloud.ai.registry import tools
+2862:    # 触发全部注册
+2863:    import edu_cloud.ai.tools  # noqa
+2864:    all_names = [s.name for s in tools.get_all_specs()]
+2865:    assert "get_exam_overview" in all_names
+2866:    assert "get_class_report" in all_names
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/services/capability_service.py'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=136;$i -le 155;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloud succeeded in 620ms:
+137:    return cap
+138:
+139:
+140:async def check_capability(
+141:    db: AsyncSession, *, school_id: str, role: str,
+142:    domain: str, action: str,
+143:) -> bool:
+144:    """检查角色在指定域的操作权限。无记录 = 默认允许（宽松策略）。"""
+145:    stmt = select(Capability).where(
+146:        Capability.school_id == school_id,
+147:        Capability.role == role,
+148:        Capability.domain == domain,
+149:        Capability.action == action,
+150:    )
+151:    cap = (await db.execute(stmt)).scalar_one_or_none()
+152:    if cap is None:
+153:        return True  # 宽松策略：无记录默认允许
+154:    return cap.enabled
+155:
+156:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-04-agent-evolution-plan.md'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=1030;$i -le 1125;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloud succeeded in 790ms:
+1031:**说明：** 实现设计 §1 的 scope 版本失效机制。每次 tool 调用前检查 version 是否匹配，不匹配 → 返回提示要求刷新。
+1032:
+1033:- [ ] **Step 1: 写版本检查测试**
+1034:
+1035:```python
+1036:# tests/test_ai/test_scope_version.py
+1037:import pytest
+1038:from edu_cloud.ai.scope_version import ScopeVersionChecker
+1039:
+1040:@pytest.mark.asyncio
+1041:async def test_version_match_passes(db):
+1042:    checker = ScopeVersionChecker(db)
+1043:    # 首次检查，无记录 → 通过（version=1 是初始值）
+1044:    is_valid = await checker.is_valid(school_id="s1", user_id="u1", version=1)
+1045:    assert is_valid is True
+1046:
+1047:@pytest.mark.asyncio
+1048:async def test_version_mismatch_fails(db):
+1049:    checker = ScopeVersionChecker(db)
+1050:    await checker.bump(school_id="s1", user_id="u1", reason="assignment.changed")
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "teacher_token|parent_token|teacher_headers|parent_headers" tests/conftest.py' in C:\Users\Administrator\edu-cloud succeeded in 643ms:
+238:async def teacher_headers(client, seed_teacher):
+313:async def subject_teacher_headers(client, seed_subject_teacher):
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-04-agent-evolution-plan.md'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=3040;$i -le 3075;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloud succeeded in 710ms:
+3041:- [ ] **Step 1: 写 e2e 验证脚本**
+3042:
+3043:```python
+3044:# scripts/e2e_agent_evolution.py
+3045:"""端到端验证：DataScope → W1 → W3 → W6 → 对话。"""
+3046:import asyncio
+3047:import httpx
+3048:
+3049:BASE = "http://localhost:9000/api/v1"
+3050:
+3051:async def main():
+3052:    async with httpx.AsyncClient() as c:
+3053:        # 1. 登录（教师）
+3054:        r = await c.post(f"{BASE}/auth/login", json={"username": "teacher1", "password": "123456"})
+3055:        token = r.json()["token"]
+3056:        headers = {"Authorization": f"Bearer {token}"}
+3057:
+3058:        # 2. 发布考试（触发 W1）
+3059:        # ...
+3060:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "scope 版本失效|每次 tool 调用前检查|arq worker|工作流引擎|持久化状态机|DataScope 在会话创建时一次性计算|双模式|worker" docs/plans/2026-04-04-agent-evolution-design.md' in C:\Users\Administrator\edu-cloud succeeded in 659ms:
+1:# edu-agent 演进设计：专用数据层 + 工作流引擎 + 工具重组
+12:| D1 | 架构模式 | 双模式（工作流 + 自由查询） | 已知场景走确定性轨道（快+准+省），未知问题保留 LLM 灵活性 |
+17:| D6 | 工作流引擎 | 持久化状态机 + 幂等 | GPT 审查指出：无状态机/重试/补偿 = 不可靠。必须有 workflow_runs |
+25:Agent 从登录那一刻起看到的是一个被裁剪过的数据世界。DataScope 在会话创建时一次性计算，全程不可放大。
+124:实现方式：scope 带 version 字段，后台监听变更事件更新 version 表，每次 tool 调用前检查 version 是否匹配。不匹配 → 重算 scope 或终止会话。
+290:## §3 工作流引擎
+297:  ├─ WorkflowExecutor        # 执行引擎（持久化状态机）
+314:| 后台模式 | 事件/定时 | arq worker | 写预计算表 + findings + tasks |
+560:| arq worker | 后台工作流执行环境 |
+599:| C: scope 版本失效 | MED | §1 version 字段 + 事件监听 |
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"contract_pack:|invariants|counter_examples|risk_modules|test_debt\" C:\\Users\\Administrator\\.claude\\config\\contract-pack-schema.md" in C:\Users\Administrator\edu-cloud succeeded in 591ms:
+7:- **根键强制**: Contract Pack 必须以 `contract_pack:` 为 YAML 根键
+9:- **空 test_debt**: `test_debt: []` 是合法的，表示"当前无延期项"；缺少 `test_debt` 键不合法
+13:### invariants（≥3 条）
+22:### counter_examples（≥2 个）
+31:### risk_modules
+38:### test_debt
+55:- test_debt reason: "" — 空理由
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'tests/test_ai/test_ai_api.py'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=126;$i -le 165;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloud succeeded in 704ms:
+127:    """F004: HTTP entry-level SSE contract test — POST /api/v1/ai/chat returns SSE events."""
+128:    from edu_cloud.ai.llm_adapter import LLMResponse, TokenUsage
+129:    from edu_cloud.ai.schemas import ToolCall
+130:
+131:    call_count = 0
+132:
+133:    async def mock_chat(self, request):
+134:        nonlocal call_count
+135:        call_count += 1
+136:        if call_count == 1:
+137:            return LLMResponse(
+138:                tool_calls=[ToolCall(id="tc1", name="get_exam_list", arguments={}, _raw={})],
+139:                usage=TokenUsage(10, 5), stop_reason="tool_use",
+140:            )
+141:        return LLMResponse(content="考试列表已获取", usage=TokenUsage(10, 5), stop_reason="end_turn")
+142:
+143:    async def mock_determine_tier(self, adapter):
+144:        return 3
+145:
+146:    with patch("edu_cloud.ai.llm_adapter.LLMProxyAdapter.chat", mock_chat), \
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "default|capability|open|allow|deny" tests/test_ai/test_tool_access.py tests/test_ai/test_tool_access_v2.py' in C:\Users\Administrator\edu-cloud succeeded in 599ms:
+tests/test_ai/test_tool_access_v2.py:7:def _make_spec(name, allowed_roles=None, module_code=None, requires_capabilities=None, sensitivity="school"):
+tests/test_ai/test_tool_access_v2.py:12:        allowed_roles=allowed_roles, module_code=module_code,
+tests/test_ai/test_tool_access_v2.py:21:        _make_spec("t1", allowed_roles=["admin"]),
+tests/test_ai/test_tool_access_v2.py:22:        _make_spec("t2", allowed_roles=["teacher"]),
+tests/test_ai/test_tool_access_v2.py:23:        _make_spec("t3", allowed_roles=None),  # open to all
+tests/test_ai/test_tool_access_v2.py:46:def test_capability_filter():
+tests/test_ai/test_tool_access_v2.py:59:def test_capability_denied():
+tests/test_ai/test_tool_access_v2.py:69:def test_capability_default_allow():
+tests/test_ai/test_tool_access_v2.py:70:    """未配置的 capability 默认允许（INV-002：与现有行为一致）"""
+tests/test_ai/test_tool_access.py:8:               allowed_roles=None, requires_capabilities=None):
+tests/test_ai/test_tool_access.py:12:        domain=domain, allowed_roles=allowed_roles,
+tests/test_ai/test_tool_access.py:19:        _make_spec("admin_only", allowed_roles=["platform_admin"]),
+tests/test_ai/test_tool_access.py:20:        _make_spec("open_tool", allowed_roles=None),
+tests/test_ai/test_tool_access.py:28:    assert result[0].name == "open_tool"
+tests/test_ai/test_tool_access.py:46:def test_capability_filter_blocks_denied():
+tests/test_ai/test_tool_access.py:61:def test_capability_default_allow():
+tests/test_ai/test_tool_access.py:62:    """未配置的 capability 默认允许"""
+tests/test_ai/test_tool_access.py:74:        _make_spec("full", allowed_roles=["academic_director"],
+tests/test_ai/test_tool_access.py:76:        _make_spec("open"),
+tests/test_ai/test_tool_access.py:79:    # 角色匹配 + 模块启用 + capability 允许
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'tests/test_ai/test_tool_access.py'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=56;$i -le 66;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloud succeeded in 717ms:
+57:    assert len(result) == 1
+58:    assert result[0].name == "no_cap_tool"
+59:
+60:
+61:def test_capability_default_allow():
+62:    """未配置的 capability 默认允许"""
+63:    specs = [_make_spec("cap_tool", requires_capabilities=[("exam", "read")])]
+64:    resolver = ToolAccessResolver()
+65:    result = resolver.resolve(
+66:        all_specs=specs, role="platform_admin",
+67:        enabled_modules=set(), capabilities={},  # 未配置
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding UTF8 -TotalCount 220 src/edu_cloud/models/__init__.py' in C:\Users\Administrator\edu-cloud succeeded in 615ms:
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "### Task 1|tests/test_models/test_agent_models.py|alembic revision|git add src/edu_cloud/models/guardian.py" docs/plans/2026-04-04-agent-evolution-plan.md' in C:\Users\Administrator\edu-cloud succeeded in 651ms:
+78:### Task 1: Agent 新增数据模型（7 张表 + migration）
+85:- Test: `tests/test_models/test_agent_models.py`
+92:# tests/test_models/test_agent_models.py
+126:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_models/test_agent_models.py -v`
+151:Run: `python -m pytest tests/test_models/test_agent_models.py::test_create_guardian_link -v`
+250:Run: `python -m pytest tests/test_models/test_agent_models.py -k workflow -v`
+409:Run: `python -m pytest tests/test_models/test_agent_models.py -v`
+414:Run: `cd C:/Users/Administrator/edu-cloud && alembic revision --autogenerate -m "add agent evolution tables"`
+420:git add src/edu_cloud/models/guardian.py src/edu_cloud/models/workflow.py \
+422:  tests/test_models/test_agent_models.py alembic/versions/
+432:   - 命令: `python -m pytest tests/test_models/test_agent_models.py::test_guardian_link_unique_constraint -v`
+439:   - 命令: `python -m pytest tests/test_models/test_agent_models.py::test_workflow_idempotency_key_unique -v`
+446:   - 命令: `python -m pytest tests/test_models/test_agent_models.py::test_finding_idempotency_key_unique -v`
+2072:### Task 10: W1 对话模式 + EventBus 集成 + W1 注册
+2192:### Task 11: W3 Steps 1-2（知识掌握度 + 画像更新）
+2362:### Task 12: W3 Steps 3-4（班级薄弱点 + LLM 建议）
+2439:### Task 13: 家长 Persona + 学生画像域工具
+2490:### Task 14: W6 Steps 1-4（巡检规则 + 去重派发）
+2599:### Task 15: W6 异常概览域工具
+2649:### Task 16: EntityExtractor + IntentRouter
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'tests/test_ai/test_tool_access.py'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=60;$i -le 69;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'tests/test_alembic_migration.py'; "'$lines=Get-Content -Encoding UTF8 $p; for($i=35;$i -le 75;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] }' in C:\Users\Administrator\edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'src/edu_cloud/models/__init__.py'; "'$lines=Get-Content -Encoding UTF8 $p; if($lines.Length -eq 0){ '"'EMPTY' } else { for("'$i=0;$i -lt $lines.Length;$i++){ '"'{0}:{1}' -f ("'$i+1), $lines[$i] } }' in C:\Users\Administrator\edu-cloud succeeded in 973ms:
+61:def test_capability_default_allow():
+62:    """未配置的 capability 默认允许"""
+63:    specs = [_make_spec("cap_tool", requires_capabilities=[("exam", "read")])]
+64:    resolver = ToolAccessResolver()
+65:    result = resolver.resolve(
+66:        all_specs=specs, role="platform_admin",
+67:        enabled_modules=set(), capabilities={},  # 未配置
+68:    )
+69:    assert len(result) == 1
+70:
+ succeeded in 984ms:
+36:def migration_db(tmp_path):
+37:    """Run Alembic upgrade head on a fresh SQLite database, return engine."""
+38:    db_path = tmp_path / "test_migration.db"
+39:    _run_alembic(db_path, "upgrade", "head")
+40:
+41:    engine = create_engine(f"sqlite:///{db_path}")
+42:    yield engine
+43:    engine.dispose()
+44:
+45:
+46:def test_migration_creates_all_expected_tables(migration_db):
+47:    """alembic upgrade head 应创建与 Base.metadata 一致的表集合。"""
+48:    from edu_cloud.models.base import Base
+49:    # Force all model imports (same as conftest.py)
+50:    import edu_cloud.models.school  # noqa: F401
+51:    import edu_cloud.models.user  # noqa: F401
+52:    import edu_cloud.models.user_role  # noqa: F401
+53:    import edu_cloud.models.joint_exam  # noqa: F401
+54:    import edu_cloud.models.student  # noqa: F401
+55:    import edu_cloud.models.class_group  # noqa: F401
+ succeeded in 979ms:
+EMPTY
+codex
+**F001**
+- ID: F001
+- Severity: HIGH
+- Category: test-gap
+- Type: defect_fix
+- Before-behavior: plan 不包含结构化 `contract_pack`，`invariants / counter_examples / risk_modules / test_debt` 无法被审查或执行阶段消费。
+- After-behavior: 在 plan 中补齐 `contract_pack:` 根段，并满足 schema 要求的最小字段与数量约束。
+- Evidence: Contract Pack 被定义为强制结构，见 [contract-pack-schema.md](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L7) 、[contract-pack-schema.md](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L13) 、[contract-pack-schema.md](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L22) 、[contract-pack-schema.md](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L31) 、[contract-pack-schema.md](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L38)。而 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md) 全文不存在 `contract_pack:`。
+- Impact: Checklist F 直接不满足；关键不变量、反例与测试债务均不可验证，属于 Gate 1 硬缺口。
+- Repair hypothesis: 可考虑在 plan 末尾追加单独 `contract_pack:` YAML 段，至少覆盖所有 public API 变更、fail-closed 治理改动、workflow 状态机与 cron 集成。
+
+**F002**
+- ID: F002
+- Severity: HIGH
+- Category: code-bug
+- Type: defect_fix
+- Before-behavior: Task 5 计划用进程内 dict 实现 scope version，版本 bump 只在单进程内可见。
+- After-behavior: version 状态应落在跨进程共享介质上，至少与设计中的“事件监听 + version 表/共享存储”一致。
+- Evidence: 设计明确要求“后台监听变更事件更新 version 表，每次 tool 调用前检查 version 是否匹配”，见 [2026-04-04-agent-evolution-design.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-design.md#L124)；同一设计又明确后台执行者是 `arq worker`，见 [2026-04-04-agent-evolution-design.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-design.md#L314)。但 Task 5 明确写“第一期用内存”，并给出 `_versions` 进程内单例实现，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L1070) 、[2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L1082) 、[2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L1113)。
+- Impact: API 进程、worker 进程、重启后的新进程之间不会共享失效信息；角色变更/排课变更后旧 scope 仍可能继续放行，直接削弱 D2/D7 的权限边界。
+- Repair hypothesis: 可考虑把 Task 5 改成 DB/Redis 持久化版本，或把“版本失效”从本期删出，只保留接口骨架和 `pending_test/test_debt`。
+
+**F003**
+- ID: F003
+- Severity: HIGH
+- Category: code-bug
+- Type: defect_fix
+- Before-behavior: Task 18/19 使用了当前代码库不存在的认证/会话契约，按计划落地会直接写出不可运行代码和测试。
+- After-behavior: 计划应对齐现有 auth/deps 契约，使用 `access_token`、`current["current_role"]`，并基于现有 headers fixture 组织 API 测试。
+- Evidence: Task 18 的测试依赖 `teacher_token`/`parent_token`，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L2925) 、[2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L2935)，但仓库现有 fixture 是 [tests/conftest.py](C:/Users/Administrator/edu-cloud/tests/conftest.py#L238) 和 [tests/conftest.py](C:/Users/Administrator/edu-cloud/tests/conftest.py#L313) 的 `teacher_headers`/`subject_teacher_headers`。Task 18 还要求 `user.active_role_id`，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L2952)，而当前活跃角色来自 [deps.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/deps.py#L51) 到 [deps.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/deps.py#L64) 的 `current_role`。Task 19 e2e 读取 `r.json()["token"]`，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L3054) 、[2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L3067)，但登录接口实际返回的是 [auth.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/auth.py#L81) 的 `access_token`。
+- Impact: 执行到 B6 时，测试样例、集成代码和 e2e 脚本都会因为错误字段名/错误 fixture 先天失败，批次无法进入真实验证。
+- Repair hypothesis: 可考虑把 Task 18/19 全部改成现有 `teacher_headers` 风格，或先补一个标准 `parent_headers` fixture，再统一使用 `current["current_role"].id`。
+
+**F004**
+- ID: F004
+- Severity: HIGH
+- Category: test-gap
+- Type: defect_fix
+- Before-behavior: Task 18 的入口级测试只断言 `/api/v1/ai/chat` 返回 200，未验证 DataScope 注入、SSE 语义、家长隔离或工作流分流是否真正发生。
+- After-behavior: 测试应从用户可触达入口验证可观察行为，例如 SSE 事件、选中工具范围、家长只能命中自身 student scope、低置信度分流结果。
+- Evidence: Task 18 的两个示例测试仅有 `assert resp.status_code == 200`，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L2924) 到 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L2942)。而仓库现有 AI 契约测试已经验证了 SSE `tool_call/tool_result/done` 事件，见 [test_ai_api.py](C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api.py#L127) 到 [test_ai_api.py](C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api.py#L166)。
+- Impact: 即使完全没有接入 DataScope/IntentRouter，只要端点继续返回任意 200 SSE，Task 18 也会“绿”，属于错误实现下仍通过的硬性 test-gap。
+- Repair hypothesis: 可考虑把 Task 18 的契约拆成 2-3 个入口测试：SSE 事件契约、scope 泄露反例、workflow/free mode 分流观测。
+
+**F005**
+- ID: F005
+- Severity: HIGH
+- Category: test-gap
+- Type: defect_fix
+- Before-behavior: Task 4 宣称做 “fail-closed 改造”，但步骤和测试契约只覆盖 parent 新权限，不覆盖真正的默认拒绝路径。
+- After-behavior: 需要为 `ToolAccessResolver` 和 capability 检查补入口级/反例级契约，明确“无 capability 记录时拒绝”与“模块未启用时拒绝”。
+- Evidence: Task 4 标题和说明同时包含 fail-closed，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L946) 、[2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L954)，但步骤与测试契约只测试 `ROLE_PERMISSIONS["parent"]`，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L956) 、[2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L1004)。当前实现仍是 fail-open：`ToolAccessResolver` 注释写明“无记录默认允许”，见 [tool_access.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tool_access.py#L37)；`check_capability` 也写明“无记录 = 默认允许”，见 [capability_service.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/capability_service.py#L144) 到 [capability_service.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/capability_service.py#L153)。现有测试还把 default-allow 固化为预期，见 [test_tool_access.py](C:/Users/Administrator/edu-cloud/tests/test_ai/test_tool_access.py#L61)。
+- Impact: 这是安全语义变更，但计划既没有覆盖反例，也没有处理现有回归测试的冲突；最终很可能出现“权限集合变了，但 resolver 仍默认放行”的假完成状态。
+- Repair hypothesis: 可考虑把 Task 4 拆成 `parent USE_AI_CHAT` 与 `tool access fail-closed` 两个独立 Task，并为后者补 `tests/test_ai/test_tool_access*.py` 的现有 suite 更新。
+
+**F006**
+- ID: F006
+- Severity: MED
+- Category: code-bug
+- Type: defect_fix
+- Before-behavior: Task 1 增加 7 张表和 migration，但没有把 Alembic smoke test 的显式模型导入清单一并更新。
+- After-behavior: 应把新模型纳入 migration smoke test，或把模型导入集中化，避免新增表后 `Base.metadata` 与迁移表集脱节。
+- Evidence: Task 1 只列了新模型、`test_agent_models.py` 和 migration，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L78) 到 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L85)；但现有迁移 smoke test 通过手工 import 模型来构建 `Base.metadata`，见 [test_alembic_migration.py](C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py#L46) 到 [test_alembic_migration.py](C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py#L76)。同时 [models/__init__.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/models/__init__.py) 为空，无法自动带入新模型。
+- Impact: 新 migration 很可能一落地就把 `test_alembic_migration.py` 跑红，或者迫使执行者在实现阶段临时补文件，说明 Task 边界不完整。
+- Repair hypothesis: 可考虑把 `tests/test_alembic_migration.py` 明确加入 Task 1 的文件列表，或先做一个集中模型导入的基础清理，再写新表。
+
+结论: FAIL。存在 5 个 HIGH、1 个 MED，且包含 `code-bug` / `test-gap`。
+tokens used
+195,989
+**F001**
+- ID: F001
+- Severity: HIGH
+- Category: test-gap
+- Type: defect_fix
+- Before-behavior: plan 不包含结构化 `contract_pack`，`invariants / counter_examples / risk_modules / test_debt` 无法被审查或执行阶段消费。
+- After-behavior: 在 plan 中补齐 `contract_pack:` 根段，并满足 schema 要求的最小字段与数量约束。
+- Evidence: Contract Pack 被定义为强制结构，见 [contract-pack-schema.md](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L7) 、[contract-pack-schema.md](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L13) 、[contract-pack-schema.md](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L22) 、[contract-pack-schema.md](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L31) 、[contract-pack-schema.md](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L38)。而 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md) 全文不存在 `contract_pack:`。
+- Impact: Checklist F 直接不满足；关键不变量、反例与测试债务均不可验证，属于 Gate 1 硬缺口。
+- Repair hypothesis: 可考虑在 plan 末尾追加单独 `contract_pack:` YAML 段，至少覆盖所有 public API 变更、fail-closed 治理改动、workflow 状态机与 cron 集成。
+
+**F002**
+- ID: F002
+- Severity: HIGH
+- Category: code-bug
+- Type: defect_fix
+- Before-behavior: Task 5 计划用进程内 dict 实现 scope version，版本 bump 只在单进程内可见。
+- After-behavior: version 状态应落在跨进程共享介质上，至少与设计中的“事件监听 + version 表/共享存储”一致。
+- Evidence: 设计明确要求“后台监听变更事件更新 version 表，每次 tool 调用前检查 version 是否匹配”，见 [2026-04-04-agent-evolution-design.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-design.md#L124)；同一设计又明确后台执行者是 `arq worker`，见 [2026-04-04-agent-evolution-design.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-design.md#L314)。但 Task 5 明确写“第一期用内存”，并给出 `_versions` 进程内单例实现，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L1070) 、[2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L1082) 、[2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L1113)。
+- Impact: API 进程、worker 进程、重启后的新进程之间不会共享失效信息；角色变更/排课变更后旧 scope 仍可能继续放行，直接削弱 D2/D7 的权限边界。
+- Repair hypothesis: 可考虑把 Task 5 改成 DB/Redis 持久化版本，或把“版本失效”从本期删出，只保留接口骨架和 `pending_test/test_debt`。
+
+**F003**
+- ID: F003
+- Severity: HIGH
+- Category: code-bug
+- Type: defect_fix
+- Before-behavior: Task 18/19 使用了当前代码库不存在的认证/会话契约，按计划落地会直接写出不可运行代码和测试。
+- After-behavior: 计划应对齐现有 auth/deps 契约，使用 `access_token`、`current["current_role"]`，并基于现有 headers fixture 组织 API 测试。
+- Evidence: Task 18 的测试依赖 `teacher_token`/`parent_token`，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L2925) 、[2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L2935)，但仓库现有 fixture 是 [tests/conftest.py](C:/Users/Administrator/edu-cloud/tests/conftest.py#L238) 和 [tests/conftest.py](C:/Users/Administrator/edu-cloud/tests/conftest.py#L313) 的 `teacher_headers`/`subject_teacher_headers`。Task 18 还要求 `user.active_role_id`，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L2952)，而当前活跃角色来自 [deps.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/deps.py#L51) 到 [deps.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/deps.py#L64) 的 `current_role`。Task 19 e2e 读取 `r.json()["token"]`，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L3054) 、[2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L3067)，但登录接口实际返回的是 [auth.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/auth.py#L81) 的 `access_token`。
+- Impact: 执行到 B6 时，测试样例、集成代码和 e2e 脚本都会因为错误字段名/错误 fixture 先天失败，批次无法进入真实验证。
+- Repair hypothesis: 可考虑把 Task 18/19 全部改成现有 `teacher_headers` 风格，或先补一个标准 `parent_headers` fixture，再统一使用 `current["current_role"].id`。
+
+**F004**
+- ID: F004
+- Severity: HIGH
+- Category: test-gap
+- Type: defect_fix
+- Before-behavior: Task 18 的入口级测试只断言 `/api/v1/ai/chat` 返回 200，未验证 DataScope 注入、SSE 语义、家长隔离或工作流分流是否真正发生。
+- After-behavior: 测试应从用户可触达入口验证可观察行为，例如 SSE 事件、选中工具范围、家长只能命中自身 student scope、低置信度分流结果。
+- Evidence: Task 18 的两个示例测试仅有 `assert resp.status_code == 200`，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L2924) 到 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L2942)。而仓库现有 AI 契约测试已经验证了 SSE `tool_call/tool_result/done` 事件，见 [test_ai_api.py](C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api.py#L127) 到 [test_ai_api.py](C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api.py#L166)。
+- Impact: 即使完全没有接入 DataScope/IntentRouter，只要端点继续返回任意 200 SSE，Task 18 也会“绿”，属于错误实现下仍通过的硬性 test-gap。
+- Repair hypothesis: 可考虑把 Task 18 的契约拆成 2-3 个入口测试：SSE 事件契约、scope 泄露反例、workflow/free mode 分流观测。
+
+**F005**
+- ID: F005
+- Severity: HIGH
+- Category: test-gap
+- Type: defect_fix
+- Before-behavior: Task 4 宣称做 “fail-closed 改造”，但步骤和测试契约只覆盖 parent 新权限，不覆盖真正的默认拒绝路径。
+- After-behavior: 需要为 `ToolAccessResolver` 和 capability 检查补入口级/反例级契约，明确“无 capability 记录时拒绝”与“模块未启用时拒绝”。
+- Evidence: Task 4 标题和说明同时包含 fail-closed，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L946) 、[2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L954)，但步骤与测试契约只测试 `ROLE_PERMISSIONS["parent"]`，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L956) 、[2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L1004)。当前实现仍是 fail-open：`ToolAccessResolver` 注释写明“无记录默认允许”，见 [tool_access.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tool_access.py#L37)；`check_capability` 也写明“无记录 = 默认允许”，见 [capability_service.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/capability_service.py#L144) 到 [capability_service.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/capability_service.py#L153)。现有测试还把 default-allow 固化为预期，见 [test_tool_access.py](C:/Users/Administrator/edu-cloud/tests/test_ai/test_tool_access.py#L61)。
+- Impact: 这是安全语义变更，但计划既没有覆盖反例，也没有处理现有回归测试的冲突；最终很可能出现“权限集合变了，但 resolver 仍默认放行”的假完成状态。
+- Repair hypothesis: 可考虑把 Task 4 拆成 `parent USE_AI_CHAT` 与 `tool access fail-closed` 两个独立 Task，并为后者补 `tests/test_ai/test_tool_access*.py` 的现有 suite 更新。
+
+**F006**
+- ID: F006
+- Severity: MED
+- Category: code-bug
+- Type: defect_fix
+- Before-behavior: Task 1 增加 7 张表和 migration，但没有把 Alembic smoke test 的显式模型导入清单一并更新。
+- After-behavior: 应把新模型纳入 migration smoke test，或把模型导入集中化，避免新增表后 `Base.metadata` 与迁移表集脱节。
+- Evidence: Task 1 只列了新模型、`test_agent_models.py` 和 migration，见 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L78) 到 [2026-04-04-agent-evolution-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-04-agent-evolution-plan.md#L85)；但现有迁移 smoke test 通过手工 import 模型来构建 `Base.metadata`，见 [test_alembic_migration.py](C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py#L46) 到 [test_alembic_migration.py](C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py#L76)。同时 [models/__init__.py](C:/Users/Administrator/edu-cloud/src/edu_cloud/models/__init__.py) 为空，无法自动带入新模型。
+- Impact: 新 migration 很可能一落地就把 `test_alembic_migration.py` 跑红，或者迫使执行者在实现阶段临时补文件，说明 Task 边界不完整。
+- Repair hypothesis: 可考虑把 `tests/test_alembic_migration.py` 明确加入 Task 1 的文件列表，或先做一个集中模型导入的基础清理，再写新表。
+
+结论: FAIL。存在 5 个 HIGH、1 个 MED，且包含 `code-bug` / `test-gap`。

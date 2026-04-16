@@ -35,8 +35,8 @@ async def lifespan(app: FastAPI):
     import edu_cloud.modules.student.models  # noqa: F401 — Class/Student
     import edu_cloud.modules.card.models  # noqa: F401 — Template/CardSkeleton
     import edu_cloud.modules.scan.models  # noqa: F401 — ScanTask/StudentAnswer
-    import edu_cloud.modules.grading.models  # noqa: F401 — Rubric/GradingTask/AIGradingResult/TeacherReview
-    import edu_cloud.modules.marking.models  # noqa: F401 — MarkingAssignment/MarkingScore
+    import edu_cloud.modules.grading.models  # noqa: F401 — Rubric/GradingTask/GradingResult/GradingAssignment/GradingQualityCheck
+    import edu_cloud.modules.marking.models  # noqa: F401 — (emptied, merged into grading module)
     import edu_cloud.modules.knowledge.models  # noqa: F401 — KnowledgePoint/QuestionKnowledgePoint
     import edu_cloud.modules.bank.models  # noqa: F401 — BankQuestion/StudentErrorBook
     import edu_cloud.modules.profile.models  # noqa: F401 — StudentExamSnapshot/KnowledgeMastery/ErrorPattern
@@ -52,10 +52,34 @@ async def lifespan(app: FastAPI):
     import edu_cloud.models.capability  # noqa: F401
     import edu_cloud.models.audit_log  # noqa: F401
     import edu_cloud.modules.homework.models  # noqa: F401
+    # Agent evolution models
+    import edu_cloud.models.guardian  # noqa: F401
+    import edu_cloud.models.workflow  # noqa: F401
+    import edu_cloud.models.agent_finding  # noqa: F401
+    import edu_cloud.models.agent_snapshot  # noqa: F401
+    import edu_cloud.models.scope_version  # noqa: F401
+    import edu_cloud.models.memory  # noqa: F401 — EntityMemory/ProjectState
+    import edu_cloud.modules.knowledge_tree.models  # noqa: F401 — ConceptGraphNode/Edge/EditSyncFailure
+    import edu_cloud.modules.menu.models  # noqa: F401 — Alembic autogenerate (MenuConfig)
+    import edu_cloud.modules.analytics.analysis_models  # noqa: F401 — Alembic autogenerate (ClassAnalysis/StudentAnalysis/StudentKnpMastery)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("database tables created")
+
+    # Sync knowledge.db → PostgreSQL (idempotent, non-fatal)
+    from edu_cloud.database import async_session  # F001: import before use
+    try:
+        async with async_session() as db:
+            from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
+            sync_result = await sync_knowledge_on_startup(db)
+            if sync_result["status"] == "synced":
+                logger.info(
+                    "sync: knowledge.db → PG complete (%d nodes, %d edges, %d DAs, %d KP maps)",
+                    sync_result["nodes"], sync_result["edges"], sync_result["das"], sync_result["kp_map"],
+                )
+    except Exception as e:
+        logger.warning("sync: knowledge.db sync failed (non-fatal): %s", e)
 
     # Load knowledge base if enabled
     from edu_cloud.knowledge.store import knowledge_store
@@ -115,6 +139,27 @@ async def lifespan(app: FastAPI):
             logger.warning("seed: demo data skipped — %s", demo_result.get("message"))
         else:
             logger.info("seed: demo data created — %d answers", demo_result.get("total_answers", 0))
+
+    # Register W1 workflow with EventBus
+    from edu_cloud.ai.workflow.triggers import EventTrigger
+    from edu_cloud.ai.workflow.w1_post_exam import W1_POST_EXAM
+    from edu_cloud.ai.workflow.registry import WorkflowRegistry
+    from edu_cloud.ai.workflow.engine import WorkflowExecutor
+    from edu_cloud.core.events import event_bus
+
+    workflow_registry = WorkflowRegistry()
+    workflow_registry.register(W1_POST_EXAM)
+
+    async def execute_workflow(workflow_name, school_id, trigger_type, trigger_ref):
+        wf = workflow_registry.get(workflow_name)
+        if wf:
+            async with async_session() as db:
+                executor = WorkflowExecutor(db)
+                await executor.execute(wf, school_id, trigger_type, trigger_ref)
+
+    trigger = EventTrigger(event_bus, executor_func=execute_workflow)
+    trigger.register("exam.published", workflow_name="post_exam_analysis")
+    logger.info("workflow: W1 post_exam_analysis registered on exam.published")
 
     yield
 
@@ -221,6 +266,10 @@ def create_app() -> FastAPI:
     from edu_cloud.api.ai import router as ai_router
     app.include_router(ai_router)
 
+    # exam-ai compat layer (paper-seg zero-change integration)
+    from edu_cloud.api.compat_router import router as compat_router
+    app.include_router(compat_router)
+
     # All module routers
     from edu_cloud.modules.school.router import router as schools_router
     from edu_cloud.modules.exam.router import router as exam_router
@@ -251,12 +300,19 @@ def create_app() -> FastAPI:
     from edu_cloud.modules.homework.router import router as homework_router
     from edu_cloud.modules.profile.router import router as profile_router
     from edu_cloud.modules.bank.router import router as bank_router
+    from edu_cloud.modules.knowledge_tree.router import router as knowledge_tree_router
+    from edu_cloud.modules.scan.pipeline_router import router as scan_pipeline_router
+    from edu_cloud.modules.conduct.parent_router import router as conduct_parent_router
+    from edu_cloud.modules.conduct.admin_router import router as conduct_admin_router
+    from edu_cloud.modules.menu.router import router as menu_router
     for r in [schools_router, settings_router, assignment_router, selection_router, capability_router, audit_router, homework_router, exam_router, question_router, joint_exams_router,
               results_router, workspace_router, llm_config_router, student_router,
               card_router, template_router, scan_router, grading_router,
               marking_router, analytics_router, knowledge_router, pipeline_router,
               studio_router, calendar_router, notifications_router,
-              grading_assignment_router, quality_router, profile_router, bank_router]:
+              grading_assignment_router, quality_router, profile_router, bank_router,
+              knowledge_tree_router, scan_pipeline_router,
+              conduct_parent_router, conduct_admin_router, menu_router]:
         app.include_router(r)
 
     @app.get("/api/v1/health")

@@ -1,0 +1,250 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d5af1-8bb2-73d1-aa37-ebbb2d0dcded
+--------
+user
+Round 3 re-review for Batch 1. R2 had 1 remaining finding: F004 test used class_col override instead of default. Fix: commit f95bd87 changed test to use ClassExamReport (which has real class_id field) with NO class_col override, testing default behavior. Read: git diff f95bd87~1..f95bd87 and tests/test_ai/test_scoped_query.py lines 123-136. Verify the test now uses default class_col and would fail if class filter code is deleted. If satisfied, conclude PASS. Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+本轮是对 `f95bd87` 的复审，我先按 `code-review:review-pr` 技能要求读取审查流程，然后检查指定 diff 和测试片段，确认是否真正覆盖了默认 `class_col` 行为。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$lines = Get-Content tests/test_ai/test_scoped_query.py; for ($i=123; $i -le 136; $i++) { if ($i -le $lines.Length) { '"'{0,4}: {1}' -f "'$i, $lines[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md -TotalCount 250' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff f95bd87~1..f95bd87' in C:/Users/Administrator/edu-cloud succeeded in 1.12s:
+ 123:     def test_class_filter_default_col_applied_when_present(self):
+ 124:         """F004: verify DEFAULT class_col='class_id' works on model that HAS class_id.
+ 125:         Uses ClassExamReport which has a real class_id column.
+ 126:         If the class filtering code is deleted, this test WILL fail."""
+ 127:         from edu_cloud.models.agent_snapshot import ClassExamReport
+ 128:         scope = _make_scope(visible_class_ids=["cls-99"])
+ 129:         sq = ScopedQuery(db=None, scope=scope)
+ 130:         query = select(ClassExamReport)
+ 131:         # No class_col override 鈥?uses default "class_id"
+ 132:         filtered = sq.apply(query, ClassExamReport)
+ 133:         sql = _compile(filtered)
+ 134:         assert "cls-99" in sql, "Default class_col='class_id' must inject WHERE clause on ClassExamReport"
+ 135: 
+ 136: 
+ succeeded in 1.02s:
+diff --git a/tests/test_ai/test_scoped_query.py b/tests/test_ai/test_scoped_query.py
+index 503b080..dcc749f 100644
+--- a/tests/test_ai/test_scoped_query.py
++++ b/tests/test_ai/test_scoped_query.py
+@@ -121,19 +121,17 @@ class TestScopedQueryApply:
+         )
+ 
+     def test_class_filter_default_col_applied_when_present(self):
+-        """F004: verify class filtering actually works when model has class_id.
++        """F004: verify DEFAULT class_col='class_id' works on model that HAS class_id.
++        Uses ClassExamReport which has a real class_id column.
+         If the class filtering code is deleted, this test WILL fail."""
+-        # Use a mock-like approach: StudentExamSnapshot has class_id_at_exam
+-        # but we test with class_col override to confirm the WHERE is injected
++        from edu_cloud.models.agent_snapshot import ClassExamReport
+         scope = _make_scope(visible_class_ids=["cls-99"])
+         sq = ScopedQuery(db=None, scope=scope)
+-        query = select(StudentExamSnapshot)
+-        # Explicitly pass the correct column name
+-        filtered = sq.apply(
+ succeeded in 1.26s:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+codex
+我已经看到测试改成了 `ClassExamReport` 且不再传 `class_col`。接下来补看 `ScopedQuery.apply` 和 `ClassExamReport` 定义，确认这不是“碰巧通过”，而是真在覆盖默认列名路径。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"class ScopedQuery|def apply\\(\" -S edu_cloud tests" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "class ClassExamReport|class_id" -S edu_cloud/models' in C:/Users/Administrator/edu-cloud exited 1 in 877ms:
+rg: edu_cloud: 系统找不到指定的文件。 (os error 2)
+ exited 1 in 848ms:
+rg: edu_cloud/models: IO error for operation on edu_cloud/models: 系统找不到指定的路径。 (os error 3)
+codex
+源码目录名和我预期不一致，我先定位 `ScopedQuery` 与 `ClassExamReport` 的实际路径，再做针对性确认。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "class ClassExamReport|class_id" -S .' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"class ScopedQuery|def apply\\(\" -S ." in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Name' in C:/Users/Administrator/edu-cloud succeeded in 1.71s:
+.pytest_cache
+.task
+alembic
+docs
+frontend
+logs
+scripts
+src
+tests
+test_output
+uploads
+.env
+.env.example
+.gitignore
+alembic.ini
+CLAUDE.md
+docker-compose.yml
+Dockerfile
+edu_cloud.db
+findings.md
+ succeeded in 4.72s:
+.\CLAUDE.md:118:    permissions.py      # 数据权限过滤（get_visible_class_ids/get_visible_subject_codes）
+.\CLAUDE.md:337:| GET | `/api/v1/schools/{id}/assignments` | MANAGE_SCHOOL_SETTINGS | 列表（支持 semester/user_id/class_id/subject_code 过滤） |
+.\CLAUDE.md:447:| GET | `/api/v1/homework/tasks` | VIEW_HOMEWORK | 列出作业（支持 class_id/subject_code/status/task_type 过滤） |
+.\CLAUDE.md:466:| GET | `/api/v1/profile/class/weakness` | VIEW_SCORES | 班级薄弱知识点 TOP N（需 class_id） |
+.\CLAUDE.md:536:| user_roles | user_id(FK), role, school_id(FK), class_ids, is_primary | 多角色+scope |
+.\CLAUDE.md:549:| teacher_assignments | user_id(FK), class_id(FK), subject_code, semester, school_id(FK), is_active | 教师排课记录（唯一约束：user+class+subject+semester） |
+.\CLAUDE.md:553:| homework_tasks | school_id(FK), title, task_type(regular/pre_exam/post_exam), subject_code, class_id(FK,nullable), assigned_by(FK), exam_id(FK,nullable), deadline, status(draft→active→expired→closed), content(Text), grading_mode | 作业任务 |
+.\CLAUDE.md:559:| class_exam_report | exam_id(FK→exams), class_id, grade_rank, class_avg, grade_avg, vs_last_exam, metrics(JSON), version, status, computed_at | 班级考试报告 |
+.\alembic\versions\b511d87c55e6_add_homework_tasks_and_homework_.py:30:        sa.Column('class_id', sa.String(36), sa.ForeignKey('classes.id'), nullable=True),
+.\alembic\versions\b511d87c55e6_add_homework_tasks_and_homework_.py:41:    op.create_index('ix_hw_task_school_class', 'homework_tasks', ['school_id', 'class_id'])
+.\alembic\versions\2bc5ab4977e5_add_assignments_selections.py:39:    sa.Column('class_id', sa.String(length=36), nullable=False),
+.\alembic\versions\2bc5ab4977e5_add_assignments_selections.py:47:    sa.ForeignKeyConstraint(['class_id'], ['classes.id'], ),
+.\alembic\versions\2bc5ab4977e5_add_assignments_selections.py:51:    sa.UniqueConstraint('user_id', 'class_id', 'subject_code', 'semester', name='uq_teacher_assignment')
+.\alembic\versions\2bc5ab4977e5_add_assignments_selections.py:53:    op.create_index(op.f('ix_teacher_assignments_class_id'), 'teacher_assignments', ['class_id'], unique=False)
+.\alembic\versions\2bc5ab4977e5_add_assignments_selections.py:62:    op.drop_index(op.f('ix_teacher_assignments_class_id'), table_name='teacher_assignments')
+.\alembic\versions\8b3f659c1a2a_initial_merged_schema.py:242:    sa.Column('class_ids', sa.JSON(), nullable=True),
+.\alembic\versions\8b3f659c1a2a_initial_merged_schema.py:362:    sa.Column('class_id_at_exam', sa.String(length=36), nullable=True),
+.\alembic\versions\8b3f659c1a2a_initial_merged_schema.py:378:    sa.Column('class_id', sa.String(length=36), nullable=True),
+.\alembic\versions\8b3f659c1a2a_initial_merged_schema.py:387:    sa.ForeignKeyConstraint(['class_id'], ['classes.id'], ),
+.\alembic\versions\d5b8da9e0931_add_agent_evolution_tables.py:128:    sa.Column('class_id', sa.String(length=36), nullable=False),
+ succeeded in 4.72s:
+.\src\edu_cloud\core\scope_filter.py:15:    def apply(self, stmt, model, *, school_col="school_id",
+.\src\edu_cloud\ai\scoped_query.py:21:class ScopedQuery:
+.\src\edu_cloud\ai\scoped_query.py:28:    def apply(
+.\docs\plans\2026-03-30-phase1c-permission-engine-design.md:143:    def apply(self, stmt, model, *, school_col="school_id",
+.\docs\plans\2026-03-30-phase1c-permission-engine-plan.md:966:    def apply(self, stmt, model, *, school_col="school_id",
+.\docs\plans\2026-04-04-agent-evolution-design.md:98:class ScopedQuery:
+.\docs\plans\2026-04-04-agent-evolution-plan.md:854:class ScopedQuery:
+.\docs\plans\2026-04-04-agent-evolution-plan.md:859:    def apply(self, query: Select, model, *, school_col="school_id",
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$path='"'src/edu_cloud/models/agent_snapshot.py'; "'$lines = Get-Content $path; for ($i=1; $i -le $lines.Length; $i++) { if ($lines[$i-1] -match '"'class ClassExamReport|class_id|__tablename__') { '{0,4}: {1}' -f "'$i, $lines[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$lines = Get-Content src/edu_cloud/ai/scoped_query.py; for ($i=1; $i -le [Math]::Min($lines.Length,140); $i++) { '"'{0,4}: {1}' -f "'$i, $lines[$i-1] }' in C:/Users/Administrator/edu-cloud succeeded in 936ms:
+  15:     __tablename__ = "exam_analysis_snapshot"
+  33: class ClassExamReport(Base, IdMixin, TenantMixin, TimestampMixin):
+  35:     __tablename__ = "class_exam_report"
+  40:     class_id: Mapped[str] = mapped_column(String(36), index=True)
+ succeeded in 1.02s:
+   1: """ScopedQuery: unified scope-aware data filter for AI tools.
+   2: 
+   3: Takes a DataScope and injects WHERE conditions into any SQLAlchemy SELECT query,
+   4: ensuring AI tools can only access data within the user's visibility boundary.
+   5: """
+   6: from __future__ import annotations
+   7: 
+   8: from typing import TYPE_CHECKING, Any
+   9: 
+  10: if TYPE_CHECKING:
+  11:     from sqlalchemy import Select
+  12:     from sqlalchemy.ext.asyncio import AsyncSession
+  13: 
+  14: from edu_cloud.ai.data_scope import DataScope
+  15: 
+  16: 
+  17: class ScopeViolationError(Exception):
+  18:     """Request parameter exceeds DataScope boundary."""
+  19: 
+  20: 
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$lines = Get-Content tests/test_ai/test_scoped_query.py; for ($i=1; $i -le 170; $i++) { if ($i -le $lines.Length) { '"'{0,4}: {1}' -f "'$i, $lines[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show --stat --oneline f95bd87' in C:/Users/Administrator/edu-cloud succeeded in 1.06s:
+   1: """Tests for ScopedQuery 鈥?unified scope-aware data filter."""
+   2: import pytest
+   3: from sqlalchemy import select
+   4: 
+   5: from edu_cloud.ai.data_scope import DataScope
+   6: from edu_cloud.ai.scoped_query import ScopedQuery, ScopeViolationError
+   7: from edu_cloud.modules.profile.models import StudentExamSnapshot
+   8: from edu_cloud.modules.student.models import Class
+   9: 
+  10: 
+  11: def _make_scope(**overrides):
+  12:     """Helper to create DataScope with defaults."""
+  13:     defaults = dict(
+  14:         user_id="u1",
+  15:         school_id="s1",
+  16:         role="subject_teacher",
+  17:         visible_class_ids=None,
+  18:         visible_subject_codes=None,
+  19:         visible_grade_ids=None,
+  20:         visible_student_ids=None,
+ succeeded in 1.25s:
+f95bd87 fix(b1-r2): F004 use ClassExamReport with real class_id for default col test
+ tests/test_ai/test_scoped_query.py | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)
+codex
+现在补一层实证：跑目标测试，并对比“有 class 过滤”和“删除该分支后的等效 SQL”，确认这个用例不是伪覆盖。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_ai/test_scoped_query.py -k default_col_applied_when_present -q' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from sqlalchemy import select
+from edu_cloud.ai.data_scope import DataScope
+from edu_cloud.ai.scoped_query import ScopedQuery
+from edu_cloud.models.agent_snapshot import ClassExamReport
+
+scope = DataScope(
+    user_id='u1', school_id='s1', role='subject_teacher',
+    visible_class_ids=['cls-99'], visible_subject_codes=None,
+    visible_grade_ids=None, visible_student_ids=None, district_ids=None,
+    can_write=True, can_see_rankings=True, can_cross_school=False,
+    persona='teacher_assistant', version=1,
+)
+sq = ScopedQuery(db=None, scope=scope)
+with_filter = str(sq.apply(select(ClassExamReport), ClassExamReport).compile(compile_kwargs={'literal_binds': True}))
+without_class_branch = str(select(ClassExamReport).where(ClassExamReport.school_id == scope.school_id).compile(compile_kwargs={'literal_binds': True}))
+print('WITH_FILTER')
+print(with_filter)
+print('WITHOUT_CLASS_BRANCH')
+print(without_class_branch)
+print('HAS_cls99_WITH', 'cls-99' in with_filter)
+print('HAS_cls99_WITHOUT', 'cls-99' in without_class_branch)
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 2.90s:
+WITH_FILTER
+SELECT class_exam_report.exam_id, class_exam_report.class_id, class_exam_report.grade_rank, class_exam_report.class_avg, class_exam_report.grade_avg, class_exam_report.vs_last_exam, class_exam_report.metrics, class_exam_report.version, class_exam_report.status, class_exam_report.computed_at, class_exam_report.id, class_exam_report.school_id, class_exam_report.created_at, class_exam_report.updated_at 
+FROM class_exam_report 
+WHERE class_exam_report.school_id = 's1' AND class_exam_report.class_id IN ('cls-99')
+WITHOUT_CLASS_BRANCH
+SELECT class_exam_report.exam_id, class_exam_report.class_id, class_exam_report.grade_rank, class_exam_report.class_avg, class_exam_report.grade_avg, class_exam_report.vs_last_exam, class_exam_report.metrics, class_exam_report.version, class_exam_report.status, class_exam_report.computed_at, class_exam_report.id, class_exam_report.school_id, class_exam_report.created_at, class_exam_report.updated_at 
+FROM class_exam_report 
+WHERE class_exam_report.school_id = 's1'
+HAS_cls99_WITH True
+HAS_cls99_WITHOUT False
+ succeeded in 9.52s:
+.                                                                        [100%]
+1 passed, 12 deselected in 0.56s
+codex
+PASS。
+
+[tests/test_ai/test_scoped_query.py#L123](/C:/Users/Administrator/edu-cloud/tests/test_ai/test_scoped_query.py#L123) 现在确实是在测默认 `class_col` 路径：它改为使用 `ClassExamReport`，并直接调用 `sq.apply(query, ClassExamReport)`，没有再传 `class_col` override。默认值来自 [src/edu_cloud/ai/scoped_query.py#L33](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/scoped_query.py#L33)，而 `class` 过滤分支在 [src/edu_cloud/ai/scoped_query.py#L48](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/scoped_query.py#L48)。`ClassExamReport` 本身也确实有真实的 `class_id` 字段，见 [src/edu_cloud/models/agent_snapshot.py#L33](/C:/Users/Administrator/edu-cloud/src/edu_cloud/models/agent_snapshot.py#L33) 和 [src/edu_cloud/models/agent_snapshot.py#L40](/C:/Users/Administrator/edu-cloud/src/edu_cloud/models/agent_snapshot.py#L40)。
+
+我还做了实证校验：目标测试单独运行通过；当前实现编译出的 SQL 包含 `class_exam_report.class_id IN ('cls-99')`，如果删掉 class filter 那段代码，SQL 只剩 `school_id = 's1'`，不再包含 `cls-99`，因此这个断言会失败。结论：F004 已修复，本轮复审通过。
+tokens used
+31,030
+PASS。
+
+[tests/test_ai/test_scoped_query.py#L123](/C:/Users/Administrator/edu-cloud/tests/test_ai/test_scoped_query.py#L123) 现在确实是在测默认 `class_col` 路径：它改为使用 `ClassExamReport`，并直接调用 `sq.apply(query, ClassExamReport)`，没有再传 `class_col` override。默认值来自 [src/edu_cloud/ai/scoped_query.py#L33](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/scoped_query.py#L33)，而 `class` 过滤分支在 [src/edu_cloud/ai/scoped_query.py#L48](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/scoped_query.py#L48)。`ClassExamReport` 本身也确实有真实的 `class_id` 字段，见 [src/edu_cloud/models/agent_snapshot.py#L33](/C:/Users/Administrator/edu-cloud/src/edu_cloud/models/agent_snapshot.py#L33) 和 [src/edu_cloud/models/agent_snapshot.py#L40](/C:/Users/Administrator/edu-cloud/src/edu_cloud/models/agent_snapshot.py#L40)。
+
+我还做了实证校验：目标测试单独运行通过；当前实现编译出的 SQL 包含 `class_exam_report.class_id IN ('cls-99')`，如果删掉 class filter 那段代码，SQL 只剩 `school_id = 's1'`，不再包含 `cls-99`，因此这个断言会失败。结论：F004 已修复，本轮复审通过。

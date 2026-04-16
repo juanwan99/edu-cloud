@@ -5,8 +5,8 @@ import { getSidebarItems } from '../config/sidebarConfig.js'
 import { getDashboardConfig } from '../config/dashboardConfig.js'
 
 describe('roles config', () => {
-  it('has 8 canonical roles', () => {
-    expect(CANONICAL_ROLES).toHaveLength(8)
+  it('has 10 canonical roles', () => {
+    expect(CANONICAL_ROLES).toHaveLength(10)
   })
   it('normalizes legacy aliases', () => {
     expect(normalizeRole('admin')).toBe('platform_admin')
@@ -26,7 +26,7 @@ describe('permissions config', () => {
     expect(hasPermission('platform_admin', 'manage_schools')).toBe(true)
     expect(hasPermission('parent', 'manage_schools')).toBe(false)
     expect(hasPermission('subject_teacher', 'use_ai_chat')).toBe(true)
-    expect(hasPermission('parent', 'use_ai_chat')).toBe(false)
+    expect(hasPermission('parent', 'use_ai_chat')).toBe(true)
   })
   it('uses lowercase values matching backend enum', () => {
     for (const perms of Object.values(ROLE_PERMISSIONS)) {

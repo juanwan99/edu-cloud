@@ -5,7 +5,7 @@ from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.exam import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.grading.models import GradingTask, AIGradingResult
+from edu_cloud.modules.grading.models import GradingTask, GradingResult
 from edu_cloud.shared.auth import create_access_token
 
 
@@ -31,8 +31,8 @@ async def analytics_setup(client, db):
     db.add(subject)
     await db.commit()
 
-    q1 = Question(subject_id=subject.id, name="Q1", question_type="subjective", max_score=10.0, school_id=school.id)
-    q2 = Question(subject_id=subject.id, name="Q2", question_type="subjective", max_score=10.0, school_id=school.id)
+    q1 = Question(subject_id=subject.id, name="Q1", question_type="essay", max_score=10.0, school_id=school.id)
+    q2 = Question(subject_id=subject.id, name="Q2", question_type="essay", max_score=10.0, school_id=school.id)
     db.add_all([q1, q2])
     await db.commit()
 
@@ -52,10 +52,10 @@ async def analytics_setup(client, db):
             )
             db.add(a)
             await db.commit()
-            r = AIGradingResult(
-                task_id=task.id, answer_id=a.id, question_id=q.id,
-                school_id=school.id, score=float(score), max_score=10.0,
-                feedback="f", confidence=0.9, review_status="pending",
+            r = GradingResult(
+                ai_task_id=task.id, answer_id=a.id, question_id=q.id,
+                school_id=school.id, ai_score=float(score), final_score=float(score), max_score=10.0,
+                ai_feedback="f", ai_confidence=0.9, status="ai_done",
             )
             db.add(r)
             await db.commit()
@@ -123,7 +123,7 @@ async def test_exam_summary_no_grading_data(client, db, analytics_setup):
     db.add(subject2)
     await db.commit()
     q = Question(
-        subject_id=subject2.id, name="MQ1", question_type="subjective",
+        subject_id=subject2.id, name="MQ1", question_type="essay",
         max_score=10.0, school_id=analytics_setup["school_id"],
     )
     db.add(q)
@@ -156,7 +156,7 @@ async def test_exam_summary_multiple_subjects(client, db, analytics_setup):
     db.add(subject2)
     await db.commit()
     q = Question(
-        subject_id=subject2.id, name="MQ1", question_type="subjective",
+        subject_id=subject2.id, name="MQ1", question_type="essay",
         max_score=10.0, school_id=analytics_setup["school_id"],
     )
     db.add(q)
@@ -179,10 +179,10 @@ async def test_exam_summary_multiple_subjects(client, db, analytics_setup):
         )
         db.add(a)
         await db.commit()
-        r = AIGradingResult(
-            task_id=task.id, answer_id=a.id, question_id=q.id,
-            school_id=analytics_setup["school_id"], score=score, max_score=10.0,
-            feedback="f", confidence=0.9, review_status="pending",
+        r = GradingResult(
+            ai_task_id=task.id, answer_id=a.id, question_id=q.id,
+            school_id=analytics_setup["school_id"], ai_score=score, final_score=score, max_score=10.0,
+            ai_feedback="f", ai_confidence=0.9, status="ai_done",
         )
         db.add(r)
         await db.commit()

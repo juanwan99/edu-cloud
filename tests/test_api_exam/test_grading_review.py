@@ -4,7 +4,7 @@ from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.exam import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.grading.models import GradingTask, AIGradingResult
+from edu_cloud.modules.grading.models import GradingTask, GradingResult
 from edu_cloud.shared.auth import create_access_token
 
 
@@ -28,7 +28,7 @@ async def review_setup(client, db):
     subject = Subject(exam_id=exam.id, name="语文", code="ch", school_id=school.id)
     db.add(subject)
     await db.commit()
-    q = Question(subject_id=subject.id, name="Q1", question_type="subjective", max_score=10.0, school_id=school.id)
+    q = Question(subject_id=subject.id, name="Q1", question_type="essay", max_score=10.0, school_id=school.id)
     db.add(q)
     await db.commit()
 
@@ -39,7 +39,6 @@ async def review_setup(client, db):
     db.add(task)
     await db.commit()
 
-    answers = []
     results = []
     for i in range(2):
         a = StudentAnswer(
@@ -48,10 +47,10 @@ async def review_setup(client, db):
         )
         db.add(a)
         await db.commit()
-        r = AIGradingResult(
-            task_id=task.id, answer_id=a.id, question_id=q.id,
-            school_id=school.id, score=8.0, max_score=10.0,
-            feedback="不错", confidence=0.9, review_status="pending",
+        r = GradingResult(
+            ai_task_id=task.id, answer_id=a.id, question_id=q.id,
+            school_id=school.id, ai_score=8.0, ai_confidence=0.9, ai_feedback="不错",
+            final_score=8.0, max_score=10.0, status="ai_done",
         )
         db.add(r)
         results.append(r)
@@ -71,7 +70,7 @@ async def test_list_results_by_task(client, review_setup):
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == 2
-    assert all(r["review_status"] == "pending" for r in data)
+    assert all(r["status"] == "ai_done" for r in data)
 
 
 async def test_get_single_result(client, review_setup):
@@ -89,7 +88,10 @@ async def test_approve_result(client, review_setup):
         headers=review_setup["headers"],
     )
     assert resp.status_code == 200
-    assert resp.json()["review_status"] == "approved"
+    body = resp.json()
+    assert body["status"] == "confirmed"
+    assert body["source"] == "ai"
+    assert body["final_score"] == 8.0  # approve 保持 ai_score
 
 
 async def test_override_result(client, review_setup):
@@ -100,8 +102,10 @@ async def test_override_result(client, review_setup):
         headers=review_setup["headers"],
     )
     assert resp.status_code == 200
-    assert resp.json()["review_status"] == "overridden"
-    assert resp.json()["adjusted_score"] == 6.0
+    body = resp.json()
+    assert body["status"] == "confirmed"
+    assert body["source"] == "ai_override"
+    assert body["final_score"] == 6.0
 
 
 async def test_override_without_score_rejected(client, review_setup):
@@ -134,4 +138,4 @@ async def test_duplicate_review_rejected(client, review_setup):
 async def test_list_pending_reviews(client, review_setup):
     resp = await client.get("/api/v1/grading/review/pending", headers=review_setup["headers"])
     assert resp.status_code == 200
-    assert len(resp.json()) == 2  # both are pending initially
+    assert len(resp.json()) == 2  # both are ai_done (pending review) initially

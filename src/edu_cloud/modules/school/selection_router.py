@@ -45,7 +45,7 @@ async def api_list_selections(
     school_id: str,
     is_active: bool | None = None,
     mode: str | None = None,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHEDULING)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
@@ -61,7 +61,7 @@ async def api_list_selections(
 async def api_create_selection(
     school_id: str,
     body: CreateSelectionRequest,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHEDULING)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
@@ -78,7 +78,7 @@ async def api_update_selection(
     school_id: str,
     selection_id: str,
     body: UpdateSelectionRequest,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHEDULING)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
@@ -92,7 +92,7 @@ async def api_update_selection(
 async def api_delete_selection(
     school_id: str,
     selection_id: str,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHEDULING)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)

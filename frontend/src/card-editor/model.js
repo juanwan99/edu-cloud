@@ -12,66 +12,81 @@ function _buildSubs(subCount) {
 export function createDefaultLayout(config) {
   const choiceCount = config.choiceCount || 11;
   const fillCount = config.fillCount || 3;
-  const essayCount = config.essayCount || 5;
   const essayConfig = config.essayConfig || [];
   const fillStart = choiceCount + 1;
   const essayStart = choiceCount + fillCount + 1;
 
+  // 构建所有 essay regions
+  const essayRegions = essayConfig.map((ec, i) => ({
+    id: `essay-${essayStart + i}`,
+    type: 'essay',
+    qno: essayStart + i,
+    score: (ec || {}).score || 10,
+    subs: _buildSubs((ec || {}).sub_count || 0),
+    heightRatio: 1.0,
+  }));
+
+  // 6 个槽位：A面 col0/1/2 + B面 col0/1/2，从 col0 开始依次填充
+  const slots = [[], [], [], [], [], []];
+  let slotIdx = 0;
+  for (const r of essayRegions) {
+    slots[slotIdx].push(r);
+    slotIdx = Math.min(slotIdx + 1, 5);
+  }
+
+  const paperSize = config.paperSize || 'A3'
+  const isA4 = paperSize === 'A4'
+
+  const col0Regions = [
+    { id: 'header', type: 'fixed', role: 'header' },
+    { id: 'info', type: 'fixed', role: 'info' },
+    { id: 'notice', type: 'fixed', role: 'notice' },
+    { id: 'choices', type: 'fixed', role: 'choices',
+      count: choiceCount, options: config.optionCount || 4,
+      perRow: config.choicePerRow || 20 },
+    ...Array.from({length: fillCount}, (_, i) => ({
+      id: `fill-${fillStart + i}`,
+      type: 'fill',
+      qno: fillStart + i,
+      spaces: 1,
+      spaceWidth: '100%',
+      heightRatio: 1 / fillCount,
+    })),
+  ]
+
+  if (isA4) {
+    // A4: 单栏，A/B 双面
+    const aEssays = essayRegions.filter((_, i) => i < Math.ceil(essayRegions.length / 2))
+    const bEssays = essayRegions.filter((_, i) => i >= Math.ceil(essayRegions.length / 2))
+    return {
+      paper: 'A4',
+      config,
+      sides: [
+        { side: 'A', columns: [{ col: 0, regions: [...col0Regions, ...aEssays] }] },
+        { side: 'B', columns: [{ col: 0, regions: [...bEssays] }] },
+      ],
+    }
+  }
+
   return {
-    paper: config.paperSize || 'A3',
+    paper: 'A3',
     config,
     sides: [
       {
         side: 'A',
         columns: [
-          {
-            col: 0,
-            regions: [
-              { id: 'header', type: 'fixed', role: 'header' },
-              { id: 'info', type: 'fixed', role: 'info' },
-              { id: 'notice', type: 'fixed', role: 'notice' },
-              { id: 'choices', type: 'fixed', role: 'choices',
-                count: choiceCount, options: config.optionCount || 4,
-                perRow: config.choicePerRow || 15 },
-              ...Array.from({length: fillCount}, (_, i) => ({
-                id: `fill-${fillStart + i}`,
-                type: 'fill',
-                qno: fillStart + i,
-                spaces: 1,
-                spaceWidth: '100%',
-                heightRatio: 1 / fillCount,
-              })),
-            ],
-          },
-          ...([1, 2].map(c => ({
-            col: c,
-            regions: essayConfig[c - 1] ? [{
-              id: `essay-${essayStart + c - 1}`,
-              type: 'essay',
-              qno: essayStart + c - 1,
-              score: (essayConfig[c - 1] || {}).score || 10,
-              subs: _buildSubs((essayConfig[c - 1] || {}).sub_count || 0),
-              heightRatio: 1.0,
-            }] : [],
-          }))),
+          { col: 0, regions: [...col0Regions, ...slots[0]] },
+          { col: 1, regions: [...slots[1]] },
+          { col: 2, regions: [...slots[2]] },
         ],
       },
       {
         side: 'B',
-        columns: [0, 1, 2].map(c => {
-          const idx = c + 2;
-          return {
-            col: c,
-            regions: essayConfig[idx] ? [{
-              id: `essay-${essayStart + idx}`,
-              type: 'essay',
-              qno: essayStart + idx,
-              score: (essayConfig[idx] || {}).score || 10,
-              subs: _buildSubs((essayConfig[idx] || {}).sub_count || 0),
-              heightRatio: 1.0,
-            }] : [],
-          };
-        }),
+        columns: [
+          { col: 0, regions: [...slots[3]] },
+          { col: 1, regions: [...slots[4]] },
+          { col: 2, regions: [...slots[5]] },
+        ],
       },
     ],
   };

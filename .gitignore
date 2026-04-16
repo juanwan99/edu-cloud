@@ -37,3 +37,6 @@ tmp/
 *.tmp
 
 uploads/
+
+# Databases
+*.db

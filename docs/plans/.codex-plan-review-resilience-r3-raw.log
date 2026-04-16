@@ -1,0 +1,405 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d62a7-6c36-7430-9305-ec76248e97d6
+--------
+user
+You are performing Round 3 (final round) re-review of an implementation plan.
+
+Round 1: 5 findings (F001-F005), all FAIL
+Round 2: F001/F002/F004/F005 fixed. F003 still open + new NF001. FAIL.
+Round 3 (this round): Only reviewing F003 fix + NF001 fix. Per rules, Round 3 only reviews code-bug and test-gap fixes.
+
+Read the UPDATED plan: C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md
+Read the design: C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md
+Read the schema: C:/Users/Administrator/.claude/config/contract-pack-schema.md
+
+**F003 fix to verify:**
+- Loop detection code now checks `err == last_error` (same error text comparison)
+- Added 3 behavioral tests: consecutive_same_error_triggers_skip, success_breaks_chain, different_error_breaks_chain
+- Does this now satisfy all 4 design conditions?
+
+**NF001 fix to verify:**
+- Added semantic_regression section with required: true, 3 risk_tags, 6 oracles
+- Does this satisfy contract-pack-schema.md requirements?
+
+Per review-templates.md: Round 3 only reviews code-bug and test-gap. design-concern goes to Planner.
+Output PASS or FAIL with brief justification. Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem failed: MCP client for `filesystem` timed out after 15 seconds. Add or adjust `startup_timeout_sec` in your config.toml:
+[mcp_servers.filesystem]
+startup_timeout_sec = XX
+mcp startup: failed: filesystem
+codex
+本轮只核查 F003 和 NF001 在更新后的计划里是否满足设计与 schema 约束。我先读取 review skill 说明和你指定的 3 个文档，再按 Round 3 范围给出 PASS/FAIL。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.claude/config/contract-pack-schema.md'" in C:/Users/Administrator/edu-cloud succeeded in 2.69s:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+ succeeded in 2.75s:
+# Agent 闊ф€т笌楠岃瘉澧炲己璁捐
+
+> 2026-04-06 19:01:21 | Claude脳GPT 鍏辫瘑鐗?> 瀵规爣: DeerFlow (ByteDance, 58k star) 娣卞害瀵规瘮鍚庣殑缁撴瀯鎬у寮?
+## 搂0 鑳屾櫙涓庡姩鏈?
+edu-cloud Agent 绯荤粺锛?2 宸ュ叿銆? 瑙掕壊 RBAC銆? 灞傝蹇嗐€?359 tests锛夊湪涓?DeerFlow 鐨勯噺鍖栧姣斾腑锛屾潈闄愬畨鍏?7.5 vs 2.5)鍜屾祴璇曡鐩?7 vs 3)棰嗗厛锛屼絾鍦ㄩ敊璇仮澶?涓よ€呴兘寮?鍜岃緭鍑洪獙璇?4.5 vs 1)鏂归潰瀛樺湪缁撴瀯鎬х己闄枫€?
+浠ｇ爜瀹¤鍙戠幇锛歄utputValidator 鍥犳帴绾块敊璇粠鏈湡姝ｅ伐浣滐紱骞跺彂宸ュ叿鎵规 >10 涓細闈欓粯涓㈠純锛沞rror_count 璇箟娣蜂贡銆傝繖浜涗笉鏄?澧炲己"锛屾槸蹇呴』淇殑 bug銆?
+## 搂1 鑼冨洿
+
+鏂规 B锛堥煣鎬?楠岃瘉澧炲己锛夛細P0 bug fix + P1 闊ф€?+ P2 楠岃瘉 + P3 閰嶇疆澶栨彁銆?涓嶅惈绠￠亾鍖栭噸鏋勶紙鏂规 C锛夛紝鐞嗙敱锛氬綋鍓?Agent 鍔熻兘绋冲畾锛屾棤棰戠箒鍔犳楠ら渶姹傘€?
+**娑夊強鏂囦欢锛?*
+- `src/edu_cloud/ai/runtime.py` 鈥?P0-1
+- `src/edu_cloud/ai/tool_executor.py` 鈥?P0-2, P1-2
+- `src/edu_cloud/ai/memory_store.py` 鈥?P0-3
+- `src/edu_cloud/ai/agent_loop.py` 鈥?P0-4, P2-3
+- `src/edu_cloud/ai/llm_adapter.py` 鈥?P1-1
+- `src/edu_cloud/ai/grounded.py` 鈥?P2-1, P2-2
+- `src/edu_cloud/ai/capability_probe.py` 鈥?P3-1
+- `src/edu_cloud/ai/model_router.py` 鈥?P3-2
+- `src/edu_cloud/config.py` 鈥?P3-1, P3-2
+- `src/edu_cloud/ai/registry.py` 鈥?P1-2锛堣 is_read_only锛?
+ succeeded in 2.61s:
+# Agent 闊ф€т笌楠岃瘉澧炲己 Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 淇 Agent 绯荤粺 4 涓湡瀹?bug锛圤utputValidator 绌鸿浆銆佸苟鍙戞埅鏂€佹祬灞?merge銆乪rror_count 璇箟娣蜂贡锛夛紝澧炲己闊ф€э紙LLM 閲嶈瘯銆佸伐鍏疯秴鏃讹級锛屾敼杩涜緭鍑洪獙璇佸拰閰嶇疆绠＄悊銆?
+**Architecture:** 10 涓枃浠剁殑澧為噺淇敼锛屾棤鏂版ā鍧椼€侾0 淇?bug 鈫?P1 鍔犻煣鎬?鈫?P2 鏀归獙璇?鈫?P3 鎻愰厤缃€傛瘡涓?Task 鐙珛鍙祴璇曘€?
+**Tech Stack:** Python 3.12, asyncio, httpx, SQLAlchemy 2.0 (async), pytest
+
+**Design:** `docs/plans/2026-04-06-agent-resilience-design.md`
+
+---
+
+## Contract Pack
+
+```yaml
+contract_pack:
+  invariants:
+    - id: INV-001
+      statement: "DataScope fail-closed 琛屼负涓嶅彉鈥斺€攑arent 瑙掕壊 visible_student_ids=[] 鏃讹紝鎵€鏈夊伐鍏疯繑鍥炵┖缁撴灉"
+      verification: existing_test
+ succeeded in 3.64s:
+# Contract Pack Schema
+
+> 鍗曚竴鐪熸簮銆侾lan Review prompt 寮曠敤姝ゆ枃浠躲€?
+
+## 鏍煎紡瑙勫垯锛團-008 淇锛?
+
+- **鏍归敭寮哄埗**: Contract Pack 蹇呴』浠?`contract_pack:` 涓?YAML 鏍归敭
+- **verification 鏋氫妇**: 鍙厑璁?`existing_test` / `pending_test` / `uncovered`锛屽娉ㄧ敤 `note` 瀛楁
+- **绌?test_debt**: `test_debt: []` 鏄悎娉曠殑锛岃〃绀?褰撳墠鏃犲欢鏈熼」"锛涚己灏?`test_debt` 閿笉鍚堟硶
+
+## 蹇呰娈佃惤锛圥lan Review 妫€鏌ュ畬鏁存€э級
+
+### invariants锛堚墺3 鏉★級
+
+| 瀛楁 | 蹇呭～ | 璇存槑 |
+|------|------|------|
+| id | 鉁?| INV-NNN |
+| statement | 鉁?| 涓嶅彲楠岃瘉鐨?prose 涓嶆帴鍙楋紙濡?绯荤粺搴旀纭繍琛?锛?|
+| verification | 鉁?| existing_test / pending_test / uncovered |
+| test_ref | 浠?existing_test | test_file:test_function |
+codex
+我已经拿到更新后的 plan、design 和 schema。现在补读 `review-templates.md` 里的 Round 3 规则，只按代码 bug 和测试缺口判断，不扩展到设计意见。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files -g 'review-templates.md' -g '*review*template*' 'C:/Users/Administrator/edu-cloud'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"Round 3|code-bug|test-gap|design-concern\" 'C:/Users/Administrator/edu-cloud/docs' 'C:/Users/Administrator/edu-cloud'" in C:/Users/Administrator/edu-cloud exited 1 in 1.78s:
+
+ succeeded in 2.01s:
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-18-joint-exam-mvp-design.md:5:> 状态: 实现完成，审查通过（Round 3 PASS）
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-18-joint-exam-mvp-plan-review.md:5:结论: **9 findings（3 HIGH code-bug 需修复，4 design-concern Planner 处置，1 LOW suggestion）**
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-18-joint-exam-mvp-plan-review.md:11:| F001 | HIGH | code-bug | 中间件 `except Exception` 会吞掉 Service 异常，异常处理器无法生效 | **接受** — Task 1 补充中间件重构 |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-18-joint-exam-mvp-plan-review.md:12:| F002 | HIGH | code-bug | `district_admin` 缺少 `MANAGE_SCHOOLS` 权限，与设计文档矛盾 | **接受** — Task 2 补充 permissions.py 修改 |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-18-joint-exam-mvp-plan-review.md:13:| F003 | HIGH | code-bug | 模板下载单 URL 无法同时交付 skeleton+PDF，exam-ai 落库目标不明确 | **接受** — 改为 zip 包下载 |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-18-joint-exam-mvp-plan-review.md:14:| F004 | HIGH | design-concern | JointExamScore 删除无回滚策略 | **不阻塞** — MVP 无生产数据，直接替换合理；记入 design.md §待处置 |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-18-joint-exam-mvp-plan-review.md:15:| F005 | MED | code-bug | get_student_detail 缺少各科排名位次字段 | **接受** — Task 9 补充 rank 计算 |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-18-joint-exam-mvp-plan-review.md:16:| F006 | MED | design-concern | GradingResult 实际是 AIGradingResult，Task 10 grep 目标错误 | **接受** — 修正为 AIGradingResult |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-18-joint-exam-mvp-plan-review.md:17:| F007 | MED | design-concern | 非参与校异常类型不一致（NotFoundError vs 403） | **接受** — 统一为 PermissionDeniedError → 403 |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-18-joint-exam-mvp-plan-review.md:18:| F008 | MED | design-concern | Alembic/Dockerfile 无独立 Task；Task 11 缺 Testable Slices | **接受** — 补 Task 0 基础设施 |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-22-platform-merge-plan-review.md:10:| PMR-001 | HIGH | code-bug | ROLE_TOOL_CATEGORIES 在 agent.py 不在 permissions.py，计划指错文件 | **已修复** — Task 17 目标改为 ai/agent.py |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-22-platform-merge-plan-review.md:11:| PMR-002 | HIGH | design-concern | ExamResult 设计文档说删、计划说保留，矛盾 | **已修复** — 设计文档同步更新为"保留为聚合视图" + ADR |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-22-platform-merge-plan-review.md:12:| PMR-003 | HIGH | design-concern | Alembic "新 initial migration" 对已有迁移处理不清 | **已修复** — 明确"无生产数据 → 删旧建新"，标注生产场景需 rename |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-22-platform-merge-plan-review.md:13:| PMR-004 | HIGH | test-gap | 多个行为变更 Task 缺少 5 字段测试契约 | **已修复** — Task 3(auth), Task 12(多租户) 补充完整测试契约 |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-22-platform-merge-plan-review.md:14:| PMR-005 | HIGH | test-gap | Task 12 API 测试只验"可达"，不验多租户隔离 | **已修复** — 补充跨 school 越权 + 资源不存在 + 旧路径 404 |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-22-platform-merge-plan-review.md:15:| PMR-006 | HIGH | test-gap | Task 5 LLMSlot 测试是逻辑镜像 | **已修复** — 补充 slot 优先级 + disabled + fallback 入口级测试 |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-22-platform-merge-plan-review.md:16:| PMR-007 | MED | design-concern | school 模块在文件列表不一致 | **已修复** — Task 1 Files 清单补 school |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-22-platform-merge-plan-review.md:17:| PMR-008 | MED | design-concern | Task 11 过大（8 模块同时处理） | **已修复** — 拆为 11a(knowledge) + 11b(studio/calendar) + 11c(其余) |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-22-platform-merge-plan-review.md:18:| PMR-009 | MED | design-concern | llm_router.py 与 llm_config_router.py 命名混淆 | **已修复** — 内部逻辑改名 slot_selector.py |
+C:/Users/Administrator/edu-cloud/docs\plans\2026-03-22-platform-merge-plan-review.md:19:| PMR-010 | MED | design-concern | 无 per-batch 风险矩阵 | **已修复** — 补充 7 个高风险区域 + 额外验证要求 |
+codex
+我在核对 `semantic_regression` 的具体字段约束。这里要看清两件事：一是 F003 的四条件是否都被计划里的代码和测试覆盖，二是 schema 对 `temporal_trace` 是否还有额外必填字段。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n -C 5 \"semantic_regression|risk_tags|oracles|trace_ref|required:\" 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n -C 4 \"trace_ref|temporal_trace|forbidden_strategy|semantic_regression|risk_tags|oracles\" 'C:/Users/Administrator/.claude/config/contract-pack-schema.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n -C 6 \"P2-3|loop detection|same error|same name|canonicalize|连续|相同错误|四要素|四条件\" 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md'" in C:/Users/Administrator/edu-cloud succeeded in 2.54s:
+59-      reason: "P1-1 新增重试层，影响所有 LLM 调用路径"
+60-    - module: src/edu_cloud/ai/runtime.py
+61-      reason: "P0-1 修改 OutputValidator 数据收集逻辑"
+62-
+63-  test_debt:
+64:  semantic_regression:
+65:    required: true
+66:    risk_tags:
+67-      - state_machine        # P0-4 重构 error_count → dual streak counters
+68-      - threshold_default     # P3-1 Tier 阈值外提, P2-3 循环检测阈值
+69-      - selection_strategy    # P3-2 Router 关键词外提
+70:    oracles:
+71-      - id: ORC-001
+72-        type: temporal_trace
+73-        statement: "LLM 连续 3 次异常后 agent 循环必须终止并 yield error 事件"
+74-        protects: [state_machine]
+75-        verification: pending_test
+ succeeded in 2.32s:
+15-不含管道化重构（方案 C），理由：当前 Agent 功能稳定，无频繁加步骤需求。
+16-
+17-**涉及文件：**
+18-- `src/edu_cloud/ai/runtime.py` — P0-1
+19-- `src/edu_cloud/ai/tool_executor.py` — P0-2, P1-2
+20-- `src/edu_cloud/ai/memory_store.py` — P0-3
+21:- `src/edu_cloud/ai/agent_loop.py` — P0-4, P2-3
+22-- `src/edu_cloud/ai/llm_adapter.py` — P1-1
+23-- `src/edu_cloud/ai/grounded.py` — P2-1, P2-2
+24-- `src/edu_cloud/ai/capability_probe.py` — P3-1
+25-- `src/edu_cloud/ai/model_router.py` — P3-2
+26-- `src/edu_cloud/config.py` — P3-1, P3-2
+27-- `src/edu_cloud/ai/registry.py` — P1-2（读 is_read_only）
+--
+172-### P2-2 百分数转换条件化
+173-
+174-**位置：** `grounded.py` 的 `_collect_numbers()` 递归。
+175-
+176-**修复：** 递归时携带 `key_path` 参数，只在 key 包含 `rate`/`ratio`/`percent`/`及格`/`优秀`/`pass` 时做 `×100` 转换。
+177-
+ succeeded in 2.63s:
+53-- invariant: "系统应正确处理所有输入" — 不可验证
+54-- counter_example: "如果实现有 bug" — 不具体
+55-- test_debt reason: "" — 空理由
+56-
+57:## semantic_regression（可选，高风险设计强制）
+58-
+59-> 2026-04-01 新增。验证 review fix 不破坏全局设计语义。
+60-
+61-### 顶层字段
+62-
+63-| 字段 | 必填 | 说明 |
+64-|------|------|------|
+65-| required | ✓ | true = 高风险设计，semantic_risk=true 时强制跑 oracle |
+66:| risk_tags | ✓ | 本设计涉及的高风险语义领域（见枚举） |
+67:| oracles | ✓ | oracle 列表（≥1 temporal_trace + ≥1 forbidden_strategy） |
+68-
+69:### risk_tags 枚举
+70-
+71-| Tag | 含义 |
+72-|-----|------|
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n -C 2 \"ORC-00[1-6]|trace_ref|verification: pending_test|verification: existing_test|type: temporal_trace|type: forbidden_strategy\" 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"review-templates\\.md\" 'C:/Users/Administrator/edu-cloud' 'C:/Users/Administrator/.agents' 'C:/Users/Administrator/.claude'" in C:/Users/Administrator/edu-cloud succeeded in 2.99s:
+20-    - id: INV-001
+21-      statement: "DataScope fail-closed 行为不变——parent 角色 visible_student_ids=[] 时，所有工具返回空结果"
+22:      verification: existing_test
+23-      test_ref: tests/test_ai/test_data_scope.py::test_parent_empty_students_returns_empty
+24-    - id: INV-002
+25-      statement: "SSE tool_result 事件载荷形状为 {tool: str, result: any}，与前端契约一致"
+26:      verification: existing_test
+27-      test_ref: tests/test_ai/test_ai_api_v2.py::test_sse_event_exact_payload_shape
+28-    - id: INV-003
+29-      statement: "SSE 事件类型集合不变: thinking/plan/task_update/tool_call/tool_result/answer/error/done"
+30:      verification: existing_test
+31-      test_ref: tests/test_ai/test_agent_loop.py::test_basic_tool_loop
+32-    - id: INV-004
+33-      statement: "42 个工具的函数签名和 ToolSpec 注册参数不变"
+34:      verification: existing_test
+35-      test_ref: tests/test_ai/test_tools_registration.py::test_all_tools_registered
+36-
+--
+69-      - selection_strategy    # P3-2 Router 关键词外提
+70-    oracles:
+ succeeded in 8.08s:
+C:/Users/Administrator/edu-cloud\docs\plans\2026-04-03-edu-agent-plan-review.md:68:确认 plan 确实没有这些段落。plan 每个 Task 有内联测试代码，但没有按 review-templates.md 要求的 5 字段格式（入口/反例/边界/回归/命令）。
+C:/Users/Administrator/edu-cloud\docs\plans\2026-04-03-a4-card-editor-plan.md:949:按 review-templates.md 格式输出审查交接单，包含逐 Task 自审表 + 验证清单自检 + 自查段。
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:62:- Finding 分类: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-classification -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:63:- Finding Type: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-type -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:64:- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: pass-fail -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:65:- test-gap 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: test-gap-criteria -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:66:- 行为变更守卫: ~/.claude/rules-t3/review-templates.md <!-- anchor: behavior-change-guard -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:67:- Finding 转换规则: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-transition -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:160:- Finding 分类: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-classification -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:161:- Finding Type: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-type -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:162:- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: pass-fail -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:163:- test-gap 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: test-gap-criteria -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:164:- 三态 Finding 模型: ~/.claude/rules-t3/review-templates.md <!-- anchor: three-state-model -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:165:- 行为变更守卫: ~/.claude/rules-t3/review-templates.md <!-- anchor: behavior-change-guard -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:166:- Finding 转换规则: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-transition -->
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:409:审查工作流模板（格式、finding 分类、PASS/FAIL 规则、叠加规则）的唯一权威来源是 `~/.claude/rules-t3/review-templates.md`。
+C:/Users/Administrator/.claude\skills\codex-review\SKILL.md:411:禁止在本目录下新建 review-templates.md 副本。
+C:/Users/Administrator/.claude\LESSONS.md:122:  5. 详见 review-templates.md「行为变更守卫」段 + codex-review SKILL.md
+C:/Users/Administrator/.claude\findings.md:14:- `~/.claude/rules` 实际有 6 份规则文件：`architecture-rules.md`、`logging-rules.md`、`memory-rules.md`、`plan-ux-fidelity.md`、`review-templates.md`、`server-rules.md`，与用户在问题中提到的“6 rules”一致。
+C:/Users/Administrator/.claude\findings.md:18:- `rules/review-templates.md` 与 `skills/codex-review/review-templates.md` 当前不一致：skill 副本多出 `test-gap` 阻塞项，并保留更完整的 `边界条件 + Testable Slices` 展开，而 always-on 规则副本已被压缩。
+codex
+我找到了权威 `review-templates.md` 路径。接着只读取与 Round 3 范围和 PASS/FAIL 相关的段落，避免把设计类问题误计入本轮。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md' | Select-String -Pattern 'Task 8|TestLoopDetectionBehavior|test_consecutive_same_error_triggers_skip|test_success_breaks_chain|test_different_error_breaks_chain|semantic_regression|ORC-00[1-6]' -Context 0,8" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.claude/rules-t3/review-templates.md'" in C:/Users/Administrator/edu-cloud succeeded in 1.78s:
+# 瀹℃煡宸ヤ綔娴佹ā鏉夸笌娴佺▼
+
+> 浠庡叏灞€ CLAUDE.md 鎶藉彇銆俆3/T4 鎵ц浼氳瘽鎸夐渶璇诲彇銆?
+
+## 娴佺▼缂栨帓
+
+### T3锛? 绐楀彛锛?
+
+```
+鈶?Claude: Design 鈫?Plan 鈫?commit (draft)
+鈶?GPT Codex: Plan Review 鈫?plan-review.md (Gate 1)
+鈶?Claude: 澶勭疆 finding 鈫?commit (final plan) 鈫?Execute 鈫?鑷浜ゆ帴鍗?
+鈶?GPT Codex: Code Review锛堝叏閲忥紝codex exec锛夆啋 review-report.md (Gate 2)
+鈶?Gate: 鎵€鏈?finding 宸插缃?鈫?design.md 鏍囪 [瀹炵幇瀹屾垚]
+```
+
+### T4锛? 鎸佷箙 + 涓€娆℃€?Executor锛?
+
+```
+鈶?Claude Planner: Design 鈫?Plan 鈫?commit (draft)
+warning: in-process app-server event stream lagged; dropped 206 events
+warning: in-process app-server event stream lagged; dropped 6 events
+warning: in-process app-server event stream lagged; dropped 103 events
+warning: in-process app-server event stream lagged; dropped 2 events
+warning: in-process app-server event stream lagged; dropped 4 events
+warning: in-process app-server event stream lagged; dropped 1 events
+warning: in-process app-server event stream lagged; dropped 25 events
+warning: in-process app-server event stream lagged; dropped 22 events
+ succeeded in 3.22s:
+
+> # Agent 闊ф€т笌楠岃瘉澧炲己 Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers
+:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 淇 Agent 绯荤粺 4 涓湡瀹?bug锛圤utputValidator 绌鸿浆銆佸苟鍙戞埅鏂€佹祬灞?merge銆乪rror_count 璇箟娣蜂贡锛夛紝澧炲己闊ф€э紙LLM 閲嶈瘯銆佸伐鍏疯秴鏃讹級锛
+屾敼杩涜緭鍑洪獙璇佸拰閰嶇疆绠＄悊銆?
+**Architecture:** 10 涓枃浠剁殑澧為噺淇敼锛屾棤鏂版ā鍧椼€侾0 淇?bug 鈫?P1 鍔犻煣鎬?鈫?P2 鏀归獙璇?鈫?P3 鎻愰厤缃€傛瘡涓?Task 鐙珛鍙祴璇曘€?
+**Tech Stack:** Python 3.12, asyncio, httpx, SQLAlchemy 2.0 (async), pytest
+
+**Design:** `docs/plans/2026-04-06-agent-resilience-design.md`
+
+---
+
+## Contract Pack
+
+```yaml
+contract_pack:
+  invariants:
+codex
+我在回看上一轮留下的 F003 语义。关键不是“加了 3 个测试名字”就算通过，而是要确认计划里的实现和测试真的覆盖了同工具、同参数、连续、同错误这四个条件。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n -C 3 \"same name|same params|consecutive|same error|四条件|四要素\" 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n -C 4 \"F003|NF001|same error|循环检测|loop detection|semantic_regression\" 'C:/Users/Administrator/edu-cloud/docs/plans/*agent*review*' 'C:/Users/Administrator/edu-cloud/docs/plans/*resilience*'" in C:/Users/Administrator/edu-cloud exited 1 in 2.48s:
+rg: C:/Users/Administrator/edu-cloud/docs/plans/*agent*review*: 文件名、目录名或卷标语法不正确。 (os error 123)
+rg: C:/Users/Administrator/edu-cloud/docs/plans/*resilience*: 文件名、目录名或卷标语法不正确。 (os error 123)
+ succeeded in 2.51s:
+1312-class TestLoopDetectionBehavior:
+1313-    """P2-3: behavioral tests for loop detection skip/no-skip scenarios."""
+1314-
+1315:    def test_consecutive_same_error_triggers_skip(self):
+1316:        """3 consecutive calls with same name+params+error → 3rd should be skipped."""
+1317-        from edu_cloud.ai.agent_loop import AgentState, _canonicalize
+1318-        from edu_cloud.ai.schemas import Message, ToolCall
+1319-        import json as _json
+--
+1321-        state = AgentState(messages=[])
+1322-        fp = _json.dumps(_canonicalize({"exam_id": "e1"}), ensure_ascii=False, sort_keys=True)
+1323-
+1324:        # Simulate 2 prior consecutive failures with same error
+1325-        state._recent_calls.append(("get_scores", fp, "not found"))
+1326-        state._recent_calls.append(("get_scores", fp, "not found"))
+1327-
+1328-        # 3rd call should be detected
+1329-        tc = ToolCall(id="3", name="get_scores", arguments={"exam_id": "e1"}, _raw={})
+1330:        consecutive_fails = 0
+1331-        last_error = None
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n -C 5 \"F003|NF001\" 'C:/Users/Administrator/edu-cloud/docs/plans'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n -C 5 \"semantic_regression section|trace_ref|same_error|different_error_breaks_chain|success_breaks_chain\" 'C:/Users/Administrator/edu-cloud/docs/plans'" in C:/Users/Administrator/edu-cloud succeeded in 1.98s:
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-89-      - id: ORC-004
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-90-        type: forbidden_strategy
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-91-        statement: "禁止历史总次数计数替代连续性检测 — 必须从 _recent_calls 末尾反向遍历且遇到非匹配即 break"
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-92-        protects: [state_machine]
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-93-        verification: pending_test
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md:94:        note: "Task 8 test_success_breaks_chain 覆盖"
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-95-      - id: ORC-005
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-96-        type: temporal_trace
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-97-        statement: "自定义 Tier 阈值 [50K,10K] 时，60K context 模型被 determine_tier() 判定为 tier 1 而非 tier 2"
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-98-        protects: [threshold_default]
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-99-        verification: pending_test
+--
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-1310-
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-1311-
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-1312-class TestLoopDetectionBehavior:
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-1313-    """P2-3: behavioral tests for loop detection skip/no-skip scenarios."""
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-1314-
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md:1315:    def test_consecutive_same_error_triggers_skip(self):
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-1316-        """3 consecutive calls with same name+params+error → 3rd should be skipped."""
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-06-agent-resilience-plan.md-1317-        from edu_cloud.ai.agent_loop import AgentState, _canonicalize
+ succeeded in 2.02s:
+C:/Users/Administrator/edu-cloud/docs/plans\2026-03-18-joint-exam-mvp-plan-review.md-8-
+C:/Users/Administrator/edu-cloud/docs/plans\2026-03-18-joint-exam-mvp-plan-review.md-9-| ID | Severity | Category | 描述 | Planner 处置 |
+C:/Users/Administrator/edu-cloud/docs/plans\2026-03-18-joint-exam-mvp-plan-review.md-10-|----|----------|----------|------|-------------|
+C:/Users/Administrator/edu-cloud/docs/plans\2026-03-18-joint-exam-mvp-plan-review.md-11-| F001 | HIGH | code-bug | 中间件 `except Exception` 会吞掉 Service 异常，异常处理器无法生效 | **接受** — Task 1 补充中间件重构 |
+C:/Users/Administrator/edu-cloud/docs/plans\2026-03-18-joint-exam-mvp-plan-review.md-12-| F002 | HIGH | code-bug | `district_admin` 缺少 `MANAGE_SCHOOLS` 权限，与设计文档矛盾 | **接受** — Task 2 补充 permissions.py 修改 |
+C:/Users/Administrator/edu-cloud/docs/plans\2026-03-18-joint-exam-mvp-plan-review.md:13:| F003 | HIGH | code-bug | 模板下载单 URL 无法同时交付 skeleton+PDF，exam-ai 落库目标不明确 | **接受** — 改为 zip 包下载 |
+C:/Users/Administrator/edu-cloud/docs/plans\2026-03-18-joint-exam-mvp-plan-review.md-14-| F004 | HIGH | design-concern | JointExamScore 删除无回滚策略 | **不阻塞** — MVP 无生产数据，直接替换合理；记入 design.md §待处置 |
+C:/Users/Administrator/edu-cloud/docs/plans\2026-03-18-joint-exam-mvp-plan-review.md-15-| F005 | MED | code-bug | get_student_detail 缺少各科排名位次字段 | **接受** — Task 9 补充 rank 计算 |
+C:/Users/Administrator/edu-cloud/docs/plans\2026-03-18-joint-exam-mvp-plan-review.md-16-| F006 | MED | design-concern | GradingResult 实际是 AIGradingResult，Task 10 grep 目标错误 | **接受** — 修正为 AIGradingResult |
+C:/Users/Administrator/edu-cloud/docs/plans\2026-03-18-joint-exam-mvp-plan-review.md-17-| F007 | MED | design-concern | 非参与校异常类型不一致（NotFoundError vs 403） | **接受** — 统一为 PermissionDeniedError → 403 |
+C:/Users/Administrator/edu-cloud/docs/plans\2026-03-18-joint-exam-mvp-plan-review.md-18-| F008 | MED | design-concern | Alembic/Dockerfile 无独立 Task；Task 11 缺 Testable Slices | **接受** — 补 Task 0 基础设施 |
+--
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-03-edu-agent-handoff-batch6-7-r2.md-20-**F002 (HIGH code-bug, behavior_change, 用户拒绝)：多轮会话语义丢失**
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-03-edu-agent-handoff-batch6-7-r2.md-21-- 位置：`src/edu_cloud/api/ai.py` L35 `_sessions` dict + `src/edu_cloud/ai/agent_loop.py` L65
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-03-edu-agent-handoff-batch6-7-r2.md-22-- 问题：旧 Agent 通过 `_sessions[session_id].context` 保存 AgentContext（含历史消息），同 session_id 的后续请求继承历史。新 AgentLoop.run() 每次从空消息列表开始。
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-03-edu-agent-handoff-batch6-7-r2.md-23-- 修复方向：`_sessions` 保存 AgentLoop 运行后的消息历史，下次同 session_id 请求时注入。AgentLoop.run() 增加 `history_messages` 参数。
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-03-edu-agent-handoff-batch6-7-r2.md-24-
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-03-edu-agent-handoff-batch6-7-r2.md:25:**F003 (HIGH code-bug)：Anonymizer 链路断裂**
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-03-edu-agent-handoff-batch6-7-r2.md-26-- 位置：`src/edu_cloud/ai/agent_loop.py` L168-L191
+C:/Users/Administrator/edu-cloud/docs/plans\2026-04-03-edu-agent-handoff-batch6-7-r2.md-27-- 问题：`ctx.anonymizer` 被设置但从未被消费。工具结果原样写入 messages，LLM 直接接触学生实名。最终回答也不做 deanonymize。
+codex
+FAIL
+
+- F003：计划里的实现逻辑已经对齐设计要求的 4 个条件，即“同工具名、同参数、连续、同错误文本”（见 [design](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md#L182) 和 [plan](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1432)）。但新增的 3 个测试仍是逻辑镜像：它们在测试里手写了一遍 `_recent_calls` 遍历判断，没有走真实 `AgentLoop` 跳过分支（见 [plan tests](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1312)）。按 `review-templates.md`，这类测试不能证明实现，`test-gap` 仍未关。
+- NF001：`semantic_regression` 还不满足 schema。虽然加了 `required: true`、3 个 `risk_tags`、6 个 `oracles`（见 [plan](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L64)），但所有 `type: temporal_trace` 的 oracle 都缺少 schema 强制要求的 `trace_ref`（见 [schema](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L84)）。因此 contract pack 仍不合规。
+
+仅按 Round 3 的 code-bug / test-gap 判定，本轮结论仍是 FAIL。
+tokens used
+94,209
+FAIL
+
+- F003：计划里的实现逻辑已经对齐设计要求的 4 个条件，即“同工具名、同参数、连续、同错误文本”（见 [design](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md#L182) 和 [plan](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1432)）。但新增的 3 个测试仍是逻辑镜像：它们在测试里手写了一遍 `_recent_calls` 遍历判断，没有走真实 `AgentLoop` 跳过分支（见 [plan tests](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1312)）。按 `review-templates.md`，这类测试不能证明实现，`test-gap` 仍未关。
+- NF001：`semantic_regression` 还不满足 schema。虽然加了 `required: true`、3 个 `risk_tags`、6 个 `oracles`（见 [plan](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L64)），但所有 `type: temporal_trace` 的 oracle 都缺少 schema 强制要求的 `trace_ref`（见 [schema](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L84)）。因此 contract pack 仍不合规。
+
+仅按 Round 3 的 code-bug / test-gap 判定，本轮结论仍是 FAIL。

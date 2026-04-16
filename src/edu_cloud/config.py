@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "change-me"
     PLATFORM_API_KEY_SALT: str = "change-me"
+    ENCRYPTION_KEY: str = "change-me-in-production"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -45,12 +46,19 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
     # LLM (shared AI grading + AI Agent)
-    LLM_API_URL: str = "http://localhost:8100/v1/chat/completions"
+    LLM_API_URL: str = "http://localhost:8100"
     LLM_API_KEY: str = "not-needed-for-local-proxy"
     LLM_MODEL: str = "claude-sonnet-4-6"
     LLM_VISION_MODEL: str = ""
-    LLM_TIMEOUT: int = 120
+    LLM_TIMEOUT: int = 180
     LLM_MAX_RETRIES: int = 3
+
+    # AI Grading batch concurrency
+    GRADING_BATCH_SIZE: int = 20
+
+    # AI Agent — capability tiers
+    TIER_CONTEXT_THRESHOLDS: list[int] = [100_000, 30_000]
+    MODEL_ROUTER_ADVANCED_KEYWORDS: list[str] | None = None  # None = use code defaults
 
     # AI Agent
     AI_MAX_STEPS: int = 15
@@ -62,6 +70,8 @@ class Settings(BaseSettings):
     # Knowledge base
     KNOWLEDGE_BASE_DIR: str = "C:/Users/Administrator/edu-knowledge-base/subjects/biology_senior"
     KNOWLEDGE_ENABLED: bool = True
+    KNOWLEDGE_DB_PATH: str = "C:/Users/Administrator/edu-knowledge-base/knowledge.db"
+    KNOWLEDGE_DRAFT_VISIBLE: bool = True  # 宽限期：True=draft 对所有角色可见
 
     # Paper-skill
     PAPER_SKILL_URL: str = "http://localhost:9103"

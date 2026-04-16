@@ -17,32 +17,40 @@ export function initPanel() {
     const layout = window._cardLayout;
     if (!layout) return;
     // 找最后一个有空间的栏，添加新题目
+    let targetCol = null;
     for (let si = layout.sides.length - 1; si >= 0; si--) {
       const side = layout.sides[si];
       for (let ci = side.columns.length - 1; ci >= 0; ci--) {
         const col = side.columns[ci];
         const editables = col.regions.filter(r => r.type !== 'fixed');
         if (editables.length > 0) {
-          // 在最后一栏的最后一个区域后分割
-          const lastIdx = col.regions.indexOf(editables[editables.length - 1]);
-          const lastRegion = col.regions[lastIdx];
+          const lastRegion = editables[editables.length - 1];
           const newRatio = lastRegion.heightRatio / 2;
           lastRegion.heightRatio = newRatio;
           col.regions.push({
             id: `essay-new-${Date.now()}`,
-            type: 'essay',
-            qno: 0,
-            score: 10,
-            subs: [{ sub: 1, blanks: [{w:'100%'},{w:'100%'},{w:'100%'}] }],
+            type: 'essay', qno: 0, score: 12, subs: [],
             heightRatio: newRatio,
           });
-          renumberAll(layout);
-          rerender();
-          renderQuestionList();
-          return;
+          targetCol = col;
+          break;
         }
+        if (!targetCol) targetCol = col; // 记住最后一个空列
       }
+      if (targetCol?.regions?.some(r => r.type === 'essay')) break;
     }
+    // 所有列都空：在最后一个空列直接创建
+    if (targetCol && !targetCol.regions.some(r => r.type === 'essay' || r.type === 'fill')) {
+      targetCol.regions.push({
+        id: `essay-new-${Date.now()}`,
+        type: 'essay', qno: 0, score: 10,
+        subs: [{ sub: 1, blanks: [{w:'100%'},{w:'100%'},{w:'100%'}] }],
+        heightRatio: 1.0,
+      });
+    }
+    renumberAll(layout);
+    rerender();
+    renderQuestionList();
   });
 
   // 监听区域选中
@@ -192,7 +200,16 @@ function bindQuestionListEvents(listDiv) {
       const previewEl = document.querySelector(`[data-region-id="${id}"]`);
       if (previewEl) {
         previewEl.classList.add('region-selected');
-        previewEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // 只垂直滚动，不改变水平位置（A3 页面宽，scrollIntoView 会水平偏移）
+        const wrap = previewEl.closest('.preview-wrap');
+        if (wrap) {
+          const elRect = previewEl.getBoundingClientRect();
+          const wrapRect = wrap.getBoundingClientRect();
+          const targetY = wrap.scrollTop + (elRect.top - wrapRect.top) - wrapRect.height / 2 + elRect.height / 2;
+          wrap.scrollTo({ top: targetY, behavior: 'smooth' });
+        } else {
+          previewEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
     });
   });
@@ -254,7 +271,7 @@ function bindQuestionListEvents(listDiv) {
     btn.addEventListener('click', (e) => {
       const { rid, si, bi } = btn.dataset;
       const r = findRegionById(window._cardLayout, rid);
-      if (r && r.subs[si] && r.subs[si].blanks.length > 1) {
+      if (r && r.subs[si] && r.subs[si].blanks.length > 0) {
         r.subs[si].blanks.splice(parseInt(bi), 1);
         rerender();
         renderQuestionList();
@@ -281,7 +298,7 @@ function bindQuestionListEvents(listDiv) {
       const r = findRegionById(window._cardLayout, btn.dataset.rid);
       if (r) {
         if (!r.subs) r.subs = [];
-        r.subs.push({ sub: r.subs.length + 1, blanks: [{w:'100%'},{w:'100%'},{w:'100%'}] });
+        r.subs.push({ sub: r.subs.length + 1, blanks: [] });
         rerender();
         renderQuestionList();
       }
@@ -317,8 +334,6 @@ function deleteQuestion(id) {
     for (const col of side.columns) {
       const idx = col.regions.findIndex(r => r.id === id);
       if (idx >= 0 && col.regions[idx].type !== 'fixed') {
-        const editables = col.regions.filter(r => r.type !== 'fixed');
-        if (editables.length <= 1) return; // 至少保留1个可编辑区域
         // 把高度还给相邻区域
         const removed = col.regions[idx];
         col.regions.splice(idx, 1);

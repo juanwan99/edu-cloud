@@ -175,6 +175,88 @@ async def save_editor_layout(
     return {"ok": True}
 
 
+@router.delete("/editor-layout/{subject_id}")
+async def reset_editor_layout(
+    subject_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """删除保存的编辑器布局，恢复为系统默认模板。"""
+    result = await db.execute(
+        select(Subject).where(Subject.id == subject_id, Subject.school_id == current["current_role"].school_id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(404, "Subject not found")
+
+    path = _editor_layout_path(current["current_role"].school_id, subject_id)
+    if path.exists():
+        path.unlink()
+        logger.info("reset_editor_layout: deleted %s", path.name)
+    return {"ok": True}
+
+
+@router.post("/upload-answer")
+async def upload_answer_file(
+    file: UploadFile = File(...),
+    current: dict = Depends(get_current_user),
+):
+    """上传答案文件（.docx）到临时目录，返回文件路径供 auto-layout 使用。"""
+    import tempfile
+    if not file.filename.endswith(".docx"):
+        raise HTTPException(400, "仅支持 .docx 格式")
+    tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False, dir=tempfile.gettempdir())
+    content = await file.read()
+    tmp.write(content)
+    tmp.close()
+    logger.info("upload_answer: %s → %s", file.filename, tmp.name)
+    return {"file_path": tmp.name}
+
+
+class AutoLayoutRequest(BaseModel):
+    answer_file: str | None = None  # 答案文件路径（.docx）
+    parsed_questions: list | None = None  # 或直接传解析后的数据
+
+
+@router.post("/auto-layout/{subject_id}")
+async def auto_layout_card(
+    subject_id: str,
+    body: AutoLayoutRequest,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """小微智能排版：解析答案文件 → 计算空间分配 → 保存到编辑器布局。"""
+    from edu_cloud.ai.tools.card_layout import calculate_layout, _load_layout, _apply_to_regions, _save_layout
+
+    school_id = current["current_role"].school_id
+    subject = (await db.execute(
+        select(Subject).where(Subject.id == subject_id, Subject.school_id == school_id)
+    )).scalar_one_or_none()
+    if not subject:
+        raise HTTPException(404, "Subject not found")
+
+    # 获取解析后的题目数据
+    if body.parsed_questions:
+        parsed = body.parsed_questions
+    elif body.answer_file:
+        from pathlib import Path
+        if not Path(body.answer_file).exists():
+            raise HTTPException(400, f"文件不存在: {body.answer_file}")
+        from edu_cloud.modules.card.answer_parser import parse_answer_docx
+        parsed = parse_answer_docx(body.answer_file)
+        if not parsed:
+            raise HTTPException(400, "未解析到主观题")
+    else:
+        raise HTTPException(400, "需要 answer_file 或 parsed_questions")
+
+    result = calculate_layout(parsed)
+    layout = _load_layout(school_id, subject_id, subject.name)
+    layout = _apply_to_regions(layout, result)
+    _save_layout(school_id, subject_id, layout)
+
+    logger.info("auto_layout: subject=%s, questions=%d", subject.name, len(parsed))
+    return {"subject": subject.name, "applied": True, **result}
+
+
 @router.post("/barcode")
 async def generate_barcode(
     file: UploadFile = File(...),
@@ -282,19 +364,29 @@ async def _auto_create_questions(
 
     questions = []
     for item in standardized:
-        q_type = "objective" if item["type"] in ("single_choice", "multi_choice") else "subjective"
+        q_type = _map_standardized_type(item["type"])
         q = Question(
             subject_id=subject_id,
             school_id=school_id,
             name=str(item["number"]),
             question_type=q_type,
             max_score=item.get("score") or 1,
-            correct_answer=item.get("answer") if q_type == "objective" else None,
+            correct_answer=item.get("answer") if q_type in ("choice", "multi_choice") else None,
         )
         db.add(q)
         questions.append(q)
     await db.flush()
     return questions
+
+
+def _map_standardized_type(stype: str) -> str:
+    """answer_standardizer 输出的题型 → Question.question_type 统一枚举。"""
+    return {
+        "single_choice": "choice",
+        "multi_choice": "multi_choice",
+        "fill_in_blank": "fill_blank",
+        "short_answer": "essay",
+    }.get(stype, "essay")
 
 
 @router.post("/parse-answers")
@@ -344,6 +436,7 @@ async def parse_answers(
 
     t_start = time.time()
     parse_method = "text_llm"
+    _v2_structured = []  # v2 排版引擎用的结构化数据，Word 路径在文件删除前填充
 
     # 1. 保存上传文件
     suffix = ".pdf" if is_pdf else ".docx"
@@ -371,6 +464,12 @@ async def parse_answers(
                 logger.warning("parse_answers: no questions found, file=%s, subject=%s", file.filename, subject.name)
                 raise HTTPException(400, "未识别到任何题目答案")
             standardized = await standardize_answers(parsed)
+            # v2 排版引擎需要结构化解析（sub 级别答案），趁文件还在先解析
+            try:
+                from edu_cloud.modules.card.answer_parser import parse_answer_docx
+                _v2_structured = parse_answer_docx(tmp_path)
+            except Exception:
+                pass  # 解析失败不阻塞主流程，v2 布局会跳过
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
@@ -384,15 +483,15 @@ async def parse_answers(
                 file.filename, subject.name, "vision" if is_pdf else "text", len(standardized), len(db_questions))
 
     # 3. 识别主观题（从 standardized 结果得到类型）
-    type_map = {}  # number -> "objective" / "subjective"
+    type_map = {}  # number -> question_type (choice/multi_choice/fill_blank/essay)
     score_map = {}  # number -> max_score
     for item in standardized:
         num = item["number"]
-        q_type = "objective" if item["type"] in ("single_choice", "multi_choice") else "subjective"
+        q_type = _map_standardized_type(item["type"])
         type_map[num] = q_type
         score_map[num] = item.get("score", 1)
 
-    subjective_numbers = {num for num, t in type_map.items() if t == "subjective"}
+    subjective_numbers = {num for num, t in type_map.items() if t in ("fill_blank", "essay")}
     subjective_parsed = [p for p in parsed if p["number"] in subjective_numbers]
     weights = compute_weights_from_text(subjective_parsed) if subjective_parsed else []
 
@@ -414,29 +513,37 @@ async def parse_answers(
     logger.info("parse_answers: paper=%s, text_len=%d, subjective=%d, weights=%d",
                 paper_size, total_text_length, subjective_count, len(weights))
 
-    # 5. 模板匹配 + 布局（尽力而为，失败不阻塞——前端可用可视化编辑器模板替代）
-    skeleton = {}
-    layout = {"slots": []}
+    # 5. v2 排版引擎：结构化数据 → 空间分配 → 写入编辑器布局
+    v2_layout_result = {}
     try:
-        skeleton = await _match_skeleton(
-            db, current["current_role"].school_id, subject, paper_size, subjective_count,
-            db_questions=db_questions,
-        )
-        layout = _compute_layout(skeleton, weights)
-    except ValueError:
-        if paper_size == "A4":
-            paper_size = "A3"
-            logger.info("parse_answers: A4 overflow, upgrading to A3")
-            try:
-                skeleton = await _match_skeleton(
-                    db, current["current_role"].school_id, subject, paper_size, subjective_count,
-                    db_questions=db_questions,
-                )
-                layout = _compute_layout(skeleton, weights)
-            except ValueError as e2:
-                logger.warning("parse_answers: layout overflow (non-fatal), frontend should use visual editor template. error=%s", e2)
+        from edu_cloud.ai.tools.card_layout import calculate_layout, _load_layout, _apply_to_regions, _save_layout
+
+        if not is_pdf:
+            structured = _v2_structured  # Word: 已在文件删除前解析好
         else:
-            logger.warning("parse_answers: layout overflow (non-fatal), frontend should use visual editor template.")
+            # PDF: 从 standardized 构建 v2 格式
+            structured = []
+            for item in standardized:
+                if item["type"] in ("single_choice", "multi_choice"):
+                    continue
+                structured.append({
+                    "qno": item["number"],
+                    "total_score": item.get("score") or 1,
+                    "default_score_per_blank": 2,
+                    "subs": [{"sub": i + 1, "answers": [item.get("answer", "")]}
+                             for i in range(item.get("sub_count", 1))],
+                })
+
+        if structured:
+            v2_layout_result = calculate_layout(structured)
+            school_id = current["current_role"].school_id
+            layout_data = _load_layout(school_id, subject_id, subject.name)
+            layout_data = _apply_to_regions(layout_data, v2_layout_result)
+            _save_layout(school_id, subject_id, layout_data)
+            logger.info("parse_answers: v2 layout applied, subject=%s, questions=%d",
+                        subject.name, len(structured))
+    except Exception as e:
+        logger.warning("parse_answers: v2 layout failed (non-fatal): %s", e)
 
     # 6. 构建前端显示数据
     weight_map = {w["number"]: w["weight"] for w in weights}
@@ -452,19 +559,14 @@ async def parse_answers(
             "weight": round(weight_map.get(num, 0), 4),
         })
 
-    skeleton_summary = {k: v for k, v in skeleton.items()
-                        if k not in ("tpl_images", "_finalize_hints", "_needs_finalize")}
-
     return {
         "questions": question_info,
         "standardized": standardized,
         "weights": weights,
-        "skeleton": skeleton_summary,
-        "layout": layout,
+        "v2_layout": v2_layout_result,
         "subject_code": subject.code,
         "subject_name": subject.name,
         "exam_name": exam.card_title,
-        "has_tpl_slots": bool(skeleton.get("subjective_slots")),
         "total_questions": len(db_questions),
         "parse_method": parse_method,
         "parse_time_ms": int((time.time() - t_start) * 1000),
@@ -1100,78 +1202,18 @@ async def publish_card(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
-    """原子发布答题卡：HTML→PDF + skeleton→Template(双ID) + status→scanning。
+    """原子发布答题卡：HTML→PDF + upsert Question + 双面 Template + status→scanning。
 
-    一次调用完成全部发布步骤，前端只需一个按钮。
+    F003 新实现：业务逻辑在 publish_service.publish_card_atomic。
     """
-    # 1. 验证 exam + subject
-    exam = (await db.execute(
-        select(Exam).where(Exam.id == body.exam_id, Exam.school_id == current["current_role"].school_id)
-    )).scalar_one_or_none()
-    if not exam:
-        raise HTTPException(404, "考试不存在")
-    if exam.status != "draft":
-        raise HTTPException(400, f"考试状态为 {exam.status}，仅 draft 可发布")
+    from edu_cloud.modules.card.publish_service import publish_card_atomic
 
-    subject = (await db.execute(
-        select(Subject).where(Subject.id == body.subject_id, Subject.school_id == current["current_role"].school_id)
-    )).scalar_one_or_none()
-    if not subject:
-        raise HTTPException(404, "科目不存在")
-    if subject.exam_id != body.exam_id:
-        raise HTTPException(400, "科目不属于该考试")
-
-    # 2. HTML → PDF
-    from edu_cloud.modules.card.html_export import html_to_pdf, extract_skeleton
-    pdf_bytes = await html_to_pdf(body.html, body.paper_size)
-
-    # 3. HTML → skeleton
-    skeleton_data = await extract_skeleton(body.html)
-
-    # 4. 构建 question_map（题目名 → UUID）
-    from edu_cloud.modules.exam.models import Question
-    q_result = await db.execute(
-        select(Question).where(Question.subject_id == body.subject_id, Question.school_id == current["current_role"].school_id)
+    pdf_bytes = await publish_card_atomic(
+        db,
+        html=body.html,
+        subject_id=body.subject_id,
+        exam_id=body.exam_id,
+        school_id=current["current_role"].school_id,
+        paper_size=body.paper_size,
     )
-    questions = q_result.scalars().all()
-    question_map = {q.name: q.id for q in questions}
-
-    # 5. skeleton → Template（含双 ID）
-    from edu_cloud.modules.card.export import skeleton_to_paperseg_json
-    tpl_data = skeleton_to_paperseg_json(
-        {"anchors": skeleton_data.get("anchors", []),
-         "objective_groups": skeleton_data.get("objective_groups", []),
-         "exam_number_area": skeleton_data.get("exam_number_area"),
-         "image_width": skeleton_data.get("pageWidth", 4960),
-         "image_height": skeleton_data.get("pageHeight", 3508)},
-        {"slots": skeleton_data.get("slots", [])},
-        exam_id=str(body.exam_id),
-        subject=subject.name,
-        question_map=question_map,
-    )
-
-    # Write Template
-    tpl = (await db.execute(
-        select(Template).where(Template.subject_id == body.subject_id, Template.side == "A")
-    )).scalar_one_or_none()
-    template_values = {
-        "image_width": tpl_data["image_size"]["width"],
-        "image_height": tpl_data["image_size"]["height"],
-        "anchors": tpl_data["anchors"],
-        "regions": tpl_data["regions"],
-    }
-    if tpl:
-        for k, v in template_values.items():
-            setattr(tpl, k, v)
-    else:
-        tpl = Template(subject_id=body.subject_id, side="A", school_id=current["current_role"].school_id, **template_values)
-        db.add(tpl)
-
-    # 6. Exam.status → scanning
-    exam.status = "scanning"
-    await db.commit()
-
-    logger.info("publish_card: exam=%s, subject=%s, template_regions=%d, questions=%d",
-                body.exam_id, body.subject_id, len(tpl_data["regions"]), len(question_map))
-
     return Response(content=pdf_bytes, media_type="application/pdf")

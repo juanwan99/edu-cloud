@@ -1,0 +1,232 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d3a49-e25b-71d1-8338-9a1c85a13586
+--------
+user
+You are a code reviewer. Round 3 re-review — only verify fixes for F01 and F02.
+
+Run: git diff 675693c..bd75695
+Read: src/edu_cloud/services/subject_selection_service.py
+
+F01: update_selection should return ConflictError on duplicate name (not 500).
+F02: subject_codes elements should reject empty strings.
+
+Verify:
+1. The fix code is correct
+2. Tests cover the fix
+
+Conclude with PASS or FAIL. Write in Chinese. Keep concise.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+使用 `code-review:review-pr` 技能做这次复审，只核对 F01 和 F02。我先看提交区间 diff、目标文件和相关测试，再判断修复与覆盖是否成立。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 675693c..bd75695 -- src/edu_cloud/services/subject_selection_service.py tests && git diff 675693c..bd75695 -- src/edu_cloud/services/subject_selection_service.py && rg -n "update_selection|subject_codes|duplicate name|ConflictError|empty string|ValidationError|422" tests src/edu_cloud/services/subject_selection_service.py' in C:/Users/Administrator/edu-cloud exited 1 in 622ms:
+所在位置 行:2 字符: 88
++ ...  src/edu_cloud/services/subject_selection_service.py tests && git dif ...
++                                                                ~~
+标记“&&”不是此版本中的有效语句分隔符。
+所在位置 行:2 字符: 172
++ ... 695 -- src/edu_cloud/services/subject_selection_service.py && rg -n " ...
++                                                                ~~
+标记“&&”不是此版本中的有效语句分隔符。
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : InvalidEndOfLine
+ 
+codex
+PowerShell 不接受这里的 `&&`，我改成并行读取，分别看 diff 和测试命中点。接下来只聚焦修复逻辑与测试覆盖。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 675693c..bd75695 -- src/edu_cloud/services/subject_selection_service.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "update_selection|subject_codes|duplicate name|ConflictError|empty string|ValidationError|422" tests src/edu_cloud/services/subject_selection_service.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 675693c..bd75695 -- tests' in C:/Users/Administrator/edu-cloud succeeded in 797ms:
+diff --git a/src/edu_cloud/services/subject_selection_service.py b/src/edu_cloud/services/subject_selection_service.py
+index c595fc6..4d95235 100644
+--- a/src/edu_cloud/services/subject_selection_service.py
++++ b/src/edu_cloud/services/subject_selection_service.py
+@@ -1,5 +1,4 @@
+ from sqlalchemy import select
+-from sqlalchemy.exc import IntegrityError
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+ from edu_cloud.models.subject_selection import SubjectSelection, VALID_MODES
+@@ -9,6 +8,10 @@ from edu_cloud.services.exceptions import ValidationError, NotFoundError, Confli
+ def _validate_selection(subject_codes: list, mode: str):
+     if not subject_codes or len(subject_codes) > 7:
+         raise ValidationError("科目数量必须在 1-7 之间")
++    # F02 fix: validate each element is non-empty string
++    cleaned = [s.strip() for s in subject_codes if isinstance(s, str)]
++    if any(not s for s in cleaned) or len(cleaned) != len(subject_codes):
++        raise ValidationError("科目代码不能为空字符串")
+     if mode not in VALID_MODES:
+         raise ValidationError(f"无效的选考模式: {mode}，可选: {', '.join(VALID_MODES)}")
+ succeeded in 824ms:
+src/edu_cloud/services/subject_selection_service.py:5:from edu_cloud.services.exceptions import ValidationError, NotFoundError, ConflictError
+src/edu_cloud/services/subject_selection_service.py:8:def _validate_selection(subject_codes: list, mode: str):
+src/edu_cloud/services/subject_selection_service.py:9:    if not subject_codes or len(subject_codes) > 7:
+src/edu_cloud/services/subject_selection_service.py:10:        raise ValidationError("科目数量必须在 1-7 之间")
+src/edu_cloud/services/subject_selection_service.py:11:    # F02 fix: validate each element is non-empty string
+src/edu_cloud/services/subject_selection_service.py:12:    cleaned = [s.strip() for s in subject_codes if isinstance(s, str)]
+src/edu_cloud/services/subject_selection_service.py:13:    if any(not s for s in cleaned) or len(cleaned) != len(subject_codes):
+src/edu_cloud/services/subject_selection_service.py:14:        raise ValidationError("科目代码不能为空字符串")
+src/edu_cloud/services/subject_selection_service.py:16:        raise ValidationError(f"无效的选考模式: {mode}，可选: {', '.join(VALID_MODES)}")
+src/edu_cloud/services/subject_selection_service.py:33:    """Pre-check for duplicate name in same school."""
+src/edu_cloud/services/subject_selection_service.py:42:        raise ConflictError(f"同名选考组合已存在: {name}")
+src/edu_cloud/services/subject_selection_service.py:47:    subject_codes: list[str], mode: str = "custom",
+src/edu_cloud/services/subject_selection_service.py:49:    _validate_selection(subject_codes, mode)
+src/edu_cloud/services/subject_selection_service.py:53:        subject_codes=subject_codes, mode=mode,
+src/edu_cloud/services/subject_selection_service.py:61:async def update_selection(
+src/edu_cloud/services/subject_selection_service.py:76:        if key == "subject_codes" and value is not None:
+src/edu_cloud/services/subject_selection_service.py:79:            _validate_selection(kwargs.get("subject_codes", sel.subject_codes), value)
+tests\test_exam_misc\test_answer_standardizer.py:100:    # edu-cloud default is empty string (configured via .env or LLM slot)
+tests\test_api_exam\test_exam.py:91:    assert resp.status_code == 422
+tests\test_api_exam\test_exam.py:116:    assert resp.status_code == 422  # edu-cloud: ValidationError → 422
+ succeeded in 841ms:
+diff --git a/tests/test_api/test_subject_selections.py b/tests/test_api/test_subject_selections.py
+index 3ae4ed3..31915c5 100644
+--- a/tests/test_api/test_subject_selections.py
++++ b/tests/test_api/test_subject_selections.py
+@@ -130,3 +130,38 @@ async def test_principal_cannot_access_other_school_selections(client, db):
+     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+     resp = await client.get(f"/api/v1/schools/{school_b.id}/selections", headers=headers)
+     assert resp.status_code == 403
++
++
++@pytest.mark.asyncio
++async def test_update_selection_duplicate_name_409(client, admin_headers, seed_school):
++    """F01 fix: PATCH to existing name → 409."""
++    school, _ = seed_school
++    await client.post(
++        f"/api/v1/schools/{school.id}/selections",
++        json={"name": "已有API", "subject_codes": ["physics"]},
++        headers=admin_headers,
++    )
++    create_resp = await client.post(
+codex
+diff 已经够明确，但我还要看目标函数和新增测试的上下文行号，确认没有遗漏到更新路径或 API 映射层。然后给出只针对 F01/F02 的结论。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content tests/test_services/test_subject_selection_service.py | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content src/edu_cloud/services/subject_selection_service.py | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content tests/test_api/test_subject_selections.py | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloud succeeded in 723ms:
+   1: from sqlalchemy import select
+   2: from sqlalchemy.ext.asyncio import AsyncSession
+   3: 
+   4: from edu_cloud.models.subject_selection import SubjectSelection, VALID_MODES
+   5: from edu_cloud.services.exceptions import ValidationError, NotFoundError, ConflictError
+   6: 
+   7: 
+   8: def _validate_selection(subject_codes: list, mode: str):
+   9:     if not subject_codes or len(subject_codes) > 7:
+  10:         raise ValidationError("绉戠洰鏁伴噺蹇呴』鍦?1-7 涔嬮棿")
+  11:     # F02 fix: validate each element is non-empty string
+  12:     cleaned = [s.strip() for s in subject_codes if isinstance(s, str)]
+  13:     if any(not s for s in cleaned) or len(cleaned) != len(subject_codes):
+  14:         raise ValidationError("绉戠洰浠ｇ爜涓嶈兘涓虹┖瀛楃涓?)
+  15:     if mode not in VALID_MODES:
+  16:         raise ValidationError(f"鏃犳晥鐨勯€夎€冩ā寮? {mode}锛屽彲閫? {', '.join(VALID_MODES)}")
+  17: 
+  18: 
+  19: async def list_selections(
+  20:     db: AsyncSession, *, school_id: str,
+ succeeded in 744ms:
+   1: import pytest
+   2: from edu_cloud.models.subject_selection import SubjectSelection
+   3: from edu_cloud.services.subject_selection_service import (
+   4:     list_selections, create_selection, update_selection, delete_selection,
+   5: )
+   6: 
+   7: 
+   8: @pytest.mark.asyncio
+   9: async def test_subject_selection_model(db, seed_school):
+  10:     school, _ = seed_school
+  11:     sel = SubjectSelection(
+  12:         school_id=school.id, name="鐗╁寲鐢?,
+  13:         subject_codes=["physics", "chemistry", "biology"],
+  14:         mode="3+1+2",
+  15:     )
+  16:     db.add(sel)
+  17:     await db.commit()
+  18:     await db.refresh(sel)
+  19:     assert sel.id is not None
+  20:     assert sel.name == "鐗╁寲鐢?
+ succeeded in 766ms:
+   1: import pytest
+   2: 
+   3: 
+   4: @pytest.mark.asyncio
+   5: async def test_list_selections_empty(client, admin_headers, seed_school):
+   6:     school, _ = seed_school
+   7:     resp = await client.get(f"/api/v1/schools/{school.id}/selections", headers=admin_headers)
+   8:     assert resp.status_code == 200
+   9:     assert resp.json() == []
+  10: 
+  11: 
+  12: @pytest.mark.asyncio
+  13: async def test_create_selection(client, admin_headers, seed_school):
+  14:     school, _ = seed_school
+  15:     resp = await client.post(
+  16:         f"/api/v1/schools/{school.id}/selections",
+  17:         json={"name": "鐗╁寲鐢?, "subject_codes": ["physics", "chemistry", "biology"], "mode": "3+1+2"},
+  18:         headers=admin_headers,
+  19:     )
+  20:     assert resp.status_code == 200
+codex
+代码和测试都看完了，我再跑一组定向测试确认行为没有停留在“看起来对”。重点是 F01 的 service/API 更新路径，以及 F02 现有新增用例是否通过。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'pytest tests/test_services/test_subject_selection_service.py -k "update_selection_duplicate_name or empty_string_subject" tests/test_api/test_subject_selections.py -k "update_selection_duplicate_name_409 or empty_string_subject_422"' in C:/Users/Administrator/edu-cloud succeeded in 8.15s:
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\Administrator\edu-cloud
+configfile: pyproject.toml
+plugins: Faker-39.0.0, cov-7.0.0, mock-3.15.1, anyio-4.11.0, langsmith-0.4.47, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 23 items / 21 deselected / 2 selected
+
+tests\test_api\test_subject_selections.py ..                             [100%]
+
+============================== warnings summary ===============================
+tests/test_api/test_subject_selections.py::test_update_selection_duplicate_name_409
+  C:\Users\Administrator\AppData\Roaming\Python\Python311\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 2 passed, 21 deselected, 1 warning in 3.73s =================
+codex
+第一次筛选表达式只命中了 API 侧 2 个新增用例，服务层两个新增用例还没跑。我补跑服务层对应测试，避免把“有测试文件”误判成“测试已验证”。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'pytest tests/test_services/test_subject_selection_service.py -k "test_update_selection_duplicate_name or test_create_selection_empty_string_subject"' in C:/Users/Administrator/edu-cloud succeeded in 5.17s:
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\Administrator\edu-cloud
+configfile: pyproject.toml
+plugins: Faker-39.0.0, cov-7.0.0, mock-3.15.1, anyio-4.11.0, langsmith-0.4.47, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 12 items / 10 deselected / 2 selected
+
+tests\test_services\test_subject_selection_service.py ..                 [100%]
+
+====================== 2 passed, 10 deselected in 1.32s =======================
+codex
+1. F01 仍不算完全修复。[subject_selection_service.py#L72](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/subject_selection_service.py#L72) 到 [subject_selection_service.py#L82](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/subject_selection_service.py#L82) 只做了提交前重名预查，`await db.commit()` 不再兜底捕获数据库唯一约束异常。并发更新时仍可能直接冒泡成 500，而不是 `ConflictError`。现有新增测试 [test_subject_selection_service.py#L124](C:/Users/Administrator/edu-cloud/tests/test_services/test_subject_selection_service.py#L124) 和 [test_subject_selections.py#L136](C:/Users/Administrator/edu-cloud/tests/test_api/test_subject_selections.py#L136) 只覆盖了预查命中的顺序场景，没有覆盖提交阶段冲突。
+
+2. F02 逻辑本身是对的，但测试覆盖不完整。空字符串校验加在共享的 `_validate_selection()` 中，[subject_selection_service.py#L8](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/subject_selection_service.py#L8) 到 [subject_selection_service.py#L14](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/subject_selection_service.py#L14) 能拦住 `["physics", ""]`；不过新增测试只覆盖了 create/POST，[test_subject_selection_service.py#L135](C:/Users/Administrator/edu-cloud/tests/test_services/test_subject_selection_service.py#L135) 和 [test_subject_selections.py#L159](C:/Users/Administrator/edu-cloud/tests/test_api/test_subject_selections.py#L159)，没有覆盖 update/PATCH 传入空字符串的路径，而该路径同样依赖这次修复 [subject_selection_service.py#L76](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/subject_selection_service.py#L76)。
+
+已跑定向测试，4 个新增用例都通过，但以上两点仍成立。
+
+FAIL
+tokens used
+23,369
+1. F01 仍不算完全修复。[subject_selection_service.py#L72](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/subject_selection_service.py#L72) 到 [subject_selection_service.py#L82](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/subject_selection_service.py#L82) 只做了提交前重名预查，`await db.commit()` 不再兜底捕获数据库唯一约束异常。并发更新时仍可能直接冒泡成 500，而不是 `ConflictError`。现有新增测试 [test_subject_selection_service.py#L124](C:/Users/Administrator/edu-cloud/tests/test_services/test_subject_selection_service.py#L124) 和 [test_subject_selections.py#L136](C:/Users/Administrator/edu-cloud/tests/test_api/test_subject_selections.py#L136) 只覆盖了预查命中的顺序场景，没有覆盖提交阶段冲突。
+
+2. F02 逻辑本身是对的，但测试覆盖不完整。空字符串校验加在共享的 `_validate_selection()` 中，[subject_selection_service.py#L8](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/subject_selection_service.py#L8) 到 [subject_selection_service.py#L14](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/subject_selection_service.py#L14) 能拦住 `["physics", ""]`；不过新增测试只覆盖了 create/POST，[test_subject_selection_service.py#L135](C:/Users/Administrator/edu-cloud/tests/test_services/test_subject_selection_service.py#L135) 和 [test_subject_selections.py#L159](C:/Users/Administrator/edu-cloud/tests/test_api/test_subject_selections.py#L159)，没有覆盖 update/PATCH 传入空字符串的路径，而该路径同样依赖这次修复 [subject_selection_service.py#L76](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/subject_selection_service.py#L76)。
+
+已跑定向测试，4 个新增用例都通过，但以上两点仍成立。
+
+FAIL

@@ -1,5 +1,6 @@
 """学生画像工具（4 个）。L6_profile 类别。"""
 from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
 
 
 @tools.register(
@@ -8,6 +9,8 @@ from edu_cloud.ai.registry import tools
     category="L6_profile",
     domain="profile",
     risk_level="low",
+    is_read_only=True,
+    sensitivity="student",
     parameters={
         "type": "object",
         "properties": {
@@ -17,22 +20,27 @@ from edu_cloud.ai.registry import tools
         "required": ["student_id"],
     },
 )
-async def get_student_trend(student_id: str, subject_code: str | None = None, _school_id="", _db=None, **_):
-    from edu_cloud.modules.profile.service import get_student_trend as svc_trend
-    snaps = await svc_trend(
-        _db, student_id=student_id, school_id=_school_id, subject_code=subject_code,
-    )
-    return {
-        "trend": [
-            {
-                "exam_id": s.exam_id, "subject_code": s.subject_code,
-                "total_score": s.total_score, "max_score": s.max_score,
-                "score_rate": s.score_rate, "grade_rank": s.grade_rank,
-                "grade_size": s.grade_size,
-            }
-            for s in snaps
-        ]
-    }
+async def get_student_trend(input: dict, ctx: ToolContext) -> ToolResult:
+    student_id = input.get("student_id", "")
+    subject_code = input.get("subject_code")
+    try:
+        from edu_cloud.modules.profile.service import get_student_trend as svc_trend
+        snaps = await svc_trend(
+            ctx.db, student_id=student_id, school_id=ctx.school_id, subject_code=subject_code,
+        )
+        return ToolResult(success=True, data={
+            "trend": [
+                {
+                    "exam_id": s.exam_id, "subject_code": s.subject_code,
+                    "total_score": s.total_score, "max_score": s.max_score,
+                    "score_rate": s.score_rate, "grade_rank": s.grade_rank,
+                    "grade_size": s.grade_size,
+                }
+                for s in snaps
+            ]
+        })
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -41,6 +49,8 @@ async def get_student_trend(student_id: str, subject_code: str | None = None, _s
     category="L6_profile",
     domain="profile",
     risk_level="low",
+    is_read_only=True,
+    sensitivity="student",
     parameters={
         "type": "object",
         "properties": {
@@ -50,23 +60,28 @@ async def get_student_trend(student_id: str, subject_code: str | None = None, _s
         "required": ["student_id"],
     },
 )
-async def get_student_knowledge_map(student_id: str, course_code: str | None = None, _school_id="", _db=None, **_):
-    from edu_cloud.modules.profile.service import get_student_knowledge_map as svc_kmap
-    masteries = await svc_kmap(
-        _db, student_id=student_id, school_id=_school_id, course_code=course_code,
-    )
-    return {
-        "knowledge_map": [
-            {
-                "knowledge_point_id": m.knowledge_point_id,
-                "mastery_level": m.mastery_level,
-                "trend": m.trend,
-                "attempt_count": m.attempt_count,
-                "recent_scores": m.recent_scores,
-            }
-            for m in masteries
-        ]
-    }
+async def get_student_knowledge_map(input: dict, ctx: ToolContext) -> ToolResult:
+    student_id = input.get("student_id", "")
+    course_code = input.get("course_code")
+    try:
+        from edu_cloud.modules.profile.service import get_student_knowledge_map as svc_kmap
+        masteries = await svc_kmap(
+            ctx.db, student_id=student_id, school_id=ctx.school_id, course_code=course_code,
+        )
+        return ToolResult(success=True, data={
+            "knowledge_map": [
+                {
+                    "knowledge_point_id": m.knowledge_point_id,
+                    "mastery_level": m.mastery_level,
+                    "trend": m.trend,
+                    "attempt_count": m.attempt_count,
+                    "recent_scores": m.recent_scores,
+                }
+                for m in masteries
+            ]
+        })
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -75,6 +90,8 @@ async def get_student_knowledge_map(student_id: str, course_code: str | None = N
     category="L6_profile",
     domain="profile",
     risk_level="low",
+    is_read_only=True,
+    sensitivity="student",
     parameters={
         "type": "object",
         "properties": {
@@ -85,28 +102,31 @@ async def get_student_knowledge_map(student_id: str, course_code: str | None = N
         "required": ["class_id"],
     },
 )
-async def get_class_knowledge_weakness(
-    class_id: str, course_code: str | None = None, top_n: int = 5,
-    _school_id="", _visible_classes=None, _db=None, **_,
-):
-    if _visible_classes is not None and class_id not in _visible_classes:
-        return {"error": "无权查看该班级数据"}
+async def get_class_knowledge_weakness(input: dict, ctx: ToolContext) -> ToolResult:
+    class_id = input.get("class_id", "")
+    course_code = input.get("course_code")
+    top_n = input.get("top_n", 5)
+    try:
+        if ctx.class_ids is not None and class_id not in ctx.class_ids:
+            return ToolResult(success=False, error="无权查看该班级数据")
 
-    from edu_cloud.modules.student.models import Student
-    from sqlalchemy import select
-    stu_result = await _db.execute(
-        select(Student.id).where(Student.class_id == class_id, Student.school_id == _school_id)
-    )
-    student_ids = [r[0] for r in stu_result.all()]
-    if not student_ids:
-        return {"weakness": [], "message": "该班级没有学生数据"}
+        from edu_cloud.modules.student.models import Student
+        from sqlalchemy import select
+        stu_result = await ctx.db.execute(
+            select(Student.id).where(Student.class_id == class_id, Student.school_id == ctx.school_id)
+        )
+        student_ids = [r[0] for r in stu_result.all()]
+        if not student_ids:
+            return ToolResult(success=True, data={"weakness": [], "message": "该班级没有学生数据"})
 
-    from edu_cloud.modules.profile.service import get_class_knowledge_weakness as svc_weakness
-    weakness = await svc_weakness(
-        _db, school_id=_school_id, class_student_ids=student_ids,
-        course_code=course_code, top_n=top_n,
-    )
-    return {"weakness": weakness}
+        from edu_cloud.modules.profile.service import get_class_knowledge_weakness as svc_weakness
+        weakness = await svc_weakness(
+            ctx.db, school_id=ctx.school_id, class_student_ids=student_ids,
+            course_code=course_code, top_n=top_n,
+        )
+        return ToolResult(success=True, data={"weakness": weakness})
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -115,6 +135,8 @@ async def get_class_knowledge_weakness(
     category="L6_profile",
     domain="profile",
     risk_level="low",
+    is_read_only=True,
+    sensitivity="student",
     parameters={
         "type": "object",
         "properties": {
@@ -124,20 +146,25 @@ async def get_class_knowledge_weakness(
         "required": ["student_id"],
     },
 )
-async def get_student_error_pattern(student_id: str, subject_code: str | None = None, _school_id="", _db=None, **_):
-    from edu_cloud.modules.profile.service import get_student_error_pattern as svc_pattern
-    patterns = await svc_pattern(
-        _db, student_id=student_id, school_id=_school_id, subject_code=subject_code,
-    )
-    return {
-        "error_patterns": [
-            {
-                "subject_code": p.subject_code,
-                "error_distribution": p.error_distribution,
-                "total_errors": p.total_errors,
-                "exam_count": p.exam_count,
-                "careless_rate": p.careless_rate,
-            }
-            for p in patterns
-        ]
-    }
+async def get_student_error_pattern(input: dict, ctx: ToolContext) -> ToolResult:
+    student_id = input.get("student_id", "")
+    subject_code = input.get("subject_code")
+    try:
+        from edu_cloud.modules.profile.service import get_student_error_pattern as svc_pattern
+        patterns = await svc_pattern(
+            ctx.db, student_id=student_id, school_id=ctx.school_id, subject_code=subject_code,
+        )
+        return ToolResult(success=True, data={
+            "error_patterns": [
+                {
+                    "subject_code": p.subject_code,
+                    "error_distribution": p.error_distribution,
+                    "total_errors": p.total_errors,
+                    "exam_count": p.exam_count,
+                    "careless_rate": p.careless_rate,
+                }
+                for p in patterns
+            ]
+        })
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))

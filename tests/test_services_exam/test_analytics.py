@@ -1,10 +1,11 @@
 import pytest
+import logging
 from edu_cloud.models.school import School
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.exam import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.grading.models import GradingTask, AIGradingResult, TeacherReview
+from edu_cloud.modules.grading.models import GradingTask, GradingResult
 from edu_cloud.modules.analytics import get_effective_scores
 
 
@@ -26,7 +27,7 @@ async def analytics_data(db):
     subject = Subject(exam_id=exam.id, name="语文", code="chinese", school_id=school.id)
     db.add(subject)
     await db.commit()
-    q = Question(subject_id=subject.id, name="Q1", question_type="subjective", max_score=10.0, school_id=school.id)
+    q = Question(subject_id=subject.id, name="Q1", question_type="essay", max_score=10.0, school_id=school.id)
     db.add(q)
     await db.commit()
 
@@ -37,39 +38,31 @@ async def analytics_data(db):
     db.add(task)
     await db.commit()
 
-    # 3 students, different scores
+    # 3 students — 覆盖三种 source 分支：ai_done(待审) / ai_override / ai(approve)
+    # 统一模型下：final_score 是单一权威源
+    cases = [
+        ("stu_0", 8.0, 8.0, "ai_done", None),        # AI 已评，未审 → final=ai
+        ("stu_1", 6.0, 7.0, "confirmed", "ai_override"),  # 教师改分 → final=7
+        ("stu_2", 9.0, 9.0, "confirmed", "ai"),      # 教师确认 → final=ai
+    ]
     results = []
-    for i, (score, review) in enumerate([
-        (8.0, None),           # AI score accepted
-        (6.0, ("override", 7.0)),  # teacher overridden to 7.0
-        (9.0, ("approve", None)),  # teacher approved AI score
-    ]):
+    for sid, ai_s, final_s, status, source in cases:
         a = StudentAnswer(
-            exam_id=exam.id, subject_id=subject.id, student_id=f"stu_{i}",
-            question_id=q.id, image_path=f"/fake/{i}.png", school_id=school.id,
+            exam_id=exam.id, subject_id=subject.id, student_id=sid,
+            question_id=q.id, image_path=f"/fake/{sid}.png", school_id=school.id,
         )
         db.add(a)
         await db.commit()
 
-        r = AIGradingResult(
-            task_id=task.id, answer_id=a.id, question_id=q.id,
-            school_id=school.id, score=score, max_score=10.0,
-            feedback="f", confidence=0.9,
-            review_status="overridden" if review and review[0] == "override" else (
-                "approved" if review and review[0] == "approve" else "pending"
-            ),
+        r = GradingResult(
+            ai_task_id=task.id, answer_id=a.id, question_id=q.id,
+            school_id=school.id, ai_score=ai_s, ai_confidence=0.9, ai_feedback="f",
+            final_score=final_s, max_score=10.0,
+            status=status, source=source,
+            reviewer_id=user.id if status == "confirmed" else None,
         )
         db.add(r)
         await db.commit()
-
-        if review:
-            tr = TeacherReview(
-                result_id=r.id, reviewer_id=user.id, school_id=school.id,
-                action=review[0], adjusted_score=review[1],
-            )
-            db.add(tr)
-            await db.commit()
-
         results.append(r)
 
     return {
@@ -79,28 +72,18 @@ async def analytics_data(db):
     }
 
 
-import logging
-
-
-async def test_effective_scores_overridden_null_adjusted(db, analytics_data):
-    """overridden 但 adjusted_score=None 的脏数据应记录 warning 并回退 AI 分"""
-    from edu_cloud.modules.grading.models import AIGradingResult, TeacherReview
+async def test_effective_scores_missing_final_score(db, analytics_data):
+    """final_score=None 的脏数据应被跳过并记录 warning。"""
     from sqlalchemy import select
 
-    # 找到 overridden 的 result（stu_1），把其 TeacherReview.adjusted_score 设为 None
+    # 把 stu_1 的 final_score 清空，模拟脏数据
     r_result = await db.execute(
-        select(AIGradingResult).where(AIGradingResult.review_status == "overridden")
+        select(GradingResult).where(GradingResult.source == "ai_override")
     )
-    overridden_result = r_result.scalar_one()
-    tr_result = await db.execute(
-        select(TeacherReview).where(TeacherReview.result_id == overridden_result.id)
-    )
-    tr = tr_result.scalar_one()
-    tr.adjusted_score = None
+    overridden = r_result.scalar_one()
+    overridden.final_score = None
     await db.commit()
 
-    # Use a custom handler to capture warnings (caplog may not work when
-    # edu-cloud's logging_config.py has already configured handlers)
     captured_warnings = []
     analytics_logger = logging.getLogger("edu_cloud.modules.analytics")
 
@@ -118,20 +101,35 @@ async def test_effective_scores_overridden_null_adjusted(db, analytics_data):
     finally:
         analytics_logger.removeHandler(cap)
 
-    score_map = {s["student_id"]: s["effective_score"] for s in scores}
-    # 回退到 AI 分 6.0
-    assert score_map["stu_1"] == 6.0
-    # 必须有 warning 日志
-    assert any("overridden" in msg.lower() and "adjusted_score" in msg.lower() for msg in captured_warnings)
+    # 脏数据被跳过，只剩 2 条
+    assert len(scores) == 2
+    assert any("final_score" in msg.lower() for msg in captured_warnings)
 
 
 async def test_effective_scores(db, analytics_data):
     scores = await get_effective_scores(
         db, analytics_data["subject_id"], analytics_data["school_id"]
     )
-    # scores: list of {student_id, question_id, effective_score}
     assert len(scores) == 3
     score_map = {s["student_id"]: s["effective_score"] for s in scores}
-    assert score_map["stu_0"] == 8.0   # AI score (pending review)
-    assert score_map["stu_1"] == 7.0   # teacher override
-    assert score_map["stu_2"] == 9.0   # teacher approved → AI score
+    assert score_map["stu_0"] == 8.0   # AI 预评，待审 → final=8
+    assert score_map["stu_1"] == 7.0   # 教师改分 → final=7
+    assert score_map["stu_2"] == 9.0   # 教师 approve → final=9
+
+
+async def test_exam_distribution_uses_school_config(db, analytics_data):
+    """exam_distribution 应使用学校配置的分数段而非硬编码。"""
+    from edu_cloud.modules.analytics.segment_service import upsert_segment_config
+    from edu_cloud.modules.analytics.service import exam_distribution
+
+    school_id = analytics_data["school_id"]
+    exam_id = analytics_data["exam_id"]
+    await upsert_segment_config(
+        db, school_id, boundaries=[50], labels=["通过", "不通过"],
+    )
+    await db.commit()
+
+    result = await exam_distribution(db, exam_id=exam_id, school_id=school_id)
+    labels = [iv["label"] for iv in result["intervals"]]
+    assert "通过" in labels
+    assert "不通过" in labels

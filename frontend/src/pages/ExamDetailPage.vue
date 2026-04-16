@@ -18,7 +18,7 @@
         <!-- 科目管理 -->
         <n-tab-pane name="subjects" tab="科目管理">
           <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
-            <n-button type="primary" class="btn-pill" size="small" @click="showSubjectModal = true">添加科目</n-button>
+            <n-button type="primary" class="btn-pill" size="small" @click="openSubjectModal">添加科目</n-button>
           </div>
           <n-data-table :columns="subjectColumns" :data="subjects" size="small" />
         </n-tab-pane>
@@ -186,18 +186,72 @@
 
         <!-- 可视化答题卡编辑器 -->
         <n-tab-pane name="visual-editor" tab="可视化编辑">
-          <div style="margin-bottom: 16px;">
-            <n-form-item label="选择科目" label-placement="left" label-width="auto">
+          <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <n-form-item label="科目" label-placement="left" label-width="auto" style="margin-bottom: 0;">
               <n-select
                 v-model:value="visualEditorSubjectId"
                 :options="subjectOptions"
                 placeholder="选择科目"
-                style="width: 240px;"
+                style="width: 200px;"
               />
             </n-form-item>
+            <n-divider vertical />
+            <n-button
+              size="small"
+              class="btn-pill toolbar-btn"
+              :disabled="!visualEditorSubjectId || exam?.status !== 'draft'"
+              @click="cardEditorRef?.save()"
+            >
+              保存
+            </n-button>
+            <n-button
+              size="small"
+              class="btn-pill toolbar-btn"
+              :disabled="!visualEditorSubjectId || exam?.status !== 'draft'"
+              @click="handleResetLayout"
+            >
+              恢复默认
+            </n-button>
+            <n-button
+              size="small"
+              class="btn-pill toolbar-btn"
+              :loading="autoLayouting"
+              :disabled="!visualEditorSubjectId || exam?.status !== 'draft'"
+              @click="handleAutoLayout"
+            >
+              小微排版
+            </n-button>
+            <n-divider vertical />
+            <n-button
+              size="small"
+              class="btn-pill toolbar-btn"
+              :disabled="!visualEditorSubjectId"
+              @click="cardEditorRef?.exportPdf()"
+            >
+              导出 PDF
+            </n-button>
+            <n-button
+              size="small"
+              class="btn-pill toolbar-btn"
+              :loading="batchExporting"
+              :disabled="subjects.length === 0"
+              @click="handleBatchExportPdf"
+            >
+              {{ batchExporting ? batchExportProgress : '导出全部 PDF' }}
+            </n-button>
+            <n-button
+              size="small"
+              class="btn-pill toolbar-btn"
+              data-testid="publish-card-btn"
+              :disabled="!visualEditorSubjectId || exam?.status !== 'draft'"
+              @click="handlePublishCard"
+            >
+              发布答题卡
+            </n-button>
           </div>
           <div v-if="visualEditorSubjectId" style="min-height: 600px;">
             <CardEditor
+              ref="cardEditorRef"
               :key="visualEditorSubjectId + (pendingQuestionsForEditor ? '-pq' : '')"
               :exam-id="examId"
               :subject-id="visualEditorSubjectId"
@@ -211,35 +265,28 @@
           <n-empty v-else description="请先选择科目" />
         </n-tab-pane>
 
-        <!-- 扫描状态 -->
-        <n-tab-pane name="scan" tab="扫描状态">
-          <n-empty description="扫描状态由 paper-seg 工作站管理，此处为只读视图。">
-            <template #extra>
-              <p style="color: var(--color-text-muted); font-size: 14px;">
-                请使用 paper-seg 桌面端进行试卷扫描和上传操作。
-              </p>
-            </template>
-          </n-empty>
-        </n-tab-pane>
+        <!-- 扫描功能已迁移到阅卷调度页面 GradingDispatchPage -->
       </n-tabs>
     </template>
 
     <!-- Modals 放在根级别，避免嵌套在 n-tabs 内部导致遮罩异常 -->
     <n-modal v-model:show="showSubjectModal" preset="card" title="添加科目" style="width: 480px;" :mask-closable="true">
-      <n-form :model="subjectForm" label-placement="top">
-        <n-form-item label="科目名称">
-          <n-input v-model:value="subjectForm.name" placeholder="例如：语文" />
-        </n-form-item>
-        <n-form-item label="科目代码">
-          <n-input v-model:value="subjectForm.code" placeholder="例如：chinese" />
-        </n-form-item>
-        <n-form-item>
-          <n-text depth="3" style="font-size: 12px;">题目将在上传答案文件时自动创建</n-text>
-        </n-form-item>
-      </n-form>
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+      <n-checkbox-group v-model:value="selectedSubjectCodes">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <n-checkbox
+            v-for="s in availablePresetSubjects"
+            :key="s.code"
+            :value="s.code"
+            :label="`${s.name}（${s.code}）`"
+          />
+        </div>
+      </n-checkbox-group>
+      <n-text v-if="availablePresetSubjects.length === 0" depth="3">所有常用科目已添加</n-text>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
         <n-button class="btn-pill" @click="showSubjectModal = false">取消</n-button>
-        <n-button type="primary" class="btn-pill" :loading="subjectCreating" @click="handleCreateSubject">添加</n-button>
+        <n-button type="primary" class="btn-pill" :loading="subjectCreating" :disabled="selectedSubjectCodes.length === 0" @click="handleBatchCreateSubjects">
+          添加 ({{ selectedSubjectCodes.length }})
+        </n-button>
       </div>
     </n-modal>
 
@@ -267,11 +314,12 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, watch, h } from 'vue'
 import { useRoute } from 'vue-router'
-import { useMessage, useDialog, NSelect, NInputNumber, NTag, NInput } from 'naive-ui'
+import { useMessage, useDialog, NSelect, NInputNumber, NTag, NInput, NCheckbox, NCheckboxGroup } from 'naive-ui'
 import { getExam, updateExam } from '../api/exams'
 import { listSubjects, createSubject } from '../api/subjects'
 import { getRubric, upsertRubric } from '../api/rubrics'
 import { generateBarcode, parseAnswers, previewByWeights, generateCardV2 } from '../api/cards'
+// scan 功能已迁移到 GradingDispatchPage
 import CardEditor from '../components/CardEditor.vue'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
@@ -305,8 +353,21 @@ const showRubricModal = ref(false)
 const rubricLoading = ref(false)
 const subjectCreating = ref(false)
 
+const PRESET_SUBJECTS = [
+  { name: '语文', code: 'YW' }, { name: '数学', code: 'SX' }, { name: '英语', code: 'YY' },
+  { name: '物理', code: 'WL' }, { name: '化学', code: 'HX' }, { name: '生物', code: 'SW' },
+  { name: '政治', code: 'ZZ' }, { name: '历史', code: 'LS' }, { name: '地理', code: 'DL' },
+  { name: '技术', code: 'JS' },
+]
+const selectedSubjectCodes = ref([])
+const availablePresetSubjects = computed(() => {
+  const existing = new Set(subjects.value.map(s => s.code))
+  return PRESET_SUBJECTS.filter(s => !existing.has(s.code))
+})
 const subjectForm = reactive({ name: '', code: '' })
 const rubricForm = reactive({ criteria: '', reference_answer: '', questionId: '' })
+
+// Scan pipeline 已迁移到 GradingDispatchPage
 
 const statusMap = {
   draft: { label: '草稿', type: 'default' },
@@ -355,21 +416,30 @@ async function handleSaveCardTitle() {
   cardTitleSaving.value = false
 }
 
-async function handleCreateSubject() {
-  if (!subjectForm.name || !subjectForm.code) { message.warning('请填写完整'); return }
+function openSubjectModal() {
+  selectedSubjectCodes.value = availablePresetSubjects.value.map(s => s.code)
+  showSubjectModal.value = true
+}
+
+async function handleBatchCreateSubjects() {
+  if (selectedSubjectCodes.value.length === 0) return
   subjectCreating.value = true
-  try {
-    await createSubject(examId, { name: subjectForm.name, code: subjectForm.code })
-    message.success('科目添加成功')
-    subjectForm.name = ''
-    subjectForm.code = ''
+  const toAdd = PRESET_SUBJECTS.filter(s => selectedSubjectCodes.value.includes(s.code))
+  let ok = 0
+  for (const s of toAdd) {
+    try {
+      await createSubject(examId, { name: s.name, code: s.code })
+      ok++
+    } catch (e) {
+      message.error(`${s.name} 添加失败: ${e.response?.data?.detail || '未知错误'}`)
+    }
+  }
+  if (ok > 0) {
+    message.success(`成功添加 ${ok} 个科目`)
     showSubjectModal.value = false
     await loadExam()
-  } catch (e) {
-    message.error(e.response?.data?.detail || '添加失败')
-  } finally {
-    subjectCreating.value = false
   }
+  subjectCreating.value = false
 }
 
 async function openRubric(questionId) {
@@ -409,12 +479,110 @@ async function handleSaveRubric() {
   }
 }
 
+// --- 批量导出 PDF ---
+const batchExporting = ref(false)
+const batchExportProgress = ref('')
+
+async function handleBatchExportPdf() {
+  if (subjects.value.length === 0) { message.warning('无科目可导出'); return }
+  batchExporting.value = true
+  batchExportProgress.value = '准备中...'
+  try {
+    const { batchExportPdf } = await import('@/card-editor/export.js')
+    const results = await batchExportPdf(
+      subjects.value,
+      exam.value?.card_title || exam.value?.name || '',
+      (cur, total, name) => { batchExportProgress.value = `${cur}/${total} ${name}` }
+    )
+    const ok = results.filter(r => r.ok).length
+    const fail = results.filter(r => r.error)
+    if (fail.length === 0) {
+      message.success(`全部 ${ok} 科导出成功`)
+    } else {
+      message.warning(`${ok} 科成功，${fail.length} 科失败: ${fail.map(f => f.name).join('、')}`)
+    }
+  } catch (e) {
+    message.error('批量导出失败: ' + e.message)
+  } finally {
+    batchExporting.value = false
+    batchExportProgress.value = ''
+  }
+}
+
 // --- 可视化编辑器 ---
+const cardEditorRef = ref(null)
 const visualEditorSubjectId = ref(null)
 const visualEditorSubjectName = computed(() => {
   const s = subjects.value.find(s => s.id === visualEditorSubjectId.value)
   return s ? s.name : ''
 })
+
+const autoLayouting = ref(false)
+
+async function handleAutoLayout() {
+  if (!visualEditorSubjectId.value || !cardEditorRef.value) return
+  // 让用户选择答案文件
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.docx'
+  input.onchange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    autoLayouting.value = true
+    try {
+      // 上传文件到临时路径，后端解析
+      const formData = new FormData()
+      formData.append('file', file)
+      const token = localStorage.getItem('token')
+      const uploadHeaders = {}
+      if (token) uploadHeaders['Authorization'] = `Bearer ${token}`
+      const uploadResp = await fetch('/api/v1/card/upload-answer', {
+        method: 'POST', headers: uploadHeaders, body: formData,
+      })
+      if (!uploadResp.ok) {
+        message.warning('文件上传失败')
+        return
+      }
+      const { file_path } = await uploadResp.json()
+
+      // 调用排版接口
+      const headers = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const resp = await fetch(`/api/v1/card/auto-layout/${visualEditorSubjectId.value}`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ answer_file: file_path }),
+      })
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}))
+        message.warning(err.detail || `排版失败: HTTP ${resp.status}`)
+        return
+      }
+      const result = await resp.json()
+      // 刷新编辑器加载新布局
+      cardEditorRef.value.applyAutoLayout(result)
+      message.success(`小微已为 ${result.subject} ${result.questions?.length || 0} 道题完成排版`)
+    } catch (e) {
+      message.error('小微排版失败: ' + e.message)
+    } finally {
+      autoLayouting.value = false
+    }
+  }
+  input.click()
+}
+
+async function handleResetLayout() {
+  if (!cardEditorRef.value) return
+  const d = dialog.warning({
+    title: '恢复默认模板',
+    content: '当前编辑内容将丢失，确定恢复为系统默认模板？',
+    positiveText: '确定恢复',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      await cardEditorRef.value.resetToDefault()
+      message.success('已恢复默认模板')
+    },
+  })
+}
 
 async function handlePublishCard() {
   if (!visualEditorSubjectId.value) {
@@ -434,12 +602,9 @@ async function handlePublishCard() {
     negativeButtonProps: { class: 'btn-pill' },
     onPositiveClick: async () => {
       try {
-        // Step 1-3: PDF + skeleton + Template (via export.js publishCard)
+        // F003: 单次调用后端 /api/v1/card/publish (PDF + Question + Template + status)
         const exportModule = await import('@/card-editor/export.js')
-        await exportModule.publishCard(subjectId, filename)
-
-        // Step 4: Update exam status to scanning
-        await updateExam(examId, { status: 'scanning' })
+        await exportModule.publishCard(subjectId, examId, filename)
 
         // Refresh exam data (updates readonly state)
         await loadExam()
@@ -538,6 +703,7 @@ onMounted(() => window.addEventListener('keydown', _escHandler))
 onUnmounted(() => {
   window.removeEventListener('keydown', _escHandler)
   if (cardPreviewUrl.value) URL.revokeObjectURL(cardPreviewUrl.value)
+  stopScanPolling()
 })
 
 async function onSubjectSelect(subjectId) {
@@ -809,4 +975,18 @@ onMounted(loadExam)
 <style scoped>
 .row-warning td { background-color: #fffbe6 !important; }
 .row-danger td { background-color: #fff1f0 !important; }
+.toolbar-btn {
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  color: rgba(0, 0, 0, 0.75) !important;
+  background: transparent !important;
+}
+.toolbar-btn:hover {
+  border-color: rgba(0, 0, 0, 0.4) !important;
+  color: #000 !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+.toolbar-btn:disabled {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: rgba(0, 0, 0, 0.25) !important;
+}
 </style>

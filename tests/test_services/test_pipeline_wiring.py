@@ -39,7 +39,7 @@ async def test_event_bus_handler_registered():
 
 @pytest.mark.asyncio
 async def test_event_handler_calls_mastery_and_patterns():
-    """on_exam_published handler 调用 mastery + patterns 更新。"""
+    """on_exam_published handler 调用 mastery + patterns + adaptive 更新。"""
     with patch(
         "edu_cloud.modules.pipeline.service.update_knowledge_mastery",
         new_callable=AsyncMock, return_value=10,
@@ -47,6 +47,9 @@ async def test_event_handler_calls_mastery_and_patterns():
         "edu_cloud.modules.pipeline.service.update_error_patterns",
         new_callable=AsyncMock, return_value=5,
     ) as mock_p, patch(
+        "edu_cloud.modules.pipeline.service._update_adaptive_mastery",
+        new_callable=AsyncMock, return_value=3,
+    ) as mock_a, patch(
         "edu_cloud.database.async_session",
     ) as mock_session:
         # Mock the async context manager
@@ -59,6 +62,7 @@ async def test_event_handler_calls_mastery_and_patterns():
 
         mock_m.assert_called_once()
         mock_p.assert_called_once()
+        mock_a.assert_called_once()
 
 
 @pytest.mark.asyncio

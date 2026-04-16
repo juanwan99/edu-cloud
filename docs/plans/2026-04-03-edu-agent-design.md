@@ -2,6 +2,9 @@
 
 > 基于 Claude Code 架构裁剪，嵌入 edu-cloud，驱动教师助手和家长顾问两个场景。
 > 设计时间：2026-04-03 15:46
+> [2026-04-04 10:32:00 实现完成] 架构级偏差 2 项已对齐 | 偏差来源: Integration Review GPT 发现 | Commits: ae568cb..e1a28f7
+> - F001: config.LLM_API_URL 语义：原决策"完整 endpoint URL" → 新决策"基地址（不含路径）"，LLMProxyAdapter 内部追加 /v1/chat/completions — 原因: 双重拼接导致请求地址错误
+> - F002: Session 隔离：原设计无 owner 概念 → 新增 _SessionState.owner_id + list/delete 按 owner 过滤 + 403 越权拒绝 — 原因: 多用户环境下任意用户可操作他人会话
 
 ## §0 设计决策记录
 

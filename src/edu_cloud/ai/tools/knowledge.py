@@ -1,6 +1,7 @@
 """L3 知识查询工具 — 课标/教材/概念/高考，注册到全局 registry。"""
 
 from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
 from edu_cloud.knowledge.store import knowledge_store
 
 @tools.register(
@@ -17,10 +18,16 @@ from edu_cloud.knowledge.store import knowledge_store
     domain="knowledge",
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
     risk_level="low",
+    is_read_only=True,
+    sensitivity="public",
 )
-async def search_curriculum(keyword: str) -> dict:
-    results = knowledge_store.search_curriculum(keyword)
-    return {"keyword": keyword, "results": results, "count": len(results)}
+async def search_curriculum(input: dict, ctx: ToolContext) -> ToolResult:
+    keyword = input.get("keyword", "")
+    try:
+        results = knowledge_store.search_curriculum(keyword)
+        return ToolResult(success=True, data={"keyword": keyword, "results": results, "count": len(results)})
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -37,10 +44,16 @@ async def search_curriculum(keyword: str) -> dict:
     domain="knowledge",
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
     risk_level="low",
+    is_read_only=True,
+    sensitivity="public",
 )
-async def search_textbook(keyword: str) -> dict:
-    blocks = knowledge_store.search_knowledge(keyword)
-    return {"keyword": keyword, "blocks": blocks, "count": len(blocks)}
+async def search_textbook(input: dict, ctx: ToolContext) -> ToolResult:
+    keyword = input.get("keyword", "")
+    try:
+        blocks = knowledge_store.search_knowledge(keyword)
+        return ToolResult(success=True, data={"keyword": keyword, "blocks": blocks, "count": len(blocks)})
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -57,12 +70,18 @@ async def search_textbook(keyword: str) -> dict:
     domain="knowledge",
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
     risk_level="low",
+    is_read_only=True,
+    sensitivity="public",
 )
-async def get_concept_info(concept_name: str) -> dict:
-    concept = knowledge_store.get_concept(concept_name)
-    if not concept:
-        return {"error": f"未找到概念: {concept_name}"}
-    return {"concept": concept}
+async def get_concept_info(input: dict, ctx: ToolContext) -> ToolResult:
+    concept_name = input.get("concept_name", "")
+    try:
+        concept = knowledge_store.get_concept(concept_name)
+        if not concept:
+            return ToolResult(success=False, error=f"未找到概念: {concept_name}")
+        return ToolResult(success=True, data={"concept": concept})
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -79,7 +98,14 @@ async def get_concept_info(concept_name: str) -> dict:
     domain="knowledge",
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
     risk_level="low",
+    is_read_only=True,
+    sensitivity="public",
 )
-async def search_gaokao(year: int | None = None, region: str | None = None) -> dict:
-    exams = knowledge_store.search_gaokao(year=year, region=region)
-    return {"exams": exams, "count": len(exams)}
+async def search_gaokao(input: dict, ctx: ToolContext) -> ToolResult:
+    year = input.get("year")
+    region = input.get("region")
+    try:
+        exams = knowledge_store.search_gaokao(year=year, region=region)
+        return ToolResult(success=True, data={"exams": exams, "count": len(exams)})
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))

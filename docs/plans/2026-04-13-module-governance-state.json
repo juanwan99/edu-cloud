@@ -1,0 +1,48 @@
+{
+  "topic": "2026-04-13-module-governance",
+  "plan_file": "docs/plans/2026-04-13-module-governance-plan.md",
+  "design_file": "docs/plans/2026-04-13-module-governance-design.md",
+  "tasks": [
+    {
+      "id": "1",
+      "desc": "P0 全口径调研与债务清单",
+      "status": "completed"
+    },
+    {
+      "id": "2",
+      "desc": "MODULE.md 模板（人读版）",
+      "status": "completed"
+    },
+    {
+      "id": "3",
+      "desc": "聚合脚本 aggregate_modules.py",
+      "status": "completed"
+    },
+    {
+      "id": "4",
+      "desc": "grading 模块 MODULE.md",
+      "status": "completed"
+    },
+    {
+      "id": "5",
+      "desc": "pipeline 模块 MODULE.md",
+      "status": "completed"
+    },
+    {
+      "id": "6",
+      "desc": "module_governance_guard.py 核心实现",
+      "status": "completed"
+    },
+    {
+      "id": "7",
+      "desc": "集成到 commit_guards.py（F001 修正）",
+      "status": "completed"
+    },
+    {
+      "id": "8",
+      "desc": "Gate 2 PASS 后——设计收尾与文档回写（F005 修正）",
+      "status": "completed"
+    }
+  ],
+  "updated_at": "2026-04-13 21:00:00"
+}

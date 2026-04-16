@@ -6,7 +6,7 @@ from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.knowledge.models import KnowledgePoint, QuestionKnowledgePoint
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern
 from edu_cloud.modules.bank.models import StudentErrorBook
-from edu_cloud.modules.grading.models import AIGradingResult, GradingTask, TeacherReview
+from edu_cloud.modules.grading.models import GradingResult, GradingTask
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.modules.pipeline.service import (
@@ -47,8 +47,8 @@ async def _setup_full_exam(db):
     db.add_all([kp1, kp2])
     await db.flush()
 
-    q1 = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
-    q2 = Question(subject_id=subj.id, school_id=school.id, name="2", question_type="subjective", max_score=10)
+    q1 = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
+    q2 = Question(subject_id=subj.id, school_id=school.id, name="2", question_type="essay", max_score=10)
     db.add_all([q1, q2])
     await db.flush()
 
@@ -219,7 +219,7 @@ async def test_snapshot_uses_effective_score(db):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     db.add(q)
     await db.flush()
 
@@ -241,17 +241,12 @@ async def test_snapshot_uses_effective_score(db):
     gt = GradingTask(subject_id=subj.id, school_id=school.id, created_by=user.id)
     db.add(gt)
     await db.flush()
-    ai_r = AIGradingResult(
-        task_id=gt.id, answer_id=sa.id, question_id=q.id,
-        school_id=school.id, score=3.0, max_score=10.0,
-        review_status="overridden",
+    gr = GradingResult(
+        ai_task_id=gt.id, answer_id=sa.id, question_id=q.id,
+        school_id=school.id, ai_score=3.0, final_score=9.0, max_score=10.0,
+        status="confirmed", source="ai_override", reviewer_id=user.id,
     )
-    db.add(ai_r)
-    await db.flush()
-    db.add(TeacherReview(
-        result_id=ai_r.id, reviewer_id=user.id,
-        school_id=school.id, action="override", adjusted_score=9.0,
-    ))
+    db.add(gr)
     await db.commit()
 
     # 生成快照 — 应使用 effective_score=9，而非原始 3
@@ -289,7 +284,7 @@ async def test_mastery_uses_effective_score(db):
     kp = KnowledgePoint(code="M_EFF_KP", name="测试KP", course_code="SX", level=1)
     db.add(kp)
     await db.flush()
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     db.add(q)
     await db.flush()
     db.add(QuestionKnowledgePoint(question_id=q.id, knowledge_point_id=kp.id, is_primary=True))
@@ -311,17 +306,12 @@ async def test_mastery_uses_effective_score(db):
     gt = GradingTask(subject_id=subj.id, school_id=school.id, created_by=user.id)
     db.add(gt)
     await db.flush()
-    ai_r = AIGradingResult(
-        task_id=gt.id, answer_id=sa.id, question_id=q.id,
-        school_id=school.id, score=3.0, max_score=10.0,
-        review_status="overridden",
+    gr = GradingResult(
+        ai_task_id=gt.id, answer_id=sa.id, question_id=q.id,
+        school_id=school.id, ai_score=3.0, final_score=9.0, max_score=10.0,
+        status="confirmed", source="ai_override", reviewer_id=user.id,
     )
-    db.add(ai_r)
-    await db.flush()
-    db.add(TeacherReview(
-        result_id=ai_r.id, reviewer_id=user.id,
-        school_id=school.id, action="override", adjusted_score=9.0,
-    ))
+    db.add(gr)
     await db.commit()
 
     await update_knowledge_mastery(db, exam_id=exam.id, school_id=school.id)
@@ -418,7 +408,7 @@ async def test_error_patterns_cross_exam_accumulates(db):
     subj1 = Subject(exam_id=exam1.id, name="数学", code="SX", school_id=school.id)
     db.add(subj1)
     await db.flush()
-    q1 = Question(subject_id=subj1.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
+    q1 = Question(subject_id=subj1.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     db.add(q1)
     await db.flush()
     db.add(StudentErrorBook(
@@ -437,8 +427,8 @@ async def test_error_patterns_cross_exam_accumulates(db):
     subj2 = Subject(exam_id=exam2.id, name="数学", code="SX", school_id=school.id)
     db.add(subj2)
     await db.flush()
-    q2 = Question(subject_id=subj2.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
-    q3 = Question(subject_id=subj2.id, school_id=school.id, name="2", question_type="subjective", max_score=10)
+    q2 = Question(subject_id=subj2.id, school_id=school.id, name="1", question_type="essay", max_score=10)
+    q3 = Question(subject_id=subj2.id, school_id=school.id, name="2", question_type="essay", max_score=10)
     db.add_all([q2, q3])
     await db.flush()
     db.add(StudentErrorBook(

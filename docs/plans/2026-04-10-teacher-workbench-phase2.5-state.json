@@ -1,0 +1,13 @@
+{
+  "topic": "teacher-workbench-phase2.5",
+  "plan_file": "docs/plans/2026-04-10-teacher-workbench-phase2.5-plan.md",
+  "design_file": "docs/plans/2026-04-10-teacher-workbench-phase2.5-design.md",
+  "tasks": [
+    {"id": "1", "desc": "relatedNodeIds/relatedEdgeIds computed + 7 tests (INV-006 + CE-004 + F003 dangling)", "status": "completed"},
+    {"id": "2", "desc": "G6 node/edge state spec + updateElementStates wire-up + 4 tests (INV-007/INV-008 + CE-005 + F004 rebuild)", "status": "completed"},
+    {"id": "3", "desc": "Tooltip plugin + renderPeersHtml 纯函数 + 8 tests (INV-009/INV-010 + CE-006)", "status": "completed"}
+  ],
+  "closed": true,
+  "closure_note": "Gate 1 plan_review R1 FAIL (F001-F007) → R2 PASS (resolved F001-F007 + new F008/F009 all resolved-correct). Gate 2 code_review_batch1 R1 FAIL (F001-F003 test-gap defect_fix) → R2 PASS (all resolved-correct, no behavior_change). Implementation commits b909ccf..f948089, review closure commit 0bcd915. Frontend 17 files / 182 tests (Phase 2 160 + Phase 2.5 22). design.md 已标 [实现完成], CLAUDE.md 参考表已更新, GPT raw output SHA256 归档. 视觉验收 3 条路径 (design §8) 待用户手动确认，属 Phase 2.5 收尾外部依赖项，不阻塞本 state 闭环。",
+  "updated_at": "2026-04-11 08:02:00"
+}

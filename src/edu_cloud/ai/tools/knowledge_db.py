@@ -3,6 +3,7 @@
 基于 modules/knowledge 的关系型数据库查询（与 knowledge.py 的内存索引互补）。
 """
 from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
 
 
 @tools.register(
@@ -12,6 +13,8 @@ from edu_cloud.ai.registry import tools
     domain="knowledge",
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
     risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
     parameters={
         "type": "object",
         "properties": {
@@ -21,18 +24,23 @@ from edu_cloud.ai.registry import tools
         "required": ["course_code"],
     },
 )
-async def get_knowledge_tree(course_code: str, parent_id: str | None = None, _db=None, _school_id=None, **_):
-    from edu_cloud.modules.knowledge.service import list_knowledge_points
-    kps = await list_knowledge_points(
-        _db, course_code=course_code, parent_id=parent_id,
-        school_id=_school_id,
-    )
-    return {
-        "knowledge_points": [
-            {"id": kp.id, "code": kp.code, "name": kp.name, "level": kp.level, "grade_hint": kp.grade_hint}
-            for kp in kps
-        ]
-    }
+async def get_knowledge_tree(input: dict, ctx: ToolContext) -> ToolResult:
+    course_code = input.get("course_code", "")
+    parent_id = input.get("parent_id")
+    try:
+        from edu_cloud.modules.knowledge.service import list_knowledge_points
+        kps = await list_knowledge_points(
+            ctx.db, course_code=course_code, parent_id=parent_id,
+            school_id=ctx.school_id,
+        )
+        return ToolResult(success=True, data={
+            "knowledge_points": [
+                {"id": kp.id, "code": kp.code, "name": kp.name, "level": kp.level, "grade_hint": kp.grade_hint}
+                for kp in kps
+            ]
+        })
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -42,6 +50,8 @@ async def get_knowledge_tree(course_code: str, parent_id: str | None = None, _db
     domain="knowledge",
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
     risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
     parameters={
         "type": "object",
         "properties": {
@@ -50,12 +60,16 @@ async def get_knowledge_tree(course_code: str, parent_id: str | None = None, _db
         "required": ["question_id"],
     },
 )
-async def get_question_knowledge_points(question_id: str, _db=None, **_):
-    from edu_cloud.modules.knowledge.service import get_question_knowledge_points as svc_get
-    kps = await svc_get(_db, question_id=question_id)
-    return {
-        "knowledge_points": [
-            {"id": kp.id, "code": kp.code, "name": kp.name, "level": kp.level}
-            for kp in kps
-        ]
-    }
+async def get_question_knowledge_points(input: dict, ctx: ToolContext) -> ToolResult:
+    question_id = input.get("question_id", "")
+    try:
+        from edu_cloud.modules.knowledge.service import get_question_knowledge_points as svc_get
+        kps = await svc_get(ctx.db, question_id=question_id)
+        return ToolResult(success=True, data={
+            "knowledge_points": [
+                {"id": kp.id, "code": kp.code, "name": kp.name, "level": kp.level}
+                for kp in kps
+            ]
+        })
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))

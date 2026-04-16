@@ -107,6 +107,15 @@ async def test_init_school_modules(db, seed_school):
     assert enabled == DEFAULT_ENABLED
 
 
+def test_default_enabled_includes_conduct():
+    """2026-04-13 conduct R3 上线契约——防止有人意外回退默认启用集。
+    若 conduct 不在默认集 → 新建学校 sidebar 全部 9 个德育菜单被隐藏。"""
+    assert "conduct" in DEFAULT_ENABLED, (
+        "DEFAULT_ENABLED 必须包含 'conduct'：移除会导致新建学校隐藏全部德育菜单。"
+        f" 当前: {DEFAULT_ENABLED}"
+    )
+
+
 @pytest.mark.asyncio
 async def test_set_module_enabled(db, seed_school):
     school, _ = seed_school

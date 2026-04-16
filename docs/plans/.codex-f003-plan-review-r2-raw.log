@@ -1,0 +1,1229 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d7ce0-278b-7383-a70c-6899be9dc9a6
+--------
+user
+You are a senior architect reviewing an implementation plan.
+
+Read these files:
+1. C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md — the implementation plan
+2. C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-design.md — the design document
+3. C:/Users/Administrator/edu-cloud/CLAUDE.md — project rules (if exists)
+
+Perform plan review per checklist:
+A. 自洽性: Task 依赖完整、接口契约一致、无逻辑矛盾、破坏性操作有回滚
+B. 代码库对齐: 引用路径真实、不违反现有 API、不命名冲突、不重复功能
+C. 架构适配（按 architecture-rules.md §审查清单速查）: 职责单一、依赖方向正确（无反向/循环）、接口隔离（无内部数据结构直连）、配置集中、单功能变更影响 ≤3 文件
+D. 完整性: 每个行为变更 Task 须有测试契约段（5 字段：入口/反例/边界/回归/命令）和边界条件段（至少 3 个）、迁移考虑、UX 规格（适用时）、批次边界合理
+D+. 测试契约质量（test-gap 硬判定）:
+   - 逻辑镜像测试（测试只是实现的对称复述，不能在错误实现下失败）→ test-gap HIGH
+   - 无入口级验证（测试只调内部函数，不经过用户可触达的入口）→ test-gap MED
+   - 无反例说明（测试契约未写明"错误实现会怎样失败"）→ test-gap MED
+E. 风险评估: Tier 分级有据、高风险区域标记
+F. Contract Pack 完整性:
+   - plan 中是否包含结构化 Contract Pack 段落（invariants / counter_examples / risk_modules / test_debt）
+   - invariants ≥3 条，每条有 verification 映射（existing_test 须有 test_ref）
+   - counter_examples ≥2 个，每个标注 tests_that_still_pass 和 mitigation
+   - risk_modules 覆盖所有 public API 变更和治理基础设施变更
+   - test_debt 有具体理由和 deadline（不接受空理由或无期限）
+   - 不接受不可验证的 prose（"系统应正确运行"→ FAIL）
+   - 参考: ~/.claude/config/contract-pack-schema.md
+
+审查规范（必读）：先读以下文件中的对应段落：
+- ~/.claude/rules-t3/review-templates.md finding-classification / finding-type / pass-fail / test-gap-criteria / behavior-change-guard / finding-transition
+
+Output structured findings with: ID, Severity, Category, Type, Before-behavior, After-behavior, Evidence, Impact, Repair hypothesis (optional, non-authoritative).
+Repair hypothesis is advisory only and has no execution authority.
+If the finding touches invariants, risk_modules, or red-flag patterns
+(state machine / fallback / selection strategy / threshold / lifecycle / evaluation cadence),
+do not prescribe a concrete code edit. Instead, describe:
+1. the likely repair direction
+2. forbidden fix patterns to avoid
+3. "requires independent fix design + Semantic Regression Gate"
+Write in Chinese.
+Conclude with PASS or FAIL.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+先读审查基线和计划文档，再对照代码库验证引用路径、接口和批次边界。这个任务是文档审查，不是 PR 评审，我不启用 `code-review:review-pr` 技能。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.claude/rules-t3/review-templates.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.claude/config/contract-pack-schema.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files 'C:/Users/Administrator/edu-cloud' | rg 'architecture-rules\\.md"'$|question-writeback|question.*writeback|exam|result|attempt|submission|writeback'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-design.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "if (Test-Path 'C:/Users/Administrator/edu-cloud/CLAUDE.md') { Get-Content -Raw 'C:/Users/Administrator/edu-cloud/CLAUDE.md' }" in C:/Users/Administrator/edu-cloud succeeded in 619ms:
+# 瀹℃煡宸ヤ綔娴佹ā鏉夸笌娴佺▼
+
+> 浠庡叏灞€ CLAUDE.md 鎶藉彇銆俆3/T4 鎵ц浼氳瘽鎸夐渶璇诲彇銆?
+
+## 娴佺▼缂栨帓
+
+### T3锛? 绐楀彛锛?
+
+```
+鈶?Claude: Design 鈫?Plan 鈫?commit (draft)
+鈶?GPT Codex: Plan Review 鈫?plan-review.md (Gate 1)
+鈶?Claude: 澶勭疆 finding 鈫?commit (final plan) 鈫?Execute 鈫?鑷浜ゆ帴鍗?
+鈶?GPT Codex: Code Review锛堝叏閲忥紝codex exec锛夆啋 review-report.md (Gate 2)
+鈶?Gate: 鎵€鏈?finding 宸插缃?鈫?design.md 鏍囪 [瀹炵幇瀹屾垚]
+```
+
+### T4锛? 鎸佷箙 + 涓€娆℃€?Executor锛?
+
+```
+鈶?Claude Planner: Design 鈫?Plan 鈫?commit (draft)
+ succeeded in 686ms:
+C:/Users/Administrator/edu-cloud\src\edu_cloud\models\joint_exam.py
+C:/Users/Administrator/edu-cloud\src\edu_cloud\models\exam.py
+C:/Users/Administrator/edu-cloud\src\edu_cloud\api\results.py
+C:/Users/Administrator/edu-cloud\src\edu_cloud\api\joint_exams.py
+C:/Users/Administrator/edu-cloud\src\edu_cloud\data\import_real_exam.py
+C:/Users/Administrator/edu-cloud\src\edu_cloud\data\import_exam_xlsx.py
+C:/Users/Administrator/edu-cloud\src\edu_cloud\ai\workflow\w1_post_exam.py
+C:/Users/Administrator/edu-cloud\src\edu_cloud\services\results_service.py
+C:/Users/Administrator/edu-cloud\src\edu_cloud\services\joint_exam_service.py
+C:/Users/Administrator/edu-cloud\src\edu_cloud\ai\tools\exam_overview.py
+C:/Users/Administrator/edu-cloud\src\edu_cloud\ai\tools\exams.py
+C:/Users/Administrator/edu-cloud\tests\test_ai\test_w1_post_exam.py
+C:/Users/Administrator/edu-cloud\tests\test_api\test_results.py
+C:/Users/Administrator/edu-cloud\tests\test_api\test_joint_exams.py
+C:/Users/Administrator/edu-cloud\tests\test_api\test_exam_publish.py
+C:/Users/Administrator/edu-cloud\tests\test_services_exam\__init__.py
+C:/Users/Administrator/edu-cloud\tests\test_services_exam\test_tql_renderer.py
+C:/Users/Administrator/edu-cloud\tests\test_services_exam\test_tpl_parser.py
+C:/Users/Administrator/edu-cloud\tests\test_services_exam\test_storage.py
+C:/Users/Administrator/edu-cloud\tests\test_services_exam\test_segment_service.py
+ succeeded in 633ms:
+# Contract Pack Schema
+
+> 鍗曚竴鐪熸簮銆侾lan Review prompt 寮曠敤姝ゆ枃浠躲€?
+
+## 鏍煎紡瑙勫垯锛團-008 淇锛?
+
+- **鏍归敭寮哄埗**: Contract Pack 蹇呴』浠?`contract_pack:` 涓?YAML 鏍归敭
+- **verification 鏋氫妇**: 鍙厑璁?`existing_test` / `pending_test` / `uncovered`锛屽娉ㄧ敤 `note` 瀛楁
+- **绌?test_debt**: `test_debt: []` 鏄悎娉曠殑锛岃〃绀?褰撳墠鏃犲欢鏈熼」"锛涚己灏?`test_debt` 閿笉鍚堟硶
+
+## 蹇呰娈佃惤锛圥lan Review 妫€鏌ュ畬鏁存€э級
+
+### invariants锛堚墺3 鏉★級
+
+| 瀛楁 | 蹇呭～ | 璇存槑 |
+|------|------|------|
+| id | 鉁?| INV-NNN |
+| statement | 鉁?| 涓嶅彲楠岃瘉鐨?prose 涓嶆帴鍙楋紙濡?绯荤粺搴旀纭繍琛?锛?|
+| verification | 鉁?| existing_test / pending_test / uncovered |
+| test_ref | 浠?existing_test | test_file::test_function |
+ succeeded in 711ms:
+# edu-cloud 鈥?鏁欒偛浜戝钩鍙?
+
+<!-- key-start -->
+## 椤圭洰瀹氫綅
+
+edu-cloud 鏄?*澶氭牎鍗忓悓鐨勪簯绔钩鍙?*锛屾槸瀛︽牎绔紙exam-ai锛夌殑涓婃父璋冨害涓績銆?
+
+```
+[鐩戠绔痌                      [浜戠骞冲彴]                      [瀛︽牎绔痌
+鏁欒偛灞€/闆嗗洟鐪嬫澘  鈹€鈹€鈹€鈹€鈹€鈹€鈫? edu-cloud (port 9000)  鈫愨攢鈹€鈹€鈹€鈹€鈹€  exam-ai 脳 N 鎵€瀛︽牎
+  - 鍏ㄥ尯鎴愮哗鎬昏              - 鑱旇€冪紪鎺掍笌涓嬪彂                 - 鏈牎鑰冭瘯绠＄悊
+  - 瀛︽牎闂村姣?               - 璺ㄦ牎鏁版嵁姹囨€?                  - 鎵弿+AI闃呭嵎
+  - 鏁欏璐ㄩ噺鐩戞帶              - 鍏变韩 AI 闃呭嵎鏈嶅姟               - 鎴愮哗涓婃姤鍒颁簯绔?
+                              - 瀛︽牎娉ㄥ唽涓庣姸鎬佺洃鎺?
+                              - 缁熶竴棰樺簱绠＄悊
+```
+
+### 鑱岃矗杈圭晫
+
+| 鑱岃矗 | 褰掑睘 | 璇存槑 |
+ succeeded in 711ms:
+---
+type: plan
+topic: f003-question-writeback
+design: docs/plans/2026-04-11-f003-question-writeback-design.md
+created: 2026-04-11 21:20:00
+tier: T4
+status: draft
+batches: 3
+tasks_total: 13
+---
+
+# F003 Question 鍐欏叆璐ｄ换閾鹃噸璁?鈥?Implementation Plan
+
+> **Design source:** `docs/plans/2026-04-11-f003-question-writeback-design.md`
+> **Topic:** f003-question-writeback
+> **Tier:** T4 鈥?design鈫抪lan鈫扜ate 1鈫掓柊浼氳瘽鎵ц鈫掗€愭壒 code review鈫掗泦鎴?review鈫抮econciliation
+
+**Goal:** 鎶?Question 鍒涘缓璐ｄ换浠?pipeline 缁撴潫鏃?鍓嶇Щ鍒?publish 鏃跺埢"锛岃 CardEditor publish 鎴愪负涓€绔欏紡鍘熷瓙鍏ュ彛锛屾墦閫氱瓟棰樺崱 鈫?Question 琛?鈫?Template 鍙岄潰 鈫?pipeline 鍐?StudentAnswer 鈫?闃呭嵎/缁熻/鑷€傚簲 鐨勭鍒扮绠￠亾銆?
+**Architecture:** 鏂板缓 `publish_service.py` 鎵挎媴 publish 鐨勪笟鍔″師瀛愭搷浣滐紙html鈫扨DF + skeleton鈫抲psert Question + 鍙岄潰 Template + exam.status锛夛紝鍓嶇 `publishCard()` 浠庢墜宸ヤ笁姝ョ畝鍖栦负鍗曟璋冪敤 `/api/v1/card/publish`锛宲ipeline 灞傞€氳繃闂寘鎹曡幏 `region_map` 鍦?save_answer_fn 涓弽鏌?question_id銆?
+**Tech Stack:** FastAPI async + SQLAlchemy 2.0 + Alembic migration + Playwright (PDF) + Vue 3 Composition API + Vitest + happy-dom + pytest-asyncio
+ succeeded in 619ms:
+---
+type: design
+topic: f003-question-writeback
+created: 2026-04-11 21:10:18
+tier: T4
+status: draft
+depends_on:
+  - docs/plans/2026-04-08-card-xiaowei-layout-v2-handoff.md  # 灏忓井鎺掔増 v2 瑙嗚楠屾敹蹇呴』鍏堝洖涓荤嚎
+related_findings:
+  - F001  # render.js .page 缂?data-side 灞炴€э紙浣滀负鏈璁＄殑鍓嶇疆瀛愪换鍔★級
+  - F003  # Question 鍒涘缓鍏ュ彛浠庢湭鎺ラ€氾紙鏈璁＄殑涓荤洰鏍囷級
+  - F003a # publish 纭紪鐮?side="A"锛堝悎骞跺埌鍙岄潰 Template 鍐欏叆锛?  - F008  # 閫夋嫨棰樿瘑鍒?+ anchor/affine 琚?F003 閬斀锛團003 淇鍚庤В閿佺嫭绔嬮獙璇侊級
+exploration_source: docs/plans/2026-04-11-exploration-notes.md 搂D6 + 搂Round 3
+---
+
+# F003 Question 鍐欏叆璐ｄ换閾鹃噸璁?鈥?Design
+
+## 搂0 TL;DR
+
+edu-cloud 闃呭嵎绠￠亾绔埌绔柇瑁傜殑鏍瑰洜鏄?**Question 鍒涘缓鍏ュ彛浠庢湭鎺ラ€?*锛欳ardEditor 甯冨眬鍐?`editor_layouts/*.json` 鏂囦欢涓嶅悓姝?DB锛屽悗绔?`/api/v1/card/publish` 绔偣铏界劧瀹炵幇浜嗕竴绔欏紡 publish 鍗翠粠鏈鍓嶇璋冪敤锛堝兊灏哥鐐癸級锛岃€屽墠绔?`publishCard()` 鎵嬪伐涓夋鍙啓 Template A 闈笉鍒涘缓 Question銆傛柟妗?D 灏?Question 鍒涘缓璐ｄ换鍓嶇Щ鍒?publish 鏃跺埢锛岀敱鍚庣 `/api/v1/card/publish` 缁熶竴鎵挎媴 "html鈫扨DF + skeleton鈫抲psert Question + 鍙岄潰 Template + exam.status 鍒囨崲" 鐨勫師瀛愯亴璐ｏ紝鍓嶇 `publishCard()` 绠€鍖栦负鍗曟 HTTP 璋冪敤銆?
+codex
+文档编码被 PowerShell 默认解码弄乱了，我改用 UTF-8 重读关键文件，并补查 `architecture-rules.md` 与实际代码路径，避免基于乱码下结论。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw -Encoding utf8 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-design.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "if (Test-Path 'C:/Users/Administrator/edu-cloud/CLAUDE.md') { Get-Content -Raw -Encoding utf8 'C:/Users/Administrator/edu-cloud/CLAUDE.md' }" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw -Encoding utf8 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files 'C:/Users/Administrator/edu-cloud' | rg 'architecture-rules\\.md"'$|review-templates'"\\.md"'$|contract-pack-schema'"\\.md"'$'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw -Encoding utf8 'C:/Users/Administrator/.claude/config/contract-pack-schema.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw -Encoding utf8 'C:/Users/Administrator/.claude/rules-t3/review-templates.md'" in C:/Users/Administrator/edu-cloud succeeded in 583ms:
+# edu-cloud — 教育云平台
+
+<!-- key-start -->
+## 项目定位
+
+edu-cloud 是**多校协同的云端平台**，是学校端（exam-ai）的上游调度中心。
+
+```
+[监管端]                      [云端平台]                      [学校端]
+教育局/集团看板  ──────→  edu-cloud (port 9000)  ←──────  exam-ai × N 所学校
+  - 全区成绩总览              - 联考编排与下发                 - 本校考试管理
+  - 学校间对比                - 跨校数据汇总                   - 扫描+AI阅卷
+  - 教学质量监控              - 共享 AI 阅卷服务               - 成绩上报到云端
+                              - 学校注册与状态监控
+                              - 统一题库管理
+```
+
+### 职责边界
+
+| 职责 | 归属 | 说明 |
+ succeeded in 577ms:
+---
+type: design
+topic: f003-question-writeback
+created: 2026-04-11 21:10:18
+tier: T4
+status: draft
+depends_on:
+  - docs/plans/2026-04-08-card-xiaowei-layout-v2-handoff.md  # 小微排版 v2 视觉验收必须先回主线
+related_findings:
+  - F001  # render.js .page 缺 data-side 属性（作为本设计的前置子任务）
+  - F003  # Question 创建入口从未接通（本设计的主目标）
+  - F003a # publish 硬编码 side="A"（合并到双面 Template 写入）
+  - F008  # 选择题识别 + anchor/affine 被 F003 遮蔽（F003 修复后解锁独立验证）
+exploration_source: docs/plans/2026-04-11-exploration-notes.md §D6 + §Round 3
+---
+
+# F003 Question 写入责任链重设 — Design
+
+## §0 TL;DR
+
+ succeeded in 607ms:
+---
+type: plan
+topic: f003-question-writeback
+design: docs/plans/2026-04-11-f003-question-writeback-design.md
+created: 2026-04-11 21:20:00
+tier: T4
+status: draft
+batches: 3
+tasks_total: 13
+---
+
+# F003 Question 写入责任链重设 — Implementation Plan
+
+> **Design source:** `docs/plans/2026-04-11-f003-question-writeback-design.md`
+> **Topic:** f003-question-writeback
+> **Tier:** T4 — design→plan→Gate 1→新会话执行→逐批 code review→集成 review→reconciliation
+
+**Goal:** 把 Question 创建责任从"pipeline 结束时"前移到"publish 时刻"，让 CardEditor publish 成为一站式原子入口，打通答题卡 → Question 表 → Template 双面 → pipeline 写 StudentAnswer → 阅卷/统计/自适应 的端到端管道。
+
+**Architecture:** 新建 `publish_service.py` 承担 publish 的业务原子操作（html→PDF + skeleton→upsert Question + 双面 Template + exam.status），前端 `publishCard()` 从手工三步简化为单次调用 `/api/v1/card/publish`，pipeline 层通过闭包捕获 `region_map` 在 save_answer_fn 中反查 question_id。
+ exited 1 in 627ms:
+
+ succeeded in 622ms:
+# Contract Pack Schema
+
+> 单一真源。Plan Review prompt 引用此文件。
+
+## 格式规则（F-008 修复）
+
+- **根键强制**: Contract Pack 必须以 `contract_pack:` 为 YAML 根键
+- **verification 枚举**: 只允许 `existing_test` / `pending_test` / `uncovered`，备注用 `note` 字段
+- **空 test_debt**: `test_debt: []` 是合法的，表示"当前无延期项"；缺少 `test_debt` 键不合法
+
+## 必要段落（Plan Review 检查完整性）
+
+### invariants（≥3 条）
+
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| id | ✓ | INV-NNN |
+| statement | ✓ | 不可验证的 prose 不接受（如"系统应正确运行"） |
+| verification | ✓ | existing_test / pending_test / uncovered |
+| test_ref | 仅 existing_test | test_file::test_function |
+ succeeded in 575ms:
+# 审查工作流模板与流程
+
+> 从全局 CLAUDE.md 抽取。T3/T4 执行会话按需读取。
+
+## 流程编排
+
+### T3（2 窗口）
+
+```
+① Claude: Design → Plan → commit (draft)
+② GPT Codex: Plan Review → plan-review.md (Gate 1)
+③ Claude: 处置 finding → commit (final plan) → Execute → 自审交接单
+④ GPT Codex: Code Review（全量，codex exec）→ review-report.md (Gate 2)
+⑤ Gate: 所有 finding 已处置 → design.md 标记 [实现完成]
+```
+
+### T4（2 持久 + 一次性 Executor）
+
+```
+① Claude Planner: Design → Plan → commit (draft)
+codex
+下一步我在核对计划是否真的贴合现有仓库：查 `architecture-rules.md`、现有路由/服务/测试文件、以及计划里引用的具体行位和文件是否存在。这样能把“文档写得通”和“仓库里真能落地”区分开。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files 'C:/Users/Administrator' | rg 'architecture-rules\\.md"'$'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"POST \\| "'`/api/v1/card/publish`|/api/v1/card/publish|publishCard'"\\(\" 'C:/Users/Administrator/edu-cloud/CLAUDE.md' 'C:/Users/Administrator/edu-cloud/frontend/src' 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"test_card_publish|test_publish_service|test_pipeline_save_answer|render.test|publishCard_single_api_call|ExamDetailPage_publishCard_signature\" 'C:/Users/Administrator/edu-cloud/tests' 'C:/Users/Administrator/edu-cloud/frontend/src'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"publish_card|/card/publish|editor-layout|save_answer_fn|run_pipeline|question_map|data-side|closest\\('\\[data-side\\]'\\)|skeleton_to_paperseg_json|UniqueConstraint\\(\\\"exam_id\\\", \\\"student_id\\\", \\\"question_id\\\"\\)\" 'C:/Users/Administrator/edu-cloud/src' 'C:/Users/Administrator/edu-cloud/frontend/src'" in C:/Users/Administrator/edu-cloud exited 1 in 583ms:
+
+ succeeded in 536ms:
+C:/Users/Administrator/edu-cloud/frontend/src\card-editor\__tests__\render.test.js:1:// frontend/src/card-editor/__tests__/render.test.js
+ succeeded in 537ms:
+C:/Users/Administrator/edu-cloud/CLAUDE.md:601:| **B1 F003 Question 写入责任链重设（draft）** | `docs/plans/2026-04-11-f003-question-writeback-design.md` + `-plan.md` | 新建 `publish_service.py` 原子操作（upsert Question + 双面 Template + exam.status）；前端 `publishCard()` 废弃手工三步走 `POST /api/v1/card/publish` 僵尸端点复活主路径；pipeline_router 构建 `region_map` 闭包注入 `save_answer_fn`；Question 加 `UniqueConstraint(subject_id, name)` migration；A 面必存契约（B-only 拒绝 400）；保留孤儿 Question 策略。T4 / 13 Tasks / 3 Batches / Plan Review R1 FAIL→R2 in progress。前置阻塞：card 模块 WIP 小微排版 v2 视觉验收回主线 |
+C:/Users/Administrator/edu-cloud/frontend/src\card-editor\export.js:177:export async function publishCard(subjectId, filename = '答题卡.pdf') {
+C:/Users/Administrator/edu-cloud/frontend/src\pages\ExamDetailPage.vue:868:        await exportModule.publishCard(subjectId, filename)
+ exited 1 in 500ms:
+rg: regex parse error:
+    (?:publish_card|/card/publish|editor-layout|save_answer_fn|run_pipeline|question_map|data-side|closest\('\[data-side\]'\)|skeleton_to_paperseg_json|UniqueConstraint\(\)
+    ^
+error: unclosed group
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"data-side|closest\\('\\[data-side\\]'\\)|publishCard\\(|/api/v1/card/publish\" 'C:/Users/Administrator/edu-cloud/frontend/src' 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"publish_card|/api/v1/card/publish|editor-layout|save_answer_fn|run_pipeline|question_map|skeleton_to_paperseg_json|UniqueConstraint\\(\\\"exam_id\\\", \\\"student_id\\\", \\\"question_id\\\"\\)\" 'C:/Users/Administrator/edu-cloud/src'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Path 'C:/Users/Administrator/.claude' -Recurse -Filter 'architecture-rules.md' | Select-Object -ExpandProperty FullName" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Path 'C:/Users/Administrator/edu-cloud' -Recurse -Filter 'architecture-rules.md' | Select-Object -ExpandProperty FullName" in C:/Users/Administrator/edu-cloud succeeded in 515ms:
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card\html_export.py:101:                    side: el.closest('[data-side]')?.dataset.side || 'A',
+C:/Users/Administrator/edu-cloud/frontend/src\pages\ExamDetailPage.vue:868:        await exportModule.publishCard(subjectId, filename)
+C:/Users/Administrator/edu-cloud/frontend/src\card-editor\export.js:177:export async function publishCard(subjectId, filename = '答题卡.pdf') {
+C:/Users/Administrator/edu-cloud/frontend/src\card-editor\render.js:531:      html += `<div class="divider-gap"><div class="divider-handle" data-side="${region._side || 'A'}" data-col="${region._col || 0}" data-divider="${i - 1}"></div></div>`;
+C:/Users/Administrator/edu-cloud/frontend/src\card-editor\_backup_20260408\render.js:533:      html += `<div class="divider-gap"><div class="divider-handle" data-side="${region._side || 'A'}" data-col="${region._col || 0}" data-divider="${i - 1}"></div></div>`;
+ exited 1 in 524ms:
+rg: regex parse error:
+    (?:publish_card|/api/v1/card/publish|editor-layout|save_answer_fn|run_pipeline|question_map|skeleton_to_paperseg_json|UniqueConstraint\(\)
+    ^
+error: unclosed group
+ succeeded in 1.40s:
+C:\Users\Administrator\.claude\rules-t3\architecture-rules.md
+ succeeded in 1.81s:
+
+codex
+我已经确认 `architecture-rules.md` 在 `~/.claude/rules-t3/`，接着读规则正文和现有实现片段，重点检查计划里的依赖方向、文件触达面、以及是否误判了“已有 API 能力”。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw -Encoding utf8 'C:/Users/Administrator/.claude/rules-t3/architecture-rules.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/router.py'; "'$c=Get-Content -Encoding utf8 $p; for($i=1150;$i -le 1285;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/scan/pipeline_router.py'; "'$c=Get-Content -Encoding utf8 $p; for($i=1;$i -le [Math]::Min(260,$c.Length);$i++){ '"'{0}:{1}' -f "'$i,$c[$i-1] }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/frontend/src/card-editor/export.js'; "'$c=Get-Content -Encoding utf8 $p; for($i=150;$i -le 260;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/frontend/src/card-editor/render.js'; "'$c=Get-Content -Encoding utf8 $p; for($i=620;$i -le 715;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/scan/models.py'; "'$c=Get-Content -Encoding utf8 $p; for($i=1;$i -le 80;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 625ms:
+# 架构质量规则
+
+> 设计阶段前置引导 + 审查阶段检查清单。T3/T4 强制适用，T2 新增模块间依赖时参考。
+
+## 设计阶段：方案评估维度
+
+brainstorming 评估设计方案时，**可维护性**与功能正确性同等重要。每个方案须回答：
+
+- 新增模块的职责能否用一句话说清？
+- 模块间依赖关系是否单向？画出 A→B→C，有没有回路？
+- 改其中一个模块，影响范围是否可控（≤3 个文件）？
+
+## 五条核心原则
+
+### 1. 文件职责单一
+
+一个文件只做一件事。文件名能用一个短语概括职责。
+
+**检查项：**
+- [ ] 单文件 >300 行且包含 2+ 个不相关功能 → 应拆分
+ succeeded in 635ms:
+1150:
+1151:# --- HTML→PDF 导出 API ---
+1152:
+1153:
+1154:class HtmlExportRequest(BaseModel):
+1155:    html: str
+1156:    paper_size: str = "A3"
+1157:
+1158:
+1159:@router.post("/export/pdf")
+1160:async def export_card_pdf(
+1161:    body: HtmlExportRequest,
+1162:    current: dict = Depends(get_current_user),
+1163:):
+1164:    """接收完整 HTML，用 playwright 转 PDF 返回。"""
+1165:    from edu_cloud.modules.card.html_export import html_to_pdf
+1166:
+1167:    pdf_bytes = await html_to_pdf(body.html, body.paper_size)
+1168:    return Response(content=pdf_bytes, media_type="application/pdf")
+1169:
+ succeeded in 593ms:
+150:.page {
+151:  background: white !important;
+152:  box-shadow: none !important;
+153:  margin: 0 !important;
+154:}
+155:@page { margin: 0; }
+156:</style>
+157:</head>
+158:<body>${pagesHTML}</body>
+159:</html>`;
+160:}
+161:
+162:function downloadBlob(blob, filename) {
+163:  const url = URL.createObjectURL(blob);
+164:  const a = document.createElement('a');
+165:  a.href = url;
+166:  a.download = filename;
+167:  a.click();
+168:  URL.revokeObjectURL(url);
+169:}
+ succeeded in 625ms:
+1:"""扫描流水线 API 端点。"""
+2:import asyncio
+3:import logging
+4:import os
+5:from pathlib import Path
+6:
+7:from fastapi import APIRouter, Depends, HTTPException
+8:from pydantic import BaseModel
+9:from sqlalchemy import select
+10:from sqlalchemy.ext.asyncio import AsyncSession
+11:
+12:from edu_cloud.database import get_db
+13:from edu_cloud.api.deps import get_current_user
+14:from edu_cloud.modules.exam.models import Subject
+15:from edu_cloud.modules.card.models import Template
+16:from edu_cloud.shared.storage import get_storage, StorageService
+17:from . import pipeline_service
+18:from .tpl_parser import parse_tpl_file
+19:
+20:logger = logging.getLogger(__name__)
+ succeeded in 527ms:
+620:      const c0End = rowsCol0 * perRow;
+621:      const c1End = c0End + rowsOther * perRow;
+622:      pageB = `<div class="a3-layout">
+623:        ${renderA3Col(`<div class="col-warning">${WARNING}</div>` + renderCompositionCol(0, totalChars, perRow, rowsCol0, true, cnRegion, cellSize))}
+624:        ${colGap}
+625:        ${renderA3Col(`<div class="col-warning">${WARNING}</div>` + renderCompositionCol(c0End, totalChars, perRow, rowsOther, false, null, cellSize))}
+626:        ${colGap}
+627:        ${renderA3Col(`<div class="col-warning">${WARNING}</div>` + renderCompositionCol(c1End, totalChars, perRow, rowsOther, false, null, cellSize))}
+628:      </div>`;
+629:    } else {
+630:      pageB = `<div class="a3-layout">
+631:        ${renderA3Col(renderColumnRegions(sideB.columns[0]?.regions || [], false, 1, 0))}
+632:        ${colGap}
+633:        ${renderA3Col(renderColumnRegions(sideB.columns[1]?.regions || [], false, 1, 1))}
+634:        ${colGap}
+635:        ${renderA3Col(renderColumnRegions(mergedRegions(sideB, 2), false, 1, 2))}
+636:      </div>`;
+637:    }
+638:
+639:    previewWrap.innerHTML = `
+ succeeded in 510ms:
+1:"""Scan 模块模型 — ScanTask + StudentAnswer（从 exam-ai 迁入）。"""
+2:from sqlalchemy import String, Integer, ForeignKey, JSON, UniqueConstraint
+3:from sqlalchemy.orm import Mapped, mapped_column
+4:
+5:from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+6:
+7:
+8:class ScanTask(Base, IdMixin, TimestampMixin):
+9:    __tablename__ = "scan_tasks"
+10:
+11:    subject_id: Mapped[str] = mapped_column(String(36), ForeignKey("subjects.id"))
+12:    side: Mapped[str] = mapped_column(String(1))
+13:    status: Mapped[str] = mapped_column(String(20), default="pending")
+14:    # status: pending -> processing -> completed -> failed
+15:    total_images: Mapped[int] = mapped_column(Integer, default=0)
+16:    processed: Mapped[int] = mapped_column(Integer, default=0)
+17:    failed: Mapped[int] = mapped_column(Integer, default=0)
+18:    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+19:
+20:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/scan/pipeline_service.py'; "'$c=Get-Content -Encoding utf8 $p; for($i=1;$i -le [Math]::Min(260,$c.Length);$i++){ '"'{0}:{1}' -f "'$i,$c[$i-1] }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/export.py'; "'$c=Get-Content -Encoding utf8 $p; for($i=1;$i -le [Math]::Min(220,$c.Length);$i++){ '"'{0}:{1}' -f "'$i,$c[$i-1] }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/tests/test_api_exam/test_cards.py'; "'$c=Get-Content -Encoding utf8 $p; for($i=1;$i -le 260;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/exam/publish_service.py'; if(Test-Path "'$p){ $c=Get-Content -Encoding utf8 $p; for($i=1;$i -le [Math]::Min(220,$c.Length);$i++){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/exam/models.py'; "'$c=Get-Content -Encoding utf8 $p; for($i=1;$i -le 220;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/frontend/src/card-editor/__tests__/render.test.js'; "'$c=Get-Content -Encoding utf8 $p; for($i=1;$i -le 260;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 659ms:
+1:"""扫描流水线服务 — 批量切割扫描图并存入 StudentAnswer。"""
+2:import asyncio
+3:import logging
+4:import os
+5:import re
+6:from dataclasses import dataclass, field
+7:from pathlib import Path
+8:from PIL import Image
+9:import numpy as np
+10:
+11:from .vision import detect_anchors, crop_region, read_barcode
+12:
+13:logger = logging.getLogger(__name__)
+14:
+15:
+16:@dataclass
+17:class PipelineProgress:
+18:    total: int = 0
+19:    processed: int = 0
+20:    failed: int = 0
+ succeeded in 615ms:
+1:"""答题卡骨架 → paper-seg 兼容的切割模板 JSON。"""
+2:from __future__ import annotations
+3:
+4:
+5:def skeleton_to_paperseg_json(
+6:    skeleton: dict,
+7:    layout: dict,
+8:    exam_id: str,
+9:    subject: str,
+10:    side: str = "A",
+11:    question_map: dict[str, str] | None = None,
+12:) -> dict:
+13:    """将 skeleton + layout 转换为 paper-seg 模板 JSON。
+14:
+15:    Args:
+16:        skeleton: build_skeleton_from_spec() 输出
+17:        layout: allocate_by_weights() 输出
+18:        exam_id: 考试 ID
+19:        subject: 科目名
+20:        side: 面（A/B）
+ succeeded in 580ms:
+1:// frontend/src/card-editor/__tests__/render.test.js
+2:import { describe, it, expect, beforeEach } from 'vitest'
+3:import { renderFromLayout } from '../render.js'
+4:
+5:function makeA4Layout() {
+6:  return {
+7:    paper: 'A4',
+8:    config: { paperSize: 'A4', examTitle: 'Test', subjectTitle: '英语',
+9:      choiceCount: 0, optionCount: 4, choicePerRow: 15, choiceGroups: [],
+10:      fillCount: 0, essayCount: 1, essayConfig: [{ score: 10 }],
+11:      titleSize: 14, subtitleSize: 16, titleSpacing: 1, subtitleSpacing: 4,
+12:      titleGap: 1, subtitleGap: 1.5, infoHeight: 18, infoPadding: 2,
+13:      infoRowGap: 2, infoFontSize: 10, infoBorderWidth: 1, nameLineWidth: 35,
+14:      digitCount: 9, digitBoxSize: 4.5, digitGap: 0.8, barcodeWidthPct: 40,
+15:      barcodeTitleSize: 12, noticeHeight: 20, noticeLabelWidth: 6,
+16:      noticeLabelSize: 10, noticeFontSize: 7, exampleWidth: 10,
+17:      noticeBorderWidth: 1, absentPadding: 1, zoom: 100 },
+18:    sides: [
+19:      { side: 'A', columns: [{ col: 0, regions: [
+20:        { id: 'header', type: 'fixed', role: 'header' },
+ succeeded in 565ms:
+1:"""成绩发布 Service — publish/archive 专用入口。"""
+2:import logging
+3:
+4:from sqlalchemy import select
+5:from sqlalchemy.ext.asyncio import AsyncSession
+6:
+7:from edu_cloud.modules.exam.models import Exam
+8:from edu_cloud.modules.grading.models import GradingAssignment, GradingQualityCheck
+9:from edu_cloud.services.exceptions import StateError
+10:
+11:logger = logging.getLogger(__name__)
+12:
+13:
+14:class ExamPublishService:
+15:    @staticmethod
+16:    async def publish(db: AsyncSession, *, exam_id: str, school_id: str) -> dict:
+17:        from edu_cloud.modules.exam.service import get_exam
+18:        exam = await get_exam(db, exam_id=exam_id, school_id=school_id)
+19:        if exam.status != "completed":
+20:            raise StateError(
+ succeeded in 697ms:
+1:"""答题卡生成 API 测试。"""
+2:import pytest
+3:from httpx import AsyncClient
+4:from edu_cloud.models.school import School
+5:from edu_cloud.models.user import User
+6:from edu_cloud.models.user_role import UserRole
+7:from edu_cloud.models.exam import Exam, Subject
+8:from edu_cloud.shared.auth import create_access_token
+9:
+10:
+11:@pytest.fixture
+12:async def seed_subject(client: AsyncClient, db):
+13:    """创建测试学校/用户/考试/科目，返回 (headers, exam_id, subject_id)。"""
+14:    school = School(id="s1", name="测试学校", code="TEST01")
+15:    db.add(school)
+16:    await db.commit()
+17:
+18:    user = User(id="u1", username="admin", display_name="管理员")
+19:    user.set_password("123456")
+20:    db.add(user)
+ succeeded in 794ms:
+1:"""Exam 模块模型 — 合并 exam-ai 考试模型 + edu-cloud 联考模型。
+2:
+3:包含：
+4:- Exam, Subject, Question（从 exam-ai 迁入，加 school_id FK）
+5:- ExamResult（保留为聚合视图，由 pipeline 填充）
+6:- JointExam, JointExamParticipant, JointExamStudentResult（原 edu-cloud）
+7:"""
+8:from datetime import datetime, timezone
+9:
+10:from sqlalchemy import (
+11:    String, Integer, Float, Text, ForeignKey, JSON, Boolean, DateTime,
+12:    UniqueConstraint, Index, Column,
+13:)
+14:from sqlalchemy.orm import Mapped, mapped_column
+15:
+16:from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+17:
+18:
+19:# ── exam-ai 迁入模型 ──────────────────────────────────────────────
+20:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"publish|/api/v1/card/publish|question_count|total_answers|marking/subjects|run_pipeline\\(|save_answer_fn|question_id\" 'C:/Users/Administrator/edu-cloud/tests' 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/card/models.py'; "'$c=Get-Content -Encoding utf8 $p; for($i=1;$i -le [Math]::Min(120,$c.Length);$i++){ '"'{0}:{1}' -f "'$i,$c[$i-1] }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/marking/router.py'; if(Test-Path "'$p){ $c=Get-Content -Encoding utf8 $p; for($i=1;$i -le [Math]::Min(260,$c.Length);$i++){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"question_count|total_answers|marking/subjects\" 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/marking' 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/exam' 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules'" in C:/Users/Administrator/edu-cloud succeeded in 446ms:
+C:/Users/Administrator/edu-cloud/tests\test_workers\test_grading_worker.py:155:    answer.question_id = "q-1"
+C:/Users/Administrator/edu-cloud/tests\test_workers\test_grading_worker.py:210:    answer.question_id = "q-1"
+C:/Users/Administrator/edu-cloud/tests\test_workers\test_grading_worker.py:216:    rubric.question_id = "q-1"
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:43:                    StudentAnswer.question_id == q.id,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:49:                    MarkingScore.question_id == q.id,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:55:                "total_answers": total, "graded_count": graded,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:63:    db: AsyncSession, question_id: str, school_id: str,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:67:        MarkingScore.question_id == question_id,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:72:            StudentAnswer.question_id == question_id,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:83:            StudentAnswer.question_id == question_id,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:89:            MarkingScore.question_id == question_id,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:104:    question_id: str,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:114:        question_id=question_id,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:141:            overall_total += q["total_answers"]
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\router.py:47:    question_id: str
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\router.py:71:        select(Question).where(Question.id == req.question_id, Question.school_id == current["current_role"].school_id)
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\router.py:93:            MarkingAssignment.question_id == req.question_id,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\router.py:102:        question_id=req.question_id,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\router.py:109:    logger.info("assign_question: exam=%s, question=%s, teacher=%s", req.exam_id, req.question_id, req.teacher_id)
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\router.py:111:            "question_id": assignment.question_id, "teacher_id": assignment.teacher_id,
+ succeeded in 456ms:
+1:"""Card 模块模型 — Template + CardSkeleton（从 exam-ai models/exam.py 提取）。"""
+2:from sqlalchemy import String, Integer, ForeignKey, JSON, UniqueConstraint
+3:from sqlalchemy.orm import Mapped, mapped_column
+4:
+5:from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+6:
+7:
+8:class Template(Base, IdMixin, TimestampMixin):
+9:    __tablename__ = "templates"
+10:    __table_args__ = (UniqueConstraint("subject_id", "side"),)
+11:
+12:    subject_id: Mapped[str] = mapped_column(String(36), ForeignKey("subjects.id"))
+13:    side: Mapped[str] = mapped_column(String(1))  # A / B
+14:    image_width: Mapped[int] = mapped_column(Integer, default=0)
+15:    image_height: Mapped[int] = mapped_column(Integer, default=0)
+16:    anchors: Mapped[list | None] = mapped_column(JSON, default=None)
+17:    regions: Mapped[list | None] = mapped_column(JSON, default=None)
+18:    sample_image: Mapped[str | None] = mapped_column(String(500), default=None)
+19:    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+20:
+ succeeded in 515ms:
+1:import io
+2:import logging
+3:import os
+4:
+5:from fastapi import APIRouter, Depends, HTTPException
+6:from fastapi.responses import StreamingResponse
+7:from pydantic import BaseModel
+8:from sqlalchemy import select
+9:from sqlalchemy.ext.asyncio import AsyncSession
+10:
+11:from edu_cloud.api.deps import get_current_user
+12:from edu_cloud.database import get_db
+13:from edu_cloud.models.user import User
+14:from edu_cloud.models.user_role import UserRole
+15:from edu_cloud.modules.scan.models import StudentAnswer
+16:from edu_cloud.modules.exam.models import Exam, Question, Subject
+17:from edu_cloud.modules.marking.models import MarkingAssignment
+18:from edu_cloud.api.permissions import get_visible_subject_codes, is_school_admin
+19:
+20:logger = logging.getLogger(__name__)
+ succeeded in 440ms:
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/marking\scorer.py:55:                "total_answers": total, "graded_count": graded,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/marking\scorer.py:141:            overall_total += q["total_answers"]
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\knowledge\loader.py:74:                            "question_count": exam.get("question_count", len(exam.get("questions", []))),
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:55:                "total_answers": total, "graded_count": graded,
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules\marking\scorer.py:141:            overall_total += q["total_answers"]
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/marking/scorer.py'; "'$c=Get-Content -Encoding utf8 $p; for($i=1;$i -le [Math]::Min(220,$c.Length);$i++){ '"'{0}:{1}' -f "'$i,$c[$i-1] }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/tests/test_api/test_compat.py'; "'$c=Get-Content -Encoding utf8 $p; for($i=260;$i -le 340;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"UniqueConstraint\\(\\\"subject_id\\\", \\\"name\\\"\\)|uq_question_subject_name|questions.*subject_id.*name\" 'C:/Users/Administrator/edu-cloud/alembic' 'C:/Users/Administrator/edu-cloud/src' 'C:/Users/Administrator/edu-cloud/tests'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"大题|第1题|第2题|第.*题|question.name|Question\\(\" 'C:/Users/Administrator/edu-cloud/src/edu_cloud/data/seed_demo.py' 'C:/Users/Administrator/edu-cloud/tests'" in C:/Users/Administrator/edu-cloud succeeded in 437ms:
+260:        resp = await client.post("/api/scan/upload-objective", json={
+261:            "exam_id": "ce1", "subject_id": "csub1", "student_id": "STU004",
+262:            "is_absent": False,
+263:            "answers": [{"question_id": "cq4", "detected_answer": "A"}],
+264:        }, headers=headers)
+265:        assert resp.status_code == 200
+266:        data = resp.json()
+267:        assert data["total_score"] == 0
+268:        assert data["results"][0]["is_correct"] is False
+269:
+270:
+271:class TestPublishStatus:
+272:    """F004: publish 端点 status 限制回归测试。"""
+273:
+274:    async def _setup_publish_data(self, client, db):
+275:        """创建 publish 所需的完整数据链。"""
+276:        school = School(id="ps1", name="发布测试校", code="PUB01")
+277:        db.add(school)
+278:        await db.commit()
+279:
+ succeeded in 469ms:
+1:import logging
+2:from sqlalchemy import select, func
+3:from sqlalchemy.ext.asyncio import AsyncSession
+4:
+5:from edu_cloud.modules.exam.models import Subject, Question
+6:from edu_cloud.modules.scan.models import StudentAnswer
+7:from edu_cloud.modules.marking.models import MarkingScore
+8:
+9:logger = logging.getLogger(__name__)
+10:
+11:
+12:async def get_subjects_with_progress(
+13:    db: AsyncSession,
+14:    exam_id: str,
+15:    school_id: str,
+16:    visible_codes: list[str] | None = None,
+17:) -> list[dict]:
+18:    """获取考试下所有科目及题目的阅卷进度。
+19:
+20:    visible_codes: 调用方从 get_visible_subject_codes(role) 派生的科目白名单。
+ exited 1 in 416ms:
+rg: regex parse error:
+    (?:UniqueConstraint\(\)
+    ^
+error: unclosed group
+ succeeded in 430ms:
+C:/Users/Administrator/edu-cloud/src/edu_cloud/data/seed_demo.py:144:            db.add(Question(
+C:/Users/Administrator/edu-cloud/src/edu_cloud/data/seed_demo.py:246:                    q = Question(
+C:/Users/Administrator/edu-cloud/src/edu_cloud/data/seed_demo.py:273:                    q = Question(
+C:/Users/Administrator/edu-cloud/tests\test_workers\test_grading_worker.py:147:    question.name = "Essay Q1"
+C:/Users/Administrator/edu-cloud/tests\test_workers\test_grading_worker.py:202:    question.name = "Essay Q1"
+C:/Users/Administrator/edu-cloud/tests\test_api_exam\test_analytics_report.py:82:    q = Question(subject_id=subj.id, name="Q1", question_type="objective", max_score=100.0, school_id=school.id)
+C:/Users/Administrator/edu-cloud/tests\test_api_exam\test_analytics_class_filter.py:46:    q = Question(id="cf_q1", subject_id="cf_subj", name="Q1",
+C:/Users/Administrator/edu-cloud/tests\test_api_exam\test_analytics.py:34:    q1 = Question(subject_id=subject.id, name="Q1", question_type="subjective", max_score=10.0, school_id=school.id)
+C:/Users/Administrator/edu-cloud/tests\test_api_exam\test_analytics.py:35:    q2 = Question(subject_id=subject.id, name="Q2", question_type="subjective", max_score=10.0, school_id=school.id)
+C:/Users/Administrator/edu-cloud/tests\test_api_exam\test_analytics.py:125:    q = Question(
+C:/Users/Administrator/edu-cloud/tests\test_api_exam\test_analytics.py:158:    q = Question(
+C:/Users/Administrator/edu-cloud/tests\test_ai\test_api_supervisor_integration.py:184:            Message(role="user", content="第一个问题"),
+C:/Users/Administrator/edu-cloud/tests\test_ai\test_api_supervisor_integration.py:198:                    message="第二个问题", ctx=ctx,
+C:/Users/Administrator/edu-cloud/tests\test_ai\test_api_supervisor_integration.py:207:        assert history[0].content == "第一个问题"
+C:/Users/Administrator/edu-cloud/tests\test_ai\test_api_supervisor_integration.py:209:        assert history[2].content == "第二个问题"
+C:/Users/Administrator/edu-cloud/tests\test_services_exam\test_card_layout_v3.py:96:            (17, 0.95, 1, [10]),   # 大题
+C:/Users/Administrator/edu-cloud/tests\test_services_exam\test_build_skeleton.py:108:        # 第 1 栏 y1 应该在选择题底部之下
+C:/Users/Administrator/edu-cloud/tests\test_services_exam\test_bank_service.py:15:    db.add(BankQuestion(school_id=school.id, question_type="objective", max_score=5, difficulty=0.8, sample_count=100))
+C:/Users/Administrator/edu-cloud/tests\test_services_exam\test_bank_service.py:16:    db.add(BankQuestion(school_id=school.id, question_type="subjective", max_score=10, difficulty=0.4, sample_count=50))
+C:/Users/Administrator/edu-cloud/tests\test_services_exam\test_bank_service.py:17:    db.add(BankQuestion(school_id=school.id, question_type="objective", max_score=5, difficulty=0.3, sample_count=80))
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/src/edu_cloud/data/seed_demo.py'; "'$c=Get-Content -Encoding utf8 $p; for($i=130;$i -le 290;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"74 tests|72 tests|182 tests|184 tests|1582 tests\" 'C:/Users/Administrator/edu-cloud/CLAUDE.md' 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"test-api_exam/test_card_publish|test_card_publish.py|test_publish_service.py|test_pipeline_save_answer.py|publish_service.py\" 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"Task 3:|Task 4:|Task 5:|Task 6:|Task 7:|Task 8:|Task 9:|Task 10:|Task 11:|Task 12:\" 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'" in C:/Users/Administrator/edu-cloud succeeded in 463ms:
+130:            ("7", "objective", 3, "C"),
+131:            ("8", "subjective", 15, None), ("9", "subjective", 20, None),
+132:            ("10", "subjective", 25, None),
+133:        ]),
+134:    ]
+135:
+136:    for subj_code, subj_name, questions_def in draft_subjects:
+137:        subj = Subject(
+138:            exam_id=draft_exam.id, name=subj_name, code=subj_code,
+139:            school_id=school.id,
+140:        )
+141:        db.add(subj)
+142:        await db.flush()
+143:        for qname, qtype, max_score, correct in questions_def:
+144:            db.add(Question(
+145:                subject_id=subj.id, school_id=school.id,
+146:                name=qname, question_type=qtype,
+147:                max_score=max_score, correct_answer=correct,
+148:            ))
+149:        await db.flush()
+ succeeded in 417ms:
+C:/Users/Administrator/edu-cloud/CLAUDE.md:50:# 后端（1582 tests）
+C:/Users/Administrator/edu-cloud/CLAUDE.md:53:# 前端（Vitest + happy-dom，72 tests）
+C:/Users/Administrator/edu-cloud/CLAUDE.md:595:| 自适应学习系统 | `docs/plans/2026-04-06-adaptive-learning-design.md` | BKT 掌握度 + 路径规划 + 选题器 + Agent 工具，10 Tasks / 1582 tests [实现完成] |
+C:/Users/Administrator/edu-cloud/CLAUDE.md:600:| 知识图谱教师工作台 Phase 2.5 | `docs/plans/2026-04-10-teacher-workbench-phase2.5-design.md` | 清理 Phase 2 test_debt：焦点模式节点/边淡化（`setElementState` + state spec + `buildVisibleEdgeList` helper + createGraph 末尾重放）+ 跨模块徽标悬停展开 peer 列表（G6 Tooltip plugin，async getContent）；桥接/对比边统一标记 deferred→Phase 3。focusedNodeId 保持组件内部 ref。3 Tasks / 1 Batch / 182 tests (160+22)，GPT 2 轮审查通过（R1 FAIL F001-F003 test-gap → R2 PASS resolved-correct）[实现完成] |
+C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md:345:- ✓ 正向：前端全量 vitest 不低于 184 tests pass
+ succeeded in 440ms:
+20:**Architecture:** 新建 `publish_service.py` 承担 publish 的业务原子操作（html→PDF + skeleton→upsert Question + 双面 Template + exam.status），前端 `publishCard()` 从手工三步简化为单次调用 `/api/v1/card/publish`，pipeline 层通过闭包捕获 `region_map` 在 save_answer_fn 中反查 question_id。
+46:      test_ref: tests/test_services_exam/test_publish_service.py::test_S2_upsert_questions_from_skeleton_new_subject
+52:      test_ref: tests/test_services_exam/test_publish_service.py::test_S3_upsert_questions_idempotent
+57:      test_ref: tests/test_services_exam/test_publish_service.py::test_S4_upsert_preserves_orphan
+62:      test_ref: tests/test_services_exam/test_publish_service.py::test_S5c_only_B_side_raises_400
+67:      test_ref: tests/test_services_exam/test_publish_service.py::test_S6_publish_card_atomic_rollback_on_template_fail
+72:      test_ref: tests/test_api_exam/test_pipeline_save_answer.py::test_S8_pipeline_router_builds_region_map_from_template
+83:      test_ref: tests/test_services_exam/test_publish_service.py::test_S6b_publish_card_atomic_success_path
+108:    - module: src/edu_cloud/modules/card/publish_service.py
+355:- Test: `tests/test_api_exam/test_card_publish.py`（新建，Task 2 首次 touch）
+361:创建 `tests/test_api_exam/test_card_publish.py`:
+406:python -m pytest tests/test_api_exam/test_card_publish.py::test_extract_skeleton_preserves_data_side -v
+418:python -m pytest tests/test_api_exam/test_card_publish.py -v
+426:git add tests/test_api_exam/test_card_publish.py
+434:| A2 | `await extract_skeleton(html)` | 错误实现（render.js 未修）→ side 全 'A'，Q17 断言失败 | 单面 HTML（只有 pageA）→ 测试单独覆盖（future）| F001 穿透链路 | `pytest tests/test_api_exam/test_card_publish.py::test_extract_skeleton_preserves_data_side -v` |
+452:- Create: `src/edu_cloud/modules/card/publish_service.py`
+453:- Create: `tests/test_services_exam/test_publish_service.py`
+459:创建 `tests/test_services_exam/test_publish_service.py`:
+606:python -m pytest tests/test_services_exam/test_publish_service.py::test_S2_upsert_questions_from_skeleton_new_subject -v
+611:- [ ] **Step 3: 创建 publish_service.py 最小实现**
+ succeeded in 437ms:
+449:### Task 3: `publish_service.upsert_questions_from_skeleton` 纯函数 + unit tests (S2/S3/S4)
+767:### Task 4: `publish_service.upsert_template_both_sides` + S5 unit test
+1060:### Task 5: Alembic migration — Question 加 UniqueConstraint(subject_id, name)
+1197:### Task 6: `publish_card_atomic` 事务原子性（Slice D）+ S6
+1439:### Task 7: 并发 IntegrityError retry（Slice D 扩展）+ S7
+1610:### Task 8: `card/router.py:1189 publish_card` 接入 service + integration
+1789:### Task 9: 前端 `publishCard()` 重写 + V2 vitest
+1924:### Task 10: `ExamDetailPage.vue` 调用签名 + V3 vitest
+2029:### Task 11: `pipeline_router.py` 接通 save_answer_fn 闭包 + S8
+2351:### Task 12: E2E (S9) + 回归 (R1/R2/R3) + CLAUDE.md 同步 + [实现完成] 标记
+codex
+我已经拿到关键实现现状：`/card/publish` 现有逻辑确实只读已有 Question、只写 A 面，`pipeline_router` 现在也还没把 `save_answer_fn` 传进 `run_pipeline`。接下来我只读计划中最关键的 Task 5/7/8/9/11/12，确认它们是否把这些差口完整闭合。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'; "'$c=Get-Content -Encoding utf8 $p; foreach($r in @(@(1060,1196),@(1439,1610),@(1610,1788),@(1789,2028),@(2029,2350),@(2351,2755))){ for($i=$r[0];$i -le $r[1];$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }; '"'---RANGE-END---' }" in C:/Users/Administrator/edu-cloud succeeded in 502ms:
+1060:### Task 5: Alembic migration — Question 加 UniqueConstraint(subject_id, name)
+1061:
+1062:**Files:**
+1063:- Create: `alembic/versions/XXXXX_question_unique_subject_name.py`
+1064:- Modify: `src/edu_cloud/modules/exam/models.py:50 class Question` 加 `__table_args__`
+1065:
+1066:**背景：** design.md §5.4 唯一的 schema migration。支持并发 publish 的 IntegrityError 重试策略。
+1067:
+1068:- [ ] **Step 1: 先校验现有数据无冲突**
+1069:
+1070:```bash
+1071:python -c "
+1072:import asyncio
+1073:from sqlalchemy.ext.asyncio import create_async_engine
+1074:from sqlalchemy import text
+1075:async def check():
+1076:    engine = create_async_engine('postgresql+asyncpg://postgres:password@localhost:5432/edu_cloud')
+1077:    async with engine.connect() as conn:
+1078:        result = await conn.execute(text('''
+1079:            SELECT subject_id, name, COUNT(*) as cnt FROM questions
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'; "'$c=Get-Content -Encoding utf8 $p; for($i=2029;$i -le 2350;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'; "'$c=Get-Content -Encoding utf8 $p; for($i=1789;$i -le 2028;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 396ms:
+1789:### Task 9: 前端 `publishCard()` 重写 + V2 vitest
+1790:
+1791:**Files:**
+1792:- Modify: `frontend/src/card-editor/export.js:177 publishCard()`
+1793:- Create: `frontend/src/__tests__/publishCard.test.js`
+1794:
+1795:- [ ] **Step 1: 写失败测试 V2（Red）**
+1796:
+1797:创建 `frontend/src/__tests__/publishCard.test.js`:
+1798:
+1799:```js
+1800:import { describe, it, expect, vi, beforeEach } from 'vitest'
+1801:
+1802:describe('F003 Slice G: publishCard 走 /api/v1/card/publish 单次调用', () => {
+1803:  beforeEach(() => {
+1804:    global.fetch = vi.fn()
+1805:    global.localStorage = { getItem: vi.fn().mockReturnValue('fake-token') }
+1806:
+1807:    // 模拟 CardEditor 环境
+1808:    document.body.innerHTML = '<div class="preview-wrap"><div class="page" data-paper="A3" data-side="A"><div>test</div></div></div>'
+ succeeded in 408ms:
+2029:### Task 11: `pipeline_router.py` 接通 save_answer_fn 闭包 + S8
+2030:
+2031:**Files:**
+2032:- Modify: `src/edu_cloud/modules/scan/pipeline_router.py`（pipeline start 端点）
+2033:- Modify: `tests/test_services_exam/test_scan_pipeline.py` 或新 test 文件（S8）
+2034:
+2035:- [ ] **Step 1: 写失败测试 S8**
+2036:
+2037:在 `tests/test_services_exam/test_scan_pipeline.py` 追加（或新建 `test_scan_pipeline_save_answer.py`）：
+2038:
+2039:```python
+2040:class TestSaveAnswerFnClosure:
+2041:    """Slice H: pipeline_router 构建 save_answer_fn 闭包，region_id → question_id 反查。"""
+2042:
+2043:    async def test_S8_orphan_region_id_skipped_with_warning(self, fake_scan_dir, tmp_path, caplog):
+2044:        """S8: region_id 不在 region_map → save_answer_fn log warning 并 skip，不中断 pipeline。"""
+2045:        from edu_cloud.modules.scan.pipeline_service import run_pipeline
+2046:
+2047:        saved = []
+2048:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/frontend/src/pages/ExamDetailPage.vue'; "'$c=Get-Content -Encoding utf8 $p; foreach($i in 460..480 + 860..875){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"const examId = route\\.params\\.id|publishCard\\(\" 'C:/Users/Administrator/edu-cloud/frontend/src/pages/ExamDetailPage.vue'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/src/edu_cloud/database.py'; "'$c=Get-Content -Encoding utf8 $p; for($i=1;$i -le [Math]::Min(160,$c.Length);$i++){ '"'{0}:{1}' -f "'$i,$c[$i-1] }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"async_session\\b|get_db\\b|sessionmaker|async_sessionmaker\" 'C:/Users/Administrator/edu-cloud/src/edu_cloud/database.py' 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/scan/pipeline_router.py'" in C:/Users/Administrator/edu-cloud succeeded in 474ms:
+460:  a.href = url
+461:  a.download = filename
+462:  document.body.appendChild(a)
+463:  a.click()
+464:  document.body.removeChild(a)
+465:  setTimeout(() => URL.revokeObjectURL(url), 10000)
+466:}
+467:
+468:const route = useRoute()
+469:const message = useMessage()
+470:const dialog = useDialog()
+471:const examId = route.params.id
+472:
+473:const loading = ref(true)
+474:const activeTab = ref('subjects')
+475:const pendingQuestionsForEditor = ref(null)
+476:const exam = ref(null)
+477:const subjects = ref([])
+478:// Modals
+479:const showSubjectModal = ref(false)
+ succeeded in 420ms:
+471:const examId = route.params.id
+868:        await exportModule.publishCard(subjectId, filename)
+ succeeded in 459ms:
+1:from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+2:
+3:from edu_cloud.config import settings
+4:
+5:engine = create_async_engine(settings.DATABASE_URL, echo=False)
+6:async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+7:
+8:
+9:async def get_db():
+10:    """FastAPI dependency: yields an async DB session."""
+11:    async with async_session() as session:
+12:        yield session
+ succeeded in 595ms:
+C:/Users/Administrator/edu-cloud/src/edu_cloud/database.py:1:from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+C:/Users/Administrator/edu-cloud/src/edu_cloud/database.py:6:async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+C:/Users/Administrator/edu-cloud/src/edu_cloud/database.py:9:async def get_db():
+C:/Users/Administrator/edu-cloud/src/edu_cloud/database.py:11:    async with async_session() as session:
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/scan/pipeline_router.py:12:from edu_cloud.database import get_db
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/scan/pipeline_router.py:93:    db: AsyncSession = Depends(get_db),
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/scan/pipeline_router.py:181:    db: AsyncSession = Depends(get_db),
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/scan/pipeline_router.py:259:    db: AsyncSession = Depends(get_db),
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'; "'$c=Get-Content -Encoding utf8 $p; for($i=1197;$i -le 1438;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 390ms:
+1197:### Task 6: `publish_card_atomic` 事务原子性（Slice D）+ S6
+1198:
+1199:**Files:**
+1200:- Modify: `src/edu_cloud/modules/card/publish_service.py`（追加 `publish_card_atomic`）
+1201:- Modify: `tests/test_services_exam/test_publish_service.py`（追加 S6）
+1202:
+1203:- [ ] **Step 1: 写失败测试 S6（Red）**
+1204:
+1205:追加：
+1206:
+1207:```python
+1208:from unittest.mock import patch, AsyncMock
+1209:
+1210:
+1211:async def test_S6_publish_card_atomic_rollback_on_template_fail(db, empty_subject):
+1212:    """S6: publish_card_atomic 内 Template upsert 失败 → Question 和 exam.status 都回滚。
+1213:
+1214:    反例：错误实现独立 commit 每一步 → Question 已落库但 Template 失败，状态不一致
+1215:    """
+1216:    from edu_cloud.modules.card.publish_service import publish_card_atomic
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"rollback\\(|IntegrityError|re-select|name_to_id\\[name\\] = existing_q.id|continue\" 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"TODO|skip\\(|FAIL 或 skip|可能需要|根据实际|若无则加 smoke|可选|future|待 §|简化|占位|可能\" 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"V3: publishCard 调用时传入 examId|publishCard 调用签名|publishCard\\('subject-abc'|body\\.exam_id\" 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'" in C:/Users/Administrator/edu-cloud succeeded in 431ms:
+20:**Architecture:** 新建 `publish_service.py` 承担 publish 的业务原子操作（html→PDF + skeleton→upsert Question + 双面 Template + exam.status），前端 `publishCard()` 从手工三步简化为单次调用 `/api/v1/card/publish`，pipeline 层通过闭包捕获 `region_map` 在 save_answer_fn 中反查 question_id。
+141:**counter_examples** 4 个覆盖最可能的错误实现：
+149:**test_debt** 2 条，都有具体理由 + deadline，无空占位。
+434:| A2 | `await extract_skeleton(html)` | 错误实现（render.js 未修）→ side 全 'A'，Q17 断言失败 | 单面 HTML（只有 pageA）→ 测试单独覆盖（future）| F001 穿透链路 | `pytest tests/test_api_exam/test_card_publish.py::test_extract_skeleton_preserves_data_side -v` |
+623:from __future__ import annotations
+918:    返回 (tpl_a, tpl_b)，A 面必存（tpl_a 不为 None），B 面可选（单面考试时 tpl_b=None）。
+920:    契约（Plan Review R1 F002）: design §5.1 明确 "A 面必存，B 面可选"。
+1473:    # 简化方案：延迟到 monkeypatch 的 flush 触发时再 insert，使得 retry 的 re-select 能命中
+1527:**简化 fallback（若上述 monkeypatch 方案在 SQLAlchemy async 下不稳定）**：用 `pytest.mark.skipif` 条件化跳过，改为通过**直接调用 `_handle_integrity_retry` 内部函数**的单元测试验证 retry 分支逻辑。但默认优先用 monkeypatch 方案证实"无 try/except 实现下测试 FAIL"。
+1928:- Test: 已有前端 vitest 中可能涉及 ExamDetailPage 的测试（若无则加 smoke）
+1992:- [ ] **Step 5: 手动 smoke test（可选）**
+2072:        pytest.skip("S8 在 pipeline_router 层测试，见 test_pipeline_router_save_answer_closure")
+2158:    # 简化：直接调 run_pipeline 同步测试（避免异步 background task）
+2159:    # TODO: 根据实际 pipeline_router 的实现方式调整测试（可能需要 mock）
+2177:Expected: FAIL 或 skip（当前 pipeline_router 未构建 region_map）
+2186:# 原（简化）:
+2744:- E2E 链路每一步都可能挂，需要 fixture 覆盖全套状态
+2754:- ✗ 反向：S9 用 pass 占位未实现
+2801:**Placeholder 扫描：** Task 12 Step 1 的 S9/R1/R3 测试体以 `pass` 占位，需要在实施时展开完整断言。这个是有意的——因为 E2E 场景需要配合前面 11 个 Task 的具体实现来编写真实数据流。实施方应在 Task 12 开始前回读 design.md §11 验收标准补全。
+ succeeded in 440ms:
+75:      statement: StudentAnswer 唯一约束是 3 列 (exam_id, student_id, question_id)，重跑 pipeline 对同一学生同一题二次 INSERT 触发 IntegrityError 被捕获 skip
+93:      scenario: pipeline_router 构建 region_map 但 save_answer_fn 闭包内 INSERT 失败被吞（无 log）+ 无 IntegrityError 捕获
+127:    - item: 真正 PostgreSQL 并发 session 的 IntegrityError retry 压测（S7 只用 monkeypatch 模拟单 session 场景）
+177:- **save_answer_fn 写入策略**: `INSERT` + `try/except IntegrityError` 捕获后 `rollback` 并 log warning（天然幂等）
+179:**原因**：同一 exam + 同一 student + 同一 question 全局唯一一条 StudentAnswer；subject_id 由 question_id 的外键归属间接确定，无需加入唯一键。重跑 pipeline 对同一学生同一题的二次 INSERT 会自然触发 IntegrityError，被 save_answer_fn 的 try/except 捕获并跳过。
+628:from sqlalchemy.exc import IntegrityError
+672:                continue
+954:            continue
+1066:**背景：** design.md §5.4 唯一的 schema migration。支持并发 publish 的 IntegrityError 重试策略。
+1107:B1 F003: 支持并发 publish 的 IntegrityError 重试策略，防止同一 subject 下重复 Question.name
+1386:        await db.rollback()
+1435:- 关键行为：函数签名稳定，下一 Task (T7) 只在内部加 IntegrityError retry 不改签名
+1439:### Task 7: 并发 IntegrityError retry（Slice D 扩展）+ S7
+1445:**背景：** T5 加了 UniqueConstraint 后，并发 publish 会产生 IntegrityError。需要捕获+重试一次。
+1449:**关键**：S7 必须真正命中 retry 分支，不能走 existing_by_name fast path。使用 monkeypatch 拦截 `db.flush` 在首次调用抛 IntegrityError，第二次正常执行——这样测试会在 "无 try/except 防御" 的错误实现下失败。
+1453:    """S7 (Plan Review R1 F004 修正): 真正命中 IntegrityError retry 分支。
+1457:    - monkeypatch db.flush 第一次调用抛 IntegrityError(模拟并发另一方刚 INSERT)
+1458:    - 在 monkeypatch 的 rollback 阶段插入"并发另一方"的 Question，让 re-select 能找到
+1459:    - 期望：retry 分支被激活，rollback → re-select → existing_q 更新 → name_to_id 填入
+1461:    反例: 错误实现 upsert_questions_from_skeleton 没有 try/except IntegrityError
+ succeeded in 470ms:
+1722:        exam_id=body.exam_id,
+1830:    expect(body.exam_id).toBe('exam-456')
+1957:describe('F003 Task 10 V3: ExamDetailPage publishCard 调用签名', () => {
+1963:  it('V3: publishCard 调用时传入 examId 等于 route.params.id', async () => {
+1974:    await publishCard('subject-abc', testExamId, 'card.pdf')
+1978:    expect(body.exam_id).toBe(testExamId)
+1998:- 预期：PDF 下载成功 + F12 网络面板看到单次 `/api/v1/card/publish` + body.exam_id 正确
+2004:git commit -m "fix(frontend): F003 ExamDetailPage publishCard 调用签名加 examId + V3 test (T10)"
+2011:| V3 | `publishCard(subjectId, examId, filename)` 调用后 fetch body.exam_id 断言 | 错误实现传 undefined / null / props.exam.id (不存在) → body.exam_id 值错误，断言失败 | subject/exam id 都为字符串且非空 | F003 Task 10 调用签名 | `npx vitest run src/pages/__tests__/ExamDetailPage.publish.test.js` |
+2016:- examId 和 subjectId 顺序颠倒 → 测试应显式断言 body.subject_id 和 body.exam_id 各自正确
+2021:- ✓ 正向：V3 测试断言 body.exam_id === 传入的 testExamId
+2024:- ✗ 反向：在测试中不断言 body.exam_id 只断言 fetch 被调用
+2206:        exam_id=body.exam_id,
+2251:    exam_id = body.exam_id
+codex
+我在补最后一轮证据：把 Task 0/Contract Pack 的具体行号也钉住，这样每条 finding 都能同时对到“计划承诺”和“后续 Task 实现”。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'; "'$c=Get-Content -Encoding utf8 $p; for($i=70;$i -le 95;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'; "'$c=Get-Content -Encoding utf8 $p; for($i=170;$i -le 185;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'; "'$c=Get-Content -Encoding utf8 $p; for($i=2255;$i -le 2286;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md'; "'$c=Get-Content -Encoding utf8 $p; for($i=2035;$i -le 2085;$i++){ if($i -le $c.Length){ '"'{0}:{1}' -f "'$i,$c[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 660ms:
+70:      statement: pipeline_router 的 save_answer_fn 闭包收到 orphan region_id（不在 region_map）时 skip + log warning，不中断 pipeline
+71:      verification: pending_test
+72:      test_ref: tests/test_api_exam/test_pipeline_save_answer.py::test_S8_pipeline_router_builds_region_map_from_template
+73:
+74:    - id: INV-007
+75:      statement: StudentAnswer 唯一约束是 3 列 (exam_id, student_id, question_id)，重跑 pipeline 对同一学生同一题二次 INSERT 触发 IntegrityError 被捕获 skip
+76:      verification: existing_test
+77:      test_ref: src/edu_cloud/modules/scan/models.py:23
+78:      note: schema 层已存在约束，代码层 try/except 在 T11 save_answer_fn 闭包实现
+79:
+80:    - id: INV-008
+81:      statement: publish_card_atomic 前置校验失败（Exam/Subject 归属/HTML 空/status completed）→ 400 快速失败，事务未开启
+82:      verification: pending_test
+83:      test_ref: tests/test_services_exam/test_publish_service.py::test_S6b_publish_card_atomic_success_path
+84:      note: success path 测试覆盖；单独的 400 路径测试在 T6 Step 1 追加
+85:
+86:  counter_examples:
+87:    - id: CE-001
+88:      scenario: publish 后 publishCard 前端手工三步未改造（T9 跳过），后端 /card/publish 被调用但前端仍走旧 PUT /templates/{subject_id}/A
+89:      tests_that_still_pass: test_S2/S3/S4/S5/S6/S6b/S7（所有纯函数单元测试）、test_R3（只测 publish 幂等）
+ succeeded in 624ms:
+170:- Read only: `src/edu_cloud/modules/scan/models.py`
+171:
+172:**背景**：Plan Review R1 F003 已核实 StudentAnswer 现有 schema 约束为 **3 列** `(exam_id, student_id, question_id)`（`scan/models.py:23`），不是早期设计稿误写的 4 列。本 Task 仅做最终锚定验证，不改代码不加 migration。
+173:
+174:**决策结果（已锁定）**：
+175:- **StudentAnswer 现有约束**: `UniqueConstraint("exam_id", "student_id", "question_id")` — 3 列
+176:- **本批次是否新增 migration**: **否**
+177:- **save_answer_fn 写入策略**: `INSERT` + `try/except IntegrityError` 捕获后 `rollback` 并 log warning（天然幂等）
+178:
+179:**原因**：同一 exam + 同一 student + 同一 question 全局唯一一条 StudentAnswer；subject_id 由 question_id 的外键归属间接确定，无需加入唯一键。重跑 pipeline 对同一学生同一题的二次 INSERT 会自然触发 IntegrityError，被 save_answer_fn 的 try/except 捕获并跳过。
+180:
+181:- [ ] **Step 1: 最终事实验证**
+182:
+183:```bash
+184:grep -n "UniqueConstraint\|__table_args__" src/edu_cloud/modules/scan/models.py
+185:```
+ succeeded in 631ms:
+2255:    # 构建 save_answer_fn 闭包（region_map 捕获在闭包内）
+2256:    from edu_cloud.database import async_session
+2257:    from edu_cloud.modules.scan.models import StudentAnswer
+2258:
+2259:    async def save_answer(exam_id, subject_id, student_id, question_id, image_path, school_id):
+2260:        """闭包：question_id 参数实际是 pipeline_service 传入的 region_id，需要反查 region_map。"""
+2261:        # 注意：pipeline_service.run_pipeline L188 传的是 crop["region_id"]，命名为 question_id
+2262:        # 此处 question_id 参数名是 pipeline_service 的字段名，实际值是 region_id
+2263:        region_id = question_id  # 重命名为 region_id 理解
+2264:        real_question_id = region_map.get(region_id)
+2265:        if not real_question_id:
+2266:            logger.warning(
+2267:                "pipeline_orphan_crop: region_id=%s not in region_map, skip",
+2268:                region_id,
+2269:            )
+2270:            return
+2271:
+2272:        async with async_session() as db2:
+2273:            try:
+2274:                db2.add(StudentAnswer(
+ succeeded in 738ms:
+2035:- [ ] **Step 1: 写失败测试 S8**
+2036:
+2037:在 `tests/test_services_exam/test_scan_pipeline.py` 追加（或新建 `test_scan_pipeline_save_answer.py`）：
+2038:
+2039:```python
+2040:class TestSaveAnswerFnClosure:
+2041:    """Slice H: pipeline_router 构建 save_answer_fn 闭包，region_id → question_id 反查。"""
+2042:
+2043:    async def test_S8_orphan_region_id_skipped_with_warning(self, fake_scan_dir, tmp_path, caplog):
+2044:        """S8: region_id 不在 region_map → save_answer_fn log warning 并 skip，不中断 pipeline。"""
+2045:        from edu_cloud.modules.scan.pipeline_service import run_pipeline
+2046:
+2047:        saved = []
+2048:
+2049:        # 模拟闭包：region_map 只有 Q01，不含 Q02
+2050:        region_map = {"Q01": "question-uuid-1"}
+2051:
+2052:        async def save_answer(exam_id, subject_id, student_id, question_id, image_path, school_id):
+2053:            # save_answer_fn 签名 - 实际接 region_id 参数的是 pipeline_router 构建的闭包
+2054:            # 这里我们直接接 question_id，pipeline_service 的内部已经把 region_id 传给我们
+codex
+**Findings**
+
+F001  
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 按当前 Task 7 方案实现后，只要某一道题在 `flush()` 时撞上并发唯一键冲突，就会对整次 publish 的同一事务执行 `rollback()`；此前已成功 `flush` 的其它题目会一起被撤销，但后续逻辑只会补救当前冲突题。  
+After-behavior: 单题并发冲突只能收敛该题自身，不能破坏同一次 `publish_card_atomic` 中前面已成功 upsert 的 Question 集合。  
+Evidence: [plan.md:1373](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L1373) 定义了单事务边界；[plan.md:1553](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L1553) 在 `upsert_questions_from_skeleton` 的单题冲突分支里直接 `await db.rollback()`；[plan.md:1560](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L1560) 之后只 re-select 当前 `name`。  
+Impact: 并发 publish 时可能提交“不完整的题目集合”，直接破坏 INV-002/INV-005，对后续 Template 写入和 `question_map` 完整性形成隐性数据损坏。  
+Repair hypothesis (advisory only): 可能方向是把冲突收敛限定在单题级别，而不是回滚整个发布事务；禁止的修法是“在循环内全局 rollback 后继续跑剩余题目”、“吞掉冲突但不重建此前已撤销的 state”、“用无限重试掩盖事务语义问题”；requires independent fix design + Semantic Regression Gate。
+
+---
+
+F002  
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 当前 `/api/v1/scan/pipeline/start` 请求体不含 `exam_id`，并且路由已通过 `Subject.exam_id` 派生考试上下文。  
+After-behavior: 计划中的 Task 11 要么保持现有入口契约并沿用 `subject.exam_id`，要么显式修改设计/API/测试三者；不能在实现片段里偷偷引入一个当前并不存在的请求字段。  
+Evidence: 现状请求模型 [pipeline_router.py:25](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/scan/pipeline_router.py#L25) 只有 `subject_id/side/image_dir/tpl_path`；现状实现 [pipeline_router.py:145](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/scan/pipeline_router.py#L145) 直接使用 `subject.exam_id`；但 Task 11 示例代码在 [plan.md:2251](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2251) 读取 `body.exam_id`，同时该 Task 自己给出的请求示例 [plan.md:2147](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2147) 又没有发送 `exam_id`。  
+Impact: 执行者照计划实现会在“运行时报字段不存在”和“静默扩展公开 API 契约”之间二选一，属于明确的接口契约不一致。  
+Repair hypothesis (advisory only): 可能方向是锁定 `start_pipeline` 的单一来源字段，并让设计/实现/测试共享同一入口契约；禁止的修法是“同时接受两套来源再做隐式优先级”、“只改实现不改设计和测试”、“在路由里复制一份 exam/subject 归属推断逻辑”；requires independent fix design + Semantic Regression Gate。
+
+---
+
+F003  
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Task 12 的 S9b 名义上验证“pipeline writeback 总验证”，但测试体实际上直接构造 `region_map` 并手工 `db.add(StudentAnswer)`，完全绕过 Task 11 的 `pipeline_router` 闭包装配。  
+After-behavior: 这条总验证必须经过真实用户可达入口，或至少经过 router 所拥有的闭包构建路径；否则 broken pipeline 也会绿。  
+Evidence: S9b 目标描述见 [plan.md:2471](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2471)；但实际测试在 [plan.md:2544](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2544) 手工构建 `region_map`，并在 [plan.md:2550](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2550) 直接插入 `StudentAnswer`。同时 Contract Pack 把 CE-002 的缓解寄托在这条测试上，见 [plan.md:93](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L93)。  
+Impact: 即使 `pipeline_router` 根本没传 `save_answer_fn`、region 反查错误、或 orphan/幂等逻辑全坏，S9b 仍可通过，导致“总验证”失真。  
+Repair hypothesis (advisory only): 可能方向是让至少一条高层验证真实经过 `/api/v1/scan/pipeline/start` 或 router 公开的闭包装配接口；禁止的修法是“在测试里直接 ORM 落库代替 pipeline 写回”、“只看 `marking/subjects` 聚合结果不触达写回入口”、“把闭包装配整体 mock 掉”；requires independent fix design + Semantic Regression Gate。
+
+---
+
+F004  
+Severity: MED  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Task 10 的 V3 测试声称验证 `ExamDetailPage.vue` 调用签名已改，但测试体并不挂载页面，也不触发页面上的发布按钮，只是直接 import `publishCard()` 并手调三参函数。  
+After-behavior: 如果要验证 [ExamDetailPage.vue:868](C:/Users/Administrator/edu-cloud/frontend/src/pages/ExamDetailPage.vue#L868) 的调用点变更，测试必须触达该组件调用点本身。  
+Evidence: 当前真实调用点仍是两参形式 [ExamDetailPage.vue:868](C:/Users/Administrator/edu-cloud/frontend/src/pages/ExamDetailPage.vue#L868)；Task 10 的测试定义从 [plan.md:1952](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L1952) 开始，但核心动作是 [plan.md:1972](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L1972) 直接 import `../../card-editor/export.js` 并在 [plan.md:1974](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L1974) 直接调用 `publishCard(...)`。  
+Impact: 即使执行者漏改页面实际调用点，V3 也会通过，前端真实发布按钮仍可能在运行时发送旧签名。  
+Repair hypothesis (advisory only): 测试应以组件点击流或对组件内 import 的 spy 为入口，而不是重复测试 `publishCard()` 自身。
+
+---
+
+F005  
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Contract Pack 把 INV-006 绑定到 S8，但 Task 11 给出的 S8 方案仍包含 `pytest.skip`、`TODO` 和 “FAIL 或 skip” 预期，说明关键 pipeline slice 还没有一个可执行、可判定的验证契约。  
+After-behavior: 被 Contract Pack 引用的验证必须是确定性的、可运行的，不应依赖后续“实现时再调整”。  
+Evidence: INV-006 的映射在 [plan.md:70](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L70)；Task 11 首版测试直接在 [plan.md:2072](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2072) `pytest.skip(...)`；替代测试又在 [plan.md:2158](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2158) 写了 `TODO`，并在 [plan.md:2177](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2177) 把预期写成 `FAIL 或 skip`。  
+Impact: 这不只是测试质量问题，还意味着 Contract Pack 对 pipeline 风险模块的 verification 映射目前不可执行，Gate 1 无法据此证明 INV-006。  
+Repair hypothesis (advisory only): 可能方向是先定义一个稳定的同步测试缝隙，再把 S8 收敛成单一、确定性的断言路径；禁止的修法是“保留 skip 占位进入执行批次”、“接受 TODO 型测试契约”、“靠不确定的后台 task 时序做最终验收”；requires independent fix design + Semantic Regression Gate。
+
+---
+
+结论: FAIL
+tokens used
+333,530
+**Findings**
+
+F001  
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 按当前 Task 7 方案实现后，只要某一道题在 `flush()` 时撞上并发唯一键冲突，就会对整次 publish 的同一事务执行 `rollback()`；此前已成功 `flush` 的其它题目会一起被撤销，但后续逻辑只会补救当前冲突题。  
+After-behavior: 单题并发冲突只能收敛该题自身，不能破坏同一次 `publish_card_atomic` 中前面已成功 upsert 的 Question 集合。  
+Evidence: [plan.md:1373](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L1373) 定义了单事务边界；[plan.md:1553](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L1553) 在 `upsert_questions_from_skeleton` 的单题冲突分支里直接 `await db.rollback()`；[plan.md:1560](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L1560) 之后只 re-select 当前 `name`。  
+Impact: 并发 publish 时可能提交“不完整的题目集合”，直接破坏 INV-002/INV-005，对后续 Template 写入和 `question_map` 完整性形成隐性数据损坏。  
+Repair hypothesis (advisory only): 可能方向是把冲突收敛限定在单题级别，而不是回滚整个发布事务；禁止的修法是“在循环内全局 rollback 后继续跑剩余题目”、“吞掉冲突但不重建此前已撤销的 state”、“用无限重试掩盖事务语义问题”；requires independent fix design + Semantic Regression Gate。
+
+---
+
+F002  
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 当前 `/api/v1/scan/pipeline/start` 请求体不含 `exam_id`，并且路由已通过 `Subject.exam_id` 派生考试上下文。  
+After-behavior: 计划中的 Task 11 要么保持现有入口契约并沿用 `subject.exam_id`，要么显式修改设计/API/测试三者；不能在实现片段里偷偷引入一个当前并不存在的请求字段。  
+Evidence: 现状请求模型 [pipeline_router.py:25](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/scan/pipeline_router.py#L25) 只有 `subject_id/side/image_dir/tpl_path`；现状实现 [pipeline_router.py:145](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/scan/pipeline_router.py#L145) 直接使用 `subject.exam_id`；但 Task 11 示例代码在 [plan.md:2251](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2251) 读取 `body.exam_id`，同时该 Task 自己给出的请求示例 [plan.md:2147](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2147) 又没有发送 `exam_id`。  
+Impact: 执行者照计划实现会在“运行时报字段不存在”和“静默扩展公开 API 契约”之间二选一，属于明确的接口契约不一致。  
+Repair hypothesis (advisory only): 可能方向是锁定 `start_pipeline` 的单一来源字段，并让设计/实现/测试共享同一入口契约；禁止的修法是“同时接受两套来源再做隐式优先级”、“只改实现不改设计和测试”、“在路由里复制一份 exam/subject 归属推断逻辑”；requires independent fix design + Semantic Regression Gate。
+
+---
+
+F003  
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Task 12 的 S9b 名义上验证“pipeline writeback 总验证”，但测试体实际上直接构造 `region_map` 并手工 `db.add(StudentAnswer)`，完全绕过 Task 11 的 `pipeline_router` 闭包装配。  
+After-behavior: 这条总验证必须经过真实用户可达入口，或至少经过 router 所拥有的闭包构建路径；否则 broken pipeline 也会绿。  
+Evidence: S9b 目标描述见 [plan.md:2471](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2471)；但实际测试在 [plan.md:2544](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2544) 手工构建 `region_map`，并在 [plan.md:2550](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2550) 直接插入 `StudentAnswer`。同时 Contract Pack 把 CE-002 的缓解寄托在这条测试上，见 [plan.md:93](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L93)。  
+Impact: 即使 `pipeline_router` 根本没传 `save_answer_fn`、region 反查错误、或 orphan/幂等逻辑全坏，S9b 仍可通过，导致“总验证”失真。  
+Repair hypothesis (advisory only): 可能方向是让至少一条高层验证真实经过 `/api/v1/scan/pipeline/start` 或 router 公开的闭包装配接口；禁止的修法是“在测试里直接 ORM 落库代替 pipeline 写回”、“只看 `marking/subjects` 聚合结果不触达写回入口”、“把闭包装配整体 mock 掉”；requires independent fix design + Semantic Regression Gate。
+
+---
+
+F004  
+Severity: MED  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Task 10 的 V3 测试声称验证 `ExamDetailPage.vue` 调用签名已改，但测试体并不挂载页面，也不触发页面上的发布按钮，只是直接 import `publishCard()` 并手调三参函数。  
+After-behavior: 如果要验证 [ExamDetailPage.vue:868](C:/Users/Administrator/edu-cloud/frontend/src/pages/ExamDetailPage.vue#L868) 的调用点变更，测试必须触达该组件调用点本身。  
+Evidence: 当前真实调用点仍是两参形式 [ExamDetailPage.vue:868](C:/Users/Administrator/edu-cloud/frontend/src/pages/ExamDetailPage.vue#L868)；Task 10 的测试定义从 [plan.md:1952](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L1952) 开始，但核心动作是 [plan.md:1972](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L1972) 直接 import `../../card-editor/export.js` 并在 [plan.md:1974](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L1974) 直接调用 `publishCard(...)`。  
+Impact: 即使执行者漏改页面实际调用点，V3 也会通过，前端真实发布按钮仍可能在运行时发送旧签名。  
+Repair hypothesis (advisory only): 测试应以组件点击流或对组件内 import 的 spy 为入口，而不是重复测试 `publishCard()` 自身。
+
+---
+
+F005  
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Contract Pack 把 INV-006 绑定到 S8，但 Task 11 给出的 S8 方案仍包含 `pytest.skip`、`TODO` 和 “FAIL 或 skip” 预期，说明关键 pipeline slice 还没有一个可执行、可判定的验证契约。  
+After-behavior: 被 Contract Pack 引用的验证必须是确定性的、可运行的，不应依赖后续“实现时再调整”。  
+Evidence: INV-006 的映射在 [plan.md:70](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L70)；Task 11 首版测试直接在 [plan.md:2072](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2072) `pytest.skip(...)`；替代测试又在 [plan.md:2158](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2158) 写了 `TODO`，并在 [plan.md:2177](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-11-f003-question-writeback-plan.md#L2177) 把预期写成 `FAIL 或 skip`。  
+Impact: 这不只是测试质量问题，还意味着 Contract Pack 对 pipeline 风险模块的 verification 映射目前不可执行，Gate 1 无法据此证明 INV-006。  
+Repair hypothesis (advisory only): 可能方向是先定义一个稳定的同步测试缝隙，再把 S8 收敛成单一、确定性的断言路径；禁止的修法是“保留 skip 占位进入执行批次”、“接受 TODO 型测试契约”、“靠不确定的后台 task 时序做最终验收”；requires independent fix design + Semantic Regression Gate。
+
+---
+
+结论: FAIL

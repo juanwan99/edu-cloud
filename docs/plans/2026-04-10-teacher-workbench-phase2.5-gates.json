@@ -1,0 +1,61 @@
+{
+  "topic": "teacher-workbench-phase2.5",
+  "tier": "T3",
+  "created": "2026-04-10T19:50:00+08:00",
+  "gates": {
+    "plan_review": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_ref": "docs/plans/2026-04-10-teacher-workbench-phase2.5-plan.md",
+      "subject_hash": "pending_executor_runtime_hash",
+      "report_path": "docs/plans/2026-04-10-teacher-workbench-phase2.5-plan-review-report.md",
+      "raw_output_hash": "bfc1b66a4ffdcbb6e923c55be04821365c15a6776e642d27c9faa98fff1e7d33",
+      "round": 2,
+      "round_history": [
+        {
+          "round": 1,
+          "status": "fail",
+          "findings": [
+            "F001",
+            "F002",
+            "F003",
+            "F004",
+            "F005",
+            "F006",
+            "F007"
+          ]
+        },
+        {
+          "round": 2,
+          "status": "pass",
+          "resolved": [
+            "F001",
+            "F002",
+            "F003",
+            "F004",
+            "F005",
+            "F006",
+            "F007"
+          ],
+          "new_findings": [
+            "F008",
+            "F009"
+          ],
+          "new_findings_disposition": "all resolved-correct (immediate fix in R2 review cycle)"
+        }
+      ],
+      "updated": "2026-04-10T21:45:00+08:00"
+    },
+    "code_review_batch1": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "4b44ec6369d2050df2837da6673f9fc1abbdf37771064f0c21f21ffd01c4ce2a",
+      "report_path": "docs/plans/2026-04-10-teacher-workbench-phase2.5-review-report-batch1.md",
+      "updated": "2026-04-10T22:50:48.735571+08:00",
+      "subject_ref": "commit:b909ccf..f948089",
+      "raw_output_hash": "3d01c71da56b12de69b95d481c379bd1f713d660094c9bc757d5b6d7acbf5f4e"
+    }
+  }
+}

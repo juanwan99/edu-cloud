@@ -12,13 +12,13 @@ async def test_list_bank_questions_with_filter(db):
     db.add(school)
     await db.flush()
 
-    db.add(BankQuestion(school_id=school.id, question_type="objective", max_score=5, difficulty=0.8, sample_count=100))
-    db.add(BankQuestion(school_id=school.id, question_type="subjective", max_score=10, difficulty=0.4, sample_count=50))
-    db.add(BankQuestion(school_id=school.id, question_type="objective", max_score=5, difficulty=0.3, sample_count=80))
+    db.add(BankQuestion(school_id=school.id, question_type="choice", max_score=5, difficulty=0.8, sample_count=100))
+    db.add(BankQuestion(school_id=school.id, question_type="essay", max_score=10, difficulty=0.4, sample_count=50))
+    db.add(BankQuestion(school_id=school.id, question_type="choice", max_score=5, difficulty=0.3, sample_count=80))
     await db.commit()
 
     # 按类型
-    result = await bank_service.list_bank_questions(db, school_id=school.id, question_type="objective")
+    result = await bank_service.list_bank_questions(db, school_id=school.id, question_type="choice")
     assert len(result) == 2
 
     # 按难度范围
@@ -39,7 +39,7 @@ async def test_error_book_stats(db):
     await db.flush()
 
     for i, status in enumerate(["unmastered", "unmastered", "unmastered", "practicing", "mastered"]):
-        q = Question(subject_id=subj.id, school_id=school.id, name=str(i+1), question_type="subjective", max_score=10)
+        q = Question(subject_id=subj.id, school_id=school.id, name=str(i+1), question_type="essay", max_score=10)
         db.add(q)
         await db.flush()
         db.add(StudentErrorBook(
@@ -62,7 +62,7 @@ async def test_get_bank_question_found(db):
     school = School(name="测试", code="BS03")
     db.add(school)
     await db.flush()
-    bq = BankQuestion(school_id=school.id, question_type="objective", max_score=5, sample_count=10)
+    bq = BankQuestion(school_id=school.id, question_type="choice", max_score=5, sample_count=10)
     db.add(bq)
     await db.commit()
 
@@ -91,7 +91,7 @@ async def test_get_student_error_book_with_filters(db):
     await db.flush()
 
     for i, status in enumerate(["unmastered", "unmastered", "practicing"]):
-        q = Question(subject_id=subj.id, school_id=school.id, name=str(i+1), question_type="subjective", max_score=10)
+        q = Question(subject_id=subj.id, school_id=school.id, name=str(i+1), question_type="essay", max_score=10)
         db.add(q)
         await db.flush()
         db.add(StudentErrorBook(

@@ -63,6 +63,21 @@ const DASHBOARD_CONFIGS = {
       { type: 'module', id: 'ai', title: 'AI 助手', icon: 'ai', route: '/analysis' },
     ],
   },
+  teaching_research_leader: {
+    title: '学科教研',
+    kpis: [
+      { id: 'subject_classes', label: '教授班级', color: 'mint', source: 'dashboard_summary' },
+      { id: 'subject_avg', label: '学科均分', color: 'yellow', source: null },
+      { id: 'recent_exam', label: '最近考试', color: 'coral', source: null },
+      { id: 'ai_tools', label: 'AI工具', color: 'purple', source: 'ai_health' },
+    ],
+    widgets: [
+      { type: 'module', id: 'subject_scores', title: '学科成绩', icon: 'chart', route: '/analysis' },
+      { type: 'module', id: 'exams', title: '考试管理', icon: 'exam', route: '/exams' },
+      { type: 'module', id: 'knowledge', title: '知识图谱', icon: 'chart', route: '/knowledge-tree' },
+      { type: 'module', id: 'paper', title: '论文写作', icon: 'paper', route: '/paper' },
+    ],
+  },
   grade_leader: {
     title: '年级概览',
     kpis: [
@@ -75,7 +90,22 @@ const DASHBOARD_CONFIGS = {
       { type: 'module', id: 'grade_overview', title: '年级成绩', icon: 'chart', route: '/analysis' },
       { type: 'module', id: 'exams', title: '考试管理', icon: 'exam', route: '/exams' },
       { type: 'module', id: 'analytics', title: '数据分析', icon: 'chart', route: '/analysis' },
-      { type: 'module', id: 'docs', title: '文档', icon: 'document', route: '/analysis' },
+      { type: 'module', id: 'notifications', title: '年级通知', icon: 'notification', route: '/notifications' },
+    ],
+  },
+  lesson_prep_leader: {
+    title: '备课工作台',
+    kpis: [
+      { id: 'total_classes', label: '平行班级', color: 'mint', source: 'dashboard_summary' },
+      { id: 'subject_avg', label: '学科均分', color: 'yellow', source: null },
+      { id: 'pending_grading', label: '待批改', color: 'coral', source: 'dashboard_summary' },
+      { id: 'ai_tools', label: 'AI工具', color: 'purple', source: 'ai_health' },
+    ],
+    widgets: [
+      { type: 'module', id: 'my_grading', title: '我的阅卷', icon: 'marking', route: '/marking' },
+      { type: 'module', id: 'subject_scores', title: '学科成绩', icon: 'chart', route: '/analysis' },
+      { type: 'module', id: 'ai', title: 'AI 助手', icon: 'ai', route: '/analysis' },
+      { type: 'module', id: 'paper', title: '论文写作', icon: 'paper', route: '/paper' },
     ],
   },
   homeroom_teacher: {

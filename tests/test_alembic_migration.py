@@ -75,6 +75,13 @@ def test_migration_creates_all_expected_tables(migration_db):
     import edu_cloud.models.agent_profile  # noqa: F401
     import edu_cloud.models.agent_memory  # noqa: F401
     import edu_cloud.modules.homework.models  # noqa: F401
+    import edu_cloud.models.guardian  # noqa: F401
+    import edu_cloud.models.workflow  # noqa: F401
+    import edu_cloud.models.agent_finding  # noqa: F401
+    import edu_cloud.models.agent_snapshot  # noqa: F401
+    import edu_cloud.models.scope_version  # noqa: F401
+    import edu_cloud.models.memory  # noqa: F401 — EntityMemory/ProjectState
+    import edu_cloud.modules.conduct.models  # noqa: F401 — conduct 8 tables
 
     inspector = inspect(migration_db)
     migration_tables = set(inspector.get_table_names())

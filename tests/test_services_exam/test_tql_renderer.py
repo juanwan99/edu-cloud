@@ -17,7 +17,7 @@ def _make_yuwen_fixture():
     # 16 主观题
     subj_scores = [6, 6, 8, 8, 6, 6, 10, 10, 6, 6, 8, 8, 6, 6, 8, 60]
     for i, score in enumerate(subj_scores, start=7):
-        questions.append({"number": i, "question_type": "subjective",
+        questions.append({"number": i, "question_type": "essay",
                           "score": score, "answer_text": "答案" * (score // 2),
                           "image_count": 0})
     return questions
@@ -30,7 +30,7 @@ def _render_yuwen():
     weights = [{"number": q["number"], "weight": q.get("score", 1),
                 "parsed_structure": [{"sub": 1, "score": q.get("score", 1),
                                       "space_type": "essay", "estimated_lines": 0}]}
-               for q in questions if q["question_type"] == "subjective"]
+               for q in questions if q["question_type"] == "essay"]
     layout = allocate_by_weights(weights, skeleton["columns"])
     pdf = render_card_v2(skeleton, layout, "2024年秋季高二检测卷", "语文")
     return pdf, skeleton, layout
@@ -45,7 +45,7 @@ class TestTQLRendererSmoke:
 
     def test_no_objective_questions(self):
         """0 道选择题不应抛异常。"""
-        questions = [{"number": 1, "question_type": "subjective",
+        questions = [{"number": 1, "question_type": "essay",
                       "score": 60, "answer_text": "作文" * 50, "image_count": 0}]
         skeleton = build_skeleton_from_spec(questions, paper_size="A3", columns=3)
         weights = [{"number": 1, "weight": 60,

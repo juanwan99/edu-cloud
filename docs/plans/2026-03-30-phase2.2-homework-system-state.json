@@ -1,0 +1,48 @@
+{
+  "topic": "phase2.2-homework",
+  "plan_file": "docs/plans/2026-03-30-phase2.2-homework-system-plan.md",
+  "design_file": "docs/plans/2026-03-30-phase2.2-homework-system-design.md",
+  "tasks": [
+    {
+      "id": "1",
+      "desc": "HomeworkTask 和 HomeworkSubmission ORM 模型",
+      "status": "pending"
+    },
+    {
+      "id": "2",
+      "desc": "权限枚举 + 模块注册 + Capability 默认模板",
+      "status": "pending"
+    },
+    {
+      "id": "3",
+      "desc": "HomeworkTaskService（CRUD + 校验）",
+      "status": "pending"
+    },
+    {
+      "id": "4",
+      "desc": "状态机 + HomeworkSubmissionService",
+      "status": "pending"
+    },
+    {
+      "id": "5",
+      "desc": "API Router（作业端点）",
+      "status": "pending"
+    },
+    {
+      "id": "6",
+      "desc": "Agent 工具",
+      "status": "pending"
+    },
+    {
+      "id": "7",
+      "desc": "Alembic Migration + conftest + migration test",
+      "status": "pending"
+    },
+    {
+      "id": "8",
+      "desc": "CLAUDE.md 同步 + 全量测试",
+      "status": "pending"
+    }
+  ],
+  "updated_at": "2026-03-30 19:04:23"
+}

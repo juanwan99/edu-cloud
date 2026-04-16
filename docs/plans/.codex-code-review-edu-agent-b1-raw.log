@@ -1,0 +1,743 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d52de-efe6-76f0-a838-6d0ea38f8ecd
+--------
+user
+You are a code reviewer performing independent review.
+
+Read the review handoff: docs/plans/2026-04-03-edu-agent-review-handoff-batch1.md
+Read the plan: docs/plans/2026-04-03-edu-agent-plan.md (only Batch 1: Task 1-4 section, lines 63-803)
+Check the commits (edu-agent only): ae568cb, a73bcf8, 68207a2, 320ce82, 982c288
+Read the full diff (scoped to edu-agent files): git diff ae568cb~1..982c288 -- src/edu_cloud/ai/ tests/test_ai/ src/edu_cloud/api/ai.py
+Read modified files in full for context.
+
+IMPORTANT: The commit range contains interleaved commits from another project (a4-card-editor). Only review the edu-agent related files listed above.
+
+Review in 4 phases (按顺序):
+
+Phase 0 — Contract Pack 验证（最高优先级）:
+- 读取 plan 中的 Contract Pack 段落 (lines 15-61)
+- 逐条核对 invariants：是否有测试覆盖？verification 映射是否准确？
+- 逐条核对 counter_examples：mitigation 是否已实施？tests_that_still_pass 是否已加固？
+- test_debt：理由是否合理？deadline 是否可接受？
+- freshness：如果实现路径偏离 Contract Pack（新增了未列出的 API / 推翻了不变量），→ process finding
+- 如果 Contract Pack 缺失或不完整 → 记 process finding，不阻断后续检查
+
+Phase 1 — 测试充分性 (Test Adequacy):
+- plan 中声明的边界条件是否都有对应测试
+- 是否只测了 happy path
+- bug fix 是否有回归测试
+- 测试是否真的会在错误实现下失败
+- 对每个测试函数回答：删除被测函数核心逻辑后，此测试会失败吗？如果不会 → test-gap HIGH
+- 识别 assert x is not None / assert result / assert len(x) > 0 等弱断言 → test-gap MED
+- 如果没有有效测试 → 直接退回，不进入 Phase 2
+
+Phase 2 — 行为正确性 (Behavioral Correctness):
+A. 正确性: 实现匹配意图、边界输入、异常路径、条件判断
+B. 边界条件: 对每个新增/修改的函数，构造 3 类输入验证：空集合([]/{}/None)、单元素、溢出/极值
+C. 集成: 调用方更新、import 完整、迁移可回滚、API 兼容
+D. 安全: 无硬编码密钥、输入校验、无注入向量
+E. 架构质量: 新增 import 方向正确（下层不引用上层）、无跨模块内部变量访问、无新增硬编码常量、新文件 <300 行且职责单一
+F. 回归风险: 修改是否影响计划外功能？共用函数/模块的其他调用方是否验证？旧逻辑是否完全清除？
+
+Phase 3 — 未测试风险 (Non-tested Risks):
+- 未被测试覆盖的副作用：状态、并发、权限、幂等性、时区、空值
+- 实现是否只为过测试而过拟合
+
+**审查规范（必读）：** 先读以下文件中的对应段落，严格按其定义执行：
+- Finding 分类: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-classification -->
+- Finding Type: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-type -->
+- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: pass-fail -->
+- test-gap 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: test-gap-criteria -->
+- 行为变更守卫: ~/.claude/rules-t3/review-templates.md <!-- anchor: behavior-change-guard -->
+- Finding 转换规则: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-transition -->
+
+For each finding use structured format: ID, Severity, Category, Type (defect_fix/behavior_change), Before-behavior, After-behavior, Evidence (file:line), Impact, Repair hypothesis (optional, non-authoritative).
+Repair hypothesis is advisory only and has no execution authority.
+
+Conclude with PASS or FAIL.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+使用 `code-review:review-pr` 技能执行这次独立审查；我会先读取审查规范与 handoff/plan 的相关段落，再按你要求的 4 个 phase 检查指定 commit 和 `edu-agent` 范围内的改动。
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md"})
+filesystem.read_text_file({"path":"C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md"}) success in 20ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "---\r\nname: code-review:review-pr\r\ndescription: Comprehensive pull request review using specialized agents\r\nargument-hint: \"[review-aspects]\"\r\n---\r\n\r\n# Pull Request Review Instructions\r\n\r\nYou are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.\r\n\r\n**Review Aspects (optional):** \"$ARGUMENTS\"\r\n**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.\r\n\r\n**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!\r\n\r\n## Review Workflow\r\n\r\nRun a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:\r\n\r\n### Phase 1: Preparation\r\n\r\nRun following commands in order:\r\n\r\n1. **Determine Review Scope**\r\n   - Check following command to understand changes, use only commands that return amount of lines changed, not file content:\r\n     - git status\r\n     - git diff --stat\r\n     - git diff origin/master --stat or git diff origin/master...HEAD --stat for PR diffs\r\n       - change to origin/main if main is used as default branch\r\n   - Parse arguments to see if user requested specific review aspects\r\n2. Launch up to 6 parallel Haiku agents to perform following tasks:\r\n   - One agent to check if the pull request (a) is closed, (b) is a draft. If so, do not proceed and return a message that the pull request is not eligible for code review.\r\n   - One agent to search and give you a list of file paths to (but not the contents of) any relevant agent instruction files, if they exist: CLAUDE.md, AGENTS.md, **/consitution.md, the root README.md file, as well as any README.md files in the directories whose files the pull request modified\r\n   - Split files based on amount of lines changes between other 1-4 agents and ask them following:\r\n\r\n      ```markdown\r\n      GOAL: Analyse PR changes in following files and provide summary\r\n      \r\n      Perform following steps:\r\n         - Run [pass proper git command that he can use] to see changes in files\r\n         - Analyse following files: [list of files]\r\n\r\n      Please return a detailed summary of the changes in the each file, including types of changes, their complexity, affected classes/functions/variables/etc., and overall description of the changes.\r\n      ```\r\n\r\n3. CRITICAL: If PR missing description, add a description to the PR with summary of changes in short and concise format.\r\n\r\n### Phase 2: Searching for Issues\r\n\r\nDetermine Applicable Reviews, then launch up to 6 parallel (Sonnet or Opus) agents to independently code review all changes in the pull request. The agents should do the following, then return a list of issues and the reason each issue was flagged (eg. CLAUDE.md or consitution.md adherence, bug, historical git context, etc.).\r\n\r\n**Available Review Agents**:\r\n\r\n- **security-auditor** - Analyze code for security vulnerabilities\r\n- **bug-hunter** - Scan for bugs and issues, including silent failures\r\n- **code-quality-reviewer** - General code review for project guidelines, maintainability and quality. Simplifying code for clarity and maintainability\r\n- **contracts-reviewer** - Analyze code contracts, including: type design and invariants (if new types added), API changes, data modeling, etc.\r\n- **test-coverage-reviewer** - Review test coverage quality and completeness\r\n- **historical-context-reviewer** - Review historical context of the code, including git blame and history of the code modified, and previous pull requests that touched these files.\r\n\r\nNote: Default option is to run **all** applicable review agents.\r\n\r\n#### Determine Applicable Reviews\r\n\r\nBased on changes summary from phase 1 and their complexity, determine which review agents are applicable:\r\n\r\n- **If code or configuration changes, except purely cosmetic changes**: bug-hunter, security-auditor\r\n- **if code changes, including business or infrastructure logic, formating, etc.**: code-quality-reviewer (general quality)\r\n- **If test files changed**: test-coverage-reviewer\r\n- **If types, API, data modeling changed**: contracts-reviewer\r\n- **If complexity of changes is high or historical context is needed**: historical-context-reviewer\r\n\r\n#### Launch Review Agents\r\n\r\n**Parallel approach**:\r\n\r\n- Launch all agents simultaneously\r\n- Provide to them full list of modified files and summary of the PR as a context, explicitly highlight which PR they are reviewing, also provide list of files with project guidelines and standards, including README.md, CLAUDE.md and consitution.md if they exist.\r\n- Results should come back together\r\n\r\n### Phase 3: Confidence & Impact Scoring\r\n\r\n1. For each issue found in Phase 2, launch a parallel Haiku agent that takes the PR, issue description, and list of CLAUDE.md files (from step 2), and returns TWO scores:\r\n\r\n   **Confidence Score (0-100)** - Level of confidence that the issue is real and not a false positive:\r\n\r\n   a. 0: Not confident at all. This is a false positive that doesn't stand up to light scrutiny, or is a pre-existing issue.\r\n   b. 25: Somewhat confident. This might be a real issue, but may also be a false positive. The agent wasn't able to verify that it's a real issue. If the issue is stylistic, it is one that was not explicitly called out in the relevant CLAUDE.md.\r\n   c. 50: Moderately confident. The agent was able to verify this is a real issue, but it might be a nitpick or not happen very often in practice. Relative to the rest of the PR, it's not very important.\r\n   d. 75: Highly confident. The agent double checked the issue, and verified that it is very likely it is a real issue that will be hit in practice. The existing approach in the PR is insufficient. The issue is very important and will directly impact the code's functionality, or it is an issue that is directly mentioned in the relevant CLAUDE.md.\r\n   e. 100: Absolutely certain. The agent double checked the issue, and confirmed that it is definitely a real issue, that will happen frequently in practice. The evidence directly confirms this.\r\n\r\n   **Impact Score (0-100)** - Severity and consequence of the issue if left unfixed:\r\n\r\n   a. 0-20 (Low): Minor code smell or style inconsistency. Does not affect functionality or maintainability significantly.\r\n   b. 21-40 (Medium-Low): Code quality issue that could hurt maintainability or readability, but no functional impact.\r\n   c. 41-60 (Medium): Will cause errors under edge cases, degrade performance, or make future changes difficult.\r\n   d. 61-80 (High): Will break core features, corrupt data under normal usage, or create significant technical debt.\r\n   e. 81-100 (Critical): Will cause runtime errors, data loss, system crash, security breaches, or complete feature failure.\r\n\r\n   For issues flagged due to CLAUDE.md instructions, the agent should double check that the CLAUDE.md actually calls out that issue specifically.\r\n\r\n2. **Filter issues using the progressive threshold table below** - Higher impact issues require less confidence to pass:\r\n\r\n   | Impact Score | Minimum Confidence Required | Rationale |\r\n   |--------------|----------------------------|-----------|\r\n   | 81-100 (Critical) | 50 | Critical issues warrant investigation even with moderate confidence |\r\n   | 61-80 (High) | 65 | High impact issues need good confidence to avoid false alarms |\r\n   | 41-60 (Medium) | 75 | Medium issues need high confidence to justify addressing |\r\n   | 21-40 (Medium-Low) | 85 | Low-medium impact issues need very high confidence |\r\n   | 0-20 (Low) | 95 | Minor issues only included if nearly certain |\r\n\r\n   **Filter out any issues that don't meet the minimum confidence threshold for their impact level.** If there are no issues that meet this criteria, do not proceed.\r\n\r\n   **IMPORTANT: Do NOT post inline comments for:**\r\n   - **Low impact issues (0-20)** - These are minor code smells or style inconsistencies. Even with high confidence, they add noise without meaningful value.\r\n   - **Low confidence issues** - Any issue below the minimum confidence threshold for its impact level should be excluded entirely.\r\n\r\n   Focus inline comments on Medium impact (41+) and higher issues that meet confidence thresholds.\r\n\r\n3. Use a Haiku agent to repeat the eligibility check from Phase 1, to make sure that the pull request is still eligible for code review. (In case if there was updates since review started)\r\n4. **Post Inline Comments Only** (skip if no issues found):\r\n\r\n   a. **Preferred approach - Use MCP GitHub tools if available**:\r\n      - Use `mcp__github_inline_comment__create_inline_comment` for line-specific feedback for each individual issue.\r\n\r\n   b. Fallback approach - Use direct API calls:\r\n      - First, check if the `git:attach-review-to-pr` command is available by reading it.\r\n      - If the command is available and issues were found:\r\n         - **Multiple Issues**: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` to create a review with line-specific comments.\r\n         - **Single Issue**: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` to add just one line-specific comment.\r\n\r\n   When writing comments, keep in mind to:\r\n   - Keep your output brief\r\n   - Use emojis\r\n   - Link and cite relevant code, files, and URLs\r\n\r\n#### Examples of false positives, for Phase 3\r\n\r\n- Pre-existing issues\r\n- Something that looks like a bug but is not actually a bug\r\n- Pedantic nitpicks that a senior engineer wouldn't call out\r\n- Issues that a linter, typechecker, or compiler would catch (eg. missing or incorrect imports, type errors, broken tests, formatting issues, pedantic style issues like newlines). No need to run these build steps yourself -- it is safe to assume that they will be run separately as part of CI.\r\n- General code quality issues (eg. lack of test coverage, general security issues, poor documentation), unless explicitly required in CLAUDE.md\r\n- Issues that are called out in CLAUDE.md, but explicitly silenced in the code (eg. due to a lint ignore comment)\r\n- Changes in functionality that are likely intentional or are directly related to the broader change\r\n- Real issues, but on lines that the user did not modify in their pull request\r\n\r\nNotes:\r\n\r\n- Use build, lint and tests commands if you have access to them. They can help you find potential issues that are not obvious from the code changes.\r\n- Use `gh` to interact with Github (eg. to fetch a pull request, or to create inline comments), rather than web fetch\r\n- Make a todo list first\r\n- You must cite and link each bug (eg. if referring to a CLAUDE.md, you must link it)\r\n- When using line-specific comments (via `git:attach-review-to-pr`):\r\n  - Each issue should map to a specific file and line number\r\n  - For multiple issues: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` with JSON input containing the review body (Quality Gate summary) and comments array (line-specific issues)\r\n  - For single issue: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` to post just one line-specific comment\r\n\r\n### Template for line-specific review comments\r\n\r\nWhen using the `git:attach-review-to-pr` command to add line-specific comments, use this template for each issue:\r\n\r\n```markdown\r\n🔴/🟠/🟡/🟢 [Critical/High/Medium/Low]: [Brief description]\r\n\r\n[Evidence: Explain what code pattern/behavior was observed that indicates this issue and the consequence if left unfixed]\r\n\r\n[If applicable, provide code suggestion]:\r\n```suggestion\r\n[code here]\r\n```\r\n\r\n```\r\n\r\n#### Example for Bug Issue\r\n\r\n```markdown\r\n🟠 High: Potential null pointer dereference\r\n\r\nVariable `user` is accessed without null check after fetching from database. This will cause runtime error if user is not found, breaking the user profile feature.\r\n\r\n```suggestion\r\nif (!user) {\r\n  throw new Error('User not found');\r\n}\r\n```\r\n\r\n```\r\n\r\n#### Example for Security Issue\r\n\r\n```markdown\r\n🔴 Critical: SQL Injection vulnerability\r\n\r\nUser input is directly concatenated into SQL query without sanitization. Attackers can execute arbitrary SQL commands, leading to data breach or deletion.\r\n\r\nUse parameterized queries instead:\r\n```suggestion\r\ndb.query('SELECT * FROM users WHERE id = ?', [userId])\r\n```\r\n\r\n```\r\n\r\n### Template for inline comments using GitHub API\r\n\r\n#### Multiple Issues (using `/reviews` endpoint)\r\n\r\nWhen using `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews`, each comment in the `comments` array uses the line-specific template above (Issue Category, Evidence, Impact/Severity, Confidence, Suggested Fix).\r\n\r\n#### Single Issue (using `/comments` endpoint)\r\n\r\nWhen using `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments`, post just one line-specific comment using the template above.\r\n\r\n**Note for linking to code:**\r\n\r\n- Use full git sha + line range, eg. `https://github.com/owner/repo/blob/1d54823877c4de72b2316a64032a54afc404e619/README.md#L13-L17`\r\n- Line range format is `L[start]-L[end]`\r\n- Provide at least 1 line of context before and after\r\n\r\n**Evaluation Instructions:**\r\n\r\n- **Security First**: Any High or Critical security issue automatically becomes blocker\r\n- **Quantify Everything**: Use numbers, not words like \"some\", \"many\", \"few\"\r\n- **Skip Trivial Issues** in large PRs (>500 lines): Focus on architectural and security issues\r\n\r\n#### If you found no issues\r\n\r\nDo not post any comments. Simply report to the user that no issues were found.\r\n\r\n## Remember\r\n\r\nThe goal is to catch bugs and security issues, improve code quality while maintaining development velocity, not to enforce perfection. Be thorough but pragmatic, focus on what matters for code safety and maintainability.\r\n"
+    }
+  ],
+  "structuredContent": {
+    "content": "---\r\nname: code-review:review-pr\r\ndescription: Comprehensive pull request review using specialized agents\r\nargument-hint: \"[review-aspects]\"\r\n---\r\n\r\n# Pull Request Review Instructions\r\n\r\nYou are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.\r\n\r\n**Review Aspects (optional):** \"$ARGUMENTS\"\r\n**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.\r\n\r\n**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!\r\n\r\n## Review Workflow\r\n\r\nRun a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:\r\n\r\n### Phase 1: Preparation\r\n\r\nRun following commands in order:\r\n\r\n1. **Determine Review Scope**\r\n   - Check following command to understand changes, use only commands that return amount of lines changed, not file content:\r\n     - git status\r\n     - git diff --stat\r\n     - git diff origin/master --stat or git diff origin/master...HEAD --stat for PR diffs\r\n       - change to origin/main if main is used as default branch\r\n   - Parse arguments to see if user requested specific review aspects\r\n2. Launch up to 6 parallel Haiku agents to perform following tasks:\r\n   - One agent to check if the pull request (a) is closed, (b) is a draft. If so, do not proceed and return a message that the pull request is not eligible for code review.\r\n   - One agent to search and give you a list of file paths to (but not the contents of) any relevant agent instruction files, if they exist: CLAUDE.md, AGENTS.md, **/consitution.md, the root README.md file, as well as any README.md files in the directories whose files the pull request modified\r\n   - Split files based on amount of lines changes between other 1-4 agents and ask them following:\r\n\r\n      ```markdown\r\n      GOAL: Analyse PR changes in following files and provide summary\r\n      \r\n      Perform following steps:\r\n         - Run [pass proper git command that he can use] to see changes in files\r\n         - Analyse following files: [list of files]\r\n\r\n      Please return a detailed summary of the changes in the each file, including types of changes, their complexity, affected classes/functions/variables/etc., and overall description of the changes.\r\n      ```\r\n\r\n3. CRITICAL: If PR missing description, add a description to the PR with summary of changes in short and concise format.\r\n\r\n### Phase 2: Searching for Issues\r\n\r\nDetermine Applicable Reviews, then launch up to 6 parallel (Sonnet or Opus) agents to independently code review all changes in the pull request. The agents should do the following, then return a list of issues and the reason each issue was flagged (eg. CLAUDE.md or consitution.md adherence, bug, historical git context, etc.).\r\n\r\n**Available Review Agents**:\r\n\r\n- **security-auditor** - Analyze code for security vulnerabilities\r\n- **bug-hunter** - Scan for bugs and issues, including silent failures\r\n- **code-quality-reviewer** - General code review for project guidelines, maintainability and quality. Simplifying code for clarity and maintainability\r\n- **contracts-reviewer** - Analyze code contracts, including: type design and invariants (if new types added), API changes, data modeling, etc.\r\n- **test-coverage-reviewer** - Review test coverage quality and completeness\r\n- **historical-context-reviewer** - Review historical context of the code, including git blame and history of the code modified, and previous pull requests that touched these files.\r\n\r\nNote: Default option is to run **all** applicable review agents.\r\n\r\n#### Determine Applicable Reviews\r\n\r\nBased on changes summary from phase 1 and their complexity, determine which review agents are applicable:\r\n\r\n- **If code or configuration changes, except purely cosmetic changes**: bug-hunter, security-auditor\r\n- **if code changes, including business or infrastructure logic, formating, etc.**: code-quality-reviewer (general quality)\r\n- **If test files changed**: test-coverage-reviewer\r\n- **If types, API, data modeling changed**: contracts-reviewer\r\n- **If complexity of changes is high or historical context is needed**: historical-context-reviewer\r\n\r\n#### Launch Review Agents\r\n\r\n**Parallel approach**:\r\n\r\n- Launch all agents simultaneously\r\n- Provide to them full list of modified files and summary of the PR as a context, explicitly highlight which PR they are reviewing, also provide list of files with project guidelines and standards, including README.md, CLAUDE.md and consitution.md if they exist.\r\n- Results should come back together\r\n\r\n### Phase 3: Confidence & Impact Scoring\r\n\r\n1. For each issue found in Phase 2, launch a parallel Haiku agent that takes the PR, issue description, and list of CLAUDE.md files (from step 2), and returns TWO scores:\r\n\r\n   **Confidence Score (0-100)** - Level of confidence that the issue is real and not a false positive:\r\n\r\n   a. 0: Not confident at all. This is a false positive that doesn't stand up to light scrutiny, or is a pre-existing issue.\r\n   b. 25: Somewhat confident. This might be a real issue, but may also be a false positive. The agent wasn't able to verify that it's a real issue. If the issue is stylistic, it is one that was not explicitly called out in the relevant CLAUDE.md.\r\n   c. 50: Moderately confident. The agent was able to verify this is a real issue, but it might be a nitpick or not happen very often in practice. Relative to the rest of the PR, it's not very important.\r\n   d. 75: Highly confident. The agent double checked the issue, and verified that it is very likely it is a real issue that will be hit in practice. The existing approach in the PR is insufficient. The issue is very important and will directly impact the code's functionality, or it is an issue that is directly mentioned in the relevant CLAUDE.md.\r\n   e. 100: Absolutely certain. The agent double checked the issue, and confirmed that it is definitely a real issue, that will happen frequently in practice. The evidence directly confirms this.\r\n\r\n   **Impact Score (0-100)** - Severity and consequence of the issue if left unfixed:\r\n\r\n   a. 0-20 (Low): Minor code smell or style inconsistency. Does not affect functionality or maintainability significantly.\r\n   b. 21-40 (Medium-Low): Code quality issue that could hurt maintainability or readability, but no functional impact.\r\n   c. 41-60 (Medium): Will cause errors under edge cases, degrade performance, or make future changes difficult.\r\n   d. 61-80 (High): Will break core features, corrupt data under normal usage, or create significant technical debt.\r\n   e. 81-100 (Critical): Will cause runtime errors, data loss, system crash, security breaches, or complete feature failure.\r\n\r\n   For issues flagged due to CLAUDE.md instructions, the agent should double check that the CLAUDE.md actually calls out that issue specifically.\r\n\r\n2. **Filter issues using the progressive threshold table below** - Higher impact issues require less confidence to pass:\r\n\r\n   | Impact Score | Minimum Confidence Required | Rationale |\r\n   |--------------|----------------------------|-----------|\r\n   | 81-100 (Critical) | 50 | Critical issues warrant investigation even with moderate confidence |\r\n   | 61-80 (High) | 65 | High impact issues need good confidence to avoid false alarms |\r\n   | 41-60 (Medium) | 75 | Medium issues need high confidence to justify addressing |\r\n   | 21-40 (Medium-Low) | 85 | Low-medium impact issues need very high confidence |\r\n   | 0-20 (Low) | 95 | Minor issues only included if nearly certain |\r\n\r\n   **Filter out any issues that don't meet the minimum confidence threshold for their impact level.** If there are no issues that meet this criteria, do not proceed.\r\n\r\n   **IMPORTANT: Do NOT post inline comments for:**\r\n   - **Low impact issues (0-20)** - These are minor code smells or style inconsistencies. Even with high confidence, they add noise without meaningful value.\r\n   - **Low confidence issues** - Any issue below the minimum confidence threshold for its impact level should be excluded entirely.\r\n\r\n   Focus inline comments on Medium impact (41+) and higher issues that meet confidence thresholds.\r\n\r\n3. Use a Haiku agent to repeat the eligibility check from Phase 1, to make sure that the pull request is still eligible for code review. (In case if there was updates since review started)\r\n4. **Post Inline Comments Only** (skip if no issues found):\r\n\r\n   a. **Preferred approach - Use MCP GitHub tools if available**:\r\n      - Use `mcp__github_inline_comment__create_inline_comment` for line-specific feedback for each individual issue.\r\n\r\n   b. Fallback approach - Use direct API calls:\r\n      - First, check if the `git:attach-review-to-pr` command is available by reading it.\r\n      - If the command is available and issues were found:\r\n         - **Multiple Issues**: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` to create a review with line-specific comments.\r\n         - **Single Issue**: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` to add just one line-specific comment.\r\n\r\n   When writing comments, keep in mind to:\r\n   - Keep your output brief\r\n   - Use emojis\r\n   - Link and cite relevant code, files, and URLs\r\n\r\n#### Examples of false positives, for Phase 3\r\n\r\n- Pre-existing issues\r\n- Something that looks like a bug but is not actually a bug\r\n- Pedantic nitpicks that a senior engineer wouldn't call out\r\n- Issues that a linter, typechecker, or compiler would catch (eg. missing or incorrect imports, type errors, broken tests, formatting issues, pedantic style issues like newlines). No need to run these build steps yourself -- it is safe to assume that they will be run separately as part of CI.\r\n- General code quality issues (eg. lack of test coverage, general security issues, poor documentation), unless explicitly required in CLAUDE.md\r\n- Issues that are called out in CLAUDE.md, but explicitly silenced in the code (eg. due to a lint ignore comment)\r\n- Changes in functionality that are likely intentional or are directly related to the broader change\r\n- Real issues, but on lines that the user did not modify in their pull request\r\n\r\nNotes:\r\n\r\n- Use build, lint and tests commands if you have access to them. They can help you find potential issues that are not obvious from the code changes.\r\n- Use `gh` to interact with Github (eg. to fetch a pull request, or to create inline comments), rather than web fetch\r\n- Make a todo list first\r\n- You must cite and link each bug (eg. if referring to a CLAUDE.md, you must link it)\r\n- When using line-specific comments (via `git:attach-review-to-pr`):\r\n  - Each issue should map to a specific file and line number\r\n  - For multiple issues: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` with JSON input containing the review body (Quality Gate summary) and comments array (line-specific issues)\r\n  - For single issue: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` to post just one line-specific comment\r\n\r\n### Template for line-specific review comments\r\n\r\nWhen using the `git:attach-review-to-pr` command to add line-specific comments, use this template for each issue:\r\n\r\n```markdown\r\n🔴/🟠/🟡/🟢 [Critical/High/Medium/Low]: [Brief description]\r\n\r\n[Evidence: Explain what code pattern/behavior was observed that indicates this issue and the consequence if left unfixed]\r\n\r\n[If applicable, provide code suggestion]:\r\n```suggestion\r\n[code here]\r\n```\r\n\r\n```\r\n\r\n#### Example for Bug Issue\r\n\r\n```markdown\r\n🟠 High: Potential null pointer dereference\r\n\r\nVariable `user` is accessed without null check after fetching from database. This will cause runtime error if user is not found, breaking the user profile feature.\r\n\r\n```suggestion\r\nif (!user) {\r\n  throw new Error('User not found');\r\n}\r\n```\r\n\r\n```\r\n\r\n#### Example for Security Issue\r\n\r\n```markdown\r\n🔴 Critical: SQL Injection vulnerability\r\n\r\nUser input is directly concatenated into SQL query without sanitization. Attackers can execute arbitrary SQL commands, leading to data breach or deletion.\r\n\r\nUse parameterized queries instead:\r\n```suggestion\r\ndb.query('SELECT * FROM users WHERE id = ?', [userId])\r\n```\r\n\r\n```\r\n\r\n### Template for inline comments using GitHub API\r\n\r\n#### Multiple Issues (using `/reviews` endpoint)\r\n\r\nWhen using `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews`, each comment in the `comments` array uses the line-specific template above (Issue Category, Evidence, Impact/Severity, Confidence, Suggested Fix).\r\n\r\n#### Single Issue (using `/comments` endpoint)\r\n\r\nWhen using `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments`, post just one line-specific comment using the template above.\r\n\r\n**Note for linking to code:**\r\n\r\n- Use full git sha + line range, eg. `https://github.com/owner/repo/blob/1d54823877c4de72b2316a64032a54afc404e619/README.md#L13-L17`\r\n- Line range format is `L[start]-L[end]`\r\n- Provide at least 1 line of context before and after\r\n\r\n**Evaluation Instructions:**\r\n\r\n- **Security First**: Any High or Critical security issue automatically becomes blocker\r\n- **Quantify Everything**: Use numbers, not words like \"some\", \"many\", \"few\"\r\n- **Skip Trivial Issues** in large PRs (>500 lines): Focus on architectural and security issues\r\n\r\n#### If you found no issues\r\n\r\nDo not post any comments. Simply report to the user that no issues were found.\r\n\r\n## Remember\r\n\r\nThe goal is to catch bugs and security issues, improve code quality while maintaining development velocity, not to enforce perfection. Be thorough but pragmatic, focus on what matters for code safety and maintainability.\r\n"
+  }
+}
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/.claude/rules-t3/review-templates.md"})
+filesystem.read_text_file({"path":"C:/Users/Administrator/.claude/rules-t3/review-templates.md"}) success in 7ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "# 审查工作流模板与流程\r\n\r\n> 从全局 CLAUDE.md 抽取。T3/T4 执行会话按需读取。\r\n\r\n## 流程编排\r\n\r\n### T3（2 窗口）\r\n\r\n```\r\n① Claude: Design → Plan → commit (draft)\r\n② GPT Codex: Plan Review → plan-review.md (Gate 1)\r\n③ Claude: 处置 finding → commit (final plan) → Execute → 自审交接单\r\n④ GPT Codex: Code Review（全量，codex exec）→ review-report.md (Gate 2)\r\n⑤ Gate: 所有 finding 已处置 → design.md 标记 [实现完成]\r\n```\r\n\r\n### T4（2 持久 + 一次性 Executor）\r\n\r\n```\r\n① Claude Planner: Design → Plan → commit (draft)\r\n② GPT Codex: Plan Review → plan-review.md (Gate 1)\r\n③ Claude Planner: 处置 finding → commit (final plan) → 派发\r\n④ Per batch:\r\n   a. Claude Executor: Execute → 审查交接单\r\n   b. GPT Codex: Code Review → review-report.md (Gate 2)\r\n   c. FAIL → 修复 → 重审（每批最多 3 轮）\r\n      - Round 1-2: Executor 修复所有 finding\r\n      - 2 轮后仍 FAIL → Planner 介入分类处置：\r\n        · code-bug → 修复后提交 Round 3\r\n        · design-concern → 记入 design.md §待处置，不阻塞\r\n      - Round 3 仅审 code-bug 和 test-gap 修复\r\n⑤ GPT Codex: Integration Review → integration-review.md (Gate 3)\r\n   （单批次 T4 可用扩展批次审查替代，须包含最小集成清单）\r\n⑥ Claude Planner: Reconciliation (Gate 4)\r\n```\r\n\r\n## Planner 流程\r\n\r\n1. brainstorming→design.md + writing-plans→plan.md + **git commit** + handoff-card\r\n2. **codex-review (plan)** (Gate 1): `codex exec` 审计划 → 处置 finding → commit final plan\r\n3. 每批次：执行指令→Executor→审查交接单→**codex-review (code)** (Gate 2)→Planner（PASS→下批/FAIL→修复）\r\n4. T4: codex-review (integration) (Gate 3)\r\n5. 所有 Gate 通过：reconciliation→design.md 对齐→Planner 关闭\r\n\r\n## 格式模板\r\n\r\n> 时间戳必须精确到秒。填写前先运行 `date '+%Y-%m-%d %H:%M:%S'` 获取北京时间，禁止只写日期。\r\n\r\n**执行指令：**\r\n> 输出前先运行 `date '+%Y-%m-%d %H:%M:%S'`，将结果填入下方时间戳。\r\n```\r\n[{project}] Executor | {YYYY-MM-DD HH:MM:SS}\r\n项目: {绝对路径}  读取 {handoff绝对路径}，按 {plan绝对路径} Task {N}-{M} 执行。使用 executing-plans skill。完成后输出审查交接单。\r\n```\r\n\r\n**审查交接单：**\r\n> 输出前先运行 `date '+%Y-%m-%d %H:%M:%S'`，将结果填入下方时间戳。\r\n> **持久化**：写入 `docs/plans/{topic}-review-handoff-batch{N}.md` 并 `git commit -m \"review: {topic} batch {N} 审查交接单\"`。\r\n```\r\n[{project}] Executor→Reviewer | {YYYY-MM-DD HH:MM:SS}\r\n## 审查交接单: Task {N}-{M}\r\n计划: {plan绝对路径}\r\n\r\n### 逐 Task 自审\r\n| Task | 计划要求 | 实际执行 | 状态 | 说明 |\r\n|------|---------|---------|------|------|\r\n| T{N} | {一句话} | commit {hash}, {一句话} | ✅/❌/🔀 | {❌: 偏差原因, 🔀: 改进内容（必填）} |\r\n\r\n> 状态: ✅一致 / ❌不一致 / 🔀改进（实现优于计划，必须记录具体变更内容）\r\n\r\n### 预审自检（送审前必填，无此表不允许提交 codex-review）\r\n| 测试契约 slice | 对应测试文件:函数 | 验证命令 | 实际输出（pass/fail + 关键行） | 反证验证（删除核心逻辑后测试是否 fail） |\r\n|---------------|------------------|---------|------------------------------|---------------------------------------|\r\n| {slice 1} | {test_file::test_func} | `{命令}` | {粘贴输出} | {删除 X 行后测试报 Y 错误 / 不适用：已有测试非本次新增} |\r\n\r\n### 验证清单自检\r\n（原样列出该批次审查清单，Executor 自己逐项标 ✅/❌ + 证据）\r\n\r\n### 根因分析（bug fix 时必填，非 bug fix 跳过）\r\n- **症状**: {用户看到什么 / 测试怎么失败}\r\n- **根因**: {根本原因，不是症状重述}\r\n- **证据**: {定位依据——Grep / 日志 / 调试输出 / 数据流追踪}\r\n- **影响面** (scope check):\r\n  - 同模式: {相同代码模式是否还有别处}\r\n  - 同边界: {相同接口/数据边界是否还有别处}\r\n  - 同不变量: {相同业务假设是否还有别处}\r\n- **排除的假设**: {调查过但排除的备选根因，至少 1 个}\r\n\r\n### 自查（四要素格式）\r\n每项必须包含实测证据。不涉及的项写明原因可跳过，涉及的项禁止只写结论。\r\n\r\n- 新增文件的边界 case：\r\n  构造输入: {具体输入数据或场景描述}\r\n  运行命令: `{粘贴实际执行的命令}`\r\n  实际输出:\r\n  ```\r\n  {粘贴终端输出，禁止用自然语言描述替代}\r\n  ```\r\n  结论: {基于上面输出的判断}\r\n- 状态变量/锁的异常路径：\r\n  构造输入: {具体输入数据或场景描述}\r\n  运行命令: `{粘贴实际执行的命令}`\r\n  实际输出:\r\n  ```\r\n  {粘贴终端输出，禁止用自然语言描述替代}\r\n  ```\r\n  结论: {基于上面输出的判断}\r\n- 字符串匹配/条件判断的假阴性：\r\n  构造输入: {具体输入数据或场景描述}\r\n  运行命令: `{粘贴实际执行的命令}`\r\n  实际输出:\r\n  ```\r\n  {粘贴终端输出，禁止用自然语言描述替代}\r\n  ```\r\n  结论: {基于上面输出的判断}\r\n\r\n### 语义回归自检（仅 semantic_risk=true 时必填）\r\n\r\n> semantic_risk 由 change_auth.infer_semantic_risk() 自动检测。Claude 可升级但不可降级。\r\n\r\n| Oracle ID | Type | 验证命令 | 实际输出 | 结论 |\r\n|-----------|------|----------|----------|------|\r\n| ORC-NNN | temporal_trace / forbidden_strategy | `{粘贴实际命令}` | {粘贴输出} | ✅/❌ |\r\n\r\n### Fix Card（仅 semantic_risk=true + 实现 review fix 时必填）\r\n- **root_cause**: {这次真要修的是什么}\r\n- **preserved_invariants**: {ORC-NNN 列表}\r\n- **non_goals**: {明确不改变什么——最关键字段}\r\n- **allowed_change_surface**: {允许改哪些模块/函数}\r\n- **verification**: {跑哪些 oracle 命令}\r\n\r\nsemantic_risk=true + oracle 为空（risk_tags 未被任何 oracle.protects 覆盖）→ blocked，必须先补 oracle。\r\n\r\n使用 codex-review skill 进行 GPT 代码审查。\r\n```\r\n\r\n**审查报告：**\r\n> 输出前先运行 `date '+%Y-%m-%d %H:%M:%S'`，将结果填入下方时间戳。\r\n> **持久化**：写入 `docs/plans/{topic}-review-report-batch{N}.md` 并 `git commit -m \"review: {topic} batch {N} 审查报告 {PASS/FAIL}\"`。\r\n```\r\n[{project}] GPT Reviewer | {填入时间戳}\r\n<!-- anchor: finding-classification -->\r\n## 审查报告: Task {N}-{M}\r\n结论: PASS / FAIL\r\n\r\n### 第一段：测试充分性（Test Adequacy）\r\n先审测试，再审实现。没有有效测试 → 不进入深层代码审查，直接退回。\r\n- plan 中声明的边界条件是否都有对应测试\r\n- 是否存在\"只测 happy path\"的问题\r\n- bug fix 是否有回归测试\r\n- 接口变更是否有 contract/compatibility 测试\r\n- 测试是否真的会在错误实现下失败（非 tautology）\r\n\r\n### 第二段：行为正确性（Behavioral Correctness）\r\n- 变更理解：GPT 用自己的话描述变更内容和意图\r\n- Executor 自审抽检：从自审表随机抽 2-3 项独立验证。不实 → 直接 FAIL\r\n- 对抗性审查：边界输入构造 / 异常路径追踪 / 假阴性检测\r\n\r\n### 第三段：未测试风险（Non-tested Risks）\r\n- 未被测试覆盖的副作用：状态、并发、异常、权限、幂等性、时区、空值、重复提交\r\n- 实现是否只为过测试而过拟合（测试通过但逻辑不通用）\r\n\r\n### 发现清单\r\n\r\n每个 finding 必须标注 Category:\r\n\r\n| Category | 含义 | 阻塞 PASS? |\r\n|----------|------|-----------:|\r\n| code-bug | 代码实现缺陷（逻辑错误、异常未处理、边界遗漏）| HIGH/MED 未修复 → FAIL |\r\n| test-gap | 测试缺失或不充分（缺回归测试、只测 happy path、边界未覆盖）| HIGH/MED 未修复 → FAIL |\r\n| design-concern | 设计决策质疑（架构选型、优先级、接口设计）| 不阻塞，Planner 处置 |\r\n| suggestion | 改进建议（代码风格、命名、可选优化）| 不阻塞 |\r\n\r\n<!-- anchor: pass-fail -->\r\nPASS/FAIL 判定：code-bug 或 test-gap 的 HIGH/MED 未修复 → FAIL。\r\ndesign-concern 和 suggestion 不影响判定，由 Planner 在 design.md 中处置。\r\n\r\n<!-- anchor: finding-type -->\r\n每个 finding 必须标注 Type（与 Category 正交，独立维度）:\r\n\r\n| Type | 含义 | 处置流程 |\r\n|------|------|---------|\r\n| defect_fix | 修复已有缺陷（bug、测试缺失、口径错误）| 常规处置，可批量 |\r\n| behavior_change | 引入用户未要求的新行为（新机制、新策略、新默认值）| 必须单独确认 |\r\n\r\n禁止混合：一个 finding 不能同时是 defect_fix 和 behavior_change。混合项必须拆分为两个独立 finding。\r\n\r\nBefore-behavior / After-behavior 字段（必填）：\r\n- defect_fix: before = 当前错误行为，after = 修复后正确行为\r\n- behavior_change: before = 当前正常行为，after = 建议的新行为\r\n\r\nInv-conflict 字段（选填）：none / possible / direct（直接违反时须标明哪条不变量）\r\n\r\n（结构化 finding 字段：ID / Severity / Category / Type / Before-behavior / After-behavior / Inv-conflict / Evidence / Impact / Repair hypothesis（可选，非权威））\r\n\r\n### 行为变更审批记录（存在 behavior_change finding 时必填）\r\n\r\n| Finding ID | 行为变更摘要 | 用户决定 | 理由 |\r\n|-----------|-------------|---------|------|\r\n| F00X | {after_behavior 一句话} | approved/rejected | {用户原话或摘要} |\r\n\r\n```\r\n\r\n## 叠加规则\r\n\r\n**writing-plans:** 每个 Task 末尾必须有 `**审查清单:**`（✓正向 / ✗反向 / 关键行为）。含逻辑/算法的 Task 还必须有 `**边界条件:**` 段，列出至少 3 个边界输入及期望行为：\r\n\r\n```markdown\r\n**边界条件:**\r\n- 空输入（[] / None / \"\"）→ 期望: 返回空结果，不抛异常\r\n- 单元素 → 期望: 正常处理，不触发批量逻辑的 off-by-one\r\n- 溢出/极值 → 期望: {具体行为，如 clamp/raise/降级}\r\n```\r\n\r\n边界条件是 Executor 的测试规格——Task 里写了什么，Executor 就测什么。没写的边界条件 = Executor 不会测 = 审查时才发现 = 多轮循环。\r\n\r\n含行为变更的 Task 还必须有 `**测试契约:**` 段（替代旧 Testable Slices），每个 slice 必须包含 5 个字段：\r\n\r\n```markdown\r\n**测试契约:**\r\n1. 空输入返回空结果\r\n   - 入口: `POST /api/data` body=`{items: []}`\r\n   - 反例: 错误实现会抛 IndexError 而非返回空——本测试捕获此错误\r\n   - 边界: 空列表 / None / 缺失 key\r\n   - 回归: 防止 #issue-42 的空指针复发\r\n   - 命令: `pytest tests/test_data.py::test_empty_input -v`\r\n2. 溢出时 raise ValueError\r\n   - 入口: `parse_score(999999)`\r\n   - 反例: 错误实现会静默截断——本测试验证异常抛出\r\n   - 边界: MAX_INT / 负数 / 非数字字符串\r\n   - 回归: N/A\r\n   - 命令: `pytest tests/test_data.py::test_overflow -v`\r\n```\r\n\r\n**字段说明**（Executor 必须逐字段填写，不能只列测试名）：\r\n- **入口**: 通过哪个 API/CLI/函数入口验证（不是内部函数，是用户可触达的入口）\r\n- **反例**: 错误实现会怎样失败，这个测试为什么能抓住（不能只写\"验证正确性\"）\r\n- **边界**: 空值/单元素/极值/异常路径的具体输入\r\n- **回归**: 修复后必须防止哪类旧错误复发（无则写 N/A）\r\n- **命令**: 实际要执行的验证命令\r\n\r\n每个 slice 是一个 Red→Green→Refactor 循环单位。Executor 按 slice 顺序推进，不是一次写完所有代码再补测试。\r\n\r\n**writing-plans 收尾:** Gate 1 通过后，Planner 生成 `docs/plans/{topic}-state.json`（权威任务状态 sidecar）并 commit：\r\n\r\n```json\r\n{\r\n  \"topic\": \"{topic}\",\r\n  \"plan_file\": \"docs/plans/{topic}-plan.md\",\r\n  \"design_file\": \"docs/plans/{topic}-design.md\",\r\n  \"tasks\": [\r\n    {\"id\": \"1\", \"desc\": \"任务描述\", \"status\": \"pending\"}\r\n  ],\r\n  \"updated_at\": \"YYYY-MM-DD HH:MM:SS\"\r\n}\r\n```\r\n\r\nstatus 取值：`pending` | `in_progress` | `completed` | `failed`。同一时刻只允许一个 `in_progress`。\r\n\r\n**executing-plans:** 每个 Task 开始时将其 status 改为 `in_progress`，完成后改为 `completed`，更新 `updated_at`，commit state.json。批次完成后输出审查交接单（含逐 Task 自审表 + 验证清单自检 + 自查段）。自审表「状态」列每行必填（✅/❌/🔀）。🔀 行必须写清具体变更内容。**T3 收尾**：所有批次完成后，在 design.md 头部（§0 之后）追加 `> [YYYY-MM-DD HH:MM:SS 实现完成] Commits: {first}..{last}`，然后 commit。\r\n\r\n**FAIL 升级（T3/T4 通用）：** 每批最多 3 轮。2 轮后仍 FAIL → 分类处置：code-bug 必须修复（Round 3），design-concern 记入 design.md §待处置不阻塞。Round 3 仅审 code-bug 和 test-gap。T3 无 Planner 时 Executor 自行分类。\r\n\r\n**PASS 报告锚定（多轮审查时必须执行）：** 多轮审查最终 PASS 时，gates.json 的 `report_path` 必须指向最终 PASS 版本的审查报告文件，不得指向早期 FAIL 报告。如 R1 FAIL → R2 PASS，则 `report_path` 应为 R2 报告路径。\r\n\r\n**Planner 刷新:** 上下文满时写 `{topic}-progress.md`（Task/状态/Commits/审查结果表）。\r\n\r\n**上下文恢复:** 新会话检查 `docs/plans/`：design.md 头部 `[实现完成]` 标记反映当前真实状态。\r\n\r\n**🔀 标注标准:** 任何偏离 plan 的实现（即使更好）都必须标 🔀 并说明变更内容。判断标准：如果 diff 包含 plan 中没有的代码/删除/逻辑变更 → 🔀。\r\n\r\n**Important Finding 追踪:** PASS 附带 Important finding 时，Planner 在下一批次启动前将 finding 追加为 plan.md 新 Task。格式: `### Task N+1: 修复 {finding-ID} — {一句话描述}`。T3 无 Planner 时 Executor 在执行结束前自行追加。\r\n\r\n<!-- anchor: test-gap-criteria -->\r\n### test-gap 判定细则\r\n\r\n**Plan Review 阶段（测试契约质量）：**\r\n- 逻辑镜像测试（测试只是实现的对称复述，不能在错误实现下失败）→ test-gap HIGH\r\n- 无入口级验证（测试只调内部函数，不经过用户可触达的入口）→ test-gap MED\r\n- 无反例说明（测试契约未写明\"错误实现会怎样失败\"）→ test-gap MED\r\n\r\n**Code Review 阶段（测试有效性）：**\r\n- 对每个测试函数回答：删除被测函数核心逻辑后，此测试会失败吗？不会 → test-gap HIGH\r\n- 识别弱断言（`assert x is not None` / `assert result` / `assert len(x) > 0`）→ test-gap MED\r\n\r\n<!-- anchor: behavior-change-guard -->\r\n**行为变更守卫（intent-guard Phase 1）：**\r\n\r\n**红旗模式自动检测：** Claude 处理 GPT 审查结果时，如果 finding 的 repair_hypothesis 或 after_behavior 涉及以下模式，必须验证其 type 是否应为 behavior_change：\r\n\r\n| 模式 | 关键词示例 |\r\n|------|-----------|\r\n| 改状态机 | 新增状态、改转移条件、改状态数量 |\r\n| 改 fallback/retry | 换 provider、链式遍历、重试策略、fallback 链 |\r\n| 改选择策略 | pick 逻辑、路由策略、负载均衡、权重 |\r\n| 改默认值/阈值 | 超时值、窗口大小、触发阈值、采样率 |\r\n| 改资源消耗路径 | 多次调用、并发增加、额外网络请求 |\r\n| 改时序/生命周期 | 探针频率、恢复条件、冷却时间、退避策略 |\r\n| 改评估节奏 | 最小样本数、评估频率、累计门槛、滚动/批量切换 |\r\n\r\nGPT 标为 defect_fix 但命中红旗模式 → Claude 必须在三态标注时重新评估 type。\r\n\r\n**分组呈现规则：** Claude 呈现 GPT 审查结果时，必须分两组：\r\n1. **缺陷修复组**（type=defect_fix）：可批量处置\r\n2. **行为变更组**（type=behavior_change）：每条单独一段，展示 before_behavior / after_behavior / inv_conflict，明确提示\"批准 F00X / 拒绝 F00X\"\r\n\r\n**禁止批量批准：** 当存在未处置的 behavior_change finding 时，用户回复\"可以\"\"开始\"\"全部修复\"等非精确语句 → Claude 必须追问哪些 behavior_change 被批准/拒绝，不能当作全部批准。只有用户明确回复\"批准 F00X\"或\"拒绝 F00X\"才算处置。\r\n\r\n**缺字段硬拦截：** Claude 处理 GPT 审查结果时，如果 finding 缺 type/before_behavior/after_behavior 任一字段 → 必须由 Claude 补全后才能继续处置。GPT 未标注时 Claude 根据 finding 内容判断并补全。\r\n\r\n<!-- anchor: three-state-model -->\r\n## 三态 Finding 模型\r\n\r\n> 配置真源: `~/.claude/config/reviewer-config.yaml`\r\n\r\n**Finding Status（Claude 审查后标注）:**\r\n\r\n| 状态 | 含义 | 影响 |\r\n|------|------|------|\r\n| verified | 机械校验通过（file:line 存在 + 代码引用正确 + 复现完整） | 计入 PASS/FAIL |\r\n| contested | Claude 不同意且附有反证 | 必须有终态才能完成 |\r\n| suggestion | GPT 自标记为改进建议 | 不影响 PASS/FAIL |\r\n\r\n**Contested 终态（任务关闭前必须解决）:**\r\n\r\n| 终态 | 要求 |\r\n|------|------|\r\n| resolved-correct | 已修复 |\r\n| resolved-false-positive | 确认误报 |\r\n| accepted-risk | 显式接受风险 + 具体理由（`reason` 字段必填） |\r\n| deferred | 延期 + deadline（`deadline` 字段必填） |\r\n\r\n**GPT 原始输出保护:** 审查完成后立即保存原始输出到 `docs/plans/.codex-raw-{gate}-{timestamp}.log`，计算 SHA256 传入 `write_receipt(raw_output_hash=...)` 。Claude 后续三态标注基于副本。\r\n\r\n<!-- anchor: finding-transition -->\r\n## Finding 转换规则（GPT → Claude）\r\n\r\n### 字段权限矩阵\r\n\r\n| GPT 原始字段 | Claude 权限 | 约束 |\r\n|-------------|-----------|------|\r\n| ID | 不可改写 | GPT 生成的 ID 保持不变 |\r\n| Severity | 不可改写 | — |\r\n| Category | 不可改写 | code-bug/test-gap/design-concern/suggestion |\r\n| Type | 可重分类 | 必须保留原值 + 重分类理由（见下方） |\r\n| Before/After-behavior | 不可改写 | — |\r\n| Evidence | 不可改写 | — |\r\n| Status | Claude 追加 | verified / contested / suggestion |\r\n| Terminal | Claude 追加 | 仅 contested 需终态 |\r\n| Reason/Deadline | Claude 追加 | accepted-risk 必填 reason，deferred 必填 deadline |\r\n\r\n### Type 重分类规则\r\n\r\nClaude 仅在以下条件下可重分类 GPT 标注的 Type:\r\n1. GPT 标为 defect_fix 但命中红旗模式 → 重分类为 behavior_change\r\n2. 必须记录: `原 Type: {X} → 重分类: {Y}，理由: {具体红旗模式}`\r\n3. 原始值保留在 GPT 原始输出日志中（SHA256 保护）\r\n"
+    }
+  ],
+  "structuredContent": {
+    "content": "# 审查工作流模板与流程\r\n\r\n> 从全局 CLAUDE.md 抽取。T3/T4 执行会话按需读取。\r\n\r\n## 流程编排\r\n\r\n### T3（2 窗口）\r\n\r\n```\r\n① Claude: Design → Plan → commit (draft)\r\n② GPT Codex: Plan Review → plan-review.md (Gate 1)\r\n③ Claude: 处置 finding → commit (final plan) → Execute → 自审交接单\r\n④ GPT Codex: Code Review（全量，codex exec）→ review-report.md (Gate 2)\r\n⑤ Gate: 所有 finding 已处置 → design.md 标记 [实现完成]\r\n```\r\n\r\n### T4（2 持久 + 一次性 Executor）\r\n\r\n```\r\n① Claude Planner: Design → Plan → commit (draft)\r\n② GPT Codex: Plan Review → plan-review.md (Gate 1)\r\n③ Claude Planner: 处置 finding → commit (final plan) → 派发\r\n④ Per batch:\r\n   a. Claude Executor: Execute → 审查交接单\r\n   b. GPT Codex: Code Review → review-report.md (Gate 2)\r\n   c. FAIL → 修复 → 重审（每批最多 3 轮）\r\n      - Round 1-2: Executor 修复所有 finding\r\n      - 2 轮后仍 FAIL → Planner 介入分类处置：\r\n        · code-bug → 修复后提交 Round 3\r\n        · design-concern → 记入 design.md §待处置，不阻塞\r\n      - Round 3 仅审 code-bug 和 test-gap 修复\r\n⑤ GPT Codex: Integration Review → integration-review.md (Gate 3)\r\n   （单批次 T4 可用扩展批次审查替代，须包含最小集成清单）\r\n⑥ Claude Planner: Reconciliation (Gate 4)\r\n```\r\n\r\n## Planner 流程\r\n\r\n1. brainstorming→design.md + writing-plans→plan.md + **git commit** + handoff-card\r\n2. **codex-review (plan)** (Gate 1): `codex exec` 审计划 → 处置 finding → commit final plan\r\n3. 每批次：执行指令→Executor→审查交接单→**codex-review (code)** (Gate 2)→Planner（PASS→下批/FAIL→修复）\r\n4. T4: codex-review (integration) (Gate 3)\r\n5. 所有 Gate 通过：reconciliation→design.md 对齐→Planner 关闭\r\n\r\n## 格式模板\r\n\r\n> 时间戳必须精确到秒。填写前先运行 `date '+%Y-%m-%d %H:%M:%S'` 获取北京时间，禁止只写日期。\r\n\r\n**执行指令：**\r\n> 输出前先运行 `date '+%Y-%m-%d %H:%M:%S'`，将结果填入下方时间戳。\r\n```\r\n[{project}] Executor | {YYYY-MM-DD HH:MM:SS}\r\n项目: {绝对路径}  读取 {handoff绝对路径}，按 {plan绝对路径} Task {N}-{M} 执行。使用 executing-plans skill。完成后输出审查交接单。\r\n```\r\n\r\n**审查交接单：**\r\n> 输出前先运行 `date '+%Y-%m-%d %H:%M:%S'`，将结果填入下方时间戳。\r\n> **持久化**：写入 `docs/plans/{topic}-review-handoff-batch{N}.md` 并 `git commit -m \"review: {topic} batch {N} 审查交接单\"`。\r\n```\r\n[{project}] Executor→Reviewer | {YYYY-MM-DD HH:MM:SS}\r\n## 审查交接单: Task {N}-{M}\r\n计划: {plan绝对路径}\r\n\r\n### 逐 Task 自审\r\n| Task | 计划要求 | 实际执行 | 状态 | 说明 |\r\n|------|---------|---------|------|------|\r\n| T{N} | {一句话} | commit {hash}, {一句话} | ✅/❌/🔀 | {❌: 偏差原因, 🔀: 改进内容（必填）} |\r\n\r\n> 状态: ✅一致 / ❌不一致 / 🔀改进（实现优于计划，必须记录具体变更内容）\r\n\r\n### 预审自检（送审前必填，无此表不允许提交 codex-review）\r\n| 测试契约 slice | 对应测试文件:函数 | 验证命令 | 实际输出（pass/fail + 关键行） | 反证验证（删除核心逻辑后测试是否 fail） |\r\n|---------------|------------------|---------|------------------------------|---------------------------------------|\r\n| {slice 1} | {test_file::test_func} | `{命令}` | {粘贴输出} | {删除 X 行后测试报 Y 错误 / 不适用：已有测试非本次新增} |\r\n\r\n### 验证清单自检\r\n（原样列出该批次审查清单，Executor 自己逐项标 ✅/❌ + 证据）\r\n\r\n### 根因分析（bug fix 时必填，非 bug fix 跳过）\r\n- **症状**: {用户看到什么 / 测试怎么失败}\r\n- **根因**: {根本原因，不是症状重述}\r\n- **证据**: {定位依据——Grep / 日志 / 调试输出 / 数据流追踪}\r\n- **影响面** (scope check):\r\n  - 同模式: {相同代码模式是否还有别处}\r\n  - 同边界: {相同接口/数据边界是否还有别处}\r\n  - 同不变量: {相同业务假设是否还有别处}\r\n- **排除的假设**: {调查过但排除的备选根因，至少 1 个}\r\n\r\n### 自查（四要素格式）\r\n每项必须包含实测证据。不涉及的项写明原因可跳过，涉及的项禁止只写结论。\r\n\r\n- 新增文件的边界 case：\r\n  构造输入: {具体输入数据或场景描述}\r\n  运行命令: `{粘贴实际执行的命令}`\r\n  实际输出:\r\n  ```\r\n  {粘贴终端输出，禁止用自然语言描述替代}\r\n  ```\r\n  结论: {基于上面输出的判断}\r\n- 状态变量/锁的异常路径：\r\n  构造输入: {具体输入数据或场景描述}\r\n  运行命令: `{粘贴实际执行的命令}`\r\n  实际输出:\r\n  ```\r\n  {粘贴终端输出，禁止用自然语言描述替代}\r\n  ```\r\n  结论: {基于上面输出的判断}\r\n- 字符串匹配/条件判断的假阴性：\r\n  构造输入: {具体输入数据或场景描述}\r\n  运行命令: `{粘贴实际执行的命令}`\r\n  实际输出:\r\n  ```\r\n  {粘贴终端输出，禁止用自然语言描述替代}\r\n  ```\r\n  结论: {基于上面输出的判断}\r\n\r\n### 语义回归自检（仅 semantic_risk=true 时必填）\r\n\r\n> semantic_risk 由 change_auth.infer_semantic_risk() 自动检测。Claude 可升级但不可降级。\r\n\r\n| Oracle ID | Type | 验证命令 | 实际输出 | 结论 |\r\n|-----------|------|----------|----------|------|\r\n| ORC-NNN | temporal_trace / forbidden_strategy | `{粘贴实际命令}` | {粘贴输出} | ✅/❌ |\r\n\r\n### Fix Card（仅 semantic_risk=true + 实现 review fix 时必填）\r\n- **root_cause**: {这次真要修的是什么}\r\n- **preserved_invariants**: {ORC-NNN 列表}\r\n- **non_goals**: {明确不改变什么——最关键字段}\r\n- **allowed_change_surface**: {允许改哪些模块/函数}\r\n- **verification**: {跑哪些 oracle 命令}\r\n\r\nsemantic_risk=true + oracle 为空（risk_tags 未被任何 oracle.protects 覆盖）→ blocked，必须先补 oracle。\r\n\r\n使用 codex-review skill 进行 GPT 代码审查。\r\n```\r\n\r\n**审查报告：**\r\n> 输出前先运行 `date '+%Y-%m-%d %H:%M:%S'`，将结果填入下方时间戳。\r\n> **持久化**：写入 `docs/plans/{topic}-review-report-batch{N}.md` 并 `git commit -m \"review: {topic} batch {N} 审查报告 {PASS/FAIL}\"`。\r\n```\r\n[{project}] GPT Reviewer | {填入时间戳}\r\n<!-- anchor: finding-classification -->\r\n## 审查报告: Task {N}-{M}\r\n结论: PASS / FAIL\r\n\r\n### 第一段：测试充分性（Test Adequacy）\r\n先审测试，再审实现。没有有效测试 → 不进入深层代码审查，直接退回。\r\n- plan 中声明的边界条件是否都有对应测试\r\n- 是否存在\"只测 happy path\"的问题\r\n- bug fix 是否有回归测试\r\n- 接口变更是否有 contract/compatibility 测试\r\n- 测试是否真的会在错误实现下失败（非 tautology）\r\n\r\n### 第二段：行为正确性（Behavioral Correctness）\r\n- 变更理解：GPT 用自己的话描述变更内容和意图\r\n- Executor 自审抽检：从自审表随机抽 2-3 项独立验证。不实 → 直接 FAIL\r\n- 对抗性审查：边界输入构造 / 异常路径追踪 / 假阴性检测\r\n\r\n### 第三段：未测试风险（Non-tested Risks）\r\n- 未被测试覆盖的副作用：状态、并发、异常、权限、幂等性、时区、空值、重复提交\r\n- 实现是否只为过测试而过拟合（测试通过但逻辑不通用）\r\n\r\n### 发现清单\r\n\r\n每个 finding 必须标注 Category:\r\n\r\n| Category | 含义 | 阻塞 PASS? |\r\n|----------|------|-----------:|\r\n| code-bug | 代码实现缺陷（逻辑错误、异常未处理、边界遗漏）| HIGH/MED 未修复 → FAIL |\r\n| test-gap | 测试缺失或不充分（缺回归测试、只测 happy path、边界未覆盖）| HIGH/MED 未修复 → FAIL |\r\n| design-concern | 设计决策质疑（架构选型、优先级、接口设计）| 不阻塞，Planner 处置 |\r\n| suggestion | 改进建议（代码风格、命名、可选优化）| 不阻塞 |\r\n\r\n<!-- anchor: pass-fail -->\r\nPASS/FAIL 判定：code-bug 或 test-gap 的 HIGH/MED 未修复 → FAIL。\r\ndesign-concern 和 suggestion 不影响判定，由 Planner 在 design.md 中处置。\r\n\r\n<!-- anchor: finding-type -->\r\n每个 finding 必须标注 Type（与 Category 正交，独立维度）:\r\n\r\n| Type | 含义 | 处置流程 |\r\n|------|------|---------|\r\n| defect_fix | 修复已有缺陷（bug、测试缺失、口径错误）| 常规处置，可批量 |\r\n| behavior_change | 引入用户未要求的新行为（新机制、新策略、新默认值）| 必须单独确认 |\r\n\r\n禁止混合：一个 finding 不能同时是 defect_fix 和 behavior_change。混合项必须拆分为两个独立 finding。\r\n\r\nBefore-behavior / After-behavior 字段（必填）：\r\n- defect_fix: before = 当前错误行为，after = 修复后正确行为\r\n- behavior_change: before = 当前正常行为，after = 建议的新行为\r\n\r\nInv-conflict 字段（选填）：none / possible / direct（直接违反时须标明哪条不变量）\r\n\r\n（结构化 finding 字段：ID / Severity / Category / Type / Before-behavior / After-behavior / Inv-conflict / Evidence / Impact / Repair hypothesis（可选，非权威））\r\n\r\n### 行为变更审批记录（存在 behavior_change finding 时必填）\r\n\r\n| Finding ID | 行为变更摘要 | 用户决定 | 理由 |\r\n|-----------|-------------|---------|------|\r\n| F00X | {after_behavior 一句话} | approved/rejected | {用户原话或摘要} |\r\n\r\n```\r\n\r\n## 叠加规则\r\n\r\n**writing-plans:** 每个 Task 末尾必须有 `**审查清单:**`（✓正向 / ✗反向 / 关键行为）。含逻辑/算法的 Task 还必须有 `**边界条件:**` 段，列出至少 3 个边界输入及期望行为：\r\n\r\n```markdown\r\n**边界条件:**\r\n- 空输入（[] / None / \"\"）→ 期望: 返回空结果，不抛异常\r\n- 单元素 → 期望: 正常处理，不触发批量逻辑的 off-by-one\r\n- 溢出/极值 → 期望: {具体行为，如 clamp/raise/降级}\r\n```\r\n\r\n边界条件是 Executor 的测试规格——Task 里写了什么，Executor 就测什么。没写的边界条件 = Executor 不会测 = 审查时才发现 = 多轮循环。\r\n\r\n含行为变更的 Task 还必须有 `**测试契约:**` 段（替代旧 Testable Slices），每个 slice 必须包含 5 个字段：\r\n\r\n```markdown\r\n**测试契约:**\r\n1. 空输入返回空结果\r\n   - 入口: `POST /api/data` body=`{items: []}`\r\n   - 反例: 错误实现会抛 IndexError 而非返回空——本测试捕获此错误\r\n   - 边界: 空列表 / None / 缺失 key\r\n   - 回归: 防止 #issue-42 的空指针复发\r\n   - 命令: `pytest tests/test_data.py::test_empty_input -v`\r\n2. 溢出时 raise ValueError\r\n   - 入口: `parse_score(999999)`\r\n   - 反例: 错误实现会静默截断——本测试验证异常抛出\r\n   - 边界: MAX_INT / 负数 / 非数字字符串\r\n   - 回归: N/A\r\n   - 命令: `pytest tests/test_data.py::test_overflow -v`\r\n```\r\n\r\n**字段说明**（Executor 必须逐字段填写，不能只列测试名）：\r\n- **入口**: 通过哪个 API/CLI/函数入口验证（不是内部函数，是用户可触达的入口）\r\n- **反例**: 错误实现会怎样失败，这个测试为什么能抓住（不能只写\"验证正确性\"）\r\n- **边界**: 空值/单元素/极值/异常路径的具体输入\r\n- **回归**: 修复后必须防止哪类旧错误复发（无则写 N/A）\r\n- **命令**: 实际要执行的验证命令\r\n\r\n每个 slice 是一个 Red→Green→Refactor 循环单位。Executor 按 slice 顺序推进，不是一次写完所有代码再补测试。\r\n\r\n**writing-plans 收尾:** Gate 1 通过后，Planner 生成 `docs/plans/{topic}-state.json`（权威任务状态 sidecar）并 commit：\r\n\r\n```json\r\n{\r\n  \"topic\": \"{topic}\",\r\n  \"plan_file\": \"docs/plans/{topic}-plan.md\",\r\n  \"design_file\": \"docs/plans/{topic}-design.md\",\r\n  \"tasks\": [\r\n    {\"id\": \"1\", \"desc\": \"任务描述\", \"status\": \"pending\"}\r\n  ],\r\n  \"updated_at\": \"YYYY-MM-DD HH:MM:SS\"\r\n}\r\n```\r\n\r\nstatus 取值：`pending` | `in_progress` | `completed` | `failed`。同一时刻只允许一个 `in_progress`。\r\n\r\n**executing-plans:** 每个 Task 开始时将其 status 改为 `in_progress`，完成后改为 `completed`，更新 `updated_at`，commit state.json。批次完成后输出审查交接单（含逐 Task 自审表 + 验证清单自检 + 自查段）。自审表「状态」列每行必填（✅/❌/🔀）。🔀 行必须写清具体变更内容。**T3 收尾**：所有批次完成后，在 design.md 头部（§0 之后）追加 `> [YYYY-MM-DD HH:MM:SS 实现完成] Commits: {first}..{last}`，然后 commit。\r\n\r\n**FAIL 升级（T3/T4 通用）：** 每批最多 3 轮。2 轮后仍 FAIL → 分类处置：code-bug 必须修复（Round 3），design-concern 记入 design.md §待处置不阻塞。Round 3 仅审 code-bug 和 test-gap。T3 无 Planner 时 Executor 自行分类。\r\n\r\n**PASS 报告锚定（多轮审查时必须执行）：** 多轮审查最终 PASS 时，gates.json 的 `report_path` 必须指向最终 PASS 版本的审查报告文件，不得指向早期 FAIL 报告。如 R1 FAIL → R2 PASS，则 `report_path` 应为 R2 报告路径。\r\n\r\n**Planner 刷新:** 上下文满时写 `{topic}-progress.md`（Task/状态/Commits/审查结果表）。\r\n\r\n**上下文恢复:** 新会话检查 `docs/plans/`：design.md 头部 `[实现完成]` 标记反映当前真实状态。\r\n\r\n**🔀 标注标准:** 任何偏离 plan 的实现（即使更好）都必须标 🔀 并说明变更内容。判断标准：如果 diff 包含 plan 中没有的代码/删除/逻辑变更 → 🔀。\r\n\r\n**Important Finding 追踪:** PASS 附带 Important finding 时，Planner 在下一批次启动前将 finding 追加为 plan.md 新 Task。格式: `### Task N+1: 修复 {finding-ID} — {一句话描述}`。T3 无 Planner 时 Executor 在执行结束前自行追加。\r\n\r\n<!-- anchor: test-gap-criteria -->\r\n### test-gap 判定细则\r\n\r\n**Plan Review 阶段（测试契约质量）：**\r\n- 逻辑镜像测试（测试只是实现的对称复述，不能在错误实现下失败）→ test-gap HIGH\r\n- 无入口级验证（测试只调内部函数，不经过用户可触达的入口）→ test-gap MED\r\n- 无反例说明（测试契约未写明\"错误实现会怎样失败\"）→ test-gap MED\r\n\r\n**Code Review 阶段（测试有效性）：**\r\n- 对每个测试函数回答：删除被测函数核心逻辑后，此测试会失败吗？不会 → test-gap HIGH\r\n- 识别弱断言（`assert x is not None` / `assert result` / `assert len(x) > 0`）→ test-gap MED\r\n\r\n<!-- anchor: behavior-change-guard -->\r\n**行为变更守卫（intent-guard Phase 1）：**\r\n\r\n**红旗模式自动检测：** Claude 处理 GPT 审查结果时，如果 finding 的 repair_hypothesis 或 after_behavior 涉及以下模式，必须验证其 type 是否应为 behavior_change：\r\n\r\n| 模式 | 关键词示例 |\r\n|------|-----------|\r\n| 改状态机 | 新增状态、改转移条件、改状态数量 |\r\n| 改 fallback/retry | 换 provider、链式遍历、重试策略、fallback 链 |\r\n| 改选择策略 | pick 逻辑、路由策略、负载均衡、权重 |\r\n| 改默认值/阈值 | 超时值、窗口大小、触发阈值、采样率 |\r\n| 改资源消耗路径 | 多次调用、并发增加、额外网络请求 |\r\n| 改时序/生命周期 | 探针频率、恢复条件、冷却时间、退避策略 |\r\n| 改评估节奏 | 最小样本数、评估频率、累计门槛、滚动/批量切换 |\r\n\r\nGPT 标为 defect_fix 但命中红旗模式 → Claude 必须在三态标注时重新评估 type。\r\n\r\n**分组呈现规则：** Claude 呈现 GPT 审查结果时，必须分两组：\r\n1. **缺陷修复组**（type=defect_fix）：可批量处置\r\n2. **行为变更组**（type=behavior_change）：每条单独一段，展示 before_behavior / after_behavior / inv_conflict，明确提示\"批准 F00X / 拒绝 F00X\"\r\n\r\n**禁止批量批准：** 当存在未处置的 behavior_change finding 时，用户回复\"可以\"\"开始\"\"全部修复\"等非精确语句 → Claude 必须追问哪些 behavior_change 被批准/拒绝，不能当作全部批准。只有用户明确回复\"批准 F00X\"或\"拒绝 F00X\"才算处置。\r\n\r\n**缺字段硬拦截：** Claude 处理 GPT 审查结果时，如果 finding 缺 type/before_behavior/after_behavior 任一字段 → 必须由 Claude 补全后才能继续处置。GPT 未标注时 Claude 根据 finding 内容判断并补全。\r\n\r\n<!-- anchor: three-state-model -->\r\n## 三态 Finding 模型\r\n\r\n> 配置真源: `~/.claude/config/reviewer-config.yaml`\r\n\r\n**Finding Status（Claude 审查后标注）:**\r\n\r\n| 状态 | 含义 | 影响 |\r\n|------|------|------|\r\n| verified | 机械校验通过（file:line 存在 + 代码引用正确 + 复现完整） | 计入 PASS/FAIL |\r\n| contested | Claude 不同意且附有反证 | 必须有终态才能完成 |\r\n| suggestion | GPT 自标记为改进建议 | 不影响 PASS/FAIL |\r\n\r\n**Contested 终态（任务关闭前必须解决）:**\r\n\r\n| 终态 | 要求 |\r\n|------|------|\r\n| resolved-correct | 已修复 |\r\n| resolved-false-positive | 确认误报 |\r\n| accepted-risk | 显式接受风险 + 具体理由（`reason` 字段必填） |\r\n| deferred | 延期 + deadline（`deadline` 字段必填） |\r\n\r\n**GPT 原始输出保护:** 审查完成后立即保存原始输出到 `docs/plans/.codex-raw-{gate}-{timestamp}.log`，计算 SHA256 传入 `write_receipt(raw_output_hash=...)` 。Claude 后续三态标注基于副本。\r\n\r\n<!-- anchor: finding-transition -->\r\n## Finding 转换规则（GPT → Claude）\r\n\r\n### 字段权限矩阵\r\n\r\n| GPT 原始字段 | Claude 权限 | 约束 |\r\n|-------------|-----------|------|\r\n| ID | 不可改写 | GPT 生成的 ID 保持不变 |\r\n| Severity | 不可改写 | — |\r\n| Category | 不可改写 | code-bug/test-gap/design-concern/suggestion |\r\n| Type | 可重分类 | 必须保留原值 + 重分类理由（见下方） |\r\n| Before/After-behavior | 不可改写 | — |\r\n| Evidence | 不可改写 | — |\r\n| Status | Claude 追加 | verified / contested / suggestion |\r\n| Terminal | Claude 追加 | 仅 contested 需终态 |\r\n| Reason/Deadline | Claude 追加 | accepted-risk 必填 reason，deferred 必填 deadline |\r\n\r\n### Type 重分类规则\r\n\r\nClaude 仅在以下条件下可重分类 GPT 标注的 Type:\r\n1. GPT 标为 defect_fix 但命中红旗模式 → 重分类为 behavior_change\r\n2. 必须记录: `原 Type: {X} → 重分类: {Y}，理由: {具体红旗模式}`\r\n3. 原始值保留在 GPT 原始输出日志中（SHA256 保护）\r\n"
+  }
+}
+codex
+现在读取 plan/handoff 的指定区间，并提取这批 `edu-agent` 改动涉及的文件列表。接着我会把测试声明、Contract Pack、实际 diff 和完整文件内容对齐起来。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$OutputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(); Get-Content -Path '"'docs/plans/2026-04-03-edu-agent-plan.md' | Select-Object -Index (14..60) | ForEach-Object -Begin {"'$i=15} -Process { '"'{0,4}: {1}' -f "'$i++, $_ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$OutputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(); Get-Content -Path '"'docs/plans/2026-04-03-edu-agent-plan.md' | Select-Object -Index (62..802) | ForEach-Object -Begin {"'$i=63} -Process { '"'{0,4}: {1}' -f "'$i++, $_ }' in C:/Users/Administrator/edu-cloud succeeded in 1.27s:
+  15: ```yaml
+  16: contract_pack:
+  17:   invariants:
+  18:     - id: INV-001
+  19:       statement: "鏃у伐鍏风鍚?func(**kwargs) 鍦?Batch 6 杩佺Щ瀹屾垚鍓嶆寔缁彲鐢紝鐜版湁 agent.py 鍜?test_registry.py 鍏ㄧ豢"
+  20:       verification: pending_test
+  21:       note: "Task 2 鐨?execute() 鍙岀鍚嶄繚璇侊紝Batch 6 瀹屾垚鍚庡垹闄ゆ棫璺緞"
+  22:     - id: INV-002
+  23:       statement: "capability 缂虹渷璇箟涓?鏃犺褰曢粯璁ゅ厑璁?锛歝aps 涓笉瀛樺湪鐨?key 涓嶆嫆缁濆伐鍏?
+  24:       verification: existing_test
+  25:       test_ref: "tests/test_ai/test_tool_access.py::test_capability_default_allow"
+  26:     - id: INV-003
+  27:       statement: "39 涓伐鍏峰叏閮ㄩ€氳繃 ToolRegistry.list_tools() 鍙彂鐜帮紝涓旈€氳繃 RBAC + Module + Capability 涓夐噸杩囨护"
+  28:       verification: pending_test
+  29:       note: "Task 30 鏈€缁堥泦鎴愭祴璇曢獙璇?
+  30:     - id: INV-004
+  31:       statement: "SSE 浜嬩欢娴佸悜鍓嶅吋瀹癸細鏃?answer/tool_call/tool_result/done 浜嬩欢鏍煎紡涓嶅彉锛屾柊澧?thinking/plan/task_update 涓鸿拷鍔犵被鍨?
+  32:       verification: pending_test
+  33:       note: "Task 14 闆嗘垚娴嬭瘯楠岃瘉"
+  34:     - id: INV-005
+ succeeded in 1.82s:
+  63: ## Batch 1: Foundation Layer
+  64: 
+  65: > ToolContext, ToolResult, ToolSpec, ToolRegistry, ToolAccessResolver, AgentEvent schemas.
+  66: > Everything else depends on this batch.
+  67: 
+  68: ### Task 1: ToolContext and ToolResult data structures
+  69: 
+  70: **Files:**
+  71: - Create: `src/edu_cloud/ai/tool_context.py`
+  72: - Test: `tests/test_ai/test_tool_context.py`
+  73: 
+  74: - [ ] **Step 1: Write failing tests**
+  75: 
+  76: ```python
+  77: # tests/test_ai/test_tool_context.py
+  78: import pytest
+  79: from edu_cloud.ai.tool_context import ToolContext, ToolResult
+  80: 
+  81: 
+  82: def test_tool_result_success():
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch1.md"})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-review-handoff-batch1.md"}) success in 5ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "[edu-cloud] Executor→Reviewer | 2026-04-03 18:19:05\n## 审查交接单: Task 1-4 (Batch 1: Foundation Layer)\n计划: C:\\Users\\Administrator\\edu-cloud\\docs\\plans\\2026-04-03-edu-agent-plan.md\n\n### 逐 Task 自审\n| Task | 计划要求 | 实际执行 | 状态 | 说明 |\n|------|---------|---------|------|------|\n| T1 | 创建 ToolContext + ToolResult dataclass | commit ae568cb, 新建 tool_context.py + 5 tests | ✅ | — |\n| T2 | ToolSpec 新增 is_read_only/sensitivity，ToolRegistry 双签名 execute + get() | commit a73bcf8, 重写 registry.py + 6 new tests + 9 old tests pass | 🔀 | get_schemas 增加了自动检测 legacy 全 JSON Schema vs 新 properties-only 格式，防止双层包装 |\n| T3 | ToolAccessResolver async→sync | commit 68207a2 + 982c288, 改 tool_access.py + 修 ai.py 调用方 + 更新 3 个测试文件 | 🔀 | plan 只列了 tool_access.py 和 test_tool_access_v2.py，实际还需修 ai.py:119、test_agent_pipeline.py(4处)、test_tools_registration.py(2处) 的 await 调用 |\n| T4 | schemas 新增 Message 别名 + Transition 枚举 | commit 320ce82, 重写 schemas.py + 5 new tests + 7 old tests pass | ✅ | — |\n\n> 状态: ✅一致 / ❌不一致 / 🔀改进\n\n### 预审自检（送审前必填）\n| 测试契约 slice | 对应测试文件:函数 | 验证命令 | 实际输出（pass/fail + 关键行） | 反证验证 |\n|---------------|------------------|---------|------------------------------|---------|\n| ToolResult 序列化 | test_tool_context.py::test_tool_result_to_dict | `pytest tests/test_ai/test_tool_context.py::test_tool_result_to_dict -v` | PASSED | 不适用：新增测试 |\n| ToolContext 字段完整性 | test_tool_context.py::test_tool_context_fields | `pytest tests/test_ai/test_tool_context.py::test_tool_context_fields -v` | PASSED | 不适用：新增测试 |\n| 新签名 execute | test_registry_v2.py::test_registry_execute_new_style | `pytest tests/test_ai/test_registry_v2.py::test_registry_execute_new_style -v` | PASSED | 不适用：新增测试 |\n| 旧签名兼容 (INV-001) | test_registry.py::test_execute_tool | `pytest tests/test_ai/test_registry.py::test_execute_tool -v` | PASSED | 不适用：已有测试非本次新增 |\n| RBAC 过滤 | test_tool_access_v2.py::test_rbac_filter | `pytest tests/test_ai/test_tool_access_v2.py::test_rbac_filter -v` | PASSED | 不适用：新增测试 |\n| Capability 默认允许 (INV-002) | test_tool_access_v2.py::test_capability_default_allow | `pytest tests/test_ai/test_tool_access_v2.py::test_capability_default_allow -v` | PASSED | 不适用：已有测试非本次新增 |\n| AgentEvent 8 类型 | test_schemas_v2.py::test_agent_event_new_types | `pytest tests/test_ai/test_schemas_v2.py::test_agent_event_new_types -v` | PASSED | 不适用：新增测试 |\n| Transition 枚举 | test_schemas_v2.py::test_transition_enum | `pytest tests/test_ai/test_schemas_v2.py::test_transition_enum -v` | PASSED | 不适用：新增测试 |\n\n### 验证清单自检\n\n- ✅ ToolResult.to_dict() 省略 None 的 error/metadata key\n- ✅ ToolContext 全部可选字段有默认值\n- ✅ ToolSpec.is_read_only 默认 True, sensitivity 默认 \"school\"\n- ✅ ToolRegistry.execute() 双签名：ToolContext → new path, **kwargs → legacy path\n- ✅ ToolRegistry.get() 返回 ToolSpec 或 None\n- ✅ ToolAccessResolver.resolve() 改为 sync，三层过滤逻辑不变\n- ✅ INV-001: 旧 test_registry.py 9 tests 全绿（双签名兼容）\n- ✅ INV-002: 空 capabilities 默认允许（test_capability_default_allow）\n- ✅ Message = ChatMessage 别名，旧 test_schemas.py 7 tests 全绿\n- ✅ Transition 枚举 7 个成员齐全\n- ✅ 全量 test_ai/ 160 tests PASSED\n\n### 自查（四要素格式）\n\n- 新增文件的边界 case：\n  构造输入: ToolResult(success=True, data=None) — data 为 None 的成功结果\n  运行命令: `pytest tests/test_ai/test_tool_context.py::test_tool_result_to_dict_omits_none -v`\n  实际输出:\n  ```\n  PASSED\n  ```\n  结论: to_dict 正确省略 None 的 error 和 metadata key\n\n- 新增文件的边界 case：\n  构造输入: registry.execute(\"nonexistent\", {}, ctx) — 未注册工具名 + 新签名\n  运行命令: `pytest tests/test_ai/test_registry_v2.py::test_registry_execute_unknown_tool_new_style -v`\n  实际输出:\n  ```\n  PASSED\n  ```\n  结论: 新签名路径返回 ToolResult(success=False, error=\"Unknown tool: nonexistent\")\n\n- 字符串匹配/条件判断的假阴性：\n  构造输入: resolver.resolve(specs, role=\"admin\", enabled_modules=None, capabilities={}) — enabled_modules=None 跳过模块过滤\n  运行命令: `pytest tests/test_ai/test_tool_access.py::test_enabled_modules_none_skips_module_filter -v`\n  实际输出:\n  ```\n  PASSED\n  ```\n  结论: enabled_modules=None 正确跳过 Layer 2 过滤，所有工具可见\n"
+    }
+  ],
+  "structuredContent": {
+    "content": "[edu-cloud] Executor→Reviewer | 2026-04-03 18:19:05\n## 审查交接单: Task 1-4 (Batch 1: Foundation Layer)\n计划: C:\\Users\\Administrator\\edu-cloud\\docs\\plans\\2026-04-03-edu-agent-plan.md\n\n### 逐 Task 自审\n| Task | 计划要求 | 实际执行 | 状态 | 说明 |\n|------|---------|---------|------|------|\n| T1 | 创建 ToolContext + ToolResult dataclass | commit ae568cb, 新建 tool_context.py + 5 tests | ✅ | — |\n| T2 | ToolSpec 新增 is_read_only/sensitivity，ToolRegistry 双签名 execute + get() | commit a73bcf8, 重写 registry.py + 6 new tests + 9 old tests pass | 🔀 | get_schemas 增加了自动检测 legacy 全 JSON Schema vs 新 properties-only 格式，防止双层包装 |\n| T3 | ToolAccessResolver async→sync | commit 68207a2 + 982c288, 改 tool_access.py + 修 ai.py 调用方 + 更新 3 个测试文件 | 🔀 | plan 只列了 tool_access.py 和 test_tool_access_v2.py，实际还需修 ai.py:119、test_agent_pipeline.py(4处)、test_tools_registration.py(2处) 的 await 调用 |\n| T4 | schemas 新增 Message 别名 + Transition 枚举 | commit 320ce82, 重写 schemas.py + 5 new tests + 7 old tests pass | ✅ | — |\n\n> 状态: ✅一致 / ❌不一致 / 🔀改进\n\n### 预审自检（送审前必填）\n| 测试契约 slice | 对应测试文件:函数 | 验证命令 | 实际输出（pass/fail + 关键行） | 反证验证 |\n|---------------|------------------|---------|------------------------------|---------|\n| ToolResult 序列化 | test_tool_context.py::test_tool_result_to_dict | `pytest tests/test_ai/test_tool_context.py::test_tool_result_to_dict -v` | PASSED | 不适用：新增测试 |\n| ToolContext 字段完整性 | test_tool_context.py::test_tool_context_fields | `pytest tests/test_ai/test_tool_context.py::test_tool_context_fields -v` | PASSED | 不适用：新增测试 |\n| 新签名 execute | test_registry_v2.py::test_registry_execute_new_style | `pytest tests/test_ai/test_registry_v2.py::test_registry_execute_new_style -v` | PASSED | 不适用：新增测试 |\n| 旧签名兼容 (INV-001) | test_registry.py::test_execute_tool | `pytest tests/test_ai/test_registry.py::test_execute_tool -v` | PASSED | 不适用：已有测试非本次新增 |\n| RBAC 过滤 | test_tool_access_v2.py::test_rbac_filter | `pytest tests/test_ai/test_tool_access_v2.py::test_rbac_filter -v` | PASSED | 不适用：新增测试 |\n| Capability 默认允许 (INV-002) | test_tool_access_v2.py::test_capability_default_allow | `pytest tests/test_ai/test_tool_access_v2.py::test_capability_default_allow -v` | PASSED | 不适用：已有测试非本次新增 |\n| AgentEvent 8 类型 | test_schemas_v2.py::test_agent_event_new_types | `pytest tests/test_ai/test_schemas_v2.py::test_agent_event_new_types -v` | PASSED | 不适用：新增测试 |\n| Transition 枚举 | test_schemas_v2.py::test_transition_enum | `pytest tests/test_ai/test_schemas_v2.py::test_transition_enum -v` | PASSED | 不适用：新增测试 |\n\n### 验证清单自检\n\n- ✅ ToolResult.to_dict() 省略 None 的 error/metadata key\n- ✅ ToolContext 全部可选字段有默认值\n- ✅ ToolSpec.is_read_only 默认 True, sensitivity 默认 \"school\"\n- ✅ ToolRegistry.execute() 双签名：ToolContext → new path, **kwargs → legacy path\n- ✅ ToolRegistry.get() 返回 ToolSpec 或 None\n- ✅ ToolAccessResolver.resolve() 改为 sync，三层过滤逻辑不变\n- ✅ INV-001: 旧 test_registry.py 9 tests 全绿（双签名兼容）\n- ✅ INV-002: 空 capabilities 默认允许（test_capability_default_allow）\n- ✅ Message = ChatMessage 别名，旧 test_schemas.py 7 tests 全绿\n- ✅ Transition 枚举 7 个成员齐全\n- ✅ 全量 test_ai/ 160 tests PASSED\n\n### 自查（四要素格式）\n\n- 新增文件的边界 case：\n  构造输入: ToolResult(success=True, data=None) — data 为 None 的成功结果\n  运行命令: `pytest tests/test_ai/test_tool_context.py::test_tool_result_to_dict_omits_none -v`\n  实际输出:\n  ```\n  PASSED\n  ```\n  结论: to_dict 正确省略 None 的 error 和 metadata key\n\n- 新增文件的边界 case：\n  构造输入: registry.execute(\"nonexistent\", {}, ctx) — 未注册工具名 + 新签名\n  运行命令: `pytest tests/test_ai/test_registry_v2.py::test_registry_execute_unknown_tool_new_style -v`\n  实际输出:\n  ```\n  PASSED\n  ```\n  结论: 新签名路径返回 ToolResult(success=False, error=\"Unknown tool: nonexistent\")\n\n- 字符串匹配/条件判断的假阴性：\n  构造输入: resolver.resolve(specs, role=\"admin\", enabled_modules=None, capabilities={}) — enabled_modules=None 跳过模块过滤\n  运行命令: `pytest tests/test_ai/test_tool_access.py::test_enabled_modules_none_skips_module_filter -v`\n  实际输出:\n  ```\n  PASSED\n  ```\n  结论: enabled_modules=None 正确跳过 Layer 2 过滤，所有工具可见\n"
+  }
+}
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --name-only ae568cb~1..982c288 -- src/edu_cloud/ai/ tests/test_ai/ src/edu_cloud/api/ai.py' in C:/Users/Administrator/edu-cloud succeeded in 737ms:
+src/edu_cloud/ai/registry.py
+src/edu_cloud/ai/schemas.py
+src/edu_cloud/ai/tool_access.py
+src/edu_cloud/ai/tool_context.py
+src/edu_cloud/api/ai.py
+tests/test_ai/test_agent_pipeline.py
+tests/test_ai/test_registry_v2.py
+tests/test_ai/test_schemas_v2.py
+tests/test_ai/test_tool_access.py
+tests/test_ai/test_tool_access_v2.py
+tests/test_ai/test_tool_context.py
+tests/test_ai/test_tools_registration.py
+codex
+计划正文里有编码噪声，我换用 Python 直接按 UTF-8 提取对应行段，避免误读 Contract Pack 和 Batch 1 的测试契约。然后开始逐文件核对 diff 与完整上下文。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path = Path('docs/plans/2026-04-03-edu-agent-plan.md')
+lines = path.read_text(encoding='utf-8').splitlines()
+for start,end in [(15,61),(63,803)]:
+    print(f'--- {start}-{end} ---')
+    for i in range(start-1,end):
+        print(f'{i+1:4}: {lines[i]}')
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show --stat --oneline ae568cb a73bcf8 68207a2 320ce82 982c288' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff --stat ae568cb~1..982c288 -- src/edu_cloud/ai/ tests/test_ai/ src/edu_cloud/api/ai.py' in C:/Users/Administrator/edu-cloud succeeded in 1.09s:
+ae568cb feat(agent): add ToolContext and ToolResult data structures
+ src/edu_cloud/ai/tool_context.py   | 42 ++++++++++++++++++++++++++++++++
+ tests/test_ai/test_tool_context.py | 49 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 91 insertions(+)
+a73bcf8 feat(agent): refactor ToolSpec with is_read_only + sensitivity, dual-signature execute()
+ src/edu_cloud/ai/registry.py      | 82 ++++++++++++++++++++++++++---------
+ tests/test_ai/test_registry_v2.py | 91 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 153 insertions(+), 20 deletions(-)
+68207a2 feat(agent): refactor ToolAccessResolver to sync three-layer filter
+ src/edu_cloud/ai/tool_access.py      | 22 ++++++-----
+ src/edu_cloud/api/ai.py              |  2 +-
+ tests/test_ai/test_tool_access.py    | 40 ++++++++-----------
+ tests/test_ai/test_tool_access_v2.py | 76 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 106 insertions(+), 34 deletions(-)
+320ce82 feat(agent): extend schemas with Message alias, Transition enum, new AgentEvent types
+ src/edu_cloud/ai/schemas.py      | 67 +++++++++++++++++++++++++---------------
+ tests/test_ai/test_schemas_v2.py | 45 +++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+), 25 deletions(-)
+982c288 fix: update remaining callers of ToolAccessResolver.resolve to sync
+ tests/test_ai/test_agent_pipeline.py     |  8 ++++----
+ succeeded in 1.42s:
+--- 15-61 ---
+  15: ```yaml
+  16: contract_pack:
+  17:   invariants:
+  18:     - id: INV-001
+  19:       statement: "旧工具签名 func(**kwargs) 在 Batch 6 迁移完成前持续可用，现有 agent.py 和 test_registry.py 全绿"
+  20:       verification: pending_test
+  21:       note: "Task 2 的 execute() 双签名保证，Batch 6 完成后删除旧路径"
+  22:     - id: INV-002
+  23:       statement: "capability 缺省语义为'无记录默认允许'：caps 中不存在的 key 不拒绝工具"
+  24:       verification: existing_test
+  25:       test_ref: "tests/test_ai/test_tool_access.py::test_capability_default_allow"
+  26:     - id: INV-003
+  27:       statement: "39 个工具全部通过 ToolRegistry.list_tools() 可发现，且通过 RBAC + Module + Capability 三重过滤"
+  28:       verification: pending_test
+  29:       note: "Task 30 最终集成测试验证"
+  30:     - id: INV-004
+  31:       statement: "SSE 事件流向前兼容：旧 answer/tool_call/tool_result/done 事件格式不变，新增 thinking/plan/task_update 为追加类型"
+  32:       verification: pending_test
+  33:       note: "Task 14 集成测试验证"
+ succeeded in 991ms:
+ src/edu_cloud/ai/registry.py             | 82 +++++++++++++++++++++-------
+ src/edu_cloud/ai/schemas.py              | 67 ++++++++++++++---------
+ src/edu_cloud/ai/tool_access.py          | 22 ++++----
+ src/edu_cloud/ai/tool_context.py         | 42 +++++++++++++++
+ src/edu_cloud/api/ai.py                  |  2 +-
+ tests/test_ai/test_agent_pipeline.py     |  8 +--
+ tests/test_ai/test_registry_v2.py        | 91 ++++++++++++++++++++++++++++++++
+ tests/test_ai/test_schemas_v2.py         | 45 ++++++++++++++++
+ tests/test_ai/test_tool_access.py        | 40 ++++++--------
+ tests/test_ai/test_tool_access_v2.py     | 76 ++++++++++++++++++++++++++
+ tests/test_ai/test_tool_context.py       | 49 +++++++++++++++++
+ tests/test_ai/test_tools_registration.py | 12 ++---
+ 12 files changed, 446 insertions(+), 90 deletions(-)
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show 68207a2 -- src/edu_cloud/ai/tool_access.py src/edu_cloud/api/ai.py tests/test_ai/test_tool_access.py tests/test_ai/test_tool_access_v2.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff ae568cb~1..982c288 -- src/edu_cloud/ai/ tests/test_ai/ src/edu_cloud/api/ai.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show 320ce82 -- src/edu_cloud/ai/schemas.py tests/test_ai/test_schemas_v2.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show a73bcf8 -- src/edu_cloud/ai/registry.py tests/test_ai/test_registry_v2.py' in C:/Users/Administrator/edu-cloud succeeded in 1.67s:
+commit 68207a23e85b277207b2a95b4de5f238da37b746
+Author: juanwan99 <juanwan99@users.noreply.github.com>
+Date:   Fri Apr 3 17:43:18 2026 +0800
+
+    feat(agent): refactor ToolAccessResolver to sync three-layer filter
+    
+    Task 3 of edu-agent plan. resolve() changed from async to sync (no IO
+    needed). Callers and existing tests updated. INV-002 verified (empty
+    capabilities default to allow).
+    
+    Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+diff --git a/src/edu_cloud/ai/tool_access.py b/src/edu_cloud/ai/tool_access.py
+index 5e3456c..b95284c 100644
+--- a/src/edu_cloud/ai/tool_access.py
++++ b/src/edu_cloud/ai/tool_access.py
+@@ -1,10 +1,13 @@
++"""Three-layer tool permission filtering (Design §4)."""
++from __future__ import annotations
++
+ succeeded in 1.57s:
+commit 320ce824d5c49a4d4b4855bcb069b968bb52e21b
+Author: juanwan99 <juanwan99@users.noreply.github.com>
+Date:   Fri Apr 3 17:47:58 2026 +0800
+
+    feat(agent): extend schemas with Message alias, Transition enum, new AgentEvent types
+    
+    Task 4 of edu-agent plan. Message replaces ChatMessage (alias kept for
+    backward compat). Transition enum covers all 7 agent loop state
+    transitions. AgentEvent now documents all 8 event types.
+    
+    Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+diff --git a/src/edu_cloud/ai/schemas.py b/src/edu_cloud/ai/schemas.py
+index 8c39c55..ec6c8f6 100644
+--- a/src/edu_cloud/ai/schemas.py
++++ b/src/edu_cloud/ai/schemas.py
+@@ -1,31 +1,12 @@
+-"""Agent 数据模型。"""
++"""Agent event types, message types, and enumerations (Design §3)."""
+ from __future__ import annotations
+ succeeded in 1.58s:
+diff --git a/src/edu_cloud/ai/registry.py b/src/edu_cloud/ai/registry.py
+index 690920c..b9dfb15 100644
+--- a/src/edu_cloud/ai/registry.py
++++ b/src/edu_cloud/ai/registry.py
+@@ -1,7 +1,12 @@
++"""Tool registration and discovery (Design §4)."""
++from __future__ import annotations
++
+ import inspect
+ import logging
+ from dataclasses import dataclass, field
+-from typing import Any, Callable
++from typing import Any, Awaitable, Callable
++
++from edu_cloud.ai.tool_context import ToolContext, ToolResult
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -11,13 +16,15 @@ class ToolSpec:
+     name: str
+ succeeded in 1.67s:
+commit a73bcf8c3880e006e7d6080781821a1e16d8db99
+Author: juanwan99 <juanwan99@users.noreply.github.com>
+Date:   Fri Apr 3 17:40:54 2026 +0800
+
+    feat(agent): refactor ToolSpec with is_read_only + sensitivity, dual-signature execute()
+    
+    Task 2 of edu-agent plan. ToolSpec gains is_read_only and sensitivity
+    fields. ToolRegistry.execute() supports both new (input, ctx) and
+    legacy (**kwargs) call patterns. get() method added. INV-001 verified.
+    
+    Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+diff --git a/src/edu_cloud/ai/registry.py b/src/edu_cloud/ai/registry.py
+index 690920c..b9dfb15 100644
+--- a/src/edu_cloud/ai/registry.py
++++ b/src/edu_cloud/ai/registry.py
+@@ -1,7 +1,12 @@
++"""Tool registration and discovery (Design §4)."""
++from __future__ import annotations
++
+codex
+我已经拿到整段 diff。下一步读取这些模块和相关既有测试的完整内容，重点检查调用兼容性、Contract Pack 对应测试是否真能拦住错误实现，以及是否有遗漏调用方。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+files = [
+'src/edu_cloud/ai/tool_context.py',
+'src/edu_cloud/ai/registry.py',
+'src/edu_cloud/ai/tool_access.py',
+'src/edu_cloud/ai/schemas.py',
+'src/edu_cloud/api/ai.py',
+'tests/test_ai/test_tool_context.py',
+'tests/test_ai/test_registry.py',
+'tests/test_ai/test_registry_v2.py',
+'tests/test_ai/test_tool_access.py',
+'tests/test_ai/test_tool_access_v2.py',
+'tests/test_ai/test_schemas.py',
+'tests/test_ai/test_schemas_v2.py',
+]
+for f in files:
+    print(f'===== {f} =====')
+    lines = Path(f).read_text(encoding='utf-8').splitlines()
+    for i, line in enumerate(lines, 1):
+        print(f'{i:4}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+files = [
+'tests/test_ai/test_agent_pipeline.py',
+'tests/test_ai/test_tools_registration.py',
+]
+for f in files:
+    print(f'===== {f} =====')
+    lines = Path(f).read_text(encoding='utf-8').splitlines()
+    for i, line in enumerate(lines, 1):
+        print(f'{i:4}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.23s:
+===== src/edu_cloud/ai/tool_context.py =====
+   1: """Standardized tool execution context and result types (Design §4)."""
+   2: from __future__ import annotations
+   3: 
+   4: from dataclasses import dataclass, field
+   5: from typing import Any
+   6: 
+   7: from sqlalchemy.ext.asyncio import AsyncSession
+   8: 
+   9: 
+  10: @dataclass
+  11: class ToolContext:
+  12:     """Injected into every tool call. Replaces the old _db/_school_id/**kwargs pattern."""
+  13: 
+  14:     db: AsyncSession
+  15:     school_id: str
+  16:     user_id: str
+  17:     role: str
+  18:     class_ids: list[str] | None = None
+  19:     subject_codes: list[str] | None = None
+ succeeded in 1.23s:
+===== tests/test_ai/test_agent_pipeline.py =====
+   1: import pytest
+   2: from unittest.mock import AsyncMock, patch
+   3: from edu_cloud.ai.tool_access import ToolAccessResolver
+   4: from edu_cloud.ai.intent_resolver import IntentResolver
+   5: from edu_cloud.ai.model_router import ModelRouter
+   6: from edu_cloud.ai.registry import ToolSpec
+   7: 
+   8: 
+   9: def _make_spec(name, domain="general", allowed_roles=None, module_code=None):
+  10:     return ToolSpec(
+  11:         name=name, description=f"Tool {name}", parameters={},
+  12:         func=AsyncMock(return_value={"ok": True}),
+  13:         domain=domain, allowed_roles=allowed_roles, module_code=module_code,
+  14:     )
+  15: 
+  16: 
+  17: @pytest.mark.asyncio
+  18: async def test_pipeline_end_to_end():
+  19:     """完整 Pipeline: 工具过滤 → 意图裁剪 → 模型选择"""
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"@tools?\\.register|@.*register\\(\" src/edu_cloud/ai -g '*.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"resolve\\(\" src/edu_cloud/ai src/edu_cloud/api tests/test_ai" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"execute\\(\" src/edu_cloud/ai src/edu_cloud/api tests/test_ai" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"parameters=\\{\" src/edu_cloud/ai -g '*.py'" in C:/Users/Administrator/edu-cloud succeeded in 2.40s:
+src/edu_cloud/ai\tools\analytics_score.py:13:    parameters={
+src/edu_cloud/ai\tools\analytics_score.py:42:    parameters={
+src/edu_cloud/ai\tools\analytics_score.py:89:    parameters={
+src/edu_cloud/ai\tools\analytics_score.py:118:    parameters={
+src/edu_cloud/ai\tools\analytics_score.py:164:    parameters={
+src/edu_cloud/ai\tools\analytics_compare.py:13:    parameters={
+src/edu_cloud/ai\tools\analytics_compare.py:91:    parameters={
+src/edu_cloud/ai\tools\analytics_compare.py:174:    parameters={
+src/edu_cloud/ai\tools\bank.py:12:    parameters={
+src/edu_cloud/ai\tools\bank.py:48:    parameters={
+src/edu_cloud/ai\tools\exams.py:13:    parameters={
+src/edu_cloud/ai\tools\exams.py:46:    parameters={
+src/edu_cloud/ai\tools\exams.py:84:    parameters={
+src/edu_cloud/ai\tools\homework.py:9:    parameters={
+src/edu_cloud/ai\tools\homework.py:46:    parameters={
+src/edu_cloud/ai\tools\homework.py:69:    parameters={
+src/edu_cloud/ai\tools\homework.py:103:    parameters={
+src/edu_cloud/ai\tools\homework.py:139:    parameters={
+src/edu_cloud/ai\tools\analytics.py:37:    parameters={
+src/edu_cloud/ai\tools\analytics.py:101:    parameters={
+ succeeded in 2.70s:
+src/edu_cloud/ai\tools\actions.py:10:@tools.register(
+src/edu_cloud/ai\tools\actions.py:128:@tools.register(
+src/edu_cloud/ai\tools\analytics_compare.py:5:@tools.register(
+src/edu_cloud/ai\tools\analytics_compare.py:83:@tools.register(
+src/edu_cloud/ai\tools\analytics_compare.py:166:@tools.register(
+src/edu_cloud/ai\tools\analytics.py:34:@tools.register(
+src/edu_cloud/ai\tools\analytics.py:98:@tools.register(
+src/edu_cloud/ai\tools\bank.py:5:@tools.register(
+src/edu_cloud/ai\tools\bank.py:41:@tools.register(
+src/edu_cloud/ai\tools\exams.py:5:@tools.register(
+src/edu_cloud/ai\tools\exams.py:38:@tools.register(
+src/edu_cloud/ai\tools\exams.py:76:@tools.register(
+src/edu_cloud/ai\tools\analytics_score.py:5:@tools.register(
+src/edu_cloud/ai\tools\analytics_score.py:34:@tools.register(
+src/edu_cloud/ai\tools\analytics_score.py:81:@tools.register(
+src/edu_cloud/ai\tools\analytics_score.py:110:@tools.register(
+src/edu_cloud/ai\tools\analytics_score.py:156:@tools.register(
+src/edu_cloud/ai\tools\grading_ops.py:7:@tools.register(
+src/edu_cloud/ai\tools\grading_ops.py:25:@tools.register(
+src/edu_cloud/ai\tools\grading_ops.py:43:@tools.register(
+ succeeded in 2.34s:
+src/edu_cloud/ai\agent.py:114:                    result = await self.registry.execute(
+src/edu_cloud/api\auth.py:49:    result = await db.execute(select(User).where(User.username == req.username))
+src/edu_cloud/api\auth.py:57:        roles_result = await db.execute(
+src/edu_cloud/api\auth.py:109:    result = await db.execute(
+src/edu_cloud/api\app.py:76:            await db.execute(select(User).where(User.username == "admin"))
+src/edu_cloud/api\deps.py:45:            await db.execute(select(UserRole).where(UserRole.user_id == user.id))
+src/edu_cloud/api\dashboard.py:35:    total_students = (await db.execute(q)).scalar() or 0
+src/edu_cloud/api\dashboard.py:41:    total_classes = (await db.execute(q)).scalar() or 0
+src/edu_cloud/api\dashboard.py:44:    total_exams = (await db.execute(
+src/edu_cloud/ai\llm_factory.py:28:        result = await db.execute(stmt)
+src/edu_cloud/ai\llm_factory.py:38:        result = await db.execute(stmt)
+src/edu_cloud/ai\registry.py:101:    async def execute(self, name: str, arguments: dict[str, Any], ctx_or_none=None, **injected) -> Any:
+src/edu_cloud/ai\tools\analytics_compare.py:55:    subjects = (await _db.execute(subj_query)).scalars().all()
+src/edu_cloud/ai\tools\analytics_compare.py:135:    subjects = (await _db.execute(subj_query)).scalars().all()
+src/edu_cloud/ai\tools\analytics_compare.py:147:        students_result = await _db.execute(
+src/edu_cloud/ai\tools\analytics_compare.py:208:    subjects = (await _db.execute(subj_query)).scalars().all()
+src/edu_cloud/ai\tools\analytics.py:71:    rows = (await _db.execute(stmt)).all()
+src/edu_cloud/ai\tools\analytics.py:139:    rows = (await _db.execute(stmt)).scalars().all()
+src/edu_cloud/ai\tools\analytics.py:144:    cls_row = (await _db.execute(select(ClassGroup).where(ClassGroup.id == class_id))).scalar_one_or_none()
+src/edu_cloud/ai\tools\analytics_score.py:199:    students_result = await _db.execute(
+ succeeded in 2.54s:
+src/edu_cloud/api\ai.py:119:        available_tools = resolver.resolve(
+src/edu_cloud/api\ai.py:126:        selected_tools = await intent_resolver.resolve(message, available_tools)
+tests/test_ai\test_agent_pipeline.py:28:    available = resolver.resolve(
+tests/test_ai\test_agent_pipeline.py:36:    selected = await intent.resolve("查一下成绩", available)
+tests/test_ai\test_agent_pipeline.py:58:    available = resolver.resolve(
+tests/test_ai\test_agent_pipeline.py:74:    available = resolver.resolve(
+tests/test_ai\test_agent_pipeline.py:93:    available = resolver.resolve(
+tests/test_ai\test_agent_pipeline.py:102:            selected = await intent.resolve("查成绩", available)
+tests/test_ai\test_intent_resolver.py:47:    result = await resolver.resolve("帮我看看成绩", all_tools)
+tests/test_ai\test_intent_resolver.py:60:    result = await resolver.resolve("随便聊聊", all_tools)
+tests/test_ai\test_intent_resolver.py:70:    result = await resolver.resolve("成绩分析", all_tools)
+src/edu_cloud/ai\intent_resolver.py:32:    async def resolve(self, message: str, available_tools: list) -> list:
+tests/test_ai\test_tools_registration.py:35:    result = resolver.resolve(
+tests/test_ai\test_tools_registration.py:54:    result = resolver.resolve(all_specs=specs, role="district_admin",
+tests/test_ai\test_tool_access.py:23:    result = resolver.resolve(
+tests/test_ai\test_tool_access.py:37:    result = resolver.resolve(
+tests/test_ai\test_tool_access.py:52:    result = resolver.resolve(
+tests/test_ai\test_tool_access.py:65:    result = resolver.resolve(
+tests/test_ai\test_tool_access.py:80:    result = resolver.resolve(
+tests/test_ai\test_tool_access.py:90:    result = resolver.resolve(
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+for f in ['src/edu_cloud/ai/tools/analytics.py','src/edu_cloud/ai/tools/actions.py','src/edu_cloud/ai/tools/profile.py']:
+    print(f'===== {f} =====')
+    lines = Path(f).read_text(encoding='utf-8').splitlines()
+    for i, line in enumerate(lines[:40], 1):
+        print(f'{i:4}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+p = Path('src/edu_cloud/ai/agent.py')
+lines = p.read_text(encoding='utf-8').splitlines()
+for i in range(90,150):
+    print(f'{i+1:4}: {lines[i]}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.72s:
+  91: 
+  92:             # --- No tool calls → final answer --------------------------------
+  93:             if not response.tool_calls:
+  94:                 content: str = response.content or "抱歉，我无法回答这个问题。"
+  95:                 content = anonymizer.deanonymize(content)
+  96:                 context.add_assistant_message(content, session_id)
+  97:                 yield AgentEvent(type="answer", data={"content": content})
+  98:                 return
+  99: 
+ 100:             # --- Tool calls → execute each ----------------------------------
+ 101:             context.add_assistant_message(
+ 102:                 response.content, session_id, response.tool_calls
+ 103:             )
+ 104: 
+ 105:             for tc in response.tool_calls:
+ 106:                 yield AgentEvent(
+ 107:                     type="tool_call",
+ 108:                     data={"tool": tc.name, "arguments": tc.arguments},
+ 109:                 )
+ 110: 
+ succeeded in 1.85s:
+===== src/edu_cloud/ai/tools/analytics.py =====
+   1: """L2 跨校分析工具 — 联考/跨校成绩查询。
+   2: 
+   3: 校本分析工具已迁移到 analytics_score.py / analytics_compare.py（Batch 4）。
+   4: compare_classes / get_student_profile 已被新工具替代，从本文件移除。
+   5: """
+   6: import statistics
+   7: import logging
+   8: from typing import Any
+   9: 
+  10: from sqlalchemy import select
+  11: from sqlalchemy.ext.asyncio import AsyncSession
+  12: 
+  13: from edu_cloud.ai.registry import tools
+  14: from edu_cloud.models.exam import Exam, ExamResult
+  15: from edu_cloud.models.student import Student
+  16: from edu_cloud.models.class_group import ClassGroup
+  17: 
+  18: logger = logging.getLogger(__name__)
+  19: 
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"ToolContext\\(\" src/edu_cloud tests/test_ai" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"ChatMessage|Message\\(\" src/edu_cloud tests/test_ai" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"ToolResult\\(\" src/edu_cloud tests/test_ai" in C:/Users/Administrator/edu-cloud succeeded in 1.18s:
+tests/test_ai\test_tool_context.py:6:    r = ToolResult(success=True, data={"avg": 85.2})
+tests/test_ai\test_tool_context.py:14:    r = ToolResult(success=False, data=None, error="exam not found")
+tests/test_ai\test_tool_context.py:20:    r = ToolResult(success=True, data={"count": 3}, metadata={"duration_ms": 42})
+tests/test_ai\test_tool_context.py:28:    r = ToolResult(success=True, data=None)
+tests/test_ai\test_tool_access_v2.py:9:        return ToolResult(success=True, data=None)
+tests/test_ai\test_registry_v2.py:37:        return ToolResult(success=True, data={"id": input["exam_id"]})
+tests/test_ai\test_registry_v2.py:52:        return ToolResult(success=True, data={"sum": input["a"] + input["b"]})
+tests/test_ai\test_registry_v2.py:75:        return ToolResult(success=True, data=None)
+tests/test_ai\test_registry_v2.py:87:        return ToolResult(success=True, data=None)
+src/edu_cloud\ai\registry.py:105:                return ToolResult(success=False, error=f"Unknown tool: {name}")
+src/edu_cloud\ai\registry.py:131:                return ToolResult(success=False, error=str(exc))
+ succeeded in 1.22s:
+tests/test_ai\test_tool_context.py:35:    ctx = ToolContext(
+tests/test_ai\test_registry_v2.py:54:    ctx = ToolContext(db=None, school_id="S1", user_id="U1", role="teacher")
+tests/test_ai\test_registry_v2.py:63:    ctx = ToolContext(db=None, school_id="S1", user_id="U1", role="teacher")
+ succeeded in 1.19s:
+tests/test_ai\test_agent.py:4:from edu_cloud.ai.schemas import ChatMessage, ToolCall
+tests/test_ai\test_agent.py:32:    mock_llm.chat.return_value = ChatMessage(role="assistant", content="你好，我是 AI 助手")
+tests/test_ai\test_agent.py:56:        ChatMessage(
+tests/test_ai\test_agent.py:61:        ChatMessage(role="assistant", content="数学的结果是 result for 数学"),
+tests/test_ai\test_agent.py:86:    mock_llm.chat.return_value = ChatMessage(
+tests/test_ai\test_agent.py:112:    mock_llm.chat.return_value = ChatMessage(role="assistant", content="我无法访问工具")
+tests/test_ai\test_agent.py:150:        ChatMessage(
+tests/test_ai\test_agent.py:155:        ChatMessage(role="assistant", content="工具调用失败，我来解释一下"),
+tests/test_ai\test_agent.py:205:        ChatMessage(
+tests/test_ai\test_agent.py:210:        ChatMessage(role="assistant", content="完成"),
+tests/test_ai\test_agent.py:254:    mock_llm.chat.return_value = ChatMessage(role="assistant", content="完成")
+tests/test_ai\test_schemas_v2.py:1:from edu_cloud.ai.schemas import AgentEvent, Message, ToolCall, Transition, ChatMessage
+tests/test_ai\test_schemas_v2.py:23:    m = Message(role="user", content="hello")
+tests/test_ai\test_schemas_v2.py:28:    m2 = Message(role="assistant", content=None, tool_calls=[
+tests/test_ai\test_schemas_v2.py:35:    """ChatMessage is an alias for Message (backward compat)."""
+tests/test_ai\test_schemas_v2.py:36:    assert ChatMessage is Message
+tests/test_ai\test_schemas_v2.py:40:    m = Message(role="assistant", tool_calls=[
+tests/test_ai\test_llm.py:9:from edu_cloud.ai.schemas import ChatMessage, ToolCall
+tests/test_ai\test_llm.py:46:    """OpenAI path returns ChatMessage with parsed tool_calls."""
+tests/test_ai\test_llm.py:67:            result = await client.chat([ChatMessage(role="user", content="weather?")])
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show ae568cb -- src/edu_cloud/ai/tool_context.py tests/test_ai/test_tool_context.py' in C:/Users/Administrator/edu-cloud succeeded in 723ms:
+commit ae568cb251dfdca8e853fe3fdc691af4d9349450
+Author: juanwan99 <juanwan99@users.noreply.github.com>
+Date:   Fri Apr 3 17:38:23 2026 +0800
+
+    feat(agent): add ToolContext and ToolResult data structures
+    
+    Task 1 of edu-agent plan. Standardized tool execution context and
+    unified result type that all 39 tools will migrate to.
+    
+    Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+diff --git a/src/edu_cloud/ai/tool_context.py b/src/edu_cloud/ai/tool_context.py
+new file mode 100644
+index 0000000..2041ead
+--- /dev/null
++++ b/src/edu_cloud/ai/tool_context.py
+@@ -0,0 +1,42 @@
++"""Standardized tool execution context and result types (Design §4)."""
++from __future__ import annotations
++
+codex
+开始做独立验证。我会先跑这批改动对应的核心测试，再做几组与 plan 边界条件对应的手工探针，确认 handoff 里的映射不是“只看测试名”。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from edu_cloud.ai.registry import ToolRegistry
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
+reg = ToolRegistry()
+@reg.register(name='t1', description='Tool 1', parameters={'x': {'type': 'int'}}, sensitivity='student', is_read_only=True)
+async def t1(input: dict, ctx: ToolContext) -> ToolResult:
+    return ToolResult(success=True, data=None)
+print(reg.get_schemas())
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from edu_cloud.ai.registry import ToolRegistry
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
+import asyncio
+
+async def main():
+    reg = ToolRegistry()
+    @reg.register(name='boom', description='Boom', parameters={}, is_read_only=True, sensitivity='public')
+    async def boom(input: dict, ctx: ToolContext) -> ToolResult:
+        raise RuntimeError('boom')
+    ctx = ToolContext(db=None, school_id='S1', user_id='U1', role='teacher')
+    result = await reg.execute('boom', {}, ctx)
+    print(type(result).__name__, result.success, result.error)
+
+asyncio.run(main())
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from edu_cloud.ai.tool_access import ToolAccessResolver
+from edu_cloud.ai.registry import ToolSpec
+from unittest.mock import AsyncMock
+resolver = ToolAccessResolver()
+spec = ToolSpec(name='m', description='m', parameters={}, func=AsyncMock(), module_code='exam')
+print([s.name for s in resolver.resolve([spec], role='admin', enabled_modules=set(), capabilities={})])
+print([s.name for s in resolver.resolve([], role='admin', enabled_modules=None, capabilities={})])
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python -m pytest tests/test_ai/test_tool_context.py tests/test_ai/test_registry.py tests/test_ai/test_registry_v2.py tests/test_ai/test_tool_access.py tests/test_ai/test_tool_access_v2.py tests/test_ai/test_schemas.py tests/test_ai/test_schemas_v2.py tests/test_ai/test_agent_pipeline.py tests/test_ai/test_tools_registration.py -q' in C:/Users/Administrator/edu-cloud succeeded in 3.77s:
+[]
+[]
+ succeeded in 3.83s:
+[{'type': 'function', 'function': {'name': 't1', 'description': 'Tool 1', 'parameters': {'type': 'object', 'properties': {'x': {'type': 'int'}}}}}]
+ succeeded in 3.95s:
+ToolResult False boom
+Tool boom execution failed
+Traceback (most recent call last):
+  File "C:\Users\Administrator\edu-cloud\src\edu_cloud\ai\registry.py", line 112, in execute
+    result = await result
+             ^^^^^^^^^^^^
+  File "<stdin>", line 9, in boom
+RuntimeError: boom
+ succeeded in 11.25s:
+.......................................................                  [100%]
+55 passed in 0.91s
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show 982c288 -- tests/test_ai/test_agent_pipeline.py tests/test_ai/test_tools_registration.py' in C:/Users/Administrator/edu-cloud succeeded in 1.20s:
+commit 982c288c6df605479db260d567273ce4fc7be231
+Author: juanwan99 <juanwan99@users.noreply.github.com>
+Date:   Fri Apr 3 18:18:21 2026 +0800
+
+    fix: update remaining callers of ToolAccessResolver.resolve to sync
+    
+    Task 3 follow-up: test_agent_pipeline.py and test_tools_registration.py
+    still used await on the now-sync resolve(). All 160 test_ai tests pass.
+    
+    Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+diff --git a/tests/test_ai/test_agent_pipeline.py b/tests/test_ai/test_agent_pipeline.py
+index 804228a..bcb25f1 100644
+--- a/tests/test_ai/test_agent_pipeline.py
++++ b/tests/test_ai/test_agent_pipeline.py
+@@ -25,7 +25,7 @@ async def test_pipeline_end_to_end():
+ 
+     # Step 1: ToolAccessResolver (subject_teacher 看不到 admin_tool)
+     resolver = ToolAccessResolver()
+-    available = await resolver.resolve(
+codex
+**F001**
+- ID: F001
+- Severity: HIGH
+- Category: test-gap
+- Type: defect_fix
+- Before-behavior: `ToolRegistry.get_schemas()` 的“new-style 参数自动包装成 JSON Schema object”这一核心逻辑即使被删掉或写错，当前新增测试仍会通过。
+- After-behavior: 测试应明确断言 `parameters={"x": ...}` 会被序列化为 `{"type": "object", "properties": {...}}`，并能在错误实现下失败。
+- Evidence: [test_registry_v2.py:82](C:/Users/Administrator/edu-cloud/tests/test_ai/test_registry_v2.py#L82), [registry.py:86](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/registry.py#L86), [registry.py:89](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/registry.py#L89), [test_registry.py:17](C:/Users/Administrator/edu-cloud/tests/test_ai/test_registry.py#L17)
+- Impact: 这批实现把 “legacy full schema / new properties-only” 双格式兼容作为实际新增能力，但测试只覆盖了 legacy 路径；后续批次一旦开始大量注册 new-style 工具，函数 schema 退化为非法格式时，Batch 1 套件不会报警。
+- Repair hypothesis: 在 `test_registry_get_schemas_includes_new_fields` 中断言完整 `parameters` 结构，并补一例 legacy full schema 不被双层包装。
+
+**F002**
+- ID: F002
+- Severity: MED
+- Category: test-gap
+- Type: defect_fix
+- Before-behavior: plan 把 “工具函数抛异常时返回 error 结果、不向调用方抛出”列为 Task 2 边界条件，但当前自动化测试没有覆盖这条分支；移除 `execute()` 的异常捕获后，现有测试仍会全绿。
+- After-behavior: 应有回归测试验证 new-style 和 legacy 两条 `execute()` 路径在工具抛异常时都被转换为错误结果。
+- Evidence: [2026-04-03-edu-agent-plan.md:457](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L457), [registry.py:128](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/registry.py#L128), [test_registry_v2.py:47](C:/Users/Administrator/edu-cloud/tests/test_ai/test_registry_v2.py#L47), [test_registry.py:31](C:/Users/Administrator/edu-cloud/tests/test_ai/test_registry.py#L31)
+- Impact: 这会让 Batch 1 声称已经建立的错误隔离契约没有测试守卫；后续某个工具内部异常时，调用栈是否稳定只能靠人工保证。
+- Repair hypothesis: 分别注册一个抛异常的 new-style 工具和 legacy 工具，断言返回 `ToolResult(success=False, error=...)` / `{"error": ...}`。
+
+Phase 0 结论：Contract Pack 本身完整；INV-001/INV-002 的 mitigation 已落到实现和测试，INV-003/004/005、CE-003 仍按 plan 明确延期到后续 task，未见需要单独开的 process finding。  
+独立验证：我跑了相关 55 个测试，当前实现均通过；未直接复现行为缺陷，退回原因是 Task 2 的两条关键契约没有被测试真正守住。
+
+结论: FAIL
+tokens used
+98,084
+**F001**
+- ID: F001
+- Severity: HIGH
+- Category: test-gap
+- Type: defect_fix
+- Before-behavior: `ToolRegistry.get_schemas()` 的“new-style 参数自动包装成 JSON Schema object”这一核心逻辑即使被删掉或写错，当前新增测试仍会通过。
+- After-behavior: 测试应明确断言 `parameters={"x": ...}` 会被序列化为 `{"type": "object", "properties": {...}}`，并能在错误实现下失败。
+- Evidence: [test_registry_v2.py:82](C:/Users/Administrator/edu-cloud/tests/test_ai/test_registry_v2.py#L82), [registry.py:86](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/registry.py#L86), [registry.py:89](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/registry.py#L89), [test_registry.py:17](C:/Users/Administrator/edu-cloud/tests/test_ai/test_registry.py#L17)
+- Impact: 这批实现把 “legacy full schema / new properties-only” 双格式兼容作为实际新增能力，但测试只覆盖了 legacy 路径；后续批次一旦开始大量注册 new-style 工具，函数 schema 退化为非法格式时，Batch 1 套件不会报警。
+- Repair hypothesis: 在 `test_registry_get_schemas_includes_new_fields` 中断言完整 `parameters` 结构，并补一例 legacy full schema 不被双层包装。
+
+**F002**
+- ID: F002
+- Severity: MED
+- Category: test-gap
+- Type: defect_fix
+- Before-behavior: plan 把 “工具函数抛异常时返回 error 结果、不向调用方抛出”列为 Task 2 边界条件，但当前自动化测试没有覆盖这条分支；移除 `execute()` 的异常捕获后，现有测试仍会全绿。
+- After-behavior: 应有回归测试验证 new-style 和 legacy 两条 `execute()` 路径在工具抛异常时都被转换为错误结果。
+- Evidence: [2026-04-03-edu-agent-plan.md:457](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L457), [registry.py:128](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/registry.py#L128), [test_registry_v2.py:47](C:/Users/Administrator/edu-cloud/tests/test_ai/test_registry_v2.py#L47), [test_registry.py:31](C:/Users/Administrator/edu-cloud/tests/test_ai/test_registry.py#L31)
+- Impact: 这会让 Batch 1 声称已经建立的错误隔离契约没有测试守卫；后续某个工具内部异常时，调用栈是否稳定只能靠人工保证。
+- Repair hypothesis: 分别注册一个抛异常的 new-style 工具和 legacy 工具，断言返回 `ToolResult(success=False, error=...)` / `{"error": ...}`。
+
+Phase 0 结论：Contract Pack 本身完整；INV-001/INV-002 的 mitigation 已落到实现和测试，INV-003/004/005、CE-003 仍按 plan 明确延期到后续 task，未见需要单独开的 process finding。  
+独立验证：我跑了相关 55 个测试，当前实现均通过；未直接复现行为缺陷，退回原因是 Task 2 的两条关键契约没有被测试真正守住。
+
+结论: FAIL

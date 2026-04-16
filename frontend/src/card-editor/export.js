@@ -100,8 +100,8 @@ async function getCleanHTML() {
     const page = pages[pi];
     const clone = page.cloneNode(true);
 
-    // 移除交互层 + 编辑器占位元素
-    clone.querySelectorAll('.divider-handle, .divider-gap, .ctx-menu, .empty-col-slot, .sub-del-btn, .cut-del-btn, .add-sub-hint, .img-del-btn').forEach(el => el.remove());
+    // 移除交互层 + 编辑器占位元素 + 答案预览
+    clone.querySelectorAll('.divider-handle, .divider-gap, .ctx-menu, .empty-col-slot, .sub-del-btn, .cut-del-btn, .add-sub-hint, .img-del-btn, .blank-answer').forEach(el => el.remove());
     clone.querySelectorAll('.region-selected').forEach(el => el.classList.remove('region-selected'));
 
     // 移除编辑器 transform 缩放和 marginBottom
@@ -169,49 +169,32 @@ function downloadBlob(blob, filename) {
 }
 
 /**
- * 发布答题卡：导出 PDF + 提取 skeleton + 写入 Template 表
+ * 发布答题卡：一站式调用后端 /api/v1/card/publish
  * @param {string} subjectId - 科目 ID
+ * @param {string} examId - 考试 ID（F003 新增参数）
  * @param {string} filename - PDF 文件名
- * @returns {Promise<{pdf: Blob, skeleton: object}>}
+ * @returns {Promise<{pdf: Blob}>}
  */
-export async function publishCard(subjectId, filename = '答题卡.pdf') {
+export async function publishCard(subjectId, examId, filename = '答题卡.pdf') {
   const html = await getCleanHTML();
   const paperSize = getCurrentPaperSize();
   const headers = getAuthHeaders();
 
-  // Step 1: Export PDF
-  const pdfResp = await fetch('/api/v1/card/export/pdf', {
-    method: 'POST', headers,
-    body: JSON.stringify({ html, paper_size: paperSize }),
+  const resp = await fetch('/api/v1/card/publish', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      html,
+      subject_id: subjectId,
+      exam_id: examId,
+      paper_size: paperSize,
+    }),
   });
-  if (!pdfResp.ok) throw new Error(`PDF 导出失败: HTTP ${pdfResp.status}`);
-  const pdfBlob = await pdfResp.blob();
+  if (!resp.ok) throw new Error(`发布失败: HTTP ${resp.status}`);
 
-  // Step 2: Extract skeleton
-  const skelResp = await fetch('/api/v1/card/export/skeleton', {
-    method: 'POST', headers,
-    body: JSON.stringify({ html, paper_size: paperSize }),
-  });
-  if (!skelResp.ok) throw new Error(`Skeleton 提取失败: HTTP ${skelResp.status}`);
-  const skeleton = await skelResp.json();
-
-  // Step 3: Write Template (A side and B side)
-  const templateData = {
-    image_width: skeleton.image_width || 4960,
-    image_height: skeleton.image_height || 3508,
-    anchors: skeleton.anchors || [],
-    regions: skeleton.regions || [],
-  };
-  const tplResp = await fetch(`/api/v1/templates/${subjectId}/A`, {
-    method: 'PUT', headers,
-    body: JSON.stringify(templateData),
-  });
-  if (!tplResp.ok) throw new Error(`Template 写入失败: HTTP ${tplResp.status}`);
-
-  // Download PDF
+  const pdfBlob = await resp.blob();
   downloadBlob(pdfBlob, filename);
-
-  return { pdf: pdfBlob, skeleton };
+  return { pdf: pdfBlob };
 }
 
 // Expose getCleanHTML for external use

@@ -422,7 +422,7 @@ async def test_notification_pending_creates_approval_flow(client, teacher_header
 async def test_grade_leader_cannot_execute_notification(
     client, grade_leader_headers, db
 ):
-    """TG-4: grade_leader 有 GENERATE_NOTIFICATION 但无 SEND_NOTIFICATION → 403"""
+    """TG-4: grade_leader 现在有 SEND_NOTIFICATION（年级通知），可以执行通知。"""
     from edu_cloud.models.document import Document
 
     # grade_leader 自己创建通知文档（grade_leader 有 GENERATE_NOTIFICATION）
@@ -439,11 +439,10 @@ async def test_grade_leader_cannot_execute_notification(
     doc.status = "approved"
     await db.commit()
 
-    # grade_leader 尝试 executed → 403 (有 GENERATE_NOTIFICATION，无 SEND_NOTIFICATION)
+    # grade_leader 现在有 SEND_NOTIFICATION → 可以执行通知（年级组长发年级通知）
     exec_resp = await client.post(
         f"/api/v1/studio/documents/{doc_id}/transition",
         json={"status": "executed"},
         headers=grade_leader_headers,
     )
-    assert exec_resp.status_code == 403
-    assert "SEND_NOTIFICATION" in exec_resp.json()["detail"]
+    assert exec_resp.status_code == 200

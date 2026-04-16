@@ -1,21 +1,40 @@
+"""人工阅卷/校对服务层 — 读写统一 GradingResult 表。
+
+同一条 GradingResult 可能来自：
+  - AI 先评（status=ai_done, ai_score 有值）— 教师校对修改 final_score/source
+  - 纯人工（status=ai_pending 或 无记录）— 教师首次评分，直接落 confirmed
+"""
 import logging
+from datetime import datetime, timezone
+
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Subject, Question
+from edu_cloud.modules.grading.models import GradingResult
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.marking.models import MarkingScore
 
 logger = logging.getLogger(__name__)
 
 
 async def get_subjects_with_progress(
-    db: AsyncSession, exam_id: str, school_id: str,
+    db: AsyncSession,
+    exam_id: str,
+    school_id: str,
+    visible_codes: list[str] | None = None,
 ) -> list[dict]:
-    """获取考试下所有科目及题目的阅卷进度。"""
-    subjects = (await db.execute(
-        select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
-    )).scalars().all()
+    """获取考试下所有科目及题目的阅卷进度。
+
+    "已批改" = GradingResult.status == 'confirmed' 的答卷数。
+    """
+    stmt = select(Subject).where(
+        Subject.exam_id == exam_id, Subject.school_id == school_id
+    )
+    if visible_codes is not None:
+        if not visible_codes:
+            return []
+        stmt = stmt.where(Subject.code.in_(visible_codes))
+    subjects = (await db.execute(stmt)).scalars().all()
 
     result = []
     for subj in subjects:
@@ -32,8 +51,9 @@ async def get_subjects_with_progress(
             )).scalar() or 0
 
             graded = (await db.execute(
-                select(func.count()).select_from(MarkingScore).where(
-                    MarkingScore.question_id == q.id,
+                select(func.count()).select_from(GradingResult).where(
+                    GradingResult.question_id == q.id,
+                    GradingResult.status == "confirmed",
                 )
             )).scalar() or 0
 
@@ -49,15 +69,26 @@ async def get_subjects_with_progress(
 async def get_next_answer(
     db: AsyncSession, question_id: str, school_id: str,
 ) -> dict | None:
-    """获取该题下一个未批改的学生答卷。"""
-    graded_ids_q = select(MarkingScore.answer_id).where(
-        MarkingScore.question_id == question_id,
+    """获取该题下一份未 confirmed 的答卷 + AI 预测（若存在）。
+
+    返回结构：
+    {
+      answer_id, student_id, image_path,
+      position: {current, total},
+      ai: None 或 {score, confidence, feedback}  # 给教师做校对参考
+      max_score: float
+    }
+    """
+    # 查已 confirmed 的 answer_id 集
+    confirmed_ids_q = select(GradingResult.answer_id).where(
+        GradingResult.question_id == question_id,
+        GradingResult.status == "confirmed",
     )
 
     answer = (await db.execute(
         select(StudentAnswer).where(
             StudentAnswer.question_id == question_id,
-            StudentAnswer.id.not_in(graded_ids_q),
+            StudentAnswer.id.not_in(confirmed_ids_q),
         ).order_by(StudentAnswer.student_id)
         .limit(1)
     )).scalar_one_or_none()
@@ -72,16 +103,39 @@ async def get_next_answer(
     )).scalar() or 0
 
     graded = (await db.execute(
-        select(func.count()).select_from(MarkingScore).where(
-            MarkingScore.question_id == question_id,
+        select(func.count()).select_from(GradingResult).where(
+            GradingResult.question_id == question_id,
+            GradingResult.status == "confirmed",
         )
     )).scalar() or 0
+
+    # AI 预测（如果已有 ai_done 记录）
+    ai_row = (await db.execute(
+        select(GradingResult).where(GradingResult.answer_id == answer.id)
+    )).scalar_one_or_none()
+
+    ai_info = None
+    if ai_row and ai_row.ai_score is not None:
+        ai_info = {
+            "score": ai_row.ai_score,
+            "confidence": ai_row.ai_confidence,
+            "feedback": ai_row.ai_feedback,
+            "result_id": ai_row.id,
+        }
+
+    # 查题目满分
+    q = (await db.execute(
+        select(Question).where(Question.id == question_id)
+    )).scalar_one_or_none()
+    max_score = q.max_score if q else 0.0
 
     return {
         "answer_id": answer.id,
         "student_id": answer.student_id,
         "image_path": answer.image_path,
         "position": {"current": graded + 1, "total": total},
+        "ai": ai_info,
+        "max_score": max_score,
     }
 
 
@@ -94,25 +148,65 @@ async def submit_score(
     score: float,
     max_score: float,
     comment: str | None = None,
-) -> MarkingScore:
-    """保存教师评分。"""
-    ms = MarkingScore(
+) -> GradingResult:
+    """落盘教师评分到 GradingResult（upsert 语义）。
+
+    - 若已有 GradingResult（AI 预评）：改 final_score+status+source+reviewer_id
+    - 若无：新建 source='manual', status='confirmed'
+    - 若已 confirmed：抛 ValueError（调用方转 409）
+    """
+    existing = (await db.execute(
+        select(GradingResult).where(GradingResult.answer_id == answer_id)
+    )).scalar_one_or_none()
+
+    now = datetime.now(timezone.utc)
+
+    if existing:
+        if existing.status == "confirmed":
+            raise ValueError("该答卷已评分")
+        # AI 预评 → 教师校对：判断 approve 还是 override
+        if existing.ai_score is not None and abs((existing.ai_score or 0) - score) < 1e-6:
+            existing.source = "ai"
+        else:
+            existing.source = "ai_override" if existing.ai_score is not None else "manual"
+        existing.final_score = score
+        existing.status = "confirmed"
+        existing.reviewer_id = marker_id
+        existing.reviewed_at = now
+        existing.review_comment = comment
+        existing.version = existing.version + 1
+        await db.commit()
+        await db.refresh(existing)
+        return existing
+
+    gr = GradingResult(
         answer_id=answer_id,
         question_id=question_id,
-        marker_id=marker_id,
         school_id=school_id,
-        score=score,
+        final_score=score,
         max_score=max_score,
-        comment=comment,
+        status="confirmed",
+        source="manual",
+        reviewer_id=marker_id,
+        reviewed_at=now,
+        review_comment=comment,
     )
-    db.add(ms)
+    db.add(gr)
     await db.commit()
-    return ms
+    await db.refresh(gr)
+    return gr
 
 
-async def get_progress(db: AsyncSession, exam_id: str, school_id: str) -> dict:
+async def get_progress(
+    db: AsyncSession,
+    exam_id: str,
+    school_id: str,
+    visible_codes: list[str] | None = None,
+) -> dict:
     """获取考试的整体阅卷进度。"""
-    subjects_data = await get_subjects_with_progress(db, exam_id, school_id)
+    subjects_data = await get_subjects_with_progress(
+        db, exam_id, school_id, visible_codes=visible_codes,
+    )
 
     overall_total = 0
     overall_graded = 0

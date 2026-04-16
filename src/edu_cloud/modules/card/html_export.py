@@ -1,11 +1,69 @@
-"""HTML 答题卡 → PDF 导出 + skeleton JSON 提取（playwright）。"""
+"""HTML 答题卡 → PDF 导出 + skeleton JSON 提取（playwright sync API + 线程池）。
+
+Windows + uvicorn --reload 会把事件循环切为 SelectorEventLoop（不支持 subprocess）。
+解决方案：使用 playwright sync API 在线程池中执行，启动前确保 ProactorEventLoopPolicy。
+浏览器实例在进程生命周期内复用，避免每次请求冷启动 Chromium。
+"""
 from __future__ import annotations
 
+import asyncio
 import logging
+import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
-from playwright.async_api import async_playwright
+from playwright.sync_api import sync_playwright, Playwright, Browser
 
 logger = logging.getLogger(__name__)
+
+# 进程级浏览器单例（线程安全）
+_playwright: Playwright | None = None
+_browser: Browser | None = None
+_lock = threading.Lock()
+_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="pw")
+
+
+def _get_browser() -> Browser:
+    """获取或创建共享浏览器实例（同步，线程安全）。"""
+    global _playwright, _browser
+    with _lock:
+        if _browser and _browser.is_connected():
+            return _browser
+        if _playwright is None:
+            # uvicorn --reload 在 Windows 上设置 WindowsSelectorEventLoopPolicy，
+            # playwright 内部需要 ProactorEventLoop 来创建子进程。
+            if sys.platform == "win32":
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                asyncio.set_event_loop(asyncio.ProactorEventLoop())
+            _playwright = sync_playwright().start()
+        _browser = _playwright.chromium.launch()
+        logger.info("playwright browser launched (shared instance)")
+        return _browser
+
+
+def _html_to_pdf_sync(html_content: str, paper_size: str) -> bytes:
+    """同步版本，在线程池中执行。"""
+    if paper_size == "A3":
+        width_px, height_px = 1587, 1123
+    else:
+        width_px, height_px = 794, 1123
+
+    browser = _get_browser()
+    page = browser.new_page(viewport={"width": width_px, "height": height_px})
+    try:
+        page.set_content(html_content, wait_until="networkidle")
+        page.wait_for_timeout(300)
+        pdf_bytes = page.pdf(
+            width=f"{420 if paper_size == 'A3' else 210}mm",
+            height="297mm",
+            print_background=True,
+            margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
+        )
+        logger.info("html_to_pdf: paper=%s, viewport=%dx%d, pdf=%d bytes",
+                     paper_size, width_px, height_px, len(pdf_bytes))
+        return pdf_bytes
+    finally:
+        page.close()
 
 
 async def html_to_pdf(html_content: str, paper_size: str = "A3") -> bytes:
@@ -13,37 +71,19 @@ async def html_to_pdf(html_content: str, paper_size: str = "A3") -> bytes:
 
     A3 横向 = 420mm × 297mm = 1587 × 1123 px (96dpi)
     """
-    # A3 横向的像素尺寸（96dpi）
-    if paper_size == "A3":
-        width_px, height_px = 1587, 1123
-    else:
-        width_px, height_px = 794, 1123  # A4 纵向
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page(viewport={"width": width_px, "height": height_px})
-        await page.set_content(html_content, wait_until="networkidle")
-        # 等待字体和布局稳定
-        await page.wait_for_timeout(500)
-        pdf_bytes = await page.pdf(
-            width=f"{420 if paper_size == 'A3' else 210}mm",
-            height=f"{297 if paper_size == 'A3' else 297}mm",
-            print_background=True,
-            margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
-        )
-        await browser.close()
-        logger.info("html_to_pdf: paper=%s, viewport=%dx%d, pdf=%d bytes",
-                     paper_size, width_px, height_px, len(pdf_bytes))
-        return pdf_bytes
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        _executor, _html_to_pdf_sync, html_content, paper_size
+    )
 
 
-async def extract_skeleton(html_content: str) -> dict:
-    """从 HTML DOM 提取各区域坐标，生成 skeleton JSON。"""
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page()
-        await page.set_content(html_content, wait_until="networkidle")
-        skeleton = await page.evaluate(
+def _extract_skeleton_sync(html_content: str) -> dict:
+    """同步版本，在线程池中执行。"""
+    browser = _get_browser()
+    page = browser.new_page()
+    try:
+        page.set_content(html_content, wait_until="networkidle")
+        skeleton = page.evaluate(
             """() => {
             const regions = [];
             document.querySelectorAll('[data-region-id]').forEach(el => {
@@ -68,7 +108,6 @@ async def extract_skeleton(html_content: str) -> dict:
             };
         }"""
         )
-        await browser.close()
         logger.info(
             "extract_skeleton: regions=%d, page=%dx%d",
             len(skeleton.get("regions", [])),
@@ -76,3 +115,13 @@ async def extract_skeleton(html_content: str) -> dict:
             skeleton.get("pageHeight", 0),
         )
         return skeleton
+    finally:
+        page.close()
+
+
+async def extract_skeleton(html_content: str) -> dict:
+    """从 HTML DOM 提取各区域坐标，生成 skeleton JSON。"""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        _executor, _extract_skeleton_sync, html_content
+    )

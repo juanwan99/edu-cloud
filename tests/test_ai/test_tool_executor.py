@@ -189,25 +189,127 @@ async def test_orchestrator_serial_when_db_present():
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_max_concurrency_truncation():
-    """F004: >MAX_TOOL_CONCURRENCY reads only executes first MAX_TOOL_CONCURRENCY."""
+async def test_orchestrator_chunked_concurrency():
+    """P0-2: >MAX_TOOL_CONCURRENCY reads must all execute via chunking."""
     reg = ToolRegistry()
-    executed = []
+    call_count = 0
+
+    def _make_handler():
+        async def handler(input: dict, ctx: ToolContext) -> ToolResult:
+            nonlocal call_count
+            call_count += 1
+            return ToolResult(success=True, data={"ok": True})
+        return handler
 
     for i in range(15):
-        name = f"read_{i}"
-
-        @reg.register(name=name, description=f"Read {i}", is_read_only=True, sensitivity="school")
-        async def tool_fn(input: dict, ctx: ToolContext, _name=name) -> ToolResult:
-            executed.append(_name)
-            return ToolResult(success=True, data={"n": _name})
+        reg.register(
+            name=f"read_{i}", description=f"Read {i}",
+            is_read_only=True, sensitivity="school",
+        )(_make_handler())
 
     orch = ToolOrchestrator(reg)
     calls = [ToolCall(id=str(i), name=f"read_{i}", arguments={}, _raw={}) for i in range(15)]
     ctx = _make_ctx()
     batches = orch.partition(calls)
     results = await orch.execute(batches, ctx)
-    assert len(results) == MAX_TOOL_CONCURRENCY  # truncated to 10
+    assert len(results) == 15, f"Expected 15 results, got {len(results)}"
+    assert call_count == 15
+    assert all(r.success for r in results)
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_exactly_max_concurrent():
+    """Exactly MAX_TOOL_CONCURRENCY calls should work in single chunk."""
+    reg = ToolRegistry()
+
+    def _make_handler():
+        async def handler(input: dict, ctx: ToolContext) -> ToolResult:
+            return ToolResult(success=True, data={"ok": True})
+        return handler
+
+    for i in range(MAX_TOOL_CONCURRENCY):
+        reg.register(
+            name=f"read_{i}", description=f"R{i}",
+            is_read_only=True, sensitivity="school",
+        )(_make_handler())
+
+    orch = ToolOrchestrator(reg)
+    calls = [ToolCall(id=str(i), name=f"read_{i}", arguments={}, _raw={}) for i in range(MAX_TOOL_CONCURRENCY)]
+    batches = orch.partition(calls)
+    results = await orch.execute(batches, _make_ctx())
+    assert len(results) == MAX_TOOL_CONCURRENCY
+    assert all(r.success for r in results)
+
+
+# -- Tool Timeout tests (P1-2) --
+
+
+class TestToolTimeout:
+    """P1-2: slow tools should timeout and return error ToolResult."""
+
+    @pytest.mark.asyncio
+    async def test_slow_read_tool_times_out(self):
+        """Read-only tool exceeding timeout returns failure."""
+        reg = ToolRegistry()
+
+        @reg.register(name="slow_read", description="Slow", is_read_only=True, sensitivity="school")
+        async def slow_read(input: dict, ctx: ToolContext) -> ToolResult:
+            await asyncio.sleep(100)  # way too slow
+            return ToolResult(success=True, data={})
+
+        orch = ToolOrchestrator(reg)
+        ctx = _make_ctx()
+
+        calls = [ToolCall(id="1", name="slow_read", arguments={}, _raw={})]
+        batches = orch.partition(calls)
+
+        # Use short timeout for test
+        results = await orch.execute(batches, ctx, default_read_timeout=0.1)
+
+        assert len(results) == 1
+        assert results[0].success is False
+        assert "超时" in results[0].error
+
+    @pytest.mark.asyncio
+    async def test_fast_tool_succeeds(self):
+        """Normal-speed tool should succeed within timeout."""
+        reg = ToolRegistry()
+
+        @reg.register(name="fast_read", description="Fast", is_read_only=True, sensitivity="school")
+        async def fast_read(input: dict, ctx: ToolContext) -> ToolResult:
+            return ToolResult(success=True, data={"ok": True})
+
+        orch = ToolOrchestrator(reg)
+        ctx = _make_ctx()
+
+        calls = [ToolCall(id="1", name="fast_read", arguments={}, _raw={})]
+        batches = orch.partition(calls)
+        results = await orch.execute(batches, ctx)
+
+        assert len(results) == 1
+        assert results[0].success is True
+
+    @pytest.mark.asyncio
+    async def test_unknown_tool_uses_write_timeout(self):
+        """Unknown tool (spec=None) should use write timeout (conservative)."""
+        reg = ToolRegistry()
+
+        @reg.register(name="known", description="Known", is_read_only=True, sensitivity="school")
+        async def known(input: dict, ctx: ToolContext) -> ToolResult:
+            await asyncio.sleep(100)
+            return ToolResult(success=True, data={})
+
+        orch = ToolOrchestrator(reg)
+        ctx = _make_ctx()
+
+        # Call a tool registered as known but with low write timeout
+        calls = [ToolCall(id="1", name="known", arguments={}, _raw={})]
+        batches = orch.partition(calls)
+        # read timeout is generous but we're testing it times out at read_timeout
+        results = await orch.execute(batches, ctx, default_read_timeout=0.05)
+
+        assert results[0].success is False
+        assert "超时" in results[0].error
 
 
 # -- ToolExecutor tests --

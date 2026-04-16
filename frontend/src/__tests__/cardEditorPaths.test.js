@@ -79,8 +79,8 @@ describe('card-editor/export.js API paths', () => {
     expect(exportPaths.length).toBeGreaterThanOrEqual(2)  // pdf + skeleton
   })
 
-  it('references /api/v1/templates/ endpoint', () => {
-    const tplPaths = paths.filter(p => p.includes('/api/v1/templates/'))
-    expect(tplPaths.length).toBeGreaterThanOrEqual(1)
+  it('references /api/v1/card/publish endpoint (F003 rewrite)', () => {
+    const publishPaths = paths.filter(p => p.includes('/api/v1/card/publish'))
+    expect(publishPaths.length).toBeGreaterThanOrEqual(1)
   })
 })

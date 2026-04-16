@@ -26,7 +26,7 @@ async def scan_setup(client, db, tmp_path):
     subject = Subject(exam_id=exam.id, name="Math", code="math", school_id=school.id)
     db.add(subject)
     await db.commit()
-    question = Question(subject_id=subject.id, name="Q1", question_type="subjective", max_score=10, school_id=school.id)
+    question = Question(subject_id=subject.id, name="Q1", question_type="essay", max_score=10, school_id=school.id)
     db.add(question)
     await db.commit()
 

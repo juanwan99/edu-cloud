@@ -5,7 +5,7 @@ from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.exam import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.grading.models import GradingTask, AIGradingResult
+from edu_cloud.modules.grading.models import GradingTask, GradingResult
 from edu_cloud.shared.auth import create_access_token
 
 
@@ -31,7 +31,7 @@ async def subj_setup(client, db):
     db.add(subject)
     await db.commit()
 
-    q = Question(subject_id=subject.id, name="Q1", question_type="subjective", max_score=10.0, school_id=school.id)
+    q = Question(subject_id=subject.id, name="Q1", question_type="essay", max_score=10.0, school_id=school.id)
     db.add(q)
     await db.commit()
 
@@ -49,10 +49,10 @@ async def subj_setup(client, db):
         )
         db.add(a)
         await db.commit()
-        r = AIGradingResult(
-            task_id=task.id, answer_id=a.id, question_id=q.id,
-            school_id=school.id, score=score, max_score=10.0,
-            feedback="f", confidence=0.9, review_status="pending",
+        r = GradingResult(
+            ai_task_id=task.id, answer_id=a.id, question_id=q.id,
+            school_id=school.id, ai_score=score, final_score=score, max_score=10.0,
+            ai_feedback="f", ai_confidence=0.9, status="ai_done",
         )
         db.add(r)
         await db.commit()

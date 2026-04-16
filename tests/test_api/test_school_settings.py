@@ -27,7 +27,7 @@ async def test_get_modules(client, admin_headers, seed_school):
     resp = await client.get(f"/api/v1/schools/{school.id}/modules", headers=admin_headers)
     assert resp.status_code == 200
     modules = resp.json()
-    assert len(modules) == 8  # All MODULE_CODES
+    assert len(modules) == 9  # All MODULE_CODES
     codes = {m["code"] for m in modules}
     assert "exam" in codes
     assert "homework" in codes
@@ -98,8 +98,9 @@ async def test_principal_can_access_school_settings(client, db):
 
 
 @pytest.mark.asyncio
-async def test_academic_director_can_access_school_modules(client, db):
-    """academic_director has MANAGE_SCHOOL_SETTINGS and can read school modules."""
+async def test_academic_director_cannot_access_school_config(client, db):
+    """academic_director does NOT have MANAGE_SCHOOL_CONFIG (modules/settings belong to principal).
+    academic_director has MANAGE_SCHEDULING (assignments/selections) instead."""
     from edu_cloud.models.user import User
     from edu_cloud.models.user_role import UserRole
     from edu_cloud.models.school import School
@@ -117,8 +118,9 @@ async def test_academic_director_can_access_school_modules(client, db):
     login = await client.post("/api/v1/auth/login", json={"username": "director_settings", "password": "pass123"})
     assert login.status_code == 200
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    # modules endpoint requires MANAGE_SCHOOL_CONFIG → 403 for academic_director
     resp = await client.get(f"/api/v1/schools/{school.id}/modules", headers=headers)
-    assert resp.status_code == 200
+    assert resp.status_code == 403
 
 
 # ── Cross-school scope guard (F-01 fix) ──

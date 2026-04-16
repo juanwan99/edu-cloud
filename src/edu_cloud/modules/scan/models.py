@@ -32,4 +32,6 @@ class StudentAnswer(Base, IdMixin, TimestampMixin):
     is_anomaly: Mapped[bool] = mapped_column(default=False)
     is_absent: Mapped[bool] = mapped_column(default=False)
     fill_ratios: Mapped[dict | None] = mapped_column(JSON, default=None)
+    # Phase 1-C: paper-seg 上传时携带题型，供 AI 阅卷选 prompt
+    question_type: Mapped[str | None] = mapped_column(String(20), default=None)
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))

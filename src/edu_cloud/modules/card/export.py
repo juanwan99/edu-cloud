@@ -43,17 +43,19 @@ def skeleton_to_paperseg_json(
 
     # 选择题组 → choice_group
     for g in skeleton.get("objective_groups", []):
+        is_multi = g.get("multi_select", False)
         region = {
             "id": g["group_id"],
             "name": g["group_id"],
             "type": "choice_group",
+            "question_type": "multi_choice" if is_multi else "choice",
             "rect": dict(g["rect"]),
             "page": 0,
             "score": 0,
             "rows": g["count"],
             "cols": g["options"],
             "labels": g.get("symbols", "A,B,C,D").split(","),
-            "multi_select": g.get("multi_select", False),
+            "multi_select": is_multi,
         }
         if question_map:
             # 为每道选择题生成独立的 question_id 映射列表
@@ -86,10 +88,14 @@ def skeleton_to_paperseg_json(
     # 主观题 → subjective
     for slot in layout.get("slots", []):
         for sr in slot.get("sub_regions", []):
+            sub_qtype = sr.get("question_type")
+            if sub_qtype not in ("fill_blank", "essay"):
+                sub_qtype = "fill_blank" if sr.get("type") == "fill_blank" else "essay"
             region = {
                 "id": sr["id"],
                 "name": sr["name"],
                 "type": "subjective",
+                "question_type": sub_qtype,
                 "rect": dict(sr["rect"]),
                 "page": slot.get("inpage", 0),
                 "score": sr.get("score", 0),

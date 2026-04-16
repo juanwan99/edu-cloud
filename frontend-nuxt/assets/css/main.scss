@@ -1,0 +1,111 @@
+:root {
+  --el-color-primary: #409eff;
+  --el-color-primary-light-3: #79bbff;
+  --el-color-primary-light-5: #a0cfff;
+  --el-color-primary-light-7: #c6e2ff;
+  --el-color-primary-light-9: #ecf5ff;
+  --el-color-primary-dark-2: #337ecc;
+
+  --hfs-primary: #409eff;
+  --hfs-accent: #ff9500;
+  --hfs-success: #67c23a;
+  --hfs-warning: #e6a23c;
+  --hfs-danger: #f56c6c;
+  --hfs-info: #909399;
+
+  --hfs-header-height: 50px;
+  --hfs-subnav-height: 38px;
+  --hfs-bg: #eef1f6;
+  --hfs-card-radius: 6px;
+  --hfs-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans SC', sans-serif;
+  background: var(--hfs-bg);
+  color: #303133;
+}
+
+.page-card {
+  background: #fff;
+  border-radius: var(--hfs-card-radius);
+  box-shadow: var(--hfs-card-shadow);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+  }
+}
+
+.stat-cards {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+
+  .stat-card {
+    flex: 1;
+    padding: 16px;
+    border-radius: var(--hfs-card-radius);
+    text-align: center;
+
+    .value {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .label {
+      font-size: 12px;
+      color: var(--hfs-info);
+      margin-top: 4px;
+    }
+  }
+}
+
+.page-stub {
+  padding: 20px;
+
+  h2 {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  .breadcrumb {
+    color: var(--hfs-info);
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  .placeholder {
+    background: #f5f7fa;
+    border: 2px dashed #dcdfe6;
+    border-radius: var(--hfs-card-radius);
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--hfs-info);
+    font-size: 14px;
+  }
+}

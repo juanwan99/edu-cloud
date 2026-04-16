@@ -1,5 +1,10 @@
 """作业 Agent 工具测试。"""
 import pytest
+from edu_cloud.ai.tool_context import ToolContext
+
+
+def _ctx(db, school_id, user_id="u1"):
+    return ToolContext(db=db, school_id=school_id, user_id=user_id, role="admin")
 
 
 @pytest.mark.asyncio
@@ -43,17 +48,18 @@ async def test_list_homework_tasks_tool(db):
     db.add(school)
     await db.flush()
 
-    result = await list_homework_tasks(_db=db, _school_id=school.id)
-    assert "tasks" in result
-    assert len(result["tasks"]) == 0
+    result = await list_homework_tasks({}, _ctx(db, school.id))
+    assert result.success
+    assert len(result.data["tasks"]) == 0
 
 
 @pytest.mark.asyncio
 async def test_recommend_remedial_stub():
     """recommend_remedial 返回 stub 消息。"""
     from edu_cloud.ai.tools.homework import recommend_remedial
-    result = await recommend_remedial(exam_id="any", _db=None, _school_id="any")
-    assert "开发中" in result.get("message", "") or "developing" in str(result).lower()
+    result = await recommend_remedial({"exam_id": "any"}, _ctx(None, "any"))
+    assert result.success
+    assert "开发中" in result.data.get("message", "")
 
 
 @pytest.mark.asyncio
@@ -78,9 +84,8 @@ async def test_assign_homework_tool(db):
     await db.flush()
 
     result = await assign_homework(
-        title="Agent布置的作业", subject_code="SX",
-        class_id=cls.id, deadline="",
-        _db=db, _school_id=school.id, _user_id=teacher.id,
+        {"title": "Agent布置的作业", "subject_code": "SX", "class_id": cls.id},
+        _ctx(db, school.id, user_id=teacher.id),
     )
-    assert "task_id" in result
-    assert result["status"] == "active"
+    assert result.success
+    assert result.data["status"] == "active"

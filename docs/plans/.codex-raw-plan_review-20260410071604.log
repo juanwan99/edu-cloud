@@ -1,0 +1,883 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d747e-e3d2-7231-a543-87c26242f820
+--------
+user
+You are a senior architect reviewing an implementation plan.
+
+Read these files:
+1. docs/plans/2026-04-09-knowledge-graph-model-plan.md — the implementation plan
+2. docs/plans/2026-04-09-knowledge-graph-model-design.md — the design document
+3. CLAUDE.md — project rules (if exists)
+
+Perform plan review per checklist:
+A. 自洽性: Task 依赖完整、接口契约一致、无逻辑矛盾、破坏性操作有回滚
+B. 代码库对齐: 引用路径真实、不违反现有 API、不命名冲突、不重复功能
+C. 架构适配（按 architecture-rules.md §审查清单速查）: 职责单一、依赖方向正确（无反向/循环）、接口隔离（无内部数据结构直连）、配置集中、单功能变更影响 ≤3 文件
+D. 完整性: 每个行为变更 Task 须有测试契约段（5 字段：入口/反例/边界/回归/命令）和边界条件段（至少 3 个）、迁移考虑、UX 规格（适用时）、批次边界合理
+D+. 测试契约质量（test-gap 硬判定）:
+   - 逻辑镜像测试（测试只是实现的对称复述，不能在错误实现下失败）→ test-gap HIGH
+   - 无入口级验证（测试只调内部函数，不经过用户可触达的入口）→ test-gap MED
+   - 无反例说明（测试契约未写明"错误实现会怎样失败"）→ test-gap MED
+E. 风险评估: Tier 分级有据、高风险区域标记
+F. Contract Pack 完整性:
+   - plan 中是否包含结构化 Contract Pack 段落（invariants / counter_examples / risk_modules / test_debt）
+   - invariants ≥3 条，每条有 verification 映射（existing_test 须有 test_ref）
+   - counter_examples ≥2 个，每个标注 tests_that_still_pass 和 mitigation
+   - risk_modules 覆盖所有 public API 变更和治理基础设施变更
+   - test_debt 有具体理由和 deadline（不接受空理由或无期限）
+   - 不接受不可验证的 prose（"系统应正确运行"→ FAIL）
+   - 参考: ~/.claude/config/contract-pack-schema.md
+
+**审查规范（必读）：** 先读以下文件中的对应段落，严格按其定义执行：
+- Finding 分类: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-classification -->
+- Finding Type: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-type -->
+- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: pass-fail -->
+- test-gap 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: test-gap-criteria -->
+- 行为变更守卫: ~/.claude/rules-t3/review-templates.md <!-- anchor: behavior-change-guard -->
+- Finding 转换规则: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-transition -->
+
+Output structured findings with: ID, Severity, Category, Type, Before-behavior, After-behavior, Evidence, Impact, Repair hypothesis (optional, non-authoritative).
+Repair hypothesis is advisory only and has no execution authority.
+If the finding touches invariants, risk_modules, or red-flag patterns
+(state machine / fallback / selection strategy / threshold / lifecycle / evaluation cadence),
+do not prescribe a concrete code edit. Instead, describe:
+1. the likely repair direction
+2. forbidden fix patterns to avoid
+3. "requires independent fix design + Semantic Regression Gate"
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+这次我按审查规范先读取规则定义，再对计划、设计和项目约束做逐项比对。先确认相关文档路径与审查模板中的分类标准，避免后面用错 Finding 判定口径。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg --files . | rg "''^(docs/plans/2026-04-09-knowledge-graph-model-(plan|design)'"\\.md|CLAUDE\\.md|.*architecture-rules\\.md)"'$"' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Path $HOME/.claude/rules-t3/review-templates.md,$HOME/.claude/config/contract-pack-schema.md | Select-Object FullName,Length,LastWriteTime' in C:/Users/Administrator/edu-cloud succeeded in 920ms:
+
+FullName                                                      Length LastWriteTime    
+--------                                                      ------ -------------    
+C:\Users\Administrator\.claude\rules-t3\review-templates.md    18628 2026/4/3 15:56:33
+C:\Users\Administrator\.claude\config\contract-pack-schema.md   4098 2026/4/3 17:09:51
+
+
+ exited 1 in 1.94s:
+
+codex
+规则文件已找到。仓库内目标文档的定位命令失败了一次，我改用更稳妥的方式直接列出并读取目标文件，同时补读 `review-templates` 和 `contract-pack-schema` 的相关段落。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Path . -Recurse -File | Where-Object { $_.FullName -match '"'docs\\\\plans\\\\2026-04-09-knowledge-graph-model-(plan|design)\\.md"'$'"' -or "'$_.Name -eq '"'CLAUDE.md' -or "'$_.Name -eq '"'architecture-rules.md' } | Select-Object FullName" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Select-String -Path $HOME/.claude/rules-t3/review-templates.md -Pattern '"'anchor: finding-classification','anchor: finding-type','anchor: pass-fail','anchor: test-gap-criteria','anchor: behavior-change-guard','anchor: finding-transition' -Context 0,40" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content $HOME/.claude/config/contract-pack-schema.md' in C:/Users/Administrator/edu-cloud succeeded in 1.16s:
+
+> C:\Users\Administrator\.claude\rules-t3\review-templates.md:142:<!-- anchor: finding-classification -->
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:143:## 审查报告: Task {N}-{M}
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:144:结论: PASS / FAIL
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:145:
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:146:### 第一段：测试充分性（Test Adequacy）
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:147:先审测试，再审实现。没有有效测试 → 不进入深层代码审查，直接退回。
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:148:- plan 中声明的边界条件是否都有对应测试
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:149:- 是否存在"只测 happy path"的问题
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:150:- bug fix 是否有回归测试
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:151:- 接口变更是否有 contract/compatibility 测试
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:152:- 测试是否真的会在错误实现下失败（非 tautology）
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:153:
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:154:### 第二段：行为正确性（Behavioral Correctness）
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:155:- 变更理解：GPT 用自己的话描述变更内容和意图
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:156:- Executor 自审抽检：从自审表随机抽 2-3 项独立验证。不实 → 直接 FAIL
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:157:- 对抗性审查：边界输入构造 / 异常路径追踪 / 假阴性检测
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:158:
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:159:### 第三段：未测试风险（Non-tested Risks）
+  C:\Users\Administrator\.claude\rules-t3\review-templates.md:160:- 未被测试覆盖的副作用：状态、并发、异常、权限、幂等性、时区、空值、重复提交
+ succeeded in 1.40s:
+# Contract Pack Schema
+
+> 鍗曚竴鐪熸簮銆侾lan Review prompt 寮曠敤姝ゆ枃浠躲€?
+
+## 鏍煎紡瑙勫垯锛團-008 淇锛?
+
+- **鏍归敭寮哄埗**: Contract Pack 蹇呴』浠?`contract_pack:` 涓?YAML 鏍归敭
+- **verification 鏋氫妇**: 鍙厑璁?`existing_test` / `pending_test` / `uncovered`锛屽娉ㄧ敤 `note` 瀛楁
+- **绌?test_debt**: `test_debt: []` 鏄悎娉曠殑锛岃〃绀?褰撳墠鏃犲欢鏈熼」"锛涚己灏?`test_debt` 閿笉鍚堟硶
+
+## 蹇呰娈佃惤锛圥lan Review 妫€鏌ュ畬鏁存€э級
+
+### invariants锛堚墺3 鏉★級
+
+| 瀛楁 | 蹇呭～ | 璇存槑 |
+|------|------|------|
+| id | 鉁?| INV-NNN |
+| statement | 鉁?| 涓嶅彲楠岃瘉鐨?prose 涓嶆帴鍙楋紙濡?绯荤粺搴旀纭繍琛?锛?|
+| verification | 鉁?| existing_test / pending_test / uncovered |
+| test_ref | 浠?existing_test | test_file:test_function |
+ succeeded in 11.49s:
+
+FullName                                                                              
+--------                                                                              
+C:\Users\Administrator\edu-cloud\CLAUDE.md                                            
+C:\Users\Administrator\edu-cloud\docs\plans\2026-04-09-knowledge-graph-model-design.md
+C:\Users\Administrator\edu-cloud\docs\plans\2026-04-09-knowledge-graph-model-plan.md  
+
+
+codex
+接下来读取计划正文、设计文档和项目规则，并单独定位 `architecture-rules.md`。如果仓库里没有这份文件，我会把它作为显式缺口记入审查结果，而不是假设规则内容。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content '"'docs/plans/2026-04-09-knowledge-graph-model-design.md' | ForEach-Object { '{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content '"'docs/plans/2026-04-09-knowledge-graph-model-plan.md' | ForEach-Object { '{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "if (Test-Path 'CLAUDE.md') { "'$i=1; Get-Content '"'CLAUDE.md' | ForEach-Object { '{0,4}: {1}' -f "'$i, $_; $i++ } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Path . -Recurse -File -Filter 'architecture-rules.md' | Select-Object -ExpandProperty FullName" in C:/Users/Administrator/edu-cloud succeeded in 1.00s:
+   1: # 鐭ヨ瘑鍥捐氨澶氬眰鏁欏妯″瀷 Phase 1銆屽彲淇￠鏋躲€嶈璁?
+   2: > 鍒涘缓锛?026-04-09 21:12:10
+   3: > 杈╄鍩虹锛歚docs/plans/2026-04-09-knowledge-graph-viz-debate.md`锛? 杞?Claude脳GPT + 澶栭儴璋冪爺锛?> 浜ゆ帴鍗★細`docs/plans/2026-04-09-knowledge-graph-model-handoff.md`
+   4: > 鐘舵€侊細璁捐纭锛屽緟璁″垝
+   5: 
+   6: ## 搂0 鑳屾櫙涓庡姩鏈?
+   7: 褰撳墠鐭ヨ瘑鍥捐氨锛?08 L1 姒傚康 + 335 鍏崇郴锛夊叏閮ㄤ负 AI 鐢熸垚鑽夌锛屾暀甯堟棤娉曞鏍稿叧绯昏川閲忥紝娌℃湁缁撴瀯鎬ч棶棰樻娴嬶紝鎵€鏈夎鑹茬湅鍒扮殑鍐呭鐩稿悓锛堟棤鍙戝竷杩囨护锛夈€侰laude脳GPT 杈╄鏀舵暃鐨?5 闃舵璺嚎鍥句腑锛孭hase 1銆屽彲淇￠鏋躲€嶈В鍐虫暟鎹彲淇″害闂锛屾槸鍚庣画鎵€鏈?Phase 鐨勫墠鎻愩€?
+   8: **鏍稿績鍛介锛?* 鎶婄煡璇嗗浘璋变粠"AI 鐢熸垚鐨勮崏绋?鍗囩骇涓?鏁欏笀鍙俊璧栫殑缁撴瀯"銆侾hase 1 涓嶆敼鍙鍖栵紙Phase 2锛夛紝鍙仛鏁版嵁璐ㄩ噺鍜屽鏌ュ熀纭€璁炬柦銆?
+   9: ## 搂1 浜や粯鐗╀笌鑼冨洿
+  10: 
+  11: ### 浜や粯鐗?
+  12: | # | 浜や粯鐗?| 浣滅敤 |
+  13: |---|--------|------|
+  14: | 1 | Graph API v2 鍝嶅簲澧炲己 | 琛ラ綈 description/confidence + 鏂板 hard_in_out_count/external_hard_refs 璁＄畻瀛楁 |
+  15: | 2 | 鍏崇郴瀹℃煡宸ヤ綔鍙?v1 | 鏁欏笀鎸夋蹇靛鏍稿叧绯伙紙纭/椹冲洖/缂栬緫锛夛紝Phase 2 鍙鍖栫殑鏁版嵁鍓嶆彁 |
+  16: | 3 | 璐ㄩ噺宸℃ API | 妫€娴嬪绔嬬偣/寮辫繛閫氬垎閲?浣庣疆淇″害/璺ㄦā鍧楃‖鍓嶇疆寮傚父锛岀粰瀹℃煡鎻愪緵浼樺厛绾?|
+  17: | 4 | 鍙戝竷瑙勫垯 v1 | 瑙掕壊鎰熺煡鐨勫彲瑙佹€ц繃婊わ紝鏈鏍稿唴瀹瑰瀛︾敓/瀹堕暱/Agent 涓嶅彲瑙?|
+  18: 
+  19: ### 涓嶅仛鐨勪簨
+  20: 
+ succeeded in 1.17s:
+   1: # edu-cloud 鈥?鏁欒偛浜戝钩鍙?
+   2: 
+   3: <!-- key-start -->
+   4: ## 椤圭洰瀹氫綅
+   5: 
+   6: edu-cloud 鏄?*澶氭牎鍗忓悓鐨勪簯绔钩鍙?*锛屾槸瀛︽牎绔紙exam-ai锛夌殑涓婃父璋冨害涓績銆?
+   7: 
+   8: ```
+   9: [鐩戠绔痌                      [浜戠骞冲彴]                      [瀛︽牎绔痌
+  10: 鏁欒偛灞€/闆嗗洟鐪嬫澘  鈹€鈹€鈹€鈹€鈹€鈹€鈫? edu-cloud (port 9000)  鈫愨攢鈹€鈹€鈹€鈹€鈹€  exam-ai 脳 N 鎵€瀛︽牎
+  11:   - 鍏ㄥ尯鎴愮哗鎬昏              - 鑱旇€冪紪鎺掍笌涓嬪彂                 - 鏈牎鑰冭瘯绠＄悊
+  12:   - 瀛︽牎闂村姣?               - 璺ㄦ牎鏁版嵁姹囨€?                  - 鎵弿+AI闃呭嵎
+  13:   - 鏁欏璐ㄩ噺鐩戞帶              - 鍏变韩 AI 闃呭嵎鏈嶅姟               - 鎴愮哗涓婃姤鍒颁簯绔?
+  14:                               - 瀛︽牎娉ㄥ唽涓庣姸鎬佺洃鎺?
+  15:                               - 缁熶竴棰樺簱绠＄悊
+  16: ```
+  17: 
+  18: ### 鑱岃矗杈圭晫
+  19: 
+  20: | 鑱岃矗 | 褰掑睘 | 璇存槑 |
+ succeeded in 1.57s:
+   1: # 鐭ヨ瘑鍥捐氨澶氬眰鏁欏妯″瀷 Phase 1銆屽彲淇￠鏋躲€嶅疄鐜拌鍒?
+   2: > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+   3: 
+   4: **Goal:** 鎶婄煡璇嗗浘璋变粠 AI 鑽夌鍗囩骇涓烘暀甯堝彲瀹℃牳鐨勫彲淇＄粨鏋勨€斺€斿寮?API 鍝嶅簲銆佹敮鎸佸叧绯荤骇瀹℃牳銆佹坊鍔犺川閲忓贰妫€銆佸疄鐜板彂甯冭繃婊ゃ€?
+   5: **Architecture:** 鍚庣鍦ㄧ幇鏈?knowledge_tree 妯″潡涓婂閲忎慨鏀癸細1 涓?migration锛坋dge review_status锛? service 灞傚寮?+ 1 涓柊 quality_service銆傚墠绔湪 KnowledgeTreePage 鏂板 tab 鍒囨崲鍒板鏌ュ伐浣滃彴锛? 涓柊缁勪欢锛夈€?
+   6: **Tech Stack:** FastAPI + SQLAlchemy 2.0 (async) + Alembic / Vue 3 + Naive UI + Vitest
+   7: 
+   8: **璁捐鏂囨。:** `docs/plans/2026-04-09-knowledge-graph-model-design.md`
+   9: 
+  10: ---
+  11: 
+  12: ## 鏂囦欢缁撴瀯
+  13: 
+  14: ### 鏂板鏂囦欢
+  15: 
+  16: | 鏂囦欢 | 鑱岃矗 |
+  17: |------|------|
+  18: | `alembic/versions/f1a2b3c4d5e6_add_edge_review_status.py` | Migration: edge 琛ㄥ姞 review_status 鍒?|
+  19: | `src/edu_cloud/modules/knowledge_tree/quality_service.py` | 璐ㄩ噺宸℃ 6 鏉¤鍒?+ BFS 杩為€氬垎閲?|
+  20: | `tests/test_knowledge_tree/test_graph_v2.py` | Graph API v2 鍝嶅簲澧炲己娴嬭瘯 |
+ succeeded in 3.23s:
+
+codex
+仓库内没直接找到 `architecture-rules.md`。我再扩大到用户目录范围查一次，并用 UTF-8 重新读取关键段落，不然目前控制台编码会把中文和证据行号弄乱。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content $HOME/.claude/config/contract-pack-schema.md -Encoding UTF8' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8; Get-ChildItem -Path C:/Users/Administrator -Recurse -File -Filter '"'architecture-rules.md' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8; Select-String -Path '"'docs/plans/2026-04-09-knowledge-graph-model-plan.md' -Pattern '"'^## '"','"'^### '"','Contract Pack','测试契约','边界条件','审查清单','risk_modules','counter_examples','test_debt','semantic_regression' -Encoding UTF8 | ForEach-Object { '{0}:{1}' -f "'$_.LineNumber, $_.Line }' in C:/Users/Administrator/edu-cloud succeeded in 696ms:
+15:## 文件结构
+17:### 新增文件
+33:### 修改文件
+49:## Batch 1: 后端（Tasks 1-6）
+51:### Task 1: Migration + Model + Config
+93:**审查清单:**
+102:### Task 2: Graph API v2 响应增强
+109:**测试契约:**
+414:**边界条件:**
+420:**审查清单:**
+430:### Task 3: Edge 审核状态机
+437:**测试契约:**
+600:**边界条件:**
+605:**审查清单:**
+614:### Task 4: 发布过滤
+621:**测试契约:**
+801:**边界条件:**
+806:**审查清单:**
+816:### Task 5: 质量巡检 API
+823:**测试契约:**
+ succeeded in 758ms:
+# Contract Pack Schema
+
+> 单一真源。Plan Review prompt 引用此文件。
+
+## 格式规则（F-008 修复）
+
+- **根键强制**: Contract Pack 必须以 `contract_pack:` 为 YAML 根键
+- **verification 枚举**: 只允许 `existing_test` / `pending_test` / `uncovered`，备注用 `note` 字段
+- **空 test_debt**: `test_debt: []` 是合法的，表示"当前无延期项"；缺少 `test_debt` 键不合法
+
+## 必要段落（Plan Review 检查完整性）
+
+### invariants（≥3 条）
+
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| id | ✓ | INV-NNN |
+| statement | ✓ | 不可验证的 prose 不接受（如"系统应正确运行"） |
+| verification | ✓ | existing_test / pending_test / uncovered |
+| test_ref | 仅 existing_test | test_file:test_function |
+ exited 124 in 30.03s:
+C:\Users\Administrator\.claude\rules-t3\architecture-rules.md
+Plan update
+按规则先核对审查标准，再验证计划与设计/代码库的一致性，最后归纳结构化 findings。
+  ✓ 读取 review 模板、contract schema、architecture-rules 审查口径
+  → 核对 plan 与 design 的接口、状态机、批次、契约完整性
+  • 抽查代码库实际路径与现有 API/命名/职责边界
+  • 输出中文结构化 findings 与 PASS/FAIL
+codex
+我已经有模板口径了，现在在抓三类证据：`architecture-rules` 的硬约束、计划中各 Task 的契约/边界/批次定义，以及仓库当前 API 真实形态。重点会放在会直接阻塞 PASS/FAIL 的 `test-gap` 和接口契约冲突。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8; Select-String -Path $HOME/.claude/rules-t3/architecture-rules.md -Pattern '"'审查清单速查','单功能变更影响','接口隔离','配置集中','依赖方向','职责单一' -Context 0,30 -Encoding UTF8" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8; $p='"'docs/plans/2026-04-09-knowledge-graph-model-design.md'; "'$ranges=@(@(1,120),@(120,240)); foreach($r in $ranges){$start=$r[0];$end=$r[1];Write-Output ("--- lines {0}-{1} ---" -f $start,$end);$i=1;Get-Content $p -Encoding UTF8 | Select-Object -Skip ($start-1) -First ($end-$start+1) | ForEach-Object { '"'{0,4}: {1}' -f ("'$start+$i-1), $_; $i++ }}' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8; $p='"'docs/plans/2026-04-09-knowledge-graph-model-plan.md'; "'$ranges=@(@(1,120),@(102,430),@(430,816),@(816,1280),@(1279,1925)); foreach($r in $ranges){$start=$r[0];$end=$r[1];Write-Output ("--- lines {0}-{1} ---" -f $start,$end);$i=1;Get-Content $p -Encoding UTF8 | Select-Object -Skip ($start-1) -First ($end-$start+1) | ForEach-Object { '"'{0,4}: {1}' -f ("'$start+$i-1), $_; $i++ }}' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8; if (Test-Path '"'CLAUDE.md') { Select-String -Path 'CLAUDE.md' -Pattern '职责边界','知识树','KnowledgeTree','API','配置','PostgreSQL','不支持 SQLite','架构','组件' -Context 0,3 -Encoding UTF8 }" in C:/Users/Administrator/edu-cloud succeeded in 1.92s:
+
+> C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:15:### 1. 文件职责单一
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:16:
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:17:一个文件只做一件事。文件名能用一个短语概括职责。
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:18:
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:19:**检查项：**
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:20:- [ ] 单文件 >300 行且包含 2+ 个不相关功能 → 应拆分
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:21:- [ ] 文件名无法一句话描述 → 职责不清
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:22:
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:23:**反模式：** `utils.js` 里既有日期处理又有 API 调用又有字符串格式化；路由文件里混入
+业务逻辑和数据库查询。
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:24:
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:25:### 2. 依赖单向流动
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:26:
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:27:层次清晰：路由/控制器 → 服务/业务逻辑 → 数据访问/工具。下层不引用上层。
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:28:
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:29:**检查项：**
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:30:- [ ] 工具/utils 文件是否 import 了业务逻辑或路由模块 → 方向反了
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:31:- [ ] 模块 A import B，B 又 import A → 循环依赖
+  C:\Users\Administrator\.claude\rules-t3\architecture-rules.md:32:
+ succeeded in 1.71s:
+--- lines 1-120 ---
+   1: # 知识图谱多层教学模型 Phase 1「可信骨架」设计
+   2: 
+   3: > 创建：2026-04-09 21:12:10
+   4: > 辩论基础：`docs/plans/2026-04-09-knowledge-graph-viz-debate.md`（4 轮 Claude×GPT + 外部调研）
+   5: > 交接卡：`docs/plans/2026-04-09-knowledge-graph-model-handoff.md`
+   6: > 状态：设计确认，待计划
+   7: 
+   8: ## §0 背景与动机
+   9: 
+  10: 当前知识图谱（108 L1 概念 + 335 关系）全部为 AI 生成草稿，教师无法审核关系质量，没有结构性问题检测，所有角色看到的内容相同（无发布过滤）。Claude×GPT 辩论收敛的 5 阶段路线图中，Phase 1「可信骨架」解决数据可信度问题，是后续所有 Phase 的前提。
+  11: 
+  12: **核心命题：** 把知识图谱从"AI 生成的草稿"升级为"教师可信赖的结构"。Phase 1 不改可视化（Phase 2），只做数据质量和审查基础设施。
+  13: 
+  14: ## §1 交付物与范围
+  15: 
+  16: ### 交付物
+  17: 
+  18: | # | 交付物 | 作用 |
+  19: |---|--------|------|
+ succeeded in 2.33s:
+
+> CLAUDE.md:18:### 职责边界
+  CLAUDE.md:19:
+  CLAUDE.md:20:| 职责 | 归属 | 说明 |
+  CLAUDE.md:21:|------|------|------|
+> CLAUDE.md:22:| 学校注册与授权 | edu-cloud | 审批学校接入、下发 API Key |
+  CLAUDE.md:23:| 联考生命周期 | edu-cloud | 创建→下发→汇总→报告 |
+  CLAUDE.md:24:| 跨校成绩聚合 | edu-cloud | 各校上报，云端汇总排名 |
+  CLAUDE.md:25:| 共享 AI 阅卷 | edu-cloud | 算力不足的学校可上传切图到云端阅卷 |
+> CLAUDE.md:30:**关键关系**：exam-ai 是本项目的**下游客户端**，通过 REST API 同步数据。每所学校运行独立的 exam-ai 实例，edu-cloud 统一管理。
+  CLAUDE.md:31:<!-- key-end -->
+  CLAUDE.md:32:
+  CLAUDE.md:33:<!-- key-start -->
+> CLAUDE.md:39:python -m uvicorn edu_cloud.api.app:create_app --factory --host 0.0.0.0 --port 9000 --reload
+  CLAUDE.md:40:
+  CLAUDE.md:41:# 前端（Windows Git Bash，port_guard 须用 serve.py）
+  CLAUDE.md:42:cd /c/Users/Administrator/edu-cloud/frontend
+> CLAUDE.md:44:# → http://localhost:5273，代理 /api → http://localhost:9000
+  CLAUDE.md:45:```
+  CLAUDE.md:46:
+warning: in-process app-server event stream lagged; dropped 2 events
+ succeeded in 2.64s:
+--- lines 1-120 ---
+   1: # 知识图谱多层教学模型 Phase 1「可信骨架」实现计划
+   2: 
+   3: > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+   4: 
+   5: **Goal:** 把知识图谱从 AI 草稿升级为教师可审核的可信结构——增强 API 响应、支持关系级审核、添加质量巡检、实现发布过滤。
+   6: 
+   7: **Architecture:** 后端在现有 knowledge_tree 模块上增量修改：1 个 migration（edge review_status）+ service 层增强 + 1 个新 quality_service。前端在 KnowledgeTreePage 新增 tab 切换到审查工作台（4 个新组件）。
+   8: 
+   9: **Tech Stack:** FastAPI + SQLAlchemy 2.0 (async) + Alembic / Vue 3 + Naive UI + Vitest
+  10: 
+  11: **设计文档:** `docs/plans/2026-04-09-knowledge-graph-model-design.md`
+  12: 
+  13: ---
+  14: 
+  15: ## 文件结构
+  16: 
+  17: ### 新增文件
+  18: 
+  19: | 文件 | 职责 |
+codex
+现在开始对照真实代码。我要确认计划引用的路径、函数签名、已有权限/API 以及前端 composable 位置是否和仓库一致，这一层会决定哪些是“设计担忧”，哪些已经构成明确的契约冲突。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Path 'src/edu_cloud/modules/knowledge_tree' -File | Select-Object Name" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Path 'frontend/src' -Recurse -File | Where-Object { "'$_.Name -match '"'useKnowledgeTree\\.(js|ts)"'$'"' -or "'$_.Name -eq '"'knowledgeTree.js' -or "'$_.Name -eq '"'KnowledgeTreePage.vue' -or "'$_.FullName -match '"'components\\\\knowledge' } | Select-Object -ExpandProperty FullName" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; $files=@('"'src/edu_cloud/modules/knowledge_tree/models.py','src/edu_cloud/modules/knowledge_tree/schemas.py','src/edu_cloud/modules/knowledge_tree/service.py','src/edu_cloud/modules/knowledge_tree/router.py','src/edu_cloud/modules/knowledge_tree/sync_service.py','frontend/src/api/knowledgeTree.js','frontend/src/pages/KnowledgeTreePage.vue'); foreach("'$f in $files){ if(Test-Path $f){ Write-Output "--- $f ---"; $i=1; Get-Content $f -Encoding UTF8 | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ } }}' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; if (Test-Path '"'tests/test_knowledge_tree/conftest.py') { "'$i=1; Get-Content '"'tests/test_knowledge_tree/conftest.py' -Encoding UTF8 | ForEach-Object { '{0,4}: {1}' -f "'$i, $_; $i++ } } else { '"'tests/test_knowledge_tree/conftest.py MISSING' }" in C:/Users/Administrator/edu-cloud succeeded in 1.08s:
+tests/test_knowledge_tree/conftest.py MISSING
+ succeeded in 1.10s:
+
+Name             
+----             
+detail_service.py
+models.py        
+router.py        
+schemas.py       
+service.py       
+sync_service.py  
+__init__.py      
+
+
+ succeeded in 1.21s:
+C:\Users\Administrator\edu-cloud\frontend\src\api\knowledgeTree.js
+C:\Users\Administrator\edu-cloud\frontend\src\components\knowledge-tree\GraphPanel.vue
+C:\Users\Administrator\edu-cloud\frontend\src\components\knowledge-tree\ModuleCards.vue
+C:\Users\Administrator\edu-cloud\frontend\src\components\knowledge-tree\NodeDetailDrawer.vue
+C:\Users\Administrator\edu-cloud\frontend\src\components\knowledge-tree\TreeNavPanel.vue
+C:\Users\Administrator\edu-cloud\frontend\src\components\knowledge-tree\useKnowledgeTree.js
+C:\Users\Administrator\edu-cloud\frontend\src\pages\KnowledgeTreePage.vue
+ succeeded in 1.64s:
+--- src/edu_cloud/modules/knowledge_tree/models.py ---
+   1: """知识树图谱 — 投影自 knowledge.db 的概念和关系。"""
+   2: 
+   3: from datetime import datetime
+   4: 
+   5: from sqlalchemy import String, Float, Integer, DateTime, Text, ForeignKey, UniqueConstraint
+   6: from sqlalchemy.orm import Mapped, mapped_column
+   7: 
+   8: from edu_cloud.models.base import Base
+   9: 
+  10: 
+  11: class ConceptGraphNode(Base):
+  12:     """概念图谱节点（投影自 knowledge.db concepts + big_concepts）"""
+  13:     __tablename__ = "concept_graph_nodes"
+  14: 
+  15:     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+  16:     name: Mapped[str] = mapped_column(String(200), nullable=False)
+  17:     knowledge_level: Mapped[str] = mapped_column(String(10), nullable=False)
+  18:     primary_module: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+  19:     description: Mapped[str | None] = mapped_column(Text)
+codex
+已有代码显示几个关键对齐点：前端 composable 路径是真实的，`tests/test_knowledge_tree/conftest.py` 目前不存在，且后端当前 `set_review_status` 仍是 node-only 实现。我再把这些附近代码和测试基座细化出来，确认是计划已覆盖还是遗漏。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; $f='"'frontend/src/components/knowledge-tree/useKnowledgeTree.js'; "'$i=1; Get-Content $f -Encoding UTF8 | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; $f='"'src/edu_cloud/modules/knowledge_tree/service.py'; "'$ranges=@(@(232,380),@(380,460)); foreach($r in $ranges){$start=$r[0];$end=$r[1];Write-Output ("--- $f lines {0}-{1} ---" -f $start,$end);$i=1; Get-Content $f -Encoding UTF8 | Select-Object -Skip ($start-1) -First ($end-$start+1) | ForEach-Object { '"'{0,4}: {1}' -f ("'$start+$i-1), $_; $i++ }}' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; $i=1; Get-Content '"'tests/conftest.py' -Encoding UTF8 | ForEach-Object { '{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Path 'tests' -Recurse -File | Where-Object { "'$_.FullName -match '"'knowledge_tree' -or "'$_.Name -match '"'knowledge.*tree|tree.*knowledge' } | Select-Object -ExpandProperty FullName" in C:/Users/Administrator/edu-cloud succeeded in 986ms:
+   1: import { ref, computed } from 'vue'
+   2: import { getGraph, getMastery, editGraph } from '../../api/knowledgeTree'
+   3: 
+   4: export function useKnowledgeTree() {
+   5:   const navigationData = ref([])
+   6:   const graphData = ref({ nodes: [], edges: [] })
+   7:   const masteryData = ref({ student_id: '', concept_mastery: [], module_mastery: [] })
+   8:   const loading = ref(false)
+   9:   const selectedModule = ref('all')
+  10:   const selectedStudentId = ref(null)
+  11: 
+  12:   const moduleMastery = computed(() => masteryData.value.module_mastery)
+  13: 
+  14:   const nodesWithMastery = computed(() => {
+  15:     const masteryMap = {}
+  16:     for (const cm of masteryData.value.concept_mastery) {
+  17:       masteryMap[cm.concept_id] = cm
+  18:     }
+  19:     return graphData.value.nodes.map(node => ({
+  20:       ...node,
+ succeeded in 1.20s:
+--- src/edu_cloud/modules/knowledge_tree/service.py lines 232-380 ---
+ 232: 
+ 233: # 字段白名单：只允许修改设计文档规定的字段
+ 234: # review_status 不在白名单中（R3-F003），必须通过 set_review_status op 走状态机
+ 235: _NODE_UPDATABLE = {"name", "description", "difficulty", "bloom_level", "aliases_json", "display_order"}
+ 236: _CONTENT_FIELDS = {"name", "description", "aliases_json", "difficulty", "bloom_level"}
+ 237: _EDGE_UPDATABLE = {"strength"}
+ 238: 
+ 239: # R3-F003: 审核状态机合法转移
+ 240: _VALID_TRANSITIONS = {
+ 241:     "ai_draft": {"teacher_reviewed"},
+ 242:     "teacher_reviewed": {"published", "ai_draft"},
+ 243:     "published": {"ai_draft"},
+ 244: }
+ 245: 
+ 246: 
+ 247: async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
+ 248:     """执行编辑操作，返回成功数量。"""
+ 249:     now = datetime.now()
+ 250:     applied = 0
+ succeeded in 1.39s:
+   1: import pytest
+   2: import bcrypt
+   3: from httpx import ASGITransport, AsyncClient
+   4: from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+   5: 
+   6: from edu_cloud.models.base import Base
+   7: from edu_cloud.models.user import User
+   8: from edu_cloud.models.user_role import UserRole
+   9: from edu_cloud.models.school import School
+  10: import edu_cloud.models.joint_exam  # noqa: F401 — ensures joint_exam tables are in metadata
+  11: import edu_cloud.models.student  # noqa: F401
+  12: import edu_cloud.models.class_group  # noqa: F401
+  13: import edu_cloud.models.exam  # noqa: F401
+  14: import edu_cloud.models.ai_session  # noqa: F401
+  15: import edu_cloud.models.document  # noqa: F401
+  16: import edu_cloud.models.approval  # noqa: F401
+  17: import edu_cloud.models.calendar  # noqa: F401
+  18: import edu_cloud.models.notification  # noqa: F401
+  19: import edu_cloud.core.models.llm_slot  # noqa: F401
+  20: import edu_cloud.modules.card.models  # noqa: F401
+ succeeded in 1.35s:
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\test_edit_extended.py
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\test_migration.py
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\test_models.py
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\test_node_detail_api.py
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\test_router.py
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\test_search.py
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\test_service.py
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\test_sync.py
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\test_sync_startup.py
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\__init__.py
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\__pycache__\test_edit_extended.cpython-311-pytest-9.0.2.pyc
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\__pycache__\test_migration.cpython-311-pytest-9.0.2.pyc
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\__pycache__\test_models.cpython-311-pytest-9.0.2.pyc
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\__pycache__\test_node_detail_api.cpython-311-pytest-9.0.2.pyc
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\__pycache__\test_router.cpython-311-pytest-9.0.2.pyc
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\__pycache__\test_search.cpython-311-pytest-9.0.2.pyc
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\__pycache__\test_service.cpython-311-pytest-9.0.2.pyc
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\__pycache__\test_sync.cpython-311-pytest-9.0.2.pyc
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\__pycache__\test_sync_startup.cpython-311-pytest-9.0.2.pyc
+C:\Users\Administrator\edu-cloud\tests\test_knowledge_tree\__pycache__\__init__.cpython-311.pyc
+codex
+已经出现一个明确的代码库对齐问题：计划里的测试样例用了 `admin_token_headers` 和 `make_concept_node/make_edge`，而当前测试基座暴露的是 `admin_headers` 等 fixture，`tests/test_knowledge_tree/conftest.py` 也不存在。我要把这些 helper/fixture 的真实情况和 Task 3-8 的设计继续核实。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"admin_token_headers|make_concept_node|make_edge|seed_graph_v2|set_review_status|review_status\" tests src/edu_cloud/modules/knowledge_tree frontend/src -g '"'!**/__pycache__/**'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; $p='"'docs/plans/2026-04-09-knowledge-graph-model-plan.md'; "'$ranges=@(@(430,620),@(614,822),@(816,1280),@(1281,1774)); foreach($r in $ranges){$start=$r[0];$end=$r[1];Write-Output ("--- lines {0}-{1} ---" -f $start,$end);$i=1;Get-Content $p -Encoding UTF8 | Select-Object -Skip ($start-1) -First ($end-$start+1) | ForEach-Object { '"'{0,4}: {1}' -f ("'$start+$i-1), $_; $i++ }}' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; $files=@('"'tests/test_knowledge_tree/test_edit_extended.py','tests/test_knowledge_tree/test_router.py','tests/test_knowledge_tree/test_service.py','tests/test_knowledge_tree/test_sync.py','tests/test_knowledge_tree/test_migration.py'); foreach("'$f in $files){ if(Test-Path $f){ Write-Output "--- $f ---"; $i=1; Get-Content $f -Encoding UTF8 | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ } }}' in C:/Users/Administrator/edu-cloud succeeded in 1.01s:
+--- tests/test_knowledge_tree/test_edit_extended.py ---
+   1: """编辑 API 扩展测试（F003: update_node 新字段 + set_review_status + reorder）。"""
+   2: import pytest
+   3: from datetime import datetime
+   4: 
+   5: from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptBigConceptMap
+   6: 
+   7: 
+   8: async def _seed_edit_data(db):
+   9:     now = datetime.now()
+  10:     # BigConcept
+  11:     db.add(ConceptGraphNode(
+  12:         id="BC_M1_C1", name="大概念1", knowledge_level="L1",
+  13:         primary_module="M1", node_type="big_concept", synced_at=now,
+  14:     ))
+  15:     # Concepts
+  16:     for i, cid in enumerate(["CP_M1_A", "CP_M1_B", "CP_M1_C"]):
+  17:         db.add(ConceptGraphNode(
+  18:             id=cid, name=f"概念{chr(65+i)}", knowledge_level="L1",
+  19:             primary_module="M1", node_type="concept", synced_at=now,
+ succeeded in 1.09s:
+--- lines 430-620 ---
+ 430: ### Task 3: Edge 审核状态机
+ 431: 
+ 432: **Files:**
+ 433: - Modify: `src/edu_cloud/modules/knowledge_tree/service.py:237-244,299-308`
+ 434: - Modify: `src/edu_cloud/modules/knowledge_tree/schemas.py:65-81`
+ 435: - Create: `tests/test_knowledge_tree/test_edge_review.py`
+ 436: 
+ 437: **测试契约:**
+ 438: 1. edge set_review_status 正常转移
+ 439:    - 入口: `POST /api/v1/knowledge-tree/edit` body=`{operations: [{op: "set_review_status", edge_id: 1, status: "teacher_reviewed"}]}`
+ 440:    - 反例: 错误实现不区分 node_id/edge_id，总是操作 node——本测试验证 edge 的 review_status 被修改
+ 441:    - 边界: edge_id 不存在 / 非法转移（ai_draft→published 跳步）
+ 442:    - 回归: N/A
+ 443:    - 命令: `pytest tests/test_knowledge_tree/test_edge_review.py::test_edge_review_status_transition -v`
+ 444: 2. edge rejected 状态
+ 445:    - 入口: `POST /api/v1/knowledge-tree/edit` body=`{operations: [{op: "set_review_status", edge_id: 1, status: "rejected"}]}`
+ 446:    - 反例: 错误实现不允许 rejected 状态——本测试验证 ai_draft→rejected 合法
+ 447:    - 边界: rejected→ai_draft（撤回）/ teacher_reviewed→rejected
+ 448:    - 回归: N/A
+ succeeded in 1.21s:
+src/edu_cloud/modules/knowledge_tree\models.py:25:    review_status: Mapped[str | None] = mapped_column(String(20))
+src/edu_cloud/modules/knowledge_tree\sync_service.py:48:    has_review = _column_exists(conn, "concepts", "review_status")
+src/edu_cloud/modules/knowledge_tree\sync_service.py:63:        cols += ", review_status"
+src/edu_cloud/modules/knowledge_tree\sync_service.py:78:            "review_status": row["review_status"] if has_review else None,
+src/edu_cloud/modules/knowledge_tree\sync_service.py:159:            review_status=n.get("review_status"),
+src/edu_cloud/modules/knowledge_tree\service.py:116:            "review_status": n.review_status,
+src/edu_cloud/modules/knowledge_tree\service.py:234:# review_status 不在白名单中（R3-F003），必须通过 set_review_status op 走状态机
+src/edu_cloud/modules/knowledge_tree\service.py:293:                    if node and node.review_status == "published":
+src/edu_cloud/modules/knowledge_tree\service.py:294:                        node.review_status = "ai_draft"
+src/edu_cloud/modules/knowledge_tree\service.py:299:        elif op == "set_review_status":
+src/edu_cloud/modules/knowledge_tree\service.py:303:            current_status = (node.review_status or "ai_draft") if node else None
+src/edu_cloud/modules/knowledge_tree\service.py:305:                node.review_status = new_status
+src/edu_cloud/modules/knowledge_tree\service.py:384:    _BACKWRITE_UPDATABLE = _NODE_UPDATABLE | {"review_status"}
+src/edu_cloud/modules/knowledge_tree\service.py:401:            elif op == "set_review_status":
+src/edu_cloud/modules/knowledge_tree\service.py:402:                if "review_status" in existing_cols:
+src/edu_cloud/modules/knowledge_tree\service.py:404:                        "UPDATE concepts SET review_status=? WHERE id=?",
+src/edu_cloud/modules/knowledge_tree\schemas.py:13:    review_status: str | None = None
+src/edu_cloud/modules/knowledge_tree\schemas.py:66:    op: str  # add_node/remove_node/update_node/add_edge/remove_edge/update_edge/set_review_status/reorder
+src/edu_cloud/modules/knowledge_tree\schemas.py:77:    status: str | None = None  # for set_review_status
+src/edu_cloud/modules/knowledge_tree\schemas.py:78:    user_id: str | None = None  # for set_review_status
+codex
+任务 5-7 还要继续拆开看。我要确认哪些行为变更 Task 缺少 `测试契约` 或 `边界条件`，以及哪些批次把一个行为扩散到超过 3 个文件，直接触发架构适配项。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; $p='"'docs/plans/2026-04-09-knowledge-graph-model-plan.md'; "'$ranges=@(@(816,980),@(980,1165),@(1163,1288),@(1279,1396)); foreach($r in $ranges){$start=$r[0];$end=$r[1];Write-Output ("--- lines {0}-{1} ---" -f $start,$end);$i=1;Get-Content $p -Encoding UTF8 | Select-Object -Skip ($start-1) -First ($end-$start+1) | ForEach-Object { '"'{0,4}: {1}' -f ("'$start+$i-1), $_; $i++ }}' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; Select-String -Path '"'docs/plans/2026-04-09-knowledge-graph-model-design.md' -Pattern 'rejected','编辑','批量确认','按关系类型分别统计','include_draft','Agent 工具','宽限期配置','运行时配置','重启' -Encoding UTF8 | ForEach-Object { '{0}:{1}' -f "'$_.LineNumber, $_.Line }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; Select-String -Path '"'docs/plans/2026-04-09-knowledge-graph-model-plan.md' -Pattern 'Contract Pack','contract_pack:','invariants:','counter_examples:','risk_modules:','test_debt:','semantic_regression:' -Encoding UTF8 | ForEach-Object { '{0}:{1}' -f "'$_.LineNumber, $_.Line }' in C:/Users/Administrator/edu-cloud succeeded in 787ms:
+--- lines 816-980 ---
+ 816: ### Task 5: 质量巡检 API
+ 817: 
+ 818: **Files:**
+ 819: - Create: `src/edu_cloud/modules/knowledge_tree/quality_service.py`
+ 820: - Modify: `src/edu_cloud/modules/knowledge_tree/router.py`
+ 821: - Create: `tests/test_knowledge_tree/test_quality_check.py`
+ 822: 
+ 823: **测试契约:**
+ 824: 1. Q1 检测孤立概念
+ 825:    - 入口: `GET /api/v1/knowledge-tree/quality-check?module=M1`
+ 826:    - 反例: 错误实现不检查 soft 边（孤立只看 hard）——本测试验证有 soft 边但无 hard 边的节点被标为孤立
+ 827:    - 边界: 有 soft 但无 hard（仍孤立）/ 只有 hard_in（非孤立）/ 只有 hard_out（非孤立）
+ 828:    - 回归: N/A
+ 829:    - 命令: `pytest tests/test_knowledge_tree/test_quality_check.py::test_q1_orphan -v`
+ 830: 2. Q2 弱连通分量
+ 831:    - 入口: `GET /api/v1/knowledge-tree/quality-check?module=M1`
+ 832:    - 反例: 错误实现将有向图当无向图——BFS 应按无向处理 prerequisite_hard
+ 833:    - 边界: 单个连通分量（不报告）/ 2 个分量 / 所有节点都孤立（每个节点一个分量）
+ 834:    - 回归: N/A
+ succeeded in 548ms:
+
+ succeeded in 564ms:
+21:| 2 | 关系审查工作台 v1 | 教师按概念审核关系（确认/驳回/编辑），Phase 2 可视化的数据前提 |
+77:ai_draft → rejected
+78:rejected → ai_draft（教师撤回驳回）
+79:teacher_reviewed → rejected（教师反悔）
+82:rejected 的 edge 不删除（保留审计痕迹），但不参与发布过滤和图谱展示。
+126:│              │  ✅ ← 细胞学说  [确认][驳回][编辑]│
+127:│  筛选:       │  ⚠  ← 蛋白质    [确认][驳回][编辑]│
+130:│  [质量 ▼]    │  ○  → 主动运输  [确认][驳回][编辑]│
+151:  - **驳回**：edge review_status → rejected
+152:  - **编辑**：修改 relation_type / strength（弹窗，复用 edit API）
+153:  - **批量确认**：选中多条同时确认
+157:顶部进度条：已审核关系数 / 总关系数，按关系类型分别统计。
+177:| Q6 | 被驳回关系堆积 | LOW | rejected 边数超过同模块总边数 20% |
+213:| review_status | 教师+管理员 | 学生/家长 | Agent 工具 |
+218:| rejected（edge） | ✅ 可见（删除线） | ❌ 隐藏 | ❌ 不返回 |
+222:Graph API 新增查询参数 `include_draft=true|false`：
+224:- 教师/管理员角色：默认 `include_draft=true`
+225:- 学生/家长角色：强制 `include_draft=false`（忽略传参）
+226:- Agent 工具：强制 `include_draft=false`
+228:`include_draft=false` 时：
+codex
+还有一类我在补核实：设计明确要求 `Agent 工具` 也强制隐藏 draft，但计划目前看起来只在 HTTP 路由里按角色覆写。若仓库里的 Agent 工具不是走这个路由，而是直接调 service，这会是接口治理缺口。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"knowledge-tree/graph|get_graph\\(|edit_knowledge_graph|knowledge_tree\" src/edu_cloud/modules/ai src/edu_cloud/api src/edu_cloud -g '"'!**/__pycache__/**'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; $files=@('"'src/edu_cloud/modules/ai/tools/knowledge_tree.py','src/edu_cloud/modules/ai/tools/knowledge_db.py','src/edu_cloud/api/deps.py','src/edu_cloud/core/permissions.py'); foreach("'$f in $files){ if(Test-Path $f){ Write-Output "--- $f ---"; $i=1; Get-Content $f -Encoding UTF8 | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ } }}' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"quality-check|include_draft|review tab|review-edge|loadQuality|qualityIssues|qualitySummary\" frontend/src src/edu_cloud -g '"'!**/__pycache__/**'"'" in C:/Users/Administrator/edu-cloud succeeded in 1.38s:
+--- src/edu_cloud/api/deps.py ---
+   1: import logging
+   2: 
+   3: from fastapi import Depends, HTTPException
+   4: from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+   5: from sqlalchemy import select
+   6: from sqlalchemy.ext.asyncio import AsyncSession
+   7: from edu_cloud.database import get_db
+   8: from edu_cloud.shared.auth import decode_token
+   9: from jose import ExpiredSignatureError, JWTError
+  10: 
+  11: from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
+  12: from edu_cloud.services.exceptions import PermissionDeniedError
+  13: 
+  14: logger = logging.getLogger(__name__)
+  15: 
+  16: security = HTTPBearer()
+  17: 
+  18: 
+  19: async def get_current_user(
+ exited 1 in 1.93s:
+src/edu_cloud\api\app.py:62:    import edu_cloud.modules.knowledge_tree.models  # noqa: F401 — ConceptGraphNode/Edge/EditSyncFailure
+src/edu_cloud\api\app.py:72:            from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
+src/edu_cloud\api\app.py:301:    from edu_cloud.modules.knowledge_tree.router import router as knowledge_tree_router
+src/edu_cloud\api\app.py:309:              knowledge_tree_router, scan_pipeline_router]:
+src/edu_cloud\core\permissions.py:55:    VIEW_KNOWLEDGE_TREE = "view_knowledge_tree"
+src/edu_cloud\core\permissions.py:56:    EDIT_KNOWLEDGE_TREE = "edit_knowledge_tree"
+src/edu_cloud/api\app.py:62:    import edu_cloud.modules.knowledge_tree.models  # noqa: F401 — ConceptGraphNode/Edge/EditSyncFailure
+src/edu_cloud/api\app.py:72:            from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
+src/edu_cloud/api\app.py:301:    from edu_cloud.modules.knowledge_tree.router import router as knowledge_tree_router
+src/edu_cloud/api\app.py:309:              knowledge_tree_router, scan_pipeline_router]:
+src/edu_cloud\modules\knowledge_tree\sync_service.py:13:from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge, ConceptBigConceptMap
+src/edu_cloud\modules\knowledge_tree\service.py:11:from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge, ConceptBigConceptMap
+src/edu_cloud\modules\knowledge_tree\service.py:32:async def get_graph(db: AsyncSession, module: str = "all") -> dict:
+src/edu_cloud\modules\knowledge_tree\service.py:441:        from edu_cloud.modules.knowledge_tree.models import EditSyncFailure
+src/edu_cloud\modules\knowledge_tree\router.py:10:from edu_cloud.modules.knowledge_tree.schemas import (
+src/edu_cloud\modules\knowledge_tree\router.py:13:from edu_cloud.modules.knowledge_tree import service
+src/edu_cloud\modules\knowledge_tree\router.py:21:async def get_graph(
+src/edu_cloud\modules\knowledge_tree\router.py:27:    return await service.get_graph(db, module=module)
+src/edu_cloud\modules\knowledge_tree\router.py:52:    from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
+src/edu_cloud\modules\knowledge_tree\router.py:59:    from edu_cloud.modules.knowledge_tree.detail_service import get_node_detail
+ exited 1 in 1.91s:
+
+codex
+Agent 工具这块需要单独补一下源码。我刚才的并行读取里有一项没返回正文，应该是路径打偏了；我直接读 `ai/tools/knowledge_db.py` 和 `ai/tools/knowledge_tree.py` 确认它们是不是绕过 HTTP 路由。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; $f='"'src/edu_cloud/ai/tools/knowledge_db.py'; if(Test-Path "'$f){$i=1; Get-Content $f -Encoding UTF8 | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }} else {'"'MISSING knowledge_db.py'}" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; $f='"'src/edu_cloud/ai/tools/knowledge_tree.py'; if(Test-Path "'$f){$i=1; Get-Content $f -Encoding UTF8 | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }} else {'"'MISSING knowledge_tree.py'}" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"quality-check|include_draft|loadQuality|qualityIssues|qualitySummary|review-edge|RelationReviewPanel|ConceptReviewList|QualityBadge\" frontend/src src/edu_cloud -g '"'!**/__pycache__/**'"'" in C:/Users/Administrator/edu-cloud succeeded in 655ms:
+   1: """知识点 DB 查询工具（2 个）。L3_knowledge_db 类别。
+   2: 
+   3: 基于 modules/knowledge 的关系型数据库查询（与 knowledge.py 的内存索引互补）。
+   4: """
+   5: from edu_cloud.ai.registry import tools
+   6: from edu_cloud.ai.tool_context import ToolContext, ToolResult
+   7: 
+   8: 
+   9: @tools.register(
+  10:     name="get_knowledge_tree",
+  11:     description="获取某学科的知识点树。返回指定层级的知识点列表。不传 parent_id 返回顶层节点。",
+  12:     category="L3_knowledge_db",
+  13:     domain="knowledge",
+  14:     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+  15:     risk_level="low",
+  16:     is_read_only=True,
+  17:     sensitivity="school",
+  18:     parameters={
+  19:         "type": "object",
+  20:         "properties": {
+ succeeded in 689ms:
+   1: """知识树编辑工具（教师通过 Agent 对话修改知识图谱）。"""
+   2: 
+   3: from edu_cloud.ai.registry import tools
+   4: from edu_cloud.ai.tool_context import ToolContext, ToolResult
+   5: 
+   6: 
+   7: @tools.register(
+   8:     name="edit_knowledge_graph",
+   9:     description=(
+  10:         "编辑知识图谱结构。支持操作：add_node（增加概念）、remove_node（删除概念，级联删边）、"
+  11:         "update_node（改名/改描述）、add_edge（加关系）、remove_edge（删关系）、"
+  12:         "update_edge（改关系强度）。"
+  13:         "概念 ID 格式: BIO_SR_CP_M{N}_{SNAKE_CASE_NAME}。"
+  14:         "关系类型: prerequisite_hard（硬前置）/ bridge_to（桥接）/ contrast（对比）。"
+  15:     ),
+  16:     category="L1_knowledge",
+  17:     module_code="research",
+  18:     domain="knowledge",
+  19:     allowed_roles=["platform_admin", "district_admin", "principal", "subject_teacher", "homeroom_teacher"],
+  20:     risk_level="medium",
+ exited 1 in 666ms:
+
+codex
+我还补查一个维度：计划里是否有显式的 `Tier`/高风险区域标记。若完全没有，就不仅是 Contract Pack 缺失，而是风险评估本身也没落地。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; Select-String -Path '"'docs/plans/2026-04-09-knowledge-graph-model-plan.md' -Pattern 'Tier','tier','高风险','risk','风险','red-flag','state machine','fallback','threshold','lifecycle' -Encoding UTF8 | ForEach-Object { '{0}:{1}' -f "'$_.LineNumber, $_.Line }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; Select-String -Path '"'docs/plans/2026-04-09-knowledge-graph-model-design.md' -Pattern 'Tier','tier','高风险','风险','state machine','阈值','0.7','20%','运行时配置','不需要重启' -Encoding UTF8 | ForEach-Object { '{0}:{1}' -f "'$_.LineNumber, $_.Line }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8; Select-String -Path $HOME/.claude/rules-t3/review-templates.md -Pattern '"'行为变更 Task 还必须有 "'`'"\\*\\*测试契约:\\*\\*"'`'"','至少 3 个边界输入','Executor 的测试规格' -Encoding UTF8 | ForEach-Object { '{0}:{1}' -f "'$_.LineNumber, $_.Line }' in C:/Users/Administrator/edu-cloud succeeded in 541ms:
+597:git commit -m "feat(knowledge-tree): edge review status state machine — ai_draft/teacher_reviewed/published/rejected"
+ succeeded in 629ms:
+148:- 每条关系显示：对端概念名、置信度（低于 0.7 高亮）、审核状态
+174:| Q3 | 低置信度关系 | MED | confidence < 0.7 且 review_status=ai_draft 的边 |
+177:| Q6 | 被驳回关系堆积 | LOW | rejected 边数超过同模块总边数 20% |
+247:教师审核达到一定比例后管理员关闭。运行时配置项，不需要重启。
+ succeeded in 640ms:
+206:**writing-plans:** 每个 Task 末尾必须有 `**审查清单:**`（✓正向 / ✗反向 / 关键行为）。含逻辑/算法的 Task 还必须有 `**边界条件:**` 段，列出至少 3 个边界输入及期望行为：
+215:边界条件是 Executor 的测试规格——Task 里写了什么，Executor 就测什么。没写的边界条件 = Executor 不会测 = 审查时才发现 = 多轮循环。
+codex
+这次没有套用 `code-review:review-pr` skill，因为对象是计划/设计文档而不是 PR diff；我按本地审查模板和架构规则直接做计划审查，更贴合当前任务。
+Plan update
+  ✓ 读取 review 模板、contract schema、architecture-rules 审查口径
+  ✓ 核对 plan 与 design 的接口、状态机、批次、契约完整性
+  ✓ 抽查代码库实际路径与现有 API/命名/职责边界
+  → 输出中文结构化 findings 与 PASS/FAIL
+codex
+**结论**
+FAIL。依据 [review-templates.md](/C:/Users/Administrator/.claude/rules-t3/review-templates.md):174 和 [review-templates.md](/C:/Users/Administrator/.claude/rules-t3/review-templates.md):175，当前计划存在未解决的 `test-gap HIGH/MED` 与 `code-bug MED`。架构审查口径按 [architecture-rules.md](/C:/Users/Administrator/.claude/rules-t3/architecture-rules.md):78 执行；仓库内未找到同名文件，我使用的是本地规则真源。
+
+**F001**
+ID: F001  
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: 计划正文没有结构化 `Contract Pack`，高风险语义只能靠散文描述，无法验证 invariants / counter_examples / risk_modules / test_debt。  
+After-behavior: 计划必须补齐可校验的 `contract_pack:`，并把状态机、阈值、发布过滤这些高风险语义映射到验证项。  
+Evidence: [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1925 全文仅有 Batch/Task，全文检索 `contract_pack:` / `invariants:` / `counter_examples:` / `risk_modules:` / `test_debt:` 无命中；而 [contract-pack-schema.md](/C:/Users/Administrator/.claude/config/contract-pack-schema.md):5、[contract-pack-schema.md](/C:/Users/Administrator/.claude/config/contract-pack-schema.md):12、[contract-pack-schema.md](/C:/Users/Administrator/.claude/config/contract-pack-schema.md):20、[contract-pack-schema.md](/C:/Users/Administrator/.claude/config/contract-pack-schema.md):27、[contract-pack-schema.md](/C:/Users/Administrator/.claude/config/contract-pack-schema.md):34 明确要求这些段落；设计里又存在状态机和阈值语义，[design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-design.md):73、[design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-design.md):174、[design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-design.md):177。  
+Impact: F 项直接不满足；E 项也缺少 Tier/高风险模块标注依据，后续即使实现通过常规测试，也无法证明没有破坏状态机、阈值和发布过滤语义。  
+Repair hypothesis: 可能的修复方向是为 `edge review_status` 状态机、`include_draft` 可见性过滤、`0.7/20%` 阈值和 sync/backwrite 治理链路分别补充可验证 invariant、counter-example、risk module 与 test debt。禁止的修复方式是只追加“系统应正确运行”这类不可验证 prose，或只写测试文件名而不给 verification/test_ref 映射。requires independent fix design + Semantic Regression Gate
+
+**F002**
+ID: F002  
+Severity: MED  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: 多个行为变更 Task 没有按规范提供 `测试契约` 和 `边界条件`，Executor 无法按入口/反例/边界驱动验证。  
+After-behavior: 每个行为变更 Task 都应具备 5 字段测试契约和至少 3 条边界条件。  
+Evidence: [review-templates.md](/C:/Users/Administrator/.claude/rules-t3/review-templates.md):206、[review-templates.md](/C:/Users/Administrator/.claude/rules-t3/review-templates.md):215、[review-templates.md](/C:/Users/Administrator/.claude/rules-t3/review-templates.md):217 要求含逻辑 Task 必有 `边界条件`，行为变更 Task 必有 `测试契约`；但 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1163、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1281、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1397、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1774 开始的 Task 6-9 均缺正式 `测试契约`，其中 Task 6-9 也没有独立 `边界条件` 段。  
+Impact: D 项不满足；尤其 Task 6 的 sync/backwrite 和 Task 8-9 的前端交互会在没有反例与边界保护的情况下直接进入执行。  
+Repair hypothesis: 先把缺失段落补齐，再决定实现顺序；否则任何“先做代码后补契约”的路径都会把审查清单变成事后文档。
+
+**F003**
+ID: F003  
+Severity: MED  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 计划测试样例依赖不存在的 fixture/helper/文件路径，执行者按计划落地会先撞到测试基座不一致。  
+After-behavior: 计划应引用仓库内真实测试基座，或把新增基座文件显式列入改动面与任务依赖。  
+Evidence: [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):175、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):249、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):258、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):653、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):855 使用 `make_concept_node`、`make_edge`、`db_session`、`admin_token_headers`、`tests/test_knowledge_tree/conftest.py`；但真实基座在 [tests/conftest.py](/C:/Users/Administrator/edu-cloud/tests/conftest.py):58、[tests/conftest.py](/C:/Users/Administrator/edu-cloud/tests/conftest.py):121、[tests/conftest.py](/C:/Users/Administrator/edu-cloud/tests/conftest.py):247，提供的是 `db`、`admin_headers`、`teacher_headers`，且仓库不存在 `tests/test_knowledge_tree/conftest.py`。  
+Impact: B 项失败；Task 2/4/5 的“先写失败测试”步骤不可直接执行，实际还隐含了未列出的基座改造。  
+Repair hypothesis: 统一到现有 `tests/conftest.py` 命名，或显式新增模块级 conftest 并把它计入文件结构、依赖和批次边界。
+
+**F004**
+ID: F004  
+Severity: MED  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: Task 9 的实现步骤会让审查工作台 tab 对所有能看知识树的人可见，只是把 `canEdit` 透传给子组件。  
+After-behavior: 审查工作台入口本身应按角色/权限隐藏，至少满足计划自己的“非教师角色隐藏”。  
+Evidence: [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1785 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1805 无条件渲染 `n-tabs` 和 `RelationReviewPanel`；但同一 Task 的验收写着 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1920、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1925；当前页面也已有 `canEdit` 可用于守卫，[KnowledgeTreePage.vue](/C:/Users/Administrator/edu-cloud/frontend/src/pages/KnowledgeTreePage.vue):70、[KnowledgeTreePage.vue](/C:/Users/Administrator/edu-cloud/frontend/src/pages/KnowledgeTreePage.vue):71。  
+Impact: A 项自洽性失败；按步骤实现会与同 Task 审查清单直接冲突，并把审查入口暴露给只有 `VIEW_KNOWLEDGE_TREE` 的角色。  
+Repair hypothesis: 把可见性守卫提升到 tab/render 层，而不是仅靠子组件按钮禁用。
+
+**F005**
+ID: F005  
+Severity: MED  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 审查工作台按计划只支持“确认/驳回/批量确认”，缺少设计要求的“编辑 relation_type / strength”。  
+After-behavior: 关系详情必须提供编辑动作，才能满足设计里“教师按概念审核关系（确认/驳回/编辑）”的交付定义。  
+Evidence: 设计把“编辑”列为核心交互，[design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-design.md):21、[design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-design.md):149、[design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-design.md):152；但 Task 8 的 `RelationDetailCard` 代码只有确认/驳回按钮，[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1577 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1594。  
+Impact: A/B/D 都受影响；当前计划无法完整交付设计文档 §1 定义的“关系审查工作台 v1”。  
+Repair hypothesis: 需要把“编辑”从设计说明下沉到明确任务切片、入口、UX 规格和测试契约，而不是留在 prose。
+
+**F006**
+ID: F006  
+Severity: MED  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Task 9 的前端事件测试没有经过用户可触达入口，而且在 `RelationDetailCard` 不存在时会直接空通过。  
+After-behavior: 测试应先驱动“选中概念”这一真实入口，再无条件断言 `edit` 事件。  
+Evidence: 计划中的测试代码先 `mount(RelationReviewPanel)`，但没有选择概念，[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1871 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1883；而组件实现只有 `selectedConcept` 存在时才渲染 `RelationDetailCard`，[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1715 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1724；测试又把唯一断言包在 `if (detail.exists())` 中，[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1884 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1892。  
+Impact: 命中 `test-gap` 的“无入口级验证”硬判定；即使 review flow 彻底坏掉，这条测试也可能通过。  
+Repair hypothesis: 把断言建立在用户入口链路上，不要直接向条件渲染的子组件发事件，更不要用存在性分支吞掉失败。
+
+**D001**
+ID: D001  
+Severity: LOW  
+Category: design-concern  
+Type: defect_fix  
+Before-behavior: 同一知识树前端能力被拆到新的 `frontend/src/components/knowledge/` 子树，同时现有知识树模块仍在 `frontend/src/components/knowledge-tree/`。  
+After-behavior: 模块边界应与现有目录一致，避免同一领域被两个顶级目录承载。  
+Evidence: 现有模块边界见 [CLAUDE.md](/C:/Users/Administrator/edu-cloud/CLAUDE.md):87、[CLAUDE.md](/C:/Users/Administrator/edu-cloud/CLAUDE.md):103；计划新增目录见 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):27 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):30、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1399 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1403；架构规则要求职责单一、影响面可控，[architecture-rules.md](/C:/Users/Administrator/.claude/rules-t3/architecture-rules.md):15、[architecture-rules.md](/C:/Users/Administrator/.claude/rules-t3/architecture-rules.md):56。  
+Impact: C 项有漂移风险；后续维护会同时面对 `knowledge-tree` 与 `knowledge` 两套命名边界。  
+Repair hypothesis: 优先保持知识树 UI 的目录一致性，再决定是否继续拆文件。
+tokens used
+173,142
+**结论**
+FAIL。依据 [review-templates.md](/C:/Users/Administrator/.claude/rules-t3/review-templates.md):174 和 [review-templates.md](/C:/Users/Administrator/.claude/rules-t3/review-templates.md):175，当前计划存在未解决的 `test-gap HIGH/MED` 与 `code-bug MED`。架构审查口径按 [architecture-rules.md](/C:/Users/Administrator/.claude/rules-t3/architecture-rules.md):78 执行；仓库内未找到同名文件，我使用的是本地规则真源。
+
+**F001**
+ID: F001  
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: 计划正文没有结构化 `Contract Pack`，高风险语义只能靠散文描述，无法验证 invariants / counter_examples / risk_modules / test_debt。  
+After-behavior: 计划必须补齐可校验的 `contract_pack:`，并把状态机、阈值、发布过滤这些高风险语义映射到验证项。  
+Evidence: [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1925 全文仅有 Batch/Task，全文检索 `contract_pack:` / `invariants:` / `counter_examples:` / `risk_modules:` / `test_debt:` 无命中；而 [contract-pack-schema.md](/C:/Users/Administrator/.claude/config/contract-pack-schema.md):5、[contract-pack-schema.md](/C:/Users/Administrator/.claude/config/contract-pack-schema.md):12、[contract-pack-schema.md](/C:/Users/Administrator/.claude/config/contract-pack-schema.md):20、[contract-pack-schema.md](/C:/Users/Administrator/.claude/config/contract-pack-schema.md):27、[contract-pack-schema.md](/C:/Users/Administrator/.claude/config/contract-pack-schema.md):34 明确要求这些段落；设计里又存在状态机和阈值语义，[design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-design.md):73、[design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-design.md):174、[design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-design.md):177。  
+Impact: F 项直接不满足；E 项也缺少 Tier/高风险模块标注依据，后续即使实现通过常规测试，也无法证明没有破坏状态机、阈值和发布过滤语义。  
+Repair hypothesis: 可能的修复方向是为 `edge review_status` 状态机、`include_draft` 可见性过滤、`0.7/20%` 阈值和 sync/backwrite 治理链路分别补充可验证 invariant、counter-example、risk module 与 test debt。禁止的修复方式是只追加“系统应正确运行”这类不可验证 prose，或只写测试文件名而不给 verification/test_ref 映射。requires independent fix design + Semantic Regression Gate
+
+**F002**
+ID: F002  
+Severity: MED  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: 多个行为变更 Task 没有按规范提供 `测试契约` 和 `边界条件`，Executor 无法按入口/反例/边界驱动验证。  
+After-behavior: 每个行为变更 Task 都应具备 5 字段测试契约和至少 3 条边界条件。  
+Evidence: [review-templates.md](/C:/Users/Administrator/.claude/rules-t3/review-templates.md):206、[review-templates.md](/C:/Users/Administrator/.claude/rules-t3/review-templates.md):215、[review-templates.md](/C:/Users/Administrator/.claude/rules-t3/review-templates.md):217 要求含逻辑 Task 必有 `边界条件`，行为变更 Task 必有 `测试契约`；但 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1163、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1281、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1397、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1774 开始的 Task 6-9 均缺正式 `测试契约`，其中 Task 6-9 也没有独立 `边界条件` 段。  
+Impact: D 项不满足；尤其 Task 6 的 sync/backwrite 和 Task 8-9 的前端交互会在没有反例与边界保护的情况下直接进入执行。  
+Repair hypothesis: 先把缺失段落补齐，再决定实现顺序；否则任何“先做代码后补契约”的路径都会把审查清单变成事后文档。
+
+**F003**
+ID: F003  
+Severity: MED  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 计划测试样例依赖不存在的 fixture/helper/文件路径，执行者按计划落地会先撞到测试基座不一致。  
+After-behavior: 计划应引用仓库内真实测试基座，或把新增基座文件显式列入改动面与任务依赖。  
+Evidence: [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):175、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):249、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):258、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):653、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):855 使用 `make_concept_node`、`make_edge`、`db_session`、`admin_token_headers`、`tests/test_knowledge_tree/conftest.py`；但真实基座在 [tests/conftest.py](/C:/Users/Administrator/edu-cloud/tests/conftest.py):58、[tests/conftest.py](/C:/Users/Administrator/edu-cloud/tests/conftest.py):121、[tests/conftest.py](/C:/Users/Administrator/edu-cloud/tests/conftest.py):247，提供的是 `db`、`admin_headers`、`teacher_headers`，且仓库不存在 `tests/test_knowledge_tree/conftest.py`。  
+Impact: B 项失败；Task 2/4/5 的“先写失败测试”步骤不可直接执行，实际还隐含了未列出的基座改造。  
+Repair hypothesis: 统一到现有 `tests/conftest.py` 命名，或显式新增模块级 conftest 并把它计入文件结构、依赖和批次边界。
+
+**F004**
+ID: F004  
+Severity: MED  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: Task 9 的实现步骤会让审查工作台 tab 对所有能看知识树的人可见，只是把 `canEdit` 透传给子组件。  
+After-behavior: 审查工作台入口本身应按角色/权限隐藏，至少满足计划自己的“非教师角色隐藏”。  
+Evidence: [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1785 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1805 无条件渲染 `n-tabs` 和 `RelationReviewPanel`；但同一 Task 的验收写着 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1920、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1925；当前页面也已有 `canEdit` 可用于守卫，[KnowledgeTreePage.vue](/C:/Users/Administrator/edu-cloud/frontend/src/pages/KnowledgeTreePage.vue):70、[KnowledgeTreePage.vue](/C:/Users/Administrator/edu-cloud/frontend/src/pages/KnowledgeTreePage.vue):71。  
+Impact: A 项自洽性失败；按步骤实现会与同 Task 审查清单直接冲突，并把审查入口暴露给只有 `VIEW_KNOWLEDGE_TREE` 的角色。  
+Repair hypothesis: 把可见性守卫提升到 tab/render 层，而不是仅靠子组件按钮禁用。
+
+**F005**
+ID: F005  
+Severity: MED  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 审查工作台按计划只支持“确认/驳回/批量确认”，缺少设计要求的“编辑 relation_type / strength”。  
+After-behavior: 关系详情必须提供编辑动作，才能满足设计里“教师按概念审核关系（确认/驳回/编辑）”的交付定义。  
+Evidence: 设计把“编辑”列为核心交互，[design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-design.md):21、[design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-design.md):149、[design.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-design.md):152；但 Task 8 的 `RelationDetailCard` 代码只有确认/驳回按钮，[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1577 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1594。  
+Impact: A/B/D 都受影响；当前计划无法完整交付设计文档 §1 定义的“关系审查工作台 v1”。  
+Repair hypothesis: 需要把“编辑”从设计说明下沉到明确任务切片、入口、UX 规格和测试契约，而不是留在 prose。
+
+**F006**
+ID: F006  
+Severity: MED  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Task 9 的前端事件测试没有经过用户可触达入口，而且在 `RelationDetailCard` 不存在时会直接空通过。  
+After-behavior: 测试应先驱动“选中概念”这一真实入口，再无条件断言 `edit` 事件。  
+Evidence: 计划中的测试代码先 `mount(RelationReviewPanel)`，但没有选择概念，[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1871 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1883；而组件实现只有 `selectedConcept` 存在时才渲染 `RelationDetailCard`，[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1715 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1724；测试又把唯一断言包在 `if (detail.exists())` 中，[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1884 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1892。  
+Impact: 命中 `test-gap` 的“无入口级验证”硬判定；即使 review flow 彻底坏掉，这条测试也可能通过。  
+Repair hypothesis: 把断言建立在用户入口链路上，不要直接向条件渲染的子组件发事件，更不要用存在性分支吞掉失败。
+
+**D001**
+ID: D001  
+Severity: LOW  
+Category: design-concern  
+Type: defect_fix  
+Before-behavior: 同一知识树前端能力被拆到新的 `frontend/src/components/knowledge/` 子树，同时现有知识树模块仍在 `frontend/src/components/knowledge-tree/`。  
+After-behavior: 模块边界应与现有目录一致，避免同一领域被两个顶级目录承载。  
+Evidence: 现有模块边界见 [CLAUDE.md](/C:/Users/Administrator/edu-cloud/CLAUDE.md):87、[CLAUDE.md](/C:/Users/Administrator/edu-cloud/CLAUDE.md):103；计划新增目录见 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):27 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):30、[plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1399 到 [plan.md](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-09-knowledge-graph-model-plan.md):1403；架构规则要求职责单一、影响面可控，[architecture-rules.md](/C:/Users/Administrator/.claude/rules-t3/architecture-rules.md):15、[architecture-rules.md](/C:/Users/Administrator/.claude/rules-t3/architecture-rules.md):56。  
+Impact: C 项有漂移风险；后续维护会同时面对 `knowledge-tree` 与 `knowledge` 两套命名边界。  
+Repair hypothesis: 优先保持知识树 UI 的目录一致性，再决定是否继续拆文件。

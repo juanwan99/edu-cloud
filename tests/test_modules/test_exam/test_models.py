@@ -62,14 +62,14 @@ async def test_question_crud(db):
     await db.flush()
 
     q = Question(
-        subject_id=subj.id, name="选择题1", question_type="objective",
+        subject_id=subj.id, name="选择题1", question_type="choice",
         max_score=5.0, correct_answer="B", school_id=school.id,
     )
     db.add(q)
     await db.commit()
     await db.refresh(q)
 
-    assert q.question_type == "objective"
+    assert q.question_type == "choice"
     assert q.correct_answer == "B"
 
 

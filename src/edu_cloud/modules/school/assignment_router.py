@@ -41,7 +41,7 @@ async def api_list_assignments(
     user_id: str | None = None,
     class_id: str | None = None,
     subject_code: str | None = None,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHEDULING)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
@@ -60,7 +60,7 @@ async def api_list_assignments(
 async def api_create_assignments(
     school_id: str,
     body: CreateAssignmentsRequest,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHEDULING)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
@@ -75,7 +75,7 @@ async def api_create_assignments(
 async def api_delete_assignment(
     school_id: str,
     assignment_id: str,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHEDULING)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
@@ -87,7 +87,7 @@ async def api_delete_assignment(
 async def api_assignment_summary(
     school_id: str,
     semester: str | None = None,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHEDULING)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)

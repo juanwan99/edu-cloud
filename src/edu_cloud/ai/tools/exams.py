@@ -1,5 +1,6 @@
 """考试域工具（3 个）。L1_exam 类别。"""
 from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
 
 
 @tools.register(
@@ -10,6 +11,8 @@ from edu_cloud.ai.registry import tools
     domain="exam",
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
     risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
     parameters={
         "type": "object",
         "properties": {
@@ -18,21 +21,21 @@ from edu_cloud.ai.registry import tools
         "required": [],
     },
 )
-async def get_exam_list(
-    status: str | None = None,
-    _school_id: str = "",
-    _db=None,
-) -> dict:
-    from edu_cloud.modules.exam.service import list_exams
-    exams = await list_exams(_db, school_id=_school_id)
-    if status:
-        exams = [e for e in exams if e.status == status]
-    return {
-        "exams": [
-            {"id": e.id, "name": e.name, "status": e.status, "card_title": e.card_title}
-            for e in exams
-        ]
-    }
+async def get_exam_list(input: dict, ctx: ToolContext) -> ToolResult:
+    status = input.get("status")
+    try:
+        from edu_cloud.modules.exam.service import list_exams
+        exams = await list_exams(ctx.db, school_id=ctx.school_id)
+        if status:
+            exams = [e for e in exams if e.status == status]
+        return ToolResult(success=True, data={
+            "exams": [
+                {"id": e.id, "name": e.name, "status": e.status, "card_title": e.card_title}
+                for e in exams
+            ]
+        })
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -43,6 +46,8 @@ async def get_exam_list(
     domain="exam",
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
     risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
     parameters={
         "type": "object",
         "properties": {
@@ -51,26 +56,25 @@ async def get_exam_list(
         "required": ["exam_id"],
     },
 )
-async def get_exam_detail(
-    exam_id: str,
-    _school_id: str = "",
-    _visible_subjects: list[str] | None = None,
-    _db=None,
-) -> dict:
-    from edu_cloud.modules.exam.service import get_exam, list_subjects
-    exam = await get_exam(_db, exam_id=exam_id, school_id=_school_id)
-    subjects = await list_subjects(_db, exam_id=exam_id, school_id=_school_id)
-    if _visible_subjects is not None:
-        subjects = [s for s in subjects if s.code in _visible_subjects]
-    return {
-        "id": exam.id,
-        "name": exam.name,
-        "status": exam.status,
-        "subjects": [
-            {"id": s.id, "name": s.name, "code": s.code}
-            for s in subjects
-        ],
-    }
+async def get_exam_detail(input: dict, ctx: ToolContext) -> ToolResult:
+    exam_id = input.get("exam_id", "")
+    try:
+        from edu_cloud.modules.exam.service import get_exam, list_subjects
+        exam = await get_exam(ctx.db, exam_id=exam_id, school_id=ctx.school_id)
+        subjects = await list_subjects(ctx.db, exam_id=exam_id, school_id=ctx.school_id)
+        if ctx.subject_codes is not None:
+            subjects = [s for s in subjects if s.code in ctx.subject_codes]
+        return ToolResult(success=True, data={
+            "id": exam.id,
+            "name": exam.name,
+            "status": exam.status,
+            "subjects": [
+                {"id": s.id, "name": s.name, "code": s.code}
+                for s in subjects
+            ],
+        })
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -81,6 +85,8 @@ async def get_exam_detail(
     domain="exam",
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
     risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
     parameters={
         "type": "object",
         "properties": {
@@ -89,26 +95,25 @@ async def get_exam_detail(
         "required": ["subject_id"],
     },
 )
-async def get_subject_questions(
-    subject_id: str,
-    _school_id: str = "",
-    _visible_subjects: list[str] | None = None,
-    _db=None,
-) -> dict:
-    if _visible_subjects is not None:
-        from sqlalchemy import select
-        from edu_cloud.modules.exam.models import Subject
-        subj_result = await _db.execute(
-            select(Subject).where(Subject.id == subject_id, Subject.school_id == _school_id)
-        )
-        subj = subj_result.scalar_one_or_none()
-        if subj and subj.code not in _visible_subjects:
-            return {"error": "无权访问该科目"}
-    from edu_cloud.modules.exam.service import list_questions
-    questions = await list_questions(_db, subject_id=subject_id, school_id=_school_id)
-    return {
-        "questions": [
-            {"id": q.id, "name": q.name, "question_type": q.question_type, "max_score": q.max_score}
-            for q in questions
-        ]
-    }
+async def get_subject_questions(input: dict, ctx: ToolContext) -> ToolResult:
+    subject_id = input.get("subject_id", "")
+    try:
+        if ctx.subject_codes is not None:
+            from sqlalchemy import select
+            from edu_cloud.modules.exam.models import Subject
+            subj_result = await ctx.db.execute(
+                select(Subject).where(Subject.id == subject_id, Subject.school_id == ctx.school_id)
+            )
+            subj = subj_result.scalar_one_or_none()
+            if subj and subj.code not in ctx.subject_codes:
+                return ToolResult(success=False, error="无权访问该科目")
+        from edu_cloud.modules.exam.service import list_questions
+        questions = await list_questions(ctx.db, subject_id=subject_id, school_id=ctx.school_id)
+        return ToolResult(success=True, data={
+            "questions": [
+                {"id": q.id, "name": q.name, "question_type": q.question_type, "max_score": q.max_score}
+                for q in questions
+            ]
+        })
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))

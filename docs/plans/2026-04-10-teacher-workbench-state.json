@@ -1,0 +1,16 @@
+{
+  "topic": "teacher-workbench",
+  "plan_file": "docs/plans/2026-04-10-teacher-workbench-plan.md",
+  "design_file": "docs/plans/2026-04-10-teacher-workbench-design.md",
+  "tasks": [
+    {"id": "1", "desc": "layoutEngine.js — toposort + BigConcept band layout", "status": "completed"},
+    {"id": "2", "desc": "ModuleStatCard.vue — 单模块卡片", "status": "completed"},
+    {"id": "3", "desc": "ModuleOverviewPanel.vue + loadAllModulesQuality composable", "status": "completed"},
+    {"id": "4", "desc": "ConceptMapPanel.vue — G6 preset + BigConcept 分带 + 跨模块徽标", "status": "completed"},
+    {"id": "5", "desc": "ConceptFocusOverlay.vue + 集成到 ConceptMapPanel（ESC 键）", "status": "completed"},
+    {"id": "6", "desc": "KnowledgeTreePage 集成 + 删除 GraphPanel", "status": "completed"}
+  ],
+  "updated_at": "2026-04-10 20:52:55",
+  "closed": true,
+  "closure_note": "All 6 tasks completed. Batch 1 PASS (R2). Batch 2 PASS (R4 after fixing F-001..F-006 across 3 fix rounds)."
+}

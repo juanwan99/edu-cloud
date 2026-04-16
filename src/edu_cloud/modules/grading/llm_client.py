@@ -39,8 +39,9 @@ class LLMClient:
         image_b64: str,
         rubric: dict,
         question: dict,
+        question_type: str | None = None,
     ) -> GradeResponse:
-        messages = build_grading_prompt(rubric, question)
+        messages = build_grading_prompt(rubric, question, question_type)
         max_score = question.get("max_score", 0.0)
 
         user_msg = messages[-1]

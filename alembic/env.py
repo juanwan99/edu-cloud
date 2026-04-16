@@ -30,6 +30,11 @@ from edu_cloud.core.models.llm_slot import LLMSlot  # noqa: F401
 from edu_cloud.ai.models import AiSession, AiToolCall  # noqa: F401
 from edu_cloud.models.agent_profile import AgentProfile, AgentRun  # noqa: F401
 from edu_cloud.models.agent_memory import AgentMemory  # noqa: F401
+from edu_cloud.models.guardian import GuardianStudentLink  # noqa: F401
+from edu_cloud.models.workflow import WorkflowRun, WorkflowStep  # noqa: F401
+from edu_cloud.models.agent_finding import AgentFinding, AgentTask  # noqa: F401
+from edu_cloud.models.agent_snapshot import ExamAnalysisSnapshot, ClassExamReport  # noqa: F401
+from edu_cloud.models.scope_version import ScopeVersion  # noqa: F401
 
 # ── module models (src/edu_cloud/modules/*/models.py) ────────────────────
 from edu_cloud.modules.exam.models import (  # noqa: F401
@@ -40,10 +45,9 @@ from edu_cloud.modules.student.models import Class, Student  # noqa: F401
 from edu_cloud.modules.card.models import Template, CardSkeleton  # noqa: F401
 from edu_cloud.modules.scan.models import ScanTask, StudentAnswer  # noqa: F401
 from edu_cloud.modules.grading.models import (  # noqa: F401
-    Rubric, GradingTask, AIGradingResult, TeacherReview,
+    Rubric, GradingTask, GradingResult,
     GradingAssignment, GradingQualityCheck,
 )
-from edu_cloud.modules.marking.models import MarkingAssignment, MarkingScore  # noqa: F401
 from edu_cloud.modules.bank.models import BankQuestion, StudentErrorBook  # noqa: F401
 from edu_cloud.modules.profile.models import (  # noqa: F401
     StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern,
@@ -54,6 +58,18 @@ from edu_cloud.models.teacher_assignment import TeacherAssignment  # noqa: F401
 from edu_cloud.models.subject_selection import SubjectSelection  # noqa: F401
 from edu_cloud.models.capability import Capability  # noqa: F401
 from edu_cloud.models.audit_log import AuditLog  # noqa: F401
+from edu_cloud.modules.homework.models import HomeworkTask, HomeworkSubmission  # noqa: F401
+from edu_cloud.models.memory import EntityMemory, ProjectState  # noqa: F401
+from edu_cloud.models.score_segment import ScoreSegmentConfig  # noqa: F401
+from edu_cloud.modules.adaptive.models import (  # noqa: F401
+    AnswerLog, StudentDaMastery, DaBktParams,
+    DaKnowledgePointMap, QuestionDaOverride,
+    AdaptiveCard, DaCatalogSnapshot,
+)
+from edu_cloud.modules.menu.models import MenuConfig  # noqa: F401
+from edu_cloud.modules.analytics.analysis_models import (  # noqa: F401
+    ClassAnalysis, StudentAnalysis, StudentKnpMastery,
+)
 
 # ---------------------------------------------------------------------------
 # Alembic Config object, which provides access to the values within the .ini

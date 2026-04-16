@@ -1,0 +1,410 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d5be6-e1f8-7962-8bf9-d587986c2e77
+--------
+user
+Final verification for Batches 3-6 after commit f8542a8. Two fixes:
+1. data_scope.py: parent visible_student_ids now uses [] (deny-all) instead of None (allow-all) when no guardian records exist. Line 245: changed 'student_ids or None' to 'student_ids'.
+2. entity_extractor.py: Changed from single greedy regex to dual exact-quantifier approach (2-char priority, then 3-char for 同学 only). Prevents capturing preceding verbs.
+
+Read: git diff f8542a8~1..f8542a8
+Verify both fixes. If adequate, PASS all 4 batches. Be brief. Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+按代码审查流程处理。我会先读取 `code-review` 技能说明和 `f8542a8` 的提交差异，只核对你指出的两处修复是否真正解决问题。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff f8542a8~1..f8542a8' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md' -TotalCount 220" in C:/Users/Administrator/edu-cloud succeeded in 1.08s:
+diff --git a/src/edu_cloud/ai/data_scope.py b/src/edu_cloud/ai/data_scope.py
+index 6d36c4c..b7212a1 100644
+--- a/src/edu_cloud/ai/data_scope.py
++++ b/src/edu_cloud/ai/data_scope.py
+@@ -242,7 +242,7 @@ class DataScopeBuilder:
+             school_id=school_id,
+             role=role_row.role,
+             persona=persona,
+-            visible_student_ids=student_ids or None,
++            visible_student_ids=student_ids,  # [] = deny-all (fail-closed), never None for parent
+             can_write=False,
+             can_see_rankings=can_see_rankings,
+         )
+diff --git a/src/edu_cloud/ai/entity_extractor.py b/src/edu_cloud/ai/entity_extractor.py
+index a280a11..7b6972a 100644
+--- a/src/edu_cloud/ai/entity_extractor.py
++++ b/src/edu_cloud/ai/entity_extractor.py
+@@ -17,7 +17,10 @@ class EntityExtractor:
+         "政治": "politics",
+     }
+ succeeded in 1.17s:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+codex
+我已经拿到差异。接下来只看两处修复在现有实现里的实际语义：`visible_student_ids=[]` 是否真的是 fail-closed，以及新的姓名提取规则是否仍有误捕获或回归。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"visible_student_ids|guardian|parent\" src/edu_cloud/ai/data_scope.py src -g '"'!spec/**'"' -g '"'!reports/**'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/entity_extractor.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"EntityExtractor|student_ref|CLASS_PATTERN|同学|张三|王小明\" src tests -g '"'!spec/**'"' -g '"'!reports/**'"'" in C:/Users/Administrator/edu-cloud succeeded in 1.09s:
+src/edu_cloud/ai/data_scope.py:17:from edu_cloud.models.guardian import GuardianStudentLink
+src/edu_cloud/ai/data_scope.py:33:    "parent": "parent_advisor",
+src/edu_cloud/ai/data_scope.py:59:    visible_student_ids: list[str] | None  # parent: [child_id, ...]
+src/edu_cloud/ai/data_scope.py:65:    persona: str  # teacher_assistant / parent_advisor / admin_analyst / school_leader
+src/edu_cloud/ai/data_scope.py:167:        if role_str == "parent":
+src/edu_cloud/ai/data_scope.py:168:            return await self._build_parent(user_id, school_id, role_row, persona)
+src/edu_cloud/ai/data_scope.py:226:    async def _build_parent(
+src/edu_cloud/ai/data_scope.py:230:            GuardianStudentLink.guardian_user_id == user_id,
+src/edu_cloud/ai/data_scope.py:237:            school_id, "parent_can_see_ranking", default=False
+src/edu_cloud/ai/data_scope.py:245:            visible_student_ids=student_ids,  # [] = deny-all (fail-closed), never None for parent
+src/edu_cloud/ai/data_scope.py:271:        visible_student_ids: list[str] | None = None,
+src/edu_cloud/ai/data_scope.py:284:            visible_student_ids=visible_student_ids,
+src\edu_cloud\api\ai.py:216:    # Build system prompt (parent override when DataScope available)
+src\edu_cloud\api\ai.py:217:    if data_scope and data_scope.persona == "parent_advisor":
+src\edu_cloud\api\ai.py:218:        from edu_cloud.ai.prompts import build_parent_prompt
+src\edu_cloud\api\ai.py:219:        system_prompt = build_parent_prompt(
+src\edu_cloud\core\permissions.py:168:    "parent": {
+src\edu_cloud\templates\document_templates.py:81:    "parent_notification": {
+src\edu_cloud\templates\document_templates.py:82:        "key": "parent_notification",
+src\edu_cloud\ai\scoped_query.py:59:        # 5. student_ids (parent lock)
+ succeeded in 1.08s:
+tests\test_models\test_joint_exam_models.py:50:        student_name="张三",
+tests\test_api_exam\test_exception_handlers.py:54:    ws.append(["张三", "X001"])
+tests\test_api_exam\test_cards.py:46:        ws.append(["53437193", "张三"])
+tests\test_api_exam\test_analytics_class_filter.py:59:    s1 = Student(id="cf_s1", name="张三", student_number="CF001", class_id="cf_c1", school_id="cf_s")
+tests\test_api_exam\test_student.py:24:        Student(name="张三", student_number="A001", class_id="c1", school_id="s1"),
+tests\test_api_exam\test_student.py:166:        fp = self._make_xlsx(tmp_path, [["姓名", "准考证号"], ["张三重复", "A001"]])
+tests\test_services\test_joint_exam_service.py:140:        {"student_name": "张三", "student_number": "001", "total_score": 85,
+tests\test_services\test_joint_exam_service.py:162:        {"student_name": "张三", "student_number": "001", "total_score": 80,
+tests\test_services\test_joint_exam_service.py:167:        {"student_name": "张三", "student_number": "001", "total_score": 90,
+tests\test_services_exam\test_barcode_gen.py:16:        ws.append(["53437193", "3722230412", "高二2308班", "张三", 68])
+tests\test_services_exam\test_barcode_gen.py:24:        assert students[0]["name"] == "张三"
+tests\test_services_exam\test_barcode_gen.py:33:        ws.append(["001", "张三"])
+tests\test_services_exam\test_barcode_gen.py:44:            {"barcode": "53437193", "name": "张三"},
+tests\test_modules\test_student\test_service.py:58:    db.add(Student(name="张三", student_number="S001", class_id=c1.id, school_id=school.id))
+tests\test_modules\test_student\test_service.py:63:    assert students[0].name == "张三"
+tests\test_modules\test_student\test_service.py:75:    db.add(Student(name="张三", student_number="S001", class_id=cls.id, school_id=school.id))
+tests\test_modules\test_student\test_service.py:80:    assert results[0].name == "张三"
+tests\test_services\test_results_service.py:18:        ("s1", "张三", "001", 90.0),
+tests\test_services\test_results_service.py:60:    # 张三: 语文95(单科第一) + 数学50 = 总分145
+tests\test_services\test_results_service.py:62:    for name, num, yw, sx in [("张三", "001", 95, 50), ("李四", "002", 80, 90)]:
+ succeeded in 1.17s:
+"""Extract entities (subject, class, student) from Chinese text using regex."""
+from __future__ import annotations
+
+import re
+
+
+class EntityExtractor:
+    SUBJECT_MAP = {
+        "璇枃": "chinese",
+        "鏁板": "math",
+        "鑻辫": "english",
+        "鐗╃悊": "physics",
+        "鍖栧": "chemistry",
+        "鐢熺墿": "biology",
+        "鍘嗗彶": "history",
+        "鍦扮悊": "geography",
+        "鏀挎不": "politics",
+    }
+    CLASS_PATTERN = re.compile(r"(\d+)\s*鐝?)
+    # Strategy: try exact 2-char match first (most Chinese names), then 3-char.
+codex
+`data_scope` 的调用点已经定位到，`scoped_query` 和工具层都直接依赖 `visible_student_ids is not None`。我再看这几处的具体分支，确认 `[]` 不会被重新放宽。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/data_scope.py' | Select-Object -Skip 220 -First 40" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/tools/student_profile_tool.py' | Select-Object -First 90" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'src/edu_cloud/ai/scoped_query.py' | Select-Object -First 140" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'tests/test_ai/test_intent_router.py' | Select-Object -First 120" in C:/Users/Administrator/edu-cloud succeeded in 1.18s:
+            visible_subject_codes=subject_codes or None,
+            can_write=True,
+            can_see_rankings=True,
+        )
+
+    async def _build_parent(
+        self, user_id: str, school_id: str, role_row: UserRole, persona: str
+    ) -> DataScope:
+        stmt = select(GuardianStudentLink.student_id).where(
+            GuardianStudentLink.guardian_user_id == user_id,
+            GuardianStudentLink.school_id == school_id,
+        )
+        rows = (await self._db.execute(stmt)).scalars().all()
+        student_ids = list(rows)
+
+        can_see_rankings = await self._get_setting(
+            school_id, "parent_can_see_ranking", default=False
+        )
+
+        return self._make(
+ succeeded in 1.17s:
+"""ScopedQuery: unified scope-aware data filter for AI tools.
+
+Takes a DataScope and injects WHERE conditions into any SQLAlchemy SELECT query,
+ensuring AI tools can only access data within the user's visibility boundary.
+"""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from sqlalchemy import Select
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.ai.data_scope import DataScope
+
+
+class ScopeViolationError(Exception):
+    """Request parameter exceeds DataScope boundary."""
+
+
+ succeeded in 1.35s:
+"""瀛︾敓瀛︽儏鐢诲儚鍩熷伐鍏?鈥?鑱氬悎瓒嬪娍+鐭ヨ瘑鎺屾彙+閿欒妯″紡銆?""
+from sqlalchemy import select
+
+from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
+
+
+@tools.register(
+    name="get_student_learning_profile",
+    description="鑾峰彇瀛︾敓瀛︽儏鐢诲儚锛氭垚缁╄秼鍔裤€佺煡璇嗙偣鎺屾彙銆侀敊璇ā寮忋€傚闀垮拰鏁欏笀鍧囧彲浣跨敤銆?,
+    parameters={
+        "type": "object",
+        "properties": {
+            "student_id": {"type": "string", "description": "瀛︾敓 ID"},
+            "subject_code": {"type": "string", "description": "绉戠洰浠ｇ爜锛堝彲閫夛級"},
+        },
+        "required": ["student_id"],
+    },
+    category="profile",
+    domain="student_profile",
+ succeeded in 1.37s:
+"""Tests for IntentRouter + EntityExtractor."""
+import pytest
+
+
+# --- Entity extraction ---
+
+def test_extract_subject():
+    from edu_cloud.ai.entity_extractor import EntityExtractor
+    result = EntityExtractor.extract("鏁板鑰冧簡澶氬皯鍒?)
+    assert result["subject"] == "math"
+
+
+def test_extract_class():
+    from edu_cloud.ai.entity_extractor import EntityExtractor
+    result = EntityExtractor.extract("3鐝鏂囨垚缁?)
+    assert result["class_ref"] == "3"
+
+
+def test_extract_student():
+    from edu_cloud.ai.entity_extractor import EntityExtractor
+codex
+`data_scope` 这处已经基本清楚了：`[]` 会一路传到 SQL `IN []` / 参数校验里，语义是拒绝访问，不会再回退成全量可见。现在我做一个最小验证，确认新的姓名规则对三字名没有引入回归。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+p = Path('src/edu_cloud/ai/entity_extractor.py')
+print(p.read_text(encoding='utf-8'))
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from edu_cloud.ai.entity_extractor import EntityExtractor
+cases = [
+    '小明同学最近怎么样',
+    '张三的成绩',
+    '王小明同学最近怎么样',
+    '请分析王小明同学的成绩',
+    '看看张三同学'
+]
+for s in cases:
+    print(s, '=>', EntityExtractor.extract(s))
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.05s:
+????????? => {}
+????? => {}
+?????????? => {}
+??????????? => {}
+?????? => {}
+ succeeded in 1.07s:
+"""Extract entities (subject, class, student) from Chinese text using regex."""
+from __future__ import annotations
+
+import re
+
+
+class EntityExtractor:
+    SUBJECT_MAP = {
+        "语文": "chinese",
+        "数学": "math",
+        "英语": "english",
+        "物理": "physics",
+        "化学": "chemistry",
+        "生物": "biology",
+        "历史": "history",
+        "地理": "geography",
+        "政治": "politics",
+    }
+    CLASS_PATTERN = re.compile(r"(\d+)\s*班")
+    # Strategy: try exact 2-char match first (most Chinese names), then 3-char.
+codex
+控制台对中文标准输入有编码噪声，我改用 Unicode 转义做一次确定性验证，只看提取结果本身。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from edu_cloud.ai.entity_extractor import EntityExtractor
+cases = [
+    ('2char_tongxue', '\\u5c0f\\u660e\\u540c\\u5b66\\u6700\\u8fd1\\u600e\\u4e48\\u6837'),
+    ('2char_de', '\\u5f20\\u4e09\\u7684\\u6210\\u7ee9'),
+    ('3char_tongxue', '\\u738b\\u5c0f\\u660e\\u540c\\u5b66\\u6700\\u8fd1\\u600e\\u4e48\\u6837'),
+    ('verb_prefix', '\\u8bf7\\u5206\\u6790\\u738b\\u5c0f\\u660e\\u540c\\u5b66\\u7684\\u6210\\u7ee9')
+]
+for name, s in cases:
+    print(name, EntityExtractor.extract(s))
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 882ms:
+2char_tongxue {'student_ref': '小明'}
+2char_de {'student_ref': '张三'}
+3char_tongxue {'student_ref': '小明'}
+verb_prefix {'student_ref': '小明'}
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+p = Path('src/edu_cloud/ai/entity_extractor.py')
+for i, line in enumerate(p.read_text(encoding='utf-8').splitlines(), 1):
+    if 18 <= i <= 38:
+        print(f'{i}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+p = Path('src/edu_cloud/ai/data_scope.py')
+for i, line in enumerate(p.read_text(encoding='utf-8').splitlines(), 1):
+    if 226 <= i <= 246:
+        print(f'{i}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+p = Path('src/edu_cloud/ai/scoped_query.py')
+for i, line in enumerate(p.read_text(encoding='utf-8').splitlines(), 1):
+    if 56 <= i <= 63:
+        print(f'{i}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.20s:
+18:     }
+19:     CLASS_PATTERN = re.compile(r"(\d+)\s*班")
+20:     # Strategy: try exact 2-char match first (most Chinese names), then 3-char.
+21:     # Exact quantifiers prevent the regex from over-capturing preceding context.
+22:     _STUDENT_2 = re.compile(r"([\u4e00-\u9fa5]{2})(?:同学|的)")
+23:     _STUDENT_3 = re.compile(r"([\u4e00-\u9fa5]{3})(?:同学)")
+24: 
+25:     @classmethod
+26:     def extract(cls, message: str) -> dict:
+27:         result: dict[str, str] = {}
+28:         for cn, en in cls.SUBJECT_MAP.items():
+29:             if cn in message:
+30:                 result["subject"] = en
+31:                 break
+32:         m = cls.CLASS_PATTERN.search(message)
+33:         if m:
+34:             result["class_ref"] = m.group(1)
+35:         # Try 2-char first (most common: 小明同学/张三的), then 3-char (王小明同学)
+36:         m = cls._STUDENT_2.search(message) or cls._STUDENT_3.search(message)
+37:         if m:
+ succeeded in 1.23s:
+226:     async def _build_parent(
+227:         self, user_id: str, school_id: str, role_row: UserRole, persona: str
+228:     ) -> DataScope:
+229:         stmt = select(GuardianStudentLink.student_id).where(
+230:             GuardianStudentLink.guardian_user_id == user_id,
+231:             GuardianStudentLink.school_id == school_id,
+232:         )
+233:         rows = (await self._db.execute(stmt)).scalars().all()
+234:         student_ids = list(rows)
+235: 
+236:         can_see_rankings = await self._get_setting(
+237:             school_id, "parent_can_see_ranking", default=False
+238:         )
+239: 
+240:         return self._make(
+241:             user_id=user_id,
+242:             school_id=school_id,
+243:             role=role_row.role,
+244:             persona=persona,
+245:             visible_student_ids=student_ids,  # [] = deny-all (fail-closed), never None for parent
+ succeeded in 1.24s:
+56:                 getattr(model, subject_col).in_(self.scope.visible_subject_codes)
+57:             )
+58: 
+59:         # 5. student_ids (parent lock)
+60:         if self.scope.visible_student_ids is not None and hasattr(model, student_col):
+61:             query = query.where(
+62:                 getattr(model, student_col).in_(self.scope.visible_student_ids)
+63:             )
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+p = Path('src/edu_cloud/ai/scoped_query.py')
+for i, line in enumerate(p.read_text(encoding='utf-8').splitlines(), 1):
+    if 72 <= i <= 82:
+        print(f'{i}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+p = Path('src/edu_cloud/ai/tools/student_profile_tool.py')
+for i, line in enumerate(p.read_text(encoding='utf-8').splitlines(), 1):
+    if 32 <= i <= 38:
+        print(f'{i}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.07s:
+72:             query = self.apply(query, model, **col_overrides)
+73:         result = await self.db.execute(query)
+74:         return result.all()
+75: 
+76:     def validate_param(self, param_name: str, value: str) -> None:
+77:         """Validate request param doesn't exceed scope.
+78: 
+79:         Raises ScopeViolationError if the value is outside the allowed set.
+80:         None in the scope means no limit (all values allowed).
+81:         """
+82:         checks: dict[str, list[str] | None] = {
+ succeeded in 1.50s:
+32:     subject_code = input.get("subject_code")
+33: 
+34:     # Enforce DataScope student visibility (parent can only see linked children)
+35:     if ctx.data_scope is not None and ctx.data_scope.visible_student_ids is not None:
+36:         if student_id not in ctx.data_scope.visible_student_ids:
+37:             return ToolResult(success=False, error="无权访问该学生信息")
+38: 
+codex
+**发现**
+- 中: [entity_extractor.py:22](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/entity_extractor.py#L22) 和 [entity_extractor.py:36](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/entity_extractor.py#L36) 的“双正则，先 2 字后 3 字”实现不充分。对 `王小明同学`，`_STUDENT_2` 会先命中尾部的 `小明同学`，结果提取成 `小明`，我本地验证得到 `{'student_ref': '小明'}`。这说明第二个修复虽然避免了贪婪吞前文，但引入了三字名回归，不能 PASS 全部 4 个 batch。
+
+**结论**
+- `data_scope.py` 的修复是正确的。[data_scope.py:245](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/data_scope.py#L245) 现在返回 `[]`，而 [scoped_query.py:60](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/scoped_query.py#L60) 和 [student_profile_tool.py:35](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/student_profile_tool.py#L35) 都把 `is not None` 视为收紧条件，所以无监护关系时会 fail-closed。
+- 目前不能判定 Batches 3-6 全部 PASS；第一处通过，第二处未通过。
+tokens used
+46,109
+**发现**
+- 中: [entity_extractor.py:22](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/entity_extractor.py#L22) 和 [entity_extractor.py:36](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/entity_extractor.py#L36) 的“双正则，先 2 字后 3 字”实现不充分。对 `王小明同学`，`_STUDENT_2` 会先命中尾部的 `小明同学`，结果提取成 `小明`，我本地验证得到 `{'student_ref': '小明'}`。这说明第二个修复虽然避免了贪婪吞前文，但引入了三字名回归，不能 PASS 全部 4 个 batch。
+
+**结论**
+- `data_scope.py` 的修复是正确的。[data_scope.py:245](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/data_scope.py#L245) 现在返回 `[]`，而 [scoped_query.py:60](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/scoped_query.py#L60) 和 [student_profile_tool.py:35](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/student_profile_tool.py#L35) 都把 `is not None` 视为收紧条件，所以无监护关系时会 fail-closed。
+- 目前不能判定 Batches 3-6 全部 PASS；第一处通过，第二处未通过。

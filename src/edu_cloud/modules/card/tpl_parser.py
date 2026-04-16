@@ -60,17 +60,25 @@ def parse_tpl_file(path: str | Path) -> dict:
     page_width = info.get("iwidth", 0)
     page_height = info.get("iheight", 0)
 
-    # 判断 iwidth 是否为 A4 半页：A4@200dpi≈1654, A3@200dpi≈3308, 分界线 2000
-    if page_width <= 2000:
-        # A4 半页 → A3 展开需翻倍
-        image_width = page_width * 2
-    else:
-        # iwidth 已是 A3 全展开宽度，不翻倍
+    # 检测是否有 inpage=1 的主观题（正反两面）
+    subj_raw = datas.get("tplSubqueList", [])
+    has_page1 = any(s.get("inpage", 0) == 1 for s in subj_raw)
+
+    # 判断纸张规格
+    if page_width <= 2000 and has_page1:
+        # A4 双面：每面独立坐标，不拼接
         image_width = page_width
+        paper_size = "A4"
+    elif page_width <= 2000:
+        # A4 单面（无 B 面 slot）→ 按 A3 展开处理（向后兼容）
+        image_width = page_width * 2
+        paper_size = "A3"
+    else:
+        # iwidth 已是 A3 全展开宽度
+        image_width = page_width
+        paper_size = "A3"
     image_height = page_height
 
-    # 从总宽推断纸张规格: A3 展开 ~3308px (200dpi), A4 ~1654px
-    paper_size = "A4" if image_width <= 2000 else "A3"
     paper_width_mm = _A4_WIDTH_MM if paper_size == "A4" else _A3_WIDTH_MM
 
     # 推算 DPI
@@ -82,12 +90,12 @@ def parse_tpl_file(path: str | Path) -> dict:
     # 解析客观题组
     objective_groups = _parse_objective_groups(datas.get("tplObjqueGList", []))
 
-    # 解析主观题区域
-    subj_raw = datas.get("tplSubqueList", [])
-    subjective_slots = _parse_subjective_slots(subj_raw, page_width)
+    # 解析主观题区域（subj_raw 已在上方 has_page1 检测时读取）
+    is_a4_dual = paper_size == "A4" and has_page1
+    subjective_slots = _parse_subjective_slots(subj_raw, page_width, is_a4_dual=is_a4_dual)
 
-    # 推断栏定义（A3 全展开时 page1 是背面独立坐标，不参与正面栏推断）
-    page0_only = page_width > 2000
+    # 推断栏定义：A4 双面时只用 page0 推断；A3 全展开也只用 page0
+    page0_only = paper_size == "A4" or page_width > 2000
     columns = _infer_columns(subjective_slots, image_width, page0_only=page0_only)
     # 回填 columns 到 slots
     for slot in subjective_slots:
@@ -100,6 +108,7 @@ def parse_tpl_file(path: str | Path) -> dict:
 
     return {
         "paper_size": paper_size,
+        "is_a4_dual": is_a4_dual,
         "image_width": image_width,
         "image_height": image_height,
         "page_width": page_width,
@@ -145,16 +154,17 @@ def _parse_objective_groups(obj_list: list) -> list[dict]:
     return groups
 
 
-def _parse_subjective_slots(subj_list: list, page_width: int) -> list[dict]:
+def _parse_subjective_slots(subj_list: list, page_width: int, *, is_a4_dual: bool = False) -> list[dict]:
     """解析主观题区域为槽位列表。
 
-    inpage=0 的区域坐标属于第一页（左半），
-    inpage=1 的区域坐标属于第二页（右半），x 坐标需要加 page_width 偏移。
+    inpage=0 的区域坐标属于第一页，inpage=1 属于第二页。
+    A4 单面拼 A3 时 inpage=1 的 x 坐标加 page_width 偏移；
+    A4 双面时各面独立坐标，不偏移。
     """
     slots = []
-    # page_width <= 2000 意味着 iwidth 是 A4 半页，inpage=1 需要 x 偏移
-    # page_width > 2000 意味着 iwidth 是 A3 全展开，inpage=1 是背面独立坐标
-    needs_x_offset = page_width <= 2000
+    # A4 单面拼 A3 时需要 x 偏移；A4 双面和 A3 全展开都不偏移
+    # is_a4_dual=True 表示 A4 双面，各面独立坐标
+    needs_x_offset = page_width <= 2000 and not is_a4_dual
     for s in subj_list:
         que_name = s.get("que_name", "")
         inpage = s.get("inpage", 0)

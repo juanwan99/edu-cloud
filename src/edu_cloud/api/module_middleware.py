@@ -34,6 +34,7 @@ ROUTE_MODULE_MAP = {
     "/api/v1/studio": "studio",
     "/api/v1/homework": "homework",
     "/api/v1/pipeline": "exam",
+    "/api/v1/knowledge-tree": "research",
 }
 
 # Paths that are never blocked (core infrastructure + base info)

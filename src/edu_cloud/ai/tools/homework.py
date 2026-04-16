@@ -1,5 +1,6 @@
 """Agent 工具 — 作业查询/布置/统计。"""
 from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
 from edu_cloud.modules.homework.service import HomeworkTaskService, HomeworkSubmissionService
 
 
@@ -19,25 +20,29 @@ from edu_cloud.modules.homework.service import HomeworkTaskService, HomeworkSubm
     module_code="homework",
     domain="homework",
     risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
     requires_capabilities=[("homework", "read")],
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director",
                    "grade_leader", "homeroom_teacher", "subject_teacher", "parent"],
 )
-async def list_homework_tasks(
-    class_id: str | None = None, subject_code: str | None = None,
-    status: str | None = None,
-    _db=None, _school_id: str = "",
-) -> dict:
-    tasks = await HomeworkTaskService.list_tasks(
-        _db, school_id=_school_id,
-        class_id=class_id or None, subject_code=subject_code or None,
-        status=status or None,
-    )
-    return {"tasks": [
-        {"id": t.id, "title": t.title, "type": t.task_type,
-         "status": t.status, "subject": t.subject_code}
-        for t in tasks[:20]
-    ]}
+async def list_homework_tasks(input: dict, ctx: ToolContext) -> ToolResult:
+    class_id = input.get("class_id")
+    subject_code = input.get("subject_code")
+    status = input.get("status")
+    try:
+        tasks = await HomeworkTaskService.list_tasks(
+            ctx.db, school_id=ctx.school_id,
+            class_id=class_id or None, subject_code=subject_code or None,
+            status=status or None,
+        )
+        return ToolResult(success=True, data={"tasks": [
+            {"id": t.id, "title": t.title, "type": t.task_type,
+             "status": t.status, "subject": t.subject_code}
+            for t in tasks[:20]
+        ]})
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -54,13 +59,20 @@ async def list_homework_tasks(
     module_code="homework",
     domain="homework",
     risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
     requires_capabilities=[("homework", "read")],
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director",
                    "grade_leader", "homeroom_teacher", "subject_teacher"],
 )
-async def get_homework_stats(task_id: str, _db=None, _school_id: str = "") -> dict:
-    await HomeworkTaskService.get_task(_db, task_id=task_id, school_id=_school_id)
-    return await HomeworkSubmissionService.get_task_stats(_db, task_id=task_id)
+async def get_homework_stats(input: dict, ctx: ToolContext) -> ToolResult:
+    task_id = input.get("task_id", "")
+    try:
+        await HomeworkTaskService.get_task(ctx.db, task_id=task_id, school_id=ctx.school_id)
+        data = await HomeworkSubmissionService.get_task_stats(ctx.db, task_id=task_id)
+        return ToolResult(success=True, data=data)
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -78,23 +90,27 @@ async def get_homework_stats(task_id: str, _db=None, _school_id: str = "") -> di
     module_code="homework",
     domain="homework",
     risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
     requires_capabilities=[("homework", "read")],
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director",
                    "grade_leader", "homeroom_teacher", "subject_teacher"],
 )
-async def get_submission_details(
-    task_id: str, status: str | None = None,
-    _db=None, _school_id: str = "",
-) -> dict:
-    await HomeworkTaskService.get_task(_db, task_id=task_id, school_id=_school_id)
-    subs = await HomeworkSubmissionService.list_submissions(
-        _db, task_id=task_id, status=status or None,
-    )
-    return {"submissions": [
-        {"id": s.id, "student_id": s.student_id, "status": s.status,
-         "score": s.score, "submit_time": str(s.submit_time) if s.submit_time else None}
-        for s in subs
-    ]}
+async def get_submission_details(input: dict, ctx: ToolContext) -> ToolResult:
+    task_id = input.get("task_id", "")
+    status = input.get("status")
+    try:
+        await HomeworkTaskService.get_task(ctx.db, task_id=task_id, school_id=ctx.school_id)
+        subs = await HomeworkSubmissionService.list_submissions(
+            ctx.db, task_id=task_id, status=status or None,
+        )
+        return ToolResult(success=True, data={"submissions": [
+            {"id": s.id, "student_id": s.student_id, "status": s.status,
+             "score": s.score, "submit_time": str(s.submit_time) if s.submit_time else None}
+            for s in subs
+        ]})
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -114,23 +130,27 @@ async def get_submission_details(
     module_code="homework",
     domain="homework",
     risk_level="med",
+    is_read_only=False,
+    sensitivity="school",
     requires_capabilities=[("homework", "write")],
     allowed_roles=["homeroom_teacher", "subject_teacher", "academic_director", "platform_admin"],
 )
-async def assign_homework(
-    title: str, subject_code: str, class_id: str,
-    deadline: str = "",
-    _db=None, _school_id: str = "", _user_id: str = "",
-) -> dict:
-    task = await HomeworkTaskService.create_task(
-        _db, school_id=_school_id, title=title,
-        task_type="regular", subject_code=subject_code,
-        class_id=class_id, assigned_by=_user_id,
-    )
-    task = await HomeworkTaskService.transition_status(
-        _db, task_id=task.id, school_id=_school_id, action="publish",
-    )
-    return {"task_id": task.id, "title": task.title, "status": task.status}
+async def assign_homework(input: dict, ctx: ToolContext) -> ToolResult:
+    title = input.get("title", "")
+    subject_code = input.get("subject_code", "")
+    class_id = input.get("class_id", "")
+    try:
+        task = await HomeworkTaskService.create_task(
+            ctx.db, school_id=ctx.school_id, title=title,
+            task_type="regular", subject_code=subject_code,
+            class_id=class_id, assigned_by=ctx.user_id,
+        )
+        task = await HomeworkTaskService.transition_status(
+            ctx.db, task_id=task.id, school_id=ctx.school_id, action="publish",
+        )
+        return ToolResult(success=True, data={"task_id": task.id, "title": task.title, "status": task.status})
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -147,8 +167,10 @@ async def assign_homework(
     module_code="homework",
     domain="homework",
     risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
     requires_capabilities=[("homework", "read")],
     allowed_roles=["homeroom_teacher", "subject_teacher", "academic_director", "platform_admin"],
 )
-async def recommend_remedial(exam_id: str, _db=None, _school_id: str = "") -> dict:
-    return {"message": "考后补偿推荐功能开发中，将在 Phase 3 学情分析完成后实现"}
+async def recommend_remedial(input: dict, ctx: ToolContext) -> ToolResult:
+    return ToolResult(success=True, data={"message": "考后补偿推荐功能开发中，将在 Phase 3 学情分析完成后实现"})

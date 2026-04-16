@@ -7,6 +7,22 @@ export const routes = [
   // Auth — outside AppShell
   { path: '/login', name: 'Login', component: () => import('../pages/LoginPage.vue') },
 
+  // Parent portal — independent layout, no AppShell
+  { path: '/parent/login', name: 'ParentLogin', component: () => import('../pages/parent/ParentLogin.vue') },
+  { path: '/parent/register', name: 'ParentRegister', component: () => import('../pages/parent/ParentRegister.vue') },
+  {
+    path: '/parent',
+    component: () => import('../layouts/ParentLayout.vue'),
+    children: [
+      { path: '', name: 'ParentOverview', component: () => import('../pages/parent/ParentOverview.vue') },
+      { path: 'bind', name: 'ParentBind', component: () => import('../pages/parent/ParentBind.vue') },
+      { path: 'details', name: 'ParentDetails', component: () => import('../pages/parent/ParentDetails.vue') },
+      { path: 'rankings', name: 'ParentRankings', component: () => import('../pages/parent/ParentRankings.vue') },
+      { path: 'rules', name: 'ParentRules', component: () => import('../pages/parent/ParentRules.vue') },
+      { path: 'profile', name: 'ParentProfile', component: () => import('../pages/parent/ParentProfile.vue') },
+    ]
+  },
+
   // All authenticated routes under AppShell
   {
     path: '/',
@@ -22,19 +38,21 @@ export const routes = [
       // Card editor
       { path: 'card-dev/:examId', name: 'CardEditorDev', component: () => import('../pages/CardEditorDevPage.vue'), meta: { roles: EXAM_ROLES } },
 
-      // Analytics
+      // Analytics report & trend
+      { path: 'analytics/report', name: 'AnalyticsReport', component: () => import('../pages/AnalyticsReportPage.vue'), meta: { permissions: ['view_scores'] } },
+      { path: 'analytics/trend', name: 'AnalyticsTrend', component: () => import('../pages/AnalyticsTrendPage.vue'), meta: { permissions: ['view_scores'] } },
+      // Analytics (parameterized — must come after literal paths)
       { path: 'analytics/:examId', name: 'Analytics', component: () => import('../pages/AnalyticsPage.vue'), meta: { roles: EXAM_ROLES } },
 
-      // Manual marking
+      // Manual marking + AI 校对（同一 ReviewPage；按题目维度进入）
       { path: 'marking', name: 'MarkingSelect', component: () => import('../pages/MarkingSelectPage.vue'), meta: { roles: MARKING_ROLES } },
-      { path: 'marking/grade/:questionId', name: 'Marking', component: () => import('../pages/MarkingPage.vue'), meta: { roles: MARKING_ROLES } },
+      { path: 'marking/grade/:questionId', name: 'Review', component: () => import('../pages/ReviewPage.vue'), meta: { roles: MARKING_ROLES } },
       { path: 'marking/assign', name: 'MarkingAssign', component: () => import('../pages/MarkingAssignPage.vue'), meta: { roles: SCHOOL_ADMIN_ROLES } },
       { path: 'marking/progress', name: 'MarkingProgress', component: () => import('../pages/MarkingProgressPage.vue'), meta: { roles: MARKING_ROLES } },
 
       // AI grading
-      { path: 'grading/tasks', name: 'GradingTasks', component: () => import('../pages/GradingTasksPage.vue'), meta: { roles: SCHOOL_ADMIN_ROLES } },
+      { path: 'grading/tasks', name: 'GradingDispatch', component: () => import('../pages/GradingDispatchPage.vue'), meta: { roles: SCHOOL_ADMIN_ROLES } },
       { path: 'grading/tasks/:id', name: 'GradingResults', component: () => import('../pages/GradingResultsPage.vue'), meta: { roles: SCHOOL_ADMIN_ROLES } },
-      { path: 'grading/review', name: 'TeacherReview', component: () => import('../pages/TeacherReviewPage.vue'), meta: { roles: [...SCHOOL_ADMIN_ROLES, 'subject_teacher', 'homeroom_teacher'] } },
 
       // Platform workbench (AI analysis)
       { path: 'analysis', name: 'Analysis', component: () => import('../pages/AnalysisPage.vue'), meta: { permissions: ['use_ai_chat'] } },
@@ -55,6 +73,20 @@ export const routes = [
       { path: 'calendar', name: 'Calendar', component: () => import('../pages/DashboardPage.vue') },
       { path: 'notifications', name: 'Notifications', component: () => import('../pages/DashboardPage.vue') },
       { path: 'paper', name: 'Paper', component: () => import('../pages/AnalysisPage.vue'), meta: { permissions: ['use_ai_chat'] } },
+
+      // Knowledge tree
+      { path: 'knowledge-tree', name: 'KnowledgeTree', component: () => import('../pages/KnowledgeTreePage.vue'), meta: { permissions: ['view_knowledge_tree'] } },
+
+      // Conduct management
+      { path: 'conduct', name: 'ConductDashboard', component: () => import('../pages/conduct/ConductDashboard.vue'), meta: { permissions: ['view_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/points', name: 'ConductPoints', component: () => import('../pages/conduct/ConductPoints.vue'), meta: { permissions: ['manage_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/rules', name: 'ConductRules', component: () => import('../pages/conduct/ConductRules.vue'), meta: { permissions: ['manage_conduct_rules'], moduleCode: 'conduct' } },
+      { path: 'conduct/rankings', name: 'ConductRankings', component: () => import('../pages/conduct/ConductRankings.vue'), meta: { permissions: ['view_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/records', name: 'ConductRecords', component: () => import('../pages/conduct/ConductRecords.vue'), meta: { permissions: ['view_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/groups', name: 'ConductGroups', component: () => import('../pages/conduct/ConductGroups.vue'), meta: { permissions: ['manage_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/settings', name: 'ConductSettings', component: () => import('../pages/conduct/ConductSettings.vue'), meta: { permissions: ['manage_conduct_parents'], moduleCode: 'conduct' } },
+      { path: 'conduct/export', name: 'ConductExport', component: () => import('../pages/conduct/ConductExport.vue'), meta: { permissions: ['export_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/parents', name: 'ConductParents', component: () => import('../pages/conduct/ConductParents.vue'), meta: { permissions: ['manage_conduct_parents'], moduleCode: 'conduct' } },
     ]
   }
 ]
@@ -62,6 +94,11 @@ export const routes = [
 const router = createRouter({ history: createWebHistory(), routes })
 
 export function authGuard(to, from, next) {
+  // Parent portal has its own auth (cp_token), skip platform auth checks
+  if (to.path.startsWith('/parent')) {
+    return next()
+  }
+
   const requiresAuth = to.matched.some(r => r.meta.requiresAuth)
   const token = localStorage.getItem('token')
 

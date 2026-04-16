@@ -1,0 +1,17 @@
+{
+  "topic": "knowledge-graph-model",
+  "plan_file": "docs/plans/2026-04-09-knowledge-graph-model-plan.md",
+  "design_file": "docs/plans/2026-04-09-knowledge-graph-model-design.md",
+  "tasks": [
+    {"id": "1", "desc": "Migration + Model + Config", "status": "completed"},
+    {"id": "2", "desc": "Graph API v2 响应增强", "status": "completed"},
+    {"id": "3", "desc": "Edge 审核状态机", "status": "completed"},
+    {"id": "4", "desc": "发布过滤", "status": "completed"},
+    {"id": "5", "desc": "质量巡检 API", "status": "completed"},
+    {"id": "6", "desc": "Sync 适配 + Backwrite", "status": "completed"},
+    {"id": "7", "desc": "前端 API + Composable 更新", "status": "completed"},
+    {"id": "8", "desc": "审查工作台前端组件", "status": "completed"},
+    {"id": "9", "desc": "KnowledgeTreePage 集成 + 前端测试", "status": "completed"}
+  ],
+  "updated_at": "2026-04-10 10:27:15"
+}

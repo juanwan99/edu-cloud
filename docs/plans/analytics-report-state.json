@@ -1,0 +1,21 @@
+{
+  "topic": "analytics-report",
+  "plan_file": "docs/plans/2026-04-05-analytics-report-plan.md",
+  "design_file": "docs/plans/2026-04-05-analytics-report-design.md",
+  "tasks": [
+    {"id": "1", "desc": "ScoreSegmentConfig 数据模型 + Migration", "status": "pending"},
+    {"id": "2", "desc": "segment_service CRUD + 计算逻辑", "status": "pending"},
+    {"id": "3", "desc": "修改 exam_distribution 支持动态分数段", "status": "pending"},
+    {"id": "4", "desc": "分数段 API 路由", "status": "pending"},
+    {"id": "5", "desc": "report_service 自定义分析构建器", "status": "pending"},
+    {"id": "6", "desc": "跨考试对比趋势", "status": "pending"},
+    {"id": "7", "desc": "报告 API 路由（query+trend+export）", "status": "pending"},
+    {"id": "8", "desc": "AI Agent 工具（3 个）", "status": "pending"},
+    {"id": "9", "desc": "前端 API+路由+侧栏", "status": "pending"},
+    {"id": "10", "desc": "前端 AnalyticsReportPage", "status": "pending"},
+    {"id": "11", "desc": "前端 AnalyticsTrendPage", "status": "pending"},
+    {"id": "12", "desc": "前端 ScoreSegmentSettings", "status": "pending"},
+    {"id": "13", "desc": "全量测试收尾", "status": "pending"}
+  ],
+  "updated_at": "2026-04-05 17:05:41"
+}

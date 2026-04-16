@@ -153,11 +153,11 @@ async def import_biology_exam(
         }
     if exam and force_reimport:
         # 删除旧考试的关联数据
-        from edu_cloud.modules.grading.models import AIGradingResult, GradingTask
+        from edu_cloud.modules.grading.models import GradingResult, GradingTask
         from edu_cloud.modules.bank.models import StudentErrorBook, BankQuestion
         from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentErrorPattern
         logger.info("force_reimport: deleting old exam data for '%s'", exam_name)
-        await db.execute(AIGradingResult.__table__.delete().where(AIGradingResult.__table__.c.school_id == school.id))
+        await db.execute(GradingResult.__table__.delete().where(GradingResult.__table__.c.school_id == school.id))
         await db.execute(GradingTask.__table__.delete().where(GradingTask.__table__.c.school_id == school.id))
         await db.execute(StudentAnswer.__table__.delete().where(StudentAnswer.__table__.c.exam_id == exam.id))
         await db.execute(StudentErrorBook.__table__.delete().where(StudentErrorBook.__table__.c.exam_id == exam.id))
@@ -185,7 +185,7 @@ async def import_biology_exam(
     db.add(subject)
     await db.flush()
 
-    # 创建 GradingTask（AIGradingResult 需要 task_id FK）
+    # 创建 GradingTask（GradingResult.ai_task_id 指向此）
     from edu_cloud.modules.grading.models import GradingTask
     from edu_cloud.models.user import User
     from edu_cloud.models.user_role import UserRole
@@ -210,10 +210,10 @@ async def import_biology_exam(
     questions = []
     for q_num in range(1, TOTAL_QUESTIONS + 1):
         if q_num <= OBJECTIVE_COUNT:
-            q_type = "objective"
+            q_type = "choice"
             max_score = float(OBJECTIVE_MAX)
         else:
-            q_type = "subjective"
+            q_type = "essay"
             max_score = float(subjective_max.get(q_num, 12))
         q = Question(
             subject_id=subject.id, school_id=school.id,
@@ -246,7 +246,7 @@ async def import_biology_exam(
 
             score = r["question_scores"][q_idx]
             detected = None
-            if q.question_type == "objective":
+            if q.question_type in ("choice", "multi_choice"):
                 detected = "correct" if score >= q.max_score else "wrong"
 
             sa = StudentAnswer(
@@ -256,22 +256,22 @@ async def import_biology_exam(
                 detected_answer=detected,
             )
             db.add(sa)
-            await db.flush()  # 需要 sa.id 给 AIGradingResult
+            await db.flush()  # 需要 sa.id 给 GradingResult
 
-            # 创建 AIGradingResult（analytics 的 get_effective_scores 通过 JOIN AIGradingResult 获取成绩）
-            from edu_cloud.modules.grading.models import AIGradingResult
-            ai_result = AIGradingResult(
-                task_id=grading_task.id,
+            # 创建 GradingResult（Excel 导入视为"已确认"的历史成绩，source=manual）
+            from edu_cloud.modules.grading.models import GradingResult
+            gr = GradingResult(
+                ai_task_id=grading_task.id,
                 answer_id=sa.id,
                 question_id=q.id,
                 school_id=school.id,
-                score=score,
+                final_score=score,
                 max_score=q.max_score,
-                feedback=f"Excel 导入成绩: {score}/{q.max_score}",
-                confidence=1.0,
-                review_status="approved",
+                status="confirmed",
+                source="manual",
+                review_comment=f"Excel 导入成绩: {score}/{q.max_score}",
             )
-            db.add(ai_result)
+            db.add(gr)
             answer_count += 1
 
     await db.commit()

@@ -2,7 +2,7 @@ import pytest
 from edu_cloud.models.school import School
 from edu_cloud.models.exam import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.grading.models import AIGradingResult, GradingTask, TeacherReview
+from edu_cloud.modules.grading.models import GradingResult, GradingTask
 from edu_cloud.modules.bank.models import BankQuestion, StudentErrorBook
 from edu_cloud.modules.pipeline.service import populate_bank_questions, populate_error_books, _get_effective_score, _compute_question_stats
 from sqlalchemy import select, func
@@ -21,8 +21,8 @@ async def _setup_exam_with_scores(db):
     db.add(subj)
     await db.flush()
 
-    q1 = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="objective", max_score=5, correct_answer="A")
-    q2 = Question(subject_id=subj.id, school_id=school.id, name="2", question_type="subjective", max_score=10)
+    q1 = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="choice", max_score=5, correct_answer="A")
+    q2 = Question(subject_id=subj.id, school_id=school.id, name="2", question_type="essay", max_score=10)
     db.add_all([q1, q2])
     await db.flush()
 
@@ -54,7 +54,7 @@ async def test_populate_bank_questions(db):
     bqs = result.scalars().all()
     assert len(bqs) == 2
 
-    obj_bq = next(bq for bq in bqs if bq.question_type == "objective")
+    obj_bq = next(bq for bq in bqs if bq.question_type == "choice")
     assert obj_bq.sample_count == 5
     # TG-004: 精确断言
     # 选择题分数: [5, 5, 3, 4, 0], max=5 → difficulty = (5+5+3+4+0)/(5*5) = 17/25 = 0.68
@@ -64,7 +64,7 @@ async def test_populate_bank_questions(db):
     assert "C" in obj_bq.common_errors
     assert obj_bq.common_errors["C"] == pytest.approx(0.6, abs=0.01)
 
-    subj_bq = next(bq for bq in bqs if bq.question_type == "subjective")
+    subj_bq = next(bq for bq in bqs if bq.question_type == "essay")
     assert subj_bq.sample_count == 5
     # 主观题分数: [8, 3, 7, 10, 5], max=10 → difficulty = 33/50 = 0.66
     assert subj_bq.difficulty == pytest.approx(0.66, abs=0.01)
@@ -116,7 +116,7 @@ async def test_effective_score_with_teacher_review(db):
     db.add(subj)
     await db.flush()
 
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     db.add(q)
     await db.flush()
 
@@ -141,19 +141,14 @@ async def test_effective_score_with_teacher_review(db):
     db.add(gt)
     await db.flush()
 
-    ai_result = AIGradingResult(
-        task_id=gt.id, answer_id=sa.id, question_id=q.id,
-        school_id=school.id, score=3.0, max_score=10.0,
-        review_status="overridden",
+    gr = GradingResult(
+        ai_task_id=gt.id, answer_id=sa.id, question_id=q.id,
+        school_id=school.id, ai_score=3.0, ai_confidence=0.9,
+        final_score=10.0, max_score=10.0,
+        status="confirmed", source="ai_override",
+        reviewer_id=user.id,
     )
-    db.add(ai_result)
-    await db.flush()
-
-    review = TeacherReview(
-        result_id=ai_result.id, reviewer_id=user.id,
-        school_id=school.id, action="override", adjusted_score=10.0,
-    )
-    db.add(review)
+    db.add(gr)
     await db.commit()
 
     # 题库入库
@@ -176,7 +171,7 @@ async def test_effective_score_ai_only(db):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     db.add(q)
     await db.flush()
 
@@ -200,15 +195,16 @@ async def test_effective_score_ai_only(db):
     db.add(gt)
     await db.flush()
 
-    ai_result = AIGradingResult(
-        task_id=gt.id, answer_id=sa.id, question_id=q.id,
-        school_id=school.id, score=7.0, max_score=10.0,
-        review_status="pending",
+    gr = GradingResult(
+        ai_task_id=gt.id, answer_id=sa.id, question_id=q.id,
+        school_id=school.id, ai_score=7.0,
+        final_score=7.0, max_score=10.0,
+        status="ai_done",
     )
-    db.add(ai_result)
+    db.add(gr)
     await db.commit()
 
-    # AI 给 7 分，StudentAnswer.score=2，无 TeacherReview → 有效分 = 7（AI 分数）
+    # GradingResult.final_score=7, status=ai_done → 有效分 = 7
     score = await _get_effective_score(db, answer_id=sa.id)
     assert score == 7.0
 
@@ -225,7 +221,7 @@ async def test_effective_score_student_answer_only(db):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="objective", max_score=5)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="choice", max_score=5)
     db.add(q)
     await db.flush()
 
@@ -260,7 +256,7 @@ async def test_pipeline_empty_exam(db):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="objective", max_score=5)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="choice", max_score=5)
     db.add(q)
     await db.commit()
 
@@ -304,7 +300,7 @@ async def test_discrimination_with_10_samples(db):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="objective", max_score=10)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="choice", max_score=10)
     db.add(q)
     await db.flush()
 

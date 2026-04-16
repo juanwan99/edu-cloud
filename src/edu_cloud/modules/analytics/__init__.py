@@ -2,7 +2,7 @@
 import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from edu_cloud.modules.grading.models import AIGradingResult, TeacherReview
+from edu_cloud.modules.grading.models import GradingResult
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.student.models import Student
 
@@ -13,22 +13,23 @@ async def get_effective_scores(
     db: AsyncSession, subject_id: str, school_id: str,
     visible_class_ids: list[str] | None = None,
 ) -> list[dict]:
-    """Return effective scores for all graded answers in a subject."""
+    """Return effective scores for all graded answers in a subject.
+
+    Effective score = GradingResult.final_score（单一权威源）。
+    """
     stmt = (
         select(
             StudentAnswer.student_id,
-            AIGradingResult.question_id,
-            AIGradingResult.score,
-            AIGradingResult.max_score,
-            AIGradingResult.review_status,
-            TeacherReview.adjusted_score,
+            GradingResult.question_id,
+            GradingResult.final_score,
+            GradingResult.max_score,
+            GradingResult.status,
         )
-        .join(AIGradingResult, AIGradingResult.answer_id == StudentAnswer.id)
-        .outerjoin(TeacherReview, TeacherReview.result_id == AIGradingResult.id)
+        .join(GradingResult, GradingResult.answer_id == StudentAnswer.id)
         .where(
             StudentAnswer.subject_id == subject_id,
             StudentAnswer.school_id == school_id,
-            AIGradingResult.school_id == school_id,
+            GradingResult.school_id == school_id,
         )
     )
     if visible_class_ids is not None:
@@ -41,21 +42,16 @@ async def get_effective_scores(
 
     scores = []
     for row in rows:
-        if row.review_status == "overridden" and row.adjusted_score is None:
+        if row.final_score is None:
             logger.warning(
-                "overridden result has adjusted_score=None, "
-                "falling back to AI score for student_id=%s question_id=%s",
-                row.student_id, row.question_id,
+                "grading_result missing final_score: student=%s question=%s status=%s",
+                row.student_id, row.question_id, row.status,
             )
-        effective = (
-            row.adjusted_score
-            if row.review_status == "overridden" and row.adjusted_score is not None
-            else row.score
-        )
+            continue
         scores.append({
             "student_id": row.student_id,
             "question_id": row.question_id,
-            "effective_score": effective,
+            "effective_score": row.final_score,
             "max_score": row.max_score,
         })
     return scores

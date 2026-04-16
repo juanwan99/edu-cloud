@@ -1,5 +1,6 @@
 """Agent 工具 — 阅卷进度/质量/分配。"""
 from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
 from edu_cloud.modules.grading.assignment_service import GradingAssignmentService
 from edu_cloud.modules.grading.quality_service import QualityCheckService
 
@@ -16,10 +17,17 @@ from edu_cloud.modules.grading.quality_service import QualityCheckService
     module_code="grading",
     domain="exam",
     risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
     allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
 )
-async def get_grading_progress(exam_id: str, _db=None, _school_id: str = ""):
-    return await GradingAssignmentService.get_progress(_db, exam_id, school_id=_school_id)
+async def get_grading_progress(input: dict, ctx: ToolContext) -> ToolResult:
+    exam_id = input.get("exam_id", "")
+    try:
+        data = await GradingAssignmentService.get_progress(ctx.db, exam_id, school_id=ctx.school_id)
+        return ToolResult(success=True, data=data)
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -34,10 +42,17 @@ async def get_grading_progress(exam_id: str, _db=None, _school_id: str = ""):
     module_code="grading",
     domain="exam",
     risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
     allowed_roles=["platform_admin", "academic_director"],
 )
-async def get_quality_report(exam_id: str, _db=None, _school_id: str = ""):
-    return await QualityCheckService.get_quality_report(_db, exam_id, school_id=_school_id)
+async def get_quality_report(input: dict, ctx: ToolContext) -> ToolResult:
+    exam_id = input.get("exam_id", "")
+    try:
+        data = await QualityCheckService.get_quality_report(ctx.db, exam_id, school_id=ctx.school_id)
+        return ToolResult(success=True, data=data)
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 @tools.register(
@@ -58,22 +73,27 @@ async def get_quality_report(exam_id: str, _db=None, _school_id: str = ""):
     module_code="grading",
     domain="exam",
     risk_level="med",
+    is_read_only=False,
+    sensitivity="school",
     allowed_roles=["platform_admin", "academic_director"],
 )
-async def assign_grading_task(
-    exam_id: str, subject_id: str,
-    question_ids: str, teacher_ids: str,
-    total_count_per_question: str = "0",
-    _db=None, _school_id: str = "",
-):
-    q_list = [q.strip() for q in question_ids.split(",") if q.strip()]
-    t_list = [t.strip() for t in teacher_ids.split(",") if t.strip()]
-    assignments = await GradingAssignmentService.auto_assign(
-        _db, exam_id=exam_id, subject_id=subject_id,
-        question_ids=q_list, teacher_ids=t_list, school_id=_school_id,
-        total_count_per_question=int(total_count_per_question) if total_count_per_question else 0,
-    )
-    return {
-        "assigned": len(assignments),
-        "teachers": [a.assigned_to for a in assignments],
-    }
+async def assign_grading_task(input: dict, ctx: ToolContext) -> ToolResult:
+    exam_id = input.get("exam_id", "")
+    subject_id = input.get("subject_id", "")
+    question_ids = input.get("question_ids", "")
+    teacher_ids = input.get("teacher_ids", "")
+    total_count_per_question = input.get("total_count_per_question", "0")
+    try:
+        q_list = [q.strip() for q in question_ids.split(",") if q.strip()]
+        t_list = [t.strip() for t in teacher_ids.split(",") if t.strip()]
+        assignments = await GradingAssignmentService.auto_assign(
+            ctx.db, exam_id=exam_id, subject_id=subject_id,
+            question_ids=q_list, teacher_ids=t_list, school_id=ctx.school_id,
+            total_count_per_question=int(total_count_per_question) if total_count_per_question else 0,
+        )
+        return ToolResult(success=True, data={
+            "assigned": len(assignments),
+            "teachers": [a.assigned_to for a in assignments],
+        })
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))

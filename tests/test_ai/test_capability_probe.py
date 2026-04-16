@@ -130,3 +130,34 @@ async def test_probe_tier3_capabilities_writeback():
     await probe.determine_tier(adapter)
     assert adapter.supports_tool_use() is False
     assert adapter.supports_parallel_tool_calls() is False
+
+
+class TestConfigurableThresholds:
+    """P3-1: tier thresholds should be configurable via public API."""
+
+    @pytest.mark.asyncio
+    async def test_custom_t1_threshold_affects_determine_tier(self):
+        """Lower T1 threshold should promote 60K context model to tier 1."""
+        probe = CapabilityProbe(tier_thresholds=[50_000, 10_000])
+        adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary", context_window=60_000)
+        # Mock tool_use test to succeed
+        adapter.chat = AsyncMock(return_value=LLMResponse(
+            content=None, tool_calls=[ToolCall(id="1", name="test_tool", arguments={"x": 1}, _raw={})],
+            usage=TokenUsage(10, 5), stop_reason="tool_use",
+        ))
+
+        tier = await probe.determine_tier(adapter)
+        assert tier == 1, "60K context should be tier 1 with custom threshold [50K, 10K]"
+
+    @pytest.mark.asyncio
+    async def test_default_threshold_keeps_60k_as_tier2(self):
+        """With default thresholds, 60K context is tier 2 (not tier 1)."""
+        probe = CapabilityProbe()
+        adapter = LLMProxyAdapter(base_url="http://test:8100", slot="primary", context_window=60_000)
+        adapter.chat = AsyncMock(return_value=LLMResponse(
+            content=None, tool_calls=[ToolCall(id="1", name="test_tool", arguments={"x": 1}, _raw={})],
+            usage=TokenUsage(10, 5), stop_reason="tool_use",
+        ))
+
+        tier = await probe.determine_tier(adapter)
+        assert tier == 2, "60K context should be tier 2 with default threshold [100K, 30K]"

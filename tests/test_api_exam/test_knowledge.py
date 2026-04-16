@@ -52,7 +52,7 @@ async def test_link_question_to_knowledge_point(db):
     db.add(subj)
     await db.flush()
 
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     db.add(q)
     kp = KnowledgePoint(code="MATH_FUNC_DERIV", name="导数", course_code="SX", level=2)
     db.add(kp)
@@ -75,7 +75,7 @@ async def test_question_kp_unique_constraint(db):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     kp = KnowledgePoint(code="MATH_DERIV_APP", name="导数应用", course_code="SX", level=3)
     db.add_all([q, kp])
     await db.flush()

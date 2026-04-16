@@ -24,8 +24,8 @@ async def perm_setup(client, db):
     db.add_all([yw, sx])
     await db.commit()
 
-    q_yw = Question(id="pqyw", subject_id="psyw", name="语文1", question_type="subjective", max_score=10, school_id="ps1")
-    q_sx = Question(id="pqsx", subject_id="pssx", name="数学1", question_type="subjective", max_score=10, school_id="ps1")
+    q_yw = Question(id="pqyw", subject_id="psyw", name="语文1", question_type="essay", max_score=10, school_id="ps1")
+    q_sx = Question(id="pqsx", subject_id="pssx", name="数学1", question_type="essay", max_score=10, school_id="ps1")
     db.add_all([q_yw, q_sx])
     await db.commit()
 

@@ -38,8 +38,18 @@
       <div style="margin-top: 40px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h2 style="font-size: 20px; font-weight: 700;">题目分析</h2>
-          <n-select v-model:value="questionSubjectId" :options="subjectSelectOptions" style="width: 180px;"
-            placeholder="选择科目" @update:value="loadQuestionAnalysis" />
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <n-select v-model:value="questionSubjectId" :options="subjectSelectOptions" style="width: 180px;"
+              placeholder="选择科目" @update:value="loadQuestionAnalysis" />
+            <n-button :disabled="!questionSubjectId || exporting" :loading="exporting"
+              @click="() => handleExport('pdf')">
+              导出 PDF
+            </n-button>
+            <n-button :disabled="!questionSubjectId || exporting" :loading="exporting"
+              @click="() => handleExport('xlsx')">
+              导出 Excel
+            </n-button>
+          </div>
         </div>
         <n-data-table v-if="questionStats.length > 0" :columns="questionColumns" :data="questionStats" size="small" />
         <n-empty v-else-if="questionSubjectId && !loading" description="暂无题目数据" />
@@ -58,7 +68,8 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 
-import { getExamSummary, getDistribution, getSubjectQuestions } from '../api/analytics'
+import { useMessage } from 'naive-ui'
+import { getExamSummary, getDistribution, getSubjectQuestions, exportGradeReport, downloadBlob } from '../api/analytics'
 import { getExam } from '../api/exams'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent])
@@ -74,6 +85,8 @@ const questionStats = ref([])
 
 const distSubjectId = ref(null)
 const questionSubjectId = ref(null)
+const exporting = ref(false)
+const message = useMessage()
 
 const subjectFilterOptions = computed(() => {
   const opts = [{ label: '全科', value: null }]
@@ -155,6 +168,22 @@ async function loadQuestionAnalysis(subjectId) {
     const { data } = await getSubjectQuestions(subjectId)
     questionStats.value = data.questions || []
   } catch { /* interceptor */ }
+}
+
+async function handleExport(format) {
+  if (!questionSubjectId.value) {
+    message.warning('请先选择科目')
+    return
+  }
+  exporting.value = true
+  try {
+    const resp = await exportGradeReport(examId, questionSubjectId.value, format)
+    downloadBlob(resp, `年级报告.${format}`)
+  } catch (e) {
+    message.error(e.response?.data?.detail || '导出失败')
+  } finally {
+    exporting.value = false
+  }
 }
 
 onMounted(async () => {

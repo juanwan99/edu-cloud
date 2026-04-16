@@ -46,7 +46,7 @@ async def _setup_completed_exam(db):
     db.add(subj)
     await db.flush()
 
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     db.add(q)
     await db.flush()
 

@@ -10,11 +10,7 @@ logger = logging.getLogger(__name__)
 
 @event_bus.on("exam.published")
 async def on_exam_published(payload: dict) -> None:
-    """成绩发布后触发完整流水线（知识点掌握度 + 错误模式）。
-
-    注意：排名和错题已在 publish_service 同步处理，
-    此 handler 补充异步处理的部分（掌握度更新 + 错误模式聚合）。
-    """
+    """成绩发布后触发完整流水线（知识点掌握度 + 错误模式 + DA 自适应）。"""
     exam_id = payload.get("exam_id")
     school_id = payload.get("school_id")
     if not exam_id or not school_id:
@@ -22,13 +18,22 @@ async def on_exam_published(payload: dict) -> None:
         return
 
     from edu_cloud.database import async_session
-    from edu_cloud.modules.pipeline.service import update_knowledge_mastery, update_error_patterns
+    from edu_cloud.modules.pipeline.service import (
+        update_knowledge_mastery, update_error_patterns, _update_adaptive_mastery,
+    )
 
     async with async_session() as db:
         mastery = await update_knowledge_mastery(db, exam_id=exam_id, school_id=school_id)
         patterns = await update_error_patterns(db, exam_id=exam_id, school_id=school_id)
-        await db.commit()
+        await db.commit()  # 先提交已有步骤，保证不被 adaptive 失败阻塞
+        # adaptive 失败不阻塞已有流水线（R5 finding）
+        adaptive = 0
+        try:
+            adaptive = await _update_adaptive_mastery(db, exam_id=exam_id, school_id=school_id)
+            await db.commit()
+        except Exception as e:
+            logger.warning("_update_adaptive_mastery failed (non-fatal): %s", e)
     logger.info(
-        "on_exam_published: exam=%s, mastery=%d, patterns=%d",
-        exam_id, mastery, patterns,
+        "on_exam_published: exam=%s, mastery=%d, patterns=%d, adaptive=%d",
+        exam_id, mastery, patterns, adaptive,
     )

@@ -141,24 +141,20 @@ async def exam_distribution(
         for s in scores:
             student_totals[s["student_id"]] = student_totals.get(s["student_id"], 0.0) + s["effective_score"]
 
-    intervals = [
-        {"range": "0-59", "min_pct": 0, "max_pct": 60},
-        {"range": "60-69", "min_pct": 60, "max_pct": 70},
-        {"range": "70-79", "min_pct": 70, "max_pct": 80},
-        {"range": "80-89", "min_pct": 80, "max_pct": 90},
-        {"range": "90-100", "min_pct": 90, "max_pct": 101},
-    ]
-    total = len(student_totals)
-    result_intervals = []
-    for iv in intervals:
-        count = sum(1 for score in student_totals.values()
-                    if iv["min_pct"] <= ((score / total_max * 100) if total_max > 0 else 0) < iv["max_pct"])
-        result_intervals.append({
-            "range": iv["range"], "count": count,
-            "percentage": round(count / total, 4) if total > 0 else 0,
-        })
+    # 动态分数段配置
+    subject_code = subjects[0].code if len(subjects) == 1 else None
+    from edu_cloud.modules.analytics.segment_service import get_segment_config, compute_segments
+    boundaries, labels = await get_segment_config(db, school_id, subject_code)
 
-    return {"exam_id": exam_id, "subject_id": subject_id, "intervals": result_intervals, "total_students": total}
+    values = list(student_totals.values())
+    intervals = compute_segments(values, total_max, boundaries, labels)
+
+    return {
+        "exam_id": exam_id,
+        "subject_id": subject_id,
+        "intervals": intervals,
+        "total_students": len(student_totals),
+    }
 
 
 async def subject_question_analysis(

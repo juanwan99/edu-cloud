@@ -26,10 +26,13 @@ MODULE_CODES = {
     "teaching": "教学管理",
     "calendar": "校历日程",
     "studio": "文档中心",
+    "conduct": "德育管理",
 }
 
 # Modules enabled by default for new schools
-DEFAULT_ENABLED = {"exam", "grading", "homework", "calendar", "studio"}
+# 2026-04-13: conduct 加入默认启用集（修补 conduct R3 上线遗漏）。
+# init_school_modules idempotent 仅插入新行，现存学校需走 scripts/backfill_conduct_module.py。
+DEFAULT_ENABLED = {"exam", "grading", "homework", "calendar", "studio", "conduct"}
 
 
 class SchoolModule(Base, IdMixin, TimestampMixin):

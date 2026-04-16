@@ -13,6 +13,8 @@
         <button class="choice-gen-btn" id="choiceGenBtn">生成</button>
       </div>
       <div id="choiceList" class="choice-list"></div>
+      <div class="ctrl"><label>每行题数</label><input type="range" id="choicePerRow" min="1" max="20" value="20"><span class="val" id="v_choicePerRow"></span></div>
+      <div class="ctrl"><label>选项行距</label><input type="range" id="choiceRowGap" min="0" max="20" value="3" step="1"><span class="val" id="v_choiceRowGap"></span></div>
       <button class="panel-btn" id="btnAddChoice" style="font-size:12px;padding:5px;">+ 添加选择题</button>
 
       <!-- 填空题 & 解答题 -->
@@ -27,11 +29,10 @@
         <div class="hint">点击左侧题目或预览区域</div>
       </div>
 
-      <!-- 导出/发布 -->
-      <h2><i class="ico ico-download"></i> 操作</h2>
-      <button v-if="!readonly" id="btnPublish" class="panel-btn publish-btn" @click="$emit('publish')">发布答题卡</button>
-      <button id="btnExportPdf" class="panel-btn">导出 PDF</button>
-      <button id="btnExportSkeleton" class="panel-btn">导出 Skeleton JSON</button>
+      <!-- 导出（内部按钮，由外部工具栏触发） -->
+      <button id="btnExportPdf" style="display:none"></button>
+      <button id="btnExportSkeleton" class="panel-btn" style="font-size:11px;padding:4px;">导出 Skeleton</button>
+      <div id="status" class="status"></div>
 
       <!-- 缩放 -->
       <div class="ctrl" style="margin-top:8px;"><label>缩放(%)</label><input type="range" id="zoom" min="20" max="100" value="60"><span class="val" id="v_zoom"></span></div>
@@ -73,9 +74,6 @@
 
         <h2><i class="ico ico-shield"></i> 缺考标记</h2>
         <div class="ctrl"><label>上下间距(mm)</label><input type="range" id="absentPadding" min="0" max="4" value="1.5" step="0.25"><span class="val" id="v_absentPadding"></span></div>
-
-        <h2><i class="ico ico-grid"></i> 选择题（高级）</h2>
-        <div class="ctrl"><label>每排最多</label><input type="range" id="choicePerRow" min="4" max="20" value="16"><span class="val" id="v_choicePerRow"></span></div>
 
         <h2><i class="ico ico-edit"></i> 填空题</h2>
         <div class="ctrl"><label>题数</label><input type="range" id="fillCount" min="0" max="10" value="3"><span class="val" id="v_fillCount"></span></div>
@@ -227,7 +225,7 @@ const params = {
   noticeHeight: 'range', noticeLabelWidth: 'range', noticeLabelSize: 'range',
   noticeFontSize: 'range', exampleWidth: 'range', noticeBorderWidth: 'range',
   absentPadding: 'range',
-  choicePerRow: 'range',
+  choicePerRow: 'range', choiceRowGap: 'range',
   fillCount: 'range', fillScore: 'number', fillPerRow: 'range',
   essayCount: 'range',
   paperSize: 'select', zoom: 'range',
@@ -554,14 +552,14 @@ async function loadFromServer() {
 let resizeHandler = null
 
 onMounted(async () => {
-  // Load card-editor stylesheet dynamically
-  if (!document.getElementById('card-editor-styles')) {
-    const link = document.createElement('link')
-    link.id = 'card-editor-styles'
-    link.rel = 'stylesheet'
-    link.href = '/card-editor/styles.css'
-    document.head.appendChild(link)
-  }
+  // Load card-editor stylesheet dynamically (每次强制刷新，避免缓存)
+  const oldLink = document.getElementById('card-editor-styles')
+  if (oldLink) oldLink.remove()
+  const link = document.createElement('link')
+  link.id = 'card-editor-styles'
+  link.rel = 'stylesheet'
+  link.href = '/card-editor/styles.css?v=' + Date.now()
+  document.head.appendChild(link)
 
   // Initialize global state
   window._cardLayout = null
@@ -710,9 +708,73 @@ watch(() => props.readonly, (val) => {
 })
 
 // Expose layout getter for parent component
+async function save() {
+  const v = getValues()
+  await saveToServer(v)
+}
+
+async function resetToDefault() {
+  if (!props.subjectId) return
+  const status = document.getElementById('status')
+  const token = localStorage.getItem('token')
+  const headers = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  try {
+    await fetch(`/api/v1/card/editor-layout/${props.subjectId}`, { method: 'DELETE', headers })
+    layoutFromServer = false
+    window._cardLayout = null
+    window._choices = []
+    await loadFromServer()
+    if (status) { status.textContent = '已恢复默认模板'; status.className = 'status' }
+  } catch (e) {
+    if (status) { status.textContent = '恢复失败: ' + e.message; status.className = 'status error' }
+  }
+}
+
+function exportPdf() {
+  document.getElementById('btnExportPdf')?.click()
+}
+
+function applyAutoLayout(result) {
+  // result = { questions: [{ qno, heightRatio, subs: [{ sub, blanks: [{w}] }] }] }
+  const layout = window._cardLayout
+  if (!layout || !result.questions) return
+
+  const qmap = {}
+  for (const q of result.questions) qmap[q.qno] = q
+
+  for (const side of layout.sides) {
+    for (const col of side.columns) {
+      for (const region of col.regions) {
+        if (region.type !== 'essay') continue
+        const q = qmap[region.qno]
+        if (!q) continue
+        region.heightRatio = q.heightRatio
+        if (q.subs && q.subs.length > 0) {
+          region.subs = q.subs
+        }
+      }
+    }
+  }
+
+  // 重新渲染
+  const previewWrap = previewWrapRef.value
+  if (previewWrap && renderModule) {
+    const v = getValues()
+    renderModule.renderFromLayout(previewWrap, layout, v)
+    updateLabels(v)
+    if (window._initInteraction) window._initInteraction()
+  }
+  if (window._renderQuestionList) window._renderQuestionList()
+}
+
 defineExpose({
   getLayout: () => window._cardLayout,
   getValues,
+  save,
+  resetToDefault,
+  exportPdf,
+  applyAutoLayout,
 })
 </script>
 
@@ -730,6 +792,22 @@ defineExpose({
   min-height: auto;
   overflow: visible;
 }
+.save-btn {
+  background: #2d5a3d !important;
+  color: white !important;
+  font-weight: 600;
+}
+.save-btn:hover {
+  background: #1a2e1f !important;
+}
+.reset-btn {
+  background: #5a3d2d !important;
+  color: white !important;
+  font-size: 11px;
+}
+.reset-btn:hover {
+  background: #3d2a1a !important;
+}
 .publish-btn {
   background: #2d5a3d !important;
   color: white !important;
@@ -737,6 +815,14 @@ defineExpose({
 }
 .publish-btn:hover {
   background: #1a2e1f !important;
+}
+.status {
+  font-size: 11px;
+  color: #8a9b8e;
+  margin-top: 4px;
+}
+.status.error {
+  color: #dc2626;
 }
 /* 预览区域 */
 .preview-area {

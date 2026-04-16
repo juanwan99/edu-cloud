@@ -3,6 +3,7 @@ from edu_cloud.models.school import School
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.exam import Exam
+from edu_cloud.modules.exam.models import Subject
 from edu_cloud.shared.auth import create_access_token
 
 
@@ -198,6 +199,194 @@ async def test_progress_after_scoring(client, marking_setup):
 
 
 # ---------- Export ----------
+
+# ---------- F006 / F009 权限过滤回归（B2）----------
+
+async def test_list_subjects_filters_by_subject_teacher_visibility(client, db):
+    """F006/F009 回归：subject_teacher 只能看到 role.subject_codes 中的科目。
+
+    反例：错误实现返回全部 9 科，本测试捕获此错误。
+    入口：GET /api/v1/marking/subjects?exam_id=...
+    边界：subject_codes=['YW']（语文） → 响应仅含语文一项
+    """
+    school = School(name="F006School", code="F006S")
+    db.add(school)
+    await db.commit()
+
+    exam = Exam(name="F006测试考试", school_id=school.id, status="scanning")
+    db.add(exam)
+    await db.commit()
+
+    subj_yw = Subject(exam_id=exam.id, name="语文", code="YW", school_id=school.id)
+    subj_sx = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
+    subj_en = Subject(exam_id=exam.id, name="英语", code="EN", school_id=school.id)
+    db.add_all([subj_yw, subj_sx, subj_en])
+    await db.commit()
+
+    user = User(username="f006_yw_teacher", display_name="语文老师")
+    user.set_password("p")
+    db.add(user)
+    await db.commit()
+
+    db.add(UserRole(
+        user_id=user.id,
+        role="subject_teacher",
+        school_id=school.id,
+        subject_codes=["YW"],
+        is_primary=True,
+    ))
+    await db.commit()
+
+    token = create_access_token({
+        "sub": user.id, "school_id": school.id, "role": "subject_teacher",
+    })
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = await client.get(
+        f"/api/v1/marking/subjects?exam_id={exam.id}",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    names = [s["name"] for s in data]
+    assert names == ["语文"], (
+        f"subject_teacher 应只看到语文，实际: {names}"
+    )
+
+
+async def test_list_subjects_admin_sees_all_subjects(client, db):
+    """回归：academic_director / admin 角色看到全部科目，不受过滤影响。"""
+    school = School(name="F006School2", code="F006S2")
+    db.add(school)
+    await db.commit()
+
+    exam = Exam(name="admin测试考试", school_id=school.id, status="scanning")
+    db.add(exam)
+    await db.commit()
+
+    subj_yw = Subject(exam_id=exam.id, name="语文", code="YW", school_id=school.id)
+    subj_sx = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
+    db.add_all([subj_yw, subj_sx])
+    await db.commit()
+
+    user = User(username="f006_admin", display_name="教务主任")
+    user.set_password("p")
+    db.add(user)
+    await db.commit()
+
+    db.add(UserRole(
+        user_id=user.id,
+        role="academic_director",
+        school_id=school.id,
+        is_primary=True,
+    ))
+    await db.commit()
+
+    token = create_access_token({
+        "sub": user.id, "school_id": school.id, "role": "academic_director",
+    })
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = await client.get(
+        f"/api/v1/marking/subjects?exam_id={exam.id}",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    names = sorted(s["name"] for s in resp.json())
+    assert names == ["数学", "语文"]
+
+
+async def test_export_csv_filters_by_subject_teacher_visibility(client, db):
+    """F006/F009 回归扩展：/marking/export CSV 只导出 role.subject_codes 中的科目。
+
+    反例：错误实现会导出全部 9 科的列头，本测试捕获此错误。
+    """
+    school = School(name="F006ExpSchool", code="F006ES")
+    db.add(school)
+    await db.commit()
+
+    exam = Exam(name="F006导出测试", school_id=school.id, status="scanning")
+    db.add(exam)
+    await db.commit()
+
+    subj_yw = Subject(exam_id=exam.id, name="语文", code="YW", school_id=school.id)
+    subj_sx = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
+    db.add_all([subj_yw, subj_sx])
+    await db.commit()
+
+    user = User(username="f006_exp_teacher", display_name="导出测试教师")
+    user.set_password("p")
+    db.add(user)
+    await db.commit()
+
+    db.add(UserRole(
+        user_id=user.id,
+        role="subject_teacher",
+        school_id=school.id,
+        subject_codes=["YW"],
+        is_primary=True,
+    ))
+    await db.commit()
+
+    token = create_access_token({
+        "sub": user.id, "school_id": school.id, "role": "subject_teacher",
+    })
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = await client.get(
+        f"/api/v1/marking/export?exam_id={exam.id}",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    header_line = resp.text.strip().split("\n")[0]
+    assert "语文" in header_line or header_line.startswith("学生ID"), (
+        f"导出表头应含语文相关列: {header_line}"
+    )
+    assert "数学" not in header_line, (
+        f"subject_teacher 不应看到数学列: {header_line}"
+    )
+
+
+async def test_list_subjects_subject_teacher_with_empty_codes_sees_none(client, db):
+    """边界：subject_teacher 的 subject_codes 为空列表 → 看不到任何科目。"""
+    school = School(name="F006School3", code="F006S3")
+    db.add(school)
+    await db.commit()
+
+    exam = Exam(name="empty考试", school_id=school.id, status="scanning")
+    db.add(exam)
+    await db.commit()
+
+    subj_yw = Subject(exam_id=exam.id, name="语文", code="YW", school_id=school.id)
+    db.add(subj_yw)
+    await db.commit()
+
+    user = User(username="f006_no_codes", display_name="无科目教师")
+    user.set_password("p")
+    db.add(user)
+    await db.commit()
+
+    db.add(UserRole(
+        user_id=user.id,
+        role="subject_teacher",
+        school_id=school.id,
+        subject_codes=[],
+        is_primary=True,
+    ))
+    await db.commit()
+
+    token = create_access_token({
+        "sub": user.id, "school_id": school.id, "role": "subject_teacher",
+    })
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = await client.get(
+        f"/api/v1/marking/subjects?exam_id={exam.id}",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json() == []
+
 
 async def test_export_csv(client, marking_setup):
     await client.post(

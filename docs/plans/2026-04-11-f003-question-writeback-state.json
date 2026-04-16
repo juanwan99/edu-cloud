@@ -1,0 +1,42 @@
+{
+  "topic": "f003-question-writeback",
+  "tier": "T4",
+  "design_file": "docs/plans/2026-04-11-f003-question-writeback-design.md",
+  "plan_file": "docs/plans/2026-04-11-f003-question-writeback-plan.md",
+  "gates_file": "docs/plans/2026-04-11-f003-question-writeback-gates.json",
+  "created_at": "2026-04-11 21:20:00",
+  "updated_at": "2026-04-12 16:29:15",
+  "batches": [
+    {"id": "batch1", "name": "纯函数+前置修复 (Slice A+B+C)", "task_ids": ["T0", "T1", "T2", "T3", "T4"]},
+    {"id": "batch2", "name": "事务层+migration+router (Slice D+E+F)", "task_ids": ["T5", "T6", "T7", "T8"]},
+    {"id": "batch3", "name": "前端+pipeline+E2E (Slice G+H+I)", "task_ids": ["T9", "T10", "T11", "T12"]}
+  ],
+  "tasks": [
+    {"id": "T0", "batch": "batch1", "desc": "StudentAnswer 唯一约束调查 + 决策落地", "status": "completed"},
+    {"id": "T1", "batch": "batch1", "desc": "F001 render.js 4 处 .page 加 data-side + V1 vitest", "status": "completed"},
+    {"id": "T2", "batch": "batch1", "desc": "extract_skeleton integration 验证 side 字段穿透", "status": "completed"},
+    {"id": "T3", "batch": "batch1", "desc": "publish_service.upsert_questions_from_skeleton + S2/S3/S4", "status": "completed"},
+    {"id": "T4", "batch": "batch1", "desc": "publish_service.upsert_template_both_sides + S5/S5b", "status": "completed"},
+    {"id": "T5", "batch": "batch2", "desc": "Alembic migration Question UniqueConstraint", "status": "completed"},
+    {"id": "T6", "batch": "batch2", "desc": "publish_card_atomic 事务原子性 + S6/S6b", "status": "completed"},
+    {"id": "T7", "batch": "batch2", "desc": "IntegrityError retry 并发保护 + S7", "status": "completed"},
+    {"id": "T8", "batch": "batch2", "desc": "card/router.py publish_card 接入 service + integration", "status": "completed"},
+    {"id": "T9", "batch": "batch3", "desc": "前端 publishCard 重写 + V2 vitest", "status": "completed"},
+    {"id": "T10", "batch": "batch3", "desc": "ExamDetailPage 调用签名 + V3", "status": "completed"},
+    {"id": "T11", "batch": "batch3", "desc": "pipeline_router save_answer_fn 闭包 + S8", "status": "completed"},
+    {"id": "T12", "batch": "batch3", "desc": "E2E S9 + R1/R3 回归 + CLAUDE.md + [实现完成]", "status": "completed"}
+  ],
+  "gates_required": ["plan_review", "code_review_batch1", "code_review_batch2", "code_review_batch3", "integration_review"],
+  "related_findings": ["F001", "F003", "F003a", "F008"],
+  "out_of_scope_findings": ["F002", "F010", "F011", "F012", "F013", "F014", "F015", "F004", "F007"],
+  "dependencies": {
+    "pre_flight": [
+      "小微排版 v2 视觉验收已回主线 (2026-04-08-card-xiaowei-layout-v2-handoff.md)",
+      "StudentAnswer 唯一约束调查结论 (由 T0 产出)"
+    ]
+  },
+  "review_rounds": {
+    "plan_review": [],
+    "code_review": []
+  }
+}

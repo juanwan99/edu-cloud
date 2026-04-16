@@ -2,17 +2,17 @@
 
 触发条件：Exam.status → completed
 幂等保证：DF-007 — try/except IntegrityError 兜底
-有效分数：DF-002 — 使用 get_effective_score 考虑 TeacherReview 改分
+有效分数：统一读取 GradingResult.final_score（权威单一源）
 """
 import logging
-from collections import Counter
+from collections import Counter, defaultdict
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.grading.models import AIGradingResult, TeacherReview
+from edu_cloud.modules.grading.models import GradingResult
 from edu_cloud.modules.bank.models import BankQuestion, StudentErrorBook
 from edu_cloud.modules.knowledge.models import KnowledgePoint, QuestionKnowledgePoint
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern
@@ -22,28 +22,20 @@ logger = logging.getLogger(__name__)
 
 
 async def _get_effective_score(db: AsyncSession, answer_id: str) -> float | None:
-    """DF-002: 获取单个答题的最终有效分。
-    优先级：TeacherReview.adjusted_score > AIGradingResult.score > StudentAnswer.score
+    """获取单个答题的最终有效分。
+
+    优先级：GradingResult.final_score（权威单一值）> StudentAnswer.score（客观题自动判分）
     """
     result = await db.execute(
-        select(
-            StudentAnswer.score,
-            AIGradingResult.score.label("ai_score"),
-            AIGradingResult.review_status,
-            TeacherReview.adjusted_score,
-        )
-        .outerjoin(AIGradingResult, AIGradingResult.answer_id == StudentAnswer.id)
-        .outerjoin(TeacherReview, TeacherReview.result_id == AIGradingResult.id)
+        select(StudentAnswer.score, GradingResult.final_score)
+        .outerjoin(GradingResult, GradingResult.answer_id == StudentAnswer.id)
         .where(StudentAnswer.id == answer_id)
     )
     row = result.one_or_none()
     if not row:
         return None
-
-    if row.review_status == "overridden" and row.adjusted_score is not None:
-        return row.adjusted_score
-    if row.ai_score is not None:
-        return row.ai_score
+    if row.final_score is not None:
+        return row.final_score
     return row.score
 
 
@@ -110,10 +102,10 @@ async def populate_error_books(db: AsyncSession, *, exam_id: str, school_id: str
         if effective_score >= q.max_score:
             continue
 
-        ai_result = await db.execute(
-            select(AIGradingResult).where(AIGradingResult.answer_id == sa.id)
+        gr_result = await db.execute(
+            select(GradingResult).where(GradingResult.answer_id == sa.id)
         )
-        ai = ai_result.scalar_one_or_none()
+        gr = gr_result.scalar_one_or_none()
 
         kp_result = await db.execute(
             select(QuestionKnowledgePoint.knowledge_point_id)
@@ -139,7 +131,7 @@ async def populate_error_books(db: AsyncSession, *, exam_id: str, school_id: str
             student_score=effective_score,
             max_score=q.max_score,
             correct_answer=q.correct_answer,
-            ai_feedback=ai.feedback if ai else None,
+            ai_feedback=gr.ai_feedback if gr else None,
             knowledge_point_ids=kp_ids if kp_ids else None,
             mastery_status="unmastered",
             source="auto",
@@ -490,6 +482,87 @@ async def update_error_patterns(db: AsyncSession, *, exam_id: str, school_id: st
     return updated
 
 
+async def _update_adaptive_mastery(db: AsyncSession, *, exam_id: str, school_id: str) -> int:
+    """将考试作答数据写入 adaptive 模块（answer_logs + BKT 更新）。
+
+    遍历 StudentAnswer 记录，对每道题调用 process_answer。
+    返回处理的答题数。
+    """
+    from edu_cloud.modules.adaptive.updater import process_answer
+    from edu_cloud.modules.adaptive.models import AnswerLog
+
+    # 查询本考试所有题目（含 max_score）
+    subjects = await db.execute(
+        select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
+    )
+    subject_rows = subjects.scalars().all()
+    question_map: dict[str, float] = {}  # q_id → max_score
+    for subj in subject_rows:
+        qs = await db.execute(
+            select(Question.id, Question.max_score).where(Question.subject_id == subj.id)
+        )
+        for q_id, max_score in qs.all():
+            if max_score and max_score > 0:
+                question_map[q_id] = max_score
+
+    if not question_map:
+        return 0
+
+    # 通过 QuestionKnowledgePoint 关联表获取知识点（与已有 pipeline 一致）
+    kp_map: dict[str, list[str]] = defaultdict(list)
+    for q_id in question_map:
+        kps = await db.execute(
+            select(QuestionKnowledgePoint.knowledge_point_id).where(
+                QuestionKnowledgePoint.question_id == q_id
+            )
+        )
+        kp_map[q_id] = [row[0] for row in kps.all()]
+
+    count = 0
+    for q_id, max_score in question_map.items():
+        kp_ids = kp_map.get(q_id, [])
+
+        # 查询该题的非缺考学生作答
+        answers = await db.execute(
+            select(StudentAnswer).where(
+                StudentAnswer.question_id == q_id,
+                StudentAnswer.school_id == school_id,
+                StudentAnswer.is_absent == False,  # noqa: E712 — N001: 过滤缺考
+            )
+        )
+        for answer in answers.scalars().all():
+            # 幂等检查
+            existing = await db.execute(
+                select(AnswerLog).where(
+                    AnswerLog.school_id == school_id,
+                    AnswerLog.exam_id == exam_id,
+                    AnswerLog.student_id == answer.student_id,
+                    AnswerLog.question_id == q_id,
+                )
+            )
+            if existing.scalar_one_or_none() is not None:
+                continue
+
+            effective_score = await _get_effective_score(db, answer.id)
+            is_correct = (effective_score or 0) >= max_score * 0.6
+
+            await process_answer(
+                db,
+                student_id=answer.student_id,
+                question_id=q_id,
+                knowledge_point_ids=kp_ids,
+                correct=is_correct,
+                school_id=school_id,
+                exam_id=exam_id,
+                score_rate=effective_score / max_score if effective_score is not None else None,
+                source_type="exam",
+            )
+            count += 1
+
+    logger.info("_update_adaptive_mastery: exam=%s, processed=%d", exam_id, count)
+    return count
+
+
 async def run_full_pipeline(db: AsyncSession, *, exam_id: str, school_id: str) -> dict:
     """完整流水线：考试完成后一键执行所有数据生成。"""
     results = {
@@ -498,6 +571,7 @@ async def run_full_pipeline(db: AsyncSession, *, exam_id: str, school_id: str) -
         "exam_snapshots": await generate_exam_snapshots(db, exam_id=exam_id, school_id=school_id),
         "knowledge_mastery": await update_knowledge_mastery(db, exam_id=exam_id, school_id=school_id),
         "error_patterns": await update_error_patterns(db, exam_id=exam_id, school_id=school_id),
+        "adaptive_mastery": await _update_adaptive_mastery(db, exam_id=exam_id, school_id=school_id),
     }
     logger.info("run_full_pipeline: exam=%s, results=%s", exam_id, results)
     return results

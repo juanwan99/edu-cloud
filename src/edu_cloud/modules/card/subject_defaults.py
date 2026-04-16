@@ -98,7 +98,7 @@ SUBJECT_CONFIGS: dict[str, dict] = {
         "useSideB": True,
     },
 
-    # ── 英语：55选择(11组,含3/7选项) | 56-65语法填空 | 写作2节 ──
+    # ── 英语：55选择(11组,含3/7选项) | 56-65语法填空(3列) | 写作2节 ──
     "英语": {
         "choiceGroups": [
             {"start": 1, "count": 5, "options": 3},
@@ -113,10 +113,10 @@ SUBJECT_CONFIGS: dict[str, dict] = {
             {"start": 46, "count": 5, "options": 4},
             {"start": 51, "count": 5, "options": 4},
         ],
+        "fills": {"start": 56, "count": 10, "perRow": 3},
         "essays": [
-            {"qno": 56, "score": 15, "page": 0},   # TQL: "56-65题" 语法填空
-            {"qno": 66, "score": 15, "sub_count": 2, "page": 0},  # TQL: 写作第一节(跨A/B)
-            {"qno": 67, "score": 25, "page": 1},    # TQL: 写作第二节
+            {"qno": 66, "score": 15, "sub_count": 2, "page": 0},  # 写作第一节
+            {"qno": 67, "score": 25, "page": 1},    # 写作第二节
         ],
         "useSideB": True,
     },
@@ -408,6 +408,30 @@ def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
             regions.append(region)
         return regions
 
+    # ── fills 覆盖：SUBJECT_CONFIGS 指定的填空题从 essay slots 中移除 ──
+    subject_cfg = SUBJECT_CONFIGS.get(subject_title, {})
+    fills_cfg = subject_cfg.get("fills", {})
+    fill_count = fills_cfg.get("count", 0)
+    fill_start = fills_cfg.get("start", total_choices + 1)
+    fill_per_row = fills_cfg.get("perRow", 2)
+
+    if fill_count > 0:
+        # 移除被 fills 覆盖的 slot（如英语 Q56 → 56-65 填空）
+        fill_slot_id = f"Q{fill_start}"
+        for cid in col_slots_a:
+            col_slots_a[cid] = [e for e in col_slots_a[cid] if e["slot_id"] != fill_slot_id]
+        seen_slots_a.pop(fill_slot_id, None)
+
+    fill_regions = []
+    for i in range(fill_count):
+        qno = fill_start + i
+        fill_regions.append({
+            "id": f"fill-{qno}", "type": "fill", "qno": qno,
+            "spaces": 1, "spaceWidth": "100%",
+            "heightRatio": round(1 / max(fill_count, 1), 4),
+            "_side": "A", "_col": 0, "_sideIdx": 0,
+        })
+
     # ── A面 col 0: 固定区域 ──
     col0_regions: list[dict] = [
         {"id": "header", "type": "fixed", "role": "header",
@@ -421,7 +445,7 @@ def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
         col0_regions.append({
             "id": "choices", "type": "fixed", "role": "choices",
             "count": total_choices, "options": max_options,
-            "perRow": 15,
+            "perRow": 20,
             "_side": "A", "_col": 0, "_sideIdx": 0,
         })
 
@@ -433,7 +457,7 @@ def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
         all_a_essays: list[dict] = []
         for cid in col_ids:
             all_a_essays.extend(_make_regions(col_slots_a.get(cid, []), "A", 0, 0))
-        a_columns = [{"col": 0, "regions": col0_regions + all_a_essays}]
+        a_columns = [{"col": 0, "regions": col0_regions + fill_regions + all_a_essays}]
 
         all_b_essays: list[dict] = []
         for cid in col_ids:
@@ -461,12 +485,11 @@ def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
         "subjectTitle": subject_title,
         "choiceCount": total_choices,
         "optionCount": max_options,
-        "choicePerRow": 15,
+        "choicePerRow": 20,
         "choiceGroups": choice_groups,
-        "fillCount": 0,
-        "fillStart": 0,
-        "fillScore": 5,
-        "fillPerRow": 2,
+        "fillCount": fill_count,
+        "fillStart": fill_start,
+        "fillPerRow": fill_per_row,
         "essayCount": len(seen_slots_a) + len(set(seen_slots_b.keys()) - set(seen_slots_a.keys())),
         "essayConfig": [{"score": e["score"]} for e in seen_slots_a.values()]
                       + [{"score": e["score"]} for k, e in seen_slots_b.items() if k not in seen_slots_a],
@@ -548,6 +571,10 @@ def _fallback_layout(config: dict) -> dict:
     choice_groups = config.get("choiceGroups", [])
     total_choices = sum(g["count"] for g in choice_groups)
     max_options = max((g["options"] for g in choice_groups), default=4)
+    fills_cfg = config.get("fills", {})
+    fill_count = fills_cfg.get("count", 0)
+    fill_start = fills_cfg.get("start", total_choices + 1)
+    fill_per_row = fills_cfg.get("perRow", 2)
     essays = config.get("essays", [])
     use_side_b = config.get("useSideB", False)
 
@@ -559,7 +586,18 @@ def _fallback_layout(config: dict) -> dict:
     if total_choices > 0:
         col0_regions.append({
             "id": "choices", "type": "fixed", "role": "choices",
-            "count": total_choices, "options": max_options, "perRow": 15,
+            "count": total_choices, "options": max_options, "perRow": 20,
+            "_side": "A", "_col": 0, "_sideIdx": 0,
+        })
+
+    # fill regions（语法填空等）
+    fill_regions = []
+    for i in range(fill_count):
+        qno = fill_start + i
+        fill_regions.append({
+            "id": f"fill-{qno}", "type": "fill", "qno": qno,
+            "spaces": 1, "spaceWidth": "100%",
+            "heightRatio": round(1 / max(fill_count, 1), 4),
             "_side": "A", "_col": 0, "_sideIdx": 0,
         })
 
@@ -586,8 +624,9 @@ def _fallback_layout(config: dict) -> dict:
     full_config.update({
         "subjectTitle": config.get("subjectTitle", ""),
         "choiceCount": total_choices, "optionCount": max_options,
-        "choicePerRow": 15, "choiceGroups": choice_groups,
-        "fillCount": 0, "essayCount": len(essays),
+        "choicePerRow": 20, "choiceGroups": choice_groups,
+        "fillCount": fill_count, "fillStart": fill_start, "fillPerRow": fill_per_row,
+        "essayCount": len(essays),
         "essayConfig": [{"score": e["score"]} for e in essays],
         "paperSize": paper,
     })
@@ -598,7 +637,7 @@ def _fallback_layout(config: dict) -> dict:
             "paper": "A4", "config": full_config,
             "sides": [
                 {"side": "A", "columns": [
-                    {"col": 0, "regions": col0_regions + _mk(a_essays, "A", 0, 0)},
+                    {"col": 0, "regions": col0_regions + fill_regions + _mk(a_essays, "A", 0, 0)},
                 ]},
                 {"side": "B", "columns": [
                     {"col": 0, "regions": _mk(b_essays, "B", 0, 1)},

@@ -176,9 +176,9 @@ class TestGenerateWordTemplate:
         from edu_cloud.modules.card.word_parser import generate_word_template
 
         questions = [
-            {"number": 1, "question_type": "objective"},
-            {"number": 2, "question_type": "objective"},
-            {"number": 3, "question_type": "subjective"},
+            {"number": 1, "question_type": "choice"},
+            {"number": 2, "question_type": "choice"},
+            {"number": 3, "question_type": "essay"},
         ]
         path = tmp_path / "template.docx"
         generate_word_template(questions, str(path))
@@ -195,8 +195,8 @@ class TestGenerateWordTemplate:
         from edu_cloud.modules.card.word_parser import generate_word_template
 
         questions = [
-            {"number": 5, "question_type": "subjective"},
-            {"number": 1, "question_type": "objective"},
+            {"number": 5, "question_type": "essay"},
+            {"number": 1, "question_type": "choice"},
         ]
         path = tmp_path / "template.docx"
         generate_word_template(questions, str(path))

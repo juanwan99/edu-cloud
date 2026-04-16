@@ -1,0 +1,1627 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d5ce4-daf4-7720-8723-f9406a55ffa6
+--------
+user
+You are a senior architect reviewing an implementation plan.
+
+Read these files:
+1. C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md — the implementation plan
+2. C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md — the design document
+3. C:/Users/Administrator/edu-cloud/CLAUDE.md — project rules (if exists)
+
+Perform plan review per checklist:
+A. 自洽性: Task 依赖完整、接口契约一致、无逻辑矛盾、破坏性操作有回滚
+B. 代码库对齐: 引用路径真实、不违反现有 API、不命名冲突、不重复功能
+C. 架构适配: 职责单一、依赖方向正确（无反向/循环）、接口隔离、配置集中、单功能变更影响 ≤3 文件
+D. 完整性: 每个行为变更 Task 须有测试契约段（5 字段：入口/反例/边界/回归/命令）和边界条件段（至少 3 个）、迁移考虑、批次边界合理
+D+. 测试契约质量（test-gap 硬判定）:
+   - 逻辑镜像测试（测试只是实现的对称复述，不能在错误实现下失败）→ test-gap HIGH
+   - 无入口级验证（测试只调内部函数，不经过用户可触达的入口）→ test-gap MED
+   - 无反例说明（测试契约未写明"错误实现会怎样失败"）→ test-gap MED
+E. 风险评估: Tier 分级有据、高风险区域标记
+F. Contract Pack 完整性:
+   - plan 中是否包含结构化 Contract Pack 段落
+   - invariants ≥3 条
+   - counter_examples ≥2 个
+   - risk_modules 覆盖所有 public API 变更
+
+Output structured findings with: ID, Severity, Category, Type, Before-behavior, After-behavior, Evidence, Impact, Repair hypothesis.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+按评审清单做实现计划审查。我先读取 `code-review` 相关指引和你指定的计划/设计/项目规则文件，再抽查计划里引用的代码路径与接口是否真实存在。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "if (Test-Path 'C:/Users/Administrator/edu-cloud/CLAUDE.md') { Get-Content -Raw 'C:/Users/Administrator/edu-cloud/CLAUDE.md' }" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md'" in C:/Users/Administrator/edu-cloud succeeded in 1.47s:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+ succeeded in 1.57s:
+# Phase 3.3 鍒嗘瀽鎶ュ憡 Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 涓?edu-cloud 娣诲姞鍒嗘暟娈甸厤缃€佽嚜瀹氫箟鍒嗘瀽鏋勫缓鍣ㄣ€佽法鑰冭瘯瀵规瘮瓒嬪娍銆丳DF 鎶ュ憡瀵煎嚭鑳藉姏銆?
+**Architecture:** 鍦ㄧ幇鏈?`modules/analytics/` 涓嬫墿灞?segment_service + report_service锛屽鐢?W1 棰勮绠楄〃锛坋xam_analysis_snapshot / class_exam_report锛夊拰 pipeline 浜у嚭锛坰tudent_exam_snapshots锛夈€侾DF 瀵煎嚭璧扮幇鏈?Studio Document 娴佺▼銆傛柊澧?3 涓?AI Agent 宸ュ叿銆?
+**Tech Stack:** FastAPI + SQLAlchemy 2.0 async + Alembic + pytest / Vue 3 + Naive UI + ECharts + Vitest
+
+---
+
+## File Structure
+
+### 鍚庣鏂板
+
+| 鏂囦欢 | 鑱岃矗 |
+|------|------|
+| `src/edu_cloud/models/score_segment.py` | ScoreSegmentConfig 鏁版嵁妯″瀷 |
+| `src/edu_cloud/modules/analytics/segment_service.py` | 鍒嗘暟娈?CRUD + 鍒嗘璁＄畻 |
+| `src/edu_cloud/modules/analytics/report_service.py` | 鑷畾涔夊垎鏋愭瀯寤?+ 璺ㄨ€冭瘯瀵规瘮 + PDF 瀵煎嚭 |
+| `src/edu_cloud/ai/tools/analytics_report.py` | 3 涓?AI Agent 宸ュ叿 |
+ succeeded in 1.35s:
+# Phase 3.3 鍒嗘瀽鎶ュ憡璁捐
+
+> 璁捐鏃堕棿锛?026-04-05 16:38
+> 鍓嶇疆锛歛nalytics 妯″潡宸叉湁 5 涓?service 鍑芥暟 + 11 璺敱 + 8 AI 宸ュ叿锛沇1 宸ヤ綔娴侀璁＄畻 exam_analysis_snapshot + class_exam_report锛沺ipeline 浜у嚭 student_exam_snapshots
+> 鑼冨洿锛氬垎鏁版閰嶇疆 + 鑷畾涔夊垎鏋愭瀯寤哄櫒 + 璺ㄨ€冭瘯瀵规瘮 + PDF 鎶ュ憡瀵煎嚭
+
+## 搂0 璁捐鍐崇瓥璁板綍
+
+| # | 鍐崇瓥 | 缁撹 | 鐞嗙敱 |
+|---|------|------|------|
+| D1 | 鏋舵瀯妯″紡 | 绾?Service 灞傛墿灞曪紙modules/analytics/ 涓嬫柊澧烇級 | 鎶ュ憡鏄垎鏋愮殑杈撳嚭褰㈡€侊紝涓嶉渶瑕佺嫭绔嬫ā鍧楋紱澶嶇敤鏈€澶氭敼鍔ㄦ渶灏?|
+| D2 | 鍒嗘暟娈电矑搴?| 瀛︽牎绾х粺涓€ + 绉戠洰绾у彲瑕嗙洊 | 澶у鏁板鏍＄敤缁熶竴鍒嗘暟娈碉紝灏戞暟绉戠洰闇€瑕佺壒娈婇槇鍊?|
+| D3 | 璺ㄨ€冭瘯缁村害 | 骞寸骇 + 鐝骇 + 瀛︾敓涓夌淮鍏ㄨ鐩?| 鏁版嵁搴曞骇宸叉湁锛坰napshot + class_report + student_snapshot锛夛紝涓婂眰鑱氬悎鎴愭湰浣?|
+| D4 | 鎶ュ憡瀵煎嚭 | 鏃ュ父鐪嬪疄鏃堕〉闈?+ 姝ｅ紡鎶ュ憡璧?Studio PDF | 澶嶇敤 Studio 宸叉湁鐨勬枃妗ｆā鏉?+ Playwright PDF 鑳藉姏 |
+| D5 | 绛夌骇璧嬪垎 | 涓嶅仛 | 鍗曟牎鏍锋湰閲忎笉澶燂紝绛夌骇璧嬪垎渚濊禆鍏ㄧ渷鏁版嵁锛屽鏄撹瀵?|
+| D6 | 瑙掕壊瑕嗙洊 | 鍏ㄨ鑹诧紙鏍￠暱鈫掑闀匡級锛屼笉鍚岃鑹茬湅涓嶅悓绮掑害 | DataScope 鑷姩瑁佸壀锛孉PI 灞備笉鍐欐潈闄愬垽鏂?|
+
+## 搂1 鍒嗘暟娈甸厤缃綋绯?
+### 鏁版嵁妯″瀷
+
+ succeeded in 1.26s:
+# edu-cloud 鈥?鏁欒偛浜戝钩鍙?
+
+<!-- key-start -->
+## 椤圭洰瀹氫綅
+
+edu-cloud 鏄?*澶氭牎鍗忓悓鐨勪簯绔钩鍙?*锛屾槸瀛︽牎绔紙exam-ai锛夌殑涓婃父璋冨害涓績銆?
+
+```
+[鐩戠绔痌                      [浜戠骞冲彴]                      [瀛︽牎绔痌
+鏁欒偛灞€/闆嗗洟鐪嬫澘  鈹€鈹€鈹€鈹€鈹€鈹€鈫? edu-cloud (port 9000)  鈫愨攢鈹€鈹€鈹€鈹€鈹€  exam-ai 脳 N 鎵€瀛︽牎
+  - 鍏ㄥ尯鎴愮哗鎬昏              - 鑱旇€冪紪鎺掍笌涓嬪彂                 - 鏈牎鑰冭瘯绠＄悊
+  - 瀛︽牎闂村姣?               - 璺ㄦ牎鏁版嵁姹囨€?                  - 鎵弿+AI闃呭嵎
+  - 鏁欏璐ㄩ噺鐩戞帶              - 鍏变韩 AI 闃呭嵎鏈嶅姟               - 鎴愮哗涓婃姤鍒颁簯绔?
+                              - 瀛︽牎娉ㄥ唽涓庣姸鎬佺洃鎺?
+                              - 缁熶竴棰樺簱绠＄悊
+```
+
+### 鑱岃矗杈圭晫
+
+| 鑱岃矗 | 褰掑睘 | 璇存槑 |
+codex
+文档内容有编码显示问题，我改用显式 `utf-8` 读取并带行号抽取关键段落，同时核对计划里提到的后端/前端路径和权限常量是否在仓库中存在。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+for path in [
+    Path(r'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md'),
+    Path(r'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md'),
+    Path(r'C:/Users/Administrator/edu-cloud/CLAUDE.md'),
+]:
+    if not path.exists():
+        continue
+    print(f'===== {path} =====')
+    text = path.read_text(encoding='utf-8')
+    for i, line in enumerate(text.splitlines(), 1):
+        if line.startswith('#') or 'Contract Pack' in line or '测试契约' in line or '边界条件' in line or 'risk_modules' in line or 'invariants' in line or 'counter_examples' in line:
+            print(f'{i}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg --files C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools C:/Users/Administrator/edu-cloud/frontend/src | rg "analytics|segment|report|trend|SchoolSettingsPage|sidebarConfig|router/index|api/analytics|conftest|test_analytics|permissions"' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "MANAGE_SCHOOL_SETTINGS|GENERATE_REPORT|VIEW_SCORES|study_analytics|analysis_report|transition|segments/config|report/query|report/trend|report/export|get_visible_class_ids|get_visible_subject_codes|DataScope" C:/Users/Administrator/edu-cloud/src C:/Users/Administrator/edu-cloud/frontend/src C:/Users/Administrator/edu-cloud/tests' in C:/Users/Administrator/edu-cloud succeeded in 1.78s:
+===== C:\Users\Administrator\edu-cloud\docs\plans\2026-04-05-analytics-report-plan.md =====
+1: # Phase 3.3 分析报告 Implementation Plan
+13: ## File Structure
+15: ### 后端新增
+25: ### 后端修改
+34: ### 前端新增
+42: ### 前端修改
+50: ### 测试新增
+62: ## Task 1: ScoreSegmentConfig 数据模型 + Migration
+72: # src/edu_cloud/models/score_segment.py
+117: # tests/test_services_exam/test_segment_service.py
+206: ## Task 2: segment_service — 分数段 CRUD + 计算逻辑
+254: # src/edu_cloud/modules/analytics/segment_service.py
+492: ## Task 3: 修改 exam_distribution 支持动态分数段
+600: ## Task 4: 分数段 API 路由
+609: # tests/test_api_exam/test_analytics_report.py
+748: ## Task 5: report_service — 自定义分析构建器
+757: # tests/test_services_exam/test_report_service.py
+869: # src/edu_cloud/modules/analytics/report_service.py
+1008: ## Task 6: report_service — 跨考试对比趋势
+ succeeded in 1.73s:
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics\__init__.py
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics\service.py
+C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics\router.py
+C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools\analytics.py
+C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools\analytics_compare.py
+C:/Users/Administrator/edu-cloud/frontend/src\pages\SchoolSettingsPage.vue
+C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools\class_report_tool.py
+C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools\analytics_score.py
+C:/Users/Administrator/edu-cloud/frontend/src\api\analytics.js
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js
+C:/Users/Administrator/edu-cloud/frontend/src\config\permissions.js
+ succeeded in 2.99s:
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:10:    MANAGE_SCHOOL_SETTINGS = "manage_school_settings"
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:31:    VIEW_SCORES = "view_scores"
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:34:    GENERATE_REPORT = "generate_report"
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:63:        Permission.MANAGE_SCHOOL_SETTINGS,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:72:        Permission.VIEW_SCORES,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:73:        Permission.GENERATE_REPORT,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:88:        Permission.MANAGE_SCHOOL_SETTINGS,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:94:        Permission.VIEW_SCORES,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:95:        Permission.GENERATE_REPORT,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:107:        Permission.MANAGE_SCHOOL_SETTINGS,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:114:        Permission.VIEW_SCORES,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:115:        Permission.GENERATE_REPORT,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:130:        Permission.VIEW_SCORES,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:132:        Permission.GENERATE_REPORT,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:143:        Permission.VIEW_SCORES,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:144:        Permission.GENERATE_REPORT,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:157:        Permission.VIEW_SCORES,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:161:        Permission.GENERATE_REPORT,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:169:        Permission.VIEW_SCORES,
+C:/Users/Administrator/edu-cloud/src\edu_cloud\core\permissions.py:179:        Permission.VIEW_SCORES,
+codex
+我已经确认目标模块存在，但还需要看现有函数签名和路由/前端约定，才能判断计划里的接口是否真的对齐。我现在抽读 `analytics`、`studio`、`SchoolSettingsPage`、AI 工具注册这些关键文件。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/router.py' -First 260" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/frontend/src/config/sidebarConfig.js' -First 260" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/studio/router.py' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/frontend/src/pages/SchoolSettingsPage.vue' -First 320" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/service.py' -First 260" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/frontend/src/api/analytics.js' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/__init__.py' -First 260" in C:/Users/Administrator/edu-cloud succeeded in 2.01s:
+from edu_cloud.ai.tools import analytics  # noqa: F401 鈥?L1_analytics (4): edu-cloud cross-school
+from edu_cloud.ai.tools import actions  # noqa: F401 鈥?L4_action (2): report/comment generation
+from edu_cloud.ai.tools import knowledge  # noqa: F401 鈥?L3_knowledge (4): in-memory knowledge store
+from edu_cloud.ai.tools import analytics_score  # noqa: F401 鈥?L2_analytics (5): score queries
+from edu_cloud.ai.tools import analytics_compare  # noqa: F401 鈥?L2_analytics (3): class comparison
+from edu_cloud.ai.tools import exams  # noqa: F401 鈥?L1_exam (3): exam/subject/question
+from edu_cloud.ai.tools import students  # noqa: F401 鈥?L1_student (4): class/student queries
+from edu_cloud.ai.tools import bank  # noqa: F401 鈥?L5_bank (2): error book/question stats
+from edu_cloud.ai.tools import profile  # noqa: F401 鈥?L6_profile (4): trend/knowledge map/weakness
+from edu_cloud.ai.tools import knowledge_db  # noqa: F401 鈥?L3_knowledge_db (2): DB knowledge tree
+from edu_cloud.ai.tools import grading_ops  # noqa: F401 鈥?L1_exam+L2+L4 (3): grading progress/quality/assign
+from edu_cloud.ai.tools import homework  # noqa: F401 鈥?L2_homework (5): task list/stats/submit/assign/remedial
+from edu_cloud.ai.tools import exam_overview  # noqa: F401 鈥?W1 domain (1): exam analysis snapshot overview
+from edu_cloud.ai.tools import class_report_tool  # noqa: F401 鈥?W1 domain (1): class exam report
+from edu_cloud.ai.tools import student_diagnosis  # noqa: F401 鈥?W1 domain (1): student exam diagnosis
+from edu_cloud.ai.tools import findings_tools  # noqa: F401 鈥?W1 domain (2): findings + agent tasks
+from edu_cloud.ai.tools import student_profile_tool  # noqa: F401 鈥?W3 domain (1): student profile composite
+ succeeded in 2.45s:
+const SIDEBAR_ITEMS = {
+  platform_admin: [
+    { icon: 'dashboard', label: '骞冲彴姒傝', route: '/' },
+    { icon: 'school', label: '瀛︽牎绠＄悊', route: '/schools' },
+    { icon: 'exam', label: '鑱旇€冪鐞?, route: '/exams' },
+    { icon: 'settings', label: '绯荤粺璁剧疆', route: '/settings' },
+  ],
+  district_admin: [
+    { icon: 'dashboard', label: '鍖哄煙姒傝', route: '/' },
+    { icon: 'school', label: '瀛︽牎绠＄悊', route: '/schools' },
+    { icon: 'exam', label: '鑱旇€冪鐞?, route: '/exams' },
+    { icon: 'chart', label: '璺ㄦ牎鍒嗘瀽', route: '/analysis' },
+  ],
+  principal: [
+    { icon: 'dashboard', label: '鏍″姟姒傝', route: '/' },
+    { icon: 'exam', label: '鑰冭瘯绠＄悊', route: '/exams', moduleCode: 'exam' },
+    { icon: 'chart', label: '鏁版嵁鍒嗘瀽', route: '/analysis' },
+    { icon: 'document', label: '鏂囨。涓績', route: '/studio', moduleCode: 'studio' },
+    { icon: 'calendar', label: '鏍″巻閫氱煡', route: '/calendar', moduleCode: 'calendar' },
+    { icon: 'settings', label: '鎺掕绠＄悊', route: '/assignments' },
+ succeeded in 2.00s:
+import client from './client'
+
+export const getExamSummary = (examId) => client.get(`/analytics/exam/${examId}/summary`)
+export const getDistribution = (examId, params) => client.get(`/analytics/exam/${examId}/distribution`, { params })
+export const getSubjectQuestions = (subjectId) => client.get(`/analytics/subject/${subjectId}/questions`)
+ succeeded in 2.75s:
+<template>
+  <div>
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">瀛︽牎閰嶇疆</h1>
+        <p class="page-subtitle">绠＄悊鍔熻兘妯″潡鍜屽鏍¤缃?/p>
+      </div>
+    </div>
+
+    <n-tabs type="line" animated>
+      <n-tab-pane name="modules" tab="鍔熻兘妯″潡">
+        <n-card title="鍔熻兘妯″潡绠＄悊" style="margin-top: 16px">
+          <p style="color: #999; margin-bottom: 16px">鍚敤鎴栫鐢ㄥ鏍″彲鐢ㄧ殑鍔熻兘妯″潡銆傜鐢ㄥ悗锛屽搴旂殑瀵艰埅鑿滃崟銆丄PI 鍜?AI 鍔╂墜宸ュ叿灏嗕笉鍙敤銆?/p>
+          <n-space vertical>
+            <div v-for="m in modules" :key="m.code" class="module-row">
+              <div class="module-info">
+                <n-text strong>{{ m.name }}</n-text>
+                <n-text depth="3" style="margin-left: 8px">{{ m.code }}</n-text>
+              </div>
+              <n-switch
+ succeeded in 3.09s:
+"""缁熻鍒嗘瀽璺敱 鈥?浠?exam-ai 杩佸叆銆傛敮鎸?subject_id 鍗曞弬鏁版煡璇紙Phase 2.3 examids 缁熶竴锛夈€?""
+import logging
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.database import get_db
+from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.permissions import get_visible_subject_codes, get_visible_class_ids
+from edu_cloud.modules.analytics import service as analytics_service
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
+
+
+@router.get("/exam/{exam_id}/summary")
+async def exam_summary(
+    exam_id: str,
+    db: AsyncSession = Depends(get_db),
+ succeeded in 3.76s:
+"""Studio REST API: templates, document CRUD, status transitions."""
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.database import get_db
+from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
+from edu_cloud.services.studio_service import StudioService
+from edu_cloud.services.paper_service import PaperService
+from edu_cloud.templates.document_templates import get_templates_for_role
+
+router = APIRouter(prefix="/api/v1/studio", tags=["studio"])
+
+
+@router.get("/templates")
+async def list_templates(current=Depends(get_current_user)):
+    role = current["current_role"]
+    role_name = role.role if hasattr(role, "role") else "unknown"
+    return get_templates_for_role(role_name)
+ succeeded in 4.13s:
+"""缁熻鍒嗘瀽涓氬姟閫昏緫锛堜粠 exam-ai 杩佸叆锛夈€?""
+import logging
+import statistics
+
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.modules.exam.models import Exam, Subject, Question
+from edu_cloud.modules.student.models import Class, Student
+from edu_cloud.modules.analytics import get_effective_scores
+from edu_cloud.services.exceptions import NotFoundError, PermissionDeniedError
+
+logger = logging.getLogger(__name__)
+
+K_ANONYMITY_THRESHOLD = 5
+
+
+async def resolve_subject_to_exam(
+    db: AsyncSession, subject_id: str, school_id: str,
+) -> tuple[str, Subject]:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/models/__init__.py' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/frontend/src/router/index.js' -First 320" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/models/base.py' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/frontend/src/config/permissions.js' -First 240" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/core/permissions.py' -First 260" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/models/school.py' -First 200" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/tests/conftest.py' -First 220" in C:/Users/Administrator/edu-cloud succeeded in 2.17s:
+
+ succeeded in 2.15s:
+"""瀛︽牎妗ｆ妯″瀷銆?""
+
+from sqlalchemy import String, Boolean
+from sqlalchemy.orm import Mapped, mapped_column
+from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+
+
+class School(Base, IdMixin, TimestampMixin):
+    __tablename__ = "schools"
+
+    name: Mapped[str] = mapped_column(String(200))
+    code: Mapped[str] = mapped_column(String(50), unique=True)
+    address: Mapped[str | None] = mapped_column(String(500), default=None)
+    contact: Mapped[str | None] = mapped_column(String(100), default=None)
+    contact_phone: Mapped[str | None] = mapped_column(String(50), default=None)
+
+    # 鎺ュ叆绠＄悊锛坰ync 璁よ瘉鐢紝鍚堝苟瀹屾垚鍚庣Щ闄わ級
+    api_key_hash: Mapped[str | None] = mapped_column(String(200), default=None)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+ succeeded in 2.41s:
+// 闀滃儚鍚庣 core/permissions.py ROLE_PERMISSIONS锛屽€间娇鐢ㄥ皬鍐?
+export const ROLE_PERMISSIONS = {
+  platform_admin: ['manage_schools', 'view_schools', 'create_joint_exam', 'manage_joint_exam',
+    'view_joint_exam', 'view_cross_school_analytics', 'manage_question_bank', 'view_question_bank',
+    'manage_users', 'manage_platform', 'view_students', 'view_exams', 'view_scores',
+    'generate_report', 'generate_notification', 'approve_notification', 'send_notification',
+    'use_ai_chat', 'write_paper'],
+  district_admin: ['manage_schools', 'view_schools', 'manage_school_settings', 'create_joint_exam', 'manage_joint_exam',
+    'view_joint_exam', 'view_cross_school_analytics', 'view_question_bank', 'manage_users',
+    'view_students', 'view_exams', 'view_scores', 'generate_report', 'approve_notification',
+    'send_notification', 'generate_notification', 'use_ai_chat'],
+  principal: ['view_schools', 'manage_school_settings', 'view_joint_exam', 'view_cross_school_analytics', 'view_question_bank',
+    'view_students', 'view_exams', 'view_scores', 'generate_report', 'approve_notification',
+    'send_notification', 'generate_notification', 'use_ai_chat'],
+  academic_director: ['view_schools', 'manage_school_settings', 'create_joint_exam', 'manage_joint_exam', 'view_joint_exam',
+    'view_question_bank', 'view_students', 'view_exams', 'view_scores', 'generate_report',
+    'generate_notification', 'send_notification', 'use_ai_chat'],
+  grade_leader: ['view_students', 'view_exams', 'view_scores', 'view_joint_exam',
+    'generate_report', 'generate_notification', 'use_ai_chat'],
+  homeroom_teacher: ['view_students', 'view_exams', 'view_scores', 'generate_report',
+ succeeded in 2.60s:
+import uuid
+from datetime import datetime, timezone
+from sqlalchemy import DateTime, String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class IdMixin:
+    """UUID primary key."""
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+
+
+class TenantMixin:
+    """Row-level multi-tenancy: every tenant-scoped table has school_id."""
+    school_id: Mapped[str] = mapped_column(String(36), index=True)
+ succeeded in 3.57s:
+import { createRouter, createWebHistory } from 'vue-router'
+import AppShell from '../layouts/AppShell.vue'
+import { SCHOOL_ADMIN_ROLES, EXAM_ROLES, MARKING_ROLES, normalizeRole } from '../config/roles.js'
+import { hasPermission } from '../config/permissions.js'
+
+export const routes = [
+  // Auth 鈥?outside AppShell
+  { path: '/login', name: 'Login', component: () => import('../pages/LoginPage.vue') },
+
+  // All authenticated routes under AppShell
+  {
+    path: '/',
+    component: AppShell,
+    meta: { requiresAuth: true },
+    children: [
+      { path: '', name: 'Dashboard', component: () => import('../pages/DashboardPage.vue') },
+
+      // Exam management
+      { path: 'exams', name: 'ExamList', component: () => import('../pages/ExamListPage.vue'), meta: { roles: EXAM_ROLES } },
+      { path: 'exams/:id', name: 'ExamDetail', component: () => import('../pages/ExamDetailPage.vue'), meta: { roles: EXAM_ROLES } },
+warning: in-process app-server event stream lagged; dropped 25 events
+warning: in-process app-server event stream lagged; dropped 1 events
+warning: in-process app-server event stream lagged; dropped 43 events
+ succeeded in 4.15s:
+"""骞冲彴绾?RBAC锛氬熀浜庤鑹茬殑鏉冮檺绛栫暐銆?""
+
+from enum import Enum
+
+
+class Permission(str, Enum):
+    # 瀛︽牎绠＄悊锛堟棦鏈夛級
+    MANAGE_SCHOOLS = "manage_schools"
+    VIEW_SCHOOLS = "view_schools"
+    MANAGE_SCHOOL_SETTINGS = "manage_school_settings"
+
+    # 鑱旇€冪鐞嗭紙鏃㈡湁锛?
+    CREATE_JOINT_EXAM = "create_joint_exam"
+    MANAGE_JOINT_EXAM = "manage_joint_exam"
+    VIEW_JOINT_EXAM = "view_joint_exam"
+
+    # 璺ㄦ牎鍒嗘瀽锛堟棦鏈夛級
+    VIEW_CROSS_SCHOOL_ANALYTICS = "view_cross_school_analytics"
+
+    # 棰樺簱绠＄悊锛堟棦鏈夛級
+ succeeded in 4.06s:
+import pytest
+import bcrypt
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+from edu_cloud.models.base import Base
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
+from edu_cloud.models.school import School
+import edu_cloud.models.joint_exam  # noqa: F401 鈥?ensures joint_exam tables are in metadata
+import edu_cloud.models.student  # noqa: F401
+import edu_cloud.models.class_group  # noqa: F401
+import edu_cloud.models.exam  # noqa: F401
+import edu_cloud.models.ai_session  # noqa: F401
+import edu_cloud.models.document  # noqa: F401
+import edu_cloud.models.approval  # noqa: F401
+import edu_cloud.models.calendar  # noqa: F401
+import edu_cloud.models.notification  # noqa: F401
+import edu_cloud.core.models.llm_slot  # noqa: F401
+import edu_cloud.modules.card.models  # noqa: F401
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path = Path(r'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md')
+text = path.read_text(encoding='utf-8').splitlines()
+for start,end in [(62,205),(206,491),(492,747),(748,1297),(1298,1814),(1815,2408)]:
+    print(f'===== {start}-{end} =====')
+    for i in range(start, min(end, len(text))+1):
+        line = text[i-1]
+        if any(k in line for k in ['测试契约','边界条件','迁移','回滚','Contract Pack','风险','Tier','批次','检查清单']):
+            print(f'{i}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path = Path(r'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md')
+text = path.read_text(encoding='utf-8').splitlines()
+for i, line in enumerate(text,1):
+    if any(k in line for k in ['权限','DataScope','segments/config','report/query','trend','export','analysis_report','subject_code','class_ids','metrics']):
+        print(f'{i}: {line}')
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"测试契约|边界条件|迁移|回滚|Contract Pack|invariants|counter_examples|risk_modules|Tier|风险|批次\" 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md'" in C:/Users/Administrator/edu-cloud succeeded in 1.14s:
+185:**边界条件:**
+190:**测试契约:**
+485:**边界条件:**
+1001:**边界条件:**
+1291:**边界条件:**
+ succeeded in 1.48s:
+16: | D6 | 角色覆盖 | 全角色（校长→家长），不同角色看不同粒度 | DataScope 自动裁剪，API 层不写权限判断 |
+28: | subject_code | String(50), nullable | null = 学校默认，非 null = 科目覆盖 |
+34: **唯一约束**: `(school_id, subject_code)` — 每校每科最多一套，subject_code=null 的那行是学校默认。
+57: | GET | `/api/v1/analytics/segments/config` | MANAGE_SCHOOL_SETTINGS | 获取本校分数段配置（默认 + 科目覆盖列表） |
+58: | PUT | `/api/v1/analytics/segments/config` | MANAGE_SCHOOL_SETTINGS | 更新分数段配置（upsert 语义） |
+71: | subject_codes | 全科 / 指定科目 | 全科 |
+72: | class_ids | 全年级 / 指定班级 | 角色可见范围 |
+73: | metrics | 可勾选组合（见下表） | 全选 |
+89: POST /api/v1/analytics/report/query
+92:     "subject_codes": ["math", "chinese"],  // 可选
+93:     "class_ids": ["cls1"],                 // 可选，默认角色可见
+94:     "metrics": ["summary", "segments", "ranking"]  // 可选，默认全部
+98:     "metrics": {
+108: **权限**: DataScope 自动注入，班主任只看自己班，家长只看自己孩子的指标子集（summary + segments，不含 ranking/top_bottom）。
+117: GET /api/v1/analytics/report/trend/grade
+118: Query: exam_ids=id1,id2,id3&subject_code=math
+133: GET /api/v1/analytics/report/trend/class
+134: Query: exam_ids=id1,id2,id3&class_id=cls1&subject_code=math
+150: GET /api/v1/analytics/report/trend/student
+151: Query: exam_ids=id1,id2,id3&student_id=stu1&subject_code=math
+ succeeded in 1.50s:
+===== 62-205 =====
+===== 206-491 =====
+===== 492-747 =====
+===== 748-1297 =====
+===== 1298-1814 =====
+===== 1815-2408 =====
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path = Path(r'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md')
+text = path.read_text(encoding='utf-8').splitlines()
+for center in [185,190,485,1001,1291,600,748,1298,1565,1815,2271]:
+    start=max(1,center-20); end=min(len(text),center+35)
+    print(f'===== around {center} =====')
+    for i in range(start,end+1):
+        print(f'{i}: {text[i-1]}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 881ms:
+===== around 185 =====
+165: - [ ] **Step 5: 生成 Alembic migration**
+166: 
+167: Run: `cd C:/Users/Administrator/edu-cloud && python -m alembic revision --autogenerate -m "add score_segment_config"`
+168: 
+169: 验证生成的文件包含 `create_table('score_segment_config', ...)` 和唯一约束。
+170: 
+171: - [ ] **Step 6: Commit**
+172: 
+173: ```bash
+174: cd C:/Users/Administrator/edu-cloud
+175: git add src/edu_cloud/models/score_segment.py tests/test_services_exam/test_segment_service.py tests/conftest.py alembic/versions/*score_segment*
+176: git commit -m "feat(analytics): add ScoreSegmentConfig model + migration"
+177: ```
+178: 
+179: **审查清单:**
+180: - ✓ ScoreSegmentConfig 有 school_id + subject_code 唯一约束
+181: - ✓ 默认值 [85,70,60] + ["优秀","良好","及格","不及格"]
+182: - ✓ subject_code=null 代表学校默认
+183: - ✗ 同一 school_id 出现两个 subject_code=null → 应抛唯一约束异常
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "exam_analysis_snapshot|class_exam_report|student_exam_snapshots|student_exam_snapshot|snapshot" C:/Users/Administrator/edu-cloud/src/edu_cloud' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tool_context.py' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/analytics_score.py' -First 260" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/registry.py' -First 260" in C:/Users/Administrator/edu-cloud succeeded in 1.49s:
+C:/Users/Administrator/edu-cloud/src/edu_cloud\api\app.py:59:    import edu_cloud.models.agent_snapshot  # noqa: F401
+C:/Users/Administrator/edu-cloud/src/edu_cloud\models\agent_snapshot.py:15:    __tablename__ = "exam_analysis_snapshot"
+C:/Users/Administrator/edu-cloud/src/edu_cloud\models\agent_snapshot.py:20:    snapshot_type: Mapped[str] = mapped_column(String(30))
+C:/Users/Administrator/edu-cloud/src/edu_cloud\models\agent_snapshot.py:35:    __tablename__ = "class_exam_report"
+C:/Users/Administrator/edu-cloud/src/edu_cloud\services\school_settings_service.py:7:from edu_cloud.services.audit_service import audited, write_audit_log, _snapshot
+C:/Users/Administrator/edu-cloud/src/edu_cloud\services\school_settings_service.py:31:    before = _snapshot(existing) if is_update else None
+C:/Users/Administrator/edu-cloud/src/edu_cloud\services\school_settings_service.py:45:            before_data=before, after_data=_snapshot(existing),
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\profile\router.py:21:def _snapshot_response(s) -> dict:
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\profile\router.py:60:    snapshots = await service.get_student_trend(
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\profile\router.py:64:    return [_snapshot_response(s) for s in snapshots]
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\profile\models.py:12:    __tablename__ = "student_exam_snapshots"
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\profile\models.py:77:    snapshot_date: Mapped[datetime] = mapped_column(
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\exam\publish_service.py:63:        """排名计算 — 委托 pipeline 的 generate_exam_snapshots（含排名+知识点维度）。"""
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\exam\publish_service.py:64:        from edu_cloud.modules.pipeline.service import generate_exam_snapshots
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\exam\publish_service.py:65:        count = await generate_exam_snapshots(db, exam_id=exam_id, school_id=school_id)
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\exam\publish_service.py:66:        logger.info("calculate_rankings: exam_id=%s, snapshots=%d", exam_id, count)
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\pipeline\service.py:228:async def generate_exam_snapshots(db: AsyncSession, *, exam_id: str, school_id: str) -> int:
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\pipeline\service.py:338:    logger.info("generate_exam_snapshots: exam=%s, created=%d", exam_id, created)
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\pipeline\service.py:498:        "exam_snapshots": await generate_exam_snapshots(db, exam_id=exam_id, school_id=school_id),
+C:/Users/Administrator/edu-cloud/src/edu_cloud\services\audit_service.py:14:def _snapshot(obj) -> dict | None:
+ succeeded in 1.42s:
+"""Standardized tool execution context and result types (Design 搂4)."""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+@dataclass
+class ToolContext:
+    """Injected into every tool call. Replaces the old _db/_school_id/**kwargs pattern."""
+
+    db: AsyncSession
+    school_id: str
+    user_id: str
+    role: str
+    class_ids: list[str] | None = None
+    subject_codes: list[str] | None = None
+    grade_ids: list[str] | None = None
+ succeeded in 1.37s:
+"""Tool registration and discovery (Design 搂4)."""
+from __future__ import annotations
+
+import inspect
+import logging
+from dataclasses import dataclass, field
+from typing import Any, Awaitable, Callable
+
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ToolSpec:
+    name: str
+    description: str
+    parameters: dict
+    func: Callable[[dict, ToolContext], Awaitable[ToolResult]]
+    category: str = "general"
+ succeeded in 1.68s:
+"""鎴愮哗鏌ヨ宸ュ叿锛? 涓級銆侺2_analytics 绫诲埆銆?""
+from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
+
+
+@tools.register(
+    name="get_exam_summary",
+    description="鑾峰彇鑰冭瘯鎬昏锛氬悇绉戝钩鍧囧垎銆佹渶楂樺垎銆佹渶浣庡垎銆佸緱鍒嗙巼銆?,
+    category="L2_analytics",
+    module_code="exam",
+    domain="analytics",
+    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+    risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
+    parameters={
+        "type": "object",
+        "properties": {
+            "exam_id": {"type": "string", "description": "鑰冭瘯 ID"},
+        },
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/models/agent_snapshot.py' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/profile/models.py' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/workflow/w1_post_exam.py' -First 360" in C:/Users/Administrator/edu-cloud succeeded in 1.21s:
+"""鑰冭瘯鍒嗘瀽蹇収涓庣彮绾ф姤鍛婃ā鍨嬨€?""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Optional
+
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from edu_cloud.models.base import Base, IdMixin, TenantMixin, TimestampMixin
+
+
+class ExamAnalysisSnapshot(Base, IdMixin, TenantMixin, TimestampMixin):
+    """鑰冭瘯鍒嗘瀽蹇収锛堜笉鍙彉锛岀増鏈€掑锛夈€?""
+    __tablename__ = "exam_analysis_snapshot"
+
+    exam_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("exams.id"), index=True,
+    )
+    snapshot_type: Mapped[str] = mapped_column(String(30))
+ succeeded in 1.22s:
+"""Profile 妯″潡妯″瀷 鈥?瀛︾敓鐢诲儚锛堜粠 exam-ai 杩佸叆锛夈€?""
+from datetime import datetime, timezone
+
+from sqlalchemy import String, Float, Integer, ForeignKey, JSON, DateTime, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
+
+from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+
+
+class StudentExamSnapshot(Base, IdMixin, TimestampMixin):
+    """鍗曟鑰冭瘯蹇収 鈥?鎴愮哗+鎺掑悕+鐭ヨ瘑鐐圭淮搴︼紝涓嶅彲鍙樸€?""
+    __tablename__ = "student_exam_snapshots"
+    __table_args__ = (UniqueConstraint("student_id", "exam_id", "subject_code"),)
+
+    student_id: Mapped[str] = mapped_column(String(100))
+    exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("exams.id"))
+    subject_code: Mapped[str] = mapped_column(String(50))
+
+    total_score: Mapped[float] = mapped_column(Float)
+    max_score: Mapped[float] = mapped_column(Float)
+ succeeded in 1.82s:
+"""W1 post-exam analysis 鈥?Steps 1-5: snapshot, class reports, student diagnoses, anomaly detection, notifications."""
+from __future__ import annotations
+
+import logging
+import statistics
+from collections import defaultdict
+from datetime import date, datetime, timezone
+
+from sqlalchemy import select
+
+from edu_cloud.ai.workflow.engine import WorkflowContext
+from edu_cloud.models.agent_finding import AgentFinding
+from edu_cloud.models.agent_snapshot import ClassExamReport, ExamAnalysisSnapshot
+from edu_cloud.modules.exam.models import Exam, ExamResult, Subject
+from edu_cloud.modules.profile.models import StudentExamSnapshot
+from edu_cloud.modules.student.models import Student
+
+logger = logging.getLogger(__name__)
+
+# Z-score threshold for class anomaly detection.  With small class counts
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/models/exam.py' -First 260" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/student/models.py' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"class Exam\\(|class Subject\\(|class Question\\(|class ExamResult\\(|class ClassGroup\\(|class Student\\(\" C:/Users/Administrator/edu-cloud/src/edu_cloud" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/models/student.py' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/exam/models.py' -First 260" in C:/Users/Administrator/edu-cloud succeeded in 1.42s:
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\student\models.py:25:class Student(Base, IdMixin, TimestampMixin):
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\exam\models.py:21:class Exam(Base, IdMixin, TimestampMixin):
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\exam\models.py:40:class Subject(Base, IdMixin, TimestampMixin):
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\exam\models.py:50:class Question(Base, IdMixin, TimestampMixin):
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\exam\models.py:65:class ExamResult(Base, IdMixin, TimestampMixin):
+ succeeded in 1.50s:
+# Re-export from new location for backwards compatibility (Task 22 cleanup)
+from edu_cloud.modules.exam.models import Exam, ExamResult, Subject, Question  # noqa: F401
+ succeeded in 1.54s:
+# Re-export from new location for backwards compatibility (Task 22 cleanup)
+from edu_cloud.modules.student.models import Student, Class  # noqa: F401
+ succeeded in 1.93s:
+"""Student 妯″潡妯″瀷 鈥?鍚堝苟 exam-ai Student/Class + edu-cloud Student/ClassGroup銆?""
+from sqlalchemy import String, Integer, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
+
+from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+
+
+class Class(Base, IdMixin, TimestampMixin):
+    """鐝骇锛堝悎骞?exam-ai Class + edu-cloud ClassGroup锛夈€?""
+    __tablename__ = "classes"
+
+    name: Mapped[str] = mapped_column(String(100))
+    grade: Mapped[str] = mapped_column(String(50))
+    grade_number: Mapped[int | None] = mapped_column(Integer, default=None)
+    head_teacher_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), default=None
+    )
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+
+
+ succeeded in 2.15s:
+"""Exam 妯″潡妯″瀷 鈥?鍚堝苟 exam-ai 鑰冭瘯妯″瀷 + edu-cloud 鑱旇€冩ā鍨嬨€?
+鍖呭惈锛?- Exam, Subject, Question锛堜粠 exam-ai 杩佸叆锛屽姞 school_id FK锛?- ExamResult锛堜繚鐣欎负鑱氬悎瑙嗗浘锛岀敱 pipeline 濉厖锛?- JointExam, JointExamParticipant, JointExamStudentResult锛堝師 edu-cloud锛?"""
+from datetime import datetime, timezone
+
+from sqlalchemy import (
+    String, Integer, Float, Text, ForeignKey, JSON, Boolean, DateTime,
+    UniqueConstraint, Index, Column,
+)
+from sqlalchemy.orm import Mapped, mapped_column
+
+from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+
+
+# 鈹€鈹€ exam-ai 杩佸叆妯″瀷 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+
+class Exam(Base, IdMixin, TimestampMixin):
+    __tablename__ = "exams"
+
+    name: Mapped[str] = mapped_column(String(200))
+    card_title: Mapped[str] = mapped_column(String(200), default="")
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"module_code=\\\"(exam|study_analytics)\\\"|domain=\\\"analytics\\\"|category=\\\"L2_analytics\\\"\" C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools" in C:/Users/Administrator/edu-cloud exited 1 in 1.11s:
+exam : The term 'exam' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the
+ spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:2 char:23
++ rg -n "module_code=\"(exam|study_analytics)\"|domain=\"analytics\"|ca ...
++                       ~~~~
+    + CategoryInfo          : ObjectNotFound: (exam:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n 'module_code=\"(exam|study_analytics)\"|domain=\"analytics\"|category=\"L2_analytics\"' C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools" in C:/Users/Administrator/edu-cloud exited 1 in 981ms:
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/analytics_compare.py' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/class_report_tool.py' -First 180" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tool_access.py' -First 240" in C:/Users/Administrator/edu-cloud succeeded in 1.27s:
+"""Three-layer tool permission filtering (Design 搂4)."""
+from __future__ import annotations
+
+from edu_cloud.ai.registry import ToolSpec
+
+
+class ToolAccessResolver:
+    """涓夐噸杩囨护锛歊BAC 鈫?Module 鈫?Capability"""
+
+    def resolve(
+        self,
+        all_specs: list[ToolSpec],
+        role: str,
+        enabled_modules: set[str] | None,
+        capabilities: dict[tuple[str, str], bool],
+    ) -> list[ToolSpec]:
+        result = []
+        for spec in all_specs:
+            # Layer 1: RBAC
+            if spec.allowed_roles is not None and role not in spec.allowed_roles:
+ succeeded in 1.41s:
+"""鐝骇鑰冭瘯鎶ュ憡宸ュ叿 鈥?璇诲彇棰勮绠楃殑 ClassExamReport銆?""
+import logging
+
+from sqlalchemy import select
+
+from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
+from edu_cloud.models.agent_snapshot import ClassExamReport
+
+logger = logging.getLogger(__name__)
+
+
+@tools.register(
+    name="get_class_report",
+    description="鑾峰彇鐝骇鑰冭瘯鎶ュ憡锛氱彮鍧囧垎銆佸勾绾ф帓鍚嶃€佷笌骞寸骇鍧囧垎瀵规瘮銆傛暟鎹潵鑷璁＄畻蹇収銆?,
+    parameters={
+        "type": "object",
+        "properties": {
+            "exam_id": {"type": "string", "description": "鑰冭瘯 ID"},
+            "class_id": {"type": "string", "description": "鐝骇 ID"},
+ succeeded in 1.76s:
+"""瀵规瘮鑱氬悎宸ュ叿锛? 涓級銆侺2_analytics 绫诲埆銆?""
+from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
+
+
+@tools.register(
+    name="compare_classes",
+    description="澶氱彮绾ф垚缁╁姣斻€傝繑鍥炲悇鐝钩鍧囧垎銆佹渶楂樺垎銆佹渶浣庡垎銆傛敮鎸?exam_subject_id 鍗曞弬鏁版浛浠?exam_id+subject_id銆?,
+    category="L2_analytics",
+    module_code="exam",
+    domain="analytics",
+    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+    risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
+    parameters={
+        "type": "object",
+        "properties": {
+            "exam_id": {"type": "string", "description": "鑰冭瘯 ID锛堜笌 exam_subject_id 浜岄€変竴锛?},
+            "class_ids": {"type": "array", "items": {"type": "string"}, "description": "鐝骇 ID 鍒楄〃"},
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/frontend/src/api/schoolSettings.js' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/api/deps.py' -First 260" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/api/module_middleware.py' -First 200" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/api/permissions.py' -First 220" in C:/Users/Administrator/edu-cloud succeeded in 1.61s:
+import client from './client.js'
+
+export const getSchoolSettings = (schoolId, category) =>
+  client.get(`/schools/${schoolId}/settings`, { params: { category } })
+
+export const updateSchoolSetting = (schoolId, data) =>
+  client.patch(`/schools/${schoolId}/settings`, data)
+
+export const getSchoolModules = (schoolId) =>
+  client.get(`/schools/${schoolId}/modules`)
+
+export const getEnabledModules = (schoolId) =>
+  client.get(`/schools/${schoolId}/modules/enabled`)
+
+export const toggleModule = (schoolId, moduleCode, enabled) =>
+  client.patch(`/schools/${schoolId}/modules/${moduleCode}`, { enabled })
+ succeeded in 1.36s:
+import logging
+
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from edu_cloud.database import get_db
+from edu_cloud.shared.auth import decode_token
+from jose import ExpiredSignatureError, JWTError
+
+from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
+from edu_cloud.services.exceptions import PermissionDeniedError
+
+logger = logging.getLogger(__name__)
+
+security = HTTPBearer()
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+ succeeded in 1.59s:
+"""鏁版嵁鏉冮檺杩囨护锛氭牴鎹敤鎴疯鑹查檺鍒跺彲瑙佺殑鐝骇鍜屽绉戙€?
+閫傞厤 edu-cloud 鐨?UserRole 妯″瀷锛坋xam-ai 鍘熺増鍩轰簬 User.role 鍗曡鑹诧級銆?"""
+
+
+SCHOOL_ADMIN_ROLES = frozenset({
+    "platform_admin", "district_admin", "principal", "academic_director",
+    "admin",  # legacy alias for platform_admin
+})
+
+
+def is_school_admin(role) -> bool:
+    """瑙掕壊鏄惁鏈夋牎绾х鐞嗘潈闄愶紙闃呭嵎鍒嗛厤銆佹煡鐪嬪叏閮ㄥ垎閰嶇瓑锛夈€?""
+    return role.role in SCHOOL_ADMIN_ROLES
+
+
+def get_visible_class_ids(role) -> list[str] | None:
+    """杩斿洖瑙掕壊鍙鐨勭彮绾?ID 鍒楄〃锛孨one = 鍏ㄩ儴鍙銆?""
+    if role.role in ("platform_admin", "district_admin", "principal", "academic_director", "admin"):
+        return None
+    return role.class_ids or []
+ succeeded in 2.02s:
+"""
+Module check middleware: blocks API requests for disabled modules.
+
+Route prefix -> module_code mapping. Requests to disabled modules get 403.
+Key design decisions (F-02/F-03/F-04 fixes):
+- JWT does NOT contain school_id. We extract active_role_id from JWT,
+  then query UserRole to get school_id.
+- Platform admins without a school-scoped role skip module checks.
+- Uses decode_token (shared/auth.py) and async_session (database.py).
+"""
+import logging
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+from sqlalchemy import select
+
+from edu_cloud.models.school_settings import SchoolModule
+
+logger = logging.getLogger(__name__)
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/tests/test_services_exam/test_analytics.py' -First 260" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files C:/Users/Administrator/edu-cloud/tests | rg 'test_analytics|test_segment_service|test_report_service|test_analytics_report|test_tools_analytics_report'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/tests/test_api_exam/test_analytics_class_filter.py' -First 240" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/tests/test_api_exam/test_analytics_subject_id.py' -First 240" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/tests/test_api_exam/test_analytics.py' -First 240" in C:/Users/Administrator/edu-cloud succeeded in 1.63s:
+C:/Users/Administrator/edu-cloud/tests\test_api_exam\test_analytics_subject_id.py
+C:/Users/Administrator/edu-cloud/tests\test_api_exam\test_analytics_class_filter.py
+C:/Users/Administrator/edu-cloud/tests\test_api_exam\test_analytics.py
+C:/Users/Administrator/edu-cloud/tests\test_services_exam\test_analytics.py
+ succeeded in 1.98s:
+import pytest
+from edu_cloud.models.school import School
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
+from edu_cloud.models.exam import Exam, Subject, Question
+from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.modules.grading.models import GradingTask, AIGradingResult, TeacherReview
+from edu_cloud.modules.analytics import get_effective_scores
+
+
+@pytest.fixture
+async def analytics_data(db):
+    school = School(name="AS", code="AS01")
+    db.add(school)
+    await db.commit()
+    user = User(username="t", display_name="T")
+    user.set_password("p")
+    db.add(user)
+    await db.commit()
+    db.add(UserRole(user_id=user.id, role="teacher", school_id=school.id, is_primary=True))
+ succeeded in 1.88s:
+"""B2: analytics 绔偣蹇呴』鎸?class_ids 杩囨护瀛︾敓鎴愮哗銆?""
+import pytest
+from edu_cloud.models.school import School
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
+from edu_cloud.models.exam import Exam, Subject, Question
+from edu_cloud.models.student import Class, Student
+from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.modules.grading.models import GradingTask, AIGradingResult
+from edu_cloud.shared.auth import create_access_token
+
+
+@pytest.fixture
+async def class_filter_setup(client, db):
+    """2 classes, teacher sees only c1."""
+    school = School(id="cf_s", name="CF", code="CF01")
+    db.add(school)
+    await db.commit()
+
+    c1 = Class(id="cf_c1", name="1鐝?, grade="楂樹簩", school_id="cf_s")
+ succeeded in 2.30s:
+"""Phase 2.3: subject_id 缁熶竴鏌ヨ鍏ュ弬鐨?API 娴嬭瘯銆?""
+import pytest
+from edu_cloud.models.school import School
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
+from edu_cloud.models.exam import Exam, Subject, Question
+from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.modules.grading.models import GradingTask, AIGradingResult
+from edu_cloud.shared.auth import create_access_token
+
+
+@pytest.fixture
+async def subj_setup(client, db):
+    school = School(name="SJ", code="SJ01")
+    db.add(school)
+    await db.commit()
+    user = User(username="sj_t", display_name="T")
+    user.set_password("p")
+    db.add(user)
+    await db.commit()
+ succeeded in 2.66s:
+import pytest
+from sqlalchemy import select
+from edu_cloud.models.school import School
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
+from edu_cloud.models.exam import Exam, Subject, Question
+from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.modules.grading.models import GradingTask, AIGradingResult
+from edu_cloud.shared.auth import create_access_token
+
+
+@pytest.fixture
+async def analytics_setup(client, db):
+    school = School(name="AN", code="AN01")
+    db.add(school)
+    await db.commit()
+    user = User(username="t", display_name="T")
+    user.set_password("p")
+    db.add(user)
+    await db.commit()
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"icon: 'report'|icon: 'trend'|icon: 'chart'|icon: 'dashboard'|icon: 'school'|icon: 'document'\" C:/Users/Administrator/edu-cloud/frontend/src" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/frontend/src/components/shell/AppSidebar.vue' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/frontend/src/stores/auth.js' -First 240" in C:/Users/Administrator/edu-cloud succeeded in 1.16s:
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:3:    { icon: 'dashboard', label: '平台概览', route: '/' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:4:    { icon: 'school', label: '学校管理', route: '/schools' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:9:    { icon: 'dashboard', label: '区域概览', route: '/' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:10:    { icon: 'school', label: '学校管理', route: '/schools' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:12:    { icon: 'chart', label: '跨校分析', route: '/analysis' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:15:    { icon: 'dashboard', label: '校务概览', route: '/' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:17:    { icon: 'chart', label: '数据分析', route: '/analysis' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:18:    { icon: 'document', label: '文档中心', route: '/studio', moduleCode: 'studio' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:25:    { icon: 'dashboard', label: '教务概览', route: '/' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:28:    { icon: 'chart', label: '数据分析', route: '/analysis' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:29:    { icon: 'document', label: '文档中心', route: '/studio', moduleCode: 'studio' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:35:    { icon: 'dashboard', label: '年级概览', route: '/' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:37:    { icon: 'chart', label: '数据分析', route: '/analysis' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:38:    { icon: 'document', label: '文档', route: '/studio', moduleCode: 'studio' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:41:    { icon: 'dashboard', label: '我的工作台', route: '/' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:44:    { icon: 'chart', label: '成绩分析', route: '/analysis' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:46:    { icon: 'document', label: '文档', route: '/studio', moduleCode: 'studio' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:49:    { icon: 'dashboard', label: '我的工作台', route: '/' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:52:    { icon: 'chart', label: '成绩分析', route: '/analysis' },
+C:/Users/Administrator/edu-cloud/frontend/src\config\sidebarConfig.js:54:    { icon: 'document', label: '文档', route: '/studio', moduleCode: 'studio' },
+ succeeded in 1.32s:
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import client from '../api/client.js'
+import router from '../router/index.js'
+import { normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
+import { hasPermission } from '../config/permissions.js'
+import { getEnabledModules } from '../api/schoolSettings.js'
+
+/** Persist auth state to localStorage */
+function saveAuthState(userVal, rolesVal, indexVal) {
+  try {
+    localStorage.setItem('auth_state', JSON.stringify({
+      user: userVal,
+      roles: rolesVal,
+      currentRoleIndex: indexVal,
+    }))
+  } catch { /* quota exceeded 鈥?non-fatal */ }
+}
+
+/** Restore auth state from localStorage (returns null on failure) */
+ succeeded in 1.38s:
+<template>
+  <aside :class="['sidebar', { 'sidebar--collapsed': collapsed }]">
+    <div class="sidebar__toggle" @click="collapsed = !collapsed">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path v-if="collapsed" d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path v-else d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <nav class="sidebar__nav">
+      <router-link
+        v-for="item in navItems"
+        :key="item.route"
+        :to="item.route"
+        :class="['nav-item', { 'nav-item--active': isActive(item.route) }]"
+        :title="collapsed ? item.label : ''"
+      >
+        <span class="nav-item__icon" v-html="iconMap[item.icon] || iconMap.dashboard"></span>
+        <span v-show="!collapsed" class="nav-item__label">{{ item.label }}</span>
+      </router-link>
+    </nav>
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path = Path(r'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md')
+text = path.read_text(encoding='utf-8').splitlines()
+for start,end in [(840,980),(1070,1270),(1380,1545),(1600,1790),(1820,2400)]:
+    print(f'===== {start}-{end} =====')
+    for i in range(start,end+1):
+        print(f'{i}: {text[i-1]}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.58s:
+===== 840-980 =====
+840:         exam_ids=[report_data["exams"][0]["exam"].id],
+841:         metrics=["summary"],
+842:     )
+843:     assert "summary" in result["metrics"]
+844:     summary = result["metrics"]["summary"]
+845:     assert summary["total_students"] == 3
+846: 
+847: 
+848: async def test_build_report_segments(db, report_data):
+849:     from edu_cloud.modules.analytics.report_service import build_report
+850:     result = await build_report(
+851:         db,
+852:         school_id=report_data["school"].id,
+853:         exam_ids=[report_data["exams"][0]["exam"].id],
+854:         metrics=["segments"],
+855:     )
+856:     assert "segments" in result["metrics"]
+857:     intervals = result["metrics"]["segments"]["intervals"]
+858:     assert len(intervals) == 4  # default 4 segments
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path=Path(r'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md')
+text=path.read_text(encoding='utf-8').splitlines()
+for i in range(1478,1550):
+    print(f'{i}: {text[i-1]}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.49s:
+1478:     current: dict = Depends(get_current_user),
+1479: ):
+1480:     role = current["current_role"]
+1481:     ids = [eid.strip() for eid in exam_ids.split(",") if eid.strip()]
+1482:     return await get_student_trend(
+1483:         db, school_id=role.school_id, exam_ids=ids, student_id=student_id,
+1484:         subject_code=subject_code,
+1485:         visible_subject_codes=get_visible_subject_codes(role),
+1486:     )
+1487: 
+1488: 
+1489: @router.post("/report/export", status_code=201)
+1490: async def export_report(
+1491:     body: dict,
+1492:     db: AsyncSession = Depends(get_db),
+1493:     current: dict = Depends(require_permission(Permission.GENERATE_REPORT)),
+1494: ):
+1495:     """生成分析报告文档（走 Studio）。"""
+1496:     role = current["current_role"]
+1497:     user = current["user"]
+codex
+我已经定位到两类关键风险：一类是计划自身的契约缺口，另一类是按计划落地后会直接引入权限/数据约束问题。我再补读 `get_effective_scores` 和相关查询实现，确认这些风险是否会在现有代码路径上实际触发。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/profile/service.py' -First 260" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/__init__.py' -First 260" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/student_profile_tool.py' -First 180" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/profile/router.py' -First 180" in C:/Users/Administrator/edu-cloud succeeded in 1.65s:
+"""Analytics helper 鈥?effective score computation."""
+import logging
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from edu_cloud.modules.grading.models import AIGradingResult, TeacherReview
+from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.modules.student.models import Student
+
+logger = logging.getLogger(__name__)
+
+
+async def get_effective_scores(
+    db: AsyncSession, subject_id: str, school_id: str,
+    visible_class_ids: list[str] | None = None,
+) -> list[dict]:
+    """Return effective scores for all graded answers in a subject."""
+    stmt = (
+        select(
+            StudentAnswer.student_id,
+            AIGradingResult.question_id,
+ succeeded in 1.83s:
+"""瀛︾敓鐢诲儚鏌ヨ锛堜粠 exam-ai 杩佸叆锛夈€?""
+import logging
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern
+
+logger = logging.getLogger(__name__)
+
+
+async def get_student_trend(
+    db: AsyncSession, *, student_id: str, school_id: str,
+    subject_code: str | None = None, limit: int = 10,
+) -> list[StudentExamSnapshot]:
+    stmt = (
+        select(StudentExamSnapshot)
+        .where(StudentExamSnapshot.student_id == student_id, StudentExamSnapshot.school_id == school_id)
+    )
+    if subject_code:
+        stmt = stmt.where(StudentExamSnapshot.subject_code == subject_code)
+ succeeded in 1.94s:
+"""瀛︾敓瀛︽儏鐢诲儚鍩熷伐鍏?鈥?鑱氬悎瓒嬪娍+鐭ヨ瘑鎺屾彙+閿欒妯″紡銆?""
+from sqlalchemy import select
+
+from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
+
+
+@tools.register(
+    name="get_student_learning_profile",
+    description="鑾峰彇瀛︾敓瀛︽儏鐢诲儚锛氭垚缁╄秼鍔裤€佺煡璇嗙偣鎺屾彙銆侀敊璇ā寮忋€傚闀垮拰鏁欏笀鍧囧彲浣跨敤銆?,
+    parameters={
+        "type": "object",
+        "properties": {
+            "student_id": {"type": "string", "description": "瀛︾敓 ID"},
+            "subject_code": {"type": "string", "description": "绉戠洰浠ｇ爜锛堝彲閫夛級"},
+        },
+        "required": ["student_id"],
+    },
+    category="profile",
+    domain="student_profile",
+ succeeded in 2.39s:
+"""瀛︽儏鐢诲儚 API 璺敱 鈥?鎴愮哗瓒嬪娍/鐭ヨ瘑鐐规帉鎻?钖勫急璇婃柇/閿欒妯″紡銆?""
+import logging
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.database import get_db
+from edu_cloud.api.deps import require_permission
+from edu_cloud.core.permissions import Permission
+from edu_cloud.modules.profile import service
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/profile", tags=["profile"])
+
+
+def _school_id(current: dict) -> str:
+    return current["current_role"].school_id
+
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "class StudioService|def create_document|services.studio_service|modules.studio.service" C:/Users/Administrator/edu-cloud/src/edu_cloud' in C:/Users/Administrator/edu-cloud succeeded in 1.08s:
+C:/Users/Administrator/edu-cloud/src/edu_cloud\tasks.py:5:from edu_cloud.services.studio_service import StudioService
+C:/Users/Administrator/edu-cloud/src/edu_cloud\ai\tools\actions.py:7:from edu_cloud.services.studio_service import StudioService
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\studio\service.py:19:class StudioService:
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\studio\service.py:23:    async def create_document(
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\studio\router.py:9:from edu_cloud.services.studio_service import StudioService
+C:/Users/Administrator/edu-cloud/src/edu_cloud\modules\studio\router.py:40:async def create_document(
+C:/Users/Administrator/edu-cloud/src/edu_cloud\services\studio_service.py:2:from edu_cloud.modules.studio.service import StudioService  # noqa: F401
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"analysis_report|notification|paper|type=\\\"analysis_report\\\"|get_templates_for_role|document type\" C:/Users/Administrator/edu-cloud/src/edu_cloud" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/models/document.py' -First 220" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/templates/document_templates.py' -First 260" in C:/Users/Administrator/edu-cloud exited 1 in 1.25s:
+rg: regex parse error:
+    (?:analysis_report|notification|paper|type=\)
+    ^
+error: unclosed group
+ succeeded in 1.69s:
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from edu_cloud.models.base import Base, IdMixin, TimestampMixin
+
+
+class Document(Base, IdMixin, TimestampMixin):
+    __tablename__ = "documents"
+
+    type: Mapped[str] = mapped_column(String(50), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="draft")
+    content_json: Mapped[dict | None] = mapped_column(JSON, default=None)
+    content_html: Mapped[str | None] = mapped_column(Text, default=None)
+    pdf_url: Mapped[str | None] = mapped_column(String, default=None)
+    source_context: Mapped[dict | None] = mapped_column(JSON, default=None)
+    ai_session_id: Mapped[str | None] = mapped_column(String, default=None)
+    created_by: Mapped[str] = mapped_column(
+ succeeded in 1.89s:
+"""Document templates: role-filtered template registry for AI-generated documents."""
+
+TEMPLATES = {
+    "class_report": {
+        "key": "class_report",
+        "name": "鐝骇瀛︽儏鍒嗘瀽鎶ュ憡",
+        "sections": [
+            {
+                "key": "overview",
+                "title": "鎬讳綋姒傚喌",
+                "prompt": "姒傛嫭鏈彮鏈鑰冭瘯鏁翠綋琛ㄧ幇锛屽寘鎷弬鍔犱汉鏁般€佸钩鍧囧垎銆佸強鏍肩巼",
+            },
+            {
+                "key": "subject_analysis",
+                "title": "鍚勯鍒嗘瀽",
+                "prompt": "鍒嗘瀽寰楀垎鐜囪緝浣庣殑棰樼洰锛屾寚鍑哄叡鎬ц杽寮辩偣",
+            },
+            {
+                "key": "student_tiers",
+                "title": "鍒嗗眰鍒嗘瀽",
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+for path, ranges in {
+    r'C:/Users/Administrator/edu-cloud/CLAUDE.md': [(47,53),(500,509)],
+    r'C:/Users/Administrator/edu-cloud/src/edu_cloud/models/base.py': [(1,40)],
+    r'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/router.py': [(1,150)],
+    r'C:/Users/Administrator/edu-cloud/frontend/src/router/index.js': [(1,120)],
+    r'C:/Users/Administrator/edu-cloud/frontend/src/components/shell/AppSidebar.vue': [(1,120)],
+    r'C:/Users/Administrator/edu-cloud/src/edu_cloud/api/module_middleware.py': [(1,60)],
+    r'C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tool_access.py': [(1,80)],
+}.items():
+    p=Path(path)
+    text=p.read_text(encoding='utf-8').splitlines()
+    print(f'===== {p} =====')
+    for start,end in ranges:
+        for i in range(start,min(end,len(text))+1):
+            print(f'{i}: {text[i-1]}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.33s:
+===== C:\Users\Administrator\edu-cloud\CLAUDE.md =====
+47: ## 测试命令
+48: 
+49: ```bash
+50: # 后端（1325 tests）
+51: cd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q
+52: 
+53: # 前端（Vitest + happy-dom，72 tests）
+500: ## 数据库
+501: 
+502: ```
+503: # .env
+504: DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/edu_cloud
+505: ```
+506: 
+507: 云端必须使用 PostgreSQL（跨校聚合查询、高并发写入）。不支持 SQLite。
+508: 
+509: ## Docker 部署
+===== C:\Users\Administrator\edu-cloud\src\edu_cloud\models\base.py =====
+1: import uuid
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/service.py' -Tail 120" in C:/Users/Administrator/edu-cloud succeeded in 1.07s:
+    result = await db.execute(
+        select(Subject).where(Subject.id == subject_id, Subject.school_id == school_id)
+    )
+    subject = result.scalar_one_or_none()
+    if not subject:
+        raise NotFoundError("Subject not found")
+    if visible_subject_codes is not None and subject.code not in visible_subject_codes:
+        raise PermissionDeniedError("鏃犳潈璁块棶璇ョ鐩?)
+
+    q_result = await db.execute(
+        select(Question).where(Question.subject_id == subject_id, Question.school_id == school_id)
+    )
+    questions = {q.id: q for q in q_result.scalars().all()}
+    scores = await get_effective_scores(db, subject_id, school_id, visible_class_ids)
+
+    by_question: dict[str, list[float]] = {}
+    for s in scores:
+        by_question.setdefault(s["question_id"], []).append(s["effective_score"])
+
+    question_stats = []
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files C:/Users/Administrator/edu-cloud/frontend/src/pages | rg '__tests__|Page.test'" in C:/Users/Administrator/edu-cloud exited 1 in 1.02s:
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "test_alembic_migration.py|upgrade|downgrade" C:/Users/Administrator/edu-cloud/CLAUDE.md C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py' in C:/Users/Administrator/edu-cloud succeeded in 1.03s:
+C:/Users/Administrator/edu-cloud/CLAUDE.md:218:  test_alembic_migration.py  # Alembic 迁移 smoke test（upgrade/downgrade/表集合对比）
+C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py:5:本测试用 subprocess 在空 SQLite 上执行 alembic upgrade head，然后对比表集合。
+C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py:37:    """Run Alembic upgrade head on a fresh SQLite database, return engine."""
+C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py:39:    _run_alembic(db_path, "upgrade", "head")
+C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py:47:    """alembic upgrade head 应创建与 Base.metadata 一致的表集合。"""
+C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py:116:def test_migration_downgrade_is_clean(tmp_path):
+C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py:117:    """alembic upgrade head → downgrade base 应清除所有表。"""
+C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py:118:    db_path = tmp_path / "test_downgrade.db"
+C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py:119:    _run_alembic(db_path, "upgrade", "head")
+C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py:120:    _run_alembic(db_path, "downgrade", "base")
+C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py:128:    assert not remaining, f"downgrade 后仍残留表: {remaining}"
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content 'C:/Users/Administrator/edu-cloud/src/edu_cloud/api/app.py' -First 140" in C:/Users/Administrator/edu-cloud succeeded in 1.33s:
+import logging
+import time
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone, timedelta
+from uuid import uuid4
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from edu_cloud.config import settings
+from edu_cloud.services.exceptions import (
+    NotFoundError, PermissionDeniedError, ValidationError as SvcValidationError,
+    ConflictError, StateError,
+)
+from edu_cloud.logging_config import request_id_var, current_user_var, setup_logging
+
+_BOOT_TIME = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
+
+logger = logging.getLogger(__name__)
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path=Path(r'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md')
+text=path.read_text(encoding='utf-8').splitlines()
+for i in list(range(72,110))+list(range(320,410)):
+    print(f'{i}: {text[i-1]}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.18s:
+72: # src/edu_cloud/models/score_segment.py
+73: """分数段配置模型。"""
+74: from __future__ import annotations
+75: 
+76: from typing import Optional
+77: 
+78: from sqlalchemy import Boolean, ForeignKey, JSON, String, UniqueConstraint
+79: from sqlalchemy.orm import Mapped, mapped_column
+80: 
+81: from edu_cloud.models.base import Base, IdMixin, TenantMixin, TimestampMixin
+82: 
+83: 
+84: class ScoreSegmentConfig(Base, IdMixin, TenantMixin, TimestampMixin):
+85:     """学校级分数段配置（per school + optional per subject override）。"""
+86:     __tablename__ = "score_segment_config"
+87:     __table_args__ = (
+88:         UniqueConstraint("school_id", "subject_code", name="uq_segment_school_subject"),
+89:     )
+90: 
+91:     subject_code: Mapped[Optional[str]] = mapped_column(
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path=Path(r'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md')
+text=path.read_text(encoding='utf-8').splitlines()
+for i in range(1572,1601):
+    print(f'{i}: {text[i-1]}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.27s:
+1572: - [ ] **Step 1: 写工具测试**
+1573: 
+1574: ```python
+1575: # tests/test_ai/test_tools_analytics_report.py
+1576: """分析报告 AI 工具测试。"""
+1577: import pytest
+1578: from unittest.mock import AsyncMock, MagicMock
+1579: from edu_cloud.ai.tools.analytics_report import get_score_segments, compare_exams
+1580: 
+1581: 
+1582: @pytest.fixture
+1583: def mock_ctx():
+1584:     ctx = MagicMock()
+1585:     ctx.db = AsyncMock()
+1586:     ctx.school_id = "school-1"
+1587:     ctx.subject_codes = None
+1588:     ctx.class_ids = None
+1589:     ctx.data_scope = None
+1590:     return ctx
+1591: 
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+path=Path(r'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md')
+text=path.read_text(encoding='utf-8').splitlines()
+for i in range(1600,1612):
+    print(f'{i}: {text[i-1]}')
+'@ | python -" in C:/Users/Administrator/edu-cloud succeeded in 1.44s:
+1600: async def test_compare_exams_missing_exam_ids(mock_ctx):
+1601:     """缺少 exam_ids 应返回错误。"""
+1602:     result = await compare_exams({"target_type": "grade"}, mock_ctx)
+1603:     assert result.success is False
+1604:     assert "exam_ids" in result.error
+1605: ```
+1606: 
+1607: - [ ] **Step 2: 实现工具**
+1608: 
+1609: ```python
+1610: # src/edu_cloud/ai/tools/analytics_report.py
+1611: """分析报告 AI 工具（3 个）。L2_analytics 类别。"""
+codex
+1. `ID`: AR-01  
+`Severity`: High  
+`Category`: A 自洽性 / B 代码库对齐  
+`Type`: schema-contract  
+`Before-behavior`: 当前仓库尚无 `score_segment_config`，运行数据库明确是 PostgreSQL。  
+`After-behavior`: 计划要求“同一学校只能有 1 条 `subject_code=null` 的默认分数段”，重复时数据库直接报错。  
+`Evidence`: [plan.md:84](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:84)、[plan.md:88](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:88)、[plan.md:183](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:183)、[design.md:34](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:34)、[CLAUDE.md:507](/C:/Users/Administrator/edu-cloud/CLAUDE.md:507)。结合 PostgreSQL 语义可推断：普通 `UNIQUE(school_id, subject_code)` 不能禁止多个 `NULL`。  
+`Impact`: 生产上会允许同校多条默认配置并存，`get_segment_config()` 的 `scalar_one_or_none()` 会变成非确定行为，严重时直接抛 `MultipleResultsFound`。  
+`Repair hypothesis`: 把约束拆成两个部分唯一索引：`UNIQUE (school_id) WHERE subject_code IS NULL` 和 `UNIQUE (school_id, subject_code) WHERE subject_code IS NOT NULL`；同时补一条真正覆盖 `NULL` 唯一性的迁移/仓储级测试。
+
+2. `ID`: AR-02  
+`Severity`: High  
+`Category`: A 自洽性 / C 架构适配 / E 风险评估  
+`Type`: authorization  
+`Before-behavior`: 现有 HTTP analytics 只基于 `get_visible_class_ids/get_visible_subject_codes` 做班级/学科过滤；`DataScope` 主要在 AI 路径使用。  
+`After-behavior`: 计划新增 `report/query`、`trend/student` 等入口，并宣称“全角色由 DataScope 自动裁剪”。  
+`Evidence`: [design.md:16](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:16)、[design.md:108](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:108)、[design.md:178](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:178)、[plan.md:1413](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1413)、[plan.md:1472](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1472)、[analytics router.py:17](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/router.py:17)、[api/permissions.py:18](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/permissions.py:18)、[student_profile_tool.py:34](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/student_profile_tool.py:34)。计划里的 `student_trend` 没有学生可见性校验，`report_query` 也没按角色裁掉 `ranking/top_bottom`。  
+`Impact`: 班主任/科任/家长只要知道 `student_id` 或组合参数，就可能拿到越权趋势或排名类数据，属于直接的数据泄露面。  
+`Repair hypothesis`: 不要假设 HTTP 层自动有 DataScope；新增统一依赖构建 `visible_student_ids`/guardian scope，或显式校验 `student_id` 与 `class_id` 可见性；同时对 `metrics` 做角色白名单。
+
+3. `ID`: AR-03  
+`Severity`: High  
+`Category`: A 自洽性 / D 完整性  
+`Type`: behavior-gap  
+`Before-behavior`: 当前仓库有 Studio 文档和 `transition` 流程，可承载文档状态流转。  
+`After-behavior`: 设计目标是“生成分析报告 PDF”，前端按钮文案也是“导出 PDF”。  
+`Evidence`: [design.md:182](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:182)、[design.md:219](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:219)、[plan.md:1489](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1489)、[plan.md:1517](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1517)、[plan.md:2043](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:2043)、[studio/router.py:101](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/studio/router.py:101)、[document.py:13](/C:/Users/Administrator/edu-cloud/src/edu_cloud/models/document.py:13)。计划实现只 `create_document(type="analysis_report")`，没有 `transition`、没有 `pdf_url`、没有导出完成态。  
+`Impact`: 实际交付的是“创建一篇草稿文档”，不是“导出 PDF”；主目标被降级，用户路径与设计不一致。  
+`Repair hypothesis`: 在导出 API 中串起 Studio 现有渲染/状态流转，至少返回 `document_id + status + pdf_url/下载状态`；测试要覆盖 `executed` 或等价完成态，以及失败时回滚/错误返回。
+
+4. `ID`: AR-04  
+`Severity`: Medium  
+`Category`: C 架构适配 / B 代码库对齐  
+`Type`: architecture  
+`Before-behavior`: W1 已经产出 `ExamAnalysisSnapshot`、`ClassExamReport`、`StudentExamSnapshot`。  
+`After-behavior`: 设计明确要求趋势接口复用这些预计算结果。  
+`Evidence`: [design.md:117](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:117)、[design.md:133](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:133)、[design.md:150](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:150)、[plan.md:877](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:877)、[plan.md:1079](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1079)、[agent_snapshot.py:13](/C:/Users/Administrator/edu-cloud/src/edu_cloud/models/agent_snapshot.py:13)、[profile/models.py:10](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/profile/models.py:10)。计划却在 `report_service` 里重新扫原始分数并且直接依赖 `_get_subjects/_get_max_by_subject` 这类私有 helper。  
+`Impact`: 会出现两套口径，趋势结果可能与 W1 报表/AI 工具不一致；同时引入 N×exam×subject 的重复计算，后续很难维护。  
+`Repair hypothesis`: 把趋势读取改成优先查快照表；如果必须回退实时聚合，单独做公共查询接口，不要跨 service 依赖下划线私有函数。
+
+5. `ID`: AR-05  
+`Severity`: Medium  
+`Category`: A 自洽性 / D 完整性  
+`Type`: feature-lifecycle  
+`Before-behavior`: 当前仓库没有分数段覆盖功能。  
+`After-behavior`: 设计承诺“学校默认 + 科目覆盖”，并且 SchoolSettings 中支持增删改。  
+`Evidence`: [design.md:20](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:20)、[design.md:270](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:270)、[plan.md:600](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:600)、[plan.md:2271](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:2271)、[plan.md:100](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:100)、[plan.md:363](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:363)。计划只有 GET/PUT 和“默认配置保存 + override 列表展示”，没有 override 新增/编辑/删除；同时模型有 `is_active`，但 `upsert` 只查 active 记录，后续一旦软删再建会撞唯一约束。  
+`Impact`: “科目覆盖”这个核心子功能交不完整，且生命周期设计自相矛盾。  
+`Repair hypothesis`: 明确 override 的完整 CRUD 契约；如果保留软删，就要定义 re-activate/replace 语义，并让唯一约束与软删策略兼容。
+
+6. `ID`: AR-06  
+`Severity`: High  
+`Category`: D 完整性 / F Contract Pack 完整性  
+`Type`: contract-pack  
+`Before-behavior`: 评审要求是每个行为变更任务都有 5 字段测试契约、3+ 边界条件，并且 plan 含结构化 Contract Pack。  
+`After-behavior`: 这份计划只在少数任务里零散写了“边界条件/测试契约”。  
+`Evidence`: [plan.md:1](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1) 到 [plan.md:2400](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:2400) 全文没有 `Contract Pack`、`invariants`、`counter_examples`、`risk_modules` 段；`测试契约` 只出现在 [plan.md:190](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:190)，`边界条件` 只出现在 [plan.md:185](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:185)、[plan.md:485](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:485)、[plan.md:1001](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1001)、[plan.md:1291](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1291)。Task 3/4/7/8/9/10/11/12/13 均不满足你给的硬约束。  
+`Impact`: 这不是“文档格式欠佳”，而是无法作为可执行 Contract Pack 进入实现；风险模块覆盖、迁移考虑、批次边界都不可审。  
+`Repair hypothesis`: 补一个顶层 `Contract Pack`，至少包含 `invariants>=3`、`counter_examples>=2`、`risk_modules` 覆盖全部 public API 变更；并为每个行为变更 Task 补齐 5 字段测试契约和 3+ 边界条件。
+
+7. `ID`: AR-07  
+`Severity`: High  
+`Category`: D+ 测试契约质量  
+`Type`: test-gap  
+`Before-behavior`: 计划新增 3 个 public AI 工具。  
+`After-behavior`: 对外工具应有入口级、可失败的行为验证。  
+`Evidence`: [plan.md:1593](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1593) 到 [plan.md:1597](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1597) 的正向测试只做 `assert hasattr(result, "success")`。这在“永远返回错误 ToolResult”“返回空壳 ToolResult”“根本没查配置”三种错误实现下都会通过。  
+`Impact`: 按你的 D+ 规则，这属于 `test-gap HIGH`；工具层最容易回归成“表面成功、数据为空”，但当前计划测试不会拦。  
+`Repair hypothesis`: 把工具测试改成入口级断言真实业务结果，例如校验 `success=True`、`data` 含分数段配置/分布/文档 ID、越权输入被拒绝、缺参返回明确错误，并在测试契约里写出“错误实现会如何失败”。
+
+结论：这份计划当前不建议直接开工；至少先修 AR-01、AR-02、AR-03、AR-06、AR-07。
+tokens used
+270,759
+1. `ID`: AR-01  
+`Severity`: High  
+`Category`: A 自洽性 / B 代码库对齐  
+`Type`: schema-contract  
+`Before-behavior`: 当前仓库尚无 `score_segment_config`，运行数据库明确是 PostgreSQL。  
+`After-behavior`: 计划要求“同一学校只能有 1 条 `subject_code=null` 的默认分数段”，重复时数据库直接报错。  
+`Evidence`: [plan.md:84](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:84)、[plan.md:88](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:88)、[plan.md:183](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:183)、[design.md:34](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:34)、[CLAUDE.md:507](/C:/Users/Administrator/edu-cloud/CLAUDE.md:507)。结合 PostgreSQL 语义可推断：普通 `UNIQUE(school_id, subject_code)` 不能禁止多个 `NULL`。  
+`Impact`: 生产上会允许同校多条默认配置并存，`get_segment_config()` 的 `scalar_one_or_none()` 会变成非确定行为，严重时直接抛 `MultipleResultsFound`。  
+`Repair hypothesis`: 把约束拆成两个部分唯一索引：`UNIQUE (school_id) WHERE subject_code IS NULL` 和 `UNIQUE (school_id, subject_code) WHERE subject_code IS NOT NULL`；同时补一条真正覆盖 `NULL` 唯一性的迁移/仓储级测试。
+
+2. `ID`: AR-02  
+`Severity`: High  
+`Category`: A 自洽性 / C 架构适配 / E 风险评估  
+`Type`: authorization  
+`Before-behavior`: 现有 HTTP analytics 只基于 `get_visible_class_ids/get_visible_subject_codes` 做班级/学科过滤；`DataScope` 主要在 AI 路径使用。  
+`After-behavior`: 计划新增 `report/query`、`trend/student` 等入口，并宣称“全角色由 DataScope 自动裁剪”。  
+`Evidence`: [design.md:16](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:16)、[design.md:108](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:108)、[design.md:178](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:178)、[plan.md:1413](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1413)、[plan.md:1472](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1472)、[analytics router.py:17](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/router.py:17)、[api/permissions.py:18](/C:/Users/Administrator/edu-cloud/src/edu_cloud/api/permissions.py:18)、[student_profile_tool.py:34](/C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/tools/student_profile_tool.py:34)。计划里的 `student_trend` 没有学生可见性校验，`report_query` 也没按角色裁掉 `ranking/top_bottom`。  
+`Impact`: 班主任/科任/家长只要知道 `student_id` 或组合参数，就可能拿到越权趋势或排名类数据，属于直接的数据泄露面。  
+`Repair hypothesis`: 不要假设 HTTP 层自动有 DataScope；新增统一依赖构建 `visible_student_ids`/guardian scope，或显式校验 `student_id` 与 `class_id` 可见性；同时对 `metrics` 做角色白名单。
+
+3. `ID`: AR-03  
+`Severity`: High  
+`Category`: A 自洽性 / D 完整性  
+`Type`: behavior-gap  
+`Before-behavior`: 当前仓库有 Studio 文档和 `transition` 流程，可承载文档状态流转。  
+`After-behavior`: 设计目标是“生成分析报告 PDF”，前端按钮文案也是“导出 PDF”。  
+`Evidence`: [design.md:182](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:182)、[design.md:219](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:219)、[plan.md:1489](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1489)、[plan.md:1517](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1517)、[plan.md:2043](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:2043)、[studio/router.py:101](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/studio/router.py:101)、[document.py:13](/C:/Users/Administrator/edu-cloud/src/edu_cloud/models/document.py:13)。计划实现只 `create_document(type="analysis_report")`，没有 `transition`、没有 `pdf_url`、没有导出完成态。  
+`Impact`: 实际交付的是“创建一篇草稿文档”，不是“导出 PDF”；主目标被降级，用户路径与设计不一致。  
+`Repair hypothesis`: 在导出 API 中串起 Studio 现有渲染/状态流转，至少返回 `document_id + status + pdf_url/下载状态`；测试要覆盖 `executed` 或等价完成态，以及失败时回滚/错误返回。
+
+4. `ID`: AR-04  
+`Severity`: Medium  
+`Category`: C 架构适配 / B 代码库对齐  
+`Type`: architecture  
+`Before-behavior`: W1 已经产出 `ExamAnalysisSnapshot`、`ClassExamReport`、`StudentExamSnapshot`。  
+`After-behavior`: 设计明确要求趋势接口复用这些预计算结果。  
+`Evidence`: [design.md:117](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:117)、[design.md:133](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:133)、[design.md:150](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:150)、[plan.md:877](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:877)、[plan.md:1079](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1079)、[agent_snapshot.py:13](/C:/Users/Administrator/edu-cloud/src/edu_cloud/models/agent_snapshot.py:13)、[profile/models.py:10](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/profile/models.py:10)。计划却在 `report_service` 里重新扫原始分数并且直接依赖 `_get_subjects/_get_max_by_subject` 这类私有 helper。  
+`Impact`: 会出现两套口径，趋势结果可能与 W1 报表/AI 工具不一致；同时引入 N×exam×subject 的重复计算，后续很难维护。  
+`Repair hypothesis`: 把趋势读取改成优先查快照表；如果必须回退实时聚合，单独做公共查询接口，不要跨 service 依赖下划线私有函数。
+
+5. `ID`: AR-05  
+`Severity`: Medium  
+`Category`: A 自洽性 / D 完整性  
+`Type`: feature-lifecycle  
+`Before-behavior`: 当前仓库没有分数段覆盖功能。  
+`After-behavior`: 设计承诺“学校默认 + 科目覆盖”，并且 SchoolSettings 中支持增删改。  
+`Evidence`: [design.md:20](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:20)、[design.md:270](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-design.md:270)、[plan.md:600](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:600)、[plan.md:2271](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:2271)、[plan.md:100](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:100)、[plan.md:363](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:363)。计划只有 GET/PUT 和“默认配置保存 + override 列表展示”，没有 override 新增/编辑/删除；同时模型有 `is_active`，但 `upsert` 只查 active 记录，后续一旦软删再建会撞唯一约束。  
+`Impact`: “科目覆盖”这个核心子功能交不完整，且生命周期设计自相矛盾。  
+`Repair hypothesis`: 明确 override 的完整 CRUD 契约；如果保留软删，就要定义 re-activate/replace 语义，并让唯一约束与软删策略兼容。
+
+6. `ID`: AR-06  
+`Severity`: High  
+`Category`: D 完整性 / F Contract Pack 完整性  
+`Type`: contract-pack  
+`Before-behavior`: 评审要求是每个行为变更任务都有 5 字段测试契约、3+ 边界条件，并且 plan 含结构化 Contract Pack。  
+`After-behavior`: 这份计划只在少数任务里零散写了“边界条件/测试契约”。  
+`Evidence`: [plan.md:1](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1) 到 [plan.md:2400](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:2400) 全文没有 `Contract Pack`、`invariants`、`counter_examples`、`risk_modules` 段；`测试契约` 只出现在 [plan.md:190](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:190)，`边界条件` 只出现在 [plan.md:185](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:185)、[plan.md:485](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:485)、[plan.md:1001](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1001)、[plan.md:1291](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1291)。Task 3/4/7/8/9/10/11/12/13 均不满足你给的硬约束。  
+`Impact`: 这不是“文档格式欠佳”，而是无法作为可执行 Contract Pack 进入实现；风险模块覆盖、迁移考虑、批次边界都不可审。  
+`Repair hypothesis`: 补一个顶层 `Contract Pack`，至少包含 `invariants>=3`、`counter_examples>=2`、`risk_modules` 覆盖全部 public API 变更；并为每个行为变更 Task 补齐 5 字段测试契约和 3+ 边界条件。
+
+7. `ID`: AR-07  
+`Severity`: High  
+`Category`: D+ 测试契约质量  
+`Type`: test-gap  
+`Before-behavior`: 计划新增 3 个 public AI 工具。  
+`After-behavior`: 对外工具应有入口级、可失败的行为验证。  
+`Evidence`: [plan.md:1593](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1593) 到 [plan.md:1597](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-05-analytics-report-plan.md:1597) 的正向测试只做 `assert hasattr(result, "success")`。这在“永远返回错误 ToolResult”“返回空壳 ToolResult”“根本没查配置”三种错误实现下都会通过。  
+`Impact`: 按你的 D+ 规则，这属于 `test-gap HIGH`；工具层最容易回归成“表面成功、数据为空”，但当前计划测试不会拦。  
+`Repair hypothesis`: 把工具测试改成入口级断言真实业务结果，例如校验 `success=True`、`data` 含分数段配置/分布/文档 ID、越权输入被拒绝、缺参返回明确错误，并在测试契约里写出“错误实现会如何失败”。
+
+结论：这份计划当前不建议直接开工；至少先修 AR-01、AR-02、AR-03、AR-06、AR-07。

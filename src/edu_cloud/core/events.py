@@ -53,3 +53,11 @@ class EventBus:
 
 
 event_bus = EventBus()
+
+
+@event_bus.on("exam.published")
+async def on_exam_published_agent(payload: dict):
+    """Trigger Agent analysis when exam is published (if module enabled)."""
+    logger.info("event_bus: exam.published → agent analysis queued for school %s",
+                payload.get("school_id"))
+    # Actual enqueue deferred until arq pool is wired

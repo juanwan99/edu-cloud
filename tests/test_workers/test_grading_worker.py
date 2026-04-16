@@ -148,7 +148,7 @@ async def test_process_grading_task_missing_rubric(mock_create_llm):
     question.max_score = 10.0
     question.subject_id = "subj-1"
     question.school_id = "school-1"
-    question.question_type = "subjective"
+    question.question_type = "essay"
 
     answer = MagicMock()
     answer.id = "ans-1"
@@ -157,18 +157,19 @@ async def test_process_grading_task_missing_rubric(mock_create_llm):
     answer.subject_id = "subj-1"
     answer.school_id = "school-1"
 
-    # db.execute call sequence:
+    # db.execute call sequence (batch mode):
     # 1. select(GradingTask) → task
     # 2. select(Question) → [question]
     # 3. select(StudentAnswer) → [answer]
     # 4. select(Rubric) → [] (no rubric!)
-    # 5. (loop: rubric missing → task.failed += 1)
-    # 6. select(GradingTask) → task (final re-fetch)
+    # 5. select(GradingTask) → task (batch progress re-fetch)
+    # 6. select(GradingTask) → task (final status re-fetch)
     execute_results = [
         _make_scalar_one_result(task),       # load GradingTask
         _make_scalars_all_result([question]), # subjective questions
         _make_scalars_all_result([answer]),   # student answers
         _make_scalars_all_result([]),         # no rubrics
+        _make_scalar_one_result(task),        # batch progress re-fetch
         _make_scalar_one_result(task),        # final status re-fetch
     ]
     ctx, db = _build_mock_db_session(execute_results)
@@ -203,7 +204,7 @@ async def test_process_grading_task_llm_recoverable_error(mock_create_llm, mock_
     question.max_score = 10.0
     question.subject_id = "subj-1"
     question.school_id = "school-1"
-    question.question_type = "subjective"
+    question.question_type = "essay"
 
     answer = MagicMock()
     answer.id = "ans-1"
@@ -216,20 +217,19 @@ async def test_process_grading_task_llm_recoverable_error(mock_create_llm, mock_
     rubric.question_id = "q-1"
     rubric.criteria = {"key_points": ["point A"]}
 
-    # db.execute call sequence:
+    # db.execute call sequence (batch mode):
     # 1. select(GradingTask) → task
     # 2. select(Question) → [question]
     # 3. select(StudentAnswer) → [answer]
     # 4. select(Rubric) → [rubric]
-    # 5. (loop: LLM raises ValueError → rollback → re-fetch task)
-    #    select(GradingTask) → task (after rollback re-fetch)
+    # 5. select(GradingTask) → task (batch progress re-fetch)
     # 6. select(GradingTask) → task (final status re-fetch)
     execute_results = [
         _make_scalar_one_result(task),       # load GradingTask
         _make_scalars_all_result([question]), # subjective questions
         _make_scalars_all_result([answer]),   # student answers
         _make_scalars_all_result([rubric]),   # rubrics
-        _make_scalar_one_result(task),        # re-fetch after rollback
+        _make_scalar_one_result(task),        # batch progress re-fetch
         _make_scalar_one_result(task),        # final status re-fetch
     ]
     ctx, db = _build_mock_db_session(execute_results)
@@ -244,10 +244,9 @@ async def test_process_grading_task_llm_recoverable_error(mock_create_llm, mock_
 
     # LLM was called (unlike missing-rubric case)
     mock_llm.grade.assert_awaited_once()
-    # ValueError is recoverable — task.failed incremented but loop continues (no break)
+    # ValueError is recoverable — task.failed incremented but batch continues
     assert task.failed >= 1
-    # Rollback was called after the ValueError
-    db.rollback.assert_awaited()
+    # No rollback in batch mode — errors are caught in _grade_single, not in DB session
     # Final status is "failed" because errors list is non-empty
     assert task.status == "failed"
     assert task.error_log is not None

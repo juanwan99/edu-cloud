@@ -1,0 +1,53 @@
+{
+  "topic": "2026-03-30-phase1d",
+  "plan_file": "docs/plans/2026-03-30-phase1d-agent-instantiation-plan.md",
+  "design_file": "docs/plans/2026-03-30-phase1d-agent-instantiation-design.md",
+  "tasks": [
+    {
+      "id": "1",
+      "desc": "ToolSpec Dataclass + Registry 升级",
+      "status": "pending"
+    },
+    {
+      "id": "2",
+      "desc": "AgentProfile + AgentRun 模型",
+      "status": "pending"
+    },
+    {
+      "id": "3",
+      "desc": "AgentProfileService + get_or_create",
+      "status": "pending"
+    },
+    {
+      "id": "4",
+      "desc": "ToolAccessResolver（三重过滤）",
+      "status": "pending"
+    },
+    {
+      "id": "5",
+      "desc": "IntentResolver（规则 + LLM 后备）",
+      "status": "pending"
+    },
+    {
+      "id": "6",
+      "desc": "ModelRouter + LLMSlot tier + LLM Factory",
+      "status": "pending"
+    },
+    {
+      "id": "7",
+      "desc": "Agent Pipeline 集成",
+      "status": "pending"
+    },
+    {
+      "id": "8",
+      "desc": "31 个工具元数据迁移",
+      "status": "pending"
+    },
+    {
+      "id": "9",
+      "desc": "Alembic Migration + CLAUDE.md + 收尾",
+      "status": "pending"
+    }
+  ],
+  "updated_at": "2026-03-30 12:16:22"
+}

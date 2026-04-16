@@ -1,0 +1,1209 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d5261-7a17-72c2-acfb-c39dd66fb7cb
+--------
+user
+You are a senior architect reviewing an implementation plan.
+
+Read these files:
+1. C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md — the implementation plan
+2. C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md — the design document
+3. C:/Users/Administrator/edu-cloud/CLAUDE.md — project rules (if exists)
+
+Perform plan review per checklist:
+A. 自洽性: Task 依赖完整、接口契约一致、无逻辑矛盾、破坏性操作有回滚
+B. 代码库对齐: 引用路径真实、不违反现有 API、不命名冲突、不重复功能
+C. 架构适配（按 architecture-rules.md §审查清单速查）: 职责单一、依赖方向正确（无反向/循环）、接口隔离（无内部数据结构直连）、配置集中、单功能变更影响 ≤3 文件
+D. 完整性: 每个行为变更 Task 须有测试契约段（5 字段：入口/反例/边界/回归/命令）和边界条件段（至少 3 个）、迁移考虑、UX 规格（适用时）、批次边界合理
+D+. 测试契约质量（test-gap 硬判定）:
+   - 逻辑镜像测试（测试只是实现的对称复述，不能在错误实现下失败）→ test-gap HIGH
+   - 无入口级验证（测试只调内部函数，不经过用户可触达的入口）→ test-gap MED
+   - 无反例说明（测试契约未写明"错误实现会怎样失败"）→ test-gap MED
+E. 风险评估: Tier 分级有据、高风险区域标记
+F. Contract Pack 完整性:
+   - plan 中是否包含结构化 Contract Pack 段落（invariants / counter_examples / risk_modules / test_debt）
+   - invariants ≥3 条，每条有 verification 映射（existing_test 须有 test_ref）
+   - counter_examples ≥2 个，每个标注 tests_that_still_pass 和 mitigation
+   - risk_modules 覆盖所有 public API 变更和治理基础设施变更
+   - test_debt 有具体理由和 deadline（不接受空理由或无期限）
+   - 不接受不可验证的 prose（"系统应正确运行"→ FAIL）
+   - 参考: ~/.claude/config/contract-pack-schema.md
+
+**审查规范（必读）：** 先读以下文件中的对应段落，严格按其定义执行：
+- Finding 分类: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-classification -->
+- Finding Type: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-type -->
+- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: pass-fail -->
+- test-gap 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: test-gap-criteria -->
+- 行为变更守卫: ~/.claude/rules-t3/review-templates.md <!-- anchor: behavior-change-guard -->
+- Finding 转换规则: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-transition -->
+
+Output structured findings with: ID, Severity, Category, Type, Before-behavior, After-behavior, Evidence, Impact, Repair hypothesis (optional, non-authoritative).
+Repair hypothesis is advisory only and has no execution authority.
+If the finding touches invariants, risk_modules, or red-flag patterns
+(state machine / fallback / selection strategy / threshold / lifecycle / evaluation cadence),
+do not prescribe a concrete code edit. Instead, describe:
+1. the likely repair direction
+2. forbidden fix patterns to avoid
+3. "requires independent fix design + Semantic Regression Gate"
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem failed: MCP client for `filesystem` timed out after 15 seconds. Add or adjust `startup_timeout_sec` in your config.toml:
+[mcp_servers.filesystem]
+startup_timeout_sec = XX
+mcp startup: failed: filesystem
+codex
+按你给的审查规范，我先读取评审模板、contract-pack schema、计划文档、设计文档，以及仓库里的相关架构规则文件，然后基于这些定义逐项做审查，不先凭经验下结论。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'C:/Users/Administrator/.claude/rules-t3/review-templates.md' -TotalCount 400" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files 'C:/Users/Administrator/edu-cloud' | rg 'architecture-rules\\.md"'$|2026-04-03-edu-agent-plan'"\\.md"'$|2026-04-03-edu-agent-design'"\\.md"'$|CLAUDE'"\\.md"'$'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md' -TotalCount 250" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Path 'C:/Users/Administrator/.claude/config/contract-pack-schema.md' -TotalCount 300" in C:/Users/Administrator/edu-cloud succeeded in 2.98s:
+# Contract Pack Schema
+
+> 鍗曚竴鐪熸簮銆侾lan Review prompt 寮曠敤姝ゆ枃浠躲€?
+## 鏍煎紡瑙勫垯锛團-008 淇锛?
+- **鏍归敭寮哄埗**: Contract Pack 蹇呴』浠?`contract_pack:` 涓?YAML 鏍归敭
+- **verification 鏋氫妇**: 鍙厑璁?`existing_test` / `pending_test` / `uncovered`锛屽娉ㄧ敤 `note` 瀛楁
+- **绌?test_debt**: `test_debt: []` 鏄悎娉曠殑锛岃〃绀?褰撳墠鏃犲欢鏈熼」"锛涚己灏?`test_debt` 閿笉鍚堟硶
+
+## 蹇呰娈佃惤锛圥lan Review 妫€鏌ュ畬鏁存€э級
+
+### invariants锛堚墺3 鏉★級
+
+| 瀛楁 | 蹇呭～ | 璇存槑 |
+|------|------|------|
+| id | 鉁?| INV-NNN |
+| statement | 鉁?| 涓嶅彲楠岃瘉鐨?prose 涓嶆帴鍙楋紙濡?绯荤粺搴旀纭繍琛?锛?|
+| verification | 鉁?| existing_test / pending_test / uncovered |
+| test_ref | 浠?existing_test | test_file:test_function |
+
+### counter_examples锛堚墺2 涓級
+warning: in-process app-server event stream lagged; dropped 741 events
+codex
+评审模板已经找到，但 PowerShell 默认输出编码把中文打乱了。我接下来用 UTF-8 方式重读规范和目标文档，同时定位 `architecture-rules.md`，避免因为编码误读规则。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'C:/Users/Administrator/.claude/rules-t3/review-templates.md' -Encoding utf8 | Select-Object -First 420" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'C:/Users/Administrator/.claude/config/contract-pack-schema.md' -Encoding utf8 | Select-Object -First 320" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files . | rg 'architecture-rules\\.md"'$|docs/plans/2026-04-03-edu-agent-(plan|design)'"\\.md"'$|(''^|/)CLAUDE'"\\.md"'$'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Path 'C:/Users/Administrator/edu-cloud/docs/plans' | Select-Object -ExpandProperty Name" in C:/Users/Administrator/edu-cloud succeeded in 1.92s:
+# Contract Pack Schema
+
+> 单一真源。Plan Review prompt 引用此文件。
+
+## 格式规则（F-008 修复）
+
+- **根键强制**: Contract Pack 必须以 `contract_pack:` 为 YAML 根键
+- **verification 枚举**: 只允许 `existing_test` / `pending_test` / `uncovered`，备注用 `note` 字段
+- **空 test_debt**: `test_debt: []` 是合法的，表示"当前无延期项"；缺少 `test_debt` 键不合法
+
+## 必要段落（Plan Review 检查完整性）
+
+### invariants（≥3 条）
+
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| id | ✓ | INV-NNN |
+| statement | ✓ | 不可验证的 prose 不接受（如"系统应正确运行"） |
+| verification | ✓ | existing_test / pending_test / uncovered |
+| test_ref | 仅 existing_test | test_file:test_function |
+ exited 1 in 1.66s:
+
+ succeeded in 2.07s:
+archived
+.codex-code-review-batch1-raw.log
+.codex-code-review-batch2-r2-raw.log
+.codex-code-review-batch2-raw.log
+.codex-code-review-batch3-r2-raw.log
+.codex-code-review-batch3-raw.log
+.codex-code-review-batch4-r2-raw.log
+.codex-code-review-batch4-r3-raw.log
+.codex-code-review-batch4-raw.log
+.codex-code-review-batch5-r2-raw.log
+.codex-code-review-batch5-r3-raw.log
+.codex-code-review-batch5-raw.log
+.codex-code-review-combined-r2-raw.log
+.codex-code-review-p2-r2-raw.log
+.codex-code-review-p2-r3-raw.log
+.codex-code-review-p2-raw.log
+.codex-code-review-phase1a-r2-raw.log
+.codex-code-review-phase1a-raw.log
+.codex-code-review-phase1b-r2-raw.log
+.codex-code-review-phase1b-r3-raw.log
+ succeeded in 2.35s:
+# 审查工作流模板与流程
+
+> 从全局 CLAUDE.md 抽取。T3/T4 执行会话按需读取。
+
+## 流程编排
+
+### T3（2 窗口）
+
+```
+① Claude: Design → Plan → commit (draft)
+② GPT Codex: Plan Review → plan-review.md (Gate 1)
+③ Claude: 处置 finding → commit (final plan) → Execute → 自审交接单
+④ GPT Codex: Code Review（全量，codex exec）→ review-report.md (Gate 2)
+⑤ Gate: 所有 finding 已处置 → design.md 标记 [实现完成]
+```
+
+### T4（2 持久 + 一次性 Executor）
+
+```
+① Claude Planner: Design → Plan → commit (draft)
+codex
+目标计划和设计文档已经定位到。仓库里暂时没搜到名为 `architecture-rules.md` 的文件，我继续按“architecture”相关规则文件追溯，确认审查清单到底落在哪份文档里。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files . | rg 'architecture.*(rules|brief|review)\\.md"'$|rules.*architecture.*'"\\.md"'$'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "if (Test-Path 'C:/Users/Administrator/edu-cloud/CLAUDE.md') { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'C:/Users/Administrator/edu-cloud/CLAUDE.md' -Encoding utf8 }" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md' -Encoding utf8" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md' -Encoding utf8" in C:/Users/Administrator/edu-cloud exited 1 in 1.89s:
+
+ succeeded in 2.87s:
+# edu-cloud — 教育云平台
+
+<!-- key-start -->
+## 项目定位
+
+edu-cloud 是**多校协同的云端平台**，是学校端（exam-ai）的上游调度中心。
+
+```
+[监管端]                      [云端平台]                      [学校端]
+教育局/集团看板  ──────→  edu-cloud (port 9000)  ←──────  exam-ai × N 所学校
+  - 全区成绩总览              - 联考编排与下发                 - 本校考试管理
+  - 学校间对比                - 跨校数据汇总                   - 扫描+AI阅卷
+  - 教学质量监控              - 共享 AI 阅卷服务               - 成绩上报到云端
+                              - 学校注册与状态监控
+                              - 统一题库管理
+```
+
+### 职责边界
+
+| 职责 | 归属 | 说明 |
+warning: in-process app-server event stream lagged; dropped 108 events
+ succeeded in 4.18s:
+# edu-agent Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Replace edu-cloud's existing ReAct agent with a Claude Code-inspired multi-tier agent kernel that supports planning, parallel tool execution, context compression, session memory, and dual-channel LLM routing.
+
+**Architecture:** Bottom-up build in 7 batches. Each batch produces testable, committable code. Foundation layer first (data structures + registry), then LLM adapter, tool execution pipeline, intelligence layer (planning + memory), and finally the agent loop that wires everything together. Last batch migrates all 39 existing tools to the new interface.
+
+**Tech Stack:** Python 3.11+ / asyncio / FastAPI / SQLAlchemy async / httpx / Pydantic
+
+**Design Doc:** `docs/plans/2026-04-03-edu-agent-design.md`
+
+---
+
+## Batch 1: Foundation Layer
+
+> ToolContext, ToolResult, ToolSpec, ToolRegistry, ToolAccessResolver, AgentEvent schemas.
+> Everything else depends on this batch.
+
+### Task 1: ToolContext and ToolResult data structures
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"审查清单速查|职责单一|依赖方向正确|接口隔离|配置集中|单功能变更影响\" docs src .claude .agents -g '*.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; if (Test-Path 'C:/Users/Administrator/edu-cloud/docs/plans/architecture-codex-review.md') { Get-Content -Path 'C:/Users/Administrator/edu-cloud/docs/plans/architecture-codex-review.md' -Encoding utf8 }" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; if (Test-Path 'C:/Users/Administrator/edu-cloud/docs/plans/architecture-brief-for-codex.md') { Get-Content -Path 'C:/Users/Administrator/edu-cloud/docs/plans/architecture-brief-for-codex.md' -Encoding utf8 }" in C:/Users/Administrator/edu-cloud succeeded in 2.50s:
+# edu-cloud 架构重构 — GPT 5.4 独立审查
+
+> 审查时间: 2026-03-21
+> 模型: GPT 5.4 (codex exec, full-auto, read-only sandbox)
+> 输入: architecture-brief-for-codex.md
+
+---
+
+## 总体判断
+
+优先选择"低迁移成本、强隔离、可渐进演进"的路线，不要为了概念上的"平台化"过早引入过多服务拆分或过度灵活的权限体系。
+
+## Q1: 单体 vs 微服务
+
+**判断：B — 保持分离，前端统一壳 + BFF 聚合**
+
+理由：`exam-ai` 已有生产用户且"不可大改"，直接合并成单体会把最稳定的资产拖入高风险重构；而独立 `API Gateway` 方案对"个人开发者 + 单机部署"来说又偏重。`BFF` 是当前最合适的折中点，既能统一三栏工作台的上下文、鉴权、聚合查询和 AI 会话入口，又不需要重写现有后端边界。
+
+风险提示：`BFF` 很容易演变成"第二个单体后端"，把业务、聚合、权限、AI 编排都堆进去。要从一开始限定它只做聚合、会话上下文和前端适配，不承载领域核心逻辑。
+
+ succeeded in 2.49s:
+# edu-cloud 架构重构讨论简报
+
+## 背景
+
+edu-cloud 当前是一个纯后端 API 服务（FastAPI，端口 9000），实现了联考 MVP（58 tests，GPT 3 轮 PASS）。用户希望将其重构为**学校超级智能管理平台**——AI 驱动的全业务操作系统。
+
+## 现有资产
+
+| 子系统 | 技术栈 | 状态 | 说明 |
+|--------|--------|------|------|
+| exam-ai | FastAPI + Vue 3 + Naive UI | AI Agent Phase 1 ✅ | 学校端：阅卷+AI 分析（23 工具 ReAct 循环）|
+| edu-cloud | FastAPI（无前端）| 联考 MVP ✅ | 云端：联考编排+跨校数据汇总 |
+| edu-knowledge-base | JSON 数据 | 课标+教材+高考题 ✅ | 知识底座：151 课标+2135 教材块+2291 高考题 |
+| paper-skill | Express + 原生 HTML/JS | 9 阶段写作 ✅ | AI 论文写作系统 |
+
+## 用户愿景
+
+参照 Google NotebookLM 三栏布局，构建学校智能管理平台：
+
+```
+ exited 1 in 5.49s:
+docs\plans\frontend-role-aware-review-handoff-batch3.md:66:- [x] 新文件全部 <300 行，职责单一
+rg: .claude: 系统找不到指定的文件。 (os error 2)
+rg: .agents: 系统找不到指定的文件。 (os error 2)
+codex
+我现在转到“代码库对齐”检查：核对计划里引用的现有文件、现有接口和真实测试布局，重点看它是否在某个批次里把主干打断。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'src/edu_cloud/ai/tool_access.py' -Encoding utf8" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'src/edu_cloud/ai/schemas.py' -Encoding utf8" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'src/edu_cloud/api/ai.py' -Encoding utf8" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files tests | rg 'test_(registry|tool_access|schemas|ai_api|tool_context|agent_loop|prompts|tools_.*)\\.py"'$'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'src/edu_cloud/ai/registry.py' -Encoding utf8" in C:/Users/Administrator/edu-cloud succeeded in 2.03s:
+"""Agent 数据模型。"""
+from __future__ import annotations
+import json
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class ChatMessage:
+    role: str  # system / user / assistant / tool
+    content: str | None = None
+    tool_calls: list[ToolCall] | None = None
+    tool_call_id: str | None = None  # role=tool 时必填
+    name: str | None = None  # role=tool 时的工具名
+
+    def to_dict(self) -> dict:
+        d: dict = {"role": self.role}
+        if self.content is not None:
+            d["content"] = self.content
+        if self.tool_calls:
+ succeeded in 2.11s:
+from edu_cloud.ai.registry import ToolSpec
+
+
+class ToolAccessResolver:
+    """三重过滤：RBAC → Module → Capability"""
+
+    async def resolve(
+        self,
+        all_specs: list[ToolSpec],
+        role: str,
+        enabled_modules: set[str] | None,
+        capabilities: dict[tuple[str, str], bool],
+    ) -> list[ToolSpec]:
+        result = []
+        for spec in all_specs:
+            # 层 1: RBAC
+            if spec.allowed_roles is not None and role not in spec.allowed_roles:
+                continue
+            # 层 2: Module (enabled_modules=None → 不过滤，platform_admin 无 school_id 时)
+            if enabled_modules is not None and spec.module_code and spec.module_code not in enabled_modules:
+ exited 1 in 2.09s:
+
+ succeeded in 2.00s:
+import inspect
+import logging
+from dataclasses import dataclass, field
+from typing import Any, Callable
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ToolSpec:
+    name: str
+    description: str
+    parameters: dict
+    func: Callable
+    category: str = "general"
+    module_code: str | None = None
+    domain: str = "general"
+    requires_capabilities: list[tuple[str, str]] = field(default_factory=list)
+    risk_level: str = "low"
+    allowed_roles: list[str] | None = None
+ succeeded in 3.00s:
+"""AI Agent API — chat SSE + sessions CRUD + health。"""
+import json
+import logging
+import uuid
+from dataclasses import dataclass
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.database import get_db
+from edu_cloud.api.deps import require_permission, get_current_user
+from edu_cloud.core.permissions import Permission
+from edu_cloud.ai.agent import Agent
+from edu_cloud.ai.llm import LLMChatClient
+from edu_cloud.ai.registry import tools
+from edu_cloud.ai.audit import AuditLogger
+from edu_cloud.ai.context import AgentContext, build_system_prompt
+from edu_cloud.ai.anonymizer import Anonymizer
+codex
+现有 `registry/tool_access/schemas/api` 已核对到位，确认当前 API 和工具体系还在旧签名上。下一步我会补看测试目录和关键模块依赖，判断这个计划是不是“中途长期红灯”的分批方案。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files tests | rg 'test_(registry|tool_access|schemas|ai_api|tool_context|agent_loop|prompts|tools_.*)\\.py"'$'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"agent_memory|AgentMemory|AiSession|AiToolCall|session_memory|ContextManager|TaskPlanner|ToolOrchestrator|CapabilityProbe|SensitivityRouter\" src tests -g '*.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Path 'src/edu_cloud/ai/tools' | Select-Object -ExpandProperty Name" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"tools\\.execute\\(|ToolAccessResolver\\(|ChatMessage|AgentEvent\\(\" src tests -g '*.py'" in C:/Users/Administrator/edu-cloud succeeded in 2.59s:
+__pycache__
+actions.py
+analytics.py
+analytics_compare.py
+analytics_score.py
+bank.py
+exams.py
+grading_ops.py
+homework.py
+knowledge.py
+knowledge_db.py
+profile.py
+students.py
+__init__.py
+ exited 1 in 3.57s:
+
+ succeeded in 6.80s:
+src\edu_cloud\ai\schemas.py:9:class ChatMessage:
+src\edu_cloud\ai\llm.py:8:from edu_cloud.ai.schemas import ChatMessage, ToolCall
+src\edu_cloud\ai\llm.py:39:        messages: list[ChatMessage],
+src\edu_cloud\ai\llm.py:42:    ) -> ChatMessage:
+src\edu_cloud\ai\llm.py:50:    async def _chat_openai(self, messages, tools, temperature) -> ChatMessage:
+src\edu_cloud\ai\llm.py:91:                return ChatMessage(
+src\edu_cloud\ai\llm.py:105:    async def _chat_anthropic(self, messages, tools, temperature) -> ChatMessage:
+src\edu_cloud\ai\llm.py:188:                return ChatMessage(
+src\edu_cloud\ai\intent_resolver.py:47:        from edu_cloud.ai.schemas import ChatMessage
+src\edu_cloud\ai\intent_resolver.py:57:                    ChatMessage(role="system", content=prompt),
+src\edu_cloud\ai\intent_resolver.py:58:                    ChatMessage(role="user", content=message),
+src\edu_cloud\ai\context.py:5:from edu_cloud.ai.schemas import ChatMessage, ToolCall  # noqa: F401
+src\edu_cloud\ai\context.py:76:        self._sessions: dict[str, list[ChatMessage]] = {}
+src\edu_cloud\ai\context.py:78:    def _get_session(self, session_id: str) -> list[ChatMessage]:
+src\edu_cloud\ai\context.py:84:        self._get_session(session_id).append(ChatMessage(role="user", content=content))
+src\edu_cloud\ai\context.py:90:            ChatMessage(role="assistant", content=content, tool_calls=tool_calls)
+src\edu_cloud\ai\context.py:95:            ChatMessage(
+src\edu_cloud\ai\context.py:103:    def build_messages(self, session_id: str, max_tokens: int = 80000) -> list[ChatMessage]:
+src\edu_cloud\ai\context.py:105:        system_msg = ChatMessage(role="system", content=self._system_content)
+src\edu_cloud\ai\context.py:111:        kept: list[ChatMessage] = []
+ succeeded in 6.81s:
+src\edu_cloud\ai\models.py:5:class AiSession(Base, IdMixin, TimestampMixin):
+src\edu_cloud\ai\models.py:14:class AiToolCall(Base, IdMixin, TimestampMixin):
+src\edu_cloud\ai\audit.py:3:from edu_cloud.models.ai_session import AiSession, AiToolCall
+src\edu_cloud\ai\audit.py:13:        session = AiSession(user_id=user_id, role=role, context_snapshot=context)
+src\edu_cloud\ai\audit.py:21:        self.db.add(AiToolCall(
+src\edu_cloud\api\app.py:43:    import edu_cloud.ai.models  # noqa: F401 — AiSession/AiToolCall
+src\edu_cloud\models\ai_session.py:2:from edu_cloud.ai.models import AiSession, AiToolCall  # noqa: F401
+codex
+代码库对齐里已经发现一类实锤问题：计划里的多处测试路径按根目录写，但现有 AI 测试实际集中在 `tests/test_ai/` 下。我继续核对迁移批次引用的测试文件名，确认这不是个别遗漏。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'tests/test_ai/test_agent_pipeline.py' -Encoding utf8" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files tests | rg 'test_(tool|tools|agent|ai|llm|schemas|registry).*\\.py"'$'"'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Recurse -Path 'tests/test_ai' -File | Select-Object -ExpandProperty FullName" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'src/edu_cloud/ai/agent.py' -Encoding utf8" in C:/Users/Administrator/edu-cloud exited 1 in 1.65s:
+
+ succeeded in 1.65s:
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_agent.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_agent_pipeline.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_ai_api.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_anonymizer.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_context.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_grading_tools.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_homework_tools.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_intent_resolver.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_llm.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_model_router.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_registry.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_registry_upgrade.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_schemas.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_tools_actions.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_tools_analytics.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_tools_behavior.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_tools_knowledge.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_tools_registration.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\test_tool_access.py
+C:\Users\Administrator\edu-cloud\tests\test_ai\__init__.py
+ succeeded in 2.54s:
+import pytest
+from unittest.mock import AsyncMock, patch
+from edu_cloud.ai.tool_access import ToolAccessResolver
+from edu_cloud.ai.intent_resolver import IntentResolver
+from edu_cloud.ai.model_router import ModelRouter
+from edu_cloud.ai.registry import ToolSpec
+
+
+def _make_spec(name, domain="general", allowed_roles=None, module_code=None):
+    return ToolSpec(
+        name=name, description=f"Tool {name}", parameters={},
+        func=AsyncMock(return_value={"ok": True}),
+        domain=domain, allowed_roles=allowed_roles, module_code=module_code,
+    )
+
+
+@pytest.mark.asyncio
+async def test_pipeline_end_to_end():
+    """完整 Pipeline: 工具过滤 → 意图裁剪 → 模型选择"""
+    all_tools = [
+ succeeded in 2.12s:
+"""ReAct Agent — 循环执行 LLM→工具→结果→LLM 直到得出最终答案。"""
+import json
+import logging
+import time
+from typing import AsyncGenerator
+
+from edu_cloud.ai.anonymizer import Anonymizer
+from edu_cloud.ai.context import AgentContext, build_system_prompt
+from edu_cloud.ai.registry import ToolRegistry, ToolSpec
+from edu_cloud.ai.schemas import AgentEvent, ChatMessage, ToolCall  # noqa: F401
+from edu_cloud.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+class Agent:
+    """ReAct loop engine.
+
+    Yields :class:`AgentEvent` objects as the conversation progresses:
+    - ``tool_call``  — LLM decided to invoke a tool
+codex
+我已经能确认至少有两类硬伤：一类是分批执行会把主干打断，另一类是计划宣称的新行为在任务代码里根本没落进去。我再补一轮证据，把现有测试和计划里拟新增测试逐一对齐到具体文件。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'tests/test_ai/test_registry.py' -Encoding utf8" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"\\*\\*测试契约|\\*\\*边界条件|contract_pack:|invariants:|counter_examples:|risk_modules:|test_debt:\" 'docs/plans/2026-04-03-edu-agent-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'tests/test_ai/test_ai_api.py' -Encoding utf8" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'tests/test_ai/test_registry_upgrade.py' -Encoding utf8" in C:/Users/Administrator/edu-cloud exited 1 in 1.57s:
+
+ succeeded in 2.14s:
+import pytest
+from edu_cloud.ai.registry import ToolRegistry, ToolSpec
+
+
+def test_toolspec_has_metadata_fields():
+    spec = ToolSpec(
+        name="test_tool",
+        description="A test",
+        parameters={},
+        func=lambda: None,
+        module_code="exam",
+        domain="analytics",
+        risk_level="low",
+        allowed_roles=["platform_admin"],
+        requires_capabilities=[("exam", "read")],
+    )
+    assert spec.module_code == "exam"
+    assert spec.domain == "analytics"
+    assert spec.risk_level == "low"
+    assert spec.allowed_roles == ["platform_admin"]
+ succeeded in 2.06s:
+import pytest
+from edu_cloud.ai.registry import ToolRegistry
+
+registry = ToolRegistry()
+
+@registry.register(
+    name="test_add", description="两数相加",
+    parameters={"type": "object", "properties": {"a": {"type": "number"}, "b": {"type": "number"}}, "required": ["a", "b"]},
+    category="test",
+)
+async def _add_func(a: float, b: float, _db=None) -> dict:
+    return {"result": a + b}
+
+def test_register_tool():
+    assert "test_add" in registry.list_tools()
+
+def test_get_schemas():
+    schemas = registry.get_schemas()
+    assert len(schemas) >= 1
+    schema = next(s for s in schemas if s["function"]["name"] == "test_add")
+ succeeded in 2.91s:
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_ai_health(client):
+    resp = await client.get("/api/v1/ai/health")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "available"
+
+
+@pytest.mark.asyncio
+async def test_ai_health_includes_tool_count(client):
+    resp = await client.get("/api/v1/ai/health")
+    data = resp.json()
+    assert "tools" in data
+    assert isinstance(data["tools"], int)
+    assert data["tools"] >= 0
+
+
+@pytest.mark.asyncio
+codex
+计划正文里没有任何 `测试契约 / 边界条件 / contract_pack` 段，这是硬缺口，不是格式偏好。接下来我把关键冲突点定位到具体行号，方便你直接回看原文。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 - <<'PY'
+from pathlib import Path
+p=Path('docs/plans/2026-04-03-edu-agent-plan.md')
+for i,l in enumerate(p.read_text(encoding='utf-8').splitlines(),1):
+    if any(k in l for k in ['**测试契约:**','**边界条件:**','contract_pack:','invariants:','counter_examples:','risk_modules:','test_debt:']):
+        print(i,l)
+PY" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"registry\\.execute\\(|ToolAccessResolver\\(|ChatMessage|/api/v1/ai/chat|/api/v1/ai/sessions|tests/test_ai/test_\" src tests -g '*.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"### Task 2:|Expected: test_registry_v2.py all PASS\\. test_registry\\.py will FAIL|### Task 13:|### Task 14:|The actual "'`api/ai.py` migration is deferred to Batch 7|### Task 15:|### Task 27:|### Task 28:|### Task 29:|tests/test_registry_v2.py|tests/test_tool_access_v2.py|tests/test_schemas_v2.py|tests/test_ai_api_v2.py|tests/test_tools_exams.py|tests/test_tool_context.py" docs/plans/2026-04-03-edu-agent-plan.md' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"TaskPlanner|yield AgentEvent\\(type=\\\"plan\\\"|task_update|thinking|memory_extract|ContextManager\\.extract_memory|CapabilityProbe|SensitivityRouter|errors > 3|transition\" docs/plans/2026-04-03-edu-agent-design.md docs/plans/2026-04-03-edu-agent-plan.md" in C:/Users/Administrator/edu-cloud exited 1 in 3.78s:
+At line:2 char:19
++ python -X utf8 - <<'PY'
++                   ~
+Missing file specification after redirection operator.
+At line:2 char:18
++ python -X utf8 - <<'PY'
++                  ~
+The '<' operator is reserved for future use.
+At line:2 char:19
++ python -X utf8 - <<'PY'
++                   ~
+The '<' operator is reserved for future use.
+At line:3 char:1
++ from pathlib import Path
++ ~~~~
+The 'from' keyword is not supported in this version of the language.
+At line:5 char:4
++ for i,l in enumerate(p.read_text(encoding='utf-8').splitlines(),1):
++    ~
+Missing opening '(' after keyword 'for'.
+ exited 1 in 3.46s:
+rg: >: 文件名、目录名或卷标语法不正确。 (os error 123)
+rg: 3|transition docs/plans/2026-04-03-edu-agent-design.md docs/plans/2026-04-03-edu-agent-plan.md: 文件名、目录名或卷标语法不正确。 (os error 123)
+ succeeded in 3.56s:
+src\edu_cloud\ai\agent.py:10:from edu_cloud.ai.schemas import AgentEvent, ChatMessage, ToolCall  # noqa: F401
+src\edu_cloud\ai\agent.py:80:                response: ChatMessage = await self.llm.chat(
+src\edu_cloud\ai\agent.py:114:                    result = await self.registry.execute(
+src\edu_cloud\ai\context.py:5:from edu_cloud.ai.schemas import ChatMessage, ToolCall  # noqa: F401
+src\edu_cloud\ai\context.py:76:        self._sessions: dict[str, list[ChatMessage]] = {}
+src\edu_cloud\ai\context.py:78:    def _get_session(self, session_id: str) -> list[ChatMessage]:
+src\edu_cloud\ai\context.py:84:        self._get_session(session_id).append(ChatMessage(role="user", content=content))
+src\edu_cloud\ai\context.py:90:            ChatMessage(role="assistant", content=content, tool_calls=tool_calls)
+src\edu_cloud\ai\context.py:95:            ChatMessage(
+src\edu_cloud\ai\context.py:103:    def build_messages(self, session_id: str, max_tokens: int = 80000) -> list[ChatMessage]:
+src\edu_cloud\ai\context.py:105:        system_msg = ChatMessage(role="system", content=self._system_content)
+src\edu_cloud\ai\context.py:111:        kept: list[ChatMessage] = []
+src\edu_cloud\ai\context.py:126:    def get_session_messages(self, session_id: str) -> list[ChatMessage]:
+src\edu_cloud\ai\intent_resolver.py:47:        from edu_cloud.ai.schemas import ChatMessage
+src\edu_cloud\ai\intent_resolver.py:57:                    ChatMessage(role="system", content=prompt),
+src\edu_cloud\ai\intent_resolver.py:58:                    ChatMessage(role="user", content=message),
+src\edu_cloud\ai\llm.py:8:from edu_cloud.ai.schemas import ChatMessage, ToolCall
+src\edu_cloud\ai\llm.py:39:        messages: list[ChatMessage],
+src\edu_cloud\ai\llm.py:42:    ) -> ChatMessage:
+src\edu_cloud\ai\llm.py:50:    async def _chat_openai(self, messages, tools, temperature) -> ChatMessage:
+ succeeded in 3.98s:
+24:- Test: `tests/test_tool_context.py`
+29:# tests/test_tool_context.py
+76:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_tool_context.py -v`
+129:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_tool_context.py -v`
+136:git add src/edu_cloud/ai/tool_context.py tests/test_tool_context.py
+142:### Task 2: Refactor ToolSpec and ToolRegistry
+151:# tests/test_registry_v2.py
+225:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_registry_v2.py -v`
+345:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_registry_v2.py tests/test_registry.py -v`
+346:Expected: test_registry_v2.py all PASS. test_registry.py will FAIL (old execute() signature uses **kwargs instead of ToolContext). That's expected — old tests will be updated in Batch 6 along with tool migration.
+352:git add src/edu_cloud/ai/registry.py tests/test_registry_v2.py
+362:- Create: `tests/test_tool_access_v2.py`
+367:# tests/test_tool_access_v2.py
+438:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_tool_access_v2.py -v`
+484:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_tool_access_v2.py -v`
+491:git add src/edu_cloud/ai/tool_access.py tests/test_tool_access_v2.py
+501:- Create: `tests/test_schemas_v2.py`
+506:# tests/test_schemas_v2.py
+542:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_schemas_v2.py -v`
+628:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_schemas_v2.py tests/test_schemas.py -v 2>/dev/null; python -m pytest tests/test_schemas_v2.py -v`
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"agent_memories|AgentMemory|AiSession|AiToolCall\" docs/plans/2026-04-03-edu-agent-design.md docs/plans/2026-04-03-edu-agent-plan.md src/edu_cloud -g '*.md' -g '*.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"TaskPlanner|task_update|thinking|ContextManager\\.extract_memory|CapabilityProbe|SensitivityRouter|errors > 3|transition|yield AgentEvent\\(type=\\\"plan\\\"|yield AgentEvent\\(type=\\\"task_update\\\"|yield AgentEvent\\(type=\\\"thinking\\\"\" docs/plans/2026-04-03-edu-agent-plan.md" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path; p=Path('docs/plans/2026-04-03-edu-agent-plan.md'); print(any(k in p.read_text(encoding='utf-8') for k in ['**测试契约:**','**边界条件:**','contract_pack:','invariants:','counter_examples:','risk_modules:','test_debt:']))\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"TaskPlanner|task_update|thinking|ContextManager\\.extract_memory|CapabilityProbe|SensitivityRouter|errors > 3|transition\" docs/plans/2026-04-03-edu-agent-design.md" in C:/Users/Administrator/edu-cloud exited 1 in 2.09s:
+docs/plans/2026-04-03-edu-agent-plan.md:511:    for event_type in ("thinking", "plan", "task_update", "tool_call", "tool_result", "answer", "error", "done"):
+docs/plans/2026-04-03-edu-agent-plan.md:518:def test_transition_enum():
+docs/plans/2026-04-03-edu-agent-plan.md:609:    type: str  # thinking | plan | task_update | tool_call | tool_result | answer | error | done
+docs/plans/2026-04-03-edu-agent-plan.md:643:> LLMAdapter protocol, LLMProxyAdapter, CapabilityProbe, SensitivityRouter.
+docs/plans/2026-04-03-edu-agent-plan.md:950:### Task 6: CapabilityProbe
+docs/plans/2026-04-03-edu-agent-plan.md:962:from edu_cloud.ai.capability_probe import CapabilityProbe, LoopStrategy
+docs/plans/2026-04-03-edu-agent-plan.md:1000:    probe = CapabilityProbe()
+docs/plans/2026-04-03-edu-agent-plan.md:1013:    probe = CapabilityProbe()
+docs/plans/2026-04-03-edu-agent-plan.md:1026:    probe = CapabilityProbe()
+docs/plans/2026-04-03-edu-agent-plan.md:1035:    probe = CapabilityProbe()
+docs/plans/2026-04-03-edu-agent-plan.md:1041:    probe = CapabilityProbe()
+docs/plans/2026-04-03-edu-agent-plan.md:1094:class CapabilityProbe:
+docs/plans/2026-04-03-edu-agent-plan.md:1127:        logger.info("CapabilityProbe: tier=%d, tool_use=%s, context=%d", tier, has_tool_use, context_window)
+docs/plans/2026-04-03-edu-agent-plan.md:1147:            logger.warning("CapabilityProbe: tool_use test failed, assuming no support")
+docs/plans/2026-04-03-edu-agent-plan.md:1161:git commit -m "feat(agent): add CapabilityProbe with auto tier detection + manual override"
+docs/plans/2026-04-03-edu-agent-plan.md:1166:### Task 7: SensitivityRouter
+docs/plans/2026-04-03-edu-agent-plan.md:1177:from edu_cloud.ai.sensitivity_router import SensitivityRouter
+docs/plans/2026-04-03-edu-agent-plan.md:1198:    router = SensitivityRouter(primary=primary, enhanced=None)
+docs/plans/2026-04-03-edu-agent-plan.md:1207:    router = SensitivityRouter(primary=primary, enhanced=enhanced)
+docs/plans/2026-04-03-edu-agent-plan.md:1216:    router = SensitivityRouter(primary=primary, enhanced=enhanced)
+ succeeded in 2.11s:
+docs/plans/2026-04-03-edu-agent-design.md:338:| Memory Extract | 会话结束 | 后台提取关键发现，写入 AgentMemory 表 |
+docs/plans/2026-04-03-edu-agent-design.md:354:### AgentMemory 持久化
+docs/plans/2026-04-03-edu-agent-design.md:357:class AgentMemory(Base):
+docs/plans/2026-04-03-edu-agent-plan.md:1575:> ContextManager (compression + token counting), SessionMemoryExtractor, AgentMemory model, TaskPlanner.
+docs/plans/2026-04-03-edu-agent-plan.md:1765:### Task 10: AgentMemory model + SessionMemoryExtractor
+docs/plans/2026-04-03-edu-agent-plan.md:1781:from edu_cloud.models.agent_memory import AgentMemory
+docs/plans/2026-04-03-edu-agent-plan.md:1797:    columns = {c.name for c in AgentMemory.__table__.columns}
+docs/plans/2026-04-03-edu-agent-plan.md:1844:- [ ] **Step 3: Create AgentMemory model**
+docs/plans/2026-04-03-edu-agent-plan.md:1859:class AgentMemory(Base, IdMixin, TimestampMixin):
+docs/plans/2026-04-03-edu-agent-plan.md:1860:    __tablename__ = "agent_memories"
+docs/plans/2026-04-03-edu-agent-plan.md:1954:git commit -m "feat(agent): add AgentMemory model + SessionMemoryExtractor"
+docs/plans/2026-04-03-edu-agent-plan.md:2814:### Task 29: Alembic migration for agent_memories table
+docs/plans/2026-04-03-edu-agent-plan.md:2817:- Create: `alembic/versions/xxx_add_agent_memories.py`
+docs/plans/2026-04-03-edu-agent-plan.md:2823:python -m alembic revision --autogenerate -m "add agent_memories table"
+docs/plans/2026-04-03-edu-agent-plan.md:2835:git commit -m "migration: add agent_memories table for session memory persistence"
+src/edu_cloud\api\app.py:43:    import edu_cloud.ai.models  # noqa: F401 — AiSession/AiToolCall
+src/edu_cloud\ai\models.py:5:class AiSession(Base, IdMixin, TimestampMixin):
+src/edu_cloud\ai\models.py:14:class AiToolCall(Base, IdMixin, TimestampMixin):
+src/edu_cloud\ai\audit.py:3:from edu_cloud.models.ai_session import AiSession, AiToolCall
+src/edu_cloud\ai\audit.py:13:        session = AiSession(user_id=user_id, role=role, context_snapshot=context)
+ succeeded in 1.96s:
+30:| 多步规划 | ✓ TaskCreateTool | ✓ TaskPlanner |
+90:| **TaskPlanner** | 复杂目标拆解为子任务链，管理依赖 | 借鉴 `TaskCreateTool` |
+96:| **CapabilityProbe** | 检测模型能力，决定循环策略 tier | 新建 |
+97:| **SensitivityRouter** | 请求敏感度分类，路由到主/增强通道 | 新建 |
+110:  ① CapabilityProbe → 确定 Tier (1/2/3)
+111:  ② SensitivityRouter → 确定通道 (主/增强)
+117:     └─ 返回 plan → TaskPlanner 拆解 → 逐任务执行
+121:     ├─ errors > 3 → 降级或终止
+123:  ⑥ ContextManager.extract_memory (后台)
+150:    transition: Transition | None = None
+172:    type: str   # "thinking" | "plan" | "task_update" | "tool_call" | "tool_result" | "answer" | "error" | "done"
+178:{"type": "thinking",    "data": {"content": "我需要先收集各班成绩..."}}
+180:{"type": "task_update", "data": {"id": "1", "status": "in_progress"}}
+305:### CapabilityProbe
+315:### SensitivityRouter
+318:class SensitivityRouter:
+371:## §7 TaskPlanner
+ succeeded in 2.76s:
+False
+codex
+现在我在收尾证据：把 Task 2、Task 13/14、Task 28/29 的原文摘成带行号片段，便于把结论和计划文本一一对应。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path; p=Path('docs/plans/2026-04-03-edu-agent-design.md'); lines=p.read_text(encoding='utf-8').splitlines();
+for start,end in [(108,124),(168,181),(338,366),(371,393)]:
+ print(f'--- {start}-{end} ---');
+ [print(f'{i}:{lines[i-1]}') for i in range(start,end+1)]\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path; p=Path('src/edu_cloud/api/ai.py'); lines=p.read_text(encoding='utf-8').splitlines();
+for start,end in [(101,170)]:
+ print(f'--- {start}-{end} ---');
+ [print(f'{i}:{lines[i-1]}') for i in range(start,end+1)]\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path; p=Path('src/edu_cloud/ai/agent.py'); lines=p.read_text(encoding='utf-8').splitlines();
+for start,end in [(46,134)]:
+ print(f'--- {start}-{end} ---');
+ [print(f'{i}:{lines[i-1]}') for i in range(start,end+1)]\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path; p=Path('docs/plans/2026-04-03-edu-agent-plan.md'); lines=p.read_text(encoding='utf-8').splitlines();
+for start,end in [(338,350),(2458,2588),(2613,2660),(2790,2834)]:
+ print(f'--- {start}-{end} ---');
+ [print(f'{i}:{lines[i-1]}') for i in range(start,end+1)]\"" in C:/Users/Administrator/edu-cloud succeeded in 2.27s:
+--- 101-170 ---
+101:            logger.warning("Failed to create audit session: %s", e)
+102:
+103:    school_id = getattr(role_obj, "school_id", None)
+104:
+105:    # === Agent Pipeline ===
+106:    try:
+107:        # 1. Agent 身份
+108:        profile = await AgentProfileService.get_or_create(
+109:            db, user_id=user.id, school_id=school_id or "", display_name=user.display_name,
+110:        )
+111:
+112:        # 2. 三重权限过滤
+113:        all_specs = tools.get_all_specs()
+114:        enabled_modules = await get_enabled_modules(db, school_id=school_id) if school_id else None
+115:        caps_list = await get_capabilities(db, school_id=school_id, role=role) if school_id else []
+116:        capabilities = {(c.domain, c.action): c.enabled for c in caps_list}
+117:
+118:        resolver = ToolAccessResolver()
+119:        available_tools = await resolver.resolve(
+ succeeded in 2.35s:
+--- 108-124 ---
+108:    ▼
+109:AgentLoop.run(goal, context)
+110:  ① CapabilityProbe → 确定 Tier (1/2/3)
+111:  ② SensitivityRouter → 确定通道 (主/增强)
+112:  ③ 构建 system prompt
+113:  ④ while not done:
+114:     ├─ LLM 采样
+115:     ├─ 返回 answer → yield AgentEvent.answer → done
+116:     ├─ 返回 tool_calls → ToolOrchestrator 分批执行 → 结果注入 → continue
+117:     └─ 返回 plan → TaskPlanner 拆解 → 逐任务执行
+118:  ⑤ 状态检查 (Transitions):
+119:     ├─ turn > max → 强制结束
+120:     ├─ token > threshold → 压缩
+121:     ├─ errors > 3 → 降级或终止
+122:     └─ 正常 → next_turn
+123:  ⑥ ContextManager.extract_memory (后台)
+124:  ⑦ yield AgentEvent.done
+--- 168-181 ---
+168:
+ succeeded in 2.32s:
+--- 46-134 ---
+46:        audit=None,
+47:        user_id: str = "",
+48:        *,
+49:        context: AgentContext | None = None,
+50:        anonymizer: Anonymizer | None = None,
+51:        tools: list[ToolSpec] | None = None,
+52:    ) -> AsyncGenerator[AgentEvent, None]:
+53:        # ── 1. Determine tools available ──────────────────────────────────
+54:        if tools is not None:
+55:            # Pipeline 已裁剪工具集：从 ToolSpec 转换为 OpenAI schema
+56:            tool_schemas = [
+57:                {"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.parameters}}
+58:                for t in tools
+59:            ]
+60:        else:
+61:            # 兜底：未提供 tools 时使用全量（向后兼容测试场景）
+62:            tool_schemas = self.registry.get_schemas(categories=None)
+63:        tool_names = [s["function"]["name"] for s in tool_schemas]
+64:
+ succeeded in 3.09s:
+--- 338-350 ---
+338:
+339:# Global registry instance
+340:tools = ToolRegistry()
+341:```
+342:
+343:- [ ] **Step 4: Run new tests + existing registry tests**
+344:
+345:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_registry_v2.py tests/test_registry.py -v`
+346:Expected: test_registry_v2.py all PASS. test_registry.py will FAIL (old execute() signature uses **kwargs instead of ToolContext). That's expected — old tests will be updated in Batch 6 along with tool migration.
+347:
+348:- [ ] **Step 5: Commit**
+349:
+350:```bash
+--- 2458-2588 ---
+2458:from typing import AsyncGenerator
+2459:
+2460:from edu_cloud.ai.capability_probe import LoopStrategy
+2461:from edu_cloud.ai.context_manager import ContextManager, TokenCounter
+2462:from edu_cloud.ai.llm_adapter import LLMProxyAdapter, LLMRequest, LLMResponse
+codex
+我又看到一条潜在的“主干失绿”链路：如果先加 `AgentMemory` 模型、最后才补 migration，现有 Alembic smoke test 很可能在中间批次就失败。我先核对这个测试是不是确实比较元数据和迁移结果。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'tests/test_alembic_migration.py' -Encoding utf8" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'alembic/env.py' -Encoding utf8" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"agent_memory|AgentMemory|ai.models|models.agent_memory|target_metadata|compare_type\" alembic src tests -g '*.py'" in C:/Users/Administrator/edu-cloud succeeded in 2.81s:
+"""Alembic migration smoke test — 验证迁移文件可执行且表集合与 ORM 一致。
+
+TG-02: 测试 conftest 用 Base.metadata.create_all() 建表完全绕过 Alembic，
+无法验证迁移文件本身的正确性（FK 顺序、约束声明等）。
+本测试用 subprocess 在空 SQLite 上执行 alembic upgrade head，然后对比表集合。
+使用 subprocess 避免 settings.DATABASE_URL 缓存覆盖问题。
+"""
+import os
+import subprocess
+import sys
+
+import pytest
+from sqlalchemy import create_engine, inspect
+
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _run_alembic(db_path, *args):
+    """Run alembic command via subprocess with SQLite DATABASE_URL override."""
+ succeeded in 2.78s:
+alembic\env.py:30:from edu_cloud.ai.models import AiSession, AiToolCall  # noqa: F401
+alembic\env.py:67:target_metadata = Base.metadata
+alembic\env.py:98:        target_metadata=target_metadata,
+alembic\env.py:108:    context.configure(connection=connection, target_metadata=target_metadata)
+src\edu_cloud\api\app.py:43:    import edu_cloud.ai.models  # noqa: F401 — AiSession/AiToolCall
+src\edu_cloud\models\ai_session.py:2:from edu_cloud.ai.models import AiSession, AiToolCall  # noqa: F401
+src\edu_cloud\modules\knowledge\models.py:1:"""Knowledge 模块模型 — 知识点（从 exam-ai models/curriculum.py 迁入）。"""
+src\edu_cloud\modules\card\models.py:1:"""Card 模块模型 — Template + CardSkeleton（从 exam-ai models/exam.py 提取）。"""
+ succeeded in 3.36s:
+import asyncio
+from logging.config import fileConfig
+
+from sqlalchemy import pool
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import async_engine_from_config
+
+from alembic import context
+
+# ---------------------------------------------------------------------------
+# Model imports — required so that Base.metadata knows about all tables.
+# Every model that inherits from Base must be imported here so that
+# autogenerate can discover it.  38 models across 6 source locations.
+# ---------------------------------------------------------------------------
+from edu_cloud.models.base import Base  # noqa: F401
+
+# ── core models (src/edu_cloud/models/) ──────────────────────────────────
+from edu_cloud.models.school import School  # noqa: F401
+from edu_cloud.models.user import User  # noqa: F401
+from edu_cloud.models.user_role import UserRole  # noqa: F401
+codex
+我确认了一个更具体的迁移问题：`AgentMemory` 就算按计划写出来，Alembic 也不会自动看到它，因为当前 `alembic/env.py` 的模型导入列表里没有这类新模型。我要补取 Task 10 的原文行号，把这个缺口做成独立 finding。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path; p=Path('docs/plans/2026-04-03-edu-agent-plan.md'); lines=p.read_text(encoding='utf-8').splitlines();
+for start,end in [(1765,1955)]:
+ print(f'--- {start}-{end} ---');
+ [print(f'{i}:{lines[i-1]}') for i in range(start,end+1)]\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path; p=Path('tests/test_alembic_migration.py'); lines=p.read_text(encoding='utf-8').splitlines();
+for start,end in [(40,85)]:
+ print(f'--- {start}-{end} ---');
+ [print(f'{i}:{lines[i-1]}') for i in range(start,end+1)]\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path; p=Path('alembic/env.py'); lines=p.read_text(encoding='utf-8').splitlines();
+for start,end in [(20,36)]:
+ print(f'--- {start}-{end} ---');
+ [print(f'{i}:{lines[i-1]}') for i in range(start,end+1)]\"" in C:/Users/Administrator/edu-cloud succeeded in 2.51s:
+--- 1765-1955 ---
+1765:### Task 10: AgentMemory model + SessionMemoryExtractor
+1766:
+1767:**Files:**
+1768:- Create: `src/edu_cloud/models/agent_memory.py`
+1769:- Create: `src/edu_cloud/ai/session_memory.py`
+1770:- Test: `tests/test_session_memory.py`
+1771:
+1772:- [ ] **Step 1: Write failing tests**
+1773:
+1774:```python
+1775:# tests/test_session_memory.py
+1776:import pytest
+1777:from unittest.mock import AsyncMock
+1778:from edu_cloud.ai.session_memory import SessionMemoryExtractor, MemoryEntry
+1779:from edu_cloud.ai.llm_adapter import LLMProxyAdapter, LLMResponse, TokenUsage
+1780:from edu_cloud.ai.schemas import Message
+1781:from edu_cloud.models.agent_memory import AgentMemory
+1782:
+1783:
+ succeeded in 2.73s:
+--- 20-36 ---
+20:from edu_cloud.models.user_role import UserRole  # noqa: F401
+21:from edu_cloud.models.document import Document, DocumentVersion  # noqa: F401
+22:from edu_cloud.models.approval import ApprovalFlow, ApprovalStep  # noqa: F401
+23:from edu_cloud.models.calendar import CalendarEvent, NotificationRule  # noqa: F401
+24:from edu_cloud.models.notification import Notification  # noqa: F401
+25:
+26:# ── core/models (src/edu_cloud/core/models/) ─────────────────────────────
+27:from edu_cloud.core.models.llm_slot import LLMSlot  # noqa: F401
+28:
+29:# ── AI models (src/edu_cloud/ai/) ────────────────────────────────────────
+30:from edu_cloud.ai.models import AiSession, AiToolCall  # noqa: F401
+31:from edu_cloud.models.agent_profile import AgentProfile, AgentRun  # noqa: F401
+32:
+33:# ── module models (src/edu_cloud/modules/*/models.py) ────────────────────
+34:from edu_cloud.modules.exam.models import (  # noqa: F401
+35:    Exam, Subject, Question, ExamResult,
+36:    JointExam, JointExamParticipant, JointExamStudentResult,
+ succeeded in 3.00s:
+--- 40-85 ---
+40:
+41:    engine = create_engine(f"sqlite:///{db_path}")
+42:    yield engine
+43:    engine.dispose()
+44:
+45:
+46:def test_migration_creates_all_expected_tables(migration_db):
+47:    """alembic upgrade head 应创建与 Base.metadata 一致的表集合。"""
+48:    from edu_cloud.models.base import Base
+49:    # Force all model imports (same as conftest.py)
+50:    import edu_cloud.models.school  # noqa: F401
+51:    import edu_cloud.models.user  # noqa: F401
+52:    import edu_cloud.models.user_role  # noqa: F401
+53:    import edu_cloud.models.joint_exam  # noqa: F401
+54:    import edu_cloud.models.student  # noqa: F401
+55:    import edu_cloud.models.class_group  # noqa: F401
+56:    import edu_cloud.models.exam  # noqa: F401
+57:    import edu_cloud.models.ai_session  # noqa: F401
+58:    import edu_cloud.models.document  # noqa: F401
+codex
+我又检查到一个潜在行为偏移点：计划里的 `ToolAccessResolver` 把“缺失 capability”从当前的默认放行改成默认拒绝，但设计文档没有明确授权这次策略切换。我先拿现有实现和测试把这个差异钉实。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"_check_capabilities|capabilities|enabled_modules\" docs/plans/2026-04-03-edu-agent-design.md docs/plans/2026-04-03-edu-agent-plan.md src/edu_cloud/ai/tool_access.py tests/test_ai/test_tool_access.py -g '*.md' -g '*.py'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path; p=Path('docs/plans/2026-04-03-edu-agent-plan.md'); lines=p.read_text(encoding='utf-8').splitlines();
+for start,end in [(448,482)]:
+ print(f'--- {start}-{end} ---');
+ [print(f'{i}:{lines[i-1]}') for i in range(start,end+1)]\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'tests/test_ai/test_tool_access.py' -Encoding utf8" in C:/Users/Administrator/edu-cloud succeeded in 1.83s:
+tests/test_ai/test_tool_access.py:8:               allowed_roles=None, requires_capabilities=None):
+tests/test_ai/test_tool_access.py:13:        requires_capabilities=requires_capabilities or [],
+tests/test_ai/test_tool_access.py:26:        enabled_modules=set(), capabilities={},
+tests/test_ai/test_tool_access.py:41:        enabled_modules={"grading"},  # exam 未启用
+tests/test_ai/test_tool_access.py:42:        capabilities={},
+tests/test_ai/test_tool_access.py:51:        _make_spec("cap_tool", requires_capabilities=[("exam", "read")]),
+tests/test_ai/test_tool_access.py:57:        enabled_modules=set(),
+tests/test_ai/test_tool_access.py:58:        capabilities={("exam", "read"): False},  # 显式拒绝
+tests/test_ai/test_tool_access.py:67:    specs = [_make_spec("cap_tool", requires_capabilities=[("exam", "read")])]
+tests/test_ai/test_tool_access.py:71:        enabled_modules=set(), capabilities={},  # 未配置
+tests/test_ai/test_tool_access.py:80:                   module_code="exam", requires_capabilities=[("exam", "write")]),
+tests/test_ai/test_tool_access.py:87:        enabled_modules={"exam"},
+tests/test_ai/test_tool_access.py:88:        capabilities={("exam", "write"): True},
+tests/test_ai/test_tool_access.py:98:        enabled_modules=set(), capabilities={},
+tests/test_ai/test_tool_access.py:110:        enabled_modules=set(), capabilities={},
+tests/test_ai/test_tool_access.py:116:async def test_enabled_modules_none_skips_module_filter():
+tests/test_ai/test_tool_access.py:117:    """CR-05: enabled_modules=None 时跳过模块过滤（platform_admin 无 school_id）"""
+tests/test_ai/test_tool_access.py:126:        enabled_modules=None,  # platform_admin: 不过滤模块
+tests/test_ai/test_tool_access.py:127:        capabilities={},
+src/edu_cloud/ai/tool_access.py:11:        enabled_modules: set[str] | None,
+ succeeded in 2.22s:
+--- 448-482 ---
+448:from edu_cloud.ai.registry import ToolSpec
+449:
+450:
+451:class ToolAccessResolver:
+452:    def resolve(
+453:        self,
+454:        all_specs: list[ToolSpec],
+455:        role: str,
+456:        enabled_modules: set[str] | None,
+457:        capabilities: dict[tuple[str, str], bool],
+458:    ) -> list[ToolSpec]:
+459:        result = []
+460:        for spec in all_specs:
+461:            # Layer 1: RBAC
+462:            if spec.allowed_roles is not None and role not in spec.allowed_roles:
+463:                continue
+464:            # Layer 2: Module switch
+465:            if enabled_modules is not None and spec.module_code is not None:
+466:                if spec.module_code not in enabled_modules:
+ succeeded in 2.95s:
+import pytest
+from unittest.mock import AsyncMock
+from edu_cloud.ai.tool_access import ToolAccessResolver
+from edu_cloud.ai.registry import ToolSpec
+
+
+def _make_spec(name, category="general", module_code=None, domain="general",
+               allowed_roles=None, requires_capabilities=None):
+    return ToolSpec(
+        name=name, description=f"Tool {name}", parameters={},
+        func=AsyncMock(), category=category, module_code=module_code,
+        domain=domain, allowed_roles=allowed_roles,
+        requires_capabilities=requires_capabilities or [],
+    )
+
+
+@pytest.mark.asyncio
+async def test_rbac_filter_blocks_unauthorized_role():
+    specs = [
+        _make_spec("admin_only", allowed_roles=["platform_admin"]),
+codex
+我把这个 capability 差异坐实了：现有测试明确要求“未配置 capability 默认允许”，而计划代码改成了“缺省即拒绝”。这不是重构细节，而是权限策略切换。为了判影响面，我再看一下生产路径里 capability 列表是怎么取的。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Path 'src/edu_cloud/services/capability_service.py' -Encoding utf8" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"requires_capabilities=\\[|allowed_roles=\\[|sensitivity=|is_read_only=\" src/edu_cloud/ai/tools -g '*.py'" in C:/Users/Administrator/edu-cloud succeeded in 1.38s:
+import logging
+
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
+
+from edu_cloud.models.capability import Capability, CAPABILITY_DOMAINS, CAPABILITY_ACTIONS
+from edu_cloud.services.exceptions import ValidationError
+
+
+# 默认模板: role → {domain: {action: enabled}}
+# platform_admin / district_admin 不生成 capability 行（跳过检查）
+DEFAULT_CAPABILITIES: dict[str, dict[str, dict[str, bool]]] = {
+    "principal": {
+        domain: {"read": True, "write": True}
+        for domain in CAPABILITY_DOMAINS
+    },
+    "academic_director": {
+ succeeded in 1.29s:
+src/edu_cloud/ai/tools\actions.py:29:    allowed_roles=["platform_admin", "academic_director", "subject_teacher", "homeroom_teacher"],
+src/edu_cloud/ai/tools\actions.py:143:    allowed_roles=["platform_admin", "academic_director", "subject_teacher", "homeroom_teacher"],
+src/edu_cloud/ai/tools\analytics_score.py:11:    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+src/edu_cloud/ai/tools\analytics_score.py:40:    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+src/edu_cloud/ai/tools\analytics_score.py:87:    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+src/edu_cloud/ai/tools\analytics_score.py:116:    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+src/edu_cloud/ai/tools\analytics_score.py:162:    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+src/edu_cloud/ai/tools\analytics_compare.py:11:    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+src/edu_cloud/ai/tools\analytics_compare.py:89:    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+src/edu_cloud/ai/tools\analytics_compare.py:172:    allowed_roles=["platform_admin", "academic_director", "grade_leader"],
+src/edu_cloud/ai/tools\analytics.py:47:    allowed_roles=["platform_admin", "district_admin"],
+src/edu_cloud/ai/tools\analytics.py:112:    allowed_roles=["platform_admin", "district_admin"],
+src/edu_cloud/ai/tools\bank.py:10:    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+src/edu_cloud/ai/tools\bank.py:46:    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+src/edu_cloud/ai/tools\exams.py:11:    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+src/edu_cloud/ai/tools\exams.py:44:    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+src/edu_cloud/ai/tools\exams.py:82:    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+src/edu_cloud/ai/tools\grading_ops.py:19:    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
+src/edu_cloud/ai/tools\grading_ops.py:37:    allowed_roles=["platform_admin", "academic_director"],
+src/edu_cloud/ai/tools\grading_ops.py:61:    allowed_roles=["platform_admin", "academic_director"],
+codex
+结论：FAIL。按 `pass-fail` 规则，存在多条未处置的 `code-bug` / `test-gap` 级别 HIGH/MED finding。
+
+`F001`
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 当前 AI 主链仍建立在 `registry.execute(..., **injected)` 旧契约上，现有 API、Agent 和测试都依赖该签名，批次应保持可合并、可验证。  
+After-behavior: Task 2 明确接受 `ToolRegistry` 新签名落地后现有测试先失败，直到 Batch 6 再统一修复。  
+Evidence: 计划明确写出“新测试 PASS、旧 `test_registry.py` FAIL 也接受”见 [2026-04-03-edu-agent-plan.md#L343](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L343) 、 [2026-04-03-edu-agent-plan.md#L346](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L346)；当前调用链仍走旧接口见 [agent.py#L114](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/agent.py#L114) 、 [test_registry.py#L32](C:/Users/Administrator/edu-cloud/tests/test_ai/test_registry.py#L32) 、 [test_registry.py#L37](C:/Users/Administrator/edu-cloud/tests/test_ai/test_registry.py#L37)。  
+Impact: Batch 1 到 Batch 5 都会处于“计划允许主干失绿”的状态，违背“bottom-up build in 7 batches / each batch testable, committable”，也让回滚和问题定位都变得困难。  
+Repair hypothesis: 需要把接口切换改成可并存的迁移边界，保证每批结束时现有入口和现有测试仍可通过。
+
+`F002`
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 设计文档要求 AgentLoop 承担完整状态机，含 `CapabilityProbe`、`SensitivityRouter`、`plan -> TaskPlanner` 分支、`errors > 3` 后降级/终止、后台 memory extract，以及 `thinking/plan/task_update` 事件。  
+After-behavior: Task 13 的实现仅覆盖 “answer / tool_calls / tool_result / done” 基本循环，没有规划分支、没有路由/探测接入、没有 memory extract、也没有 `thinking/plan/task_update` 发射。  
+Evidence: 设计要求见 [2026-04-03-edu-agent-design.md#L109](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md#L109) 、 [2026-04-03-edu-agent-design.md#L117](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md#L117) 、 [2026-04-03-edu-agent-design.md#L121](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md#L121) 、 [2026-04-03-edu-agent-design.md#L123](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md#L123) 、 [2026-04-03-edu-agent-design.md#L172](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md#L172) 、 [2026-04-03-edu-agent-design.md#L178](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md#L178)；计划实现仅实例化 `TaskPlanner` 但未使用，且循环内只处理 answer/tool_calls，见 [2026-04-03-edu-agent-plan.md#L2491](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2491) 、 [2026-04-03-edu-agent-plan.md#L2549](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2549) 、 [2026-04-03-edu-agent-plan.md#L2555](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2555) 、 [2026-04-03-edu-agent-plan.md#L2587](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2587)。  
+Impact: 这不是“后续增强”，而是核心状态机与设计脱节；按此实现推进，后续 API/SSE/测试都建立在一个功能不完整的内核之上。  
+Repair hypothesis: 方向是先收敛权威循环状态机和注入边界，再重排批次。禁止用“伪造 `plan/task_update` 事件”或把路由/降级逻辑散落到 API 包装层来补洞。requires independent fix design + Semantic Regression Gate
+
+`F003`
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: `/api/v1/ai/chat` 的行为变更应通过用户可触达入口做 SSE 契约验证，并写明错误实现如何失败。  
+After-behavior: Task 14 只新增 `AgentEvent.to_dict()` 的序列化测试，而且正文明确说真正的 `api/ai.py` 迁移延后到 Batch 7。  
+Evidence: 任务声明“适配 `/api/v1/ai/chat` 支持新事件”见 [2026-04-03-edu-agent-plan.md#L2619](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2619)；测试内容仅循环拼接 JSON 字符串见 [2026-04-03-edu-agent-plan.md#L2630](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2630) ；且计划自己写明“actual `api/ai.py` migration is deferred to Batch 7”见 [2026-04-03-edu-agent-plan.md#L2657](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2657)。现有入口级 API 测试基线在 [test_ai_api.py#L22](C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api.py#L22)。  
+Impact: 这是 `test-gap HIGH`。该测试既是逻辑镜像，又没有入口级验证，也没有反例说明；即使 `/api/v1/ai/chat` 完全不发 `thinking/plan/task_update`，它也仍然通过。  
+Repair hypothesis: 应把契约落到真实 SSE 入口，覆盖正向流、无新事件流、错误流三个场景。
+
+`F004`
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: 每个行为变更 Task 都应带 `测试契约` 段（入口/反例/边界/回归/命令）和至少 3 条 `边界条件`。  
+After-behavior: 整份 plan 没有这些段落。  
+Evidence: 规则要求见 [review-templates.md#L233](C:/Users/Administrator/.claude/rules-t3/review-templates.md#L233) 、 [review-templates.md#L249](C:/Users/Administrator/.claude/rules-t3/review-templates.md#L249)；对整份 [2026-04-03-edu-agent-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md) 检索 `**测试契约:**`、`**边界条件:**` 均为空。  
+Impact: D 项直接不满足，Executor 没有统一测试规格，审查只能退回到实现阶段再补边界，必然增加多轮返工。  
+Repair hypothesis: 需要按行为变更任务逐个补齐结构化测试契约和边界条件，不能只靠代码片段里的示例测试替代。
+
+`F005`
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: plan 应包含结构化 `contract_pack:`，并给出可验证 invariants、counter_examples、risk_modules、test_debt。  
+After-behavior: 当前 plan 完全没有 Contract Pack。  
+Evidence: schema 强制要求见 [contract-pack-schema.md#L5](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L5) 、 [contract-pack-schema.md#L11](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L11) 、 [contract-pack-schema.md#L20](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L20) 、 [contract-pack-schema.md#L29](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L29) 、 [contract-pack-schema.md#L36](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L36)；整份 [2026-04-03-edu-agent-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md) 中不存在 `contract_pack:` / `invariants:` / `counter_examples:` / `risk_modules:` / `test_debt:`。  
+Impact: F 项直接 FAIL；当前计划没有可审的系统不变量，也没有“错误实现下哪些测试仍会误过”的 counter-example，更没有明确的 test debt deadline。  
+Repair hypothesis: 先补 Contract Pack，再做批次切分；否则后续所有 Gate 只能靠 prose 判断。
+
+`F006`
+Severity: HIGH  
+Category: code-bug  
+Type: behavior_change  
+Before-behavior: 当前 capability 语义是“无记录默认允许”，测试和服务实现都已经把它当成兼容性约束。  
+After-behavior: Task 3 把 `_check_capabilities` 改成 `all(caps.get(req, False) ...)`，把“未配置”变成“拒绝”。  
+Evidence: 计划代码见 [2026-04-03-edu-agent-plan.md#L475](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L475) 、 [2026-04-03-edu-agent-plan.md#L479](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L479)；现有回归测试明确要求默认放行见 [test_tool_access.py#L67](C:/Users/Administrator/edu-cloud/tests/test_ai/test_tool_access.py#L67)；服务实现也写明“无记录 = 默认允许（宽松策略）”见 [capability_service.py#L124](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/capability_service.py#L124)。  
+Impact: 这是未声明的权限策略切换。对尚未初始化 capability 行的学校，所有 `requires_capabilities` 工具都会突然消失，尤其会打断 homework 等已上线能力。  
+Repair hypothesis: 方向是先把 capability 缺省语义提升为显式不变量，再决定是否需要独立迁移。禁止把该策略变化混入“接口标准化”重构，或靠事后批量补种数据来掩盖兼容性断裂。requires independent fix design + Semantic Regression Gate
+
+`F007`
+Severity: MED  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 新增 ORM 表时，同批应同步接入 Alembic 模型发现和迁移 smoke test，保证 autogenerate 与 head 校验立即有效。  
+After-behavior: Task 10 只创建 `AgentMemory` 模型和提取器；Task 29 才在末尾 autogenerate migration，而当前 `alembic/env.py` 与迁移 smoke test 的固定导入列表都不包含 `AgentMemory`。  
+Evidence: Task 10 仅声明创建模型/提取器/测试见 [2026-04-03-edu-agent-plan.md#L1767](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L1767) 、 [2026-04-03-edu-agent-plan.md#L1844](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L1844)；Task 29 才做 migration 见 [2026-04-03-edu-agent-plan.md#L2814](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2814) 、 [2026-04-03-edu-agent-plan.md#L2823](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2823)；当前 Alembic 模型导入固定到 [env.py#L29](C:/Users/Administrator/edu-cloud/alembic/env.py#L29) ，迁移 smoke test 的强制 import 列表止于 [test_alembic_migration.py#L76](C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py#L76)。  
+Impact: `agent_memories` 很可能既不会被 autogenerate 发现，也不会被现有 migration smoke test 验证，导致 ORM 与迁移文件脱节。  
+Repair hypothesis: 需要把模型发现链、迁移 smoke、migration 文件生成放到同一批完成，而不是拆到末尾补票。
+
+`F008`
+Severity: MED  
+Category: design-concern  
+Type: defect_fix  
+Before-behavior: 破坏性操作应带回滚路径，至少说明旧 Agent 删除失败后的回退点和数据库 downgrade 策略。  
+After-behavior: Task 28/29 只有“删除旧文件”“upgrade head”，没有任何 backout / downgrade / 双写期说明。  
+Evidence: 删除任务见 [2026-04-03-edu-agent-plan.md#L2790](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2790) ；迁移任务见 [2026-04-03-edu-agent-plan.md#L2826](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2826)；而当前仓库本身已有 downgrade smoke baseline 见 [test_alembic_migration.py#L104](C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py#L104)。  
+Impact: 一旦新 AgentLoop/API cutover 或 migration 失败，计划没有定义可执行的恢复步骤，和 A 项“破坏性操作有回滚”不一致。  
+Repair hypothesis: 需要在 cutover 批次加入明确回退检查点和 downgrade 验证，不应把“重新改回来”当成默认恢复策略。
+
+补充说明：仓库中未找到 `architecture-rules.md`；C 项审查是按你给出的“职责单一 / 依赖方向 / 接口隔离 / 配置集中 / 单功能变更影响 ≤3 文件”清单，并结合 [2026-04-03-edu-agent-design.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md) 与 [CLAUDE.md](C:/Users/Administrator/edu-cloud/CLAUDE.md) 现有架构边界执行。
+tokens used
+155,238
+结论：FAIL。按 `pass-fail` 规则，存在多条未处置的 `code-bug` / `test-gap` 级别 HIGH/MED finding。
+
+`F001`
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 当前 AI 主链仍建立在 `registry.execute(..., **injected)` 旧契约上，现有 API、Agent 和测试都依赖该签名，批次应保持可合并、可验证。  
+After-behavior: Task 2 明确接受 `ToolRegistry` 新签名落地后现有测试先失败，直到 Batch 6 再统一修复。  
+Evidence: 计划明确写出“新测试 PASS、旧 `test_registry.py` FAIL 也接受”见 [2026-04-03-edu-agent-plan.md#L343](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L343) 、 [2026-04-03-edu-agent-plan.md#L346](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L346)；当前调用链仍走旧接口见 [agent.py#L114](C:/Users/Administrator/edu-cloud/src/edu_cloud/ai/agent.py#L114) 、 [test_registry.py#L32](C:/Users/Administrator/edu-cloud/tests/test_ai/test_registry.py#L32) 、 [test_registry.py#L37](C:/Users/Administrator/edu-cloud/tests/test_ai/test_registry.py#L37)。  
+Impact: Batch 1 到 Batch 5 都会处于“计划允许主干失绿”的状态，违背“bottom-up build in 7 batches / each batch testable, committable”，也让回滚和问题定位都变得困难。  
+Repair hypothesis: 需要把接口切换改成可并存的迁移边界，保证每批结束时现有入口和现有测试仍可通过。
+
+`F002`
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 设计文档要求 AgentLoop 承担完整状态机，含 `CapabilityProbe`、`SensitivityRouter`、`plan -> TaskPlanner` 分支、`errors > 3` 后降级/终止、后台 memory extract，以及 `thinking/plan/task_update` 事件。  
+After-behavior: Task 13 的实现仅覆盖 “answer / tool_calls / tool_result / done” 基本循环，没有规划分支、没有路由/探测接入、没有 memory extract、也没有 `thinking/plan/task_update` 发射。  
+Evidence: 设计要求见 [2026-04-03-edu-agent-design.md#L109](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md#L109) 、 [2026-04-03-edu-agent-design.md#L117](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md#L117) 、 [2026-04-03-edu-agent-design.md#L121](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md#L121) 、 [2026-04-03-edu-agent-design.md#L123](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md#L123) 、 [2026-04-03-edu-agent-design.md#L172](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md#L172) 、 [2026-04-03-edu-agent-design.md#L178](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md#L178)；计划实现仅实例化 `TaskPlanner` 但未使用，且循环内只处理 answer/tool_calls，见 [2026-04-03-edu-agent-plan.md#L2491](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2491) 、 [2026-04-03-edu-agent-plan.md#L2549](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2549) 、 [2026-04-03-edu-agent-plan.md#L2555](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2555) 、 [2026-04-03-edu-agent-plan.md#L2587](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2587)。  
+Impact: 这不是“后续增强”，而是核心状态机与设计脱节；按此实现推进，后续 API/SSE/测试都建立在一个功能不完整的内核之上。  
+Repair hypothesis: 方向是先收敛权威循环状态机和注入边界，再重排批次。禁止用“伪造 `plan/task_update` 事件”或把路由/降级逻辑散落到 API 包装层来补洞。requires independent fix design + Semantic Regression Gate
+
+`F003`
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: `/api/v1/ai/chat` 的行为变更应通过用户可触达入口做 SSE 契约验证，并写明错误实现如何失败。  
+After-behavior: Task 14 只新增 `AgentEvent.to_dict()` 的序列化测试，而且正文明确说真正的 `api/ai.py` 迁移延后到 Batch 7。  
+Evidence: 任务声明“适配 `/api/v1/ai/chat` 支持新事件”见 [2026-04-03-edu-agent-plan.md#L2619](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2619)；测试内容仅循环拼接 JSON 字符串见 [2026-04-03-edu-agent-plan.md#L2630](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2630) ；且计划自己写明“actual `api/ai.py` migration is deferred to Batch 7”见 [2026-04-03-edu-agent-plan.md#L2657](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2657)。现有入口级 API 测试基线在 [test_ai_api.py#L22](C:/Users/Administrator/edu-cloud/tests/test_ai/test_ai_api.py#L22)。  
+Impact: 这是 `test-gap HIGH`。该测试既是逻辑镜像，又没有入口级验证，也没有反例说明；即使 `/api/v1/ai/chat` 完全不发 `thinking/plan/task_update`，它也仍然通过。  
+Repair hypothesis: 应把契约落到真实 SSE 入口，覆盖正向流、无新事件流、错误流三个场景。
+
+`F004`
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: 每个行为变更 Task 都应带 `测试契约` 段（入口/反例/边界/回归/命令）和至少 3 条 `边界条件`。  
+After-behavior: 整份 plan 没有这些段落。  
+Evidence: 规则要求见 [review-templates.md#L233](C:/Users/Administrator/.claude/rules-t3/review-templates.md#L233) 、 [review-templates.md#L249](C:/Users/Administrator/.claude/rules-t3/review-templates.md#L249)；对整份 [2026-04-03-edu-agent-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md) 检索 `**测试契约:**`、`**边界条件:**` 均为空。  
+Impact: D 项直接不满足，Executor 没有统一测试规格，审查只能退回到实现阶段再补边界，必然增加多轮返工。  
+Repair hypothesis: 需要按行为变更任务逐个补齐结构化测试契约和边界条件，不能只靠代码片段里的示例测试替代。
+
+`F005`
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: plan 应包含结构化 `contract_pack:`，并给出可验证 invariants、counter_examples、risk_modules、test_debt。  
+After-behavior: 当前 plan 完全没有 Contract Pack。  
+Evidence: schema 强制要求见 [contract-pack-schema.md#L5](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L5) 、 [contract-pack-schema.md#L11](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L11) 、 [contract-pack-schema.md#L20](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L20) 、 [contract-pack-schema.md#L29](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L29) 、 [contract-pack-schema.md#L36](C:/Users/Administrator/.claude/config/contract-pack-schema.md#L36)；整份 [2026-04-03-edu-agent-plan.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md) 中不存在 `contract_pack:` / `invariants:` / `counter_examples:` / `risk_modules:` / `test_debt:`。  
+Impact: F 项直接 FAIL；当前计划没有可审的系统不变量，也没有“错误实现下哪些测试仍会误过”的 counter-example，更没有明确的 test debt deadline。  
+Repair hypothesis: 先补 Contract Pack，再做批次切分；否则后续所有 Gate 只能靠 prose 判断。
+
+`F006`
+Severity: HIGH  
+Category: code-bug  
+Type: behavior_change  
+Before-behavior: 当前 capability 语义是“无记录默认允许”，测试和服务实现都已经把它当成兼容性约束。  
+After-behavior: Task 3 把 `_check_capabilities` 改成 `all(caps.get(req, False) ...)`，把“未配置”变成“拒绝”。  
+Evidence: 计划代码见 [2026-04-03-edu-agent-plan.md#L475](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L475) 、 [2026-04-03-edu-agent-plan.md#L479](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L479)；现有回归测试明确要求默认放行见 [test_tool_access.py#L67](C:/Users/Administrator/edu-cloud/tests/test_ai/test_tool_access.py#L67)；服务实现也写明“无记录 = 默认允许（宽松策略）”见 [capability_service.py#L124](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/capability_service.py#L124)。  
+Impact: 这是未声明的权限策略切换。对尚未初始化 capability 行的学校，所有 `requires_capabilities` 工具都会突然消失，尤其会打断 homework 等已上线能力。  
+Repair hypothesis: 方向是先把 capability 缺省语义提升为显式不变量，再决定是否需要独立迁移。禁止把该策略变化混入“接口标准化”重构，或靠事后批量补种数据来掩盖兼容性断裂。requires independent fix design + Semantic Regression Gate
+
+`F007`
+Severity: MED  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 新增 ORM 表时，同批应同步接入 Alembic 模型发现和迁移 smoke test，保证 autogenerate 与 head 校验立即有效。  
+After-behavior: Task 10 只创建 `AgentMemory` 模型和提取器；Task 29 才在末尾 autogenerate migration，而当前 `alembic/env.py` 与迁移 smoke test 的固定导入列表都不包含 `AgentMemory`。  
+Evidence: Task 10 仅声明创建模型/提取器/测试见 [2026-04-03-edu-agent-plan.md#L1767](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L1767) 、 [2026-04-03-edu-agent-plan.md#L1844](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L1844)；Task 29 才做 migration 见 [2026-04-03-edu-agent-plan.md#L2814](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2814) 、 [2026-04-03-edu-agent-plan.md#L2823](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2823)；当前 Alembic 模型导入固定到 [env.py#L29](C:/Users/Administrator/edu-cloud/alembic/env.py#L29) ，迁移 smoke test 的强制 import 列表止于 [test_alembic_migration.py#L76](C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py#L76)。  
+Impact: `agent_memories` 很可能既不会被 autogenerate 发现，也不会被现有 migration smoke test 验证，导致 ORM 与迁移文件脱节。  
+Repair hypothesis: 需要把模型发现链、迁移 smoke、migration 文件生成放到同一批完成，而不是拆到末尾补票。
+
+`F008`
+Severity: MED  
+Category: design-concern  
+Type: defect_fix  
+Before-behavior: 破坏性操作应带回滚路径，至少说明旧 Agent 删除失败后的回退点和数据库 downgrade 策略。  
+After-behavior: Task 28/29 只有“删除旧文件”“upgrade head”，没有任何 backout / downgrade / 双写期说明。  
+Evidence: 删除任务见 [2026-04-03-edu-agent-plan.md#L2790](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2790) ；迁移任务见 [2026-04-03-edu-agent-plan.md#L2826](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-plan.md#L2826)；而当前仓库本身已有 downgrade smoke baseline 见 [test_alembic_migration.py#L104](C:/Users/Administrator/edu-cloud/tests/test_alembic_migration.py#L104)。  
+Impact: 一旦新 AgentLoop/API cutover 或 migration 失败，计划没有定义可执行的恢复步骤，和 A 项“破坏性操作有回滚”不一致。  
+Repair hypothesis: 需要在 cutover 批次加入明确回退检查点和 downgrade 验证，不应把“重新改回来”当成默认恢复策略。
+
+补充说明：仓库中未找到 `architecture-rules.md`；C 项审查是按你给出的“职责单一 / 依赖方向 / 接口隔离 / 配置集中 / 单功能变更影响 ≤3 文件”清单，并结合 [2026-04-03-edu-agent-design.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-03-edu-agent-design.md) 与 [CLAUDE.md](C:/Users/Administrator/edu-cloud/CLAUDE.md) 现有架构边界执行。

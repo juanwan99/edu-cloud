@@ -117,6 +117,106 @@ def test_parse_response_function_call_finish_reason():
     assert resp.stop_reason == "tool_use"
 
 
+class TestLLMRetry:
+    """P1-1: graded retry for LLM calls."""
+
+    @pytest.mark.asyncio
+    async def test_429_retries_up_to_3_times(self):
+        """429 Too Many Requests should retry up to 3 times."""
+        adapter = LLMProxyAdapter(base_url="http://fake:8100", slot="test")
+        call_count = 0
+
+        async def mock_post(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            resp = _mock_response(429, {})
+            resp.headers = {}
+            return resp
+
+        adapter._http = AsyncMock()
+        adapter._http.post = mock_post
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await adapter.chat(LLMRequest(
+                messages=[Message(role="user", content="test")],
+            ))
+
+        assert call_count == 4  # 1 initial + 3 retries
+
+    @pytest.mark.asyncio
+    async def test_500_retries_once(self):
+        """500 should retry exactly once."""
+        adapter = LLMProxyAdapter(base_url="http://fake:8100", slot="test")
+        call_count = 0
+
+        async def mock_post(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            resp = _mock_response(500, {})
+            resp.headers = {}
+            return resp
+
+        adapter._http = AsyncMock()
+        adapter._http.post = mock_post
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await adapter.chat(LLMRequest(
+                messages=[Message(role="user", content="test")],
+            ))
+
+        assert call_count == 2  # 1 initial + 1 retry
+
+    @pytest.mark.asyncio
+    async def test_400_no_retry(self):
+        """400 Bad Request should not retry."""
+        adapter = LLMProxyAdapter(base_url="http://fake:8100", slot="test")
+        call_count = 0
+
+        async def mock_post(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            resp = _mock_response(400, {})
+            resp.headers = {}
+            return resp
+
+        adapter._http = AsyncMock()
+        adapter._http.post = mock_post
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await adapter.chat(LLMRequest(
+                messages=[Message(role="user", content="test")],
+            ))
+
+        assert call_count == 1  # No retry
+
+    @pytest.mark.asyncio
+    async def test_429_succeeds_on_second_attempt(self):
+        """429 followed by success should return normal result."""
+        adapter = LLMProxyAdapter(base_url="http://fake:8100", slot="test")
+        call_count = 0
+
+        async def mock_post(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                resp = _mock_response(429, {})
+                resp.headers = {"Retry-After": "0"}
+                return resp
+            return _mock_response(200, {
+                "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+            })
+
+        adapter._http = AsyncMock()
+        adapter._http.post = mock_post
+
+        result = await adapter.chat(LLMRequest(
+            messages=[Message(role="user", content="test")],
+        ))
+        assert result.content == "ok"
+        assert call_count == 2
+
+
 def test_proxy_adapter_capabilities_defaults():
     adapter = LLMProxyAdapter(base_url="http://localhost:8100", slot="primary")
     assert adapter.supports_tool_use() is True  # assume yes by default

@@ -14,7 +14,7 @@ from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.exam.models import Exam, Question, Subject
-from edu_cloud.modules.marking.models import MarkingAssignment
+from edu_cloud.modules.grading.models import GradingAssignment
 from edu_cloud.api.permissions import get_visible_subject_codes, is_school_admin
 
 logger = logging.getLogger(__name__)
@@ -48,6 +48,22 @@ class AssignRequest(BaseModel):
     teacher_id: str
 
 
+def _has_question_assigned(assignment: GradingAssignment, question_id: str) -> bool:
+    qids = assignment.question_ids or []
+    return question_id in qids
+
+
+def _flatten_assignment(a: GradingAssignment) -> list[dict]:
+    """一条块级分配 → 多条题级响应（前端契约保持题级）。"""
+    return [
+        {
+            "id": a.id, "exam_id": a.exam_id, "question_id": qid,
+            "teacher_id": a.assigned_to, "status": a.status,
+        }
+        for qid in (a.question_ids or [])
+    ]
+
+
 # ---------- Assignment ----------
 
 @router.post("/assign", status_code=201)
@@ -56,60 +72,77 @@ async def assign_question(
     current: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """管理员将题目分配给指定教师阅卷。"""
+    """管理员将题目分配给指定教师阅卷（单题 → 块级分配 question_ids=[qid]）。"""
     if not is_school_admin(current["current_role"]):
         raise HTTPException(403, "仅管理员可分配阅卷任务")
 
-    # Verify exam, question, teacher belong to school
+    school_id = current["current_role"].school_id
+
     exam = (await db.execute(
-        select(Exam).where(Exam.id == req.exam_id, Exam.school_id == current["current_role"].school_id)
+        select(Exam).where(Exam.id == req.exam_id, Exam.school_id == school_id)
     )).scalar_one_or_none()
     if not exam:
         raise HTTPException(404, "考试不存在")
 
     question = (await db.execute(
-        select(Question).where(Question.id == req.question_id, Question.school_id == current["current_role"].school_id)
+        select(Question).where(Question.id == req.question_id, Question.school_id == school_id)
     )).scalar_one_or_none()
     if not question:
         raise HTTPException(404, "题目不存在")
 
-    # Verify question belongs to a subject of this exam
     subject = (await db.execute(
         select(Subject).where(Subject.id == question.subject_id, Subject.exam_id == req.exam_id)
     )).scalar_one_or_none()
     if not subject:
         raise HTTPException(400, "题目不属于该考试")
 
-    # Verify teacher exists and belongs to this school (via UserRole)
     teacher_role = (await db.execute(
-        select(UserRole).where(UserRole.user_id == req.teacher_id, UserRole.school_id == current["current_role"].school_id)
+        select(UserRole).where(UserRole.user_id == req.teacher_id, UserRole.school_id == school_id)
     )).scalars().first()
     if not teacher_role:
         raise HTTPException(404, "教师不存在")
 
-    # Check if already assigned
-    existing = (await db.execute(
-        select(MarkingAssignment).where(
-            MarkingAssignment.question_id == req.question_id,
-            MarkingAssignment.teacher_id == req.teacher_id,
+    # 查该教师在此 exam+subject 是否已有 assignment
+    existing_list = (await db.execute(
+        select(GradingAssignment).where(
+            GradingAssignment.exam_id == req.exam_id,
+            GradingAssignment.subject_id == subject.id,
+            GradingAssignment.assigned_to == req.teacher_id,
+            GradingAssignment.school_id == school_id,
+            GradingAssignment.is_second_grading.is_(False),
         )
-    )).scalar_one_or_none()
-    if existing:
-        raise HTTPException(409, "该教师已被分配此题")
+    )).scalars().all()
 
-    assignment = MarkingAssignment(
-        exam_id=req.exam_id,
-        question_id=req.question_id,
-        teacher_id=req.teacher_id,
-        school_id=current["current_role"].school_id,
-    )
-    db.add(assignment)
-    await db.commit()
-    await db.refresh(assignment)
-    logger.info("assign_question: exam=%s, question=%s, teacher=%s", req.exam_id, req.question_id, req.teacher_id)
-    return {"id": assignment.id, "exam_id": assignment.exam_id,
-            "question_id": assignment.question_id, "teacher_id": assignment.teacher_id,
-            "status": assignment.status}
+    # 若 question_id 已在任一 assignment 中，冲突
+    for a in existing_list:
+        if _has_question_assigned(a, req.question_id):
+            raise HTTPException(409, "该教师已被分配此题")
+
+    # 追加到首个现有 assignment 或新建
+    if existing_list:
+        a = existing_list[0]
+        qids = list(a.question_ids or [])
+        qids.append(req.question_id)
+        a.question_ids = qids
+        await db.commit()
+        await db.refresh(a)
+    else:
+        a = GradingAssignment(
+            exam_id=req.exam_id, subject_id=subject.id,
+            question_ids=[req.question_id],
+            assigned_to=req.teacher_id, school_id=school_id,
+        )
+        db.add(a)
+        await db.commit()
+        await db.refresh(a)
+
+    logger.info("assign_question: exam=%s, question=%s, teacher=%s",
+                req.exam_id, req.question_id, req.teacher_id)
+    return {
+        "id": a.id, "exam_id": a.exam_id,
+        "question_id": req.question_id, "teacher_id": a.assigned_to,
+        "status": a.status,
+    }
 
 
 @router.get("/my-assignments")
@@ -118,20 +151,19 @@ async def my_assignments(
     current: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """教师获取自己的阅卷任务列表。"""
-    query = select(MarkingAssignment).where(
-        MarkingAssignment.teacher_id == current["user"].id,
-        MarkingAssignment.school_id == current["current_role"].school_id,
+    """教师获取自己的阅卷任务列表（块级 → 题级展平）。"""
+    query = select(GradingAssignment).where(
+        GradingAssignment.assigned_to == current["user"].id,
+        GradingAssignment.school_id == current["current_role"].school_id,
     )
     if exam_id:
-        query = query.where(MarkingAssignment.exam_id == exam_id)
+        query = query.where(GradingAssignment.exam_id == exam_id)
     result = await db.execute(query)
     assignments = result.scalars().all()
-    return [
-        {"id": a.id, "exam_id": a.exam_id, "question_id": a.question_id,
-         "teacher_id": a.teacher_id, "status": a.status}
-        for a in assignments
-    ]
+    flat = []
+    for a in assignments:
+        flat.extend(_flatten_assignment(a))
+    return flat
 
 
 @router.get("/assignments")
@@ -140,19 +172,20 @@ async def list_all_assignments(
     current: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """管理员查看全部分配情况。"""
+    """管理员查看全部分配情况（块级 → 题级展平）。"""
     if not is_school_admin(current["current_role"]):
         raise HTTPException(403, "仅管理员可查看全部分配")
-    query = select(MarkingAssignment).where(MarkingAssignment.school_id == current["current_role"].school_id)
+    query = select(GradingAssignment).where(
+        GradingAssignment.school_id == current["current_role"].school_id,
+    )
     if exam_id:
-        query = query.where(MarkingAssignment.exam_id == exam_id)
+        query = query.where(GradingAssignment.exam_id == exam_id)
     result = await db.execute(query)
     assignments = result.scalars().all()
-    return [
-        {"id": a.id, "exam_id": a.exam_id, "question_id": a.question_id,
-         "teacher_id": a.teacher_id, "status": a.status}
-        for a in assignments
-    ]
+    flat = []
+    for a in assignments:
+        flat.extend(_flatten_assignment(a))
+    return flat
 
 
 @router.get("/teachers")
@@ -163,7 +196,6 @@ async def list_teachers(
     """获取本校教师列表（供分配使用）。"""
     if not is_school_admin(current["current_role"]):
         raise HTTPException(403, "仅管理员可查看教师列表")
-    # Join User+UserRole to find teachers in this school
     result = await db.execute(
         select(User, UserRole).join(UserRole, UserRole.user_id == User.id).where(
             UserRole.school_id == current["current_role"].school_id,
@@ -205,7 +237,10 @@ async def list_subjects(
 ):
     """获取考试下所有科目及题目的阅卷进度。"""
     from edu_cloud.modules.marking.scorer import get_subjects_with_progress
-    return await get_subjects_with_progress(db, exam_id, current["current_role"].school_id)
+    visible_codes = get_visible_subject_codes(current["current_role"])
+    return await get_subjects_with_progress(
+        db, exam_id, current["current_role"].school_id, visible_codes=visible_codes,
+    )
 
 
 # ---------- Grading flow ----------
@@ -230,19 +265,21 @@ async def next_answer(
             if subject and subject.code not in visible_codes:
                 raise HTTPException(403, "无权访问该科目的题目")
 
-    # Permission check 2: assignment-level access (if assignments exist for this question)
+    # Permission check 2: assignment-level access
     if not is_school_admin(current["current_role"]):
-        has_assignments = (await db.execute(
-            select(MarkingAssignment.id).where(MarkingAssignment.question_id == question_id).limit(1)
-        )).scalar_one_or_none()
-        if has_assignments:
-            my_assignment = (await db.execute(
-                select(MarkingAssignment).where(
-                    MarkingAssignment.question_id == question_id,
-                    MarkingAssignment.teacher_id == current["user"].id,
-                )
-            )).scalar_one_or_none()
-            if not my_assignment:
+        all_assign = (await db.execute(
+            select(GradingAssignment).where(
+                GradingAssignment.school_id == current["current_role"].school_id,
+            )
+        )).scalars().all()
+        has_any = any(_has_question_assigned(a, question_id) for a in all_assign)
+        if has_any:
+            mine = any(
+                _has_question_assigned(a, question_id)
+                and a.assigned_to == current["user"].id
+                for a in all_assign
+            )
+            if not mine:
                 raise HTTPException(403, "该题目未分配给您")
 
     from edu_cloud.modules.marking.scorer import get_next_answer
@@ -292,7 +329,12 @@ async def submit_score_endpoint(
     current: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """提交评分，并返回下一份未批改的答卷。"""
+    """提交评分，并返回下一份未批改的答卷。
+
+    统一写入 GradingResult：
+    - 若已有 AI 预评 → 升级为 confirmed（source=ai 或 ai_override）
+    - 若无预评 → 新建 source=manual, status=confirmed
+    """
     from edu_cloud.modules.marking.scorer import submit_score, get_next_answer
 
     answer = (await db.execute(
@@ -310,7 +352,6 @@ async def submit_score_endpoint(
     if not question:
         raise HTTPException(404, "题目不存在")
 
-    # Permission check: verify user can score this question's subject
     visible_codes = get_visible_subject_codes(current["current_role"])
     if visible_codes is not None:
         subject = (await db.execute(
@@ -325,12 +366,11 @@ async def submit_score_endpoint(
     try:
         await submit_score(
             db, req.answer_id, answer.question_id,
-            current["user"].id, current["current_role"].school_id, req.score, question.max_score, req.comment,
+            current["user"].id, current["current_role"].school_id,
+            req.score, question.max_score, req.comment,
         )
-    except Exception as e:
-        if "UNIQUE constraint" in str(e) or "unique" in str(e).lower():
-            raise HTTPException(409, "该答卷已评分")
-        raise
+    except ValueError as e:
+        raise HTTPException(409, str(e))
 
     next_ans = await get_next_answer(db, answer.question_id, current["current_role"].school_id)
     return {
@@ -349,7 +389,10 @@ async def get_progress_endpoint(
 ):
     """获取考试的整体阅卷进度。"""
     from edu_cloud.modules.marking.scorer import get_progress
-    return await get_progress(db, exam_id, current["current_role"].school_id)
+    visible_codes = get_visible_subject_codes(current["current_role"])
+    return await get_progress(
+        db, exam_id, current["current_role"].school_id, visible_codes=visible_codes,
+    )
 
 
 # ---------- Export ----------
@@ -362,7 +405,10 @@ async def export_csv(
 ):
     """导出考试成绩 CSV。"""
     from edu_cloud.modules.marking.exporter import export_scores_csv
-    csv_content = await export_scores_csv(db, exam_id, current["current_role"].school_id)
+    visible_codes = get_visible_subject_codes(current["current_role"])
+    csv_content = await export_scores_csv(
+        db, exam_id, current["current_role"].school_id, visible_codes=visible_codes,
+    )
     return StreamingResponse(
         io.StringIO(csv_content),
         media_type="text/csv",

@@ -16,6 +16,17 @@ from sqlalchemy.orm import Mapped, mapped_column
 from edu_cloud.models.base import Base, IdMixin, TimestampMixin
 
 
+# ── 题型词汇表（unified 2026-04-16 Phase 1-A）───────────────────
+QUESTION_TYPE_CHOICE = "choice"
+QUESTION_TYPE_MULTI_CHOICE = "multi_choice"
+QUESTION_TYPE_FILL_BLANK = "fill_blank"
+QUESTION_TYPE_ESSAY = "essay"
+
+QUESTION_TYPES_OBJECTIVE = (QUESTION_TYPE_CHOICE, QUESTION_TYPE_MULTI_CHOICE)
+QUESTION_TYPES_SUBJECTIVE = (QUESTION_TYPE_FILL_BLANK, QUESTION_TYPE_ESSAY)
+QUESTION_TYPES_ALL = QUESTION_TYPES_OBJECTIVE + QUESTION_TYPES_SUBJECTIVE
+
+
 # ── exam-ai 迁入模型 ──────────────────────────────────────────────
 
 class Exam(Base, IdMixin, TimestampMixin):
@@ -49,10 +60,13 @@ class Subject(Base, IdMixin, TimestampMixin):
 
 class Question(Base, IdMixin, TimestampMixin):
     __tablename__ = "questions"
+    __table_args__ = (
+        UniqueConstraint("subject_id", "name", name="uq_question_subject_name"),
+    )
 
     subject_id: Mapped[str] = mapped_column(String(36), ForeignKey("subjects.id"))
     name: Mapped[str] = mapped_column(String(200))
-    question_type: Mapped[str] = mapped_column(String(20))  # objective / subjective
+    question_type: Mapped[str] = mapped_column(String(20))  # choice / multi_choice / fill_blank / essay
     max_score: Mapped[float] = mapped_column(default=0.0)
     region_id: Mapped[str | None] = mapped_column(String(50), default=None)
     knowledge_points: Mapped[dict | None] = mapped_column(JSON, default=None)
@@ -70,6 +84,8 @@ class ExamResult(Base, IdMixin, TimestampMixin):
     school_id = Column(String, ForeignKey("schools.id"), nullable=False)
     total_score = Column(Float, nullable=False)
     detail_scores = Column(JSON, nullable=True)
+    rank_in_class = Column(Integer, nullable=True)
+    rank_in_grade = Column(Integer, nullable=True)
 
     __table_args__ = (
         UniqueConstraint("exam_id", "student_id", name="uq_result_exam_student"),

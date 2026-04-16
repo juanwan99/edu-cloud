@@ -42,11 +42,11 @@ async def test_list_bank_questions_school_filter(db):
     subj = Subject(exam_id=exam.id, name="语文", code="YW", school_id=s1.id)
     db.add(subj)
     await db.flush()
-    q = Question(subject_id=subj.id, name="题1", question_type="objective", max_score=5, school_id=s1.id)
+    q = Question(subject_id=subj.id, name="题1", question_type="choice", max_score=5, school_id=s1.id)
     db.add(q)
     await db.flush()
     bq = BankQuestion(
-        school_id=s1.id, question_type="objective", max_score=5,
+        school_id=s1.id, question_type="choice", max_score=5,
         source_exam_id=exam.id, source_question_id=q.id,
     )
     db.add(bq)
@@ -81,8 +81,8 @@ async def test_error_book_stats_with_data(db):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    q1 = Question(subject_id=subj.id, name="题1", question_type="subjective", max_score=10, school_id=school.id)
-    q2 = Question(subject_id=subj.id, name="题2", question_type="subjective", max_score=10, school_id=school.id)
+    q1 = Question(subject_id=subj.id, name="题1", question_type="essay", max_score=10, school_id=school.id)
+    q2 = Question(subject_id=subj.id, name="题2", question_type="essay", max_score=10, school_id=school.id)
     db.add_all([q1, q2])
     await db.flush()
     db.add(StudentErrorBook(

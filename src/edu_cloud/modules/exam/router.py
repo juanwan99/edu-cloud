@@ -5,6 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
@@ -40,7 +41,7 @@ class SubjectCreate(BaseModel):
 class QuestionCreate(BaseModel):
     subject_id: str
     name: str
-    question_type: Literal["objective", "subjective"]
+    question_type: Literal["choice", "multi_choice", "fill_blank", "essay"]
     max_score: float = 0.0
     region_id: str | None = None
     knowledge_points: dict | None = None
@@ -49,7 +50,7 @@ class QuestionCreate(BaseModel):
 
 class QuestionUpdate(BaseModel):
     name: str | None = None
-    question_type: Literal["objective", "subjective"] | None = None
+    question_type: Literal["choice", "multi_choice", "fill_blank", "essay"] | None = None
     max_score: float | None = None
     region_id: str | None = None
     knowledge_points: dict | None = None
@@ -82,7 +83,7 @@ def _question_response(q: Question) -> dict:
 async def create_exam(
     req: ExamCreate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     exam = await exam_service.create_exam(
         db, name=req.name, card_title=req.card_title, school_id=_school_id(current),
@@ -167,7 +168,11 @@ async def create_question(
         school_id=sid,
     )
     db.add(q)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(409, "题目名称已存在")
     await db.refresh(q)
     logger.info("create_question: id=%s, name=%s, subject=%s", q.id, q.name, req.subject_id)
     return _question_response(q)
@@ -216,7 +221,11 @@ async def update_question(
     updates = req.model_dump(exclude_unset=True)
     for field, value in updates.items():
         setattr(q, field, value)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(409, "题目名称已存在")
     await db.refresh(q)
     return _question_response(q)
 

@@ -72,6 +72,10 @@ class ToolRegistry:
     def get_all_specs(self) -> list[ToolSpec]:
         return list(self._tools.values())
 
+    def filter_by_names(self, names: list[str]) -> list["ToolSpec"]:
+        """Return ToolSpecs matching the given names, in the order of names."""
+        return [self._tools[n] for n in names if n in self._tools]
+
     def get_schemas(self, categories: list[str] | None = None) -> list[dict]:
         """Return tool schemas filtered by category.
 

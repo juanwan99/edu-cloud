@@ -38,7 +38,7 @@ class PatchCapabilityRequest(BaseModel):
 async def api_get_capabilities(
     school_id: str,
     role: str | None = None,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_CONFIG)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
@@ -56,7 +56,7 @@ async def api_get_capabilities(
 async def api_patch_capability(
     school_id: str,
     body: PatchCapabilityRequest,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_CONFIG)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
@@ -73,7 +73,7 @@ async def api_patch_capability(
 @router.post("/capabilities/init")
 async def api_init_capabilities(
     school_id: str,
-    current=Depends(require_permission(Permission.MANAGE_SCHOOL_SETTINGS)),
+    current=Depends(require_permission(Permission.MANAGE_SCHOOL_CONFIG)),
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)

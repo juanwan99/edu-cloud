@@ -27,6 +27,10 @@
         </n-card>
       </n-tab-pane>
 
+      <n-tab-pane name="segments" tab="分数段">
+        <ScoreSegmentSettings />
+      </n-tab-pane>
+
       <n-tab-pane name="settings" tab="学校设置">
         <n-card title="配置项" style="margin-top: 16px">
           <n-data-table :columns="settingsColumns" :data="settings" :loading="loadingSettings" />
@@ -38,6 +42,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import ScoreSegmentSettings from '../components/analytics/ScoreSegmentSettings.vue'
 import { useMessage } from 'naive-ui'
 import { useAuthStore } from '../stores/auth.js'
 import { getSchoolModules, toggleModule, getSchoolSettings } from '../api/schoolSettings.js'

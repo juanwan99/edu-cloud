@@ -28,7 +28,7 @@ async def upload_setup(client, db):
     db.add(subject)
     await db.commit()
     question = Question(
-        subject_id=subject.id, name="Q1", question_type="subjective",
+        subject_id=subject.id, name="Q1", question_type="essay",
         max_score=10, school_id=school.id,
     )
     db.add(question)

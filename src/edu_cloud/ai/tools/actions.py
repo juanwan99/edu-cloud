@@ -3,6 +3,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.ai.registry import tools
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
 from edu_cloud.services.studio_service import StudioService
 from edu_cloud.templates.document_templates import TEMPLATES
 
@@ -28,79 +29,74 @@ from edu_cloud.templates.document_templates import TEMPLATES
     domain="action",
     allowed_roles=["platform_admin", "academic_director", "subject_teacher", "homeroom_teacher"],
     risk_level="med",
+    is_read_only=False,
+    sensitivity="school",
 )
-async def generate_report(
-    template: str,
-    context: dict,
-    _db: AsyncSession = None,
-    _school_id: str = None,
-    _user_id: str = None,
-    _class_ids: list = None,
-) -> dict:
-    if template not in TEMPLATES:
-        return {"error": f"未知模板: {template}"}
-
-    tmpl = TEMPLATES[template]
-
-    missing = [k for k in tmpl.get("required_context", []) if k not in context]
-    if missing:
-        return {"error": f"缺少必需上下文: {', '.join(missing)}"}
-
-    svc = StudioService(_db)
-
-    # Gather data from L1 analytics tools
-    from edu_cloud.ai.tools.analytics import get_exam_scores, get_class_stats
-
-    data_summary: dict = {}
+async def generate_report(input: dict, ctx: ToolContext) -> ToolResult:
+    template = input.get("template", "")
+    context = input.get("context", {})
     try:
-        if "exam_id" in context:
-            scores = await get_exam_scores(
-                exam_id=context["exam_id"],
-                _db=_db,
-                _school_id=_school_id,
-                _class_ids=_class_ids,
-            )
-            data_summary["scores"] = scores
-        if "class_id" in context and "exam_id" in context:
-            stats = await get_class_stats(
-                exam_id=context["exam_id"],
-                class_id=context["class_id"],
-                _db=_db,
-                _school_id=_school_id,
-                _class_ids=_class_ids,
-            )
-            data_summary["stats"] = stats
-    except Exception:
-        pass
+        if template not in TEMPLATES:
+            return ToolResult(success=False, error=f"未知模板: {template}")
 
-    content = {}
-    for section in tmpl["sections"]:
-        section_content = _build_section_content(section["key"], data_summary)
-        content[section["key"]] = {
-            "title": section["title"],
-            "content": section_content,
-            "prompt": section["prompt"],
-        }
+        tmpl = TEMPLATES[template]
 
-    doc = await svc.create_document(
-        type="report" if "notification" not in template else "notification",
-        title=f"{tmpl['name']}",
-        content_json=content,
-        school_id=_school_id,
-        created_by=_user_id,
-        source_context=context,
-    )
-    await _db.commit()
+        missing = [k for k in tmpl.get("required_context", []) if k not in context]
+        if missing:
+            return ToolResult(success=False, error=f"缺少必需上下文: {', '.join(missing)}")
 
-    return {
-        "document_id": doc.id,
-        "title": doc.title,
-        "status": doc.status,
-        "type": doc.type,
-        "sections": list(content.keys()),
-        "requires_approval": tmpl.get("requires_approval", False),
-        "message": f"已创建{tmpl['name']}草稿，请在右栏 Studio 中查看和编辑。",
-    }
+        svc = StudioService(ctx.db)
+
+        # Gather data from analytics tools (call through registry for new-style dispatch)
+        from edu_cloud.ai.tools.analytics import get_exam_scores, get_class_stats
+
+        data_summary: dict = {}
+        try:
+            if "exam_id" in context:
+                scores_result = await get_exam_scores(
+                    {"exam_id": context["exam_id"]}, ctx,
+                )
+                if scores_result.success:
+                    data_summary["scores"] = scores_result.data
+            if "class_id" in context and "exam_id" in context:
+                stats_result = await get_class_stats(
+                    {"exam_id": context["exam_id"], "class_id": context["class_id"]}, ctx,
+                )
+                if stats_result.success:
+                    data_summary["stats"] = stats_result.data
+        except Exception:
+            pass
+
+        content = {}
+        for section in tmpl["sections"]:
+            section_content = _build_section_content(section["key"], data_summary)
+            content[section["key"]] = {
+                "title": section["title"],
+                "content": section_content,
+                "prompt": section["prompt"],
+            }
+
+        doc = await svc.create_document(
+            type="report" if "notification" not in template else "notification",
+            title=f"{tmpl['name']}",
+            content_json=content,
+            school_id=ctx.school_id,
+            created_by=ctx.user_id,
+            source_context=context,
+        )
+        await ctx.db.commit()
+
+        return ToolResult(success=True, data={
+            "document_id": doc.id,
+            "title": doc.title,
+            "status": doc.status,
+            "type": doc.type,
+            "sections": list(content.keys()),
+            "requires_approval": tmpl.get("requires_approval", False),
+            "message": f"已创建{tmpl['name']}草稿，请在右栏 Studio 中查看和编辑。",
+        })
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))
 
 
 def _build_section_content(section_key: str, data_summary: dict) -> str:
@@ -142,52 +138,52 @@ def _build_section_content(section_key: str, data_summary: dict) -> str:
     domain="action",
     allowed_roles=["platform_admin", "academic_director", "subject_teacher", "homeroom_teacher"],
     risk_level="med",
+    is_read_only=False,
+    sensitivity="school",
 )
-async def generate_comment(
-    student_number: str,
-    _db: AsyncSession = None,
-    _school_id: str = None,
-    _user_id: str = None,
-    _class_ids: list = None,
-) -> dict:
-    from edu_cloud.models.student import Student
-    from sqlalchemy import select
+async def generate_comment(input: dict, ctx: ToolContext) -> ToolResult:
+    student_number = input.get("student_number", "")
+    try:
+        from edu_cloud.models.student import Student
+        from sqlalchemy import select
 
-    q = select(Student).where(
-        Student.student_number == student_number,
-        Student.school_id == _school_id,
-    )
-    # Scope check: restrict to classes the user has access to.
-    # _class_ids=None means unrestricted (platform_admin), [] means no access.
-    if _class_ids is not None:
-        if not _class_ids:
-            return {"error": f"学生 {student_number} 不存在"}
-        q = q.where(Student.class_id.in_(_class_ids))
+        q = select(Student).where(
+            Student.student_number == student_number,
+            Student.school_id == ctx.school_id,
+        )
+        # Scope check: restrict to classes the user has access to.
+        # class_ids=None means unrestricted (platform_admin), [] means no access.
+        if ctx.class_ids is not None:
+            if not ctx.class_ids:
+                return ToolResult(success=False, error=f"学生 {student_number} 不存在")
+            q = q.where(Student.class_id.in_(ctx.class_ids))
 
-    student = (await _db.execute(q)).scalar_one_or_none()
-    if not student:
-        return {"error": f"学生 {student_number} 不存在"}
+        student = (await ctx.db.execute(q)).scalar_one_or_none()
+        if not student:
+            return ToolResult(success=False, error=f"学生 {student_number} 不存在")
 
-    svc = StudioService(_db)
-    doc = await svc.create_document(
-        type="comment",
-        title=f"{student.name} 评语",
-        content_json={
-            "student_name": student.name,
-            "student_number": student.student_number,
-            "academic": {"title": "学业表现", "content": ""},
-            "growth": {"title": "成长建议", "content": ""},
-        },
-        school_id=_school_id,
-        created_by=_user_id,
-        source_context={"student_id": student.id},
-    )
-    await _db.commit()
+        svc = StudioService(ctx.db)
+        doc = await svc.create_document(
+            type="comment",
+            title=f"{student.name} 评语",
+            content_json={
+                "student_name": student.name,
+                "student_number": student.student_number,
+                "academic": {"title": "学业表现", "content": ""},
+                "growth": {"title": "成长建议", "content": ""},
+            },
+            school_id=ctx.school_id,
+            created_by=ctx.user_id,
+            source_context={"student_id": student.id},
+        )
+        await ctx.db.commit()
 
-    return {
-        "document_id": doc.id,
-        "type": "comment",
-        "title": doc.title,
-        "status": "draft",
-        "message": f"已为{student.name}创建评语草稿。",
-    }
+        return ToolResult(success=True, data={
+            "document_id": doc.id,
+            "type": "comment",
+            "title": doc.title,
+            "status": "draft",
+            "message": f"已为{student.name}创建评语草稿。",
+        })
+    except Exception as e:
+        return ToolResult(success=False, error=str(e))

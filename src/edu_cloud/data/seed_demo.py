@@ -2,6 +2,7 @@
 
 生成内容：
 1. 2 次考试（期中+月考），各 3 科（语/数/英），考试 status=completed
+1b. 1 次草稿考试（期末），3 科，status=draft，用于答题卡制作测试
 2. 数学 10 道题 + 英语 10 道题（语文已有 22 道）
 3. 160 名学生的完整答题数据（分数按正态分布 + 班级差异）
 4. 知识点标注（数学题关联知识点树）
@@ -27,29 +28,29 @@ logger = logging.getLogger(__name__)
 
 # 数学题目定义：(题号, 题型, 满分, 正确答案(选择题), 知识点code)
 MATH_QUESTIONS = [
-    ("1", "objective", 5, "B", "MATH_FUNC_CONCEPT_DOMAIN"),
-    ("2", "objective", 5, "A", "MATH_FUNC_CONCEPT_MONO"),
-    ("3", "objective", 5, "C", "MATH_TRIG_DEF"),
-    ("4", "objective", 5, "D", "MATH_SEQ_ARITH"),
-    ("5", "objective", 5, "A", "MATH_GEOM_ANALYTIC_LINE"),
-    ("6", "subjective", 12, None, "MATH_FUNC_DERIV_APP"),
-    ("7", "subjective", 12, None, "MATH_TRIG_SINE_RULE"),
-    ("8", "subjective", 14, None, "MATH_GEOM_ANALYTIC_ELLIPSE"),
-    ("9", "subjective", 14, None, "MATH_PROB_DIST"),
-    ("10", "subjective", 18, None, "MATH_FUNC_DERIV_APP"),
+    ("1", "choice", 5, "B", "MATH_FUNC_CONCEPT_DOMAIN"),
+    ("2", "choice", 5, "A", "MATH_FUNC_CONCEPT_MONO"),
+    ("3", "choice", 5, "C", "MATH_TRIG_DEF"),
+    ("4", "choice", 5, "D", "MATH_SEQ_ARITH"),
+    ("5", "choice", 5, "A", "MATH_GEOM_ANALYTIC_LINE"),
+    ("6", "essay", 12, None, "MATH_FUNC_DERIV_APP"),
+    ("7", "essay", 12, None, "MATH_TRIG_SINE_RULE"),
+    ("8", "essay", 14, None, "MATH_GEOM_ANALYTIC_ELLIPSE"),
+    ("9", "essay", 14, None, "MATH_PROB_DIST"),
+    ("10", "essay", 18, None, "MATH_FUNC_DERIV_APP"),
 ]
 
 ENGLISH_QUESTIONS = [
-    ("1", "objective", 3, "B", None),
-    ("2", "objective", 3, "A", None),
-    ("3", "objective", 3, "C", None),
-    ("4", "objective", 3, "D", None),
-    ("5", "objective", 3, "B", None),
-    ("6", "objective", 3, "A", None),
-    ("7", "objective", 3, "C", None),
-    ("8", "subjective", 15, None, None),
-    ("9", "subjective", 20, None, None),
-    ("10", "subjective", 25, None, None),
+    ("1", "choice", 3, "B", None),
+    ("2", "choice", 3, "A", None),
+    ("3", "choice", 3, "C", None),
+    ("4", "choice", 3, "D", None),
+    ("5", "choice", 3, "B", None),
+    ("6", "choice", 3, "A", None),
+    ("7", "choice", 3, "C", None),
+    ("8", "essay", 15, None, None),
+    ("9", "essay", 20, None, None),
+    ("10", "essay", 25, None, None),
 ]
 
 # 班级成绩特征（均值偏移，模拟不同班级水平差异）
@@ -63,7 +64,7 @@ CLASS_PROFILES = {
 
 def _generate_score(max_score: float, question_type: str, base_rate: float) -> float:
     """生成一个学生某题的得分。"""
-    if question_type == "objective":
+    if question_type == "choice":
         # 选择题：全对或全错
         return max_score if random.random() < base_rate else 0.0
     else:
@@ -82,19 +83,93 @@ def _student_base_rate(student_idx: int, class_idx: int) -> float:
     return max(0.15, min(0.95, individual))
 
 
+async def _seed_draft_exam(db: AsyncSession, school) -> bool:
+    """创建一个 draft 状态考试，用于答题卡制作测试。幂等。"""
+    draft_exam_name = "2026年春季期末考试"
+    existing = await db.execute(
+        select(Exam).where(Exam.name == draft_exam_name, Exam.school_id == school.id)
+    )
+    if existing.scalar_one_or_none():
+        return False
+
+    draft_exam = Exam(
+        name=draft_exam_name, card_title=draft_exam_name,
+        school_id=school.id, status="draft",
+        exam_type="期末", semester="2025-2026-2",
+        grade_scope="高二",
+    )
+    db.add(draft_exam)
+    await db.flush()
+
+    draft_subjects = [
+        ("YW", "语文", [
+            ("1", "choice", 3, "A"), ("2", "choice", 3, "B"),
+            ("3", "choice", 3, "C"), ("4", "choice", 3, "D"),
+            ("5", "choice", 3, "A"), ("6", "choice", 3, "B"),
+            ("7", "choice", 3, "C"), ("8", "choice", 3, "D"),
+            ("9", "essay", 6, None), ("10", "essay", 6, None),
+            ("11", "essay", 6, None),
+            ("12", "essay", 15, None), ("13", "essay", 15, None),
+            ("14", "essay", 15, None),
+            ("15", "essay", 10, None), ("16", "essay", 10, None),
+            ("17", "essay", 10, None), ("18", "essay", 60, None),
+        ]),
+        ("SX", "数学", [
+            ("1", "choice", 5, "B"), ("2", "choice", 5, "A"),
+            ("3", "choice", 5, "C"), ("4", "choice", 5, "D"),
+            ("5", "choice", 5, "A"), ("6", "choice", 5, "B"),
+            ("7", "choice", 5, "C"), ("8", "choice", 5, "D"),
+            ("9", "essay", 12, None), ("10", "essay", 12, None),
+            ("11", "essay", 12, None), ("12", "essay", 14, None),
+            ("13", "essay", 14, None), ("14", "essay", 18, None),
+        ]),
+        ("YY", "英语", [
+            ("1", "choice", 3, "B"), ("2", "choice", 3, "A"),
+            ("3", "choice", 3, "C"), ("4", "choice", 3, "D"),
+            ("5", "choice", 3, "B"), ("6", "choice", 3, "A"),
+            ("7", "choice", 3, "C"),
+            ("8", "essay", 15, None), ("9", "essay", 20, None),
+            ("10", "essay", 25, None),
+        ]),
+    ]
+
+    for subj_code, subj_name, questions_def in draft_subjects:
+        subj = Subject(
+            exam_id=draft_exam.id, name=subj_name, code=subj_code,
+            school_id=school.id,
+        )
+        db.add(subj)
+        await db.flush()
+        for qname, qtype, max_score, correct in questions_def:
+            db.add(Question(
+                subject_id=subj.id, school_id=school.id,
+                name=qname, question_type=qtype,
+                max_score=max_score, correct_answer=correct,
+            ))
+        await db.flush()
+
+    await db.commit()
+    logger.info("seed: draft exam '%s' created for card editor testing", draft_exam_name)
+    return True
+
+
 async def seed_demo_data(db: AsyncSession, school_code: str = "TEST01") -> dict:
     """生成完整演示数据。返回统计信息。"""
-    # 检查是否已有第二次考试（幂等标记）
-    result = await db.execute(select(Exam).where(Exam.name == "2026年春季月考"))
-    if result.scalar_one_or_none():
-        return {"status": "already_seeded", "message": "演示数据已存在"}
-
-    # 获取现有学校和学生
+    # 获取学校（draft 考试和完整 seed 都需要）
     school_result = await db.execute(select(School).where(School.code == school_code))
     school = school_result.scalar_one_or_none()
     if not school:
         return {"status": "error", "message": f"学校 {school_code} 不存在"}
 
+    # === 草稿考试（独立于完整 seed 的幂等检查）===
+    await _seed_draft_exam(db, school)
+
+    # 检查是否已有第二次考试（幂等标记）
+    result = await db.execute(select(Exam).where(Exam.name == "2026年春季月考"))
+    if result.scalar_one_or_none():
+        return {"status": "already_seeded", "message": "演示数据已存在"}
+
+    # 获取学生
     students_result = await db.execute(
         select(Student).where(Student.school_id == school.id).order_by(Student.student_number)
     )
@@ -187,12 +262,12 @@ async def seed_demo_data(db: AsyncSession, school_code: str = "TEST01") -> dict:
             elif subj_code == "YW":
                 # 语文：创建简化题目（不复用 app.py 的，避免跨考试 Subject）
                 yw_simple = [
-                    ("1", "objective", 3, "A"), ("2", "objective", 3, "B"),
-                    ("3", "objective", 3, "C"), ("4", "objective", 3, "D"),
-                    ("5", "objective", 3, "A"),
-                    ("6", "subjective", 8, None), ("7", "subjective", 10, None),
-                    ("8", "subjective", 15, None), ("9", "subjective", 20, None),
-                    ("10", "subjective", 60, None),
+                    ("1", "choice", 3, "A"), ("2", "choice", 3, "B"),
+                    ("3", "choice", 3, "C"), ("4", "choice", 3, "D"),
+                    ("5", "choice", 3, "A"),
+                    ("6", "essay", 8, None), ("7", "essay", 10, None),
+                    ("8", "essay", 15, None), ("9", "essay", 20, None),
+                    ("10", "essay", 60, None),
                 ]
                 for qname, qtype, max_score, correct in yw_simple:
                     q = Question(
@@ -221,7 +296,7 @@ async def seed_demo_data(db: AsyncSession, school_code: str = "TEST01") -> dict:
                     for q in questions:
                         score = _generate_score(q.max_score, q.question_type, subject_rate)
                         detected = None
-                        if q.question_type == "objective" and q.correct_answer:
+                        if q.question_type == "choice" and q.correct_answer:
                             if score > 0:
                                 detected = q.correct_answer
                             else:

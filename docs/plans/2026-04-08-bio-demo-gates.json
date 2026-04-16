@@ -1,0 +1,25 @@
+{
+  "topic": "bio-demo",
+  "gates": {
+    "plan_review": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "be97a2f656f2678615f899910765d090139617114aec5fddb5228ccab2331652",
+      "report_path": "docs/plans/.codex-plan-review-bio-demo-r6-raw.log",
+      "updated": "2026-04-09T07:22:14.563350+08:00",
+      "subject_ref": "docs/plans/2026-04-08-bio-demo-plan.md",
+      "raw_output_hash": "3bba361eb32d347b591e28754bfa6d609ff9fad7f9a0e7a758a6559b6538c9a6"
+    },
+    "code_review_batch1": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "e5c6e4e1c0376b837b05746436be06c1895445b88fce5068d62fbb8eb2803e87",
+      "report_path": "docs/plans/.codex-code-review-bio-demo-batch1-r3-raw.log",
+      "updated": "2026-04-09T08:53:17.399962+08:00",
+      "subject_ref": "commit:c000abd..d0b8a9d",
+      "raw_output_hash": "6b523a84afacd2b02e85e5171ad9a5c3ece9969e0007d620cefbce25532951d4"
+    }
+  }
+}

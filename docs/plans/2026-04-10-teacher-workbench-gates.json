@@ -1,0 +1,36 @@
+{
+  "topic": "teacher-workbench",
+  "tier": "T3",
+  "created": "2026-04-10T18:37:49.144605+08:00",
+  "gates": {
+    "plan_review": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_ref": "docs/plans/2026-04-10-teacher-workbench-plan.md",
+      "subject_hash": "ec2961a0e970b3bc4444b7898131ccbc9a9d8c0643c79c5ae0313d7165f46038",
+      "report_path": "docs/plans/.codex-p2-plan-review-r3-raw.log",
+      "updated": "2026-04-10T18:58:26.208509+08:00"
+    },
+    "code_review_batch1": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "e5ed2bf818af1480bebf1116936fcebe9e1f7f884122f4a48a9d8c4ae6a0709b",
+      "report_path": "docs/plans/2026-04-10-teacher-workbench-review-report-batch1-r2.md",
+      "updated": "2026-04-10T19:39:55.405800+08:00",
+      "subject_ref": "commit:7a5ecfb..8da5228",
+      "raw_output_hash": "f0823b1644694a5e54fcdf19e439033c7e8c0386bb584ca848bde56de535224f"
+    },
+    "code_review_batch2": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "60a0b6f99e735c6db5e44a31455186fb2466d0ca89028e5bd146d48e22bf5040",
+      "report_path": "docs/plans/2026-04-10-teacher-workbench-review-report-batch2.md",
+      "updated": "2026-04-10T20:52:55.372021+08:00",
+      "subject_ref": "commit:0cc0819..549e298",
+      "raw_output_hash": "a177f5f1769de9724b9a304e6b5da8b8dac3e9d5f0c593a35475ce5efd3b0204"
+    }
+  }
+}

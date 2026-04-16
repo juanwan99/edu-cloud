@@ -129,6 +129,28 @@ async def test_get_context_tree_unauthorized(client):
 
 
 @pytest.mark.asyncio
+async def test_get_context_tree_returns_status_field(
+    client, teacher_headers, seed_exam_data
+):
+    """F010 回归：workspace/context 返回的每个 exam 必须含 `status` 字段。
+
+    前端 ContextPanel 之前绑 `e.subject_code`（legacy NULL），修复后应绑
+    `e.status`。后端 workspace_service 必须暴露 status 字段。
+
+    反例：错误实现只返回 {id, name, subject_code, semester}，
+    前端模板字符串得到 "(null)"。
+    """
+    resp = await client.get("/api/v1/workspace/context", headers=teacher_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["exams"]) >= 1
+    exam = data["exams"][0]
+    assert "status" in exam, f"exam 响应必须含 status 字段，实际: {list(exam.keys())}"
+    # seed_exam_data 没设 status → default 'draft'
+    assert exam["status"] == "draft", f"default status 应为 'draft'，实际: {exam['status']}"
+
+
+@pytest.mark.asyncio
 async def test_get_context_tree_with_data(client, teacher_headers, seed_exam_data):
     """GET /workspace/context returns only in-scope class, excludes out-of-scope.
 

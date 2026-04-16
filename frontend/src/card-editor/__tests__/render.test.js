@@ -94,3 +94,32 @@ describe('renderFromLayout', () => {
   })
 })
 
+describe('F001: .page DOM 必须有 data-side 属性', () => {
+  let container
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    window._choices = []
+  })
+
+  it('A3 双面布局: pageA data-side="A", pageB data-side="B"', () => {
+    const layout = makeA3Layout()
+    renderFromLayout(container, layout, layout.config)
+    const pageA = container.querySelector('#pageA')
+    const pageB = container.querySelector('#pageB')
+    expect(pageA).not.toBeNull()
+    expect(pageB).not.toBeNull()
+    expect(pageA.getAttribute('data-side')).toBe('A')
+    expect(pageB.getAttribute('data-side')).toBe('B')
+  })
+
+  it('A4 双面布局: pageA data-side="A", pageB data-side="B"', () => {
+    const layout = makeA4Layout()
+    renderFromLayout(container, layout, layout.config)
+    const pageA = container.querySelector('#pageA')
+    const pageB = container.querySelector('#pageB')
+    expect(pageA.getAttribute('data-side')).toBe('A')
+    expect(pageB?.getAttribute('data-side')).toBe('B')
+  })
+})
+

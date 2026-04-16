@@ -26,7 +26,7 @@ async def rubric_setup(client, db):
     db.add(subject)
     await db.commit()
     q = Question(
-        subject_id=subject.id, name="解释词语", question_type="subjective",
+        subject_id=subject.id, name="解释词语", question_type="essay",
         max_score=10.0, school_id=school.id,
     )
     db.add(q)
@@ -37,7 +37,7 @@ async def rubric_setup(client, db):
     db.add(other_school)
     await db.commit()
     other_q = Question(
-        subject_id=subject.id, name="其他题", question_type="subjective",
+        subject_id=subject.id, name="其他题", question_type="essay",
         max_score=5.0, school_id=other_school.id,
     )
     db.add(other_q)

@@ -163,7 +163,7 @@ class TestWordTemplateDownload:
             q = Question(
                 subject_id=subject_id,
                 name=f"第{i}题",
-                question_type="objective" if i <= 2 else "subjective",
+                question_type="choice" if i <= 2 else "essay",
                 max_score=5.0,
                 school_id="s1",
             )

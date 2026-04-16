@@ -1,0 +1,128 @@
+{
+  "topic": "2026-04-12-conduct-module",
+  "plan_file": "docs/plans/2026-04-12-conduct-module-plan.md",
+  "design_file": "docs/plans/2026-04-12-conduct-module-design.md",
+  "tasks": [
+    {
+      "id": "1",
+      "desc": "ORM 模型 + Alembic 迁移",
+      "status": "completed"
+    },
+    {
+      "id": "2",
+      "desc": "Permission 扩展 + 模块开关",
+      "status": "completed"
+    },
+    {
+      "id": "3",
+      "desc": "AES-256-GCM 加密模块",
+      "status": "completed"
+    },
+    {
+      "id": "4",
+      "desc": "家长注册/登录/邀请码 API",
+      "status": "completed"
+    },
+    {
+      "id": "5",
+      "desc": "家长端查询 API（积分明细 + 排行榜 + 班规）",
+      "status": "completed"
+    },
+    {
+      "id": "6",
+      "desc": "管理端配置 API（邀请码 + 学生验证码设置）",
+      "status": "completed"
+    },
+    {
+      "id": "7",
+      "desc": "前端路由 + 权限配置 + API 模块",
+      "status": "completed"
+    },
+    {
+      "id": "8",
+      "desc": "ParentLayout + 家长登录/注册/绑定页面",
+      "status": "completed"
+    },
+    {
+      "id": "9",
+      "desc": "家长端内容页面",
+      "status": "completed"
+    },
+    {
+      "id": "10",
+      "desc": "积分 CRUD API",
+      "status": "completed"
+    },
+    {
+      "id": "11",
+      "desc": "班规 CRUD API",
+      "status": "completed"
+    },
+    {
+      "id": "12",
+      "desc": "小组管理 + 学期管理 API",
+      "status": "completed"
+    },
+    {
+      "id": "13",
+      "desc": "管理端核心页面（Points + Rules + Rankings）",
+      "status": "completed"
+    },
+    {
+      "id": "14",
+      "desc": "管理端辅助页面（Dashboard + Groups + Settings + Parents + Export）",
+      "status": "completed"
+    },
+    {
+      "id": "15",
+      "desc": "侧栏导航集成",
+      "status": "completed"
+    },
+    {
+      "id": "16",
+      "desc": "Excel/PDF 导出 API",
+      "status": "completed"
+    },
+    {
+      "id": "17",
+      "desc": "Agent 工具",
+      "status": "completed"
+    },
+    {
+      "id": "18",
+      "desc": "全量集成测试 + 回归验证",
+      "status": "completed"
+    },
+    {
+      "id": "19",
+      "desc": "F002 Round 3 — 关闭剩余 2 条越权面",
+      "status": "completed"
+    },
+    {
+      "id": "20",
+      "desc": "N001 — 恢复 id_card 后 6 位契约（REJECT R2 行为变更）",
+      "status": "completed"
+    },
+    {
+      "id": "21",
+      "desc": "F004 Round 3 — ParentRules 字段映射契约测试",
+      "status": "completed"
+    },
+    {
+      "id": "22",
+      "desc": "F006 Round 3 — 导出断言升级",
+      "status": "completed"
+    },
+    {
+      "id": "23",
+      "desc": "Round 3 收尾验证",
+      "status": "completed"
+    }
+  ],
+  "updated_at": "2026-04-13 20:23:43",
+  "gate2_round3": {
+    "commits": "e584e6a..93f0b60",
+    "gpt_review": "PASS (R3-R2)",
+    "finished_at": "2026-04-13 20:23:43"
+  }
+}

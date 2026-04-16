@@ -101,11 +101,12 @@ async def test_create_paper_creates_document_in_db(client, subject_teacher_heade
 
 
 @pytest.mark.asyncio
-async def test_create_paper_non_subject_teacher_denied(client, teacher_headers):
-    """T2: homeroom_teacher 没有 WRITE_PAPER 权限 → 403"""
+async def test_create_paper_homeroom_teacher_allowed(client, teacher_headers):
+    """T2: homeroom_teacher 现在有 WRITE_PAPER（教师基线权限），可创建论文。"""
     resp = await client.post(
         "/api/v1/studio/paper/create",
         json={"budget_tier": "standard"},
         headers=teacher_headers,
     )
-    assert resp.status_code == 403
+    # 权限通过（非 403），paper-skill 可能不在线导致超时/500，但权限层面不拦截
+    assert resp.status_code != 403

@@ -15,12 +15,12 @@ async def test_create_bank_question(db):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="objective", max_score=5, correct_answer="A")
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="choice", max_score=5, correct_answer="A")
     db.add(q)
     await db.flush()
 
     bq = BankQuestion(
-        school_id=school.id, question_type="objective", max_score=5,
+        school_id=school.id, question_type="choice", max_score=5,
         correct_answer="A", source_exam_id=exam.id, source_question_id=q.id,
         difficulty=0.75, sample_count=100,
     )
@@ -41,7 +41,7 @@ async def test_create_student_error_book(db):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(subject_id=subj.id, school_id=school.id, name="3", question_type="subjective", max_score=10)
+    q = Question(subject_id=subj.id, school_id=school.id, name="3", question_type="essay", max_score=10)
     db.add(q)
     await db.flush()
 
@@ -68,7 +68,7 @@ async def test_error_book_unique_per_student_question(db):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     db.add(q)
     await db.flush()
 

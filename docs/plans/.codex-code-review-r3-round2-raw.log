@@ -1,0 +1,1809 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d86c1-5303-7673-8bb5-17720542cd3c
+--------
+user
+You are a code reviewer performing FOLLOW-UP Round 3 Re-review (同一 Round 3，F007 增补修复后).
+
+第一轮 Round 3 审查（commit e584e6a）结论 FAIL，唯一阻塞 finding 是：
+**F007 MED test-gap**: test_export_rankings_excel 只覆盖单学生零积分，无法抓住 SUM/ORDER BY 错误。
+详见 C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md §F007。
+
+本次提交 commit 93f0b60 针对 F007 做了补丁（只修该一条测试）：
+- 构造 2 学生 + 4 记录（学生 B 总分 10，学生 A 总分 -3）
+- 断言排名顺序 (1=B, 2=A) + 聚合总分 + 显式 ORDER BY desc
+
+你的任务：**专门验证 F007 是否 resolved-correct**。其他 finding 已 R3 首轮确认（F002/F004/F006 records/N001），本轮不重复审查。
+
+验证命令（请自己执行）：
+1. `git log --oneline e584e6a~1..93f0b60`
+2. `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
+3. 阅读修改后的 test_export_rankings_excel 全文 (tests/test_conduct/test_admin_api.py 约 L211-L280)
+4. 阅读 src/edu_cloud/modules/conduct/export_service.py 的 export_rankings_excel（SUM + ORDER BY desc）
+5. 静态判断：
+   a. 删除 service 的 SUM 聚合 → 总分不是 10/-3 → 测试失败？
+   b. 改 ORDER BY 为 ASC → 第 1 行变成学生 A 而非 B → 测试失败？
+   c. 清空 select 返回 → rows 长度 ≠ 3 → 测试失败？
+   d. 测试是否是逻辑镜像（测试=实现同构的对称复述）？
+
+结论必须是 PASS 或 FAIL。
+
+- 若 F007 resolved-correct 且无新 HIGH/MED code-bug/test-gap finding → **PASS**
+- 若 F007 仍未闭环 或 发现其他 R3 未暴露的 HIGH/MED 阻塞 → FAIL
+
+输出到: C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md（覆盖原 R3 报告，这是 R3 的最终状态）
+
+写中文。保留原 R3 报告结构，但顶部 "结论:" 根据本次再审结论更新，并补充 "### 第二轮 Round 3 重审 (commit 93f0b60)" 段说明 F007 处置。
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+本轮只复核 F007 是否被正确闭环，并把结论写回现有 R3 报告。我先读取代码审查技能说明，再检查指定提交、测试改动和对应实现。
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md","head":220})
+filesystem.read_text_file({"path":"C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md","head":220}) success in 21ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "---\r\nname: code-review:review-pr\r\ndescription: Comprehensive pull request review using specialized agents\r\nargument-hint: \"[review-aspects]\"\r\n---\r\n\r\n# Pull Request Review Instructions\r\n\r\nYou are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.\r\n\r\n**Review Aspects (optional):** \"$ARGUMENTS\"\r\n**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.\r\n\r\n**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!\r\n\r\n## Review Workflow\r\n\r\nRun a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:\r\n\r\n### Phase 1: Preparation\r\n\r\nRun following commands in order:\r\n\r\n1. **Determine Review Scope**\r\n   - Check following command to understand changes, use only commands that return amount of lines changed, not file content:\r\n     - git status\r\n     - git diff --stat\r\n     - git diff origin/master --stat or git diff origin/master...HEAD --stat for PR diffs\r\n       - change to origin/main if main is used as default branch\r\n   - Parse arguments to see if user requested specific review aspects\r\n2. Launch up to 6 parallel Haiku agents to perform following tasks:\r\n   - One agent to check if the pull request (a) is closed, (b) is a draft. If so, do not proceed and return a message that the pull request is not eligible for code review.\r\n   - One agent to search and give you a list of file paths to (but not the contents of) any relevant agent instruction files, if they exist: CLAUDE.md, AGENTS.md, **/consitution.md, the root README.md file, as well as any README.md files in the directories whose files the pull request modified\r\n   - Split files based on amount of lines changes between other 1-4 agents and ask them following:\r\n\r\n      ```markdown\r\n      GOAL: Analyse PR changes in following files and provide summary\r\n      \r\n      Perform following steps:\r\n         - Run [pass proper git command that he can use] to see changes in files\r\n         - Analyse following files: [list of files]\r\n\r\n      Please return a detailed summary of the changes in the each file, including types of changes, their complexity, affected classes/functions/variables/etc., and overall description of the changes.\r\n      ```\r\n\r\n3. CRITICAL: If PR missing description, add a description to the PR with summary of changes in short and concise format.\r\n\r\n### Phase 2: Searching for Issues\r\n\r\nDetermine Applicable Reviews, then launch up to 6 parallel (Sonnet or Opus) agents to independently code review all changes in the pull request. The agents should do the following, then return a list of issues and the reason each issue was flagged (eg. CLAUDE.md or consitution.md adherence, bug, historical git context, etc.).\r\n\r\n**Available Review Agents**:\r\n\r\n- **security-auditor** - Analyze code for security vulnerabilities\r\n- **bug-hunter** - Scan for bugs and issues, including silent failures\r\n- **code-quality-reviewer** - General code review for project guidelines, maintainability and quality. Simplifying code for clarity and maintainability\r\n- **contracts-reviewer** - Analyze code contracts, including: type design and invariants (if new types added), API changes, data modeling, etc.\r\n- **test-coverage-reviewer** - Review test coverage quality and completeness\r\n- **historical-context-reviewer** - Review historical context of the code, including git blame and history of the code modified, and previous pull requests that touched these files.\r\n\r\nNote: Default option is to run **all** applicable review agents.\r\n\r\n#### Determine Applicable Reviews\r\n\r\nBased on changes summary from phase 1 and their complexity, determine which review agents are applicable:\r\n\r\n- **If code or configuration changes, except purely cosmetic changes**: bug-hunter, security-auditor\r\n- **if code changes, including business or infrastructure logic, formating, etc.**: code-quality-reviewer (general quality)\r\n- **If test files changed**: test-coverage-reviewer\r\n- **If types, API, data modeling changed**: contracts-reviewer\r\n- **If complexity of changes is high or historical context is needed**: historical-context-reviewer\r\n\r\n#### Launch Review Agents\r\n\r\n**Parallel approach**:\r\n\r\n- Launch all agents simultaneously\r\n- Provide to them full list of modified files and summary of the PR as a context, explicitly highlight which PR they are reviewing, also provide list of files with project guidelines and standards, including README.md, CLAUDE.md and consitution.md if they exist.\r\n- Results should come back together\r\n\r\n### Phase 3: Confidence & Impact Scoring\r\n\r\n1. For each issue found in Phase 2, launch a parallel Haiku agent that takes the PR, issue description, and list of CLAUDE.md files (from step 2), and returns TWO scores:\r\n\r\n   **Confidence Score (0-100)** - Level of confidence that the issue is real and not a false positive:\r\n\r\n   a. 0: Not confident at all. This is a false positive that doesn't stand up to light scrutiny, or is a pre-existing issue.\r\n   b. 25: Somewhat confident. This might be a real issue, but may also be a false positive. The agent wasn't able to verify that it's a real issue. If the issue is stylistic, it is one that was not explicitly called out in the relevant CLAUDE.md.\r\n   c. 50: Moderately confident. The agent was able to verify this is a real issue, but it might be a nitpick or not happen very often in practice. Relative to the rest of the PR, it's not very important.\r\n   d. 75: Highly confident. The agent double checked the issue, and verified that it is very likely it is a real issue that will be hit in practice. The existing approach in the PR is insufficient. The issue is very important and will directly impact the code's functionality, or it is an issue that is directly mentioned in the relevant CLAUDE.md.\r\n   e. 100: Absolutely certain. The agent double checked the issue, and confirmed that it is definitely a real issue, that will happen frequently in practice. The evidence directly confirms this.\r\n\r\n   **Impact Score (0-100)** - Severity and consequence of the issue if left unfixed:\r\n\r\n   a. 0-20 (Low): Minor code smell or style inconsistency. Does not affect functionality or maintainability significantly.\r\n   b. 21-40 (Medium-Low): Code quality issue that could hurt maintainability or readability, but no functional impact.\r\n   c. 41-60 (Medium): Will cause errors under edge cases, degrade performance, or make future changes difficult.\r\n   d. 61-80 (High): Will break core features, corrupt data under normal usage, or create significant technical debt.\r\n   e. 81-100 (Critical): Will cause runtime errors, data loss, system crash, security breaches, or complete feature failure.\r\n\r\n   For issues flagged due to CLAUDE.md instructions, the agent should double check that the CLAUDE.md actually calls out that issue specifically.\r\n\r\n2. **Filter issues using the progressive threshold table below** - Higher impact issues require less confidence to pass:\r\n\r\n   | Impact Score | Minimum Confidence Required | Rationale |\r\n   |--------------|----------------------------|-----------|\r\n   | 81-100 (Critical) | 50 | Critical issues warrant investigation even with moderate confidence |\r\n   | 61-80 (High) | 65 | High impact issues need good confidence to avoid false alarms |\r\n   | 41-60 (Medium) | 75 | Medium issues need high confidence to justify addressing |\r\n   | 21-40 (Medium-Low) | 85 | Low-medium impact issues need very high confidence |\r\n   | 0-20 (Low) | 95 | Minor issues only included if nearly certain |\r\n\r\n   **Filter out any issues that don't meet the minimum confidence threshold for their impact level.** If there are no issues that meet this criteria, do not proceed.\r\n\r\n   **IMPORTANT: Do NOT post inline comments for:**\r\n   - **Low impact issues (0-20)** - These are minor code smells or style inconsistencies. Even with high confidence, they add noise without meaningful value.\r\n   - **Low confidence issues** - Any issue below the minimum confidence threshold for its impact level should be excluded entirely.\r\n\r\n   Focus inline comments on Medium impact (41+) and higher issues that meet confidence thresholds.\r\n\r\n3. Use a Haiku agent to repeat the eligibility check from Phase 1, to make sure that the pull request is still eligible for code review. (In case if there was updates since review started)\r\n4. **Post Inline Comments Only** (skip if no issues found):\r\n\r\n   a. **Preferred approach - Use MCP GitHub tools if available**:\r\n      - Use `mcp__github_inline_comment__create_inline_comment` for line-specific feedback for each individual issue.\r\n\r\n   b. Fallback approach - Use direct API calls:\r\n      - First, check if the `git:attach-review-to-pr` command is available by reading it.\r\n      - If the command is available and issues were found:\r\n         - **Multiple Issues**: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` to create a review with line-specific comments.\r\n         - **Single Issue**: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` to add just one line-specific comment.\r\n\r\n   When writing comments, keep in mind to:\r\n   - Keep your output brief\r\n   - Use emojis\r\n   - Link and cite relevant code, files, and URLs\r\n\r\n#### Examples of false positives, for Phase 3\r\n\r\n- Pre-existing issues\r\n- Something that looks like a bug but is not actually a bug\r\n- Pedantic nitpicks that a senior engineer wouldn't call out\r\n- Issues that a linter, typechecker, or compiler would catch (eg. missing or incorrect imports, type errors, broken tests, formatting issues, pedantic style issues like newlines). No need to run these build steps yourself -- it is safe to assume that they will be run separately as part of CI.\r\n- General code quality issues (eg. lack of test coverage, general security issues, poor documentation), unless explicitly required in CLAUDE.md\r\n- Issues that are called out in CLAUDE.md, but explicitly silenced in the code (eg. due to a lint ignore comment)\r\n- Changes in functionality that are likely intentional or are directly related to the broader change\r\n- Real issues, but on lines that the user did not modify in their pull request\r\n\r\nNotes:\r\n\r\n- Use build, lint and tests commands if you have access to them. They can help you find potential issues that are not obvious from the code changes.\r\n- Use `gh` to interact with Github (eg. to fetch a pull request, or to create inline comments), rather than web fetch\r\n- Make a todo list first\r\n- You must cite and link each bug (eg. if referring to a CLAUDE.md, you must link it)\r\n- When using line-specific comments (via `git:attach-review-to-pr`):\r\n  - Each issue should map to a specific file and line number\r\n  - For multiple issues: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` with JSON input containing the review body (Quality Gate summary) and comments array (line-specific issues)\r\n  - For single issue: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` to post just one line-specific comment\r\n\r\n### Template for line-specific review comments\r\n\r\nWhen using the `git:attach-review-to-pr` command to add line-specific comments, use this template for each issue:\r\n\r\n```markdown\r\n🔴/🟠/🟡/🟢 [Critical/High/Medium/Low]: [Brief description]\r\n\r\n[Evidence: Explain what code pattern/behavior was observed that indicates this issue and the consequence if left unfixed]\r\n\r\n[If applicable, provide code suggestion]:\r\n```suggestion\r\n[code here]\r\n```\r\n\r\n```\r\n\r\n#### Example for Bug Issue\r\n\r\n```markdown\r\n🟠 High: Potential null pointer dereference\r\n\r\nVariable `user` is accessed without null check after fetching from database. This will cause runtime error if user is not found, breaking the user profile feature.\r\n\r\n```suggestion\r\nif (!user) {\r\n  throw new Error('User not found');\r\n}\r\n```\r\n\r\n```\r\n\r\n#### Example for Security Issue\r\n\r\n```markdown\r\n🔴 Critical: SQL Injection vulnerability\r\n\r\nUser input is directly concatenated into SQL query without sanitization. Attackers can execute arbitrary SQL commands, leading to data breach or deletion.\r\n\r\nUse parameterized queries instead:\r\n```suggestion\r\ndb.query('SELECT * FROM users WHERE id = ?', [userId])\r\n```\r\n\r\n```\r\n\r\n### Template for inline comments using GitHub API\r\n\r\n#### Multiple Issues (using `/reviews` endpoint)\r\n\r\nWhen using `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews`, each comment in the `comments` array uses the line-specific template above (Issue Category, Evidence, Impact/Severity, Confidence, Suggested Fix).\r\n\r\n#### Single Issue (using `/comments` endpoint)\r\n\r\nWhen using `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments`, post just one line-specific comment using the template above.\r\n\r\n**Note for linking to code:**\r\n\r\n- Use full git sha + line range, eg. `https://github.com/owner/repo/blob/1d54823877c4de72b2316a64032a54afc404e619/README.md#L13-L17`\r\n- Line range format is `L[start]-L[end]`\r\n- Provide at least 1 line of context before and after\r\n\r"
+    }
+  ],
+  "structuredContent": {
+    "content": "---\r\nname: code-review:review-pr\r\ndescription: Comprehensive pull request review using specialized agents\r\nargument-hint: \"[review-aspects]\"\r\n---\r\n\r\n# Pull Request Review Instructions\r\n\r\nYou are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.\r\n\r\n**Review Aspects (optional):** \"$ARGUMENTS\"\r\n**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.\r\n\r\n**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!\r\n\r\n## Review Workflow\r\n\r\nRun a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:\r\n\r\n### Phase 1: Preparation\r\n\r\nRun following commands in order:\r\n\r\n1. **Determine Review Scope**\r\n   - Check following command to understand changes, use only commands that return amount of lines changed, not file content:\r\n     - git status\r\n     - git diff --stat\r\n     - git diff origin/master --stat or git diff origin/master...HEAD --stat for PR diffs\r\n       - change to origin/main if main is used as default branch\r\n   - Parse arguments to see if user requested specific review aspects\r\n2. Launch up to 6 parallel Haiku agents to perform following tasks:\r\n   - One agent to check if the pull request (a) is closed, (b) is a draft. If so, do not proceed and return a message that the pull request is not eligible for code review.\r\n   - One agent to search and give you a list of file paths to (but not the contents of) any relevant agent instruction files, if they exist: CLAUDE.md, AGENTS.md, **/consitution.md, the root README.md file, as well as any README.md files in the directories whose files the pull request modified\r\n   - Split files based on amount of lines changes between other 1-4 agents and ask them following:\r\n\r\n      ```markdown\r\n      GOAL: Analyse PR changes in following files and provide summary\r\n      \r\n      Perform following steps:\r\n         - Run [pass proper git command that he can use] to see changes in files\r\n         - Analyse following files: [list of files]\r\n\r\n      Please return a detailed summary of the changes in the each file, including types of changes, their complexity, affected classes/functions/variables/etc., and overall description of the changes.\r\n      ```\r\n\r\n3. CRITICAL: If PR missing description, add a description to the PR with summary of changes in short and concise format.\r\n\r\n### Phase 2: Searching for Issues\r\n\r\nDetermine Applicable Reviews, then launch up to 6 parallel (Sonnet or Opus) agents to independently code review all changes in the pull request. The agents should do the following, then return a list of issues and the reason each issue was flagged (eg. CLAUDE.md or consitution.md adherence, bug, historical git context, etc.).\r\n\r\n**Available Review Agents**:\r\n\r\n- **security-auditor** - Analyze code for security vulnerabilities\r\n- **bug-hunter** - Scan for bugs and issues, including silent failures\r\n- **code-quality-reviewer** - General code review for project guidelines, maintainability and quality. Simplifying code for clarity and maintainability\r\n- **contracts-reviewer** - Analyze code contracts, including: type design and invariants (if new types added), API changes, data modeling, etc.\r\n- **test-coverage-reviewer** - Review test coverage quality and completeness\r\n- **historical-context-reviewer** - Review historical context of the code, including git blame and history of the code modified, and previous pull requests that touched these files.\r\n\r\nNote: Default option is to run **all** applicable review agents.\r\n\r\n#### Determine Applicable Reviews\r\n\r\nBased on changes summary from phase 1 and their complexity, determine which review agents are applicable:\r\n\r\n- **If code or configuration changes, except purely cosmetic changes**: bug-hunter, security-auditor\r\n- **if code changes, including business or infrastructure logic, formating, etc.**: code-quality-reviewer (general quality)\r\n- **If test files changed**: test-coverage-reviewer\r\n- **If types, API, data modeling changed**: contracts-reviewer\r\n- **If complexity of changes is high or historical context is needed**: historical-context-reviewer\r\n\r\n#### Launch Review Agents\r\n\r\n**Parallel approach**:\r\n\r\n- Launch all agents simultaneously\r\n- Provide to them full list of modified files and summary of the PR as a context, explicitly highlight which PR they are reviewing, also provide list of files with project guidelines and standards, including README.md, CLAUDE.md and consitution.md if they exist.\r\n- Results should come back together\r\n\r\n### Phase 3: Confidence & Impact Scoring\r\n\r\n1. For each issue found in Phase 2, launch a parallel Haiku agent that takes the PR, issue description, and list of CLAUDE.md files (from step 2), and returns TWO scores:\r\n\r\n   **Confidence Score (0-100)** - Level of confidence that the issue is real and not a false positive:\r\n\r\n   a. 0: Not confident at all. This is a false positive that doesn't stand up to light scrutiny, or is a pre-existing issue.\r\n   b. 25: Somewhat confident. This might be a real issue, but may also be a false positive. The agent wasn't able to verify that it's a real issue. If the issue is stylistic, it is one that was not explicitly called out in the relevant CLAUDE.md.\r\n   c. 50: Moderately confident. The agent was able to verify this is a real issue, but it might be a nitpick or not happen very often in practice. Relative to the rest of the PR, it's not very important.\r\n   d. 75: Highly confident. The agent double checked the issue, and verified that it is very likely it is a real issue that will be hit in practice. The existing approach in the PR is insufficient. The issue is very important and will directly impact the code's functionality, or it is an issue that is directly mentioned in the relevant CLAUDE.md.\r\n   e. 100: Absolutely certain. The agent double checked the issue, and confirmed that it is definitely a real issue, that will happen frequently in practice. The evidence directly confirms this.\r\n\r\n   **Impact Score (0-100)** - Severity and consequence of the issue if left unfixed:\r\n\r\n   a. 0-20 (Low): Minor code smell or style inconsistency. Does not affect functionality or maintainability significantly.\r\n   b. 21-40 (Medium-Low): Code quality issue that could hurt maintainability or readability, but no functional impact.\r\n   c. 41-60 (Medium): Will cause errors under edge cases, degrade performance, or make future changes difficult.\r\n   d. 61-80 (High): Will break core features, corrupt data under normal usage, or create significant technical debt.\r\n   e. 81-100 (Critical): Will cause runtime errors, data loss, system crash, security breaches, or complete feature failure.\r\n\r\n   For issues flagged due to CLAUDE.md instructions, the agent should double check that the CLAUDE.md actually calls out that issue specifically.\r\n\r\n2. **Filter issues using the progressive threshold table below** - Higher impact issues require less confidence to pass:\r\n\r\n   | Impact Score | Minimum Confidence Required | Rationale |\r\n   |--------------|----------------------------|-----------|\r\n   | 81-100 (Critical) | 50 | Critical issues warrant investigation even with moderate confidence |\r\n   | 61-80 (High) | 65 | High impact issues need good confidence to avoid false alarms |\r\n   | 41-60 (Medium) | 75 | Medium issues need high confidence to justify addressing |\r\n   | 21-40 (Medium-Low) | 85 | Low-medium impact issues need very high confidence |\r\n   | 0-20 (Low) | 95 | Minor issues only included if nearly certain |\r\n\r\n   **Filter out any issues that don't meet the minimum confidence threshold for their impact level.** If there are no issues that meet this criteria, do not proceed.\r\n\r\n   **IMPORTANT: Do NOT post inline comments for:**\r\n   - **Low impact issues (0-20)** - These are minor code smells or style inconsistencies. Even with high confidence, they add noise without meaningful value.\r\n   - **Low confidence issues** - Any issue below the minimum confidence threshold for its impact level should be excluded entirely.\r\n\r\n   Focus inline comments on Medium impact (41+) and higher issues that meet confidence thresholds.\r\n\r\n3. Use a Haiku agent to repeat the eligibility check from Phase 1, to make sure that the pull request is still eligible for code review. (In case if there was updates since review started)\r\n4. **Post Inline Comments Only** (skip if no issues found):\r\n\r\n   a. **Preferred approach - Use MCP GitHub tools if available**:\r\n      - Use `mcp__github_inline_comment__create_inline_comment` for line-specific feedback for each individual issue.\r\n\r\n   b. Fallback approach - Use direct API calls:\r\n      - First, check if the `git:attach-review-to-pr` command is available by reading it.\r\n      - If the command is available and issues were found:\r\n         - **Multiple Issues**: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` to create a review with line-specific comments.\r\n         - **Single Issue**: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` to add just one line-specific comment.\r\n\r\n   When writing comments, keep in mind to:\r\n   - Keep your output brief\r\n   - Use emojis\r\n   - Link and cite relevant code, files, and URLs\r\n\r\n#### Examples of false positives, for Phase 3\r\n\r\n- Pre-existing issues\r\n- Something that looks like a bug but is not actually a bug\r\n- Pedantic nitpicks that a senior engineer wouldn't call out\r\n- Issues that a linter, typechecker, or compiler would catch (eg. missing or incorrect imports, type errors, broken tests, formatting issues, pedantic style issues like newlines). No need to run these build steps yourself -- it is safe to assume that they will be run separately as part of CI.\r\n- General code quality issues (eg. lack of test coverage, general security issues, poor documentation), unless explicitly required in CLAUDE.md\r\n- Issues that are called out in CLAUDE.md, but explicitly silenced in the code (eg. due to a lint ignore comment)\r\n- Changes in functionality that are likely intentional or are directly related to the broader change\r\n- Real issues, but on lines that the user did not modify in their pull request\r\n\r\nNotes:\r\n\r\n- Use build, lint and tests commands if you have access to them. They can help you find potential issues that are not obvious from the code changes.\r\n- Use `gh` to interact with Github (eg. to fetch a pull request, or to create inline comments), rather than web fetch\r\n- Make a todo list first\r\n- You must cite and link each bug (eg. if referring to a CLAUDE.md, you must link it)\r\n- When using line-specific comments (via `git:attach-review-to-pr`):\r\n  - Each issue should map to a specific file and line number\r\n  - For multiple issues: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` with JSON input containing the review body (Quality Gate summary) and comments array (line-specific issues)\r\n  - For single issue: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` to post just one line-specific comment\r\n\r\n### Template for line-specific review comments\r\n\r\nWhen using the `git:attach-review-to-pr` command to add line-specific comments, use this template for each issue:\r\n\r\n```markdown\r\n🔴/🟠/🟡/🟢 [Critical/High/Medium/Low]: [Brief description]\r\n\r\n[Evidence: Explain what code pattern/behavior was observed that indicates this issue and the consequence if left unfixed]\r\n\r\n[If applicable, provide code suggestion]:\r\n```suggestion\r\n[code here]\r\n```\r\n\r\n```\r\n\r\n#### Example for Bug Issue\r\n\r\n```markdown\r\n🟠 High: Potential null pointer dereference\r\n\r\nVariable `user` is accessed without null check after fetching from database. This will cause runtime error if user is not found, breaking the user profile feature.\r\n\r\n```suggestion\r\nif (!user) {\r\n  throw new Error('User not found');\r\n}\r\n```\r\n\r\n```\r\n\r\n#### Example for Security Issue\r\n\r\n```markdown\r\n🔴 Critical: SQL Injection vulnerability\r\n\r\nUser input is directly concatenated into SQL query without sanitization. Attackers can execute arbitrary SQL commands, leading to data breach or deletion.\r\n\r\nUse parameterized queries instead:\r\n```suggestion\r\ndb.query('SELECT * FROM users WHERE id = ?', [userId])\r\n```\r\n\r\n```\r\n\r\n### Template for inline comments using GitHub API\r\n\r\n#### Multiple Issues (using `/reviews` endpoint)\r\n\r\nWhen using `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews`, each comment in the `comments` array uses the line-specific template above (Issue Category, Evidence, Impact/Severity, Confidence, Suggested Fix).\r\n\r\n#### Single Issue (using `/comments` endpoint)\r\n\r\nWhen using `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments`, post just one line-specific comment using the template above.\r\n\r\n**Note for linking to code:**\r\n\r\n- Use full git sha + line range, eg. `https://github.com/owner/repo/blob/1d54823877c4de72b2316a64032a54afc404e619/README.md#L13-L17`\r\n- Line range format is `L[start]-L[end]`\r\n- Provide at least 1 line of context before and after\r\n\r"
+  }
+}
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git log --oneline e584e6a~1..93f0b60' in C:/Users/Administrator/edu-cloud succeeded in 1.34s:
+diff --git a/tests/test_conduct/test_admin_api.py b/tests/test_conduct/test_admin_api.py
+index 8eb5438..3060f50 100644
+--- a/tests/test_conduct/test_admin_api.py
++++ b/tests/test_conduct/test_admin_api.py
+@@ -209,12 +209,49 @@ async def test_export_records_excel(client, db, homeroom_headers, school_class_s
+ 
+ 
+ @pytest.mark.anyio
+-async def test_export_rankings_excel(client, db, homeroom_headers, school_class_student):
+-    """F006 R3: 排行榜 Excel 解包后含 header + 学生排名行，字段正确."""
++async def test_export_rankings_excel(client, db, homeroom_headers, school_class_student, homeroom_teacher):
++    """F007 (R3 GPT-reported test-gap): 排行榜必须覆盖"排序 + 聚合"两个核心语义。
++
++    单学生、零积分的旧断言无法在错误实现（比如破坏 SUM 或 ORDER BY DESC）下失败。
++    本测试构造 2 名学生 + 多条不同积分记录，断言：
++      1. 学生 B (积分 +7+3=10) 排第 1
++      2. 学生 A (积分 +2-5=-3) 排第 2
++      3. 聚合值正确（SUM points per student）
++    """
++    from datetime import date as _date
+ succeeded in 1.33s:
+93f0b60 fix(conduct): Round 3 F007 — 排行榜测试覆盖排序+聚合语义
+85db36c review: knowledge-graph-phase1 batch 2 GPT 审查报告 FAIL
+213f503 fix(governance): Round 2 (actual files) — G2-01/G2-02/G2-03 修复 + G2-04 baseline 撤回
+8425a70 fix(governance): Round 2 — G2-01 staged-index read + G2-02 nested schema + G2-03 anti-regression tests + G2-04 baseline claim
+e584e6a fix(conduct): Round 3 — F002 body-field 越权 + N001 id_card 后6位回退 + F004/F006 测试升级
+codex
+已经拿到本次补丁的精确 diff。接下来我会对照测试全文和导出实现，逐项验证用户列出的 4 个静态判定点，并更新最终报告。
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/tests/test_conduct/test_admin_api.py","head":320})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/tests/test_conduct/test_admin_api.py","head":320}) success in 13ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "\"\"\"Admin config API tests for conduct module.\"\"\"\nimport pytest\n\nfrom edu_cloud.modules.conduct.models import ConductClassConfig, StudentProfile\nfrom edu_cloud.modules.conduct.crypto import encrypt\nfrom edu_cloud.models.guardian import GuardianStudentLink\nfrom edu_cloud.models.user import User\nfrom edu_cloud.models.user_role import UserRole\n\n\n@pytest.mark.anyio\nasync def test_get_config(client, db, conduct_config, school_class_student, homeroom_headers):\n    \"\"\"Homeroom teacher can get conduct config for their class.\"\"\"\n    _, cls, _ = school_class_student\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls.id}/config\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200\n    data = resp.json()\n    assert data[\"class_id\"] == cls.id\n    assert data[\"invite_code\"] == \"TEST01\"\n    assert data[\"verify_code_type\"] == \"custom\"\n    assert data[\"is_active\"] is True\n\n\n@pytest.mark.anyio\nasync def test_update_config(client, db, conduct_config, school_class_student, homeroom_headers):\n    \"\"\"Homeroom teacher can update verify_code_type.\"\"\"\n    _, cls, _ = school_class_student\n    resp = await client.put(\n        f\"/api/v1/conduct/classes/{cls.id}/config\",\n        headers=homeroom_headers,\n        json={\"verify_code_type\": \"phone\"},\n    )\n    assert resp.status_code == 200\n    data = resp.json()\n    assert data[\"verify_code_type\"] == \"phone\"\n    assert data[\"invite_code\"] == \"TEST01\"  # unchanged\n\n\n@pytest.mark.anyio\nasync def test_regenerate_invite_code(client, db, conduct_config, school_class_student, homeroom_headers):\n    \"\"\"Homeroom teacher gets a new invite code (different from old one).\"\"\"\n    _, cls, _ = school_class_student\n    resp = await client.post(\n        f\"/api/v1/conduct/classes/{cls.id}/config/regenerate-code\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200\n    new_code = resp.json()[\"invite_code\"]\n    assert new_code  # non-empty\n    assert new_code != \"TEST01\"  # different from original\n\n\n@pytest.mark.anyio\nasync def test_list_parents(client, db, conduct_config, school_class_student, homeroom_headers):\n    \"\"\"After a parent registers and binds, list shows them.\"\"\"\n    school, cls, student = school_class_student\n\n    # Set up student verify code for binding\n    profile = StudentProfile(student_id=student.id, verify_code=encrypt(\"ADMIN01\"))\n    db.add(profile)\n    await db.commit()\n\n    # Register parent via API\n    resp = await client.post(\"/api/v1/conduct/parent/register\", json={\n        \"invite_code\": \"TEST01\",\n        \"display_name\": \"管理测试家长\",\n        \"phone\": \"13900000001\",\n        \"password\": \"abc123\",\n    })\n    assert resp.status_code == 200\n    token = resp.json()[\"access_token\"]\n    parent_headers = {\"Authorization\": f\"Bearer {token}\"}\n\n    # Bind parent to student\n    resp = await client.post(\"/api/v1/conduct/parent/bind\", headers=parent_headers, json={\n        \"class_id\": cls.id,\n        \"student_name\": \"张三\",\n        \"verify_code\": \"ADMIN01\",\n        \"relationship\": \"father\",\n    })\n    assert resp.status_code == 200\n\n    # Admin lists parents\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls.id}/parents\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200\n    data = resp.json()\n    assert len(data) == 1\n    assert data[0][\"display_name\"] == \"管理测试家长\"\n    assert data[0][\"phone\"] == \"13900000001\"\n    assert len(data[0][\"students\"]) == 1\n    assert data[0][\"students\"][0][\"student_name\"] == \"张三\"\n    assert data[0][\"students\"][0][\"relationship\"] == \"father\"\n\n\n@pytest.mark.anyio\nasync def test_remove_parent(client, db, conduct_config, school_class_student, homeroom_headers):\n    \"\"\"Remove parent, then list no longer shows them.\"\"\"\n    school, cls, student = school_class_student\n\n    # Set up student verify code for binding\n    profile = StudentProfile(student_id=student.id, verify_code=encrypt(\"ADMIN02\"))\n    db.add(profile)\n    await db.commit()\n\n    # Register parent via API\n    resp = await client.post(\"/api/v1/conduct/parent/register\", json={\n        \"invite_code\": \"TEST01\",\n        \"display_name\": \"待删家长\",\n        \"phone\": \"13900000002\",\n        \"password\": \"abc123\",\n    })\n    assert resp.status_code == 200\n    token = resp.json()[\"access_token\"]\n    parent_headers = {\"Authorization\": f\"Bearer {token}\"}\n\n    # Bind parent to student\n    resp = await client.post(\"/api/v1/conduct/parent/bind\", headers=parent_headers, json={\n        \"class_id\": cls.id,\n        \"student_name\": \"张三\",\n        \"verify_code\": \"ADMIN02\",\n        \"relationship\": \"mother\",\n    })\n    assert resp.status_code == 200\n\n    # List parents to get user_id\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls.id}/parents\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200\n    parents = resp.json()\n    assert len(parents) == 1\n    parent_user_id = parents[0][\"user_id\"]\n\n    # Remove parent\n    resp = await client.delete(\n        f\"/api/v1/conduct/classes/{cls.id}/parents/{parent_user_id}\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200\n    assert resp.json()[\"deleted\"] == 1\n\n    # List parents again — should be empty\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls.id}/parents\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200\n    assert resp.json() == []\n\n\n# ── F006 Round 3: Excel 导出入口级测试（openpyxl 解包内容断言） ──\n\n@pytest.mark.anyio\nasync def test_export_records_excel(client, db, homeroom_headers, school_class_student, homeroom_teacher):\n    \"\"\"F006 R3: 导出 Excel 解包后必须含 header + N 条记录行 + 字段正确（不被 inner join 过滤）.\"\"\"\n    from datetime import date as _date\n    from io import BytesIO\n    from openpyxl import load_workbook\n    from edu_cloud.modules.conduct.models import ConductRecord\n\n    school, cls, student = school_class_student\n    # 关键修复：operator_id 必须对应真实 User（inner join 不过滤）\n    operator_id = homeroom_teacher.id\n\n    rec1 = ConductRecord(\n        student_id=student.id, class_id=cls.id, points=3,\n        reason=\"课堂表现好\", date=_date(2026, 4, 10),\n        operator_id=operator_id, source=\"manual\",\n    )\n    rec2 = ConductRecord(\n        student_id=student.id, class_id=cls.id, points=-2,\n        reason=\"迟到\", date=_date(2026, 4, 11),\n        operator_id=operator_id, source=\"manual\",\n    )\n    db.add_all([rec1, rec2])\n    await db.commit()\n\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls.id}/export/records\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200, f\"导出失败: {resp.text[:200]}\"\n    assert resp.content[:4] == b\"PK\\x03\\x04\", \"非 xlsx 魔数\"\n\n    # openpyxl 解包断言行数 + 字段内容\n    wb = load_workbook(BytesIO(resp.content))\n    ws = wb.active\n    rows = list(ws.iter_rows(values_only=True))\n    assert len(rows) == 3, f\"应有 header + 2 记录行，实际 {len(rows)}\"\n    assert rows[0] == (\"日期\", \"学生姓名\", \"积分\", \"原因\", \"操作人\", \"来源\")\n\n    # 验证记录行内容（order_by date desc ��� rec2 先，rec1 后）\n    body_rows = rows[1:]\n    reasons = {r[3] for r in body_rows}\n    assert reasons == {\"课堂表现好\", \"迟到\"}, f\"原因字段不匹配: {reasons}\"\n    points_values = {r[2] for r in body_rows}\n    assert points_values == {3, -2}, f\"积分字段不匹配: {points_values}\"\n    student_names = {r[1] for r in body_rows}\n    assert student_names == {\"张三\"}\n    operators = {r[4] for r in body_rows}\n    assert operators == {\"teacher_hr\"}, f\"操作人字段不匹配（inner join 过滤警告）: {operators}\"\n\n\n@pytest.mark.anyio\nasync def test_export_rankings_excel(client, db, homeroom_headers, school_class_student, homeroom_teacher):\n    \"\"\"F007 (R3 GPT-reported test-gap): 排行榜必须覆盖\"排序 + 聚合\"两个核心语义。\n\n    单学生、零积分的旧断言无法在错误实现（比如破坏 SUM 或 ORDER BY DESC）下失败。\n    本测试构造 2 名学生 + 多条不同积分记录，断言：\n      1. 学生 B (积分 +7+3=10) 排第 1\n      2. 学生 A (积分 +2-5=-3) 排第 2\n      3. 聚合值正确（SUM points per student）\n    \"\"\"\n    from datetime import date as _date\n    from io import BytesIO\n    from openpyxl import load_workbook\n    from edu_cloud.modules.student.models import Student\n    from edu_cloud.modules.conduct.models import ConductRecord\n\n    school, cls, student_a = school_class_student\n    # 第二名学生（同班）\n    student_b = Student(\n        name=\"李四\", student_number=\"2026002\",\n        class_id=cls.id, school_id=school.id,\n    )\n    db.add(student_b)\n    await db.flush()\n\n    operator_id = homeroom_teacher.id\n    # 学生 A: 2 - 5 = -3\n    # 学生 B: 7 + 3 = 10（总分更高，应排第 1）\n    records = [\n        ConductRecord(student_id=student_a.id, class_id=cls.id, points=2,\n                      reason=\"A +2\", date=_date(2026, 4, 10),\n                      operator_id=operator_id, source=\"manual\"),\n        ConductRecord(student_id=student_a.id, class_id=cls.id, points=-5,\n                      reason=\"A -5\", date=_date(2026, 4, 11),\n                      operator_id=operator_id, source=\"manual\"),\n        ConductRecord(student_id=student_b.id, class_id=cls.id, points=7,\n                      reason=\"B +7\", date=_date(2026, 4, 10),\n                      operator_id=operator_id, source=\"manual\"),\n        ConductRecord(student_id=student_b.id, class_id=cls.id, points=3,\n                      reason=\"B +3\", date=_date(2026, 4, 11),\n                      operator_id=operator_id, source=\"manual\"),\n    ]\n    db.add_all(records)\n    await db.commit()\n\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls.id}/export/rankings\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200, f\"排行导出失败: {resp.text[:200]}\"\n    assert resp.content[:4] == b\"PK\\x03\\x04\", \"非 xlsx 魔数\"\n\n    wb = load_workbook(BytesIO(resp.content))\n    ws = wb.active\n    rows = list(ws.iter_rows(values_only=True))\n    # header + 2 学生\n    assert len(rows) == 3, f\"应有 header + 2 学生行，实际 {len(rows)}\"\n    assert rows[0] == (\"排名\", \"学生姓名\", \"学号\", \"总积分\")\n\n    # 排序断言：第 1 行是学生 B（总分 10），第 2 行是学生 A（总分 -3）\n    assert rows[1][0] == 1, f\"排名 1 错误: {rows[1]}\"\n    assert rows[1][1] == \"李四\", f\"第 1 名应为学生 B(李四)，实际: {rows[1]}\"\n    assert rows[1][2] == \"2026002\"\n    assert rows[1][3] == 10, f\"学生 B 聚合总分应为 10(=7+3)，实际 {rows[1][3]}\"\n\n    assert rows[2][0] == 2, f\"排名 2 错误: {rows[2]}\"\n    assert rows[2][1] == \"张三\", f\"第 2 名应为学生 A(张三)，实际: {rows[2]}\"\n    assert rows[2][2] == \"2026001\"\n    assert rows[2][3] == -3, f\"学生 A 聚合总分应为 -3(=2-5)，实际 {rows[2][3]}\"\n\n    # 显式断言 ORDER BY desc：总分 B > 总分 A\n    assert rows[1][3] > rows[2][3], \"排序错误：排名 1 总分应大于排名 2\"\n\n\n# ── F002: Class-scope 守卫红测 ──\n\n@pytest.mark.anyio\nasync def test_class_scope_denies_other_class(client, db, homeroom_headers, school_class_student):\n    \"\"\"F002: homeroom_teacher of class A 访问 class B 的 config → 403.\"\"\"\n    school, cls_a, _ = school_class_student\n    # 创建另一个班 B（同校，但 homeroom_teacher 不在其 class_ids 中）\n    from edu_cloud.modules.student.models import Class\n    cls_b = Class(name=\"高一(2)班\", grade=\"高一\", grade_number=1, school_id=school.id)\n    db.add(cls_b)\n    await db.commit()\n\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls_b.id}/config\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 403, f\"跨班访问未被拒绝: {resp.status_code} {resp.text[:100]}\"\n    assert \"scope\" in resp.text.lower() or \"class\" in resp.text.lower()\n\n\n@pytest.mark.anyio\nasync def test_resource_affinity_denies_cross_class_rule(client, db, homeroom_headers, school_class_student):\n    \"\"\"F002: 用外班的 rule_category_id 在本班路径下更新 → 404（资源不属于本班）.\"\"\"\n    school, cls_a, _ = school_class_student\n    # 为班 A 的 homeroom_teacher 配置 class_ids (fixture 已做)\n    # 创建班 B 和它的规则分类\n    from edu_cloud.modules.student.models import Class\n    from edu_cloud.modules.conduct.models import ConductRuleCategory\n    cls_b = Class(name=\"高一(2)班\", grade=\"高一\", grade_number=1, school_id=school.id)\n    db.add(cls_b)\n    await db.flush()\n    cat_b = ConductRuleCategory(name=\"B班规则\", class_id=cls_b.id, scope=\"class\")\n    db.add(cat_b)\n    await db.commit()\n\n    # 用 cls_a.id (本班) + cat_b.id (外班资源) 调用 PUT"
+    }
+  ],
+  "structuredContent": {
+    "content": "\"\"\"Admin config API tests for conduct module.\"\"\"\nimport pytest\n\nfrom edu_cloud.modules.conduct.models import ConductClassConfig, StudentProfile\nfrom edu_cloud.modules.conduct.crypto import encrypt\nfrom edu_cloud.models.guardian import GuardianStudentLink\nfrom edu_cloud.models.user import User\nfrom edu_cloud.models.user_role import UserRole\n\n\n@pytest.mark.anyio\nasync def test_get_config(client, db, conduct_config, school_class_student, homeroom_headers):\n    \"\"\"Homeroom teacher can get conduct config for their class.\"\"\"\n    _, cls, _ = school_class_student\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls.id}/config\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200\n    data = resp.json()\n    assert data[\"class_id\"] == cls.id\n    assert data[\"invite_code\"] == \"TEST01\"\n    assert data[\"verify_code_type\"] == \"custom\"\n    assert data[\"is_active\"] is True\n\n\n@pytest.mark.anyio\nasync def test_update_config(client, db, conduct_config, school_class_student, homeroom_headers):\n    \"\"\"Homeroom teacher can update verify_code_type.\"\"\"\n    _, cls, _ = school_class_student\n    resp = await client.put(\n        f\"/api/v1/conduct/classes/{cls.id}/config\",\n        headers=homeroom_headers,\n        json={\"verify_code_type\": \"phone\"},\n    )\n    assert resp.status_code == 200\n    data = resp.json()\n    assert data[\"verify_code_type\"] == \"phone\"\n    assert data[\"invite_code\"] == \"TEST01\"  # unchanged\n\n\n@pytest.mark.anyio\nasync def test_regenerate_invite_code(client, db, conduct_config, school_class_student, homeroom_headers):\n    \"\"\"Homeroom teacher gets a new invite code (different from old one).\"\"\"\n    _, cls, _ = school_class_student\n    resp = await client.post(\n        f\"/api/v1/conduct/classes/{cls.id}/config/regenerate-code\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200\n    new_code = resp.json()[\"invite_code\"]\n    assert new_code  # non-empty\n    assert new_code != \"TEST01\"  # different from original\n\n\n@pytest.mark.anyio\nasync def test_list_parents(client, db, conduct_config, school_class_student, homeroom_headers):\n    \"\"\"After a parent registers and binds, list shows them.\"\"\"\n    school, cls, student = school_class_student\n\n    # Set up student verify code for binding\n    profile = StudentProfile(student_id=student.id, verify_code=encrypt(\"ADMIN01\"))\n    db.add(profile)\n    await db.commit()\n\n    # Register parent via API\n    resp = await client.post(\"/api/v1/conduct/parent/register\", json={\n        \"invite_code\": \"TEST01\",\n        \"display_name\": \"管理测试家长\",\n        \"phone\": \"13900000001\",\n        \"password\": \"abc123\",\n    })\n    assert resp.status_code == 200\n    token = resp.json()[\"access_token\"]\n    parent_headers = {\"Authorization\": f\"Bearer {token}\"}\n\n    # Bind parent to student\n    resp = await client.post(\"/api/v1/conduct/parent/bind\", headers=parent_headers, json={\n        \"class_id\": cls.id,\n        \"student_name\": \"张三\",\n        \"verify_code\": \"ADMIN01\",\n        \"relationship\": \"father\",\n    })\n    assert resp.status_code == 200\n\n    # Admin lists parents\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls.id}/parents\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200\n    data = resp.json()\n    assert len(data) == 1\n    assert data[0][\"display_name\"] == \"管理测试家长\"\n    assert data[0][\"phone\"] == \"13900000001\"\n    assert len(data[0][\"students\"]) == 1\n    assert data[0][\"students\"][0][\"student_name\"] == \"张三\"\n    assert data[0][\"students\"][0][\"relationship\"] == \"father\"\n\n\n@pytest.mark.anyio\nasync def test_remove_parent(client, db, conduct_config, school_class_student, homeroom_headers):\n    \"\"\"Remove parent, then list no longer shows them.\"\"\"\n    school, cls, student = school_class_student\n\n    # Set up student verify code for binding\n    profile = StudentProfile(student_id=student.id, verify_code=encrypt(\"ADMIN02\"))\n    db.add(profile)\n    await db.commit()\n\n    # Register parent via API\n    resp = await client.post(\"/api/v1/conduct/parent/register\", json={\n        \"invite_code\": \"TEST01\",\n        \"display_name\": \"待删家长\",\n        \"phone\": \"13900000002\",\n        \"password\": \"abc123\",\n    })\n    assert resp.status_code == 200\n    token = resp.json()[\"access_token\"]\n    parent_headers = {\"Authorization\": f\"Bearer {token}\"}\n\n    # Bind parent to student\n    resp = await client.post(\"/api/v1/conduct/parent/bind\", headers=parent_headers, json={\n        \"class_id\": cls.id,\n        \"student_name\": \"张三\",\n        \"verify_code\": \"ADMIN02\",\n        \"relationship\": \"mother\",\n    })\n    assert resp.status_code == 200\n\n    # List parents to get user_id\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls.id}/parents\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200\n    parents = resp.json()\n    assert len(parents) == 1\n    parent_user_id = parents[0][\"user_id\"]\n\n    # Remove parent\n    resp = await client.delete(\n        f\"/api/v1/conduct/classes/{cls.id}/parents/{parent_user_id}\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200\n    assert resp.json()[\"deleted\"] == 1\n\n    # List parents again — should be empty\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls.id}/parents\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200\n    assert resp.json() == []\n\n\n# ── F006 Round 3: Excel 导出入口级测试（openpyxl 解包内容断言） ──\n\n@pytest.mark.anyio\nasync def test_export_records_excel(client, db, homeroom_headers, school_class_student, homeroom_teacher):\n    \"\"\"F006 R3: 导出 Excel 解包后必须含 header + N 条记录行 + 字段正确（不被 inner join 过滤）.\"\"\"\n    from datetime import date as _date\n    from io import BytesIO\n    from openpyxl import load_workbook\n    from edu_cloud.modules.conduct.models import ConductRecord\n\n    school, cls, student = school_class_student\n    # 关键修复：operator_id 必须对应真实 User（inner join 不过滤）\n    operator_id = homeroom_teacher.id\n\n    rec1 = ConductRecord(\n        student_id=student.id, class_id=cls.id, points=3,\n        reason=\"课堂表现好\", date=_date(2026, 4, 10),\n        operator_id=operator_id, source=\"manual\",\n    )\n    rec2 = ConductRecord(\n        student_id=student.id, class_id=cls.id, points=-2,\n        reason=\"迟到\", date=_date(2026, 4, 11),\n        operator_id=operator_id, source=\"manual\",\n    )\n    db.add_all([rec1, rec2])\n    await db.commit()\n\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls.id}/export/records\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200, f\"导出失败: {resp.text[:200]}\"\n    assert resp.content[:4] == b\"PK\\x03\\x04\", \"非 xlsx 魔数\"\n\n    # openpyxl 解包断言行数 + 字段内容\n    wb = load_workbook(BytesIO(resp.content))\n    ws = wb.active\n    rows = list(ws.iter_rows(values_only=True))\n    assert len(rows) == 3, f\"应有 header + 2 记录行，实际 {len(rows)}\"\n    assert rows[0] == (\"日期\", \"学生姓名\", \"积分\", \"原因\", \"操作人\", \"来源\")\n\n    # 验证记录行内容（order_by date desc ��� rec2 先，rec1 后）\n    body_rows = rows[1:]\n    reasons = {r[3] for r in body_rows}\n    assert reasons == {\"课堂表现好\", \"迟到\"}, f\"原因字段不匹配: {reasons}\"\n    points_values = {r[2] for r in body_rows}\n    assert points_values == {3, -2}, f\"积分字段不匹配: {points_values}\"\n    student_names = {r[1] for r in body_rows}\n    assert student_names == {\"张三\"}\n    operators = {r[4] for r in body_rows}\n    assert operators == {\"teacher_hr\"}, f\"操作人字段不匹配（inner join 过滤警告）: {operators}\"\n\n\n@pytest.mark.anyio\nasync def test_export_rankings_excel(client, db, homeroom_headers, school_class_student, homeroom_teacher):\n    \"\"\"F007 (R3 GPT-reported test-gap): 排行榜必须覆盖\"排序 + 聚合\"两个核心语义。\n\n    单学生、零积分的旧断言无法在错误实现（比如破坏 SUM 或 ORDER BY DESC）下失败。\n    本测试构造 2 名学生 + 多条不同积分记录，断言：\n      1. 学生 B (积分 +7+3=10) 排第 1\n      2. 学生 A (积分 +2-5=-3) 排第 2\n      3. 聚合值正确（SUM points per student）\n    \"\"\"\n    from datetime import date as _date\n    from io import BytesIO\n    from openpyxl import load_workbook\n    from edu_cloud.modules.student.models import Student\n    from edu_cloud.modules.conduct.models import ConductRecord\n\n    school, cls, student_a = school_class_student\n    # 第二名学生（同班）\n    student_b = Student(\n        name=\"李四\", student_number=\"2026002\",\n        class_id=cls.id, school_id=school.id,\n    )\n    db.add(student_b)\n    await db.flush()\n\n    operator_id = homeroom_teacher.id\n    # 学生 A: 2 - 5 = -3\n    # 学生 B: 7 + 3 = 10（总分更高，应排第 1）\n    records = [\n        ConductRecord(student_id=student_a.id, class_id=cls.id, points=2,\n                      reason=\"A +2\", date=_date(2026, 4, 10),\n                      operator_id=operator_id, source=\"manual\"),\n        ConductRecord(student_id=student_a.id, class_id=cls.id, points=-5,\n                      reason=\"A -5\", date=_date(2026, 4, 11),\n                      operator_id=operator_id, source=\"manual\"),\n        ConductRecord(student_id=student_b.id, class_id=cls.id, points=7,\n                      reason=\"B +7\", date=_date(2026, 4, 10),\n                      operator_id=operator_id, source=\"manual\"),\n        ConductRecord(student_id=student_b.id, class_id=cls.id, points=3,\n                      reason=\"B +3\", date=_date(2026, 4, 11),\n                      operator_id=operator_id, source=\"manual\"),\n    ]\n    db.add_all(records)\n    await db.commit()\n\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls.id}/export/rankings\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 200, f\"排行导出失败: {resp.text[:200]}\"\n    assert resp.content[:4] == b\"PK\\x03\\x04\", \"非 xlsx 魔数\"\n\n    wb = load_workbook(BytesIO(resp.content))\n    ws = wb.active\n    rows = list(ws.iter_rows(values_only=True))\n    # header + 2 学生\n    assert len(rows) == 3, f\"应有 header + 2 学生行，实际 {len(rows)}\"\n    assert rows[0] == (\"排名\", \"学生姓名\", \"学号\", \"总积分\")\n\n    # 排序断言：第 1 行是学生 B（总分 10），第 2 行是学生 A（总分 -3）\n    assert rows[1][0] == 1, f\"排名 1 错误: {rows[1]}\"\n    assert rows[1][1] == \"李四\", f\"第 1 名应为学生 B(李四)，实际: {rows[1]}\"\n    assert rows[1][2] == \"2026002\"\n    assert rows[1][3] == 10, f\"学生 B 聚合总分应为 10(=7+3)，实际 {rows[1][3]}\"\n\n    assert rows[2][0] == 2, f\"排名 2 错误: {rows[2]}\"\n    assert rows[2][1] == \"张三\", f\"第 2 名应为学生 A(张三)，实际: {rows[2]}\"\n    assert rows[2][2] == \"2026001\"\n    assert rows[2][3] == -3, f\"学生 A 聚合总分应为 -3(=2-5)，实际 {rows[2][3]}\"\n\n    # 显式断言 ORDER BY desc：总分 B > 总分 A\n    assert rows[1][3] > rows[2][3], \"排序错误：排名 1 总分应大于排名 2\"\n\n\n# ── F002: Class-scope 守卫红测 ──\n\n@pytest.mark.anyio\nasync def test_class_scope_denies_other_class(client, db, homeroom_headers, school_class_student):\n    \"\"\"F002: homeroom_teacher of class A 访问 class B 的 config → 403.\"\"\"\n    school, cls_a, _ = school_class_student\n    # 创建另一个班 B（同校，但 homeroom_teacher 不在其 class_ids 中）\n    from edu_cloud.modules.student.models import Class\n    cls_b = Class(name=\"高一(2)班\", grade=\"高一\", grade_number=1, school_id=school.id)\n    db.add(cls_b)\n    await db.commit()\n\n    resp = await client.get(\n        f\"/api/v1/conduct/classes/{cls_b.id}/config\",\n        headers=homeroom_headers,\n    )\n    assert resp.status_code == 403, f\"跨班访问未被拒绝: {resp.status_code} {resp.text[:100]}\"\n    assert \"scope\" in resp.text.lower() or \"class\" in resp.text.lower()\n\n\n@pytest.mark.anyio\nasync def test_resource_affinity_denies_cross_class_rule(client, db, homeroom_headers, school_class_student):\n    \"\"\"F002: 用外班的 rule_category_id 在本班路径下更新 → 404（资源不属于本班）.\"\"\"\n    school, cls_a, _ = school_class_student\n    # 为班 A 的 homeroom_teacher 配置 class_ids (fixture 已做)\n    # 创建班 B 和它的规则分类\n    from edu_cloud.modules.student.models import Class\n    from edu_cloud.modules.conduct.models import ConductRuleCategory\n    cls_b = Class(name=\"高一(2)班\", grade=\"高一\", grade_number=1, school_id=school.id)\n    db.add(cls_b)\n    await db.flush()\n    cat_b = ConductRuleCategory(name=\"B班规则\", class_id=cls_b.id, scope=\"class\")\n    db.add(cat_b)\n    await db.commit()\n\n    # 用 cls_a.id (本班) + cat_b.id (外班资源) 调用 PUT"
+  }
+}
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/conduct/export_service.py","head":260})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/conduct/export_service.py","head":260}) success in 5ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "\"\"\"Conduct 导出服务 — Excel 积分记录/排行榜\"\"\"\nimport io\nimport logging\nfrom datetime import date\n\nfrom openpyxl import Workbook\nfrom sqlalchemy import select, func\nfrom sqlalchemy.ext.asyncio import AsyncSession\n\nfrom edu_cloud.modules.conduct.models import ConductRecord\nfrom edu_cloud.modules.student.models import Student\nfrom edu_cloud.models.user import User\n\nlogger = logging.getLogger(__name__)\n\n\nasync def export_records_excel(db: AsyncSession, class_id: str,\n                               start_date: date | None = None,\n                               end_date: date | None = None) -> io.BytesIO:\n    \"\"\"导出积分记录 Excel\"\"\"\n    stmt = (\n        select(ConductRecord, Student, User)\n        .join(Student, ConductRecord.student_id == Student.id)\n        .join(User, ConductRecord.operator_id == User.id)\n        .where(ConductRecord.class_id == class_id)\n        .order_by(ConductRecord.date.desc())\n    )\n    if start_date:\n        stmt = stmt.where(ConductRecord.date >= start_date)\n    if end_date:\n        stmt = stmt.where(ConductRecord.date <= end_date)\n\n    result = await db.execute(stmt)\n    rows = result.all()\n\n    wb = Workbook()\n    ws = wb.active\n    ws.title = \"积分记录\"\n    ws.append([\"日期\", \"学生姓名\", \"积分\", \"原因\", \"操作人\", \"来源\"])\n    for record, student, operator in rows:\n        ws.append([\n            str(record.date),\n            student.name,\n            record.points,\n            record.reason,\n            operator.display_name,\n            record.source,\n        ])\n\n    buf = io.BytesIO()\n    wb.save(buf)\n    buf.seek(0)\n    return buf\n\n\nasync def export_rankings_excel(db: AsyncSession, class_id: str,\n                                semester_id: str | None = None) -> io.BytesIO:\n    \"\"\"导出排行榜 Excel\"\"\"\n    stmt = (\n        select(Student, func.coalesce(func.sum(ConductRecord.points), 0).label(\"total\"))\n        .outerjoin(ConductRecord, ConductRecord.student_id == Student.id)\n        .where(Student.class_id == class_id)\n        .group_by(Student.id)\n        .order_by(func.coalesce(func.sum(ConductRecord.points), 0).desc())\n    )\n    if semester_id:\n        stmt = stmt.where(ConductRecord.semester_id == semester_id)\n\n    result = await db.execute(stmt)\n    rows = result.all()\n\n    wb = Workbook()\n    ws = wb.active\n    ws.title = \"积分排行\"\n    ws.append([\"排名\", \"学生姓名\", \"学号\", \"总积分\"])\n    for i, (student, total) in enumerate(rows, 1):\n        ws.append([i, student.name, student.student_number, int(total)])\n\n    buf = io.BytesIO()\n    wb.save(buf)\n    buf.seek(0)\n    return buf"
+    }
+  ],
+  "structuredContent": {
+    "content": "\"\"\"Conduct 导出服务 — Excel 积分记录/排行榜\"\"\"\nimport io\nimport logging\nfrom datetime import date\n\nfrom openpyxl import Workbook\nfrom sqlalchemy import select, func\nfrom sqlalchemy.ext.asyncio import AsyncSession\n\nfrom edu_cloud.modules.conduct.models import ConductRecord\nfrom edu_cloud.modules.student.models import Student\nfrom edu_cloud.models.user import User\n\nlogger = logging.getLogger(__name__)\n\n\nasync def export_records_excel(db: AsyncSession, class_id: str,\n                               start_date: date | None = None,\n                               end_date: date | None = None) -> io.BytesIO:\n    \"\"\"导出积分记录 Excel\"\"\"\n    stmt = (\n        select(ConductRecord, Student, User)\n        .join(Student, ConductRecord.student_id == Student.id)\n        .join(User, ConductRecord.operator_id == User.id)\n        .where(ConductRecord.class_id == class_id)\n        .order_by(ConductRecord.date.desc())\n    )\n    if start_date:\n        stmt = stmt.where(ConductRecord.date >= start_date)\n    if end_date:\n        stmt = stmt.where(ConductRecord.date <= end_date)\n\n    result = await db.execute(stmt)\n    rows = result.all()\n\n    wb = Workbook()\n    ws = wb.active\n    ws.title = \"积分记录\"\n    ws.append([\"日期\", \"学生姓名\", \"积分\", \"原因\", \"操作人\", \"来源\"])\n    for record, student, operator in rows:\n        ws.append([\n            str(record.date),\n            student.name,\n            record.points,\n            record.reason,\n            operator.display_name,\n            record.source,\n        ])\n\n    buf = io.BytesIO()\n    wb.save(buf)\n    buf.seek(0)\n    return buf\n\n\nasync def export_rankings_excel(db: AsyncSession, class_id: str,\n                                semester_id: str | None = None) -> io.BytesIO:\n    \"\"\"导出排行榜 Excel\"\"\"\n    stmt = (\n        select(Student, func.coalesce(func.sum(ConductRecord.points), 0).label(\"total\"))\n        .outerjoin(ConductRecord, ConductRecord.student_id == Student.id)\n        .where(Student.class_id == class_id)\n        .group_by(Student.id)\n        .order_by(func.coalesce(func.sum(ConductRecord.points), 0).desc())\n    )\n    if semester_id:\n        stmt = stmt.where(ConductRecord.semester_id == semester_id)\n\n    result = await db.execute(stmt)\n    rows = result.all()\n\n    wb = Workbook()\n    ws = wb.active\n    ws.title = \"积分排行\"\n    ws.append([\"排名\", \"学生姓名\", \"学号\", \"总积分\"])\n    for i, (student, total) in enumerate(rows, 1):\n        ws.append([i, student.name, student.student_number, int(total)])\n\n    buf = io.BytesIO()\n    wb.save(buf)\n    buf.seek(0)\n    return buf"
+  }
+}
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md","head":260})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md","head":260}) success in 6ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28\n\n## 审查报告: Task 19-22\n结论: FAIL\n\n### 第一段：测试充分性（Test Adequacy）\n\n先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。\n\n- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。\n- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。\n- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。\n- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。\n\n### 第二段：行为正确性（Behavioral Correctness）\n\n变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。\n\n- Phase 0 / Contract Pack：\n  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。\n  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还��了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。\n  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。\n  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。\n  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。\n  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。\n- non_goals 基本遵守：\n  - 未改 `check_class_scope` / `check_resource_class` 语义。\n  - 未引入 WHERE 软过滤替代 raise。\n  - 未引入 “后 6 位 OR 整串” 双路径。\n  - 未改 service 业务流，只在 router 前置加守卫。\n- freshness / allowed_change_surface：\n  - 实现主路径落在 Fix Intent 允许范围内。\n  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。\n- 边界条件：\n  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。\n  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。\n  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。\n\n### 第三段：未测试风险（Non-tested Risks）\n\n- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{\"added\": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。\n- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。\n- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。\n\n### ��现清单\n\n#### F007\n- Severity: MED\n- Category: test-gap\n- Type: defect_fix\n- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。\n- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。\n- Evidence:\n  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。\n  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。\n- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。\n- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。\n\n### 结论\n\nRound 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。"
+    }
+  ],
+  "structuredContent": {
+    "content": "[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28\n\n## 审查报告: Task 19-22\n结论: FAIL\n\n### 第一段：测试充分性（Test Adequacy）\n\n先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。\n\n- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。\n- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。\n- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。\n- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。\n\n### 第二段：行为正确性（Behavioral Correctness）\n\n变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。\n\n- Phase 0 / Contract Pack：\n  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。\n  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还��了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。\n  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。\n  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。\n  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。\n  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。\n- non_goals 基本遵守：\n  - 未改 `check_class_scope` / `check_resource_class` 语义。\n  - 未引入 WHERE 软过滤替代 raise。\n  - 未引入 “后 6 位 OR 整串” 双路径。\n  - 未改 service 业务流，只在 router 前置加守卫。\n- freshness / allowed_change_surface：\n  - 实现主路径落在 Fix Intent 允许范围内。\n  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。\n- 边界条件：\n  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。\n  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。\n  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。\n\n### 第三段：未测试风险（Non-tested Risks）\n\n- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{\"added\": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。\n- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。\n- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。\n\n### ��现清单\n\n#### F007\n- Severity: MED\n- Category: test-gap\n- Type: defect_fix\n- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。\n- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。\n- Evidence:\n  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。\n  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。\n- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。\n- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。\n\n### 结论\n\nRound 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。"
+  }
+}
+codex
+我已经对上了测试与实现语义。现在补一个最小执行验证：只跑 `test_export_rankings_excel`，确认补丁本身可通过，而不是停留在纯静态判断。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel' in C:/Users/Administrator/edu-cloud succeeded in 13.80s:
+..                                                                       [100%]
+============================== warnings summary ===============================
+tests/test_conduct/test_admin_api.py::test_export_rankings_excel[asyncio]
+  C:\Users\Administrator\AppData\Roaming\Python\Python311\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2 passed, 24 deselected, 1 warning in 6.44s
+codex
+结论已经基本确定：F007 这次补丁是闭环的。下面我会只改报告文件，不碰代码，保留原 R3 结构，同时把顶部结论改成最终 PASS，并新增“第二轮 Round 3 重审”说明。
+file update
+A C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+
+## 审查报告: Task 19-22
+结论: PASS
+
+### 第二轮 Round 3 重审 (commit 93f0b60)
+
+本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
+
+- 已执行：
+  - `git log --oneline e584e6a~1..93f0b60`
+  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
+  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
+  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
+  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
+- 静态判定：
+  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
+  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
+  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
+  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
+- 结论：
+  - F007 已 resolved-correct。
+  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+
+### 第一段：测试充分性（Test Adequacy）
+
+先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+
+本次补丁已把这个缺口补实：
+
+- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
+- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
+- 该测试对错误实现具有有效杀伤力：
+  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
+  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
+  - 返回空结果或重复/缺失结果会导致行数断言失败。
+
+因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
+
+### 第二段：行为正确性（Behavioral Correctness）
+
+`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+
+- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
+- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
+- `group_by(Student.id)`
+- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
+
+修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
+
+- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
+- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
+- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
+
+因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+
+### 第三段：未测试风险（Non-tested Risks）
+
+本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
+
+- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
+- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+
+### 发现清单
+
+本轮无阻塞 finding。
+
+### 结论
+
+第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+apply_patch(auto_approved=true) exited 0 in 122ms:
+Success. Updated the following files:
+A C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+D C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+file update:
+diff --git a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+index 70756aafa2b2514a0c2c3af261f56b3b9e4ecf97..178b01113c7fc33a4865070569d61b9f04043f41
+--- a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
++++ b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+@@ -1,61 +1,70 @@
+-[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28
++[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+ 
+ ## 审查报告: Task 19-22
+-结论: FAIL
++结论: PASS
++
++### 第二轮 Round 3 重审 (commit 93f0b60)
++
++本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
++
++- 已执行：
++  - `git log --oneline e584e6a~1..93f0b60`
++  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
++  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
++  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
++  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
++- 静态判定：
++  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
++  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
++  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
++  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
++- 结论：
++  - F007 已 resolved-correct。
++  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+ 
+ ### 第一段：测试充分性（Test Adequacy）
+ 
+-先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。
++先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+ 
+-- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。
+-- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。
+-- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。
+-- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。
++本次补丁已把这个缺口补实：
+ 
++- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
++- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
++- 该测试对错误实现具有有效杀伤力：
++  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
++  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
++  - 返回空结果或重复/缺失结果会导致行数断言失败。
++
++因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
++
+ ### 第二段：行为正确性（Behavioral Correctness）
+ 
+-变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。
++`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+ 
+-- Phase 0 / Contract Pack：
+-  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。
+-  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还补了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。
+-  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。
+-  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。
+-  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。
+-  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。
+-- non_goals 基本遵守：
+-  - 未改 `check_class_scope` / `check_resource_class` 语义。
+-  - 未引入 WHERE 软过滤替代 raise。
+-  - 未引入 “后 6 位 OR 整串” 双路径。
+-  - 未改 service 业务流，只在 router 前置加守卫。
+-- freshness / allowed_change_surface：
+-  - 实现主路径落在 Fix Intent 允许范围内。
+-  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。
+-- 边界条件：
+-  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。
+-  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。
+-  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。
++- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
++- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
++- `group_by(Student.id)`
++- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
++
++修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
++
++- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
++- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
++- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
++
++因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+ 
+ ### 第三段：未测试风险（Non-tested Risks）
+ 
+-- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{"added": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。
+-- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。
+-- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。
++本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
++
++- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
++- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+ 
+ ### 发现清单
+ 
+-#### F007
+-- Severity: MED
+-- Category: test-gap
+-- Type: defect_fix
+-- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。
+-- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。
+-- Evidence:
+-  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。
+-  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。
+-- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。
+-- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。
++本轮无阻塞 finding。
+ 
+ ### 结论
+ 
+-Round 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。
++第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+
+file update:
+diff --git a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+index 70756aafa2b2514a0c2c3af261f56b3b9e4ecf97..178b01113c7fc33a4865070569d61b9f04043f41
+--- a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
++++ b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+@@ -1,61 +1,70 @@
+-[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28
++[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+ 
+ ## 审查报告: Task 19-22
+-结论: FAIL
++结论: PASS
++
++### 第二轮 Round 3 重审 (commit 93f0b60)
++
++本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
++
++- 已执行：
++  - `git log --oneline e584e6a~1..93f0b60`
++  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
++  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
++  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
++  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
++- 静态判定：
++  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
++  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
++  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
++  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
++- 结论：
++  - F007 已 resolved-correct。
++  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+ 
+ ### 第一段：测试充分性（Test Adequacy）
+ 
+-先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。
++先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+ 
+-- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。
+-- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。
+-- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。
+-- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。
++本次补丁已把这个缺口补实：
+ 
++- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
++- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
++- 该测试对错误实现具有有效杀伤力：
++  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
++  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
++  - 返回空结果或重复/缺失结果会导致行数断言失败。
++
++因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
++
+ ### 第二段：行为正确性（Behavioral Correctness）
+ 
+-变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。
++`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+ 
+-- Phase 0 / Contract Pack：
+-  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。
+-  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还补了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。
+-  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。
+-  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。
+-  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。
+-  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。
+-- non_goals 基本遵守：
+-  - 未改 `check_class_scope` / `check_resource_class` 语义。
+-  - 未引入 WHERE 软过滤替代 raise。
+-  - 未引入 “后 6 位 OR 整串” 双路径。
+-  - 未改 service 业务流，只在 router 前置加守卫。
+-- freshness / allowed_change_surface：
+-  - 实现主路径落在 Fix Intent 允许范围内。
+-  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。
+-- 边界条件：
+-  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。
+-  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。
+-  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。
++- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
++- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
++- `group_by(Student.id)`
++- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
++
++修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
++
++- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
++- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
++- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
++
++因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+ 
+ ### 第三段：未测试风险（Non-tested Risks）
+ 
+-- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{"added": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。
+-- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。
+-- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。
++本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
++
++- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
++- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+ 
+ ### 发现清单
+ 
+-#### F007
+-- Severity: MED
+-- Category: test-gap
+-- Type: defect_fix
+-- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。
+-- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。
+-- Evidence:
+-  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。
+-  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。
+-- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。
+-- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。
++本轮无阻塞 finding。
+ 
+ ### 结论
+ 
+-Round 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。
++第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+
+codex
+报告已经改写为最终 R3 状态。我再快速回读一次文件，确认结构、结论和新增重审段都落到位。
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md","head":260})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md","head":260}) success in 3ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00\n\n## 审查报告: Task 19-22\n结论: PASS\n\n### 第二轮 Round 3 重审 (commit 93f0b60)\n\n本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。\n\n- 已执行：\n  - `git log --oneline e584e6a~1..93f0b60`\n  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`\n  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`\n  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`\n  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过\n- 静态判定：\n  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言�� `len(rows) == 3`。\n  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。\n  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。\n  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。\n- 结论：\n  - F007 已 resolved-correct。\n  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。\n\n### 第一段：测试充分性（Test Adequacy）\n\n先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。\n\n本次补丁已把这个缺口补实：\n\n- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。\n- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。\n- 该测试对错误实现具有有效杀伤力：\n  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；\n  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；\n  - 返回空结果或重复/缺失结果会导致行数断言失败。\n\n因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。\n\n### 第二段：行为正确性（Behavioral Correctness）\n\n`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：\n\n- `select(Student, coalesce(sum(ConductRecord.points), 0).label(\"total\"))`\n- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`\n- `group_by(Student.id)`\n- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`\n\n修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：\n\n- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；\n- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；\n- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。\n\n因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。\n\n### 第三段：未测试风险（Non-tested Risks）\n\n本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。\n\n- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。\n- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。\n\n### 发现清单\n\n本轮无阻塞 finding。\n\n### 结论\n\n第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。"
+    }
+  ],
+  "structuredContent": {
+    "content": "[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00\n\n## 审查报告: Task 19-22\n结论: PASS\n\n### 第二轮 Round 3 重审 (commit 93f0b60)\n\n本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。\n\n- 已执行：\n  - `git log --oneline e584e6a~1..93f0b60`\n  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`\n  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`\n  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`\n  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过\n- 静态判定：\n  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言�� `len(rows) == 3`。\n  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。\n  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。\n  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。\n- 结论：\n  - F007 已 resolved-correct。\n  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。\n\n### 第一段：测试充分性（Test Adequacy）\n\n先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。\n\n本次补丁已把这个缺口补实：\n\n- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。\n- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。\n- 该测试对错误实现具有有效杀伤力：\n  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；\n  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；\n  - 返回空结果或重复/缺失结果会导致行数断言失败。\n\n因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。\n\n### 第二段：行为正确性（Behavioral Correctness）\n\n`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：\n\n- `select(Student, coalesce(sum(ConductRecord.points), 0).label(\"total\"))`\n- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`\n- `group_by(Student.id)`\n- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`\n\n修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：\n\n- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；\n- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；\n- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。\n\n因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。\n\n### 第三段：未测试风险（Non-tested Risks）\n\n本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。\n\n- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。\n- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。\n\n### 发现清单\n\n本轮无阻塞 finding。\n\n### 结论\n\n第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。"
+  }
+}
+file update:
+diff --git a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+index 70756aafa2b2514a0c2c3af261f56b3b9e4ecf97..178b01113c7fc33a4865070569d61b9f04043f41
+--- a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
++++ b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+@@ -1,61 +1,70 @@
+-[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28
++[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+ 
+ ## 审查报告: Task 19-22
+-结论: FAIL
++结论: PASS
++
++### 第二轮 Round 3 重审 (commit 93f0b60)
++
++本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
++
++- 已执行：
++  - `git log --oneline e584e6a~1..93f0b60`
++  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
++  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
++  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
++  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
++- 静态判定：
++  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
++  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
++  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
++  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
++- 结论：
++  - F007 已 resolved-correct。
++  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+ 
+ ### 第一段：测试充分性（Test Adequacy）
+ 
+-先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。
++先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+ 
+-- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。
+-- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。
+-- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。
+-- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。
++本次补丁已把这个缺口补实：
+ 
++- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
++- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
++- 该测试对错误实现具有有效杀伤力：
++  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
++  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
++  - 返回空结果或重复/缺失结果会导致行数断言失败。
++
++因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
++
+ ### 第二段：行为正确性（Behavioral Correctness）
+ 
+-变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。
++`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+ 
+-- Phase 0 / Contract Pack：
+-  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。
+-  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还补了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。
+-  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。
+-  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。
+-  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。
+-  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。
+-- non_goals 基本遵守：
+-  - 未改 `check_class_scope` / `check_resource_class` 语义。
+-  - 未引入 WHERE 软过滤替代 raise。
+-  - 未引入 “后 6 位 OR 整串” 双路径。
+-  - 未改 service 业务流，只在 router 前置加守卫。
+-- freshness / allowed_change_surface：
+-  - 实现主路径落在 Fix Intent 允许范围内。
+-  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。
+-- 边界条件：
+-  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。
+-  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。
+-  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。
++- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
++- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
++- `group_by(Student.id)`
++- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
++
++修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
++
++- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
++- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
++- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
++
++因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+ 
+ ### 第三段：未测试风险（Non-tested Risks）
+ 
+-- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{"added": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。
+-- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。
+-- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。
++本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
++
++- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
++- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+ 
+ ### 发现清单
+ 
+-#### F007
+-- Severity: MED
+-- Category: test-gap
+-- Type: defect_fix
+-- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。
+-- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。
+-- Evidence:
+-  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。
+-  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。
+-- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。
+-- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。
++本轮无阻塞 finding。
+ 
+ ### 结论
+ 
+-Round 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。
++第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+
+codex
+回读时看到一处乱码字符，是报告文本问题，不影响判断。我会只修这一行，避免最终文档留下脏字符。
+file update:
+diff --git a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+index 70756aafa2b2514a0c2c3af261f56b3b9e4ecf97..178b01113c7fc33a4865070569d61b9f04043f41
+--- a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
++++ b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+@@ -1,61 +1,70 @@
+-[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28
++[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+ 
+ ## 审查报告: Task 19-22
+-结论: FAIL
++结论: PASS
++
++### 第二轮 Round 3 重审 (commit 93f0b60)
++
++本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
++
++- 已执行：
++  - `git log --oneline e584e6a~1..93f0b60`
++  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
++  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
++  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
++  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
++- 静态判定：
++  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
++  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
++  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
++  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
++- 结论：
++  - F007 已 resolved-correct。
++  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+ 
+ ### 第一段：测试充分性（Test Adequacy）
+ 
+-先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。
++先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+ 
+-- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。
+-- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。
+-- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。
+-- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。
++本次补丁已把这个缺口补实：
+ 
++- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
++- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
++- 该测试对错误实现具有有效杀伤力：
++  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
++  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
++  - 返回空结果或重复/缺失结果会导致行数断言失败。
++
++因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
++
+ ### 第二段：行为正确性（Behavioral Correctness）
+ 
+-变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。
++`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+ 
+-- Phase 0 / Contract Pack：
+-  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。
+-  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还补了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。
+-  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。
+-  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。
+-  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。
+-  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。
+-- non_goals 基本遵守：
+-  - 未改 `check_class_scope` / `check_resource_class` 语义。
+-  - 未引入 WHERE 软过滤替代 raise。
+-  - 未引入 “后 6 位 OR 整串” 双路径。
+-  - 未改 service 业务流，只在 router 前置加守卫。
+-- freshness / allowed_change_surface：
+-  - 实现主路径落在 Fix Intent 允许范围内。
+-  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。
+-- 边界条件：
+-  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。
+-  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。
+-  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。
++- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
++- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
++- `group_by(Student.id)`
++- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
++
++修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
++
++- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
++- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
++- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
++
++因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+ 
+ ### 第三段：未测试风险（Non-tested Risks）
+ 
+-- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{"added": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。
+-- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。
+-- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。
++本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
++
++- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
++- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+ 
+ ### 发现清单
+ 
+-#### F007
+-- Severity: MED
+-- Category: test-gap
+-- Type: defect_fix
+-- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。
+-- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。
+-- Evidence:
+-  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。
+-  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。
+-- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。
+-- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。
++本轮无阻塞 finding。
+ 
+ ### 结论
+ 
+-Round 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。
++第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"SUM\\(points\\)|len\\(rows\\) == 3\" docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md" in C:/Users/Administrator/edu-cloud succeeded in 1.92s:
+17:  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
+34:  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
+file update:
+diff --git a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+index 70756aafa2b2514a0c2c3af261f56b3b9e4ecf97..178b01113c7fc33a4865070569d61b9f04043f41
+--- a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
++++ b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+@@ -1,61 +1,70 @@
+-[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28
++[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+ 
+ ## 审查报告: Task 19-22
+-结论: FAIL
++结论: PASS
++
++### 第二轮 Round 3 重审 (commit 93f0b60)
++
++本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
++
++- 已执行：
++  - `git log --oneline e584e6a~1..93f0b60`
++  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
++  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
++  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
++  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
++- 静态判定：
++  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
++  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
++  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
++  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
++- 结论：
++  - F007 已 resolved-correct。
++  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+ 
+ ### 第一段：测试充分性（Test Adequacy）
+ 
+-先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。
++先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+ 
+-- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。
+-- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。
+-- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。
+-- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。
++本次补丁已把这个缺口补实：
+ 
++- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
++- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
++- 该测试对错误实现具有有效杀伤力：
++  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
++  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
++  - 返回空结果或重复/缺失结果会导致行数断言失败。
++
++因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
++
+ ### 第二段：行为正确性（Behavioral Correctness）
+ 
+-变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。
++`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+ 
+-- Phase 0 / Contract Pack：
+-  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。
+-  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还补了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。
+-  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。
+-  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。
+-  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。
+-  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。
+-- non_goals 基本遵守：
+-  - 未改 `check_class_scope` / `check_resource_class` 语义。
+-  - 未引入 WHERE 软过滤替代 raise。
+-  - 未引入 “后 6 位 OR 整串” 双路径。
+-  - 未改 service 业务流，只在 router 前置加守卫。
+-- freshness / allowed_change_surface：
+-  - 实现主路径落在 Fix Intent 允许范围内。
+-  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。
+-- 边界条件：
+-  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。
+-  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。
+-  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。
++- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
++- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
++- `group_by(Student.id)`
++- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
++
++修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
++
++- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
++- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
++- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
++
++因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+ 
+ ### 第三段：未测试风险（Non-tested Risks）
+ 
+-- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{"added": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。
+-- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。
+-- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。
++本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
++
++- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
++- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+ 
+ ### 发现清单
+ 
+-#### F007
+-- Severity: MED
+-- Category: test-gap
+-- Type: defect_fix
+-- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。
+-- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。
+-- Evidence:
+-  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。
+-  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。
+-- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。
+-- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。
++本轮无阻塞 finding。
+ 
+ ### 结论
+ 
+-Round 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。
++第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md","head":30})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md","head":30}) success in 47ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00\n\n## 审查报告: Task 19-22\n结论: PASS\n\n### 第二轮 Round 3 重审 (commit 93f0b60)\n\n本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。\n\n- 已执行：\n  - `git log --oneline e584e6a~1..93f0b60`\n  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`\n  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`\n  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`\n  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过\n- 静态判定：\n  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言�� `len(rows) == 3`。\n  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。\n  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。\n  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。\n- 结论：\n  - F007 已 resolved-correct。\n  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。\n\n### 第一段：测试充分性（Test Adequacy）\n\n先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。\n\n本次补丁已把这个缺口补实：\n"
+    }
+  ],
+  "structuredContent": {
+    "content": "[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00\n\n## 审查报告: Task 19-22\n结论: PASS\n\n### 第二轮 Round 3 重审 (commit 93f0b60)\n\n本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。\n\n- 已执行：\n  - `git log --oneline e584e6a~1..93f0b60`\n  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`\n  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`\n  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`\n  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过\n- 静态判定：\n  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言�� `len(rows) == 3`。\n  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。\n  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。\n  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。\n- 结论：\n  - F007 已 resolved-correct。\n  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。\n\n### 第一段：测试充分性（Test Adequacy）\n\n先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。\n\n本次补丁已把这个缺口补实：\n"
+  }
+}
+file update:
+diff --git a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+index 70756aafa2b2514a0c2c3af261f56b3b9e4ecf97..178b01113c7fc33a4865070569d61b9f04043f41
+--- a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
++++ b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+@@ -1,61 +1,70 @@
+-[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28
++[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+ 
+ ## 审查报告: Task 19-22
+-结论: FAIL
++结论: PASS
++
++### 第二轮 Round 3 重审 (commit 93f0b60)
++
++本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
++
++- 已执行：
++  - `git log --oneline e584e6a~1..93f0b60`
++  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
++  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
++  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
++  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
++- 静态判定：
++  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
++  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
++  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
++  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
++- 结论：
++  - F007 已 resolved-correct。
++  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+ 
+ ### 第一段：测试充分性（Test Adequacy）
+ 
+-先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。
++先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+ 
+-- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。
+-- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。
+-- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。
+-- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。
++本次补丁已把这个缺口补实：
+ 
++- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
++- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
++- 该测试对错误实现具有有效杀伤力：
++  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
++  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
++  - 返回空结果或重复/缺失结果会导致行数断言失败。
++
++因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
++
+ ### 第二段：行为正确性（Behavioral Correctness）
+ 
+-变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。
++`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+ 
+-- Phase 0 / Contract Pack：
+-  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。
+-  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还补了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。
+-  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。
+-  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。
+-  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。
+-  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。
+-- non_goals 基本遵守：
+-  - 未改 `check_class_scope` / `check_resource_class` 语义。
+-  - 未引入 WHERE 软过滤替代 raise。
+-  - 未引入 “后 6 位 OR 整串” 双路径。
+-  - 未改 service 业务流，只在 router 前置加守卫。
+-- freshness / allowed_change_surface：
+-  - 实现主路径落在 Fix Intent 允许范围内。
+-  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。
+-- 边界条件：
+-  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。
+-  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。
+-  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。
++- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
++- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
++- `group_by(Student.id)`
++- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
++
++修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
++
++- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
++- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
++- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
++
++因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+ 
+ ### 第三段：未测试风险（Non-tested Risks）
+ 
+-- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{"added": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。
+-- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。
+-- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。
++本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
++
++- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
++- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+ 
+ ### 发现清单
+ 
+-#### F007
+-- Severity: MED
+-- Category: test-gap
+-- Type: defect_fix
+-- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。
+-- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。
+-- Evidence:
+-  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。
+-  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。
+-- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。
+-- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。
++本轮无阻塞 finding。
+ 
+ ### 结论
+ 
+-Round 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。
++第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+
+file update:
+diff --git a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+index 70756aafa2b2514a0c2c3af261f56b3b9e4ecf97..178b01113c7fc33a4865070569d61b9f04043f41
+--- a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
++++ b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+@@ -1,61 +1,70 @@
+-[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28
++[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+ 
+ ## 审查报告: Task 19-22
+-结论: FAIL
++结论: PASS
++
++### 第二轮 Round 3 重审 (commit 93f0b60)
++
++本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
++
++- 已执行：
++  - `git log --oneline e584e6a~1..93f0b60`
++  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
++  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
++  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
++  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
++- 静态判定：
++  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
++  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
++  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
++  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
++- 结论：
++  - F007 已 resolved-correct。
++  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+ 
+ ### 第一段：测试充分性（Test Adequacy）
+ 
+-先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。
++先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+ 
+-- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。
+-- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。
+-- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。
+-- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。
++本次补丁已把这个缺口补实：
+ 
++- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
++- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
++- 该测试对错误实现具有有效杀伤力：
++  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
++  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
++  - 返回空结果或重复/缺失结果会导致行数断言失败。
++
++因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
++
+ ### 第二段：行为正确性（Behavioral Correctness）
+ 
+-变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。
++`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+ 
+-- Phase 0 / Contract Pack：
+-  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。
+-  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还补了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。
+-  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。
+-  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。
+-  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。
+-  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。
+-- non_goals 基本遵守：
+-  - 未改 `check_class_scope` / `check_resource_class` 语义。
+-  - 未引入 WHERE 软过滤替代 raise。
+-  - 未引入 “后 6 位 OR 整串” 双路径。
+-  - 未改 service 业务流，只在 router 前置加守卫。
+-- freshness / allowed_change_surface：
+-  - 实现主路径落在 Fix Intent 允许范围内。
+-  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。
+-- 边界条件：
+-  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。
+-  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。
+-  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。
++- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
++- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
++- `group_by(Student.id)`
++- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
++
++修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
++
++- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
++- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
++- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
++
++因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+ 
+ ### 第三段：未测试风险（Non-tested Risks）
+ 
+-- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{"added": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。
+-- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。
+-- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。
++本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
++
++- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
++- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+ 
+ ### 发现清单
+ 
+-#### F007
+-- Severity: MED
+-- Category: test-gap
+-- Type: defect_fix
+-- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。
+-- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。
+-- Evidence:
+-  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。
+-  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。
+-- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。
+-- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。
++本轮无阻塞 finding。
+ 
+ ### 结论
+ 
+-Round 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。
++第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md | ForEach-Object { '"'{0:D3}: {1}' -f "'$i, $_; $i++ } | Select-Object -First 25' in C:/Users/Administrator/edu-cloud succeeded in 536ms:
+001: [edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+002: 
+003: ## 瀹℃煡鎶ュ憡: Task 19-22
+004: 缁撹: PASS
+005: 
+006: ### 绗簩杞?Round 3 閲嶅 (commit 93f0b60)
+007: 
+008: 鏈疆鍙鏍镐笂涓€鐗堝敮涓€闃诲椤?F007锛坄test_export_rankings_excel` 鐨?test-gap锛夛紝涓嶉噸澶嶅鏌ュ凡鍦?Round 3 棣栬疆纭鐨?F002 / F004 / F006 records / N001銆?
+009: - 宸叉墽琛岋細
+010:   - `git log --oneline e584e6a~1..93f0b60`
+011:   - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
+012:   - 閫氳 `tests/test_conduct/test_admin_api.py` 涓慨鏀瑰悗鐨?`test_export_rankings_excel`
+013:   - 閫氳 `src/edu_cloud/modules/conduct/export_service.py` 鐨?`export_rankings_excel`
+014:   - 棰濆鎵ц `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`锛岀粨鏋滈€氳繃
+015: - 闈欐€佸垽瀹氾細
+016:   - a. 鑻ュ垹闄?service 涓殑 `SUM(points)` 鑱氬悎锛屾祴璇曚細澶辫触銆傚綋鍓嶆祴璇曞浐瀹氭柇瑷€瀛︾敓 B 鎬诲垎涓?`10 (=7+3)`銆佸鐢?A 鎬诲垎涓?`-3 (=2-5)`锛涗换浣曗€滃彇鍗曟潯璁板綍鍊?/ 闈炶仛鍚堝€?/ 閲嶅琛屸€濆疄鐜伴兘鏃犳硶鍚屾椂婊¤冻杩欎袱涓柇瑷€涓?`len(rows) == 3`銆?  - b. 鑻ユ妸 `ORDER BY ... DESC` 鏀规垚 ASC锛屾祴璇曚細澶辫触銆傚綋鍓嶆祴璇曟樉寮忔柇瑷€绗?1 鍚嶆槸鏉庡洓锛?0 鍒嗭級銆佺 2 鍚嶆槸寮犱笁锛?3 鍒嗭級锛屽苟涓旇ˉ浜嗕竴鏉?`rows[1][3] > rows[2][3]`锛岄『搴忓弽杞悗绔嬪嵆绾€?  - c. 鑻ユ竻绌?select 杩斿洖锛屾祴璇曚細澶辫触銆傚伐浣滅翱鍙墿 header锛宍len(rows)` 浼氫粠棰勬湡 `3` 閫€鍖栦负 `1`銆?  - d. 璇ユ祴璇曚笉鏄€昏緫闀滃儚銆傚畠鏍￠獙鐨勬槸 HTTP 瀵煎嚭鐨勬渶缁?Excel 鍙瀵熷绾︼細鎺掑悕銆佸鍚嶃€佸鍙枫€佹€荤Н鍒嗭紱鏈熸湜鍊兼潵鑷墜宸ユ瀯閫犳暟鎹殑涓氬姟缁撴灉锛屼笉鏄妸 SQL 鏌ヨ鎴栨帓搴忓疄鐜板師鏍峰杩颁竴閬嶃€?- 缁撹锛?  - F007 宸?resolved-correct銆?  - 鏈疆鏈彂鐜版柊鐨?HIGH / MED code-bug 鎴?test-gap finding銆?
+017: ### 绗竴娈碉細娴嬭瘯鍏呭垎鎬э紙Test Adequacy锛?
+018: 鍏堝娴嬭瘯锛屽啀瀹″疄鐜般€俁ound 3 棣栬疆鐨勫敮涓€闃诲鐐规槸 F007锛氭棫鐗?`test_export_rankings_excel` 鍙鐩栤€滃崟瀛︾敓銆侀浂绉垎鈥濓紝鏃犳硶璇佹槑鎺掕姒滃鍑虹殑鈥滆仛鍚?+ 鎺掑簭鈥濇牳蹇冭涔夈€?
+019: 鏈琛ヤ竵宸叉妸杩欎釜缂哄彛琛ュ疄锛?
+020: - `test_export_rankings_excel` 鐜板湪鏋勯€?2 鍚嶅鐢熴€? 鏉＄Н鍒嗚褰曪紝涓斾袱鍚嶅鐢熸€诲垎涓€姝ｄ竴璐燂紝閬垮厤鍗曞鐢?鍚屽垎鍦烘櫙鎺╃洊閿欒銆?- 鏂█瑕嗙洊浜嗕笁涓叧閿淮搴︼細杩斿洖琛屾暟銆佹帓鍚嶉『搴忋€佽仛鍚堟€诲垎銆?- 璇ユ祴璇曞閿欒瀹炵幇鍏锋湁鏈夋晥鏉€浼ゅ姏锛?  - 鐮村潖 `SUM(points)` 浼氬鑷存€诲垎涓嶅啀鏄?`10 / -3`锛?  - 鐮村潖 `ORDER BY total DESC` 浼氬鑷寸 1 琛屼笉鍐嶆槸鏉庡洓锛?  - 杩斿洖绌虹粨鏋滄垨閲嶅/缂哄け缁撴灉浼氬鑷磋鏁版柇瑷€澶辫触銆?
+file update:
+diff --git a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+index 70756aafa2b2514a0c2c3af261f56b3b9e4ecf97..178b01113c7fc33a4865070569d61b9f04043f41
+--- a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
++++ b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+@@ -1,61 +1,70 @@
+-[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28
++[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+ 
+ ## 审查报告: Task 19-22
+-结论: FAIL
++结论: PASS
++
++### 第二轮 Round 3 重审 (commit 93f0b60)
++
++本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
++
++- 已执行：
++  - `git log --oneline e584e6a~1..93f0b60`
++  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
++  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
++  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
++  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
++- 静态判定：
++  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
++  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
++  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
++  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
++- 结论：
++  - F007 已 resolved-correct。
++  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+ 
+ ### 第一段：测试充分性（Test Adequacy）
+ 
+-先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。
++先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+ 
+-- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。
+-- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。
+-- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。
+-- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。
++本次补丁已把这个缺口补实：
+ 
++- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
++- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
++- 该测试对错误实现具有有效杀伤力：
++  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
++  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
++  - 返回空结果或重复/缺失结果会导致行数断言失败。
++
++因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
++
+ ### 第二段：行为正确性（Behavioral Correctness）
+ 
+-变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。
++`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+ 
+-- Phase 0 / Contract Pack：
+-  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。
+-  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还补了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。
+-  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。
+-  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。
+-  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。
+-  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。
+-- non_goals 基本遵守：
+-  - 未改 `check_class_scope` / `check_resource_class` 语义。
+-  - 未引入 WHERE 软过滤替代 raise。
+-  - 未引入 “后 6 位 OR 整串” 双路径。
+-  - 未改 service 业务流，只在 router 前置加守卫。
+-- freshness / allowed_change_surface：
+-  - 实现主路径落在 Fix Intent 允许范围内。
+-  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。
+-- 边界条件：
+-  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。
+-  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。
+-  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。
++- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
++- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
++- `group_by(Student.id)`
++- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
++
++修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
++
++- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
++- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
++- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
++
++因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+ 
+ ### 第三段：未测试风险（Non-tested Risks）
+ 
+-- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{"added": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。
+-- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。
+-- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。
++本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
++
++- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
++- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+ 
+ ### 发现清单
+ 
+-#### F007
+-- Severity: MED
+-- Category: test-gap
+-- Type: defect_fix
+-- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。
+-- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。
+-- Evidence:
+-  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。
+-  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。
+-- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。
+-- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。
++本轮无阻塞 finding。
+ 
+ ### 结论
+ 
+-Round 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。
++第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+
+codex
+我看到读取工具仍把一处字节显示成替代字符。为了避免留隐患，我直接把整份报告重新写一遍，内容不变，只确保文本干净。
+file update
+A C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+
+## 审查报告: Task 19-22
+结论: PASS
+
+### 第二轮 Round 3 重审 (commit 93f0b60)
+
+本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
+
+- 已执行：
+  - `git log --oneline e584e6a~1..93f0b60`
+  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
+  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
+  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
+  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
+- 静态判定：
+  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
+  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
+  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
+  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
+- 结论：
+  - F007 已 resolved-correct。
+  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+
+### 第一段：测试充分性（Test Adequacy）
+
+先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+
+本次补丁已把这个缺口补实：
+
+- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
+- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
+- 该测试对错误实现具有有效杀伤力：
+  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
+  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
+  - 返回空结果或重复/缺失结果会导致行数断言失败。
+
+因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
+
+### 第二段：行为正确性（Behavioral Correctness）
+
+`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+
+- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
+- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
+- `group_by(Student.id)`
+- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
+
+修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
+
+- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
+- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
+- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
+
+因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+
+### 第三段：未测试风险（Non-tested Risks）
+
+本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
+
+- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
+- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+
+### 发现清单
+
+本轮无阻塞 finding。
+
+### 结论
+
+第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+apply_patch(auto_approved=true) exited 0 in 160ms:
+Success. Updated the following files:
+A C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+D C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+file update:
+diff --git a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+index 70756aafa2b2514a0c2c3af261f56b3b9e4ecf97..178b01113c7fc33a4865070569d61b9f04043f41
+--- a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
++++ b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+@@ -1,61 +1,70 @@
+-[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28
++[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+ 
+ ## 审查报告: Task 19-22
+-结论: FAIL
++结论: PASS
++
++### 第二轮 Round 3 重审 (commit 93f0b60)
++
++本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
++
++- 已执行：
++  - `git log --oneline e584e6a~1..93f0b60`
++  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
++  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
++  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
++  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
++- 静态判定：
++  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
++  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
++  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
++  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
++- 结论：
++  - F007 已 resolved-correct。
++  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+ 
+ ### 第一段：测试充分性（Test Adequacy）
+ 
+-先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。
++先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+ 
+-- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。
+-- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。
+-- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。
+-- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。
++本次补丁已把这个缺口补实：
+ 
++- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
++- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
++- 该测试对错误实现具有有效杀伤力：
++  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
++  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
++  - 返回空结果或重复/缺失结果会导致行数断言失败。
++
++因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
++
+ ### 第二段：行为正确性（Behavioral Correctness）
+ 
+-变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。
++`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+ 
+-- Phase 0 / Contract Pack：
+-  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。
+-  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还补了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。
+-  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。
+-  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。
+-  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。
+-  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。
+-- non_goals 基本遵守：
+-  - 未改 `check_class_scope` / `check_resource_class` 语义。
+-  - 未引入 WHERE 软过滤替代 raise。
+-  - 未引入 “后 6 位 OR 整串” 双路径。
+-  - 未改 service 业务流，只在 router 前置加守卫。
+-- freshness / allowed_change_surface：
+-  - 实现主路径落在 Fix Intent 允许范围内。
+-  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。
+-- 边界条件：
+-  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。
+-  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。
+-  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。
++- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
++- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
++- `group_by(Student.id)`
++- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
++
++修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
++
++- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
++- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
++- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
++
++因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+ 
+ ### 第三段：未测试风险（Non-tested Risks）
+ 
+-- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{"added": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。
+-- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。
+-- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。
++本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
++
++- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
++- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+ 
+ ### 发现清单
+ 
+-#### F007
+-- Severity: MED
+-- Category: test-gap
+-- Type: defect_fix
+-- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。
+-- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。
+-- Evidence:
+-  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。
+-  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。
+-- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。
+-- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。
++本轮无阻塞 finding。
+ 
+ ### 结论
+ 
+-Round 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。
++第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+
+file update:
+diff --git a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+index 70756aafa2b2514a0c2c3af261f56b3b9e4ecf97..178b01113c7fc33a4865070569d61b9f04043f41
+--- a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
++++ b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+@@ -1,61 +1,70 @@
+-[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28
++[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+ 
+ ## 审查报告: Task 19-22
+-结论: FAIL
++结论: PASS
++
++### 第二轮 Round 3 重审 (commit 93f0b60)
++
++本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
++
++- 已执行：
++  - `git log --oneline e584e6a~1..93f0b60`
++  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
++  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
++  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
++  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
++- 静态判定：
++  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
++  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
++  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
++  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
++- 结论：
++  - F007 已 resolved-correct。
++  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+ 
+ ### 第一段：测试充分性（Test Adequacy）
+ 
+-先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。
++先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+ 
+-- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。
+-- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。
+-- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。
+-- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。
++本次补丁已把这个缺口补实：
+ 
++- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
++- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
++- 该测试对错误实现具有有效杀伤力：
++  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
++  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
++  - 返回空结果或重复/缺失结果会导致行数断言失败。
++
++因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
++
+ ### 第二段：行为正确性（Behavioral Correctness）
+ 
+-变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。
++`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+ 
+-- Phase 0 / Contract Pack：
+-  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。
+-  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还补了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。
+-  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。
+-  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。
+-  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。
+-  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。
+-- non_goals 基本遵守：
+-  - 未改 `check_class_scope` / `check_resource_class` 语义。
+-  - 未引入 WHERE 软过滤替代 raise。
+-  - 未引入 “后 6 位 OR 整串” 双路径。
+-  - 未改 service 业务流，只在 router 前置加守卫。
+-- freshness / allowed_change_surface：
+-  - 实现主路径落在 Fix Intent 允许范围内。
+-  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。
+-- 边界条件：
+-  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。
+-  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。
+-  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。
++- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
++- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
++- `group_by(Student.id)`
++- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
++
++修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
++
++- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
++- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
++- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
++
++因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+ 
+ ### 第三段：未测试风险（Non-tested Risks）
+ 
+-- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{"added": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。
+-- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。
+-- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。
++本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
++
++- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
++- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+ 
+ ### 发现清单
+ 
+-#### F007
+-- Severity: MED
+-- Category: test-gap
+-- Type: defect_fix
+-- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。
+-- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。
+-- Evidence:
+-  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。
+-  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。
+-- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。
+-- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。
++本轮无阻塞 finding。
+ 
+ ### 结论
+ 
+-Round 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。
++第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md","head":40})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md","head":40}) success in 7ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00\n\n## 审查报告: Task 19-22\n结论: PASS\n\n### 第二轮 Round 3 重审 (commit 93f0b60)\n\n本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。\n\n- 已执行：\n  - `git log --oneline e584e6a~1..93f0b60`\n  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`\n  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`\n  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`\n  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过\n- 静态判定：\n  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言�� `len(rows) == 3`。\n  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。\n  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。\n  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。\n- 结论：\n  - F007 已 resolved-correct。\n  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。\n\n### 第一段：测试充分性（Test Adequacy）\n\n先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。\n\n本次补丁已把这个缺口补实：\n\n- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。\n- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。\n- 该测试对错误实现具有有效杀伤力：\n  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；\n  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；\n  - 返回空结果或重复/缺失结果会导致行数断言失败。\n\n因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。\n\n### 第二段：行为正确性（Behavioral Correctness）"
+    }
+  ],
+  "structuredContent": {
+    "content": "[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00\n\n## 审查报告: Task 19-22\n结论: PASS\n\n### 第二轮 Round 3 重审 (commit 93f0b60)\n\n本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。\n\n- 已执行：\n  - `git log --oneline e584e6a~1..93f0b60`\n  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`\n  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`\n  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`\n  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过\n- 静态判定：\n  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言�� `len(rows) == 3`。\n  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。\n  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。\n  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。\n- 结论：\n  - F007 已 resolved-correct。\n  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。\n\n### 第一段：测试充分性（Test Adequacy）\n\n先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。\n\n本次补丁已把这个缺口补实：\n\n- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。\n- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。\n- 该测试对错误实现具有有效杀伤力：\n  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；\n  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；\n  - 返回空结果或重复/缺失结果会导致行数断言失败。\n\n因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。\n\n### 第二段：行为正确性（Behavioral Correctness）"
+  }
+}
+file update:
+diff --git a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+index 70756aafa2b2514a0c2c3af261f56b3b9e4ecf97..178b01113c7fc33a4865070569d61b9f04043f41
+--- a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
++++ b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+@@ -1,61 +1,70 @@
+-[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28
++[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+ 
+ ## 审查报告: Task 19-22
+-结论: FAIL
++结论: PASS
++
++### 第二轮 Round 3 重审 (commit 93f0b60)
++
++本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
++
++- 已执行：
++  - `git log --oneline e584e6a~1..93f0b60`
++  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
++  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
++  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
++  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
++- 静态判定：
++  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
++  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
++  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
++  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
++- 结论：
++  - F007 已 resolved-correct。
++  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+ 
+ ### 第一段：测试充分性（Test Adequacy）
+ 
+-先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。
++先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+ 
+-- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。
+-- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。
+-- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。
+-- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。
++本次补丁已把这个缺口补实：
+ 
++- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
++- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
++- 该测试对错误实现具有有效杀伤力：
++  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
++  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
++  - 返回空结果或重复/缺失结果会导致行数断言失败。
++
++因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
++
+ ### 第二段：行为正确性（Behavioral Correctness）
+ 
+-变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。
++`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+ 
+-- Phase 0 / Contract Pack：
+-  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。
+-  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还补了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。
+-  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。
+-  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。
+-  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。
+-  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。
+-- non_goals 基本遵守：
+-  - 未改 `check_class_scope` / `check_resource_class` 语义。
+-  - 未引入 WHERE 软过滤替代 raise。
+-  - 未引入 “后 6 位 OR 整串” 双路径。
+-  - 未改 service 业务流，只在 router 前置加守卫。
+-- freshness / allowed_change_surface：
+-  - 实现主路径落在 Fix Intent 允许范围内。
+-  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。
+-- 边界条件：
+-  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。
+-  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。
+-  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。
++- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
++- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
++- `group_by(Student.id)`
++- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
++
++修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
++
++- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
++- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
++- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
++
++因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+ 
+ ### 第三段：未测试风险（Non-tested Risks）
+ 
+-- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{"added": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。
+-- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。
+-- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。
++本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
++
++- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
++- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+ 
+ ### 发现清单
+ 
+-#### F007
+-- Severity: MED
+-- Category: test-gap
+-- Type: defect_fix
+-- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。
+-- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。
+-- Evidence:
+-  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。
+-  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。
+-- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。
+-- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。
++本轮无阻塞 finding。
+ 
+ ### 结论
+ 
+-Round 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。
++第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+
+codex
+PASS。
+
+已将 R3 最终报告更新到 [2026-04-12-conduct-module-review-report-batch1-r3.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md)。本轮复核结论是 `F007 resolved-correct`：当前补丁能实质性捕获 `SUM(points)` 被破坏、`ORDER BY ... DESC` 被改反、以及空结果集这三类回退，且测试不是对实现 SQL 的同构复述。
+
+我还执行了 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过。
+file update:
+diff --git a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+index 70756aafa2b2514a0c2c3af261f56b3b9e4ecf97..178b01113c7fc33a4865070569d61b9f04043f41
+--- a/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
++++ b/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md
+@@ -1,61 +1,70 @@
+-[edu-cloud] GPT Reviewer | 2026-04-13 20:06:28
++[edu-cloud] GPT Reviewer | 2026-04-13 20:22:00
+ 
+ ## 审查报告: Task 19-22
+-结论: FAIL
++结论: PASS
++
++### 第二轮 Round 3 重审 (commit 93f0b60)
++
++本轮只复核上一版唯一阻塞项 F007（`test_export_rankings_excel` 的 test-gap），不重复审查已在 Round 3 首轮确认的 F002 / F004 / F006 records / N001。
++
++- 已执行：
++  - `git log --oneline e584e6a~1..93f0b60`
++  - `git diff 93f0b60~1..93f0b60 -- tests/test_conduct/test_admin_api.py`
++  - 通读 `tests/test_conduct/test_admin_api.py` 中修改后的 `test_export_rankings_excel`
++  - 通读 `src/edu_cloud/modules/conduct/export_service.py` 的 `export_rankings_excel`
++  - 额外执行 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过
++- 静态判定：
++  - a. 若删除 service 中的 `SUM(points)` 聚合，测试会失败。当前测试固定断言学生 B 总分为 `10 (=7+3)`、学生 A 总分为 `-3 (=2-5)`；任何“取单条记录值 / 非聚合值 / 重复行”实现都无法同时满足这两个断言与 `len(rows) == 3`。
++  - b. 若把 `ORDER BY ... DESC` 改成 ASC，测试会失败。当前测试显式断言第 1 名是李四（10 分）、第 2 名是张三（-3 分），并且补了一条 `rows[1][3] > rows[2][3]`，顺序反转后立即红。
++  - c. 若清空 select 返回，测试会失败。工作簿只剩 header，`len(rows)` 会从预期 `3` 退化为 `1`。
++  - d. 该测试不是逻辑镜像。它校验的是 HTTP 导出的最终 Excel 可观察契约：排名、姓名、学号、总积分；期望值来自手工构造数据的业务结果，不是把 SQL 查询或排序实现原样复述一遍。
++- 结论：
++  - F007 已 resolved-correct。
++  - 本轮未发现新的 HIGH / MED code-bug 或 test-gap finding。
+ 
+ ### 第一段：测试充分性（Test Adequacy）
+ 
+-先审测试，再审实现。本次提交实际新/改了 10 个测试函数：F002 3 个、N001 3 个、F006 2 个、F004 前端 2 个。
++先审测试，再审实现。Round 3 首轮的唯一阻塞点是 F007：旧版 `test_export_rankings_excel` 只覆盖“单学生、零积分”，无法证明排行榜导出的“聚合 + 排序”核心语义。
+ 
+-- F002 的 3 个红测是有效的，不是逻辑镜像。它们都构造了真实跨班数据：`classB + rule_item_b`、`classB + studentB`，并且入口都走实际 router，不是直调 helper。删除 router 里的新前置校验后，这 3 个测试都会从 `404` 退化为 `200` 或写入成功，能抓住 body-field / batch-write 越权闭环。
+-- N001 的 3 个测试闭环完整。`test_parent_bind_id_card_mode` 会在错误实现 `stored != verify_code` 下失败；`test_parent_bind_id_card_full_string_rejected` 能防止 R2 的“整串身份证号也可绑定”行为复活；`test_parent_bind_id_card_wrong_6_digits` 覆盖错误 6 位边界。
+-- F004 的前端测试是有效契约测试。`ParentRules.spec.js` 的 mock 数据只提供 `points`，不提供 `default_points`，把模板改回旧字段会直接失效，不是对实现的镜像复述。
+-- F006 只完成了一半。`test_export_records_excel` 已明显强于 R2 的 “PK 魔数 + >1000 字节” 弱断言；但 `test_export_rankings_excel` 仍只覆盖“单学生、零积分”场景，无法证明“按总分降序排行”和“聚合总分正确”这两个核心行为。这个缺口仍会让错误实现蒙混过关，见 Finding F007。
++本次补丁已把这个缺口补实：
+ 
++- `test_export_rankings_excel` 现在构造 2 名学生、4 条积分记录，且两名学生总分一正一负，避免单学生/同分场景掩盖错误。
++- 断言覆盖了三个关键维度：返回行数、排名顺序、聚合总分。
++- 该测试对错误实现具有有效杀伤力：
++  - 破坏 `SUM(points)` 会导致总分不再是 `10 / -3`；
++  - 破坏 `ORDER BY total DESC` 会导致第 1 行不再是李四；
++  - 返回空结果或重复/缺失结果会导致行数断言失败。
++
++因此，Round 3 首轮报告中“F006 只完成一半”的结论，在本次补丁后已闭环；F007 不再构成阻塞。
++
+ ### 第二段：行为正确性（Behavioral Correctness）
+ 
+-变更意图与实现基本一致，除 F006 排行榜测试外未发现新的行为回退。
++`src/edu_cloud/modules/conduct/export_service.py` 中 `export_rankings_excel()` 的核心实现仍是：
+ 
+-- Phase 0 / Contract Pack：
+-  - ORC-009：由 `test_add_points_cross_class_rule_item_rejected` 覆盖；`check_rule_item_class` 使用 `rule_item -> rule_category -> class_id` 的 join，路径正确，见 `src/edu_cloud/modules/conduct/permissions.py:79-102`。
+-  - ORC-010：由 `test_add_group_members_cross_class_student_rejected` 覆盖，`remove_group_member` 还补了一条删除路径红测；`check_students_class` 对“不存在 / 外班”统一 404，不做软过滤，见 `src/edu_cloud/modules/conduct/permissions.py:105-126`。
+-  - ORC-011：router 前置顺序正确，`add_points` / `add_points_batch` / `add_group_members` / `remove_group_member` 都是先 `check_class_scope(...)`，再做资源/学生/rule_item 校验，之后才进 service，见 `src/edu_cloud/modules/conduct/admin_router.py:98-139`、`src/edu_cloud/modules/conduct/admin_router.py:337-364`。严格说 `admin_service.add_points()` 仍保留了既有 student-class 校验（`src/edu_cloud/modules/conduct/admin_service.py:255-267`），因此 “service 不重复校验” 只做到了新增 invariant 不下沉，未做到完全去重；但这是既有逻辑，且 Fix Intent 明确禁止改 service，本轮不单独升级为阻塞 finding。
+-  - ORC-012 / ORC-015：`parent_service.py` 已从 R2 的整串比对回退为 `stored[-6:] != verify_code`，完整身份证号与错误 6 位都会失败，见 `src/edu_cloud/modules/conduct/parent_service.py:188-194` 和 `tests/test_conduct/test_parent_api.py:473-560`。
+-  - ORC-013：phone/custom 共享 `profile.verify_code` 未回退。phone 由 `test_parent_bind_phone_mode` / `test_parent_bind_phone_mode_wrong_code` 证明，custom 仍由既有 `test_parent_bind_child` 覆盖，见 `src/edu_cloud/modules/conduct/parent_service.py:195-199`。
+-  - ORC-014：本轮未改任何 `id_card_number` 写入路径；现有加密不变量主要由 `tests/test_conduct/test_crypto.py:7-29` 和所有绑定测试中显式 `encrypt(...)` 的存储方式提供反证。这里没有新增入口级回归测试，但也没有看到本次提交引入明文入库路径。
+-- non_goals 基本遵守：
+-  - 未改 `check_class_scope` / `check_resource_class` 语义。
+-  - 未引入 WHERE 软过滤替代 raise。
+-  - 未引入 “后 6 位 OR 整串” 双路径。
+-  - 未改 service 业务流，只在 router 前置加守卫。
+-- freshness / allowed_change_surface：
+-  - 实现主路径落在 Fix Intent 允许范围内。
+-  - 唯一偏离是 `CLAUDE.md` 的项目状态更新；这是文档台账改动，不影响行为，不计入阻塞 finding。
+-- 边界条件：
+-  - `rule_item_id=None` 时 router 正确跳过 `check_rule_item_class`，见 `src/edu_cloud/modules/conduct/admin_router.py:107-109`、`src/edu_cloud/modules/conduct/admin_router.py:129-131`。
+-  - `stored` 长度 `< 6` 时，`stored[-6:]` 在 Python 中返回整串，比较自然失败，不会抛异常，行为单一。
+-  - `check_students_class([])` 已独立验证会直接返回：我本地执行 `python` 片段 `await check_students_class(None, [], 'cls-demo')`，输出 `ok-empty-return`。但这一契约仍缺少 API 级自动化测试，见下一节。
++- `select(Student, coalesce(sum(ConductRecord.points), 0).label("total"))`
++- `outerjoin(ConductRecord, ConductRecord.student_id == Student.id)`
++- `group_by(Student.id)`
++- `order_by(coalesce(sum(ConductRecord.points), 0).desc())`
++
++修改后的测试针对的正是这段实现的外部行为，而不是与其同构的内部复述：
++
++- 它通过 API 实际导出 Excel，再用 `openpyxl` 解包断言最终 workbook 内容；
++- 它不检查 SQLAlchemy 语句对象本身，也不依赖内部标签名或表达式拼装细节；
++- 它验证的是业务契约“谁排第 1、谁排第 2、各自总分是多少”，这正是排行榜导出对外承诺的行为。
++
++因此，从行为正确性角度看，F007 对应的测试补丁是有效的回归保护，而不是表面覆盖。
+ 
+ ### 第三段：未测试风险（Non-tested Risks）
+ 
+-- `check_students_class([])` 的空输入 no-op 行为在实现上成立，但没有自动化测试保护。因为函数首行就是 `if not student_ids: return`，且 `add_group_members()` 对空列表会返回 `{"added": 0}`，这属于低风险未测项；我记录为残余风险，不升级为阻塞 finding。
+-- `AddPointsRequest.date` 的 latent 422 不是本轮回归，而是既有 schema 缺陷：`src/edu_cloud/modules/conduct/schemas.py:33-38` 中字段名 `date` 与注解类型 `date` 同名，当前 Pydantic v2 会把它解释成 `None-only`。我本地独立复现 `AddPointsRequest(..., date='2026-04-13')` 得到 `Input should be None`。这解释了为什么本轮新增 F002 测试移除了 `date` 字段，但该问题不在 Round 3 allowed_change_surface 内，应记为 scope 外残余，不作为本轮 FAIL 依据。
+-- 原 R2 `test_class_scope_* / test_resource_affinity_*` 我尝试本地复跑时，被工作区另一处与本轮无关的 `src/edu_cloud/modules/knowledge_tree/router.py:91` (`ExamItemsResponse` 未定义) 阻断，无法得到“新鲜执行”证据。静态上看，本轮没有改动这些路径，且新增守卫是单向补强，不存在显式破坏原三条测试语义的代码。
++本轮仅复核 F007。就这次补丁本身而言，未再看到新的 HIGH / MED 级残余风险。
++
++- 未覆盖的 tie-breaker（同分时稳定顺序）不属于 F007 首轮 finding 的缺口，也不是本次补丁声称要解决的目标。
++- `semester_id` 分支未被这个测试触达，但这同样不属于本次 F007 补丁的回归面；当前补丁已充分闭环首轮指出的“SUM / ORDER BY 语义未测”问题。
+ 
+ ### 发现清单
+ 
+-#### F007
+-- Severity: MED
+-- Category: test-gap
+-- Type: defect_fix
+-- Before-behavior: `test_export_rankings_excel` 只构造“1 名学生、0 条积分记录”的工作簿，并断言 header + 单行 `张三/2026001/0`。如果错误实现没有按总分降序排序，或者总分聚合逻辑出错，但在单学生场景下仍输出 1 行，该测试仍会通过。
+-- After-behavior: 排行榜导出测试应至少构造 2 名学生和不同总分，断言 workbook 中的排名顺序与总积分都正确；删除/破坏 `SUM(points)` 或 `ORDER BY total DESC` 后，测试必须失败。
+-- Evidence:
+-  - `tests/test_conduct/test_admin_api.py:212-235` 只校验单学生、零积分的输出。
+-  - `src/edu_cloud/modules/conduct/export_service.py:56-77` 的核心语义是 `SUM(points)` + `ORDER BY ... DESC`，而当前测试没有真正覆盖这两点。
+-- Impact: F006 仍是 resolved-partial，不足以证明排行榜导出不会退化为错误排序、错误聚合或“所有学生都 0 分但测试仍绿”。按 Gate 2 标准，这是 MED 级 test-gap，阻塞 PASS。
+-- Repair hypothesis: 在 `test_export_rankings_excel` 中新增第二名学生并写入不同积分记录，断言 `rows == [header, rank1, rank2]` 且 rank1 的总分大于 rank2。此修复不与 ORC-009~015 冲突。
++本轮无阻塞 finding。
+ 
+ ### 结论
+ 
+-Round 3 的 F002、N001、F004 主修复实现本身已基本闭环；阻塞项只剩 F006 的 `test_export_rankings_excel` 仍未把“排序 + 聚合”测实，因此本轮结论仍为 FAIL。
++第二轮 Round 3 重审确认：commit `93f0b60` 已把 F007 从 `resolved-partial` 提升为 `resolved-correct`。由于本轮未发现新的 HIGH / MED 阻塞项，Round 3 最终结论为 PASS。
+
+tokens used
+35,451
+PASS。
+
+已将 R3 最终报告更新到 [2026-04-12-conduct-module-review-report-batch1-r3.md](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-conduct-module-review-report-batch1-r3.md)。本轮复核结论是 `F007 resolved-correct`：当前补丁能实质性捕获 `SUM(points)` 被破坏、`ORDER BY ... DESC` 被改反、以及空结果集这三类回退，且测试不是对实现 SQL 的同构复述。
+
+我还执行了 `pytest -q tests/test_conduct/test_admin_api.py -k test_export_rankings_excel`，结果通过。

@@ -44,6 +44,7 @@ class WorkspaceService:
                 {
                     "id": e.id,
                     "name": e.name,
+                    "status": e.status,
                     "subject_code": e.subject_code,
                     "semester": e.semester,
                 }

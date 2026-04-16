@@ -78,7 +78,7 @@ async def test_link_and_query_question_kps(client, db, kp_setup):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     kp = KnowledgePoint(code="API_TEST_KP", name="API测试", course_code="SX", level=1)
     db.add_all([q, kp])
     await db.commit()
@@ -109,7 +109,7 @@ async def test_question_kps_empty(client, db, kp_setup):
     subj = Subject(exam_id=exam.id, name="数学", code="SX2", school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="subjective", max_score=10)
+    q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     db.add(q)
     await db.commit()
 

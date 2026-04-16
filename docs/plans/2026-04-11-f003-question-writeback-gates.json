@@ -1,0 +1,107 @@
+{
+  "topic": "f003-question-writeback",
+  "tier": "T4",
+  "created_at": "2026-04-11 21:27:51",
+  "gates": {
+    "plan_review": {
+      "status": "pass",
+      "round": 7,
+      "report_path": "docs/plans/2026-04-11-f003-question-writeback-plan-review.md",
+      "raw_output_hash": "38d0f392575b034c6178e8b419ba7f15124eb1e28301e6248c842c4cd6996d8f",
+      "finalized_at": "2026-04-12T08:28:58+08:00",
+      "reviewer": "gpt-codex",
+      "subject_hash": "e47297a10c329b14762edf09f2dd56b8bdeedf99e88c66948a6441c28ec2bea3",
+      "updated": "2026-04-12T08:28:58.239697+08:00",
+      "reason": "Round 7 PASS — R6-F001 resolved (CR-2/CR-4 blank-line alignment); byte-level diff verified; finding collapse 6->5->5->5->2->1->0; user-approved 4th extension",
+      "findings": [
+        {
+          "id": "R6-F001",
+          "status": "verified",
+          "category": "code-bug",
+          "severity": "MED",
+          "type": "defect_fix",
+          "terminal": "resolved-correct",
+          "round_opened": 6,
+          "round_resolved": 7
+        },
+        {
+          "id": "R5-F001",
+          "status": "verified",
+          "category": "code-bug",
+          "severity": "MED",
+          "type": "defect_fix",
+          "terminal": "resolved-correct",
+          "round_opened": 5,
+          "round_resolved": 7
+        },
+        {
+          "id": "R5-F002",
+          "status": "verified",
+          "category": "test-gap",
+          "severity": "HIGH",
+          "type": "defect_fix",
+          "terminal": "resolved-correct",
+          "round_opened": 5,
+          "round_resolved": 6
+        }
+      ]
+    },
+    "code_review_batch1": {
+      "status": "pass",
+      "round": 0,
+      "report_path": "docs/plans/2026-04-11-f003-question-writeback-review-report-batch1-r3.md",
+      "raw_output_hash": "59b12e7c218260af1a1aea585f05b98720ef69157e037e81440dbca02b468ca7",
+      "finalized_at": null,
+      "reviewer": "gpt",
+      "subject_hash": "06a9b1bf81b53ea1c64adf1dc609fa759a149ba32c960594c4385da89e4ddb19",
+      "updated": "2026-04-12T12:42:03.782033+08:00",
+      "subject_ref": "commit:e73881a..9c29d0d",
+      "reason": "R1 FAIL(3) -> R2 FAIL(F002/F003 residual) -> R3 PASS (F002 resolved, F003 design-concern deferred)"
+    },
+    "code_review_batch2": {
+      "status": "pass",
+      "round": 0,
+      "report_path": "docs/plans/2026-04-11-f003-question-writeback-review-report-batch2-r3.md",
+      "raw_output_hash": "8b9c5c6ead72f4ec4981a62817b98c7f8108ad29513f9a02f260bf08a15b7044",
+      "finalized_at": null,
+      "reviewer": "gpt",
+      "subject_hash": "6311799c583183a96d0f9949cfd9d05c00c90b5d0df7a1d75a2eceaa3c009ad2",
+      "updated": "2026-04-12T15:42:02.833352+08:00",
+      "reason": "R1 FAIL(4) -> R2 FAIL(F003 residual) -> R3 PASS (F001/F002 R2, F003 R3, P001 deferred)",
+      "subject_ref": "commit:974a340..d26f883"
+    },
+    "code_review_batch3": {
+      "status": "pass",
+      "round": 0,
+      "report_path": "docs/plans/2026-04-11-f003-question-writeback-review-report-batch3-final.md",
+      "raw_output_hash": "7b028acda26db3e8945d9ce7a812b1064f10d8d1cacf04b86f0d4ecabe869263",
+      "finalized_at": null,
+      "reviewer": "gpt",
+      "subject_hash": "773b3a5daf9e7b87253fac1fd8bfb3bc15de284ea522c6fab626653c3306616c",
+      "updated": "2026-04-12T17:20:39.142598+08:00",
+      "reason": "R1 FAIL(3) -> R2 FAIL(F002) -> R3 FAIL(S8c) -> Planner override: MissingGreenlet verified real, F002 accepted-risk",
+      "subject_ref": "commit:0d5769f..eb57e50"
+    },
+    "integration_review": {
+      "status": "pass",
+      "round": 0,
+      "report_path": "docs/plans/2026-04-11-f003-question-writeback-review-report-batch3-final.md",
+      "raw_output_hash": "6a82bc68e7a8ed743824ef91d73d9d749b1740edbb522a979ff49fa53752f304",
+      "finalized_at": null,
+      "reviewer": "gpt",
+      "subject_hash": "a68f9e84b718d010d44782aa8d0944a52649d9634b2c2ecfb1c16c85f940eb42",
+      "updated": "2026-04-12T17:20:39.255841+08:00",
+      "reason": "Cross-batch integration confirmed in R1: frontend->router->service->pipeline chain consistent, R4-F001 compliant",
+      "subject_ref": "commit:e73881a..eb57e50 (full range)"
+    },
+    "reconciliation": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "claude",
+      "subject_hash": null,
+      "report_path": "docs/plans/2026-04-11-f003-question-writeback-design.md",
+      "updated": "2026-04-12T17:23:50.494224+08:00",
+      "reason": "3 architecture-level deviations aligned (T6 begin_nested / T11 _session_factory / B2-F001 IntegrityError→409), 4 trivial skipped"
+    }
+  }
+}

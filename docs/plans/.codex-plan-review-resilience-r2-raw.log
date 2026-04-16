@@ -1,0 +1,498 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d629f-2c4f-7f00-8386-32d08706fe4d
+--------
+user
+You are a senior architect performing Round 2 re-review of an implementation plan.
+
+Round 1 found 5 findings (F001-F005), all verified and fixed. Your job is to verify the fixes are adequate.
+
+Read these files:
+1. C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md — the UPDATED implementation plan (with fixes applied)
+2. C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md — the design document
+
+**Round 1 Findings to verify:**
+
+F001 (HIGH test-gap): Missing Contract Pack → Fix: Added full contract_pack section with invariants/counter_examples/risk_modules/test_debt
+F002 (HIGH test-gap): Task 1 logic mirror test → Fix: Rewrote as runtime entry-level test with mock Supervisor, verifies captured_results non-empty
+F003 (HIGH code-bug): Task 8 loop detection missing 4 design conditions → Fix: Rewrote to check consecutive + same error from reversed(_recent_calls), break on chain broken
+F004 (HIGH test-gap): Task 9/10 test private fields → Fix: Rewrote Task 9 to call determine_tier() with mock adapter, Task 10 to call route() and assert tier result
+F005 (MED test-gap): Task 11 INV-3 grep → Fix: Changed to run existing contract tests (test_ai_api_v2.py + test_agent_loop.py)
+
+**Review checklist for Round 2:**
+1. For each F001-F005: Is the fix adequate? Does it address the root cause?
+2. Any NEW issues introduced by the fixes?
+3. Contract Pack completeness: Does it now satisfy the schema at ~/.claude/config/contract-pack-schema.md?
+4. Overall PASS/FAIL determination
+
+**审查规范（必读）：**
+- Finding 分类: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-classification -->
+- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: pass-fail -->
+
+Output: For each original finding, state whether the fix is adequate. Then any new findings. Then PASS or FAIL.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem failed: MCP client for `filesystem` timed out after 15 seconds. Add or adjust `startup_timeout_sec` in your config.toml:
+[mcp_servers.filesystem]
+startup_timeout_sec = XX
+mcp startup: failed: filesystem
+codex
+我会按复审流程先读取审查规范、`code-review:review-pr` 技能说明，以及两份计划/设计文档，再逐项核对 F001-F005 的修复是否真正覆盖 Round 1 的根因。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.claude/rules-t3/review-templates.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.claude/config/contract-pack-schema.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw 'C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md'" in C:/Users/Administrator/edu-cloud succeeded in 3.42s:
+# 瀹℃煡宸ヤ綔娴佹ā鏉夸笌娴佺▼
+
+> 浠庡叏灞€ CLAUDE.md 鎶藉彇銆俆3/T4 鎵ц浼氳瘽鎸夐渶璇诲彇銆?
+
+## 娴佺▼缂栨帓
+
+### T3锛? 绐楀彛锛?
+
+```
+鈶?Claude: Design 鈫?Plan 鈫?commit (draft)
+鈶?GPT Codex: Plan Review 鈫?plan-review.md (Gate 1)
+鈶?Claude: 澶勭疆 finding 鈫?commit (final plan) 鈫?Execute 鈫?鑷浜ゆ帴鍗?
+鈶?GPT Codex: Code Review锛堝叏閲忥紝codex exec锛夆啋 review-report.md (Gate 2)
+鈶?Gate: 鎵€鏈?finding 宸插缃?鈫?design.md 鏍囪 [瀹炵幇瀹屾垚]
+```
+
+### T4锛? 鎸佷箙 + 涓€娆℃€?Executor锛?
+
+```
+鈶?Claude Planner: Design 鈫?Plan 鈫?commit (draft)
+ succeeded in 3.38s:
+# Contract Pack Schema
+
+> 鍗曚竴鐪熸簮銆侾lan Review prompt 寮曠敤姝ゆ枃浠躲€?
+
+## 鏍煎紡瑙勫垯锛團-008 淇锛?
+
+- **鏍归敭寮哄埗**: Contract Pack 蹇呴』浠?`contract_pack:` 涓?YAML 鏍归敭
+- **verification 鏋氫妇**: 鍙厑璁?`existing_test` / `pending_test` / `uncovered`锛屽娉ㄧ敤 `note` 瀛楁
+- **绌?test_debt**: `test_debt: []` 鏄悎娉曠殑锛岃〃绀?褰撳墠鏃犲欢鏈熼」"锛涚己灏?`test_debt` 閿笉鍚堟硶
+
+## 蹇呰娈佃惤锛圥lan Review 妫€鏌ュ畬鏁存€э級
+
+### invariants锛堚墺3 鏉★級
+
+| 瀛楁 | 蹇呭～ | 璇存槑 |
+|------|------|------|
+| id | 鉁?| INV-NNN |
+| statement | 鉁?| 涓嶅彲楠岃瘉鐨?prose 涓嶆帴鍙楋紙濡?绯荤粺搴旀纭繍琛?锛?|
+| verification | 鉁?| existing_test / pending_test / uncovered |
+| test_ref | 浠?existing_test | test_file:test_function |
+ succeeded in 3.43s:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+ succeeded in 3.51s:
+# Agent 闊ф€т笌楠岃瘉澧炲己璁捐
+
+> 2026-04-06 19:01:21 | Claude脳GPT 鍏辫瘑鐗?> 瀵规爣: DeerFlow (ByteDance, 58k star) 娣卞害瀵规瘮鍚庣殑缁撴瀯鎬у寮?
+## 搂0 鑳屾櫙涓庡姩鏈?
+edu-cloud Agent 绯荤粺锛?2 宸ュ叿銆? 瑙掕壊 RBAC銆? 灞傝蹇嗐€?359 tests锛夊湪涓?DeerFlow 鐨勯噺鍖栧姣斾腑锛屾潈闄愬畨鍏?7.5 vs 2.5)鍜屾祴璇曡鐩?7 vs 3)棰嗗厛锛屼絾鍦ㄩ敊璇仮澶?涓よ€呴兘寮?鍜岃緭鍑洪獙璇?4.5 vs 1)鏂归潰瀛樺湪缁撴瀯鎬х己闄枫€?
+浠ｇ爜瀹¤鍙戠幇锛歄utputValidator 鍥犳帴绾块敊璇粠鏈湡姝ｅ伐浣滐紱骞跺彂宸ュ叿鎵规 >10 涓細闈欓粯涓㈠純锛沞rror_count 璇箟娣蜂贡銆傝繖浜涗笉鏄?澧炲己"锛屾槸蹇呴』淇殑 bug銆?
+## 搂1 鑼冨洿
+
+鏂规 B锛堥煣鎬?楠岃瘉澧炲己锛夛細P0 bug fix + P1 闊ф€?+ P2 楠岃瘉 + P3 閰嶇疆澶栨彁銆?涓嶅惈绠￠亾鍖栭噸鏋勶紙鏂规 C锛夛紝鐞嗙敱锛氬綋鍓?Agent 鍔熻兘绋冲畾锛屾棤棰戠箒鍔犳楠ら渶姹傘€?
+**娑夊強鏂囦欢锛?*
+- `src/edu_cloud/ai/runtime.py` 鈥?P0-1
+- `src/edu_cloud/ai/tool_executor.py` 鈥?P0-2, P1-2
+- `src/edu_cloud/ai/memory_store.py` 鈥?P0-3
+- `src/edu_cloud/ai/agent_loop.py` 鈥?P0-4, P2-3
+- `src/edu_cloud/ai/llm_adapter.py` 鈥?P1-1
+- `src/edu_cloud/ai/grounded.py` 鈥?P2-1, P2-2
+- `src/edu_cloud/ai/capability_probe.py` 鈥?P3-1
+- `src/edu_cloud/ai/model_router.py` 鈥?P3-2
+- `src/edu_cloud/config.py` 鈥?P3-1, P3-2
+- `src/edu_cloud/ai/registry.py` 鈥?P1-2锛堣 is_read_only锛?
+ succeeded in 3.78s:
+# Agent 闊ф€т笌楠岃瘉澧炲己 Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 淇 Agent 绯荤粺 4 涓湡瀹?bug锛圤utputValidator 绌鸿浆銆佸苟鍙戞埅鏂€佹祬灞?merge銆乪rror_count 璇箟娣蜂贡锛夛紝澧炲己闊ф€э紙LLM 閲嶈瘯銆佸伐鍏疯秴鏃讹級锛屾敼杩涜緭鍑洪獙璇佸拰閰嶇疆绠＄悊銆?
+**Architecture:** 10 涓枃浠剁殑澧為噺淇敼锛屾棤鏂版ā鍧椼€侾0 淇?bug 鈫?P1 鍔犻煣鎬?鈫?P2 鏀归獙璇?鈫?P3 鎻愰厤缃€傛瘡涓?Task 鐙珛鍙祴璇曘€?
+**Tech Stack:** Python 3.12, asyncio, httpx, SQLAlchemy 2.0 (async), pytest
+
+**Design:** `docs/plans/2026-04-06-agent-resilience-design.md`
+
+---
+
+## Contract Pack
+
+```yaml
+contract_pack:
+  invariants:
+    - id: INV-001
+      statement: "DataScope fail-closed 琛屼负涓嶅彉鈥斺€攑arent 瑙掕壊 visible_student_ids=[] 鏃讹紝鎵€鏈夊伐鍏疯繑鍥炵┖缁撴灉"
+      verification: existing_test
+codex
+我已经拿到规范和两份文档。下一步会定点检查 `contract_pack`、Task 1/8/9/10/11，以及设计文档里与 loop detection 和不变量相关的原始约束，避免只看修复描述而漏掉设计根因。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"loop detection|duplicate tool|consecutive|same error|canonicalize|recent_calls|INV-3|tool_result|result|tier_thresholds|enhance_keywords|determine_tier|route\\(|threshold|keyword|SSE\" 'docs/plans/2026-04-06-agent-resilience-design.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"contract_pack|invariants:|counter_examples:|risk_modules:|test_debt:|Task 1:|Task 8:|Task 9:|Task 10:|Task 11:|determine_tier|route\\(|_recent_calls|reversed\\(|test_ai_api_v2.py|test_agent_loop.py|INV-003|INV-004|CE-001|CE-002|CE-003\" 'docs/plans/2026-04-06-agent-resilience-plan.md'" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"invariants|counter_examples|risk_modules|test_debt|verification|existing_test|pending_test|uncovered|test_ref|tests_that_still_pass|mitigation|module|reason|item|deadline|semantic_regression|required|risk_tags|oracles\" 'C:/Users/Administrator/.claude/config/contract-pack-schema.md'" in C:/Users/Administrator/edu-cloud succeeded in 4.95s:
+33:**根因：** `runtime.py:173` 查找 `"data" in event.data`，但 `agent_loop.py:186` 发送的 tool_result 载荷是 `{"tool": tc.name, "result": legacy_result}`。key 不匹配导致 `collected_tool_results` 始终为空，OutputValidator 空转。
+35:**修复：** 改 runtime 侧（不改 agent_loop，保护 INV-3 SSE 契约）。
+39:if event.type == "tool_result" and isinstance(event.data, dict):
+40:    payload = event.data.get("result", event.data.get("data"))
+42:        collected_tool_results.append(
+48:- 改 runtime 消费侧而非 agent_loop 生产侧，因为 `{"tool", "result"}` 格式是 SSE 前端契约
+49:- 兼容 fallback（先 "result" 再 "data"）降低未来事件载荷演化风险
+62:    chunk_results = await asyncio.gather(
+65:    results.extend(chunk_results)
+77:    result = {**base}
+79:        if k in result and isinstance(result[k], dict) and isinstance(v, dict):
+80:            result[k] = _deep_merge(result[k], v)
+82:            result[k] = v
+83:    return result
+136:    result = await asyncio.wait_for(self._executor.run_one(call, ctx), timeout=timeout)
+138:    result = ToolResult(success=False, error=f"工具执行超时({timeout}s)")
+140:    result = ToolResult(success=False, error="工具执行被取消")
+184:2. 参数 canonicalize 后相同（sorted keys JSON serialize）
+190:def _canonicalize(value):
+192:        return {k: _canonicalize(value[k]) for k in sorted(value)}
+ succeeded in 4.77s:
+8:- **verification 枚举**: 只允许 `existing_test` / `pending_test` / `uncovered`，备注用 `note` 字段
+9:- **空 test_debt**: `test_debt: []` 是合法的，表示"当前无延期项"；缺少 `test_debt` 键不合法
+13:### invariants（≥3 条）
+19:| verification | ✓ | existing_test / pending_test / uncovered |
+20:| test_ref | 仅 existing_test | test_file:test_function |
+22:### counter_examples（≥2 个）
+28:| tests_that_still_pass | ✓ | 当前测试中哪些在该场景下仍通过 |
+29:| mitigation | ✓ | 补什么测试来检测该场景 |
+31:### risk_modules
+35:| module | ✓ | 文件路径 |
+36:| reason | ✓ | 为什么是风险模块 |
+38:### test_debt
+42:| item | ✓ | 未覆盖的测试场景 |
+43:| reason | ✓ | 为什么延期（不接受空理由） |
+44:| deadline | ✓ | YYYY-MM-DD（不接受"以后再说"） |
+55:- test_debt reason: "" — 空理由
+57:## semantic_regression（可选，高风险设计强制）
+65:| required | ✓ | true = 高风险设计，semantic_risk=true 时强制跑 oracle |
+66:| risk_tags | ✓ | 本设计涉及的高风险语义领域（见枚举） |
+67:| oracles | ✓ | oracle 列表（≥1 temporal_trace + ≥1 forbidden_strategy） |
+ succeeded in 4.93s:
+18:contract_pack:
+19:  invariants:
+27:      test_ref: tests/test_ai/test_ai_api_v2.py::test_sse_event_exact_payload_shape
+28:    - id: INV-003
+31:      test_ref: tests/test_ai/test_agent_loop.py::test_basic_tool_loop
+32:    - id: INV-004
+37:  counter_examples:
+38:    - id: CE-001
+42:    - id: CE-002
+46:    - id: CE-003
+48:      tests_that_still_pass: "test_agent_loop.py canonicalize 测试（只测工具函数，不测循环行为）"
+51:  risk_modules:
+63:  test_debt:
+74:### Task 1: OutputValidator 接线修复
+129:            probe.determine_tier = AsyncMock(return_value=3)
+491:- Test: `tests/test_ai/test_agent_loop.py` (追加测试)
+496:# tests/test_ai/test_agent_loop.py — 追加
+520:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_agent_loop.py::TestErrorStreakSemantics -v`
+597:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_agent_loop.py -v`
+603:git add src/edu_cloud/ai/agent_loop.py tests/test_ai/test_agent_loop.py
+codex
+现在开始抽查关键段落本身，而不是只看目录命中。我会把 `contract_pack`、Task 1/8/9/10/11、以及设计文档的约束段落带行号展开，便于判断修复是否和设计一致。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-06-agent-resilience-plan.md'; "'$lines=Get-Content $p; foreach($r in @(@(74,170),@(1234,1368),@(1371,1567),@(1568,1595))){ for($i=$r[0];$i -le $r[1];$i++){ if($i -le $lines.Length){ '"'{0}:{1}' -f "'$i,$lines[$i-1] } }; '"'---' }" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-06-agent-resilience-plan.md'; "'$lines=Get-Content $p; for($i=18;$i -le 70;$i++){ if($i -le $lines.Length){ '"'{0}:{1}' -f "'$i,$lines[$i-1] } }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-06-agent-resilience-design.md'; "'$lines=Get-Content $p; for($i=176;$i -le 240;$i++){ if($i -le $lines.Length){ '"'{0}:{1}' -f "'$i,$lines[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 3.30s:
+176:### P3-2 Router 鍏抽敭璇?
+177:```python
+178:# config.py
+179:MODEL_ROUTER_ADVANCED_KEYWORDS: list[str] | None = None  # None = 浣跨敤浠ｇ爜榛樿鍊?```
+180:
+181:`ModelRouter` 浼樺厛浣跨敤 Settings 鍊硷紝None 鏃?fallback 鍒颁唬鐮佸唴甯搁噺銆傚惎鍔ㄦ椂 log 褰撳墠鐢熸晥鍏抽敭璇嶆暟銆?
+182:## 搂6 涓嶅彉閲?
+183:| ID | 绾︽潫 | 楠岃瘉鏂瑰紡 |
+184:|----|------|---------|
+185:| INV-1 | DataScope fail-closed 琛屼负涓嶅彉 | 鐜版湁 data_scope tests |
+186:| INV-2 | 42 涓伐鍏风鍚嶅拰琛屼负涓嶅彉 | 鐜版湁 tool tests |
+187:| INV-3 | SSE 浜嬩欢鏍煎紡涓嶅彉 | P0-1 鏀?runtime 娑堣垂渚э紱P2-3 澶嶇敤鐜版湁褰㈢姸 |
+188:| INV-4 | 1359 tests 鍏ㄩ噺閫氳繃 | 姣忔壒娆″畬鎴愬悗 `pytest --tb=short -q` |
+189:
+190:## 搂7 瀹炵幇椤哄簭
+191:
+192:```
+193:P0-1 鈫?P0-2 鈫?P0-3 鈫?P0-4 鈫?P1-1 鈫?P1-2 鈫?P2-1 鈫?P2-2 鈫?P2-3 鈫?P3-1 鈫?P3-2
+194:```
+195:
+ succeeded in 3.56s:
+18:    - id: INV-001
+19:      statement: "DataScope fail-closed 琛屼负涓嶅彉鈥斺€攑arent 瑙掕壊 visible_student_ids=[] 鏃讹紝鎵€鏈夊伐鍏疯繑鍥炵┖缁撴灉"
+20:      verification: existing_test
+21:      test_ref: tests/test_ai/test_data_scope.py::test_parent_empty_students_returns_empty
+22:    - id: INV-002
+23:      statement: "SSE tool_result 浜嬩欢杞借嵎褰㈢姸涓?{tool: str, result: any}锛屼笌鍓嶇濂戠害涓€鑷?
+24:      verification: existing_test
+25:      test_ref: tests/test_ai/test_ai_api_v2.py::test_sse_event_exact_payload_shape
+26:    - id: INV-003
+27:      statement: "SSE 浜嬩欢绫诲瀷闆嗗悎涓嶅彉: thinking/plan/task_update/tool_call/tool_result/answer/error/done"
+28:      verification: existing_test
+29:      test_ref: tests/test_ai/test_agent_loop.py::test_basic_tool_loop
+30:    - id: INV-004
+31:      statement: "42 涓伐鍏风殑鍑芥暟绛惧悕鍜?ToolSpec 娉ㄥ唽鍙傛暟涓嶅彉"
+32:      verification: existing_test
+33:      test_ref: tests/test_ai/test_tools_registration.py::test_all_tools_registered
+34:
+35:  counter_examples:
+36:    - id: CE-001
+37:      scenario: "OutputValidator 鎺ョ嚎淇鍚庡彧璇?'result' key锛屽鏋滄湭鏉?agent_loop 鏀逛负鍙?'data' key锛寁alidator 鍙堢┖杞?
+ succeeded in 5.98s:
+74:**Files:**
+75:- Modify: `src/edu_cloud/ai/runtime.py:171-176`
+76:- Test: `tests/test_ai/test_runtime.py` (鏂板娴嬭瘯)
+77:
+78:- [ ] **Step 1: Write failing test 鈥?鏃т唬鐮佷笅 OutputValidator 鏀堕泦涓虹┖锛屾柊浠ｇ爜涓嬮潪绌?*
+79:
+80:```python
+81:# tests/test_ai/test_runtime.py 鈥?杩藉姞
+82:
+83:import pytest
+84:from unittest.mock import AsyncMock, patch, MagicMock
+85:from edu_cloud.ai.runtime import AgentRuntime, AgentContext
+86:from edu_cloud.ai.schemas import AgentEvent
+87:from edu_cloud.ai.tool_context import ToolResult
+88:
+89:
+90:class TestOutputValidatorWiring:
+91:    """P0-1: OutputValidator must collect tool_result events via runtime entry."""
+92:
+93:    @pytest.mark.asyncio
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-06-agent-resilience-design.md'; "'$lines=Get-Content $p; for($i=140;$i -le 176;$i++){ if($i -le $lines.Length){ '"'{0}:{1}' -f "'$i,$lines[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 3.34s:
+140:| 锛堟棤鍗曚綅锛?| unknown | 5% | 瀹芥澗鍏滃簳 |
+141:
+142:### P2-2 鐧惧垎鏁拌浆鎹㈡潯浠跺寲
+143:
+144:**浣嶇疆锛?* `grounded.py` 鐨?`_collect_numbers()` 閫掑綊銆?
+145:**淇锛?* 閫掑綊鏃舵惡甯?`key_path` 鍙傛暟锛屽彧鍦?key 鍖呭惈 `rate`/`ratio`/`percent`/`鍙婃牸`/`浼樼`/`pass` 鏃跺仛 `脳100` 杞崲銆?
+146:### P2-3 寰幆妫€娴?
+147:**浣嶇疆锛?* `agent_loop.py` 寰幆鍐呴儴鏂板鐘舵€佽拷韪€?
+148:**妫€娴嬫潯浠讹紙鍥涜绱犲叏閮ㄦ弧瓒筹級锛?*
+149:1. 鐩稿悓宸ュ叿鍚?2. 鍙傛暟 canonicalize 鍚庣浉鍚岋紙sorted keys JSON serialize锛?3. 杩炵画鍑虹幇
+150:4. 涓婁竴娆＄粨鏋滄槸澶辫触涓旈敊璇枃鏈浉鍚?
+151:**鍙傛暟褰掍竴鍖栵細**
+152:```python
+153:def _canonicalize(value):
+154:    if isinstance(value, dict):
+155:        return {k: _canonicalize(value[k]) for k in sorted(value)}
+156:    if isinstance(value, list):
+157:        return [_canonicalize(v) for v in value]
+158:    return value
+159:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-06-agent-resilience-plan.md'; "'$lines=Get-Content $p; for($i=1234;$i -le 1310;$i++){ if($i -le $lines.Length){ '"'{0}:{1}' -f "'$i,$lines[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 2.06s:
+1234:```
+1235:
+1236:- [ ] **Step 2: Run test to verify it fails**
+1237:
+1238:Run: `cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_ai/test_agent_loop.py::TestLoopDetection -v`
+1239:Expected: FAIL 鈥?`_canonicalize` doesn't exist
+1240:
+1241:- [ ] **Step 3: Add _canonicalize function and loop detection state to agent_loop.py**
+1242:
+1243:Add at module level (after imports):
+1244:
+1245:```python
+1246:import json as _json
+1247:
+1248:def _canonicalize(value: Any) -> Any:
+1249:    """Canonicalize dict keys for fingerprinting."""
+1250:    if isinstance(value, dict):
+1251:        return {k: _canonicalize(value[k]) for k in sorted(value)}
+1252:    if isinstance(value, list):
+1253:        return [_canonicalize(v) for v in value]
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-06-agent-resilience-plan.md'; "'$lines=Get-Content $p; for($i=1190;$i -le 1234;$i++){ if($i -le $lines.Length){ '"'{0}:{1}' -f "'$i,$lines[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 1.68s:
+1190:- [ ] **Step 5: Commit**
+1191:
+1192:```bash
+1193:git add src/edu_cloud/ai/grounded.py tests/test_ai/test_grounded.py
+1194:git commit -m "feat(ai): OutputValidator 缁撴瀯鍖?鈥?NumberToken + 鍒嗙被鍨嬪宸?+ 鐧惧垎鏁版潯浠惰浆鎹?
+1195:```
+1196:
+1197:**瀹℃煡娓呭崟:**
+1198:- 鉁?NumberToken(value, unit, key_path) 缁撴瀯鍖栨彁鍙?- 鉁?鍒?鍚?浜虹瓑璁℃暟绫婚浂瀹瑰樊锛?绫?2%锛岄粯璁?5%
+1199:- 鉁?鐧惧垎鏁拌浆鎹㈠彧鍦?key_path 鍚?rate/ratio/percent 鏃舵墽琛?- 鉁?鐜版湁 DataSource/ValidationResult 鎺ュ彛涓嶅彉
+1200:- 鉁?鍙嶅悜: 鏃т唬鐮佺粺涓€ 25% 瀹瑰樊 + 鏃犳潯浠剁櫨鍒嗘暟杞崲
+1201:
+1202:---
+1203:
+1204:### Task 8: 寰幆妫€娴?
+1205:**Files:**
+1206:- Modify: `src/edu_cloud/ai/agent_loop.py:151-191`
+1207:- Test: `tests/test_ai/test_agent_loop.py` (杩藉姞娴嬭瘯)
+1208:
+1209:- [ ] **Step 1: Write tests for loop detection**
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-06-agent-resilience-plan.md'; "'$lines=Get-Content $p; for($i=12;$i -le 25;$i++){ if($i -le $lines.Length){ '"'{0}:{1}' -f "'$i,$lines[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 2.56s:
+12:
+13:## Contract Pack
+14:
+15:```yaml
+16:contract_pack:
+17:  invariants:
+18:    - id: INV-001
+19:      statement: "DataScope fail-closed 琛屼负涓嶅彉鈥斺€攑arent 瑙掕壊 visible_student_ids=[] 鏃讹紝鎵€鏈夊伐鍏疯繑鍥炵┖缁撴灉"
+20:      verification: existing_test
+21:      test_ref: tests/test_ai/test_data_scope.py::test_parent_empty_students_returns_empty
+22:    - id: INV-002
+23:      statement: "SSE tool_result 浜嬩欢杞借嵎褰㈢姸涓?{tool: str, result: any}锛屼笌鍓嶇濂戠害涓€鑷?
+24:      verification: existing_test
+25:      test_ref: tests/test_ai/test_ai_api_v2.py::test_sse_event_exact_payload_shape
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"semantic_risk|semantic_regression|risk_tags|oracle|oracles|required:\" 'docs/plans/2026-04-06-agent-resilience-plan.md'" in C:/Users/Administrator/edu-cloud exited 1 in 1.57s:
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"Task 3:|_deep_merge|depth > 5|5-level|test_deep_merge_three_levels|test_list_replaces_not_merges|test_none_value_overwrites\" 'docs/plans/2026-04-06-agent-resilience-plan.md'" in C:/Users/Administrator/edu-cloud succeeded in 1.42s:
+329:### Task 3: 深层 merge
+364:    async def test_deep_merge_three_levels(self, db_engine, store):
+394:    async def test_list_replaces_not_merges(self, db_engine, store):
+408:    async def test_none_value_overwrites(self, db_engine, store):
+427:- [ ] **Step 3: Implement _deep_merge and apply to memory_store.py**
+432:def _deep_merge(base: dict, update: dict) -> dict:
+441:            result[k] = _deep_merge(result[k], v)
+449:            merged = _deep_merge(existing.facts, facts)
+454:            merged = _deep_merge(proj.state, state_updates)
+477:- ✓ _deep_merge 返回新 dict，不原地修改
+1190:        if depth > 5:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-06-agent-resilience-plan.md'; "'$lines=Get-Content $p; for($i=427;$i -le 455;$i++){ if($i -le $lines.Length){ '"'{0}:{1}' -f "'$i,$lines[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 2.73s:
+427:    """
+428:    result = {**base}
+429:    for k, v in update.items():
+430:        if k in result and isinstance(result[k], dict) and isinstance(v, dict):
+431:            result[k] = _deep_merge(result[k], v)
+432:        else:
+433:            result[k] = v
+434:    return result
+435:```
+436:
+437:Replace `memory_store.py:39` (`merged = {**existing.facts, **facts}`):
+438:```python
+439:            merged = _deep_merge(existing.facts, facts)
+440:```
+441:
+442:Replace `memory_store.py:185` (`merged = {**proj.state, **state_updates}`):
+443:```python
+444:            merged = _deep_merge(proj.state, state_updates)
+445:```
+446:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'docs/plans/2026-04-06-agent-resilience-design.md'; "'$lines=Get-Content $p; for($i=80;$i -le 120;$i++){ if($i -le $lines.Length){ '"'{0}:{1}' -f "'$i,$lines[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 2.31s:
+80:| `tool_fail_streak` | 鏌愯疆宸ュ叿鎵ц**鍏ㄩ儴澶辫触** | 鏌愯疆鏈変换涓€宸ュ叿鎴愬姛 | 鈮?3 |
+81:
+82:**璁捐鍐崇瓥锛圕laude脳GPT 鍏辫瘑锛夛細**
+83:- 鎸?turn 璁★紙闈炴寜鍗曚釜宸ュ叿锛夛紝閬垮厤鍗?turn 澶氬伐鍏峰け璐ョ洿鎺ユ墦婊￠槇鍊?- "鍏ㄩ儴澶辫触"鎵?+1锛岄儴鍒嗗け璐ヤ笉璁″叆锛圠LM 鍙兘涓€娆″彂澶氫釜鎺㈢储鎬ц皟鐢級
+84:- 涓や釜璁℃暟鍣ㄧ嫭绔嬶紝浠讳竴鐔旀柇鍗冲仠姝㈠惊鐜?
+85:## 搂3 P1锛氶煣鎬у寮猴紙2 澶勶級
+86:
+87:### P1-1 LLM 鍒嗙骇閲嶈瘯
+88:
+89:**浣嶇疆锛?* `llm_adapter.py` 鏂板 `_request_with_retry()` 鍐呴儴鏂规硶銆?
+90:**绛栫暐锛?*
+91:
+92:| 寮傚父绫诲瀷 | 閲嶈瘯娆℃暟 | 閫€閬跨瓥鐣?| 璇存槑 |
+93:|---------|---------|---------|------|
+94:| httpx.HTTPStatusError (429) | 鈮?3 | Retry-After header 鎴?鎸囨暟閫€閬?1s/2s/4s | 闄愭祦鏆傛椂 |
+95:| httpx.HTTPStatusError (500-503) | 鈮?1 | 鍥哄畾 1s | 鏈嶅姟绔灛鏃舵晠闅?|
+96:| httpx.TimeoutException | 鈮?1 | 鏃犻€€閬?| 缃戠粶瓒呮椂 |
+97:| httpx.HTTPStatusError (4xx 闈?429) | 0 | 鈥?| 璇锋眰鏈韩鏈夎 |
+98:| httpx.RequestError (杩炴帴澶辫触绛? | 鈮?1 | 鍥哄畾 1s | 缃戠粶灞?|
+99:
+codex
+我已经确定结论方向：原 5 项里只有 F003 仍未闭环，另外 schema 角度还有一条独立缺口。我再补一组带行号的 schema 证据后就给出最终 PASS/FAIL。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$p='"'C:/Users/Administrator/.claude/config/contract-pack-schema.md'; "'$lines=Get-Content $p; for($i=1;$i -le 95;$i++){ if($i -le $lines.Length){ '"'{0}:{1}' -f "'$i,$lines[$i-1] } }' in C:/Users/Administrator/edu-cloud succeeded in 1.29s:
+1:# Contract Pack Schema
+2:
+3:> 鍗曚竴鐪熸簮銆侾lan Review prompt 寮曠敤姝ゆ枃浠躲€?
+4:
+5:## 鏍煎紡瑙勫垯锛團-008 淇锛?
+6:
+7:- **鏍归敭寮哄埗**: Contract Pack 蹇呴』浠?`contract_pack:` 涓?YAML 鏍归敭
+8:- **verification 鏋氫妇**: 鍙厑璁?`existing_test` / `pending_test` / `uncovered`锛屽娉ㄧ敤 `note` 瀛楁
+9:- **绌?test_debt**: `test_debt: []` 鏄悎娉曠殑锛岃〃绀?褰撳墠鏃犲欢鏈熼」"锛涚己灏?`test_debt` 閿笉鍚堟硶
+10:
+11:## 蹇呰娈佃惤锛圥lan Review 妫€鏌ュ畬鏁存€э級
+12:
+13:### invariants锛堚墺3 鏉★級
+14:
+15:| 瀛楁 | 蹇呭～ | 璇存槑 |
+16:|------|------|------|
+17:| id | 鉁?| INV-NNN |
+18:| statement | 鉁?| 涓嶅彲楠岃瘉鐨?prose 涓嶆帴鍙楋紙濡?绯荤粺搴旀纭繍琛?锛?|
+19:| verification | 鉁?| existing_test / pending_test / uncovered |
+20:| test_ref | 浠?existing_test | test_file:test_function |
+codex
+**原始发现复核**
+- `F001`：修复充分。计划已补齐 `contract_pack:` 根键，并包含 `invariants`、`counter_examples`、`risk_modules`、`test_debt` 四个必需段，字段也齐全，覆盖了 Round 1 指出的缺口。[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L13) [schema](/C:/Users/Administrator/.claude/config/contract-pack-schema.md#L7)
+- `F002`：修复充分。Task 1 的测试已提升到 `AgentRuntime.run()` 入口级，通过 mock `Supervisor` 产出 `tool_result["result"]`，并用 spy 验证 `OutputValidator` 实际收到了非空 `tool_results`；旧实现下这条测试会失败，不再是“逻辑镜像测试”。[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L74)
+- `F003`：修复不充分。设计要求循环检测同时满足“同工具、同参数、连续出现、相同错误文本”四个条件，[design](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md#L146) 但更新后的代码只检查 `err` 非空，没有比较错误文本是否相同，[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1267) 因此根因仍未完全关闭。并且新增测试仍只覆盖 `_canonicalize`/fingerprint，没有覆盖“应跳过/不应跳过”的行为级场景，[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1209) 不能锁住这条修复。
+- `F004`：修复充分。Task 9 现在通过公共入口 `determine_tier()` 验证阈值行为，[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1355) Task 10 通过公共入口 `route()` 验证路由 tier，[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1451) 已摆脱对私有字段的断言，根因已解决。
+- `F005`：修复充分。Task 11 已从 grep 改为执行现有契约测试 `test_sse_event_exact_payload_shape` 和 `test_basic_tool_loop`，这能直接验证 INV-3，而不是做脆弱的文本级检查。[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1543)
+
+**新增发现**
+- `NF001` `MED` `test-gap`：Contract Pack 只补齐了基础段落，但对这份高风险设计仍缺少 `semantic_regression`。schema 明确要求高风险设计补充 `risk_tags` 与 oracle，[schema](/C:/Users/Administrator/.claude/config/contract-pack-schema.md#L57) 而本设计实际涉及 `state_machine`、`threshold_default`、`selection_strategy` 一类语义风险，[design](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md#L82) [design](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md#L169) 但计划中的 Contract Pack 到 `test_debt` 即结束，[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L16) 严格按 schema 仍不完整。
+
+**Contract Pack 结论**
+- 基础结构已满足 Round 1 对 `contract_pack` 的补齐要求。
+- 但严格按 [`contract-pack-schema.md`](/C:/Users/Administrator/.claude/config/contract-pack-schema.md#L57) 判定，当前计划还不算完全满足 schema，因为缺少高风险设计所需的 `semantic_regression`。
+
+**结论**
+- `FAIL`
+
+阻塞原因有两点：`F003` 仍未充分修复；另外存在新的 `NF001`。按审查规则，未修复的 `HIGH`/`MED` 级 `code-bug` 或 `test-gap` 会直接导致 `FAIL`。[review-templates](/C:/Users/Administrator/.claude/rules-t3/review-templates.md#L1)
+tokens used
+76,319
+**原始发现复核**
+- `F001`：修复充分。计划已补齐 `contract_pack:` 根键，并包含 `invariants`、`counter_examples`、`risk_modules`、`test_debt` 四个必需段，字段也齐全，覆盖了 Round 1 指出的缺口。[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L13) [schema](/C:/Users/Administrator/.claude/config/contract-pack-schema.md#L7)
+- `F002`：修复充分。Task 1 的测试已提升到 `AgentRuntime.run()` 入口级，通过 mock `Supervisor` 产出 `tool_result["result"]`，并用 spy 验证 `OutputValidator` 实际收到了非空 `tool_results`；旧实现下这条测试会失败，不再是“逻辑镜像测试”。[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L74)
+- `F003`：修复不充分。设计要求循环检测同时满足“同工具、同参数、连续出现、相同错误文本”四个条件，[design](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md#L146) 但更新后的代码只检查 `err` 非空，没有比较错误文本是否相同，[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1267) 因此根因仍未完全关闭。并且新增测试仍只覆盖 `_canonicalize`/fingerprint，没有覆盖“应跳过/不应跳过”的行为级场景，[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1209) 不能锁住这条修复。
+- `F004`：修复充分。Task 9 现在通过公共入口 `determine_tier()` 验证阈值行为，[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1355) Task 10 通过公共入口 `route()` 验证路由 tier，[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1451) 已摆脱对私有字段的断言，根因已解决。
+- `F005`：修复充分。Task 11 已从 grep 改为执行现有契约测试 `test_sse_event_exact_payload_shape` 和 `test_basic_tool_loop`，这能直接验证 INV-3，而不是做脆弱的文本级检查。[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L1543)
+
+**新增发现**
+- `NF001` `MED` `test-gap`：Contract Pack 只补齐了基础段落，但对这份高风险设计仍缺少 `semantic_regression`。schema 明确要求高风险设计补充 `risk_tags` 与 oracle，[schema](/C:/Users/Administrator/.claude/config/contract-pack-schema.md#L57) 而本设计实际涉及 `state_machine`、`threshold_default`、`selection_strategy` 一类语义风险，[design](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md#L82) [design](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-design.md#L169) 但计划中的 Contract Pack 到 `test_debt` 即结束，[plan](/C:/Users/Administrator/edu-cloud/docs/plans/2026-04-06-agent-resilience-plan.md#L16) 严格按 schema 仍不完整。
+
+**Contract Pack 结论**
+- 基础结构已满足 Round 1 对 `contract_pack` 的补齐要求。
+- 但严格按 [`contract-pack-schema.md`](/C:/Users/Administrator/.claude/config/contract-pack-schema.md#L57) 判定，当前计划还不算完全满足 schema，因为缺少高风险设计所需的 `semantic_regression`。
+
+**结论**
+- `FAIL`
+
+阻塞原因有两点：`F003` 仍未充分修复；另外存在新的 `NF001`。按审查规则，未修复的 `HIGH`/`MED` 级 `code-bug` 或 `test-gap` 会直接导致 `FAIL`。[review-templates](/C:/Users/Administrator/.claude/rules-t3/review-templates.md#L1)

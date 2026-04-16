@@ -1,0 +1,1022 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d8229-869a-7670-ba86-b6b96a92126e
+--------
+user
+You are a senior architect reviewing an implementation plan (Round 2 — re-review after R1 findings resolved).
+
+Read these files:
+1. docs/plans/2026-04-12-haofenshu-phase1-plan.md — the implementation plan (updated after R1)
+2. docs/plans/2026-04-12-haofenshu-biz-replication-design.md — the design document
+3. CLAUDE.md — project rules (if exists)
+4. docs/plans/2026-04-12-haofenshu-phase1-plan-review-r1.md — R1 review report (8 findings, all claimed resolved)
+
+**R2 审查重点（两阶段）：**
+
+**阶段 1：验证 R1 finding 处置质量**
+逐条验证 F001-F008 的处置是否真正解决了问题（不只是表面修改）：
+- F001 Contract Pack: invariants 是否可验证？counter_examples 是否有 mitigation？
+- F002 测试契约: 每个行为变更 Task 是否有 5 字段契约？边界条件 ≥3？
+- F003 API 测试: 断言是否真的能捕获错误实现？
+- F004 认证对齐: router 代码是否正确使用 current_role ORM 对象？
+- F005 ARRAY→JSON: server_default 是否正确？
+- F006 文件路径: 显式 import 是否完整？
+- F007 useApi 端点: 每个方法是否对应已有后端路由？
+- F008 批次拆分: 每批是否有独立验证点？
+
+**阶段 2：新发现扫描**
+除 R1 已覆盖的问题外，是否还有新的 code-bug / test-gap / design-concern。
+
+Perform plan review per checklist:
+A. 自洽性: Task 依赖完整、接口契约一致、无逻辑矛盾、破坏性操作有回滚
+B. 代码库对齐: 引用路径真实、不违反现有 API、不命名冲突、不重复功能
+C. 架构适配: 职责单一、依赖方向正确、接口隔离、配置集中
+D. 完整性: 测试契约段（5 字段）+ 边界条件段（≥3 个）、批次边界合理
+D+. 测试契约质量（test-gap 硬判定）:
+   - 逻辑镜像测试 → test-gap HIGH
+   - 无入口级验证 → test-gap MED
+   - 无反例说明 → test-gap MED
+E. 风险评估
+F. Contract Pack 完整性: invariants ≥3, counter_examples ≥2, risk_modules, test_debt
+
+**审查规范（必读）：** 先读以下文件中的对应段落，严格按其定义执行：
+- Finding 分类: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-classification -->
+- Finding Type: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-type -->
+- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: pass-fail -->
+- test-gap 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: test-gap-criteria -->
+
+Output structured findings with: ID, Severity, Category, Type, Before-behavior, After-behavior, Evidence, Impact, Repair hypothesis.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+按你的 R2 范围，我先核对审查规则定义，再并行读取计划、设计、R1 报告和项目约束，随后对照代码库验证 F001-F008 是否实质解决，并继续扫描新的缺口。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content -Raw C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content -Raw docs/plans/2026-04-12-haofenshu-biz-replication-design.md' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content -Raw docs/plans/2026-04-12-haofenshu-phase1-plan-review-r1.md' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content -Raw docs/plans/2026-04-12-haofenshu-phase1-plan.md' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content -Raw C:/Users/Administrator/.claude/rules-t3/review-templates.md' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'if (Test-Path CLAUDE.md) { Get-Content -Raw CLAUDE.md }' in C:/Users/Administrator/edu-cloud succeeded in 2.82s:
+---
+name: code-review:review-pr
+description: Comprehensive pull request review using specialized agents
+argument-hint: "[review-aspects]"
+---
+
+# Pull Request Review Instructions
+
+You are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.
+
+**Review Aspects (optional):** "$ARGUMENTS"
+**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.
+
+**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!
+
+## Review Workflow
+
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:
+
+### Phase 1: Preparation
+ succeeded in 3.74s:
+# 濂藉垎鏁颁笟鍔￠€昏緫澶嶅埢 鈥?璁捐鏂囨。
+
+> 鍒涘缓: 2026-04-12 21:28:10
+> 鐘舵€? 璁捐瀹屾垚锛屽緟璁″垝
+
+## 搂0 鑳屾櫙涓庣洰鏍?
+edu-cloud 鍦?AI Agent/鐭ヨ瘑鍥捐氨/鑷€傚簲瀛︿範鏂归潰杩滆秴濂藉垎鏁帮紝浣?*鏁欏渚т笟鍔￠鏋朵弗閲嶄笉瀹屾暣**鈥斺€斾綔涓氥€佹暀瀛︺€佹暀鐮斻€佹暀鍔?4 涓ā鍧楀墠绔〉闈负闆讹紝瀛︽儏/鎶ュ憡/鍩虹淇℃伅瑕嗙洊搴︿笉瓒炽€傚ソ鍒嗘暟锛坔aofenshu-clone锛宍~/haofenshu-clone/`锛夋槸涓€涓畬鏁寸殑 K12 鏁欒偛 SaaS 骞冲彴澶嶅埢锛屾嫢鏈?8 涓畬鏁翠笟鍔℃ā鍧椼€?5 涓墠绔〉闈€?8 寮犳暟鎹簱琛ㄣ€? 涓悗绔矾鐢辨ā鍧椼€?
+**鐩爣**锛氬皢濂藉垎鏁扮殑涓氬姟瀹屾暣搴︾粨鏋勫寲铻嶅叆 edu-cloud锛屽悓鏃朵繚鐣?edu-cloud 鐨勬妧鏈紭鍔匡紙AI Agent銆佺煡璇嗗浘璋便€丷BAC銆丳ostgreSQL銆佸鏍¤仈鑰冿級銆備笉鏄Щ妞嶄唬鐮侊紝鏄鍒讳笟鍔￠鏋跺拰 6 涓灦鏋勬ā寮忋€?
+**鍙傝€冩簮**锛?- 濂藉垎鏁板墠绔細`~/haofenshu-clone/frontend/`锛圢uxt 3 + Element Plus锛?5 椤甸潰锛?- 濂藉垎鏁板悗绔細`~/haofenshu-clone/server/`锛圗xpress + SQLite锛?8 琛級
+- 濂藉垎鏁版枃妗ｏ細`~/haofenshu-clone/docs/`锛坅rchitecture.md / business-logic.md / route-analysis.md锛?
+## 搂1 鍐崇瓥璁板綍
+
+| 鍐崇瓥椤?| 閫夋嫨 | 鐞嗙敱 |
+|--------|------|------|
+| 鑼冨洿 | 8 妯″潡鍏ㄩ噺閾哄紑锛屾灦鏋勫厛琛?| 鍏堟妸楠ㄦ灦鎵撴墡瀹?|
+| 鍓嶇妗嗘灦 | **Nuxt 3 + Element Plus** | 椤甸潰鏁板埌 45+ 鏃舵枃浠惰矾鐢变紭鍔挎樉钁楋紱Element Plus 鏄腑鍥芥暀鑲?SaaS 琛屼笟鏍囧噯锛汚I 寮€鍙戣縼绉绘垚鏈彲蹇界暐 |
+| 鍚庣璺敱 | 淇濇寔 RESTful `/api/v1/{module}/` | edu-cloud 宸叉湁 182+ 绔偣鐢ㄦ椋庢牸锛屽ソ鍒嗘暟鐨?`/proxy-*` 鏄€嗗悜鍏煎浜х墿 |
+| 鏁版嵁妯″瀷 | 鎵╁睍鐜版湁 79 寮犺〃 | 涓€濂?schema + 涓€濂?ORM + 涓€濂?migration 閾撅紱绂佹澶氬鏂规骞跺瓨 |
+| 绉嶅瓙鏁版嵁 | 绉绘濂藉垎鏁扮瀛愬苟閫傞厤 edu-cloud schema | 52 鐪熷疄瀛︾敓 + 90 鍚堟垚鑰冭瘯锛屾墍鏈夋ā鍧楁湁閫肩湡婕旂ず鏁版嵁 |
+| 鐜版湁缁勪欢 | 鍏ㄩ儴杩佺Щ锛岀粺涓€ Element Plus 椋庢牸 | AI 娴獥 + 鐭ヨ瘑鍥捐氨 + 绛旈鍗＄紪杈戝櫒 + Studio 鍏ㄩ儴淇濈暀 |
+ succeeded in 2.81s:
+# 濂藉垎鏁颁笟鍔″鍒?Phase 1: 鏋舵瀯鍩哄骇 鈥?瀹炵幇璁″垝
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 寤虹珛 Nuxt 3 鍓嶇椤圭洰楠ㄦ灦锛? 妯″潡 45 椤甸潰 stub锛? 鍚庣鍔ㄦ€佽彍鍗曠郴缁?+ 棰勮仛鍚堟暟鎹ā鍨嬶紝涓?Phase 2锛堝姛鑳借縼绉伙級鍜?Phase 3锛堟柊妯″潡濉厖锛夋墦涓嬫灦鏋勫熀搴с€?
+**Architecture:** 鍓嶇鐢?Nuxt 3 + Element Plus 鏇夸唬鐜版湁 Vite + Naive UI銆傚悗绔墿灞曠幇鏈?FastAPI + PostgreSQL锛屾柊澧?menu_configs 绛?4 寮犺〃鍜?MenuService銆傚墠鍚庣閫氳繃 RESTful API 閫氫俊锛岃彍鍗曠郴缁熷悗绔┍鍔ㄣ€?
+**Tech Stack:** Nuxt 3, Vue 3, Element Plus, Pinia, TypeScript | FastAPI, SQLAlchemy 2.0 async, Alembic, PostgreSQL
+
+**Design:** `docs/plans/2026-04-12-haofenshu-biz-replication-design.md`
+
+## 鎵规鎷嗗垎锛團008 澶勭疆锛?
+| 鎵规 | 鑼冨洿 | Task | 鐙珛楠岃瘉鐐?|
+|------|------|------|-----------|
+| Batch 1 | Schema + API | Task 1-3 | migration 鍙崌闄?+ MenuService 8 tests + 鍏ㄩ噺鍥炲綊 |
+| Batch 2 | Frontend 楠ㄦ灦 | Task 4-9 | Nuxt dev 鍙惎鍔?+ login鈫抙ome 閾捐矾 |
+| Batch 3 | Frontend 瀹屽杽 | Task 10-12 | PowerFilter + 45 stub + 绔埌绔叏閾捐矾楠岃瘉 |
+
+## Contract Pack锛團001 澶勭疆锛?
+### invariants锛堝彉鏇翠笉鍙橀噺锛?
+1. **INV-01 鐜版湁 frontend/ 闆舵敼鍔?*: 鏂板缓 `frontend-nuxt/`锛屼笉淇敼 `frontend/` 浠讳綍鏂囦欢
+ succeeded in 3.86s:
+# Plan Review R1: 濂藉垎鏁颁笟鍔″鍒?Phase 1
+
+> [edu-cloud] GPT Reviewer | 2026-04-12 22:16:44
+> Raw output hash: 5fd4eff940bb0d72d5c126d2ae190288f976cbd7f1a0cdc23e3dbced94387e57
+
+## 瀹℃煡鎶ュ憡
+
+缁撹: **FAIL**
+
+渚濇嵁锛歝ode-bug HIGH 3 鏉°€乼est-gap HIGH 2 鏉°€乼est-gap MED 2 鏉★紱Contract Pack 缂哄け銆?
+## Findings
+
+### F001 鈥?Contract Pack 缂哄け
+- **Severity:** HIGH
+- **Category:** test-gap
+- **Type:** defect_fix
+- **Before-behavior:** plan 涓嶅寘鍚?Contract Pack锛坕nvariants / counter_examples / risk_modules / test_debt 鍏ㄩ儴缂哄け锛?- **After-behavior:** 琛ラ綈 schema 鍚堣鐨?contract_pack 娈碉紝瑕嗙洊 public API 鍙樻洿銆乵igration銆佸墠绔３灞傛浛鎹?- **Evidence:** phase1-plan.md 鍏ㄦ枃鏈嚭鐜?contract_pack / invariants / counter_examples / risk_modules / test_debt
+- **Impact:** F 椤圭洿鎺ヤ笉閫氳繃锛屽悗缁?Gate 鏃犳硶鍒ゆ柇涓嶅彉閲忓拰椋庨櫓妯″潡
+
+### F002 鈥?澶氭暟 Task 缂烘祴璇曞绾﹀拰杈圭晫鏉′欢
+ succeeded in 3.44s:
+# 瀹℃煡宸ヤ綔娴佹ā鏉夸笌娴佺▼
+
+> 浠庡叏灞€ CLAUDE.md 鎶藉彇銆俆3/T4 鎵ц浼氳瘽鎸夐渶璇诲彇銆?
+
+## 娴佺▼缂栨帓
+
+### T3锛? 绐楀彛锛?
+
+```
+鈶?Claude: Design 鈫?Plan 鈫?commit (draft)
+鈶?GPT Codex: Plan Review 鈫?plan-review.md (Gate 1)
+鈶?Claude: 澶勭疆 finding 鈫?commit (final plan) 鈫?Execute 鈫?鑷浜ゆ帴鍗?
+鈶?GPT Codex: Code Review锛堝叏閲忥紝codex exec锛夆啋 review-report.md (Gate 2)
+鈶?Gate: 鎵€鏈?finding 宸插缃?鈫?design.md 鏍囪 [瀹炵幇瀹屾垚]
+```
+
+### T4锛? 鎸佷箙 + 涓€娆℃€?Executor锛?
+
+```
+鈶?Claude Planner: Design 鈫?Plan 鈫?commit (draft)
+ succeeded in 3.74s:
+# edu-cloud 鈥?鏁欒偛浜戝钩鍙?
+
+<!-- key-start -->
+## 椤圭洰瀹氫綅
+
+edu-cloud 鏄?*澶氭牎鍗忓悓鐨勪簯绔钩鍙?*锛屾槸瀛︽牎绔紙exam-ai锛夌殑涓婃父璋冨害涓績銆?
+
+```
+[鐩戠绔痌                      [浜戠骞冲彴]                      [瀛︽牎绔痌
+鏁欒偛灞€/闆嗗洟鐪嬫澘  鈹€鈹€鈹€鈹€鈹€鈹€鈫? edu-cloud (port 9000)  鈫愨攢鈹€鈹€鈹€鈹€鈹€  exam-ai 脳 N 鎵€瀛︽牎
+  - 鍏ㄥ尯鎴愮哗鎬昏              - 鑱旇€冪紪鎺掍笌涓嬪彂                 - 鏈牎鑰冭瘯绠＄悊
+  - 瀛︽牎闂村姣?               - 璺ㄦ牎鏁版嵁姹囨€?                  - 鎵弿+AI闃呭嵎
+  - 鏁欏璐ㄩ噺鐩戞帶              - 鍏变韩 AI 闃呭嵎鏈嶅姟               - 鎴愮哗涓婃姤鍒颁簯绔?
+                              - 瀛︽牎娉ㄥ唽涓庣姸鎬佺洃鎺?
+                              - 缁熶竴棰樺簱绠＄悊
+```
+
+### 鑱岃矗杈圭晫
+
+| 鑱岃矗 | 褰掑睘 | 璇存槑 |
+codex
+我已拿到更新后的 plan/R1 报告，下一步转到代码库对照验证：重点核路由真实存在性、认证对象形态、migration 兼容性，以及每个批次/Task 的测试契约是否真能挡住错误实现。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"analysis_models|menu_configs|roles = Column\\(JSON|server_default=\\\"\\[\\]\\\"|Contract Pack|测试契约|边界条件|Batch 1|Batch 2|Batch 3\" docs/plans/2026-04-12-haofenshu-phase1-plan.md" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "test_menu_service|test_menu_api|pytest tests/test_menu|pytest tests/test_alembic_migration|manual|Task 12|端到端|反例|入口:|边界:|回归:|命令:" docs/plans/2026-04-12-haofenshu-phase1-plan.md' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "get_current_user|current_role|require_permission" src/edu_cloud/api src/edu_cloud/modules -g "*.py"' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "get_enabled_modules|SchoolSettingsService" src/edu_cloud -g "*.py"' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "switch-role|role_id|roleIndex|role_index|power-options|study/dashboard|knowledge/tree|paper/generate|/menus|/homework/tasks/.*/grade|knowledge-tree|bank/questions|students|teachers|grades" src/edu_cloud -g "*.py"' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "api.login|switchRole|getMenus|getPowerOptions|getClassOverview|getClassKnpList|getStudentAnalysis|getStudentTrends|getSchoolDashboard|getClassStudy|getStudentStudy|getHomeworkList|createHomework|getSubmissions|gradeSubmissions|getKnowledgeTree|searchQuestions|generatePaper|getStudents|getTeachers|getGrades|chatStream" docs/plans/2026-04-12-haofenshu-phase1-plan.md docs/plans/2026-04-12-haofenshu-biz-replication-design.md' in C:/Users/Administrator/edu-cloud exited 124 in 10.12s:
+
+ exited 124 in 10.10s:
+
+ exited 124 in 10.20s:
+
+ exited 124 in 10.15s:
+
+ exited 124 in 10.20s:
+
+ exited 124 in 10.22s:
+
+codex
+搜索范围比预期大，我把它收窄到认证、school settings、auth/menu 路由和 plan 中 useApi/测试契约几个热点段落，避免浪费时间在全库扫字符串。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "get_enabled_modules|SchoolSettingsService" src/edu_cloud/api src/edu_cloud/services src/edu_cloud/modules -g "*.py"' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "get_current_user|current_role|require_permission" src/edu_cloud/api/deps.py src/edu_cloud/modules -g "*.py"' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"switch-role|role_id|roleIndex|role_index|/menus|power-options|study/dashboard|knowledge/tree|paper/generate|/grade-batch|/grade\\b|bank/questions|/students\\b|/teachers\\b|/grades\\b\" src/edu_cloud/api src/edu_cloud/modules -g \"*.py\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "Contract Pack|counter_examples|risk_modules|test_debt|Batch 1|Batch 2|Batch 3|测试契约|边界条件|useApi.ts|switchRole|getPowerOptions|getSchoolDashboard|getKnowledgeTree|gradeSubmissions|Task 2|Task 12" docs/plans/2026-04-12-haofenshu-phase1-plan.md' in C:/Users/Administrator/edu-cloud succeeded in 3.82s:
+17:| Batch 1 | Schema + API | Task 1-3 | migration 可升降 + MenuService 8 tests + 全量回归 |
+18:| Batch 2 | Frontend 骨架 | Task 4-9 | Nuxt dev 可启动 + login→home 链路 |
+19:| Batch 3 | Frontend 完善 | Task 10-12 | PowerFilter + 45 stub + 端到端全链路验证 |
+21:## Contract Pack（F001 处置）
+32:### counter_examples（反例/常见陷阱）
+37:4. `switchRole(roleIndex)` → 后端用 `role_id` 不是 index（F007）
+39:### risk_modules（高风险模块）
+45:| `frontend-nuxt/composables/useApi.ts` | 引用不存在后端端点 | 逐端点核对后端路由 |
+48:### test_debt（测试债务）
+53:| seed_menus.py 集成测试 | 种子脚本只手动验证 | Task 12 端到端验证覆盖 |
+94:    useApi.ts
+295:**边界条件:**
+300:**测试契约:**
+316:### Task 2: 后端 — MenuService + API 端点
+687:**边界条件:**
+692:**测试契约:**
+914:**边界条件:**
+919:**测试契约:**
+1150:**边界条件:**
+1230:    async switchRole(roleId: string) {  // F007: 后端用 role_id
+ succeeded in 4.07s:
+src/edu_cloud/modules\student\router.py:40:@router.get("/students")
+src/edu_cloud/modules\student\router.py:54:@router.post("/students/import", status_code=201)
+src/edu_cloud/api\module_middleware.py:6:- JWT does NOT contain school_id. We extract active_role_id from JWT,
+src/edu_cloud/api\module_middleware.py:49:    "/api/v1/students",
+src/edu_cloud/api\module_middleware.py:77:        # Extract active_role_id from JWT to resolve school_id
+src/edu_cloud/api\module_middleware.py:85:            active_role_id = payload.get("active_role_id")
+src/edu_cloud/api\module_middleware.py:89:        if not active_role_id:
+src/edu_cloud/api\module_middleware.py:99:                select(UserRole.school_id).where(UserRole.id == active_role_id)
+src/edu_cloud/modules\profile\router.py:52:@router.get("/students/{student_id}/trend")
+src/edu_cloud/modules\profile\router.py:67:@router.get("/students/{student_id}/knowledge")
+src/edu_cloud/modules\profile\router.py:81:@router.get("/students/{student_id}/error-patterns")
+src/edu_cloud/modules\exam\results_router.py:34:@router.get("/students/{student_number}")
+src/edu_cloud/modules\marking\router.py:158:@router.get("/teachers")
+src/edu_cloud/api\auth.py:40:    role_id: str
+src/edu_cloud/api\auth.py:68:            "active_role_id": primary.id,
+src/edu_cloud/api\auth.py:97:@router.post("/switch-role")
+src/edu_cloud/api\auth.py:111:            UserRole.id == req.role_id,
+src/edu_cloud/api\auth.py:122:        "active_role_id": target_role.id,
+src/edu_cloud/api\auth.py:125:    logger.info("switch-role: user=%s, new_role=%s", user.username, target_role.role)
+src/edu_cloud/modules\conduct\parent_service.py:110:        "active_role_id": role.id,
+ succeeded in 4.55s:
+src/edu_cloud/modules\studio\router.py:7:from edu_cloud.api.deps import get_current_user, require_permission
+src/edu_cloud/modules\studio\router.py:17:async def list_templates(current=Depends(get_current_user)):
+src/edu_cloud/modules\studio\router.py:18:    role = current["current_role"]
+src/edu_cloud/modules\studio\router.py:26:    current=Depends(require_permission(Permission.GENERATE_REPORT)),
+src/edu_cloud/modules\studio\router.py:30:    role = current["current_role"]
+src/edu_cloud/modules\studio\router.py:42:    current=Depends(require_permission(Permission.GENERATE_REPORT)),
+src/edu_cloud/modules\studio\router.py:49:    role = current["current_role"]
+src/edu_cloud/modules\studio\router.py:66:    current=Depends(require_permission(Permission.GENERATE_REPORT)),
+src/edu_cloud/modules\studio\router.py:69:    role = current["current_role"]
+src/edu_cloud/modules\studio\router.py:80:    current=Depends(require_permission(Permission.GENERATE_REPORT)),
+src/edu_cloud/modules\studio\router.py:87:    role = current["current_role"]
+src/edu_cloud/modules\studio\router.py:105:    # CB-2 fix: 改回 get_current_user，权限按文档类型在函数体内分别检查
+src/edu_cloud/modules\studio\router.py:107:    current=Depends(get_current_user),
+src/edu_cloud/modules\studio\router.py:114:    role = current["current_role"]
+src/edu_cloud/modules\studio\router.py:188:    current=Depends(require_permission(Permission.WRITE_PAPER)),
+src/edu_cloud/modules\studio\router.py:202:    role = current["current_role"]
+src/edu_cloud/modules\studio\router.py:218:    current=Depends(get_current_user),
+src/edu_cloud/api/deps.py:19:async def get_current_user(
+src/edu_cloud/api/deps.py:23:    """平台用户认证（JWT）。返回 dict 含 user/roles/current_role/permissions。"""
+src/edu_cloud/api/deps.py:63:            "current_role": active,
+ succeeded in 4.70s:
+src/edu_cloud/services\school_settings_service.py:53:async def get_enabled_modules(db: AsyncSession, *, school_id: str) -> set[str]:
+src/edu_cloud/modules\school\settings_router.py:12:    set_module_enabled, get_enabled_modules, init_school_modules,
+src/edu_cloud/modules\school\settings_router.py:94:    return list(await get_enabled_modules(db, school_id=school_id))
+src/edu_cloud/api\ai.py:25:from edu_cloud.services.school_settings_service import get_enabled_modules
+src/edu_cloud/api\ai.py:160:        enabled_modules = await get_enabled_modules(db, school_id=school_id) if school_id else None
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('docs/plans/2026-04-12-haofenshu-phase1-plan.md')
+for i,l in enumerate(p.read_text(encoding='utf-8').splitlines(),1):
+    if l.startswith('### Task') or '测试契约' in l or '边界条件' in l:
+        print(f'{i}:{l}')\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+for path in ['src/edu_cloud/api/auth.py','src/edu_cloud/api/deps.py','src/edu_cloud/services/school_settings_service.py','src/edu_cloud/modules/analytics/router.py','src/edu_cloud/modules/knowledge_tree/router.py','src/edu_cloud/modules/homework/router.py','src/edu_cloud/modules/student/router.py','src/edu_cloud/modules/marking/router.py','src/edu_cloud/modules/bank/router.py']:
+    print(f'## {path}')
+    lines=Path(path).read_text(encoding='utf-8').splitlines()
+    for i,l in enumerate(lines,1):
+        if any(x in l for x in ['@router','include_router','active_role_id','role_id','current_role','get_enabled_modules','/switch-role','/students','/teachers','/grade-batch','/grade','/graph','/questions']):
+            print(f'{i}:{l}')
+    print()\"" in C:/Users/Administrator/edu-cloud succeeded in 1.34s:
+128:### Task 1: 后端 — Alembic migration（menu_configs + 预聚合表 + rank 字段）
+295:**边界条件:**
+300:**测试契约:**
+316:### Task 2: 后端 — MenuService + API 端点
+687:**边界条件:**
+692:**测试契约:**
+714:### Task 3: 后端 — 菜单种子数据
+914:**边界条件:**
+919:**测试契约:**
+929:### Task 4: 前端 — Nuxt 3 项目初始化
+1150:**边界条件:**
+1157:### Task 5: 前端 — auth store + middleware
+1300:**边界条件:**
+1305:**测试契约:**
+1315:### Task 6: 前端 — useApi composable
+1460:**边界条件:**
+1467:### Task 7: 前端 — useMenus composable + 导航组件
+1769:**边界条件:**
+1774:**测试契约:**
+1784:### Task 8: 前端 — 三种 Layout
+ succeeded in 1.50s:
+## src/edu_cloud/api/auth.py
+40:    role_id: str
+43:@router.post("/login")
+68:            "active_role_id": primary.id,
+97:@router.post("/switch-role")
+111:            UserRole.id == req.role_id,
+122:        "active_role_id": target_role.id,
+
+## src/edu_cloud/api/deps.py
+23:    """平台用户认证（JWT）。返回 dict 含 user/roles/current_role/permissions。"""
+51:        active_role_id = payload.get("active_role_id")
+52:        if active_role_id:
+53:            active = next((r for r in roles if r.id == active_role_id), None)
+63:            "current_role": active,
+76:                f"Role '{current['current_role'].role}' lacks permission '{permission.value}'"
+
+## src/edu_cloud/services/school_settings_service.py
+53:async def get_enabled_modules(db: AsyncSession, *, school_id: str) -> set[str]:
+
+## src/edu_cloud/modules/analytics/router.py
+codex
+目前已经确认一件事：R1 的“每个行为变更 Task 都有测试契约”并没有真正落地，plan 里只有 Task 1/2/3/5/7/9 出现 `测试契约` 段，Task 4/6/8/10/11/12 仍缺失。接下来我把剩余几个 R1 点逐项做证据级核对。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('docs/plans/2026-04-12-haofenshu-phase1-plan.md')
+lines=p.read_text(encoding='utf-8').splitlines()
+for start,end in [(21,53),(316,712),(1315,1468),(1769,1908),(2377,2505)]:
+    print(f'## L{start}-{end}')
+    for i in range(start,end+1):
+        if i<=len(lines): print(f'{i}:{lines[i-1]}')
+    print()\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+for path in ['src/edu_cloud/api/app.py','src/edu_cloud/modules/exam/router.py','src/edu_cloud/modules/analytics/router.py','src/edu_cloud/modules/knowledge_tree/router.py','src/edu_cloud/modules/homework/router.py','src/edu_cloud/modules/bank/router.py','src/edu_cloud/modules/student/router.py','src/edu_cloud/modules/marking/router.py']:
+    print(f'## {path}')
+    lines=Path(path).read_text(encoding='utf-8').splitlines()
+    for i,l in enumerate(lines,1):
+        if 'APIRouter' in l or 'include_router' in l or '@router' in l or 'prefix=' in l:
+            print(f'{i}:{l}')
+    print()\"" in C:/Users/Administrator/edu-cloud succeeded in 4.10s:
+## src/edu_cloud/api/app.py
+257:    app.include_router(auth_router)
+261:    app.include_router(dashboard_router)
+265:    app.include_router(ai_router)
+269:    app.include_router(compat_router)
+312:        app.include_router(r)
+
+## src/edu_cloud/modules/exam/router.py
+5:from fastapi import APIRouter, Depends, HTTPException
+19:router = APIRouter(prefix="/api/v1/exams", tags=["exams"])
+20:question_router = APIRouter(prefix="/api/v1/questions", tags=["questions"])
+82:@router.post("", status_code=201)
+94:@router.get("")
+103:@router.get("/{exam_id}")
+113:@router.patch("/{exam_id}")
+127:@router.post("/{exam_id}/subjects", status_code=201)
+140:@router.get("/{exam_id}/subjects")
+252:@router.post("/{exam_id}/publish")
+272:@router.post("/{exam_id}/archive")
+
+ succeeded in 4.19s:
+## L21-53
+21:## Contract Pack（F001 处置）
+22:
+23:### invariants（变更不变量）
+24:
+25:1. **INV-01 现有 frontend/ 零改动**: 新建 `frontend-nuxt/`，不修改 `frontend/` 任何文件
+26:2. **INV-02 现有 API 路由不变**: 只新增 `/api/v1/menus`，现有 193 路由保持不变
+27:3. **INV-03 现有测试全量通过**: 每个 Task commit 前跑 `pytest --tb=short -q`，≥1582 tests PASS
+28:4. **INV-04 Alembic 可逆**: 新 migration 支持 upgrade + downgrade
+29:5. **INV-05 现有模型导入链不断**: 新增 models 不影响现有 `Base.metadata` 和 autogenerate
+30:6. **INV-06 认证契约一致**: menu router 使用 `get_current_user` 返回的 `current_role`（UserRole ORM 对象），不假设 dict 结构
+31:
+32:### counter_examples（反例/常见陷阱）
+33:
+34:1. menu_configs.roles 用 PostgreSQL `ARRAY(String)` → SQLite smoke test 失败（F005）→ 改用 JSON
+35:2. `SchoolSettingsService(db).get_enabled_modules()` → 不存在的类方法（F004）→ 用函数 `get_enabled_modules(db, school_id=...)`
+36:3. `user.get("active_role")` → `get_current_user` 返回 `current_role`（UserRole ORM 对象）（F004）
+37:4. `switchRole(roleIndex)` → 后端用 `role_id` 不是 index（F007）
+38:
+39:### risk_modules（高风险模块）
+codex
+我在补扫设计文档与现有模型名/路由前缀的对齐关系。这里如果设计仍以不存在的表名或路径为基准，会形成新的实现偏差，即使 plan 文本本身看起来“修过了”。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('docs/plans/2026-04-12-haofenshu-phase1-plan.md')
+for i,l in enumerate(p.read_text(encoding='utf-8').splitlines(),1):
+    if any(x in l for x in ['frontend-nuxt/','frontend/','ExamResult','rank_in_class','rank_in_grade','analysis_models.py','menu router','role_id','gradeSubmission','getAnalyticsSummary','getAnalyticsQuestion','getAnalyticsGrade']):
+        print(f'{i}:{l}')\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+for path in ['src/edu_cloud/modules/exam/models.py','src/edu_cloud/models/base.py']:
+    print(f'## {path}')
+    lines=Path(path).read_text(encoding='utf-8').splitlines()
+    for i,l in enumerate(lines,1):
+        if any(x in l for x in ['class ExamResult','rank_in_class','rank_in_grade','exam_type','class Base','class TenantMixin']):
+            print(f'{i}:{l}')
+    print()\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('docs/plans/2026-04-12-haofenshu-biz-replication-design.md')
+for i,l in enumerate(p.read_text(encoding='utf-8').splitlines(),1):
+    if any(x in l for x in ['frontend-nuxt','frontend/','menu_configs','exam_scores','exam_results','exam_type','/api/v1/menus','/api/v1/analytics','/api/v1/knowledge-tree','/api/v1/homework','/api/v1/students','/api/v1/marking/teachers','/api/v1/bank/questions']):
+        print(f'{i}:{l}')\"" in C:/Users/Administrator/edu-cloud succeeded in 2.64s:
+25:1. **INV-01 现有 frontend/ 零改动**: 新建 `frontend-nuxt/`，不修改 `frontend/` 任何文件
+30:6. **INV-06 认证契约一致**: menu router 使用 `get_current_user` 返回的 `current_role`（UserRole ORM 对象），不假设 dict 结构
+37:4. `switchRole(roleIndex)` → 后端用 `role_id` 不是 index（F007）
+45:| `frontend-nuxt/composables/useApi.ts` | 引用不存在后端端点 | 逐端点核对后端路由 |
+46:| `modules/analytics/analysis_models.py` | import 链断裂 | app.py 显式 import 确保 Base.metadata 可见 |
+71:      analysis_models.py               # 新增: ClassAnalysis, StudentAnalysis, StudentKnpMastery（F006: 路径统一为 analysis_models.py）
+73:    app.py                             # 修改: 挂载 menu router
+85:### 前端新增（`frontend-nuxt/`）
+88:frontend-nuxt/
+133:- Create: `src/edu_cloud/modules/analytics/analysis_models.py`
+135:- Modify: `src/edu_cloud/modules/exam/models.py` — ExamResult 加 rank 字段
+176:# src/edu_cloud/modules/analytics/analysis_models.py
+219:    rank_in_class = Column(Integer)
+220:    rank_in_grade = Column(Integer)
+243:- [ ] **Step 3: ExamResult 加 rank 字段**
+245:在 `src/edu_cloud/modules/exam/models.py` 的 ExamResult 类中添加:
+249:rank_in_class = Column(Integer, nullable=True)
+250:rank_in_grade = Column(Integer, nullable=True)
+260:Expected: 4 张新表创建成功，ExamResult 加 2 个字段
+282:git add src/edu_cloud/modules/menu/ src/edu_cloud/modules/analytics/analysis_models.py src/edu_cloud/modules/exam/models.py alembic/versions/ tests/test_menu/
+ succeeded in 2.81s:
+## src/edu_cloud/modules/exam/models.py
+28:    exam_type: Mapped[str | None] = mapped_column(String(20), default=None)
+68:class ExamResult(Base, IdMixin, TimestampMixin):
+
+## src/edu_cloud/models/base.py
+7:class Base(DeclarativeBase):
+18:class TenantMixin:
+
+ succeeded in 2.37s:
+13:- 好分数前端：`~/haofenshu-clone/frontend/`（Nuxt 3 + Element Plus，45 页面）
+32:edu-cloud/frontend/                     # Nuxt 3 项目根
+133:新增 `menu_configs` 表：
+136:CREATE TABLE menu_configs (
+142:    parent_id INTEGER REFERENCES menu_configs(id),  -- 二级菜单指向父级
+154:GET /api/v1/menus
+355:-- exam_scores 加排名预计算字段
+356:ALTER TABLE exam_scores ADD COLUMN rank_in_class INTEGER;
+357:ALTER TABLE exam_scores ADD COLUMN rank_in_grade INTEGER;
+360:ALTER TABLE exams ADD COLUMN exam_type VARCHAR(16) DEFAULT 'regular';
+420:**menu_configs — 动态菜单**：见 §3。
+427:| PowerOptionsService | 构建级联筛选树 | get_power_options(user, exam_type, year) — 按角色过滤可见范围 |
+429:| RankComputeService | 排名预计算 | compute_ranks(exam_id) — 写入 exam_scores.rank_in_class/rank_in_grade |
+447:# 5. 生成 menu_configs 种子（8 模块 45 子菜单）
+457:3. 动态菜单系统（menu_configs 表 + API + useMenus + TopNav/SubNav）
+463:9. exam_scores 加 rank 字段 migration
+464:10. MenuService + GET /api/v1/menus 端点
+465:11. menu_configs 种子数据
+530:3. **后端驱动动态菜单**：menu_configs 表 + roles/module 双重过滤，前端零硬编码
+537:现有 `edu-cloud/frontend/`（Vite + Vue 3 + Naive UI）在 Phase 1 完成后**整体替换**为新 Nuxt 3 项目。具体流程：
+codex
+又发现一条潜在的新问题方向：设计文档仍以 `exam_scores`/新增 `exam_type` 为前提，但代码库里已经是 `ExamResult` 且 `exam_type` 已存在。如果这部分不澄清，执行时很容易按设计文档走偏。 我再把 Task 5/8/9 串起来看是否还有登录态恢复类缺口。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+for path in ['frontend/src/stores/auth.js','frontend/src/router/index.js']:
+    p=Path(path)
+    if p.exists():
+        print(f'## {path}')
+        lines=p.read_text(encoding='utf-8').splitlines()
+        for i,l in enumerate(lines,1):
+            if any(x in l for x in ['user', 'menus', 'switchRole', 'token', 'loadMenus', 'logout', 'active_role']):
+                print(f'{i}:{l}')
+        print()\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('docs/plans/2026-04-12-haofenshu-phase1-plan.md')
+lines=p.read_text(encoding='utf-8').splitlines()
+for start,end in [(1157,1314),(1905,2178),(2492,2565)]:
+    print(f'## L{start}-{end}')
+    for i in range(start,end+1):
+        if i<=len(lines): print(f'{i}:{lines[i-1]}')
+    print()\"" in C:/Users/Administrator/edu-cloud succeeded in 4.12s:
+## L1157-1314
+1157:### Task 5: 前端 — auth store + middleware
+1158:
+1159:**Files:**
+1160:- Create: `frontend-nuxt/stores/auth.ts`
+1161:- Create: `frontend-nuxt/stores/context.ts`
+1162:- Create: `frontend-nuxt/middleware/auth.global.ts`
+1163:
+1164:- [ ] **Step 1: 创建 auth store**
+1165:
+1166:```typescript
+1167:// frontend-nuxt/stores/auth.ts
+1168:interface UserRole {
+1169:  role: string
+1170:  school_id?: string
+1171:  context?: {
+1172:    type: string
+1173:    id: string
+1174:    name: string
+1175:  }
+ succeeded in 4.01s:
+## frontend/src/stores/auth.js
+10:function saveAuthState(userVal, rolesVal, indexVal) {
+13:      user: userVal,
+32:  const token = ref(localStorage.getItem('token') || '')
+34:  // Hydrate from localStorage if token exists
+35:  const saved = token.value ? loadAuthState() : null
+36:  const user = ref(saved?.user ?? null)
+44:  const displayName = computed(() => user.value?.display_name || '')
+60:  async function login(username, password) {
+61:    const { data } = await client.post('/auth/login', { username, password })
+62:    token.value = data.access_token
+63:    user.value = data.user
+67:    localStorage.setItem('token', data.access_token)
+68:    saveAuthState(user.value, roles.value, currentRoleIndex.value)
+73:  async function switchRole(index) {
+80:        token.value = data.access_token
+81:        localStorage.setItem('token', data.access_token)
+89:    saveAuthState(user.value, roles.value, currentRoleIndex.value)
+110:  function logout() {
+111:    token.value = ''
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('src/edu_cloud/api/auth.py')
+lines=p.read_text(encoding='utf-8').splitlines()
+for i in range(1,len(lines)+1):
+    if 35 <= i <= 130:
+        print(f'{i}:{lines[i-1]}')\"" in C:/Users/Administrator/edu-cloud succeeded in 6.71s:
+35:    username: str
+36:    password: str
+37:
+38:
+39:class SwitchRoleRequest(BaseModel):
+40:    role_id: str
+41:
+42:
+43:@router.post("/login")
+44:async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
+45:    # 优先查新 User 模型
+46:    from edu_cloud.models.user import User
+47:    from edu_cloud.models.user_role import UserRole
+48:
+49:    result = await db.execute(select(User).where(User.username == req.username))
+50:    user = result.scalar_one_or_none()
+51:
+52:    if user and user.verify_password(req.password):
+53:        if not user.is_active:
+54:            raise HTTPException(401, "User is inactive")
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('src/edu_cloud/api/auth.py')
+lines=p.read_text(encoding='utf-8').splitlines()
+for i in range(129,151):
+    print(f'{i}:{lines[i-1]}')\"" in C:/Users/Administrator/edu-cloud exited 1 in 8.36s:
+129:        "active_role": {
+130:            "id": target_role.id,
+131:            "role": target_role.role,
+132:            "school_id": target_role.school_id,
+133:            "is_primary": target_role.is_primary,
+134:            "context": ctx,
+135:        },
+136:    }
+Traceback (most recent call last):
+  File "<string>", line 5, in <module>
+IndexError: list index out of range
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('docs/plans/2026-04-12-haofenshu-phase1-plan.md')
+lines=p.read_text(encoding='utf-8').splitlines()
+for start,end in [(1478,1768)]:
+    for i in range(start,end+1):
+        print(f'{i}:{lines[i-1]}')\"" in C:/Users/Administrator/edu-cloud succeeded in 1.76s:
+1478:// frontend-nuxt/composables/useMenus.ts
+1479:export function useMenus() {
+1480:  const authStore = useAuthStore()
+1481:  const api = useApi()
+1482:
+1483:  async function loadMenus() {
+1484:    try {
+1485:      const res = await api.getMenus()
+1486:      authStore.setMenus(res.menus)
+1487:    } catch (e) {
+1488:      console.error('Failed to load menus:', e)
+1489:      authStore.setMenus([])
+1490:    }
+1491:  }
+1492:
+1493:  const activeModule = computed(() => {
+1494:    const route = useRoute()
+1495:    return (
+1496:      authStore.menus.find((m) =>
+1497:        m.children?.some((c: any) => route.path.startsWith(c.path)),
+codex
+我再核一条容易被忽略的实现偏差：Task 2 的 API 测试把 `admin_token` 当成“至少能看到 exam 模块”的角色，但当前菜单种子只给了 `subject_teacher/academic_director/principal`，如果现有 fixture 的 admin 实际是 `platform_admin`，这个测试前提本身就是错的。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+for path in ['src/edu_cloud/core/permissions.py','src/edu_cloud/models/user_role.py']:
+    print(f'## {path}')
+    lines=Path(path).read_text(encoding='utf-8').splitlines()
+    for i,l in enumerate(lines,1):
+        if any(x in l for x in ['platform_admin','subject_teacher','academic_director','grade_leader','parent','class UserRole','role:']):
+            print(f'{i}:{l}')
+    print()\"" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('tests/conftest.py')
+lines=p.read_text(encoding='utf-8').splitlines()
+for i,l in enumerate(lines,1):
+    if any(x in l for x in ['admin_token','platform_admin','subject_teacher','principal','academic_director','UserRole','roles_result','access_token']):
+        print(f'{i}:{l}')\"" in C:/Users/Administrator/edu-cloud succeeded in 6.17s:
+## src/edu_cloud/core/permissions.py
+77:    MANAGE_CONDUCT_PARENTS = "manage_conduct_parents"
+102:    "platform_admin": set(Permission),
+170:    "academic_director": {
+218:    "grade_leader": {
+254:    "subject_teacher": _TEACHER_BASE.copy(),
+257:    "parent": {
+293:def has_permission(role: str, permission: Permission) -> bool:
+
+## src/edu_cloud/models/user_role.py
+8:class UserRole(Base, IdMixin, TimestampMixin):
+14:    role: Mapped[str] = mapped_column(String(50), nullable=False)
+
+ succeeded in 7.53s:
+8:from edu_cloud.models.user_role import UserRole
+44:from edu_cloud.shared.auth import create_access_token
+108:    """Seed a platform_admin user (new User+UserRole model) and return it."""
+116:    db.add(UserRole(user_id=user.id, role="platform_admin", is_primary=True))
+124:    """JWT Authorization headers for platform_admin."""
+125:    token = create_access_token({"sub": admin_user.id, "role": "platform_admin"})
+131:    """Seed an observer user (new User+UserRole model) and return it."""
+139:    db.add(UserRole(user_id=user.id, role="observer", is_primary=True))
+148:    token = create_access_token({"sub": observer_user.id, "role": "observer"})
+234:    role = UserRole(
+254:    token = resp.json()["access_token"]
+262:    from edu_cloud.models.user_role import UserRole
+280:        UserRole(
+282:            role="academic_director",
+292:async def seed_subject_teacher(db):
+293:    """Seed a subject_teacher user with school scope."""
+295:        username="subject_teacher1",
+311:    db.add(UserRole(
+313:        role="subject_teacher",
+323:async def subject_teacher_headers(client, seed_subject_teacher):
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('src/edu_cloud/api/ai.py')
+lines=p.read_text(encoding='utf-8').splitlines()
+for i,l in enumerate(lines,1):
+    if any(x in l for x in ['class ChatRequest','session_id','message:', '@router.post(\"/chat\"', 'message ']):
+        print(f'{i}:{l}')\"" in C:/Users/Administrator/edu-cloud exited 1 in 1.23s:
+  File "<string>", line 5
+    if any(x in l for x in ['class ChatRequest','session_id','message:', '@router.post(
+                                                                         ^
+SyntaxError: unterminated string literal (detected at line 5)
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('src/edu_cloud/api/ai.py')
+patterns=['class ChatRequest','session_id','message:','@router.post(\\\"/chat\\\"']
+for i,l in enumerate(p.read_text(encoding='utf-8').splitlines(),1):
+    if any(x in l for x in patterns):
+        print(f'{i}:{l}')\"" in C:/Users/Administrator/edu-cloud exited 1 in 608ms:
+  File "<string>", line 3
+    patterns=['class ChatRequest','session_id','message:','@router.post(" /chat\']
+                                                          ^
+SyntaxError: unterminated string literal (detected at line 3)
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+from pathlib import Path
+p=Path('src/edu_cloud/api/ai.py')
+patterns=['class ChatRequest','session_id','message:', '@router.post(\"/chat\"']
+for i,l in enumerate(p.read_text(encoding='utf-8').splitlines(),1):
+    if any(x in l for x in patterns):
+        print(f'{i}:{l}')
+'@ | python -X utf8 -" in C:/Users/Administrator/edu-cloud succeeded in 2.33s:
+76:class ChatRequest(BaseModel):
+77:    message: str
+78:    session_id: str | None = None
+97:@router.post("/chat")
+132:    session_id = req.session_id or str(uuid.uuid4())
+134:    if session_id not in _sessions:
+144:        session_id, _SessionState(anonymizer=Anonymizer(), owner_id=user.id)
+187:        session_id=session_id,
+210:                    event.data["session_id"] = session_id
+224:                        session_id=session_id,
+238:        headers={"X-Session-Id": session_id},
+249:@router.delete("/sessions/{session_id}")
+251:    session_id: str,
+255:    state = _sessions.get(session_id)
+261:    del _sessions[session_id]
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('docs/plans/2026-04-12-haofenshu-phase1-plan.md')
+lines=p.read_text(encoding='utf-8').splitlines()
+for i in range(2248,2280):
+    print(f'{i}:{lines[i-1]}')\"" in C:/Users/Administrator/edu-cloud succeeded in 578ms:
+2248:    clazz: selectedClass.value,
+2249:    subject: selectedSubject.value,
+2250:    examids: selectedExamIds.value,
+2251:    isTeach: false,
+2252:  }))
+2253:
+2254:  // 级联自动选中：上级变化时自动选中下级第一项
+2255:  watch(selectedGrade, () => {
+2256:    selectedClass.value = classOptions.value[0] || ''
+2257:  })
+2258:  watch(selectedClass, () => {
+2259:    selectedSubject.value = subjectOptions.value[0] || ''
+2260:  })
+2261:  watch(selectedSubject, () => {
+2262:    const exams = examOptions.value
+2263:    selectedExamIds.value = exams.length ? [exams[0].id] : []
+2264:  })
+2265:
+2266:  async function load(examType?: number, year?: number) {
+2267:    try {
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('docs/plans/2026-04-12-haofenshu-phase1-plan.md')
+lines=p.read_text(encoding='utf-8').splitlines()
+for i in range(145,171):
+    print(f'{i}:{lines[i-1]}')
+print('---')
+for i in range(262,276):
+    print(f'{i}:{lines[i-1]}')\"" in C:/Users/Administrator/edu-cloud succeeded in 843ms:
+145:
+146:```python
+147:# src/edu_cloud/modules/menu/models.py
+148:from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, JSON
+149:from sqlalchemy.orm import Mapped, mapped_column
+150:from sqlalchemy.sql import func
+151:
+152:from edu_cloud.models.base import Base
+153:
+154:
+155:class MenuConfig(Base):
+156:    __tablename__ = "menu_configs"
+157:
+158:    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+159:    code: Mapped[str] = mapped_column(String(32), nullable=False)
+160:    name: Mapped[str] = mapped_column(String(64), nullable=False)
+161:    icon: Mapped[str | None] = mapped_column(String(32), nullable=True)
+162:    sort: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+163:    parent_id: Mapped[int | None] = mapped_column(
+164:        Integer, ForeignKey("menu_configs.id"), nullable=True
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('docs/plans/2026-04-12-haofenshu-phase1-plan.md')
+lines=p.read_text(encoding='utf-8').splitlines()
+for i in range(714,914):
+    if i<=len(lines): print(f'{i}:{lines[i-1]}')\"" in C:/Users/Administrator/edu-cloud succeeded in 1.15s:
+714:### Task 3: 后端 — 菜单种子数据
+715:
+716:**Files:**
+717:- Create: `scripts/seed_menus.py`
+718:- Test: 手动验证（seed 脚本）
+719:
+720:- [ ] **Step 1: 创建种子脚本**
+721:
+722:```python
+723:# scripts/seed_menus.py
+724:"""好分数 8 模块 × 45 子菜单种子数据。
+725:
+726:Usage:
+727:    cd C:/Users/Administrator/edu-cloud
+728:    python scripts/seed_menus.py
+729:"""
+730:import asyncio
+731:import sys
+732:import os
+733:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('src/edu_cloud/models/school_settings.py')
+lines=p.read_text(encoding='utf-8').splitlines()
+for i,l in enumerate(lines,1):
+    if 'MODULE_CODES' in l or 'DEFAULT_ENABLED' in l or 'study_analytics' in l or 'research' in l or 'teaching' in l or 'calendar' in l or 'conduct' in l or 'homework' in l or 'exam' in l:
+        print(f'{i}:{l}')\"" in C:/Users/Administrator/edu-cloud succeeded in 1.06s:
+20:MODULE_CODES = {
+21:    "exam": "考试管理",
+23:    "homework": "作业管理",
+24:    "study_analytics": "学情分析",
+25:    "research": "教研题库",
+26:    "teaching": "教学管理",
+27:    "calendar": "校历日程",
+29:    "conduct": "德育管理",
+33:DEFAULT_ENABLED = {"exam", "grading", "homework", "calendar", "studio"}
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('docs/plans/2026-04-12-haofenshu-biz-replication-design.md')
+lines=p.read_text(encoding='utf-8').splitlines()
+for i in range(350,363):
+    print(f'{i}:{lines[i-1]}')\"" in C:/Users/Administrator/edu-cloud succeeded in 791ms:
+350:| report_configs | score_segment_config | 已有 |
+351:
+352:### 需要扩展的字段
+353:
+354:```sql
+355:-- exam_scores 加排名预计算字段
+356:ALTER TABLE exam_scores ADD COLUMN rank_in_class INTEGER;
+357:ALTER TABLE exam_scores ADD COLUMN rank_in_grade INTEGER;
+358:
+359:-- exams 加考试类型（regular / monthly / midterm / final / quiz）
+360:ALTER TABLE exams ADD COLUMN exam_type VARCHAR(16) DEFAULT 'regular';
+361:```
+362:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('src/edu_cloud/modules/exam/models.py')
+lines=p.read_text(encoding='utf-8').splitlines()
+for i in range(20,80):
+    print(f'{i}:{lines[i-1]}')\"" in C:/Users/Administrator/edu-cloud succeeded in 661ms:
+20:
+21:class Exam(Base, IdMixin, TimestampMixin):
+22:    __tablename__ = "exams"
+23:
+24:    name: Mapped[str] = mapped_column(String(200))
+25:    card_title: Mapped[str] = mapped_column(String(200), default="")
+26:    status: Mapped[str] = mapped_column(String(20), default="draft")
+27:    # status: draft -> scanning -> grading -> reviewing -> completed
+28:    exam_type: Mapped[str | None] = mapped_column(String(20), default=None)
+29:    grade_scope: Mapped[str | None] = mapped_column(String(50), default=None)
+30:    semester: Mapped[str | None] = mapped_column(String(50), default=None)
+31:    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+32:    # edu-cloud 原有字段（sync 用）
+33:    subject_code: Mapped[str | None] = mapped_column(String(50), default=None)
+34:    subject_name: Mapped[str | None] = mapped_column(String(100), default=None)
+35:    max_score: Mapped[float | None] = mapped_column(Float, default=None)
+36:    exam_date: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+37:    source: Mapped[str | None] = mapped_column(String(50), default=None)
+38:
+39:
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "python -X utf8 -c \"from pathlib import Path
+p=Path('tests/conftest.py')
+lines=p.read_text(encoding='utf-8').splitlines()
+for i in range(108,130):
+    print(f'{i}:{lines[i-1]}')
+print('---')
+for i in range(292,330):
+    print(f'{i}:{lines[i-1]}')\"" in C:/Users/Administrator/edu-cloud succeeded in 709ms:
+108:    """Seed a platform_admin user (new User+UserRole model) and return it."""
+109:    user = User(
+110:        username="admin_test",
+111:        display_name="Test Admin",
+112:    )
+113:    user.set_password("test123")
+114:    db.add(user)
+115:    await db.flush()
+116:    db.add(UserRole(user_id=user.id, role="platform_admin", is_primary=True))
+117:    await db.commit()
+118:    await db.refresh(user)
+119:    return user
+120:
+121:
+122:@pytest.fixture
+123:async def admin_headers(admin_user):
+124:    """JWT Authorization headers for platform_admin."""
+125:    token = create_access_token({"sub": admin_user.id, "role": "platform_admin"})
+126:    return {"Authorization": f"Bearer {token}"}
+127:
+codex
+**结论**
+
+FAIL。R1 标记为已解决的 `F002/F003/F007/F008` 仍未实质关闭；另外发现 2 条新的实现风险。`F001/F004/F005/F006` 本轮复核通过。
+
+**Findings**
+
+1. `F002`
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: plan 声称“Task 1-11 已补齐测试契约”，但实际上只有 Task 1/2/3/5/7/9 出现 `测试契约` 段。  
+After-behavior: 所有行为变更 Task 都应包含完整 5 字段测试契约，并且边界条件至少 3 条。  
+Evidence: Task 标题在 [phase1-plan.md:128](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L128), [phase1-plan.md:316](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L316), [phase1-plan.md:714](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L714), [phase1-plan.md:929](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L929), [phase1-plan.md:1157](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1157), [phase1-plan.md:1315](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1315), [phase1-plan.md:1467](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1467), [phase1-plan.md:1784](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1784), [phase1-plan.md:1905](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1905), [phase1-plan.md:2179](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2179), [phase1-plan.md:2384](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2384), [phase1-plan.md:2492](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2492)；但 `测试契约` 只出现在 [phase1-plan.md:300](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L300), [phase1-plan.md:692](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L692), [phase1-plan.md:919](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L919), [phase1-plan.md:1305](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1305), [phase1-plan.md:1774](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1774), [phase1-plan.md:2163](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2163)。  
+Impact: Gate 1 的测试充分性要求仍不满足，执行者在 Task 4/6/8/10/11/12 上没有可落地的入口级验证规范。  
+Repair hypothesis: 给缺失任务补 5 字段契约；如果某任务仅做 stub，也要明确入口、反例和为何只能手测，否则拆出为非行为变更任务。
+
+2. `F007`
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: plan 宣称 `useApi` 已全部对齐现有后端路由，但实际仍写入了错误 analytics 路径，并且把 `getPowerOptions` 注释为 Phase 2/3 待实现后，又在 Task 10 直接调用它。  
+After-behavior: `useApi` 只能暴露当前真实存在的后端端点；Phase 2/3 API 不应在 Phase 1 代码中被调用。  
+Evidence: plan 中 `getAnalyticsSummary/getAnalyticsDistribution/getAnalyticsQuestion/getAnalyticsGrade` 定义见 [phase1-plan.md:1369](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1369), [phase1-plan.md:1371](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1371), [phase1-plan.md:1373](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1373), [phase1-plan.md:1375](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1375)；真实路由在 [analytics/router.py:18](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/router.py#L18), [analytics/router.py:50](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/router.py#L50), [analytics/router.py:85](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/router.py#L85), [analytics/router.py:99](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/router.py#L99)。同时 `getPowerOptions` 被注释掉见 [phase1-plan.md:1427](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1427)，但 Task 10 仍调用 `api.getPowerOptions(...)` 见 [phase1-plan.md:2268](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2268)。  
+Impact: 这不是文案问题，而是按计划实现会直接产出 404/运行时报错；Task 10 甚至无法正常运行。  
+Repair hypothesis: 把 analytics 方法改成精确路由形态；`getPowerOptions` 要么从 Phase 1 删除并让 Task 10 延后，要么提供真实 stub 返回并调整调用方。
+
+3. `F009`
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 前端 auth store 约定 `user` 含 `roles` 和 `active_role`，但后端 `/auth/login` 返回的是 `user + roles` 分离结构，`/auth/switch-role` 只返回 `active_role`；plan 中登录和切角色代码都没有做归一化。  
+After-behavior: 前端必须把登录/切角色响应归一化成统一的 `UserInfo` 结构，并提供刷新后的用户态恢复。  
+Evidence: store 契约定义见 [phase1-plan.md:1178](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1178)；登录页直接 `authStore.setUser(res.user || ...)` 见 [phase1-plan.md:1983](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1983)；切角色只做 `this.user = res.user || this.user` 见 [phase1-plan.md:1230](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1230)。实际登录响应只有 `user` 和 `roles`，见 [auth.py:81](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/auth.py#L81)；切角色响应只有 `active_role`，见 [auth.py:126](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/auth.py#L126)。此外刷新后默认 layout 只会 `loadMenus()`，不会恢复 `user`，见 [phase1-plan.md:1817](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1817)。  
+Impact: `UserDropdown` 和 `home.vue` 读取的 `roleName/schoolName` 在登录后就可能为空，切角色不会更新当前角色，页面刷新后用户信息彻底丢失。  
+Repair hypothesis: 增加 `normalizeLoginResponse()` 和 `applySwitchRoleResponse()`；或者新增 `/auth/me`/本地持久化恢复路径，保证 `user.roles` 与 `user.active_role` 始终一致。
+
+4. `F003`
+Severity: MED  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Task 2 虽然补了 API 测试文字，但真正能捕获 router 错误实现的入口级断言仍然缺失。  
+After-behavior: API 测试应使用真实 teacher/principal fixture，经 `/api/v1/menus` 验证角色过滤和模块过滤，且不能留空壳测试。  
+Evidence: `test_get_menus_role_filtering` 仍是 `pass`，见 [phase1-plan.md:604](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L604)；契约仍把该测试当成核心验证，见 [phase1-plan.md:698](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L698)。同时 `test_get_menus_authenticated` 用的是 `admin_token`，但该 fixture 实际是 `platform_admin`，见 [tests/conftest.py:123](C:/Users/Administrator/edu-cloud/tests/conftest.py#L123)，而测试种子菜单只赋予 `subject_teacher/academic_director/principal`，见 [phase1-plan.md:561](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L561)。项目内其实已有可用的 `subject_teacher_headers` fixture，见 [tests/conftest.py:323](C:/Users/Administrator/edu-cloud/tests/conftest.py#L323)。  
+Impact: 现在的 API 测试既可能因前提错误失败，也可能在 router 错传角色时完全抓不住问题，R1 所说的“加强断言”并未真正落地。  
+Repair hypothesis: 用 `subject_teacher_headers`/校级管理员 fixture 写精确断言，验证 `principal-only` 子菜单在 API 返回里隐藏/显示，并删除 placeholder 测试。
+
+5. `F008`
+Severity: MED  
+Category: design-concern  
+Type: defect_fix  
+Before-behavior: plan 虽然拆成 3 个 batch，但 Batch 2 的关键验证仍依赖 Batch 3 的 Task 12 手动端到端步骤，不是独立 gate。  
+After-behavior: 每个 batch 都应有本批内即可完成的独立验证点。  
+Evidence: batch 划分见 [phase1-plan.md:17](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L17)；但 Batch 2 内的登录/home 契约命令仍写成“手动端到端验证（Task 12）”，见 [phase1-plan.md:2169](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2169), [phase1-plan.md:2175](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2175)，而 Task 12 属于 Batch 3，见 [phase1-plan.md:2492](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2492)。  
+Impact: Batch 2 无法独立验收，回滚边界仍然模糊；一旦前端骨架链路有问题，只能拖到后批次才暴露。  
+Repair hypothesis: 把 login→home→菜单加载的最小验证前移到 Batch 2，Task 12 只保留全链路集成验收。
+
+6. `F010`
+Severity: MED  
+Category: design-concern  
+Type: defect_fix  
+Before-behavior: 设计文档仍要求给不存在的 `exam_scores` 加 rank 字段，并给已经存在的 `exams.exam_type` 再做一次迁移。  
+After-behavior: 设计文档应与现有代码库/更新后的 plan 统一，明确变更目标是 `ExamResult`，并去掉重复 schema 变更。  
+Evidence: 设计文档写的是 `ALTER TABLE exam_scores ...` 和 `ALTER TABLE exams ADD COLUMN exam_type ...`，见 [biz-replication-design.md:355](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-biz-replication-design.md#L355), [biz-replication-design.md:360](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-biz-replication-design.md#L360)；实际代码中已有 `Exam.exam_type`，见 [exam/models.py:28](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/exam/models.py#L28)，对应结果表是 `ExamResult`，见 [exam/models.py:68](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/exam/models.py#L68)；更新后的 plan 也已经改为 `ExamResult`，见 [phase1-plan.md:243](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L243)。  
+Impact: 设计文档继续作为执行依据时，会把实现拉回错误 schema 基线，导致重复 migration 或错误表名。  
+Repair hypothesis: 立即修正文档，把旧 schema 记为 superseded，避免执行阶段在 plan/design 之间来回打架。
+
+**R1 已验证通过**
+
+- `F001` 已补齐 Contract Pack，且结构满足 `invariants / counter_examples / risk_modules / test_debt`，见 [phase1-plan.md:21](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L21)。
+- `F004` 已对齐现有认证契约：`get_current_user` 返回 `current_role` ORM 对象，`get_enabled_modules` 是函数式 API，见 [deps.py:23](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/deps.py#L23), [school_settings_service.py:53](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/school_settings_service.py#L53), [phase1-plan.md:619](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L619)。
+- `F005` 已把 `roles` 从 ARRAY 改成 JSON，并给出 `server_default="[]"`，见 [phase1-plan.md:167](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L167)。
+- `F006` 已统一到 `analysis_models.py`，并补了 `app.py` 显式 import，见 [phase1-plan.md:71](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L71), [phase1-plan.md:262](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L262)。
+tokens used
+258,721
+**结论**
+
+FAIL。R1 标记为已解决的 `F002/F003/F007/F008` 仍未实质关闭；另外发现 2 条新的实现风险。`F001/F004/F005/F006` 本轮复核通过。
+
+**Findings**
+
+1. `F002`
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: plan 声称“Task 1-11 已补齐测试契约”，但实际上只有 Task 1/2/3/5/7/9 出现 `测试契约` 段。  
+After-behavior: 所有行为变更 Task 都应包含完整 5 字段测试契约，并且边界条件至少 3 条。  
+Evidence: Task 标题在 [phase1-plan.md:128](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L128), [phase1-plan.md:316](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L316), [phase1-plan.md:714](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L714), [phase1-plan.md:929](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L929), [phase1-plan.md:1157](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1157), [phase1-plan.md:1315](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1315), [phase1-plan.md:1467](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1467), [phase1-plan.md:1784](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1784), [phase1-plan.md:1905](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1905), [phase1-plan.md:2179](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2179), [phase1-plan.md:2384](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2384), [phase1-plan.md:2492](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2492)；但 `测试契约` 只出现在 [phase1-plan.md:300](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L300), [phase1-plan.md:692](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L692), [phase1-plan.md:919](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L919), [phase1-plan.md:1305](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1305), [phase1-plan.md:1774](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1774), [phase1-plan.md:2163](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2163)。  
+Impact: Gate 1 的测试充分性要求仍不满足，执行者在 Task 4/6/8/10/11/12 上没有可落地的入口级验证规范。  
+Repair hypothesis: 给缺失任务补 5 字段契约；如果某任务仅做 stub，也要明确入口、反例和为何只能手测，否则拆出为非行为变更任务。
+
+2. `F007`
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: plan 宣称 `useApi` 已全部对齐现有后端路由，但实际仍写入了错误 analytics 路径，并且把 `getPowerOptions` 注释为 Phase 2/3 待实现后，又在 Task 10 直接调用它。  
+After-behavior: `useApi` 只能暴露当前真实存在的后端端点；Phase 2/3 API 不应在 Phase 1 代码中被调用。  
+Evidence: plan 中 `getAnalyticsSummary/getAnalyticsDistribution/getAnalyticsQuestion/getAnalyticsGrade` 定义见 [phase1-plan.md:1369](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1369), [phase1-plan.md:1371](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1371), [phase1-plan.md:1373](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1373), [phase1-plan.md:1375](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1375)；真实路由在 [analytics/router.py:18](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/router.py#L18), [analytics/router.py:50](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/router.py#L50), [analytics/router.py:85](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/router.py#L85), [analytics/router.py:99](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/analytics/router.py#L99)。同时 `getPowerOptions` 被注释掉见 [phase1-plan.md:1427](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1427)，但 Task 10 仍调用 `api.getPowerOptions(...)` 见 [phase1-plan.md:2268](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2268)。  
+Impact: 这不是文案问题，而是按计划实现会直接产出 404/运行时报错；Task 10 甚至无法正常运行。  
+Repair hypothesis: 把 analytics 方法改成精确路由形态；`getPowerOptions` 要么从 Phase 1 删除并让 Task 10 延后，要么提供真实 stub 返回并调整调用方。
+
+3. `F009`
+Severity: HIGH  
+Category: code-bug  
+Type: defect_fix  
+Before-behavior: 前端 auth store 约定 `user` 含 `roles` 和 `active_role`，但后端 `/auth/login` 返回的是 `user + roles` 分离结构，`/auth/switch-role` 只返回 `active_role`；plan 中登录和切角色代码都没有做归一化。  
+After-behavior: 前端必须把登录/切角色响应归一化成统一的 `UserInfo` 结构，并提供刷新后的用户态恢复。  
+Evidence: store 契约定义见 [phase1-plan.md:1178](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1178)；登录页直接 `authStore.setUser(res.user || ...)` 见 [phase1-plan.md:1983](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1983)；切角色只做 `this.user = res.user || this.user` 见 [phase1-plan.md:1230](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1230)。实际登录响应只有 `user` 和 `roles`，见 [auth.py:81](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/auth.py#L81)；切角色响应只有 `active_role`，见 [auth.py:126](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/auth.py#L126)。此外刷新后默认 layout 只会 `loadMenus()`，不会恢复 `user`，见 [phase1-plan.md:1817](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L1817)。  
+Impact: `UserDropdown` 和 `home.vue` 读取的 `roleName/schoolName` 在登录后就可能为空，切角色不会更新当前角色，页面刷新后用户信息彻底丢失。  
+Repair hypothesis: 增加 `normalizeLoginResponse()` 和 `applySwitchRoleResponse()`；或者新增 `/auth/me`/本地持久化恢复路径，保证 `user.roles` 与 `user.active_role` 始终一致。
+
+4. `F003`
+Severity: MED  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: Task 2 虽然补了 API 测试文字，但真正能捕获 router 错误实现的入口级断言仍然缺失。  
+After-behavior: API 测试应使用真实 teacher/principal fixture，经 `/api/v1/menus` 验证角色过滤和模块过滤，且不能留空壳测试。  
+Evidence: `test_get_menus_role_filtering` 仍是 `pass`，见 [phase1-plan.md:604](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L604)；契约仍把该测试当成核心验证，见 [phase1-plan.md:698](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L698)。同时 `test_get_menus_authenticated` 用的是 `admin_token`，但该 fixture 实际是 `platform_admin`，见 [tests/conftest.py:123](C:/Users/Administrator/edu-cloud/tests/conftest.py#L123)，而测试种子菜单只赋予 `subject_teacher/academic_director/principal`，见 [phase1-plan.md:561](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L561)。项目内其实已有可用的 `subject_teacher_headers` fixture，见 [tests/conftest.py:323](C:/Users/Administrator/edu-cloud/tests/conftest.py#L323)。  
+Impact: 现在的 API 测试既可能因前提错误失败，也可能在 router 错传角色时完全抓不住问题，R1 所说的“加强断言”并未真正落地。  
+Repair hypothesis: 用 `subject_teacher_headers`/校级管理员 fixture 写精确断言，验证 `principal-only` 子菜单在 API 返回里隐藏/显示，并删除 placeholder 测试。
+
+5. `F008`
+Severity: MED  
+Category: design-concern  
+Type: defect_fix  
+Before-behavior: plan 虽然拆成 3 个 batch，但 Batch 2 的关键验证仍依赖 Batch 3 的 Task 12 手动端到端步骤，不是独立 gate。  
+After-behavior: 每个 batch 都应有本批内即可完成的独立验证点。  
+Evidence: batch 划分见 [phase1-plan.md:17](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L17)；但 Batch 2 内的登录/home 契约命令仍写成“手动端到端验证（Task 12）”，见 [phase1-plan.md:2169](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2169), [phase1-plan.md:2175](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2175)，而 Task 12 属于 Batch 3，见 [phase1-plan.md:2492](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L2492)。  
+Impact: Batch 2 无法独立验收，回滚边界仍然模糊；一旦前端骨架链路有问题，只能拖到后批次才暴露。  
+Repair hypothesis: 把 login→home→菜单加载的最小验证前移到 Batch 2，Task 12 只保留全链路集成验收。
+
+6. `F010`
+Severity: MED  
+Category: design-concern  
+Type: defect_fix  
+Before-behavior: 设计文档仍要求给不存在的 `exam_scores` 加 rank 字段，并给已经存在的 `exams.exam_type` 再做一次迁移。  
+After-behavior: 设计文档应与现有代码库/更新后的 plan 统一，明确变更目标是 `ExamResult`，并去掉重复 schema 变更。  
+Evidence: 设计文档写的是 `ALTER TABLE exam_scores ...` 和 `ALTER TABLE exams ADD COLUMN exam_type ...`，见 [biz-replication-design.md:355](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-biz-replication-design.md#L355), [biz-replication-design.md:360](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-biz-replication-design.md#L360)；实际代码中已有 `Exam.exam_type`，见 [exam/models.py:28](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/exam/models.py#L28)，对应结果表是 `ExamResult`，见 [exam/models.py:68](C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/exam/models.py#L68)；更新后的 plan 也已经改为 `ExamResult`，见 [phase1-plan.md:243](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L243)。  
+Impact: 设计文档继续作为执行依据时，会把实现拉回错误 schema 基线，导致重复 migration 或错误表名。  
+Repair hypothesis: 立即修正文档，把旧 schema 记为 superseded，避免执行阶段在 plan/design 之间来回打架。
+
+**R1 已验证通过**
+
+- `F001` 已补齐 Contract Pack，且结构满足 `invariants / counter_examples / risk_modules / test_debt`，见 [phase1-plan.md:21](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L21)。
+- `F004` 已对齐现有认证契约：`get_current_user` 返回 `current_role` ORM 对象，`get_enabled_modules` 是函数式 API，见 [deps.py:23](C:/Users/Administrator/edu-cloud/src/edu_cloud/api/deps.py#L23), [school_settings_service.py:53](C:/Users/Administrator/edu-cloud/src/edu_cloud/services/school_settings_service.py#L53), [phase1-plan.md:619](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L619)。
+- `F005` 已把 `roles` 从 ARRAY 改成 JSON，并给出 `server_default="[]"`，见 [phase1-plan.md:167](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L167)。
+- `F006` 已统一到 `analysis_models.py`，并补了 `app.py` 显式 import，见 [phase1-plan.md:71](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L71), [phase1-plan.md:262](C:/Users/Administrator/edu-cloud/docs/plans/2026-04-12-haofenshu-phase1-plan.md#L262)。

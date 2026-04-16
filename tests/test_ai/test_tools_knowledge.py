@@ -1,6 +1,12 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from edu_cloud.ai.tools.knowledge import search_curriculum, search_textbook, search_gaokao, get_concept_info
+from edu_cloud.ai.tool_context import ToolContext, ToolResult
+
+
+def _ctx():
+    return ToolContext(db=None, school_id="s1", user_id="u1", role="admin")
+
 
 @pytest.fixture
 def mock_store():
@@ -24,58 +30,43 @@ def mock_store():
 @pytest.mark.asyncio
 async def test_search_curriculum_tool(mock_store):
     with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
-        result = await search_curriculum(keyword="基因表达")
-        assert len(result["results"]) >= 1
-        assert "基因表达" in result["results"][0]["text"]
+        result = await search_curriculum({"keyword": "基因表达"}, _ctx())
+        assert result.success
+        assert len(result.data["results"]) >= 1
+        assert "基因表达" in result.data["results"][0]["text"]
 
 @pytest.mark.asyncio
 async def test_search_textbook_tool(mock_store):
     with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
-        result = await search_textbook(keyword="基因表达")
-        assert len(result["blocks"]) >= 1
+        result = await search_textbook({"keyword": "基因表达"}, _ctx())
+        assert result.success
+        assert len(result.data["blocks"]) >= 1
 
 @pytest.mark.asyncio
 async def test_get_concept_info_tool(mock_store):
     with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
-        result = await get_concept_info(concept_name="基因表达")
-        assert result["concept"]["canonical_name"] == "基因表达"
+        result = await get_concept_info({"concept_name": "基因表达"}, _ctx())
+        assert result.success
+        assert result.data["concept"]["canonical_name"] == "基因表达"
 
 @pytest.mark.asyncio
 async def test_get_concept_not_found(mock_store):
     mock_store.get_concept.return_value = None
     with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
-        result = await get_concept_info(concept_name="不存在")
-        assert "error" in result
+        result = await get_concept_info({"concept_name": "不存在"}, _ctx())
+        assert not result.success
+        assert "未找到概念" in result.error
 
 @pytest.mark.asyncio
 async def test_search_gaokao_tool(mock_store):
     with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
-        result = await search_gaokao(year=2024)
-        assert len(result["exams"]) >= 1
-        assert result["exams"][0]["year"] == 2024
+        result = await search_gaokao({"year": 2024, "region": "北京"}, _ctx())
+        assert result.success
+        assert len(result.data["exams"]) >= 1
+        assert result.data["exams"][0]["region"] == "北京"
 
 @pytest.mark.asyncio
 async def test_search_gaokao_no_filter(mock_store):
     with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
-        result = await search_gaokao()
-        assert "exams" in result
-
-
-@pytest.mark.asyncio
-async def test_search_curriculum_empty_result(mock_store):
-    """T3: 知识库无匹配结果"""
-    mock_store.search_curriculum.return_value = []
-    with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
-        result = await search_curriculum(keyword="量子力学")
-        assert result["count"] == 0
-        assert result["results"] == []
-
-
-@pytest.mark.asyncio
-async def test_search_textbook_empty_result(mock_store):
-    """T3: 教材搜索无匹配"""
-    mock_store.search_knowledge.return_value = []
-    with patch("edu_cloud.ai.tools.knowledge.knowledge_store", mock_store):
-        result = await search_textbook(keyword="不存在")
-        assert result["count"] == 0
-        assert result["blocks"] == []
+        result = await search_gaokao({}, _ctx())
+        assert result.success

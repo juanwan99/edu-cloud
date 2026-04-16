@@ -31,6 +31,18 @@ import edu_cloud.models.capability  # noqa: F401
 import edu_cloud.models.audit_log  # noqa: F401
 import edu_cloud.models.agent_profile  # noqa: F401
 import edu_cloud.modules.homework.models  # noqa: F401
+import edu_cloud.models.guardian  # noqa: F401
+import edu_cloud.models.workflow  # noqa: F401
+import edu_cloud.models.agent_finding  # noqa: F401
+import edu_cloud.models.agent_snapshot  # noqa: F401
+import edu_cloud.models.scope_version  # noqa: F401
+import edu_cloud.models.memory  # noqa: F401 — EntityMemory/ProjectState
+import edu_cloud.models.score_segment  # noqa: F401
+import edu_cloud.modules.adaptive.models  # noqa: F401
+import edu_cloud.modules.knowledge_tree.models  # noqa: F401
+import edu_cloud.modules.conduct.models  # noqa: F401
+import edu_cloud.modules.menu.models  # noqa: F401
+import edu_cloud.modules.analytics.analysis_models  # noqa: F401
 from edu_cloud.shared.auth import create_access_token
 
 

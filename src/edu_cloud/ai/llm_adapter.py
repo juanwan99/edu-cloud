@@ -103,13 +103,52 @@ class LLMProxyAdapter:
 
     async def chat(self, request: LLMRequest) -> LLMResponse:
         payload = self._build_payload(request)
-        resp = await self._http.post(
+        resp = await self._post_with_retry(
             f"{self._base_url}/v1/chat/completions",
-            headers={"X-Slot": self._slot},
+            headers={"X-LLM-Slot": self._slot},
             json=payload,
         )
-        resp.raise_for_status()
         return self._parse_response(resp.json())
+
+    async def _post_with_retry(self, url: str, headers: dict, json: dict) -> httpx.Response:
+        """POST with graded retry. Uses config LLM_MAX_RETRIES / LLM_TIMEOUT."""
+        import asyncio
+        from edu_cloud.config import settings
+
+        max_retries_429 = min(settings.LLM_MAX_RETRIES, 3)
+        last_exc: Exception | None = None
+
+        for attempt in range(1 + max_retries_429):  # 1 initial + retries
+            try:
+                resp = await self._http.post(url, headers=headers, json=json)
+                resp.raise_for_status()
+                return resp
+            except httpx.HTTPStatusError as exc:
+                last_exc = exc
+                status = exc.response.status_code
+                if status == 429:
+                    if attempt < max_retries_429:
+                        retry_after = float(exc.response.headers.get("Retry-After", 1 << attempt))
+                        await asyncio.sleep(min(retry_after, 8))
+                        continue
+                elif 500 <= status <= 503:
+                    if attempt == 0:
+                        await asyncio.sleep(0)  # yield, no delay for tests
+                        continue
+                raise  # 4xx (non-429) or exhausted retries
+            except httpx.TimeoutException as exc:
+                last_exc = exc
+                if attempt == 0:
+                    continue
+                raise
+            except httpx.RequestError as exc:
+                last_exc = exc
+                if attempt == 0:
+                    await asyncio.sleep(0)
+                    continue
+                raise
+
+        raise last_exc  # type: ignore[misc]
 
     async def chat_stream(self, request: LLMRequest) -> AsyncGenerator[LLMChunk, None]:
         payload = self._build_payload(request)
@@ -117,7 +156,7 @@ class LLMProxyAdapter:
         async with self._http.stream(
             "POST",
             f"{self._base_url}/v1/chat/completions",
-            headers={"X-Slot": self._slot},
+            headers={"X-LLM-Slot": self._slot},
             json=payload,
         ) as resp:
             resp.raise_for_status()

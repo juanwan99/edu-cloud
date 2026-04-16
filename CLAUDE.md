@@ -47,10 +47,10 @@ python ~/.claude/scripts/serve.py "C:/Program Files/nodejs/npm.cmd" run dev
 ## 测试命令
 
 ```bash
-# 后端（1037 tests）
+# 后端（1896 tests，含 conduct 106）
 cd C:/Users/Administrator/edu-cloud && python -m pytest --tb=short -q
 
-# 前端（Vitest + happy-dom，68 tests）
+# 前端（Vitest + happy-dom，72 tests）
 cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run
 ```
 <!-- key-end -->
@@ -63,6 +63,7 @@ frontend/src/
     AppShell.vue            # 角色感知壳层（AppHeader + AppSidebar + router-view + AiFloatingButton）
     WorkbenchLayout.vue     # 三栏布局（左侧边栏 + 顶栏 + 中央内容 + 右侧边栏）
     AuthLayout.vue          # 登录页布局
+    ParentLayout.vue        # 家长端移动优先布局（顶栏+内容+底部4标签，cp_token 独立认证，子女切换）
   pages/
     LoginPage.vue           # 登录页（edu-cloud 多角色版）
     AnalysisPage.vue        # 分析页（原 WorkbenchPage 重命名）
@@ -70,7 +71,9 @@ frontend/src/
     ExamDetailPage.vue      # 考试详情（科目/题目/答题卡/扫描/阅卷）
     DashboardPage.vue       # 仪表盘
     AnalyticsPage.vue       # 成绩分析（ECharts）
-    GradingTasksPage.vue    # AI 阅卷任务
+    AnalyticsReportPage.vue # 分析报告（多考试+多指标查询，ECharts 分段柱图）
+    AnalyticsTrendPage.vue  # 成绩趋势（年级/班级/学生维度折线图）
+    GradingDispatchPage.vue # 阅卷调度中心（扫描→选择题→AI阅卷→校对全流程）
     GradingResultsPage.vue  # 阅卷结果
     TeacherReviewPage.vue   # 教师复核
     MarkingSelectPage.vue   # 手动阅卷选题
@@ -78,8 +81,30 @@ frontend/src/
     MarkingAssignPage.vue   # 分配阅卷任务
     MarkingProgressPage.vue # 阅卷进度
     SchoolsPage.vue         # 学校管理（admin）
-    SchoolSettingsPage.vue  # 学校配置（模块开关 + KV 设置，principal/academic_director）
+    SchoolSettingsPage.vue  # 学校配置（模块开关 + KV 设置 + 分数段，principal/academic_director）
+    SubjectSelectionsPage.vue # 选考科目组合管理
+    TeacherAssignmentsPage.vue # 教师排课管理
     CardEditorDevPage.vue   # 答题卡编辑器开发页
+    KnowledgeTreePage.vue  # 知识图谱可视化（AntV G6 + 三级树导航 + 掌握度着色 + 搜索过滤 + Phase 2 教师工作台：ModuleOverviewPanel/ConceptMapPanel 互斥路由 + BigConcept 分带 + ConceptFocusOverlay 焦点模式 + ESC/canvas 退出；Phase 2.5：buildVisibleEdgeList helper + relatedNodeIds/relatedEdgeIds computed + G6 node.state.faded/edge.state.dimmed·emphasized + updateElementStates + createGraph 末尾焦点重放 + G6 Tooltip plugin 徽标悬停（hover + enable 谓词 + async getContent + HTML escape）；Phase 1 T9-T10：ColorModeToggle 三模式切换 + heatmapUtils（log 尺度考频热力色 + 4 态掌握度 + 3 态审核状态 + importance→size [20,60]）；ConceptMapPanel buildG6Data 每节点 style.size/fill 按 colorMode 三分支 + watch colorMode setData/render 保留 focusedNodeId + defineExpose buildG6Data；KnowledgeTreePage selectedStudentId 从 useKnowledgeTree 解构（单一真源，R2 F001 修复 state 分裂）；GraphPanel.vue 已删除）
+    parent/                 # 家长端页面（独立于 AppShell，cp_token 认证）
+      ParentLogin.vue       # 家长登录（手机号+密码）
+      ParentRegister.vue    # 家长注册（邀请码验证→填写资料，支持 URL ?code= 预填）
+      ParentBind.vue        # 绑定孩子（学生姓名+身份验证码+关系）
+      ParentOverview.vue    # 概览（积分统计卡+最近记录列表）
+      ParentDetails.vue     # 详细记录（分页 DataTable）
+      ParentRankings.vue    # 班级排行榜（当前孩子高亮）
+      ParentRules.vue       # 班规查看（分类折叠面板+正负分标签，F004 字段修正 item.points）
+      ParentProfile.vue     # 个人中心（编辑姓名/改密码/已绑定孩子/退出）
+    conduct/                # 管理端操行页面（AppShell 内，权限守卫，classId 从 auth store 读取）
+      ConductDashboard.vue  # 德育概览（统计卡片+本周加扣分+积分最高/最低+最近记录）
+      ConductPoints.vue     # 积分操作（学生多选+班规快捷按钮+手动输入+最近记录）
+      ConductRules.vue      # 班规管理（分类折叠+条目 CRUD+积分标签）
+      ConductRankings.vue   # 排��榜（学生/小组 Tab+学期筛选）
+      ConductRecords.vue    # 积分记录（分页表格+学生/日期过滤+删除）
+      ConductGroups.vue     # 小组管理（卡片网格+成员抽屉+添加/移除）
+      ConductSettings.vue   # 德育设置（邀请码+验证方式+模块开关+学期管理）
+      ConductParents.vue    # 家长管理（表格+移除）
+      ConductExport.vue     # 数据导出（记录/排行榜+日期/学期筛选+Excel 下载）
   components/
     shell/
       AppHeader.vue         # 68px 毛玻璃顶栏（Logo/SchoolContext/搜索/通知铃/角色切换）
@@ -91,19 +116,21 @@ frontend/src/
       AiFloatingButton.vue  # 右下角 AI 助手浮动按钮（权限 use_ai_chat 控制可见性）
       AiSlidePanel.vue      # 右侧 400px 滑出 AI 面板（路由变化自动关闭）
     CardEditor.vue          # 可视化答题卡编辑器（封装 card-editor/）
+    analytics/
+      ScoreSegmentSettings.vue # 分数段配置（学校默认+科目覆盖，嵌入 SchoolSettingsPage）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
-  api/                      # API 调用层（13 模块 + client.js，baseURL /api/v1）
+  api/                      # API 调用层（14 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token）
   config/
     roles.js                # 8 角色枚举 + 旧别名映射 + normalizeRole()
     permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
-    sidebarConfig.js        # 角色→侧边栏导航项 JSON 配置
+    sidebarConfig.js        # 角色→侧边栏导航项 JSON 配置（conduct 分三档挂载：FULL 9 项 / VIEWER 3 项 / TEACHER 2 项；platform_admin+district_admin+homeroom=FULL，principal+academic_director+grade_leader=VIEWER，subject_teacher=TEACHER）
     dashboardConfig.js      # 角色→仪表盘 KPI/Widget JSON 配置
   stores/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
-  router/                   # Vue Router（AppShell 根 + 角色/权限守卫 fail-closed，19 路由）
+  router/                   # Vue Router（AppShell 根 + 角色/权限守卫 fail-closed + 家长端独立路由，44 路由；/parent/* 跳过平台 auth）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -117,7 +144,8 @@ src/edu_cloud/
     auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）
     dashboard.py        # GET /api/v1/dashboard/summary（角色 scope 聚合统计）
     notifications_api.py # GET /api/v1/notifications（通知列表，status/since 过滤）
-    ai.py               # AI Agent 路由（Batch 4 迁移）
+    ai.py               # AI Agent 路由（AgentRuntime pipeline: DataScope → AuditLogger → AgentContext → AgentRuntime.run() → SSE）
+    compat_router.py    # exam-ai 兼容路由（/api 前缀，paper-seg 零改动对接，8 端点）
     module_middleware.py # ModuleCheckMiddleware — 禁用模块 API 硬拦截（JWT active_role_id → school_id 解析）
     # 以下为 re-export stubs，canonical → modules/
     schools.py → modules/school/router.py
@@ -137,6 +165,7 @@ src/edu_cloud/
     school.py           # RegisteredSchool（学校档案 + API Key + 心跳）
     platform_user.py    # PlatformUser（4 角色 + bcrypt 密码）
     joint_exam.py       # JointExam + JointExamParticipant + JointExamStudentResult
+    score_segment.py    # ScoreSegmentConfig（学校级分数段配置，per school + optional per subject override）
   services/
     exceptions.py       # 5 个自定义异常（NotFound/Permission/Validation/Conflict/State）
     school_service.py   # 学校 CRUD + API Key 管理
@@ -154,27 +183,36 @@ src/edu_cloud/
     import_real_exam.py   # 真实考试数据导入工具（exam-ai 迁入）
   core/
     events.py           # 进程内 EventBus（exam.published handler 已接入 pipeline）
-    permissions.py      # 25 个 Permission 枚举 + 8 角色 RBAC 映射
+    permissions.py      # 34 个 Permission 枚举 + 8 角色 RBAC 映射
     scope_filter.py     # ScopeFilter 工具类（基于 UserRole 注入 WHERE 条件）
   knowledge/
     __init__.py         # 包入口
     loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
     store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）
   ai/
-    agent.py            # ReAct Agent（Pipeline 驱动工具集 + 模型选择）
-    llm.py              # LLMChatClient（OpenAI + Anthropic 双协议，重试，llm-proxy slot）
-    context.py          # build_system_prompt + AgentContext（session 管理/token 裁剪）
+    data_scope.py       # DataScope（frozen 数据可见性快照）+ DataScopeBuilder（8 角色 fail-closed 派生）
+    scoped_query.py     # ScopedQuery（统一 scope WHERE 注入 + 参数越权拦截 ScopeViolationError）
+    agent_loop.py       # AgentLoop 核心循环（plan→tool exec→answer 状态机，替代旧 agent.py）
+    llm_adapter.py      # LLMProxyAdapter（统一 LLM 适配器，走 llm-proxy）
+    capability_probe.py # CapabilityProbe（模型能力检测→tier→LoopStrategy）
+    sensitivity_router.py # SensitivityRouter（双通道路由，student 工具锁定主通道）
+    prompts.py          # build_teacher_prompt（角色感知 system prompt 模板）
+    tool_context.py     # ToolContext + ToolResult（统一工具签名 (input, ctx) → ToolResult）
+    tool_executor.py    # ToolExecutor + ToolOrchestrator（并行/串行工具执行）
+    context_manager.py  # ContextManager（token 计数 + 压缩）
+    task_planner.py     # TaskPlanner（多步任务规划，tier≤2 启用）
+    session_memory.py   # SessionMemoryExtractor（会话记忆提取，tier=1 启用）
+    memory_store.py     # MemoryStore（entity_memory/project_state CRUD + 冲突合并，跨会话持久化）
+    memory_extractor.py # MemoryExtractor（会话结束后提取实体记忆并写入 MemoryStore）
+    memory_injector.py  # MemoryInjector（会话启动时加载跨会话记忆，格式化注入 system prompt；角色 scope 安全策略）
     schemas.py          # ChatMessage/ToolCall/AgentEvent 数据模型
     anonymizer.py       # 会话级姓名脱敏（字段检测 + student_number 剥离）
     audit.py            # AuditLogger（DB 持久化 AiSession/AiToolCall）
     registry.py         # ToolRegistry + ToolSpec dataclass（元数据：domain/module_code/allowed_roles/risk_level）
     tool_access.py      # ToolAccessResolver（RBAC ∩ Module ∩ Capability 三重过滤）
-    intent_resolver.py  # IntentResolver（规则引擎 + LLM fallback 意图分类）
-    model_router.py     # ModelRouter（intent + risk → tier 选择）
-    llm_factory.py      # create_llm_for_tier()（LLMSlot tier 查询 + .env fallback）
     models.py           # AiSession/AiToolCall 表
     tools/
-      __init__.py       # 触发全部 12 个工具模块注册（39 tools + exam_subject_id 统一查询）
+      __init__.py       # 触发全部 23 个工具模块注册（62 tools + exam_subject_id 统一查询）
       analytics.py      # L2_cross_school（2）: get_exam_scores/get_class_stats
       analytics_score.py # L2_analytics（5）: exam_summary/distribution/question/student/class scores
       analytics_compare.py # L2_analytics（3）: compare_classes/rank_students/grade_aggregates
@@ -187,11 +225,22 @@ src/edu_cloud/
       grading_ops.py    # L1_exam（3）: grading_progress/quality_report/assign_grading
       actions.py        # L4_action（2）: generate_report/comment
       homework.py       # L2_homework（5）: task list/stats/submit/assign/remedial
+      analytics_report.py # L2_analytics（3）: get_score_segments/compare_exams/generate_analysis_report
+      knowledge_tree.py # L1_knowledge（1）: edit_knowledge_graph
+      conduct.py    # L2_conduct（6）: conduct rankings/records/rules/points/overview/summary
+      adaptive.py       # L1_knowledge（1）: diagnose_and_recommend
+      card_layout.py    # L1_exam（3）: card_parse_answers, card_auto_layout, card_adjust_layout
+      class_report_tool.py # L2_analytics（1）: get_class_report
+      exam_overview.py  # L1_exam（1）: get_exam_overview
+      findings_tools.py # L1_agent（2）: get_findings, get_agent_tasks
+      memory_tools.py   # L1_agent（2）: memory_read, memory_write
+      student_diagnosis.py # L6_profile（1）: get_student_diagnosis
+      student_profile_tool.py # L6_profile（1）: get_student_learning_profile
   workers/
-    grading.py          # process_grading_task（AI 阅卷）+ run_post_exam_pipeline（考后处理，已接线 pipeline）
+    grading.py          # process_grading_task（AI 阅卷，微批次并发 GRADING_BATCH_SIZE=20）+ run_post_exam_pipeline（考后处理，已接线 pipeline）
   shared/
     auth.py             # JWT create/decode 工具函数
-  config.py             # Settings（DB/Redis/JWT/LLM/UPLOAD_DIR/知识库 配置，BaseSettings）
+  config.py             # Settings（DB/Redis/JWT/ENCRYPTION_KEY(PII加密)/LLM(timeout=180s)/GRADING_BATCH_SIZE(20)/UPLOAD_DIR/知识库/AI Agent tier+router 配置，BaseSettings）
   database.py           # async engine + session factory
   logging_config.py     # 双输出（Console UTC+8 + JSONL RotatingFile）
   worker.py             # arq WorkerSettings（3 functions: auto_draft/grading/pipeline）
@@ -214,15 +263,15 @@ tests/
 
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
-| API | 152 路由（auth/schools/joint-exams/results/sync/exam/grading/marking/analytics/knowledge/pipeline/studio/calendar/homework/profile/bank/ai/dashboard/notifications/llm-config） | 共享 AI 阅卷, 高级跨校分析 |
-| Models | 51 表（modules/ 下 16 模块 + core 平台表 + AI Agent 表） | — |
+| API | 223 路由（auth/schools/joint-exams/results/sync/exam/grading/marking/analytics/knowledge/knowledge-tree/pipeline/studio/calendar/homework/profile/bank/ai/dashboard/notifications/llm-config/card/compat/conduct-parent/conduct-admin） | 共享 AI 阅卷, 高级跨校分析 |
+| Models | 79 表（modules/ 下 17 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表） | — |
 | Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline + exceptions | AI grading 生产接入 |
-| Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 25 权限 + 8 角色映射 | — |
-| AI | 39 tools（12 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
+| Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 8 角色映射 | — |
+| AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 1037 后端 + 68 前端 Vitest | — |
-| Modules | 16 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/studio/calendar/paper/school/homework），路由已迁入 | — |
-| Migrations | Alembic 初始 migration（51 表，autogenerate） | — |
+| Tests | 1851 后端 + 73 前端 Vitest | — |
+| Modules | 19 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct），路由已迁入 | — |
+| Migrations | Alembic migration（79 表，含 agent evolution 8 表 + score_segment_config + adaptive 7 表） | — |
 
 ## 技术栈
 
@@ -233,6 +282,7 @@ tests/
 - python-jose (JWT) + bcrypt
 - arq + Redis (后台任务：联考下发、批量阅卷、报表生成)
 - httpx (调用学校端 API)
+- opencv-python-headless + pyzbar (扫描图视觉处理：定位点检测/裁切/条码识别)
 - Docker + docker-compose (部署)
 
 **前端（`frontend/`）：**
@@ -246,6 +296,18 @@ tests/
 - card-editor（答题卡可视化编辑器，5 模块 + CardEditor.vue）
 - Vitest 4 + @vue/test-utils + happy-dom（单元测试）
 
+**前端（`frontend-nuxt/`，haofenshu Phase 1 复刻骨架，初始化阶段）：**
+- Node `>=22.12.0` 运行时约束（`package.json engines` + `.nvmrc` 22.12.0；lockfile dep nitropack/unplugin/rollup-plugin-visualizer 要求 Node 22.12+）
+- Nuxt `~3.17.7` + Vue 3.5 + Vite 6 + Nitro 2.13（SSR=false；Nuxt 3 次版本锁定 R2 追认）
+- Element Plus 2.8（@element-plus/nuxt `~1.1.4` 模块）+ @element-plus/icons-vue
+- Pinia 2（@pinia/nuxt 模块）
+- API 代理 `/api` → `http://localhost:9000`
+- 主题变量：`assets/css/main.scss` 好分数品牌色 + 布局尺寸
+- Vitest 3 + @vue/test-utils + happy-dom（单元测试，`vitest.config.ts` 含 `@vitejs/plugin-vue` 以挂载 SFC）
+- Auth 错误边界：`composables/useApi.ts` 导出 `AuthError` sentinel（401/403 转抛），`useMenus` 区分 AuthError 向上抛 vs 非 auth 错误降级空菜单，`layouts/default.vue` 按 AuthError 触发 `logout` 否则保留 session
+- 状态：Phase 1 Batch 2 初始化，不替代现有 `frontend/`（INV-01）
+- **Batch 2 进度**: T4 Nuxt 骨架 ✓ / T5 auth+context stores + middleware + Vitest 8/8 ✓ / T6 useApi composable + 4 tests ✓ / T7 useMenus + TopNav/SubNav/UserDropdown ✓ / T8 三种 Layout ✓ / T9 login+home 页面 ✓ / **Gate 2 R1 FAIL → R2 修复**: B2-F001 lockfile 对齐（`npm ci --ignore-scripts` 零报错 + `npm ls` 零 invalid）+ B2-F002 AuthError 职责分层（独立修复设计 + Fix Intent Card 4 ORC + 3 反证护航，新增 `tests/composables/useMenus.test.ts` 8 + `tests/layouts/default.test.ts` 4 = Vitest 24/24）+ B2-F003 措辞收窄 / **R2 FAIL → R3 修复**: B2-F001 Node floor 升级方案 A（`package.json engines ">=22.12.0"` + `.nvmrc 22.12.0`，L017 user approved 2026-04-14；在 Node 22.22.2 下 npm ci EBADENGINE 0 警告 + npm ls 0 invalid + nuxt prepare exit 0 + Vitest 24/24）+ B2-F003 根因定论收窄（R2 handoff §6 删除 hot-reload 旧措辞，grep 零残留）
+
 ## 日志体系
 
 与 exam-ai 保持一致：双输出（Console + JSONL）、Request ID 追踪、UTC+8 时区。
@@ -257,7 +319,8 @@ tests/
 | 服务 | 端口 | 说明 |
 |------|------|------|
 | edu-cloud 后端 | 9000 | FastAPI（本项目） |
-| edu-cloud 前端 | 5273 | Vite dev server（开发）|
+| edu-cloud 前端（frontend/） | 5273 | Vite dev server（开发）|
+| edu-cloud 前端（frontend-nuxt/） | 3000 | Nuxt dev server（haofenshu 复刻骨架；3000 被 haofenshu-clone 占用时 fallback 至 3100）|
 | exam-ai | 8000 | 学校端阅卷服务 |
 | paper-seg | 8001 | 扫描客户端 |
 | paper-skill | 9103 | AI 论文写作服务（外部，REST 客户端通过 PaperService 调用）|
@@ -271,16 +334,20 @@ tests/
 > 学校内角色由 edu-cloud 直接管理，不再由 exam-ai 管理。
 > exam-ai 退化为数据采集节点。详见 `docs/plans/2026-03-21-super-platform-design.md` §1。
 
-| 角色 | 权限 | 说明 |
-|------|------|------|
-| platform_admin | 全部 | 平台超管 |
-| district_admin | 管辖区域内学校 | 教育局管理员 |
-| principal | 全校管理+分析 | 校长 |
-| academic_director | 教务+联考+分析 | 教务主任 |
-| grade_leader | 本年级分析 | 年级组长 |
-| homeroom_teacher | 本班管理+评语+通知 | 班主任 |
-| subject_teacher | 所教班+学科+论文 | 科任教师 |
-| parent | 只看自己孩子 | 家长（企微登录）|
+| 角色 | 作用域 | 核心职责 | 说明 |
+|------|-------|---------|------|
+| platform_admin | 全局 | 全部权限 | 平台超管 |
+| district_admin | 辖区 | 辖区学校管理+跨校分析 | 教育局管理员 |
+| principal | 全校 | 审批/学校配置/全局查看（>= 教务查看权） | 校长 |
+| academic_director | 全校 | 考试/排课/阅卷/选考运营管理 | 教务主任 |
+| teaching_research_leader | 全校·单学科 | 跨年级学科教研、质量分析 | 教研组长 |
+| grade_leader | 单年级·全科 | 年级行政、班级对比、年级通知 | 年级组长 |
+| lesson_prep_leader | 单年级·单学科·全平行班 | 集体备课、教学进度统一 | 备课组长 |
+| homeroom_teacher | 本班全科+任教班本科 | 教师基线+班级通知管理 | 班主任 |
+| subject_teacher | 任教班·任教科 | 教师基线（教学/阅卷/作业/论文） | 科任教师 |
+| parent | 自己孩子 | 查看成绩/作业/通知 | 家长（企微登录）|
+
+**权限拆分（2026-04-12）**：`MANAGE_SCHOOL_SETTINGS` → `MANAGE_SCHOOL_CONFIG`（校长：KV/模块/能力矩阵）+ `MANAGE_SCHEDULING`（教务：排课/选考）。新增 `MANAGE_EXAMS`（校内考试 CRUD）。详见 `core/permissions.py`。
 
 **exam-ai 旧角色兼容别名**（permissions.py + api/permissions.py）：
 
@@ -301,6 +368,7 @@ tests/
 | GET | `/api/v1/health` | 健康检查 |
 | GET | `/api/v1/version` | 版本+启动时间 |
 | GET | `/api/v1/dashboard/summary` | 仪表盘聚合统计（角色 scope 过滤：students/classes/exams） |
+| GET | `/api/v1/menus` | 动态菜单树（按 current_role + school enabled_modules 过滤；MenuConfig 驱动） |
 
 ### 学校管理端点（JWT 认证）
 
@@ -319,7 +387,7 @@ tests/
 | GET | `/api/v1/schools/{id}/settings` | MANAGE_SCHOOL_SETTINGS | 获取学校 KV 配置（支持 category 过滤） |
 | PATCH | `/api/v1/schools/{id}/settings` | MANAGE_SCHOOL_SETTINGS | 创建/更新配置项 |
 | GET | `/api/v1/schools/{id}/modules` | MANAGE_SCHOOL_SETTINGS | 获取全部模块状态（8 个） |
-| GET | `/api/v1/schools/{id}/modules/enabled` | MANAGE_SCHOOL_SETTINGS | 获取已启用模块代码列表 |
+| GET | `/api/v1/schools/{id}/modules/enabled` | 已登录（school scope） | 获取已启用模块代码列表 |
 | PATCH | `/api/v1/schools/{id}/modules/{code}` | MANAGE_SCHOOL_SETTINGS | 启用/禁用模块 |
 
 ### 排课管理端点（JWT 认证）
@@ -383,10 +451,20 @@ tests/
 | POST/GET | `/api/v1/exams/{id}/subjects` | 创建/列表科目 |
 | POST/GET/PATCH/DELETE | `/api/v1/questions` | 题目 CRUD |
 | GET/POST | `/api/v1/classes`, `/api/v1/students` | 班级/学生管理 |
-| * | `/api/v1/card/*` | 答题卡生成/骨架/条码（19 端点） |
+| * | `/api/v1/card/*` | 答题卡生成/骨架/条码/编辑器布局CRUD/小微排版（23 端点，含 upload-answer + auto-layout + 3 Agent 工具） |
 | * | `/api/v1/templates/*` | 模板 CRUD |
 | * | `/api/v1/scan/*` | 扫描上传/任务管理 |
+| POST | `/api/v1/scan/pipeline/scan-dir` | 扫描目录结构，返回科目子文件夹和图片统计 |
+| POST | `/api/v1/scan/pipeline/start` | 启动扫描切割流水线（subject_id + image_dir + 可选 tpl_path） |
+| GET | `/api/v1/scan/pipeline/progress` | 获取流水线进度 |
+| POST | `/api/v1/scan/pipeline/stop` | 停止流水线 |
+| POST | `/api/v1/scan/pipeline/preview` | 预览扫描图切割标注（base64） |
+| POST | `/api/v1/scan/pipeline/import-tpl` | 导入 .tpl 文件到 Template 表 |
 | * | `/api/v1/grading/*` | AI 阅卷/评分规则/教师审核 |
+| GET | `/api/v1/grading/dispatch/status` | 科目阅卷状态聚合（exam_id 查询参数，返回各科目 stage/统计） |
+| POST | `/api/v1/grading/tasks` | 创建 AI 阅卷任务（前置校验 4 项：Subject 归属/主观题存在/Rubric 存在/StudentAnswer 存在；enqueue 失败清理 orphan task 并返回 503）|
+| GET | `/api/v1/grading/tasks` | 列出本校 AI 阅卷任务 |
+| GET | `/api/v1/grading/tasks/{task_id}` | 阅卷任务详情 |
 | POST | `/api/v1/grading/assignments` | 创建阅卷分配（MANAGE_GRADING） |
 | GET | `/api/v1/grading/assignments` | 列出阅卷分配（VIEW_GRADING，需 exam_id） |
 | GET | `/api/v1/grading/progress/{exam_id}` | 阅卷进���汇总（VIEW_GRADING） |
@@ -395,6 +473,14 @@ tests/
 | POST | `/api/v1/exams/{id}/archive` | 归档考试（MANAGE_EXAM_RESULTS） |
 | * | `/api/v1/marking/*` | 人工阅卷/分配/导出 |
 | * | `/api/v1/analytics/*` | 统计分析（摘要/分布/题目/年级，支持 subject_id 单参数查询） |
+| GET | `/api/v1/analytics/segments/config` | MANAGE_SCHOOL_SETTINGS | 获取本校分数段配置（默认+科目覆盖） |
+| PUT | `/api/v1/analytics/segments/config` | MANAGE_SCHOOL_SETTINGS | 创建/更新分数段配置（upsert） |
+| DELETE | `/api/v1/analytics/segments/config/{subject_code}` | MANAGE_SCHOOL_SETTINGS | 删除科目覆盖配置 |
+| POST | `/api/v1/analytics/report/query` | 已登录 | 自定义分析构建器（按角色裁剪 metrics） |
+| GET | `/api/v1/analytics/report/trend/grade` | 已登录（校级+） | 年级成绩趋势 |
+| GET | `/api/v1/analytics/report/trend/class` | 已登录（非家长） | 班级成绩趋势 |
+| GET | `/api/v1/analytics/report/trend/student` | 已登录 | 学生成绩趋势（班级/guardian 校验） |
+| POST | `/api/v1/analytics/report/export` | GENERATE_REPORT | 生成分析报告文档（走 Studio） |
 | * | `/api/v1/knowledge/*` | 知识点 CRUD/树查询/关联 |
 | POST | `/api/v1/pipeline/run/{id}` | 数据流水线触发 |
 | * | `/api/v1/llm-config/slots` | LLM 槽位管理 |
@@ -448,6 +534,19 @@ tests/
 | POST | `/api/v1/homework/tasks/{id}/grade-batch` | MANAGE_HOMEWORK | 批量批改 |
 | GET | `/api/v1/homework/tasks/{id}/stats` | VIEW_HOMEWORK | 提交/批改统计 |
 
+### 知识树端点（JWT 认证）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/knowledge-tree/graph` | VIEW_KNOWLEDGE_TREE | 获取知识图谱（{navigation: ModuleNav[], graph: {nodes, edges}}，module 过滤，include_draft 发布过滤，nodes 只含 L1 concept，v2: description/hard_counts/external_refs/confidence/review_status，v3 合并 concept_stats: exam_frequency/exam_coverage/avg_difficulty/importance_score/textbook_chapters/study_unit_id/estimated_minutes/prerequisite_depth/planning_weight） |
+| GET | `/api/v1/knowledge-tree/graph/{node_id}/detail` | VIEW_KNOWLEDGE_TREE | 获取概念节点详情（课标/教材/DA/真题/教材证据，从 knowledge.db 聚合） |
+| GET | `/api/v1/knowledge-tree/graph/{node_id}/exam-items` | VIEW_KNOWLEDGE_TREE | 概念关联高考真题分页（concept→DA→q_matrix→assessment_items，knowledge.db 缺失降级 total=0，page/page_size 参数；response_model=ExamItemsResponse；DISTINCT + IN 均按 item_id ASC 稳定排序，详情按 page_ids 顺序回写） |
+| GET | `/api/v1/knowledge-tree/stats/overview` | VIEW_KNOWLEDGE_TREE | 图谱统计概览（total_concepts/total_edges + exam_freq_distribution{high≥500/mid≥50/low≥1/zero} + module_stats{avg_freq/exam_coverage}，module 参数过滤；response_model=StatsOverviewResponse） |
+| GET | `/api/v1/knowledge-tree/mastery` | VIEW_KNOWLEDGE_TREE | 获取学生掌握度（聚合到概念和模块级别，排除 BigConcept，需 student_id） |
+| GET | `/api/v1/knowledge-tree/search` | 已登录 | 搜索知识点（name+aliases+description，只返回 concept） |
+| GET | `/api/v1/knowledge-tree/quality-check` | EDIT_KNOWLEDGE_TREE | 质量巡检（6 规则：孤立/连通分量/低置信度/跨模块/无描述/rejected 堆积，module 过滤） |
+| POST | `/api/v1/knowledge-tree/edit` | EDIT_KNOWLEDGE_TREE | 编辑知识图谱（add/remove/update node/edge + set_review_status node/edge + reorder） |
+
 ### 学情画像端点（JWT 认证，Phase 3.1）
 
 | 方法 | 路径 | 权限 | 用途 |
@@ -471,9 +570,71 @@ tests/
 | 方法 | 路径 | 权限 | 用途 |
 |------|------|------|------|
 | GET | `/api/v1/ai/health` | 无 | 工具数量 + 状态 |
-| POST | `/api/v1/ai/chat` | USE_AI_CHAT | SSE 流式对话（multi-turn session） |
-| GET | `/api/v1/ai/sessions` | 已登录 | 列出活跃会话 |
-| DELETE | `/api/v1/ai/sessions/{session_id}` | 已登录 | 删除会话 |
+| POST | `/api/v1/ai/chat` | USE_AI_CHAT | SSE 流式对话（multi-turn session，llm-proxy slot=ai-chat） |
+| GET | `/api/v1/ai/sessions` | 已登录 | 列出当前用户的活跃会话（owner 隔离） |
+| DELETE | `/api/v1/ai/sessions/{session_id}` | 已登录 | 删除会话（仅 owner，他人 403） |
+
+### exam-ai 兼容端点（`/api` 前缀，paper-seg 零改动对接）
+
+| 方法 | 路径 | 用途 |
+|------|------|------|
+| POST | `/api/auth/login` | 兼容登录（忽略 school_code，走 edu-cloud 用户认证） |
+| GET | `/api/exams` | 列出当前学校考试 |
+| GET | `/api/exams/{id}/subjects` | 列出考试科目 |
+| GET | `/api/templates/{subject_id}/{side}` | 获取模板（image_size 格式兼容） |
+| POST | `/api/scan/tasks` | 创建扫描任务 |
+| PATCH | `/api/scan/tasks/{id}` | 更新扫描进度 |
+| POST | `/api/scan/upload` | 上传切图（Multipart） |
+| POST | `/api/scan/upload-objective` | 上传选择题结果（自动判分） |
+
+### 操行管理-家长端点
+
+| 方法 | 路径 | 认证 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/conduct/invite/{code}/info` | 无 | 验证邀请码，返回班级/学校信息 |
+| POST | `/api/v1/conduct/parent/register` | 无 | 家长注册（手机号+邀请码） |
+| POST | `/api/v1/conduct/parent/login` | 无 | 家长登录（手机号+密码） |
+| GET | `/api/v1/conduct/parent/me` | JWT | 当前家长信息+已绑定孩子列表 |
+| POST | `/api/v1/conduct/parent/bind` | JWT | 绑定孩子（身份验证） |
+| GET | `/api/v1/conduct/parent/children` | JWT | 已绑定孩子列表+积分汇总 |
+| GET | `/api/v1/conduct/parent/children/{student_id}/records` | JWT | 孩子操行记录（分页） |
+| GET | `/api/v1/conduct/parent/children/{student_id}/rankings` | JWT | 孩子班级排名 |
+| GET | `/api/v1/conduct/parent/classes/{class_id}/rules` | JWT | 班规查询（分类+条目嵌套） |
+| PUT | `/api/v1/conduct/parent/profile` | JWT | 更新家长资料（仅 display_name） |
+| PUT | `/api/v1/conduct/parent/password` | JWT | 修改密码 |
+
+### 操行管理-管理端点（JWT 认证）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| GET | `/api/v1/conduct/classes/{class_id}/config` | MANAGE_CONDUCT_PARENTS | 获取班级操行配置 |
+| PUT | `/api/v1/conduct/classes/{class_id}/config` | MANAGE_CONDUCT_PARENTS | 更新操行配置（verify_code_type/required_parent_fields/is_active） |
+| POST | `/api/v1/conduct/classes/{class_id}/config/regenerate-code` | MANAGE_CONDUCT_PARENTS | 重新生成邀请码 |
+| GET | `/api/v1/conduct/classes/{class_id}/parents` | MANAGE_CONDUCT_PARENTS | 列出班级已绑定家长 |
+| DELETE | `/api/v1/conduct/classes/{class_id}/parents/{user_id}` | MANAGE_CONDUCT_PARENTS | 移除家长绑定关系 |
+| POST | `/api/v1/conduct/classes/{class_id}/records` | MANAGE_CONDUCT | 添加积分记录（单个/多个学生） |
+| POST | `/api/v1/conduct/classes/{class_id}/records/batch` | MANAGE_CONDUCT | 批量添加积分（/records 别名） |
+| GET | `/api/v1/conduct/classes/{class_id}/records` | VIEW_CONDUCT | 查询积分记录（分页+学生/日期过滤） |
+| DELETE | `/api/v1/conduct/classes/{class_id}/records/{record_id}` | MANAGE_CONDUCT | 删除积分记录 |
+| GET | `/api/v1/conduct/classes/{class_id}/rankings/students` | VIEW_CONDUCT | 学生积分排行榜 |
+| GET | `/api/v1/conduct/classes/{class_id}/rankings/groups` | VIEW_CONDUCT | 小组积分排行榜 |
+| GET | `/api/v1/conduct/classes/{class_id}/rules` | VIEW_CONDUCT | 获取班规（分类+条目嵌套） |
+| POST | `/api/v1/conduct/classes/{class_id}/rules/categories` | MANAGE_CONDUCT_RULES | 创建班规分类 |
+| PUT | `/api/v1/conduct/classes/{class_id}/rules/categories/{cat_id}` | MANAGE_CONDUCT_RULES | 更新班规分类 |
+| DELETE | `/api/v1/conduct/classes/{class_id}/rules/categories/{cat_id}` | MANAGE_CONDUCT_RULES | 删除班规分类（级联删除条目） |
+| POST | `/api/v1/conduct/classes/{class_id}/rules/categories/{cat_id}/items` | MANAGE_CONDUCT_RULES | 创建班规条目 |
+| PUT | `/api/v1/conduct/classes/{class_id}/rules/categories/{cat_id}/items/{item_id}` | MANAGE_CONDUCT_RULES | 更新班规条目 |
+| DELETE | `/api/v1/conduct/classes/{class_id}/rules/categories/{cat_id}/items/{item_id}` | MANAGE_CONDUCT_RULES | 删除班规条目 |
+| GET | `/api/v1/conduct/classes/{class_id}/groups` | VIEW_CONDUCT | 列出小组及成员 |
+| POST | `/api/v1/conduct/classes/{class_id}/groups` | MANAGE_CONDUCT | 创建小组 |
+| DELETE | `/api/v1/conduct/classes/{class_id}/groups/{group_id}` | MANAGE_CONDUCT | 删除小组（级联删除成员） |
+| POST | `/api/v1/conduct/classes/{class_id}/groups/{group_id}/members` | MANAGE_CONDUCT | 批量添加小组成员 |
+| DELETE | `/api/v1/conduct/classes/{class_id}/groups/{group_id}/members/{student_id}` | MANAGE_CONDUCT | 移除小组成员 |
+| GET | `/api/v1/conduct/classes/{class_id}/semesters` | VIEW_CONDUCT | 列出学期 |
+| POST | `/api/v1/conduct/classes/{class_id}/semesters` | MANAGE_CONDUCT_RULES | 创建学期 |
+| PUT | `/api/v1/conduct/classes/{class_id}/semesters/{semester_id}/activate` | MANAGE_CONDUCT_RULES | 激活学期（其他学期自动停用） |
+| GET | `/api/v1/conduct/classes/{class_id}/export/records` | EXPORT_CONDUCT | 导出积分记录 Excel（支持日期过滤） |
+| GET | `/api/v1/conduct/classes/{class_id}/export/rankings` | EXPORT_CONDUCT | 导出积分排行榜 Excel（支持学期过滤） |
 
 ### 未实现端点（规划中）
 
@@ -486,7 +647,7 @@ tests/
 | 项目 | 路径 | 关系 |
 |------|------|------|
 | exam-ai | `C:/Users/Administrator/exam-ai` | 学校端，本项目的下游客户端 |
-| paper-seg | `C:/Users/Administrator/paper-seg` | 扫描端，不直接与云端通信 |
+| paper-seg | `C:/Users/Administrator/paper-seg` | 扫描端，通过 `/api` 兼容层连接 edu-cloud |
 | paper-skill | `C:/Users/Administrator/paper-skill` | AI 论文写作服务，edu-cloud 通过 PaperService 调用（端口 9103）|
 
 ## 数据库
@@ -515,7 +676,26 @@ docker compose logs -f      # 查看日志
 | 文档 | 路径 | 内容 |
 |------|------|------|
 | 业务逻辑反哺设计 | `docs/plans/2026-03-29-business-logic-backfill-design.md` | Phase 1-4 分层反哺 + Agent 深度嵌入架构 |
-| AI Agent 设计 | `docs/plans/2026-03-16-ai-agent-design.md` | Agent Phase 1-4 架构设计（554 行，§14 含 API→Service 分层）|
+| AI Agent 设计（旧） | `docs/plans/2026-03-16-ai-agent-design.md` | Agent Phase 1-4 架构设计（554 行，§14 含 API→Service 分层）|
+| edu-agent 设计（当前） | `docs/plans/2026-04-03-edu-agent-design.md` | Claude Code 裁剪架构，30 Tasks / 7 Batches / 39 工具 / 1124 tests [实现完成] |
+| edu-agent 演进设计 | `docs/plans/2026-04-04-agent-evolution-design.md` | DataScope + WorkflowEngine + W1/W3/W6 + IntentRouter，20 Tasks / 6 Batches / 1325 tests [实现完成] |
+| 分析报告设计 | `docs/plans/2026-04-05-analytics-report-design.md` | 分数段配置 + 自定义分析构建器 + 跨考试三维趋势 + PDF 导出，13 Tasks / 1359 tests [实现完成] |
+| Phase 2 跨会话记忆 | `docs/plans/2026-04-05-agent-evolution-design.md` §3 | EntityMemory + ProjectState + Episodic Memory，7 Tasks / 62 tests [实现完成] |
+| Agent Runtime 架构升级 | `docs/plans/2026-04-05-agent-runtime-design.md` | AgentRuntime 多入口 + ModelRouter 双层模型 + OutputValidator 防幻觉，9 Tasks [实现完成] |
+| Agent 韧性与验证增强 | `docs/plans/2026-04-06-agent-resilience-design.md` | P0 bug fix(4) + P1 韧性(2) + P2 验证(3) + P3 配置(2)，11 Tasks / 1543 tests [实现完成] |
+| 自适应学习系统 | `docs/plans/2026-04-06-adaptive-learning-design.md` | BKT 掌握度 + 路径规划 + 选题器 + Agent 工具，10 Tasks / 1582 tests [实现完成] |
+| 知识树可视化 | `docs/plans/2026-04-05-knowledge-tree-design.md` | AntV G6 力导向图 + 投影同步 + 多角色权限 + Agent 编辑工具 [实现完成] |
+| 知识图谱层级重构 | `docs/plans/2026-04-09-knowledge-graph-restructure-design.md` | 4 层导航（Module→BigConcept→Concept→Evidence）+ L1-only 图谱 + search API + 审核状态机，10 Tasks / 168 tests [实现完成] |
+| 知识图谱多层教学模型 Phase 1 | `docs/plans/2026-04-09-knowledge-graph-model-design.md` | edge review_status + Graph API v2 + 质量巡检 6 规则 + 发布过滤 + 审查工作台前端，9 Tasks / 124+78 tests [实现完成] |
+| 知识图谱教师工作台 Phase 2 | `docs/plans/2026-04-10-teacher-workbench-design.md` | 固定分层教师工作台（ModuleOverviewPanel / ConceptMapPanel / ConceptFocusOverlay）+ layoutEngine toposort + BigConcept 分带 + 跨模块徽标 + 删除 GraphPanel，6 Tasks / 2 Batches / +43 tests [实现完成] |
+| 知识图谱教师工作台 Phase 2.5 | `docs/plans/2026-04-10-teacher-workbench-phase2.5-design.md` | 清理 Phase 2 test_debt：焦点模式节点/边淡化（`setElementState` + state spec + `buildVisibleEdgeList` helper + createGraph 末尾重放）+ 跨模块徽标悬停展开 peer 列表（G6 Tooltip plugin，async getContent）；桥接/对比边统一标记 deferred→Phase 3。focusedNodeId 保持组件内部 ref。3 Tasks / 1 Batch / 182 tests (160+22)，GPT 2 轮审查通过（R1 FAIL F001-F003 test-gap → R2 PASS resolved-correct）[实现完成] |
+| **F003 Question 写入责任链重设 [实现完成]** | `docs/plans/2026-04-11-f003-question-writeback-design.md` | 新建 `publish_service.py`（upsert Question/Template + publish_card_atomic 原子事务）+ 前端 publishCard 单次 POST 重写 + pipeline_router build_pipeline_save_answer_fn 工厂 + Question UniqueConstraint migration。13 Tasks / 3 Batches / 6 Gates (Plan R7 + Code ×3 R3 + Integration + Reconciliation)，29 新测试。→ `docs/plans/2026-04-11-f003-question-writeback-design.md` |
+| **阅卷调度全流程改造 [实现完成]** | `docs/plans/2026-04-12-grading-dispatch-design.md` | GradingTasksPage → GradingDispatchPage：扫描→选择题自动判分→AI 阅卷→校对统一入口。pipeline_router start_pipeline 装配 save_objective_fn（Template + tpl_path 双分支，tpl_path fallback 按 Question.name 题号映射）+ GET /grading/dispatch/status 聚合科目阶段。10 Tasks / 1 Batch，Gate 1 Plan Review R1-R3 FAIL→PASS（14 findings 落入 plan），Gate 2 Code Review R1-R3 FAIL→PASS（F001/F002/F004/R2-F005 resolved-correct，F003 deferred 到 conduct 模块），5/5 wiring tests + 前端 190/190 PASS。→ `docs/plans/2026-04-12-grading-dispatch-design.md` |
+| **德育模块（conduct）[实现完成]** | `docs/plans/2026-04-12-conduct-module-design.md` | class-points 全量吸收为 edu-cloud 德育板块。8 ORM 表 + 5 Permission + 6 Agent tools + 家长端（邀请码+手机号+绑定验证）+ 管理端（积分/班规/小组/学期/导出）+ AES-256-GCM PII 加密。22 Tasks / 7 Batches。**Gate 2 R1 FAIL → R2 修复 → R2 FAIL → R3 修复 → R3-R1 FAIL (F007) → R3-R2 PASS**。R2：F001 Alembic + F002 class-scope/resource-affinity 守卫 + F003 Agent 工具 DataScope + F004 get_children + F005 phone Option A + F006 导出入口级测试。**R3 (Batch 7 Task 19-22+24)**：F002 body-field 越权关闭（check_rule_item_class + check_students_class 守卫覆盖 add_points rule_item_id / group_members student_ids，+3 红测）+ N001 id_card 后 6 位契约回退（`stored[-6:] != verify_code`，Option A 锁定，design.md §3 sentinel，+2 反向红测）+ F004 前端字段契约测试（`frontend/src/pages/parent/__tests__/ParentRules.spec.js` vitest）+ F006 records 导出断言升级（openpyxl + 真实 operator）+ F007 rankings 排序+聚合断言（2 学生×4 记录，断言总分 + ORDER BY desc）。120 conduct tests（R2 基线 108 + 12 新增）。F001 Alembic SQLite deferred 到 haofenshu-phase1 Migration Gate Repair。Round 3 commits: e584e6a..93f0b60。→ `docs/plans/2026-04-12-conduct-module-design.md` |
+| **好分数业务复刻 Phase 1 [Batch 1 ✅ Gate 2 R2 PASS / Batch 2 ✅ Gate 2 R3 PASS / Batch 3 🟡 待启动]** | `docs/plans/2026-04-12-haofenshu-biz-replication-design.md` + `docs/plans/2026-04-12-haofenshu-phase1-plan.md` | **蓝图**：8 模块 45 页面 stub + 后端动态菜单系统 + 预聚合数据模型（ClassAnalysis/StudentAnalysis/StudentKnpMastery）+ ExamResult rank 字段。3 Batch × 12 Task，4 Gate（Gate 1 plan + Gate 2 × 3 Batch）。**Batch 1 (Task 1-3, Schema + Menu API)**：menu_configs + MenuService + GET /api/v1/menus 动态菜单（role × module 双维过滤）+ seed_menus 8 模块 42 子菜单；commit 3488b52 追认挂载 conduct_admin_router（F002 approved 扩大 Batch 1 范围，28 端点 /api/v1/conduct/classes/*）。**Gate 1 Plan R5 PASS** + **Gate 2 Code R1 FAIL (F001/F002/F003) → R2 PASS** (12/12 menu+migration tests + R2-F001 LOW design-concern 不阻塞; commits e64957a → ef8a32a)。**Batch 2 (Task 4-9, Frontend 骨架, 2026-04-13)**：frontend-nuxt/ Nuxt 3.17 + Element Plus + Pinia + 品牌色 SCSS (T4) / auth+context store + global middleware + 8 vitest tests (T5) / useApi composable 27 方法 + 4 vitest tests (T6) / useMenus + TopNav + SubNav + UserDropdown (T7) / 三种 layout default/fullscreen/auth (T8) / login + home 模块卡片网格 + index 重定向 (T9)。**vitest 12/12 PASS**，后端零改动。**独立 Gate 4 步**：①Nuxt dev ✅ ②login ✅ ③④ deferred (GPT 独立验证：9000 常驻后端进程陈旧，fresh 9001 对照实例正常返回 6 模块)。commits 08d86f0..78e0764。**Gate 2 Code R1 FAIL** (2026-04-13 23:53)：**B2-F001** MED code-bug — frontend-nuxt lockfile 不可复现（`npm ci` 失败 + `npm ls` invalid）；**B2-F002** MED code-bug — `useMenus.ts` 吞错破坏 plan Task 8 fail-closed 契约（触及 fallback strategy + lifecycle 红旗模式，已出独立修复设计 `docs/plans/2026-04-14-auth-fail-closed-repair-design.md` 以 AuthError sentinel + 职责分层 + Fix Intent Card 4 ORC + 3 反证护航）；**B2-F003** LOW design-concern — Step 3/4 归因措辞不准（不阻塞）。**R2 Executor 修复** (commits 8daa076 + 5bf5c27)：24/24 Vitest PASS，反证 3 条独立复现通过。**Gate 2 Code R2 FAIL** (2026-04-14 07:35)：**B2-F001 contested** — `npm ci` 产生 8+ 条非废弃 EBADENGINE 警告（lockfile 要求 node ≥20.19.0，仓库无 engines/.nvmrc，环境 v20.18.0）；**B2-F002 verified** ✅ (AuthError 三层传递 + 4 slices + 3 反证全通)；**B2-F003 contested** — R2 交接单 L171 残留旧表述"WSL hot-reload"未删（L174 有新表述 = 新旧混合）。**Round 3 Executor 交接卡** `docs/plans/2026-04-14-haofenshu-phase1-batch2-r3-handoff.md` 已就绪（Planner 决策方案 A + 顺手 X，用户 L017 approved behavior_change：本地 Node 升级 **≥22.12.0**（覆盖 lockfile 里所有 dep 的 runtime 要求，含 `>=20.19.0` 和 `>=22.12.0` 两档） + `package.json` engines.node + `frontend-nuxt/.nvmrc` 锁定 Node 版本 + R2 交接单 L171 旧表述 WSL hot-reload 删除 + plan risk_modules 追认 `package.json`/`package-lock.json`）。R3 scope 铁律：禁改 lockfile / 禁改应用代码（B2-F002 verified，AuthError 链路不动）/ 禁降 nitropack 等核心依赖（方案 B rejected）/ 禁 --legacy-peer-deps。gates.json R2 FAIL 回执已校正 raw_output_hash 指向 authoritative FAIL log（commit f539a5f，双审查 audit trail 保留 SECONDARY PASS log 副本）。**R3 Executor 修复完成** (2026-04-14 09:05)：B2-F001 方案 A 落地——`package.json` 追加 `engines.node: ">=22.12.0"` + `frontend-nuxt/.nvmrc` 新建锁 `22.12.0`（portable Node 22.22.2 at `~/bin/node-v22.22.2-win-x64/`，winget install 1603 因 node.exe 被 Claude Code 占用+MsiSystemRebootPending 失败，改用 zip 解压 + `~/.bashrc` PATH 前置，不覆盖系统 Node 20.18）；B2-F003 顺手——R2 handoff §6 改为"根因定论"精简段，删除原表述 block quote，`grep -c "hot-reload"` → 0。**7 项验证断言全通过**：node v22.22.2 / npm ci --ignore-scripts exit 0 706 packages / EBADENGINE 0 / npm ls invalid+extraneous 0 / npx nuxt prepare exit 0 / Vitest 24/24 PASS / hot-reload 0。R3 交接单 `docs/plans/2026-04-14-haofenshu-phase1-review-handoff-batch2-r3.md`。**Gate 2 Code R3 PASS** (2026-04-14 09:25, commit 6ddb19c)：GPT 独立复现 7 项断言全通 + B2-F001/F002/F003 全 verified，**Batch 2 Gate 2 闭环**（code_review_batch2.status=pass, report_path 锚定 R3 报告）。**Batch 3 Executor 交接卡** `docs/plans/2026-04-14-haofenshu-phase1-batch3-handoff.md` 已就绪（Planner 追加 3 项前置修复：R4 useMenus startsWith 分隔符 + R1 后端 E2E 启动脚本化 + plan risk_modules 追认 `package.json`/`package-lock.json`）。**Batch 3 (Task 10-12, PowerFilter + 45 页面 stub + 端到端)** 待 Executor 启动。→ `docs/plans/2026-04-12-haofenshu-biz-replication-design.md` |
+| **Migration Gate 方言中立性修复 [实现完成]** | `docs/plans/2026-04-13-migration-gate-repair-design.md` | F001 R1 独立修复设计。6 个历史 Alembic migration 的 DDL 构造改为 SQLite + PG 双方言兼容：1a325e38e941（UniqueConstraint 内嵌 create_table）、b08103b3a6f5/a370e2771c6d/2a40f59215de/52af1c37bf14/c9587c787c6b（batch_alter_table 包装独立 create_unique_constraint / alter_column / drop_column / drop_constraint）。PG 上 DDL 等价（已 stamped 数据库零重放），SQLite smoke 从断裂恢复到 3/3 PASS，恢复 INV-03/INV-04。Fix Intent Card + Semantic Regression Gate 护航。→ `docs/plans/2026-04-13-migration-gate-repair-design.md` |
+| **知识图谱可视化 Phase 1（kg-phase1）[Batch 3.a ✅ / Batch 3.b 待启动 / Batch 3.c 待推]** | `docs/plans/2026-04-12-knowledge-graph-optimization-design.md` + `docs/plans/2026-04-13-knowledge-graph-phase1-plan.md` | 14 Tasks / 3 Batches × Gate 2。**进度**：T0-T10 ✅ / T11-T14 pending。**Batch 1 (T1-T6)** 后端 stats 全链路 R2 PASS (`1c3c1a2..bcb1971`)。**Batch 2 (T7-T8)** Graph API v3 + 高考题/概览 API R3 PASS (`d300263`)。**Batch 3.a (T9-T10)** 前端 heatmapUtils（log 尺度考频 + 4 态掌握度 + 3 态审核状态 + importance→size）+ ColorModeToggle 三模式 + ConceptMapPanel v3 视觉升级（buildG6Data size+fill 三分支 + watch colorMode setData/render 保留 focusedNodeId + defineExpose）R1 FAIL (F001 KnowledgeTreePage selectedStudentId 状态分裂 / F002 mount.test.js stub 吞新 prop / F003 G6 mock 缺 setData spy) → **R2 PASS** (`2ab10a2..c5bff80`)。Planner 纠正 Executor R1 对 F001 scope 误判（composable 已导出 ref 只需页面解构），scope 扩容 1 文件 mount.test.js 由用户 L017 批准。**Gate 1 Plan Review R1-R6** FAIL→PASS（R5 FAIL 4 finding：R5-T001 fixture schema 错 / R5-T002 T9-T13 测试目录 `frontend/src/components/knowledge-tree/__tests__/` 根本不存在是 R1-R4 漏审前置缺陷 / R5-P002 freshness / R5-P001 半对半错——`94cb65d7` 幽灵 hash 证据 GPT 独立验证 staging 污染而非 amendment 超范围；R6 全部 resolved-correct / resolved-false-positive，subject_hash `a963e85b`）。**关键约束**：TreeNavPanel select-node emit 必须传完整 node 对象 (F010 R4)。**Batch 3.b 待启动** (T11 NodeDetailDrawer 高考真题+学习单元 tab + T12 章节导航 buildChapterTree + TreeNavPanel 双模式)：handoff-batch3b.md commit `f9ab3a1` 已就绪。**Batch 3.c 待推** (T13 ModuleOverviewPanel + T14 P001 处置 INV-002 L1 集合相等测试落盘 + Phase 1 收尾)。Planner 交接卡: `docs/plans/2026-04-13-knowledge-graph-phase1-planner-handoff.md`。→ `docs/plans/2026-04-13-knowledge-graph-phase1-plan.md` |
+| **德育板块统筹规划路线图（conduct-roadmap）[批次 1 Gate 1 R1 FAIL → R2 修订]** | `docs/plans/2026-04-14-conduct-roadmap-design.md` + `docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md` + `docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review.md` | R3 PASS 后全景治理规划。3 批次路线图（治理最小集 / 运维就绪 / 真实验证），每批独立 gates 可中止。批次 1 T1-T5：lesson_prep_leader 权限回收（behavior_change R-T1：`_TEACHER_BASE - {VIEW_CONDUCT, MANAGE_CONDUCT}`）/ AddPointsRequest.date→record_date（pydantic v2 field-type shadowing fix，R-T2，含 admin_router.py:115,137）/ sidebar 三档改按 permissions 派生（acad 3→7，grade 3→5，subject_teacher 2→4 per R-T3-followup / F005 approved，R-T3）/ conduct MODULE.md 补全（owns_tables 8 + /api/v1/conduct + 6 AI tools + 3 governance tests）/ 文档数字漂移修正（120→118）。**Gate 1 Plan Review R1 FAIL**（9 finding: HIGH×4 + MED×5，raw log SHA256 `9554e5ee...`）→ R2 修订（F001-F009 全部 resolved-inline 或 resolved-in-design；F005 behavior_change 用户 2026-04-14 批准；补 Contract Pack 10 invariants + 4 counter_examples + 6 risk_modules + 5 test_debt；state.json 生命周期修正为 Planner-Step-0 生成+Executor-per-task 迁移；入口级测试补充 T1 API 403 + T3 AppSidebar 快照；CONDUCT_ITEMS.perm 治理测试防 typo 静默失败）。基线 verified 2026-04-14: conduct 118 + services 15 + frontend 13；预计实现后: conduct ≥128 + services 15 + frontend ≥27。批次 2 (D-005 sentinel + D-009 F007 同模式横扫 + D-010 seed_menus) / 批次 3 (D-006 家长端 E2E + D-007 Agent happy-path + D-008 Excel UTF-8) 占位。→ `docs/plans/2026-04-14-conduct-roadmap-design.md` |
 | 平台交接单 | exam-ai `docs/plans/2026-03-16-platform-handoff.md` | A→B→C→D 四阶段全局规划 |
 
 ## 数据模型概要
@@ -536,13 +716,36 @@ docker compose logs -f      # 查看日志
 | notification_rules | event_id(FK), days_before, template_type, target_roles(JSON), auto_draft, triggered | 通知触发规则 |
 | notifications | document_id(FK), channel, status, target_scope(JSON), school_id(FK) | 通知发送记录 |
 | school_settings | school_id(FK), category, key(唯一per school), value(Text,nullable) | 学校 KV 配置 |
-| school_modules | school_id(FK), module_code(唯一per school), enabled, config(Text,nullable) | 模块开关（8 codes: exam/grading/homework/study_analytics/research/teaching/calendar/studio） |
+| school_modules | school_id(FK), module_code(唯一per school), enabled, config(Text,nullable) | 模块开关（9 codes: exam/grading/homework/study_analytics/research/teaching/calendar/studio/conduct）。`DEFAULT_ENABLED` 默认启用 6 个：exam/grading/homework/calendar/studio/**conduct**（2026-04-13 conduct 加入默认集，现存学校经 `scripts/backfill_conduct_module.py` 补齐，契约测试 `test_default_enabled_includes_conduct` 防止回退） |
 | teacher_assignments | user_id(FK), class_id(FK), subject_code, semester, school_id(FK), is_active | 教师排课记录（唯一约束：user+class+subject+semester） |
 | subject_selections | school_id(FK), name(唯一per school), subject_codes(JSON), mode, is_active | 学校选考科目组合（模式: 3+1+2/3+3/custom） |
 | capabilities | school_id(FK), role, domain, action, enabled(default True) | 学校级角色能力配置（唯一约束：school+role+domain+action） |
 | audit_logs | school_id(FK,nullable), user_id(FK,nullable), entity_type, entity_id, action, before_data(JSON), after_data(JSON), request_id | 变更审计日志 |
 | homework_tasks | school_id(FK), title, task_type(regular/pre_exam/post_exam), subject_code, class_id(FK,nullable), assigned_by(FK), exam_id(FK,nullable), deadline, status(draft→active→expired→closed), content(Text), grading_mode | 作业任务 |
 | homework_submissions | task_id(FK), student_id(FK), status(pending/submitted/graded), score(Float,nullable), feedback(Text), submit_time, content(Text), graded_by(FK,nullable), graded_at | 作业提交记录（唯一约束：task+student） |
+| guardian_student_links | guardian_user_id(FK→users), student_id, relationship, is_primary, school_id(FK) | 家长-学生绑定（唯一约束：guardian+student） |
+| workflow_runs | workflow_name, trigger_type, trigger_ref, idempotency_key(唯一), status, current_step, total_steps, retry_count, started_at, completed_at, last_error | 工作流执行实例 |
+| workflow_steps | run_id(FK→workflow_runs), step_index, step_name, status, input_summary(JSON), output_summary(JSON), started_at, completed_at, error | 工作流步骤记录 |
+| exam_analysis_snapshot | exam_id(FK→exams), snapshot_type, target_type, target_id, subject_code, semester, version, status, metrics(JSON), computed_at | 考试分析快照（不可变，版本递增） |
+| class_exam_report | exam_id(FK→exams), class_id, grade_rank, class_avg, grade_avg, vs_last_exam, metrics(JSON), version, status, computed_at | 班级考试报告 |
+| agent_findings | finding_type, severity, target_type, target_id, summary, detail(JSON), status, notify_roles(JSON), idempotency_key(唯一), resolved_at | Agent 巡检发现（幂等） |
+| agent_tasks | finding_id(FK→agent_findings,nullable), task_type, assignee_role, payload(JSON), status, school_id(FK) | Agent 生成的待办任务 |
+| score_segment_config | school_id(FK), subject_code(nullable), boundaries(JSON), labels(JSON), created_by(FK→users,nullable) | 学校级分数段配置（默认+科目覆盖，partial unique index） |
+| scope_versions | school_id, user_id, version, last_reason（唯一约束：school+user） | Scope 版本追踪（角色变更时递增） |
+| entity_memory | entity_type(String30), entity_id, school_id, facts(JSON) | 跨会话实体记忆（student/teacher/class/session_episode），复合索引 (school_id, entity_type, entity_id) |
+| project_state | project_type, project_id, owner_id, school_id, state(JSON), checkpoints(JSON,default=[]), status(String20,default=active) | 跨会话项目进度（paper/courseware 等），索引 (owner_id,school_id) + (project_type,project_id) |
+| concept_graph_nodes | id(PK,String64), name, knowledge_level(String10), primary_module(idx), description, synced_at, subject, node_type(concept/big_concept), display_order, review_status, reviewed_by, reviewed_at, aliases_json, evidence_ids_json, difficulty, bloom_level | 知识图谱节点（投影自 knowledge.db concepts + big_concepts） |
+| concept_big_concept_map | concept_id(PK,FK→nodes), big_concept_id(PK,FK→nodes), is_primary | BigConcept→Concept 映射 |
+| concept_graph_edges | id(PK,serial), source_id(FK→nodes), target_id(FK→nodes), relation_type, strength, confidence, review_status(String20,default=ai_draft), synced_at | 知识图谱边（UniqueConstraint: source+target+type） |
+| edit_sync_failures | id(PK,serial), operation_json, error_message, created_at | 知识图谱编辑回写失败记录 |
+| concept_stats | concept_id(PK,FK→nodes CASCADE), exam_frequency, exam_coverage, avg_difficulty, importance_score, planning_weight(JSON), textbook_chapters(JSON), study_unit_id, estimated_minutes, prerequisite_depth, computed_at | 概念统计指标（Phase 1，从 knowledge.db + MCU 投影计算）|
+| answer_logs | student_id, knowledge_point_id, question_id, is_correct, response_time_ms, exam_id, answered_at | 自适应学习作答日志 |
+| student_da_mastery | student_id, knowledge_point_id, p_mastery, p_transit, p_slip, p_guess, attempt_count, correct_count, last_updated | BKT 掌握度（唯一：student+kp） |
+| da_bkt_params | knowledge_point_id(唯一), p_init, p_transit, p_slip, p_guess, sample_count, last_calibrated | BKT 全局先验参数 |
+| da_knowledge_point_map | knowledge_point_id(唯一), concept_node_id(FK→concept_graph_nodes), subject_code, difficulty, bloom_level | 知识点→概念图映射 |
+| question_da_override | question_id(唯一), difficulty_override, bloom_level_override, knowledge_point_ids(JSON), reason | 题目自适应属性覆盖 |
+| adaptive_cards | student_id, card_type, payload(JSON), status, school_id, created_at | 自适应学习卡片（诊断/推荐） |
+| da_catalog_snapshot | snapshot_id(PK), school_id, subject_code, snapshot_data(JSON), created_at | 知识点目录快照 |
 
 ## 种子数据
 

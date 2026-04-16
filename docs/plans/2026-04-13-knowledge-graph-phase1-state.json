@@ -1,0 +1,85 @@
+{
+  "topic": "2026-04-13-knowledge-graph-phase1",
+  "plan_file": "docs/plans/2026-04-13-knowledge-graph-phase1-plan.md",
+  "design_file": "docs/plans/2026-04-12-knowledge-graph-optimization-design.md",
+  "tier": "T3",
+  "tasks": [
+    {
+      "id": "0",
+      "desc": "环境准备与设计契约验证",
+      "status": "completed"
+    },
+    {
+      "id": "1",
+      "desc": "ConceptStats 模型 + Alembic 迁移",
+      "status": "completed"
+    },
+    {
+      "id": "2",
+      "desc": "考频计算（exam_frequency + avg_difficulty + exam_coverage）",
+      "status": "completed"
+    },
+    {
+      "id": "3",
+      "desc": "教材章节聚合 + 前置深度计算",
+      "status": "completed"
+    },
+    {
+      "id": "4",
+      "desc": "MCU 规划权重映射与导入",
+      "status": "completed"
+    },
+    {
+      "id": "5",
+      "desc": "importance_score 计算 + compute_all 编排",
+      "status": "completed"
+    },
+    {
+      "id": "6",
+      "desc": "sync_service 集成 + 应用启动触发",
+      "status": "completed"
+    },
+    {
+      "id": "7",
+      "desc": "Graph API v3 — 合并 stats 到节点返回",
+      "status": "completed"
+    },
+    {
+      "id": "8",
+      "desc": "高考真题查询 API + 统计概览 API",
+      "status": "completed"
+    },
+    {
+      "id": "9",
+      "desc": "前端热力色工具 + 着色模式切换组件",
+      "status": "completed"
+    },
+    {
+      "id": "10",
+      "desc": "ConceptMapPanel 节点视觉升级",
+      "status": "completed"
+    },
+    {
+      "id": "11",
+      "desc": "NodeDetailDrawer 高考真题 + 学习单元 标签页",
+      "status": "pending"
+    },
+    {
+      "id": "12",
+      "desc": "教材章节导航模式",
+      "status": "pending"
+    },
+    {
+      "id": "13",
+      "desc": "ModuleOverviewPanel 统计增强 + 集成验证",
+      "status": "pending"
+    },
+    {
+      "id": "14",
+      "desc": "收尾 — design.md 标记 + 审查交接单",
+      "status": "pending"
+    }
+  ],
+  "updated_at": "2026-04-14 12:15:00",
+  "notes": "Batch 1 (T1-T6) R2 PASS commit bcb1971; Batch 2 (T7-T8) R3 PASS commit d300263; Batch 3.a (T9-T10) R1 FAIL → R2 PASS commits 2ab10a2..c5bff80 (F001 code-bug + F002/F003 test-gap 全 resolved-correct; code_review_batch3a=pass); Plan Review R1-R6 FAIL→PASS (R5→R6 修复 R5-T001/T002/P002 + R5-P001 resolved-false-positive 幽灵 hash staging 污染证据; plan_review.subject_hash=a963e85b); Batch 3.b (T11-T12) handoff-batch3b commit f9ab3a1 已就绪待 Executor 新会话; Batch 3.c (T13-T14+P001 处置 INV-002 L1 集合相等测试 + Phase 1 收尾) pending; Planner 交接卡 docs/plans/2026-04-13-knowledge-graph-phase1-planner-handoff.md"
+}

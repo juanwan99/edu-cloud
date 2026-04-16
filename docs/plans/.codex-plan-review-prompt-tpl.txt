@@ -1,0 +1,78 @@
+You are a senior architect reviewing an implementation plan.
+
+Read these files:
+1. ${PLAN_FILE} — the implementation plan (批次 1, 6 Tasks, ~650 lines)
+2. ${DESIGN_FILE} — the design document (11 sections, roadmap + 批次 1 详细)
+3. ${PROJECT_CLAUDE_MD} — project rules (edu-cloud CLAUDE.md)
+
+Context: This is Gate 1 Plan Review for a T3 task (conduct-roadmap-batch1).
+The plan covers 5 implementation tasks (T1-T5) plus a closeout task (Task 6):
+- T5 documentation number fix (120→118 test count drift)
+- T4 conduct MODULE.md governance addition
+- T1 lesson_prep_leader conduct permission revocation (behavior_change R-T1)
+- T2 AddPointsRequest.date→record_date (pydantic v2 field-shadowing fix, behavior_change R-T2)
+- T3 sidebar permissions-derived refactor (acad_dir 3→7, grade_leader 3→5, subject_teacher 2→4; behavior_change R-T3 + R-T3-followup)
+- Task 6 批次 1 closeout (state.json + [实现完成] mark)
+
+Perform plan review per checklist:
+
+A. 自洽性: Task 依赖完整、接口契约一致、无逻辑矛盾、破坏性操作有回滚
+B. 代码库对齐: 引用路径真实、不违反现有 API、不命名冲突、不重复功能
+C. 架构适配（按 architecture-rules.md §审查清单速查）: 职责单一、依赖方向正确（无反向/循环）、接口隔离（无内部数据结构直连）、配置集中、单功能变更影响 ≤3 文件
+D. 完整性: 每个行为变更 Task 须有测试契约段（5 字段：入口/反例/边界/回归/命令）和边界条件段（至少 3 个）、迁移考虑、UX 规格（适用时）、批次边界合理
+D+. 测试契约质量（test-gap 硬判定）:
+   - 逻辑镜像测试（测试只是实现的对称复述，不能在错误实现下失败）→ test-gap HIGH
+   - 无入口级验证（测试只调内部函数，不经过用户可触达的入口）→ test-gap MED
+   - 无反例说明（测试契约未写明"错误实现会怎样失败"）→ test-gap MED
+E. 风险评估: Tier 分级有据、高风险区域标记
+F. Contract Pack 完整性:
+   - plan 中是否包含结构化 Contract Pack 段落（invariants / counter_examples / risk_modules / test_debt）
+   - invariants ≥3 条，每条有 verification 映射（existing_test 须有 test_ref）
+   - counter_examples ≥2 个，每个标注 tests_that_still_pass 和 mitigation
+   - risk_modules 覆盖所有 public API 变更和治理基础设施变更
+   - test_debt 有具体理由和 deadline（不接受空理由或无期限）
+   - 不接受不可验证的 prose（"系统应正确运行"→ FAIL）
+   - 参考: ~/.claude/config/contract-pack-schema.md
+
+Specific points to scrutinize:
+
+1. behavior_change R-T3-followup (subject_teacher 2→4): The plan treats this as a "待 Plan Review 二次确认" item. Is this proper — or does it require an explicit user approval before plan is finalized? The plan proceeds as if 2→4 will be accepted. Flag if this is a bait-and-switch risk.
+
+2. T1 使用 `_TEACHER_BASE - {VIEW_CONDUCT, MANAGE_CONDUCT}` 集合减法。This is elegant but depends on _TEACHER_BASE being a set. If _TEACHER_BASE is ever refactored to a list/frozenset/other, this breaks. Is there a sentinel/contract test for _TEACHER_BASE's type?
+
+3. T2 schema.py L2 change: `from datetime import date as _date_type` — verify this doesn't break PointsRecordResponse (Task 4 step 4.4 claims it keeps `date: date` field working via `date: _date_type`). Check the reference chain in full.
+
+4. T3 CONDUCT_ITEMS filter model: When `hasPermission(role, 'unknown_perm')` for a CONDUCT_ITEMS entry, does it return false silently? Any item that specifies a permission not in the ROLE_PERMISSIONS map would become invisible to all users — likely a bug masker. Suggest a contract test.
+
+5. Task 6 state.json schema: Is the `status` vocabulary (completed/in_progress) consistent with project state.json convention? The plan uses "in_progress" → "completed" transition at Step 6.5 but does the executing-plans skill actually observe this transition?
+
+6. Plan references "Contract Pack" structure from review-templates. The current plan has risk assessment (§5 design + 每 Task 的测试契约) but lacks a formal invariants/counter_examples/risk_modules/test_debt section. Should it be added? Or are the distributed 审查清单/边界条件/测试契约 per-Task sufficient?
+
+**审查规范（必读）：** 先读以下文件中的对应段落，严格按其定义执行：
+- Finding 分类: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-classification -->
+- Finding Type: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-type -->
+- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: pass-fail -->
+- test-gap 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: test-gap-criteria -->
+- 行为变更守卫: ~/.claude/rules-t3/review-templates.md <!-- anchor: behavior-change-guard -->
+- Finding 转换规则: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-transition -->
+
+Output structured findings with: ID, Severity, Category, Type, Before-behavior, After-behavior, Evidence, Impact, Repair hypothesis (optional, non-authoritative).
+Repair hypothesis is advisory only and has no execution authority.
+If the finding touches invariants, risk_modules, or red-flag patterns
+(state machine / fallback / selection strategy / threshold / lifecycle / evaluation cadence),
+do not prescribe a concrete code edit. Instead, describe:
+1. the likely repair direction
+2. forbidden fix patterns to avoid
+3. "requires independent fix design + Semantic Regression Gate"
+
+Write a complete review report in Chinese with:
+- 结论: PASS / FAIL (single line)
+- 第一段：测试充分性评估
+- 第二段：行为正确性评估（含 6 points above）
+- 第三段：未测试风险
+- 发现清单 (each finding with full structured format)
+- 行为变更审批记录 (if any finding is behavior_change, list separately)
+
+保存报告为 markdown 到 docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review.md
+
+最后在报告末尾明确写一行 `结论: PASS` 或 `结论: FAIL` 供脚本解析。

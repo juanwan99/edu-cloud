@@ -32,11 +32,11 @@ async def obj_setup(client, db):
     await db.commit()
 
     q1 = Question(
-        subject_id=subject.id, name="Q1", question_type="objective",
+        subject_id=subject.id, name="Q1", question_type="choice",
         max_score=5.0, correct_answer="A", school_id=school.id,
     )
     q2 = Question(
-        subject_id=subject.id, name="Q2", question_type="objective",
+        subject_id=subject.id, name="Q2", question_type="choice",
         max_score=3.0, correct_answer="BD", school_id=school.id,
     )
     db.add_all([q1, q2])

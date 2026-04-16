@@ -1,0 +1,1175 @@
+OpenAI Codex v0.114.0 (research preview)
+--------
+workdir: C:/Users/Administrator/edu-cloud
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d86df-8918-72e0-b446-6a9dec1da7c0
+--------
+user
+You are a code reviewer performing Round 3 re-review for Batch 2.
+
+Round 2 FAIL finding (must verify resolution):
+- N001 MED code-bug (NEW in R2): q_matrix 引用 assessment_items 不存在 id 时 total/items 不一致
+- All Round 1 findings already resolved-correct in Round 2 (F001/F002/F003/P002 RESOLVED, P001 INV-002/004 deferred)
+
+Round 3 fix commit: d300263
+Read the plan: C:/Users/Administrator/edu-cloud/docs/plans/2026-04-13-knowledge-graph-phase1-plan.md
+Check the commits: git log --oneline d300263~1..d300263
+Read the full diff: git diff d300263~1..d300263
+Read modified files in full for context.
+
+Round 3 审查重点（按 FAIL 升级规则 Round 3 仅审 code-bug 和 test-gap 修复）:
+1. N001 INNER JOIN 修复是否真在分页前过滤掉 phantom id
+2. 新测试 test_get_exam_items_total_consistent_with_actual_items 是否能 mutant test 抓住"删除 INNER JOIN"
+3. 是否引入新的 code-bug（如 INNER JOIN 在边界路径——空集合/无关联——是否仍正确）
+
+For N001, declare verdict: resolved-correct / NOT FIXED / introduced-new-bug.
+
+**审查规范（必读）：** 先读以下文件中的对应段落：
+- Finding 分类: ~/.claude/rules-t3/review-templates.md <!-- anchor: finding-classification -->
+- PASS/FAIL 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: pass-fail -->
+- test-gap 判定: ~/.claude/rules-t3/review-templates.md <!-- anchor: test-gap-criteria -->
+
+只审 code-bug 和 test-gap。design-concern/suggestion 不在 Round 3 范围。
+
+Conclude with PASS or FAIL. PASS condition: N001 resolved-correct + 无新 HIGH/MED code-bug or test-gap.
+Write in Chinese.
+mcp: filesystem starting
+mcp: filesystem ready
+mcp startup: ready: filesystem
+codex
+本轮是对提交 `d300263` 的 Round 3 复审，我先按要求读取审查规则和 `code-review` 技能说明，再看该提交的日志、完整 diff 和相关文件全文。
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md","head":220})
+filesystem.read_text_file({"path":"C:/Users/Administrator/.agents/skills/code-review-review-pr/SKILL.md","head":220}) success in 87ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "---\r\nname: code-review:review-pr\r\ndescription: Comprehensive pull request review using specialized agents\r\nargument-hint: \"[review-aspects]\"\r\n---\r\n\r\n# Pull Request Review Instructions\r\n\r\nYou are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.\r\n\r\n**Review Aspects (optional):** \"$ARGUMENTS\"\r\n**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.\r\n\r\n**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!\r\n\r\n## Review Workflow\r\n\r\nRun a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:\r\n\r\n### Phase 1: Preparation\r\n\r\nRun following commands in order:\r\n\r\n1. **Determine Review Scope**\r\n   - Check following command to understand changes, use only commands that return amount of lines changed, not file content:\r\n     - git status\r\n     - git diff --stat\r\n     - git diff origin/master --stat or git diff origin/master...HEAD --stat for PR diffs\r\n       - change to origin/main if main is used as default branch\r\n   - Parse arguments to see if user requested specific review aspects\r\n2. Launch up to 6 parallel Haiku agents to perform following tasks:\r\n   - One agent to check if the pull request (a) is closed, (b) is a draft. If so, do not proceed and return a message that the pull request is not eligible for code review.\r\n   - One agent to search and give you a list of file paths to (but not the contents of) any relevant agent instruction files, if they exist: CLAUDE.md, AGENTS.md, **/consitution.md, the root README.md file, as well as any README.md files in the directories whose files the pull request modified\r\n   - Split files based on amount of lines changes between other 1-4 agents and ask them following:\r\n\r\n      ```markdown\r\n      GOAL: Analyse PR changes in following files and provide summary\r\n      \r\n      Perform following steps:\r\n         - Run [pass proper git command that he can use] to see changes in files\r\n         - Analyse following files: [list of files]\r\n\r\n      Please return a detailed summary of the changes in the each file, including types of changes, their complexity, affected classes/functions/variables/etc., and overall description of the changes.\r\n      ```\r\n\r\n3. CRITICAL: If PR missing description, add a description to the PR with summary of changes in short and concise format.\r\n\r\n### Phase 2: Searching for Issues\r\n\r\nDetermine Applicable Reviews, then launch up to 6 parallel (Sonnet or Opus) agents to independently code review all changes in the pull request. The agents should do the following, then return a list of issues and the reason each issue was flagged (eg. CLAUDE.md or consitution.md adherence, bug, historical git context, etc.).\r\n\r\n**Available Review Agents**:\r\n\r\n- **security-auditor** - Analyze code for security vulnerabilities\r\n- **bug-hunter** - Scan for bugs and issues, including silent failures\r\n- **code-quality-reviewer** - General code review for project guidelines, maintainability and quality. Simplifying code for clarity and maintainability\r\n- **contracts-reviewer** - Analyze code contracts, including: type design and invariants (if new types added), API changes, data modeling, etc.\r\n- **test-coverage-reviewer** - Review test coverage quality and completeness\r\n- **historical-context-reviewer** - Review historical context of the code, including git blame and history of the code modified, and previous pull requests that touched these files.\r\n\r\nNote: Default option is to run **all** applicable review agents.\r\n\r\n#### Determine Applicable Reviews\r\n\r\nBased on changes summary from phase 1 and their complexity, determine which review agents are applicable:\r\n\r\n- **If code or configuration changes, except purely cosmetic changes**: bug-hunter, security-auditor\r\n- **if code changes, including business or infrastructure logic, formating, etc.**: code-quality-reviewer (general quality)\r\n- **If test files changed**: test-coverage-reviewer\r\n- **If types, API, data modeling changed**: contracts-reviewer\r\n- **If complexity of changes is high or historical context is needed**: historical-context-reviewer\r\n\r\n#### Launch Review Agents\r\n\r\n**Parallel approach**:\r\n\r\n- Launch all agents simultaneously\r\n- Provide to them full list of modified files and summary of the PR as a context, explicitly highlight which PR they are reviewing, also provide list of files with project guidelines and standards, including README.md, CLAUDE.md and consitution.md if they exist.\r\n- Results should come back together\r\n\r\n### Phase 3: Confidence & Impact Scoring\r\n\r\n1. For each issue found in Phase 2, launch a parallel Haiku agent that takes the PR, issue description, and list of CLAUDE.md files (from step 2), and returns TWO scores:\r\n\r\n   **Confidence Score (0-100)** - Level of confidence that the issue is real and not a false positive:\r\n\r\n   a. 0: Not confident at all. This is a false positive that doesn't stand up to light scrutiny, or is a pre-existing issue.\r\n   b. 25: Somewhat confident. This might be a real issue, but may also be a false positive. The agent wasn't able to verify that it's a real issue. If the issue is stylistic, it is one that was not explicitly called out in the relevant CLAUDE.md.\r\n   c. 50: Moderately confident. The agent was able to verify this is a real issue, but it might be a nitpick or not happen very often in practice. Relative to the rest of the PR, it's not very important.\r\n   d. 75: Highly confident. The agent double checked the issue, and verified that it is very likely it is a real issue that will be hit in practice. The existing approach in the PR is insufficient. The issue is very important and will directly impact the code's functionality, or it is an issue that is directly mentioned in the relevant CLAUDE.md.\r\n   e. 100: Absolutely certain. The agent double checked the issue, and confirmed that it is definitely a real issue, that will happen frequently in practice. The evidence directly confirms this.\r\n\r\n   **Impact Score (0-100)** - Severity and consequence of the issue if left unfixed:\r\n\r\n   a. 0-20 (Low): Minor code smell or style inconsistency. Does not affect functionality or maintainability significantly.\r\n   b. 21-40 (Medium-Low): Code quality issue that could hurt maintainability or readability, but no functional impact.\r\n   c. 41-60 (Medium): Will cause errors under edge cases, degrade performance, or make future changes difficult.\r\n   d. 61-80 (High): Will break core features, corrupt data under normal usage, or create significant technical debt.\r\n   e. 81-100 (Critical): Will cause runtime errors, data loss, system crash, security breaches, or complete feature failure.\r\n\r\n   For issues flagged due to CLAUDE.md instructions, the agent should double check that the CLAUDE.md actually calls out that issue specifically.\r\n\r\n2. **Filter issues using the progressive threshold table below** - Higher impact issues require less confidence to pass:\r\n\r\n   | Impact Score | Minimum Confidence Required | Rationale |\r\n   |--------------|----------------------------|-----------|\r\n   | 81-100 (Critical) | 50 | Critical issues warrant investigation even with moderate confidence |\r\n   | 61-80 (High) | 65 | High impact issues need good confidence to avoid false alarms |\r\n   | 41-60 (Medium) | 75 | Medium issues need high confidence to justify addressing |\r\n   | 21-40 (Medium-Low) | 85 | Low-medium impact issues need very high confidence |\r\n   | 0-20 (Low) | 95 | Minor issues only included if nearly certain |\r\n\r\n   **Filter out any issues that don't meet the minimum confidence threshold for their impact level.** If there are no issues that meet this criteria, do not proceed.\r\n\r\n   **IMPORTANT: Do NOT post inline comments for:**\r\n   - **Low impact issues (0-20)** - These are minor code smells or style inconsistencies. Even with high confidence, they add noise without meaningful value.\r\n   - **Low confidence issues** - Any issue below the minimum confidence threshold for its impact level should be excluded entirely.\r\n\r\n   Focus inline comments on Medium impact (41+) and higher issues that meet confidence thresholds.\r\n\r\n3. Use a Haiku agent to repeat the eligibility check from Phase 1, to make sure that the pull request is still eligible for code review. (In case if there was updates since review started)\r\n4. **Post Inline Comments Only** (skip if no issues found):\r\n\r\n   a. **Preferred approach - Use MCP GitHub tools if available**:\r\n      - Use `mcp__github_inline_comment__create_inline_comment` for line-specific feedback for each individual issue.\r\n\r\n   b. Fallback approach - Use direct API calls:\r\n      - First, check if the `git:attach-review-to-pr` command is available by reading it.\r\n      - If the command is available and issues were found:\r\n         - **Multiple Issues**: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` to create a review with line-specific comments.\r\n         - **Single Issue**: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` to add just one line-specific comment.\r\n\r\n   When writing comments, keep in mind to:\r\n   - Keep your output brief\r\n   - Use emojis\r\n   - Link and cite relevant code, files, and URLs\r\n\r\n#### Examples of false positives, for Phase 3\r\n\r\n- Pre-existing issues\r\n- Something that looks like a bug but is not actually a bug\r\n- Pedantic nitpicks that a senior engineer wouldn't call out\r\n- Issues that a linter, typechecker, or compiler would catch (eg. missing or incorrect imports, type errors, broken tests, formatting issues, pedantic style issues like newlines). No need to run these build steps yourself -- it is safe to assume that they will be run separately as part of CI.\r\n- General code quality issues (eg. lack of test coverage, general security issues, poor documentation), unless explicitly required in CLAUDE.md\r\n- Issues that are called out in CLAUDE.md, but explicitly silenced in the code (eg. due to a lint ignore comment)\r\n- Changes in functionality that are likely intentional or are directly related to the broader change\r\n- Real issues, but on lines that the user did not modify in their pull request\r\n\r\nNotes:\r\n\r\n- Use build, lint and tests commands if you have access to them. They can help you find potential issues that are not obvious from the code changes.\r\n- Use `gh` to interact with Github (eg. to fetch a pull request, or to create inline comments), rather than web fetch\r\n- Make a todo list first\r\n- You must cite and link each bug (eg. if referring to a CLAUDE.md, you must link it)\r\n- When using line-specific comments (via `git:attach-review-to-pr`):\r\n  - Each issue should map to a specific file and line number\r\n  - For multiple issues: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` with JSON input containing the review body (Quality Gate summary) and comments array (line-specific issues)\r\n  - For single issue: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` to post just one line-specific comment\r\n\r\n### Template for line-specific review comments\r\n\r\nWhen using the `git:attach-review-to-pr` command to add line-specific comments, use this template for each issue:\r\n\r\n```markdown\r\n🔴/🟠/🟡/🟢 [Critical/High/Medium/Low]: [Brief description]\r\n\r\n[Evidence: Explain what code pattern/behavior was observed that indicates this issue and the consequence if left unfixed]\r\n\r\n[If applicable, provide code suggestion]:\r\n```suggestion\r\n[code here]\r\n```\r\n\r\n```\r\n\r\n#### Example for Bug Issue\r\n\r\n```markdown\r\n🟠 High: Potential null pointer dereference\r\n\r\nVariable `user` is accessed without null check after fetching from database. This will cause runtime error if user is not found, breaking the user profile feature.\r\n\r\n```suggestion\r\nif (!user) {\r\n  throw new Error('User not found');\r\n}\r\n```\r\n\r\n```\r\n\r\n#### Example for Security Issue\r\n\r\n```markdown\r\n🔴 Critical: SQL Injection vulnerability\r\n\r\nUser input is directly concatenated into SQL query without sanitization. Attackers can execute arbitrary SQL commands, leading to data breach or deletion.\r\n\r\nUse parameterized queries instead:\r\n```suggestion\r\ndb.query('SELECT * FROM users WHERE id = ?', [userId])\r\n```\r\n\r\n```\r\n\r\n### Template for inline comments using GitHub API\r\n\r\n#### Multiple Issues (using `/reviews` endpoint)\r\n\r\nWhen using `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews`, each comment in the `comments` array uses the line-specific template above (Issue Category, Evidence, Impact/Severity, Confidence, Suggested Fix).\r\n\r\n#### Single Issue (using `/comments` endpoint)\r\n\r\nWhen using `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments`, post just one line-specific comment using the template above.\r\n\r\n**Note for linking to code:**\r\n\r\n- Use full git sha + line range, eg. `https://github.com/owner/repo/blob/1d54823877c4de72b2316a64032a54afc404e619/README.md#L13-L17`\r\n- Line range format is `L[start]-L[end]`\r\n- Provide at least 1 line of context before and after\r\n\r"
+    }
+  ],
+  "structuredContent": {
+    "content": "---\r\nname: code-review:review-pr\r\ndescription: Comprehensive pull request review using specialized agents\r\nargument-hint: \"[review-aspects]\"\r\n---\r\n\r\n# Pull Request Review Instructions\r\n\r\nYou are an expert code reviewer conducting a thorough evaluation of this pull request. Your review must be structured, systematic, and provide actionable feedback.\r\n\r\n**Review Aspects (optional):** \"$ARGUMENTS\"\r\n**IMPORTANT**: Skip reviewing changes in `spec/` and `reports/` folders unless specifically asked.\r\n\r\n**CRITICAL**: You must post inline comments only! Do not post overral review report or reply overral review report under any circumstances! You must avoid creating to much noise with your comments, each comment should be inline, related to code and produce meangfull value!\r\n\r\n## Review Workflow\r\n\r\nRun a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality. Follow these steps precisely:\r\n\r\n### Phase 1: Preparation\r\n\r\nRun following commands in order:\r\n\r\n1. **Determine Review Scope**\r\n   - Check following command to understand changes, use only commands that return amount of lines changed, not file content:\r\n     - git status\r\n     - git diff --stat\r\n     - git diff origin/master --stat or git diff origin/master...HEAD --stat for PR diffs\r\n       - change to origin/main if main is used as default branch\r\n   - Parse arguments to see if user requested specific review aspects\r\n2. Launch up to 6 parallel Haiku agents to perform following tasks:\r\n   - One agent to check if the pull request (a) is closed, (b) is a draft. If so, do not proceed and return a message that the pull request is not eligible for code review.\r\n   - One agent to search and give you a list of file paths to (but not the contents of) any relevant agent instruction files, if they exist: CLAUDE.md, AGENTS.md, **/consitution.md, the root README.md file, as well as any README.md files in the directories whose files the pull request modified\r\n   - Split files based on amount of lines changes between other 1-4 agents and ask them following:\r\n\r\n      ```markdown\r\n      GOAL: Analyse PR changes in following files and provide summary\r\n      \r\n      Perform following steps:\r\n         - Run [pass proper git command that he can use] to see changes in files\r\n         - Analyse following files: [list of files]\r\n\r\n      Please return a detailed summary of the changes in the each file, including types of changes, their complexity, affected classes/functions/variables/etc., and overall description of the changes.\r\n      ```\r\n\r\n3. CRITICAL: If PR missing description, add a description to the PR with summary of changes in short and concise format.\r\n\r\n### Phase 2: Searching for Issues\r\n\r\nDetermine Applicable Reviews, then launch up to 6 parallel (Sonnet or Opus) agents to independently code review all changes in the pull request. The agents should do the following, then return a list of issues and the reason each issue was flagged (eg. CLAUDE.md or consitution.md adherence, bug, historical git context, etc.).\r\n\r\n**Available Review Agents**:\r\n\r\n- **security-auditor** - Analyze code for security vulnerabilities\r\n- **bug-hunter** - Scan for bugs and issues, including silent failures\r\n- **code-quality-reviewer** - General code review for project guidelines, maintainability and quality. Simplifying code for clarity and maintainability\r\n- **contracts-reviewer** - Analyze code contracts, including: type design and invariants (if new types added), API changes, data modeling, etc.\r\n- **test-coverage-reviewer** - Review test coverage quality and completeness\r\n- **historical-context-reviewer** - Review historical context of the code, including git blame and history of the code modified, and previous pull requests that touched these files.\r\n\r\nNote: Default option is to run **all** applicable review agents.\r\n\r\n#### Determine Applicable Reviews\r\n\r\nBased on changes summary from phase 1 and their complexity, determine which review agents are applicable:\r\n\r\n- **If code or configuration changes, except purely cosmetic changes**: bug-hunter, security-auditor\r\n- **if code changes, including business or infrastructure logic, formating, etc.**: code-quality-reviewer (general quality)\r\n- **If test files changed**: test-coverage-reviewer\r\n- **If types, API, data modeling changed**: contracts-reviewer\r\n- **If complexity of changes is high or historical context is needed**: historical-context-reviewer\r\n\r\n#### Launch Review Agents\r\n\r\n**Parallel approach**:\r\n\r\n- Launch all agents simultaneously\r\n- Provide to them full list of modified files and summary of the PR as a context, explicitly highlight which PR they are reviewing, also provide list of files with project guidelines and standards, including README.md, CLAUDE.md and consitution.md if they exist.\r\n- Results should come back together\r\n\r\n### Phase 3: Confidence & Impact Scoring\r\n\r\n1. For each issue found in Phase 2, launch a parallel Haiku agent that takes the PR, issue description, and list of CLAUDE.md files (from step 2), and returns TWO scores:\r\n\r\n   **Confidence Score (0-100)** - Level of confidence that the issue is real and not a false positive:\r\n\r\n   a. 0: Not confident at all. This is a false positive that doesn't stand up to light scrutiny, or is a pre-existing issue.\r\n   b. 25: Somewhat confident. This might be a real issue, but may also be a false positive. The agent wasn't able to verify that it's a real issue. If the issue is stylistic, it is one that was not explicitly called out in the relevant CLAUDE.md.\r\n   c. 50: Moderately confident. The agent was able to verify this is a real issue, but it might be a nitpick or not happen very often in practice. Relative to the rest of the PR, it's not very important.\r\n   d. 75: Highly confident. The agent double checked the issue, and verified that it is very likely it is a real issue that will be hit in practice. The existing approach in the PR is insufficient. The issue is very important and will directly impact the code's functionality, or it is an issue that is directly mentioned in the relevant CLAUDE.md.\r\n   e. 100: Absolutely certain. The agent double checked the issue, and confirmed that it is definitely a real issue, that will happen frequently in practice. The evidence directly confirms this.\r\n\r\n   **Impact Score (0-100)** - Severity and consequence of the issue if left unfixed:\r\n\r\n   a. 0-20 (Low): Minor code smell or style inconsistency. Does not affect functionality or maintainability significantly.\r\n   b. 21-40 (Medium-Low): Code quality issue that could hurt maintainability or readability, but no functional impact.\r\n   c. 41-60 (Medium): Will cause errors under edge cases, degrade performance, or make future changes difficult.\r\n   d. 61-80 (High): Will break core features, corrupt data under normal usage, or create significant technical debt.\r\n   e. 81-100 (Critical): Will cause runtime errors, data loss, system crash, security breaches, or complete feature failure.\r\n\r\n   For issues flagged due to CLAUDE.md instructions, the agent should double check that the CLAUDE.md actually calls out that issue specifically.\r\n\r\n2. **Filter issues using the progressive threshold table below** - Higher impact issues require less confidence to pass:\r\n\r\n   | Impact Score | Minimum Confidence Required | Rationale |\r\n   |--------------|----------------------------|-----------|\r\n   | 81-100 (Critical) | 50 | Critical issues warrant investigation even with moderate confidence |\r\n   | 61-80 (High) | 65 | High impact issues need good confidence to avoid false alarms |\r\n   | 41-60 (Medium) | 75 | Medium issues need high confidence to justify addressing |\r\n   | 21-40 (Medium-Low) | 85 | Low-medium impact issues need very high confidence |\r\n   | 0-20 (Low) | 95 | Minor issues only included if nearly certain |\r\n\r\n   **Filter out any issues that don't meet the minimum confidence threshold for their impact level.** If there are no issues that meet this criteria, do not proceed.\r\n\r\n   **IMPORTANT: Do NOT post inline comments for:**\r\n   - **Low impact issues (0-20)** - These are minor code smells or style inconsistencies. Even with high confidence, they add noise without meaningful value.\r\n   - **Low confidence issues** - Any issue below the minimum confidence threshold for its impact level should be excluded entirely.\r\n\r\n   Focus inline comments on Medium impact (41+) and higher issues that meet confidence thresholds.\r\n\r\n3. Use a Haiku agent to repeat the eligibility check from Phase 1, to make sure that the pull request is still eligible for code review. (In case if there was updates since review started)\r\n4. **Post Inline Comments Only** (skip if no issues found):\r\n\r\n   a. **Preferred approach - Use MCP GitHub tools if available**:\r\n      - Use `mcp__github_inline_comment__create_inline_comment` for line-specific feedback for each individual issue.\r\n\r\n   b. Fallback approach - Use direct API calls:\r\n      - First, check if the `git:attach-review-to-pr` command is available by reading it.\r\n      - If the command is available and issues were found:\r\n         - **Multiple Issues**: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` to create a review with line-specific comments.\r\n         - **Single Issue**: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` to add just one line-specific comment.\r\n\r\n   When writing comments, keep in mind to:\r\n   - Keep your output brief\r\n   - Use emojis\r\n   - Link and cite relevant code, files, and URLs\r\n\r\n#### Examples of false positives, for Phase 3\r\n\r\n- Pre-existing issues\r\n- Something that looks like a bug but is not actually a bug\r\n- Pedantic nitpicks that a senior engineer wouldn't call out\r\n- Issues that a linter, typechecker, or compiler would catch (eg. missing or incorrect imports, type errors, broken tests, formatting issues, pedantic style issues like newlines). No need to run these build steps yourself -- it is safe to assume that they will be run separately as part of CI.\r\n- General code quality issues (eg. lack of test coverage, general security issues, poor documentation), unless explicitly required in CLAUDE.md\r\n- Issues that are called out in CLAUDE.md, but explicitly silenced in the code (eg. due to a lint ignore comment)\r\n- Changes in functionality that are likely intentional or are directly related to the broader change\r\n- Real issues, but on lines that the user did not modify in their pull request\r\n\r\nNotes:\r\n\r\n- Use build, lint and tests commands if you have access to them. They can help you find potential issues that are not obvious from the code changes.\r\n- Use `gh` to interact with Github (eg. to fetch a pull request, or to create inline comments), rather than web fetch\r\n- Make a todo list first\r\n- You must cite and link each bug (eg. if referring to a CLAUDE.md, you must link it)\r\n- When using line-specific comments (via `git:attach-review-to-pr`):\r\n  - Each issue should map to a specific file and line number\r\n  - For multiple issues: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews` with JSON input containing the review body (Quality Gate summary) and comments array (line-specific issues)\r\n  - For single issue: Use `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments` to post just one line-specific comment\r\n\r\n### Template for line-specific review comments\r\n\r\nWhen using the `git:attach-review-to-pr` command to add line-specific comments, use this template for each issue:\r\n\r\n```markdown\r\n🔴/🟠/🟡/🟢 [Critical/High/Medium/Low]: [Brief description]\r\n\r\n[Evidence: Explain what code pattern/behavior was observed that indicates this issue and the consequence if left unfixed]\r\n\r\n[If applicable, provide code suggestion]:\r\n```suggestion\r\n[code here]\r\n```\r\n\r\n```\r\n\r\n#### Example for Bug Issue\r\n\r\n```markdown\r\n🟠 High: Potential null pointer dereference\r\n\r\nVariable `user` is accessed without null check after fetching from database. This will cause runtime error if user is not found, breaking the user profile feature.\r\n\r\n```suggestion\r\nif (!user) {\r\n  throw new Error('User not found');\r\n}\r\n```\r\n\r\n```\r\n\r\n#### Example for Security Issue\r\n\r\n```markdown\r\n🔴 Critical: SQL Injection vulnerability\r\n\r\nUser input is directly concatenated into SQL query without sanitization. Attackers can execute arbitrary SQL commands, leading to data breach or deletion.\r\n\r\nUse parameterized queries instead:\r\n```suggestion\r\ndb.query('SELECT * FROM users WHERE id = ?', [userId])\r\n```\r\n\r\n```\r\n\r\n### Template for inline comments using GitHub API\r\n\r\n#### Multiple Issues (using `/reviews` endpoint)\r\n\r\nWhen using `gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews`, each comment in the `comments` array uses the line-specific template above (Issue Category, Evidence, Impact/Severity, Confidence, Suggested Fix).\r\n\r\n#### Single Issue (using `/comments` endpoint)\r\n\r\nWhen using `gh api repos/{owner}/{repo}/pulls/{pr_number}/comments`, post just one line-specific comment using the template above.\r\n\r\n**Note for linking to code:**\r\n\r\n- Use full git sha + line range, eg. `https://github.com/owner/repo/blob/1d54823877c4de72b2316a64032a54afc404e619/README.md#L13-L17`\r\n- Line range format is `L[start]-L[end]`\r\n- Provide at least 1 line of context before and after\r\n\r"
+  }
+}
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/.claude/rules-t3/review-templates.md","head":260})
+filesystem.read_text_file({"path":"C:/Users/Administrator/.claude/rules-t3/review-templates.md","head":260}) success in 64ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "# 审查工作流模板与流程\r\n\r\n> 从全局 CLAUDE.md 抽取。T3/T4 执行会话按需读取。\r\n\r\n## 流程编排\r\n\r\n### T3（2 窗口）\r\n\r\n```\r\n① Claude: Design → Plan → commit (draft)\r\n② GPT Codex: Plan Review → plan-review.md (Gate 1)\r\n③ Claude: 处置 finding → commit (final plan) → Execute → 自审交接单\r\n④ GPT Codex: Code Review（全量，codex exec）→ review-report.md (Gate 2)\r\n⑤ Gate: 所有 finding 已处置 → design.md 标记 [实现完成]\r\n```\r\n\r\n### T4（2 持久 + 一次性 Executor）\r\n\r\n```\r\n① Claude Planner: Design → Plan → commit (draft)\r\n② GPT Codex: Plan Review → plan-review.md (Gate 1)\r\n③ Claude Planner: 处置 finding → commit (final plan) → 派发\r\n④ Per batch:\r\n   a. Claude Executor: Execute → 审查交接单\r\n   b. GPT Codex: Code Review → review-report.md (Gate 2)\r\n   c. FAIL → 修复 → 重审（每批最多 3 轮）\r\n      - Round 1-2: Executor 修复所有 finding\r\n      - 2 轮后仍 FAIL → Planner 介入分类处��：\r\n        · code-bug → 修复后提交 Round 3\r\n        · design-concern → 记入 design.md §待处置，不阻塞\r\n      - Round 3 仅审 code-bug 和 test-gap 修复\r\n⑤ GPT Codex: Integration Review → integration-review.md (Gate 3)\r\n   （单批次 T4 可用扩展批次审查替代，须包含最小集成清单）\r\n⑥ Claude Planner: Reconciliation (Gate 4)\r\n```\r\n\r\n## Planner 流程\r\n\r\n1. brainstorming→design.md + writing-plans→plan.md + **git commit** + handoff-card\r\n2. **codex-review (plan)** (Gate 1): `codex exec` 审计划 → 处置 finding → commit final plan\r\n3. 每批次：执行指令→Executor→审查交接单→**codex-review (code)** (Gate 2)→Planner（PASS→下批/FAIL→修复）\r\n4. T4: codex-review (integration) (Gate 3)\r\n5. 所有 Gate 通过：reconciliation→design.md 对齐→Planner 关闭\r\n\r\n## 格式模板\r\n\r\n> 时间戳必须精确到秒。填写前先运行 `date '+%Y-%m-%d %H:%M:%S'` 获取北京时间，禁止只写日期。\r\n\r\n**执行指令：**\r\n> ��出前先运行 `date '+%Y-%m-%d %H:%M:%S'`，将结果填入下方时间戳。\r\n```\r\n[{project}] Executor | {YYYY-MM-DD HH:MM:SS}\r\n项目: {绝对路径}  读取 {handoff绝对路径}，按 {plan绝对路径} Task {N}-{M} 执行。使用 executing-plans skill。完成后输出审查交接单。\r\n```\r\n\r\n**审查交接单：**\r\n> 输出前先运行 `date '+%Y-%m-%d %H:%M:%S'`，将结果填入下方时间戳。\r\n> **持久化**：写入 `docs/plans/{topic}-review-handoff-batch{N}.md` 并 `git commit -m \"review: {topic} batch {N} 审查交接单\"`。\r\n```\r\n[{project}] Executor→Reviewer | {YYYY-MM-DD HH:MM:SS}\r\n## 审查交接单: Task {N}-{M}\r\n计划: {plan绝对路径}\r\n\r\n### 逐 Task 自审\r\n| Task | 计划要求 | 实际执行 | 状态 | 说明 |\r\n|------|---------|---------|------|------|\r\n| T{N} | {一句话} | commit {hash}, {一句话} | ✅/❌/🔀 | {❌: 偏差原因, 🔀: 改进内容（必填）} |\r\n\r\n> 状态: ✅一致 / ❌不一致 / 🔀改进（实现优于计划，必须记录具体变��内容）\r\n\r\n### 预审自检（送审前必填，无此表不允许提交 codex-review）\r\n| 测试契约 slice | 对应测试文件:函数 | 验证命令 | 实际输出（pass/fail + 关键行） | 反证验证（删除核心逻辑后测试是否 fail） |\r\n|---------------|------------------|---------|------------------------------|---------------------------------------|\r\n| {slice 1} | {test_file::test_func} | `{命令}` | {粘贴输出} | {删除 X 行后测试报 Y 错误 / 不适用：已有测试非本次新增} |\r\n\r\n### 验证清单自检\r\n（原样列出该批次审查清单，Executor 自己逐项标 ✅/❌ + 证据）\r\n\r\n### 根因分析（bug fix 时必填，非 bug fix 跳过）\r\n- **症状**: {用户看到什么 / 测试怎么失败}\r\n- **根因**: {根本原因，不是症状重述}\r\n- **证据**: {定位依据——Grep / 日志 / 调试输出 / 数据流追踪}\r\n- **影响面** (scope check):\r\n  - 同模式: {相同代码模式是否还有别处}\r\n  - 同边界: {相同接口/数据边界���否还有别处}\r\n  - 同不变量: {相同业务假设是否还有别处}\r\n- **排除的假设**: {调查过但排除的备选根因，至少 1 个}\r\n\r\n### 自查（四要素格式）\r\n每项必须包含实测证据。不涉及的项写明原因可跳过，涉及的项禁止只写结论。\r\n\r\n- 新增文件的边界 case：\r\n  构造输入: {具体输入数据或场景描述}\r\n  运行命令: `{粘贴实际执行的命令}`\r\n  实际输出:\r\n  ```\r\n  {粘贴终端输出，禁止用自然语言描述替代}\r\n  ```\r\n  结论: {基于上面输出的判断}\r\n- 状态变量/锁的异常路径：\r\n  构造输入: {具体输入数据或场景描述}\r\n  运行命令: `{粘贴实际执行的命令}`\r\n  实际输出:\r\n  ```\r\n  {粘贴终端输出，禁止用自然语言描述替代}\r\n  ```\r\n  结论: {基于上面输出的判断}\r\n- 字符串匹配/条件判断的假阴性：\r\n  构造输入: {具体输入数据或场景描述}\r\n  运行命令: `{粘贴实际执行的命令}`\r\n  实际输出:\r\n  ```\r\n  {粘贴终端输出，禁止用自然语言描述替代}\r\n  ```\r\n  结论: {基于上面输出的判断}\r\n\r\n### 语义回归自检（仅 semantic_risk=true 时必填）\r\n\r\n> semantic_risk 由 change_auth.infer_semantic_risk() 自动检测。Claude 可升级但不可降级。\r\n\r\n| Oracle ID | Type | 验证命令 | 实际输出 | 结论 |\r\n|-----------|------|----------|----------|------|\r\n| ORC-NNN | temporal_trace / forbidden_strategy | `{粘贴实际命令}` | {粘贴输出} | ✅/❌ |\r\n\r\n### Fix Card（仅 semantic_risk=true + 实现 review fix 时必填）\r\n- **root_cause**: {这次真要修的是什么}\r\n- **preserved_invariants**: {ORC-NNN 列表}\r\n- **non_goals**: {明确不改变什么——最关键字段}\r\n- **allowed_change_surface**: {允许改哪些模块/函数}\r\n- **verification**: {跑哪些 oracle 命令}\r\n\r\nsemantic_risk=true + oracle 为空（risk_tags 未被任何 oracle.protects 覆盖）→ blocked，必须先补 oracle。\r\n\r\n使用 codex-review skill 进行 GPT 代码审查。\r\n```\r\n\r\n**审查报告：**\r\n> 输出前先运行 `date '+%Y-%m-%d %H:%M:%S'`，将结果填入下方时间戳。\r\n> **持久化**：写入 `docs/plans/{topic}-review-report-batch{N}.md` 并 `git commit -m \"review: {topic} batch {N} 审查报告 {PASS/FAIL}\"`。\r\n```\r\n[{project}] GPT Reviewer | {填入时间戳}\r\n<!-- anchor: finding-classification -->\r\n## 审查报告: Task {N}-{M}\r\n结论: PASS / FAIL\r\n\r\n### 第一段：测试充分性（Test Adequacy）\r\n先审测试，再审实现。没有有效测试 → 不进入深层代码审查，直接退回。\r\n- plan 中声明的边界条件是否都有对应测试\r\n- 是否存在\"只测 happy path\"的问题\r\n- bug fix 是否有回归测试\r\n- 接口变更是否有 contract/compatibility 测试\r\n- 测试是否真的会在错误实现下失败（非 tautology）\r\n\r\n### 第二段：行为正确性（Behavioral Correctness）\r\n- 变更理解：GPT 用自己的话描述变更内容和意图\r\n- Executor 自审抽检：从自审表随机抽 2-3 项独立验证。不实 → 直接 FAIL\r\n- 对抗性审查：边界输入构造 / 异常路径追踪 / 假阴性检测\r\n\r\n### 第三段：未测试风险（Non-tested Risks）\r\n- 未被测试覆盖的副作用：状态、并发、异常、权限、幂等性、时区、空值、重复提交\r\n- 实现是否只为过测试而过拟合（测试通过但逻辑不通用）\r\n\r\n### 发现清单\r\n\r\n每个 finding 必须标注 Category:\r\n\r\n| Category | 含义 | 阻塞 PASS? |\r\n|----------|------|-----------:|\r\n| code-bug | 代码实现缺陷（逻辑错误、异常未处理、边界遗漏）| HIGH/MED 未修复 → FAIL |\r\n| test-gap | 测试缺失或不充分（缺回归测试、只测 happy path、边界未覆盖）| HIGH/MED 未修复 → FAIL |\r\n| design-concern | 设计决策质疑（架构选型、优先级、接口设计）| 不阻塞，Planner 处置 |\r\n| suggestion | 改进建议（代码风格、命名、可选优化）| 不阻塞 |\r\n\r\n<!-- anchor: pass-fail -->\r\nPASS/FAIL 判定：code-bug 或 test-gap 的 HIGH/MED 未修复 → FAIL。\r\ndesign-concern 和 suggestion 不影响判定，由 Planner 在 design.md 中处置。\r\n\r\n<!-- anchor: finding-type -->\r\n每个 finding 必须标注 Type（与 Category 正交，独立维度）:\r\n\r\n| Type | 含义 | 处置流程 |\r\n|------|------|---------|\r\n| defect_fix | 修复已有缺陷（bug、测试缺失、口径错误）| 常规处置，可批量 |\r\n| behavior_change | 引入用户未要求的新行为（新机制、新策略、新默认值）| 必须单独确认 |\r\n\r\n禁止混合：一个 finding 不能同时是 defect_fix 和 behavior_change。混合项必须拆分为两个独立 finding。\r\n\r\nBefore-behavior / After-behavior 字段（必填）：\r\n- defect_fix: before = 当前错误行为，after = 修复后正确行为\r\n- behavior_change: before = 当前正常行为，after = 建议的新行为\r\n\r\nInv-conflict 字段（选填）：none / possible / direct（直接违反时须标明哪条不变量）\r\n\r\n（结构化 finding 字段：ID / Severity / Category / Type / Before-behavior / After-behavior / Inv-conflict / Evidence / Impact / Repair hypothesis（可选，非权威））\r\n\r\n### 行为变更审批记录（存在 behavior_change finding 时必填）\r\n\r\n| Finding ID | 行为变更摘要 | 用户决定 | 理由 |\r\n|-----------|-------------|---------|------|\r\n| F00X | {after_behavior 一句话} | approved/rejected | {用户原话或摘要} |\r\n\r\n```\r\n\r\n## 叠加规则\r\n\r\n**writing-plans:** 每个 Task 末尾必须有 `**审查清单:**`（✓正向 / ✗反向 / 关键行为）。含逻辑/算法的 Task 还必须有 `**边界条件:**` 段，列出至少 3 个边界输入及期望行为：\r\n\r\n```markdown\r\n**边界条件:**\r\n- 空输入（[] / None / \"\"）→ 期望: 返回空结果，不抛异常\r\n- 单元素 → 期望: 正常处理，不触发批量逻辑的 off-by-one\r\n- 溢出/极值 → 期望: {具体行为，如 clamp/raise/降级}\r\n```\r\n\r\n边界条件是 Executor 的测试规格——Task 里写了什么，Executor 就测什么。没写的边界条件 = Executor 不会测 = 审查时才发现 = 多轮循环。\r\n\r\n含行为变更的 Task 还必须有 `**测试契约:**` 段（替代旧 Testable Slices），每个 slice 必须包含 5 个字段：\r\n\r\n```markdown\r\n**测试契约:**\r\n1. 空输入返回空结果\r\n   - 入口: `POST /api/data` body=`{items: []}`\r\n   - 反例: 错误实现会抛 IndexError 而非返回空——本测试捕获此错误\r\n   - 边界: 空列表 / None / 缺失 key\r\n   - 回归: 防止 #issue-42 的空指针复发\r\n   - 命令: `pytest tests/test_data.py::test_empty_input -v`\r\n2. 溢出时 raise ValueError\r\n   - 入口: `parse_score(999999)`\r\n   - 反例: 错误实现会静默截断——本测试验证异常抛出\r\n   - 边界: MAX_INT / 负数 / 非数字字符串\r\n   - 回归: N/A\r\n   - 命令: `pytest tests/test_data.py::test_overflow -v`\r\n```\r\n\r\n**字段说明**（Executor 必须逐字段填写，不能只列测试名）：\r\n- **入口**: 通过哪个 API/CLI/函数入口验证（不是内部函数，是用户可触达的入口）\r\n- **反例**: 错误实现会怎样失败，这��测试为什么能抓住（不能只写\"验证正确性\"）\r\n- **边界**: 空值/单元素/极值/异常路径的具体输入\r\n- **回归**: 修复后必须防止哪类旧错误复发（无则写 N/A）\r\n- **命令**: 实际要执行的验证命令\r\n\r\n每个 slice 是一个 Red→Green→Refactor 循环单位。Executor 按 slice 顺序推进，不是一次写完所有代码再补测试。\r\n\r\n**writing-plans 收尾:** Gate 1 通过后，Planner 生成 `docs/plans/{topic}-state.json`（权威任务状态 sidecar）并 commit：\r\n\r\n```json\r\n{\r\n  \"topic\": \"{topic}\",\r\n  \"plan_file\": \"docs/plans/{topic}-plan.md\",\r\n  \"design_file\": \"docs/plans/{topic}-design.md\",\r\n  \"tasks\": [\r\n    {\"id\": \"1\", \"desc\": \"任务描述\", \"status\": \"pending\"}\r\n  ],\r\n  \"updated_at\": \"YYYY-MM-DD HH:MM:SS\"\r\n}\r\n```\r\n\r\nstatus 取值：`pending` | `in_progress` | `completed` | `failed`。同一时刻只允许一个 `in_progress`。\r\n\r\n**executing-plans:** 每个 Task 开始时将其 status 改为 `in_progress`，完成后改为 `completed`���更新 `updated_at`，commit state.json。批次完成后输出审查交接单（含逐 Task 自审表 + 验证清单自检 + 自查段）。自审表「状态」列每行必填（✅/❌/🔀）。🔀 行必须写清具体变更内容。**T3 收尾**：所有批次完成后，在 design.md 头部（§0 之后）追加 `> [YYYY-MM-DD HH:MM:SS 实现完成] Commits: {first}..{last}`，然后 commit。\r"
+    }
+  ],
+  "structuredContent": {
+    "content": "# 审查工作流模板与流程\r\n\r\n> 从全局 CLAUDE.md 抽取。T3/T4 执行会话按需读取。\r\n\r\n## 流程编排\r\n\r\n### T3（2 窗口）\r\n\r\n```\r\n① Claude: Design → Plan → commit (draft)\r\n② GPT Codex: Plan Review → plan-review.md (Gate 1)\r\n③ Claude: 处置 finding → commit (final plan) → Execute → 自审交接单\r\n④ GPT Codex: Code Review（全量，codex exec）→ review-report.md (Gate 2)\r\n⑤ Gate: 所有 finding 已处置 → design.md 标记 [实现完成]\r\n```\r\n\r\n### T4（2 持久 + 一次性 Executor）\r\n\r\n```\r\n① Claude Planner: Design → Plan → commit (draft)\r\n② GPT Codex: Plan Review → plan-review.md (Gate 1)\r\n③ Claude Planner: 处置 finding → commit (final plan) → 派发\r\n④ Per batch:\r\n   a. Claude Executor: Execute → 审查交接单\r\n   b. GPT Codex: Code Review → review-report.md (Gate 2)\r\n   c. FAIL → 修复 → 重审（每批最多 3 轮）\r\n      - Round 1-2: Executor 修复所有 finding\r\n      - 2 轮后仍 FAIL → Planner 介入分类处��：\r\n        · code-bug → 修复后提交 Round 3\r\n        · design-concern → 记入 design.md §待处置，不阻塞\r\n      - Round 3 仅审 code-bug 和 test-gap 修复\r\n⑤ GPT Codex: Integration Review → integration-review.md (Gate 3)\r\n   （单批次 T4 可用扩展批次审查替代，须包含最小集成清单）\r\n⑥ Claude Planner: Reconciliation (Gate 4)\r\n```\r\n\r\n## Planner 流程\r\n\r\n1. brainstorming→design.md + writing-plans→plan.md + **git commit** + handoff-card\r\n2. **codex-review (plan)** (Gate 1): `codex exec` 审计划 → 处置 finding → commit final plan\r\n3. 每批次：执行指令→Executor→审查交接单→**codex-review (code)** (Gate 2)→Planner（PASS→下批/FAIL→修复）\r\n4. T4: codex-review (integration) (Gate 3)\r\n5. 所有 Gate 通过：reconciliation→design.md 对齐→Planner 关闭\r\n\r\n## 格式模板\r\n\r\n> 时间戳必须精确到秒。填写前先运行 `date '+%Y-%m-%d %H:%M:%S'` 获取北京时间，禁止只写日期。\r\n\r\n**执行指令：**\r\n> ��出前先运行 `date '+%Y-%m-%d %H:%M:%S'`，将结果填入下方时间戳。\r\n```\r\n[{project}] Executor | {YYYY-MM-DD HH:MM:SS}\r\n项目: {绝对路径}  读取 {handoff绝对路径}，按 {plan绝对路径} Task {N}-{M} 执行。使用 executing-plans skill。完成后输出审查交接单。\r\n```\r\n\r\n**审查交接单：**\r\n> 输出前先运行 `date '+%Y-%m-%d %H:%M:%S'`，将结果填入下方时间戳。\r\n> **持久化**：写入 `docs/plans/{topic}-review-handoff-batch{N}.md` 并 `git commit -m \"review: {topic} batch {N} 审查交接单\"`。\r\n```\r\n[{project}] Executor→Reviewer | {YYYY-MM-DD HH:MM:SS}\r\n## 审查交接单: Task {N}-{M}\r\n计划: {plan绝对路径}\r\n\r\n### 逐 Task 自审\r\n| Task | 计划要求 | 实际执行 | 状态 | 说明 |\r\n|------|---------|---------|------|------|\r\n| T{N} | {一句话} | commit {hash}, {一句话} | ✅/❌/🔀 | {❌: 偏差原因, 🔀: 改进内容（必填）} |\r\n\r\n> 状态: ✅一致 / ❌不一致 / 🔀改进（实现优于计划，必须记录具体变��内容）\r\n\r\n### 预审自检（送审前必填，无此表不允许提交 codex-review）\r\n| 测试契约 slice | 对应测试文件:函数 | 验证命令 | 实际输出（pass/fail + 关键行） | 反证验证（删除核心逻辑后测试是否 fail） |\r\n|---------------|------------------|---------|------------------------------|---------------------------------------|\r\n| {slice 1} | {test_file::test_func} | `{命令}` | {粘贴输出} | {删除 X 行后测试报 Y 错误 / 不适用：已有测试非本次新增} |\r\n\r\n### 验证清单自检\r\n（原样列出该批次审查清单，Executor 自己逐项标 ✅/❌ + 证据）\r\n\r\n### 根因分析（bug fix 时必填，非 bug fix 跳过）\r\n- **症状**: {用户看到什么 / 测试怎么失败}\r\n- **根因**: {根本原因，不是症状重述}\r\n- **证据**: {定位依据——Grep / 日志 / 调试输出 / 数据流追踪}\r\n- **影响面** (scope check):\r\n  - 同模式: {相同代码模式是否还有别处}\r\n  - 同边界: {相同接口/数据边界���否还有别处}\r\n  - 同不变量: {相同业务假设是否还有别处}\r\n- **排除的假设**: {调查过但排除的备选根因，至少 1 个}\r\n\r\n### 自查（四要素格式）\r\n每项必须包含实测证据。不涉及的项写明原因可跳过，涉及的项禁止只写结论。\r\n\r\n- 新增文件的边界 case：\r\n  构造输入: {具体输入数据或场景描述}\r\n  运行命令: `{粘贴实际执行的命令}`\r\n  实际输出:\r\n  ```\r\n  {粘贴终端输出，禁止用自然语言描述替代}\r\n  ```\r\n  结论: {基于上面输出的判断}\r\n- 状态变量/锁的异常路径：\r\n  构造输入: {具体输入数据或场景描述}\r\n  运行命令: `{粘贴实际执行的命令}`\r\n  实际输出:\r\n  ```\r\n  {粘贴终端输出，禁止用自然语言描述替代}\r\n  ```\r\n  结论: {基于上面输出的判断}\r\n- 字符串匹配/条件判断的假阴性：\r\n  构造输入: {具体输入数据或场景描述}\r\n  运行命令: `{粘贴实际执行的命令}`\r\n  实际输出:\r\n  ```\r\n  {粘贴终端输出，禁止用自然语言描述替代}\r\n  ```\r\n  结论: {基于上面输出的判断}\r\n\r\n### 语义回归自检（仅 semantic_risk=true 时必填）\r\n\r\n> semantic_risk 由 change_auth.infer_semantic_risk() 自动检测。Claude 可升级但不可降级。\r\n\r\n| Oracle ID | Type | 验证命令 | 实际输出 | 结论 |\r\n|-----------|------|----------|----------|------|\r\n| ORC-NNN | temporal_trace / forbidden_strategy | `{粘贴实际命令}` | {粘贴输出} | ✅/❌ |\r\n\r\n### Fix Card（仅 semantic_risk=true + 实现 review fix 时必填）\r\n- **root_cause**: {这次真要修的是什么}\r\n- **preserved_invariants**: {ORC-NNN 列表}\r\n- **non_goals**: {明确不改变什么——最关键字段}\r\n- **allowed_change_surface**: {允许改哪些模块/函数}\r\n- **verification**: {跑哪些 oracle 命令}\r\n\r\nsemantic_risk=true + oracle 为空（risk_tags 未被任何 oracle.protects 覆盖）→ blocked，必须先补 oracle。\r\n\r\n使用 codex-review skill 进行 GPT 代码审查。\r\n```\r\n\r\n**审查报告：**\r\n> 输出前先运行 `date '+%Y-%m-%d %H:%M:%S'`，将结果填入下方时间戳。\r\n> **持久化**：写入 `docs/plans/{topic}-review-report-batch{N}.md` 并 `git commit -m \"review: {topic} batch {N} 审查报告 {PASS/FAIL}\"`。\r\n```\r\n[{project}] GPT Reviewer | {填入时间戳}\r\n<!-- anchor: finding-classification -->\r\n## 审查报告: Task {N}-{M}\r\n结论: PASS / FAIL\r\n\r\n### 第一段：测试充分性（Test Adequacy）\r\n先审测试，再审实现。没有有效测试 → 不进入深层代码审查，直接退回。\r\n- plan 中声明的边界条件是否都有对应测试\r\n- 是否存在\"只测 happy path\"的问题\r\n- bug fix 是否有回归测试\r\n- 接口变更是否有 contract/compatibility 测试\r\n- 测试是否真的会在错误实现下失败（非 tautology）\r\n\r\n### 第二段：行为正确性（Behavioral Correctness）\r\n- 变更理解：GPT 用自己的话描述变更内容和意图\r\n- Executor 自审抽检：从自审表随机抽 2-3 项独立验证。不实 → 直接 FAIL\r\n- 对抗性审查：边界输入构造 / 异常路径追踪 / 假阴性检测\r\n\r\n### 第三段：未测试风险（Non-tested Risks）\r\n- 未被测试覆盖的副作用：状态、并发、异常、权限、幂等性、时区、空值、重复提交\r\n- 实现是否只为过测试而过拟合（测试通过但逻辑不通用）\r\n\r\n### 发现清单\r\n\r\n每个 finding 必须标注 Category:\r\n\r\n| Category | 含义 | 阻塞 PASS? |\r\n|----------|------|-----------:|\r\n| code-bug | 代码实现缺陷（逻辑错误、异常未处理、边界遗漏）| HIGH/MED 未修复 → FAIL |\r\n| test-gap | 测试缺失或不充分（缺回归测试、只测 happy path、边界未覆盖）| HIGH/MED 未修复 → FAIL |\r\n| design-concern | 设计决策质疑（架构选型、优先级、接口设计）| 不阻塞，Planner 处置 |\r\n| suggestion | 改进建议（代码风格、命名、可选优化）| 不阻塞 |\r\n\r\n<!-- anchor: pass-fail -->\r\nPASS/FAIL 判定：code-bug 或 test-gap 的 HIGH/MED 未修复 → FAIL。\r\ndesign-concern 和 suggestion 不影响判定，由 Planner 在 design.md 中处置。\r\n\r\n<!-- anchor: finding-type -->\r\n每个 finding 必须标注 Type（与 Category 正交，独立维度）:\r\n\r\n| Type | 含义 | 处置流程 |\r\n|------|------|---------|\r\n| defect_fix | 修复已有缺陷（bug、测试缺失、口径错误）| 常规处置，可批量 |\r\n| behavior_change | 引入用户未要求的新行为（新机制、新策略、新默认值）| 必须单独确认 |\r\n\r\n禁止混合：一个 finding 不能同时是 defect_fix 和 behavior_change。混合项必须拆分为两个独立 finding。\r\n\r\nBefore-behavior / After-behavior 字段（必填）：\r\n- defect_fix: before = 当前错误行为，after = 修复后正确行为\r\n- behavior_change: before = 当前正常行为，after = 建议的新行为\r\n\r\nInv-conflict 字段（选填）：none / possible / direct（直接违反时须标明哪条不变量）\r\n\r\n（结构化 finding 字段：ID / Severity / Category / Type / Before-behavior / After-behavior / Inv-conflict / Evidence / Impact / Repair hypothesis（可选，非权威））\r\n\r\n### 行为变更审批记录（存在 behavior_change finding 时必填）\r\n\r\n| Finding ID | 行为变更摘要 | 用户决定 | 理由 |\r\n|-----------|-------------|---------|------|\r\n| F00X | {after_behavior 一句话} | approved/rejected | {用户原话或摘要} |\r\n\r\n```\r\n\r\n## 叠加规则\r\n\r\n**writing-plans:** 每个 Task 末尾必须有 `**审查清单:**`（✓正向 / ✗反向 / 关键行为）。含逻辑/算法的 Task 还必须有 `**边界条件:**` 段，列出至少 3 个边界输入及期望行为：\r\n\r\n```markdown\r\n**边界条件:**\r\n- 空输入（[] / None / \"\"）→ 期望: 返回空结果，不抛异常\r\n- 单元素 → 期望: 正常处理，不触发批量逻辑的 off-by-one\r\n- 溢出/极值 → 期望: {具体行为，如 clamp/raise/降级}\r\n```\r\n\r\n边界条件是 Executor 的测试规格——Task 里写了什么，Executor 就测什么。没写的边界条件 = Executor 不会测 = 审查时才发现 = 多轮循环。\r\n\r\n含行为变更的 Task 还必须有 `**测试契约:**` 段（替代旧 Testable Slices），每个 slice 必须包含 5 个字段：\r\n\r\n```markdown\r\n**测试契约:**\r\n1. 空输入返回空结果\r\n   - 入口: `POST /api/data` body=`{items: []}`\r\n   - 反例: 错误实现会抛 IndexError 而非返回空——本测试捕获此错误\r\n   - 边界: 空列表 / None / 缺失 key\r\n   - 回归: 防止 #issue-42 的空指针复发\r\n   - 命令: `pytest tests/test_data.py::test_empty_input -v`\r\n2. 溢出时 raise ValueError\r\n   - 入口: `parse_score(999999)`\r\n   - 反例: 错误实现会静默截断——本测试验证异常抛出\r\n   - 边界: MAX_INT / 负数 / 非数字字符串\r\n   - 回归: N/A\r\n   - 命令: `pytest tests/test_data.py::test_overflow -v`\r\n```\r\n\r\n**字段说明**（Executor 必须逐字段填写，不能只列测试名）：\r\n- **入口**: 通过哪个 API/CLI/函数入口验证（不是内部函数，是用户可触达的入口）\r\n- **反例**: 错误实现会怎样失败，这��测试为什么能抓住（不能只写\"验证正确性\"）\r\n- **边界**: 空值/单元素/极值/异常路径的具体输入\r\n- **回归**: 修复后必须防止哪类旧错误复发（无则写 N/A）\r\n- **命令**: 实际要执行的验证命令\r\n\r\n每个 slice 是一个 Red→Green→Refactor 循环单位。Executor 按 slice 顺序推进，不是一次写完所有代码再补测试。\r\n\r\n**writing-plans 收尾:** Gate 1 通过后，Planner 生成 `docs/plans/{topic}-state.json`（权威任务状态 sidecar）并 commit：\r\n\r\n```json\r\n{\r\n  \"topic\": \"{topic}\",\r\n  \"plan_file\": \"docs/plans/{topic}-plan.md\",\r\n  \"design_file\": \"docs/plans/{topic}-design.md\",\r\n  \"tasks\": [\r\n    {\"id\": \"1\", \"desc\": \"任务描述\", \"status\": \"pending\"}\r\n  ],\r\n  \"updated_at\": \"YYYY-MM-DD HH:MM:SS\"\r\n}\r\n```\r\n\r\nstatus 取值：`pending` | `in_progress` | `completed` | `failed`。同一时刻只允许一个 `in_progress`。\r\n\r\n**executing-plans:** 每个 Task 开始时将其 status 改为 `in_progress`，完成后改为 `completed`���更新 `updated_at`，commit state.json。批次完成后输出审查交接单（含逐 Task 自审表 + 验证清单自检 + 自查段）。自审表「状态」列每行必填（✅/❌/🔀）。🔀 行必须写清具体变更内容。**T3 收尾**：所有批次完成后，在 design.md 头部（§0 之后）追加 `> [YYYY-MM-DD HH:MM:SS 实现完成] Commits: {first}..{last}`，然后 commit。\r"
+  }
+}
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff d300263~1..d300263' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git log --oneline d300263~1..d300263' in C:/Users/Administrator/edu-cloud succeeded in 8.49s:
+diff --git a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py b/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+index e9f0789..f10e750 100644
+--- a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+@@ -57,13 +57,16 @@ def get_exam_items(
+         if not das:
+             return {"total": 0, "items": [], "page": page, "page_size": page_size}
+ 
+-        # 2. 找所有关联 item_id（去重 + 稳定排序）
++        # 2. 找所有关联 item_id（去重 + INNER JOIN 过滤 + 稳定排序）
++        # INNER JOIN assessment_items：q_matrix 引用 assessment_items 不存在 id 时
++        # 在分页前过滤掉，保证 total/page_ids/items 三者一致（N001 修复）
+         # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动
+         placeholders = ",".join("?" * len(das))
+         item_ids_rows = conn.execute(
+-            f"SELECT DISTINCT item_id FROM q_matrix "
+-            f"WHERE attribute_id IN ({placeholders}) "
+-            f"ORDER BY item_id ASC",
++            f"SELECT DISTINCT q.item_id FROM q_matrix q "
++            f"INNER JOIN assessment_items a ON q.item_id = a.id "
+ succeeded in 8.45s:
+d300263 fix(knowledge-tree): Batch 2 R3 — N001 INNER JOIN total/items 一致性
+codex
+规则已经读取。接下来我补全计划上下文、当前文件全文和父提交实现，对 N001 的修复路径、边界行为和新增测试的杀伤力做独立验证。
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-04-13-knowledge-graph-phase1-plan.md","head":260})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/docs/plans/2026-04-13-knowledge-graph-phase1-plan.md","head":260}) success in 42ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "# 知识图谱深度优化 Phase 1 实施计划\r\n\r\n> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.\r\n\r\n**Goal:** 暴露 knowledge.db 中已有但未使用的数据资产（考频、教材章节、MCU 规划权重、StudyUnit），让教师打开知识图谱立刻看到\"什么重要、什么考、怎么学\"。\r\n\r\n**Architecture:** 在 edu-cloud PG 新增 `concept_stats` 计算表（投影自 knowledge.db + MCU），启动时全量计算 + 编辑后增量刷新；Graph API 扩展返回统计指标；前端节点视觉升级为大小编码重要度 + 热力着色 + 详情面板新增标签页。\r\n\r\n**Tech Stack:** Python 3.11 / FastAPI / SQLAlchemy 2.0 async / Alembic / PostgreSQL / SQLite（只读 knowledge.db）/ Vue 3.5 / AntV G6 6.x / Vitest\r\n\r\n**设计文档:** `docs/plans/2026-04-12-knowledge-graph-optimization-design.md`\r\n\r\n**Phase 1 范围:** 数据暴露（不含图谱边增强、教学��划、学生画像 —— 后续 Phase 2/3/4）\r\n\r\n---\r\n\r\n## 文件结构\r\n\r\n### 后端新建\r\n\r\n| 文件 | 职责 |\r\n|------|------|\r\n| `src/edu_cloud/modules/knowledge_tree/stats_service.py` | concept_stats 计算（考频/章节/重要度/深度） |\r\n| `src/edu_cloud/modules/knowledge_tree/exam_items_service.py` | 概念→高考真题查询 |\r\n| `scripts/import_mcu_planning_weights.py` | MCU CP→kb concept 映射 + 权重导入（一次性脚本） |\r\n| `alembic/versions/<hash>_add_concept_stats.py` | concept_stats 表迁移 |\r\n| `tests/test_knowledge_tree/test_stats_service.py` | stats 计算单测 |\r\n| `tests/test_knowledge_tree/test_exam_items_service.py` | 高考题查询单测 |\r\n| `tests/test_knowledge_tree/test_mcu_import.py` | MCU 映射脚本单测 |\r\n| `tests/test_knowledge_tree/test_graph_v3.py` | Graph API v3 字段测试 |\r\n\r\n### 后端修改\r\n\r\n| 文件 | 修改 |\r\n|------|------|\r\n| `src/edu_cloud/modules/knowledge_tree/models.py` | +ConceptStats 模型 |\r\n| `src/edu_cloud/modules/knowledge_tree/service.py` | get_graph 合并 stats |\r\n| `src/edu_cloud/modules/knowledge_tree/sync_service.py` | 同步后触发 stats 重算 |\r\n| `src/edu_cloud/modules/knowledge_tree/router.py` | +3 新端点 |\r\n| `src/edu_cloud/modules/knowledge_tree/schemas.py` | +ExamItem/StatsOverview 响应 |\r\n| `src/edu_cloud/api/app.py` | lifespan 触发 stats 初始化 |\r\n\r\n### 前端新建\r\n\r\n| 文件 | 职责 |\r\n|------|------|\r\n| `frontend/src/components/knowledge-tree/ColorModeToggle.vue` | 着色模式切换（考频/掌握度/审核状态） |\r\n| `frontend/src/components/knowledge-tree/ExamItemsTab.vue` | 详情面板高考真题标签页 |\r\n| `frontend/src/components/knowledge-tree/StudyUnitTab.vue` | 详情面板学习单元标签页 |\r\n| `frontend/src/components/knowledge-tree/heatmapUtils.js` | 考频→颜色映射工具函数 |\r\n| `frontend/src/components/knowledge-tree/__tests__/ColorModeToggle.test.js` | 单测 |\r\n| `frontend/src/components/knowledge-tree/__tests__/heatmapUtils.test.js` | 单测 |\r\n\r\n### ��端修改\r\n\r\n| 文件 | 修改 |\r\n|------|------|\r\n| `frontend/src/components/knowledge-tree/ConceptMapPanel.vue` | 节点 size ∝ importance，fill 由 colorMode 决定 |\r\n| `frontend/src/components/knowledge-tree/NodeDetailDrawer.vue` | +2 标签页 |\r\n| `frontend/src/components/knowledge-tree/TreeNavPanel.vue` | 导航模式切换（模块/教材章节） |\r\n| `frontend/src/components/knowledge-tree/useKnowledgeTree.js` | +loadChapterNav, +loadExamItems, +colorMode state |\r\n| `frontend/src/api/knowledgeTree.js` | +getExamItems, +getStatsOverview |\r\n| `frontend/src/components/knowledge-tree/ModuleOverviewPanel.vue` | 卡片增加考频/覆盖率统计 |\r\n\r\n---\r\n\r\n## 测试契约汇总\r\n\r\n| Slice | 入口 | 反例 | 边界 | 回归 |\r\n|-------|------|------|------|------|\r\n| S1 concept_stats 模型 | migration upgrade/downgrade | 表名冲突/字段缺失 | FK 级联、NOT NULL 约束 | N/A |\r\n| S2 考频计算 | compute_exam_frequency(db) | 错误实现会把 L0 计入 | 零考频概念 / 单 DA 多概念 / 孤立概念 | N/A |\r\n| S3 教材章节聚合 | compute_textbook_chapters(db) | 不回溯 evidence 会漏 89.5% 映射 | evidence 为空 / 跨册概念 / section 缺失 | N/A |\r\n| S4 重要度计算 | compute_importance_score(stats) | 不归一化会让高考频概念独占高位 | 全零考频 / 全同考频 / 极值 | N/A |\r\n| S5 MCU 映射导入 | import_mcu_weights(db) | 匹配阈值过低会误关联 | 完全不匹配 / 同名歧义 | N/A |\r\n| S6 Graph API v3 | GET /graph response | 节点缺 exam_frequency 字段 | stats 表为空 / 部分概念无 stats | 原 v2 字段保留 |\r\n| S7 高考题查询 API | GET /graph/{id}/exam-items | 返回其他概念的题 | 概念无关联题 / 分页边界 | N/A |\r\n| S8 统计概览 API | GET /stats/overview | 覆盖率计算错误 | 单模块/全模块 | N/A |\r\n| S9 前端节点视觉 | ConceptMapPanel 渲染 | 节点大小不反映 importance | importance=0 的节点 / 全同节点 | 焦点模式不破坏 |\r\n| S10 着色模式切换 | ColorModeToggle 点击 | ���换后节点颜色未更新 | 切到掌握度但无学生 | 原状态保留 |\r\n| S11 详情面板标签页 | NodeDetailDrawer 打开 | 新标签页默认不显示 | 无 SU 关联 / 无题目关联 | 原标签页保留 |\r\n| S12 教材章节导航 | TreeNavPanel 切换模式 | 切换后树结构未变 | 概念跨多章 / 章节无概念 | 模块模式可回切 |\r\n\r\n---\r\n\r\n## Task 0: 环境准备与设计契约验证\r\n\r\n**Files:**\r\n- Read: `docs/plans/2026-04-12-knowledge-graph-optimization-design.md`\r\n- Read: `src/edu_cloud/modules/knowledge_tree/models.py`\r\n- Read: `src/edu_cloud/modules/knowledge_tree/service.py`\r\n- Read: `src/edu_cloud/modules/knowledge_tree/sync_service.py`\r\n\r\n**Steps:**\r\n\r\n- [ ] **Step 1: 确认 knowledge.db 可访问并验证数据链路**\r\n\r\nRun:\r\n```bash\r\ncd /c/Users/Administrator/edu-cloud\r\npython -c \"\r\nimport sqlite3, json\r\nconn = sqlite3.connect('C:/Users/Administrator/edu-knowledge-base/knowledge.db')\r\n# 抽一个概念验证完整链路\r\nc = conn.execute('SELECT id, name FROM concepts WHERE id=\\\"BIO_SR_CP_M1_PHOTOSYNTHESIS\\\"').fetchone()\r\nprint(f'Concept: {c}')\r\ndas = conn.execute('SELECT id FROM diagnostic_attributes WHERE linked_concept_ids LIKE ?', (f'%{c[0]}%',)).fetchall()\r\nprint(f'DAs: {len(das)}')\r\nda_ids = [d[0] for d in das]\r\nif da_ids:\r\n    p = ','.join('?'*len(da_ids))\r\n    items = conn.execute(f'SELECT COUNT(DISTINCT item_id) FROM q_matrix WHERE attribute_id IN ({p})', da_ids).fetchone()[0]\r\n    print(f'Items: {items}')\r\nconn.close()\r\n\"\r\n```\r\nExpected: 输出 `Concept: ('BIO_SR_CP_M1_PHOTOSYNTHESIS', '光合作用')` / `DAs: 4` / `Items: 1260`\r\n\r\n- [ ] **Step 2: 确认当前基线测试全部通过**\r\n\r\nRun:\r\n```bash\r\ncd /c/Users/Administrator/edu-cloud && python -m pytest tests/test_knowledge_tree/ --tb=short -q\r\n```\r\nExpected: 所有测试通过（当前 knowledge_tree 测试数约 200+ 条）\r\n\r\n- [ ] **Step 3: 创建 state sidecar**\r\n\r\nRun:\r\n```bash\r\npython -c \"\r\nimport json, datetime\r\nstate = {\r\n    'topic': '2026-04-13-knowledge-graph-phase1',\r\n    'plan_file': 'docs/plans/2026-04-13-knowledge-graph-phase1-plan.md',\r\n    'design_file': 'docs/plans/2026-04-12-knowledge-graph-optimization-design.md',\r\n    'tasks': [{'id': str(i), 'desc': f'Task {i}', 'status': 'pending'} for i in range(0, 15)],\r\n    'updated_at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')\r\n}\r\nwith open('docs/plans/2026-04-13-knowledge-graph-phase1-state.json', 'w', encoding='utf-8') as f:\r\n    json.dump(state, f, ensure_ascii=False, indent=2)\r\nprint('state.json created')\r\n\"\r\ngit add docs/plans/2026-04-13-knowledge-graph-phase1-state.json\r\ngit commit -m \"chore: Phase 1 state sidecar\"\r\n```\r\n\r\n---\r\n\r\n## Task 1: ConceptStats 模型 + Alembic 迁移\r\n\r\n**Files:**\r\n- Modify: `src/edu_cloud/modules/knowledge_tree/models.py`\r\n- Create: `alembic/versions/<timestamp>_add_concept_stats.py`\r\n- Create: `tests/test_knowledge_tree/test_models_stats.py`\r\n\r\n**测试契约:**\r\n\r\n1. ConceptStats 模型字段完整性\r\n   - 入口: `ConceptStats(concept_id='X', exam_frequency=100, ...)`\r\n   - 反例: 如果遗漏 `importance_score` 字段，后续服务无法计算和排序\r\n   - 边界: 所有字段有合理默认值（NULL 或 0）\r\n   - 回归: N/A（新表）\r\n   - 命令: `pytest tests/test_knowledge_tree/test_models_stats.py::test_concept_stats_instantiation -v`\r\n\r\n2. 迁移 upgrade/downgrade 对称性\r\n   - 入口: Alembic upgrade 创建表、downgrade 删除表\r\n   - 反例: 迁移只 upgrade 不 downgrade 会阻塞回滚\r\n   - 边界: FK 级联（concept 被删除时 stats 应级联删除）\r\n   - 回归: N/A\r\n   - 命令: `pytest tests/test_knowledge_tree/test_models_stats.py::test_migration_symmetric -v`\r\n\r\n**Steps:**\r\n\r\n- [ ] **Step 1: 写失败测试 — ConceptStats 模型实例化**\r\n\r\nCreate `tests/test_knowledge_tree/test_models_stats.py`:\r\n\r\n```python\r\n\"\"\"ConceptStats 模型测试\"\"\"\r\nimport pytest\r\nfrom datetime import datetime\r\nimport sqlalchemy as sa\r\nfrom edu_cloud.modules.knowledge_tree.models import (\r\n    ConceptStats, ConceptGraphNode,\r\n)\r\n\r\n\r\n@pytest.mark.asyncio\r\nasync def test_concept_stats_instantiation(db):\r\n    \"\"\"ConceptStats 可以实例化且所有设计字段存在\"\"\"\r\n    # 先创建 parent node\r\n    node = ConceptGraphNode(\r\n        id=\"TEST_CONCEPT_001\",\r\n        name=\"测试概念\",\r\n        knowledge_level=\"L1\",\r\n        primary_module=\"M1\",\r\n        synced_at=datetime.now(),\r\n    )\r\n    db.add(node)\r\n    await db.commit()\r\n\r\n    stats = ConceptStats(\r\n        concept_id=\"TEST_CONCEPT_001\",\r\n        exam_frequency=100,\r\n        exam_coverage=0.8,\r\n        avg_difficulty=3.5,\r\n        importance_score=7.2,\r\n        planning_weight={\"exam_freq\": 8, \"priority_score\": 7.5},\r\n        textbook_chapters=[{\"book\": \"b1\", \"chapter\": \"ch01\", \"section\": \"s01\"}],\r\n        study_unit_id=\"su:bio_sr:test_001\",\r\n        estimated_minutes=70,\r\n        prerequisite_depth=2,\r\n        computed_at=datetime.now(),\r\n    )\r\n    db.add(stats)\r\n    await db.commit()\r\n\r\n    result = await db.execute(\r\n        sa.select(ConceptStats).where(ConceptStats.concept_id == \"TEST_CONCEPT_001\")\r\n    )\r\n    loaded = result.scalar_one()\r\n    assert loaded.exam_frequency == 100\r\n    assert loaded.importance_score == 7.2\r\n    assert loaded.planning_weight[\"priority_score\"] == 7.5\r\n    assert loaded.textbook_chapters[0][\"book\"] == \"b1\"\r\n\r\n\r\n@pytest.mark.asyncio\r\nasync def test_concept_stats_cascade_on_node_delete(db):\r\n    \"\"\"删除概念节点时 stats 应级联删除（FK ON DELETE CASCADE）\"\"\"\r\n    node = ConceptGraphNode(\r\n        id=\"TEST_CASCADE_001\", name=\"级联测试\", knowledge_level=\"L1\",\r\n        primary_module=\"M1\", synced_at=datetime.now(),\r\n    )\r\n    db.add(node)\r\n    await db.commit()\r\n\r\n    stats = ConceptStats(\r\n        concept_id=\"TEST_CASCADE_001\",\r\n        exam_frequency=50,\r\n        computed_at=datetime.now(),\r\n    )\r\n    db.add(stats)\r\n    await db.commit()\r\n\r\n    # 删除 node\r\n    await db.execute(\r\n        sa.delete(ConceptGraphNode).where(ConceptGraphNode.id == \"TEST_CASCADE_001\")\r\n    )\r\n    await db.commit()\r\n\r\n    # stats 应同时被删除\r\n    result = await db.execute(\r\n        sa.select(ConceptStats).where(ConceptStats.concept_id == \"TEST_CASCADE_001\")\r\n    )\r\n    assert result.scalar_one_or_none() is None\r\n\r\n\r\n@pytest.mark.asyncio\r"
+    }
+  ],
+  "structuredContent": {
+    "content": "# 知识图谱深度优化 Phase 1 实施计划\r\n\r\n> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.\r\n\r\n**Goal:** 暴露 knowledge.db 中已有但未使用的数据资产（考频、教材章节、MCU 规划权重、StudyUnit），让教师打开知识图谱立刻看到\"什么重要、什么考、怎么学\"。\r\n\r\n**Architecture:** 在 edu-cloud PG 新增 `concept_stats` 计算表（投影自 knowledge.db + MCU），启动时全量计算 + 编辑后增量刷新；Graph API 扩展返回统计指标；前端节点视觉升级为大小编码重要度 + 热力着色 + 详情面板新增标签页。\r\n\r\n**Tech Stack:** Python 3.11 / FastAPI / SQLAlchemy 2.0 async / Alembic / PostgreSQL / SQLite（只读 knowledge.db）/ Vue 3.5 / AntV G6 6.x / Vitest\r\n\r\n**设计文档:** `docs/plans/2026-04-12-knowledge-graph-optimization-design.md`\r\n\r\n**Phase 1 范围:** 数据暴露（不含图谱边增强、教学��划、学生画像 —— 后续 Phase 2/3/4）\r\n\r\n---\r\n\r\n## 文件结构\r\n\r\n### 后端新建\r\n\r\n| 文件 | 职责 |\r\n|------|------|\r\n| `src/edu_cloud/modules/knowledge_tree/stats_service.py` | concept_stats 计算（考频/章节/重要度/深度） |\r\n| `src/edu_cloud/modules/knowledge_tree/exam_items_service.py` | 概念→高考真题查询 |\r\n| `scripts/import_mcu_planning_weights.py` | MCU CP→kb concept 映射 + 权重导入（一次性脚本） |\r\n| `alembic/versions/<hash>_add_concept_stats.py` | concept_stats 表迁移 |\r\n| `tests/test_knowledge_tree/test_stats_service.py` | stats 计算单测 |\r\n| `tests/test_knowledge_tree/test_exam_items_service.py` | 高考题查询单测 |\r\n| `tests/test_knowledge_tree/test_mcu_import.py` | MCU 映射脚本单测 |\r\n| `tests/test_knowledge_tree/test_graph_v3.py` | Graph API v3 字段测试 |\r\n\r\n### 后端修改\r\n\r\n| 文件 | 修改 |\r\n|------|------|\r\n| `src/edu_cloud/modules/knowledge_tree/models.py` | +ConceptStats 模型 |\r\n| `src/edu_cloud/modules/knowledge_tree/service.py` | get_graph 合并 stats |\r\n| `src/edu_cloud/modules/knowledge_tree/sync_service.py` | 同步后触发 stats 重算 |\r\n| `src/edu_cloud/modules/knowledge_tree/router.py` | +3 新端点 |\r\n| `src/edu_cloud/modules/knowledge_tree/schemas.py` | +ExamItem/StatsOverview 响应 |\r\n| `src/edu_cloud/api/app.py` | lifespan 触发 stats 初始化 |\r\n\r\n### 前端新建\r\n\r\n| 文件 | 职责 |\r\n|------|------|\r\n| `frontend/src/components/knowledge-tree/ColorModeToggle.vue` | 着色模式切换（考频/掌握度/审核状态） |\r\n| `frontend/src/components/knowledge-tree/ExamItemsTab.vue` | 详情面板高考真题标签页 |\r\n| `frontend/src/components/knowledge-tree/StudyUnitTab.vue` | 详情面板学习单元标签页 |\r\n| `frontend/src/components/knowledge-tree/heatmapUtils.js` | 考频→颜色映射工具函数 |\r\n| `frontend/src/components/knowledge-tree/__tests__/ColorModeToggle.test.js` | 单测 |\r\n| `frontend/src/components/knowledge-tree/__tests__/heatmapUtils.test.js` | 单测 |\r\n\r\n### ��端修改\r\n\r\n| 文件 | 修改 |\r\n|------|------|\r\n| `frontend/src/components/knowledge-tree/ConceptMapPanel.vue` | 节点 size ∝ importance，fill 由 colorMode 决定 |\r\n| `frontend/src/components/knowledge-tree/NodeDetailDrawer.vue` | +2 标签页 |\r\n| `frontend/src/components/knowledge-tree/TreeNavPanel.vue` | 导航模式切换（模块/教材章节） |\r\n| `frontend/src/components/knowledge-tree/useKnowledgeTree.js` | +loadChapterNav, +loadExamItems, +colorMode state |\r\n| `frontend/src/api/knowledgeTree.js` | +getExamItems, +getStatsOverview |\r\n| `frontend/src/components/knowledge-tree/ModuleOverviewPanel.vue` | 卡片增加考频/覆盖率统计 |\r\n\r\n---\r\n\r\n## 测试契约汇总\r\n\r\n| Slice | 入口 | 反例 | 边界 | 回归 |\r\n|-------|------|------|------|------|\r\n| S1 concept_stats 模型 | migration upgrade/downgrade | 表名冲突/字段缺失 | FK 级联、NOT NULL 约束 | N/A |\r\n| S2 考频计算 | compute_exam_frequency(db) | 错误实现会把 L0 计入 | 零考频概念 / 单 DA 多概念 / 孤立概念 | N/A |\r\n| S3 教材章节聚合 | compute_textbook_chapters(db) | 不回溯 evidence 会漏 89.5% 映射 | evidence 为空 / 跨册概念 / section 缺失 | N/A |\r\n| S4 重要度计算 | compute_importance_score(stats) | 不归一化会让高考频概念独占高位 | 全零考频 / 全同考频 / 极值 | N/A |\r\n| S5 MCU 映射导入 | import_mcu_weights(db) | 匹配阈值过低会误关联 | 完全不匹配 / 同名歧义 | N/A |\r\n| S6 Graph API v3 | GET /graph response | 节点缺 exam_frequency 字段 | stats 表为空 / 部分概念无 stats | 原 v2 字段保留 |\r\n| S7 高考题查询 API | GET /graph/{id}/exam-items | 返回其他概念的题 | 概念无关联题 / 分页边界 | N/A |\r\n| S8 统计概览 API | GET /stats/overview | 覆盖率计算错误 | 单模块/全模块 | N/A |\r\n| S9 前端节点视觉 | ConceptMapPanel 渲染 | 节点大小不反映 importance | importance=0 的节点 / 全同节点 | 焦点模式不破坏 |\r\n| S10 着色模式切换 | ColorModeToggle 点击 | ���换后节点颜色未更新 | 切到掌握度但无学生 | 原状态保留 |\r\n| S11 详情面板标签页 | NodeDetailDrawer 打开 | 新标签页默认不显示 | 无 SU 关联 / 无题目关联 | 原标签页保留 |\r\n| S12 教材章节导航 | TreeNavPanel 切换模式 | 切换后树结构未变 | 概念跨多章 / 章节无概念 | 模块模式可回切 |\r\n\r\n---\r\n\r\n## Task 0: 环境准备与设计契约验证\r\n\r\n**Files:**\r\n- Read: `docs/plans/2026-04-12-knowledge-graph-optimization-design.md`\r\n- Read: `src/edu_cloud/modules/knowledge_tree/models.py`\r\n- Read: `src/edu_cloud/modules/knowledge_tree/service.py`\r\n- Read: `src/edu_cloud/modules/knowledge_tree/sync_service.py`\r\n\r\n**Steps:**\r\n\r\n- [ ] **Step 1: 确认 knowledge.db 可访问并验证数据链路**\r\n\r\nRun:\r\n```bash\r\ncd /c/Users/Administrator/edu-cloud\r\npython -c \"\r\nimport sqlite3, json\r\nconn = sqlite3.connect('C:/Users/Administrator/edu-knowledge-base/knowledge.db')\r\n# 抽一个概念验证完整链路\r\nc = conn.execute('SELECT id, name FROM concepts WHERE id=\\\"BIO_SR_CP_M1_PHOTOSYNTHESIS\\\"').fetchone()\r\nprint(f'Concept: {c}')\r\ndas = conn.execute('SELECT id FROM diagnostic_attributes WHERE linked_concept_ids LIKE ?', (f'%{c[0]}%',)).fetchall()\r\nprint(f'DAs: {len(das)}')\r\nda_ids = [d[0] for d in das]\r\nif da_ids:\r\n    p = ','.join('?'*len(da_ids))\r\n    items = conn.execute(f'SELECT COUNT(DISTINCT item_id) FROM q_matrix WHERE attribute_id IN ({p})', da_ids).fetchone()[0]\r\n    print(f'Items: {items}')\r\nconn.close()\r\n\"\r\n```\r\nExpected: 输出 `Concept: ('BIO_SR_CP_M1_PHOTOSYNTHESIS', '光合作用')` / `DAs: 4` / `Items: 1260`\r\n\r\n- [ ] **Step 2: 确认当前基线测试全部通过**\r\n\r\nRun:\r\n```bash\r\ncd /c/Users/Administrator/edu-cloud && python -m pytest tests/test_knowledge_tree/ --tb=short -q\r\n```\r\nExpected: 所有测试通过（当前 knowledge_tree 测试数约 200+ 条）\r\n\r\n- [ ] **Step 3: 创建 state sidecar**\r\n\r\nRun:\r\n```bash\r\npython -c \"\r\nimport json, datetime\r\nstate = {\r\n    'topic': '2026-04-13-knowledge-graph-phase1',\r\n    'plan_file': 'docs/plans/2026-04-13-knowledge-graph-phase1-plan.md',\r\n    'design_file': 'docs/plans/2026-04-12-knowledge-graph-optimization-design.md',\r\n    'tasks': [{'id': str(i), 'desc': f'Task {i}', 'status': 'pending'} for i in range(0, 15)],\r\n    'updated_at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')\r\n}\r\nwith open('docs/plans/2026-04-13-knowledge-graph-phase1-state.json', 'w', encoding='utf-8') as f:\r\n    json.dump(state, f, ensure_ascii=False, indent=2)\r\nprint('state.json created')\r\n\"\r\ngit add docs/plans/2026-04-13-knowledge-graph-phase1-state.json\r\ngit commit -m \"chore: Phase 1 state sidecar\"\r\n```\r\n\r\n---\r\n\r\n## Task 1: ConceptStats 模型 + Alembic 迁移\r\n\r\n**Files:**\r\n- Modify: `src/edu_cloud/modules/knowledge_tree/models.py`\r\n- Create: `alembic/versions/<timestamp>_add_concept_stats.py`\r\n- Create: `tests/test_knowledge_tree/test_models_stats.py`\r\n\r\n**测试契约:**\r\n\r\n1. ConceptStats 模型字段完整性\r\n   - 入口: `ConceptStats(concept_id='X', exam_frequency=100, ...)`\r\n   - 反例: 如果遗漏 `importance_score` 字段，后续服务无法计算和排序\r\n   - 边界: 所有字段有合理默认值（NULL 或 0）\r\n   - 回归: N/A（新表）\r\n   - 命令: `pytest tests/test_knowledge_tree/test_models_stats.py::test_concept_stats_instantiation -v`\r\n\r\n2. 迁移 upgrade/downgrade 对称性\r\n   - 入口: Alembic upgrade 创建表、downgrade 删除表\r\n   - 反例: 迁移只 upgrade 不 downgrade 会阻塞回滚\r\n   - 边界: FK 级联（concept 被删除时 stats 应级联删除）\r\n   - 回归: N/A\r\n   - 命令: `pytest tests/test_knowledge_tree/test_models_stats.py::test_migration_symmetric -v`\r\n\r\n**Steps:**\r\n\r\n- [ ] **Step 1: 写失败测试 — ConceptStats 模型实例化**\r\n\r\nCreate `tests/test_knowledge_tree/test_models_stats.py`:\r\n\r\n```python\r\n\"\"\"ConceptStats 模型测试\"\"\"\r\nimport pytest\r\nfrom datetime import datetime\r\nimport sqlalchemy as sa\r\nfrom edu_cloud.modules.knowledge_tree.models import (\r\n    ConceptStats, ConceptGraphNode,\r\n)\r\n\r\n\r\n@pytest.mark.asyncio\r\nasync def test_concept_stats_instantiation(db):\r\n    \"\"\"ConceptStats 可以实例化且所有设计字段存在\"\"\"\r\n    # 先创建 parent node\r\n    node = ConceptGraphNode(\r\n        id=\"TEST_CONCEPT_001\",\r\n        name=\"测试概念\",\r\n        knowledge_level=\"L1\",\r\n        primary_module=\"M1\",\r\n        synced_at=datetime.now(),\r\n    )\r\n    db.add(node)\r\n    await db.commit()\r\n\r\n    stats = ConceptStats(\r\n        concept_id=\"TEST_CONCEPT_001\",\r\n        exam_frequency=100,\r\n        exam_coverage=0.8,\r\n        avg_difficulty=3.5,\r\n        importance_score=7.2,\r\n        planning_weight={\"exam_freq\": 8, \"priority_score\": 7.5},\r\n        textbook_chapters=[{\"book\": \"b1\", \"chapter\": \"ch01\", \"section\": \"s01\"}],\r\n        study_unit_id=\"su:bio_sr:test_001\",\r\n        estimated_minutes=70,\r\n        prerequisite_depth=2,\r\n        computed_at=datetime.now(),\r\n    )\r\n    db.add(stats)\r\n    await db.commit()\r\n\r\n    result = await db.execute(\r\n        sa.select(ConceptStats).where(ConceptStats.concept_id == \"TEST_CONCEPT_001\")\r\n    )\r\n    loaded = result.scalar_one()\r\n    assert loaded.exam_frequency == 100\r\n    assert loaded.importance_score == 7.2\r\n    assert loaded.planning_weight[\"priority_score\"] == 7.5\r\n    assert loaded.textbook_chapters[0][\"book\"] == \"b1\"\r\n\r\n\r\n@pytest.mark.asyncio\r\nasync def test_concept_stats_cascade_on_node_delete(db):\r\n    \"\"\"删除概念节点时 stats 应级联删除（FK ON DELETE CASCADE）\"\"\"\r\n    node = ConceptGraphNode(\r\n        id=\"TEST_CASCADE_001\", name=\"级联测试\", knowledge_level=\"L1\",\r\n        primary_module=\"M1\", synced_at=datetime.now(),\r\n    )\r\n    db.add(node)\r\n    await db.commit()\r\n\r\n    stats = ConceptStats(\r\n        concept_id=\"TEST_CASCADE_001\",\r\n        exam_frequency=50,\r\n        computed_at=datetime.now(),\r\n    )\r\n    db.add(stats)\r\n    await db.commit()\r\n\r\n    # 删除 node\r\n    await db.execute(\r\n        sa.delete(ConceptGraphNode).where(ConceptGraphNode.id == \"TEST_CASCADE_001\")\r\n    )\r\n    await db.commit()\r\n\r\n    # stats 应同时被删除\r\n    result = await db.execute(\r\n        sa.select(ConceptStats).where(ConceptStats.concept_id == \"TEST_CASCADE_001\")\r\n    )\r\n    assert result.scalar_one_or_none() is None\r\n\r\n\r\n@pytest.mark.asyncio\r"
+  }
+}
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/exam_items_service.py"})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/exam_items_service.py"}) success in 22ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "\"\"\"概念→高考真题查询 + 知识图谱统计概览。\n\n链路:\n  concept_id → diagnostic_attributes.linked_concept_ids\n            → q_matrix(attribute_id → item_id)\n            → assessment_items\n\n统计概览聚合自 ConceptGraphNode + ConceptGraphEdge + ConceptStats 投影。\n\"\"\"\nimport json\nimport logging\nimport sqlite3\nfrom collections import defaultdict\n\nimport sqlalchemy as sa\nfrom sqlalchemy.ext.asyncio import AsyncSession\n\nfrom edu_cloud.modules.knowledge_tree.models import (\n    ConceptGraphNode, ConceptGraphEdge, ConceptStats,\n)\n\nlogger = logging.getLogger(__name__)\n\n\ndef get_exam_items(\n    kb_path: str,\n    concept_id: str,\n    page: int = 1,\n    page_size: int = 20,\n) -> dict:\n    \"\"\"查询某概念关联的高考真题。\n\n    Args:\n        kb_path: knowledge.db 绝对路径\n        concept_id: 概念节点 ID\n        page: 页码（1-based）\n        page_size: 每页数量\n\n    Returns:\n        {total: int, items: list, page: int, page_size: int}\n        未关联或概念不存在时 total=0 / items=[]（降级，不抛）\n    \"\"\"\n    conn = sqlite3.connect(kb_path)\n    try:\n        # 1. 找到关联该概念的 DA\n        das: list[str] = []\n        for da_id, linked in conn.execute(\n            \"SELECT id, linked_concept_ids FROM diagnostic_attributes \"\n            \"WHERE linked_concept_ids IS NOT NULL\"\n        ):\n            try:\n                if concept_id in json.loads(linked):\n                    das.append(da_id)\n            except (json.JSONDecodeError, TypeError):\n                continue\n\n        if not das:\n            return {\"total\": 0, \"items\": [], \"page\": page, \"page_size\": page_size}\n\n        # 2. 找所有关联 item_id（去重 + INNER JOIN 过滤 + 稳定排序）\n        # INNER JOIN assessment_items：q_matrix 引用 assessment_items 不存在 id 时\n        # 在分页前过滤掉，保证 total/page_ids/items 三者一致（N001 修复）\n        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动\n        placeholders = \",\".join(\"?\" * len(das))\n        item_ids_rows = conn.execute(\n            f\"SELECT DISTINCT q.item_id FROM q_matrix q \"\n            f\"INNER JOIN assessment_items a ON q.item_id = a.id \"\n            f\"WHERE q.attribute_id IN ({placeholders}) \"\n            f\"ORDER BY q.item_id ASC\",\n            das,\n        ).fetchall()\n        item_ids = [r[0] for r in item_ids_rows]\n        total = len(item_ids)\n        if total == 0:\n            return {\"total\": 0, \"items\": [], \"page\": page, \"page_size\": page_size}\n\n        # 3. 分页取 id 切片（按 item_id ASC 顺序）\n        offset = (page - 1) * page_size\n        page_ids = item_ids[offset:offset + page_size]\n        if not page_ids:\n            return {\"total\": total, \"items\": [], \"page\": page, \"page_size\": page_size}\n\n        # 4. 查询题目详情\n        # 🔀 plan 原设 difficulty 列，但 knowledge.db.assessment_items 实际 schema\n        # 有 score/options/module_tag，无 difficulty。改为返回 score + options（raw JSON）\n        # 详情查询用 dict 索引重排，保持 page_ids 顺序（IN(...) 不保证返回顺序与参数序一致）\n        placeholders_p = \",\".join(\"?\" * len(page_ids))\n        rows_by_id = {}\n        for row in conn.execute(\n            f\"\"\"SELECT id, exam_id, question_number, question_type, stem,\n                       answer, score, options, explanation, module_tag\n                FROM assessment_items WHERE id IN ({placeholders_p})\"\"\",\n            page_ids,\n        ):\n            rows_by_id[row[0]] = row\n\n        items = []\n        for pid in page_ids:\n            row = rows_by_id.get(pid)\n            if row is None:\n                continue  # 防御性：经 INNER JOIN 过滤后理论上不应触发\n            items.append({\n                \"id\": row[0],\n                \"exam_id\": row[1],\n                \"question_number\": row[2],\n                \"question_type\": row[3],\n                \"stem\": row[4],\n                \"answer\": row[5],\n                \"score\": row[6],\n                \"options\": row[7],\n                \"explanation\": row[8],\n                \"module_tag\": row[9],\n            })\n\n        return {\"total\": total, \"items\": items, \"page\": page, \"page_size\": page_size}\n    finally:\n        conn.close()\n\n\nasync def get_stats_overview(db: AsyncSession, module: str = \"all\") -> dict:\n    \"\"\"知识图谱全模块统计概览。\n\n    Args:\n        db: async session\n        module: \"all\" 或具体模块 ID（M1/M2/...）\n\n    Returns:\n        {\n          total_concepts: int,\n          total_edges: int,\n          exam_freq_distribution: {high, mid, low, zero},\n          module_stats: {M1: {concepts, edges, avg_freq, exam_coverage}, ...},\n        }\n    \"\"\"\n    # 1. 概念（按 module filter）\n    node_q = sa.select(ConceptGraphNode).where(ConceptGraphNode.node_type == \"concept\")\n    if module != \"all\":\n        node_q = node_q.where(ConceptGraphNode.primary_module == module)\n    nodes = list((await db.execute(node_q)).scalars())\n    node_ids = {n.id for n in nodes}\n\n    # 2. 边（module filter 时只保留端点都在视图内的边）\n    all_edges = list((await db.execute(sa.select(ConceptGraphEdge))).scalars())\n    edges = (\n        [e for e in all_edges if e.source_id in node_ids and e.target_id in node_ids]\n        if module != \"all\" else all_edges\n    )\n\n    # 3. ConceptStats 预加载\n    stats_q = sa.select(ConceptStats)\n    if module != \"all\":\n        stats_q = stats_q.where(ConceptStats.concept_id.in_(node_ids))\n    stats = list((await db.execute(stats_q)).scalars())\n    stats_by_id = {s.concept_id: s for s in stats}\n\n    # 4. 考频分布：high>=500 / mid[50,499] / low[1,49] / zero=0\n    distribution = {\"high\": 0, \"mid\": 0, \"low\": 0, \"zero\": 0}\n    module_stats: dict[str, dict] = defaultdict(\n        lambda: {\n            \"concepts\": 0, \"edges\": 0, \"total_freq\": 0,\n            \"nonzero_freq_count\": 0, \"avg_freq\": 0.0, \"exam_coverage\": 0.0,\n        }\n    )\n    for n in nodes:\n        s = stats_by_id.get(n.id)\n        freq = s.exam_frequency if s else 0\n        if freq >= 500:\n            distribution[\"high\"] += 1\n        elif freq >= 50:\n            distribution[\"mid\"] += 1\n        elif freq >= 1:\n            distribution[\"low\"] += 1\n        else:\n            distribution[\"zero\"] += 1\n        ms = module_stats[n.primary_module]\n        ms[\"concepts\"] += 1\n        ms[\"total_freq\"] += freq\n        if freq > 0:\n            ms[\"nonzero_freq_count\"] += 1\n\n    # 5. 边按 source 所属 module 计数\n    nodes_by_id = {n.id: n for n in nodes}\n    for e in edges:\n        src = nodes_by_id.get(e.source_id)\n        if src:\n            module_stats[src.primary_module][\"edges\"] += 1\n\n    # 6. 派生指标：avg_freq + exam_coverage（非零比例）\n    for mod, ms in module_stats.items():\n        if ms[\"concepts\"]:\n            ms[\"avg_freq\"] = round(ms[\"total_freq\"] / ms[\"concepts\"], 1)\n            ms[\"exam_coverage\"] = round(ms[\"nonzero_freq_count\"] / ms[\"concepts\"], 3)\n        # 中间字段从响应中剥离\n        del ms[\"total_freq\"]\n        del ms[\"nonzero_freq_count\"]\n\n    return {\n        \"total_concepts\": len(nodes),\n        \"total_edges\": len(edges),\n        \"exam_freq_distribution\": distribution,\n        \"module_stats\": dict(module_stats),\n    }\n"
+    }
+  ],
+  "structuredContent": {
+    "content": "\"\"\"概念→高考真题查询 + 知识图谱统计概览。\n\n链路:\n  concept_id → diagnostic_attributes.linked_concept_ids\n            → q_matrix(attribute_id → item_id)\n            → assessment_items\n\n统计概览聚合自 ConceptGraphNode + ConceptGraphEdge + ConceptStats 投影。\n\"\"\"\nimport json\nimport logging\nimport sqlite3\nfrom collections import defaultdict\n\nimport sqlalchemy as sa\nfrom sqlalchemy.ext.asyncio import AsyncSession\n\nfrom edu_cloud.modules.knowledge_tree.models import (\n    ConceptGraphNode, ConceptGraphEdge, ConceptStats,\n)\n\nlogger = logging.getLogger(__name__)\n\n\ndef get_exam_items(\n    kb_path: str,\n    concept_id: str,\n    page: int = 1,\n    page_size: int = 20,\n) -> dict:\n    \"\"\"查询某概念关联的高考真题。\n\n    Args:\n        kb_path: knowledge.db 绝对路径\n        concept_id: 概念节点 ID\n        page: 页码（1-based）\n        page_size: 每页数量\n\n    Returns:\n        {total: int, items: list, page: int, page_size: int}\n        未关联或概念不存在时 total=0 / items=[]（降级，不抛）\n    \"\"\"\n    conn = sqlite3.connect(kb_path)\n    try:\n        # 1. 找到关联该概念的 DA\n        das: list[str] = []\n        for da_id, linked in conn.execute(\n            \"SELECT id, linked_concept_ids FROM diagnostic_attributes \"\n            \"WHERE linked_concept_ids IS NOT NULL\"\n        ):\n            try:\n                if concept_id in json.loads(linked):\n                    das.append(da_id)\n            except (json.JSONDecodeError, TypeError):\n                continue\n\n        if not das:\n            return {\"total\": 0, \"items\": [], \"page\": page, \"page_size\": page_size}\n\n        # 2. 找所有关联 item_id（去重 + INNER JOIN 过滤 + 稳定排序）\n        # INNER JOIN assessment_items：q_matrix 引用 assessment_items 不存在 id 时\n        # 在分页前过滤掉，保证 total/page_ids/items 三者一致（N001 修复）\n        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动\n        placeholders = \",\".join(\"?\" * len(das))\n        item_ids_rows = conn.execute(\n            f\"SELECT DISTINCT q.item_id FROM q_matrix q \"\n            f\"INNER JOIN assessment_items a ON q.item_id = a.id \"\n            f\"WHERE q.attribute_id IN ({placeholders}) \"\n            f\"ORDER BY q.item_id ASC\",\n            das,\n        ).fetchall()\n        item_ids = [r[0] for r in item_ids_rows]\n        total = len(item_ids)\n        if total == 0:\n            return {\"total\": 0, \"items\": [], \"page\": page, \"page_size\": page_size}\n\n        # 3. 分页取 id 切片（按 item_id ASC 顺序）\n        offset = (page - 1) * page_size\n        page_ids = item_ids[offset:offset + page_size]\n        if not page_ids:\n            return {\"total\": total, \"items\": [], \"page\": page, \"page_size\": page_size}\n\n        # 4. 查询题目详情\n        # 🔀 plan 原设 difficulty 列，但 knowledge.db.assessment_items 实际 schema\n        # 有 score/options/module_tag，无 difficulty。改为返回 score + options（raw JSON）\n        # 详情查询用 dict 索引重排，保持 page_ids 顺序（IN(...) 不保证返回顺序与参数序一致）\n        placeholders_p = \",\".join(\"?\" * len(page_ids))\n        rows_by_id = {}\n        for row in conn.execute(\n            f\"\"\"SELECT id, exam_id, question_number, question_type, stem,\n                       answer, score, options, explanation, module_tag\n                FROM assessment_items WHERE id IN ({placeholders_p})\"\"\",\n            page_ids,\n        ):\n            rows_by_id[row[0]] = row\n\n        items = []\n        for pid in page_ids:\n            row = rows_by_id.get(pid)\n            if row is None:\n                continue  # 防御性：经 INNER JOIN 过滤后理论上不应触发\n            items.append({\n                \"id\": row[0],\n                \"exam_id\": row[1],\n                \"question_number\": row[2],\n                \"question_type\": row[3],\n                \"stem\": row[4],\n                \"answer\": row[5],\n                \"score\": row[6],\n                \"options\": row[7],\n                \"explanation\": row[8],\n                \"module_tag\": row[9],\n            })\n\n        return {\"total\": total, \"items\": items, \"page\": page, \"page_size\": page_size}\n    finally:\n        conn.close()\n\n\nasync def get_stats_overview(db: AsyncSession, module: str = \"all\") -> dict:\n    \"\"\"知识图谱全模块统计概览。\n\n    Args:\n        db: async session\n        module: \"all\" 或具体模块 ID（M1/M2/...）\n\n    Returns:\n        {\n          total_concepts: int,\n          total_edges: int,\n          exam_freq_distribution: {high, mid, low, zero},\n          module_stats: {M1: {concepts, edges, avg_freq, exam_coverage}, ...},\n        }\n    \"\"\"\n    # 1. 概念（按 module filter）\n    node_q = sa.select(ConceptGraphNode).where(ConceptGraphNode.node_type == \"concept\")\n    if module != \"all\":\n        node_q = node_q.where(ConceptGraphNode.primary_module == module)\n    nodes = list((await db.execute(node_q)).scalars())\n    node_ids = {n.id for n in nodes}\n\n    # 2. 边（module filter 时只保留端点都在视图内的边）\n    all_edges = list((await db.execute(sa.select(ConceptGraphEdge))).scalars())\n    edges = (\n        [e for e in all_edges if e.source_id in node_ids and e.target_id in node_ids]\n        if module != \"all\" else all_edges\n    )\n\n    # 3. ConceptStats 预加载\n    stats_q = sa.select(ConceptStats)\n    if module != \"all\":\n        stats_q = stats_q.where(ConceptStats.concept_id.in_(node_ids))\n    stats = list((await db.execute(stats_q)).scalars())\n    stats_by_id = {s.concept_id: s for s in stats}\n\n    # 4. 考频分布：high>=500 / mid[50,499] / low[1,49] / zero=0\n    distribution = {\"high\": 0, \"mid\": 0, \"low\": 0, \"zero\": 0}\n    module_stats: dict[str, dict] = defaultdict(\n        lambda: {\n            \"concepts\": 0, \"edges\": 0, \"total_freq\": 0,\n            \"nonzero_freq_count\": 0, \"avg_freq\": 0.0, \"exam_coverage\": 0.0,\n        }\n    )\n    for n in nodes:\n        s = stats_by_id.get(n.id)\n        freq = s.exam_frequency if s else 0\n        if freq >= 500:\n            distribution[\"high\"] += 1\n        elif freq >= 50:\n            distribution[\"mid\"] += 1\n        elif freq >= 1:\n            distribution[\"low\"] += 1\n        else:\n            distribution[\"zero\"] += 1\n        ms = module_stats[n.primary_module]\n        ms[\"concepts\"] += 1\n        ms[\"total_freq\"] += freq\n        if freq > 0:\n            ms[\"nonzero_freq_count\"] += 1\n\n    # 5. 边按 source 所属 module 计数\n    nodes_by_id = {n.id: n for n in nodes}\n    for e in edges:\n        src = nodes_by_id.get(e.source_id)\n        if src:\n            module_stats[src.primary_module][\"edges\"] += 1\n\n    # 6. 派生指标：avg_freq + exam_coverage（非零比例）\n    for mod, ms in module_stats.items():\n        if ms[\"concepts\"]:\n            ms[\"avg_freq\"] = round(ms[\"total_freq\"] / ms[\"concepts\"], 1)\n            ms[\"exam_coverage\"] = round(ms[\"nonzero_freq_count\"] / ms[\"concepts\"], 3)\n        # 中间字段从响应中剥离\n        del ms[\"total_freq\"]\n        del ms[\"nonzero_freq_count\"]\n\n    return {\n        \"total_concepts\": len(nodes),\n        \"total_edges\": len(edges),\n        \"exam_freq_distribution\": distribution,\n        \"module_stats\": dict(module_stats),\n    }\n"
+  }
+}
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show d300263~1:src/edu_cloud/modules/knowledge_tree/exam_items_service.py' in C:/Users/Administrator/edu-cloud succeeded in 1.58s:
+"""概念→高考真题查询 + 知识图谱统计概览。
+
+链路:
+  concept_id → diagnostic_attributes.linked_concept_ids
+            → q_matrix(attribute_id → item_id)
+            → assessment_items
+
+统计概览聚合自 ConceptGraphNode + ConceptGraphEdge + ConceptStats 投影。
+"""
+import json
+import logging
+import sqlite3
+from collections import defaultdict
+
+import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.modules.knowledge_tree.models import (
+    ConceptGraphNode, ConceptGraphEdge, ConceptStats,
+)
+tool filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_exam_items_service.py"})
+filesystem.read_text_file({"path":"C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_exam_items_service.py"}) success in 11ms:
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "\"\"\"高考真题查询 + 统计概览 API 测试 — Round 2 加固版\n\n契约（来自 plan Task 8）：\n- 概念→DA→q_matrix→assessment_items 链路查询高考真题，支持分页 + 稳定排序\n- 未关联概念返回 total=0/items=[]（降级，不 500）\n- /stats/overview 返回 total_concepts/total_edges/exam_freq_distribution/module_stats\n\nRound 2 加固（F001/F002/F003）：\n- F001：受控临时 SQLite KB 构造已知 DA→item 映射，精确断言 item_id 集合相等\n- F002：先 DELETE 现存数据隔离 fixture，精确数值断言（== 而非 >=）\n- F003：分页稳定性 — 跨页 item_id 不重叠 + 按 ASC 顺序\n\n反例（错误实现会失败）：\n- 占位实现\"已知概念返回任意非空\" → test_get_exam_items_returns_exact_da_chain 集合不等\n- 硬编码 M1/M2 + high/mid/zero 三态 → test_stats_overview_exact_aggregation 数值偏差\n- 分页未排序 → test_get_exam_items_pagination_stable 跨页重复或顺序抖动\n\"\"\"\nimport os\nimport sqlite3\nimport pytest\nfrom pathlib import Path\nfrom datetime import datetime\n\nimport sqlalchemy as sa\n\nfrom edu_cloud.modules.knowledge_tree.models import (\n    ConceptGraphNode, ConceptGraphEdge, ConceptStats,\n)\n\nKB_PATH = os.environ.get(\n    \"KNOWLEDGE_DB_PATH\",\n    str(Path.home() / \"edu-knowledge-base\" / \"knowledge.db\"),\n)\n\n\n# ════════════════════════════════════════════════════════════════\n# F001 加固：受控临时 SQLite KB 锁定 DA→item 链路\n# ════════════════════════════════════════════════════════════════\n\n@pytest.fixture\ndef controlled_kb(tmp_path):\n    \"\"\"构造受控 knowledge.db：3 DA + 5 items + 已知 q_matrix 关联。\n\n    数据布局（已知预期）：\n    - DA1 关联 concept C1, item_001/002\n    - DA2 关联 concept C1+OTHER, item_002/003 (item_002 跨 DA → DISTINCT 应去重)\n    - DA3 关联 concept C2, item_004/005\n    - C1 链路应返回 {item_001, item_002, item_003} （按 ASC）\n    - C2 链路应返回 {item_004, item_005}\n    \"\"\"\n    db_path = tmp_path / \"controlled.db\"\n    conn = sqlite3.connect(str(db_path))\n    conn.executescript(\"\"\"\n        CREATE TABLE diagnostic_attributes (\n            id TEXT PRIMARY KEY,\n            linked_concept_ids TEXT\n        );\n        CREATE TABLE q_matrix (\n            attribute_id TEXT,\n            item_id TEXT\n        );\n        CREATE TABLE assessment_items (\n            id TEXT PRIMARY KEY,\n            exam_id TEXT,\n            question_number TEXT,\n            question_type TEXT,\n            stem TEXT,\n            answer TEXT,\n            score REAL,\n            options TEXT,\n            explanation TEXT,\n            module_tag TEXT\n        );\n    \"\"\")\n    conn.executemany(\"INSERT INTO diagnostic_attributes VALUES (?, ?)\", [\n        (\"DA1\", '[\"C1\"]'),\n        (\"DA2\", '[\"C1\", \"OTHER\"]'),\n        (\"DA3\", '[\"C2\"]'),\n    ])\n    # 故意倒序插入：让 SQLite 默认 rowid 顺序不等于 item_id ASC\n    # 反证强化：若 service 缺 ORDER BY → 默认顺序按 rowid（003→001→002）→ 分页测试 fail\n    conn.executemany(\"INSERT INTO q_matrix VALUES (?, ?)\", [\n        (\"DA2\", \"item_003\"), (\"DA2\", \"item_002\"),  # rowid 1, 2\n        (\"DA1\", \"item_002\"), (\"DA1\", \"item_001\"),  # rowid 3, 4 (item_002 重复，DISTINCT 取首现 → rowid=2)\n        (\"DA3\", \"item_005\"), (\"DA3\", \"item_004\"),  # rowid 5, 6\n    ])\n    conn.executemany(\n        \"INSERT INTO assessment_items VALUES (?,?,?,?,?,?,?,?,?,?)\",\n        [\n            (\"item_001\", \"EXAM_A\", 1, \"选择题\", \"题干 1\", \"A\", 5.0, '[\"A\",\"B\"]', \"\", \"M1\"),\n            (\"item_002\", \"EXAM_A\", 2, \"选择题\", \"题干 2\", \"B\", 5.0, '[\"A\",\"B\"]', \"\", \"M1\"),\n            (\"item_003\", \"EXAM_A\", 3, \"填空题\", \"题干 3\", \"答案\", 5.0, None, \"解析\", \"M1\"),\n            (\"item_004\", \"EXAM_B\", 1, \"选择题\", \"题干 4\", \"C\", 5.0, '[\"A\",\"B\",\"C\"]', \"\", \"M2\"),\n            (\"item_005\", \"EXAM_B\", 2, \"解答题\", \"题干 5\", \"答案 5\", 10.0, None, \"解析 5\", \"M2\"),\n        ],\n    )\n    conn.commit()\n    conn.close()\n    return str(db_path)\n\n\ndef test_get_exam_items_returns_exact_da_chain(controlled_kb):\n    \"\"\"F001 反证：concept C1 通过 DA1+DA2 链路精确返回 {item_001, item_002, item_003}。\n\n    错误实现\"已知概念返回任意非空\" → 集合不等 → fail\n    DISTINCT 失效 → item_002 出现两次 → total != 3 → fail\n    \"\"\"\n    from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items\n\n    result = get_exam_items(kb_path=controlled_kb, concept_id=\"C1\", page=1, page_size=10)\n    item_ids = [it[\"id\"] for it in result[\"items\"]]\n\n    assert set(item_ids) == {\"item_001\", \"item_002\", \"item_003\"}, (\n        f\"C1 应返回 DA1+DA2 关联的 3 题（去重后），实际 {item_ids}\"\n    )\n    assert result[\"total\"] == 3, \"DISTINCT 必须去重 item_002\"\n    item_001 = next(it for it in result[\"items\"] if it[\"id\"] == \"item_001\")\n    assert item_001[\"exam_id\"] == \"EXAM_A\"\n    assert item_001[\"question_type\"] == \"选择题\"\n    assert item_001[\"score\"] == 5.0\n\n\ndef test_get_exam_items_isolation_between_concepts(controlled_kb):\n    \"\"\"F001 反证：concept C2 必须返回 {item_004, item_005}，与 C1 不重叠。\"\"\"\n    from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items\n\n    result = get_exam_items(kb_path=controlled_kb, concept_id=\"C2\", page=1, page_size=10)\n    assert {it[\"id\"] for it in result[\"items\"]} == {\"item_004\", \"item_005\"}\n    assert result[\"total\"] == 2\n\n\ndef test_get_exam_items_unknown_returns_empty(controlled_kb):\n    \"\"\"F001 反证：未知 concept 精确 total=0 + items=[]。\"\"\"\n    from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items\n\n    result = get_exam_items(kb_path=controlled_kb, concept_id=\"UNKNOWN_XYZ\", page=1, page_size=10)\n    assert result == {\"total\": 0, \"items\": [], \"page\": 1, \"page_size\": 10}\n\n\ndef test_get_exam_items_total_consistent_with_actual_items(tmp_path):\n    \"\"\"N001 反证：q_matrix 引用 assessment_items 不存在 id 时，\n    total 必须等于 page 实际可返回的题目总数（不包含 phantom id）。\n\n    构造场景：\n    - DA1 关联 concept C1，q_matrix 关联 3 个 item_id (item_001/002/MISSING)\n    - assessment_items 仅含 item_001 / item_002（item_MISSING 不存在，模拟数据漂移）\n    - 错误实现：total=3，page=2,page_size=2 返回空 → 前端看到 phantom total\n    - 正确实现：total=2，page=2,page_size=2 返回空（合理：第 2 页无内容）\n\n    错误实现会 fail：\n    - INNER JOIN 缺失 → total 包含 MISSING → total != len(实际可返回 items)\n    \"\"\"\n    db_path = tmp_path / \"drift.db\"\n    conn = sqlite3.connect(str(db_path))\n    conn.executescript(\"\"\"\n        CREATE TABLE diagnostic_attributes (id TEXT PRIMARY KEY, linked_concept_ids TEXT);\n        CREATE TABLE q_matrix (attribute_id TEXT, item_id TEXT);\n        CREATE TABLE assessment_items (\n            id TEXT PRIMARY KEY, exam_id TEXT, question_number INTEGER,\n            question_type TEXT, stem TEXT, answer TEXT, score REAL,\n            options TEXT, explanation TEXT, module_tag TEXT\n        );\n    \"\"\")\n    conn.execute(\"INSERT INTO diagnostic_attributes VALUES ('DA1', '[\\\"C1\\\"]')\")\n    conn.executemany(\"INSERT INTO q_matrix VALUES (?, ?)\", [\n        (\"DA1\", \"item_001\"), (\"DA1\", \"item_002\"), (\"DA1\", \"item_MISSING\"),\n    ])\n    # assessment_items 只有 001/002，故意缺 item_MISSING\n    conn.executemany(\"INSERT INTO assessment_items VALUES (?,?,?,?,?,?,?,?,?,?)\", [\n        (\"item_001\", \"EXAM_X\", 1, \"选择题\", \"题 1\", \"A\", 5.0, None, \"\", \"M1\"),\n        (\"item_002\", \"EXAM_X\", 2, \"选择题\", \"题 2\", \"B\", 5.0, None, \"\", \"M1\"),\n    ])\n    conn.commit()\n    conn.close()\n\n    from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items\n\n    # 第 1 页：必须 total == 真实可返回 item 总数 (2)，不是 q_matrix distinct (3)\n    p1 = get_exam_items(kb_path=str(db_path), concept_id=\"C1\", page=1, page_size=10)\n    assert p1[\"total\"] == 2, f\"total 必须排除 q_matrix 引用但 assessment_items 缺失的 id, 实际 total={p1['total']}\"\n    assert len(p1[\"items\"]) == 2\n    assert {it[\"id\"] for it in p1[\"items\"]} == {\"item_001\", \"item_002\"}\n\n    # 分页一致性：page=2,page_size=2 应是空但 total 仍为 2（不是 phantom 3）\n    p2 = get_exam_items(kb_path=str(db_path), concept_id=\"C1\", page=2, page_size=2)\n    assert p2[\"total\"] == 2\n    assert p2[\"items\"] == []\n\n    # 第 1 页 page_size=2 应满 2 题\n    p1_2 = get_exam_items(kb_path=str(db_path), concept_id=\"C1\", page=1, page_size=2)\n    assert p1_2[\"total\"] == 2\n    assert len(p1_2[\"items\"]) == 2\n\n\ndef test_get_exam_items_pagination_stable(controlled_kb):\n    \"\"\"F003 反证：跨页 item_id 不重叠 + 按 ASC 稳定 + 重复请求一致。\n\n    DISTINCT 未排序 → 重复同一页可能返回不同 item_id → fail\n    IN 查询未保持顺序 → page 内顺序不稳定 → fail\n    \"\"\"\n    from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items\n\n    page1 = get_exam_items(kb_path=controlled_kb, concept_id=\"C1\", page=1, page_size=2)\n    page2 = get_exam_items(kb_path=controlled_kb, concept_id=\"C1\", page=2, page_size=2)\n\n    p1_ids = [it[\"id\"] for it in page1[\"items\"]]\n    p2_ids = [it[\"id\"] for it in page2[\"items\"]]\n    assert set(p1_ids) & set(p2_ids) == set(), \"翻页禁止重复 item\"\n\n    # 顺序按 item_id ASC（item_001 < item_002 < item_003）\n    assert p1_ids == [\"item_001\", \"item_002\"], f\"page1 应 [001, 002] ASC, 实际 {p1_ids}\"\n    assert p2_ids == [\"item_003\"], f\"page2 应只剩 [003], 实际 {p2_ids}\"\n\n    page1_again = get_exam_items(kb_path=controlled_kb, concept_id=\"C1\", page=1, page_size=2)\n    assert [it[\"id\"] for it in page1_again[\"items\"]] == p1_ids, \"重复请求必须确定性\"\n\n\n# ════════════════════════════════════════════════════════════════\n# 兼容真实 KB 烟雾测试（保留 batch1 happy-path）\n# ════════════════════════════════════════════════════════════════\n\n@pytest.mark.skipif(not Path(KB_PATH).exists(), reason=\"knowledge.db not available\")\ndef test_get_exam_items_smoke_with_real_kb():\n    \"\"\"烟雾测试：真实 knowledge.db 存在时光合作用至少有真题。\"\"\"\n    from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items\n\n    result = get_exam_items(\n        kb_path=KB_PATH, concept_id=\"BIO_SR_CP_M1_PHOTOSYNTHESIS\",\n        page=1, page_size=10,\n    )\n    assert result[\"total\"] > 0\n    for item in result[\"items\"]:\n        assert item.get(\"id\")\n        assert item.get(\"question_type\")\n\n\n# ════════════════════════════════════════════════════════════════\n# HTTP 端点级测试（入口级验证）\n# ════════════════════════════════════════════════════════════════\n\n@pytest.mark.asyncio\nasync def test_get_exam_items_endpoint_unknown_concept(client, admin_headers):\n    \"\"\"HTTP 端点：未知 concept → 200 total=0 空列表（降级契约，不 500）。\"\"\"\n    resp = await client.get(\n        \"/api/v1/knowledge-tree/graph/NONEXISTENT_CONCEPT_XYZ/exam-items\",\n        headers=admin_headers,\n    )\n    assert resp.status_code == 200\n    data = resp.json()\n    assert data[\"total\"] == 0\n    assert data[\"items\"] == []\n    assert data[\"page\"] == 1\n    assert data[\"page_size\"] == 20\n\n\n@pytest.mark.asyncio\nasync def test_get_exam_items_endpoint_with_controlled_kb(\n    client, admin_headers, controlled_kb, monkeypatch\n):\n    \"\"\"HTTP 端点：注入受控 KB → 精确返回链路 item_id，验证 ExamItemsResponse 契约。\"\"\"\n    monkeypatch.setenv(\"KNOWLEDGE_DB_PATH\", controlled_kb)\n    resp = await client.get(\n        \"/api/v1/knowledge-tree/graph/C1/exam-items?page=1&page_size=10\",\n        headers=admin_headers,\n    )\n    assert resp.status_code == 200\n    data = resp.json()\n    assert {it[\"id\"] for it in data[\"items\"]} == {\"item_001\", \"item_002\", \"item_003\"}\n    assert data[\"total\"] == 3\n    assert \"page\" in data and \"page_size\" in data\n    for it in data[\"items\"]:\n        assert \"id\" in it and \"question_type\" in it and \"stem\" in it\n\n\n# ════════════════════════════════════════════════════════════════\n# F002 加固：受控隔离 + 精确数值断言\n# ════════════════════════════════════════════════════════════════\n\nasync def _purge_concept_data(db):\n    \"\"\"清除现有 ConceptGraphNode/Edge/Stats，让本测试断言精确数值。\"\"\"\n    await db.execute(sa.delete(ConceptStats))\n    await db.execute(sa.delete(ConceptGraphEdge))\n    await db.execute(sa.delete(ConceptGraphNode))\n    await db.commit()\n\n\n@pytest.mark.asyncio\nasync def test_stats_overview_exact_aggregation(client, admin_headers, db):\n    \"\"\"F002 反证：精确数值断言所有聚合指标。\n\n    构造数据：\n    - M1: 3 概念 freq=[600, 100, 0] → high=1, mid=1, zero=1 / avg=233.3 / coverage=0.667\n    - M2: 1 概念 freq=10 → low=1 / avg=10.0 / coverage=1.0\n    - M1 内 1 条边\n\n    错误实现：\n    - 分桶阈值改错（high>=400）→ distribution 偏差 → fail\n    - avg_freq 算成总和 → 233.3 不等 → fail\n    - exam_coverage 分母错 → 0.667 不等 → fail\n    \"\"\"\n    await _purge_concept_data(db)\n    now = datetime.now()\n\n    db.add_all([\n        ConceptGraphNode(id=\"ST_M1_HIGH\", name=\"高频\", knowledge_level=\"L1\",\n                         primary_module=\"M1\", node_type=\"concept\", synced_at=now),\n        ConceptGraphNode(id=\"ST_M1_MID\", name=\"中频\", knowledge_level=\"L1\",\n                         primary_module=\"M1\", node_type=\"concept\", synced_at=now),\n        ConceptGraphNode(id=\"ST_M1_ZERO\", name=\"零频\", knowledge_level=\"L1\",\n                         primary_module=\"M1\", node_type=\"concept\", synced_at=now),\n        ConceptGraphNode(id=\"ST_M2_LOW\", name=\"低频\", knowledge_level=\"L1\",\n                         primary_module=\"M2\", node_type=\"concept\", synced_at=now),\n        ConceptStats(concept_id=\"ST_M1_HIGH\", exam_frequency=600, exam_coverage=0.5,\n                     importance_score=9.0, textbook_chapters=[], computed_at=now),\n        ConceptStats(concept_id=\"ST_M1_MID\", exam_frequency=100, exam_coverage=0.2,\n                     importance_score=5.0, textbook_chapters=[], computed_at=now),\n        # ST_M1_ZERO 无 stats → service 按 freq=0 处理\n        ConceptStats(concept_id=\"ST_M2_LOW\", exam_frequency=10, exam_coverage=0.05,\n                     importance_score=2.0, textbook_chapters=[], computed_at=now),\n        ConceptGraphEdge(source_id=\"ST_M1_HIGH\", target_id=\"ST_M1_MID\",\n                        relation_type=\"prereq\", strength=1.0, confidence=1.0,\n                        synced_at=now),\n    ])\n    await db.commit()\n\n    resp = await client.get(\"/api/v1/knowledge-tree/stats/overview\", headers=admin_headers)\n    assert resp.status_code == 200\n    data = resp.json()\n\n    # 精确断言（错误实现无法绿通）\n    assert data[\"total_concepts\"] == 4\n    assert data[\"total_edges\"] == 1\n    assert data[\"exam_freq_distribution\"] == {\"high\": 1, \"mid\": 1, \"low\": 1, \"zero\": 1}\n\n    ms = data[\"module_stats\"]\n    assert set(ms.keys()) == {\"M1\", \"M2\"}\n\n    m1 = ms[\"M1\"]\n    assert m1[\"concepts\"] == 3\n    assert m1[\"edges\"] == 1\n    assert m1[\"avg_freq\"] == round((600 + 100 + 0) / 3, 1)  # 233.3\n    assert m1[\"exam_coverage\"] == round(2 / 3, 3)  # 0.667\n\n    m2 = ms[\"M2\"]\n    assert m2[\"concepts\"] == 1\n    assert m2[\"edges\"] == 0\n    assert m2[\"avg_freq\"] == 10.0\n    assert m2[\"exam_coverage\"] == 1.0\n\n\n@pytest.mark.asyncio\nasync def test_stats_overview_module_filter_isolation(client, admin_headers, db):\n    \"\"\"F002 反证：module=M1 时 M2 数据被严格排除（不污染 M1 avg_freq）。\n\n    错误实现 filter 错把 M2 计入 M1 → avg_freq 被稀释 → fail\n    \"\"\"\n    await _purge_concept_data(db)\n    now = datetime.now()\n\n    db.add_all([\n        ConceptGraphNode(id=\"MF_M1_A\", name=\"M1 A\", knowledge_level=\"L1\",\n                         primary_module=\"M1\", node_type=\"concept\", synced_at=now),\n        ConceptGraphNode(id=\"MF_M2_B\", name=\"M2 B\", knowledge_level=\"L1\",\n                         primary_module=\"M2\", node_type=\"concept\", synced_at=now),\n        ConceptStats(concept_id=\"MF_M1_A\", exam_frequency=200, exam_coverage=0.3,\n                     importance_score=6.0, textbook_chapters=[], computed_at=now),\n        ConceptStats(concept_id=\"MF_M2_B\", exam_frequency=10, exam_coverage=0.05,\n                     importance_score=1.0, textbook_chapters=[], computed_at=now),\n    ])\n    await db.commit()\n\n    resp = await client.get(\n        \"/api/v1/knowledge-tree/stats/overview?module=M1\",\n        headers=admin_headers,\n    )\n    assert resp.status_code == 200\n    data = resp.json()\n\n    assert \"M1\" in data[\"module_stats\"]\n    assert \"M2\" not in data[\"module_stats\"]\n    assert data[\"module_stats\"][\"M1\"][\"avg_freq\"] == 200.0\n    assert data[\"module_stats\"][\"M1\"][\"exam_coverage\"] == 1.0\n    assert data[\"total_concepts\"] == 1\n"
+    }
+  ],
+  "structuredContent": {
+    "content": "\"\"\"高考真题查询 + 统计概览 API 测试 — Round 2 加固版\n\n契约（来自 plan Task 8）：\n- 概念→DA→q_matrix→assessment_items 链路查询高考真题，支持分页 + 稳定排序\n- 未关联概念返回 total=0/items=[]（降级，不 500）\n- /stats/overview 返回 total_concepts/total_edges/exam_freq_distribution/module_stats\n\nRound 2 加固（F001/F002/F003）：\n- F001：受控临时 SQLite KB 构造已知 DA→item 映射，精确断言 item_id 集合相等\n- F002：先 DELETE 现存数据隔离 fixture，精确数值断言（== 而非 >=）\n- F003：分页稳定性 — 跨页 item_id 不重叠 + 按 ASC 顺序\n\n反例（错误实现会失败）：\n- 占位实现\"已知概念返回任意非空\" → test_get_exam_items_returns_exact_da_chain 集合不等\n- 硬编码 M1/M2 + high/mid/zero 三态 → test_stats_overview_exact_aggregation 数值偏差\n- 分页未排序 → test_get_exam_items_pagination_stable 跨页重复或顺序抖动\n\"\"\"\nimport os\nimport sqlite3\nimport pytest\nfrom pathlib import Path\nfrom datetime import datetime\n\nimport sqlalchemy as sa\n\nfrom edu_cloud.modules.knowledge_tree.models import (\n    ConceptGraphNode, ConceptGraphEdge, ConceptStats,\n)\n\nKB_PATH = os.environ.get(\n    \"KNOWLEDGE_DB_PATH\",\n    str(Path.home() / \"edu-knowledge-base\" / \"knowledge.db\"),\n)\n\n\n# ════════════════════════════════════════════════════════════════\n# F001 加固：受控临时 SQLite KB 锁定 DA→item 链路\n# ════════════════════════════════════════════════════════════════\n\n@pytest.fixture\ndef controlled_kb(tmp_path):\n    \"\"\"构造受控 knowledge.db：3 DA + 5 items + 已知 q_matrix 关联。\n\n    数据布局（已知预期）：\n    - DA1 关联 concept C1, item_001/002\n    - DA2 关联 concept C1+OTHER, item_002/003 (item_002 跨 DA → DISTINCT 应去重)\n    - DA3 关联 concept C2, item_004/005\n    - C1 链路应返回 {item_001, item_002, item_003} （按 ASC）\n    - C2 链路应返回 {item_004, item_005}\n    \"\"\"\n    db_path = tmp_path / \"controlled.db\"\n    conn = sqlite3.connect(str(db_path))\n    conn.executescript(\"\"\"\n        CREATE TABLE diagnostic_attributes (\n            id TEXT PRIMARY KEY,\n            linked_concept_ids TEXT\n        );\n        CREATE TABLE q_matrix (\n            attribute_id TEXT,\n            item_id TEXT\n        );\n        CREATE TABLE assessment_items (\n            id TEXT PRIMARY KEY,\n            exam_id TEXT,\n            question_number TEXT,\n            question_type TEXT,\n            stem TEXT,\n            answer TEXT,\n            score REAL,\n            options TEXT,\n            explanation TEXT,\n            module_tag TEXT\n        );\n    \"\"\")\n    conn.executemany(\"INSERT INTO diagnostic_attributes VALUES (?, ?)\", [\n        (\"DA1\", '[\"C1\"]'),\n        (\"DA2\", '[\"C1\", \"OTHER\"]'),\n        (\"DA3\", '[\"C2\"]'),\n    ])\n    # 故意倒序插入：让 SQLite 默认 rowid 顺序不等于 item_id ASC\n    # 反证强化：若 service 缺 ORDER BY → 默认顺序按 rowid（003→001→002）→ 分页测试 fail\n    conn.executemany(\"INSERT INTO q_matrix VALUES (?, ?)\", [\n        (\"DA2\", \"item_003\"), (\"DA2\", \"item_002\"),  # rowid 1, 2\n        (\"DA1\", \"item_002\"), (\"DA1\", \"item_001\"),  # rowid 3, 4 (item_002 重复，DISTINCT 取首现 → rowid=2)\n        (\"DA3\", \"item_005\"), (\"DA3\", \"item_004\"),  # rowid 5, 6\n    ])\n    conn.executemany(\n        \"INSERT INTO assessment_items VALUES (?,?,?,?,?,?,?,?,?,?)\",\n        [\n            (\"item_001\", \"EXAM_A\", 1, \"选择题\", \"题干 1\", \"A\", 5.0, '[\"A\",\"B\"]', \"\", \"M1\"),\n            (\"item_002\", \"EXAM_A\", 2, \"选择题\", \"题干 2\", \"B\", 5.0, '[\"A\",\"B\"]', \"\", \"M1\"),\n            (\"item_003\", \"EXAM_A\", 3, \"填空题\", \"题干 3\", \"答案\", 5.0, None, \"解析\", \"M1\"),\n            (\"item_004\", \"EXAM_B\", 1, \"选择题\", \"题干 4\", \"C\", 5.0, '[\"A\",\"B\",\"C\"]', \"\", \"M2\"),\n            (\"item_005\", \"EXAM_B\", 2, \"解答题\", \"题干 5\", \"答案 5\", 10.0, None, \"解析 5\", \"M2\"),\n        ],\n    )\n    conn.commit()\n    conn.close()\n    return str(db_path)\n\n\ndef test_get_exam_items_returns_exact_da_chain(controlled_kb):\n    \"\"\"F001 反证：concept C1 通过 DA1+DA2 链路精确返回 {item_001, item_002, item_003}。\n\n    错误实现\"已知概念返回任意非空\" → 集合不等 → fail\n    DISTINCT 失效 → item_002 出现两次 → total != 3 → fail\n    \"\"\"\n    from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items\n\n    result = get_exam_items(kb_path=controlled_kb, concept_id=\"C1\", page=1, page_size=10)\n    item_ids = [it[\"id\"] for it in result[\"items\"]]\n\n    assert set(item_ids) == {\"item_001\", \"item_002\", \"item_003\"}, (\n        f\"C1 应返回 DA1+DA2 关联的 3 题（去重后），实际 {item_ids}\"\n    )\n    assert result[\"total\"] == 3, \"DISTINCT 必须去重 item_002\"\n    item_001 = next(it for it in result[\"items\"] if it[\"id\"] == \"item_001\")\n    assert item_001[\"exam_id\"] == \"EXAM_A\"\n    assert item_001[\"question_type\"] == \"选择题\"\n    assert item_001[\"score\"] == 5.0\n\n\ndef test_get_exam_items_isolation_between_concepts(controlled_kb):\n    \"\"\"F001 反证：concept C2 必须返回 {item_004, item_005}，与 C1 不重叠。\"\"\"\n    from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items\n\n    result = get_exam_items(kb_path=controlled_kb, concept_id=\"C2\", page=1, page_size=10)\n    assert {it[\"id\"] for it in result[\"items\"]} == {\"item_004\", \"item_005\"}\n    assert result[\"total\"] == 2\n\n\ndef test_get_exam_items_unknown_returns_empty(controlled_kb):\n    \"\"\"F001 反证：未知 concept 精确 total=0 + items=[]。\"\"\"\n    from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items\n\n    result = get_exam_items(kb_path=controlled_kb, concept_id=\"UNKNOWN_XYZ\", page=1, page_size=10)\n    assert result == {\"total\": 0, \"items\": [], \"page\": 1, \"page_size\": 10}\n\n\ndef test_get_exam_items_total_consistent_with_actual_items(tmp_path):\n    \"\"\"N001 反证：q_matrix 引用 assessment_items 不存在 id 时，\n    total 必须等于 page 实际可返回的题目总数（不包含 phantom id）。\n\n    构造场景：\n    - DA1 关联 concept C1，q_matrix 关联 3 个 item_id (item_001/002/MISSING)\n    - assessment_items 仅含 item_001 / item_002（item_MISSING 不存在，模拟数据漂移）\n    - 错误实现：total=3，page=2,page_size=2 返回空 → 前端看到 phantom total\n    - 正确实现：total=2，page=2,page_size=2 返回空（合理：第 2 页无内容）\n\n    错误实现会 fail：\n    - INNER JOIN 缺失 → total 包含 MISSING → total != len(实际可返回 items)\n    \"\"\"\n    db_path = tmp_path / \"drift.db\"\n    conn = sqlite3.connect(str(db_path))\n    conn.executescript(\"\"\"\n        CREATE TABLE diagnostic_attributes (id TEXT PRIMARY KEY, linked_concept_ids TEXT);\n        CREATE TABLE q_matrix (attribute_id TEXT, item_id TEXT);\n        CREATE TABLE assessment_items (\n            id TEXT PRIMARY KEY, exam_id TEXT, question_number INTEGER,\n            question_type TEXT, stem TEXT, answer TEXT, score REAL,\n            options TEXT, explanation TEXT, module_tag TEXT\n        );\n    \"\"\")\n    conn.execute(\"INSERT INTO diagnostic_attributes VALUES ('DA1', '[\\\"C1\\\"]')\")\n    conn.executemany(\"INSERT INTO q_matrix VALUES (?, ?)\", [\n        (\"DA1\", \"item_001\"), (\"DA1\", \"item_002\"), (\"DA1\", \"item_MISSING\"),\n    ])\n    # assessment_items 只有 001/002，故意缺 item_MISSING\n    conn.executemany(\"INSERT INTO assessment_items VALUES (?,?,?,?,?,?,?,?,?,?)\", [\n        (\"item_001\", \"EXAM_X\", 1, \"选择题\", \"题 1\", \"A\", 5.0, None, \"\", \"M1\"),\n        (\"item_002\", \"EXAM_X\", 2, \"选择题\", \"题 2\", \"B\", 5.0, None, \"\", \"M1\"),\n    ])\n    conn.commit()\n    conn.close()\n\n    from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items\n\n    # 第 1 页：必须 total == 真实可返回 item 总数 (2)，不是 q_matrix distinct (3)\n    p1 = get_exam_items(kb_path=str(db_path), concept_id=\"C1\", page=1, page_size=10)\n    assert p1[\"total\"] == 2, f\"total 必须排除 q_matrix 引用但 assessment_items 缺失的 id, 实际 total={p1['total']}\"\n    assert len(p1[\"items\"]) == 2\n    assert {it[\"id\"] for it in p1[\"items\"]} == {\"item_001\", \"item_002\"}\n\n    # 分页一致性：page=2,page_size=2 应是空但 total 仍为 2（不是 phantom 3）\n    p2 = get_exam_items(kb_path=str(db_path), concept_id=\"C1\", page=2, page_size=2)\n    assert p2[\"total\"] == 2\n    assert p2[\"items\"] == []\n\n    # 第 1 页 page_size=2 应满 2 题\n    p1_2 = get_exam_items(kb_path=str(db_path), concept_id=\"C1\", page=1, page_size=2)\n    assert p1_2[\"total\"] == 2\n    assert len(p1_2[\"items\"]) == 2\n\n\ndef test_get_exam_items_pagination_stable(controlled_kb):\n    \"\"\"F003 反证：跨页 item_id 不重叠 + 按 ASC 稳定 + 重复请求一致。\n\n    DISTINCT 未排序 → 重复同一页可能返回不同 item_id → fail\n    IN 查询未保持顺序 → page 内顺序不稳定 → fail\n    \"\"\"\n    from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items\n\n    page1 = get_exam_items(kb_path=controlled_kb, concept_id=\"C1\", page=1, page_size=2)\n    page2 = get_exam_items(kb_path=controlled_kb, concept_id=\"C1\", page=2, page_size=2)\n\n    p1_ids = [it[\"id\"] for it in page1[\"items\"]]\n    p2_ids = [it[\"id\"] for it in page2[\"items\"]]\n    assert set(p1_ids) & set(p2_ids) == set(), \"翻页禁止重复 item\"\n\n    # 顺序按 item_id ASC（item_001 < item_002 < item_003）\n    assert p1_ids == [\"item_001\", \"item_002\"], f\"page1 应 [001, 002] ASC, 实际 {p1_ids}\"\n    assert p2_ids == [\"item_003\"], f\"page2 应只剩 [003], 实际 {p2_ids}\"\n\n    page1_again = get_exam_items(kb_path=controlled_kb, concept_id=\"C1\", page=1, page_size=2)\n    assert [it[\"id\"] for it in page1_again[\"items\"]] == p1_ids, \"重复请求必须确定性\"\n\n\n# ════════════════════════════════════════════════════════════════\n# 兼容真实 KB 烟雾测试（保留 batch1 happy-path）\n# ════════════════════════════════════════════════════════════════\n\n@pytest.mark.skipif(not Path(KB_PATH).exists(), reason=\"knowledge.db not available\")\ndef test_get_exam_items_smoke_with_real_kb():\n    \"\"\"烟雾测试：真实 knowledge.db 存在时光合作用至少有真题。\"\"\"\n    from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items\n\n    result = get_exam_items(\n        kb_path=KB_PATH, concept_id=\"BIO_SR_CP_M1_PHOTOSYNTHESIS\",\n        page=1, page_size=10,\n    )\n    assert result[\"total\"] > 0\n    for item in result[\"items\"]:\n        assert item.get(\"id\")\n        assert item.get(\"question_type\")\n\n\n# ════════════════════════════════════════════════════════════════\n# HTTP 端点级测试（入口级验证）\n# ════════════════════════════════════════════════════════════════\n\n@pytest.mark.asyncio\nasync def test_get_exam_items_endpoint_unknown_concept(client, admin_headers):\n    \"\"\"HTTP 端点：未知 concept → 200 total=0 空列表（降级契约，不 500）。\"\"\"\n    resp = await client.get(\n        \"/api/v1/knowledge-tree/graph/NONEXISTENT_CONCEPT_XYZ/exam-items\",\n        headers=admin_headers,\n    )\n    assert resp.status_code == 200\n    data = resp.json()\n    assert data[\"total\"] == 0\n    assert data[\"items\"] == []\n    assert data[\"page\"] == 1\n    assert data[\"page_size\"] == 20\n\n\n@pytest.mark.asyncio\nasync def test_get_exam_items_endpoint_with_controlled_kb(\n    client, admin_headers, controlled_kb, monkeypatch\n):\n    \"\"\"HTTP 端点：注入受控 KB → 精确返回链路 item_id，验证 ExamItemsResponse 契约。\"\"\"\n    monkeypatch.setenv(\"KNOWLEDGE_DB_PATH\", controlled_kb)\n    resp = await client.get(\n        \"/api/v1/knowledge-tree/graph/C1/exam-items?page=1&page_size=10\",\n        headers=admin_headers,\n    )\n    assert resp.status_code == 200\n    data = resp.json()\n    assert {it[\"id\"] for it in data[\"items\"]} == {\"item_001\", \"item_002\", \"item_003\"}\n    assert data[\"total\"] == 3\n    assert \"page\" in data and \"page_size\" in data\n    for it in data[\"items\"]:\n        assert \"id\" in it and \"question_type\" in it and \"stem\" in it\n\n\n# ════════════════════════════════════════════════════════════════\n# F002 加固：受控隔离 + 精确数值断言\n# ════════════════════════════════════════════════════════════════\n\nasync def _purge_concept_data(db):\n    \"\"\"清除现有 ConceptGraphNode/Edge/Stats，让本测试断言精确数值。\"\"\"\n    await db.execute(sa.delete(ConceptStats))\n    await db.execute(sa.delete(ConceptGraphEdge))\n    await db.execute(sa.delete(ConceptGraphNode))\n    await db.commit()\n\n\n@pytest.mark.asyncio\nasync def test_stats_overview_exact_aggregation(client, admin_headers, db):\n    \"\"\"F002 反证：精确数值断言所有聚合指标。\n\n    构造数据：\n    - M1: 3 概念 freq=[600, 100, 0] → high=1, mid=1, zero=1 / avg=233.3 / coverage=0.667\n    - M2: 1 概念 freq=10 → low=1 / avg=10.0 / coverage=1.0\n    - M1 内 1 条边\n\n    错误实现：\n    - 分桶阈值改错（high>=400）→ distribution 偏差 → fail\n    - avg_freq 算成总和 → 233.3 不等 → fail\n    - exam_coverage 分母错 → 0.667 不等 → fail\n    \"\"\"\n    await _purge_concept_data(db)\n    now = datetime.now()\n\n    db.add_all([\n        ConceptGraphNode(id=\"ST_M1_HIGH\", name=\"高频\", knowledge_level=\"L1\",\n                         primary_module=\"M1\", node_type=\"concept\", synced_at=now),\n        ConceptGraphNode(id=\"ST_M1_MID\", name=\"中频\", knowledge_level=\"L1\",\n                         primary_module=\"M1\", node_type=\"concept\", synced_at=now),\n        ConceptGraphNode(id=\"ST_M1_ZERO\", name=\"零频\", knowledge_level=\"L1\",\n                         primary_module=\"M1\", node_type=\"concept\", synced_at=now),\n        ConceptGraphNode(id=\"ST_M2_LOW\", name=\"低频\", knowledge_level=\"L1\",\n                         primary_module=\"M2\", node_type=\"concept\", synced_at=now),\n        ConceptStats(concept_id=\"ST_M1_HIGH\", exam_frequency=600, exam_coverage=0.5,\n                     importance_score=9.0, textbook_chapters=[], computed_at=now),\n        ConceptStats(concept_id=\"ST_M1_MID\", exam_frequency=100, exam_coverage=0.2,\n                     importance_score=5.0, textbook_chapters=[], computed_at=now),\n        # ST_M1_ZERO 无 stats → service 按 freq=0 处理\n        ConceptStats(concept_id=\"ST_M2_LOW\", exam_frequency=10, exam_coverage=0.05,\n                     importance_score=2.0, textbook_chapters=[], computed_at=now),\n        ConceptGraphEdge(source_id=\"ST_M1_HIGH\", target_id=\"ST_M1_MID\",\n                        relation_type=\"prereq\", strength=1.0, confidence=1.0,\n                        synced_at=now),\n    ])\n    await db.commit()\n\n    resp = await client.get(\"/api/v1/knowledge-tree/stats/overview\", headers=admin_headers)\n    assert resp.status_code == 200\n    data = resp.json()\n\n    # 精确断言（错误实现无法绿通）\n    assert data[\"total_concepts\"] == 4\n    assert data[\"total_edges\"] == 1\n    assert data[\"exam_freq_distribution\"] == {\"high\": 1, \"mid\": 1, \"low\": 1, \"zero\": 1}\n\n    ms = data[\"module_stats\"]\n    assert set(ms.keys()) == {\"M1\", \"M2\"}\n\n    m1 = ms[\"M1\"]\n    assert m1[\"concepts\"] == 3\n    assert m1[\"edges\"] == 1\n    assert m1[\"avg_freq\"] == round((600 + 100 + 0) / 3, 1)  # 233.3\n    assert m1[\"exam_coverage\"] == round(2 / 3, 3)  # 0.667\n\n    m2 = ms[\"M2\"]\n    assert m2[\"concepts\"] == 1\n    assert m2[\"edges\"] == 0\n    assert m2[\"avg_freq\"] == 10.0\n    assert m2[\"exam_coverage\"] == 1.0\n\n\n@pytest.mark.asyncio\nasync def test_stats_overview_module_filter_isolation(client, admin_headers, db):\n    \"\"\"F002 反证：module=M1 时 M2 数据被严格排除（不污染 M1 avg_freq）。\n\n    错误实现 filter 错把 M2 计入 M1 → avg_freq 被稀释 → fail\n    \"\"\"\n    await _purge_concept_data(db)\n    now = datetime.now()\n\n    db.add_all([\n        ConceptGraphNode(id=\"MF_M1_A\", name=\"M1 A\", knowledge_level=\"L1\",\n                         primary_module=\"M1\", node_type=\"concept\", synced_at=now),\n        ConceptGraphNode(id=\"MF_M2_B\", name=\"M2 B\", knowledge_level=\"L1\",\n                         primary_module=\"M2\", node_type=\"concept\", synced_at=now),\n        ConceptStats(concept_id=\"MF_M1_A\", exam_frequency=200, exam_coverage=0.3,\n                     importance_score=6.0, textbook_chapters=[], computed_at=now),\n        ConceptStats(concept_id=\"MF_M2_B\", exam_frequency=10, exam_coverage=0.05,\n                     importance_score=1.0, textbook_chapters=[], computed_at=now),\n    ])\n    await db.commit()\n\n    resp = await client.get(\n        \"/api/v1/knowledge-tree/stats/overview?module=M1\",\n        headers=admin_headers,\n    )\n    assert resp.status_code == 200\n    data = resp.json()\n\n    assert \"M1\" in data[\"module_stats\"]\n    assert \"M2\" not in data[\"module_stats\"]\n    assert data[\"module_stats\"][\"M1\"][\"avg_freq\"] == 200.0\n    assert data[\"module_stats\"][\"M1\"][\"exam_coverage\"] == 1.0\n    assert data[\"total_concepts\"] == 1\n"
+  }
+}
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git show d300263~1:tests/test_knowledge_tree/test_exam_items_service.py' in C:/Users/Administrator/edu-cloud succeeded in 1.64s:
+"""高考真题查询 + 统计概览 API 测试 — Round 2 加固版
+
+契约（来自 plan Task 8）：
+- 概念→DA→q_matrix→assessment_items 链路查询高考真题，支持分页 + 稳定排序
+- 未关联概念返回 total=0/items=[]（降级，不 500）
+- /stats/overview 返回 total_concepts/total_edges/exam_freq_distribution/module_stats
+
+Round 2 加固（F001/F002/F003）：
+- F001：受控临时 SQLite KB 构造已知 DA→item 映射，精确断言 item_id 集合相等
+- F002：先 DELETE 现存数据隔离 fixture，精确数值断言（== 而非 >=）
+- F003：分页稳定性 — 跨页 item_id 不重叠 + 按 ASC 顺序
+
+反例（错误实现会失败）：
+- 占位实现"已知概念返回任意非空" → test_get_exam_items_returns_exact_da_chain 集合不等
+- 硬编码 M1/M2 + high/mid/zero 三态 → test_stats_overview_exact_aggregation 数值偏差
+- 分页未排序 → test_get_exam_items_pagination_stable 跨页重复或顺序抖动
+"""
+import os
+import sqlite3
+import pytest
+codex
+我已经拿到当前版和父提交的完整实现。下一步做两类验证：一是直接跑当前目标测试确认修复成立，二是在临时 worktree 里构造“删掉 INNER JOIN”的 mutant，验证新增测试是否确实会红。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content src/edu_cloud/modules/knowledge_tree/exam_items_service.py | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=1; Get-Content tests/test_knowledge_tree/test_exam_items_service.py | ForEach-Object { '"'{0,4}: {1}' -f "'$i, $_; $i++ }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'pytest tests/test_knowledge_tree/test_exam_items_service.py -k "total_consistent_with_actual_items or pagination_stable or returns_exact_da_chain or isolation_between_concepts or unknown_returns_empty" -q' in C:/Users/Administrator/edu-cloud succeeded in 1.96s:
+   1: """姒傚康鈫掗珮鑰冪湡棰樻煡璇?+ 鐭ヨ瘑鍥捐氨缁熻姒傝銆?
+   2: 閾捐矾:
+   3:   concept_id 鈫?diagnostic_attributes.linked_concept_ids
+   4:             鈫?q_matrix(attribute_id 鈫?item_id)
+   5:             鈫?assessment_items
+   6: 
+   7: 缁熻姒傝鑱氬悎鑷?ConceptGraphNode + ConceptGraphEdge + ConceptStats 鎶曞奖銆?"""
+   8: import json
+   9: import logging
+  10: import sqlite3
+  11: from collections import defaultdict
+  12: 
+  13: import sqlalchemy as sa
+  14: from sqlalchemy.ext.asyncio import AsyncSession
+  15: 
+  16: from edu_cloud.modules.knowledge_tree.models import (
+  17:     ConceptGraphNode, ConceptGraphEdge, ConceptStats,
+  18: )
+  19: 
+  20: logger = logging.getLogger(__name__)
+ succeeded in 2.21s:
+   1: """楂樿€冪湡棰樻煡璇?+ 缁熻姒傝 API 娴嬭瘯 鈥?Round 2 鍔犲浐鐗?
+   2: 濂戠害锛堟潵鑷?plan Task 8锛夛細
+   3: - 姒傚康鈫扗A鈫抭_matrix鈫抋ssessment_items 閾捐矾鏌ヨ楂樿€冪湡棰橈紝鏀寔鍒嗛〉 + 绋冲畾鎺掑簭
+   4: - 鏈叧鑱旀蹇佃繑鍥?total=0/items=[]锛堥檷绾э紝涓?500锛?- /stats/overview 杩斿洖 total_concepts/total_edges/exam_freq_distribution/module_stats
+   5: 
+   6: Round 2 鍔犲浐锛團001/F002/F003锛夛細
+   7: - F001锛氬彈鎺т复鏃?SQLite KB 鏋勯€犲凡鐭?DA鈫抜tem 鏄犲皠锛岀簿纭柇瑷€ item_id 闆嗗悎鐩哥瓑
+   8: - F002锛氬厛 DELETE 鐜板瓨鏁版嵁闅旂 fixture锛岀簿纭暟鍊兼柇瑷€锛?= 鑰岄潪 >=锛?- F003锛氬垎椤电ǔ瀹氭€?鈥?璺ㄩ〉 item_id 涓嶉噸鍙?+ 鎸?ASC 椤哄簭
+   9: 
+  10: 鍙嶄緥锛堥敊璇疄鐜颁細澶辫触锛夛細
+  11: - 鍗犱綅瀹炵幇"宸茬煡姒傚康杩斿洖浠绘剰闈炵┖" 鈫?test_get_exam_items_returns_exact_da_chain 闆嗗悎涓嶇瓑
+  12: - 纭紪鐮?M1/M2 + high/mid/zero 涓夋€?鈫?test_stats_overview_exact_aggregation 鏁板€煎亸宸?- 鍒嗛〉鏈帓搴?鈫?test_get_exam_items_pagination_stable 璺ㄩ〉閲嶅鎴栭『搴忔姈鍔?"""
+  13: import os
+  14: import sqlite3
+  15: import pytest
+  16: from pathlib import Path
+  17: from datetime import datetime
+  18: 
+  19: import sqlalchemy as sa
+  20: 
+ succeeded in 14.70s:
+.....                                                                    [100%]
+5 passed, 5 deselected in 0.74s
+codex
+我准备在临时 worktree 里做一次最小 mutant 验证，只改临时副本，不碰当前工作树；同时补一个“全是 phantom id”边界脚本，确认 INNER JOIN 没把空集合路径弄坏。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$tmp = Join-Path $env:TEMP '"'edu-cloud-r3-mutant'; if (Test-Path "'$tmp) { git worktree remove --force $tmp }; git worktree add --detach $tmp d300263; Write-Output $tmp' in C:/Users/Administrator/edu-cloud succeeded in 13.65s:
+HEAD is now at d300263 fix(knowledge-tree): Batch 2 R3 — N001 INNER JOIN total/items 一致性
+C:\Users\ADMINI~1\AppData\Local\Temp\edu-cloud-r3-mutant
+Preparing worktree (detached HEAD d300263)
+Updating files:   5% (182/3304)Updating files:   6% (199/3304)Updating files:   7% (232/3304)Updating files:   8% (265/3304)Updating files:   9% (298/3304)Updating files:  10% (331/3304)Updating files:  11% (364/3304)Updating files:  12% (397/3304)Updating files:  13% (430/3304)Updating files:  14% (463/3304)Updating files:  15% (496/3304)Updating files:  16% (529/3304)Updating files:  17% (562/3304)Updating files:  17% (590/3304)Updating files:  18% (595/3304)Updating files:  19% (628/3304)Updating files:  20% (661/3304)Updating files:  21% (694/3304)Updating files:  22% (727/3304)Updating files:  23% (760/3304)Updating files:  24% (793/3304)Updating files:  25% (826/3304)Updating files:  26% (860/3304)Updating files:  27% (893/3304)Updating files:  27% (912/3304)Updating files:  28% (926/3304)Updating files:  29% (959/3304)Updating files:  30% (992/3304)Updating files:  31% (1025/3304)Updating files:  32% (1058/3304)Updating files:  33% (1091/3304)Updating files:  34% (1124/3304)Updating files:  35% (1157/3304)Updating files:  36% (1190/3304)Updating files:  37% (1223/3304)Updating files:  38% (1256/3304)Updating files:  39% (1289/3304)Updating files:  40% (1322/3304)Updating files:  40% (1329/3304)Updating files:  41% (1355/3304)Updating files:  42% (1388/3304)Updating files:  43% (1421/3304)Updating files:  44% (1454/3304)Updating files:  45% (1487/3304)Updating files:  46% (1520/3304)Updating files:  47% (1553/3304)Updating files:  48% (1586/3304)Updating files:  49% (1619/3304)Updating files:  50% (1652/3304)Updating files:  51% (1686/3304)Updating files:  51% (1713/3304)Updating files:  52% (1719/3304)Updating files:  53% (1752/3304)Updating files:  54% (1785/3304)Updating files:  55% (1818/3304)Updating files:  56% (1851/3304)Updating files:  57% (1884/3304)Updating files:  58% (1917/3304)Updating files:  59% (1950/3304)Updating files:  60% (1983/3304)Updating files:  61% (2016/3304)Updating files:  62% (2049/3304)Updating files:  63% (2082/3304)Updating files:  64% (2115/3304)Updating files:  64% (2139/3304)Updating files:  65% (2148/3304)Updating files:  66% (2181/3304)Updating files:  67% (2214/3304)Updating files:  68% (2247/3304)Updating files:  69% (2280/3304)Updating files:  70% (2313/3304)Updating files:  71% (2346/3304)Updating files:  72% (2379/3304)Updating files:  73% (2412/3304)Updating files:  74% (2445/3304)Updating files:  74% (2468/3304)Updating files:  75% (2478/3304)Updating files:  76% (2512/3304)Updating files:  77% (2545/3304)Updating files:  78% (2578/3304)Updating files:  79% (2611/3304)Updating files:  80% (2644/3304)Updating files:  81% (2677/3304)Updating files:  82% (2710/3304)Updating files:  83% (2743/3304)Updating files:  84% (2776/3304)Updating files:  85% (2809/3304)Updating files:  86% (2842/3304)Updating files:  87% (2875/3304)Updating files:  87% (2907/3304)Updating files:  88% (2908/3304)Updating files:  89% (2941/3304)Updating files:  90% (2974/3304)Updating files:  91% (3007/3304)Updating files:  92% (3040/3304)Updating files:  93% (3073/3304)Updating files:  94% (3106/3304)Updating files:  95% (3139/3304)Updating files:  96% (3172/3304)Updating files:  97% (3205/3304)Updating files:  98% (3238/3304)Updating files:  99% (3271/3304)Updating files: 100% (3304/3304)Updating files: 100% (3304/3304), done.
+codex
+我现在只改临时 worktree 里的 `exam_items_service.py`，把 JOIN 回退成父提交的行为，然后跑单测验证新增用例会不会失败。
+file update
+M C:/Users/ADMINI~1/AppData/Local/Temp/edu-cloud-r3-mutant/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+@@ -59,14 +59,11 @@
+ 
+-        # 2. 找所有关联 item_id（去重 + INNER JOIN 过滤 + 稳定排序）
+-        # INNER JOIN assessment_items：q_matrix 引用 assessment_items 不存在 id 时
+-        # 在分页前过滤掉，保证 total/page_ids/items 三者一致（N001 修复）
+-        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动
+-        placeholders = ",".join("?" * len(das))
+-        item_ids_rows = conn.execute(
+-            f"SELECT DISTINCT q.item_id FROM q_matrix q "
+-            f"INNER JOIN assessment_items a ON q.item_id = a.id "
+-            f"WHERE q.attribute_id IN ({placeholders}) "
+-            f"ORDER BY q.item_id ASC",
+-            das,
+-        ).fetchall()
++        # 2. 找所有关联 item_id（去重 + 稳定排序）
++        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动
++        placeholders = ",".join("?" * len(das))
++        item_ids_rows = conn.execute(
++            f"SELECT DISTINCT item_id FROM q_matrix "
++            f"WHERE attribute_id IN ({placeholders}) "
++            f"ORDER BY item_id ASC",
++            das,
++        ).fetchall()
+         item_ids = [r[0] for r in item_ids_rows]
+@@ -96,8 +93,8 @@
+ 
+-        items = []
+-        for pid in page_ids:
+-            row = rows_by_id.get(pid)
+-            if row is None:
+-                continue  # 防御性：经 INNER JOIN 过滤后理论上不应触发
+-            items.append({
++        items = []
++        for pid in page_ids:
++            row = rows_by_id.get(pid)
++            if row is None:
++                continue  # q_matrix 引用了 assessment_items 不存在的 id（数据漂移时降级跳过）
++            items.append({
+                 "id": row[0],
+apply_patch(auto_approved=true) exited 0 in 219ms:
+Success. Updated the following files:
+M C:/Users/ADMINI~1/AppData/Local/Temp/edu-cloud-r3-mutant/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py b/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+index f10e750472f638f090ab50fdaaec74211b702961..e9f0789dd8742f2e26203f368569f3af6c1625a0
+--- a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+@@ -57,18 +57,15 @@
+         if not das:
+             return {"total": 0, "items": [], "page": page, "page_size": page_size}
+ 
+-        # 2. 找所有关联 item_id（去重 + INNER JOIN 过滤 + 稳定排序）
+-        # INNER JOIN assessment_items：q_matrix 引用 assessment_items 不存在 id 时
+-        # 在分页前过滤掉，保证 total/page_ids/items 三者一致（N001 修复）
+-        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动
+-        placeholders = ",".join("?" * len(das))
+-        item_ids_rows = conn.execute(
+-            f"SELECT DISTINCT q.item_id FROM q_matrix q "
+-            f"INNER JOIN assessment_items a ON q.item_id = a.id "
+-            f"WHERE q.attribute_id IN ({placeholders}) "
+-            f"ORDER BY q.item_id ASC",
+-            das,
+-        ).fetchall()
++        # 2. 找所有关联 item_id（去重 + 稳定排序）
++        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动
++        placeholders = ",".join("?" * len(das))
++        item_ids_rows = conn.execute(
++            f"SELECT DISTINCT item_id FROM q_matrix "
++            f"WHERE attribute_id IN ({placeholders}) "
++            f"ORDER BY item_id ASC",
++            das,
++        ).fetchall()
+         item_ids = [r[0] for r in item_ids_rows]
+         total = len(item_ids)
+         if total == 0:
+@@ -94,12 +91,12 @@
+         ):
+             rows_by_id[row[0]] = row
+ 
+-        items = []
+-        for pid in page_ids:
+-            row = rows_by_id.get(pid)
+-            if row is None:
+-                continue  # 防御性：经 INNER JOIN 过滤后理论上不应触发
+-            items.append({
++        items = []
++        for pid in page_ids:
++            row = rows_by_id.get(pid)
++            if row is None:
++                continue  # q_matrix 引用了 assessment_items 不存在的 id（数据漂移时降级跳过）
++            items.append({
+                 "id": row[0],
+                 "exam_id": row[1],
+                 "question_number": row[2],
+
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py b/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+index f10e750472f638f090ab50fdaaec74211b702961..e9f0789dd8742f2e26203f368569f3af6c1625a0
+--- a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+@@ -57,18 +57,15 @@
+         if not das:
+             return {"total": 0, "items": [], "page": page, "page_size": page_size}
+ 
+-        # 2. 找所有关联 item_id（去重 + INNER JOIN 过滤 + 稳定排序）
+-        # INNER JOIN assessment_items：q_matrix 引用 assessment_items 不存在 id 时
+-        # 在分页前过滤掉，保证 total/page_ids/items 三者一致（N001 修复）
+-        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动
+-        placeholders = ",".join("?" * len(das))
+-        item_ids_rows = conn.execute(
+-            f"SELECT DISTINCT q.item_id FROM q_matrix q "
+-            f"INNER JOIN assessment_items a ON q.item_id = a.id "
+-            f"WHERE q.attribute_id IN ({placeholders}) "
+-            f"ORDER BY q.item_id ASC",
+-            das,
+-        ).fetchall()
++        # 2. 找所有关联 item_id（去重 + 稳定排序）
++        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动
++        placeholders = ",".join("?" * len(das))
++        item_ids_rows = conn.execute(
++            f"SELECT DISTINCT item_id FROM q_matrix "
++            f"WHERE attribute_id IN ({placeholders}) "
++            f"ORDER BY item_id ASC",
++            das,
++        ).fetchall()
+         item_ids = [r[0] for r in item_ids_rows]
+         total = len(item_ids)
+         if total == 0:
+@@ -94,12 +91,12 @@
+         ):
+             rows_by_id[row[0]] = row
+ 
+-        items = []
+-        for pid in page_ids:
+-            row = rows_by_id.get(pid)
+-            if row is None:
+-                continue  # 防御性：经 INNER JOIN 过滤后理论上不应触发
+-            items.append({
++        items = []
++        for pid in page_ids:
++            row = rows_by_id.get(pid)
++            if row is None:
++                continue  # q_matrix 引用了 assessment_items 不存在的 id（数据漂移时降级跳过）
++            items.append({
+                 "id": row[0],
+                 "exam_id": row[1],
+                 "question_number": row[2],
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "@'
+import sqlite3, tempfile, os
+from edu_cloud.modules.knowledge_tree.exam_items_service import get_exam_items
+
+tmp = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
+tmp.close()
+conn = sqlite3.connect(tmp.name)
+conn.executescript(\"\"\"
+CREATE TABLE diagnostic_attributes (id TEXT PRIMARY KEY, linked_concept_ids TEXT);
+CREATE TABLE q_matrix (attribute_id TEXT, item_id TEXT);
+CREATE TABLE assessment_items (
+    id TEXT PRIMARY KEY, exam_id TEXT, question_number INTEGER,
+    question_type TEXT, stem TEXT, answer TEXT, score REAL,
+    options TEXT, explanation TEXT, module_tag TEXT
+);
+\"\"\")
+conn.execute(\"INSERT INTO diagnostic_attributes VALUES ('DA1', '[\\\"C1\\\"]')\")
+conn.executemany(\"INSERT INTO q_matrix VALUES (?, ?)\", [
+    ('DA1', 'item_MISSING_A'),
+    ('DA1', 'item_MISSING_B')
+])
+conn.commit(); conn.close()
+result = get_exam_items(kb_path=tmp.name, concept_id='C1', page=1, page_size=10)
+print(result)
+os.unlink(tmp.name)
+'@ | python -" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'pytest tests/test_knowledge_tree/test_exam_items_service.py::test_get_exam_items_total_consistent_with_actual_items -q' in C:/Users/ADMINI~1/AppData/Local/Temp/edu-cloud-r3-mutant succeeded in 1.67s:
+{'total': 0, 'items': [], 'page': 1, 'page_size': 10}
+ exited 1 in 10.00s:
+F                                                                        [100%]
+================================== FAILURES ===================================
+___________ test_get_exam_items_total_consistent_with_actual_items ____________
+
+tmp_path = WindowsPath('C:/Users/Administrator/AppData/Local/Temp/pytest-of-Administrator/pytest-2038/test_get_exam_items_total_cons0')
+
+    def test_get_exam_items_total_consistent_with_actual_items(tmp_path):
+        """N001 反证：q_matrix 引用 assessment_items 不存在 id 时，
+        total 必须等于 page 实际可返回的题目总数（不包含 phantom id）。
+    
+        构造场景：
+        - DA1 关联 concept C1，q_matrix 关联 3 个 item_id (item_001/002/MISSING)
+        - assessment_items 仅含 item_001 / item_002（item_MISSING 不存在，模拟数据漂移）
+        - 错误实现：total=3，page=2,page_size=2 返回空 → 前端看到 phantom total
+        - 正确实现：total=2，page=2,page_size=2 返回空（合理：第 2 页无内容）
+    
+        错误实现会 fail：
+        - INNER JOIN 缺失 → total 包含 MISSING → total != len(实际可返回 items)
+        """
+        db_path = tmp_path / "drift.db"
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py b/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+index f10e750472f638f090ab50fdaaec74211b702961..e9f0789dd8742f2e26203f368569f3af6c1625a0
+--- a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
++++ b/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+@@ -57,18 +57,15 @@
+         if not das:
+             return {"total": 0, "items": [], "page": page, "page_size": page_size}
+ 
+-        # 2. 找所有关联 item_id（去重 + INNER JOIN 过滤 + 稳定排序）
+-        # INNER JOIN assessment_items：q_matrix 引用 assessment_items 不存在 id 时
+-        # 在分页前过滤掉，保证 total/page_ids/items 三者一致（N001 修复）
+-        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动
+-        placeholders = ",".join("?" * len(das))
+-        item_ids_rows = conn.execute(
+-            f"SELECT DISTINCT q.item_id FROM q_matrix q "
+-            f"INNER JOIN assessment_items a ON q.item_id = a.id "
+-            f"WHERE q.attribute_id IN ({placeholders}) "
+-            f"ORDER BY q.item_id ASC",
+-            das,
+-        ).fetchall()
++        # 2. 找所有关联 item_id（去重 + 稳定排序）
++        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动
++        placeholders = ",".join("?" * len(das))
++        item_ids_rows = conn.execute(
++            f"SELECT DISTINCT item_id FROM q_matrix "
++            f"WHERE attribute_id IN ({placeholders}) "
++            f"ORDER BY item_id ASC",
++            das,
++        ).fetchall()
+         item_ids = [r[0] for r in item_ids_rows]
+         total = len(item_ids)
+         if total == 0:
+@@ -94,12 +91,12 @@
+         ):
+             rows_by_id[row[0]] = row
+ 
+-        items = []
+-        for pid in page_ids:
+-            row = rows_by_id.get(pid)
+-            if row is None:
+-                continue  # 防御性：经 INNER JOIN 过滤后理论上不应触发
+-            items.append({
++        items = []
++        for pid in page_ids:
++            row = rows_by_id.get(pid)
++            if row is None:
++                continue  # q_matrix 引用了 assessment_items 不存在的 id（数据漂移时降级跳过）
++            items.append({
+                 "id": row[0],
+                 "exam_id": row[1],
+                 "question_number": row[2],
+
+codex
+验证结果已经出来了：当前实现目标测试通过，mutant 删除 `INNER JOIN` 后新增测试确实失败。最后我补精确行号并清理临时 worktree，然后给出 Round 3 结论。
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"def test_get_exam_items_total_consistent_with_actual_items|assert p1\\[\\\"total\\\"\\] == 2|assert p2\\[\\\"total\\\"\\] == 2|assert len\\(p1_2\\[\\\"items\\\"\\]\\) == 2\" tests/test_knowledge_tree/test_exam_items_service.py" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"INNER JOIN assessment_items|ORDER BY q\\.item_id ASC|防御性：经 INNER JOIN 过滤后理论上不应触发\" src/edu_cloud/modules/knowledge_tree/exam_items_service.py" in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git worktree remove --force C:/Users/ADMINI~1/AppData/Local/Temp/edu-cloud-r3-mutant' in C:/Users/Administrator/edu-cloud succeeded in 4.85s:
+61:        # INNER JOIN assessment_items：q_matrix 引用 assessment_items 不存在 id 时
+67:            f"INNER JOIN assessment_items a ON q.item_id = a.id "
+69:            f"ORDER BY q.item_id ASC",
+101:                continue  # 防御性：经 INNER JOIN 过滤后理论上不应触发
+ exited 1 in 3.96s:
+rg: ==: 系统找不到指定的文件。 (os error 2)
+rg: 2|assert: 文件名、目录名或卷标语法不正确。 (os error 123)
+rg: p2\[\total\\]: 系统找不到指定的路径。 (os error 3)
+rg: ==: 系统找不到指定的文件。 (os error 2)
+rg: 2|assert: 文件名、目录名或卷标语法不正确。 (os error 123)
+rg: len\(p1_2\[\items\\]\): 系统找不到指定的路径。 (os error 3)
+rg: ==: 系统找不到指定的文件。 (os error 2)
+rg: 2 tests/test_knowledge_tree/test_exam_items_service.py: 系统找不到指定的路径。 (os error 3)
+ succeeded in 9.28s:
+
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py b/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+deleted file mode 100644
+index f10e750472f638f090ab50fdaaec74211b702961..0000000000000000000000000000000000000000
+--- a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
++++ /dev/null
+@@ -1,202 +0,0 @@
+-"""概念→高考真题查询 + 知识图谱统计概览。
+-
+-链路:
+-  concept_id → diagnostic_attributes.linked_concept_ids
+-            → q_matrix(attribute_id → item_id)
+-            → assessment_items
+-
+-统计概览聚合自 ConceptGraphNode + ConceptGraphEdge + ConceptStats 投影。
+-"""
+-import json
+-import logging
+-import sqlite3
+-from collections import defaultdict
+-
+-import sqlalchemy as sa
+-from sqlalchemy.ext.asyncio import AsyncSession
+-
+-from edu_cloud.modules.knowledge_tree.models import (
+-    ConceptGraphNode, ConceptGraphEdge, ConceptStats,
+-)
+-
+-logger = logging.getLogger(__name__)
+-
+-
+-def get_exam_items(
+-    kb_path: str,
+-    concept_id: str,
+-    page: int = 1,
+-    page_size: int = 20,
+-) -> dict:
+-    """查询某概念关联的高考真题。
+-
+-    Args:
+-        kb_path: knowledge.db 绝对路径
+-        concept_id: 概念节点 ID
+-        page: 页码（1-based）
+-        page_size: 每页数量
+-
+-    Returns:
+-        {total: int, items: list, page: int, page_size: int}
+-        未关联或概念不存在时 total=0 / items=[]（降级，不抛）
+-    """
+-    conn = sqlite3.connect(kb_path)
+-    try:
+-        # 1. 找到关联该概念的 DA
+-        das: list[str] = []
+-        for da_id, linked in conn.execute(
+-            "SELECT id, linked_concept_ids FROM diagnostic_attributes "
+-            "WHERE linked_concept_ids IS NOT NULL"
+-        ):
+-            try:
+-                if concept_id in json.loads(linked):
+-                    das.append(da_id)
+-            except (json.JSONDecodeError, TypeError):
+-                continue
+-
+-        if not das:
+-            return {"total": 0, "items": [], "page": page, "page_size": page_size}
+-
+-        # 2. 找所有关联 item_id（去重 + INNER JOIN 过滤 + 稳定排序）
+-        # INNER JOIN assessment_items：q_matrix 引用 assessment_items 不存在 id 时
+-        # 在分页前过滤掉，保证 total/page_ids/items 三者一致（N001 修复）
+-        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动
+-        placeholders = ",".join("?" * len(das))
+-        item_ids_rows = conn.execute(
+-            f"SELECT DISTINCT q.item_id FROM q_matrix q "
+-            f"INNER JOIN assessment_items a ON q.item_id = a.id "
+-            f"WHERE q.attribute_id IN ({placeholders}) "
+-            f"ORDER BY q.item_id ASC",
+-            das,
+-        ).fetchall()
+-        item_ids = [r[0] for r in item_ids_rows]
+-        total = len(item_ids)
+-        if total == 0:
+-            return {"total": 0, "items": [], "page": page, "page_size": page_size}
+-
+-        # 3. 分页取 id 切片（按 item_id ASC 顺序）
+-        offset = (page - 1) * page_size
+-        page_ids = item_ids[offset:offset + page_size]
+-        if not page_ids:
+-            return {"total": total, "items": [], "page": page, "page_size": page_size}
+-
+-        # 4. 查询题目详情
+-        # 🔀 plan 原设 difficulty 列，但 knowledge.db.assessment_items 实际 schema
+-        # 有 score/options/module_tag，无 difficulty。改为返回 score + options（raw JSON）
+-        # 详情查询用 dict 索引重排，保持 page_ids 顺序（IN(...) 不保证返回顺序与参数序一致）
+-        placeholders_p = ",".join("?" * len(page_ids))
+-        rows_by_id = {}
+-        for row in conn.execute(
+-            f"""SELECT id, exam_id, question_number, question_type, stem,
+-                       answer, score, options, explanation, module_tag
+-                FROM assessment_items WHERE id IN ({placeholders_p})""",
+-            page_ids,
+-        ):
+-            rows_by_id[row[0]] = row
+-
+-        items = []
+-        for pid in page_ids:
+-            row = rows_by_id.get(pid)
+-            if row is None:
+-                continue  # 防御性：经 INNER JOIN 过滤后理论上不应触发
+-            items.append({
+-                "id": row[0],
+-                "exam_id": row[1],
+-                "question_number": row[2],
+-                "question_type": row[3],
+-                "stem": row[4],
+-                "answer": row[5],
+-                "score": row[6],
+-                "options": row[7],
+-                "explanation": row[8],
+-                "module_tag": row[9],
+-            })
+-
+-        return {"total": total, "items": items, "page": page, "page_size": page_size}
+-    finally:
+-        conn.close()
+-
+-
+-async def get_stats_overview(db: AsyncSession, module: str = "all") -> dict:
+-    """知识图谱全模块统计概览。
+-
+-    Args:
+-        db: async session
+-        module: "all" 或具体模块 ID（M1/M2/...）
+-
+-    Returns:
+-        {
+-          total_concepts: int,
+-          total_edges: int,
+-          exam_freq_distribution: {high, mid, low, zero},
+-          module_stats: {M1: {concepts, edges, avg_freq, exam_coverage}, ...},
+-        }
+-    """
+-    # 1. 概念（按 module filter）
+-    node_q = sa.select(ConceptGraphNode).where(ConceptGraphNode.node_type == "concept")
+-    if module != "all":
+-        node_q = node_q.where(ConceptGraphNode.primary_module == module)
+-    nodes = list((await db.execute(node_q)).scalars())
+-    node_ids = {n.id for n in nodes}
+-
+-    # 2. 边（module filter 时只保留端点都在视图内的边）
+-    all_edges = list((await db.execute(sa.select(ConceptGraphEdge))).scalars())
+-    edges = (
+-        [e for e in all_edges if e.source_id in node_ids and e.target_id in node_ids]
+-        if module != "all" else all_edges
+-    )
+-
+-    # 3. ConceptStats 预加载
+-    stats_q = sa.select(ConceptStats)
+-    if module != "all":
+-        stats_q = stats_q.where(ConceptStats.concept_id.in_(node_ids))
+-    stats = list((await db.execute(stats_q)).scalars())
+-    stats_by_id = {s.concept_id: s for s in stats}
+-
+-    # 4. 考频分布：high>=500 / mid[50,499] / low[1,49] / zero=0
+-    distribution = {"high": 0, "mid": 0, "low": 0, "zero": 0}
+-    module_stats: dict[str, dict] = defaultdict(
+-        lambda: {
+-            "concepts": 0, "edges": 0, "total_freq": 0,
+-            "nonzero_freq_count": 0, "avg_freq": 0.0, "exam_coverage": 0.0,
+-        }
+-    )
+-    for n in nodes:
+-        s = stats_by_id.get(n.id)
+-        freq = s.exam_frequency if s else 0
+-        if freq >= 500:
+-            distribution["high"] += 1
+-        elif freq >= 50:
+-            distribution["mid"] += 1
+-        elif freq >= 1:
+-            distribution["low"] += 1
+-        else:
+-            distribution["zero"] += 1
+-        ms = module_stats[n.primary_module]
+-        ms["concepts"] += 1
+-        ms["total_freq"] += freq
+-        if freq > 0:
+-            ms["nonzero_freq_count"] += 1
+-
+-    # 5. 边按 source 所属 module 计数
+-    nodes_by_id = {n.id: n for n in nodes}
+-    for e in edges:
+-        src = nodes_by_id.get(e.source_id)
+-        if src:
+-            module_stats[src.primary_module]["edges"] += 1
+-
+-    # 6. 派生指标：avg_freq + exam_coverage（非零比例）
+-    for mod, ms in module_stats.items():
+-        if ms["concepts"]:
+-            ms["avg_freq"] = round(ms["total_freq"] / ms["concepts"], 1)
+-            ms["exam_coverage"] = round(ms["nonzero_freq_count"] / ms["concepts"], 3)
+-        # 中间字段从响应中剥离
+-        del ms["total_freq"]
+-        del ms["nonzero_freq_count"]
+-
+-    return {
+-        "total_concepts": len(nodes),
+-        "total_edges": len(edges),
+-        "exam_freq_distribution": distribution,
+-        "module_stats": dict(module_stats),
+-    }
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Select-String -Path tests/test_knowledge_tree/test_exam_items_service.py -Pattern 'def test_get_exam_items_pagination_stable' | ForEach-Object { \"{0}:{1}\" -f "'$_.LineNumber, $_.Line.Trim() }' in C:/Users/Administrator/edu-cloudexec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Select-String -Path tests/test_knowledge_tree/test_exam_items_service.py -Pattern 'def test_get_exam_items_total_consistent_with_actual_items','assert p1\\[\"total\"\\] == 2','assert p2\\[\"total\"\\] == 2','assert len\\(p1_2\\[\"items\"\\]\\) == 2' | ForEach-Object { \"{0}:{1}\" -f "'$_.LineNumber, $_.Line.Trim() }' in C:/Users/Administrator/edu-cloud succeeded in 1.29s:
+195:def test_get_exam_items_pagination_stable(controlled_kb):
+ succeeded in 1.23s:
+140:def test_get_exam_items_total_consistent_with_actual_items(tmp_path):
+180:assert p1["total"] == 2, f"total 必须排除 q_matrix 引用但 assessment_items 缺失的 id, 实际 total={p1['total']}"
+186:assert p2["total"] == 2
+192:assert len(p1_2["items"]) == 2
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py b/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+deleted file mode 100644
+index f10e750472f638f090ab50fdaaec74211b702961..0000000000000000000000000000000000000000
+--- a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
++++ /dev/null
+@@ -1,202 +0,0 @@
+-"""概念→高考真题查询 + 知识图谱统计概览。
+-
+-链路:
+-  concept_id → diagnostic_attributes.linked_concept_ids
+-            → q_matrix(attribute_id → item_id)
+-            → assessment_items
+-
+-统计概览聚合自 ConceptGraphNode + ConceptGraphEdge + ConceptStats 投影。
+-"""
+-import json
+-import logging
+-import sqlite3
+-from collections import defaultdict
+-
+-import sqlalchemy as sa
+-from sqlalchemy.ext.asyncio import AsyncSession
+-
+-from edu_cloud.modules.knowledge_tree.models import (
+-    ConceptGraphNode, ConceptGraphEdge, ConceptStats,
+-)
+-
+-logger = logging.getLogger(__name__)
+-
+-
+-def get_exam_items(
+-    kb_path: str,
+-    concept_id: str,
+-    page: int = 1,
+-    page_size: int = 20,
+-) -> dict:
+-    """查询某概念关联的高考真题。
+-
+-    Args:
+-        kb_path: knowledge.db 绝对路径
+-        concept_id: 概念节点 ID
+-        page: 页码（1-based）
+-        page_size: 每页数量
+-
+-    Returns:
+-        {total: int, items: list, page: int, page_size: int}
+-        未关联或概念不存在时 total=0 / items=[]（降级，不抛）
+-    """
+-    conn = sqlite3.connect(kb_path)
+-    try:
+-        # 1. 找到关联该概念的 DA
+-        das: list[str] = []
+-        for da_id, linked in conn.execute(
+-            "SELECT id, linked_concept_ids FROM diagnostic_attributes "
+-            "WHERE linked_concept_ids IS NOT NULL"
+-        ):
+-            try:
+-                if concept_id in json.loads(linked):
+-                    das.append(da_id)
+-            except (json.JSONDecodeError, TypeError):
+-                continue
+-
+-        if not das:
+-            return {"total": 0, "items": [], "page": page, "page_size": page_size}
+-
+-        # 2. 找所有关联 item_id（去重 + INNER JOIN 过滤 + 稳定排序）
+-        # INNER JOIN assessment_items：q_matrix 引用 assessment_items 不存在 id 时
+-        # 在分页前过滤掉，保证 total/page_ids/items 三者一致（N001 修复）
+-        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动
+-        placeholders = ",".join("?" * len(das))
+-        item_ids_rows = conn.execute(
+-            f"SELECT DISTINCT q.item_id FROM q_matrix q "
+-            f"INNER JOIN assessment_items a ON q.item_id = a.id "
+-            f"WHERE q.attribute_id IN ({placeholders}) "
+-            f"ORDER BY q.item_id ASC",
+-            das,
+-        ).fetchall()
+-        item_ids = [r[0] for r in item_ids_rows]
+-        total = len(item_ids)
+-        if total == 0:
+-            return {"total": 0, "items": [], "page": page, "page_size": page_size}
+-
+-        # 3. 分页取 id 切片（按 item_id ASC 顺序）
+-        offset = (page - 1) * page_size
+-        page_ids = item_ids[offset:offset + page_size]
+-        if not page_ids:
+-            return {"total": total, "items": [], "page": page, "page_size": page_size}
+-
+-        # 4. 查询题目详情
+-        # 🔀 plan 原设 difficulty 列，但 knowledge.db.assessment_items 实际 schema
+-        # 有 score/options/module_tag，无 difficulty。改为返回 score + options（raw JSON）
+-        # 详情查询用 dict 索引重排，保持 page_ids 顺序（IN(...) 不保证返回顺序与参数序一致）
+-        placeholders_p = ",".join("?" * len(page_ids))
+-        rows_by_id = {}
+-        for row in conn.execute(
+-            f"""SELECT id, exam_id, question_number, question_type, stem,
+-                       answer, score, options, explanation, module_tag
+-                FROM assessment_items WHERE id IN ({placeholders_p})""",
+-            page_ids,
+-        ):
+-            rows_by_id[row[0]] = row
+-
+-        items = []
+-        for pid in page_ids:
+-            row = rows_by_id.get(pid)
+-            if row is None:
+-                continue  # 防御性：经 INNER JOIN 过滤后理论上不应触发
+-            items.append({
+-                "id": row[0],
+-                "exam_id": row[1],
+-                "question_number": row[2],
+-                "question_type": row[3],
+-                "stem": row[4],
+-                "answer": row[5],
+-                "score": row[6],
+-                "options": row[7],
+-                "explanation": row[8],
+-                "module_tag": row[9],
+-            })
+-
+-        return {"total": total, "items": items, "page": page, "page_size": page_size}
+-    finally:
+-        conn.close()
+-
+-
+-async def get_stats_overview(db: AsyncSession, module: str = "all") -> dict:
+-    """知识图谱全模块统计概览。
+-
+-    Args:
+-        db: async session
+-        module: "all" 或具体模块 ID（M1/M2/...）
+-
+-    Returns:
+-        {
+-          total_concepts: int,
+-          total_edges: int,
+-          exam_freq_distribution: {high, mid, low, zero},
+-          module_stats: {M1: {concepts, edges, avg_freq, exam_coverage}, ...},
+-        }
+-    """
+-    # 1. 概念（按 module filter）
+-    node_q = sa.select(ConceptGraphNode).where(ConceptGraphNode.node_type == "concept")
+-    if module != "all":
+-        node_q = node_q.where(ConceptGraphNode.primary_module == module)
+-    nodes = list((await db.execute(node_q)).scalars())
+-    node_ids = {n.id for n in nodes}
+-
+-    # 2. 边（module filter 时只保留端点都在视图内的边）
+-    all_edges = list((await db.execute(sa.select(ConceptGraphEdge))).scalars())
+-    edges = (
+-        [e for e in all_edges if e.source_id in node_ids and e.target_id in node_ids]
+-        if module != "all" else all_edges
+-    )
+-
+-    # 3. ConceptStats 预加载
+-    stats_q = sa.select(ConceptStats)
+-    if module != "all":
+-        stats_q = stats_q.where(ConceptStats.concept_id.in_(node_ids))
+-    stats = list((await db.execute(stats_q)).scalars())
+-    stats_by_id = {s.concept_id: s for s in stats}
+-
+-    # 4. 考频分布：high>=500 / mid[50,499] / low[1,49] / zero=0
+-    distribution = {"high": 0, "mid": 0, "low": 0, "zero": 0}
+-    module_stats: dict[str, dict] = defaultdict(
+-        lambda: {
+-            "concepts": 0, "edges": 0, "total_freq": 0,
+-            "nonzero_freq_count": 0, "avg_freq": 0.0, "exam_coverage": 0.0,
+-        }
+-    )
+-    for n in nodes:
+-        s = stats_by_id.get(n.id)
+-        freq = s.exam_frequency if s else 0
+-        if freq >= 500:
+-            distribution["high"] += 1
+-        elif freq >= 50:
+-            distribution["mid"] += 1
+-        elif freq >= 1:
+-            distribution["low"] += 1
+-        else:
+-            distribution["zero"] += 1
+-        ms = module_stats[n.primary_module]
+-        ms["concepts"] += 1
+-        ms["total_freq"] += freq
+-        if freq > 0:
+-            ms["nonzero_freq_count"] += 1
+-
+-    # 5. 边按 source 所属 module 计数
+-    nodes_by_id = {n.id: n for n in nodes}
+-    for e in edges:
+-        src = nodes_by_id.get(e.source_id)
+-        if src:
+-            module_stats[src.primary_module]["edges"] += 1
+-
+-    # 6. 派生指标：avg_freq + exam_coverage（非零比例）
+-    for mod, ms in module_stats.items():
+-        if ms["concepts"]:
+-            ms["avg_freq"] = round(ms["total_freq"] / ms["concepts"], 1)
+-            ms["exam_coverage"] = round(ms["nonzero_freq_count"] / ms["concepts"], 3)
+-        # 中间字段从响应中剥离
+-        del ms["total_freq"]
+-        del ms["nonzero_freq_count"]
+-
+-    return {
+-        "total_concepts": len(nodes),
+-        "total_edges": len(edges),
+-        "exam_freq_distribution": distribution,
+-        "module_stats": dict(module_stats),
+-    }
+
+codex
+未发现本轮阻塞性 finding。
+
+N001 判定：`resolved-correct`。修复点在 [src/edu_cloud/modules/knowledge_tree/exam_items_service.py:61](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/exam_items_service.py#L61) 和 [src/edu_cloud/modules/knowledge_tree/exam_items_service.py:67](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/exam_items_service.py#L67)，现在先用 `q_matrix` 对 `assessment_items` 做 `INNER JOIN`，再计算 `item_ids/total` 并分页，所以 phantom id 会在分页前被过滤，`total / page_ids / items` 口径一致。防御性 `row is None` 分支还保留在 [src/edu_cloud/modules/knowledge_tree/exam_items_service.py:101](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/exam_items_service.py#L101)，但按当前查询路径理论上不会再命中。
+
+新增测试充分，`test_get_exam_items_total_consistent_with_actual_items` 位于 [tests/test_knowledge_tree/test_exam_items_service.py:140](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_exam_items_service.py#L140)，同时检查第一页 `total==2`、第二页空结果但 `total` 仍为 2、以及 `page_size=2` 时第一页装满两题，关键断言在 [tests/test_knowledge_tree/test_exam_items_service.py:180](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_exam_items_service.py#L180)、[tests/test_knowledge_tree/test_exam_items_service.py:186](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_exam_items_service.py#L186)、[tests/test_knowledge_tree/test_exam_items_service.py:192](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_exam_items_service.py#L192)。我在临时 worktree 中删除 `INNER JOIN` 后复跑该测试，实际失败并报出 `total=3`，说明它能有效杀掉“删掉 INNER JOIN”的 mutant。当前相关回归测试本地通过：`5 passed, 5 deselected`。
+
+边界路径未见新 bug。当前实现对“无关联 DA”仍会早退为 `{total: 0, items: []}`；我额外做了“全部都是 phantom id、`assessment_items` 无任何对应行”的脚本验证，返回也是 `{'total': 0, 'items': [], 'page': 1, 'page_size': 10}`，说明 `INNER JOIN` 没把空集合/无关联路径弄坏。
+
+结论：PASS。无新增 HIGH/MED `code-bug` 或 `test-gap`。
+file update:
+diff --git a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py b/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
+deleted file mode 100644
+index f10e750472f638f090ab50fdaaec74211b702961..0000000000000000000000000000000000000000
+--- a/src/edu_cloud/modules/knowledge_tree/exam_items_service.py
++++ /dev/null
+@@ -1,202 +0,0 @@
+-"""概念→高考真题查询 + 知识图谱统计概览。
+-
+-链路:
+-  concept_id → diagnostic_attributes.linked_concept_ids
+-            → q_matrix(attribute_id → item_id)
+-            → assessment_items
+-
+-统计概览聚合自 ConceptGraphNode + ConceptGraphEdge + ConceptStats 投影。
+-"""
+-import json
+-import logging
+-import sqlite3
+-from collections import defaultdict
+-
+-import sqlalchemy as sa
+-from sqlalchemy.ext.asyncio import AsyncSession
+-
+-from edu_cloud.modules.knowledge_tree.models import (
+-    ConceptGraphNode, ConceptGraphEdge, ConceptStats,
+-)
+-
+-logger = logging.getLogger(__name__)
+-
+-
+-def get_exam_items(
+-    kb_path: str,
+-    concept_id: str,
+-    page: int = 1,
+-    page_size: int = 20,
+-) -> dict:
+-    """查询某概念关联的高考真题。
+-
+-    Args:
+-        kb_path: knowledge.db 绝对路径
+-        concept_id: 概念节点 ID
+-        page: 页码（1-based）
+-        page_size: 每页数量
+-
+-    Returns:
+-        {total: int, items: list, page: int, page_size: int}
+-        未关联或概念不存在时 total=0 / items=[]（降级，不抛）
+-    """
+-    conn = sqlite3.connect(kb_path)
+-    try:
+-        # 1. 找到关联该概念的 DA
+-        das: list[str] = []
+-        for da_id, linked in conn.execute(
+-            "SELECT id, linked_concept_ids FROM diagnostic_attributes "
+-            "WHERE linked_concept_ids IS NOT NULL"
+-        ):
+-            try:
+-                if concept_id in json.loads(linked):
+-                    das.append(da_id)
+-            except (json.JSONDecodeError, TypeError):
+-                continue
+-
+-        if not das:
+-            return {"total": 0, "items": [], "page": page, "page_size": page_size}
+-
+-        # 2. 找所有关联 item_id（去重 + INNER JOIN 过滤 + 稳定排序）
+-        # INNER JOIN assessment_items：q_matrix 引用 assessment_items 不存在 id 时
+-        # 在分页前过滤掉，保证 total/page_ids/items 三者一致（N001 修复）
+-        # ORDER BY item_id ASC：保证翻页之间页边界确定，避免 SQLite 默认顺序抖动
+-        placeholders = ",".join("?" * len(das))
+-        item_ids_rows = conn.execute(
+-            f"SELECT DISTINCT q.item_id FROM q_matrix q "
+-            f"INNER JOIN assessment_items a ON q.item_id = a.id "
+-            f"WHERE q.attribute_id IN ({placeholders}) "
+-            f"ORDER BY q.item_id ASC",
+-            das,
+-        ).fetchall()
+-        item_ids = [r[0] for r in item_ids_rows]
+-        total = len(item_ids)
+-        if total == 0:
+-            return {"total": 0, "items": [], "page": page, "page_size": page_size}
+-
+-        # 3. 分页取 id 切片（按 item_id ASC 顺序）
+-        offset = (page - 1) * page_size
+-        page_ids = item_ids[offset:offset + page_size]
+-        if not page_ids:
+-            return {"total": total, "items": [], "page": page, "page_size": page_size}
+-
+-        # 4. 查询题目详情
+-        # 🔀 plan 原设 difficulty 列，但 knowledge.db.assessment_items 实际 schema
+-        # 有 score/options/module_tag，无 difficulty。改为返回 score + options（raw JSON）
+-        # 详情查询用 dict 索引重排，保持 page_ids 顺序（IN(...) 不保证返回顺序与参数序一致）
+-        placeholders_p = ",".join("?" * len(page_ids))
+-        rows_by_id = {}
+-        for row in conn.execute(
+-            f"""SELECT id, exam_id, question_number, question_type, stem,
+-                       answer, score, options, explanation, module_tag
+-                FROM assessment_items WHERE id IN ({placeholders_p})""",
+-            page_ids,
+-        ):
+-            rows_by_id[row[0]] = row
+-
+-        items = []
+-        for pid in page_ids:
+-            row = rows_by_id.get(pid)
+-            if row is None:
+-                continue  # 防御性：经 INNER JOIN 过滤后理论上不应触发
+-            items.append({
+-                "id": row[0],
+-                "exam_id": row[1],
+-                "question_number": row[2],
+-                "question_type": row[3],
+-                "stem": row[4],
+-                "answer": row[5],
+-                "score": row[6],
+-                "options": row[7],
+-                "explanation": row[8],
+-                "module_tag": row[9],
+-            })
+-
+-        return {"total": total, "items": items, "page": page, "page_size": page_size}
+-    finally:
+-        conn.close()
+-
+-
+-async def get_stats_overview(db: AsyncSession, module: str = "all") -> dict:
+-    """知识图谱全模块统计概览。
+-
+-    Args:
+-        db: async session
+-        module: "all" 或具体模块 ID（M1/M2/...）
+-
+-    Returns:
+-        {
+-          total_concepts: int,
+-          total_edges: int,
+-          exam_freq_distribution: {high, mid, low, zero},
+-          module_stats: {M1: {concepts, edges, avg_freq, exam_coverage}, ...},
+-        }
+-    """
+-    # 1. 概念（按 module filter）
+-    node_q = sa.select(ConceptGraphNode).where(ConceptGraphNode.node_type == "concept")
+-    if module != "all":
+-        node_q = node_q.where(ConceptGraphNode.primary_module == module)
+-    nodes = list((await db.execute(node_q)).scalars())
+-    node_ids = {n.id for n in nodes}
+-
+-    # 2. 边（module filter 时只保留端点都在视图内的边）
+-    all_edges = list((await db.execute(sa.select(ConceptGraphEdge))).scalars())
+-    edges = (
+-        [e for e in all_edges if e.source_id in node_ids and e.target_id in node_ids]
+-        if module != "all" else all_edges
+-    )
+-
+-    # 3. ConceptStats 预加载
+-    stats_q = sa.select(ConceptStats)
+-    if module != "all":
+-        stats_q = stats_q.where(ConceptStats.concept_id.in_(node_ids))
+-    stats = list((await db.execute(stats_q)).scalars())
+-    stats_by_id = {s.concept_id: s for s in stats}
+-
+-    # 4. 考频分布：high>=500 / mid[50,499] / low[1,49] / zero=0
+-    distribution = {"high": 0, "mid": 0, "low": 0, "zero": 0}
+-    module_stats: dict[str, dict] = defaultdict(
+-        lambda: {
+-            "concepts": 0, "edges": 0, "total_freq": 0,
+-            "nonzero_freq_count": 0, "avg_freq": 0.0, "exam_coverage": 0.0,
+-        }
+-    )
+-    for n in nodes:
+-        s = stats_by_id.get(n.id)
+-        freq = s.exam_frequency if s else 0
+-        if freq >= 500:
+-            distribution["high"] += 1
+-        elif freq >= 50:
+-            distribution["mid"] += 1
+-        elif freq >= 1:
+-            distribution["low"] += 1
+-        else:
+-            distribution["zero"] += 1
+-        ms = module_stats[n.primary_module]
+-        ms["concepts"] += 1
+-        ms["total_freq"] += freq
+-        if freq > 0:
+-            ms["nonzero_freq_count"] += 1
+-
+-    # 5. 边按 source 所属 module 计数
+-    nodes_by_id = {n.id: n for n in nodes}
+-    for e in edges:
+-        src = nodes_by_id.get(e.source_id)
+-        if src:
+-            module_stats[src.primary_module]["edges"] += 1
+-
+-    # 6. 派生指标：avg_freq + exam_coverage（非零比例）
+-    for mod, ms in module_stats.items():
+-        if ms["concepts"]:
+-            ms["avg_freq"] = round(ms["total_freq"] / ms["concepts"], 1)
+-            ms["exam_coverage"] = round(ms["nonzero_freq_count"] / ms["concepts"], 3)
+-        # 中间字段从响应中剥离
+-        del ms["total_freq"]
+-        del ms["nonzero_freq_count"]
+-
+-    return {
+-        "total_concepts": len(nodes),
+-        "total_edges": len(edges),
+-        "exam_freq_distribution": distribution,
+-        "module_stats": dict(module_stats),
+-    }
+
+tokens used
+55,446
+未发现本轮阻塞性 finding。
+
+N001 判定：`resolved-correct`。修复点在 [src/edu_cloud/modules/knowledge_tree/exam_items_service.py:61](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/exam_items_service.py#L61) 和 [src/edu_cloud/modules/knowledge_tree/exam_items_service.py:67](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/exam_items_service.py#L67)，现在先用 `q_matrix` 对 `assessment_items` 做 `INNER JOIN`，再计算 `item_ids/total` 并分页，所以 phantom id 会在分页前被过滤，`total / page_ids / items` 口径一致。防御性 `row is None` 分支还保留在 [src/edu_cloud/modules/knowledge_tree/exam_items_service.py:101](/C:/Users/Administrator/edu-cloud/src/edu_cloud/modules/knowledge_tree/exam_items_service.py#L101)，但按当前查询路径理论上不会再命中。
+
+新增测试充分，`test_get_exam_items_total_consistent_with_actual_items` 位于 [tests/test_knowledge_tree/test_exam_items_service.py:140](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_exam_items_service.py#L140)，同时检查第一页 `total==2`、第二页空结果但 `total` 仍为 2、以及 `page_size=2` 时第一页装满两题，关键断言在 [tests/test_knowledge_tree/test_exam_items_service.py:180](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_exam_items_service.py#L180)、[tests/test_knowledge_tree/test_exam_items_service.py:186](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_exam_items_service.py#L186)、[tests/test_knowledge_tree/test_exam_items_service.py:192](/C:/Users/Administrator/edu-cloud/tests/test_knowledge_tree/test_exam_items_service.py#L192)。我在临时 worktree 中删除 `INNER JOIN` 后复跑该测试，实际失败并报出 `total=3`，说明它能有效杀掉“删掉 INNER JOIN”的 mutant。当前相关回归测试本地通过：`5 passed, 5 deselected`。
+
+边界路径未见新 bug。当前实现对“无关联 DA”仍会早退为 `{total: 0, items: []}`；我额外做了“全部都是 phantom id、`assessment_items` 无任何对应行”的脚本验证，返回也是 `{'total': 0, 'items': [], 'page': 1, 'page_size': 10}`，说明 `INNER JOIN` 没把空集合/无关联路径弄坏。
+
+结论：PASS。无新增 HIGH/MED `code-bug` 或 `test-gap`。
