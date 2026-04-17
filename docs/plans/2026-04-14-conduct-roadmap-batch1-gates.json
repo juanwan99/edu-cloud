@@ -6,12 +6,12 @@
       "status": "fail",
       "reviewer": "gpt",
       "subject_hash": "97894724dc50cb54afc69418deead1ba90b292990eb169b4d3febfa1bba2feb0",
-      "report_path": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review-r3.md",
-      "raw_output_hash": "4c7b3b6504ca9e45968e8e1a4af307553c08a8243e772624238177c629d9821c",
-      "raw_output_path": "docs/plans/.codex-raw-plan-review-20260417-r3.log",
-      "subject_ref": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md@2d8f244",
-      "updated": "2026-04-18T06:44:57+08:00",
-      "round": 3,
+      "report_path": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review-r4.md",
+      "raw_output_hash": "4eab48d37fca8c47e1f630b12b916c1384c7c4f0d71053d85583a4283cac5428",
+      "raw_output_path": "docs/plans/.codex-raw-plan-review-20260417-r4.log",
+      "subject_ref": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md@a93a765",
+      "updated": "2026-04-18T07:01:13+08:00",
+      "round": 4,
       "round1_status": "fail",
       "findings_summary": {
         "total": 9,
@@ -87,7 +87,7 @@
           "summary": "Task 6 改 workspace CLAUDE.md 与 design §8 声明矛盾"
         }
       },
-      "next_action": "R3 FAIL，R2 核心修复方向 100% 承认，残留为跨段未同步。R4 修订已在进行中（修 R3-F001/F002/F003/F004/F005）；commit 后触发 R4 Plan Review。",
+      "next_action": "R4 FAIL，R3 核心 100% resolved。剩余 3 条为收尾漂移（数字/文件名/时序）。R5 修订已在 plan 新 commit 中落地；触发 R5 Plan Review。",
       "round2_status": "fail",
       "round2_findings": {
         "R2-F001": {
@@ -190,7 +190,46 @@
         "R2-F005": "partially-resolved (→ R3-F005)",
         "R2-F006": "partially-resolved (→ R3-F003)"
       },
-      "override_rule": "用户 2026-04-17 明示 override 'T3/T4 禁 R3+' 规则（'修复 然后继续审查'）"
+      "override_rule": "用户 2026-04-17 明示 override 'T3/T4 禁 R3+' 规则（'修复 然后继续审查'）",
+      "round4_status": "fail",
+      "round4_findings": {
+        "R4-F001": {
+          "severity": "HIGH",
+          "category": "test-gap",
+          "type": "defect_fix",
+          "summary": "Step 3.11 vitest 命令提前引用 AppSidebar.conduct.test.js（Task 5 Step 5.2b 才创建）— 时序 bug"
+        },
+        "R4-F002": {
+          "severity": "MED",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "数字漂移：design §4/§6.1 仍 125/22 应 129/29；plan L795/1624/1636 + Step 5.5 算术错 72+4+9=77"
+        },
+        "R4-F003": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "MODULE.md 模板正文 students_profiles 与 frontmatter student_profiles / ORM 真值不一致"
+        }
+      },
+      "round4_findings_summary": {
+        "total": 3,
+        "high": 1,
+        "med": 1,
+        "low": 1,
+        "code_bug": 0,
+        "design_concern": 2,
+        "test_gap": 1,
+        "defect_fix": 3,
+        "behavior_change": 0
+      },
+      "round4_r3_verify": {
+        "R3-F001": "resolved",
+        "R3-F002": "resolved",
+        "R3-F003": "resolved",
+        "R3-F004": "resolved",
+        "R3-F005": "resolved"
+      }
     },
     "code_review_batch1": {
       "required": true,
