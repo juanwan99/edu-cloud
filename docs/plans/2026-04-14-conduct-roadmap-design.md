@@ -329,7 +329,7 @@ design_docs:
 
 | 套件 | 改前基线 | 批次 1 实现后预期 | 增量来源 |
 |---|---|---|---|
-| conduct 后端 | 118 | **≥ 129**（R1-F006 入口级补齐后） | T1 helper 4（lesson_prep 无 VIEW/MANAGE / subject_teacher 未误伤 / homeroom 不变）+ T1 入口级 API 403（R1-F006）+ T2 红测 3（传 record_date / 不传 / 传 null，R1-F002 DB readback）+ T4 governance 测试 3 = 11 新增 |
+| conduct 后端 | 118 | **≥ 130**（R1-F006 入口级 + R5-F001 对照组补齐后） | T1 helper 4 + T1 入口级 API 403（R1-F006）+ T1 对照组 subject_teacher 200（R5-F001 隔离 scope 假绿）+ T2 红测 3（R1-F002 DB readback）+ T4 governance 测试 3 = 12 新增 |
 | services | 15 | 15 | 不改 |
 | frontend conduct 3 件套 + 扩展 | 13 | **≥ 29**（R1-F006/F007 + T1 permissions 镜像） | T3 sidebarConfig.conduct 矩阵 9 + R1-F007 perm 合法性 1 + R1-F006 AppSidebar.conduct.test.js 入口级 1 + T1 permissions.lesson_prep 5 = 16 新增 |
 
@@ -354,7 +354,7 @@ design_docs:
 ### 6.1 批次 1 退出条件（全部满足才视为完成）
 
 - 5 Tasks 全部 completed（`state.json` 标记）
-- conduct 后端测试 ≥ 129 通过（R1-F006 入口级补齐后，含 T1 入口级 + T4 governance + T1 helper + T2 入口级）
+- conduct 后端测试 ≥ 130 通过（R1-F006 入口级 + R5-F001 对照组补齐后，含 T1 helper/入口级/对照组 + T4 governance + T2 入口级）
 - frontend conduct 测试 ≥ 29 通过（R1-F006/F007 新增 + T1 permissions.lesson_prep 镜像后）
 - Gate 1 Plan Review PASS（codex-review plan）
 - Gate 2 Code Review PASS（codex-review code）

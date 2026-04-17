@@ -6,12 +6,12 @@
       "status": "fail",
       "reviewer": "gpt",
       "subject_hash": "97894724dc50cb54afc69418deead1ba90b292990eb169b4d3febfa1bba2feb0",
-      "report_path": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review-r4.md",
-      "raw_output_hash": "4eab48d37fca8c47e1f630b12b916c1384c7c4f0d71053d85583a4283cac5428",
-      "raw_output_path": "docs/plans/.codex-raw-plan-review-20260417-r4.log",
-      "subject_ref": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md@a93a765",
-      "updated": "2026-04-18T07:01:13+08:00",
-      "round": 4,
+      "report_path": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review-r5.md",
+      "raw_output_hash": "f0582600db8dda95152b6c3d90e2077c150570a523b42cded2c6466c06776cd8",
+      "raw_output_path": "docs/plans/.codex-raw-plan-review-20260418-r5.log",
+      "subject_ref": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md@e73481a",
+      "updated": "2026-04-18T07:12:38+08:00",
+      "round": 5,
       "round1_status": "fail",
       "findings_summary": {
         "total": 9,
@@ -87,7 +87,7 @@
           "summary": "Task 6 改 workspace CLAUDE.md 与 design §8 声明矛盾"
         }
       },
-      "next_action": "R4 FAIL，R3 核心 100% resolved。剩余 3 条为收尾漂移（数字/文件名/时序）。R5 修订已在 plan 新 commit 中落地；触发 R5 Plan Review。",
+      "next_action": "R5 FAIL，R4 100% resolved。R5-F001 是测试设计根因修复（scope 假绿）。R6 修订已 commit；触发 R6 Plan Review",
       "round2_status": "fail",
       "round2_findings": {
         "R2-F001": {
@@ -229,6 +229,43 @@
         "R3-F003": "resolved",
         "R3-F004": "resolved",
         "R3-F005": "resolved"
+      },
+      "round5_status": "fail",
+      "round5_findings": {
+        "R5-F001": {
+          "severity": "HIGH",
+          "category": "test-gap",
+          "type": "defect_fix",
+          "summary": "Task 3 Step 3.4a 假绿：lesson_prep_leader 无 class_ids → scope 先 403 而非 RBAC 403；无法证明 VIEW_CONDUCT 被回收；INV-T1-003 契约失真"
+        },
+        "R5-F002": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "Task 2 Files 摘要 test_module_governance.py 1 测试，正文是 3 测试"
+        },
+        "R5-F003": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "Step 5.5 L1482 '72 原' 过期，实跑 234 passed"
+        }
+      },
+      "round5_findings_summary": {
+        "total": 3,
+        "high": 1,
+        "med": 0,
+        "low": 2,
+        "code_bug": 0,
+        "design_concern": 2,
+        "test_gap": 1,
+        "defect_fix": 3,
+        "behavior_change": 0
+      },
+      "round5_r4_verify": {
+        "R4-F001": "resolved",
+        "R4-F002": "resolved",
+        "R4-F003": "resolved"
       }
     },
     "code_review_batch1": {
