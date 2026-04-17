@@ -422,7 +422,7 @@ design_docs:
 | R-T1 | T1 | 回收 lesson_prep_leader 的 VIEW_CONDUCT + MANAGE_CONDUCT 权限 | 用户 | 2026-04-14 | "备课组长和打分没关系" |
 | R-T2 | T2 | AddPointsRequest.date 字段重命名为 record_date（API 契约变更） | 用户 | 2026-04-14 | 精确批准 T2（"两个都批准"） |
 | R-T3 | T3 | sidebar 三档硬编码改为按 permissions 派生（academic_director 可见入口 +4 / grade_leader +2） | 用户 | 2026-04-14 | 精确批准 T3（"两个都批准"） |
-| R-T3-followup | T3 | ⚠ 隐含：subject_teacher 可见入口从 2 → 4（继承 view_conduct+manage_conduct 派生） | **待二次确认** | — | Plan Review 阶段独立提问 |
+| R-T3-followup | T3 | ⚠ 隐含：subject_teacher 可见入口从 2 → 4（继承 view_conduct+manage_conduct 派生） | **approved** | 2026-04-14T07:45:00+08:00 | 用户精确回复"批准 F005"（记录于 `2026-04-14-conduct-roadmap-batch1-gates.json` F005.approval）|
 
 ## § 10. 实现完成标记
 
