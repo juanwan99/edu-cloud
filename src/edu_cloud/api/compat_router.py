@@ -1,6 +1,12 @@
-"""exam-ai 兼容路由 — paper-seg 零改动对接。"""
+"""exam-ai 兼容路由 — paper-seg 零改动对接。
+
+Deprecation: 本模块计划于 SUNSET_DATE 退役（见 docs/plans/compat-router-deprecation.md）。
+每次调用发出三层信号：DeprecationWarning / Response header (Deprecation/Sunset/Link) / 结构化日志。
+"""
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+import warnings
+
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +15,25 @@ from edu_cloud.database import get_db
 from edu_cloud.shared.auth import create_access_token
 
 logger = logging.getLogger(__name__)
+
+SUNSET_DATE = "2026-07-31"
+
+
+def _emit_deprecation(endpoint: str, replacement: str, response: Response) -> None:
+    """发出 compat 端点三层 deprecation 信号。契约见 docs/plans/compat-router-deprecation.md §4.1。"""
+    warnings.warn(
+        f"{endpoint} is deprecated; use {replacement}",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = SUNSET_DATE
+    response.headers["Link"] = f'<{replacement}>; rel="successor-version"'
+    logger.warning(
+        "deprecated_compat_call",
+        extra={"endpoint": endpoint, "replacement": replacement, "sunset": SUNSET_DATE},
+    )
+
 
 router = APIRouter(prefix="/api", tags=["compat"])
 
@@ -20,8 +45,13 @@ class CompatLoginRequest(BaseModel):
 
 
 @router.post("/auth/login")
-async def compat_login(req: CompatLoginRequest, db: AsyncSession = Depends(get_db)):
+async def compat_login(
+    req: CompatLoginRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
     """兼容 exam-ai 登录协议。忽略 school_code，走 edu-cloud 标准登录。"""
+    _emit_deprecation("/api/auth/login", "/api/v1/auth/login", response)
     from edu_cloud.models.user import User
     from edu_cloud.models.user_role import UserRole
 
@@ -56,10 +86,12 @@ from edu_cloud.models.exam import Exam, Subject
 
 @router.get("/exams")
 async def compat_list_exams(
+    response: Response,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
     """列出当前学校的考试（paper-seg 拉取考试列表）。"""
+    _emit_deprecation("/api/exams", "/api/v1/exams", response)
     school_id = current["current_role"].school_id
     result = await db.execute(
         select(Exam).where(Exam.school_id == school_id).order_by(Exam.created_at.desc())
@@ -71,10 +103,16 @@ async def compat_list_exams(
 @router.get("/exams/{exam_id}/subjects")
 async def compat_list_subjects(
     exam_id: str,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
     """列出考试的科目（paper-seg 拉取科目列表）。"""
+    _emit_deprecation(
+        "/api/exams/{exam_id}/subjects",
+        "/api/v1/exams/{exam_id}/subjects",
+        response,
+    )
     school_id = current["current_role"].school_id
     exam = (await db.execute(
         select(Exam).where(Exam.id == exam_id, Exam.school_id == school_id)
@@ -98,10 +136,16 @@ from edu_cloud.modules.card.models import Template
 async def compat_get_template(
     subject_id: str,
     side: str,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
     """返回 paper-seg 兼容格式的答题卡模板。"""
+    _emit_deprecation(
+        "/api/templates/{subject_id}/{side}",
+        "/api/v1/templates/{subject_id}/{side}",
+        response,
+    )
     school_id = current["current_role"].school_id
     result = await db.execute(
         select(Template).where(
@@ -140,10 +184,12 @@ from sqlalchemy.exc import IntegrityError
 @router.post("/scan/tasks")
 async def compat_create_scan_task(
     req: dict,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
     """创建扫描任务。"""
+    _emit_deprecation("/api/scan/tasks", "/api/v1/scan/tasks", response)
     school_id = current["current_role"].school_id
     subject_id = req.get("subject_id")
     side = req.get("side", "A")
@@ -169,10 +215,16 @@ async def compat_create_scan_task(
 async def compat_update_scan_task(
     task_id: str,
     req: dict,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
     """更新扫描进度。"""
+    _emit_deprecation(
+        "/api/scan/tasks/{task_id}",
+        "/api/v1/scan/tasks/{task_id}",
+        response,
+    )
     school_id = current["current_role"].school_id
     task = (await db.execute(
         select(ScanTask).where(ScanTask.id == task_id, ScanTask.school_id == school_id)
@@ -190,6 +242,7 @@ async def compat_update_scan_task(
 
 @router.post("/scan/upload", status_code=201)
 async def compat_upload_image(
+    response: Response,
     exam_id: str = Form(...),
     subject_id: str = Form(...),
     student_id: str = Form(...),
@@ -205,6 +258,7 @@ async def compat_upload_image(
     Phase 1-C: paper-seg 可携带 question_type（choice/multi_choice/fill_blank/essay），
     供 AI 阅卷选 prompt；为空时回落到 Question.question_type。
     """
+    _emit_deprecation("/api/scan/upload", "/api/v1/scan/upload", response)
     school_id = current["current_role"].school_id
 
     # F003 fix: ownership validation (align with exam-ai)
@@ -265,10 +319,16 @@ class CompatUploadObjectiveRequest(BaseModel):
 @router.post("/scan/upload-objective")
 async def compat_upload_objective(
     req: CompatUploadObjectiveRequest,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
     """接收 paper-seg 上传的选择题识别结果。"""
+    _emit_deprecation(
+        "/api/scan/upload-objective",
+        "/api/v1/scan/upload-objective",
+        response,
+    )
     school_id = current["current_role"].school_id
 
     # 验证 exam + subject

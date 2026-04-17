@@ -576,6 +576,8 @@ tests/
 
 ### exam-ai 兼容端点（`/api` 前缀，paper-seg 零改动对接）
 
+> **退役计划**：8 端点已注入 `DeprecationWarning` + Response header (`Deprecation: true` / `Sunset` / `Link`)，目标退役 **2026-07-31**。详见 `docs/plans/compat-router-deprecation.md`。
+
 | 方法 | 路径 | 用途 |
 |------|------|------|
 | POST | `/api/auth/login` | 兼容登录（忽略 school_code，走 edu-cloud 用户认证） |
