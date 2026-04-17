@@ -41,7 +41,7 @@ python -m uvicorn edu_cloud.api.app:create_app --factory --host 0.0.0.0 --port 9
 # 前端（Windows Git Bash，port_guard 须用 serve.py）
 cd /c/Users/Administrator/edu-cloud/frontend
 python ~/.claude/scripts/serve.py "C:/Program Files/nodejs/npm.cmd" run dev
-# → http://localhost:5273，代理 /api → http://localhost:9000
+# → http://localhost:5273（本地默认）/ http://0.0.0.0:8080（ECS 远程开发，allowedHosts 锁定）；代理 /api → http://localhost:9000
 ```
 
 ## 测试命令
@@ -319,7 +319,7 @@ tests/
 | 服务 | 端口 | 说明 |
 |------|------|------|
 | edu-cloud 后端 | 9000 | FastAPI（本项目） |
-| edu-cloud 前端（frontend/） | 5273 | Vite dev server（开发）|
+| edu-cloud 前端（frontend/） | 5273 / 8080 | Vite dev server，本地默认 5273 / ECS 远程 8080（host 0.0.0.0 + allowedHosts ECS IP）|
 | edu-cloud 前端（frontend-nuxt/） | 3000 | Nuxt dev server（haofenshu 复刻骨架；3000 被 haofenshu-clone 占用时 fallback 至 3100）|
 | exam-ai | 8000 | 学校端阅卷服务 |
 | paper-seg | 8001 | 扫描客户端 |

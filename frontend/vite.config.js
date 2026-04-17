@@ -10,7 +10,9 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5273,
+    host: '0.0.0.0',
+    port: 8080,
+    allowedHosts: ['47.121.197.52', 'localhost', '127.0.0.1', '172.20.109.183'],
     proxy: {
       '/api': {
         target: 'http://localhost:9000',
