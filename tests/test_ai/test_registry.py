@@ -37,9 +37,9 @@ async def test_execute_with_injected_params():
     result = await registry.execute("test_add", {"a": 1, "b": 2}, _db="mock_db")
     assert result == {"result": 3}
 
-def test_execute_unknown_tool():
-    import asyncio
-    result = asyncio.get_event_loop().run_until_complete(registry.execute("nonexistent", {}))
+@pytest.mark.asyncio
+async def test_execute_unknown_tool():
+    result = await registry.execute("nonexistent", {})
     assert "error" in result
 
 

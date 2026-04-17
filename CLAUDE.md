@@ -716,7 +716,7 @@ docker compose logs -f      # 查看日志
 | notification_rules | event_id(FK), days_before, template_type, target_roles(JSON), auto_draft, triggered | 通知触发规则 |
 | notifications | document_id(FK), channel, status, target_scope(JSON), school_id(FK) | 通知发送记录 |
 | school_settings | school_id(FK), category, key(唯一per school), value(Text,nullable) | 学校 KV 配置 |
-| school_modules | school_id(FK), module_code(唯一per school), enabled, config(Text,nullable) | 模块开关（9 codes: exam/grading/homework/study_analytics/research/teaching/calendar/studio/conduct）。`DEFAULT_ENABLED` 默认启用 6 个：exam/grading/homework/calendar/studio/**conduct**（2026-04-13 conduct 加入默认集，现存学校经 `scripts/backfill_conduct_module.py` 补齐，契约测试 `test_default_enabled_includes_conduct` 防止回退） |
+| school_modules | school_id(FK), module_code(唯一per school), enabled, config(Text,nullable) | 模块开关（9 codes: exam/grading/homework/study_analytics/research/teaching/calendar/studio/conduct）。`DEFAULT_ENABLED` 默认启用 6 个：exam/grading/homework/calendar/studio/**conduct**（2026-04-13 conduct 加入默认集，现存学校经 `scripts/archived/backfill_conduct_module.py` 补齐（已归档，任务完成），契约测试 `test_default_enabled_includes_conduct` 防止回退） |
 | teacher_assignments | user_id(FK), class_id(FK), subject_code, semester, school_id(FK), is_active | 教师排课记录（唯一约束：user+class+subject+semester） |
 | subject_selections | school_id(FK), name(唯一per school), subject_codes(JSON), mode, is_active | 学校选考科目组合（模式: 3+1+2/3+3/custom） |
 | capabilities | school_id(FK), role, domain, action, enabled(default True) | 学校级角色能力配置（唯一约束：school+role+domain+action） |

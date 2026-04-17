@@ -43,6 +43,6 @@ async def test_error_book_stats(client, admin_headers, seed_exam_with_results):
 
 @pytest.mark.asyncio
 async def test_bank_requires_auth(client):
-    """无 JWT 返回 403。"""
+    """无 JWT 返回 401（deps.py 显式 raise 401，auto_error=False）。"""
     resp = await client.get("/api/v1/bank/questions")
-    assert resp.status_code == 403
+    assert resp.status_code == 401

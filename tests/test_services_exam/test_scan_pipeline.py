@@ -1,4 +1,5 @@
 """扫描流水线服务测试。"""
+import logging
 import pytest
 import os
 from pathlib import Path
@@ -88,6 +89,8 @@ class TestBarcodeFallbackObservability:
             raise RuntimeError("pyzbar decode failure simulation")
 
         monkeypatch.setattr(pipeline_service, "read_barcode", boom)
+        # edu_cloud root logger propagate=False（logging_config.py:65），强制开 propagate 让 caplog 捕获
+        monkeypatch.setattr(logging.getLogger("edu_cloud"), "propagate", True)
         tpl = self._template_with_barcode()
 
         caplog.set_level("WARNING", logger="edu_cloud.modules.scan.pipeline_service")
@@ -112,6 +115,7 @@ class TestBarcodeFallbackObservability:
             return None
 
         monkeypatch.setattr(pipeline_service, "read_barcode", return_none)
+        monkeypatch.setattr(logging.getLogger("edu_cloud"), "propagate", True)
         tpl = self._template_with_barcode()
 
         caplog.set_level("WARNING", logger="edu_cloud.modules.scan.pipeline_service")

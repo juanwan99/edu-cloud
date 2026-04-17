@@ -80,8 +80,13 @@ def test_S8a_region_map_skips_orphan():
     assert len(region_map) == 1
 
 
-async def test_S8a_factory_orphan_logs_warning(pipeline_fixture, caplog):
-    """S8a 补充：工厂闭包收 orphan region_id → log warning。"""
+async def test_S8a_factory_orphan_logs_warning(pipeline_fixture, caplog, monkeypatch):
+    """S8a 补充：工厂闭包收 orphan region_id → log warning。
+
+    edu_cloud root logger 配置了 propagate=False（logging_config.py:65），
+    caplog 默认挂在 root，收不到非 propagate 日志 → 用 monkeypatch 临时开 propagate。
+    """
+    monkeypatch.setattr(logging.getLogger("edu_cloud"), "propagate", True)
     caplog.set_level(logging.WARNING, logger="edu_cloud.modules.scan.pipeline_router")
     fx = pipeline_fixture
     # 使用 mock session factory 避免 greenlet 问题

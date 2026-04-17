@@ -36,7 +36,17 @@ def _get_browser() -> Browser:
                 asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
                 asyncio.set_event_loop(asyncio.ProactorEventLoop())
             _playwright = sync_playwright().start()
-        _browser = _playwright.chromium.launch()
+        # headless Linux/WSL/容器标准参数组：禁 GPU + 禁 sandbox + 禁 /dev/shm 依赖
+        # --single-process：合并所有子进程，避免 WSL 某些内核下 zygote/GPU 子进程 spawn 失败
+        # （答题卡只做一次性 HTML→PDF 渲染，无持久会话，单进程影响可接受）
+        _browser = _playwright.chromium.launch(args=[
+            "--disable-gpu",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-software-rasterizer",
+            "--single-process",
+        ])
         logger.info("playwright browser launched (shared instance)")
         return _browser
 

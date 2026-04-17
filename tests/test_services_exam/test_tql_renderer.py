@@ -38,10 +38,14 @@ def _render_yuwen():
 
 class TestTQLRendererSmoke:
     def test_renders_valid_pdf(self):
-        """渲染完整语文答题卡，输出合法 PDF > 30KB。"""
+        """渲染完整语文答题卡，输出合法 PDF 且有实际内容（>20KB）。
+
+        阈值 20KB 保证 PDF 非空白（纯空 ~6KB）。字体跨平台差异：
+        Windows SimHei ~30KB / Linux Droid Sans Fallback ~25KB。
+        """
         pdf, _, _ = _render_yuwen()
         assert pdf[:5] == b"%PDF-"
-        assert len(pdf) > 30_000, f"PDF too small: {len(pdf)} bytes"
+        assert len(pdf) > 20_000, f"PDF too small: {len(pdf)} bytes"
 
     def test_no_objective_questions(self):
         """0 道选择题不应抛异常。"""
@@ -75,7 +79,7 @@ class TestTQLVisualOutput:
         out_path = os.path.join(out_dir, "tql_yuwen_a3.pdf")
         with open(out_path, "wb") as f:
             f.write(pdf)
-        assert os.path.getsize(out_path) > 30_000
+        assert os.path.getsize(out_path) > 20_000
         print(f"\n✅ TQL 语文答题卡已生成: {os.path.abspath(out_path)}")
         print(f"   文件大小: {len(pdf):,} bytes")
         print(f"   请与 docs/reference/tql/[141984001]语文_p1.png 人工比对")

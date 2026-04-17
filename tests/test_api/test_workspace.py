@@ -123,9 +123,9 @@ async def test_get_context_tree(client, teacher_headers):
 
 @pytest.mark.asyncio
 async def test_get_context_tree_unauthorized(client):
-    """GET /workspace/context without auth returns 403."""
+    """GET /workspace/context without auth returns 401（deps.py 显式 raise 401）。"""
     resp = await client.get("/api/v1/workspace/context")
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 @pytest.mark.asyncio

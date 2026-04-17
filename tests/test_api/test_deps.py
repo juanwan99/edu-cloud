@@ -10,9 +10,9 @@ async def test_admin_has_manage_schools(client, admin_headers):
 
 @pytest.mark.asyncio
 async def test_unauthorized_without_token(client):
-    """No token → 403 (HTTPBearer returns 403)."""
+    """No token → 401（deps.py 显式 raise 401，auto_error=False）。"""
     resp = await client.get("/api/v1/schools")
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 @pytest.mark.asyncio

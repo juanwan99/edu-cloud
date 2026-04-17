@@ -80,6 +80,9 @@ def _ensure_chinese_font():
         ("/mnt/c/Windows/Fonts/msyhbd.ttc", 0),
         ("C:/Windows/Fonts/msyh.ttc", 0),
         ("/mnt/c/Windows/Fonts/msyh.ttc", 0),
+        # Linux/Docker: Droid Sans Fallback（TrueType CJK，reportlab 兼容；
+        # Noto CJK .ttc 是 CFF PostScript outlines 不被 reportlab 支持）
+        ("/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf", None),
     ]
     for fp, idx in title_candidates:
         try:
@@ -97,6 +100,8 @@ def _ensure_chinese_font():
         ("/mnt/c/Windows/Fonts/simsun.ttc", 0),
         ("C:/Windows/Fonts/msyh.ttc", 0),
         ("/mnt/c/Windows/Fonts/msyh.ttc", 0),
+        # Linux/Docker: Droid Sans Fallback（TrueType CJK 兜底）
+        ("/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf", None),
     ]
     for fp, idx in body_candidates:
         try:
@@ -110,15 +115,18 @@ def _ensure_chinese_font():
 
     # 兜底：如果都没注册成功，尝试任意一个
     if _FONT_TITLE == "Helvetica-Bold" and _FONT_BODY == "Helvetica":
-        for fp in [
-            "C:/Windows/Fonts/msyh.ttc", "/mnt/c/Windows/Fonts/msyh.ttc",
-            "C:/Windows/Fonts/simsun.ttc", "/mnt/c/Windows/Fonts/simsun.ttc",
+        for fp, idx in [
+            ("C:/Windows/Fonts/msyh.ttc", 0),
+            ("/mnt/c/Windows/Fonts/msyh.ttc", 0),
+            ("C:/Windows/Fonts/simsun.ttc", 0),
+            ("/mnt/c/Windows/Fonts/simsun.ttc", 0),
+            ("/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf", None),
         ]:
             try:
-                pdfmetrics.registerFont(TTFont("ChineseFont", fp, subfontIndex=0))
+                pdfmetrics.registerFont(TTFont("ChineseFont", fp, subfontIndex=idx))
                 _FONT_TITLE = "ChineseFont"
                 _FONT_BODY = "ChineseFont"
-                logger.info("Registered fallback font: %s", fp)
+                logger.info("Registered fallback font: %s (idx=%s)", fp, idx)
                 break
             except Exception:
                 continue
