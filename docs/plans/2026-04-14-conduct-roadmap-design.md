@@ -176,18 +176,18 @@ class AddPointsRequest(BaseModel):
     record_date: Optional[_date_type] = None
 ```
 
-**代码改动**：
+**代码改动（R2-F004 范围收窄，后端 API 契约修复）**：
 - `src/edu_cloud/modules/conduct/schemas.py`: type import 别名 + 字段 rename
-- `src/edu_cloud/modules/conduct/admin_service.py`: 所有 `request.date` → `request.record_date`
-- `frontend/src/api/conduct.js`: 请求体字段名同步
-- `frontend/src/pages/conduct/ConductPoints.vue`: 表单数据字段名同步
+- `src/edu_cloud/modules/conduct/admin_router.py:115,137`: `record_date=data.date` → `record_date=data.record_date`（R1-F001 关键补充）
+- `src/edu_cloud/modules/conduct/admin_service.py`: L254/271 已是 `record_date` 参数，verify-only 不改
+- **不改前端**：`frontend/src/api/conduct.js` 和 `frontend/src/pages/conduct/ConductPoints.vue` 不在本批次范围。当前 UI 无日期控件，API 也不传 record_date；UI 补录日期是独立 behavior_change，需单独 L017 批准，留未来批次
 
 **审查清单**：
-- ✓ POST `/records` with `{"record_date": "2026-04-14"}` → 201, DB `Record.date == 2026-04-14`
-- ✓ POST `/records` without record_date → 201, DB `Record.date == today`
-- ✓ POST `/records` with `{"record_date": null}` → 201, DB `Record.date == today`
+- ✓ POST `/records` with `{"record_date": "2026-04-10"}` → 200, response `created_ids` 非空, DB `ConductRecord.date == 2026-04-10`
+- ✓ POST `/records` without record_date → 200, DB `ConductRecord.date == today`
+- ✓ POST `/records` with `{"record_date": null}` → 200, DB `ConductRecord.date == today`
 - ✗ POST `/records` with old `{"date": "2026-04-14"}` → 被 pydantic 忽略（extra 字段），实际日期走 default today
-- 关键行为：班主任补录昨天积分功能真可用
+- **关键行为（R2-F004 收窄）**：POST `/records` API 接受 `record_date` 字段并落库 `ConductRecord.date`；前端 UX 日期补录控件不在本批次，班主任"补录昨天积分"UX 留未来批次
 
 **边界条件**：
 - 日期格式非法（`"invalid"`）→ 422
@@ -237,7 +237,7 @@ const CONDUCT_ITEMS = [
 | homeroom_teacher | 全 5 | 9 | 9 | — |
 | subject_teacher | view+manage | 2 | 2（概览 + 积分操作 + 记录 + 排行？） | ⚠ 见下方说明 |
 
-**⚠ subject_teacher 细节**：改前 TEACHER 档是"积分操作 + 排行榜"（2 项），改后按 view_conduct+manage_conduct 过滤应得到 4 项（概览+积分操作+记录+排行）。这是**隐含的 behavior_change 扩展**，需在 Plan Review 中独立标注并请用户二次确认。若用户偏好保守，可对 subject_teacher 维持 2 项（新增 `@allowed_roles` 黑白名单字段）。
+**✅ subject_teacher 细节（已批准 F005）**：改前 TEACHER 档是"积分操作 + 排行榜"（2 项），改后按 view_conduct+manage_conduct 过滤应得到 4 项（概览+积分操作+记录+排行）。这是 **R-T3-followup behavior_change 扩展**，用户 2026-04-14T07:45:00+08:00 精确回复"批准 F005"（记录于 `2026-04-14-conduct-roadmap-batch1-gates.json` F005.approval）。保守备选方案（`@allowed_roles` 白名单维持 2 项）**rejected**，不执行。
 
 **审查清单**：
 - ✓ `sidebarConfig.conduct.test.js` 9 角色 × 9 菜单项矩阵断言全通过
@@ -341,7 +341,7 @@ design_docs:
 |---|---|---|
 | T1 若有学校已依赖备课组长管德育 | 低 | MVP 初版给权限不当；L017 已充分讨论 |
 | T2 未知外部客户端传老 `date` 字段 | 低 | 现状就已 422；rename 不破坏已工作调用 |
-| T3 教务主任看到新菜单乱点 | 中 | 后端 F002 class-scope 守卫 R3 已覆盖，越权 403；subject_teacher 子问题（从 2 项→4 项）列入 Plan Review 独立确认 |
+| T3 教务主任看到新菜单乱点 | 中 | 后端 F002 class-scope 守卫 R3 已覆盖，越权 403；subject_teacher 子问题（从 2 项→4 项）已由用户于 2026-04-14T07:45 精确批准 F005，不再悬空 |
 | T4 MODULE.md 字段与实际不一致 | 低 | aggregate_modules.py 会校验；CI 可加 pre-commit 检查 |
 | T5 文档修改触发 doc_sync_guard | 低 | 纯数字修正，应通过；若被拦，明确 accept risk |
 
