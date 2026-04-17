@@ -6,12 +6,12 @@
       "status": "fail",
       "reviewer": "gpt",
       "subject_hash": "97894724dc50cb54afc69418deead1ba90b292990eb169b4d3febfa1bba2feb0",
-      "report_path": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review-r2.md",
-      "raw_output_hash": "90e2f2a966cfd7ccdc8c2431fe522e905ec38822229b38602bb8031bea24c4e4",
-      "raw_output_path": "docs/plans/.codex-raw-plan-review-20260417-r2.log",
-      "subject_ref": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md@8e4f11b",
-      "updated": "2026-04-17T23:25:46+08:00",
-      "round": 2,
+      "report_path": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review-r3.md",
+      "raw_output_hash": "4c7b3b6504ca9e45968e8e1a4af307553c08a8243e772624238177c629d9821c",
+      "raw_output_path": "docs/plans/.codex-raw-plan-review-20260417-r3.log",
+      "subject_ref": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md@2d8f244",
+      "updated": "2026-04-18T06:44:57+08:00",
+      "round": 3,
       "round1_status": "fail",
       "findings_summary": {
         "total": 9,
@@ -87,7 +87,7 @@
           "summary": "Task 6 改 workspace CLAUDE.md 与 design §8 声明矛盾"
         }
       },
-      "next_action": "CLAUDE.md 规则'禁 R3+'命中；4 个选项请用户裁决：A) 拆 topic；B) 用户 override 允许 R3；C) 缩小 plan 范围到 R2 认可子集（T5+T4+state.json 机制）；D) 放弃批次 1。R2-F004 另含 behavior_change 子决策（T2 收窄 vs UI 补齐）。",
+      "next_action": "R3 FAIL，R2 核心修复方向 100% 承认，残留为跨段未同步。R4 修订已在进行中（修 R3-F001/F002/F003/F004/F005）；commit 后触发 R4 Plan Review。",
       "round2_status": "fail",
       "round2_findings": {
         "R2-F001": {
@@ -137,7 +137,60 @@
         "test_gap": 0,
         "defect_fix": 6,
         "behavior_change": 0
-      }
+      },
+      "round3_status": "fail",
+      "round3_findings": {
+        "R3-F001": {
+          "severity": "HIGH",
+          "category": "test-gap",
+          "type": "defect_fix",
+          "summary": "4 处 AppSidebar.test.js 引用未同步到 AppSidebar.conduct.test.js（测试契约 / Task 6 回归 / Contract Pack test_ref / 顶部文件映射）"
+        },
+        "R3-F002": {
+          "severity": "HIGH",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "文末 § 入口级测试补充 / § CONDUCT_ITEMS 治理测试 / R1 处置总结 保留旧坏代码样例，与 R3 主步骤双口径"
+        },
+        "R3-F003": {
+          "severity": "MED",
+          "category": "test-gap",
+          "type": "defect_fix",
+          "summary": "批次 1 关键行为 L809 / design L150 仍写 ToolAccessResolver AI tool filter（Contract Pack 已拆 TD-006）"
+        },
+        "R3-F004": {
+          "severity": "MED",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "plan 顶部文件结构表 L47-48 + design §3.1 Task 清单 L127 未同步 T2 收窄 / T3 扩容"
+        },
+        "R3-F005": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "design.md §3.4 矩阵行 L238 subject_teacher 改后 2 项，应为 4 项"
+        }
+      },
+      "round3_findings_summary": {
+        "total": 5,
+        "high": 2,
+        "med": 2,
+        "low": 1,
+        "code_bug": 3,
+        "design_concern": 1,
+        "test_gap": 2,
+        "defect_fix": 5,
+        "behavior_change": 0
+      },
+      "round3_r2_verify": {
+        "R2-F001": "resolved",
+        "R2-F002": "resolved",
+        "R2-F003": "partially-resolved (→ R3-F001)",
+        "R2-F004": "partially-resolved (→ R3-F004)",
+        "R2-F005": "partially-resolved (→ R3-F005)",
+        "R2-F006": "partially-resolved (→ R3-F003)"
+      },
+      "override_rule": "用户 2026-04-17 明示 override 'T3/T4 禁 R3+' 规则（'修复 然后继续审查'）"
     },
     "code_review_batch1": {
       "required": true,

@@ -44,8 +44,8 @@ state: docs/plans/2026-04-14-conduct-roadmap-batch1-state.json
 | T5 文档数字修正 | — | `C:/Users/Administrator/edu-cloud/CLAUDE.md` + `docs/plans/2026-04-13-conduct-next-phase-handoff.md` | — |
 | T4 conduct MODULE.md | `src/edu_cloud/modules/conduct/MODULE.md` | — | `tests/test_conduct/test_module_governance.py`（新） |
 | T1 lesson_prep 权限回收 | — | `src/edu_cloud/core/permissions.py:240` + `frontend/src/config/permissions.js:59` | `tests/test_conduct/test_permissions.py` + `frontend/src/__tests__/permissions.lesson_prep.test.js`（新） |
-| T2 AddPointsRequest rename | — | `src/edu_cloud/modules/conduct/schemas.py:2,38` + `admin_router.py:115,137`（`record_date=data.date` → `record_date=data.record_date`，R1-F001 修复） + `frontend/src/api/conduct.js` + `frontend/src/pages/conduct/ConductPoints.vue`。**admin_service.py 已 rename 为 `record_date` 参数（L254/271），无需改动** | `tests/test_conduct/test_admin_crud_api.py`（新增 3 测试，R1-F002 入口级 POST+readback） |
-| T3 sidebar 按 permissions 派生 | — | `frontend/src/config/sidebarConfig.js`（重构 CONDUCT 部分） | `frontend/src/__tests__/sidebarConfig.conduct.test.js`（矩阵扩展） |
+| T2 AddPointsRequest rename（R2-F004 收窄，仅后端） | — | `src/edu_cloud/modules/conduct/schemas.py:2,38` + `admin_router.py:115,137`（R1-F001 修复：`record_date=data.date` → `record_date=data.record_date`）。`admin_service.py` L254/271 verify-only。**不改前端**（R2-F004：UI 日期控件独立 behavior_change 留未来批次） | `tests/test_conduct/test_admin_crud_api.py`（新增 3 测试，R1-F002 入口级 POST+readback） |
+| T3 sidebar 按 permissions 派生（R2-F003 扩容） | — | `frontend/src/config/sidebarConfig.js`（重构 CONDUCT 部分）+ `frontend/src/components/shell/AppSidebar.vue`（R2-F003 router-link 增加 `:data-module="item.moduleCode"` 视图层改动） | `frontend/src/__tests__/sidebarConfig.conduct.test.js`（矩阵扩展 + R1-F007 治理）+ `frontend/src/__tests__/AppSidebar.conduct.test.js`（R2-F003 新建独立 harness，R1-F006 入口级 7 项） |
 
 ---
 
@@ -795,9 +795,9 @@ cd C:/Users/Administrator/edu-cloud && python -m pytest tests/test_conduct/ -q -
 Expected: `125 passed`（118 基线 + 3 governance + 4 T1）。
 
 ```bash
-cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run src/__tests__/sidebarConfig.conduct.test.js src/__tests__/AppSidebar.test.js src/pages/parent/__tests__/ParentRules.spec.js src/__tests__/permissions.lesson_prep.test.js 2>&1 | tail -5
+cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run src/__tests__/sidebarConfig.conduct.test.js src/__tests__/AppSidebar.test.js src/__tests__/AppSidebar.conduct.test.js src/pages/parent/__tests__/ParentRules.spec.js src/__tests__/permissions.lesson_prep.test.js 2>&1 | tail -5
 ```
-Expected: `18 passed`（原 13 + 新 5）。
+Expected: `18 passed`（原 13 + 新 5；AppSidebar.conduct.test.js 在本 Task 3 尚未建立 → 首轮预期不加入）。
 
 **审查清单:**
 - ✓ `has_permission('lesson_prep_leader', Permission.VIEW_CONDUCT) is False`
@@ -806,7 +806,7 @@ Expected: `18 passed`（原 13 + 新 5）。
 - ✓ `has_permission('homeroom_teacher', Permission.MANAGE_CONDUCT_RULES) is True`（班主任不变）
 - ✗ `_TEACHER_BASE` 未被整体回收（subject_teacher 若掉权则 bug）
 - ✗ `subject_teacher` 如被误判为失去 view_conduct → 红测 3 PASS / 红测 4 FAIL 的极端顺序不允许
-- 关键行为：AI Chat 调 conduct 工具时，lesson_prep_leader 的 ToolAccessResolver 过滤掉 6 conduct 工具
+- 关键行为（批次 1 范围）：lesson_prep_leader 调 conduct HTTP API 入口被拒（403）。**AI Chat 工具过滤 deferred 到 TD-006 批次 3 D-007**（ToolAccessResolver 对 6 conduct AI tools 过滤验证不在本批次，见 Contract Pack TD-006）
 
 **边界条件:**
 - 空输入（无该角色）：`has_permission('unknown_role', ...)` → `False`（参考 core/permissions.py L294 `ROLE_PERMISSIONS.get(role, set())`）
@@ -1598,7 +1598,7 @@ git log --oneline -3
    - 反例: 若 Step 5.3 漏改某 role 的 spread（如仍 `...CONDUCT_ITEMS_VIEWER`）→ 渲染 3 项 → length 断言 FAIL
    - 边界: `role='principal'` 应渲染 3 项；`role='lesson_prep_leader'` 应渲染 0 项；`role='homeroom_teacher'` 应渲染 9 项
    - 回归: 与 sidebarConfig 矩阵测试联动，防 config 层和渲染层分裂
-   - 命令: `npx vitest run src/__tests__/AppSidebar.test.js -t "academic_director conduct seven items"`
+   - 命令: `npx vitest run src/__tests__/AppSidebar.conduct.test.js -t "academic_director conduct seven items"`
 
 ---
 
@@ -1631,9 +1631,9 @@ Expected: `15 passed`。
 
 Run:
 ```bash
-cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run src/__tests__/sidebarConfig.conduct.test.js src/__tests__/AppSidebar.test.js src/pages/parent/__tests__/ParentRules.spec.js src/__tests__/permissions.lesson_prep.test.js 2>&1 | tail -5
+cd C:/Users/Administrator/edu-cloud/frontend && npx vitest run src/__tests__/sidebarConfig.conduct.test.js src/__tests__/AppSidebar.test.js src/__tests__/AppSidebar.conduct.test.js src/pages/parent/__tests__/ParentRules.spec.js src/__tests__/permissions.lesson_prep.test.js 2>&1 | tail -5
 ```
-Expected: `29 passed`（13 基线 3 件套 + 10 T3 sidebarConfig 新增（9 矩阵 + 1 F007 perm 合法性）+ 1 T3 AppSidebar F006 入口级 + 5 T1 permissions.lesson_prep = 29）。
+Expected: `29 passed`（13 基线 3 件套 + 10 T3 sidebarConfig 新增（9 矩阵 + 1 F007 perm 合法性）+ 1 T3 AppSidebar.conduct.test.js F006 入口级 + 5 T1 permissions.lesson_prep = 29；AppSidebar.test.js 原 3 保持）。
 
 - [ ] **Step 6.2: 最终更新 state.json（Task 6 置 completed + 测试基线数字校准）**
 
@@ -1863,7 +1863,7 @@ R3 修订总原则：不再通过"附录声明"替代主正文落地；每处修
 | F003 | MED | code-bug | defect_fix | resolved-inline | Task 2 Step 2.7 脚本路径 `scripts/governance/aggregate_modules.py` |
 | F004 | MED | code-bug | defect_fix | **resolved-inline R2** | **R2 已真正回填到主 Task 正文**：Task 1-5 每个都插入 Step N.0（pending→in_progress）+ Step N.final（in_progress→completed）Python inline 脚本；每个 Task 的 commit Step git add 清单都已加入 state.json；Task 6 Step 6.2 改为"更新"（非 Create）；Files 段同步为 Modify。详见上方 § state.json 生命周期 |
 | F005 | HIGH | design-concern | **behavior_change** | **approved** | 用户 2026-04-14 07:45:00 精确回复"批准 F005"，subject_teacher 2→4 扩展落地；R2 清理 3 处残留"待二次确认"措辞（L1088 扩展说明改为"已批准"；Task 5 commit message 改为"精确批准"；Gate 相关段改为"无待定审批"）；design.md §9 R-T3-followup 表格行同步改 approved |
-| F006 | MED | test-gap | defect_fix | **resolved-inline R2** | **R2 已真正回填**：Task 3 Files L442 列 `test_admin_crud_api.py` + 新 Step 3.4a 写 `test_lesson_prep_leader_cannot_call_conduct_api` API 403 入口级 + Step 3.4b 跑 PASS + 测试契约新增第 4 slice；Task 5 Files 列 `AppSidebar.test.js` + 新 Step 5.2b 写 `test_academic_director_conduct_seven_items` 入口级 + 测试契约新增第 5 slice；Step 5.3 说明 `data-module` 属性要求 |
+| F006 | MED | test-gap | defect_fix | **resolved-inline R2/R3** | **R2 回填**：Task 3 Files 列 `test_admin_crud_api.py` + 新 Step 3.4a 写 `test_lesson_prep_leader_cannot_call_conduct_api` API 403 入口级；Task 5 新 Step 5.2b 入口级 7 项测试。**R3 修正**（R2-F001/F003 verified）：Step 3.4a import 路径修正为 `edu_cloud.models.user`+`user_role` 复用 conftest pattern；Task 5 Files 改为新建独立文件 `frontend/src/__tests__/AppSidebar.conduct.test.js`（不 mock sidebarConfig，承接 R1-F006 入口级 7 项）+ `AppSidebar.vue` 视图层 `data-module` 属性改动 |
 | F007 | MED | test-gap | defect_fix | **resolved-inline R2** | **R2 已真正回填**：Task 5 新 Step 5.2a 写 `CONDUCT_ITEMS.perm` 合法性治理测试到 `sidebarConfig.conduct.test.js`；Step 5.3 CONDUCT_ITEMS 声明改为 `export const`；测试契约新增第 4 slice；Files 段标注 R1-F007 要求 export |
 | F008 | HIGH | design-concern | defect_fix | **resolved-inline R2** | **R2 按 schema 重写 Contract Pack**：invariants 用 `statement`（非 `rule`）；verification 值取 `pending_test`（非嵌套 `{type: new_test}`）；`risk_modules[].module`（非 `path`）；`test_debt[].deadline` 为纯 `YYYY-MM-DD`（TD-001/002/003=2026-05-15, TD-004=2026-05-01, TD-005=2026-12-31 远期占位，deferred 在 reason 里说明） |
 | F009 | MED | code-bug | defect_fix | resolved-in-design | `docs/plans/2026-04-14-conduct-roadmap-design.md` §8 L393 已承认 workspace CLAUDE.md 为跨 repo audit trail 合法产出；plan Task 6 Step 6.4 与之对齐 |
@@ -1939,80 +1939,16 @@ Step N.final 把 `in_progress → completed` 逻辑相同。
 }
 ```
 
-### § 入口级测试补充（F006 修复）
+### § 入口级测试补充（R3-F002 清理声明）
 
-**T1 入口级测试**（追加到 `tests/test_conduct/test_admin_crud_api.py`，Task 3 的 Step 3.11 改为同时跑此测试）:
+**本段历史草案（R1 生成，坏 import / 坏 JWT 口径 / 指向错误测试文件）已删除**，避免与主 Task 3 Step 3.4a 和 Task 5 Step 5.2a/5.2b 形成双口径。
 
-```python
-@pytest.mark.anyio
-async def test_lesson_prep_leader_cannot_call_conduct_api(
-    client, db, school_class_student,
-):
-    """T1 入口级（R1-F006）: lesson_prep_leader 调 conduct API 返回 403（权限守卫层面）."""
-    from edu_cloud.modules.student.models import UserRole, User
-    from edu_cloud.shared.auth import create_access_token
-    import uuid
-    school, cls, _ = school_class_student
+- T1 API 403 入口级测试：权威落地位置见 **Task 3 Step 3.4a**（plan 主正文，使用 `edu_cloud.models.user` + `user_role` import 路径 + `create_access_token({sub, role})` 口径）
+- T3 AppSidebar 入口级测试：权威落地位置见 **Task 5 Step 5.2b**（新建独立文件 `AppSidebar.conduct.test.js`，不与 `AppSidebar.test.js` 顶层 `vi.mock` 冲突）
 
-    # 构造 lesson_prep_leader user + role (按 conftest fixture 模式)
-    user = User(id=str(uuid.uuid4()), username=f"lpl_{uuid.uuid4().hex[:8]}", hashed_password="x", display_name="备课组长")
-    db.add(user)
-    await db.flush()
-    role = UserRole(id=str(uuid.uuid4()), user_id=user.id, role="lesson_prep_leader", school_id=school.id, is_primary=True)
-    db.add(role)
-    await db.commit()
+### § CONDUCT_ITEMS 治理测试（R3-F002 清理声明）
 
-    token = create_access_token({"sub": user.id, "active_role_id": role.id})
-    resp = await client.get(
-        f"/api/v1/conduct/classes/{cls.id}/rankings/students",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert resp.status_code == 403
-```
-
-**T3 入口级测试**（追加到 `frontend/src/__tests__/AppSidebar.test.js`）:
-
-```javascript
-import { mount } from '@vue/test-utils'
-import { createTestingPinia } from '@pinia/testing'
-import AppSidebar from '@/components/shell/AppSidebar.vue'
-
-it('academic_director 渲染侧边栏 conduct 段含 7 项（R1-F006 入口级）', async () => {
-  const pinia = createTestingPinia({
-    initialState: { auth: { currentRole: 'academic_director', user: { id: 'u1' } } },
-  })
-  const wrapper = mount(AppSidebar, { global: { plugins: [pinia] } })
-  const conductItems = wrapper.findAll('[data-module="conduct"]')
-  expect(conductItems).toHaveLength(7)
-})
-```
-
-（若 AppSidebar.vue 未给菜单项加 `data-module` 属性，Task 5 Step 5.3 改 sidebarConfig 的同时需让渲染层带出该属性；否则改为按 label 文字查找）
-
-### § CONDUCT_ITEMS 治理测试（F007 修复）
-
-**Task 5 新增 Step 5.2a（夹在 5.2 测试失败后，5.3 实现改动前）：**
-
-追加到 `frontend/src/__tests__/sidebarConfig.conduct.test.js`:
-
-```javascript
-import { ROLE_PERMISSIONS } from '@/config/permissions'
-import { CONDUCT_ITEMS } from '@/config/sidebarConfig' // Task 5 Step 5.3 需 export CONDUCT_ITEMS
-
-describe('T3 (R1-F007) — CONDUCT_ITEMS perm 合法性治理', () => {
-  it('CONDUCT_ITEMS 每个 perm 字段都在合法 permission 集，防 typo 静默失败', () => {
-    const allPerms = new Set()
-    for (const perms of Object.values(ROLE_PERMISSIONS)) {
-      for (const p of perms) allPerms.add(p)
-    }
-    for (const item of CONDUCT_ITEMS) {
-      expect(allPerms.has(item.perm)).toBe(true)
-    }
-  })
-})
-```
-
-Task 5 Step 5.3 的 CONDUCT_ITEMS 定义需改为 `export const CONDUCT_ITEMS = [...]`（供测试文件 import）。
+**本段历史草案（R1 生成，"在末尾追加 import" 会导致 ESM 非法）已删除**。权威落地位置见 **Task 5 Step 5.2a**（plan 主正文，Part A 顶部 import 段 / Part B 末尾 describe 块两步 Edit）。CONDUCT_ITEMS 的 export 要求集成到 **Step 5.3**。
 
 ### § Contract Pack（F008 修复 R2，按 `~/.claude/config/contract-pack-schema.md`）
 
@@ -2057,7 +1993,7 @@ contract_pack:
     - id: INV-T3-003
       statement: "academic_director 登录后侧边栏 conduct 段渲染出 7 项（入口级）"
       verification: pending_test
-      test_ref: "frontend/src/__tests__/AppSidebar.test.js::test_academic_director_conduct_seven_items"
+      test_ref: "frontend/src/__tests__/AppSidebar.conduct.test.js::test_academic_director_conduct_seven_items"
     - id: INV-T4-001
       statement: "conduct MODULE.md 的 owns_tables 与 models.py __tablename__ 集合严格一致"
       verification: pending_test

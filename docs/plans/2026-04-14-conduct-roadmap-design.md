@@ -124,8 +124,8 @@ supersedes_handoff: docs/plans/2026-04-13-conduct-next-phase-handoff.md
 | Task | 性质 | T | behavior_change | 文件范围 | 依赖 |
 |---|---|---|---|---|---|
 | T1 lesson_prep_leader 权限回收 | 后端+前端 | T2 | ✅ | core/permissions.py + frontend/config/permissions.js + test | — |
-| T2 AddPointsRequest.date rename | 后端+前端 | T2 | ✅ | conduct/schemas.py + admin_service.py + frontend api + vue + test | — |
-| T3 sidebar 按 permissions 派生 | 前端重构 | T3 | ✅ | sidebarConfig.js + 前端测试矩阵 | T1 |
+| T2 AddPointsRequest.date rename（R2-F004 收窄仅后端） | 后端 | T2 | ✅ | conduct/schemas.py + admin_router.py:115,137（R1-F001）；admin_service.py verify-only；不改前端 | — |
+| T3 sidebar 按 permissions 派生（R2-F003 扩容视图层） | 前端重构 | T3 | ✅ | sidebarConfig.js + AppSidebar.vue（data-module 视图层）+ 矩阵测试 + AppSidebar.conduct.test.js 新文件 | T1 |
 | T4 conduct MODULE.md 补全 | 治理 | T2 | ❌ | modules/conduct/MODULE.md（新建） + governance 巡检 | — |
 | T5 文档数字修正 | 纯文档 | T1 | ❌ | CLAUDE.md + next-phase handoff | — |
 
@@ -147,7 +147,7 @@ supersedes_handoff: docs/plans/2026-04-13-conduct-next-phase-handoff.md
 - ✓ `has_permission('homeroom_teacher', Permission.VIEW_CONDUCT) is True`（班主任不变）
 - ✗ lesson_prep_leader 调 conduct API → 403（require_view_conduct 依赖失败）
 
-**关键行为**：备课组长 AI Chat 调 conduct 工具时 ToolAccessResolver 应过滤掉 conduct 工具集。
+**关键行为（批次 1 范围）**：备课组长调 conduct HTTP API 入口被拒（403）。**AI Chat ToolAccessResolver 过滤 conduct 工具集 deferred 到 TD-006 批次 3 D-007 独立验证**，不在批次 1 退出条件内。
 
 **边界条件**：
 - `_TEACHER_BASE` 成员集运算结果必须不影响其他教师角色（subject_teacher / homeroom_teacher / lesson_prep_leader 各自独立 copy 后再删除）
@@ -235,7 +235,7 @@ const CONDUCT_ITEMS = [
 | grade_leader | view+manage+export | 3 | **5** | 积分操作 / 记录 |
 | lesson_prep_leader | 无（T1=C 回收后） | 0 | 0 | — |
 | homeroom_teacher | 全 5 | 9 | 9 | — |
-| subject_teacher | view+manage | 2 | 2（概览 + 积分操作 + 记录 + 排行？） | ⚠ 见下方说明 |
+| subject_teacher | view+manage | 2 | **4**（概览 + 积分操作 + 记录 + 排行） | R-T3-followup F005 approved 2026-04-14T07:45 |
 
 **✅ subject_teacher 细节（已批准 F005）**：改前 TEACHER 档是"积分操作 + 排行榜"（2 项），改后按 view_conduct+manage_conduct 过滤应得到 4 项（概览+积分操作+记录+排行）。这是 **R-T3-followup behavior_change 扩展**，用户 2026-04-14T07:45:00+08:00 精确回复"批准 F005"（记录于 `2026-04-14-conduct-roadmap-batch1-gates.json` F005.approval）。保守备选方案（`@allowed_roles` 白名单维持 2 项）**rejected**，不执行。
 
