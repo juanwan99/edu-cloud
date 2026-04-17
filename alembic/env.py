@@ -24,7 +24,7 @@ from edu_cloud.models.calendar import CalendarEvent, NotificationRule  # noqa: F
 from edu_cloud.models.notification import Notification  # noqa: F401
 
 # ── core/models (src/edu_cloud/core/models/) ─────────────────────────────
-from edu_cloud.core.models.llm_slot import LLMSlot  # noqa: F401
+from edu_cloud.models.llm_slot import LLMSlot  # noqa: F401
 
 # ── AI models (src/edu_cloud/ai/) ────────────────────────────────────────
 from edu_cloud.ai.models import AiSession, AiToolCall  # noqa: F401
@@ -67,7 +67,7 @@ from edu_cloud.modules.adaptive.models import (  # noqa: F401
     AdaptiveCard, DaCatalogSnapshot,
 )
 from edu_cloud.modules.menu.models import MenuConfig  # noqa: F401
-from edu_cloud.modules.analytics.analysis_models import (  # noqa: F401
+from edu_cloud.modules.analytics.models import (  # noqa: F401
     ClassAnalysis, StudentAnalysis, StudentKnpMastery,
 )
 

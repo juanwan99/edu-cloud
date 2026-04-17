@@ -59,7 +59,7 @@ def test_migration_creates_all_expected_tables(migration_db):
     import edu_cloud.models.approval  # noqa: F401
     import edu_cloud.models.calendar  # noqa: F401
     import edu_cloud.models.notification  # noqa: F401
-    import edu_cloud.core.models.llm_slot  # noqa: F401
+    import edu_cloud.models.llm_slot  # noqa: F401
     import edu_cloud.modules.card.models  # noqa: F401
     import edu_cloud.modules.scan.models  # noqa: F401
     import edu_cloud.modules.grading.models  # noqa: F401

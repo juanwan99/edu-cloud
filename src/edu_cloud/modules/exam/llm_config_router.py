@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user
 from edu_cloud.api.permissions import is_school_admin
-from edu_cloud.core.models.llm_slot import LLMSlot
+from edu_cloud.models.llm_slot import LLMSlot
 
 logger = logging.getLogger(__name__)
 

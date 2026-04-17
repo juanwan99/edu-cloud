@@ -418,7 +418,7 @@ async def main():
         import edu_cloud.models.approval  # noqa
         import edu_cloud.models.calendar  # noqa
         import edu_cloud.models.notification  # noqa
-        import edu_cloud.core.models.llm_slot  # noqa
+        import edu_cloud.models.llm_slot  # noqa
         import edu_cloud.modules.card.models  # noqa
         import edu_cloud.modules.scan.models  # noqa
         import edu_cloud.modules.grading.models  # noqa

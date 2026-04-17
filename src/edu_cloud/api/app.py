@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
     import edu_cloud.models.school  # noqa: F401
     import edu_cloud.models.user  # noqa: F401
     import edu_cloud.models.user_role  # noqa: F401
-    import edu_cloud.core.models.llm_slot  # noqa: F401
+    import edu_cloud.models.llm_slot  # noqa: F401
     # Module models (canonical locations)
     import edu_cloud.modules.exam.models  # noqa: F401 — Exam/Subject/Question/ExamResult/JointExam*
     import edu_cloud.modules.student.models  # noqa: F401 — Class/Student
@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
     import edu_cloud.models.memory  # noqa: F401 — EntityMemory/ProjectState
     import edu_cloud.modules.knowledge_tree.models  # noqa: F401 — ConceptGraphNode/Edge/EditSyncFailure
     import edu_cloud.modules.menu.models  # noqa: F401 — Alembic autogenerate (MenuConfig)
-    import edu_cloud.modules.analytics.analysis_models  # noqa: F401 — Alembic autogenerate (ClassAnalysis/StudentAnalysis/StudentKnpMastery)
+    import edu_cloud.modules.analytics.models  # noqa: F401 — Alembic autogenerate (ClassAnalysis/StudentAnalysis/StudentKnpMastery)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

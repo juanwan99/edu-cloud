@@ -6,7 +6,7 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.core.models.llm_slot import LLMSlot
+from edu_cloud.models.llm_slot import LLMSlot
 from edu_cloud.config import settings
 from edu_cloud.services.exceptions import NotFoundError
 

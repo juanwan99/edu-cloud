@@ -270,7 +270,7 @@ tests/
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
 | Tests | 1851 后端 + 73 前端 Vitest | — |
-| Modules | 19 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct），路由已迁入 | — |
+| Modules | 20 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu），路由已迁入；其中 `adaptive`/`paper` 为内部服务模块（无 HTTP router） | — |
 | Migrations | Alembic migration（79 表，含 agent evolution 8 表 + score_segment_config + adaptive 7 表） | — |
 
 ## 技术栈
@@ -699,6 +699,13 @@ docker compose logs -f      # 查看日志
 | 平台交接单 | exam-ai `docs/plans/2026-03-16-platform-handoff.md` | A→B→C→D 四阶段全局规划 |
 
 ## 数据模型概要
+
+**ORM Import 约定**（见 `docs/arch/orm-placement.md`）：
+- **外部代码统一从 `edu_cloud.models.*` 入口 import**（如 `from edu_cloud.models.grading import GradingTask`）
+- 模块内部代码可直接 import 本模块 models（如 `modules/exam/service.py` 可写 `from edu_cloud.modules.exam.models import Exam`）
+- `edu_cloud.models/` 下每个模块都有对应文件（平台层真实定义 或 re-export stub 指向 `modules/*/models.py`），19 个入口全覆盖
+
+**模块分层规范**：见 `docs/arch/module-template.md`（三类模板 A/B/C + 决策树 + 20 模块现状对照）
 
 | 表 | 关键字段 | 说明 |
 |---|---------|------|

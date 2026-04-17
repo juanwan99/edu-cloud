@@ -1,6 +1,6 @@
 """LLMSlot model + slot_selector tests."""
 import pytest
-from edu_cloud.core.models.llm_slot import LLMSlot
+from edu_cloud.models.llm_slot import LLMSlot
 from edu_cloud.modules.exam.slot_selector import get_llm_config
 
 

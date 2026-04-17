@@ -16,7 +16,7 @@ import edu_cloud.models.document  # noqa: F401
 import edu_cloud.models.approval  # noqa: F401
 import edu_cloud.models.calendar  # noqa: F401
 import edu_cloud.models.notification  # noqa: F401
-import edu_cloud.core.models.llm_slot  # noqa: F401
+import edu_cloud.models.llm_slot  # noqa: F401
 import edu_cloud.modules.card.models  # noqa: F401
 import edu_cloud.modules.scan.models  # noqa: F401
 import edu_cloud.modules.grading.models  # noqa: F401
@@ -42,7 +42,7 @@ import edu_cloud.modules.adaptive.models  # noqa: F401
 import edu_cloud.modules.knowledge_tree.models  # noqa: F401
 import edu_cloud.modules.conduct.models  # noqa: F401
 import edu_cloud.modules.menu.models  # noqa: F401
-import edu_cloud.modules.analytics.analysis_models  # noqa: F401
+import edu_cloud.modules.analytics.models  # noqa: F401
 from edu_cloud.shared.auth import create_access_token
 
 
