@@ -1,6 +1,6 @@
 """条码贴纸 PDF 生成器测试。"""
 import pytest
-from edu_cloud.modules.card.barcode_gen import (
+from edu_cloud.modules.card.export.barcode_gen import (
     parse_student_excel,
     render_barcode_pdf,
 )

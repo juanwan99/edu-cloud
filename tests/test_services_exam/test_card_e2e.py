@@ -1,9 +1,9 @@
 """答题卡代码生成引擎端到端测试。"""
 import pytest
-from edu_cloud.modules.card.layout import build_skeleton_from_spec, allocate_by_weights
-from edu_cloud.modules.card.renderer import render_card_v2
-from edu_cloud.modules.card.export import skeleton_to_paperseg_json
-from edu_cloud.modules.card.word_parser import compute_weights_from_text
+from edu_cloud.modules.card.rendering.layout import build_skeleton_from_spec, allocate_by_weights
+from edu_cloud.modules.card.rendering.renderer import render_card_v2
+from edu_cloud.modules.card.export.export import skeleton_to_paperseg_json
+from edu_cloud.modules.card.parser.word_parser import compute_weights_from_text
 
 
 class TestEndToEndPipeline:
@@ -37,7 +37,7 @@ class TestEndToEndPipeline:
         assert len(skeleton["columns"]) == 6  # 3 front + 3 back
 
         # 2b. 精化坐标
-        from edu_cloud.modules.card.renderer import finalize_skeleton
+        from edu_cloud.modules.card.rendering.renderer import finalize_skeleton
         hints = finalize_skeleton(skeleton)
         assert hints.get("header_bottom_mm", 0) > 0
 

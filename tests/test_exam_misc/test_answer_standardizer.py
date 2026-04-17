@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, AsyncMock
 
-from edu_cloud.modules.card.answer_standardizer import (
+from edu_cloud.modules.card.parser.answer_standardizer import (
     _fallback_heuristic, parse_pdf_answers, _get_llm_endpoint,
 )
 
@@ -65,26 +65,26 @@ def test_fallback_no_score_field():
 
 def test_has_sufficient_text_true():
     """每页平均 >50 字符时判定为有文字层。"""
-    from edu_cloud.modules.card.answer_standardizer import _has_sufficient_text
+    from edu_cloud.modules.card.parser.answer_standardizer import _has_sufficient_text
     text_by_page = ["一、选择题答案：1.A 2.B 3.C 4.D 5.A 6.B 7.C 8.D" * 3, "二、填空题" * 10]
     assert _has_sufficient_text(text_by_page) is True
 
 
 def test_has_sufficient_text_false():
     """每页平均 ≤50 字符（扫描件）→ False。"""
-    from edu_cloud.modules.card.answer_standardizer import _has_sufficient_text
+    from edu_cloud.modules.card.parser.answer_standardizer import _has_sufficient_text
     text_by_page = ["", "", "  ", ""]
     assert _has_sufficient_text(text_by_page) is False
 
 
 def test_has_sufficient_text_empty():
-    from edu_cloud.modules.card.answer_standardizer import _has_sufficient_text
+    from edu_cloud.modules.card.parser.answer_standardizer import _has_sufficient_text
     assert _has_sufficient_text([]) is False
 
 
 def test_text_to_paragraphs():
     """将按页文字转换为 (text, image_count) 元组列表。"""
-    from edu_cloud.modules.card.answer_standardizer import _text_to_paragraphs
+    from edu_cloud.modules.card.parser.answer_standardizer import _text_to_paragraphs
     text_by_page = ["1.A\n2.B\n\n3.C", "4.D"]
     result = _text_to_paragraphs(text_by_page)
     assert all(isinstance(p, tuple) and len(p) == 2 for p in result)
@@ -161,9 +161,9 @@ async def test_parse_pdf_text_path():
     fake_standardized = [{"number": 1, "type": "single_choice", "answer": "A",
                           "options_count": 4, "sub_count": 1}]
 
-    with patch("edu_cloud.modules.card.answer_standardizer._extract_pdf_text", return_value=fake_pages), \
-         patch("edu_cloud.modules.card.word_parser._match_paragraphs", return_value=fake_parsed), \
-         patch("edu_cloud.modules.card.answer_standardizer.standardize_answers",
+    with patch("edu_cloud.modules.card.parser.answer_standardizer._extract_pdf_text", return_value=fake_pages), \
+         patch("edu_cloud.modules.card.parser.word_parser._match_paragraphs", return_value=fake_parsed), \
+         patch("edu_cloud.modules.card.parser.answer_standardizer.standardize_answers",
                new_callable=AsyncMock, return_value=fake_standardized):
         result, method = await parse_pdf_answers("/fake.pdf")
         assert method == "text_llm"
@@ -177,9 +177,9 @@ async def test_parse_pdf_text_path_fallback_to_vision():
     fake_standardized = [{"number": 1, "type": "single_choice", "answer": "A",
                           "options_count": 4, "sub_count": 1}]
 
-    with patch("edu_cloud.modules.card.answer_standardizer._extract_pdf_text", return_value=fake_pages), \
-         patch("edu_cloud.modules.card.word_parser._match_paragraphs", return_value=[]), \
-         patch("edu_cloud.modules.card.answer_standardizer.standardize_from_pdf",
+    with patch("edu_cloud.modules.card.parser.answer_standardizer._extract_pdf_text", return_value=fake_pages), \
+         patch("edu_cloud.modules.card.parser.word_parser._match_paragraphs", return_value=[]), \
+         patch("edu_cloud.modules.card.parser.answer_standardizer.standardize_from_pdf",
                new_callable=AsyncMock, return_value=fake_standardized):
         result, method = await parse_pdf_answers("/fake.pdf")
         assert method == "vision_llm"
@@ -193,8 +193,8 @@ async def test_parse_pdf_vision_path():
     fake_standardized = [{"number": 1, "type": "single_choice", "answer": "A",
                           "options_count": 4, "sub_count": 1}]
 
-    with patch("edu_cloud.modules.card.answer_standardizer._extract_pdf_text", return_value=fake_pages), \
-         patch("edu_cloud.modules.card.answer_standardizer.standardize_from_pdf",
+    with patch("edu_cloud.modules.card.parser.answer_standardizer._extract_pdf_text", return_value=fake_pages), \
+         patch("edu_cloud.modules.card.parser.answer_standardizer.standardize_from_pdf",
                new_callable=AsyncMock, return_value=fake_standardized):
         result, method = await parse_pdf_answers("/fake.pdf")
         assert method == "vision_llm"

@@ -36,7 +36,7 @@ class TestParseWordAnswers:
 
     def test_basic_extraction(self, tmp_path):
         """#N. prefix correctly splits questions."""
-        from edu_cloud.modules.card.word_parser import parse_word_answers
+        from edu_cloud.modules.card.parser.word_parser import parse_word_answers
 
         path = _make_word(tmp_path, [
             "#1. A",
@@ -52,7 +52,7 @@ class TestParseWordAnswers:
 
     def test_multiline_answer(self, tmp_path):
         """Continuation lines belong to current question."""
-        from edu_cloud.modules.card.word_parser import parse_word_answers
+        from edu_cloud.modules.card.parser.word_parser import parse_word_answers
 
         path = _make_word(tmp_path, [
             "#1. (1) 第一步",
@@ -66,7 +66,7 @@ class TestParseWordAnswers:
 
     def test_fallback_without_hash(self, tmp_path):
         """DB-known question numbers match even without # prefix."""
-        from edu_cloud.modules.card.word_parser import parse_word_answers
+        from edu_cloud.modules.card.parser.word_parser import parse_word_answers
 
         path = _make_word(tmp_path, [
             "#1. A",
@@ -80,7 +80,7 @@ class TestParseWordAnswers:
 
     def test_no_false_positive_on_answer_numbering(self, tmp_path):
         """Internal numbering like '1. 先求x' should NOT start new question."""
-        from edu_cloud.modules.card.word_parser import parse_word_answers
+        from edu_cloud.modules.card.parser.word_parser import parse_word_answers
 
         path = _make_word(tmp_path, [
             "#13. (1) 解方程",
@@ -95,7 +95,7 @@ class TestParseWordAnswers:
 
     def test_fallback_no_false_positive_when_already_seen(self, tmp_path):
         """Bare '1.' should NOT start new question if #1 was already matched."""
-        from edu_cloud.modules.card.word_parser import parse_word_answers
+        from edu_cloud.modules.card.parser.word_parser import parse_word_answers
 
         path = _make_word(tmp_path, [
             "#1. A",
@@ -110,7 +110,7 @@ class TestParseWordAnswers:
 
     def test_image_counting(self, tmp_path):
         """Images are counted per question."""
-        from edu_cloud.modules.card.word_parser import parse_word_answers
+        from edu_cloud.modules.card.parser.word_parser import parse_word_answers
 
         # Create doc with image after #1
         path = _make_word(tmp_path, [
@@ -122,7 +122,7 @@ class TestParseWordAnswers:
 
     def test_empty_doc(self, tmp_path):
         """Empty document returns empty list."""
-        from edu_cloud.modules.card.word_parser import parse_word_answers
+        from edu_cloud.modules.card.parser.word_parser import parse_word_answers
 
         path = _make_word(tmp_path, [])
         result = parse_word_answers(path)
@@ -133,7 +133,7 @@ class TestComputeWeights:
     """Test compute_weights_from_text() — text length to normalized weights."""
 
     def test_basic_normalization(self):
-        from edu_cloud.modules.card.word_parser import compute_weights_from_text
+        from edu_cloud.modules.card.parser.word_parser import compute_weights_from_text
 
         questions = [
             {"number": 1, "answer_text": "A", "image_count": 0},
@@ -148,7 +148,7 @@ class TestComputeWeights:
         assert abs(total - 1.0) < 0.001
 
     def test_image_adds_weight(self):
-        from edu_cloud.modules.card.word_parser import compute_weights_from_text
+        from edu_cloud.modules.card.parser.word_parser import compute_weights_from_text
 
         q_no_img = {"number": 1, "answer_text": "A", "image_count": 0}
         q_with_img = {"number": 2, "answer_text": "A", "image_count": 2}
@@ -157,7 +157,7 @@ class TestComputeWeights:
 
     def test_minimum_height(self):
         """Even short answers get minimum weight."""
-        from edu_cloud.modules.card.word_parser import compute_weights_from_text
+        from edu_cloud.modules.card.parser.word_parser import compute_weights_from_text
 
         questions = [
             {"number": i, "answer_text": "A", "image_count": 0}
@@ -173,7 +173,7 @@ class TestGenerateWordTemplate:
     """Test generate_word_template() — create Word skeleton for teachers."""
 
     def test_basic_generation(self, tmp_path):
-        from edu_cloud.modules.card.word_parser import generate_word_template
+        from edu_cloud.modules.card.parser.word_parser import generate_word_template
 
         questions = [
             {"number": 1, "question_type": "choice"},
@@ -192,7 +192,7 @@ class TestGenerateWordTemplate:
         assert any("#3." in t for t in texts)
 
     def test_question_ordering(self, tmp_path):
-        from edu_cloud.modules.card.word_parser import generate_word_template
+        from edu_cloud.modules.card.parser.word_parser import generate_word_template
 
         questions = [
             {"number": 5, "question_type": "essay"},

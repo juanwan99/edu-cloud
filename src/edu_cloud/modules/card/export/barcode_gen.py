@@ -96,7 +96,7 @@ def render_barcode_pdf(
     if not students:
         raise ValueError("学生列表为空")
 
-    from . import renderer
+    from ..rendering import renderer
     renderer._ensure_chinese_font()
     _FONT_NAME = renderer._FONT_BODY
 

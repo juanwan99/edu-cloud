@@ -37,7 +37,7 @@ def mock_tpl_dir(tmp_path):
 
 class TestMatchTemplate:
     def test_exact_subject_match(self, mock_tpl_dir):
-        from edu_cloud.modules.card.template_library import match_template
+        from edu_cloud.modules.card.template.template_library import match_template
 
         result = match_template(
             subject="数学",
@@ -49,7 +49,7 @@ class TestMatchTemplate:
         assert result["subject"] == "数学"
 
     def test_paper_size_filter(self, mock_tpl_dir):
-        from edu_cloud.modules.card.template_library import match_template
+        from edu_cloud.modules.card.template.template_library import match_template
 
         result = match_template(
             subject="数学",
@@ -60,7 +60,7 @@ class TestMatchTemplate:
         assert result["paper_size"] == "A4"
 
     def test_closest_subjective_count(self, mock_tpl_dir):
-        from edu_cloud.modules.card.template_library import match_template
+        from edu_cloud.modules.card.template.template_library import match_template
 
         # 数学 A3 has num_subjective=6, ask for 7 → should still pick it
         result = match_template(
@@ -73,7 +73,7 @@ class TestMatchTemplate:
         assert result["paper_size"] == "A3"
 
     def test_no_subject_match_returns_none(self, mock_tpl_dir):
-        from edu_cloud.modules.card.template_library import match_template
+        from edu_cloud.modules.card.template.template_library import match_template
 
         result = match_template(
             subject="物理",
@@ -85,7 +85,7 @@ class TestMatchTemplate:
 
     def test_fallback_paper_size(self, mock_tpl_dir):
         """If subject has no A4 template, use A3."""
-        from edu_cloud.modules.card.template_library import match_template
+        from edu_cloud.modules.card.template.template_library import match_template
 
         # 语文 only has A3
         result = match_template(
@@ -101,13 +101,13 @@ class TestMatchTemplate:
 
 class TestLoadTplFiles:
     def test_load_from_directory(self, mock_tpl_dir):
-        from edu_cloud.modules.card.template_library import load_tpl_templates
+        from edu_cloud.modules.card.template.template_library import load_tpl_templates
 
         templates = load_tpl_templates(mock_tpl_dir)
         assert len(templates) == 4
 
     def test_empty_directory(self, tmp_path):
-        from edu_cloud.modules.card.template_library import load_tpl_templates
+        from edu_cloud.modules.card.template.template_library import load_tpl_templates
 
         empty = tmp_path / "empty"
         empty.mkdir()

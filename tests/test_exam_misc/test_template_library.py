@@ -1,6 +1,6 @@
 """内置模板库测试。"""
 import pytest
-from edu_cloud.modules.card.template_library import (
+from edu_cloud.modules.card.template.template_library import (
     get_builtin_template,
     list_builtin_subjects,
     extract_fixed_parts,

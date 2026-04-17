@@ -247,7 +247,7 @@ def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
     直接使用 TQL 的像素坐标计算 heightRatio 和栏分配，
     不做任何近似或 round-robin——精确复刻 TQL 布局。
     """
-    from edu_cloud.modules.card.tpl_parser import parse_tpl_file
+    from edu_cloud.modules.card.rendering.tpl_parser import parse_tpl_file
 
     sk = parse_tpl_file(tpl_path)
     columns = sk["columns"]

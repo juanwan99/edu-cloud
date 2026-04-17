@@ -1,12 +1,12 @@
 """统一渲染器测试。"""
 import pytest
-from edu_cloud.modules.card.renderer import render_card_v2, DEFAULT_STYLE
+from edu_cloud.modules.card.rendering.renderer import render_card_v2, DEFAULT_STYLE
 
 
 @pytest.fixture
 def codegen_skeleton():
     """代码生成的 skeleton（无 subjective_slots、无 tpl_images）。"""
-    from edu_cloud.modules.card.layout import build_skeleton_from_spec
+    from edu_cloud.modules.card.rendering.layout import build_skeleton_from_spec
     qs = [
         {"number": 1, "question_type": "single_choice", "options_count": 4, "score": 2},
         {"number": 2, "question_type": "single_choice", "options_count": 4, "score": 2},
@@ -20,7 +20,7 @@ def codegen_skeleton():
 
 @pytest.fixture
 def codegen_layout(codegen_skeleton):
-    from edu_cloud.modules.card.layout import allocate_by_weights
+    from edu_cloud.modules.card.rendering.layout import allocate_by_weights
     weights = [
         {"number": 3, "weight": 0.4,
          "parsed_structure": [{"sub": 1, "score": 10, "space_type": "essay", "estimated_lines": 0}]},
@@ -60,7 +60,7 @@ class TestUnifiedRenderer:
 class TestNewComponents:
     def test_render_with_exam_number(self):
         """含考号涂卡区的完整渲染。"""
-        from edu_cloud.modules.card.layout import build_skeleton_from_spec, allocate_by_weights
+        from edu_cloud.modules.card.rendering.layout import build_skeleton_from_spec, allocate_by_weights
         qs = [
             {"number": 1, "question_type": "single_choice", "options_count": 4, "score": 2},
             {"number": 2, "question_type": "short_answer", "score": 10,

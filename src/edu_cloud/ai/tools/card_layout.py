@@ -363,7 +363,7 @@ def _load_layout(school_id: str, subject_id: str, subject_name: str) -> dict:
             return json.loads(path.read_text(encoding="utf-8")).get("layout", {})
         except (json.JSONDecodeError, OSError):
             pass
-    from edu_cloud.modules.card.subject_defaults import get_default_layout
+    from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
     return get_default_layout(subject_name)
 
 
@@ -477,7 +477,7 @@ async def card_parse_answers(input: dict, ctx: ToolContext) -> ToolResult:
     if not Path(file_path).exists():
         return ToolResult(success=False, error=f"文件不存在: {file_path}")
     try:
-        from edu_cloud.modules.card.answer_parser import parse_answer_docx
+        from edu_cloud.modules.card.parser.answer_parser import parse_answer_docx
         questions = parse_answer_docx(file_path)
         if not questions:
             return ToolResult(success=False, error="未解析到主观题")

@@ -1,4 +1,4 @@
-from edu_cloud.modules.card.confidence import compute_confidence
+from edu_cloud.modules.card.parser.confidence import compute_confidence
 
 
 def test_choice_valid():

@@ -1,6 +1,6 @@
 """layout.py v3 规则引擎测试 — allocate_by_weights()。"""
 import pytest
-from edu_cloud.modules.card.layout import allocate_by_weights
+from edu_cloud.modules.card.rendering.layout import allocate_by_weights
 
 
 # --- 辅助 ---

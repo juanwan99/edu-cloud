@@ -1,11 +1,11 @@
 """切割 JSON 导出测试。"""
 import pytest
-from edu_cloud.modules.card.export import skeleton_to_paperseg_json
+from edu_cloud.modules.card.export.export import skeleton_to_paperseg_json
 
 
 @pytest.fixture
 def sample_skeleton_and_layout():
-    from edu_cloud.modules.card.layout import build_skeleton_from_spec, allocate_by_weights
+    from edu_cloud.modules.card.rendering.layout import build_skeleton_from_spec, allocate_by_weights
     qs = [
         {"number": 1, "question_type": "single_choice", "options_count": 4, "score": 2},
         {"number": 2, "question_type": "single_choice", "options_count": 4, "score": 2},

@@ -23,7 +23,7 @@ async def test_extract_skeleton_preserves_data_side(minimal_html_with_data_side)
     反例：render.js 未修时 closest('[data-side]') 返回 null，所有 region side fallback 'A'。
     本测试构造 B 面 region 并断言 side='B'。
     """
-    from edu_cloud.modules.card.html_export import extract_skeleton
+    from edu_cloud.modules.card.export.html_export import extract_skeleton
 
     skeleton = await extract_skeleton(minimal_html_with_data_side)
 

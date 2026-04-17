@@ -1,6 +1,6 @@
 """v2 渲染器测试。"""
 import pytest
-from edu_cloud.modules.card.renderer import render_card_v2
+from edu_cloud.modules.card.rendering.renderer import render_card_v2
 
 
 @pytest.fixture
