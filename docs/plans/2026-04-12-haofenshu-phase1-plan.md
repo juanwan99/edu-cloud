@@ -76,6 +76,8 @@ curl -s -X POST http://localhost:9000/api/v1/auth/login -H "Content-Type: applic
 | `modules/menu/models.py` | ARRAY 方言不兼容 | 用 JSON 存储 roles |
 | `frontend-nuxt/composables/useApi.ts` | 引用不存在后端端点 | 逐端点核对后端路由 |
 | `modules/analytics/analysis_models.py` | import 链断裂 | app.py 显式 import 确保 Base.metadata 可见 |
+| `frontend-nuxt/package.json` | 依赖清单漂移 + Node floor 契约 | engines ≥22.12.0 + .nvmrc + npm ci 零 EBADENGINE gate |
+| `frontend-nuxt/package-lock.json` | 锁文件与 package.json 一致性 | 禁止 --legacy-peer-deps / 禁止手工改 lockfile |
 
 ### test_debt（测试债务）
 

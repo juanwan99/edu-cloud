@@ -126,4 +126,27 @@ describe('useMenus', () => {
       await expect(api.getMenus()).rejects.not.toBeInstanceOf(AuthError)
     })
   })
+
+  describe('activeModule 路径匹配分隔符护栏（前置-1 / startsWith 误匹配修复）', () => {
+    it('route=/examples 时不误匹配 c.path=/exam 菜单项（分隔符护栏）', () => {
+      ;(globalThis as any).useRoute = () => ({ path: '/examples' })
+
+      const store = useAuthStore()
+      store.setMenus([
+        {
+          code: 'exam',
+          name: '考试',
+          icon: '',
+          sort: 0,
+          children: [
+            { path: '/exam', name: '考试中心', icon: '', sort: 0 },
+          ],
+        } as any,
+      ])
+
+      const { activeModule } = useMenus()
+
+      expect(activeModule.value).toBeNull()
+    })
+  })
 })
