@@ -82,3 +82,55 @@ export function useKnowledgeTree() {
     loadGraph, loadMastery, loadQuality, loadAllModulesQuality, applyEdit,
   }
 }
+
+/**
+ * 从节点列表聚合章节树
+ * node.textbook_chapters = [{book, chapter, section, title}]
+ */
+export function buildChapterTree(nodes) {
+  const BOOK_LABELS = {
+    b1: '必修1 分子与细胞',
+    b2: '必修2 遗传与进化',
+    xe1: '选必1 稳态与调节',
+    xe2: '选必2 生物与环境',
+    xe3: '选必3 生物技术',
+  }
+  const bookMap = new Map()
+
+  for (const node of nodes) {
+    const chapters = node.textbook_chapters || []
+    for (const ch of chapters) {
+      const bookKey = ch.book
+      if (!bookMap.has(bookKey)) {
+        bookMap.set(bookKey, { id: bookKey, name: BOOK_LABELS[bookKey] || bookKey, chapters: new Map() })
+      }
+      const book = bookMap.get(bookKey)
+      const chapterKey = ch.chapter
+      if (!book.chapters.has(chapterKey)) {
+        book.chapters.set(chapterKey, { id: chapterKey, name: chapterKey, sections: new Map() })
+      }
+      const chapter = book.chapters.get(chapterKey)
+      const sectionKey = ch.section
+      if (!chapter.sections.has(sectionKey)) {
+        chapter.sections.set(sectionKey, { id: sectionKey, name: ch.title || sectionKey, concept_ids: [] })
+      }
+      const section = chapter.sections.get(sectionKey)
+      if (!section.concept_ids.includes(node.id)) {
+        section.concept_ids.push(node.id)
+      }
+    }
+  }
+
+  return Array.from(bookMap.values())
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map(book => ({
+      ...book,
+      chapters: Array.from(book.chapters.values())
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .map(ch => ({
+          ...ch,
+          sections: Array.from(ch.sections.values())
+            .sort((a, b) => a.id.localeCompare(b.id))
+        }))
+    }))
+}
