@@ -6,12 +6,12 @@
       "status": "fail",
       "reviewer": "gpt",
       "subject_hash": "97894724dc50cb54afc69418deead1ba90b292990eb169b4d3febfa1bba2feb0",
-      "report_path": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review-r5.md",
-      "raw_output_hash": "f0582600db8dda95152b6c3d90e2077c150570a523b42cded2c6466c06776cd8",
-      "raw_output_path": "docs/plans/.codex-raw-plan-review-20260418-r5.log",
-      "subject_ref": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md@e73481a",
-      "updated": "2026-04-18T07:12:38+08:00",
-      "round": 5,
+      "report_path": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review-r6.md",
+      "raw_output_hash": "3ad4a194394cbd0ea1df346643bff5a79225e060df61d9bae26e4a3a7365bc12",
+      "raw_output_path": "docs/plans/.codex-raw-plan-review-20260418-r6.log",
+      "subject_ref": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md@19b4a4f",
+      "updated": "2026-04-18T07:19:26+08:00",
+      "round": 6,
       "round1_status": "fail",
       "findings_summary": {
         "total": 9,
@@ -87,7 +87,7 @@
           "summary": "Task 6 改 workspace CLAUDE.md 与 design §8 声明矛盾"
         }
       },
-      "next_action": "R5 FAIL，R4 100% resolved。R5-F001 是测试设计根因修复（scope 假绿）。R6 修订已 commit；触发 R6 Plan Review",
+      "next_action": "R6 FAIL 但 GPT actionable。R7 仅修 3 LOW 后应 PASS，解锁 code_review_batch1 gate",
       "round2_status": "fail",
       "round2_findings": {
         "R2-F001": {
@@ -266,7 +266,54 @@
         "R4-F001": "resolved",
         "R4-F002": "resolved",
         "R4-F003": "resolved"
-      }
+      },
+      "round6_status": "fail",
+      "round6_findings": {
+        "R6-F001": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "Task 3 Files/commit/测试契约命令未同步为 2 测试（对照组）"
+        },
+        "R6-F002": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "Step 6.2 state.json 指示 118→129 应 130"
+        },
+        "R6-F003": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "Step 6.3 design.md §10 模板 conduct=129 应 130"
+        }
+      },
+      "round6_findings_summary": {
+        "total": 3,
+        "high": 0,
+        "med": 0,
+        "low": 3,
+        "code_bug": 0,
+        "design_concern": 3,
+        "test_gap": 0,
+        "defect_fix": 3,
+        "behavior_change": 0
+      },
+      "round6_r5_verify": {
+        "R5-F001": "partially-resolved (→ R6-F001)",
+        "R5-F002": "resolved",
+        "R5-F003": "resolved"
+      },
+      "round6_checklist": {
+        "A": "FAIL",
+        "B": "PASS",
+        "C": "PASS",
+        "D": "PASS",
+        "D+": "PASS",
+        "E": "PASS",
+        "F": "PASS"
+      },
+      "round6_actionable_judgement": "GPT 明示：plan 足够 actionable 可进入执行阶段；建议顺手修 3 处 LOW 后再进"
     },
     "code_review_batch1": {
       "required": true,
