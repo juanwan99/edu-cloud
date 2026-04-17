@@ -55,6 +55,18 @@
       "updated": "2026-04-14T10:25:23.770217+08:00",
       "reason": "R1 FAIL → R2 PASS: F001/F002/F003 全 resolved-correct (GPT 独立 mutant 验证 5 条全通)",
       "raw_output_hash": "188103a159567f9ab1a8b691821e8c31af2d28d2b806ad1580487f9908fdeb6a"
+    },
+    "code_review_batch3b": {
+      "required": true,
+      "status": "fail",
+      "reviewer": "gpt",
+      "subject_hash": "ab572b80789f00b19a17af1702abe947d5f23d3c7353435bd7d135e5f1776d8f",
+      "report_path": "docs/plans/2026-04-13-knowledge-graph-phase1-review-report-batch3b.md",
+      "updated": "2026-04-18T06:57:20.191511+08:00",
+      "reason": "R1 FAIL: F001 MED race + F002 HIGH test-gap + F003/F004 MED test-gap + F005 MED design-concern behavior_change. R2 不满足条件（非 T4 / 非 remote/deploy/publish / 单模块），须拆 batch",
+      "subject_ref": "commit:f2e9ba9..5607a9a",
+      "raw_output_hash": "dd6a4fea44079fac2ec41a81dd34793f91b39a8afa56cf8e0b442ddac5fa3786",
+      "round": 1
     }
   }
 }
