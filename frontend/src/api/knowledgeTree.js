@@ -17,3 +17,18 @@ export const editGraph = (operations) =>
 
 export const qualityCheck = (module = 'all') =>
   client.get('/knowledge-tree/quality-check', { params: { module } })
+
+export async function getExamItems(nodeId, page = 1, pageSize = 20) {
+  const resp = await client.get(
+    `/knowledge-tree/graph/${nodeId}/exam-items`,
+    { params: { page, page_size: pageSize } }
+  )
+  return resp.data
+}
+
+export async function getStatsOverview(module = 'all') {
+  const resp = await client.get('/knowledge-tree/stats/overview', {
+    params: { module }
+  })
+  return resp.data
+}

@@ -54,6 +54,12 @@
             </div>
             <n-empty v-if="!Object.keys(detail.questions).length" description="暂无真题数据" />
           </n-tab-pane>
+          <n-tab-pane name="exam_items" tab="高考真题全集">
+            <ExamItemsTab :node-id="node.id" />
+          </n-tab-pane>
+          <n-tab-pane name="study_unit" tab="学习单元">
+            <StudyUnitTab :node="node" />
+          </n-tab-pane>
         </n-tabs>
 
         <!-- 教师编辑表单 -->
@@ -103,6 +109,8 @@ import {
   useMessage,
 } from 'naive-ui'
 import { getNodeDetail } from '../../api/knowledgeTree'
+import ExamItemsTab from './ExamItemsTab.vue'
+import StudyUnitTab from './StudyUnitTab.vue'
 
 const props = defineProps({
   node: { type: Object, default: null },
