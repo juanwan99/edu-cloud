@@ -22,7 +22,10 @@ export function useMenus() {
     const route = useRoute()
     return (
       authStore.menus.find((m) =>
-        m.children?.some((c: any) => route.path.startsWith(c.path)),
+        m.children?.some(
+          (c: any) =>
+            route.path === c.path || route.path.startsWith(c.path + '/'),
+        ),
       ) || null
     )
   })
