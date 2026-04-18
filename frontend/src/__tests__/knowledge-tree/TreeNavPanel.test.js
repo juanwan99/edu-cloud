@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { NTree } from 'naive-ui'
 import { buildChapterTree } from '../../components/knowledge-tree/useKnowledgeTree'
 import TreeNavPanel from '../../components/knowledge-tree/TreeNavPanel.vue'
 
@@ -67,30 +68,42 @@ describe('TreeNavPanel — nav mode + emits contract', () => {
     })
   }
 
+  // R2 F003: 所有入口改为 DOM radio trigger + n-tree component $emit
+  // （原 wrapper.vm.navMode / wrapper.vm.handleSelect 直接操作组件实例的路径已废弃；F005 亦移 defineExpose）
+  function chapterRadio(wrapper) {
+    return wrapper.find('input[type="radio"][value="chapter"]')
+  }
+  function getTree(wrapper) {
+    return wrapper.findComponent(NTree)
+  }
+  async function switchToChapter(wrapper) {
+    await chapterRadio(wrapper).setValue(true)
+    await wrapper.vm.$nextTick()
+  }
+
   it('default module mode shows module name but not book title', () => {
     const wrapper = mountPanel()
     expect(wrapper.text()).toContain('分子与细胞')
     expect(wrapper.text()).not.toContain('必修1')
   })
 
-  it('chapter mode shows book title "必修1"', async () => {
+  it('chapter mode via radio click shows book title "必修1" (R2 F003: DOM 入口)', async () => {
     const wrapper = mountPanel()
-    wrapper.vm.navMode = 'chapter'
-    await wrapper.vm.$nextTick()
+    await switchToChapter(wrapper)
     expect(wrapper.text()).toContain('必修1')
   })
 
-  it('select-module emits module id string for M1 key', () => {
+  it('select-module emits module id for M1 key via n-tree update:selected-keys', async () => {
     const wrapper = mountPanel()
-    wrapper.vm.handleSelect(['M1'])
+    await getTree(wrapper).vm.$emit('update:selected-keys', ['M1'])
     const emitted = wrapper.emitted('select-module')
     expect(emitted).toHaveLength(1)
     expect(emitted[0]).toEqual(['M1'])
   })
 
-  it('select-node emits full node object (F010) in module mode', () => {
+  it('select-node emits full node (F010 module mode via n-tree)', async () => {
     const wrapper = mountPanel()
-    wrapper.vm.handleSelect(['C1'])
+    await getTree(wrapper).vm.$emit('update:selected-keys', ['C1'])
     const emitted = wrapper.emitted('select-node')
     expect(emitted).toHaveLength(1)
     const payload = emitted[0][0]
@@ -100,25 +113,23 @@ describe('TreeNavPanel — nav mode + emits contract', () => {
     expect(payload.module).toBe('M1')
   })
 
-  it('select-node keeps full node object across chapter mode (F010 persistence)', async () => {
+  it('select-node keeps full node object across chapter mode (F010 persistence via DOM radio + tree emit)', async () => {
     const wrapper = mountPanel()
-    wrapper.vm.navMode = 'chapter'
-    await wrapper.vm.$nextTick()
-    wrapper.vm.handleSelect(['C1'])
+    await switchToChapter(wrapper)
+    await getTree(wrapper).vm.$emit('update:selected-keys', ['C1'])
     const emitted = wrapper.emitted('select-node')
     expect(emitted).toHaveLength(1)
-    const payload = emitted[0][0]
-    expect(payload.id).toBe('C1')
-    expect(payload.module).toBe('M1')
+    expect(emitted[0][0].id).toBe('C1')
+    expect(emitted[0][0].module).toBe('M1')
   })
 
-  it('aggregate keys (book:/chapter:/section:) do not emit', async () => {
+  it('aggregate keys (book:/chapter:/section:) do not emit (via n-tree emit)', async () => {
     const wrapper = mountPanel()
-    wrapper.vm.navMode = 'chapter'
-    await wrapper.vm.$nextTick()
-    wrapper.vm.handleSelect(['book:b1'])
-    wrapper.vm.handleSelect(['chapter:b1:ch01'])
-    wrapper.vm.handleSelect(['section:b1:ch01:s01'])
+    await switchToChapter(wrapper)
+    const tree = getTree(wrapper)
+    await tree.vm.$emit('update:selected-keys', ['book:b1'])
+    await tree.vm.$emit('update:selected-keys', ['chapter:b1:ch01'])
+    await tree.vm.$emit('update:selected-keys', ['section:b1:ch01:s01'])
     expect(wrapper.emitted('select-module')).toBeUndefined()
     expect(wrapper.emitted('select-node')).toBeUndefined()
   })
