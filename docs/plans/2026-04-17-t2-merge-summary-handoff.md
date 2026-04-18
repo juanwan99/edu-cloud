@@ -7,11 +7,33 @@
 > 工作分支：**`master`**（汇总到主分支）
 
 ## 1. 触发条件
-- W1 输出"【W1 card 子目录化 · 待汇总】"
-- W2 输出"【W2 kg Batch 3b · 待汇总】"
-- W3 输出"【W3 haofenshu Batch 3 · 待汇总】"
-- W4 输出"【W4 conduct Batch 1 · 待汇总】"
+
+### 1.1 完整 T2 模式（4 W 全完成）
+- W1 / W2 / W3 / W4 全部输出"待汇总"
 - 用户确认全部 checkpoint OK
+
+### 1.2 Partial T2 模式（W1+W3 完成，W2/W4 未完）⭐ 当前 2026-04-18 模式
+**实查事实**：
+- W1 ✅ 完成 @ `6c1ee0e`，pytest 300 PASS
+- W3 ✅ 完成 @ `1439904`，vitest 29 PASS
+- W2 ⏳ Code Review R1 FAIL @ `931e1c7`，等 W2-R2 修复（详 `2026-04-18-w2-r2-repair-handoff.md`）
+- W4 ⏳ Plan Review R7 PASS @ `637ce2f`，T1-T5 待新 session 实施（详 `2026-04-18-w4-exec-T1-T5-handoff.md`）
+
+**Partial T2 范围**：仅 merge `feat/card-subdir`（W1）+ `feat/haofenshu-batch3`（W3）
+**T2-补遗-1**：W2 R2 PASS 后单独 merge `feat/kg-batch3b`
+**T2-补遗-2**：W4 实施完 + code_review_batch1 PASS 后单独 merge `feat/conduct-roadmap-batch1`
+**工作 worktree**：`/home/ops/projects/edu-cloud-t2`（已检出 master @ 29dfb8a）
+
+**前置 verify**（必须先跑）：
+```bash
+cd /home/ops/projects/edu-cloud-t2
+git status                          # 必空
+git rev-parse --abbrev-ref HEAD     # 必 master
+# 确认零冲突（已实查 2026-04-18：W1+W3 文件物理隔离 100%）
+git diff master..feat/card-subdir --name-only > /tmp/w1_files.txt
+git diff master..feat/haofenshu-batch3 --name-only > /tmp/w3_files.txt
+sort /tmp/w1_files.txt /tmp/w3_files.txt | uniq -d  # 应空（无重叠）
+```
 
 ## 2. 工作内容
 
@@ -42,7 +64,9 @@ sort /tmp/branch_files.txt | uniq -c | sort -rn | head
 
 如有冲突 → STOP 报告，不擅自合并。
 
-### 2.3 Merge 顺序（依赖隔离，可任意顺序但建议）
+### 2.3 Merge 顺序
+
+#### 2.3.A 完整 T2 模式（4 W 版）
 1. **W4 conduct**（最小 footprint，先合最稳）
    ```bash
    git checkout master
@@ -52,16 +76,40 @@ sort /tmp/branch_files.txt | uniq -c | sort -rn | head
    ```bash
    git merge --no-ff feat/haofenshu-batch3 -m "merge: W3 haofenshu Phase 1 Batch 3"
    ```
-3. **W2 kg**（前端 knowledge-tree，与 W4 frontend/conduct 不冲突但相邻目录，verify 后合）
+3. **W2 kg**（前端 knowledge-tree，verify 后合）
    ```bash
    git merge --no-ff feat/kg-batch3b -m "merge: W2 kg Phase 1 Batch 3b"
    ```
-4. **W1 card**（最大改动 135 import，最后合最容易定位回归）
+4. **W1 card**（最大改动 135 import，最后合）
    ```bash
    git merge --no-ff feat/card-subdir -m "merge: W1 Phase 4 card 子目录化"
    ```
 
 每步 merge 后立即跑相关子集测试 verify。
+
+#### 2.3.B Partial T2 模式（2 W 版 · 当前 2026-04-18）⭐
+**前提**：在 `/home/ops/projects/edu-cloud-t2` worktree（master @ 29dfb8a），已通过 §1.2 前置 verify。
+
+按风险递增顺序：
+
+1. **W3 haofenshu**（独立目录 frontend-nuxt/）
+   ```bash
+   cd /home/ops/projects/edu-cloud-t2
+   git merge --no-ff feat/haofenshu-batch3 -m "merge: W3 haofenshu Phase 1 Batch 3 (Task 10-12) [partial T2 1/2]"
+   cd frontend-nuxt && npx vitest run 2>&1 | tail -5  # 应 29 PASS
+   cd /home/ops/projects/edu-cloud-t2
+   ```
+
+2. **W1 card**（38 文件 + 135 import，最大改动放最后）
+   ```bash
+   git merge --no-ff feat/card-subdir -m "merge: W1 Phase 4 card 子目录化 [partial T2 2/2]"
+   /home/ops/projects/edu-cloud/.venv/bin/python -m pytest tests/test_api_exam/ tests/test_exam_misc/ tests/test_services_exam/ tests/test_api/test_compat.py --tb=line -q 2>&1 | tail -3  # 应 300+ PASS
+   ```
+
+**禁 merge feat/kg-batch3b（W2 R1 FAIL，等 R2）**
+**禁 merge feat/conduct-roadmap-batch1（W4 T1-T5 实施未完）**
+
+**Partial T2 后 master 状态**：含 W1 (card 子目录) + W3 (nuxt Batch 3)，不含 W2/W4。后续两次 T2-补遗 单独处理。
 
 ### 2.4 全量 pytest（汇总后必跑）
 ```bash
