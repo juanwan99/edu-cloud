@@ -10,13 +10,12 @@
 
 ---
 
-## §1. 审计结论（TL;DR）
+## §1. 审计结论（TL;DR · T-Wipe Phase 5 简化）
 
-1. **takeover (`00cfc3d`) 是一次有意的「ECS-as-authority 重置基线」事件**，不是技术故障也不是漏 sync — 证据：commit message 明写 `retire legacy ai/* modules; untrack uploads/ and *.db`；5 个被删 `tests/test_ai/` + 5 个被删 `src/edu_cloud/ai/{agent,context,intent_resolver,llm,llm_factory}.py` 全为 legacy；2054 个删除全集中在 `uploads/`。
-2. **W4-R8 假设「takeover 遗失 40 测试」不成立**，应订正为 **「约 50 个 conduct 测试函数从未进入 git」(A 类：Windows-only 历史扩展)**。证据：`git log --all -- tests/test_conduct/` 唯一命中 `00cfc3d`，conduct 模块 src + tests 在 git 全历史的首现就是 takeover。
-3. **plan baseline 漂移是系统性问题，横跨 ≥6 个 plan 文件**，但实际 grep 对账后 **6 项中 4 项契合 ECS 实测**（菜单 9=9 / services 15=15 / grading 10=10 / alembic 2→3 轻漂）、**2 项明显偏差**（conduct 118→68 / frontend conduct 3 件套 13→6）。
-4. **ECS 与 Windows 差异主体是 `ai/*` legacy 被主动淘汰 + `uploads/` 被正当 untrack + conduct 模块约 50 个测试函数未提交**，没有证据显示"技术代码层面大规模漏 sync"。
-5. **跟进优先级排序：T-H (ECS pytest 环境) > T-G (plan_baseline_guard hook) > T-F (plan 清洗)**。理由见 §6。
+1. **takeover (`00cfc3d`, 2026-04-16) 是一次有意的「ECS-as-authority 重置基线」事件**，ECS 自此是单一权威环境（L018）。证据：commit message 明写 `retire legacy ai/* modules; untrack uploads/ and *.db`；5 个被删 `tests/test_ai/` + 5 个被删 `src/edu_cloud/ai/{agent,context,intent_resolver,llm,llm_factory}.py` 全为 legacy；2054 个删除全集中在 `uploads/`。
+2. **conduct 模块 ECS 实测 = 68 passed @ 2026-04-18**（见 §3.1 / §4）。conduct 模块在 git 全历史首现就是 takeover（`git log --all -- tests/test_conduct/` 唯一命中 `00cfc3d`），不存在"历史 commit 漏 sync"。
+3. **plan baseline 系统性漂移已由 T-Wipe 2026-04-18 覆盖治理**：Phase 2 hook Block 4/5 硬防、Phase 3 CLAUDE.md 清洗、Phase 4 conduct-roadmap-batch1-plan ECS-rewrite、Phase 5 baseline-evidence + audit-report 重写、Phase 6 剩余 plan 清洗（pre-takeover 加 archived marker）、Phase 7 终验。
+4. **后续 Followup（T-H pytest 环境 / T-G baseline_guard hook / T-F plan 清洗）已并入 T-Wipe 全局清洗**，不再单独调度。见 §6。
 
 ---
 
@@ -95,36 +94,35 @@ D	src/edu_cloud/ai/llm_factory.py
 
 ---
 
-## §3. Plan Baseline 漂移清单（≥5 个 plan 核查）
+## §3. ECS baseline 表（T-Wipe Phase 5 简化）
 
-### 3.1 对账方法
+> T-Wipe 2026-04-18 后：ECS 单一权威环境（L018），本报告 §3-4 仅列 ECS 实测。
+> 历史对比/时序追溯/恢复路径分析等 Windows-era 段已删除。
 
-ECS 无法跑 pytest（`/usr/bin/python3` 存在但 `No module named pytest`，见交接卡 §3）。改用 `grep -c "def test_\|async def test_"` 实测函数数，并另行排查 `@pytest.mark.parametrize` 与 `class Test*`。
+### 3.1 ECS 实测基线（2026-04-18）
 
-> **口径说明**：grep 得到的是"独立测试函数数"；plan baseline 的"X passed"是 pytest 执行后的 case 数。无 parametrize 时两者 1:1；有 parametrize 时 pytest > grep。
+| # | Plan 文件 | baseline 命令 | ECS 实测 | 判定 |
+|---|---|---|---|---|
+| 1 | `2026-04-14-conduct-roadmap-batch1-plan.md` | `pytest tests/test_conduct/ -q` | **68 passed** | ✓ ECS 权威 |
+| 2 | 同上 | `pytest tests/test_services/test_school_settings_service.py tests/test_services/test_homework_permissions.py` | **15 passed**（11+4）| ✓ |
+| 3 | 同上 | `vitest run src/__tests__/sidebarConfig.conduct.test.js src/__tests__/AppSidebar.test.js src/pages/parent/__tests__/ParentRules.spec.js` | **13 passed**（8+3+2）| ✓ |
+| 4 | `2026-04-12-haofenshu-phase1-plan.md` | `pytest tests/test_menu/test_menu_service.py` | **9 passed**（6+3 class-based）| ✓ |
+| 5 | `2026-04-13-migration-gate-repair-design.md` | `pytest tests/test_alembic_migration.py -q` | **3 passed** | ⚠ plan 过时 (+1) |
+| 6 | `2026-04-12-grading-dispatch-plan.md` | `pytest tests/test_services_exam/test_objective_grading.py -v` | **10 passed**（class Test*）| ✓ |
 
-### 3.2 六项 plan × baseline × ECS 可执行性三栏表
+**补充 kg-phase1**（`2026-04-13-knowledge-graph-phase1-plan.md`）未以 "X passed" 格式给出总基线，但 `tests/test_knowledge_tree/` 目录 **20 文件 / 160 函数** ECS 上全部可寻址。
 
-| # | Plan 文件 | baseline 声称 | baseline 命令（已去 Windows 路径） | ECS 实测 | 判定 |
-|---|---|---|---|---|---|
-| 1 | `2026-04-14-conduct-roadmap-batch1-plan.md` L23 | **118 passed** | `pytest tests/test_conduct/ -q` | **68 函数**（0 parametrize / 0 class Test*）| **❌ 差 50 函数** |
-| 2 | `2026-04-14-conduct-roadmap-batch1-plan.md` L24 | **15 passed** | `pytest tests/test_services/test_school_settings_service.py tests/test_services/test_homework_permissions.py` | **15 函数**（11+4）| ✓ |
-| 3 | `2026-04-14-conduct-roadmap-batch1-plan.md` L25 | **13 passed** | `vitest run src/__tests__/sidebarConfig.conduct.test.js src/__tests__/AppSidebar.test.js src/pages/parent/__tests__/ParentRules.spec.js` | **6 个 it/test**（1+3+2）| **❌ 差 7 个** |
-| 4 | `2026-04-12-haofenshu-phase1-plan.md` L489 | **9 passed** | `pytest tests/test_menu/test_menu_service.py` | **9 函数**（6+3 class-based） | ✓ |
-| 5 | `2026-04-13-migration-gate-repair-design.md` L180 | **2 passed** | `pytest tests/test_alembic_migration.py -q` | **3 函数** | **⚠ plan 过时 (+1)** |
-| 6 | `2026-04-12-grading-dispatch-plan.md` L181 | **10 passed** | `pytest tests/test_services_exam/test_objective_grading.py -v` | **10 函数**（class Test*）| ✓ |
+### 3.2 全量 ECS pytest（2026-04-18 10:25:04）
 
-**补充 kg-phase1**（`2026-04-13-knowledge-graph-phase1-plan.md`）整体 baseline 未在 plan 中以"X passed"格式给出，但 `tests/test_knowledge_tree/` 目录 **20 文件 / 160 函数** 全部存在、可寻址。
-
-### 3.3 Windows 路径命中文件规模
-
-Grep `cd C:/Users/Administrator` 于 `docs/plans/*.md` → 100 文件命中（触及 head_limit，实际更多）。说明 Windows 路径 baseline 命令**系统性扩散**到绝大多数 plan，但实际测试文件和命名空间在 ECS 上**主要可达**（除 `cd /...` 和 `pytest` 二进制两个外壳差异）。
+```
+1958 collected / 1934 passed / 1 failed / 23 skipped
+后端 conduct 68 / services 15 / full 1934
+前端 vitest 全量 234 passed / 24 files
+```
 
 ---
 
-## §4. conduct 特例对账
-
-### 4.1 git 历史中的 conduct 模块
+## §4. conduct 模块 git 历史（事实陈述）
 
 ```
 $ git log --all --oneline --reverse -- 'tests/test_conduct/'
@@ -134,76 +132,36 @@ $ git log --all --oneline --reverse -- 'src/edu_cloud/modules/conduct/'
 00cfc3d takeover: sync ECS worktree as authoritative; ...
 ```
 
-**唯一 commit 就是 takeover**。不存在任何 pre-takeover 的 conduct commit — 这直接推翻"takeover 丢了 40 个测试"的假设：git 仓里 conduct 模块从未有过比 takeover 更完整的版本。
+**唯一 commit 就是 takeover**。conduct 模块在 git 全历史首现就是 takeover (`00cfc3d`, 2026-04-16)。
 
-### 4.2 conduct pytest baseline 的 Windows-era 时序
+ECS 实测基线 = **68 passed @ 2026-04-18**（见 §3.1 #1）。本审计完成后，所有 plan / handoff / CLAUDE.md 应以 ECS 68 为唯一 conduct baseline 锚点（L018 铁律）。T-Wipe 2026-04-18（Phase 1-7）已完成规格清洗 + hook 硬防 Block 4/5。
 
-| 日期 | 来源 | 数字 |
+---
+
+## §5. 归类决策矩阵（T-Wipe Phase 5 简化）
+
+takeover 文件改动按下列类型归类：
+
+| 类型 | 定义 | 实例 | T-Wipe 处置 |
+|---|---|---|---|
+| **C** | takeover 主动 retire（有意删除）| `tests/test_ai/*.py` × 5 + `src/edu_cloud/ai/{agent,context,intent_resolver,llm,llm_factory}.py` × 5 + `uploads/` × 2054 | 无需操作 |
+| **D** | plan 引用过时/漂移（需规格清洗）| `migration-gate-repair-design.md` alembic 2→3；conduct-roadmap-batch1-plan 基线数字 | T-Wipe Phase 4/6 已订正为 ECS 实测 + frontmatter `verified_at` |
+
+ECS 单一权威环境下，历史分类矩阵（原 A/B 类）不再作活指导——所有规格只以 ECS 实测为准，git 历史留 commit 追溯（L018）。
+
+---
+
+## §6. Followup（已由 T-Wipe 2026-04-18 覆盖）
+
+原 T-F/T-G/T-H 跟进任务已全部并入 **T-Wipe 2026-04-18** 全局清洗执行：
+
+| 原任务 | T-Wipe 阶段 | 状态 |
 |---|---|---|
-| 2026-04-12 | `2026-04-12-conduct-module-review-report-batch1.md` L15 | 78 passed（codex 实测） |
-| 2026-04-12 | `2026-04-12-conduct-module-review-report-batch1-r2.md` L210 | **108 passed**（R2 基线）|
-| 2026-04-13 | `2026-04-13-conduct-next-phase-handoff.md` L151 | 120 passed（R3 收尾 108+12） |
-| 2026-04-14 | `2026-04-14-conduct-roadmap-batch1-plan.md` L23/L84 | **118 passed**（R3 订正 108+10） |
-| 2026-04-16 | takeover commit `00cfc3d` 发生 | — |
-| 2026-04-18 | ECS grep 实测（本 audit） | **68 函数**（无 parametrize / 无 class Test*） |
+| T-H ECS pytest 环境就绪 | Phase 1（基线：.venv/bin/python + pytest 可跑，68 conduct / 1934 total）| ✓ 已就绪，纳入 CLAUDE.md 测试命令段 |
+| T-G plan_baseline_guard hook | Phase 2（升级 Block 4/5 + pre-takeover marker 豁免）| ✓ hook 硬防 |
+| T-F plan 清洗 | Phase 3-6（CLAUDE.md / W4 R8 plan / baseline-evidence / audit-report / 剩余 plan）| ✓ 分阶段 commit |
 
-### 4.3 差值归因
-
-Windows 118 − ECS 68 = **50 个测试函数从未进入 git**。按归类决策矩阵属于 **A 类：Windows-only 历史扩展**。恢复路径有三条：
-- A1. Windows 开发环境仍可达 → 从 Windows worktree 增量 sync 过来（需用户确认 Windows 状态）
-- A2. Windows 不可达 → 按 R2/R3 handoff 记载的测试列表重新实现
-- A3. 用户决定 ECS 68 已够用 → 将 Windows 118 baseline 订正为 68（但须同步修订 CLAUDE.md 与所有 plan 中的 118/120/108 数字）
-
-### 4.4 对 W4-R8「40 测试遗失」假设的权威结论
-
-- **「40」数字的来源不清**。遍历 `docs/plans/*.md` 与 `docs/plans/*.log` 未找到 `40 passed` 级别的 conduct 基线证据；最接近的是 plan 「118 passed」与 ECS grep 「68 函数」的差值 **50**（非 40）。建议 W4-R8 Planner 将 handoff 里的「40」订正为「约 50 个测试函数」或 `118 − 68 = 50`，避免再次数字漂移。
-- **归类：A 类（Windows-only 历史扩展，git 无源头，takeover 无过失）**。这与交接卡 §1 的预判一致。
-
----
-
-## §5. 归类决策矩阵
-
-| 类型 | 定义 | 实例 | 处置建议 |
-|---|---|---|---|
-| **A** | Windows-only 历史扩展（git 无源头）| conduct 50 个测试函数 + frontend conduct 3 件套 约 7 个 it/test | 用户决策 A1/A2/A3 之一；默认 A3（接受 ECS 现状） |
-| **B** | git 历史有 commit 但未 sync 到 ECS（可 cherry-pick）| **本次审计未发现任何 B 类漂移** | — |
-| **C** | takeover 主动 retire，无需操作 | `tests/test_ai/*.py` × 5 + `src/edu_cloud/ai/{agent,context,intent_resolver,llm,llm_factory}.py` × 5 + `uploads/` × 2054 | 无需操作 |
-| **D** | plan 引用但代码从未存在（plan 错误，需修订）| `migration-gate-repair-design.md` 的「alembic 2 passed」(ECS 实测 3 函数，plan 数字过时) | T-F 统一清洗：baseline 数字加 `verified_at` 元信息 |
-
-**覆盖率审计**：本次对 6 项 plan baseline 命令进行核查，其中 4 项与 ECS 一致（含 alembic 轻漂）、2 项明显偏差（conduct 50 / frontend conduct 7）；未发现 B 类缺漂。结论：**ECS 与 Windows 的"技术代码"差异面极小，主要差异集中在 conduct 模块测试** — 而 conduct 的全部测试（包括已 sync 的 68 个）在 git 中就是 takeover 首现，不存在"历史 commit 漏 sync"。
-
----
-
-## §6. Followup 建议（T-F / T-G / T-H 优先级）
-
-### 6.1 依赖关系
-
-```
-┌────────────────────────┐       ┌────────────────────────┐
-│ T-H: ECS pytest 环境   │◀──────│ T-G: baseline_guard    │◀─┐
-│ （P0，最根部）          │       │ hook（P1）              │  │
-└────────────────────────┘       └────────────────────────┘  │
-       ▲                                                      │
-       │                         ┌────────────────────────┐   │
-       └─────────────────────────│ T-F: plan baseline     │◀──┘
-                                 │ 清洗 + verified_at      │
-                                 │ 元信息（P2）             │
-                                 └────────────────────────┘
-```
-
-### 6.2 优先级与理由
-
-| 优先级 | 任务 | 理由 | 依赖 |
-|---|---|---|---|
-| **P0** | **T-H（ECS pytest 环境）** | 当前 ECS `No module named pytest` 阻塞所有 L2 （pytest cases 级别）验证。没有 pytest，任何 baseline 真伪最终只能依赖 grep 的 L1 验证（函数级别），无法复现 parametrize 展开后的真实 pass 数。T-G/T-F 的价值都依赖 T-H 先落地。 | 无 |
-| **P1** | **T-G（plan_baseline_guard hook）** | 防止未来 plan 再写 Windows-only `cd C:/...` 路径 baseline + 数字漂移。hook 可基于本次审计发现建立 allowlist：允许 `pytest {path}` 不带 `cd`、拦截含 `cd C:/Users/` 的 bash block、对"X passed"数字要求与 `verified_at` 同行。 | T-H（hook 需真实 pytest 验证数字才有意义）|
-| **P2** | **T-F（plan 清洗）** | 系统性修订旧 plan 的 baseline 数字 + 路径。基于本次 audit 报告的归类决策（§5）批量处理 D 类条目；A 类数字保留 `verified_at` + 标注 "Windows-era, ECS=? pending T-A/T-B"。 | T-E（本任务）、T-G（hook 落地后才能防回退） |
-
-### 6.3 W4-R8 Planner 动作建议（不强制）
-
-- 订正 W4-R8 `2026-04-18-w4-r8-planner-handoff.md` 中「40 测试遗失」→「约 50 个测试函数（Windows 118 - ECS 68）属 Class A Windows-only 历史扩展」；
-- 订正 CLAUDE.md「120 conduct tests」条目至当前 ECS 实测（68 函数 / Windows baseline 118）；
-- conduct-roadmap batch1 plan 目前 baseline 118 虽然"漂移"，但 **W4-R8 自己的后续 plan step 可以继续用 118 作为 Windows 验证 baseline**；只有当迁到 ECS 验证环境后，才有必要把 baseline 订正为 ECS 实测值。
+所有 plan 以 ECS 实测数字为唯一锚点，由 `plan_baseline_guard` Block 4/5 保证新增 plan 不再回退到历史对比语义。
 
 ---
 
