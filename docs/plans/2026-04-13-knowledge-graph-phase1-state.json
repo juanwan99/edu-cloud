@@ -80,6 +80,6 @@
       "status": "pending"
     }
   ],
-  "updated_at": "2026-04-14 12:15:00",
-  "notes": "Batch 1 (T1-T6) R2 PASS commit bcb1971; Batch 2 (T7-T8) R3 PASS commit d300263; Batch 3.a (T9-T10) R1 FAIL → R2 PASS commits 2ab10a2..c5bff80 (F001 code-bug + F002/F003 test-gap 全 resolved-correct; code_review_batch3a=pass); Plan Review R1-R6 FAIL→PASS (R5→R6 修复 R5-T001/T002/P002 + R5-P001 resolved-false-positive 幽灵 hash staging 污染证据; plan_review.subject_hash=a963e85b); Batch 3.b (T11-T12) handoff-batch3b commit f9ab3a1 已就绪待 Executor 新会话; Batch 3.c (T13-T14+P001 处置 INV-002 L1 集合相等测试 + Phase 1 收尾) pending; Planner 交接卡 docs/plans/2026-04-13-knowledge-graph-phase1-planner-handoff.md"
+  "updated_at": "2026-04-18 09:15:00",
+  "notes": "Batch 1 (T1-T6) R2 PASS commit bcb1971; Batch 2 (T7-T8) R3 PASS commit d300263; Batch 3.a (T9-T10) R1 FAIL → R2 PASS commits 2ab10a2..c5bff80; Plan Review R6 PASS subject_hash=a963e85b; Batch 3.b (T11-T12) 代码落地 f2e9ba9/5607a9a, R1 FAIL 5 finding → R2 修复 commits 66ab2b8..317dfb6 → R2 FAIL 仅 R2-F001 HIGH test-gap (ExamItemsTab race mutant 未锁, commit fc4da5f 记录); Planner 决策 A 拆子 batch 3.b.iii (2026-04-18 用户批准), 派发 handoff-batch3biii 仅补 race test, gates.json code_review_batch3b_iii=pending; T11/T12 代码已完成但 Gate 2 仍 pending 待 3.b.iii R1 PASS; Batch 3.c (T13-T14+P001) pending"
 }

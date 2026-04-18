@@ -63,10 +63,20 @@
       "subject_hash": "83646fdecb7a5f65d01c010e59be0ce2e032eaf16afa6a3310c8984f0aee3335",
       "report_path": "docs/plans/2026-04-13-knowledge-graph-phase1-review-report-batch3b-r2.md",
       "updated": "2026-04-18T08:36:22.101072+08:00",
-      "reason": "R2 FAIL: 仅 R2-F001 HIGH test-gap (fetchSeq guard 无异步竞态 mutant test 锁定). R1 F002/F003/F004/F005 全 resolved-correct. skill 规则: R2 FAIL → 拆 topic 或 WONTFIX，不接受 R3",
+      "reason": "R2 FAIL: 仅 R2-F001 HIGH test-gap (fetchSeq guard 无异步竞态 mutant test 锁定). R1 F002/F003/F004/F005 全 resolved-correct. skill 规则: R2 FAIL → 拆 topic 或 WONTFIX，不接受 R3. Planner 决策 A 拆子 batch 3.b.iii (2026-04-18 用户批准)",
       "subject_ref": "commit:66ab2b8..317dfb6",
       "raw_output_hash": "138d66e4d9db38d1fcbd6d19e34632ea11e5bd4e005508ffd1e6cba642ca4f45",
       "round": 2
+    },
+    "code_review_batch3b_iii": {
+      "required": true,
+      "status": "pending",
+      "reviewer": null,
+      "subject_ref": null,
+      "subject_hash": null,
+      "report_path": null,
+      "updated": "2026-04-18T09:15:00+08:00",
+      "reason": "子 batch 派发：Batch 3.b R2 FAIL → 拆 3.b.iii 独立修复 R2-F001 HIGH test-gap (ExamItemsTab race mutant test). 派发 handoff: docs/plans/2026-04-13-knowledge-graph-phase1-handoff-batch3biii.md. 范围白名单 1 文件 (ExamItemsTab.test.js +2 it), 红线含 ExamItemsTab.vue 零改动"
     }
   }
 }
