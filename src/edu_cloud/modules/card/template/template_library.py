@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 # 约 (1800/35) * 40 * 2 ≈ 4100 字
 A4_TEXT_THRESHOLD = 4000  # 字符数，超过此值选 A3
 
-_TEMPLATE_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "templates"
+_TEMPLATE_DIR = Path(__file__).resolve().parents[3] / "data" / "templates"
 _CACHE: dict[str, dict] = {}
 
 
@@ -121,7 +121,7 @@ def _extract_subject_from_tpl(tpl_info: dict, filename: str) -> str:
 
     .tpl 文件中字符串常为 GBK 编码被 latin-1 读取，需要修复。
     """
-    from edu_cloud.modules.card.tpl_parser import _decode_gbk
+    from edu_cloud.modules.card.rendering.tpl_parser import _decode_gbk
     name = tpl_info.get("tpl_name", "")
     if name:
         return _decode_gbk(name)
@@ -141,7 +141,7 @@ def load_tpl_templates(tpl_dir: Path | None = None) -> list[dict]:
     Returns:
         [{"subject": str, "paper_size": str, "num_subjective": int, ...skeleton...}, ...]
     """
-    from edu_cloud.modules.card.tpl_parser import parse_tpl_file
+    from edu_cloud.modules.card.rendering.tpl_parser import parse_tpl_file
 
     global _TPL_CACHE
     use_default = tpl_dir is None

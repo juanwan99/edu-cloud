@@ -503,8 +503,8 @@ class TestParseAnswersMetadata:
                               "options_count": 4, "sub_count": 1, "section": None,
                               "score": None, "confidence": 0.95, "warnings": []}]
 
-        monkeypatch.setattr("edu_cloud.modules.card.word_parser.parse_word_answers", lambda p: fake_parsed)
-        monkeypatch.setattr("edu_cloud.modules.card.answer_standardizer.standardize_answers",
+        monkeypatch.setattr("edu_cloud.modules.card.parser.word_parser.parse_word_answers", lambda p: fake_parsed)
+        monkeypatch.setattr("edu_cloud.modules.card.parser.answer_standardizer.standardize_answers",
                             AsyncMock(return_value=fake_standardized))
 
         docx_path = tmp_path / "answers.docx"

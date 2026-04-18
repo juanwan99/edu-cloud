@@ -1,6 +1,6 @@
 """集成测试：exam-ai ↔ paper-seg 接口兼容性。"""
 import pytest
-from edu_cloud.modules.card.export import skeleton_to_paperseg_json
+from edu_cloud.modules.card.export.export import skeleton_to_paperseg_json
 
 
 def test_export_regions_have_question_id():

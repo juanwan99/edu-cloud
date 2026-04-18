@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy.exc import IntegrityError
 from edu_cloud.modules.exam.models import Exam, Question, Subject
-from edu_cloud.modules.card.html_export import html_to_pdf, extract_skeleton
+from edu_cloud.modules.card.export.html_export import html_to_pdf, extract_skeleton
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +119,7 @@ async def upsert_template_both_sides(
     B-only → raise HTTPException(400)。
     """
     from fastapi import HTTPException
-    from edu_cloud.modules.card.export import skeleton_to_paperseg_json
+    from edu_cloud.modules.card.export.export import skeleton_to_paperseg_json
     from edu_cloud.modules.card.models import Template
 
     regions_by_side: dict[str, list[dict]] = {"A": [], "B": []}

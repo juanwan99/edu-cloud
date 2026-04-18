@@ -2,7 +2,7 @@
 import json
 import os
 import pytest
-from edu_cloud.modules.card.tpl_parser import parse_tpl_file
+from edu_cloud.modules.card.rendering.tpl_parser import parse_tpl_file
 
 
 # 真实 .tpl 文件路径
@@ -184,7 +184,7 @@ class TestSubjectDefaults:
 
     def test_a4_layout_single_column_per_side(self):
         """A4 布局每面只有 1 个 column。"""
-        from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+        from edu_cloud.modules.card.rendering.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
         config = dict(SUBJECT_CONFIGS["英语"])
         config["subjectTitle"] = "英语"
         layout = _fallback_layout(config)
@@ -195,7 +195,7 @@ class TestSubjectDefaults:
 
     def test_a4_side_a_has_fixed_and_essay(self):
         """A4 A面 col 0 同时包含 fixed 和 essay regions。"""
-        from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+        from edu_cloud.modules.card.rendering.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
         config = dict(SUBJECT_CONFIGS["英语"])
         config["subjectTitle"] = "英语"
         layout = _fallback_layout(config)
@@ -207,7 +207,7 @@ class TestSubjectDefaults:
 
     def test_a4_side_b_no_fixed(self):
         """A4 B面不包含 fixed regions。"""
-        from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+        from edu_cloud.modules.card.rendering.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
         config = dict(SUBJECT_CONFIGS["英语"])
         config["subjectTitle"] = "英语"
         layout = _fallback_layout(config)
@@ -218,7 +218,7 @@ class TestSubjectDefaults:
 
     def test_a4_chemistry_layout(self):
         """化学也是 A4 双面（14 选择 + 4 解答跨面）。"""
-        from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+        from edu_cloud.modules.card.rendering.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
         config = dict(SUBJECT_CONFIGS["化学"])
         config["subjectTitle"] = "化学"
         layout = _fallback_layout(config)
@@ -231,7 +231,7 @@ class TestSubjectDefaults:
 
     def test_a3_subjects_unaffected(self):
         """A3 科目布局不受影响：3 栏结构。"""
-        from edu_cloud.modules.card.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
+        from edu_cloud.modules.card.rendering.subject_defaults import _fallback_layout, SUBJECT_CONFIGS
         for name in ["数学", "物理", "生物", "历史", "政治", "地理"]:
             config = dict(SUBJECT_CONFIGS[name])
             config["subjectTitle"] = name
@@ -246,7 +246,7 @@ class TestTqlA4Contract:
 
     def test_tql_english_a4_single_column(self):
         """TQL 英语模板转换后也满足 A4 单 column 契约。"""
-        from edu_cloud.modules.card.subject_defaults import get_default_layout
+        from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
         layout = get_default_layout("英语")
         assert layout["paper"] == "A4"
         for side in layout["sides"]:
@@ -254,7 +254,7 @@ class TestTqlA4Contract:
 
     def test_tql_english_a_side_has_fixed_and_essay(self):
         """TQL 英语 A 面 col 0 同时含 fixed + essay。"""
-        from edu_cloud.modules.card.subject_defaults import get_default_layout
+        from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
         layout = get_default_layout("英语")
         regions = layout["sides"][0]["columns"][0]["regions"]
         types = [r["type"] for r in regions]
@@ -263,7 +263,7 @@ class TestTqlA4Contract:
 
     def test_tql_chemistry_a4_contract(self):
         """TQL 化学模板转换后满足 A4 契约。"""
-        from edu_cloud.modules.card.subject_defaults import get_default_layout
+        from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
         layout = get_default_layout("化学")
         if layout["paper"] == "A4":
             for side in layout["sides"]:
@@ -271,7 +271,7 @@ class TestTqlA4Contract:
 
     def test_tql_essay_config_matches_count(self):
         """TQL 英语: essayConfig 长度 == essayCount（A+B 面）。[F003 修复]"""
-        from edu_cloud.modules.card.subject_defaults import get_default_layout
+        from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
         layout = get_default_layout("英语")
         config = layout["config"]
         assert len(config["essayConfig"]) == config["essayCount"], \

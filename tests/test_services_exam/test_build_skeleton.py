@@ -1,6 +1,6 @@
 """build_skeleton_from_spec() 测试。"""
 import pytest
-from edu_cloud.modules.card.layout import build_skeleton_from_spec
+from edu_cloud.modules.card.rendering.layout import build_skeleton_from_spec
 
 # --- 常量 ---
 # A3 @200dpi: 3308×2339, A4 @200dpi: 1654×2339
@@ -168,7 +168,7 @@ class TestEndToEnd:
 
     def test_skeleton_compatible_with_allocate(self):
         """生成的 skeleton.columns 可直接喂给 allocate_by_weights()。"""
-        from edu_cloud.modules.card.layout import allocate_by_weights
+        from edu_cloud.modules.card.rendering.layout import allocate_by_weights
         qs = _bio_questions()
         skeleton = build_skeleton_from_spec(qs, paper_size="A3", columns=3)
         subjectives = [q for q in qs if q["question_type"] == "short_answer"]

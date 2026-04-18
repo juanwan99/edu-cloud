@@ -1,7 +1,7 @@
 """TQL 渲染器单元测试。"""
 import pytest
-from edu_cloud.modules.card.layout import build_skeleton_from_spec, allocate_by_weights
-from edu_cloud.modules.card.renderer import render_card_v2
+from edu_cloud.modules.card.rendering.layout import build_skeleton_from_spec, allocate_by_weights
+from edu_cloud.modules.card.rendering.renderer import render_card_v2
 
 
 def _make_yuwen_fixture():
