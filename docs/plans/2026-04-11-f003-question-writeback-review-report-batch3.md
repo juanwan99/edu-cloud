@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT Reviewer | 2026-04-12 16:46:24
 ## 审查报告: Task 9-12 (Batch 3) — 扩展批次审查 Round 1
 结论: FAIL

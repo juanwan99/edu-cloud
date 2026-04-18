@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 # Migration Gate 恢复 — 独立修复设计（F001 R1 处置）
 
 > 创建: 2026-04-13 10:51:02

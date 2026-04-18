@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT Reviewer | 2026-03-29 23:49:05
 ## 审查报告: Task 1-7 (Round 2)
 结论: FAIL → 修复后待 Round 3 确认

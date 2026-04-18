@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT Reviewer (Integration) | 2026-04-04 10:28:01
 ## 集成审查报告: edu-agent T4 (7 Batches, 30 Tasks)
 

@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT Reviewer | 2026-04-14 08:45:51
 ## 审查报告: Task 1-6
 结论: FAIL

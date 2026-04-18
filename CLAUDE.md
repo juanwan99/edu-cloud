@@ -9,6 +9,14 @@
 > R1-R3 handoff 时序追溯、"Windows 历史/worktree"等表述。
 >
 > 所有 baseline 用 ECS pytest 实测数字，不解释来源、不对比 Windows。详见 LESSON L018。
+>
+> T-Wipe 2026-04-18 Phase 6: pre-takeover 内容的历史 plan / design / review-report（含
+> `docs/plans/2026-04-12-haofenshu-biz-replication-design.md` /
+> `docs/plans/2026-04-13-migration-gate-repair-design.md` /
+> `docs/plans/2026-04-14-auth-fail-closed-repair-design.md` /
+> `docs/plans/2026-04-14-conduct-roadmap-design.md` 等 62 文件）已加
+> `<!-- pre-takeover: archived for history, not active spec -->` 顶部 marker 隔离。
+> 这些历史产物仅供追溯，不作活规格使用；活规格以 CLAUDE.md + 当前 plan/handoff 为准。
 
 <!-- key-start -->
 ## 项目定位

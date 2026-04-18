@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 # Code Review R2 报告 — haofenshu Phase 1 Batch 1
 
 [edu-cloud] GPT Reviewer | 2026-04-13 19:37:35

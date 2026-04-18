@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 # A4 双面答题卡编辑器重构 实现计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.

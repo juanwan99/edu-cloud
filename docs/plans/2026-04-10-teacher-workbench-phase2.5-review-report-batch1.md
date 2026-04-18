@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT Reviewer | 2026-04-10 22:48:28
 
 ## 审查报告: Phase 2.5 Batch 1 Task 1-3 (Round 2, FINAL PASS)

@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT Reviewer | 2026-04-03 19:05:00
 ## 审查报告: Task 5-7 (Batch 2: LLM Adapter Layer)
 结论: PASS (Round 2)
