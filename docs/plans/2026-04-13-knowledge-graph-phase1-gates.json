@@ -70,13 +70,15 @@
     },
     "code_review_batch3b_iii": {
       "required": true,
-      "status": "pending",
-      "reviewer": null,
-      "subject_ref": null,
-      "subject_hash": null,
-      "report_path": null,
-      "updated": "2026-04-18T09:15:00+08:00",
-      "reason": "子 batch 派发：Batch 3.b R2 FAIL → 拆 3.b.iii 独立修复 R2-F001 HIGH test-gap (ExamItemsTab race mutant test). 派发 handoff: docs/plans/2026-04-13-knowledge-graph-phase1-handoff-batch3biii.md. 范围白名单 1 文件 (ExamItemsTab.test.js +2 it), 红线含 ExamItemsTab.vue 零改动"
+      "status": "fail",
+      "reviewer": "gpt",
+      "subject_ref": "commit:121a6c9..ad7e957",
+      "subject_hash": "c704641e80d3846bfe866a2a55dd837320d8e4a0a7dd6576edf41ecb36c6bfae",
+      "report_path": "docs/plans/2026-04-13-knowledge-graph-phase1-review-report-batch3biii.md",
+      "updated": "2026-04-18T13:22:02.909310+08:00",
+      "reason": "R1 FAIL: R3-F001 HIGH test-gap (finally guard mutant 未被锁定 — GPT 指出 \"A 先 settle、B pending\" 场景 pre-declare 论证漏洞) + P0-F001 MED process (Contract Pack INV-002/INV-004 verification 映射偏差，非本 scope Phase B)。R2 升级条件均不满足 (T3 / 非 remote-deploy / 单文件单模块)，按 skill 规则应拆 topic 或 WONTFIX，由 Planner/用户裁定",
+      "raw_output_hash": "e5d288bf33e3ce99664523591fa4278f9cad801c57ebcb881c934d2746822072",
+      "round": 1
     }
   }
 }
