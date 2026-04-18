@@ -7,6 +7,11 @@ T-level: T3
 design: docs/plans/2026-04-14-conduct-roadmap-design.md
 gates: docs/plans/2026-04-14-conduct-roadmap-batch1-gates.json
 state: docs/plans/2026-04-14-conduct-roadmap-batch1-state.json
+baseline_command: "pytest tests/test_conduct/ -q"
+baseline_verified_at: "2026-04-14 14:30:00"
+baseline_count: 118
+baseline_method: pytest
+baseline_note: "Windows-era baseline; ECS 实测为 68 函数（2026-04-18 T-H pytest PASS）。Windows 118 − ECS 68 = 50 函数从未进 git（A2 决策接受 ECS 为权威），T-F 将同步订正 plan 正文为 68。"
 ---
 
 # 德育板块治理最小集（批次 1）Implementation Plan
