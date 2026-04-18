@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { getGraph, getMastery, editGraph, qualityCheck } from '../../api/knowledgeTree'
+import { getGraph, getMastery, editGraph, qualityCheck, getStatsOverview } from '../../api/knowledgeTree'
 
 export function useKnowledgeTree() {
   const navigationData = ref([])
@@ -8,6 +8,7 @@ export function useKnowledgeTree() {
   const qualityIssues = ref([])
   const qualitySummary = ref(null)
   const modulesQuality = ref({})
+  const statsOverview = ref(null)
   const loading = ref(false)
   const selectedModule = ref('all')
   const selectedStudentId = ref(null)
@@ -75,11 +76,22 @@ export function useKnowledgeTree() {
     }
   }
 
+  // Phase 1 T13: 统计概览（考频分布 + 模块 avg_freq + exam_coverage）
+  // 加载失败 → statsOverview 保持 null → ModuleOverviewPanel 显示 '—' 降级
+  async function loadStatsOverview(module = 'all') {
+    try {
+      const resp = await getStatsOverview(module)
+      statsOverview.value = resp ?? null
+    } catch (e) {
+      statsOverview.value = null
+    }
+  }
+
   return {
     navigationData, graphData, masteryData, qualityIssues, qualitySummary,
-    modulesQuality,
+    modulesQuality, statsOverview,
     loading, selectedModule, selectedStudentId, moduleMastery, nodesWithMastery,
-    loadGraph, loadMastery, loadQuality, loadAllModulesQuality, applyEdit,
+    loadGraph, loadMastery, loadQuality, loadAllModulesQuality, loadStatsOverview, applyEdit,
   }
 }
 

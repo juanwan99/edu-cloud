@@ -28,9 +28,11 @@ const mockState = {
   nodesWithMastery: ref([]),
   qualityIssues: ref([]),
   modulesQuality: ref({}),
+  statsOverview: ref(null),  // Phase 1 T13
   loadGraphCalls: [],
   loadQualityCalls: [],
   loadAllModulesQualityCalls: 0,
+  loadStatsOverviewCalls: 0,  // Phase 1 T13
   loadMasteryCalls: [],
   applyEditCalls: [],
 }
@@ -47,9 +49,11 @@ function resetMockState() {
   mockState.nodesWithMastery.value = []
   mockState.qualityIssues.value = []
   mockState.modulesQuality.value = {}
+  mockState.statsOverview.value = null
   mockState.loadGraphCalls.length = 0
   mockState.loadQualityCalls.length = 0
   mockState.loadAllModulesQualityCalls = 0
+  mockState.loadStatsOverviewCalls = 0
   mockState.loadMasteryCalls.length = 0
   mockState.applyEditCalls.length = 0
 }
@@ -65,6 +69,7 @@ vi.mock('../../components/knowledge-tree/useKnowledgeTree', () => ({
     nodesWithMastery: mockState.nodesWithMastery,
     qualityIssues: mockState.qualityIssues,
     modulesQuality: mockState.modulesQuality,
+    statsOverview: mockState.statsOverview,
     loadGraph: vi.fn(async (mod = 'all') => {
       mockState.loadGraphCalls.push(mod)
       mockState.selectedModule.value = mod
@@ -79,6 +84,9 @@ vi.mock('../../components/knowledge-tree/useKnowledgeTree', () => ({
     }),
     loadAllModulesQuality: vi.fn(async () => {
       mockState.loadAllModulesQualityCalls++
+    }),
+    loadStatsOverview: vi.fn(async () => {
+      mockState.loadStatsOverviewCalls++
     }),
     applyEdit: vi.fn(async (ops) => {
       mockState.applyEditCalls.push(ops)
@@ -171,11 +179,14 @@ const stubs = {
     },
   }),
   ModuleOverviewPanel: defineComponent({
-    props: ['navigation', 'nodes', 'edges', 'modulesQuality'],
+    // R2 F002 pattern: stub props 必须包含所有 parent 传入的 prop（含 T13 新增 statsOverview），
+    // 否则 Vue 静默吞掉未声明 prop，测试失去接线保护
+    props: ['navigation', 'nodes', 'edges', 'modulesQuality', 'statsOverview'],
     emits: ['select-module', 'refresh-quality'],
     setup(_, { emit }) {
       return () => h('div', {
         class: 'module-overview-stub',
+        'data-stats-overview': _.statsOverview == null ? 'null' : 'object',
         onClick: () => emit('select-module', 'M1'),
       }, 'ModuleOverviewPanel')
     },
@@ -236,7 +247,8 @@ async function mountPage() {
     },
     attachTo: document.body,
   })
-  // 等待 init() 完成
+  // 等待 init() 完成（T13 追加 loadStatsOverview → 多 1 个 await，多 1 tick）
+  await nextTick()
   await nextTick()
   await nextTick()
   await nextTick()
