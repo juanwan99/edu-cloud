@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 # 知识图谱深度优化 Phase 1 实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT Reviewer | 2026-04-06 10:30:00
 <!-- anchor: finding-classification -->
 ## 审查报告: Task 1-9 (Round 1)

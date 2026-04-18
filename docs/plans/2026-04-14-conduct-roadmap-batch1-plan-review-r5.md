@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT Reviewer R5 | 2026-04-18 (UTC+8)
 
 ## 审查报告（R5）: R4 3 findings 复核 + 全量 checklist

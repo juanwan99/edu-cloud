@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT Reviewer | 2026-04-10 10:12:17
 ## 审查报告: Task 1-6 (Batch 1 后端)
 结论: PASS (R2)

@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 ---
 type: design
 topic: conduct-roadmap

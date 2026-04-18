@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT+Claude Reviewer | 2026-04-04 09:12:56
 ## 审查报告: Task 15-30 (Batch 6-7) — Migration+Integration
 

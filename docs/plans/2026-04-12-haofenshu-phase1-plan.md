@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 # 好分数业务复刻 Phase 1: 架构基座 — 实现计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

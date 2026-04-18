@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 # 前端角色感知重设计 — 实现计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

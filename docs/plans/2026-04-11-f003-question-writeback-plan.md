@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 ---
 type: plan
 topic: f003-question-writeback

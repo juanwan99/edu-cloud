@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 # Auth Fail-Closed 恢复 — 独立修复设计（B2-F002 R1 处置）
 
 > 创建: 2026-04-14 06:16:17

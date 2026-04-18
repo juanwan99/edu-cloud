@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 # edu-cloud 项目全景状态盘点
 
 > 创建: 2026-04-13 23:53:30

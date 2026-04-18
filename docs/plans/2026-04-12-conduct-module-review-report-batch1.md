@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT Reviewer | 2026-04-13 06:53:16
 
 ## 审查报告: Task 1-18 (Batch 1-6) — Round 1

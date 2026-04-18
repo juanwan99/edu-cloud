@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT Reviewer | 2026-03-29 20:55:07
 ## 审查报告 R2: Task 1-7 (F-01~F-05 修复)
 结论: PASS

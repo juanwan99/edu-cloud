@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 # 好分数业务逻辑复刻 — 设计文档
 
 > 创建: 2026-04-12 21:28:10

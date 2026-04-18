@@ -1,3 +1,4 @@
+<!-- pre-takeover: archived for history, not active spec -->
 [edu-cloud] GPT Reviewer | 2026-04-13 12:28:07
 
 ## 审查报告: Batch 1 (T2-T6) — Round 1
