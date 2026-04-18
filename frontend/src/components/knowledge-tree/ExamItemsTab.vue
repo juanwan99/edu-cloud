@@ -43,20 +43,25 @@ const page = ref(1)
 const pageSize = ref(10)
 const loading = ref(false)
 
+let fetchSeq = 0
+
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
 async function load() {
   if (!props.nodeId) return
+  const mySeq = ++fetchSeq
   loading.value = true
   try {
     const data = await getExamItems(props.nodeId, page.value, pageSize.value)
+    if (mySeq !== fetchSeq) return
     items.value = data.items || []
     total.value = data.total || 0
   } catch (e) {
+    if (mySeq !== fetchSeq) return
     items.value = []
     total.value = 0
   } finally {
-    loading.value = false
+    if (mySeq === fetchSeq) loading.value = false
   }
 }
 
