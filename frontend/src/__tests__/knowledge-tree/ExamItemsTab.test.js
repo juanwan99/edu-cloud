@@ -125,4 +125,46 @@ describe('ExamItemsTab', () => {
     // unused hoist to avoid lint (keep 引用)
     void resolveA
   })
+
+  // R4 Batch 3.b.iv — R3-F001 finally guard race mutant 测试锁定
+  // 设计契约 (handoff-batch3biv §Fix Intent Card):
+  //   - 与 Test A/B 时序差异：resolveA 先发生，resolveB 故意不触发（B pending）
+  //   - 断言 A 先 settle 时 UI 仍显示 loading（finally guard 保持 loading=true）
+  //   - resolveB 后 UI 切到 B 数据（loading=false）
+  // 反证矩阵 (ExamItemsTab.vue:64):
+  //   - 删 L64 `if (mySeq === fetchSeq)` 让 finally 无条件 loading=false
+  //     → Test C 步骤 6 红（A resolve 后 loading=false → v-else-if total===0
+  //        → UI 显示"该概念暂无关联高考真题"，toContain('加载中') 失败）
+
+  it('race condition: A resolve (stale) / B pending, UI 保持 loading (finally guard 锁)', async () => {
+    let resolveA, resolveB
+    const promiseA = new Promise((r) => { resolveA = r })
+    const promiseB = new Promise((r) => { resolveB = r })
+    getExamItems.mockReturnValueOnce(promiseA).mockReturnValueOnce(promiseB)
+
+    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'A' } })
+    await flushPromises()  // fetchSeq=1, promA pending, loading=true
+
+    await wrapper.setProps({ nodeId: 'B' })
+    await flushPromises()  // fetchSeq=2, promB pending, loading=true (B load() 重置)
+
+    // 关键：A 先 settle，B 仍 pending
+    resolveA({ items: [{ id: 'A1', exam_id: 'GK_2019_A', question_type: 'single_choice', stem: 'stem-A' }], total: 99 })
+    await flushPromises()
+    // A try guard: mySeq=1 !== fetchSeq=2 → return（items/total 不被覆盖）
+    // A finally guard: mySeq=1 !== fetchSeq=2 → loading 保持 true
+
+    const loadingText = wrapper.text()
+    expect(loadingText).toContain('加载中')  // finally guard 专属锁定
+    expect(loadingText).not.toContain('stem-A')  // try guard 协同（已由 Test A 覆盖）
+
+    // 现在 B 完成 → loading=false, UI 切到 B
+    resolveB({ items: [{ id: 'B1', exam_id: 'GK_2020_B', question_type: 'single_choice', stem: 'stem-B' }], total: 11 })
+    await flushPromises()
+    // B finally guard: mySeq=2 === fetchSeq=2 → loading=false
+
+    const finalText = wrapper.text()
+    expect(finalText).toContain('stem-B')
+    expect(finalText).not.toContain('加载中')
+  })
 })
