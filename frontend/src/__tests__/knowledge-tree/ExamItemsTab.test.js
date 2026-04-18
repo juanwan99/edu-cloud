@@ -36,4 +36,33 @@ describe('ExamItemsTab', () => {
     await flushPromises()
     expect(getExamItems).toHaveBeenCalledWith('Z', 1, 10)
   })
+
+  it('nextPage click triggers page=2 request (R2 F002 mutant: 删 nextPage/page++ 必红)', async () => {
+    getExamItems.mockResolvedValue({ items: [{ id: '1', stem: 's1' }], total: 30 })
+    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'Z' } })
+    await flushPromises()
+    expect(getExamItems).toHaveBeenNthCalledWith(1, 'Z', 1, 10)
+
+    const nextBtn = wrapper.findAll('button').find(b => b.text().includes('下一页'))
+    await nextBtn.trigger('click')
+    await flushPromises()
+
+    expect(getExamItems).toHaveBeenCalledTimes(2)
+    expect(getExamItems).toHaveBeenNthCalledWith(2, 'Z', 2, 10)
+  })
+
+  it('nodeId change resets page to 1 (R2 F002 mutant: 删 watch page 重置必红)', async () => {
+    getExamItems.mockResolvedValue({ items: [{ id: '1', stem: 's' }], total: 30 })
+    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'A' } })
+    await flushPromises()
+
+    const nextBtn = wrapper.findAll('button').find(b => b.text().includes('下一页'))
+    await nextBtn.trigger('click')
+    await flushPromises()
+    expect(getExamItems).toHaveBeenLastCalledWith('A', 2, 10)
+
+    await wrapper.setProps({ nodeId: 'B' })
+    await flushPromises()
+    expect(getExamItems).toHaveBeenLastCalledWith('B', 1, 10)
+  })
 })
