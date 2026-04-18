@@ -1,5 +1,15 @@
 # edu-cloud — 教育云平台
 
+> **架构边界声明（2026-04-16 takeover `00cfc3d` 后生效）**
+>
+> ECS 是**单一权威开发环境**，与原 Windows/WSL 环境已**完全切断**。
+> 全部规格、plan、handoff、测试基线、命令路径**只以 ECS 为准**。
+>
+> 禁引：Windows-era 数字（如 1896/118/120/108）、`C:/Users/Administrator` 路径、
+> R1-R3 handoff 时序追溯、"Windows 历史/worktree"等表述。
+>
+> 所有 baseline 用 ECS pytest 实测数字，不解释来源、不对比 Windows。详见 LESSON L018。
+
 <!-- key-start -->
 ## 项目定位
 
