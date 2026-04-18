@@ -187,7 +187,6 @@ function handleSelect(keys) {
   }
 }
 
-defineExpose({ navMode, handleSelect })
 </script>
 
 <style scoped>
