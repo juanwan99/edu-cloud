@@ -60,13 +60,13 @@
       "required": true,
       "status": "fail",
       "reviewer": "gpt",
-      "subject_hash": "ab572b80789f00b19a17af1702abe947d5f23d3c7353435bd7d135e5f1776d8f",
-      "report_path": "docs/plans/2026-04-13-knowledge-graph-phase1-review-report-batch3b.md",
-      "updated": "2026-04-18T06:57:20.191511+08:00",
-      "reason": "R1 FAIL: F001 MED race + F002 HIGH test-gap + F003/F004 MED test-gap + F005 MED design-concern behavior_change. R2 不满足条件（非 T4 / 非 remote/deploy/publish / 单模块），须拆 batch",
-      "subject_ref": "commit:f2e9ba9..5607a9a",
-      "raw_output_hash": "dd6a4fea44079fac2ec41a81dd34793f91b39a8afa56cf8e0b442ddac5fa3786",
-      "round": 1
+      "subject_hash": "83646fdecb7a5f65d01c010e59be0ce2e032eaf16afa6a3310c8984f0aee3335",
+      "report_path": "docs/plans/2026-04-13-knowledge-graph-phase1-review-report-batch3b-r2.md",
+      "updated": "2026-04-18T08:36:22.101072+08:00",
+      "reason": "R2 FAIL: 仅 R2-F001 HIGH test-gap (fetchSeq guard 无异步竞态 mutant test 锁定). R1 F002/F003/F004/F005 全 resolved-correct. skill 规则: R2 FAIL → 拆 topic 或 WONTFIX，不接受 R3",
+      "subject_ref": "commit:66ab2b8..317dfb6",
+      "raw_output_hash": "138d66e4d9db38d1fcbd6d19e34632ea11e5bd4e005508ffd1e6cba642ca4f45",
+      "round": 2
     }
   }
 }
