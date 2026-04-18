@@ -82,13 +82,15 @@
     },
     "code_review_batch3b_iv": {
       "required": true,
-      "status": "pending",
-      "reviewer": null,
-      "subject_ref": null,
-      "subject_hash": null,
-      "report_path": null,
-      "updated": "2026-04-18T13:30:00+08:00",
-      "reason": "子 batch 派发：Batch 3.b.iii R1 FAIL → 拆 3.b.iv 独立修复 R3-F001 HIGH test-gap (ExamItemsTab finally guard race mutant test)。派发 handoff: docs/plans/2026-04-13-knowledge-graph-phase1-handoff-batch3biv.md。范围白名单 1 文件 (ExamItemsTab.test.js +1 it Test C), 红线含 ExamItemsTab.vue 零改动。用户 2026-04-18 13:28 Option A 批准"
+      "status": "fail",
+      "reviewer": "gpt",
+      "subject_ref": "commit:43264e1..2b97201",
+      "subject_hash": "d9ffb2980a9eedf8d4e0fd811c1db5e92bf7e4d266e002e828e083d2e407aa01",
+      "report_path": "docs/plans/2026-04-13-knowledge-graph-phase1-review-report-batch3biv.md",
+      "updated": "2026-04-18T15:11:23.509849+08:00",
+      "reason": "R1 FAIL: R3-F001 finally guard scope 内已 GPT 验证 resolved-correct；FAIL 源于 scope 外 — F001 HIGH test-gap (shows empty state 原 Task 11 基础测试弱断言，非本 batch 变更) + P0-F001 MED process (INV-004/CE-002 Contract Pack 映射漂移，Phase B scope)。R2 升级条件全不满足。Executor 建议 Option A: 接受 FAIL + 记 test_debt TD-005/TD-006，Phase B 启动（需 Planner/用户 L017 授权 gate_blocker 豁免）",
+      "raw_output_hash": "9aeadf033ed26a4eb70f987b41aefb92c5947e1fa77543874394d125d7cf0af9",
+      "round": 1
     }
   }
 }
