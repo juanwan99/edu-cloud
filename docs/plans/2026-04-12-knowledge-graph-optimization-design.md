@@ -3,7 +3,11 @@
 > **项目**: edu-cloud 知识图谱模块
 > **目标**: 让教师看到清晰的知识图谱 → 规划教学 → 学生画像 → 智能推送
 > **创建**: 2026-04-12 23:11:57
-> **状态**: 待用户审批
+> **状态**: Phase 1 [实现完成]
+
+> [2026-04-18 15:25:00 Phase 1 实现完成] Commits 链: Batch 1 `1c3c1a2..bcb1971` (T1-T6) / Batch 2 `d300263` (T7-T8) / Batch 3.a `2ab10a2..c5bff80` (T9-T10) / Batch 3.b `66ab2b8..317dfb6` (T11-T12) + Batch 3.b.iii `121a6c9..ad7e957` + Batch 3.b.iv `43264e1..2b97201` (fetchSeq guard 3 路径 mutant 锁) / Batch 3.c `865032f..<T14 sha>` (T13-T14 收尾)。Phase 1 14 Task 全部完成。test_debt 保留：TD-005 (F001 Task 11 shows empty state 弱断言) / TD-006 (P0-F001 Contract Pack INV-004/CE-002 映射漂移) / 后端 P001 `test_exam_frequency_l1_set_equals_kb_l1` — 均 deferred 到 Phase 2。
+>
+> Phase 2/3/4 待后续规划（Phase 2: L2 大概念层 + 学习路径；Phase 3: 跨模块桥接/对比边 + 焦点模式 Phase 2 高级； Phase 4: 学生画像深度）。
 
 ---
 
