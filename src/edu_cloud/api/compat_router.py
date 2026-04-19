@@ -93,9 +93,10 @@ async def compat_list_exams(
     """列出当前学校的考试（paper-seg 拉取考试列表）。"""
     _emit_deprecation("/api/exams", "/api/v1/exams", response)
     school_id = current["current_role"].school_id
-    result = await db.execute(
-        select(Exam).where(Exam.school_id == school_id).order_by(Exam.created_at.desc())
-    )
+    q = select(Exam).order_by(Exam.created_at.desc())
+    if school_id:
+        q = q.where(Exam.school_id == school_id)
+    result = await db.execute(q)
     exams = result.scalars().all()
     return [{"id": e.id, "name": e.name, "status": e.status} for e in exams]
 
