@@ -536,3 +536,25 @@ async def import_tpl(
     logger.info("import_tpl: subject=%s, side=%s, regions=%d",
                 subject.name, req.side, len(tpl_data["regions"]))
     return {"id": existing.id, "regions": len(tpl_data["regions"]), "anchors": len(tpl_data["anchors"])}
+
+
+# === AI 预识别（vision LLM 识 regions）===
+from edu_cloud.modules.scan.auto_detect import AutoDetectRequest, auto_detect_regions
+
+@router.post('/auto-detect')
+async def auto_detect_api(
+    req: AutoDetectRequest,
+    current: dict = Depends(get_current_user),
+):
+    return await auto_detect_regions(req)
+
+
+# === OpenCV + LLM 混合检测 ===
+from edu_cloud.modules.scan.auto_detect_cv import AutoDetectCVRequest, auto_detect_cv_regions
+
+@router.post('/auto-detect-cv')
+async def auto_detect_cv_api(
+    req: AutoDetectCVRequest,
+    current: dict = Depends(get_current_user),
+):
+    return await auto_detect_cv_regions(req)
