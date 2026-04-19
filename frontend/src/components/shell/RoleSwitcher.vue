@@ -65,6 +65,7 @@ const roleOptions = computed(() => {
       render: () =>
         h('div', {
           style: `padding: 8px 16px; display: flex; align-items: center; gap: 8px; cursor: pointer; ${isCurrent ? 'background: var(--color-bg-alt);' : ''}`,
+          onClick: () => { if (!isCurrent) handleSwitch(index) },
         }, [
           h(NTag, {
             size: 'small',
