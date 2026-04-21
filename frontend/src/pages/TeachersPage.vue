@@ -14,6 +14,8 @@
     </div>
 
     <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
+      <n-select v-if="schoolOptions.length > 1" v-model:value="selectedSchool" :options="schoolOptions"
+        style="width: 200px;" @update:value="loadTeachers" />
       <n-input v-model:value="searchQuery" placeholder="搜索姓名或账号" clearable style="width: 240px;"
         @update:value="handleSearch" />
       <n-tag v-if="teachers.length" :bordered="false">共 {{ teachers.length }} 人</n-tag>
@@ -121,7 +123,7 @@
 <script setup>
 import { h, ref, reactive, onMounted } from 'vue'
 import { NButton, NTag, useMessage, useDialog } from 'naive-ui'
-import { listTeachers, createTeacher, updateTeacher, deleteTeacher, importTeachers, exportTeachers, downloadTemplate } from '../api/teachers'
+import { listTeachers, createTeacher, updateTeacher, deleteTeacher, importTeachers, exportTeachers, downloadTemplate, listSchools } from '../api/teachers'
 import client from '../api/client'
 
 const message = useMessage()
@@ -139,6 +141,8 @@ const importFile = ref(null)
 const classOptions = ref([])
 const classesLoading = ref(false)
 const classMap = ref({})  // id → { name, grade }
+const schoolOptions = ref([])
+const selectedSchool = ref(null)
 
 const roleLabels = {
   subject_teacher: '科任教师', homeroom_teacher: '班主任',
@@ -237,6 +241,7 @@ async function loadTeachers() {
   try {
     const params = {}
     if (searchQuery.value) params.q = searchQuery.value
+    if (selectedSchool.value) params.school_id = selectedSchool.value
     const { data } = await listTeachers(params)
     teachers.value = data
   } catch {}
@@ -247,7 +252,7 @@ async function loadClasses() {
   classesLoading.value = true
   try {
     const { data } = await client.get('/classes')
-    classOptions.value = data.map(c => ({ label: c.name, value: c.id }))
+    classOptions.value = data.map(c => ({ label: `${c.grade || ''} ${c.name}`, value: c.id }))
     const map = {}
     data.forEach(c => { map[c.id] = { name: c.name, grade: c.grade } })
     classMap.value = map
@@ -369,5 +374,19 @@ async function handleExport() {
   } catch { message.error('导出失败') }
 }
 
-onMounted(() => { loadTeachers(); loadClasses() })
+async function loadSchools() {
+  try {
+    const { data } = await listSchools()
+    schoolOptions.value = data.map(s => ({ label: s.name, value: s.id }))
+    if (schoolOptions.value.length && !selectedSchool.value) {
+      selectedSchool.value = schoolOptions.value[0].value
+    }
+  } catch {}
+}
+
+onMounted(async () => {
+  await loadSchools()
+  loadTeachers()
+  loadClasses()
+})
 </script>

@@ -104,14 +104,25 @@ def _teacher_response(user: User, roles: list[UserRole]) -> dict:
 @router.get("/teachers")
 async def list_teachers(
     q: str | None = None,
+    school_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
-    school_id = current["current_role"].school_id
+    role = current["current_role"]
+    target_school = school_id or role.school_id
+    if not target_school:
+        # platform_admin 无 school_id 时，取第一个学校
+        from edu_cloud.modules.school.models import School
+        first = await db.execute(select(School).limit(1))
+        s = first.scalar_one_or_none()
+        target_school = s.id if s else None
+    if not target_school:
+        return []
+
     stmt = (
         select(User)
         .join(UserRole, UserRole.user_id == User.id)
-        .where(UserRole.school_id == school_id, User.is_active.is_(True))
+        .where(UserRole.school_id == target_school, User.is_active.is_(True))
         .distinct()
     )
     if q:
@@ -121,7 +132,7 @@ async def list_teachers(
 
     roles_result = await db.execute(
         select(UserRole).where(
-            UserRole.school_id == school_id,
+            UserRole.school_id == target_school,
             UserRole.user_id.in_([u.id for u in users]),
         )
     )
