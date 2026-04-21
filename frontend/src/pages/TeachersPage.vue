@@ -138,6 +138,7 @@ const importRole = ref('subject_teacher')
 const importFile = ref(null)
 const classOptions = ref([])
 const classesLoading = ref(false)
+const classMap = ref({})  // id → { name, grade }
 
 const roleLabels = {
   subject_teacher: '科任教师', homeroom_teacher: '班主任',
@@ -183,20 +184,39 @@ const columns = [
     },
   },
   {
-    title: '角色', key: 'role', width: 100,
+    title: '年级', key: 'grades', width: 100,
+    render: (row) => {
+      const grades = new Set()
+      ;(row.roles || []).forEach(r => (r.class_ids || []).forEach(cid => {
+        const c = classMap.value[cid]
+        if (c?.grade) grades.add(c.grade)
+      }))
+      if (!grades.size) return h('span', { style: 'color: #999;' }, '-')
+      return [...grades].join('、')
+    },
+  },
+  {
+    title: '任教班级', key: 'classes', width: 180,
+    render: (row) => {
+      const names = []
+      ;(row.roles || []).forEach(r => (r.class_ids || []).forEach(cid => {
+        const c = classMap.value[cid]
+        if (c) names.push(c.name)
+      }))
+      if (!names.length) return h('span', { style: 'color: #999;' }, '未分配')
+      return h('div', { style: 'display: flex; gap: 4px; flex-wrap: wrap;' },
+        names.map(n => h(NTag, { size: 'small', round: true }, { default: () => n }))
+      )
+    },
+  },
+  {
+    title: '角色', key: 'role', width: 90,
     render: (row) => {
       const roles = (row.roles || []).map(r => roleLabels[r.role] || r.role)
       return roles.join('、') || '-'
     },
   },
   { title: '手机', key: 'phone', width: 120, render: (row) => row.phone || '-' },
-  { title: '职称', key: 'title', width: 90, render: (row) => row.title || '-' },
-  { title: '学历', key: 'education', width: 70, render: (row) => row.education || '-' },
-  {
-    title: '状态', key: 'is_active', width: 60,
-    render: (row) => h(NTag, { type: row.is_active ? 'success' : 'default', size: 'small', round: true },
-      { default: () => row.is_active ? '在职' : '离职' }),
-  },
   {
     title: '操作', key: 'actions', width: 100, fixed: 'right',
     render: (row) => h('div', { style: 'display: flex; gap: 8px;' }, [
@@ -228,6 +248,9 @@ async function loadClasses() {
   try {
     const { data } = await client.get('/classes')
     classOptions.value = data.map(c => ({ label: c.name, value: c.id }))
+    const map = {}
+    data.forEach(c => { map[c.id] = { name: c.name, grade: c.grade } })
+    classMap.value = map
   } catch {}
   classesLoading.value = false
 }
@@ -236,7 +259,6 @@ function openCreate() {
   editingId.value = null
   Object.assign(form, defaultForm())
   showForm.value = true
-  if (!classOptions.value.length) loadClasses()
 }
 
 function openEdit(row) {
@@ -347,5 +369,5 @@ async function handleExport() {
   } catch { message.error('导出失败') }
 }
 
-onMounted(loadTeachers)
+onMounted(() => { loadTeachers(); loadClasses() })
 </script>
