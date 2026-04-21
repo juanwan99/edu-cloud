@@ -55,12 +55,14 @@ def _student_response(s) -> dict:
 @router.get("/classes")
 async def list_classes(
     grade: str | None = None,
+    school_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
     role = current["current_role"]
+    target_school = school_id or role.school_id
     classes = await student_service.list_classes(
-        db, school_id=role.school_id, grade=grade,
+        db, school_id=target_school, grade=grade,
         visible_class_ids=get_visible_class_ids(role),
     )
     return [_class_response(c) for c in classes]

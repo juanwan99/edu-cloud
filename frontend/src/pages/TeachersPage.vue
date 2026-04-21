@@ -15,7 +15,7 @@
 
     <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
       <n-select v-if="schoolOptions.length > 1" v-model:value="selectedSchool" :options="schoolOptions"
-        style="width: 200px;" @update:value="loadTeachers" />
+        style="width: 200px;" @update:value="onSchoolChange" />
       <n-input v-model:value="searchQuery" placeholder="搜索姓名或账号" clearable style="width: 240px;"
         @update:value="handleSearch" />
       <n-tag v-if="teachers.length" :bordered="false">共 {{ teachers.length }} 人</n-tag>
@@ -230,6 +230,11 @@ const columns = [
   },
 ]
 
+function onSchoolChange() {
+  loadTeachers()
+  loadClasses()
+}
+
 let searchTimer = null
 function handleSearch() {
   clearTimeout(searchTimer)
@@ -251,7 +256,9 @@ async function loadTeachers() {
 async function loadClasses() {
   classesLoading.value = true
   try {
-    const { data } = await client.get('/classes')
+    const params = {}
+    if (selectedSchool.value) params.school_id = selectedSchool.value
+    const { data } = await client.get('/classes', { params })
     classOptions.value = data.map(c => ({ label: `${c.grade || ''} ${c.name}`, value: c.id }))
     const map = {}
     data.forEach(c => { map[c.id] = { name: c.name, grade: c.grade } })
