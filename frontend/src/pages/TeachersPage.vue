@@ -74,8 +74,8 @@
         <n-divider style="margin: 12px 0;" />
         <h4 style="margin: 0 0 12px; font-size: 14px;">角色与任教分配</h4>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px;">
-          <n-form-item v-if="!editingId" label="角色">
-            <n-select v-model:value="form.role" :options="roleOptions" />
+          <n-form-item v-if="!editingId" label="角色（可多选）">
+            <n-select v-model:value="form.roles" :options="roleOptions" multiple placeholder="可多选" />
           </n-form-item>
           <n-form-item v-if="!editingId" label="任教学科">
             <n-select v-model:value="form.subject_codes" :options="subjectOptions" multiple clearable placeholder="可多选" />
@@ -167,7 +167,7 @@ const eduOptions = [
 
 const defaultForm = () => ({
   display_name: '', username: '', password: '123456',
-  role: 'subject_teacher', phone: '', email: '',
+  roles: ['subject_teacher'], phone: '', email: '',
   employee_id: '', gender: null, id_card: '', title: '',
   hire_date: '', education: null, university: '', office_phone: '',
   notes: '', subject_codes: [], class_ids: [], is_active: true,

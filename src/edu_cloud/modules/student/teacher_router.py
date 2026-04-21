@@ -40,7 +40,7 @@ class TeacherCreate(BaseModel):
     username: str
     display_name: str
     password: str = "123456"
-    role: str = "subject_teacher"
+    roles: list[str] = ["subject_teacher"]
     phone: str | None = None
     email: str | None = None
     employee_id: str | None = None
@@ -150,12 +150,15 @@ async def create_teacher(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
-    school_id = current["current_role"].school_id
+    school_id = current["current_role"].school_id or (
+        req.school_id if hasattr(req, 'school_id') else None
+    )
     existing = await db.execute(select(User).where(User.username == req.username))
     if existing.scalar_one_or_none():
         raise ValidationError(f"用户名 {req.username} 已存在")
-    if req.role not in ALL_SCHOOL_ROLES:
-        raise ValidationError(f"角色 {req.role} 不合法")
+    for r in req.roles:
+        if r not in ALL_SCHOOL_ROLES:
+            raise ValidationError(f"角色 {r} 不合法")
 
     import datetime as _dt
     user = User(
@@ -171,15 +174,18 @@ async def create_teacher(
     db.add(user)
     await db.flush()
 
-    role = UserRole(
-        user_id=user.id, role=req.role, school_id=school_id,
-        subject_codes=req.subject_codes, class_ids=req.class_ids,
-        is_primary=True,
-    )
-    db.add(role)
+    created_roles = []
+    for i, role_name in enumerate(req.roles):
+        ur = UserRole(
+            user_id=user.id, role=role_name, school_id=school_id,
+            subject_codes=req.subject_codes, class_ids=req.class_ids,
+            is_primary=(i == 0),
+        )
+        db.add(ur)
+        created_roles.append(ur)
     await db.commit()
     await db.refresh(user)
-    return _teacher_response(user, [role])
+    return _teacher_response(user, created_roles)
 
 
 @router.patch("/teachers/{user_id}")
@@ -430,9 +436,9 @@ async def import_teachers(
             continue
 
         username = _cell(row, username_col) or f"t_{display_name}"
-        row_role = _cell(row, role_col) or role
-        if row_role not in ALL_SCHOOL_ROLES:
-            row_role = role
+        raw_role = _cell(row, role_col) or role
+        row_roles = [r.strip() for r in raw_role.replace("，", ",").split(",") if r.strip()]
+        row_roles = [r for r in row_roles if r in ALL_SCHOOL_ROLES] or [role]
 
         existing = await db.execute(select(User).where(User.username == username))
         user = existing.scalar_one_or_none()
@@ -517,12 +523,13 @@ async def import_teachers(
                         class_ids.append(cid)
                 class_ids = class_ids or None
 
-        user_role = UserRole(
-            user_id=user.id, role=row_role, school_id=school_id,
-            subject_codes=subject_codes, class_ids=class_ids,
-            is_primary=True,
-        )
-        db.add(user_role)
+        for i, rn in enumerate(row_roles):
+            ur = UserRole(
+                user_id=user.id, role=rn, school_id=school_id,
+                subject_codes=subject_codes, class_ids=class_ids,
+                is_primary=(i == 0),
+            )
+            db.add(ur)
         created += 1
 
     await db.commit()
