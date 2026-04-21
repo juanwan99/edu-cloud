@@ -269,8 +269,8 @@ async def export_teachers(
     ws = wb.active
     ws.title = "教师名单"
     headers = [
-        "姓名", "工号/账号", "任教学科", "年级", "任教班级",
-        "角色", "手机号", "性别", "职称", "入职日期",
+        "姓名", "工号", "任教学科", "年级", "任教班级",
+        "角色", "手机", "性别", "职称", "入职日期",
         "学历", "毕业院校", "邮箱", "办公电话", "身份证号", "备注",
     ]
     ws.append(headers)
@@ -302,10 +302,10 @@ async def export_teachers(
         ws["I1"].comment = Comment("如：一级教师、高级教师、特级教师", "系统")
         ws["J1"].comment = Comment("格式：2020-09-01", "系统")
         ws["K1"].comment = Comment("如：本科、硕士、博士", "系统")
-        role_labels = "\n".join(f"{k}: {v}" for k, v in _ROLE_LABELS.items() if k in ALL_SCHOOL_ROLES)
-        ws["F1"].comment = Comment(f"多角色用逗号分隔。可填：\n{role_labels}", "系统")
-        subject_hint = "\n".join(f"{k}: {v}" for k, v in _SUBJECT_LABELS.items())
-        ws["C1"].comment = Comment(f"多学科用逗号分隔。代码对照：\n{subject_hint}", "系统")
+        role_labels = "\n".join(f"{v}（{k}）" for k, v in _ROLE_LABELS.items() if k in ALL_SCHOOL_ROLES)
+        ws["F1"].comment = Comment(f"多角色用逗号分隔，填中文或代码均可：\n{role_labels}", "系统")
+        subject_hint = "\n".join(f"{v}（{k}）" for k, v in _SUBJECT_LABELS.items())
+        ws["C1"].comment = Comment(f"多学科用逗号分隔，填中文或代码均可：\n{subject_hint}", "系统")
         class_names = [c.name for c in all_classes[:30]]
         ws["E1"].comment = Comment(f"多班级用逗号分隔。当前班级：\n" + "\n".join(class_names), "系统")
         ws["D1"].comment = Comment("从班级名自动推导，可留空", "系统")
@@ -313,8 +313,8 @@ async def export_teachers(
         example_fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
         example_class = all_classes[0].name if all_classes else "2301"
         example_grade = all_classes[0].grade if all_classes else "高三"
-        ws.append(["张三（示例）", "T2026001", "YW", example_grade, example_class,
-                   "homeroom_teacher,subject_teacher", "13800138000", "男",
+        ws.append(["张三（示例）", "T2026001", "语文", example_grade, example_class,
+                   "班主任,科任教师", "13800138000", "男",
                    "一级教师", "2020-09-01", "硕士", "北京师范大学", "", "", "", ""])
         for col_idx in range(1, len(headers) + 1):
             ws.cell(row=2, column=col_idx).fill = example_fill
@@ -350,13 +350,14 @@ async def export_teachers(
             roles_by_user.setdefault(r.user_id, []).append(r)
         for u in users:
             user_roles = roles_by_user.get(u.id, [])
-            role_str = ",".join(sorted(set(r.role for r in user_roles)))
+            role_codes = sorted(set(r.role for r in user_roles))
+            role_str = ",".join(_ROLE_LABELS.get(r, r) for r in role_codes)
             subjects = set()
             classes = set()
             grades = set()
             for r in user_roles:
                 for sc in (r.subject_codes or []):
-                    subjects.add(sc)
+                    subjects.add(_SUBJECT_LABELS.get(sc, sc))
                 for cid in (r.class_ids or []):
                     cname = class_id_to_name.get(cid, cid)
                     classes.add(cname)
@@ -398,6 +399,22 @@ async def import_teachers(
 
     import openpyxl
     import datetime as _dt
+
+    _SUBJECT_LABELS = {
+        "YW": "语文", "SX": "数学", "YY": "英语", "WL": "物理", "HX": "化学",
+        "SW": "生物", "ZZ": "政治", "LS": "历史", "DL": "地理", "TY": "体育",
+        "YS": "音乐", "MS": "美术", "XX": "信息技术",
+    }
+    _LABEL_TO_SUBJECT = {v: k for k, v in _SUBJECT_LABELS.items()}
+    _LABEL_TO_ROLE = {v: k for k, v in _ROLE_LABELS.items()}
+
+    def _resolve_subject(s):
+        s = s.strip()
+        return _LABEL_TO_SUBJECT.get(s, s) if s not in _SUBJECT_LABELS else s
+
+    def _resolve_role(r):
+        r = r.strip()
+        return _LABEL_TO_ROLE.get(r, r) if r not in ALL_SCHOOL_ROLES else r
 
     content = await file.read()
     filename = file.filename or ""
@@ -452,7 +469,7 @@ async def import_teachers(
 
         username = _cell(row, username_col) or f"t_{display_name}"
         raw_role = _cell(row, role_col) or role
-        row_roles = [r.strip() for r in raw_role.replace("，", ",").split(",") if r.strip()]
+        row_roles = [_resolve_role(r) for r in raw_role.replace("，", ",").split(",") if r.strip()]
         row_roles = [r for r in row_roles if r in ALL_SCHOOL_ROLES] or [role]
 
         existing = await db.execute(select(User).where(User.username == username))
@@ -484,7 +501,7 @@ async def import_teachers(
             if user_role:
                 sc = _cell(row, subject_col) if subject_col is not None else None
                 if sc and not user_role.subject_codes:
-                    user_role.subject_codes = [s.strip() for s in sc.replace("，", ",").split(",") if s.strip()]
+                    user_role.subject_codes = [_resolve_subject(s) for s in sc.replace("，", ",").split(",") if s.strip()]
                     changed = True
                 cc = _cell(row, class_col) if class_col is not None else None
                 if cc and not user_role.class_ids:
@@ -524,7 +541,7 @@ async def import_teachers(
         if subject_col is not None:
             sc = _cell(row, subject_col)
             if sc:
-                subject_codes = [s.strip() for s in sc.replace("，", ",").split(",") if s.strip()]
+                subject_codes = [_resolve_subject(s) for s in sc.replace("，", ",").split(",") if s.strip()]
 
         class_ids = None
         if class_col is not None:
