@@ -15,6 +15,8 @@ from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Question, QUESTION_TYPES_SUBJECTIVE
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
+import edu_cloud.models.user  # noqa: F401 — FK resolution for grading_tasks.created_by
+import edu_cloud.models.school  # noqa: F401 — FK resolution for *.school_id
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,7 @@ def _create_llm_client():
         model=settings.LLM_MODEL,
         timeout=settings.LLM_TIMEOUT,
         max_retries=settings.LLM_MAX_RETRIES,
+        slot=settings.LLM_SLOT,
     )
 
 

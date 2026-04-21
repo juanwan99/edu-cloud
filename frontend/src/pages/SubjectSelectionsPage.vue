@@ -3,75 +3,131 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">选考组合</h1>
-        <p class="page-subtitle">管理学校提供的选考科目组合</p>
+        <p class="page-subtitle">管理学校提供的选考科目组合（新高考 3+1+2）</p>
       </div>
-      <n-button type="primary" @click="showCreate = true">新增组合</n-button>
+      <n-button type="primary" :disabled="!toAdd.length" @click="handleBatchCreate">
+        批量添加 ({{ toAdd.length }})
+      </n-button>
     </div>
 
-    <n-space v-if="selections.length" wrap>
-      <n-card v-for="s in selections" :key="s.id" style="width: 280px" :title="s.name" size="small">
-        <template #header-extra>
-          <n-switch :value="s.is_active" size="small" @update:value="(v) => handleToggle(s.id, v)" />
-        </template>
-        <n-space>
-          <n-tag v-for="code in s.subject_codes" :key="code" type="info" size="small">{{ code }}</n-tag>
-        </n-space>
-        <n-text depth="3" style="display: block; margin-top: 8px">模式: {{ s.mode }}</n-text>
-        <template #action>
-          <n-button size="small" type="error" @click="handleDelete(s.id)">删除</n-button>
-        </template>
-      </n-card>
-    </n-space>
-    <n-empty v-else description="暂无选考组合" />
+    <n-spin :show="loading">
+      <div class="combo-grid">
+        <div v-for="combo in allCombos" :key="combo.name" class="combo-card"
+          :class="{ added: combo.exists, checked: combo.checked }"
+          @click="toggleCombo(combo)">
+          <div class="combo-header">
+            <n-checkbox :checked="combo.checked" :disabled="combo.exists" @click.stop
+              @update:checked="(v) => combo.checked = v" />
+            <span class="combo-name">{{ combo.name }}</span>
+            <n-tag v-if="combo.exists" type="success" size="small" :bordered="false">已添加</n-tag>
+          </div>
+          <n-space size="small" style="margin-top: 6px">
+            <n-tag v-for="label in combo.labels" :key="label" size="small" :type="combo.exists ? 'default' : 'info'">
+              {{ label }}
+            </n-tag>
+          </n-space>
+        </div>
+      </div>
+    </n-spin>
 
-    <n-modal v-model:show="showCreate" preset="dialog" title="新增选考组合" positive-text="确认" negative-text="取消"
-      @positive-click="handleCreate">
-      <n-space vertical>
-        <n-input v-model:value="form.name" placeholder="组合名称 (如 物化生)" />
-        <n-input v-model:value="form.codes_raw" placeholder="科目代码（逗号分隔，如 physics,chemistry,biology）" />
-        <n-select v-model:value="form.mode" :options="modeOptions" placeholder="选考模式" />
+    <div v-if="selections.length" style="margin-top: 24px">
+      <h2 style="font-size: 16px; margin-bottom: 12px">已添加的组合</h2>
+      <n-space wrap>
+        <n-card v-for="s in selections" :key="s.id" style="width: 280px" :title="s.name" size="small">
+          <template #header-extra>
+            <n-switch :value="s.is_active" size="small" @update:value="(v) => handleToggle(s.id, v)" />
+          </template>
+          <n-space size="small">
+            <n-tag v-for="code in s.subject_codes" :key="code" type="info" size="small">{{ subjectLabel(code) }}</n-tag>
+          </n-space>
+          <template #action>
+            <n-button size="small" type="error" @click="handleDelete(s.id)">删除</n-button>
+          </template>
+        </n-card>
       </n-space>
-    </n-modal>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useAuthStore } from '../stores/auth.js'
 import { getSelections, createSelection, updateSelection, deleteSelection } from '../api/subjectSelections.js'
 
+const SUBJECTS = {
+  physics: '物理', history: '历史',
+  chemistry: '化学', biology: '生物', politics: '政治', geography: '地理',
+}
+
+const FIRST_CHOICES = ['physics', 'history']
+const SECOND_CHOICES = ['chemistry', 'biology', 'politics', 'geography']
+
+function generateCombos() {
+  const combos = []
+  for (const first of FIRST_CHOICES) {
+    for (let i = 0; i < SECOND_CHOICES.length; i++) {
+      for (let j = i + 1; j < SECOND_CHOICES.length; j++) {
+        const codes = [first, SECOND_CHOICES[i], SECOND_CHOICES[j]]
+        const labels = codes.map(c => SUBJECTS[c])
+        combos.push({ name: labels.join(''), codes, labels, checked: false, exists: false })
+      }
+    }
+  }
+  return combos
+}
+
 const auth = useAuthStore()
 const message = useMessage()
 const selections = ref([])
-const showCreate = ref(false)
-const form = ref({ name: '', codes_raw: '', mode: 'custom' })
+const loading = ref(false)
+const allCombos = ref(generateCombos())
 
-const modeOptions = [
-  { label: '3+1+2', value: '3+1+2' },
-  { label: '3+3', value: '3+3' },
-  { label: '自定义', value: 'custom' },
-]
-
+const toAdd = computed(() => allCombos.value.filter(c => c.checked && !c.exists))
 const schoolId = () => auth.currentRole?.school_id
+
+function subjectLabel(code) {
+  return SUBJECTS[code] || code
+}
+
+function toggleCombo(combo) {
+  if (combo.exists) return
+  combo.checked = !combo.checked
+}
+
+function syncExistsState() {
+  const existingNames = new Set(selections.value.map(s => s.name))
+  for (const combo of allCombos.value) {
+    combo.exists = existingNames.has(combo.name)
+    if (combo.exists) combo.checked = false
+  }
+}
 
 async function loadData() {
   if (!schoolId()) return
+  loading.value = true
   try {
     const { data } = await getSelections(schoolId())
     selections.value = data
+    syncExistsState()
   } catch { message.error('加载失败') }
+  loading.value = false
 }
 
-async function handleCreate() {
-  try {
-    const codes = form.value.codes_raw.split(',').map(s => s.trim()).filter(Boolean)
-    await createSelection(schoolId(), { name: form.value.name, subject_codes: codes, mode: form.value.mode })
-    message.success('组合创建成功')
-    showCreate.value = false
-    form.value = { name: '', codes_raw: '', mode: 'custom' }
-    await loadData()
-  } catch (e) { message.error(e.response?.data?.detail || '创建失败') }
+async function handleBatchCreate() {
+  const items = toAdd.value
+  if (!items.length) return
+  loading.value = true
+  let ok = 0
+  for (const combo of items) {
+    try {
+      await createSelection(schoolId(), { name: combo.name, subject_codes: combo.codes, mode: '3+1+2' })
+      ok++
+    } catch (e) { message.error(`${combo.name}: ${e.response?.data?.detail || '创建失败'}`) }
+  }
+  if (ok) message.success(`成功添加 ${ok} 个组合`)
+  await loadData()
+  loading.value = false
 }
 
 async function handleToggle(id, active) {
@@ -91,3 +147,23 @@ async function handleDelete(id) {
 
 onMounted(loadData)
 </script>
+
+<style scoped>
+.combo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.combo-card {
+  padding: 10px 12px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.combo-card:hover:not(.added) { border-color: #63e2b7; }
+.combo-card.checked { border-color: #63e2b7; background: rgba(99, 226, 183, 0.08); }
+.combo-card.added { opacity: 0.5; cursor: default; }
+.combo-header { display: flex; align-items: center; gap: 8px; }
+.combo-name { font-weight: 500; flex: 1; }
+</style>

@@ -24,10 +24,12 @@ class LLMClient:
         model: str,
         timeout: int = 60,
         max_retries: int = 3,
+        slot: str = "",
     ):
         self.api_url = api_url.rstrip("/")
         self.api_key = api_key
         self.model = model
+        self.slot = slot
         self.max_retries = max_retries
         self._http = httpx.AsyncClient(timeout=timeout)
 
@@ -53,13 +55,15 @@ class LLMClient:
         payload = {
             "model": self.model,
             "messages": messages,
-            "max_tokens": 1024,
+            "max_tokens": 2048,
             "temperature": 0,
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+        if self.slot:
+            headers["X-LLM-Slot"] = self.slot
 
         last_error = None
         for attempt in range(self.max_retries):

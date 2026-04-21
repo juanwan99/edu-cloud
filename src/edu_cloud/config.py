@@ -48,8 +48,9 @@ class Settings(BaseSettings):
     # LLM (shared AI grading + AI Agent)
     LLM_API_URL: str = "http://localhost:8100"
     LLM_API_KEY: str = "not-needed-for-local-proxy"
-    LLM_MODEL: str = "claude-sonnet-4-6"
+    LLM_MODEL: str = "gemini-3-pro-preview"
     LLM_VISION_MODEL: str = ""
+    LLM_SLOT: str = "grading-vision"
     LLM_TIMEOUT: int = 180
     LLM_MAX_RETRIES: int = 3
 

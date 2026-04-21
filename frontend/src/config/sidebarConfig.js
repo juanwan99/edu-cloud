@@ -9,9 +9,17 @@ const EXAM_GRADING_ITEMS = [
   { icon: 'marking', label: '阅卷进度', route: '/marking/progress' },
 ]
 
-const PERSONNEL_ITEMS = [
+const STUDENT_TEACHER_ITEMS = [
+  { icon: 'school', label: '学生管理', route: '/students' },
+  { icon: 'school', label: '教师管理', route: '/teachers' },
+]
+
+const SCHOOL_CONFIG_ITEMS = [
   { icon: 'school', label: '学校管理', route: '/schools' },
   { icon: 'settings', label: '学校配置', route: '/school-settings' },
+]
+
+const SCHEDULING_ITEMS = [
   { icon: 'settings', label: '教师分配', route: '/assignments' },
   { icon: 'exam', label: '选科管理', route: '/selections' },
 ]
@@ -20,22 +28,29 @@ const SIDEBAR_ITEMS = {
   platform_admin: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_GRADING_ITEMS,
-    ...PERSONNEL_ITEMS,
+    ...STUDENT_TEACHER_ITEMS,
+    ...SCHOOL_CONFIG_ITEMS,
+    ...SCHEDULING_ITEMS,
   ],
   district_admin: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_GRADING_ITEMS,
-    ...PERSONNEL_ITEMS,
+    ...STUDENT_TEACHER_ITEMS,
+    ...SCHOOL_CONFIG_ITEMS,
+    ...SCHEDULING_ITEMS,
   ],
   principal: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_GRADING_ITEMS,
-    ...PERSONNEL_ITEMS,
+    ...STUDENT_TEACHER_ITEMS,
+    ...SCHOOL_CONFIG_ITEMS,
+    ...SCHEDULING_ITEMS,
   ],
   academic_director: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_GRADING_ITEMS,
-    ...PERSONNEL_ITEMS,
+    ...STUDENT_TEACHER_ITEMS,
+    ...SCHEDULING_ITEMS,
   ],
   teaching_research_leader: [
     { icon: 'dashboard', label: '概览', route: '/' },

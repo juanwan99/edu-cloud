@@ -37,3 +37,7 @@ class Student(Base, IdMixin, TimestampMixin):
     gender: Mapped[str | None] = mapped_column(String(10), default=None)
     enrollment_year: Mapped[int | None] = mapped_column(Integer, default=None)
     status: Mapped[str | None] = mapped_column(String(20), default=None)
+    id_card: Mapped[str | None] = mapped_column(String(18), default=None, nullable=True)
+    selection_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("subject_selections.id"), default=None, nullable=True,
+    )

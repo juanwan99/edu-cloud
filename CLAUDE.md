@@ -102,6 +102,8 @@ frontend/src/
     SchoolSettingsPage.vue  # 学校配置（模块开关 + KV 设置 + 分数段，principal/academic_director）
     SubjectSelectionsPage.vue # 选考科目组合管理
     TeacherAssignmentsPage.vue # 教师排课管理
+    StudentsPage.vue        # 学生管理（列表/搜索/导入导出/选科分配）
+    TeachersPage.vue        # 教师管理（列表/创建/导入导出/15列档案）
     CardEditorDevPage.vue   # 答题卡编辑器开发页
     KnowledgeTreePage.vue  # 知识图谱可视化（AntV G6 + 三级树导航 + 掌握度着色 + 搜索过滤 + Phase 2 教师工作台：ModuleOverviewPanel/ConceptMapPanel 互斥路由 + BigConcept 分带 + ConceptFocusOverlay 焦点模式 + ESC/canvas 退出；Phase 2.5：buildVisibleEdgeList helper + relatedNodeIds/relatedEdgeIds computed + G6 node.state.faded/edge.state.dimmed·emphasized + updateElementStates + createGraph 末尾焦点重放 + G6 Tooltip plugin 徽标悬停（hover + enable 谓词 + async getContent + HTML escape）；Phase 1 T9-T10：ColorModeToggle 三模式切换 + heatmapUtils（log 尺度考频热力色 + 4 态掌握度 + 3 态审核状态 + importance→size [20,60]）；ConceptMapPanel buildG6Data 每节点 style.size/fill 按 colorMode 三分支 + watch colorMode setData/render 保留 focusedNodeId + defineExpose buildG6Data；KnowledgeTreePage selectedStudentId 从 useKnowledgeTree 解构（单一真源，R2 F001 修复 state 分裂）；GraphPanel.vue 已删除）
     parent/                 # 家长端页面（独立于 AppShell，cp_token 认证）
@@ -138,7 +140,7 @@ frontend/src/
       ScoreSegmentSettings.vue # 分数段配置（学校默认+科目覆盖，嵌入 SchoolSettingsPage）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
-  api/                      # API 调用层（14 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token）
+  api/                      # API 调用层（16 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出）
   config/
     roles.js                # 8 角色枚举 + 旧别名映射 + normalizeRole()
     permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
@@ -468,7 +470,9 @@ tests/
 | GET/PATCH | `/api/v1/exams/{id}` | 详情/更新考试 |
 | POST/GET | `/api/v1/exams/{id}/subjects` | 创建/列表科目 |
 | POST/GET/PATCH/DELETE | `/api/v1/questions` | 题目 CRUD |
-| GET/POST | `/api/v1/classes`, `/api/v1/students` | 班级/学生管理 |
+| GET/POST | `/api/v1/classes`, `/api/v1/students` | 班级/学生管理（含 grade/selection/subject_code 过滤 + 导入导出） |
+| GET | `/api/v1/grades` | 年级列表 |
+| * | `/api/v1/teachers` | 教师 CRUD + 导入导出（15 列档案 + 角色/学科/班级） |
 | * | `/api/v1/card/*` | 答题卡生成/骨架/条码/编辑器布局CRUD/小微排版（23 端点，含 upload-answer + auto-layout + 3 Agent 工具） |
 | * | `/api/v1/templates/*` | 模板 CRUD |
 | * | `/api/v1/scan/*` | 扫描上传/任务管理 |
@@ -732,7 +736,7 @@ docker compose logs -f      # 查看日志
 | 表 | 关键字段 | 说明 |
 |---|---------|------|
 | schools | code(唯一), api_key_hash(Optional), is_active, district | 学校档案（原 registered_schools） |
-| users | username(唯一), display_name, hashed_password, is_active | 统一用户（原 PlatformUser 已删除） |
+| users | username(唯一), display_name, hashed_password, is_active, employee_id, gender, id_card, title, hire_date, education, university, office_phone, notes | 统一用户（含教师档案 9 列扩展） |
 | user_roles | user_id(FK), role, school_id(FK), class_ids, is_primary | 多角色+scope |
 | llm_slots | school_id(FK,nullable), slot_number, api_url, api_key, model, is_enabled, tier(nullable) | LLM 槽位配置（学校覆盖>平台默认>.env，tier: mini/standard/advanced） |
 | agent_profiles | owner_user_id(FK→users), school_id(FK→schools), profile_type, display_name, preferences(JSON), memory_summary(Text) | Agent 身份（唯一约束：user+school） |
