@@ -3,79 +3,111 @@
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
       <div>
         <h1 class="page-title">教师管理</h1>
-        <p class="page-subtitle">管理教师账号，支持 Excel 批量导入</p>
+        <p class="page-subtitle">管理教师档案、学科与班级分配，支持 Excel 批量导入导出</p>
       </div>
       <div style="display: flex; gap: 8px;">
+        <n-button class="btn-pill" @click="handleDownloadTemplate">下载导入模板</n-button>
+        <n-button class="btn-pill" @click="handleExport">导出花名册</n-button>
         <n-button class="btn-pill" @click="showImport = true">导入 Excel</n-button>
-        <n-button type="primary" class="btn-pill" @click="showCreate = true">添加教师</n-button>
+        <n-button type="primary" class="btn-pill" @click="openCreate">添加教师</n-button>
       </div>
     </div>
 
-    <div style="margin-bottom: 16px;">
+    <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
       <n-input v-model:value="searchQuery" placeholder="搜索姓名或账号" clearable style="width: 240px;"
         @update:value="handleSearch" />
+      <n-tag v-if="teachers.length" :bordered="false">共 {{ teachers.length }} 人</n-tag>
     </div>
 
-    <n-data-table :columns="columns" :data="teachers" :loading="loading" :pagination="{ pageSize: 50 }" />
+    <n-data-table :columns="columns" :data="teachers" :loading="loading"
+      :pagination="{ pageSize: 50 }" :row-key="(r) => r.id" :scroll-x="1200" />
 
-    <!-- 添加教师 -->
-    <n-modal v-model:show="showCreate" preset="card" title="添加教师" style="width: 460px;">
-      <n-form :model="createForm" label-placement="top">
-        <n-form-item label="姓名" required>
-          <n-input v-model:value="createForm.display_name" placeholder="教师姓名" />
-        </n-form-item>
-        <n-form-item label="用户名/账号" required>
-          <n-input v-model:value="createForm.username" placeholder="登录账号" />
-        </n-form-item>
-        <n-form-item label="初始密码">
-          <n-input v-model:value="createForm.password" placeholder="默认 123456" />
-        </n-form-item>
-        <n-form-item label="角色">
-          <n-select v-model:value="createForm.role" :options="roleOptions" />
-        </n-form-item>
-        <n-form-item label="电话">
-          <n-input v-model:value="createForm.phone" placeholder="选填" />
+    <!-- 添加/编辑教师 -->
+    <n-modal v-model:show="showForm" preset="card" :title="editingId ? '编辑教师' : '添加教师'" style="width: 640px;">
+      <n-form :model="form" label-placement="top">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px;">
+          <n-form-item label="姓名" required>
+            <n-input v-model:value="form.display_name" placeholder="教师姓名" />
+          </n-form-item>
+          <n-form-item v-if="!editingId" label="用户名/工号" required>
+            <n-input v-model:value="form.username" placeholder="登录账号" />
+          </n-form-item>
+          <n-form-item v-if="!editingId" label="初始密码">
+            <n-input v-model:value="form.password" placeholder="默认 123456" />
+          </n-form-item>
+          <n-form-item label="性别">
+            <n-select v-model:value="form.gender" :options="genderOptions" clearable placeholder="选择" />
+          </n-form-item>
+          <n-form-item label="手机号">
+            <n-input v-model:value="form.phone" placeholder="选填" />
+          </n-form-item>
+          <n-form-item label="办公电话">
+            <n-input v-model:value="form.office_phone" placeholder="选填" />
+          </n-form-item>
+          <n-form-item label="邮箱">
+            <n-input v-model:value="form.email" placeholder="选填" />
+          </n-form-item>
+          <n-form-item label="工号">
+            <n-input v-model:value="form.employee_id" placeholder="选填" />
+          </n-form-item>
+          <n-form-item label="身份证号">
+            <n-input v-model:value="form.id_card" placeholder="选填" />
+          </n-form-item>
+          <n-form-item label="职称">
+            <n-input v-model:value="form.title" placeholder="如：一级教师" />
+          </n-form-item>
+          <n-form-item label="入职日期">
+            <n-input v-model:value="form.hire_date" placeholder="2020-09-01" />
+          </n-form-item>
+          <n-form-item label="学历">
+            <n-select v-model:value="form.education" :options="eduOptions" clearable placeholder="选择" />
+          </n-form-item>
+          <n-form-item label="毕业院校">
+            <n-input v-model:value="form.university" placeholder="选填" />
+          </n-form-item>
+          <n-form-item v-if="editingId" label="状态">
+            <n-switch v-model:value="form.is_active" />
+          </n-form-item>
+        </div>
+        <n-divider style="margin: 12px 0;" />
+        <h4 style="margin: 0 0 12px; font-size: 14px;">角色与任教分配</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px;">
+          <n-form-item v-if="!editingId" label="角色">
+            <n-select v-model:value="form.role" :options="roleOptions" />
+          </n-form-item>
+          <n-form-item v-if="!editingId" label="任教学科">
+            <n-select v-model:value="form.subject_codes" :options="subjectOptions" multiple clearable placeholder="可多选" />
+          </n-form-item>
+          <n-form-item v-if="!editingId" label="任教班级">
+            <n-select v-model:value="form.class_ids" :options="classOptions" multiple clearable
+              placeholder="可多选" :loading="classesLoading" filterable />
+          </n-form-item>
+        </div>
+        <n-form-item label="备注">
+          <n-input v-model:value="form.notes" type="textarea" placeholder="选填" :rows="2" />
         </n-form-item>
       </n-form>
       <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
-        <n-button class="btn-pill" @click="showCreate = false">取消</n-button>
-        <n-button type="primary" class="btn-pill" :loading="saving" @click="handleCreate">保存</n-button>
-      </div>
-    </n-modal>
-
-    <!-- 编辑教师 -->
-    <n-modal v-model:show="showEdit" preset="card" title="编辑教师" style="width: 420px;">
-      <n-form :model="editForm" label-placement="top">
-        <n-form-item label="姓名">
-          <n-input v-model:value="editForm.display_name" />
-        </n-form-item>
-        <n-form-item label="电话">
-          <n-input v-model:value="editForm.phone" />
-        </n-form-item>
-        <n-form-item label="启用状态">
-          <n-switch v-model:value="editForm.is_active" />
-        </n-form-item>
-      </n-form>
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
-        <n-button class="btn-pill" @click="showEdit = false">取消</n-button>
-        <n-button type="primary" class="btn-pill" :loading="saving" @click="handleUpdate">保存</n-button>
+        <n-button class="btn-pill" @click="showForm = false">取消</n-button>
+        <n-button type="primary" class="btn-pill" :loading="saving" @click="handleSave">保存</n-button>
       </div>
     </n-modal>
 
     <!-- 导入 Excel -->
-    <n-modal v-model:show="showImport" preset="card" title="导入教师（Excel）" style="width: 480px;">
+    <n-modal v-model:show="showImport" preset="card" title="导入教师（Excel）" style="width: 520px;">
       <n-form label-placement="top">
-        <n-form-item label="角色">
+        <n-form-item label="默认角色（Excel 中未填角色列时使用）">
           <n-select v-model:value="importRole" :options="roleOptions" />
         </n-form-item>
         <n-form-item label="Excel 文件">
           <n-upload :max="1" accept=".xlsx,.xls" :default-upload="false" @change="handleFileChange">
             <n-button>选择文件</n-button>
           </n-upload>
-          <p style="font-size: 12px; color: #999; margin-top: 4px;">
-            表头需包含「姓名」列；可选：「用户名/账号/工号」「电话/手机」列。<br/>
-            默认密码 123456，用户名自动以 t_ 前缀 + 姓名生成。
-          </p>
+          <div style="font-size: 12px; color: #999; margin-top: 8px; line-height: 1.8;">
+            <p style="margin: 0;">建议先<a href="#" @click.prevent="handleDownloadTemplate" style="color: #63e2b7;">下载导入模板</a>，按模板格式填写。</p>
+            <p style="margin: 0;">支持 15 列：姓名/工号/手机/邮箱/性别/身份证/职称/入职日期/学历/毕业院校/办公电话/角色/任教学科/任教班级/备注</p>
+            <p style="margin: 0;">最少只需「姓名」列，其余自动补全。默认密码 123456。</p>
+          </div>
         </n-form-item>
       </n-form>
       <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
@@ -89,21 +121,23 @@
 <script setup>
 import { h, ref, reactive, onMounted } from 'vue'
 import { NButton, NTag, useMessage, useDialog } from 'naive-ui'
-import { listTeachers, createTeacher, updateTeacher, deleteTeacher, importTeachers } from '../api/teachers'
+import { listTeachers, createTeacher, updateTeacher, deleteTeacher, importTeachers, exportTeachers, downloadTemplate } from '../api/teachers'
+import client from '../api/client'
 
 const message = useMessage()
 const dialog = useDialog()
 const loading = ref(true)
 const teachers = ref([])
 const searchQuery = ref('')
-const showCreate = ref(false)
-const showEdit = ref(false)
+const showForm = ref(false)
 const showImport = ref(false)
 const saving = ref(false)
 const importing = ref(false)
 const editingId = ref(null)
 const importRole = ref('subject_teacher')
 const importFile = ref(null)
+const classOptions = ref([])
+const classesLoading = ref(false)
 
 const roleLabels = {
   subject_teacher: '科任教师', homeroom_teacher: '班主任',
@@ -111,34 +145,60 @@ const roleLabels = {
   lesson_prep_leader: '备课组长', principal: '校长',
   academic_director: '教务主任', district_admin: '区管理员',
 }
+const subjectLabels = {
+  YW: '语文', SX: '数学', YY: '英语', WL: '物理', HX: '化学',
+  SW: '生物', ZZ: '政治', LS: '历史', DL: '地理', TY: '体育',
+  YS: '音乐', MS: '美术', XX: '信息技术',
+}
 
 const roleOptions = Object.entries(roleLabels).map(([value, label]) => ({ label, value }))
+const subjectOptions = Object.entries(subjectLabels).map(([value, label]) => ({ label, value }))
+const genderOptions = [{ label: '男', value: '男' }, { label: '女', value: '女' }]
+const eduOptions = [
+  { label: '大专', value: '大专' }, { label: '本科', value: '本科' },
+  { label: '硕士', value: '硕士' }, { label: '博士', value: '博士' },
+]
 
-const createForm = reactive({
+const defaultForm = () => ({
   display_name: '', username: '', password: '123456',
-  role: 'subject_teacher', phone: '',
+  role: 'subject_teacher', phone: '', email: '',
+  employee_id: '', gender: null, id_card: '', title: '',
+  hire_date: '', education: null, university: '', office_phone: '',
+  notes: '', subject_codes: [], class_ids: [], is_active: true,
 })
-const editForm = reactive({ display_name: '', phone: '', is_active: true })
+const form = reactive(defaultForm())
 
 const columns = [
-  { title: '姓名', key: 'display_name', width: 120 },
-  { title: '账号', key: 'username', width: 140 },
-  { title: '电话', key: 'phone', width: 130, render: (row) => row.phone || '-' },
+  { title: '姓名', key: 'display_name', width: 90, fixed: 'left' },
+  { title: '工号', key: 'employee_id', width: 100, render: (row) => row.employee_id || row.username },
   {
-    title: '角色', key: 'roles', width: 200,
-    render: (row) => h('div', { style: 'display: flex; gap: 4px; flex-wrap: wrap;' },
-      (row.roles || []).map(r =>
-        h(NTag, { size: 'small', round: true, type: 'info' }, { default: () => roleLabels[r.role] || r.role })
+    title: '任教学科', key: 'subjects', width: 140,
+    render: (row) => {
+      const codes = new Set()
+      ;(row.roles || []).forEach(r => (r.subject_codes || []).forEach(c => codes.add(c)))
+      if (!codes.size) return h('span', { style: 'color: #999;' }, '未分配')
+      return h('div', { style: 'display: flex; gap: 4px; flex-wrap: wrap;' },
+        [...codes].map(c => h(NTag, { size: 'small', round: true, type: 'success' }, { default: () => subjectLabels[c] || c }))
       )
-    ),
+    },
   },
   {
-    title: '状态', key: 'is_active', width: 70,
+    title: '角色', key: 'role', width: 100,
+    render: (row) => {
+      const roles = (row.roles || []).map(r => roleLabels[r.role] || r.role)
+      return roles.join('、') || '-'
+    },
+  },
+  { title: '手机', key: 'phone', width: 120, render: (row) => row.phone || '-' },
+  { title: '职称', key: 'title', width: 90, render: (row) => row.title || '-' },
+  { title: '学历', key: 'education', width: 70, render: (row) => row.education || '-' },
+  {
+    title: '状态', key: 'is_active', width: 60,
     render: (row) => h(NTag, { type: row.is_active ? 'success' : 'default', size: 'small', round: true },
-      { default: () => row.is_active ? '启用' : '停用' }),
+      { default: () => row.is_active ? '在职' : '离职' }),
   },
   {
-    title: '操作', key: 'actions', width: 140,
+    title: '操作', key: 'actions', width: 100, fixed: 'right',
     render: (row) => h('div', { style: 'display: flex; gap: 8px;' }, [
       h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
       h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' }),
@@ -163,49 +223,73 @@ async function loadTeachers() {
   loading.value = false
 }
 
-async function handleCreate() {
-  if (!createForm.display_name || !createForm.username) {
-    message.warning('姓名和账号为必填')
-    return
-  }
-  saving.value = true
+async function loadClasses() {
+  classesLoading.value = true
   try {
-    await createTeacher(createForm)
-    message.success('添加成功')
-    showCreate.value = false
-    Object.assign(createForm, { display_name: '', username: '', password: '123456', role: 'subject_teacher', phone: '' })
-    await loadTeachers()
-  } catch (e) {
-    message.error(e.response?.data?.detail || '添加失败')
-  } finally { saving.value = false }
+    const { data } = await client.get('/classes')
+    classOptions.value = data.map(c => ({ label: c.name, value: c.id }))
+  } catch {}
+  classesLoading.value = false
+}
+
+function openCreate() {
+  editingId.value = null
+  Object.assign(form, defaultForm())
+  showForm.value = true
+  if (!classOptions.value.length) loadClasses()
 }
 
 function openEdit(row) {
   editingId.value = row.id
-  Object.assign(editForm, {
-    display_name: row.display_name,
+  Object.assign(form, {
+    display_name: row.display_name || '',
     phone: row.phone || '',
-    is_active: row.is_active,
+    email: row.email || '',
+    employee_id: row.employee_id || '',
+    gender: row.gender || null,
+    id_card: row.id_card || '',
+    title: row.title || '',
+    hire_date: row.hire_date || '',
+    education: row.education || null,
+    university: row.university || '',
+    office_phone: row.office_phone || '',
+    notes: row.notes || '',
+    is_active: row.is_active !== false,
   })
-  showEdit.value = true
+  showForm.value = true
 }
 
-async function handleUpdate() {
+async function handleSave() {
+  if (!form.display_name) { message.warning('姓名为必填'); return }
+  if (!editingId.value && !form.username) { message.warning('用户名为必填'); return }
   saving.value = true
   try {
-    await updateTeacher(editingId.value, editForm)
-    message.success('更新成功')
-    showEdit.value = false
+    if (editingId.value) {
+      const payload = {}
+      for (const k of ['display_name', 'phone', 'email', 'employee_id', 'gender',
+        'id_card', 'title', 'hire_date', 'education', 'university', 'office_phone', 'notes', 'is_active']) {
+        if (form[k] !== '' && form[k] !== null) payload[k] = form[k]
+      }
+      await updateTeacher(editingId.value, payload)
+      message.success('更新成功')
+    } else {
+      const payload = { ...form }
+      if (!payload.subject_codes?.length) delete payload.subject_codes
+      if (!payload.class_ids?.length) delete payload.class_ids
+      await createTeacher(payload)
+      message.success('添加成功')
+    }
+    showForm.value = false
     await loadTeachers()
   } catch (e) {
-    message.error(e.response?.data?.detail || '更新失败')
+    message.error(e.response?.data?.detail || '操作失败')
   } finally { saving.value = false }
 }
 
 function handleDelete(row) {
   dialog.warning({
     title: '确认删除',
-    content: `确定要删除教师「${row.display_name}」吗？此操作将移除该教师在本校的所有角色。`,
+    content: `确定要删除教师「${row.display_name}」吗？将移除该教师在本校的所有角色。`,
     positiveText: '删除',
     negativeText: '取消',
     onPositive: async () => {
@@ -229,13 +313,38 @@ async function handleImport() {
   importing.value = true
   try {
     const { data } = await importTeachers(importFile.value, importRole.value)
-    message.success(`导入完成：新增 ${data.created} 人，跳过 ${data.skipped} 人`)
+    message.success(`导入完成：新增 ${data.created} 人，更新 ${data.updated} 人，跳过 ${data.skipped} 人`)
     showImport.value = false
     importFile.value = null
     await loadTeachers()
   } catch (e) {
     message.error(e.response?.data?.detail || '导入失败')
   } finally { importing.value = false }
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+async function handleDownloadTemplate() {
+  try {
+    const { data } = await downloadTemplate()
+    triggerDownload(data, 'teachers_template.xlsx')
+    message.success('模板已下载')
+  } catch { message.error('下载失败') }
+}
+
+async function handleExport() {
+  try {
+    const { data } = await exportTeachers()
+    triggerDownload(data, 'teachers.xlsx')
+    message.success('导出成功')
+  } catch { message.error('导出失败') }
 }
 
 onMounted(loadTeachers)

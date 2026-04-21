@@ -10,3 +10,5 @@ export const importTeachers = (file, role) => {
   fd.append('role', role || 'subject_teacher')
   return client.post('/teachers/import', fd)
 }
+export const exportTeachers = () => client.get('/teachers/export', { responseType: 'blob' })
+export const downloadTemplate = () => client.get('/teachers/export?template=1', { responseType: 'blob' })
