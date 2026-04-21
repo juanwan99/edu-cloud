@@ -189,13 +189,12 @@ const columns = [
     },
   },
   {
-    title: '年级', key: 'grades', width: 100,
+    title: '年级', key: 'grades', width: 70,
     render: (row) => {
       const grades = new Set()
-      ;(row.roles || []).forEach(r => (r.class_ids || []).forEach(cid => {
-        const c = classMap.value[cid]
-        if (c?.grade) grades.add(c.grade)
-      }))
+      ;(row.roles || []).filter(r => r.role === 'subject_teacher').forEach(r =>
+        (r.class_ids || []).forEach(cid => { const c = classMap.value[cid]; if (c?.grade) grades.add(c.grade) })
+      )
       if (!grades.size) return h('span', { style: 'color: #999;' }, '-')
       return [...grades].join('、')
     },
@@ -203,11 +202,16 @@ const columns = [
   {
     title: '任教班级', key: 'classes', width: 180,
     render: (row) => {
+      const seen = new Set()
       const names = []
-      ;(row.roles || []).forEach(r => (r.class_ids || []).forEach(cid => {
-        const c = classMap.value[cid]
-        if (c) names.push(c.name)
-      }))
+      ;(row.roles || []).filter(r => r.role === 'subject_teacher').forEach(r =>
+        (r.class_ids || []).forEach(cid => {
+          if (seen.has(cid)) return
+          seen.add(cid)
+          const c = classMap.value[cid]
+          if (c) names.push(c.name)
+        })
+      )
       if (!names.length) return h('span', { style: 'color: #999;' }, '未分配')
       return h('div', { style: 'display: flex; gap: 4px; flex-wrap: wrap;' },
         names.map(n => h(NTag, { size: 'small', round: true }, { default: () => n }))
@@ -215,10 +219,23 @@ const columns = [
     },
   },
   {
-    title: '角色', key: 'role', width: 90,
+    title: '角色', key: 'role', width: 140,
     render: (row) => {
-      const roles = (row.roles || []).map(r => roleLabels[r.role] || r.role)
-      return roles.join('、') || '-'
+      const parts = []
+      ;(row.roles || []).forEach(r => {
+        const label = roleLabels[r.role] || r.role
+        if (r.role === 'homeroom_teacher') {
+          const cid = (r.class_ids || [])[0]
+          const cname = cid ? classMap.value[cid]?.name : null
+          parts.push(cname ? `${label}(${cname})` : label)
+        } else if (r.role !== 'subject_teacher') {
+          parts.push(label)
+        }
+      })
+      if ((row.roles || []).some(r => r.role === 'subject_teacher')) {
+        parts.push('科任教师')
+      }
+      return parts.join('、') || '-'
     },
   },
   { title: '手机', key: 'phone', width: 120, render: (row) => row.phone || '-' },

@@ -350,24 +350,34 @@ async def export_teachers(
             roles_by_user.setdefault(r.user_id, []).append(r)
         for u in users:
             user_roles = roles_by_user.get(u.id, [])
-            role_codes = sorted(set(r.role for r in user_roles))
-            role_str = ",".join(_ROLE_LABELS.get(r, r) for r in role_codes)
+            role_parts = []
             subjects = set()
-            classes = set()
+            teach_classes = set()
             grades = set()
             for r in user_roles:
                 for sc in (r.subject_codes or []):
                     subjects.add(_SUBJECT_LABELS.get(sc, sc))
-                for cid in (r.class_ids or []):
-                    cname = class_id_to_name.get(cid, cid)
-                    classes.add(cname)
-                    g = class_id_to_grade.get(cid)
-                    if g:
-                        grades.add(g)
+                if r.role == 'subject_teacher':
+                    for cid in (r.class_ids or []):
+                        cname = class_id_to_name.get(cid, cid)
+                        teach_classes.add(cname)
+                        g = class_id_to_grade.get(cid)
+                        if g:
+                            grades.add(g)
+                if r.role == 'homeroom_teacher':
+                    hr_cid = (r.class_ids or [None])[0]
+                    hr_name = class_id_to_name.get(hr_cid, '') if hr_cid else ''
+                    label = _ROLE_LABELS.get(r.role, r.role)
+                    role_parts.append(f"{label}({hr_name})" if hr_name else label)
+                elif r.role != 'subject_teacher':
+                    role_parts.append(_ROLE_LABELS.get(r.role, r.role))
+            if any(r.role == 'subject_teacher' for r in user_roles):
+                role_parts.append('科任教师')
+            role_str = ",".join(role_parts)
             ws.append([
                 u.display_name, u.employee_id or u.username,
                 ",".join(sorted(subjects)), ",".join(sorted(grades)),
-                ",".join(sorted(classes)), role_str,
+                ",".join(sorted(teach_classes)), role_str,
                 u.phone or "", u.gender or "", u.title or "",
                 str(u.hire_date) if u.hire_date else "",
                 u.education or "", u.university or "",
