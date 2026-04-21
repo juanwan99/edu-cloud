@@ -123,8 +123,9 @@
 <script setup>
 import { h, ref, reactive, onMounted } from 'vue'
 import { NButton, NTag, useMessage, useDialog } from 'naive-ui'
-import { listTeachers, createTeacher, updateTeacher, deleteTeacher, importTeachers, exportTeachers, downloadTemplate, listSchools } from '../api/teachers'
+import { listTeachers, createTeacher, updateTeacher, deleteTeacher, importTeachers, exportTeachers, downloadTemplate } from '../api/teachers'
 import client from '../api/client'
+import { useAuthStore } from '../stores/auth'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -381,18 +382,26 @@ async function handleExport() {
   } catch { message.error('导出失败') }
 }
 
-async function loadSchools() {
-  try {
-    const { data } = await listSchools()
-    schoolOptions.value = data.map(s => ({ label: s.name, value: s.id }))
-    if (schoolOptions.value.length && !selectedSchool.value) {
-      selectedSchool.value = schoolOptions.value[0].value
+function initSchools() {
+  const auth = useAuthStore()
+  const seen = new Map()
+  for (const r of (auth.roles || [])) {
+    const ctx = r.context
+    if (ctx?.id && ctx?.name && !seen.has(ctx.id)) {
+      seen.set(ctx.id, ctx.name)
     }
-  } catch {}
+  }
+  schoolOptions.value = [...seen.entries()].map(([id, name]) => ({ label: name, value: id }))
+  const current = auth.currentRole
+  if (current?.context?.id) {
+    selectedSchool.value = current.context.id
+  } else if (schoolOptions.value.length) {
+    selectedSchool.value = schoolOptions.value[0].value
+  }
 }
 
-onMounted(async () => {
-  await loadSchools()
+onMounted(() => {
+  initSchools()
   loadTeachers()
   loadClasses()
 })
