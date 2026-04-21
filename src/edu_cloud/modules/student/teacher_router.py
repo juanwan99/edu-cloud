@@ -251,6 +251,7 @@ async def delete_teacher(
 @router.get("/teachers/export")
 async def export_teachers(
     template: str | None = None,
+    school_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
@@ -258,14 +259,19 @@ async def export_teachers(
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.comments import Comment
 
-    school_id = current["current_role"].school_id
+    target_school = school_id or current["current_role"].school_id
+    if not target_school:
+        from edu_cloud.modules.school.models import School
+        first = await db.execute(select(School).limit(1))
+        s = first.scalar_one_or_none()
+        target_school = s.id if s else None
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "教师名单"
     headers = [
-        "姓名", "工号/账号", "手机号", "邮箱", "性别", "身份证号",
-        "职称", "入职日期", "学历", "毕业院校", "办公电话",
-        "角色", "任教学科", "任教班级", "备注",
+        "姓名", "工号/账号", "任教学科", "年级", "任教班级",
+        "角色", "手机号", "性别", "职称", "入职日期",
+        "学历", "毕业院校", "邮箱", "办公电话", "身份证号", "备注",
     ]
     ws.append(headers)
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
@@ -275,11 +281,11 @@ async def export_teachers(
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
-    widths = [12, 18, 15, 22, 8, 22, 12, 14, 10, 20, 15, 15, 18, 25, 20]
+    widths = [12, 18, 14, 10, 28, 18, 15, 8, 12, 14, 10, 20, 22, 15, 22, 20]
     for i, w in enumerate(widths):
         ws.column_dimensions[chr(65 + i)].width = w
 
-    classes_result = await db.execute(select(Class).where(Class.school_id == school_id))
+    classes_result = await db.execute(select(Class).where(Class.school_id == target_school))
     all_classes = list(classes_result.scalars().all())
     class_id_to_name = {c.id: c.name for c in all_classes}
     class_name_to_id = {c.name: c.id for c in all_classes}
@@ -291,22 +297,25 @@ async def export_teachers(
     }
 
     if template == "1":
-        ws["E1"].comment = Comment("填写：男 或 女", "系统")
-        ws["G1"].comment = Comment("如：一级教师、高级教师、特级教师", "系统")
-        ws["H1"].comment = Comment("格式：2020-09-01", "系统")
-        ws["I1"].comment = Comment("如：本科、硕士、博士", "系统")
+        # 列序: A姓名 B工号 C学科 D年级 E班级 F角色 G手机 H性别 I职称 J入职 K学历 L院校 M邮箱 N办公电话 O身份证 P备注
+        ws["H1"].comment = Comment("填写：男 或 女", "系统")
+        ws["I1"].comment = Comment("如：一级教师、高级教师、特级教师", "系统")
+        ws["J1"].comment = Comment("格式：2020-09-01", "系统")
+        ws["K1"].comment = Comment("如：本科、硕士、博士", "系统")
         role_labels = "\n".join(f"{k}: {v}" for k, v in _ROLE_LABELS.items() if k in ALL_SCHOOL_ROLES)
-        ws["L1"].comment = Comment(f"可填以下角色代码之一：\n{role_labels}", "系统")
+        ws["F1"].comment = Comment(f"多角色用逗号分隔。可填：\n{role_labels}", "系统")
         subject_hint = "\n".join(f"{k}: {v}" for k, v in _SUBJECT_LABELS.items())
-        ws["M1"].comment = Comment(f"多学科用逗号分隔。代码对照：\n{subject_hint}", "系统")
+        ws["C1"].comment = Comment(f"多学科用逗号分隔。代码对照：\n{subject_hint}", "系统")
         class_names = [c.name for c in all_classes[:30]]
-        ws["N1"].comment = Comment(f"多班级用逗号分隔。当前班级：\n" + "\n".join(class_names), "系统")
+        ws["E1"].comment = Comment(f"多班级用逗号分隔。当前班级：\n" + "\n".join(class_names), "系统")
+        ws["D1"].comment = Comment("从班级名自动推导，可留空", "系统")
 
         example_fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
-        example_class = all_classes[0].name if all_classes else "高一(1)班"
-        ws.append(["张三（示例）", "T2026001", "13800138000", "", "男", "",
-                   "一级教师", "2020-09-01", "硕士", "北京师范大学", "",
-                   "subject_teacher", "YW", example_class, ""])
+        example_class = all_classes[0].name if all_classes else "2301"
+        example_grade = all_classes[0].grade if all_classes else "高三"
+        ws.append(["张三（示例）", "T2026001", "YW", example_grade, example_class,
+                   "homeroom_teacher,subject_teacher", "13800138000", "男",
+                   "一级教师", "2020-09-01", "硕士", "北京师范大学", "", "", "", ""])
         for col_idx in range(1, len(headers) + 1):
             ws.cell(row=2, column=col_idx).fill = example_fill
 
@@ -328,34 +337,40 @@ async def export_teachers(
     else:
         stmt = (
             select(User).join(UserRole, UserRole.user_id == User.id)
-            .where(UserRole.school_id == school_id).distinct()
+            .where(UserRole.school_id == target_school).distinct()
         )
         result = await db.execute(stmt)
         users = list(result.scalars().all())
         roles_result = await db.execute(
-            select(UserRole).where(UserRole.school_id == school_id, UserRole.user_id.in_([u.id for u in users]))
+            select(UserRole).where(UserRole.school_id == target_school, UserRole.user_id.in_([u.id for u in users]))
         )
+        class_id_to_grade = {c.id: (c.grade or "") for c in all_classes}
         roles_by_user = {}
         for r in roles_result.scalars().all():
             roles_by_user.setdefault(r.user_id, []).append(r)
         for u in users:
             user_roles = roles_by_user.get(u.id, [])
-            role_str = ",".join(r.role for r in user_roles)
+            role_str = ",".join(sorted(set(r.role for r in user_roles)))
             subjects = set()
             classes = set()
+            grades = set()
             for r in user_roles:
                 for sc in (r.subject_codes or []):
                     subjects.add(sc)
                 for cid in (r.class_ids or []):
                     cname = class_id_to_name.get(cid, cid)
                     classes.add(cname)
+                    g = class_id_to_grade.get(cid)
+                    if g:
+                        grades.add(g)
             ws.append([
-                u.display_name, u.employee_id or u.username, u.phone or "",
-                u.email or "", u.gender or "", u.id_card or "",
-                u.title or "", str(u.hire_date) if u.hire_date else "",
+                u.display_name, u.employee_id or u.username,
+                ",".join(sorted(subjects)), ",".join(sorted(grades)),
+                ",".join(sorted(classes)), role_str,
+                u.phone or "", u.gender or "", u.title or "",
+                str(u.hire_date) if u.hire_date else "",
                 u.education or "", u.university or "",
-                u.office_phone or "", role_str,
-                ",".join(sorted(subjects)), ",".join(sorted(classes)),
+                u.email or "", u.office_phone or "", u.id_card or "",
                 u.notes or "",
             ])
         filename = "teachers.xlsx"

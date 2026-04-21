@@ -366,9 +366,13 @@ function triggerDownload(blob, filename) {
   URL.revokeObjectURL(url)
 }
 
+function schoolParams() {
+  return selectedSchool.value ? { school_id: selectedSchool.value } : {}
+}
+
 async function handleDownloadTemplate() {
   try {
-    const { data } = await downloadTemplate()
+    const { data } = await downloadTemplate(schoolParams())
     triggerDownload(data, 'teachers_template.xlsx')
     message.success('模板已下载')
   } catch { message.error('下载失败') }
@@ -376,7 +380,7 @@ async function handleDownloadTemplate() {
 
 async function handleExport() {
   try {
-    const { data } = await exportTeachers()
+    const { data } = await exportTeachers(schoolParams())
     triggerDownload(data, 'teachers.xlsx')
     message.success('导出成功')
   } catch { message.error('导出失败') }
