@@ -43,9 +43,9 @@ describe('Route definitions (real routes)', () => {
     expect(routes).toHaveLength(3)
   })
 
-  it('AppShell has 14 child routes in freeze mode', () => {
+  it('AppShell has 16 child routes in freeze mode', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
-    expect(shell.children).toHaveLength(14)
+    expect(shell.children).toHaveLength(16)
   })
 
   it('all routes except login are children of AppShell', () => {
@@ -61,7 +61,7 @@ describe('Route definitions (real routes)', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
     const schools = shell.children.find(r => r.path === 'schools')
     expect(schools).toBeTruthy()
-    expect(schools.meta?.roles).toBeTruthy()
+    expect(schools.meta?.permissions).toContain('manage_schools')
   })
 
   it('exams route has EXAM_ROLES in meta', () => {

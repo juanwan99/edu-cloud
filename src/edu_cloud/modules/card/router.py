@@ -468,8 +468,8 @@ async def parse_answers(
             try:
                 from edu_cloud.modules.card.answer_parser import parse_answer_docx
                 _v2_structured = parse_answer_docx(tmp_path)
-            except Exception:
-                pass  # 解析失败不阻塞主流程，v2 布局会跳过
+            except Exception as e:
+                logger.debug("v2 answer parsing skipped: %s", e)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 

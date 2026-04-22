@@ -69,9 +69,9 @@ class Settings(BaseSettings):
     AI_MAX_CALLS_PER_SESSION: int = 20
 
     # Knowledge base
-    KNOWLEDGE_BASE_DIR: str = "C:/Users/Administrator/edu-knowledge-base/subjects/biology_senior"
+    KNOWLEDGE_BASE_DIR: str = "./edu-knowledge-base/subjects/biology_senior"
     KNOWLEDGE_ENABLED: bool = True
-    KNOWLEDGE_DB_PATH: str = "C:/Users/Administrator/edu-knowledge-base/knowledge.db"
+    KNOWLEDGE_DB_PATH: str = "./edu-knowledge-base/knowledge.db"
     KNOWLEDGE_DRAFT_VISIBLE: bool = True  # 宽限期：True=draft 对所有角色可见
 
     # Paper-skill

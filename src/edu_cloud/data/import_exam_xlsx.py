@@ -84,13 +84,13 @@ def _read_students(filepath, direction_scores):
         scores = {}
         # 共同科目（语数英）
         for subj, col in SCORE_COLUMNS.items():
-            val = row[col] if col < len(row) and row[col] else None
+            val = row[col] if col < len(row) and row[col] is not None else None
             if val is not None:
                 scores[subj] = float(val)
 
         # 方向特有科目
         for subj, col in direction_scores.items():
-            val = row[col] if col < len(row) and row[col] else None
+            val = row[col] if col < len(row) and row[col] is not None else None
             if val is not None:
                 scores[subj] = float(val)
 

@@ -409,17 +409,21 @@ async def get_dispatch_status(
 ):
     """聚合该考试所有科目的阅卷调度状态。"""
     school_id = current["current_role"].school_id
+    role = current["current_role"].role
 
-    # 验证考试归属
-    exam = (await db.execute(
-        select(Exam).where(Exam.id == exam_id, Exam.school_id == school_id)
-    )).scalar_one_or_none()
+    # 验证考试归属（platform_admin/district_admin 可跨校）
+    q = select(Exam).where(Exam.id == exam_id)
+    if school_id:
+        q = q.where(Exam.school_id == school_id)
+    exam = (await db.execute(q)).scalar_one_or_none()
     if not exam:
         raise HTTPException(404, "Exam not found")
 
+    effective_school_id = exam.school_id
+
     # 获取所有科目
     subjects = (await db.execute(
-        select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
+        select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == effective_school_id)
     )).scalars().all()
 
     from edu_cloud.modules.scan import pipeline_service
@@ -430,7 +434,7 @@ async def get_dispatch_status(
         answer_count = (await db.execute(
             select(func.count(StudentAnswer.id)).where(
                 StudentAnswer.subject_id == subj.id,
-                StudentAnswer.school_id == school_id,
+                StudentAnswer.school_id == effective_school_id,
             )
         )).scalar() or 0
 
@@ -438,7 +442,7 @@ async def get_dispatch_status(
         objective_graded = (await db.execute(
             select(func.count(StudentAnswer.id)).where(
                 StudentAnswer.subject_id == subj.id,
-                StudentAnswer.school_id == school_id,
+                StudentAnswer.school_id == effective_school_id,
                 StudentAnswer.detected_answer.isnot(None),
             )
         )).scalar() or 0
@@ -447,7 +451,7 @@ async def get_dispatch_status(
         grading_task = (await db.execute(
             select(GradingTask).where(
                 GradingTask.subject_id == subj.id,
-                GradingTask.school_id == school_id,
+                GradingTask.school_id == effective_school_id,
             ).order_by(GradingTask.created_at.desc())
         )).scalars().first()
 
@@ -471,7 +475,7 @@ async def get_dispatch_status(
         subjective_total = (await db.execute(
             select(func.count(StudentAnswer.id)).where(
                 StudentAnswer.subject_id == subj.id,
-                StudentAnswer.school_id == school_id,
+                StudentAnswer.school_id == effective_school_id,
                 StudentAnswer.image_path.isnot(None),
             )
         )).scalar() or 0
@@ -481,7 +485,7 @@ async def get_dispatch_status(
         subjective_q_ids = (await db.execute(
             select(Question.id).where(
                 Question.subject_id == subj.id,
-                Question.school_id == school_id,
+                Question.school_id == effective_school_id,
                 Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
             )
         )).scalars().all()
@@ -490,7 +494,7 @@ async def get_dispatch_status(
             rubric_count = (await db.execute(
                 select(func.count(Rubric.id)).where(
                     Rubric.question_id.in_(subjective_q_ids),
-                    Rubric.school_id == school_id,
+                    Rubric.school_id == effective_school_id,
                 )
             )).scalar() or 0
             has_rubric = rubric_count > 0
