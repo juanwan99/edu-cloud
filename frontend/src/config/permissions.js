@@ -56,7 +56,7 @@ export const ROLE_PERMISSIONS = {
     'view_knowledge_tree',
     // 2026-04-13 补齐前端镜像（后端 core/permissions.py:218-234 已有）
     'view_conduct', 'manage_conduct', 'export_conduct'],
-  lesson_prep_leader: [..._TEACHER_BASE],
+  lesson_prep_leader: [..._TEACHER_BASE, 'manage_grading', 'manage_exams'],
   homeroom_teacher: [..._TEACHER_BASE, 'generate_notification', 'send_notification', 'manage_conduct_rules', 'manage_conduct_parents', 'export_conduct'],
   subject_teacher: [..._TEACHER_BASE],
   parent: ['view_scores', 'view_homework', 'use_ai_chat', 'view_knowledge_tree', 'view_conduct'],
