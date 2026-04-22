@@ -485,9 +485,10 @@ tests/
 | POST | `/api/v1/scan/pipeline/import-tpl` | 导入 .tpl 文件到 Template 表 |
 | GET | `/api/v1/scan/pipeline/scan-image` | 提供扫描图片 HTTP 访问（模板编辑器用，限 uploads 目录） |
 | POST | `/api/v1/scan/pipeline/auto-detect-cv` | OpenCV+LLM 混合检测答题卡区域（VIEW_GRADING） |
-| POST | `/api/v1/scan/pipeline/save-cv-template` | 保存检测结果为 Template（VIEW_GRADING） |
+| GET | `/api/v1/scan/pipeline/cv-template` | 查询科目已有 CV 检测 Template（A/B 面，VIEW_GRADING） |
+| POST | `/api/v1/scan/pipeline/save-cv-template` | 保存检测结果为 Template（VIEW_GRADING，自动创建 choice/essay Question） |
 | * | `/api/v1/grading/*` | AI 阅卷/评分规则/教师审核 |
-| GET | `/api/v1/grading/dispatch/status` | 科目阅卷状态聚合（exam_id 查询参数，返回各科目 subject_code/stage/统计） |
+| GET | `/api/v1/grading/dispatch/status` | 科目阅卷状态聚合（exam_id 查询参数，返回各科目 subject_code/stage/统计；stage: idle→pending_detect→pending_cut→cutting→ready→ai_grading→reviewing→done） |
 | POST | `/api/v1/grading/tasks` | 创建 AI 阅卷任务（前置校验 4 项：Subject 归属/主观题存在/Rubric 存在/StudentAnswer 存在；enqueue 失败清理 orphan task 并返回 503）|
 | GET | `/api/v1/grading/tasks` | 列出本校 AI 阅卷任务 |
 | GET | `/api/v1/grading/tasks/{task_id}` | 阅卷任务详情 |

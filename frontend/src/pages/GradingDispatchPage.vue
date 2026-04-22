@@ -48,10 +48,11 @@
       </div>
 
       <!-- 一键全科检测（仅教务主任+） -->
-      <div class="batch-bar" v-if="canManageAll && detectableSubjects.length > 0 && scanResults.length > 0">
+      <div class="batch-bar" v-if="canManageAll && detectableSubjects.length > 0">
         <n-button size="small" @click="handleBatchDetect" :loading="batchDetectLoading">
-          一键全科检测（{{ detectableSubjects.length }} 科）
+          一键全科检测（{{ detectableSubjects.length }} 科待检测）
         </n-button>
+        <span class="batch-progress" v-if="batchDetectLoading">{{ batchProgressText }}</span>
       </div>
 
       <!-- 批量操作 -->
@@ -75,6 +76,9 @@
             />
             <span class="card-name">{{ s.subject_name }}</span>
             <span class="stage-tag" :class="stageClass(s.stage)">{{ stageLabel(s.stage) }}</span>
+            <span v-if="detectStatus[s.subject_id] === 'running'" class="detect-tag running">检测中…</span>
+            <span v-else-if="detectStatus[s.subject_id] === 'done'" class="detect-tag done">检测完成</span>
+            <span v-else-if="detectStatus[s.subject_id] === 'failed'" class="detect-tag failed">检测失败</span>
           </div>
 
           <div class="card-mid">
@@ -85,8 +89,13 @@
               </div>
             </template>
             <template v-else-if="s.stage === 'idle'">
-              <span class="card-detail" v-if="scanMatchedDir(s)">{{ scanMatchedDir(s) }}</span>
-              <span class="card-detail muted" v-else>等待扫描目录</span>
+              <span class="card-detail muted">等待上传扫描图</span>
+            </template>
+            <template v-else-if="s.stage === 'pending_detect'">
+              <span class="card-detail">已上传 <b>{{ s.scan_images }}</b> 份，等待模板检测</span>
+            </template>
+            <template v-else-if="s.stage === 'pending_cut'">
+              <span class="card-detail">模板就绪，<b>{{ s.scan_images }}</b> 份待切割</span>
             </template>
             <template v-else-if="s.stage === 'ready'">
               <span class="card-detail">主观题 <b>{{ s.subjective_total }}</b> 份就绪</span>
@@ -112,13 +121,15 @@
           </div>
 
           <div class="card-stats">
-            <span title="扫描">{{ s.scan_images }} 扫</span>
-            <span title="客观题">{{ s.objective_graded }} 客</span>
-            <span title="主观题">{{ s.subjective_total }} 主</span>
+            <span v-if="s.scan_images" title="扫描份数">{{ s.scan_images }} 份</span>
+            <span v-if="s.answer_count" title="已切割">{{ s.answer_count }} 切</span>
+            <span v-if="s.objective_graded" title="客观题">{{ s.objective_graded }} 客</span>
+            <span v-if="s.subjective_total" title="主观题">{{ s.subjective_total }} 主</span>
           </div>
 
           <div class="card-actions">
             <n-button v-if="canDetect(s)" size="small" @click="handleDetectTemplate(s)" :loading="detectLoading === s.subject_id">模板检测</n-button>
+            <n-button v-if="canCut(s)" size="small" @click="handlePreviewTemplate(s)" :loading="detectLoading === s.subject_id">预览模板</n-button>
             <n-button v-if="canCut(s)" size="small" type="primary" @click="handleStartCut(s)">切割</n-button>
             <n-button v-if="s.stage === 'cutting'" size="small" type="error" @click="handleStopCut">停止</n-button>
             <n-button v-if="s.stage === 'ready'" size="small" type="warning" @click="handleStartGrade(s)" :loading="gradingLoading === s.subject_id">AI 阅卷</n-button>
@@ -159,7 +170,7 @@ import { useAuthStore } from '../stores/auth'
 import { SCHOOL_ADMIN_ROLES } from '../config/roles.js'
 import { listExams } from '../api/exams'
 import { getDispatchStatus, createTask } from '../api/grading'
-import { uploadScanFolder, scanDirectory, startPipeline, getPipelineProgress, stopPipeline, autoDetectCV, saveCVTemplate, fetchScanImageBlob } from '../api/scan'
+import { uploadScanFolder, scanDirectory, startPipeline, getPipelineProgress, stopPipeline, autoDetectCV, saveCVTemplate, getCVTemplate, fetchScanImageBlob } from '../api/scan'
 import TemplatePreviewEditor from '../components/TemplatePreviewEditor.vue'
 
 const message = useMessage()
@@ -201,7 +212,9 @@ const stageGroups = computed(() => {
     { key: 'done', label: '已完成' },
     { key: 'active', label: '阅卷中', stages: ['ai_grading', 'reviewing'] },
     { key: 'ready', label: '待阅卷' },
-    { key: 'idle', label: '待扫描' },
+    { key: 'pending_cut', label: '待切割' },
+    { key: 'pending_detect', label: '待检测' },
+    { key: 'idle', label: '待上传' },
     { key: 'failed', label: '失败' },
   ]
   return defs.map(d => ({
@@ -298,16 +311,17 @@ async function handleFolderSelected(e) {
   }
 }
 
-// 切割/检测可用性（idle 或 ready 阶段 + 有匹配的扫描目录）
-const CUTTABLE_STAGES = ['idle', 'ready']
-function canCut(s) {
-  return CUTTABLE_STAGES.includes(s.stage) && scanMatchedDir(s)
-}
+// 模板检测：无模板 + 有扫描图
 function canDetect(s) {
-  if (!CUTTABLE_STAGES.includes(s.stage) || !scanMatchedDir(s)) return false
+  if (s.stage !== 'pending_detect') return false
   if (canManageAll.value) return true
   if (!mySubjectCodes.value) return false
   return mySubjectCodes.value.includes(s.subject_code)
+}
+
+// 切割：有模板 + 待切割阶段
+function canCut(s) {
+  return s.stage === 'pending_cut'
 }
 
 const detectableSubjects = computed(() => subjects.value.filter(s => canDetect(s)))
@@ -364,8 +378,8 @@ function findFirstFile(dir, side) {
 
 // 模板检测 → 打开编辑器（A 面 + 可选 B 面）
 async function handleDetectTemplate(s) {
-  const dir = getScanDir(s)
-  if (!dir) return
+  const dir = getScanDirFallback(s)
+  if (!dir) { message.error('找不到扫描目录'); return }
   detectLoading.value = s.subject_id
   try {
     const fileA = `${dir}/${scanFirstFile(s)}`
@@ -412,6 +426,44 @@ async function handleDetectTemplate(s) {
   }
 }
 
+// 预览已有模板（从 DB 加载 Template + 扫描图，打开编辑器）
+async function handlePreviewTemplate(s) {
+  detectLoading.value = s.subject_id
+  try {
+    const tplRes = await getCVTemplate(s.subject_id)
+    const tpl = tplRes.data
+
+    const dir = getScanDirFallback(s)
+    const fileA = dir ? `${dir}/${scanFirstFile(s)}` : null
+
+    const blobA = fileA ? await fetchScanImageBlob(fileA) : null
+
+    editorRegions.value = tpl.A?.regions || []
+    editorWidth.value = tpl.A?.width || 0
+    editorHeight.value = tpl.A?.height || 0
+    editorBlobUrl.value = blobA
+
+    if (tpl.B && tpl.B.regions?.length) {
+      const fileB = fileA?.replace(/A\.png$/, 'B.png')
+      const blobB = fileB ? await fetchScanImageBlob(fileB).catch(() => null) : null
+      editorRegionsB.value = tpl.B.regions
+      editorWidthB.value = tpl.B.width || 0
+      editorHeightB.value = tpl.B.height || 0
+      editorBlobUrlB.value = blobB
+    } else {
+      editorRegionsB.value = null
+      editorBlobUrlB.value = null
+    }
+
+    editorSubjectId.value = s.subject_id
+    editorShow.value = true
+  } catch (e) {
+    message.error(`加载模板失败: ${e.response?.data?.detail || e.message}`)
+  } finally {
+    detectLoading.value = null
+  }
+}
+
 async function onEditorConfirm({ A, B }) {
   editorShow.value = false
   try {
@@ -422,44 +474,89 @@ async function onEditorConfirm({ A, B }) {
     message.success(`模板已保存（A 面 ${A.length} 区${B ? `，B 面 ${B.length} 区` : ''}）`)
     if (editorBlobUrl.value) { URL.revokeObjectURL(editorBlobUrl.value); editorBlobUrl.value = null }
     if (editorBlobUrlB.value) { URL.revokeObjectURL(editorBlobUrlB.value); editorBlobUrlB.value = null }
+    await loadStatus(selectedExamId.value)
   } catch (e) {
     message.error(`保存失败: ${e.response?.data?.detail || e.message}`)
   }
 }
 
-// 一键全科检测（串行，直接保存不逐科打开编辑器）
+// 一键全科检测（并发，限流 3，逐科进度反馈）
 const batchDetectLoading = ref(false)
+const batchProgressText = ref('')
+const detectStatus = ref({})
+
+async function detectOneSubject(s) {
+  const dir = getScanDirFallback(s)
+  if (!dir) throw new Error('无扫描目录')
+  const fileA = `${dir}/${scanFirstFile(s)}`
+  const fileB = fileA.replace(/A\.png$/, 'B.png')
+
+  const detectA = (await autoDetectCV(fileA)).data
+  if (detectA.regions?.length) {
+    await saveCVTemplate(s.subject_id, 'A', detectA.regions, detectA.width, detectA.height)
+  }
+
+  try {
+    const detectB = (await autoDetectCV(fileB, { priorRegions: detectA.regions })).data
+    if (detectB.regions?.length) {
+      await saveCVTemplate(s.subject_id, 'B', detectB.regions, detectB.width, detectB.height)
+    }
+  } catch (_) { /* 无 B 面 */ }
+}
+
 async function handleBatchDetect() {
   const list = detectableSubjects.value
   if (!list.length) return
+
   batchDetectLoading.value = true
   let ok = 0, fail = 0
+  const total = list.length
+  const failedNames = []
+
   for (const s of list) {
-    try {
-      const dir = getScanDir(s)
-      if (!dir) continue
-      const fileA = `${dir}/${scanFirstFile(s)}`
-      const fileB = fileA.replace(/A\.png$/, 'B.png')
+    detectStatus.value[s.subject_id] = 'pending'
+  }
+  batchProgressText.value = `0/${total}`
 
-      const detectA = (await autoDetectCV(fileA)).data
-      if (detectA.regions?.length) {
-        await saveCVTemplate(s.subject_id, 'A', detectA.regions, detectA.width, detectA.height)
-      }
+  const CONCURRENCY = 3
+  let cursor = 0
 
+  async function worker() {
+    while (cursor < list.length) {
+      const idx = cursor++
+      const s = list[idx]
+      detectStatus.value[s.subject_id] = 'running'
       try {
-        const detectB = (await autoDetectCV(fileB, { priorRegions: detectA.regions })).data
-        if (detectB.regions?.length) {
-          await saveCVTemplate(s.subject_id, 'B', detectB.regions, detectB.width, detectB.height)
+        await detectOneSubject(s)
+        ok++
+        detectStatus.value[s.subject_id] = 'done'
+        // 实时更新本地状态，让按钮立即切换
+        const entry = allSubjects.value.find(x => x.subject_id === s.subject_id)
+        if (entry) {
+          entry.stage = 'pending_cut'
+          entry.has_template = true
         }
-      } catch (_) { /* 无 B 面 */ }
-
-      ok++
-    } catch (_) {
-      fail++
+      } catch (e) {
+        fail++
+        failedNames.push(s.subject_name)
+        detectStatus.value[s.subject_id] = 'failed'
+      }
+      batchProgressText.value = `${ok + fail}/${total}`
     }
   }
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, list.length) }, () => worker()))
+
   batchDetectLoading.value = false
-  message.success(`全科检测完成：${ok} 科成功${fail ? `，${fail} 科失败` : ''}`)
+  detectStatus.value = {}
+
+  if (fail === 0) {
+    message.success(`全科检测完成：${ok} 科成功`)
+  } else {
+    message.warning(`检测完成：${ok} 成功，${fail} 失败（${failedNames.join('、')}）`)
+  }
+
+  await loadStatus(selectedExamId.value)
 }
 
 function scanFirstFile(subjectStatus) {
@@ -470,9 +567,21 @@ function scanFirstFile(subjectStatus) {
 }
 
 // 切割
-async function handleStartCut(s) {
+function getScanDirFallback(s) {
   const dir = getScanDir(s)
-  if (!dir) return
+  if (dir) return dir
+  if (s.has_scan_dir && selectedExamId.value) {
+    return `/home/ops/projects/edu-cloud/uploads/scan-input/${selectedExamId.value}/${s.subject_name}`
+  }
+  return null
+}
+
+async function handleStartCut(s) {
+  const dir = getScanDirFallback(s)
+  if (!dir) {
+    message.error('找不到扫描目录，请先上传扫描图')
+    return
+  }
   try {
     await startPipeline(s.subject_id, 'A', dir)
     startPolling()
@@ -503,8 +612,9 @@ const canBatchCut = computed(() =>
 async function handleBatchCut() {
   for (const id of selectedSubjects.value) {
     const s = subjects.value.find(x => x.subject_id === id)
-    if (s && canCut(s) && getScanDir(s)) {
-      await startPipeline(s.subject_id, 'A', getScanDir(s))
+    const dir = s ? getScanDirFallback(s) : null
+    if (s && canCut(s) && dir) {
+      await startPipeline(s.subject_id, 'A', dir)
     }
   }
   startPolling()
@@ -581,7 +691,8 @@ function stopPolling() {
 }
 
 const STAGE_LABELS = {
-  idle: '待扫描', cutting: '切割中', ready: '待阅卷',
+  idle: '待上传', pending_detect: '待检测', pending_cut: '待切割',
+  cutting: '切割中', ready: '待阅卷',
   ai_grading: 'AI 阅卷', reviewing: '校对中', failed: '失败', done: '已完成',
 }
 function stageLabel(stage) { return STAGE_LABELS[stage] || stage }
@@ -624,12 +735,20 @@ function stageClass(stage) { return `tag-${stage}` }
 .card-name { font-weight: 700; font-size: 14px; }
 .stage-tag { display: inline-block; padding: 1px 10px; border-radius: 50px; font-size: 11px; font-weight: 500; white-space: nowrap; }
 .tag-idle { background: #f3f4f6; color: #6b7280; }
+.tag-pending_detect { background: #fef3c7; color: #92400e; }
+.tag-pending_cut { background: #e0f2fe; color: #0369a1; }
 .tag-cutting { background: #dbeafe; color: #1e40af; }
 .tag-ready { background: #ede9fe; color: #5b21b6; }
 .tag-ai_grading { background: #fef3c7; color: #92400e; }
 .tag-reviewing { background: #fee2e2; color: #991b1b; }
 .tag-failed { background: #fee2e2; color: #dc2626; }
 .tag-done { background: #dcfce7; color: #166534; }
+
+.detect-tag { display: inline-block; padding: 1px 8px; border-radius: 50px; font-size: 11px; font-weight: 500; }
+.detect-tag.running { background: #fef3c7; color: #92400e; }
+.detect-tag.done { background: #dcfce7; color: #166534; }
+.detect-tag.failed { background: #fee2e2; color: #dc2626; }
+.batch-progress { font-size: 13px; color: #555; margin-left: 8px; }
 
 .card-mid { min-width: 0; }
 .card-detail { font-size: 13px; color: #555; }

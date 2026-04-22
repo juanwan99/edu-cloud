@@ -73,6 +73,9 @@ export const fetchScanImageBlob = (path) =>
     timeout: 30000,
   }).then(res => URL.createObjectURL(res.data))
 
+export const getCVTemplate = (subjectId) =>
+  client.get('/scan/pipeline/cv-template', { params: { subject_id: subjectId } })
+
 export const saveCVTemplate = (subjectId, side, regions, width, height) =>
   client.post('/scan/pipeline/save-cv-template', {
     subject_id: subjectId,

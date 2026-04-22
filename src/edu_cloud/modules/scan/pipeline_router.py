@@ -336,11 +336,16 @@ async def start_pipeline(
         )).scalar_one_or_none()
         if not tpl:
             raise HTTPException(404, "模板不存在，请先发布答题卡或导入 .tpl 文件")
+        bc_region = None
+        for r in (tpl.regions or []):
+            if r.get("type") == "barcode" and r.get("rect"):
+                bc_region = r["rect"]
+                break
         template = {
             "image_size": {"width": tpl.image_width, "height": tpl.image_height},
             "anchors": tpl.anchors or [],
             "regions": tpl.regions or [],
-            "barcode_region": None,
+            "barcode_region": bc_region,
         }
 
     # 列出文件
@@ -660,6 +665,30 @@ async def auto_detect_cv_api(
     return await auto_detect_cv_regions(req)
 
 
+# === 查询已有 Template ===
+
+@router.get('/cv-template')
+async def get_cv_template(
+    subject_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+):
+    """查询某科目已有的 CV 检测 Template（A+B 面）。"""
+    rows = (await db.execute(
+        select(Template).where(Template.subject_id == subject_id)
+    )).scalars().all()
+    if not rows:
+        raise HTTPException(404, "该科目尚无模板")
+    result = {}
+    for t in rows:
+        result[t.side] = {
+            "regions": t.regions or [],
+            "width": t.image_width,
+            "height": t.image_height,
+        }
+    return result
+
+
 # === 保存 CV 检测结果为 Template ===
 
 class SaveCVTemplateRequest(BaseModel):
@@ -697,11 +726,49 @@ async def save_cv_template(
         except (ValueError, TypeError):
             pass
 
+    def _region_to_qtype(r):
+        if r.get("type") == "choice_group":
+            return "choice"
+        return r.get("question_type", "essay")
+
     for r in req.regions:
         if r.get("type") == "not_a_region":
             continue
         qno = r.get("qno")
-        if qno and qno in qno_map:
+        if not qno:
+            continue
+
+        if r.get("type") == "choice_group":
+            start = r.get("start_no", 1)
+            rows = r.get("rows", 0)
+            for n in range(start, start + rows):
+                if n not in qno_map:
+                    new_q = Question(
+                        subject_id=req.subject_id,
+                        name=str(n),
+                        question_type="choice",
+                        max_score=r.get("score", 0),
+                        school_id=school_id,
+                    )
+                    db.add(new_q)
+                    await db.flush()
+                    qno_map[n] = str(new_q.id)
+                    logger.info("auto_create_question: subject=%s qno=%d type=choice", subject.name, n)
+        else:
+            if qno not in qno_map:
+                new_q = Question(
+                    subject_id=req.subject_id,
+                    name=str(qno),
+                    question_type=_region_to_qtype(r),
+                    max_score=r.get("score", 0),
+                    school_id=school_id,
+                )
+                db.add(new_q)
+                await db.flush()
+                qno_map[qno] = str(new_q.id)
+                logger.info("auto_create_question: subject=%s qno=%d type=%s", subject.name, qno, new_q.question_type)
+
+        if qno in qno_map:
             r["question_id"] = qno_map[qno]
         qnos = r.get("qnos")
         if qnos:

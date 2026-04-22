@@ -9,6 +9,7 @@ from PIL import Image
 import numpy as np
 
 from .vision import detect_anchors, crop_region, read_barcode, recognize_choice_group
+from edu_cloud import database as db_mod
 
 logger = logging.getLogger(__name__)
 
@@ -234,6 +235,20 @@ async def run_pipeline(
     _progress[pipeline_id] = progress
 
     barcode_region = template.get("barcode_region")
+
+    # 预加载 student_number → student.id 映射
+    student_number_map = {}
+    try:
+        from sqlalchemy import select, text
+        async with db_mod.async_session() as db:
+            rows = (await db.execute(text(
+                "SELECT id, student_number FROM students WHERE school_id = :sid"
+            ), {"sid": school_id})).all()
+            student_number_map = {r[1]: r[0] for r in rows if r[1]}
+        logger.info("pipeline: loaded %d student_number mappings for school %s", len(student_number_map), school_id[:8])
+    except Exception as e:
+        logger.warning("pipeline: failed to load student mappings: %s", e)
+
     results = {
         "total": len(files),
         "processed": 0,
@@ -252,6 +267,15 @@ async def run_pipeline(
             progress.current_file = f.name
             try:
                 result = process_one_image(f, template, output_dir, barcode_region)
+
+                # 条码/文件名 → 查学生表拿真实 UUID
+                raw_sid = result["student_id"]
+                if raw_sid in student_number_map:
+                    result["student_id"] = student_number_map[raw_sid]
+                elif student_number_map:
+                    result["is_anomaly"] = True
+                    logger.warning("pipeline: student_number %s not found in students table, file=%s", raw_sid, f.name)
+
                 progress.processed += 1
                 results["processed"] += 1
                 results["students"].append(result["student_id"])

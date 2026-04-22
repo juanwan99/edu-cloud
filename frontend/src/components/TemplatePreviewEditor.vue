@@ -516,22 +516,24 @@ onBeforeUnmount(() => { if (typeof window !== 'undefined') window.removeEventLis
 /* resize handles */
 .h {
   position: absolute;
-  width: 8px; height: 8px;
-  background: #fff;
-  border: 1px solid #409eff;
-  border-radius: 1px;
+  width: 14px; height: 14px;
+  background: #409eff;
+  border: 2px solid #fff;
+  border-radius: 2px;
   z-index: 2;
   display: none;
+  box-shadow: 0 0 4px rgba(0,0,0,0.4);
 }
+.h:hover { background: #66b1ff; transform: scale(1.2); }
 .tpl-region.active .h { display: block; }
-.h-nw { top: -4px; left: -4px; cursor: nw-resize; }
-.h-ne { top: -4px; right: -4px; cursor: ne-resize; }
-.h-sw { bottom: -4px; left: -4px; cursor: sw-resize; }
-.h-se { bottom: -4px; right: -4px; cursor: se-resize; }
-.h-n { top: -4px; left: 50%; margin-left: -4px; cursor: n-resize; }
-.h-s { bottom: -4px; left: 50%; margin-left: -4px; cursor: s-resize; }
-.h-w { top: 50%; left: -4px; margin-top: -4px; cursor: w-resize; }
-.h-e { top: 50%; right: -4px; margin-top: -4px; cursor: e-resize; }
+.h-nw { top: -7px; left: -7px; cursor: nw-resize; }
+.h-ne { top: -7px; right: -7px; cursor: ne-resize; }
+.h-sw { bottom: -7px; left: -7px; cursor: sw-resize; }
+.h-se { bottom: -7px; right: -7px; cursor: se-resize; }
+.h-n { top: -7px; left: 50%; margin-left: -7px; cursor: n-resize; }
+.h-s { bottom: -7px; left: 50%; margin-left: -7px; cursor: s-resize; }
+.h-w { top: 50%; left: -7px; margin-top: -7px; cursor: w-resize; }
+.h-e { top: 50%; right: -7px; margin-top: -7px; cursor: e-resize; }
 
 /* sidebar */
 .sidebar-title {

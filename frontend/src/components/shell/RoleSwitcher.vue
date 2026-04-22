@@ -4,6 +4,8 @@
     :value="auth.currentRoleIndex"
     @select="handleSwitch"
     placement="bottom-end"
+    :style="{ maxHeight: '70vh', overflowY: 'auto' }"
+    scrollable
   >
     <div class="role-switcher" :title="displayLabel">
       <span class="role-switcher__avatar">

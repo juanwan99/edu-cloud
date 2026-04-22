@@ -371,10 +371,11 @@ async def _llm_label(
         summary_parts = []
         for pr in prior_regions:
             t = pr.get("type", "")
+            rid = pr.get("id", f"R{len(summary_parts)+1:02d}")
             if t == "choice_group":
-                summary_parts.append(f'{pr["id"]}: 选择题 Q{pr.get("start_no",1)}-Q{pr.get("start_no",1)+pr.get("rows",0)-1}')
+                summary_parts.append(f'{rid}: 选择题 Q{pr.get("start_no",1)}-Q{pr.get("start_no",1)+pr.get("rows",0)-1}')
             elif t == "subjective":
-                summary_parts.append(f'{pr["id"]}: 主观题 Q{pr.get("qno","?")} ({pr.get("score",0)}分)')
+                summary_parts.append(f'{rid}: 主观题 Q{pr.get("qno","?")} ({pr.get("score",0)}分)')
         prompt += SIDE_B_CONTEXT.format(A_SIDE_SUMMARY="\n".join(summary_parts))
 
     with open(img_path, "rb") as f:
@@ -559,13 +560,27 @@ async def auto_detect_cv_regions(req: AutoDetectCVRequest) -> dict:
     logger.info("auto_detect_cv: %s %dx%d → %d rects, %d barcodes", img_path.name, w, h, len(rects), len(barcode_rects))
 
     if not rects and not barcode_rects:
-        return {
-            "regions": [],
-            "width": w,
-            "height": h,
-            "method": "opencv+llm",
-            "raw": "no rects",
-        }
+        # 有 prior_regions（B 面）时，检查页面是否有实际内容再 fallback
+        has_content = False
+        if req.prior_regions:
+            _, bw = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY_INV)
+            dark_ratio = np.count_nonzero(bw) / (w * h)
+            has_content = dark_ratio > 0.02
+            logger.info("auto_detect_cv: B-side content check: dark_ratio=%.4f has_content=%s", dark_ratio, has_content)
+
+        if not has_content:
+            return {
+                "regions": [],
+                "width": w,
+                "height": h,
+                "method": "opencv+llm",
+                "raw": "no rects",
+            }
+        # B 面 fallback：OpenCV 检测不到矩形框（如写作虚线格纸），
+        # 将整页（去页边距）作为一个区域交给 LLM 判断
+        margin_x, margin_y = int(w * 0.05), int(h * 0.04)
+        rects = [{"x": margin_x, "y": margin_y, "w": w - margin_x * 2, "h": h - margin_y * 2, "area": 0}]
+        logger.info("auto_detect_cv: B-side fallback, using full-page rect")
 
     bubble_hints: dict[int, dict] = {}
     for i, r in enumerate(rects):

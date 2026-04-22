@@ -22,7 +22,19 @@
     <n-spin :show="loading">
       <!-- 科目列表 -->
       <div v-for="subj in subjects" :key="subj.id" class="subject-card">
-        <h3 class="subject-name">{{ subj.name }}</h3>
+        <div class="subject-header">
+          <h3 class="subject-name">{{ subj.name }}</h3>
+          <div class="subject-actions">
+            <n-button
+              size="small"
+              :loading="aiLoading === subj.id"
+              :disabled="!!aiLoading"
+              @click="handleAiGrade(subj)"
+            >
+              AI 批量阅卷
+            </n-button>
+          </div>
+        </div>
         <n-data-table
           :columns="questionColumns"
           :data="subj.questions"
@@ -54,8 +66,9 @@
 <script setup>
 import { ref, h, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NProgress, useMessage } from 'naive-ui'
+import { NButton, NProgress, NTag, useMessage } from 'naive-ui'
 import { listSubjects, importFolder } from '../api/marking'
+import { createTask, getTask } from '../api/grading'
 import client from '../api/client'
 
 const router = useRouter()
@@ -110,6 +123,44 @@ const questionColumns = [
     },
   },
 ]
+
+// AI 阅卷
+const aiLoading = ref(null)
+let aiPollTimer = null
+
+async function handleAiGrade(subj) {
+  aiLoading.value = subj.id
+  try {
+    const { data } = await createTask({ subject_id: subj.id })
+    message.success(`AI 阅卷任务已创建（${subj.name}）`)
+    pollAiTask(data.id, subj)
+  } catch (e) {
+    const detail = e.response?.data?.detail || e.message
+    message.error(`AI 阅卷失败: ${detail}`)
+    aiLoading.value = null
+  }
+}
+
+function pollAiTask(taskId, subj) {
+  aiPollTimer = setInterval(async () => {
+    try {
+      const { data } = await getTask(taskId)
+      if (data.status === 'completed') {
+        clearInterval(aiPollTimer)
+        aiLoading.value = null
+        message.success(`${subj.name} AI 阅卷完成：${data.completed} 份`)
+        await loadSubjects(selectedExamId.value)
+      } else if (data.status === 'failed') {
+        clearInterval(aiPollTimer)
+        aiLoading.value = null
+        message.error(`${subj.name} AI 阅卷失败`)
+      }
+    } catch {
+      clearInterval(aiPollTimer)
+      aiLoading.value = null
+    }
+  }, 3000)
+}
 
 async function loadExams() {
   try {
@@ -173,9 +224,19 @@ onMounted(loadExams)
   margin-bottom: 16px;
 }
 
+.subject-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
 .subject-name {
   font-size: 16px;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin: 0;
+}
+.subject-actions {
+  display: flex;
+  gap: 8px;
 }
 </style>

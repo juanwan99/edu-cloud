@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user
+from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Exam, Question, Subject, QUESTION_TYPES_SUBJECTIVE
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
 from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.modules.card.models import Template
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -428,6 +431,28 @@ async def get_dispatch_status(
 
     from edu_cloud.modules.scan import pipeline_service
 
+    # 一次性扫描根目录，构建科目→图片数映射
+    scan_root = Path(settings.UPLOAD_DIR).resolve() / "scan-input" / exam_id
+    scan_dir_map = {}
+    if scan_root.is_dir():
+        for sub in scan_root.iterdir():
+            if sub.is_dir():
+                a_count = sum(
+                    1 for f in sub.iterdir()
+                    if f.is_file() and f.suffix.lower() in (".png", ".jpg", ".bmp") and f.stem.endswith("A")
+                )
+                if a_count > 0:
+                    scan_dir_map[sub.name] = a_count
+
+    # 批量查 Template
+    tpl_rows = (await db.execute(
+        select(Template.subject_id).where(
+            Template.subject_id.in_([s.id for s in subjects]),
+            Template.side == "A",
+        )
+    )).scalars().all()
+    tpl_set = set(tpl_rows)
+
     result = []
     for subj in subjects:
         # 统计 StudentAnswer
@@ -500,20 +525,29 @@ async def get_dispatch_status(
             has_rubric = rubric_count > 0
         can_ai_grade = has_subjective_answers and has_rubric and len(subjective_q_ids) > 0
 
+        has_scan_dir = subj.name in scan_dir_map
+        has_template = subj.id in tpl_set
+
         is_cutting = (
             pipeline_service.is_running()
             and pipeline_service.get_progress().get("current_subject_id") == subj.id
         )
+
+        # stage 推导：idle → pending_detect → pending_cut → cutting → ready → ai_grading → reviewing → done
         if is_cutting:
             stage = "cutting"
-        elif answer_count == 0:
+        elif answer_count == 0 and not has_scan_dir:
             stage = "idle"
+        elif answer_count == 0 and has_scan_dir and not has_template:
+            stage = "pending_detect"
+        elif answer_count == 0 and has_scan_dir and has_template:
+            stage = "pending_cut"
         elif not grading_task and can_ai_grade:
             stage = "ready"
         elif not grading_task:
-            stage = "idle"  # 有选择题答案但无主观题/Rubric，不算 ready
+            stage = "pending_cut" if has_template else "idle"
         elif grading_task.status == "failed":
-            stage = "failed"  # F005: 显式处理 failed，不折叠成 done
+            stage = "failed"
         elif grading_task.status in ("pending", "processing"):
             stage = "ai_grading"
         elif grading_task.status == "completed" and reviewed < ai_graded:
@@ -521,12 +555,17 @@ async def get_dispatch_status(
         else:
             stage = "done"
 
+        scan_image_count = scan_dir_map.get(subj.name, 0)
+
         result.append({
             "subject_id": subj.id,
             "subject_name": subj.name,
             "subject_code": subj.code,
             "stage": stage,
-            "scan_images": answer_count,
+            "scan_images": scan_image_count,
+            "has_scan_dir": has_scan_dir,
+            "has_template": has_template,
+            "answer_count": answer_count,
             "objective_total": objective_graded,
             "objective_graded": objective_graded,
             "subjective_total": subjective_total,
