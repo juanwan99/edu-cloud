@@ -290,7 +290,7 @@ tests/
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 8 角色映射 | — |
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 1958 后端 + 234 前端 Vitest（ECS 实测 @ 2026-04-22） | — |
+| Tests | 1962 后端 + 234 前端 Vitest（ECS 实测 @ 2026-04-23） | — |
 | Modules | 20 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu），路由已迁入；其中 `adaptive`/`paper` 为内部服务模块（无 HTTP router） | — |
 | Migrations | Alembic migration（85 表，25 个迁移） | — |
 
@@ -471,6 +471,8 @@ tests/
 | GET/PATCH | `/api/v1/exams/{id}` | 详情/更新考试 |
 | POST/GET | `/api/v1/exams/{id}/subjects` | 创建/列表科目 |
 | POST/GET/PATCH/DELETE | `/api/v1/questions` | 题目 CRUD |
+| PUT | `/api/v1/questions/{id}/content` | 更新题干/参考答案（MANAGE_EXAMS，含 content/content_images/reference_answer/reference_answer_images） |
+| POST | `/api/v1/questions/{id}/content/upload-image` | Multipart 上传题目图片（MANAGE_EXAMS），返回 `{"path": "/uploads/questions/..."}` |
 | GET/POST | `/api/v1/classes`, `/api/v1/students` | 班级/学生管理（含 grade/selection/subject_code 过滤 + 导入导出） |
 | GET | `/api/v1/grades` | 年级列表 |
 | * | `/api/v1/teachers` | 教师 CRUD + 导入导出（15 列档案 + 角色/学科/班级） |
