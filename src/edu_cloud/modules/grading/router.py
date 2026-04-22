@@ -761,6 +761,53 @@ async def get_dispatch_status(
             has_rubric = rubric_count > 0
         can_ai_grade = has_subjective_answers and has_rubric and len(subjective_q_ids) > 0
 
+        # Query question details for this subject
+        questions_info = []
+        if subjective_q_ids:
+            # Get all subjective questions with their content/rubric/grading status
+            subj_questions = (await db.execute(
+                select(Question).where(
+                    Question.id.in_(subjective_q_ids),
+                )
+            )).scalars().all()
+
+            for q in subj_questions:
+                # Check if rubric exists
+                q_rubric = (await db.execute(
+                    select(Rubric).where(
+                        Rubric.question_id == q.id,
+                        Rubric.school_id == effective_school_id,
+                    )
+                )).scalar_one_or_none()
+
+                # Count answers for this question
+                q_answer_count = (await db.execute(
+                    select(func.count(StudentAnswer.id)).where(
+                        StudentAnswer.question_id == q.id,
+                        StudentAnswer.school_id == effective_school_id,
+                    )
+                )).scalar() or 0
+
+                # Count graded results for this question
+                q_graded_count = (await db.execute(
+                    select(func.count(GradingResult.id)).where(
+                        GradingResult.question_id == q.id,
+                        GradingResult.school_id == effective_school_id,
+                    )
+                )).scalar() or 0
+
+                questions_info.append({
+                    "question_id": q.id,
+                    "name": q.name,
+                    "question_type": q.question_type,
+                    "max_score": q.max_score,
+                    "has_content": bool(q.content or q.reference_answer),
+                    "has_rubric": q_rubric is not None,
+                    "rubric_source": q_rubric.source if q_rubric else None,
+                    "answer_count": q_answer_count,
+                    "graded_count": q_graded_count,
+                })
+
         has_scan_dir = subj.name in scan_dir_map
         has_template = subj.id in tpl_set
 
@@ -809,6 +856,7 @@ async def get_dispatch_status(
             "ai_failed": ai_failed,
             "reviewed": reviewed,
             "grading_task_id": grading_task_id,
+            "questions": questions_info,
         })
 
     return result
