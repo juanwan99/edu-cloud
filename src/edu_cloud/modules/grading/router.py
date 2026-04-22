@@ -1,3 +1,4 @@
+import base64
 import logging
 from pathlib import Path
 from typing import Literal
@@ -8,7 +9,8 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
 from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Exam, Question, Subject, QUESTION_TYPES_SUBJECTIVE
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
@@ -40,13 +42,122 @@ def _rubric_response(r: Rubric) -> dict:
     }
 
 
+def _validate_criteria(criteria: list[dict], question_max_score: float) -> None:
+    """Validate rubric criteria list.
+
+    Raises HTTPException 422 on:
+    - Missing or empty blankNo
+    - Missing or non-numeric score, or score < 0
+    - Missing or empty answer
+    - Sum of scores != question max_score
+    """
+    if not criteria:
+        raise HTTPException(422, "criteria must not be empty")
+
+    total = 0.0
+    for i, item in enumerate(criteria):
+        blank_no = item.get("blankNo")
+        if not blank_no or not isinstance(blank_no, str) or not blank_no.strip():
+            raise HTTPException(422, f"criteria[{i}] missing or empty blankNo")
+
+        score = item.get("score")
+        if score is None or not isinstance(score, (int, float)):
+            raise HTTPException(422, f"criteria[{i}] missing numeric score")
+        if score < 0:
+            raise HTTPException(422, f"criteria[{i}] score must be >= 0, got {score}")
+
+        answer = item.get("answer")
+        if not answer or not isinstance(answer, str) or not answer.strip():
+            raise HTTPException(422, f"criteria[{i}] missing or empty answer")
+
+        total += score
+
+    # Use a small tolerance for float comparison
+    if abs(total - question_max_score) > 1e-6:
+        raise HTTPException(
+            422,
+            f"Sum of criteria scores ({total}) must equal question max_score ({question_max_score})",
+        )
+
+
+# --- Rubric generation helper ---
+
+async def generate_rubric_via_llm(
+    question: Question,
+    max_score: float,
+    db: AsyncSession,
+) -> list[dict]:
+    """Build prompt and call LLM to generate rubric criteria.
+
+    Module-level function so it can be mocked in tests.
+    """
+    from edu_cloud.modules.grading.prompts import build_rubric_generation_prompt
+    from edu_cloud.modules.grading.llm_client import LLMClient
+
+    content = question.content or ""
+    reference_answer = question.reference_answer or ""
+
+    # Collect image paths from question (content_images + reference_answer_images)
+    all_image_paths: list[str] = []
+    if question.content_images:
+        all_image_paths.extend(question.content_images)
+    if question.reference_answer_images:
+        all_image_paths.extend(question.reference_answer_images)
+
+    # Convert local image paths to base64
+    upload_root = Path(settings.UPLOAD_DIR).resolve()
+    images_b64: list[str] = []
+    for img_path in all_image_paths:
+        if img_path.startswith("/uploads/"):
+            local = upload_root / img_path.split("/uploads/", 1)[1]
+        else:
+            local = upload_root / img_path
+        try:
+            local = local.resolve()
+        except Exception:
+            continue
+        if local.exists() and str(local).startswith(str(upload_root)):
+            try:
+                with open(local, "rb") as f:
+                    images_b64.append(base64.b64encode(f.read()).decode())
+            except OSError:
+                logger.warning("generate_rubric_via_llm: cannot read image %s", local)
+
+    messages = build_rubric_generation_prompt(
+        content=content,
+        reference_answer=reference_answer,
+        max_score=max_score,
+        question_type=question.question_type,
+    )
+
+    client = LLMClient(
+        api_url=settings.LLM_API_URL,
+        api_key=settings.LLM_API_KEY,
+        model=settings.LLM_MODEL,
+        timeout=settings.LLM_TIMEOUT,
+        max_retries=settings.LLM_MAX_RETRIES,
+        slot=settings.LLM_SLOT,
+    )
+    try:
+        return await client.generate_rubric(messages, images_b64=images_b64 or None)
+    finally:
+        await client.close()
+
+
+# --- Rubric generate schema ---
+
+class RubricGenerateRequest(BaseModel):
+    question_id: str
+    max_score: float
+
+
 # --- Rubric routes ---
 
 @router.post("/rubrics", status_code=201)
 async def create_or_update_rubric(
     req: RubricCreate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     # Verify question belongs to this tenant
     q_result = await db.execute(
@@ -55,8 +166,12 @@ async def create_or_update_rubric(
             Question.school_id == current["current_role"].school_id,
         )
     )
-    if not q_result.scalar_one_or_none():
+    question = q_result.scalar_one_or_none()
+    if not question:
         raise HTTPException(404, "Question not found")
+
+    # Validate criteria before saving
+    _validate_criteria(req.criteria, question.max_score)
 
     # Upsert: if rubric exists for this question, update it
     result = await db.execute(
@@ -109,6 +224,73 @@ async def get_rubric(
     return _rubric_response(rubric)
 
 
+@router.post("/rubrics/generate")
+async def generate_rubric_endpoint(
+    req: RubricGenerateRequest,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
+):
+    """AI 生成评分细则（Rubric）。
+
+    - 查 Question（校验归属）
+    - 校验 content 或 reference_answer 非空
+    - 调用 LLM 生成 criteria
+    - Upsert Rubric（source=ai_generated）
+    - 返回 rubric 响应
+    """
+    school_id = current["current_role"].school_id
+
+    # Query question with content fields
+    q_result = await db.execute(
+        select(Question).where(
+            Question.id == req.question_id,
+            Question.school_id == school_id,
+        )
+    )
+    question = q_result.scalar_one_or_none()
+    if not question:
+        raise HTTPException(404, "Question not found")
+
+    # Both content and reference_answer empty → 400
+    if not (question.content or "").strip() and not (question.reference_answer or "").strip():
+        raise HTTPException(400, "Question has no content or reference_answer; cannot generate rubric")
+
+    # Call LLM (mocked in tests via patch on generate_rubric_via_llm)
+    criteria = await generate_rubric_via_llm(question, req.max_score, db)
+
+    logger.info(
+        "generate_rubric_endpoint: question=%s, max_score=%s, criteria=%d items",
+        req.question_id, req.max_score, len(criteria),
+    )
+
+    # Upsert Rubric with source=ai_generated
+    result = await db.execute(
+        select(Rubric).where(
+            Rubric.question_id == req.question_id,
+            Rubric.school_id == school_id,
+        )
+    )
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        existing.criteria = criteria
+        existing.source = "ai_generated"
+        await db.commit()
+        await db.refresh(existing)
+        return _rubric_response(existing)
+
+    rubric = Rubric(
+        question_id=req.question_id,
+        criteria=criteria,
+        source="ai_generated",
+        school_id=school_id,
+    )
+    db.add(rubric)
+    await db.commit()
+    await db.refresh(rubric)
+    return _rubric_response(rubric)
+
+
 # --- Task schemas ---
 
 class GradingTaskCreate(BaseModel):
@@ -151,7 +333,7 @@ async def enqueue_grading_task(task_id: str) -> None:
 async def create_grading_task(
     req: GradingTaskCreate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     school_id = current["current_role"].school_id
 
@@ -356,7 +538,7 @@ async def submit_review(
     result_id: str,
     req: ReviewCreate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """教师对 AI 评分进行 approve / override 确认。
 

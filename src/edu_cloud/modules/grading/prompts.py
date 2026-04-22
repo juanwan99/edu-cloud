@@ -54,6 +54,50 @@ _SYSTEM_PROMPT_BY_TYPE = {
 SYSTEM_PROMPT = _SYSTEM_PROMPT_GENERIC
 
 
+def build_rubric_generation_prompt(
+    content: str,
+    reference_answer: str,
+    max_score: float,
+    question_type: str | None = None,
+) -> list[dict]:
+    """构建评分细则生成 prompt。
+
+    Args:
+        content: 题目内容文字
+        reference_answer: 参考答案
+        max_score: 满分
+        question_type: 题目类型（可选，用于角色提示）
+
+    Returns:
+        [{"role": "system", ...}, {"role": "user", ...}]
+    """
+    system_prompt = (
+        "你是一位资深阅卷组长，具有多年命题和评分细则编制经验。"
+        "请根据题目原文和参考答案，生成一份结构化的评分细则（Rubric）。\n\n"
+        "要求：\n"
+        "1. 按照得分点逐条拆分，每条独立计分\n"
+        "2. 所有得分点的 score 之和必须等于满分\n"
+        "3. answer 字段填写该得分点的标准答案或关键词\n"
+        "4. intent 字段说明该得分点的考查意图\n"
+        "5. coreRequirement 字段说明得分的核心要求（如\"必须包含\"、\"意思相近即可\"等）\n"
+        "6. 直接返回纯 JSON 数组（禁止 markdown 代码块），格式如下：\n"
+        '[{"blankNo": "1", "score": 数字, "answer": "标准答案", '
+        '"intent": "考查意图", "coreRequirement": "得分要求"}, ...]'
+    )
+
+    user_content = (
+        f"题目：{content}\n\n"
+        f"参考答案：{reference_answer}\n\n"
+        f"满分：{max_score} 分\n\n"
+        "请生成评分细则 JSON 数组。"
+    )
+
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content},
+    ]
+
+
 def build_grading_prompt(
     rubric: dict,
     question: dict,
