@@ -149,7 +149,11 @@ Expected: 全部 PASS
 - `PUT /questions/{id}/content` → `require_permission(Permission.MANAGE_EXAMS)`
 - `POST /questions/{id}/content/upload-image` → `require_permission(Permission.MANAGE_EXAMS)`
 - `POST /grading/rubrics/generate` → `require_permission(Permission.MANAGE_GRADING)`
+- `POST /grading/rubrics`（已有端点）→ 补加 `require_permission(Permission.MANAGE_GRADING)`
 - `POST /grading/tasks`（已有端点）→ 补加 `require_permission(Permission.MANAGE_GRADING)`
+- `POST /grading/review/{result_id}`（已有端点）→ 补加 `require_permission(Permission.MANAGE_GRADING)`
+
+注：design 中 rubrics/generate 写的 VIEW_GRADING 是笔误，统一以 plan 为准用 MANAGE_GRADING（生成和保存 Rubric 是写操作）。
 
 在 Task 3/4/5 的测试中必须包含 403 反例：用无权限角色调用新端点验证被拒。
 
@@ -353,12 +357,13 @@ Expected: FAIL
 
 ```python
             if task.question_id:
-                # AGP-001 修复：worker 也需校验 subject_id 归属（防御性断言）
+                # AGP-001 修复：worker 也需校验 subject_id 归属 + 主观题类型（防御性断言）
                 q_result = await db.execute(
                     select(Question).where(
                         Question.id == task.question_id,
                         Question.subject_id == task.subject_id,
                         Question.school_id == task.school_id,
+                        Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
                     )
                 )
             else:
@@ -396,7 +401,26 @@ if old_results:
     logger.info("create_grading_task: cleaned %d stale results before re-grading", len(old_results))
 ```
 
-这保证 worker 新建 GradingResult 时不撞 UniqueConstraint(answer_id)，同时不影响已 confirmed 的教师确认结果（ORC-001 保护）。
+同时，在 Worker 中排除已有 confirmed 结果的 answer：
+
+```python
+# Worker: 排除已确认答案，避免撞 UniqueConstraint(answer_id)
+confirmed_answer_ids = set()
+if answer_data:
+    confirmed_rows = (await db.execute(
+        select(GradingResult.answer_id).where(
+            GradingResult.answer_id.in_([a["answer_id"] for a in answer_data]),
+            GradingResult.status == "confirmed",
+        )
+    )).scalars().all()
+    confirmed_answer_ids = set(confirmed_rows)
+answer_data = [a for a in answer_data if a["answer_id"] not in confirmed_answer_ids]
+```
+
+这保证：
+- 清理 ai_pending/ai_done → worker 可新建 GradingResult
+- confirmed 答案被排除出 worker 处理范围 → 不撞 UniqueConstraint
+- ORC-001 保护：已确认结果不被覆盖
 
 - [ ] **Step 6: 运行测试确认通过**
 
@@ -720,11 +744,11 @@ git commit -m "test: add RubricEditor and endpoint smoke tests"
 
 | ID | 不变量 | verification |
 |---|---|---|
-| INV-01 | GradingResult.answer_id UniqueConstraint 不可删除 | existing_test: `test_alembic_migration.py` schema 检查 |
-| INV-02 | Rubric 与 Question 一对一（UniqueConstraint on question_id） | existing_test: `test_grading_task.py` rubric 创建 |
+| INV-01 | GradingResult.answer_id UniqueConstraint 不可删除 | new_test: `test_create_task_regrade_cleans_old_results`（验证清理 + worker 不撞约束） |
+| INV-02 | Rubric 与 Question 一对一（UniqueConstraint on question_id） | new_test: `test_rubric_create_upsert`（同 question_id 第二次调用更新而非报错） |
 | INV-03 | 科目级 GradingTask（question_id=NULL）前置校验 4 项不变 | new_test: `test_create_task_subject_level_unchanged` |
-| INV-04 | GradingResult 状态机 ai_pending→ai_done→confirmed 不可改变 | existing_test: `test_grading_review.py` |
-| INV-05 | 已 confirmed 的 GradingResult 不被重跑清理覆盖 | new_test: `test_create_task_regrade_cleans_old_results`（断言 confirmed 保留） |
+| INV-04 | GradingResult 状态机 confirmed 结果不被重跑覆盖 | new_test: `test_create_task_regrade_preserves_confirmed`（confirmed 答案排除出 worker 范围） |
+| INV-05 | Worker 题目级分支仍只处理主观题 | new_test: `test_worker_question_level_loads_single_question`（断言 SUBJECTIVE 过滤） |
 
 ### counter_examples
 
@@ -732,18 +756,26 @@ git commit -m "test: add RubricEditor and endpoint smoke tests"
 |---|---|---|---|
 | CE-01 | question_id 属于另一科目但同一学校 → 脏任务 | `test_create_task_question_wrong_subject` 返回 400 | Router 同时校验 question_id + subject_id + school_id |
 | CE-02 | Rubric criteria 总分 != Question.max_score → 错误评分 | `test_rubric_create_score_mismatch` 返回 422 | 入库前读 Question.max_score 做守恒校验 |
-| CE-03 | 重复阅卷撞 UniqueConstraint(answer_id) → 批次中断 | `test_create_task_regrade_cleans_old_results` | 创建 task 前清理 status IN (ai_pending, ai_done) 的旧结果 |
+| CE-03 | 重复阅卷撞 UniqueConstraint(answer_id) → 批次中断 | `test_create_task_regrade_cleans_old_results` | Router 清理 ai_pending/ai_done + Worker 排除 confirmed 答案 |
 
 ### risk_modules
 
 | 模块 | 风险点 | 改动文件数 |
 |---|---|---|
-| `modules/grading/router.py` | 新增 3 端点 + 改 2 端点 + dispatch 扩展 | 1 |
+| `modules/grading/router.py` | 新增 3 端点 + 改 3 端点（tasks/rubrics/review 加权限守卫）+ dispatch 扩展 | 1 |
+| `modules/grading/prompts.py` | 评分 prompt 升级返回 details + 新增 rubric 生成 prompt | 1 |
+| `modules/grading/llm_client.py` | 新增 generate_rubric 方法 + grade 解析兼容 comment/feedback | 1 |
 | `modules/exam/models.py` | Question 加 4 字段（migration） | 1 |
-| `modules/grading/models.py` | GradingTask 加 question_id（migration） | 1 |
-| `workers/grading.py` | 题目级分支 + 逐空明细存储 | 1 |
+| `modules/exam/router.py` | 新增 2 端点（content update + image upload） | 1 |
+| `modules/grading/models.py` | GradingTask 加 question_id（migration）；Rubric.criteria 类型注解改 `Mapped[list]` | 1 |
+| `workers/grading.py` | 题目级分支 + 排除 confirmed + 逐空明细存储 | 1 |
 | `core/permissions.py` | lesson_prep_leader 权限扩展 | 1 |
 | `frontend/src/config/permissions.js` | 前端权限镜像同步 | 1 |
+| `frontend/src/pages/AiGradingPage.vue` | 新页面 | 1 |
+| `frontend/src/components/RubricEditor.vue` | 新组件 | 1 |
+| `frontend/src/components/QuestionContentModal.vue` | 新组件 | 1 |
+| `frontend/src/api/grading.js` | 新增 API 方法 | 1 |
+| `frontend/src/router/index.js` | 新增路由 | 1 |
 
 ### test_debt
 
@@ -751,3 +783,10 @@ git commit -m "test: add RubricEditor and endpoint smoke tests"
 |---|---|---|
 | Worker 端到端集成测试（真实 DB + mock LLM） | 当前 worker 测试全用 mock session，首版先保持一致 | 下一轮迭代（AI 阅卷 v2） |
 | 前端 AiGradingPage 完整 E2E | 需浏览器环境，Vitest 只能测组件级 | 手动验证覆盖 |
+| dispatch/status 多任务聚合语义 | 题目级+科目级任务并存时的 stage 推导需专项测试 | AI 阅卷 v2（当前只取最新 task） |
+
+### 补充说明
+
+**Rubric.criteria 类型注解**（R2 NEW-02）：`models.py` 中 `Mapped[dict]` 改为 `Mapped[list]`，JSON 字段内容不变，只是类型注解更准确。
+
+**dispatch/status 多任务语义**（R2 NEW-01）：当前 dispatch/status 按 `subject_id` 取最新一条 GradingTask。引入题目级任务后，同一科目可能有多条 task。首版保持现有"取最新 task"行为不变——题目级任务的进度通过 `questions[].graded_count` 展示，科目级 stage 仍由最新 task 决定。完整的多任务聚合语义推迟到 AI 阅卷 v2。
