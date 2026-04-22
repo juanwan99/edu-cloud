@@ -143,11 +143,25 @@ Expected: `test_lesson_prep_leader_has_manage_grading` 和 `test_lesson_prep_lea
 Run: `cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest tests/test_services/test_permissions_grading.py -v`
 Expected: 全部 PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: 给新增端点加 require_permission 守卫（AGP-002 修复）**
+
+在实现 Task 3-5 的新端点时，必须使用 `require_permission` 依赖注入而非仅 `get_current_user`：
+- `PUT /questions/{id}/content` → `require_permission(Permission.MANAGE_EXAMS)`
+- `POST /questions/{id}/content/upload-image` → `require_permission(Permission.MANAGE_EXAMS)`
+- `POST /grading/rubrics/generate` → `require_permission(Permission.MANAGE_GRADING)`
+- `POST /grading/tasks`（已有端点）→ 补加 `require_permission(Permission.MANAGE_GRADING)`
+
+在 Task 3/4/5 的测试中必须包含 403 反例：用无权限角色调用新端点验证被拒。
+
+- [ ] **Step 6: 同步前端 permissions.js（AGP-002 修复）**
+
+在 `frontend/src/config/permissions.js` 的 `lesson_prep_leader` 权限集中添加 `manage_grading` 和 `manage_exams`，与后端保持镜像一致。
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add src/edu_cloud/core/permissions.py tests/test_services/test_permissions_grading.py
-git commit -m "feat(permissions): add MANAGE_GRADING and MANAGE_EXAMS to lesson_prep_leader"
+git add src/edu_cloud/core/permissions.py tests/test_services/test_permissions_grading.py frontend/src/config/permissions.js
+git commit -m "feat(permissions): add MANAGE_GRADING and MANAGE_EXAMS to lesson_prep_leader with endpoint guards"
 ```
 
 ---
@@ -253,16 +267,50 @@ Expected: FAIL
    - Upsert Rubric（source="ai_generated"）
    - 返回 rubric response
 
-- [ ] **Step 6: 运行测试确认通过**
+- [ ] **Step 6: 加强 RubricCreate 校验（AGP-003 修复）**
+
+修改 `POST /grading/rubrics` 端点，入库前校验 criteria 结构：
+1. 每个 item 必须有 `blankNo`（str）和 `score`（number >= 0）
+2. `answer` 字段必须非空（AI 生成时自动填充，手动编辑时也必须填）
+3. 所有 item 的 `score` 之和必须等于 `Question.max_score`（需查 DB）
+4. 不满足时返回 422
+
+新增测试：
+- `test_rubric_create_missing_fields` — 缺 blankNo 返回 422
+- `test_rubric_create_score_mismatch` — 总分不等于 max_score 返回 422
+- `test_rubric_create_negative_score` — 负分返回 422
+
+- [ ] **Step 7: 补图片→base64 实现（AGP-005 修复）**
+
+在 `generate_rubric_via_llm` 函数中，明确实现图片路径→本地文件→base64 转换：
+```python
+import base64
+from pathlib import Path
+
+upload_root = Path(settings.UPLOAD_DIR).resolve()
+images_b64 = []
+for img_path in all_image_paths:
+    if img_path.startswith("/uploads/"):
+        local = upload_root / img_path.split("/uploads/", 1)[1]
+    else:
+        local = upload_root / img_path
+    if local.exists() and str(local.resolve()).startswith(str(upload_root)):
+        with open(local, "rb") as f:
+            images_b64.append(base64.b64encode(f.read()).decode())
+```
+
+新增测试：`test_generate_rubric_with_images` — mock LLM 验证图片 base64 被传入 messages
+
+- [ ] **Step 8: 运行测试确认通过**
 
 Run: `cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest tests/test_api_exam/test_rubric_generate.py -v`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add src/edu_cloud/modules/grading/prompts.py src/edu_cloud/modules/grading/llm_client.py src/edu_cloud/modules/grading/router.py tests/test_api_exam/test_rubric_generate.py
-git commit -m "feat(grading): add AI rubric generation endpoint with LLM integration"
+git commit -m "feat(grading): add AI rubric generation with validation and image support"
 ```
 
 ---
@@ -281,6 +329,8 @@ git commit -m "feat(grading): add AI rubric generation endpoint with LLM integra
 1. `test_create_task_with_question_id` — 传 question_id 创建成功，返回中含 question_id
 2. `test_create_task_question_no_rubric` — 题目无 Rubric 时 400
 3. `test_create_task_subject_level_unchanged` — ORC-002: 不传 question_id 走科目级逻辑不变
+4. `test_create_task_question_wrong_subject` — question_id 属于另一科目时 400（AGP-001 反例）
+5. `test_create_task_regrade_cleans_old_results` — 重复阅卷时先清理旧 ai_pending/ai_done 的 GradingResult（AGP-004 反例）
 
 - [ ] **Step 2: 运行测试确认失败**
 
@@ -292,9 +342,10 @@ Expected: FAIL
 1. `GradingTaskCreate` 加 `question_id: str | None = None`
 2. `_task_response` 加 `"question_id": t.question_id`
 3. `create_grading_task` 中:
-   - `if req.question_id:` → 题目级校验（题目存在+主观题+有 Rubric+有 StudentAnswer）
+   - `if req.question_id:` → 题目级校验（AGP-001 修复：必须同时校验 `Question.id == req.question_id AND Question.subject_id == req.subject_id AND Question.school_id == school_id AND question_type IN SUBJECTIVE`，缺任一返回 400 "该题目不存在、不属于该科目或非主观题"）+ 有 Rubric + 有 StudentAnswer
    - `else:` → 现有科目级校验原封不动（ORC-002）
    - `GradingTask(question_id=req.question_id, ...)` 构造时传入
+   - 新增反例测试：`test_create_task_question_wrong_subject` — question_id 属于另一科目时返回 400
 
 - [ ] **Step 4: 修改 Worker**
 
@@ -302,8 +353,13 @@ Expected: FAIL
 
 ```python
             if task.question_id:
+                # AGP-001 修复：worker 也需校验 subject_id 归属（防御性断言）
                 q_result = await db.execute(
-                    select(Question).where(Question.id == task.question_id, Question.school_id == task.school_id)
+                    select(Question).where(
+                        Question.id == task.question_id,
+                        Question.subject_id == task.subject_id,
+                        Question.school_id == task.school_id,
+                    )
                 )
             else:
                 q_result = await db.execute(
@@ -317,7 +373,32 @@ Expected: FAIL
 
 StudentAnswer 查询同理按 question_id 过滤。
 
-- [ ] **Step 5: 运行测试确认通过**
+- [ ] **Step 5: 重跑语义（AGP-004 修复）**
+
+在 `create_grading_task` 端点中，创建 GradingTask 之前，检查并清理旧的未确认结果：
+```python
+# 重跑语义：清理该范围内 status != 'confirmed' 的旧 GradingResult
+# （已 confirmed 的由教师确认过，不可覆盖）
+old_filter = [
+    GradingResult.school_id == school_id,
+    GradingResult.status.in_(["ai_pending", "ai_done"]),
+]
+if req.question_id:
+    old_filter.append(GradingResult.question_id == req.question_id)
+else:
+    old_filter.append(GradingResult.question_id.in_(subjective_q_ids))
+
+old_results = (await db.execute(select(GradingResult).where(*old_filter))).scalars().all()
+for old in old_results:
+    await db.delete(old)
+if old_results:
+    await db.commit()
+    logger.info("create_grading_task: cleaned %d stale results before re-grading", len(old_results))
+```
+
+这保证 worker 新建 GradingResult 时不撞 UniqueConstraint(answer_id)，同时不影响已 confirmed 的教师确认结果（ORC-001 保护）。
+
+- [ ] **Step 6: 运行测试确认通过**
 
 Run: `cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest tests/test_api_exam/test_grading_task_question.py -v`
 Expected: PASS
@@ -407,16 +488,51 @@ def test_grading_prompt_backward_compat():
 
 在 `_grade_single` 返回 dict 中透传 parsed details（从 raw_content 解析）。
 
-- [ ] **Step 5: 运行测试**
+- [ ] **Step 5: 补充 Worker 行为测试（AGP-006 修复）**
+
+在 `tests/test_workers/test_grading_detail.py` 中追加：
+
+```python
+import pytest
+from unittest.mock import AsyncMock, patch, MagicMock
+
+
+@pytest.mark.asyncio
+async def test_worker_question_level_loads_single_question():
+    """题目级任务只加载指定 question 的答案。"""
+    # mock db + llm, 验证 select(Question).where(Question.id == task.question_id) 被调用
+    # 验证 answer_data 只含该 question_id 的答案
+    pass  # Executor 按此契约实现完整 mock
+
+
+@pytest.mark.asyncio
+async def test_worker_stores_details_in_raw_response():
+    """Worker 将 LLM 返回的 details 存入 ai_raw_response.details。"""
+    # mock llm.grade 返回含 details 的 raw_content
+    # 验证 GradingResult.ai_raw_response["details"] 非空
+    pass  # Executor 按此契约实现完整 mock
+
+
+def test_llm_client_comment_to_feedback_compat():
+    """LLM 返回 comment 字段时映射到 GradeResponse.feedback。"""
+    from edu_cloud.modules.grading.llm_client import GradeResponse
+    # 模拟解析 {"score": 4, "comment": "好", "confidence": 0.9, "details": [...]}
+    # 验证 GradeResponse.feedback == "好"
+    pass  # Executor 按此契约实现
+```
+
+每个测试的 `pass` 注释标明了契约意图，Executor 必须实现完整 mock 和断言。
+
+- [ ] **Step 6: 运行测试**
 
 Run: `cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest tests/test_workers/test_grading_detail.py -v`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/edu_cloud/modules/grading/prompts.py src/edu_cloud/modules/grading/llm_client.py src/edu_cloud/workers/grading.py tests/test_workers/test_grading_detail.py
-git commit -m "feat(grading): upgrade prompts for per-blank scoring details"
+git commit -m "feat(grading): upgrade prompts for per-blank scoring details with worker tests"
 ```
 
 ---
@@ -558,19 +674,80 @@ Expected: 全部 PASS
 Run: `cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q 2>&1 | tail -5`
 Expected: 无新增 FAIL（基线 1933 passed）
 
-- [ ] **Step 4: 重启后端验证端点可达**
+- [ ] **Step 4: 端点可达验证（AGP-007 修复：不 kill 全局进程）**
 
-```bash
-kill $(ps aux | grep 'uvicorn edu_cloud' | grep -v grep | awk '{print $2}') 2>/dev/null
-cd /home/ops/projects/edu-cloud && .venv/bin/python -m uvicorn edu_cloud.api.app:create_app --factory --host 0.0.0.0 --port 9000 > /tmp/uvicorn.log 2>&1 &
-sleep 3
-curl -s -o /dev/null -w '%{http_code}' http://localhost:9000/api/v1/grading/rubrics/generate
+用 pytest httpx AsyncClient 验证新端点注册成功（复用 conftest 的 client fixture）：
+
+```python
+# tests/test_api_exam/test_endpoint_smoke.py
+@pytest.mark.asyncio
+async def test_rubric_generate_endpoint_exists(client, admin_headers):
+    resp = await client.post("/api/v1/grading/rubrics/generate", json={}, headers=admin_headers)
+    assert resp.status_code != 404  # 422 或 400 都说明端点存在
+
+@pytest.mark.asyncio
+async def test_question_content_endpoint_exists(client, admin_headers):
+    resp = await client.put("/api/v1/questions/fake/content", json={}, headers=admin_headers)
+    assert resp.status_code != 404
+
+@pytest.mark.asyncio
+async def test_dispatch_status_returns_questions(client, db_engine, admin_headers):
+    """AGP-006: dispatch/status 返回 questions 字段。"""
+    from tests.helpers import create_exam_with_question
+    exam, subj, q = await create_exam_with_question(db_engine, question_type="essay")
+    resp = await client.get(f"/api/v1/grading/dispatch/status?exam_id={exam.id}", headers=admin_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) > 0
+    assert "questions" in data[0]
 ```
-Expected: 401 或 422（端点存在，不是 404）
+
+Run: `cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest tests/test_api_exam/test_endpoint_smoke.py -v`
+Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/components/__tests__/RubricEditor.spec.js
-git commit -m "test(frontend): add RubricEditor component tests"
+git add frontend/src/components/__tests__/RubricEditor.spec.js tests/test_api_exam/test_endpoint_smoke.py
+git commit -m "test: add RubricEditor and endpoint smoke tests"
 ```
+
+---
+
+## Contract Pack（AGP-008 修复）
+
+### invariants
+
+| ID | 不变量 | verification |
+|---|---|---|
+| INV-01 | GradingResult.answer_id UniqueConstraint 不可删除 | existing_test: `test_alembic_migration.py` schema 检查 |
+| INV-02 | Rubric 与 Question 一对一（UniqueConstraint on question_id） | existing_test: `test_grading_task.py` rubric 创建 |
+| INV-03 | 科目级 GradingTask（question_id=NULL）前置校验 4 项不变 | new_test: `test_create_task_subject_level_unchanged` |
+| INV-04 | GradingResult 状态机 ai_pending→ai_done→confirmed 不可改变 | existing_test: `test_grading_review.py` |
+| INV-05 | 已 confirmed 的 GradingResult 不被重跑清理覆盖 | new_test: `test_create_task_regrade_cleans_old_results`（断言 confirmed 保留） |
+
+### counter_examples
+
+| ID | 反例描述 | tests_that_still_pass | mitigation |
+|---|---|---|---|
+| CE-01 | question_id 属于另一科目但同一学校 → 脏任务 | `test_create_task_question_wrong_subject` 返回 400 | Router 同时校验 question_id + subject_id + school_id |
+| CE-02 | Rubric criteria 总分 != Question.max_score → 错误评分 | `test_rubric_create_score_mismatch` 返回 422 | 入库前读 Question.max_score 做守恒校验 |
+| CE-03 | 重复阅卷撞 UniqueConstraint(answer_id) → 批次中断 | `test_create_task_regrade_cleans_old_results` | 创建 task 前清理 status IN (ai_pending, ai_done) 的旧结果 |
+
+### risk_modules
+
+| 模块 | 风险点 | 改动文件数 |
+|---|---|---|
+| `modules/grading/router.py` | 新增 3 端点 + 改 2 端点 + dispatch 扩展 | 1 |
+| `modules/exam/models.py` | Question 加 4 字段（migration） | 1 |
+| `modules/grading/models.py` | GradingTask 加 question_id（migration） | 1 |
+| `workers/grading.py` | 题目级分支 + 逐空明细存储 | 1 |
+| `core/permissions.py` | lesson_prep_leader 权限扩展 | 1 |
+| `frontend/src/config/permissions.js` | 前端权限镜像同步 | 1 |
+
+### test_debt
+
+| 项 | 理由 | deadline |
+|---|---|---|
+| Worker 端到端集成测试（真实 DB + mock LLM） | 当前 worker 测试全用 mock session，首版先保持一致 | 下一轮迭代（AI 阅卷 v2） |
+| 前端 AiGradingPage 完整 E2E | 需浏览器环境，Vitest 只能测组件级 | 手动验证覆盖 |
