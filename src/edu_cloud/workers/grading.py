@@ -4,6 +4,7 @@
 """
 import asyncio
 import base64
+import json
 import logging
 import time
 import aiofiles
@@ -202,6 +203,14 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                         errors.append(error_dict)
                         batch_failed += 1
                     else:
+                        # Parse details from raw response
+                        details = None
+                        try:
+                            raw_parsed = json.loads(result_dict["raw_content"])
+                            details = raw_parsed.get("details")
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+
                         gr = GradingResult(
                             ai_task_id=task.id,
                             answer_id=result_dict["answer_id"],
@@ -210,7 +219,10 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                             ai_score=result_dict["score"],
                             ai_confidence=result_dict["confidence"],
                             ai_feedback=result_dict["feedback"],
-                            ai_raw_response={"raw_content": result_dict["raw_content"]},
+                            ai_raw_response={
+                                "raw_content": result_dict["raw_content"],
+                                "details": details,
+                            },
                             final_score=result_dict["score"],
                             max_score=result_dict["max_score"],
                             status="ai_done",

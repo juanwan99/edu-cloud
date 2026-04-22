@@ -95,7 +95,7 @@ class LLMClient:
                 return GradeResponse(
                     score=min(max(parsed.get("score", 0), 0), max_score),
                     max_score=max_score,
-                    feedback=parsed.get("feedback", ""),
+                    feedback=parsed.get("comment", parsed.get("feedback", "")),
                     confidence=parsed.get("confidence", 0.0),
                     raw_content=content,
                 )
