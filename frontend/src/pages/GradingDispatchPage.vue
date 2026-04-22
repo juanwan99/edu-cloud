@@ -135,6 +135,7 @@
             <n-button v-if="s.stage === 'ready'" size="small" type="warning" @click="handleStartGrade(s)" :loading="gradingLoading === s.subject_id">AI 阅卷</n-button>
             <n-button v-if="s.stage === 'failed'" size="small" type="error" @click="handleStartGrade(s)">重试</n-button>
             <n-button v-if="s.stage === 'reviewing'" size="small" @click="$router.push({ name: 'MarkingSelect' })">去校对</n-button>
+            <n-button size="small" @click="goToAiGrading(s)">AI 阅卷</n-button>
           </div>
         </div>
 
@@ -165,7 +166,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { NSelect, NButton, NCheckbox } from 'naive-ui'
-import { useMessage } from 'naive-ui'
+import { useMessage, useDialog } from 'naive-ui'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { SCHOOL_ADMIN_ROLES } from '../config/roles.js'
 import { listExams } from '../api/exams'
@@ -174,6 +176,7 @@ import { uploadScanFolder, scanDirectory, startPipeline, getPipelineProgress, st
 import TemplatePreviewEditor from '../components/TemplatePreviewEditor.vue'
 
 const message = useMessage()
+const router = useRouter()
 const auth = useAuthStore()
 
 const canManageAll = computed(() => SCHOOL_ADMIN_ROLES.includes(auth.roleName))
@@ -653,6 +656,10 @@ async function handleBatchGrade() {
     }
   }
   await loadStatus(selectedExamId.value)
+}
+
+function goToAiGrading(s) {
+  router.push(`/exams/${selectedExamId.value}/ai-grading/${s.subject_id}`)
 }
 
 function toggleSubject(id, checked) {

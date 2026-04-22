@@ -28,6 +28,9 @@ export const routes = [
       { path: 'marking/grade/:questionId', name: 'Review', component: () => import('../pages/ReviewPage.vue'), meta: { roles: MARKING_ROLES } },
       { path: 'marking/assign', name: 'MarkingAssign', component: () => import('../pages/MarkingAssignPage.vue'), meta: { roles: SCHOOL_ADMIN_ROLES } },
       { path: 'marking/progress', name: 'MarkingProgress', component: () => import('../pages/MarkingProgressPage.vue'), meta: { roles: MARKING_ROLES } },
+      { path: 'exams/:examId/ai-grading/:subjectId', name: 'AiGrading',
+        component: () => import('../pages/AiGradingPage.vue'),
+        meta: { roles: GRADING_DISPATCH_ROLES } },
 
       // 人员信息
       { path: 'students', name: 'Students', component: () => import('../pages/StudentsPage.vue'), meta: { permissions: ['view_students', 'manage_scheduling'] } },
