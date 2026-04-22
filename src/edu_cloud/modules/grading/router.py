@@ -295,12 +295,14 @@ async def generate_rubric_endpoint(
 
 class GradingTaskCreate(BaseModel):
     subject_id: str
+    question_id: str | None = None
 
 
 def _task_response(t: GradingTask) -> dict:
     return {
         "id": t.id,
         "subject_id": t.subject_id,
+        "question_id": t.question_id,
         "status": t.status,
         "total": t.total,
         "completed": t.completed,
@@ -347,41 +349,93 @@ async def create_grading_task(
     if not result.scalar_one_or_none():
         raise HTTPException(404, "Subject not found")
 
-    # 前置校验 2：至少 1 道主观题（L72 worker fast-path 会 trivially completed）
-    subjective_q_ids = (await db.execute(
-        select(Question.id).where(
-            Question.subject_id == req.subject_id,
-            Question.school_id == school_id,
-            Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
-        )
-    )).scalars().all()
-    if not subjective_q_ids:
-        raise HTTPException(400, "该科目无主观题，无需 AI 阅卷")
+    if req.question_id:
+        # --- Question-level path ---
+        # AGP-001: validate question belongs to subject AND is subjective
+        q_row = (await db.execute(
+            select(Question).where(
+                Question.id == req.question_id,
+                Question.subject_id == req.subject_id,
+                Question.school_id == school_id,
+                Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
+            )
+        )).scalar_one_or_none()
+        if not q_row:
+            raise HTTPException(400, "该题目不存在、不属于该科目或非主观题")
 
-    # 前置校验 3：主观题已配置评分标准 Rubric（L120 worker 每条 answer 都会 failed）
-    rubric_count = (await db.execute(
-        select(func.count(Rubric.id)).where(
-            Rubric.question_id.in_(subjective_q_ids),
-            Rubric.school_id == school_id,
-        )
-    )).scalar() or 0
-    if rubric_count == 0:
-        raise HTTPException(400, "请先为主观题配置评分标准（Rubric）后再启动 AI 阅卷")
+        # Check Rubric exists for this question
+        rubric_exists = (await db.execute(
+            select(func.count(Rubric.id)).where(
+                Rubric.question_id == req.question_id,
+                Rubric.school_id == school_id,
+            )
+        )).scalar() or 0
+        if rubric_exists == 0:
+            raise HTTPException(400, "请先为该题目配置评分标准（Rubric）")
 
-    # 前置校验 4：至少 1 条 StudentAnswer（worker total=0 虚假 completed）
-    answer_count = (await db.execute(
-        select(func.count(StudentAnswer.id)).where(
-            StudentAnswer.subject_id == req.subject_id,
-            StudentAnswer.school_id == school_id,
-            StudentAnswer.question_id.in_(subjective_q_ids),
-        )
-    )).scalar() or 0
-    if answer_count == 0:
-        raise HTTPException(400, "该科目暂无可批改答卷，请先完成扫描与切图")
+        # Check StudentAnswer exists for this question
+        ans_count = (await db.execute(
+            select(func.count(StudentAnswer.id)).where(
+                StudentAnswer.question_id == req.question_id,
+                StudentAnswer.school_id == school_id,
+            )
+        )).scalar() or 0
+        if ans_count == 0:
+            raise HTTPException(400, "该题目暂无可批改答卷")
+
+        # AGP-004: Regrade semantics - clean old ai_pending/ai_done results
+        old_results = (await db.execute(
+            select(GradingResult).where(
+                GradingResult.question_id == req.question_id,
+                GradingResult.school_id == school_id,
+                GradingResult.status.in_(["ai_pending", "ai_done"]),
+            )
+        )).scalars().all()
+        for old in old_results:
+            await db.delete(old)
+        if old_results:
+            await db.commit()
+            logger.info("create_grading_task: cleaned %d stale results for question=%s",
+                        len(old_results), req.question_id)
+
+    else:
+        # --- Subject-level path (ORC-002: unchanged) ---
+        # 前置校验 2：至少 1 道主观题（L72 worker fast-path 会 trivially completed）
+        subjective_q_ids = (await db.execute(
+            select(Question.id).where(
+                Question.subject_id == req.subject_id,
+                Question.school_id == school_id,
+                Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
+            )
+        )).scalars().all()
+        if not subjective_q_ids:
+            raise HTTPException(400, "该科目无主观题，无需 AI 阅卷")
+
+        # 前置校验 3：主观题已配置评分标准 Rubric（L120 worker 每条 answer 都会 failed）
+        rubric_count = (await db.execute(
+            select(func.count(Rubric.id)).where(
+                Rubric.question_id.in_(subjective_q_ids),
+                Rubric.school_id == school_id,
+            )
+        )).scalar() or 0
+        if rubric_count == 0:
+            raise HTTPException(400, "请先为主观题配置评分标准（Rubric）后再启动 AI 阅卷")
+
+        # 前置校验 4：至少 1 条 StudentAnswer（worker total=0 虚假 completed）
+        answer_count = (await db.execute(
+            select(func.count(StudentAnswer.id)).where(
+                StudentAnswer.subject_id == req.subject_id,
+                StudentAnswer.school_id == school_id,
+                StudentAnswer.question_id.in_(subjective_q_ids),
+            )
+        )).scalar() or 0
+        if answer_count == 0:
+            raise HTTPException(400, "该科目暂无可批改答卷，请先完成扫描与切图")
 
     # 创建 task（commit 以获得 ID），后续 enqueue 失败则清理 orphan
     task = GradingTask(
         subject_id=req.subject_id,
+        question_id=req.question_id,  # None for subject-level
         school_id=school_id,
         status="pending",
         total=0,
