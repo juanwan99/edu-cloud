@@ -71,13 +71,18 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
         roles_data = []
         for r in roles:
             ctx = await _build_role_context(r, db)
-            roles_data.append({
+            rd = {
                 "id": r.id,
                 "role": r.role,
                 "school_id": r.school_id,
                 "is_primary": r.is_primary,
                 "context": ctx,
-            })
+            }
+            if r.subject_codes:
+                rd["subject_codes"] = r.subject_codes
+            if r.class_ids:
+                rd["class_ids"] = r.class_ids
+            roles_data.append(rd)
         return {
             "access_token": token,
             "token_type": "bearer",
@@ -132,5 +137,7 @@ async def switch_role(
             "school_id": target_role.school_id,
             "is_primary": target_role.is_primary,
             "context": ctx,
+            **({"subject_codes": target_role.subject_codes} if target_role.subject_codes else {}),
+            **({"class_ids": target_role.class_ids} if target_role.class_ids else {}),
         },
     }

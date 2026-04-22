@@ -47,6 +47,13 @@
         </div>
       </div>
 
+      <!-- 一键全科检测（仅教务主任+） -->
+      <div class="batch-bar" v-if="canManageAll && detectableSubjects.length > 0 && scanResults.length > 0">
+        <n-button size="small" @click="handleBatchDetect" :loading="batchDetectLoading">
+          一键全科检测（{{ detectableSubjects.length }} 科）
+        </n-button>
+      </div>
+
       <!-- 批量操作 -->
       <div class="batch-bar" v-if="selectedSubjects.length > 0">
         <span>已选 <b>{{ selectedSubjects.length }}</b> 科</span>
@@ -148,15 +155,26 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { NSelect, NButton, NCheckbox } from 'naive-ui'
 import { useMessage } from 'naive-ui'
+import { useAuthStore } from '../stores/auth'
+import { SCHOOL_ADMIN_ROLES } from '../config/roles.js'
 import { listExams } from '../api/exams'
 import { getDispatchStatus, createTask } from '../api/grading'
 import { uploadScanFolder, scanDirectory, startPipeline, getPipelineProgress, stopPipeline, autoDetectCV, saveCVTemplate, fetchScanImageBlob } from '../api/scan'
 import TemplatePreviewEditor from '../components/TemplatePreviewEditor.vue'
 
 const message = useMessage()
+const auth = useAuthStore()
+
+const canManageAll = computed(() => SCHOOL_ADMIN_ROLES.includes(auth.roleName))
+const mySubjectCodes = computed(() => auth.currentRole?.subject_codes || null)
+
 const selectedExamId = ref(null)
 const examOptions = ref([])
-const subjects = ref([])
+const allSubjects = ref([])
+const subjects = computed(() => {
+  if (canManageAll.value || !mySubjectCodes.value) return allSubjects.value
+  return allSubjects.value.filter(s => mySubjectCodes.value.includes(s.subject_code))
+})
 const selectedSubjects = ref([])
 const loading = ref(false)
 
@@ -212,7 +230,7 @@ async function onExamChange(examId) {
   scanResults.value = []
   scanRootDir.value = ''
   if (!examId) {
-    subjects.value = []
+    allSubjects.value = []
     return
   }
   await loadStatus(examId)
@@ -237,10 +255,10 @@ async function loadStatus(examId) {
   try {
     const res = await getDispatchStatus(examId)
 
-    subjects.value = res.data || []
+    allSubjects.value = res.data || []
   } catch (e) {
     message.error('加载阅卷状态失败')
-    subjects.value = []
+    allSubjects.value = []
   } finally {
     loading.value = false
   }
@@ -286,8 +304,13 @@ function canCut(s) {
   return CUTTABLE_STAGES.includes(s.stage) && scanMatchedDir(s)
 }
 function canDetect(s) {
-  return CUTTABLE_STAGES.includes(s.stage) && scanMatchedDir(s)
+  if (!CUTTABLE_STAGES.includes(s.stage) || !scanMatchedDir(s)) return false
+  if (canManageAll.value) return true
+  if (!mySubjectCodes.value) return false
+  return mySubjectCodes.value.includes(s.subject_code)
 }
+
+const detectableSubjects = computed(() => subjects.value.filter(s => canDetect(s)))
 
 // 扫描目录
 async function handleScanDir() {
@@ -402,6 +425,41 @@ async function onEditorConfirm({ A, B }) {
   } catch (e) {
     message.error(`保存失败: ${e.response?.data?.detail || e.message}`)
   }
+}
+
+// 一键全科检测（串行，直接保存不逐科打开编辑器）
+const batchDetectLoading = ref(false)
+async function handleBatchDetect() {
+  const list = detectableSubjects.value
+  if (!list.length) return
+  batchDetectLoading.value = true
+  let ok = 0, fail = 0
+  for (const s of list) {
+    try {
+      const dir = getScanDir(s)
+      if (!dir) continue
+      const fileA = `${dir}/${scanFirstFile(s)}`
+      const fileB = fileA.replace(/A\.png$/, 'B.png')
+
+      const detectA = (await autoDetectCV(fileA)).data
+      if (detectA.regions?.length) {
+        await saveCVTemplate(s.subject_id, 'A', detectA.regions, detectA.width, detectA.height)
+      }
+
+      try {
+        const detectB = (await autoDetectCV(fileB, { priorRegions: detectA.regions })).data
+        if (detectB.regions?.length) {
+          await saveCVTemplate(s.subject_id, 'B', detectB.regions, detectB.width, detectB.height)
+        }
+      } catch (_) { /* 无 B 面 */ }
+
+      ok++
+    } catch (_) {
+      fail++
+    }
+  }
+  batchDetectLoading.value = false
+  message.success(`全科检测完成：${ok} 科成功${fail ? `，${fail} 科失败` : ''}`)
 }
 
 function scanFirstFile(subjectStatus) {

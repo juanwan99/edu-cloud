@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AppShell from '../layouts/AppShell.vue'
-import { SCHOOL_ADMIN_ROLES, EXAM_ROLES, MARKING_ROLES, normalizeRole } from '../config/roles.js'
+import { SCHOOL_ADMIN_ROLES, EXAM_ROLES, MARKING_ROLES, GRADING_DISPATCH_ROLES, normalizeRole } from '../config/roles.js'
 import { hasPermission } from '../config/permissions.js'
 
 // Frozen 2026-04-19: only exam + grading + personnel
@@ -22,7 +22,7 @@ export const routes = [
       { path: 'card-dev/:examId', name: 'CardEditorDev', component: () => import('../pages/CardEditorDevPage.vue'), meta: { roles: EXAM_ROLES } },
 
       // 阅卷
-      { path: 'grading/tasks', name: 'GradingDispatch', component: () => import('../pages/GradingDispatchPage.vue'), meta: { roles: SCHOOL_ADMIN_ROLES } },
+      { path: 'grading/tasks', name: 'GradingDispatch', component: () => import('../pages/GradingDispatchPage.vue'), meta: { roles: GRADING_DISPATCH_ROLES } },
       { path: 'grading/tasks/:id', name: 'GradingResults', component: () => import('../pages/GradingResultsPage.vue'), meta: { roles: SCHOOL_ADMIN_ROLES } },
       { path: 'marking', name: 'MarkingSelect', component: () => import('../pages/MarkingSelectPage.vue'), meta: { roles: MARKING_ROLES } },
       { path: 'marking/grade/:questionId', name: 'Review', component: () => import('../pages/ReviewPage.vue'), meta: { roles: MARKING_ROLES } },

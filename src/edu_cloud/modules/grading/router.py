@@ -524,6 +524,7 @@ async def get_dispatch_status(
         result.append({
             "subject_id": subj.id,
             "subject_name": subj.name,
+            "subject_code": subj.code,
             "stage": stage,
             "scan_images": answer_count,
             "objective_total": objective_graded,

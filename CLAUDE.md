@@ -136,6 +136,7 @@ frontend/src/
       AiFloatingButton.vue  # 右下角 AI 助手浮动按钮（权限 use_ai_chat 控制可见性）
       AiSlidePanel.vue      # 右侧 400px 滑出 AI 面板（路由变化自动关闭）
     CardEditor.vue          # 可视化答题卡编辑器（封装 card-editor/）
+    TemplatePreviewEditor.vue # 扫描模板区域编辑器（检测结果叠加+拖拽/缩放/分割，A/B双面）
     analytics/
       ScoreSegmentSettings.vue # 分数段配置（学校默认+科目覆盖，嵌入 SchoolSettingsPage）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
@@ -383,7 +384,7 @@ tests/
 
 | 方法 | 路径 | 用途 |
 |------|------|------|
-| POST | `/api/v1/auth/login` | 平台用户登录，返回 JWT + roles（含 context: type/id/name） |
+| POST | `/api/v1/auth/login` | 平台用户登录，返回 JWT + roles（含 context: type/id/name + 可选 subject_codes/class_ids） |
 | POST | `/api/v1/auth/switch-role` | 切换活跃角色，返回新 JWT + active_role（含 context） |
 | GET | `/api/v1/health` | 健康检查 |
 | GET | `/api/v1/version` | 版本+启动时间 |
@@ -482,8 +483,11 @@ tests/
 | POST | `/api/v1/scan/pipeline/stop` | 停止流水线 |
 | POST | `/api/v1/scan/pipeline/preview` | 预览扫描图切割标注（base64） |
 | POST | `/api/v1/scan/pipeline/import-tpl` | 导入 .tpl 文件到 Template 表 |
+| GET | `/api/v1/scan/pipeline/scan-image` | 提供扫描图片 HTTP 访问（模板编辑器用，限 uploads 目录） |
+| POST | `/api/v1/scan/pipeline/auto-detect-cv` | OpenCV+LLM 混合检测答题卡区域（VIEW_GRADING） |
+| POST | `/api/v1/scan/pipeline/save-cv-template` | 保存检测结果为 Template（VIEW_GRADING） |
 | * | `/api/v1/grading/*` | AI 阅卷/评分规则/教师审核 |
-| GET | `/api/v1/grading/dispatch/status` | 科目阅卷状态聚合（exam_id 查询参数，返回各科目 stage/统计） |
+| GET | `/api/v1/grading/dispatch/status` | 科目阅卷状态聚合（exam_id 查询参数，返回各科目 subject_code/stage/统计） |
 | POST | `/api/v1/grading/tasks` | 创建 AI 阅卷任务（前置校验 4 项：Subject 归属/主观题存在/Rubric 存在/StudentAnswer 存在；enqueue 失败清理 orphan task 并返回 503）|
 | GET | `/api/v1/grading/tasks` | 列出本校 AI 阅卷任务 |
 | GET | `/api/v1/grading/tasks/{task_id}` | 阅卷任务详情 |

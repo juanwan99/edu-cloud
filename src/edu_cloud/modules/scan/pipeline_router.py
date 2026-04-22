@@ -15,7 +15,8 @@ from edu_cloud.config import settings
 from edu_cloud.database import get_db
 # R4-F001: 运行时属性查找，让 client fixture monkey-patch 生效
 import edu_cloud.database as db_mod
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
 from edu_cloud.modules.exam.models import Subject, Question, QUESTION_TYPES_OBJECTIVE
 from edu_cloud.modules.card.models import Template
 from edu_cloud.modules.scan.models import StudentAnswer
@@ -251,7 +252,10 @@ class ScanDirRequest(BaseModel):
 
 
 @router.post("/scan-dir")
-async def scan_directory(req: ScanDirRequest):
+async def scan_directory(
+    req: ScanDirRequest,
+    current: dict = Depends(get_current_user),
+):
     """扫描目录结构，返回科目子文件夹和图片统计。"""
     d = Path(req.dir_path)
     if not d.is_dir():
@@ -475,13 +479,13 @@ async def start_pipeline(
 
 
 @router.get("/progress")
-async def get_progress():
+async def get_progress(current: dict = Depends(get_current_user)):
     """获取流水线进度。"""
     return pipeline_service.get_progress()
 
 
 @router.post("/stop")
-async def stop_pipeline():
+async def stop_pipeline(current: dict = Depends(get_current_user)):
     """停止流水线。"""
     if not pipeline_service.is_running():
         raise HTTPException(400, "流水线未在运行")
@@ -651,7 +655,7 @@ from edu_cloud.modules.scan.auto_detect_cv import AutoDetectCVRequest, auto_dete
 @router.post('/auto-detect-cv')
 async def auto_detect_cv_api(
     req: AutoDetectCVRequest,
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
 ):
     return await auto_detect_cv_regions(req)
 
@@ -670,7 +674,7 @@ class SaveCVTemplateRequest(BaseModel):
 async def save_cv_template(
     req: SaveCVTemplateRequest,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
 ):
     """将 CV 检测结果保存/更新为 Template（upsert）。"""
     school_id = current["current_role"].school_id
