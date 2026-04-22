@@ -1,0 +1,17 @@
+{
+  "topic": "2026-04-22-ai-grading-b-end",
+  "tier": "T3",
+  "created": "2026-04-22T23:44:09.835557+08:00",
+  "gates": {
+    "plan_review": {
+      "required": true,
+      "status": "fail",
+      "reviewer": "gpt",
+      "subject_hash": "9600473a3e27604ba14be526c65041dcfd3b6985e021da64f034dbd9e94abf28",
+      "report_path": "GPT MCP R2: 3 incomplete + 2 new findings, all fixed in plan",
+      "updated": "2026-04-22T23:44:09.836998+08:00",
+      "round": 2,
+      "reason": "R2 allowed: cross-module (exam+grading+permissions)"
+    }
+  }
+}
