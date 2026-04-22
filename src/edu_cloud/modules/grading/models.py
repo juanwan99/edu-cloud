@@ -16,7 +16,7 @@ class Rubric(Base, IdMixin, TimestampMixin):
     __table_args__ = (UniqueConstraint("question_id"),)
 
     question_id: Mapped[str] = mapped_column(String(36), ForeignKey("questions.id"))
-    criteria: Mapped[dict] = mapped_column(JSON)
+    criteria: Mapped[list] = mapped_column(JSON)
     reference_answer: Mapped[str | None] = mapped_column(Text, default=None)
     source: Mapped[str] = mapped_column(String(20))  # manual | ai_generated
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
@@ -26,6 +26,9 @@ class GradingTask(Base, IdMixin, TimestampMixin):
     __tablename__ = "grading_tasks"
 
     subject_id: Mapped[str] = mapped_column(String(36), ForeignKey("subjects.id"))
+    question_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("questions.id"), default=None, nullable=True,
+    )
     status: Mapped[str] = mapped_column(String(20), default="pending")
     total: Mapped[int] = mapped_column(default=0)
     completed: Mapped[int] = mapped_column(default=0)
