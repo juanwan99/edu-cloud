@@ -115,7 +115,7 @@ SELECT DISTINCT
     s.name AS subject_name,
     e.id AS exam_id,
     e.name AS exam_name,
-    e.created_at AS exam_date,
+    e.exam_date,
     COUNT(DISTINCT er.student_id) AS student_count
 FROM exams e
 JOIN subjects s ON s.exam_id = e.id
@@ -127,9 +127,9 @@ WHERE e.school_id = :school_id
     [AND c.id IN :visible_class_ids]
     [AND s.code IN :visible_subject_codes]
     [AND e.exam_type = :exam_type]
-    [AND EXTRACT(YEAR FROM e.created_at) = :year]
-GROUP BY c.grade, c.id, c.name, s.id, s.code, s.name, e.id, e.name, e.created_at
-ORDER BY c.grade, c.name, s.name, e.created_at DESC
+    [AND EXTRACT(YEAR FROM e.exam_date) = :year]
+GROUP BY c.grade, c.id, c.name, s.id, s.code, s.name, e.id, e.name, e.exam_date
+ORDER BY c.grade, c.name, s.name, e.exam_date DESC
 ```
 
 **树构建算法**（Python 侧）：
@@ -286,7 +286,7 @@ export function usePowerOptions() {
 
   async function load(examType?: string, year?: number) {
     const api = useApi()
-    const data = await api.getAnalyticsPowerOptions({ examType, year })
+    const data = await api.getPowerOptions({ examType, year })
     tree.value = data.grades
     if (tree.value.length) {
       selectedGrade.value = tree.value[0].name
@@ -330,7 +330,7 @@ export function usePowerOptions() {
 
 ```typescript
 // PowerOptions
-getAnalyticsPowerOptions: (params?) =>
+getPowerOptions: (params?) =>
   request('/analytics/power-options', { query: params }),
 
 // 等级赋分
@@ -342,7 +342,7 @@ getExamSummary: (examId) =>
   request(`/analytics/exam/${examId}/summary`),
 getExamDistribution: (examId, params?) =>
   request(`/analytics/exam/${examId}/distribution`, { query: params }),
-getGradeAggregates: (examId, params?) =>
+getExamGradeAggregates: (examId, params?) =>
   request(`/analytics/exam/${examId}/grade-aggregates`, { query: params }),
 getSubjectQuestions: (subjectId) =>
   request(`/analytics/subject/${subjectId}/questions`),
