@@ -104,13 +104,13 @@
                 :show-indicator="false"
                 style="margin-top: 6px"
               />
-              <div v-if="taskProgress.status === 'done'" class="done-text">阅卷完成</div>
+              <div v-if="taskProgress.status === 'completed'" class="done-text">阅卷完成</div>
               <div v-else-if="taskProgress.status === 'failed'" class="fail-text">阅卷失败</div>
             </div>
             <n-button
               type="primary"
               :loading="gradingStarting"
-              :disabled="taskProgress?.status === 'running'"
+              :disabled="taskProgress?.status === 'processing'"
               @click="handleStartGrading"
             >开始阅卷</n-button>
           </n-card>
@@ -134,7 +134,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMessage, NCard, NButton, NSpace, NProgress } from 'naive-ui'
-import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, updateQuestionContent, uploadQuestionImage } from '../api/grading'
+import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
 import RubricEditor from '../components/RubricEditor.vue'
 import QuestionContentModal from '../components/QuestionContentModal.vue'
 
@@ -198,6 +198,13 @@ async function selectQuestion(q) {
   rubricItems.value = []
   taskProgress.value = null
   stopPolling()
+  // Fetch full question details (content/reference_answer) from backend
+  try {
+    const res = await getQuestion(q.question_id)
+    selectedQuestion.value = { ...selectedQuestion.value, ...res.data }
+  } catch (e) {
+    // Non-fatal: fall back to dispatch status fields
+  }
   await loadRubric(q.question_id)
 }
 
@@ -255,7 +262,10 @@ async function handleStartGrading() {
   if (!selectedQuestion.value) return
   gradingStarting.value = true
   try {
-    const res = await createTask({ question_id: selectedQuestion.value.question_id })
+    const res = await createTask({
+      subject_id: subjectId.value,
+      question_id: selectedQuestion.value.question_id,
+    })
     const taskId = res.data?.task_id || res.data?.id
     if (taskId) {
       startPolling(taskId)
@@ -276,10 +286,10 @@ function startPolling(taskId) {
       const task = res.data
       taskProgress.value = {
         status: task.status,
-        graded: task.graded_count || 0,
-        total: task.total_count || 0,
+        graded: task.completed || 0,
+        total: task.total || 0,
       }
-      if (task.status === 'done' || task.status === 'failed') {
+      if (task.status === 'completed' || task.status === 'failed') {
         stopPolling()
         await loadQuestions()
       }

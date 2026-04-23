@@ -256,11 +256,15 @@ async def generate_rubric_endpoint(
         raise HTTPException(400, "Question has no content or reference_answer; cannot generate rubric")
 
     # Call LLM (mocked in tests via patch on generate_rubric_via_llm)
-    criteria = await generate_rubric_via_llm(question, req.max_score, db)
+    # Use question.max_score from DB (not client req.max_score) for correctness
+    criteria = await generate_rubric_via_llm(question, question.max_score, db)
+
+    # Validate LLM-generated criteria before persisting
+    _validate_criteria(criteria, question.max_score)
 
     logger.info(
         "generate_rubric_endpoint: question=%s, max_score=%s, criteria=%d items",
-        req.question_id, req.max_score, len(criteria),
+        req.question_id, question.max_score, len(criteria),
     )
 
     # Upsert Rubric with source=ai_generated
@@ -431,6 +435,20 @@ async def create_grading_task(
         )).scalar() or 0
         if answer_count == 0:
             raise HTTPException(400, "该科目暂无可批改答卷，请先完成扫描与切图")
+
+        # Subject-level: clean old ai_pending/ai_done results for all subjective questions
+        old_results = (await db.execute(
+            select(GradingResult).where(
+                GradingResult.question_id.in_(subjective_q_ids),
+                GradingResult.school_id == school_id,
+                GradingResult.status.in_(["ai_pending", "ai_done"]),
+            )
+        )).scalars().all()
+        for old in old_results:
+            await db.delete(old)
+        if old_results:
+            await db.commit()
+            logger.info("create_grading_task: cleaned %d stale subject-level results", len(old_results))
 
     # 创建 task（commit 以获得 ID），后续 enqueue 失败则清理 orphan
     task = GradingTask(

@@ -12,6 +12,7 @@ export const generateRubric = (questionId, maxScore) =>
   client.post('/grading/rubrics/generate', { question_id: questionId, max_score: maxScore })
 export const getRubric = (questionId) => client.get(`/grading/rubrics/${questionId}`)
 export const saveRubric = (data) => client.post('/grading/rubrics', data)
+export const getQuestion = (questionId) => client.get(`/questions/${questionId}`)
 export const updateQuestionContent = (questionId, data) =>
   client.put(`/questions/${questionId}/content`, data)
 export const uploadQuestionImage = (questionId, file) => {
