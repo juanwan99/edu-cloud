@@ -106,26 +106,26 @@ frontend/src/
     LoginPage.vue           # 登录页（edu-cloud 多角色版）
     AnalysisPage.vue        # 分析页（原 WorkbenchPage 重命名）
     ExamListPage.vue        # 考试列表（exam-ai 迁入）
-    ExamDetailPage.vue      # 考试详情（科目/题目/答题卡/扫描/阅卷）
+    ExamDetailPage.vue      # 考试详情（科目/题目/答题卡/扫描/阅卷，含返回按钮）
     DashboardPage.vue       # 仪表盘
     AnalyticsPage.vue       # 成绩分析（ECharts）
     AnalyticsReportPage.vue # 分析报告（多考试+多指标查询，ECharts 分段柱图）
     AnalyticsTrendPage.vue  # 成绩趋势（年级/班级/学生维度折线图）
-    GradingDispatchPage.vue # 阅卷调度中心（扫描→选择题→AI阅卷→校对全流程）
-    AiGradingPage.vue       # 题目级 AI 阅卷（左右分栏：题目列表+内容/细则/阅卷操作）
-    GradingResultsPage.vue  # 阅卷结果
+    GradingDispatchPage.vue # 扫描调度中心（扫描→选择题→校对全流程）
+    AiGradingPage.vue       # 题目级 AI 阅卷（考试/科目选择器 + 左右分栏：题号排序列表(状态标签+图片计数) + 内容/细则/阅卷操作；含文档裁剪入口、图片删除、多图追加）
+    GradingResultsPage.vue  # 阅卷结果（含返回按钮）
     TeacherReviewPage.vue   # 教师复核
     MarkingSelectPage.vue   # 手动阅卷选题
     MarkingPage.vue         # 手动阅卷
-    MarkingAssignPage.vue   # 分配阅卷任务
-    MarkingProgressPage.vue # 阅卷进度
+    MarkingAssignPage.vue   # 分配阅卷任务（含返回按钮）
+    MarkingProgressPage.vue # 阅卷进度（含返回按钮）
     SchoolsPage.vue         # 学校管理（admin）
     SchoolSettingsPage.vue  # 学校配置（模块开关 + KV 设置 + 分数段，principal/academic_director）
     SubjectSelectionsPage.vue # 选考科目组合管理
     TeacherAssignmentsPage.vue # 教师排课管理
     StudentsPage.vue        # 学生管理（列表/搜索/导入导出/选科分配）
     TeachersPage.vue        # 教师管理（列表/创建/导入导出/15列档案）
-    CardEditorDevPage.vue   # 答题卡编辑器开发页
+    CardEditorDevPage.vue   # 答题卡编辑器开发页（含返回按钮）
     KnowledgeTreePage.vue  # 知识图谱可视化（AntV G6 + 三级树导航 + 掌握度着色 + 搜索过滤 + Phase 2 教师工作台：ModuleOverviewPanel/ConceptMapPanel 互斥路由 + BigConcept 分带 + ConceptFocusOverlay 焦点模式 + ESC/canvas 退出；Phase 2.5：buildVisibleEdgeList helper + relatedNodeIds/relatedEdgeIds computed + G6 node.state.faded/edge.state.dimmed·emphasized + updateElementStates + createGraph 末尾焦点重放 + G6 Tooltip plugin 徽标悬停（hover + enable 谓词 + async getContent + HTML escape）；Phase 1 T9-T10：ColorModeToggle 三模式切换 + heatmapUtils（log 尺度考频热力色 + 4 态掌握度 + 3 态审核状态 + importance→size [20,60]）；ConceptMapPanel buildG6Data 每节点 style.size/fill 按 colorMode 三分支 + watch colorMode setData/render 保留 focusedNodeId + defineExpose buildG6Data；KnowledgeTreePage selectedStudentId 从 useKnowledgeTree 解构（单一真源，R2 F001 修复 state 分裂）；GraphPanel.vue 已删除）
     parent/                 # 家长端页面（独立于 AppShell，cp_token 认证）
       ParentLogin.vue       # 家长登录（手机号+密码）
@@ -165,7 +165,7 @@ frontend/src/
       ScoreSegmentSettings.vue # 分数段配置（学校默认+科目覆盖，嵌入 SchoolSettingsPage）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
-  api/                      # API 调用层（16 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出）
+  api/                      # API 调用层（16 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染）
   config/
     roles.js                # 8 角色枚举 + 旧别名映射 + normalizeRole()
     permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
