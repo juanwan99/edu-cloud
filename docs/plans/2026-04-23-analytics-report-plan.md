@@ -219,35 +219,49 @@ async def exam_diagnosis(
     visible_subject_codes: list[str] | None = None,
     visible_class_ids: list[str] | None = None,
 ) -> dict:
-    """生成考试诊断文本（模板拼接，不调 LLM）。ORC-007。"""
-    from edu_cloud.modules.analytics.service import exam_summary, grade_aggregates
+    """生成考试诊断文本（模板拼接，不调 LLM）。ORC-007。
 
+    F001 修复：所有数据源使用同一 scoped_class_ids 口径。
+    当传入 class_id 时，class_avg 来自该班数据，grade_avg 来自全校可见数据。
+    两个 summary 调用使用不同 scope 以实现"班级 vs 年级"对比。
+    """
+    from edu_cloud.modules.analytics.service import exam_summary
+
+    scoped_class_ids = [class_id] if class_id else visible_class_ids
+
+    # 班级/当前范围的均分
     summary = await exam_summary(
         db, exam_id=exam_id, school_id=school_id,
         visible_subject_codes=visible_subject_codes,
-        visible_class_ids=[class_id] if class_id else visible_class_ids,
+        visible_class_ids=scoped_class_ids,
     )
-    agg = await grade_aggregates(
+
+    # 年级均分（全可见范围，用于对比基线）
+    grade_summary = await exam_summary(
         db, exam_id=exam_id, school_id=school_id,
-        subject_id=subject_id,
         visible_subject_codes=visible_subject_codes,
         visible_class_ids=visible_class_ids,
-    )
+    ) if class_id else summary
 
     insights = await question_insights(
         db, exam_id=exam_id, school_id=school_id,
         subject_id=subject_id,
         visible_subject_codes=visible_subject_codes,
-        visible_class_ids=[class_id] if class_id else visible_class_ids,
+        visible_class_ids=scoped_class_ids,
     )
 
     # 构建诊断文本
     parts = []
-    grade_avg = agg.get("grade_stats", {}).get("avg_score")
     subjects = summary.get("subjects", [])
+    grade_subjects = grade_summary.get("subjects", [])
     if subjects:
         subj = subjects[0]
         class_avg = subj.get("avg_score")
+        # F001: grade_avg 从 grade_summary 同科目取，口径一致
+        grade_avg = None
+        if grade_subjects:
+            grade_subj = next((g for g in grade_subjects if g.get("subject_id") == subj.get("subject_id")), grade_subjects[0])
+            grade_avg = grade_subj.get("avg_score")
         if class_avg is not None and grade_avg is not None:
             diff = round(class_avg - grade_avg, 1)
             if diff < 0:
@@ -583,11 +597,17 @@ async def _get_student_scores(
     db: AsyncSession, exam_id: str, school_id: str,
     subject_id: str | None = None,
     visible_class_ids: list[str] | None = None,
+    visible_subject_codes: list[str] | None = None,
 ) -> list[dict]:
-    """聚合每个学生在某次考试的总分。"""
+    """聚合每个学生在某次考试的总分。
+
+    F002 修复：增加 visible_subject_codes 过滤，防止受限角色看到超范围科目数据。
+    """
     subj_q = select(Subject.id).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
     if subject_id:
         subj_q = subj_q.where(Subject.id == subject_id)
+    if visible_subject_codes is not None:
+        subj_q = subj_q.where(Subject.code.in_(visible_subject_codes))
     subj_ids = [r[0] for r in (await db.execute(subj_q)).all()]
     if not subj_ids:
         return []
@@ -630,19 +650,44 @@ async def _get_student_scores(
 
 async def _find_prev_exam(db: AsyncSession, exam_id: str, school_id: str) -> str | None:
     """找到同校上一次考试（按 exam_date 或 created_at 倒序）。"""
+    """F005 修复：限同年级——通过 Subject 关联找到当前考试的年级（从 Student→Class→grade），
+    然后只在同年级考试中找上一次。"""
     current = (await db.execute(
         select(Exam).where(Exam.id == exam_id, Exam.school_id == school_id)
     )).scalar_one_or_none()
     if not current:
         return None
+
+    # 找当前考试的年级（通过参与学生的班级）
+    grade_result = await db.execute(
+        select(Class.grade).distinct()
+        .select_from(StudentAnswer)
+        .join(Student, Student.id == StudentAnswer.student_id)
+        .join(Class, Class.id == Student.class_id)
+        .where(StudentAnswer.exam_id == exam_id)
+        .limit(1)
+    )
+    grade = grade_result.scalar_one_or_none()
+
     order_col = Exam.exam_date if current.exam_date else Exam.created_at
-    prev = (await db.execute(
+    prev_q = (
         select(Exam.id)
         .where(Exam.school_id == school_id, Exam.status == "completed", Exam.id != exam_id)
         .where(order_col < (current.exam_date or current.created_at))
         .order_by(order_col.desc())
         .limit(1)
-    )).scalar_one_or_none()
+    )
+    # 限同年级：只找包含同年级学生的考试
+    if grade:
+        prev_q = prev_q.where(
+            Exam.id.in_(
+                select(StudentAnswer.exam_id).distinct()
+                .join(Student, Student.id == StudentAnswer.student_id)
+                .join(Class, Class.id == Student.class_id)
+                .where(Class.grade == grade)
+            )
+        )
+    prev = (await db.execute(prev_q)).scalar_one_or_none()
     return prev
 
 
@@ -655,7 +700,7 @@ async def student_rankings(
 ) -> dict:
     """学生排名 + 进退步 delta。"""
     effective_class_ids = [class_id] if class_id else visible_class_ids
-    current = await _get_student_scores(db, exam_id, school_id, subject_id, effective_class_ids)
+    current = await _get_student_scores(db, exam_id, school_id, subject_id, effective_class_ids, visible_subject_codes)
     if not current:
         return {"students": []}
 
@@ -663,7 +708,7 @@ async def student_rankings(
     prev_exam_id = await _find_prev_exam(db, exam_id, school_id)
     prev_map: dict[str, dict] = {}
     if prev_exam_id:
-        prev_scores = await _get_student_scores(db, prev_exam_id, school_id, subject_id, effective_class_ids)
+        prev_scores = await _get_student_scores(db, prev_exam_id, school_id, subject_id, effective_class_ids, visible_subject_codes)
         for p in prev_scores:
             prev_map[p["student_id"]] = p
 
@@ -693,12 +738,13 @@ async def critical_students(
     visible_subject_codes: list[str] | None = None,
     visible_class_ids: list[str] | None = None,
 ) -> dict:
-    """临界生筛选：差 N 分及格/优秀。"""
+    """临界生筛选：差 N 分及格/优秀。F005 修复：返回 worst_question。"""
     from edu_cloud.modules.analytics.segment_service import get_segment_config
     from edu_cloud.modules.analytics.service import _get_max_by_subject, _get_subjects
+    from edu_cloud.modules.analytics import get_effective_scores as _get_eff
 
     effective_class_ids = [class_id] if class_id else visible_class_ids
-    scores = await _get_student_scores(db, exam_id, school_id, subject_id, effective_class_ids)
+    scores = await _get_student_scores(db, exam_id, school_id, subject_id, effective_class_ids, visible_subject_codes)
     if not scores:
         return {"near_pass": [], "near_excellent": []}
 
@@ -715,20 +761,47 @@ async def critical_students(
     pass_line = total_max * (boundaries[-1] / 100) if boundaries else total_max * 0.6
     excellent_line = total_max * (boundaries[0] / 100) if boundaries else total_max * 0.85
 
+    # F005: 预计算每个学生丢分最多的题目
+    student_worst: dict[str, dict] = {}
+    q_meta_result = await db.execute(
+        select(Question.id, Question.name, Question.max_score)
+        .where(Question.subject_id.in_(subj_ids), Question.school_id == school_id)
+    )
+    q_meta = {r.id: {"name": r.name, "max_score": r.max_score} for r in q_meta_result.all()}
+
+    for subj in subjects:
+        eff_scores = await _get_eff(db, subj.id, school_id, effective_class_ids)
+        for s in eff_scores:
+            sid = s["student_id"]
+            loss = s["max_score"] - s["effective_score"]
+            if loss > 0:
+                prev = student_worst.get(sid)
+                if prev is None or loss > prev["loss"]:
+                    meta = q_meta.get(s["question_id"], {"name": s["question_id"], "max_score": s["max_score"]})
+                    student_worst[sid] = {
+                        "question_name": meta["name"],
+                        "score": round(s["effective_score"], 2),
+                        "max_score": round(s["max_score"], 2),
+                        "loss": round(loss, 2),
+                    }
+
     near_pass = []
     near_excellent = []
     for s in scores:
         gap_pass = pass_line - s["score"]
         gap_excellent = excellent_line - s["score"]
+        worst = student_worst.get(s["student_id"])
         if 0 < gap_pass <= threshold:
             near_pass.append({
                 "student_id": s["student_id"], "name": s["name"],
                 "score": round(s["score"], 2), "gap": round(gap_pass, 2),
+                "worst_question": worst,
             })
         if 0 < gap_excellent <= threshold:
             near_excellent.append({
                 "student_id": s["student_id"], "name": s["name"],
                 "score": round(s["score"], 2), "gap": round(gap_excellent, 2),
+                "worst_question": worst,
             })
 
     near_pass.sort(key=lambda x: x["gap"])
@@ -743,7 +816,7 @@ async def class_boxplot(
     visible_class_ids: list[str] | None = None,
 ) -> dict:
     """各班分数箱线图数据。"""
-    scores = await _get_student_scores(db, exam_id, school_id, subject_id, visible_class_ids)
+    scores = await _get_student_scores(db, exam_id, school_id, subject_id, visible_class_ids, visible_subject_codes)
     by_class: dict[str, list[float]] = defaultdict(list)
     for s in scores:
         if s["class_id"]:
@@ -1202,17 +1275,34 @@ async def class_error_patterns(
 async def student_ai_diagnosis(
     db: AsyncSession, *, student_id: str, school_id: str,
     exam_id: str | None = None,
-    subject_id: str | None = None,
+    subject_code: str | None = None,
 ) -> dict:
-    """学生个体 AI 诊断文本（模板拼接）。ORC-007。"""
-    from edu_cloud.modules.profile.models import StudentKnowledgeMastery
+    """学生个体 AI 诊断文本（模板拼接）。ORC-007。
+
+    F004 修复：
+    1. exam_id 用于过滤 last_exam_id，subject_code 过滤知识点关联科目
+    2. 接入 StudentErrorPattern 维度
+    3. 端点改挂 profile router（见 Step 3 路由修改）
+    """
+    from edu_cloud.modules.profile.models import StudentKnowledgeMastery, StudentErrorPattern
 
     # 查询知识点掌握度
     stmt = select(StudentKnowledgeMastery).where(
         StudentKnowledgeMastery.student_id == student_id,
         StudentKnowledgeMastery.school_id == school_id,
     )
+    if exam_id:
+        stmt = stmt.where(StudentKnowledgeMastery.last_exam_id == exam_id)
     rows = list((await db.execute(stmt)).scalars().all())
+
+    # 查询错误模式
+    ep_stmt = select(StudentErrorPattern).where(
+        StudentErrorPattern.student_id == student_id,
+        StudentErrorPattern.school_id == school_id,
+    )
+    if subject_code:
+        ep_stmt = ep_stmt.where(StudentErrorPattern.subject_code == subject_code)
+    error_patterns = list((await db.execute(ep_stmt)).scalars().all())
 
     improving = []
     declining = []
@@ -1243,6 +1333,15 @@ async def student_ai_diagnosis(
     if weak_points and not declining:
         w = weak_points[0]
         parts.append(f"知识点'{w['kp_name']}'掌握率较低（{w['mastery_level']:.0%}），建议加强练习。")
+
+    # F004: 融入错误模式
+    if error_patterns:
+        ep = error_patterns[0]
+        dist = ep.error_distribution or {}
+        if dist:
+            top_error = max(dist, key=dist.get)
+            parts.append(f"主要错误类型为{top_error}（占比 {dist[top_error]:.0%}）。")
+
     if not parts:
         parts.append("暂无足够数据生成诊断。")
 
@@ -1251,6 +1350,7 @@ async def student_ai_diagnosis(
         "improving": improving[:5],
         "declining": declining[:5],
         "weak_points": weak_points[:5],
+        "error_patterns": [{"subject_code": ep.subject_code, "distribution": ep.error_distribution} for ep in error_patterns[:3]],
     }
 ```
 
@@ -1297,23 +1397,30 @@ async def get_class_error_patterns(
     )
 
 
-@router.get("/profile/students/{student_id}/ai-diagnosis")
+```
+
+**F004 修复：`student_ai_diagnosis` 端点改挂到 profile router（`src/edu_cloud/modules/profile/router.py`），路径为 `/api/v1/profile/students/{id}/ai-diagnosis`。**
+
+在 `src/edu_cloud/modules/profile/router.py` 末尾追加：
+
+```python
+from edu_cloud.modules.analytics.insights_service import student_ai_diagnosis
+
+
+@router.get("/students/{student_id}/ai-diagnosis")
 async def get_student_ai_diagnosis(
     student_id: str,
     exam_id: str | None = Query(None),
-    subject_id: str | None = Query(None),
+    subject_code: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_SCORES)),
 ):
     """学生个体 AI 诊断（ORC-007 模板拼接）。"""
-    role = current["current_role"]
     return await student_ai_diagnosis(
-        db, student_id=student_id, school_id=role.school_id,
-        exam_id=exam_id, subject_id=subject_id,
+        db, student_id=student_id, school_id=_school_id(current),
+        exam_id=exam_id, subject_code=subject_code,
     )
 ```
-
-> **注意**：`/profile/students/{student_id}/ai-diagnosis` 挂在 analytics router 而非 profile router，因为它依赖 analytics 模块的数据。路径以 `/profile/` 开头仅为 API 语义一致。
 
 - [ ] **Step 4: 写测试**
 
@@ -1407,7 +1514,7 @@ async def test_class_error_patterns_returns_structure(client, school_admin_heade
 async def test_student_ai_diagnosis(client, school_admin_headers, seed_school, db):
     exam, _, stu, _ = await _seed_knowledge_exam(db, seed_school)
     resp = await client.get(
-        f"/api/v1/analytics/profile/students/{stu.id}/ai-diagnosis",
+        f"/api/v1/profile/students/{stu.id}/ai-diagnosis",
         headers=school_admin_headers,
     )
     assert resp.status_code == 200
@@ -1469,7 +1576,7 @@ git commit -m "feat(analytics): class-knowledge + class-error-patterns + student
     getCriticalStudents: (examId: string, subjectId?: string, classId?: string, threshold?: number) =>
       request('/analytics/exam/' + examId + '/critical-students', { query: { subject_id: subjectId, class_id: classId, threshold } }),
     getStudentAiDiagnosis: (studentId: string, examId?: string, subjectId?: string) =>
-      request('/analytics/profile/students/' + studentId + '/ai-diagnosis', { query: { exam_id: examId, subject_id: subjectId } }),
+      request('/profile/students/' + studentId + '/ai-diagnosis', { query: { exam_id: examId, subject_code: subjectId } }),
     getClassBoxplot: (examId: string, subjectId?: string) =>
       request('/analytics/exam/' + examId + '/class-boxplot', { query: { subject_id: subjectId } }),
     getClassKnowledge: (examId: string, subjectId?: string) =>
@@ -1501,8 +1608,9 @@ export function useAnalytics() {
     try {
       const [s, d, g, q] = await Promise.all([
         api.getExamSummary(params.exam_id),
-        api.getExamDistribution(params.exam_id, params.subject_id),
-        api.getExamGradeAggregates(params.exam_id, params.subject_id),
+        // F003 修复：第二参数是 Record<string,any> 查询对象，不是字符串
+        api.getExamDistribution(params.exam_id, { subject_id: params.subject_id }),
+        api.getExamGradeAggregates(params.exam_id, { subject_id: params.subject_id }),
         params.subject_id ? api.getSubjectQuestions(params.subject_id) : Promise.resolve(null),
       ])
       summary.value = s
@@ -1647,23 +1755,99 @@ Batch 4: 等级赋分 + 收尾（level-score.vue + usePowerOptions 搬入 + CLAU
 
 ---
 
-## Contract Pack
+## 测试契约（F006 修复）
 
-### invariants
-- INV-001: 所有新端点通过 `get_current_user` 认证，数据按 `visible_class_ids` / `visible_subject_codes` 过滤 | verification: existing_test pattern in test_analytics_power_options.py
-- INV-002: 诊断文本通过模板拼接生成，不调用 LLM | verification: insights_service.py 中无 LLM import
-- INV-003: 错因分类基于 GradingResult.ai_raw_response.details[].blanks[].reason | verification: test_question_insights_with_grading
-- INV-004: 进退步 delta = prev_rank - current_rank（正数=进步） | verification: test_student_rankings_with_delta
-- INV-005: 进阶 Tab 数据懒加载（loadAdvancedData 检查已有数据跳过） | verification: useAnalytics.test.ts lazy test
+### Task 1 测试契约
 
-### counter_examples
-- CE-001: 如果 loadAdvancedData 不检查已有数据就重复请求 → useAnalytics lazy test 会 FAIL | tests_that_still_pass: loadBasicData test | mitigation: questionInsights.value 检查
-- CE-002: 如果 _classify_error 缺少 "概念" 关键词匹配 → test_question_insights_with_grading 的 top_cause 断言 FAIL | tests_that_still_pass: empty test | mitigation: _ERROR_PATTERNS 列表覆盖
+- **入口**: `GET /api/v1/analytics/exam/{id}/question-insights` + `GET /api/v1/analytics/exam/{id}/diagnosis`
+- **反例**: 无 AI 阅卷数据时 question-insights 返回 `{questions: []}` 而非报错；diagnosis 返回"暂无诊断数据"
+- **边界**: exam 不存在 → 404；subject_id 过滤后无数据 → 空 questions；ai_raw_response 格式异常（非 dict / details 为 string）→ 跳过不崩溃
+- **回归**: 现有 analytics 端点不受影响（insights_service 是新文件，不修改 service.py）
+- **命令**: `.venv/bin/python -m pytest tests/test_api/test_analytics_insights.py -v`
 
-### risk_modules
-- `src/edu_cloud/modules/analytics/insights_service.py` — 新文件，错因聚合核心逻辑
-- `src/edu_cloud/modules/analytics/ranking_service.py` — 新文件，进退步+临界生核心逻辑
-- `src/edu_cloud/modules/analytics/router.py` — 追加 8 个端点到已有 555 行文件
+### Task 2 测试契约
 
-### test_debt
-- 知识点热力图的知识点名称目前用 knowledge_point_id 作 name（Question.knowledge_points 只存 ID 列表，无名称映射）| deadline: Batch 2-4 前端开发时评估是否需要增加知识点名称解析
+- **入口**: `GET /api/v1/analytics/exam/{id}/student-rankings` + `GET /api/v1/analytics/exam/{id}/critical-students` + `GET /api/v1/analytics/exam/{id}/class-boxplot`
+- **反例**: 无上次考试时 delta 为 null（非 0）；无临界生时返回空列表不报错
+- **边界**: 只有 1 个学生时 boxplot 的 p25=p75=median=唯一值；threshold=0 时无临界生
+- **回归**: ranking_service 不修改现有 service.py/router.py 中已有函数
+- **命令**: `.venv/bin/python -m pytest tests/test_api/test_analytics_ranking.py -v`
+
+### Task 3 测试契约
+
+- **入口**: `GET /analytics/exam/{id}/class-knowledge` + `GET /analytics/exam/{id}/class-error-patterns` + `GET /profile/students/{id}/ai-diagnosis`
+- **反例**: Question.knowledge_points 为 null 时 class-knowledge 返回空 knowledge_points 列表；无 ErrorPattern 数据时 ai-diagnosis 不含 error_patterns 段
+- **边界**: 只有 1 个班级时 class-error-patterns 仍返回完整结构；student_id 不存在时 ai-diagnosis 返回"暂无数据"
+- **回归**: profile router 追加端点不影响现有 4 个 profile 端点
+- **命令**: `.venv/bin/python -m pytest tests/test_api/test_analytics_advanced.py -v`
+
+### Task 4 测试契约
+
+- **入口**: `useAnalytics().loadBasicData()` / `loadAdvancedData()`
+- **反例**: loadAdvancedData 已加载时不重复请求（lazy test）；loadBasicData 带 subject_id 时传 query 对象而非字符串
+- **边界**: Promise.all 中某个请求失败时 loading 重置为 false
+- **回归**: 现有 30 个前端测试不受影响
+- **命令**: `cd frontend-nuxt && npx vitest run`
+
+---
+
+## contract_pack:
+
+```yaml
+invariants:
+  - id: INV-001
+    description: "所有新端点通过 get_current_user 认证，数据按 visible_class_ids + visible_subject_codes 双重过滤"
+    verification: new_test
+    test_ref: "test_analytics_insights.py::test_question_insights_subject_filter + test_analytics_ranking.py::test_student_rankings_with_delta"
+
+  - id: INV-002
+    description: "诊断文本通过模板拼接生成，不调用 LLM（ORC-007）"
+    verification: code_inspection
+    test_ref: "insights_service.py 无 LLM/httpx/llm_adapter import"
+
+  - id: INV-003
+    description: "错因分类基于 GradingResult.ai_raw_response.details[].blanks[].reason"
+    verification: new_test
+    test_ref: "test_analytics_insights.py::test_question_insights_with_grading — 断言 top_cause=='概念混淆'"
+
+  - id: INV-004
+    description: "进退步 delta = prev_rank - current_rank（正数=进步，负数=退步）"
+    verification: new_test
+    test_ref: "test_analytics_ranking.py::test_student_rankings_with_delta — 断言王五 delta=2, 张三 delta=-2"
+
+  - id: INV-005
+    description: "进阶 Tab 数据懒加载，已有数据不重复请求"
+    verification: new_test
+    test_ref: "useAnalytics.test.ts::loadAdvancedData is lazy"
+
+counter_examples:
+  - id: CE-001
+    description: "loadAdvancedData 不检查已有数据就重复请求"
+    tests_that_still_pass: "loadBasicData test（不涉及 advanced）"
+    mitigation: "questionInsights.value 非 null 时 early return"
+
+  - id: CE-002
+    description: "_classify_error 缺少'概念'关键词匹配"
+    tests_that_still_pass: "test_question_insights_empty（无 AI 数据）"
+    mitigation: "_ERROR_PATTERNS 列表第一条覆盖'概念|混淆|误写'"
+
+  - id: CE-003
+    description: "_get_student_scores 不过滤 visible_subject_codes 导致权限泄漏"
+    tests_that_still_pass: "test_student_rankings_with_delta（全校可见角色）"
+    mitigation: "F002 修复：_get_student_scores 签名加 visible_subject_codes 参数"
+
+risk_modules:
+  - module: "src/edu_cloud/modules/analytics/insights_service.py"
+    reason: "新文件，错因聚合 + 诊断文本生成核心逻辑，错因分类准确性直接影响进阶 Tab 质量"
+  - module: "src/edu_cloud/modules/analytics/ranking_service.py"
+    reason: "新文件，进退步/临界生/箱线图核心逻辑，_find_prev_exam 同年级限制影响排名对比准确性"
+  - module: "src/edu_cloud/modules/analytics/router.py"
+    reason: "追加 7 个端点到已有 555 行文件，import 数量增加"
+  - module: "src/edu_cloud/modules/profile/router.py"
+    reason: "追加 1 个 ai-diagnosis 端点，需确保不与现有 4 个端点冲突"
+
+test_debt:
+  - item: "知识点热力图的知识点名称目前用 knowledge_point_id 作 name（Question.knowledge_points 只存 ID 列表，无名称映射）"
+    reason: "知识点元数据存在 knowledge.db（SQLite 独立库），跨库 JOIN 不可行，需要独立查询"
+    deadline: "2026-05-15"
+```
