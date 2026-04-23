@@ -48,3 +48,15 @@ def test_get_prompt_chinese_grading():
     prompt = get_prompt("chinese", "GRADING", "senior")
     assert prompt is not None
     assert "默写" in prompt
+
+
+def test_get_prompt_physics_grading():
+    prompt = get_prompt("physics", "GRADING", "senior")
+    assert prompt is not None
+    assert "单位" in prompt
+
+
+def test_get_prompt_chemistry_grading():
+    prompt = get_prompt("chemistry", "GRADING", "senior")
+    assert prompt is not None
+    assert "配平" in prompt
