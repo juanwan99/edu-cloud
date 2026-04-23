@@ -32,4 +32,8 @@ export const previewByWeights = (data) =>
 
 export const generateCardV2 = (data) =>
   client.post('/card/generate/v2', data, { responseType: 'blob' })
-// test: const x = uploadAnswers(file)
+export const renderDocPages = (formData) =>
+  client.post('/card/render-doc-pages', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60000,
+  })

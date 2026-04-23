@@ -814,12 +814,17 @@ async def get_dispatch_status(
                     )
                 )).scalar() or 0
 
+                content_imgs = q.content_images or []
+                ref_imgs = q.reference_answer_images or []
                 questions_info.append({
                     "question_id": q.id,
                     "name": q.name,
                     "question_type": q.question_type,
                     "max_score": q.max_score,
-                    "has_content": bool(q.content or q.reference_answer),
+                    "has_content": bool(q.content or content_imgs),
+                    "has_answer": bool(q.reference_answer or ref_imgs),
+                    "content_image_count": len(content_imgs),
+                    "answer_image_count": len(ref_imgs),
                     "has_rubric": q_rubric is not None,
                     "rubric_source": q_rubric.source if q_rubric else None,
                     "answer_count": q_answer_count,
