@@ -345,12 +345,14 @@ tests/
 - Node `>=22.12.0` 运行时约束（`package.json engines` + `.nvmrc` 22.12.0；lockfile dep nitropack/unplugin/rollup-plugin-visualizer 要求 Node 22.12+）
 - Nuxt `~3.17.7` + Vue 3.5 + Vite 6 + Nitro 2.13（SSR=false；Nuxt 3 次版本锁定 R2 追认）
 - Element Plus 2.8（@element-plus/nuxt `~1.1.4` 模块）+ @element-plus/icons-vue
+- ECharts + vue-echarts（图表，Batch 3 引入）
 - Pinia 2（@pinia/nuxt 模块）
 - API 代理 `/api` → `http://localhost:9000`
 - 主题变量：`assets/css/main.scss` 好分数品牌色 + 布局尺寸
 - Vitest 3 + @vue/test-utils + happy-dom（单元测试，`vitest.config.ts` 含 `@vitejs/plugin-vue` 以挂载 SFC）
 - Auth 错误边界：`composables/useApi.ts` 导出 `AuthError` sentinel（401/403 转抛），`useMenus` 区分 AuthError 向上抛 vs 非 auth 错误降级空菜单，`layouts/default.vue` 按 AuthError 触发 `logout` 否则保留 session
-- 状态：Phase 1 Batch 2 初始化，不替代现有 `frontend/`（INV-01）
+- 状态：Phase 1 Batch 3 进行中，不替代现有 `frontend/`（INV-01）
+- `components/common/PowerFilter.vue`：级联筛选组件（年级→班级→科目→考试，usePowerOptions 驱动）
 - **Batch 2 进度**: T4 Nuxt 骨架 ✓ / T5 auth+context stores + middleware + Vitest 8/8 ✓ / T6 useApi composable + 4 tests ✓ / T7 useMenus + TopNav/SubNav/UserDropdown ✓ / T8 三种 Layout ✓ / T9 login+home 页面 ✓ / **Gate 2 R1 FAIL → R2 修复**: B2-F001 lockfile 对齐（`npm ci --ignore-scripts` 零报错 + `npm ls` 零 invalid）+ B2-F002 AuthError 职责分层（独立修复设计 + Fix Intent Card 4 ORC + 3 反证护航，新增 `tests/composables/useMenus.test.ts` 8 + `tests/layouts/default.test.ts` 4 = Vitest 24/24）+ B2-F003 措辞收窄 / **R2 FAIL → R3 修复**: B2-F001 Node floor 升级方案 A（`package.json engines ">=22.12.0"` + `.nvmrc 22.12.0`，L017 user approved 2026-04-14；在 Node 22.22.2 下 npm ci EBADENGINE 0 警告 + npm ls 0 invalid + nuxt prepare exit 0 + Vitest 24/24）+ B2-F003 根因定论收窄（R2 handoff §6 删除 hot-reload 旧措辞，grep 零残留）
 
 ## 日志体系
