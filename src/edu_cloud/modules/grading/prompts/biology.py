@@ -1,6 +1,6 @@
 # src/edu_cloud/modules/grading/prompts/biology.py
 """Biology (生物) subject prompts — ported from zhixue-server senior/biology.js."""
-from .base import GRADING_JSON_SCHEMA, FATAL_RULES, GRADING_METHOD_BASE, OCR_PROMPT_BASE, OCR_STRUCTURED_PROMPT_BASE
+from .base import GRADING_JSON_SCHEMA, FATAL_RULES, GRADING_METHOD_BASE, OCR_PROMPT_BASE, OCR_STRUCTURED_PROMPT_BASE, CORRECTION_PROMPT_BASE
 
 NAME = "生物"
 LEVEL = "senior"
@@ -109,3 +109,6 @@ OCR_CONFIG = {"temperature": 0, "max_tokens": 16384}
 
 OCR_STRUCTURED = OCR_STRUCTURED_PROMPT_BASE
 OCR_STRUCTURED_CONFIG = {"temperature": 0, "max_tokens": 16384}
+
+CORRECTION = CORRECTION_PROMPT_BASE
+CORRECTION_CONFIG = {"temperature": 0, "max_tokens": 16384}
