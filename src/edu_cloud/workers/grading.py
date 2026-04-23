@@ -22,13 +22,21 @@ import edu_cloud.models.school  # noqa: F401 — FK resolution for *.school_id
 logger = logging.getLogger(__name__)
 
 
-def _create_llm_client():
-    """Create LLM client for grading (reads from settings)."""
+def _create_llm_client(
+    api_url: str | None = None,
+    api_key: str | None = None,
+    model: str | None = None,
+) -> "LLMClient":
+    """Create LLM client for grading.
+
+    When called with DB-resolved values, those override .env settings.
+    When called without arguments, falls back to .env settings entirely.
+    """
     from edu_cloud.modules.grading.llm_client import LLMClient
     return LLMClient(
-        api_url=settings.LLM_API_URL,
-        api_key=settings.LLM_API_KEY,
-        model=settings.LLM_MODEL,
+        api_url=api_url or settings.LLM_API_URL,
+        api_key=api_key or settings.LLM_API_KEY,
+        model=model or settings.LLM_MODEL,
         timeout=settings.LLM_TIMEOUT,
         max_retries=settings.LLM_MAX_RETRIES,
         slot=settings.LLM_SLOT,
@@ -149,7 +157,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
         session_factory = async_sessionmaker(local_engine, class_=AsyncSession, expire_on_commit=False)
 
     batch_size = settings.GRADING_BATCH_SIZE
-    llm = _create_llm_client()
+    llm = None
     try:
         async with session_factory() as db:
             # Load task
@@ -158,6 +166,19 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
             task.status = "processing"
             await db.commit()
             logger.info("grading_task: task=%s, subject=%s, status→processing", task_id, task.subject_id)
+
+            # Resolve LLM config: school override → platform default → .env fallback
+            from edu_cloud.modules.exam.slot_selector import get_llm_config, SLOT_AI_GRADING
+            try:
+                llm_url, llm_key, llm_model = await get_llm_config(
+                    db, slot=SLOT_AI_GRADING, school_id=task.school_id,
+                )
+                logger.info("grading_task: task=%s, llm_config resolved from DB (model=%s)", task_id, llm_model)
+            except Exception:
+                llm_url, llm_key, llm_model = None, None, None
+                logger.info("grading_task: task=%s, llm_config fallback to .env", task_id)
+
+            llm = _create_llm_client(api_url=llm_url, api_key=llm_key, model=llm_model)
 
             # Find subjective questions
             if task.question_id:
@@ -313,7 +334,8 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
             logger.info("grading_task DONE: task=%s, status=%s, completed=%d, failed=%d, elapsed=%.1fs",
                         task_id, task.status, task.completed, task.failed, elapsed)
     finally:
-        await llm.close()
+        if llm is not None:
+            await llm.close()
         if local_engine is not None:
             await local_engine.dispose()
 

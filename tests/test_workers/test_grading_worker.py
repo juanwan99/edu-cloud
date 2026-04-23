@@ -105,8 +105,9 @@ def _build_mock_db_session(execute_side_effects):
 
 
 @pytest.mark.asyncio
+@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, side_effect=Exception("no slot"))
 @patch("edu_cloud.workers.grading._create_llm_client")
-async def test_process_grading_task_no_subjective_questions(mock_create_llm):
+async def test_process_grading_task_no_subjective_questions(mock_create_llm, _mock_get_cfg):
     """No subjective questions → task completes immediately without LLM calls."""
     from edu_cloud.workers.grading import process_grading_task
 
@@ -141,8 +142,9 @@ async def test_process_grading_task_no_subjective_questions(mock_create_llm):
 
 
 @pytest.mark.asyncio
+@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, side_effect=Exception("no slot"))
 @patch("edu_cloud.workers.grading._create_llm_client")
-async def test_process_grading_task_missing_rubric(mock_create_llm):
+async def test_process_grading_task_missing_rubric(mock_create_llm, _mock_get_cfg):
     """Answer exists but no rubric for question → task.failed incremented."""
     from edu_cloud.workers.grading import process_grading_task
 
@@ -202,9 +204,10 @@ async def test_process_grading_task_missing_rubric(mock_create_llm):
 
 
 @pytest.mark.asyncio
+@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, side_effect=Exception("no slot"))
 @patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock)
 @patch("edu_cloud.workers.grading._create_llm_client")
-async def test_process_grading_task_llm_recoverable_error(mock_create_llm, mock_read_img):
+async def test_process_grading_task_llm_recoverable_error(mock_create_llm, mock_read_img, _mock_get_cfg):
     """LLM raises ValueError (recoverable) → error logged, task.failed incremented, not status=failed mid-loop."""
     from edu_cloud.workers.grading import process_grading_task
 
