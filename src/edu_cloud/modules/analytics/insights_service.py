@@ -176,7 +176,12 @@ async def exam_diagnosis(
     """
     from edu_cloud.modules.analytics.service import exam_summary
 
-    scoped_class_ids = [class_id] if class_id else visible_class_ids
+    if class_id:
+        if visible_class_ids is not None and class_id not in visible_class_ids:
+            return {"summary_text": "暂无诊断数据。", "weak_questions": [], "error_distribution": {}, "suggestions": []}
+        scoped_class_ids = [class_id]
+    else:
+        scoped_class_ids = visible_class_ids
 
     # 班级/当前范围的均分
     summary = await exam_summary(
@@ -204,9 +209,12 @@ async def exam_diagnosis(
     subjects = summary.get("subjects", [])
     grade_subjects = grade_summary.get("subjects", [])
     if subjects:
-        subj = subjects[0]
+        # F003 修复：subject_id 指定时按科目过滤，而非盲取 subjects[0]
+        if subject_id:
+            subj = next((s for s in subjects if s.get("subject_id") == subject_id), subjects[0])
+        else:
+            subj = subjects[0]
         class_avg = subj.get("avg_score")
-        # F001: grade_avg 从 grade_summary 同科目取，口径一致
         grade_avg = None
         if grade_subjects:
             grade_subj = next((g for g in grade_subjects if g.get("subject_id") == subj.get("subject_id")), grade_subjects[0])

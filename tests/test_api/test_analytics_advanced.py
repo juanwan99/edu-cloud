@@ -67,6 +67,15 @@ async def test_class_knowledge_returns_structure(client, school_admin_headers, s
     data = resp.json()
     assert "knowledge_points" in data
     assert "classes" in data
+    # F004: 值级断言 — seed 数据有"光合作用""细胞分裂"两个知识点
+    assert len(data["knowledge_points"]) == 2
+    assert "光合作用" in data["knowledge_points"]
+    assert "细胞分裂" in data["knowledge_points"]
+    assert len(data["classes"]) >= 1
+    cls = data["classes"][0]
+    assert len(cls["mastery"]) == 2
+    for m in cls["mastery"]:
+        assert 0 <= m["rate"] <= 1
 
 
 @pytest.mark.asyncio
@@ -80,6 +89,13 @@ async def test_class_error_patterns_returns_structure(client, school_admin_heade
     data = resp.json()
     assert "error_types" in data
     assert "classes" in data
+    # F004: 值级断言 — seed 数据有"概念混淆"错因
+    assert len(data["error_types"]) >= 1
+    assert "概念混淆" in data["error_types"]
+    assert len(data["classes"]) >= 1
+    cls = data["classes"][0]
+    assert "概念混淆" in cls["distribution"]
+    assert cls["distribution"]["概念混淆"] > 0
 
 
 @pytest.mark.asyncio
@@ -92,6 +108,10 @@ async def test_student_ai_diagnosis(client, school_admin_headers, seed_school, d
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data["summary"], str)
+    assert len(data["summary"]) > 0
+    # F004: 值级断言 — 无 mastery 数据时应返回默认诊断文本
+    assert "暂无" in data["summary"]
     assert isinstance(data["improving"], list)
     assert isinstance(data["declining"], list)
     assert isinstance(data["weak_points"], list)
+    assert isinstance(data["error_patterns"], list)

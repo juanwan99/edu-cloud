@@ -162,8 +162,15 @@ async def test_diagnosis_text(client, school_admin_headers, seed_school, db):
     data = resp.json()
     assert isinstance(data["summary_text"], str)
     assert len(data["summary_text"]) > 0
+    # F005: 值级断言 — seed 数据 Q15 essay avg=5.5/10=0.55 (>0.5 阈值，不算 weak)
+    assert "均分" in data["summary_text"]
     assert isinstance(data["weak_questions"], list)
-    assert isinstance(data["error_distribution"], dict)
+    # 错因分布应包含"概念混淆"（2 学生均有概念混淆错因）
+    assert "概念混淆" in data["error_distribution"]
+    assert data["error_distribution"]["概念混淆"] > 0
+    # "概念混淆"占比 = 2/3 ≈ 0.6667
+    assert data["error_distribution"]["概念混淆"] > 0.5
+    assert "概念混淆" in data["summary_text"]
     assert isinstance(data["suggestions"], list)
 
 

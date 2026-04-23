@@ -121,7 +121,12 @@ async def student_rankings(
     visible_class_ids: list[str] | None = None,
 ) -> dict:
     """学生排名 + 进退步 delta。"""
-    effective_class_ids = [class_id] if class_id else visible_class_ids
+    if class_id:
+        if visible_class_ids is not None and class_id not in visible_class_ids:
+            return {"students": []}
+        effective_class_ids = [class_id]
+    else:
+        effective_class_ids = visible_class_ids
     current = await _get_student_scores(db, exam_id, school_id, subject_id, effective_class_ids, visible_subject_codes)
     if not current:
         return {"students": []}
@@ -165,7 +170,12 @@ async def critical_students(
     from edu_cloud.modules.analytics.service import _get_max_by_subject, _get_subjects
     from edu_cloud.modules.analytics import get_effective_scores as _get_eff
 
-    effective_class_ids = [class_id] if class_id else visible_class_ids
+    if class_id:
+        if visible_class_ids is not None and class_id not in visible_class_ids:
+            return {"near_pass": [], "near_excellent": []}
+        effective_class_ids = [class_id]
+    else:
+        effective_class_ids = visible_class_ids
     scores = await _get_student_scores(db, exam_id, school_id, subject_id, effective_class_ids, visible_subject_codes)
     if not scores:
         return {"near_pass": [], "near_excellent": []}
