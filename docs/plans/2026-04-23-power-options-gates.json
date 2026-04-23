@@ -1,0 +1,15 @@
+{
+  "gates": {
+    "plan_review": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "8841516298cc7835745cc6aee902bc60c2c774648e61964525548754f1527324",
+      "report_path": "GPT R1 FAIL (F001-F008) → R2 全部 resolved-correct",
+      "updated": "2026-04-23T20:33:03.004658+08:00",
+      "reason": "R1 FAIL 6H+2M → R2 PASS（跨模块 analytics+nuxt 满足 R2 条件）",
+      "subject_ref": "docs/plans/2026-04-23-power-options-plan.md",
+      "round": 2
+    }
+  }
+}
