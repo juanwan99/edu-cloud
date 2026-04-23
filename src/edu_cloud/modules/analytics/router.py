@@ -502,3 +502,27 @@ async def export_student_subject_report(
             "Content-Disposition": f"attachment; filename*=UTF-8''{encoded}",
         },
     )
+
+
+# --- PowerOptions 级联筛选器 ---
+
+from edu_cloud.modules.analytics.power_options_service import get_power_options
+
+
+@router.get("/power-options")
+async def power_options(
+    exam_type: str | None = Query(None),
+    year: int | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """返回 年级→班级→科目→考试 级联筛选树。已按角色 RBAC 过滤。"""
+    role = current["current_role"]
+    return await get_power_options(
+        db,
+        school_id=role.school_id,
+        visible_class_ids=get_visible_class_ids(role),
+        visible_subject_codes=get_visible_subject_codes(role),
+        exam_type=exam_type,
+        year=year,
+    )

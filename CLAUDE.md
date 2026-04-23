@@ -159,7 +159,8 @@ frontend/src/
     CardEditor.vue          # 可视化答题卡编辑器（封装 card-editor/）
     TemplatePreviewEditor.vue # 扫描模板区域编辑器（检测结果叠加+拖拽/缩放/分割，A/B双面）
     RubricEditor.vue        # 评分细则展示/编辑（v-model criteria 数组，分值合计校验）
-    QuestionContentModal.vue # 题干/答案编辑弹窗（textarea + 多图上传）
+    QuestionContentModal.vue # 题干/答案编辑弹窗（textarea + 多图上传 + Ctrl+V 粘贴图片）
+    DocCropPanel.vue        # 文档裁剪面板（PDF/Word→页面渲染→框选裁剪→按题号+序号保存）
     analytics/
       ScoreSegmentSettings.vue # 分数段配置（学校默认+科目覆盖，嵌入 SchoolSettingsPage）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
@@ -174,7 +175,7 @@ frontend/src/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
-  router/                   # Vue Router（活跃 18 路由 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
+  router/                   # Vue Router（活跃 19 路由含 /ai-grading 无参入口 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -499,7 +500,7 @@ tests/
 | GET/POST | `/api/v1/classes`, `/api/v1/students` | 班级/学生管理（含 grade/selection/subject_code 过滤 + 导入导出） |
 | GET | `/api/v1/grades` | 年级列表 |
 | * | `/api/v1/teachers` | 教师 CRUD + 导入导出（15 列档案 + 角色/学科/班级） |
-| * | `/api/v1/card/*` | 答题卡生成/骨架/条码/编辑器布局CRUD/小微排版（23 端点，含 upload-answer + auto-layout + 3 Agent 工具） |
+| * | `/api/v1/card/*` | 答题卡生成/骨架/条码/编辑器布局CRUD/小微排版/文档渲染（24 端点，含 upload-answer + auto-layout + 3 Agent 工具 + render-doc-pages） |
 | * | `/api/v1/templates/*` | 模板 CRUD |
 | * | `/api/v1/scan/*` | 扫描上传/任务管理 |
 | POST | `/api/v1/scan/pipeline/scan-dir` | 扫描目录结构，返回科目子文件夹和图片统计 |
@@ -536,6 +537,7 @@ tests/
 | GET | `/api/v1/analytics/report/trend/class` | 已登录（非家长） | 班级成绩趋势 |
 | GET | `/api/v1/analytics/report/trend/student` | 已登录 | 学生成绩趋势（班级/guardian 校验） |
 | POST | `/api/v1/analytics/report/export` | GENERATE_REPORT | 生成分析报告文档（走 Studio） |
+| GET | `/api/v1/analytics/power-options` | 已登录 | 级联筛选树（年级→班级→科目→考试，RBAC 过滤） |
 | * | `/api/v1/knowledge/*` | 知识点 CRUD/树查询/关联 |
 | POST | `/api/v1/pipeline/run/{id}` | 数据流水线触发 |
 | * | `/api/v1/llm-config/slots` | LLM 槽位管理 |
