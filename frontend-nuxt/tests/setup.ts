@@ -61,6 +61,21 @@ g.usePowerOptions = () => ({
   hasSelection: computed(() => false),
 })
 
+// useAnalytics mock
+g.useAnalytics = () => ({
+  loading: ref(false),
+  advancedLoading: ref(false),
+  summary: ref(null),
+  distribution: ref(null),
+  gradeAggregates: ref(null),
+  questions: ref(null),
+  questionInsights: ref(null),
+  diagnosis: ref(null),
+  loadBasicData: vi.fn(),
+  loadAdvancedData: vi.fn(),
+  clearAll: vi.fn(),
+})
+
 // onMounted mock (Nuxt auto-import)
 g.onMounted = (cb: () => void) => cb()
 

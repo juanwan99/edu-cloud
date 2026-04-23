@@ -137,6 +137,24 @@ export function useApi() {
     deleteSegmentOverride: (subjectCode: string) =>
       request(`/analytics/segments/config/${subjectCode}`, { method: 'DELETE' }),
 
+    // === Advanced Analytics ===
+    getQuestionInsights: (examId: string, subjectId?: string) =>
+      request('/analytics/exam/' + examId + '/question-insights', { query: { subject_id: subjectId } }),
+    getExamDiagnosis: (examId: string, subjectId?: string, classId?: string) =>
+      request('/analytics/exam/' + examId + '/diagnosis', { query: { subject_id: subjectId, class_id: classId } }),
+    getStudentRankings: (examId: string, subjectId?: string, classId?: string) =>
+      request('/analytics/exam/' + examId + '/student-rankings', { query: { subject_id: subjectId, class_id: classId } }),
+    getCriticalStudents: (examId: string, subjectId?: string, classId?: string, threshold?: number) =>
+      request('/analytics/exam/' + examId + '/critical-students', { query: { subject_id: subjectId, class_id: classId, threshold } }),
+    getStudentAiDiagnosis: (studentId: string, examId?: string, subjectId?: string) =>
+      request('/profile/students/' + studentId + '/ai-diagnosis', { query: { exam_id: examId, subject_code: subjectId } }),
+    getClassBoxplot: (examId: string, subjectId?: string) =>
+      request('/analytics/exam/' + examId + '/class-boxplot', { query: { subject_id: subjectId } }),
+    getClassKnowledge: (examId: string, subjectId?: string) =>
+      request('/analytics/exam/' + examId + '/class-knowledge', { query: { subject_id: subjectId } }),
+    getClassErrorPatterns: (examId: string, subjectId?: string) =>
+      request('/analytics/exam/' + examId + '/class-error-patterns', { query: { subject_id: subjectId } }),
+
     // === Raw ===
     raw: request,
     token,
