@@ -25,8 +25,8 @@ from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user
 from edu_cloud.modules.exam.models import Exam, Subject
 from edu_cloud.modules.card.models import Template, CardSkeleton
-from edu_cloud.modules.card.barcode_gen import parse_student_excel, render_barcode_pdf
-from edu_cloud.modules.card.renderer import render_card_v2
+from edu_cloud.modules.card.export.barcode_gen import parse_student_excel, render_barcode_pdf
+from edu_cloud.modules.card.rendering.renderer import render_card_v2
 
 router = APIRouter(prefix="/api/v1/card", tags=["card"])
 
