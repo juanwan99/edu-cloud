@@ -24,12 +24,21 @@ def _load_subject(subject: str, level: str = "senior") -> dict | None:
     if key in _cache:
         return _cache[key]
 
-    try:
-        mod = importlib.import_module(f".{subject}", package=__name__)
-    except ModuleNotFoundError:
-        logger.warning("prompt module not found: %s", key)
-        _cache[key] = None
-        return None
+    # Try level-specific module first (e.g., junior.biology), then fallback to senior
+    mod = None
+    if level != "senior":
+        try:
+            mod = importlib.import_module(f".{level}.{subject}", package=__name__)
+        except ModuleNotFoundError:
+            pass
+
+    if mod is None:
+        try:
+            mod = importlib.import_module(f".{subject}", package=__name__)
+        except ModuleNotFoundError:
+            logger.warning("prompt module not found: %s", key)
+            _cache[key] = None
+            return None
 
     data = {
         "name": getattr(mod, "NAME", subject),
