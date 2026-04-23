@@ -31,10 +31,9 @@ const tableData = ref<any[]>([])
 
 const allColumns = [
   { prop: 'rank', label: '排名' },
-  { prop: 'name', label: '姓名' },
-  { prop: 'student_number', label: '学号' },
   { prop: 'class_name', label: '班级' },
-  { prop: 'total_score', label: '总分' },
+  { prop: 'avg_score', label: '均分' },
+  { prop: 'student_count', label: '人数' },
 ]
 const visibleColumns = ref([...allColumns])
 
@@ -42,13 +41,17 @@ watch(() => po.value?.analysisParams?.value, async (params) => {
   if (!params?.exam_id) return
   loading.value = true
   try {
+    const selectedSubject = po.value?.subjectOptions?.value?.find(
+      (s: any) => s.id === params.subject_id
+    )
     const result = await api.queryReport({
       exam_ids: [params.exam_id],
       metrics: ['ranking'],
+      subject_codes: selectedSubject ? [selectedSubject.code] : undefined,
       class_ids: params.class_id ? [params.class_id] : undefined,
     })
     const ranking = result.metrics?.ranking ?? result.ranking ?? {}
-    tableData.value = ranking.students ?? []
+    tableData.value = ranking.class_rankings ?? []
   } finally {
     loading.value = false
   }

@@ -12,24 +12,13 @@
 
       <el-card class="table-card">
         <template #header>班级数据</template>
-        <el-table :data="aggregates.classes ?? []" stripe>
+        <el-table :data="aggregates.class_rankings ?? []" stripe>
           <el-table-column prop="class_name" label="班级" width="140" />
           <el-table-column prop="student_count" label="人数" width="80" />
           <el-table-column prop="avg_score" label="均分" width="80">
             <template #default="{ row }">{{ row.avg_score?.toFixed(1) ?? '-' }}</template>
           </el-table-column>
-          <el-table-column prop="max_score" label="最高" width="80" />
-          <el-table-column prop="min_score" label="最低" width="80" />
-          <el-table-column prop="pass_rate" label="及格率" width="100">
-            <template #default="{ row }">
-              {{ row.pass_rate != null ? (row.pass_rate * 100).toFixed(1) + '%' : '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="excellent_rate" label="优秀率" width="100">
-            <template #default="{ row }">
-              {{ row.excellent_rate != null ? (row.excellent_rate * 100).toFixed(1) + '%' : '-' }}
-            </template>
-          </el-table-column>
+          <el-table-column prop="rank" label="排名" width="80" />
         </el-table>
       </el-card>
     </template>
@@ -53,18 +42,16 @@ const loading = ref(false)
 const aggregates = ref<any>(null)
 
 const contrastOption = computed(() => {
-  const data = aggregates.value?.classes ?? []
+  const data = aggregates.value?.class_rankings ?? []
   if (!data.length) return {}
   const names = data.map((c: any) => c.class_name)
   return {
     tooltip: { trigger: 'axis' },
-    legend: { data: ['均分', '及格率(%)', '优秀率(%)'] },
+    legend: { data: ['均分'] },
     xAxis: { type: 'category', data: names },
     yAxis: { type: 'value' },
     series: [
-      { name: '均分', type: 'bar', data: data.map((c: any) => c.avg_score?.toFixed(1)) },
-      { name: '及格率(%)', type: 'bar', data: data.map((c: any) => ((c.pass_rate ?? 0) * 100).toFixed(1)) },
-      { name: '优秀率(%)', type: 'bar', data: data.map((c: any) => ((c.excellent_rate ?? 0) * 100).toFixed(1)) },
+      { name: '均分', type: 'bar', data: data.map((c: any) => c.avg_score) },
     ],
   }
 })

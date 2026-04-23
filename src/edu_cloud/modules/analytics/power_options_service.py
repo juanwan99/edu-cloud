@@ -87,6 +87,7 @@ def _build_tree(rows) -> dict:
             }
 
         cls["subjects"][subj_id]["exams"].append({
+            "id": row.exam_id,
             "exam_id": row.exam_id,
             "subject_id": subj_id,
             "name": row.exam_name,
@@ -111,6 +112,7 @@ def _build_tree(rows) -> dict:
                 for exam in subj["exams"]:
                     key = exam["exam_id"]
                     entry = all_subjects[subj_id]["exams"][key]
+                    entry["id"] = exam["exam_id"]
                     entry["exam_id"] = exam["exam_id"]
                     entry["subject_id"] = exam["subject_id"]
                     entry["name"] = exam["name"]
@@ -136,6 +138,7 @@ def _build_tree(rows) -> dict:
         all_node["subjects"] = list(all_node["subjects"].values())
 
         grades.append({
+            "id": grade_name,
             "name": grade_name,
             "classes": [all_node] + real_classes,
         })

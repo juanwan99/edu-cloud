@@ -28,12 +28,12 @@
       </el-card>
 
       <el-card v-if="reportData.ranking" class="result-card">
-        <template #header>排名</template>
-        <el-table :data="reportData.ranking.students ?? []" stripe max-height="400">
+        <template #header>班级排名</template>
+        <el-table :data="reportData.ranking.class_rankings ?? []" stripe max-height="400">
           <el-table-column prop="rank" label="排名" width="80" />
-          <el-table-column prop="name" label="姓名" width="120" />
-          <el-table-column prop="total_score" label="总分" width="100" />
           <el-table-column prop="class_name" label="班级" width="140" />
+          <el-table-column prop="avg_score" label="均分" width="100" />
+          <el-table-column prop="student_count" label="人数" width="100" />
         </el-table>
       </el-card>
     </template>
@@ -69,12 +69,12 @@ const canQuery = computed(() => po.value?.hasSelection?.value && selectedMetrics
 
 const segmentsOption = computed(() => {
   const segs = reportData.value?.segments
-  if (!segs?.labels) return {}
+  if (!segs?.intervals?.length) return {}
   return {
     tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: segs.labels },
+    xAxis: { type: 'category', data: segs.intervals.map((i: any) => i.label) },
     yAxis: { type: 'value', name: '人数' },
-    series: [{ type: 'bar', data: segs.counts, itemStyle: { color: '#67c23a' } }],
+    series: [{ type: 'bar', data: segs.intervals.map((i: any) => i.count), itemStyle: { color: '#67c23a' } }],
   }
 })
 
@@ -83,9 +83,13 @@ async function queryData() {
   if (!params?.exam_id) return
   loading.value = true
   try {
+    const selectedSubject = po.value?.subjectOptions?.value?.find(
+      (s: any) => s.id === params.subject_id
+    )
     const result = await api.queryReport({
       exam_ids: [params.exam_id],
       metrics: selectedMetrics.value,
+      subject_codes: selectedSubject ? [selectedSubject.code] : undefined,
       class_ids: params.class_id ? [params.class_id] : undefined,
     })
     reportData.value = result.metrics ?? result

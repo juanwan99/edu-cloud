@@ -99,6 +99,7 @@ async def test_power_options_tree_structure(client, school_admin_headers, seed_s
     assert "高二" in grade_names
 
     g1 = next(g for g in grades if g["name"] == "高一")
+    assert g1["id"] == "高一", "ORC-001: grade node must have unified id"
     class_ids = [c["id"] for c in g1["classes"]]
     assert "all" in class_ids
 

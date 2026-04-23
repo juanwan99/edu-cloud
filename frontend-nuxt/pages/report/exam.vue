@@ -20,18 +20,13 @@
       <el-card v-if="questions.length" class="table-card">
         <template #header>题目分析</template>
         <el-table :data="questions" stripe>
-          <el-table-column prop="name" label="题号" width="100" />
+          <el-table-column prop="question_name" label="题号" width="100" />
           <el-table-column prop="question_type" label="题型" width="100" />
           <el-table-column prop="max_score" label="满分" width="80" />
           <el-table-column prop="avg_score" label="均分" width="80" />
           <el-table-column prop="score_rate" label="得分率" width="100">
             <template #default="{ row }">
               {{ row.score_rate != null ? (row.score_rate * 100).toFixed(1) + '%' : '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="discrimination" label="区分度" width="100">
-            <template #default="{ row }">
-              {{ row.discrimination != null ? row.discrimination.toFixed(2) : '-' }}
             </template>
           </el-table-column>
         </el-table>
@@ -59,24 +54,24 @@ const distribution = ref<any>(null)
 const questions = ref<any[]>([])
 
 const statsCards = computed(() => {
-  if (!summary.value) return []
-  const s = summary.value
+  if (!summary.value?.subjects?.length) return []
+  const s = summary.value.subjects[0]
   return [
     { label: '平均分', value: s.avg_score?.toFixed(1) ?? '-' },
-    { label: '最高分', value: s.max_score ?? '-' },
-    { label: '最低分', value: s.min_score ?? '-' },
-    { label: '及格率', value: s.pass_rate != null ? (s.pass_rate * 100).toFixed(1) + '%' : '-' },
+    { label: '最高分', value: s.highest ?? '-' },
+    { label: '最低分', value: s.lowest ?? '-' },
+    { label: '得分率', value: s.score_rate != null ? (s.score_rate * 100).toFixed(1) + '%' : '-' },
   ]
 })
 
 const distributionOption = computed(() => {
-  const d = distribution.value
-  if (!d?.segments) return {}
+  const intervals = distribution.value?.intervals
+  if (!intervals?.length) return {}
   return {
     tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: d.segments },
+    xAxis: { type: 'category', data: intervals.map((i: any) => i.label) },
     yAxis: { type: 'value', name: '人数' },
-    series: [{ type: 'bar', data: d.counts, itemStyle: { color: '#409eff' } }],
+    series: [{ type: 'bar', data: intervals.map((i: any) => i.count), itemStyle: { color: '#409eff' } }],
   }
 })
 
@@ -92,7 +87,7 @@ watch(() => po.value?.analysisParams?.value, async (params) => {
     distribution.value = dist
     if (params.subject_id) {
       const q = await api.getSubjectQuestions(params.subject_id)
-      questions.value = q.questions ?? q ?? []
+      questions.value = q.questions ?? []
     } else {
       questions.value = []
     }

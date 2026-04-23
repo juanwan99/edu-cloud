@@ -1,24 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { nextTick } from 'vue'
+import { flushPromises } from '@vue/test-utils'
 import { usePowerOptions } from '~/composables/usePowerOptions'
 
 const MOCK_TREE = {
   grades: [
     {
-      name: '高一',
+      id: '高一', name: '高一',
       classes: [
         {
           id: 'all', name: '全部班级',
           subjects: [
             { id: 's1', code: 'math', name: '数学',
-              exams: [{ exam_id: 'e1', subject_id: 's1', name: '期中', exam_date: '2026-04-10', student_count: 90 }] },
+              exams: [{ id: 'e1', exam_id: 'e1', subject_id: 's1', name: '期中', exam_date: '2026-04-10', student_count: 90 }] },
           ],
         },
         {
           id: 'c1', name: '高一(1)班',
           subjects: [
-            { id: 's1', code: 'math', name: '数学',
-              exams: [{ exam_id: 'e1', subject_id: 's1', name: '期中', exam_date: '2026-04-10', student_count: 45 }] },
+            { id: 's2', code: 'chinese', name: '语文',
+              exams: [{ id: 'e2', exam_id: 'e2', subject_id: 's2', name: '月考', exam_date: '2026-03-10', student_count: 45 }] },
           ],
         },
       ],
@@ -46,10 +47,18 @@ describe('usePowerOptions', () => {
   it('级联重置：切换班级重置科目和考试', async () => {
     const po = usePowerOptions()
     await po.load()
-    await nextTick()
+    await flushPromises()
 
+    // Manually select c1 first to trigger cascade
     po.selectedClassId.value = 'c1'
-    await nextTick()
+    await flushPromises()
+    // c1 has s2/e2
+    expect(po.selectedSubjectId.value).toBe('s2')
+    expect(po.selectedExamId.value).toBe('e2')
+
+    // Switch back to 'all' -> should reset to s1/e1 (different from c1!)
+    po.selectedClassId.value = 'all'
+    await flushPromises()
     expect(po.selectedSubjectId.value).toBe('s1')
     expect(po.selectedExamId.value).toBe('e1')
   })

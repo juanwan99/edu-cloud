@@ -1,4 +1,5 @@
 export interface ExamNode {
+  id: string
   exam_id: string
   subject_id: string
   name: string
@@ -20,6 +21,7 @@ export interface ClassNode {
 }
 
 export interface GradeNode {
+  id: string
   name: string
   classes: ClassNode[]
 }
