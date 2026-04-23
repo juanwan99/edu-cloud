@@ -43,9 +43,9 @@ describe('Route definitions (real routes)', () => {
     expect(routes).toHaveLength(3)
   })
 
-  it('AppShell has 16 child routes in freeze mode', () => {
+  it('AppShell has 17 child routes in freeze mode', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
-    expect(shell.children).toHaveLength(16)
+    expect(shell.children).toHaveLength(17)
   })
 
   it('all routes except login are children of AppShell', () => {
