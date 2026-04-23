@@ -4,7 +4,7 @@
 const EXAM_GRADING_ITEMS = [
   { icon: 'exam', label: '考试管理', route: '/exams' },
   { icon: 'marking', label: 'AI 阅卷', route: '/grading/tasks' },
-  { icon: 'marking', label: '阅卷', route: '/marking' },
+  { icon: 'marking', label: '人工阅卷/审核', route: '/marking' },
   { icon: 'marking', label: '阅卷分配', route: '/marking/assign' },
   { icon: 'marking', label: '阅卷进度', route: '/marking/progress' },
 ]
@@ -56,14 +56,14 @@ const SIDEBAR_ITEMS = {
     { icon: 'dashboard', label: '概览', route: '/' },
     { icon: 'exam', label: '考试管理', route: '/exams' },
     { icon: 'marking', label: 'AI 阅卷', route: '/grading/tasks' },
-    { icon: 'marking', label: '阅卷', route: '/marking' },
+    { icon: 'marking', label: '人工阅卷/审核', route: '/marking' },
     { icon: 'marking', label: '阅卷进度', route: '/marking/progress' },
   ],
   grade_leader: [
     { icon: 'dashboard', label: '概览', route: '/' },
     { icon: 'exam', label: '考试管理', route: '/exams' },
     { icon: 'marking', label: 'AI 阅卷', route: '/grading/tasks' },
-    { icon: 'marking', label: '阅卷', route: '/marking' },
+    { icon: 'marking', label: '人工阅卷/审核', route: '/marking' },
     { icon: 'marking', label: '阅卷进度', route: '/marking/progress' },
   ],
   lesson_prep_leader: [
@@ -74,14 +74,14 @@ const SIDEBAR_ITEMS = {
     { icon: 'dashboard', label: '概览', route: '/' },
     { icon: 'exam', label: '考试管理', route: '/exams' },
     { icon: 'marking', label: 'AI 阅卷', route: '/grading/tasks' },
-    { icon: 'marking', label: '阅卷', route: '/marking' },
+    { icon: 'marking', label: '人工阅卷/审核', route: '/marking' },
     { icon: 'marking', label: '阅卷进度', route: '/marking/progress' },
   ],
   subject_teacher: [
     { icon: 'dashboard', label: '概览', route: '/' },
     { icon: 'exam', label: '考试管理', route: '/exams' },
     { icon: 'marking', label: 'AI 阅卷', route: '/grading/tasks' },
-    { icon: 'marking', label: '阅卷', route: '/marking' },
+    { icon: 'marking', label: '人工阅卷/审核', route: '/marking' },
     { icon: 'marking', label: '阅卷进度', route: '/marking/progress' },
   ],
   parent: [
