@@ -81,9 +81,8 @@ export function useApi() {
     getAnalyticsReportTrendStudent: (params?: Record<string, any>) =>
       request('/analytics/report/trend/student', { query: params }),
 
-    // F007 (R2): getPowerOptions — Phase 1 stub（Task 10 usePowerOptions 依赖）
-    getPowerOptions: (_params?: Record<string, any>) =>
-      Promise.resolve({ powerOptions: [], examInfoMap: {} }),
+    getPowerOptions: (params?: Record<string, any>) =>
+      request('/analytics/power-options', { query: params }),
 
     // === Homework ===
     getHomeworkList: (params?: Record<string, any>) =>
@@ -125,6 +124,18 @@ export function useApi() {
 
     // === Dashboard ===
     getDashboardSummary: () => request('/dashboard/summary'),
+
+    // === Level Score ===
+    convertLevelScore: (data: any) =>
+      request('/analytics/level-score/convert', { method: 'POST', body: data }),
+
+    // === Report ===
+    queryReport: (data: any) =>
+      request('/analytics/report/query', { method: 'POST', body: data }),
+    upsertSegmentsConfig: (data: any) =>
+      request('/analytics/segments/config', { method: 'PUT', body: data }),
+    deleteSegmentOverride: (subjectCode: string) =>
+      request(`/analytics/segments/config/${subjectCode}`, { method: 'DELETE' }),
 
     // === Raw ===
     raw: request,
