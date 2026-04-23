@@ -1775,7 +1775,7 @@ Batch 4: 等级赋分 + 收尾（level-score.vue + usePowerOptions 搬入 + CLAU
 
 ### Task 3 测试契约
 
-- **入口**: `GET /analytics/exam/{id}/class-knowledge` + `GET /analytics/exam/{id}/class-error-patterns` + `GET /profile/students/{id}/ai-diagnosis`
+- **入口**: `GET /api/v1/analytics/exam/{id}/class-knowledge` + `GET /api/v1/analytics/exam/{id}/class-error-patterns` + `GET /api/v1/profile/students/{id}/ai-diagnosis`
 - **反例**: Question.knowledge_points 为 null 时 class-knowledge 返回空 knowledge_points 列表；无 ErrorPattern 数据时 ai-diagnosis 不含 error_patterns 段
 - **边界**: 只有 1 个班级时 class-error-patterns 仍返回完整结构；student_id 不存在时 ai-diagnosis 返回"暂无数据"
 - **回归**: profile router 追加端点不影响现有 4 个 profile 端点
@@ -1791,63 +1791,62 @@ Batch 4: 等级赋分 + 收尾（level-score.vue + usePowerOptions 搬入 + CLAU
 
 ---
 
-## contract_pack:
-
 ```yaml
-invariants:
-  - id: INV-001
-    description: "所有新端点通过 get_current_user 认证，数据按 visible_class_ids + visible_subject_codes 双重过滤"
-    verification: new_test
-    test_ref: "test_analytics_insights.py::test_question_insights_subject_filter + test_analytics_ranking.py::test_student_rankings_with_delta"
+contract_pack:
+  invariants:
+    - id: INV-001
+      statement: "所有新端点通过 get_current_user 认证，数据按 visible_class_ids + visible_subject_codes 双重过滤"
+      verification: pending_test
+      note: "test_analytics_insights.py::test_question_insights_subject_filter + test_analytics_ranking.py::test_student_rankings_with_delta"
 
-  - id: INV-002
-    description: "诊断文本通过模板拼接生成，不调用 LLM（ORC-007）"
-    verification: code_inspection
-    test_ref: "insights_service.py 无 LLM/httpx/llm_adapter import"
+    - id: INV-002
+      statement: "诊断文本通过模板拼接生成，不调用 LLM（ORC-007）"
+      verification: pending_test
+      note: "insights_service.py 无 LLM/httpx/llm_adapter import；test_diagnosis_text 验证输出结构"
 
-  - id: INV-003
-    description: "错因分类基于 GradingResult.ai_raw_response.details[].blanks[].reason"
-    verification: new_test
-    test_ref: "test_analytics_insights.py::test_question_insights_with_grading — 断言 top_cause=='概念混淆'"
+    - id: INV-003
+      statement: "错因分类基于 GradingResult.ai_raw_response.details[].blanks[].reason 的关键词匹配"
+      verification: pending_test
+      note: "test_analytics_insights.py::test_question_insights_with_grading 断言 top_cause=='概念混淆'"
 
-  - id: INV-004
-    description: "进退步 delta = prev_rank - current_rank（正数=进步，负数=退步）"
-    verification: new_test
-    test_ref: "test_analytics_ranking.py::test_student_rankings_with_delta — 断言王五 delta=2, 张三 delta=-2"
+    - id: INV-004
+      statement: "进退步 delta = prev_rank - current_rank（正数=进步，负数=退步），_find_prev_exam 限同年级"
+      verification: pending_test
+      note: "test_analytics_ranking.py::test_student_rankings_with_delta 断言王五 delta=2, 张三 delta=-2"
 
-  - id: INV-005
-    description: "进阶 Tab 数据懒加载，已有数据不重复请求"
-    verification: new_test
-    test_ref: "useAnalytics.test.ts::loadAdvancedData is lazy"
+    - id: INV-005
+      statement: "进阶 Tab 数据懒加载：loadAdvancedData 检查 questionInsights.value 非 null 时 early return 不发请求"
+      verification: pending_test
+      note: "useAnalytics.test.ts::loadAdvancedData is lazy — mockFetch 不被调用"
 
-counter_examples:
-  - id: CE-001
-    description: "loadAdvancedData 不检查已有数据就重复请求"
-    tests_that_still_pass: "loadBasicData test（不涉及 advanced）"
-    mitigation: "questionInsights.value 非 null 时 early return"
+  counter_examples:
+    - id: CE-001
+      scenario: "loadAdvancedData 不检查已有数据就重复请求（每次切 Tab 都发网络请求）"
+      tests_that_still_pass: "loadBasicData test（不涉及 advanced）"
+      mitigation: "questionInsights.value 非 null 时 early return"
 
-  - id: CE-002
-    description: "_classify_error 缺少'概念'关键词匹配"
-    tests_that_still_pass: "test_question_insights_empty（无 AI 数据）"
-    mitigation: "_ERROR_PATTERNS 列表第一条覆盖'概念|混淆|误写'"
+    - id: CE-002
+      scenario: "_classify_error 缺少'概念'关键词匹配，所有概念混淆错因被分类为'其他'"
+      tests_that_still_pass: "test_question_insights_empty（无 AI 数据不触发分类）"
+      mitigation: "_ERROR_PATTERNS 列表第一条覆盖 re.compile(r'概念|混淆|误写|误用')"
 
-  - id: CE-003
-    description: "_get_student_scores 不过滤 visible_subject_codes 导致权限泄漏"
-    tests_that_still_pass: "test_student_rankings_with_delta（全校可见角色）"
-    mitigation: "F002 修复：_get_student_scores 签名加 visible_subject_codes 参数"
+    - id: CE-003
+      scenario: "_get_student_scores 不过滤 visible_subject_codes，学科教师可看到其他科目总分"
+      tests_that_still_pass: "test_student_rankings_with_delta（使用 principal 全校可见角色）"
+      mitigation: "F002 修复：_get_student_scores 签名加 visible_subject_codes 参数并传递到 Subject 查询"
 
-risk_modules:
-  - module: "src/edu_cloud/modules/analytics/insights_service.py"
-    reason: "新文件，错因聚合 + 诊断文本生成核心逻辑，错因分类准确性直接影响进阶 Tab 质量"
-  - module: "src/edu_cloud/modules/analytics/ranking_service.py"
-    reason: "新文件，进退步/临界生/箱线图核心逻辑，_find_prev_exam 同年级限制影响排名对比准确性"
-  - module: "src/edu_cloud/modules/analytics/router.py"
-    reason: "追加 7 个端点到已有 555 行文件，import 数量增加"
-  - module: "src/edu_cloud/modules/profile/router.py"
-    reason: "追加 1 个 ai-diagnosis 端点，需确保不与现有 4 个端点冲突"
+  risk_modules:
+    - module: "src/edu_cloud/modules/analytics/insights_service.py"
+      reason: "新文件，错因聚合 + 诊断文本生成核心逻辑，错因分类准确性直接影响进阶 Tab 质量"
+    - module: "src/edu_cloud/modules/analytics/ranking_service.py"
+      reason: "新文件，进退步/临界生/箱线图核心逻辑，_find_prev_exam 同年级限制影响排名对比准确性"
+    - module: "src/edu_cloud/modules/analytics/router.py"
+      reason: "追加 7 个端点到已有 555 行文件，import 数量增加"
+    - module: "src/edu_cloud/modules/profile/router.py"
+      reason: "追加 1 个 ai-diagnosis 端点，需确保不与现有 4 个端点冲突"
 
-test_debt:
-  - item: "知识点热力图的知识点名称目前用 knowledge_point_id 作 name（Question.knowledge_points 只存 ID 列表，无名称映射）"
-    reason: "知识点元数据存在 knowledge.db（SQLite 独立库），跨库 JOIN 不可行，需要独立查询"
-    deadline: "2026-05-15"
+  test_debt:
+    - item: "知识点热力图的知识点名称目前用 knowledge_point_id 作 name"
+      reason: "知识点元数据存在 knowledge.db（SQLite 独立库），跨库 JOIN 不可行，需要独立查询"
+      deadline: "2026-05-15"
 ```
