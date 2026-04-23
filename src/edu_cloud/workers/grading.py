@@ -116,6 +116,11 @@ async def _grade_single(
             ocr_prompt = OCR_PROMPT_BASE
 
         blanks = await llm.extract_text(images_b64=[image_b64], prompt=ocr_prompt)
+
+        from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
+        blanks = validate_ocr_blanks(blanks)
+        blanks = recover_truncated_blanks(blanks, len(rubric_criteria))
+
         extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
 
         # Step 2: Grade text
