@@ -36,3 +36,15 @@ def test_get_prompt_config():
     config = get_prompt_config("biology", "GRADING", "senior")
     assert config is not None
     assert "temperature" in config
+
+
+def test_get_prompt_math_grading():
+    prompt = get_prompt("math", "GRADING", "senior")
+    assert prompt is not None
+    assert "等价" in prompt
+
+
+def test_get_prompt_chinese_grading():
+    prompt = get_prompt("chinese", "GRADING", "senior")
+    assert prompt is not None
+    assert "默写" in prompt
