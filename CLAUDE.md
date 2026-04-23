@@ -65,7 +65,7 @@ npm run dev
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-04-18：1958 collected / 1934 passed / 23 skipped / 68 conduct
+# 后端 ECS pytest 实测 @ 2026-04-23：1963 passed / 23 skipped
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
 # 前端 Vitest + happy-dom
@@ -92,6 +92,7 @@ frontend/src/
     AnalyticsReportPage.vue # 分析报告（多考试+多指标查询，ECharts 分段柱图）
     AnalyticsTrendPage.vue  # 成绩趋势（年级/班级/学生维度折线图）
     GradingDispatchPage.vue # 阅卷调度中心（扫描→选择题→AI阅卷→校对全流程）
+    AiGradingPage.vue       # 题目级 AI 阅卷（左右分栏：题目列表+内容/细则/阅卷操作）
     GradingResultsPage.vue  # 阅卷结果
     TeacherReviewPage.vue   # 教师复核
     MarkingSelectPage.vue   # 手动阅卷选题
@@ -137,6 +138,8 @@ frontend/src/
       AiSlidePanel.vue      # 右侧 400px 滑出 AI 面板（路由变化自动关闭）
     CardEditor.vue          # 可视化答题卡编辑器（封装 card-editor/）
     TemplatePreviewEditor.vue # 扫描模板区域编辑器（检测结果叠加+拖拽/缩放/分割，A/B双面）
+    RubricEditor.vue        # 评分细则展示/编辑（v-model criteria 数组，分值合计校验）
+    QuestionContentModal.vue # 题干/答案编辑弹窗（textarea + 多图上传）
     analytics/
       ScoreSegmentSettings.vue # 分数段配置（学校默认+科目覆盖，嵌入 SchoolSettingsPage）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
@@ -290,7 +293,7 @@ tests/
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 8 角色映射 | — |
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 1962 后端 + 234 前端 Vitest（ECS 实测 @ 2026-04-23） | — |
+| Tests | 1963 后端 + 238 前端 Vitest（ECS 实测 @ 2026-04-23） | — |
 | Modules | 20 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu），路由已迁入；其中 `adaptive`/`paper` 为内部服务模块（无 HTTP router） | — |
 | Migrations | Alembic migration（85 表，25 个迁移） | — |
 
@@ -490,8 +493,11 @@ tests/
 | GET | `/api/v1/scan/pipeline/cv-template` | 查询科目已有 CV 检测 Template（A/B 面，VIEW_GRADING） |
 | POST | `/api/v1/scan/pipeline/save-cv-template` | 保存检测结果为 Template（VIEW_GRADING，自动创建 choice/essay Question） |
 | * | `/api/v1/grading/*` | AI 阅卷/评分规则/教师审核 |
-| GET | `/api/v1/grading/dispatch/status` | 科目阅卷状态聚合（exam_id 查询参数，返回各科目 subject_code/stage/统计；stage: idle→pending_detect→pending_cut→cutting→ready→ai_grading→reviewing→done） |
-| POST | `/api/v1/grading/tasks` | 创建 AI 阅卷任务（前置校验 4 项：Subject 归属/主观题存在/Rubric 存在/StudentAnswer 存在；enqueue 失败清理 orphan task 并返回 503）|
+| GET | `/api/v1/grading/dispatch/status` | 科目阅卷状态聚合（exam_id 查询参数，返回各科目 subject_code/stage/统计+questions 逐题明细；stage: idle→pending_detect→pending_cut→cutting→ready→ai_grading→reviewing→done） |
+| POST | `/api/v1/grading/rubrics` | 创建/更新评分细则（MANAGE_GRADING，criteria 校验：blankNo/score/answer 必填+总分守恒） |
+| GET | `/api/v1/grading/rubrics/{question_id}` | 获取题目评分细则 |
+| POST | `/api/v1/grading/rubrics/generate` | AI 生成评分细则（MANAGE_GRADING，题干+答案+图片→LLM→criteria，upsert Rubric） |
+| POST | `/api/v1/grading/tasks` | 创建 AI 阅卷任务（支持 question_id 题目级；前置校验：归属/主观题/Rubric/Answer；重跑清理 ai_pending/ai_done、保护 confirmed）|
 | GET | `/api/v1/grading/tasks` | 列出本校 AI 阅卷任务 |
 | GET | `/api/v1/grading/tasks/{task_id}` | 阅卷任务详情 |
 | POST | `/api/v1/grading/assignments` | 创建阅卷分配（MANAGE_GRADING） |
