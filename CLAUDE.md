@@ -62,6 +62,26 @@ npm run dev
 # → http://0.0.0.0:8080（ECS 远程开发，allowedHosts 锁定）；代理 /api → http://localhost:9000
 ```
 
+## 前端 serving 架构
+
+用户通过 `https://mcu.asia` 访问 → nginx HTTPS 443 → **serve `frontend/dist/` 静态文件**（不是代理到 Vite dev server）。
+
+```
+浏览器 → nginx 443 (try_files $uri /index.html) → frontend/dist/ → 旧 build 产物
+         nginx 80  → 301 跳 HTTPS（不走 Vite）
+         Vite 8080 → 仅限 curl localhost 直连（开发调试用）
+```
+
+**铁律：改了前端代码必须 build 才能让用户看到。**
+
+```bash
+cd /home/ops/projects/edu-cloud/frontend && npx vite build
+```
+
+- `npm run dev` 只启动 dev server，用户通过 mcu.asia 看不到
+- `vitest` 通过 ≠ 用户看到新代码——测试验证逻辑正确性，不验证交付
+- 用户说"硬刷新没用"→ 第一反应检查是否忘了 build，不要说"浏览器缓存"
+
 ## 测试命令
 
 ```bash
