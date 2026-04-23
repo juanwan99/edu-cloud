@@ -66,9 +66,9 @@ def _validate_criteria(criteria: list[dict], question_max_score: float) -> None:
         if score < 0:
             raise HTTPException(422, f"criteria[{i}] score must be >= 0, got {score}")
 
-        answer = item.get("answer")
+        answer = item.get("standardAnswer") or item.get("answer")
         if not answer or not isinstance(answer, str) or not answer.strip():
-            raise HTTPException(422, f"criteria[{i}] missing or empty answer")
+            raise HTTPException(422, f"criteria[{i}] missing standardAnswer or answer")
 
         total += score
 
