@@ -115,9 +115,13 @@ async def test_process_grading_task_no_subjective_questions(mock_create_llm):
     # db.execute call sequence:
     # 1. select(GradingTask) → task
     # 2. select(Question) → empty list
+    # 3. select(Subject) → None (subject lookup for prompt dispatch)
+    subject_result = MagicMock()
+    subject_result.scalar_one_or_none.return_value = None
     execute_results = [
         _make_scalar_one_result(task),   # load GradingTask
         _make_scalars_all_result([]),     # no subjective questions
+        subject_result,                  # subject lookup
     ]
     ctx, db = _build_mock_db_session(execute_results)
 
@@ -162,14 +166,18 @@ async def test_process_grading_task_missing_rubric(mock_create_llm):
     # db.execute call sequence (batch mode):
     # 1. select(GradingTask) → task
     # 2. select(Question) → [question]
-    # 3. select(StudentAnswer) → [answer]
-    # 4. select(GradingResult.answer_id) WHERE confirmed → [] (ORC-001 exclusion)
-    # 5. select(Rubric) → [] (no rubric!)
-    # 6. select(GradingTask) → task (batch progress re-fetch)
-    # 7. select(GradingTask) → task (final status re-fetch)
+    # 3. select(Subject) → None (subject lookup for prompt dispatch)
+    # 4. select(StudentAnswer) → [answer]
+    # 5. select(GradingResult.answer_id) WHERE confirmed → [] (ORC-001 exclusion)
+    # 6. select(Rubric) → [] (no rubric!)
+    # 7. select(GradingTask) → task (batch progress re-fetch)
+    # 8. select(GradingTask) → task (final status re-fetch)
+    subject_result = MagicMock()
+    subject_result.scalar_one_or_none.return_value = None
     execute_results = [
         _make_scalar_one_result(task),       # load GradingTask
         _make_scalars_all_result([question]), # subjective questions
+        subject_result,                      # subject lookup
         _make_scalars_all_result([answer]),   # student answers
         _make_scalars_all_result([]),         # confirmed exclusion (ORC-001) → none
         _make_scalars_all_result([]),         # no rubrics
@@ -224,14 +232,18 @@ async def test_process_grading_task_llm_recoverable_error(mock_create_llm, mock_
     # db.execute call sequence (batch mode):
     # 1. select(GradingTask) → task
     # 2. select(Question) → [question]
-    # 3. select(StudentAnswer) → [answer]
-    # 4. select(GradingResult.answer_id) WHERE confirmed → [] (ORC-001 exclusion)
-    # 5. select(Rubric) → [rubric]
-    # 6. select(GradingTask) → task (batch progress re-fetch)
-    # 7. select(GradingTask) → task (final status re-fetch)
+    # 3. select(Subject) → None (subject lookup for prompt dispatch)
+    # 4. select(StudentAnswer) → [answer]
+    # 5. select(GradingResult.answer_id) WHERE confirmed → [] (ORC-001 exclusion)
+    # 6. select(Rubric) → [rubric]
+    # 7. select(GradingTask) → task (batch progress re-fetch)
+    # 8. select(GradingTask) → task (final status re-fetch)
+    subject_result = MagicMock()
+    subject_result.scalar_one_or_none.return_value = None
     execute_results = [
         _make_scalar_one_result(task),       # load GradingTask
         _make_scalars_all_result([question]), # subjective questions
+        subject_result,                      # subject lookup
         _make_scalars_all_result([answer]),   # student answers
         _make_scalars_all_result([]),         # confirmed exclusion (ORC-001) → none
         _make_scalars_all_result([rubric]),   # rubrics
@@ -240,7 +252,7 @@ async def test_process_grading_task_llm_recoverable_error(mock_create_llm, mock_
     ]
     ctx, db = _build_mock_db_session(execute_results)
 
-    mock_read_img.return_value = "ZmFrZWltYWdl"  # base64 of "fakeimage"
+    mock_read_img.return_value = "A" * 10000  # large enough to pass blank detection
 
     mock_llm = AsyncMock()
     mock_llm.grade = AsyncMock(side_effect=ValueError("LLM parse error"))
