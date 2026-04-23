@@ -1,8 +1,10 @@
 """LLM Client for AI grading（从 exam-ai 迁入）。"""
-import json
+from __future__ import annotations
+
 import logging
 import httpx
 from pydantic import BaseModel
+from edu_cloud.modules.grading.json_parser import extract_json
 from edu_cloud.modules.grading.prompts_legacy import build_grading_prompt, build_rubric_generation_prompt
 
 logger = logging.getLogger(__name__)
@@ -38,7 +40,7 @@ class LLMClient:
 
     async def grade(
         self,
-        image_b64: str,
+        images_b64: str | list[str],
         rubric: dict,
         question: dict,
         question_type: str | None = None,
@@ -46,11 +48,14 @@ class LLMClient:
         messages = build_grading_prompt(rubric, question, question_type)
         max_score = question.get("max_score", 0.0)
 
+        if isinstance(images_b64, str):
+            images_b64 = [images_b64]
+
         user_msg = messages[-1]
-        user_msg["content"] = [
-            {"type": "text", "text": user_msg["content"]},
-            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_b64}"}},
-        ]
+        content_parts: list[dict] = [{"type": "text", "text": user_msg["content"]}]
+        for img in images_b64:
+            content_parts.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img}"}})
+        user_msg["content"] = content_parts
 
         payload = {
             "model": self.model,
@@ -86,12 +91,11 @@ class LLMClient:
                     continue
 
                 content = choices[0]["message"]["content"]
-                text = content.strip()
-                if text.startswith("```"):
-                    text = text.split("\n", 1)[-1]
-                    text = text.rsplit("```", 1)[0]
-                    text = text.strip()
-                parsed = json.loads(text)
+                parsed = extract_json(content)
+                if parsed is None or not isinstance(parsed, dict):
+                    last_error = "Failed to parse JSON from LLM response"
+                    logger.warning("LLM attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
+                    continue
                 return GradeResponse(
                     score=min(max(parsed.get("score", 0), 0), max_score),
                     max_score=max_score,
@@ -102,9 +106,6 @@ class LLMClient:
 
             except (httpx.TimeoutException, httpx.ConnectError) as e:
                 last_error = f"Network error: {e}"
-                logger.warning("LLM attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
-            except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as e:
-                last_error = f"Parse error: {e}"
                 logger.warning("LLM attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
 
         raise RuntimeError(f"LLM call failed after {self.max_retries} attempts: {last_error}")
@@ -177,14 +178,14 @@ class LLMClient:
                     continue
 
                 content = choices[0]["message"]["content"]
-                text = content.strip()
-                if text.startswith("```"):
-                    text = text.split("\n", 1)[-1]
-                    text = text.rsplit("```", 1)[0]
-                    text = text.strip()
-                parsed = json.loads(text)
-                if not isinstance(parsed, list):
-                    raise ValueError(f"Expected JSON array, got: {type(parsed)}")
+                parsed = extract_json(content)
+                if parsed is None or not isinstance(parsed, list):
+                    last_error = "Failed to parse JSON array from rubric response"
+                    logger.warning(
+                        "generate_rubric attempt %d/%d: %s",
+                        attempt + 1, self.max_retries, last_error,
+                    )
+                    continue
                 logger.info(
                     "generate_rubric: parsed %d criteria items", len(parsed)
                 )
@@ -196,13 +197,94 @@ class LLMClient:
                     "generate_rubric attempt %d/%d: %s",
                     attempt + 1, self.max_retries, last_error,
                 )
-            except (json.JSONDecodeError, KeyError, TypeError, AttributeError, ValueError) as e:
-                last_error = f"Parse error: {e}"
-                logger.warning(
-                    "generate_rubric attempt %d/%d: %s",
-                    attempt + 1, self.max_retries, last_error,
-                )
 
         raise RuntimeError(
             f"generate_rubric failed after {self.max_retries} attempts: {last_error}"
         )
+
+    async def extract_text(
+        self,
+        images_b64: list[str],
+        prompt: str,
+    ) -> list[dict]:
+        """OCR: extract text from answer images. Returns list of blanks."""
+        content_parts: list[dict] = []
+        for img in images_b64:
+            content_parts.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img}"}})
+        content_parts.append({"type": "text", "text": prompt})
+
+        messages = [{"role": "user", "content": content_parts}]
+        payload = {"model": self.model, "messages": messages, "max_tokens": 16384, "temperature": 0}
+        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+        if self.slot:
+            headers["X-LLM-Slot"] = self.slot
+
+        last_error = None
+        for attempt in range(self.max_retries):
+            try:
+                resp = await self._http.post(f"{self.api_url}/chat/completions", json=payload, headers=headers)
+                if resp.status_code != 200:
+                    last_error = f"HTTP {resp.status_code}: {resp.text}"
+                    logger.warning("extract_text attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
+                    continue
+                data = resp.json()
+                choices = data.get("choices") or []
+                if not choices:
+                    last_error = "Empty choices"
+                    continue
+                content = choices[0]["message"]["content"]
+                parsed = extract_json(content)
+                if parsed is None:
+                    last_error = "Failed to parse JSON from OCR response"
+                    continue
+                if isinstance(parsed, dict):
+                    return parsed.get("blanks", [])
+                return parsed
+            except (httpx.TimeoutException, httpx.ConnectError) as e:
+                last_error = f"Network error: {e}"
+                logger.warning("extract_text attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
+
+        raise RuntimeError(f"extract_text failed after {self.max_retries} attempts: {last_error}")
+
+    async def grade_text(
+        self,
+        prompt: str,
+        max_score: float,
+    ) -> GradeResponse:
+        """Text-based grading (after OCR). No images, pure text prompt."""
+        messages = [{"role": "user", "content": prompt}]
+        payload = {"model": self.model, "messages": messages, "max_tokens": 32768, "temperature": 0}
+        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+        if self.slot:
+            headers["X-LLM-Slot"] = self.slot
+
+        last_error = None
+        for attempt in range(self.max_retries):
+            try:
+                resp = await self._http.post(f"{self.api_url}/chat/completions", json=payload, headers=headers)
+                if resp.status_code != 200:
+                    last_error = f"HTTP {resp.status_code}: {resp.text}"
+                    logger.warning("grade_text attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
+                    continue
+                data = resp.json()
+                choices = data.get("choices") or []
+                if not choices:
+                    last_error = "Empty choices"
+                    continue
+                content = choices[0]["message"]["content"]
+                parsed = extract_json(content)
+                if parsed is None or not isinstance(parsed, dict):
+                    last_error = "Failed to parse JSON from grading response"
+                    continue
+                return GradeResponse(
+                    score=min(max(parsed.get("score", 0), 0), max_score),
+                    max_score=max_score,
+                    feedback=parsed.get("comment", parsed.get("feedback", "")),
+                    confidence=parsed.get("confidence", 0.0),
+                    raw_content=content,
+                )
+            except (httpx.TimeoutException, httpx.ConnectError) as e:
+                last_error = f"Network error: {e}"
+                logger.warning("grade_text attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
+
+        raise RuntimeError(f"grade_text failed after {self.max_retries} attempts: {last_error}")

@@ -51,7 +51,7 @@ async def test_llm_client_grade_success():
 
     with patch.object(client._http, "post", new_callable=AsyncMock, return_value=mock_response):
         result = await client.grade(
-            image_b64="base64data",
+            images_b64="base64data",
             rubric={"criteria": [{"point": "概念", "score": 10.0, "description": "正确"}]},
             question={"name": "Q1", "max_score": 10.0},
         )
@@ -101,7 +101,7 @@ async def test_llm_client_grade_retry_on_error():
 
     with patch.object(client._http, "post", side_effect=mock_post):
         result = await client.grade(
-            image_b64="base64data",
+            images_b64="base64data",
             rubric={"criteria": []},
             question={"name": "Q1", "max_score": 10.0},
         )
@@ -144,7 +144,7 @@ async def test_llm_client_retry_on_non_json_response():
         return success_response
 
     with patch.object(client._http, "post", side_effect=mock_post):
-        result = await client.grade(image_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
+        result = await client.grade(images_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
     assert result.score == 6.0
     assert call_count == 2
 
@@ -174,7 +174,7 @@ async def test_llm_client_retry_on_empty_choices():
         return success_response
 
     with patch.object(client._http, "post", side_effect=mock_post):
-        result = await client.grade(image_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
+        result = await client.grade(images_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
     assert result.score == 9.0
     assert call_count == 2
 
@@ -199,7 +199,7 @@ async def test_llm_client_retry_on_timeout():
         return success_response
 
     with patch.object(client._http, "post", side_effect=mock_post):
-        result = await client.grade(image_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
+        result = await client.grade(images_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
     assert result.score == 4.0
     assert call_count == 2
 
@@ -229,7 +229,7 @@ async def test_llm_client_retry_on_non_dict_json():
         return success_response
 
     with patch.object(client._http, "post", side_effect=mock_post):
-        result = await client.grade(image_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
+        result = await client.grade(images_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
     assert result.score == 7.0
     assert call_count == 2
 
@@ -244,4 +244,4 @@ async def test_llm_client_exhausted_retries():
 
     with patch.object(client._http, "post", side_effect=mock_post):
         with pytest.raises(RuntimeError, match="LLM call failed after 2 attempts"):
-            await client.grade(image_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
+            await client.grade(images_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})

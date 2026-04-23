@@ -61,7 +61,7 @@ async def _grade_single(
     try:
         image_b64 = await _read_image_b64(ad["image_path"])
         grade_result = await llm.grade(
-            image_b64=image_b64,
+            images_b64=image_b64,
             rubric={"criteria": rubric_criteria},
             question={"name": ad["question_name"], "max_score": ad["question_max_score"]},
             question_type=ad.get("question_type"),
