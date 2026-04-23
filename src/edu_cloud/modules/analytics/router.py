@@ -595,3 +595,63 @@ async def get_exam_diagnosis(
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
     )
+
+
+from edu_cloud.modules.analytics.ranking_service import (
+    student_rankings, critical_students, class_boxplot,
+)
+
+
+@router.get("/exam/{exam_id}/student-rankings")
+async def get_student_rankings(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """学生排名 + 进退步 delta。"""
+    role = current["current_role"]
+    return await student_rankings(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id, class_id=class_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
+
+
+@router.get("/exam/{exam_id}/critical-students")
+async def get_critical_students(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
+    threshold: int = Query(3),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """临界生筛选。"""
+    role = current["current_role"]
+    return await critical_students(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id, class_id=class_id,
+        threshold=threshold,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
+
+
+@router.get("/exam/{exam_id}/class-boxplot")
+async def get_class_boxplot(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """各班分数箱线图数据。"""
+    role = current["current_role"]
+    return await class_boxplot(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
