@@ -17,7 +17,7 @@ export function normalizeRole(role) {
 export const SCHOOL_ADMIN_ROLES = ['platform_admin', 'district_admin', 'principal', 'academic_director']
 export const TEACHING_LEADER_ROLES = ['teaching_research_leader', 'lesson_prep_leader']
 export const EXAM_ROLES = [...SCHOOL_ADMIN_ROLES, ...TEACHING_LEADER_ROLES, 'grade_leader', 'homeroom_teacher', 'subject_teacher']
-export const GRADING_DISPATCH_ROLES = [...SCHOOL_ADMIN_ROLES, 'lesson_prep_leader']
+export const GRADING_DISPATCH_ROLES = [...SCHOOL_ADMIN_ROLES, ...TEACHING_LEADER_ROLES, 'grade_leader', 'homeroom_teacher', 'subject_teacher']
 export const MARKING_ROLES = [...SCHOOL_ADMIN_ROLES, 'homeroom_teacher', 'subject_teacher']
 
 export const ROLE_LABELS = {
