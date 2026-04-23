@@ -2,7 +2,7 @@
   <div class="dispatch-page">
     <div class="top-bar">
       <div>
-        <h2 class="page-title">阅卷调度</h2>
+        <h2 class="page-title">AI 阅卷</h2>
         <p class="page-subtitle">扫描切割 → 选择题判分 → AI 阅卷 → 教师校对</p>
       </div>
       <n-select
