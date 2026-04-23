@@ -12,6 +12,17 @@
       "updated": "2026-04-22T23:44:09.836998+08:00",
       "round": 2,
       "reason": "R2 allowed: cross-module (exam+grading+permissions)"
+    },
+    "code_review_batch1": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "b80fb860067d5e1cce6b73f2e6e4210b5741690a436923c0e7d4a7c19c39f4a9",
+      "report_path": "docs/plans/2026-04-22-ai-grading-b-end-review-report-batch1.md",
+      "updated": "2026-04-23T11:09:23.034825+08:00",
+      "reason": "R1 FAIL 3 defect_fix fixed → R2 PASS cross-module",
+      "subject_ref": "commit:7388d88..0e4cd5b",
+      "round": 2
     }
   }
 }
