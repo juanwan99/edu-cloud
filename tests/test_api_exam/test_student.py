@@ -141,6 +141,7 @@ class TestImportStudents:
         assert resp.json()["created"] == 1
 
     async def test_import_missing_class_id(self, client: AsyncClient, school_setup, tmp_path):
+        """class_id 可选：不传时按 Excel 班级列匹配或留空。"""
         fp = self._make_xlsx(tmp_path, [["姓名", "准考证号"], ["赵六", "B002"]])
         with open(fp, "rb") as f:
             resp = await client.post(
@@ -148,7 +149,8 @@ class TestImportStudents:
                 files={"file": ("s.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
                 headers=school_setup["admin"],
             )
-        assert resp.status_code == 422  # edu-cloud: ValidationError → 422
+        assert resp.status_code == 201
+        assert resp.json()["created"] == 1
 
     async def test_import_invalid_class_id(self, client: AsyncClient, school_setup, tmp_path):
         fp = self._make_xlsx(tmp_path, [["姓名", "准考证号"], ["赵六", "B003"]])
@@ -161,8 +163,8 @@ class TestImportStudents:
             )
         assert resp.status_code == 404
 
-    async def test_import_duplicate_skipped(self, client: AsyncClient, school_setup, tmp_path):
-        """Import student with existing student_number should skip."""
+    async def test_import_duplicate_updates_or_skips(self, client: AsyncClient, school_setup, tmp_path):
+        """Import student with existing student_number: update if fields changed, skip if identical."""
         fp = self._make_xlsx(tmp_path, [["姓名", "准考证号"], ["张三重复", "A001"]])
         with open(fp, "rb") as f:
             resp = await client.post(
@@ -173,7 +175,7 @@ class TestImportStudents:
             )
         assert resp.status_code == 201
         assert resp.json()["created"] == 0
-        assert resp.json()["skipped"] == 1
+        assert resp.json()["updated"] + resp.json()["skipped"] == 1
 
     async def test_import_empty_excel(self, client: AsyncClient, school_setup, tmp_path):
         fp = self._make_xlsx(tmp_path, [["姓名", "准考证号"]])

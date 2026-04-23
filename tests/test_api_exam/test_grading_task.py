@@ -18,9 +18,9 @@ async def task_grading_setup(client, db):
     user.set_password("p")
     db.add(user)
     await db.commit()
-    db.add(UserRole(user_id=user.id, role="teacher", school_id=school.id, is_primary=True))
+    db.add(UserRole(user_id=user.id, role="academic_director", school_id=school.id, is_primary=True))
     await db.flush()
-    token = create_access_token({"sub": user.id, "school_id": school.id, "role": "teacher"})
+    token = create_access_token({"sub": user.id, "school_id": school.id, "role": "academic_director"})
     headers = {"Authorization": f"Bearer {token}"}
 
     exam = Exam(name="E", school_id=school.id)
@@ -111,9 +111,9 @@ async def grading_setup_no_rubric(client, db):
     user.set_password("p")
     db.add(user)
     await db.commit()
-    db.add(UserRole(user_id=user.id, role="teacher", school_id=school.id, is_primary=True))
+    db.add(UserRole(user_id=user.id, role="academic_director", school_id=school.id, is_primary=True))
     await db.flush()
-    token = create_access_token({"sub": user.id, "school_id": school.id, "role": "teacher"})
+    token = create_access_token({"sub": user.id, "school_id": school.id, "role": "academic_director"})
     headers = {"Authorization": f"Bearer {token}"}
 
     exam = Exam(name="NRExam", school_id=school.id)
@@ -147,9 +147,9 @@ async def grading_setup_no_answers(client, db):
     user.set_password("p")
     db.add(user)
     await db.commit()
-    db.add(UserRole(user_id=user.id, role="teacher", school_id=school.id, is_primary=True))
+    db.add(UserRole(user_id=user.id, role="academic_director", school_id=school.id, is_primary=True))
     await db.flush()
-    token = create_access_token({"sub": user.id, "school_id": school.id, "role": "teacher"})
+    token = create_access_token({"sub": user.id, "school_id": school.id, "role": "academic_director"})
     headers = {"Authorization": f"Bearer {token}"}
 
     exam = Exam(name="NAExam", school_id=school.id)
@@ -183,9 +183,9 @@ async def grading_setup_no_subjective(client, db):
     user.set_password("p")
     db.add(user)
     await db.commit()
-    db.add(UserRole(user_id=user.id, role="teacher", school_id=school.id, is_primary=True))
+    db.add(UserRole(user_id=user.id, role="academic_director", school_id=school.id, is_primary=True))
     await db.flush()
-    token = create_access_token({"sub": user.id, "school_id": school.id, "role": "teacher"})
+    token = create_access_token({"sub": user.id, "school_id": school.id, "role": "academic_director"})
     headers = {"Authorization": f"Bearer {token}"}
 
     exam = Exam(name="NSExam", school_id=school.id)

@@ -4,6 +4,7 @@
 """
 import asyncio
 import base64
+import json
 import logging
 import time
 import aiofiles
@@ -15,6 +16,8 @@ from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Question, QUESTION_TYPES_SUBJECTIVE
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
+import edu_cloud.models.user  # noqa: F401 — FK resolution for grading_tasks.created_by
+import edu_cloud.models.school  # noqa: F401 — FK resolution for *.school_id
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,7 @@ def _create_llm_client():
         model=settings.LLM_MODEL,
         timeout=settings.LLM_TIMEOUT,
         max_retries=settings.LLM_MAX_RETRIES,
+        slot=settings.LLM_SLOT,
     )
 
 
@@ -100,15 +104,28 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
             logger.info("grading_task: task=%s, subject=%s, status→processing", task_id, task.subject_id)
 
             # Find subjective questions
-            q_result = await db.execute(
-                select(Question).where(
-                    Question.subject_id == task.subject_id,
-                    Question.school_id == task.school_id,
-                    Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
+            if task.question_id:
+                # Question-level: only load specified question
+                q_result = await db.execute(
+                    select(Question).where(
+                        Question.id == task.question_id,
+                        Question.subject_id == task.subject_id,
+                        Question.school_id == task.school_id,
+                        Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
+                    )
                 )
-            )
+            else:
+                # Subject-level: load all subjective questions (ORC-002: unchanged)
+                q_result = await db.execute(
+                    select(Question).where(
+                        Question.subject_id == task.subject_id,
+                        Question.school_id == task.school_id,
+                        Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
+                    )
+                )
             questions = {q.id: q for q in q_result.scalars().all()}
-            logger.info("grading_task: task=%s, subjective_questions=%d", task_id, len(questions))
+            logger.info("grading_task: task=%s, question_id=%s, subjective_questions=%d",
+                        task_id, task.question_id, len(questions))
 
             if not questions:
                 task.status = "completed"
@@ -116,14 +133,15 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                 logger.info("grading_task DONE: task=%s, no subjective questions", task_id)
                 return
 
-            # Find all answers
-            a_result = await db.execute(
-                select(StudentAnswer).where(
-                    StudentAnswer.subject_id == task.subject_id,
-                    StudentAnswer.school_id == task.school_id,
-                    StudentAnswer.question_id.in_(list(questions.keys())),
-                )
-            )
+            # Find answers — filter by question scope
+            answer_filter = [
+                StudentAnswer.subject_id == task.subject_id,
+                StudentAnswer.school_id == task.school_id,
+                StudentAnswer.question_id.in_(list(questions.keys())),
+            ]
+            if task.question_id:
+                answer_filter.append(StudentAnswer.question_id == task.question_id)
+            a_result = await db.execute(select(StudentAnswer).where(*answer_filter))
             answers_raw = a_result.scalars().all()
 
             answer_data = []
@@ -140,6 +158,19 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                     "image_path": a.image_path,
                     "question_type": ans_qtype,
                 })
+
+            # Exclude answers that already have confirmed results (ORC-001 protection)
+            if answer_data:
+                confirmed_rows = (await db.execute(
+                    select(GradingResult.answer_id).where(
+                        GradingResult.answer_id.in_([a["answer_id"] for a in answer_data]),
+                        GradingResult.status == "confirmed",
+                    )
+                )).scalars().all()
+                confirmed_set = set(confirmed_rows)
+                if confirmed_set:
+                    answer_data = [a for a in answer_data if a["answer_id"] not in confirmed_set]
+                    logger.info("grading_task: excluded %d confirmed answers", len(confirmed_set))
 
             # Load rubrics
             rubric_result = await db.execute(
@@ -172,6 +203,14 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                         errors.append(error_dict)
                         batch_failed += 1
                     else:
+                        # Parse details from raw response
+                        details = None
+                        try:
+                            raw_parsed = json.loads(result_dict["raw_content"])
+                            details = raw_parsed.get("details")
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+
                         gr = GradingResult(
                             ai_task_id=task.id,
                             answer_id=result_dict["answer_id"],
@@ -180,7 +219,10 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                             ai_score=result_dict["score"],
                             ai_confidence=result_dict["confidence"],
                             ai_feedback=result_dict["feedback"],
-                            ai_raw_response={"raw_content": result_dict["raw_content"]},
+                            ai_raw_response={
+                                "raw_content": result_dict["raw_content"],
+                                "details": details,
+                            },
                             final_score=result_dict["score"],
                             max_score=result_dict["max_score"],
                             status="ai_done",

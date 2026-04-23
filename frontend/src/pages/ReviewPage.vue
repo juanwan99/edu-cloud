@@ -502,9 +502,10 @@ onUnmounted(() => {
 }
 
 .score-btn.active {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
+  background: #18a058;
+  color: #fff;
+  border-color: #18a058;
+  box-shadow: 0 0 0 2px rgba(24, 160, 88, 0.3);
 }
 
 .comment-section {

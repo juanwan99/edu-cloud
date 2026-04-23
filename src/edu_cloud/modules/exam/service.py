@@ -33,19 +33,21 @@ async def create_exam(
     return exam
 
 
-async def list_exams(db: AsyncSession, *, school_id: str) -> list[Exam]:
-    result = await db.execute(
-        select(Exam).where(Exam.school_id == school_id)
-    )
+async def list_exams(db: AsyncSession, *, school_id: str | None) -> list[Exam]:
+    q = select(Exam)
+    if school_id:
+        q = q.where(Exam.school_id == school_id)
+    result = await db.execute(q)
     exams = list(result.scalars().all())
     logger.debug("list_exams: school=%s, count=%d", school_id, len(exams))
     return exams
 
 
-async def get_exam(db: AsyncSession, *, exam_id: str, school_id: str) -> Exam:
-    result = await db.execute(
-        select(Exam).where(Exam.id == exam_id, Exam.school_id == school_id)
-    )
+async def get_exam(db: AsyncSession, *, exam_id: str, school_id: str | None) -> Exam:
+    q = select(Exam).where(Exam.id == exam_id)
+    if school_id:
+        q = q.where(Exam.school_id == school_id)
+    result = await db.execute(q)
     exam = result.scalar_one_or_none()
     if not exam:
         raise NotFoundError("Exam not found")
@@ -116,13 +118,12 @@ async def create_subject(
 
 
 async def list_subjects(
-    db: AsyncSession, *, exam_id: str, school_id: str
+    db: AsyncSession, *, exam_id: str, school_id: str | None
 ) -> list[Subject]:
-    result = await db.execute(
-        select(Subject).where(
-            Subject.exam_id == exam_id, Subject.school_id == school_id
-        )
-    )
+    q = select(Subject).where(Subject.exam_id == exam_id)
+    if school_id:
+        q = q.where(Subject.school_id == school_id)
+    result = await db.execute(q)
     return list(result.scalars().all())
 
 

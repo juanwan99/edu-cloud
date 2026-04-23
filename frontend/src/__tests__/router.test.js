@@ -39,13 +39,13 @@ describe('Route definitions (real routes)', () => {
     expect(shell.meta?.requiresAuth).toBe(true)
   })
 
-  it('has exactly 5 top-level routes (login + parent login/register/layout + AppShell)', () => {
-    expect(routes).toHaveLength(5)
+  it('has exactly 3 top-level routes in freeze mode', () => {
+    expect(routes).toHaveLength(3)
   })
 
-  it('AppShell has 33 child routes', () => {
+  it('AppShell has 17 child routes in freeze mode', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
-    expect(shell.children).toHaveLength(33)
+    expect(shell.children).toHaveLength(17)
   })
 
   it('all routes except login are children of AppShell', () => {

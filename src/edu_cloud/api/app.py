@@ -279,6 +279,7 @@ def create_app() -> FastAPI:
     from edu_cloud.modules.exam.workspace_router import router as workspace_router
     from edu_cloud.modules.exam.llm_config_router import router as llm_config_router
     from edu_cloud.modules.student.router import router as student_router
+    from edu_cloud.modules.student.teacher_router import router as teacher_router
     from edu_cloud.modules.card.router import router as card_router
     from edu_cloud.modules.card.template_router import router as template_router
     from edu_cloud.modules.scan.router import router as scan_router
@@ -312,7 +313,8 @@ def create_app() -> FastAPI:
               studio_router, calendar_router, notifications_router,
               grading_assignment_router, quality_router, profile_router, bank_router,
               knowledge_tree_router, scan_pipeline_router,
-              conduct_parent_router, conduct_admin_router, menu_router]:
+              conduct_parent_router, conduct_admin_router, menu_router,
+              teacher_router]:
         app.include_router(r)
 
     @app.get("/api/v1/health")

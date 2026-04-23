@@ -125,8 +125,8 @@ supersedes_handoff: docs/plans/2026-04-13-conduct-next-phase-handoff.md
 | Task | 性质 | T | behavior_change | 文件范围 | 依赖 |
 |---|---|---|---|---|---|
 | T1 lesson_prep_leader 权限回收 | 后端+前端 | T2 | ✅ | core/permissions.py + frontend/config/permissions.js + test | — |
-| T2 AddPointsRequest.date rename | 后端+前端 | T2 | ✅ | conduct/schemas.py + admin_service.py + frontend api + vue + test | — |
-| T3 sidebar 按 permissions 派生 | 前端重构 | T3 | ✅ | sidebarConfig.js + 前端测试矩阵 | T1 |
+| T2 AddPointsRequest.date rename（R2-F004 收窄仅后端） | 后端 | T2 | ✅ | conduct/schemas.py + admin_router.py:115,137（R1-F001）；admin_service.py verify-only；不改前端 | — |
+| T3 sidebar 按 permissions 派生（R2-F003 扩容视图层） | 前端重构 | T3 | ✅ | sidebarConfig.js + AppSidebar.vue（data-module 视图层）+ 矩阵测试 + AppSidebar.conduct.test.js 新文件 | T1 |
 | T4 conduct MODULE.md 补全 | 治理 | T2 | ❌ | modules/conduct/MODULE.md（新建） + governance 巡检 | — |
 | T5 文档数字修正 | 纯文档 | T1 | ❌ | CLAUDE.md + next-phase handoff | — |
 
@@ -148,7 +148,7 @@ supersedes_handoff: docs/plans/2026-04-13-conduct-next-phase-handoff.md
 - ✓ `has_permission('homeroom_teacher', Permission.VIEW_CONDUCT) is True`（班主任不变）
 - ✗ lesson_prep_leader 调 conduct API → 403（require_view_conduct 依赖失败）
 
-**关键行为**：备课组长 AI Chat 调 conduct 工具时 ToolAccessResolver 应过滤掉 conduct 工具集。
+**关键行为（批次 1 范围）**：备课组长调 conduct HTTP API 入口被拒（403）。**AI Chat ToolAccessResolver 过滤 conduct 工具集 deferred 到 TD-006 批次 3 D-007 独立验证**，不在批次 1 退出条件内。
 
 **边界条件**：
 - `_TEACHER_BASE` 成员集运算结果必须不影响其他教师角色（subject_teacher / homeroom_teacher / lesson_prep_leader 各自独立 copy 后再删除）
@@ -177,18 +177,18 @@ class AddPointsRequest(BaseModel):
     record_date: Optional[_date_type] = None
 ```
 
-**代码改动**：
+**代码改动（R2-F004 范围收窄，后端 API 契约修复）**：
 - `src/edu_cloud/modules/conduct/schemas.py`: type import 别名 + 字段 rename
-- `src/edu_cloud/modules/conduct/admin_service.py`: 所有 `request.date` → `request.record_date`
-- `frontend/src/api/conduct.js`: 请求体字段名同步
-- `frontend/src/pages/conduct/ConductPoints.vue`: 表单数据字段名同步
+- `src/edu_cloud/modules/conduct/admin_router.py:115,137`: `record_date=data.date` → `record_date=data.record_date`（R1-F001 关键补充）
+- `src/edu_cloud/modules/conduct/admin_service.py`: L254/271 已是 `record_date` 参数，verify-only 不改
+- **不改前端**：`frontend/src/api/conduct.js` 和 `frontend/src/pages/conduct/ConductPoints.vue` 不在本批次范围。当前 UI 无日期控件，API 也不传 record_date；UI 补录日期是独立 behavior_change，需单独 L017 批准，留未来批次
 
 **审查清单**：
-- ✓ POST `/records` with `{"record_date": "2026-04-14"}` → 201, DB `Record.date == 2026-04-14`
-- ✓ POST `/records` without record_date → 201, DB `Record.date == today`
-- ✓ POST `/records` with `{"record_date": null}` → 201, DB `Record.date == today`
+- ✓ POST `/records` with `{"record_date": "2026-04-10"}` → 200, response `created_ids` 非空, DB `ConductRecord.date == 2026-04-10`
+- ✓ POST `/records` without record_date → 200, DB `ConductRecord.date == today`
+- ✓ POST `/records` with `{"record_date": null}` → 200, DB `ConductRecord.date == today`
 - ✗ POST `/records` with old `{"date": "2026-04-14"}` → 被 pydantic 忽略（extra 字段），实际日期走 default today
-- 关键行为：班主任补录昨天积分功能真可用
+- **关键行为（R2-F004 收窄）**：POST `/records` API 接受 `record_date` 字段并落库 `ConductRecord.date`；前端 UX 日期补录控件不在本批次，班主任"补录昨天积分"UX 留未来批次
 
 **边界条件**：
 - 日期格式非法（`"invalid"`）→ 422
@@ -236,9 +236,9 @@ const CONDUCT_ITEMS = [
 | grade_leader | view+manage+export | 3 | **5** | 积分操作 / 记录 |
 | lesson_prep_leader | 无（T1=C 回收后） | 0 | 0 | — |
 | homeroom_teacher | 全 5 | 9 | 9 | — |
-| subject_teacher | view+manage | 2 | 2（概览 + 积分操作 + 记录 + 排行？） | ⚠ 见下方说明 |
+| subject_teacher | view+manage | 2 | **4**（概览 + 积分操作 + 记录 + 排行） | R-T3-followup F005 approved 2026-04-14T07:45 |
 
-**⚠ subject_teacher 细节**：改前 TEACHER 档是"积分操作 + 排行榜"（2 项），改后按 view_conduct+manage_conduct 过滤应得到 4 项（概览+积分操作+记录+排行）。这是**隐含的 behavior_change 扩展**，需在 Plan Review 中独立标注并请用户二次确认。若用户偏好保守，可对 subject_teacher 维持 2 项（新增 `@allowed_roles` 黑白名单字段）。
+**✅ subject_teacher 细节（已批准 F005）**：改前 TEACHER 档是"积分操作 + 排行榜"（2 项），改后按 view_conduct+manage_conduct 过滤应得到 4 项（概览+积分操作+记录+排行）。这是 **R-T3-followup behavior_change 扩展**，用户 2026-04-14T07:45:00+08:00 精确回复"批准 F005"（记录于 `2026-04-14-conduct-roadmap-batch1-gates.json` F005.approval）。保守备选方案（`@allowed_roles` 白名单维持 2 项）**rejected**，不执行。
 
 **审查清单**：
 - ✓ `sidebarConfig.conduct.test.js` 9 角色 × 9 菜单项矩阵断言全通过
@@ -330,9 +330,9 @@ design_docs:
 
 | 套件 | 改前基线 | 批次 1 实现后预期 | 增量来源 |
 |---|---|---|---|
-| conduct 后端 | 118 | **≥ 125** | T1 红测 3（lesson_prep 无权限 / subject_teacher 未误伤 / homeroom 不变）+ T2 红测 3（传 record_date / 不传 / 传 null）+ T4 governance 巡检测试 1 |
+| conduct 后端 | 118 | **≥ 130**（R1-F006 入口级 + R5-F001 对照组补齐后） | T1 helper 4 + T1 入口级 API 403（R1-F006）+ T1 对照组 subject_teacher 200（R5-F001 隔离 scope 假绿）+ T2 红测 3（R1-F002 DB readback）+ T4 governance 测试 3 = 12 新增 |
 | services | 15 | 15 | 不改 |
-| frontend conduct 3 件套 | 13 | **≥ 22** | T3 sidebarConfig.conduct 矩阵（9 角色 × 关键入口）新增 ~9 测试 |
+| frontend conduct 3 件套 + 扩展 | 13 | **≥ 29**（R1-F006/F007 + T1 permissions 镜像） | T3 sidebarConfig.conduct 矩阵 9 + R1-F007 perm 合法性 1 + R1-F006 AppSidebar.conduct.test.js 入口级 1 + T1 permissions.lesson_prep 5 = 16 新增 |
 
 ## § 5. 风险评估
 
@@ -342,7 +342,7 @@ design_docs:
 |---|---|---|
 | T1 若有学校已依赖备课组长管德育 | 低 | MVP 初版给权限不当；L017 已充分讨论 |
 | T2 未知外部客户端传老 `date` 字段 | 低 | 现状就已 422；rename 不破坏已工作调用 |
-| T3 教务主任看到新菜单乱点 | 中 | 后端 F002 class-scope 守卫 R3 已覆盖，越权 403；subject_teacher 子问题（从 2 项→4 项）列入 Plan Review 独立确认 |
+| T3 教务主任看到新菜单乱点 | 中 | 后端 F002 class-scope 守卫 R3 已覆盖，越权 403；subject_teacher 子问题（从 2 项→4 项）已由用户于 2026-04-14T07:45 精确批准 F005，不再悬空 |
 | T4 MODULE.md 字段与实际不一致 | 低 | aggregate_modules.py 会校验；CI 可加 pre-commit 检查 |
 | T5 文档修改触发 doc_sync_guard | 低 | 纯数字修正，应通过；若被拦，明确 accept risk |
 
@@ -355,8 +355,8 @@ design_docs:
 ### 6.1 批次 1 退出条件（全部满足才视为完成）
 
 - 5 Tasks 全部 completed（`state.json` 标记）
-- conduct 后端测试 ≥ 125 通过
-- frontend conduct 测试 ≥ 22 通过
+- conduct 后端测试 ≥ 130 通过（R1-F006 入口级 + R5-F001 对照组补齐后，含 T1 helper/入口级/对照组 + T4 governance + T2 入口级）
+- frontend conduct 测试 ≥ 29 通过（R1-F006/F007 新增 + T1 permissions.lesson_prep 镜像后）
 - Gate 1 Plan Review PASS（codex-review plan）
 - Gate 2 Code Review PASS（codex-review code）
 - 所有 behavior_change finding 已 resolved-correct 或 approved
@@ -423,7 +423,7 @@ design_docs:
 | R-T1 | T1 | 回收 lesson_prep_leader 的 VIEW_CONDUCT + MANAGE_CONDUCT 权限 | 用户 | 2026-04-14 | "备课组长和打分没关系" |
 | R-T2 | T2 | AddPointsRequest.date 字段重命名为 record_date（API 契约变更） | 用户 | 2026-04-14 | 精确批准 T2（"两个都批准"） |
 | R-T3 | T3 | sidebar 三档硬编码改为按 permissions 派生（academic_director 可见入口 +4 / grade_leader +2） | 用户 | 2026-04-14 | 精确批准 T3（"两个都批准"） |
-| R-T3-followup | T3 | ⚠ 隐含：subject_teacher 可见入口从 2 → 4（继承 view_conduct+manage_conduct 派生） | **待二次确认** | — | Plan Review 阶段独立提问 |
+| R-T3-followup | T3 | ⚠ 隐含：subject_teacher 可见入口从 2 → 4（继承 view_conduct+manage_conduct 派生） | **approved** | 2026-04-14T07:45:00+08:00 | 用户精确回复"批准 F005"（记录于 `2026-04-14-conduct-roadmap-batch1-gates.json` F005.approval）|
 
 ## § 10. 实现完成标记
 

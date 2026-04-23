@@ -1,3 +1,5 @@
+<!-- legacy-format -->
+<!-- pre-takeover: archived for history, not active spec -->
 ---
 type: handoff
 created: 2026-04-13 20:51:36

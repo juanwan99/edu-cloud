@@ -24,8 +24,8 @@ from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user
 from edu_cloud.modules.exam.models import Exam, Subject
 from edu_cloud.modules.card.models import Template, CardSkeleton
-from edu_cloud.modules.card.export.barcode_gen import parse_student_excel, render_barcode_pdf
-from edu_cloud.modules.card.rendering.renderer import render_card_v2
+from edu_cloud.modules.card.barcode_gen import parse_student_excel, render_barcode_pdf
+from edu_cloud.modules.card.renderer import render_card_v2
 
 router = APIRouter(prefix="/api/v1/card", tags=["card"])
 
@@ -58,7 +58,7 @@ async def get_editor_layout(
     if not subject:
         raise HTTPException(404, "Subject not found")
 
-    from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
+    from edu_cloud.modules.card.subject_defaults import get_default_layout
     default_layout = get_default_layout(subject.name)
 
     path = _editor_layout_path(current["current_role"].school_id, subject_id)
@@ -140,7 +140,7 @@ async def get_tql_reference(
     if not subject:
         raise HTTPException(404, "Subject not found")
 
-    from edu_cloud.modules.card.rendering.subject_defaults import _TQL_FILES, _normalize_subject, _resolve_tql_path
+    from edu_cloud.modules.card.subject_defaults import _TQL_FILES, _normalize_subject, _resolve_tql_path
     tql_path_raw = _TQL_FILES.get(subject.name) or _TQL_FILES.get(_normalize_subject(subject.name))
     if not tql_path_raw:
         return {"found": False, "images": {}}
@@ -149,7 +149,7 @@ async def get_tql_reference(
     if not Path(tql_path).exists():
         return {"found": False, "images": {}}
 
-    from edu_cloud.modules.card.rendering.tpl_parser import parse_tpl_file
+    from edu_cloud.modules.card.tpl_parser import parse_tpl_file
     sk = parse_tpl_file(tql_path)
     return {"found": True, "images": sk.get("tpl_images", {})}
 
@@ -241,7 +241,7 @@ async def auto_layout_card(
         from pathlib import Path
         if not Path(body.answer_file).exists():
             raise HTTPException(400, f"文件不存在: {body.answer_file}")
-        from edu_cloud.modules.card.parser.answer_parser import parse_answer_docx
+        from edu_cloud.modules.card.answer_parser import parse_answer_docx
         parsed = parse_answer_docx(body.answer_file)
         if not parsed:
             raise HTTPException(400, "未解析到主观题")
@@ -304,7 +304,7 @@ async def download_answer_template(
 ):
     """根据科目题目列表生成 Word 答案模板骨架，教师下载后填答案。"""
     from edu_cloud.modules.exam.models import Question, Subject
-    from edu_cloud.modules.card.parser.word_parser import generate_word_template
+    from edu_cloud.modules.card.word_parser import generate_word_template
 
     subj_row = await db.execute(
         select(Subject).where(Subject.id == subject_id, Subject.school_id == current["current_role"].school_id)
@@ -407,8 +407,8 @@ async def parse_answers(
     """
     import time
     from edu_cloud.modules.exam.models import Question
-    from edu_cloud.modules.card.parser.word_parser import parse_word_answers, compute_weights_from_text
-    from edu_cloud.modules.card.parser.answer_standardizer import standardize_answers, parse_pdf_answers
+    from edu_cloud.modules.card.word_parser import parse_word_answers, compute_weights_from_text
+    from edu_cloud.modules.card.answer_standardizer import standardize_answers, parse_pdf_answers
 
     filename = (file.filename or "").lower()
     if not filename.endswith((".docx", ".pdf")):
@@ -466,10 +466,10 @@ async def parse_answers(
             standardized = await standardize_answers(parsed)
             # v2 排版引擎需要结构化解析（sub 级别答案），趁文件还在先解析
             try:
-                from edu_cloud.modules.card.parser.answer_parser import parse_answer_docx
+                from edu_cloud.modules.card.answer_parser import parse_answer_docx
                 _v2_structured = parse_answer_docx(tmp_path)
-            except Exception:
-                pass  # 解析失败不阻塞主流程，v2 布局会跳过
+            except Exception as e:
+                logger.debug("v2 answer parsing skipped: %s", e)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
@@ -505,7 +505,7 @@ async def parse_answers(
 
     # 4. 纸张选择：优先用前端指定，未指定时自动推断
     if not paper_size or paper_size not in ("A3", "A4"):
-        from edu_cloud.modules.card.template.template_library import A4_TEXT_THRESHOLD
+        from edu_cloud.modules.card.template_library import A4_TEXT_THRESHOLD
         if total_text_length > A4_TEXT_THRESHOLD or subjective_count > 8:
             paper_size = "A3"
         else:
@@ -673,7 +673,7 @@ async def _match_skeleton(
     db_questions=None,
 ) -> dict:
     """模板匹配：DB 骨架 → .tpl → build_skeleton_from_spec fallback。"""
-    from edu_cloud.modules.card.template.template_library import match_template
+    from edu_cloud.modules.card.template_library import match_template
 
     skeleton = None
     source = "generated"
@@ -702,7 +702,7 @@ async def _match_skeleton(
             source = "tpl"
 
     if not skeleton:
-        from edu_cloud.modules.card.rendering.layout import build_skeleton_from_spec
+        from edu_cloud.modules.card.layout import build_skeleton_from_spec
         q_list = []
         if db_questions:
             for i, q in enumerate(sorted(db_questions, key=_q_sort_key)):
@@ -723,8 +723,8 @@ async def _match_skeleton(
 
 def _compute_layout(skeleton: dict, weights: list[dict]) -> dict:
     """根据骨架和权重计算布局（统一走权重分配，不再短路到 tpl 固定坐标）。"""
-    from edu_cloud.modules.card.rendering.layout import allocate_by_weights
-    from edu_cloud.modules.card.rendering.renderer import finalize_skeleton
+    from edu_cloud.modules.card.layout import allocate_by_weights
+    from edu_cloud.modules.card.renderer import finalize_skeleton
     finalize_skeleton(skeleton)  # 确保 columns[0].y1 精确
     columns = skeleton.get("columns", [])
     if weights and columns:
@@ -832,7 +832,7 @@ async def _get_skeleton_data(
     subject_code: str, school_id: str, db: AsyncSession
 ) -> dict:
     """获取骨架数据：优先数据库，回退内置模板。"""
-    from edu_cloud.modules.card.template.template_library import (
+    from edu_cloud.modules.card.template_library import (
         get_builtin_template,
         extract_fixed_parts,
     )
@@ -848,7 +848,7 @@ async def _get_skeleton_data(
 
     # 回退：从 DB 题目数据生成 skeleton
     from edu_cloud.modules.exam.models import Question
-    from edu_cloud.modules.card.rendering.layout import build_skeleton_from_spec
+    from edu_cloud.modules.card.layout import build_skeleton_from_spec
 
     # 查科目（需要 subject_id 来查题目）
     subj_result = await db.execute(
@@ -885,7 +885,7 @@ async def list_builtin_templates(
     current: dict = Depends(get_current_user),
 ):
     """列出所有内置模板科目。"""
-    from edu_cloud.modules.card.template.template_library import list_builtin_subjects
+    from edu_cloud.modules.card.template_library import list_builtin_subjects
     return {"subjects": list_builtin_subjects()}
 
 
@@ -895,7 +895,7 @@ async def get_builtin_template_detail(
     current: dict = Depends(get_current_user),
 ):
     """获取内置模板详情。"""
-    from edu_cloud.modules.card.template.template_library import get_builtin_template
+    from edu_cloud.modules.card.template_library import get_builtin_template
     tpl = get_builtin_template(subject)
     if not tpl:
         raise HTTPException(404, f"科目 {subject} 无内置模板")
@@ -921,7 +921,7 @@ async def import_skeleton(
         tmp_path = Path(tmp.name)
 
     try:
-        from edu_cloud.modules.card.rendering.tpl_parser import parse_tpl_file
+        from edu_cloud.modules.card.tpl_parser import parse_tpl_file
         skeleton_data = parse_tpl_file(tmp_path)
         # 不存储大尺寸背景图到数据库
         skeleton_data.pop("tpl_images", None)
@@ -1083,7 +1083,7 @@ async def generate_card_v2(
     )
 
     # 导出 paper-seg 兼容格式，写入 Template
-    from edu_cloud.modules.card.export.export import skeleton_to_paperseg_json
+    from edu_cloud.modules.card.export import skeleton_to_paperseg_json
     tpl_data = skeleton_to_paperseg_json(
         skeleton, body.layout,
         exam_id=str(body.exam_id),
@@ -1172,7 +1172,7 @@ async def export_card_pdf(
     current: dict = Depends(get_current_user),
 ):
     """接收完整 HTML，用 playwright 转 PDF 返回。"""
-    from edu_cloud.modules.card.export.html_export import html_to_pdf
+    from edu_cloud.modules.card.html_export import html_to_pdf
 
     pdf_bytes = await html_to_pdf(body.html, body.paper_size)
     return Response(content=pdf_bytes, media_type="application/pdf")
@@ -1184,7 +1184,7 @@ async def export_card_skeleton(
     current: dict = Depends(get_current_user),
 ):
     """接收完整 HTML，提取 skeleton JSON 返回。"""
-    from edu_cloud.modules.card.export.html_export import extract_skeleton
+    from edu_cloud.modules.card.html_export import extract_skeleton
 
     return await extract_skeleton(body.html)
 

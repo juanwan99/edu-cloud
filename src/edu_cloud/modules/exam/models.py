@@ -71,6 +71,10 @@ class Question(Base, IdMixin, TimestampMixin):
     region_id: Mapped[str | None] = mapped_column(String(50), default=None)
     knowledge_points: Mapped[dict | None] = mapped_column(JSON, default=None)
     correct_answer: Mapped[str | None] = mapped_column(String(50), default=None)
+    content: Mapped[str | None] = mapped_column(Text, default=None)
+    content_images: Mapped[list | None] = mapped_column(JSON, default=None)
+    reference_answer: Mapped[str | None] = mapped_column(Text, default=None)
+    reference_answer_images: Mapped[list | None] = mapped_column(JSON, default=None)
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
 
 

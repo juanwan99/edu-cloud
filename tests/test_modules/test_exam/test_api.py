@@ -64,15 +64,15 @@ async def test_get_exam_not_found(client: AsyncClient, teacher_headers):
 
 @pytest.mark.asyncio
 async def test_cross_school_isolation(client: AsyncClient, director_headers, admin_headers):
-    """跨 school 越权隔离：教务创建的考试 admin（无 school_id）看不到。"""
+    """platform_admin（无 school_id）可以看到所有学校的考试。"""
     resp = await client.post("/api/v1/exams", json={"name": "隔离测试", "card_title": "IS"},
                              headers=director_headers)
     assert resp.status_code == 201
 
-    # admin (platform_admin, school_id=None) should not see it
+    # platform_admin (school_id=None) sees all exams across schools
     resp = await client.get("/api/v1/exams", headers=admin_headers)
     assert resp.status_code == 200
-    assert len(resp.json()) == 0
+    assert len(resp.json()) >= 1
 
 
 @pytest.mark.asyncio

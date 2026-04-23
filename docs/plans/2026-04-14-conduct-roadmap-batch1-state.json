@@ -3,12 +3,36 @@
   "plan_file": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md",
   "design_file": "docs/plans/2026-04-14-conduct-roadmap-design.md",
   "tasks": [
-    {"id": "1", "desc": "T5 文档 post-T-Wipe 一致性验证", "status": "pending"},
-    {"id": "2", "desc": "T4 conduct MODULE.md 补全", "status": "pending"},
-    {"id": "3", "desc": "T1 lesson_prep_leader conduct 权限回收", "status": "pending"},
-    {"id": "4", "desc": "T2 AddPointsRequest.date -> record_date", "status": "pending"},
-    {"id": "5", "desc": "T3 sidebar 按 permissions 派生", "status": "pending"},
-    {"id": "6", "desc": "批次 1 收尾", "status": "pending"}
+    {
+      "id": "1",
+      "desc": "T5 文档 post-T-Wipe 一致性验证",
+      "status": "completed"
+    },
+    {
+      "id": "2",
+      "desc": "T4 conduct MODULE.md 补全",
+      "status": "pending"
+    },
+    {
+      "id": "3",
+      "desc": "T1 lesson_prep_leader conduct 权限回收",
+      "status": "pending"
+    },
+    {
+      "id": "4",
+      "desc": "T2 AddPointsRequest.date -> record_date",
+      "status": "pending"
+    },
+    {
+      "id": "5",
+      "desc": "T3 sidebar 按 permissions 派生",
+      "status": "pending"
+    },
+    {
+      "id": "6",
+      "desc": "批次 1 收尾",
+      "status": "pending"
+    }
   ],
   "test_baseline": {
     "conduct_backend": 68,
@@ -20,5 +44,5 @@
   },
   "created_by": "T-Wipe Phase 4 (Executor session 2026-04-18)",
   "created_at": "2026-04-18 13:18:48",
-  "updated_at": "2026-04-18 13:18:48"
+  "updated_at": "2026-04-18 15:27:50"
 }

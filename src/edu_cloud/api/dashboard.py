@@ -17,10 +17,6 @@ async def get_summary(
 ):
     role = current["current_role"]
     school_id = role.school_id
-    if not school_id:
-        return {"total_students": 0, "total_classes": 0, "total_exams": 0,
-                "total_staff": None, "pending_subjects": None, "pending_grading": 0}
-
     visible_classes = get_visible_class_ids(role)
 
     # Import models
@@ -29,21 +25,26 @@ async def get_summary(
     from edu_cloud.models.exam import Exam
 
     # Students count
-    q = select(func.count(Student.id)).where(Student.school_id == school_id)
+    q = select(func.count(Student.id))
+    if school_id:
+        q = q.where(Student.school_id == school_id)
     if visible_classes is not None:
         q = q.where(Student.class_id.in_(visible_classes))
     total_students = (await db.execute(q)).scalar() or 0
 
     # Classes count
-    q = select(func.count(ClassGroup.id)).where(ClassGroup.school_id == school_id)
+    q = select(func.count(ClassGroup.id))
+    if school_id:
+        q = q.where(ClassGroup.school_id == school_id)
     if visible_classes is not None:
         q = q.where(ClassGroup.id.in_(visible_classes))
     total_classes = (await db.execute(q)).scalar() or 0
 
     # Exams count
-    total_exams = (await db.execute(
-        select(func.count(Exam.id)).where(Exam.school_id == school_id)
-    )).scalar() or 0
+    q = select(func.count(Exam.id))
+    if school_id:
+        q = q.where(Exam.school_id == school_id)
+    total_exams = (await db.execute(q)).scalar() or 0
 
     return {
         "total_students": total_students,

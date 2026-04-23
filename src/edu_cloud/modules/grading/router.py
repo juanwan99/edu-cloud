@@ -1,4 +1,6 @@
+import base64
 import logging
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,10 +9,13 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
+from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Exam, Question, Subject, QUESTION_TYPES_SUBJECTIVE
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
 from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.modules.card.models import Template
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -37,13 +42,122 @@ def _rubric_response(r: Rubric) -> dict:
     }
 
 
+def _validate_criteria(criteria: list[dict], question_max_score: float) -> None:
+    """Validate rubric criteria list.
+
+    Raises HTTPException 422 on:
+    - Missing or empty blankNo
+    - Missing or non-numeric score, or score < 0
+    - Missing or empty answer
+    - Sum of scores != question max_score
+    """
+    if not criteria:
+        raise HTTPException(422, "criteria must not be empty")
+
+    total = 0.0
+    for i, item in enumerate(criteria):
+        blank_no = item.get("blankNo")
+        if not blank_no or not isinstance(blank_no, str) or not blank_no.strip():
+            raise HTTPException(422, f"criteria[{i}] missing or empty blankNo")
+
+        score = item.get("score")
+        if score is None or not isinstance(score, (int, float)):
+            raise HTTPException(422, f"criteria[{i}] missing numeric score")
+        if score < 0:
+            raise HTTPException(422, f"criteria[{i}] score must be >= 0, got {score}")
+
+        answer = item.get("answer")
+        if not answer or not isinstance(answer, str) or not answer.strip():
+            raise HTTPException(422, f"criteria[{i}] missing or empty answer")
+
+        total += score
+
+    # Use a small tolerance for float comparison
+    if abs(total - question_max_score) > 1e-6:
+        raise HTTPException(
+            422,
+            f"Sum of criteria scores ({total}) must equal question max_score ({question_max_score})",
+        )
+
+
+# --- Rubric generation helper ---
+
+async def generate_rubric_via_llm(
+    question: Question,
+    max_score: float,
+    db: AsyncSession,
+) -> list[dict]:
+    """Build prompt and call LLM to generate rubric criteria.
+
+    Module-level function so it can be mocked in tests.
+    """
+    from edu_cloud.modules.grading.prompts import build_rubric_generation_prompt
+    from edu_cloud.modules.grading.llm_client import LLMClient
+
+    content = question.content or ""
+    reference_answer = question.reference_answer or ""
+
+    # Collect image paths from question (content_images + reference_answer_images)
+    all_image_paths: list[str] = []
+    if question.content_images:
+        all_image_paths.extend(question.content_images)
+    if question.reference_answer_images:
+        all_image_paths.extend(question.reference_answer_images)
+
+    # Convert local image paths to base64
+    upload_root = Path(settings.UPLOAD_DIR).resolve()
+    images_b64: list[str] = []
+    for img_path in all_image_paths:
+        if img_path.startswith("/uploads/"):
+            local = upload_root / img_path.split("/uploads/", 1)[1]
+        else:
+            local = upload_root / img_path
+        try:
+            local = local.resolve()
+        except Exception:
+            continue
+        if local.exists() and str(local).startswith(str(upload_root)):
+            try:
+                with open(local, "rb") as f:
+                    images_b64.append(base64.b64encode(f.read()).decode())
+            except OSError:
+                logger.warning("generate_rubric_via_llm: cannot read image %s", local)
+
+    messages = build_rubric_generation_prompt(
+        content=content,
+        reference_answer=reference_answer,
+        max_score=max_score,
+        question_type=question.question_type,
+    )
+
+    client = LLMClient(
+        api_url=settings.LLM_API_URL,
+        api_key=settings.LLM_API_KEY,
+        model=settings.LLM_MODEL,
+        timeout=settings.LLM_TIMEOUT,
+        max_retries=settings.LLM_MAX_RETRIES,
+        slot=settings.LLM_SLOT,
+    )
+    try:
+        return await client.generate_rubric(messages, images_b64=images_b64 or None)
+    finally:
+        await client.close()
+
+
+# --- Rubric generate schema ---
+
+class RubricGenerateRequest(BaseModel):
+    question_id: str
+    max_score: float
+
+
 # --- Rubric routes ---
 
 @router.post("/rubrics", status_code=201)
 async def create_or_update_rubric(
     req: RubricCreate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     # Verify question belongs to this tenant
     q_result = await db.execute(
@@ -52,8 +166,12 @@ async def create_or_update_rubric(
             Question.school_id == current["current_role"].school_id,
         )
     )
-    if not q_result.scalar_one_or_none():
+    question = q_result.scalar_one_or_none()
+    if not question:
         raise HTTPException(404, "Question not found")
+
+    # Validate criteria before saving
+    _validate_criteria(req.criteria, question.max_score)
 
     # Upsert: if rubric exists for this question, update it
     result = await db.execute(
@@ -106,16 +224,89 @@ async def get_rubric(
     return _rubric_response(rubric)
 
 
+@router.post("/rubrics/generate")
+async def generate_rubric_endpoint(
+    req: RubricGenerateRequest,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
+):
+    """AI 生成评分细则（Rubric）。
+
+    - 查 Question（校验归属）
+    - 校验 content 或 reference_answer 非空
+    - 调用 LLM 生成 criteria
+    - Upsert Rubric（source=ai_generated）
+    - 返回 rubric 响应
+    """
+    school_id = current["current_role"].school_id
+
+    # Query question with content fields
+    q_result = await db.execute(
+        select(Question).where(
+            Question.id == req.question_id,
+            Question.school_id == school_id,
+        )
+    )
+    question = q_result.scalar_one_or_none()
+    if not question:
+        raise HTTPException(404, "Question not found")
+
+    # Both content and reference_answer empty → 400
+    if not (question.content or "").strip() and not (question.reference_answer or "").strip():
+        raise HTTPException(400, "Question has no content or reference_answer; cannot generate rubric")
+
+    # Call LLM (mocked in tests via patch on generate_rubric_via_llm)
+    # Use question.max_score from DB (not client req.max_score) for correctness
+    criteria = await generate_rubric_via_llm(question, question.max_score, db)
+
+    # Validate LLM-generated criteria before persisting
+    _validate_criteria(criteria, question.max_score)
+
+    logger.info(
+        "generate_rubric_endpoint: question=%s, max_score=%s, criteria=%d items",
+        req.question_id, question.max_score, len(criteria),
+    )
+
+    # Upsert Rubric with source=ai_generated
+    result = await db.execute(
+        select(Rubric).where(
+            Rubric.question_id == req.question_id,
+            Rubric.school_id == school_id,
+        )
+    )
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        existing.criteria = criteria
+        existing.source = "ai_generated"
+        await db.commit()
+        await db.refresh(existing)
+        return _rubric_response(existing)
+
+    rubric = Rubric(
+        question_id=req.question_id,
+        criteria=criteria,
+        source="ai_generated",
+        school_id=school_id,
+    )
+    db.add(rubric)
+    await db.commit()
+    await db.refresh(rubric)
+    return _rubric_response(rubric)
+
+
 # --- Task schemas ---
 
 class GradingTaskCreate(BaseModel):
     subject_id: str
+    question_id: str | None = None
 
 
 def _task_response(t: GradingTask) -> dict:
     return {
         "id": t.id,
         "subject_id": t.subject_id,
+        "question_id": t.question_id,
         "status": t.status,
         "total": t.total,
         "completed": t.completed,
@@ -148,7 +339,7 @@ async def enqueue_grading_task(task_id: str) -> None:
 async def create_grading_task(
     req: GradingTaskCreate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     school_id = current["current_role"].school_id
 
@@ -162,41 +353,107 @@ async def create_grading_task(
     if not result.scalar_one_or_none():
         raise HTTPException(404, "Subject not found")
 
-    # 前置校验 2：至少 1 道主观题（L72 worker fast-path 会 trivially completed）
-    subjective_q_ids = (await db.execute(
-        select(Question.id).where(
-            Question.subject_id == req.subject_id,
-            Question.school_id == school_id,
-            Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
-        )
-    )).scalars().all()
-    if not subjective_q_ids:
-        raise HTTPException(400, "该科目无主观题，无需 AI 阅卷")
+    if req.question_id:
+        # --- Question-level path ---
+        # AGP-001: validate question belongs to subject AND is subjective
+        q_row = (await db.execute(
+            select(Question).where(
+                Question.id == req.question_id,
+                Question.subject_id == req.subject_id,
+                Question.school_id == school_id,
+                Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
+            )
+        )).scalar_one_or_none()
+        if not q_row:
+            raise HTTPException(400, "该题目不存在、不属于该科目或非主观题")
 
-    # 前置校验 3：主观题已配置评分标准 Rubric（L120 worker 每条 answer 都会 failed）
-    rubric_count = (await db.execute(
-        select(func.count(Rubric.id)).where(
-            Rubric.question_id.in_(subjective_q_ids),
-            Rubric.school_id == school_id,
-        )
-    )).scalar() or 0
-    if rubric_count == 0:
-        raise HTTPException(400, "请先为主观题配置评分标准（Rubric）后再启动 AI 阅卷")
+        # Check Rubric exists for this question
+        rubric_exists = (await db.execute(
+            select(func.count(Rubric.id)).where(
+                Rubric.question_id == req.question_id,
+                Rubric.school_id == school_id,
+            )
+        )).scalar() or 0
+        if rubric_exists == 0:
+            raise HTTPException(400, "请先为该题目配置评分标准（Rubric）")
 
-    # 前置校验 4：至少 1 条 StudentAnswer（worker total=0 虚假 completed）
-    answer_count = (await db.execute(
-        select(func.count(StudentAnswer.id)).where(
-            StudentAnswer.subject_id == req.subject_id,
-            StudentAnswer.school_id == school_id,
-            StudentAnswer.question_id.in_(subjective_q_ids),
-        )
-    )).scalar() or 0
-    if answer_count == 0:
-        raise HTTPException(400, "该科目暂无可批改答卷，请先完成扫描与切图")
+        # Check StudentAnswer exists for this question
+        ans_count = (await db.execute(
+            select(func.count(StudentAnswer.id)).where(
+                StudentAnswer.question_id == req.question_id,
+                StudentAnswer.school_id == school_id,
+            )
+        )).scalar() or 0
+        if ans_count == 0:
+            raise HTTPException(400, "该题目暂无可批改答卷")
+
+        # AGP-004: Regrade semantics - clean old ai_pending/ai_done results
+        old_results = (await db.execute(
+            select(GradingResult).where(
+                GradingResult.question_id == req.question_id,
+                GradingResult.school_id == school_id,
+                GradingResult.status.in_(["ai_pending", "ai_done"]),
+            )
+        )).scalars().all()
+        for old in old_results:
+            await db.delete(old)
+        if old_results:
+            await db.commit()
+            logger.info("create_grading_task: cleaned %d stale results for question=%s",
+                        len(old_results), req.question_id)
+
+    else:
+        # --- Subject-level path (ORC-002: unchanged) ---
+        # 前置校验 2：至少 1 道主观题（L72 worker fast-path 会 trivially completed）
+        subjective_q_ids = (await db.execute(
+            select(Question.id).where(
+                Question.subject_id == req.subject_id,
+                Question.school_id == school_id,
+                Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
+            )
+        )).scalars().all()
+        if not subjective_q_ids:
+            raise HTTPException(400, "该科目无主观题，无需 AI 阅卷")
+
+        # 前置校验 3：主观题已配置评分标准 Rubric（L120 worker 每条 answer 都会 failed）
+        rubric_count = (await db.execute(
+            select(func.count(Rubric.id)).where(
+                Rubric.question_id.in_(subjective_q_ids),
+                Rubric.school_id == school_id,
+            )
+        )).scalar() or 0
+        if rubric_count == 0:
+            raise HTTPException(400, "请先为主观题配置评分标准（Rubric）后再启动 AI 阅卷")
+
+        # 前置校验 4：至少 1 条 StudentAnswer（worker total=0 虚假 completed）
+        answer_count = (await db.execute(
+            select(func.count(StudentAnswer.id)).where(
+                StudentAnswer.subject_id == req.subject_id,
+                StudentAnswer.school_id == school_id,
+                StudentAnswer.question_id.in_(subjective_q_ids),
+            )
+        )).scalar() or 0
+        if answer_count == 0:
+            raise HTTPException(400, "该科目暂无可批改答卷，请先完成扫描与切图")
+
+        # Subject-level: clean old ai_pending/ai_done results for all subjective questions
+        old_results = (await db.execute(
+            select(GradingResult).where(
+                GradingResult.question_id.in_(subjective_q_ids),
+                GradingResult.school_id == school_id,
+                GradingResult.status.in_(["ai_pending", "ai_done"]),
+            )
+        )).scalars().all()
+        for old in old_results:
+            await db.delete(old)
+        if old_results:
+            await db.commit()
+            logger.info("create_grading_task: cleaned %d stale subject-level results", len(old_results))
 
     # 创建 task（commit 以获得 ID），后续 enqueue 失败则清理 orphan
     task = GradingTask(
         subject_id=req.subject_id,
+        question_id=req.question_id,  # None for subject-level
         school_id=school_id,
         status="pending",
         total=0,
@@ -353,7 +610,7 @@ async def submit_review(
     result_id: str,
     req: ReviewCreate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """教师对 AI 评分进行 approve / override 确认。
 
@@ -409,20 +666,46 @@ async def get_dispatch_status(
 ):
     """聚合该考试所有科目的阅卷调度状态。"""
     school_id = current["current_role"].school_id
+    role = current["current_role"].role
 
-    # 验证考试归属
-    exam = (await db.execute(
-        select(Exam).where(Exam.id == exam_id, Exam.school_id == school_id)
-    )).scalar_one_or_none()
+    # 验证考试归属（platform_admin/district_admin 可跨校）
+    q = select(Exam).where(Exam.id == exam_id)
+    if school_id:
+        q = q.where(Exam.school_id == school_id)
+    exam = (await db.execute(q)).scalar_one_or_none()
     if not exam:
         raise HTTPException(404, "Exam not found")
 
+    effective_school_id = exam.school_id
+
     # 获取所有科目
     subjects = (await db.execute(
-        select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
+        select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == effective_school_id)
     )).scalars().all()
 
     from edu_cloud.modules.scan import pipeline_service
+
+    # 一次性扫描根目录，构建科目→图片数映射
+    scan_root = Path(settings.UPLOAD_DIR).resolve() / "scan-input" / exam_id
+    scan_dir_map = {}
+    if scan_root.is_dir():
+        for sub in scan_root.iterdir():
+            if sub.is_dir():
+                a_count = sum(
+                    1 for f in sub.iterdir()
+                    if f.is_file() and f.suffix.lower() in (".png", ".jpg", ".bmp") and f.stem.endswith("A")
+                )
+                if a_count > 0:
+                    scan_dir_map[sub.name] = a_count
+
+    # 批量查 Template
+    tpl_rows = (await db.execute(
+        select(Template.subject_id).where(
+            Template.subject_id.in_([s.id for s in subjects]),
+            Template.side == "A",
+        )
+    )).scalars().all()
+    tpl_set = set(tpl_rows)
 
     result = []
     for subj in subjects:
@@ -430,7 +713,7 @@ async def get_dispatch_status(
         answer_count = (await db.execute(
             select(func.count(StudentAnswer.id)).where(
                 StudentAnswer.subject_id == subj.id,
-                StudentAnswer.school_id == school_id,
+                StudentAnswer.school_id == effective_school_id,
             )
         )).scalar() or 0
 
@@ -438,7 +721,7 @@ async def get_dispatch_status(
         objective_graded = (await db.execute(
             select(func.count(StudentAnswer.id)).where(
                 StudentAnswer.subject_id == subj.id,
-                StudentAnswer.school_id == school_id,
+                StudentAnswer.school_id == effective_school_id,
                 StudentAnswer.detected_answer.isnot(None),
             )
         )).scalar() or 0
@@ -447,7 +730,7 @@ async def get_dispatch_status(
         grading_task = (await db.execute(
             select(GradingTask).where(
                 GradingTask.subject_id == subj.id,
-                GradingTask.school_id == school_id,
+                GradingTask.school_id == effective_school_id,
             ).order_by(GradingTask.created_at.desc())
         )).scalars().first()
 
@@ -471,7 +754,7 @@ async def get_dispatch_status(
         subjective_total = (await db.execute(
             select(func.count(StudentAnswer.id)).where(
                 StudentAnswer.subject_id == subj.id,
-                StudentAnswer.school_id == school_id,
+                StudentAnswer.school_id == effective_school_id,
                 StudentAnswer.image_path.isnot(None),
             )
         )).scalar() or 0
@@ -481,7 +764,7 @@ async def get_dispatch_status(
         subjective_q_ids = (await db.execute(
             select(Question.id).where(
                 Question.subject_id == subj.id,
-                Question.school_id == school_id,
+                Question.school_id == effective_school_id,
                 Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
             )
         )).scalars().all()
@@ -490,26 +773,82 @@ async def get_dispatch_status(
             rubric_count = (await db.execute(
                 select(func.count(Rubric.id)).where(
                     Rubric.question_id.in_(subjective_q_ids),
-                    Rubric.school_id == school_id,
+                    Rubric.school_id == effective_school_id,
                 )
             )).scalar() or 0
             has_rubric = rubric_count > 0
         can_ai_grade = has_subjective_answers and has_rubric and len(subjective_q_ids) > 0
 
+        # Query question details for this subject
+        questions_info = []
+        if subjective_q_ids:
+            # Get all subjective questions with their content/rubric/grading status
+            subj_questions = (await db.execute(
+                select(Question).where(
+                    Question.id.in_(subjective_q_ids),
+                )
+            )).scalars().all()
+
+            for q in subj_questions:
+                # Check if rubric exists
+                q_rubric = (await db.execute(
+                    select(Rubric).where(
+                        Rubric.question_id == q.id,
+                        Rubric.school_id == effective_school_id,
+                    )
+                )).scalar_one_or_none()
+
+                # Count answers for this question
+                q_answer_count = (await db.execute(
+                    select(func.count(StudentAnswer.id)).where(
+                        StudentAnswer.question_id == q.id,
+                        StudentAnswer.school_id == effective_school_id,
+                    )
+                )).scalar() or 0
+
+                # Count graded results for this question
+                q_graded_count = (await db.execute(
+                    select(func.count(GradingResult.id)).where(
+                        GradingResult.question_id == q.id,
+                        GradingResult.school_id == effective_school_id,
+                    )
+                )).scalar() or 0
+
+                questions_info.append({
+                    "question_id": q.id,
+                    "name": q.name,
+                    "question_type": q.question_type,
+                    "max_score": q.max_score,
+                    "has_content": bool(q.content or q.reference_answer),
+                    "has_rubric": q_rubric is not None,
+                    "rubric_source": q_rubric.source if q_rubric else None,
+                    "answer_count": q_answer_count,
+                    "graded_count": q_graded_count,
+                })
+
+        has_scan_dir = subj.name in scan_dir_map
+        has_template = subj.id in tpl_set
+
         is_cutting = (
             pipeline_service.is_running()
             and pipeline_service.get_progress().get("current_subject_id") == subj.id
         )
+
+        # stage 推导：idle → pending_detect → pending_cut → cutting → ready → ai_grading → reviewing → done
         if is_cutting:
             stage = "cutting"
-        elif answer_count == 0:
+        elif answer_count == 0 and not has_scan_dir:
             stage = "idle"
+        elif answer_count == 0 and has_scan_dir and not has_template:
+            stage = "pending_detect"
+        elif answer_count == 0 and has_scan_dir and has_template:
+            stage = "pending_cut"
         elif not grading_task and can_ai_grade:
             stage = "ready"
         elif not grading_task:
-            stage = "idle"  # 有选择题答案但无主观题/Rubric，不算 ready
+            stage = "pending_cut" if has_template else "idle"
         elif grading_task.status == "failed":
-            stage = "failed"  # F005: 显式处理 failed，不折叠成 done
+            stage = "failed"
         elif grading_task.status in ("pending", "processing"):
             stage = "ai_grading"
         elif grading_task.status == "completed" and reviewed < ai_graded:
@@ -517,11 +856,17 @@ async def get_dispatch_status(
         else:
             stage = "done"
 
+        scan_image_count = scan_dir_map.get(subj.name, 0)
+
         result.append({
             "subject_id": subj.id,
             "subject_name": subj.name,
+            "subject_code": subj.code,
             "stage": stage,
-            "scan_images": answer_count,
+            "scan_images": scan_image_count,
+            "has_scan_dir": has_scan_dir,
+            "has_template": has_template,
+            "answer_count": answer_count,
             "objective_total": objective_graded,
             "objective_graded": objective_graded,
             "subjective_total": subjective_total,
@@ -529,6 +874,7 @@ async def get_dispatch_status(
             "ai_failed": ai_failed,
             "reviewed": reviewed,
             "grading_task_id": grading_task_id,
+            "questions": questions_info,
         })
 
     return result

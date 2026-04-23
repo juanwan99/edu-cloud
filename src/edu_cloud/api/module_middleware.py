@@ -83,7 +83,8 @@ class ModuleCheckMiddleware(BaseHTTPMiddleware):
             from edu_cloud.shared.auth import decode_token
             payload = decode_token(auth_header.split(" ")[1])
             active_role_id = payload.get("active_role_id")
-        except Exception:
+        except Exception as e:
+            logger.debug("module_middleware: JWT decode failed for %s: %s", path, e)
             return await call_next(request)
 
         if not active_role_id:

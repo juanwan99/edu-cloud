@@ -15,9 +15,9 @@ async def rubric_setup(client, db):
     user.set_password("p")
     db.add(user)
     await db.commit()
-    db.add(UserRole(user_id=user.id, role="teacher", school_id=school.id, is_primary=True))
+    db.add(UserRole(user_id=user.id, role="academic_director", school_id=school.id, is_primary=True))
     await db.flush()
-    token = create_access_token({"sub": user.id, "school_id": school.id, "role": "teacher"})
+    token = create_access_token({"sub": user.id, "school_id": school.id, "role": "academic_director"})
     headers = {"Authorization": f"Bearer {token}"}
     exam = Exam(name="E", school_id=school.id)
     db.add(exam)
@@ -51,7 +51,10 @@ async def test_create_rubric(client, rubric_setup):
         "/api/v1/grading/rubrics",
         json={
             "question_id": rubric_setup["question_id"],
-            "criteria": [{"point": "概念", "score": 5.0, "description": "正确表述"}],
+            "criteria": [
+                {"blankNo": "1", "score": 5.0, "answer": "正确表述概念", "intent": "考查", "coreRequirement": "必须"},
+                {"blankNo": "2", "score": 5.0, "answer": "延伸分析", "intent": "考查", "coreRequirement": "必须"},
+            ],
             "reference_answer": "标准答案",
             "source": "manual",
         },
@@ -61,7 +64,7 @@ async def test_create_rubric(client, rubric_setup):
     data = resp.json()
     assert data["question_id"] == rubric_setup["question_id"]
     assert data["source"] == "manual"
-    assert len(data["criteria"]) == 1
+    assert len(data["criteria"]) == 2
 
 
 async def test_get_rubric(client, rubric_setup):
@@ -70,7 +73,7 @@ async def test_get_rubric(client, rubric_setup):
         "/api/v1/grading/rubrics",
         json={
             "question_id": rubric_setup["question_id"],
-            "criteria": [{"point": "要点", "score": 10.0, "description": "desc"}],
+            "criteria": [{"blankNo": "1", "score": 10.0, "answer": "要点答案", "intent": "考查", "coreRequirement": "必须"}],
             "source": "manual",
         },
         headers=rubric_setup["headers"],
@@ -80,7 +83,7 @@ async def test_get_rubric(client, rubric_setup):
         headers=rubric_setup["headers"],
     )
     assert resp.status_code == 200
-    assert resp.json()["criteria"][0]["point"] == "要点"
+    assert resp.json()["criteria"][0]["blankNo"] == "1"
 
 
 async def test_get_rubric_not_found(client, rubric_setup):
@@ -94,16 +97,19 @@ async def test_get_rubric_not_found(client, rubric_setup):
 async def test_create_rubric_duplicate_updates(client, rubric_setup):
     body = {
         "question_id": rubric_setup["question_id"],
-        "criteria": [{"point": "v1", "score": 5.0, "description": "first"}],
+        "criteria": [
+            {"blankNo": "1", "score": 5.0, "answer": "v1 答案", "intent": "test", "coreRequirement": "必须"},
+            {"blankNo": "2", "score": 5.0, "answer": "v1 补充", "intent": "test", "coreRequirement": "必须"},
+        ],
         "source": "manual",
     }
     resp1 = await client.post("/api/v1/grading/rubrics", json=body, headers=rubric_setup["headers"])
     assert resp1.status_code == 201
 
-    body["criteria"] = [{"point": "v2", "score": 10.0, "description": "updated"}]
+    body["criteria"] = [{"blankNo": "1", "score": 10.0, "answer": "v2 答案", "intent": "test", "coreRequirement": "必须"}]
     resp2 = await client.post("/api/v1/grading/rubrics", json=body, headers=rubric_setup["headers"])
     assert resp2.status_code == 201  # upsert returns 201
-    assert resp2.json()["criteria"][0]["point"] == "v2"
+    assert resp2.json()["criteria"][0]["answer"] == "v2 答案"
 
 
 async def test_cross_tenant_rubric_blocked(client, rubric_setup):

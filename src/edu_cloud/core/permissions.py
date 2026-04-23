@@ -237,7 +237,10 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     # 作用域：单年级 · 单学科 · 该年级全部平行班（由 DataScope 控制）
     # 基于教师基线，不额外加权限
     # 与科任教师的区别在 DataScope：能看到本年级所有平行班（不限于自己带的班）
-    "lesson_prep_leader": _TEACHER_BASE.copy(),
+    "lesson_prep_leader": _TEACHER_BASE | {
+        Permission.MANAGE_GRADING,
+        Permission.MANAGE_EXAMS,
+    },
 
     # ── 班主任：教师基线 + 班级通知管理 ──
     # 作用域：本班全科 + 任教班本科（由 DataScope 控制）

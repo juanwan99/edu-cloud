@@ -5,16 +5,18 @@ import os
 from pathlib import Path
 from typing import Callable, Awaitable
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from edu_cloud.config import settings
 from edu_cloud.database import get_db
 # R4-F001: 运行时属性查找，让 client fixture monkey-patch 生效
 import edu_cloud.database as db_mod
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
 from edu_cloud.modules.exam.models import Subject, Question, QUESTION_TYPES_OBJECTIVE
 from edu_cloud.modules.card.models import Template
 from edu_cloud.modules.scan.models import StudentAnswer
@@ -172,12 +174,88 @@ class PreviewRequest(BaseModel):
     side: str = "A"
 
 
+class BrowseDirRequest(BaseModel):
+    path: str = ""
+
+
+@router.post("/browse-dir")
+async def browse_directory(
+    req: BrowseDirRequest,
+    current: dict = Depends(get_current_user),
+):
+    """浏览服务器目录，返回子文件夹列表。"""
+    d = Path(req.path) if req.path else Path(settings.UPLOAD_DIR).resolve()
+    if not d.is_dir():
+        raise HTTPException(400, f"目录不存在: {req.path}")
+
+    items = []
+    try:
+        for entry in sorted(d.iterdir()):
+            if entry.is_dir() and not entry.name.startswith('.'):
+                img_count = sum(1 for f in entry.iterdir()
+                                if f.is_file() and f.suffix.lower() in (".png", ".jpg", ".bmp"))
+                sub_count = sum(1 for f in entry.iterdir() if f.is_dir())
+                items.append({
+                    "name": entry.name,
+                    "path": str(entry),
+                    "has_images": img_count > 0,
+                    "image_count": img_count,
+                    "sub_dirs": sub_count,
+                })
+    except PermissionError:
+        raise HTTPException(403, f"无权访问: {req.path}")
+
+    parent = str(d.parent) if str(d) != "/" else None
+    return {"current": str(d), "parent": parent, "items": items}
+
+
+@router.post("/upload-folder")
+async def upload_scan_folder(
+    exam_id: str = Form(...),
+    files: list[UploadFile] = File(...),
+    current: dict = Depends(get_current_user),
+):
+    """接收用户上传的扫描图片，按子文件夹结构保存到服务器。"""
+    school_id = current["current_role"].school_id
+    base_dir = Path(settings.UPLOAD_DIR).resolve() / "scan-input" / exam_id
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    saved = 0
+    for f in files:
+        if not f.filename:
+            continue
+        rel = f.filename
+        parts = rel.replace("\\", "/").split("/")
+        if len(parts) >= 2:
+            sub_dir = parts[-2]
+            fname = parts[-1]
+        else:
+            sub_dir = "未分类"
+            fname = parts[-1]
+
+        if not fname.lower().endswith((".png", ".jpg", ".jpeg", ".bmp")):
+            continue
+
+        target_dir = base_dir / sub_dir
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target = target_dir / fname
+        content = await f.read()
+        target.write_bytes(content)
+        saved += 1
+
+    logger.info("upload_scan_folder: exam=%s saved=%d dir=%s", exam_id, saved, base_dir)
+    return {"dir_path": str(base_dir), "saved": saved}
+
+
 class ScanDirRequest(BaseModel):
     dir_path: str
 
 
 @router.post("/scan-dir")
-async def scan_directory(req: ScanDirRequest):
+async def scan_directory(
+    req: ScanDirRequest,
+    current: dict = Depends(get_current_user),
+):
     """扫描目录结构，返回科目子文件夹和图片统计。"""
     d = Path(req.dir_path)
     if not d.is_dir():
@@ -190,6 +268,7 @@ async def scan_directory(req: ScanDirRequest):
             if imgs:
                 a_count = sum(1 for f in imgs if f.stem.endswith("A"))
                 b_count = sum(1 for f in imgs if f.stem.endswith("B"))
+                a_imgs = sorted(f for f in imgs if f.stem.endswith("A"))
                 subjects.append({
                     "name": sub.name,
                     "folder": sub.name,
@@ -197,6 +276,7 @@ async def scan_directory(req: ScanDirRequest):
                     "a_count": a_count,
                     "b_count": b_count,
                     "student_count": max(a_count, b_count),
+                    "first_file": a_imgs[0].name if a_imgs else imgs[0].name,
                 })
 
     # 根目录本身有图片且无科目子目录
@@ -205,6 +285,7 @@ async def scan_directory(req: ScanDirRequest):
         if imgs:
             a_count = sum(1 for f in imgs if f.stem.endswith("A"))
             b_count = sum(1 for f in imgs if f.stem.endswith("B"))
+            a_imgs = sorted(f for f in imgs if f.stem.endswith("A"))
             subjects.append({
                 "name": d.name,
                 "folder": ".",
@@ -212,6 +293,7 @@ async def scan_directory(req: ScanDirRequest):
                 "a_count": a_count,
                 "b_count": b_count,
                 "student_count": max(a_count, b_count),
+                "first_file": a_imgs[0].name if a_imgs else imgs[0].name,
             })
 
     return {"dir_path": req.dir_path, "subjects": subjects}
@@ -231,12 +313,14 @@ async def start_pipeline(
     if not os.path.isdir(req.image_dir):
         raise HTTPException(400, f"目录不存在: {req.image_dir}")
 
-    # 获取 subject
-    subject = (await db.execute(
-        select(Subject).where(Subject.id == req.subject_id, Subject.school_id == school_id)
-    )).scalar_one_or_none()
+    # 获取 subject（platform_admin 可跨校）
+    q = select(Subject).where(Subject.id == req.subject_id)
+    if school_id:
+        q = q.where(Subject.school_id == school_id)
+    subject = (await db.execute(q)).scalar_one_or_none()
     if not subject:
         raise HTTPException(404, "科目不存在")
+    school_id = subject.school_id
 
     # 加载模板
     if req.tpl_path:
@@ -252,11 +336,16 @@ async def start_pipeline(
         )).scalar_one_or_none()
         if not tpl:
             raise HTTPException(404, "模板不存在，请先发布答题卡或导入 .tpl 文件")
+        bc_region = None
+        for r in (tpl.regions or []):
+            if r.get("type") == "barcode" and r.get("rect"):
+                bc_region = r["rect"]
+                break
         template = {
             "image_size": {"width": tpl.image_width, "height": tpl.image_height},
             "anchors": tpl.anchors or [],
             "regions": tpl.regions or [],
-            "barcode_region": None,
+            "barcode_region": bc_region,
         }
 
     # 列出文件
@@ -395,13 +484,13 @@ async def start_pipeline(
 
 
 @router.get("/progress")
-async def get_progress():
+async def get_progress(current: dict = Depends(get_current_user)):
     """获取流水线进度。"""
     return pipeline_service.get_progress()
 
 
 @router.post("/stop")
-async def stop_pipeline():
+async def stop_pipeline(current: dict = Depends(get_current_user)):
     """停止流水线。"""
     if not pipeline_service.is_running():
         raise HTTPException(400, "流水线未在运行")
@@ -499,11 +588,13 @@ async def import_tpl(
     if not os.path.isfile(req.tpl_path):
         raise HTTPException(400, f"tpl 文件不存在: {req.tpl_path}")
 
-    subject = (await db.execute(
-        select(Subject).where(Subject.id == req.subject_id, Subject.school_id == school_id)
-    )).scalar_one_or_none()
+    q = select(Subject).where(Subject.id == req.subject_id)
+    if school_id:
+        q = q.where(Subject.school_id == school_id)
+    subject = (await db.execute(q)).scalar_one_or_none()
     if not subject:
         raise HTTPException(404, "科目不存在")
+    school_id = subject.school_id
 
     tpl_data = parse_tpl_file(req.tpl_path)
 
@@ -536,3 +627,178 @@ async def import_tpl(
     logger.info("import_tpl: subject=%s, side=%s, regions=%d",
                 subject.name, req.side, len(tpl_data["regions"]))
     return {"id": existing.id, "regions": len(tpl_data["regions"]), "anchors": len(tpl_data["anchors"])}
+
+
+# === 扫描图片服务 ===
+
+@router.get('/scan-image')
+async def serve_scan_image(
+    path: str,
+    current: dict = Depends(get_current_user),
+):
+    """提供扫描图片的 HTTP 访问（前端模板编辑器用）。"""
+    from fastapi.responses import FileResponse
+    upload_root = Path(settings.UPLOAD_DIR).resolve()
+    if path.startswith("/uploads/"):
+        resolved = upload_root / path.split("/uploads/", 1)[1]
+    elif path.startswith("/"):
+        resolved = Path(path)
+    else:
+        resolved = upload_root / path
+    if not resolved.is_file():
+        raise HTTPException(404, f"图片不存在: {path}")
+    if not str(resolved.resolve()).startswith(str(upload_root.resolve())):
+        raise HTTPException(403, "只能访问 uploads 目录下的图片")
+    suffix = resolved.suffix.lower()
+    media = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg"}.get(suffix.lstrip("."), "application/octet-stream")
+    return FileResponse(resolved, media_type=media)
+
+
+# === OpenCV + LLM 混合检测 ===
+from edu_cloud.modules.scan.auto_detect_cv import AutoDetectCVRequest, auto_detect_cv_regions
+
+@router.post('/auto-detect-cv')
+async def auto_detect_cv_api(
+    req: AutoDetectCVRequest,
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+):
+    return await auto_detect_cv_regions(req)
+
+
+# === 查询已有 Template ===
+
+@router.get('/cv-template')
+async def get_cv_template(
+    subject_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+):
+    """查询某科目已有的 CV 检测 Template（A+B 面）。"""
+    rows = (await db.execute(
+        select(Template).where(Template.subject_id == subject_id)
+    )).scalars().all()
+    if not rows:
+        raise HTTPException(404, "该科目尚无模板")
+    result = {}
+    for t in rows:
+        result[t.side] = {
+            "regions": t.regions or [],
+            "width": t.image_width,
+            "height": t.image_height,
+        }
+    return result
+
+
+# === 保存 CV 检测结果为 Template ===
+
+class SaveCVTemplateRequest(BaseModel):
+    subject_id: str
+    side: str = "A"
+    regions: list[dict]
+    width: int
+    height: int
+
+
+@router.post('/save-cv-template')
+async def save_cv_template(
+    req: SaveCVTemplateRequest,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+):
+    """将 CV 检测结果保存/更新为 Template（upsert）。"""
+    school_id = current["current_role"].school_id
+
+    q = select(Subject).where(Subject.id == req.subject_id)
+    if school_id:
+        q = q.where(Subject.school_id == school_id)
+    subject = (await db.execute(q)).scalar_one_or_none()
+    if not subject:
+        raise HTTPException(404, "科目不存在")
+    school_id = subject.school_id
+
+    questions = (await db.execute(
+        select(Question).where(Question.subject_id == req.subject_id)
+    )).scalars().all()
+    qno_map = {}
+    for q in questions:
+        try:
+            qno_map[int(q.name)] = str(q.id)
+        except (ValueError, TypeError):
+            pass
+
+    def _region_to_qtype(r):
+        if r.get("type") == "choice_group":
+            return "choice"
+        return r.get("question_type", "essay")
+
+    for r in req.regions:
+        if r.get("type") == "not_a_region":
+            continue
+        qno = r.get("qno")
+        if not qno:
+            continue
+
+        if r.get("type") == "choice_group":
+            start = r.get("start_no", 1)
+            rows = r.get("rows", 0)
+            for n in range(start, start + rows):
+                if n not in qno_map:
+                    new_q = Question(
+                        subject_id=req.subject_id,
+                        name=str(n),
+                        question_type="choice",
+                        max_score=r.get("score", 0),
+                        school_id=school_id,
+                    )
+                    db.add(new_q)
+                    await db.flush()
+                    qno_map[n] = str(new_q.id)
+                    logger.info("auto_create_question: subject=%s qno=%d type=choice", subject.name, n)
+        else:
+            if qno not in qno_map:
+                new_q = Question(
+                    subject_id=req.subject_id,
+                    name=str(qno),
+                    question_type=_region_to_qtype(r),
+                    max_score=r.get("score", 0),
+                    school_id=school_id,
+                )
+                db.add(new_q)
+                await db.flush()
+                qno_map[qno] = str(new_q.id)
+                logger.info("auto_create_question: subject=%s qno=%d type=%s", subject.name, qno, new_q.question_type)
+
+        if qno in qno_map:
+            r["question_id"] = qno_map[qno]
+        qnos = r.get("qnos")
+        if qnos:
+            r["question_ids"] = [qno_map[n] for n in qnos if n in qno_map]
+
+    regions = [r for r in req.regions if r.get("type") != "not_a_region"]
+
+    existing = (await db.execute(
+        select(Template).where(
+            Template.subject_id == req.subject_id,
+            Template.side == req.side,
+        )
+    )).scalar_one_or_none()
+
+    if existing:
+        existing.regions = regions
+        existing.image_width = req.width
+        existing.image_height = req.height
+    else:
+        existing = Template(
+            subject_id=req.subject_id,
+            side=req.side,
+            regions=regions,
+            image_width=req.width,
+            image_height=req.height,
+            school_id=school_id,
+        )
+        db.add(existing)
+
+    await db.commit()
+    logger.info("save_cv_template: subject=%s side=%s regions=%d",
+                subject.name, req.side, len(regions))
+    return {"id": str(existing.id), "regions": len(regions)}

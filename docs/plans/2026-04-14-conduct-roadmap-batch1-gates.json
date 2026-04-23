@@ -3,15 +3,15 @@
   "gates": {
     "plan_review": {
       "required": true,
-      "status": "fail",
+      "status": "pass",
       "reviewer": "gpt",
-      "subject_hash": "e9ebe2f6afd5cf17a7bad88e26cd431348e2faa2e384145fb4dba5599a6e2106",
-      "report_path": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review.md",
-      "raw_output_hash": "9554e5ee659b1feb1399c14d181e60de8c5e76b694523765ce5f4f0fd0fe114c",
-      "raw_output_path": "docs/plans/.codex-raw-plan-review-20260414-072451.log",
-      "subject_ref": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md",
-      "updated": "2026-04-14T07:39:47+08:00",
-      "round": 1,
+      "subject_hash": "faaa817c3f257fa8603a9676db40a70c11e2d9be75467653f0ae962914949cce",
+      "report_path": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan-review-r7.md",
+      "raw_output_hash": "17db8b5cdc72b7bc0fa225013d9f9398e1bc7ffc8242f0272325b59916232f3a",
+      "raw_output_path": "docs/plans/.codex-raw-plan-review-20260418-r7.log",
+      "subject_ref": "docs/plans/2026-04-14-conduct-roadmap-batch1-plan.md@583205d",
+      "updated": "2026-04-18T07:22:46+08:00",
+      "round": 7,
       "round1_status": "fail",
       "findings_summary": {
         "total": 9,
@@ -24,21 +24,328 @@
         "design_concern": 2
       },
       "round1_findings": {
-        "F001": {"severity": "HIGH", "category": "code-bug", "type": "defect_fix", "summary": "T2 漏 admin_router.py:115,137 真实改动点 (data.date 残留)"},
-        "F002": {"severity": "HIGH", "category": "test-gap", "type": "defect_fix", "summary": "T2 测试假设 201+data[0]['date']，实际 200+{'created_ids':[...]}"},
-        "F003": {"severity": "MED", "category": "code-bug", "type": "defect_fix", "summary": "aggregate_modules.py 路径应为 scripts/governance/aggregate_modules.py"},
-        "F004": {"severity": "MED", "category": "code-bug", "type": "defect_fix", "summary": "state.json 创建时机错误 — 应 Gate 1 PASS 后立即创建，不是 Task 6"},
-        "F005": {"severity": "HIGH", "category": "design-concern", "type": "behavior_change", "summary": "subject_teacher 2→4 未单独批准即写入 plan (R-T3-followup)", "status": "approved", "approval": {"decision": "approved", "decided_at": "2026-04-14T07:45:00+08:00", "decided_by": "user", "precise_reply": "批准 F005", "rationale": "subject_teacher 可见 conduct 入口从 2 扩展到 4（概览/积分操作/记录/排行），plan 现状维持"}},
-        "F006": {"severity": "MED", "category": "test-gap", "type": "defect_fix", "summary": "T1/T3 测试契约只测内部 helper，缺入口级验证"},
-        "F007": {"severity": "MED", "category": "test-gap", "type": "defect_fix", "summary": "CONDUCT_ITEMS.perm typo 静默失败 — 缺治理契约测试"},
-        "F008": {"severity": "HIGH", "category": "design-concern", "type": "defect_fix", "summary": "plan 缺 Contract Pack 段 (invariants/counter_examples/risk_modules/test_debt)"},
-        "F009": {"severity": "MED", "category": "code-bug", "type": "defect_fix", "summary": "Task 6 改 workspace CLAUDE.md 与 design §8 声明矛盾"}
+        "F001": {
+          "severity": "HIGH",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "T2 漏 admin_router.py:115,137 真实改动点 (data.date 残留)"
+        },
+        "F002": {
+          "severity": "HIGH",
+          "category": "test-gap",
+          "type": "defect_fix",
+          "summary": "T2 测试假设 201+data[0]['date']，实际 200+{'created_ids':[...]}"
+        },
+        "F003": {
+          "severity": "MED",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "aggregate_modules.py 路径应为 scripts/governance/aggregate_modules.py"
+        },
+        "F004": {
+          "severity": "MED",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "state.json 创建时机错误 — 应 Gate 1 PASS 后立即创建，不是 Task 6"
+        },
+        "F005": {
+          "severity": "HIGH",
+          "category": "design-concern",
+          "type": "behavior_change",
+          "summary": "subject_teacher 2→4 未单独批准即写入 plan (R-T3-followup)",
+          "status": "approved",
+          "approval": {
+            "decision": "approved",
+            "decided_at": "2026-04-14T07:45:00+08:00",
+            "decided_by": "user",
+            "precise_reply": "批准 F005",
+            "rationale": "subject_teacher 可见 conduct 入口从 2 扩展到 4（概览/积分操作/记录/排行），plan 现状维持"
+          }
+        },
+        "F006": {
+          "severity": "MED",
+          "category": "test-gap",
+          "type": "defect_fix",
+          "summary": "T1/T3 测试契约只测内部 helper，缺入口级验证"
+        },
+        "F007": {
+          "severity": "MED",
+          "category": "test-gap",
+          "type": "defect_fix",
+          "summary": "CONDUCT_ITEMS.perm typo 静默失败 — 缺治理契约测试"
+        },
+        "F008": {
+          "severity": "HIGH",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "plan 缺 Contract Pack 段 (invariants/counter_examples/risk_modules/test_debt)"
+        },
+        "F009": {
+          "severity": "MED",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "Task 6 改 workspace CLAUDE.md 与 design §8 声明矛盾"
+        }
       },
-      "next_action": "R2 启动前须: (1) 用户精确批准/拒绝 F005 (subject_teacher 2→4 behavior_change); (2) 修 F001~F004, F006~F009 八项 defect_fix; (3) 重算 plan.md hash + 重跑 Plan Review。"
+      "next_action": "Gate 1 PASS 解锁。code_review_batch1 gate 可触发。按 T3 硬约束，T1-T5 实施必须新会话。",
+      "round2_status": "fail",
+      "round2_findings": {
+        "R2-F001": {
+          "severity": "HIGH",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "Task 3 Step 3.4a 入口级测试 import 路径错误（student/models 无 User/UserRole，实际在 edu_cloud/models/user.py + user_role.py）"
+        },
+        "R2-F002": {
+          "severity": "HIGH",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "Task 4 主体仍残留 test_admin_api.py 旧口径（Step 4.2 / 测试契约命令 / 反例 assert data[0]['date']）"
+        },
+        "R2-F003": {
+          "severity": "HIGH",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "Task 5 Step 5.2a/5.2b 不可直接执行（重复 import ESM 错 / AppSidebar 顶层 mock 吃掉新 case / AppSidebar.vue 无 data-module 且未纳入 Files）"
+        },
+        "R2-F004": {
+          "severity": "HIGH",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "T2 UX 不自洽：主步骤允许跳过前端 vs 审查清单承诺'历史日期补录可用'；当前 UI 无日期控件、发 note 非 reason"
+        },
+        "R2-F005": {
+          "severity": "HIGH",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "design.md §3.4 L238-240 + §5.1 L342-345 仍有'待二次确认/独立确认'pending 表述（R1 仅改了 §9 表格）"
+        },
+        "R2-F006": {
+          "severity": "MED",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "Contract Pack INV-T1-003 混装 API 403 + ToolAccessResolver AI tool 过滤两语义；仅单 test_ref 覆盖 API 403；无 AI tool 过滤测试"
+        }
+      },
+      "round2_findings_summary": {
+        "total": 6,
+        "high": 5,
+        "med": 1,
+        "low": 0,
+        "code_bug": 5,
+        "design_concern": 1,
+        "test_gap": 0,
+        "defect_fix": 6,
+        "behavior_change": 0
+      },
+      "round3_status": "fail",
+      "round3_findings": {
+        "R3-F001": {
+          "severity": "HIGH",
+          "category": "test-gap",
+          "type": "defect_fix",
+          "summary": "4 处 AppSidebar.test.js 引用未同步到 AppSidebar.conduct.test.js（测试契约 / Task 6 回归 / Contract Pack test_ref / 顶部文件映射）"
+        },
+        "R3-F002": {
+          "severity": "HIGH",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "文末 § 入口级测试补充 / § CONDUCT_ITEMS 治理测试 / R1 处置总结 保留旧坏代码样例，与 R3 主步骤双口径"
+        },
+        "R3-F003": {
+          "severity": "MED",
+          "category": "test-gap",
+          "type": "defect_fix",
+          "summary": "批次 1 关键行为 L809 / design L150 仍写 ToolAccessResolver AI tool filter（Contract Pack 已拆 TD-006）"
+        },
+        "R3-F004": {
+          "severity": "MED",
+          "category": "code-bug",
+          "type": "defect_fix",
+          "summary": "plan 顶部文件结构表 L47-48 + design §3.1 Task 清单 L127 未同步 T2 收窄 / T3 扩容"
+        },
+        "R3-F005": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "design.md §3.4 矩阵行 L238 subject_teacher 改后 2 项，应为 4 项"
+        }
+      },
+      "round3_findings_summary": {
+        "total": 5,
+        "high": 2,
+        "med": 2,
+        "low": 1,
+        "code_bug": 3,
+        "design_concern": 1,
+        "test_gap": 2,
+        "defect_fix": 5,
+        "behavior_change": 0
+      },
+      "round3_r2_verify": {
+        "R2-F001": "resolved",
+        "R2-F002": "resolved",
+        "R2-F003": "partially-resolved (→ R3-F001)",
+        "R2-F004": "partially-resolved (→ R3-F004)",
+        "R2-F005": "partially-resolved (→ R3-F005)",
+        "R2-F006": "partially-resolved (→ R3-F003)"
+      },
+      "override_rule": "用户 2026-04-17 明示 override 'T3/T4 禁 R3+' 规则（'修复 然后继续审查'）",
+      "round4_status": "fail",
+      "round4_findings": {
+        "R4-F001": {
+          "severity": "HIGH",
+          "category": "test-gap",
+          "type": "defect_fix",
+          "summary": "Step 3.11 vitest 命令提前引用 AppSidebar.conduct.test.js（Task 5 Step 5.2b 才创建）— 时序 bug"
+        },
+        "R4-F002": {
+          "severity": "MED",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "数字漂移：design §4/§6.1 仍 125/22 应 129/29；plan L795/1624/1636 + Step 5.5 算术错 72+4+9=77"
+        },
+        "R4-F003": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "MODULE.md 模板正文 students_profiles 与 frontmatter student_profiles / ORM 真值不一致"
+        }
+      },
+      "round4_findings_summary": {
+        "total": 3,
+        "high": 1,
+        "med": 1,
+        "low": 1,
+        "code_bug": 0,
+        "design_concern": 2,
+        "test_gap": 1,
+        "defect_fix": 3,
+        "behavior_change": 0
+      },
+      "round4_r3_verify": {
+        "R3-F001": "resolved",
+        "R3-F002": "resolved",
+        "R3-F003": "resolved",
+        "R3-F004": "resolved",
+        "R3-F005": "resolved"
+      },
+      "round5_status": "fail",
+      "round5_findings": {
+        "R5-F001": {
+          "severity": "HIGH",
+          "category": "test-gap",
+          "type": "defect_fix",
+          "summary": "Task 3 Step 3.4a 假绿：lesson_prep_leader 无 class_ids → scope 先 403 而非 RBAC 403；无法证明 VIEW_CONDUCT 被回收；INV-T1-003 契约失真"
+        },
+        "R5-F002": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "Task 2 Files 摘要 test_module_governance.py 1 测试，正文是 3 测试"
+        },
+        "R5-F003": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "Step 5.5 L1482 '72 原' 过期，实跑 234 passed"
+        }
+      },
+      "round5_findings_summary": {
+        "total": 3,
+        "high": 1,
+        "med": 0,
+        "low": 2,
+        "code_bug": 0,
+        "design_concern": 2,
+        "test_gap": 1,
+        "defect_fix": 3,
+        "behavior_change": 0
+      },
+      "round5_r4_verify": {
+        "R4-F001": "resolved",
+        "R4-F002": "resolved",
+        "R4-F003": "resolved"
+      },
+      "round6_status": "fail",
+      "round6_findings": {
+        "R6-F001": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "Task 3 Files/commit/测试契约命令未同步为 2 测试（对照组）"
+        },
+        "R6-F002": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "Step 6.2 state.json 指示 118→129 应 130"
+        },
+        "R6-F003": {
+          "severity": "LOW",
+          "category": "design-concern",
+          "type": "defect_fix",
+          "summary": "Step 6.3 design.md §10 模板 conduct=129 应 130"
+        }
+      },
+      "round6_findings_summary": {
+        "total": 3,
+        "high": 0,
+        "med": 0,
+        "low": 3,
+        "code_bug": 0,
+        "design_concern": 3,
+        "test_gap": 0,
+        "defect_fix": 3,
+        "behavior_change": 0
+      },
+      "round6_r5_verify": {
+        "R5-F001": "partially-resolved (→ R6-F001)",
+        "R5-F002": "resolved",
+        "R5-F003": "resolved"
+      },
+      "round6_checklist": {
+        "A": "FAIL",
+        "B": "PASS",
+        "C": "PASS",
+        "D": "PASS",
+        "D+": "PASS",
+        "E": "PASS",
+        "F": "PASS"
+      },
+      "round6_actionable_judgement": "GPT 明示：plan 足够 actionable 可进入执行阶段；建议顺手修 3 处 LOW 后再进",
+      "round7_status": "pass",
+      "round7_findings": {},
+      "round7_findings_summary": {
+        "total": 0,
+        "high": 0,
+        "med": 0,
+        "low": 0,
+        "code_bug": 0,
+        "design_concern": 0,
+        "test_gap": 0,
+        "defect_fix": 0,
+        "behavior_change": 0
+      },
+      "round7_r6_verify": {
+        "R6-F001": "resolved",
+        "R6-F002": "resolved",
+        "R6-F003": "resolved"
+      },
+      "round7_checklist": {
+        "A": "PASS",
+        "B": "PASS",
+        "C": "PASS",
+        "D": "PASS",
+        "D+": "PASS",
+        "E": "PASS",
+        "F": "PASS"
+      },
+      "convergence_history": "R1 FAIL 9 → R2 FAIL 6 → R3 FAIL 5 → R4 FAIL 3 → R5 FAIL 3 → R6 FAIL 3 (GPT actionable) → R7 PASS 0"
     },
     "code_review_batch1": {
       "required": true,
-      "status": "pending",
+      "status": "pending_execution",
       "reviewer": null,
       "subject_hash": null,
       "report_path": null,
@@ -46,7 +353,7 @@
       "raw_output_path": null,
       "subject_ref": null,
       "updated": "2026-04-14T06:39:01+08:00",
-      "reason": "批次 1 Code Review 待启动（Plan Review R2 PASS 后才能触发）。"
+      "reason": "Plan Review R7 PASS (2026-04-18)。待 Executor 在新会话完成 T1-T5 实施 + commit 后，触发 code_review_batch1"
     }
   }
 }

@@ -1,8 +1,10 @@
 """Exam / Subject / Question 路由 — 从 exam-ai 迁入。"""
 import logging
+import uuid
+from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -13,6 +15,7 @@ from edu_cloud.api.deps import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.modules.exam.models import Question, Subject
 from edu_cloud.modules.exam import service as exam_service
+from edu_cloud.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +60,13 @@ class QuestionUpdate(BaseModel):
     correct_answer: str | None = None
 
 
+class QuestionContentUpdate(BaseModel):
+    content: str | None = None
+    content_images: list | None = None
+    reference_answer: str | None = None
+    reference_answer_images: list | None = None
+
+
 # ── Helpers ──────────────────────────────────────────────────────────
 
 def _school_id(current: dict) -> str:
@@ -74,6 +84,10 @@ def _question_response(q: Question) -> dict:
         "question_type": q.question_type, "max_score": q.max_score,
         "region_id": q.region_id, "knowledge_points": q.knowledge_points,
         "correct_answer": q.correct_answer,
+        "content": q.content,
+        "content_images": q.content_images,
+        "reference_answer": q.reference_answer,
+        "reference_answer_images": q.reference_answer_images,
     }
 
 
@@ -245,6 +259,56 @@ async def delete_question(
     await db.delete(q)
     await db.commit()
     return {"deleted": True, "id": question_id}
+
+
+@question_router.put("/{question_id}/content")
+async def update_question_content(
+    question_id: str,
+    req: QuestionContentUpdate,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
+):
+    result = await db.execute(
+        select(Question).where(Question.id == question_id, Question.school_id == _school_id(current))
+    )
+    q = result.scalar_one_or_none()
+    if not q:
+        raise HTTPException(404, "Question not found")
+    updates = req.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(q, field, value)
+    await db.commit()
+    await db.refresh(q)
+    logger.info("update_question_content: id=%s", question_id)
+    return _question_response(q)
+
+
+@question_router.post("/{question_id}/content/upload-image")
+async def upload_question_image(
+    question_id: str,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
+):
+    result = await db.execute(
+        select(Question).where(Question.id == question_id, Question.school_id == _school_id(current))
+    )
+    q = result.scalar_one_or_none()
+    if not q:
+        raise HTTPException(404, "Question not found")
+
+    ext = Path(file.filename).suffix if file.filename else ".bin"
+    filename = f"{uuid.uuid4()}{ext}"
+    dest_dir = Path(settings.UPLOAD_DIR) / "questions" / question_id
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = dest_dir / filename
+
+    contents = await file.read()
+    dest_path.write_bytes(contents)
+
+    url_path = f"/uploads/questions/{question_id}/{filename}"
+    logger.info("upload_question_image: question_id=%s path=%s", question_id, url_path)
+    return {"path": url_path}
 
 
 # ── Publish / Archive ────────────��─────────────────────────────────

@@ -49,12 +49,14 @@ def test_run_post_exam_pipeline_is_importable():
 # ── Flow tests ─────────────────────────────────────────────────────
 
 
-def _make_mock_task(task_id="task-1", subject_id="subj-1", school_id="school-1"):
+def _make_mock_task(task_id="task-1", subject_id="subj-1", school_id="school-1",
+                    question_id=None):
     """Create a mock GradingTask with writable attributes."""
     task = MagicMock()
     task.id = task_id
     task.subject_id = subject_id
     task.school_id = school_id
+    task.question_id = question_id  # None = subject-level; str = question-level
     task.status = "pending"
     task.total = 0
     task.completed = 0
@@ -161,13 +163,15 @@ async def test_process_grading_task_missing_rubric(mock_create_llm):
     # 1. select(GradingTask) → task
     # 2. select(Question) → [question]
     # 3. select(StudentAnswer) → [answer]
-    # 4. select(Rubric) → [] (no rubric!)
-    # 5. select(GradingTask) → task (batch progress re-fetch)
-    # 6. select(GradingTask) → task (final status re-fetch)
+    # 4. select(GradingResult.answer_id) WHERE confirmed → [] (ORC-001 exclusion)
+    # 5. select(Rubric) → [] (no rubric!)
+    # 6. select(GradingTask) → task (batch progress re-fetch)
+    # 7. select(GradingTask) → task (final status re-fetch)
     execute_results = [
         _make_scalar_one_result(task),       # load GradingTask
         _make_scalars_all_result([question]), # subjective questions
         _make_scalars_all_result([answer]),   # student answers
+        _make_scalars_all_result([]),         # confirmed exclusion (ORC-001) → none
         _make_scalars_all_result([]),         # no rubrics
         _make_scalar_one_result(task),        # batch progress re-fetch
         _make_scalar_one_result(task),        # final status re-fetch
@@ -221,13 +225,15 @@ async def test_process_grading_task_llm_recoverable_error(mock_create_llm, mock_
     # 1. select(GradingTask) → task
     # 2. select(Question) → [question]
     # 3. select(StudentAnswer) → [answer]
-    # 4. select(Rubric) → [rubric]
-    # 5. select(GradingTask) → task (batch progress re-fetch)
-    # 6. select(GradingTask) → task (final status re-fetch)
+    # 4. select(GradingResult.answer_id) WHERE confirmed → [] (ORC-001 exclusion)
+    # 5. select(Rubric) → [rubric]
+    # 6. select(GradingTask) → task (batch progress re-fetch)
+    # 7. select(GradingTask) → task (final status re-fetch)
     execute_results = [
         _make_scalar_one_result(task),       # load GradingTask
         _make_scalars_all_result([question]), # subjective questions
         _make_scalars_all_result([answer]),   # student answers
+        _make_scalars_all_result([]),         # confirmed exclusion (ORC-001) → none
         _make_scalars_all_result([rubric]),   # rubrics
         _make_scalar_one_result(task),        # batch progress re-fetch
         _make_scalar_one_result(task),        # final status re-fetch
