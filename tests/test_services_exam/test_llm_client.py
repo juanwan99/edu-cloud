@@ -3,7 +3,7 @@ import json
 import httpx
 from unittest.mock import AsyncMock, patch
 from edu_cloud.modules.grading.llm_client import LLMClient, GradeResponse
-from edu_cloud.modules.grading.prompts import build_grading_prompt
+from edu_cloud.modules.grading.prompts_legacy import build_grading_prompt
 
 
 def test_build_grading_prompt():

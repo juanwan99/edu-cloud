@@ -91,7 +91,7 @@ async def generate_rubric_via_llm(
 
     Module-level function so it can be mocked in tests.
     """
-    from edu_cloud.modules.grading.prompts import build_rubric_generation_prompt
+    from edu_cloud.modules.grading.prompts_legacy import build_rubric_generation_prompt
     from edu_cloud.modules.grading.llm_client import LLMClient
 
     content = question.content or ""

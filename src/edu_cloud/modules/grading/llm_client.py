@@ -3,7 +3,7 @@ import json
 import logging
 import httpx
 from pydantic import BaseModel
-from edu_cloud.modules.grading.prompts import build_grading_prompt, build_rubric_generation_prompt
+from edu_cloud.modules.grading.prompts_legacy import build_grading_prompt, build_rubric_generation_prompt
 
 logger = logging.getLogger(__name__)
 

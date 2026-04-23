@@ -315,7 +315,7 @@ tests/
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
 | Tests | 1963 后端 + 238 前端 Vitest（ECS 实测 @ 2026-04-23） | — |
-| Modules | 20 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu），路由已迁入；其中 `adaptive`/`paper` 为内部服务模块（无 HTTP router） | — |
+| Modules | 20 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu），路由已迁入；其中 `adaptive`/`paper` 为内部服务模块（无 HTTP router）；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
 | Migrations | Alembic migration（85 表，25 个迁移） | — |
 
 ## 技术栈
