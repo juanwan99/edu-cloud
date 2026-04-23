@@ -552,3 +552,46 @@ async def level_score_convert(
     if result is None:
         raise HTTPException(404, "无成绩数据")
     return result
+
+
+# --- AI 深度分析 ---
+
+from edu_cloud.modules.analytics.insights_service import (
+    question_insights, exam_diagnosis,
+)
+
+
+@router.get("/exam/{exam_id}/question-insights")
+async def get_question_insights(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """题目错因聚合 + 难度/区分度。"""
+    role = current["current_role"]
+    return await question_insights(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
+
+
+@router.get("/exam/{exam_id}/diagnosis")
+async def get_exam_diagnosis(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """考试诊断文本（模板拼接，ORC-007 不调 LLM）。"""
+    role = current["current_role"]
+    return await exam_diagnosis(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id,
+        class_id=class_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )

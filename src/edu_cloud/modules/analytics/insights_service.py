@@ -1,0 +1,255 @@
+"""AI 阅卷深度分析 — 错因聚合 + 诊断文本生成。"""
+import logging
+import re
+from collections import Counter, defaultdict
+
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.modules.exam.models import Exam, Subject, Question
+from edu_cloud.modules.grading.models import GradingResult
+from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.modules.student.models import Class, Student
+from edu_cloud.services.exceptions import NotFoundError
+
+logger = logging.getLogger(__name__)
+
+# V1 关键词分类规则
+_ERROR_PATTERNS = [
+    (re.compile(r"概念|混淆|误写|误用|错误.*名词|名词.*错误"), "概念混淆"),
+    (re.compile(r"计算|运算|数值|算错|算术"), "计算错误"),
+    (re.compile(r"步骤|不完整|缺少|缺失|遗漏|不全"), "步骤不完整"),
+    (re.compile(r"审题|理解|题意|看错"), "审题不清"),
+]
+
+
+def _classify_error(reason: str) -> str:
+    for pattern, label in _ERROR_PATTERNS:
+        if pattern.search(reason):
+            return label
+    return "其他"
+
+
+async def question_insights(
+    db: AsyncSession, *, exam_id: str, school_id: str,
+    subject_id: str | None = None,
+    visible_subject_codes: list[str] | None = None,
+    visible_class_ids: list[str] | None = None,
+) -> dict:
+    """聚合每题的错因分布 + 难度/区分度。"""
+    # 验证考试
+    exam = (await db.execute(
+        select(Exam).where(Exam.id == exam_id, Exam.school_id == school_id)
+    )).scalar_one_or_none()
+    if not exam:
+        raise NotFoundError("Exam not found")
+
+    # 获取科目
+    subj_q = select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
+    if subject_id:
+        subj_q = subj_q.where(Subject.id == subject_id)
+    if visible_subject_codes is not None:
+        subj_q = subj_q.where(Subject.code.in_(visible_subject_codes))
+    subjects = list((await db.execute(subj_q)).scalars().all())
+    if not subjects:
+        return {"questions": []}
+
+    subj_ids = [s.id for s in subjects]
+
+    # 查询所有 GradingResult（有 ai_raw_response 的）
+    stmt = (
+        select(
+            GradingResult.question_id,
+            GradingResult.ai_raw_response,
+            GradingResult.final_score,
+            GradingResult.max_score,
+        )
+        .join(StudentAnswer, StudentAnswer.id == GradingResult.answer_id)
+        .where(
+            StudentAnswer.subject_id.in_(subj_ids),
+            GradingResult.school_id == school_id,
+            GradingResult.final_score.isnot(None),
+        )
+    )
+    if visible_class_ids is not None:
+        stmt = stmt.join(Student, Student.id == StudentAnswer.student_id).where(
+            Student.class_id.in_(visible_class_ids)
+        )
+
+    rows = (await db.execute(stmt)).all()
+
+    # 按题聚合
+    q_scores: dict[str, list[float]] = defaultdict(list)
+    q_max: dict[str, float] = {}
+    q_errors: dict[str, Counter] = defaultdict(Counter)
+    q_total: dict[str, int] = defaultdict(int)
+
+    for row in rows:
+        qid = row.question_id
+        q_scores[qid].append(row.final_score)
+        q_max[qid] = row.max_score
+        q_total[qid] += 1
+
+        # 解析 ai_raw_response 提取错因
+        raw = row.ai_raw_response
+        if not raw or not isinstance(raw, dict):
+            continue
+        details = raw.get("details", [])
+        if isinstance(details, str):
+            continue
+        for detail in details:
+            if not isinstance(detail, dict):
+                continue
+            for blank in detail.get("blanks", []):
+                if not isinstance(blank, dict):
+                    continue
+                if blank.get("correct") is False and blank.get("reason"):
+                    cause = _classify_error(blank["reason"])
+                    q_errors[qid][cause] += 1
+
+    # 查询题目元数据
+    questions_meta = {}
+    q_result = await db.execute(
+        select(Question.id, Question.name, Question.question_type, Question.max_score)
+        .where(Question.subject_id.in_(subj_ids), Question.school_id == school_id)
+    )
+    for q in q_result.all():
+        questions_meta[q.id] = {"name": q.name, "type": q.question_type, "max_score": q.max_score}
+
+    # 构建结果
+    result_questions = []
+    for qid, scores in q_scores.items():
+        meta = questions_meta.get(qid, {"name": qid, "type": "unknown", "max_score": 0})
+        max_s = q_max.get(qid, meta["max_score"])
+        avg = sum(scores) / len(scores) if scores else 0
+        score_rate = round(avg / max_s, 4) if max_s > 0 else 0.0
+        total = q_total[qid]
+
+        # 难度和区分度
+        difficulty = score_rate
+        discrimination = None
+        if len(scores) >= 10:
+            sorted_s = sorted(scores, reverse=True)
+            n27 = max(1, len(sorted_s) * 27 // 100)
+            top_avg = sum(sorted_s[:n27]) / n27
+            bot_avg = sum(sorted_s[-n27:]) / n27
+            discrimination = round((top_avg - bot_avg) / max_s, 4) if max_s > 0 else None
+
+        # 错因分布
+        errors = q_errors.get(qid, Counter())
+        error_total = sum(errors.values())
+        error_causes = []
+        for cause, count in errors.most_common():
+            error_causes.append({
+                "cause": cause,
+                "count": count,
+                "pct": round(count / total, 4) if total > 0 else 0,
+            })
+
+        result_questions.append({
+            "question_id": qid,
+            "name": meta["name"],
+            "question_type": meta["type"],
+            "score_rate": score_rate,
+            "graded_count": total,
+            "error_causes": error_causes,
+            "difficulty": difficulty,
+            "discrimination": discrimination,
+        })
+
+    result_questions.sort(key=lambda x: x["score_rate"])
+    return {"questions": result_questions}
+
+
+async def exam_diagnosis(
+    db: AsyncSession, *, exam_id: str, school_id: str,
+    subject_id: str | None = None,
+    class_id: str | None = None,
+    visible_subject_codes: list[str] | None = None,
+    visible_class_ids: list[str] | None = None,
+) -> dict:
+    """生成考试诊断文本（模板拼接，不调 LLM）。ORC-007。
+
+    F001 修复：所有数据源使用同一 scoped_class_ids 口径。
+    当传入 class_id 时，class_avg 来自该班数据，grade_avg 来自全校可见数据。
+    两个 summary 调用使用不同 scope 以实现"班级 vs 年级"对比。
+    """
+    from edu_cloud.modules.analytics.service import exam_summary
+
+    scoped_class_ids = [class_id] if class_id else visible_class_ids
+
+    # 班级/当前范围的均分
+    summary = await exam_summary(
+        db, exam_id=exam_id, school_id=school_id,
+        visible_subject_codes=visible_subject_codes,
+        visible_class_ids=scoped_class_ids,
+    )
+
+    # 年级均分（全可见范围，用于对比基线）
+    grade_summary = await exam_summary(
+        db, exam_id=exam_id, school_id=school_id,
+        visible_subject_codes=visible_subject_codes,
+        visible_class_ids=visible_class_ids,
+    ) if class_id else summary
+
+    insights = await question_insights(
+        db, exam_id=exam_id, school_id=school_id,
+        subject_id=subject_id,
+        visible_subject_codes=visible_subject_codes,
+        visible_class_ids=scoped_class_ids,
+    )
+
+    # 构建诊断文本
+    parts = []
+    subjects = summary.get("subjects", [])
+    grade_subjects = grade_summary.get("subjects", [])
+    if subjects:
+        subj = subjects[0]
+        class_avg = subj.get("avg_score")
+        # F001: grade_avg 从 grade_summary 同科目取，口径一致
+        grade_avg = None
+        if grade_subjects:
+            grade_subj = next((g for g in grade_subjects if g.get("subject_id") == subj.get("subject_id")), grade_subjects[0])
+            grade_avg = grade_subj.get("avg_score")
+        if class_avg is not None and grade_avg is not None:
+            diff = round(class_avg - grade_avg, 1)
+            if diff < 0:
+                parts.append(f"本次考试均分 {class_avg}，低于年级均分 {abs(diff)} 分。")
+            elif diff > 0:
+                parts.append(f"本次考试均分 {class_avg}，高于年级均分 {diff} 分。")
+            else:
+                parts.append(f"本次考试均分 {class_avg}，与年级持平。")
+
+    # 薄弱题
+    weak = [q for q in insights.get("questions", []) if q["score_rate"] < 0.5]
+    weak.sort(key=lambda x: x["score_rate"])
+    weak_questions = []
+    if weak:
+        q = weak[0]
+        parts.append(f"主要失分集中在第 {q['name']} 题（得分率 {q['score_rate']:.0%}）。")
+        weak_questions = [{"name": w["name"], "score_rate": w["score_rate"]} for w in weak[:5]]
+
+    # 高频错因
+    all_errors: Counter = Counter()
+    for q in insights.get("questions", []):
+        for ec in q.get("error_causes", []):
+            all_errors[ec["cause"]] += ec["count"]
+    error_distribution = {}
+    total_errors = sum(all_errors.values())
+    if total_errors > 0:
+        top_cause = all_errors.most_common(1)[0]
+        pct = top_cause[1] / total_errors
+        parts.append(f"{pct:.0%} 的错误为{top_cause[0]}。")
+        for cause, cnt in all_errors.most_common():
+            error_distribution[cause] = round(cnt / total_errors, 4)
+
+    suggestions = []
+    if weak:
+        suggestions.append(f"建议重点讲解第 {weak[0]['name']} 题相关知识点。")
+
+    return {
+        "summary_text": "".join(parts) if parts else "暂无诊断数据。",
+        "weak_questions": weak_questions,
+        "error_distribution": error_distribution,
+        "suggestions": suggestions,
+    }
