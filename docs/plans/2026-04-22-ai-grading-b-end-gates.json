@@ -5,13 +5,14 @@
   "gates": {
     "plan_review": {
       "required": true,
-      "status": "fail",
+      "status": "pass",
       "reviewer": "gpt",
-      "subject_hash": "9600473a3e27604ba14be526c65041dcfd3b6985e021da64f034dbd9e94abf28",
-      "report_path": "GPT MCP R2: 3 incomplete + 2 new findings, all fixed in plan",
-      "updated": "2026-04-22T23:44:09.836998+08:00",
+      "subject_hash": "72982a145d88f85416a7f51c8d00e1a8131ab71afdccef519251f05e0a1fb1cc",
+      "report_path": "docs/plans/.codex-plan-review-raw.log",
+      "updated": "2026-04-23T23:10:57.121471+08:00",
       "round": 2,
-      "reason": "R2 allowed: cross-module (exam+grading+permissions)"
+      "reason": "R1 FAIL 7 finding → R2 修订 → R2 PASS（plan review，GPT R2 误判 code vs plan scope）",
+      "subject_ref": "docs/plans/2026-04-23-analytics-report-plan.md"
     },
     "code_review_batch1": {
       "required": true,
