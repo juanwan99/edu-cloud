@@ -55,7 +55,9 @@ const questions = ref<any[]>([])
 
 const statsCards = computed(() => {
   if (!summary.value?.subjects?.length) return []
-  const s = summary.value.subjects[0]
+  const subjectId = po.value?.analysisParams?.value?.subject_id
+  const s = (subjectId && summary.value.subjects.find((x: any) => x.subject_id === subjectId))
+    || summary.value.subjects[0]
   return [
     { label: '平均分', value: s.avg_score?.toFixed(1) ?? '-' },
     { label: '最高分', value: s.highest ?? '-' },
