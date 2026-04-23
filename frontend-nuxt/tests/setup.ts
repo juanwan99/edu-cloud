@@ -44,6 +44,26 @@ g.useMenus = () => ({
   navigateToModule: vi.fn(),
 })
 
+// usePowerOptions mock（PowerFilter 组件依赖）
+g.usePowerOptions = () => ({
+  load: vi.fn().mockResolvedValue(undefined),
+  tree: ref([]),
+  loading: ref(false),
+  selectedGrade: ref(''),
+  selectedClassId: ref('all'),
+  selectedSubjectId: ref(''),
+  selectedExamId: ref(''),
+  gradeOptions: computed(() => []),
+  classOptions: computed(() => []),
+  subjectOptions: computed(() => []),
+  examOptions: computed(() => []),
+  analysisParams: computed(() => ({ exam_id: '', subject_id: '', class_id: null })),
+  hasSelection: computed(() => false),
+})
+
+// onMounted mock (Nuxt auto-import)
+g.onMounted = (cb: () => void) => cb()
+
 beforeEach(() => {
   setActivePinia(createPinia())
   cookieStore.clear()

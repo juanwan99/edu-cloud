@@ -1,11 +1,36 @@
 <template>
   <div class="ai-grading-page">
     <div class="page-header">
-      <n-button text @click="$router.back()">← 返回</n-button>
+      <n-button text @click="$router.push(hasRouteParams ? '/grading/tasks' : '/')">← 返回</n-button>
       <h2 class="page-title">AI 阅卷配置</h2>
+      <div style="flex:1" />
+      <n-button v-if="examId && subjectId" size="small" @click="showDocCrop = true">上传文档裁剪</n-button>
+      <n-button v-if="examId && subjectId && questions.length" size="small" type="primary"
+                :loading="batchGenerating" @click="handleBatchGenerate">批量生成细则</n-button>
     </div>
 
-    <div class="main-layout">
+    <!-- 选择器：无路由参数时显示 -->
+    <div v-if="!hasRouteParams" class="selector-bar">
+      <n-select
+        v-model:value="selectedExamId"
+        :options="examOptions"
+        placeholder="选择考试"
+        style="width: 280px"
+        :loading="loadingExams"
+        @update:value="onExamSelected"
+      />
+      <n-select
+        v-if="selectedExamId"
+        v-model:value="selectedSubjectId"
+        :options="subjectOptions"
+        placeholder="选择科目"
+        style="width: 200px"
+        :loading="loadingSubjects"
+        @update:value="onSubjectSelected"
+      />
+    </div>
+
+    <div class="main-layout" v-if="examId && subjectId">
       <!-- 左侧：题目列表 -->
       <div class="left-panel">
         <div class="panel-title">主观题列表</div>
@@ -18,13 +43,26 @@
           :class="{ active: selectedQuestion?.question_id === q.question_id }"
           @click="selectQuestion(q)"
         >
-          <div class="q-name">{{ q.name || q.question_name || ('第' + q.question_id + '题') }}</div>
-          <div class="q-meta">
-            <span class="meta-tag" :class="q.has_content ? 'ok' : 'warn'">{{ q.has_content ? '有题干' : '无题干' }}</span>
-            <span class="meta-tag" :class="q.has_rubric ? 'ok' : 'warn'">{{ q.has_rubric ? '有细则' : '无细则' }}</span>
-          </div>
-          <div v-if="q.graded !== undefined" class="q-progress">
-            {{ q.graded }}/{{ q.total }} 份已阅
+          <div class="q-row">
+            <span class="q-num">{{ q.name || q.question_name }}</span>
+            <div class="q-info">
+              <div class="q-title">
+                {{ q.question_type === 'essay' ? '主观题' : '填空题' }}
+                <span class="q-score">{{ q.max_score }}分</span>
+              </div>
+              <div class="q-tags">
+                <span class="t" :class="q.has_content ? 'ok' : 'warn'">
+                  {{ q.has_content ? '题干' : '无题干' }}{{ q.content_image_count ? ` ${q.content_image_count}图` : '' }}
+                </span>
+                <span class="t" :class="q.has_answer ? 'ok' : 'warn'">
+                  {{ q.has_answer ? '答案' : '无答案' }}{{ q.answer_image_count ? ` ${q.answer_image_count}图` : '' }}
+                </span>
+                <span class="t" :class="q.has_rubric ? 'ok' : 'warn'">{{ q.has_rubric ? '细则' : '无细则' }}</span>
+              </div>
+              <div v-if="q.answer_count" class="q-progress">
+                {{ q.graded_count }}/{{ q.answer_count }} 已阅
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -42,13 +80,12 @@
             <div v-if="selectedQuestion.content" class="content-text">{{ selectedQuestion.content }}</div>
             <div v-else class="empty-tip">暂无题干</div>
             <div v-if="selectedQuestion.content_images?.length" class="image-row">
-              <img
-                v-for="(img, i) in selectedQuestion.content_images"
-                :key="i"
-                :src="img"
-                class="content-img"
-                alt="题目图片"
-              />
+              <div v-for="(img, i) in selectedQuestion.content_images" :key="i" class="img-wrapper">
+                <img :src="img" class="content-img" alt="题目图片" />
+                <span class="img-seq">{{ i + 1 }}</span>
+                <n-button class="img-delete" size="tiny" circle type="error"
+                          @click="removeImage('content', i)">✕</n-button>
+              </div>
             </div>
           </n-card>
 
@@ -60,13 +97,12 @@
             <div v-if="selectedQuestion.reference_answer" class="content-text">{{ selectedQuestion.reference_answer }}</div>
             <div v-else class="empty-tip">暂无参考答案</div>
             <div v-if="selectedQuestion.reference_answer_images?.length" class="image-row">
-              <img
-                v-for="(img, i) in selectedQuestion.reference_answer_images"
-                :key="i"
-                :src="img"
-                class="content-img"
-                alt="答案图片"
-              />
+              <div v-for="(img, i) in selectedQuestion.reference_answer_images" :key="i" class="img-wrapper">
+                <img :src="img" class="content-img" alt="答案图片" />
+                <span class="img-seq">{{ i + 1 }}</span>
+                <n-button class="img-delete" size="tiny" circle type="error"
+                          @click="removeImage('answer', i)">✕</n-button>
+              </div>
             </div>
           </n-card>
 
@@ -119,6 +155,10 @@
       </div>
     </div>
 
+    <div v-if="!hasRouteParams && (!examId || !subjectId)" class="empty-tip center">
+      {{ !examId ? '请先选择考试' : '请选择科目' }}
+    </div>
+
     <!-- 题干/答案编辑弹窗 -->
     <QuestionContentModal
       v-model:show="contentModalShow"
@@ -127,22 +167,41 @@
       :images="contentModalImages"
       @save="handleContentSave"
     />
+
+    <!-- 文档裁剪面板 -->
+    <DocCropPanel
+      v-model:show="showDocCrop"
+      :questions="questions"
+      @save="handleDocCropSave"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useMessage, NCard, NButton, NSpace, NProgress } from 'naive-ui'
+import { useMessage, NCard, NButton, NSpace, NProgress, NSelect } from 'naive-ui'
 import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
+import { listExams } from '../api/exams'
+import { listSubjects } from '../api/subjects'
 import RubricEditor from '../components/RubricEditor.vue'
 import QuestionContentModal from '../components/QuestionContentModal.vue'
+import DocCropPanel from '../components/DocCropPanel.vue'
 
 const route = useRoute()
 const message = useMessage()
 
-const examId = computed(() => route.params.examId)
-const subjectId = computed(() => route.params.subjectId)
+const hasRouteParams = computed(() => !!route.params.examId && !!route.params.subjectId)
+
+const selectedExamId = ref(null)
+const selectedSubjectId = ref(null)
+const examOptions = ref([])
+const subjectOptions = ref([])
+const loadingExams = ref(false)
+const loadingSubjects = ref(false)
+
+const examId = computed(() => route.params.examId || selectedExamId.value)
+const subjectId = computed(() => route.params.subjectId || selectedSubjectId.value)
 
 const questions = ref([])
 const loadingQuestions = ref(false)
@@ -152,6 +211,9 @@ const rubricItems = ref([])
 const rubricLoading = ref(false)
 const rubricGenerating = ref(false)
 const rubricSaving = ref(false)
+
+const showDocCrop = ref(false)
+const batchGenerating = ref(false)
 
 const gradingStarting = ref(false)
 const taskProgress = ref(null)
@@ -168,8 +230,55 @@ const contentModalImages = ref([])
 const contentModalType = ref('content') // 'content' | 'answer'
 
 onMounted(async () => {
-  await loadQuestions()
+  if (hasRouteParams.value) {
+    await loadQuestions()
+  } else {
+    await loadExamList()
+  }
 })
+
+async function loadExamList() {
+  loadingExams.value = true
+  try {
+    const res = await listExams()
+    examOptions.value = (res.data || []).map(e => ({ label: e.name, value: e.id }))
+  } catch (e) {
+    message.error('加载考试列表失败')
+  } finally {
+    loadingExams.value = false
+  }
+}
+
+async function onExamSelected(val) {
+  selectedExamId.value = val
+  selectedSubjectId.value = null
+  subjectOptions.value = []
+  questions.value = []
+  selectedQuestion.value = null
+  loadingSubjects.value = true
+  try {
+    const res = await listSubjects(val)
+    const opts = (res.data || []).map(s => ({ label: s.name, value: s.id }))
+    subjectOptions.value = opts
+    if (opts.length === 1) {
+      selectedSubjectId.value = opts[0].value
+      await loadQuestions()
+    }
+  } catch (e) {
+    message.error('加载科目列表失败')
+  } finally {
+    loadingSubjects.value = false
+  }
+}
+
+async function onSubjectSelected(val) {
+  selectedSubjectId.value = val
+  questions.value = []
+  selectedQuestion.value = null
+  taskProgress.value = null
+  stopPolling()
+  await loadQuestions()
+}
 
 onUnmounted(() => {
   stopPolling()
@@ -182,7 +291,11 @@ async function loadQuestions() {
     const subjects = res.data || []
     const subj = subjects.find(s => String(s.subject_id) === String(subjectId.value))
     if (subj && subj.questions) {
-      questions.value = subj.questions
+      questions.value = [...subj.questions].sort((a, b) => {
+        const na = parseInt(a.name, 10) || 0
+        const nb = parseInt(b.name, 10) || 0
+        return na - nb
+      })
     } else {
       questions.value = []
     }
@@ -367,11 +480,94 @@ async function handleContentSave({ content, files }) {
     message.error('保存失败: ' + (e.response?.data?.detail || e.message))
   }
 }
+
+async function removeImage(field, idx) {
+  const q = selectedQuestion.value
+  if (!q) return
+  const key = field === 'content' ? 'content_images' : 'reference_answer_images'
+  const imgs = [...(q[key] || [])]
+  imgs.splice(idx, 1)
+  try {
+    await updateQuestionContent(q.question_id, { [key]: imgs })
+    q[key] = imgs
+    await loadQuestions()
+    message.success('图片已删除')
+  } catch (e) {
+    message.error('删除失败')
+  }
+}
+
+async function handleDocCropSave(results) {
+  let ok = 0
+  const grouped = {}
+  for (const r of results) {
+    const key = `${r.questionNum}::${r.field}`
+    if (!grouped[key]) grouped[key] = []
+    grouped[key].push(r)
+  }
+  for (const [, items] of Object.entries(grouped)) {
+    const { questionNum, field } = items[0]
+    const q = questions.value.find(q =>
+      q.name === questionNum || q.question_name === questionNum
+    )
+    if (!q) {
+      message.warning(`题号 ${questionNum} 未找到对应题目（当前科目主观题：${questions.value.map(q => q.name || q.question_name).join(', ')}）`)
+      continue
+    }
+    try {
+      const paths = []
+      for (const item of items) {
+        const file = new File([item.blob], `crop_${questionNum}_${field}_${items.indexOf(item) + 1}.png`, { type: 'image/png' })
+        const uploadRes = await uploadQuestionImage(q.question_id, file)
+        if (uploadRes.data?.path) paths.push(uploadRes.data.path)
+      }
+      if (paths.length) {
+        const fresh = (await getQuestion(q.question_id)).data
+        const existing = field === 'content'
+          ? (fresh.content_images || [])
+          : (fresh.reference_answer_images || [])
+        const payload = field === 'content'
+          ? { content_images: [...existing, ...paths] }
+          : { reference_answer_images: [...existing, ...paths] }
+        await updateQuestionContent(q.question_id, payload)
+        ok += paths.length
+      }
+    } catch (e) {
+      message.error(`题号 ${questionNum} 保存失败`)
+    }
+  }
+  if (ok) await loadQuestions()
+}
+
+async function handleBatchGenerate() {
+  batchGenerating.value = true
+  let ok = 0, fail = 0
+  try {
+    for (const q of questions.value) {
+      try {
+        await generateRubric(q.question_id, q.max_score || 0)
+        ok++
+      } catch (e) {
+        if (e.response?.status !== 400) fail++
+      }
+    }
+    message.success(`批量生成完成: ${ok} 成功${fail ? ', ' + fail + ' 失败' : ''}`)
+    await loadQuestions()
+  } finally {
+    batchGenerating.value = false
+  }
+}
 </script>
 
 <style scoped>
 .ai-grading-page {
   padding: 4px 0;
+}
+
+.selector-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .page-header {
@@ -413,53 +609,88 @@ async function handleContentSave({ content, files }) {
 }
 
 .question-item {
-  padding: 10px;
+  padding: 8px;
   border-radius: 8px;
   cursor: pointer;
   margin-bottom: 4px;
   transition: background 0.15s;
+  border: 1px solid transparent;
 }
 
 .question-item:hover {
-  background: var(--body-color, #242e28);
+  background: #242e28;
+  border-color: #3a4a3e;
 }
 
 .question-item.active {
   background: #1a3020;
-  border: 1px solid #3a6040;
+  border-color: #4ade80;
 }
 
-.q-name {
+.q-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.q-num {
+  font-size: 22px;
+  font-weight: 800;
+  color: #e8f0ea;
+  min-width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.question-item.active .q-num {
+  color: #4ade80;
+}
+
+.q-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.q-title {
   font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 4px;
+  color: #d0dcd2;
+  margin-bottom: 5px;
+  font-weight: 500;
 }
 
-.q-meta {
+.q-score {
+  color: #90c090;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.q-tags {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
 }
 
-.meta-tag {
+.t {
   font-size: 11px;
-  padding: 1px 6px;
+  padding: 2px 6px;
   border-radius: 4px;
+  font-weight: 500;
 }
 
-.meta-tag.ok {
+.t.ok {
   background: #1a4020;
-  color: #4ade80;
+  color: #6ee7a0;
 }
 
-.meta-tag.warn {
+.t.warn {
   background: #3a2a0a;
-  color: #fbbf24;
+  color: #fcd34d;
 }
 
 .q-progress {
   font-size: 11px;
-  color: #8a9a8e;
+  color: #b0c0b4;
   margin-top: 4px;
 }
 
@@ -486,12 +717,41 @@ async function handleContentSave({ content, files }) {
   margin-top: 8px;
 }
 
+.img-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.img-wrapper:hover .img-delete {
+  opacity: 1;
+}
+
+.img-seq {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.img-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
 .content-img {
   max-width: 240px;
   max-height: 180px;
   border-radius: 6px;
   border: 1px solid var(--border-color, #2e3e34);
   object-fit: contain;
+  cursor: pointer;
 }
 
 .progress-area {

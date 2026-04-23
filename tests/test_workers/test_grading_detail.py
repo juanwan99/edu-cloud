@@ -4,7 +4,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from edu_cloud.modules.grading.prompts import build_grading_prompt
+from edu_cloud.modules.grading.prompts_legacy import build_grading_prompt
 
 
 def test_grading_prompt_requests_details():

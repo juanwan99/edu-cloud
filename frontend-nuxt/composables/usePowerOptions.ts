@@ -1,105 +1,96 @@
-interface PowerOption {
-  grade: string
-  classes: {
-    class: string
-    subjects: {
-      subject: string
-      examids: string[]
-    }[]
-  }[]
-}
-
-interface ExamInfo {
+export interface ExamNode {
+  id: string
+  exam_id: string
+  subject_id: string
   name: string
-  event_time: string
-  type: number
+  exam_date: string | null
+  student_count: number
 }
 
-interface AnalysisParams {
-  clazz: string
-  subject: string
-  examids: string[]
-  isTeach: boolean
+export interface SubjectNode {
+  id: string
+  code: string
+  name: string
+  exams: ExamNode[]
+}
+
+export interface ClassNode {
+  id: string
+  name: string
+  subjects: SubjectNode[]
+}
+
+export interface GradeNode {
+  id: string
+  name: string
+  classes: ClassNode[]
 }
 
 export function usePowerOptions() {
-  const api = useApi()
-
-  const tree = ref<PowerOption[]>([])
-  const examInfoMap = ref<Record<string, ExamInfo>>({})
+  const tree = ref<GradeNode[]>([])
+  const loading = ref(false)
 
   const selectedGrade = ref('')
-  const selectedClass = ref('')
-  const selectedSubject = ref('')
-  const selectedExamIds = ref<string[]>([])
+  const selectedClassId = ref('all')
+  const selectedSubjectId = ref('')
+  const selectedExamId = ref('')
 
-  const gradeOptions = computed(() => tree.value.map((g) => g.grade))
+  const gradeOptions = computed(() => tree.value.map(g => g.name))
 
   const classOptions = computed(() => {
-    const grade = tree.value.find((g) => g.grade === selectedGrade.value)
-    return grade?.classes.map((c) => c.class) || []
+    const grade = tree.value.find(g => g.name === selectedGrade.value)
+    return grade?.classes ?? []
   })
 
   const subjectOptions = computed(() => {
-    const grade = tree.value.find((g) => g.grade === selectedGrade.value)
-    const cls = grade?.classes.find((c) => c.class === selectedClass.value)
-    return cls?.subjects.map((s) => s.subject) || []
+    const cls = classOptions.value.find(c => c.id === selectedClassId.value)
+    return cls?.subjects ?? []
   })
 
   const examOptions = computed(() => {
-    const grade = tree.value.find((g) => g.grade === selectedGrade.value)
-    const cls = grade?.classes.find((c) => c.class === selectedClass.value)
-    const subj = cls?.subjects.find((s) => s.subject === selectedSubject.value)
-    return (subj?.examids || []).map((id) => ({
-      id,
-      ...(examInfoMap.value[id] || { name: id, event_time: '', type: 0 }),
-    }))
+    const subj = subjectOptions.value.find(s => s.id === selectedSubjectId.value)
+    return subj?.exams ?? []
   })
-
-  const analysisParams = computed<AnalysisParams>(() => ({
-    clazz: selectedClass.value,
-    subject: selectedSubject.value,
-    examids: selectedExamIds.value,
-    isTeach: false,
-  }))
 
   watch(selectedGrade, () => {
-    selectedClass.value = classOptions.value[0] || ''
+    selectedClassId.value = classOptions.value[0]?.id ?? 'all'
   })
-  watch(selectedClass, () => {
-    selectedSubject.value = subjectOptions.value[0] || ''
+  watch(selectedClassId, () => {
+    selectedSubjectId.value = subjectOptions.value[0]?.id ?? ''
   })
-  watch(selectedSubject, () => {
-    const exams = examOptions.value
-    selectedExamIds.value = exams.length ? [exams[0].id] : []
+  watch(selectedSubjectId, () => {
+    selectedExamId.value = examOptions.value[0]?.exam_id ?? ''
   })
 
-  async function load(examType?: number, year?: number) {
+  const analysisParams = computed(() => ({
+    exam_id: selectedExamId.value,
+    subject_id: selectedSubjectId.value,
+    class_id: selectedClassId.value === 'all' ? null : selectedClassId.value,
+  }))
+
+  const hasSelection = computed(() => !!selectedExamId.value)
+
+  async function load(examType?: string, year?: number) {
+    loading.value = true
     try {
-      const res = await api.getPowerOptions({ exam_type: examType, year })
-      tree.value = res.powerOptions || []
-      examInfoMap.value = res.examInfoMap || {}
+      const api = useApi()
+      const data = await api.getPowerOptions({
+        exam_type: examType,
+        year,
+      })
+      tree.value = data.grades
       if (tree.value.length) {
-        selectedGrade.value = tree.value[0].grade
+        selectedGrade.value = tree.value[0].name
       }
-    } catch {
-      tree.value = []
-      examInfoMap.value = {}
+    } finally {
+      loading.value = false
     }
   }
 
   return {
-    load,
-    tree,
-    examInfoMap,
-    selectedGrade,
-    selectedClass,
-    selectedSubject,
-    selectedExamIds,
-    gradeOptions,
-    classOptions,
-    subjectOptions,
-    examOptions,
-    analysisParams,
+    load, tree, loading,
+    selectedGrade, selectedClassId, selectedSubjectId, selectedExamId,
+    gradeOptions, classOptions, subjectOptions, examOptions,
+    analysisParams, hasSelection,
   }
 }

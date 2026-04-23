@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from edu_cloud.config import settings
-from edu_cloud.modules.exam.models import Question, QUESTION_TYPES_SUBJECTIVE
+from edu_cloud.modules.exam.models import Question, Subject, QUESTION_TYPES_SUBJECTIVE
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
 import edu_cloud.models.user  # noqa: F401 — FK resolution for grading_tasks.created_by
@@ -22,13 +22,21 @@ import edu_cloud.models.school  # noqa: F401 — FK resolution for *.school_id
 logger = logging.getLogger(__name__)
 
 
-def _create_llm_client():
-    """Create LLM client for grading (reads from settings)."""
+def _create_llm_client(
+    api_url: str | None = None,
+    api_key: str | None = None,
+    model: str | None = None,
+) -> "LLMClient":
+    """Create LLM client for grading.
+
+    When called with DB-resolved values, those override .env settings.
+    When called without arguments, falls back to .env settings entirely.
+    """
     from edu_cloud.modules.grading.llm_client import LLMClient
     return LLMClient(
-        api_url=settings.LLM_API_URL,
-        api_key=settings.LLM_API_KEY,
-        model=settings.LLM_MODEL,
+        api_url=api_url or settings.LLM_API_URL,
+        api_key=api_key or settings.LLM_API_KEY,
+        model=model or settings.LLM_MODEL,
         timeout=settings.LLM_TIMEOUT,
         max_retries=settings.LLM_MAX_RETRIES,
         slot=settings.LLM_SLOT,
@@ -41,14 +49,17 @@ async def _read_image_b64(path: str) -> str:
     return base64.b64encode(data).decode()
 
 
+_grading_semaphore = asyncio.Semaphore(20)
+
+
 async def _grade_single(
     llm,
     ad: dict,
     rubrics_by_question: dict,
 ) -> tuple[dict | None, dict | None]:
-    """Grade a single answer. Returns (result_dict, error_dict).
+    """Grade a single answer using two-step pipeline: OCR -> text-based grading.
 
-    Exactly one of the two is non-None.
+    Falls back to legacy single-step if subject prompts not available.
     """
     answer_id = ad["answer_id"]
     question_id = ad["question_id"]
@@ -60,24 +71,82 @@ async def _grade_single(
 
     try:
         image_b64 = await _read_image_b64(ad["image_path"])
-        grade_result = await llm.grade(
-            image_b64=image_b64,
-            rubric={"criteria": rubric_criteria},
-            question={"name": ad["question_name"], "max_score": ad["question_max_score"]},
-            question_type=ad.get("question_type"),
-        )
+
+        # Blank detection: skip LLM for likely blank images (< 5KB base64)
+        if len(image_b64) < 6800:
+            return {
+                "answer_id": answer_id, "question_id": question_id,
+                "score": 0, "max_score": ad["question_max_score"],
+                "feedback": "空白卷", "confidence": 1.0, "raw_content": "",
+            }, None
+
+        subject = ad.get("subject_code", "")
+        from edu_cloud.modules.grading.prompts import get_prompt, render_prompt
+
+        # Check if GRADING_TEXT prompt exists for this subject
+        grading_prompt_tpl = get_prompt(subject, "GRADING_TEXT", "senior")
+        if grading_prompt_tpl is None:
+            # Fallback to legacy single-step grading (no subject-specific prompts)
+            grade_result = await llm.grade(
+                images_b64=image_b64,
+                rubric={"criteria": rubric_criteria},
+                question={"name": ad["question_name"], "max_score": ad["question_max_score"]},
+                question_type=ad.get("question_type"),
+            )
+            return {
+                "answer_id": answer_id, "question_id": question_id,
+                "score": grade_result.score, "max_score": grade_result.max_score,
+                "feedback": grade_result.feedback, "confidence": grade_result.confidence,
+                "raw_content": grade_result.raw_content,
+            }, None
+
+        # Two-step path: OCR first, then text-based grading
+        from edu_cloud.modules.grading.rubric_formatter import format_rubric_for_grading
+
+        rubric_text = format_rubric_for_grading(rubric_criteria)
+        full_score = str(ad["question_max_score"])
+
+        # Step 1: OCR
+        ocr_prompt = get_prompt(subject, "OCR_STRUCTURED", "senior") or get_prompt(subject, "OCR", "senior")
+        if ocr_prompt:
+            structure = "\n".join(f"- {c.get('blankNo', '?')}: {c.get('subQ', '')}" for c in rubric_criteria)
+            ocr_prompt = render_prompt(ocr_prompt, {"rubricStructure": structure})
+        else:
+            from edu_cloud.modules.grading.prompts.base import OCR_PROMPT_BASE
+            ocr_prompt = OCR_PROMPT_BASE
+
+        blanks = await llm.extract_text(images_b64=[image_b64], prompt=ocr_prompt)
+
+        from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
+        blanks = validate_ocr_blanks(blanks)
+        blanks = recover_truncated_blanks(blanks, len(rubric_criteria))
+
+        extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
+
+        # Step 2: Grade text
+        grading_prompt = render_prompt(grading_prompt_tpl, {
+            "fullScore": full_score,
+            "rubric": rubric_text,
+            "extractedText": extracted_text,
+        })
+
+        grade_result = await llm.grade_text(prompt=grading_prompt, max_score=ad["question_max_score"])
+
         return {
-            "answer_id": answer_id,
-            "question_id": question_id,
-            "score": grade_result.score,
-            "max_score": grade_result.max_score,
-            "feedback": grade_result.feedback,
-            "confidence": grade_result.confidence,
+            "answer_id": answer_id, "question_id": question_id,
+            "score": grade_result.score, "max_score": grade_result.max_score,
+            "feedback": grade_result.feedback, "confidence": grade_result.confidence,
             "raw_content": grade_result.raw_content,
         }, None
+
     except (ValueError, KeyError, TypeError, RuntimeError) as e:
         logger.warning("grading_task: answer=%s FAILED: %s", answer_id, e)
         return None, {"answer_id": answer_id, "error": str(e)}
+
+
+async def _grade_with_semaphore(llm, ad, rubrics):
+    async with _grading_semaphore:
+        return await _grade_single(llm, ad, rubrics)
 
 
 async def process_grading_task(ctx: dict, task_id: str) -> None:
@@ -93,7 +162,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
         session_factory = async_sessionmaker(local_engine, class_=AsyncSession, expire_on_commit=False)
 
     batch_size = settings.GRADING_BATCH_SIZE
-    llm = _create_llm_client()
+    llm = None
     try:
         async with session_factory() as db:
             # Load task
@@ -102,6 +171,19 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
             task.status = "processing"
             await db.commit()
             logger.info("grading_task: task=%s, subject=%s, status→processing", task_id, task.subject_id)
+
+            # Resolve LLM config: school override → platform default → .env fallback
+            from edu_cloud.modules.exam.slot_selector import get_llm_config, SLOT_AI_GRADING
+            try:
+                llm_url, llm_key, llm_model = await get_llm_config(
+                    db, slot=SLOT_AI_GRADING, school_id=task.school_id,
+                )
+                logger.info("grading_task: task=%s, llm_config resolved from DB (model=%s)", task_id, llm_model)
+            except Exception:
+                llm_url, llm_key, llm_model = None, None, None
+                logger.info("grading_task: task=%s, llm_config fallback to .env", task_id)
+
+            llm = _create_llm_client(api_url=llm_url, api_key=llm_key, model=llm_model)
 
             # Find subjective questions
             if task.question_id:
@@ -126,6 +208,11 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
             questions = {q.id: q for q in q_result.scalars().all()}
             logger.info("grading_task: task=%s, question_id=%s, subjective_questions=%d",
                         task_id, task.question_id, len(questions))
+
+            # Get subject code for prompt dispatch
+            subject_result = await db.execute(select(Subject).where(Subject.id == task.subject_id))
+            subject_row = subject_result.scalar_one_or_none()
+            subject_code = subject_row.code if subject_row else ""
 
             if not questions:
                 task.status = "completed"
@@ -157,6 +244,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                     "question_max_score": q.max_score,
                     "image_path": a.image_path,
                     "question_type": ans_qtype,
+                    "subject_code": subject_code,
                 })
 
             # Exclude answers that already have confirmed results (ORC-001 protection)
@@ -192,7 +280,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                 logger.info("grading_task: task=%s, batch %d, size=%d", task_id, batch_num, len(batch))
 
                 # Launch all LLM calls in this batch concurrently
-                coros = [_grade_single(llm, ad, rubrics_by_question) for ad in batch]
+                coros = [_grade_with_semaphore(llm, ad, rubrics_by_question) for ad in batch]
                 batch_results = await asyncio.gather(*coros)
 
                 # Write results to DB (sequential DB writes within each batch)
@@ -251,7 +339,8 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
             logger.info("grading_task DONE: task=%s, status=%s, completed=%d, failed=%d, elapsed=%.1fs",
                         task_id, task.status, task.completed, task.failed, elapsed)
     finally:
-        await llm.close()
+        if llm is not None:
+            await llm.close()
         if local_engine is not None:
             await local_engine.dispose()
 

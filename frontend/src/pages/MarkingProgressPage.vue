@@ -1,6 +1,7 @@
 <template>
   <div>
     <div class="page-header">
+      <n-button text style="margin-bottom: 8px;" @click="$router.push('/marking')">← 返回阅卷</n-button>
       <h1 class="page-title">阅卷进度</h1>
       <p class="page-subtitle">查看各科目、各题的批改进度</p>
     </div>

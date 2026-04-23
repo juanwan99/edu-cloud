@@ -91,30 +91,38 @@ async def test_process_grading_task_routes_question_type_to_llm(db_engine, db, g
 
     mock_client = AsyncMock()
     mock_client.grade = AsyncMock(side_effect=mock_grade_fn)
+    mock_client.extract_text = AsyncMock(return_value=[{"blankNo": "1-1", "subQ": "(1)", "text": "答案"}])
+    mock_client.grade_text = AsyncMock(return_value=GradeResponse(score=5.0, max_score=10.0, feedback="ok", confidence=0.9))
     mock_client.close = AsyncMock()
 
-    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value="fakebase64"):
+    large_b64 = "A" * 10000  # > 6800 threshold to avoid blank detection
+    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64):
         with patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client):
             await process_grading_task(ctx, grading_setup["task_id"])
 
-    # 顺序未保证，但应包含 fill_blank、essay、essay（None 回落到 Question.question_type='essay'）
-    assert sorted(captured_qtypes) == ["essay", "essay", "fill_blank"]
+    # With subject prompts available (chinese), _grade_single uses two-step path
+    # (extract_text + grade_text) instead of legacy grade(), so captured_qtypes stays empty.
+    # The test now verifies that all 3 answers were processed via the two-step path.
+    assert mock_client.extract_text.call_count == 3
+    assert mock_client.grade_text.call_count == 3
 
 
 async def test_process_grading_task_success(db_engine, db, grading_setup):
     sf = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
     ctx = {"db_session_factory": sf}
 
-    mock_grade = GradeResponse(score=8.0, max_score=10.0, feedback="不错", confidence=0.9)
+    mock_grade = GradeResponse(score=8.0, max_score=10.0, feedback="不错", confidence=0.9, raw_content='{"score":8}')
     mock_client = AsyncMock()
     mock_client.grade = AsyncMock(return_value=mock_grade)
+    mock_client.extract_text = AsyncMock(return_value=[{"blankNo": "1-1", "subQ": "(1)", "text": "答案"}])
+    mock_client.grade_text = AsyncMock(return_value=mock_grade)
     mock_client.close = AsyncMock()
 
-    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value="fakebase64"):
+    large_b64 = "A" * 10000
+    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64):
         with patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client):
             await process_grading_task(ctx, grading_setup["task_id"])
 
-    # Reload task in a fresh session to see committed data
     async with sf() as session:
         result = await session.execute(select(GradingTask).where(GradingTask.id == grading_setup["task_id"]))
         task = result.scalar_one()
@@ -122,15 +130,14 @@ async def test_process_grading_task_success(db_engine, db, grading_setup):
         assert task.completed == 3
         assert task.failed == 0
 
-        # Check results created
         results = await session.execute(select(GradingResult).where(GradingResult.ai_task_id == task.id))
         grading_results = results.scalars().all()
         assert len(grading_results) == 3
         for r in grading_results:
             assert r.ai_score == 8.0
-            assert r.final_score == 8.0  # 初始 final = ai_score
+            assert r.final_score == 8.0
             assert r.status == "ai_done"
-            assert r.source is None  # 待教师审核
+            assert r.source is None
 
 
 async def test_process_grading_task_partial_failure(db_engine, db, grading_setup):
@@ -139,18 +146,22 @@ async def test_process_grading_task_partial_failure(db_engine, db, grading_setup
 
     call_count = 0
 
-    async def mock_grade_fn(*args, **kwargs):
+    async def mock_extract_fn(*args, **kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 2:
             raise RuntimeError("LLM timeout")
-        return GradeResponse(score=7.0, max_score=10.0, feedback="ok", confidence=0.8)
+        return [{"blankNo": "1-1", "subQ": "(1)", "text": "答案"}]
 
+    mock_grade = GradeResponse(score=7.0, max_score=10.0, feedback="ok", confidence=0.8, raw_content='{"score":7}')
     mock_client = AsyncMock()
-    mock_client.grade = AsyncMock(side_effect=mock_grade_fn)
+    mock_client.grade = AsyncMock(return_value=mock_grade)
+    mock_client.extract_text = AsyncMock(side_effect=mock_extract_fn)
+    mock_client.grade_text = AsyncMock(return_value=mock_grade)
     mock_client.close = AsyncMock()
 
-    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value="fakebase64"):
+    large_b64 = "A" * 10000
+    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64):
         with patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client):
             await process_grading_task(ctx, grading_setup["task_id"])
 
@@ -233,21 +244,25 @@ async def test_batch_concurrency_25_answers(db_engine, db, grading_setup_25):
     current_concurrent = 0
     lock = asyncio.Lock()
 
-    async def mock_grade_fn(*args, **kwargs):
+    async def mock_extract_fn(*args, **kwargs):
         nonlocal peak_concurrent, current_concurrent
         async with lock:
             current_concurrent += 1
             peak_concurrent = max(peak_concurrent, current_concurrent)
-        await asyncio.sleep(0.01)  # simulate LLM latency
+        await asyncio.sleep(0.01)
         async with lock:
             current_concurrent -= 1
-        return GradeResponse(score=9.0, max_score=10.0, feedback="good", confidence=0.95)
+        return [{"blankNo": "1-1", "subQ": "(1)", "text": "答案"}]
 
+    mock_grade = GradeResponse(score=9.0, max_score=10.0, feedback="good", confidence=0.95, raw_content='{"score":9}')
     mock_client = AsyncMock()
-    mock_client.grade = AsyncMock(side_effect=mock_grade_fn)
+    mock_client.grade = AsyncMock(return_value=mock_grade)
+    mock_client.extract_text = AsyncMock(side_effect=mock_extract_fn)
+    mock_client.grade_text = AsyncMock(return_value=mock_grade)
     mock_client.close = AsyncMock()
 
-    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value="fakebase64"):
+    large_b64 = "A" * 10000
+    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64):
         with patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client):
             await process_grading_task(ctx, grading_setup_25["task_id"])
 
@@ -276,19 +291,22 @@ async def test_batch_partial_failure_in_batch(db_engine, db, grading_setup_25):
 
     call_count = 0
 
-    async def mock_grade_fn(*args, **kwargs):
+    async def mock_extract_fn(*args, **kwargs):
         nonlocal call_count
         call_count += 1
-        # Fail every 5th call
         if call_count % 5 == 0:
             raise RuntimeError("LLM error")
-        return GradeResponse(score=8.0, max_score=10.0, feedback="ok", confidence=0.85)
+        return [{"blankNo": "1-1", "subQ": "(1)", "text": "答案"}]
 
+    mock_grade = GradeResponse(score=8.0, max_score=10.0, feedback="ok", confidence=0.85, raw_content='{"score":8}')
     mock_client = AsyncMock()
-    mock_client.grade = AsyncMock(side_effect=mock_grade_fn)
+    mock_client.grade = AsyncMock(return_value=mock_grade)
+    mock_client.extract_text = AsyncMock(side_effect=mock_extract_fn)
+    mock_client.grade_text = AsyncMock(return_value=mock_grade)
     mock_client.close = AsyncMock()
 
-    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value="fakebase64"):
+    large_b64 = "A" * 10000
+    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64):
         with patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client):
             await process_grading_task(ctx, grading_setup_25["task_id"])
 

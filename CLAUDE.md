@@ -62,10 +62,30 @@ npm run dev
 # → http://0.0.0.0:8080（ECS 远程开发，allowedHosts 锁定）；代理 /api → http://localhost:9000
 ```
 
+## 前端 serving 架构
+
+用户通过 `https://mcu.asia` 访问 → nginx HTTPS 443 → **serve `frontend/dist/` 静态文件**（不是代理到 Vite dev server）。
+
+```
+浏览器 → nginx 443 (try_files $uri /index.html) → frontend/dist/ → 旧 build 产物
+         nginx 80  → 301 跳 HTTPS（不走 Vite）
+         Vite 8080 → 仅限 curl localhost 直连（开发调试用）
+```
+
+**铁律：改了前端代码必须 build 才能让用户看到。**
+
+```bash
+cd /home/ops/projects/edu-cloud/frontend && npx vite build
+```
+
+- `npm run dev` 只启动 dev server，用户通过 mcu.asia 看不到
+- `vitest` 通过 ≠ 用户看到新代码——测试验证逻辑正确性，不验证交付
+- 用户说"硬刷新没用"→ 第一反应检查是否忘了 build，不要说"浏览器缓存"
+
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-04-23：1963 passed / 23 skipped
+# 后端 ECS pytest 实测 @ 2026-04-23：2004 passed / 23 skipped
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
 # 前端 Vitest + happy-dom
@@ -86,26 +106,26 @@ frontend/src/
     LoginPage.vue           # 登录页（edu-cloud 多角色版）
     AnalysisPage.vue        # 分析页（原 WorkbenchPage 重命名）
     ExamListPage.vue        # 考试列表（exam-ai 迁入）
-    ExamDetailPage.vue      # 考试详情（科目/题目/答题卡/扫描/阅卷）
+    ExamDetailPage.vue      # 考试详情（科目/题目/答题卡/扫描/阅卷，含返回按钮）
     DashboardPage.vue       # 仪表盘
     AnalyticsPage.vue       # 成绩分析（ECharts）
     AnalyticsReportPage.vue # 分析报告（多考试+多指标查询，ECharts 分段柱图）
     AnalyticsTrendPage.vue  # 成绩趋势（年级/班级/学生维度折线图）
-    GradingDispatchPage.vue # 阅卷调度中心（扫描→选择题→AI阅卷→校对全流程）
-    AiGradingPage.vue       # 题目级 AI 阅卷（左右分栏：题目列表+内容/细则/阅卷操作）
-    GradingResultsPage.vue  # 阅卷结果
+    GradingDispatchPage.vue # 扫描调度中心（扫描→选择题→校对全流程）
+    AiGradingPage.vue       # 题目级 AI 阅卷（考试/科目选择器 + 左右分栏：题号排序列表(状态标签+图片计数) + 内容/细则/阅卷操作；含文档裁剪入口、图片删除、多图追加）
+    GradingResultsPage.vue  # 阅卷结果（含返回按钮）
     TeacherReviewPage.vue   # 教师复核
     MarkingSelectPage.vue   # 手动阅卷选题
     MarkingPage.vue         # 手动阅卷
-    MarkingAssignPage.vue   # 分配阅卷任务
-    MarkingProgressPage.vue # 阅卷进度
+    MarkingAssignPage.vue   # 分配阅卷任务（含返回按钮）
+    MarkingProgressPage.vue # 阅卷进度（含返回按钮）
     SchoolsPage.vue         # 学校管理（admin）
     SchoolSettingsPage.vue  # 学校配置（模块开关 + KV 设置 + 分数段，principal/academic_director）
     SubjectSelectionsPage.vue # 选考科目组合管理
     TeacherAssignmentsPage.vue # 教师排课管理
     StudentsPage.vue        # 学生管理（列表/搜索/导入导出/选科分配）
     TeachersPage.vue        # 教师管理（列表/创建/导入导出/15列档案）
-    CardEditorDevPage.vue   # 答题卡编辑器开发页
+    CardEditorDevPage.vue   # 答题卡编辑器开发页（含返回按钮）
     KnowledgeTreePage.vue  # 知识图谱可视化（AntV G6 + 三级树导航 + 掌握度着色 + 搜索过滤 + Phase 2 教师工作台：ModuleOverviewPanel/ConceptMapPanel 互斥路由 + BigConcept 分带 + ConceptFocusOverlay 焦点模式 + ESC/canvas 退出；Phase 2.5：buildVisibleEdgeList helper + relatedNodeIds/relatedEdgeIds computed + G6 node.state.faded/edge.state.dimmed·emphasized + updateElementStates + createGraph 末尾焦点重放 + G6 Tooltip plugin 徽标悬停（hover + enable 谓词 + async getContent + HTML escape）；Phase 1 T9-T10：ColorModeToggle 三模式切换 + heatmapUtils（log 尺度考频热力色 + 4 态掌握度 + 3 态审核状态 + importance→size [20,60]）；ConceptMapPanel buildG6Data 每节点 style.size/fill 按 colorMode 三分支 + watch colorMode setData/render 保留 focusedNodeId + defineExpose buildG6Data；KnowledgeTreePage selectedStudentId 从 useKnowledgeTree 解构（单一真源，R2 F001 修复 state 分裂）；GraphPanel.vue 已删除）
     parent/                 # 家长端页面（独立于 AppShell，cp_token 认证）
       ParentLogin.vue       # 家长登录（手机号+密码）
@@ -139,12 +159,13 @@ frontend/src/
     CardEditor.vue          # 可视化答题卡编辑器（封装 card-editor/）
     TemplatePreviewEditor.vue # 扫描模板区域编辑器（检测结果叠加+拖拽/缩放/分割，A/B双面）
     RubricEditor.vue        # 评分细则展示/编辑（v-model criteria 数组，分值合计校验）
-    QuestionContentModal.vue # 题干/答案编辑弹窗（textarea + 多图上传）
+    QuestionContentModal.vue # 题干/答案编辑弹窗（textarea + 多图上传 + Ctrl+V 粘贴图片）
+    DocCropPanel.vue        # 文档裁剪面板（PDF/Word→页面渲染→框选裁剪→按题号+序号保存）
     analytics/
       ScoreSegmentSettings.vue # 分数段配置（学校默认+科目覆盖，嵌入 SchoolSettingsPage）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
-  api/                      # API 调用层（16 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出）
+  api/                      # API 调用层（16 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染）
   config/
     roles.js                # 8 角色枚举 + 旧别名映射 + normalizeRole()
     permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
@@ -154,7 +175,7 @@ frontend/src/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
-  router/                   # Vue Router（活跃 18 路由 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
+  router/                   # Vue Router（活跃 19 路由含 /ai-grading 无参入口 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -293,8 +314,8 @@ tests/
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 8 角色映射 | — |
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 1963 后端 + 238 前端 Vitest（ECS 实测 @ 2026-04-23） | — |
-| Modules | 20 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu），路由已迁入；其中 `adaptive`/`paper` 为内部服务模块（无 HTTP router） | — |
+| Tests | 2004 后端 + 30 frontend-nuxt Vitest（ECS 实测 @ 2026-04-23） | — |
+| Modules | 20 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu），路由已迁入；其中 `adaptive`/`paper` 为内部服务模块（无 HTTP router）；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
 | Migrations | Alembic migration（85 表，25 个迁移） | — |
 
 ## 技术栈
@@ -324,12 +345,16 @@ tests/
 - Node `>=22.12.0` 运行时约束（`package.json engines` + `.nvmrc` 22.12.0；lockfile dep nitropack/unplugin/rollup-plugin-visualizer 要求 Node 22.12+）
 - Nuxt `~3.17.7` + Vue 3.5 + Vite 6 + Nitro 2.13（SSR=false；Nuxt 3 次版本锁定 R2 追认）
 - Element Plus 2.8（@element-plus/nuxt `~1.1.4` 模块）+ @element-plus/icons-vue
+- ECharts + vue-echarts（图表，Batch 3 引入）
 - Pinia 2（@pinia/nuxt 模块）
 - API 代理 `/api` → `http://localhost:9000`
 - 主题变量：`assets/css/main.scss` 好分数品牌色 + 布局尺寸
 - Vitest 3 + @vue/test-utils + happy-dom（单元测试，`vitest.config.ts` 含 `@vitejs/plugin-vue` 以挂载 SFC）
 - Auth 错误边界：`composables/useApi.ts` 导出 `AuthError` sentinel（401/403 转抛），`useMenus` 区分 AuthError 向上抛 vs 非 auth 错误降级空菜单，`layouts/default.vue` 按 AuthError 触发 `logout` 否则保留 session
-- 状态：Phase 1 Batch 2 初始化，不替代现有 `frontend/`（INV-01）
+- 状态：Phase 1 Batch 3 进行中，不替代现有 `frontend/`（INV-01）
+- `composables/usePowerOptions.ts`：级联筛选 composable（grade→class→subject→exam，watch 级联重置，ORC-003 class_id null 映射）
+- `components/common/PowerFilter.vue`：级联筛选 UI 组件（4 个 ElSelect，usePowerOptions 驱动）
+- `pages/report/`：6 个分析报告页面（exam/contrast/custom/table/level-score/config），均消费 PowerFilter + ECharts
 - **Batch 2 进度**: T4 Nuxt 骨架 ✓ / T5 auth+context stores + middleware + Vitest 8/8 ✓ / T6 useApi composable + 4 tests ✓ / T7 useMenus + TopNav/SubNav/UserDropdown ✓ / T8 三种 Layout ✓ / T9 login+home 页面 ✓ / **Gate 2 R1 FAIL → R2 修复**: B2-F001 lockfile 对齐（`npm ci --ignore-scripts` 零报错 + `npm ls` 零 invalid）+ B2-F002 AuthError 职责分层（独立修复设计 + Fix Intent Card 4 ORC + 3 反证护航，新增 `tests/composables/useMenus.test.ts` 8 + `tests/layouts/default.test.ts` 4 = Vitest 24/24）+ B2-F003 措辞收窄 / **R2 FAIL → R3 修复**: B2-F001 Node floor 升级方案 A（`package.json engines ">=22.12.0"` + `.nvmrc 22.12.0`，L017 user approved 2026-04-14；在 Node 22.22.2 下 npm ci EBADENGINE 0 警告 + npm ls 0 invalid + nuxt prepare exit 0 + Vitest 24/24）+ B2-F003 根因定论收窄（R2 handoff §6 删除 hot-reload 旧措辞，grep 零残留）
 
 ## 日志体系
@@ -479,7 +504,7 @@ tests/
 | GET/POST | `/api/v1/classes`, `/api/v1/students` | 班级/学生管理（含 grade/selection/subject_code 过滤 + 导入导出） |
 | GET | `/api/v1/grades` | 年级列表 |
 | * | `/api/v1/teachers` | 教师 CRUD + 导入导出（15 列档案 + 角色/学科/班级） |
-| * | `/api/v1/card/*` | 答题卡生成/骨架/条码/编辑器布局CRUD/小微排版（23 端点，含 upload-answer + auto-layout + 3 Agent 工具） |
+| * | `/api/v1/card/*` | 答题卡生成/骨架/条码/编辑器布局CRUD/小微排版/文档渲染（24 端点，含 upload-answer + auto-layout + 3 Agent 工具 + render-doc-pages） |
 | * | `/api/v1/templates/*` | 模板 CRUD |
 | * | `/api/v1/scan/*` | 扫描上传/任务管理 |
 | POST | `/api/v1/scan/pipeline/scan-dir` | 扫描目录结构，返回科目子文件夹和图片统计 |
@@ -516,6 +541,8 @@ tests/
 | GET | `/api/v1/analytics/report/trend/class` | 已登录（非家长） | 班级成绩趋势 |
 | GET | `/api/v1/analytics/report/trend/student` | 已登录 | 学生成绩趋势（班级/guardian 校验） |
 | POST | `/api/v1/analytics/report/export` | GENERATE_REPORT | 生成分析报告文档（走 Studio） |
+| GET | `/api/v1/analytics/power-options` | 已登录 | 级联筛选树（年级→班级→科目→考试，RBAC 过滤） |
+| POST | `/api/v1/analytics/level-score/convert` | MANAGE_EXAM_RESULTS | 等级赋分转换（原始分→百分位等级→线性插值赋分） |
 | * | `/api/v1/knowledge/*` | 知识点 CRUD/树查询/关联 |
 | POST | `/api/v1/pipeline/run/{id}` | 数据流水线触发 |
 | * | `/api/v1/llm-config/slots` | LLM 槽位管理 |

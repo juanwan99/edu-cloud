@@ -266,7 +266,7 @@ async def update_question_content(
     question_id: str,
     req: QuestionContentUpdate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     result = await db.execute(
         select(Question).where(Question.id == question_id, Question.school_id == _school_id(current))
@@ -288,7 +288,7 @@ async def upload_question_image(
     question_id: str,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     result = await db.execute(
         select(Question).where(Question.id == question_id, Question.school_id == _school_id(current))

@@ -66,9 +66,9 @@ def _validate_criteria(criteria: list[dict], question_max_score: float) -> None:
         if score < 0:
             raise HTTPException(422, f"criteria[{i}] score must be >= 0, got {score}")
 
-        answer = item.get("answer")
+        answer = item.get("standardAnswer") or item.get("answer")
         if not answer or not isinstance(answer, str) or not answer.strip():
-            raise HTTPException(422, f"criteria[{i}] missing or empty answer")
+            raise HTTPException(422, f"criteria[{i}] missing standardAnswer or answer")
 
         total += score
 
@@ -91,7 +91,7 @@ async def generate_rubric_via_llm(
 
     Module-level function so it can be mocked in tests.
     """
-    from edu_cloud.modules.grading.prompts import build_rubric_generation_prompt
+    from edu_cloud.modules.grading.prompts_legacy import build_rubric_generation_prompt
     from edu_cloud.modules.grading.llm_client import LLMClient
 
     content = question.content or ""
@@ -814,12 +814,17 @@ async def get_dispatch_status(
                     )
                 )).scalar() or 0
 
+                content_imgs = q.content_images or []
+                ref_imgs = q.reference_answer_images or []
                 questions_info.append({
                     "question_id": q.id,
                     "name": q.name,
                     "question_type": q.question_type,
                     "max_score": q.max_score,
-                    "has_content": bool(q.content or q.reference_answer),
+                    "has_content": bool(q.content or content_imgs),
+                    "has_answer": bool(q.reference_answer or ref_imgs),
+                    "content_image_count": len(content_imgs),
+                    "answer_image_count": len(ref_imgs),
                     "has_rubric": q_rubric is not None,
                     "rubric_source": q_rubric.source if q_rubric else None,
                     "answer_count": q_answer_count,

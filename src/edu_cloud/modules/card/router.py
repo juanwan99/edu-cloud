@@ -6,6 +6,7 @@ import re
 import tempfile
 import urllib.parse
 from pathlib import Path
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -1217,3 +1218,76 @@ async def publish_card(
         paper_size=body.paper_size,
     )
     return Response(content=pdf_bytes, media_type="application/pdf")
+
+
+# ---------------------------------------------------------------------------
+# Document → page images (render-doc-pages)
+# ---------------------------------------------------------------------------
+
+@router.post("/render-doc-pages")
+async def render_doc_pages(
+    file: UploadFile = File(...),
+    current: dict = Depends(get_current_user),
+):
+    """将上传的 Word/PDF 文档渲染为页面图片，返回每页 URL 和尺寸。"""
+    import fitz  # pymupdf
+    from edu_cloud.config import settings
+
+    filename = (file.filename or "").lower()
+    if not filename.endswith((".docx", ".pdf")):
+        raise HTTPException(400, "仅支持 .docx 或 .pdf 格式")
+
+    # 1. Save uploaded file to temp
+    suffix = ".pdf" if filename.endswith(".pdf") else ".docx"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        # 2. Open document with pymupdf
+        try:
+            doc = fitz.open(tmp_path)
+        except Exception as exc:
+            if suffix == ".docx":
+                raise HTTPException(
+                    400,
+                    "无法打开 Word 文件，请先将其转换为 PDF 后重新上传",
+                ) from exc
+            raise HTTPException(400, f"无法打开 PDF 文件: {exc}") from exc
+
+        if doc.page_count == 0:
+            doc.close()
+            raise HTTPException(400, "文档无内容（0 页）")
+
+        # 3. Prepare output directory
+        batch_id = uuid4().hex
+        upload_root = Path(settings.UPLOAD_DIR).resolve()
+        out_dir = upload_root / "doc-pages" / batch_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        # 4. Render each page to PNG
+        dpi = 200
+        zoom = dpi / 72
+        matrix = fitz.Matrix(zoom, zoom)
+        pages = []
+        for i, page in enumerate(doc, start=1):
+            pix = page.get_pixmap(matrix=matrix)
+            img_name = f"page_{i}.png"
+            img_path = out_dir / img_name
+            pix.save(str(img_path))
+            pages.append({
+                "page_num": i,
+                "image_url": f"/uploads/doc-pages/{batch_id}/{img_name}",
+                "width": pix.width,
+                "height": pix.height,
+            })
+        doc.close()
+        logger.info(
+            "render_doc_pages: %d pages rendered, batch=%s, dpi=%d",
+            len(pages), batch_id, dpi,
+        )
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+    return {"pages": pages}

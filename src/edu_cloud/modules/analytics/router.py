@@ -502,3 +502,53 @@ async def export_student_subject_report(
             "Content-Disposition": f"attachment; filename*=UTF-8''{encoded}",
         },
     )
+
+
+# --- PowerOptions 级联筛选器 ---
+
+from edu_cloud.modules.analytics.power_options_service import get_power_options
+
+
+@router.get("/power-options")
+async def power_options(
+    exam_type: str | None = Query(None),
+    year: int | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """返回 年级→班级→科目→考试 级联筛选树。已按角色 RBAC 过滤。"""
+    role = current["current_role"]
+    return await get_power_options(
+        db,
+        school_id=role.school_id,
+        visible_class_ids=get_visible_class_ids(role),
+        visible_subject_codes=get_visible_subject_codes(role),
+        exam_type=exam_type,
+        year=year,
+    )
+
+
+# --- 等级赋分 ---
+
+from edu_cloud.modules.analytics.level_score_service import convert_level_score
+
+
+@router.post("/level-score/convert")
+async def level_score_convert(
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAM_RESULTS)),
+):
+    """等级赋分转换：原始分按百分位划分等级，线性插值赋分。"""
+    role = current["current_role"]
+    result = await convert_level_score(
+        db,
+        school_id=role.school_id,
+        exam_id=body["exam_id"],
+        subject_id=body["subject_id"],
+        levels=body["levels"],
+        class_id=body.get("class_id"),
+    )
+    if result is None:
+        raise HTTPException(404, "无成绩数据")
+    return result

@@ -317,6 +317,12 @@ def create_app() -> FastAPI:
               teacher_router]:
         app.include_router(r)
 
+    from pathlib import Path
+    from starlette.staticfiles import StaticFiles
+    upload_dir = Path(settings.UPLOAD_DIR).resolve()
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=str(upload_dir)), name="uploads")
+
     @app.get("/api/v1/health")
     async def health():
         return {"status": "ok", "service": "edu-cloud"}

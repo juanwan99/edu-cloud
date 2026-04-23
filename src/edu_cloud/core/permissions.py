@@ -85,6 +85,7 @@ _TEACHER_BASE: set[Permission] = {
     Permission.VIEW_SCORES,
     Permission.VIEW_QUESTION_BANK,
     Permission.VIEW_GRADING,
+    Permission.MANAGE_GRADING,
     Permission.VIEW_HOMEWORK,
     Permission.MANAGE_HOMEWORK,
     Permission.GENERATE_REPORT,

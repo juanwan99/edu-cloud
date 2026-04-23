@@ -1,6 +1,7 @@
 <template>
   <div>
     <div class="page-header">
+      <n-button text style="margin-bottom: 8px;" @click="$router.push('/marking')">← 返回阅卷</n-button>
       <h1 class="page-title">阅卷任务分配</h1>
       <p class="page-subtitle">将题目分配给指定教师阅卷</p>
     </div>

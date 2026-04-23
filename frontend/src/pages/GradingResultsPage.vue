@@ -1,6 +1,7 @@
 <template>
   <div>
     <div class="page-header">
+      <n-button text style="margin-bottom: 8px;" @click="$router.push('/grading/tasks')">← 返回阅卷任务</n-button>
       <h1 class="page-title">批改结果</h1>
       <div style="display: flex; gap: 12px; margin-top: 12px;">
         <n-tag v-if="task" :type="taskStatusType(task.status)" round>{{ taskStatusLabel(task.status) }}</n-tag>

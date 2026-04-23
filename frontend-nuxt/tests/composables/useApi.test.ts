@@ -7,25 +7,45 @@ vi.unmock('~/composables/useApi')
 import { useApi } from '~/composables/useApi'
 
 describe('useApi', () => {
-  describe('getPowerOptions stub', () => {
-    it('getPowerOptions 返回 {powerOptions: [], examInfoMap: {}}', async () => {
+  describe('getPowerOptions', () => {
+    it('getPowerOptions calls $fetch with correct path', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ grades: [] })
+      ;(globalThis as any).$fetch = mockFetch
+
       const api = useApi()
-      const res = await api.getPowerOptions()
-      expect(res).toEqual({ powerOptions: [], examInfoMap: {} })
+      await api.getPowerOptions()
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/analytics/power-options',
+        expect.objectContaining({
+          baseURL: expect.stringContaining('/api/v1'),
+          method: 'GET',
+        }),
+      )
     })
 
-    it('getPowerOptions 传 params 不影响返回结构', async () => {
+    it('getPowerOptions passes query params', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ grades: [] })
+      ;(globalThis as any).$fetch = mockFetch
+
       const api = useApi()
-      const res = await api.getPowerOptions({ subject: 'math' })
-      expect(res).toEqual({ powerOptions: [], examInfoMap: {} })
+      await api.getPowerOptions({ exam_type: 'midterm' })
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/analytics/power-options',
+        expect.objectContaining({
+          query: { exam_type: 'midterm' },
+        }),
+      )
     })
 
-    it('getPowerOptions 未登录（无 token）仍可调用', async () => {
-      // setup.ts 的 useCookie 初始返回 null token —— 不应抛异常
+    it('getPowerOptions works without token', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ grades: [] })
+      ;(globalThis as any).$fetch = mockFetch
+
       const api = useApi()
       const res = await api.getPowerOptions()
-      expect(res.powerOptions).toEqual([])
-      expect(res.examInfoMap).toEqual({})
+      expect(res).toEqual({ grades: [] })
     })
   })
 

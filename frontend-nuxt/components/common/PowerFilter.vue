@@ -1,59 +1,85 @@
 <template>
-  <div class="filter-bar">
+  <div class="power-filter">
     <el-select
-      v-if="grades.length"
-      v-model="gradeModel"
+      v-model="po.selectedGrade.value"
       placeholder="年级"
-      size="default"
-      style="width: 120px"
-    >
-      <el-option v-for="g in grades" :key="g" :label="g" :value="g" />
-    </el-select>
-    <el-select
-      v-if="classes.length"
-      v-model="classModel"
-      placeholder="班级"
-      size="default"
-      style="width: 140px"
-    >
-      <el-option v-for="c in classes" :key="c" :label="c" :value="c" />
-    </el-select>
-    <el-select
-      v-if="subjects.length"
-      v-model="subjectModel"
-      placeholder="学科"
-      size="default"
-      style="width: 120px"
-    >
-      <el-option v-for="s in subjects" :key="s" :label="s" :value="s" />
-    </el-select>
-    <el-select
-      v-if="exams.length"
-      v-model="examModel"
-      placeholder="考试"
-      size="default"
-      style="width: 200px"
+      :disabled="po.gradeOptions.value.length === 0"
+      :loading="po.loading.value"
     >
       <el-option
-        v-for="e in exams"
-        :key="e.id"
-        :label="e.name"
-        :value="e.id"
+        v-for="g in po.gradeOptions.value"
+        :key="g"
+        :label="g"
+        :value="g"
+      />
+    </el-select>
+
+    <el-select
+      v-model="po.selectedClassId.value"
+      placeholder="班级"
+      :disabled="po.classOptions.value.length === 0"
+      :loading="po.loading.value"
+    >
+      <el-option
+        v-for="c in po.classOptions.value"
+        :key="c.id"
+        :label="c.name"
+        :value="c.id"
+      />
+    </el-select>
+
+    <el-select
+      v-model="po.selectedSubjectId.value"
+      placeholder="科目"
+      :disabled="po.subjectOptions.value.length === 0"
+      :loading="po.loading.value"
+    >
+      <el-option
+        v-for="s in po.subjectOptions.value"
+        :key="s.id"
+        :label="s.name"
+        :value="s.id"
+      />
+    </el-select>
+
+    <el-select
+      v-model="po.selectedExamId.value"
+      placeholder="考试"
+      :disabled="po.examOptions.value.length === 0"
+      :loading="po.loading.value"
+      class="exam-select"
+    >
+      <el-option
+        v-for="e in po.examOptions.value"
+        :key="e.exam_id"
+        :label="e.exam_date ? `${e.name} ${e.exam_date}` : e.name"
+        :value="e.exam_id"
       />
     </el-select>
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  grades: string[]
-  classes: string[]
-  subjects: string[]
-  exams: { id: string; name: string }[]
-}>()
+const po = usePowerOptions()
 
-const gradeModel = defineModel<string>('grade')
-const classModel = defineModel<string>('class')
-const subjectModel = defineModel<string>('subject')
-const examModel = defineModel<string>('exam')
+onMounted(() => {
+  po.load()
+})
+
+defineExpose({ po })
 </script>
+
+<style scoped>
+.power-filter {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.power-filter .el-select {
+  min-width: 140px;
+}
+.power-filter .exam-select {
+  min-width: 200px;
+}
+</style>

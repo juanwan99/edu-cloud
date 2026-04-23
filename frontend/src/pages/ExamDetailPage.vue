@@ -7,6 +7,7 @@
     <template v-else>
       <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
         <div>
+          <n-button text style="margin-bottom: 8px;" @click="$router.push('/exams')">← 返回考试列表</n-button>
           <h1 class="page-title">{{ exam?.name || '' }}</h1>
           <p class="page-subtitle">
             <n-tag v-if="exam" :type="statusType(exam.status)" round size="small">{{ statusLabel(exam.status) }}</n-tag>

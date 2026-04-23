@@ -1,5 +1,5 @@
 """Phase 1-C: 题型分派 prompt 单测。"""
-from edu_cloud.modules.grading.prompts import (
+from edu_cloud.modules.grading.prompts_legacy import (
     build_grading_prompt,
     _SYSTEM_PROMPT_FILL_BLANK,
     _SYSTEM_PROMPT_ESSAY,
