@@ -655,3 +655,40 @@ async def get_class_boxplot(
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
     )
+
+
+from edu_cloud.modules.analytics.ranking_service import class_knowledge, class_error_patterns
+
+
+@router.get("/exam/{exam_id}/class-knowledge")
+async def get_class_knowledge(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """班级×知识点 掌握率热力图。"""
+    role = current["current_role"]
+    return await class_knowledge(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
+
+
+@router.get("/exam/{exam_id}/class-error-patterns")
+async def get_class_error_patterns(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """班级错误模式对比。"""
+    role = current["current_role"]
+    return await class_error_patterns(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )

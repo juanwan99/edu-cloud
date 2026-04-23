@@ -1,7 +1,7 @@
 """学生排名 + 进退步 + 临界生筛选 + 箱线图 + 知识点热力图。"""
 import logging
 import statistics
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -269,3 +269,170 @@ async def class_boxplot(
         })
     classes.sort(key=lambda x: x["name"])
     return {"classes": classes}
+
+
+async def class_knowledge(
+    db: AsyncSession, *, exam_id: str, school_id: str,
+    subject_id: str | None = None,
+    visible_subject_codes: list[str] | None = None,
+    visible_class_ids: list[str] | None = None,
+) -> dict:
+    """班级×知识点 掌握率热力图数据。"""
+    from edu_cloud.modules.exam.models import Subject, Question
+    from edu_cloud.modules.analytics import get_effective_scores
+
+    subj_q = select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
+    if subject_id:
+        subj_q = subj_q.where(Subject.id == subject_id)
+    if visible_subject_codes is not None:
+        subj_q = subj_q.where(Subject.code.in_(visible_subject_codes))
+    subjects = list((await db.execute(subj_q)).scalars().all())
+    if not subjects:
+        return {"knowledge_points": [], "classes": []}
+
+    subj_ids = [s.id for s in subjects]
+
+    # 获取题目→知识点映射
+    q_result = await db.execute(
+        select(Question.id, Question.knowledge_points, Question.max_score)
+        .where(Question.subject_id.in_(subj_ids), Question.school_id == school_id)
+    )
+    q_kps: dict[str, list[str]] = {}
+    q_max: dict[str, float] = {}
+    all_kps: set[str] = set()
+    for q in q_result.all():
+        qid = q.id
+        q_max[qid] = q.max_score
+        kps = []
+        if q.knowledge_points and isinstance(q.knowledge_points, dict):
+            kps = q.knowledge_points.get("knowledge_ids", [])
+        q_kps[qid] = kps
+        all_kps.update(kps)
+
+    if not all_kps:
+        return {"knowledge_points": [], "classes": []}
+
+    # 聚合每个学生每个知识点的得分率
+    student_kp_scores: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    for subj in subjects:
+        scores = await get_effective_scores(db, subj.id, school_id, visible_class_ids)
+        for s in scores:
+            kps = q_kps.get(s["question_id"], [])
+            max_s = q_max.get(s["question_id"], 1)
+            rate = s["effective_score"] / max_s if max_s > 0 else 0
+            for kp in kps:
+                student_kp_scores[s["student_id"]][kp].append(rate)
+
+    # 学生→班级映射
+    all_sids = list(student_kp_scores.keys())
+    stu_result = await db.execute(
+        select(Student.id, Student.class_id).where(Student.id.in_(all_sids))
+    )
+    stu_class = {r.id: r.class_id for r in stu_result.all()}
+
+    # 按班聚合
+    class_kp_rates: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    for sid, kp_data in student_kp_scores.items():
+        cid = stu_class.get(sid)
+        if not cid:
+            continue
+        for kp, rates in kp_data.items():
+            avg_rate = sum(rates) / len(rates) if rates else 0
+            class_kp_rates[cid][kp].append(avg_rate)
+
+    # 班级名
+    class_ids = list(class_kp_rates.keys())
+    cls_result = await db.execute(select(Class.id, Class.name).where(Class.id.in_(class_ids)))
+    cls_map = {r.id: r.name for r in cls_result.all()}
+
+    kp_list = sorted(all_kps)
+    classes = []
+    for cid, kp_data in class_kp_rates.items():
+        mastery = []
+        for kp in kp_list:
+            rates = kp_data.get(kp, [])
+            avg = round(sum(rates) / len(rates), 4) if rates else 0
+            mastery.append({"kp_id": kp, "name": kp, "rate": avg})
+        classes.append({"class_id": cid, "name": cls_map.get(cid, cid), "mastery": mastery})
+    classes.sort(key=lambda x: x["name"])
+    return {"knowledge_points": kp_list, "classes": classes}
+
+
+async def class_error_patterns(
+    db: AsyncSession, *, exam_id: str, school_id: str,
+    subject_id: str | None = None,
+    visible_subject_codes: list[str] | None = None,
+    visible_class_ids: list[str] | None = None,
+) -> dict:
+    """班级错误模式对比。"""
+    from edu_cloud.modules.analytics.insights_service import question_insights, _classify_error
+
+    insights = await question_insights(
+        db, exam_id=exam_id, school_id=school_id,
+        subject_id=subject_id,
+        visible_subject_codes=visible_subject_codes,
+        visible_class_ids=visible_class_ids,
+    )
+
+    # 需要按班拆分 — 重新查询带 class_id 信息的 GradingResult
+    subj_q = select(Subject.id).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
+    if subject_id:
+        subj_q = subj_q.where(Subject.id == subject_id)
+    if visible_subject_codes is not None:
+        subj_q = subj_q.where(Subject.code.in_(visible_subject_codes))
+    subj_ids = [r[0] for r in (await db.execute(subj_q)).all()]
+    if not subj_ids:
+        return {"error_types": [], "classes": []}
+
+    stmt = (
+        select(
+            Student.class_id,
+            GradingResult.ai_raw_response,
+        )
+        .select_from(GradingResult)
+        .join(StudentAnswer, StudentAnswer.id == GradingResult.answer_id)
+        .join(Student, Student.id == StudentAnswer.student_id)
+        .where(
+            StudentAnswer.subject_id.in_(subj_ids),
+            GradingResult.school_id == school_id,
+            GradingResult.ai_raw_response.isnot(None),
+        )
+    )
+    if visible_class_ids is not None:
+        stmt = stmt.where(Student.class_id.in_(visible_class_ids))
+
+    rows = (await db.execute(stmt)).all()
+
+    class_errors: dict[str, Counter] = defaultdict(Counter)
+    all_types: set[str] = set()
+    for row in rows:
+        cid = row.class_id
+        raw = row.ai_raw_response
+        if not isinstance(raw, dict):
+            continue
+        for detail in raw.get("details", []):
+            if not isinstance(detail, dict):
+                continue
+            for blank in detail.get("blanks", []):
+                if not isinstance(blank, dict):
+                    continue
+                if blank.get("correct") is False and blank.get("reason"):
+                    cause = _classify_error(blank["reason"])
+                    class_errors[cid][cause] += 1
+                    all_types.add(cause)
+
+    # 班级名
+    class_ids = list(class_errors.keys())
+    if not class_ids:
+        return {"error_types": [], "classes": []}
+    cls_result = await db.execute(select(Class.id, Class.name).where(Class.id.in_(class_ids)))
+    cls_map = {r.id: r.name for r in cls_result.all()}
+
+    error_types = sorted(all_types)
+    classes = []
+    for cid, counter in class_errors.items():
+        total = sum(counter.values())
+        dist = {t: round(counter.get(t, 0) / total, 4) if total > 0 else 0 for t in error_types}
+        classes.append({"class_id": cid, "name": cls_map.get(cid, cid), "distribution": dist})
+    classes.sort(key=lambda x: x["name"])
+    return {"error_types": error_types, "classes": classes}

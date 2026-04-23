@@ -115,3 +115,21 @@ async def get_class_knowledge_weakness(
         db, school_id=_school_id(current),
         class_student_ids=student_ids, course_code=course_code, top_n=top_n,
     )
+
+
+from edu_cloud.modules.analytics.insights_service import student_ai_diagnosis
+
+
+@router.get("/students/{student_id}/ai-diagnosis")
+async def get_student_ai_diagnosis(
+    student_id: str,
+    exam_id: str | None = Query(None),
+    subject_code: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_SCORES)),
+):
+    """学生个体 AI 诊断（ORC-007 模板拼接）。"""
+    return await student_ai_diagnosis(
+        db, student_id=student_id, school_id=_school_id(current),
+        exam_id=exam_id, subject_code=subject_code,
+    )
