@@ -85,7 +85,7 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-04-23：2004 passed / 23 skipped
+# 后端 ECS pytest 实测 @ 2026-04-23：2028 passed / 23 skipped
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
 # 前端 Vitest + happy-dom
