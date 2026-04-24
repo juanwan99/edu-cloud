@@ -23,6 +23,20 @@ revision_history:
       - "F005: 测试补 DOM 级断言 data-testid=school-select"
       - "F006: Task 3 token 键改 'token'；场景 A/D 末尾追加 cleanup"
       - "F007: 每 Task 补审查清单 + 边界条件（≥3）段"
+  - round: "R2 post-fix（gate 状态 R2 FAIL，但 process 层 3 条残留已补丁）"
+    date: "2026-04-25T00:10+08:00"
+    trigger: "GPT Codex Plan Review R2 FAIL（F007 resolved-partial + R2-F001 缺 contract_pack + R2-F002 typo 9→8 角色）；R3 被 gates_lib 入口硬拒"
+    raw_log: "docs/plans/.codex-raw-plan-review-super-admin-r2-20260425_000500.log"
+    review_report: "docs/plans/2026-04-24-super-admin-cross-school-account-plan-review.md"
+    gate_status: "R2 FAIL（按 gate 铁律不可再走 R3）"
+    fixes_applied:
+      - "R2-F002: Task 3 边界条件 3 '9 个角色' → '8 个角色'（roleLabels 实测 8 项）"
+      - "F007 补齐: 每 Task 增加独立 **边界条件（≥3）:** 段（Task 1: 5 边界 / Task 2: 5 边界 / Task 3: 5 边界）"
+      - "R2-F001: 新增 ## Contract Pack 段（YAML 结构化 invariants/counter_examples/risk_modules/test_debt，映射到 semantic_regression）"
+    pending_user_decision:
+      - "R1-R2 核心 finding (F001-F006) 全部 resolved-correct"
+      - "R2 残留 3 条均为 process/文档层，已经补丁完成"
+      - "gate 状态仍为 R2 FAIL，需用户在新会话做以下之一： (a) manual_override in gates.json（轻量补丁已覆盖所有残留）；(b) 拆 topic 为两个 sub-plan；(c) WONTFIX 标记 process 残留后 override"
 ---
 
 # 超管跨校创建学校管理账号 Implementation Plan
@@ -109,6 +123,73 @@ if is_cross_school:
 
 ---
 
+## Contract Pack（R2-F001 补结构化段）
+
+结构化 contract pack，供 gate 审查机读；与上方 `semantic_regression` 段一致，本段是其机读镜像。
+
+```yaml
+contract_pack:
+  invariants:
+    - id: ORC-001
+      description: "POST /teachers 必须有 school_id 来源（current_role.school_id 或 req.school_id），否则 422"
+      verification:
+        type: existing_test
+        test_ref: "tests/test_api_exam/test_teachers_cross_school.py::TestCrossSchoolTeacherCreate::test_platform_admin_without_school_id_returns_422"
+    - id: ORC-002
+      description: "跨校创建必须检查 Permission.MANAGE_SCHOOLS，否则 403"
+      verification:
+        type: existing_test
+        test_ref: "tests/test_api_exam/test_teachers_cross_school.py::TestCrossSchoolTeacherCreate::test_subject_teacher_cross_school_returns_403 + test_principal_cross_school_returns_403"
+    - id: ORC-003
+      description: "学校下拉仅在 isPlatformAdmin 时渲染；非超管 DOM 无 [data-testid=school-select]"
+      verification:
+        type: existing_test
+        test_ref: "frontend/src/pages/__tests__/TeachersPage.cross-school.test.js 测试 1+2 DOM 级断言"
+    - id: ORC-004
+      description: "后端不做角色白名单（subject_teacher 跨校 201）；前端 UI 裁剪下拉 + openCreate 重置 form.roles=['principal'] 双护航"
+      verification:
+        type: existing_test
+        test_ref: "后端 test_platform_admin_creates_subject_teacher_cross_school + 前端 createRoleOptions.length===2 + openCreate 后 form.roles===['principal']"
+
+  counter_examples:
+    - id: CE-001
+      description: "超管跨校不传 school_id 错误实现可能返回 201（nullable UserRole.school_id 落库成功），正确实现应 422"
+      tests_that_still_pass: "仅看 status_code=201 的弱断言测试（已在 R1-F002 修复加 school_id 落库断言）"
+      mitigation: "test_platform_admin_without_school_id_returns_422 + F002 加强断言"
+    - id: CE-002
+      description: "后端加角色白名单仅允许 principal/academic_director 会破坏既有 principal 本校建 subject_teacher 路径"
+      tests_that_still_pass: "仅验证超管场景的测试（已在 R1-F001 补 test_platform_admin_creates_subject_teacher_cross_school 回归锁）"
+      mitigation: "test_platform_admin_creates_subject_teacher_cross_school 锁死 201 契约"
+    - id: CE-003
+      description: "超管跨校 openCreate 不重置 form.roles 时默认 ['subject_teacher']，用户不改角色直接保存会造成跨校 subject_teacher 账号（偏离产品意图）"
+      tests_that_still_pass: "仅检查 roleOptions 裁剪的测试（已在 R1-F003 补 payload.roles===['principal'] 锁）"
+      mitigation: "openCreate 在 isPlatformAdmin && selectedSchool 时强制 form.roles=['principal']"
+    - id: CE-004
+      description: "roleOptions 全局改 computed 会连带裁剪 Excel 导入入口下拉（超出 scope）"
+      tests_that_still_pass: "仅检查创建表单下拉的测试（已在 R1-F004 补 importRoleOptions.length>=8 断言）"
+      mitigation: "拆 createRoleOptions（computed）+ importRoleOptions（静态全集）"
+
+  risk_modules:
+    - path: "src/edu_cloud/modules/student/teacher_router.py"
+      reason: "POST /teachers 公开 API 契约变更（新增 school_id 字段 + is_cross_school 判断 + MANAGE_SCHOOLS 守卫）"
+    - path: "frontend/src/pages/TeachersPage.vue"
+      reason: "超管入口 UI 改造 + openCreate 默认角色泄漏防护 + DOM data-testid"
+    - path: "frontend/src/api/schools.js"
+      reason: "若未 export listSchools 需补一行（Step 2.3 条件修改）"
+
+  test_debt:
+    - item: "POST /students / POST /teachers 普遍缺 permission guard 回归测试"
+      reason: "design §6 non-goal（followup T3-D，非本 plan 范围）"
+      deadline: "T3-D plan 启动时补，不阻塞本 plan"
+      tracking: "独立 T3-D followup ticket，参见 design.md §6 non-goals"
+    - item: "手工走查 Task 3 未以 e2e 自动化测试替代"
+      reason: "视觉+浏览器 DOM 渲染验证，不适合 headless 自动化；用户亲自走查 + cleanup Step 3.4 兜底"
+      deadline: "N/A（手工 gate 设计，不是 tech-debt）"
+      tracking: "Task 3 Step 3.3-3.4 审查清单"
+```
+
+---
+
 ## Evidence 摘要（完整见 design.md §7）
 
 | 判断 | 证据 |
@@ -152,6 +233,13 @@ if is_cross_school:
   4. `current_role.school_id is None + req.school_id is None` → 422（无 school_id 来源）
 - 回归: principal 在本校建 subject_teacher 场景（不传 school_id，走 current_role.school_id）保持 201 既有行为
 - 命令: `cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest tests/test_api_exam/test_teachers_cross_school.py -v`
+
+**边界条件（≥3，R2-F007 独立段）:**
+1. `req.school_id == current_role.school_id` → `is_cross_school=False`，201（principal 显式传本校 school_id 场景）
+2. `current_role.school_id is None + req.school_id != None` → MANAGE_SCHOOLS 持有者 201，否则 403（平台/超管场景）
+3. `current_role.school_id != None + req.school_id != None + 不等` → MANAGE_SCHOOLS 持有者 201，否则 403（跨校越权场景）
+4. `current_role.school_id is None + req.school_id is None` → 422（无 school_id 来源）
+5. Pydantic v2 extra='ignore' 默认行为：未声明字段静默丢弃（R1-F002 红灯分布依据）
 
 **审查清单（R1-F007）:**
 - [ ] `TeacherCreate.school_id` 类型 `str | None = None`（Optional，不改变既有调用方契约）
@@ -543,6 +631,13 @@ EOF
   4. 非超管（如 principal）→ `createRoleOptions.length === 8`，`importRoleOptions.length === 8`
 - 回归: 非超管场景下 `handleSave` payload 不含 `school_id` 字段
 - 命令: `cd /home/ops/projects/edu-cloud/frontend && npx vitest run src/pages/__tests__/TeachersPage.cross-school.test.js`
+
+**边界条件（≥3，R2-F007 独立段）:**
+1. 超管登录但未选校（`selectedSchool=null`）→ `createRoleOptions.length === 8`（维持全集）
+2. 超管选中某校（`isPlatformAdmin && selectedSchool`）→ `createRoleOptions.length === 2`（裁剪为 principal + academic_director）
+3. Excel 导入下拉始终使用 `importRoleOptions`（全集 8，R2-F002 校正），不受 `selectedSchool` 影响
+4. 非超管（如 principal）→ `createRoleOptions.length === 8` 且 `importRoleOptions.length === 8`
+5. 超管 openCreate 后 form.roles=['principal']（R1-F003 默认泄漏防护）——即使用户切换学校再 openCreate 仍重置
 
 **审查清单（R1-F007）:**
 - [ ] `isPlatformAdmin` 用 `computed`，对 `auth.currentRole?.role` 做**可空**保护
@@ -984,10 +1079,17 @@ EOF
 - 边界（≥3，R1-F007）:
   1. 超管选中某校 + 点"添加教师" → 角色下拉**仅显示**"校长"+"教务主任"
   2. 超管跨校打开弹窗 + **不手改角色** + 填名字保存 → 实际创建的角色是 `principal`（R1-F003 前端守卫生效）
-  3. 超管 Excel 导入入口 → 默认角色下拉显示全集 9 个角色（R1-F004 导入路径不退化）
+  3. 超管 Excel 导入入口 → 默认角色下拉显示全集 8 个角色（R2-F002 校正：roleLabels 只有 8 项，不含 platform_admin；R1-F004 导入路径不退化）
   4. 非超管账号 → DOM 无学校下拉（ORC-003）
 - 回归: admin 切换学校 → 教师列表按 `GET /teachers?school_id=<newId>` 切换
 - 命令: 无单命令；以下步骤 manual 执行
+
+**边界条件（≥3，R2-F007 独立段）:**
+1. 超管选中某校 + 点"添加教师" → 角色下拉**仅显示**"校长"+"教务主任"（createRoleOptions 裁剪生效）
+2. 超管跨校打开弹窗 + **不手改角色** + 填名字保存 → 实际创建的角色是 `principal`（R1-F003 openCreate 重置生效）
+3. 超管 Excel 导入入口 → 默认角色下拉显示全集 **8** 个角色（R1-F004 + R2-F002 导入路径不退化，以 roleLabels 实际计数为准）
+4. 非超管账号（principal / subject_teacher）→ DOM 无 `[data-testid="school-select"]`（ORC-003）
+5. 手工走查两个试用账号（景炎试用校长_ABCD / YC试用校长_ABCD）必须在 Step 3.4 清理（R1-F006 无残留）
 
 **审查清单（R1-F007）:**
 - [ ] 所有手动步骤的 token 键使用 `'token'`（R1-F006，不是 `edu_cloud_token`）

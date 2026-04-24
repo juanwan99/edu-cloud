@@ -1,0 +1,76 @@
+=== Codex Plan Review Raw Output (R2) ===
+Topic: 2026-04-24-super-admin-cross-school-account
+Plan file: docs/plans/2026-04-24-super-admin-cross-school-account-plan.md
+Plan commit (R1 revision): 08f6cbc
+Round: R2 (R1 FAIL -> revision -> R2)
+Tier: T3
+Qualification for R2: 跨模块重构（teacher_router.py + TeachersPage.vue + api/schools.js ≥2 文件 ≥2 模块）满足 R2 条件 3
+MCP threadId: 019dc04c-c6e8-79b1-b9f3-93eb30342244
+Timestamp: 2026-04-25T00:05:00+08:00
+Method: mcp__codex__codex (MCP deep path)
+
+=== GPT 5.4 R2 Independent Review Output ===
+
+结论：FAIL
+
+本轮 R2 中，F001-F006 已按预期修复；但 F007 仅部分修复，且修订版又引入 2 个新的 process finding，因此不能给 PASS。
+
+**R1 Finding 逐条核验**
+
+- F001 | Severity: HIGH | Category: 完整性/不变量 | Type: test_gap | verification_status: resolved-correct
+  - Evidence: plan.md:267 新增 test_platform_admin_creates_subject_teacher_cross_school；plan.md:293 断言 UserRole.school_id；plan.md:1155 将 ORC-004 后端映射回放到该测试，plan.md:1156 同步映射前端。
+  - Impact: R1 要求的 ORC-004 后端契约回放已补齐，且 semantic_regression 做到了前后端双映射。
+
+- F002 | Severity: HIGH | Category: 完整性/测试质量 | Type: test_gap | verification_status: resolved-correct
+  - Evidence: plan.md:242 新增/强化 test_platform_admin_creates_academic_director；plan.md:265 明确断言 role_row.school_id；plan.md:366 将红灯基线修正为"6 FAIL + 1 PASS"；plan.md:375 明确 test_principal_same_school_passes 为唯一 PASS。
+  - Impact: 红灯分布与现状代码行为重新对齐，不再依赖弱断言制造"假红灯"。
+
+- F003 | Severity: HIGH | Category: 自洽性/行为契约 | Type: defect_fix | verification_status: resolved-correct
+  - Evidence: plan.md:842 重写 openCreate()；plan.md:848 在 isPlatformAdmin && selectedSchool 时把 form.roles 重置为 ['principal']；plan.md:670 新增"未手改角色直接保存"的测试；plan.md:686 断言 payload.roles === ['principal']。
+  - Impact: 已锁住"默认 subject_teacher 泄漏到跨校创建"的高风险回归。
+
+- F004 | Severity: MED | Category: 代码库对齐/范围控制 | Type: defect_fix | verification_status: resolved-correct
+  - Evidence: plan.md:752 定义 isPlatformAdmin；plan.md:764 定义 createRoleOptions；plan.md:772 定义 importRoleOptions；plan.md:782 创建表单改绑 createRoleOptions；plan.md:788 导入入口改绑 importRoleOptions。
+  - Impact: 创建入口与 Excel 导入入口已解耦，避免 scope 外退化。
+
+- F005 | Severity: MED | Category: 完整性/测试质量 | Type: test_gap | verification_status: resolved-correct
+  - Evidence: plan.md:628/645 新增两条 DOM 级测试；plan.md:634 和 650 分别断言 [data-testid="school-select"] 存在/不存在；plan.md:879 为模板加入带 data-testid 的 <n-select>，plan.md:884 明确属性值。
+  - Impact: 不再只靠 wrapper.vm 逻辑镜像，ORC-003 有了入口级 DOM 验证。
+
+- F006 | Severity: MED | Category: 自洽性/回滚 | Type: process | verification_status: resolved-correct
+  - Evidence: plan.md:1041 手工 fetch 改为读取 localStorage.getItem('token')；plan.md:1045 明确标注 R1-F006 修正；plan.md:1055 新增 Step 3.4 cleanup；plan.md:1058 与 1059 列出两个试用账号的删除目标。
+  - Impact: token 键名与真实实现对齐，且手工走查不再遗留生产试用账号。
+
+- F007 | Severity: MED | Category: 完整性/审查流程 | Type: process | verification_status: resolved-partial
+  - Evidence: 三个 Task 都补了 **审查清单**，见 plan.md:156、547、992；但"边界条件"仍只嵌在 **测试契约** 内部子 bullet，见 plan.md:148、539、984，并未补成模板要求的独立 **边界条件:** 段。权威要求见 ~/.claude/rules-t3/review-templates.md:206。
+  - Impact: D 完整性检查仍未闭环；Executor 侧的"边界条件是测试规格"规则仍无法按模板直接回放。
+
+**R2 新发现**
+
+- R2-F001
+  - Severity: MED
+  - Category: Contract Pack 完整性
+  - Type: process
+  - Evidence: ~/.claude/skills/codex-review/SKILL.md:95 明确 Plan Review 需要检查 Contract Pack；~/.claude/config/contract-pack-schema.md:7 要求以 contract_pack: 为根键，~/.claude/config/contract-pack-schema.md:13/22/31/38 要求 invariants、counter_examples、risk_modules、test_debt 四段齐备。当前 plan 只有 frontmatter 风险模块和独立 semantic_regression，见 plan.md:1、plan.md:98；对该文件执行 rg -n "contract_pack:|counter_examples:|test_debt:|invariants:" 为零命中。
+  - Impact: F checklist 直接不通过；本次 R2 虽被要求执行 A/B/C/D/D+/E/E+/F 全量检查，但 plan 本体缺少可机读的 Contract Pack，导致 invariants / counter_examples / test_debt 无法结构化复核。
+
+- R2-F002
+  - Severity: MED
+  - Category: 手工验收自洽性
+  - Type: process
+  - Evidence: Task 2 把导入角色源定义为 ROLE_OPTIONS_ALL = Object.entries(roleLabels)...，见 plan.md:757 与 plan.md:772；当前源码 frontend/src/pages/TeachersPage.vue:148 的 roleLabels 只有 8 个角色；但 Task 3 手工验收却写"默认角色下拉显示全集 9 个角色"，见 plan.md:987。
+  - Impact: 手工走查会按错误口径验收，造成假阴性；执行者即使实现正确，也可能因为计划里的错误计数被误判为失败。
+
+**A/B/C/D/D+/E/E+/F Checklist 结论**
+- A 自洽性: FAIL（F007 未完成闭环；另有 R2-F002 的"8 角色/9 角色"口径冲突）
+- B 代码库对齐: PASS
+- C 架构适配: PASS
+- D 完整性: FAIL（**审查清单:** 已补，但 **边界条件:** 独立段仍缺失）
+- D+ 测试契约质量: PASS
+- E 风险评估: PASS
+- E+ 决策证据: PASS
+- F Contract Pack: FAIL（见 R2-F001）
+
+**最终结论**
+- FAIL
+- 原因不是实现方向错误，而是计划文档仍未满足 Gate 1 的完整性要求：F007 仅部分修复，且新增 R2-F001、R2-F002 两个 process finding。只有在补齐独立 **边界条件:** 段、补上结构化 contract_pack:、并修正 Task 3 的角色总数口径后，才具备 PASS 条件。

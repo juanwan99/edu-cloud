@@ -1,15 +1,26 @@
 ---
 topic: 2026-04-24-super-admin-cross-school-account
 gate: plan_review
-round: 1
-status: FAIL
+rounds:
+  - round: 1
+    status: FAIL
+    findings: "3 HIGH + 4 MED"
+    raw_log: "docs/plans/.codex-raw-plan-review-super-admin-r1-20260424_234500.log"
+    raw_sha256: "2537f0d802a34a1c4255390ed9fcb1050b3e45a526592570d492f354465bcfec"
+    mcp_thread: "019dc035-3d62-72f3-8fb5-08eebddb4caf"
+    reviewed_at: "2026-04-24T23:45:00+08:00"
+  - round: 2
+    status: FAIL
+    findings: "F001-F006 resolved-correct + F007 resolved-partial + R2-F001/R2-F002 new process findings (3 MED 残留均为 process 层)"
+    raw_log: "docs/plans/.codex-raw-plan-review-super-admin-r2-20260425_000500.log"
+    raw_sha256: "2802375e682d94ae31c68e1ae49345b01e9ddaed30ae8e1efbe71a806682e000"
+    mcp_thread: "019dc04c-c6e8-79b1-b9f3-93eb30342244"
+    reviewed_at: "2026-04-25T00:05:00+08:00"
+    post_fix: "3 条残留已在 2026-04-25T00:10 轻量补丁覆盖（R2-F002 typo / F007 独立段 / R2-F001 contract_pack）"
 reviewer: gpt (codex MCP)
-plan_commit: 8f9c03540476e77f5c32282a0d777c86ab6c825f
-raw_output_log: docs/plans/.codex-raw-plan-review-super-admin-r1-20260424_234500.log
-raw_output_sha256: 2537f0d802a34a1c4255390ed9fcb1050b3e45a526592570d492f354465bcfec
-mcp_thread_id: 019dc035-3d62-72f3-8fb5-08eebddb4caf
-reviewed_at: 2026-04-24T23:45:00+08:00
-summary: 3 HIGH + 4 MED，R2 允许（跨模块 ≥2 文件 ≥2 模块，满足 R2 条件 3）
+plan_commit_r1: 8f9c03540476e77f5c32282a0d777c86ab6c825f
+plan_commit_r1_revision: 08f6cbc
+gate_final_status: "R2 FAIL — 按 gate 铁律禁 R3；process 残留已补丁，等待用户 manual_override 或拆 topic 决定"
 ---
 
 # Plan Review R1 Report — super-admin-cross-school-account
@@ -63,3 +74,98 @@ F001-F007 全部 valid，按 finding 逐条在 plan 中修订：
 5. DOM 级测试存在
 6. Task 3 token 键与 cleanup
 7. 每 Task 审查清单 + 边界条件段
+
+---
+
+## R2 审查结果（2026-04-25T00:05:00+08:00）
+
+**结论：FAIL（但 R1 核心 finding 全部 resolved-correct，残留 3 条均为 process 层）**
+
+原始输出：`docs/plans/.codex-raw-plan-review-super-admin-r2-20260425_000500.log`（sha256 `2802375e...00`）
+
+### R1 finding 核验结果
+
+| ID | Severity | Type | R2 Verification | 依据 |
+|---|---|---|---|---|
+| F001 | HIGH | test_gap | **resolved-correct** | plan.md:267 新增 `test_platform_admin_creates_subject_teacher_cross_school`；ORC-004 双映射到 semantic_regression |
+| F002 | HIGH | test_gap | **resolved-correct** | academic_director 测试加 school_id 落库断言；Step 1.2 红灯表格 6 FAIL + 1 PASS |
+| F003 | HIGH | defect_fix | **resolved-correct** | Step 2.6a openCreate 重置 form.roles=['principal']；测试 4 锁 payload.roles |
+| F004 | MED | defect_fix | **resolved-correct** | createRoleOptions + importRoleOptions 拆分；模板 L78/L102 分别绑定 |
+| F005 | MED | test_gap | **resolved-correct** | data-testid="school-select" + DOM 级 2 测试 |
+| F006 | MED | process | **resolved-correct** | token 键改 'token'；Step 3.4 cleanup 步骤 |
+| F007 | MED | process | **resolved-partial** | 审查清单已补，但"边界条件"仍嵌在测试契约里，未独立成段 |
+
+### R2 新发现 Finding
+
+| ID | Severity | Category | Type | Evidence |
+|---|---|---|---|---|
+| R2-F001 | MED | Contract Pack | process | plan 缺结构化 `contract_pack:` 段（~/.claude/config/contract-pack-schema.md 要求 invariants/counter_examples/risk_modules/test_debt 机读段） |
+| R2-F002 | MED | 手工验收自洽性 | process | Task 3 写"全集 9 角色"，实际 roleLabels 8 项（grep 核实 `frontend/src/pages/TeachersPage.vue:148`） |
+
+### A/B/C/D/D+/E/E+/F Checklist 结论
+
+| 段 | R2 结论 | 原因 |
+|---|---|---|
+| A 自洽性 | FAIL | F007 未完成闭环；R2-F002 角色口径冲突 |
+| B 代码库对齐 | PASS | - |
+| C 架构适配 | PASS | - |
+| D 完整性 | FAIL | 审查清单已补但边界条件未独立成段 |
+| D+ 测试契约质量 | PASS | F001/F002/F005 有效 |
+| E 风险评估 | PASS | - |
+| E+ 决策证据 | PASS | - |
+| F Contract Pack | FAIL | R2-F001 |
+
+---
+
+## R2 后 轻量补丁（2026-04-25T00:10，不走 gate）
+
+R2 FAIL 禁 R3（gates_lib 入口硬拒）。但 R2 残留 3 条均为 **process / 文档层**（非 defect_fix / 非核心 test_gap），可由 Claude 做轻量补丁 + 用户 manual_override 闭环。
+
+**补丁动作**：
+
+| 残留 | 修复 | plan.md 改动位置 |
+|---|---|---|
+| R2-F002 typo | "9 个角色" → "8 个角色" | Task 3 边界条件 3 |
+| F007 partial | 每 Task 增加独立 `**边界条件（≥3）:**` 段（Task 1: 5 / Task 2: 5 / Task 3: 5） | Task 1/2/3 测试契约后 |
+| R2-F001 contract_pack | 新增 `## Contract Pack` 段（YAML 机读：invariants 4 / counter_examples 4 / risk_modules 3 / test_debt 2） | plan 主体 semantic_regression 后 |
+
+**补丁 commit 预期（待后续 commit）**：`docs(plans): super-admin cross-school plan R2 post-fix (3 process findings)`
+
+---
+
+## 最终 Gate 状态与后续决策点
+
+| 项 | 值 |
+|---|---|
+| plan_review gate status | **R2 FAIL**（不能标 PASS，gates_lib 入口规则约束） |
+| R1 核心 finding | 全部 resolved-correct（F001-F006）|
+| R2 残留 | 3 process finding，已轻量补丁覆盖 |
+| R3 可否再跑？ | **否**（gates_lib 硬拒）|
+
+### 用户可选动作（新会话，需用户判断）
+
+**Option A: manual_override**（推荐，最轻量）
+```python
+import sys, os; sys.path.insert(0, os.path.expanduser('~/.claude/hooks'))
+import gates_lib, hook_lib
+ctx = gates_lib.resolve_gate_context('/home/ops/projects/edu-cloud', hook_lib.SessionState(os.environ['SESSION_ID']))
+gates_file = ctx.get('gates_file')
+plan_hash = gates_lib.compute_file_hash('/home/ops/projects/edu-cloud/docs/plans/2026-04-24-super-admin-cross-school-account-plan.md')
+gates_lib.write_receipt(
+    gates_file, 'plan_review', 'manual_override', 'claude+user',
+    plan_hash,
+    'docs/plans/2026-04-24-super-admin-cross-school-account-plan-review.md',
+    round=2,
+    reason='R1 核心 F001-F006 全部 resolved-correct；R2 残留 F007 partial + R2-F001/F002 均 process 层且已补丁；core contracts 满足 Gate 1 实质要求',
+    subject_ref='docs/plans/2026-04-24-super-admin-cross-school-account-plan.md',
+)
+```
+
+**Option B: 拆 topic**
+- sub-plan A: 核心契约（Task 1 + Task 2 代码改动 + 测试），按本 plan 直接执行
+- sub-plan B: 纯文档（contract_pack 形式化 + 边界条件独立段格式化），独立小 topic 单独 PASS 一次
+
+**Option C: WONTFIX 标记 process 残留 + override**
+- 用 write_receipt 的 `wontfix` + reason 注明"3 条 process finding 与核心契约正交，不阻塞实现"
+
+**推荐 Option A**：核心契约已锁，process 残留已补丁，manual_override 路径最短且审计证据完整。
