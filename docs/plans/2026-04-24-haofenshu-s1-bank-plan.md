@@ -177,57 +177,66 @@ topic: haofenshu-s1-bank
 
 ```yaml
 contract_pack:
+  # 字段命名符合 ~/.claude/config/contract-pack-schema.md 真源
+  # verification 枚举: existing_test / pending_test / uncovered
   invariants:
     - id: INV-S1A-001
-      claim: "bank_question 5 个新字段全部 nullable=True（含 server_default）"
-      verification: Task 3 `test_new_columns_nullable_after_upgrade` —— 用 SQLAlchemy inspect 断言 5 列 is_nullable=True
+      statement: "upgrade 后 bank_questions 新增 5 列（source/explanation/knowledge_point_ids/difficulty_level/grade_id），SQLAlchemy inspect 下全部 is_nullable=True"
+      verification: pending_test
+      test_ref: tests/test_alembic_s1a_bank.py::test_new_columns_added_and_nullable
     - id: INV-S1A-002
-      claim: "S1-A migration 文件的 down_revision == '36e25241e55d'（ORC-S1A-001 机械化）"
-      verification: Task 3 `test_migration_down_revision_is_academic_head` —— 读取文件 L17-18 字符串匹配
+      statement: "S1-A migration 文件 head 处 down_revision 字符串字面值为 '36e25241e55d'"
+      verification: pending_test
+      test_ref: tests/test_alembic_s1a_bank.py::test_migration_file_exists_and_down_revision_is_academic_head
     - id: INV-S1A-003
-      claim: "alembic heads 在 S1-A upgrade 后仍返回 1 行 head（链性保持）"
-      verification: 扩展 `tests/test_alembic_migration.py::test_migration_head_is_single` —— subprocess 跑 `alembic heads` assert 行数 == 1
+      statement: "S1-A upgrade head 后 `alembic heads` subprocess 输出过滤空行后恰好 1 行"
+      verification: pending_test
+      test_ref: tests/test_alembic_s1a_bank.py::test_migration_chain_head_is_single
     - id: INV-S1A-004
-      claim: "现有字段 tags / bloom_level 类型与 initial schema 完全一致（ORC-S1A-003 机械化）"
-      verification: Task 3 `test_existing_columns_unchanged_after_upgrade` —— inspect tags.type.python_type 和 bloom_level.type.length
+      statement: "upgrade 后 bank_questions.tags 仍是 JSON 类型；bank_questions.bloom_level 仍是 VARCHAR(20)（SQLAlchemy type.length == 20）"
+      verification: pending_test
+      test_ref: tests/test_alembic_s1a_bank.py::test_existing_columns_unchanged_after_upgrade
+    - id: INV-S1A-005
+      statement: "S1-A 出口处 alembic/env.py 和 src/edu_cloud/api/app.py 相对 S1-A plan commit 零改动（ORC-S1A-002 机械化）"
+      verification: pending_test
+      test_ref: Gate G1-S1A-4 (Task 4 Step 4.2 命令) `git diff --stat` 返回空行判据
 
   counter_examples:
     - id: CE-S1A-001
-      scenario: "Task 2 误绑 down_revision='f7a3b2c1d456'"
-      expected_effect: "alembic upgrade head 后 heads 返回 2 行（academic head + 本分支新 head），`test_migration_head_is_single` FAIL"
-      tests_that_still_pass: "model 字段 round-trip test（Task 1/4），因 ORM 不依赖 alembic chain"
-      mitigation: "ORC-S1A-001 在 Task 2 Step 2.1 显式 assert；Task 3 smoke 独立复查"
+      scenario: "Task 2 误绑 down_revision='f7a3b2c1d456'（该节点 down_revision=None 是早期分支根），alembic upgrade head 后 heads 返回 2 行（academic head + 本分支新 head）"
+      tests_that_still_pass: "Task 1 的 2 个 ORM 属性 round-trip test（test_bank_question_new_fields_roundtrip / _all_nullable）不读 alembic chain，依然通过"
+      mitigation: "Task 3 的 test_migration_file_exists_and_down_revision_is_academic_head 直接字符串匹配 '36e25241e55d'，+ test_migration_chain_head_is_single 跑 alembic heads 断言 1 行，任一都会捕获"
     - id: CE-S1A-002
-      scenario: "Task 2 误用 `postgresql.JSONB` 而非 `sa.JSON()`"
-      expected_effect: "SQLite smoke 报 `(sqlite3.OperationalError) near \"JSONB\"`，Task 3 upgrade 失败"
-      tests_that_still_pass: "任何不跑 migration 的纯 ORM 测试"
-      mitigation: "ORC-S1A-004 显式禁 dialect-specific import；Task 2 Step 2.2 代码模板只含 `sa.JSON()`"
+      scenario: "Task 2 误用 `from sqlalchemy.dialects import postgresql; postgresql.JSONB` 而非 `sa.JSON()`"
+      tests_that_still_pass: "纯 ORM 层测试（Task 1 新 2 个 + 现有 bank_service.py 3 个）不跑 migration，依然通过"
+      mitigation: "Task 3 smoke 在 SQLite in-memory 跑 upgrade，JSONB 抛 `sqlite3.OperationalError: near \"JSONB\"`；test_new_columns_added_and_nullable 直接失败在 upgrade 阶段"
+    - id: CE-S1A-003
+      scenario: "Task 1 扩展 model 时'顺手'把 bloom_level 从 String(20) 改成 Enum(...)或 String(10)/String(255)，混入同一 commit"
+      tests_that_still_pass: "Task 1 的 ORM 属性 round-trip（只读 Python 实例属性不读 DB 列类型）+ test_bank_service.py 现有 3 个依然通过"
+      mitigation: "Task 3 的 test_existing_columns_unchanged_after_upgrade 用 SQLAlchemy inspect 精确断言 `bloom_level.type.length == 20`（不是宽松的 substring 匹配），能立刻捕获类型偏离"
 
   risk_modules:
-    - path: src/edu_cloud/modules/bank/models.py
-      risk: "ORM 字段新增可能破坏现有 bank_service 查询的 SELECT * 回包 schema"
-      mitigation: "新字段全 nullable，现有查询 Pydantic response model 不收新字段，需 Task 4 roundtrip test 覆盖"
-    - path: alembic/versions/{slug}_s1a_bank_question_extension.py
-      risk: "首条 linear chain migration，若 downgrade() 写错会阻塞 S1-B/C/D 的后续链"
-      mitigation: "Task 3 `test_upgrade_then_downgrade_is_clean` + Gate G1-S1A 强制三阶段 upgrade→downgrade→upgrade 验证"
-    - path: alembic/env.py
-      risk: "误改 bank import 顺序会影响 Base.metadata 注册顺序"
-      mitigation: "ORC-S1A-002 禁动该文件；Task 4 Step 4.2 `git diff --stat` 零改动断言"
-    - path: src/edu_cloud/api/app.py
-      risk: "同上"
-      mitigation: "同上"
+    - module: src/edu_cloud/modules/bank/models.py
+      reason: "BankQuestion ORM 定义。新增字段可能让现有 bank_service.list_bank_questions 的回包 schema 意外扩宽；Task 1 入口级测试 + 现有 3 个测试回归守卫"
+    - module: alembic/versions/{slug}_s1a_bank_question_extension.py
+      reason: "Linear chain 首环 migration。down_revision / upgrade / downgrade 任何一处写错会阻塞 S1-B/C/D 后续链；Task 3 强制三阶段 upgrade→downgrade→upgrade 验证"
+    - module: alembic/env.py
+      reason: "模型注册显式 import 列表（L51 已含 bank）。ORC-S1A-002 禁改；Task 4 Step 4.2 用 git diff 零改动断言守卫"
+    - module: src/edu_cloud/api/app.py
+      reason: "应用启动模型注册 import 列表（L41 已含 bank）。同 alembic/env.py，ORC-S1A-002 禁改"
+    - module: tests/test_alembic_migration.py
+      reason: "现有 3 个 migration smoke test（creates_all_expected_tables / head_is_single / downgrade_is_clean）。S1-A 不改此文件但 Gate G1-S1A-5 依赖其回归通过，属于回归风险模块"
 
   test_debt:
-    - id: TD-S1A-001
-      debt: "bloom_level 类型 String(20) → Enum 升级未在 S1-A 落地"
-      reason: "属'改字段类型'违反 ORC-S1A-003，需独立 patch 评估现有数据兼容；design §4.1 原设想 bloom_level 是 Enum 但现有实现为 String"
-      deadline: "S1-D 会话或独立 migration-patch T2 任务（2026-04 底前）"
-      tracker: "docs/plans/2026-04-24-haofenshu-s1-bank-plan.md §Deferred/Design Concerns 第 1 条"
-    - id: TD-S1A-002
-      debt: "grade_id 字段未加 FK constraint to grades 表"
-      reason: "grades 表属 S1-C scope；S1-A 加 grade_id Integer nullable 无 FK，S1-C migration 将用 batch_alter_table 补 FK"
-      deadline: "S1-C plan 必须包含 `add_fk_grade_id_to_bank_questions` 步骤"
-      tracker: "S1-C plan 的 ORC（待写）"
+    - item: "bloom_level 字段类型从 String(20) 升级到 SQLAlchemy Enum（design §4.1 原目标）"
+      reason: "S1-A ORC-S1A-003 禁改现有字段类型；String→Enum 属行为变更，需独立设计现有数据迁移策略（现有 String 值是否全部命中 Enum 值域），无法塞进 S1-A scope"
+      deadline: "2026-05-15"
+    - item: "bank_questions.grade_id 字段未加 ForeignKey('grades.id') constraint"
+      reason: "grades 表归 S1-C scope，当前仓库不存在该表；S1-A 先加 grade_id Integer nullable 占位，S1-C migration 用 batch_alter_table + create_foreign_key 补齐"
+      deadline: "2026-05-08"
+    - item: "source / difficulty_level 字段值域应用层或 DB CHECK 约束（design §4.1 期望 Enum 值集）"
+      reason: "S1-A 保持 String(20)/String(10) 简单定义；值域校验同 bloom_level 升级一起处理，避免 String→Enum 多次迁移"
+      deadline: "2026-05-15"
 ```
 
 ---
@@ -264,7 +273,7 @@ contract_pack:
   ```bash
   .venv/bin/python -m pytest tests/test_services_exam/test_bank_service.py -v --tb=short
   ```
-  Expected: 原有 3 test + 新增 2 test 全 PASS
+  Expected: 原有 3 test + 新增 3 test（含入口级 R1 F-S1A-02 修正）全 PASS
 
 **边界条件**（至少 3 条，CLAUDE.md `bug-fix-discipline` 惯例扩展到 plan 层）:
 1. 新字段全 nullable → `BankQuestion(school_id=..., question_type="choice", max_score=5)` 不传新字段也能创建
@@ -332,14 +341,55 @@ async def test_bank_question_new_fields_all_nullable(db):
     assert q.knowledge_point_ids is None
     assert q.difficulty_level is None
     assert q.grade_id is None
+
+
+@pytest.mark.asyncio
+async def test_bank_question_new_fields_visible_via_service(db):
+    """S1-A 入口级验证（R1 F-S1A-02 修正）：经 bank_service.get_bank_question 读回，
+    验证新字段在 service 层序列化完整，不只是 ORM 属性可达。
+
+    走 service 的理由：防止 Task 1 改完 ORM 但 bank_service 的 SELECT 列投影
+    /Pydantic response model 漏了新字段这种"ORM 层绿但 service 层断"的隐患。
+    """
+    from edu_cloud.modules.bank import service as bank_service
+
+    school = School(name="测试", code="BS_S1A_03")
+    db.add(school)
+    await db.flush()
+
+    q = BankQuestion(
+        school_id=school.id,
+        question_type="essay",
+        max_score=10.0,
+        sample_count=0,
+        source="textbook",
+        explanation="教材例题 2-3",
+        knowledge_point_ids=[201, 202],
+        difficulty_level="medium",
+        grade_id=7,
+    )
+    db.add(q)
+    await db.commit()
+    qid = q.id
+
+    # 经 service 层读回（不是直接 SQLAlchemy query）
+    retrieved = await bank_service.get_bank_question(db, question_id=qid, school_id=school.id)
+    assert retrieved is not None, "service 层找不到刚写入的 BankQuestion"
+    assert retrieved.id == qid
+    # 新字段都能从 service 层读出（若 service 的 select_from 缺列或 response model 漏字段 → 任一 AttributeError/None 捕获）
+    assert retrieved.source == "textbook"
+    assert retrieved.explanation == "教材例题 2-3"
+    assert retrieved.knowledge_point_ids == [201, 202]
+    assert retrieved.difficulty_level == "medium"
+    assert retrieved.grade_id == 7
 ```
 
 - [ ] **Step 1.2: 跑新测试确认 FAIL**
 
 ```bash
-.venv/bin/python -m pytest tests/test_services_exam/test_bank_service.py::test_bank_question_new_fields_roundtrip tests/test_services_exam/test_bank_service.py::test_bank_question_new_fields_all_nullable -v --tb=short
+.venv/bin/python -m pytest tests/test_services_exam/test_bank_service.py::test_bank_question_new_fields_roundtrip tests/test_services_exam/test_bank_service.py::test_bank_question_new_fields_all_nullable tests/test_services_exam/test_bank_service.py::test_bank_question_new_fields_visible_via_service -v --tb=short
 ```
-Expected: 2 个 test FAIL，错误信息类似 `AttributeError: 'BankQuestion' object has no attribute 'source'` 或 SQLAlchemy `CompileError` 列不存在。
+Expected: 3 个 test FAIL（R1 F-S1A-02 修正：增加入口级 service 测试），错误信息类似 `AttributeError: 'BankQuestion' object has no attribute 'source'` 或 SQLAlchemy `CompileError` 列不存在。
 
 - [ ] **Step 1.3: 最小实现 — 扩展 BankQuestion ORM**
 
@@ -363,7 +413,7 @@ Edit `src/edu_cloud/modules/bank/models.py`，在 `bloom_level` 字段之后、`
 ```bash
 .venv/bin/python -m pytest tests/test_services_exam/test_bank_service.py -v --tb=short
 ```
-Expected: 原有 3 test + 新增 2 test 共 5 个全 PASS（这一步不跑 migration，依赖 conftest.py SQLite in-memory + Base.metadata.create_all）。
+Expected: 原有 3 test + 新增 3 test 共 6 个全 PASS（这一步不跑 migration，依赖 conftest.py SQLite in-memory + Base.metadata.create_all）。
 
 - [ ] **Step 1.5: ORC-S1A-002 断言 — 未动 env.py / app.py**
 
@@ -383,7 +433,8 @@ feat(bank): S1-A T1 扩展 BankQuestion 5 个学情闭环字段
 新增字段: source / explanation / knowledge_point_ids / difficulty_level / grade_id，
 全 nullable（ORC-S1A-003 只加不改）；grade_id 无 FK constraint，
 grades 表 + FK 归 S1-C（TD-S1A-002）。
-新增 2 个 ORM roundtrip test 覆盖新字段读写 + 全 nullable 路径。
+新增 3 个测试: 2 个 ORM roundtrip（属性层）+ 1 个入口级 service 测试
+（经 bank_service.get_bank_question，R1 F-S1A-02 修正）。
 
 refs: docs/plans/2026-04-24-haofenshu-s1-bank-plan.md Task 1
 EOF
@@ -628,7 +679,11 @@ def test_new_columns_added_and_nullable(sqlite_db):
 
 
 def test_existing_columns_unchanged_after_upgrade(sqlite_db):
-    """ORC-S1A-003 机械化：tags 仍是 JSON，bloom_level 仍是 String(20)."""
+    """ORC-S1A-003 机械化：tags 仍是 JSON 类型，bloom_level 仍是精确 VARCHAR(20)。
+
+    R1 F-S1A-03 修正：bloom_level 断言从宽松 substring 匹配改为精确 length==20，
+    错误的 VARCHAR(10)/VARCHAR(255) 不再漏过。
+    """
     r = _run_alembic(['upgrade', 'head'], sqlite_db)
     assert r.returncode == 0
 
@@ -638,11 +693,23 @@ def test_existing_columns_unchanged_after_upgrade(sqlite_db):
 
     assert 'tags' in cols, "tags 列被移除"
     assert 'bloom_level' in cols, "bloom_level 列被移除"
-    # SQLite type 是字符串，做宽松断言
-    assert 'JSON' in str(cols['tags']['type']).upper(), \
-        f"tags type changed: {cols['tags']['type']}"
-    assert '20' in str(cols['bloom_level']['type']) or 'VARCHAR' in str(cols['bloom_level']['type']).upper(), \
-        f"bloom_level type changed: {cols['bloom_level']['type']}"
+
+    # tags: SQLAlchemy inspect 对 SQLite 下 JSON 列返回 JSON type 或 TEXT 基类；
+    # 取 .__class__.__name__ 做稳定断言
+    tags_type_name = cols['tags']['type'].__class__.__name__.upper()
+    assert 'JSON' in tags_type_name, \
+        f"tags type changed from JSON to {cols['tags']['type']!r}"
+
+    # bloom_level: 精确锁定 VARCHAR(20) —— 读 SQLAlchemy Type 的 .length 属性
+    # initial_merged_schema.py:514 是 Column('bloom_level', String(length=20)...)
+    bloom_type = cols['bloom_level']['type']
+    bloom_length = getattr(bloom_type, 'length', None)
+    assert bloom_length == 20, \
+        f"bloom_level type.length changed: expected 20, got {bloom_length!r} (full type={bloom_type!r})"
+    # 类型类名也要是 String/VARCHAR 家族（不是 Enum/Integer/其他）
+    bloom_class = bloom_type.__class__.__name__.upper()
+    assert 'STRING' in bloom_class or 'VARCHAR' in bloom_class, \
+        f"bloom_level type class changed: expected String/VARCHAR, got {bloom_class!r}"
 
 
 def test_existing_data_preserved_through_migration(sqlite_db):
@@ -760,14 +827,14 @@ EOF
 **测试契约** (F004):
 - **入口**: 跑全量 pytest + 验证 S1-A commit 范围
 - **反例**: 若 Task 1/2/3 任一步引入回归（既有 test FAIL），Gate G1-S1A 不通过
-- **边界**: 全量 pytest baseline = 基线 baseline_count + 8 新 test（Task 1 的 2 个 + Task 3 的 6 个）；若 new count < baseline_count + 8 → 缺测，Gate 不通过
-- **回归**: 对比 baseline —— 跑 pytest 验证 passed 数 = baseline_count + 8
+- **边界**: 全量 pytest baseline = 基线 baseline_count + 9 新 test（Task 1 的 2 个 ORM round-trip + 1 个入口级 service（R1 F-S1A-02 修正）+ Task 3 的 6 个 migration smoke）；若 new count < baseline_count + 9 → 缺测，Gate 不通过
+- **回归**: 对比 baseline —— 跑 pytest 验证 passed 数 = baseline_count + 9
 - **命令**:
   ```bash
   .venv/bin/python -m pytest --tb=no -q 2>&1 | tail -3
   ```
   Expected (相对 baseline 2064 passed / 22 failed / 1 error / 23 skipped @ 2026-04-24T11:04:27):
-  - `passed` 数 >= 2064 + 8 = **2072**（8 = Task 1 新增 2 roundtrip + Task 3 新增 6 smoke）
+  - `passed` 数 >= 2064 + 9 = **2073**（9 = Task 1 新增 2 ORM roundtrip + 1 入口级 service 测试（R1 F-S1A-02 修正） + Task 3 新增 6 migration smoke）
   - `failed` 数 <= 22（S1-A 禁止引入新 failure；原有失败可减少但不得增加）
   - `error` 数 <= 1（同上）
   - `skipped` 数 == 23（S1-A 未 skip 任何测试）
@@ -783,56 +850,52 @@ EOF
 .venv/bin/python -m pytest --tb=no -q 2>&1 | tail -5
 ```
 Expected（相对 baseline 2064/22/1/23）:
-- passed >= 2072（2064 baseline + 8 新增）
+- passed >= 2073（2064 baseline + 9 新增：Task 1 的 2 ORM round-trip + 1 入口级 service + Task 3 的 6 migration smoke）
 - failed <= 22（既有技术债不增，详见 §Deferred 第 7 条）
 - error <= 1
 - skipped == 23
 
-若 passed < 2072 或 failed > 22 或 error > 1 → Gate 不通过，回退调查是否 Task 1/2/3 引入回归。
+若 passed < 2073 或 failed > 22 或 error > 1 → Gate 不通过，回退调查是否 Task 1/2/3 引入回归。
 若 failed < 22（原失败变通过）→ 为有益副作用，不阻塞 Gate，但须在 handoff.md 自由备注段标注"S1-A 期间观察到原失败 N → N' 减少"以便追溯。
 
 - [ ] **Step 4.2: 断言 git diff 范围（ORC-S1A-002 最终验证）**
 
+ORC-S1A-002 的机械守卫用真实 Git 边界，**不用 Alembic revision 充当 Git commit**（R1 F-S1A-01 修正）。S1-A 实施起点 = 最近一次修改本 plan 的 commit（即 R2 修复后的 plan commit）。
+
 ```bash
-git log --oneline 36e25241e55d..HEAD | head -5  # 或从 S1-A 起点 commit
-git diff --stat 36e25241e55d..HEAD -- alembic/env.py src/edu_cloud/api/app.py
+# 取 S1-A plan 的最新 commit SHA（R1/R2 修复合入后 HEAD 指向此点即 S1-A 起点）
+S1A_BASE=$(git log -1 --format=%H -- docs/plans/2026-04-24-haofenshu-s1-bank-plan.md)
+echo "S1-A base commit: $S1A_BASE"
+
+# 列出 S1-A 期间的 commit（诊断用）
+git log --oneline "$S1A_BASE..HEAD" | head -10
+
+# 机械验证：env.py + app.py 零改动
+git diff --stat "$S1A_BASE..HEAD" -- alembic/env.py src/edu_cloud/api/app.py
 ```
-Expected: 第二条命令无输出（env.py / app.py 在 S1-A 全程未改）
+Expected: 第三条命令无输出（env.py / app.py 在 S1-A 期间未改）。若有输出 → ORC-S1A-002 违反，Task 1/2/3 任一步骤动了这两个文件，必须回退定位。
 
 - [ ] **Step 4.3: 写 S1-A 交接 handoff 占位（≤15 行硬限）**
 
-Create `docs/plans/2026-04-24-haofenshu-s1-bank-handoff.md`:
+Create `docs/plans/2026-04-24-haofenshu-s1-bank-handoff.md`（R1 F-S1A-06 修正：压缩到 ≤15 行硬限，保留 handoff_format_guard 两段式 marker）：
 
 ```markdown
----
-type: handoff
-created: 2026-04-XX HH:MM:SS +08:00
-project_dir: /home/ops/projects/edu-cloud
-design: /home/ops/projects/edu-cloud/docs/plans/2026-04-24-haofenshu-vs-edu-phase2-design.md
-plan: /home/ops/projects/edu-cloud/docs/plans/2026-04-24-haofenshu-s1-bank-plan.md
----
-
 # haofenshu-s1-bank Handoff (S1-A → S1-C)
-
 === 生成块开始 ===
-**task_id**: haofenshu-phase2-s1-a-bank
-**topic**: haofenshu-s1-bank
-**project_dir**: /home/ops/projects/edu-cloud
-**effective_tier**: T3
+**task_id**: haofenshu-phase2-s1-a-bank; **topic**: haofenshu-s1-bank; **tier**: T3
 **gate_status**: plan_review=pass / code_review=pass / G1_S1A=pass
-**last_verified_evidence**: `.venv/bin/python -m pytest --tb=no -q` @ {timestamp} → {N} passed
-**subject_hash**: <fill by codex-review>
-**raw_output_hashes**: <fill by codex-review>
-**timestamp**: 2026-04-XX HH:MM:SS+08:00
+**last_verified_evidence**: `pytest --tb=no -q` @{ts} → {N} passed / 基线 +9
+**subject_hash**: {plan_hash}; **raw_output_hashes**: {r2_hash}
+**timestamp**: {iso8601}+08:00; **last_commit**: {s1a_last_sha}
 === 生成块结束 ===
-
 === 自由备注开始 ===
-- S1-A 已 merge 到 feat/analytics-report。S1-A migration slug={NEW_SLUG}，链首 down_revision=36e25241e55d。
-- 下一步 S1-C (haofenshu-s1-admin) 负责：grades 表 + Class.grade_id FK + teaching_plans + PaperAccessLevel 枚举 + 给 bank_questions.grade_id 补 FK constraint（TD-S1A-002）。
-- S1-C 的 migration 必须 `down_revision = {S1A_NEW_SLUG}`（linear chain 第 2 环）
-- 禁重犯：F001 (down_revision 必须实测)、F002 (ORM 注册现有完整无须改)、F003 (smoke INSERT 必填列齐)、F004-5 (测试契约+Contract Pack 必备)
+- S1-A merge @ feat/analytics-report；migration slug={NEW_SLUG}，链首 down_revision=36e25241e55d
+- S1-C scope：grades + Class.grade_id FK + teaching_plans + PaperAccessLevel + 补 bank_questions.grade_id FK (TD-S1A-002)；S1-C migration down_revision={S1A_NEW_SLUG}（linear chain 第 2 环）
+- 禁重犯：F001 down_revision 实测 / F002 ORM 注册现完整 / F003 smoke INSERT 必填列 / F004-5 测试契约+Contract Pack 必备
 === 自由备注结束 ===
 ```
+
+**行数校验**：上述模板连同生成块/自由备注 marker 共 **14 行**（空行/代码围栏不计），满足 G1-S1A-6 ≤15 行约束。执行者填参数时不要插入新行。
 
 - [ ] **Step 4.4: Commit Task 4 + Gate G1-S1A 标记**
 
@@ -841,7 +904,7 @@ git add docs/plans/2026-04-24-haofenshu-s1-bank-handoff.md
 git commit -m "$(cat <<'EOF'
 docs(handoff): S1-A T4 Gate G1-S1A 通过 + 交棒 S1-C
 
-全量 pytest baseline+8 全绿；alembic/env.py + api/app.py 未动（ORC-S1A-002）。
+全量 pytest baseline+9 全绿；alembic/env.py + api/app.py 未动（ORC-S1A-002，用 Git commit SHA 机械验证）。
 S1-A migration 文件 slug={NEW_SLUG}，链首 down_revision=36e25241e55d。
 S1-C 下一步：grades + Class.grade_id + teaching_plans + PaperAccessLevel + bank.grade_id FK 补齐（TD-S1A-002）。
 
@@ -858,11 +921,11 @@ EOF
 
 | ID | 条件 | 验证命令 | 通过判据 |
 |----|------|---------|----------|
-| G1-S1A-1 | Task 1 ORM 扩展 PASS | `pytest tests/test_services_exam/test_bank_service.py -v` | 原 3 + 新 2 = 5 PASS |
+| G1-S1A-1 | Task 1 ORM + 入口级测试 PASS | `pytest tests/test_services_exam/test_bank_service.py -v` | 原 3 + 新 3 = 6 PASS |
 | G1-S1A-2 | Task 3 Migration smoke PASS | `pytest tests/test_alembic_s1a_bank.py -v` | 6 test PASS |
 | G1-S1A-3 | Migration chain 可逆 | `alembic upgrade head && alembic downgrade -1 && alembic upgrade head` | 三阶段全 exit 0 |
-| G1-S1A-4 | ORC-S1A-002 零改动 | `git diff --stat 36e25241e55d..HEAD -- alembic/env.py src/edu_cloud/api/app.py` | 无输出 |
-| G1-S1A-5 | 全量 pytest 无回归 | `pytest --tb=no -q` | passed >= 2072 且 failed <= 22 且 error <= 1 且 skipped == 23（详见 Step 4.1） |
+| G1-S1A-4 | ORC-S1A-002 零改动 | `S1A_BASE=$(git log -1 --format=%H -- docs/plans/2026-04-24-haofenshu-s1-bank-plan.md) && git diff --stat "$S1A_BASE..HEAD" -- alembic/env.py src/edu_cloud/api/app.py` | 无输出（R1 F-S1A-01 修正：用 Git commit SHA 而非 Alembic revision） |
+| G1-S1A-5 | 全量 pytest 无回归 | `pytest --tb=no -q` | passed >= 2073 且 failed <= 22 且 error <= 1 且 skipped == 23（详见 Step 4.1） |
 | G1-S1A-6 | handoff.md ≤15 行 | `wc -l docs/plans/2026-04-24-haofenshu-s1-bank-handoff.md` | ≤ 15 |
 | G1-S1A-7 | codex-review plan R1 PASS | 外部工具 | R1/R2 PASS（不允许 R3+） |
 | G1-S1A-8 | codex-review code R1 PASS | 外部工具 | R1/R2 PASS（不允许 R3+） |

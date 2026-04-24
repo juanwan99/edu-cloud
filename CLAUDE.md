@@ -85,7 +85,8 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-04-24：2060 passed / 23 skipped（审计修复后）
+# 后端 ECS pytest 实测 @ 2026-04-24T11:04:27: 2064 passed / 22 failed / 1 error / 23 skipped (0:13:51)
+# 22 failed + 1 error 为既有技术债（pre-S1-A，非本次变更引入），完整披露见 docs/plans/2026-04-24-haofenshu-s1-bank-plan.md §Deferred 第 7 条
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
 # 前端 Vitest + happy-dom（frontend-nuxt 57 tests @ 2026-04-24）
@@ -326,7 +327,7 @@ tests/
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
 | Tests | 2060 后端 + 57 frontend-nuxt Vitest（ECS 实测 @ 2026-04-24，审计修复后） | — |
 | Modules | 21 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu/academic），路由已迁入；其中 `adaptive`/`paper` 为内部/基础数据模块；`academic` 含 semester/period/timetable 完整 CRUD；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
-| Migrations | Alembic migration（88 表，28 个迁移） | — |
+| Migrations | Alembic migration（88 表，29 个迁移） | — |
 
 ## 技术栈
 
