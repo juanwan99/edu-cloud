@@ -121,3 +121,97 @@ async def test_get_student_error_book_empty(db):
         db, student_id="nonexistent", school_id="any",
     )
     assert result == []
+
+
+@pytest.mark.asyncio
+async def test_bank_question_new_fields_roundtrip(db):
+    """S1-A: 5 新字段写入 + 读回完整性验证"""
+    school = School(name="测试", code="BS_S1A_01")
+    db.add(school)
+    await db.flush()
+
+    q = BankQuestion(
+        school_id=school.id,
+        question_type="essay",
+        max_score=10.0,
+        sample_count=0,
+        source="exam",
+        explanation="勾股定理应用题",
+        knowledge_point_ids=[101, 102, 103],
+        difficulty_level="hard",
+        grade_id=9,
+    )
+    db.add(q)
+    await db.commit()
+    await db.refresh(q)
+
+    assert q.source == "exam"
+    assert q.explanation == "勾股定理应用题"
+    assert q.knowledge_point_ids == [101, 102, 103]
+    assert q.difficulty_level == "hard"
+    assert q.grade_id == 9
+
+
+@pytest.mark.asyncio
+async def test_bank_question_new_fields_all_nullable(db):
+    """S1-A: 5 新字段全部可以为 None(不传参数)"""
+    school = School(name="测试", code="BS_S1A_02")
+    db.add(school)
+    await db.flush()
+
+    q = BankQuestion(
+        school_id=school.id,
+        question_type="choice",
+        max_score=5.0,
+        sample_count=0,
+    )
+    db.add(q)
+    await db.commit()
+    await db.refresh(q)
+
+    assert q.source is None
+    assert q.explanation is None
+    assert q.knowledge_point_ids is None
+    assert q.difficulty_level is None
+    assert q.grade_id is None
+
+
+@pytest.mark.asyncio
+async def test_bank_question_new_fields_visible_via_service(db):
+    """S1-A 入口级验证(R1 F-S1A-02 修正):经 bank_service.get_bank_question 读回,
+    验证新字段在 service 层序列化完整,不只是 ORM 属性可达。
+
+    走 service 的理由:防止 Task 1 改完 ORM 但 bank_service 的 SELECT 列投影
+    /Pydantic response model 漏了新字段这种"ORM 层绿但 service 层断"的隐患。
+    """
+    school = School(name="测试", code="BS_S1A_03")
+    db.add(school)
+    await db.flush()
+
+    q = BankQuestion(
+        school_id=school.id,
+        question_type="essay",
+        max_score=10.0,
+        sample_count=0,
+        source="textbook",
+        explanation="教材例题 2-3",
+        knowledge_point_ids=[201, 202],
+        difficulty_level="medium",
+        grade_id=7,
+    )
+    db.add(q)
+    await db.commit()
+    qid = q.id
+
+    # 经 service 层读回(不是直接 SQLAlchemy query)
+    # R2 F-S1A-R2-01 修正:keyword 参数是 bank_question_id(见 src/edu_cloud/modules/bank/service.py:13),
+    # 不是 question_id
+    retrieved = await bank_service.get_bank_question(db, bank_question_id=qid, school_id=school.id)
+    assert retrieved is not None, "service 层找不到刚写入的 BankQuestion"
+    assert retrieved.id == qid
+    # 新字段都能从 service 层读出(若 service 的 select_from 缺列或 response model 漏字段 → 任一 AttributeError/None 捕获)
+    assert retrieved.source == "textbook"
+    assert retrieved.explanation == "教材例题 2-3"
+    assert retrieved.knowledge_point_ids == [201, 202]
+    assert retrieved.difficulty_level == "medium"
+    assert retrieved.grade_id == 7
