@@ -7,7 +7,16 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "f7a3b2c1d456"
-down_revision = None
+# 2026-04-24 multi-base fix: 原 down_revision=None 让 f7a3b2c1d456 与 8b3f659c1a2a
+# 并列为两个 base，alembic linearization 在 fresh DB 上可能先跑此 migration，
+# 但 ALTER users 依赖 8b3f659c1a2a 创建的 users 表 → sqlite3.OperationalError: no such table: users。
+# 挂到 8b3f659c1a2a 下游让 linear chain 归一。8b3f659c1a2a:55-68 创建的 users 表
+# 只含基础列（username/display_name/hashed_password/is_active/phone/email/last_login_at/
+# id/created_at/updated_at），与 f7a3b2c1d456 新增的 9 列（employee_id/gender/id_card/
+# title/hire_date/education/university/office_phone/notes）完全不重叠。
+# 生产 edu_cloud.db 已 stamp 到 e241e1568792 或之后，不会重跑此 body。
+# refs: docs/plans/2026-04-13-migration-gate-repair-design.md (同类历史 migration fix)
+down_revision = "8b3f659c1a2a"
 branch_labels = None
 depends_on = None
 
