@@ -1,0 +1,19 @@
+{
+  "topic": "haofenshu-s1-admin",
+  "tier": "T3",
+  "created": "2026-04-24T20:49:14.645416+08:00",
+  "gates": {
+    "plan_review": {
+      "required": true,
+      "status": "fail",
+      "reviewer": "gpt",
+      "subject_ref": "commit:93108e9",
+      "subject_hash": "bdb641957b5fecf2c6869d1f185d6c76576b7c90dfc89a29b4f90f2e90660b67",
+      "report_path": "docs/plans/2026-04-24-haofenshu-s1-admin-plan-review.md",
+      "updated": "2026-04-24T20:49:14.646292+08:00",
+      "reason": "R1 FAIL: 5 HIGH (F001-F005 code-bug×3 + test-gap×2) + 2 MED (F006 code-bug + F007 design-concern). 全部 defect_fix 结构性修复，拟 R2 一次性修复.",
+      "raw_output_hash": "c6b1bad96fe1607024dc16a25b0994ec6e9f1df681e1e846e486fd6f9cdcce1f",
+      "round": 1
+    }
+  }
+}
