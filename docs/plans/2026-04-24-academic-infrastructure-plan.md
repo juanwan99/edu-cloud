@@ -1644,7 +1644,7 @@ async def create_semester(
 
 
 async def activate_semester(db: AsyncSession, semester_id: str) -> dict:
-    """Activate ConductSemester + sync platform Semester is_current."""
+    """Activate ConductSemester only. Platform Semester.is_current managed independently."""
     from edu_cloud.modules.academic.models import Semester
 
     # Primary path: ConductSemester (conduct router validates this ID)
