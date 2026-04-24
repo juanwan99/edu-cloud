@@ -190,8 +190,9 @@ brainstorming 中评估了 3 个方案：
 
 ### 4.2 Alembic 迁移策略
 
-- **一次性 migration**（不允许分拆），包含 1.1/1.2/1.3/1.4/1.5 所有 schema 变更
-- 必须支持 `alembic upgrade` 和 `downgrade` 双向
+- **默认一次性 migration**：不分 Sprint 内部分拆时，一条 migration 包含 1.1/1.2/1.3/1.4/1.5 所有 schema 变更
+- **拆 topic 例外**（2026-04-24 v0.2 补）：S1 在 plan review FAIL 后拆为 S1-A/S1-B/S1-C/S1-D 子 topic 执行时，按 linear chain 顺序分拆——每条 migration 自包含 `alembic upgrade` / `downgrade` 且绑定前一子 topic 的 migration 作为 `down_revision`，链首 `down_revision = 36e25241e55d`（仓库真实单 head，2026-04-24 `alembic heads` 实测）
+- 无论哪种策略，必须支持 `alembic upgrade` 和 `downgrade` 双向
 - **生产库（mcu.asia）迁移前**必须先在本地 seed 库测试
 - 迁移前跑 `sqlite3 ".backup"`（CLAUDE.md L016，禁 `cp`）
 
@@ -564,3 +565,4 @@ unknowns: none
 ## 变更日志
 
 - **2026-04-24 v0.1** 初稿（brainstorming session by Claude Opus 4.7 1M context；基于 4 个并发 Explore agent 的对照调研）—— 等待用户 review
+- **2026-04-24 v0.2** §4.2 补拆 topic 例外：S1 plan review R1 FAIL (9 findings，commit 97601bd) 后按路径 A 拆为 S1-A/B/C/D 子 topic，migration 策略由"一次性"改为"linear chain 分拆，链首 down_revision=36e25241e55d"（F001 修正）。触发来源：`docs/plans/2026-04-24-haofenshu-s1-l1-data-layer-plan-review.md` §"建议的后续路径 A"
