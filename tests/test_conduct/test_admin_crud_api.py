@@ -449,3 +449,165 @@ async def test_activate_semester(client, db, school_class_student, homeroom_teac
             assert s["is_current"] is True
         else:
             assert s["is_current"] is False
+
+
+# ── T1 (R1-F006 入口级 + R5-F001 scope 隔离): ──
+
+@pytest.mark.anyio
+async def test_lesson_prep_leader_cannot_call_conduct_api(
+    client, db, school_class_student,
+):
+    import uuid
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.shared.auth import create_access_token
+
+    school, cls, _ = school_class_student
+
+    user = User(
+        username=f"lpl_{uuid.uuid4().hex[:8]}",
+        display_name="备课组长",
+    )
+    user.set_password("test123")
+    db.add(user)
+    await db.flush()
+    role = UserRole(
+        user_id=user.id,
+        role="lesson_prep_leader",
+        school_id=school.id,
+        is_primary=True,
+        class_ids=[cls.id],
+    )
+    db.add(role)
+    await db.commit()
+
+    token = create_access_token({"sub": user.id, "role": "lesson_prep_leader"})
+    resp = await client.get(
+        f"/api/v1/conduct/classes/{cls.id}/rankings/students",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_subject_teacher_with_same_scope_passes_rbac(
+    client, db, school_class_student,
+):
+    import uuid
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.shared.auth import create_access_token
+
+    school, cls, _ = school_class_student
+
+    user = User(
+        username=f"st_{uuid.uuid4().hex[:8]}",
+        display_name="科任教师对照组",
+    )
+    user.set_password("test123")
+    db.add(user)
+    await db.flush()
+    role = UserRole(
+        user_id=user.id,
+        role="subject_teacher",
+        school_id=school.id,
+        is_primary=True,
+        class_ids=[cls.id],
+    )
+    db.add(role)
+    await db.commit()
+
+    token = create_access_token({"sub": user.id, "role": "subject_teacher"})
+    resp = await client.get(
+        f"/api/v1/conduct/classes/{cls.id}/rankings/students",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+
+
+# ── T2 (2026-04-14): AddPointsRequest.date → record_date rename ──
+
+@pytest.mark.anyio
+async def test_add_points_with_record_date_field(
+    client, db, school_class_student, homeroom_teacher, homeroom_headers,
+):
+    """T2: 传 record_date → 200 + DB Record.date == 传入值."""
+    from sqlalchemy import select
+    from edu_cloud.modules.conduct.models import ConductRecord
+
+    school, cls, student = school_class_student
+    resp = await client.post(
+        f"/api/v1/conduct/classes/{cls.id}/records",
+        headers=homeroom_headers,
+        json={
+            "student_ids": [student.id],
+            "points": 5,
+            "reason": "T2 record_date 测试",
+            "record_date": "2026-04-10",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    created_ids = resp.json()["created_ids"]
+    assert len(created_ids) == 1
+
+    rec = (await db.execute(
+        select(ConductRecord).where(ConductRecord.id == created_ids[0])
+    )).scalar_one()
+    assert str(rec.date) == "2026-04-10"
+
+
+@pytest.mark.anyio
+async def test_add_points_without_record_date_defaults_today(
+    client, db, school_class_student, homeroom_teacher, homeroom_headers,
+):
+    """T2: 不传 record_date → 200 + DB Record.date == today."""
+    from datetime import date as _date
+    from sqlalchemy import select
+    from edu_cloud.modules.conduct.models import ConductRecord
+
+    school, cls, student = school_class_student
+    resp = await client.post(
+        f"/api/v1/conduct/classes/{cls.id}/records",
+        headers=homeroom_headers,
+        json={
+            "student_ids": [student.id],
+            "points": 5,
+            "reason": "T2 默认日期测试",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    created_ids = resp.json()["created_ids"]
+
+    rec = (await db.execute(
+        select(ConductRecord).where(ConductRecord.id == created_ids[0])
+    )).scalar_one()
+    assert rec.date == _date.today()
+
+
+@pytest.mark.anyio
+async def test_add_points_with_record_date_null_defaults_today(
+    client, db, school_class_student, homeroom_teacher, homeroom_headers,
+):
+    """T2: 显式 record_date=null → 200 + DB Record.date == today."""
+    from datetime import date as _date
+    from sqlalchemy import select
+    from edu_cloud.modules.conduct.models import ConductRecord
+
+    school, cls, student = school_class_student
+    resp = await client.post(
+        f"/api/v1/conduct/classes/{cls.id}/records",
+        headers=homeroom_headers,
+        json={
+            "student_ids": [student.id],
+            "points": 5,
+            "reason": "T2 null 日期测试",
+            "record_date": None,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    created_ids = resp.json()["created_ids"]
+
+    rec = (await db.execute(
+        select(ConductRecord).where(ConductRecord.id == created_ids[0])
+    )).scalar_one()
+    assert rec.date == _date.today()

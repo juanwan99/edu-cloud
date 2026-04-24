@@ -112,7 +112,7 @@ async def add_points(
         db, class_id, operator_id,
         data.student_ids, data.points, data.reason,
         rule_item_id=data.rule_item_id,
-        record_date=data.date,
+        record_date=data.record_date,
     )
     return {"created_ids": ids}
 
@@ -134,7 +134,7 @@ async def add_points_batch(
         db, class_id, operator_id,
         data.student_ids, data.points, data.reason,
         rule_item_id=data.rule_item_id,
-        record_date=data.date,
+        record_date=data.record_date,
     )
     return {"created_ids": ids}
 

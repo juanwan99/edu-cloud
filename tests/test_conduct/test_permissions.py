@@ -37,3 +37,28 @@ def test_grade_leader_has_view_manage_export():
     assert has_permission("grade_leader", Permission.MANAGE_CONDUCT)
     assert has_permission("grade_leader", Permission.EXPORT_CONDUCT)
     assert not has_permission("grade_leader", Permission.MANAGE_CONDUCT_PARENTS)
+
+
+# ── T1 (2026-04-14): lesson_prep_leader conduct 权限回收 ──
+
+def test_lesson_prep_leader_no_view_conduct():
+    from edu_cloud.core.permissions import has_permission, Permission
+    assert has_permission("lesson_prep_leader", Permission.VIEW_CONDUCT) is False
+
+
+def test_lesson_prep_leader_no_manage_conduct():
+    from edu_cloud.core.permissions import has_permission, Permission
+    assert has_permission("lesson_prep_leader", Permission.MANAGE_CONDUCT) is False
+
+
+def test_subject_teacher_still_has_conduct():
+    from edu_cloud.core.permissions import has_permission, Permission
+    assert has_permission("subject_teacher", Permission.VIEW_CONDUCT) is True
+    assert has_permission("subject_teacher", Permission.MANAGE_CONDUCT) is True
+
+
+def test_homeroom_teacher_still_has_conduct():
+    from edu_cloud.core.permissions import has_permission, Permission
+    assert has_permission("homeroom_teacher", Permission.VIEW_CONDUCT) is True
+    assert has_permission("homeroom_teacher", Permission.MANAGE_CONDUCT) is True
+    assert has_permission("homeroom_teacher", Permission.MANAGE_CONDUCT_RULES) is True

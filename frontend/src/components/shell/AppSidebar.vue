@@ -13,6 +13,7 @@
         :to="item.route"
         :class="['nav-item', { 'nav-item--active': isActive(item.route) }]"
         :title="collapsed ? item.label : ''"
+        :data-module="item.moduleCode"
       >
         <span class="nav-item__icon" v-html="iconMap[item.icon] || iconMap.dashboard"></span>
         <span v-show="!collapsed" class="nav-item__label">{{ item.label }}</span>

@@ -1,5 +1,5 @@
 """Conduct Pydantic schemas"""
-from datetime import date
+from datetime import date as _date_type
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -35,7 +35,7 @@ class AddPointsRequest(BaseModel):
     points: int
     reason: str = Field(..., min_length=1)
     rule_item_id: Optional[str] = None
-    date: Optional[date] = None
+    record_date: Optional[_date_type] = None
 
 class PointsRecordResponse(BaseModel):
     id: str
@@ -43,7 +43,7 @@ class PointsRecordResponse(BaseModel):
     student_name: str
     points: int
     reason: str
-    date: date
+    date: _date_type
     operator_name: str
     source: str
     rule_item_name: Optional[str] = None

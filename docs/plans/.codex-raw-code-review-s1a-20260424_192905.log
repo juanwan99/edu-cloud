@@ -1,0 +1,18 @@
+=== S1-A Codex Review R1 via MCP (mcp__codex__codex)
+=== Timestamp: 2026-04-24T19:30 +08:00
+=== threadId: 019dbf3c-0fdf-70f2-a24a-b8abb80d5613
+=== Model: GPT-5.4 (Codex)
+=== Scope: commit e237c6c..0cf939a (7 commit, haofenshu-s1-bank S1-A 整体)
+=== Prompt: 4-phase review (Contract Pack / Test Adequacy / Behavioral / Non-tested risks) + L017 职责边界 + ORC-S1A-001/002/003/004 oracles
+
+=== GPT 输出原文 ===
+
+未发现符合 L017 边界的 `defect_fix` / `test_gap` / `design_concern` finding。
+
+- `Contract Pack` 已落地：`docs/plans/2026-04-24-haofenshu-s1-bank-plan.md:188` 起的 `INV-S1A-001~005` 都能在实现或 Gate 命令中对上；`TD-S1A-001~003` 也在 `docs/plans/2026-04-24-haofenshu-s1-bank-plan.md:230` 后明确延期，并在 `docs/plans/2026-04-24-haofenshu-s1-bank-handoff.md:11` 延续到 S1-C。
+- `ORC-S1A-001/002/003/004` 均满足：`alembic/versions/a88094ee4ea6_s1a_bank_question_extension.py:16` 的 `down_revision` 正确锚到 `a8c7d2e4f135`；`alembic/versions/a88094ee4ea6_s1a_bank_question_extension.py:31` 使用的是 `sa.JSON()`；`git diff e237c6c~1..0cf939a -- alembic/env.py src/edu_cloud/api/app.py` 为空；`src/edu_cloud/modules/bank/models.py:31` 和 `src/edu_cloud/modules/bank/models.py:32` 的既有 `tags` / `bloom_level` 未被改动。
+- Task 3 的 6 个 migration 测试不是假阳性：`tests/test_alembic_s1a_bank.py:44` 直接锁 `down_revision`，`tests/test_alembic_s1a_bank.py:60` 检查单 head，`tests/test_alembic_s1a_bank.py:72`/`86`/`120`/`174` 分别覆盖新列、旧列不变、存量数据保留、回滚清洁；如果 migration 绑错链、改错旧列、或 upgrade/downgrade body 写错，这些用例都会真实失败。
+- `20a6961` 的 multi-base 修复效果真实：我在独立 detached worktree 复现了修复前后的 `tests/test_alembic_migration.py`；修复前 `ca8b349` 为 `1 failed + 1 error + 1 passed`，错误直接落在 `f7a3b2c1d456` 对不存在的 `users` 表执行 `ALTER`；修复后 `20a6961` 为 `3 passed`，说明既有两个 alembic smoke 的恢复来自链路修正，不是 skip 或其他副作用。
+- 本次相关测试实跑通过：`pytest tests/test_alembic_s1a_bank.py tests/test_services_exam/test_bank_service.py tests/test_alembic_migration.py -q --tb=short` 结果为 `18 passed`，与本次改动范围一致。
+
+最终结论: PASS

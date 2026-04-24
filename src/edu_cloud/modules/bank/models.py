@@ -31,6 +31,15 @@ class BankQuestion(Base, IdMixin, TimestampMixin):
     tags: Mapped[list | None] = mapped_column(JSON, default=None)
     bloom_level: Mapped[str | None] = mapped_column(String(20), default=None)
 
+    # ── S1-A 扩展 (2026-04-24): design §4.1 deliverable 1.1 ──
+    # refs: docs/plans/2026-04-24-haofenshu-vs-edu-phase2-design.md §4.1
+    # ORC-S1A-003: 只加不改，新字段全 nullable
+    source: Mapped[str | None] = mapped_column(String(20), default=None)
+    explanation: Mapped[str | None] = mapped_column(Text, default=None)
+    knowledge_point_ids: Mapped[list | None] = mapped_column(JSON, default=None)
+    difficulty_level: Mapped[str | None] = mapped_column(String(10), default=None)
+    grade_id: Mapped[int | None] = mapped_column(Integer, default=None)
+
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
 
 
