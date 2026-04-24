@@ -31,7 +31,7 @@
     {
       "id": "6",
       "desc": "批次 1 收尾",
-      "status": "pending"
+      "status": "completed"
     }
   ],
   "test_baseline": {
@@ -44,5 +44,5 @@
   },
   "created_by": "T-Wipe Phase 4 (Executor session 2026-04-18)",
   "created_at": "2026-04-18 13:18:48",
-  "updated_at": "2026-04-24 20:13:31"
+  "updated_at": "2026-04-24 20:15:51"
 }
