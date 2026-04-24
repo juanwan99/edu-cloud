@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.student.models import Class, Student
-from edu_cloud.modules.analytics import get_effective_scores
+from edu_cloud.modules.analytics import get_effective_scores, get_effective_scores_batch
 from edu_cloud.services.exceptions import NotFoundError, PermissionDeniedError
 
 logger = logging.getLogger(__name__)
@@ -95,9 +95,11 @@ async def exam_summary(
     all_students: set[str] = set()
     subject_stats = []
 
+    scores_by_subject = await get_effective_scores_batch(db, subject_ids, school_id, visible_class_ids)
+
     for subj in subjects:
         max_possible = max_by_subject.get(subj.id, 0.0)
-        scores = await get_effective_scores(db, subj.id, school_id, visible_class_ids)
+        scores = scores_by_subject.get(subj.id, [])
         student_totals: dict[str, float] = {}
         for s in scores:
             all_students.add(s["student_id"])
@@ -136,9 +138,9 @@ async def exam_distribution(
 
     student_totals: dict[str, float] = {}
     total_max = sum(max_by_subject.get(s.id, 0.0) for s in subjects)
+    scores_by_subject = await get_effective_scores_batch(db, subj_ids, school_id, visible_class_ids)
     for subj in subjects:
-        scores = await get_effective_scores(db, subj.id, school_id, visible_class_ids)
-        for s in scores:
+        for s in scores_by_subject.get(subj.id, []):
             student_totals[s["student_id"]] = student_totals.get(s["student_id"], 0.0) + s["effective_score"]
 
     # 动态分数段配置
@@ -208,9 +210,10 @@ async def grade_aggregates(
     # 设计意图：年级统计基于全校样本（不用 visible_class_ids 缩分母），
     # visible_class_ids 仅用于标记 my_class=true。与 exam-ai 原始行为一致。
     student_scores: dict[str, float] = {}
+    subj_ids = [s.id for s in subjects]
+    scores_by_subject = await get_effective_scores_batch(db, subj_ids, school_id)
     for subj in subjects:
-        scores = await get_effective_scores(db, subj.id, school_id)
-        for s in scores:
+        for s in scores_by_subject.get(subj.id, []):
             student_scores[s["student_id"]] = student_scores.get(s["student_id"], 0.0) + s["effective_score"]
 
     student_ids = list(student_scores.keys())
@@ -274,10 +277,11 @@ async def get_student_exam_scores(
     db: AsyncSession, *, exam_id: str, student_id: str, school_id: str,
 ) -> list[dict]:
     subjects = await _get_subjects(db, exam_id, school_id)
+    subj_ids = [s.id for s in subjects]
+    scores_by_subject = await get_effective_scores_batch(db, subj_ids, school_id)
     all_scores = []
     for subj in subjects:
-        scores = await get_effective_scores(db, subj.id, school_id)
-        for s in scores:
+        for s in scores_by_subject.get(subj.id, []):
             if s["student_id"] == student_id:
                 all_scores.append({
                     "subject_name": subj.name, "question_id": s["question_id"],

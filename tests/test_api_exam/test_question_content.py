@@ -115,7 +115,7 @@ async def test_upload_question_image(client, seed_question, tmp_path, monkeypatc
 
     headers, question_id = seed_question
 
-    image_bytes = b"fake-image-data-png"
+    image_bytes = b"\x89PNG\r\n\x1a\nfake-image-data-png"
     resp = await client.post(
         f"/api/v1/questions/{question_id}/content/upload-image",
         files={"file": ("test.png", io.BytesIO(image_bytes), "image/png")},

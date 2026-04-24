@@ -1,0 +1,19 @@
+{
+  "topic": "haofenshu-s1-bank",
+  "tier": "T3",
+  "created": "2026-04-24T12:39:04.009499+08:00",
+  "gates": {
+    "plan_review": {
+      "required": true,
+      "status": "fail",
+      "reviewer": "gpt",
+      "subject_ref": "docs/plans/2026-04-24-haofenshu-s1-bank-plan.md",
+      "subject_hash": "8e0bfb2a8e91053ba7baf11516f99f1e4c5bc04f7a1675c8fbf5337a28048935",
+      "report_path": "/home/ops/projects/edu-cloud/docs/plans/2026-04-24-haofenshu-s1-bank-plan-review.md",
+      "updated": "2026-04-24T12:39:04.010191+08:00",
+      "reason": "R1 FAIL: 6 MED findings (0 HIGH). F-S1A-01 Gate 命令 Alembic rev 混用 Git commit / F-S1A-02 Task 1 无入口级验证 / F-S1A-03 bloom_level 类型断言过宽 / F-S1A-04 Contract Pack schema 不符真源 / F-S1A-05 baseline 双真源冲突 / F-S1A-06 handoff 模板超 15 行但 Gate 要求 ≤15。F001/F002/F003/F004 独立验证通过；F005/F008 部分成立。允许 R2（跨模块 ≥2 文件）。",
+      "raw_output_hash": "f4960c98884f42d6ba03554d546db75a5f111d67c9e7052c2f4e4f565f37d3c0",
+      "round": 1
+    }
+  }
+}
