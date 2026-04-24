@@ -1,0 +1,19 @@
+{
+  "topic": "haofenshu-s1-l1-data-layer",
+  "tier": "T3",
+  "created": "2026-04-24T10:27:56.879425+08:00",
+  "gates": {
+    "plan_review": {
+      "required": true,
+      "status": "fail",
+      "reviewer": "gpt",
+      "subject_ref": "docs/plans/2026-04-24-haofenshu-s1-l1-data-layer-plan.md",
+      "subject_hash": "9c280e920ec4d0511fbbc4ef415f26752a1a7834586e7321630b37c5c29be828",
+      "report_path": "/home/ops/projects/edu-cloud/docs/plans/2026-04-24-haofenshu-s1-l1-data-layer-plan-review.md",
+      "updated": "2026-04-24T10:27:56.882976+08:00",
+      "reason": "R1 FAIL: 9 findings (5 HIGH + 4 MED). F001 down_revision 绑错 / F002 ORM 注册机制误解 / F003-6 测试契约缺失 / F009 参数语义不一致",
+      "raw_output_hash": "0c4592eee3ed82f1137a62966970852097bf0370a49f94c8bc7025b73c9d600b",
+      "round": 1
+    }
+  }
+}
