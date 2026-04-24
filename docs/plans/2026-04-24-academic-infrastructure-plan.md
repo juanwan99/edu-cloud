@@ -931,7 +931,10 @@ async def save_timetable(
         raise ValidationError(f"教师时间冲突: {conflicts}")
 
     # TeacherAssignment soft check (warning, non-blocking)
+    # Include semester filter: TeacherAssignment has semester in unique constraint
     from edu_cloud.models.teacher_assignment import TeacherAssignment
+    semester = await _get_semester(db, semester_id, school_id)
+    semester_str = f"{semester.school_year}-{semester.term}"
     warnings = []
     for s in slots:
         ta = (await db.execute(
@@ -940,6 +943,7 @@ async def save_timetable(
                 TeacherAssignment.class_id == class_id,
                 TeacherAssignment.subject_code == s["subject_code"],
                 TeacherAssignment.user_id == s["teacher_id"],
+                TeacherAssignment.semester == semester_str,
             )
         )).scalar_one_or_none()
         if not ta:
@@ -1078,10 +1082,14 @@ async def get_timetable(
     visible = get_visible_class_ids(role)
     if class_id and visible is not None and class_id not in visible:
         return []
-    return await service.get_timetable(
+    result = await service.get_timetable(
         db, school_id=_school_id(current), semester_id=semester_id,
         class_id=class_id, teacher_id=teacher_id,
     )
+    # For teacher_id queries: filter results to only visible classes
+    if teacher_id and visible is not None:
+        result = [s for s in result if s["class_id"] in visible]
+    return result
 
 
 @router.put("/timetable/{class_id}")
@@ -1104,6 +1112,11 @@ async def get_timetable_stats(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
+    # RBAC: check class visibility
+    from edu_cloud.api.permissions import get_visible_class_ids
+    visible = get_visible_class_ids(current["current_role"])
+    if visible is not None and class_id not in visible:
+        return []
     return await service.get_timetable_stats(
         db, school_id=_school_id(current), semester_id=semester_id,
         class_id=class_id,
@@ -1647,24 +1660,9 @@ async def activate_semester(db: AsyncSession, semester_id: str) -> dict:
     )
     conduct_sem.is_current = True
 
-    # Best-effort sync: deactivate all platform Semesters in same school, activate matching one
-    if conduct_sem.school_id:
-        await db.execute(
-            update(Semester)
-            .where(Semester.school_id == conduct_sem.school_id)
-            .values(is_current=False)
-        )
-        school_year = _derive_school_year(conduct_sem.start_date)
-        term = _derive_term(conduct_sem.start_date)
-        platform_match = (await db.execute(
-            select(Semester).where(
-                Semester.school_id == conduct_sem.school_id,
-                Semester.school_year == school_year,
-                Semester.term == term,
-            )
-        )).scalar_one_or_none()
-        if platform_match:
-            platform_match.is_current = True
+    # Best-effort sync: only mark the matching platform Semester, do NOT reset all school semesters
+    # (conduct activate is class-level, should not escalate to school-level platform Semester state)
+    # Platform Semester.is_current is managed independently via /api/v1/academic/semesters/{id}/activate
 
     await db.commit()
     await db.refresh(conduct_sem)
@@ -1718,6 +1716,9 @@ async def test_create_writes_both_tables(db, setup):
     # Conduct table also has the record
     conduct = (await db.execute(select(ConductSemester).where(ConductSemester.class_id == cls.id))).scalars().all()
     assert len(conduct) == 1
+
+    # Returned ID must be from ConductSemester (conduct router check_resource_class depends on this)
+    assert result["id"] == conduct[0].id
 
 
 @pytest.mark.asyncio
@@ -2285,10 +2286,12 @@ async function loadExams() {
   let items = Array.isArray(examList) ? examList : examList?.items || []
 
   // Client-side semester filtering via Exam.semester field
+  // Exam.semester format is "2025-2026-2" (school_year + "-" + term)
   if (selectedSemesterId.value) {
     const sem = academic.semesters.value.find((s: any) => s.id === selectedSemesterId.value)
     if (sem) {
-      items = items.filter((e: any) => !e.semester || e.semester === sem.school_year)
+      const semesterKey = `${sem.school_year}-${sem.term}`
+      items = items.filter((e: any) => !e.semester || e.semester === semesterKey)
     }
   }
 
