@@ -304,6 +304,13 @@ async def upload_question_image(
     dest_path = dest_dir / filename
 
     contents = await file.read()
+    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    if len(contents) > max_bytes:
+        raise HTTPException(413, f"File too large: {len(contents)} bytes")
+    from edu_cloud.shared.upload_validation import detect_image_type
+    detected = detect_image_type(contents[:32])
+    if detected is None:
+        raise HTTPException(400, "Invalid image type")
     dest_path.write_bytes(contents)
 
     url_path = f"/uploads/questions/{question_id}/{filename}"
@@ -350,3 +357,85 @@ async def archive_exam(
     await ExamPublishService.archive(db, exam_id=exam_id, school_id=school_id)
     await db.commit()
     return {"exam_id": exam_id, "status": "archived"}
+
+
+# ── Exam Schedule ───────────────────────────────────────────────
+
+class ExamScheduleItem(BaseModel):
+    subject_id: str
+    exam_start: str | None = None
+    exam_end: str | None = None
+    exam_room: str | None = None
+    proctor_ids: list[str] | None = None
+
+
+class ExamScheduleBatch(BaseModel):
+    subjects: list[ExamScheduleItem]
+
+
+@router.put("/{exam_id}/schedule")
+async def set_exam_schedule(
+    exam_id: str,
+    body: ExamScheduleBatch,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
+):
+    from datetime import datetime as dt
+    from edu_cloud.modules.exam.models import Exam
+    exam = await db.get(Exam, exam_id)
+    if not exam:
+        raise HTTPException(404, "考试不存在")
+
+    for item in body.subjects:
+        subject = await db.get(Subject, item.subject_id)
+        if not subject or subject.exam_id != exam_id:
+            raise HTTPException(400, f"科目 {item.subject_id} 不属于该考试")
+        if item.exam_start:
+            subject.exam_start = dt.fromisoformat(item.exam_start)
+        if item.exam_end:
+            subject.exam_end = dt.fromisoformat(item.exam_end)
+        subject.exam_room = item.exam_room
+        subject.proctor_ids = item.proctor_ids
+
+    # Overlap check
+    from edu_cloud.modules.exam.models import Subject as SubjectModel
+    stmt = select(SubjectModel).where(SubjectModel.exam_id == exam_id, SubjectModel.exam_start != None)  # noqa: E711
+    all_subjects = (await db.execute(stmt)).scalars().all()
+    for i, a in enumerate(all_subjects):
+        for b in all_subjects[i+1:]:
+            if a.exam_start and a.exam_end and b.exam_start and b.exam_end:
+                if a.exam_start < b.exam_end and b.exam_start < a.exam_end:
+                    raise HTTPException(422, f"科目 {a.name} 和 {b.name} 时间段重叠")
+
+    await db.commit()
+    return {"updated": len(body.subjects)}
+
+
+@router.get("/{exam_id}/schedule")
+async def get_exam_schedule(
+    exam_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    from edu_cloud.modules.exam.models import Exam
+    exam = await db.get(Exam, exam_id)
+    if not exam:
+        raise HTTPException(404, "考试不存在")
+
+    stmt = select(Subject).where(Subject.exam_id == exam_id).order_by(Subject.code)
+    subjects = (await db.execute(stmt)).scalars().all()
+
+    return {
+        "exam_id": exam_id,
+        "exam_name": exam.name,
+        "subjects": [
+            {
+                "id": s.id, "name": s.name, "code": s.code,
+                "exam_start": s.exam_start.isoformat() if s.exam_start else None,
+                "exam_end": s.exam_end.isoformat() if s.exam_end else None,
+                "exam_room": s.exam_room,
+                "proctor_ids": s.proctor_ids,
+            }
+            for s in subjects
+        ],
+    }

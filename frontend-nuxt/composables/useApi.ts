@@ -137,6 +137,50 @@ export function useApi() {
     deleteSegmentOverride: (subjectCode: string) =>
       request(`/analytics/segments/config/${subjectCode}`, { method: 'DELETE' }),
 
+    // === Advanced Analytics ===
+    getQuestionInsights: (examId: string, subjectId?: string) =>
+      request('/analytics/exam/' + examId + '/question-insights', { query: { subject_id: subjectId } }),
+    getExamDiagnosis: (examId: string, subjectId?: string, classId?: string) =>
+      request('/analytics/exam/' + examId + '/diagnosis', { query: { subject_id: subjectId, class_id: classId } }),
+    getStudentRankings: (examId: string, subjectId?: string, classId?: string) =>
+      request('/analytics/exam/' + examId + '/student-rankings', { query: { subject_id: subjectId, class_id: classId } }),
+    getCriticalStudents: (examId: string, subjectId?: string, classId?: string, threshold?: number) =>
+      request('/analytics/exam/' + examId + '/critical-students', { query: { subject_id: subjectId, class_id: classId, threshold } }),
+    getStudentAiDiagnosis: (studentId: string, examId?: string, subjectId?: string) =>
+      request('/profile/students/' + studentId + '/ai-diagnosis', { query: { exam_id: examId, subject_code: subjectId } }),
+    getClassBoxplot: (examId: string, subjectId?: string) =>
+      request('/analytics/exam/' + examId + '/class-boxplot', { query: { subject_id: subjectId } }),
+    getClassKnowledge: (examId: string, subjectId?: string) =>
+      request('/analytics/exam/' + examId + '/class-knowledge', { query: { subject_id: subjectId } }),
+    getClassErrorPatterns: (examId: string, subjectId?: string) =>
+      request('/analytics/exam/' + examId + '/class-error-patterns', { query: { subject_id: subjectId } }),
+
+    // === Academic ===
+    createSemester: (data: any) =>
+      request('/academic/semesters', { method: 'POST', body: data }),
+    getSemesters: (params?: Record<string, any>) =>
+      request('/academic/semesters', { query: params }),
+    getCurrentSemester: () =>
+      request('/academic/semesters/current'),
+    updateSemester: (id: string, data: any) =>
+      request(`/academic/semesters/${id}`, { method: 'PATCH', body: data }),
+    activateSemester: (id: string) =>
+      request(`/academic/semesters/${id}/activate`, { method: 'POST' }),
+    setPeriods: (data: any) =>
+      request('/academic/periods', { method: 'PUT', body: data }),
+    getPeriods: (params?: Record<string, any>) =>
+      request('/academic/periods', { query: params }),
+    getTimetable: (params?: Record<string, any>) =>
+      request('/academic/timetable', { query: params }),
+    saveTimetable: (classId: string, data: any) =>
+      request(`/academic/timetable/${classId}`, { method: 'PUT', body: data }),
+    getTimetableStats: (params?: Record<string, any>) =>
+      request('/academic/timetable/stats', { query: params }),
+    setExamSchedule: (examId: string, data: any) =>
+      request(`/exams/${examId}/schedule`, { method: 'PUT', body: data }),
+    getExamSchedule: (examId: string) =>
+      request(`/exams/${examId}/schedule`),
+
     // === Raw ===
     raw: request,
     token,

@@ -93,12 +93,11 @@ def test_text_to_paragraphs():
     assert all(p[1] == 0 for p in result)
 
 
-def test_settings_has_vision_model():
+def test_settings_has_llm_config():
     from edu_cloud.config import Settings
     s = Settings(LLM_API_URL="http://x", LLM_API_KEY="k", LLM_MODEL="flash")
-    assert hasattr(s, 'LLM_VISION_MODEL')
-    # edu-cloud default is empty string (configured via .env or LLM slot)
-    assert isinstance(s.LLM_VISION_MODEL, str)
+    assert hasattr(s, 'LLM_MODEL')
+    assert isinstance(s.LLM_MODEL, str)
 
 
 def test_fallback_single_digit():

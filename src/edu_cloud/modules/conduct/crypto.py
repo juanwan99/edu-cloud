@@ -14,10 +14,19 @@ logger = logging.getLogger(__name__)
 _KEY: bytes | None = None
 
 
+_INSECURE_DEFAULTS = {"", "change-me-in-production", "default-dev-key"}
+
+
 def _get_key() -> bytes:
     global _KEY
     if _KEY is None:
-        raw = getattr(settings, "ENCRYPTION_KEY", "") or "default-dev-key"
+        raw = getattr(settings, "ENCRYPTION_KEY", "") or ""
+        if raw in _INSECURE_DEFAULTS:
+            logger.warning(
+                "ENCRYPTION_KEY using insecure default — "
+                "set a real key in .env for production!"
+            )
+            raw = "dev-only-insecure-key-do-not-use-in-production"
         _KEY = hashlib.sha256(raw.encode()).digest()
     return _KEY
 

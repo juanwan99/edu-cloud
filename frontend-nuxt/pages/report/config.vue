@@ -57,6 +57,26 @@
         <el-button type="primary" @click="addOverride">确定</el-button>
       </template>
     </el-dialog>
+    <el-card class="section-card">
+      <template #header>分析报告阈值</template>
+      <el-form label-width="140px" size="small">
+        <el-form-item label="临界生阈值（分）">
+          <el-input-number v-model="thresholds.critical" :min="1" :max="20" />
+          <span class="threshold-hint">差几分及格/优秀时标记为临界生</span>
+        </el-form-item>
+        <el-form-item label="偏科预警（名次）">
+          <el-input-number v-model="thresholds.imbalance" :min="5" :max="50" />
+          <span class="threshold-hint">某科排名与其他科均值差超过此值时预警</span>
+        </el-form-item>
+        <el-form-item label="进退步标记（名次）">
+          <el-input-number v-model="thresholds.rankChange" :min="1" :max="30" />
+          <span class="threshold-hint">排名变动超过此值时标红/标绿</span>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="saveThresholds">保存阈值</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
   </div>
 </template>
 
@@ -111,7 +131,37 @@ async function addOverride() {
   ElMessage.success('已添加')
 }
 
-onMounted(loadConfig)
+const thresholds = reactive({
+  critical: 3,
+  imbalance: 15,
+  rankChange: 5,
+})
+
+async function loadThresholds() {
+  try {
+    const settings = await api.raw('/schools/current/settings', { query: { category: 'analytics' } })
+    const items = Array.isArray(settings) ? settings : settings?.settings ?? []
+    for (const s of items) {
+      if (s.key === 'analytics.critical_threshold') thresholds.critical = Number(s.value) || 3
+      if (s.key === 'analytics.imbalance_threshold') thresholds.imbalance = Number(s.value) || 15
+      if (s.key === 'analytics.rank_change_threshold') thresholds.rankChange = Number(s.value) || 5
+    }
+  } catch { /* use defaults */ }
+}
+
+async function saveThresholds() {
+  const pairs = [
+    { category: 'analytics', key: 'analytics.critical_threshold', value: String(thresholds.critical) },
+    { category: 'analytics', key: 'analytics.imbalance_threshold', value: String(thresholds.imbalance) },
+    { category: 'analytics', key: 'analytics.rank_change_threshold', value: String(thresholds.rankChange) },
+  ]
+  for (const p of pairs) {
+    await api.raw('/schools/current/settings', { method: 'PATCH', body: p })
+  }
+  ElMessage.success('阈值已保存')
+}
+
+onMounted(() => { loadConfig(); loadThresholds() })
 </script>
 
 <style scoped>
@@ -121,4 +171,5 @@ onMounted(loadConfig)
 .boundaries-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .boundary-item { display: flex; align-items: center; gap: 4px; }
 .boundary-label { color: #909399; font-size: 13px; }
+.threshold-hint { color: #909399; font-size: 12px; margin-left: 8px; }
 </style>

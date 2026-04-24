@@ -15,7 +15,6 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str = "change-me"
-    PLATFORM_API_KEY_SALT: str = "change-me"
     ENCRYPTION_KEY: str = "change-me-in-production"
 
     def __init__(self, **kwargs):
@@ -49,7 +48,6 @@ class Settings(BaseSettings):
     LLM_API_URL: str = "http://localhost:8100"
     LLM_API_KEY: str = "not-needed-for-local-proxy"
     LLM_MODEL: str = "gemini-3-pro-preview"
-    LLM_VISION_MODEL: str = ""
     LLM_SLOT: str = "grading-vision"
     LLM_TIMEOUT: int = 180
     LLM_MAX_RETRIES: int = 3
@@ -62,11 +60,7 @@ class Settings(BaseSettings):
     MODEL_ROUTER_ADVANCED_KEYWORDS: list[str] | None = None  # None = use code defaults
 
     # AI Agent
-    AI_MAX_STEPS: int = 15
     AI_SESSION_TTL: int = 7200  # seconds
-    AI_RATE_LIMIT_PER_MINUTE: int = 10
-    AI_RATE_LIMIT_PER_DAY: int = 200
-    AI_MAX_CALLS_PER_SESSION: int = 20
 
     # Knowledge base
     KNOWLEDGE_BASE_DIR: str = "./edu-knowledge-base/subjects/biology_senior"
@@ -76,7 +70,6 @@ class Settings(BaseSettings):
 
     # Paper-skill
     PAPER_SKILL_URL: str = "http://localhost:9103"
-    PAPER_SKILL_ENABLED: bool = True
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

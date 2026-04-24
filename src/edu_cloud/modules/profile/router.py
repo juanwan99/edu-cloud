@@ -115,3 +115,35 @@ async def get_class_knowledge_weakness(
         db, school_id=_school_id(current),
         class_student_ids=student_ids, course_code=course_code, top_n=top_n,
     )
+
+
+from edu_cloud.modules.analytics.insights_service import student_ai_diagnosis
+
+
+@router.get("/students/{student_id}/ai-diagnosis")
+async def get_student_ai_diagnosis(
+    student_id: str,
+    exam_id: str | None = Query(None),
+    subject_code: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_SCORES)),
+):
+    """学生个体 AI 诊断（ORC-007 模板拼接）。"""
+    from edu_cloud.models.student import Student
+    from edu_cloud.api.permissions import get_visible_class_ids
+    from sqlalchemy import select
+    role = current["current_role"]
+    visible_class_ids = get_visible_class_ids(role)
+    if visible_class_ids is not None:
+        stu = (await db.execute(
+            select(Student.class_id).where(
+                Student.id == student_id,
+                Student.school_id == _school_id(current),
+            )
+        )).scalar_one_or_none()
+        if stu is None or stu not in visible_class_ids:
+            return {"summary": "暂无足够数据生成诊断。", "improving": [], "declining": [], "weak_points": [], "error_patterns": []}
+    return await student_ai_diagnosis(
+        db, student_id=student_id, school_id=_school_id(current),
+        exam_id=exam_id, subject_code=subject_code,
+    )

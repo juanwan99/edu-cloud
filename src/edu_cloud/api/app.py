@@ -224,7 +224,7 @@ def create_app() -> FastAPI:
                 if uid:
                     user_token = current_user_var.set(uid)
             except Exception:
-                pass
+                logger.debug("request log: token decode skipped")
 
         start = time.perf_counter()
         try:
@@ -306,6 +306,7 @@ def create_app() -> FastAPI:
     from edu_cloud.modules.conduct.parent_router import router as conduct_parent_router
     from edu_cloud.modules.conduct.admin_router import router as conduct_admin_router
     from edu_cloud.modules.menu.router import router as menu_router
+    from edu_cloud.modules.academic.router import router as academic_router
     for r in [schools_router, settings_router, assignment_router, selection_router, capability_router, audit_router, homework_router, exam_router, question_router, joint_exams_router,
               results_router, workspace_router, llm_config_router, student_router,
               card_router, template_router, scan_router, grading_router,
@@ -314,7 +315,7 @@ def create_app() -> FastAPI:
               grading_assignment_router, quality_router, profile_router, bank_router,
               knowledge_tree_router, scan_pipeline_router,
               conduct_parent_router, conduct_admin_router, menu_router,
-              teacher_router]:
+              teacher_router, academic_router]:
         app.include_router(r)
 
     from pathlib import Path

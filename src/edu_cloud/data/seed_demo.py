@@ -15,6 +15,7 @@ Migrated from exam-ai (Task 22).
 """
 import logging
 import random
+from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -331,4 +332,45 @@ async def seed_demo_data(db: AsyncSession, school_code: str = "TEST01") -> dict:
             pipeline_results[exam_cfg["name"]] = pr
 
     stats["pipeline"] = pipeline_results
+
+    # ── Academic: Semesters + Periods ──────────────────────────────
+    from edu_cloud.modules.academic.models import Semester, TimePeriod
+    from datetime import time as time_type
+
+    sem1 = Semester(
+        school_id=school.id, name="2025-2026学年第一学期",
+        school_year="2025-2026", term=1,
+        start_date=date(2025, 9, 1), end_date=date(2026, 1, 15),
+        is_current=True,
+    )
+    sem2 = Semester(
+        school_id=school.id, name="2025-2026学年第二学期",
+        school_year="2025-2026", term=2,
+        start_date=date(2026, 2, 17), end_date=date(2026, 7, 10),
+    )
+    db.add_all([sem1, sem2])
+    await db.flush()
+
+    period_defs = [
+        (1, "第一节", "08:00", "08:45", "class"),
+        (2, "第二节", "08:55", "09:40", "class"),
+        (3, "第三节", "10:00", "10:45", "class"),
+        (4, "第四节", "10:55", "11:40", "class"),
+        (5, "第五节", "14:00", "14:45", "class"),
+        (6, "第六节", "14:55", "15:40", "class"),
+        (7, "第七节", "16:00", "16:45", "class"),
+        (8, "晚自习一", "19:00", "19:45", "self_study"),
+        (9, "晚自习二", "19:55", "20:40", "self_study"),
+    ]
+    for num, name, st, et, ptype in period_defs:
+        db.add(TimePeriod(
+            school_id=school.id, semester_id=sem1.id,
+            period_number=num, name=name,
+            start_time=time_type.fromisoformat(st),
+            end_time=time_type.fromisoformat(et),
+            period_type=ptype,
+        ))
+    await db.flush()
+    logger.info("Academic seed: 2 semesters + 9 periods created")
+
     return stats

@@ -1,5 +1,9 @@
+import logging
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from edu_cloud.models.school_settings import (
     SchoolSetting, SchoolModule, MODULE_CODES, DEFAULT_ENABLED,
@@ -46,7 +50,7 @@ async def upsert_setting(
             request_id=request_id_var.get(),
         )
     except Exception:
-        pass
+        logger.warning("audit log write failed for school_setting %s", existing.id)
     return existing
 
 

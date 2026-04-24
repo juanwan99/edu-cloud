@@ -85,11 +85,11 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-04-23：2004 passed / 23 skipped
+# 后端 ECS pytest 实测 @ 2026-04-24：2060 passed / 23 skipped（审计修复后）
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
-# 前端 Vitest + happy-dom
-cd /home/ops/projects/edu-cloud/frontend && npx vitest run
+# 前端 Vitest + happy-dom（frontend-nuxt 57 tests @ 2026-04-24）
+cd /home/ops/projects/edu-cloud/frontend-nuxt && npx vitest run
 ```
 <!-- key-end -->
 
@@ -163,6 +163,15 @@ frontend/src/
     DocCropPanel.vue        # 文档裁剪面板（PDF/Word→页面渲染→框选裁剪→按题号+序号保存）
     analytics/
       ScoreSegmentSettings.vue # 分数段配置（学校默认+科目覆盖，嵌入 SchoolSettingsPage）
+      StatCard.vue            # 统计卡片（数值+标签+趋势箭头+环比）
+      ClassRankTable.vue      # 班级排名表（排名/均分/及格率/优秀率/进退步）
+      AiDiagnosisCard.vue     # AI 诊断摘要卡片（诊断文字+建议列表+时间戳）
+      ErrorCausePanel.vue     # 错因分析面板（题目→学生错因列表，支持筛选）
+      StudentRankTable.vue    # 学生排名表（总分/班名次/年名次/进退步+搜索+展开行）
+      TrendLine.vue           # 通用趋势折线图（vue-echarts，多系列+虚线+反转轴）
+      CriticalStudents.vue    # 临界生名单（差N分及格/优秀，Tab切换+丢分题目）
+      RadarChart.vue          # 通用雷达图（知识掌握/科目得分，vue-echarts）
+      KnowledgeHeatmap.vue    # 知识点掌握热力图（班级×知识点，vue-echarts）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
   api/                      # API 调用层（16 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染）
@@ -285,8 +294,9 @@ src/edu_cloud/
     grading.py          # process_grading_task（AI 阅卷，微批次并发 GRADING_BATCH_SIZE=20）+ run_post_exam_pipeline（考后处理，已接线 pipeline）
   shared/
     auth.py             # JWT create/decode 工具函数
-  config.py             # Settings（DB/Redis/JWT/ENCRYPTION_KEY(PII加密)/LLM(timeout=180s)/GRADING_BATCH_SIZE(20)/UPLOAD_DIR/知识库/AI Agent tier+router 配置，BaseSettings）
-  database.py           # async engine + session factory
+    upload_validation.py # 图片上传 magic bytes 验证（替代 Python 3.13 废弃的 imghdr）
+  config.py             # Settings（DB/Redis/JWT/ENCRYPTION_KEY(PII加密)/LLM(timeout=180s)/GRADING_BATCH_SIZE(20)/UPLOAD_DIR/知识库/AI Agent 配置，BaseSettings）
+  database.py           # async engine + session factory（PostgreSQL 连接池 pool_size=20/max_overflow=40/pool_recycle=3600）
   logging_config.py     # 双输出（Console UTC+8 + JSONL RotatingFile）
   worker.py             # arq WorkerSettings（3 functions: auto_draft/grading/pipeline）
 scripts/
@@ -308,15 +318,15 @@ tests/
 
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
-| API | 223 路由（auth/schools/joint-exams/results/sync/exam/grading/marking/analytics/knowledge/knowledge-tree/pipeline/studio/calendar/homework/profile/bank/ai/dashboard/notifications/llm-config/card/compat/conduct-parent/conduct-admin） | 共享 AI 阅卷, 高级跨校分析 |
-| Models | 85 表（modules/ 下 17 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表 + alembic_version） | — |
+| API | 276 路由（含 academic 10 + exam schedule 2 + analytics 进阶 8） | 共享 AI 阅卷 |
+| Models | 88 表（modules/ 下 18 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表 + academic 3 表 + alembic_version） | — |
 | Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline + exceptions | AI grading 生产接入 |
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 8 角色映射 | — |
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 2004 后端 + 30 frontend-nuxt Vitest（ECS 实测 @ 2026-04-23） | — |
-| Modules | 20 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu），路由已迁入；其中 `adaptive`/`paper` 为内部服务模块（无 HTTP router）；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
-| Migrations | Alembic migration（85 表，25 个迁移） | — |
+| Tests | 2060 后端 + 57 frontend-nuxt Vitest（ECS 实测 @ 2026-04-24，审计修复后） | — |
+| Modules | 21 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu/academic），路由已迁入；其中 `adaptive`/`paper` 为内部/基础数据模块；`academic` 含 semester/period/timetable 完整 CRUD；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
+| Migrations | Alembic migration（88 表，28 个迁移） | — |
 
 ## 技术栈
 
@@ -354,7 +364,9 @@ tests/
 - 状态：Phase 1 Batch 3 进行中，不替代现有 `frontend/`（INV-01）
 - `composables/usePowerOptions.ts`：级联筛选 composable（grade→class→subject→exam，watch 级联重置，ORC-003 class_id null 映射）
 - `components/common/PowerFilter.vue`：级联筛选 UI 组件（4 个 ElSelect，usePowerOptions 驱动）
-- `pages/report/`：6 个分析报告页面（exam/contrast/custom/table/level-score/config），均消费 PowerFilter + ECharts
+- `composables/useAnalytics.ts`：分析数据管理 composable（loadBasicData 4 并行请求 + loadAdvancedData 懒加载 2 请求 + clearAll，ORC-006 懒加载）
+- `components/analytics/`：9 个分析组件（StatCard / ClassRankTable / AiDiagnosisCard / ErrorCausePanel / StudentRankTable / TrendLine / CriticalStudents / RadarChart / KnowledgeHeatmap）
+- `pages/report/`：7 个分析报告页面（exam 考后总览含基础+进阶 Tab / students 学生追踪 / contrast 班级对比含箱线图+热力图 / level-score 等级赋分 / config 参数配置含阈值 / custom / table），均消费 PowerFilter + ECharts
 - **Batch 2 进度**: T4 Nuxt 骨架 ✓ / T5 auth+context stores + middleware + Vitest 8/8 ✓ / T6 useApi composable + 4 tests ✓ / T7 useMenus + TopNav/SubNav/UserDropdown ✓ / T8 三种 Layout ✓ / T9 login+home 页面 ✓ / **Gate 2 R1 FAIL → R2 修复**: B2-F001 lockfile 对齐（`npm ci --ignore-scripts` 零报错 + `npm ls` 零 invalid）+ B2-F002 AuthError 职责分层（独立修复设计 + Fix Intent Card 4 ORC + 3 反证护航，新增 `tests/composables/useMenus.test.ts` 8 + `tests/layouts/default.test.ts` 4 = Vitest 24/24）+ B2-F003 措辞收窄 / **R2 FAIL → R3 修复**: B2-F001 Node floor 升级方案 A（`package.json engines ">=22.12.0"` + `.nvmrc 22.12.0`，L017 user approved 2026-04-14；在 Node 22.22.2 下 npm ci EBADENGINE 0 警告 + npm ls 0 invalid + nuxt prepare exit 0 + Vitest 24/24）+ B2-F003 根因定论收窄（R2 handoff §6 删除 hot-reload 旧措辞，grep 零残留）
 
 ## 日志体系
@@ -543,9 +555,32 @@ tests/
 | POST | `/api/v1/analytics/report/export` | GENERATE_REPORT | 生成分析报告文档（走 Studio） |
 | GET | `/api/v1/analytics/power-options` | 已登录 | 级联筛选树（年级→班级→科目→考试，RBAC 过滤） |
 | POST | `/api/v1/analytics/level-score/convert` | MANAGE_EXAM_RESULTS | 等级赋分转换（原始分→百分位等级→线性插值赋分） |
+| GET | `/api/v1/analytics/exam/{id}/question-insights` | 已登录 | 题目错因聚合 + 难度/区分度（AI 阅卷数据） |
+| GET | `/api/v1/analytics/exam/{id}/diagnosis` | 已登录 | 考试诊断文本（模板拼接，ORC-007 不调 LLM） |
+| GET | `/api/v1/analytics/exam/{id}/student-rankings` | 已登录 | 学生排名 + 进退步 delta |
+| GET | `/api/v1/analytics/exam/{id}/critical-students` | 已登录 | 临界生筛选（差 N 分及格/优秀） |
+| GET | `/api/v1/analytics/exam/{id}/class-boxplot` | 已登录 | 各班分数箱线图 |
+| GET | `/api/v1/analytics/exam/{id}/class-knowledge` | 已登录 | 班级×知识点掌握率热力图 |
+| GET | `/api/v1/analytics/exam/{id}/class-error-patterns` | 已登录 | 班级错误模式对比 |
+| GET | `/api/v1/profile/students/{id}/ai-diagnosis` | VIEW_SCORES | 学生个体 AI 诊断（模板拼接） |
 | * | `/api/v1/knowledge/*` | 知识点 CRUD/树查询/关联 |
 | POST | `/api/v1/pipeline/run/{id}` | 数据流水线触发 |
 | * | `/api/v1/llm-config/slots` | LLM 槽位管理 |
+| PUT/GET | `/api/v1/exams/{id}/schedule` | 考试排程（时间/地点） |
+
+### 教务管理端点（JWT 认证）
+
+| 方法 | 路径 | 用途 |
+|------|------|------|
+| POST | `/api/v1/academic/semesters` | 创建学期 |
+| GET | `/api/v1/academic/semesters` | 列出学期 |
+| GET | `/api/v1/academic/semesters/current` | 获取当前学期 |
+| PATCH | `/api/v1/academic/semesters/{id}` | 更新学期 |
+| POST | `/api/v1/academic/semesters/{id}/activate` | 激活学期 |
+| PUT/GET | `/api/v1/academic/periods` | 时段管理 |
+| GET | `/api/v1/academic/timetable` | 查询课表 |
+| PUT | `/api/v1/academic/timetable/{class_id}` | 保存班级课表 |
+| GET | `/api/v1/academic/timetable/stats` | 课表统计 |
 
 ### Studio 文档端点（JWT 认证）
 
@@ -723,7 +758,7 @@ tests/
 DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/edu_cloud
 ```
 
-云端必须使用 PostgreSQL（跨校聚合查询、高并发写入）。不支持 SQLite。
+生产环境使用 PostgreSQL（连接池 20+40，pool_recycle=3600）。开发/测试使用 SQLite（`sqlite+aiosqlite`，无连接池）。
 
 ## Docker 部署
 
@@ -759,6 +794,7 @@ docker compose logs -f      # 查看日志
 | **阅卷调度全流程改造 [实现完成]** | `docs/plans/2026-04-12-grading-dispatch-design.md` | GradingTasksPage → GradingDispatchPage：扫描→选择题自动判分→AI 阅卷→校对统一入口。pipeline_router start_pipeline 装配 save_objective_fn（Template + tpl_path 双分支，tpl_path fallback 按 Question.name 题号映射）+ GET /grading/dispatch/status 聚合科目阶段。10 Tasks / 1 Batch，Gate 1 Plan Review R1-R3 FAIL→PASS（14 findings 落入 plan），Gate 2 Code Review R1-R3 FAIL→PASS（F001/F002/F004/R2-F005 resolved-correct，F003 deferred 到 conduct 模块），5/5 wiring tests + 前端 190/190 PASS。→ `docs/plans/2026-04-12-grading-dispatch-design.md` |
 | **德育模块（conduct）[实现完成]** | `docs/plans/2026-04-12-conduct-module-design.md` | class-points 全量吸收为 edu-cloud 德育板块。8 ORM 表 + 5 Permission + 6 Agent tools + 家长端（邀请码+手机号+绑定验证）+ 管理端（积分/班规/小组/学期/导出）+ AES-256-GCM PII 加密。22 Tasks / 7 Batches。**Gate 2 R1 FAIL → R2 修复 → R2 FAIL → R3 修复 → R3-R1 FAIL (F007) → R3-R2 PASS**。R2：F001 Alembic + F002 class-scope/resource-affinity 守卫 + F003 Agent 工具 DataScope + F004 get_children + F005 phone Option A + F006 导出入口级测试。**R3 (Batch 7 Task 19-22+24)**：F002 body-field 越权关闭（check_rule_item_class + check_students_class 守卫覆盖 add_points rule_item_id / group_members student_ids，+3 红测）+ N001 id_card 后 6 位契约回退（`stored[-6:] != verify_code`，Option A 锁定，design.md §3 sentinel，+2 反向红测）+ F004 前端字段契约测试（`frontend/src/pages/parent/__tests__/ParentRules.spec.js` vitest）+ F006 records 导出断言升级（openpyxl + 真实 operator）+ F007 rankings 排序+聚合断言（2 学生×4 记录，断言总分 + ORDER BY desc）。conduct tests ECS pytest 实测 68 passed @ 2026-04-18。F001 Alembic SQLite deferred 到 haofenshu-phase1 Migration Gate Repair。Round 3 commits: e584e6a..93f0b60。→ `docs/plans/2026-04-12-conduct-module-design.md` |
 | **好分数业务复刻 Phase 1 [Batch 1 ✅ Gate 2 R2 PASS / Batch 2 ✅ Gate 2 R3 PASS / Batch 3 🟡 待启动]** | `docs/plans/2026-04-12-haofenshu-biz-replication-design.md` + `docs/plans/2026-04-12-haofenshu-phase1-plan.md` | **蓝图**：8 模块 45 页面 stub + 后端动态菜单系统 + 预聚合数据模型（ClassAnalysis/StudentAnalysis/StudentKnpMastery）+ ExamResult rank 字段。3 Batch × 12 Task，4 Gate（Gate 1 plan + Gate 2 × 3 Batch）。**Batch 1 (Task 1-3, Schema + Menu API)**：menu_configs + MenuService + GET /api/v1/menus 动态菜单（role × module 双维过滤）+ seed_menus 8 模块 42 子菜单；commit 3488b52 追认挂载 conduct_admin_router（F002 approved 扩大 Batch 1 范围，28 端点 /api/v1/conduct/classes/*）。**Gate 1 Plan R5 PASS** + **Gate 2 Code R1 FAIL (F001/F002/F003) → R2 PASS** (12/12 menu+migration tests + R2-F001 LOW design-concern 不阻塞; commits e64957a → ef8a32a)。**Batch 2 (Task 4-9, Frontend 骨架, 2026-04-13)**：frontend-nuxt/ Nuxt 3.17 + Element Plus + Pinia + 品牌色 SCSS (T4) / auth+context store + global middleware + 8 vitest tests (T5) / useApi composable 27 方法 + 4 vitest tests (T6) / useMenus + TopNav + SubNav + UserDropdown (T7) / 三种 layout default/fullscreen/auth (T8) / login + home 模块卡片网格 + index 重定向 (T9)。**vitest 12/12 PASS**，后端零改动。**独立 Gate 4 步**：①Nuxt dev ✅ ②login ✅ ③④ deferred (GPT 独立验证：9000 常驻后端进程陈旧，fresh 9001 对照实例正常返回 6 模块)。commits 08d86f0..78e0764。**Gate 2 Code R1 FAIL** (2026-04-13 23:53)：**B2-F001** MED code-bug — frontend-nuxt lockfile 不可复现（`npm ci` 失败 + `npm ls` invalid）；**B2-F002** MED code-bug — `useMenus.ts` 吞错破坏 plan Task 8 fail-closed 契约（触及 fallback strategy + lifecycle 红旗模式，已出独立修复设计 `docs/plans/2026-04-14-auth-fail-closed-repair-design.md` 以 AuthError sentinel + 职责分层 + Fix Intent Card 4 ORC + 3 反证护航）；**B2-F003** LOW design-concern — Step 3/4 归因措辞不准（不阻塞）。**R2 Executor 修复** (commits 8daa076 + 5bf5c27)：24/24 Vitest PASS，反证 3 条独立复现通过。**Gate 2 Code R2 FAIL** (2026-04-14 07:35)：**B2-F001 contested** — `npm ci` 产生 8+ 条非废弃 EBADENGINE 警告（lockfile 要求 node ≥20.19.0，仓库无 engines/.nvmrc，环境 v20.18.0）；**B2-F002 verified** ✅ (AuthError 三层传递 + 4 slices + 3 反证全通)；**B2-F003 contested** — R2 交接单 L171 残留旧表述"WSL hot-reload"未删（L174 有新表述 = 新旧混合）。**Round 3 Executor 交接卡** `docs/plans/2026-04-14-haofenshu-phase1-batch2-r3-handoff.md` 已就绪（Planner 决策方案 A + 顺手 X，用户 L017 approved behavior_change：本地 Node 升级 **≥22.12.0**（覆盖 lockfile 里所有 dep 的 runtime 要求，含 `>=20.19.0` 和 `>=22.12.0` 两档） + `package.json` engines.node + `frontend-nuxt/.nvmrc` 锁定 Node 版本 + R2 交接单 L171 旧表述 WSL hot-reload 删除 + plan risk_modules 追认 `package.json`/`package-lock.json`）。R3 scope 铁律：禁改 lockfile / 禁改应用代码（B2-F002 verified，AuthError 链路不动）/ 禁降 nitropack 等核心依赖（方案 B rejected）/ 禁 --legacy-peer-deps。gates.json R2 FAIL 回执已校正 raw_output_hash 指向 authoritative FAIL log（commit f539a5f，双审查 audit trail 保留 SECONDARY PASS log 副本）。**R3 Executor 修复完成** (2026-04-14 09:05)：B2-F001 方案 A 落地——`package.json` 追加 `engines.node: ">=22.12.0"` + `frontend-nuxt/.nvmrc` 新建锁 `22.12.0`（portable Node 22.22.2 at `~/bin/node-v22.22.2-win-x64/`，winget install 1603 因 node.exe 被 Claude Code 占用+MsiSystemRebootPending 失败，改用 zip 解压 + `~/.bashrc` PATH 前置，不覆盖系统 Node 20.18）；B2-F003 顺手——R2 handoff §6 改为"根因定论"精简段，删除原表述 block quote，`grep -c "hot-reload"` → 0。**7 项验证断言全通过**：node v22.22.2 / npm ci --ignore-scripts exit 0 706 packages / EBADENGINE 0 / npm ls invalid+extraneous 0 / npx nuxt prepare exit 0 / Vitest 24/24 PASS / hot-reload 0。R3 交接单 `docs/plans/2026-04-14-haofenshu-phase1-review-handoff-batch2-r3.md`。**Gate 2 Code R3 PASS** (2026-04-14 09:25, commit 6ddb19c)：GPT 独立复现 7 项断言全通 + B2-F001/F002/F003 全 verified，**Batch 2 Gate 2 闭环**（code_review_batch2.status=pass, report_path 锚定 R3 报告）。**Batch 3 Executor 交接卡** `docs/plans/2026-04-14-haofenshu-phase1-batch3-handoff.md` 已就绪（Planner 追加 3 项前置修复：R4 useMenus startsWith 分隔符 + R1 后端 E2E 启动脚本化 + plan risk_modules 追认 `package.json`/`package-lock.json`）。**Batch 3 (Task 10-12, PowerFilter + 45 页面 stub + 端到端)** 待 Executor 启动。→ `docs/plans/2026-04-12-haofenshu-biz-replication-design.md` |
+| **好分数业务复刻 Phase 2 [S1 L1 Plan R1 FAIL → 按路径 A 拆 S1-A/B/C/D]** | `docs/plans/2026-04-24-haofenshu-vs-edu-phase2-design.md` (v0.2 §4.2 补 M2 linear chain migration 例外) + `docs/plans/2026-04-24-haofenshu-s1-l1-data-layer-plan-review.md` (9 findings: F001 alembic down_revision / F002 ORM 注册机制 / F003-6 测试契约+Contract Pack / F009 subject vs course 参数语义) | **蓝图**：4 Sprint 分层（L1 数据→L2 服务→L3 编排→L4 治理）填补好分数业务闭环（题库→组卷→作业→错题→推送）。S1 Plan R1 FAIL (commit 97601bd, 6 HIGH + 3 MED) 后按路径 A 拆 topic 串行推进：S1-A bank_question → S1-C grades+Class.grade_id+teaching_plans+PaperAccessLevel → S1-B concept.depth_level → S1-D StudentProfileView VO。每条 migration linear chain 自包含 up/down，链首 `down_revision=36e25241e55d`（alembic heads 实测 @ 2026-04-24，F001 修正锚点）。→ `docs/plans/2026-04-24-haofenshu-vs-edu-phase2-design.md` |
 | **Migration Gate 方言中立性修复 [实现完成]** | `docs/plans/2026-04-13-migration-gate-repair-design.md` | F001 R1 独立修复设计。6 个历史 Alembic migration 的 DDL 构造改为 SQLite + PG 双方言兼容：1a325e38e941（UniqueConstraint 内嵌 create_table）、b08103b3a6f5/a370e2771c6d/2a40f59215de/52af1c37bf14/c9587c787c6b（batch_alter_table 包装独立 create_unique_constraint / alter_column / drop_column / drop_constraint）。PG 上 DDL 等价（已 stamped 数据库零重放），SQLite smoke 从断裂恢复到 3/3 PASS，恢复 INV-03/INV-04。Fix Intent Card + Semantic Regression Gate 护航。→ `docs/plans/2026-04-13-migration-gate-repair-design.md` |
 | **知识图谱可视化 Phase 1（kg-phase1）[Batch 3.a ✅ / Batch 3.b 待启动 / Batch 3.c 待推]** | `docs/plans/2026-04-12-knowledge-graph-optimization-design.md` + `docs/plans/2026-04-13-knowledge-graph-phase1-plan.md` | 14 Tasks / 3 Batches × Gate 2。**进度**：T0-T10 ✅ / T11-T14 pending。**Batch 1 (T1-T6)** 后端 stats 全链路 R2 PASS (`1c3c1a2..bcb1971`)。**Batch 2 (T7-T8)** Graph API v3 + 高考题/概览 API R3 PASS (`d300263`)。**Batch 3.a (T9-T10)** 前端 heatmapUtils（log 尺度考频 + 4 态掌握度 + 3 态审核状态 + importance→size）+ ColorModeToggle 三模式 + ConceptMapPanel v3 视觉升级（buildG6Data size+fill 三分支 + watch colorMode setData/render 保留 focusedNodeId + defineExpose）R1 FAIL (F001 KnowledgeTreePage selectedStudentId 状态分裂 / F002 mount.test.js stub 吞新 prop / F003 G6 mock 缺 setData spy) → **R2 PASS** (`2ab10a2..c5bff80`)。Planner 纠正 Executor R1 对 F001 scope 误判（composable 已导出 ref 只需页面解构），scope 扩容 1 文件 mount.test.js 由用户 L017 批准。**Gate 1 Plan Review R1-R6** FAIL→PASS（R5 FAIL 4 finding：R5-T001 fixture schema 错 / R5-T002 T9-T13 测试目录 `frontend/src/components/knowledge-tree/__tests__/` 根本不存在是 R1-R4 漏审前置缺陷 / R5-P002 freshness / R5-P001 半对半错——`94cb65d7` 幽灵 hash 证据 GPT 独立验证 staging 污染而非 amendment 超范围；R6 全部 resolved-correct / resolved-false-positive，subject_hash `a963e85b`）。**关键约束**：TreeNavPanel select-node emit 必须传完整 node 对象 (F010 R4)。**Batch 3.b 待启动** (T11 NodeDetailDrawer 高考真题+学习单元 tab + T12 章节导航 buildChapterTree + TreeNavPanel 双模式)：handoff-batch3b.md commit `f9ab3a1` 已就绪。**Batch 3.c 待推** (T13 ModuleOverviewPanel + T14 P001 处置 INV-002 L1 集合相等测试落盘 + Phase 1 收尾)。Planner 交接卡: `docs/plans/2026-04-13-knowledge-graph-phase1-planner-handoff.md`。→ `docs/plans/2026-04-13-knowledge-graph-phase1-plan.md` |
 | **德育板块统筹规划路线图（conduct-roadmap）[批次 1 Gate 1 R7 **PASS** ✅ (2026-04-18)；7 轮迭代 9→6→5→3→3→3→0；code_review_batch1 解锁 pending_execution；T1-T5 实施待新会话 Executor]** | `docs/plans/2026-04-14-conduct-roadmap-design.md` + `-batch1-plan.md` + `-plan-review.md` + `-r2.md` + `-r3.md` + `-r4.md` + `-r5.md` | R3 PASS 后全景治理规划。批次 1 T1-T5：lesson_prep_leader 权限回收（R-T1）/ AddPointsRequest.date→record_date（R-T2，R2-F004 后端 API 契约修复）/ sidebar permissions 派生（subject_teacher 2→4 per F005 approved）/ conduct MODULE.md 补全 / 文档数字漂移修正。**R1 FAIL** 9 → R2 → **R2 FAIL** 6 → R3 → **R3 FAIL** 5 → R4 → **R4 FAIL** 3 → R5 → **R5 FAIL** 3 finding raw `f0582600...`: HIGH×1 + LOW×2。**R4 核心 100% resolved**；R5-F001 是测试设计根因洞察（lesson_prep_leader fixture 无 class_ids，conduct scope 守卫先 403 → INV-T1-003 假绿）→ **R6 修订（2026-04-18 W4 窗口）**：R5-F001 Task 3 Step 3.4a fixture 加 `class_ids=[cls.id]` + 新增对照组 `test_subject_teacher_with_same_scope_passes_rbac`（同 scope 下 200，证明 403 来自 RBAC 回收）；R5-F002 Task 2 Files 摘要 "1 测试" → "3 测试"；R5-F003 Step 5.5 基线从历史数字改为 "234 基线实跑 + 16 新 = 250"（post-T-Wipe 对齐 ECS 后 conduct 目标 ≥80）。Contract Pack INV-T1-003 证据链升级。基线 ECS pytest 实测 @ 2026-04-18: conduct 68 / services 15 / frontend 13；**R6 plan 预计实现后**: conduct ≥80 / services 15 / frontend ≥29（分项列示，不汇总）。批次 2/3 占位。T-Wipe Phase 4 (W4 051cc35) 已将 plan 数字对齐 ECS 68 基线。→ `docs/plans/2026-04-14-conduct-roadmap-design.md` |

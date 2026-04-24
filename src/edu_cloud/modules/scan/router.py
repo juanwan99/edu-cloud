@@ -2,6 +2,8 @@ import logging
 import os
 from typing import Literal
 
+from edu_cloud.shared.upload_validation import detect_image_type as _detect_image_type
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -57,6 +59,9 @@ async def upload_single(
     if len(data) > max_bytes:
         logger.warning("upload_single: file too large, student=%s, size=%d, max=%d", student_id, len(data), max_bytes)
         raise HTTPException(413, f"File too large: {len(data)} bytes, max {max_bytes}")
+    detected = _detect_image_type(data[:32])
+    if detected is None:
+        raise HTTPException(400, f"Invalid image type: {detected}")
     path = await storage.save(
         school_id=current["current_role"].school_id,
         exam_id=exam_id,
@@ -137,6 +142,9 @@ async def upload_batch(
             logger.warning("upload_batch: file too large, student=%s, question=%s, size=%d",
                            student_id, qid, len(data))
             raise HTTPException(413, f"File too large: {len(data)} bytes, max {max_bytes}")
+        detected = _detect_image_type(data[:32])
+        if detected is None:
+            raise HTTPException(400, f"Invalid image type for question {qid}: {detected}")
         path = await storage.save(
             school_id=current["current_role"].school_id,
             exam_id=exam_id,

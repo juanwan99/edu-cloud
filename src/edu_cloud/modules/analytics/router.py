@@ -552,3 +552,143 @@ async def level_score_convert(
     if result is None:
         raise HTTPException(404, "无成绩数据")
     return result
+
+
+# --- AI 深度分析 ---
+
+from edu_cloud.modules.analytics.insights_service import (
+    question_insights, exam_diagnosis,
+)
+
+
+@router.get("/exam/{exam_id}/question-insights")
+async def get_question_insights(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """题目错因聚合 + 难度/区分度。"""
+    role = current["current_role"]
+    return await question_insights(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
+
+
+@router.get("/exam/{exam_id}/diagnosis")
+async def get_exam_diagnosis(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """考试诊断文本（模板拼接，ORC-007 不调 LLM）。"""
+    role = current["current_role"]
+    return await exam_diagnosis(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id,
+        class_id=class_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
+
+
+from edu_cloud.modules.analytics.ranking_service import (
+    student_rankings, critical_students, class_boxplot,
+)
+
+
+@router.get("/exam/{exam_id}/student-rankings")
+async def get_student_rankings(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """学生排名 + 进退步 delta。"""
+    role = current["current_role"]
+    return await student_rankings(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id, class_id=class_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
+
+
+@router.get("/exam/{exam_id}/critical-students")
+async def get_critical_students(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
+    threshold: int = Query(3),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """临界生筛选。"""
+    role = current["current_role"]
+    return await critical_students(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id, class_id=class_id,
+        threshold=threshold,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
+
+
+@router.get("/exam/{exam_id}/class-boxplot")
+async def get_class_boxplot(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """各班分数箱线图数据。"""
+    role = current["current_role"]
+    return await class_boxplot(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
+
+
+from edu_cloud.modules.analytics.ranking_service import class_knowledge, class_error_patterns
+
+
+@router.get("/exam/{exam_id}/class-knowledge")
+async def get_class_knowledge(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """班级×知识点 掌握率热力图。"""
+    role = current["current_role"]
+    return await class_knowledge(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
+
+
+@router.get("/exam/{exam_id}/class-error-patterns")
+async def get_class_error_patterns(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """班级错误模式对比。"""
+    role = current["current_role"]
+    return await class_error_patterns(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )

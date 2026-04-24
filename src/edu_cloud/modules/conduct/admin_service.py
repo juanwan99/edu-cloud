@@ -574,7 +574,7 @@ async def remove_group_member(
 # ═══════════════════════════════════════════════════
 
 async def get_semesters(db: AsyncSession, class_id: str) -> list[dict]:
-    """List semesters for a class."""
+    """List semesters for a class (ConductSemester is class-owned)."""
     semesters = (
         await db.execute(
             select(ConductSemester)
@@ -602,11 +602,39 @@ async def create_semester(
     start_date: date_type,
     end_date: date_type,
 ) -> dict:
-    """Create a semester for a class."""
-    # Get school_id from the class
+    """Create ConductSemester (class-owned) + idempotent side-write to platform Semester.
+
+    ConductSemester is the authoritative entity for class-level conduct periods.
+    Platform Semester is written once per (school_id, school_year, term=1) so the
+    academic module can reference a school-level timeline; subsequent classes reuse
+    the existing platform Semester. is_current is NOT synced — the two carry
+    independent meaning (class-scoped conduct period vs school-scoped current term).
+    """
+    from edu_cloud.modules.academic.models import Semester
+
     cls = await db.get(Class, class_id)
     school_id = cls.school_id if cls else None
 
+    # Idempotent side-write: ensure platform Semester exists for this (school, school_year, term=1)
+    if school_id is not None:
+        school_year = name[:9] if len(name) >= 9 else name
+        existing_platform = (
+            await db.execute(
+                select(Semester).where(
+                    Semester.school_id == school_id,
+                    Semester.school_year == school_year,
+                    Semester.term == 1,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing_platform is None:
+            db.add(Semester(
+                school_id=school_id, name=name,
+                school_year=school_year, term=1,
+                start_date=start_date, end_date=end_date,
+            ))
+
+    # Authoritative write: ConductSemester (class-owned)
     semester = ConductSemester(
         class_id=class_id,
         school_id=school_id,
@@ -628,7 +656,11 @@ async def create_semester(
 
 
 async def activate_semester(db: AsyncSession, semester_id: str) -> dict:
-    """Set is_current=True for this semester, False for others in same class."""
+    """Set is_current=True for this ConductSemester, False for others in same class.
+
+    Operates only on ConductSemester (class-scoped). Platform Semester.is_current
+    is independent and managed via the academic module's own activate endpoint.
+    """
     semester = await db.get(ConductSemester, semester_id)
     if not semester:
         raise NotFoundError("学期不存在")
