@@ -64,6 +64,7 @@ async def lifespan(app: FastAPI):
     import edu_cloud.modules.analytics.models  # noqa: F401 — Alembic autogenerate (ClassAnalysis/StudentAnalysis/StudentKnpMastery)
     # ── S1-C admin schema (2026-04-24): design §4.1 deliverables 1.3/1.4 ──
     import edu_cloud.models.grade  # noqa: F401 — Grade
+    import edu_cloud.models.teaching_plan  # noqa: F401 — TeachingPlan
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
