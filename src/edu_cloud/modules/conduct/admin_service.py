@@ -574,17 +574,12 @@ async def remove_group_member(
 # ═══════════════════════════════════════════════════
 
 async def get_semesters(db: AsyncSession, class_id: str) -> list[dict]:
-    """List semesters — read from platform Semester table, filtered by school_id."""
-    from edu_cloud.modules.academic.models import Semester
-    cls = await db.get(Class, class_id)
-    if not cls:
-        raise NotFoundError("班级不存在")
-
+    """List semesters for a class (ConductSemester is class-owned)."""
     semesters = (
         await db.execute(
-            select(Semester)
-            .where(Semester.school_id == cls.school_id)
-            .order_by(Semester.start_date.desc())
+            select(ConductSemester)
+            .where(ConductSemester.class_id == class_id)
+            .order_by(ConductSemester.start_date.desc())
         )
     ).scalars().all()
 
@@ -607,84 +602,83 @@ async def create_semester(
     start_date: date_type,
     end_date: date_type,
 ) -> dict:
-    """Create semester — dual-write to both platform Semester and ConductSemester."""
+    """Create ConductSemester (class-owned) + idempotent side-write to platform Semester.
+
+    ConductSemester is the authoritative entity for class-level conduct periods.
+    Platform Semester is written once per (school_id, school_year, term=1) so the
+    academic module can reference a school-level timeline; subsequent classes reuse
+    the existing platform Semester. is_current is NOT synced — the two carry
+    independent meaning (class-scoped conduct period vs school-scoped current term).
+    """
     from edu_cloud.modules.academic.models import Semester
 
     cls = await db.get(Class, class_id)
     school_id = cls.school_id if cls else None
 
-    # Write to platform Semester (school-level, term=1 as default)
-    platform_sem = Semester(
-        school_id=school_id, name=name,
-        school_year=name[:9] if len(name) >= 9 else name,
-        term=1, start_date=start_date, end_date=end_date,
-    )
-    db.add(platform_sem)
+    # Idempotent side-write: ensure platform Semester exists for this (school, school_year, term=1)
+    if school_id is not None:
+        school_year = name[:9] if len(name) >= 9 else name
+        existing_platform = (
+            await db.execute(
+                select(Semester).where(
+                    Semester.school_id == school_id,
+                    Semester.school_year == school_year,
+                    Semester.term == 1,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing_platform is None:
+            db.add(Semester(
+                school_id=school_id, name=name,
+                school_year=school_year, term=1,
+                start_date=start_date, end_date=end_date,
+            ))
 
-    # Write to ConductSemester (backward compat)
-    conduct_sem = ConductSemester(
-        class_id=class_id, school_id=school_id,
-        name=name, start_date=start_date, end_date=end_date,
+    # Authoritative write: ConductSemester (class-owned)
+    semester = ConductSemester(
+        class_id=class_id,
+        school_id=school_id,
+        name=name,
+        start_date=start_date,
+        end_date=end_date,
         is_current=False,
     )
-    db.add(conduct_sem)
-
+    db.add(semester)
     await db.commit()
-    await db.refresh(platform_sem)
+    await db.refresh(semester)
     return {
-        "id": platform_sem.id,
-        "name": platform_sem.name,
-        "start_date": str(platform_sem.start_date),
-        "end_date": str(platform_sem.end_date),
-        "is_current": platform_sem.is_current,
+        "id": semester.id,
+        "name": semester.name,
+        "start_date": str(semester.start_date),
+        "end_date": str(semester.end_date),
+        "is_current": semester.is_current,
     }
 
 
 async def activate_semester(db: AsyncSession, semester_id: str) -> dict:
-    """Activate — sync both platform Semester and ConductSemester."""
-    from edu_cloud.modules.academic.models import Semester
+    """Set is_current=True for this ConductSemester, False for others in same class.
 
-    # Try platform Semester first
-    semester = await db.get(Semester, semester_id)
+    Operates only on ConductSemester (class-scoped). Platform Semester.is_current
+    is independent and managed via the academic module's own activate endpoint.
+    """
+    semester = await db.get(ConductSemester, semester_id)
     if not semester:
-        # Fallback: might be a ConductSemester id (legacy)
-        conduct_sem = await db.get(ConductSemester, semester_id)
-        if not conduct_sem:
-            raise NotFoundError("学期不存在")
-        await db.execute(
-            update(ConductSemester)
-            .where(ConductSemester.class_id == conduct_sem.class_id)
-            .values(is_current=False)
-        )
-        conduct_sem.is_current = True
-        await db.commit()
-        await db.refresh(conduct_sem)
-        return {
-            "id": conduct_sem.id, "name": conduct_sem.name,
-            "start_date": str(conduct_sem.start_date),
-            "end_date": str(conduct_sem.end_date),
-            "is_current": conduct_sem.is_current,
-        }
+        raise NotFoundError("学期不存在")
 
-    # Platform path: deactivate all in school, activate target
-    await db.execute(
-        update(Semester)
-        .where(Semester.school_id == semester.school_id)
-        .values(is_current=False)
-    )
-    semester.is_current = True
-
-    # Sync ConductSemester (best-effort)
+    # Deactivate all semesters in the same class
     await db.execute(
         update(ConductSemester)
-        .where(ConductSemester.school_id == semester.school_id)
+        .where(ConductSemester.class_id == semester.class_id)
         .values(is_current=False)
     )
 
+    # Activate the target
+    semester.is_current = True
     await db.commit()
     await db.refresh(semester)
     return {
-        "id": semester.id, "name": semester.name,
+        "id": semester.id,
+        "name": semester.name,
         "start_date": str(semester.start_date),
         "end_date": str(semester.end_date),
         "is_current": semester.is_current,
