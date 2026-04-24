@@ -19,23 +19,23 @@ class Rubric(Base, IdMixin, TimestampMixin):
     criteria: Mapped[list] = mapped_column(JSON)
     reference_answer: Mapped[str | None] = mapped_column(Text, default=None)
     source: Mapped[str] = mapped_column(String(20))  # manual | ai_generated
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
 
 
 class GradingTask(Base, IdMixin, TimestampMixin):
     __tablename__ = "grading_tasks"
 
-    subject_id: Mapped[str] = mapped_column(String(36), ForeignKey("subjects.id"))
+    subject_id: Mapped[str] = mapped_column(String(36), ForeignKey("subjects.id"), index=True)
     question_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("questions.id"), default=None, nullable=True,
+        String(36), ForeignKey("questions.id"), default=None, nullable=True, index=True,
     )
     status: Mapped[str] = mapped_column(String(20), default="pending")
     total: Mapped[int] = mapped_column(default=0)
     completed: Mapped[int] = mapped_column(default=0)
     failed: Mapped[int] = mapped_column(default=0)
-    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
     error_log: Mapped[dict | None] = mapped_column(JSON, default=None)
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
 
 
 class GradingResult(Base, IdMixin, TimestampMixin):
@@ -86,7 +86,7 @@ class GradingResult(Base, IdMixin, TimestampMixin):
     source: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
 
     reviewer_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("users.id"), nullable=True, default=None,
+        String(36), ForeignKey("users.id"), nullable=True, default=None, index=True,
     )
     reviewed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None,
@@ -133,7 +133,7 @@ class GradingQualityCheck(Base, IdMixin, TimestampMixin):
     question_id: Mapped[str] = mapped_column(String(36), ForeignKey("questions.id"))
     check_type: Mapped[str] = mapped_column(String(20))
     original_result_id: Mapped[Optional[str]] = mapped_column(
-        String(36), ForeignKey("grading_results.id"), nullable=True
+        String(36), ForeignKey("grading_results.id"), nullable=True, index=True
     )
     original_grader_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     checker_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)

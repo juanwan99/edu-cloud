@@ -32,5 +32,5 @@ class ScoreSegmentConfig(Base, IdMixin, TenantMixin, TimestampMixin):
         JSON, default=lambda: ["优秀", "良好", "及格", "不及格"],
     )
     created_by: Mapped[Optional[str]] = mapped_column(
-        String(36), ForeignKey("users.id"), nullable=True,
+        String(36), ForeignKey("users.id"), nullable=True, index=True,
     )

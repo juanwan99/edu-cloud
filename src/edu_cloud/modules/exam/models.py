@@ -39,7 +39,7 @@ class Exam(Base, IdMixin, TimestampMixin):
     exam_type: Mapped[str | None] = mapped_column(String(20), default=None)
     grade_scope: Mapped[str | None] = mapped_column(String(50), default=None)
     semester: Mapped[str | None] = mapped_column(String(50), default=None)
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
     # edu-cloud 原有字段（sync 用）
     subject_code: Mapped[str | None] = mapped_column(String(50), default=None)
     subject_name: Mapped[str | None] = mapped_column(String(100), default=None)
@@ -52,10 +52,10 @@ class Subject(Base, IdMixin, TimestampMixin):
     __tablename__ = "subjects"
     __table_args__ = (UniqueConstraint("exam_id", "code"),)
 
-    exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("exams.id"))
+    exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("exams.id"), index=True)
     name: Mapped[str] = mapped_column(String(100))
     code: Mapped[str] = mapped_column(String(50))
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
     exam_start: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     exam_end: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     exam_room: Mapped[str | None] = mapped_column(String(100), default=None)
@@ -68,7 +68,7 @@ class Question(Base, IdMixin, TimestampMixin):
         UniqueConstraint("subject_id", "name", name="uq_question_subject_name"),
     )
 
-    subject_id: Mapped[str] = mapped_column(String(36), ForeignKey("subjects.id"))
+    subject_id: Mapped[str] = mapped_column(String(36), ForeignKey("subjects.id"), index=True)
     name: Mapped[str] = mapped_column(String(200))
     question_type: Mapped[str] = mapped_column(String(20))  # choice / multi_choice / fill_blank / essay
     max_score: Mapped[float] = mapped_column(default=0.0)
@@ -79,7 +79,7 @@ class Question(Base, IdMixin, TimestampMixin):
     content_images: Mapped[list | None] = mapped_column(JSON, default=None)
     reference_answer: Mapped[str | None] = mapped_column(Text, default=None)
     reference_answer_images: Mapped[list | None] = mapped_column(JSON, default=None)
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
 
 
 # ── ExamResult（聚合视图，由 pipeline 模块填充）─────────────────
@@ -87,9 +87,9 @@ class Question(Base, IdMixin, TimestampMixin):
 class ExamResult(Base, IdMixin, TimestampMixin):
     __tablename__ = "exam_results"
 
-    exam_id = Column(String, ForeignKey("exams.id"), nullable=False)
-    student_id = Column(String, ForeignKey("students.id"), nullable=False)
-    school_id = Column(String, ForeignKey("schools.id"), nullable=False)
+    exam_id = Column(String, ForeignKey("exams.id"), nullable=False, index=True)
+    student_id = Column(String, ForeignKey("students.id"), nullable=False, index=True)
+    school_id = Column(String, ForeignKey("schools.id"), nullable=False, index=True)
     total_score = Column(Float, nullable=False)
     detail_scores = Column(JSON, nullable=True)
     rank_in_class = Column(Integer, nullable=True)
@@ -108,11 +108,11 @@ class JointExam(Base, IdMixin, TimestampMixin):
 
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text, default=None)
-    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
     status: Mapped[str] = mapped_column(String(20), default="draft")
     subjects: Mapped[list] = mapped_column(JSON, default=list)
     creator_school_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("schools.id"), default=None
+        String(36), ForeignKey("schools.id"), default=None, index=True
     )
     template_file_path: Mapped[str | None] = mapped_column(String(500), default=None)
     answer_detail_schema: Mapped[dict | None] = mapped_column(JSON, default=None)
@@ -122,8 +122,8 @@ class JointExamParticipant(Base, IdMixin, TimestampMixin):
     """联考参与学校。"""
     __tablename__ = "joint_exam_participants"
 
-    joint_exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("joint_exams.id"))
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+    joint_exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("joint_exams.id"), index=True)
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
     status: Mapped[str] = mapped_column(String(20), default="pending")
     is_creator: Mapped[bool] = mapped_column(Boolean, default=False)
     student_count: Mapped[int | None] = mapped_column(Integer, default=None)
@@ -134,8 +134,8 @@ class JointExamStudentResult(Base, IdMixin, TimestampMixin):
     """联考学生成绩明细。"""
     __tablename__ = "joint_exam_student_results"
 
-    joint_exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("joint_exams.id"))
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+    joint_exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("joint_exams.id"), index=True)
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
     subject_code: Mapped[str] = mapped_column(String(50))
     student_name: Mapped[str] = mapped_column(String(100))
     student_number: Mapped[str] = mapped_column(String(100))

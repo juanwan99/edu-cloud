@@ -28,7 +28,7 @@ class TimePeriod(Base, IdMixin):
     )
 
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
-    semester_id: Mapped[str] = mapped_column(String(36), ForeignKey("semesters.id"))
+    semester_id: Mapped[str] = mapped_column(String(36), ForeignKey("semesters.id"), index=True)
     period_number: Mapped[int] = mapped_column(Integer)
     name: Mapped[str] = mapped_column(String(20))
     start_time: Mapped[time] = mapped_column(Time)
@@ -43,10 +43,10 @@ class TimetableSlot(Base, IdMixin):
     )
 
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
-    semester_id: Mapped[str] = mapped_column(String(36), ForeignKey("semesters.id"))
+    semester_id: Mapped[str] = mapped_column(String(36), ForeignKey("semesters.id"), index=True)
     class_id: Mapped[str] = mapped_column(String(36), ForeignKey("classes.id"), index=True)
     weekday: Mapped[int] = mapped_column(Integer)
-    period_id: Mapped[str] = mapped_column(String(36), ForeignKey("time_periods.id"))
+    period_id: Mapped[str] = mapped_column(String(36), ForeignKey("time_periods.id"), index=True)
     subject_code: Mapped[str] = mapped_column(String(50))
-    teacher_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    teacher_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
     room: Mapped[str | None] = mapped_column(String(50), default=None)

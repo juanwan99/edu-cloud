@@ -13,7 +13,7 @@ class KnowledgePoint(Base, IdMixin, TimestampMixin):
     code: Mapped[str] = mapped_column(String(100))
     name: Mapped[str] = mapped_column(String(200))
     course_code: Mapped[str | None] = mapped_column(String(50), default=None)
-    parent_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("knowledge_points.id"), default=None)
+    parent_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("knowledge_points.id"), default=None, index=True)
     level: Mapped[int | None] = mapped_column(Integer, default=None)
     description: Mapped[str | None] = mapped_column(String(500), default=None)
     grade_hint: Mapped[str | None] = mapped_column(String(50), default=None)

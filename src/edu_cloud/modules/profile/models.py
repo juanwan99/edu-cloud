@@ -13,7 +13,7 @@ class StudentExamSnapshot(Base, IdMixin, TimestampMixin):
     __table_args__ = (UniqueConstraint("student_id", "exam_id", "subject_code"),)
 
     student_id: Mapped[str] = mapped_column(String(100))
-    exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("exams.id"))
+    exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("exams.id"), index=True)
     subject_code: Mapped[str] = mapped_column(String(50))
 
     total_score: Mapped[float] = mapped_column(Float)
@@ -32,7 +32,7 @@ class StudentExamSnapshot(Base, IdMixin, TimestampMixin):
 
     exam_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
 
 
 class StudentKnowledgeMastery(Base, IdMixin, TimestampMixin):
@@ -41,7 +41,7 @@ class StudentKnowledgeMastery(Base, IdMixin, TimestampMixin):
     __table_args__ = (UniqueConstraint("student_id", "knowledge_point_id"),)
 
     student_id: Mapped[str] = mapped_column(String(100))
-    knowledge_point_id: Mapped[str] = mapped_column(String(36), ForeignKey("knowledge_points.id"))
+    knowledge_point_id: Mapped[str] = mapped_column(String(36), ForeignKey("knowledge_points.id"), index=True)
 
     mastery_level: Mapped[float] = mapped_column(Float, default=0.0)
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
@@ -56,7 +56,7 @@ class StudentKnowledgeMastery(Base, IdMixin, TimestampMixin):
     last_exam_id: Mapped[str | None] = mapped_column(String(36), default=None)
     last_exam_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
 
 
 class StudentErrorPattern(Base, IdMixin, TimestampMixin):
@@ -79,4 +79,4 @@ class StudentErrorPattern(Base, IdMixin, TimestampMixin):
         default=lambda: datetime.now(timezone.utc),
     )
 
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)

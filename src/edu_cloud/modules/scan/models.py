@@ -8,14 +8,14 @@ from edu_cloud.models.base import Base, IdMixin, TimestampMixin
 class ScanTask(Base, IdMixin, TimestampMixin):
     __tablename__ = "scan_tasks"
 
-    subject_id: Mapped[str] = mapped_column(String(36), ForeignKey("subjects.id"))
+    subject_id: Mapped[str] = mapped_column(String(36), ForeignKey("subjects.id"), index=True)
     side: Mapped[str] = mapped_column(String(1))
     status: Mapped[str] = mapped_column(String(20), default="pending")
     # status: pending -> processing -> completed -> failed
     total_images: Mapped[int] = mapped_column(Integer, default=0)
     processed: Mapped[int] = mapped_column(Integer, default=0)
     failed: Mapped[int] = mapped_column(Integer, default=0)
-    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+    school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
 
 
 class StudentAnswer(Base, IdMixin, TimestampMixin):
