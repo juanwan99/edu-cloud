@@ -56,6 +56,10 @@ class Subject(Base, IdMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(100))
     code: Mapped[str] = mapped_column(String(50))
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"))
+    exam_start: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+    exam_end: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+    exam_room: Mapped[str | None] = mapped_column(String(100), default=None)
+    proctor_ids: Mapped[list | None] = mapped_column(JSON, default=None)
 
 
 class Question(Base, IdMixin, TimestampMixin):

@@ -43,6 +43,7 @@ import edu_cloud.modules.knowledge_tree.models  # noqa: F401
 import edu_cloud.modules.conduct.models  # noqa: F401
 import edu_cloud.modules.menu.models  # noqa: F401
 import edu_cloud.modules.analytics.models  # noqa: F401
+import edu_cloud.modules.academic.models  # noqa: F401
 from edu_cloud.shared.auth import create_access_token
 
 

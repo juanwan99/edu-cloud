@@ -318,14 +318,14 @@ tests/
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
 | API | 231 路由（+8 analytics 进阶分析端点：question-insights/diagnosis/student-rankings/critical-students/class-boxplot/class-knowledge/class-error-patterns + profile ai-diagnosis） | 共享 AI 阅卷 |
-| Models | 85 表（modules/ 下 17 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表 + alembic_version） | — |
+| Models | 88 表（modules/ 下 18 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表 + academic 3 表 + alembic_version） | — |
 | Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline + exceptions | AI grading 生产接入 |
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 8 角色映射 | — |
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
 | Tests | 2046 后端 + 57 frontend-nuxt Vitest（ECS 实测 @ 2026-04-24） | — |
-| Modules | 20 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu），路由已迁入；其中 `adaptive`/`paper` 为内部服务模块（无 HTTP router）；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
-| Migrations | Alembic migration（85 表，25 个迁移） | — |
+| Modules | 21 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu/academic），路由已迁入；其中 `adaptive`/`paper`/`academic` 为内部/基础数据模块（`academic` 当前仅 models，router/service 待后续 Task 添加）；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
+| Migrations | Alembic migration（88 表，26 个迁移） | — |
 
 ## 技术栈
 

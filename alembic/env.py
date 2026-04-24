@@ -70,6 +70,17 @@ from edu_cloud.modules.menu.models import MenuConfig  # noqa: F401
 from edu_cloud.modules.analytics.models import (  # noqa: F401
     ClassAnalysis, StudentAnalysis, StudentKnpMastery,
 )
+from edu_cloud.modules.academic.models import (  # noqa: F401
+    Semester, TimePeriod, TimetableSlot,
+)
+from edu_cloud.modules.knowledge_tree.models import (  # noqa: F401
+    ConceptGraphNode, ConceptBigConceptMap, ConceptGraphEdge,
+    EditSyncFailure, ConceptStats,
+)
+from edu_cloud.modules.conduct.models import (  # noqa: F401
+    StudentProfile, ConductClassConfig, ConductRuleCategory, ConductRuleItem,
+    ConductRecord, ConductGroup, ConductGroupMember, ConductSemester,
+)
 
 # ---------------------------------------------------------------------------
 # Alembic Config object, which provides access to the values within the .ini
