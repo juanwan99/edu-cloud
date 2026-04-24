@@ -82,6 +82,9 @@ from edu_cloud.modules.conduct.models import (  # noqa: F401
     ConductRecord, ConductGroup, ConductGroupMember, ConductSemester,
 )
 
+# ── S1-C admin schema (2026-04-24): design §4.1 deliverables 1.3/1.4 ──
+from edu_cloud.models.grade import Grade  # noqa: F401
+
 # ---------------------------------------------------------------------------
 # Alembic Config object, which provides access to the values within the .ini
 # ---------------------------------------------------------------------------

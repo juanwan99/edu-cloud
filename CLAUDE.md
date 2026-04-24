@@ -221,6 +221,7 @@ src/edu_cloud/
     platform_user.py    # PlatformUser（4 角色 + bcrypt 密码）
     joint_exam.py       # JointExam + JointExamParticipant + JointExamStudentResult
     score_segment.py    # ScoreSegmentConfig（学校级分数段配置，per school + optional per subject override）
+    grade.py            # Grade（S1-C：跨模块共享年级实体；UniqueConstraint(school_id, name)，被 S2/S3/S4 消费）
   services/
     exceptions.py       # 5 个自定义异常（NotFound/Permission/Validation/Conflict/State）
     school_service.py   # 学校 CRUD + API Key 管理

@@ -4,6 +4,8 @@
 
 ```mermaid
 flowchart TD
+  conduct --> student
+  conduct --> school
   grading --> exam
   grading --> scan
   pipeline --> exam
