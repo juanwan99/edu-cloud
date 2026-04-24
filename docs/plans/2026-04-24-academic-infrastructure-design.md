@@ -1,7 +1,7 @@
 ---
 baseline_command: "cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=no -q; cd frontend-nuxt && npx vitest run"
 baseline_verified_at: "2026-04-24T08:44:45+08:00"
-baseline_count: "backend 2028 passed / 23 skipped; frontend-nuxt 51 passed"
+baseline_count: "backend 2046 passed, 21 failed (pre-existing), 23 skipped; frontend-nuxt 51 passed"
 ---
 
 # 教务时间轴基础设施设计
