@@ -163,6 +163,15 @@ frontend/src/
     DocCropPanel.vue        # 文档裁剪面板（PDF/Word→页面渲染→框选裁剪→按题号+序号保存）
     analytics/
       ScoreSegmentSettings.vue # 分数段配置（学校默认+科目覆盖，嵌入 SchoolSettingsPage）
+      StatCard.vue            # 统计卡片（数值+标签+趋势箭头+环比）
+      ClassRankTable.vue      # 班级排名表（排名/均分/及格率/优秀率/进退步）
+      AiDiagnosisCard.vue     # AI 诊断摘要卡片（诊断文字+建议列表+时间戳）
+      ErrorCausePanel.vue     # 错因分析面板（题目→学生错因列表，支持筛选）
+      StudentRankTable.vue    # 学生排名表（总分/班名次/年名次/进退步+搜索+展开行）
+      TrendLine.vue           # 通用趋势折线图（vue-echarts，多系列+虚线+反转轴）
+      CriticalStudents.vue    # 临界生名单（差N分及格/优秀，Tab切换+丢分题目）
+      RadarChart.vue          # 通用雷达图（知识掌握/科目得分，vue-echarts）
+      KnowledgeHeatmap.vue    # 知识点掌握热力图（班级×知识点，vue-echarts）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
   api/                      # API 调用层（16 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染）
