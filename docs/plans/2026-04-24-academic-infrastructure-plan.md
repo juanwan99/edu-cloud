@@ -910,15 +910,40 @@ Append to `src/edu_cloud/modules/academic/service.py`:
 ```python
 # ── Timetable ───────────────────────────────────────────────────
 
+SCHEDULABLE_PERIOD_TYPES = {"class", "self_study"}
+
+
 async def save_timetable(
     db: AsyncSession, *, school_id: str, semester_id: str, class_id: str,
     slots: list[dict],
 ) -> dict:
     await _get_semester(db, semester_id, school_id)
 
+    # Validate period_type: only class/self_study slots can be scheduled
+    for s in slots:
+        period = await db.get(TimePeriod, s["period_id"])
+        if not period or period.period_type not in SCHEDULABLE_PERIOD_TYPES:
+            raise ValidationError(f"节次 {s['period_id']} 不可排课（仅 class/self_study 类型）")
+
+    # Teacher conflict detection
     conflicts = await _check_teacher_conflicts(db, school_id, semester_id, class_id, slots)
     if conflicts:
         raise ValidationError(f"教师时间冲突: {conflicts}")
+
+    # TeacherAssignment soft check (warning, non-blocking)
+    from edu_cloud.models.teacher_assignment import TeacherAssignment
+    warnings = []
+    for s in slots:
+        ta = (await db.execute(
+            select(TeacherAssignment).where(
+                TeacherAssignment.school_id == school_id,
+                TeacherAssignment.class_id == class_id,
+                TeacherAssignment.subject_code == s["subject_code"],
+                TeacherAssignment.user_id == s["teacher_id"],
+            )
+        )).scalar_one_or_none()
+        if not ta:
+            warnings.append(f"教师{s['teacher_id']}未在排课表中任教{class_id}班{s['subject_code']}")
 
     await db.execute(
         delete(TimetableSlot).where(
@@ -939,7 +964,10 @@ async def save_timetable(
         new_slots.append(slot)
 
     await db.commit()
-    return {"saved": len(new_slots)}
+    result = {"saved": len(new_slots)}
+    if warnings:
+        result["warnings"] = warnings
+    return result
 
 
 async def get_timetable(
@@ -1044,6 +1072,12 @@ async def get_timetable(
 ):
     if not class_id and not teacher_id:
         return {"detail": "必须提供 class_id 或 teacher_id"}
+    # RBAC: non-admin roles can only see their visible classes
+    from edu_cloud.api.permissions import get_visible_class_ids
+    role = current["current_role"]
+    visible = get_visible_class_ids(role)
+    if class_id and visible is not None and class_id not in visible:
+        return []
     return await service.get_timetable(
         db, school_id=_school_id(current), semester_id=semester_id,
         class_id=class_id, teacher_id=teacher_id,
@@ -1276,7 +1310,7 @@ class ExamScheduleBatch(BaseModel):
     subjects: list[ExamScheduleItem]
 
 
-@router.put("/exams/{exam_id}/schedule")
+@router.put("/{exam_id}/schedule")
 async def set_exam_schedule(
     exam_id: str,
     body: ExamScheduleBatch,
@@ -1313,7 +1347,7 @@ async def set_exam_schedule(
     return {"updated": len(body.subjects)}
 
 
-@router.get("/exams/{exam_id}/schedule")
+@router.get("/{exam_id}/schedule")
 async def get_exam_schedule(
     exam_id: str,
     db: AsyncSession = Depends(get_db),
@@ -1499,18 +1533,53 @@ git commit -m "test(exam): schedule API tests (3 cases incl. overlap detection)"
 Replace the three functions `get_semesters`, `create_semester`, `activate_semester` in `src/edu_cloud/modules/conduct/admin_service.py` (lines 576-653):
 
 ```python
-async def get_semesters(db: AsyncSession, class_id: str) -> list[dict]:
-    """List semesters — read from platform Semester table, filtered by school_id."""
-    from edu_cloud.modules.academic.models import Semester
-    cls = await db.get(Class, class_id)
-    if not cls:
-        raise NotFoundError("班级不存在")
+def _derive_school_year(start: date_type) -> str:
+    """Derive school_year from start_date: Sep-Dec → 'YYYY-(YYYY+1)', Jan-Aug → '(YYYY-1)-YYYY'."""
+    if start.month >= 9:
+        return f"{start.year}-{start.year + 1}"
+    return f"{start.year - 1}-{start.year}"
 
+
+def _derive_term(start: date_type) -> int:
+    """Derive term: Sep-Jan → 1, Feb-Aug → 2."""
+    return 1 if start.month >= 9 or start.month == 1 else 2
+
+
+async def _get_or_create_platform_semester(
+    db: AsyncSession, *, school_id: str, name: str,
+    start_date: date_type, end_date: date_type,
+) -> "Semester":
+    """Get or create a platform Semester. Avoids unique constraint collision."""
+    from edu_cloud.modules.academic.models import Semester
+    school_year = _derive_school_year(start_date)
+    term = _derive_term(start_date)
+
+    existing = (await db.execute(
+        select(Semester).where(
+            Semester.school_id == school_id,
+            Semester.school_year == school_year,
+            Semester.term == term,
+        )
+    )).scalar_one_or_none()
+    if existing:
+        return existing
+
+    sem = Semester(
+        school_id=school_id, name=name, school_year=school_year,
+        term=term, start_date=start_date, end_date=end_date,
+    )
+    db.add(sem)
+    await db.flush()
+    return sem
+
+
+async def get_semesters(db: AsyncSession, class_id: str) -> list[dict]:
+    """List semesters — read from ConductSemester (backward compat, conduct router returns conduct IDs)."""
     semesters = (
         await db.execute(
-            select(Semester)
-            .where(Semester.school_id == cls.school_id)
-            .order_by(Semester.start_date.desc())
+            select(ConductSemester)
+            .where(ConductSemester.class_id == class_id)
+            .order_by(ConductSemester.start_date.desc())
         )
     ).scalars().all()
 
@@ -1533,87 +1602,77 @@ async def create_semester(
     start_date: date_type,
     end_date: date_type,
 ) -> dict:
-    """Create semester — dual-write to both platform Semester and ConductSemester."""
-    from edu_cloud.modules.academic.models import Semester
-
+    """Create semester — dual-write. Returns ConductSemester ID (conduct router compatibility)."""
     cls = await db.get(Class, class_id)
     school_id = cls.school_id if cls else None
 
-    # Write to platform Semester (school-level, term=1 as default)
-    platform_sem = Semester(
-        school_id=school_id, name=name,
-        school_year=name[:9] if len(name) >= 9 else name,
-        term=1, start_date=start_date, end_date=end_date,
+    # Shadow-write to platform Semester (get_or_create avoids unique constraint collision)
+    await _get_or_create_platform_semester(
+        db, school_id=school_id, name=name,
+        start_date=start_date, end_date=end_date,
     )
-    db.add(platform_sem)
 
-    # Write to ConductSemester (backward compat)
+    # Primary: write ConductSemester (conduct_records FK depends on this)
     conduct_sem = ConductSemester(
         class_id=class_id, school_id=school_id,
         name=name, start_date=start_date, end_date=end_date,
         is_current=False,
     )
     db.add(conduct_sem)
-
     await db.commit()
-    await db.refresh(platform_sem)
+    await db.refresh(conduct_sem)
     return {
-        "id": platform_sem.id,
-        "name": platform_sem.name,
-        "start_date": str(platform_sem.start_date),
-        "end_date": str(platform_sem.end_date),
-        "is_current": platform_sem.is_current,
+        "id": conduct_sem.id,
+        "name": conduct_sem.name,
+        "start_date": str(conduct_sem.start_date),
+        "end_date": str(conduct_sem.end_date),
+        "is_current": conduct_sem.is_current,
     }
 
 
 async def activate_semester(db: AsyncSession, semester_id: str) -> dict:
-    """Activate — sync both platform Semester and ConductSemester."""
+    """Activate ConductSemester + sync platform Semester is_current."""
     from edu_cloud.modules.academic.models import Semester
 
-    # Try platform Semester first
-    semester = await db.get(Semester, semester_id)
-    if not semester:
-        # Fallback: might be a ConductSemester id (legacy)
-        conduct_sem = await db.get(ConductSemester, semester_id)
-        if not conduct_sem:
-            raise NotFoundError("学期不存在")
-        await db.execute(
-            update(ConductSemester)
-            .where(ConductSemester.class_id == conduct_sem.class_id)
-            .values(is_current=False)
-        )
-        conduct_sem.is_current = True
-        await db.commit()
-        await db.refresh(conduct_sem)
-        return {
-            "id": conduct_sem.id, "name": conduct_sem.name,
-            "start_date": str(conduct_sem.start_date),
-            "end_date": str(conduct_sem.end_date),
-            "is_current": conduct_sem.is_current,
-        }
+    # Primary path: ConductSemester (conduct router validates this ID)
+    conduct_sem = await db.get(ConductSemester, semester_id)
+    if not conduct_sem:
+        raise NotFoundError("学期不存在")
 
-    # Platform path: deactivate all in school, activate target
-    await db.execute(
-        update(Semester)
-        .where(Semester.school_id == semester.school_id)
-        .values(is_current=False)
-    )
-    semester.is_current = True
-
-    # Sync ConductSemester (best-effort)
+    # Deactivate all ConductSemesters in same class
     await db.execute(
         update(ConductSemester)
-        .where(ConductSemester.school_id == semester.school_id)
+        .where(ConductSemester.class_id == conduct_sem.class_id)
         .values(is_current=False)
     )
+    conduct_sem.is_current = True
+
+    # Best-effort sync: deactivate all platform Semesters in same school, activate matching one
+    if conduct_sem.school_id:
+        await db.execute(
+            update(Semester)
+            .where(Semester.school_id == conduct_sem.school_id)
+            .values(is_current=False)
+        )
+        school_year = _derive_school_year(conduct_sem.start_date)
+        term = _derive_term(conduct_sem.start_date)
+        platform_match = (await db.execute(
+            select(Semester).where(
+                Semester.school_id == conduct_sem.school_id,
+                Semester.school_year == school_year,
+                Semester.term == term,
+            )
+        )).scalar_one_or_none()
+        if platform_match:
+            platform_match.is_current = True
 
     await db.commit()
-    await db.refresh(semester)
+    await db.refresh(conduct_sem)
     return {
-        "id": semester.id, "name": semester.name,
-        "start_date": str(semester.start_date),
-        "end_date": str(semester.end_date),
-        "is_current": semester.is_current,
+        "id": conduct_sem.id, "name": conduct_sem.name,
+        "start_date": str(conduct_sem.start_date),
+        "end_date": str(conduct_sem.end_date),
+        "is_current": conduct_sem.is_current,
     }
 ```
 
@@ -2220,13 +2279,18 @@ function formatTime(iso: string | null) {
 }
 
 async function loadExams() {
-  const params: Record<string, any> = {}
+  // Backend GET /exams has no semester query param, so fetch all and filter client-side
+  // Exam model has a `semester` string field matching Semester.school_year
+  const examList = await api.getExams()
+  let items = Array.isArray(examList) ? examList : examList?.items || []
+
+  // Client-side semester filtering via Exam.semester field
   if (selectedSemesterId.value) {
     const sem = academic.semesters.value.find((s: any) => s.id === selectedSemesterId.value)
-    if (sem) params.semester = sem.school_year
+    if (sem) {
+      items = items.filter((e: any) => !e.semester || e.semester === sem.school_year)
+    }
   }
-  const examList = await api.getExams(params)
-  const items = Array.isArray(examList) ? examList : examList?.items || []
 
   const results = []
   for (const e of items) {
@@ -2368,7 +2432,7 @@ git commit -m "test(frontend): useAcademic composable tests (4 cases)"
 ```bash
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 ```
-Expected: 2047+ passed (2028 baseline + 19 new)
+Expected: 2065+ passed (2046 baseline + 19 new)
 
 - [ ] **Run full frontend test suite**
 
@@ -2413,15 +2477,30 @@ contract_pack:
       description: "如果删除冲突检测，test_teacher_conflict_rejected 仍通过"
       tests_that_still_pass: "No — test asserts status 422 on conflicting save"
       mitigation: "Test creates slot in class1 then attempts same teacher+period in class2"
+    - id: CE-003
+      description: "如果 conduct 双写返回 platform_sem.id 而非 conduct_sem.id"
+      tests_that_still_pass: "No — test_create_writes_both_tables verifies conduct table has record, conduct router check_resource_class(ConductSemester) would 404"
+      mitigation: "create_semester returns conduct_sem.id; test verifies both tables written and returned ID is from conduct_semesters"
+    - id: CE-004
+      description: "如果 period_type 校验被删除，break 类型节次可被排课"
+      tests_that_still_pass: "No — 需新增测试验证 break 类型节次被拒绝"
+      mitigation: "save_timetable 校验 period.period_type in SCHEDULABLE_PERIOD_TYPES"
   risk_modules:
     - module: "modules/conduct/admin_service.py"
-      reason: "双写改动影响现有 conduct 学期功能"
+      reason: "双写改动影响现有 conduct 学期功能，返回 ID 类型决定 conduct 路由能否正常校验"
+    - module: "modules/conduct/admin_router.py"
+      reason: "line 408 check_resource_class(ConductSemester) 依赖返回的 ID 是 ConductSemester"
     - module: "modules/exam/models.py"
       reason: "Subject 表扩展可能影响现有考试功能"
+    - module: "modules/exam/router.py"
+      reason: "新增 schedule 端点，路径前缀 /api/v1/exams 已存在，新路径须为 /{exam_id}/schedule"
   test_debt:
     - description: "semester.vue 和 timetable.vue 的编辑模式未覆盖端到端测试"
       reason: "前端视觉交互测试需要 Playwright，超出本批次范围"
       deadline: "2026-05-15"
+    - description: "conduct 双写的路由级集成测试（通过 HTTP 调用 conduct API 验证平台 Semester 同步创建）"
+      reason: "Task 11 仅覆盖 service 级，路由级需 conduct 完整 fixture"
+      deadline: "2026-05-08"
 
 semantic_regression:
   - "ORC-001: 现有 Exam/TeacherAssignment/CalendarEvent 的 semester 字符串字段不做改动"
