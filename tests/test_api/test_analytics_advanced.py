@@ -6,6 +6,8 @@ from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import GradingResult
 from edu_cloud.modules.student.models import Class, Student
+from edu_cloud.modules.knowledge.models import KnowledgePoint
+from edu_cloud.modules.profile.models import StudentKnowledgeMastery, StudentErrorPattern
 from tests.conftest import *  # noqa
 
 
@@ -99,19 +101,42 @@ async def test_class_error_patterns_returns_structure(client, school_admin_heade
 
 
 @pytest.mark.asyncio
-async def test_student_ai_diagnosis(client, school_admin_headers, seed_school, db):
-    exam, _, stu, _ = await _seed_knowledge_exam(db, seed_school)
+async def test_student_ai_diagnosis_with_mastery(client, school_admin_headers, seed_school, db):
+    """F004 加固：seed mastery + error pattern 数据，断言诊断文本包含具体知识点。"""
+    exam, subj, stu, _ = await _seed_knowledge_exam(db, seed_school)
+    school, _ = seed_school
+
+    kp = KnowledgePoint(code="photosynthesis", name="光合作用", school_id=school.id)
+    db.add(kp)
+    await db.flush()
+
+    mastery = StudentKnowledgeMastery(
+        student_id=stu.id, knowledge_point_id=kp.id, school_id=school.id,
+        mastery_level=0.35, trend="declining", recent_scores=[0.5, 0.4, 0.35],
+        last_exam_id=exam.id,
+    )
+    db.add(mastery)
+
+    ep = StudentErrorPattern(
+        student_id=stu.id, subject_code="biology", school_id=school.id,
+        error_distribution={"概念混淆": 0.6, "计算错误": 0.4},
+        total_errors=10, exam_count=1,
+    )
+    db.add(ep)
+    await db.commit()
+
     resp = await client.get(
         f"/api/v1/profile/students/{stu.id}/ai-diagnosis",
+        params={"exam_id": exam.id},
         headers=school_admin_headers,
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert isinstance(data["summary"], str)
-    assert len(data["summary"]) > 0
-    # F004: 值级断言 — 无 mastery 数据时应返回默认诊断文本
-    assert "暂无" in data["summary"]
-    assert isinstance(data["improving"], list)
-    assert isinstance(data["declining"], list)
-    assert isinstance(data["weak_points"], list)
-    assert isinstance(data["error_patterns"], list)
+    assert "declining" in [d["trend"] for d in data["declining"]]
+    assert len(data["declining"]) >= 1
+    assert data["declining"][0]["mastery_level"] == 0.35
+    assert len(data["weak_points"]) >= 1
+    assert "掌握率" in data["summary"] or "下降" in data["summary"]
+    assert "概念混淆" in data["summary"]
+    assert len(data["error_patterns"]) >= 1
+    assert data["error_patterns"][0]["subject_code"] == "biology"

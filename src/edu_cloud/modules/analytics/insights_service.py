@@ -209,24 +209,26 @@ async def exam_diagnosis(
     subjects = summary.get("subjects", [])
     grade_subjects = grade_summary.get("subjects", [])
     if subjects:
-        # F003 修复：subject_id 指定时按科目过滤，而非盲取 subjects[0]
+        # F003 修复：subject_id 指定时严格按科目过滤，miss 则跳过均分对比
         if subject_id:
-            subj = next((s for s in subjects if s.get("subject_id") == subject_id), subjects[0])
+            matched = [s for s in subjects if s.get("subject_id") == subject_id]
+            subj = matched[0] if matched else None
         else:
             subj = subjects[0]
-        class_avg = subj.get("avg_score")
-        grade_avg = None
-        if grade_subjects:
-            grade_subj = next((g for g in grade_subjects if g.get("subject_id") == subj.get("subject_id")), grade_subjects[0])
-            grade_avg = grade_subj.get("avg_score")
-        if class_avg is not None and grade_avg is not None:
-            diff = round(class_avg - grade_avg, 1)
-            if diff < 0:
-                parts.append(f"本次考试均分 {class_avg}，低于年级均分 {abs(diff)} 分。")
-            elif diff > 0:
-                parts.append(f"本次考试均分 {class_avg}，高于年级均分 {diff} 分。")
-            else:
-                parts.append(f"本次考试均分 {class_avg}，与年级持平。")
+        if subj is not None:
+            class_avg = subj.get("avg_score")
+            grade_avg = None
+            if grade_subjects:
+                grade_subj = next((g for g in grade_subjects if g.get("subject_id") == subj.get("subject_id")), grade_subjects[0])
+                grade_avg = grade_subj.get("avg_score")
+            if class_avg is not None and grade_avg is not None:
+                diff = round(class_avg - grade_avg, 1)
+                if diff < 0:
+                    parts.append(f"本次考试均分 {class_avg}，低于年级均分 {abs(diff)} 分。")
+                elif diff > 0:
+                    parts.append(f"本次考试均分 {class_avg}，高于年级均分 {diff} 分。")
+                else:
+                    parts.append(f"本次考试均分 {class_avg}，与年级持平。")
 
     # 薄弱题
     weak = [q for q in insights.get("questions", []) if q["score_rate"] < 0.5]
