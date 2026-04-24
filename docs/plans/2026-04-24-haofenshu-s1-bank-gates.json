@@ -5,15 +5,18 @@
   "gates": {
     "plan_review": {
       "required": true,
-      "status": "fail",
+      "status": "manual_override",
       "reviewer": "gpt",
       "subject_ref": "docs/plans/2026-04-24-haofenshu-s1-bank-plan.md",
-      "subject_hash": "8e0bfb2a8e91053ba7baf11516f99f1e4c5bc04f7a1675c8fbf5337a28048935",
-      "report_path": "/home/ops/projects/edu-cloud/docs/plans/2026-04-24-haofenshu-s1-bank-plan-review.md",
-      "updated": "2026-04-24T12:39:04.010191+08:00",
-      "reason": "R1 FAIL: 6 MED findings (0 HIGH). F-S1A-01 Gate 命令 Alembic rev 混用 Git commit / F-S1A-02 Task 1 无入口级验证 / F-S1A-03 bloom_level 类型断言过宽 / F-S1A-04 Contract Pack schema 不符真源 / F-S1A-05 baseline 双真源冲突 / F-S1A-06 handoff 模板超 15 行但 Gate 要求 ≤15。F001/F002/F003/F004 独立验证通过；F005/F008 部分成立。允许 R2（跨模块 ≥2 文件）。",
-      "raw_output_hash": "f4960c98884f42d6ba03554d546db75a5f111d67c9e7052c2f4e4f565f37d3c0",
-      "round": 1
+      "subject_hash": "0fb43740e1d555917ce23af04d5e7492f5b5cc6cc6aa6208cae2ae9e14f026e7",
+      "report_path": "/home/ops/projects/edu-cloud/docs/plans/2026-04-24-haofenshu-s1-bank-plan-review-r2.md",
+      "updated": "2026-04-24T14:54:23.246530+08:00",
+      "reason": "R2 FAIL: 5/6 R1 findings resolved-correct (F-S1A-01/02/03/05/06); F-S1A-04 contested (invariants verification=pending_test + test_ref 不符合 schema 真源); 新 2 MED (F-S1A-R2-01 bank_question_id 参数名错 / F-S1A-R2-02 现有测试数 3→6 口径失真)。R3+ 禁止；3 finding 全机械化可修 (diff 约 30 行)，建议 manual_override 路径。",
+      "raw_output_hash": "1e5d57613e0880033d0ffb41d59764c1d8a56f13813270b09bcb2407dcd5666b",
+      "round": 2,
+      "override_reason": "R2 FAIL 后 1 contested (F-S1A-04) + 2 new MED (F-S1A-R2-01/02) 已在 commit 66c4953 机械修复（test_ref 移出 pending_test invariants 改写 statement 尾部；bank_question_id=qid 参数名对齐 service.py:13；test_bank_service.py 现有数 3→6 口径统一为'现有 6 + 新增 3 = 9 PASS'）。R3+ 禁止（codex-review SKILL §Gate 硬限）；3 finding 全是 plan 文本机械错，不涉设计根因，不值得再走一轮 GPT。用户 2026-04-24 按推荐授权。7 天有效期内应完成 S1-A 实施（T1-4 全部 PASS + Gate G1-S1A-1~8）。",
+      "override_timestamp": "2026-04-24T14:54:23.246509+08:00",
+      "override_operator": "user-approved-by-owner"
     }
   }
 }
