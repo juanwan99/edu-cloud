@@ -85,11 +85,11 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-04-23：2028 passed / 23 skipped
+# 后端 ECS pytest 实测 @ 2026-04-24：2046 passed / 23 skipped（含 analytics insights/ranking/advanced 11 新测试）
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
-# 前端 Vitest + happy-dom
-cd /home/ops/projects/edu-cloud/frontend && npx vitest run
+# 前端 Vitest + happy-dom（frontend-nuxt 57 tests @ 2026-04-24）
+cd /home/ops/projects/edu-cloud/frontend-nuxt && npx vitest run
 ```
 <!-- key-end -->
 
@@ -317,13 +317,13 @@ tests/
 
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
-| API | 223 路由（auth/schools/joint-exams/results/sync/exam/grading/marking/analytics/knowledge/knowledge-tree/pipeline/studio/calendar/homework/profile/bank/ai/dashboard/notifications/llm-config/card/compat/conduct-parent/conduct-admin） | 共享 AI 阅卷, 高级跨校分析 |
+| API | 231 路由（+8 analytics 进阶分析端点：question-insights/diagnosis/student-rankings/critical-students/class-boxplot/class-knowledge/class-error-patterns + profile ai-diagnosis） | 共享 AI 阅卷 |
 | Models | 85 表（modules/ 下 17 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表 + alembic_version） | — |
 | Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline + exceptions | AI grading 生产接入 |
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 8 角色映射 | — |
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 2004 后端 + 30 frontend-nuxt Vitest（ECS 实测 @ 2026-04-23） | — |
+| Tests | 2046 后端 + 57 frontend-nuxt Vitest（ECS 实测 @ 2026-04-24） | — |
 | Modules | 20 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu），路由已迁入；其中 `adaptive`/`paper` 为内部服务模块（无 HTTP router）；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
 | Migrations | Alembic migration（85 表，25 个迁移） | — |
 
@@ -363,7 +363,9 @@ tests/
 - 状态：Phase 1 Batch 3 进行中，不替代现有 `frontend/`（INV-01）
 - `composables/usePowerOptions.ts`：级联筛选 composable（grade→class→subject→exam，watch 级联重置，ORC-003 class_id null 映射）
 - `components/common/PowerFilter.vue`：级联筛选 UI 组件（4 个 ElSelect，usePowerOptions 驱动）
-- `pages/report/`：6 个分析报告页面（exam/contrast/custom/table/level-score/config），均消费 PowerFilter + ECharts
+- `composables/useAnalytics.ts`：分析数据管理 composable（loadBasicData 4 并行请求 + loadAdvancedData 懒加载 2 请求 + clearAll，ORC-006 懒加载）
+- `components/analytics/`：9 个分析组件（StatCard / ClassRankTable / AiDiagnosisCard / ErrorCausePanel / StudentRankTable / TrendLine / CriticalStudents / RadarChart / KnowledgeHeatmap）
+- `pages/report/`：7 个分析报告页面（exam 考后总览含基础+进阶 Tab / students 学生追踪 / contrast 班级对比含箱线图+热力图 / level-score 等级赋分 / config 参数配置含阈值 / custom / table），均消费 PowerFilter + ECharts
 - **Batch 2 进度**: T4 Nuxt 骨架 ✓ / T5 auth+context stores + middleware + Vitest 8/8 ✓ / T6 useApi composable + 4 tests ✓ / T7 useMenus + TopNav/SubNav/UserDropdown ✓ / T8 三种 Layout ✓ / T9 login+home 页面 ✓ / **Gate 2 R1 FAIL → R2 修复**: B2-F001 lockfile 对齐（`npm ci --ignore-scripts` 零报错 + `npm ls` 零 invalid）+ B2-F002 AuthError 职责分层（独立修复设计 + Fix Intent Card 4 ORC + 3 反证护航，新增 `tests/composables/useMenus.test.ts` 8 + `tests/layouts/default.test.ts` 4 = Vitest 24/24）+ B2-F003 措辞收窄 / **R2 FAIL → R3 修复**: B2-F001 Node floor 升级方案 A（`package.json engines ">=22.12.0"` + `.nvmrc 22.12.0`，L017 user approved 2026-04-14；在 Node 22.22.2 下 npm ci EBADENGINE 0 警告 + npm ls 0 invalid + nuxt prepare exit 0 + Vitest 24/24）+ B2-F003 根因定论收窄（R2 handoff §6 删除 hot-reload 旧措辞，grep 零残留）
 
 ## 日志体系
@@ -552,6 +554,14 @@ tests/
 | POST | `/api/v1/analytics/report/export` | GENERATE_REPORT | 生成分析报告文档（走 Studio） |
 | GET | `/api/v1/analytics/power-options` | 已登录 | 级联筛选树（年级→班级→科目→考试，RBAC 过滤） |
 | POST | `/api/v1/analytics/level-score/convert` | MANAGE_EXAM_RESULTS | 等级赋分转换（原始分→百分位等级→线性插值赋分） |
+| GET | `/api/v1/analytics/exam/{id}/question-insights` | 已登录 | 题目错因聚合 + 难度/区分度（AI 阅卷数据） |
+| GET | `/api/v1/analytics/exam/{id}/diagnosis` | 已登录 | 考试诊断文本（模板拼接，ORC-007 不调 LLM） |
+| GET | `/api/v1/analytics/exam/{id}/student-rankings` | 已登录 | 学生排名 + 进退步 delta |
+| GET | `/api/v1/analytics/exam/{id}/critical-students` | 已登录 | 临界生筛选（差 N 分及格/优秀） |
+| GET | `/api/v1/analytics/exam/{id}/class-boxplot` | 已登录 | 各班分数箱线图 |
+| GET | `/api/v1/analytics/exam/{id}/class-knowledge` | 已登录 | 班级×知识点掌握率热力图 |
+| GET | `/api/v1/analytics/exam/{id}/class-error-patterns` | 已登录 | 班级错误模式对比 |
+| GET | `/api/v1/profile/students/{id}/ai-diagnosis` | VIEW_SCORES | 学生个体 AI 诊断（模板拼接） |
 | * | `/api/v1/knowledge/*` | 知识点 CRUD/树查询/关联 |
 | POST | `/api/v1/pipeline/run/{id}` | 数据流水线触发 |
 | * | `/api/v1/llm-config/slots` | LLM 槽位管理 |
