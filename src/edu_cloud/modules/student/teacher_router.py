@@ -54,6 +54,7 @@ class TeacherCreate(BaseModel):
     notes: str | None = None
     subject_codes: list[str] | None = None
     class_ids: list[str] | None = None
+    school_id: str | None = None  # 仅超管跨校时需传；非超管忽略（ORC-001/ORC-002）
 
 
 class TeacherUpdate(BaseModel):
@@ -150,9 +151,24 @@ async def create_teacher(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
-    school_id = current["current_role"].school_id or (
-        req.school_id if hasattr(req, 'school_id') else None
+    # ── ORC-001/ORC-002：school_id 决策 + 跨校权限守卫 ──
+    current_role = current["current_role"]
+    is_cross_school = (req.school_id is not None) and (
+        current_role.school_id is None or current_role.school_id != req.school_id
     )
+    if is_cross_school:
+        from edu_cloud.core.permissions import Permission
+        from edu_cloud.services.exceptions import PermissionDeniedError
+        if Permission.MANAGE_SCHOOLS not in current["permissions"]:
+            raise PermissionDeniedError(
+                f"Role '{current_role.role}' lacks permission 'manage_schools' for cross-school create"
+            )
+        target_school_id = req.school_id
+    else:
+        target_school_id = current_role.school_id or req.school_id
+    if target_school_id is None:
+        raise ValidationError("缺少 school_id")
+
     existing = await db.execute(select(User).where(User.username == req.username))
     if existing.scalar_one_or_none():
         raise ValidationError(f"用户名 {req.username} 已存在")
@@ -177,7 +193,7 @@ async def create_teacher(
     created_roles = []
     for i, role_name in enumerate(req.roles):
         ur = UserRole(
-            user_id=user.id, role=role_name, school_id=school_id,
+            user_id=user.id, role=role_name, school_id=target_school_id,
             subject_codes=req.subject_codes, class_ids=req.class_ids,
             is_primary=(i == 0),
         )

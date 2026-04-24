@@ -308,7 +308,7 @@ scripts/
 tests/
   conftest.py           # SQLite in-memory + AsyncClient + admin/school/db_engine fixtures
   test_api/             # 平台 API 测试（health/deps/schools/joint_exams/sync_v2/results）
-  test_api_exam/        # 考试 API 测试（exam-ai 迁入，32 文件）
+  test_api_exam/        # 考试 API 测试（exam-ai 迁入，47 文件；含 test_teachers_cross_school 超管跨校契约锁）
   test_services/        # 平台 Service 单测（exceptions/school/joint_exam/results）
   test_services_exam/   # 考试 Service 单测（exam-ai 迁入，27 文件）
   test_exam_misc/       # 考试杂项测试（answer_standardizer/template_library/integration）
