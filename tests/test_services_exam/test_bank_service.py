@@ -139,7 +139,7 @@ async def test_bank_question_new_fields_roundtrip(db):
         explanation="勾股定理应用题",
         knowledge_point_ids=[101, 102, 103],
         difficulty_level="hard",
-        grade_id=9,
+        grade_id="00000000-0000-0000-0000-000000000001",
     )
     db.add(q)
     await db.commit()
@@ -149,7 +149,7 @@ async def test_bank_question_new_fields_roundtrip(db):
     assert q.explanation == "勾股定理应用题"
     assert q.knowledge_point_ids == [101, 102, 103]
     assert q.difficulty_level == "hard"
-    assert q.grade_id == 9
+    assert q.grade_id == "00000000-0000-0000-0000-000000000001"
 
 
 @pytest.mark.asyncio
@@ -197,7 +197,7 @@ async def test_bank_question_new_fields_visible_via_service(db):
         explanation="教材例题 2-3",
         knowledge_point_ids=[201, 202],
         difficulty_level="medium",
-        grade_id=7,
+        grade_id="00000000-0000-0000-0000-000000000002",
     )
     db.add(q)
     await db.commit()
@@ -214,4 +214,4 @@ async def test_bank_question_new_fields_visible_via_service(db):
     assert retrieved.explanation == "教材例题 2-3"
     assert retrieved.knowledge_point_ids == [201, 202]
     assert retrieved.difficulty_level == "medium"
-    assert retrieved.grade_id == 7
+    assert retrieved.grade_id == "00000000-0000-0000-0000-000000000002"
