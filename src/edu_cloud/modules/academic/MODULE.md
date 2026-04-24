@@ -23,7 +23,7 @@ depends_on:
 created: 2026-04-24
 last_reviewed: 2026-04-24
 design_docs:
-  - docs/plans/2026-04-23-academic-infrastructure-plan.md
+  - docs/plans/2026-04-24-academic-infrastructure-plan.md
 ---
 
 # academic 模块
