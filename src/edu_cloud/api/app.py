@@ -224,7 +224,7 @@ def create_app() -> FastAPI:
                 if uid:
                     user_token = current_user_var.set(uid)
             except Exception:
-                pass
+                logger.debug("request log: token decode skipped")
 
         start = time.perf_counter()
         try:

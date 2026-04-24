@@ -1,4 +1,5 @@
 """AI Agent API — chat SSE + sessions CRUD + health。"""
+import asyncio
 import json
 import logging
 import uuid
@@ -60,9 +61,10 @@ class _SessionState:
 
 
 _sessions: dict[str, _SessionState] = {}
+_sessions_lock = asyncio.Lock()
 
 
-def _purge_expired_sessions():
+async def _purge_expired_sessions():
     """Remove sessions older than AI_SESSION_TTL."""
     import time
     ttl = settings.AI_SESSION_TTL
@@ -131,20 +133,21 @@ async def ai_chat(
     audit = AuditLogger(db)
     session_id = req.session_id or str(uuid.uuid4())
 
-    if session_id not in _sessions:
-        try:
-            await audit.create_session(user.id, role, context=scope)
-        except Exception as e:
-            logger.warning("Failed to create audit session: %s", e)
+    async with _sessions_lock:
+        if session_id not in _sessions:
+            try:
+                await audit.create_session(user.id, role, context=scope)
+            except Exception as e:
+                logger.warning("Failed to create audit session: %s", e)
 
-    school_id = getattr(role_obj, "school_id", None)
+        school_id = getattr(role_obj, "school_id", None)
 
-    # Session state + Anonymizer
-    session_state = _sessions.setdefault(
-        session_id, _SessionState(anonymizer=Anonymizer(), owner_id=user.id)
-    )
-    session_state.touch()
-    _purge_expired_sessions()
+        # Session state + Anonymizer
+        session_state = _sessions.setdefault(
+            session_id, _SessionState(anonymizer=Anonymizer(), owner_id=user.id)
+        )
+        session_state.touch()
+        await _purge_expired_sessions()
 
     # Agent profile + slot resolution (best-effort)
     profile = None
@@ -242,7 +245,8 @@ async def ai_chat(
 @router.get("/sessions")
 async def list_sessions(current=Depends(get_current_user)):
     user = current["user"]
-    owned = [sid for sid, s in _sessions.items() if s.owner_id == user.id]
+    async with _sessions_lock:
+        owned = [sid for sid, s in _sessions.items() if s.owner_id == user.id]
     return {"sessions": owned}
 
 
@@ -252,11 +256,11 @@ async def delete_session(
     current=Depends(get_current_user),
 ):
     user = current["user"]
-    state = _sessions.get(session_id)
-    if state is None:
-        return {"deleted": False, "reason": "session not found"}
-    if state.owner_id != user.id:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="无权删除他人会话")
-    del _sessions[session_id]
+    async with _sessions_lock:
+        state = _sessions.get(session_id)
+        if state is None:
+            return {"deleted": False, "reason": "session not found"}
+        if state.owner_id != user.id:
+            raise HTTPException(status_code=403, detail="无权删除他人会话")
+        del _sessions[session_id]
     return {"deleted": True}

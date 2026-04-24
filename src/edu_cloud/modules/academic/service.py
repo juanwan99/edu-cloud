@@ -3,6 +3,7 @@ import logging
 from datetime import date as date_type, time as time_type
 
 from sqlalchemy import select, update, delete
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.academic.models import Semester, TimePeriod, TimetableSlot
@@ -32,7 +33,7 @@ async def create_semester(
     db.add(semester)
     try:
         await db.commit()
-    except Exception:
+    except IntegrityError:
         await db.rollback()
         raise ConflictError("该学年+学期已存在")
     await db.refresh(semester)

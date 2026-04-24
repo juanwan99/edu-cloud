@@ -10,6 +10,20 @@ from edu_cloud.modules.grading.prompts_legacy import build_grading_prompt, build
 logger = logging.getLogger(__name__)
 
 
+def _log_llm_usage(method: str, data: dict, model: str) -> None:
+    u = data.get("usage") or {}
+    ch = (data.get("choices") or [{}])[0]
+    logger.info(
+        "llm-usage method=%s model=%s in=%s out=%s finish=%s",
+        method,
+        model,
+        u.get("prompt_tokens", u.get("input_tokens", 0)),
+        u.get("completion_tokens", u.get("output_tokens", 0)),
+        ch.get("finish_reason"),
+    )
+
+
+
 class GradeResponse(BaseModel):
     score: float
     max_score: float = 0.0
@@ -84,6 +98,7 @@ class LLMClient:
                     continue
 
                 data = resp.json()
+                _log_llm_usage("grade", data, self.model)
                 choices = data.get("choices") or []
                 if not choices:
                     last_error = "Empty choices in LLM response"
@@ -168,6 +183,7 @@ class LLMClient:
                     continue
 
                 data = resp.json()
+                _log_llm_usage("rubric", data, self.model)
                 choices = data.get("choices") or []
                 if not choices:
                     last_error = "Empty choices in LLM response"
@@ -228,6 +244,7 @@ class LLMClient:
                     logger.warning("extract_text attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
                     continue
                 data = resp.json()
+                _log_llm_usage("extract_text", data, self.model)
                 choices = data.get("choices") or []
                 if not choices:
                     last_error = "Empty choices"
@@ -267,6 +284,7 @@ class LLMClient:
                     logger.warning("grade_text attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
                     continue
                 data = resp.json()
+                _log_llm_usage("grade_text", data, self.model)
                 choices = data.get("choices") or []
                 if not choices:
                     last_error = "Empty choices"

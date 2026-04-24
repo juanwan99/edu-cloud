@@ -85,7 +85,7 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-04-24：2046 passed / 23 skipped（含 analytics insights/ranking/advanced 11 新测试）
+# 后端 ECS pytest 实测 @ 2026-04-24：2060 passed / 23 skipped（审计修复后）
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
 # 前端 Vitest + happy-dom（frontend-nuxt 57 tests @ 2026-04-24）
@@ -294,8 +294,9 @@ src/edu_cloud/
     grading.py          # process_grading_task（AI 阅卷，微批次并发 GRADING_BATCH_SIZE=20）+ run_post_exam_pipeline（考后处理，已接线 pipeline）
   shared/
     auth.py             # JWT create/decode 工具函数
-  config.py             # Settings（DB/Redis/JWT/ENCRYPTION_KEY(PII加密)/LLM(timeout=180s)/GRADING_BATCH_SIZE(20)/UPLOAD_DIR/知识库/AI Agent tier+router 配置，BaseSettings）
-  database.py           # async engine + session factory
+    upload_validation.py # 图片上传 magic bytes 验证（替代 Python 3.13 废弃的 imghdr）
+  config.py             # Settings（DB/Redis/JWT/ENCRYPTION_KEY(PII加密)/LLM(timeout=180s)/GRADING_BATCH_SIZE(20)/UPLOAD_DIR/知识库/AI Agent 配置，BaseSettings）
+  database.py           # async engine + session factory（PostgreSQL 连接池 pool_size=20/max_overflow=40/pool_recycle=3600）
   logging_config.py     # 双输出（Console UTC+8 + JSONL RotatingFile）
   worker.py             # arq WorkerSettings（3 functions: auto_draft/grading/pipeline）
 scripts/
@@ -317,15 +318,15 @@ tests/
 
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
-| API | 231 路由（+8 analytics 进阶分析端点：question-insights/diagnosis/student-rankings/critical-students/class-boxplot/class-knowledge/class-error-patterns + profile ai-diagnosis） | 共享 AI 阅卷 |
+| API | 276 路由（含 academic 10 + exam schedule 2 + analytics 进阶 8） | 共享 AI 阅卷 |
 | Models | 88 表（modules/ 下 18 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表 + academic 3 表 + alembic_version） | — |
 | Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline + exceptions | AI grading 生产接入 |
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 8 角色映射 | — |
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 2046 后端 + 57 frontend-nuxt Vitest（ECS 实测 @ 2026-04-24） | — |
-| Modules | 21 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu/academic），路由已迁入；其中 `adaptive`/`paper`/`academic` 为内部/基础数据模块（`academic` 当前仅 models，router/service 待后续 Task 添加）；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
-| Migrations | Alembic migration（88 表，26 个迁移） | — |
+| Tests | 2060 后端 + 57 frontend-nuxt Vitest（ECS 实测 @ 2026-04-24，审计修复后） | — |
+| Modules | 21 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu/academic），路由已迁入；其中 `adaptive`/`paper` 为内部/基础数据模块；`academic` 含 semester/period/timetable 完整 CRUD；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
+| Migrations | Alembic migration（88 表，28 个迁移） | — |
 
 ## 技术栈
 
@@ -565,6 +566,21 @@ tests/
 | * | `/api/v1/knowledge/*` | 知识点 CRUD/树查询/关联 |
 | POST | `/api/v1/pipeline/run/{id}` | 数据流水线触发 |
 | * | `/api/v1/llm-config/slots` | LLM 槽位管理 |
+| PUT/GET | `/api/v1/exams/{id}/schedule` | 考试排程（时间/地点） |
+
+### 教务管理端点（JWT 认证）
+
+| 方法 | 路径 | 用途 |
+|------|------|------|
+| POST | `/api/v1/academic/semesters` | 创建学期 |
+| GET | `/api/v1/academic/semesters` | 列出学期 |
+| GET | `/api/v1/academic/semesters/current` | 获取当前学期 |
+| PATCH | `/api/v1/academic/semesters/{id}` | 更新学期 |
+| POST | `/api/v1/academic/semesters/{id}/activate` | 激活学期 |
+| PUT/GET | `/api/v1/academic/periods` | 时段管理 |
+| GET | `/api/v1/academic/timetable` | 查询课表 |
+| PUT | `/api/v1/academic/timetable/{class_id}` | 保存班级课表 |
+| GET | `/api/v1/academic/timetable/stats` | 课表统计 |
 
 ### Studio 文档端点（JWT 认证）
 
@@ -742,7 +758,7 @@ tests/
 DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/edu_cloud
 ```
 
-云端必须使用 PostgreSQL（跨校聚合查询、高并发写入）。不支持 SQLite。
+生产环境使用 PostgreSQL（连接池 20+40，pool_recycle=3600）。开发/测试使用 SQLite（`sqlite+aiosqlite`，无连接池）。
 
 ## Docker 部署
 

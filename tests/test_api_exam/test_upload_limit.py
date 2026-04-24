@@ -1,5 +1,8 @@
 import pytest
 from io import BytesIO
+
+PNG_HEADER = b"\x89PNG\r\n\x1a\n"
+
 from edu_cloud.models.school import School
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
@@ -39,7 +42,7 @@ async def upload_setup(client, db):
 
 async def test_upload_rejects_oversized_file(client, upload_setup):
     headers, exam_id, subject_id, question_id = upload_setup
-    big_data = b"x" * (10 * 1024 * 1024 + 1)
+    big_data = PNG_HEADER + b"x" * (10 * 1024 * 1024 + 1)
     resp = await client.post(
         "/api/v1/scan/upload",
         data={
@@ -57,8 +60,8 @@ async def test_upload_rejects_oversized_file(client, upload_setup):
 async def test_upload_batch_rejects_oversized_file(client, upload_setup):
     """batch 上传中某张图片超限 → 413，且已保存的文件被清理。"""
     headers, exam_id, subject_id, question_id = upload_setup
-    small_data = b"x" * 100
-    big_data = b"x" * (10 * 1024 * 1024 + 1)
+    small_data = PNG_HEADER + b"x" * 100
+    big_data = PNG_HEADER + b"x" * (10 * 1024 * 1024 + 1)
     resp = await client.post(
         "/api/v1/scan/upload/batch",
         data={
@@ -79,7 +82,7 @@ async def test_upload_batch_rejects_oversized_file(client, upload_setup):
 async def test_upload_normal_size_passes(client, upload_setup):
     """正常大小文件（< 10MB）应返回 201。"""
     headers, exam_id, subject_id, question_id = upload_setup
-    normal_data = b"x" * 1024
+    normal_data = PNG_HEADER + b"x" * 1024
     resp = await client.post(
         "/api/v1/scan/upload",
         data={
@@ -97,7 +100,7 @@ async def test_upload_normal_size_passes(client, upload_setup):
 async def test_upload_exact_limit_passes(client, upload_setup):
     """恰好等于 10MB 的文件应通过（检查条件是 > 而非 >=）。"""
     headers, exam_id, subject_id, question_id = upload_setup
-    exact_data = b"x" * (10 * 1024 * 1024)
+    exact_data = PNG_HEADER + b"x" * (10 * 1024 * 1024 - len(PNG_HEADER))
     resp = await client.post(
         "/api/v1/scan/upload",
         data={

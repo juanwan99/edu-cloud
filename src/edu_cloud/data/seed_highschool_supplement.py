@@ -11,6 +11,7 @@
 幂等：检查"高一7班"是否已存在。
 """
 import asyncio
+import json
 import logging
 import random
 import uuid
@@ -301,14 +302,13 @@ async def seed_highschool_supplement(db: AsyncSession) -> dict:
     # ── 5. 补充教师 ──
     # 5a. 查现有教师（按科目）
     existing_teachers: dict[str, list[str]] = {}  # {subject_code: [user_id, ...]}
-    rows = (await db.execute(text(f"""
+    rows = (await db.execute(text("""
         SELECT ur.user_id, ur.subject_codes FROM user_roles ur
-        WHERE ur.school_id = '{school_id}' AND ur.role = 'subject_teacher'
+        WHERE ur.school_id = :school_id AND ur.role = 'subject_teacher'
         AND ur.subject_codes IS NOT NULL
-    """))).all()
+    """), {"school_id": school_id})).all()
     for user_id, subj_json in rows:
         # subject_codes 存为 JSON 数组字符串，如 '["YW"]'
-        import json
         codes = json.loads(subj_json) if isinstance(subj_json, str) else subj_json
         for code in codes:
             existing_teachers.setdefault(code, []).append(user_id)
@@ -323,11 +323,11 @@ async def seed_highschool_supplement(db: AsyncSession) -> dict:
     for user_id, subj_json in rows:
         codes = json.loads(subj_json) if isinstance(subj_json, str) else subj_json
         # 查该教师的 class_ids
-        role_row = (await db.execute(text(f"""
+        role_row = (await db.execute(text("""
             SELECT class_ids FROM user_roles
-            WHERE user_id = '{user_id}' AND role = 'subject_teacher'
-            AND school_id = '{school_id}' LIMIT 1
-        """))).first()
+            WHERE user_id = :user_id AND role = 'subject_teacher'
+            AND school_id = :school_id LIMIT 1
+        """), {"user_id": user_id, "school_id": school_id})).first()
         if role_row and role_row[0]:
             cids = json.loads(role_row[0]) if isinstance(role_row[0], str) else role_row[0]
             if any(cid in hs_class_ids for cid in (cids or [])):
@@ -488,25 +488,25 @@ async def seed_highschool_supplement(db: AsyncSession) -> dict:
     await db.commit()
 
     # ── 统计验证 ──
-    total_hs_students = (await db.execute(text(f"""
+    total_hs_students = (await db.execute(text("""
         SELECT COUNT(*) FROM students
-        WHERE school_id = '{school_id}' AND grade IN ('高一','高二','高三')
-    """))).scalar()
+        WHERE school_id = :school_id AND grade IN ('高一','高二','高三')
+    """), {"school_id": school_id})).scalar()
 
-    total_hs_classes = (await db.execute(text(f"""
+    total_hs_classes = (await db.execute(text("""
         SELECT COUNT(*) FROM classes
-        WHERE school_id = '{school_id}' AND grade IN ('高一','高二','高三')
-    """))).scalar()
+        WHERE school_id = :school_id AND grade IN ('高一','高二','高三')
+    """), {"school_id": school_id})).scalar()
 
-    total_assignments = (await db.execute(text(f"""
+    total_assignments = (await db.execute(text("""
         SELECT COUNT(*) FROM teacher_assignments
-        WHERE school_id = '{school_id}'
-    """))).scalar()
+        WHERE school_id = :school_id
+    """), {"school_id": school_id})).scalar()
 
-    total_selections = (await db.execute(text(f"""
+    total_selections = (await db.execute(text("""
         SELECT COUNT(*) FROM subject_selections
-        WHERE school_id = '{school_id}'
-    """))).scalar()
+        WHERE school_id = :school_id
+    """), {"school_id": school_id})).scalar()
 
     stats.update({
         "total_hs_classes": total_hs_classes,

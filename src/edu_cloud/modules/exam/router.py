@@ -304,6 +304,13 @@ async def upload_question_image(
     dest_path = dest_dir / filename
 
     contents = await file.read()
+    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    if len(contents) > max_bytes:
+        raise HTTPException(413, f"File too large: {len(contents)} bytes")
+    from edu_cloud.shared.upload_validation import detect_image_type
+    detected = detect_image_type(contents[:32])
+    if detected is None:
+        raise HTTPException(400, "Invalid image type")
     dest_path.write_bytes(contents)
 
     url_path = f"/uploads/questions/{question_id}/{filename}"
