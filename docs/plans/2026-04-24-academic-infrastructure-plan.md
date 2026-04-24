@@ -1537,7 +1537,7 @@ git commit -m "test(exam): schedule API tests (3 cases incl. overlap detection)"
 **Test Contract:**
 - 入口: conduct admin_service.create_semester / activate_semester
 - 反例: platform Semester created even when called via conduct API
-- 边界: activate syncs both tables
+- 边界: conduct activate only affects ConductSemester, does NOT touch platform Semester.is_current
 - 回归: existing conduct tests unaffected
 - 命令: `.venv/bin/python -m pytest tests/test_services/test_conduct_semester_migration.py -v`
 
@@ -1722,7 +1722,8 @@ async def test_create_writes_both_tables(db, setup):
 
 
 @pytest.mark.asyncio
-async def test_activate_syncs_both(db, setup):
+async def test_activate_conduct_only(db, setup):
+    """Activate via conduct API only affects ConductSemester, does NOT touch platform Semester.is_current."""
     school, cls = setup
     r1 = await admin_service.create_semester(db, cls.id, "S1", date(2025, 9, 1), date(2026, 1, 15))
     r2 = await admin_service.create_semester(db, cls.id, "S2", date(2026, 2, 17), date(2026, 7, 10))
@@ -1730,14 +1731,20 @@ async def test_activate_syncs_both(db, setup):
     result = await admin_service.activate_semester(db, r1["id"])
     assert result["is_current"] is True
 
-    # Platform: only one is_current
+    # ConductSemester: only one is_current in this class
+    all_conduct = (await db.execute(select(ConductSemester).where(ConductSemester.class_id == cls.id))).scalars().all()
+    conduct_current = sum(1 for s in all_conduct if s.is_current)
+    assert conduct_current == 1
+
+    # Platform Semester: is_current is NOT touched by conduct activate (managed independently)
     all_platform = (await db.execute(select(Semester).where(Semester.school_id == school.id))).scalars().all()
-    current_count = sum(1 for s in all_platform if s.is_current)
-    assert current_count == 1
+    platform_current = sum(1 for s in all_platform if s.is_current)
+    assert platform_current == 0  # conduct activate does not set platform is_current
 
 
 @pytest.mark.asyncio
-async def test_get_reads_from_platform(db, setup):
+async def test_get_reads_from_conduct(db, setup):
+    """get_semesters reads from ConductSemester (backward compat for conduct router)."""
     school, cls = setup
     await admin_service.create_semester(db, cls.id, "S1", date(2025, 9, 1), date(2026, 1, 15))
 
