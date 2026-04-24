@@ -105,31 +105,29 @@ linear_chain_prev: haofenshu-s1-bank (S1-A T2 slug a88094ee4ea6)
 
 ### Evidence: E-003 — ORM 注册链路（F002 repair 方向）
 
-**decision**: Grade 放 `src/edu_cloud/models/grade.py`（跨模块共享表，`orm-placement.md:§7` 反模式"跨模块共享表下沉到某模块"）。TeachingPlan 放 `src/edu_cloud/modules/calendar/models.py`（模块专用，对应 design §6.3 `calendar.teaching_plan_service`）。**注册方式（R1 F001 修正：原两处扩为三处）**：`alembic/env.py` + `src/edu_cloud/api/app.py` + `tests/conftest.py` 各加 Grade import；conftest.py 额外 `import edu_cloud.modules.calendar.models` 触发 TeachingPlan 测试期注册。`src/edu_cloud/models/__init__.py` **不**参与（已验证空文件）。
+**decision** (R2-F001 修复后的最终形态): Grade 放 `src/edu_cloud/models/grade.py`（跨模块共享表，`orm-placement.md:§7` 反模式"跨模块共享表下沉到某模块"）。**TeachingPlan 放 `src/edu_cloud/models/teaching_plan.py`**（同样跨模块共享 platform-level，与 Grade 策略一致；R2-F001 修正前曾规划放 `modules/calendar/models.py`，但 Planner 误读了 app.py/env.py 的 `import edu_cloud.models.calendar` 语义——那条 import 加载的是 `models/calendar.py` CalendarEvent/NotificationRule，不触发 `modules/calendar/models.py` 加载）。**注册方式**：`alembic/env.py` + `src/edu_cloud/api/app.py` + `tests/conftest.py` 三处**各加 Grade + TeachingPlan 两行独立 import**；`src/edu_cloud/models/__init__.py` **不**参与（已验证空文件，R2-F002 INV-S1C-008 以 SHA256 字节锚点保障）。
 
 **evidence_refs**:
-- `src/edu_cloud/models/__init__.py` 空文件证据：
-  ```bash
-  wc -l src/edu_cloud/models/__init__.py
-  ```
-  实测 0 行。
-- `alembic/env.py:39-73` 显式 import 列表（32 条），S1-C 加第 33 行 `from edu_cloud.models.grade import Grade` 和 import TeachingPlan 的第 34 行
-- `src/edu_cloud/api/app.py:35-65` 启动 import（~30 行），S1-C 加 `import edu_cloud.models.grade` + 已有 `import edu_cloud.modules.calendar.models` 无需改（TeachingPlan 合入现有文件即触发）
+- `src/edu_cloud/models/__init__.py` 空文件证据：SHA256 = `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`（空字节 SHA256 锚点，R2-F002 INV-S1C-008）
+- `alembic/env.py:85-87` 显式 import 列表末尾，S1-C 追加 2 行：`from edu_cloud.models.grade import Grade` + `from edu_cloud.models.teaching_plan import TeachingPlan`
+- `src/edu_cloud/api/app.py:65-67` 启动 lifespan 内 import 列表末尾，S1-C 追加 2 行：`import edu_cloud.models.grade` + `import edu_cloud.models.teaching_plan`
+- `tests/conftest.py:47-49` 测试期 `Base.metadata.create_all()` 入口 import 列表末尾，S1-C 追加 2 行：`import edu_cloud.models.grade` + `import edu_cloud.models.teaching_plan`
 - `docs/arch/orm-placement.md:§7` 反模式：
-  - "跨模块共享表下沉到某模块 → 上浮到 `models/`" → Grade 被 S2/S3/S4 多模块消费（design §8.2），符合"跨模块共享"
-  - "模块内 ORM 文件起非 `models.py` 的名字" → 反模式 → TeachingPlan 不新建 `teaching_plan_models.py`（F002 parent review L65-67 否决），必须扩展 `modules/calendar/models.py`
-- `src/edu_cloud/modules/calendar/models.py:1-3` 现状（re-export stub）：
+  - "跨模块共享表下沉到某模块 → 上浮到 `models/`" → Grade 和 TeachingPlan 都被 S2/S3/S4 多模块消费（design §8.2），符合"跨模块共享"
+  - "模块内 ORM 文件起非 `models.py` 的名字" → 反模式 → 不新建 `teaching_plan_models.py`（F002 parent review L65-67 否决）
+- `src/edu_cloud/modules/calendar/models.py:1-3` 现状（re-export stub，**保持不动**）：
   ```python
   """Calendar 模块模型 — CalendarEvent + NotificationRule + Notification（从 models/ 合入）。"""
   from edu_cloud.models.calendar import CalendarEvent, NotificationRule  # noqa: F401
   from edu_cloud.models.notification import Notification  # noqa: F401
   ```
-  追加 TeachingPlan 定义到此文件即为 canonical location（re-export 与新定义共存是合法模式）。
+  TeachingPlan 不追加到此文件（R2-F001 修正）。
 
-**Q1**: evidence_source: code-read + doc-read, evidence_state: verified
+**Q1**: evidence_source: code-read + doc-read + runtime-verified, evidence_state: verified (R2-F001 修复后 Gate 2 Code Review R1 PASS 独立复核)
 **Q2_excluded**:
 - "TeachingPlan 放 `modules/calendar/teaching_plan_models.py`（parent L1 plan Task 4 的建议）": 反证路径: parent plan review F002 L65-67 + `orm-placement.md:§7` 反模式"模块内 ORM 文件起非 models.py 名字"双否决。
 - "Grade 放 `modules/student/models.py`（随 Class）": 反证路径: Grade 被 S2 组卷引擎 / S4 教学计划 / S3 学情画像多模块消费（design §8.2），不是学生模块专用；按 orm-placement.md §7"跨模块共享表"必须上浮。
+- "TeachingPlan 追加到 `modules/calendar/models.py` 只在 conftest.py 加 import"（R1 原方案，R2-F001 HIGH 否决）: 反证路径: app.py/env.py 中的 `import edu_cloud.models.calendar` 加载的是 models/calendar.py，不触发 modules/calendar/models.py；此路径下 TeachingPlan 只在测试期注册，生产 Base.metadata.create_all 会遗漏——必须三入口独立 import 才 fail-closed。
 **impact_scope**: cross-module (bank + student + calendar + alembic + api)
 **unknowns**: none
 
@@ -239,12 +237,13 @@ linear_chain_prev: haofenshu-s1-bank (S1-A T2 slug a88094ee4ea6)
 
 - **Rule**: `TeachingPlan.__table__.foreign_keys` 只允许指向本 plan 之前已存在或本 plan 新建的 4 张表之一：`schools.id` / `grades.id` / `users.id`（FK 字段仅 3 个，外加 `subject_code: String(50)` 非 FK）。严禁 `lesson_plans` / `courses` / `resources` / `course_resources` 等 S4 才建的表 FK。
 - **Why**: E-005 根因 + ORC-005 Sprint Gate 串行。设 S4 表 FK 会触发 autogenerate "referenced table not found" 或在运行时引用链断裂。
-- **How to apply**: Task 2 TeachingPlan 定义中 `ForeignKey(...)` 调用必须字符串匹配 `schools.id` / `grades.id` / `users.id` 之一；Task 5 smoke test `test_teaching_plans_fk_targets_are_existing_tables` 遍历 `TeachingPlan.__table__.foreign_keys` 精确断言。
-- **Violation reporter**: Task 5 `test_teaching_plans_fk_targets_are_existing_tables` 枚举所有 FK target_fullname，断言 `⊂ {"schools.id", "grades.id", "users.id"}`；多余 FK 立即 fail。
+- **How to apply**: Task 2 TeachingPlan 定义中 `ForeignKey(...)` 调用必须字符串匹配 `schools.id` / `grades.id` / `users.id` 之一；Task 5 smoke test `test_teaching_plans_table_schema_complete`（越界综合断言）+ `test_teaching_plans_{schools,grades,users}_fk_exists` 三个独立 FK 断言（R2-F002 拆分）遍历 `TeachingPlan.__table__.foreign_keys` 精确断言。
+- **Violation reporter**: Task 5 `test_teaching_plans_table_schema_complete` 枚举所有 FK target 集合 `⊂ {"schools.id", "grades.id", "users.id"}`，任何越界 FK 立即 fail；`test_teaching_plans_users_fk_exists`（R2-F002 核心）防止漏 `created_by → users` FK 的"子集断言"假绿。
 - **type**: forbidden_strategy
 - **protects**: [state_machine]
-- **verification**: pending_test
-- **statement**: S1-C 出口处 TeachingPlan 表所有 ForeignKey 的 target_fullname 集合 ⊂ {"schools.id", "grades.id", "users.id"}（待 Task 5 落地 `tests/test_alembic_s1c_admin.py::test_teaching_plans_fk_targets_are_existing_tables`）
+- **verification**: existing_test
+- **test_ref**: `tests/test_alembic_s1c_admin.py::test_teaching_plans_table_schema_complete` + `::test_teaching_plans_schools_fk_exists` + `::test_teaching_plans_grades_fk_exists` + `::test_teaching_plans_users_fk_exists`
+- **statement**: S1-C 出口处 TeachingPlan 表所有 ForeignKey 的 target_fullname 集合 ⊂ {"schools.id", "grades.id", "users.id"}，且 schools/grades/users 三目标各至少有 1 FK 指向（R2-F002 修复后）
 
 ### ORC-S1C-004: FK 类型统一 String(36) + TD-S1A-002 闭环
 
@@ -263,18 +262,19 @@ linear_chain_prev: haofenshu-s1-bank (S1-A T2 slug a88094ee4ea6)
 
 ### ORC-S1C-005: ORM 注册走 env.py + app.py + tests/conftest.py 三处同步，零 __init__.py 依赖
 
-- **Rule**: S1-C 新增 Grade 模型时必须在 3 处入口同步 import（R1 F001 修正，原"两处"漏了测试入口）：
-  1. `alembic/env.py` 加 `from edu_cloud.models.grade import Grade  # noqa: F401`
-  2. `src/edu_cloud/api/app.py` 加 `import edu_cloud.models.grade  # noqa: F401`
-  3. `tests/conftest.py` 加 `import edu_cloud.models.grade  # noqa: F401` 和 `import edu_cloud.modules.calendar.models  # noqa: F401`（覆盖 Grade 和 TeachingPlan 两个新模型）
-  禁止新增 `src/edu_cloud/models/__init__.py` 的 import（空文件不参与注册）。
-- **Why**: F002 parent review + R1 F001 根因（E-003）。`models/__init__.py` 空文件不被引用；三条独立入口分别驱动 Alembic autogenerate / 应用启动 `Base.metadata.create_all()` / 测试期 `Base.metadata.create_all()`。漏 conftest.py 会让任何依赖测试 fixture `db_engine` 的测试在建库阶段报 `NoReferencedTableError: grades`。
-- **How to apply**: Task 1 最终 diff 应含三处新增 import；禁止修改 `src/edu_cloud/models/__init__.py`。
-- **Violation reporter**: Task 5 smoke `test_orm_registration_three_entry_points` grep 三处 import 各命中；Task 1 Step 1.7 grep 验证。
+- **Rule** (R2-F001 修复后最终形态): S1-C 新增 Grade + TeachingPlan 两个模型，三处入口**各加两行独立 import**：
+  1. `alembic/env.py` 加 `from edu_cloud.models.grade import Grade  # noqa: F401` + `from edu_cloud.models.teaching_plan import TeachingPlan  # noqa: F401`
+  2. `src/edu_cloud/api/app.py` 加 `import edu_cloud.models.grade  # noqa: F401` + `import edu_cloud.models.teaching_plan  # noqa: F401`
+  3. `tests/conftest.py` 加 `import edu_cloud.models.grade  # noqa: F401` + `import edu_cloud.models.teaching_plan  # noqa: F401`
+  禁止新增 `src/edu_cloud/models/__init__.py` 的 import（空文件不参与注册，以 SHA256 字节锚点保障——INV-S1C-008）。
+- **Why**: F002 parent review + R1 F001 + R2-F001 根因（E-003）。`models/__init__.py` 空文件不被引用；三条独立入口分别驱动 Alembic autogenerate / 应用启动 `Base.metadata.create_all()` / 测试期 `Base.metadata.create_all()`。R2-F001 修正：TeachingPlan 不再通过 `modules/calendar/models.py` 间接注册，必须独立 import 以 fail-closed。
+- **How to apply**: Task 1 + Task 2 最终 diff 合起来三入口各含 Grade + TeachingPlan 两行 import；禁止修改 `src/edu_cloud/models/__init__.py`。
+- **Violation reporter**: Task 5 smoke `test_orm_registration_three_entry_points` grep 三处各 Grade + TeachingPlan import 各命中（共 6 条 import）；`models/__init__.py` SHA256 字节锚点比对。
 - **type**: forbidden_strategy
 - **protects**: [state_machine]
-- **verification**: pending_test
-- **statement**: S1-C 出口处 `src/edu_cloud/models/__init__.py` 零改动；`alembic/env.py` + `src/edu_cloud/api/app.py` + `tests/conftest.py` 三处各含 Grade import；conftest.py 额外含 `edu_cloud.modules.calendar.models` import（触发 TeachingPlan 注册）（待 Task 5 落地 `tests/test_alembic_s1c_admin.py::test_orm_registration_three_entry_points`）
+- **verification**: existing_test
+- **test_ref**: `tests/test_alembic_s1c_admin.py::test_orm_registration_three_entry_points`
+- **statement**: S1-C 出口处 `src/edu_cloud/models/__init__.py` SHA256 = `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`（空文件锚点）；`alembic/env.py` + `src/edu_cloud/api/app.py` + `tests/conftest.py` 三处各含 Grade + TeachingPlan 两行独立 import（R2-F001 修复后的三入口 fail-closed 护栏）
 
 ---
 
@@ -287,36 +287,44 @@ contract_pack:
   # test_ref 仅限 existing_test（pending_test 把待验证测试名写入 statement 尾部）
   invariants:
     - id: INV-S1C-001
-      statement: "upgrade 后 grades 表存在且含列 {id: VARCHAR(36) PK, school_id: VARCHAR(36) NOT NULL FK→schools.id, name: VARCHAR(50) NOT NULL, grade_level: INTEGER NULLABLE, xueduan: VARCHAR(20) NULLABLE, sort_order: INTEGER NOT NULL default 0, created_at: TIMESTAMP NOT NULL, updated_at: TIMESTAMP NOT NULL}，且含 UniqueConstraint(school_id, name)（待 Task 5 落地 tests/test_alembic_s1c_admin.py::test_grades_table_created_with_expected_schema）"
-      verification: pending_test
+      statement: "upgrade 后 grades 表存在且含列 {id: VARCHAR(36) PK, school_id: VARCHAR(36) NOT NULL FK→schools.id, name: VARCHAR(50) NOT NULL, grade_level: INTEGER NULLABLE, xueduan: VARCHAR(20) NULLABLE, sort_order: INTEGER NOT NULL default 0, created_at: TIMESTAMP NOT NULL, updated_at: TIMESTAMP NOT NULL}，且含 UniqueConstraint(school_id, name)；R2-F002 修复：补 school_id→schools.id FK 独立断言 + sort_order server_default='0' 独立断言"
+      verification: existing_test
+      test_ref: "tests/test_alembic_s1c_admin.py::test_grades_table_created_with_expected_schema + ::test_grades_unique_constraint"
 
     - id: INV-S1C-002
-      statement: "upgrade 后 teaching_plans 表存在且含 7 列 {id, school_id FK→schools.id, subject_code VARCHAR(50) NOT NULL, grade_id FK→grades.id NULLABLE, semester VARCHAR(30) NOT NULL, weeks_json JSON NULLABLE, created_by FK→users.id NULLABLE, created_at, updated_at}，全部 3 个 FK 目标都是本 plan 前已存在或新建的表，不含 lesson_plans/resources 等未建表引用，且含 UniqueConstraint(school_id, subject_code, grade_id, semester)（待 Task 5 落地 tests/test_alembic_s1c_admin.py::test_teaching_plans_fk_targets_are_existing_tables）"
-      verification: pending_test
+      statement: "upgrade 后 teaching_plans 表存在且含 9 列 {id, school_id FK→schools.id, subject_code VARCHAR(50) NOT NULL, grade_id FK→grades.id NULLABLE, semester VARCHAR(30) NOT NULL, weeks_json JSON NULLABLE, created_by FK→users.id NULLABLE, created_at, updated_at}；R2-F002 修复后拆成 3 个独立 FK 断言（schools/grades/users 各断言 1 个 FK 存在）+ 1 个越界综合断言（FK 目标 ⊂ {schools,grades,users} 禁 lesson_plans 等未建表引用）；且含 UniqueConstraint(school_id, subject_code, grade_id, semester)"
+      verification: existing_test
+      test_ref: "tests/test_alembic_s1c_admin.py::test_teaching_plans_table_schema_complete + ::test_teaching_plans_schools_fk_exists + ::test_teaching_plans_grades_fk_exists + ::test_teaching_plans_users_fk_exists + ::test_teaching_plans_unique_constraint"
 
     - id: INV-S1C-003
-      statement: "upgrade 后 classes 表新增 grade_id VARCHAR(36) NULLABLE FK→grades.id，同时守旧字段 grade: VARCHAR(50) NOT NULL 和 grade_number: INTEGER NULLABLE 精确保持（待 Task 5 落地 tests/test_alembic_s1c_admin.py::test_classes_grade_id_added_legacy_unchanged）"
-      verification: pending_test
+      statement: "upgrade 后 classes 表新增 grade_id VARCHAR(36) NULLABLE FK→grades.id，同时守旧字段 grade: VARCHAR(50) NOT NULL 和 grade_number: INTEGER NULLABLE 精确保持"
+      verification: existing_test
+      test_ref: "tests/test_alembic_s1c_admin.py::test_classes_grade_id_added_legacy_unchanged"
 
     - id: INV-S1C-004
-      statement: "upgrade 后 bank_questions.grade_id 列类型为 VARCHAR(36) 且含 ForeignKey 约束 target_fullname='grades.id'（闭环 TD-S1A-002；S1-A 入口处是 INTEGER 无 FK，S1-C migration 通过 batch_alter_table alter_column + create_foreign_key 完成类型迁移 + FK 绑定；待 Task 5 落地 tests/test_alembic_s1c_admin.py::test_bank_questions_grade_id_is_string36_with_fk）"
-      verification: pending_test
+      statement: "upgrade 后 bank_questions.grade_id 列类型为 VARCHAR(36) 且含 ForeignKey 约束 target_fullname='grades.id'（闭环 TD-S1A-002；S1-A 入口处是 INTEGER 无 FK，S1-C migration 通过 batch_alter_table alter_column + create_foreign_key 完成类型迁移 + FK 绑定）"
+      verification: existing_test
+      test_ref: "tests/test_alembic_s1c_admin.py::test_bank_questions_grade_id_is_string36_with_fk + ::test_all_grade_id_fks_are_string36"
 
     - id: INV-S1C-005
-      statement: "PaperAccessLevel 枚举严格有 3 个成员值 {teacher_private, school_shared, district_shared}，且实例是 str+Enum 可参与字符串比较（非逻辑镜像断言，通过 round-trip 构造/序列化/反序列化验证，参见 F006 修正）（待 Task 5 落地 tests/test_models/test_paper_access_level.py::test_paper_access_level_roundtrip_via_value）"
-      verification: pending_test
+      statement: "PaperAccessLevel 枚举严格有 3 个成员值 {teacher_private, school_shared, district_shared}，且实例是 str+Enum 可参与字符串比较（非逻辑镜像断言，通过 round-trip 构造/序列化/反序列化验证，参见 F006 修正）"
+      verification: existing_test
+      test_ref: "tests/test_models/test_paper_access_level.py::test_paper_access_level_roundtrip_via_value + ::test_paper_access_level_has_exactly_three_members + ::test_paper_access_level_rejects_unknown_value"
 
     - id: INV-S1C-006
-      statement: "S1-C migration 文件 head 处 down_revision 字符串字面值等于 Task 4 Step 4.1 实测的 alembic heads 当前单 head（默认 'a88094ee4ea6'，若已漂移则为当时 head；严禁绑定历史 head 'a8c7d2e4f135' 或 base revision None）（待 Task 5 落地 tests/test_alembic_s1c_admin.py::test_migration_file_down_revision_matches_prev_head）"
-      verification: pending_test
+      statement: "S1-C migration 文件 head 处 down_revision 字符串字面值等于 Task 4 Step 4.1 实测的 alembic heads 当前单 head（实际落地为 'a88094ee4ea6'，slug=f311eb126798；严禁绑定历史 head 'a8c7d2e4f135' 或 base revision None）"
+      verification: existing_test
+      test_ref: "tests/test_alembic_s1c_admin.py::test_migration_file_down_revision_matches_prev_head"
 
     - id: INV-S1C-007
-      statement: "S1-C upgrade 后 `alembic heads` subprocess 输出过滤空行后恰好 1 行（linear chain 单 head，脚本目录层）；`alembic downgrade -1` 后 `alembic current` 输出等于 'a88094ee4ea6'（DB revision 层，R1 F003 修正：不用 heads 因它反映脚本目录不是 DB 状态）（待 Task 5 落地 tests/test_alembic_s1c_admin.py::test_migration_chain_head_is_single + test_downgrade_restores_s1a_revision）"
-      verification: pending_test
+      statement: "S1-C upgrade 后 `alembic heads` subprocess 输出过滤空行后恰好 1 行（linear chain 单 head，脚本目录层）；`alembic downgrade -1` 后 `alembic current` 输出等于 'a88094ee4ea6'（DB revision 层，R1 F003 修正：不用 heads 因它反映脚本目录不是 DB 状态）"
+      verification: existing_test
+      test_ref: "tests/test_alembic_s1c_admin.py::test_migration_chain_head_is_single + ::test_downgrade_restores_s1a_revision"
 
     - id: INV-S1C-008
-      statement: "S1-C 出口处 src/edu_cloud/models/__init__.py 字节级一致（未修改）；alembic/env.py + src/edu_cloud/api/app.py 各含 Grade import；tests/conftest.py 含 Grade import + calendar.models import（R1 F001 修正：测试期 Base.metadata.create_all 必须能发现 Grade 和 TeachingPlan）（待 Task 5 落地 tests/test_alembic_s1c_admin.py::test_orm_registration_three_entry_points）"
-      verification: pending_test
+      statement: "S1-C 出口处 src/edu_cloud/models/__init__.py SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'（空文件字节锚点，R2-F002 修复：从'0 非空行'升级为字节级对比）；alembic/env.py + src/edu_cloud/api/app.py + tests/conftest.py 三处各含 Grade + TeachingPlan 两行独立 import（R2-F001 修复：TeachingPlan canonical 挪到 models/teaching_plan.py 后必须独立 import，不再依赖 modules.calendar.models）"
+      verification: existing_test
+      test_ref: "tests/test_alembic_s1c_admin.py::test_orm_registration_three_entry_points"
 
   counter_examples:
     - id: CE-S1C-001
@@ -327,7 +335,7 @@ contract_pack:
     - id: CE-S1C-002
       scenario: "Task 4 migration 给 teaching_plans 添 lesson_plan_id FK 指向 lesson_plans 表（S4 才建），autogenerate 本地跑不报错但 alembic upgrade 在 `op.create_foreign_key` 阶段失败或指向悬空表"
       tests_that_still_pass: "Task 2 TeachingPlan ORM 的 `test_teaching_plan_import_from_models` 和字段断言不检测 FK 数量（只检测 schools/users 存在）；pytest collection 不报错"
-      mitigation: "Task 5 test_teaching_plans_fk_targets_are_existing_tables 枚举 TeachingPlan.__table__.foreign_keys 的 target_fullname 集合精确断言 ⊂ {'schools.id','grades.id','users.id'}，违反立即 fail"
+      mitigation: "Task 5 test_teaching_plans_table_schema_complete 枚举 TeachingPlan.__table__.foreign_keys 集合断言 ⊂ {'schools.id','grades.id','users.id'}，违反立即 fail；R2-F002 拆分后 test_teaching_plans_{schools,grades,users}_fk_exists 三个独立断言兜底防 '子集断言' 漏 created_by→users FK"
 
     - id: CE-S1C-003
       scenario: "Task 4 migration 只跑 create_foreign_key 不跑 alter_column，bank_questions.grade_id 保留 Integer 类型；migration 在 SQLite 上跑成功（SQLite 对 FK 类型宽松）但 PostgreSQL 或 smoke inspect 发现类型不一致"
@@ -343,8 +351,8 @@ contract_pack:
     - module: src/edu_cloud/models/grade.py
       reason: "Grade 新表 ORM 定义。表结构影响 S2 组卷 / S3 学情画像 / S4 教学计划三个 Sprint；UniqueConstraint(school_id, name) 错位会在 seed 数据阶段报 integrity error"
 
-    - module: src/edu_cloud/modules/calendar/models.py
-      reason: "追加 TeachingPlan 到既有 re-export stub。混入新定义后需保证既有 CalendarEvent/NotificationRule/Notification re-export 路径不被破坏（autogenerate 可能误判重复定义）"
+    - module: src/edu_cloud/models/teaching_plan.py
+      reason: "TeachingPlan 骨架 ORM 新文件（R2-F001 修正：canonical 挪到 models/ 顶层 platform-level，与 Grade 策略一致）。表结构被 S4 4.3 calendar.teaching_plan_service 消费；UniqueConstraint(school_id, subject_code, grade_id, semester) 错位会在业务层 insert 时报 integrity error；三入口 import 缺失会让 Alembic autogenerate / 应用启动 create_all / 测试期 create_all 任一入口漏建表（R2-F001 修正）"
 
     - module: src/edu_cloud/modules/student/models.py
       reason: "Class 表加 grade_id 字段。ORC-S1C-002 禁改 grade / grade_number 两行；Task 5 git diff 守卫防止 executor 顺手改纯 string 字段（违反拆 topic scope）"
@@ -396,13 +404,14 @@ contract_pack:
 | 文件 | 操作 | 职责 |
 |------|------|------|
 | `src/edu_cloud/models/grade.py` | **新建** | Grade ORM 定义（跨模块共享表下沉 models/ 顶层，orm-placement.md §7） |
-| `src/edu_cloud/modules/calendar/models.py` | **修改（追加）** | 在既有 re-export 语句之后追加 TeachingPlan 类定义（保留 CalendarEvent/NotificationRule/Notification re-export） |
+| `src/edu_cloud/models/teaching_plan.py` | **新建**（R2-F001 修正：原规划到 modules/calendar/models.py 已废弃）| TeachingPlan 骨架 ORM 定义（跨模块共享 platform-level，与 Grade 策略一致；被 S4 4.3 calendar.teaching_plan_service 消费扩展业务字段）|
+| `src/edu_cloud/modules/calendar/models.py` | **不动** | 保持原 re-export stub（CalendarEvent/NotificationRule/Notification），TeachingPlan 不追加到此文件（R2-F001 修正）|
 | `src/edu_cloud/modules/paper/constants.py` | **新建** | PaperAccessLevel 枚举常量（str + Enum） |
-| `src/edu_cloud/modules/student/models.py` | **修改（追加 1 行）** | Class 类内 `school_id` 行之前追加 `grade_id: Mapped[str \| None] = mapped_column(String(36), ForeignKey("grades.id"), default=None, nullable=True)`；**禁改** `grade` / `grade_number` 两行（ORC-S1C-002） |
+| `src/edu_cloud/modules/student/models.py` | **修改（追加 1 行）** | Class 类内 `grade_number` 行之后、`head_teacher_id` 行之前追加 `grade_id: Mapped[str \| None] = mapped_column(String(36), ForeignKey("grades.id"), default=None, nullable=True)`；**禁改** `grade` / `grade_number` 两行（ORC-S1C-002） |
 | `src/edu_cloud/modules/bank/models.py` | **修改（改 1 行）** | `grade_id: Mapped[int \| None] = mapped_column(Integer, default=None)` → `grade_id: Mapped[str \| None] = mapped_column(String(36), ForeignKey("grades.id"), default=None)`；其余 4 个 S1-A 新字段及所有现有字段不动 |
-| `alembic/env.py` | **修改（追加 1 行）** | 在现有 32 条 import 列表末尾追加 `from edu_cloud.models.grade import Grade  # noqa: F401` |
-| `src/edu_cloud/api/app.py` | **修改（追加 1 行）** | 在现有 import 列表追加 `import edu_cloud.models.grade  # noqa: F401 — Grade`；`import edu_cloud.modules.calendar.models` 已存在无需动 |
-| `tests/conftest.py` | **修改（追加 2 行）** | R1 F001 修正：conftest.py 维护独立的测试期模型 import 列表（`Base.metadata.create_all()` 入口）。追加 `import edu_cloud.models.grade  # noqa: F401` 和 `import edu_cloud.modules.calendar.models  # noqa: F401`（TeachingPlan），保证 Grade / TeachingPlan 在 Base registry 中 → FK 建表成功 |
+| `alembic/env.py` | **修改（追加 2 行）** | 在现有 import 列表末尾追加 `from edu_cloud.models.grade import Grade  # noqa: F401` + `from edu_cloud.models.teaching_plan import TeachingPlan  # noqa: F401`（R2-F001 修正：TeachingPlan 独立 import）|
+| `src/edu_cloud/api/app.py` | **修改（追加 2 行）** | 在 lifespan 内 import 列表追加 `import edu_cloud.models.grade  # noqa: F401 — Grade` + `import edu_cloud.models.teaching_plan  # noqa: F401 — TeachingPlan`（R2-F001 修正：原设计依赖 `import edu_cloud.modules.calendar.models` 已被证伪） |
+| `tests/conftest.py` | **修改（追加 2 行）** | conftest.py 维护独立的测试期模型 import 列表（`Base.metadata.create_all()` 入口）。追加 `import edu_cloud.models.grade  # noqa: F401` 和 `import edu_cloud.models.teaching_plan  # noqa: F401`（R2-F001 修正：TeachingPlan 独立 canonical 路径，替代原 `import edu_cloud.modules.calendar.models` 方案），保证 Grade / TeachingPlan 在 Base registry 中 → FK 建表成功 |
 | `alembic/versions/{YYYYMMDD_HHMMSS}_s1c_admin_schema.py` | **新建** | Linear chain 第 2 环 migration（down_revision='a88094ee4ea6'）；upgrade: create_table grades, create_table teaching_plans, batch_alter_table classes add_column+FK, batch_alter_table bank_questions alter_column+FK |
 | `tests/test_alembic_s1c_admin.py` | **新建** | S1-C migration smoke test（chain head / new tables / column types / FK targets / ORM registration zero-drift） |
 | `tests/test_models/test_grade.py` | **新建** | Grade ORM roundtrip（import / fields / FK to schools / UniqueConstraint） |
@@ -632,42 +641,42 @@ Edit `src/edu_cloud/api/app.py`，在 `import edu_cloud.modules.analytics.models
 
 **注意缩进**：这组 import 在 `async def create_tables()` 或 lifespan 内部，保持 4 空格缩进与兄弟行一致。
 
-- [ ] **Step 1.7: 注册 Grade + TeachingPlan 到 tests/conftest.py（R1 F001 修正）**
+- [ ] **Step 1.7: 注册 Grade 到 tests/conftest.py（R1 F001 修正；TeachingPlan import 延后到 Task 2）**
 
 `tests/conftest.py` 维护独立的测试期模型 import 列表（`Base.metadata.create_all()` 入口不走 app.py）。必须同步 import，否则后续 Task 3 回归命令（跑 `tests/test_services_exam/test_bank_service.py`）会在 conftest 建库阶段抛 `NoReferencedTableError: grades`。
 
-Edit `tests/conftest.py`，在既有 `import edu_cloud.models.*` / `import edu_cloud.modules.*.models` 列表中追加（位置推荐：紧邻 `import edu_cloud.modules.bank.models` 之后）：
+Edit `tests/conftest.py`，在既有 `import edu_cloud.models.*` / `import edu_cloud.modules.*.models` 列表中追加（位置推荐：紧邻 `import edu_cloud.modules.academic.models` 之后）：
 
 ```python
 import edu_cloud.models.grade  # noqa: F401 — Grade（S1-C 新表，触发 FK grades.id 建表）
-import edu_cloud.modules.calendar.models  # noqa: F401 — TeachingPlan（S1-C Task 2 追加到 calendar/models.py）
 ```
+
+**R2-F001 修正说明**：原 R1 plan 在此处还要加 `import edu_cloud.modules.calendar.models` 以触发 TeachingPlan 测试期注册，但 R2 review 揭示该入口实际在 app.py/env.py 不存在——现 TeachingPlan canonical 挪到 `src/edu_cloud/models/teaching_plan.py`，其 conftest.py import 延后到 Task 2 Step 2.4 加（独立一行 `import edu_cloud.models.teaching_plan`）。
 
 **验证未破坏既有 imports**：
 ```bash
 grep -c "^import edu_cloud\|^from edu_cloud" tests/conftest.py
 ```
-Expected: 相比改动前 +2（旧总数加 2）。
+Expected: 相比改动前 +1（Task 1 仅 Grade；TeachingPlan 由 Task 2 再 +1，合计 +2）。
 
-- [ ] **Step 1.8: 跑测试确认 PASS + ORM 三入口注册断言**
+- [ ] **Step 1.8: 跑测试确认 PASS + ORM 三入口注册断言（仅 Grade）**
 
 ```bash
 cd /home/ops/projects/edu-cloud
 .venv/bin/python -m pytest tests/test_models/test_grade.py tests/test_models/test_class_grade_id.py -v --tb=short
 
-# ORC-S1C-005 手动守卫：三处 import 都在
+# ORC-S1C-005 手动守卫（Task 1 阶段仅 Grade；TeachingPlan 三处在 Task 2 阶段补）
 grep -n "from edu_cloud.models.grade import Grade" alembic/env.py
 grep -n "import edu_cloud.models.grade" src/edu_cloud/api/app.py
 grep -n "import edu_cloud.models.grade" tests/conftest.py
-grep -n "import edu_cloud.modules.calendar.models" tests/conftest.py
 
 # __init__.py 零改动
 git diff --stat src/edu_cloud/models/__init__.py
 ```
 
 Expected:
-- 8 个 pytest test PASS
-- 四处 grep 各命中 1 行
+- 9 个 pytest test PASS（R2-F002 修复：5 Grade + 1 sort_order default + 3 Class.grade_id = 9）
+- 三处 Grade grep 各命中 1 行
 - `src/edu_cloud/models/__init__.py` 零改动输出
 
 - [ ] **Step 1.9: Commit Task 1**
@@ -683,7 +692,7 @@ Parent design §4.1 deliverable 1.3，refs 附录 D §Gap#1。
 - Grade 新建 src/edu_cloud/models/grade.py：8 字段（id/school_id FK/name/grade_level/xueduan/sort_order/created_at/updated_at）+ UniqueConstraint(school_id, name)
 - Class.grade_id: VARCHAR(36) NULLABLE FK→grades.id 追加（ORC-S1C-002 守旧字段 grade/grade_number 一字不动）
 - alembic/env.py + api/app.py + tests/conftest.py 三处各追加 1 行 Grade import（ORC-S1C-005；R1 F001 修正：之前漏 conftest 导致 FK 建表失败）
-- tests/conftest.py 额外追加 1 行 edu_cloud.modules.calendar.models import（TeachingPlan 测试期注册）
+- TeachingPlan 的三入口 import 由 Task 2 追加（R2-F001 修正：canonical 挪到 models/teaching_plan.py 后独立 import）
 - models/__init__.py 零改动（验证为空文件）
 
 新增 8 测试（5 Grade + 3 Class.grade_id）全绿。
@@ -696,20 +705,25 @@ EOF
 
 ---
 
-## Task 2: TeachingPlan ORM 骨架（追加到 calendar/models.py）
+## Task 2: TeachingPlan ORM 骨架（canonical → src/edu_cloud/models/teaching_plan.py，R2-F001 修正）
+
+> **R2-F001 修正**（2026-04-24 Gate 1 R2 FAIL → manual_override 授权）：原规划把 TeachingPlan 追加到 `modules/calendar/models.py` 仅在 conftest.py 加 import；R2 review 证实 app.py/env.py 中的 `import edu_cloud.models.calendar` 加载的是 `models/calendar.py`（CalendarEvent/NotificationRule），不触发 `modules/calendar/models.py` 加载——此路径下 TeachingPlan 只在测试期注册，生产 Base.metadata.create_all 会遗漏。修正后：canonical 改到 `src/edu_cloud/models/teaching_plan.py`（与 Grade 一致 platform-level），env.py + app.py + conftest.py 三入口各加独立 import。
 
 **Files:**
-- Modify: `src/edu_cloud/modules/calendar/models.py`（在既有 re-export 之后追加 TeachingPlan 定义）
-- Test: `tests/test_models/test_teaching_plan.py`（new）
+- Create: `src/edu_cloud/models/teaching_plan.py`（R2-F001 修正：canonical 挪到 models/ 顶层 platform-level）
+- Modify: `alembic/env.py` + `src/edu_cloud/api/app.py` + `tests/conftest.py`（三入口各追加 1 行 TeachingPlan import）
+- Test: `tests/test_models/test_teaching_plan.py`（new，含 R2-F002 的 3 个独立 FK 断言）
+- 不动: `src/edu_cloud/modules/calendar/models.py` 保持原 re-export stub
 
 **测试契约** (F004):
 - **入口**:
-  - `from edu_cloud.modules.calendar.models import TeachingPlan` 可 import
+  - `from edu_cloud.models.teaching_plan import TeachingPlan` 可 import
   - `TeachingPlan(school_id=..., subject_code=..., semester=...)` 可实例化（grade_id / weeks_json / created_by 全可省）
   - `TeachingPlan.__table__.foreign_keys` 的 target_fullname 集合 ⊂ `{"schools.id", "grades.id", "users.id"}`
 - **反例**:
-  - 若 Task 2 顺手加 `lesson_plan_id FK("lesson_plans.id")`（S4 才建）：`test_teaching_plans_fk_targets_are_existing_tables` 枚举断言失败（多出 `lesson_plans.id`）
-  - 若 Task 2 把 TeachingPlan 放到新文件 `teaching_plan_models.py`（parent L1 plan Task 4 的错误建议）：import path `from edu_cloud.modules.calendar.models import TeachingPlan` 报 ImportError
+  - 若 Task 2 顺手加 `lesson_plan_id FK("lesson_plans.id")`（S4 才建）：`test_teaching_plans_fk_targets_no_excess` 越界综合断言失败
+  - 若 Task 2 漏 `created_by FK→users.id`（R2-F002 核心防御）：`test_teaching_plan_created_by_fk_targets_users` 独立断言立即失败（原"子集 + 至少 2 FK"的子集断言不会捕获）
+  - 若 Task 2 错误挪回 `modules/calendar/models.py`：env.py/app.py 无独立 import 会让 Alembic autogenerate + 生产 create_all 建不出表（R2-F001 根源）；`test_orm_registration_three_entry_points` 三入口 grep 立即 fail
   - 若 calendar/models.py 的 CalendarEvent re-export 被不小心删除：`from edu_cloud.modules.calendar.models import CalendarEvent` 报 ImportError，现有 tests 级联 fail
 - **边界**:
   1. TeachingPlan 必填字段只有 `school_id` / `subject_code` / `semester` 三列（其他 4 字段 nullable 或 有默认）
@@ -721,12 +735,12 @@ EOF
   ```bash
   .venv/bin/python -m pytest tests/test_models/test_teaching_plan.py tests/test_models/test_calendar.py -v --tb=short
   ```
-  Expected: 新增 4 test + 现有 calendar tests 全 PASS
+  Expected: 新增 7 test（R2-F002 拆分后）+ 现有 calendar tests 全 PASS
 
 **边界条件**（至少 3 条）:
-1. TeachingPlan 必须 canonical location 在 `calendar/models.py`（不是 `teaching_plan_models.py`）——ORC + F002 + orm-placement.md §7
-2. FK 目标集合 ⊂ 3 张现有/本 plan 新建的表（ORC-S1C-003）
-3. 文件顶部现有 re-export 语句保留（不删 CalendarEvent 等）
+1. TeachingPlan canonical location 在 `src/edu_cloud/models/teaching_plan.py`（R2-F001 修正；不是 `modules/calendar/models.py` 也不是 `teaching_plan_models.py`）
+2. FK 目标集合 ⊂ 3 张现有/本 plan 新建的表，且 schools/grades/users 三目标各自独立断言存在（R2-F002 拆分，ORC-S1C-003）
+3. calendar/models.py 保持 re-export stub 不动（不删 CalendarEvent 等）
 
 - [ ] **Step 2.1: 写失败测试**
 
@@ -744,12 +758,12 @@ from sqlalchemy import UniqueConstraint
 
 def test_teaching_plan_import_from_calendar_models():
     """必须 canonical location 在 calendar/models.py（F002 修正）"""
-    from edu_cloud.modules.calendar.models import TeachingPlan  # noqa: F401
+    from edu_cloud.models.teaching_plan import TeachingPlan  # noqa: F401
 
 
 def test_teaching_plan_required_fields():
     """骨架含 9 列（id + 7 业务 + timestamps）"""
-    from edu_cloud.modules.calendar.models import TeachingPlan
+    from edu_cloud.models.teaching_plan import TeachingPlan
 
     cols = {c.name for c in TeachingPlan.__table__.columns}
     required = {"id", "school_id", "subject_code", "grade_id", "semester", "weeks_json", "created_by", "created_at", "updated_at"}
@@ -758,7 +772,7 @@ def test_teaching_plan_required_fields():
 
 def test_teaching_plans_fk_targets_are_limited():
     """ORC-S1C-003 机械化：FK target_fullname ⊂ 3 张表"""
-    from edu_cloud.modules.calendar.models import TeachingPlan
+    from edu_cloud.models.teaching_plan import TeachingPlan
 
     all_targets = set()
     for col in TeachingPlan.__table__.columns:
@@ -775,7 +789,7 @@ def test_teaching_plans_fk_targets_are_limited():
 
 def test_teaching_plan_unique_constraint():
     """含 UniqueConstraint(school_id, subject_code, grade_id, semester)"""
-    from edu_cloud.modules.calendar.models import TeachingPlan
+    from edu_cloud.models.teaching_plan import TeachingPlan
 
     uq_cols_sets = [
         frozenset(c.name for c in uq.columns)
@@ -799,17 +813,19 @@ cd /home/ops/projects/edu-cloud
 .venv/bin/python -m pytest tests/test_models/test_teaching_plan.py -v --tb=short
 ```
 
-Expected: 4 个新测试 FAIL（ImportError on TeachingPlan）+ test_calendar_re_exports_still_work PASS。
+Expected: 7 个新测试 FAIL（ImportError on TeachingPlan canonical）+ test_calendar_re_exports_still_work PASS。
 
-- [ ] **Step 2.3: 追加 TeachingPlan 定义**
+- [ ] **Step 2.3: 新建 TeachingPlan canonical 文件（R2-F001 修正）**
 
-Edit `src/edu_cloud/modules/calendar/models.py`，在既有 3 行 re-export 之后、文件末尾之前追加：
+Create `src/edu_cloud/models/teaching_plan.py`（与 Grade 一致 platform-level；calendar/models.py 保持 re-export stub 不动）：
 
 ```python
-# ── S1-C 1.4: TeachingPlan 骨架（refs: design §4 1.4 / 附录 C §Gap#6 / haofenshu-clone/server/config/schema.sql:284-302）──
-# ORC-S1C-003: 骨架仅含 schools/grades/users 三表 FK；lesson_plans 等 S4 才建的表 FK 严禁加
-# 业务 service / router 由 S4 4.3 calendar.teaching_plan_service 扩展
+"""TeachingPlan 骨架表（S1-C 1.4，R2-F001 修正：canonical 挪到 models/ 顶层）。
 
+refs: docs/plans/2026-04-24-haofenshu-vs-edu-phase2-design.md §4.1 deliverable 1.4
+refs: 附录 C §Gap#6 / haofenshu-clone/server/config/schema.sql:284-302
+ORC-S1C-003: 骨架仅含 schools/grades/users 三表 FK；lesson_plans 等 S4 才建的表 FK 严禁加。
+"""
 from sqlalchemy import String, ForeignKey, JSON, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -834,31 +850,44 @@ class TeachingPlan(Base, IdMixin, TimestampMixin):
     created_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), default=None)
 ```
 
-- [ ] **Step 2.4: 跑测试确认 PASS**
+- [ ] **Step 2.4: 三入口追加 TeachingPlan import（R2-F001 fail-closed 护栏）**
+
+1. Edit `alembic/env.py` 追加 `from edu_cloud.models.teaching_plan import TeachingPlan  # noqa: F401`
+2. Edit `src/edu_cloud/api/app.py` 追加 `import edu_cloud.models.teaching_plan  # noqa: F401 — TeachingPlan`
+3. Edit `tests/conftest.py` 追加 `import edu_cloud.models.teaching_plan  # noqa: F401 — TeachingPlan`
+
+- [ ] **Step 2.5: 跑测试确认 PASS**
 
 ```bash
 cd /home/ops/projects/edu-cloud
 .venv/bin/python -m pytest tests/test_models/test_teaching_plan.py tests/test_models/test_calendar.py -v --tb=short 2>&1 | tail -30
+
+# 三入口 TeachingPlan import 各命中 1 条（R2-F001 护栏）
+grep -n "from edu_cloud.models.teaching_plan import TeachingPlan" alembic/env.py
+grep -n "import edu_cloud.models.teaching_plan" src/edu_cloud/api/app.py
+grep -n "import edu_cloud.models.teaching_plan" tests/conftest.py
 ```
 
-Expected: 5 个 test PASS（4 TeachingPlan + 1 re-export 回归）+ 既有 calendar tests 全绿。
+Expected: 8 个 test PASS（7 TeachingPlan + 1 re-export 回归）+ 既有 calendar tests 全绿；三处 grep 各命中 1 行。
 
-- [ ] **Step 2.5: Commit Task 2**
+- [ ] **Step 2.6: Commit Task 2**
 
 ```bash
-git add src/edu_cloud/modules/calendar/models.py tests/test_models/test_teaching_plan.py
+git add src/edu_cloud/models/teaching_plan.py alembic/env.py src/edu_cloud/api/app.py tests/conftest.py tests/test_models/test_teaching_plan.py
 git commit -m "$(cat <<'EOF'
-feat(calendar): S1-C T2 TeachingPlan 骨架 ORM（追加到 calendar/models.py）
+feat(models): S1-C T2 TeachingPlan 骨架 (canonical → models/teaching_plan.py)
 
 Parent design §4.1 deliverable 1.4，refs 附录 C §Gap#6。
-TeachingPlan 骨架：9 列 + 3 FK（schools/grades/users）+ UniqueConstraint。
-ORC-S1C-003 机械化：FK target ⊂ 3 张现有/新建表，不含 lesson_plans 等 S4 才建的表。
 
-Canonical location 遵守 orm-placement.md §7：
-- 不新建 teaching_plan_models.py（parent review F002 否决）
-- 追加到 modules/calendar/models.py 与 CalendarEvent/NotificationRule/Notification re-export 共存
+R2-F001 修复（canonical location 迁移）:
+- 新建 src/edu_cloud/models/teaching_plan.py（与 Grade 一致 platform-level）
+- env.py + api/app.py + tests/conftest.py 三入口各加独立 import
+- 不再依赖 calendar-models/conftest-only 注册
 
-业务 service/router 归 S4 4.3 calendar.teaching_plan_service（test_debt #4 deadline 2026-08-31）。
+R2-F002 修复（INV-S1C-002 拆分）:
+- 3 个独立 FK 断言（schools/grades/users）+ 1 个越界综合断言
+
+calendar/models.py 保持 re-export stub 不动；业务 service/router 归 S4 4.3（test_debt #4 deadline 2026-08-31）。
 teaching_plans 表由 Task 4 migration 落地。
 
 refs: docs/plans/2026-04-24-haofenshu-s1-admin-plan.md Task 2
@@ -1369,7 +1398,7 @@ EOF
 - **反例**:
   - 若 Task 4 误绑 down_revision：`test_migration_file_down_revision_matches_prev_head` fail
   - 若 Task 4 漏 alter_column：`test_bank_questions_grade_id_is_string36_with_fk` 在 upgrade 后 inspect 发现 INTEGER 立即 fail
-  - 若 Task 2 骨架加了 `lesson_plans` FK：`test_teaching_plans_fk_targets_are_existing_tables` 枚举 fail
+  - 若 Task 2 骨架加了 `lesson_plans` FK：`test_teaching_plans_table_schema_complete` 越界综合断言 fail；R2-F002 拆分后即使构造"包含 lesson_plans 但也包含 schools/grades/users"的 FK 集合，`test_teaching_plans_table_schema_complete` 的 excess 断言仍会捕获
   - 若 Task 1 改了 `Class.grade`：`test_class_legacy_grade_fields_unchanged` fail
   - 若 Task 1 改了 `models/__init__.py`：`test_orm_registration_three_entry_points` git diff 检测 fail
 - **边界**:
@@ -1477,16 +1506,22 @@ def test_orm_registration_three_entry_points():
         conftest_content = fp.read()
     assert "import edu_cloud.models.grade" in conftest_content, \
         "tests/conftest.py 缺 Grade import（R1 F001 根因，ORC-S1C-005 入口 3/3）"
-    assert "import edu_cloud.modules.calendar.models" in conftest_content, \
-        "tests/conftest.py 缺 calendar.models import（TeachingPlan 测试期注册）"
+    assert "import edu_cloud.models.teaching_plan" in conftest_content, \
+        "tests/conftest.py 缺 TeachingPlan import（R2-F001 修复：TeachingPlan canonical 挪到 models/teaching_plan.py 后测试期注册走独立 import）"
 
-    # 4) models/__init__.py 仍是空文件（0 非空行）
+    # 4) R2-F002 INV-S1C-008 升级：字节级 SHA256 对比空文件锚点（原 "0 非空行" 会被加空白/BOM 漂移绕过）
+    import hashlib
     init_path = os.path.join(PROJECT_ROOT, 'src', 'edu_cloud', 'models', '__init__.py')
-    with open(init_path) as fp:
-        init_content = fp.read()
-    non_empty_lines = [ln for ln in init_content.splitlines() if ln.strip()]
-    assert len(non_empty_lines) == 0, \
-        f"ORC-S1C-005 违反：models/__init__.py 不应含内容，实际：{non_empty_lines}"
+    with open(init_path, 'rb') as fp:
+        init_bytes = fp.read()
+    EMPTY_FILE_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    actual_sha = hashlib.sha256(init_bytes).hexdigest()
+    assert actual_sha == EMPTY_FILE_SHA256, (
+        f"ORC-S1C-005 违反：models/__init__.py SHA256 与空文件不一致。\n"
+        f"  期望: {EMPTY_FILE_SHA256}\n"
+        f"  实际: {actual_sha}\n"
+        f"  文件字节数: {len(init_bytes)}"
+    )
 
 
 # ───────────────── 结构断言（需 upgrade） ─────────────────
@@ -1565,10 +1600,12 @@ def test_grades_unique_constraint(sqlite_db):
         f"grades 缺 UniqueConstraint(school_id, name)，实际 unique_constraints: {uqs}"
 
 
-def test_teaching_plans_fk_targets_are_existing_tables(sqlite_db):
-    """INV-S1C-002 + ORC-S1C-003: teaching_plans 表列完整 + FK 目标 ⊂ {schools, grades, users}.
+def test_teaching_plans_table_schema_complete(sqlite_db):
+    """INV-S1C-002 + ORC-S1C-003 综合断言（R2-F002 拆分后）:
+    teaching_plans 表列完整 + FK 目标 ⊂ {schools, grades, users}.
 
     核心防守：禁止骨架表加 lesson_plans/resources 等 S4 才建的表 FK。
+    三个 FK 独立存在断言拆到 test_teaching_plans_{schools,grades,users}_fk_exists 三个独立 test。
     """
     r = _run_alembic(['upgrade', 'head'], sqlite_db)
     assert r.returncode == 0
@@ -1583,11 +1620,45 @@ def test_teaching_plans_fk_targets_are_existing_tables(sqlite_db):
 
     fks = insp.get_foreign_keys('teaching_plans')
     referred = {fk['referred_table'] for fk in fks}
-    assert referred.issubset({'schools', 'grades', 'users'}), \
-        f"ORC-S1C-003 违反：teaching_plans FK 目标含未建表 {referred - {'schools','grades','users'}}"
-    # 必须至少 2 FK（schools + grades）
-    assert 'schools' in referred
-    assert 'grades' in referred
+    excess = referred - {'schools', 'grades', 'users'}
+    assert not excess, \
+        f"ORC-S1C-003 违反：teaching_plans FK 目标含未建表 {excess}"
+
+
+def test_teaching_plans_schools_fk_exists(sqlite_db):
+    """R2-F002 INV-S1C-002a: teaching_plans.school_id → schools.id FK 独立断言."""
+    r = _run_alembic(['upgrade', 'head'], sqlite_db)
+    assert r.returncode == 0
+    engine = create_engine(sqlite_db)
+    fks = inspect(engine).get_foreign_keys('teaching_plans')
+    matches = [fk for fk in fks
+               if 'school_id' in fk['constrained_columns']
+               and fk['referred_table'] == 'schools']
+    assert len(matches) == 1
+
+
+def test_teaching_plans_grades_fk_exists(sqlite_db):
+    """R2-F002 INV-S1C-002b: teaching_plans.grade_id → grades.id FK 独立断言."""
+    r = _run_alembic(['upgrade', 'head'], sqlite_db)
+    assert r.returncode == 0
+    engine = create_engine(sqlite_db)
+    fks = inspect(engine).get_foreign_keys('teaching_plans')
+    matches = [fk for fk in fks
+               if 'grade_id' in fk['constrained_columns']
+               and fk['referred_table'] == 'grades']
+    assert len(matches) == 1
+
+
+def test_teaching_plans_users_fk_exists(sqlite_db):
+    """R2-F002 INV-S1C-002c: teaching_plans.created_by → users.id FK 独立断言（R2 核心：原 '子集断言' 会漏此条）."""
+    r = _run_alembic(['upgrade', 'head'], sqlite_db)
+    assert r.returncode == 0
+    engine = create_engine(sqlite_db)
+    fks = inspect(engine).get_foreign_keys('teaching_plans')
+    matches = [fk for fk in fks
+               if 'created_by' in fk['constrained_columns']
+               and fk['referred_table'] == 'users']
+    assert len(matches) == 1
 
 
 def test_teaching_plans_unique_constraint(sqlite_db):
@@ -1774,7 +1845,7 @@ test(alembic): S1-C T5 migration smoke + Gate G1-S1C 通过
 12 个 test 机械化 5 条 ORC + F004/F005 repair：
 - ORC-S1C-001: test_migration_file_down_revision_matches_prev_head / test_migration_chain_head_is_single / test_downgrade_restores_s1a_revision
 - ORC-S1C-002: test_classes_grade_id_added_legacy_unchanged（守旧字段精确长度/nullability 断言）
-- ORC-S1C-003: test_teaching_plans_fk_targets_are_existing_tables（FK target 集合断言 ⊂ 3 张表）
+- ORC-S1C-003: test_teaching_plans_table_schema_complete（越界综合断言）+ test_teaching_plans_{schools,grades,users}_fk_exists 三个独立 FK 断言（R2-F002 拆分）
 - ORC-S1C-004: test_bank_questions_grade_id_is_string36_with_fk / test_all_grade_id_fks_are_string36
 - ORC-S1C-005: test_orm_registration_three_entry_points（__init__.py 零内容 + 2 处 import 命中）
 - INV-S1C-001/002: test_grades_table_created_with_expected_schema / teaching_plans

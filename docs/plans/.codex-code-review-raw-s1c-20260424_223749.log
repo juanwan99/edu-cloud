@@ -1,0 +1,19 @@
+=== S1-C Admin Code Review R1 (Gate 2, MCP path) — GPT Codex-Review Raw Output ===
+Timestamp: 2026-04-24 22:44:30 +0800
+Thread ID: 019dbfed-ed96-72a3-b6e7-d0d347032d08
+Subject: commit range 2207723..6717a89 (6 commits)
+Invocation: mcp__codex__codex (developer-instructions + sandbox=danger-full-access + approval-policy=never)
+
+=== GPT Final Response (content field) ===
+已完成独立审查，报告已写入 `docs/plans/2026-04-24-haofenshu-s1-admin-code-review.md`。
+
+- 结论：PASS
+- 已验证：`.venv/bin/python -m pytest tests/test_models/ tests/test_alembic_s1c_admin.py tests/test_services_exam/test_bank_service.py -v`，结果 `102 passed`
+- 已验证：临时 SQLite 上 `alembic upgrade head` / `alembic current` / `alembic downgrade -1` / `alembic current` 全通过，revision 从 `f311eb126798` 正常回到 `a88094ee4ea6`
+- R2 闭环检查通过：`TeachingPlan` canonical 在 `src/edu_cloud/models/teaching_plan.py`，三入口 import 存在；INV-S1C-001/002/008 的测试加固已落地；`test_debt` 第 5 条已登记；Task 4 回滚口径已改为 `alembic current`
+- 未发现阻塞性的 `defect_fix` 或 `test_gap`
+- 唯一 finding 是 1 条不阻塞 PASS 的 `design_concern`：计划/Contract Pack 文本仍残留旧的 TeachingPlan 路径、旧测试名和 `pending_test` 映射，和实际实现存在 freshness 漂移
+
+=== Complete review report ===
+Full report written by GPT to: docs/plans/2026-04-24-haofenshu-s1-admin-code-review.md
+Content SHA256 of that full report is computed separately (see gates receipt report_path_hash).
