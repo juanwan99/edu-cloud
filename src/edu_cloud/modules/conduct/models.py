@@ -57,16 +57,21 @@ class ConductRuleCategory(Base, IdMixin):
 
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     class_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("classes.id"), default=None, nullable=True,
+        String(36), ForeignKey("classes.id"), index=True, default=None, nullable=True,
     )
     school_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("schools.id"), default=None, nullable=True,
+        String(36), ForeignKey("schools.id"), index=True, default=None, nullable=True,
     )
     scope: Mapped[str] = mapped_column(String(10), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
@@ -77,9 +82,18 @@ class ConductRuleItem(Base, IdMixin):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     points: Mapped[int] = mapped_column(Integer, nullable=False)
     category_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("conduct_rule_categories.id"), nullable=False,
+        String(36), ForeignKey("conduct_rule_categories.id"), index=True, nullable=False,
     )
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
 
 class ConductRecord(Base, IdMixin):
@@ -87,27 +101,32 @@ class ConductRecord(Base, IdMixin):
     __tablename__ = "conduct_records"
 
     student_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("students.id"), nullable=False,
+        String(36), ForeignKey("students.id"), index=True, nullable=False,
     )
     class_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("classes.id"), nullable=False,
+        String(36), ForeignKey("classes.id"), index=True, nullable=False,
     )
     points: Mapped[int] = mapped_column(Integer, nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     date: Mapped[date] = mapped_column(Date, nullable=False)
     operator_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("users.id"), nullable=False,
+        String(36), ForeignKey("users.id"), index=True, nullable=False,
     )
     source: Mapped[str] = mapped_column(String(10), default="manual", nullable=False)
     rule_item_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("conduct_rule_items.id"), default=None, nullable=True,
+        String(36), ForeignKey("conduct_rule_items.id"), index=True, default=None, nullable=True,
     )
     semester_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("conduct_semesters.id"), default=None, nullable=True,
+        String(36), ForeignKey("conduct_semesters.id"), index=True, default=None, nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
@@ -120,12 +139,17 @@ class ConductGroup(Base, IdMixin):
 
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     class_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("classes.id"), nullable=False,
+        String(36), ForeignKey("classes.id"), index=True, nullable=False,
     )
     avatar: Mapped[str | None] = mapped_column(String(10), default=None, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
@@ -137,10 +161,10 @@ class ConductGroupMember(Base, IdMixin):
     )
 
     student_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("students.id"), nullable=False,
+        String(36), ForeignKey("students.id"), index=True, nullable=False,
     )
     group_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("conduct_groups.id"), nullable=False,
+        String(36), ForeignKey("conduct_groups.id"), index=True, nullable=False,
     )
     joined_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -154,10 +178,10 @@ class ConductSemester(Base, IdMixin):
 
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     school_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("schools.id"), default=None, nullable=True,
+        String(36), ForeignKey("schools.id"), index=True, default=None, nullable=True,
     )
     class_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("classes.id"), default=None, nullable=True,
+        String(36), ForeignKey("classes.id"), index=True, default=None, nullable=True,
     )
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
@@ -165,4 +189,9 @@ class ConductSemester(Base, IdMixin):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )

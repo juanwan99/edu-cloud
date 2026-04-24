@@ -27,9 +27,9 @@
 
 | # | 问题 | 状态 | 说明 |
 |---|------|------|------|
-| M1 | N+1 查询（analytics/service.py 逐科目循环查） | 记录 | 需重构为 JOIN 查询，影响面大，另开 Task |
-| M2 | FK 缺 index（64+ 列） | 记录 | 需新 migration 批量加 index，另开 Task |
-| M3 | conduct 模型缺 `updated_at` | 记录 | 需新 migration 加列 |
+| M1 | N+1 查询（analytics/service.py 逐科目循环查） | 已修复 | 4 处循环 DB 查询 → `get_effective_scores_batch()` 批量查询 |
+| M2 | FK 缺 index（conduct 13 列） | 已修复 | migration `a8c7d2e4f135` 添加 13 个 FK 索引 |
+| M3 | conduct 模型缺 `updated_at` | 已修复 | 5 个表加 updated_at + conduct_rule_items 补 created_at |
 | M4 | LLM usage 日志 | 已合入 | `llm_client.py` 加 `_log_llm_usage()` |
 
 ### LOW（记录）
@@ -74,7 +74,7 @@
 
 | 模块 | 缺口 | 优先级 |
 |------|------|--------|
-| grading/quality_router.py | 零测试 | HIGH |
-| grading/assignment_service.py | 仅 1 个 smoke test | HIGH |
+| grading/quality_router.py | ~~零测试~~ → 7 tests 已补 | ~~HIGH~~ DONE |
+| grading/assignment_service.py | ~~仅 1 个 smoke test~~ → 8 tests 已补 | ~~HIGH~~ DONE |
 | worker/_grade_with_semaphore() | 无直接测试 | MEDIUM |
 | analytics K-anonymity 边界 | 无 n<5 测试 | MEDIUM |

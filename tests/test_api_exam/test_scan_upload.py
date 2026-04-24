@@ -50,7 +50,7 @@ async def test_upload_single(client, scan_setup):
             "student_id": "STU001",
             "question_id": s["question_id"],
         },
-        files={"image": ("q1.png", b"fake-png-data", "image/png")},
+        files={"image": ("q1.png", b"\x89PNG\r\n\x1a\nfake-png-data", "image/png")},
         headers=s["headers"],
     )
     assert resp.status_code == 201
@@ -68,12 +68,12 @@ async def test_upload_duplicate_returns_409(client, scan_setup):
         "student_id": "STU002",
         "question_id": s["question_id"],
     }
-    files = {"image": ("q1.png", b"data1", "image/png")}
+    files = {"image": ("q1.png", b"\x89PNG\r\n\x1a\ndata1", "image/png")}
     await client.post("/api/v1/scan/upload", data=upload_data, files=files, headers=s["headers"])
     resp = await client.post(
         "/api/v1/scan/upload",
         data=upload_data,
-        files={"image": ("q1.png", b"data2", "image/png")},
+        files={"image": ("q1.png", b"\x89PNG\r\n\x1a\ndata2", "image/png")},
         headers=s["headers"],
     )
     assert resp.status_code == 409
@@ -89,7 +89,7 @@ async def test_upload_batch(client, scan_setup):
             "student_id": "STU003",
             "question_ids": s["question_id"],
         },
-        files=[("images", ("q1.png", b"data-q1", "image/png"))],
+        files=[("images", ("q1.png", b"\x89PNG\r\n\x1a\ndata-q1", "image/png"))],
         headers=s["headers"],
     )
     assert resp.status_code == 201
