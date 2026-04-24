@@ -383,6 +383,10 @@ contract_pack:
     - item: "TeachingPlan 表业务服务（calendar.teaching_plan_service）+ router + 前端编辑器"
       reason: "S1-C 只建骨架表，design §7.1 4.3 明确归 S4 scope，S1-C 越权会违反 ORC-005（Sprint Gate 串行不可并跳）"
       deadline: "2026-08-31"
+
+    - item: "Task 1/2/3 入口级验证（CLI/startup/service/API）—— Grade/TeachingPlan/PaperAccessLevel 三个 ORM 的用户可触达入口断言（目前 Task 1-3 入口全部是 import + 实例化 + __table__ introspection，属内部结构验证；Task 5 migration smoke 已通过 alembic subprocess 提供了部分 CLI 级入口覆盖，但 service/API 层入口缺位）"
+      reason: "R2-F003 登记（manual_override 授权范围）：S1-C 是纯 data-layer plan 无新 service/router 端点；TeachingPlan service/router 归 S4 4.3 calendar.teaching_plan_service（同已有 test_debt 第 4 条），PaperAccessLevel 归 S4 4.2 paper.access_policy，Grade 的业务 API 归 S4 TeachingPlanEditor。S4 补业务时必须同步补入口级断言，不允许继续把 introspection 当作完整入口覆盖"
+      deadline: "2026-08-31"
 ```
 
 ---
@@ -1110,7 +1114,7 @@ EOF
 - **入口**:
   - `alembic upgrade head`（CLI）和 `alembic downgrade -1`（CLI）双向成功
   - migration 本身是 `upgrade()` / `downgrade()` 两个函数
-  - `alembic heads` 在 upgrade 后返回新 slug，downgrade 后返回 `a88094ee4ea6`
+  - `alembic current` 在 upgrade 后返回新 slug，downgrade 后返回 `a88094ee4ea6`（R1 F003 残余清理 @ 2026-04-24T22:30：`alembic heads` 反映脚本目录 DAG 与 DB 状态无关，downgrade 后 heads 不变——用 `alembic current` 才是 DB revision 判定）
 - **反例**:
   - 若 down_revision 绑错（如 `'a8c7d2e4f135'`，S1-A 的前一环）：ORC-S1C-001 违反，`test_migration_chain_head_is_single` 捕获（Task 5）
   - 若 migration 只 `create_foreign_key` 不 `alter_column`：bank_questions.grade_id 保留 Integer 类型，PG 建 FK 时报类型不匹配；SQLite 建 FK 成功但运行时 inspect 类型不一致
