@@ -129,3 +129,62 @@ async def get_periods(
     return await service.get_periods(
         db, school_id=_school_id(current), semester_id=semester_id,
     )
+
+
+# ── Timetable schemas ───────────────────────────────────────────
+
+class TimetableSlotItem(BaseModel):
+    weekday: int
+    period_id: str
+    subject_code: str
+    teacher_id: str
+    room: str | None = None
+
+
+class TimetableSave(BaseModel):
+    semester_id: str
+    slots: list[TimetableSlotItem]
+
+
+# ── Timetable endpoints ────────────────────────────────────────
+
+@router.get("/timetable")
+async def get_timetable(
+    semester_id: str = Query(...),
+    class_id: str | None = Query(None),
+    teacher_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    if not class_id and not teacher_id:
+        return {"detail": "必须提供 class_id 或 teacher_id"}
+    return await service.get_timetable(
+        db, school_id=_school_id(current), semester_id=semester_id,
+        class_id=class_id, teacher_id=teacher_id,
+    )
+
+
+@router.put("/timetable/{class_id}")
+async def save_timetable(
+    class_id: str,
+    body: TimetableSave,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_SCHEDULING)),
+):
+    return await service.save_timetable(
+        db, school_id=_school_id(current), semester_id=body.semester_id,
+        class_id=class_id, slots=[s.model_dump() for s in body.slots],
+    )
+
+
+@router.get("/timetable/stats")
+async def get_timetable_stats(
+    semester_id: str = Query(...),
+    class_id: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    return await service.get_timetable_stats(
+        db, school_id=_school_id(current), semester_id=semester_id,
+        class_id=class_id,
+    )

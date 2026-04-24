@@ -159,3 +159,107 @@ def _period_dict(tp: TimePeriod) -> dict:
         "end_time": tp.end_time.isoformat(),
         "period_type": tp.period_type,
     }
+
+
+# ── Timetable ───────────────────────────────────────────────────
+
+async def save_timetable(
+    db: AsyncSession, *, school_id: str, semester_id: str, class_id: str,
+    slots: list[dict],
+) -> dict:
+    await _get_semester(db, semester_id, school_id)
+
+    conflicts = await _check_teacher_conflicts(db, school_id, semester_id, class_id, slots)
+    if conflicts:
+        raise ValidationError(f"教师时间冲突: {conflicts}")
+
+    await db.execute(
+        delete(TimetableSlot).where(
+            TimetableSlot.class_id == class_id,
+            TimetableSlot.semester_id == semester_id,
+        )
+    )
+
+    new_slots = []
+    for s in slots:
+        slot = TimetableSlot(
+            school_id=school_id, semester_id=semester_id, class_id=class_id,
+            weekday=s["weekday"], period_id=s["period_id"],
+            subject_code=s["subject_code"], teacher_id=s["teacher_id"],
+            room=s.get("room"),
+        )
+        db.add(slot)
+        new_slots.append(slot)
+
+    await db.commit()
+    return {"saved": len(new_slots)}
+
+
+async def get_timetable(
+    db: AsyncSession, *, school_id: str, semester_id: str,
+    class_id: str | None = None, teacher_id: str | None = None,
+) -> list[dict]:
+    stmt = select(TimetableSlot).where(
+        TimetableSlot.school_id == school_id,
+        TimetableSlot.semester_id == semester_id,
+    )
+    if class_id:
+        stmt = stmt.where(TimetableSlot.class_id == class_id)
+    if teacher_id:
+        stmt = stmt.where(TimetableSlot.teacher_id == teacher_id)
+    stmt = stmt.order_by(TimetableSlot.weekday, TimetableSlot.period_id)
+
+    rows = (await db.execute(stmt)).scalars().all()
+    return [_slot_dict(s) for s in rows]
+
+
+async def get_timetable_stats(
+    db: AsyncSession, *, school_id: str, semester_id: str, class_id: str,
+) -> list[dict]:
+    from sqlalchemy import func
+    stmt = (
+        select(TimetableSlot.subject_code, func.count().label("count"))
+        .where(
+            TimetableSlot.school_id == school_id,
+            TimetableSlot.semester_id == semester_id,
+            TimetableSlot.class_id == class_id,
+        )
+        .group_by(TimetableSlot.subject_code)
+        .order_by(func.count().desc())
+    )
+    rows = (await db.execute(stmt)).all()
+    return [{"subject_code": r[0], "count": r[1]} for r in rows]
+
+
+async def _check_teacher_conflicts(
+    db: AsyncSession, school_id: str, semester_id: str,
+    class_id: str, new_slots: list[dict],
+) -> list[str]:
+    conflicts = []
+    for s in new_slots:
+        stmt = (
+            select(TimetableSlot)
+            .where(
+                TimetableSlot.school_id == school_id,
+                TimetableSlot.semester_id == semester_id,
+                TimetableSlot.teacher_id == s["teacher_id"],
+                TimetableSlot.weekday == s["weekday"],
+                TimetableSlot.period_id == s["period_id"],
+                TimetableSlot.class_id != class_id,
+            )
+        )
+        existing = (await db.execute(stmt)).scalar_one_or_none()
+        if existing:
+            conflicts.append(
+                f"教师{s['teacher_id']} 在周{s['weekday']}第{s['period_id']}节已有课（班级{existing.class_id}）"
+            )
+    return conflicts
+
+
+def _slot_dict(s: TimetableSlot) -> dict:
+    return {
+        "id": s.id, "class_id": s.class_id,
+        "weekday": s.weekday, "period_id": s.period_id,
+        "subject_code": s.subject_code, "teacher_id": s.teacher_id,
+        "room": s.room,
+    }
