@@ -1,9 +1,22 @@
-import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, it, expect, vi } from 'vitest'
+import { mount, shallowMount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+
+vi.mock('vue-echarts', () => ({
+  default: { name: 'VChart', template: '<div data-testid="vchart-stub" />', props: ['option', 'autoresize'] },
+}))
+vi.mock('echarts/core', () => ({ use: vi.fn() }))
+vi.mock('echarts/renderers', () => ({ CanvasRenderer: {} }))
+vi.mock('echarts/charts', () => ({ HeatmapChart: {} }))
+vi.mock('echarts/components', () => ({
+  GridComponent: {}, TooltipComponent: {}, VisualMapComponent: {},
+}))
 import StatCard from '~/components/analytics/StatCard.vue'
 import AiDiagnosisCard from '~/components/analytics/AiDiagnosisCard.vue'
 import ClassRankTable from '~/components/analytics/ClassRankTable.vue'
+import StudentRankTable from '~/components/analytics/StudentRankTable.vue'
+import CriticalStudents from '~/components/analytics/CriticalStudents.vue'
+import KnowledgeHeatmap from '~/components/analytics/KnowledgeHeatmap.vue'
 
 describe('StatCard', () => {
   const mountStatCard = (props: Record<string, any>) =>
@@ -131,5 +144,83 @@ describe('ClassRankTable', () => {
     const table = wrapper.findComponent({ name: 'ElTable' })
     expect(table.exists()).toBe(true)
     expect(table.props('data')).toEqual(rankings)
+  })
+})
+
+describe('StudentRankTable', () => {
+  const students = [
+    { student_id: 's1', name: '张三', score: 95, class_rank: 1, grade_rank: 1, delta_grade: 2 },
+    { student_id: 's2', name: '李四', score: 80, class_rank: 2, grade_rank: 3, delta_grade: -1 },
+    { student_id: 's3', name: '王五', score: 60, class_rank: 3, grade_rank: 5, delta_grade: null },
+  ]
+
+  it('renders student data', () => {
+    const wrapper = mount(StudentRankTable, {
+      props: { students },
+      global: { plugins: [ElementPlus] },
+    })
+    const table = wrapper.findComponent({ name: 'ElTable' })
+    expect(table.exists()).toBe(true)
+    expect(table.props('data')).toHaveLength(3)
+  })
+
+  it('filters by search', async () => {
+    const wrapper = mount(StudentRankTable, {
+      props: { students },
+      global: { plugins: [ElementPlus] },
+    })
+    const input = wrapper.findComponent({ name: 'ElInput' })
+    await input.setValue('张')
+    await wrapper.vm.$nextTick()
+    const table = wrapper.findComponent({ name: 'ElTable' })
+    expect(table.props('data')).toHaveLength(1)
+    expect(table.props('data')[0].name).toBe('张三')
+  })
+})
+
+describe('CriticalStudents', () => {
+  it('renders near-pass and near-excellent groups', () => {
+    const wrapper = mount(CriticalStudents, {
+      props: {
+        nearPass: [{ student_id: 's1', name: '临界A', score: 58, gap: 2, worst_question: { question_name: '15', loss: 4 } }],
+        nearExcellent: [{ student_id: 's2', name: '临界B', score: 83, gap: 2, worst_question: null }],
+        threshold: 3,
+      },
+      global: { plugins: [ElementPlus] },
+    })
+    expect(wrapper.text()).toContain('差3分及格')
+    expect(wrapper.text()).toContain('差3分优秀')
+  })
+
+  it('shows empty state when no critical students', () => {
+    const wrapper = mount(CriticalStudents, {
+      props: { nearPass: [], nearExcellent: [], threshold: 3 },
+      global: { plugins: [ElementPlus] },
+    })
+    expect(wrapper.text()).toContain('无临界生')
+  })
+})
+
+describe('KnowledgeHeatmap', () => {
+  it('renders heatmap when data provided', () => {
+    const wrapper = mount(KnowledgeHeatmap, {
+      props: {
+        knowledgePoints: ['光合作用', '细胞分裂'],
+        classes: [
+          { class_id: 'c1', name: '高一(1)班', mastery: [{ kp_id: '光合作用', rate: 0.85 }, { kp_id: '细胞分裂', rate: 0.6 }] },
+        ],
+      },
+      global: { plugins: [ElementPlus] },
+    })
+    expect(wrapper.find('[data-testid="vchart-stub"]').exists()).toBe(true)
+    expect(wrapper.findComponent({ name: 'ElEmpty' }).exists()).toBe(false)
+  })
+
+  it('shows empty state when no knowledge points', () => {
+    const wrapper = mount(KnowledgeHeatmap, {
+      props: { knowledgePoints: [], classes: [] },
+      global: { plugins: [ElementPlus] },
+    })
+    expect(wrapper.text()).toContain('暂无知识点数据')
   })
 })
