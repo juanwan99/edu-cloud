@@ -21,7 +21,7 @@
     {
       "id": "4",
       "desc": "T2 AddPointsRequest.date -> record_date",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "id": "5",
@@ -44,5 +44,5 @@
   },
   "created_by": "T-Wipe Phase 4 (Executor session 2026-04-18)",
   "created_at": "2026-04-18 13:18:48",
-  "updated_at": "2026-04-24 20:03:43"
+  "updated_at": "2026-04-24 20:08:51"
 }
