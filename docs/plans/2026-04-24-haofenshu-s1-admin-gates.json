@@ -5,15 +5,18 @@
   "gates": {
     "plan_review": {
       "required": true,
-      "status": "fail",
+      "status": "manual_override",
       "reviewer": "gpt",
       "subject_ref": "commit:20a84ad",
       "subject_hash": "1aaec7d1d846dcaa0e36c2169689a4cb14ebc4fd5d47b9192321c60ca26fc12a",
       "report_path": "docs/plans/2026-04-24-haofenshu-s1-admin-plan-review-r2.md",
-      "updated": "2026-04-24T21:16:02.958343+08:00",
+      "updated": "2026-04-24T21:19:38.990571+08:00",
       "reason": "R2 FAIL: 2 HIGH + 1 MED. R2-F001 TeachingPlan 注册链路断裂(Planner 调研阶段误读 app.py import 语义); R2-F002 (R1 F005 contested) invariant 比 test 宽; R2-F003 Task 入口只有 introspection. R1 F001/F002/F004/F006/F007 已闭环. 按 Gate 条件禁 R3+, 待用户决策: manual_override 或拆 topic.",
       "raw_output_hash": "bcd7d213a0420cbce2978fd06ed4811ea760ee48ad77b1eeb869ce347f745d99",
-      "round": 2
+      "round": 2,
+      "override_reason": "R2 FAIL (2 HIGH + 1 MED, 禁 R3+). 用户 A 路径授权 manual_override. R2-F001 HIGH TeachingPlan 注册链路断裂(Planner 调研阶段误读 app.py/env.py 的 `import edu_cloud.models.calendar` 语义为 modules.calendar.models) - Executor 修复: (1) TeachingPlan canonical 挪到 src/edu_cloud/models/teaching_plan.py(与 Grade 策略一致 platform-level), (2) alembic/env.py + api/app.py + tests/conftest.py 三入口各加 import teaching_plan, (3) Task 5 test_orm_registration_three_entry_points 扩 TeachingPlan 三处断言. R2-F002 HIGH invariant 比 test 宽(R1 F005 contested) - Executor 拆 INV-S1C-001/002/008: 补 grades.school_id FK 断言 + sort_order default 断言 + teaching_plans 3 FK 分别断言(含 created_by→users) + __init__.py 字节级 SHA256 对比. R2-F003 MED Task 入口只 introspection - 登记 test_debt(deadline 2026-08-31, 归 S4 补 service/API 时一并验证入口级). Deadline 2026-05-01 前闭环 parent haofenshu-s1-l1-data-layer manual_override. 风险承担: 用户接受 Plan 层 R2 finding 遗留, Executor 在 Gate 2 code_review 阶段 GPT 会复核 R2 残留.",
+      "override_timestamp": "2026-04-24T21:19:38.990546+08:00",
+      "override_operator": "user"
     }
   }
 }
