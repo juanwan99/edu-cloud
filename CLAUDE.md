@@ -87,6 +87,7 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 ```bash
 # 后端 ECS pytest 实测 @ 2026-04-24：2102 passed / 23 skipped（审计 + conduct-roadmap batch1）
 # 22 failed + 1 error 为既有技术债（pre-S1-A，非本次变更引入），完整披露见 docs/plans/2026-04-24-haofenshu-s1-bank-plan.md §Deferred 第 7 条
+# 2026-04-24 后修：commit b9b3881 fix(card) router lazy-import 消 17 项 + dev DB ALTER subjects 4 列消 1 项；预计 failed 22→4 / error 1→0（passed 待下次全量 pytest 实测刷新）
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
 # 前端 Vitest + happy-dom（frontend-nuxt 57 tests @ 2026-04-24）
