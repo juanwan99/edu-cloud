@@ -155,6 +155,32 @@ export function useApi() {
     getClassErrorPatterns: (examId: string, subjectId?: string) =>
       request('/analytics/exam/' + examId + '/class-error-patterns', { query: { subject_id: subjectId } }),
 
+    // === Academic ===
+    createSemester: (data: any) =>
+      request('/academic/semesters', { method: 'POST', body: data }),
+    getSemesters: (params?: Record<string, any>) =>
+      request('/academic/semesters', { query: params }),
+    getCurrentSemester: () =>
+      request('/academic/semesters/current'),
+    updateSemester: (id: string, data: any) =>
+      request(`/academic/semesters/${id}`, { method: 'PATCH', body: data }),
+    activateSemester: (id: string) =>
+      request(`/academic/semesters/${id}/activate`, { method: 'POST' }),
+    setPeriods: (data: any) =>
+      request('/academic/periods', { method: 'PUT', body: data }),
+    getPeriods: (params?: Record<string, any>) =>
+      request('/academic/periods', { query: params }),
+    getTimetable: (params?: Record<string, any>) =>
+      request('/academic/timetable', { query: params }),
+    saveTimetable: (classId: string, data: any) =>
+      request(`/academic/timetable/${classId}`, { method: 'PUT', body: data }),
+    getTimetableStats: (params?: Record<string, any>) =>
+      request('/academic/timetable/stats', { query: params }),
+    setExamSchedule: (examId: string, data: any) =>
+      request(`/exams/${examId}/schedule`, { method: 'PUT', body: data }),
+    getExamSchedule: (examId: string) =>
+      request(`/exams/${examId}/schedule`),
+
     // === Raw ===
     raw: request,
     token,

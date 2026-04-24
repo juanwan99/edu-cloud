@@ -76,6 +76,22 @@ g.useAnalytics = () => ({
   clearAll: vi.fn(),
 })
 
+// useAcademic mock
+g.useAcademic = () => ({
+  semesters: ref([]),
+  currentSemester: ref(null),
+  periods: ref([]),
+  timetable: ref([]),
+  timetableStats: ref([]),
+  loading: ref(false),
+  loadSemesters: vi.fn(),
+  loadCurrentSemester: vi.fn(),
+  loadPeriods: vi.fn(),
+  loadTimetable: vi.fn(),
+  loadTimetableStats: vi.fn(),
+  semesterProgress: vi.fn().mockReturnValue({ percent: 0, week: 0 }),
+})
+
 // onMounted mock (Nuxt auto-import)
 g.onMounted = (cb: () => void) => cb()
 
