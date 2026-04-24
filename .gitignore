@@ -41,3 +41,4 @@ uploads/
 
 # Databases
 *.db
+*.db.bak*
