@@ -16,7 +16,7 @@
     {
       "id": "3",
       "desc": "T1 lesson_prep_leader conduct 权限回收",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": "4",
@@ -44,5 +44,5 @@
   },
   "created_by": "T-Wipe Phase 4 (Executor session 2026-04-18)",
   "created_at": "2026-04-18 13:18:48",
-  "updated_at": "2026-04-24 19:59:29"
+  "updated_at": "2026-04-24 20:01:18"
 }
