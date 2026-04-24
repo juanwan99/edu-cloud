@@ -1,0 +1,79 @@
+{
+  "gates": {
+    "plan_review": {
+      "required": true,
+      "status": "fail",
+      "reviewer": "gpt",
+      "subject_hash": "85ca355312e8d5eaa26060d2a0a9b4a22c0bbc44e4918b3d9c8ce059a37674bf",
+      "report_path": "docs/plans/2026-04-24-super-admin-cross-school-account-plan-review.md",
+      "updated": "2026-04-25T07:07:36.497433+08:00",
+      "reason": "R1 FAIL (3 HIGH + 4 MED) → R1 revision → R2 FAIL (F001-F006 resolved-correct, F007 resolved-partial + R2-F001/F002 new process findings). 3 process 残留已在 R2 post-fix commit 5884678 轻量补丁覆盖; 等待用户 manual_override 或拆 topic 决定.",
+      "subject_ref": "docs/plans/2026-04-24-super-admin-cross-school-account-plan.md",
+      "raw_output_hash": "2802375e682d94ae31c68e1ae49345b01e9ddaed30ae8e1efbe71a806682e000",
+      "findings": [
+        {
+          "id": "F001",
+          "severity": "HIGH",
+          "type": "test_gap",
+          "r1_status": "open",
+          "r2_status": "resolved-correct"
+        },
+        {
+          "id": "F002",
+          "severity": "HIGH",
+          "type": "test_gap",
+          "r1_status": "open",
+          "r2_status": "resolved-correct"
+        },
+        {
+          "id": "F003",
+          "severity": "HIGH",
+          "type": "defect_fix",
+          "r1_status": "open",
+          "r2_status": "resolved-correct"
+        },
+        {
+          "id": "F004",
+          "severity": "MED",
+          "type": "defect_fix",
+          "r1_status": "open",
+          "r2_status": "resolved-correct"
+        },
+        {
+          "id": "F005",
+          "severity": "MED",
+          "type": "test_gap",
+          "r1_status": "open",
+          "r2_status": "resolved-correct"
+        },
+        {
+          "id": "F006",
+          "severity": "MED",
+          "type": "process",
+          "r1_status": "open",
+          "r2_status": "resolved-correct"
+        },
+        {
+          "id": "F007",
+          "severity": "MED",
+          "type": "process",
+          "r1_status": "open",
+          "r2_status": "resolved-partial (post-fix 补独立边界条件段)"
+        },
+        {
+          "id": "R2-F001",
+          "severity": "MED",
+          "type": "process",
+          "r2_status": "open (post-fix 补 ## Contract Pack 段)"
+        },
+        {
+          "id": "R2-F002",
+          "severity": "MED",
+          "type": "process",
+          "r2_status": "open (post-fix 8 角色 typo)"
+        }
+      ],
+      "round": 2
+    }
+  }
+}
