@@ -29,7 +29,7 @@ startup_prompts: docs/plans/2026-04-24-haofenshu-s1-bank-startup-prompts.md
 - 本 session 产出 commit 链: 9b07b05 (design v0.2) → 1bb95b0 (plan) → 63090ee (R1 FAIL) → d67b12a (R2 修 6) → c9fad72 (R2 FAIL) → 66c4953 (R2 后 3 机械修) → c55cc5a (manual_override)
 - 并行 session 产物（非本 session 责任，禁 revert）: cf36643 / 0868ded / 1716bfe / 246d657
 - 两个 7 天 deadline @ 2026-05-01: haofenshu-s1-l1-data-layer (parent) + haofenshu-s1-bank (本 S1-A)；都 manual_override；超期 check_gate False
-- 4 核心禁区: ORC-S1A-001 down_revision='36e25241e55d' / ORC-S1A-002 env.py+app.py 零改动 / ORC-S1A-003 bank_questions 只加不改 / ORC-S1A-004 sa.JSON() 禁 JSONB
+- 4 核心禁区: ORC-S1A-001 down_revision='a8c7d2e4f135'（2026-04-24 R2 后基线漂移修正，原 '36e25241e55d' 已被 conduct migration 取代为新 head）/ ORC-S1A-002 env.py+app.py 零改动 / ORC-S1A-003 bank_questions 只加不改 / ORC-S1A-004 sa.JSON() 禁 JSONB
 - baseline 单真源 (CLAUDE.md L87 + plan L2 已统一) 2026-04-24T11:04:27 实测: 2064 通过 / 22 失败 / 1 错误 / 23 跳过；S1-A Gate G1-S1A-5 要求通过 ≥ 2073 (+9 新测试)
 - Contract Pack schema 真源 `~/.claude/config/contract-pack-schema.md`，R2 contested 教训: pending_test 不带 test_ref（test_ref 仅限 existing_test）
 - Stop hook 其余 3 gate (conduct-roadmap / ai-grading-b-end / kg-phase1) 按方案 A 不处置，软提醒可忽略

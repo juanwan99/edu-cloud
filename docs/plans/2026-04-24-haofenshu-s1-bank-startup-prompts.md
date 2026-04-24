@@ -21,7 +21,7 @@
 第二步：用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 推进 Task 1→2→3→4。每个 Task 完成后触发 codex-review code R1/R2，R3+ 禁止。
 
 硬约束（ORC，违反一条即视为 plan 破坏）：
-- ORC-S1A-001: migration down_revision 必须是 '36e25241e55d'（禁 'f7a3b2c1d456' 分支根）
+- ORC-S1A-001: migration down_revision 必须是 'a8c7d2e4f135'（2026-04-24 R2 后基线漂移修正锚点；禁 'f7a3b2c1d456' 分支根 / 禁 '36e25241e55d' plan 初稿时 head — 已被 a8c7d2e4f135 取代）
 - ORC-S1A-002: alembic/env.py 和 src/edu_cloud/api/app.py 零改动（已含 bank 注册）
 - ORC-S1A-003: bank_questions 现有字段只加不改（tags JSON / bloom_level String(20) 不动）
 - ORC-S1A-004: migration 用 sa.JSON()，禁 postgresql.JSONB

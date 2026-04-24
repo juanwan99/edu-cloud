@@ -1,7 +1,8 @@
 ---
 baseline_command: .venv/bin/python -m pytest --tb=no -q
-baseline_verified_at: 2026-04-24T11:04:27+08:00
-baseline_count: 2064 passed / 22 failed / 1 error / 23 skipped (0:13:51)
+baseline_verified_at: 2026-04-24T17:27:56+08:00
+baseline_count: 2079 passed / 22 failed / 1 error / 23 skipped (0:13:27)
+baseline_historical: 2064 passed / 22 failed / 1 error / 23 skipped @ 2026-04-24T11:04:27 (plan R1/R2 时点，post-1716bfe 前；保留供 audit 追溯)
 task_tier: T3
 topic: haofenshu-s1-bank
 ---
@@ -12,7 +13,7 @@ topic: haofenshu-s1-bank
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 为 `bank_questions` 表扩展 5 个学情闭环缺失字段（`source` / `explanation` / `knowledge_point_ids` / `difficulty_level` / `grade_id`），并用 linear chain 首环 migration (down_revision=`36e25241e55d`) 落地，为 S1-B/C/D 后续子 topic 打通首环。
+**Goal:** 为 `bank_questions` 表扩展 5 个学情闭环缺失字段（`source` / `explanation` / `knowledge_point_ids` / `difficulty_level` / `grade_id`），并用 linear chain 首环 migration (down_revision=`a8c7d2e4f135`) 落地，为 S1-B/C/D 后续子 topic 打通首环。
 
 **Architecture:** 遵守 edu-cloud 既有 ORM 注册约定（`alembic/env.py:51` + `api/app.py:41` 已 import `modules.bank.models`，S1-A 只扩字段无需新增 import）。Migration 用 `batch_alter_table` 包装 add_column，兼容 SQLite 测试 + PostgreSQL 生产双方言（echoes `2026-04-13-migration-gate-repair-design.md` 经验）。与 parent design §4.2 v0.2 "linear chain 分拆" 约束对齐。
 
@@ -42,30 +43,32 @@ topic: haofenshu-s1-bank
 
 ---
 
-### Evidence: E-002 — Alembic linear chain 首环锚点（F001 修正核心）
+### Evidence: E-002 — Alembic linear chain 首环锚点（F001 修正核心；2026-04-24 R2 后基线漂移修正）
 
-**decision**: S1-A migration 的 `down_revision = '36e25241e55d'`（真实 head），**不是** original plan 误写的 `'f7a3b2c1d456'`（该节点 down_revision=None 是早期分支根）。
+**decision**: S1-A migration 的 `down_revision = 'a8c7d2e4f135'`（真实 head），**不是** original plan 误写的 `'f7a3b2c1d456'`（该节点 down_revision=None 是早期分支根），也**不是** plan R1/R2 时点的 `'36e25241e55d'`（plan manual_override 后 commit 1716bfe 引入 `a8c7d2e4f135` 新 head，head 上移一环）。
 
 **evidence_refs**:
-- `.venv/bin/alembic heads` 实测输出（2026-04-24）：
+- `.venv/bin/alembic heads` 实测输出（2026-04-24 post-session-handoff 5aed59f）：
   ```
-  36e25241e55d (head)
+  a8c7d2e4f135 (head)
   ```
 - `.venv/bin/alembic current` 实测输出（2026-04-24，本地测试库）：
   ```
   e241e1568792
   ```
-- `alembic/versions/36e25241e55d_add_academic_tables_and_subject_.py:17-18`：
+- `alembic/versions/a8c7d2e4f135_conduct_add_updated_at_and_fk_indexes.py:11-12`：
   ```python
-  revision: str = '36e25241e55d'
-  down_revision: Union[str, Sequence[str], None] = 'e241e1568792'
+  revision: str = 'a8c7d2e4f135'
+  down_revision: str = '36e25241e55d'
   ```
-- 完整链路（向 base 追溯）：`36e25241e55d ← e241e1568792 ← 874f6f9c14cc (merge) ← (45c9d83d780e, f7a3b2c1d456)`
+- 完整链路（向 base 追溯）：`a8c7d2e4f135 ← 36e25241e55d ← e241e1568792 ← 874f6f9c14cc (merge) ← (45c9d83d780e, f7a3b2c1d456)`
 - 负面断言：`grep -n "down_revision = None" alembic/versions/f7a3b2c1d456*.py` → 验证 f7a3b2c1d456 是分支根（down_revision=None）而不是 head
+- 基线漂移治理：plan R2 review @ 2026-04-24T13:57 已 contested 发现 head 从 `36e25241e55d` 漂到 `a8c7d2e4f135`（见 `docs/plans/2026-04-24-haofenshu-s1-bank-plan-review-r2.md` L34），R2 GPT 明确不作为 R2 问题计入但 plan 未同步；commit 1716bfe 合入后 plan 未跟进，本次机械修正对齐
 
 **Q1**: evidence_source: code-read + command-output, evidence_state: verified
 **Q2_excluded**:
 - "绑到 f7a3b2c1d456（original plan 的选择）": 反证路径: f7a3b2c1d456 down_revision=None，若绑定会形成新分支并让 `alembic heads` 返回 2 个 heads，破坏链性。
+- "绑到 36e25241e55d（plan 11:04 baseline 时点的实测 head，R2 后漂移）": 反证路径: 当前 tracked head 是 `a8c7d2e4f135`（`36e25241e55d` 的下一环），若绑定 `36e25241e55d` 会和 `a8c7d2e4f135` 并列，`alembic heads` 返回 2 行破坏 linear chain。
 **impact_scope**: module (alembic-migrations)
 **unknowns**: none
 
@@ -143,9 +146,9 @@ topic: haofenshu-s1-bank
 
 ### ORC-S1A-001: linear chain 首环约束
 
-- **Rule**: S1-A migration 的 `down_revision` 字段必须等于字符串 `'36e25241e55d'`，严禁任何其他值（尤其禁止 original plan 误写的 `'f7a3b2c1d456'`）。
-- **Why**: F001 根因。`36e25241e55d` 是 alembic 真实单 head（E-002 实测），`f7a3b2c1d456` down_revision=None 是早期分支根，绑错会产生多 head 破坏链性。
-- **How to apply**: 审查 `alembic/versions/*_s1a_bank_question_extension.py` 文件 head 处 `down_revision` 值；Task 2 测试契约必须包含 `test_migration_chain_down_revision_is_academic_head`。
+- **Rule**: S1-A migration 的 `down_revision` 字段必须等于字符串 `'a8c7d2e4f135'`（2026-04-24 R2 后基线漂移修正锚点，conduct updated_at + FK indexes migration），严禁任何其他值（尤其禁止 original plan 误写的 `'f7a3b2c1d456'`，也禁止 plan R1/R2 时点的 `'36e25241e55d'` — 后者已被 `a8c7d2e4f135` 取代为新 head，见 E-002）。
+- **Why**: F001 根因。`a8c7d2e4f135` 是 alembic 真实单 head（E-002 post-1716bfe 实测，commit 5aed59f 时 HEAD 状态），`f7a3b2c1d456` down_revision=None 是早期分支根，`36e25241e55d` 是 `a8c7d2e4f135` 的上一环已不是 head，绑任一错选都会产生多 head 破坏链性。
+- **How to apply**: 审查 `alembic/versions/*_s1a_bank_question_extension.py` 文件 head 处 `down_revision` 值；Task 2 测试契约必须包含 `test_migration_chain_down_revision_is_conduct_head`。
 - **Violation reporter**: Task 3 的 migration smoke test 加 `test_chain_head_after_upgrade_is_s1a_slug`；若 down_revision 绑错，`alembic heads` 会返回 2 行触发 assert 失败。
 
 ### ORC-S1A-002: ORM 注册链路完整
@@ -186,7 +189,7 @@ contract_pack:
       statement: "upgrade 后 bank_questions 新增 5 列（source/explanation/knowledge_point_ids/difficulty_level/grade_id），SQLAlchemy inspect 下全部 is_nullable=True（待 Task 3 落地 tests/test_alembic_s1a_bank.py::test_new_columns_added_and_nullable）"
       verification: pending_test
     - id: INV-S1A-002
-      statement: "S1-A migration 文件 head 处 down_revision 字符串字面值为 '36e25241e55d'（待 Task 3 落地 tests/test_alembic_s1a_bank.py::test_migration_file_exists_and_down_revision_is_academic_head）"
+      statement: "S1-A migration 文件 head 处 down_revision 字符串字面值为 'a8c7d2e4f135'（2026-04-24 R2 后基线漂移修正；待 Task 3 落地 tests/test_alembic_s1a_bank.py::test_migration_file_exists_and_down_revision_is_conduct_head）"
       verification: pending_test
     - id: INV-S1A-003
       statement: "S1-A upgrade head 后 `alembic heads` subprocess 输出过滤空行后恰好 1 行（待 Task 3 落地 tests/test_alembic_s1a_bank.py::test_migration_chain_head_is_single）"
@@ -202,7 +205,7 @@ contract_pack:
     - id: CE-S1A-001
       scenario: "Task 2 误绑 down_revision='f7a3b2c1d456'（该节点 down_revision=None 是早期分支根），alembic upgrade head 后 heads 返回 2 行（academic head + 本分支新 head）"
       tests_that_still_pass: "Task 1 的 2 个 ORM 属性 round-trip test（test_bank_question_new_fields_roundtrip / _all_nullable）不读 alembic chain，依然通过"
-      mitigation: "Task 3 的 test_migration_file_exists_and_down_revision_is_academic_head 直接字符串匹配 '36e25241e55d'，+ test_migration_chain_head_is_single 跑 alembic heads 断言 1 行，任一都会捕获"
+      mitigation: "Task 3 的 test_migration_file_exists_and_down_revision_is_conduct_head 直接字符串匹配 'a8c7d2e4f135'，+ test_migration_chain_head_is_single 跑 alembic heads 断言 1 行，任一都会捕获"
     - id: CE-S1A-002
       scenario: "Task 2 误用 `from sqlalchemy.dialects import postgresql; postgresql.JSONB` 而非 `sa.JSON()`"
       tests_that_still_pass: "纯 ORM 层测试（Task 1 新 2 个 + 现有 bank_service.py 3 个）不跑 migration，依然通过"
@@ -243,7 +246,7 @@ contract_pack:
 | 文件 | 操作 | 职责 |
 |------|------|------|
 | `src/edu_cloud/modules/bank/models.py` | 修改 | BankQuestion 尾部追加 5 Mapped 字段（source/explanation/knowledge_point_ids/difficulty_level/grade_id） |
-| `alembic/versions/{YYYYMMDD}_s1a_bank_question_extension.py` | 新建 | Linear chain 首环 migration，down_revision=`36e25241e55d`；upgrade add_column ×5，downgrade drop_column ×5 |
+| `alembic/versions/{YYYYMMDD}_s1a_bank_question_extension.py` | 新建 | Linear chain 首环 migration，down_revision=`a8c7d2e4f135`（2026-04-24 R2 后基线漂移修正）；upgrade add_column ×5，downgrade drop_column ×5 |
 | `tests/test_alembic_s1a_bank.py` | 新建 | Migration smoke test（upgrade/downgrade/chain head/existing columns/必填列 INSERT） |
 | `tests/test_services_exam/test_bank_service.py` | 修改 | 追加 1-2 个 roundtrip test（新字段写入读取） |
 | `tests/test_alembic_migration.py` | 修改（可选） | 现有 test_migration_head_is_single 天然覆盖 INV-S1A-003；无需改动，Task 3 自备独立复查 |
@@ -442,7 +445,7 @@ EOF
 
 ---
 
-## Task 2: Linear chain migration (首环，down_revision=36e25241e55d)
+## Task 2: Linear chain migration (首环，down_revision=a8c7d2e4f135)
 
 **Files:**
 - Create: `alembic/versions/{YYYYMMDD_HHMM}_s1a_bank_question_extension.py`（用 `alembic revision -m` 生成，文件名 slug 由 alembic 自动拼接）
@@ -460,7 +463,7 @@ EOF
   .venv/bin/alembic upgrade head && .venv/bin/alembic heads
   .venv/bin/alembic downgrade -1 && .venv/bin/alembic heads
   ```
-  Expected: upgrade 后 head 是本 migration slug；downgrade 后 head 回到 `36e25241e55d`。
+  Expected: upgrade 后 head 是本 migration slug；downgrade 后 head 回到 `a8c7d2e4f135`。
 
 **边界条件**（至少 3 条）:
 1. SQLite in-memory 上 upgrade/downgrade 能闭环（ORC-S1A-004 双方言依据）
@@ -478,15 +481,15 @@ Expected: 输出类似 `Generating /home/ops/projects/edu-cloud/alembic/versions
 
 - [ ] **Step 2.2: 验证并修正 down_revision（ORC-S1A-001 核心）**
 
-打开刚生成的文件，查找 `down_revision` 行。Alembic 默认会自动填前一个 head：应该是 `'36e25241e55d'`。
+打开刚生成的文件，查找 `down_revision` 行。Alembic 默认会自动填前一个 head：应该是 `'a8c7d2e4f135'`（2026-04-24 R2 后基线漂移修正，见 E-002）。
 
 **手动断言**：
 ```bash
 grep -n "down_revision" alembic/versions/*s1a_bank_question_extension.py
 ```
-Expected: 必须显示 `down_revision: Union[str, Sequence[str], None] = '36e25241e55d'`
+Expected: 必须显示 `down_revision: Union[str, Sequence[str], None] = 'a8c7d2e4f135'`
 
-**若不是 '36e25241e55d'** → 手动修正为此值（不允许任何其他值，ORC-S1A-001 硬约束）。
+**若不是 'a8c7d2e4f135'** → 手动修正为此值（不允许任何其他值，ORC-S1A-001 硬约束）。
 
 - [ ] **Step 2.3: 实现 upgrade() / downgrade() body**
 
@@ -528,21 +531,21 @@ def downgrade() -> None:
 
 ```bash
 # stamp 到 head 的前一个（确保从新 migration 前开始）
-.venv/bin/alembic stamp 36e25241e55d
+.venv/bin/alembic stamp a8c7d2e4f135
 
 # 1) upgrade：跑到新 head
 .venv/bin/alembic upgrade head
 .venv/bin/alembic heads  # 期望输出新 slug
 
-# 2) downgrade：回到 36e25241e55d
+# 2) downgrade：回到 a8c7d2e4f135
 .venv/bin/alembic downgrade -1
-.venv/bin/alembic heads  # 期望输出 36e25241e55d
+.venv/bin/alembic heads  # 期望输出 a8c7d2e4f135
 
 # 3) upgrade：再跑到新 head 验证幂等
 .venv/bin/alembic upgrade head
 .venv/bin/alembic heads  # 期望再次输出新 slug
 ```
-Expected: 三阶段全部成功，`alembic heads` 在 (1)(3) 返回新 slug，在 (2) 返回 `36e25241e55d`，且全程无 error。
+Expected: 三阶段全部成功，`alembic heads` 在 (1)(3) 返回新 slug，在 (2) 返回 `a8c7d2e4f135`，且全程无 error。
 
 - [ ] **Step 2.5: Commit Task 2**
 
@@ -551,7 +554,7 @@ git add alembic/versions/*s1a_bank_question_extension.py
 git commit -m "$(cat <<'EOF'
 feat(alembic): S1-A T2 linear chain 首环 migration (bank_question +5 字段)
 
-down_revision=36e25241e55d（alembic heads 实测单 head，ORC-S1A-001）。
+down_revision=a8c7d2e4f135（alembic heads 实测单 head @ commit 5aed59f，ORC-S1A-001；2026-04-24 R2 后基线漂移修正）。
 upgrade() 在 bank_questions 上 batch_alter_table add_column ×5：
 source / explanation / knowledge_point_ids / difficulty_level / grade_id。
 downgrade() 反向 drop_column ×5（5 列全 nullable，无数据迁移需求）。
@@ -639,16 +642,20 @@ def _run_alembic(cmd_args: list[str], db_url: str) -> subprocess.CompletedProces
     )
 
 
-def test_migration_file_exists_and_down_revision_is_academic_head():
-    """INV-S1A-002 机械化：打开 S1-A migration 文件，直接读 down_revision 字符串."""
+def test_migration_file_exists_and_down_revision_is_conduct_head():
+    """INV-S1A-002 机械化：打开 S1-A migration 文件，直接读 down_revision 字符串.
+
+    2026-04-24 R2 后基线漂移修正：head 从 '36e25241e55d'（plan R1/R2 时点实测）
+    上移到 'a8c7d2e4f135'（conduct updated_at + FK indexes migration，commit 1716bfe 引入）。
+    """
     versions_dir = os.path.join(PROJECT_ROOT, 'alembic', 'versions')
     matches = [f for f in os.listdir(versions_dir) if 's1a_bank_question_extension' in f]
     assert len(matches) == 1, f"Expected exactly 1 S1-A migration file, got {matches}"
 
     with open(os.path.join(versions_dir, matches[0])) as fp:
         content = fp.read()
-    assert "down_revision: Union[str, Sequence[str], None] = '36e25241e55d'" in content, \
-        "ORC-S1A-001 违反：down_revision 必须是 '36e25241e55d'"
+    assert "down_revision: Union[str, Sequence[str], None] = 'a8c7d2e4f135'" in content, \
+        "ORC-S1A-001 违反：down_revision 必须是 'a8c7d2e4f135'"
 
 
 def test_migration_chain_head_is_single(sqlite_db):
@@ -713,10 +720,11 @@ def test_existing_columns_unchanged_after_upgrade(sqlite_db):
 
 def test_existing_data_preserved_through_migration(sqlite_db):
     """F003 修正核心：INSERT 带齐必填列 → upgrade → 数据保留 + 新列默认 NULL."""
-    # 1) upgrade 到 head 之前一个 revision（academic 表引入点 36e25241e55d）
-    #    注：S1-A 前 head 是 36e25241e55d，所以先 upgrade 到 head 之前的一环
-    r = _run_alembic(['upgrade', '36e25241e55d'], sqlite_db)
-    assert r.returncode == 0, f"upgrade to 36e25241e55d failed: {r.stderr}"
+    # 1) upgrade 到 head 之前一个 revision（conduct updated_at + FK indexes 引入点 a8c7d2e4f135）
+    #    注：S1-A 前 head 是 a8c7d2e4f135（2026-04-24 R2 后基线漂移修正），
+    #    所以先 upgrade 到 head 之前的一环；a8c7d2e4f135 的 upstream 是 36e25241e55d
+    r = _run_alembic(['upgrade', 'a8c7d2e4f135'], sqlite_db)
+    assert r.returncode == 0, f"upgrade to a8c7d2e4f135 failed: {r.stderr}"
 
     # 2) 预置数据（F003：INSERT 必填列全齐）
     engine = create_engine(sqlite_db)
@@ -804,7 +812,7 @@ git add tests/test_alembic_s1a_bank.py
 git commit -m "$(cat <<'EOF'
 test(alembic): S1-A T3 migration smoke (6 tests)
 
-覆盖 ORC-S1A-001 (linear chain 首环 down_revision=36e25241e55d) /
+覆盖 ORC-S1A-001 (linear chain 首环 down_revision=a8c7d2e4f135) /
 INV-S1A-001 (5 新列 nullable) / ORC-S1A-003 (tags/bloom_level 不动) /
 F003 修正 (INSERT 必填列含 sample_count/created_at/updated_at)。
 tests/test_alembic_s1a_bank.py 独立于既有 test_alembic_migration.py，
@@ -832,8 +840,8 @@ EOF
   ```bash
   .venv/bin/python -m pytest --tb=no -q 2>&1 | tail -3
   ```
-  Expected (相对 baseline 2064 passed / 22 failed / 1 error / 23 skipped @ 2026-04-24T11:04:27):
-  - `passed` 数 >= 2064 + 9 = **2073**（9 = Task 1 新增 2 ORM roundtrip + 1 入口级 service 测试（R1 F-S1A-02 修正） + Task 3 新增 6 migration smoke）
+  Expected (相对 baseline 2079 passed / 22 failed / 1 error / 23 skipped @ 2026-04-24T17:27:56，post-1716bfe 实测，见 frontmatter):
+  - `passed` 数 >= 2079 + 9 = **2088**（9 = Task 1 新增 2 ORM roundtrip + 1 入口级 service 测试（R1 F-S1A-02 修正） + Task 3 新增 6 migration smoke）
   - `failed` 数 <= 22（S1-A 禁止引入新 failure；原有失败可减少但不得增加）
   - `error` 数 <= 1（同上）
   - `skipped` 数 == 23（S1-A 未 skip 任何测试）
@@ -848,13 +856,13 @@ EOF
 ```bash
 .venv/bin/python -m pytest --tb=no -q 2>&1 | tail -5
 ```
-Expected（相对 baseline 2064/22/1/23）:
-- passed >= 2073（2064 baseline + 9 新增：Task 1 的 2 ORM round-trip + 1 入口级 service + Task 3 的 6 migration smoke）
+Expected（相对 baseline 2079/22/1/23 @ 2026-04-24T17:27:56）:
+- passed >= 2088（2079 baseline + 9 新增：Task 1 的 2 ORM round-trip + 1 入口级 service + Task 3 的 6 migration smoke）
 - failed <= 22（既有技术债不增，详见 §Deferred 第 7 条）
 - error <= 1
 - skipped == 23
 
-若 passed < 2073 或 failed > 22 或 error > 1 → Gate 不通过，回退调查是否 Task 1/2/3 引入回归。
+若 passed < 2088 或 failed > 22 或 error > 1 → Gate 不通过，回退调查是否 Task 1/2/3 引入回归。
 若 failed < 22（原失败变通过）→ 为有益副作用，不阻塞 Gate，但须在 handoff.md 自由备注段标注"S1-A 期间观察到原失败 N → N' 减少"以便追溯。
 
 - [ ] **Step 4.2: 断言 git diff 范围（ORC-S1A-002 最终验证）**
@@ -888,7 +896,7 @@ Create `docs/plans/2026-04-24-haofenshu-s1-bank-handoff.md`（R1 F-S1A-06 修正
 **timestamp**: {iso8601}+08:00; **last_commit**: {s1a_last_sha}
 === 生成块结束 ===
 === 自由备注开始 ===
-- S1-A merge @ feat/analytics-report；migration slug={NEW_SLUG}，链首 down_revision=36e25241e55d
+- S1-A merge @ feat/analytics-report；migration slug={NEW_SLUG}，链首 down_revision=a8c7d2e4f135
 - S1-C scope：grades + Class.grade_id FK + teaching_plans + PaperAccessLevel + 补 bank_questions.grade_id FK (TD-S1A-002)；S1-C migration down_revision={S1A_NEW_SLUG}（linear chain 第 2 环）
 - 禁重犯：F001 down_revision 实测 / F002 ORM 注册现完整 / F003 smoke INSERT 必填列 / F004-5 测试契约+Contract Pack 必备
 === 自由备注结束 ===
@@ -904,7 +912,7 @@ git commit -m "$(cat <<'EOF'
 docs(handoff): S1-A T4 Gate G1-S1A 通过 + 交棒 S1-C
 
 全量 pytest baseline+9 全绿；alembic/env.py + api/app.py 未动（ORC-S1A-002，用 Git commit SHA 机械验证）。
-S1-A migration 文件 slug={NEW_SLUG}，链首 down_revision=36e25241e55d。
+S1-A migration 文件 slug={NEW_SLUG}，链首 down_revision=a8c7d2e4f135。
 S1-C 下一步：grades + Class.grade_id + teaching_plans + PaperAccessLevel + bank.grade_id FK 补齐（TD-S1A-002）。
 
 refs: docs/plans/2026-04-24-haofenshu-s1-bank-plan.md Task 4
@@ -924,7 +932,7 @@ EOF
 | G1-S1A-2 | Task 3 Migration smoke PASS | `pytest tests/test_alembic_s1a_bank.py -v` | 6 test PASS |
 | G1-S1A-3 | Migration chain 可逆 | `alembic upgrade head && alembic downgrade -1 && alembic upgrade head` | 三阶段全 exit 0 |
 | G1-S1A-4 | ORC-S1A-002 零改动 | `S1A_BASE=$(git log -1 --format=%H -- docs/plans/2026-04-24-haofenshu-s1-bank-plan.md) && git diff --stat "$S1A_BASE..HEAD" -- alembic/env.py src/edu_cloud/api/app.py` | 无输出（R1 F-S1A-01 修正：用 Git commit SHA 而非 Alembic revision） |
-| G1-S1A-5 | 全量 pytest 无回归 | `pytest --tb=no -q` | passed >= 2073 且 failed <= 22 且 error <= 1 且 skipped == 23（详见 Step 4.1） |
+| G1-S1A-5 | 全量 pytest 无回归 | `pytest --tb=no -q` | passed >= 2088 且 failed <= 22 且 error <= 1 且 skipped == 23（baseline 2079 + 9 新增；详见 Step 4.1） |
 | G1-S1A-6 | handoff.md ≤15 行 | `wc -l docs/plans/2026-04-24-haofenshu-s1-bank-handoff.md` | ≤ 15 |
 | G1-S1A-7 | codex-review plan R1 PASS | 外部工具 | R1/R2 PASS（不允许 R3+） |
 | G1-S1A-8 | codex-review code R1 PASS | 外部工具 | R1/R2 PASS（不允许 R3+） |
@@ -968,15 +976,22 @@ G1-S1A-1~6 由 Executor 自检；G1-S1A-7/8 由 codex-review 独立审查。
    - 备份要求（CLAUDE.md L016）：部署前 `sqlite3 ".backup"`（若 mcu.asia 用 SQLite）或 PG dump
 
 7. **既有 22 failed + 1 error 测试债**（L015 反虚假完成）
-   - 实测：`.venv/bin/python -m pytest --tb=no -q` @ 2026-04-24T11:04:27 → `2064 passed, 22 failed, 1 error, 23 skipped in 831.70s`
-   - 已知失败样例（来自 baseline tail）：
+   - 历史实测 (plan R1/R2 时点)：`.venv/bin/python -m pytest --tb=no -q` @ 2026-04-24T11:04:27 → `2064 passed, 22 failed, 1 error, 23 skipped in 831.70s`
+   - **当前 baseline (S1-A executor 启动前重测 post-1716bfe)**：`.venv/bin/python -m pytest --tb=no -q` @ 2026-04-24T17:27:56 (commit 5aed59f) → `2079 passed, 22 failed, 1 error, 23 skipped in 807.43s`
+   - passed 从 2064 升到 2079 (+15)，源于 commit 1716bfe "fix(perf): ... + 15 grading tests"；failed/error/skipped 不变
+   - 已知失败样例（来自 17:27 baseline tail）：
+     - `tests/test_alembic_migration.py::test_migration_downgrade_is_clean` FAILED
+     - `tests/test_api_exam/test_cards.py::TestSkeletonAPI` 4 tests + `TestWordTemplateDownload` 2 + `TestCardGenerateV2` 3 + `TestEditorLayout` 7 + `TestParseAnswersMetadata` 1 = 17 cards tests FAILED
+     - `tests/test_modules/test_routes_smoke.py::test_card_builtin_templates` FAILED
+     - `tests/test_services/test_new_permissions.py::test_subject_teacher_has_view_grading` FAILED
+     - `tests/test_services/test_permissions_grading.py::test_subject_teacher_no_manage_grading` FAILED
      - `tests/test_workers/test_grading_worker.py::test_run_post_exam_pipeline_stub` FAILED
      - `tests/test_alembic_migration.py::test_migration_creates_all_expected_tables` ERROR
-   - 完整 22 failed + 1 error 清单未在本 plan 枚举（非 S1-A scope，避免 scope creep）
-   - **归属**：这是 pre-S1-A 既有技术债，S1-A 未动任何代码即能复现。若 22 failed 构成 L019 打地鼠模式（同模块 ≥3 次连续 fix 失败），应独立 T3 设计；若是独立零散问题，可分批清理
+   - 失败分布（模块维度）：`test_api_exam/test_cards.py` 17 / `test_services` 2 / `test_alembic_migration` 1 FAIL + 1 ERROR / `test_workers` 1 / `test_modules/test_routes_smoke` 1 = 22 FAILED + 1 ERROR
+   - **归属**：这是 pre-S1-A 既有技术债，S1-A 未动任何代码即能复现。`test_cards.py` 17 个集中失败符合 L019 打地鼠模式（同模块 ≥3 次连续 fix 失败）触发条件，应独立 T3 设计；`test_services/test_new_permissions.py::test_subject_teacher_has_view_grading` 与 `test_permissions_grading.py::test_subject_teacher_no_manage_grading` 属 MANAGE_GRADING 临时扩大现状（CLAUDE.md 项目级 memo "_TEACHER_BASE 临时含 MANAGE_GRADING，上线前须收回"）
    - **S1-A 立场**：诚实披露，不掩盖，Gate G1-S1A-5 只要求"不增加 failure 数"而非"baseline 全绿"
-   - **建议后续行动**：S1-A 合入后独立启动 `t3-test-debt-audit` 调研 session，产出 failure 清单按模块归类 + 修复路线图
-   - 14 分钟的 pytest 长耗时也是独立优化课题（ECS 上应考虑 `pytest -x` 或模块级跑法的默认化）
+   - **建议后续行动**：S1-A 合入后独立启动 `t3-test-debt-audit` 调研 session，产出 failure 清单按模块归类 + 修复路线图（重点 `test_cards.py` 集中失败的根因 + MANAGE_GRADING 收权时序）
+   - 13 分钟的 pytest 长耗时也是独立优化课题（ECS 上应考虑 `pytest -x` 或模块级跑法的默认化）
 
 ---
 
