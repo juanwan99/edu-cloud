@@ -6,7 +6,7 @@ created: 2026-04-14 06:39:01
 status: draft
 T-level: T3
 batches: 3
-supersedes_handoff: docs/plans/2026-04-13-conduct-next-phase-handoff.md
+supersedes_handoff: docs/plans/archived/2026-04/2026-04-13-conduct-next-phase-handoff.md
 ---
 
 # 德育板块统筹规划路线图（批次 1 详细 + 批次 2/3 占位）
@@ -318,7 +318,7 @@ design_docs:
 
 - `C:\Users\Administrator\edu-cloud\CLAUDE.md` 德育条目：
   - "120 conduct tests（R2 基线 108 + 12 新增）" → "118 conduct tests（R2 基线 108 + 10 新增）"
-- `docs/plans/2026-04-13-conduct-next-phase-handoff.md` L151:
+- `docs/plans/archived/2026-04/2026-04-13-conduct-next-phase-handoff.md` L151:
   - "期望: 120 passed (R3 收尾基线)" → "期望: 118 passed (R3 收尾基线)"
 - **T5 不修改 `C:\Users\Administrator\CLAUDE.md`**（全局级无 conduct 测试数字，仅进行中设计/已完成设计的 audit trail 条目，归 Task 6 收尾处理）
 

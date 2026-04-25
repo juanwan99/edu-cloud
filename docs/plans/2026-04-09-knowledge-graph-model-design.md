@@ -1,8 +1,8 @@
 # 知识图谱多层教学模型 Phase 1「可信骨架」设计
 
 > 创建：2026-04-09 21:12:10
-> 辩论基础：`docs/plans/2026-04-09-knowledge-graph-viz-debate.md`（4 轮 Claude×GPT + 外部调研）
-> 交接卡：`docs/plans/2026-04-09-knowledge-graph-model-handoff.md`
+> 辩论基础：`docs/plans/archived/2026-04/2026-04-09-knowledge-graph-viz-debate.md`（4 轮 Claude×GPT + 外部调研）
+> 交接卡：`docs/plans/archived/2026-04/2026-04-09-knowledge-graph-model-handoff.md`
 > 状态：设计确认，待计划
 > [2026-04-10 10:27:15 实现完成] Commits: 469350e..7c8dee3
 

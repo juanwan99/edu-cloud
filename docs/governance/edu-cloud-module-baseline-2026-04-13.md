@@ -53,7 +53,7 @@
   - 两份均含相同映射（scan `_LOC_ID_MAP = {"0101": "TL", "0102": "TR", ...}` 对应 card `_ANCHOR_MAP = {"0101": "TL", "0102": "TR", ...}`）
   - 两份均定义等价的正则 `r"\((\d+),(\d+)\)-\((\d+),(\d+)\)"` 用于位置字符串解析
   - 两份均含同名函数 `parse_tpl_file`
-  - git log（`2026-04-09-scan-integration-plan.md`）显示 scan/tpl_parser.py 在 scan 集成时新建，card/tpl_parser.py 先于 scan 存在
+  - git log（`docs/plans/archived/2026-04/2026-04-09-scan-integration-plan.md`）显示 scan/tpl_parser.py 在 scan 集成时新建，card/tpl_parser.py 先于 scan 存在
 - **判定**: 真冲突 — 同一外部格式（月小二 .tpl）的解析逻辑在两处独立实现
 - **建议处置**:
   1. **抽共享模块**（推荐）：新建 `src/edu_cloud/shared/tpl_parser.py`（或归入 card 作权威源），提供 `parse_tpl_file` / `_LOC_ID_MAP` / `_parse_location` 等；scan 和 card 各自 import 该共享模块做"转 Template 格式" / "转 CardSkeleton" 的薄壳

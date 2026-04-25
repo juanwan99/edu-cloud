@@ -2,7 +2,7 @@
 
 > 创建：2026-04-10 18:26:17
 > 前置：Phase 1「可信骨架」`docs/plans/2026-04-09-knowledge-graph-model-design.md` [实现完成]
-> 辩论基础：`docs/plans/2026-04-09-knowledge-graph-viz-debate.md`
+> 辩论基础：`docs/plans/archived/2026-04/2026-04-09-knowledge-graph-viz-debate.md`
 > 状态：设计确认，待计划
 
 > [2026-04-10 20:52:55 实现完成] Commits: 7a5ecfb..549e298 (Batch 1 + Batch 2)

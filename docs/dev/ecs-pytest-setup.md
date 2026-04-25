@@ -67,12 +67,12 @@ python -m pytest tests/test_conduct/ -q   # 期望 68 passed
 | `uv: command not found` | `curl -LsSf https://astral.sh/uv/install.sh \| sh`；重新 `source ~/.bashrc` |
 | `uv sync` 网络超时 | 检查代理 `echo $HTTPS_PROXY`；edu-cloud ECS 走 DMIT sing-box 127.0.0.1:7890 |
 | `pytest --collect-only` 有 ImportError | 看 Error 信息定位模块；常见是 pyzbar（参 §3.2）或路径错（确认 `pyproject.toml pythonpath = ["src"]`） |
-| `pytest tests/test_conduct/` passed 数 ≠ 68 | 看 `docs/plans/2026-04-18-ecs-pytest-baseline-report.md` 对照基线；真数字变了才是新情况 |
+| `pytest tests/test_conduct/` passed 数 ≠ 68 | 看 `docs/plans/archived/2026-04/2026-04-18-ecs-pytest-baseline-report.md` 对照基线；真数字变了才是新情况 |
 | 模块级测试一直 collect 0 | 验证 `tests/conftest.py` 存在且 `pyproject.toml` 有 `asyncio_mode = "auto"` |
 | 跑 alembic 测试报 `aiosqlite not found` | `uv.lock` 要 sync：重跑 `uv sync --extra dev` |
 
 ## §6. 参考
 
-- 首次装配任务 & 红线：`docs/plans/2026-04-18-ecs-pytest-setup-handoff.md`
-- baseline 实测报告（含 grep 函数数 vs pytest passed 数对账）：`docs/plans/2026-04-18-ecs-pytest-baseline-report.md`
-- T-E 接管审计（说明为何 reviewer 过去没在 ECS 实跑）：`docs/plans/2026-04-18-takeover-impact-audit-report.md`
+- 首次装配任务 & 红线：`docs/plans/archived/2026-04/2026-04-18-ecs-pytest-setup-handoff.md`
+- baseline 实测报告（含 grep 函数数 vs pytest passed 数对账）：`docs/plans/archived/2026-04/2026-04-18-ecs-pytest-baseline-report.md`
+- T-E 接管审计（说明为何 reviewer 过去没在 ECS 实跑）：`docs/plans/archived/2026-04/2026-04-18-takeover-impact-audit-report.md`

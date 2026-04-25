@@ -268,7 +268,7 @@ P0 调研不是脚本，是 **Opus 主导的阅读工作**（方法论来源：f
 | 路径 | 内容 | 创建阶段 |
 |------|------|---------|
 | `docs/plans/2026-04-13-module-governance-design.md` | 本设计文档 | 当前 |
-| `docs/plans/2026-04-13-module-governance-plan.md` | 实施计划（writing-plans 产出） | 紧接 brainstorming |
+| `docs/plans/archived/2026-04/2026-04-13-module-governance-plan.md` | 实施计划（writing-plans 产出） | 紧接 brainstorming |
 | `docs/governance/edu-cloud-module-baseline-2026-04-13.md` | P0 基线报告 | P0 |
 | `docs/governance/MODULE-template.md` | 模板（从 §2 提取） | P1 |
 | `scripts/governance/aggregate_modules.py` | 聚合脚本 | P1 |

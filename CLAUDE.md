@@ -778,6 +778,8 @@ docker compose logs -f      # 查看日志
 
 ## 参考文档
 
+> **2026-04-25 plans 归档**：edu-cloud/docs/plans 顶层从 450 文件精简到 147，已完成 phase 过程产物（含 8 phase 过程产物 + 已闭环 batch 的 review-handoff/review-report/state.json）已移到 `docs/plans/archived/{2026-03,2026-04,orphans}/`。下表中 `docs/plans/...-design.md` 路径均为活规格保留，未受归档影响；归档文件路径前缀变为 `docs/plans/archived/2026-04/`，已在所有保留 design/plan 中同步更新（如 `2026-04-09-knowledge-graph-model-design.md`、`2026-04-10-teacher-workbench-design.md`、`2026-04-11-f003-question-writeback-design.md`、`2026-04-13-module-governance-design.md`、`2026-04-14-conduct-roadmap-design.md` 内部引用全部修复）。
+
 | 文档 | 路径 | 内容 |
 |------|------|------|
 | 业务逻辑反哺设计 | `docs/plans/2026-03-29-business-logic-backfill-design.md` | Phase 1-4 分层反哺 + Agent 深度嵌入架构 |

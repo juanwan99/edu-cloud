@@ -5,13 +5,13 @@ created: 2026-04-11 21:10:18
 tier: T4
 status: completed
 depends_on:
-  - docs/plans/2026-04-08-card-xiaowei-layout-v2-handoff.md  # 小微排版 v2 视觉验收必须先回主线
+  - docs/plans/archived/2026-04/2026-04-08-card-xiaowei-layout-v2-handoff.md  # 小微排版 v2 视觉验收必须先回主线
 related_findings:
   - F001  # render.js .page 缺 data-side 属性（作为本设计的前置子任务）
   - F003  # Question 创建入口从未接通（本设计的主目标）
   - F003a # publish 硬编码 side="A"（合并到双面 Template 写入）
   - F008  # 选择题识别 + anchor/affine 被 F003 遮蔽（F003 修复后解锁独立验证）
-exploration_source: docs/plans/2026-04-11-exploration-notes.md §D6 + §Round 3
+exploration_source: docs/plans/archived/2026-04/2026-04-11-exploration-notes.md §D6 + §Round 3
 ---
 
 # F003 Question 写入责任链重设 — Design
@@ -414,7 +414,7 @@ async def save_answer(region_id, image_path, student_id, ...):
 
 1. **小微排版 v2 视觉验收**（card 模块 WIP）必须先回主线
    - 文件：`frontend/src/card-editor/render.js` / `styles.css` / `answer_parser.py` / `answer_standardizer.py` / `card_layout.py`
-   - 完成度 70-80%，归属 `docs/plans/2026-04-08-card-xiaowei-layout-v2-handoff.md`
+   - 完成度 70-80%，归属 `docs/plans/archived/2026-04/2026-04-08-card-xiaowei-layout-v2-handoff.md`
    - **原因**：F001 修复点在 render.js 同文件，不能混入 WIP 的 diff
 
 2. **StudentAnswer 唯一约束调查**（§5.5）— writing-plans 第一个 Task 完成
@@ -488,8 +488,8 @@ B1 所有批次完成后，以下场景必须通过：
 
 ## §12 相关文档
 
-- 探索测试根因深挖：`docs/plans/2026-04-11-exploration-notes.md §D2 §D6`
+- 探索测试根因深挖：`docs/plans/archived/2026-04/2026-04-11-exploration-notes.md §D2 §D6`
 - T2 快修 state（B2/B3a/B6a/B6c）：commit `d5cedb4`, `bbeeb8f`, `2ce070b`, `75922c7`
-- card 模块 WIP 归属：`docs/plans/2026-04-08-card-xiaowei-layout-v2-handoff.md`
-- 6 批拆单 + 7 批调整：`docs/plans/2026-04-11-exploration-notes.md §Round 3 汇总`
+- card 模块 WIP 归属：`docs/plans/archived/2026-04/2026-04-08-card-xiaowei-layout-v2-handoff.md`
+- 6 批拆单 + 7 批调整：`docs/plans/archived/2026-04/2026-04-11-exploration-notes.md §Round 3 汇总`
 - 架构规范（review-templates）：`~/.claude/rules-t3/review-templates.md`

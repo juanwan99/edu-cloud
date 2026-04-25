@@ -2,7 +2,7 @@
 # exam-ai 兼容路由（compat_router）退役计划
 
 > 生效日期：2026-04-17
-> 决策来源：2026-04-17 技术债清理 · Q4 = B 设 deprecation 日期（`docs/plans/2026-04-17-tech-debt-cleanup-handoff.md` §5.2）
+> 决策来源：2026-04-17 技术债清理 · Q4 = B 设 deprecation 日期（`docs/plans/archived/2026-04/2026-04-17-tech-debt-cleanup-handoff.md` §5.2）
 > 首动作执行：`Phase 5 · DeprecationWarning 注入`（执行窗口同卡 §5，依赖本文档 §4 时间表定义）
 > 关联下游：`paper-seg`（唯一 compat 客户端，已 verify 内部项目）
 
