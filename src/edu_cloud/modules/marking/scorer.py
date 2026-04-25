@@ -39,7 +39,10 @@ async def get_subjects_with_progress(
     result = []
     for subj in subjects:
         questions = (await db.execute(
-            select(Question).where(Question.subject_id == subj.id)
+            select(Question).where(
+                Question.subject_id == subj.id,
+                Question.question_type.notin_(["choice", "multi_choice"]),
+            )
         )).scalars().all()
 
         q_list = []

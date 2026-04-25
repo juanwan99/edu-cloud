@@ -48,7 +48,10 @@
             <div class="q-info">
               <div class="q-title">
                 {{ q.question_type === 'essay' ? '主观题' : '填空题' }}
-                <span class="q-score">{{ q.max_score }}分</span>
+                <span v-if="editingScoreId !== q.question_id" class="q-score editable" @click.stop="startEditScore(q)">{{ q.max_score }}分</span>
+                <n-input-number v-else :value="q.max_score" size="tiny" :min="0" :max="200" :step="1"
+                  style="width:70px" @update:value="v => q.max_score = v"
+                  @blur="saveScore(q)" @keyup.enter="saveScore(q)" />
               </div>
               <div class="q-tags">
                 <span class="t" :class="q.has_content ? 'ok' : 'warn'">
@@ -180,9 +183,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useMessage, NCard, NButton, NSpace, NProgress, NSelect } from 'naive-ui'
+import { useMessage, NCard, NButton, NSpace, NProgress, NSelect, NInputNumber } from 'naive-ui'
 import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
 import { listExams } from '../api/exams'
+import { updateQuestion } from '../api/questions'
 import { listSubjects } from '../api/subjects'
 import RubricEditor from '../components/RubricEditor.vue'
 import QuestionContentModal from '../components/QuestionContentModal.vue'
@@ -242,6 +246,9 @@ async function loadExamList() {
   try {
     const res = await listExams()
     examOptions.value = (res.data || []).map(e => ({ label: e.name, value: e.id }))
+    if (examOptions.value.length > 0 && !selectedExamId.value) {
+      await onExamSelected(examOptions.value[0].value)
+    }
   } catch (e) {
     message.error('加载考试列表失败')
   } finally {
@@ -303,6 +310,18 @@ async function loadQuestions() {
     message.error('加载题目失败')
   } finally {
     loadingQuestions.value = false
+  }
+}
+
+const editingScoreId = ref(null)
+function startEditScore(q) { editingScoreId.value = q.question_id }
+async function saveScore(q) {
+  editingScoreId.value = null
+  try {
+    await updateQuestion(q.question_id, { max_score: q.max_score })
+    message.success(`第${q.name}题分值已更新为 ${q.max_score}`)
+  } catch (e) {
+    message.error('保存失败')
   }
 }
 
@@ -662,6 +681,9 @@ async function handleBatchGenerate() {
 .q-score {
   color: #90c090;
   font-weight: 600;
+}
+.q-score.editable {
+  cursor: pointer; border-bottom: 1px dashed #90c090;
   margin-left: 6px;
 }
 

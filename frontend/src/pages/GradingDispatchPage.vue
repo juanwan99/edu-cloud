@@ -205,6 +205,7 @@ const progressPct = ref(0)
 let pollTimer = null
 const detectLoading = ref(null)
 const gradingLoading = ref(null)
+const pendingBSide = ref(null)
 
 function countByStage(stage) {
   return subjects.value.filter(s => s.stage === stage).length
@@ -591,7 +592,13 @@ async function handleStartCut(s) {
     return
   }
   try {
+    let hasB = false
+    try {
+      const tpl = (await getCVTemplate(s.subject_id)).data
+      hasB = !!(tpl && tpl.B && tpl.B.regions && tpl.B.regions.length)
+    } catch {}
     await startPipeline(s.subject_id, 'A', dir)
+    if (hasB) pendingBSide.value = { subjectId: s.subject_id, dir }
     startPolling()
     await loadStatus(selectedExamId.value)
   } catch (e) {
@@ -618,14 +625,34 @@ const canBatchCut = computed(() =>
 )
 
 async function handleBatchCut() {
+  const cutQueue = []
   for (const id of selectedSubjects.value) {
     const s = subjects.value.find(x => x.subject_id === id)
     const dir = s ? getScanDirFallback(s) : null
     if (s && canCut(s) && dir) {
-      await startPipeline(s.subject_id, 'A', dir)
+      let hasB = false
+      try {
+        const tpl = (await getCVTemplate(s.subject_id)).data
+        hasB = !!(tpl && tpl.B && tpl.B.regions && tpl.B.regions.length)
+      } catch {}
+      cutQueue.push({ subjectId: s.subject_id, dir, sides: hasB ? ['A', 'B'] : ['A'] })
     }
   }
-  startPolling()
+  for (const item of cutQueue) {
+    for (const side of item.sides) {
+      try {
+        await startPipeline(item.subjectId, side, item.dir)
+        await new Promise(resolve => {
+          const check = setInterval(async () => {
+            try {
+              const res = await getPipelineProgress()
+              if (res.data.status !== 'running') { clearInterval(check); resolve() }
+            } catch { clearInterval(check); resolve() }
+          }, 2000)
+        })
+      } catch {}
+    }
+  }
   await loadStatus(selectedExamId.value)
 }
 
@@ -687,6 +714,17 @@ function startPolling() {
       }
       if (p.status !== 'running') {
         stopPolling()
+        if (pendingBSide.value) {
+          const { subjectId, dir } = pendingBSide.value
+          pendingBSide.value = null
+          try {
+            await startPipeline(subjectId, 'B', dir)
+            message.info('A 面切割完成，自动开始 B 面切割')
+            startPolling()
+          } catch (e) {
+            message.warning('B 面切割启动失败: ' + (e.response?.data?.detail || e.message))
+          }
+        }
         await loadStatus(selectedExamId.value)
       }
     } catch (e) {

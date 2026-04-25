@@ -46,7 +46,7 @@
                  class="dc-region" :class="{ active: selectedId === c.id }"
                  :style="rStyle(c, idx)" @mousedown.stop="startDrag($event, c)">
               <span class="dc-label" :style="{ color: palette(idx).solid }">
-                {{ c.questionNum ? '第' + c.questionNum + '题' : '未标号' }} {{ c.field === 'content' ? '题干' : '答案' }}{{ c.seq !== '1' ? ' #' + c.seq : '' }}
+                {{ c.questionNums.length ? '第' + c.questionNums.join(',') + '题' : '未标号' }} {{ c.field === 'content' ? '题干' : '答案' }}{{ c.seq !== '1' ? ' #' + c.seq : '' }}
               </span>
               <div class="h h-nw" @mousedown.stop="startResize($event, c, 'nw')"/>
               <div class="h h-ne" @mousedown.stop="startResize($event, c, 'ne')"/>
@@ -67,7 +67,7 @@
             <div class="sidebar-title">已保存</div>
             <div v-for="s in savedHistory" :key="s.key" class="saved-item">
               <span class="saved-dot">&#10003;</span>
-              第{{ s.questionNum }}题 {{ s.field === 'content' ? '题干' : '答案' }}{{ s.seq }}
+              第{{ s.questionNums }}题 {{ s.field === 'content' ? '题干' : '答案' }}{{ s.seq }}
             </div>
             <n-divider />
           </div>
@@ -78,8 +78,8 @@
                @click="goToCrop(c)">
             <span class="item-color" :style="{ background: palette(idx).solid }" />
             <div class="item-info">
-              <n-input size="tiny" v-model:value="c.questionNum" placeholder="题号"
-                       style="width:55px" />
+              <n-dynamic-tags size="tiny" v-model:value="c.questionNums"
+                              :max="20" class="qnum-tags" />
               <n-select size="tiny" :value="c.field" @update:value="v => c.field = v"
                         :options="fieldOptions" style="width:70px" />
               <n-input size="tiny" v-model:value="c.seq" placeholder="#"
@@ -90,7 +90,7 @@
 
           <n-divider v-if="crops.length" />
           <div v-if="crops.length" class="sidebar-hint">
-            题号 + 类型 + 序号。跨页同题用相同题号，序号标记先后（默认1）。
+            题号支持多个（共享题干场景）。输入题号后按回车添加。跨页同题用相同题号，序号标记先后。
           </div>
         </div>
       </div>
@@ -104,8 +104,9 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
-import { useMessage, NModal, NButton, NButtonGroup, NSelect, NInput, NUpload, NDivider } from 'naive-ui'
+import { useMessage, NModal, NButton, NButtonGroup, NSelect, NInput, NUpload, NDivider, NDynamicTags } from 'naive-ui'
 import { renderDocPages } from '../api/cards'
+import client from '../api/client'
 
 const props = defineProps({
   show: Boolean,
@@ -157,7 +158,18 @@ async function handleUpload({ file }) {
     const formData = new FormData()
     formData.append('file', file.file)
     const res = await renderDocPages(formData)
-    pages.value = res.data.pages || []
+    const rawPages = res.data.pages || []
+    for (const pg of rawPages) {
+      try {
+        const resp = await client.get('/card/doc-page-image', {
+          params: { path: pg.image_url },
+          responseType: 'blob',
+          timeout: 30000,
+        })
+        pg.image_url = URL.createObjectURL(resp.data)
+      } catch { /* keep original url as fallback */ }
+    }
+    pages.value = rawPages
     currentPage.value = 0
     if (!pages.value.length) message.warning('文档无法渲染为图片')
     else nextTick(fitZoom)
@@ -278,7 +290,7 @@ function onMouseUp() {
       const crop = {
         id: 'C' + Date.now(),
         page: currentPage.value,
-        questionNum: '',
+        questionNums: [],
         seq: '1',
         field: 'content',
         rect: {
@@ -307,7 +319,7 @@ function goToCrop(c) {
 }
 
 async function handleSave() {
-  const incomplete = crops.value.filter(c => !c.questionNum)
+  const incomplete = crops.value.filter(c => !c.questionNums.length)
   if (incomplete.length) {
     message.warning('有区域未填写题号')
     return
@@ -330,21 +342,24 @@ async function handleSave() {
       canvas.getContext('2d').drawImage(img, x1, y1, x2 - x1, y2 - y1, 0, 0, x2 - x1, y2 - y1)
       const blob = await new Promise(r => canvas.toBlob(r, 'image/png'))
       const seq = parseInt(c.seq, 10) || 1
-      results.push({ questionNum: c.questionNum, field: c.field, seq, blob })
+      for (const qn of c.questionNums) {
+        results.push({ questionNum: qn, field: c.field, seq, blob })
+      }
     }
     results.sort((a, b) => a.seq - b.seq)
     emit('save', results)
-    for (const r of results) {
+    for (const c of crops.value) {
       savedHistory.value.push({
-        key: `${r.questionNum}-${r.field}-${r.seq}-${Date.now()}`,
-        questionNum: r.questionNum,
-        field: r.field,
-        seq: r.seq > 1 ? `#${r.seq}` : '',
+        key: `${c.questionNums.join(',')}-${c.field}-${c.seq}-${Date.now()}`,
+        questionNums: c.questionNums.join(','),
+        field: c.field,
+        seq: (parseInt(c.seq, 10) || 1) > 1 ? `#${c.seq}` : '',
       })
     }
     crops.value = []
     selectedId.value = null
-    message.success(`${results.length} 个区域已保存，可继续标注其他题目`)
+    const cropCount = results.length
+    message.success(`已保存到 ${cropCount} 个题目，可继续标注`)
   } catch (e) {
     message.error('裁剪保存失败: ' + e.message)
   } finally {
@@ -410,7 +425,10 @@ async function handleSave() {
 .dc-item:hover { background: var(--body-color, #242e28); }
 .dc-item.active { background: #1a3020; border: 1px solid #3a6040; }
 .item-color { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.item-info { display: flex; gap: 4px; flex: 1; min-width: 0; align-items: center; }
+.item-info { display: flex; gap: 4px; flex: 1; min-width: 0; align-items: center; flex-wrap: wrap; }
+.qnum-tags { flex: 1; min-width: 80px; }
+.qnum-tags :deep(.n-tag) { font-size: 11px; height: 20px; padding: 0 4px; }
+.qnum-tags :deep(.n-dynamic-tags .n-button) { height: 20px; font-size: 11px; }
 
 .dc-empty { display: flex; align-items: center; justify-content: center; flex: 1; color: #8a9a8e; font-size: 14px; }
 </style>

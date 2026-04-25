@@ -109,6 +109,10 @@ async function loadExams() {
   try {
     const { data } = await client.get('/exams')
     exams.value = data
+    if (data.length > 0 && !selectedExamId.value) {
+      selectedExamId.value = data[0].id
+      await loadData()
+    }
   } catch { /* interceptor */ }
 }
 

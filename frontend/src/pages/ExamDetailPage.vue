@@ -266,6 +266,86 @@
           <n-empty v-else description="请先选择科目" />
         </n-tab-pane>
 
+        <!-- 标准答案 -->
+        <n-tab-pane name="answers" tab="标准答案">
+          <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+            <n-select
+              v-model:value="ansSubjectId"
+              :options="subjectOptions"
+              placeholder="选择科目"
+              style="width: 200px"
+              @update:value="loadAnswerQuestions"
+            />
+            <n-tag v-if="ansChoiceQuestions.length" size="small" round>
+              {{ ansFilledCount }}/{{ ansChoiceQuestions.length }} 已填
+            </n-tag>
+            <div style="flex:1" />
+            <n-button type="primary" size="small" :loading="ansSaving" :disabled="!ansSubjectId" @click="handleSaveAnswers">
+              保存全部
+            </n-button>
+          </div>
+
+          <!-- 快速添加选择题 -->
+          <div v-if="ansSubjectId && !ansLoading" class="add-choices-bar">
+            <n-input-number v-model:value="ansAddFrom" size="small" :min="1" placeholder="起始题号" style="width:90px" />
+            <span>～</span>
+            <n-input-number v-model:value="ansAddTo" size="small" :min="ansAddFrom || 1" placeholder="结束题号" style="width:90px" />
+            <n-select v-model:value="ansAddType" size="small" :options="[{label:'单选',value:'choice'},{label:'多选',value:'multi_choice'}]" style="width:90px" />
+            <n-input-number v-model:value="ansAddScore" size="small" :min="0" :max="50" placeholder="分值" style="width:80px" />
+            <n-input-number v-model:value="ansAddOptions" size="small" :min="2" :max="8" placeholder="选项数" style="width:80px" />
+            <n-button size="small" type="primary" :loading="ansAdding" @click="handleBatchAddChoices">
+              添加 {{ (ansAddTo || 0) - (ansAddFrom || 0) + 1 > 0 ? `${(ansAddTo || 0) - (ansAddFrom || 0) + 1} 题` : '' }}
+            </n-button>
+          </div>
+
+          <div v-if="ansLoading" style="text-align:center; padding:40px;"><n-spin /></div>
+          <div v-else-if="!ansSubjectId" class="empty-tip center">请选择科目</div>
+          <div v-else-if="ansChoiceQuestions.length === 0" class="empty-tip center">暂无选择题，请用上方工具栏添加</div>
+          <div v-else class="answer-grid">
+            <div v-for="q in ansChoiceQuestions" :key="q.id" class="answer-item" :class="{ filled: ansAnswers[q.id] }">
+              <div class="answer-num">{{ q.name }}</div>
+              <div class="answer-options">
+                <template v-if="q.question_type === 'choice'">
+                  <button v-for="opt in ansOptionList(q)" :key="opt"
+                    class="opt-btn" :class="{ selected: ansAnswers[q.id] === opt }"
+                    @click="ansAnswers[q.id] = ansAnswers[q.id] === opt ? '' : opt"
+                  >{{ opt }}</button>
+                </template>
+                <template v-else>
+                  <button v-for="opt in ansOptionList(q)" :key="opt"
+                    class="opt-btn multi" :class="{ selected: (ansAnswers[q.id] || '').includes(opt) }"
+                    @click="toggleMulti(q.id, opt)"
+                  >{{ opt }}</button>
+                </template>
+              </div>
+              <n-button v-if="ansAnswers[q.id]" text size="tiny" class="skip-btn" @click="ansAnswers[q.id] = ''">清除</n-button>
+            </div>
+          </div>
+        </n-tab-pane>
+
+        <!-- 题目管理 -->
+        <n-tab-pane name="questions" tab="题目管理">
+          <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+            <n-select
+              v-model:value="qmgSubjectId"
+              :options="subjectOptions"
+              placeholder="选择科目"
+              style="width: 200px"
+              @update:value="loadQmgQuestions"
+            />
+            <n-tag v-if="qmgQuestions.length" size="small" round>
+              {{ qmgQuestions.length }} 题 / 总分 {{ qmgTotalScore }}
+            </n-tag>
+            <div style="flex:1" />
+            <n-button size="small" type="primary" @click="handleAddQuestion" :disabled="!qmgSubjectId">添加题目</n-button>
+          </div>
+
+          <div v-if="qmgLoading" style="text-align:center; padding:40px;"><n-spin /></div>
+          <div v-else-if="!qmgSubjectId" class="empty-tip center">请选择科目</div>
+          <div v-else-if="qmgQuestions.length === 0" class="empty-tip center">暂无题目</div>
+          <n-data-table v-else :columns="qmgColumns" :data="qmgQuestions" size="small" :row-key="r => r.id" />
+        </n-tab-pane>
+
         <!-- 扫描功能已迁移到阅卷调度页面 GradingDispatchPage -->
       </n-tabs>
     </template>
@@ -318,6 +398,7 @@ import { useRoute } from 'vue-router'
 import { useMessage, useDialog, NSelect, NInputNumber, NTag, NInput, NCheckbox, NCheckboxGroup } from 'naive-ui'
 import { getExam, updateExam } from '../api/exams'
 import { listSubjects, createSubject } from '../api/subjects'
+import { listQuestions, createQuestion, updateQuestion, deleteQuestion } from '../api/questions'
 import { getRubric, upsertRubric } from '../api/rubrics'
 import { generateBarcode, parseAnswers, previewByWeights, generateCardV2 } from '../api/cards'
 // scan 功能已迁移到 GradingDispatchPage
@@ -388,6 +469,110 @@ const subjectColumns = [
   { title: '科目名称', key: 'name' },
   { title: '代码', key: 'code', width: 120 },
 ]
+
+// ── 标准答案 tab ──
+const ansSubjectId = ref(null)
+const ansAllQuestions = ref([])
+const ansAnswers = reactive({})
+const ansLoading = ref(false)
+const ansSaving = ref(false)
+
+const ansChoiceQuestions = computed(() =>
+  ansAllQuestions.value.filter(q => q.question_type === 'choice' || q.question_type === 'multi_choice')
+)
+const ansFilledCount = computed(() =>
+  ansChoiceQuestions.value.filter(q => ansAnswers[q.id]).length
+)
+
+function ansOptionList(q) {
+  const count = q.options_count || 4
+  return 'ABCDEFGH'.slice(0, count).split('')
+}
+
+function toggleMulti(qid, opt) {
+  const cur = (ansAnswers[qid] || '').split('').filter(c => c)
+  const idx = cur.indexOf(opt)
+  if (idx >= 0) cur.splice(idx, 1)
+  else cur.push(opt)
+  cur.sort()
+  ansAnswers[qid] = cur.join('')
+}
+
+async function loadAnswerQuestions(subjectId) {
+  if (!subjectId) { ansAllQuestions.value = []; return }
+  ansLoading.value = true
+  try {
+    const { data } = await listQuestions(subjectId)
+    ansAllQuestions.value = data.sort((a, b) => {
+      const na = parseInt(a.name), nb = parseInt(b.name)
+      return (isNaN(na) ? 999 : na) - (isNaN(nb) ? 999 : nb)
+    })
+    for (const q of ansAllQuestions.value) {
+      ansAnswers[q.id] = q.correct_answer || ''
+    }
+  } catch {
+    ansAllQuestions.value = []
+  }
+  ansLoading.value = false
+}
+
+// 批量添加选择题
+const ansAddFrom = ref(1)
+const ansAddTo = ref(10)
+const ansAddType = ref('choice')
+const ansAddScore = ref(3)
+const ansAddOptions = ref(4)
+const ansAdding = ref(false)
+
+async function handleBatchAddChoices() {
+  const from = ansAddFrom.value, to = ansAddTo.value
+  if (!ansSubjectId.value || !from || !to || to < from) {
+    message.warning('请正确填写起止题号'); return
+  }
+  ansAdding.value = true
+  let ok = 0
+  const existingNames = new Set(ansAllQuestions.value.map(q => q.name))
+  for (let i = from; i <= to; i++) {
+    const name = String(i)
+    if (existingNames.has(name)) continue
+    try {
+      await createQuestion({
+        subject_id: ansSubjectId.value,
+        name,
+        question_type: ansAddType.value,
+        max_score: ansAddScore.value,
+      })
+      ok++
+    } catch { /* skip duplicates */ }
+  }
+  ansAdding.value = false
+  if (ok > 0) {
+    message.success(`已添加 ${ok} 道选择题`)
+    await loadAnswerQuestions(ansSubjectId.value)
+  } else {
+    message.info('所有题号已存在')
+  }
+}
+
+async function handleSaveAnswers() {
+  const toSave = ansChoiceQuestions.value.filter(q => ansAnswers[q.id])
+  if (toSave.length === 0) { message.warning('没有需要保存的答案'); return }
+  ansSaving.value = true
+  let ok = 0
+  for (const q of toSave) {
+    if (ansAnswers[q.id] === (q.correct_answer || '')) continue
+    try {
+      await updateQuestion(q.id, { correct_answer: ansAnswers[q.id] })
+      q.correct_answer = ansAnswers[q.id]
+      ok++
+    } catch (e) {
+      message.error(`第 ${q.name} 题保存失败`)
+    }
+  }
+  ansSaving.value = false
+  if (ok > 0) message.success(`已保存 ${ok} 题标准答案`)
+  else message.info('无变更')
+}
 
 async function loadExam() {
   loading.value = true
@@ -969,6 +1154,128 @@ async function handleBarcodeGenerate() {
   }
 }
 
+// ── 题目管理 tab ──
+const qmgSubjectId = ref(null)
+const qmgQuestions = ref([])
+const qmgLoading = ref(false)
+const qmgTotalScore = computed(() => qmgQuestions.value.reduce((s, q) => s + (q.max_score || 0), 0))
+
+const qTypeOptions = [
+  { label: '单选', value: 'choice' },
+  { label: '多选', value: 'multi_choice' },
+  { label: '填空', value: 'fill_blank' },
+  { label: '主观', value: 'essay' },
+]
+const qTypeLabel = { choice: '单选', multi_choice: '多选', fill_blank: '填空', essay: '主观' }
+
+async function loadQmgQuestions(subjectId) {
+  if (!subjectId) { qmgQuestions.value = []; return }
+  qmgLoading.value = true
+  try {
+    const res = await listQuestions(subjectId)
+    qmgQuestions.value = (res.data || []).sort((a, b) => (parseInt(a.name) || 0) - (parseInt(b.name) || 0))
+  } catch { qmgQuestions.value = [] }
+  finally { qmgLoading.value = false }
+}
+
+async function handleQmgSave(row, field, value) {
+  try {
+    await updateQuestion(row.id, { [field]: value })
+    row[field] = value
+    message.success('已保存')
+    if (field === 'max_score') qmgQuestions.value = [...qmgQuestions.value]
+  } catch (e) {
+    message.error(e.response?.data?.detail || '保存失败')
+  }
+}
+
+async function handleDeleteQuestion(row) {
+  try {
+    await deleteQuestion(row.id)
+    qmgQuestions.value = qmgQuestions.value.filter(q => q.id !== row.id)
+    message.success('已删除')
+  } catch (e) {
+    message.error(e.response?.data?.detail || '删除失败')
+  }
+}
+
+async function handleAddQuestion() {
+  if (!qmgSubjectId.value) return
+  const maxName = qmgQuestions.value.reduce((m, q) => Math.max(m, parseInt(q.name) || 0), 0)
+  try {
+    await createQuestion({
+      subject_id: qmgSubjectId.value,
+      name: String(maxName + 1),
+      question_type: 'essay',
+      max_score: 5,
+    })
+    await loadQmgQuestions(qmgSubjectId.value)
+    message.success('已添加')
+  } catch (e) {
+    message.error(e.response?.data?.detail || '添加失败')
+  }
+}
+
+const qmgColumns = [
+  {
+    title: '题号', key: 'name', width: 80,
+    render(row) {
+      return h(NInput, {
+        value: row.name, size: 'small', style: 'width:60px',
+        onUpdateValue: v => { row.name = v },
+        onBlur: () => handleQmgSave(row, 'name', row.name),
+      })
+    },
+  },
+  {
+    title: '类型', key: 'question_type', width: 110,
+    render(row) {
+      return h(NSelect, {
+        value: row.question_type, size: 'small', options: qTypeOptions, style: 'width:90px',
+        onUpdateValue: v => handleQmgSave(row, 'question_type', v),
+      })
+    },
+  },
+  {
+    title: '分值', key: 'max_score', width: 100,
+    render(row) {
+      return h(NInputNumber, {
+        value: row.max_score, size: 'small', min: 0, max: 200, step: 1, style: 'width:80px',
+        onUpdateValue: v => { row.max_score = v },
+        onBlur: () => handleQmgSave(row, 'max_score', row.max_score),
+      })
+    },
+  },
+  {
+    title: '正确答案', key: 'correct_answer', width: 100,
+    render(row) {
+      if (row.question_type !== 'choice' && row.question_type !== 'multi_choice') return ''
+      return h(NInput, {
+        value: row.correct_answer || '', size: 'small', style: 'width:80px',
+        onUpdateValue: v => { row.correct_answer = v },
+        onBlur: () => handleQmgSave(row, 'correct_answer', row.correct_answer),
+      })
+    },
+  },
+  { title: '题干', key: 'has_content', width: 60, render(row) { return (row.content || (row.content_images || []).length) ? '✓' : '—' } },
+  { title: '答案', key: 'has_answer', width: 60, render(row) { return (row.reference_answer || (row.reference_answer_images || []).length) ? '✓' : '—' } },
+  {
+    title: '', key: 'actions', width: 60,
+    render(row) {
+      return h('a', {
+        style: 'color: #e88080; cursor: pointer; font-size: 12px',
+        onClick: () => dialog.warning({
+          title: '删除确认',
+          content: `确定删除第 ${row.name} 题？`,
+          positiveText: '删除',
+          negativeText: '取消',
+          onPositiveClick: () => handleDeleteQuestion(row),
+        }),
+      }, '删除')
+    },
+  },
+]
+
 onMounted(loadExam)
 </script>
 
@@ -988,5 +1295,74 @@ onMounted(loadExam)
 .toolbar-btn:disabled {
   border-color: rgba(0, 0, 0, 0.08) !important;
   color: rgba(0, 0, 0, 0.25) !important;
+}
+
+.answer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.answer-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-bg-alt, #f7f8fa);
+  border: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+.answer-item.filled {
+  border-color: #18a058;
+  background: rgba(24, 160, 88, 0.06);
+}
+.answer-num {
+  font-weight: 700;
+  font-size: 15px;
+  min-width: 28px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+.answer-options {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+.opt-btn {
+  width: 36px;
+  height: 32px;
+  border: 1px solid var(--color-border-light, #ddd);
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.opt-btn:hover {
+  border-color: #18a058;
+  color: #18a058;
+}
+.opt-btn.selected {
+  background: #18a058;
+  color: white;
+  border-color: #18a058;
+}
+.opt-btn.multi.selected {
+  background: #2080f0;
+  border-color: #2080f0;
+}
+.skip-btn {
+  opacity: 0.5;
+}
+.add-choices-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: var(--color-bg-alt, #f7f8fa);
+  border-radius: 8px;
+  font-size: 13px;
 }
 </style>

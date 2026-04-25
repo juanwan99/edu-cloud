@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user
+from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Exam, Subject
 from edu_cloud.modules.card.models import Template, CardSkeleton
 from edu_cloud.modules.card.export.barcode_gen import parse_student_excel, render_barcode_pdf
@@ -1291,3 +1292,21 @@ async def render_doc_pages(
         Path(tmp_path).unlink(missing_ok=True)
 
     return {"pages": pages}
+
+
+@router.get("/doc-page-image")
+async def get_doc_page_image(
+    path: str,
+    current: dict = Depends(get_current_user),
+):
+    """通过 API 路径代理 doc-pages 图片，避免 nginx 不代理 /uploads 的问题。"""
+    from starlette.responses import FileResponse
+    upload_root = Path(settings.UPLOAD_DIR).resolve()
+    # path 形如 /uploads/doc-pages/{batch}/{file}
+    rel = path.lstrip("/")
+    if rel.startswith("uploads/"):
+        rel = rel[len("uploads/"):]
+    full = (upload_root / rel).resolve()
+    if not str(full).startswith(str(upload_root)) or not full.is_file():
+        raise HTTPException(404, "Image not found")
+    return FileResponse(str(full), media_type="image/png")
