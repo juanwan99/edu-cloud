@@ -1,8 +1,10 @@
 <template>
-  <n-config-provider :theme="darkTheme">
-    <div class="login-container">
-      <n-card title="家长登录" style="max-width: 400px; width: 100%;">
-        <n-form ref="formRef" :model="form" :rules="rules">
+  <div class="login-container">
+    <n-card style="max-width: 400px; width: 100%;">
+      <template #header>
+        <span style="font-size: 20px; font-weight: 600;">家长登录</span>
+      </template>
+      <n-form ref="formRef" :model="form" :rules="rules">
           <n-form-item label="手机号" path="phone">
             <n-input v-model:value="form.phone" placeholder="请输入手机号" />
           </n-form-item>
@@ -16,16 +18,14 @@
         <div style="margin-top: 16px; text-align: center;">
           <router-link to="/parent/register" style="color: #63e2b7;">还没有账号？立即注册</router-link>
         </div>
-      </n-card>
-    </div>
-  </n-config-provider>
+    </n-card>
+  </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { darkTheme } from 'naive-ui'
-import { NConfigProvider, NCard, NForm, NFormItem, NInput, NButton } from 'naive-ui'
+import { NCard, NForm, NFormItem, NInput, NButton } from 'naive-ui'
 import { parentLogin } from '../../api/conduct'
 
 const router = useRouter()

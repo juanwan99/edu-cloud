@@ -3,7 +3,7 @@
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
       <div>
         <h1 class="page-title">学生画像</h1>
-        <p class="page-subtitle">{{ studentName || '加载中...' }}</p>
+        <p class="page-subtitle" v-if="loading || studentName">{{ studentName || '加载中...' }}</p>
       </div>
       <n-button size="small" type="primary" @click="$router.push(`/error-book?studentId=${studentId}`)">查看错题本</n-button>
     </div>

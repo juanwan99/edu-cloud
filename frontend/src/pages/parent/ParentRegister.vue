@@ -1,7 +1,10 @@
 <template>
   <n-config-provider :theme="darkTheme">
     <div class="register-container">
-      <n-card title="家长注册" style="max-width: 440px; width: 100%;">
+      <n-card style="max-width: 440px; width: 100%;">
+        <template #header>
+          <span style="font-size: 20px; font-weight: 600; color: #333;">家长注册</span>
+        </template>
         <!-- Step 1: Invite code -->
         <template v-if="step === 1">
           <n-form :model="inviteForm" :rules="inviteRules" ref="inviteFormRef">
