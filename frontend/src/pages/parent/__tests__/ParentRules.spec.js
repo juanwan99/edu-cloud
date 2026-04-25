@@ -49,6 +49,9 @@ function mountWithChild(child) {
           template: '<div class="empty">{{ description }}</div>',
           props: ['description'],
         },
+        RadioGroup: { template: '<div><slot /></div>' },
+        RadioButton: { template: '<button><slot /></button>' },
+        Input: { template: '<input />' },
       },
     },
   })
