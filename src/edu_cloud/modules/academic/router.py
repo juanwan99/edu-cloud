@@ -180,7 +180,7 @@ async def save_timetable(
 @router.get("/timetable/stats")
 async def get_timetable_stats(
     semester_id: str = Query(...),
-    class_id: str = Query(...),
+    class_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):

@@ -357,7 +357,9 @@ async function loadTimetable() {
 async function loadStats() {
   if (!semesterId.value) return
   try {
-    const { data } = await getTimetableStats({ semester_id: semesterId.value })
+    const params = { semester_id: semesterId.value }
+    if (selectedClassId.value) params.class_id = selectedClassId.value
+    const { data } = await getTimetableStats(params)
     timetableStats.value = data
   } catch { /* stats are non-critical */ }
 }
