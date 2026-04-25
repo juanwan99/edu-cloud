@@ -2,14 +2,23 @@
   <div>
     <n-page-header title="积分排行" style="margin-bottom: 16px;">
       <template #extra>
-        <n-space>
+        <n-space :size="12">
+          <n-input
+            v-model:value="searchName"
+            placeholder="搜索学生姓名"
+            clearable
+            size="small"
+            style="width: 160px;"
+          />
           <n-select
             v-model:value="semesterId"
             :options="semesterOptions"
             placeholder="选择学期"
             clearable
+            size="small"
             style="width: 180px;"
           />
+          <n-button size="small" type="primary" :loading="exporting" @click="handleExport">导出排行</n-button>
         </n-space>
       </template>
     </n-page-header>
@@ -18,29 +27,37 @@
       当前角色未关联班级，请切换到班主任角色。
     </n-alert>
 
-    <n-tabs v-if="classId" v-model:value="activeTab" type="line" @update:value="handleTabChange">
-      <n-tab-pane name="students" tab="学生排行">
-        <n-spin :show="loadingStudents">
-          <n-data-table
-            :columns="studentColumns"
-            :data="studentRankings"
-            :pagination="false"
-            size="small"
-            :row-class-name="(row) => row.rank <= 3 ? 'top-rank' : ''"
-          />
-        </n-spin>
-      </n-tab-pane>
-      <n-tab-pane name="groups" tab="小组排行">
-        <n-spin :show="loadingGroups">
-          <n-data-table
-            :columns="groupColumns"
-            :data="groupRankings"
-            :pagination="false"
-            size="small"
-          />
-        </n-spin>
-      </n-tab-pane>
-    </n-tabs>
+    <template v-if="classId">
+      <!-- Distribution chart -->
+      <n-card title="排名分布" size="small" style="margin-bottom: 16px;">
+        <v-chart v-if="distOption" :option="distOption" autoresize style="height: 240px;" />
+        <n-empty v-else description="暂无数据" />
+      </n-card>
+
+      <n-tabs v-model:value="activeTab" type="line" @update:value="handleTabChange">
+        <n-tab-pane name="students" tab="学生排行">
+          <n-spin :show="loadingStudents">
+            <n-data-table
+              :columns="studentColumns"
+              :data="filteredStudentRankings"
+              :pagination="false"
+              size="small"
+              :row-class-name="(row) => row.rank <= 3 ? 'top-rank' : ''"
+            />
+          </n-spin>
+        </n-tab-pane>
+        <n-tab-pane name="groups" tab="小组排行">
+          <n-spin :show="loadingGroups">
+            <n-data-table
+              :columns="groupColumns"
+              :data="groupRankings"
+              :pagination="false"
+              size="small"
+            />
+          </n-spin>
+        </n-tab-pane>
+      </n-tabs>
+    </template>
   </div>
 </template>
 
@@ -48,24 +65,43 @@
 import { ref, computed, onMounted, h, watch } from 'vue'
 import {
   NPageHeader, NTabs, NTabPane, NDataTable, NSelect, NSpace,
-  NSpin, NTag, NAlert,
+  NSpin, NTag, NAlert, NInput, NButton, useMessage,
 } from 'naive-ui'
+import { use } from 'echarts/core'
+import { BarChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+import VChart from 'vue-echarts'
 import { useAuthStore } from '../../stores/auth'
 import {
-  getStudentRankings, getGroupRankings, getSemesters,
+  getStudentRankings, getGroupRankings, getSemesters, exportRankings,
 } from '../../api/conduct'
 
+use([BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
+
 const auth = useAuthStore()
+const message = useMessage()
 const classId = computed(() => auth.currentRole?.class_ids?.[0] || null)
 
 const activeTab = ref('students')
 const semesterId = ref(null)
 const semesterOptions = ref([])
+const searchName = ref('')
+const exporting = ref(false)
 
 const studentRankings = ref([])
 const loadingStudents = ref(false)
 const groupRankings = ref([])
 const loadingGroups = ref(false)
+const distOption = ref(null)
+
+const filteredStudentRankings = computed(() => {
+  if (!searchName.value) return studentRankings.value
+  const keyword = searchName.value.toLowerCase()
+  return studentRankings.value.filter(s =>
+    (s.student_name || '').toLowerCase().includes(keyword)
+  )
+})
 
 const studentColumns = [
   {
@@ -96,6 +132,12 @@ const groupColumns = [
   { title: '排名', key: 'rank', width: 70 },
   { title: '小组', key: 'group_name' },
   {
+    title: '人数',
+    key: 'member_count',
+    width: 80,
+    render: (row) => row.member_count ?? '-',
+  },
+  {
     title: '总积分',
     key: 'total_points',
     width: 100,
@@ -104,7 +146,56 @@ const groupColumns = [
       size: 'small',
     }, () => row.total_points),
   },
+  {
+    title: '平均分',
+    key: 'avg_points',
+    width: 100,
+    render: (row) => {
+      const avg = row.member_count > 0
+        ? (row.total_points / row.member_count).toFixed(1)
+        : '-'
+      return avg
+    },
+  },
 ]
+
+function buildDistOption(rankings) {
+  const buckets = [
+    { label: '<0', min: -Infinity, max: 0, count: 0 },
+    { label: '0-10', min: 0, max: 10, count: 0 },
+    { label: '10-30', min: 10, max: 30, count: 0 },
+    { label: '30-50', min: 30, max: 50, count: 0 },
+    { label: '50+', min: 50, max: Infinity, count: 0 },
+  ]
+  rankings.forEach(s => {
+    const p = s.total_points ?? 0
+    for (const b of buckets) {
+      if (p >= b.min && p < b.max) { b.count++; break }
+    }
+  })
+  if (rankings.length === 0) return null
+  return {
+    tooltip: { trigger: 'axis' },
+    grid: { left: 40, right: 16, top: 16, bottom: 24 },
+    xAxis: {
+      type: 'category',
+      data: buckets.map(b => b.label),
+      axisLabel: { color: 'rgba(255,255,255,0.45)' },
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: 'rgba(255,255,255,0.45)' },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+    },
+    series: [{
+      type: 'bar',
+      data: buckets.map(b => b.count),
+      itemStyle: { color: 'rgba(99,226,183,0.7)', borderRadius: [4, 4, 0, 0] },
+      barMaxWidth: 40,
+    }],
+  }
+}
 
 async function loadSemesters() {
   if (!classId.value) return
@@ -127,8 +218,10 @@ async function loadStudentRankings() {
     const params = semesterId.value ? { semester_id: semesterId.value } : {}
     const res = await getStudentRankings(classId.value, params)
     studentRankings.value = res.data.rankings || res.data || []
+    distOption.value = buildDistOption(studentRankings.value)
   } catch {
     studentRankings.value = []
+    distOption.value = null
   } finally {
     loadingStudents.value = false
   }
@@ -151,6 +244,26 @@ async function loadGroupRankings() {
 function handleTabChange(tab) {
   if (tab === 'students') loadStudentRankings()
   else loadGroupRankings()
+}
+
+async function handleExport() {
+  if (!classId.value) return
+  exporting.value = true
+  try {
+    const params = semesterId.value ? { semester_id: semesterId.value } : {}
+    const res = await exportRankings(classId.value, params)
+    const url = URL.createObjectURL(res.data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `积分排行_${new Date().toISOString().split('T')[0]}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (e) {
+    message.error(e.response?.data?.detail || '导出失败')
+  } finally {
+    exporting.value = false
+  }
 }
 
 watch(semesterId, () => {

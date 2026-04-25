@@ -7,6 +7,29 @@
     </n-alert>
 
     <template v-if="classId">
+      <!-- Stat cards -->
+      <n-grid :cols="3" :x-gap="16" :y-gap="16" style="margin-bottom: 16px;">
+        <n-gi>
+          <n-card size="small">
+            <n-statistic label="本周记录数" :value="statCards.weekCount" />
+          </n-card>
+        </n-gi>
+        <n-gi>
+          <n-card size="small">
+            <n-statistic label="加分总额" :value="statCards.plusTotal">
+              <template #suffix>分</template>
+            </n-statistic>
+          </n-card>
+        </n-gi>
+        <n-gi>
+          <n-card size="small">
+            <n-statistic label="扣分总额" :value="statCards.minusTotal">
+              <template #suffix>分</template>
+            </n-statistic>
+          </n-card>
+        </n-gi>
+      </n-grid>
+
       <!-- Filters -->
       <n-card size="small" style="margin-bottom: 16px;">
         <n-space>
@@ -17,23 +40,54 @@
             style="width: 180px;"
             @update:value="debouncedLoad"
           />
+          <n-select
+            v-model:value="filterType"
+            :options="typeOptions"
+            placeholder="类型"
+            clearable
+            style="width: 120px;"
+            @update:value="handleFilterChange"
+          />
+          <n-select
+            v-model:value="filterRule"
+            :options="ruleOptions"
+            placeholder="班规项"
+            clearable
+            style="width: 160px;"
+            @update:value="handleFilterChange"
+          />
           <n-date-picker
             v-model:value="dateRange"
             type="daterange"
             clearable
-            @update:value="loadRecords"
+            @update:value="handleFilterChange"
           />
           <n-button @click="resetFilters">重置</n-button>
         </n-space>
       </n-card>
+
+      <!-- Batch delete bar -->
+      <div v-if="checkedRowKeys.length > 0" style="margin-bottom: 12px;">
+        <n-space align="center">
+          <span style="color: rgba(255,255,255,0.65);">已选 {{ checkedRowKeys.length }} 条</span>
+          <n-popconfirm @positive-click="handleBatchDelete">
+            <template #trigger>
+              <n-button type="error" size="small">批量删除</n-button>
+            </template>
+            确定删除选中的 {{ checkedRowKeys.length }} 条记录？
+          </n-popconfirm>
+        </n-space>
+      </div>
 
       <!-- Records table -->
       <n-card>
         <n-spin :show="loading">
           <n-data-table
             :columns="columns"
-            :data="records"
+            :data="filteredRecords"
             :pagination="pagination"
+            :row-key="(row) => row.id"
+            v-model:checked-row-keys="checkedRowKeys"
             size="small"
             remote
             @update:page="handlePageChange"
@@ -49,7 +103,8 @@
 import { ref, computed, onMounted, h } from 'vue'
 import {
   NPageHeader, NCard, NDataTable, NInput, NDatePicker, NButton,
-  NSpace, NSpin, NTag, NPopconfirm, NAlert, useMessage,
+  NSpace, NSpin, NTag, NPopconfirm, NAlert, NGrid, NGi,
+  NStatistic, NSelect, useMessage,
 } from 'naive-ui'
 import { useAuthStore } from '../../stores/auth'
 import { getRecords, deleteRecord } from '../../api/conduct'
@@ -62,10 +117,40 @@ const classId = computed(() => auth.currentRole?.class_ids?.[0] || null)
 const records = ref([])
 const loading = ref(false)
 const filterStudent = ref('')
+const filterType = ref(null)
+const filterRule = ref(null)
 const dateRange = ref(null)
 const page = ref(1)
 const pageSize = ref(20)
 const totalCount = ref(0)
+const checkedRowKeys = ref([])
+
+const statCards = ref({ weekCount: 0, plusTotal: 0, minusTotal: 0 })
+
+const typeOptions = [
+  { label: '全部', value: null },
+  { label: '加分', value: 'plus' },
+  { label: '扣分', value: 'minus' },
+]
+
+const ruleOptions = computed(() => {
+  const names = new Set()
+  records.value.forEach(r => { if (r.rule_name) names.add(r.rule_name) })
+  return Array.from(names).map(n => ({ label: n, value: n }))
+})
+
+const filteredRecords = computed(() => {
+  let data = records.value
+  if (filterType.value === 'plus') {
+    data = data.filter(r => r.points > 0)
+  } else if (filterType.value === 'minus') {
+    data = data.filter(r => r.points < 0)
+  }
+  if (filterRule.value) {
+    data = data.filter(r => r.rule_name === filterRule.value)
+  }
+  return data
+})
 
 const pagination = computed(() => ({
   page: page.value,
@@ -77,6 +162,7 @@ const pagination = computed(() => ({
 }))
 
 const columns = [
+  { type: 'selection', width: 40 },
   {
     title: '日期',
     key: 'created_at',
@@ -118,9 +204,15 @@ function debouncedLoad() {
   }, 300)
 }
 
+function handleFilterChange() {
+  page.value = 1
+  loadRecords()
+}
+
 async function loadRecords() {
   if (!classId.value) return
   loading.value = true
+  checkedRowKeys.value = []
   try {
     const params = {
       page: page.value,
@@ -141,6 +233,25 @@ async function loadRecords() {
   }
 }
 
+async function loadWeekStats() {
+  if (!classId.value) return
+  try {
+    const now = new Date()
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const res = await getRecords(classId.value, {
+      page: 1,
+      page_size: 200,
+      start_date: weekAgo.toISOString().split('T')[0],
+    })
+    const items = res.data.items || res.data || []
+    statCards.value.weekCount = items.length
+    statCards.value.plusTotal = items.filter(r => r.points > 0).reduce((s, r) => s + r.points, 0)
+    statCards.value.minusTotal = Math.abs(items.filter(r => r.points < 0).reduce((s, r) => s + r.points, 0))
+  } catch {
+    statCards.value = { weekCount: 0, plusTotal: 0, minusTotal: 0 }
+  }
+}
+
 function handlePageChange(p) {
   page.value = p
   loadRecords()
@@ -154,6 +265,8 @@ function handlePageSizeChange(s) {
 
 function resetFilters() {
   filterStudent.value = ''
+  filterType.value = null
+  filterRule.value = null
   dateRange.value = null
   page.value = 1
   loadRecords()
@@ -164,12 +277,37 @@ async function handleDelete(recordId) {
     await deleteRecord(classId.value, recordId)
     message.success('记录已删除')
     await loadRecords()
+    await loadWeekStats()
   } catch (e) {
     message.error(e.response?.data?.detail || '删除失败')
   }
 }
 
+async function handleBatchDelete() {
+  const ids = [...checkedRowKeys.value]
+  let successCount = 0
+  for (const id of ids) {
+    try {
+      await deleteRecord(classId.value, id)
+      successCount++
+    } catch {
+      // continue with remaining
+    }
+  }
+  if (successCount > 0) {
+    message.success(`已删除 ${successCount} 条记录`)
+    checkedRowKeys.value = []
+    await loadRecords()
+    await loadWeekStats()
+  } else {
+    message.error('删除失败')
+  }
+}
+
 onMounted(() => {
-  if (classId.value) loadRecords()
+  if (classId.value) {
+    loadRecords()
+    loadWeekStats()
+  }
 })
 </script>

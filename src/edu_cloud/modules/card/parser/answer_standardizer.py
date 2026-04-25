@@ -39,7 +39,7 @@ def _get_llm_endpoint(settings, *, slot: str) -> tuple[str, dict]:
     """返回 (url, headers)。优先 llm-proxy，fallback 到直连。"""
     if settings.LLM_API_URL:
         return (
-            f"{settings.LLM_API_URL.rstrip('/')}/v1/chat/completions",
+            f"{settings.LLM_API_URL.rstrip('/')}/chat/completions",
             {"X-LLM-Slot": slot, "Content-Type": "application/json"},
         )
     # fallback: 直连（兼容未部署 proxy 的环境）
