@@ -46,6 +46,11 @@ const TEACHER_GRADING_ITEMS = [
 const ANALYTICS_ITEMS = [
   { icon: 'chart', label: '分析报告', route: '/analytics/report', moduleCode: 'study_analytics' },
   { icon: 'chart', label: '成绩趋势', route: '/analytics/trend', moduleCode: 'study_analytics' },
+  { icon: 'score', label: '错题本', route: '/error-book', moduleCode: 'study_analytics' },
+]
+
+const JOINT_EXAM_ITEMS = [
+  { icon: 'exam', label: '联考管理', route: '/joint-exams' },
 ]
 
 const STUDENT_TEACHER_ITEMS = [
@@ -56,6 +61,10 @@ const STUDENT_TEACHER_ITEMS = [
 const SCHOOL_CONFIG_ITEMS = [
   { icon: 'school', label: '学校管理', route: '/schools' },
   { icon: 'settings', label: '学校配置', route: '/school-settings' },
+]
+
+const CALENDAR_ITEMS = [
+  { icon: 'calendar', label: '校历管理', route: '/calendar' },
 ]
 
 const SCHEDULING_ITEMS = [
@@ -69,7 +78,9 @@ const SIDEBAR_ITEMS = {
   platform_admin: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_ADMIN_ITEMS,
+    ...JOINT_EXAM_ITEMS,
     ...ANALYTICS_ITEMS,
+    ...CALENDAR_ITEMS,
     ...STUDENT_TEACHER_ITEMS,
     ...SCHOOL_CONFIG_ITEMS,
     ...SCHEDULING_ITEMS,
@@ -78,7 +89,9 @@ const SIDEBAR_ITEMS = {
   district_admin: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_ADMIN_ITEMS,
+    ...JOINT_EXAM_ITEMS,
     ...ANALYTICS_ITEMS,
+    ...CALENDAR_ITEMS,
     ...STUDENT_TEACHER_ITEMS,
     ...SCHOOL_CONFIG_ITEMS,
     ...SCHEDULING_ITEMS,
@@ -87,7 +100,9 @@ const SIDEBAR_ITEMS = {
   principal: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_ADMIN_ITEMS,
+    ...JOINT_EXAM_ITEMS,
     ...ANALYTICS_ITEMS,
+    ...CALENDAR_ITEMS,
     ...STUDENT_TEACHER_ITEMS,
     ...SCHOOL_CONFIG_ITEMS,
     ...SCHEDULING_ITEMS,
@@ -96,7 +111,9 @@ const SIDEBAR_ITEMS = {
   academic_director: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_ADMIN_ITEMS,
+    ...JOINT_EXAM_ITEMS,
     ...ANALYTICS_ITEMS,
+    ...CALENDAR_ITEMS,
     ...STUDENT_TEACHER_ITEMS,
     ...SCHEDULING_ITEMS,
     ...filterConductByRole('academic_director'),

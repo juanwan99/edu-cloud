@@ -38,6 +38,13 @@ export const routes = [
       // 学生画像
       { path: 'profile/student/:studentId', name: 'StudentProfile', component: () => import('../pages/StudentProfilePage.vue'), meta: { permissions: ['view_scores'] } },
 
+      // 错题本
+      { path: 'error-book', name: 'ErrorBook', component: () => import('../pages/ErrorBookPage.vue'), meta: { permissions: ['view_scores'] } },
+
+      // 联考管理
+      { path: 'joint-exams', name: 'JointExams', component: () => import('../pages/JointExamPage.vue'), meta: { permissions: ['view_joint_exam'] } },
+      { path: 'joint-exams/:id', name: 'JointExamDetail', component: () => import('../pages/JointExamDetailPage.vue'), meta: { permissions: ['view_joint_exam'] } },
+
       // 成绩分析
       { path: 'analytics/report', name: 'AnalyticsReport', component: () => import('../pages/AnalyticsReportPage.vue'), meta: { permissions: ['view_scores'] } },
       { path: 'analytics/trend', name: 'AnalyticsTrend', component: () => import('../pages/AnalyticsTrendPage.vue'), meta: { permissions: ['view_scores'] } },
@@ -45,6 +52,9 @@ export const routes = [
 
       // 作业
       { path: 'homework', name: 'Homework', component: () => import('../pages/HomeworkPage.vue'), meta: { permissions: ['manage_grading'] } },
+
+      // 校历
+      { path: 'calendar', name: 'Calendar', component: () => import('../pages/CalendarPage.vue'), meta: { permissions: ['view_scores'] } },
 
       // 教务管理
       { path: 'academic/semesters', name: 'Semesters', component: () => import('../pages/SemesterPage.vue'), meta: { permissions: ['manage_scheduling'] } },

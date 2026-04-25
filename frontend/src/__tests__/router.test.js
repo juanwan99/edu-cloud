@@ -43,9 +43,30 @@ describe('Route definitions (real routes)', () => {
     expect(routes).toHaveLength(3)
   })
 
-  it('AppShell has 25 child routes (18 base + 3 analytics + 1 profile + 2 academic + 1 homework)', () => {
+  it('AppShell has 29 child routes', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
-    expect(shell.children).toHaveLength(25)
+    expect(shell.children).toHaveLength(29)
+  })
+
+  it('calendar route requires view_scores permission', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const cal = shell.children.find(r => r.path === 'calendar')
+    expect(cal).toBeTruthy()
+    expect(cal.meta?.permissions).toContain('view_scores')
+  })
+
+  it('error-book route requires view_scores permission', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const errorBook = shell.children.find(r => r.path === 'error-book')
+    expect(errorBook).toBeTruthy()
+    expect(errorBook.meta?.permissions).toContain('view_scores')
+  })
+
+  it('joint-exams route requires view_joint_exam permission', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const je = shell.children.find(r => r.path === 'joint-exams')
+    expect(je).toBeTruthy()
+    expect(je.meta?.permissions).toContain('view_joint_exam')
   })
 
   it('all routes except login are children of AppShell', () => {

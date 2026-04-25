@@ -176,7 +176,7 @@ frontend/src/
       KnowledgeHeatmap.vue    # 知识点掌握热力图（班级×知识点，vue-echarts）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
-  api/                      # API 调用层（16 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染）
+  api/                      # API 调用层（19 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染；bank.js 错题本4端点；jointExams.js 联考11端点；calendar.js 校历3端点）
   config/
     roles.js                # 8 角色枚举 + 旧别名映射 + normalizeRole()
     permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
@@ -186,7 +186,7 @@ frontend/src/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
-  router/                   # Vue Router（活跃 25 路由含 /ai-grading 无参入口 + analytics 3 + profile 1 + academic 2 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
+  router/                   # Vue Router（活跃 29 路由含 /ai-grading 无参入口 + analytics 3 + profile 1 + error-book 1 + joint-exams 2 + calendar 1 + academic 2 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -347,7 +347,7 @@ tests/
 **前端（`frontend/`）：**
 - Vite 7 + Vue 3.5 (Composition API)
 - Naive UI 2.44（暗色主题）
-- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 20 子路由含 analytics 3 + profile 1；完整 44 路由冻结于 _frozen/）
+- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 29 子路由含 analytics 3 + profile 1 + error-book 1 + joint-exams 2 + calendar 1；完整 44 路由冻结于 _frozen/）
 - Pinia 3（状态管理）
 - Axios（HTTP 客户端，baseURL `/api/v1`）
 - ECharts 6 + vue-echarts（图表）
