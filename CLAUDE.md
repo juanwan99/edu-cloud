@@ -107,7 +107,7 @@ frontend/src/
   pages/
     LoginPage.vue           # 登录页（edu-cloud 多角色版）
     AnalysisPage.vue        # 分析页（原 WorkbenchPage 重命名）
-    ExamListPage.vue        # 考试列表（exam-ai 迁入）
+    ExamListPage.vue        # 考试列表（统计卡片+搜索筛选+表格排序+归档复制+空状态引导）
     ExamDetailPage.vue      # 考试详情（科目/题目/答题卡/扫描/阅卷，含返回按钮）
     DashboardPage.vue       # 仪表盘
     AnalyticsPage.vue       # 成绩分析（ECharts）
@@ -176,7 +176,7 @@ frontend/src/
       KnowledgeHeatmap.vue    # 知识点掌握热力图（班级×知识点，vue-echarts）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
-  api/                      # API 调用层（19 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染；bank.js 错题本4端点；jointExams.js 联考11端点；calendar.js 校历3端点）
+  api/                      # API 调用层（19 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染；exams.js 考试CRUD+archiveExam；bank.js 错题本4端点；jointExams.js 联考11端点；calendar.js 校历3端点）
   config/
     roles.js                # 8 角色枚举 + 旧别名映射 + normalizeRole()
     permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
