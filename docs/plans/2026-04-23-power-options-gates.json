@@ -23,5 +23,8 @@
       "raw_output_hash": "3984fe559685c804eaff349fa8dc97672fb9aa65e09cda755049fc073b21d634",
       "round": 2
     }
-  }
+  },
+  "closed": true,
+  "closed_at": "2026-04-25 11:38:51",
+  "closed_reason": "all gates passed/manual_override — route A cleanup"
 }

@@ -78,5 +78,8 @@
       "override_timestamp": "2026-04-25T07:21:53.085817+08:00",
       "override_operator": "user"
     }
-  }
+  },
+  "closed": true,
+  "closed_at": "2026-04-25 11:38:51",
+  "closed_reason": "all gates passed/manual_override — route A cleanup"
 }
