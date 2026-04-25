@@ -1,10 +1,9 @@
 <template>
-  <n-config-provider :theme="darkTheme">
-    <div class="register-container">
-      <n-card style="max-width: 440px; width: 100%;">
-        <template #header>
-          <span style="font-size: 20px; font-weight: 600; color: #333;">家长注册</span>
-        </template>
+  <div class="register-container">
+    <n-card style="max-width: 440px; width: 100%;">
+      <template #header>
+        <span style="font-size: 20px; font-weight: 600;">家长注册</span>
+      </template>
         <!-- Step 1: Invite code -->
         <template v-if="step === 1">
           <n-form :model="inviteForm" :rules="inviteRules" ref="inviteFormRef">
@@ -47,17 +46,15 @@
             </n-button>
           </n-form>
         </template>
-      </n-card>
-    </div>
-  </n-config-provider>
+    </n-card>
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { darkTheme } from 'naive-ui'
 import {
-  NConfigProvider, NCard, NForm, NFormItem, NInput, NButton, NSelect, NAlert
+  NCard, NForm, NFormItem, NInput, NButton, NSelect, NAlert
 } from 'naive-ui'
 import { getInviteInfo, parentRegister } from '../../api/conduct'
 
