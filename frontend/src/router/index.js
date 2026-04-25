@@ -35,6 +35,9 @@ export const routes = [
         component: () => import('../pages/AiGradingPage.vue'),
         meta: { roles: GRADING_DISPATCH_ROLES } },
 
+      // 学生画像
+      { path: 'profile/student/:studentId', name: 'StudentProfile', component: () => import('../pages/StudentProfilePage.vue'), meta: { permissions: ['view_scores'] } },
+
       // 成绩分析
       { path: 'analytics/report', name: 'AnalyticsReport', component: () => import('../pages/AnalyticsReportPage.vue'), meta: { permissions: ['view_scores'] } },
       { path: 'analytics/trend', name: 'AnalyticsTrend', component: () => import('../pages/AnalyticsTrendPage.vue'), meta: { permissions: ['view_scores'] } },

@@ -123,8 +123,11 @@
 
 <script setup>
 import { h, ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { NButton, NDropdown, useMessage, useDialog } from 'naive-ui'
 import { listStudents, createStudent, updateStudent, deleteStudent, importStudents, listClasses, listGrades, listSelections, exportStudents } from '../api/students'
+
+const router = useRouter()
 
 const message = useMessage()
 const dialog = useDialog()
@@ -219,8 +222,9 @@ const columns = [
     render: (row) => selectionMap.value[row.selection_id] || '-',
   },
   {
-    title: '操作', key: 'actions', width: 140,
+    title: '操作', key: 'actions', width: 200,
     render: (row) => h('div', { style: 'display: flex; gap: 8px;' }, [
+      h(NButton, { text: true, type: 'info', size: 'small', onClick: () => router.push({ name: 'StudentProfile', params: { studentId: row.id } }) }, { default: () => '画像' }),
       h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
       h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' }),
     ]),

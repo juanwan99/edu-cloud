@@ -86,7 +86,7 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 
 ```bash
 # 后端 ECS pytest 实测 @ 2026-04-25：2190 passed / 23 skipped / 2 failed (alembic downgrade + dispatch stage deferred)
-# analytics deep-through T1-T5 完成：预计算管线 + 三维诊断 + 分层学情 + 常错题聚合 + 前端页面填充（+19 后端测试，+30 前端测试）
+# analytics deep-through T1-T6 完成 + profile 前端画像页完成（+19 后端测试，+30 前端测试）
 # 唯一 FAIL: test_alembic_s1a_bank.py::test_upgrade_then_downgrade_is_clean（S1-A downgrade 可逆性，deferred）
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
@@ -186,7 +186,7 @@ frontend/src/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
-  router/                   # Vue Router（活跃 22 路由含 /ai-grading 无参入口 + analytics 3 路由 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
+  router/                   # Vue Router（活跃 23 路由含 /ai-grading 无参入口 + analytics 3 + profile 1 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -347,7 +347,7 @@ tests/
 **前端（`frontend/`）：**
 - Vite 7 + Vue 3.5 (Composition API)
 - Naive UI 2.44（暗色主题）
-- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 19 子路由含 analytics 3 条；完整 44 路由冻结于 _frozen/）
+- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 20 子路由含 analytics 3 + profile 1；完整 44 路由冻结于 _frozen/）
 - Pinia 3（状态管理）
 - Axios（HTTP 客户端，baseURL `/api/v1`）
 - ECharts 6 + vue-echarts（图表）
