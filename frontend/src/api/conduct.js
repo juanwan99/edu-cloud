@@ -24,6 +24,12 @@ export const getChildRankings = (studentId) =>
   parentClient.get(`/conduct/parent/children/${studentId}/rankings`)
 export const getClassRulesParent = (classId) =>
   parentClient.get(`/conduct/parent/classes/${classId}/rules`)
+export const getChildExams = (studentId) =>
+  parentClient.get(`/conduct/parent/children/${studentId}/exams`)
+export const getChildScores = (studentId, params) =>
+  parentClient.get(`/conduct/parent/children/${studentId}/scores`, { params })
+export const getChildErrorBook = (studentId, params) =>
+  parentClient.get(`/conduct/parent/children/${studentId}/error-book`, { params })
 export const updateParentProfile = (data) => parentClient.put('/conduct/parent/profile', data)
 export const changeParentPassword = (data) => parentClient.put('/conduct/parent/password', data)
 

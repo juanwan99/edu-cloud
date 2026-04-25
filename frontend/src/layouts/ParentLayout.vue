@@ -4,7 +4,7 @@
       <n-layout style="min-height: 100vh;">
         <!-- Top bar -->
         <n-layout-header bordered style="height: 56px; display: flex; align-items: center; padding: 0 16px; justify-content: space-between;">
-          <span style="font-size: 18px; font-weight: 600;">德育积分</span>
+          <span style="font-size: 18px; font-weight: 600;">家校互通</span>
           <div style="display: flex; align-items: center; gap: 12px;">
             <n-select
               v-if="children.length > 1"
@@ -73,6 +73,7 @@ provide('children', children)
 
 const tabs = [
   { path: '/parent', label: '概览', icon: '📊' },
+  { path: '/parent/scores', label: '成绩', icon: '📝' },
   { path: '/parent/rankings', label: '排行', icon: '🏆' },
   { path: '/parent/rules', label: '班规', icon: '📋' },
   { path: '/parent/profile', label: '我的', icon: '👤' },

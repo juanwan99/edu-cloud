@@ -70,6 +70,23 @@ export const routes = [
     ]
   },
 
+  // 家长端
+  { path: '/parent/login', name: 'ParentLogin', component: () => import('../pages/parent/ParentLogin.vue') },
+  { path: '/parent/register', name: 'ParentRegister', component: () => import('../pages/parent/ParentRegister.vue') },
+  {
+    path: '/parent',
+    component: () => import('../layouts/ParentLayout.vue'),
+    children: [
+      { path: '', name: 'ParentOverview', component: () => import('../pages/parent/ParentOverview.vue') },
+      { path: 'bind', name: 'ParentBind', component: () => import('../pages/parent/ParentBind.vue') },
+      { path: 'scores', name: 'ParentScores', component: () => import('../pages/parent/ParentScores.vue') },
+      { path: 'details', name: 'ParentDetails', component: () => import('../pages/parent/ParentDetails.vue') },
+      { path: 'rankings', name: 'ParentRankings', component: () => import('../pages/parent/ParentRankings.vue') },
+      { path: 'rules', name: 'ParentRules', component: () => import('../pages/parent/ParentRules.vue') },
+      { path: 'profile', name: 'ParentProfile', component: () => import('../pages/parent/ParentProfile.vue') },
+    ]
+  },
+
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 

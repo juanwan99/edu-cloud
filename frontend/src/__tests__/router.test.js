@@ -39,8 +39,8 @@ describe('Route definitions (real routes)', () => {
     expect(shell.meta?.requiresAuth).toBe(true)
   })
 
-  it('has exactly 3 top-level routes in freeze mode', () => {
-    expect(routes).toHaveLength(3)
+  it('has expected top-level route count', () => {
+    expect(routes).toHaveLength(6)
   })
 
   it('AppShell has 29 child routes', () => {
