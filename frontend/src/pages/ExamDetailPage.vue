@@ -704,7 +704,6 @@ onMounted(() => window.addEventListener('keydown', _escHandler))
 onUnmounted(() => {
   window.removeEventListener('keydown', _escHandler)
   if (cardPreviewUrl.value) URL.revokeObjectURL(cardPreviewUrl.value)
-  stopScanPolling()
 })
 
 async function onSubjectSelect(subjectId) {

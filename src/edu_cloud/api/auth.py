@@ -31,6 +31,37 @@ async def _build_role_context(role, db):
     }
 
 
+async def _provision_admin_school_roles(user_id: str, existing_roles: list, db):
+    """为 platform_admin 自动补全所有活跃学校的角色记录（幂等）。"""
+    from edu_cloud.models.school import School
+    from edu_cloud.models.user_role import UserRole
+
+    existing_school_ids = {r.school_id for r in existing_roles if r.school_id}
+    schools_result = await db.execute(
+        select(School).where(School.is_active == True)  # noqa: E712
+    )
+    schools = schools_result.scalars().all()
+
+    created = []
+    for school in schools:
+        if school.id in existing_school_ids:
+            continue
+        role = UserRole(
+            user_id=user_id,
+            role="platform_admin",
+            school_id=school.id,
+            is_primary=False,
+        )
+        db.add(role)
+        created.append(role)
+
+    if created:
+        await db.commit()
+        logger.info("auto-provisioned %d school roles for admin user=%s", len(created), user_id)
+
+    return existing_roles + created
+
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -57,9 +88,13 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
         roles_result = await db.execute(
             select(UserRole).where(UserRole.user_id == user.id)
         )
-        roles = roles_result.scalars().all()
+        roles = list(roles_result.scalars().all())
         if not roles:
             raise HTTPException(403, "No role assigned")
+
+        # platform_admin 自动补全：为所有活跃学校创建学校级角色
+        if any(r.role in ("platform_admin", "admin") for r in roles):
+            roles = await _provision_admin_school_roles(user.id, roles, db)
 
         primary = next((r for r in roles if r.is_primary), roles[0])
         token = create_access_token({

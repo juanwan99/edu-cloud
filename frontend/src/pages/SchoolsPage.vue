@@ -20,6 +20,9 @@
         <n-form-item label="学校代码">
           <n-input v-model:value="form.code" placeholder="例如：SCHOOL01" />
         </n-form-item>
+        <n-form-item label="学区">
+          <n-input v-model:value="form.district" placeholder="例如：河源市源城区" />
+        </n-form-item>
       </n-form>
     </n-modal>
   </div>
@@ -34,7 +37,7 @@ const message = useMessage()
 const loading = ref(true)
 const schools = ref([])
 const showCreate = ref(false)
-const form = reactive({ name: '', code: '' })
+const form = reactive({ name: '', code: '', district: '' })
 
 const columns = [
   { title: '学校名称', key: 'name' },
@@ -55,12 +58,13 @@ async function loadSchools() {
 }
 
 async function handleCreate() {
-  if (!form.name || !form.code) { message.warning('请填写完整'); return false }
+  if (!form.name || !form.code || !form.district) { message.warning('请填写完整'); return false }
   try {
-    await createSchool({ name: form.name, code: form.code })
+    await createSchool({ name: form.name, code: form.code, district: form.district })
     message.success('学校添加成功')
     form.name = ''
     form.code = ''
+    form.district = ''
     showCreate.value = false
     await loadSchools()
   } catch (e) {

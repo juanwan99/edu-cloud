@@ -285,6 +285,7 @@ async def import_students(
     updated = 0
     skipped = 0
     class_not_found = 0
+    class_created = 0
     selection_not_found = 0
     for row in rows[1:]:
         stu_name = str(row[name_col]).strip() if row[name_col] else ""
@@ -300,8 +301,17 @@ async def import_students(
         if not row_class_id and class_col is not None and row[class_col]:
             class_name = str(row[class_col]).strip()
             row_class_id = class_map.get(class_name)
-            if not row_class_id:
-                class_not_found += 1
+            if not row_class_id and class_name:
+                new_class = Class(
+                    name=class_name, grade=grade or "",
+                    school_id=school_id,
+                )
+                db.add(new_class)
+                await db.flush()
+                class_map[class_name] = new_class.id
+                class_grade_map[new_class.id] = new_class.grade
+                row_class_id = new_class.id
+                class_created += 1
 
         gender = None
         if gender_col is not None and row[gender_col]:
@@ -368,7 +378,7 @@ async def import_students(
         created += 1
 
     await db.commit()
-    logger.info("import_students: school=%s, created=%d, updated=%d, skipped=%d, class_not_found=%d, selection_not_found=%d",
-                school_id, created, updated, skipped, class_not_found, selection_not_found)
+    logger.info("import_students: school=%s, created=%d, updated=%d, skipped=%d, class_created=%d, selection_not_found=%d",
+                school_id, created, updated, skipped, class_created, selection_not_found)
     return {"created": created, "updated": updated, "skipped": skipped,
-            "class_not_found": class_not_found, "selection_not_found": selection_not_found}
+            "class_created": class_created, "selection_not_found": selection_not_found}

@@ -85,9 +85,9 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-04-24：2102 passed / 23 skipped（审计 + conduct-roadmap batch1）
-# 22 failed + 1 error 为既有技术债（pre-S1-A，非本次变更引入），完整披露见 docs/plans/2026-04-24-haofenshu-s1-bank-plan.md §Deferred 第 7 条
-# 2026-04-24 后修：commit b9b3881 fix(card) router lazy-import 消 17 项 + dev DB ALTER subjects 4 列消 1 项；预计 failed 22→4 / error 1→0（passed 待下次全量 pytest 实测刷新）
+# 后端 ECS pytest 实测 @ 2026-04-25：2172 passed / 23 skipped / 1 failed (alembic downgrade deferred debt)
+# tech debt cleanup D-01~D-03 完成：alembic HEAD 对齐 + MANAGE_GRADING 权限收回 + card lazy-import 修复
+# 唯一 FAIL: test_alembic_s1a_bank.py::test_upgrade_then_downgrade_is_clean（S1-A downgrade 可逆性，deferred）
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
 # 前端 Vitest + happy-dom（frontend-nuxt 57 tests @ 2026-04-24）
@@ -197,7 +197,7 @@ src/edu_cloud/
     app.py              # FastAPI 应用工厂 + lifespan + 请求日志中间件 + 全局异常处理器
     deps.py             # 依赖注入（JWT 认证 get_current_user + require_permission）
     permissions.py      # 数据权限过滤（get_visible_class_ids/get_visible_subject_codes）
-    auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）
+    auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）+ _provision_admin_school_roles（超管跨校角色自动补全，幂等）
     dashboard.py        # GET /api/v1/dashboard/summary（角色 scope 聚合统计）
     notifications_api.py # GET /api/v1/notifications（通知列表，status/since 过滤）
     ai.py               # AI Agent 路由（AgentRuntime pipeline: DataScope → AuditLogger → AgentContext → AgentRuntime.run() → SSE）
@@ -328,7 +328,7 @@ tests/
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 8 角色映射 | — |
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 2102 后端 + 57 frontend-nuxt Vitest（ECS 实测 @ 2026-04-24） | — |
+| Tests | 2172 后端 + 57 frontend-nuxt Vitest（ECS 实测 @ 2026-04-25） | — |
 | Modules | 21 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu/academic），路由已迁入；其中 `adaptive`/`paper` 为内部/基础数据模块；`academic` 含 semester/period/timetable 完整 CRUD；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
 | Migrations | Alembic migration（88 表，31 个迁移，含 S1-A T2 `a88094ee4ea6` bank_question +5 列） | — |
 
@@ -353,6 +353,7 @@ tests/
 - ECharts 6 + vue-echarts（图表）
 - KaTeX + marked（数学公式渲染 + Markdown）
 - card-editor（答题卡可视化编辑器，5 模块 + CardEditor.vue）
+- ESLint 9 + eslint-plugin-vue（代码检查，prebuild 自动运行）
 - Vitest 4 + @vue/test-utils + happy-dom（单元测试）
 
 **前端（`frontend-nuxt/`，haofenshu Phase 1 复刻骨架，初始化阶段）：**
