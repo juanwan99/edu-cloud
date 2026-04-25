@@ -17,6 +17,27 @@
       <n-button :loading="exporting" @click="handleExport">
         导出成绩 CSV
       </n-button>
+      <div style="flex: 1;" />
+      <n-button
+        :loading="refreshing"
+        :disabled="refreshing"
+        secondary
+        @click="manualRefresh"
+      >
+        <template #icon>
+          <n-icon :class="{ 'spin-icon': refreshing }">
+            <reload-outline />
+          </n-icon>
+        </template>
+        刷新
+      </n-button>
+      <div class="auto-refresh-group">
+        <n-switch v-model:value="autoRefresh" size="small" />
+        <span class="auto-refresh-label">自动刷新</span>
+        <span v-if="lastUpdateTime" class="last-update">
+          {{ lastUpdateTime }}
+        </span>
+      </div>
     </div>
 
     <n-spin :show="loading">
@@ -24,12 +45,10 @@
       <n-card v-if="progress" class="overall-card" size="small">
         <div class="overall-stats">
           <div class="stat-item">
-            <span class="stat-value">{{ progress.overall.graded }}</span>
-            <span class="stat-label">已批改</span>
+            <n-statistic label="已批改" :value="progress.overall.graded" />
           </div>
           <div class="stat-item">
-            <span class="stat-value">{{ progress.overall.total }}</span>
-            <span class="stat-label">总计</span>
+            <n-statistic label="总计" :value="progress.overall.total" />
           </div>
           <div class="stat-item">
             <n-progress
@@ -39,17 +58,32 @@
               style="width: 80px;"
             />
           </div>
+          <div class="stat-item">
+            <n-statistic label="剩余待批改" :value="remainingCount">
+              <template #suffix>题</template>
+            </n-statistic>
+          </div>
         </div>
       </n-card>
 
       <!-- 各科目 -->
       <div v-for="subj in progress?.subjects || []" :key="subj.id" class="subject-card">
-        <h3>{{ subj.name }}</h3>
+        <div class="subject-header">
+          <h3>{{ subj.name }}</h3>
+          <n-progress
+            type="circle"
+            :percentage="subjectPercentage(subj)"
+            :stroke-width="6"
+            :color="subjectPercentage(subj) >= 100 ? '#2a9d8f' : '#f4a261'"
+            style="width: 60px; height: 60px;"
+          />
+        </div>
         <n-data-table
           :columns="columns"
           :data="subj.questions"
           :bordered="false"
           size="small"
+          :row-props="rowProps"
         />
       </div>
     </n-spin>
@@ -57,17 +91,53 @@
 </template>
 
 <script setup>
-import { ref, h, onMounted } from 'vue'
-import { NProgress, useMessage } from 'naive-ui'
+import { ref, h, computed, onMounted, onUnmounted, watch } from 'vue'
+import { NProgress, NIcon, useMessage } from 'naive-ui'
+import { ReloadOutline } from '@vicons/ionicons5'
 import { getProgress, exportCsv } from '../api/marking'
 import client from '../api/client'
 
 const message = useMessage()
 const loading = ref(false)
+const refreshing = ref(false)
 const exporting = ref(false)
 const selectedExamId = ref(null)
 const examOptions = ref([])
 const progress = ref(null)
+const autoRefresh = ref(false)
+const lastUpdateTime = ref('')
+let pollTimer = null
+
+const remainingCount = computed(() => {
+  if (!progress.value) return 0
+  return progress.value.overall.total - progress.value.overall.graded
+})
+
+function subjectPercentage(subj) {
+  if (!subj.questions || subj.questions.length === 0) return 0
+  let graded = 0
+  let total = 0
+  for (const q of subj.questions) {
+    graded += q.graded_count
+    total += q.total_answers
+  }
+  return total > 0 ? Math.round(graded / total * 100) : 0
+}
+
+function questionColorBand(row) {
+  const pct = row.total_answers > 0
+    ? row.graded_count / row.total_answers * 100
+    : 0
+  if (pct >= 100) return '#2a9d8f'
+  if (pct >= 50) return '#f4a261'
+  return '#e76f51'
+}
+
+function rowProps(row) {
+  return {
+    style: `border-left: 4px solid ${questionColorBand(row)};`
+  }
+}
 
 const columns = [
   { title: '题号', key: 'name', width: 120 },
@@ -90,6 +160,14 @@ const columns = [
   },
 ]
 
+function updateTimestamp() {
+  const now = new Date()
+  const hh = String(now.getHours()).padStart(2, '0')
+  const mm = String(now.getMinutes()).padStart(2, '0')
+  const ss = String(now.getSeconds()).padStart(2, '0')
+  lastUpdateTime.value = `上次更新: ${hh}:${mm}:${ss}`
+}
+
 async function loadExams() {
   try {
     const { data } = await client.get('/exams')
@@ -107,9 +185,48 @@ async function loadProgress(examId) {
   try {
     const { data } = await getProgress(examId)
     progress.value = data
+    updateTimestamp()
   } catch {}
   loading.value = false
 }
+
+async function manualRefresh() {
+  if (!selectedExamId.value) return
+  refreshing.value = true
+  try {
+    const { data } = await getProgress(selectedExamId.value)
+    progress.value = data
+    updateTimestamp()
+  } catch {}
+  refreshing.value = false
+}
+
+function startPolling() {
+  stopPolling()
+  if (!selectedExamId.value) return
+  pollTimer = setInterval(async () => {
+    try {
+      const { data } = await getProgress(selectedExamId.value)
+      progress.value = data
+      updateTimestamp()
+    } catch {}
+  }, 30000)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+watch(autoRefresh, (val) => {
+  if (val) {
+    startPolling()
+  } else {
+    stopPolling()
+  }
+})
 
 async function handleExport() {
   if (!selectedExamId.value) return
@@ -130,6 +247,10 @@ async function handleExport() {
 }
 
 onMounted(loadExams)
+
+onUnmounted(() => {
+  stopPolling()
+})
 </script>
 
 <style scoped>
@@ -138,6 +259,25 @@ onMounted(loadExams)
   gap: 16px;
   align-items: center;
   margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.auto-refresh-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auto-refresh-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+}
+
+.last-update {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
 }
 
 .overall-card {
@@ -149,6 +289,7 @@ onMounted(loadExams)
   align-items: center;
   justify-content: center;
   gap: 48px;
+  flex-wrap: wrap;
 }
 
 .stat-item {
@@ -158,28 +299,33 @@ onMounted(loadExams)
   gap: 4px;
 }
 
-.stat-value {
-  font-size: 32px;
-  font-weight: 800;
-  color: var(--color-primary);
-}
-
-.stat-label {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-}
-
 .subject-card {
-  background: white;
+  background: rgba(255, 255, 255, 0.04);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-light);
   padding: 20px;
   margin-bottom: 16px;
 }
 
+.subject-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
 .subject-card h3 {
   font-size: 16px;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin: 0;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
 }
 </style>
