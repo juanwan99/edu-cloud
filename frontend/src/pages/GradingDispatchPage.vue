@@ -232,6 +232,10 @@ onMounted(async () => {
       label: e.name,
       value: e.id,
     }))
+    if (examOptions.value.length > 0) {
+      selectedExamId.value = examOptions.value[0].value
+      await onExamChange(selectedExamId.value)
+    }
   } catch (e) {
     message.error('加载考试列表失败')
   }
@@ -306,6 +310,7 @@ async function handleFolderSelected(e) {
     scanRootDir.value = res.data.dir_path
     message.success(`已上传 ${imageFiles.length} 张图片`)
     await handleScanDir()
+    await loadStatus(selectedExamId.value)
   } catch (err) {
     message.error('上传失败: ' + (err.response?.data?.detail || err.message))
   } finally {

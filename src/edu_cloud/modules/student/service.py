@@ -229,6 +229,7 @@ async def import_students(
         raise ValidationError("Excel 需包含「姓名」和「准考证号/学号」列")
 
     class_col = next((i for i, h in enumerate(header) if "班级" in h or "班" in h), None)
+    grade_col = next((i for i, h in enumerate(header) if "年级" in h), None)
     gender_col = next((i for i, h in enumerate(header) if "性别" in h), None)
     id_card_col = next((i for i, h in enumerate(header) if "身份证" in h or "证件" in h), None)
     sel_col = next((i for i, h in enumerate(header) if "选课" in h or "组合" in h or "选科" in h), None)
@@ -297,13 +298,17 @@ async def import_students(
             continue
 
         # 解析各字段
+        row_grade = ""
+        if grade_col is not None and row[grade_col]:
+            row_grade = str(row[grade_col]).strip()
+
         row_class_id = fixed_class_id
         if not row_class_id and class_col is not None and row[class_col]:
             class_name = str(row[class_col]).strip()
             row_class_id = class_map.get(class_name)
             if not row_class_id and class_name:
                 new_class = Class(
-                    name=class_name, grade=grade or "",
+                    name=class_name, grade=row_grade or grade or "",
                     school_id=school_id,
                 )
                 db.add(new_class)
@@ -312,6 +317,11 @@ async def import_students(
                 class_grade_map[new_class.id] = new_class.grade
                 row_class_id = new_class.id
                 class_created += 1
+            elif row_class_id and row_grade and not class_grade_map.get(row_class_id):
+                cls_obj = await db.get(Class, row_class_id)
+                if cls_obj and not cls_obj.grade:
+                    cls_obj.grade = row_grade
+                    class_grade_map[row_class_id] = row_grade
 
         gender = None
         if gender_col is not None and row[gender_col]:
@@ -329,7 +339,7 @@ async def import_students(
             if sel_val and not selection_id:
                 sel_miss = True
 
-        stu_grade = grade or class_grade_map.get(row_class_id, "")
+        stu_grade = row_grade or grade or class_grade_map.get(row_class_id, "")
 
         existing = await db.execute(
             select(Student).where(

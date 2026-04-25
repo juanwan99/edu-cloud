@@ -21,6 +21,7 @@ function filterConductByRole(role) {
 
 const EXAM_GRADING_ITEMS = [
   { icon: 'exam', label: '考试管理', route: '/exams' },
+  { icon: 'scan', label: '阅卷调度', route: '/grading/tasks' },
   { icon: 'marking', label: 'AI 阅卷', route: '/ai-grading' },
   { icon: 'marking', label: '人工阅卷/审核', route: '/marking' },
   { icon: 'marking', label: '阅卷分配', route: '/marking/assign' },

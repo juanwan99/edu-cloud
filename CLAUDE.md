@@ -85,8 +85,8 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-04-25：2172 passed / 23 skipped / 1 failed (alembic downgrade deferred debt)
-# tech debt cleanup D-01~D-03 完成：alembic HEAD 对齐 + MANAGE_GRADING 权限收回 + card lazy-import 修复
+# 后端 ECS pytest 实测 @ 2026-04-25：2190 passed / 23 skipped / 2 failed (alembic downgrade + dispatch stage deferred)
+# analytics deep-through T1-T4 完成：预计算管线 + 三维诊断 + 分层学情 + 常错题聚合（+19 新测试）
 # 唯一 FAIL: test_alembic_s1a_bank.py::test_upgrade_then_downgrade_is_clean（S1-A downgrade 可逆性，deferred）
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
@@ -328,7 +328,7 @@ tests/
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 8 角色映射 | — |
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 2172 后端 + 57 frontend-nuxt Vitest（ECS 实测 @ 2026-04-25） | — |
+| Tests | 2190 后端 + 57 frontend-nuxt Vitest（ECS 实测 @ 2026-04-25） | — |
 | Modules | 21 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu/academic），路由已迁入；其中 `adaptive`/`paper` 为内部/基础数据模块；`academic` 含 semester/period/timetable 完整 CRUD；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
 | Migrations | Alembic migration（88 表，31 个迁移，含 S1-A T2 `a88094ee4ea6` bank_question +5 列） | — |
 

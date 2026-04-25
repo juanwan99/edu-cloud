@@ -850,6 +850,8 @@ async def get_dispatch_status(
             stage = "pending_cut"
         elif not grading_task and can_ai_grade:
             stage = "ready"
+        elif not grading_task and answer_count > 0:
+            stage = "ready"
         elif not grading_task:
             stage = "pending_cut" if has_template else "idle"
         elif grading_task.status == "failed":
