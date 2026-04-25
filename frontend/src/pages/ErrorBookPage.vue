@@ -66,8 +66,8 @@
     <n-modal v-model:show="detailVisible" preset="card" style="width: 600px;" title="错题详情">
       <template v-if="detailRow">
         <div class="detail-section">
-          <div class="detail-row"><span class="detail-label">题目 ID</span><span>{{ detailRow.question_id }}</span></div>
-          <div class="detail-row"><span class="detail-label">考试 ID</span><span>{{ detailRow.exam_id }}</span></div>
+          <div class="detail-row"><span class="detail-label">考试</span><span>{{ examNames[detailRow.exam_id] || detailRow.exam_id }}</span></div>
+          <div class="detail-row"><span class="detail-label">题目 ID</span><span style="font-family: monospace; font-size: 12px;">{{ detailRow.question_id }}</span></div>
           <div class="detail-row"><span class="detail-label">得分</span><span>{{ detailRow.student_score }} / {{ detailRow.max_score }}</span></div>
           <div class="detail-row">
             <span class="detail-label">掌握状态</span>
@@ -97,9 +97,10 @@
 <script setup>
 import { h, ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { NTag } from 'naive-ui'
+import { NTag, NProgress } from 'naive-ui'
 import { getStudentErrorBook, getErrorBookStats } from '../api/bank.js'
 import { listStudents } from '../api/students.js'
+import client from '../api/client.js'
 
 const route = useRoute()
 
@@ -112,6 +113,7 @@ const detailVisible = ref(false)
 const detailRow = ref(null)
 const errors = ref([])
 const studentOptions = ref([])
+const examNames = ref({})
 
 const STATUS_MAP = {
   unmastered: { label: '未掌握', type: 'error' },
@@ -120,50 +122,52 @@ const STATUS_MAP = {
 }
 
 const columns = computed(() => [
-  { title: '题目ID', key: 'question_id', width: 120, ellipsis: { tooltip: true } },
+  {
+    title: '考试',
+    key: 'exam_id',
+    width: 140,
+    ellipsis: { tooltip: true },
+    render: (row) => examNames.value[row.exam_id] || row.exam_id?.slice(0, 8) + '...',
+  },
   {
     title: '得分',
     key: 'score',
-    width: 100,
-    render: (row) => `${row.student_score}/${row.max_score}`,
-  },
-  { title: '错误类型', key: 'error_type', width: 120 },
-  {
-    title: 'AI 反馈',
-    key: 'ai_feedback',
-    ellipsis: { tooltip: true },
-  },
-  {
-    title: '知识点',
-    key: 'knowledge_point_ids',
-    width: 160,
+    width: 130,
     render: (row) => {
-      const kps = row.knowledge_point_ids
-      if (!kps || !kps.length) return '-'
-      return h('div', { style: 'display: flex; gap: 4px; flex-wrap: wrap;' },
-        kps.slice(0, 3).map(kp => h(NTag, { size: 'small', bordered: false }, () => kp))
-      )
+      const pct = row.max_score > 0 ? Math.round(row.student_score / row.max_score * 100) : 0
+      const status = pct >= 60 ? 'success' : pct >= 40 ? 'warning' : 'error'
+      return h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+        h('span', { style: 'font-size: 13px; min-width: 45px;' }, `${row.student_score}/${row.max_score}`),
+        h(NProgress, { percentage: pct, showIndicator: false, status, style: 'width: 50px;' }),
+      ])
     },
   },
+  { title: '错误类型', key: 'error_type', width: 110, render: (row) => row.error_type || '-' },
   {
     title: '状态',
     key: 'mastery_status',
-    width: 100,
+    width: 90,
     render: (row) => {
       const info = STATUS_MAP[row.mastery_status] || { label: row.mastery_status, type: 'default' }
       return h(NTag, { size: 'small', type: info.type }, () => info.label)
     },
   },
   {
+    title: 'AI 反馈',
+    key: 'ai_feedback',
+    ellipsis: { tooltip: true },
+    render: (row) => row.ai_feedback || '-',
+  },
+  {
     title: '重做',
     key: 'retry_count',
-    width: 70,
+    width: 60,
     render: (row) => `${row.retry_count}次`,
   },
   {
     title: '收藏',
     key: 'is_starred',
-    width: 60,
+    width: 50,
     render: (row) => row.is_starred ? '★' : '-',
   },
 ])
@@ -209,6 +213,16 @@ async function loadErrorBook() {
     ])
     errors.value = errorResp.data
     stats.value = statsResp.data
+
+    const examIds = [...new Set(errors.value.map(e => e.exam_id).filter(Boolean))]
+    const missing = examIds.filter(id => !examNames.value[id])
+    if (missing.length) {
+      try {
+        const { data } = await client.get('/exams', { params: { limit: 50 } })
+        const list = Array.isArray(data) ? data : (data.items || [])
+        for (const ex of list) { examNames.value[ex.id] = ex.name }
+      } catch { /* exam names unavailable */ }
+    }
   } catch (e) {
     errors.value = []
     stats.value = null
