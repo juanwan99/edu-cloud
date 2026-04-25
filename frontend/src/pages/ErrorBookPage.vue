@@ -179,13 +179,16 @@ async function loadErrorBook() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await searchStudents('')
   const qStudent = route.query.studentId
   if (qStudent) {
+    if (!studentOptions.value.find(o => o.value === qStudent)) {
+      studentOptions.value.unshift({ label: qStudent.slice(0, 8) + '...', value: qStudent })
+    }
     selectedStudentId.value = qStudent
     loadErrorBook()
   }
-  searchStudents('')
 })
 </script>
 
