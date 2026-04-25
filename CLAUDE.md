@@ -105,7 +105,7 @@ frontend/src/
     AuthLayout.vue          # 登录页布局
     ParentLayout.vue        # 家长端移动优先布局（顶栏+内容+底部4标签，cp_token 独立认证，子女切换）
   pages/
-    LoginPage.vue           # 登录页（edu-cloud 多角色版）
+    LoginPage.vue           # 登录页（品牌 Logo+教师/管理员 Tab+NAlert 错误+记住用户名+暗色适配）
     AnalysisPage.vue        # 分析中心入口（考试选择器+4 功能卡片网格+近期考试表）
     ExamListPage.vue        # 考试列表（统计卡片+搜索筛选+表格排序+归档复制+空状态引导）
     ExamDetailPage.vue      # 考试详情（科目/题目/答题卡/扫描/阅卷，含返回按钮）
@@ -140,7 +140,7 @@ frontend/src/
       ParentBind.vue        # 绑定孩子（学生姓名+身份验证码+关系）
       ParentOverview.vue    # 概览（积分统计卡+最近记录列表）
       ParentDetails.vue     # 详细记录（分页 DataTable）
-      ParentRankings.vue    # 班级排行榜（当前孩子高亮）
+      ParentRankings.vue    # 班级排行榜（排名卡+奖杯+分布条+积分/排名变化列+绿色高亮）
       ParentRules.vue       # 班规查看（分类折叠面板+正负分标签，F004 字段修正 item.points）
       ParentProfile.vue     # 个人中心（编辑姓名/改密码/已绑定孩子/退出）
     conduct/                # 管理端操行页面（AppShell 内，权限守卫，classId 从 auth store 读取）
