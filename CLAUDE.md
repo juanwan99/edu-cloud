@@ -86,7 +86,7 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 
 ```bash
 # 后端 ECS pytest 实测 @ 2026-04-25：2190 passed / 23 skipped / 2 failed (alembic downgrade + dispatch stage deferred)
-# analytics T1-T6 + profile 画像页 + academic 教务页（学期+课表）完成
+# analytics T1-T6 + profile 画像页 + academic 教务页 + homework 作业页 完成
 # 唯一 FAIL: test_alembic_s1a_bank.py::test_upgrade_then_downgrade_is_clean（S1-A downgrade 可逆性，deferred）
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 

@@ -43,9 +43,9 @@ describe('Route definitions (real routes)', () => {
     expect(routes).toHaveLength(3)
   })
 
-  it('AppShell has 24 child routes (18 base + 3 analytics + 1 profile + 2 academic)', () => {
+  it('AppShell has 25 child routes (18 base + 3 analytics + 1 profile + 2 academic + 1 homework)', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
-    expect(shell.children).toHaveLength(24)
+    expect(shell.children).toHaveLength(25)
   })
 
   it('all routes except login are children of AppShell', () => {

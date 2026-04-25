@@ -27,6 +27,7 @@ const EXAM_ADMIN_ITEMS = [
   { icon: 'marking', label: '人工阅卷/审核', route: '/marking' },
   { icon: 'marking', label: '阅卷分配', route: '/marking/assign' },
   { icon: 'marking', label: '阅卷进度', route: '/marking/progress' },
+  { icon: 'exam', label: '作业管理', route: '/homework' },
 ]
 
 // 备课组长级：管本学科（题目/细则/AI阅卷/审核）
