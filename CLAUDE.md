@@ -106,13 +106,13 @@ frontend/src/
     ParentLayout.vue        # 家长端移动优先布局（顶栏+内容+底部4标签，cp_token 独立认证，子女切换）
   pages/
     LoginPage.vue           # 登录页（edu-cloud 多角色版）
-    AnalysisPage.vue        # 分析页（原 WorkbenchPage 重命名）
+    AnalysisPage.vue        # 分析中心入口（考试选择器+4 功能卡片网格+近期考试表）
     ExamListPage.vue        # 考试列表（统计卡片+搜索筛选+表格排序+归档复制+空状态引导）
     ExamDetailPage.vue      # 考试详情（科目/题目/答题卡/扫描/阅卷，含返回按钮）
     DashboardPage.vue       # 仪表盘
     AnalyticsPage.vue       # 成绩分析（ECharts）
     AnalyticsReportPage.vue # 分析报告（多考试+多指标查询，ECharts 分段柱图）
-    AnalyticsTrendPage.vue  # 成绩趋势（年级/班级/学生维度折线图）
+    AnalyticsTrendPage.vue  # 成绩趋势（年级/班级/学生维度折线图+暗色适配+双Y轴+导出图片+对比模式+指标选择）
     GradingDispatchPage.vue # 扫描调度中心（扫描→选择题→校对全流程）
     AiGradingPage.vue       # 题目级 AI 阅卷（考试/科目选择器 + 左右分栏：题号排序列表(状态标签+图片计数) + 内容/细则/阅卷操作；含文档裁剪入口、图片删除、多图追加）
     GradingResultsPage.vue  # 阅卷结果（含返回按钮）
@@ -121,8 +121,10 @@ frontend/src/
     MarkingPage.vue         # 手动阅卷
     MarkingAssignPage.vue   # 分配阅卷任务（含返回按钮）
     MarkingProgressPage.vue # 阅卷进度（含返回按钮）
-    SchoolsPage.vue         # 学校管理（admin）
-    SchoolSettingsPage.vue  # 学校配置（模块开关 + KV 设置 + 分数段，principal/academic_director）
+    SchoolsPage.vue         # 学校管理（搜索+学区筛选+统计卡+表格/卡片双视图+创建表单）
+    SchoolSettingsPage.vue  # 学校配置（模块开关+描述图标+inline KV 编辑+分数段+能力矩阵 Tab）
+    JointExamPage.vue       # 联考管理（统计卡+参与校列+多选科目+进度指示+下发/截止操作）
+    JointExamDetailPage.vue # 联考详情（参与校列表+成绩汇总）
     SubjectSelectionsPage.vue # 选考科目组合管理
     TeacherAssignmentsPage.vue # 教师排课管理
     StudentsPage.vue        # 学生管理（列表/搜索/导入导出/选科分配）
@@ -139,15 +141,15 @@ frontend/src/
       ParentRules.vue       # 班规查看（分类折叠面板+正负分标签，F004 字段修正 item.points）
       ParentProfile.vue     # 个人中心（编辑姓名/改密码/已绑定孩子/退出）
     conduct/                # 管理端操行页面（AppShell 内，权限守卫，classId 从 auth store 读取）
-      ConductDashboard.vue  # 德育概览（统计卡片+本周加扣分+积分最高/最低+最近记录）
+      ConductDashboard.vue  # 德育概览（统计卡片+走势折线图+饼图+时间段切换+快捷操作按钮）
       ConductPoints.vue     # 积分操作（学生多选+班规快捷按钮+手动输入+最近记录）
       ConductRules.vue      # 班规管理（分类折叠+条目 CRUD+积分标签）
-      ConductRankings.vue   # 排��榜（学生/小组 Tab+学期筛选）
-      ConductRecords.vue    # 积分记录（分页表格+学生/日期过滤+删除）
+      ConductRankings.vue   # 排行榜（学生/小组 Tab+学期筛选+分布柱图+搜索+导出+小组平均分）
+      ConductRecords.vue    # 积分记录（分页表格+统计卡+类型/班规筛选+批量删除）
       ConductGroups.vue     # 小组管理（卡片网格+成员抽屉+添加/移除）
       ConductSettings.vue   # 德育设置（邀请码+验证方式+模块开关+学期管理）
-      ConductParents.vue    # 家长管理（表格+移除）
-      ConductExport.vue     # 数据导出（记录/排行榜+日期/学期筛选+Excel 下载）
+      ConductParents.vue    # 家长管理（统计卡+搜索+邀请码管理+批量移除）
+      ConductExport.vue     # 数据导出（预览+格式选择+字段选择+导出历史+日期/学期筛选）
   components/
     shell/
       AppHeader.vue         # 68px 毛玻璃顶栏（Logo/SchoolContext/搜索/通知铃/角色切换）
