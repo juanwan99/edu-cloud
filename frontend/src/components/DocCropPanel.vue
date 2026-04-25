@@ -46,7 +46,7 @@
                  class="dc-region" :class="{ active: selectedId === c.id }"
                  :style="rStyle(c, idx)" @mousedown.stop="startDrag($event, c)">
               <span class="dc-label" :style="{ color: palette(idx).solid }">
-                {{ c.questionNums.length ? '第' + c.questionNums.join(',') + '题' : '未标号' }} {{ c.field === 'content' ? '题干' : '答案' }}{{ c.seq !== '1' ? ' #' + c.seq : '' }}
+                {{ c.questionNum ? '第' + c.questionNum + '题' : '未标号' }} {{ c.field === 'content' ? '题干' : '答案' }}{{ c.score ? ' ' + c.score + '分' : '' }}
               </span>
               <div class="h h-nw" @mousedown.stop="startResize($event, c, 'nw')"/>
               <div class="h h-ne" @mousedown.stop="startResize($event, c, 'ne')"/>
@@ -67,30 +67,53 @@
             <div class="sidebar-title">已保存</div>
             <div v-for="s in savedHistory" :key="s.key" class="saved-item">
               <span class="saved-dot">&#10003;</span>
-              第{{ s.questionNums }}题 {{ s.field === 'content' ? '题干' : '答案' }}{{ s.seq }}
+              {{ s.label }}
             </div>
             <n-divider />
           </div>
 
           <div class="sidebar-title">待保存 ({{ crops.length }})</div>
-          <div v-for="(c, idx) in crops" :key="c.id"
-               class="dc-item" :class="{ active: selectedId === c.id }"
-               @click="goToCrop(c)">
-            <span class="item-color" :style="{ background: palette(idx).solid }" />
-            <div class="item-info">
-              <n-dynamic-tags size="tiny" v-model:value="c.questionNums"
-                              :max="20" class="qnum-tags" />
-              <n-select size="tiny" :value="c.field" @update:value="v => c.field = v"
-                        :options="fieldOptions" style="width:70px" />
-              <n-input size="tiny" v-model:value="c.seq" placeholder="#"
-                       style="width:32px; text-align:center" />
+          <template v-for="c in cropTree" :key="c.id">
+            <div class="dc-item" :class="{ active: selectedId === c.id }"
+                 @click="goToCrop(c)">
+              <span class="item-color" :style="{ background: palette(cropIdx(c)).solid }" />
+              <div class="item-info">
+                <n-input size="tiny" v-model:value="c.questionNum" placeholder="题号"
+                         style="width:50px" @click.stop />
+                <n-input-number size="tiny" v-model:value="c.score" :min="0" :max="200"
+                         placeholder="分" style="width:60px" @click.stop />
+                <n-select size="tiny" :value="c.field" @update:value="v => c.field = v"
+                          :options="fieldOptions" style="width:60px" @click.stop />
+              </div>
+              <n-button size="tiny" text type="error" @click.stop="deleteCrop(c.id)">✕</n-button>
             </div>
-            <n-button size="tiny" text type="error" @click.stop="deleteCrop(c.id)">✕</n-button>
-          </div>
+            <!-- 子题 -->
+            <div v-for="child in c.children" :key="child.id"
+                 class="dc-item dc-child" :class="{ active: selectedId === child.id }"
+                 @click="goToCrop(child)">
+              <span class="child-indent">└</span>
+              <span class="item-color small" :style="{ background: palette(cropIdx(child)).solid }" />
+              <div class="item-info">
+                <n-input size="tiny" v-model:value="child.questionNum" placeholder="题号"
+                         style="width:50px" @click.stop />
+                <n-input-number size="tiny" v-model:value="child.score" :min="0" :max="200"
+                         placeholder="分" style="width:60px" @click.stop />
+                <n-select size="tiny" :value="child.field" @update:value="v => child.field = v"
+                          :options="fieldOptions" style="width:60px" @click.stop />
+              </div>
+              <n-button size="tiny" text @click.stop="unindentCrop(child)" title="取消缩进">↑</n-button>
+              <n-button size="tiny" text type="error" @click.stop="deleteCrop(child.id)">✕</n-button>
+            </div>
+          </template>
 
           <n-divider v-if="crops.length" />
           <div v-if="crops.length" class="sidebar-hint">
-            题号支持多个（共享题干场景）。输入题号后按回车添加。跨页同题用相同题号，序号标记先后。
+            填写题号和分值。选中两个区域后点"设为子题"建立层级，父题题干会自动包含在子题的细则生成中。
+          </div>
+          <div v-if="crops.length > 1" style="margin-top:6px">
+            <n-button size="tiny" :disabled="!canSetChild" @click="setAsChild">
+              设为子题（选中项→归入上方）
+            </n-button>
           </div>
         </div>
       </div>
@@ -104,13 +127,14 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
-import { useMessage, NModal, NButton, NButtonGroup, NSelect, NInput, NUpload, NDivider, NDynamicTags } from 'naive-ui'
-import { renderDocPages } from '../api/cards'
+import { useMessage, NModal, NButton, NButtonGroup, NSelect, NInput, NInputNumber, NUpload, NDivider } from 'naive-ui'
+import { renderDocPages, getDocPages } from '../api/cards'
 import client from '../api/client'
 
 const props = defineProps({
   show: Boolean,
   questions: { type: Array, default: () => [] },
+  subjectId: { type: String, default: '' },
 })
 const emit = defineEmits(['update:show', 'save'])
 const message = useMessage()
@@ -147,16 +171,75 @@ const savedHistory = ref([])
 const curPageData = computed(() => pages.value[currentPage.value] || {})
 const pageCrops = computed(() => crops.value.filter(c => c.page === currentPage.value))
 
-watch(() => props.show, (v) => {
-  if (v) { nextTick(fitZoom) }
-  if (!v) { pages.value = []; crops.value = []; currentPage.value = 0; savedHistory.value = [] }
+watch(() => props.show, async (v) => {
+  if (v) {
+    loadSavedHistory()
+    restoreCrops()
+    if (!pages.value.length && props.subjectId) await loadExistingPages()
+    nextTick(fitZoom)
+  }
+  if (!v) { saveCropsToStorage(); selectedId.value = null }
 })
+
+function loadSavedHistory() {
+  if (!props.questions || !props.questions.length) return
+  savedHistory.value = []
+  for (const q of props.questions) {
+    const name = q.name || q.question_name || ''
+    const contentCount = q.content_image_count || (q.content_images || []).length || 0
+    const answerCount = q.answer_image_count || (q.reference_answer_images || []).length || 0
+    if (contentCount) {
+      savedHistory.value.push({ key: `${name}-content`, label: `第${name}题 题干 ${contentCount}图` })
+    }
+    if (answerCount) {
+      savedHistory.value.push({ key: `${name}-answer`, label: `第${name}题 答案 ${answerCount}图` })
+    }
+  }
+}
+
+async function loadExistingPages() {
+  try {
+    const res = await getDocPages(props.subjectId)
+    const rawPages = res.data.pages || []
+    if (!rawPages.length) return
+    for (const pg of rawPages) {
+      try {
+        const resp = await client.get('/card/doc-page-image', {
+          params: { path: pg.image_url }, responseType: 'blob', timeout: 30000,
+        })
+        pg.image_url = URL.createObjectURL(resp.data)
+      } catch {}
+    }
+    pages.value = rawPages
+    currentPage.value = 0
+  } catch {}
+}
+
+const storageKey = computed(() => props.subjectId ? `doc-crop-${props.subjectId}` : '')
+
+function saveCropsToStorage() {
+  if (!storageKey.value || !crops.value.length) return
+  const data = crops.value.map(c => ({
+    id: c.id, page: c.page, questionNum: c.questionNum,
+    score: c.score, parentId: c.parentId, seq: c.seq, field: c.field, rect: c.rect,
+  }))
+  try { localStorage.setItem(storageKey.value, JSON.stringify(data)) } catch {}
+}
+
+function restoreCrops() {
+  if (!storageKey.value) return
+  try {
+    const raw = localStorage.getItem(storageKey.value)
+    if (raw) crops.value = JSON.parse(raw)
+  } catch {}
+}
 
 async function handleUpload({ file }) {
   uploading.value = true
   try {
     const formData = new FormData()
     formData.append('file', file.file)
+    if (props.subjectId) formData.append('subject_id', props.subjectId)
     const res = await renderDocPages(formData)
     const rawPages = res.data.pages || []
     for (const pg of rawPages) {
@@ -290,7 +373,9 @@ function onMouseUp() {
       const crop = {
         id: 'C' + Date.now(),
         page: currentPage.value,
-        questionNums: [],
+        questionNum: '',
+        score: null,
+        parentId: null,
         seq: '1',
         field: 'content',
         rect: {
@@ -318,48 +403,90 @@ function goToCrop(c) {
   if (c.page !== currentPage.value) currentPage.value = c.page
 }
 
+// 层级相关
+const cropTree = computed(() => {
+  const topLevel = crops.value.filter(c => !c.parentId)
+  return topLevel.map(c => ({
+    ...c,
+    children: crops.value.filter(ch => ch.parentId === c.id),
+  }))
+})
+
+function cropIdx(c) { return Math.max(0, crops.value.findIndex(x => x.id === c.id)) }
+
+const canSetChild = computed(() => {
+  if (!selectedId.value) return false
+  const sel = crops.value.find(c => c.id === selectedId.value)
+  if (!sel || sel.parentId) return false
+  const idx = crops.value.indexOf(sel)
+  const above = crops.value.slice(0, idx).filter(c => !c.parentId)
+  return above.length > 0
+})
+
+function setAsChild() {
+  const sel = crops.value.find(c => c.id === selectedId.value)
+  if (!sel) return
+  const idx = crops.value.indexOf(sel)
+  const above = crops.value.slice(0, idx).filter(c => !c.parentId)
+  if (!above.length) return
+  sel.parentId = above[above.length - 1].id
+}
+
+function unindentCrop(c) { c.parentId = null }
+
+async function cropToBlob(c) {
+  const pg = pages.value[c.page]
+  const img = new Image()
+  await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = pg.image_url })
+  const canvas = document.createElement('canvas')
+  const { x1, y1, x2, y2 } = c.rect
+  canvas.width = x2 - x1; canvas.height = y2 - y1
+  canvas.getContext('2d').drawImage(img, x1, y1, x2 - x1, y2 - y1, 0, 0, x2 - x1, y2 - y1)
+  return new Promise(r => canvas.toBlob(r, 'image/png'))
+}
+
 async function handleSave() {
-  const incomplete = crops.value.filter(c => !c.questionNums.length)
+  const incomplete = crops.value.filter(c => !c.questionNum)
   if (incomplete.length) {
     message.warning('有区域未填写题号')
     return
   }
   saving.value = true
   try {
-    const results = []
+    const blobMap = {}
     for (const c of crops.value) {
-      const pg = pages.value[c.page]
-      const img = new Image()
-      await new Promise((resolve, reject) => {
-        img.onload = resolve
-        img.onerror = reject
-        img.src = pg.image_url
-      })
-      const canvas = document.createElement('canvas')
-      const { x1, y1, x2, y2 } = c.rect
-      canvas.width = x2 - x1
-      canvas.height = y2 - y1
-      canvas.getContext('2d').drawImage(img, x1, y1, x2 - x1, y2 - y1, 0, 0, x2 - x1, y2 - y1)
-      const blob = await new Promise(r => canvas.toBlob(r, 'image/png'))
-      const seq = parseInt(c.seq, 10) || 1
-      for (const qn of c.questionNums) {
-        results.push({ questionNum: qn, field: c.field, seq, blob })
+      blobMap[c.id] = await cropToBlob(c)
+    }
+
+    const results = []
+    for (const node of cropTree.value) {
+      const seq = parseInt(node.seq, 10) || 1
+      if (node.children.length === 0) {
+        results.push({ questionNum: node.questionNum, field: node.field, seq, blob: blobMap[node.id], score: node.score })
+      } else {
+        const parentBlob = blobMap[node.id]
+        for (const child of node.children) {
+          const childSeq = parseInt(child.seq, 10) || 1
+          results.push({ questionNum: child.questionNum, field: child.field, seq: childSeq, blob: blobMap[child.id], score: child.score,
+            parentBlob, parentQuestionNum: node.questionNum })
+        }
       }
     }
+
     results.sort((a, b) => a.seq - b.seq)
     emit('save', results)
+
     for (const c of crops.value) {
+      const parent = c.parentId ? crops.value.find(p => p.id === c.parentId) : null
       savedHistory.value.push({
-        key: `${c.questionNums.join(',')}-${c.field}-${c.seq}-${Date.now()}`,
-        questionNums: c.questionNums.join(','),
-        field: c.field,
-        seq: (parseInt(c.seq, 10) || 1) > 1 ? `#${c.seq}` : '',
+        key: `${c.questionNum}-${c.field}-${Date.now()}`,
+        label: `${parent ? '  └ ' : ''}第${c.questionNum}题 ${c.field === 'content' ? '题干' : '答案'}${c.score ? ' ' + c.score + '分' : ''}`,
       })
     }
     crops.value = []
     selectedId.value = null
-    const cropCount = results.length
-    message.success(`已保存到 ${cropCount} 个题目，可继续标注`)
+    if (storageKey.value) try { localStorage.removeItem(storageKey.value) } catch {}
+    message.success(`已保存 ${results.length} 个区域，可继续标注`)
   } catch (e) {
     message.error('裁剪保存失败: ' + e.message)
   } finally {
@@ -426,9 +553,9 @@ async function handleSave() {
 .dc-item.active { background: #1a3020; border: 1px solid #3a6040; }
 .item-color { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .item-info { display: flex; gap: 4px; flex: 1; min-width: 0; align-items: center; flex-wrap: wrap; }
-.qnum-tags { flex: 1; min-width: 80px; }
-.qnum-tags :deep(.n-tag) { font-size: 11px; height: 20px; padding: 0 4px; }
-.qnum-tags :deep(.n-dynamic-tags .n-button) { height: 20px; font-size: 11px; }
+.dc-child { padding-left: 16px; }
+.child-indent { color: #555; font-size: 12px; margin-right: 2px; flex-shrink: 0; }
+.item-color.small { width: 7px; height: 7px; }
 
 .dc-empty { display: flex; align-items: center; justify-content: center; flex: 1; color: #8a9a8e; font-size: 14px; }
 </style>

@@ -1228,6 +1228,7 @@ async def publish_card(
 @router.post("/render-doc-pages")
 async def render_doc_pages(
     file: UploadFile = File(...),
+    subject_id: str = Form(None),
     current: dict = Depends(get_current_user),
 ):
     """将上传的 Word/PDF 文档渲染为页面图片，返回每页 URL 和尺寸。"""
@@ -1238,7 +1239,6 @@ async def render_doc_pages(
     if not filename.endswith((".docx", ".pdf")):
         raise HTTPException(400, "仅支持 .docx 或 .pdf 格式")
 
-    # 1. Save uploaded file to temp
     suffix = ".pdf" if filename.endswith(".pdf") else ".docx"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         content = await file.read()
@@ -1246,7 +1246,6 @@ async def render_doc_pages(
         tmp_path = tmp.name
 
     try:
-        # 2. Open document with pymupdf
         try:
             doc = fitz.open(tmp_path)
         except Exception as exc:
@@ -1261,13 +1260,14 @@ async def render_doc_pages(
             doc.close()
             raise HTTPException(400, "文档无内容（0 页）")
 
-        # 3. Prepare output directory
-        batch_id = uuid4().hex
+        batch_id = subject_id or uuid4().hex
         upload_root = Path(settings.UPLOAD_DIR).resolve()
         out_dir = upload_root / "doc-pages" / batch_id
+        if out_dir.exists():
+            import shutil
+            shutil.rmtree(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # 4. Render each page to PNG
         dpi = 200
         zoom = dpi / 72
         matrix = fitz.Matrix(zoom, zoom)
@@ -1291,6 +1291,35 @@ async def render_doc_pages(
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
+    return {"pages": pages}
+
+
+@router.get("/doc-pages")
+async def get_doc_pages(
+    subject_id: str,
+    current: dict = Depends(get_current_user),
+):
+    """查询科目已有的文档页面图片。"""
+    from edu_cloud.config import settings
+    upload_root = Path(settings.UPLOAD_DIR).resolve()
+    out_dir = upload_root / "doc-pages" / subject_id
+    if not out_dir.is_dir():
+        return {"pages": []}
+    from PIL import Image as PILImage
+    pages = []
+    for img_path in sorted(out_dir.glob("page_*.png")):
+        try:
+            with PILImage.open(img_path) as im:
+                w, h = im.size
+        except Exception:
+            continue
+        i = int(img_path.stem.split("_")[1])
+        pages.append({
+            "page_num": i,
+            "image_url": f"/uploads/doc-pages/{subject_id}/{img_path.name}",
+            "width": w,
+            "height": h,
+        })
     return {"pages": pages}
 
 

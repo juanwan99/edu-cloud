@@ -176,7 +176,7 @@ frontend/src/
       KnowledgeHeatmap.vue    # 知识点掌握热力图（班级×知识点，vue-echarts）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
-  api/                      # API 调用层（19 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染；exams.js 考试CRUD+archiveExam；bank.js 错题本4端点；jointExams.js 联考11端点；calendar.js 校历3端点）
+  api/                      # API 调用层（19 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages/getDocPages 文档渲染；exams.js 考试CRUD+archiveExam；bank.js 错题本4端点；jointExams.js 联考11端点；calendar.js 校历3端点）
   config/
     roles.js                # 8 角色枚举 + 旧别名映射 + normalizeRole()
     permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
@@ -505,7 +505,7 @@ tests/
 | GET/POST | `/api/v1/classes`, `/api/v1/students` | 班级/学生管理（含 grade/selection/subject_code 过滤 + 导入导出） |
 | GET | `/api/v1/grades` | 年级列表 |
 | * | `/api/v1/teachers` | 教师 CRUD + 导入导出（15 列档案 + 角色/学科/班级） |
-| * | `/api/v1/card/*` | 答题卡生成/骨架/条码/编辑器布局CRUD/小微排版/文档渲染（24 端点，含 upload-answer + auto-layout + 3 Agent 工具 + render-doc-pages） |
+| * | `/api/v1/card/*` | 答题卡生成/骨架/条码/编辑器布局CRUD/小微排版/文档渲染（25 端点，含 upload-answer + auto-layout + 3 Agent 工具 + render-doc-pages + get doc-pages） |
 | * | `/api/v1/templates/*` | 模板 CRUD |
 | * | `/api/v1/scan/*` | 扫描上传/任务管理 |
 | POST | `/api/v1/scan/pipeline/scan-dir` | 扫描目录结构，返回科目子文件夹和图片统计 |

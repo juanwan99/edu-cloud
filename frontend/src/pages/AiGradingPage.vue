@@ -175,6 +175,7 @@
     <DocCropPanel
       v-model:show="showDocCrop"
       :questions="questions"
+      :subject-id="subjectId"
       @save="handleDocCropSave"
     />
   </div>
@@ -535,6 +536,18 @@ async function handleDocCropSave(results) {
     }
     try {
       const paths = []
+      // 先上传父题题干（如果有层级关系）
+      const parentBlobs = items.filter(it => it.parentBlob).map(it => it.parentBlob)
+      const seenParents = new Set()
+      for (const pb of parentBlobs) {
+        const pbKey = pb.size
+        if (seenParents.has(pbKey)) continue
+        seenParents.add(pbKey)
+        const parentFile = new File([pb], `crop_${questionNum}_parent_stem.png`, { type: 'image/png' })
+        const uploadRes = await uploadQuestionImage(q.question_id, parentFile)
+        if (uploadRes.data?.path) paths.push(uploadRes.data.path)
+      }
+      // 再上传子题自身的裁剪
       for (const item of items) {
         const file = new File([item.blob], `crop_${questionNum}_${field}_${items.indexOf(item) + 1}.png`, { type: 'image/png' })
         const uploadRes = await uploadQuestionImage(q.question_id, file)
@@ -550,6 +563,11 @@ async function handleDocCropSave(results) {
           : { reference_answer_images: [...existing, ...paths] }
         await updateQuestionContent(q.question_id, payload)
         ok += paths.length
+      }
+      // 同步分值（如果裁剪时填了分值）
+      const scoreItem = items.find(it => it.score != null)
+      if (scoreItem && scoreItem.score > 0) {
+        try { await updateQuestion(q.question_id, { max_score: scoreItem.score }) } catch {}
       }
     } catch (e) {
       message.error(`题号 ${questionNum} 保存失败`)
