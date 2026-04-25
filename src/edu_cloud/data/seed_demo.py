@@ -191,6 +191,10 @@ async def seed_demo_data(db: AsyncSession, school_code: str = "TEST01") -> dict:
     from edu_cloud.data.seed_knowledge_math import seed_math_knowledge
     kp_created = await seed_math_knowledge(db)
 
+    from edu_cloud.data.seed_knowledge_biology import seed_biology_knowledge
+    bio_created = await seed_biology_knowledge(db, db_path="./edu-knowledge-base/knowledge.db")
+    kp_created += bio_created
+
     # 查知识点 code → id 映射
     kp_result = await db.execute(select(KnowledgePoint).where(KnowledgePoint.course_code == "SX"))
     kp_map = {kp.code: kp.id for kp in kp_result.scalars().all()}
