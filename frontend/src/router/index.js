@@ -67,6 +67,17 @@ export const routes = [
       { path: 'school-settings', name: 'SchoolSettings', component: () => import('../pages/SchoolSettingsPage.vue'), meta: { permissions: ['manage_school_config'] } },
       { path: 'assignments', name: 'TeacherAssignments', component: () => import('../pages/TeacherAssignmentsPage.vue'), meta: { permissions: ['manage_scheduling'] } },
       { path: 'selections', name: 'SubjectSelections', component: () => import('../pages/SubjectSelectionsPage.vue'), meta: { permissions: ['manage_scheduling'] } },
+
+      // 德育管理
+      { path: 'conduct', name: 'ConductDashboard', component: () => import('../pages/conduct/ConductDashboard.vue'), meta: { permissions: ['view_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/points', name: 'ConductPoints', component: () => import('../pages/conduct/ConductPoints.vue'), meta: { permissions: ['manage_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/rules', name: 'ConductRules', component: () => import('../pages/conduct/ConductRules.vue'), meta: { permissions: ['manage_conduct_rules'], moduleCode: 'conduct' } },
+      { path: 'conduct/rankings', name: 'ConductRankings', component: () => import('../pages/conduct/ConductRankings.vue'), meta: { permissions: ['view_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/records', name: 'ConductRecords', component: () => import('../pages/conduct/ConductRecords.vue'), meta: { permissions: ['view_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/groups', name: 'ConductGroups', component: () => import('../pages/conduct/ConductGroups.vue'), meta: { permissions: ['manage_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/settings', name: 'ConductSettings', component: () => import('../pages/conduct/ConductSettings.vue'), meta: { permissions: ['manage_conduct_parents'], moduleCode: 'conduct' } },
+      { path: 'conduct/export', name: 'ConductExport', component: () => import('../pages/conduct/ConductExport.vue'), meta: { permissions: ['export_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/parents', name: 'ConductParents', component: () => import('../pages/conduct/ConductParents.vue'), meta: { permissions: ['manage_conduct_parents'], moduleCode: 'conduct' } },
     ]
   },
 

@@ -43,9 +43,9 @@ describe('Route definitions (real routes)', () => {
     expect(routes).toHaveLength(6)
   })
 
-  it('AppShell has 29 child routes', () => {
+  it('AppShell has 38 child routes', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
-    expect(shell.children).toHaveLength(29)
+    expect(shell.children).toHaveLength(38)
   })
 
   it('calendar route requires view_scores permission', () => {
