@@ -56,10 +56,41 @@
         :bordered="false"
         size="small"
         style="margin-top: 16px;"
+        :row-props="(row) => ({ style: 'cursor: pointer;', onClick: () => showDetail(row) })"
       />
       <n-empty v-else-if="selectedStudentId && !loading" description="暂无错题记录" style="margin-top: 40px;" />
       <n-empty v-else-if="!selectedStudentId" description="请先选择学生" style="margin-top: 40px;" />
     </n-spin>
+
+    <!-- 详情弹窗 -->
+    <n-modal v-model:show="detailVisible" preset="card" style="width: 600px;" title="错题详情">
+      <template v-if="detailRow">
+        <div class="detail-section">
+          <div class="detail-row"><span class="detail-label">题目 ID</span><span>{{ detailRow.question_id }}</span></div>
+          <div class="detail-row"><span class="detail-label">考试 ID</span><span>{{ detailRow.exam_id }}</span></div>
+          <div class="detail-row"><span class="detail-label">得分</span><span>{{ detailRow.student_score }} / {{ detailRow.max_score }}</span></div>
+          <div class="detail-row">
+            <span class="detail-label">掌握状态</span>
+            <n-tag size="small" :type="(STATUS_MAP[detailRow.mastery_status] || {}).type || 'default'">
+              {{ (STATUS_MAP[detailRow.mastery_status] || {}).label || detailRow.mastery_status }}
+            </n-tag>
+          </div>
+          <div class="detail-row"><span class="detail-label">错误类型</span><span>{{ detailRow.error_type || '-' }}</span></div>
+          <div class="detail-row"><span class="detail-label">重做次数</span><span>{{ detailRow.retry_count }} 次</span></div>
+          <div class="detail-row"><span class="detail-label">收藏</span><span>{{ detailRow.is_starred ? '★ 已收藏' : '未收藏' }}</span></div>
+        </div>
+        <div class="detail-section" v-if="detailRow.ai_feedback" style="margin-top: 16px;">
+          <h4 style="margin: 0 0 8px; font-size: 14px;">AI 反馈</h4>
+          <div class="detail-feedback">{{ detailRow.ai_feedback }}</div>
+        </div>
+        <div class="detail-section" v-if="detailRow.knowledge_point_ids?.length" style="margin-top: 16px;">
+          <h4 style="margin: 0 0 8px; font-size: 14px;">关联知识点</h4>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <n-tag v-for="kp in detailRow.knowledge_point_ids" :key="kp" size="small">{{ kp }}</n-tag>
+          </div>
+        </div>
+      </template>
+    </n-modal>
   </div>
 </template>
 
@@ -77,6 +108,8 @@ const statusFilter = ref('')
 const loading = ref(false)
 const studentsLoading = ref(false)
 const stats = ref(null)
+const detailVisible = ref(false)
+const detailRow = ref(null)
 const errors = ref([])
 const studentOptions = ref([])
 
@@ -134,6 +167,11 @@ const columns = computed(() => [
     render: (row) => row.is_starred ? '★' : '-',
   },
 ])
+
+function showDetail(row) {
+  detailRow.value = row
+  detailVisible.value = true
+}
 
 async function searchStudents(query) {
   studentsLoading.value = true
@@ -229,5 +267,35 @@ onMounted(async () => {
   font-size: 12px;
   color: var(--color-text-muted);
   margin-top: 6px;
+}
+
+.detail-section {
+  background: var(--color-bg-alt, #f9f9f9);
+  border-radius: var(--radius-lg, 8px);
+  padding: 16px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+  border-bottom: 1px solid var(--color-border-light, #eee);
+}
+.detail-row:last-child { border-bottom: none; }
+
+.detail-label {
+  color: var(--color-text-muted);
+  min-width: 80px;
+}
+
+.detail-feedback {
+  background: white;
+  padding: 12px;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-line;
+  border: 1px solid var(--color-border-light, #eee);
 }
 </style>
