@@ -20,10 +20,11 @@ def _school_id(current: dict) -> str:
 
 def _bank_question_response(q) -> dict:
     return {
-        "id": q.id, "question_id": q.question_id, "exam_id": q.exam_id,
+        "id": q.id, "source_question_id": q.source_question_id,
+        "source_exam_id": q.source_exam_id,
         "question_type": q.question_type, "max_score": q.max_score,
         "difficulty": q.difficulty, "discrimination": q.discrimination,
-        "common_errors": q.common_errors, "attempt_count": q.attempt_count,
+        "common_errors": q.common_errors, "sample_count": q.sample_count,
     }
 
 
