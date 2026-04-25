@@ -347,7 +347,7 @@ tests/
 **前端（`frontend/`）：**
 - Vite 7 + Vue 3.5 (Composition API)
 - Naive UI 2.44（暗色主题）
-- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 29 子路由含 analytics 3 + profile 1 + error-book 1 + joint-exams 2 + calendar 1；完整 44 路由冻结于 _frozen/）
+- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 29 子路由 + 家长端 7 路由（独立 ParentLayout + cp_token 认证）；完整 44 路由冻结于 _frozen/）
 - Pinia 3（状态管理）
 - Axios（HTTP 客户端，baseURL `/api/v1`）
 - ECharts 6 + vue-echarts（图表）
