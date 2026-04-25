@@ -46,6 +46,8 @@ const TEACHER_GRADING_ITEMS = [
 const ANALYTICS_ITEMS = [
   { icon: 'chart', label: '分析报告', route: '/analytics/report', moduleCode: 'study_analytics' },
   { icon: 'chart', label: '成绩趋势', route: '/analytics/trend', moduleCode: 'study_analytics' },
+  { icon: 'chart', label: '年级分析', route: '/analytics/grade', moduleCode: 'study_analytics' },
+  { icon: 'score', label: '题库搜索', route: '/question-bank', moduleCode: 'study_analytics' },
   { icon: 'score', label: '错题本', route: '/error-book', moduleCode: 'study_analytics' },
 ]
 
@@ -70,6 +72,7 @@ const CALENDAR_ITEMS = [
 const SCHEDULING_ITEMS = [
   { icon: 'settings', label: '学期管理', route: '/academic/semesters' },
   { icon: 'exam', label: '课程表', route: '/academic/timetable' },
+  { icon: 'exam', label: '教学计划', route: '/academic/teaching-plans' },
   { icon: 'settings', label: '教师分配', route: '/assignments' },
   { icon: 'exam', label: '选科管理', route: '/selections' },
 ]

@@ -744,3 +744,52 @@ async def get_layer_analysis(
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
     )
+
+
+# --- 年级聚合分析 (WP-D) ---
+
+from edu_cloud.modules.analytics.grade_service import (
+    get_grade_overview, get_grade_exam_trend, get_grade_subject_comparison,
+)
+
+
+@router.get("/grade/{grade_id}/overview")
+async def grade_overview(
+    grade_id: str,
+    exam_id: str = Query(..., description="考试 ID"),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """年级概览：某次考试中该年级各班级的聚合数据。"""
+    role = current["current_role"]
+    return await get_grade_overview(
+        db, school_id=role.school_id, grade_id=grade_id, exam_id=exam_id,
+    )
+
+
+@router.get("/grade/{grade_id}/trend")
+async def grade_exam_trend(
+    grade_id: str,
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """年级考情趋势：该年级最近 N 次考试的年级级别聚合。"""
+    role = current["current_role"]
+    return await get_grade_exam_trend(
+        db, school_id=role.school_id, grade_id=grade_id, limit=limit,
+    )
+
+
+@router.get("/grade/{grade_id}/subjects")
+async def grade_subject_comparison(
+    grade_id: str,
+    exam_id: str = Query(..., description="考试 ID"),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """年级科目对比：某次考试中该年级各科目的聚合数据。"""
+    role = current["current_role"]
+    return await get_grade_subject_comparison(
+        db, school_id=role.school_id, grade_id=grade_id, exam_id=exam_id,
+    )

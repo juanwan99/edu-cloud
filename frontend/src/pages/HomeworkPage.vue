@@ -5,7 +5,10 @@
         <h1 class="page-title">作业管理</h1>
         <p class="page-subtitle">布置、发布、批改作业</p>
       </div>
-      <n-button type="primary" @click="showCreate = true">布置作业</n-button>
+      <n-space>
+        <n-button type="primary" @click="showCreate = true">布置作业</n-button>
+        <n-button type="warning" @click="showRemedial = true">考后推送</n-button>
+      </n-space>
     </div>
 
     <!-- 筛选栏 -->
@@ -61,14 +64,54 @@
       </div>
       <n-data-table :columns="subColumns" :data="submissions" :bordered="false" size="small" :pagination="{ pageSize: 30 }" />
     </n-modal>
+
+    <!-- 考后推送弹窗 -->
+    <n-modal v-model:show="showRemedial" preset="dialog" title="考后推送" positive-text="创建补救作业" negative-text="取消"
+      @positive-click="handleCreateRemedial" style="width: 520px;">
+      <n-form label-placement="left" label-width="70">
+        <n-form-item label="选择考试">
+          <n-select v-model:value="remedialForm.exam_id" :options="examOptions" placeholder="选择考试" filterable
+            @update:value="handleExamSelect" />
+        </n-form-item>
+        <n-form-item label="选择班级">
+          <n-select v-model:value="remedialForm.class_id" :options="classOptions" placeholder="选择班级" />
+        </n-form-item>
+        <div v-if="remedialPreview" style="margin-top: 8px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 6px;">
+          <p style="margin: 0 0 8px; font-weight: 500;">预览：将推送 {{ remedialPreview.high_error_count }} 道高错题相关练习</p>
+          <n-tag v-if="remedialPreview.high_error_count === 0" type="info" size="small">该考试无高错题，将创建空内容作业</n-tag>
+        </div>
+      </n-form>
+    </n-modal>
+
+    <!-- 关联题目详情弹窗 -->
+    <n-modal v-model:show="showContentDetail" preset="card" title="关联题目" style="width: 700px;">
+      <n-empty v-if="!contentDetailQuestions.length" description="暂无关联题目" />
+      <n-list v-else bordered>
+        <n-list-item v-for="q in contentDetailQuestions" :key="q.id">
+          <n-thing>
+            <template #header>
+              <n-space align="center" size="small">
+                <n-tag :type="q.question_type === 'choice' ? 'info' : q.question_type === 'fill' ? 'warning' : 'success'" size="small">
+                  {{ { choice: '选择', fill: '填空', essay: '解答' }[q.question_type] || q.question_type }}
+                </n-tag>
+                <span>满分 {{ q.max_score }}</span>
+                <n-tag v-if="q.difficulty != null" size="small">难度 {{ q.difficulty }}</n-tag>
+              </n-space>
+            </template>
+            <template #description>{{ q.content_text || '(无题干)' }}</template>
+          </n-thing>
+        </n-list-item>
+      </n-list>
+    </n-modal>
   </div>
 </template>
 
 <script setup>
 import { ref, h, computed, onMounted } from 'vue'
 import { NButton, NTag, NSpace, NInputNumber, useMessage, useDialog } from 'naive-ui'
-import { listTasks, createTask, publishTask, closeTask, deleteTask, listSubmissions, gradeSingle } from '../api/homework.js'
+import { listTasks, createTask, publishTask, closeTask, deleteTask, listSubmissions, gradeSingle, createFromExam, getContentDetail } from '../api/homework.js'
 import { listClasses } from '../api/students.js'
+import { listExams } from '../api/exams.js'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -78,9 +121,15 @@ const classes = ref([])
 
 const showCreate = ref(false)
 const showSubmissions = ref(false)
+const showRemedial = ref(false)
+const showContentDetail = ref(false)
 const submissions = ref([])
 const taskStats = ref(null)
 const currentTaskId = ref(null)
+const exams = ref([])
+const remedialForm = ref({ exam_id: null, class_id: null })
+const remedialPreview = ref(null)
+const contentDetailQuestions = ref([])
 
 const filterStatus = ref(null)
 const filterSubject = ref(null)
@@ -103,7 +152,8 @@ const classOptions = computed(() => classes.value.map(c => ({ value: c.id, label
 
 const statusColor = { draft: 'default', active: 'success', expired: 'warning', closed: 'error' }
 const statusLabel = { draft: '草稿', active: '进行中', expired: '已截止', closed: '已关闭' }
-const typeLabel = { regular: '常规', pre_exam: '考前', post_exam: '考后' }
+const typeLabel = { regular: '常规', pre_exam: '考前', post_exam: '考后', remedial: '补救' }
+const examOptions = computed(() => exams.value.map(e => ({ value: e.id, label: e.name })))
 
 const columns = [
   { title: '标题', key: 'title', ellipsis: { tooltip: true } },
@@ -119,6 +169,7 @@ const columns = [
     title: '操作', key: 'actions', width: 200,
     render: (row) => h(NSpace, { size: 4 }, { default: () => [
       h(NButton, { text: true, type: 'info', size: 'small', onClick: () => openSubmissions(row) }, { default: () => '详情' }),
+      (row.task_type === 'remedial' || row.task_type === 'post_exam') ? h(NButton, { text: true, type: 'info', size: 'small', onClick: () => openContentDetail(row) }, { default: () => '题目' }) : null,
       row.status === 'draft' ? h(NButton, { text: true, type: 'success', size: 'small', onClick: () => handlePublish(row) }, { default: () => '发布' }) : null,
       row.status === 'active' ? h(NButton, { text: true, type: 'warning', size: 'small', onClick: () => handleClose(row) }, { default: () => '关闭' }) : null,
       row.status === 'draft' ? h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' }) : null,
@@ -211,9 +262,50 @@ async function openSubmissions(row) {
   } catch { message.error('加载提交列表失败') }
 }
 
+async function handleExamSelect() {
+  // 简单预览：选择考试后显示提示
+  if (remedialForm.value.exam_id) {
+    remedialPreview.value = { high_error_count: '?' }
+  } else {
+    remedialPreview.value = null
+  }
+}
+
+async function handleCreateRemedial() {
+  if (!remedialForm.value.exam_id || !remedialForm.value.class_id) {
+    message.warning('请选择考试和班级')
+    return
+  }
+  try {
+    await createFromExam(remedialForm.value.exam_id, remedialForm.value.class_id)
+    message.success('补救作业创建成功')
+    showRemedial.value = false
+    remedialForm.value = { exam_id: null, class_id: null }
+    remedialPreview.value = null
+    await loadTasks()
+  } catch (e) {
+    message.error(e.response?.data?.detail || '创建失败')
+  }
+}
+
+async function openContentDetail(row) {
+  showContentDetail.value = true
+  contentDetailQuestions.value = []
+  try {
+    const { data } = await getContentDetail(row.id)
+    contentDetailQuestions.value = data.questions || []
+  } catch {
+    message.error('加载题目详情失败')
+  }
+}
+
 async function init() {
-  const { data } = await listClasses().catch(() => ({ data: [] }))
-  classes.value = Array.isArray(data) ? data : (data?.items || [])
+  const [classesRes, examsRes] = await Promise.all([
+    listClasses().catch(() => ({ data: [] })),
+    listExams().catch(() => ({ data: [] })),
+  ])
+  classes.value = Array.isArray(classesRes.data) ? classesRes.data : (classesRes.data?.items || [])
+  exams.value = Array.isArray(examsRes.data) ? examsRes.data : (examsRes.data?.items || [])
   await loadTasks()
 }
 

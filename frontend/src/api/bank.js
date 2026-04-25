@@ -11,3 +11,15 @@ export const listBankQuestions = (params) =>
 
 export const getBankQuestion = (questionId) =>
   client.get(`/bank/questions/${questionId}`)
+
+export const getErrorKnowledgeSummary = (studentId) =>
+  client.get(`/bank/error-book/${studentId}/knowledge-summary`)
+
+export const getRecommendedPractice = (studentId, limit = 10) =>
+  client.get(`/bank/error-book/${studentId}/recommendations`, { params: { limit } })
+
+export const searchQuestions = (params) =>
+  client.get('/bank/questions/search', { params })
+
+export const getQuestionBankStats = () =>
+  client.get('/bank/questions/stats/overview')

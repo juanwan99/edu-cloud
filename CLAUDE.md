@@ -85,8 +85,8 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-04-25：2202 passed / 23 skipped / 2 failed (alembic downgrade + dispatch stage deferred)
-# analytics T1-T6 + profile 画像页 + academic 教务页 + homework 作业页 完成
+# 后端 ECS pytest 实测 @ 2026-04-26：2230 passed / 23 skipped / 2 failed (alembic downgrade + dispatch stage deferred)
+# WP-A~E 服务层恢复：+28 tests（bank search/recommendations/grade analytics/teaching plans/homework remedial）
 # 唯一 FAIL: test_alembic_s1a_bank.py::test_upgrade_then_downgrade_is_clean（S1-A downgrade 可逆性，deferred）
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
@@ -113,6 +113,7 @@ frontend/src/
     AnalyticsPage.vue       # 成绩分析（ECharts）
     AnalyticsReportPage.vue # 分析报告（多考试+多指标查询，ECharts 分段柱图）
     AnalyticsTrendPage.vue  # 成绩趋势（年级/班级/学生维度折线图+暗色适配+双Y轴+导出图片+对比模式+指标选择）
+    GradeAnalyticsPage.vue  # 年级分析（班级对比+趋势+科目分布，WP-D）
     GradingDispatchPage.vue # 扫描调度中心（扫描→选择题→校对全流程）
     AiGradingPage.vue       # 题目级 AI 阅卷（考试/科目选择器 + 左右分栏：题号排序列表(状态标签+图片计数) + 内容/细则/阅卷操作；含文档裁剪入口、图片删除、多图追加）
     GradingResultsPage.vue  # 阅卷结果（含返回按钮）
@@ -129,6 +130,8 @@ frontend/src/
     TeacherAssignmentsPage.vue # 教师排课管理
     StudentsPage.vue        # 学生管理（列表/搜索/导入导出/选科分配）
     TeachersPage.vue        # 教师管理（列表/创建/导入导出/15列档案；platform_admin 跨校创建 principal/academic_director）
+    QuestionBankPage.vue    # 题库搜索（多条件筛选+分页+统计概览，WP-A）
+    TeachingPlanPage.vue    # 教学计划管理（CRUD+学期/科目/年级筛选，WP-E）
     CardEditorDevPage.vue   # 答题卡编辑器开发页（含返回按钮）
     KnowledgeTreePage.vue  # 知识图谱可视化（AntV G6 + 三级树导航 + 掌握度着色 + 搜索过滤 + Phase 2 教师工作台：ModuleOverviewPanel/ConceptMapPanel 互斥路由 + BigConcept 分带 + ConceptFocusOverlay 焦点模式 + ESC/canvas 退出；Phase 2.5：buildVisibleEdgeList helper + relatedNodeIds/relatedEdgeIds computed + G6 node.state.faded/edge.state.dimmed·emphasized + updateElementStates + createGraph 末尾焦点重放 + G6 Tooltip plugin 徽标悬停（hover + enable 谓词 + async getContent + HTML escape）；Phase 1 T9-T10：ColorModeToggle 三模式切换 + heatmapUtils（log 尺度考频热力色 + 4 态掌握度 + 3 态审核状态 + importance→size [20,60]）；ConceptMapPanel buildG6Data 每节点 style.size/fill 按 colorMode 三分支 + watch colorMode setData/render 保留 focusedNodeId + defineExpose buildG6Data；KnowledgeTreePage selectedStudentId 从 useKnowledgeTree 解构（单一真源，R2 F001 修复 state 分裂）；GraphPanel.vue 已删除）
     parent/                 # 家长端页面（独立于 AppShell，cp_token 认证）
@@ -188,7 +191,7 @@ frontend/src/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
-  router/                   # Vue Router（活跃 29 路由含 /ai-grading 无参入口 + analytics 3 + profile 1 + error-book 1 + joint-exams 2 + calendar 1 + academic 2 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
+  router/                   # Vue Router（活跃 41 子路由含 /ai-grading 无参入口 + analytics 4 + profile 1 + error-book 1 + joint-exams 2 + calendar 1 + academic 3 + question-bank 1 + homework 1 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -325,13 +328,13 @@ tests/
 
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
-| API | 276 路由（含 academic 10 + exam schedule 2 + analytics 进阶 8） | 共享 AI 阅卷 |
+| API | 304 路由（含 academic 15 + exam schedule 2 + analytics 进阶 11 + bank search 2 + homework remedial 2） | 共享 AI 阅卷 |
 | Models | 88 表（modules/ 下 18 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表 + academic 3 表 + alembic_version） | — |
-| Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline + exceptions | AI grading 生产接入 |
+| Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline/GradeAnalytics/TeachingPlan + exceptions | AI grading 生产接入 |
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 8 角色映射 | — |
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 2202 后端 pytest（ECS 实测 @ 2026-04-26） | — |
+| Tests | 2230 后端 pytest + 348 前端 vitest（ECS 实测 @ 2026-04-26） | — |
 | Modules | 21 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu/academic），路由已迁入；其中 `adaptive`/`paper` 为内部/基础数据模块；`academic` 含 semester/period/timetable 完整 CRUD；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
 | Migrations | Alembic migration（88 表，31 个迁移，含 S1-A T2 `a88094ee4ea6` bank_question +5 列） | — |
 
@@ -557,6 +560,9 @@ tests/
 | GET | `/api/v1/analytics/exam/{id}/class-diagnosis` | 已登录 | 三维班级诊断（T2：及格率/优秀率/均分/中位数/标准差） |
 | GET | `/api/v1/analytics/exam/{id}/layer-analysis` | 已登录 | 分层学情分析（T3：Top25%/Mid50%/Low25% 各层指标） |
 | GET | `/api/v1/analytics/exam/{id}/common-wrong-questions` | 已登录 | 常错题聚合（T4：错误率≥40% 题目按错误率降序） |
+| GET | `/api/v1/analytics/grade/overview` | 已登录 | 年级概览（班级对比+分数段分布，WP-D） |
+| GET | `/api/v1/analytics/grade/trend` | 已登录 | 年级成绩趋势（多考试折线��，WP-D） |
+| GET | `/api/v1/analytics/grade/subjects` | 已登录 | 年级科目对比（各科均分/及格率/优秀率，WP-D） |
 | GET | `/api/v1/profile/students/{id}/ai-diagnosis` | VIEW_SCORES | 学生个体 AI 诊断（模板拼接） |
 | * | `/api/v1/knowledge/*` | 知识点 CRUD/树查询/关联 |
 | POST | `/api/v1/pipeline/run/{id}` | 数据流水线触发 |
@@ -576,6 +582,11 @@ tests/
 | GET | `/api/v1/academic/timetable` | 查询课表 |
 | PUT | `/api/v1/academic/timetable/{class_id}` | 保存班级课表 |
 | GET | `/api/v1/academic/timetable/stats` | 课表统计 |
+| POST | `/api/v1/academic/teaching-plans` | 创建教学计划（WP-E） |
+| GET | `/api/v1/academic/teaching-plans` | 列出教学计划（支持 semester/subject_code/grade_id 过滤） |
+| GET | `/api/v1/academic/teaching-plans/{id}` | 教学计划详情 |
+| PATCH | `/api/v1/academic/teaching-plans/{id}` | 更新教学计划 |
+| DELETE | `/api/v1/academic/teaching-plans/{id}` | 删除教学计划 |
 
 ### Studio 文档端点（JWT 认证）
 
@@ -652,12 +663,22 @@ tests/
 
 | 方法 | 路径 | 权限 | 用途 |
 |------|------|------|------|
-| GET | `/api/v1/bank/questions` | VIEW_QUESTION_BANK | 题库列表（支持 type/difficulty 过滤） |
+| GET | `/api/v1/bank/questions` | VIEW_QUESTION_BANK | 题库列表（���持 type/difficulty/source/keyword 多条件过滤+分页，WP-A） |
 | GET | `/api/v1/bank/questions/{id}` | VIEW_QUESTION_BANK | 题库题目详情 |
+| GET | `/api/v1/bank/questions/stats` | VIEW_QUESTION_BANK | 题库统计概览（题型/难度/来源分布，WP-A） |
 | GET | `/api/v1/bank/error-book/{student_id}` | VIEW_SCORES | 学生错题本（支持 mastery_status 过滤） |
-| GET | `/api/v1/bank/error-book/{student_id}/stats` | VIEW_SCORES | 错题统计（按掌握状态分组） |
+| GET | `/api/v1/bank/error-book/{student_id}/stats` | VIEW_SCORES | 错题统计（按掌���状态分组） |
+| GET | `/api/v1/bank/recommendations/{student_id}/knowledge-summary` | VIEW_SCORES | 知识点掌握汇总（错题聚合，WP-B） |
+| GET | `/api/v1/bank/recommendations/{student_id}/practice` | VIEW_SCORES | 推荐练习题（基于错题知识点，WP-B） |
 
-### AI Agent 端点（JWT 认证，Batch 4 迁入）
+### 作业补救端点（JWT 认证，WP-C）
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| POST | `/api/v1/homework/tasks/from-exam` | MANAGE_HOMEWORK | 从考试分析自动生成补救作业（错误率≥40%题目+同类型练习） |
+| GET | `/api/v1/homework/tasks/{id}/content-detail` | VIEW_HOMEWORK | 作业内容详情（含完整题目信息） |
+
+### AI Agent 端点��JWT 认证，Batch 4 迁入）
 
 | 方法 | 路径 | 权限 | 用途 |
 |------|------|------|------|

@@ -38,6 +38,9 @@ export const routes = [
       // 学生画像
       { path: 'profile/student/:studentId', name: 'StudentProfile', component: () => import('../pages/StudentProfilePage.vue'), meta: { permissions: ['view_scores'] } },
 
+      // 题库
+      { path: 'question-bank', name: 'QuestionBank', component: () => import('../pages/QuestionBankPage.vue'), meta: { permissions: ['view_question_bank'] } },
+
       // 错题本
       { path: 'error-book', name: 'ErrorBook', component: () => import('../pages/ErrorBookPage.vue'), meta: { permissions: ['view_scores'] } },
 
@@ -48,6 +51,7 @@ export const routes = [
       // 成绩分析
       { path: 'analytics/report', name: 'AnalyticsReport', component: () => import('../pages/AnalyticsReportPage.vue'), meta: { permissions: ['view_scores'] } },
       { path: 'analytics/trend', name: 'AnalyticsTrend', component: () => import('../pages/AnalyticsTrendPage.vue'), meta: { permissions: ['view_scores'] } },
+      { path: 'analytics/grade', name: 'GradeAnalytics', component: () => import('../pages/GradeAnalyticsPage.vue'), meta: { permissions: ['view_scores'] } },
       { path: 'analytics/:examId', name: 'Analytics', component: () => import('../pages/AnalyticsPage.vue'), meta: { roles: EXAM_ROLES } },
 
       // 作业
@@ -59,6 +63,7 @@ export const routes = [
       // 教务管理
       { path: 'academic/semesters', name: 'Semesters', component: () => import('../pages/SemesterPage.vue'), meta: { permissions: ['manage_scheduling'] } },
       { path: 'academic/timetable', name: 'Timetable', component: () => import('../pages/TimetablePage.vue'), meta: { permissions: ['manage_scheduling'] } },
+      { path: 'academic/teaching-plans', name: 'TeachingPlans', component: () => import('../pages/TeachingPlanPage.vue'), meta: { permissions: ['manage_scheduling'] } },
 
       // 人员信息
       { path: 'students', name: 'Students', component: () => import('../pages/StudentsPage.vue'), meta: { permissions: ['view_students', 'manage_scheduling'] } },

@@ -25,6 +25,11 @@ export const getClassErrorPatterns = (examId, params) => client.get(`/analytics/
 export const getLayerAnalysis = (examId, params) => client.get(`/analytics/exam/${examId}/layer-analysis`, { params })
 export const getCommonWrongQuestions = (examId, params) => client.get(`/analytics/exam/${examId}/common-wrong-questions`, { params })
 
+// WP-D: 年级聚合分析
+export const getGradeOverview = (gradeId, examId) => client.get(`/analytics/grade/${gradeId}/overview`, { params: { exam_id: examId } })
+export const getGradeExamTrend = (gradeId, limit = 10) => client.get(`/analytics/grade/${gradeId}/trend`, { params: { limit } })
+export const getGradeSubjects = (gradeId, examId) => client.get(`/analytics/grade/${gradeId}/subjects`, { params: { exam_id: examId } })
+
 // Phase 2-A/B/C: 真实下载（PDF / XLSX）
 export const exportGradeReport = (examId, subjectId, format = 'pdf') =>
   client.get(

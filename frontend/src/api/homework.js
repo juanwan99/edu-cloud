@@ -12,3 +12,7 @@ export const listSubmissions = (taskId, params) => client.get(`/homework/tasks/$
 export const submitHomework = (taskId, subId, data) => client.post(`/homework/tasks/${taskId}/submissions/${subId}/submit`, data)
 export const gradeSingle = (taskId, subId, data) => client.post(`/homework/tasks/${taskId}/submissions/${subId}/grade`, data)
 export const gradeBatch = (taskId, data) => client.post(`/homework/tasks/${taskId}/grade-batch`, data)
+
+// WP-C: 考后推送 + 内容增强
+export const createFromExam = (examId, classId) => client.post('/homework/tasks/from-exam', { exam_id: examId, class_id: classId })
+export const getContentDetail = (taskId) => client.get(`/homework/tasks/${taskId}/content-detail`)
