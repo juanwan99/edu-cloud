@@ -28,6 +28,11 @@ const EXAM_GRADING_ITEMS = [
   { icon: 'marking', label: '阅卷进度', route: '/marking/progress' },
 ]
 
+const ANALYTICS_ITEMS = [
+  { icon: 'chart', label: '分析报告', route: '/analytics/report', moduleCode: 'study_analytics' },
+  { icon: 'chart', label: '成绩趋势', route: '/analytics/trend', moduleCode: 'study_analytics' },
+]
+
 const STUDENT_TEACHER_ITEMS = [
   { icon: 'school', label: '学生管理', route: '/students' },
   { icon: 'school', label: '教师管理', route: '/teachers' },
@@ -47,6 +52,7 @@ const SIDEBAR_ITEMS = {
   platform_admin: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_GRADING_ITEMS,
+    ...ANALYTICS_ITEMS,
     ...STUDENT_TEACHER_ITEMS,
     ...SCHOOL_CONFIG_ITEMS,
     ...SCHEDULING_ITEMS,
@@ -55,6 +61,7 @@ const SIDEBAR_ITEMS = {
   district_admin: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_GRADING_ITEMS,
+    ...ANALYTICS_ITEMS,
     ...STUDENT_TEACHER_ITEMS,
     ...SCHOOL_CONFIG_ITEMS,
     ...SCHEDULING_ITEMS,
@@ -63,6 +70,7 @@ const SIDEBAR_ITEMS = {
   principal: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_GRADING_ITEMS,
+    ...ANALYTICS_ITEMS,
     ...STUDENT_TEACHER_ITEMS,
     ...SCHOOL_CONFIG_ITEMS,
     ...SCHEDULING_ITEMS,
@@ -71,6 +79,7 @@ const SIDEBAR_ITEMS = {
   academic_director: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_GRADING_ITEMS,
+    ...ANALYTICS_ITEMS,
     ...STUDENT_TEACHER_ITEMS,
     ...SCHEDULING_ITEMS,
     ...filterConductByRole('academic_director'),
@@ -81,6 +90,7 @@ const SIDEBAR_ITEMS = {
     { icon: 'marking', label: 'AI 阅卷', route: '/ai-grading' },
     { icon: 'marking', label: '人工阅卷/审核', route: '/marking' },
     { icon: 'marking', label: '阅卷进度', route: '/marking/progress' },
+    ...ANALYTICS_ITEMS,
     ...filterConductByRole('teaching_research_leader'),
   ],
   grade_leader: [
@@ -89,11 +99,13 @@ const SIDEBAR_ITEMS = {
     { icon: 'marking', label: 'AI 阅卷', route: '/ai-grading' },
     { icon: 'marking', label: '人工阅卷/审核', route: '/marking' },
     { icon: 'marking', label: '阅卷进度', route: '/marking/progress' },
+    ...ANALYTICS_ITEMS,
     ...filterConductByRole('grade_leader'),
   ],
   lesson_prep_leader: [
     { icon: 'dashboard', label: '概览', route: '/' },
     ...EXAM_GRADING_ITEMS,
+    ...ANALYTICS_ITEMS,
     ...filterConductByRole('lesson_prep_leader'),
   ],
   homeroom_teacher: [
@@ -102,6 +114,7 @@ const SIDEBAR_ITEMS = {
     { icon: 'marking', label: 'AI 阅卷', route: '/ai-grading' },
     { icon: 'marking', label: '人工阅卷/审核', route: '/marking' },
     { icon: 'marking', label: '阅卷进度', route: '/marking/progress' },
+    ...ANALYTICS_ITEMS,
     ...filterConductByRole('homeroom_teacher'),
   ],
   subject_teacher: [
@@ -110,6 +123,7 @@ const SIDEBAR_ITEMS = {
     { icon: 'marking', label: 'AI 阅卷', route: '/ai-grading' },
     { icon: 'marking', label: '人工阅卷/审核', route: '/marking' },
     { icon: 'marking', label: '阅卷进度', route: '/marking/progress' },
+    ...ANALYTICS_ITEMS,
     ...filterConductByRole('subject_teacher'),
   ],
   parent: [

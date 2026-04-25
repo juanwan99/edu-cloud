@@ -35,6 +35,11 @@ export const routes = [
         component: () => import('../pages/AiGradingPage.vue'),
         meta: { roles: GRADING_DISPATCH_ROLES } },
 
+      // 成绩分析
+      { path: 'analytics/report', name: 'AnalyticsReport', component: () => import('../pages/AnalyticsReportPage.vue'), meta: { permissions: ['view_scores'] } },
+      { path: 'analytics/trend', name: 'AnalyticsTrend', component: () => import('../pages/AnalyticsTrendPage.vue'), meta: { permissions: ['view_scores'] } },
+      { path: 'analytics/:examId', name: 'Analytics', component: () => import('../pages/AnalyticsPage.vue'), meta: { roles: EXAM_ROLES } },
+
       // 人员信息
       { path: 'students', name: 'Students', component: () => import('../pages/StudentsPage.vue'), meta: { permissions: ['view_students', 'manage_scheduling'] } },
       { path: 'teachers', name: 'Teachers', component: () => import('../pages/TeachersPage.vue'), meta: { permissions: ['manage_scheduling', 'manage_school_config'] } },
