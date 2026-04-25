@@ -175,9 +175,24 @@ const columns = [
   { title: '姓名', key: 'student_name' },
   { title: '总积分', key: 'total_points', width: 80 },
   {
-    title: '变化',
+    title: '积分变化',
+    key: 'points_change',
+    width: 80,
+    render(row) {
+      if (row.points_change == null) return '-'
+      if (row.points_change > 0) {
+        return h(NTag, { type: 'success', size: 'small', bordered: false }, () => `+${row.points_change}`)
+      }
+      if (row.points_change < 0) {
+        return h(NTag, { type: 'error', size: 'small', bordered: false }, () => `${row.points_change}`)
+      }
+      return h(NTag, { size: 'small', bordered: false }, () => '0')
+    },
+  },
+  {
+    title: '排名变化',
     key: 'rank_change',
-    width: 70,
+    width: 80,
     render(row) {
       if (row.previous_rank == null) return '-'
       const change = row.previous_rank - row.rank
