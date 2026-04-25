@@ -73,10 +73,9 @@ async def analytics_data(db):
 
 
 async def test_effective_scores_missing_final_score(db, analytics_data):
-    """final_score=None 的脏数据应被跳过并记录 warning。"""
+    """GradingResult.final_score=None + StudentAnswer.score=None → 跳过该行。"""
     from sqlalchemy import select
 
-    # 把 stu_1 的 final_score 清空，模拟脏数据
     r_result = await db.execute(
         select(GradingResult).where(GradingResult.source == "ai_override")
     )
@@ -84,26 +83,12 @@ async def test_effective_scores_missing_final_score(db, analytics_data):
     overridden.final_score = None
     await db.commit()
 
-    captured_warnings = []
-    analytics_logger = logging.getLogger("edu_cloud.modules.analytics")
+    scores = await get_effective_scores(
+        db, analytics_data["subject_id"], analytics_data["school_id"]
+    )
 
-    class _CapHandler(logging.Handler):
-        def emit(self, record):
-            captured_warnings.append(record.getMessage())
-
-    cap = _CapHandler()
-    cap.setLevel(logging.WARNING)
-    analytics_logger.addHandler(cap)
-    try:
-        scores = await get_effective_scores(
-            db, analytics_data["subject_id"], analytics_data["school_id"]
-        )
-    finally:
-        analytics_logger.removeHandler(cap)
-
-    # 脏数据被跳过，只剩 2 条
+    # COALESCE(NULL, NULL) = NULL → 跳过，只剩 2 条
     assert len(scores) == 2
-    assert any("final_score" in msg.lower() for msg in captured_warnings)
 
 
 async def test_effective_scores(db, analytics_data):

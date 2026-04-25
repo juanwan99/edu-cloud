@@ -72,15 +72,18 @@ async def _load_effective_scores(
     db: AsyncSession, exam_id: str, subject_ids: list[str], school_id: str,
 ) -> dict[str, list[dict]]:
     """Returns {student_id: [{subject_id, question_id, score, max_score}, ...]}."""
+    # GradingResult.final_score 优先（AI 阅卷），fallback StudentAnswer.score（直接录入）
+    effective_score = func.coalesce(GradingResult.final_score, StudentAnswer.score)
     stmt = (
         select(
             StudentAnswer.student_id,
             StudentAnswer.subject_id,
             StudentAnswer.question_id,
-            GradingResult.final_score,
-            GradingResult.max_score,
+            effective_score.label("effective_score"),
+            Question.max_score,
         )
-        .join(GradingResult, GradingResult.answer_id == StudentAnswer.id)
+        .outerjoin(GradingResult, GradingResult.answer_id == StudentAnswer.id)
+        .join(Question, Question.id == StudentAnswer.question_id)
         .where(
             StudentAnswer.exam_id == exam_id,
             StudentAnswer.subject_id.in_(subject_ids),
@@ -91,12 +94,12 @@ async def _load_effective_scores(
 
     by_student: dict[str, list[dict]] = defaultdict(list)
     for row in rows:
-        if row.final_score is None:
+        if row.effective_score is None:
             continue
         by_student[row.student_id].append({
             "subject_id": row.subject_id,
             "question_id": row.question_id,
-            "score": float(row.final_score),
+            "score": float(row.effective_score),
             "max_score": float(row.max_score),
         })
     return dict(by_student)

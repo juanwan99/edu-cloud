@@ -60,18 +60,19 @@ async def common_wrong_questions(
 
     subj_ids = [s.id for s in subjects]
 
+    effective_score = func.coalesce(GradingResult.final_score, StudentAnswer.score)
     stmt = (
         select(
-            GradingResult.question_id,
-            GradingResult.final_score,
-            GradingResult.max_score,
+            StudentAnswer.question_id,
+            effective_score.label("effective_score"),
+            Question.max_score,
         )
-        .join(StudentAnswer, StudentAnswer.id == GradingResult.answer_id)
+        .outerjoin(GradingResult, GradingResult.answer_id == StudentAnswer.id)
+        .join(Question, Question.id == StudentAnswer.question_id)
         .where(
             StudentAnswer.subject_id.in_(subj_ids),
-            GradingResult.school_id == school_id,
-            GradingResult.final_score.isnot(None),
-            GradingResult.max_score > 0,
+            StudentAnswer.school_id == school_id,
+            Question.max_score > 0,
         )
     )
     if visible_class_ids is not None:
@@ -88,10 +89,12 @@ async def common_wrong_questions(
 
     for row in rows:
         qid = row.question_id
+        if row.effective_score is None:
+            continue
         q_total[qid] += 1
-        q_score_sum[qid] += row.final_score
+        q_score_sum[qid] += row.effective_score
         q_max[qid] = row.max_score
-        if row.final_score < row.max_score * WRONG_THRESHOLD:
+        if row.effective_score < row.max_score * WRONG_THRESHOLD:
             q_wrong[qid] += 1
 
     q_result = await db.execute(
