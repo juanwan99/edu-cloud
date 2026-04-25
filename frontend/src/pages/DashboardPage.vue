@@ -234,6 +234,17 @@ async function fetchCharts() {
   try {
     const { data: exams } = await client.get('/exams', { params: { limit: 10 } })
     const examList = Array.isArray(exams) ? exams : (exams.items || [])
+
+    // Populate recent exams cards (top 3)
+    recentExams.value = examList.slice(0, 3).map(e => ({
+      id: e.id,
+      name: e.name,
+      status: e.status,
+      subject_count: e.subjects?.length ?? e.subject_count ?? null,
+      created_at: e.created_at,
+      grading_progress: e.grading_progress ?? null,
+    }))
+
     const completed = examList.filter(e => e.status === 'completed' || e.status === 'published')
     if (completed.length < 1) return
 
@@ -318,15 +329,52 @@ async function fetchActivity() {
   activityItems.value = items
 }
 
+async function fetchTodos() {
+  const items = []
+  try {
+    // Grading tasks in progress
+    const { data: tasks } = await client.get('/grading/tasks')
+    const taskList = Array.isArray(tasks) ? tasks : (tasks.items || [])
+    const processing = taskList.filter(t => t.status === 'processing' || t.status === 'pending')
+    if (processing.length > 0) {
+      items.push({ label: `${processing.length} 个阅卷任务进行中`, count: processing.length, route: '/grading/tasks', color: 'coral', tagType: 'warning' })
+    }
+  } catch { /* grading tasks not accessible */ }
+
+  try {
+    // Exams pending grading
+    const { data: exams } = await client.get('/exams', { params: { limit: 50 } })
+    const examList = Array.isArray(exams) ? exams : (exams.items || [])
+    const pendingGrading = examList.filter(e => e.status === 'grading')
+    if (pendingGrading.length > 0) {
+      items.push({ label: `${pendingGrading.length} 场考试待阅卷`, count: pendingGrading.length, route: '/exams', color: 'yellow', tagType: 'info' })
+    }
+  } catch { /* exams not accessible */ }
+
+  try {
+    // Homework tasks with pending submissions
+    const { data: hwTasks } = await client.get('/homework/tasks', { params: { status: 'active' } })
+    const hwList = Array.isArray(hwTasks) ? hwTasks : (hwTasks.items || [])
+    const pendingHw = hwList.filter(t => t.stats?.pending > 0 || t.status === 'active')
+    if (pendingHw.length > 0) {
+      items.push({ label: `${pendingHw.length} 份作业待批改`, count: pendingHw.length, route: '/homework', color: 'purple', tagType: 'default' })
+    }
+  } catch { /* homework not accessible */ }
+
+  todoItems.value = items
+}
+
 onMounted(() => {
   fetchKpiData()
   fetchCharts()
   fetchActivity()
+  fetchTodos()
 })
 watch(() => auth.currentRoleIndex, () => {
   fetchKpiData()
   fetchCharts()
   fetchActivity()
+  fetchTodos()
 })
 
 function getKpiValue(kpi) {
@@ -340,18 +388,99 @@ function getKpiValue(kpi) {
   max-width: 1200px;
 }
 
+/* Welcome banner */
+.welcome-banner {
+  background: linear-gradient(135deg, var(--macaron-mint-light) 0%, var(--macaron-purple-light) 100%);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border-light);
+  padding: 32px;
+  margin-bottom: 24px;
+}
+
+.welcome-banner__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 8px;
+}
+
+.welcome-banner__text {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0 0 16px;
+}
+
+/* KPI row */
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
+/* Quick actions */
+.quick-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.quick-action-btn {
+  border-radius: var(--radius-pill) !important;
+}
+
+.quick-action-icon {
+  vertical-align: middle;
+}
+
+/* Todo section */
+.todo-section {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--color-bg-card, rgba(255,255,255,0.04));
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-light);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.todo-item:hover {
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.todo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.todo-dot--coral { background: var(--macaron-coral); }
+.todo-dot--yellow { background: var(--macaron-yellow); }
+.todo-dot--purple { background: var(--macaron-purple); }
+
+.todo-text {
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+/* Charts */
 .charts-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 24px;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .chart-card {
@@ -368,6 +497,85 @@ function getKpiValue(kpi) {
   color: var(--color-text);
 }
 
+.chart-empty {
+  background: var(--color-bg-card, rgba(255,255,255,0.04));
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--color-border);
+  padding: 40px;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.chart-empty__text {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Section title */
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 16px;
+}
+
+/* Recent exams */
+.recent-exams {
+  margin-bottom: 24px;
+}
+
+.exam-cards-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.exam-card {
+  background: var(--color-bg-card, rgba(255,255,255,0.04));
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-light);
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.exam-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-border);
+}
+
+.exam-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.exam-card__name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.exam-card__meta {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.recent-exams__footer {
+  margin-top: 12px;
+  text-align: right;
+}
+
+/* Module grid */
 .module-grid {
   margin-bottom: 8px;
 }
@@ -375,6 +583,14 @@ function getKpiValue(kpi) {
 @media (max-width: 768px) {
   .kpi-row {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .quick-actions {
+    flex-direction: column;
+  }
+
+  .todo-section {
+    flex-direction: column;
   }
 }
 </style>
