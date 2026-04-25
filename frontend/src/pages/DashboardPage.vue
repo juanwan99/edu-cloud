@@ -98,12 +98,16 @@ async function fetchCharts() {
       if (trend.points?.length >= 2) {
         trendOption.value = {
           tooltip: { trigger: 'axis' },
-          grid: { left: 50, right: 20, top: 30, bottom: 40 },
+          legend: { data: ['平均分', '及格率'], bottom: 0 },
+          grid: { left: 50, right: 50, top: 20, bottom: 40 },
           xAxis: { type: 'category', data: trend.points.map(p => p.exam_name?.slice(0, 10) || '') },
-          yAxis: { type: 'value', name: '分数' },
+          yAxis: [
+            { type: 'value', name: '分数', position: 'left' },
+            { type: 'value', name: '及格率', position: 'right', max: 100, axisLabel: { formatter: '{value}%' } },
+          ],
           series: [
             { name: '平均分', type: 'line', smooth: true, data: trend.points.map(p => p.avg?.toFixed(1)), itemStyle: { color: '#2a9d8f' } },
-            { name: '及格率%', type: 'line', smooth: true, data: trend.points.map(p => (p.pass_rate * 100)?.toFixed(1)), itemStyle: { color: '#f4a261' } },
+            { name: '及格率', type: 'line', smooth: true, yAxisIndex: 1, data: trend.points.map(p => (p.pass_rate * 100)?.toFixed(1)), itemStyle: { color: '#f4a261' } },
           ],
         }
       }
