@@ -6,6 +6,8 @@
     </div>
 
     <n-spin :show="loading">
+      <n-result v-if="loadError" status="error" :title="loadError" style="margin: 40px 0;" />
+
       <!-- 概览卡片 -->
       <div class="stats-grid" v-if="latestSnapshot">
         <div class="stat-card" style="background: var(--macaron-mint-light);">
@@ -108,11 +110,12 @@ const message = useMessage()
 const studentId = computed(() => route.params.studentId)
 const studentName = ref('')
 
-const loading = ref(false)
+const loading = ref(true)
 const snapshots = ref([])
 const knowledgeList = ref([])
 const errorPatterns = ref([])
 const diagnosis = ref(null)
+const loadError = ref('')
 
 const latestSnapshot = computed(() => snapshots.value[0] || null)
 
@@ -228,13 +231,15 @@ function makeErrorPieOption(ep) {
 
 // --- 数据加载 ---
 async function loadAll() {
+  if (!studentId.value) { loading.value = false; return }
   loading.value = true
+  loadError.value = ''
   try {
     const [trendRes, knRes, errRes, diagRes] = await Promise.all([
-      getStudentTrend(studentId.value).catch(() => ({ data: [] })),
-      getStudentKnowledge(studentId.value).catch(() => ({ data: [] })),
-      getStudentErrorPatterns(studentId.value).catch(() => ({ data: [] })),
-      getStudentAiDiagnosis(studentId.value).catch(() => ({ data: null })),
+      getStudentTrend(studentId.value).catch(e => { console.warn('trend failed', e); return { data: [] } }),
+      getStudentKnowledge(studentId.value).catch(e => { console.warn('knowledge failed', e); return { data: [] } }),
+      getStudentErrorPatterns(studentId.value).catch(e => { console.warn('errors failed', e); return { data: [] } }),
+      getStudentAiDiagnosis(studentId.value).catch(e => { console.warn('diagnosis failed', e); return { data: null } }),
     ])
 
     const trendData = Array.isArray(trendRes.data) ? trendRes.data : (trendRes.data?.snapshots || trendRes.data?.items || [])
@@ -251,13 +256,16 @@ async function loadAll() {
 
     diagnosis.value = diagRes.data
   } catch (e) {
-    message.error('加载学生画像失败')
+    console.error('loadAll failed', e)
+    loadError.value = e.message || '加载失败'
+    message.error('加载学生画像失败: ' + (e.message || '未知错误'))
   } finally {
     loading.value = false
   }
 }
 
 onMounted(loadAll)
+
 </script>
 
 <style scoped>
