@@ -126,7 +126,7 @@ frontend/src/
     SubjectSelectionsPage.vue # 选考科目组合管理
     TeacherAssignmentsPage.vue # 教师排课管理
     StudentsPage.vue        # 学生管理（列表/搜索/导入导出/选科分配）
-    TeachersPage.vue        # 教师管理（列表/创建/导入导出/15列档案）
+    TeachersPage.vue        # 教师管理（列表/创建/导入导出/15列档案；platform_admin 跨校创建 principal/academic_director）
     CardEditorDevPage.vue   # 答题卡编辑器开发页（含返回按钮）
     KnowledgeTreePage.vue  # 知识图谱可视化（AntV G6 + 三级树导航 + 掌握度着色 + 搜索过滤 + Phase 2 教师工作台：ModuleOverviewPanel/ConceptMapPanel 互斥路由 + BigConcept 分带 + ConceptFocusOverlay 焦点模式 + ESC/canvas 退出；Phase 2.5：buildVisibleEdgeList helper + relatedNodeIds/relatedEdgeIds computed + G6 node.state.faded/edge.state.dimmed·emphasized + updateElementStates + createGraph 末尾焦点重放 + G6 Tooltip plugin 徽标悬停（hover + enable 谓词 + async getContent + HTML escape）；Phase 1 T9-T10：ColorModeToggle 三模式切换 + heatmapUtils（log 尺度考频热力色 + 4 态掌握度 + 3 态审核状态 + importance→size [20,60]）；ConceptMapPanel buildG6Data 每节点 style.size/fill 按 colorMode 三分支 + watch colorMode setData/render 保留 focusedNodeId + defineExpose buildG6Data；KnowledgeTreePage selectedStudentId 从 useKnowledgeTree 解构（单一真源，R2 F001 修复 state 分裂）；GraphPanel.vue 已删除）
     parent/                 # 家长端页面（独立于 AppShell，cp_token 认证）
