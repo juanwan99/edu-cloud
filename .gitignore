@@ -42,3 +42,6 @@ uploads/
 # Databases
 *.db
 *.db.bak*
+
+# Codex review raw logs (生成于 codex-review skill；不入版本库)
+docs/plans/.codex-*
