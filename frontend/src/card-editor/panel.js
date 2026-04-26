@@ -1,4 +1,5 @@
 // panel.js — 题目列表 + 选中区域属性编辑面板
+import DOMPurify from 'dompurify';
 import { renderFromLayout } from './render.js';
 import { renumberAll } from './model.js';
 
@@ -109,7 +110,7 @@ function renderQuestionList() {
       }
     }
   }
-  listDiv.innerHTML = html;
+  listDiv.innerHTML = DOMPurify.sanitize(html);
   bindQuestionListEvents(listDiv);
 }
 
@@ -379,7 +380,7 @@ function renderPanel(container, region) {
     `;
   }
 
-  container.innerHTML = `
+  container.innerHTML = DOMPurify.sanitize(`
     <div class="ctrl">
       <label>题号</label>
       <input type="number" id="propQno" value="${region.qno || 0}" min="0" max="99" style="width:50px">
@@ -393,7 +394,7 @@ function renderPanel(container, region) {
       <input type="number" id="propSubCount" value="${subs.length}" min="1" max="10" style="width:50px">
     </div>
     <div id="subRows">${subsHTML}</div>
-  `;
+  `);
 
   // 绑定事件
   document.getElementById('propQno').addEventListener('input', (e) => {
