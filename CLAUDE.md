@@ -85,7 +85,7 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-04-26：2219+ passed
+# 后端 ECS pytest 实测 @ 2026-04-26：2199 passed / 21 failed（既有债）/ 23 skipped
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
 # 前端 Vitest + happy-dom（frontend/ 373 tests @ 2026-04-26）
@@ -190,15 +190,15 @@ frontend/src/
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
   api/                      # API 调用层（16 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染）
   config/
-    roles.js                # 8 角色枚举 + 旧别名映射 + normalizeRole()
+    roles.js                # 10 角色枚举 + 旧别名映射 + normalizeRole()
     permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
-    sidebarConfig.js        # 角色→侧边栏导航项 JSON 配置（conduct 分三档挂载：FULL 9 项 / VIEWER 3 项 / TEACHER 2 项；platform_admin+district_admin+homeroom=FULL，principal+academic_director+grade_leader=VIEWER，subject_teacher=TEACHER）
+    sidebarConfig.js        # 角色→侧边栏导航项 JSON 配置（conduct 按 hasPermission 动态过滤：FULL 9 项 platform_admin+district_admin+homeroom / academic_director 8 项 / grade_leader 6 项 / subject_teacher 5 项 / principal 4 项 / parent 3 项 / teaching_research_leader+lesson_prep_leader 0 项）
     dashboardConfig.js      # 角色→仪表盘 KPI/Widget JSON 配置
   stores/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
-  router/                   # Vue Router（活跃 19 路由含 /ai-grading 无参入口 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
+  router/                   # Vue Router（AppShell 41 子路由含 /ai-grading 无参入口 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -251,14 +251,14 @@ src/edu_cloud/
     import_real_exam.py   # 真实考试数据导入工具（exam-ai 迁入）
   core/
     events.py           # 进程内 EventBus（exam.published handler 已接入 pipeline）
-    permissions.py      # 34 个 Permission 枚举 + 8 角色 RBAC 映射
+    permissions.py      # 34 个 Permission 枚举 + 10 角色 RBAC 映射
     scope_filter.py     # ScopeFilter 工具类（基于 UserRole 注入 WHERE 条件）
   knowledge/
     __init__.py         # 包入口
     loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
     store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）
   ai/
-    data_scope.py       # DataScope（frozen 数据可见性快照）+ DataScopeBuilder（8 角色 fail-closed 派生）
+    data_scope.py       # DataScope（frozen 数据可见性快照）+ DataScopeBuilder（10 角色 fail-closed 派生）
     scoped_query.py     # ScopedQuery（统一 scope WHERE 注入 + 参数越权拦截 ScopeViolationError）
     agent_loop.py       # AgentLoop 核心循环（plan→tool exec→answer 状态机，替代旧 agent.py）
     llm_adapter.py      # LLMProxyAdapter（统一 LLM 适配器，走 llm-proxy）
@@ -335,10 +335,10 @@ tests/
 | API | 276 路由（含 academic 10 + exam schedule 2 + analytics 进阶 8） | 共享 AI 阅卷 |
 | Models | 88 表（modules/ 下 18 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表 + academic 3 表 + alembic_version） | — |
 | Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline + exceptions | AI grading 生产接入 |
-| Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 8 角色映射 | — |
+| Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 10 角色映射 | — |
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 2219+ 后端 + 373 前端 Vitest（ECS 实测 @ 2026-04-26） | — |
+| Tests | 2199 passed / 21 failed（既有债）后端 + 373 前端 Vitest（ECS 实测 @ 2026-04-26） | — |
 | Modules | 21 模块目录，路由已迁入。技术债 H-01 拆分后：`card` 含 `router.py`(839行) + `card_template_router.py`(230行) + `card_export_router.py`(326行)；`grading` 含 `router.py`(520行) + `grading_review_router.py`(396行) + `prompts/` 子包；`analytics` 含 `router.py`(220行) + `analytics_report_router.py`(585行)。详见 `docs/2026-04-26-tech-debt-audit.md` §修复记录 | — |
 | Migrations | Alembic migration（88 表，31 个迁移，含 S1-A T2 `a88094ee4ea6` bank_question +5 列） | — |
 
@@ -357,7 +357,7 @@ tests/
 **前端（`frontend/`）：**
 - Vite 7 + Vue 3.5 (Composition API)
 - Naive UI 2.44（暗色主题）
-- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 16 子路由；完整 44 路由冻结于 _frozen/）
+- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 41 子路由；完整 44 路由冻结于 _frozen/）
 - Pinia 3（状态管理）
 - Axios（HTTP 客户端，baseURL `/api/v1`）
 - ECharts 6 + vue-echarts（图表）
