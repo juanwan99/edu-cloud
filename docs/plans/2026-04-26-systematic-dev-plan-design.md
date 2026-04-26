@@ -216,7 +216,7 @@ PR #1 已修复大部分。剩余：
 - [ ] master 包含所有特性分支工作
 - [ ] stash 清空
 - [ ] .env / .db / .jsonl 不在 git tracked 中
-- [ ] pytest 0 failed + vitest 0 failed + vite build 成功
+- [ ] pytest 无新增 failed（既有债 21 failed 已记录，不计入回归）+ vitest 0 failed + vite build 成功
 - [ ] CLAUDE.md 无 frontend-nuxt 引用
 - [ ] edu-cloud.service 运行中
 

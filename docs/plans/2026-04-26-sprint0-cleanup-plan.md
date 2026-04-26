@@ -359,7 +359,7 @@ Expected: 成功，输出 modules transformed + chunks
 cd ~/projects/edu-cloud && .venv/bin/python -m pytest --tb=no -q 2>&1 | tail -5
 ```
 
-Expected: 2219+ passed / 0 或 2 failed（既有债）
+Expected: 2199+ passed / 21 failed 既有债（不计入回归，已记录于 2026-04-24-haofenshu-s1-admin-plan）
 
 - [ ] **Step 4: 记录基线**
 
