@@ -46,7 +46,7 @@ describe('sidebar config', () => {
   })
   it('parent has minimal items', () => {
     const items = getSidebarItems('parent')
-    expect(items.length).toBeLessThanOrEqual(12)
+    expect(items.length).toBeLessThanOrEqual(5)
   })
 })
 
