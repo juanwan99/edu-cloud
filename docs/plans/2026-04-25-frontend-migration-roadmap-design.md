@@ -4,6 +4,8 @@ baseline_verified_at: "2026-04-25 00:55"
 baseline_count: 2187
 ---
 
+<!-- archived: 2026-04-26 decision — frontend/ (Naive UI) is final, no migration -->
+
 # T3-12 前端迁移路线图 design（U-06 落地）
 
 <!-- key-start -->
