@@ -14,8 +14,8 @@
     </div>
 
     <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
-      <n-select v-if="schoolOptions.length > 1" v-model:value="selectedSchool" :options="schoolOptions"
-        style="width: 200px;" @update:value="onSchoolChange" />
+      <n-select v-if="isPlatformAdmin || schoolOptions.length > 1" v-model:value="selectedSchool" :options="schoolOptions"
+        style="width: 200px;" data-testid="school-select" @update:value="onSchoolChange" />
       <n-input v-model:value="searchQuery" placeholder="搜索姓名或账号" clearable style="width: 240px;"
         @update:value="handleSearch" />
       <n-tag v-if="teachers.length" :bordered="false">共 {{ teachers.length }} 人</n-tag>
@@ -75,7 +75,7 @@
         <h4 style="margin: 0 0 12px; font-size: 14px;">角色与任教分配</h4>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px;">
           <n-form-item v-if="!editingId" label="角色（可多选）">
-            <n-select v-model:value="form.roles" :options="roleOptions" multiple placeholder="可多选" />
+            <n-select v-model:value="form.roles" :options="createRoleOptions" multiple placeholder="可多选" />
           </n-form-item>
           <n-form-item v-if="!editingId" label="任教学科">
             <n-select v-model:value="form.subject_codes" :options="subjectOptions" multiple clearable placeholder="可多选" />
@@ -99,7 +99,7 @@
     <n-modal v-model:show="showImport" preset="card" title="导入教师（Excel）" style="width: 520px;">
       <n-form label-placement="top">
         <n-form-item label="默认角色（Excel 中未填角色列时使用）">
-          <n-select v-model:value="importRole" :options="roleOptions" />
+          <n-select v-model:value="importRole" :options="importRoleOptions" />
         </n-form-item>
         <n-form-item label="Excel 文件">
           <n-upload :max="1" accept=".xlsx,.xls" :default-upload="false" @change="handleFileChange">
@@ -121,10 +121,11 @@
 </template>
 
 <script setup>
-import { h, ref, reactive, onMounted } from 'vue'
+import { h, ref, reactive, onMounted, computed } from 'vue'
 import { NButton, NTag, useMessage, useDialog } from 'naive-ui'
 import { listTeachers, createTeacher, updateTeacher, deleteTeacher, importTeachers, exportTeachers, downloadTemplate } from '../api/teachers'
 import client from '../api/client'
+import { listSchools } from '../api/schools'
 import { useAuthStore } from '../stores/auth'
 
 const message = useMessage()
@@ -157,7 +158,25 @@ const subjectLabels = {
   YS: '音乐', MS: '美术', XX: '信息技术',
 }
 
-const roleOptions = Object.entries(roleLabels).map(([value, label]) => ({ label, value }))
+const isPlatformAdmin = computed(() => {
+  const auth = useAuthStore()
+  return auth.currentRole?.role === 'platform_admin'
+})
+
+const ROLE_OPTIONS_ALL = Object.entries(roleLabels).map(([value, label]) => ({ label, value }))
+const ROLE_OPTIONS_CROSS_SCHOOL = [
+  { label: '校长', value: 'principal' },
+  { label: '教务主任', value: 'academic_director' },
+]
+
+const createRoleOptions = computed(() => {
+  if (isPlatformAdmin.value && selectedSchool.value) {
+    return ROLE_OPTIONS_CROSS_SCHOOL
+  }
+  return ROLE_OPTIONS_ALL
+})
+
+const importRoleOptions = ROLE_OPTIONS_ALL
 const subjectOptions = Object.entries(subjectLabels).map(([value, label]) => ({ label, value }))
 const genderOptions = [{ label: '男', value: '男' }, { label: '女', value: '女' }]
 const eduOptions = [
@@ -288,6 +307,9 @@ async function loadClasses() {
 function openCreate() {
   editingId.value = null
   Object.assign(form, defaultForm())
+  if (isPlatformAdmin.value && selectedSchool.value) {
+    form.roles = ['principal']
+  }
   showForm.value = true
 }
 
@@ -328,6 +350,9 @@ async function handleSave() {
       const payload = { ...form }
       if (!payload.subject_codes?.length) delete payload.subject_codes
       if (!payload.class_ids?.length) delete payload.class_ids
+      if (isPlatformAdmin.value && selectedSchool.value) {
+        payload.school_id = selectedSchool.value
+      }
       await createTeacher(payload)
       message.success('添加成功')
     }
@@ -403,8 +428,20 @@ async function handleExport() {
   } catch { message.error('导出失败') }
 }
 
-function initSchools() {
+async function initSchools() {
   const auth = useAuthStore()
+  if (isPlatformAdmin.value) {
+    try {
+      const { data } = await listSchools()
+      schoolOptions.value = data.map((s) => ({ label: s.name, value: s.id }))
+      if (schoolOptions.value.length) {
+        selectedSchool.value = schoolOptions.value[0].value
+      }
+    } catch {
+      message.error('加载学校列表失败')
+    }
+    return
+  }
   const seen = new Map()
   for (const r of (auth.roles || [])) {
     const ctx = r.context
@@ -421,8 +458,19 @@ function initSchools() {
   }
 }
 
-onMounted(() => {
-  initSchools()
+defineExpose({
+  form,
+  isPlatformAdmin,
+  createRoleOptions,
+  importRoleOptions,
+  schoolOptions,
+  selectedSchool,
+  openCreate,
+  handleSave,
+})
+
+onMounted(async () => {
+  await initSchools()
   loadTeachers()
   loadClasses()
 })

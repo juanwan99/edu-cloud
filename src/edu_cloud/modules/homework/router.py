@@ -33,6 +33,11 @@ class TaskUpdate(BaseModel):
     class_id: str | None = None
 
 
+class RemedialFromExamRequest(BaseModel):
+    exam_id: str
+    class_id: str
+
+
 class SubmitRequest(BaseModel):
     content: str | None = None
 
@@ -186,6 +191,38 @@ async def delete_task(
         db, task_id=task_id, school_id=_school_id(current),
     )
     await db.commit()
+
+
+# ── 考后推送 + 内容增强 (WP-C) ──────────────────────────
+
+@router.post("/tasks/from-exam", status_code=201)
+async def create_remedial_from_exam(
+    req: RemedialFromExamRequest,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_HOMEWORK)),
+):
+    """从考试分析数据自动生成补救作业。"""
+    task = await HomeworkTaskService.create_remedial_task(
+        db,
+        exam_id=req.exam_id,
+        class_id=req.class_id,
+        school_id=_school_id(current),
+        created_by=current["user"].id,
+    )
+    await db.commit()
+    return _task_response(task)
+
+
+@router.get("/tasks/{task_id}/content-detail")
+async def get_task_content_detail(
+    task_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_HOMEWORK)),
+):
+    """获取作业内容详情（解析 content JSON 中的题目 ID，返回完整题目信息）。"""
+    return await HomeworkTaskService.get_task_content_detail(
+        db, task_id=task_id, school_id=_school_id(current),
+    )
 
 
 # ── Submissions ──────────────────────────────────────────

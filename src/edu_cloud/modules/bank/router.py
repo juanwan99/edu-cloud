@@ -1,6 +1,8 @@
 """题库 + 错题本 API 路由。"""
 import logging
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,10 +22,30 @@ def _school_id(current: dict) -> str:
 
 def _bank_question_response(q) -> dict:
     return {
-        "id": q.id, "question_id": q.question_id, "exam_id": q.exam_id,
+        "id": q.id, "source_question_id": q.source_question_id,
+        "source_exam_id": q.source_exam_id,
         "question_type": q.question_type, "max_score": q.max_score,
         "difficulty": q.difficulty, "discrimination": q.discrimination,
-        "common_errors": q.common_errors, "attempt_count": q.attempt_count,
+        "common_errors": q.common_errors, "sample_count": q.sample_count,
+    }
+
+
+def _search_question_response(q) -> dict:
+    """搜索结果序列化 — 包含 S1-A 扩展字段，排除 embedding 大字段。"""
+    return {
+        "id": q.id,
+        "content_text": q.content_text,
+        "question_type": q.question_type,
+        "max_score": q.max_score,
+        "difficulty": q.difficulty,
+        "difficulty_level": q.difficulty_level,
+        "source": q.source,
+        "tags": q.tags,
+        "knowledge_point_ids": q.knowledge_point_ids,
+        "bloom_level": q.bloom_level,
+        "explanation": q.explanation,
+        "sample_count": q.sample_count,
+        "source_exam_id": q.source_exam_id,
     }
 
 
@@ -36,6 +58,50 @@ def _error_book_response(e) -> dict:
         "retry_count": e.retry_count, "knowledge_point_ids": e.knowledge_point_ids,
         "is_starred": e.is_starred,
     }
+
+
+@router.get("/questions/search")
+async def search_questions(
+    question_type: Optional[str] = Query(None),
+    difficulty_level: Optional[str] = Query(None),
+    source: Optional[str] = Query(None),
+    tags: Optional[list[str]] = Query(None),
+    knowledge_point_ids: Optional[list[str]] = Query(None),
+    keyword: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_QUESTION_BANK)),
+):
+    """多条件组合搜索题库（分页）。"""
+    result = await service.search_questions(
+        db, school_id=_school_id(current),
+        question_type=question_type,
+        difficulty_level=difficulty_level,
+        source=source,
+        tags=tags,
+        knowledge_point_ids=knowledge_point_ids,
+        keyword=keyword,
+        page=page,
+        page_size=page_size,
+    )
+    return {
+        "items": [_search_question_response(q) for q in result["items"]],
+        "total": result["total"],
+        "page": result["page"],
+        "page_size": result["page_size"],
+    }
+
+
+@router.get("/questions/stats/overview")
+async def get_questions_stats_overview(
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_QUESTION_BANK)),
+):
+    """本校题库统计概览。"""
+    return await service.get_questions_stats_overview(
+        db, school_id=_school_id(current),
+    )
 
 
 @router.get("/questions")
@@ -81,6 +147,32 @@ async def get_student_error_book(
         mastery_status=mastery_status, limit=limit,
     )
     return [_error_book_response(e) for e in items]
+
+
+@router.get("/error-book/{student_id}/knowledge-summary")
+async def get_error_knowledge_summary(
+    student_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_SCORES)),
+):
+    """按知识点聚合学生错题，返回薄弱知识点列表。"""
+    return await service.get_error_knowledge_summary(
+        db, student_id=student_id, school_id=_school_id(current),
+    )
+
+
+@router.get("/error-book/{student_id}/recommendations")
+async def get_recommended_practice(
+    student_id: str,
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_SCORES)),
+):
+    """基于薄弱知识点推荐练习题。"""
+    return await service.get_recommended_practice(
+        db, student_id=student_id, school_id=_school_id(current),
+        limit=limit,
+    )
 
 
 @router.get("/error-book/{student_id}/stats")

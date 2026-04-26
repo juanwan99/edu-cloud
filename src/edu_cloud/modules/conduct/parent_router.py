@@ -132,6 +132,46 @@ async def get_class_rules(
     )
 
 
+@router.get("/parent/children/{student_id}/exams")
+async def get_child_exams(
+    student_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Get list of exams the child participated in."""
+    return await parent_service.get_child_exams(
+        db, current_user["user"].id, student_id,
+    )
+
+
+@router.get("/parent/children/{student_id}/scores")
+async def get_child_scores(
+    student_id: str,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Get child's exam score snapshots (all subjects)."""
+    return await parent_service.get_child_scores(
+        db, current_user["user"].id, student_id, limit=limit,
+    )
+
+
+@router.get("/parent/children/{student_id}/error-book")
+async def get_child_error_book(
+    student_id: str,
+    mastery_status: str | None = None,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Get child's error book entries + stats."""
+    return await parent_service.get_child_error_book(
+        db, current_user["user"].id, student_id,
+        mastery_status=mastery_status, limit=limit,
+    )
+
+
 @router.put("/parent/profile")
 async def update_parent_profile(
     data: dict,

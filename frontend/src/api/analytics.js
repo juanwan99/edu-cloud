@@ -13,6 +13,23 @@ export const getClassTrend = (params) => client.get('/analytics/report/trend/cla
 export const getStudentTrend = (params) => client.get('/analytics/report/trend/student', { params })
 export const exportReport = (data) => client.post('/analytics/report/export', data)
 
+export const getPowerOptions = () => client.get('/analytics/power-options')
+export const getQuestionInsights = (examId) => client.get(`/analytics/exam/${examId}/question-insights`)
+export const getExamDiagnosis = (examId, params) => client.get(`/analytics/exam/${examId}/diagnosis`, { params })
+export const getStudentRankings = (examId, params) => client.get(`/analytics/exam/${examId}/student-rankings`, { params })
+export const getCriticalStudents = (examId, params) => client.get(`/analytics/exam/${examId}/critical-students`, { params })
+export const getClassBoxplot = (examId, params) => client.get(`/analytics/exam/${examId}/class-boxplot`, { params })
+export const getClassKnowledge = (examId, params) => client.get(`/analytics/exam/${examId}/class-knowledge`, { params })
+export const getClassDiagnosis = (examId, params) => client.get(`/analytics/exam/${examId}/class-diagnosis`, { params })
+export const getClassErrorPatterns = (examId, params) => client.get(`/analytics/exam/${examId}/class-error-patterns`, { params })
+export const getLayerAnalysis = (examId, params) => client.get(`/analytics/exam/${examId}/layer-analysis`, { params })
+export const getCommonWrongQuestions = (examId, params) => client.get(`/analytics/exam/${examId}/common-wrong-questions`, { params })
+
+// WP-D: 年级聚合分析
+export const getGradeOverview = (gradeId, examId) => client.get(`/analytics/grade/${gradeId}/overview`, { params: { exam_id: examId } })
+export const getGradeExamTrend = (gradeId, limit = 10) => client.get(`/analytics/grade/${gradeId}/trend`, { params: { limit } })
+export const getGradeSubjects = (gradeId, examId) => client.get(`/analytics/grade/${gradeId}/subjects`, { params: { exam_id: examId } })
+
 // Phase 2-A/B/C: 真实下载（PDF / XLSX）
 export const exportGradeReport = (examId, subjectId, format = 'pdf') =>
   client.get(

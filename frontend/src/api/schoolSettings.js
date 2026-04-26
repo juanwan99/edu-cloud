@@ -14,3 +14,12 @@ export const getEnabledModules = (schoolId) =>
 
 export const toggleModule = (schoolId, moduleCode, enabled) =>
   client.patch(`/schools/${schoolId}/modules/${moduleCode}`, { enabled })
+
+export const getCapabilities = (schoolId, role) =>
+  client.get(`/schools/${schoolId}/capabilities`, { params: { role } })
+
+export const setCapability = (schoolId, data) =>
+  client.patch(`/schools/${schoolId}/capabilities`, data)
+
+export const initCapabilities = (schoolId) =>
+  client.post(`/schools/${schoolId}/capabilities/init`)

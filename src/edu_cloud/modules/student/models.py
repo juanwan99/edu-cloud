@@ -12,6 +12,10 @@ class Class(Base, IdMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(100))
     grade: Mapped[str] = mapped_column(String(50))
     grade_number: Mapped[int | None] = mapped_column(Integer, default=None)
+    # S1-C 1.3 新增独立年级引用（refs: design §4 1.3）
+    grade_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("grades.id"), default=None, nullable=True
+    )
     head_teacher_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id"), default=None
     )

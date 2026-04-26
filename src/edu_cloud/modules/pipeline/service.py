@@ -565,6 +565,8 @@ async def _update_adaptive_mastery(db: AsyncSession, *, exam_id: str, school_id:
 
 async def run_full_pipeline(db: AsyncSession, *, exam_id: str, school_id: str) -> dict:
     """完整流水线：考试完成后一键执行所有数据生成。"""
+    from edu_cloud.modules.analytics.pipeline_service import compute_exam_analysis
+
     results = {
         "bank_questions": await populate_bank_questions(db, exam_id=exam_id, school_id=school_id),
         "error_books": await populate_error_books(db, exam_id=exam_id, school_id=school_id),
@@ -572,6 +574,7 @@ async def run_full_pipeline(db: AsyncSession, *, exam_id: str, school_id: str) -
         "knowledge_mastery": await update_knowledge_mastery(db, exam_id=exam_id, school_id=school_id),
         "error_patterns": await update_error_patterns(db, exam_id=exam_id, school_id=school_id),
         "adaptive_mastery": await _update_adaptive_mastery(db, exam_id=exam_id, school_id=school_id),
+        "exam_analysis": await compute_exam_analysis(db, exam_id=exam_id, school_id=school_id),
     }
     logger.info("run_full_pipeline: exam=%s, results=%s", exam_id, results)
     return results

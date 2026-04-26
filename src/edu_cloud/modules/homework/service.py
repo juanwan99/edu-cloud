@@ -1,4 +1,5 @@
 """作业模块 Service — HomeworkTaskService + HomeworkSubmissionService。"""
+import json
 import logging
 from datetime import datetime, timezone, timedelta
 
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 _TZ = timezone(timedelta(hours=8))
 
-_VALID_TASK_TYPES = {"regular", "pre_exam", "post_exam"}
+_VALID_TASK_TYPES = {"regular", "pre_exam", "post_exam", "remedial"}
 
 _STATUS_TRANSITIONS = {
     "publish": {"from": frozenset({"draft"}), "to": "active"},
@@ -139,6 +140,183 @@ class HomeworkTaskService:
 
         await db.flush()
         return task
+
+
+    # ── 考后推送 + 内容增强 (WP-C) ─────────────────────────────
+
+    @staticmethod
+    @audited("homework_task", action="create")
+    async def create_remedial_task(
+        db: AsyncSession, *, exam_id: str, class_id: str,
+        school_id: str, created_by: str,
+        error_threshold: float = 0.4,
+        max_questions: int = 10,
+    ) -> HomeworkTask:
+        """从考试分析数据中自动创建补救作业。
+
+        1. 读取考试的题目 + 学生作答，计算每题错误率
+        2. 筛选错误率 > error_threshold 的题目
+        3. 从题库中找同题型的练习题
+        4. 自动构建 content JSON 并创建 HomeworkTask
+        """
+        from edu_cloud.modules.exam.models import Exam, Subject, Question
+        from edu_cloud.modules.scan.models import StudentAnswer
+        from edu_cloud.modules.bank.models import BankQuestion
+
+        # 验证考试存在且属于本校
+        exam_result = await db.execute(
+            select(Exam).where(Exam.id == exam_id, Exam.school_id == school_id)
+        )
+        exam = exam_result.scalar_one_or_none()
+        if not exam:
+            raise NotFoundError("考试不存在")
+
+        # 获取所有科目
+        subjects_result = await db.execute(
+            select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
+        )
+        subjects = list(subjects_result.scalars().all())
+        if not subjects:
+            raise NotFoundError("考试没有科目数据")
+
+        subject_ids = [s.id for s in subjects]
+
+        # 获取所有题目
+        questions_result = await db.execute(
+            select(Question).where(
+                Question.subject_id.in_(subject_ids),
+                Question.school_id == school_id,
+                Question.max_score > 0,
+            )
+        )
+        questions = {q.id: q for q in questions_result.scalars().all()}
+
+        # 获取学生作答数据，按题聚合计算错误率
+        answers_result = await db.execute(
+            select(
+                StudentAnswer.question_id,
+                func.count().label("total"),
+                func.avg(StudentAnswer.score).label("avg_score"),
+            )
+            .where(
+                StudentAnswer.exam_id == exam_id,
+                StudentAnswer.school_id == school_id,
+                StudentAnswer.question_id.in_(list(questions.keys())),
+            )
+            .group_by(StudentAnswer.question_id)
+        )
+
+        # 计算错误率 = 1 - (avg_score / max_score)
+        high_error_question_ids: list[str] = []
+        for row in answers_result.all():
+            q = questions.get(row.question_id)
+            if not q or q.max_score <= 0:
+                continue
+            error_rate = 1.0 - (row.avg_score / q.max_score)
+            if error_rate >= error_threshold:
+                high_error_question_ids.append(row.question_id)
+
+        # 从题库中找同题型的练习题
+        remedial_bank_ids: list[str] = []
+        if high_error_question_ids:
+            # 收集高错误率题目的题型
+            error_question_types = set()
+            for qid in high_error_question_ids:
+                q = questions.get(qid)
+                if q:
+                    error_question_types.add(q.question_type)
+
+            if error_question_types:
+                bank_result = await db.execute(
+                    select(BankQuestion.id)
+                    .where(
+                        BankQuestion.school_id == school_id,
+                        BankQuestion.question_type.in_(list(error_question_types)),
+                    )
+                    .limit(max_questions)
+                )
+                remedial_bank_ids = [row[0] for row in bank_result.all()]
+
+        # 构建 content JSON
+        content = json.dumps({
+            "question_ids": remedial_bank_ids,
+            "source_exam_id": exam_id,
+            "error_threshold": error_threshold,
+            "high_error_question_ids": high_error_question_ids,
+        })
+
+        # 自动生成标题
+        title = f"{exam.name} 补救练习"
+
+        task = HomeworkTask(
+            school_id=school_id,
+            title=title,
+            task_type="remedial",
+            subject_code=exam.subject_code,
+            class_id=class_id,
+            assigned_by=created_by,
+            exam_id=exam_id,
+            content=content,
+        )
+        db.add(task)
+        await db.flush()
+        logger.info(
+            "create_remedial_task: id=%s, exam=%s, high_error_questions=%d, bank_questions=%d",
+            task.id, exam_id, len(high_error_question_ids), len(remedial_bank_ids),
+        )
+        return task
+
+    @staticmethod
+    async def get_task_content_detail(
+        db: AsyncSession, *, task_id: str, school_id: str,
+    ) -> dict:
+        """解析 task.content JSON 中的 question_ids，返回带完整题目信息的内容结构。"""
+        from edu_cloud.modules.bank.models import BankQuestion
+
+        task = await HomeworkTaskService.get_task(db, task_id=task_id, school_id=school_id)
+
+        if not task.content:
+            return {"task_id": task_id, "questions": [], "source_exam_id": None}
+
+        try:
+            content_data = json.loads(task.content) if isinstance(task.content, str) else task.content
+        except (json.JSONDecodeError, TypeError):
+            return {"task_id": task_id, "questions": [], "source_exam_id": None}
+
+        question_ids = content_data.get("question_ids", [])
+        source_exam_id = content_data.get("source_exam_id")
+
+        if not question_ids:
+            return {"task_id": task_id, "questions": [], "source_exam_id": source_exam_id}
+
+        # 从题库批量读取题目详情
+        result = await db.execute(
+            select(BankQuestion).where(
+                BankQuestion.id.in_(question_ids),
+                BankQuestion.school_id == school_id,
+            )
+        )
+        bank_questions = {bq.id: bq for bq in result.scalars().all()}
+
+        questions_detail = []
+        for qid in question_ids:
+            bq = bank_questions.get(qid)
+            if bq:
+                questions_detail.append({
+                    "id": bq.id,
+                    "content_text": bq.content_text,
+                    "question_type": bq.question_type,
+                    "max_score": bq.max_score,
+                    "difficulty": bq.difficulty,
+                    "knowledge_point_ids": bq.knowledge_point_ids,
+                    "correct_answer": bq.correct_answer,
+                })
+
+        return {
+            "task_id": task_id,
+            "questions": questions_detail,
+            "source_exam_id": source_exam_id,
+        }
 
 
 class HomeworkSubmissionService:

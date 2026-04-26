@@ -38,7 +38,7 @@ class BankQuestion(Base, IdMixin, TimestampMixin):
     explanation: Mapped[str | None] = mapped_column(Text, default=None)
     knowledge_point_ids: Mapped[list | None] = mapped_column(JSON, default=None)
     difficulty_level: Mapped[str | None] = mapped_column(String(10), default=None)
-    grade_id: Mapped[int | None] = mapped_column(Integer, default=None)
+    grade_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("grades.id"), default=None)
 
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
 

@@ -85,7 +85,6 @@ _TEACHER_BASE: set[Permission] = {
     Permission.VIEW_SCORES,
     Permission.VIEW_QUESTION_BANK,
     Permission.VIEW_GRADING,
-    Permission.MANAGE_GRADING,
     Permission.VIEW_HOMEWORK,
     Permission.MANAGE_HOMEWORK,
     Permission.GENERATE_REPORT,
@@ -246,6 +245,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     # ── 班主任：教师基线 + 班级通知管理 ──
     # 作用域：本班全科 + 任教班本科（由 DataScope 控制）
     "homeroom_teacher": _TEACHER_BASE | {
+        Permission.MANAGE_GRADING,
         Permission.GENERATE_NOTIFICATION,    # 给班级家长发通知
         Permission.SEND_NOTIFICATION,
         Permission.MANAGE_CONDUCT_RULES,
@@ -270,6 +270,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     "admin": set(Permission),
     "teacher": _TEACHER_BASE.copy(),
     "head_teacher": _TEACHER_BASE | {
+        Permission.MANAGE_GRADING,
         Permission.GENERATE_NOTIFICATION,
         Permission.SEND_NOTIFICATION,
         Permission.MANAGE_CONDUCT_RULES,

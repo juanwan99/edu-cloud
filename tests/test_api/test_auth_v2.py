@@ -227,3 +227,76 @@ async def test_switch_role_returns_context(client, db):
     assert resp.status_code == 200
     assert resp.json()["active_role"]["context"]["type"] == "school"
     assert resp.json()["active_role"]["context"]["name"] == "切换测试校"
+
+
+@pytest.mark.asyncio
+async def test_admin_login_auto_provisions_school_roles(client, db):
+    """platform_admin 登录时自动为所有活跃学校创建角色记录，并可切换。"""
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.models.school import School
+
+    school = School(name="景炎中学", code="JY2026", district="株洲市")
+    db.add(school)
+    await db.flush()
+
+    user = User(username="superadmin", display_name="超管")
+    user.set_password("admin123")
+    db.add(user)
+    await db.flush()
+
+    role = UserRole(user_id=user.id, role="platform_admin", is_primary=True)
+    db.add(role)
+    await db.commit()
+
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "superadmin", "password": "admin123"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    roles = data["roles"]
+
+    school_roles = [r for r in roles if r.get("school_id")]
+    assert len(school_roles) >= 1
+    jy = next(r for r in school_roles if r["context"]["name"] == "景炎中学")
+    assert jy["role"] == "platform_admin"
+
+    # 切换到景炎中学
+    token = data["access_token"]
+    switch = await client.post(
+        "/api/v1/auth/switch-role",
+        json={"role_id": jy["id"]},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert switch.status_code == 200
+    assert switch.json()["active_role"]["context"]["name"] == "景炎中学"
+
+
+@pytest.mark.asyncio
+async def test_admin_auto_provision_is_idempotent(client, db):
+    """多次登录不会重复创建角色记录。"""
+    from edu_cloud.models.user import User
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.models.school import School
+
+    school = School(name="幂等测试校", code="IDEM01", district="测试区")
+    db.add(school)
+    await db.flush()
+
+    user = User(username="idem_admin", display_name="幂等超管")
+    user.set_password("pass")
+    db.add(user)
+    await db.flush()
+
+    db.add(UserRole(user_id=user.id, role="platform_admin", is_primary=True))
+    await db.commit()
+
+    login_data = {"username": "idem_admin", "password": "pass"}
+    resp1 = await client.post("/api/v1/auth/login", json=login_data)
+    count1 = len(resp1.json()["roles"])
+
+    resp2 = await client.post("/api/v1/auth/login", json=login_data)
+    count2 = len(resp2.json()["roles"])
+
+    assert count1 == count2

@@ -24,6 +24,8 @@ from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.student.models import Student
 from edu_cloud.modules.knowledge.models import KnowledgePoint, QuestionKnowledgePoint
+from edu_cloud.modules.conduct.models import StudentProfile
+from edu_cloud.modules.conduct.crypto import encrypt
 
 logger = logging.getLogger(__name__)
 
@@ -187,9 +189,40 @@ async def seed_demo_data(db: AsyncSession, school_code: str = "TEST01") -> dict:
             class_id_to_idx[s.class_id] = len(class_id_to_idx)
         class_students[s.class_id].append(s)
 
+    # === StudentProfile seed (幂等) ===
+    # 为每个学生创建 StudentProfile，设置 verify_code 为学号后 6 位（AES-256-GCM 加密）
+    profile_created = 0
+    existing_profile_ids = set()
+    existing_profiles = await db.execute(
+        select(StudentProfile.student_id).where(
+            StudentProfile.student_id.in_([s.id for s in students])
+        )
+    )
+    for row in existing_profiles.scalars().all():
+        existing_profile_ids.add(row)
+
+    for student in students:
+        if student.id in existing_profile_ids:
+            continue
+        # verify_code = 学号后 6 位，不足 6 位则用全部学号
+        raw_code = (student.student_number or "123456")[-6:]
+        db.add(StudentProfile(
+            student_id=student.id,
+            verify_code=encrypt(raw_code),
+        ))
+        profile_created += 1
+
+    if profile_created > 0:
+        await db.flush()
+        logger.info("seed: created %d student profiles (verify_code = last 6 of student_number)", profile_created)
+
     # === 知识点 seed ===
     from edu_cloud.data.seed_knowledge_math import seed_math_knowledge
     kp_created = await seed_math_knowledge(db)
+
+    from edu_cloud.data.seed_knowledge_biology import seed_biology_knowledge
+    bio_created = await seed_biology_knowledge(db, db_path="./edu-knowledge-base/knowledge.db")
+    kp_created += bio_created
 
     # 查知识点 code → id 映射
     kp_result = await db.execute(select(KnowledgePoint).where(KnowledgePoint.course_code == "SX"))

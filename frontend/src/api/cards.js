@@ -37,3 +37,5 @@ export const renderDocPages = (formData) =>
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 60000,
   })
+export const getDocPages = (subjectId) =>
+  client.get('/card/doc-pages', { params: { subject_id: subjectId } })

@@ -24,7 +24,7 @@ def load_l0_blocks(base_dir: str) -> list[dict]:
     blocks = []
     if not l0_dir.exists():
         return blocks
-    for f in sorted(l0_dir.glob("B*_L0.json")):
+    for f in sorted(l0_dir.glob("*_L0.json")):
         try:
             with open(f, encoding="utf-8") as fh:
                 data = json.load(fh)

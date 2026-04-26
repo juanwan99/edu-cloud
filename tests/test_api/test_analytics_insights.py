@@ -187,3 +187,59 @@ async def test_diagnosis_empty_exam(client, school_admin_headers, seed_school, d
     )
     assert resp.status_code == 200
     assert "暂无" in resp.json()["summary_text"]
+
+
+# --- common-wrong-questions ---
+
+
+@pytest.mark.asyncio
+async def test_common_wrong_questions(client, school_admin_headers, seed_school, db):
+    """返回按 wrong_rate DESC 排序，每题 mean_rate ∈ [0,1]。"""
+    exam, subj, questions, cls, students = await _seed_graded_exam(db, seed_school)
+
+    resp = await client.get(
+        f"/api/v1/analytics/exam/{exam.id}/common-wrong-questions",
+        headers=school_admin_headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    items = data["questions"]
+    assert isinstance(items, list)
+    assert len(items) > 0
+
+    for item in items:
+        assert 0 <= item["mean_score_rate"] <= 1
+        assert item["wrong_count"] >= 0
+        assert item["total_count"] > 0
+
+    if len(items) >= 2:
+        for i in range(len(items) - 1):
+            assert items[i]["wrong_rate"] >= items[i + 1]["wrong_rate"]
+
+
+@pytest.mark.asyncio
+async def test_common_wrong_questions_empty(client, school_admin_headers, seed_school, db):
+    school, _ = seed_school
+    exam = Exam(name="空考试CWQ", status="completed", school_id=school.id)
+    db.add(exam)
+    await db.commit()
+
+    resp = await client.get(
+        f"/api/v1/analytics/exam/{exam.id}/common-wrong-questions",
+        headers=school_admin_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["questions"] == []
+
+
+@pytest.mark.asyncio
+async def test_common_wrong_questions_subject_filter(client, school_admin_headers, seed_school, db):
+    exam, subj, _, _, _ = await _seed_graded_exam(db, seed_school)
+
+    resp = await client.get(
+        f"/api/v1/analytics/exam/{exam.id}/common-wrong-questions",
+        params={"subject_id": subj.id},
+        headers=school_admin_headers,
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()["questions"]) > 0

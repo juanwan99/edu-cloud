@@ -1,13 +1,14 @@
 from datetime import date as date_type
 
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Query, Response
+from pydantic import BaseModel, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.modules.academic import service
+from edu_cloud.modules.calendar import teaching_plan_service
 
 router = APIRouter(prefix="/api/v1/academic", tags=["academic"])
 
@@ -180,7 +181,7 @@ async def save_timetable(
 @router.get("/timetable/stats")
 async def get_timetable_stats(
     semester_id: str = Query(...),
-    class_id: str = Query(...),
+    class_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
@@ -188,3 +189,102 @@ async def get_timetable_stats(
         db, school_id=_school_id(current), semester_id=semester_id,
         class_id=class_id,
     )
+
+
+# ── TeachingPlan schemas ──────────────────────────────────────
+
+class WeekItem(BaseModel):
+    week_number: int
+    topic: str
+    knowledge_points: list[str]
+    notes: str
+
+
+class TeachingPlanCreate(BaseModel):
+    subject_code: str
+    grade_id: str | None = None
+    semester: str
+    weeks_json: list[WeekItem]
+
+    @field_validator("weeks_json")
+    @classmethod
+    def at_least_one_week(cls, v):
+        if not v:
+            raise ValueError("weeks_json 不能为空")
+        return v
+
+
+class TeachingPlanUpdate(BaseModel):
+    weeks_json: list[WeekItem] | None = None
+    subject_code: str | None = None
+
+
+# ── TeachingPlan endpoints ────────────────────────────────────
+
+@router.post("/teaching-plans", status_code=201)
+async def create_teaching_plan(
+    body: TeachingPlanCreate,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_SCHEDULING)),
+):
+    return await teaching_plan_service.create_plan(
+        db, school_id=_school_id(current),
+        subject_code=body.subject_code, grade_id=body.grade_id,
+        semester=body.semester,
+        weeks_json=[w.model_dump() for w in body.weeks_json],
+        created_by=current["user"].id,
+    )
+
+
+@router.get("/teaching-plans")
+async def list_teaching_plans(
+    semester: str | None = Query(None),
+    subject_code: str | None = Query(None),
+    grade_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_SCHEDULING)),
+):
+    return await teaching_plan_service.list_plans(
+        db, school_id=_school_id(current),
+        semester=semester, subject_code=subject_code, grade_id=grade_id,
+    )
+
+
+@router.get("/teaching-plans/{plan_id}")
+async def get_teaching_plan(
+    plan_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_SCHEDULING)),
+):
+    return await teaching_plan_service.get_plan(
+        db, plan_id=plan_id, school_id=_school_id(current),
+    )
+
+
+@router.patch("/teaching-plans/{plan_id}")
+async def update_teaching_plan(
+    plan_id: str,
+    body: TeachingPlanUpdate,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_SCHEDULING)),
+):
+    kwargs = {}
+    if body.weeks_json is not None:
+        kwargs["weeks_json"] = [w.model_dump() for w in body.weeks_json]
+    if body.subject_code is not None:
+        kwargs["subject_code"] = body.subject_code
+    return await teaching_plan_service.update_plan(
+        db, plan_id=plan_id, school_id=_school_id(current), **kwargs,
+    )
+
+
+@router.delete("/teaching-plans/{plan_id}", status_code=204)
+async def delete_teaching_plan(
+    plan_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_SCHEDULING)),
+):
+    await teaching_plan_service.delete_plan(
+        db, plan_id=plan_id, school_id=_school_id(current),
+    )
+    return Response(status_code=204)

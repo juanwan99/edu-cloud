@@ -466,6 +466,107 @@ async def update_parent_profile(db: AsyncSession, user_id: str, data: dict) -> d
     }
 
 
+async def get_child_exams(db: AsyncSession, user_id: str, student_id: str) -> list[dict]:
+    """Get exams that the child participated in (from snapshots)."""
+    await _verify_guardian_link(db, user_id, student_id)
+    from edu_cloud.modules.profile.models import StudentExamSnapshot
+    from edu_cloud.modules.exam.models import Exam
+
+    rows = (
+        await db.execute(
+            select(
+                StudentExamSnapshot.exam_id,
+                Exam.name,
+                Exam.status,
+                func.min(StudentExamSnapshot.exam_date).label("exam_date"),
+                func.sum(StudentExamSnapshot.total_score).label("total_score"),
+                func.sum(StudentExamSnapshot.max_score).label("max_score"),
+            )
+            .join(Exam, StudentExamSnapshot.exam_id == Exam.id)
+            .where(StudentExamSnapshot.student_id == student_id)
+            .group_by(StudentExamSnapshot.exam_id, Exam.name, Exam.status)
+            .order_by(func.min(StudentExamSnapshot.exam_date).desc())
+        )
+    ).all()
+
+    return [
+        {
+            "exam_id": r.exam_id,
+            "exam_name": r.name,
+            "exam_status": r.status,
+            "exam_date": r.exam_date.isoformat() if r.exam_date else None,
+            "total_score": r.total_score,
+            "max_score": r.max_score,
+        }
+        for r in rows
+    ]
+
+
+async def get_child_scores(
+    db: AsyncSession, user_id: str, student_id: str, limit: int = 20,
+) -> list[dict]:
+    """Get child's exam score snapshots (all subjects, sorted by date desc)."""
+    await _verify_guardian_link(db, user_id, student_id)
+    from edu_cloud.modules.profile.models import StudentExamSnapshot
+    from edu_cloud.modules.exam.models import Exam
+
+    rows = (
+        await db.execute(
+            select(StudentExamSnapshot, Exam.name)
+            .join(Exam, StudentExamSnapshot.exam_id == Exam.id)
+            .where(StudentExamSnapshot.student_id == student_id)
+            .order_by(StudentExamSnapshot.exam_date.desc())
+            .limit(limit)
+        )
+    ).all()
+
+    return [
+        {
+            "exam_id": s.exam_id,
+            "exam_name": name,
+            "subject_code": s.subject_code,
+            "total_score": s.total_score,
+            "max_score": s.max_score,
+            "score_rate": s.score_rate,
+            "class_rank": s.class_rank,
+            "grade_rank": s.grade_rank,
+            "class_size": s.class_size,
+            "grade_size": s.grade_size,
+            "exam_date": s.exam_date.isoformat() if s.exam_date else None,
+        }
+        for s, name in rows
+    ]
+
+
+async def get_child_error_book(
+    db: AsyncSession, user_id: str, student_id: str,
+    mastery_status: str | None = None, limit: int = 50,
+) -> dict:
+    """Get child's error book entries + stats."""
+    link = await _verify_guardian_link(db, user_id, student_id)
+    from edu_cloud.modules.bank.service import get_student_error_book, get_error_book_stats
+
+    items = await get_student_error_book(
+        db, student_id=student_id, school_id=link.school_id,
+        mastery_status=mastery_status, limit=limit,
+    )
+    stats = await get_error_book_stats(
+        db, student_id=student_id, school_id=link.school_id,
+    )
+    return {
+        "stats": stats,
+        "items": [
+            {
+                "id": e.id, "question_id": e.question_id, "exam_id": e.exam_id,
+                "student_score": e.student_score, "max_score": e.max_score,
+                "error_type": e.error_type, "ai_feedback": e.ai_feedback,
+                "mastery_status": e.mastery_status, "retry_count": e.retry_count,
+            }
+            for e in items
+        ],
+    }
+
+
 async def change_parent_password(
     db: AsyncSession, user_id: str, old_password: str, new_password: str,
 ) -> dict:

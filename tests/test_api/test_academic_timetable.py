@@ -121,6 +121,27 @@ async def test_timetable_stats(client, setup):
 
 
 @pytest.mark.asyncio
+async def test_timetable_stats_school_wide(client, setup):
+    """When class_id is omitted, stats returns school-wide summary."""
+    s = setup
+    # Save a timetable for class1 only
+    slot = {"weekday": 1, "period_id": s["period"].id, "subject_code": "math", "teacher_id": s["teacher"].id}
+    await client.put(f"/api/v1/academic/timetable/{s['class1'].id}", json={
+        "semester_id": s["semester"].id, "slots": [slot],
+    }, headers=s["director_headers"])
+
+    # Call stats without class_id
+    resp = await client.get(
+        f"/api/v1/academic/timetable/stats?semester_id={s['semester'].id}",
+        headers=s["director_headers"])
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_classes"] == 2  # class1 + class2
+    assert data["classes_with_timetable"] == 1  # only class1
+    assert 0 < data["coverage_rate"] < 1
+
+
+@pytest.mark.asyncio
 async def test_teacher_cannot_save_timetable(client, setup):
     s = setup
     slot = {"weekday": 1, "period_id": s["period"].id, "subject_code": "math", "teacher_id": s["teacher"].id}

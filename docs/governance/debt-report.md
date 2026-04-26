@@ -7,7 +7,6 @@
 - `src/edu_cloud/modules/bank/`
 - `src/edu_cloud/modules/calendar/`
 - `src/edu_cloud/modules/card/`
-- `src/edu_cloud/modules/conduct/`
 - `src/edu_cloud/modules/exam/`
 - `src/edu_cloud/modules/homework/`
 - `src/edu_cloud/modules/knowledge/`

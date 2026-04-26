@@ -30,6 +30,99 @@ def _classify_error(reason: str) -> str:
     return "其他"
 
 
+WRONG_THRESHOLD = 0.6
+
+
+async def common_wrong_questions(
+    db: AsyncSession, *, exam_id: str, school_id: str,
+    subject_id: str | None = None,
+    visible_subject_codes: list[str] | None = None,
+    visible_class_ids: list[str] | None = None,
+) -> dict:
+    """按题聚合错误人数和平均得分率，按错误率降序排列。
+
+    "答错"定义：final_score < max_score × 0.6。
+    """
+    exam = (await db.execute(
+        select(Exam).where(Exam.id == exam_id, Exam.school_id == school_id)
+    )).scalar_one_or_none()
+    if not exam:
+        raise NotFoundError("Exam not found")
+
+    subj_q = select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
+    if subject_id:
+        subj_q = subj_q.where(Subject.id == subject_id)
+    if visible_subject_codes is not None:
+        subj_q = subj_q.where(Subject.code.in_(visible_subject_codes))
+    subjects = list((await db.execute(subj_q)).scalars().all())
+    if not subjects:
+        return {"questions": []}
+
+    subj_ids = [s.id for s in subjects]
+
+    effective_score = func.coalesce(GradingResult.final_score, StudentAnswer.score)
+    stmt = (
+        select(
+            StudentAnswer.question_id,
+            effective_score.label("effective_score"),
+            Question.max_score,
+        )
+        .outerjoin(GradingResult, GradingResult.answer_id == StudentAnswer.id)
+        .join(Question, Question.id == StudentAnswer.question_id)
+        .where(
+            StudentAnswer.subject_id.in_(subj_ids),
+            StudentAnswer.school_id == school_id,
+            Question.max_score > 0,
+        )
+    )
+    if visible_class_ids is not None:
+        stmt = stmt.join(Student, Student.id == StudentAnswer.student_id).where(
+            Student.class_id.in_(visible_class_ids)
+        )
+
+    rows = (await db.execute(stmt)).all()
+
+    q_total: dict[str, int] = defaultdict(int)
+    q_wrong: dict[str, int] = defaultdict(int)
+    q_score_sum: dict[str, float] = defaultdict(float)
+    q_max: dict[str, float] = {}
+
+    for row in rows:
+        qid = row.question_id
+        if row.effective_score is None:
+            continue
+        q_total[qid] += 1
+        q_score_sum[qid] += row.effective_score
+        q_max[qid] = row.max_score
+        if row.effective_score < row.max_score * WRONG_THRESHOLD:
+            q_wrong[qid] += 1
+
+    q_result = await db.execute(
+        select(Question.id, Question.name, Question.question_type, Question.max_score)
+        .where(Question.subject_id.in_(subj_ids), Question.school_id == school_id)
+    )
+    questions_meta = {q.id: {"name": q.name, "type": q.question_type} for q in q_result.all()}
+
+    result = []
+    for qid, total in q_total.items():
+        meta = questions_meta.get(qid, {"name": qid, "type": "unknown"})
+        wrong = q_wrong.get(qid, 0)
+        max_s = q_max.get(qid, 0)
+        mean_rate = round(q_score_sum[qid] / (total * max_s), 4) if total > 0 and max_s > 0 else 0.0
+        result.append({
+            "question_id": qid,
+            "name": meta["name"],
+            "question_type": meta["type"],
+            "wrong_count": wrong,
+            "total_count": total,
+            "wrong_rate": round(wrong / total, 4) if total > 0 else 0.0,
+            "mean_score_rate": mean_rate,
+        })
+
+    result.sort(key=lambda x: x["wrong_rate"], reverse=True)
+    return {"questions": result}
+
+
 async def question_insights(
     db: AsyncSession, *, exam_id: str, school_id: str,
     subject_id: str | None = None,

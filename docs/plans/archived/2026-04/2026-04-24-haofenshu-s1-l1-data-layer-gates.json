@@ -1,0 +1,25 @@
+{
+  "topic": "haofenshu-s1-l1-data-layer",
+  "tier": "T3",
+  "created": "2026-04-24T10:27:56.879425+08:00",
+  "gates": {
+    "plan_review": {
+      "required": true,
+      "status": "manual_override",
+      "reviewer": "gpt",
+      "subject_ref": "docs/plans/2026-04-24-haofenshu-s1-l1-data-layer-plan.md",
+      "subject_hash": "9c280e920ec4d0511fbbc4ef415f26752a1a7834586e7321630b37c5c29be828",
+      "report_path": "/home/ops/projects/edu-cloud/docs/plans/2026-04-24-haofenshu-s1-l1-data-layer-plan-review.md",
+      "updated": "2026-04-24T12:12:42.452346+08:00",
+      "reason": "R1 FAIL: 9 findings (5 HIGH + 4 MED). F001 down_revision 绑错 / F002 ORM 注册机制误解 / F003-6 测试契约缺失 / F009 参数语义不一致",
+      "raw_output_hash": "0c4592eee3ed82f1137a62966970852097bf0370a49f94c8bc7025b73c9d600b",
+      "round": 1,
+      "override_reason": "R1 FAIL 后按路径 A 拆为 S1-A/B/C/D 4 子 topic（parent design v0.2 §4.2 新增拆 topic 例外允许）。原 plan 冻结为历史证据，S1-A 新 plan docs/plans/2026-04-24-haofenshu-s1-bank-plan.md（commit 1bb95b0）承接 deliverable 1.1；S1-B/C/D 后续开新 topic。此 override 7 天有效期内应完成 4 子 plan 全 R1 PASS 以关闭 parent topic。",
+      "override_timestamp": "2026-04-24T12:12:42.452317+08:00",
+      "override_operator": "user-approved-by-owner"
+    }
+  },
+  "closed": true,
+  "closed_at": "2026-04-25 11:38:51",
+  "closed_reason": "all gates passed/manual_override — route A cleanup"
+}

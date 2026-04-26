@@ -39,13 +39,34 @@ describe('Route definitions (real routes)', () => {
     expect(shell.meta?.requiresAuth).toBe(true)
   })
 
-  it('has exactly 3 top-level routes in freeze mode', () => {
-    expect(routes).toHaveLength(3)
+  it('has expected top-level route count', () => {
+    expect(routes).toHaveLength(6)
   })
 
-  it('AppShell has 18 child routes in freeze mode', () => {
+  it('AppShell has 41 child routes', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
-    expect(shell.children).toHaveLength(18)
+    expect(shell.children).toHaveLength(41)
+  })
+
+  it('calendar route requires view_scores permission', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const cal = shell.children.find(r => r.path === 'calendar')
+    expect(cal).toBeTruthy()
+    expect(cal.meta?.permissions).toContain('view_scores')
+  })
+
+  it('error-book route requires view_scores permission', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const errorBook = shell.children.find(r => r.path === 'error-book')
+    expect(errorBook).toBeTruthy()
+    expect(errorBook.meta?.permissions).toContain('view_scores')
+  })
+
+  it('joint-exams route requires view_joint_exam permission', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const je = shell.children.find(r => r.path === 'joint-exams')
+    expect(je).toBeTruthy()
+    expect(je.meta?.permissions).toContain('view_joint_exam')
   })
 
   it('all routes except login are children of AppShell', () => {

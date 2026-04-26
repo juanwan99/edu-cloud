@@ -215,21 +215,52 @@ async def get_timetable(
 
 
 async def get_timetable_stats(
-    db: AsyncSession, *, school_id: str, semester_id: str, class_id: str,
-) -> list[dict]:
-    from sqlalchemy import func
-    stmt = (
-        select(TimetableSlot.subject_code, func.count().label("count"))
+    db: AsyncSession, *, school_id: str, semester_id: str,
+    class_id: str | None = None,
+) -> dict | list[dict]:
+    from sqlalchemy import func, distinct
+
+    if class_id:
+        # Per-class stats: subject slot counts
+        stmt = (
+            select(TimetableSlot.subject_code, func.count().label("count"))
+            .where(
+                TimetableSlot.school_id == school_id,
+                TimetableSlot.semester_id == semester_id,
+                TimetableSlot.class_id == class_id,
+            )
+            .group_by(TimetableSlot.subject_code)
+            .order_by(func.count().desc())
+        )
+        rows = (await db.execute(stmt)).all()
+        return [{"subject_code": r[0], "count": r[1]} for r in rows]
+
+    # School-wide summary: how many classes have timetables
+    from edu_cloud.modules.student.models import Class
+
+    total_stmt = (
+        select(func.count())
+        .select_from(Class)
+        .where(Class.school_id == school_id)
+    )
+    total_classes = (await db.execute(total_stmt)).scalar() or 0
+
+    with_timetable_stmt = (
+        select(func.count(distinct(TimetableSlot.class_id)))
         .where(
             TimetableSlot.school_id == school_id,
             TimetableSlot.semester_id == semester_id,
-            TimetableSlot.class_id == class_id,
         )
-        .group_by(TimetableSlot.subject_code)
-        .order_by(func.count().desc())
     )
-    rows = (await db.execute(stmt)).all()
-    return [{"subject_code": r[0], "count": r[1]} for r in rows]
+    classes_with_timetable = (await db.execute(with_timetable_stmt)).scalar() or 0
+
+    coverage_rate = (classes_with_timetable / total_classes) if total_classes > 0 else 0
+
+    return {
+        "total_classes": total_classes,
+        "classes_with_timetable": classes_with_timetable,
+        "coverage_rate": coverage_rate,
+    }
 
 
 async def _check_teacher_conflicts(

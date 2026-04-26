@@ -35,6 +35,36 @@ export const routes = [
         component: () => import('../pages/AiGradingPage.vue'),
         meta: { roles: GRADING_DISPATCH_ROLES } },
 
+      // 学生画像
+      { path: 'profile/student/:studentId', name: 'StudentProfile', component: () => import('../pages/StudentProfilePage.vue'), meta: { permissions: ['view_scores'] } },
+
+      // 题库
+      { path: 'question-bank', name: 'QuestionBank', component: () => import('../pages/QuestionBankPage.vue'), meta: { permissions: ['view_question_bank'] } },
+
+      // 错题本
+      { path: 'error-book', name: 'ErrorBook', component: () => import('../pages/ErrorBookPage.vue'), meta: { permissions: ['view_scores'] } },
+
+      // 联考管理
+      { path: 'joint-exams', name: 'JointExams', component: () => import('../pages/JointExamPage.vue'), meta: { permissions: ['view_joint_exam'] } },
+      { path: 'joint-exams/:id', name: 'JointExamDetail', component: () => import('../pages/JointExamDetailPage.vue'), meta: { permissions: ['view_joint_exam'] } },
+
+      // 成绩分析
+      { path: 'analytics/report', name: 'AnalyticsReport', component: () => import('../pages/AnalyticsReportPage.vue'), meta: { permissions: ['view_scores'] } },
+      { path: 'analytics/trend', name: 'AnalyticsTrend', component: () => import('../pages/AnalyticsTrendPage.vue'), meta: { permissions: ['view_scores'] } },
+      { path: 'analytics/grade', name: 'GradeAnalytics', component: () => import('../pages/GradeAnalyticsPage.vue'), meta: { permissions: ['view_scores'] } },
+      { path: 'analytics/:examId', name: 'Analytics', component: () => import('../pages/AnalyticsPage.vue'), meta: { roles: EXAM_ROLES } },
+
+      // 作业
+      { path: 'homework', name: 'Homework', component: () => import('../pages/HomeworkPage.vue'), meta: { permissions: ['manage_grading'] } },
+
+      // 校历
+      { path: 'calendar', name: 'Calendar', component: () => import('../pages/CalendarPage.vue'), meta: { permissions: ['view_scores'] } },
+
+      // 教务管理
+      { path: 'academic/semesters', name: 'Semesters', component: () => import('../pages/SemesterPage.vue'), meta: { permissions: ['manage_scheduling'] } },
+      { path: 'academic/timetable', name: 'Timetable', component: () => import('../pages/TimetablePage.vue'), meta: { permissions: ['manage_scheduling'] } },
+      { path: 'academic/teaching-plans', name: 'TeachingPlans', component: () => import('../pages/TeachingPlanPage.vue'), meta: { permissions: ['manage_scheduling'] } },
+
       // 人员信息
       { path: 'students', name: 'Students', component: () => import('../pages/StudentsPage.vue'), meta: { permissions: ['view_students', 'manage_scheduling'] } },
       { path: 'teachers', name: 'Teachers', component: () => import('../pages/TeachersPage.vue'), meta: { permissions: ['manage_scheduling', 'manage_school_config'] } },
@@ -42,6 +72,34 @@ export const routes = [
       { path: 'school-settings', name: 'SchoolSettings', component: () => import('../pages/SchoolSettingsPage.vue'), meta: { permissions: ['manage_school_config'] } },
       { path: 'assignments', name: 'TeacherAssignments', component: () => import('../pages/TeacherAssignmentsPage.vue'), meta: { permissions: ['manage_scheduling'] } },
       { path: 'selections', name: 'SubjectSelections', component: () => import('../pages/SubjectSelectionsPage.vue'), meta: { permissions: ['manage_scheduling'] } },
+
+      // 德育管理
+      { path: 'conduct', name: 'ConductDashboard', component: () => import('../pages/conduct/ConductDashboard.vue'), meta: { permissions: ['view_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/points', name: 'ConductPoints', component: () => import('../pages/conduct/ConductPoints.vue'), meta: { permissions: ['manage_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/rules', name: 'ConductRules', component: () => import('../pages/conduct/ConductRules.vue'), meta: { permissions: ['manage_conduct_rules'], moduleCode: 'conduct' } },
+      { path: 'conduct/rankings', name: 'ConductRankings', component: () => import('../pages/conduct/ConductRankings.vue'), meta: { permissions: ['view_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/records', name: 'ConductRecords', component: () => import('../pages/conduct/ConductRecords.vue'), meta: { permissions: ['view_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/groups', name: 'ConductGroups', component: () => import('../pages/conduct/ConductGroups.vue'), meta: { permissions: ['manage_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/settings', name: 'ConductSettings', component: () => import('../pages/conduct/ConductSettings.vue'), meta: { permissions: ['manage_conduct_parents'], moduleCode: 'conduct' } },
+      { path: 'conduct/export', name: 'ConductExport', component: () => import('../pages/conduct/ConductExport.vue'), meta: { permissions: ['export_conduct'], moduleCode: 'conduct' } },
+      { path: 'conduct/parents', name: 'ConductParents', component: () => import('../pages/conduct/ConductParents.vue'), meta: { permissions: ['manage_conduct_parents'], moduleCode: 'conduct' } },
+    ]
+  },
+
+  // 家长端
+  { path: '/parent/login', name: 'ParentLogin', component: () => import('../pages/parent/ParentLogin.vue') },
+  { path: '/parent/register', name: 'ParentRegister', component: () => import('../pages/parent/ParentRegister.vue') },
+  {
+    path: '/parent',
+    component: () => import('../layouts/ParentLayout.vue'),
+    children: [
+      { path: '', name: 'ParentOverview', component: () => import('../pages/parent/ParentOverview.vue') },
+      { path: 'bind', name: 'ParentBind', component: () => import('../pages/parent/ParentBind.vue') },
+      { path: 'scores', name: 'ParentScores', component: () => import('../pages/parent/ParentScores.vue') },
+      { path: 'details', name: 'ParentDetails', component: () => import('../pages/parent/ParentDetails.vue') },
+      { path: 'rankings', name: 'ParentRankings', component: () => import('../pages/parent/ParentRankings.vue') },
+      { path: 'rules', name: 'ParentRules', component: () => import('../pages/parent/ParentRules.vue') },
+      { path: 'profile', name: 'ParentProfile', component: () => import('../pages/parent/ParentProfile.vue') },
     ]
   },
 

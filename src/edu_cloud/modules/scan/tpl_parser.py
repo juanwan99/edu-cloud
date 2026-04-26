@@ -39,7 +39,10 @@ def convert_tpl(tpl_data: dict, page: int | None = None) -> dict:
         if not loc.get("busing", True):
             continue
         loc_id = _LOC_ID_MAP.get(loc.get("loc_no", ""), loc.get("loc_name", ""))
-        rect = _parse_tpl_location(loc["location"])
+        loc_str = loc.get("location") or loc.get("Location", "")
+        if not loc_str:
+            continue
+        rect = _parse_tpl_location(loc_str)
         anchors.append({
             "id": loc_id,
             "x": rect["x1"], "y": rect["y1"],
@@ -55,7 +58,10 @@ def convert_tpl(tpl_data: dict, page: int | None = None) -> dict:
             continue
         if not q.get("busing", 1):
             continue
-        rect = _parse_tpl_location(q["location"])
+        q_loc_str = q.get("location") or q.get("Location", "")
+        if not q_loc_str:
+            continue
+        rect = _parse_tpl_location(q_loc_str)
         score_str = q.get("score_val", "0")
         score = int(score_str) if score_str.isdigit() else 0
         regions.append({
@@ -74,7 +80,10 @@ def convert_tpl(tpl_data: dict, page: int | None = None) -> dict:
             continue
         if not g.get("busing", True):
             continue
-        rect = _parse_tpl_location(g["location"])
+        g_loc_str = g.get("location") or g.get("Location", "")
+        if not g_loc_str:
+            continue
+        rect = _parse_tpl_location(g_loc_str)
         labels = [s.strip() for s in g.get("opt_symbol", "A,B,C,D").split(",")]
         is_multi = g.get("opt_type", "") == "多选"
         regions.append({
@@ -96,7 +105,9 @@ def convert_tpl(tpl_data: dict, page: int | None = None) -> dict:
     barcode_region = None
     for bc in datas.get("MbNoBarCodeList", []):
         if bc.get("busing", True):
-            barcode_region = _parse_tpl_location(bc["location"])
+            bc_loc_str = bc.get("location") or bc.get("Location", "")
+            if bc_loc_str:
+                barcode_region = _parse_tpl_location(bc_loc_str)
             break
 
     return {

@@ -2,8 +2,8 @@
   <div class="review-container">
     <!-- 顶栏 -->
     <div class="review-topbar">
-      <n-button text @click="$router.push('/marking')">
-        <span style="font-size: 18px; margin-right: 4px;">&#8592;</span> 返回选题
+      <n-button text @click="$router.back()">
+        <span style="font-size: 18px; margin-right: 4px;">&#8592;</span> 返回上一级
       </n-button>
       <div class="topbar-info">
         <span class="topbar-question">{{ questionName }}</span>
@@ -17,7 +17,7 @@
       <div v-if="done" class="review-done">
         <n-result status="success" title="全部批改完成" description="该题所有答卷已确认">
           <template #footer>
-            <n-button type="primary" @click="$router.push('/marking')">返回选题</n-button>
+            <n-button type="primary" @click="$router.back()">返回上一级</n-button>
           </template>
         </n-result>
       </div>
@@ -287,7 +287,7 @@ function handleKeydown(e) {
   if (e.target.tagName === 'TEXTAREA') return
 
   if (e.key === 'Escape') {
-    router.push('/marking')
+    router.back()
     return
   }
 
@@ -334,12 +334,10 @@ onUnmounted(() => {
 
 <style scoped>
 .review-container {
-  position: fixed;
-  inset: 0;
   display: flex;
   flex-direction: column;
+  height: calc(100vh - 68px);
   background: var(--color-bg);
-  z-index: 100;
 }
 
 .review-topbar {

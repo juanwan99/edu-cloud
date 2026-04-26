@@ -41,3 +41,18 @@ uploads/
 
 # Databases
 *.db
+*.db.bak*
+
+# Codex review raw logs (生成于 codex-review skill；不入版本库)
+docs/plans/.codex-*
+
+# External knowledge base (独立 repo，不纳入 edu-cloud 版本控制)
+edu-knowledge-base/
+
+# Playwright MCP snapshots
+.playwright-mcp/
+frontend/.playwright-mcp/
+frontend/e2e/
+
+# Node modules (root level, frontend has its own)
+node_modules/

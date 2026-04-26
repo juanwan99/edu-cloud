@@ -10,6 +10,19 @@
       </n-button>
     </div>
 
+    <!-- 统计摘要 -->
+    <n-space v-if="selections.length" style="margin-bottom: 16px" :size="12">
+      <n-card size="small" style="min-width: 140px" :bordered="true">
+        <n-statistic label="已启用组合" :value="activeCount" />
+      </n-card>
+      <n-card size="small" style="min-width: 140px" :bordered="true">
+        <n-statistic label="总组合数" :value="selections.length" />
+      </n-card>
+      <n-card size="small" style="min-width: 140px" :bordered="true">
+        <n-statistic label="已分配学生" :value="totalAssigned" />
+      </n-card>
+    </n-space>
+
     <n-spin :show="loading">
       <div class="combo-grid">
         <div v-for="combo in allCombos" :key="combo.name" class="combo-card"
@@ -33,19 +46,39 @@
     <div v-if="selections.length" style="margin-top: 24px">
       <h2 style="font-size: 16px; margin-bottom: 12px">已添加的组合</h2>
       <n-space wrap>
-        <n-card v-for="s in selections" :key="s.id" style="width: 280px" :title="s.name" size="small">
+        <n-card v-for="s in selections" :key="s.id" style="width: 300px" :title="s.name" size="small">
           <template #header-extra>
-            <n-switch :value="s.is_active" size="small" @update:value="(v) => handleToggle(s.id, v)" />
+            <n-space :size="8" align="center">
+              <n-tag :type="modeTagType(s.mode)" size="small">{{ s.mode }}</n-tag>
+              <n-switch :value="s.is_active" size="small" @update:value="(v) => handleToggle(s.id, v)" />
+            </n-space>
           </template>
-          <n-space size="small">
+          <n-space size="small" align="center">
             <n-tag v-for="code in s.subject_codes" :key="code" type="info" size="small">{{ subjectLabel(code) }}</n-tag>
+            <n-tag v-if="studentCounts[s.id] != null" size="small" :bordered="false">
+              {{ studentCounts[s.id] }} 人
+            </n-tag>
           </n-space>
           <template #action>
-            <n-button size="small" type="error" @click="handleDelete(s.id)">删除</n-button>
+            <n-space :size="8">
+              <n-button size="small" @click="openEdit(s)">编辑</n-button>
+              <n-popconfirm @positive-click="handleDelete(s.id)">
+                <template #trigger>
+                  <n-button size="small" type="error">删除</n-button>
+                </template>
+                确定删除组合「{{ s.name }}」吗？
+              </n-popconfirm>
+            </n-space>
           </template>
         </n-card>
       </n-space>
     </div>
+
+    <!-- 编辑名称弹窗 -->
+    <n-modal v-model:show="editVisible" preset="dialog" title="编辑组合名称" positive-text="保存" negative-text="取消"
+      :loading="editSaving" @positive-click="handleEditSave">
+      <n-input v-model:value="editName" placeholder="请输入组合名称" />
+    </n-modal>
   </div>
 </template>
 
@@ -54,6 +87,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useAuthStore } from '../stores/auth.js'
 import { getSelections, createSelection, updateSelection, deleteSelection } from '../api/subjectSelections.js'
+import { listStudents } from '../api/students.js'
 
 const SUBJECTS = {
   physics: '物理', history: '历史',
@@ -82,9 +116,25 @@ const message = useMessage()
 const selections = ref([])
 const loading = ref(false)
 const allCombos = ref(generateCombos())
+const studentCounts = ref({})
+
+// Edit state
+const editVisible = ref(false)
+const editSaving = ref(false)
+const editId = ref(null)
+const editName = ref('')
 
 const toAdd = computed(() => allCombos.value.filter(c => c.checked && !c.exists))
 const schoolId = () => auth.currentRole?.school_id
+
+const activeCount = computed(() => selections.value.filter(s => s.is_active).length)
+const totalAssigned = computed(() => Object.values(studentCounts.value).reduce((sum, n) => sum + n, 0))
+
+function modeTagType(mode) {
+  if (mode === '3+1+2') return 'success'
+  if (mode === '3+3') return 'info'
+  return 'warning'
+}
 
 function subjectLabel(code) {
   return SUBJECTS[code] || code
@@ -103,6 +153,20 @@ function syncExistsState() {
   }
 }
 
+async function loadStudentCounts() {
+  const counts = {}
+  const promises = selections.value.map(async (s) => {
+    try {
+      const { data } = await listStudents({ selection_id: s.id })
+      counts[s.id] = Array.isArray(data) ? data.length : 0
+    } catch {
+      counts[s.id] = 0
+    }
+  })
+  await Promise.all(promises)
+  studentCounts.value = counts
+}
+
 async function loadData() {
   if (!schoolId()) return
   loading.value = true
@@ -110,6 +174,7 @@ async function loadData() {
     const { data } = await getSelections(schoolId())
     selections.value = data
     syncExistsState()
+    loadStudentCounts()
   } catch { message.error('加载失败') }
   loading.value = false
 }
@@ -143,6 +208,29 @@ async function handleDelete(id) {
     message.success('已删除')
     await loadData()
   } catch { message.error('删除失败') }
+}
+
+function openEdit(s) {
+  editId.value = s.id
+  editName.value = s.name
+  editVisible.value = true
+}
+
+async function handleEditSave() {
+  if (!editName.value.trim()) {
+    message.warning('名称不能为空')
+    return false
+  }
+  editSaving.value = true
+  try {
+    await updateSelection(schoolId(), editId.value, { name: editName.value.trim() })
+    message.success('已更新')
+    editVisible.value = false
+    await loadData()
+  } catch (e) {
+    message.error(e.response?.data?.detail || '更新失败')
+  }
+  editSaving.value = false
 }
 
 onMounted(loadData)
