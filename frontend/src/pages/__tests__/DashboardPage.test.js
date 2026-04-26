@@ -130,3 +130,80 @@ describe('DashboardPage data fetching', () => {
     expect(content).toContain('recentExams.value = examList.slice(0, 3)')
   })
 })
+
+describe('DashboardPage fetchCharts', () => {
+  it('fetches exams list for chart data', () => {
+    expect(content).toMatch(/client\.get\('\/exams'.*limit/)
+  })
+
+  it('fetches grade trend analytics', () => {
+    expect(content).toContain("client.get('/analytics/report/trend/grade'")
+  })
+
+  it('fetches class boxplot for comparison chart', () => {
+    expect(content).toContain('/analytics/exam/')
+    expect(content).toContain('/class-boxplot')
+  })
+
+  it('builds trendOption with correct series', () => {
+    expect(content).toContain("name: '平均分'")
+    expect(content).toContain("name: '及格率'")
+  })
+
+  it('builds classOption bar chart sorted by median', () => {
+    expect(content).toContain('.sort((a, b) => (b.median || 0) - (a.median || 0))')
+  })
+})
+
+describe('DashboardPage fetchActivity', () => {
+  it('fetches exams for activity feed', () => {
+    const fetchActivityBlock = content.slice(
+      content.indexOf('async function fetchActivity'),
+      content.indexOf('async function fetchTodos')
+    )
+    expect(fetchActivityBlock).toContain("client.get('/exams'")
+  })
+
+  it('fetches notifications for activity feed', () => {
+    expect(content).toContain("client.get('/notifications'")
+  })
+
+  it('maps exam status to Chinese text in activity items', () => {
+    expect(content).toContain("draft: '已创建'")
+    expect(content).toContain("published: '已发布'")
+    expect(content).toContain("completed: '已完成'")
+  })
+
+  it('provides fallback activity when no items', () => {
+    expect(content).toContain("text: '系统已就绪'")
+    expect(content).toContain("type: 'system'")
+  })
+})
+
+describe('DashboardPage error handling', () => {
+  it('wraps fetchCharts in try-catch to prevent crash on API error', () => {
+    const fnBlock = content.slice(
+      content.indexOf('async function fetchCharts'),
+      content.indexOf('async function fetchActivity')
+    )
+    expect(fnBlock).toContain('try {')
+    expect(fnBlock).toContain('} catch')
+  })
+
+  it('wraps fetchActivity in try-catch for exam and notification calls', () => {
+    const fnBlock = content.slice(
+      content.indexOf('async function fetchActivity'),
+      content.indexOf('async function fetchTodos')
+    )
+    const catchCount = (fnBlock.match(/\} catch/g) || []).length
+    expect(catchCount).toBeGreaterThanOrEqual(2)
+  })
+
+  it('wraps fetchTodos in try-catch for each data source', () => {
+    const start = content.indexOf('async function fetchTodos')
+    const end = content.indexOf('onMounted(', start)
+    const fnBlock = content.slice(start, end)
+    const catchCount = (fnBlock.match(/\} catch/g) || []).length
+    expect(catchCount).toBeGreaterThanOrEqual(3)
+  })
+})

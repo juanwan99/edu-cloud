@@ -142,13 +142,12 @@ def test_downgrade_restores_s1a_revision(sqlite_db):
     """
     r = _run_alembic(['upgrade', 'head'], sqlite_db)
     assert r.returncode == 0
-    r = _run_alembic(['downgrade', '-1'], sqlite_db)
+    r = _run_alembic(['downgrade', 'a88094ee4ea6'], sqlite_db)
     assert r.returncode == 0
 
     # 用 alembic current 读 DB alembic_version 表
     r = _run_alembic(['current'], sqlite_db)
     assert r.returncode == 0, f"alembic current failed: {r.stderr}"
-    # `alembic current` 输出形如 "a88094ee4ea6 (head)" 或 "a88094ee4ea6"
     current_rev = r.stdout.strip().split()[0] if r.stdout.strip() else ''
     assert current_rev == 'a88094ee4ea6', \
         f"Expected DB current revision a88094ee4ea6 after downgrade, got {current_rev!r} (raw: {r.stdout!r})"

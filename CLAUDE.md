@@ -210,7 +210,7 @@ src/edu_cloud/
     deps.py             # 依赖注入（JWT 认证 get_current_user + require_permission）
     permissions.py      # 数据权限过滤（get_visible_class_ids/get_visible_subject_codes）
     auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）
-    dashboard.py        # GET /api/v1/dashboard/summary（角色 scope 聚合统计）
+    dashboard.py        # GET /api/v1/dashboard/summary（角色 scope 聚合统计：students/classes/exams/staff/pending_grading/pending_subjects）
     notifications_api.py # GET /api/v1/notifications（通知列表，status/since 过滤）
     ai.py               # AI Agent 路由（AgentRuntime pipeline: DataScope → AuditLogger → AgentContext → AgentRuntime.run() → SSE）
     compat_router.py    # exam-ai 兼容路由（/api 前缀，paper-seg 零改动对接，8 端点）
@@ -423,7 +423,7 @@ tests/
 | POST | `/api/v1/auth/switch-role` | 切换活跃角色，返回新 JWT + active_role（含 context） |
 | GET | `/api/v1/health` | 健康检查 |
 | GET | `/api/v1/version` | 版本+启动时间 |
-| GET | `/api/v1/dashboard/summary` | 仪表盘聚合统计（角色 scope 过滤：students/classes/exams） |
+| GET | `/api/v1/dashboard/summary` | 仪表盘聚合统计（角色 scope 过滤：students/classes/exams/staff/pending_grading/pending_subjects） |
 | GET | `/api/v1/menus` | 动态菜单树（按 current_role + school enabled_modules 过滤；MenuConfig 驱动） |
 
 ### 学校管理端点（JWT 认证）

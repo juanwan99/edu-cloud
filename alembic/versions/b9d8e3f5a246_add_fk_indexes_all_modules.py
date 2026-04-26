@@ -1,14 +1,14 @@
 """add FK indexes across all modules
 
 Revision ID: b9d8e3f5a246
-Revises: a8c7d2e4f135
+Revises: f311eb126798
 Create Date: 2026-04-24
 
 """
 from alembic import op
 
 revision: str = 'b9d8e3f5a246'
-down_revision: str = 'a8c7d2e4f135'
+down_revision: str = 'f311eb126798'
 branch_labels = None
 depends_on = None
 

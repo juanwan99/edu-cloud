@@ -1,6 +1,6 @@
 """Dashboard Summary API — 角色 scope 内的聚合统计。"""
 from fastapi import APIRouter, Depends
-from sqlalchemy import select, func
+from sqlalchemy import select, func, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
@@ -19,10 +19,11 @@ async def get_summary(
     school_id = role.school_id
     visible_classes = get_visible_class_ids(role)
 
-    # Import models
     from edu_cloud.models.student import Student
     from edu_cloud.models.class_group import ClassGroup
     from edu_cloud.models.exam import Exam
+    from edu_cloud.models.user_role import UserRole
+    from edu_cloud.modules.grading.models import GradingTask
 
     # Students count
     q = select(func.count(Student.id))
@@ -46,11 +47,38 @@ async def get_summary(
         q = q.where(Exam.school_id == school_id)
     total_exams = (await db.execute(q)).scalar() or 0
 
+    # Staff count (distinct non-parent users with roles in this school)
+    total_staff = 0
+    if school_id:
+        q = select(func.count(distinct(UserRole.user_id))).where(
+            UserRole.school_id == school_id,
+            UserRole.role != "parent",
+        )
+        total_staff = (await db.execute(q)).scalar() or 0
+
+    # Pending grading tasks
+    pending_grading = 0
+    if school_id:
+        q = select(func.count(GradingTask.id)).where(
+            GradingTask.school_id == school_id,
+            GradingTask.status == "pending",
+        )
+        pending_grading = (await db.execute(q)).scalar() or 0
+
+    # Pending subjects (distinct subjects with active grading tasks)
+    pending_subjects = 0
+    if school_id:
+        q = select(func.count(distinct(GradingTask.subject_id))).where(
+            GradingTask.school_id == school_id,
+            GradingTask.status.in_(["pending", "processing"]),
+        )
+        pending_subjects = (await db.execute(q)).scalar() or 0
+
     return {
         "total_students": total_students,
         "total_classes": total_classes,
         "total_exams": total_exams,
-        "total_staff": None,
-        "pending_subjects": None,
-        "pending_grading": 0,
+        "total_staff": total_staff,
+        "pending_subjects": pending_subjects,
+        "pending_grading": pending_grading,
     }

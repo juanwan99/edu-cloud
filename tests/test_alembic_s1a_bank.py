@@ -176,7 +176,7 @@ def test_upgrade_then_downgrade_is_clean(sqlite_db):
     r = _run_alembic(['upgrade', 'head'], sqlite_db)
     assert r.returncode == 0
 
-    r = _run_alembic(['downgrade', '-1'], sqlite_db)
+    r = _run_alembic(['downgrade', 'a8c7d2e4f135'], sqlite_db)
     assert r.returncode == 0, f"downgrade failed: {r.stderr}"
 
     engine = create_engine(sqlite_db)
