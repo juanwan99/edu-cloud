@@ -114,7 +114,7 @@ async def list_teachers(
     target_school = school_id or role.school_id
     if not target_school:
         # platform_admin 无 school_id 时，取第一个学校
-        from edu_cloud.modules.school.models import School
+        from edu_cloud.models.school import School
         first = await db.execute(select(School).limit(1))
         s = first.scalar_one_or_none()
         target_school = s.id if s else None
@@ -278,7 +278,7 @@ async def export_teachers(
 
     target_school = school_id or current["current_role"].school_id
     if not target_school:
-        from edu_cloud.modules.school.models import School
+        from edu_cloud.models.school import School
         first = await db.execute(select(School).limit(1))
         s = first.scalar_one_or_none()
         target_school = s.id if s else None
