@@ -39,6 +39,7 @@
             :nodes="nodesWithMastery"
             :edges="graphData.edges"
             :modules-quality="modulesQuality"
+            :stats-overview="statsOverview"
             style="flex: 1; min-height: 0"
             @select-module="handleModuleSelect"
             @refresh-quality="loadAllModulesQuality"
@@ -107,8 +108,8 @@ import RelationReviewPanel from '../components/knowledge-tree/RelationReviewPane
 const message = useMessage()
 const {
   navigationData, graphData, loading, selectedModule, selectedStudentId, moduleMastery,
-  nodesWithMastery, qualityIssues, modulesQuality,
-  loadGraph, loadMastery, loadQuality, loadAllModulesQuality, applyEdit,
+  nodesWithMastery, qualityIssues, modulesQuality, statsOverview,
+  loadGraph, loadMastery, loadQuality, loadAllModulesQuality, loadStatsOverview, applyEdit,
 } = useKnowledgeTree()
 
 const activeTab = ref('graph')
@@ -150,6 +151,7 @@ const currentModuleName = computed(() => {
 
 async function init() {
   await loadGraph()
+  await loadStatsOverview()
   if (canEdit.value) {
     await loadQuality(selectedModule.value)
     await loadAllModulesQuality()

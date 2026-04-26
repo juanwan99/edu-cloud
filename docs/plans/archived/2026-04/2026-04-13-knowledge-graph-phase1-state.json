@@ -62,24 +62,24 @@
     {
       "id": "11",
       "desc": "NodeDetailDrawer 高考真题 + 学习单元 标签页",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "id": "12",
       "desc": "教材章节导航模式",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "id": "13",
       "desc": "ModuleOverviewPanel 统计增强 + 集成验证",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "id": "14",
       "desc": "收尾 — design.md 标记 + 审查交接单",
-      "status": "pending"
+      "status": "completed"
     }
   ],
-  "updated_at": "2026-04-14 12:15:00",
-  "notes": "Batch 1 (T1-T6) R2 PASS commit bcb1971; Batch 2 (T7-T8) R3 PASS commit d300263; Batch 3.a (T9-T10) R1 FAIL → R2 PASS commits 2ab10a2..c5bff80 (F001 code-bug + F002/F003 test-gap 全 resolved-correct; code_review_batch3a=pass); Plan Review R1-R6 FAIL→PASS (R5→R6 修复 R5-T001/T002/P002 + R5-P001 resolved-false-positive 幽灵 hash staging 污染证据; plan_review.subject_hash=a963e85b); Batch 3.b (T11-T12) handoff-batch3b commit f9ab3a1 已就绪待 Executor 新会话; Batch 3.c (T13-T14+P001 处置 INV-002 L1 集合相等测试 + Phase 1 收尾) pending; Planner 交接卡 docs/plans/2026-04-13-knowledge-graph-phase1-planner-handoff.md"
+  "updated_at": "2026-04-18 15:25:00",
+  "notes": "Batch 1 (T1-T6) R2 PASS commit bcb1971; Batch 2 (T7-T8) R3 PASS commit d300263; Batch 3.a (T9-T10) R2 PASS commits 2ab10a2..c5bff80; Plan Review R6 PASS subject_hash=a963e85b; Batch 3.b (T11-T12) R1 FAIL 5 finding → R2 FAIL 仅 R2-F001 → 拆 3.b.iii; Batch 3.b.iii (R2-F001 race test) R1 FAIL 仅 R3-F001 (finally guard 未锁) → 拆 3.b.iv; Batch 3.b.iv (R3-F001 finally race) R1 FAIL 但 scope 内 resolved-correct (GPT 验证 Test C 有效)，FAIL 源于 scope 外 F001 (Task 11 shows empty state 原测试弱断言) + P0-F001 (Contract Pack 漂移); 用户 2026-04-18 Option A 批准 L017 gate_blocker 豁免 — F001/P0-F001 入 Contract Pack test_debt TD-005/TD-006，Phase B (batch 3.c) 启动; Batch 3.c (T13 ModuleOverviewPanel 统计增强 + T14 收尾) 实施完成 commit 865032f (T13) + <T14 commit>。T14 Step 0 (后端 test_exam_frequency_l1_set_equals_kb_l1) 按主 handoff §3 红线豁免 deferred to Phase 2。Phase 1 全部 14 Task 完成，等 codex-review code_review_batch3c R1 + T2-补遗 merge feat/kg-batch3b 到 master"
 }

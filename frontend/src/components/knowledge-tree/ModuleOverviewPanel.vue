@@ -18,6 +18,27 @@
         @select="$emit('select-module', mod.id)"
       />
     </div>
+    <!-- Phase 1 T13: 模块考频统计（F004 入口级渲染 + null 降级 — 派发 handoff §INV-004） -->
+    <div class="freq-stats-section">
+      <h3>模块考频统计</h3>
+      <div class="freq-stats-list">
+        <div v-for="mod in modulesData" :key="mod.id" class="freq-stat-item">
+          <span class="freq-mod-name">{{ mod.name }}</span>
+          <span class="freq-avg">平均考频: {{ formatAvgFreq(mod.id) }}</span>
+          <span class="freq-cov">考频覆盖: {{ formatCoverage(mod.id) }}</span>
+          <div class="freq-bar" aria-label="考频分布">
+            <div class="freq-seg high" :style="{width: freqDist(mod.id).high + '%'}"></div>
+            <div class="freq-seg mid" :style="{width: freqDist(mod.id).mid + '%'}"></div>
+            <div class="freq-seg low" :style="{width: freqDist(mod.id).low + '%'}"></div>
+          </div>
+        </div>
+      </div>
+      <div class="freq-legend">
+        <span class="dot high"></span>高频(≥500)
+        <span class="dot mid"></span>中频(50-499)
+        <span class="dot low"></span>低频/零
+      </div>
+    </div>
     <div class="cross-module-section" v-if="crossModuleLinks.length > 0">
       <h3>模块间硬前置关系</h3>
       <div class="cross-module-list">
@@ -44,8 +65,52 @@ const props = defineProps({
   nodes: { type: Array, default: () => [] },
   edges: { type: Array, default: () => [] },
   modulesQuality: { type: Object, default: () => ({}) },
+  // Phase 1 T13: 后端 stats/overview 返回的 { module_stats: { M1: { avg_freq, exam_coverage, ... } } }
+  // null → 加载失败降级，UI 所有 avg/cov 显示 '—'（派发 handoff §INV-004 契约）
+  statsOverview: { type: Object, default: null },
 })
 defineEmits(['select-module', 'refresh-quality'])
+
+// 派生工具：读 statsOverview.module_stats[moduleId]，null safe
+function getModuleStats(moduleId) {
+  return props.statsOverview?.module_stats?.[moduleId]
+}
+
+// 派生展示：avg_freq（Math.round 整数），null/undefined → '—'
+function formatAvgFreq(moduleId) {
+  const v = getModuleStats(moduleId)?.avg_freq
+  if (v == null || isNaN(v)) return '—'
+  return String(Math.round(v))
+}
+
+// 派生展示：exam_coverage 0.667 → '67%'，null/undefined → '—'
+function formatCoverage(moduleId) {
+  const v = getModuleStats(moduleId)?.exam_coverage
+  if (v == null || isNaN(v)) return '—'
+  return `${Math.round(v * 100)}%`
+}
+
+// 从 nodes 派生模块考频分布（前端计算，不依赖 statsOverview）
+// 高频 ≥500 / 中频 50-499 / 低频 <50
+function freqDist(moduleId) {
+  const concepts = modulesData.value.find(m => m.id === moduleId)?.conceptIds
+  if (!concepts || concepts.size === 0) return { high: 0, mid: 0, low: 0 }
+  const modNodes = props.nodes.filter(n => concepts.has(n.id))
+  if (modNodes.length === 0) return { high: 0, mid: 0, low: 0 }
+  let high = 0, mid = 0, low = 0
+  for (const n of modNodes) {
+    const f = n.exam_frequency || 0
+    if (f >= 500) high++
+    else if (f >= 50) mid++
+    else low++
+  }
+  const total = modNodes.length
+  return {
+    high: Math.round(100 * high / total),
+    mid: Math.round(100 * mid / total),
+    low: Math.round(100 * low / total),
+  }
+}
 
 // 聚合每个模块的 stats
 const modulesData = computed(() => {
@@ -67,6 +132,7 @@ const modulesData = computed(() => {
       reviewedCount,
       highCount: q.highCount,
       medCount: q.medCount,
+      conceptIds,  // T13: freqDist() 复用，避免重复构建 Set
     }
   })
 })
@@ -127,4 +193,68 @@ const crossModuleLinks = computed(() => {
   flex-wrap: wrap;
   gap: 8px;
 }
+/* T13: 模块考频统计 */
+.freq-stats-section {
+  margin-bottom: 24px;
+}
+.freq-stats-section h3 {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 12px;
+}
+.freq-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.freq-stat-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  font-size: 13px;
+}
+.freq-mod-name {
+  font-weight: 500;
+}
+.freq-avg,
+.freq-cov {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.freq-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  margin-top: 4px;
+}
+.freq-seg.high { background: #3b5998; }
+.freq-seg.mid { background: #8fa3d1; }
+.freq-seg.low { background: #d0daed; }
+.freq-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 8px;
+}
+.freq-legend .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.freq-legend .dot.high { background: #3b5998; }
+.freq-legend .dot.mid { background: #8fa3d1; }
+.freq-legend .dot.low { background: #d0daed; }
 </style>

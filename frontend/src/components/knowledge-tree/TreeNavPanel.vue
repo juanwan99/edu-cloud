@@ -2,6 +2,10 @@
   <div class="tree-nav-panel">
     <div class="nav-header">
       <slot name="student-selector" />
+      <n-radio-group v-model:value="navMode" size="small" style="margin-bottom: 8px; width: 100%">
+        <n-radio-button value="module">按模块</n-radio-button>
+        <n-radio-button value="chapter">按教材章节</n-radio-button>
+      </n-radio-group>
       <n-input
         v-model:value="searchQuery"
         placeholder="搜索知识点..."
@@ -11,6 +15,7 @@
       />
     </div>
     <n-tree
+      v-if="navMode === 'module'"
       :data="treeData"
       :expanded-keys="expandedKeys"
       :selected-keys="selectedKeys"
@@ -18,6 +23,14 @@
       :render-suffix="renderSuffix"
       @update:selected-keys="handleSelect"
       @update:expanded-keys="keys => manualExpandedKeys = keys"
+      block-line
+    />
+    <n-tree
+      v-else
+      :data="chapterTreeData"
+      :pattern="searchQuery"
+      :render-suffix="renderSuffix"
+      @update:selected-keys="handleSelect"
       block-line
     />
     <div v-if="weakConcepts.length" class="weak-section">
@@ -34,7 +47,8 @@
 
 <script setup>
 import { ref, computed, h, watch } from 'vue'
-import { NTree, NInput } from 'naive-ui'
+import { NTree, NInput, NRadioGroup, NRadioButton } from 'naive-ui'
+import { buildChapterTree } from './useKnowledgeTree'
 
 const props = defineProps({
   navigation: { type: Array, default: () => [] },
@@ -46,6 +60,7 @@ const emit = defineEmits(['select-module', 'select-node'])
 
 const searchQuery = ref('')
 const manualExpandedKeys = ref(null)
+const navMode = ref('module')
 
 const reviewStatusIcons = {
   ai_draft: '🤖',
@@ -60,7 +75,6 @@ function masteryColor(mastery) {
   return '#6b7280'
 }
 
-// 从 nodesWithMastery 构建 id→node 映射
 const nodeMap = computed(() => {
   const map = {}
   for (const n of props.nodesWithMastery) {
@@ -69,7 +83,6 @@ const nodeMap = computed(() => {
   return map
 })
 
-// 从 navigation 构建三级树
 const treeData = computed(() => {
   if (!props.navigation || props.navigation.length === 0) {
     return []
@@ -98,13 +111,38 @@ const treeData = computed(() => {
   })
 })
 
+const chapterTreeData = computed(() => {
+  const tree = buildChapterTree(props.nodesWithMastery)
+  return tree.map(book => ({
+    key: `book:${book.id}`,
+    label: book.name,
+    children: book.chapters.map(ch => ({
+      key: `chapter:${book.id}:${ch.id}`,
+      label: ch.name,
+      children: ch.sections.map(s => ({
+        key: `section:${book.id}:${ch.id}:${s.id}`,
+        label: s.name,
+        children: s.concept_ids.map(cid => {
+          const node = nodeMap.value[cid]
+          return {
+            key: cid,
+            label: node?.name || cid,
+            isLeaf: true,
+            mastery: node?.mastery ?? 0,
+            reviewStatus: node?.review_status,
+          }
+        }),
+      })),
+    })),
+  }))
+})
+
 const expandedKeys = computed(() => {
   if (manualExpandedKeys.value !== null) return manualExpandedKeys.value
   if (props.selectedModule !== 'all') return [props.selectedModule]
   return []
 })
 
-// 搜索时清除手动展开状态，让 NTree pattern 自动展开匹配路径
 watch(searchQuery, () => {
   manualExpandedKeys.value = null
 })
@@ -139,15 +177,16 @@ function renderSuffix({ option }) {
 function handleSelect(keys) {
   if (keys.length > 0) {
     const key = keys[0]
+    if (typeof key === 'string' && key.includes(':')) return
     if (['M1', 'M2', 'M3', 'M4', 'M5'].includes(key)) {
       emit('select-module', key)
     } else if (!key.startsWith('BC_')) {
-      // 叶子节点（概念）点击 → 触发节点详情
       const node = nodeMap.value[key]
       if (node) emit('select-node', node)
     }
   }
 }
+
 </script>
 
 <style scoped>

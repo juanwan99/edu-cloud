@@ -1,0 +1,1975 @@
+Reading prompt from stdin...
+OpenAI Codex v0.121.0 (research preview)
+--------
+workdir: /home/ops/projects/edu-cloud-w2
+model: gpt-5.4
+provider: aiproxy
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019d9dfe-d995-7d30-8e62-d03e4bf42203
+--------
+user
+You are a code reviewer performing independent review.
+
+Read the review handoff: /home/ops/projects/edu-cloud-w2/docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md
+Read the plan: /home/ops/projects/edu-cloud-w2/docs/plans/2026-04-13-knowledge-graph-phase1-plan.md
+Check the commits: git log --oneline 66ab2b8~1..317dfb6
+Read the full diff: git diff 66ab2b8~1..317dfb6
+Read modified files in full for context.
+
+Review in 4 phases (按顺序):
+
+Phase 0 — Contract Pack 验证（最高优先级）:
+- 读取 plan 中的 Contract Pack 段落
+- 逐条核对 invariants / counter_examples / test_debt
+- freshness：新增未列出的 API / 推翻不变量 → process finding
+- 不完整 → 记 process finding，不阻断
+
+Phase 1 — 测试充分性:
+- 测试是否真的会在错误实现下失败
+- 删除被测函数核心逻辑后，此测试会失败吗？不会 → test-gap HIGH
+- 弱断言 assert x is not None / len > 0 → test-gap MED
+
+Phase 2 — 行为正确性:
+A. 正确性 / B. 边界条件 / C. 集成 / D. 安全 / E. 架构质量 / F. 根因质量 / G. 回归风险
+
+Phase 3 — 未测试风险:
+- 副作用 / 并发 / 权限 / 幂等 / 时区 / 空值
+- 过拟合
+
+**审查规范（必读）:**
+~/.claude/rules-t3/review-templates.md 的 finding-classification / finding-type / pass-fail / test-gap-criteria / three-state-model / behavior-change-guard / finding-transition
+
+For each finding use structured format: ID, Severity, Category, Type (defect_fix/behavior_change), Before-behavior, After-behavior, Evidence (file:line), Impact, Repair hypothesis (optional).
+Repair hypothesis is advisory only.
+If finding touches invariants / risk_modules / red-flag patterns (state machine / fallback / selection strategy / threshold / lifecycle / evaluation cadence),
+describe: (1) likely repair direction (2) forbidden fix patterns (3) "requires independent fix design + Semantic Regression Gate"
+
+## Semantic Regression Oracles
+No semantic_regression section found in plan.
+
+Conclude with PASS or FAIL.
+Write in Chinese.
+
+codex
+先按审查合同执行：我会先读 handoff、plan 里的 Contract Pack、审查规范，再抓取指定提交范围和完整 diff，随后把所有改动文件全文读完，再按 0→3 四个阶段出结论。
+  → 读取 handoff、plan、审查规范，提取 Contract Pack 与评审口径
+  • 检查提交范围与完整 diff，列出所有修改文件
+  • 逐个通读修改文件并按四阶段审查
+  • 整理结构化 findings 并给出 PASS/FAIL
+codex
+我先把评审输入和规范口径拉齐，接着会展开提交范围，避免先入为主只看 diff 片段。
+mcp: filesystem/read_text_file started
+mcp: filesystem/read_text_file (completed)
+mcp: filesystem/read_text_file started
+mcp: filesystem/read_text_file (completed)
+mcp: filesystem/read_text_file started
+mcp: filesystem/read_text_file (completed)
+exec
+/bin/bash -lc 'git log --oneline 66ab2b8~1..317dfb6' in /home/ops/projects/edu-cloud-w2
+ succeeded in 0ms:
+317dfb6 fix(frontend): R2 F005 TreeNavPanel 移 defineExpose (kg-phase1 batch 3.b)
+9d1e6c7 test(frontend): R2 F004 StudyUnitTab 0 值 fixture (kg-phase1 batch 3.b)
+6806f2b test(frontend): R2 F003 TreeNavPanel 改 DOM 入口 (kg-phase1 batch 3.b)
+fce6412 test(frontend): R2 F002 ExamItemsTab 分页 mutant 测试 (kg-phase1 batch 3.b)
+66ab2b8 fix(frontend): R2 F001 ExamItemsTab fetchSeq guard (kg-phase1 batch 3.b)
+
+exec
+/bin/bash -lc 'git diff --stat 66ab2b8~1..317dfb6' in /home/ops/projects/edu-cloud-w2
+ succeeded in 0ms:
+ CLAUDE.md                                          |  2 +-
+ .../__tests__/knowledge-tree/ExamItemsTab.test.js  | 29 ++++++++++++
+ .../__tests__/knowledge-tree/StudyUnitTab.test.js  | 19 ++++++++
+ .../__tests__/knowledge-tree/TreeNavPanel.test.js  | 51 +++++++++++++---------
+ .../src/components/knowledge-tree/ExamItemsTab.vue |  7 ++-
+ .../src/components/knowledge-tree/TreeNavPanel.vue |  1 -
+ 6 files changed, 86 insertions(+), 23 deletions(-)
+
+codex
+规范和计划口径已经拿到，下面展开完整差异并把 5 个业务文件全文读完；同时我会对照前后版本判断测试到底锁住了什么。
+exec
+/bin/bash -lc 'git diff 66ab2b8~1..317dfb6 -- CLAUDE.md frontend/src/components/knowledge-tree/ExamItemsTab.vue frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js frontend/src/__tests__/knowledge-tree/StudyUnitTab.test.js frontend/src/components/knowledge-tree/TreeNavPanel.vue' in /home/ops/projects/edu-cloud-w2
+ succeeded in 0ms:
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 8836249..4128494 100755
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -85,7 +85,7 @@ frontend/src/
+     SubjectSelectionsPage.vue # 选考科目组合管理
+     TeacherAssignmentsPage.vue # 教师排课管理
+     CardEditorDevPage.vue   # 答题卡编辑器开发页
+-    KnowledgeTreePage.vue  # 知识图谱可视化（AntV G6 + 三级树导航 + 掌握度着色 + 搜索过滤 + Phase 2 教师工作台：ModuleOverviewPanel/ConceptMapPanel 互斥路由 + BigConcept 分带 + ConceptFocusOverlay 焦点模式 + ESC/canvas 退出；Phase 2.5：buildVisibleEdgeList helper + relatedNodeIds/relatedEdgeIds computed + G6 node.state.faded/edge.state.dimmed·emphasized + updateElementStates + createGraph 末尾焦点重放 + G6 Tooltip plugin 徽标悬停（hover + enable 谓词 + async getContent + HTML escape）；Phase 1 T9-T10：ColorModeToggle 三模式切换 + heatmapUtils（log 尺度考频热力色 + 4 态掌握度 + 3 态审核状态 + importance→size [20,60]）；ConceptMapPanel buildG6Data 每节点 style.size/fill 按 colorMode 三分支 + watch colorMode setData/render 保留 focusedNodeId + defineExpose buildG6Data；KnowledgeTreePage selectedStudentId 从 useKnowledgeTree 解构（单一真源，R2 F001 修复 state 分裂）；GraphPanel.vue 已删除；Phase 1 T11：NodeDetailDrawer 追加 exam_items + study_unit tab（F007 保留原 5 tab）+ ExamItemsTab/StudyUnitTab 新组件 + api/knowledgeTree.js 新增 getExamItems/getStatsOverview；Phase 1 T12：TreeNavPanel 内部 navMode 双模式（模块/章节）+ useKnowledgeTree 追加 buildChapterTree 纯函数导出；F002 props/emit 契约保留、F010 select-node 仍 emit 完整 node 对象）
++    KnowledgeTreePage.vue  # 知识图谱可视化（AntV G6 + 三级树导航 + 掌握度着色 + 搜索过滤 + Phase 2 教师工作台：ModuleOverviewPanel/ConceptMapPanel 互斥路由 + BigConcept 分带 + ConceptFocusOverlay 焦点模式 + ESC/canvas 退出；Phase 2.5：buildVisibleEdgeList helper + relatedNodeIds/relatedEdgeIds computed + G6 node.state.faded/edge.state.dimmed·emphasized + updateElementStates + createGraph 末尾焦点重放 + G6 Tooltip plugin 徽标悬停（hover + enable 谓词 + async getContent + HTML escape）；Phase 1 T9-T10：ColorModeToggle 三模式切换 + heatmapUtils（log 尺度考频热力色 + 4 态掌握度 + 3 态审核状态 + importance→size [20,60]）；ConceptMapPanel buildG6Data 每节点 style.size/fill 按 colorMode 三分支 + watch colorMode setData/render 保留 focusedNodeId + defineExpose buildG6Data；KnowledgeTreePage selectedStudentId 从 useKnowledgeTree 解构（单一真源，R2 F001 修复 state 分裂）；GraphPanel.vue 已删除；Phase 1 T11：NodeDetailDrawer 追加 exam_items + study_unit tab（F007 保留原 5 tab）+ ExamItemsTab/StudyUnitTab 新组件 + api/knowledgeTree.js 新增 getExamItems/getStatsOverview；Phase 1 T12：TreeNavPanel 内部 navMode 双模式（模块/章节）+ useKnowledgeTree 追加 buildChapterTree 纯函数导出；F002 props/emit 契约保留、F010 select-node 仍 emit 完整 node 对象；R2 F001：ExamItemsTab 加 fetchSeq 序号守卫（参 NodeDetailDrawer pattern，防 A→B 切换 race）；R2 F002-F005：ExamItemsTab 分页 mutant 测试 + TreeNavPanel 改 DOM/emit 入口（radio.setValue + findComponent(NTree).$emit）+ StudyUnitTab 0 值 fixture + TreeNavPanel 移 defineExpose 遵守 plan §3181 navMode 内部化)
+     parent/                 # 家长端页面（独立于 AppShell，cp_token 认证）
+       ParentLogin.vue       # 家长登录（手机号+密码）
+       ParentRegister.vue    # 家长注册（邀请码验证→填写资料，支持 URL ?code= 预填）
+diff --git a/frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js b/frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js
+index 2e7945e..96ecd82 100644
+--- a/frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js
++++ b/frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js
+@@ -36,4 +36,33 @@ describe('ExamItemsTab', () => {
+     await flushPromises()
+     expect(getExamItems).toHaveBeenCalledWith('Z', 1, 10)
+   })
++
++  it('nextPage click triggers page=2 request (R2 F002 mutant: 删 nextPage/page++ 必红)', async () => {
++    getExamItems.mockResolvedValue({ items: [{ id: '1', stem: 's1' }], total: 30 })
++    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'Z' } })
++    await flushPromises()
++    expect(getExamItems).toHaveBeenNthCalledWith(1, 'Z', 1, 10)
++
++    const nextBtn = wrapper.findAll('button').find(b => b.text().includes('下一页'))
++    await nextBtn.trigger('click')
++    await flushPromises()
++
++    expect(getExamItems).toHaveBeenCalledTimes(2)
++    expect(getExamItems).toHaveBeenNthCalledWith(2, 'Z', 2, 10)
++  })
++
++  it('nodeId change resets page to 1 (R2 F002 mutant: 删 watch page 重置必红)', async () => {
++    getExamItems.mockResolvedValue({ items: [{ id: '1', stem: 's' }], total: 30 })
++    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'A' } })
++    await flushPromises()
++
++    const nextBtn = wrapper.findAll('button').find(b => b.text().includes('下一页'))
++    await nextBtn.trigger('click')
++    await flushPromises()
++    expect(getExamItems).toHaveBeenLastCalledWith('A', 2, 10)
++
++    await wrapper.setProps({ nodeId: 'B' })
++    await flushPromises()
++    expect(getExamItems).toHaveBeenLastCalledWith('B', 1, 10)
++  })
+ })
+diff --git a/frontend/src/__tests__/knowledge-tree/StudyUnitTab.test.js b/frontend/src/__tests__/knowledge-tree/StudyUnitTab.test.js
+index 4640937..f0a1789 100644
+--- a/frontend/src/__tests__/knowledge-tree/StudyUnitTab.test.js
++++ b/frontend/src/__tests__/knowledge-tree/StudyUnitTab.test.js
+@@ -27,4 +27,23 @@ describe('StudyUnitTab', () => {
+     expect(wrapper.text()).toContain('8.5')
+     expect(wrapper.text()).toContain('第3章')
+   })
++
++  it('planning_weight 0 values render as "0" not "—" (R2 F004 mutant: ?? → || 必红)', () => {
++    const wrapper = mount(StudyUnitTab, {
++      props: {
++        node: {
++          study_unit_id: 'su:zero',
++          estimated_minutes: 30,
++          prerequisite_depth: 1,
++          planning_weight: { exam_frequency: 0, error_prone: 0, priority_score: 0 },
++          textbook_chapters: [],
++        }
++      }
++    })
++    const values = wrapper.findAll('.weight-value').map(el => el.text())
++    // 反例: 若实现用 `||` 代替 `??`，0 会被当 falsy 替换为 '—'
++    expect(values.filter(v => v === '0')).toHaveLength(3)
++    // transfer_value 未提供 → nullish → '—'；其余 3 项精确 '0'
++    expect(values.filter(v => v === '—')).toHaveLength(1)
++  })
+ })
+diff --git a/frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js b/frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js
+index b67b6be..c11c933 100644
+--- a/frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js
++++ b/frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js
+@@ -1,5 +1,6 @@
+ import { describe, it, expect } from 'vitest'
+ import { mount } from '@vue/test-utils'
++import { NTree } from 'naive-ui'
+ import { buildChapterTree } from '../../components/knowledge-tree/useKnowledgeTree'
+ import TreeNavPanel from '../../components/knowledge-tree/TreeNavPanel.vue'
+ 
+@@ -67,30 +68,42 @@ describe('TreeNavPanel — nav mode + emits contract', () => {
+     })
+   }
+ 
++  // R2 F003: 所有入口改为 DOM radio trigger + n-tree component $emit
++  // （原 wrapper.vm.navMode / wrapper.vm.handleSelect 直接操作组件实例的路径已废弃；F005 亦移 defineExpose）
++  function chapterRadio(wrapper) {
++    return wrapper.find('input[type="radio"][value="chapter"]')
++  }
++  function getTree(wrapper) {
++    return wrapper.findComponent(NTree)
++  }
++  async function switchToChapter(wrapper) {
++    await chapterRadio(wrapper).setValue(true)
++    await wrapper.vm.$nextTick()
++  }
++
+   it('default module mode shows module name but not book title', () => {
+     const wrapper = mountPanel()
+     expect(wrapper.text()).toContain('分子与细胞')
+     expect(wrapper.text()).not.toContain('必修1')
+   })
+ 
+-  it('chapter mode shows book title "必修1"', async () => {
++  it('chapter mode via radio click shows book title "必修1" (R2 F003: DOM 入口)', async () => {
+     const wrapper = mountPanel()
+-    wrapper.vm.navMode = 'chapter'
+-    await wrapper.vm.$nextTick()
++    await switchToChapter(wrapper)
+     expect(wrapper.text()).toContain('必修1')
+   })
+ 
+-  it('select-module emits module id string for M1 key', () => {
++  it('select-module emits module id for M1 key via n-tree update:selected-keys', async () => {
+     const wrapper = mountPanel()
+-    wrapper.vm.handleSelect(['M1'])
++    await getTree(wrapper).vm.$emit('update:selected-keys', ['M1'])
+     const emitted = wrapper.emitted('select-module')
+     expect(emitted).toHaveLength(1)
+     expect(emitted[0]).toEqual(['M1'])
+   })
+ 
+-  it('select-node emits full node object (F010) in module mode', () => {
++  it('select-node emits full node (F010 module mode via n-tree)', async () => {
+     const wrapper = mountPanel()
+-    wrapper.vm.handleSelect(['C1'])
++    await getTree(wrapper).vm.$emit('update:selected-keys', ['C1'])
+     const emitted = wrapper.emitted('select-node')
+     expect(emitted).toHaveLength(1)
+     const payload = emitted[0][0]
+@@ -100,25 +113,23 @@ describe('TreeNavPanel — nav mode + emits contract', () => {
+     expect(payload.module).toBe('M1')
+   })
+ 
+-  it('select-node keeps full node object across chapter mode (F010 persistence)', async () => {
++  it('select-node keeps full node object across chapter mode (F010 persistence via DOM radio + tree emit)', async () => {
+     const wrapper = mountPanel()
+-    wrapper.vm.navMode = 'chapter'
+-    await wrapper.vm.$nextTick()
+-    wrapper.vm.handleSelect(['C1'])
++    await switchToChapter(wrapper)
++    await getTree(wrapper).vm.$emit('update:selected-keys', ['C1'])
+     const emitted = wrapper.emitted('select-node')
+     expect(emitted).toHaveLength(1)
+-    const payload = emitted[0][0]
+-    expect(payload.id).toBe('C1')
+-    expect(payload.module).toBe('M1')
++    expect(emitted[0][0].id).toBe('C1')
++    expect(emitted[0][0].module).toBe('M1')
+   })
+ 
+-  it('aggregate keys (book:/chapter:/section:) do not emit', async () => {
++  it('aggregate keys (book:/chapter:/section:) do not emit (via n-tree emit)', async () => {
+     const wrapper = mountPanel()
+-    wrapper.vm.navMode = 'chapter'
+-    await wrapper.vm.$nextTick()
+-    wrapper.vm.handleSelect(['book:b1'])
+-    wrapper.vm.handleSelect(['chapter:b1:ch01'])
+-    wrapper.vm.handleSelect(['section:b1:ch01:s01'])
++    await switchToChapter(wrapper)
++    const tree = getTree(wrapper)
++    await tree.vm.$emit('update:selected-keys', ['book:b1'])
++    await tree.vm.$emit('update:selected-keys', ['chapter:b1:ch01'])
++    await tree.vm.$emit('update:selected-keys', ['section:b1:ch01:s01'])
+     expect(wrapper.emitted('select-module')).toBeUndefined()
+     expect(wrapper.emitted('select-node')).toBeUndefined()
+   })
+diff --git a/frontend/src/components/knowledge-tree/ExamItemsTab.vue b/frontend/src/components/knowledge-tree/ExamItemsTab.vue
+index e24ff02..d852381 100644
+--- a/frontend/src/components/knowledge-tree/ExamItemsTab.vue
++++ b/frontend/src/components/knowledge-tree/ExamItemsTab.vue
+@@ -43,20 +43,25 @@ const page = ref(1)
+ const pageSize = ref(10)
+ const loading = ref(false)
+ 
++let fetchSeq = 0
++
+ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+ 
+ async function load() {
+   if (!props.nodeId) return
++  const mySeq = ++fetchSeq
+   loading.value = true
+   try {
+     const data = await getExamItems(props.nodeId, page.value, pageSize.value)
++    if (mySeq !== fetchSeq) return
+     items.value = data.items || []
+     total.value = data.total || 0
+   } catch (e) {
++    if (mySeq !== fetchSeq) return
+     items.value = []
+     total.value = 0
+   } finally {
+-    loading.value = false
++    if (mySeq === fetchSeq) loading.value = false
+   }
+ }
+ 
+diff --git a/frontend/src/components/knowledge-tree/TreeNavPanel.vue b/frontend/src/components/knowledge-tree/TreeNavPanel.vue
+index 785de9d..29c3253 100755
+--- a/frontend/src/components/knowledge-tree/TreeNavPanel.vue
++++ b/frontend/src/components/knowledge-tree/TreeNavPanel.vue
+@@ -187,7 +187,6 @@ function handleSelect(keys) {
+   }
+ }
+ 
+-defineExpose({ navMode, handleSelect })
+ </script>
+ 
+ <style scoped>
+
+mcp: filesystem/read_multiple_files started
+mcp: filesystem/read_multiple_files (completed)
+codex
+我已经把实际改动和全文读完。接下来补相关上下文：`ExamItemsTab` 的调用链、`TreeNavPanel` 的真实集成点、以及现有测试是否只是“换入口不换约束”。
+exec
+/bin/bash -lc 'rg -n "ExamItemsTab|StudyUnitTab|TreeNavPanel|buildChapterTree|getExamItems|fetchSeq|defineExpose|selected-keys" frontend/src -S' in /home/ops/projects/edu-cloud-w2
+ succeeded in 0ms:
+frontend/src/pages/KnowledgeTreePage.vue:13:        <TreeNavPanel
+frontend/src/pages/KnowledgeTreePage.vue:26:        </TreeNavPanel>
+frontend/src/pages/KnowledgeTreePage.vue:100:import TreeNavPanel from '../components/knowledge-tree/TreeNavPanel.vue'
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:5:  getExamItems: vi.fn(),
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:7:import { getExamItems } from '../../api/knowledgeTree'
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:8:import ExamItemsTab from '../../components/knowledge-tree/ExamItemsTab.vue'
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:10:describe('ExamItemsTab', () => {
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:14:    getExamItems.mockResolvedValue({ items: [], total: 0 })
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:15:    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'X' } })
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:21:    getExamItems.mockResolvedValue({
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:27:    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'Y' } })
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:34:    getExamItems.mockResolvedValue({ items: [{ id: '1', stem: 's' }], total: 30 })
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:35:    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'Z' } })
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:37:    expect(getExamItems).toHaveBeenCalledWith('Z', 1, 10)
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:41:    getExamItems.mockResolvedValue({ items: [{ id: '1', stem: 's1' }], total: 30 })
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:42:    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'Z' } })
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:44:    expect(getExamItems).toHaveBeenNthCalledWith(1, 'Z', 1, 10)
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:50:    expect(getExamItems).toHaveBeenCalledTimes(2)
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:51:    expect(getExamItems).toHaveBeenNthCalledWith(2, 'Z', 2, 10)
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:55:    getExamItems.mockResolvedValue({ items: [{ id: '1', stem: 's' }], total: 30 })
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:56:    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'A' } })
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:62:    expect(getExamItems).toHaveBeenLastCalledWith('A', 2, 10)
+frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js:66:    expect(getExamItems).toHaveBeenLastCalledWith('B', 1, 10)
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:4:import { buildChapterTree } from '../../components/knowledge-tree/useKnowledgeTree'
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:5:import TreeNavPanel from '../../components/knowledge-tree/TreeNavPanel.vue'
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:7:describe('buildChapterTree', () => {
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:14:    const tree = buildChapterTree(nodes)
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:31:    const tree = buildChapterTree(nodes)
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:38:    const tree = buildChapterTree(nodes)
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:43:describe('TreeNavPanel — nav mode + emits contract', () => {
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:61:    return mount(TreeNavPanel, {
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:72:  // （原 wrapper.vm.navMode / wrapper.vm.handleSelect 直接操作组件实例的路径已废弃；F005 亦移 defineExpose）
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:96:  it('select-module emits module id for M1 key via n-tree update:selected-keys', async () => {
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:98:    await getTree(wrapper).vm.$emit('update:selected-keys', ['M1'])
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:106:    await getTree(wrapper).vm.$emit('update:selected-keys', ['C1'])
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:119:    await getTree(wrapper).vm.$emit('update:selected-keys', ['C1'])
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:130:    await tree.vm.$emit('update:selected-keys', ['book:b1'])
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:131:    await tree.vm.$emit('update:selected-keys', ['chapter:b1:ch01'])
+frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js:132:    await tree.vm.$emit('update:selected-keys', ['section:b1:ch01:s01'])
+frontend/src/__tests__/knowledge-tree/StudyUnitTab.test.js:3:import StudyUnitTab from '../../components/knowledge-tree/StudyUnitTab.vue'
+frontend/src/__tests__/knowledge-tree/StudyUnitTab.test.js:5:describe('StudyUnitTab', () => {
+frontend/src/__tests__/knowledge-tree/StudyUnitTab.test.js:7:    const wrapper = mount(StudyUnitTab, {
+frontend/src/__tests__/knowledge-tree/StudyUnitTab.test.js:14:    const wrapper = mount(StudyUnitTab, {
+frontend/src/__tests__/knowledge-tree/StudyUnitTab.test.js:32:    const wrapper = mount(StudyUnitTab, {
+frontend/src/api/knowledgeTree.js:21:export async function getExamItems(nodeId, page = 1, pageSize = 20) {
+frontend/src/__tests__/knowledge-tree/KnowledgeTreePage.mount.test.js:155:  TreeNavPanel: defineComponent({
+frontend/src/__tests__/knowledge-tree/KnowledgeTreePage.mount.test.js:160:        // 测试用触发器：从 TreeNavPanel 发出 select-module('all')，
+frontend/src/__tests__/knowledge-tree/KnowledgeTreePage.mount.test.js:360:    it('handleModuleSelect(all) via TreeNavPanel select-module → loadQuality(all) + loadAllModulesQuality', async () => {
+frontend/src/__tests__/knowledge-tree/KnowledgeTreePage.mount.test.js:362:      // 先进入 M1 状态，然后通过 TreeNavPanel 切换回 'all'
+frontend/src/__tests__/knowledge-tree/KnowledgeTreePage.mount.test.js:369:      // TreeNavPanel stub 发出 select-module='all' → 真实 handleModuleSelect('all')
+frontend/src/__tests__/knowledge-tree/KnowledgeTreePage.mount.test.js:382:    it('handleModuleSelect(Mx) via TreeNavPanel → only loadQuality(Mx), not loadAllModulesQuality', async () => {
+frontend/src/components/knowledge-tree/useKnowledgeTree.js:90:export function buildChapterTree(nodes) {
+frontend/src/components/CardEditor.vue:771:defineExpose({
+frontend/src/components/knowledge-tree/ConceptMapPanel.vue:486:// Phase 2.5 R1 F002: defineExpose 增量扩展，保留 Phase 2 已暴露的 focusedNodeId / clearFocus
+frontend/src/components/knowledge-tree/ConceptMapPanel.vue:487:defineExpose({
+frontend/src/components/knowledge-tree/NodeDetailDrawer.vue:58:            <ExamItemsTab :node-id="node.id" />
+frontend/src/components/knowledge-tree/NodeDetailDrawer.vue:61:            <StudyUnitTab :node="node" />
+frontend/src/components/knowledge-tree/NodeDetailDrawer.vue:112:import ExamItemsTab from './ExamItemsTab.vue'
+frontend/src/components/knowledge-tree/NodeDetailDrawer.vue:113:import StudyUnitTab from './StudyUnitTab.vue'
+frontend/src/components/knowledge-tree/NodeDetailDrawer.vue:148:let fetchSeq = 0  // 序号守卫：防止旧请求 finally 覆盖新请求状态
+frontend/src/components/knowledge-tree/NodeDetailDrawer.vue:170:  const mySeq = ++fetchSeq  // 每次 watch 递增
+frontend/src/components/knowledge-tree/NodeDetailDrawer.vue:175:    if (mySeq === fetchSeq) detail.value = data  // 只有最新请求写入
+frontend/src/components/knowledge-tree/NodeDetailDrawer.vue:181:    if (mySeq === fetchSeq) detailLoading.value = false  // 只有最新请求关 loading
+frontend/src/components/knowledge-tree/TreeNavPanel.vue:21:      :selected-keys="selectedKeys"
+frontend/src/components/knowledge-tree/TreeNavPanel.vue:24:      @update:selected-keys="handleSelect"
+frontend/src/components/knowledge-tree/TreeNavPanel.vue:33:      @update:selected-keys="handleSelect"
+frontend/src/components/knowledge-tree/TreeNavPanel.vue:51:import { buildChapterTree } from './useKnowledgeTree'
+frontend/src/components/knowledge-tree/TreeNavPanel.vue:115:  const tree = buildChapterTree(props.nodesWithMastery)
+frontend/src/components/knowledge-tree/ExamItemsTab.vue:34:import { getExamItems } from '../../api/knowledgeTree'
+frontend/src/components/knowledge-tree/ExamItemsTab.vue:46:let fetchSeq = 0
+frontend/src/components/knowledge-tree/ExamItemsTab.vue:52:  const mySeq = ++fetchSeq
+frontend/src/components/knowledge-tree/ExamItemsTab.vue:55:    const data = await getExamItems(props.nodeId, page.value, pageSize.value)
+frontend/src/components/knowledge-tree/ExamItemsTab.vue:56:    if (mySeq !== fetchSeq) return
+frontend/src/components/knowledge-tree/ExamItemsTab.vue:60:    if (mySeq !== fetchSeq) return
+frontend/src/components/knowledge-tree/ExamItemsTab.vue:64:    if (mySeq === fetchSeq) loading.value = false
+frontend/src/components/knowledge-tree/ColorModeToggle.vue:30:defineExpose({ onChange })
+
+mcp: filesystem/read_multiple_files started
+mcp: filesystem/read_multiple_files (completed)
+exec
+/bin/bash -lc "git show 66ab2b8~1:frontend/src/components/knowledge-tree/ExamItemsTab.vue && printf '\\n---FILE---\\n' && git show 66ab2b8~1:frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js && printf '\\n---FILE---\\n' && git show 66ab2b8~1:frontend/src/components/knowledge-tree/TreeNavPanel.vue" in /home/ops/projects/edu-cloud-w2
+ succeeded in 0ms:
+<template>
+  <div class="exam-items-tab">
+    <div v-if="loading" class="loading">加载中…</div>
+    <div v-else-if="total === 0" class="empty">该概念暂无关联高考真题</div>
+    <div v-else>
+      <div class="summary">共 {{ total }} 道关联题，显示第 {{ (page-1)*pageSize + 1 }}-{{ Math.min(page*pageSize, total) }} 条</div>
+      <div class="item-list">
+        <div v-for="item in items" :key="item.id" class="item">
+          <div class="item-header">
+            <span class="type-tag">{{ itemTypeLabel(item.question_type) }}</span>
+            <span class="exam-year">{{ formatExamId(item.exam_id) }}</span>
+            <span v-if="item.score != null" class="score">分值: {{ item.score }} 分</span>
+          </div>
+          <div class="item-stem">{{ truncate(item.stem, 200) }}</div>
+          <details v-if="item.answer || item.explanation" class="item-detail">
+            <summary>查看答案与解析</summary>
+            <div v-if="item.answer" class="answer">答案: {{ item.answer }}</div>
+            <div v-if="item.explanation" class="explanation">解析: {{ item.explanation }}</div>
+          </details>
+        </div>
+      </div>
+      <div class="pagination">
+        <n-button :disabled="page <= 1" @click="prevPage" size="small">上一页</n-button>
+        <span>{{ page }} / {{ totalPages }}</span>
+        <n-button :disabled="page >= totalPages" @click="nextPage" size="small">下一页</n-button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, watch, computed } from 'vue'
+import { NButton } from 'naive-ui'
+import { getExamItems } from '../../api/knowledgeTree'
+
+const props = defineProps({
+  nodeId: { type: String, required: true },
+})
+
+const items = ref([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(10)
+const loading = ref(false)
+
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+
+async function load() {
+  if (!props.nodeId) return
+  loading.value = true
+  try {
+    const data = await getExamItems(props.nodeId, page.value, pageSize.value)
+    items.value = data.items || []
+    total.value = data.total || 0
+  } catch (e) {
+    items.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
+  }
+}
+
+function prevPage() { if (page.value > 1) { page.value--; load() } }
+function nextPage() { if (page.value < totalPages.value) { page.value++; load() } }
+
+watch(() => props.nodeId, () => { page.value = 1; load() }, { immediate: true })
+
+function truncate(text, n) {
+  if (!text) return ''
+  return text.length > n ? text.slice(0, n) + '…' : text
+}
+function itemTypeLabel(type) {
+  return { single_choice: '单选', multiple_choice: '多选', non_choice: '主观题' }[type] || type
+}
+function formatExamId(examId) {
+  const m = /GK_(\d{4})_([A-Z]+)/.exec(examId || '')
+  return m ? `${m[1]} ${m[2]}` : examId
+}
+</script>
+
+<style scoped>
+.exam-items-tab { padding: 8px; }
+.loading, .empty { text-align: center; color: var(--text-color-3); padding: 20px; }
+.summary { font-size: 12px; color: var(--text-color-2); margin-bottom: 10px; }
+.item { border: 1px solid var(--border-color); border-radius: 4px; padding: 10px; margin-bottom: 8px; }
+.item-header { display: flex; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+.type-tag { background: var(--primary-color-hover); color: white; padding: 2px 6px; border-radius: 3px; }
+.exam-year { color: var(--text-color-2); }
+.score { color: var(--text-color-3); }
+.item-stem { font-size: 13px; line-height: 1.5; }
+.item-detail { margin-top: 8px; }
+.item-detail summary { cursor: pointer; font-size: 12px; color: var(--primary-color); }
+.answer { margin-top: 6px; color: var(--success-color); font-size: 13px; }
+.explanation { margin-top: 4px; color: var(--text-color-2); font-size: 12px; }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 12px; }
+</style>
+
+---FILE---
+import { describe, it, expect } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { buildChapterTree } from '../../components/knowledge-tree/useKnowledgeTree'
+import TreeNavPanel from '../../components/knowledge-tree/TreeNavPanel.vue'
+
+describe('buildChapterTree', () => {
+  it('aggregates concepts into book→chapter→section tree', () => {
+    const nodes = [
+      { id: 'C1', textbook_chapters: [{ book: 'b1', chapter: 'ch01', section: 's01', title: '第1节' }] },
+      { id: 'C2', textbook_chapters: [{ book: 'b1', chapter: 'ch01', section: 's01', title: '第1节' }] },
+      { id: 'C3', textbook_chapters: [{ book: 'b1', chapter: 'ch02', section: 's01', title: '第1节' }] },
+    ]
+    const tree = buildChapterTree(nodes)
+    expect(tree).toHaveLength(1)
+    expect(tree[0].id).toBe('b1')
+    expect(tree[0].chapters).toHaveLength(2)
+    expect(tree[0].chapters[0].sections[0].concept_ids).toEqual(['C1', 'C2'])
+  })
+
+  it('handles cross-book concepts', () => {
+    const nodes = [
+      {
+        id: 'Shared',
+        textbook_chapters: [
+          { book: 'b1', chapter: 'ch01', section: 's01', title: 'a' },
+          { book: 'xe1', chapter: 'ch02', section: 's02', title: 'b' },
+        ],
+      },
+    ]
+    const tree = buildChapterTree(nodes)
+    expect(tree).toHaveLength(2)
+    expect(tree.map(b => b.id).sort()).toEqual(['b1', 'xe1'])
+  })
+
+  it('returns empty when all nodes have empty textbook_chapters', () => {
+    const nodes = [{ id: 'C1', textbook_chapters: [] }]
+    const tree = buildChapterTree(nodes)
+    expect(tree).toHaveLength(0)
+  })
+})
+
+describe('TreeNavPanel — nav mode + emits contract', () => {
+  const sampleNavigation = [
+    {
+      id: 'M1',
+      name: '分子与细胞',
+      big_concepts: [{ id: 'BC1', name: '细胞学说', concept_ids: ['C1'] }],
+    },
+  ]
+  const sampleNodes = [
+    {
+      id: 'C1',
+      name: '细胞膜',
+      module: 'M1',
+      textbook_chapters: [{ book: 'b1', chapter: 'ch01', section: 's01', title: '第1节 细胞膜' }],
+    },
+  ]
+
+  function mountPanel() {
+    return mount(TreeNavPanel, {
+      props: {
+        navigation: sampleNavigation,
+        moduleMastery: [],
+        nodesWithMastery: sampleNodes,
+        selectedModule: 'all',
+      },
+    })
+  }
+
+  it('default module mode shows module name but not book title', () => {
+    const wrapper = mountPanel()
+    expect(wrapper.text()).toContain('分子与细胞')
+    expect(wrapper.text()).not.toContain('必修1')
+  })
+
+  it('chapter mode shows book title "必修1"', async () => {
+    const wrapper = mountPanel()
+    wrapper.vm.navMode = 'chapter'
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('必修1')
+  })
+
+  it('select-module emits module id string for M1 key', () => {
+    const wrapper = mountPanel()
+    wrapper.vm.handleSelect(['M1'])
+    const emitted = wrapper.emitted('select-module')
+    expect(emitted).toHaveLength(1)
+    expect(emitted[0]).toEqual(['M1'])
+  })
+
+  it('select-node emits full node object (F010) in module mode', () => {
+    const wrapper = mountPanel()
+    wrapper.vm.handleSelect(['C1'])
+    const emitted = wrapper.emitted('select-node')
+    expect(emitted).toHaveLength(1)
+    const payload = emitted[0][0]
+    expect(typeof payload).toBe('object')
+    expect(payload.id).toBe('C1')
+    expect(payload.name).toBe('细胞膜')
+    expect(payload.module).toBe('M1')
+  })
+
+  it('select-node keeps full node object across chapter mode (F010 persistence)', async () => {
+    const wrapper = mountPanel()
+    wrapper.vm.navMode = 'chapter'
+    await wrapper.vm.$nextTick()
+    wrapper.vm.handleSelect(['C1'])
+    const emitted = wrapper.emitted('select-node')
+    expect(emitted).toHaveLength(1)
+    const payload = emitted[0][0]
+    expect(payload.id).toBe('C1')
+    expect(payload.module).toBe('M1')
+  })
+
+  it('aggregate keys (book:/chapter:/section:) do not emit', async () => {
+    const wrapper = mountPanel()
+    wrapper.vm.navMode = 'chapter'
+    await wrapper.vm.$nextTick()
+    wrapper.vm.handleSelect(['book:b1'])
+    wrapper.vm.handleSelect(['chapter:b1:ch01'])
+    wrapper.vm.handleSelect(['section:b1:ch01:s01'])
+    expect(wrapper.emitted('select-module')).toBeUndefined()
+    expect(wrapper.emitted('select-node')).toBeUndefined()
+  })
+})
+
+---FILE---
+<template>
+  <div class="tree-nav-panel">
+    <div class="nav-header">
+      <slot name="student-selector" />
+      <n-radio-group v-model:value="navMode" size="small" style="margin-bottom: 8px; width: 100%">
+        <n-radio-button value="module">按模块</n-radio-button>
+        <n-radio-button value="chapter">按教材章节</n-radio-button>
+      </n-radio-group>
+      <n-input
+        v-model:value="searchQuery"
+        placeholder="搜索知识点..."
+        clearable
+        size="small"
+        style="margin-bottom: 8px"
+      />
+    </div>
+    <n-tree
+      v-if="navMode === 'module'"
+      :data="treeData"
+      :expanded-keys="expandedKeys"
+      :selected-keys="selectedKeys"
+      :pattern="searchQuery"
+      :render-suffix="renderSuffix"
+      @update:selected-keys="handleSelect"
+      @update:expanded-keys="keys => manualExpandedKeys = keys"
+      block-line
+    />
+    <n-tree
+      v-else
+      :data="chapterTreeData"
+      :pattern="searchQuery"
+      :render-suffix="renderSuffix"
+      @update:selected-keys="handleSelect"
+      block-line
+    />
+    <div v-if="weakConcepts.length" class="weak-section">
+      <div class="section-title">薄弱概念 Top 5</div>
+      <div v-for="c in weakConcepts" :key="c.concept_id" class="weak-item">
+        <span>{{ c.name }}</span>
+        <span :style="{ color: masteryColor(c.mastery) }">
+          {{ Math.round(c.mastery * 100) }}%
+        </span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, h, watch } from 'vue'
+import { NTree, NInput, NRadioGroup, NRadioButton } from 'naive-ui'
+import { buildChapterTree } from './useKnowledgeTree'
+
+const props = defineProps({
+  navigation: { type: Array, default: () => [] },
+  moduleMastery: { type: Array, default: () => [] },
+  nodesWithMastery: { type: Array, default: () => [] },
+  selectedModule: { type: String, default: 'all' },
+})
+const emit = defineEmits(['select-module', 'select-node'])
+
+const searchQuery = ref('')
+const manualExpandedKeys = ref(null)
+const navMode = ref('module')
+
+const reviewStatusIcons = {
+  ai_draft: '🤖',
+  teacher_reviewed: '✅',
+  published: '📗',
+}
+
+function masteryColor(mastery) {
+  if (mastery >= 0.85) return '#22c55e'
+  if (mastery >= 0.6) return '#eab308'
+  if (mastery >= 0.3) return '#ef4444'
+  return '#6b7280'
+}
+
+const nodeMap = computed(() => {
+  const map = {}
+  for (const n of props.nodesWithMastery) {
+    map[n.id] = n
+  }
+  return map
+})
+
+const treeData = computed(() => {
+  if (!props.navigation || props.navigation.length === 0) {
+    return []
+  }
+  return props.navigation.map(mod => {
+    const modMastery = props.moduleMastery.find(m => m.module === mod.id)
+    return {
+      key: mod.id,
+      label: mod.name,
+      mastery: modMastery?.mastery ?? 0,
+      children: (mod.big_concepts || []).map(bc => ({
+        key: bc.id,
+        label: bc.name,
+        children: (bc.concept_ids || []).map(cid => {
+          const node = nodeMap.value[cid]
+          return {
+            key: cid,
+            label: node?.name || cid,
+            isLeaf: true,
+            mastery: node?.mastery ?? 0,
+            reviewStatus: node?.review_status,
+          }
+        }),
+      })),
+    }
+  })
+})
+
+const chapterTreeData = computed(() => {
+  const tree = buildChapterTree(props.nodesWithMastery)
+  return tree.map(book => ({
+    key: `book:${book.id}`,
+    label: book.name,
+    children: book.chapters.map(ch => ({
+      key: `chapter:${book.id}:${ch.id}`,
+      label: ch.name,
+      children: ch.sections.map(s => ({
+        key: `section:${book.id}:${ch.id}:${s.id}`,
+        label: s.name,
+        children: s.concept_ids.map(cid => {
+          const node = nodeMap.value[cid]
+          return {
+            key: cid,
+            label: node?.name || cid,
+            isLeaf: true,
+            mastery: node?.mastery ?? 0,
+            reviewStatus: node?.review_status,
+          }
+        }),
+      })),
+    })),
+  }))
+})
+
+const expandedKeys = computed(() => {
+  if (manualExpandedKeys.value !== null) return manualExpandedKeys.value
+  if (props.selectedModule !== 'all') return [props.selectedModule]
+  return []
+})
+
+watch(searchQuery, () => {
+  manualExpandedKeys.value = null
+})
+
+const selectedKeys = computed(() =>
+  props.selectedModule !== 'all' ? [props.selectedModule] : []
+)
+
+const weakConcepts = computed(() => {
+  return [...props.nodesWithMastery]
+    .filter(n => n.mastery_state === 'weak' || n.mastery_state === 'fragile')
+    .sort((a, b) => a.mastery - b.mastery)
+    .slice(0, 5)
+    .map(n => ({ concept_id: n.id, name: n.name, mastery: n.mastery }))
+})
+
+function renderSuffix({ option }) {
+  const parts = []
+  if (option.reviewStatus) {
+    const icon = reviewStatusIcons[option.reviewStatus] || ''
+    if (icon) parts.push(h('span', { style: { fontSize: '12px', marginRight: '4px' } }, icon))
+  }
+  const m = option.mastery ?? 0
+  if (m > 0) {
+    parts.push(h('span', {
+      style: { color: masteryColor(m), fontSize: '12px' },
+    }, Math.round(m * 100) + '%'))
+  }
+  return parts.length ? h('span', { style: { marginLeft: '4px' } }, parts) : null
+}
+
+function handleSelect(keys) {
+  if (keys.length > 0) {
+    const key = keys[0]
+    if (typeof key === 'string' && key.includes(':')) return
+    if (['M1', 'M2', 'M3', 'M4', 'M5'].includes(key)) {
+      emit('select-module', key)
+    } else if (!key.startsWith('BC_')) {
+      const node = nodeMap.value[key]
+      if (node) emit('select-node', node)
+    }
+  }
+}
+
+defineExpose({ navMode, handleSelect })
+</script>
+
+<style scoped>
+.tree-nav-panel {
+  height: 100%;
+  overflow-y: auto;
+  padding: 12px;
+}
+.nav-header {
+  margin-bottom: 12px;
+}
+.weak-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.section-title {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+.weak-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+}
+</style>
+
+codex
+我现在做两件事：先跑受影响的 vitest 子集确认现状，再抓取带行号源码，方便把证据落到精确位置。
+exec
+/bin/bash -lc "nl -ba frontend/src/components/knowledge-tree/ExamItemsTab.vue && printf '\\n---FILE---\\n' && nl -ba frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js && printf '\\n---FILE---\\n' && nl -ba frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js && printf '\\n---FILE---\\n' && nl -ba frontend/src/__tests__/knowledge-tree/StudyUnitTab.test.js && printf '\\n---FILE---\\n' && nl -ba frontend/src/components/knowledge-tree/TreeNavPanel.vue" in /home/ops/projects/edu-cloud-w2
+ succeeded in 0ms:
+     1	<template>
+     2	  <div class="exam-items-tab">
+     3	    <div v-if="loading" class="loading">加载中…</div>
+     4	    <div v-else-if="total === 0" class="empty">该概念暂无关联高考真题</div>
+     5	    <div v-else>
+     6	      <div class="summary">共 {{ total }} 道关联题，显示第 {{ (page-1)*pageSize + 1 }}-{{ Math.min(page*pageSize, total) }} 条</div>
+     7	      <div class="item-list">
+     8	        <div v-for="item in items" :key="item.id" class="item">
+     9	          <div class="item-header">
+    10	            <span class="type-tag">{{ itemTypeLabel(item.question_type) }}</span>
+    11	            <span class="exam-year">{{ formatExamId(item.exam_id) }}</span>
+    12	            <span v-if="item.score != null" class="score">分值: {{ item.score }} 分</span>
+    13	          </div>
+    14	          <div class="item-stem">{{ truncate(item.stem, 200) }}</div>
+    15	          <details v-if="item.answer || item.explanation" class="item-detail">
+    16	            <summary>查看答案与解析</summary>
+    17	            <div v-if="item.answer" class="answer">答案: {{ item.answer }}</div>
+    18	            <div v-if="item.explanation" class="explanation">解析: {{ item.explanation }}</div>
+    19	          </details>
+    20	        </div>
+    21	      </div>
+    22	      <div class="pagination">
+    23	        <n-button :disabled="page <= 1" @click="prevPage" size="small">上一页</n-button>
+    24	        <span>{{ page }} / {{ totalPages }}</span>
+    25	        <n-button :disabled="page >= totalPages" @click="nextPage" size="small">下一页</n-button>
+    26	      </div>
+    27	    </div>
+    28	  </div>
+    29	</template>
+    30	
+    31	<script setup>
+    32	import { ref, watch, computed } from 'vue'
+    33	import { NButton } from 'naive-ui'
+    34	import { getExamItems } from '../../api/knowledgeTree'
+    35	
+    36	const props = defineProps({
+    37	  nodeId: { type: String, required: true },
+    38	})
+    39	
+    40	const items = ref([])
+    41	const total = ref(0)
+    42	const page = ref(1)
+    43	const pageSize = ref(10)
+    44	const loading = ref(false)
+    45	
+    46	let fetchSeq = 0
+    47	
+    48	const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+    49	
+    50	async function load() {
+    51	  if (!props.nodeId) return
+    52	  const mySeq = ++fetchSeq
+    53	  loading.value = true
+    54	  try {
+    55	    const data = await getExamItems(props.nodeId, page.value, pageSize.value)
+    56	    if (mySeq !== fetchSeq) return
+    57	    items.value = data.items || []
+    58	    total.value = data.total || 0
+    59	  } catch (e) {
+    60	    if (mySeq !== fetchSeq) return
+    61	    items.value = []
+    62	    total.value = 0
+    63	  } finally {
+    64	    if (mySeq === fetchSeq) loading.value = false
+    65	  }
+    66	}
+    67	
+    68	function prevPage() { if (page.value > 1) { page.value--; load() } }
+    69	function nextPage() { if (page.value < totalPages.value) { page.value++; load() } }
+    70	
+    71	watch(() => props.nodeId, () => { page.value = 1; load() }, { immediate: true })
+    72	
+    73	function truncate(text, n) {
+    74	  if (!text) return ''
+    75	  return text.length > n ? text.slice(0, n) + '…' : text
+    76	}
+    77	function itemTypeLabel(type) {
+    78	  return { single_choice: '单选', multiple_choice: '多选', non_choice: '主观题' }[type] || type
+    79	}
+    80	function formatExamId(examId) {
+    81	  const m = /GK_(\d{4})_([A-Z]+)/.exec(examId || '')
+    82	  return m ? `${m[1]} ${m[2]}` : examId
+    83	}
+    84	</script>
+    85	
+    86	<style scoped>
+    87	.exam-items-tab { padding: 8px; }
+    88	.loading, .empty { text-align: center; color: var(--text-color-3); padding: 20px; }
+    89	.summary { font-size: 12px; color: var(--text-color-2); margin-bottom: 10px; }
+    90	.item { border: 1px solid var(--border-color); border-radius: 4px; padding: 10px; margin-bottom: 8px; }
+    91	.item-header { display: flex; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+    92	.type-tag { background: var(--primary-color-hover); color: white; padding: 2px 6px; border-radius: 3px; }
+    93	.exam-year { color: var(--text-color-2); }
+    94	.score { color: var(--text-color-3); }
+    95	.item-stem { font-size: 13px; line-height: 1.5; }
+    96	.item-detail { margin-top: 8px; }
+    97	.item-detail summary { cursor: pointer; font-size: 12px; color: var(--primary-color); }
+    98	.answer { margin-top: 6px; color: var(--success-color); font-size: 13px; }
+    99	.explanation { margin-top: 4px; color: var(--text-color-2); font-size: 12px; }
+   100	.pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 12px; }
+   101	</style>
+
+---FILE---
+     1	import { describe, it, expect, vi, beforeEach } from 'vitest'
+     2	import { mount, flushPromises } from '@vue/test-utils'
+     3	
+     4	vi.mock('../../api/knowledgeTree', () => ({
+     5	  getExamItems: vi.fn(),
+     6	}))
+     7	import { getExamItems } from '../../api/knowledgeTree'
+     8	import ExamItemsTab from '../../components/knowledge-tree/ExamItemsTab.vue'
+     9	
+    10	describe('ExamItemsTab', () => {
+    11	  beforeEach(() => { vi.clearAllMocks() })
+    12	
+    13	  it('shows empty state when no items', async () => {
+    14	    getExamItems.mockResolvedValue({ items: [], total: 0 })
+    15	    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'X' } })
+    16	    await flushPromises()
+    17	    expect(wrapper.text()).toContain('暂无关联高考真题')
+    18	  })
+    19	
+    20	  it('renders items list', async () => {
+    21	    getExamItems.mockResolvedValue({
+    22	      items: [
+    23	        { id: '1', exam_id: 'GK_2019_ZJ', question_type: 'single_choice', stem: '光合作用相关题干' },
+    24	      ],
+    25	      total: 1,
+    26	    })
+    27	    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'Y' } })
+    28	    await flushPromises()
+    29	    expect(wrapper.text()).toContain('光合作用相关题干')
+    30	    expect(wrapper.text()).toContain('2019 ZJ')
+    31	  })
+    32	
+    33	  it('pagination triggers reload', async () => {
+    34	    getExamItems.mockResolvedValue({ items: [{ id: '1', stem: 's' }], total: 30 })
+    35	    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'Z' } })
+    36	    await flushPromises()
+    37	    expect(getExamItems).toHaveBeenCalledWith('Z', 1, 10)
+    38	  })
+    39	
+    40	  it('nextPage click triggers page=2 request (R2 F002 mutant: 删 nextPage/page++ 必红)', async () => {
+    41	    getExamItems.mockResolvedValue({ items: [{ id: '1', stem: 's1' }], total: 30 })
+    42	    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'Z' } })
+    43	    await flushPromises()
+    44	    expect(getExamItems).toHaveBeenNthCalledWith(1, 'Z', 1, 10)
+    45	
+    46	    const nextBtn = wrapper.findAll('button').find(b => b.text().includes('下一页'))
+    47	    await nextBtn.trigger('click')
+    48	    await flushPromises()
+    49	
+    50	    expect(getExamItems).toHaveBeenCalledTimes(2)
+    51	    expect(getExamItems).toHaveBeenNthCalledWith(2, 'Z', 2, 10)
+    52	  })
+    53	
+    54	  it('nodeId change resets page to 1 (R2 F002 mutant: 删 watch page 重置必红)', async () => {
+    55	    getExamItems.mockResolvedValue({ items: [{ id: '1', stem: 's' }], total: 30 })
+    56	    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'A' } })
+    57	    await flushPromises()
+    58	
+    59	    const nextBtn = wrapper.findAll('button').find(b => b.text().includes('下一页'))
+    60	    await nextBtn.trigger('click')
+    61	    await flushPromises()
+    62	    expect(getExamItems).toHaveBeenLastCalledWith('A', 2, 10)
+    63	
+    64	    await wrapper.setProps({ nodeId: 'B' })
+    65	    await flushPromises()
+    66	    expect(getExamItems).toHaveBeenLastCalledWith('B', 1, 10)
+    67	  })
+    68	})
+
+---FILE---
+     1	import { describe, it, expect } from 'vitest'
+     2	import { mount } from '@vue/test-utils'
+     3	import { NTree } from 'naive-ui'
+     4	import { buildChapterTree } from '../../components/knowledge-tree/useKnowledgeTree'
+     5	import TreeNavPanel from '../../components/knowledge-tree/TreeNavPanel.vue'
+     6	
+     7	describe('buildChapterTree', () => {
+     8	  it('aggregates concepts into book→chapter→section tree', () => {
+     9	    const nodes = [
+    10	      { id: 'C1', textbook_chapters: [{ book: 'b1', chapter: 'ch01', section: 's01', title: '第1节' }] },
+    11	      { id: 'C2', textbook_chapters: [{ book: 'b1', chapter: 'ch01', section: 's01', title: '第1节' }] },
+    12	      { id: 'C3', textbook_chapters: [{ book: 'b1', chapter: 'ch02', section: 's01', title: '第1节' }] },
+    13	    ]
+    14	    const tree = buildChapterTree(nodes)
+    15	    expect(tree).toHaveLength(1)
+    16	    expect(tree[0].id).toBe('b1')
+    17	    expect(tree[0].chapters).toHaveLength(2)
+    18	    expect(tree[0].chapters[0].sections[0].concept_ids).toEqual(['C1', 'C2'])
+    19	  })
+    20	
+    21	  it('handles cross-book concepts', () => {
+    22	    const nodes = [
+    23	      {
+    24	        id: 'Shared',
+    25	        textbook_chapters: [
+    26	          { book: 'b1', chapter: 'ch01', section: 's01', title: 'a' },
+    27	          { book: 'xe1', chapter: 'ch02', section: 's02', title: 'b' },
+    28	        ],
+    29	      },
+    30	    ]
+    31	    const tree = buildChapterTree(nodes)
+    32	    expect(tree).toHaveLength(2)
+    33	    expect(tree.map(b => b.id).sort()).toEqual(['b1', 'xe1'])
+    34	  })
+    35	
+    36	  it('returns empty when all nodes have empty textbook_chapters', () => {
+    37	    const nodes = [{ id: 'C1', textbook_chapters: [] }]
+    38	    const tree = buildChapterTree(nodes)
+    39	    expect(tree).toHaveLength(0)
+    40	  })
+    41	})
+    42	
+    43	describe('TreeNavPanel — nav mode + emits contract', () => {
+    44	  const sampleNavigation = [
+    45	    {
+    46	      id: 'M1',
+    47	      name: '分子与细胞',
+    48	      big_concepts: [{ id: 'BC1', name: '细胞学说', concept_ids: ['C1'] }],
+    49	    },
+    50	  ]
+    51	  const sampleNodes = [
+    52	    {
+    53	      id: 'C1',
+    54	      name: '细胞膜',
+    55	      module: 'M1',
+    56	      textbook_chapters: [{ book: 'b1', chapter: 'ch01', section: 's01', title: '第1节 细胞膜' }],
+    57	    },
+    58	  ]
+    59	
+    60	  function mountPanel() {
+    61	    return mount(TreeNavPanel, {
+    62	      props: {
+    63	        navigation: sampleNavigation,
+    64	        moduleMastery: [],
+    65	        nodesWithMastery: sampleNodes,
+    66	        selectedModule: 'all',
+    67	      },
+    68	    })
+    69	  }
+    70	
+    71	  // R2 F003: 所有入口改为 DOM radio trigger + n-tree component $emit
+    72	  // （原 wrapper.vm.navMode / wrapper.vm.handleSelect 直接操作组件实例的路径已废弃；F005 亦移 defineExpose）
+    73	  function chapterRadio(wrapper) {
+    74	    return wrapper.find('input[type="radio"][value="chapter"]')
+    75	  }
+    76	  function getTree(wrapper) {
+    77	    return wrapper.findComponent(NTree)
+    78	  }
+    79	  async function switchToChapter(wrapper) {
+    80	    await chapterRadio(wrapper).setValue(true)
+    81	    await wrapper.vm.$nextTick()
+    82	  }
+    83	
+    84	  it('default module mode shows module name but not book title', () => {
+    85	    const wrapper = mountPanel()
+    86	    expect(wrapper.text()).toContain('分子与细胞')
+    87	    expect(wrapper.text()).not.toContain('必修1')
+    88	  })
+    89	
+    90	  it('chapter mode via radio click shows book title "必修1" (R2 F003: DOM 入口)', async () => {
+    91	    const wrapper = mountPanel()
+    92	    await switchToChapter(wrapper)
+    93	    expect(wrapper.text()).toContain('必修1')
+    94	  })
+    95	
+    96	  it('select-module emits module id for M1 key via n-tree update:selected-keys', async () => {
+    97	    const wrapper = mountPanel()
+    98	    await getTree(wrapper).vm.$emit('update:selected-keys', ['M1'])
+    99	    const emitted = wrapper.emitted('select-module')
+   100	    expect(emitted).toHaveLength(1)
+   101	    expect(emitted[0]).toEqual(['M1'])
+   102	  })
+   103	
+   104	  it('select-node emits full node (F010 module mode via n-tree)', async () => {
+   105	    const wrapper = mountPanel()
+   106	    await getTree(wrapper).vm.$emit('update:selected-keys', ['C1'])
+   107	    const emitted = wrapper.emitted('select-node')
+   108	    expect(emitted).toHaveLength(1)
+   109	    const payload = emitted[0][0]
+   110	    expect(typeof payload).toBe('object')
+   111	    expect(payload.id).toBe('C1')
+   112	    expect(payload.name).toBe('细胞膜')
+   113	    expect(payload.module).toBe('M1')
+   114	  })
+   115	
+   116	  it('select-node keeps full node object across chapter mode (F010 persistence via DOM radio + tree emit)', async () => {
+   117	    const wrapper = mountPanel()
+   118	    await switchToChapter(wrapper)
+   119	    await getTree(wrapper).vm.$emit('update:selected-keys', ['C1'])
+   120	    const emitted = wrapper.emitted('select-node')
+   121	    expect(emitted).toHaveLength(1)
+   122	    expect(emitted[0][0].id).toBe('C1')
+   123	    expect(emitted[0][0].module).toBe('M1')
+   124	  })
+   125	
+   126	  it('aggregate keys (book:/chapter:/section:) do not emit (via n-tree emit)', async () => {
+   127	    const wrapper = mountPanel()
+   128	    await switchToChapter(wrapper)
+   129	    const tree = getTree(wrapper)
+   130	    await tree.vm.$emit('update:selected-keys', ['book:b1'])
+   131	    await tree.vm.$emit('update:selected-keys', ['chapter:b1:ch01'])
+   132	    await tree.vm.$emit('update:selected-keys', ['section:b1:ch01:s01'])
+   133	    expect(wrapper.emitted('select-module')).toBeUndefined()
+   134	    expect(wrapper.emitted('select-node')).toBeUndefined()
+   135	  })
+   136	})
+
+---FILE---
+     1	import { describe, it, expect } from 'vitest'
+     2	import { mount } from '@vue/test-utils'
+     3	import StudyUnitTab from '../../components/knowledge-tree/StudyUnitTab.vue'
+     4	
+     5	describe('StudyUnitTab', () => {
+     6	  it('shows empty when no study_unit_id', () => {
+     7	    const wrapper = mount(StudyUnitTab, {
+     8	      props: { node: { study_unit_id: null } }
+     9	    })
+    10	    expect(wrapper.text()).toContain('暂无关联学习单元')
+    11	  })
+    12	
+    13	  it('renders SU info when present', () => {
+    14	    const wrapper = mount(StudyUnitTab, {
+    15	      props: {
+    16	        node: {
+    17	          study_unit_id: 'su:bio_sr:m1_test',
+    18	          estimated_minutes: 70,
+    19	          prerequisite_depth: 2,
+    20	          planning_weight: { priority_score: 8.5, exam_frequency: 9 },
+    21	          textbook_chapters: [{ book: 'b1', chapter: 'ch03', title: '第3章' }],
+    22	        }
+    23	      }
+    24	    })
+    25	    expect(wrapper.text()).toContain('su:bio_sr:m1_test')
+    26	    expect(wrapper.text()).toContain('70 分钟')
+    27	    expect(wrapper.text()).toContain('8.5')
+    28	    expect(wrapper.text()).toContain('第3章')
+    29	  })
+    30	
+    31	  it('planning_weight 0 values render as "0" not "—" (R2 F004 mutant: ?? → || 必红)', () => {
+    32	    const wrapper = mount(StudyUnitTab, {
+    33	      props: {
+    34	        node: {
+    35	          study_unit_id: 'su:zero',
+    36	          estimated_minutes: 30,
+    37	          prerequisite_depth: 1,
+    38	          planning_weight: { exam_frequency: 0, error_prone: 0, priority_score: 0 },
+    39	          textbook_chapters: [],
+    40	        }
+    41	      }
+    42	    })
+    43	    const values = wrapper.findAll('.weight-value').map(el => el.text())
+    44	    // 反例: 若实现用 `||` 代替 `??`，0 会被当 falsy 替换为 '—'
+    45	    expect(values.filter(v => v === '0')).toHaveLength(3)
+    46	    // transfer_value 未提供 → nullish → '—'；其余 3 项精确 '0'
+    47	    expect(values.filter(v => v === '—')).toHaveLength(1)
+    48	  })
+    49	})
+
+---FILE---
+     1	<template>
+     2	  <div class="tree-nav-panel">
+     3	    <div class="nav-header">
+     4	      <slot name="student-selector" />
+     5	      <n-radio-group v-model:value="navMode" size="small" style="margin-bottom: 8px; width: 100%">
+     6	        <n-radio-button value="module">按模块</n-radio-button>
+     7	        <n-radio-button value="chapter">按教材章节</n-radio-button>
+     8	      </n-radio-group>
+     9	      <n-input
+    10	        v-model:value="searchQuery"
+    11	        placeholder="搜索知识点..."
+    12	        clearable
+    13	        size="small"
+    14	        style="margin-bottom: 8px"
+    15	      />
+    16	    </div>
+    17	    <n-tree
+    18	      v-if="navMode === 'module'"
+    19	      :data="treeData"
+    20	      :expanded-keys="expandedKeys"
+    21	      :selected-keys="selectedKeys"
+    22	      :pattern="searchQuery"
+    23	      :render-suffix="renderSuffix"
+    24	      @update:selected-keys="handleSelect"
+    25	      @update:expanded-keys="keys => manualExpandedKeys = keys"
+    26	      block-line
+    27	    />
+    28	    <n-tree
+    29	      v-else
+    30	      :data="chapterTreeData"
+    31	      :pattern="searchQuery"
+    32	      :render-suffix="renderSuffix"
+    33	      @update:selected-keys="handleSelect"
+    34	      block-line
+    35	    />
+    36	    <div v-if="weakConcepts.length" class="weak-section">
+    37	      <div class="section-title">薄弱概念 Top 5</div>
+    38	      <div v-for="c in weakConcepts" :key="c.concept_id" class="weak-item">
+    39	        <span>{{ c.name }}</span>
+    40	        <span :style="{ color: masteryColor(c.mastery) }">
+    41	          {{ Math.round(c.mastery * 100) }}%
+    42	        </span>
+    43	      </div>
+    44	    </div>
+    45	  </div>
+    46	</template>
+    47	
+    48	<script setup>
+    49	import { ref, computed, h, watch } from 'vue'
+    50	import { NTree, NInput, NRadioGroup, NRadioButton } from 'naive-ui'
+    51	import { buildChapterTree } from './useKnowledgeTree'
+    52	
+    53	const props = defineProps({
+    54	  navigation: { type: Array, default: () => [] },
+    55	  moduleMastery: { type: Array, default: () => [] },
+    56	  nodesWithMastery: { type: Array, default: () => [] },
+    57	  selectedModule: { type: String, default: 'all' },
+    58	})
+    59	const emit = defineEmits(['select-module', 'select-node'])
+    60	
+    61	const searchQuery = ref('')
+    62	const manualExpandedKeys = ref(null)
+    63	const navMode = ref('module')
+    64	
+    65	const reviewStatusIcons = {
+    66	  ai_draft: '🤖',
+    67	  teacher_reviewed: '✅',
+    68	  published: '📗',
+    69	}
+    70	
+    71	function masteryColor(mastery) {
+    72	  if (mastery >= 0.85) return '#22c55e'
+    73	  if (mastery >= 0.6) return '#eab308'
+    74	  if (mastery >= 0.3) return '#ef4444'
+    75	  return '#6b7280'
+    76	}
+    77	
+    78	const nodeMap = computed(() => {
+    79	  const map = {}
+    80	  for (const n of props.nodesWithMastery) {
+    81	    map[n.id] = n
+    82	  }
+    83	  return map
+    84	})
+    85	
+    86	const treeData = computed(() => {
+    87	  if (!props.navigation || props.navigation.length === 0) {
+    88	    return []
+    89	  }
+    90	  return props.navigation.map(mod => {
+    91	    const modMastery = props.moduleMastery.find(m => m.module === mod.id)
+    92	    return {
+    93	      key: mod.id,
+    94	      label: mod.name,
+    95	      mastery: modMastery?.mastery ?? 0,
+    96	      children: (mod.big_concepts || []).map(bc => ({
+    97	        key: bc.id,
+    98	        label: bc.name,
+    99	        children: (bc.concept_ids || []).map(cid => {
+   100	          const node = nodeMap.value[cid]
+   101	          return {
+   102	            key: cid,
+   103	            label: node?.name || cid,
+   104	            isLeaf: true,
+   105	            mastery: node?.mastery ?? 0,
+   106	            reviewStatus: node?.review_status,
+   107	          }
+   108	        }),
+   109	      })),
+   110	    }
+   111	  })
+   112	})
+   113	
+   114	const chapterTreeData = computed(() => {
+   115	  const tree = buildChapterTree(props.nodesWithMastery)
+   116	  return tree.map(book => ({
+   117	    key: `book:${book.id}`,
+   118	    label: book.name,
+   119	    children: book.chapters.map(ch => ({
+   120	      key: `chapter:${book.id}:${ch.id}`,
+   121	      label: ch.name,
+   122	      children: ch.sections.map(s => ({
+   123	        key: `section:${book.id}:${ch.id}:${s.id}`,
+   124	        label: s.name,
+   125	        children: s.concept_ids.map(cid => {
+   126	          const node = nodeMap.value[cid]
+   127	          return {
+   128	            key: cid,
+   129	            label: node?.name || cid,
+   130	            isLeaf: true,
+   131	            mastery: node?.mastery ?? 0,
+   132	            reviewStatus: node?.review_status,
+   133	          }
+   134	        }),
+   135	      })),
+   136	    })),
+   137	  }))
+   138	})
+   139	
+   140	const expandedKeys = computed(() => {
+   141	  if (manualExpandedKeys.value !== null) return manualExpandedKeys.value
+   142	  if (props.selectedModule !== 'all') return [props.selectedModule]
+   143	  return []
+   144	})
+   145	
+   146	watch(searchQuery, () => {
+   147	  manualExpandedKeys.value = null
+   148	})
+   149	
+   150	const selectedKeys = computed(() =>
+   151	  props.selectedModule !== 'all' ? [props.selectedModule] : []
+   152	)
+   153	
+   154	const weakConcepts = computed(() => {
+   155	  return [...props.nodesWithMastery]
+   156	    .filter(n => n.mastery_state === 'weak' || n.mastery_state === 'fragile')
+   157	    .sort((a, b) => a.mastery - b.mastery)
+   158	    .slice(0, 5)
+   159	    .map(n => ({ concept_id: n.id, name: n.name, mastery: n.mastery }))
+   160	})
+   161	
+   162	function renderSuffix({ option }) {
+   163	  const parts = []
+   164	  if (option.reviewStatus) {
+   165	    const icon = reviewStatusIcons[option.reviewStatus] || ''
+   166	    if (icon) parts.push(h('span', { style: { fontSize: '12px', marginRight: '4px' } }, icon))
+   167	  }
+   168	  const m = option.mastery ?? 0
+   169	  if (m > 0) {
+   170	    parts.push(h('span', {
+   171	      style: { color: masteryColor(m), fontSize: '12px' },
+   172	    }, Math.round(m * 100) + '%'))
+   173	  }
+   174	  return parts.length ? h('span', { style: { marginLeft: '4px' } }, parts) : null
+   175	}
+   176	
+   177	function handleSelect(keys) {
+   178	  if (keys.length > 0) {
+   179	    const key = keys[0]
+   180	    if (typeof key === 'string' && key.includes(':')) return
+   181	    if (['M1', 'M2', 'M3', 'M4', 'M5'].includes(key)) {
+   182	      emit('select-module', key)
+   183	    } else if (!key.startsWith('BC_')) {
+   184	      const node = nodeMap.value[key]
+   185	      if (node) emit('select-node', node)
+   186	    }
+   187	  }
+   188	}
+   189	
+   190	</script>
+   191	
+   192	<style scoped>
+   193	.tree-nav-panel {
+   194	  height: 100%;
+   195	  overflow-y: auto;
+   196	  padding: 12px;
+   197	}
+   198	.nav-header {
+   199	  margin-bottom: 12px;
+   200	}
+   201	.weak-section {
+   202	  margin-top: 16px;
+   203	  padding-top: 12px;
+   204	  border-top: 1px solid rgba(255, 255, 255, 0.1);
+   205	}
+   206	.section-title {
+   207	  font-size: 12px;
+   208	  color: #888;
+   209	  margin-bottom: 8px;
+   210	}
+   211	.weak-item {
+   212	  display: flex;
+   213	  justify-content: space-between;
+   214	  font-size: 13px;
+   215	  padding: 4px 0;
+   216	}
+   217	</style>
+
+exec
+/bin/bash -lc 'npx vitest run src/__tests__/knowledge-tree/ExamItemsTab.test.js src/__tests__/knowledge-tree/TreeNavPanel.test.js src/__tests__/knowledge-tree/StudyUnitTab.test.js' in /home/ops/projects/edu-cloud-w2/frontend
+ succeeded in 2678ms:
+
+ RUN  v4.1.0 /home/ops/projects/edu-cloud-w2/frontend
+
+
+ Test Files  3 passed (3)
+      Tests  17 passed (17)
+   Start at  08:31:20
+   Duration  2.00s (transform 378ms, setup 0ms, import 2.75s, tests 344ms, environment 935ms)
+
+
+codex
+目标测试当前是绿的。我在做最后一轮对抗性检查：确认 `defineExpose` 真的没有运行时消费者，以及 F001/F003 的“修复是否被测试真正锁住”。
+exec
+/bin/bash -lc "rg -n \"TreeNavPanel|handleSelect\\(|navMode\\b|defineExpose\\(|select-node|select-module\" frontend/src --glob '"'!frontend/src/__tests__/**'"' -S" in /home/ops/projects/edu-cloud-w2
+ succeeded in 0ms:
+frontend/src/pages/KnowledgeTreePage.vue:13:        <TreeNavPanel
+frontend/src/pages/KnowledgeTreePage.vue:18:          @select-module="handleModuleSelect"
+frontend/src/pages/KnowledgeTreePage.vue:19:          @select-node="handleNodeClick"
+frontend/src/pages/KnowledgeTreePage.vue:26:        </TreeNavPanel>
+frontend/src/pages/KnowledgeTreePage.vue:43:            @select-module="handleModuleSelect"
+frontend/src/pages/KnowledgeTreePage.vue:100:import TreeNavPanel from '../components/knowledge-tree/TreeNavPanel.vue'
+frontend/src/components/knowledge-tree/ConceptMapPanel.vue:487:defineExpose({
+frontend/src/components/knowledge-tree/ModuleOverviewPanel.vue:18:        @select="$emit('select-module', mod.id)"
+frontend/src/components/knowledge-tree/ModuleOverviewPanel.vue:48:defineEmits(['select-module', 'refresh-quality'])
+frontend/src/components/knowledge-tree/ColorModeToggle.vue:30:defineExpose({ onChange })
+frontend/src/components/CardEditor.vue:771:defineExpose({
+frontend/src/components/knowledge-tree/TreeNavPanel.vue:5:      <n-radio-group v-model:value="navMode" size="small" style="margin-bottom: 8px; width: 100%">
+frontend/src/components/knowledge-tree/TreeNavPanel.vue:18:      v-if="navMode === 'module'"
+frontend/src/components/knowledge-tree/TreeNavPanel.vue:59:const emit = defineEmits(['select-module', 'select-node'])
+frontend/src/components/knowledge-tree/TreeNavPanel.vue:63:const navMode = ref('module')
+frontend/src/components/knowledge-tree/TreeNavPanel.vue:177:function handleSelect(keys) {
+frontend/src/components/knowledge-tree/TreeNavPanel.vue:182:      emit('select-module', key)
+frontend/src/components/knowledge-tree/TreeNavPanel.vue:185:      if (node) emit('select-node', node)
+
+exec
+/bin/bash -lc "nl -ba frontend/src/components/knowledge-tree/NodeDetailDrawer.vue | sed -n '140,190p' && printf '\\n---FILE---\\n' && nl -ba frontend/src/pages/KnowledgeTreePage.vue | sed -n '1,80p'" in /home/ops/projects/edu-cloud-w2
+exec
+/bin/bash -lc 'rg -n "R2 F001|fetchSeq|ExamItemsTab|TreeNavPanel 改 DOM 入口|defineExpose" docs/plans/2026-04-13-knowledge-graph-phase1-plan.md docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md -S' in /home/ops/projects/edu-cloud-w2
+ succeeded in 0ms:
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:13:  - `66ab2b8` (F001 ExamItemsTab fetchSeq guard)
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:14:  - `fce6412` (F002 ExamItemsTab 分页 mutant 测试)
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:15:  - `6806f2b` (F003 TreeNavPanel 改 DOM 入口)
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:17:  - `317dfb6` (F005 TreeNavPanel 移 defineExpose + CLAUDE.md 同步)
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:19:  - `frontend/src/components/knowledge-tree/ExamItemsTab.vue` (F001)
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:20:  - `frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js` (F002)
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:36:| F001 | `仅最新请求生效`生命周期保护（参 NodeDetailDrawer:148 fetchSeq pattern）；禁止脆弱补丁 / 延时节流 | module-scoped `let fetchSeq = 0`；`load()` 入口 `const mySeq = ++fetchSeq`；try / catch / finally 各 `if (mySeq !== fetchSeq) return` 早退。**不加 AbortController**（scope 约束不改 api/knowledgeTree.js），网络层多发一次但不覆盖状态 | 🔀 | 不加 abort 属 scope 保守偏离；Repair hypothesis 只要求"仅最新请求生效"语义，seq guard 达成。commit `66ab2b8` |
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:40:| F005 | A) 移除 defineExpose 测试改 DOM 入口 / B) 改 plan 追认 expose 契约 | **方案 A（用户 2026-04-18 批准）**：删 `defineExpose({ navMode, handleSelect })` 1 行；测试已在 F003 commit 6806f2b 改为 DOM/emit 入口，移除 defineExpose 零影响；CLAUDE.md 追加遵守 plan §3181 navMode 内部化说明 | ✅ | commit `317dfb6` |
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:48:| F001 删 `mySeq !== fetchSeq` 早退（3 处 try/catch/finally 任一） | 无直接 assert 覆盖 race（测试 mock 同步 resolve，顺序一致）；间接 mutant: F002 `nodeId change resets page to 1` 在严格 race 下可能红，本 repo 未加异步 race test（scope 保守，覆盖率小瑕疵同 R1 未覆盖瑕疵 pre-declare）| 说明型反证，未实测 |
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:54:| F005 重新加回 defineExpose | 无测试引用 `wrapper.vm.navMode/handleSelect` → 无测试 fail；但 Contract Pack freshness 再次触发 process finding（R1 F005 重现）| 逻辑推理 |
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:62:| F001 | code-bug | defect_fix | load() 无 seq guard，A→B 切换 A 旧请求覆盖状态 | fetchSeq 序号守卫 + mySeq 比较，旧请求 resolve 不写 state | ✅ 仅最新请求生效（参 NodeDetailDrawer:148 pattern） | resolved-correct |
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:66:| F005 | design-concern | behavior_change | defineExpose({navMode, handleSelect}) 违反 plan §3181 navMode 不暴露 | 删 defineExpose 1 行；测试已走 DOM/emit 入口不依赖 | ✅ 方案 A 用户批准 — 契约保持不变 | resolved-correct |
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:70:- ✅ F001 实现: ExamItemsTab.vue net +6/-0（let fetchSeq + 3 个 if mySeq !== fetchSeq return），不改 api/knowledgeTree.js
+docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md:74:- ✅ F005 defineExpose 完整移除: `grep 'defineExpose' TreeNavPanel.vue` → 0 命中
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:48:| `frontend/src/components/knowledge-tree/ExamItemsTab.vue` | 详情面板高考真题标签页 |
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:2679:// 前置: ConceptMapPanel 需用 defineExpose({ buildG6Data }) 暴露 buildG6Data
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:2786:- Create: `frontend/src/components/knowledge-tree/ExamItemsTab.vue`
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:2798:   - 命令: `npx vitest run ExamItemsTab.test.js`
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:2830:- [ ] **Step 2: 实现 ExamItemsTab.vue**
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:2832:Create `frontend/src/components/knowledge-tree/ExamItemsTab.vue`:
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:3037:            <ExamItemsTab :node-id="node.id" />
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:3052:import ExamItemsTab from './ExamItemsTab.vue'  // 新增
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:3059:Create `frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js`:
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:3064:import ExamItemsTab from '../ExamItemsTab.vue'
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:3071:describe('ExamItemsTab', () => {
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:3076:    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'X' } })
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:3088:    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'Y' } })
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:3096:    const wrapper = mount(ExamItemsTab, { props: { nodeId: 'Z' } })
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:3142:cd /c/Users/Administrator/edu-cloud/frontend && npx vitest run ExamItemsTab StudyUnitTab
+docs/plans/2026-04-13-knowledge-graph-phase1-plan.md:3149:git add frontend/src/components/knowledge-tree/ExamItemsTab.vue \
+
+ succeeded in 0ms:
+   140	}
+   141	const reviewStatusLabel = computed(() => reviewStatusLabels[props.node?.review_status] || props.node?.review_status)
+   142	const reviewTagType = computed(() => {
+   143	  const map = { ai_draft: 'default', teacher_reviewed: 'info', published: 'success' }
+   144	  return map[props.node?.review_status] || 'default'
+   145	})
+   146	const detailLoading = ref(false)
+   147	let abortController = null
+   148	let fetchSeq = 0  // 序号守卫：防止旧请求 finally 覆盖新请求状态
+   149	
+   150	const stateTagType = computed(() => {
+   151	  const map = { solid: 'success', fragile: 'warning', weak: 'error', unseen: 'default' }
+   152	  return map[props.node?.mastery_state] || 'default'
+   153	})
+   154	
+   155	watch(() => props.node, (n) => {
+   156	  if (n) {
+   157	    editForm.value = {
+   158	      name: n.name || '',
+   159	      description: n.description || '',
+   160	      difficulty: n.difficulty ?? null,
+   161	      bloom_level: n.bloom_level ?? null,
+   162	    }
+   163	  }
+   164	})
+   165	
+   166	watch(() => props.node?.id, async (nodeId) => {
+   167	  if (!nodeId) return
+   168	  if (abortController) abortController.abort()
+   169	  abortController = new AbortController()
+   170	  const mySeq = ++fetchSeq  // 每次 watch 递增
+   171	  detailLoading.value = true
+   172	  detail.value = null
+   173	  try {
+   174	    const { data } = await getNodeDetail(nodeId, abortController.signal)
+   175	    if (mySeq === fetchSeq) detail.value = data  // 只有最新请求写入
+   176	  } catch (e) {
+   177	    if (e.name !== 'CanceledError' && e.name !== 'AbortError') {
+   178	      console.warn('Failed to load node detail:', e)
+   179	    }
+   180	  } finally {
+   181	    if (mySeq === fetchSeq) detailLoading.value = false  // 只有最新请求关 loading
+   182	  }
+   183	})
+   184	
+   185	async function handleSave() {
+   186	  if (!props.node) return
+   187	  saving.value = true
+   188	  try {
+   189	    const fields = {}
+   190	    if (editForm.value.name !== props.node.name) fields.name = editForm.value.name
+
+---FILE---
+     1	<template>
+     2	  <div class="knowledge-tree-page">
+     3	    <!-- 家长入口：模块卡片（未选择模块时显示） -->
+     4	    <ModuleCards
+     5	      v-if="showCards"
+     6	      :modules="moduleMastery"
+     7	      @select="handleModuleSelect"
+     8	    />
+     9	
+    10	    <!-- 主视图：左侧导航 + 右侧图谱 -->
+    11	    <div v-else class="main-layout">
+    12	      <div class="nav-side" :class="{ collapsed: navCollapsed }">
+    13	        <TreeNavPanel
+    14	          :navigation="navigationData"
+    15	          :module-mastery="moduleMastery"
+    16	          :nodes-with-mastery="nodesWithMastery"
+    17	          :selected-module="selectedModule"
+    18	          @select-module="handleModuleSelect"
+    19	          @select-node="handleNodeClick"
+    20	        >
+    21	          <template #student-selector>
+    22	            <n-button size="small" quaternary @click="backToCards" style="margin-bottom: 8px">
+    23	              ← 返回模块概览
+    24	            </n-button>
+    25	          </template>
+    26	        </TreeNavPanel>
+    27	      </div>
+    28	      <div class="graph-side">
+    29	        <div class="view-tabs" v-if="canEdit">
+    30	          <n-tabs v-model:value="activeTab" type="segment" size="small">
+    31	            <n-tab-pane name="graph" tab="图谱视图" />
+    32	            <n-tab-pane name="review" tab="审查工作台" />
+    33	          </n-tabs>
+    34	        </div>
+    35	        <template v-if="activeTab === 'graph'">
+    36	          <ModuleOverviewPanel
+    37	            v-if="selectedModule === 'all'"
+    38	            :navigation="navigationData"
+    39	            :nodes="nodesWithMastery"
+    40	            :edges="graphData.edges"
+    41	            :modules-quality="modulesQuality"
+    42	            style="flex: 1; min-height: 0"
+    43	            @select-module="handleModuleSelect"
+    44	            @refresh-quality="loadAllModulesQuality"
+    45	          />
+    46	          <template v-else>
+    47	            <div class="graph-tools">
+    48	              <ColorModeToggle
+    49	                v-model="colorMode"
+    50	                :has-student="!!selectedStudentId"
+    51	              />
+    52	            </div>
+    53	            <ConceptMapPanel
+    54	              :module-id="selectedModule"
+    55	              :module-name="currentModuleName"
+    56	              :nodes="nodesWithMastery"
+    57	              :edges="graphData.edges"
+    58	              :navigation="navigationData"
+    59	              :quality-issues="qualityIssues"
+    60	              :can-edit="canEdit"
+    61	              :color-mode="colorMode"
+    62	              :nodes-with-mastery="nodesWithMastery"
+    63	              style="flex: 1; min-height: 0"
+    64	              @back-to-overview="handleBackToOverview"
+    65	              @refresh="handleRefreshModule"
+    66	              @node-click="handleNodeClick"
+    67	              @view-detail="handleNodeClick"
+    68	              @mark-reviewed="handleMarkReviewed"
+    69	            />
+    70	          </template>
+    71	        </template>
+    72	        <RelationReviewPanel
+    73	          v-if="activeTab === 'review'"
+    74	          :nodes="nodesWithMastery"
+    75	          :edges="graphData.edges"
+    76	          :quality-issues="qualityIssues"
+    77	          :can-edit="canEdit"
+    78	          style="flex: 1; min-height: 0"
+    79	          @edit="handleEdit"
+    80	        />
+
+codex
+我在把 Contract Pack 的核对结果落到行号，尤其是 INV-004 / freshness / test_debt，对应后面的 process finding 会更清晰。
+exec
+/bin/bash -lc "nl -ba docs/plans/2026-04-13-knowledge-graph-phase1-plan.md | sed -n '3310,3465p'" in /home/ops/projects/edu-cloud-w2
+ succeeded in 0ms:
+  3310	  navigation: { type: Array, default: () => [] },
+  3311	  moduleMastery: { type: Array, default: () => [] },   // 现有，保留
+  3312	  nodesWithMastery: { type: Array, default: () => [] }, // 现有，保留（作为 nodes 数据源）
+  3313	  selectedModule: { type: String, default: 'all' },     // 现有，保留
+  3314	})
+  3315	const emit = defineEmits(['select-module', 'select-node'])  // 现有事件，不改
+  3316	
+  3317	const navMode = ref('module')  // 内部状态，不暴露
+  3318	const searchQuery = ref('')
+  3319	
+  3320	const moduleTree = computed(() => {
+  3321	  // 原有逻辑：navigation → tree
+  3322	  return props.navigation.map(mod => ({
+  3323	    key: mod.id,
+  3324	    label: mod.name,
+  3325	    children: mod.big_concepts.map(bc => ({
+  3326	      key: bc.id,
+  3327	      label: bc.name,
+  3328	      children: bc.concept_ids.map(cid => {
+  3329	        const node = props.nodesWithMastery.find(n => n.id === cid)
+  3330	        return { key: cid, label: node?.name || cid, isLeaf: true }
+  3331	      }),
+  3332	    })),
+  3333	  }))
+  3334	})
+  3335	
+  3336	const chapterTreeData = computed(() => {
+  3337	  const tree = buildChapterTree(props.nodesWithMastery)
+  3338	  return tree.map(book => ({
+  3339	    key: `book:${book.id}`,
+  3340	    label: book.name,
+  3341	    children: book.chapters.map(ch => ({
+  3342	      key: `chapter:${book.id}:${ch.id}`,
+  3343	      label: ch.name,
+  3344	      children: ch.sections.map(s => ({
+  3345	        key: `section:${book.id}:${ch.id}:${s.id}`,
+  3346	        label: s.name,
+  3347	        children: s.concept_ids.map(cid => {
+  3348	          const node = props.nodesWithMastery.find(n => n.id === cid)
+  3349	          return { key: cid, label: node?.name || cid, isLeaf: true }
+  3350	        }),
+  3351	      })),
+  3352	    })),
+  3353	  }))
+  3354	})
+  3355	
+  3356	function onSelect(keys) {
+  3357	  // F002: 使用现有 emits 契约
+  3358	  if (!keys[0]) return
+  3359	  // key 前缀 book:/chapter:/section: 表示聚合节点，不是 concept
+  3360	  if (keys[0].includes(':')) return
+  3361	  // 判断是模块 ID 还是 concept ID
+  3362	  const isModule = props.navigation.some(m => m.id === keys[0])
+  3363	  if (isModule) {
+  3364	    emit('select-module', keys[0])
+  3365	  } else {
+  3366	    // F010: select-node payload 必须是完整 node 对象（与现有 TreeNavPanel.vue:147 契约一致），
+  3367	    // KnowledgeTreePage handleNodeClick / NodeDetailDrawer 均依赖对象字段。
+  3368	    const node = props.nodesWithMastery.find(n => n.id === keys[0])
+  3369	    if (node) emit('select-node', node)
+  3370	  }
+  3371	}
+  3372	</script>
+  3373	```
+  3374	
+  3375	- [ ] **Step 3: 写单元测试**
+  3376	
+  3377	Create `frontend/src/__tests__/knowledge-tree/TreeNavPanel.test.js` (或在已有文件中添加):
+  3378	
+  3379	```javascript
+  3380	import { describe, it, expect } from 'vitest'
+  3381	import { buildChapterTree } from '../useKnowledgeTree'
+  3382	
+  3383	describe('buildChapterTree', () => {
+  3384	  it('aggregates concepts into book→chapter→section tree', () => {
+  3385	    const nodes = [
+  3386	      {
+  3387	        id: 'C1',
+  3388	        textbook_chapters: [{ book: 'b1', chapter: 'ch01', section: 's01', title: '第1节' }]
+  3389	      },
+  3390	      {
+  3391	        id: 'C2',
+  3392	        textbook_chapters: [{ book: 'b1', chapter: 'ch01', section: 's01', title: '第1节' }]
+  3393	      },
+  3394	      {
+  3395	        id: 'C3',
+  3396	        textbook_chapters: [{ book: 'b1', chapter: 'ch02', section: 's01', title: '第1节' }]
+  3397	      },
+  3398	    ]
+  3399	    const tree = buildChapterTree(nodes)
+  3400	    expect(tree).toHaveLength(1)
+  3401	    expect(tree[0].id).toBe('b1')
+  3402	    expect(tree[0].chapters).toHaveLength(2)
+  3403	    expect(tree[0].chapters[0].sections[0].concept_ids).toEqual(['C1', 'C2'])
+  3404	  })
+  3405	
+  3406	  it('handles cross-book concepts', () => {
+  3407	    const nodes = [
+  3408	      {
+  3409	        id: 'Shared',
+  3410	        textbook_chapters: [
+  3411	          { book: 'b1', chapter: 'ch01', section: 's01', title: 'a' },
+  3412	          { book: 'xe1', chapter: 'ch02', section: 's02', title: 'b' },
+  3413	        ]
+  3414	      },
+  3415	    ]
+  3416	    const tree = buildChapterTree(nodes)
+  3417	    expect(tree).toHaveLength(2)
+  3418	  })
+  3419	
+  3420	  it('handles empty textbook_chapters', () => {
+  3421	    const nodes = [{ id: 'C1', textbook_chapters: [] }]
+  3422	    const tree = buildChapterTree(nodes)
+  3423	    expect(tree).toHaveLength(0)
+  3424	  })
+  3425	})
+  3426	
+  3427	// F004: UI 挂载级 slice — nav mode 切换改变 DOM 内容
+  3428	import { mount } from '@vue/test-utils'
+  3429	import TreeNavPanel from '../TreeNavPanel.vue'
+  3430	
+  3431	describe('TreeNavPanel — nav mode toggle (UI-level)', () => {
+  3432	  const sampleNavigation = [
+  3433	    { id: 'M1', name: '分子与细胞', big_concepts: [
+  3434	      { id: 'BC1', name: '细胞学说', concept_ids: ['C1'] }
+  3435	    ]}
+  3436	  ]
+  3437	  const sampleNodes = [
+  3438	    { id: 'C1', name: '细胞膜', module: 'M1',
+  3439	      textbook_chapters: [{ book: 'b1', chapter: 'ch01', section: 's01', title: '第1节 细胞膜' }] }
+  3440	  ]
+  3441	
+  3442	  it('default mode shows module tree (反例: 若默认 chapter 则此断言失败)', () => {
+  3443	    const wrapper = mount(TreeNavPanel, {
+  3444	      props: {
+  3445	        navigation: sampleNavigation,
+  3446	        moduleMastery: [],
+  3447	        nodesWithMastery: sampleNodes,
+  3448	        selectedModule: 'all',
+  3449	      },
+  3450	    })
+  3451	    // 模块模式应显示模块名
+  3452	    expect(wrapper.text()).toContain('分子与细胞')
+  3453	  })
+  3454	
+  3455	  it('chapter mode shows book title, not module name (反例: 若忽略 navMode 则显示模块名)', async () => {
+  3456	    const wrapper = mount(TreeNavPanel, {
+  3457	      props: {
+  3458	        navigation: sampleNavigation,
+  3459	        moduleMastery: [],
+  3460	        nodesWithMastery: sampleNodes,
+  3461	        selectedModule: 'all',
+  3462	      },
+  3463	    })
+  3464	    // 切换到 chapter 模式（internal state via ref）
+  3465	    wrapper.vm.navMode = 'chapter'
+
+exec
+/bin/bash -lc "nl -ba docs/plans/2026-04-13-knowledge-graph-phase1-review-handoff-batch3b-r2.md | sed -n '30,90p'" in /home/ops/projects/edu-cloud-w2
+ succeeded in 0ms:
+    30	本 R2 仍在独立 **W2 worktree** `/home/ops/projects/edu-cloud-w2`。主 wt 当前借给 W4 `feat/conduct-roadmap-batch1`，node_modules symlink 只读共享。
+    31	
+    32	### 逐 Finding 自审
+    33	
+    34	| Finding | 计划要求（R1 repair hypothesis） | 实际执行 | 状态 | 说明 |
+    35	|---------|---------|---------|------|------|
+    36	| F001 | `仅最新请求生效`生命周期保护（参 NodeDetailDrawer:148 fetchSeq pattern）；禁止脆弱补丁 / 延时节流 | module-scoped `let fetchSeq = 0`；`load()` 入口 `const mySeq = ++fetchSeq`；try / catch / finally 各 `if (mySeq !== fetchSeq) return` 早退。**不加 AbortController**（scope 约束不改 api/knowledgeTree.js），网络层多发一次但不覆盖状态 | 🔀 | 不加 abort 属 scope 保守偏离；Repair hypothesis 只要求"仅最新请求生效"语义，seq guard 达成。commit `66ab2b8` |
+    37	| F002 | 覆盖"点击下一页发起第 2 页请求"+"切换 nodeId 后 page 重置为 1" | 2 新 it:<br>(a) `nextPage click triggers page=2`: `findAll('button').find('下一页').trigger('click')` + `expect getExamItems toHaveBeenNthCalledWith(2, 'Z', 2, 10)` + `toHaveBeenCalledTimes(2)`<br>(b) `nodeId change resets page to 1`: 先 nextPage 到 page=2，再 `setProps({nodeId:'B'})` + `toHaveBeenLastCalledWith('B', 1, 10)` | ✅ | commit `fce6412` |
+    38	| F003 | 通过真实 DOM 交互切换模式 + 树组件选择路径验证 emit 契约 | helper `switchToChapter`: `find('input[type="radio"][value="chapter"]').setValue(true)`；helper `getTree`: `findComponent(NTree)`（naive-ui 组件引用非 name 字符串匹配）；6 个 UI 级测试全改 DOM/emit 入口，移除 `wrapper.vm.navMode/handleSelect` | 🔀 | handleSelect 入口走 `tree.vm.$emit('update:selected-keys', [...])`（组件 emit 入口，非纯 DOM tree-node click） — Naive UI n-tree DOM 结构复杂，组件 emit 是"树组件选择路径"合理实现。commit `6806f2b` |
+    39	| F004 | 显式断言 `0` 会显示为 `0` 而非 `'—'` | 新 it `planning_weight 0 values render as "0" not "—"`: fixture `exam_frequency: 0, error_prone: 0, priority_score: 0` + transfer_value 未提供；断言 `.weight-value` DOM text 分布 = 3 个 '0' + 1 个 '—' | ✅ | commit `9d1e6c7` |
+    40	| F005 | A) 移除 defineExpose 测试改 DOM 入口 / B) 改 plan 追认 expose 契约 | **方案 A（用户 2026-04-18 批准）**：删 `defineExpose({ navMode, handleSelect })` 1 行；测试已在 F003 commit 6806f2b 改为 DOM/emit 入口，移除 defineExpose 零影响；CLAUDE.md 追加遵守 plan §3181 navMode 内部化说明 | ✅ | commit `317dfb6` |
+    41	
+    42	> 状态：✅一致 / 🔀改进（实现优于计划，已记录）
+    43	
+    44	### 反证矩阵（R2 Executor 手动验证预案）
+    45	
+    46	| 反证操作（对 R2 修复） | 预期 fail 断言 | 验证方式 |
+    47	|---------|---------------|------|
+    48	| F001 删 `mySeq !== fetchSeq` 早退（3 处 try/catch/finally 任一） | 无直接 assert 覆盖 race（测试 mock 同步 resolve，顺序一致）；间接 mutant: F002 `nodeId change resets page to 1` 在严格 race 下可能红，本 repo 未加异步 race test（scope 保守，覆盖率小瑕疵同 R1 未覆盖瑕疵 pre-declare）| 说明型反证，未实测 |
+    49	| F002 删 `function nextPage() { page.value++ }` | `nextPage click triggers page=2`: 第 2 次调用不发 → `toHaveBeenCalledTimes(2)` fail | 逻辑推理 |
+    50	| F002 删 watch `page.value = 1` | `nodeId change resets page to 1`: 切 'B' 后 page=2 残留 → `toHaveBeenLastCalledWith('B', 1, 10)` fail（actual 'B', 2, 10）| 逻辑推理 |
+    51	| F003 删 `<n-radio-group v-model:value="navMode">` | `chapter mode via radio click shows book title "必修1"`: setValue 无效 → `toContain('必修1')` fail | 逻辑推理 |
+    52	| F003 删 `@update:selected-keys="handleSelect"` binding | 所有 emit 测试 fail（tree.$emit 不路由到 handleSelect）| 逻辑推理 |
+    53	| F004 把 `??` 退回 `\|\|` | `planning_weight 0 values`: `0 \|\| '—' = '—'` → `values.filter(v => v === '0').toHaveLength(3)` fail（actual 0）| 逻辑推理 |
+    54	| F005 重新加回 defineExpose | 无测试引用 `wrapper.vm.navMode/handleSelect` → 无测试 fail；但 Contract Pack freshness 再次触发 process finding（R1 F005 重现）| 逻辑推理 |
+    55	
+    56	**说明**: Executor 未逐条跑实测 mutant（handoff §4 未强制要求，R2 修复 commits 已 staged 测试基线 156/156 PASS）。Reviewer 可要求指定 slice 手动粘贴 fail 输出。
+    57	
+    58	### Fix Card
+    59	
+    60	| Finding | Category | Type | Before | After | Resolved-hypothesis | Status |
+    61	|---------|----------|------|--------|-------|---------------------|--------|
+    62	| F001 | code-bug | defect_fix | load() 无 seq guard，A→B 切换 A 旧请求覆盖状态 | fetchSeq 序号守卫 + mySeq 比较，旧请求 resolve 不写 state | ✅ 仅最新请求生效（参 NodeDetailDrawer:148 pattern） | resolved-correct |
+    63	| F002 | test-gap | defect_fix | pagination test 仅断言首屏调用参数，mutant 删 nextPage/page++ 仍 PASS | 2 新 test 点击下一页 + 切 nodeId 断言 page reset | ✅ 入口级 mutant 测试（点击 + setProps）| resolved-correct |
+    64	| F003 | test-gap | defect_fix | 测试直接 wrapper.vm.navMode/handleSelect，mutant 删 radio-group 仍 PASS | radio.setValue + findComponent(NTree).$emit 走 DOM/emit 入口 | ✅ 入口级 DOM + 组件 emit | resolved-correct |
+    65	| F004 | test-gap | defect_fix | StudyUnitTab `??` 0 值语义 fixture 无 0，mutant 退 `\|\|` 仍 PASS | 新 it 0 值 fixture 断言 weight-value text 3×'0' + 1×'—' | ✅ 0 值语义锁定 | resolved-correct |
+    66	| F005 | design-concern | behavior_change | defineExpose({navMode, handleSelect}) 违反 plan §3181 navMode 不暴露 | 删 defineExpose 1 行；测试已走 DOM/emit 入口不依赖 | ✅ 方案 A 用户批准 — 契约保持不变 | resolved-correct |
+    67	
+    68	### 验证清单自检
+    69	
+    70	- ✅ F001 实现: ExamItemsTab.vue net +6/-0（let fetchSeq + 3 个 if mySeq !== fetchSeq return），不改 api/knowledgeTree.js
+    71	- ✅ F002 新断言入口: `wrapper.findAll('button').find('下一页').trigger('click')` + `wrapper.setProps`（真实 DOM + props 入口）
+    72	- ✅ F003 测试 6 个 UI 级全改: `setValue` / `$nextTick` / `findComponent(NTree).$emit` (无 wrapper.vm.navMode/handleSelect 遗留)
+    73	- ✅ F004 反证精准: `toHaveLength(3)` 3 个 '0' filter 锁 0 值渲染；`toHaveLength(1)` 1 个 '—' 锁 undefined fallback
+    74	- ✅ F005 defineExpose 完整移除: `grep 'defineExpose' TreeNavPanel.vue` → 0 命中
+    75	- ✅ 反证矩阵 7 条（R1 原 + R2 新增），均逻辑推理，未强制实测（handoff §4 未强制要求 R2 粘贴 fail 输出）
+    76	- ✅ R1 严禁改动保留: `KnowledgeTreePage.vue` / `NodeDetailDrawer.vue` / `useKnowledgeTree.js` / `api/knowledgeTree.js` / `ConceptMapPanel.vue` / `ColorModeToggle.vue` / `heatmapUtils.js` R2 零触
+    77	- ✅ 子集回归: knowledge-tree 14 files / **156 tests PASS** (R1 基线 153 + R2 +3 mutant)
+    78	- ✅ Git staging 纯净: 5 次 commit 前均 `git status --short` 验证；5 commits 分别对应 5 findings
+    79	- ⚠️ 全前端 vitest 未跑（仅 knowledge-tree 子集）— 其他模块理论零触及但未实证；建议 Reviewer `npx vitest run` 全量
+    80	- ⚠️ mutant 未逐条实测粘贴 fail 输出（handoff §4 未强制，Reviewer 要 slice 请指定）
+    81	
+    82	### 🔀 偏离汇总（审查关注点）
+    83	
+    84	1. F001 seq guard only，不加 AbortController（scope 约束不改 api signature） — 符合 Repair hypothesis "仅最新请求生效" 语义
+    85	2. F003 handleSelect 入口走 `findComponent(NTree).$emit` 而非纯 DOM tree-node click（naive-ui n-tree DOM 复杂） — 仍属"树组件选择路径"入口
+    86	3. CLAUDE.md 追加 2 次（F001 commit + F005 commit）— doc-sync-guard 对 .vue modify 强制同步，最小 1 句追加
+    87	
+    88	### 送审准备
+    89	
+    90	1. Baseline: knowledge-tree 子集 14/156 PASS（2026-04-18 08:18）
+
+codex
+我补跑一遍 knowledge-tree 前端子集，主要是确认 F005 删掉 `defineExpose` 后，没有别的旧测试仍在隐式依赖组件实例。
+exec
+/bin/bash -lc 'npx vitest run src/__tests__/knowledge-tree' in /home/ops/projects/edu-cloud-w2/frontend
+ succeeded in 6059ms:
+
+ RUN  v4.1.0 /home/ops/projects/edu-cloud-w2/frontend
+
+
+ Test Files  14 passed (14)
+      Tests  156 passed (156)
+   Start at  08:32:32
+   Duration  5.40s (transform 2.16s, setup 0ms, import 18.10s, tests 6.31s, environment 7.22s)
+
+
+codex
+我已经有足够证据判定主 finding，但还会把 Contract Pack 的具体行号抓出来，确保 Phase 0 的结论可追溯。
+exec
+/bin/bash -lc 'rg -n "No semantic_regression|semantic_regression|Semantic Regression" docs/plans/2026-04-13-knowledge-graph-phase1-plan.md' in /home/ops/projects/edu-cloud-w2
+exec
+/bin/bash -lc 'rg -n "INV-001|INV-002|INV-003|INV-004|INV-005|CE-001|CE-002|CE-003|TD-001|TD-002|TD-003|freshness" docs/plans/2026-04-13-knowledge-graph-phase1-plan.md' in /home/ops/projects/edu-cloud-w2
+ exited 1 in 0ms:
+ succeeded in 0ms:
+3886:- [ ] **Step 0 (P001 处置): 新增 INV-002 L1 集合相等测试**
+3892:    """INV-002 P001: compute_exam_frequency 返回 key 集合必须 == KB 中 knowledge_level='L1' 集合。
+3926:    assert actual_ids == kb_l1_ids, f"INV-002 L1 集合不等，对称差集: {diff}"
+3989:| S0 INV-002 L1 集合相等 (P001) | test_stats_service.py::test_exam_frequency_l1_set_equals_kb_l1 | pytest ... -v | PASS, set=={L1_A,L1_B,L1_C} | SELECT 改为 != 'L0' → L2_A 混入，actual=4 IDs，集合不等 fail |
+4018:#### INV-001: Graph API 响应结构向后兼容
+4023:#### INV-002: L1 考频计算只涉及 L1 concepts
+4031:#### INV-003: concept_stats 计算失败不阻塞 sync
+4036:#### INV-004: 前端子组件契约不变
+4046:#### INV-005: importance_score 归一化到 [0, 10]
+4055:**Round 2 修复 (P001)**: GPT batch1 R1 报告 INV-005 verification 仅指向 normalization 测试，删除任一分量贡献后测试仍能绿通。R2 批补全 4 维单调性测试已落盘（test_stats_service.py:196-235），verification 映射本次精确化。
+4059:#### CE-001: 逻辑镜像测试 — "只验证 prop 传递"
+4065:#### CE-002: HTTP 测试将 4xx 视为通过
+4071:#### CE-003: 匹配阈值过低导致乱映射
+4081:| `stats_service.compute_all_stats` | lifecycle + threshold + fallback | Task 5 + Task 6 + INV-003 |
+4084:| `service.get_graph` (v3 扩展) | public API 向后兼容 | INV-001 + Task 7 三个测试 |
+4086:| `sync_service.sync_knowledge_on_startup` 扩展 | startup lifecycle | INV-003 + Task 6 |
+4088:| `TreeNavPanel` + `ModuleOverviewPanel` | 前端契约不变 | INV-004 + Task 12/13 集成测试 |
+4092:#### TD-001: G6 渲染的像素级快照不在 Phase 1 覆盖
+4097:#### TD-002: MCU 映射准确率无端到端人工抽检
+4102:#### TD-003: 启动时 stats 计算耗时未做压力基线
+4107:### freshness
+4108:此 Contract Pack 对应 plan 版本 **R6**（2026-04-14：R3 P001 处置 INV-002/004 verification 精确化 + T14 Step 0 新增 L1 集合相等测试 + R6 修复 R5-T001/T002/P002 + T9-T13 测试路径批量校正 `frontend/src/__tests__/knowledge-tree/`）。若 Phase 1 执行过程中出现推翻不变量或新增未列出的 public API 变更，Code Review 需将此视为 process finding，要求 Planner 更新 Contract Pack。
+
+codex
+结论：FAIL
+
+**发现**
+1. ID: F001  
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: `ExamItemsTab` 的竞态修复依赖 `fetchSeq` 守卫，但本轮新增测试仍只验证请求参数和页码变化；把守卫删掉后，现有测试仍会全部通过。  
+After-behavior: 需要一个可控异步竞态测试，证明 A→B 快速切换时，旧请求晚到不会改写 `items` / `total` / `loading`，页面最终只展示最新 `nodeId` 的结果。  
+Evidence: [ExamItemsTab.vue:50](/home/ops/projects/edu-cloud-w2/frontend/src/components/knowledge-tree/ExamItemsTab.vue#L50), [ExamItemsTab.vue:56](/home/ops/projects/edu-cloud-w2/frontend/src/components/knowledge-tree/ExamItemsTab.vue#L56), [ExamItemsTab.vue:60](/home/ops/projects/edu-cloud-w2/frontend/src/components/knowledge-tree/ExamItemsTab.vue#L60), [ExamItemsTab.vue:64](/home/ops/projects/edu-cloud-w2/frontend/src/components/knowledge-tree/ExamItemsTab.vue#L64), [ExamItemsTab.test.js:40](/home/ops/projects/edu-cloud-w2/frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js#L40), [ExamItemsTab.test.js:54](/home/ops/projects/edu-cloud-w2/frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js#L54)  
+Impact: F001 的核心修复没有被回归测试锁住，后续若有人删掉 `mySeq !== fetchSeq` 早退或 `finally` 守卫，knowledge-tree 全套 156 测仍可保持绿色，按审查规范属于“删除核心逻辑后测试不失败”的 HIGH test-gap，阻塞 PASS。  
+Repair hypothesis: 用两个受控 Promise mock `getExamItems`，先挂起 A，再触发 B，按 `B resolve -> A resolve` 和 `B reject -> A resolve` 两条路径断言 UI 仍停留在 B。  
+Likely repair direction: 增加入口级异步竞态测试，直接从 `nodeId` 变更触发 `watch(...load())`，断言 DOM 文本和 loading 状态。  
+Forbidden fix patterns: 只断言 `getExamItems` 调用次数/参数；继续使用同步 `mockResolvedValue`；用 `sleep`/定时器碰运气制造竞态。  
+Requires independent fix design + Semantic Regression Gate.
+
+**Phase 0**
+`Contract Pack` 本轮未发现 freshness 问题；`TreeNavPanel` 的 props/emits 契约仍满足 [phase1-plan.md:4036](/home/ops/projects/edu-cloud-w2/docs/plans/2026-04-13-knowledge-graph-phase1-plan.md#L4036)。`CE-001/002/003` 与 `TD-001/002/003` 没有被本批改动推翻。plan 中确实没有 `semantic_regression` section。
+
+**Phase 1**
+F002/F003/F004 的新增测试基本达标：删掉分页递增、`nodeId` 重置、`??` 语义后都会红。F005 删除 `defineExpose` 后，运行时没有发现仓内消费者，且 `TreeNavPanel` 子集/knowledge-tree 子集测试都通过。
+
+**Phase 2**
+除上面的测试充分性问题外，我没有在这批变更里再发现新的行为性 code-bug。`TreeNavPanel` 当前实现仍保持 `select-module` / `select-node` 契约，[TreeNavPanel.vue:177](/home/ops/projects/edu-cloud-w2/frontend/src/components/knowledge-tree/TreeNavPanel.vue#L177) 与 [KnowledgeTreePage.vue:13](/home/ops/projects/edu-cloud-w2/frontend/src/pages/KnowledgeTreePage.vue#L13) 的集成关系未被破坏。
+
+**Phase 3**
+未测试风险仍集中在 F001 的异步时序。实测 `npx vitest run src/__tests__/knowledge-tree` 为 14 files / 156 tests PASS，但这组测试仍不能证明“旧请求晚到不会覆盖新状态”。
+
+FAIL
+tokens used
+95,160
+结论：FAIL
+
+**发现**
+1. ID: F001  
+Severity: HIGH  
+Category: test-gap  
+Type: defect_fix  
+Before-behavior: `ExamItemsTab` 的竞态修复依赖 `fetchSeq` 守卫，但本轮新增测试仍只验证请求参数和页码变化；把守卫删掉后，现有测试仍会全部通过。  
+After-behavior: 需要一个可控异步竞态测试，证明 A→B 快速切换时，旧请求晚到不会改写 `items` / `total` / `loading`，页面最终只展示最新 `nodeId` 的结果。  
+Evidence: [ExamItemsTab.vue:50](/home/ops/projects/edu-cloud-w2/frontend/src/components/knowledge-tree/ExamItemsTab.vue#L50), [ExamItemsTab.vue:56](/home/ops/projects/edu-cloud-w2/frontend/src/components/knowledge-tree/ExamItemsTab.vue#L56), [ExamItemsTab.vue:60](/home/ops/projects/edu-cloud-w2/frontend/src/components/knowledge-tree/ExamItemsTab.vue#L60), [ExamItemsTab.vue:64](/home/ops/projects/edu-cloud-w2/frontend/src/components/knowledge-tree/ExamItemsTab.vue#L64), [ExamItemsTab.test.js:40](/home/ops/projects/edu-cloud-w2/frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js#L40), [ExamItemsTab.test.js:54](/home/ops/projects/edu-cloud-w2/frontend/src/__tests__/knowledge-tree/ExamItemsTab.test.js#L54)  
+Impact: F001 的核心修复没有被回归测试锁住，后续若有人删掉 `mySeq !== fetchSeq` 早退或 `finally` 守卫，knowledge-tree 全套 156 测仍可保持绿色，按审查规范属于“删除核心逻辑后测试不失败”的 HIGH test-gap，阻塞 PASS。  
+Repair hypothesis: 用两个受控 Promise mock `getExamItems`，先挂起 A，再触发 B，按 `B resolve -> A resolve` 和 `B reject -> A resolve` 两条路径断言 UI 仍停留在 B。  
+Likely repair direction: 增加入口级异步竞态测试，直接从 `nodeId` 变更触发 `watch(...load())`，断言 DOM 文本和 loading 状态。  
+Forbidden fix patterns: 只断言 `getExamItems` 调用次数/参数；继续使用同步 `mockResolvedValue`；用 `sleep`/定时器碰运气制造竞态。  
+Requires independent fix design + Semantic Regression Gate.
+
+**Phase 0**
+`Contract Pack` 本轮未发现 freshness 问题；`TreeNavPanel` 的 props/emits 契约仍满足 [phase1-plan.md:4036](/home/ops/projects/edu-cloud-w2/docs/plans/2026-04-13-knowledge-graph-phase1-plan.md#L4036)。`CE-001/002/003` 与 `TD-001/002/003` 没有被本批改动推翻。plan 中确实没有 `semantic_regression` section。
+
+**Phase 1**
+F002/F003/F004 的新增测试基本达标：删掉分页递增、`nodeId` 重置、`??` 语义后都会红。F005 删除 `defineExpose` 后，运行时没有发现仓内消费者，且 `TreeNavPanel` 子集/knowledge-tree 子集测试都通过。
+
+**Phase 2**
+除上面的测试充分性问题外，我没有在这批变更里再发现新的行为性 code-bug。`TreeNavPanel` 当前实现仍保持 `select-module` / `select-node` 契约，[TreeNavPanel.vue:177](/home/ops/projects/edu-cloud-w2/frontend/src/components/knowledge-tree/TreeNavPanel.vue#L177) 与 [KnowledgeTreePage.vue:13](/home/ops/projects/edu-cloud-w2/frontend/src/pages/KnowledgeTreePage.vue#L13) 的集成关系未被破坏。
+
+**Phase 3**
+未测试风险仍集中在 F001 的异步时序。实测 `npx vitest run src/__tests__/knowledge-tree` 为 14 files / 156 tests PASS，但这组测试仍不能证明“旧请求晚到不会覆盖新状态”。
+
+FAIL

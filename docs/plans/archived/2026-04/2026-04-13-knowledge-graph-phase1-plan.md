@@ -4105,8 +4105,23 @@ git commit -m "docs: Phase 1 实现完成标记 + 审查交接单"
 **风险等级**: 低（最坏情况应用启动慢，不影响正确性）
 **deadline**: Task 5 Step 4 首次执行时记录耗时到日志。超过 30s 则加 `pytest-timeout` 断言。Phase 1 验收后建立基线。
 
+#### TD-005: Task 11 `shows empty state when no items` 测试弱断言（3.b.iv R1 FAIL scope 外 F001 — 用户 2026-04-18 Option A 批准 deferred）
+**理由**: ExamItemsTab.test.js:13 的 `shows empty state when no items` 基础测试即使删 `watch(..., { immediate: true })` / `load()` 主链路，测试仍会通过（组件默认初始态 `total=0, loading=false` 天然落 `v-else-if total===0` 分支显示"暂无"）。GPT 3.b.iv R1 独立审查指出此 weak assertion，但属 Task 11 最初实现引入，**非 R4/3.b.iii/3.b scope**。
+**风险等级**: 低（组件首次加载链路已被 R3 Test A/B/C 三路径间接锁定 — A→B setProps 场景 fetchSeq++ 证明 load() 实际发生；本 TD 仅 "单独 mount 单 nodeId 空结果 resolve" 路径未独立锁）
+**deadline**: Phase 2 启动前，或 T1 级独立 bug fix 补丁。修复方向：改 `shows empty state` 为受控 deferred promise + 先断言 loading → resolve({items:[], total:0}) → 断言 empty。
+**关联 Finding**: `docs/plans/2026-04-13-knowledge-graph-phase1-review-report-batch3biv.md` F001 HIGH test-gap
+
+#### TD-006: Contract Pack INV-004 / CE-002 verification 映射漂移（3.b.iii + 3.b.iv P0-F001 — 用户 2026-04-18 Option A 批准 deferred）
+**理由**:
+- INV-004 声称 ModuleOverviewPanel 有 `statsOverview=null` 降级断言 — 本 Phase 1 Batch 3.c 已补齐（ModuleOverviewPanel.test.js 新增 `degrades gracefully when statsOverview is null`），映射已对齐
+- CE-002 引用测试名 `test_get_exam_items_endpoint_for_seeded_concept` 与仓库实际测试文件不符（实际测试在 tests/test_knowledge_tree/test_exam_items_service.py，但命名略有差异）
+- INV-002 引用 `test_exam_frequency_l1_set_equals_kb_l1` 尚未落盘（后端测试，主 handoff §3 红线"禁动后端 tests/test_*"豁免，deferred 到 Phase 2）
+**风险等级**: 低（process finding，影响审查者对 Contract Pack 覆盖度的误判，不影响代码行为）
+**deadline**: Phase 2 plan 阶段同步修正 INV-002/INV-004/CE-002 verification 映射，落盘后端 `test_exam_frequency_l1_set_equals_kb_l1` + 精确 CE-002 测试名。
+**关联 Finding**: `docs/plans/2026-04-13-knowledge-graph-phase1-review-report-batch3biii.md` P0-F001 + `docs/plans/2026-04-13-knowledge-graph-phase1-review-report-batch3biv.md` P0-F001
+
 ### freshness
-此 Contract Pack 对应 plan 版本 **R6**（2026-04-14：R3 P001 处置 INV-002/004 verification 精确化 + T14 Step 0 新增 L1 集合相等测试 + R6 修复 R5-T001/T002/P002 + T9-T13 测试路径批量校正 `frontend/src/__tests__/knowledge-tree/`）。若 Phase 1 执行过程中出现推翻不变量或新增未列出的 public API 变更，Code Review 需将此视为 process finding，要求 Planner 更新 Contract Pack。
+此 Contract Pack 对应 plan 版本 **R6**（2026-04-14）。2026-04-18 T14 收尾追加 TD-005/TD-006（用户 Option A 批准 L017 gate_blocker 豁免，对应 3.b.iv R1 FAIL scope 外 finding）。若 Phase 1 执行过程中出现推翻不变量或新增未列出的 public API 变更，Code Review 需将此视为 process finding，要求 Planner 更新 Contract Pack。
 
 ---
 
