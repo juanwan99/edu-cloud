@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from edu_cloud.config import settings
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user
 from edu_cloud.models.user import User
@@ -39,7 +40,7 @@ _ROLE_LABELS = {
 class TeacherCreate(BaseModel):
     username: str
     display_name: str
-    password: str = "123456"
+    password: str | None = None
     roles: list[str] = ["subject_teacher"]
     phone: str | None = None
     email: str | None = None
@@ -186,7 +187,7 @@ async def create_teacher(
         education=req.education, university=req.university,
         office_phone=req.office_phone, notes=req.notes,
     )
-    user.set_password(req.password)
+    user.set_password(req.password or settings.SEED_DEFAULT_PASSWORD)
     db.add(user)
     await db.flush()
 
@@ -559,7 +560,7 @@ async def import_teachers(
             university=_cell(row, uni_col), office_phone=_cell(row, office_col),
             notes=_cell(row, notes_col),
         )
-        user.set_password("123456")
+        user.set_password(settings.SEED_DEFAULT_PASSWORD)
         db.add(user)
         await db.flush()
 

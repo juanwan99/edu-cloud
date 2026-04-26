@@ -107,7 +107,7 @@ async def lifespan(app: FastAPI):
                 username="admin",
                 display_name="平台管理员",
             )
-            admin.set_password("123456")
+            admin.set_password(settings.SEED_DEFAULT_PASSWORD)
             db.add(admin)
             await db.flush()
             db.add(UserRole(
@@ -116,7 +116,7 @@ async def lifespan(app: FastAPI):
                 is_primary=True,
             ))
             await db.commit()
-            logger.info("seed: platform admin created (admin/123456)")
+            logger.info("seed: platform admin created (admin/***)")
         else:
             logger.debug("seed: platform admin already exists, skipping")
 

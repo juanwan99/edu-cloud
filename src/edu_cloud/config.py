@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "change-me"
     ENCRYPTION_KEY: str = "change-me-in-production"
+    SEED_DEFAULT_PASSWORD: str = "change-me-seed-password"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

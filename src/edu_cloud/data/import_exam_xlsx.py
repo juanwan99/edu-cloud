@@ -23,6 +23,8 @@ import openpyxl
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
+from edu_cloud.config import settings
+
 logger = logging.getLogger(__name__)
 
 DATA_DIR = "D:/试卷数据/试卷图像/191871"
@@ -271,7 +273,7 @@ async def create_school_users(db: AsyncSession, school_id: str):
             continue
 
         user = User(username=username, display_name=display_name)
-        user.set_password("123456")
+        user.set_password(settings.SEED_DEFAULT_PASSWORD)
         db.add(user)
         await db.flush()
 
