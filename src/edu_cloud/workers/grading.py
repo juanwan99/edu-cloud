@@ -181,7 +181,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                 logger.info("grading_task: task=%s, llm_config resolved from DB (model=%s)", task_id, llm_model)
             except Exception:
                 llm_url, llm_key, llm_model = None, None, None
-                logger.info("grading_task: task=%s, llm_config fallback to .env", task_id)
+                logger.warning("grading_task: task=%s, llm_config DB lookup failed, fallback to .env", task_id, exc_info=True)
 
             llm = _create_llm_client(api_url=llm_url, api_key=llm_key, model=llm_model)
 
