@@ -56,3 +56,6 @@ frontend/e2e/
 
 # Node modules (root level, frontend has its own)
 node_modules/
+
+# Codex CLI local state
+.codex/
