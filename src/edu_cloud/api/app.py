@@ -66,9 +66,9 @@ async def lifespan(app: FastAPI):
     import edu_cloud.models.grade  # noqa: F401 — Grade
     import edu_cloud.models.teaching_plan  # noqa: F401 — TeachingPlan
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("database tables created")
+    # create_all removed (C-02): use 'alembic upgrade head' for all environments.
+    # Test fixtures in conftest.py still use create_all for in-memory SQLite.
+    logger.info("database: schema managed by alembic (create_all removed)")
 
     # Sync knowledge.db → PostgreSQL (idempotent, non-fatal)
     from edu_cloud.database import async_session  # F001: import before use
