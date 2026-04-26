@@ -10,149 +10,47 @@
     </div>
 
     <!-- 选择器：无路由参数时显示 -->
-    <div v-if="!hasRouteParams" class="selector-bar">
-      <n-select
-        v-model:value="selectedExamId"
-        :options="examOptions"
-        placeholder="选择考试"
-        style="width: 280px"
-        :loading="loadingExams"
-        @update:value="onExamSelected"
-      />
-      <n-select
-        v-if="selectedExamId"
-        v-model:value="selectedSubjectId"
-        :options="subjectOptions"
-        placeholder="选择科目"
-        style="width: 200px"
-        :loading="loadingSubjects"
-        @update:value="onSubjectSelected"
-      />
-    </div>
+    <ExamSubjectSelector
+      v-if="!hasRouteParams"
+      :examId="selectedExamId"
+      :subjectId="selectedSubjectId"
+      :examOptions="examOptions"
+      :subjectOptions="subjectOptions"
+      :loadingExams="loadingExams"
+      :loadingSubjects="loadingSubjects"
+      @update:examId="onExamSelected"
+      @update:subjectId="onSubjectSelected"
+    />
 
     <div class="main-layout" v-if="examId && subjectId">
       <!-- 左侧：题目列表 -->
-      <div class="left-panel">
-        <div class="panel-title">主观题列表</div>
-        <div v-if="loadingQuestions" class="loading-tip">加载中...</div>
-        <div v-else-if="questions.length === 0" class="empty-tip">暂无主观题</div>
-        <div
-          v-for="q in questions"
-          :key="q.question_id"
-          class="question-item"
-          :class="{ active: selectedQuestion?.question_id === q.question_id }"
-          @click="selectQuestion(q)"
-        >
-          <div class="q-row">
-            <span class="q-num">{{ q.name || q.question_name }}</span>
-            <div class="q-info">
-              <div class="q-title">
-                {{ q.question_type === 'essay' ? '主观题' : '填空题' }}
-                <span class="q-score">{{ q.max_score }}分</span>
-              </div>
-              <div class="q-tags">
-                <span class="t" :class="q.has_content ? 'ok' : 'warn'">
-                  {{ q.has_content ? '题干' : '无题干' }}{{ q.content_image_count ? ` ${q.content_image_count}图` : '' }}
-                </span>
-                <span class="t" :class="q.has_answer ? 'ok' : 'warn'">
-                  {{ q.has_answer ? '答案' : '无答案' }}{{ q.answer_image_count ? ` ${q.answer_image_count}图` : '' }}
-                </span>
-                <span class="t" :class="q.has_rubric ? 'ok' : 'warn'">{{ q.has_rubric ? '细则' : '无细则' }}</span>
-              </div>
-              <div v-if="q.answer_count" class="q-progress">
-                {{ q.graded_count }}/{{ q.answer_count }} 已阅
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <QuestionList
+        :questions="questions"
+        :selectedQuestionId="selectedQuestion?.question_id"
+        :editingScoreId="editingScoreId"
+        :loading="loadingQuestions"
+        @select="selectQuestion"
+        @start-edit-score="startEditScore"
+        @save-score="saveScore"
+        @update-score-value="handleUpdateScoreValue"
+      />
 
-      <!-- 右侧：详情面板 -->
-      <div class="right-panel">
-        <div v-if="!selectedQuestion" class="empty-tip center">请从左侧选择一道题</div>
-        <template v-else>
-
-          <!-- 原题卡片 -->
-          <n-card class="detail-card" title="原题">
-            <template #header-extra>
-              <n-button size="small" @click="openContentModal('content')">编辑</n-button>
-            </template>
-            <div v-if="selectedQuestion.content" class="content-text">{{ selectedQuestion.content }}</div>
-            <div v-else class="empty-tip">暂无题干</div>
-            <div v-if="selectedQuestion.content_images?.length" class="image-row">
-              <div v-for="(img, i) in selectedQuestion.content_images" :key="i" class="img-wrapper">
-                <img :src="img" class="content-img" alt="题目图片" />
-                <span class="img-seq">{{ i + 1 }}</span>
-                <n-button class="img-delete" size="tiny" circle type="error"
-                          @click="removeImage('content', i)">✕</n-button>
-              </div>
-            </div>
-          </n-card>
-
-          <!-- 参考答案卡片 -->
-          <n-card class="detail-card" title="参考答案">
-            <template #header-extra>
-              <n-button size="small" @click="openContentModal('answer')">编辑</n-button>
-            </template>
-            <div v-if="selectedQuestion.reference_answer" class="content-text">{{ selectedQuestion.reference_answer }}</div>
-            <div v-else class="empty-tip">暂无参考答案</div>
-            <div v-if="selectedQuestion.reference_answer_images?.length" class="image-row">
-              <div v-for="(img, i) in selectedQuestion.reference_answer_images" :key="i" class="img-wrapper">
-                <img :src="img" class="content-img" alt="答案图片" />
-                <span class="img-seq">{{ i + 1 }}</span>
-                <n-button class="img-delete" size="tiny" circle type="error"
-                          @click="removeImage('answer', i)">✕</n-button>
-              </div>
-            </div>
-          </n-card>
-
-          <!-- 评分细则 -->
-          <n-card class="detail-card" title="评分细则">
-            <template #header-extra>
-              <n-space>
-                <n-button
-                  size="small"
-                  type="primary"
-                  :loading="rubricGenerating"
-                  @click="handleGenerateRubric"
-                >AI 生成</n-button>
-                <n-button
-                  size="small"
-                  :loading="rubricSaving"
-                  @click="handleSaveRubric"
-                >保存</n-button>
-              </n-space>
-            </template>
-            <RubricEditor
-              v-model="rubricItems"
-              :max-score="selectedQuestion.max_score || 0"
-              :loading="rubricLoading"
-            />
-          </n-card>
-
-          <!-- 阅卷操作 -->
-          <n-card class="detail-card" title="阅卷操作">
-            <div v-if="taskProgress !== null" class="progress-area">
-              <div class="progress-label">进度: {{ taskProgress.graded }}/{{ taskProgress.total }}</div>
-              <n-progress
-                type="line"
-                :percentage="taskProgressPct"
-                :show-indicator="false"
-                style="margin-top: 6px"
-              />
-              <div v-if="taskProgress.status === 'completed'" class="done-text">阅卷完成</div>
-              <div v-else-if="taskProgress.status === 'failed'" class="fail-text">阅卷失败</div>
-            </div>
-            <n-button
-              type="primary"
-              :loading="gradingStarting"
-              :disabled="taskProgress?.status === 'processing'"
-              @click="handleStartGrading"
-            >开始阅卷</n-button>
-          </n-card>
-
-        </template>
-      </div>
+      <!-- 右侧：阅卷操作面板 -->
+      <GradingPanel
+        :question="selectedQuestion"
+        :rubricItems="rubricItems"
+        :rubricLoading="rubricLoading"
+        :rubricGenerating="rubricGenerating"
+        :rubricSaving="rubricSaving"
+        :taskProgress="taskProgress"
+        :gradingStarting="gradingStarting"
+        @edit-content="openContentModal"
+        @remove-image="removeImage"
+        @generate-rubric="handleGenerateRubric"
+        @save-rubric="handleSaveRubric"
+        @update:rubricItems="rubricItems = $event"
+        @start-grading="handleStartGrading"
+      />
     </div>
 
     <div v-if="!hasRouteParams && (!examId || !subjectId)" class="empty-tip center">
@@ -172,6 +70,7 @@
     <DocCropPanel
       v-model:show="showDocCrop"
       :questions="questions"
+      :subject-id="subjectId"
       @save="handleDocCropSave"
     />
   </div>
@@ -180,13 +79,16 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useMessage, NCard, NButton, NSpace, NProgress, NSelect } from 'naive-ui'
+import { useMessage, NButton } from 'naive-ui'
 import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
 import { listExams } from '../api/exams'
+import { updateQuestion } from '../api/questions'
 import { listSubjects } from '../api/subjects'
-import RubricEditor from '../components/RubricEditor.vue'
 import QuestionContentModal from '../components/QuestionContentModal.vue'
 import DocCropPanel from '../components/DocCropPanel.vue'
+import ExamSubjectSelector from './ai-grading/ExamSubjectSelector.vue'
+import QuestionList from './ai-grading/QuestionList.vue'
+import GradingPanel from './ai-grading/GradingPanel.vue'
 
 const route = useRoute()
 const message = useMessage()
@@ -217,10 +119,6 @@ const batchGenerating = ref(false)
 
 const gradingStarting = ref(false)
 const taskProgress = ref(null)
-const taskProgressPct = computed(() => {
-  if (!taskProgress.value || !taskProgress.value.total) return 0
-  return Math.round((taskProgress.value.graded / taskProgress.value.total) * 100)
-})
 let pollTimer = null
 
 const contentModalShow = ref(false)
@@ -242,6 +140,9 @@ async function loadExamList() {
   try {
     const res = await listExams()
     examOptions.value = (res.data || []).map(e => ({ label: e.name, value: e.id }))
+    if (examOptions.value.length > 0 && !selectedExamId.value) {
+      await onExamSelected(examOptions.value[0].value)
+    }
   } catch (e) {
     message.error('加载考试列表失败')
   } finally {
@@ -303,6 +204,19 @@ async function loadQuestions() {
     message.error('加载题目失败')
   } finally {
     loadingQuestions.value = false
+  }
+}
+
+const editingScoreId = ref(null)
+function startEditScore(q) { editingScoreId.value = q.question_id }
+function handleUpdateScoreValue(q, v) { q.max_score = v }
+async function saveScore(q) {
+  editingScoreId.value = null
+  try {
+    await updateQuestion(q.question_id, { max_score: q.max_score })
+    message.success(`第${q.name}题分值已更新为 ${q.max_score}`)
+  } catch (e) {
+    message.error('保存失败')
   }
 }
 
@@ -516,6 +430,18 @@ async function handleDocCropSave(results) {
     }
     try {
       const paths = []
+      // 先上传父题题干（如果有层级关系）
+      const parentBlobs = items.filter(it => it.parentBlob).map(it => it.parentBlob)
+      const seenParents = new Set()
+      for (const pb of parentBlobs) {
+        const pbKey = pb.size
+        if (seenParents.has(pbKey)) continue
+        seenParents.add(pbKey)
+        const parentFile = new File([pb], `crop_${questionNum}_parent_stem.png`, { type: 'image/png' })
+        const uploadRes = await uploadQuestionImage(q.question_id, parentFile)
+        if (uploadRes.data?.path) paths.push(uploadRes.data.path)
+      }
+      // 再上传子题自身的裁剪
       for (const item of items) {
         const file = new File([item.blob], `crop_${questionNum}_${field}_${items.indexOf(item) + 1}.png`, { type: 'image/png' })
         const uploadRes = await uploadQuestionImage(q.question_id, file)
@@ -531,6 +457,11 @@ async function handleDocCropSave(results) {
           : { reference_answer_images: [...existing, ...paths] }
         await updateQuestionContent(q.question_id, payload)
         ok += paths.length
+      }
+      // 同步分值（如果裁剪时填了分值）
+      const scoreItem = items.find(it => it.score != null)
+      if (scoreItem && scoreItem.score > 0) {
+        try { await updateQuestion(q.question_id, { max_score: scoreItem.score }) } catch {}
       }
     } catch (e) {
       message.error(`题号 ${questionNum} 保存失败`)
@@ -662,6 +593,9 @@ async function handleBatchGenerate() {
 .q-score {
   color: #90c090;
   font-weight: 600;
+}
+.q-score.editable {
+  cursor: pointer; border-bottom: 1px dashed #90c090;
   margin-left: 6px;
 }
 

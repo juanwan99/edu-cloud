@@ -1,4 +1,9 @@
-"""答题卡生成 + 条码贴纸 + 骨架管理 API。"""
+"""答题卡生成 + 条码贴纸 + 骨架管理 API。
+
+编辑器 CRUD + 答案解析 + 条码 + 权重预览 + 模板导出 保留在此文件。
+模板/骨架管理 → card_template_router.py
+导出/渲染/发布 → card_export_router.py
+"""
 from __future__ import annotations
 import json
 import logging
@@ -6,7 +11,6 @@ import re
 import tempfile
 import urllib.parse
 from pathlib import Path
-from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +27,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user
+from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Exam, Subject
 from edu_cloud.modules.card.models import Template, CardSkeleton
 from edu_cloud.modules.card.export.barcode_gen import parse_student_excel, render_barcode_pdf
 from edu_cloud.modules.card.rendering.renderer import render_card_v2
 
 router = APIRouter(prefix="/api/v1/card", tags=["card"])
+
+# --- 子路由注册 ---
+from edu_cloud.modules.card.card_template_router import router as template_sub_router
+from edu_cloud.modules.card.card_export_router import router as export_sub_router
+router.include_router(template_sub_router)
+router.include_router(export_sub_router)
 
 class EditorLayoutBody(BaseModel):
     layout: dict
@@ -59,7 +70,7 @@ async def get_editor_layout(
     if not subject:
         raise HTTPException(404, "Subject not found")
 
-    from edu_cloud.modules.card.subject_defaults import get_default_layout
+    from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
     default_layout = get_default_layout(subject.name)
 
     path = _editor_layout_path(current["current_role"].school_id, subject_id)
@@ -141,7 +152,7 @@ async def get_tql_reference(
     if not subject:
         raise HTTPException(404, "Subject not found")
 
-    from edu_cloud.modules.card.subject_defaults import _TQL_FILES, _normalize_subject, _resolve_tql_path
+    from edu_cloud.modules.card.rendering.subject_defaults import _TQL_FILES, _normalize_subject, _resolve_tql_path
     tql_path_raw = _TQL_FILES.get(subject.name) or _TQL_FILES.get(_normalize_subject(subject.name))
     if not tql_path_raw:
         return {"found": False, "images": {}}
@@ -150,7 +161,7 @@ async def get_tql_reference(
     if not Path(tql_path).exists():
         return {"found": False, "images": {}}
 
-    from edu_cloud.modules.card.tpl_parser import parse_tpl_file
+    from edu_cloud.modules.card.rendering.tpl_parser import parse_tpl_file
     sk = parse_tpl_file(tql_path)
     return {"found": True, "images": sk.get("tpl_images", {})}
 
@@ -242,7 +253,7 @@ async def auto_layout_card(
         from pathlib import Path
         if not Path(body.answer_file).exists():
             raise HTTPException(400, f"文件不存在: {body.answer_file}")
-        from edu_cloud.modules.card.answer_parser import parse_answer_docx
+        from edu_cloud.modules.card.parser.answer_parser import parse_answer_docx
         parsed = parse_answer_docx(body.answer_file)
         if not parsed:
             raise HTTPException(400, "未解析到主观题")
@@ -291,57 +302,6 @@ async def generate_barcode(
         media_type="application/pdf",
         headers={
             "Content-Disposition": f'attachment; filename*=UTF-8\'\'{urllib.parse.quote("条码贴纸.pdf")}',
-        },
-    )
-
-
-# --- Word 答案模板 API ---
-
-@router.get("/template/download")
-async def download_answer_template(
-    subject_id: str,
-    db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
-):
-    """根据科目题目列表生成 Word 答案模板骨架，教师下载后填答案。"""
-    from edu_cloud.modules.exam.models import Question, Subject
-    from edu_cloud.modules.card.word_parser import generate_word_template
-
-    subj_row = await db.execute(
-        select(Subject).where(Subject.id == subject_id, Subject.school_id == current["current_role"].school_id)
-    )
-    subject = subj_row.scalar_one_or_none()
-    if not subject:
-        raise HTTPException(404, "科目不存在")
-
-    result = await db.execute(
-        select(Question).where(
-            Question.subject_id == subject_id,
-            Question.school_id == current["current_role"].school_id,
-        )
-    )
-    questions = result.scalars().all()
-    if not questions:
-        raise HTTPException(400, "该科目还没有创建题目")
-
-    q_list = [{"number": i + 1, "question_type": q.question_type} for i, q in enumerate(
-        sorted(questions, key=lambda q: q.name)
-    )]
-
-    with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
-        tmp_path = tmp.name
-
-    try:
-        generate_word_template(q_list, tmp_path)
-        docx_bytes = Path(tmp_path).read_bytes()
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
-
-    return Response(
-        content=docx_bytes,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        headers={
-            "Content-Disposition": f'attachment; filename*=UTF-8\'\'{urllib.parse.quote(f"答案模板_{subject.name}.docx")}',
         },
     )
 
@@ -408,8 +368,8 @@ async def parse_answers(
     """
     import time
     from edu_cloud.modules.exam.models import Question
-    from edu_cloud.modules.card.word_parser import parse_word_answers, compute_weights_from_text
-    from edu_cloud.modules.card.answer_standardizer import standardize_answers, parse_pdf_answers
+    from edu_cloud.modules.card.parser.word_parser import parse_word_answers, compute_weights_from_text
+    from edu_cloud.modules.card.parser.answer_standardizer import standardize_answers, parse_pdf_answers
 
     filename = (file.filename or "").lower()
     if not filename.endswith((".docx", ".pdf")):
@@ -467,7 +427,7 @@ async def parse_answers(
             standardized = await standardize_answers(parsed)
             # v2 排版引擎需要结构化解析（sub 级别答案），趁文件还在先解析
             try:
-                from edu_cloud.modules.card.answer_parser import parse_answer_docx
+                from edu_cloud.modules.card.parser.answer_parser import parse_answer_docx
                 _v2_structured = parse_answer_docx(tmp_path)
             except Exception as e:
                 logger.debug("v2 answer parsing skipped: %s", e)
@@ -506,7 +466,7 @@ async def parse_answers(
 
     # 4. 纸张选择：优先用前端指定，未指定时自动推断
     if not paper_size or paper_size not in ("A3", "A4"):
-        from edu_cloud.modules.card.template_library import A4_TEXT_THRESHOLD
+        from edu_cloud.modules.card.template.template_library import A4_TEXT_THRESHOLD
         if total_text_length > A4_TEXT_THRESHOLD or subjective_count > 8:
             paper_size = "A3"
         else:
@@ -674,7 +634,7 @@ async def _match_skeleton(
     db_questions=None,
 ) -> dict:
     """模板匹配：DB 骨架 → .tpl → build_skeleton_from_spec fallback。"""
-    from edu_cloud.modules.card.template_library import match_template
+    from edu_cloud.modules.card.template.template_library import match_template
 
     skeleton = None
     source = "generated"
@@ -703,7 +663,7 @@ async def _match_skeleton(
             source = "tpl"
 
     if not skeleton:
-        from edu_cloud.modules.card.layout import build_skeleton_from_spec
+        from edu_cloud.modules.card.rendering.layout import build_skeleton_from_spec
         q_list = []
         if db_questions:
             for i, q in enumerate(sorted(db_questions, key=_q_sort_key)):
@@ -724,8 +684,8 @@ async def _match_skeleton(
 
 def _compute_layout(skeleton: dict, weights: list[dict]) -> dict:
     """根据骨架和权重计算布局（统一走权重分配，不再短路到 tpl 固定坐标）。"""
-    from edu_cloud.modules.card.layout import allocate_by_weights
-    from edu_cloud.modules.card.renderer import finalize_skeleton
+    from edu_cloud.modules.card.rendering.layout import allocate_by_weights
+    from edu_cloud.modules.card.rendering.renderer import finalize_skeleton
     finalize_skeleton(skeleton)  # 确保 columns[0].y1 精确
     columns = skeleton.get("columns", [])
     if weights and columns:
@@ -833,7 +793,7 @@ async def _get_skeleton_data(
     subject_code: str, school_id: str, db: AsyncSession
 ) -> dict:
     """获取骨架数据：优先数据库，回退内置模板。"""
-    from edu_cloud.modules.card.template_library import (
+    from edu_cloud.modules.card.template.template_library import (
         get_builtin_template,
         extract_fixed_parts,
     )
@@ -849,7 +809,7 @@ async def _get_skeleton_data(
 
     # 回退：从 DB 题目数据生成 skeleton
     from edu_cloud.modules.exam.models import Question
-    from edu_cloud.modules.card.layout import build_skeleton_from_spec
+    from edu_cloud.modules.card.rendering.layout import build_skeleton_from_spec
 
     # 查科目（需要 subject_id 来查题目）
     subj_result = await db.execute(
@@ -877,417 +837,3 @@ async def _get_skeleton_data(
             "options_count": 4,
         })
     return build_skeleton_from_spec(q_list, paper_size="A3", columns=3, exam_number_digits=8)
-
-
-# --- 内置模板 API ---
-
-@router.get("/templates/builtin")
-async def list_builtin_templates(
-    current: dict = Depends(get_current_user),
-):
-    """列出所有内置模板科目。"""
-    from edu_cloud.modules.card.template_library import list_builtin_subjects
-    return {"subjects": list_builtin_subjects()}
-
-
-@router.get("/templates/builtin/{subject}")
-async def get_builtin_template_detail(
-    subject: str,
-    current: dict = Depends(get_current_user),
-):
-    """获取内置模板详情。"""
-    from edu_cloud.modules.card.template_library import get_builtin_template
-    tpl = get_builtin_template(subject)
-    if not tpl:
-        raise HTTPException(404, f"科目 {subject} 无内置模板")
-    return tpl
-
-
-# --- 骨架管理 API ---
-
-@router.post("/skeleton/import")
-async def import_skeleton(
-    file: UploadFile = File(...),
-    subject_code: str = Form(...),
-    db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
-):
-    """上传 .tpl 文件，解析为 CardSkeleton 并存入数据库。"""
-    if not file.filename or not file.filename.endswith(".tpl"):
-        raise HTTPException(400, "请上传 .tpl 文件")
-
-    with tempfile.NamedTemporaryFile(suffix=".tpl", delete=False, mode="wb") as tmp:
-        content = await file.read()
-        tmp.write(content)
-        tmp_path = Path(tmp.name)
-
-    try:
-        from edu_cloud.modules.card.tpl_parser import parse_tpl_file
-        skeleton_data = parse_tpl_file(tmp_path)
-        # 不存储大尺寸背景图到数据库
-        skeleton_data.pop("tpl_images", None)
-    except (json.JSONDecodeError, KeyError, ValueError) as e:
-        logger.warning("import_skeleton: parse failed, file=%s, subject=%s, error=%s", file.filename, subject_code, e)
-        raise HTTPException(400, f"解析 .tpl 文件失败: {e}")
-    finally:
-        tmp_path.unlink(missing_ok=True)
-
-    # upsert
-    result = await db.execute(
-        select(CardSkeleton).where(
-            CardSkeleton.school_id == current["current_role"].school_id,
-            CardSkeleton.subject_code == subject_code,
-        )
-    )
-    existing = result.scalar_one_or_none()
-    is_update = existing is not None
-    if existing:
-        existing.skeleton_data = skeleton_data
-        existing.paper_size = skeleton_data.get("paper_size", "A3")
-    else:
-        existing = CardSkeleton(
-            school_id=current["current_role"].school_id,
-            subject_code=subject_code,
-            paper_size=skeleton_data.get("paper_size", "A3"),
-            skeleton_data=skeleton_data,
-        )
-        db.add(existing)
-    await db.commit()
-    await db.refresh(existing)
-    logger.info("import_skeleton: subject=%s, paper=%s, action=%s, slots=%d",
-                subject_code, existing.paper_size,
-                "update" if is_update else "create",
-                len(skeleton_data.get("subjective_slots", [])))
-
-    return {
-        "id": existing.id,
-        "subject_code": existing.subject_code,
-        "paper_size": existing.paper_size,
-        "skeleton_data": existing.skeleton_data,
-    }
-
-
-@router.get("/skeleton/list")
-async def list_skeletons(
-    db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
-):
-    """列出当前学校所有已导入骨架。"""
-    result = await db.execute(
-        select(CardSkeleton).where(
-            CardSkeleton.school_id == current["current_role"].school_id,
-        )
-    )
-    skeletons = result.scalars().all()
-    return [
-        {
-            "id": s.id,
-            "subject_code": s.subject_code,
-            "paper_size": s.paper_size,
-            "slots_count": len(s.skeleton_data.get("subjective_slots", [])),
-            "obj_groups_count": len(s.skeleton_data.get("objective_groups", [])),
-            "created_at": s.created_at.isoformat() if s.created_at else None,
-        }
-        for s in skeletons
-    ]
-
-
-@router.get("/skeleton/{subject_code}")
-async def get_skeleton(
-    subject_code: str,
-    db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
-):
-    """获取骨架详情。"""
-    result = await db.execute(
-        select(CardSkeleton).where(
-            CardSkeleton.school_id == current["current_role"].school_id,
-            CardSkeleton.subject_code == subject_code,
-        )
-    )
-    skeleton = result.scalar_one_or_none()
-    if not skeleton:
-        raise HTTPException(404, "骨架不存在")
-    return {
-        "id": skeleton.id,
-        "subject_code": skeleton.subject_code,
-        "paper_size": skeleton.paper_size,
-        "skeleton_data": skeleton.skeleton_data,
-    }
-
-
-@router.delete("/skeleton/{subject_code}")
-async def delete_skeleton(
-    subject_code: str,
-    db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
-):
-    """删除骨架。"""
-    result = await db.execute(
-        select(CardSkeleton).where(
-            CardSkeleton.school_id == current["current_role"].school_id,
-            CardSkeleton.subject_code == subject_code,
-        )
-    )
-    skeleton = result.scalar_one_or_none()
-    if not skeleton:
-        raise HTTPException(404, "骨架不存在")
-    logger.info("delete_skeleton: subject=%s", subject_code)
-    await db.delete(skeleton)
-    await db.commit()
-    return {"ok": True}
-
-
-# --- v2 生成/预览 API ---
-
-
-class CardGenerateV2Request(BaseModel):
-    subject_code: str
-    exam_id: str
-    subject_id: str
-    layout: dict
-
-
-
-
-@router.post("/generate/v2")
-async def generate_card_v2(
-    body: CardGenerateV2Request,
-    db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
-):
-    """v2 答题卡生成：接收布局 JSON → 渲染 PDF + 写入 Template。"""
-    skeleton = await _get_skeleton_data(body.subject_code, current["current_role"].school_id, db)
-
-    # 获取科目（验证权限）
-    subj_result = await db.execute(
-        select(Subject).where(
-            Subject.id == body.subject_id,
-            Subject.school_id == current["current_role"].school_id,
-        )
-    )
-    subject = subj_result.scalar_one_or_none()
-    if not subject:
-        raise HTTPException(404, "科目不存在")
-
-    exam_result = await db.execute(
-        select(Exam).where(Exam.id == body.exam_id, Exam.school_id == current["current_role"].school_id)
-    )
-    exam = exam_result.scalar_one_or_none()
-
-    # 渲染 PDF
-    pdf_bytes = render_card_v2(
-        skeleton=skeleton,
-        layout=body.layout,
-        exam_name=exam.card_title if exam else "",
-        subject_name=subject.name,
-    )
-
-    # 导出 paper-seg 兼容格式，写入 Template
-    from edu_cloud.modules.card.export import skeleton_to_paperseg_json
-    tpl_data = skeleton_to_paperseg_json(
-        skeleton, body.layout,
-        exam_id=str(body.exam_id),
-        subject=subject.name if subject else "",
-    )
-
-    tpl_result = await db.execute(
-        select(Template).where(Template.subject_id == body.subject_id, Template.side == "A")
-    )
-    tpl = tpl_result.scalar_one_or_none()
-
-    template_values = {
-        "image_width": tpl_data["image_size"]["width"],
-        "image_height": tpl_data["image_size"]["height"],
-        "anchors": tpl_data["anchors"],
-        "regions": tpl_data["regions"],
-        "school_id": current["current_role"].school_id,
-    }
-
-    if tpl:
-        for k, v in template_values.items():
-            setattr(tpl, k, v)
-    else:
-        tpl = Template(subject_id=body.subject_id, side="A", **template_values)
-        db.add(tpl)
-
-    await db.commit()
-    logger.info("generate_card_v2: subject=%s, exam=%s, pdf=%d bytes, template=%s",
-                body.subject_code, body.exam_id, len(pdf_bytes), "updated" if tpl else "created")
-
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename*=UTF-8\'\'{urllib.parse.quote(f"答题卡_{subject.name}.pdf")}',
-            "X-Template-Saved": "true",
-        },
-    )
-
-
-@router.post("/preview/v2")
-async def preview_card_v2(
-    body: CardGenerateV2Request,
-    db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
-):
-    """v2 预览：渲染 PDF 但不写入 Template。"""
-    skeleton = await _get_skeleton_data(body.subject_code, current["current_role"].school_id, db)
-
-    subj_result = await db.execute(
-        select(Subject).where(
-            Subject.id == body.subject_id,
-            Subject.school_id == current["current_role"].school_id,
-        )
-    )
-    subject = subj_result.scalar_one_or_none()
-    if not subject:
-        raise HTTPException(404, "科目不存在")
-
-    exam_result = await db.execute(
-        select(Exam).where(Exam.id == body.exam_id, Exam.school_id == current["current_role"].school_id)
-    )
-    exam = exam_result.scalar_one_or_none()
-
-    pdf_bytes = render_card_v2(
-        skeleton=skeleton,
-        layout=body.layout,
-        exam_name=exam.card_title if exam else "",
-        subject_name=subject.name,
-    )
-
-    return Response(content=pdf_bytes, media_type="application/pdf")
-
-
-# --- HTML→PDF 导出 API ---
-
-
-class HtmlExportRequest(BaseModel):
-    html: str
-    paper_size: str = "A3"
-
-
-@router.post("/export/pdf")
-async def export_card_pdf(
-    body: HtmlExportRequest,
-    current: dict = Depends(get_current_user),
-):
-    """接收完整 HTML，用 playwright 转 PDF 返回。"""
-    from edu_cloud.modules.card.html_export import html_to_pdf
-
-    pdf_bytes = await html_to_pdf(body.html, body.paper_size)
-    return Response(content=pdf_bytes, media_type="application/pdf")
-
-
-@router.post("/export/skeleton")
-async def export_card_skeleton(
-    body: HtmlExportRequest,
-    current: dict = Depends(get_current_user),
-):
-    """接收完整 HTML，提取 skeleton JSON 返回。"""
-    from edu_cloud.modules.card.html_export import extract_skeleton
-
-    return await extract_skeleton(body.html)
-
-
-class PublishCardRequest(BaseModel):
-    html: str
-    subject_id: str
-    exam_id: str
-    paper_size: str = "A3"
-
-
-@router.post("/publish")
-async def publish_card(
-    body: PublishCardRequest,
-    db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
-):
-    """原子发布答题卡：HTML→PDF + upsert Question + 双面 Template + status→scanning。
-
-    F003 新实现：业务逻辑在 publish_service.publish_card_atomic。
-    """
-    from edu_cloud.modules.card.publish_service import publish_card_atomic
-
-    pdf_bytes = await publish_card_atomic(
-        db,
-        html=body.html,
-        subject_id=body.subject_id,
-        exam_id=body.exam_id,
-        school_id=current["current_role"].school_id,
-        paper_size=body.paper_size,
-    )
-    return Response(content=pdf_bytes, media_type="application/pdf")
-
-
-# ---------------------------------------------------------------------------
-# Document → page images (render-doc-pages)
-# ---------------------------------------------------------------------------
-
-@router.post("/render-doc-pages")
-async def render_doc_pages(
-    file: UploadFile = File(...),
-    current: dict = Depends(get_current_user),
-):
-    """将上传的 Word/PDF 文档渲染为页面图片，返回每页 URL 和尺寸。"""
-    import fitz  # pymupdf
-    from edu_cloud.config import settings
-
-    filename = (file.filename or "").lower()
-    if not filename.endswith((".docx", ".pdf")):
-        raise HTTPException(400, "仅支持 .docx 或 .pdf 格式")
-
-    # 1. Save uploaded file to temp
-    suffix = ".pdf" if filename.endswith(".pdf") else ".docx"
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        content = await file.read()
-        tmp.write(content)
-        tmp_path = tmp.name
-
-    try:
-        # 2. Open document with pymupdf
-        try:
-            doc = fitz.open(tmp_path)
-        except Exception as exc:
-            if suffix == ".docx":
-                raise HTTPException(
-                    400,
-                    "无法打开 Word 文件，请先将其转换为 PDF 后重新上传",
-                ) from exc
-            raise HTTPException(400, f"无法打开 PDF 文件: {exc}") from exc
-
-        if doc.page_count == 0:
-            doc.close()
-            raise HTTPException(400, "文档无内容（0 页）")
-
-        # 3. Prepare output directory
-        batch_id = uuid4().hex
-        upload_root = Path(settings.UPLOAD_DIR).resolve()
-        out_dir = upload_root / "doc-pages" / batch_id
-        out_dir.mkdir(parents=True, exist_ok=True)
-
-        # 4. Render each page to PNG
-        dpi = 200
-        zoom = dpi / 72
-        matrix = fitz.Matrix(zoom, zoom)
-        pages = []
-        for i, page in enumerate(doc, start=1):
-            pix = page.get_pixmap(matrix=matrix)
-            img_name = f"page_{i}.png"
-            img_path = out_dir / img_name
-            pix.save(str(img_path))
-            pages.append({
-                "page_num": i,
-                "image_url": f"/uploads/doc-pages/{batch_id}/{img_name}",
-                "width": pix.width,
-                "height": pix.height,
-            })
-        doc.close()
-        logger.info(
-            "render_doc_pages: %d pages rendered, batch=%s, dpi=%d",
-            len(pages), batch_id, dpi,
-        )
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
-
-    return {"pages": pages}

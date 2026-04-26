@@ -22,6 +22,10 @@ function loadAuthState() {
   try {
     const raw = localStorage.getItem('auth_state')
     if (!raw) return null
+    if (!localStorage.getItem('token')) {
+      localStorage.removeItem('auth_state')
+      return null
+    }
     return JSON.parse(raw)
   } catch {
     return null

@@ -24,6 +24,18 @@ export default defineConfig({
       }
     }
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'naive-ui': ['naive-ui'],
+          'echarts': ['echarts', 'vue-echarts'],
+          'vue-vendor': ['vue', 'vue-router', 'pinia'],
+          'marked-katex': ['marked', 'katex'],
+        },
+      },
+    },
+  },
   test: {
     environment: 'happy-dom',
     globals: true,

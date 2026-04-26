@@ -24,6 +24,7 @@
 
 <script setup>
 import { ref, nextTick, watch } from 'vue'
+import DOMPurify from 'dompurify'
 import { useAiChatStore } from '../../stores/aiChat.js'
 
 const chatStore = useAiChatStore()
@@ -32,7 +33,8 @@ const messagesContainer = ref(null)
 
 function renderMarkdown(text) {
   const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  return escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')
+  const html = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')
+  return DOMPurify.sanitize(html)
 }
 
 async function handleSend() {
