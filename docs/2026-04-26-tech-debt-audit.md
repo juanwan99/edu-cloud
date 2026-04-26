@@ -3,7 +3,7 @@
 > **审计日期**: 2026-04-26
 > **审计范围**: edu-cloud / paper-seg / answer-card-editor 三仓库
 > **审计方法**: Claude 6 路并行探查（后端架构 / 前端 / 测试+依赖 / paper-seg / answer-card-editor / 跨仓安全）
-> **GPT 交叉审查**: Codex MCP 连续 4 次断连超时，未完成。本报告为 Claude 单模型审计。
+> **GPT 交叉审查**: Codex CLI (gpt-5.4) 3 路并行完成。base_url 从 `aiproxy.superaichao.xin` 迁移到 `superaichao.xin/openai` 后恢复连通。
 
 ---
 
@@ -356,4 +356,54 @@
 
 ---
 
-*审计完成。GPT 交叉审查因 Codex MCP 断连未能完成，建议后续补一轮 GPT 独立审查以覆盖 Claude 盲区。*
+## 十一、GPT 交叉审查补充（gpt-5.4 独立发现）
+
+GPT Codex CLI 3 路并行审查完成，以下为 **GPT 发现但 Claude 未覆盖的增量问题**：
+
+### GPT-01 教师创建 API 硬编码密码 [High, Claude 遗漏]
+- **位置**: `modules/student/teacher_router.py:42`（创建默认 password=123456）、`:562`（导入流程硬编码 123456）
+- **Claude C-01 只发现了 seed 和 app.py**，GPT 额外找到了业务 API 层的同模式
+- **影响**: 正常业务流程（非种子数据）中创建的教师账户也用弱密码
+- **修复**: 与 C-01 合并修复，统一环境变量 + 强制首次登录改密
+
+### GPT-02 module_middleware JWT 异常绕过模块禁用 [High, Claude 遗漏]
+- **位置**: `api/module_middleware.py:86` — `except Exception` 后直接 `call_next()`
+- **风险**: JWT 解码失败时，本应拦截的被禁用模块 API 请求会放行
+- **修复**: 捕获异常后返回 401/403，不放行
+
+### GPT-03 audit_service 吞审计日志写入失败 [High, Claude 遗漏]
+- **位置**: `services/audit_service.py:142` — 审计日志写入失败被 except 吞掉
+- **风险**: 操作成功但无审计记录，合规/取证数据丢失且调用方无感知
+- **修复**: 审计失败应至少 `logger.error()` 并考虑事务回滚
+
+### GPT-04 CardEditor.vue window 全局变量 [Medium, Claude 部分覆盖]
+- **位置**: `frontend/src/components/CardEditor.vue:321` — `window._cardLayout`、`window._choices`
+- **Claude H-05 覆盖了 innerHTML 问题**，GPT 额外指出了全局变量绕过 Vue 响应式的架构债
+
+### GPT-05 前端 build 不含 test [Medium, Claude 未提]
+- **位置**: `frontend/package.json:9` — `prebuild` 只跑 `lint`，不跑 `vitest`
+- **风险**: 前端 build 通过但测试可能失败
+- **修复**: `prebuild` 加入 `vitest run`
+
+### GPT-06 answer-card-editor templates.py 反模式 DI [Medium, Claude 未提]
+- **位置**: `answer-card-editor/backend/app/api/templates.py:20` — 直接引用 `app.main._db_conn`
+- **风险**: 隐式跨模块依赖，无法测试
+- **修复**: 改用 FastAPI `Depends()` 注入
+
+### 交叉比对总结
+
+| 维度 | Claude 独有 | GPT 独有 | 双方一致 |
+|------|------------|---------|---------|
+| 硬编码密码 | seed_school.py 5处 | teacher_router.py 2处 | app.py:110 |
+| 异常处理 | workers/grading.py | module_middleware / audit_service | — |
+| God Module | card 1341 / grading 887 / analytics 795 | renderer.py 1235 / pipeline_router 804 | 一致 |
+| 前端安全 | v-html 3处 / localStorage | window globals / prebuild 缺 test | CardEditor innerHTML |
+| 数据库 | N+1 3处 / 缺索引 3处 | — | create_all 双轨 |
+| 跨仓 | CORS / Python 版本 / lock 文件 / TQL 契约 | paper-seg 全局单例耦合 | ExamAIClient 端口 |
+| ace | 依赖缺失 / px/mm 混用 | templates.py 反模式 DI | check_same_thread |
+
+**交叉收益**: GPT 发现了 3 个 Claude 完全遗漏的 High 级问题（GPT-01/02/03），特别是 module_middleware 的安全绕过（GPT-02）是本次审计最重要的增量发现。
+
+---
+
+*双模型审计完成。Claude 6 路并行 + GPT 3 路并行，总计 42 条发现（6C + 15H + 21M），含 3 条 GPT 独有 High 级发现。*
