@@ -16,6 +16,8 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
+from edu_cloud.config import settings
+
 logger = logging.getLogger(__name__)
 
 # ─── 学校基础信息 ───────────────────────────────────────────────────────
@@ -199,7 +201,7 @@ async def seed_complete_school(db: AsyncSession) -> dict:
                 username=f"t_{subj_code.lower()}_{len(teachers) + 1:03d}",
                 display_name=_gen_name(gender),
             )
-            user.set_password("123456")
+            user.set_password(settings.SEED_DEFAULT_PASSWORD)
             db.add(user)
             teachers.append((user, subj_code, "初中"))
 
@@ -209,7 +211,7 @@ async def seed_complete_school(db: AsyncSession) -> dict:
                 username=f"t_{subj_code.lower()}_{len(teachers) + 1:03d}",
                 display_name=_gen_name(gender),
             )
-            user.set_password("123456")
+            user.set_password(settings.SEED_DEFAULT_PASSWORD)
             db.add(user)
             teachers.append((user, subj_code, "高中"))
 
@@ -222,14 +224,14 @@ async def seed_complete_school(db: AsyncSession) -> dict:
     # 校长 + 教务主任
     for display_name, role, subj, _ in ADMIN_STAFF:
         user = User(username=f"admin_{role}_{len(admin_users) + 1}", display_name=display_name)
-        user.set_password("123456")
+        user.set_password(settings.SEED_DEFAULT_PASSWORD)
         db.add(user)
         admin_users.append((user, role, subj))
 
     # 中层干部
     for display_name, title, subj, extra_role in MIDDLE_MANAGERS:
         user = User(username=f"mgr_{len(admin_users) + 1}", display_name=display_name)
-        user.set_password("123456")
+        user.set_password(settings.SEED_DEFAULT_PASSWORD)
         db.add(user)
         admin_users.append((user, "academic_director" if "教务" in title else "homeroom_teacher", subj))
 
@@ -255,7 +257,7 @@ async def seed_complete_school(db: AsyncSession) -> dict:
     for title in support_titles:
         gender = random.choice(["M", "F"])
         user = User(username=f"staff_{len(admin_users) + len(teachers) + 1}", display_name=_gen_name(gender))
-        user.set_password("123456")
+        user.set_password(settings.SEED_DEFAULT_PASSWORD)
         db.add(user)
         admin_users.append((user, "subject_teacher", None))  # 最低权限
 

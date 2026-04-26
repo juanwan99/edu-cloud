@@ -62,10 +62,13 @@ async def lifespan(app: FastAPI):
     import edu_cloud.modules.knowledge_tree.models  # noqa: F401 — ConceptGraphNode/Edge/EditSyncFailure
     import edu_cloud.modules.menu.models  # noqa: F401 — Alembic autogenerate (MenuConfig)
     import edu_cloud.modules.analytics.models  # noqa: F401 — Alembic autogenerate (ClassAnalysis/StudentAnalysis/StudentKnpMastery)
+    # ── S1-C admin schema (2026-04-24): design §4.1 deliverables 1.3/1.4 ──
+    import edu_cloud.models.grade  # noqa: F401 — Grade
+    import edu_cloud.models.teaching_plan  # noqa: F401 — TeachingPlan
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("database tables created")
+    # create_all removed (C-02): use 'alembic upgrade head' for all environments.
+    # Test fixtures in conftest.py still use create_all for in-memory SQLite.
+    logger.info("database: schema managed by alembic (create_all removed)")
 
     # Sync knowledge.db → PostgreSQL (idempotent, non-fatal)
     from edu_cloud.database import async_session  # F001: import before use
@@ -104,7 +107,7 @@ async def lifespan(app: FastAPI):
                 username="admin",
                 display_name="平台管理员",
             )
-            admin.set_password("123456")
+            admin.set_password(settings.SEED_DEFAULT_PASSWORD)
             db.add(admin)
             await db.flush()
             db.add(UserRole(
@@ -113,7 +116,7 @@ async def lifespan(app: FastAPI):
                 is_primary=True,
             ))
             await db.commit()
-            logger.info("seed: platform admin created (admin/123456)")
+            logger.info("seed: platform admin created (admin/***)")
         else:
             logger.debug("seed: platform admin already exists, skipping")
 

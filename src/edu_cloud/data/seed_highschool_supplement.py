@@ -19,6 +19,8 @@ import uuid
 from sqlalchemy import select, text, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
+from edu_cloud.config import settings
+
 logger = logging.getLogger(__name__)
 
 SCHOOL_CODE = "YCSY2026"
@@ -358,7 +360,7 @@ async def seed_highschool_supplement(db: AsyncSession) -> dict:
                 username=f"t_{subj_code.lower()}_{teacher_idx:03d}",
                 display_name=_gen_name(gender),
             )
-            user.set_password("123456")
+            user.set_password(settings.SEED_DEFAULT_PASSWORD)
             db.add(user)
             await db.flush()
 

@@ -1,5 +1,6 @@
 // render.js — 根据 layout JSON 渲染答题卡 DOM
 // 从 layout.sides[].columns[].regions[] 驱动渲染
+import DOMPurify from 'dompurify';
 
 const WARNING = '请在各题目的答题区域内作答，超出黑色矩形边框限定区域的答案无效';
 
@@ -636,12 +637,12 @@ export function renderFromLayout(previewWrap, layout, v) {
       </div>`;
     }
 
-    previewWrap.innerHTML = `
+    previewWrap.innerHTML = DOMPurify.sanitize(`
       <div class="page-label">A 面（正面）</div>
       <div class="page" data-paper="A3" data-side="A" id="pageA">${pageA}</div>
       <div class="page-label">B 面（背面）</div>
       <div class="page" data-paper="A3" data-side="B" id="pageB">${pageB}</div>
-    `;
+    `);
 
     applyCSSToPage(previewWrap.querySelector('#pageA'), config);
     applyCSSToPage(previewWrap.querySelector('#pageB'), config);
@@ -696,10 +697,10 @@ function _renderA4(previewWrap, layout, config, digitBoxes, choiceGroupsHTML, fi
     }
   }
 
-  previewWrap.innerHTML = `
+  previewWrap.innerHTML = DOMPurify.sanitize(`
     <div class="page-label">A 面（正面）</div>
     <div class="page" data-paper="A4" data-side="A" id="pageA">${pageAContent}</div>
-    ${pageBHTML}`;
+    ${pageBHTML}`);
 
   applyCSSToPage(previewWrap.querySelector('#pageA'), config);
   const pageBEl = previewWrap.querySelector('#pageB');

@@ -28,116 +28,53 @@
       </div>
 
       <!-- 扫描区（可折叠） -->
-      <div class="scan-section">
-        <div class="scan-header" @click="scanExpanded = !scanExpanded">
-          <span class="scan-toggle">{{ scanExpanded ? '▾' : '▸' }}</span>
-          <span class="scan-title">扫描目录</span>
-          <span class="scan-hint" v-if="scanResults.length > 0">已识别 {{ scanResults.length }} 个科目</span>
-        </div>
-        <div class="scan-body" v-if="scanExpanded">
-          <div class="scan-row">
-            <n-button size="small" type="primary" @click="pickFolder" :loading="uploadLoading">
-              {{ uploadLoading ? `上传中 ${uploadProgress}` : '选择扫描文件夹' }}
-            </n-button>
-            <span class="scan-status" v-if="scanRootDir">{{ scanRootDir }}</span>
-            <n-button v-if="scanRootDir" size="small" @click="handleScanDir" :loading="scanLoading">识别科目</n-button>
-          </div>
-          <input ref="folderInput" type="file" webkitdirectory multiple style="display:none" @change="handleFolderSelected" />
-          <div class="upload-hint" v-if="!scanRootDir">选择包含扫描图片的文件夹，按科目子文件夹组织（如 语文/、数学/）</div>
-        </div>
-      </div>
-
-      <!-- 一键全科检测（仅教务主任+） -->
-      <div class="batch-bar" v-if="canManageAll && detectableSubjects.length > 0">
-        <n-button size="small" @click="handleBatchDetect" :loading="batchDetectLoading">
-          一键全科检测（{{ detectableSubjects.length }} 科待检测）
-        </n-button>
-        <span class="batch-progress" v-if="batchDetectLoading">{{ batchProgressText }}</span>
-      </div>
+      <ScanSection
+        :scan-root-dir="scanRootDir"
+        :scan-loading="scanLoading"
+        :scan-results="scanResults"
+        :upload-loading="uploadLoading"
+        :upload-progress="uploadProgress"
+        :initial-expanded="scanExpanded"
+        @pick-folder="pickFolder"
+        @scan-dir="handleScanDir"
+      />
+      <input ref="folderInput" type="file" webkitdirectory multiple style="display:none" @change="handleFolderSelected" />
 
       <!-- 批量操作 -->
-      <div class="batch-bar" v-if="selectedSubjects.length > 0">
-        <span>已选 <b>{{ selectedSubjects.length }}</b> 科</span>
-        <n-button size="tiny" type="primary" @click="handleBatchCut" :disabled="!canBatchCut">批量切割</n-button>
-        <n-button size="tiny" type="warning" @click="handleBatchGrade" :disabled="!canBatchGrade">批量 AI 阅卷</n-button>
-      </div>
+      <BatchOperationsBar
+        :can-manage-all="canManageAll"
+        :detectable-count="detectableSubjects.length"
+        :batch-detect-loading="batchDetectLoading"
+        :batch-progress-text="batchProgressText"
+        :selected-count="selectedSubjects.length"
+        :can-batch-cut="canBatchCut"
+        :can-batch-grade="canBatchGrade"
+        @batch-detect="handleBatchDetect"
+        @batch-cut="handleBatchCut"
+        @batch-grade="handleBatchGrade"
+      />
 
       <!-- 科目卡片 -->
       <div class="subject-list">
-        <div
+        <SubjectStatusCard
           v-for="s in subjects" :key="s.subject_id"
-          class="subject-card"
-          :class="{ selected: selectedSubjects.includes(s.subject_id) }"
-        >
-          <div class="card-left">
-            <n-checkbox
-              :checked="selectedSubjects.includes(s.subject_id)"
-              @update:checked="(v) => toggleSubject(s.subject_id, v)"
-            />
-            <span class="card-name">{{ s.subject_name }}</span>
-            <span class="stage-tag" :class="stageClass(s.stage)">{{ stageLabel(s.stage) }}</span>
-            <span v-if="detectStatus[s.subject_id] === 'running'" class="detect-tag running">检测中…</span>
-            <span v-else-if="detectStatus[s.subject_id] === 'done'" class="detect-tag done">检测完成</span>
-            <span v-else-if="detectStatus[s.subject_id] === 'failed'" class="detect-tag failed">检测失败</span>
-          </div>
-
-          <div class="card-mid">
-            <template v-if="s.stage === 'cutting'">
-              <div class="prog-row">
-                <div class="prog-bar"><div class="prog-fill" :style="{ width: progressPct + '%' }"></div></div>
-                <span class="prog-text">{{ progressPct }}%</span>
-              </div>
-            </template>
-            <template v-else-if="s.stage === 'idle'">
-              <span class="card-detail muted">等待上传扫描图</span>
-            </template>
-            <template v-else-if="s.stage === 'pending_detect'">
-              <span class="card-detail">已上传 <b>{{ s.scan_images }}</b> 份，等待模板检测</span>
-            </template>
-            <template v-else-if="s.stage === 'pending_cut'">
-              <span class="card-detail">模板就绪，<b>{{ s.scan_images }}</b> 份待切割</span>
-            </template>
-            <template v-else-if="s.stage === 'ready'">
-              <span class="card-detail">主观题 <b>{{ s.subjective_total }}</b> 份就绪</span>
-            </template>
-            <template v-else-if="s.stage === 'ai_grading'">
-              <div class="prog-row">
-                <div class="prog-bar"><div class="prog-fill warn" :style="{ width: s.subjective_total ? (s.ai_graded/s.subjective_total*100)+'%' : '0%' }"></div></div>
-                <span class="prog-text">{{ s.ai_graded }}/{{ s.subjective_total }}</span>
-              </div>
-            </template>
-            <template v-else-if="s.stage === 'reviewing'">
-              <div class="prog-row">
-                <div class="prog-bar"><div class="prog-fill purple" :style="{ width: s.ai_graded ? (s.reviewed/s.ai_graded*100)+'%' : '0%' }"></div></div>
-                <span class="prog-text">校对 {{ s.reviewed }}/{{ s.ai_graded }}</span>
-              </div>
-            </template>
-            <template v-else-if="s.stage === 'failed'">
-              <span class="card-detail err">{{ s.ai_failed }} 份失败</span>
-            </template>
-            <template v-else-if="s.stage === 'done'">
-              <span class="card-detail ok">全部完成</span>
-            </template>
-          </div>
-
-          <div class="card-stats">
-            <span v-if="s.scan_images" title="扫描份数">{{ s.scan_images }} 份</span>
-            <span v-if="s.answer_count" title="已切割">{{ s.answer_count }} 切</span>
-            <span v-if="s.objective_graded" title="客观题">{{ s.objective_graded }} 客</span>
-            <span v-if="s.subjective_total" title="主观题">{{ s.subjective_total }} 主</span>
-          </div>
-
-          <div class="card-actions">
-            <n-button v-if="canDetect(s)" size="small" @click="handleDetectTemplate(s)" :loading="detectLoading === s.subject_id">模板检测</n-button>
-            <n-button v-if="canCut(s)" size="small" @click="handlePreviewTemplate(s)" :loading="detectLoading === s.subject_id">预览模板</n-button>
-            <n-button v-if="canCut(s)" size="small" type="primary" @click="handleStartCut(s)">切割</n-button>
-            <n-button v-if="s.stage === 'cutting'" size="small" type="error" @click="handleStopCut">停止</n-button>
-            <n-button v-if="s.stage === 'ready'" size="small" type="warning" @click="handleStartGrade(s)" :loading="gradingLoading === s.subject_id">AI 阅卷</n-button>
-            <n-button v-if="s.stage === 'failed'" size="small" type="error" @click="handleStartGrade(s)">重试</n-button>
-            <n-button v-if="s.stage === 'reviewing'" size="small" @click="$router.push({ name: 'MarkingSelect' })">去校对</n-button>
-            <n-button size="small" @click="goToAiGrading(s)">AI 阅卷</n-button>
-          </div>
-        </div>
+          :subject="s"
+          :is-selected="selectedSubjects.includes(s.subject_id)"
+          :progress-pct="progressPct"
+          :detect-status="detectStatus[s.subject_id]"
+          :show-detect="canDetect(s)"
+          :show-cut="canCut(s)"
+          :is-detect-loading="detectLoading === s.subject_id"
+          :is-grading-loading="gradingLoading === s.subject_id"
+          @toggle="toggleSubject"
+          @detect="handleDetectTemplate"
+          @preview="handlePreviewTemplate"
+          @cut="handleStartCut"
+          @stop-cut="handleStopCut"
+          @grade="handleStartGrade"
+          @go-review="$router.push({ name: 'MarkingSelect' })"
+          @go-ai-grading="goToAiGrading"
+        />
 
         <div v-if="subjects.length === 0" class="empty-state">
           {{ loading ? '加载中...' : '暂无科目数据' }}
@@ -165,8 +102,8 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { NSelect, NButton, NCheckbox } from 'naive-ui'
-import { useMessage, useDialog } from 'naive-ui'
+import { NSelect } from 'naive-ui'
+import { useMessage } from 'naive-ui'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { SCHOOL_ADMIN_ROLES } from '../config/roles.js'
@@ -174,6 +111,9 @@ import { listExams } from '../api/exams'
 import { getDispatchStatus, createTask } from '../api/grading'
 import { uploadScanFolder, scanDirectory, startPipeline, getPipelineProgress, stopPipeline, autoDetectCV, saveCVTemplate, getCVTemplate, fetchScanImageBlob } from '../api/scan'
 import TemplatePreviewEditor from '../components/TemplatePreviewEditor.vue'
+import SubjectStatusCard from './grading-dispatch/SubjectStatusCard.vue'
+import ScanSection from './grading-dispatch/ScanSection.vue'
+import BatchOperationsBar from './grading-dispatch/BatchOperationsBar.vue'
 
 const message = useMessage()
 const router = useRouter()
@@ -205,6 +145,7 @@ const progressPct = ref(0)
 let pollTimer = null
 const detectLoading = ref(null)
 const gradingLoading = ref(null)
+const pendingBSide = ref(null)
 
 function countByStage(stage) {
   return subjects.value.filter(s => s.stage === stage).length
@@ -232,6 +173,10 @@ onMounted(async () => {
       label: e.name,
       value: e.id,
     }))
+    if (examOptions.value.length > 0) {
+      selectedExamId.value = examOptions.value[0].value
+      await onExamChange(selectedExamId.value)
+    }
   } catch (e) {
     message.error('加载考试列表失败')
   }
@@ -306,6 +251,7 @@ async function handleFolderSelected(e) {
     scanRootDir.value = res.data.dir_path
     message.success(`已上传 ${imageFiles.length} 张图片`)
     await handleScanDir()
+    await loadStatus(selectedExamId.value)
   } catch (err) {
     message.error('上传失败: ' + (err.response?.data?.detail || err.message))
   } finally {
@@ -342,14 +288,6 @@ async function handleScanDir() {
   } finally {
     scanLoading.value = false
   }
-}
-
-function scanMatchedDir(subjectStatus) {
-  // 按科目名称匹配扫描目录中的文件夹
-  const match = scanResults.value.find(
-    r => r.name === subjectStatus.subject_name || r.folder === subjectStatus.subject_name
-  )
-  return match ? `${match.folder} (${match.image_count} 张)` : null
 }
 
 function getScanDir(subjectStatus) {
@@ -586,7 +524,13 @@ async function handleStartCut(s) {
     return
   }
   try {
+    let hasB = false
+    try {
+      const tpl = (await getCVTemplate(s.subject_id)).data
+      hasB = !!(tpl && tpl.B && tpl.B.regions && tpl.B.regions.length)
+    } catch {}
     await startPipeline(s.subject_id, 'A', dir)
+    if (hasB) pendingBSide.value = { subjectId: s.subject_id, dir }
     startPolling()
     await loadStatus(selectedExamId.value)
   } catch (e) {
@@ -613,14 +557,34 @@ const canBatchCut = computed(() =>
 )
 
 async function handleBatchCut() {
+  const cutQueue = []
   for (const id of selectedSubjects.value) {
     const s = subjects.value.find(x => x.subject_id === id)
     const dir = s ? getScanDirFallback(s) : null
     if (s && canCut(s) && dir) {
-      await startPipeline(s.subject_id, 'A', dir)
+      let hasB = false
+      try {
+        const tpl = (await getCVTemplate(s.subject_id)).data
+        hasB = !!(tpl && tpl.B && tpl.B.regions && tpl.B.regions.length)
+      } catch {}
+      cutQueue.push({ subjectId: s.subject_id, dir, sides: hasB ? ['A', 'B'] : ['A'] })
     }
   }
-  startPolling()
+  for (const item of cutQueue) {
+    for (const side of item.sides) {
+      try {
+        await startPipeline(item.subjectId, side, item.dir)
+        await new Promise(resolve => {
+          const check = setInterval(async () => {
+            try {
+              const res = await getPipelineProgress()
+              if (res.data.status !== 'running') { clearInterval(check); resolve() }
+            } catch { clearInterval(check); resolve() }
+          }, 2000)
+        })
+      } catch {}
+    }
+  }
   await loadStatus(selectedExamId.value)
 }
 
@@ -682,6 +646,17 @@ function startPolling() {
       }
       if (p.status !== 'running') {
         stopPolling()
+        if (pendingBSide.value) {
+          const { subjectId, dir } = pendingBSide.value
+          pendingBSide.value = null
+          try {
+            await startPipeline(subjectId, 'B', dir)
+            message.info('A 面切割完成，自动开始 B 面切割')
+            startPolling()
+          } catch (e) {
+            message.warning('B 面切割启动失败: ' + (e.response?.data?.detail || e.message))
+          }
+        }
         await loadStatus(selectedExamId.value)
       }
     } catch (e) {

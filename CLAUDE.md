@@ -107,13 +107,27 @@ frontend/src/
     LoginPage.vue           # 登录页（edu-cloud 多角色版）
     AnalysisPage.vue        # 分析页（原 WorkbenchPage 重命名）
     ExamListPage.vue        # 考试列表（exam-ai 迁入）
-    ExamDetailPage.vue      # 考试详情（科目/题目/答题卡/扫描/阅卷，含返回按钮）
+    ExamDetailPage.vue      # 考试详情 Tab 壳（263行，共享 exam/subjects 状态）
+    exam-detail/            # ExamDetailPage 子组件（技术债 H-02 拆分，见 docs/2026-04-26-tech-debt-audit.md）
+      SubjectsTab.vue       # 科目管理 Tab
+      CardMakerTab.vue      # 答题卡制作 Tab
+      VisualEditorTab.vue   # 可视化编辑 Tab
+      AnswersTab.vue        # 标准答案 Tab
+      QuestionsTab.vue      # 题目管理 Tab
     DashboardPage.vue       # 仪表盘
     AnalyticsPage.vue       # 成绩分析（ECharts）
     AnalyticsReportPage.vue # 分析报告（多考试+多指标查询，ECharts 分段柱图）
     AnalyticsTrendPage.vue  # 成绩趋势（年级/班级/学生维度折线图）
-    GradingDispatchPage.vue # 扫描调度中心（扫描→选择题→校对全流程）
-    AiGradingPage.vue       # 题目级 AI 阅卷（考试/科目选择器 + 左右分栏：题号排序列表(状态标签+图片计数) + 内容/细则/阅卷操作；含文档裁剪入口、图片删除、多图追加）
+    GradingDispatchPage.vue # 扫描调度中心壳（758行，科目列表+dispatch 轮询）
+    grading-dispatch/       # GradingDispatchPage 子组件（技术债 H-02 拆分）
+      SubjectStatusCard.vue # 科目状态卡片
+      ScanSection.vue       # 扫描阶段面板
+      BatchOperationsBar.vue # 批量操作栏
+    AiGradingPage.vue       # AI 阅卷壳（732行，左右分栏布局）
+    ai-grading/             # AiGradingPage 子组件（技术债 H-02 拆分）
+      ExamSubjectSelector.vue # 考试/科目选择器
+      QuestionList.vue      # 题目列表
+      GradingPanel.vue      # 阅卷操作面板
     GradingResultsPage.vue  # 阅卷结果（含返回按钮）
     TeacherReviewPage.vue   # 教师复核
     MarkingSelectPage.vue   # 手动阅卷选题
@@ -326,7 +340,7 @@ tests/
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
 | Tests | 2102 后端 + 57 frontend-nuxt Vitest（ECS 实测 @ 2026-04-24） | — |
-| Modules | 21 模块目录（exam/student/card/scan/grading/marking/analytics/bank/profile/pipeline/knowledge/knowledge_tree/adaptive/studio/calendar/paper/school/homework/conduct/menu/academic），路由已迁入；其中 `adaptive`/`paper` 为内部/基础数据模块；`academic` 含 semester/period/timetable 完整 CRUD；`grading` 含 `prompts/` 子包（科目级 prompt 分派）+ `prompts_legacy.py`（旧通用 prompt，向后兼容） | — |
+| Modules | 21 模块目录，路由已迁入。技术债 H-01 拆分后：`card` 含 `router.py`(839行) + `card_template_router.py`(230行) + `card_export_router.py`(326行)；`grading` 含 `router.py`(520行) + `grading_review_router.py`(396行) + `prompts/` 子包；`analytics` 含 `router.py`(220行) + `analytics_report_router.py`(585行)。详见 `docs/2026-04-26-tech-debt-audit.md` §修复记录 | — |
 | Migrations | Alembic migration（88 表，31 个迁移，含 S1-A T2 `a88094ee4ea6` bank_question +5 列） | — |
 
 ## 技术栈
