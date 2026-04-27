@@ -3,18 +3,23 @@
     <div v-if="!modelValue || modelValue.length === 0" class="empty">暂无评分细则</div>
     <div v-else>
       <div v-for="(item, idx) in modelValue" :key="idx" class="rubric-item">
-        <div class="rubric-row">
-          <n-input size="small" :value="item.blankNo" placeholder="序号" style="width:56px"
+        <div class="rubric-header">
+          <n-input size="small" :value="item.subQ" placeholder="小问" style="width:56px"
+            @update:value="v => update(idx, 'subQ', v)" />
+          <n-input size="small" :value="item.blankNo" placeholder="空号" style="width:64px"
             @update:value="v => update(idx, 'blankNo', v)" />
           <n-input-number size="small" :value="item.score" :min="0" :max="200" :step="0.5" placeholder="分"
             style="width:80px" @update:value="v => update(idx, 'score', v)" />
-          <n-input size="small" :value="item.answer || item.standardAnswer" placeholder="标准答案" style="flex:1"
-            @update:value="v => update(idx, 'answer', v)" />
+          <n-input size="small" :value="item.standardAnswer || item.answer" placeholder="标准答案" style="flex:1"
+            @update:value="v => update(idx, 'standardAnswer', v)" />
           <n-button size="small" text type="error" @click="removeItem(idx)">删除</n-button>
         </div>
-        <n-input size="small" type="textarea" :value="item.coreRequirement || item.subQ" placeholder="评分要求（可选）"
-          :rows="1" :autosize="{ minRows: 1, maxRows: 3 }" style="margin-top:4px"
-          @update:value="v => update(idx, 'coreRequirement', v)" />
+        <n-input size="small" type="textarea" :value="item.context" placeholder="背景与逻辑：题目情境 + 推理链（让阅卷AI理解为什么这是正确答案）"
+          :autosize="{ minRows: 1, maxRows: 4 }" style="margin-top:4px"
+          @update:value="v => update(idx, 'context', v)" />
+        <n-input size="small" type="textarea" :value="item.judgingRules" placeholder="判分规则：满分条件 / 部分分条件 / 典型错误 / 排除规则"
+          :autosize="{ minRows: 1, maxRows: 4 }" style="margin-top:4px"
+          @update:value="v => update(idx, 'judgingRules', v)" />
       </div>
       <div class="footer">
         <n-button size="small" dashed @click="addItem">+ 添加评分项</n-button>
@@ -59,7 +64,7 @@ function removeItem(idx) {
 function addItem() {
   const items = [...(props.modelValue || [])]
   const nextNum = items.length ? Math.max(...items.map(i => parseInt(i.blankNo) || 0)) + 1 : 1
-  items.push({ blankNo: String(nextNum), score: 1, answer: '', coreRequirement: '' })
+  items.push({ subQ: '', blankNo: String(nextNum), score: 1, standardAnswer: '', context: '', judgingRules: '' })
   emit('update:modelValue', items)
 }
 </script>
@@ -77,7 +82,7 @@ function addItem() {
   border-radius: 8px;
   margin-bottom: 8px;
 }
-.rubric-row {
+.rubric-header {
   display: flex;
   align-items: center;
   gap: 6px;

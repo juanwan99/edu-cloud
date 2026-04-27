@@ -72,24 +72,27 @@ def build_rubric_generation_prompt(
         [{"role": "system", ...}, {"role": "user", ...}]
     """
     system_prompt = (
-        "你是一位资深阅卷组长，具有多年命题和评分细则编制经验。"
-        "请根据题目原文和参考答案，生成一份结构化的评分细则（Rubric）。\n\n"
+        "你是一位资深阅卷组长，具有多年命题和评分细则编制经验。\n"
+        "核心原则：评分LLM看不到原题图片，你生成的细则必须包含所有评分所需的上下文信息。\n\n"
+        "请根据题目原文和参考答案，生成一份结构化的评分细则。\n\n"
         "要求：\n"
         "1. 按照得分点逐条拆分，每条独立计分\n"
         "2. 所有得分点的 score 之和必须等于满分\n"
-        "3. answer 字段填写该得分点的标准答案或关键词\n"
-        "4. intent 字段说明该得分点的考查意图\n"
-        "5. coreRequirement 字段说明得分的核心要求（如\"必须包含\"、\"意思相近即可\"等）\n"
+        "3. standardAnswer 填写该得分点的标准答案\n"
+        "4. context 详细描述题目情境+推理链（让评分AI理解背景和答案逻辑）\n"
+        "5. judgingRules 写完整判分规则（满分条件、部分分条件、典型错误、排除规则）\n"
         "6. 直接返回纯 JSON 数组（禁止 markdown 代码块），格式如下：\n"
-        '[{"blankNo": "1", "score": 数字, "answer": "标准答案", '
-        '"intent": "考查意图", "coreRequirement": "得分要求"}, ...]'
+        '[{"subQ": "(1)", "blankNo": "1-1", "score": 数字, "standardAnswer": "标准答案", '
+        '"context": "题目情境+推理链，详细到评分AI能理解为什么这是正确答案", '
+        '"judgingRules": "满分(N分)：条件。部分分(M分)：条件。0分：条件。典型错误：XXX。"}]'
     )
 
     user_content = (
         f"题目：{content}\n\n"
         f"参考答案：{reference_answer}\n\n"
         f"满分：{max_score} 分\n\n"
-        "请生成评分细则 JSON 数组。"
+        "请生成评分细则 JSON 数组。注意 context 和 judgingRules 必须详细，"
+        "评分AI看不到原题，全靠你的细则理解题目。"
     )
 
     return [
@@ -110,12 +113,18 @@ def build_grading_prompt(
         question: {"name": str, "max_score": float}
         question_type: choice|multi_choice|fill_blank|essay（None 走通用模板）
     """
-    rubric_text = json.dumps(rubric.get("criteria", []), ensure_ascii=False, indent=2)
+    from edu_cloud.modules.grading.rubric_formatter import format_rubric_for_grading
+
+    criteria = rubric.get("criteria", [])
+    rubric_text = format_rubric_for_grading(criteria)
+    if not rubric_text:
+        rubric_text = json.dumps(criteria, ensure_ascii=False, indent=2)
+
     max_score = question.get("max_score", 0)
     question_name = question.get("name", "")
 
     user_content = (
-        f"题目：{question_name}\n"
+        f"题目：第{question_name}题\n"
         f"满分：{max_score}\n\n"
         f"评分细则：\n{rubric_text}\n\n"
         "请根据图片中的学生答案和以上评分细则进行评分，返回 JSON（含 details 逐空明细）。"
