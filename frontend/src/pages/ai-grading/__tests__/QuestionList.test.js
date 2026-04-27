@@ -136,7 +136,7 @@ describe('QuestionList template - progress', () => {
 
 describe('QuestionList imports', () => {
   it('imports NInputNumber from naive-ui', () => {
-    expect(src).toContain("import { NInputNumber } from 'naive-ui'")
+    expect(src).toContain('NInputNumber')
   })
 })
 

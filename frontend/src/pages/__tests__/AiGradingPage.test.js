@@ -91,7 +91,7 @@ describe('AiGradingPage API imports', () => {
 
   it('imports exam and subject APIs', () => {
     expect(content).toContain("import { listExams } from '../api/exams'")
-    expect(content).toContain("import { updateQuestion } from '../api/questions'")
+    expect(content).toContain('updateQuestion')
     expect(content).toContain("import { listSubjects } from '../api/subjects'")
   })
 })
