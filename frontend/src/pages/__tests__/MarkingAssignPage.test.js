@@ -1,13 +1,13 @@
 /**
- * MarkingAssignPage enhancement tests.
+ * MarkingAssignPage tests.
  *
  * Validates:
  *  1. Component can be imported (smoke)
  *  2. Template contains stats row (stat-card, n-statistic)
- *  3. No hardcoded light-theme colors (#f0f0f0, #f5f5f5, #888, white)
- *  4. Batch assign UI elements present (batch-bar, checked)
+ *  3. No hardcoded light-theme colors
+ *  4. Per-question card layout with multi-teacher support
  *  5. Teacher workload badge present (teacherWorkload)
- *  6. NDataTable used for question list (n-data-table / questionColumns)
+ *  6. Delete assignment and answer_count support
  *  7. Script contains required computed properties
  */
 import { describe, it, expect } from 'vitest'
@@ -64,7 +64,7 @@ describe('MarkingAssignPage statistics section', () => {
   })
 
   it('shows assigned count / total', () => {
-    expect(content).toContain('assignedCount')
+    expect(content).toContain('assignedQuestionCount')
     expect(content).toContain('totalQuestionCount')
   })
 
@@ -87,44 +87,44 @@ describe('MarkingAssignPage teacher workload', () => {
   })
 })
 
-describe('MarkingAssignPage batch assign', () => {
-  it('has batch-bar floating element', () => {
-    expect(content).toContain('class="batch-bar"')
+describe('MarkingAssignPage per-question card layout', () => {
+  it('has question-card elements', () => {
+    expect(content).toContain('class="question-card"')
   })
 
-  it('has checkedKeys state', () => {
-    expect(content).toContain('checkedKeys')
+  it('has add-teacher-row for new assignment', () => {
+    expect(content).toContain('class="add-teacher-row"')
   })
 
-  it('has batchTeacherId state', () => {
-    expect(content).toContain('batchTeacherId')
+  it('has getAssignsForQuestion helper', () => {
+    expect(content).toContain('getAssignsForQuestion')
   })
 
-  it('has handleBatchAssign function', () => {
-    expect(content).toContain('handleBatchAssign')
+  it('has getTeacherName helper', () => {
+    expect(content).toContain('getTeacherName')
   })
 
-  it('uses Promise.all for batch API calls', () => {
-    expect(content).toContain('Promise.all')
+  it('supports answer_count in assign request', () => {
+    expect(content).toContain('answer_count')
   })
 })
 
-describe('MarkingAssignPage NDataTable for questions', () => {
-  it('uses n-data-table for question list', () => {
-    const templateSection = content.split('<script')[0]
-    // Manager view should have n-data-table for questions (not just teacher view)
-    const dataTableCount = (templateSection.match(/n-data-table/g) || []).length
-    expect(dataTableCount).toBeGreaterThanOrEqual(2) // questions table + my-assignments table
+describe('MarkingAssignPage delete assignment', () => {
+  it('has removeAssign function', () => {
+    expect(content).toContain('removeAssign')
   })
 
-  it('has questionColumns with selection type', () => {
-    expect(content).toContain('questionColumns')
-    expect(content).toContain("type: 'selection'")
+  it('calls DELETE endpoint', () => {
+    expect(content).toContain("client.delete(`/marking/assignments/")
+  })
+})
+
+describe('MarkingAssignPage my-assignments columns', () => {
+  it('has answer_count column', () => {
+    expect(content).toContain("key: 'answer_count'")
   })
 
-  it('questionColumns includes subject, score, and assignee', () => {
-    expect(content).toContain("key: 'subjectName'")
-    expect(content).toContain("key: 'maxScore'")
-    expect(content).toContain("key: 'assignee'")
+  it('has graded_count column', () => {
+    expect(content).toContain("key: 'graded_count'")
   })
 })

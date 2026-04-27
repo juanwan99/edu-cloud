@@ -131,7 +131,7 @@ frontend/src/
     TeacherReviewPage.vue   # 教师复核
     MarkingSelectPage.vue   # 手动阅卷选题
     MarkingPage.vue         # 手动阅卷
-    MarkingAssignPage.vue   # 分配阅卷任务（含返回按钮）
+    MarkingAssignPage.vue   # 分配阅卷任务（一题多人+数量配额，per-question 卡片布局，含返回按钮）
     MarkingProgressPage.vue # 阅卷进度（含返回按钮）
     SchoolsPage.vue         # 学校管理（admin）
     SchoolSettingsPage.vue  # 学校配置（模块开关 + KV 设置 + 分数段，principal/academic_director）
@@ -538,7 +538,7 @@ tests/
 | GET | `/api/v1/grading/quality-report/{exam_id}` | 质量检查报告（VIEW_GRADING） |
 | POST | `/api/v1/exams/{id}/publish` | 发布成绩（MANAGE_EXAM_RESULTS，前置条件检查） |
 | POST | `/api/v1/exams/{id}/archive` | 归档考试（MANAGE_EXAM_RESULTS） |
-| * | `/api/v1/marking/*` | 人工阅卷/分配/导出 |
+| * | `/api/v1/marking/*` | 人工阅卷/分配（一题多人+answer_count 配额+DELETE /assignments/{id}）/导出 |
 | * | `/api/v1/analytics/*` | 统计分析（摘要/分布/题目/年级，支持 subject_id 单参数查询） |
 | GET | `/api/v1/analytics/segments/config` | MANAGE_SCHOOL_SETTINGS | 获取本校分数段配置（默认+科目覆盖） |
 | PUT | `/api/v1/analytics/segments/config` | MANAGE_SCHOOL_SETTINGS | 创建/更新分数段配置（upsert） |

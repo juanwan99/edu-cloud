@@ -11,7 +11,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Subject, Question
-from edu_cloud.modules.grading.models import GradingResult
+from edu_cloud.modules.grading.models import GradingAssignment, GradingResult
 from edu_cloud.modules.scan.models import StudentAnswer
 
 logger = logging.getLogger(__name__)
@@ -71,6 +71,7 @@ async def get_subjects_with_progress(
 
 async def get_next_answer(
     db: AsyncSession, question_id: str, school_id: str,
+    *, teacher_id: str | None = None,
 ) -> dict | None:
     """获取该题下一份未 confirmed 的答卷 + AI 预测（若存在）。
 
@@ -82,6 +83,21 @@ async def get_next_answer(
       max_score: float
     }
     """
+    # 配额检查：教师改到 total_count 就停
+    if teacher_id:
+        my_assigns = (await db.execute(
+            select(GradingAssignment).where(
+                GradingAssignment.assigned_to == teacher_id,
+                GradingAssignment.school_id == school_id,
+                GradingAssignment.is_second_grading.is_(False),
+            )
+        )).scalars().all()
+        for a in my_assigns:
+            if question_id in (a.question_ids or []):
+                if a.total_count > 0 and a.graded_count >= a.total_count:
+                    return None
+                break
+
     # 查已 confirmed 的 answer_id 集
     confirmed_ids_q = select(GradingResult.answer_id).where(
         GradingResult.question_id == question_id,
@@ -198,6 +214,26 @@ async def submit_score(
     await db.commit()
     await db.refresh(gr)
     return gr
+
+
+async def update_assignment_progress(
+    db: AsyncSession, question_id: str, teacher_id: str, school_id: str,
+) -> None:
+    """提交评分后递增教师对应 assignment 的 graded_count。"""
+    assignments = (await db.execute(
+        select(GradingAssignment).where(
+            GradingAssignment.assigned_to == teacher_id,
+            GradingAssignment.school_id == school_id,
+        )
+    )).scalars().all()
+    for a in assignments:
+        if question_id in (a.question_ids or []):
+            a.graded_count = a.graded_count + 1
+            if a.total_count > 0 and a.graded_count >= a.total_count:
+                a.status = "completed"
+            elif a.status == "pending":
+                a.status = "in_progress"
+    await db.flush()
 
 
 async def get_progress(

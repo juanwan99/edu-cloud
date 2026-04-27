@@ -112,6 +112,58 @@ async def test_assignments_teacher_forbidden(client, assign_setup):
     assert resp.status_code == 403
 
 
+async def test_assign_same_question_different_teachers(client, assign_setup, db):
+    """同题分配给两个教师 → 都应 201，列表 2 条"""
+    teacher2 = User(id="au_teacher2", username="teacher2", display_name="教师B")
+    teacher2.set_password("p")
+    db.add(teacher2)
+    await db.flush()
+    db.add(UserRole(user_id="au_teacher2", role="teacher", school_id="as1", is_primary=True, subject_codes=["YW"]))
+    await db.commit()
+
+    r1 = await client.post("/api/v1/marking/assign", json={
+        "exam_id": "ae1", "question_id": "aq1", "teacher_id": "au_teacher",
+    }, headers=assign_setup["admin"])
+    assert r1.status_code == 201
+
+    r2 = await client.post("/api/v1/marking/assign", json={
+        "exam_id": "ae1", "question_id": "aq1", "teacher_id": "au_teacher2",
+    }, headers=assign_setup["admin"])
+    assert r2.status_code == 201
+
+    resp = await client.get("/api/v1/marking/assignments?exam_id=ae1", headers=assign_setup["admin"])
+    assert len(resp.json()) == 2
+
+
+async def test_assign_with_answer_count(client, assign_setup):
+    """带 answer_count 分配 → 响应包含 answer_count"""
+    resp = await client.post("/api/v1/marking/assign", json={
+        "exam_id": "ae1", "question_id": "aq1", "teacher_id": "au_teacher",
+        "answer_count": 30,
+    }, headers=assign_setup["admin"])
+    assert resp.status_code == 201
+
+    listing = await client.get("/api/v1/marking/assignments?exam_id=ae1", headers=assign_setup["admin"])
+    items = listing.json()
+    assert len(items) == 1
+    assert items[0]["answer_count"] == 30
+
+
+async def test_delete_assignment(client, assign_setup):
+    """创建→删除→列表为空"""
+    resp = await client.post("/api/v1/marking/assign", json={
+        "exam_id": "ae1", "question_id": "aq1", "teacher_id": "au_teacher",
+    }, headers=assign_setup["admin"])
+    assert resp.status_code == 201
+    assign_id = resp.json()["id"]
+
+    del_resp = await client.delete(f"/api/v1/marking/assignments/{assign_id}", headers=assign_setup["admin"])
+    assert del_resp.status_code == 200
+
+    listing = await client.get("/api/v1/marking/assignments?exam_id=ae1", headers=assign_setup["admin"])
+    assert len(listing.json()) == 0
+
+
 async def test_teachers_list(client, assign_setup):
     resp = await client.get("/api/v1/marking/teachers", headers=assign_setup["admin"])
     assert resp.status_code == 200

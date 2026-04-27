@@ -24,6 +24,7 @@ class GradingAssignmentService:
         existing_stmt = select(GradingAssignment).where(
             GradingAssignment.exam_id == exam_id,
             GradingAssignment.subject_id == subject_id,
+            GradingAssignment.assigned_to == teacher_id,
             GradingAssignment.status != "completed",
         )
         existing_result = await db.execute(existing_stmt)
@@ -51,16 +52,18 @@ class GradingAssignmentService:
         if not teacher_ids or not question_ids:
             return []
         n = len(teacher_ids)
-        chunks = [question_ids[i::n] for i in range(n)]
+        base = total_count_per_question // n if total_count_per_question else 0
+        remainder = total_count_per_question % n if total_count_per_question else 0
         assignments = []
-        for teacher_id, chunk in zip(teacher_ids, chunks):
-            a = GradingAssignment(
-                exam_id=exam_id, subject_id=subject_id,
-                question_ids=chunk, assigned_to=teacher_id,
-                total_count=len(chunk) * total_count_per_question,
-                school_id=school_id,
-            )
-            assignments.append(a)
+        for q_id in question_ids:
+            for i, tid in enumerate(teacher_ids):
+                count = base + (1 if i < remainder else 0)
+                a = GradingAssignment(
+                    exam_id=exam_id, subject_id=subject_id,
+                    question_ids=[q_id], assigned_to=tid,
+                    total_count=count, school_id=school_id,
+                )
+                assignments.append(a)
         db.add_all(assignments)
         await db.flush()
         return assignments

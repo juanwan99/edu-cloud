@@ -162,15 +162,30 @@ async def test_list_assignments(db):
 
 
 @pytest.mark.asyncio
-async def test_assign_block_duplicate_rejected(db):
-    """N-01: 同科目未完成任务的题目重叠时应抛 ConflictError"""
+async def test_assign_block_different_teacher_same_question_ok(db):
+    """不同教师分配同一题应成功（一题多人）"""
+    a1 = await GradingAssignmentService.assign_block(
+        db, exam_id="e1", subject_id="s1",
+        question_ids=["q1"], teacher_id="t1", school_id="s1", total_count=50,
+    )
+    a2 = await GradingAssignmentService.assign_block(
+        db, exam_id="e1", subject_id="s1",
+        question_ids=["q1"], teacher_id="t2", school_id="s1", total_count=50,
+    )
+    assert a1.assigned_to == "t1"
+    assert a2.assigned_to == "t2"
+
+
+@pytest.mark.asyncio
+async def test_assign_block_same_teacher_same_question_rejected(db):
+    """同一教师重复分配同一题应抛 ConflictError"""
     from edu_cloud.services.exceptions import ConflictError
     await GradingAssignmentService.assign_block(
         db, exam_id="e1", subject_id="s1",
-        question_ids=["q1", "q2"], teacher_id="t1", school_id="s1", total_count=10,
+        question_ids=["q1"], teacher_id="t1", school_id="s1", total_count=10,
     )
     with pytest.raises(ConflictError):
         await GradingAssignmentService.assign_block(
             db, exam_id="e1", subject_id="s1",
-            question_ids=["q2", "q3"], teacher_id="t2", school_id="s1", total_count=10,
+            question_ids=["q1"], teacher_id="t1", school_id="s1", total_count=10,
         )

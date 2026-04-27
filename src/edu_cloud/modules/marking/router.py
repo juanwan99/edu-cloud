@@ -46,6 +46,7 @@ class AssignRequest(BaseModel):
     exam_id: str
     question_id: str
     teacher_id: str
+    answer_count: int = 0
 
 
 def _has_question_assigned(assignment: GradingAssignment, question_id: str) -> bool:
@@ -59,6 +60,7 @@ def _flatten_assignment(a: GradingAssignment) -> list[dict]:
         {
             "id": a.id, "exam_id": a.exam_id, "question_id": qid,
             "teacher_id": a.assigned_to, "status": a.status,
+            "answer_count": a.total_count, "graded_count": a.graded_count,
         }
         for qid in (a.question_ids or [])
     ]
@@ -102,7 +104,7 @@ async def assign_question(
     if not teacher_role:
         raise HTTPException(404, "教师不存在")
 
-    # 查该教师在此 exam+subject 是否已有 assignment
+    # 同教师+同题冲突检测
     existing_list = (await db.execute(
         select(GradingAssignment).where(
             GradingAssignment.exam_id == req.exam_id,
@@ -113,28 +115,20 @@ async def assign_question(
         )
     )).scalars().all()
 
-    # 若 question_id 已在任一 assignment 中，冲突
     for a in existing_list:
         if _has_question_assigned(a, req.question_id):
             raise HTTPException(409, "该教师已被分配此题")
 
-    # 追加到首个现有 assignment 或新建
-    if existing_list:
-        a = existing_list[0]
-        qids = list(a.question_ids or [])
-        qids.append(req.question_id)
-        a.question_ids = qids
-        await db.commit()
-        await db.refresh(a)
-    else:
-        a = GradingAssignment(
-            exam_id=req.exam_id, subject_id=subject.id,
-            question_ids=[req.question_id],
-            assigned_to=req.teacher_id, school_id=school_id,
-        )
-        db.add(a)
-        await db.commit()
-        await db.refresh(a)
+    # 每次创建独立行（一题一教师）
+    a = GradingAssignment(
+        exam_id=req.exam_id, subject_id=subject.id,
+        question_ids=[req.question_id],
+        assigned_to=req.teacher_id, school_id=school_id,
+        total_count=req.answer_count,
+    )
+    db.add(a)
+    await db.commit()
+    await db.refresh(a)
 
     logger.info("assign_question: exam=%s, question=%s, teacher=%s",
                 req.exam_id, req.question_id, req.teacher_id)
@@ -186,6 +180,29 @@ async def list_all_assignments(
     for a in assignments:
         flat.extend(_flatten_assignment(a))
     return flat
+
+
+@router.delete("/assignments/{assignment_id}")
+async def delete_assignment(
+    assignment_id: str,
+    current: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """删除阅卷分配。"""
+    if not is_school_admin(current["current_role"]):
+        raise HTTPException(403, "仅管理员可删除阅卷分配")
+    school_id = current["current_role"].school_id
+    assignment = (await db.execute(
+        select(GradingAssignment).where(
+            GradingAssignment.id == assignment_id,
+            GradingAssignment.school_id == school_id,
+        )
+    )).scalar_one_or_none()
+    if not assignment:
+        raise HTTPException(404, "分配记录不存在")
+    await db.delete(assignment)
+    await db.commit()
+    return {"ok": True}
 
 
 @router.get("/teachers")
@@ -283,7 +300,10 @@ async def next_answer(
                 raise HTTPException(403, "该题目未分配给您")
 
     from edu_cloud.modules.marking.scorer import get_next_answer
-    result = await get_next_answer(db, question_id, current["current_role"].school_id)
+    result = await get_next_answer(
+        db, question_id, current["current_role"].school_id,
+        teacher_id=current["user"].id,
+    )
     if not result:
         return {"done": True, "answer": None}
     return {"done": False, "answer": result}
@@ -335,7 +355,7 @@ async def submit_score_endpoint(
     - 若已有 AI 预评 → 升级为 confirmed（source=ai 或 ai_override）
     - 若无预评 → 新建 source=manual, status=confirmed
     """
-    from edu_cloud.modules.marking.scorer import submit_score, get_next_answer
+    from edu_cloud.modules.marking.scorer import submit_score, get_next_answer, update_assignment_progress
 
     answer = (await db.execute(
         select(StudentAnswer).where(
@@ -372,7 +392,12 @@ async def submit_score_endpoint(
     except ValueError as e:
         raise HTTPException(409, str(e))
 
-    next_ans = await get_next_answer(db, answer.question_id, current["current_role"].school_id)
+    await update_assignment_progress(db, answer.question_id, current["user"].id, current["current_role"].school_id)
+
+    next_ans = await get_next_answer(
+        db, answer.question_id, current["current_role"].school_id,
+        teacher_id=current["user"].id,
+    )
     return {
         "ok": True,
         "next": {"done": False, "answer": next_ans} if next_ans else {"done": True, "answer": None},
