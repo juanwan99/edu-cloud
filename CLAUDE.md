@@ -503,7 +503,7 @@ tests/
 | 方法 | 路径 | 用途 |
 |------|------|------|
 | POST/GET | `/api/v1/exams` | 创建/列表考试 |
-| GET/PATCH | `/api/v1/exams/{id}` | 详情/更新考试 |
+| GET/PATCH/DELETE | `/api/v1/exams/{id}` | 详情/更新/删除考试（DELETE 仅 draft，MANAGE_EXAMS） |
 | POST/GET | `/api/v1/exams/{id}/subjects` | 创建/列表科目 |
 | POST/GET/PATCH/DELETE | `/api/v1/questions` | 题目 CRUD |
 | PUT | `/api/v1/questions/{id}/content` | 更新题干/参考答案（MANAGE_EXAMS，含 content/content_images/reference_answer/reference_answer_images） |

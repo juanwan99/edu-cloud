@@ -62,7 +62,7 @@
           </div>
         </div>
 
-        <div class="dc-sidebar">
+        <div class="dc-sidebar" @mousedown.stop>
           <div v-if="savedHistory.length" class="saved-section">
             <div class="sidebar-title">已保存</div>
             <div v-for="s in savedHistory" :key="s.key" class="saved-item">

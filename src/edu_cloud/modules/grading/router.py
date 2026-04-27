@@ -224,7 +224,7 @@ async def get_rubric(
     )
     rubric = result.scalar_one_or_none()
     if not rubric:
-        raise HTTPException(404, "Rubric not found")
+        return None
     return _rubric_response(rubric)
 
 

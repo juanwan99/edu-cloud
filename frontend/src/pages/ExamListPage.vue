@@ -126,7 +126,7 @@
 import { h, ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NTag, NButton, NPopconfirm, useMessage } from 'naive-ui'
-import { listExams, createExam, archiveExam } from '../api/exams'
+import { listExams, createExam, archiveExam, deleteExam } from '../api/exams'
 
 const router = useRouter()
 const message = useMessage()
@@ -283,6 +283,21 @@ const columns = [
         )
       }
 
+      if (row.status === 'draft') {
+        buttons.push(
+          h(NPopconfirm, {
+            onPositiveClick: () => handleDelete(row.id),
+          }, {
+            trigger: () => h(NButton, {
+              text: true,
+              type: 'error',
+              size: 'small',
+            }, { default: () => '删除' }),
+            default: () => '确认删除此考试？删除后不可恢复。',
+          })
+        )
+      }
+
       // Copy button
       buttons.push(
         h(NButton, {
@@ -355,6 +370,16 @@ async function handleArchive(examId) {
     await loadExams()
   } catch (e) {
     message.error(e.response?.data?.detail || '归档失败')
+  }
+}
+
+async function handleDelete(examId) {
+  try {
+    await deleteExam(examId)
+    message.success('考试已删除')
+    await loadExams()
+  } catch (e) {
+    message.error(e.response?.data?.detail || '删除失败')
   }
 }
 

@@ -75,7 +75,8 @@ def _school_id(current: dict) -> str:
 
 def _exam_response(e) -> dict:
     return {"id": e.id, "name": e.name, "card_title": e.card_title,
-            "school_id": e.school_id, "status": e.status}
+            "school_id": e.school_id, "status": e.status,
+            "created_at": e.created_at.isoformat() if e.created_at else None}
 
 
 def _question_response(q: Question) -> dict:
@@ -136,6 +137,15 @@ async def update_exam(
         name=req.name, card_title=req.card_title, status=req.status,
     )
     return _exam_response(exam)
+
+
+@router.delete("/{exam_id}", status_code=204)
+async def delete_exam(
+    exam_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
+):
+    await exam_service.delete_exam(db, exam_id=exam_id, school_id=_school_id(current))
 
 
 @router.post("/{exam_id}/subjects", status_code=201)

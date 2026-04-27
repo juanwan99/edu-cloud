@@ -37,6 +37,7 @@ async def list_exams(db: AsyncSession, *, school_id: str | None) -> list[Exam]:
     q = select(Exam)
     if school_id:
         q = q.where(Exam.school_id == school_id)
+    q = q.order_by(Exam.created_at.desc())
     result = await db.execute(q)
     exams = list(result.scalars().all())
     logger.debug("list_exams: school=%s, count=%d", school_id, len(exams))
@@ -98,6 +99,23 @@ async def update_exam(
         except Exception:
             logger.error("auto_pipeline failed: exam=%s", exam_id, exc_info=True)
     return exam
+
+
+async def delete_exam(db: AsyncSession, *, exam_id: str, school_id: str) -> None:
+    exam = await get_exam(db, exam_id=exam_id, school_id=school_id)
+    if exam.status != "draft":
+        raise ValidationError("只能删除草稿状态的考试")
+    questions = await db.execute(
+        select(Question).join(Subject).where(Subject.exam_id == exam_id)
+    )
+    for q in questions.scalars():
+        await db.delete(q)
+    subjects = await db.execute(select(Subject).where(Subject.exam_id == exam_id))
+    for s in subjects.scalars():
+        await db.delete(s)
+    await db.delete(exam)
+    await db.commit()
+    logger.info("delete_exam: id=%s, school=%s", exam_id, school_id)
 
 
 async def create_subject(

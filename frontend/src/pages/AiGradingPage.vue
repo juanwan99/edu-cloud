@@ -33,6 +33,7 @@
         @start-edit-score="startEditScore"
         @save-score="saveScore"
         @update-score-value="handleUpdateScoreValue"
+        @add-question="handleAddQuestion"
       />
 
       <!-- 右侧：阅卷操作面板 -->
@@ -82,7 +83,7 @@ import { useRoute } from 'vue-router'
 import { useMessage, NButton } from 'naive-ui'
 import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
 import { listExams } from '../api/exams'
-import { updateQuestion } from '../api/questions'
+import { createQuestion, updateQuestion } from '../api/questions'
 import { listSubjects } from '../api/subjects'
 import QuestionContentModal from '../components/QuestionContentModal.vue'
 import DocCropPanel from '../components/DocCropPanel.vue'
@@ -204,6 +205,24 @@ async function loadQuestions() {
     message.error('加载题目失败')
   } finally {
     loadingQuestions.value = false
+  }
+}
+
+async function handleAddQuestion() {
+  if (!subjectId.value) return
+  const maxNum = questions.value.reduce((m, q) => Math.max(m, parseInt(q.name || q.question_name) || 0), 0)
+  try {
+    await createQuestion({
+      subject_id: subjectId.value,
+      name: String(maxNum + 1),
+      question_type: 'essay',
+      max_score: 5,
+    })
+    await loadQuestions()
+    message.success('题目已添加')
+    if (questions.value.length) selectQuestion(questions.value[questions.value.length - 1])
+  } catch (e) {
+    message.error(e.response?.data?.detail || '添加失败')
   }
 }
 
