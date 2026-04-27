@@ -1,47 +1,60 @@
 <template>
   <div class="login-container">
-    <div class="login-decor login-decor--1" />
-    <div class="login-decor login-decor--2" />
-    <div class="login-decor login-decor--3" />
+    <div class="decor decor--mint" />
+    <div class="decor decor--cream" />
+    <div class="decor decor--pink-ring" />
+    <div class="decor decor--lavender" />
 
     <div class="login-content">
       <div class="brand-area">
-        <div class="logo-circle">
-          <span class="logo-icon">E</span>
+        <div class="brand-icon">
+          <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
+            <path d="M24 6L4 16l20 10 20-10L24 6z" fill="#2d5a3d" opacity="0.3"/>
+            <path d="M24 12L4 22l20 10 20-10L24 12z" fill="#2d5a3d" opacity="0.6"/>
+            <path d="M24 18L4 28l20 10 20-10L24 18z" fill="#1a2e1f"/>
+          </svg>
         </div>
-        <div class="brand-name">教育云平台</div>
-        <div class="brand-subtitle">家 校 互 通</div>
+        <h1 class="brand-name">edu-cloud</h1>
+        <p class="brand-subtitle">家校互通</p>
       </div>
 
-      <n-card class="login-card" :bordered="false">
+      <div class="login-form-area">
         <n-alert v-if="loginError" type="error" :show-icon="true" closable style="margin-bottom: 16px;" @close="loginError = ''">
           {{ loginError }}
         </n-alert>
 
-        <n-form ref="formRef" :model="form" :rules="rules">
-          <n-form-item label="手机号" path="phone">
-            <n-input v-model:value="form.phone" placeholder="请输入手机号" maxlength="11" />
+        <n-form ref="formRef" :model="form" :rules="rules" :show-label="false">
+          <n-form-item path="phone">
+            <n-input v-model:value="form.phone" placeholder="请输入手机号" maxlength="11" size="large">
+              <template #prefix>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a9a8e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              </template>
+            </n-input>
           </n-form-item>
-          <n-form-item label="密码" path="password">
-            <n-input v-model:value="form.password" type="password" placeholder="请输入密码" show-password-on="click" @keyup.enter="handleLogin" />
+          <n-form-item path="password">
+            <n-input v-model:value="form.password" type="password" placeholder="请输入密码" size="large" show-password-on="click" @keyup.enter="handleLogin">
+              <template #prefix>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a9a8e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </template>
+            </n-input>
           </n-form-item>
 
           <div style="margin-bottom: 20px;">
             <n-checkbox v-model:checked="rememberPhone">记住手机号</n-checkbox>
           </div>
 
-          <n-button type="primary" block :loading="loading" @click="handleLogin" class="login-btn">
+          <n-button type="primary" block :loading="loading" @click="handleLogin" class="login-btn" size="large">
             {{ loading ? '登录中...' : '登 录' }}
           </n-button>
         </n-form>
 
-        <div style="margin-top: 16px; text-align: center;">
+        <div style="margin-top: 20px; text-align: center;">
           <router-link to="/parent/register" class="register-link">还没有账号？立即注册</router-link>
         </div>
         <div class="login-hint">
           忘记密码？请联系班主任重置
         </div>
-      </n-card>
+      </div>
 
       <div class="login-footer">
         &copy; {{ new Date().getFullYear() }} edu-cloud · 教育云平台
@@ -134,7 +147,7 @@ async function handleLogin() {
   min-height: 100vh;
   position: relative;
   overflow: hidden;
-  background: #f9fafb;
+  background: #ffffff;
 }
 
 .login-content {
@@ -148,95 +161,92 @@ async function handleLogin() {
   padding: 24px 16px;
 }
 
-.login-decor {
+.decor {
   position: absolute;
   border-radius: 50%;
-  animation: floatSlow 20s ease-in-out infinite;
+  animation: floatSlow 24s ease-in-out infinite;
 }
 
-.login-decor--1 {
-  width: 500px;
-  height: 500px;
-  top: -120px;
-  right: -100px;
-  background: radial-gradient(circle, #e8f8ee 0%, transparent 70%);
+.decor--mint {
+  width: 620px;
+  height: 620px;
+  top: -180px;
+  right: -160px;
+  background: #e8f8ee;
 }
 
-.login-decor--2 {
-  width: 400px;
-  height: 400px;
-  bottom: -80px;
-  left: -60px;
-  background: radial-gradient(circle, #fef3c7 0%, transparent 70%);
-  animation-delay: -7s;
+.decor--cream {
+  width: 480px;
+  height: 480px;
+  bottom: -160px;
+  left: -120px;
+  background: #fef3c7;
+  opacity: 0.6;
+  animation-delay: -8s;
 }
 
-.login-decor--3 {
-  width: 200px;
-  height: 200px;
-  top: 40%;
-  left: 10%;
-  background: radial-gradient(circle, #ede9fe 0%, transparent 70%);
-  animation-delay: -13s;
+.decor--pink-ring {
+  width: 80px;
+  height: 80px;
+  bottom: 30%;
+  right: 8%;
+  background: transparent;
+  border: 3px solid #fde8e8;
+  animation-delay: -16s;
+}
+
+.decor--lavender {
+  width: 60px;
+  height: 60px;
+  top: 18%;
+  left: 6%;
+  background: transparent;
+  border: 3px solid #ede9fe;
+  border-radius: 8px;
+  animation-delay: -12s;
 }
 
 @keyframes floatSlow {
   0%, 100% { transform: translate(0, 0); }
-  33% { transform: translate(15px, -20px); }
-  66% { transform: translate(-10px, 15px); }
+  33% { transform: translate(12px, -18px); }
+  66% { transform: translate(-8px, 12px); }
 }
 
 .brand-area {
   text-align: center;
-  margin-bottom: 36px;
+  margin-bottom: 40px;
 }
 
-.logo-circle {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #1a2e1f, #2d5a3d);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  box-shadow: 0 8px 24px rgba(26, 46, 31, 0.15);
-}
-
-.logo-icon {
-  font-size: 30px;
-  font-weight: 800;
-  color: #fff;
+.brand-icon {
+  margin-bottom: 16px;
 }
 
 .brand-name {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 800;
   color: #1a2e1f;
   letter-spacing: -0.02em;
-  margin-bottom: 4px;
+  margin: 0;
 }
 
 .brand-subtitle {
-  font-size: 13px;
+  font-size: 14px;
   color: #8a9a8e;
-  letter-spacing: 3px;
+  margin-top: 6px;
 }
 
-.login-card {
+.login-form-area {
   max-width: 400px;
   width: 100%;
-  background: #ffffff !important;
-  border-radius: 20px !important;
-  box-shadow: 0 4px 24px rgba(26, 46, 31, 0.06);
-  padding: 8px 4px;
 }
 
 .login-btn {
-  height: 44px;
-  font-size: 15px;
+  height: 48px;
+  font-size: 16px;
   font-weight: 600;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
+  border-radius: 12px !important;
+  margin-top: 4px;
 }
 
 .register-link {
@@ -257,15 +267,15 @@ async function handleLogin() {
 }
 
 .login-footer {
-  margin-top: 48px;
+  margin-top: 56px;
   font-size: 12px;
-  color: #8a9a8e;
+  color: #b0b8b2;
 }
 
 .success-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.96);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -277,14 +287,13 @@ async function handleLogin() {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #1a2e1f, #2d5a3d);
+  background: #1a2e1f;
   color: #fff;
   font-size: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 16px;
-  box-shadow: 0 8px 24px rgba(26, 46, 31, 0.15);
 }
 
 .success-text {
