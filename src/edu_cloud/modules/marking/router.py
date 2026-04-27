@@ -265,10 +265,16 @@ async def list_subjects(
 @router.get("/next")
 async def next_answer(
     question_id: str,
+    mode: str = "ungraded",
     current: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取某题下一个未批改的答卷。"""
+    """获取某题下一个答卷。
+
+    mode:
+      - ungraded: 未批改的答卷（默认）
+      - ai_review: AI 已评但未确认的答卷（复核模式）
+    """
     # Permission check 1: subject-level access
     visible_codes = get_visible_subject_codes(current["current_role"])
     if visible_codes is not None:
@@ -282,8 +288,11 @@ async def next_answer(
             if subject and subject.code not in visible_codes:
                 raise HTTPException(403, "无权访问该科目的题目")
 
-    # Permission check 2: assignment-level access
-    if not is_school_admin(current["current_role"]):
+    # Permission check 2: ai_review mode requires school admin
+    if mode == "ai_review":
+        if not is_school_admin(current["current_role"]):
+            raise HTTPException(403, "AI 复核模式仅管理员可用")
+    elif not is_school_admin(current["current_role"]):
         all_assign = (await db.execute(
             select(GradingAssignment).where(
                 GradingAssignment.school_id == current["current_role"].school_id,
@@ -303,6 +312,7 @@ async def next_answer(
     result = await get_next_answer(
         db, question_id, current["current_role"].school_id,
         teacher_id=current["user"].id,
+        mode=mode,
     )
     if not result:
         return {"done": True, "answer": None}

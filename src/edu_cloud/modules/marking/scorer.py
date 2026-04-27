@@ -72,17 +72,84 @@ async def get_subjects_with_progress(
 async def get_next_answer(
     db: AsyncSession, question_id: str, school_id: str,
     *, teacher_id: str | None = None,
+    mode: str = "ungraded",
 ) -> dict | None:
-    """获取该题下一份未 confirmed 的答卷 + AI 预测（若存在）。
+    """获取该题下一份答卷 + AI 预测（若存在）。
+
+    mode:
+      - "ungraded": 未 confirmed 的答卷（默认，人工阅卷流程）
+      - "ai_review": AI 已评(ai_done)但未确认的答卷（复核流程）
 
     返回结构：
     {
       answer_id, student_id, image_path,
       position: {current, total},
-      ai: None 或 {score, confidence, feedback}  # 给教师做校对参考
+      ai: None 或 {score, confidence, feedback, result_id}
       max_score: float
     }
     """
+    if mode == "ai_review":
+        # 复核模式：取 AI 已评但未人工确认的答卷
+        ai_done_q = (await db.execute(
+            select(GradingResult).where(
+                GradingResult.question_id == question_id,
+                GradingResult.school_id == school_id,
+                GradingResult.status == "ai_done",
+            ).order_by(GradingResult.created_at)
+            .limit(1)
+        )).scalar_one_or_none()
+
+        if not ai_done_q:
+            return None
+
+        answer = (await db.execute(
+            select(StudentAnswer).where(
+                StudentAnswer.id == ai_done_q.answer_id,
+                StudentAnswer.school_id == school_id,
+            )
+        )).scalar_one_or_none()
+        if not answer:
+            return None
+
+        # 统计：AI 已阅总数 / 已复核数
+        ai_total = (await db.execute(
+            select(func.count()).select_from(GradingResult).where(
+                GradingResult.question_id == question_id,
+                GradingResult.school_id == school_id,
+                GradingResult.ai_score.is_not(None),
+            )
+        )).scalar() or 0
+
+        ai_reviewed = (await db.execute(
+            select(func.count()).select_from(GradingResult).where(
+                GradingResult.question_id == question_id,
+                GradingResult.school_id == school_id,
+                GradingResult.ai_score.is_not(None),
+                GradingResult.status == "confirmed",
+            )
+        )).scalar() or 0
+
+        q = (await db.execute(
+            select(Question).where(Question.id == question_id)
+        )).scalar_one_or_none()
+        max_score = q.max_score if q else 0.0
+
+        return {
+            "answer_id": answer.id,
+            "student_id": answer.student_id,
+            "image_path": answer.image_path,
+            "position": {"current": ai_reviewed + 1, "total": ai_total},
+            "ai": {
+                "score": ai_done_q.ai_score,
+                "confidence": ai_done_q.ai_confidence,
+                "feedback": ai_done_q.ai_feedback,
+                "result_id": ai_done_q.id,
+            },
+            "max_score": max_score,
+        }
+
+    # ---- 默认 ungraded 模式 ----
+
     # 配额检查：教师改到 total_count 就停
     if teacher_id:
         my_assigns = (await db.execute(

@@ -321,6 +321,221 @@ def _task_response(t: GradingTask) -> dict:
     }
 
 
+class GradeSingleRequest(BaseModel):
+    answer_id: str
+
+
+@router.post("/grade-single")
+async def grade_single_answer(
+    req: GradeSingleRequest,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
+):
+    """对单份答卷同步 AI 评分（用于质量抽检）。
+
+    复用 worker 的 OCR→评分 pipeline，但同步返回结果。
+    结果写入 GradingResult(status=ai_done)，同时返回给前端。
+    """
+    import json
+    import base64
+    import aiofiles
+    school_id = current["current_role"].school_id
+
+    # 1. 查答卷
+    answer = (await db.execute(
+        select(StudentAnswer).where(
+            StudentAnswer.id == req.answer_id,
+            StudentAnswer.school_id == school_id,
+        )
+    )).scalar_one_or_none()
+    if not answer:
+        raise HTTPException(404, "答卷不存在")
+
+    # 2. 查题目
+    question = (await db.execute(
+        select(Question).where(
+            Question.id == answer.question_id,
+            Question.school_id == school_id,
+            Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
+        )
+    )).scalar_one_or_none()
+    if not question:
+        raise HTTPException(400, "该题目不存在或非主观题")
+
+    # 3. 查评分细则
+    rubric = (await db.execute(
+        select(Rubric).where(
+            Rubric.question_id == question.id,
+            Rubric.school_id == school_id,
+        )
+    )).scalar_one_or_none()
+    if not rubric or not rubric.criteria:
+        raise HTTPException(400, "请先为该题目配置评分细则")
+
+    # 4. 查科目（获取 subject_code）+ 学科可见性校验
+    subject = (await db.execute(
+        select(Subject).where(Subject.id == question.subject_id)
+    )).scalar_one_or_none()
+    subject_code = subject.code if subject else ""
+
+    from edu_cloud.api.permissions import get_visible_subject_codes
+    visible_codes = get_visible_subject_codes(current["current_role"])
+    if visible_codes is not None and subject and subject.code not in visible_codes:
+        raise HTTPException(403, "无权访问该科目")
+
+    # 5. 读取答卷图片
+    if not answer.image_path:
+        raise HTTPException(400, "答卷无图片")
+    try:
+        async with aiofiles.open(answer.image_path, "rb") as f:
+            image_data = await f.read()
+        image_b64 = base64.b64encode(image_data).decode()
+    except FileNotFoundError:
+        raise HTTPException(404, "答卷图片文件不存在")
+
+    # 空白检测
+    if len(image_b64) < 6800:
+        result_data = {
+            "score": 0, "max_score": question.max_score,
+            "feedback": "空白卷", "confidence": 1.0, "raw_content": "",
+        }
+    else:
+        # 6. 创建 LLM 客户端
+        from edu_cloud.modules.exam.slot_selector import get_llm_config, SLOT_AI_GRADING
+        from edu_cloud.modules.grading.llm_client import LLMClient
+        try:
+            llm_url, llm_key, llm_model = await get_llm_config(
+                db, slot=SLOT_AI_GRADING, school_id=school_id,
+            )
+        except Exception:
+            llm_url, llm_key, llm_model = None, None, None
+
+        from edu_cloud.workers.grading import _create_llm_client
+        llm = _create_llm_client(api_url=llm_url, api_key=llm_key, model=llm_model)
+
+        try:
+            from edu_cloud.modules.grading.prompts import get_prompt, render_prompt
+            from edu_cloud.modules.grading.rubric_formatter import format_rubric_for_grading
+
+            grading_prompt_tpl = get_prompt(subject_code, "GRADING_TEXT", "senior")
+            ans_qtype = answer.question_type or question.question_type
+
+            if grading_prompt_tpl is None:
+                # Legacy 单步评分
+                grade_result = await llm.grade(
+                    images_b64=image_b64,
+                    rubric={"criteria": rubric.criteria},
+                    question={"name": question.name, "max_score": question.max_score},
+                    question_type=ans_qtype,
+                )
+            else:
+                # 两步：OCR → 文本评分
+                rubric_text = format_rubric_for_grading(rubric.criteria)
+                full_score = str(question.max_score)
+
+                ocr_prompt = get_prompt(subject_code, "OCR_STRUCTURED", "senior") or get_prompt(subject_code, "OCR", "senior")
+                if ocr_prompt:
+                    structure = "\n".join(f"- {c.get('blankNo', '?')}: {c.get('subQ', '')}" for c in rubric.criteria)
+                    ocr_prompt = render_prompt(ocr_prompt, {"rubricStructure": structure})
+                else:
+                    from edu_cloud.modules.grading.prompts.base import OCR_PROMPT_BASE
+                    ocr_prompt = OCR_PROMPT_BASE
+
+                blanks = await llm.extract_text(images_b64=[image_b64], prompt=ocr_prompt)
+
+                from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
+                blanks = validate_ocr_blanks(blanks)
+                blanks = recover_truncated_blanks(blanks, len(rubric.criteria))
+
+                extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
+
+                char_stats = ""
+                if ans_qtype == "essay":
+                    import re
+                    raw_text = "".join(b.get("text", "") for b in blanks)
+                    cn_chars = len(re.findall(r'[一-鿿]', raw_text))
+                    en_words = len(re.findall(r'[a-zA-Z]+', raw_text))
+                    if cn_chars > en_words:
+                        char_stats = f"【字数统计】{cn_chars}字（基于OCR精确统计，请据此判断是否达到字数要求）"
+                    else:
+                        char_stats = f"【字数统计】{en_words}词（基于OCR精确统计，请据此判断是否达到词数要求）"
+
+                grading_prompt = render_prompt(grading_prompt_tpl, {
+                    "fullScore": full_score,
+                    "rubric": rubric_text,
+                    "extractedText": extracted_text,
+                    "charStats": char_stats,
+                })
+                grade_result = await llm.grade_text(prompt=grading_prompt, max_score=question.max_score)
+
+            result_data = {
+                "score": grade_result.score,
+                "max_score": grade_result.max_score,
+                "feedback": grade_result.feedback,
+                "confidence": grade_result.confidence,
+                "raw_content": grade_result.raw_content,
+            }
+        except Exception as e:
+            logger.error("grade_single: answer=%s failed: %s", req.answer_id, e, exc_info=True)
+            raise HTTPException(500, "AI 评分失败，请稍后重试")
+        finally:
+            await llm.close()
+
+    # 7. 写入 GradingResult（upsert）
+    details = None
+    try:
+        raw_parsed = json.loads(result_data.get("raw_content", ""))
+        details = raw_parsed.get("details")
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    existing_gr = (await db.execute(
+        select(GradingResult).where(GradingResult.answer_id == req.answer_id)
+    )).scalar_one_or_none()
+
+    if existing_gr:
+        if existing_gr.status == "confirmed":
+            # 已确认的不覆盖，只返回 AI 结果供对比
+            return {
+                "score": result_data["score"],
+                "max_score": result_data["max_score"],
+                "feedback": result_data["feedback"],
+                "confidence": result_data["confidence"],
+                "already_confirmed": True,
+            }
+        existing_gr.ai_score = result_data["score"]
+        existing_gr.ai_confidence = result_data["confidence"]
+        existing_gr.ai_feedback = result_data["feedback"]
+        existing_gr.ai_raw_response = {"raw_content": result_data["raw_content"], "details": details}
+        existing_gr.status = "ai_done"
+    else:
+        gr = GradingResult(
+            answer_id=req.answer_id,
+            question_id=question.id,
+            school_id=school_id,
+            ai_score=result_data["score"],
+            ai_confidence=result_data["confidence"],
+            ai_feedback=result_data["feedback"],
+            ai_raw_response={"raw_content": result_data["raw_content"], "details": details},
+            final_score=result_data["score"],
+            max_score=result_data["max_score"],
+            status="ai_done",
+        )
+        db.add(gr)
+
+    await db.commit()
+    logger.info("grade_single: answer=%s, score=%.1f, confidence=%.2f",
+                req.answer_id, result_data["score"], result_data["confidence"])
+
+    return {
+        "score": result_data["score"],
+        "max_score": result_data["max_score"],
+        "feedback": result_data["feedback"],
+        "confidence": result_data["confidence"],
+        "already_confirmed": False,
+    }
+
+
 async def enqueue_grading_task(task_id: str) -> None:
     """Enqueue an arq job. Separated for testability (mock in tests)."""
     from arq import create_pool

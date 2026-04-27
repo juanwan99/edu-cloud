@@ -8,16 +8,34 @@
       <div class="topbar-info">
         <span class="topbar-question">{{ questionName }}</span>
         <n-tag type="info" round size="small">满分 {{ maxScore }}</n-tag>
+        <n-button-group v-if="canManageGrading" size="small">
+          <n-button :type="reviewMode === 'ungraded' ? 'primary' : 'default'" @click="switchMode('ungraded')">待阅</n-button>
+          <n-button :type="reviewMode === 'ai_review' ? 'primary' : 'default'" @click="switchMode('ai_review')">AI 复核</n-button>
+        </n-button-group>
         <span class="topbar-progress">{{ position.current }} / {{ position.total }}</span>
       </div>
-      <div style="width: 100px;" />
+      <div v-if="canManageGrading" class="topbar-actions">
+        <n-popconfirm @positive-click="handleBatchGrade">
+          <template #trigger>
+            <n-button size="small" :loading="batchStarting" :disabled="batchStarting">AI 批量阅卷</n-button>
+          </template>
+          确认对该题所有未阅答卷启动 AI 批量阅卷？
+        </n-popconfirm>
+      </div>
     </div>
 
     <n-spin :show="loading" class="review-body">
       <div v-if="done" class="review-done">
-        <n-result status="success" title="全部批改完成" description="该题所有答卷已确认">
+        <n-result
+          :status="reviewMode === 'ai_review' ? 'info' : 'success'"
+          :title="reviewMode === 'ai_review' ? '全部 AI 答卷已复核' : '全部批改完成'"
+          :description="reviewMode === 'ai_review' ? '该题所有 AI 评分均已确认' : '该题所有答卷已确认'"
+        >
           <template #footer>
-            <n-button type="primary" @click="$router.back()">返回上一级</n-button>
+            <n-space>
+              <n-button v-if="reviewMode === 'ai_review'" @click="switchMode('ungraded')">切换到待阅模式</n-button>
+              <n-button type="primary" @click="$router.back()">返回上一级</n-button>
+            </n-space>
           </template>
         </n-result>
       </div>
@@ -44,7 +62,21 @@
         <!-- 打分区 -->
         <div class="score-panel">
           <div class="score-section">
-            <!-- AI 预测（仅当后端返回 ai 字段时显示） -->
+            <!-- AI 试阅按钮（需 manage_grading 权限） -->
+            <n-button
+              v-if="canManageGrading && !ai && !aiGrading"
+              block
+              @click="handleAiGradeSingle"
+              :disabled="!currentAnswerId"
+            >
+              AI 试阅当前答卷
+            </n-button>
+            <div v-if="aiGrading" class="ai-grading-tip">
+              <n-spin size="small" />
+              <span>AI 评分中，请稍候...</span>
+            </div>
+
+            <!-- AI 预测 -->
             <div v-if="ai" class="ai-card">
               <div class="ai-header">
                 <span class="ai-title">AI 预测</span>
@@ -144,11 +176,16 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { getNext, submitScore } from '../api/marking'
+import { gradeSingle, createTask } from '../api/grading'
+import { useAuthStore } from '../stores/auth'
 import client from '../api/client'
 
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
+
+const auth = useAuthStore()
+const canManageGrading = computed(() => auth.checkPermission('manage_grading'))
 
 const questionId = route.params.questionId
 const loading = ref(true)
@@ -165,6 +202,12 @@ const ai = ref(null)  // {score, confidence, feedback, result_id} 或 null
 const currentScore = ref(null)
 const comment = ref('')
 const scoreInputRef = ref(null)
+
+const reviewMode = ref('ungraded')
+const loadSeq = ref(0)
+const aiGrading = ref(false)
+const batchStarting = ref(false)
+const subjectId = ref(null)
 
 // 图片缩放/拖拽
 const scale = ref(1)
@@ -212,9 +255,12 @@ function applyAnswer(answerPayload) {
 }
 
 async function loadNext() {
+  const seq = ++loadSeq.value
   loading.value = true
+  done.value = false
   try {
-    const { data } = await getNext(questionId)
+    const { data } = await getNext(questionId, reviewMode.value)
+    if (seq !== loadSeq.value) return
     if (data.done) {
       done.value = true
     } else {
@@ -222,6 +268,7 @@ async function loadNext() {
       await loadImage(data.answer.answer_id)
     }
   } catch {
+    if (seq !== loadSeq.value) return
     message.error('加载失败')
   }
   loading.value = false
@@ -238,7 +285,9 @@ async function handleSubmit() {
       score: currentScore.value,
       comment: comment.value || undefined,
     })
-    if (data.next?.done) {
+    if (reviewMode.value === 'ai_review') {
+      await loadNext()
+    } else if (data.next?.done) {
       done.value = true
     } else if (data.next?.answer) {
       applyAnswer(data.next.answer)
@@ -250,6 +299,49 @@ async function handleSubmit() {
     message.error(e.response?.data?.detail || '提交失败')
   }
   submitting.value = false
+}
+
+async function handleAiGradeSingle() {
+  if (!currentAnswerId.value || aiGrading.value) return
+  aiGrading.value = true
+  try {
+    const { data } = await gradeSingle(currentAnswerId.value)
+    ai.value = {
+      score: data.score,
+      confidence: data.confidence,
+      feedback: data.feedback,
+    }
+    currentScore.value = data.score
+    if (data.already_confirmed) {
+      message.info('该答卷已有人工评分，AI 结果仅供参考')
+    } else {
+      message.success('AI 评分完成')
+    }
+  } catch (e) {
+    message.error(e.response?.data?.detail || 'AI 评分失败')
+  }
+  aiGrading.value = false
+}
+
+async function handleBatchGrade() {
+  if (!subjectId.value) {
+    message.error('无法确定科目信息')
+    return
+  }
+  batchStarting.value = true
+  try {
+    await createTask({ subject_id: subjectId.value, question_id: questionId })
+    message.success('AI 批量阅卷任务已启动，稍后可切换到「AI 复核」模式查看结果')
+  } catch (e) {
+    message.error(e.response?.data?.detail || '启动批量阅卷失败')
+  }
+  batchStarting.value = false
+}
+
+function switchMode(mode) {
+  if (reviewMode.value === mode) return
+  reviewMode.value = mode
+  loadNext()
 }
 
 // 图片缩放
@@ -311,7 +403,7 @@ async function loadQuestionInfo() {
   try {
     const { data } = await client.get(`/questions/${questionId}`)
     questionName.value = data.name
-    // maxScore 以 /next 返回为准，这里只作兜底
+    subjectId.value = data.subject_id
     if (maxScore.value === 10) maxScore.value = data.max_score
   } catch {
     questionName.value = '题目'
@@ -365,6 +457,12 @@ onUnmounted(() => {
 .topbar-progress {
   font-size: 14px;
   color: var(--color-text-secondary);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .review-body {
@@ -421,6 +519,17 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.ai-grading-tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f0f7ff;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #3b82f6;
 }
 
 .ai-card {
