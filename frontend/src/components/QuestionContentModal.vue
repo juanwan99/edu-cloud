@@ -82,7 +82,7 @@ const allImages = computed(() => {
   return [...existing, ...added]
 })
 
-function onPaste(e) {
+async function onPaste(e) {
   const items = e.clipboardData?.items
   if (!items) return
   for (const item of items) {
@@ -95,6 +95,38 @@ function onPaste(e) {
       }
       return
     }
+  }
+  const html = e.clipboardData?.getData('text/html')
+  if (html && /<(table|img|div)\b/i.test(html)) {
+    e.preventDefault()
+    message.info('正在将富文本转为图片...')
+    try {
+      const file = await htmlToImageFile(html)
+      newFiles.value.push({ file, fromPaste: true })
+      message.success('已将富文本粘贴为图片')
+    } catch (err) {
+      message.warning('富文本转图片失败，已粘贴为纯文本')
+      localContent.value += e.clipboardData?.getData('text/plain') || ''
+    }
+  }
+}
+
+async function htmlToImageFile(html) {
+  const { default: html2canvas } = await import('html2canvas')
+  const container = document.createElement('div')
+  Object.assign(container.style, {
+    position: 'fixed', left: '-9999px', top: '0',
+    background: '#fff', color: '#000', padding: '16px',
+    fontSize: '14px', lineHeight: '1.6', maxWidth: '800px',
+  })
+  container.innerHTML = html
+  document.body.appendChild(container)
+  try {
+    const canvas = await html2canvas(container, { scale: 2, useCORS: true })
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'))
+    return new File([blob], `paste-${Date.now()}.png`, { type: 'image/png' })
+  } finally {
+    document.body.removeChild(container)
   }
 }
 
