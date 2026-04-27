@@ -1,31 +1,60 @@
 <template>
   <n-spin :show="loading">
     <div v-if="!modelValue || modelValue.length === 0" class="empty">暂无评分细则</div>
-    <div v-else>
+    <div v-else class="rubric-list">
       <div v-for="(item, idx) in modelValue" :key="idx" class="rubric-item">
-        <div class="rubric-header">
-          <n-input size="small" :value="item.subQ" placeholder="小问" style="width:56px"
-            @update:value="v => update(idx, 'subQ', v)" />
-          <n-input size="small" :value="item.blankNo" placeholder="空号" style="width:64px"
-            @update:value="v => update(idx, 'blankNo', v)" />
-          <n-input-number size="small" :value="item.score" :min="0" :max="200" :step="0.5" placeholder="分"
-            style="width:80px" @update:value="v => update(idx, 'score', v)" />
-          <n-input size="small" :value="item.standardAnswer || item.answer" placeholder="标准答案" style="flex:1"
-            @update:value="v => update(idx, 'standardAnswer', v)" />
-          <n-button size="small" text type="error" @click="removeItem(idx)">删除</n-button>
+        <div class="rubric-top">
+          <span class="blank-badge">{{ item.subQ || item.blankNo || idx + 1 }}</span>
+          <div class="score-pill">
+            <n-input-number size="tiny" :value="item.score" :min="0" :max="200" :step="0.5"
+              style="width:64px" @update:value="v => update(idx, 'score', v)" />
+            <span class="score-unit">分</span>
+          </div>
+          <n-input size="small" :value="item.standardAnswer || item.answer" placeholder="标准答案"
+            style="flex:1" @update:value="v => update(idx, 'standardAnswer', v)" />
+          <n-button size="tiny" quaternary type="error" @click="removeItem(idx)" style="flex-shrink:0">
+            <template #icon><span style="font-size:14px">✕</span></template>
+          </n-button>
         </div>
-        <n-input size="small" type="textarea" :value="item.context" placeholder="背景与逻辑：题目情境 + 推理链（让阅卷AI理解为什么这是正确答案）"
-          :autosize="{ minRows: 1, maxRows: 4 }" style="margin-top:4px"
-          @update:value="v => update(idx, 'context', v)" />
-        <n-input size="small" type="textarea" :value="item.judgingRules" placeholder="判分规则：满分条件 / 部分分条件 / 典型错误 / 排除规则"
-          :autosize="{ minRows: 1, maxRows: 4 }" style="margin-top:4px"
-          @update:value="v => update(idx, 'judgingRules', v)" />
+
+        <div class="rubric-fields">
+          <div class="field-group">
+            <div class="field-label">背景与逻辑</div>
+            <n-input size="small" type="textarea" :value="item.context"
+              placeholder="题目情境 + 从题目信息到答案的推理链（让阅卷AI理解为什么这是正确答案）"
+              :autosize="{ minRows: 1, maxRows: 5 }"
+              @update:value="v => update(idx, 'context', v)" />
+          </div>
+          <div class="field-group">
+            <div class="field-label">判分规则</div>
+            <n-input size="small" type="textarea" :value="item.judgingRules"
+              placeholder="满分条件 → 部分分条件 → 0分条件 → 典型错误/排除规则"
+              :autosize="{ minRows: 1, maxRows: 5 }"
+              @update:value="v => update(idx, 'judgingRules', v)" />
+          </div>
+        </div>
+
+        <div v-if="hasLegacyFields(item)" class="rubric-fields legacy">
+          <div v-if="item.intent" class="field-group">
+            <div class="field-label">考查意图 <span class="legacy-tag">旧</span></div>
+            <div class="legacy-text">{{ item.intent }}</div>
+          </div>
+          <div v-if="item.coreRequirement" class="field-group">
+            <div class="field-label">得分要求 <span class="legacy-tag">旧</span></div>
+            <div class="legacy-text">{{ item.coreRequirement }}</div>
+          </div>
+        </div>
       </div>
-      <div class="footer">
-        <n-button size="small" dashed @click="addItem">+ 添加评分项</n-button>
-        <div class="total">
-          <span>总分: {{ totalScore }} / {{ maxScore }}</span>
-          <span v-if="totalScore !== maxScore" class="warning">分值不匹配</span>
+
+      <div class="rubric-footer">
+        <n-button size="small" dashed @click="addItem" style="font-size:13px">+ 添加评分项</n-button>
+        <div class="total-bar">
+          <span class="total-label">总分</span>
+          <span class="total-num" :class="{ mismatch: totalScore !== maxScore }">
+            {{ totalScore }} / {{ maxScore }}
+          </span>
+          <span v-if="totalScore !== maxScore" class="mismatch-warn">不匹配</span>
+          <span v-else class="match-ok">✓</span>
         </div>
       </div>
     </div>
@@ -48,6 +77,10 @@ const totalScore = computed(() => {
   if (!props.modelValue) return 0
   return props.modelValue.reduce((sum, item) => sum + (Number(item.score) || 0), 0)
 })
+
+function hasLegacyFields(item) {
+  return (item.intent || item.coreRequirement) && !item.context && !item.judgingRules
+}
 
 function update(idx, field, value) {
   const items = [...props.modelValue]
@@ -76,33 +109,131 @@ function addItem() {
   padding: 16px 0;
   text-align: center;
 }
-.rubric-item {
-  padding: 8px 10px;
-  border: 1px solid var(--border-color, #2e3e34);
-  border-radius: 8px;
-  margin-bottom: 8px;
+
+.rubric-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.rubric-header {
+
+.rubric-item {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #2e3e34);
+  border-radius: 10px;
+  background: var(--body-color, #1a2220);
+  transition: border-color 0.15s;
+}
+.rubric-item:hover {
+  border-color: #4a6a50;
+}
+
+.rubric-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.blank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: #1a3020;
+  color: #4ade80;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.score-pill {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.score-unit {
+  font-size: 12px;
+  color: #8a9a8e;
+}
+
+.rubric-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color, #2e3e34);
+}
+.rubric-fields.legacy {
+  border-top-style: dotted;
+  opacity: 0.7;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6a8a70;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legacy-tag {
+  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #3a3a0a;
+  color: #d4a017;
+}
+
+.legacy-text {
+  font-size: 12px;
+  color: #8a9a8e;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.rubric-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+
+.total-bar {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 0;
-}
-.total {
-  font-size: 13px;
-  font-weight: 600;
+.total-label {
+  font-size: 12px;
   color: #8a9a8e;
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
-.warning {
-  color: #d97706;
+.total-num {
+  font-size: 14px;
+  font-weight: 700;
+  color: #4ade80;
+}
+.total-num.mismatch {
+  color: #f59e0b;
+}
+.mismatch-warn {
+  font-size: 11px;
+  color: #f59e0b;
   font-weight: 500;
+}
+.match-ok {
+  font-size: 14px;
+  color: #4ade80;
+  font-weight: 700;
 }
 </style>
