@@ -38,6 +38,9 @@ export const routes = [
       // 学生画像
       { path: 'profile/student/:studentId', name: 'StudentProfile', component: () => import('../pages/StudentProfilePage.vue'), meta: { permissions: ['view_scores'] } },
 
+      // 知识图谱
+      { path: 'knowledge-tree', name: 'KnowledgeTree', component: () => import('../pages/KnowledgeTreePage.vue'), meta: { permissions: ['view_knowledge_tree'] } },
+
       // 题库
       { path: 'question-bank', name: 'QuestionBank', component: () => import('../pages/QuestionBankPage.vue'), meta: { permissions: ['view_question_bank'] } },
 

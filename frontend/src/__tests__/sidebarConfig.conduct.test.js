@@ -2,11 +2,10 @@
  * sidebarConfig conduct T3 permission-based sidebar tests
  *
  * Replaces frozen-mode tests (2026-04-18).
- * CONDUCT_ITEMS + filterConductByRole now derive sidebar entries from permissions.js.
+ * SIDEBAR_GROUPS + getSidebarGroups now derive sidebar entries from permissions.js.
  */
 import { describe, it, expect } from 'vitest'
-import { getSidebarItems } from '../config/sidebarConfig.js'
-import { CONDUCT_ITEMS } from '../config/sidebarConfig.js'
+import { getSidebarItems, SIDEBAR_GROUPS } from '../config/sidebarConfig.js'
 import { ROLE_PERMISSIONS } from '../config/permissions.js'
 
 const CONDUCT_ROUTE_PREFIX = '/conduct'
@@ -59,14 +58,16 @@ describe('T3 — sidebar 按 permissions 派生（conduct 矩阵）', () => {
   })
 })
 
-describe('T3 (R1-F007) — CONDUCT_ITEMS perm 合法性治理', () => {
+describe('T3 (R1-F007) — conduct items perm 合法性治理', () => {
   it('每个 perm 字段都在合法 permission 集', () => {
     const allPerms = new Set()
     for (const perms of Object.values(ROLE_PERMISSIONS)) {
       for (const p of perms) allPerms.add(p)
     }
-    for (const item of CONDUCT_ITEMS) {
-      expect(allPerms.has(item.perm)).toBe(true)
+    const studentGroup = SIDEBAR_GROUPS.find(g => g.key === 'student')
+    const conductItems = studentGroup.children.filter(item => item.moduleCode === 'conduct')
+    for (const item of conductItems) {
+      expect(allPerms.has(item.perm), `perm "${item.perm}" for "${item.label}" not in ROLE_PERMISSIONS`).toBe(true)
     }
   })
 })

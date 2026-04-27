@@ -163,7 +163,7 @@ frontend/src/
   components/
     shell/
       AppHeader.vue         # 68px 毛玻璃顶栏（Logo/SchoolContext/搜索/通知铃/角色切换）
-      AppSidebar.vue        # 角色过滤侧栏导航（220px/64px 折叠，sidebarConfig 驱动）
+      AppSidebar.vue        # 板块分组侧栏导航（5 组折叠/展开，220px/64px 折叠，getSidebarGroups 驱动）
       SchoolContext.vue     # 纯展示当前角色上下文名称
       RoleSwitcher.vue      # 角色切换下拉菜单（NDropdown，含头像）
       NotificationBell.vue  # 通知铃铛（NBadge + NPopover，占位）
@@ -192,13 +192,13 @@ frontend/src/
   config/
     roles.js                # 10 角色枚举 + 旧别名映射 + normalizeRole()
     permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
-    sidebarConfig.js        # 角色→侧边栏导航项 JSON 配置（conduct 按 hasPermission 动态过滤：FULL 9 项 platform_admin+district_admin+homeroom / academic_director 8 项 / grade_leader 6 项 / subject_teacher 5 项 / principal 4 项 / parent 3 项 / teaching_research_leader+lesson_prep_leader 0 项）
+    sidebarConfig.js        # 5 板块分组（考试阅卷/教研教学/教务管理/学生管理/学校管理）+ SIDEBAR_GROUPS + getSidebarGroups(role, enabledModules) 权限动态过滤 + getSidebarItems(role) 兼容扁平接口
     dashboardConfig.js      # 角色→仪表盘 KPI/Widget JSON 配置
   stores/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
-  router/                   # Vue Router（AppShell 41 子路由含 /ai-grading 无参入口 / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
+  router/                   # Vue Router（AppShell 42 子路由含 /ai-grading 无参入口 + /knowledge-tree / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -357,7 +357,7 @@ tests/
 **前端（`frontend/`）：**
 - Vite 7 + Vue 3.5 (Composition API)
 - Naive UI 2.44（暗色主题）
-- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 41 子路由；完整 44 路由冻结于 _frozen/）
+- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 42 子路由；完整 44 路由冻结于 _frozen/）
 - Pinia 3（状态管理）
 - Axios（HTTP 客户端，baseURL `/api/v1`）
 - ECharts 6 + vue-echarts（图表）
