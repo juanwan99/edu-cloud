@@ -123,11 +123,24 @@ async def _grade_single(
 
         extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
 
+        # Character count for essay questions
+        char_stats = ""
+        if ad.get("question_type") == "essay":
+            import re
+            raw_text = "".join(b.get("text", "") for b in blanks)
+            cn_chars = len(re.findall(r'[一-鿿]', raw_text))
+            en_words = len(re.findall(r'[a-zA-Z]+', raw_text))
+            if cn_chars > en_words:
+                char_stats = f"【字数统计】{cn_chars}字（基于OCR精确统计，请据此判断是否达到字数要求）"
+            else:
+                char_stats = f"【字数统计】{en_words}词（基于OCR精确统计，请据此判断是否达到词数要求）"
+
         # Step 2: Grade text
         grading_prompt = render_prompt(grading_prompt_tpl, {
             "fullScore": full_score,
             "rubric": rubric_text,
             "extractedText": extracted_text,
+            "charStats": char_stats,
         })
 
         grade_result = await llm.grade_text(prompt=grading_prompt, max_score=ad["question_max_score"])
