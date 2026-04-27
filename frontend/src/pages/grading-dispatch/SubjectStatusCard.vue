@@ -70,6 +70,7 @@
       <n-button v-if="subject.stage === 'failed'" size="small" type="error" @click="$emit('grade', subject)">重试</n-button>
       <n-button v-if="subject.stage === 'reviewing'" size="small" @click="$emit('go-review')">去校对</n-button>
       <n-button size="small" @click="$emit('go-ai-grading', subject)">AI 阅卷</n-button>
+      <n-button size="small" type="tertiary" @click="$emit('verify', subject)">校对配置</n-button>
     </div>
   </div>
 </template>
@@ -88,7 +89,7 @@ const props = defineProps({
   isGradingLoading: { type: Boolean, default: false },
 })
 
-defineEmits(['toggle', 'detect', 'preview', 'cut', 'stop-cut', 'grade', 'go-review', 'go-ai-grading'])
+defineEmits(['toggle', 'detect', 'preview', 'cut', 'stop-cut', 'grade', 'go-review', 'go-ai-grading', 'verify'])
 
 const STAGE_LABELS = {
   idle: '待上传', pending_detect: '待检测', pending_cut: '待切割',

@@ -29,11 +29,11 @@
                     :options="typeOptions" style="width:130px" />
           <template v-if="selectedRegion.type === 'subjective'">
             <span class="toolbar-label">题号</span>
-            <n-input-number size="small" :value="selectedRegion.qno" @update:value="v => selectedRegion.qno = v"
-                            :min="1" style="width:70px" />
+            <n-input size="small" :value="String(selectedRegion.qno || '')" @update:value="v => selectedRegion.qno = v"
+                     placeholder="如 18、19" style="width:90px" />
             <span class="toolbar-label">分值</span>
             <n-input-number size="small" :value="selectedRegion.score" @update:value="v => selectedRegion.score = v"
-                            :min="0" style="width:70px" />
+                            :min="0" :show-button="false" style="width:70px" />
           </template>
         </template>
 
@@ -227,7 +227,7 @@ function doSplit(region, splitY) {
   if (splitY - r.y1 < minH || r.y2 - splitY < minH) return
 
   const topId = region.id
-  const bottomId = 'R' + String(arr.length + 1).padStart(2, '0')
+  const bottomId = _nextId(arr)
 
   const top = { ...JSON.parse(JSON.stringify(region)), id: topId, rect: { x1: r.x1, y1: r.y1, x2: r.x2, y2: Math.round(splitY) } }
   const bottom = { ...JSON.parse(JSON.stringify(region)), id: bottomId, rect: { x1: r.x1, y1: Math.round(splitY), x2: r.x2, y2: r.y2 }, qno: nextQno() }
@@ -335,7 +335,7 @@ function onMouseUp() {
     const d = drawing.value
     const w = Math.abs(d.x2 - d.x1), h = Math.abs(d.y2 - d.y1)
     if (w > 30 && h > 30) {
-      const id = 'R' + String(currentRegions.value.length + 1).padStart(2, '0')
+      const id = _nextId(currentRegions.value)
       const nr = {
         id,
         type: 'subjective',
@@ -361,15 +361,29 @@ function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
 
 function nextQno() {
   const all = [...regionsA.value, ...regionsB.value]
-  const used = all.filter(r => r.qno).map(r => r.qno)
-  return used.length ? Math.max(...used) + 1 : 1
+  const nums = []
+  for (const r of all) {
+    if (!r.qno) continue
+    const parts = String(r.qno).split(/[、,，]/)
+    for (const p of parts) { const n = parseInt(p); if (n) nums.push(n) }
+  }
+  return nums.length ? Math.max(...nums) + 1 : 1
+}
+
+function _nextId(arr) {
+  let max = 0
+  for (const r of arr) {
+    const m = r.id && r.id.match(/^R(\d+)$/)
+    if (m) max = Math.max(max, parseInt(m[1]))
+  }
+  return 'R' + String(max + 1).padStart(2, '0')
 }
 
 // --- Toolbar actions ---
 function addRegion() {
   const cx = currentWidth.value / 2, cy = currentHeight.value / 2
   const arr = currentRegions.value
-  const id = 'R' + String(arr.length + 1).padStart(2, '0')
+  const id = _nextId(arr)
   const nr = {
     id, type: 'subjective', question_type: 'essay',
     qno: nextQno(), score: 0,

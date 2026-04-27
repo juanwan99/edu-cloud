@@ -74,6 +74,7 @@
           @grade="handleStartGrade"
           @go-review="$router.push({ name: 'MarkingSelect' })"
           @go-ai-grading="goToAiGrading"
+          @verify="handleVerify"
         />
 
         <div v-if="subjects.length === 0" class="empty-state">
@@ -97,19 +98,33 @@
       @confirm="onEditorConfirm"
       @cancel="editorShow = false"
     />
+
+    <n-modal v-model:show="verifyShow" preset="card" title="配置校对" style="width:700px;max-width:90vw">
+      <div v-if="verifyLoading" style="text-align:center;padding:40px">加载中...</div>
+      <template v-else-if="verifyResult">
+        <div class="verify-summary">
+          <span :class="verifyResult.mismatched ? 'verify-bad' : 'verify-ok'">
+            {{ verifyResult.mismatched ? `${verifyResult.mismatched} 项不一致` : '全部匹配' }}
+          </span>
+          <span class="verify-total">共 {{ verifyResult.total }} 题，匹配 {{ verifyResult.matched }}</span>
+        </div>
+        <n-data-table size="small" :columns="verifyCols" :data="verifyResult.items" :row-class-name="verifyRowClass"
+                      max-height="55vh" :bordered="false" />
+      </template>
+    </n-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { NSelect } from 'naive-ui'
+import { ref, computed, h, onMounted, onUnmounted } from 'vue'
+import { NSelect, NModal, NDataTable, NTag } from 'naive-ui'
 import { useMessage } from 'naive-ui'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { SCHOOL_ADMIN_ROLES } from '../config/roles.js'
 import { listExams } from '../api/exams'
 import { getDispatchStatus, createTask } from '../api/grading'
-import { uploadScanFolder, scanDirectory, startPipeline, getPipelineProgress, stopPipeline, autoDetectCV, saveCVTemplate, getCVTemplate, fetchScanImageBlob } from '../api/scan'
+import { uploadScanFolder, pdfImport, scanDirectory, startPipeline, getPipelineProgress, stopPipeline, autoDetectCV, saveCVTemplate, getCVTemplate, fetchScanImageBlob, verifyTemplate } from '../api/scan'
 import TemplatePreviewEditor from '../components/TemplatePreviewEditor.vue'
 import SubjectStatusCard from './grading-dispatch/SubjectStatusCard.vue'
 import ScanSection from './grading-dispatch/ScanSection.vue'
@@ -235,10 +250,10 @@ async function handleFolderSelected(e) {
   if (files.length === 0) return
 
   const imageFiles = files.filter(f =>
-    /\.(png|jpg|jpeg|bmp)$/i.test(f.name)
+    /\.(png|jpg|jpeg|bmp|pdf)$/i.test(f.name)
   )
   if (imageFiles.length === 0) {
-    message.warning('未找到图片文件（支持 png/jpg/bmp）')
+    message.warning('未找到文件（支持 png/jpg/bmp/pdf）')
     return
   }
 
@@ -249,7 +264,14 @@ async function handleFolderSelected(e) {
       uploadProgress.value = `${done}/${total}`
     })
     scanRootDir.value = res.data.dir_path
-    message.success(`已上传 ${imageFiles.length} 张图片`)
+    const pdfCount = imageFiles.filter(f => /\.pdf$/i.test(f.name)).length
+    if (pdfCount > 0) {
+      message.info(`正在转换 ${pdfCount} 个 PDF...`)
+      try { await pdfImport(res.data.dir_path) } catch(e) { message.warning('PDF 转换失败: ' + e.message) }
+      message.success(`已上传 ${imageFiles.length} 个文件，PDF 已转换为图片`)
+    } else {
+      message.success(`已上传 ${imageFiles.length} 张图片`)
+    }
     await handleScanDir()
     await loadStatus(selectedExamId.value)
   } catch (err) {
@@ -333,16 +355,17 @@ async function handleDetectTemplate(s) {
     ])
     const dataA = detectA.data
 
-    // B 面：带 A 面上下文检测（题号延续）
+    // B 面：分开请求避免一个失败全丢
     let dataB = null, blobB = null
     try {
-      const [detectB, blobBRes] = await Promise.all([
-        autoDetectCV(fileB, { priorRegions: dataA.regions }),
-        fetchScanImageBlob(fileB),
-      ])
-      dataB = detectB.data
-      blobB = blobBRes
-    } catch (_) { /* 无 B 面 */ }
+      blobB = await fetchScanImageBlob(fileB)
+    } catch (_) { /* B 面可能不存在 */ }
+    if (blobB) {
+      try {
+        const detectB = await autoDetectCV(fileB, { priorRegions: dataA.regions })
+        dataB = detectB.data
+      } catch (_) { /* B 面检测失败，静默跳过 */ }
+    }
 
     if ((!dataA.regions || dataA.regions.length === 0) && (!dataB?.regions || dataB.regions.length === 0)) {
       message.warning(`${s.subject_name}: 未检测到区域，可手动框选`)
@@ -626,6 +649,69 @@ function goToAiGrading(s) {
   router.push(`/exams/${selectedExamId.value}/ai-grading/${s.subject_id}`)
 }
 
+// --- 校对配置 ---
+const verifyShow = ref(false)
+const verifyLoading = ref(false)
+const verifyResult = ref(null)
+
+const STATUS_MAP = {
+  match: { label: '匹配', type: 'success' },
+  score_mismatch: { label: '分值不一致', type: 'warning' },
+  missing_question: { label: '缺少题目', type: 'error' },
+  missing_template: { label: '缺少区域', type: 'error' },
+}
+
+const verifyCols = [
+  { title: '题号', key: 'qno', width: 70 },
+  {
+    title: '模板（裁剪）',
+    key: 'template',
+    render: (row) => row.template
+      ? `${row.template.type === 'choice_group' ? '选择题' : '主观题'} / ${row.template.score}分`
+      : '-',
+  },
+  {
+    title: '题目（阅卷）',
+    key: 'question',
+    render: (row) => row.question
+      ? `${row.question.type} / ${row.question.max_score}分`
+      : '-',
+  },
+  {
+    title: '状态',
+    key: 'status',
+    width: 120,
+    render: (row) => {
+      const s = STATUS_MAP[row.status] || { label: row.status, type: 'default' }
+      return h(NTag, { size: 'small', type: s.type, bordered: false }, () => s.label)
+    },
+  },
+  {
+    title: '问题',
+    key: 'issues',
+    render: (row) => (row.issues || []).join('；') || '-',
+  },
+]
+
+function verifyRowClass(row) {
+  return row.status !== 'match' ? 'verify-mismatch-row' : ''
+}
+
+async function handleVerify(s) {
+  verifyShow.value = true
+  verifyLoading.value = true
+  verifyResult.value = null
+  try {
+    const res = await verifyTemplate(s.subject_id)
+    verifyResult.value = res.data
+  } catch (e) {
+    message.error(`校对失败: ${e.response?.data?.detail || e.message}`)
+    verifyShow.value = false
+  } finally {
+    verifyLoading.value = false
+  }
+}
+
 function toggleSubject(id, checked) {
   if (checked) {
     selectedSubjects.value.push(id)
@@ -755,4 +841,10 @@ function stageClass(stage) { return `tag-${stage}` }
 
 .scan-status { font-size: 12px; color: #16a34a; font-family: monospace; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .upload-hint { font-size: 12px; color: #aaa; margin-top: 6px; }
+
+.verify-summary { display: flex; align-items: center; gap: 16px; padding: 12px 0; margin-bottom: 8px; }
+.verify-ok { font-size: 16px; font-weight: 700; color: #16a34a; }
+.verify-bad { font-size: 16px; font-weight: 700; color: #dc2626; }
+.verify-total { font-size: 13px; color: #888; }
+:deep(.verify-mismatch-row td) { background: rgba(220,38,38,0.04) !important; }
 </style>

@@ -1,14 +1,30 @@
 import client from './client'
 
 export const uploadScanFolder = (examId, files, onProgress) => {
-  const BATCH = 50
+  const IMG_BATCH = 50
   let uploaded = 0
   const total = files.length
+  const pdfFiles = files.filter(f => /\.pdf$/i.test(f.name))
+  const imgFiles = files.filter(f => !/\.pdf$/i.test(f.name))
 
   return (async () => {
     let dirPath = null
-    for (let i = 0; i < files.length; i += BATCH) {
-      const batch = files.slice(i, i + BATCH)
+    // PDF: one file per request (large files)
+    for (const f of pdfFiles) {
+      const form = new FormData()
+      form.append('exam_id', examId)
+      form.append('files', f, f.webkitRelativePath || f.name)
+      const res = await client.post('/scan/pipeline/upload-folder', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 600000,
+      })
+      dirPath = res.data.dir_path
+      uploaded++
+      if (onProgress) onProgress(uploaded, total)
+    }
+    // Images: batch upload
+    for (let i = 0; i < imgFiles.length; i += IMG_BATCH) {
+      const batch = imgFiles.slice(i, i + IMG_BATCH)
       const form = new FormData()
       form.append('exam_id', examId)
       for (const f of batch) {
@@ -70,7 +86,7 @@ export const fetchScanImageBlob = (path) =>
   client.get('/scan/pipeline/scan-image', {
     params: { path },
     responseType: 'blob',
-    timeout: 30000,
+    timeout: 120000,
   }).then(res => URL.createObjectURL(res.data))
 
 export const getCVTemplate = (subjectId) =>
@@ -84,3 +100,9 @@ export const saveCVTemplate = (subjectId, side, regions, width, height) =>
     width,
     height,
   })
+
+export const verifyTemplate = (subjectId) =>
+  client.get('/scan/pipeline/verify-template', { params: { subject_id: subjectId } })
+
+export const pdfImport = (dirPath, pagesPerStudent = 2, dpi = 200) =>
+  client.post('/scan/pipeline/pdf-import', { dir_path: dirPath, pages_per_student: pagesPerStudent, dpi })

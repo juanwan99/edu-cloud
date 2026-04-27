@@ -233,7 +233,7 @@ async def upload_scan_folder(
             sub_dir = "未分类"
             fname = parts[-1]
 
-        if not fname.lower().endswith((".png", ".jpg", ".jpeg", ".bmp")):
+        if not fname.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".pdf")):
             continue
 
         target_dir = base_dir / sub_dir
@@ -249,6 +249,13 @@ async def upload_scan_folder(
 
 class ScanDirRequest(BaseModel):
     dir_path: str
+
+
+class PdfImportRequest(BaseModel):
+    dir_path: str
+    pages_per_student: int = 2
+    dpi: int = 200
+
 
 
 @router.post("/scan-dir")
@@ -481,6 +488,40 @@ async def start_pipeline(
     logger.info("Pipeline queued: subject=%s, dir=%s, files=%d, queue=%d",
                 subject.name, req.image_dir, len(files), queue_len)
     return {"status": "queued", "total_files": len(files), "queue_length": queue_len}
+
+
+
+@router.post("/pdf-import")
+async def import_pdf_to_images(
+    req: PdfImportRequest,
+    current: dict = Depends(get_current_user),
+):
+    """将目录中的 PDF 拆分为 PNG 图片，按 A/B 面命名。
+
+    用于批量扫描件（A3 双面 PDF）的预处理。
+    拆出的 PNG 可直接用于扫描流水线。
+    """
+    d = Path(req.dir_path)
+    if not d.is_dir():
+        raise HTTPException(400, f"目录不存在: {req.dir_path}")
+
+    pdfs = list(d.rglob("*.pdf"))
+    if not pdfs:
+        raise HTTPException(400, f"目录下没有 PDF 文件: {req.dir_path}")
+
+    created = pipeline_service.ensure_images_from_pdfs(
+        req.dir_path, req.pages_per_student, req.dpi,
+    )
+    a_count = sum(1 for f in d.rglob("*A.png"))
+    b_count = sum(1 for f in d.rglob("*B.png"))
+    return {
+        "created": created,
+        "total_images": a_count + b_count,
+        "a_side": a_count,
+        "b_side": b_count,
+        "pdf_count": len(pdfs),
+        "dir_path": req.dir_path,
+    }
 
 
 @router.get("/progress")
@@ -724,7 +765,7 @@ async def save_cv_template(
         try:
             qno_map[int(q.name)] = str(q.id)
         except (ValueError, TypeError):
-            pass
+            qno_map[q.name] = str(q.id)
 
     def _region_to_qtype(r):
         if r.get("type") == "choice_group":
@@ -743,30 +784,59 @@ async def save_cv_template(
             rows = r.get("rows", 0)
             for n in range(start, start + rows):
                 if n not in qno_map:
-                    new_q = Question(
-                        subject_id=req.subject_id,
-                        name=str(n),
-                        question_type="choice",
-                        max_score=r.get("score", 0),
-                        school_id=school_id,
-                    )
-                    db.add(new_q)
-                    await db.flush()
-                    qno_map[n] = str(new_q.id)
-                    logger.info("auto_create_question: subject=%s qno=%d type=choice", subject.name, n)
+                    existing_q = (await db.execute(
+                        select(Question).where(
+                            Question.subject_id == req.subject_id,
+                            Question.name == str(n),
+                        )
+                    )).scalar_one_or_none()
+                    if existing_q:
+                        qno_map[n] = str(existing_q.id)
+                    else:
+                        new_q = Question(
+                            subject_id=req.subject_id,
+                            name=str(n),
+                            question_type="choice",
+                            max_score=r.get("score", 0),
+                            school_id=school_id,
+                        )
+                        db.add(new_q)
+                        await db.flush()
+                        qno_map[n] = str(new_q.id)
+                        logger.info("auto_create_question: subject=%s qno=%d type=choice", subject.name, n)
         else:
             if qno not in qno_map:
-                new_q = Question(
-                    subject_id=req.subject_id,
-                    name=str(qno),
-                    question_type=_region_to_qtype(r),
-                    max_score=r.get("score", 0),
-                    school_id=school_id,
-                )
-                db.add(new_q)
-                await db.flush()
-                qno_map[qno] = str(new_q.id)
-                logger.info("auto_create_question: subject=%s qno=%d type=%s", subject.name, qno, new_q.question_type)
+                existing_q = (await db.execute(
+                    select(Question).where(
+                        Question.subject_id == req.subject_id,
+                        Question.name == str(qno),
+                    )
+                )).scalar_one_or_none()
+                if existing_q:
+                    qno_map[qno] = str(existing_q.id)
+                else:
+                    try:
+                        new_q = Question(
+                            subject_id=req.subject_id,
+                            name=str(qno),
+                            question_type=_region_to_qtype(r),
+                            max_score=r.get("score", 0),
+                            school_id=school_id,
+                        )
+                        db.add(new_q)
+                        await db.flush()
+                        qno_map[qno] = str(new_q.id)
+                        logger.info("auto_create_question: subject=%s qno=%s type=%s", subject.name, qno, new_q.question_type)
+                    except Exception:
+                        await db.rollback()
+                        existing_q = (await db.execute(
+                            select(Question).where(
+                                Question.subject_id == req.subject_id,
+                                Question.name == str(qno),
+                            )
+                        )).scalar_one_or_none()
+                        if existing_q:
+                            qno_map[qno] = str(existing_q.id)
 
         if qno in qno_map:
             r["question_id"] = qno_map[qno]
@@ -802,3 +872,88 @@ async def save_cv_template(
     logger.info("save_cv_template: subject=%s side=%s regions=%d",
                 subject.name, req.side, len(regions))
     return {"id": str(existing.id), "regions": len(regions)}
+
+
+@router.get("/verify-template")
+async def verify_template(
+    subject_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+):
+    """校对模板区域 vs 题目配置，返回不一致项。"""
+    templates = (await db.execute(
+        select(Template).where(Template.subject_id == subject_id)
+    )).scalars().all()
+
+    questions = (await db.execute(
+        select(Question).where(Question.subject_id == subject_id)
+    )).scalars().all()
+
+    tpl_items = {}
+    for tpl in templates:
+        for r in (tpl.regions or []):
+            if r.get("type") in ("barcode", "not_a_region"):
+                continue
+            qno = r.get("qno")
+            if not qno:
+                continue
+            key = str(qno)
+            if key not in tpl_items:
+                tpl_items[key] = {
+                    "qno": key,
+                    "type": r.get("type", "subjective"),
+                    "score": r.get("score", 0),
+                    "side": tpl.side,
+                }
+            elif r.get("score", 0) > tpl_items[key]["score"]:
+                tpl_items[key]["score"] = r.get("score", 0)
+
+    q_items = {}
+    for q in questions:
+        key = q.name
+        if key in q_items:
+            continue
+        q_items[key] = {
+            "qno": key,
+            "type": q.question_type,
+            "max_score": q.max_score or 0,
+        }
+
+    all_qnos = sorted(set(list(tpl_items.keys()) + list(q_items.keys())),
+                       key=lambda x: (int(x) if x.isdigit() else 999, x))
+
+    results = []
+    for qno in all_qnos:
+        t = tpl_items.get(qno)
+        q = q_items.get(qno)
+        status = "match"
+        issues = []
+
+        if t and not q:
+            status = "missing_question"
+            issues.append("模板有此区域，但题目表中无此题")
+        elif q and not t:
+            status = "missing_template"
+            issues.append("题目表有此题，但模板中无对应区域")
+        elif t and q:
+            if abs(t["score"] - q["max_score"]) > 0.01:
+                status = "score_mismatch"
+                issues.append(f'分值不一致：模板 {t["score"]} vs 题目 {q["max_score"]}')
+
+        results.append({
+            "qno": qno,
+            "template": t,
+            "question": q,
+            "status": status,
+            "issues": issues,
+        })
+
+    matched = sum(1 for r in results if r["status"] == "match")
+    total = len(results)
+    return {
+        "subject_id": subject_id,
+        "total": total,
+        "matched": matched,
+        "mismatched": total - matched,
+        "items": results,
+    }

@@ -4,6 +4,7 @@ OpenCV 负责精确像素坐标，LLM 只做分类和语义标签（qno/score/ty
 输出 type="subjective" 以兼容 pipeline_service 的切割过滤。
 """
 import base64
+import io
 import json
 import logging
 import re
@@ -378,11 +379,18 @@ async def _llm_label(
                 summary_parts.append(f'{rid}: 主观题 Q{pr.get("qno","?")} ({pr.get("score",0)}分)')
         prompt += SIDE_B_CONTEXT.format(A_SIDE_SUMMARY="\n".join(summary_parts))
 
-    with open(img_path, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode()
+    MAX_LLM_DIM = 1280
+    pil_img = Image.open(img_path)
+    if max(pil_img.size) > MAX_LLM_DIM:
+        pil_img.thumbnail((MAX_LLM_DIM, MAX_LLM_DIM), Image.LANCZOS)
+    buf = io.BytesIO()
+    pil_img.save(buf, format="JPEG", quality=85)
+    b64 = base64.b64encode(buf.getvalue()).decode()
+    logger.info("LLM image compressed: %dx%d → %dx%d, %d KB",
+                w, h, pil_img.size[0], pil_img.size[1], len(buf.getvalue()) // 1024)
 
     body = {
-        "model": "gemini-3.0-flash",
+        "model": "gemini-3-flash-preview",
         "messages": [
             {
                 "role": "user",
@@ -390,7 +398,7 @@ async def _llm_label(
                     {"type": "text", "text": prompt},
                     {
                         "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{b64}"},
+                        "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
                     },
                 ],
             }
@@ -400,7 +408,7 @@ async def _llm_label(
         "response_format": {"type": "json_object"},
     }
 
-    async with httpx.AsyncClient(timeout=180) as client:
+    async with httpx.AsyncClient(timeout=120) as client:
         try:
             resp = await client.post(
                 LLM_PROXY_URL, json=body, headers={"X-LLM-Slot": SLOT}
@@ -661,7 +669,7 @@ async def auto_detect_cv_regions(req: AutoDetectCVRequest) -> dict:
         result.append(region)
 
     # Merge horizontally adjacent regions with same qno (composition/作文)
-    from collections import Counter, defaultdict
+    from collections import defaultdict
     qno_groups: dict[int, list] = defaultdict(list)
     for r in result:
         if r.get("type") == "subjective" and r.get("qno"):
@@ -699,16 +707,19 @@ async def auto_detect_cv_regions(req: AutoDetectCVRequest) -> dict:
 
     result = [r for r in result if id(r) not in merged_ids]
 
-    # Handle remaining duplicate qno: rename IDs to Q17-1, Q17-2
-    qno_count: dict[int, int] = Counter()
-    for r in result:
-        if r.get("qno"):
-            qno_count[r["qno"]] += 1
+    # Handle remaining duplicate qno: keep first, auto-assign new qno to rest
+    seen_qno: dict[int, bool] = {}
+    all_qnos = {r.get("qno") for r in result if r.get("qno")}
     for r in result:
         qno = r.get("qno")
-        if qno and qno_count[qno] > 1:
-            seq = sum(1 for prev in result if prev.get("qno") == qno and id(prev) <= id(r))
-            r["id"] = f"Q{qno}-{seq}"
+        if not qno:
+            continue
+        if qno not in seen_qno:
+            seen_qno[qno] = True
+        else:
+            new_qno = max(all_qnos) + 1
+            all_qnos.add(new_qno)
+            r["qno"] = new_qno
 
     cgs = sorted(
         [r for r in result if r["type"] == "choice_group"],
@@ -731,6 +742,17 @@ async def auto_detect_cv_regions(req: AutoDetectCVRequest) -> dict:
         })
     all_barcodes = bc_regions + barcodes_llm
     result = all_barcodes + cgs + essays
+
+    # Ensure unique IDs
+    seen_ids = set()
+    for r in result:
+        rid = r.get("id", "")
+        if rid in seen_ids:
+            counter = 2
+            while f"{rid}_{counter}" in seen_ids:
+                counter += 1
+            r["id"] = f"{rid}_{counter}"
+        seen_ids.add(r["id"])
 
     info = (
         f"opencv:{len(rects)}rects,{len(bubble_hints)}bubbles,{len(barcode_rects)}barcodes; "
