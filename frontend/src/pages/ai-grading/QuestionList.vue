@@ -3,7 +3,7 @@
     <div class="panel-title">主观题列表</div>
     <div v-if="loading" class="loading-tip">加载中...</div>
     <div v-else-if="questions.length === 0" class="empty-tip">暂无主观题</div>
-    <n-button v-if="!loading" size="small" dashed block style="margin-bottom:8px" @click="$emit('add-question')">+ 添加题目</n-button>
+    <n-button v-if="!loading" size="small" block type="primary" ghost style="margin-bottom:8px;font-size:14px;font-weight:600" @click="$emit('add-question')">+ 添加题目</n-button>
     <div
       v-for="q in questions"
       :key="q.question_id"
@@ -12,7 +12,10 @@
       @click="$emit('select', q)"
     >
       <div class="q-row">
-        <span class="q-num">{{ q.name || q.question_name }}</span>
+        <span v-if="editingNameId !== q.question_id" class="q-num editable" @click.stop="$emit('start-edit-name', q)">{{ q.name || q.question_name }}</span>
+        <n-input v-else :value="q.name || q.question_name" size="small" style="width:48px;font-size:20px;font-weight:800;text-align:center"
+          @update:value="v => $emit('update-name-value', q, v)"
+          @blur="$emit('save-name', q)" @keyup.enter="$emit('save-name', q)" @click.stop />
         <div class="q-info">
           <div class="q-title">
             {{ q.question_type === 'essay' ? '主观题' : '填空题' }}
@@ -40,16 +43,17 @@
 </template>
 
 <script setup>
-import { NInputNumber } from 'naive-ui'
+import { NInput, NInputNumber } from 'naive-ui'
 
 defineProps({
   questions: { type: Array, default: () => [] },
   selectedQuestionId: { type: [String, Number], default: null },
   editingScoreId: { type: [String, Number], default: null },
+  editingNameId: { type: [String, Number], default: null },
   loading: { type: Boolean, default: false },
 })
 
-defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', 'add-question'])
+defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', 'add-question', 'start-edit-name', 'save-name', 'update-name-value'])
 </script>
 
 <style scoped>
@@ -104,6 +108,14 @@ defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', '
   text-align: center;
   flex-shrink: 0;
   line-height: 1;
+}
+.q-num.editable {
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.15s;
+}
+.q-num.editable:hover {
+  border-color: #8a9a8e;
 }
 
 .question-item.active .q-num {

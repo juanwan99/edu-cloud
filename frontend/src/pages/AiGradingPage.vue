@@ -34,6 +34,10 @@
         @save-score="saveScore"
         @update-score-value="handleUpdateScoreValue"
         @add-question="handleAddQuestion"
+        :editingNameId="editingNameId"
+        @start-edit-name="startEditName"
+        @save-name="saveName"
+        @update-name-value="handleUpdateNameValue"
       />
 
       <!-- 右侧：阅卷操作面板 -->
@@ -223,6 +227,19 @@ async function handleAddQuestion() {
     if (questions.value.length) selectQuestion(questions.value[questions.value.length - 1])
   } catch (e) {
     message.error(e.response?.data?.detail || '添加失败')
+  }
+}
+
+const editingNameId = ref(null)
+function startEditName(q) { editingNameId.value = q.question_id }
+function handleUpdateNameValue(q, v) { q.name = v }
+async function saveName(q) {
+  editingNameId.value = null
+  try {
+    await updateQuestion(q.question_id, { name: q.name })
+    message.success(`题号已更新为 ${q.name}`)
+  } catch (e) {
+    message.error(e.response?.data?.detail || '更新失败')
   }
 }
 
