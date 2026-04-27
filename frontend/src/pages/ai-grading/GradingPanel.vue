@@ -12,7 +12,7 @@
         <div v-else class="empty-tip">暂无题干</div>
         <div v-if="question.content_images?.length" class="image-row">
           <div v-for="(img, i) in question.content_images" :key="i" class="img-wrapper">
-            <img :src="img" class="content-img" alt="题目图片" />
+            <n-image :src="img" :width="240" object-fit="contain" class="content-img" />
             <span class="img-seq">{{ i + 1 }}</span>
             <n-button class="img-delete" size="tiny" circle type="error"
                       @click="$emit('remove-image', 'content', i)">&#x2715;</n-button>
@@ -29,7 +29,7 @@
         <div v-else class="empty-tip">暂无参考答案</div>
         <div v-if="question.reference_answer_images?.length" class="image-row">
           <div v-for="(img, i) in question.reference_answer_images" :key="i" class="img-wrapper">
-            <img :src="img" class="content-img" alt="答案图片" />
+            <n-image :src="img" :width="240" object-fit="contain" class="content-img" />
             <span class="img-seq">{{ i + 1 }}</span>
             <n-button class="img-delete" size="tiny" circle type="error"
                       @click="$emit('remove-image', 'answer', i)">&#x2715;</n-button>
@@ -89,7 +89,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { NCard, NButton, NSpace, NProgress } from 'naive-ui'
+import { NCard, NButton, NSpace, NProgress, NImage } from 'naive-ui'
 import RubricEditor from '../../components/RubricEditor.vue'
 
 const props = defineProps({
