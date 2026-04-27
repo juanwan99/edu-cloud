@@ -35,6 +35,20 @@
             <n-input-number size="small" :value="selectedRegion.score" @update:value="v => selectedRegion.score = v"
                             :min="0" :show-button="false" style="width:70px" />
           </template>
+          <template v-if="selectedRegion.type === 'choice_group'">
+            <span class="toolbar-label">起始题号</span>
+            <n-input-number size="small" :value="selectedRegion.start_no" @update:value="v => selectedRegion.start_no = v"
+                            :min="1" :show-button="false" style="width:60px" />
+            <span class="toolbar-label">行数</span>
+            <n-input-number size="small" :value="selectedRegion.rows" @update:value="v => selectedRegion.rows = v"
+                            :min="1" :show-button="false" style="width:60px" />
+            <span class="toolbar-label">列数</span>
+            <n-input-number size="small" :value="selectedRegion.cols" @update:value="v => selectedRegion.cols = v"
+                            :min="3" :max="6" :show-button="false" style="width:60px" />
+            <span class="toolbar-label">每题分值</span>
+            <n-input-number size="small" :value="selectedRegion.score" @update:value="v => selectedRegion.score = v"
+                            :min="0" :show-button="false" style="width:60px" />
+          </template>
         </template>
 
         <div style="flex:1" />
@@ -402,6 +416,12 @@ function deleteSelected() {
 function changeType(t) {
   if (!selectedRegion.value) return
   selectedRegion.value.type = t
+  if (t === 'choice_group') {
+    if (!selectedRegion.value.rows) selectedRegion.value.rows = 10
+    if (!selectedRegion.value.cols) selectedRegion.value.cols = 4
+    if (!selectedRegion.value.start_no) selectedRegion.value.start_no = 1
+    if (!selectedRegion.value.score) selectedRegion.value.score = 3
+  }
 }
 
 function handleConfirm() {
