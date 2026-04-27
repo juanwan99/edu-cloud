@@ -319,13 +319,22 @@ describe('GradingDispatchPage error handling', () => {
 
 describe('GradingDispatchPage file upload', () => {
   it('filters for image file extensions', () => {
-    expect(content).toContain('/\\.(png|jpg|jpeg|bmp)$/i')
+    expect(content).toContain('/\\.(png|jpg|jpeg|bmp|pdf)$/i')
   })
 
   it('warns when no image files found', () => {
-    expect(content).toContain("message.warning('未找到图片文件（支持 png/jpg/bmp）')")
+    expect(content).toContain("message.warning('未找到文件（支持 png/jpg/bmp/pdf）')")
   })
 
+
+  it('imports pdfImport from scan API', () => {
+    expect(content).toContain('pdfImport')
+  })
+
+  it('auto-converts PDFs after upload', () => {
+    expect(content).toContain('pdfCount')
+    expect(content).toContain('pdfImport(res.data.dir_path)')
+  })
   it('tracks upload progress', () => {
     expect(content).toContain('uploadProgress.value = `${done}/${total}`')
   })
