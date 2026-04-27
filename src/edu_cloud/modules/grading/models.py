@@ -96,6 +96,55 @@ class GradingResult(Base, IdMixin, TimestampMixin):
     version: Mapped[int] = mapped_column(Integer, default=1)
 
 
+class GradingPipelineLog(Base, IdMixin, TimestampMixin):
+    """AI 阅卷流水线结构化日志 — 每次评分尝试记录一条。"""
+    __tablename__ = "grading_pipeline_logs"
+    __table_args__ = (
+        Index("ix_pipeline_log_question", "question_id"),
+        Index("ix_pipeline_log_school", "school_id"),
+        Index("ix_pipeline_log_task", "task_id"),
+    )
+
+    answer_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("student_answers.id"), nullable=False, index=True,
+    )
+    question_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("questions.id"), nullable=False,
+    )
+    task_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("grading_tasks.id"), nullable=True, default=None,
+    )
+    school_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("schools.id"), nullable=False,
+    )
+
+    subject_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    question_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    pipeline_type: Mapped[str] = mapped_column(String(20))  # two_step / legacy / blank
+
+    image_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_blank: Mapped[bool] = mapped_column(default=False)
+
+    ocr_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    ocr_prompt_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    ocr_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    ocr_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ocr_blanks_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    char_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    grading_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    grading_prompt_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    grading_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    total_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    error_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class GradingAssignment(Base, IdMixin, TimestampMixin):
     """阅卷任务分配（题块级 + 支持双阅）。
 

@@ -56,51 +56,87 @@ async def _grade_single(
     llm,
     ad: dict,
     rubrics_by_question: dict,
-) -> tuple[dict | None, dict | None]:
+) -> tuple[dict | None, dict | None, dict]:
     """Grade a single answer using two-step pipeline: OCR -> text-based grading.
 
     Falls back to legacy single-step if subject prompts not available.
+    Returns (result_dict, error_dict, pipeline_log_dict).
     """
     answer_id = ad["answer_id"]
     question_id = ad["question_id"]
+    t_start = time.perf_counter()
+
+    plog = {
+        "answer_id": answer_id,
+        "question_id": question_id,
+        "subject_code": ad.get("subject_code", ""),
+        "question_type": ad.get("question_type", ""),
+        "pipeline_type": "unknown",
+        "is_blank": False,
+        "image_size_bytes": None,
+        "ocr_model": None, "ocr_prompt_type": None, "ocr_ms": None,
+        "ocr_text": None, "ocr_blanks_count": None, "char_count": None,
+        "grading_model": None, "grading_prompt_type": None, "grading_ms": None,
+        "total_ms": None, "score": None, "confidence": None,
+        "error_type": None, "error_message": None,
+    }
 
     rubric_criteria = rubrics_by_question.get(question_id)
     if rubric_criteria is None:
         logger.warning("grading_task: no rubric for question=%s", question_id)
-        return None, {"answer_id": answer_id, "error": f"No rubric for question {question_id}"}
+        plog["pipeline_type"] = "error"
+        plog["error_type"] = "no_rubric"
+        plog["error_message"] = f"No rubric for question {question_id}"
+        plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+        return None, {"answer_id": answer_id, "error": plog["error_message"]}, plog
 
     try:
         image_b64 = await _read_image_b64(ad["image_path"])
+        plog["image_size_bytes"] = len(image_b64) * 3 // 4
 
-        # Blank detection: skip LLM for likely blank images (< 5KB base64)
+        # Blank detection
         if len(image_b64) < 6800:
+            plog["pipeline_type"] = "blank"
+            plog["is_blank"] = True
+            plog["score"] = 0
+            plog["confidence"] = 1.0
+            plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
             return {
                 "answer_id": answer_id, "question_id": question_id,
                 "score": 0, "max_score": ad["question_max_score"],
                 "feedback": "空白卷", "confidence": 1.0, "raw_content": "",
-            }, None
+            }, None, plog
 
         subject = ad.get("subject_code", "")
         from edu_cloud.modules.grading.prompts import get_prompt, render_prompt
 
-        # Check if GRADING_TEXT prompt exists for this subject
         grading_prompt_tpl = get_prompt(subject, "GRADING_TEXT", "senior")
         if grading_prompt_tpl is None:
-            # Fallback to legacy single-step grading (no subject-specific prompts)
+            plog["pipeline_type"] = "legacy"
+            plog["grading_model"] = llm.model
+            plog["grading_prompt_type"] = "legacy_multimodal"
+            t_grade = time.perf_counter()
             grade_result = await llm.grade(
                 images_b64=image_b64,
                 rubric={"criteria": rubric_criteria},
                 question={"name": ad["question_name"], "max_score": ad["question_max_score"]},
                 question_type=ad.get("question_type"),
             )
+            plog["grading_ms"] = int((time.perf_counter() - t_grade) * 1000)
+            plog["score"] = grade_result.score
+            plog["confidence"] = grade_result.confidence
+            plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
             return {
                 "answer_id": answer_id, "question_id": question_id,
                 "score": grade_result.score, "max_score": grade_result.max_score,
                 "feedback": grade_result.feedback, "confidence": grade_result.confidence,
                 "raw_content": grade_result.raw_content,
-            }, None
+            }, None, plog
 
-        # Two-step path: OCR first, then text-based grading
+        # Two-step path
+        plog["pipeline_type"] = "two_step"
+        plog["ocr_model"] = llm.model
+        plog["grading_model"] = llm.model
         from edu_cloud.modules.grading.rubric_formatter import format_rubric_for_grading
 
         rubric_text = format_rubric_for_grading(rubric_criteria)
@@ -108,20 +144,26 @@ async def _grade_single(
 
         # Step 1: OCR
         ocr_prompt = get_prompt(subject, "OCR_STRUCTURED", "senior") or get_prompt(subject, "OCR", "senior")
+        plog["ocr_prompt_type"] = "OCR_STRUCTURED" if get_prompt(subject, "OCR_STRUCTURED", "senior") else "OCR"
         if ocr_prompt:
             structure = "\n".join(f"- {c.get('blankNo', '?')}: {c.get('subQ', '')}" for c in rubric_criteria)
             ocr_prompt = render_prompt(ocr_prompt, {"rubricStructure": structure})
         else:
             from edu_cloud.modules.grading.prompts.base import OCR_PROMPT_BASE
             ocr_prompt = OCR_PROMPT_BASE
+            plog["ocr_prompt_type"] = "OCR_BASE"
 
+        t_ocr = time.perf_counter()
         blanks = await llm.extract_text(images_b64=[image_b64], prompt=ocr_prompt)
+        plog["ocr_ms"] = int((time.perf_counter() - t_ocr) * 1000)
 
         from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
         blanks = validate_ocr_blanks(blanks)
         blanks = recover_truncated_blanks(blanks, len(rubric_criteria))
 
         extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
+        plog["ocr_text"] = extracted_text
+        plog["ocr_blanks_count"] = len(blanks)
 
         # Character count for essay questions
         char_stats = ""
@@ -130,12 +172,14 @@ async def _grade_single(
             raw_text = "".join(b.get("text", "") for b in blanks)
             cn_chars = len(re.findall(r'[一-鿿]', raw_text))
             en_words = len(re.findall(r'[a-zA-Z]+', raw_text))
+            plog["char_count"] = cn_chars if cn_chars > en_words else en_words
             if cn_chars > en_words:
                 char_stats = f"【字数统计】{cn_chars}字（基于OCR精确统计，请据此判断是否达到字数要求）"
             else:
                 char_stats = f"【字数统计】{en_words}词（基于OCR精确统计，请据此判断是否达到词数要求）"
 
         # Step 2: Grade text
+        plog["grading_prompt_type"] = "GRADING_TEXT"
         grading_prompt = render_prompt(grading_prompt_tpl, {
             "fullScore": full_score,
             "rubric": rubric_text,
@@ -143,18 +187,27 @@ async def _grade_single(
             "charStats": char_stats,
         })
 
+        t_grade = time.perf_counter()
         grade_result = await llm.grade_text(prompt=grading_prompt, max_score=ad["question_max_score"])
+        plog["grading_ms"] = int((time.perf_counter() - t_grade) * 1000)
+        plog["score"] = grade_result.score
+        plog["confidence"] = grade_result.confidence
+        plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
 
         return {
             "answer_id": answer_id, "question_id": question_id,
             "score": grade_result.score, "max_score": grade_result.max_score,
             "feedback": grade_result.feedback, "confidence": grade_result.confidence,
             "raw_content": grade_result.raw_content,
-        }, None
+        }, None, plog
 
     except (ValueError, KeyError, TypeError, RuntimeError) as e:
         logger.warning("grading_task: answer=%s FAILED: %s", answer_id, e)
-        return None, {"answer_id": answer_id, "error": str(e)}
+        plog["pipeline_type"] = plog["pipeline_type"] if plog["pipeline_type"] != "unknown" else "error"
+        plog["error_type"] = type(e).__name__
+        plog["error_message"] = str(e)
+        plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+        return None, {"answer_id": answer_id, "error": str(e)}, plog
 
 
 async def _grade_with_semaphore(llm, ad, rubrics):
@@ -296,15 +349,42 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                 coros = [_grade_with_semaphore(llm, ad, rubrics_by_question) for ad in batch]
                 batch_results = await asyncio.gather(*coros)
 
-                # Write results to DB (sequential DB writes within each batch)
+                # Write results + pipeline logs to DB
+                from edu_cloud.modules.grading.models import GradingPipelineLog
                 batch_completed = 0
                 batch_failed = 0
-                for result_dict, error_dict in batch_results:
+                for result_dict, error_dict, plog in batch_results:
+                    # Always write pipeline log
+                    db.add(GradingPipelineLog(
+                        answer_id=plog["answer_id"],
+                        question_id=plog["question_id"],
+                        task_id=task.id,
+                        school_id=task.school_id,
+                        subject_code=plog.get("subject_code"),
+                        question_type=plog.get("question_type"),
+                        pipeline_type=plog["pipeline_type"],
+                        image_size_bytes=plog.get("image_size_bytes"),
+                        is_blank=plog.get("is_blank", False),
+                        ocr_model=plog.get("ocr_model"),
+                        ocr_prompt_type=plog.get("ocr_prompt_type"),
+                        ocr_ms=plog.get("ocr_ms"),
+                        ocr_text=plog.get("ocr_text"),
+                        ocr_blanks_count=plog.get("ocr_blanks_count"),
+                        char_count=plog.get("char_count"),
+                        grading_model=plog.get("grading_model"),
+                        grading_prompt_type=plog.get("grading_prompt_type"),
+                        grading_ms=plog.get("grading_ms"),
+                        total_ms=plog.get("total_ms"),
+                        score=plog.get("score"),
+                        confidence=plog.get("confidence"),
+                        error_type=plog.get("error_type"),
+                        error_message=plog.get("error_message"),
+                    ))
+
                     if error_dict is not None:
                         errors.append(error_dict)
                         batch_failed += 1
                     else:
-                        # Parse details from raw response
                         details = None
                         try:
                             raw_parsed = json.loads(result_dict["raw_content"])

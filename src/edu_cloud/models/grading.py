@@ -3,6 +3,7 @@ from edu_cloud.modules.grading.models import (  # noqa: F401
     Rubric,
     GradingTask,
     GradingResult,
+    GradingPipelineLog,
     GradingAssignment,
     GradingQualityCheck,
 )
