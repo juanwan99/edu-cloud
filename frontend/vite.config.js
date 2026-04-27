@@ -32,6 +32,8 @@ export default defineConfig({
           'echarts': ['echarts', 'vue-echarts'],
           'vue-vendor': ['vue', 'vue-router', 'pinia'],
           'marked-katex': ['marked', 'katex'],
+          'antv-g6': ['@antv/g6'],
+          'html2canvas': ['html2canvas'],
         },
       },
     },

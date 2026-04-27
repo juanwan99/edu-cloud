@@ -25,14 +25,12 @@ const aiPanelOpen = ref(false)
 const route = useRoute()
 const auth = useAuthStore()
 
-// Hydrate enabled modules on page refresh (F-03 fix)
 onMounted(() => {
   if (auth.token && auth.currentRole?.school_id && !auth.modulesLoaded) {
     auth.loadModules()
   }
 })
 
-// Close AI panel on route change (e.g. "open in workbench" link)
 watch(() => route.path, () => { aiPanelOpen.value = false })
 </script>
 
