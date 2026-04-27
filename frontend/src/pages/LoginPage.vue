@@ -1,54 +1,58 @@
 <template>
   <div class="login-container">
-    <div class="brand-area">
-      <div class="brand-logo">
+    <div class="login-decor login-decor--1" />
+    <div class="login-decor login-decor--2" />
+    <div class="login-decor login-decor--3" />
+
+    <div class="login-content">
+      <div class="brand-area">
         <div class="logo-circle">
           <span class="logo-icon">E</span>
         </div>
+        <div class="brand-name">教育云平台</div>
+        <div class="brand-subtitle">智 慧 校 园 管 理 系 统</div>
       </div>
-      <div class="brand-name">教育云平台</div>
-      <div class="brand-subtitle">智慧校园管理系统</div>
-    </div>
 
-    <n-card style="max-width: 420px; width: 100%;" :bordered="false" class="login-card">
-      <n-tabs v-model:value="activeTab" type="segment" animated style="margin-bottom: 20px;">
-        <n-tab-pane name="teacher" tab="教师登录" />
-        <n-tab-pane name="admin" tab="管理员登录" />
-      </n-tabs>
+      <n-card class="login-card" :bordered="false">
+        <n-tabs v-model:value="activeTab" type="segment" animated style="margin-bottom: 24px;">
+          <n-tab-pane name="teacher" tab="教师登录" />
+          <n-tab-pane name="admin" tab="管理员登录" />
+        </n-tabs>
 
-      <n-alert v-if="error" type="error" :show-icon="true" closable style="margin-bottom: 16px;" @close="error = ''">
-        {{ error }}
-      </n-alert>
+        <n-alert v-if="error" type="error" :show-icon="true" closable style="margin-bottom: 16px;" @close="error = ''">
+          {{ error }}
+        </n-alert>
 
-      <n-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleLogin">
-        <n-form-item label="用户名" path="username">
-          <n-input v-model:value="form.username" placeholder="请输入用户名" :input-props="{ autocomplete: 'username' }" />
-        </n-form-item>
-        <n-form-item label="密码" path="password">
-          <n-input v-model:value="form.password" type="password" placeholder="请输入密码" show-password-on="click" :input-props="{ autocomplete: 'current-password' }" @keyup.enter="handleLogin" />
-        </n-form-item>
+        <n-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleLogin">
+          <n-form-item label="用户名" path="username">
+            <n-input v-model:value="form.username" placeholder="请输入用户名" :input-props="{ autocomplete: 'username' }" />
+          </n-form-item>
+          <n-form-item label="密码" path="password">
+            <n-input v-model:value="form.password" type="password" placeholder="请输入密码" show-password-on="click" :input-props="{ autocomplete: 'current-password' }" @keyup.enter="handleLogin" />
+          </n-form-item>
 
-        <div style="margin-bottom: 16px;">
-          <n-checkbox v-model:checked="rememberUsername">记住用户名</n-checkbox>
+          <div style="margin-bottom: 20px;">
+            <n-checkbox v-model:checked="rememberUsername">记住用户名</n-checkbox>
+          </div>
+
+          <n-button type="primary" block :loading="loading" @click="handleLogin" class="login-btn">
+            {{ loading ? '登录中...' : '登 录' }}
+          </n-button>
+        </n-form>
+
+        <div class="login-hint">
+          忘记密码？请联系管理员重置
         </div>
+      </n-card>
 
-        <n-button type="primary" block :loading="loading" @click="handleLogin">
-          {{ loading ? '登录中...' : '登录' }}
-        </n-button>
-      </n-form>
-
-      <div style="margin-top: 12px; text-align: center; font-size: 13px; color: rgba(255,255,255,0.35);">
-        忘记密码？请联系管理员重置
+      <div class="login-footer">
+        &copy; {{ new Date().getFullYear() }} edu-cloud · 教育云平台
       </div>
-    </n-card>
-
-    <div class="login-footer">
-      &copy; {{ new Date().getFullYear() }} 教育云平台
     </div>
 
     <Transition name="login-success">
       <div v-if="showSuccess" class="success-overlay">
-        <div class="success-icon">&#10003;</div>
+        <div class="success-check">&#10003;</div>
         <div class="success-text">登录成功</div>
       </div>
     </Transition>
@@ -121,71 +125,132 @@ async function handleLogin() {
 <style scoped>
 .login-container {
   min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background: #f9fafb;
+}
+
+.login-content {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  padding: 24px 16px;
+}
+
+/* 装饰圆 */
+.login-decor {
+  position: absolute;
+  border-radius: 50%;
+  animation: floatSlow 20s ease-in-out infinite;
+}
+
+.login-decor--1 {
+  width: 500px;
+  height: 500px;
+  top: -120px;
+  right: -100px;
+  background: radial-gradient(circle, #e8f8ee 0%, transparent 70%);
+}
+
+.login-decor--2 {
+  width: 400px;
+  height: 400px;
+  bottom: -80px;
+  left: -60px;
+  background: radial-gradient(circle, #fef3c7 0%, transparent 70%);
+  animation-delay: -7s;
+}
+
+.login-decor--3 {
+  width: 200px;
+  height: 200px;
+  top: 40%;
+  left: 10%;
+  background: radial-gradient(circle, #ede9fe 0%, transparent 70%);
+  animation-delay: -13s;
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(15px, -20px); }
+  66% { transform: translate(-10px, 15px); }
 }
 
 .brand-area {
   text-align: center;
-  margin-bottom: 32px;
-}
-
-.brand-logo {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 12px;
+  margin-bottom: 36px;
 }
 
 .logo-circle {
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #63e2b7, #36d1a0);
+  background: linear-gradient(135deg, #1a2e1f, #2d5a3d);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 24px rgba(99, 226, 183, 0.3);
+  margin: 0 auto 16px;
+  box-shadow: 0 8px 24px rgba(26, 46, 31, 0.15);
 }
 
 .logo-icon {
-  font-size: 36px;
+  font-size: 34px;
   font-weight: 800;
-  color: #1a1a2e;
+  color: #fff;
 }
 
 .brand-name {
   font-size: 28px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.95);
+  font-weight: 800;
+  color: #1a2e1f;
+  letter-spacing: -0.02em;
   margin-bottom: 4px;
 }
 
 .brand-subtitle {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.45);
-  letter-spacing: 4px;
+  font-size: 13px;
+  color: #8a9a8e;
+  letter-spacing: 3px;
 }
 
 .login-card {
-  background: rgba(255, 255, 255, 0.05) !important;
-  backdrop-filter: blur(10px);
-  border-radius: 16px !important;
+  max-width: 420px;
+  width: 100%;
+  background: #ffffff !important;
+  border-radius: 20px !important;
+  box-shadow: 0 4px 24px rgba(26, 46, 31, 0.06);
+  padding: 8px 4px;
+}
+
+.login-btn {
+  height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.login-hint {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #8a9a8e;
 }
 
 .login-footer {
-  margin-top: 40px;
+  margin-top: 48px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.25);
+  color: #8a9a8e;
 }
 
+/* 成功遮罩 */
 .success-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(26, 26, 46, 0.95);
+  background: rgba(255, 255, 255, 0.95);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -193,22 +258,24 @@ async function handleLogin() {
   z-index: 999;
 }
 
-.success-icon {
+.success-check {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: #63e2b7;
-  color: #1a1a2e;
-  font-size: 36px;
+  background: linear-gradient(135deg, #1a2e1f, #2d5a3d);
+  color: #fff;
+  font-size: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 16px;
+  box-shadow: 0 8px 24px rgba(26, 46, 31, 0.15);
 }
 
 .success-text {
   font-size: 18px;
-  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  color: #1a2e1f;
 }
 
 .login-success-enter-active { transition: opacity 0.3s ease; }
