@@ -3,7 +3,7 @@
     <div class="panel-title">主观题列表</div>
     <div v-if="loading" class="loading-tip">加载中...</div>
     <div v-else-if="questions.length === 0" class="empty-tip">暂无主观题</div>
-    <n-button v-if="!loading" size="medium" block type="primary" dashed style="margin-bottom:10px;font-size:14px;font-weight:700;letter-spacing:1px" @click="$emit('add-question')">+ 添加题目</n-button>
+    <n-button v-if="!loading" size="medium" block dashed style="margin-bottom:10px;font-size:14px;font-weight:700;letter-spacing:1px;color:#4ade80;border-color:#4ade80" @click="$emit('add-question')">+ 添加题目</n-button>
     <div
       v-for="q in questions"
       :key="q.question_id"
