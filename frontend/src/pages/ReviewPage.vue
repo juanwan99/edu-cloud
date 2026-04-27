@@ -8,7 +8,7 @@
       <div class="topbar-info">
         <span class="topbar-question">{{ questionName }}</span>
         <n-tag type="info" round size="small">满分 {{ maxScore }}</n-tag>
-        <n-button-group v-if="canManageGrading" size="small">
+        <n-button-group size="small">
           <n-button :type="reviewMode === 'ungraded' ? 'primary' : 'default'" @click="switchMode('ungraded')">待阅</n-button>
           <n-button :type="reviewMode === 'ai_review' ? 'primary' : 'default'" @click="switchMode('ai_review')">AI 复核</n-button>
         </n-button-group>
