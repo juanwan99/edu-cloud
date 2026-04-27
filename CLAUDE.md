@@ -88,7 +88,7 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 # 后端 ECS pytest 实测 @ 2026-04-26：2199 passed / 21 failed（既有债）/ 23 skipped
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
-# 前端 Vitest + happy-dom（frontend/ 1417 tests @ 2026-04-27）
+# 前端 Vitest + happy-dom（frontend/ 1853 tests @ 2026-04-27）
 cd /home/ops/projects/edu-cloud/frontend && npx vitest run
 ```
 <!-- key-end -->
@@ -338,7 +338,7 @@ tests/
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 10 角色映射 | — |
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
-| Tests | 2199 passed / 21 failed（既有债）后端 + 1417 前端 Vitest（ECS 实测 @ 2026-04-27） | — |
+| Tests | 2199 passed / 21 failed（既有债）后端 + 1853 前端 Vitest（ECS 实测 @ 2026-04-27） | — |
 | Modules | 21 模块目录，路由已迁入。技术债 H-01 拆分后：`card` 含 `router.py`(839行) + `card_template_router.py`(230行) + `card_export_router.py`(326行)；`grading` 含 `router.py`(520行) + `grading_review_router.py`(396行) + `prompts/` 子包；`analytics` 含 `router.py`(220行) + `analytics_report_router.py`(585行)。详见 `docs/2026-04-26-tech-debt-audit.md` §修复记录 | — |
 | Migrations | Alembic migration（88 表，31 个迁移，含 S1-A T2 `a88094ee4ea6` bank_question +5 列） | — |
 
