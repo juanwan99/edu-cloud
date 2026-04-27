@@ -107,6 +107,9 @@
             {{ verifyResult.mismatched ? `${verifyResult.mismatched} 项不一致` : '全部匹配' }}
           </span>
           <span class="verify-total">共 {{ verifyResult.total }} 题，匹配 {{ verifyResult.matched }}</span>
+          <n-button v-if="orphanQnos.length" size="small" type="error" @click="handleDeleteOrphans">
+            删除 {{ orphanQnos.length }} 个多余题目
+          </n-button>
         </div>
         <n-data-table size="small" :columns="verifyCols" :data="verifyResult.items" :row-class-name="verifyRowClass"
                       max-height="55vh" :bordered="false" />
@@ -124,7 +127,7 @@ import { useAuthStore } from '../stores/auth'
 import { SCHOOL_ADMIN_ROLES } from '../config/roles.js'
 import { listExams } from '../api/exams'
 import { getDispatchStatus, createTask } from '../api/grading'
-import { uploadScanFolder, pdfImport, scanDirectory, startPipeline, getPipelineProgress, stopPipeline, autoDetectCV, saveCVTemplate, getCVTemplate, fetchScanImageBlob, verifyTemplate } from '../api/scan'
+import { uploadScanFolder, pdfImport, scanDirectory, startPipeline, getPipelineProgress, stopPipeline, autoDetectCV, saveCVTemplate, getCVTemplate, fetchScanImageBlob, verifyTemplate, deleteOrphanQuestions } from '../api/scan'
 import TemplatePreviewEditor from '../components/TemplatePreviewEditor.vue'
 import SubjectStatusCard from './grading-dispatch/SubjectStatusCard.vue'
 import ScanSection from './grading-dispatch/ScanSection.vue'
@@ -701,10 +704,18 @@ function verifyRowClass(row) {
   return row.status !== 'match' ? 'verify-mismatch-row' : ''
 }
 
+const verifySubjectId = ref(null)
+const orphanQnos = computed(() =>
+  (verifyResult.value?.items || [])
+    .filter(i => i.status === 'missing_template')
+    .map(i => i.qno)
+)
+
 async function handleVerify(s) {
   verifyShow.value = true
   verifyLoading.value = true
   verifyResult.value = null
+  verifySubjectId.value = s.subject_id
   try {
     const res = await verifyTemplate(s.subject_id)
     verifyResult.value = res.data
@@ -713,6 +724,18 @@ async function handleVerify(s) {
     verifyShow.value = false
   } finally {
     verifyLoading.value = false
+  }
+}
+
+async function handleDeleteOrphans() {
+  if (!orphanQnos.value.length || !verifySubjectId.value) return
+  try {
+    const res = await deleteOrphanQuestions(verifySubjectId.value, orphanQnos.value)
+    message.success(`已删除 ${res.data.deleted} 个多余题目`)
+    const fresh = await verifyTemplate(verifySubjectId.value)
+    verifyResult.value = fresh.data
+  } catch (e) {
+    message.error(`删除失败: ${e.response?.data?.detail || e.message}`)
   }
 }
 

@@ -104,5 +104,8 @@ export const saveCVTemplate = (subjectId, side, regions, width, height) =>
 export const verifyTemplate = (subjectId) =>
   client.get('/scan/pipeline/verify-template', { params: { subject_id: subjectId } })
 
+export const deleteOrphanQuestions = (subjectId, qnos) =>
+  client.delete('/scan/pipeline/orphan-questions', { params: { subject_id: subjectId, qnos: qnos.join(',') } })
+
 export const pdfImport = (dirPath, pagesPerStudent = 2, dpi = 200) =>
   client.post('/scan/pipeline/pdf-import', { dir_path: dirPath, pages_per_student: pagesPerStudent, dpi })

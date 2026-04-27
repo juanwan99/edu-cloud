@@ -912,11 +912,13 @@ async def verify_template(
     for q in questions:
         key = q.name
         if key in q_items:
+            q_items[key]["ids"].append(str(q.id))
             continue
         q_items[key] = {
             "qno": key,
             "type": q.question_type,
             "max_score": q.max_score or 0,
+            "ids": [str(q.id)],
         }
 
     all_qnos = sorted(set(list(tpl_items.keys()) + list(q_items.keys())),
@@ -957,3 +959,32 @@ async def verify_template(
         "mismatched": total - matched,
         "items": results,
     }
+
+
+@router.delete("/orphan-questions")
+async def delete_orphan_questions(
+    subject_id: str,
+    qnos: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+):
+    """删除模板中不存在的多余题目。qnos 逗号分隔。"""
+    qno_list = [q.strip() for q in qnos.split(",") if q.strip()]
+    if not qno_list:
+        return {"deleted": 0}
+
+    to_delete = (await db.execute(
+        select(Question).where(
+            Question.subject_id == subject_id,
+            Question.name.in_(qno_list),
+        )
+    )).scalars().all()
+
+    count = 0
+    for q in to_delete:
+        await db.delete(q)
+        count += 1
+
+    await db.commit()
+    logger.info("delete_orphan_questions: subject=%s qnos=%s deleted=%d", subject_id, qnos, count)
+    return {"deleted": count}

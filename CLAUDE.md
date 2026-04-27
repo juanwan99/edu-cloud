@@ -524,11 +524,13 @@ tests/
 | POST | `/api/v1/scan/pipeline/auto-detect-cv` | OpenCV+LLM 混合检测答题卡区域（VIEW_GRADING） |
 | GET | `/api/v1/scan/pipeline/cv-template` | 查询科目已有 CV 检测 Template（A/B 面，VIEW_GRADING） |
 | POST | `/api/v1/scan/pipeline/save-cv-template` | 保存检测结果为 Template（VIEW_GRADING，自动创建 choice/essay Question） |
+| GET | `/api/v1/scan/pipeline/verify-template` | 校对模板区域 vs 题目配置一致性（VIEW_GRADING，返回逐题对比+不一致项） |
 | * | `/api/v1/grading/*` | AI 阅卷/评分规则/教师审核 |
 | GET | `/api/v1/grading/dispatch/status` | 科目阅卷状态聚合（exam_id 查询参数，返回各科目 subject_code/stage/统计+questions 逐题明细；stage: idle→pending_detect→pending_cut→cutting→ready→ai_grading→reviewing→done） |
 | POST | `/api/v1/grading/rubrics` | 创建/更新评分细则（MANAGE_GRADING，criteria 校验：blankNo/score/answer 必填+总分守恒） |
 | GET | `/api/v1/grading/rubrics/{question_id}` | 获取题目评分细则 |
 | POST | `/api/v1/grading/rubrics/generate` | AI 生成评分细则（MANAGE_GRADING，题干+答案+图片→LLM→criteria，upsert Rubric） |
+| POST | `/api/v1/grading/grade-single` | 同步单答卷 AI 评分（MANAGE_GRADING，用于质量抽检，复用 OCR→评分 pipeline） |
 | POST | `/api/v1/grading/tasks` | 创建 AI 阅卷任务（支持 question_id 题目级；前置校验：归属/主观题/Rubric/Answer；重跑清理 ai_pending/ai_done、保护 confirmed）|
 | GET | `/api/v1/grading/tasks` | 列出本校 AI 阅卷任务 |
 | GET | `/api/v1/grading/tasks/{task_id}` | 阅卷任务详情 |
@@ -538,7 +540,7 @@ tests/
 | GET | `/api/v1/grading/quality-report/{exam_id}` | 质量检查报告（VIEW_GRADING） |
 | POST | `/api/v1/exams/{id}/publish` | 发布成绩（MANAGE_EXAM_RESULTS，前置条件检查） |
 | POST | `/api/v1/exams/{id}/archive` | 归档考试（MANAGE_EXAM_RESULTS） |
-| * | `/api/v1/marking/*` | 人工阅卷/分配（一题多人+answer_count 配额+DELETE /assignments/{id}）/导出 |
+| * | `/api/v1/marking/*` | 人工阅卷/分配（一题多人+answer_count 配额+DELETE /assignments/{id}）/导出；GET /next 支持 mode=ai_review 浏览 AI 已阅答卷 |
 | * | `/api/v1/analytics/*` | 统计分析（摘要/分布/题目/年级，支持 subject_id 单参数查询） |
 | GET | `/api/v1/analytics/segments/config` | MANAGE_SCHOOL_SETTINGS | 获取本校分数段配置（默认+科目覆盖） |
 | PUT | `/api/v1/analytics/segments/config` | MANAGE_SCHOOL_SETTINGS | 创建/更新分数段配置（upsert） |
