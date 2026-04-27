@@ -3,7 +3,7 @@
     <div class="panel-title">主观题列表</div>
     <div v-if="loading" class="loading-tip">加载中...</div>
     <div v-else-if="questions.length === 0" class="empty-tip">暂无主观题</div>
-    <n-button v-if="!loading" size="small" block type="primary" ghost style="margin-bottom:8px;font-size:14px;font-weight:600" @click="$emit('add-question')">+ 添加题目</n-button>
+    <n-button v-if="!loading" size="medium" block type="primary" dashed style="margin-bottom:10px;font-size:14px;font-weight:700;letter-spacing:1px" @click="$emit('add-question')">+ 添加题目</n-button>
     <div
       v-for="q in questions"
       :key="q.question_id"
@@ -70,9 +70,9 @@ defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', '
 }
 
 .panel-title {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
-  color: #8a9a8e;
+  color: #d0dcd2;
   margin-bottom: 10px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border-color, #2e3e34);
@@ -181,11 +181,11 @@ defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', '
   margin-top: 4px;
 }
 .q-del {
-  font-size: 11px; color: #8a9a8e; cursor: pointer;
+  font-size: 14px; color: #8a9a8e; cursor: pointer;
   opacity: 0; transition: opacity 0.15s; text-decoration: none;
-  flex-shrink: 0; padding: 2px 4px;
+  flex-shrink: 0; padding: 4px 6px; font-weight: 700;
 }
-.question-item:hover .q-del { opacity: 0.5; }
+.question-item:hover .q-del { opacity: 0.7; }
 .q-del:hover { opacity: 1 !important; color: #f87171; }
 
 .loading-tip {
