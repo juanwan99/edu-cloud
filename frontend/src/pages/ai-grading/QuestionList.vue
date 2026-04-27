@@ -38,6 +38,7 @@
             {{ q.graded_count }}/{{ q.answer_count }} 已阅
           </div>
         </div>
+        <a class="q-del" @click.stop="$emit('delete-question', q)" title="删除题目">✕</a>
       </div>
     </div>
   </div>
@@ -55,7 +56,7 @@ defineProps({
   loading: { type: Boolean, default: false },
 })
 
-defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', 'add-question', 'start-edit-name', 'save-name', 'update-name-value'])
+defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', 'add-question', 'start-edit-name', 'save-name', 'update-name-value', 'delete-question'])
 </script>
 
 <style scoped>
@@ -179,6 +180,13 @@ defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', '
   color: #b0c0b4;
   margin-top: 4px;
 }
+.q-del {
+  font-size: 11px; color: #8a9a8e; cursor: pointer;
+  opacity: 0; transition: opacity 0.15s; text-decoration: none;
+  flex-shrink: 0; padding: 2px 4px;
+}
+.question-item:hover .q-del { opacity: 0.5; }
+.q-del:hover { opacity: 1 !important; color: #f87171; }
 
 .loading-tip {
   font-size: 13px;

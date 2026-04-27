@@ -39,6 +39,7 @@
         @start-edit-name="startEditName"
         @save-name="saveName"
         @update-name-value="handleUpdateNameValue"
+        @delete-question="handleDeleteQuestion"
       />
 
       <!-- 右侧：阅卷操作面板 -->
@@ -88,7 +89,7 @@ import { useRoute } from 'vue-router'
 import { useMessage, NButton } from 'naive-ui'
 import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
 import { listExams } from '../api/exams'
-import { createQuestion, updateQuestion } from '../api/questions'
+import { createQuestion, updateQuestion, deleteQuestion } from '../api/questions'
 import { listSubjects } from '../api/subjects'
 import QuestionContentModal from '../components/QuestionContentModal.vue'
 import DocCropPanel from '../components/DocCropPanel.vue'
@@ -229,6 +230,22 @@ async function handleAddQuestion() {
     if (questions.value.length) selectQuestion(questions.value[questions.value.length - 1])
   } catch (e) {
     message.error(e.response?.data?.detail || '添加失败')
+  }
+}
+
+async function handleDeleteQuestion(q) {
+  const name = q.name || q.question_name || ''
+  if (!confirm(`确认删除第${name}题？删除后不可恢复。`)) return
+  try {
+    await deleteQuestion(q.question_id)
+    message.success(`第${name}题已删除`)
+    if (selectedQuestion.value?.question_id === q.question_id) {
+      selectedQuestion.value = null
+      rubricItems.value = []
+    }
+    await loadQuestions()
+  } catch (e) {
+    message.error(e.response?.data?.detail || '删除失败')
   }
 }
 
