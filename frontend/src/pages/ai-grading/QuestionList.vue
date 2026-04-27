@@ -31,7 +31,8 @@
             <span class="t" :class="q.has_answer ? 'ok' : 'warn'">
               {{ q.has_answer ? '答案' : '无答案' }}{{ q.answer_image_count ? ` ${q.answer_image_count}图` : '' }}
             </span>
-            <span class="t" :class="q.has_rubric ? 'ok' : 'warn'">{{ q.has_rubric ? '细则' : '无细则' }}</span>
+            <span v-if="generatingSet?.has?.(q.question_id)" class="t gen">生成中...</span>
+            <span v-else class="t" :class="q.has_rubric ? 'ok' : 'warn'">{{ q.has_rubric ? '细则' : '无细则' }}</span>
           </div>
           <div v-if="q.answer_count" class="q-progress">
             {{ q.graded_count }}/{{ q.answer_count }} 已阅
@@ -50,6 +51,7 @@ defineProps({
   selectedQuestionId: { type: [String, Number], default: null },
   editingScoreId: { type: [String, Number], default: null },
   editingNameId: { type: [String, Number], default: null },
+  generatingSet: { type: Set, default: () => new Set() },
   loading: { type: Boolean, default: false },
 })
 
@@ -165,6 +167,12 @@ defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', '
   background: #3a2a0a;
   color: #fcd34d;
 }
+.t.gen {
+  background: #0a2a3a;
+  color: #60a5fa;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 .q-progress {
   font-size: 11px;

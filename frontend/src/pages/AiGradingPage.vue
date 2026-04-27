@@ -28,6 +28,7 @@
         :questions="questions"
         :selectedQuestionId="selectedQuestion?.question_id"
         :editingScoreId="editingScoreId"
+        :generatingSet="generatingSet"
         :loading="loadingQuestions"
         @select="selectQuestion"
         @start-edit-score="startEditScore"
@@ -116,7 +117,8 @@ const selectedQuestion = ref(null)
 
 const rubricItems = ref([])
 const rubricLoading = ref(false)
-const rubricGenerating = ref(false)
+const generatingSet = ref(new Set())
+const rubricGenerating = computed(() => selectedQuestion.value && generatingSet.value.has(selectedQuestion.value.question_id))
 const rubricSaving = ref(false)
 
 const showDocCrop = ref(false)
@@ -288,18 +290,22 @@ async function loadRubric(questionId) {
 
 async function handleGenerateRubric() {
   if (!selectedQuestion.value) return
-  rubricGenerating.value = true
+  const qid = selectedQuestion.value.question_id
+  const qname = selectedQuestion.value.name || selectedQuestion.value.question_name || qid
+  generatingSet.value = new Set([...generatingSet.value, qid])
   try {
-    const res = await generateRubric(
-      selectedQuestion.value.question_id,
-      selectedQuestion.value.max_score || 0
-    )
-    rubricItems.value = res.data?.criteria || []
-    message.success('AI 生成完成')
+    const res = await generateRubric(qid, selectedQuestion.value.max_score || 0)
+    const criteria = res.data?.criteria || []
+    if (selectedQuestion.value?.question_id === qid) {
+      rubricItems.value = criteria
+    }
+    message.success(`第${qname}题 AI 生成完成`)
   } catch (e) {
-    message.error('生成失败: ' + (e.response?.data?.detail || e.message))
+    message.error(`第${qname}题生成失败: ` + (e.response?.data?.detail || e.message))
   } finally {
-    rubricGenerating.value = false
+    const s = new Set(generatingSet.value)
+    s.delete(qid)
+    generatingSet.value = s
   }
 }
 
