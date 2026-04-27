@@ -400,16 +400,20 @@ async function handlePreviewTemplate(s) {
     const dir = getScanDirFallback(s)
     const fileA = dir ? `${dir}/${scanFirstFile(s)}` : null
 
-    const blobA = fileA ? await fetchScanImageBlob(fileA) : null
+    const hasB = !!(tpl.B && tpl.B.regions?.length)
+    const fileB = hasB && fileA ? fileA.replace(/A\.png$/, 'B.png') : null
+
+    const [blobA, blobB] = await Promise.all([
+      fileA ? fetchScanImageBlob(fileA) : null,
+      fileB ? fetchScanImageBlob(fileB).catch(() => null) : null,
+    ])
 
     editorRegions.value = tpl.A?.regions || []
     editorWidth.value = tpl.A?.width || 0
     editorHeight.value = tpl.A?.height || 0
     editorBlobUrl.value = blobA
 
-    if (tpl.B && tpl.B.regions?.length) {
-      const fileB = fileA?.replace(/A\.png$/, 'B.png')
-      const blobB = fileB ? await fetchScanImageBlob(fileB).catch(() => null) : null
+    if (hasB) {
       editorRegionsB.value = tpl.B.regions
       editorWidthB.value = tpl.B.width || 0
       editorHeightB.value = tpl.B.height || 0
