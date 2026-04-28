@@ -33,6 +33,7 @@ class GradingTask(Base, IdMixin, TimestampMixin):
     total: Mapped[int] = mapped_column(default=0)
     completed: Mapped[int] = mapped_column(default=0)
     failed: Mapped[int] = mapped_column(default=0)
+    grading_limit: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
     error_log: Mapped[dict | None] = mapped_column(JSON, default=None)
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)

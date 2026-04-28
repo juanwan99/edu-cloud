@@ -304,6 +304,7 @@ async def generate_rubric_endpoint(
 class GradingTaskCreate(BaseModel):
     subject_id: str
     question_id: str | None = None
+    limit: int | None = None
 
 
 def _task_response(t: GradingTask) -> dict:
@@ -315,6 +316,7 @@ def _task_response(t: GradingTask) -> dict:
         "total": t.total,
         "completed": t.completed,
         "failed": t.failed,
+        "grading_limit": t.grading_limit,
         "created_by": t.created_by,
         "error_log": t.error_log,
         "created_at": t.created_at.isoformat() if t.created_at else None,
@@ -738,6 +740,7 @@ async def create_grading_task(
         total=0,
         completed=0,
         failed=0,
+        grading_limit=req.limit,
         created_by=current["user"].id,
     )
     db.add(task)

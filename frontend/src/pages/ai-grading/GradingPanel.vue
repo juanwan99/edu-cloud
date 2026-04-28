@@ -75,11 +75,25 @@
           <div v-if="taskProgress.status === 'completed'" class="done-text">阅卷完成</div>
           <div v-else-if="taskProgress.status === 'failed'" class="fail-text">阅卷失败</div>
         </div>
+        <div class="grading-limit-row">
+          <span class="limit-label">阅卷数量</span>
+          <n-input-number
+            v-model:value="limitValue"
+            :min="1"
+            :max="9999"
+            placeholder="全部"
+            clearable
+            size="small"
+            style="width: 140px"
+          />
+          <span class="limit-hint">留空则批改全部</span>
+        </div>
         <n-button
           type="primary"
           :loading="gradingStarting"
           :disabled="taskProgress?.status === 'processing'"
-          @click="$emit('start-grading')"
+          @click="$emit('start-grading', limitValue)"
+          style="margin-top: 10px"
         >开始阅卷</n-button>
       </n-card>
 
@@ -88,8 +102,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { NCard, NButton, NSpace, NProgress, NImage } from 'naive-ui'
+import { computed, ref } from 'vue'
+import { NCard, NButton, NSpace, NProgress, NImage, NInputNumber } from 'naive-ui'
 import RubricEditor from '../../components/RubricEditor.vue'
 
 const props = defineProps({
@@ -110,6 +124,8 @@ defineEmits([
   'update:rubricItems',
   'start-grading',
 ])
+
+const limitValue = ref(null)
 
 const taskProgressPct = computed(() => {
   if (!props.taskProgress || !props.taskProgress.total) return 0
@@ -206,6 +222,25 @@ const taskProgressPct = computed(() => {
   font-size: 13px;
   color: #8a9a8e;
   padding: 8px 0;
+}
+
+.grading-limit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.limit-label {
+  font-size: 13px;
+  color: #cfd8d3;
+  white-space: nowrap;
+}
+
+.limit-hint {
+  font-size: 12px;
+  color: #6b7c72;
+  white-space: nowrap;
 }
 
 .empty-tip.center {

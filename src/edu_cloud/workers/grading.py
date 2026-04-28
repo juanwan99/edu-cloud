@@ -332,6 +332,10 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
             )
             rubrics_by_question = {r.question_id: r.criteria for r in rubric_result.scalars().all()}
 
+            if task.grading_limit and task.grading_limit > 0 and len(answer_data) > task.grading_limit:
+                logger.info("grading_task: applying limit %d (total available %d)", task.grading_limit, len(answer_data))
+                answer_data = answer_data[:task.grading_limit]
+
             task.total = len(answer_data)
             await db.commit()
             logger.info("grading_task: task=%s, answers=%d, rubrics=%d, batch_size=%d",
