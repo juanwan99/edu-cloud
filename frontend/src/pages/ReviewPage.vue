@@ -21,7 +21,7 @@
       <div v-if="canManageGrading" class="topbar-actions">
         <n-popover trigger="click" placement="bottom" :show="showBatchPopover">
           <template #trigger>
-            <n-button size="small" :loading="batchStarting" :disabled="batchStarting" @click="showBatchPopover = true">AI 批量阅卷</n-button>
+            <n-button size="small" :loading="batchStarting" :disabled="batchStarting || batchProgress?.status === 'processing'" @click="showBatchPopover = true">AI 批量阅卷</n-button>
           </template>
           <div style="padding: 4px 0; min-width: 200px">
             <div style="font-size: 13px; margin-bottom: 8px">阅卷数量（留空=全部）</div>
@@ -32,6 +32,21 @@
             </n-space>
           </div>
         </n-popover>
+        <div v-if="batchProgress" class="batch-progress">
+          <template v-if="batchProgress.status === 'pending'">
+            <n-tag size="small" type="warning" round>排队中</n-tag>
+          </template>
+          <template v-else-if="batchProgress.status === 'processing'">
+            <n-progress type="line" :percentage="batchProgressPct" :show-indicator="false" style="width: 120px" />
+            <span class="batch-progress-text">{{ batchProgress.graded }}/{{ batchProgress.total }}</span>
+          </template>
+          <template v-else-if="batchProgress.status === 'completed'">
+            <n-tag size="small" type="success" round closable @close="batchProgress = null">完成 {{ batchProgress.graded }}/{{ batchProgress.total }}</n-tag>
+          </template>
+          <template v-else-if="batchProgress.status === 'failed'">
+            <n-tag size="small" type="error" round closable @close="batchProgress = null">失败</n-tag>
+          </template>
+        </div>
       </div>
     </div>
 
@@ -233,7 +248,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { getNext, submitScore, flagAnswer, getAnswerAt } from '../api/marking'
-import { gradeSingle, createTask } from '../api/grading'
+import { gradeSingle, createTask, getTask } from '../api/grading'
 import { useAuthStore } from '../stores/auth'
 import client from '../api/client'
 
@@ -268,6 +283,12 @@ const aiGrading = ref(false)
 const batchStarting = ref(false)
 const batchLimit = ref(null)
 const showBatchPopover = ref(false)
+const batchProgress = ref(null)
+let batchPollTimer = null
+const batchProgressPct = computed(() => {
+  if (!batchProgress.value || !batchProgress.value.total) return 0
+  return Math.round((batchProgress.value.graded / batchProgress.value.total) * 100)
+})
 const subjectId = ref(null)
 
 const isGraded = ref(false)
@@ -404,6 +425,27 @@ async function handleAiGradeSingle() {
   aiGrading.value = false
 }
 
+function stopBatchPoll() {
+  if (batchPollTimer) { clearInterval(batchPollTimer); batchPollTimer = null }
+}
+
+function startBatchPoll(taskId) {
+  stopBatchPoll()
+  batchProgress.value = { status: 'pending', graded: 0, total: 0 }
+  batchPollTimer = setInterval(async () => {
+    try {
+      const res = await getTask(taskId)
+      const t = res.data
+      batchProgress.value = { status: t.status, graded: t.completed || 0, total: t.total || 0 }
+      if (t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled') {
+        stopBatchPoll()
+        if (t.status === 'completed') message.success(`AI 批量阅卷完成（${t.completed}/${t.total}）`)
+        else if (t.status === 'failed') message.error('AI 批量阅卷失败')
+      }
+    } catch { stopBatchPoll() }
+  }, 3000)
+}
+
 async function handleBatchGrade() {
   if (!subjectId.value) {
     message.error('无法确定科目信息')
@@ -414,8 +456,10 @@ async function handleBatchGrade() {
   try {
     const payload = { subject_id: subjectId.value, question_id: questionId }
     if (batchLimit.value != null) payload.limit = batchLimit.value
-    await createTask(payload)
-    message.success('AI 批量阅卷任务已启动，稍后可切换到「AI 复核」模式查看结果')
+    const res = await createTask(payload)
+    const taskId = res.data?.task_id || res.data?.id
+    if (taskId) startBatchPoll(taskId)
+    message.success('AI 批量阅卷任务已启动')
   } catch (e) {
     message.error(e.response?.data?.detail || '启动批量阅卷失败')
   }
@@ -566,6 +610,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  stopBatchPoll()
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('mousemove', onDrag)
   window.removeEventListener('mouseup', stopDrag)
@@ -612,6 +657,18 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.batch-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.batch-progress-text {
+  font-size: 12px;
+  color: #8a9a8e;
+  white-space: nowrap;
 }
 
 .review-body {
