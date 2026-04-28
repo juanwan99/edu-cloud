@@ -255,8 +255,10 @@ async def generate_rubric_endpoint(
     if not question:
         raise HTTPException(404, "Question not found")
 
-    # Both content and reference_answer empty → 400
-    if not (question.content or "").strip() and not (question.reference_answer or "").strip():
+    # Both content and reference_answer empty (text + images) → 400
+    has_text = bool((question.content or "").strip() or (question.reference_answer or "").strip())
+    has_images = bool(question.content_images or question.reference_answer_images)
+    if not has_text and not has_images:
         raise HTTPException(400, "Question has no content or reference_answer; cannot generate rubric")
 
     # Call LLM (mocked in tests via patch on generate_rubric_via_llm)
