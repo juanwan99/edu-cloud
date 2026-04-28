@@ -191,7 +191,7 @@ describe('AiGradingPage score editing', () => {
 
 describe('AiGradingPage grading task with polling', () => {
   it('creates task with subject_id and question_id', () => {
-    expect(content).toContain('await createTask({')
+    expect(content).toContain('await createTask(payload)')
     expect(content).toContain('subject_id: subjectId.value')
     expect(content).toContain('question_id: selectedQuestion.value.question_id')
   })
@@ -374,7 +374,7 @@ describe('AiGradingPage error handling', () => {
       content.indexOf('async function handleSaveRubric')
     )
     expect(fnBlock).toContain('} catch (e) {')
-    expect(fnBlock).toContain("message.error('生成失败:")
+    expect(fnBlock).toContain("题生成失败: ")
   })
 
   it('wraps handleStartGrading in try-catch-finally', () => {

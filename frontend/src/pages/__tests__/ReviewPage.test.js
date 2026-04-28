@@ -44,7 +44,7 @@ describe('ReviewPage template layout', () => {
 
   it('shows question name and max score in topbar', () => {
     expect(content).toContain('class="topbar-question"')
-    expect(content).toContain('class="topbar-progress"')
+    expect(content).toContain('class="topbar-info"')
     expect(content).toContain('{{ questionName }}')
     expect(content).toContain('满分 {{ maxScore }}')
   })
@@ -75,7 +75,7 @@ describe('ReviewPage template layout', () => {
 describe('ReviewPage AI prediction card', () => {
   it('conditionally shows AI card when ai data exists', () => {
     expect(content).toContain('v-if="ai"')
-    expect(content).toContain('class="ai-card"')
+    expect(content).toContain('class="ai-result-card"')
   })
 
   it('shows AI title and confidence tag', () => {
@@ -105,7 +105,7 @@ describe('ReviewPage AI prediction card', () => {
   })
 
   it('changes submit button text based on AI presence', () => {
-    expect(content).toContain("{{ ai ? '确认并下一份' : '提交并下一份' }} (Enter)")
+    expect(content).toContain("ai ? '确认并下一份 (Enter)' : '提交并下一份 (Enter)'")
   })
 })
 
@@ -206,11 +206,11 @@ describe('ReviewPage keyboard shortcuts', () => {
 
 describe('ReviewPage API calls', () => {
   it('imports getNext and submitScore from marking API', () => {
-    expect(content).toContain("import { getNext, submitScore } from '../api/marking'")
+    expect(content).toContain("import { getNext, submitScore, flagAnswer, getAnswerAt } from '../api/marking'")
   })
 
   it('loads next answer via getNext', () => {
-    expect(content).toContain('const { data } = await getNext(questionId)')
+    expect(content).toContain('const { data } = await getNext(questionId, reviewMode.value)')
   })
 
   it('submits score with answer_id, score, and optional comment', () => {

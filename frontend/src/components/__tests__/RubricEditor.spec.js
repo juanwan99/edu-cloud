@@ -4,8 +4,8 @@ import RubricEditor from '../RubricEditor.vue'
 
 const NAIVE_STUBS = {
   'n-spin': { template: '<div><slot /></div>' },
-  'n-space': { template: '<div><slot /></div>' },
-  'n-tag': { template: '<span><slot /></span>' },
+  'n-input': { template: '<input />' },
+  'n-input-number': { template: '<input />' },
 }
 
 describe('RubricEditor', () => {
@@ -19,7 +19,7 @@ describe('RubricEditor', () => {
       props: { modelValue: items, maxScore: 8 },
       global: { stubs: NAIVE_STUBS },
     })
-    expect(w.findAll('.rubric-item')).toHaveLength(2)
+    expect(w.findAll('.re-row')).toHaveLength(2)
   })
 
   it('shows total', () => {
@@ -27,7 +27,7 @@ describe('RubricEditor', () => {
       props: { modelValue: items, maxScore: 8 },
       global: { stubs: NAIVE_STUBS },
     })
-    expect(w.text()).toContain('8 / 8')
+    expect(w.text()).toContain('8/8')
   })
 
   it('warns mismatch', () => {
@@ -35,7 +35,7 @@ describe('RubricEditor', () => {
       props: { modelValue: items, maxScore: 10 },
       global: { stubs: NAIVE_STUBS },
     })
-    expect(w.find('.warning').exists()).toBe(true)
+    expect(w.find('.warn').exists()).toBe(true)
   })
 
   it('empty state', () => {
@@ -43,6 +43,6 @@ describe('RubricEditor', () => {
       props: { modelValue: [], maxScore: 8 },
       global: { stubs: NAIVE_STUBS },
     })
-    expect(w.text()).toContain('暂无')
+    expect(w.text()).toContain('暂无评分细则')
   })
 })

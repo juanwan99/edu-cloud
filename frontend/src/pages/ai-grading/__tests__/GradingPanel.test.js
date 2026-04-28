@@ -148,14 +148,14 @@ describe('GradingPanel template - grading operations card', () => {
   it('has start grading button', () => {
     expect(src).toContain('开始阅卷')
     expect(src).toContain(':loading="gradingStarting"')
-    expect(src).toContain("$emit('start-grading')")
+    expect(src).toContain("$emit('start-grading', limitValue)")
     expect(src).toContain("taskProgress?.status === 'processing'")
   })
 })
 
 describe('GradingPanel imports', () => {
   it('imports NCard, NButton, NSpace, NProgress from naive-ui', () => {
-    expect(src).toContain('import { NCard, NButton, NSpace, NProgress }')
+    expect(src).toContain('import { NCard, NButton, NSpace, NProgress, NImage, NInputNumber }')
   })
 
   it('imports RubricEditor component', () => {
