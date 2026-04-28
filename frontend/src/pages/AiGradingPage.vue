@@ -571,7 +571,7 @@ async function handleBatchGenerate() {
 
 .page-title {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 700;
   margin: 0;
 }
 
@@ -627,7 +627,7 @@ async function handleBatchGenerate() {
 
 .q-num {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 700;
   color: #e8f0ea;
   min-width: 32px;
   text-align: center;

@@ -35,8 +35,8 @@ const displayValue = computed(() =>
 
 <style scoped>
 .kpi-card {
-  padding: 28px;
-  border-radius: var(--radius-xl);
+  padding: 18px 20px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-border-light);
   transition: var(--transition);
   position: relative;
@@ -44,8 +44,8 @@ const displayValue = computed(() =>
 }
 
 .kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Color variants */
@@ -55,8 +55,8 @@ const displayValue = computed(() =>
 .kpi-card--purple { background: var(--macaron-purple-light); }
 
 .kpi-card__value {
-  font-size: 36px;
-  font-weight: 800;
+  font-size: 26px;
+  font-weight: 700;
   color: var(--color-primary);
   letter-spacing: -0.02em;
   line-height: 1.2;
@@ -64,9 +64,9 @@ const displayValue = computed(() =>
 }
 
 .kpi-card__label {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  margin-top: 4px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
 }
 
 .kpi-card__sublabel {

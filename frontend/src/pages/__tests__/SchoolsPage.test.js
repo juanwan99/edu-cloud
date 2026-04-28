@@ -311,8 +311,8 @@ describe('SchoolsPage styles', () => {
     expect(content).toContain('<style scoped>')
   })
 
-  it('defines stats-row as 3-column grid', () => {
-    expect(content).toContain('grid-template-columns: repeat(3, 1fr)')
+  it('defines stats-row as responsive grid', () => {
+    expect(content).toContain('grid-template-columns: repeat(auto-fit')
   })
 
   it('defines card-grid with auto-fill responsive layout', () => {

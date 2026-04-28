@@ -26,13 +26,24 @@ export const themeOverrides = {
     borderRadiusSmall: '50px',
   },
   Card: {
-    borderRadius: '20px',
+    borderRadius: '14px',
     borderColor: '#f0f4f1',
     boxShadow: '0 1px 3px rgba(26,46,31,0.06)',
+    paddingSmall: '14px 18px',
+    paddingMedium: '18px 22px',
+    titleFontSizeMedium: '15px',
+    titleFontSizeSmall: '14px',
+    titleFontWeight: '600',
   },
   DataTable: {
     borderRadius: '14px',
     thColor: '#f5faf6',
+    thPaddingSmall: '10px 16px',
+    thPaddingMedium: '12px 16px',
+    tdPaddingSmall: '10px 16px',
+    tdPaddingMedium: '12px 16px',
+    thFontWeight: '600',
+    fontSize: '14px',
   },
   Tag: {
     borderRadius: '50px',
@@ -51,5 +62,9 @@ export const themeOverrides = {
   },
   Menu: {
     borderRadius: '10px',
+  },
+  Statistic: {
+    valueFontSize: '26px',
+    labelFontSize: '13px',
   },
 }

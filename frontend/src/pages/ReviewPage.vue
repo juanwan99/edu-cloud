@@ -93,16 +93,21 @@
                 <span class="ai-score-num">{{ ai.score }}</span>
                 <span class="ai-score-max">/ {{ maxScore }}</span>
                 <n-tag
+                  v-if="ai.confidence != null"
                   :type="ai.confidence >= 0.8 ? 'success' : 'warning'"
                   round
                   size="small"
                   style="margin-left: 8px"
                 >
-                  {{ ai.confidence != null ? (ai.confidence * 100).toFixed(0) + '%' : '—' }}
+                  {{ (ai.confidence * 100).toFixed(0) + '%' }}
                 </n-tag>
               </div>
             </div>
             <div v-if="ai.feedback" class="ai-feedback">{{ ai.feedback }}</div>
+            <div v-if="ai.recognizedText" class="ai-ocr-text">
+              <div class="ai-ocr-title">OCR 识别结果</div>
+              <pre class="ai-ocr-content">{{ ai.recognizedText }}</pre>
+            </div>
             <div v-if="ai.details?.length" class="ai-details">
               <div class="ai-details-title">逐空评分</div>
               <div v-for="(item, i) in ai.details" :key="i" class="ai-sub">
@@ -781,7 +786,7 @@ onUnmounted(() => {
 
 .ai-score-num {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .ai-score-max {
@@ -796,6 +801,31 @@ onUnmounted(() => {
   max-height: 120px;
   overflow-y: auto;
   white-space: pre-wrap;
+}
+
+.ai-ocr-text {
+  border-top: 1px dashed var(--color-border-light, #e5e7eb);
+  padding-top: 8px;
+  margin-bottom: 4px;
+}
+.ai-ocr-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted, #999);
+  margin-bottom: 4px;
+}
+.ai-ocr-content {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle, #f8f8fa);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 100px;
+  overflow-y: auto;
 }
 
 .ai-details {

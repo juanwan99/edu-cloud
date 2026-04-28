@@ -49,7 +49,7 @@ import RoleSwitcher from './RoleSwitcher.vue'
   top: 0;
   left: 0;
   right: 0;
-  height: 68px;
+  height: 56px;
   background: rgba(255, 255, 255, 0.96);
   border-bottom: 1px solid var(--color-border-light);
   z-index: var(--z-header);
@@ -80,10 +80,10 @@ import RoleSwitcher from './RoleSwitcher.vue'
 }
 
 .app-header__title {
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--color-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   white-space: nowrap;
 }
 

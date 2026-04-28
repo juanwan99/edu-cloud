@@ -164,7 +164,7 @@ onMounted(loadData)
 }
 
 .score-card__value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: #63e2b7;
 }

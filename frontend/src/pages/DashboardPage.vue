@@ -392,38 +392,38 @@ function getKpiValue(kpi) {
 /* Welcome banner */
 .welcome-banner {
   background: var(--macaron-mint-light);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-light);
-  padding: 32px;
-  margin-bottom: 24px;
+  padding: 24px 28px;
+  margin-bottom: 20px;
 }
 
 .welcome-banner__title {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 600;
   color: var(--color-text);
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
 .welcome-banner__text {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text-secondary);
-  margin: 0 0 16px;
+  margin: 0 0 14px;
 }
 
 /* KPI row */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
 }
 
 /* Quick actions */
 .quick-actions {
   display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 10px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
@@ -479,33 +479,33 @@ function getKpiValue(kpi) {
 /* Charts */
 .charts-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 24px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .chart-card {
   background: var(--color-bg-card, rgba(255,255,255,0.04));
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-border-light);
-  padding: 20px;
+  padding: 16px 20px;
 }
 
 .chart-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   color: var(--color-text);
   line-height: 1.2;
 }
 
 .chart-empty {
   background: var(--color-bg-card, rgba(255,255,255,0.04));
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   border: 1px dashed var(--color-border);
-  padding: 40px;
+  padding: 32px;
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .chart-empty__text {
@@ -516,10 +516,10 @@ function getKpiValue(kpi) {
 
 /* Section title */
 .section-title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--color-text);
-  margin: 0 0 16px;
+  margin: 0 0 12px;
 }
 
 /* Recent exams */
@@ -529,15 +529,15 @@ function getKpiValue(kpi) {
 
 .exam-cards-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
 }
 
 .exam-card {
   background: var(--color-bg-card, rgba(255,255,255,0.04));
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-border-light);
-  padding: 16px 20px;
+  padding: 14px 18px;
   cursor: pointer;
   transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
 }
@@ -556,7 +556,7 @@ function getKpiValue(kpi) {
 }
 
 .exam-card__name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text);
   overflow: hidden;

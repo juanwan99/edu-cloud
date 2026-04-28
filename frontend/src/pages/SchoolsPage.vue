@@ -181,8 +181,8 @@ onMounted(loadSchools)
 <style scoped>
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
   margin-bottom: 16px;
 }
 .stat-card {

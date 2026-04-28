@@ -262,7 +262,7 @@ describe('ExamListPage error handling', () => {
 
 describe('ExamListPage responsive design', () => {
   it('has responsive grid for stats row', () => {
-    expect(content).toContain('grid-template-columns: repeat(4, 1fr)')
+    expect(content).toContain('grid-template-columns: repeat(auto-fit')
     expect(content).toContain('grid-template-columns: repeat(2, 1fr)')
   })
 

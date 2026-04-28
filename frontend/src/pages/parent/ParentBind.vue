@@ -222,7 +222,7 @@ onUnmounted(() => {
   background: rgba(99,226,183,0.1);
 }
 .rel-icon {
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1;
   margin-bottom: 4px;
 }

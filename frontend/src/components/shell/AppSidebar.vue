@@ -146,12 +146,12 @@ watch(visibleGroups, autoExpandCurrentGroup)
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
+  gap: 10px;
+  padding: 8px 14px;
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
   transition: var(--transition);
   white-space: nowrap;
@@ -171,7 +171,7 @@ watch(visibleGroups, autoExpandCurrentGroup)
 }
 
 .nav-item--child {
-  padding: 8px 16px 8px 42px;
+  padding: 6px 14px 6px 38px;
   font-size: 13px;
   border-left: none;
 }

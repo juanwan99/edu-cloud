@@ -247,9 +247,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-header { margin-bottom: 24px; }
-.page-title { font-size: 24px; font-weight: 700; margin: 0; }
-.page-subtitle { font-size: 14px; color: var(--color-text-muted); margin: 4px 0 0; }
+.page-header { margin-bottom: 20px; }
+.page-title { font-size: 22px; font-weight: 700; margin: 0; }
+.page-subtitle { font-size: 13px; color: var(--color-text-muted); margin: 2px 0 0; }
 
 .stats-grid {
   display: grid;
@@ -260,13 +260,13 @@ onMounted(() => {
 
 .stat-card {
   background: var(--color-bg-alt);
-  padding: 16px;
-  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
   text-align: center;
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--color-primary);
 }
@@ -274,7 +274,7 @@ onMounted(() => {
 .stat-label {
   font-size: 12px;
   color: var(--color-text-muted);
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .filter-bar {

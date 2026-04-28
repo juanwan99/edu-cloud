@@ -13,7 +13,7 @@
     >
       <div class="q-row">
         <span v-if="editingNameId !== q.question_id" class="q-num editable" @click.stop="$emit('start-edit-name', q)">{{ q.name || q.question_name }}</span>
-        <n-input v-else :value="q.name || q.question_name" size="small" style="width:48px;font-size:20px;font-weight:800;text-align:center"
+        <n-input v-else :value="q.name || q.question_name" size="small" style="width:48px;font-size:20px;font-weight:700;text-align:center"
           @update:value="v => $emit('update-name-value', q, v)"
           @blur="$emit('save-name', q)" @keyup.enter="$emit('save-name', q)" @click.stop />
         <div class="q-info">
@@ -105,7 +105,7 @@ defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', '
 
 .q-num {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 700;
   color: #e8f0ea;
   min-width: 32px;
   text-align: center;
