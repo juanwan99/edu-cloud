@@ -19,12 +19,19 @@
         </n-button-group>
       </div>
       <div v-if="canManageGrading" class="topbar-actions">
-        <n-popconfirm @positive-click="handleBatchGrade">
+        <n-popover trigger="click" placement="bottom" :show="showBatchPopover">
           <template #trigger>
-            <n-button size="small" :loading="batchStarting" :disabled="batchStarting">AI 批量阅卷</n-button>
+            <n-button size="small" :loading="batchStarting" :disabled="batchStarting" @click="showBatchPopover = true">AI 批量阅卷</n-button>
           </template>
-          确认对该题所有未阅答卷启动 AI 批量阅卷？
-        </n-popconfirm>
+          <div style="padding: 4px 0; min-width: 200px">
+            <div style="font-size: 13px; margin-bottom: 8px">阅卷数量（留空=全部）</div>
+            <n-input-number v-model:value="batchLimit" :min="1" :max="9999" placeholder="全部" clearable size="small" style="width: 100%; margin-bottom: 10px" />
+            <n-space justify="end">
+              <n-button size="small" @click="showBatchPopover = false">取消</n-button>
+              <n-button size="small" type="primary" :loading="batchStarting" @click="handleBatchGrade">确认</n-button>
+            </n-space>
+          </div>
+        </n-popover>
       </div>
     </div>
 
@@ -259,6 +266,8 @@ const browsing = ref(false)
 const loadSeq = ref(0)
 const aiGrading = ref(false)
 const batchStarting = ref(false)
+const batchLimit = ref(null)
+const showBatchPopover = ref(false)
 const subjectId = ref(null)
 
 const isGraded = ref(false)
@@ -401,8 +410,11 @@ async function handleBatchGrade() {
     return
   }
   batchStarting.value = true
+  showBatchPopover.value = false
   try {
-    await createTask({ subject_id: subjectId.value, question_id: questionId })
+    const payload = { subject_id: subjectId.value, question_id: questionId }
+    if (batchLimit.value != null) payload.limit = batchLimit.value
+    await createTask(payload)
     message.success('AI 批量阅卷任务已启动，稍后可切换到「AI 复核」模式查看结果')
   } catch (e) {
     message.error(e.response?.data?.detail || '启动批量阅卷失败')
