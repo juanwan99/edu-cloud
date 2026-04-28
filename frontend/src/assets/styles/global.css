@@ -107,9 +107,31 @@ a {
 /* 工具类 */
 .tabular-nums { font-variant-numeric: tabular-nums; }
 
+/* chart 响应式高度 */
+.chart-height-sm { height: 240px; }
+.chart-height-md { height: 280px; }
+.chart-height-lg { height: 360px; }
+.chart-height-xl { height: 400px; }
+
+@media (max-width: 768px) {
+  .chart-height-sm { height: 200px; }
+  .chart-height-md { height: 220px; }
+  .chart-height-lg { height: 280px; }
+  .chart-height-xl { height: 320px; }
+}
+
 /* 浮动装饰动画 */
 @keyframes floatSlow {
   0%, 100% { transform: translate(0, 0); }
   33% { transform: translate(15px, -20px); }
   66% { transform: translate(-10px, 15px); }
+}
+
+/* 无障碍：减弱动效 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

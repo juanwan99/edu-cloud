@@ -30,7 +30,7 @@
     <template v-if="classId">
       <!-- Distribution chart -->
       <n-card title="排名分布" size="small" style="margin-bottom: 16px;">
-        <v-chart v-if="distOption" :option="distOption" autoresize style="height: 240px;" />
+        <v-chart v-if="distOption" class="chart-height-sm" :option="distOption" autoresize />
         <n-empty v-else description="暂无数据" />
       </n-card>
 

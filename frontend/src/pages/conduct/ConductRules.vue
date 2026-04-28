@@ -63,7 +63,11 @@
               </div>
             </n-list-item>
           </n-list>
-          <n-empty v-else description="该分类暂无规则" />
+          <n-empty v-else description="该分类暂无规则">
+            <template #extra>
+              <n-button size="small" type="primary" quaternary @click="openAddItem(cat)">添加规则</n-button>
+            </template>
+          </n-empty>
         </n-collapse-item>
       </n-collapse>
       <n-empty v-else description="暂无班规，点击上方按钮添加分类" />

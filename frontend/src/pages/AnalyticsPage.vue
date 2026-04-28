@@ -42,7 +42,7 @@
               @update:value="loadDistribution" />
           </div>
           <div style="background: white; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
-            <v-chart :option="distributionChartOption" style="height: 360px;" autoresize />
+            <v-chart class="chart-height-lg" :option="distributionChartOption" autoresize />
           </div>
         </n-tab-pane>
 

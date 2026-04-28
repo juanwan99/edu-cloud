@@ -46,12 +46,12 @@
       <!-- 分数分布柱图 -->
       <n-card size="small" style="flex: 2; min-width: 360px;">
         <template #header><span style="font-size: 14px; font-weight: 600;">分数分布</span></template>
-        <v-chart :option="scoreDistOption" style="height: 280px;" autoresize />
+        <v-chart class="chart-height-md" :option="scoreDistOption" autoresize />
       </n-card>
       <!-- 置信度饼图 -->
       <n-card size="small" style="flex: 1; min-width: 280px;">
         <template #header><span style="font-size: 14px; font-weight: 600;">置信度分布</span></template>
-        <v-chart :option="confidenceDistOption" style="height: 280px;" autoresize />
+        <v-chart class="chart-height-md" :option="confidenceDistOption" autoresize />
       </n-card>
     </div>
 
@@ -65,7 +65,11 @@
 
     <n-spin :show="loading">
       <n-data-table :columns="columns" :data="sortedResults" :row-props="() => ({ style: 'cursor: pointer;' })" />
-      <n-empty v-if="!loading && sortedResults.length === 0" description="暂无结果" />
+      <n-empty v-if="!loading && sortedResults.length === 0" description="暂无结果">
+        <template #extra>
+          <n-button v-if="filter !== 'all'" size="small" @click="filter = 'all'">清除筛选</n-button>
+        </template>
+      </n-empty>
     </n-spin>
 
     <!-- 详情弹窗 -->

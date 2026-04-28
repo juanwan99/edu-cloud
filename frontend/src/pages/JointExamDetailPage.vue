@@ -54,7 +54,11 @@
             :bordered="false"
             size="small"
           />
-          <n-empty v-else description="暂无排名数据" />
+          <n-empty v-else description="暂无排名数据">
+            <template #extra>
+              <n-button size="small" @click="loadRankings">刷新排名</n-button>
+            </template>
+          </n-empty>
         </n-tab-pane>
 
         <!-- 校际对比 -->
@@ -67,7 +71,11 @@
             :bordered="false"
             size="small"
           />
-          <n-empty v-else description="暂无校际对比数据" />
+          <n-empty v-else description="暂无校际对比数据">
+            <template #extra>
+              <n-button size="small" @click="loadComparison">刷新对比</n-button>
+            </template>
+          </n-empty>
         </n-tab-pane>
       </n-tabs>
     </n-spin>

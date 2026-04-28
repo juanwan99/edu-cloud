@@ -73,7 +73,7 @@
           >
             导出图片
           </n-button>
-          <v-chart ref="chartRef" :option="chartOption" style="height: 400px" />
+          <v-chart ref="chartRef" class="chart-height-xl" :option="chartOption" />
         </div>
       </n-space>
     </n-card>

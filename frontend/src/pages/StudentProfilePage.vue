@@ -35,7 +35,7 @@
         <!-- 成绩趋势 -->
         <n-tab-pane name="trend" tab="成绩趋势">
           <div style="background: white; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
-            <v-chart v-if="trendChartOption" :option="trendChartOption" style="height: 360px;" autoresize />
+            <v-chart v-if="trendChartOption" class="chart-height-lg" :option="trendChartOption" autoresize />
             <n-empty v-else description="暂无多次考试数据" />
           </div>
         </n-tab-pane>
@@ -43,7 +43,7 @@
         <!-- 排名变化 -->
         <n-tab-pane name="ranking" tab="排名变化">
           <div style="background: white; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
-            <v-chart v-if="rankingChartOption" :option="rankingChartOption" style="height: 360px;" autoresize />
+            <v-chart v-if="rankingChartOption" class="chart-height-lg" :option="rankingChartOption" autoresize />
             <n-empty v-else description="暂无排名数据" />
           </div>
         </n-tab-pane>
@@ -52,7 +52,7 @@
         <n-tab-pane name="knowledge" tab="知识点掌握">
           <div style="display: flex; gap: 24px; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 300px; background: white; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
-              <v-chart v-if="radarChartOption" :option="radarChartOption" style="height: 360px;" autoresize />
+              <v-chart v-if="radarChartOption" class="chart-height-lg" :option="radarChartOption" autoresize />
               <n-empty v-else description="暂无知识点数据" />
             </div>
             <div style="flex: 1; min-width: 300px;">
@@ -68,7 +68,7 @@
             <div v-for="ep in errorPatterns" :key="ep.id"
               style="flex: 1; min-width: 280px; background: white; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
               <h3 style="margin: 0 0 12px; font-size: 15px; font-weight: 600;">{{ ep.subject_code }}</h3>
-              <v-chart :option="makeErrorPieOption(ep)" style="height: 260px;" autoresize />
+              <v-chart class="chart-height-sm" :option="makeErrorPieOption(ep)" autoresize />
               <div style="margin-top: 8px; font-size: 13px; color: var(--color-text-muted);">
                 共 {{ ep.total_errors }} 道错题 · {{ ep.exam_count }} 次考试
               </div>

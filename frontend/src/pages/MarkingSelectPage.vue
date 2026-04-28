@@ -63,7 +63,11 @@
           size="small"
         />
       </div>
-      <n-empty v-if="!loading && filteredSubjects.length === 0" :description="subjects.length === 0 ? '请先选择考试' : '没有匹配的题目'" />
+      <n-empty v-if="!loading && filteredSubjects.length === 0" :description="subjects.length === 0 ? '请先选择考试' : '没有匹配的题目'">
+        <template #extra>
+          <n-button v-if="subjects.length > 0 && statusFilter !== 'all'" size="small" @click="statusFilter = 'all'">清除筛选</n-button>
+        </template>
+      </n-empty>
     </n-spin>
 
   </div>

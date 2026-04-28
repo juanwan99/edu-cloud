@@ -24,17 +24,17 @@
 
         <!-- Overview: class comparison bar chart -->
         <n-card v-if="overviewData" title="班级对比" size="small">
-          <v-chart :option="barOption" style="height: 360px" />
+          <v-chart class="chart-height-lg" :option="barOption" />
         </n-card>
 
         <!-- Trend: grade trend line chart -->
         <n-card v-if="trendData && trendData.points.length" title="考情趋势" size="small">
-          <v-chart :option="lineOption" style="height: 360px" />
+          <v-chart class="chart-height-lg" :option="lineOption" />
         </n-card>
 
         <!-- Subjects: radar chart -->
         <n-card v-if="subjectsData && subjectsData.subjects.length" title="科目对比" size="small">
-          <v-chart :option="radarOption" style="height: 400px" />
+          <v-chart class="chart-height-xl" :option="radarOption" />
         </n-card>
       </n-space>
     </n-card>

@@ -78,7 +78,11 @@
               </div>
             </n-list-item>
           </n-list>
-          <n-empty v-else description="暂无学期" />
+          <n-empty v-else description="暂无学期">
+            <template #extra>
+              <n-button type="primary" size="small" @click="showCreateSemester = true">新建学期</n-button>
+            </template>
+          </n-empty>
         </n-card>
       </n-spin>
 

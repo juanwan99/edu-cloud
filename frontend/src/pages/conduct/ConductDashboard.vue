@@ -47,13 +47,13 @@
       <n-grid :cols="2" :x-gap="16" style="margin-bottom: 16px;">
         <n-gi>
           <n-card title="积分走势（最近 4 周）" size="small">
-            <v-chart v-if="trendOption" :option="trendOption" autoresize style="height: 260px;" />
+            <v-chart v-if="trendOption" class="chart-height-sm" :option="trendOption" autoresize />
             <n-empty v-else description="暂无数据" />
           </n-card>
         </n-gi>
         <n-gi>
           <n-card title="加分/扣分比例" size="small">
-            <v-chart v-if="pieOption" :option="pieOption" autoresize style="height: 260px;" />
+            <v-chart v-if="pieOption" class="chart-height-sm" :option="pieOption" autoresize />
             <n-empty v-else description="暂无数据" />
           </n-card>
         </n-gi>
@@ -134,7 +134,11 @@
               </div>
             </n-list-item>
           </n-list>
-          <n-empty v-else description="暂无记录" />
+          <n-empty v-else description="暂无记录">
+            <template #extra>
+              <n-button type="primary" size="small" @click="$router.push({ name: 'ConductPoints' })">去记积分</n-button>
+            </template>
+          </n-empty>
         </n-spin>
       </n-card>
 

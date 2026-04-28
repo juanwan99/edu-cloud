@@ -61,7 +61,7 @@
             </n-tab-pane>
 
             <n-tab-pane v-if="reportData.metrics.segments" name="segments" tab="分数段分布">
-              <v-chart :option="segmentChartOption" style="height: 400px" />
+              <v-chart class="chart-height-xl" :option="segmentChartOption" />
             </n-tab-pane>
 
             <n-tab-pane v-if="reportData.metrics.ranking" name="ranking" tab="班级排名">

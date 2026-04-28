@@ -60,11 +60,11 @@
     <div class="charts-row" v-if="trendOption || classOption">
       <div class="chart-card" v-if="trendOption">
         <h3 class="chart-title">考试成绩趋势</h3>
-        <v-chart :option="trendOption" style="height: 280px;" autoresize />
+        <v-chart class="chart-height-md" :option="trendOption" autoresize />
       </div>
       <div class="chart-card" v-if="classOption">
         <h3 class="chart-title">班级平均分对比</h3>
-        <v-chart :option="classOption" style="height: 280px;" autoresize />
+        <v-chart class="chart-height-md" :option="classOption" autoresize />
       </div>
     </div>
     <div v-else-if="!loading" class="chart-empty">

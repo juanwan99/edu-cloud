@@ -28,7 +28,11 @@
             :bordered="false"
             size="small"
           />
-          <n-empty v-else-if="!loading" description="暂无校历事件" style="margin-top: 40px;" />
+          <n-empty v-else-if="!loading" description="暂无校历事件" style="margin-top: 40px;">
+            <template #extra>
+              <n-button v-if="canCreate" type="primary" size="small" @click="showCreate = true">新增事件</n-button>
+            </template>
+          </n-empty>
         </n-spin>
       </div>
 
