@@ -76,7 +76,7 @@ function addItem() {
 </script>
 
 <style scoped>
-.re-empty { color: #8a9a8e; font-size: 13px; padding: 12px 0; text-align: center; }
+.re-empty { color: var(--color-text-muted); font-size: 13px; padding: 12px 0; text-align: center; }
 
 .re-row {
   display: flex; flex-direction: column; gap: 4px;
@@ -91,9 +91,9 @@ function addItem() {
   font-size: 13px; font-weight: 700; color: #6ee7a0;
   min-width: 20px; text-align: center; flex-shrink: 0;
 }
-.re-unit { font-size: 12px; color: #8a9a8e; flex-shrink: 0; }
+.re-unit { font-size: 12px; color: var(--color-text-muted); flex-shrink: 0; }
 .re-del {
-  font-size: 12px; color: #8a9a8e; cursor: pointer; flex-shrink: 0;
+  font-size: 12px; color: var(--color-text-muted); cursor: pointer; flex-shrink: 0;
   opacity: 0.3; transition: opacity 0.15s; text-decoration: none;
 }
 .re-del:hover { opacity: 1; color: #f87171; }
@@ -106,7 +106,7 @@ function addItem() {
 
 .re-legacy {
   display: flex; flex-direction: column; gap: 2px;
-  font-size: 11px; color: #6a7a6e; line-height: 1.4;
+  font-size: 11px; color: var(--color-text-secondary); line-height: 1.4;
   padding-left: 20px; opacity: 0.6;
 }
 
@@ -117,6 +117,6 @@ function addItem() {
 .re-add { font-size: 12px; color: #5a7a60; cursor: pointer; text-decoration: none; }
 .re-add:hover { color: #6ee7a0; }
 
-.re-total { font-size: 13px; font-weight: 600; color: #8a9a8e; }
+.re-total { font-size: 13px; font-weight: 600; color: var(--color-text-muted); }
 .re-total.warn { color: #f59e0b; }
 </style>

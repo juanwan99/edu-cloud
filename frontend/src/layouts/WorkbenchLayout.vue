@@ -1,5 +1,5 @@
 <template>
-  <n-layout has-sider style="height: 100vh">
+  <n-layout has-sider style="height: 100dvh">
     <!-- Left panel -->
     <n-layout-sider bordered :collapsed="leftCollapsed" :collapsed-width="64" :width="280"
       show-trigger @collapse="leftCollapsed = true" @expand="leftCollapsed = false">
@@ -10,7 +10,7 @@
       <n-layout-header bordered style="height: 56px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between;">
         <slot name="header" />
       </n-layout-header>
-      <n-layout-content content-style="padding: 16px; height: calc(100vh - 56px); overflow-y: auto;">
+      <n-layout-content content-style="padding: 16px; height: calc(100dvh - 56px); overflow-y: auto;">
         <slot name="center" />
       </n-layout-content>
     </n-layout>

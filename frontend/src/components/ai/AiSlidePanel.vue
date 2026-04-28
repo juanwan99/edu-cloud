@@ -48,7 +48,7 @@ defineEmits(['close'])
 .ai-panel-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: var(--z-modal);
   background: rgba(0, 0, 0, 0.15);
 }
 
@@ -58,7 +58,7 @@ defineEmits(['close'])
   right: 0;
   width: 400px;
   max-width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   background: var(--color-bg);
   border-left: 1px solid var(--color-border-light);
   box-shadow: var(--shadow-xl);
@@ -164,7 +164,7 @@ defineEmits(['close'])
 /* Slide transition */
 .slide-right-enter-active,
 .slide-right-leave-active {
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 .slide-right-enter-active .ai-panel,

@@ -156,7 +156,7 @@ function handleSave() {
 <style scoped>
 .field-label {
   font-size: 12px;
-  color: #8a9a8e;
+  color: var(--color-text-muted);
   margin-bottom: 6px;
   font-weight: 500;
 }

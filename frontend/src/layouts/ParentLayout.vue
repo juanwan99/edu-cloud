@@ -1,7 +1,7 @@
 <template>
   <n-config-provider :theme="darkTheme">
     <n-message-provider>
-      <n-layout style="min-height: 100vh;">
+      <n-layout style="min-height: 100dvh;">
         <!-- Top bar -->
         <n-layout-header bordered style="height: 56px; display: flex; align-items: center; padding: 0 16px; justify-content: space-between;">
           <span style="font-size: 18px; font-weight: 600;">家校互通</span>
@@ -118,7 +118,7 @@ onMounted(async () => {
   border-top: 1px solid rgba(255, 255, 255, 0.09);
   display: flex;
   height: 56px;
-  z-index: 100;
+  z-index: var(--z-header);
 }
 .tab-item {
   flex: 1;

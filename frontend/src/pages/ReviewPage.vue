@@ -622,7 +622,7 @@ onUnmounted(() => {
 .review-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 68px);
+  height: calc(100dvh - 68px);
   background: var(--color-bg);
 }
 
@@ -851,7 +851,7 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 
 .score-btn:hover {

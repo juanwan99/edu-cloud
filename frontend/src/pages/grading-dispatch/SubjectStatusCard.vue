@@ -101,7 +101,7 @@ function stageClass(stage) { return `tag-${stage}` }
 </script>
 
 <style scoped>
-.subject-card { display: grid; grid-template-columns: 200px 1fr 140px 180px; align-items: center; gap: 12px; padding: 12px 16px; background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: 12px; transition: all 0.15s; }
+.subject-card { display: grid; grid-template-columns: 200px 1fr 140px 180px; align-items: center; gap: 12px; padding: 12px 16px; background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: 12px; transition: transform 0.15s ease-out, box-shadow 0.15s ease-out; }
 .subject-card:hover { border-color: #c0d0c4; }
 .subject-card.selected { background: #f8fdf9; border-color: #a0d0a8; }
 

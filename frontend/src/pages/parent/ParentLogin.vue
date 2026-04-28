@@ -144,7 +144,7 @@ async function handleLogin() {
 
 <style scoped>
 .login-container {
-  min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   overflow: hidden;
   background: #ffffff;
@@ -153,7 +153,7 @@ async function handleLogin() {
 .login-content {
   position: relative;
   z-index: 1;
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;

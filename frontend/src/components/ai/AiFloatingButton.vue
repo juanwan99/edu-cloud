@@ -33,7 +33,7 @@ const canUseAi = computed(() => authStore.checkPermission('use_ai_chat'))
   cursor: pointer;
   box-shadow: var(--shadow-lg);
   transition: var(--transition);
-  z-index: 1100;
+  z-index: var(--z-overlay);
 }
 
 .ai-fab:hover {

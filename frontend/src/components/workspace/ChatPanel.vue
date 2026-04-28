@@ -54,7 +54,7 @@ watch(() => chatStore.messages.length, async () => {
 .chat-panel { display: flex; flex-direction: column; height: 100%; border-top: 1px solid var(--n-border-color); }
 .chat-messages { flex: 1; overflow-y: auto; padding: 12px; }
 .message { margin-bottom: 12px; }
-.user-msg { background: #2a5d3a; color: white; padding: 8px 12px; border-radius: 12px 12px 0 12px; max-width: 80%; margin-left: auto; }
+.user-msg { background: var(--color-primary-light); color: white; padding: 8px 12px; border-radius: 12px 12px 0 12px; max-width: 80%; margin-left: auto; }
 .assistant-msg { background: #2d2d3d; padding: 8px 12px; border-radius: 12px 12px 12px 0; max-width: 90%; }
 .tool-tags { margin-bottom: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
 .chat-input { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--n-border-color); }

@@ -146,7 +146,7 @@
 
     <!-- 全屏预览遮罩 -->
     <teleport to="body">
-      <div v-if="isFullscreen" style="position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.85); display: flex; flex-direction: column;">
+      <div v-if="isFullscreen" style="position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,0.85); display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: flex-end; padding: 12px 20px;">
           <n-button type="primary" size="small" @click="toggleFullscreen">关闭全屏 (ESC)</n-button>
         </div>

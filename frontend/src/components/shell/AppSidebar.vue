@@ -246,7 +246,7 @@ watch(visibleGroups, autoExpandCurrentGroup)
 
 .slide-enter-active,
 .slide-leave-active {
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease, max-height 0.2s ease;
 }
 
 .slide-enter-from,

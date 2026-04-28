@@ -822,7 +822,7 @@ function stageClass(stage) { return `tag-${stage}` }
 .batch-bar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: #f0faf3; border: 1px solid #b8e6c8; border-radius: 12px; margin-bottom: 12px; font-size: 13px; }
 
 .subject-list { display: flex; flex-direction: column; gap: 6px; }
-.subject-card { display: grid; grid-template-columns: 200px 1fr 140px 180px; align-items: center; gap: 12px; padding: 12px 16px; background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: 12px; transition: all 0.15s; }
+.subject-card { display: grid; grid-template-columns: 200px 1fr 140px 180px; align-items: center; gap: 12px; padding: 12px 16px; background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: 12px; transition: transform 0.15s ease-out, box-shadow 0.15s ease-out; }
 .subject-card:hover { border-color: #c0d0c4; }
 .subject-card.selected { background: #f8fdf9; border-color: #a0d0a8; }
 

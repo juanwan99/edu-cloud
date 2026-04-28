@@ -211,7 +211,7 @@ async function handleSaveAnswers() {
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 .opt-btn:hover {
   border-color: #18a058;

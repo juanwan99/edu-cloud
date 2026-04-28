@@ -191,7 +191,7 @@ onUnmounted(() => {
 
 <style scoped>
 .bind-container {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -212,7 +212,7 @@ onUnmounted(() => {
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.12);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
 }
 .rel-item:hover {
   border-color: rgba(99,226,183,0.4);

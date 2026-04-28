@@ -247,7 +247,7 @@ onMounted(loadData)
   border: 1px solid #333;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 .combo-card:hover:not(.added) { border-color: #63e2b7; }
 .combo-card.checked { border-color: #63e2b7; background: rgba(99, 226, 183, 0.08); }
