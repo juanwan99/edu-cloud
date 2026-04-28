@@ -5,7 +5,6 @@ import logging
 import httpx
 from pydantic import BaseModel
 from edu_cloud.modules.grading.json_parser import extract_json
-from edu_cloud.modules.grading.prompts_legacy import build_grading_prompt, build_rubric_generation_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -56,80 +55,6 @@ class LLMClient:
 
     async def close(self):
         await self._http.aclose()
-
-    async def grade(
-        self,
-        images_b64: str | list[str],
-        rubric: dict,
-        question: dict,
-        question_type: str | None = None,
-    ) -> GradeResponse:
-        messages = build_grading_prompt(rubric, question, question_type)
-        max_score = question.get("max_score", 0.0)
-
-        if isinstance(images_b64, str):
-            images_b64 = [images_b64]
-
-        user_msg = messages[-1]
-        content_parts: list[dict] = [{"type": "text", "text": user_msg["content"]}]
-        for img in images_b64:
-            content_parts.append({"type": "image_url", "image_url": {"url": _img_data_url(img)}})
-        user_msg["content"] = content_parts
-
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "max_tokens": 16384,
-            "temperature": 0,
-            "thinking_mode": "nothinking",
-        }
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        if self.slot:
-            headers["X-LLM-Slot"] = self.slot
-
-        last_error = None
-        for attempt in range(self.max_retries):
-            try:
-                resp = await self._http.post(
-                    f"{self.api_url}/chat/completions",
-                    json=payload,
-                    headers=headers,
-                )
-                if resp.status_code != 200:
-                    last_error = f"HTTP {resp.status_code}: {resp.text}"
-                    logger.warning("LLM attempt %d/%d failed: %s", attempt + 1, self.max_retries, last_error)
-                    continue
-
-                data = resp.json()
-                _log_llm_usage("grade", data, self.model)
-                choices = data.get("choices") or []
-                if not choices:
-                    last_error = "Empty choices in LLM response"
-                    logger.warning("LLM attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
-                    continue
-
-                content = choices[0]["message"]["content"]
-                parsed = extract_json(content)
-                if parsed is None or not isinstance(parsed, dict):
-                    last_error = "Failed to parse JSON from LLM response"
-                    logger.warning("LLM attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
-                    continue
-                return GradeResponse(
-                    score=min(max(parsed.get("score", 0), 0), max_score),
-                    max_score=max_score,
-                    feedback=parsed.get("comment", parsed.get("feedback", "")),
-                    confidence=parsed.get("confidence", 0.0),
-                    raw_content=content,
-                )
-
-            except (httpx.TimeoutException, httpx.ConnectError) as e:
-                last_error = f"Network error: {e}"
-                logger.warning("LLM attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
-
-        raise RuntimeError(f"LLM call failed after {self.max_retries} attempts: {last_error}")
 
     async def generate_rubric(
         self,
