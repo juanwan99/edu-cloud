@@ -222,7 +222,7 @@ function handleLogout() {
   border-radius: 50%;
   background: rgba(99,226,183,0.15);
   color: #63e2b7;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
   display: flex;
   align-items: center;

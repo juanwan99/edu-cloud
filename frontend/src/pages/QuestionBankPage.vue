@@ -248,7 +248,7 @@ onMounted(() => {
 
 <style scoped>
 .page-header { margin-bottom: 20px; }
-.page-title { font-size: 22px; font-weight: 700; margin: 0; }
+.page-title { font-size: 20px; font-weight: 700; margin: 0; }
 .page-subtitle { font-size: 13px; color: var(--color-text-muted); margin: 2px 0 0; }
 
 .stats-grid {
@@ -266,7 +266,7 @@ onMounted(() => {
 }
 
 .stat-value {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--color-primary);
 }

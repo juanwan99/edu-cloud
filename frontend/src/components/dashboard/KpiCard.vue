@@ -55,7 +55,7 @@ const displayValue = computed(() =>
 .kpi-card--purple { background: var(--macaron-purple-light); }
 
 .kpi-card__value {
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--color-primary);
   letter-spacing: -0.02em;

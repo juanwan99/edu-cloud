@@ -215,7 +215,7 @@ onMounted(() => {
 
 <style scoped>
 .page-header { margin-bottom: 24px; }
-.page-title { font-size: 22px; font-weight: 700; margin: 0; }
+.page-title { font-size: 20px; font-weight: 700; margin: 0; }
 .page-subtitle { margin: 8px 0 0; }
 
 .info-card {

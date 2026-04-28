@@ -246,7 +246,7 @@ onMounted(async () => {
 
 <style scoped>
 .page-header { margin-bottom: 24px; }
-.page-title { font-size: 22px; font-weight: 700; margin: 0; }
+.page-title { font-size: 20px; font-weight: 700; margin: 0; }
 .page-subtitle { font-size: 14px; color: var(--color-text-muted); margin: 4px 0 0; }
 
 .filter-bar {
@@ -272,7 +272,7 @@ onMounted(async () => {
 }
 
 .stat-value {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--color-primary);
 }

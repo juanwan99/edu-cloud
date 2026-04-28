@@ -7,7 +7,7 @@
           {{ trophyIcon }}
         </div>
         <div style="flex: 1;">
-          <div style="font-size: 24px; font-weight: 700; color: rgba(255,255,255,0.9);">
+          <div style="font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.9);">
             第 {{ myRanking.rank }} 名
             <span style="font-size: 14px; font-weight: 400; color: rgba(255,255,255,0.45);">
               / 共 {{ rankings.length }} 人

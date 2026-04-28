@@ -797,7 +797,7 @@ function stageClass(stage) { return `tag-${stage}` }
 <style scoped>
 .dispatch-page { padding: 4px 0; }
 .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+.page-title { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
 .page-subtitle { font-size: 13px; color: #8a9a8e; margin-top: 2px; }
 
 .summary-bar { display: flex; gap: 24px; padding: 12px 20px; background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: 12px; margin-bottom: 12px; }

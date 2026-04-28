@@ -273,10 +273,10 @@ onMounted(loadAll)
 
 <style scoped>
 .page-header { margin-bottom: 24px; }
-.page-title { font-size: 22px; font-weight: 700; margin: 0; color: var(--color-text-primary); }
+.page-title { font-size: 20px; font-weight: 600; margin: 0; color: var(--color-text-primary); }
 .page-subtitle { font-size: 14px; color: var(--color-text-muted); margin: 4px 0 0; }
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
 .stat-card { border-radius: var(--radius-lg); padding: 20px; text-align: center; }
-.stat-value { font-size: 24px; font-weight: 700; color: var(--color-text-primary); }
+.stat-value { font-size: 22px; font-weight: 700; color: var(--color-text-primary); }
 .stat-label { font-size: 13px; color: var(--color-text-muted); margin-top: 4px; }
 </style>
