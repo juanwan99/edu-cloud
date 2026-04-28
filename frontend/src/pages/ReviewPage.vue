@@ -12,7 +12,11 @@
           <n-button :type="reviewMode === 'ungraded' ? 'primary' : 'default'" @click="switchMode('ungraded')">待阅</n-button>
           <n-button :type="reviewMode === 'ai_review' ? 'primary' : 'default'" @click="switchMode('ai_review')">AI 复核</n-button>
         </n-button-group>
-        <span class="topbar-progress">{{ position.current }} / {{ position.total }}</span>
+        <n-button-group size="small">
+          <n-button :disabled="browseIndex <= 0 || loading" @click="goPrev">&#9664;</n-button>
+          <n-button disabled style="min-width: 60px">{{ position.current }} / {{ position.total }}</n-button>
+          <n-button :disabled="browseIndex >= position.total - 1 || loading" @click="goNext">&#9654;</n-button>
+        </n-button-group>
       </div>
       <div v-if="canManageGrading" class="topbar-actions">
         <n-popconfirm @positive-click="handleBatchGrade">
@@ -198,7 +202,7 @@
               :disabled="currentScore === null"
               @click="handleSubmit"
             >
-              {{ ai ? '确认并下一份' : '提交并下一份' }} (Enter)
+              {{ isGraded ? '修改评分 (Enter)' : ai ? '确认并下一份 (Enter)' : '提交并下一份 (Enter)' }}
             </n-button>
           </div>
 
@@ -207,6 +211,7 @@
             <div><kbd>0</kbd>-<kbd>9</kbd> 输入分数</div>
             <div v-if="ai"><kbd>A</kbd> 采纳 AI 分数</div>
             <div><kbd>Enter</kbd> 提交</div>
+            <div><kbd>←</kbd><kbd>→</kbd> 前后翻页</div>
             <div><kbd>Esc</kbd> 返回</div>
             <div>滚轮缩放 / 双击还原</div>
           </div>
@@ -220,7 +225,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
-import { getNext, submitScore, flagAnswer } from '../api/marking'
+import { getNext, submitScore, flagAnswer, getAnswerAt } from '../api/marking'
 import { gradeSingle, createTask } from '../api/grading'
 import { useAuthStore } from '../stores/auth'
 import client from '../api/client'
@@ -249,11 +254,14 @@ const comment = ref('')
 const scoreInputRef = ref(null)
 
 const reviewMode = ref('ungraded')
+const browseIndex = ref(-1)
+const browsing = ref(false)
 const loadSeq = ref(0)
 const aiGrading = ref(false)
 const batchStarting = ref(false)
 const subjectId = ref(null)
 
+const isGraded = ref(false)
 const currentAnomaly = ref(null)
 const selectedAnomalyType = ref(null)
 const anomalyOptions = [
@@ -309,6 +317,7 @@ function applyAnswer(answerPayload) {
   // AI 预测时自动预填分数供教师校对
   currentScore.value = ai.value ? ai.value.score : null
   comment.value = ''
+  isGraded.value = false
   currentAnomaly.value = answerPayload.anomaly_type || null
   selectedAnomalyType.value = null
   resetZoom()
@@ -325,6 +334,8 @@ async function loadNext() {
       done.value = true
     } else {
       applyAnswer(data.answer)
+      browseIndex.value = data.answer.position.current - 1
+      browsing.value = false
       await loadImage(data.answer.answer_id)
     }
   } catch {
@@ -422,6 +433,39 @@ async function handleClearFlag() {
   }
 }
 
+async function loadAnswerAt(offset) {
+  const seq = ++loadSeq.value
+  loading.value = true
+  done.value = false
+  try {
+    const { data } = await getAnswerAt(questionId, offset)
+    if (seq !== loadSeq.value) return
+    browseIndex.value = offset
+    browsing.value = true
+    applyAnswer(data)
+    if (data.graded_score != null) {
+      currentScore.value = data.graded_score
+      comment.value = data.graded_comment || ''
+      isGraded.value = true
+    }
+    await loadImage(data.answer_id)
+  } catch {
+    if (seq !== loadSeq.value) return
+    message.error('加载失败')
+  }
+  loading.value = false
+  await nextTick()
+  scoreInputRef.value?.focus()
+}
+
+function goPrev() {
+  if (browseIndex.value > 0) loadAnswerAt(browseIndex.value - 1)
+}
+
+function goNext() {
+  if (browseIndex.value < position.value.total - 1) loadAnswerAt(browseIndex.value + 1)
+}
+
 function switchMode(mode) {
   if (reviewMode.value === mode) return
   reviewMode.value = mode
@@ -464,6 +508,15 @@ function handleKeydown(e) {
 
   if (e.key === 'Escape') {
     router.back()
+    return
+  }
+
+  if (e.key === 'ArrowLeft' && !e.target.closest('.n-input-number')) {
+    goPrev()
+    return
+  }
+  if (e.key === 'ArrowRight' && !e.target.closest('.n-input-number')) {
+    goNext()
     return
   }
 

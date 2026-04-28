@@ -238,6 +238,73 @@ async def get_next_answer(
     }
 
 
+async def get_answer_at(
+    db: AsyncSession, question_id: str, school_id: str, offset: int,
+) -> dict | None:
+    """按索引获取某题的第 offset 份答卷（0-based），包含已有评分。"""
+    total = (await db.execute(
+        select(func.count()).select_from(StudentAnswer).where(
+            StudentAnswer.question_id == question_id,
+            StudentAnswer.school_id == school_id,
+        )
+    )).scalar() or 0
+
+    if offset < 0 or offset >= total:
+        return None
+
+    answer = (await db.execute(
+        select(StudentAnswer).where(
+            StudentAnswer.question_id == question_id,
+            StudentAnswer.school_id == school_id,
+        ).order_by(StudentAnswer.student_id)
+        .offset(offset).limit(1)
+    )).scalar_one_or_none()
+
+    if not answer:
+        return None
+
+    gr = (await db.execute(
+        select(GradingResult).where(GradingResult.answer_id == answer.id)
+    )).scalar_one_or_none()
+
+    ai_info = None
+    graded_score = None
+    graded_comment = None
+    if gr:
+        if gr.ai_score is not None:
+            det = None
+            if gr.ai_raw_response and isinstance(gr.ai_raw_response, dict):
+                det = gr.ai_raw_response.get("details")
+            ai_info = {
+                "score": gr.ai_score,
+                "confidence": gr.ai_confidence,
+                "feedback": gr.ai_feedback,
+                "result_id": gr.id,
+                "details": det,
+            }
+        if gr.status == "confirmed":
+            graded_score = gr.final_score
+            graded_comment = gr.review_comment
+
+    q = (await db.execute(
+        select(Question).where(Question.id == question_id)
+    )).scalar_one_or_none()
+    max_score = q.max_score if q else 0.0
+
+    return {
+        "answer_id": answer.id,
+        "student_id": answer.student_id,
+        "image_path": answer.image_path,
+        "position": {"current": offset + 1, "total": total},
+        "ai": ai_info,
+        "max_score": max_score,
+        "is_anomaly": answer.is_anomaly,
+        "anomaly_type": answer.anomaly_type,
+        "graded_score": graded_score,
+        "graded_comment": graded_comment,
+    }
+
+
 async def submit_score(
     db: AsyncSession,
     answer_id: str,
