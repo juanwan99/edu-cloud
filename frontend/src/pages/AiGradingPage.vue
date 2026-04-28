@@ -344,7 +344,7 @@ async function handleSaveRubric() {
   }
 }
 
-async function handleStartGrading(limit) {
+async function handleStartGrading(limit, mode) {
   if (!selectedQuestion.value) return
   gradingStarting.value = true
   try {
@@ -353,6 +353,7 @@ async function handleStartGrading(limit) {
       question_id: selectedQuestion.value.question_id,
     }
     if (limit != null) payload.limit = limit
+    if (mode) payload.mode = mode
     const res = await createTask(payload)
     const taskId = res.data?.task_id || res.data?.id
     if (taskId) {

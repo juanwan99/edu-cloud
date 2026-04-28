@@ -75,6 +75,16 @@
           <div v-if="taskProgress.status === 'completed'" class="done-text">阅卷完成</div>
           <div v-else-if="taskProgress.status === 'failed'" class="fail-text">阅卷失败</div>
         </div>
+        <div class="grading-mode-row">
+          <span class="limit-label">阅卷模式</span>
+          <n-radio-group v-model:value="modeValue" size="small">
+            <n-radio-button value="realtime">实时模式</n-radio-button>
+            <n-radio-button value="batch">经济模式</n-radio-button>
+          </n-radio-group>
+        </div>
+        <div class="mode-desc">
+          {{ modeValue === 'realtime' ? '即时返回结果，适合少量或急用' : '异步处理，成本减半，适合大批量' }}
+        </div>
         <div class="grading-limit-row">
           <span class="limit-label">阅卷数量</span>
           <n-input-number
@@ -92,7 +102,7 @@
           type="primary"
           :loading="gradingStarting"
           :disabled="taskProgress?.status === 'processing'"
-          @click="$emit('start-grading', limitValue)"
+          @click="$emit('start-grading', limitValue, modeValue)"
           style="margin-top: 10px"
         >开始阅卷</n-button>
       </n-card>
@@ -103,7 +113,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { NCard, NButton, NSpace, NProgress, NImage, NInputNumber } from 'naive-ui'
+import { NCard, NButton, NSpace, NProgress, NImage, NInputNumber, NRadioGroup, NRadioButton } from 'naive-ui'
 import RubricEditor from '../../components/RubricEditor.vue'
 
 const props = defineProps({
@@ -126,6 +136,7 @@ defineEmits([
 ])
 
 const limitValue = ref(null)
+const modeValue = ref('realtime')
 
 const taskProgressPct = computed(() => {
   if (!props.taskProgress || !props.taskProgress.total) return 0
@@ -241,6 +252,19 @@ const taskProgressPct = computed(() => {
   font-size: 16px;
   color: #6b7c72;
   white-space: nowrap;
+}
+
+.grading-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mode-desc {
+  font-size: 16px;
+  color: #6b7c72;
+  margin-bottom: 8px;
 }
 
 .empty-tip.center {
