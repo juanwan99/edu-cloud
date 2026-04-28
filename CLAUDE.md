@@ -203,8 +203,8 @@ frontend/src/
       KnowledgeHeatmap.vue    # 知识点掌握热力图（班级×知识点，vue-echarts）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   assets/styles/
-    variables.css           # CSS 设计 token（颜色/语义色/圆角/阴影/字体/动效/z-index 4 层级）
-    global.css              # 全局样式 + 工具类（page-*/stat-card/tag-*/chart-height-*/tabular-nums/prefers-reduced-motion）
+    variables.css           # CSS 设计 token（颜色/语义色/圆角/阴影/字体/间距 scale/动效/z-index 4 层级；最小字号 16px 地板，accent #10b981，文字色加深 #0f1a12/#3d4f42/#6b7d70）
+    global.css              # 全局样式 + 工具类（page-title 30px/w800, stat-card 36px/w800, tag-*/chart-height-*/tabular-nums/prefers-reduced-motion）
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
   api/                      # API 调用层（16 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染）
   config/
