@@ -207,11 +207,15 @@ async def get_next_answer(
 
     ai_info = None
     if ai_row and ai_row.ai_score is not None:
+        det = None
+        if ai_row.ai_raw_response and isinstance(ai_row.ai_raw_response, dict):
+            det = ai_row.ai_raw_response.get("details")
         ai_info = {
             "score": ai_row.ai_score,
             "confidence": ai_row.ai_confidence,
             "feedback": ai_row.ai_feedback,
             "result_id": ai_row.id,
+            "details": det,
         }
 
     # 查题目满分
