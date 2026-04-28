@@ -226,7 +226,7 @@ function makeErrorPieOption(ep) {
     series: [{
       type: 'pie', radius: ['40%', '70%'],
       data,
-      label: { show: true, formatter: '{b}\n{d}%', fontSize: 11 },
+      label: { show: true, formatter: '{b}\n{d}%', fontSize: 16 },
       emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,.15)' } },
     }],
   }

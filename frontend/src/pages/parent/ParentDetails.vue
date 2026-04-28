@@ -137,7 +137,7 @@ const trendOption = computed(() => {
       trigger: 'axis',
       backgroundColor: 'rgba(30, 30, 46, 0.95)',
       borderColor: 'rgba(255,255,255,0.1)',
-      textStyle: { color: 'rgba(255,255,255,0.85)', fontSize: 12 },
+      textStyle: { color: 'rgba(255,255,255,0.85)', fontSize: 16 },
       formatter: (params) => {
         const p = params[0]
         return `${p.name}<br/>累计积分: ${p.value}`
@@ -146,12 +146,12 @@ const trendOption = computed(() => {
     xAxis: {
       type: 'category',
       data: dates,
-      axisLabel: { fontSize: 10, color: 'rgba(255,255,255,0.35)' },
+      axisLabel: { fontSize: 16, color: 'rgba(255,255,255,0.35)' },
       axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
     },
     yAxis: {
       type: 'value',
-      axisLabel: { fontSize: 10, color: 'rgba(255,255,255,0.35)' },
+      axisLabel: { fontSize: 16, color: 'rgba(255,255,255,0.35)' },
       splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
     },
     series: [{

@@ -43,7 +43,7 @@
             width: distBands.top10 + '%',
             background: 'rgba(99, 226, 183, 0.5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '11px', color: 'rgba(255,255,255,0.8)',
+            fontSize: '16px', color: 'rgba(255,255,255,0.8)',
             minWidth: distBands.top10 > 8 ? 'auto' : '0',
           }"
         >
@@ -54,7 +54,7 @@
             width: distBands.mid50 + '%',
             background: 'rgba(112, 161, 255, 0.35)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '11px', color: 'rgba(255,255,255,0.7)',
+            fontSize: '16px', color: 'rgba(255,255,255,0.7)',
           }"
         >
           中间50%
@@ -64,7 +64,7 @@
             width: distBands.bot40 + '%',
             background: 'rgba(255,255,255,0.08)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '11px', color: 'rgba(255,255,255,0.5)',
+            fontSize: '16px', color: 'rgba(255,255,255,0.5)',
           }"
         >
           后40%
@@ -77,7 +77,7 @@
             position: 'absolute',
             left: myPositionPct + '%',
             transform: 'translateX(-50%)',
-            fontSize: '11px',
+            fontSize: '16px',
             color: '#63e2b7',
             fontWeight: 600,
             whiteSpace: 'nowrap',

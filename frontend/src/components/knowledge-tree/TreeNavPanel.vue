@@ -163,12 +163,12 @@ function renderSuffix({ option }) {
   const parts = []
   if (option.reviewStatus) {
     const icon = reviewStatusIcons[option.reviewStatus] || ''
-    if (icon) parts.push(h('span', { style: { fontSize: '12px', marginRight: '4px' } }, icon))
+    if (icon) parts.push(h('span', { style: { fontSize: '16px', marginRight: '4px' } }, icon))
   }
   const m = option.mastery ?? 0
   if (m > 0) {
     parts.push(h('span', {
-      style: { color: masteryColor(m), fontSize: '12px' },
+      style: { color: masteryColor(m), fontSize: '16px' },
     }, Math.round(m * 100) + '%'))
   }
   return parts.length ? h('span', { style: { marginLeft: '4px' } }, parts) : null

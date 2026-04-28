@@ -286,7 +286,7 @@ async function fetchCharts() {
           textStyle: { color: chartTextColor },
           tooltip: { trigger: 'axis', formatter: (p) => `${p[0].name}<br/>中位数: ${p[0].value}` },
           grid: { left: 50, right: 20, top: 20, bottom: 60 },
-          xAxis: { type: 'category', data: sorted.map(c => c.name || ''), axisLabel: { rotate: 30, fontSize: 11, color: chartTextColor } },
+          xAxis: { type: 'category', data: sorted.map(c => c.name || ''), axisLabel: { rotate: 30, fontSize: 16, color: chartTextColor } },
           yAxis: { type: 'value', name: '中位数', nameTextStyle: { color: chartTextColor }, axisLabel: { color: chartTextColor }, splitLine: { lineStyle: { color: chartSplitColor } } },
           series: [{
             type: 'bar',
