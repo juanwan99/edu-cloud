@@ -12,7 +12,7 @@
         <n-card title="邀请码管理" style="margin-bottom: 16px;">
           <n-space vertical :size="12">
             <div style="display: flex; align-items: center; gap: 12px;">
-              <n-tag size="large" :bordered="false" style="font-family: monospace; font-size: 18px; letter-spacing: 2px;">
+              <n-tag size="large" :bordered="false" style="font-family: monospace; font-size: 18px;">
                 {{ config.invite_code || '未生成' }}
               </n-tag>
               <n-button

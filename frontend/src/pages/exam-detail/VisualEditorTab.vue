@@ -257,7 +257,7 @@ defineExpose({
 }
 .toolbar-btn:hover {
   border-color: rgba(0, 0, 0, 0.4) !important;
-  color: #000 !important;
+  color: var(--color-text) !important;
   background: rgba(0, 0, 0, 0.04) !important;
 }
 .toolbar-btn:disabled {

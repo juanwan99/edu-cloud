@@ -22,7 +22,7 @@
       </template>
       <n-empty v-else description="请在左栏选择一次考试" />
     </div>
-    <div style="height: 300px; min-height: 200px;">
+    <div class="chart-height-lg" style="min-height: 200px;">
       <ChatPanel />
     </div>
   </div>

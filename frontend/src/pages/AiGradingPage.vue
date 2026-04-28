@@ -726,7 +726,7 @@ async function handleBatchGenerate() {
   top: 4px;
   left: 4px;
   background: rgba(0,0,0,0.6);
-  color: #fff;
+  color: var(--color-bg, #fff);
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 3px;

@@ -68,7 +68,7 @@
           <n-button
             size="small"
             quaternary
-            style="position: absolute; right: 8px; top: 0; z-index: 10;"
+            style="position: absolute; right: 8px; top: 0; z-index: 2;"
             @click="exportChart"
           >
             导出图片

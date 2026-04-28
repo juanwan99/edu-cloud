@@ -254,10 +254,10 @@ onMounted(loadExams)
 
 /* Question row status color bands */
 :deep(.row--completed td:first-child) {
-  box-shadow: inset 3px 0 0 #2a9d8f;
+  box-shadow: inset 3px 0 0 var(--color-success, #2a9d8f);
 }
 :deep(.row--in-progress td:first-child) {
-  box-shadow: inset 3px 0 0 #f4a261;
+  box-shadow: inset 3px 0 0 var(--color-warning, #f4a261);
 }
 :deep(.row--pending td:first-child) {
   box-shadow: inset 3px 0 0 rgba(255,255,255,0.15);

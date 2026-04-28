@@ -97,10 +97,10 @@ describe('AnalyticsTrendPage metric checkboxes', () => {
 })
 
 describe('AnalyticsTrendPage chart area', () => {
-  it('renders v-chart with chartOption and 400px height', () => {
+  it('renders v-chart with chartOption and chart-height-xl class', () => {
     expect(content).toContain('v-if="chartOption"')
-    expect(content).toContain('<v-chart ref="chartRef" :option="chartOption"')
-    expect(content).toContain('style="height: 400px"')
+    expect(content).toContain('<v-chart ref="chartRef"')
+    expect(content).toContain('chart-height-xl')
   })
 
   it('has export chart button', () => {

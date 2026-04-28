@@ -84,6 +84,6 @@ const displayValue = computed(() =>
   line-height: 1;
 }
 
-.kpi-card__trend--up { color: #16a34a; }
-.kpi-card__trend--down { color: #dc2626; }
+.kpi-card__trend--up { color: var(--color-success, #16a34a); }
+.kpi-card__trend--down { color: var(--color-danger, #dc2626); }
 </style>

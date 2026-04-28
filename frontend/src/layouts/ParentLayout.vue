@@ -117,7 +117,8 @@ onMounted(async () => {
   background: #1e1e2e;
   border-top: 1px solid rgba(255, 255, 255, 0.09);
   display: flex;
-  height: 56px;
+  height: calc(56px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
   z-index: var(--z-header);
 }
 .tab-item {

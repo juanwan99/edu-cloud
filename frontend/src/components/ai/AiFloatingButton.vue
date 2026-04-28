@@ -20,13 +20,13 @@ const canUseAi = computed(() => authStore.checkPermission('use_ai_chat'))
 <style scoped>
 .ai-fab {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  right: calc(24px + env(safe-area-inset-right));
   width: 48px;
   height: 48px;
   border-radius: 50%;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-bg, #fff);
   display: flex;
   align-items: center;
   justify-content: center;

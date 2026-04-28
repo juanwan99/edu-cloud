@@ -11,7 +11,7 @@
       <n-card size="small" style="margin-bottom: 16px;">
         <n-space align="center" :size="12">
           <span style="color: rgba(255,255,255,0.5);">班级邀请码：</span>
-          <n-tag size="large" :bordered="false" style="font-family: monospace; font-size: 16px; letter-spacing: 2px;">
+          <n-tag size="large" :bordered="false" style="font-family: monospace; font-size: 16px;">
             {{ inviteCode || '未生成' }}
           </n-tag>
           <n-button size="small" @click="copyInviteLink" :disabled="!inviteCode">复制邀请链接</n-button>

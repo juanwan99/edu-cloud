@@ -187,6 +187,9 @@ frontend/src/
       RadarChart.vue          # 通用雷达图（知识掌握/科目得分，vue-echarts）
       KnowledgeHeatmap.vue    # 知识点掌握热力图（班级×知识点，vue-echarts）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
+  assets/styles/
+    variables.css           # CSS 设计 token（颜色/语义色/圆角/阴影/字体/动效/z-index 4 层级）
+    global.css              # 全局样式 + 工具类（page-*/stat-card/tag-*/chart-height-*/tabular-nums/prefers-reduced-motion）
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
   api/                      # API 调用层（16 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染）
   config/

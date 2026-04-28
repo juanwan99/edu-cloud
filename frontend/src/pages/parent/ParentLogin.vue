@@ -280,15 +280,15 @@ async function handleLogin() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 999;
+  z-index: var(--z-overlay);
 }
 
 .success-check {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: #1a2e1f;
-  color: #fff;
+  background: var(--color-primary, #1a2e1f);
+  color: var(--color-bg, #fff);
   font-size: 32px;
   display: flex;
   align-items: center;

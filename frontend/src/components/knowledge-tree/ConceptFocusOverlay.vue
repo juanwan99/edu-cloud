@@ -124,8 +124,7 @@ const canMarkReviewed = computed(() => {
   bottom: 16px;
   left: 15%;
   right: 15%;
-  background: rgba(30, 30, 40, 0.85);
-  backdrop-filter: blur(8px);
+  background: rgba(30, 30, 40, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   padding: 16px 20px;

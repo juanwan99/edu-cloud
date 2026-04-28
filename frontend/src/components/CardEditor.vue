@@ -783,7 +783,7 @@ defineExpose({
   position: relative;
   display: flex;
   width: 100%;
-  height: calc(100vh - 200px);
+  height: calc(100dvh - 200px);
   min-height: 600px;
   overflow: hidden;
 }

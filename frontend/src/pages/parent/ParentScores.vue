@@ -160,7 +160,7 @@ onMounted(loadData)
 }
 
 .score-card--primary {
-  background: linear-gradient(135deg, rgba(99, 226, 183, 0.15), rgba(99, 226, 183, 0.05));
+  background: rgba(99, 226, 183, 0.10);
 }
 
 .score-card__value {

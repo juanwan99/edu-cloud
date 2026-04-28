@@ -116,7 +116,7 @@ async function htmlToImageFile(html) {
   const container = document.createElement('div')
   Object.assign(container.style, {
     position: 'fixed', left: '-9999px', top: '0',
-    background: '#fff', color: '#000', padding: '16px',
+    background: '#fff', color: '#1a1a1a', padding: '16px',
     fontSize: '14px', lineHeight: '1.6', maxWidth: '800px',
   })
   container.innerHTML = html
@@ -179,12 +179,12 @@ function handleSave() {
 }
 .preview-seq {
   position: absolute; top: 4px; left: 4px;
-  background: rgba(0,0,0,0.6); color: #fff;
+  background: rgba(0,0,0,0.6); color: var(--color-bg, #fff);
   font-size: 10px; padding: 1px 5px; border-radius: 3px;
 }
 .paste-badge {
   position: absolute; bottom: 4px; left: 4px;
-  background: #409eff; color: #fff;
+  background: var(--color-primary, #409eff); color: var(--color-bg, #fff);
   font-size: 9px; padding: 1px 4px; border-radius: 3px;
 }
 .preview-delete {

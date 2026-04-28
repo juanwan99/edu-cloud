@@ -215,16 +215,16 @@ async function handleSaveAnswers() {
 }
 .opt-btn:hover {
   border-color: #18a058;
-  color: #18a058;
+  color: var(--color-primary, #18a058);
 }
 .opt-btn.selected {
-  background: #18a058;
-  color: white;
-  border-color: #18a058;
+  background: var(--color-primary, #18a058);
+  color: var(--color-bg, #fff);
+  border-color: var(--color-primary, #18a058);
 }
 .opt-btn.multi.selected {
-  background: #2080f0;
-  border-color: #2080f0;
+  background: var(--color-info, #2080f0);
+  border-color: var(--color-info, #2080f0);
 }
 .skip-btn {
   opacity: 0.5;

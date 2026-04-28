@@ -12,6 +12,13 @@
   --color-border: #e2e8e4;
   --color-border-light: #f0f4f1;
 
+  /* 语义色 */
+  --color-success: #16a34a;
+  --color-danger: #dc2626;
+  --color-warning: #f59e0b;
+  --color-info: #2080f0;
+  --color-bg-deep: #2d2d3d;
+
   /* Macaron 柔彩 */
   --macaron-mint: #c8f0d4;
   --macaron-mint-light: #e8f8ee;

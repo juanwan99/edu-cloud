@@ -736,7 +736,7 @@ onUnmounted(() => {
   max-height: 85vh;
   object-fit: contain;
   user-select: none;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md, 0 2px 12px rgba(0, 0, 0, 0.15));
   border-radius: 4px;
 }
 
@@ -884,9 +884,9 @@ onUnmounted(() => {
 }
 
 .score-btn.active {
-  background: #18a058;
-  color: #fff;
-  border-color: #18a058;
+  background: var(--color-primary, #18a058);
+  color: var(--color-bg, #fff);
+  border-color: var(--color-primary, #18a058);
   box-shadow: 0 0 0 2px rgba(24, 160, 88, 0.3);
 }
 
