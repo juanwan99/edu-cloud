@@ -62,6 +62,14 @@ npm run dev
 # → http://0.0.0.0:8080（ECS 远程开发，allowedHosts 锁定）；代理 /api → http://localhost:9000
 ```
 
+## 架构不变量（任何会话都不可违反）
+
+- **前端唯一入口**: `frontend/`（Vue 3 + Naive UI）。禁止创建 `frontend-xxx/` 平行目录
+- **侧边栏**: 5 板块分组（考试阅卷/教研教学/教务管理/学生管理/学校管理），不可回退扁平列表
+- **后端唯一入口**: `src/edu_cloud/`，模块化结构（MODULE.md 治理）
+- **生产 serving**: nginx 443 → `frontend/dist/`，不走 dev server
+- **数据库**: SQLite per-school，备份用 `sqlite3 .backup`，禁止 cp/rsync
+
 ## 前端 serving 架构
 
 用户通过 `https://mcu.asia` 访问 → nginx HTTPS 443 → **serve `frontend/dist/` 静态文件**（不是代理到 Vite dev server）。
