@@ -134,6 +134,10 @@ async def get_next_answer(
         )).scalar_one_or_none()
         max_score = q.max_score if q else 0.0
 
+        details = None
+        if ai_done_q.ai_raw_response and isinstance(ai_done_q.ai_raw_response, dict):
+            details = ai_done_q.ai_raw_response.get("details")
+
         return {
             "answer_id": answer.id,
             "student_id": answer.student_id,
@@ -144,6 +148,7 @@ async def get_next_answer(
                 "confidence": ai_done_q.ai_confidence,
                 "feedback": ai_done_q.ai_feedback,
                 "result_id": ai_done_q.id,
+                "details": details,
             },
             "max_score": max_score,
         }

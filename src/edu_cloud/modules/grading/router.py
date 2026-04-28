@@ -559,6 +559,7 @@ async def grade_single_answer(
                 "max_score": result_data["max_score"],
                 "feedback": result_data["feedback"],
                 "confidence": result_data["confidence"],
+                "details": details,
                 "already_confirmed": True,
             }
         existing_gr.ai_score = result_data["score"]
@@ -590,6 +591,7 @@ async def grade_single_answer(
         "max_score": result_data["max_score"],
         "feedback": result_data["feedback"],
         "confidence": result_data["confidence"],
+        "details": details,
         "already_confirmed": False,
     }
 

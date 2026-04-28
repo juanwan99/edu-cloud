@@ -93,6 +93,23 @@
                 <span class="ai-score-max"> / {{ maxScore }}</span>
               </div>
               <div v-if="ai.feedback" class="ai-feedback">{{ ai.feedback }}</div>
+              <div v-if="ai.details?.length" class="ai-details">
+                <div class="ai-details-title">细化评分</div>
+                <div v-for="(sub, si) in ai.details" :key="si" class="ai-sub">
+                  <div class="ai-sub-header">
+                    <span>{{ sub.subQuestion || `第${si + 1}小题` }}</span>
+                    <span class="ai-sub-score">{{ sub.score }}/{{ sub.fullScore }}分</span>
+                  </div>
+                  <div v-if="sub.blanks?.length" class="ai-blanks">
+                    <div v-for="(b, bi) in sub.blanks" :key="bi"
+                         class="ai-blank" :style="{ color: b.correct ? '#18a058' : '#d03050' }">
+                      <span>第{{ b.index }}空: {{ b.score }}/{{ b.fullScore }}分 {{ b.correct ? '✓' : '✗' }}</span>
+                      <span v-if="b.answer" class="ai-blank-answer">{{ b.answer }}</span>
+                      <span v-if="b.reason" class="ai-blank-reason">({{ b.reason }})</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <n-button
                 size="small"
                 class="btn-pill"
@@ -310,6 +327,7 @@ async function handleAiGradeSingle() {
       score: data.score,
       confidence: data.confidence,
       feedback: data.feedback,
+      details: data.details || null,
     }
     currentScore.value = data.score
     if (data.already_confirmed) {
@@ -577,6 +595,61 @@ onUnmounted(() => {
   max-height: 120px;
   overflow-y: auto;
   white-space: pre-wrap;
+}
+
+.ai-details {
+  border-top: 1px dashed var(--color-border-light, #e5e7eb);
+  padding-top: 8px;
+}
+
+.ai-details-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted, #999);
+  margin-bottom: 6px;
+}
+
+.ai-sub-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  background: var(--color-bg-alt, #f7f8fa);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 2px;
+}
+
+.ai-sub-score {
+  font-weight: 600;
+}
+
+.ai-blanks {
+  padding-left: 10px;
+}
+
+.ai-blank {
+  font-size: 11px;
+  padding: 2px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-blank-answer {
+  color: var(--color-text-muted, #999);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-blank-reason {
+  color: var(--color-text-muted, #999);
+  font-size: 10px;
+}
+
+.ai-sub {
+  margin-bottom: 6px;
 }
 
 .score-title {
