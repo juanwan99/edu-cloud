@@ -246,10 +246,44 @@ def ensure_images_from_pdfs(image_dir: str, pages_per_student: int = 2, dpi: int
 _barcode_map: dict[str, str] = {}
 
 
+def _infer_barcode_pattern(barcode_map: dict[str, str]) -> str | None:
+    """从已建映射表推断主流条码格式正则。
+
+    统计各长度出现次数，如果主流长度占比 >= 80%，则生成 ``^\\d{N}$`` 模式。
+    这样可以过滤掉少数不同编码格式的条码（如 8 位混在 6 位中）。
+    """
+    if not barcode_map:
+        return None
+
+    from collections import Counter
+    lengths = Counter(len(v) for v in barcode_map.values() if v.isdigit())
+    if not lengths:
+        return None
+
+    total = sum(lengths.values())
+    dominant_len, dominant_count = lengths.most_common(1)[0]
+
+    if dominant_count / total < 0.8:
+        logger.info(
+            "barcode_pattern: no dominant length (top=%d, count=%d/%d), skip format validation",
+            dominant_len, dominant_count, total,
+        )
+        return None
+
+    pattern = rf"^\d{{{dominant_len}}}$"
+    logger.info(
+        "barcode_pattern: inferred pattern=%s from %d/%d barcodes",
+        pattern, dominant_count, total,
+    )
+    return pattern
+
+
 def build_barcode_map(image_dir: str, barcode_rect: dict, tpl_w: int, tpl_h: int) -> dict[str, str]:
-    """扫描所有 A 面文件建立 文件序号→条码学号 映射表。"""
+    """扫描所有 A 面文件建立 文件序号→条码学号 映射表。
+
+    使用 read_barcode 统一入口（含缩放 + 多策略重试），而非内联 decode。
+    """
     global _barcode_map
-    from pyzbar.pyzbar import decode
 
     d = Path(image_dir)
     a_files = sorted([
@@ -257,28 +291,19 @@ def build_barcode_map(image_dir: str, barcode_rect: dict, tpl_w: int, tpl_h: int
         if f.suffix.lower() in ('.jpg', '.png') and f.stem.endswith('A')
     ])
 
-    sx = 1.0
-    sy = 1.0
-    if a_files:
-        sample = Image.open(a_files[0])
-        sx = sample.size[0] / tpl_w if tpl_w > 0 else 1.0
-        sy = sample.size[1] / tpl_h if tpl_h > 0 else 1.0
-
-    pad = 80
-    x1 = max(0, int(barcode_rect["x1"] * sx) - pad)
-    y1 = max(0, int(barcode_rect["y1"] * sy) - pad)
-    x2 = int(barcode_rect["x2"] * sx) + pad
-    y2 = int(barcode_rect["y2"] * sy) + pad
+    template_size = {"width": tpl_w, "height": tpl_h}
 
     mapping = {}
     for f in a_files:
         stu_num = f.stem[:-1]
         try:
-            img = Image.open(f)
-            crop = img.crop((x1, y1, x2, y2))
-            barcodes = decode(crop)
-            if barcodes:
-                mapping[stu_num] = barcodes[0].data.decode()
+            result = read_barcode(
+                f,
+                crop_region=barcode_rect,
+                template_size=template_size,
+            )
+            if result:
+                mapping[stu_num] = result
         except Exception:
             pass
 
@@ -309,8 +334,13 @@ def process_one_image(
     template: dict,
     output_dir: str,
     barcode_region: dict | None = None,
+    expected_barcode_pattern: str | None = None,
 ) -> dict:
     """处理单张扫描图：检测定位点 → 缩放裁切 → 保存切图。
+
+    Args:
+        expected_barcode_pattern: 可选正则，条码校验格式（如 r"^\\d{6}$"），
+            不匹配的结果视为误读并 fallback 到文件名。
 
     Returns:
         {student_id, crops: [{region_id, name, path, size}], errors: [str]}
@@ -319,11 +349,18 @@ def process_one_image(
     img_w, img_h = img.size
 
     # 条码识别（F004：失败必须记录，禁止静默）
+    # 传入 template_size 使 read_barcode 能正确缩放坐标
+    template_size = template.get("image_size")
     student_id = None
     barcode_status = "ok"  # ok / fallback_exception / fallback_none / skipped
     if barcode_region:
         try:
-            student_id = read_barcode(image_path, barcode_region)
+            student_id = read_barcode(
+                image_path,
+                barcode_region,
+                template_size=template_size,
+                expected_pattern=expected_barcode_pattern,
+            )
             if not student_id:
                 barcode_status = "fallback_none"
                 logger.warning(
@@ -441,6 +478,7 @@ async def run_pipeline(
     pipeline_id: str = "default",
     save_answer_fn=None,
     save_objective_fn=None,
+    expected_barcode_pattern: str | None = None,
 ) -> dict:
     """异步运行批量切割流水线。
 
@@ -449,6 +487,9 @@ async def run_pipeline(
             用于将切图保存到 StudentAnswer 表。None 时只切不存。
         save_objective_fn: async fn(exam_id, subject_id, student_id, group_id, row_index, ...)
             用于将选择题结果保存到 StudentAnswer 表。None 时只识别不存。
+        expected_barcode_pattern: 可选正则，条码格式校验（如 r"^\\d{6}$"），
+            不匹配的条码视为误读并 fallback。如不传入且 barcode_map 已建，
+            则自动从 barcode_map 推断主流格式。
     """
     global _running
 
@@ -466,6 +507,10 @@ async def run_pipeline(
     _progress[pipeline_id] = progress
 
     barcode_region = template.get("barcode_region")
+
+    # 自动推断条码格式：从 barcode_map 统计主流长度
+    if not expected_barcode_pattern and _barcode_map:
+        expected_barcode_pattern = _infer_barcode_pattern(_barcode_map)
 
     # 预加载 student_number → student.id 映射
     student_number_map = {}
@@ -497,7 +542,10 @@ async def run_pipeline(
 
             progress.current_file = f.name
             try:
-                result = process_one_image(f, template, output_dir, barcode_region)
+                result = process_one_image(
+                    f, template, output_dir, barcode_region,
+                    expected_barcode_pattern=expected_barcode_pattern,
+                )
 
                 # 条码/文件名 → 查学生表拿真实 UUID
                 raw_sid = result["student_id"]
