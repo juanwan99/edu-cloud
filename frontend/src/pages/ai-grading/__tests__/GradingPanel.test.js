@@ -155,7 +155,7 @@ describe('GradingPanel template - grading operations card', () => {
 
 describe('GradingPanel imports', () => {
   it('imports NCard, NButton, NSpace, NProgress from naive-ui', () => {
-    expect(src).toContain('import { NCard, NButton, NSpace, NProgress, NImage, NTag }')
+    expect(src).toContain('import { NCard, NButton, NSpace, NProgress }')
   })
 
   it('imports RubricEditor component', () => {

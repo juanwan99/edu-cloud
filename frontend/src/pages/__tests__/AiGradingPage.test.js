@@ -406,15 +406,15 @@ describe('AiGradingPage selectQuestion fetches full details', () => {
   it('loads rubric after selecting question', () => {
     const selectBlock = content.slice(
       content.indexOf('async function selectQuestion'),
-      content.indexOf('async function loadStudentAnswers')
+      content.indexOf('async function loadRubric')
     )
-    expect(selectBlock).toContain('loadRubric(q.question_id)')
+    expect(selectBlock).toContain('await loadRubric(q.question_id)')
   })
 
   it('resets rubric and task progress when selecting new question', () => {
     const selectBlock = content.slice(
       content.indexOf('async function selectQuestion'),
-      content.indexOf('async function loadStudentAnswers')
+      content.indexOf('async function loadRubric')
     )
     expect(selectBlock).toContain('rubricItems.value = []')
     expect(selectBlock).toContain('taskProgress.value = null')
