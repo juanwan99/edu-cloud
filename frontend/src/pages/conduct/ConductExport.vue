@@ -1,13 +1,13 @@
 <template>
   <div>
-    <n-page-header title="数据导出" subtitle="导出操行数据为 Excel / CSV 文件" style="margin-bottom: 16px;" />
+    <n-page-header title="数据导出" subtitle="导出操行数据为 Excel / CSV 文件" class="section-gap" />
 
-    <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: 16px;">
+    <n-alert v-if="!classId" type="warning" title="未选择班级" class="section-gap">
       当前角色未关联班级，请切换到班主任角色。
     </n-alert>
 
     <template v-if="classId">
-      <n-card style="margin-bottom: 16px;">
+      <n-card class="section-gap">
         <n-space vertical :size="20">
           <!-- Export type -->
           <n-form-item label="导出类型">
@@ -48,7 +48,7 @@
               v-model:value="dateRange"
               type="daterange"
               clearable
-              style="width: 100%;"
+              class="full-width"
             />
           </n-form-item>
 
@@ -59,7 +59,7 @@
               :options="semesterOptions"
               placeholder="选择学期（可选）"
               clearable
-              style="width: 300px;"
+              class="select-md"
             />
           </n-form-item>
 
@@ -80,7 +80,7 @@
       </n-card>
 
       <!-- Preview area -->
-      <n-card v-if="previewData.length > 0" title="数据预览（前 5 行）" style="margin-bottom: 16px;">
+      <n-card v-if="previewData.length > 0" title="数据预览（前 5 行）" class="section-gap">
         <n-data-table
           :columns="previewColumns"
           :data="previewData"
@@ -88,7 +88,7 @@
           size="small"
           :bordered="false"
         />
-        <div style="margin-top: 8px; font-size: 16px; color: rgba(255,255,255,0.4);">
+        <div class="preview-footer">
           共 {{ previewTotal }} 条记录，仅预览前 5 条
         </div>
       </n-card>
@@ -97,9 +97,9 @@
       <n-card v-if="exportHistory.length > 0" title="最近导出记录" size="small">
         <n-list bordered size="small">
           <n-list-item v-for="(h, idx) in exportHistory" :key="idx">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="row-between">
               <span>{{ h.filename }}</span>
-              <span style="font-size: 16px; color: rgba(255,255,255,0.4);">{{ h.time }}</span>
+              <span class="text-muted">{{ h.time }}</span>
             </div>
           </n-list-item>
         </n-list>
@@ -327,3 +327,34 @@ onMounted(() => {
   loadHistory()
 })
 </script>
+
+<style scoped>
+.section-gap {
+  margin-bottom: var(--space-4);
+}
+
+.full-width {
+  width: 100%;
+}
+
+.select-md {
+  width: 300px;
+}
+
+.preview-footer {
+  margin-top: var(--space-2);
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.text-muted {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.4);
+}
+</style>

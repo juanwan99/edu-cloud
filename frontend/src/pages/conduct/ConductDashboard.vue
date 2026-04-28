@@ -1,6 +1,6 @@
 <template>
   <div>
-    <n-page-header title="德育概览" style="margin-bottom: 16px;">
+    <n-page-header title="德育概览" class="section-gap">
       <template #extra>
         <n-radio-group v-model:value="timeRange" size="small" @update:value="loadDashboard">
           <n-radio-button value="week">本周</n-radio-button>
@@ -10,13 +10,13 @@
       </template>
     </n-page-header>
 
-    <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: 16px;">
+    <n-alert v-if="!classId" type="warning" title="未选择班级" class="section-gap">
       当前角色未关联班级，请切换到班主任角色。
     </n-alert>
 
     <template v-if="classId">
       <!-- Stats cards -->
-      <n-grid :cols="4" :x-gap="16" :y-gap="16" style="margin-bottom: 16px;">
+      <n-grid :cols="4" :x-gap="16" :y-gap="16" class="section-gap">
         <n-gi>
           <n-card size="small">
             <n-statistic label="总学生数" :value="stats.totalStudents" />
@@ -44,7 +44,7 @@
       </n-grid>
 
       <!-- Charts row: trend + pie -->
-      <n-grid :cols="2" :x-gap="16" style="margin-bottom: 16px;">
+      <n-grid :cols="2" :x-gap="16" class="section-gap">
         <n-gi>
           <n-card title="积分走势（最近 4 周）" size="small">
             <v-chart v-if="trendOption" class="chart-height-sm" :option="trendOption" autoresize />
@@ -60,21 +60,21 @@
       </n-grid>
 
       <!-- Top / Bottom students -->
-      <n-grid :cols="2" :x-gap="16" style="margin-bottom: 16px;">
+      <n-grid :cols="2" :x-gap="16" class="section-gap">
         <n-gi>
           <n-card title="积分最高" size="small">
             <n-spin :show="loadingRankings">
               <n-list v-if="topStudents.length > 0" bordered size="small">
                 <n-list-item v-for="s in topStudents" :key="s.student_id">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div class="row-between">
                     <span>{{ s.student_name }}</span>
-                    <div style="display: flex; align-items: center; gap: 8px; min-width: 140px;">
+                    <div class="progress-cell">
                       <n-progress
                         type="line"
                         :percentage="maxPoints > 0 ? Math.min(100, Math.round((s.total_points / maxPoints) * 100)) : 0"
                         :show-indicator="false"
                         status="success"
-                        style="flex: 1;"
+                        class="progress-bar"
                         rail-color="rgba(255,255,255,0.08)"
                       />
                       <n-tag type="success" size="small">{{ s.total_points }}</n-tag>
@@ -91,15 +91,15 @@
             <n-spin :show="loadingRankings">
               <n-list v-if="bottomStudents.length > 0" bordered size="small">
                 <n-list-item v-for="s in bottomStudents" :key="s.student_id">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div class="row-between">
                     <span>{{ s.student_name }}</span>
-                    <div style="display: flex; align-items: center; gap: 8px; min-width: 140px;">
+                    <div class="progress-cell">
                       <n-progress
                         type="line"
                         :percentage="minPoints < 0 ? Math.min(100, Math.round((Math.abs(s.total_points) / Math.abs(minPoints)) * 100)) : 0"
                         :show-indicator="false"
                         status="error"
-                        style="flex: 1;"
+                        class="progress-bar"
                         rail-color="rgba(255,255,255,0.08)"
                       />
                       <n-tag type="error" size="small">{{ s.total_points }}</n-tag>
@@ -114,20 +114,20 @@
       </n-grid>
 
       <!-- Recent records -->
-      <n-card title="最近记录" style="margin-bottom: 16px;">
+      <n-card title="最近记录" class="section-gap">
         <n-spin :show="loadingRecords">
           <n-list v-if="recentRecords.length > 0" bordered size="small">
             <n-list-item v-for="r in recentRecords" :key="r.id">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="row-between">
                 <div>
-                  <span style="font-weight: 500;">{{ r.student_name }}</span>
-                  <span style="margin-left: 8px; color: rgba(255,255,255,0.5);">{{ r.note || r.rule_name || '' }}</span>
+                  <span class="text-medium">{{ r.student_name }}</span>
+                  <span class="record-note">{{ r.note || r.rule_name || '' }}</span>
                 </div>
                 <n-space :size="8" align="center">
                   <n-tag :type="r.points >= 0 ? 'success' : 'error'" size="small">
                     {{ r.points >= 0 ? '+' : '' }}{{ r.points }}
                   </n-tag>
-                  <span style="font-size: 16px; color: rgba(255,255,255,0.4);">
+                  <span class="text-muted">
                     {{ r.created_at ? new Date(r.created_at).toLocaleString('zh-CN') : '' }}
                   </span>
                 </n-space>
@@ -306,3 +306,40 @@ onMounted(() => {
   if (classId.value) loadDashboard()
 })
 </script>
+
+<style scoped>
+.section-gap {
+  margin-bottom: var(--space-4);
+}
+
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 140px;
+}
+
+.progress-bar {
+  flex: 1;
+}
+
+.text-medium {
+  font-weight: 500;
+}
+
+.record-note {
+  margin-left: var(--space-2);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.text-muted {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.4);
+}
+</style>

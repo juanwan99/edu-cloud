@@ -1,11 +1,11 @@
 <template>
   <div>
-    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div class="page-header page-header-row">
       <div>
         <h1 class="page-title">教师管理</h1>
         <p class="page-subtitle">管理教师档案、学科与班级分配，支持 Excel 批量导入导出</p>
       </div>
-      <div style="display: flex; gap: 8px;">
+      <div class="action-buttons">
         <n-button class="btn-pill" @click="handleDownloadTemplate">下载导入模板</n-button>
         <n-button class="btn-pill" @click="handleExport">导出花名册</n-button>
         <n-button class="btn-pill" @click="showImport = true">导入 Excel</n-button>
@@ -13,7 +13,7 @@
       </div>
     </div>
 
-    <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
+    <div class="filter-bar">
       <n-select v-if="isPlatformAdmin || schoolOptions.length > 1" v-model:value="selectedSchool" :options="schoolOptions"
         style="width: 200px;" data-testid="school-select" @update:value="onSchoolChange" />
       <n-input v-model:value="searchQuery" placeholder="搜索姓名或账号" clearable style="width: 240px;"
@@ -27,7 +27,7 @@
     <!-- 添加/编辑教师 -->
     <n-modal v-model:show="showForm" preset="card" :title="editingId ? '编辑教师' : '添加教师'" style="width: 640px;">
       <n-form :model="form" label-placement="top">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px;">
+        <div class="form-grid">
           <n-form-item label="姓名" required>
             <n-input v-model:value="form.display_name" placeholder="教师姓名" />
           </n-form-item>
@@ -71,9 +71,9 @@
             <n-switch v-model:value="form.is_active" />
           </n-form-item>
         </div>
-        <n-divider style="margin: 12px 0;" />
-        <h4 style="margin: 0 0 12px; font-size: 16px;">角色与任教分配</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px;">
+        <n-divider class="form-divider" />
+        <h4 class="form-section-title">角色与任教分配</h4>
+        <div class="form-grid">
           <n-form-item v-if="!editingId" label="角色（可多选）">
             <n-select v-model:value="form.roles" :options="createRoleOptions" multiple placeholder="可多选" />
           </n-form-item>
@@ -89,7 +89,7 @@
           <n-input v-model:value="form.notes" type="textarea" placeholder="选填" :rows="2" />
         </n-form-item>
       </n-form>
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+      <div class="form-actions">
         <n-button class="btn-pill" @click="showForm = false">取消</n-button>
         <n-button type="primary" class="btn-pill" :loading="saving" @click="handleSave">保存</n-button>
       </div>
@@ -105,14 +105,14 @@
           <n-upload :max="1" accept=".xlsx,.xls" :default-upload="false" @change="handleFileChange">
             <n-button>选择文件</n-button>
           </n-upload>
-          <div style="font-size: 16px; color: #999; margin-top: 8px; line-height: 1.8;">
-            <p style="margin: 0;">建议先<a href="#" @click.prevent="handleDownloadTemplate" style="color: #63e2b7;">下载导入模板</a>，按模板格式填写。</p>
-            <p style="margin: 0;">支持 15 列：姓名/工号/手机/邮箱/性别/身份证/职称/入职日期/学历/毕业院校/办公电话/角色/任教学科/任教班级/备注</p>
-            <p style="margin: 0;">最少只需「姓名」列，其余自动补全。默认密码 123456。</p>
+          <div class="help-text">
+            <p>建议先<a href="#" @click.prevent="handleDownloadTemplate" class="help-link">下载导入模板</a>，按模板格式填写。</p>
+            <p>支持 15 列：姓名/工号/手机/邮箱/性别/身份证/职称/入职日期/学历/毕业院校/办公电话/角色/任教学科/任教班级/备注</p>
+            <p>最少只需「姓名」列，其余自动补全。默认密码 123456。</p>
           </div>
         </n-form-item>
       </n-form>
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+      <div class="form-actions">
         <n-button class="btn-pill" @click="showImport = false">取消</n-button>
         <n-button type="primary" class="btn-pill" :loading="importing" @click="handleImport">导入</n-button>
       </div>
@@ -475,3 +475,60 @@ onMounted(async () => {
   loadClasses()
 })
 </script>
+
+<style scoped>
+.page-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.filter-bar {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 var(--space-4);
+}
+
+.form-divider {
+  margin: var(--space-3) 0;
+}
+
+.form-section-title {
+  margin: 0 0 var(--space-3);
+  font-size: 16px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.help-text {
+  font-size: 16px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+  line-height: 1.8;
+}
+
+.help-text p {
+  margin: 0;
+}
+
+.help-link {
+  color: var(--color-accent);
+}
+</style>

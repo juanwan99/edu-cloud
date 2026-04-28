@@ -8,48 +8,47 @@
     <n-spin :show="loading">
       <!-- 概览统计卡片 -->
       <div class="stats-grid" v-if="summary">
-        <div class="stat-card" style="background: var(--macaron-mint-light);">
+        <div class="stat-card stat-card--mint">
           <div class="stat-value">{{ summary.total_students }}</div>
           <div class="stat-label">参加人数</div>
         </div>
-        <div v-for="subj in summary.subjects" :key="subj.subject_id" class="stat-card"
-          style="background: var(--macaron-purple-light);">
+        <div v-for="subj in summary.subjects" :key="subj.subject_id" class="stat-card stat-card--purple">
           <div class="stat-value">{{ subj.avg_score ?? '-' }}</div>
           <div class="stat-label">{{ subj.subject_name }} 平均分</div>
-          <div style="font-size: 16px; color: var(--color-text-muted); margin-top: 4px;">
+          <div class="stat-detail">
             最高 {{ subj.highest ?? '-' }} · 最低 {{ subj.lowest ?? '-' }}
           </div>
         </div>
       </div>
 
       <!-- 诊断摘要 -->
-      <div v-if="diagnosis" style="margin-top: 24px;">
+      <div v-if="diagnosis" class="section-gap">
         <n-card size="small">
-          <template #header><span style="font-size: 16px; font-weight: 700;">考试诊断</span></template>
-          <p style="white-space: pre-line; line-height: 1.8;">{{ diagnosis.summary_text }}</p>
-          <div v-if="diagnosis.suggestions?.length" style="margin-top: 12px;">
+          <template #header><span class="diagnosis-header">考试诊断</span></template>
+          <p class="diagnosis-text">{{ diagnosis.summary_text }}</p>
+          <div v-if="diagnosis.suggestions?.length" class="suggestions-list">
             <n-tag v-for="(s, i) in diagnosis.suggestions" :key="i" type="warning" size="small"
-              style="margin: 0 6px 6px 0;">{{ s }}</n-tag>
+              class="suggestion-tag">{{ s }}</n-tag>
           </div>
         </n-card>
       </div>
 
-      <n-tabs type="line" style="margin-top: 24px;">
+      <n-tabs type="line" class="section-gap">
         <!-- 成绩分布 -->
         <n-tab-pane name="distribution" tab="成绩分布">
-          <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-            <n-select v-model:value="distSubjectId" :options="subjectFilterOptions" style="width: 180px;"
+          <div class="filter-row">
+            <n-select v-model:value="distSubjectId" :options="subjectFilterOptions" class="subject-select"
               @update:value="loadDistribution" />
           </div>
-          <div style="background: white; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
+          <div class="chart-wrapper">
             <v-chart class="chart-height-lg" :option="distributionChartOption" autoresize />
           </div>
         </n-tab-pane>
 
         <!-- 题目分析 -->
         <n-tab-pane name="questions" tab="题目分析">
-          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
-            <n-select v-model:value="questionSubjectId" :options="subjectSelectOptions" style="width: 180px;"
+          <div class="action-row">
+            <n-select v-model:value="questionSubjectId" :options="subjectSelectOptions" class="subject-select"
               placeholder="选择科目" @update:value="loadQuestionAnalysis" />
             <n-button :disabled="!questionSubjectId || exporting" :loading="exporting"
               @click="() => handleExport('pdf')">
@@ -304,6 +303,72 @@ onMounted(async () => {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  gap: var(--space-4);
+}
+
+/* Stat card color variants */
+.stat-card--mint {
+  background: var(--macaron-mint-light);
+}
+
+.stat-card--purple {
+  background: var(--macaron-purple-light);
+}
+
+.stat-detail {
+  font-size: 16px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+/* Diagnosis section */
+.diagnosis-header {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.diagnosis-text {
+  white-space: pre-line;
+  line-height: 1.8;
+  font-size: 16px;
+}
+
+.suggestions-list {
+  margin-top: var(--space-3);
+}
+
+.suggestion-tag {
+  margin: 0 var(--space-2) var(--space-2) 0;
+}
+
+/* Section spacing */
+.section-gap {
+  margin-top: var(--space-6);
+}
+
+/* Filter & action rows */
+.filter-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+}
+
+.action-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.subject-select {
+  width: 180px;
+}
+
+/* Chart container */
+.chart-wrapper {
+  background: var(--color-bg-card);
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-light);
 }
 </style>

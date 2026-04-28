@@ -1,18 +1,18 @@
 <template>
   <div>
-    <n-page-header title="德育设置" subtitle="班级操行管理配置" style="margin-bottom: 16px;" />
+    <n-page-header title="德育设置" subtitle="班级操行管理配置" class="section-gap" />
 
-    <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: 16px;">
+    <n-alert v-if="!classId" type="warning" title="未选择班级" class="section-gap">
       当前角色未关联班级，请切换到班主任角色。
     </n-alert>
 
     <template v-if="classId">
       <n-spin :show="loading">
         <!-- Invite Code Section -->
-        <n-card title="邀请码管理" style="margin-bottom: 16px;">
+        <n-card title="邀请码管理" class="section-gap">
           <n-space vertical :size="12">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <n-tag size="large" :bordered="false" style="font-family: monospace; font-size: 18px;">
+            <div class="invite-code-row">
+              <n-tag size="large" :bordered="false" class="code-tag">
                 {{ config.invite_code || '未生成' }}
               </n-tag>
               <n-button
@@ -23,14 +23,14 @@
                 刷新邀请码
               </n-button>
             </div>
-            <div style="font-size: 16px; color: rgba(255,255,255,0.4);">
+            <div class="text-muted">
               家长使用此邀请码注册并绑定学生
             </div>
           </n-space>
         </n-card>
 
         <!-- Verification Settings -->
-        <n-card title="家长验证方式" style="margin-bottom: 16px;">
+        <n-card title="家长验证方式" class="section-gap">
           <n-radio-group v-model:value="config.verify_code_type" @update:value="saveConfig">
             <n-space>
               <n-radio value="id_card">身份证后六位</n-radio>
@@ -41,14 +41,14 @@
         </n-card>
 
         <!-- Module Switch -->
-        <n-card title="模块状态" style="margin-bottom: 16px;">
+        <n-card title="模块状态" class="section-gap">
           <n-space align="center">
             <span>德育模块</span>
             <n-switch
               :value="config.is_active !== false"
               @update:value="(v) => { config.is_active = v; saveConfig() }"
             />
-            <span style="color: rgba(255,255,255,0.4); font-size: 16px;">
+            <span class="text-muted">
               {{ config.is_active !== false ? '已启用' : '已停用' }}
             </span>
           </n-space>
@@ -62,7 +62,7 @@
 
           <n-list v-if="semesters.length > 0" bordered size="small">
             <n-list-item v-for="s in semesters" :key="s.id">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="row-between">
                 <n-space align="center" :size="8">
                   <span>{{ s.name }}</span>
                   <n-tag v-if="s.is_active" type="success" size="small">当前</n-tag>
@@ -87,16 +87,16 @@
       </n-spin>
 
       <!-- Create Semester Modal -->
-      <n-modal v-model:show="showCreateSemester" preset="card" title="新建学期" style="width: 400px;">
+      <n-modal v-model:show="showCreateSemester" preset="card" title="新建学期" class="modal-sm">
         <n-form :model="semesterForm">
           <n-form-item label="学期名称">
             <n-input v-model:value="semesterForm.name" placeholder="例：2025-2026 第二学期" />
           </n-form-item>
           <n-form-item label="开始日期">
-            <n-date-picker v-model:value="semesterForm.start_date" type="date" style="width: 100%;" />
+            <n-date-picker v-model:value="semesterForm.start_date" type="date" class="full-width" />
           </n-form-item>
           <n-form-item label="结束日期">
-            <n-date-picker v-model:value="semesterForm.end_date" type="date" style="width: 100%;" />
+            <n-date-picker v-model:value="semesterForm.end_date" type="date" class="full-width" />
           </n-form-item>
         </n-form>
         <template #action>
@@ -242,3 +242,39 @@ onMounted(() => {
   }
 })
 </script>
+
+<style scoped>
+.section-gap {
+  margin-bottom: var(--space-4);
+}
+
+.invite-code-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.code-tag {
+  font-family: monospace;
+  font-size: 18px;
+}
+
+.text-muted {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-sm {
+  width: 400px;
+}
+
+.full-width {
+  width: 100%;
+}
+</style>

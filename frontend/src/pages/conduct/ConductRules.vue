@@ -1,12 +1,12 @@
 <template>
   <div>
-    <n-page-header title="班规管理" subtitle="管理积分规则分类和条目" style="margin-bottom: 16px;">
+    <n-page-header title="班规管理" subtitle="管理积分规则分类和条目" class="section-gap">
       <template #extra>
         <n-button type="primary" @click="showAddCategory = true">添加分类</n-button>
       </template>
     </n-page-header>
 
-    <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: 16px;">
+    <n-alert v-if="!classId" type="warning" title="未选择班级" class="section-gap">
       当前角色未关联班级，请切换到班主任角色。
     </n-alert>
 
@@ -19,7 +19,7 @@
         >
           <template #header>
             <n-space align="center" :size="8">
-              <span style="font-weight: 500;">{{ cat.name }}</span>
+              <span class="text-medium">{{ cat.name }}</span>
               <n-tag size="tiny" :bordered="false">{{ (cat.items || []).length }} 条</n-tag>
             </n-space>
           </template>
@@ -38,10 +38,10 @@
 
           <n-list v-if="cat.items && cat.items.length > 0" bordered size="small">
             <n-list-item v-for="item in cat.items" :key="item.id">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="row-between">
                 <div>
                   <span>{{ item.name }}</span>
-                  <div v-if="item.description" style="font-size: 16px; color: rgba(255,255,255,0.4); margin-top: 2px;">
+                  <div v-if="item.description" class="item-description">
                     {{ item.description }}
                   </div>
                 </div>
@@ -74,7 +74,7 @@
     </n-spin>
 
     <!-- Add/Edit Category Modal -->
-    <n-modal v-model:show="showCategoryModal" preset="card" :title="editingCategory ? '编辑分类' : '添加分类'" style="width: 420px;">
+    <n-modal v-model:show="showCategoryModal" preset="card" :title="editingCategory ? '编辑分类' : '添加分类'" class="modal-sm">
       <n-form ref="catFormRef" :model="categoryForm" :rules="catRules">
         <n-form-item label="分类名称" path="name">
           <n-input v-model:value="categoryForm.name" placeholder="例：课堂表现" />

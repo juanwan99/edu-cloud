@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div class="page-header page-header-row">
       <div>
         <h1 class="page-title">考试管理</h1>
         <p class="page-subtitle">管理所有考试和科目</p>
@@ -114,7 +114,7 @@
           />
         </n-form-item>
       </n-form>
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+      <div class="modal-footer">
         <n-button class="btn-pill" @click="showCreate = false">取消</n-button>
         <n-button type="primary" class="btn-pill" :loading="creating" @click="handleCreate">创建</n-button>
       </div>
@@ -395,11 +395,17 @@ onMounted(loadExams)
 </script>
 
 <style scoped>
+.page-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .stat-card {
@@ -408,25 +414,27 @@ onMounted(loadExams)
 
 .filter-bar {
   display: flex;
-  align-items: center;
   gap: 12px;
+  align-items: center;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 .empty-state {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.modal-footer {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 80px 0;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 @media (max-width: 768px) {
   .stats-row {
     grid-template-columns: repeat(2, 1fr);
-  }
-
-  .filter-bar {
-    flex-wrap: wrap;
   }
 }
 </style>

@@ -1,12 +1,12 @@
 <template>
   <div>
-    <n-page-header title="小组管理" subtitle="创建和管理班级小组" style="margin-bottom: 16px;">
+    <n-page-header title="小组管理" subtitle="创建和管理班级小组" class="section-gap">
       <template #extra>
         <n-button type="primary" @click="openCreateGroup">创建小组</n-button>
       </template>
     </n-page-header>
 
-    <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: 16px;">
+    <n-alert v-if="!classId" type="warning" title="未选择班级" class="section-gap">
       当前角色未关联班级，请切换到班主任角色。
     </n-alert>
 
@@ -25,10 +25,10 @@
                 </n-popconfirm>
               </n-space>
             </template>
-            <div style="color: rgba(255,255,255,0.5); font-size: 16px;">
+            <div class="text-secondary">
               {{ (group.members || []).length }} 名成员
             </div>
-            <n-space v-if="group.members && group.members.length > 0" :size="4" style="margin-top: 8px; flex-wrap: wrap;">
+            <n-space v-if="group.members && group.members.length > 0" :size="4" class="member-tags">
               <n-tag v-for="m in group.members" :key="m.student_id" size="small" :bordered="false">
                 {{ m.student_name }}
               </n-tag>
@@ -40,7 +40,7 @@
     </n-spin>
 
     <!-- Create Group Modal -->
-    <n-modal v-model:show="showCreateModal" preset="card" title="创建小组" style="width: 420px;">
+    <n-modal v-model:show="showCreateModal" preset="card" title="创建小组" class="modal-sm">
       <n-form :model="createForm">
         <n-form-item label="小组名称">
           <n-input v-model:value="createForm.name" placeholder="例：第一组" />
@@ -59,7 +59,7 @@
         </template>
         <n-list v-if="detailGroup?.members?.length > 0" bordered size="small">
           <n-list-item v-for="m in detailGroup.members" :key="m.student_id">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="row-between">
               <span>{{ m.student_name }}</span>
               <n-popconfirm @positive-click="handleRemoveMember(m.student_id)">
                 <template #trigger>
@@ -73,7 +73,7 @@
         <n-empty v-else description="暂无成员" />
 
         <!-- Add member inline -->
-        <div v-if="showAddMember" style="margin-top: 16px;">
+        <div v-if="showAddMember" class="add-member-section">
           <n-divider>添加成员</n-divider>
           <n-select
             v-model:value="newMemberIds"
@@ -85,7 +85,7 @@
           <n-button
             type="primary"
             block
-            style="margin-top: 8px;"
+            class="add-member-btn"
             :loading="addingMembers"
             :disabled="newMemberIds.length === 0"
             @click="handleAddMembers"
@@ -240,3 +240,37 @@ onMounted(() => {
   }
 })
 </script>
+
+<style scoped>
+.section-gap {
+  margin-bottom: var(--space-4);
+}
+
+.text-secondary {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+}
+
+.member-tags {
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.modal-sm {
+  width: 420px;
+}
+
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.add-member-section {
+  margin-top: var(--space-4);
+}
+
+.add-member-btn {
+  margin-top: var(--space-2);
+}
+</style>

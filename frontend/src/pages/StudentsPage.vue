@@ -1,11 +1,11 @@
 <template>
   <div>
-    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div class="page-header page-header-row">
       <div>
         <h1 class="page-title">学生管理</h1>
         <p class="page-subtitle">管理学生信息，支持 Excel 批量导入</p>
       </div>
-      <div style="display: flex; gap: 8px;">
+      <div class="action-buttons">
         <n-dropdown :options="exportOptions" @select="handleExportSelect">
           <n-button class="btn-pill">导出 Excel</n-button>
         </n-dropdown>
@@ -14,7 +14,7 @@
       </div>
     </div>
 
-    <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+    <div class="filter-bar">
       <n-select v-model:value="filterGrade" :options="gradeOptions" placeholder="按年级筛选"
         clearable style="width: 140px;" @update:value="handleGradeChange" />
       <n-select v-model:value="filterClassId" :options="filteredClassOptions" placeholder="按班级筛选"
@@ -54,7 +54,7 @@
           <n-select v-model:value="createForm.selection_id" :options="selectionOptions" placeholder="选择组合" clearable />
         </n-form-item>
       </n-form>
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+      <div class="form-actions">
         <n-button class="btn-pill" @click="showCreate = false">取消</n-button>
         <n-button type="primary" class="btn-pill" :loading="saving" @click="handleCreate">保存</n-button>
       </div>
@@ -85,7 +85,7 @@
           <n-select v-model:value="editForm.selection_id" :options="selectionOptions" placeholder="选择组合" clearable />
         </n-form-item>
       </n-form>
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+      <div class="form-actions">
         <n-button class="btn-pill" @click="showEdit = false">取消</n-button>
         <n-button type="primary" class="btn-pill" :loading="saving" @click="handleUpdate">保存</n-button>
       </div>
@@ -106,14 +106,14 @@
           <n-upload :max="1" accept=".xlsx,.xls" :default-upload="false" @change="handleFileChange">
             <n-button>选择文件</n-button>
           </n-upload>
-          <p style="font-size: 16px; color: #999; margin-top: 4px;">
+          <p class="help-text">
             必填列：「姓名」「学号/准考证号」<br/>
             可选列：「班级」「性别」「选课组合」<br/>
             不选班级时，Excel 必须包含「班级」列（班级名需与系统一致）
           </p>
         </n-form-item>
       </n-form>
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+      <div class="form-actions">
         <n-button class="btn-pill" @click="showImport = false">取消</n-button>
         <n-button type="primary" class="btn-pill" :loading="importing" @click="handleImport">导入</n-button>
       </div>
@@ -397,3 +397,35 @@ onMounted(async () => {
   await loadStudents()
 })
 </script>
+
+<style scoped>
+.page-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.filter-bar {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.help-text {
+  font-size: 16px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+</style>

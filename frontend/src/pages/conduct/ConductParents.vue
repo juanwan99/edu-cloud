@@ -1,17 +1,17 @@
 <template>
   <div>
-    <n-page-header title="家长管理" subtitle="查看和管理已注册家长" style="margin-bottom: 16px;" />
+    <n-page-header title="家长管理" subtitle="查看和管理已注册家长" class="section-gap" />
 
-    <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: 16px;">
+    <n-alert v-if="!classId" type="warning" title="未选择班级" class="section-gap">
       当前角色未关联班级，请切换到班主任角色。
     </n-alert>
 
     <template v-if="classId">
       <!-- Invite code section -->
-      <n-card size="small" style="margin-bottom: 16px;">
+      <n-card size="small" class="section-gap">
         <n-space align="center" :size="12">
-          <span style="color: rgba(255,255,255,0.5);">班级邀请码：</span>
-          <n-tag size="large" :bordered="false" style="font-family: monospace; font-size: 16px;">
+          <span class="text-secondary">班级邀请码：</span>
+          <n-tag size="large" :bordered="false" class="code-tag">
             {{ inviteCode || '未生成' }}
           </n-tag>
           <n-button size="small" @click="copyInviteLink" :disabled="!inviteCode">复制邀请链接</n-button>
@@ -20,7 +20,7 @@
       </n-card>
 
       <!-- Stat cards -->
-      <n-grid :cols="2" :x-gap="16" style="margin-bottom: 16px;">
+      <n-grid :cols="2" :x-gap="16" class="section-gap">
         <n-gi>
           <n-card size="small">
             <n-statistic label="已注册家长数" :value="parents.length" />
@@ -36,15 +36,15 @@
       <!-- Search + Batch actions -->
       <n-card>
         <template #header>
-          <n-space align="center" justify="space-between" style="width: 100%;">
+          <n-space align="center" justify="space-between" class="full-width">
             <n-input
               v-model:value="searchText"
               placeholder="搜索姓名或手机号"
               clearable
-              style="width: 240px;"
+              class="search-input"
             />
             <n-space v-if="checkedKeys.length > 0" :size="8">
-              <span style="font-size: 16px; color: rgba(255,255,255,0.5);">已选 {{ checkedKeys.length }} 项</span>
+              <span class="text-secondary">已选 {{ checkedKeys.length }} 项</span>
               <n-popconfirm @positive-click="handleBatchRemove">
                 <template #trigger>
                   <n-button size="small" type="error">批量移除</n-button>
@@ -241,3 +241,27 @@ onMounted(() => {
   }
 })
 </script>
+
+<style scoped>
+.section-gap {
+  margin-bottom: var(--space-4);
+}
+
+.text-secondary {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.code-tag {
+  font-family: monospace;
+  font-size: 16px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.search-input {
+  width: 240px;
+}
+</style>
