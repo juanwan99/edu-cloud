@@ -399,14 +399,14 @@ function getKpiValue(kpi) {
 }
 
 .welcome-banner__title {
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: var(--color-text);
   margin: 0 0 6px;
 }
 
 .welcome-banner__text {
-  font-size: 13px;
+  font-size: 16px;
   color: var(--color-text-secondary);
   margin: 0 0 14px;
 }
@@ -447,7 +447,7 @@ function getKpiValue(kpi) {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 12px 18px;
   background: var(--color-bg-card, rgba(255,255,255,0.04));
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border-light);
@@ -472,7 +472,7 @@ function getKpiValue(kpi) {
 .todo-dot--purple { background: var(--macaron-purple); }
 
 .todo-text {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--color-text);
 }
 
@@ -492,8 +492,8 @@ function getKpiValue(kpi) {
 }
 
 .chart-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   margin: 0 0 10px;
   color: var(--color-text);
   line-height: 1.2;
@@ -509,15 +509,15 @@ function getKpiValue(kpi) {
 }
 
 .chart-empty__text {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--color-text-muted);
   margin: 0;
 }
 
 /* Section title */
 .section-title {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: var(--color-text);
   margin: 0 0 12px;
 }
@@ -556,7 +556,7 @@ function getKpiValue(kpi) {
 }
 
 .exam-card__name {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--color-text);
   overflow: hidden;
@@ -568,7 +568,7 @@ function getKpiValue(kpi) {
 .exam-card__meta {
   display: flex;
   gap: 12px;
-  font-size: 13px;
+  font-size: 16px;
   color: var(--color-text-muted);
 }
 

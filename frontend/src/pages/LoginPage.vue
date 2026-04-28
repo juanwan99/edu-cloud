@@ -33,14 +33,14 @@
 
         <n-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleLogin" :show-label="false">
           <n-form-item path="username">
-            <n-input v-model:value="form.username" placeholder="请输入用户名" size="large" :input-props="{ autocomplete: 'username' }">
+            <n-input v-model:value="form.username" placeholder="请输入用户名…" size="large" :input-props="{ autocomplete: 'username' }">
               <template #prefix>
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a9a8e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               </template>
             </n-input>
           </n-form-item>
           <n-form-item path="password">
-            <n-input v-model:value="form.password" type="password" placeholder="请输入密码" size="large" show-password-on="click" :input-props="{ autocomplete: 'current-password' }" @keyup.enter="handleLogin">
+            <n-input v-model:value="form.password" type="password" placeholder="请输入密码…" size="large" show-password-on="click" :input-props="{ autocomplete: 'current-password' }" @keyup.enter="handleLogin">
               <template #prefix>
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a9a8e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </template>
@@ -220,7 +220,7 @@ async function handleLogin() {
 }
 
 .brand-name {
-  font-size: 32px;
+  font-size: 38px;
   font-weight: 800;
   color: var(--color-primary);
   letter-spacing: -0.02em;
@@ -228,9 +228,10 @@ async function handleLogin() {
 }
 
 .brand-subtitle {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--color-text-muted);
   margin-top: 6px;
+  letter-spacing: 0.04em;
 }
 
 /* 表单区 */
@@ -240,28 +241,30 @@ async function handleLogin() {
 }
 
 .login-tabs {
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 }
 
 .login-btn {
-  height: 48px;
-  font-size: 16px;
+  height: 50px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: 3px;
-  border-radius: 12px !important;
+  border-radius: 14px !important;
   margin-top: 4px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  box-shadow: 0 4px 14px rgba(16,185,129,0.3);
 }
 
 .login-hint {
   margin-top: 20px;
   text-align: center;
-  font-size: 13px;
+  font-size: 16px;
   color: var(--color-text-muted);
 }
 
 .login-footer {
   margin-top: 56px;
-  font-size: 12px;
+  font-size: 16px;
   color: var(--color-text-muted);
 }
 
@@ -291,7 +294,7 @@ async function handleLogin() {
 }
 
 .success-text {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--color-primary);
 }

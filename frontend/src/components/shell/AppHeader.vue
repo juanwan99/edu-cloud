@@ -23,8 +23,7 @@
         <input
           class="search-input"
           type="text"
-          placeholder="搜索..."
-          disabled
+          placeholder="搜索…"
         />
       </div>
 
@@ -49,7 +48,7 @@ import RoleSwitcher from './RoleSwitcher.vue'
   top: 0;
   left: 0;
   right: 0;
-  height: 56px;
+  height: 64px;
   background: rgba(255, 255, 255, 0.96);
   border-bottom: 1px solid var(--color-border-light);
   z-index: var(--z-header);
@@ -80,8 +79,8 @@ import RoleSwitcher from './RoleSwitcher.vue'
 }
 
 .app-header__title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 800;
   color: var(--color-primary);
   letter-spacing: -0.01em;
   white-space: nowrap;
@@ -90,14 +89,15 @@ import RoleSwitcher from './RoleSwitcher.vue'
 .app-header__right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .app-header__search {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 8px 16px;
+  font-size: 16px;
   background: var(--color-bg-alt);
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius-sm);
@@ -112,10 +112,9 @@ import RoleSwitcher from './RoleSwitcher.vue'
   border: none;
   outline: none;
   background: transparent;
-  font-size: 13px;
+  font-size: 16px;
   color: var(--color-text-muted);
-  width: 120px;
-  cursor: not-allowed;
+  width: 140px;
   font-family: inherit;
 }
 

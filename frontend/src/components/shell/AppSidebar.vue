@@ -103,7 +103,7 @@ watch(visibleGroups, autoExpandCurrentGroup)
 
 <style scoped>
 .sidebar {
-  width: 220px;
+  width: 250px;
   background: var(--color-bg);
   border-right: 1px solid var(--color-border-light);
   transition: width 0.2s ease-out;
@@ -114,7 +114,7 @@ watch(visibleGroups, autoExpandCurrentGroup)
 }
 
 .sidebar--collapsed {
-  width: 64px;
+  width: 68px;
 }
 
 .sidebar__toggle {
@@ -147,11 +147,11 @@ watch(visibleGroups, autoExpandCurrentGroup)
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px;
+  padding: 10px 16px;
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   text-decoration: none;
-  font-size: 13.5px;
+  font-size: 16px;
   font-weight: 500;
   transition: var(--transition);
   white-space: nowrap;
@@ -165,20 +165,21 @@ watch(visibleGroups, autoExpandCurrentGroup)
 
 .nav-item--active {
   color: var(--color-primary);
-  background: var(--color-bg-alt);
-  border-left-color: var(--color-primary);
+  background: var(--macaron-mint-light);
+  border-left-color: #10b981;
   font-weight: 600;
 }
 
 .nav-item--child {
-  padding: 6px 14px 6px 38px;
-  font-size: 13px;
+  padding: 8px 16px 8px 48px;
+  font-size: 16px;
   border-left: none;
 }
 
 .nav-item--child.nav-item--active {
   border-left: none;
   color: var(--color-primary);
+  background: var(--macaron-mint-light);
   font-weight: 600;
 }
 
@@ -186,8 +187,8 @@ watch(visibleGroups, autoExpandCurrentGroup)
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
 }
 
@@ -204,10 +205,10 @@ watch(visibleGroups, autoExpandCurrentGroup)
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 11px 16px;
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition);

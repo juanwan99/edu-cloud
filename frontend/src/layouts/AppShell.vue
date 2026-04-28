@@ -44,8 +44,8 @@ watch(() => route.path, () => { aiPanelOpen.value = false })
 .app-body {
   display: flex;
   flex: 1;
-  margin-top: 56px;
-  min-height: calc(100dvh - 56px);
+  margin-top: 64px;
+  min-height: calc(100dvh - 64px);
 }
 
 .app-main {
