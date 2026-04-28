@@ -41,21 +41,54 @@
       </div>
 
       <div v-else class="review-main">
-        <!-- 图片区 -->
-        <div class="image-panel">
-          <div
-            class="image-wrapper"
-            :style="imageTransform"
-            @wheel.prevent="handleWheel"
-            @mousedown="startDrag"
-          >
-            <img
-              v-if="imageUrl"
-              :src="imageUrl"
-              class="answer-image"
-              @dblclick="resetZoom"
-              draggable="false"
-            />
+        <!-- 左栏：图片 + AI 阅卷结果 -->
+        <div class="left-panel">
+          <div class="image-panel">
+            <div
+              class="image-wrapper"
+              :style="imageTransform"
+              @wheel.prevent="handleWheel"
+              @mousedown="startDrag"
+            >
+              <img
+                v-if="imageUrl"
+                :src="imageUrl"
+                class="answer-image"
+                @dblclick="resetZoom"
+                draggable="false"
+              />
+            </div>
+          </div>
+
+          <div v-if="ai" class="ai-result-card">
+            <div class="ai-header">
+              <span class="ai-title">AI 阅卷结果</span>
+              <div class="ai-header-right">
+                <span class="ai-score-num">{{ ai.score }}</span>
+                <span class="ai-score-max">/ {{ maxScore }}</span>
+                <n-tag
+                  :type="ai.confidence >= 0.8 ? 'success' : 'warning'"
+                  round
+                  size="small"
+                  style="margin-left: 8px"
+                >
+                  {{ ai.confidence != null ? (ai.confidence * 100).toFixed(0) + '%' : '—' }}
+                </n-tag>
+              </div>
+            </div>
+            <div v-if="ai.feedback" class="ai-feedback">{{ ai.feedback }}</div>
+            <div v-if="ai.details?.length" class="ai-details">
+              <div class="ai-details-title">细化评分</div>
+              <div v-for="(item, i) in ai.details" :key="i" class="ai-sub">
+                <div class="ai-sub-header">
+                  <span>{{ item.blankNo || `第${i + 1}空` }}</span>
+                  <span class="ai-sub-score" :style="{ color: item.score > 0 ? '#18a058' : '#d03050' }">
+                    {{ item.score }}/{{ item.maxScore }}分 {{ item.score >= item.maxScore ? '✓' : item.score > 0 ? '△' : '✗' }}
+                  </span>
+                </div>
+                <div v-if="item.reason" class="ai-sub-reason">{{ item.reason }}</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -76,43 +109,15 @@
               <span>AI 评分中，请稍候...</span>
             </div>
 
-            <!-- AI 预测 -->
-            <div v-if="ai" class="ai-card">
-              <div class="ai-header">
-                <span class="ai-title">AI 预测</span>
-                <n-tag
-                  :type="ai.confidence >= 0.8 ? 'success' : 'warning'"
-                  round
-                  size="small"
-                >
-                  {{ ai.confidence != null ? (ai.confidence * 100).toFixed(0) + '%' : '—' }}
-                </n-tag>
-              </div>
-              <div class="ai-score">
-                <span class="ai-score-num">{{ ai.score }}</span>
-                <span class="ai-score-max"> / {{ maxScore }}</span>
-              </div>
-              <div v-if="ai.feedback" class="ai-feedback">{{ ai.feedback }}</div>
-              <div v-if="ai.details?.length" class="ai-details">
-                <div class="ai-details-title">细化评分</div>
-                <div v-for="(item, i) in ai.details" :key="i" class="ai-sub">
-                  <div class="ai-sub-header">
-                    <span>{{ item.blankNo || `第${i + 1}空` }}</span>
-                    <span class="ai-sub-score" :style="{ color: item.score > 0 ? '#18a058' : '#d03050' }">
-                      {{ item.score }}/{{ item.maxScore }}分 {{ item.score >= item.maxScore ? '✓' : item.score > 0 ? '△' : '✗' }}
-                    </span>
-                  </div>
-                  <div v-if="item.reason" class="ai-sub-reason">{{ item.reason }}</div>
-                </div>
-              </div>
-              <n-button
-                size="small"
-                class="btn-pill"
-                @click="currentScore = ai.score"
-              >
-                采纳 AI 分数 (A)
-              </n-button>
-            </div>
+            <n-button
+              v-if="ai"
+              size="small"
+              block
+              class="btn-pill"
+              @click="currentScore = ai.score"
+            >
+              采纳 AI 分数 (A)
+            </n-button>
 
             <h3 class="score-title">{{ ai ? '校对' : '评分' }}</h3>
 
@@ -496,12 +501,36 @@ onUnmounted(() => {
   height: 100%;
 }
 
+.left-panel {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
 .image-panel {
+  flex: 1;
+  min-height: 300px;
   overflow: hidden;
   background: #f0f0f0;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.ai-result-card {
+  background: white;
+  border-top: 1px solid var(--color-border-light, #e5e7eb);
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ai-header-right {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
 }
 
 .image-wrapper {
@@ -545,16 +574,6 @@ onUnmounted(() => {
   color: #3b82f6;
 }
 
-.ai-card {
-  background: var(--color-bg-alt, #f7f8fa);
-  border-radius: var(--radius-sm, 8px);
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border: 1px solid var(--color-border-light, #e5e7eb);
-}
-
 .ai-header {
   display: flex;
   justify-content: space-between;
@@ -562,25 +581,19 @@ onUnmounted(() => {
 }
 
 .ai-title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  color: var(--color-text-secondary, #667085);
-  letter-spacing: 0.5px;
-}
-
-.ai-score {
-  display: flex;
-  align-items: baseline;
+  color: var(--color-text-primary, #1a1a1a);
 }
 
 .ai-score-num {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 800;
 }
 
 .ai-score-max {
   color: var(--color-text-muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .ai-feedback {
