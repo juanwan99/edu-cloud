@@ -323,11 +323,11 @@ src/edu_cloud/
       student_diagnosis.py # L6_profile（1）: get_student_diagnosis
       student_profile_tool.py # L6_profile（1）: get_student_learning_profile
   workers/
-    grading.py          # process_grading_task（AI 阅卷，微批次并发 GRADING_BATCH_SIZE=20）+ run_post_exam_pipeline（考后处理，已接线 pipeline）
+    grading.py          # process_grading_task（AI 阅卷，微批次并发 GRADING_BATCH_SIZE=20，支持 realtime/batch 双模式）+ run_post_exam_pipeline（考后处理，已接线 pipeline）
   shared/
     auth.py             # JWT create/decode 工具函数
     upload_validation.py # 图片上传 magic bytes 验证（替代 Python 3.13 废弃的 imghdr）
-  config.py             # Settings（DB/Redis/JWT/ENCRYPTION_KEY(PII加密)/LLM(timeout=180s)/GRADING_BATCH_SIZE(20)/UPLOAD_DIR/知识库/AI Agent 配置，BaseSettings）
+  config.py             # Settings（DB/Redis/JWT/ENCRYPTION_KEY(PII加密)/LLM(timeout=180s)/GEMINI_API_KEY+GEMINI_MODEL(官方直连)/GRADING_BATCH_SIZE(20)/UPLOAD_DIR/知识库/AI Agent 配置，BaseSettings）
   database.py           # async engine + session factory（PostgreSQL 连接池 pool_size=20/max_overflow=40/pool_recycle=3600）
   logging_config.py     # 双输出（Console UTC+8 + JSONL RotatingFile）
   worker.py             # arq WorkerSettings（3 functions: auto_draft/grading/pipeline）
@@ -357,8 +357,8 @@ tests/
 | AI | 62 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
 | Tests | 2199 passed / 21 failed（既有债）后端 + 2404 前端 Vitest 0 failed（ECS 实测 @ 2026-04-28） | — |
-| Modules | 21 模块目录，路由已迁入。技术债 H-01 拆分后：`card` 含 `router.py`(839行) + `card_template_router.py`(230行) + `card_export_router.py`(326行)；`grading` 含 `router.py`(520行) + `grading_review_router.py`(396行) + `prompts/` 子包；`analytics` 含 `router.py`(220行) + `analytics_report_router.py`(585行)。详见 `docs/2026-04-26-tech-debt-audit.md` §修复记录 | — |
-| Migrations | Alembic migration（88 表，31 个迁移，含 S1-A T2 `a88094ee4ea6` bank_question +5 列） | — |
+| Modules | 21 模块目录，路由已迁入。技术债 H-01 拆分后：`card` 含 `router.py`(839行) + `card_template_router.py`(230行) + `card_export_router.py`(326行)；`grading` 含 `router.py`(520行) + `grading_review_router.py`(396行) + `prompts/` 子包 + `gemini_client.py`(官方SDK) + `image_utils.py`(图片预处理) + `detail_flatten.py`(LLM输出标准化)；`analytics` 含 `router.py`(220行) + `analytics_report_router.py`(585行)。详见 `docs/2026-04-26-tech-debt-audit.md` §修复记录 | — |
+| Migrations | Alembic migration（88 表，32 个迁移，含 `0ef7a0f54171` grading_tasks +grading_mode 列） | — |
 
 ## 技术栈
 
@@ -369,6 +369,7 @@ tests/
 - python-jose (JWT) + bcrypt
 - arq + Redis (后台任务：联考下发、批量阅卷、报表生成)
 - httpx (调用学校端 API)
+- google-genai (Gemini 官方 SDK，AI 阅卷双模式：realtime 实时 + batch 经济半价)
 - opencv-python-headless + pyzbar (扫描图视觉处理：定位点检测/裁切/条码识别)
 - Docker + docker-compose (部署)
 
@@ -549,7 +550,7 @@ tests/
 | GET | `/api/v1/grading/rubrics/{question_id}` | 获取题目评分细则 |
 | POST | `/api/v1/grading/rubrics/generate` | AI 生成评分细则（MANAGE_GRADING，题干+答案+图片→LLM→criteria，upsert Rubric） |
 | POST | `/api/v1/grading/grade-single` | 同步单答卷 AI 评分（MANAGE_GRADING，用于质量抽检，复用 OCR→评分 pipeline） |
-| POST | `/api/v1/grading/tasks` | 创建 AI 阅卷任务（支持 question_id 题目级；前置校验：归属/主观题/Rubric/Answer；重跑清理 ai_pending/ai_done、保护 confirmed）|
+| POST | `/api/v1/grading/tasks` | 创建 AI 阅卷任务（支持 question_id 题目级 + mode=realtime/batch 双模式；前置校验：归属/主观题/Rubric/Answer；重跑清理 ai_pending/ai_done、保护 confirmed）|
 | GET | `/api/v1/grading/tasks` | 列出本校 AI 阅卷任务 |
 | GET | `/api/v1/grading/tasks/{task_id}` | 阅卷任务详情 |
 | POST | `/api/v1/grading/assignments` | 创建阅卷分配（MANAGE_GRADING） |

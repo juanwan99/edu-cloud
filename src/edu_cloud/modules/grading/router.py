@@ -305,6 +305,7 @@ class GradingTaskCreate(BaseModel):
     subject_id: str
     question_id: str | None = None
     limit: int | None = None
+    mode: Literal["realtime", "batch"] = "realtime"
 
 
 def _task_response(t: GradingTask) -> dict:
@@ -317,6 +318,7 @@ def _task_response(t: GradingTask) -> dict:
         "completed": t.completed,
         "failed": t.failed,
         "grading_limit": t.grading_limit,
+        "grading_mode": t.grading_mode,
         "created_by": t.created_by,
         "error_log": t.error_log,
         "created_at": t.created_at.isoformat() if t.created_at else None,
@@ -503,6 +505,9 @@ async def grade_single_answer(
                         "feedback": grade_result.feedback,
                         "confidence": grade_result.confidence,
                         "raw_content": grade_result.raw_content,
+                        "details": grade_result.details,
+                        "deductions": grade_result.deductions,
+                        "comment": grade_result.comment,
                     }
             plog["score"] = grade_result.score
             plog["confidence"] = grade_result.confidence
@@ -543,27 +548,17 @@ async def grade_single_answer(
         error_message=plog.get("error_message"),
     ))
 
-    # 8. 构建 details（合并 OCR 识别结果）
-    details = result_data.get("details")
+    # 8. 构建完整结果（details 已在 grade_text 中 flatten）
+    details = result_data.get("details") or []
+    deductions = result_data.get("deductions") or []
+    comment = result_data.get("comment", "")
     recognized_text = plog.get("ocr_text")
-    if details is None:
-        try:
-            raw_parsed = json.loads(result_data.get("raw_content", ""))
-            details = raw_parsed.get("details")
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    ocr_by_no = {str(b.get("blankNo", "")): b.get("text", "") for b in blanks} if blanks else {}
-    if details and isinstance(details, list):
-        for d in details:
-            bno = str(d.get("blankNo", ""))
-            if bno in ocr_by_no:
-                d["answer"] = ocr_by_no[bno]
-            d["correct"] = d.get("score", 0) >= d.get("maxScore", 1)
 
     ai_raw = {
         "raw_content": result_data.get("raw_content", ""),
         "details": details,
+        "deductions": deductions,
+        "comment": comment,
         "recognizedText": recognized_text,
     }
 
@@ -572,20 +567,24 @@ async def grade_single_answer(
         select(GradingResult).where(GradingResult.answer_id == req.answer_id)
     )).scalar_one_or_none()
 
+    feedback = comment or result_data.get("feedback", "")
+
     if existing_gr:
         if existing_gr.status == "confirmed":
             return {
                 "score": result_data["score"],
                 "max_score": result_data["max_score"],
-                "feedback": result_data["feedback"],
+                "feedback": feedback,
                 "confidence": result_data["confidence"],
                 "details": details,
+                "deductions": deductions,
+                "comment": comment,
                 "recognizedText": recognized_text,
                 "already_confirmed": True,
             }
         existing_gr.ai_score = result_data["score"]
         existing_gr.ai_confidence = result_data["confidence"]
-        existing_gr.ai_feedback = result_data["feedback"]
+        existing_gr.ai_feedback = feedback
         existing_gr.ai_raw_response = ai_raw
         existing_gr.status = "ai_done"
     else:
@@ -595,7 +594,7 @@ async def grade_single_answer(
             school_id=school_id,
             ai_score=result_data["score"],
             ai_confidence=result_data["confidence"],
-            ai_feedback=result_data["feedback"],
+            ai_feedback=feedback,
             ai_raw_response=ai_raw,
             final_score=result_data["score"],
             max_score=result_data["max_score"],
@@ -604,15 +603,16 @@ async def grade_single_answer(
         db.add(gr)
 
     await db.commit()
-    logger.info("grade_single: answer=%s, score=%.1f, confidence=%.2f",
-                req.answer_id, result_data["score"], result_data["confidence"])
+    logger.info("grade_single: answer=%s, score=%.1f", req.answer_id, result_data["score"])
 
     return {
         "score": result_data["score"],
         "max_score": result_data["max_score"],
-        "feedback": result_data["feedback"],
+        "feedback": feedback,
         "confidence": result_data["confidence"],
         "details": details,
+        "deductions": deductions,
+        "comment": comment,
         "recognizedText": recognized_text,
         "already_confirmed": False,
     }
@@ -761,6 +761,7 @@ async def create_grading_task(
         completed=0,
         failed=0,
         grading_limit=req.limit,
+        grading_mode=req.mode,
         created_by=current["user"].id,
     )
     db.add(task)

@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     LLM_TIMEOUT: int = 180
     LLM_MAX_RETRIES: int = 3
 
+    # Gemini Official API (used when grading_mode=batch or explicitly configured)
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-3-flash-preview"
+
     # AI Grading batch concurrency
     GRADING_BATCH_SIZE: int = 20
 

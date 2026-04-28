@@ -32,8 +32,12 @@ class GradeResponse(BaseModel):
     score: float
     max_score: float = 0.0
     feedback: str = ""
-    confidence: float = 0.0
+    confidence: float | None = None
     raw_content: str = ""
+    details: list | None = None
+    deductions: list | None = None
+    comment: str = ""
+    recognized_text: str = ""
 
 
 class LLMClient:
@@ -226,12 +230,17 @@ class LLMClient:
                 if parsed is None or not isinstance(parsed, dict):
                     last_error = "Failed to parse JSON from grading response"
                     continue
+                from edu_cloud.modules.grading.detail_flatten import flatten_llm_details
                 return GradeResponse(
                     score=min(max(parsed.get("score", 0), 0), max_score),
                     max_score=max_score,
                     feedback=parsed.get("comment", parsed.get("feedback", "")),
-                    confidence=parsed.get("confidence", 0.0),
+                    confidence=parsed.get("confidence"),
                     raw_content=content,
+                    details=flatten_llm_details(parsed.get("details")),
+                    deductions=parsed.get("deductions") or [],
+                    comment=parsed.get("comment", ""),
+                    recognized_text=parsed.get("llmRecognizedText", ""),
                 )
             except (httpx.TimeoutException, httpx.ConnectError) as e:
                 last_error = f"Network error: {e}"

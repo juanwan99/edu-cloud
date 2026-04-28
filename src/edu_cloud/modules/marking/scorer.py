@@ -17,6 +17,45 @@ from edu_cloud.modules.scan.models import StudentAnswer
 logger = logging.getLogger(__name__)
 
 
+def _build_ai_info(gr) -> dict | None:
+    """从 GradingResult 构建完整的 ai 信息（details/deductions/comment/recognizedText）。"""
+    if gr.ai_score is None:
+        return None
+
+    from edu_cloud.modules.grading.detail_flatten import flatten_llm_details, parse_raw_content
+
+    ai_raw = gr.ai_raw_response if isinstance(gr.ai_raw_response, dict) else {}
+    details = ai_raw.get("details")
+    deductions = ai_raw.get("deductions") or []
+    comment = ai_raw.get("comment", "")
+    recognized_text = ai_raw.get("recognizedText")
+
+    if not details or not deductions or not comment:
+        parsed = parse_raw_content(ai_raw.get("raw_content", ""))
+        if parsed:
+            if not details:
+                details = parsed.get("details")
+            if not deductions:
+                deductions = parsed.get("deductions") or []
+            if not comment:
+                comment = parsed.get("comment", "")
+            if not recognized_text:
+                recognized_text = parsed.get("llmRecognizedText", "")
+
+    details = flatten_llm_details(details)
+
+    return {
+        "score": gr.ai_score,
+        "confidence": gr.ai_confidence,
+        "feedback": gr.ai_feedback,
+        "result_id": gr.id,
+        "details": details,
+        "deductions": deductions,
+        "comment": comment,
+        "recognizedText": recognized_text,
+    }
+
+
 async def get_subjects_with_progress(
     db: AsyncSession,
     exam_id: str,
@@ -134,25 +173,12 @@ async def get_next_answer(
         )).scalar_one_or_none()
         max_score = q.max_score if q else 0.0
 
-        details = None
-        recognized_text = None
-        if ai_done_q.ai_raw_response and isinstance(ai_done_q.ai_raw_response, dict):
-            details = ai_done_q.ai_raw_response.get("details")
-            recognized_text = ai_done_q.ai_raw_response.get("recognizedText")
-
         return {
             "answer_id": answer.id,
             "student_id": answer.student_id,
             "image_path": answer.image_path,
             "position": {"current": ai_reviewed + 1, "total": ai_total},
-            "ai": {
-                "score": ai_done_q.ai_score,
-                "confidence": ai_done_q.ai_confidence,
-                "feedback": ai_done_q.ai_feedback,
-                "result_id": ai_done_q.id,
-                "details": details,
-                "recognizedText": recognized_text,
-            },
+            "ai": _build_ai_info(ai_done_q),
             "max_score": max_score,
             "is_anomaly": answer.is_anomaly,
             "anomaly_type": answer.anomaly_type,
@@ -210,21 +236,7 @@ async def get_next_answer(
         select(GradingResult).where(GradingResult.answer_id == answer.id)
     )).scalar_one_or_none()
 
-    ai_info = None
-    if ai_row and ai_row.ai_score is not None:
-        det = None
-        rec_text = None
-        if ai_row.ai_raw_response and isinstance(ai_row.ai_raw_response, dict):
-            det = ai_row.ai_raw_response.get("details")
-            rec_text = ai_row.ai_raw_response.get("recognizedText")
-        ai_info = {
-            "score": ai_row.ai_score,
-            "confidence": ai_row.ai_confidence,
-            "feedback": ai_row.ai_feedback,
-            "result_id": ai_row.id,
-            "details": det,
-            "recognizedText": rec_text,
-        }
+    ai_info = _build_ai_info(ai_row) if ai_row else None
 
     # 查题目满分
     q = (await db.execute(
@@ -277,20 +289,7 @@ async def get_answer_at(
     graded_score = None
     graded_comment = None
     if gr:
-        if gr.ai_score is not None:
-            det = None
-            rec_text = None
-            if gr.ai_raw_response and isinstance(gr.ai_raw_response, dict):
-                det = gr.ai_raw_response.get("details")
-                rec_text = gr.ai_raw_response.get("recognizedText")
-            ai_info = {
-                "score": gr.ai_score,
-                "confidence": gr.ai_confidence,
-                "feedback": gr.ai_feedback,
-                "result_id": gr.id,
-                "details": det,
-                "recognizedText": rec_text,
-            }
+        ai_info = _build_ai_info(gr)
         if gr.status == "confirmed":
             graded_score = gr.final_score
             graded_comment = gr.review_comment

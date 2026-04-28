@@ -26,12 +26,22 @@ def _create_llm_client(
     api_url: str | None = None,
     api_key: str | None = None,
     model: str | None = None,
-) -> "LLMClient":
+    *,
+    use_gemini_official: bool = False,
+) -> "LLMClient | GeminiClient":
     """Create LLM client for grading.
 
-    When called with DB-resolved values, those override .env settings.
-    When called without arguments, falls back to .env settings entirely.
+    use_gemini_official=True → 使用 Gemini 官方 SDK（实时+Batch 双模式）
+    use_gemini_official=False → 使用 httpx 代理客户端（兼容旧路径）
     """
+    if use_gemini_official:
+        from edu_cloud.modules.grading.gemini_client import GeminiClient
+        return GeminiClient(
+            api_key=api_key or settings.LLM_API_KEY,
+            model=model or settings.LLM_MODEL,
+            max_retries=settings.LLM_MAX_RETRIES,
+        )
+
     from edu_cloud.modules.grading.llm_client import LLMClient
     return LLMClient(
         api_url=api_url or settings.LLM_API_URL,
@@ -56,6 +66,8 @@ async def _grade_single(
     llm,
     ad: dict,
     rubrics_by_question: dict,
+    *,
+    use_gemini_official: bool = False,
 ) -> tuple[dict | None, dict | None, dict]:
     """Grade a single answer using two-step pipeline: OCR -> text-based grading.
 
@@ -140,7 +152,11 @@ async def _grade_single(
             plog["ocr_prompt_type"] = "OCR_BASE"
 
         t_ocr = time.perf_counter()
-        blanks = await llm.extract_text(images_b64=[image_b64], prompt=ocr_prompt)
+        if use_gemini_official:
+            image_bytes = base64.b64decode(image_b64)
+            blanks = await llm.extract_text(image_bytes=image_bytes, prompt=ocr_prompt)
+        else:
+            blanks = await llm.extract_text(images_b64=[image_b64], prompt=ocr_prompt)
         plog["ocr_ms"] = int((time.perf_counter() - t_ocr) * 1000)
 
         from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
@@ -201,6 +217,9 @@ async def _grade_single(
             "score": grade_result.score, "max_score": grade_result.max_score,
             "feedback": grade_result.feedback, "confidence": grade_result.confidence,
             "raw_content": grade_result.raw_content,
+            "details": grade_result.details,
+            "deductions": grade_result.deductions,
+            "comment": grade_result.comment,
             "recognizedText": extracted_text,
             "ocr_blanks": blanks,
         }, None, plog
@@ -214,9 +233,9 @@ async def _grade_single(
         return None, {"answer_id": answer_id, "error": str(e)}, plog
 
 
-async def _grade_with_semaphore(llm, ad, rubrics):
+async def _grade_with_semaphore(llm, ad, rubrics, *, use_gemini_official=False):
     async with _grading_semaphore:
-        return await _grade_single(llm, ad, rubrics)
+        return await _grade_single(llm, ad, rubrics, use_gemini_official=use_gemini_official)
 
 
 async def process_grading_task(ctx: dict, task_id: str) -> None:
@@ -253,7 +272,15 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                 llm_url, llm_key, llm_model = None, None, None
                 logger.warning("grading_task: task=%s, llm_config DB lookup failed, fallback to .env", task_id, exc_info=True)
 
-            llm = _create_llm_client(api_url=llm_url, api_key=llm_key, model=llm_model)
+            use_gemini = task.grading_mode == "batch" and settings.GEMINI_API_KEY
+            if use_gemini:
+                llm_key = settings.GEMINI_API_KEY
+                llm_model = settings.GEMINI_MODEL
+                logger.info("grading_task: task=%s, using Gemini official API (batch mode, model=%s)", task_id, llm_model)
+            llm = _create_llm_client(
+                api_url=llm_url, api_key=llm_key, model=llm_model,
+                use_gemini_official=bool(use_gemini),
+            )
 
             # Find subjective questions
             if task.question_id:
@@ -290,7 +317,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                 logger.info("grading_task DONE: task=%s, no subjective questions", task_id)
                 return
 
-            # Find answers — filter by question scope
+            # Find answers — same order as manual grading (student_id ASC)
             answer_filter = [
                 StudentAnswer.subject_id == task.subject_id,
                 StudentAnswer.school_id == task.school_id,
@@ -298,14 +325,29 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
             ]
             if task.question_id:
                 answer_filter.append(StudentAnswer.question_id == task.question_id)
-            a_result = await db.execute(select(StudentAnswer).where(*answer_filter))
+            a_result = await db.execute(
+                select(StudentAnswer)
+                .where(*answer_filter)
+                .order_by(StudentAnswer.student_id)
+            )
             answers_raw = a_result.scalars().all()
+
+            # Exclude answers that already have grading results (confirmed or ai_done)
+            all_answer_ids = [a.id for a in answers_raw]
+            graded_rows = set()
+            if all_answer_ids:
+                graded_rows = set((await db.execute(
+                    select(GradingResult.answer_id).where(
+                        GradingResult.answer_id.in_(all_answer_ids),
+                        GradingResult.status.in_(["confirmed", "ai_done"]),
+                    )
+                )).scalars().all())
 
             answer_data = []
             for a in answers_raw:
+                if a.id in graded_rows:
+                    continue
                 q = questions[a.question_id]
-                # Phase 1-C: 优先用 paper-seg 上传时携带的 question_type，
-                # 缺省回退到 Question.question_type
                 ans_qtype = a.question_type or q.question_type
                 answer_data.append({
                     "answer_id": a.id,
@@ -316,19 +358,8 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                     "question_type": ans_qtype,
                     "subject_code": subject_code,
                 })
-
-            # Exclude answers that already have confirmed results (ORC-001 protection)
-            if answer_data:
-                confirmed_rows = (await db.execute(
-                    select(GradingResult.answer_id).where(
-                        GradingResult.answer_id.in_([a["answer_id"] for a in answer_data]),
-                        GradingResult.status == "confirmed",
-                    )
-                )).scalars().all()
-                confirmed_set = set(confirmed_rows)
-                if confirmed_set:
-                    answer_data = [a for a in answer_data if a["answer_id"] not in confirmed_set]
-                    logger.info("grading_task: excluded %d confirmed answers", len(confirmed_set))
+            if len(graded_rows) > 0:
+                logger.info("grading_task: excluded %d already graded answers", len(graded_rows))
 
             # Load rubrics
             rubric_result = await db.execute(
@@ -354,7 +385,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                 logger.info("grading_task: task=%s, batch %d, size=%d", task_id, batch_num, len(batch))
 
                 # Launch all LLM calls in this batch concurrently
-                coros = [_grade_with_semaphore(llm, ad, rubrics_by_question) for ad in batch]
+                coros = [_grade_with_semaphore(llm, ad, rubrics_by_question, use_gemini_official=use_gemini) for ad in batch]
                 batch_results = await asyncio.gather(*coros)
 
                 # Write results + pipeline logs to DB
@@ -393,22 +424,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                         errors.append(error_dict)
                         batch_failed += 1
                     else:
-                        details = result_dict.get("details")
-                        if details is None:
-                            try:
-                                raw_parsed = json.loads(result_dict["raw_content"])
-                                details = raw_parsed.get("details")
-                            except (json.JSONDecodeError, TypeError):
-                                pass
-
-                        ocr_blanks = result_dict.get("ocr_blanks") or []
-                        ocr_by_no = {str(b.get("blankNo", "")): b.get("text", "") for b in ocr_blanks}
-                        if details and isinstance(details, list):
-                            for d in details:
-                                bno = str(d.get("blankNo", ""))
-                                if bno in ocr_by_no:
-                                    d["answer"] = ocr_by_no[bno]
-                                d["correct"] = d.get("score", 0) >= d.get("maxScore", 1)
+                        details = result_dict.get("details") or []
 
                         gr = GradingResult(
                             ai_task_id=task.id,
@@ -417,10 +433,12 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                             school_id=task.school_id,
                             ai_score=result_dict["score"],
                             ai_confidence=result_dict["confidence"],
-                            ai_feedback=result_dict["feedback"],
+                            ai_feedback=result_dict.get("comment") or result_dict.get("feedback", ""),
                             ai_raw_response={
-                                "raw_content": result_dict["raw_content"],
+                                "raw_content": result_dict.get("raw_content", ""),
                                 "details": details,
+                                "deductions": result_dict.get("deductions") or [],
+                                "comment": result_dict.get("comment", ""),
                                 "recognizedText": result_dict.get("recognizedText"),
                             },
                             final_score=result_dict["score"],

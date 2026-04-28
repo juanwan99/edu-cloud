@@ -61,6 +61,8 @@ def _make_mock_task(task_id="task-1", subject_id="subj-1", school_id="school-1",
     task.total = 0
     task.completed = 0
     task.failed = 0
+    task.grading_limit = None
+    task.grading_mode = "realtime"
     task.error_log = None
     return task
 
