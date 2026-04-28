@@ -11,7 +11,6 @@
 - `src/edu_cloud/modules/homework/`
 - `src/edu_cloud/modules/knowledge/`
 - `src/edu_cloud/modules/knowledge_tree/`
-- `src/edu_cloud/modules/marking/`
 - `src/edu_cloud/modules/menu/`
 - `src/edu_cloud/modules/paper/`
 - `src/edu_cloud/modules/profile/`

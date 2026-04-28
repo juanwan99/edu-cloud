@@ -8,6 +8,9 @@ flowchart TD
   conduct --> school
   grading --> exam
   grading --> scan
+  marking --> exam
+  marking --> scan
+  marking --> grading
   pipeline --> exam
   pipeline --> scan
   pipeline --> grading

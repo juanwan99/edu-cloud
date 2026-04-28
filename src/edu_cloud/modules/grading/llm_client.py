@@ -10,6 +10,11 @@ from edu_cloud.modules.grading.prompts_legacy import build_grading_prompt, build
 logger = logging.getLogger(__name__)
 
 
+def _img_data_url(b64: str) -> str:
+    mime = "image/png" if b64.startswith("iVBOR") else "image/jpeg"
+    return f"data:{mime};base64,{b64}"
+
+
 def _log_llm_usage(method: str, data: dict, model: str) -> None:
     u = data.get("usage") or {}
     ch = (data.get("choices") or [{}])[0]
@@ -68,14 +73,15 @@ class LLMClient:
         user_msg = messages[-1]
         content_parts: list[dict] = [{"type": "text", "text": user_msg["content"]}]
         for img in images_b64:
-            content_parts.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img}"}})
+            content_parts.append({"type": "image_url", "image_url": {"url": _img_data_url(img)}})
         user_msg["content"] = content_parts
 
         payload = {
             "model": self.model,
             "messages": messages,
-            "max_tokens": 2048,
+            "max_tokens": 16384,
             "temperature": 0,
+            "thinking_mode": "nothinking",
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -149,15 +155,16 @@ class LLMClient:
             for b64 in images_b64:
                 content_parts.append({
                     "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{b64}"},
+                    "image_url": {"url": _img_data_url(b64)},
                 })
             user_msg["content"] = content_parts
 
         payload = {
             "model": self.model,
             "messages": msgs,
-            "max_tokens": 4096,
+            "max_tokens": 16384,
             "temperature": 0,
+            "thinking_mode": "nothinking",
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -226,11 +233,11 @@ class LLMClient:
         """OCR: extract text from answer images. Returns list of blanks."""
         content_parts: list[dict] = []
         for img in images_b64:
-            content_parts.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img}"}})
+            content_parts.append({"type": "image_url", "image_url": {"url": _img_data_url(img)}})
         content_parts.append({"type": "text", "text": prompt})
 
         messages = [{"role": "user", "content": content_parts}]
-        payload = {"model": self.model, "messages": messages, "max_tokens": 16384, "temperature": 0}
+        payload = {"model": self.model, "messages": messages, "max_tokens": 16384, "temperature": 0, "thinking_mode": "nothinking"}
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         if self.slot:
             headers["X-LLM-Slot"] = self.slot
@@ -270,7 +277,7 @@ class LLMClient:
     ) -> GradeResponse:
         """Text-based grading (after OCR). No images, pure text prompt."""
         messages = [{"role": "user", "content": prompt}]
-        payload = {"model": self.model, "messages": messages, "max_tokens": 32768, "temperature": 0}
+        payload = {"model": self.model, "messages": messages, "max_tokens": 32768, "temperature": 0, "thinking_mode": "nothinking"}
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         if self.slot:
             headers["X-LLM-Slot"] = self.slot
