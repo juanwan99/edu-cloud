@@ -95,19 +95,14 @@
               <div v-if="ai.feedback" class="ai-feedback">{{ ai.feedback }}</div>
               <div v-if="ai.details?.length" class="ai-details">
                 <div class="ai-details-title">细化评分</div>
-                <div v-for="(sub, si) in ai.details" :key="si" class="ai-sub">
+                <div v-for="(item, i) in ai.details" :key="i" class="ai-sub">
                   <div class="ai-sub-header">
-                    <span>{{ sub.subQuestion || `第${si + 1}小题` }}</span>
-                    <span class="ai-sub-score">{{ sub.score }}/{{ sub.fullScore }}分</span>
+                    <span>{{ item.blankNo || `第${i + 1}空` }}</span>
+                    <span class="ai-sub-score" :style="{ color: item.score > 0 ? '#18a058' : '#d03050' }">
+                      {{ item.score }}/{{ item.maxScore }}分 {{ item.score >= item.maxScore ? '✓' : item.score > 0 ? '△' : '✗' }}
+                    </span>
                   </div>
-                  <div v-if="sub.blanks?.length" class="ai-blanks">
-                    <div v-for="(b, bi) in sub.blanks" :key="bi"
-                         class="ai-blank" :style="{ color: b.correct ? '#18a058' : '#d03050' }">
-                      <span>第{{ b.index }}空: {{ b.score }}/{{ b.fullScore }}分 {{ b.correct ? '✓' : '✗' }}</span>
-                      <span v-if="b.answer" class="ai-blank-answer">{{ b.answer }}</span>
-                      <span v-if="b.reason" class="ai-blank-reason">({{ b.reason }})</span>
-                    </div>
-                  </div>
+                  <div v-if="item.reason" class="ai-sub-reason">{{ item.reason }}</div>
                 </div>
               </div>
               <n-button
@@ -623,33 +618,15 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-.ai-blanks {
-  padding-left: 10px;
-}
-
-.ai-blank {
+.ai-sub-reason {
   font-size: 11px;
-  padding: 2px 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.ai-blank-answer {
-  color: var(--color-text-muted, #999);
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ai-blank-reason {
-  color: var(--color-text-muted, #999);
-  font-size: 10px;
+  line-height: 1.5;
+  color: var(--color-text-secondary, #667085);
+  padding: 2px 8px 4px;
 }
 
 .ai-sub {
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .score-title {
