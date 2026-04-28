@@ -60,6 +60,7 @@ const displayValue = computed(() =>
   color: var(--color-primary);
   letter-spacing: -0.02em;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 .kpi-card__label {

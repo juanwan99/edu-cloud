@@ -69,6 +69,7 @@
     </div>
     <div v-else-if="!loading" class="chart-empty">
       <p class="chart-empty__text">暂无考试数据，完成考试后将自动生成趋势图表</p>
+      <n-button type="primary" style="margin-top: 16px;" @click="router.push('/exams')">创建考试</n-button>
     </div>
 
     <!-- Recent Exams Cards -->
@@ -390,7 +391,7 @@ function getKpiValue(kpi) {
 
 /* Welcome banner */
 .welcome-banner {
-  background: linear-gradient(135deg, var(--macaron-mint-light) 0%, var(--macaron-purple-light) 100%);
+  background: var(--macaron-mint-light);
   border-radius: var(--radius-xl);
   border: 1px solid var(--color-border-light);
   padding: 32px;
@@ -495,6 +496,7 @@ function getKpiValue(kpi) {
   font-weight: 600;
   margin: 0 0 12px;
   color: var(--color-text);
+  line-height: 1.2;
 }
 
 .chart-empty {
@@ -537,7 +539,7 @@ function getKpiValue(kpi) {
   border: 1px solid var(--color-border-light);
   padding: 16px 20px;
   cursor: pointer;
-  transition: var(--transition);
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
 }
 
 .exam-card:hover {

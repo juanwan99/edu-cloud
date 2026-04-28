@@ -36,7 +36,7 @@ watch(() => route.path, () => { aiPanelOpen.value = false })
 
 <style scoped>
 .app-shell {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -45,7 +45,7 @@ watch(() => route.path, () => { aiPanelOpen.value = false })
   display: flex;
   flex: 1;
   margin-top: 68px;
-  min-height: calc(100vh - 68px);
+  min-height: calc(100dvh - 68px);
 }
 
 .app-main {

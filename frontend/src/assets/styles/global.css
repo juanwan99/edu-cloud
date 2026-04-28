@@ -35,12 +35,15 @@ a {
   font-weight: 800;
   color: var(--color-text);
   letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-wrap: balance;
 }
 
 .page-subtitle {
   font-size: 15px;
   color: var(--color-text-secondary);
   margin-top: 4px;
+  text-wrap: pretty;
 }
 
 /* pill 按钮覆盖 */
@@ -66,6 +69,7 @@ a {
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-card .stat-label {
@@ -99,6 +103,9 @@ a {
   background: var(--macaron-blue-light);
   color: #0c4a6e;
 }
+
+/* 工具类 */
+.tabular-nums { font-variant-numeric: tabular-nums; }
 
 /* 浮动装饰动画 */
 @keyframes floatSlow {

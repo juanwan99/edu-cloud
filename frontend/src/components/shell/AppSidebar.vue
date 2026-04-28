@@ -117,7 +117,7 @@ const iconMap = {
   width: 220px;
   background: var(--color-bg);
   border-right: 1px solid var(--color-border-light);
-  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.2s ease-out;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;

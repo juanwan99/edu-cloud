@@ -50,14 +50,13 @@ import RoleSwitcher from './RoleSwitcher.vue'
   left: 0;
   right: 0;
   height: 68px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.96);
   border-bottom: 1px solid var(--color-border-light);
-  z-index: 1000;
+  z-index: var(--z-header);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: env(safe-area-inset-top) 24px 0;
 }
 
 .app-header__left {

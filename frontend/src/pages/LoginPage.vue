@@ -140,16 +140,16 @@ async function handleLogin() {
 
 <style scoped>
 .login-container {
-  min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--color-bg);
 }
 
 .login-content {
   position: relative;
   z-index: 1;
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -169,7 +169,7 @@ async function handleLogin() {
   height: 620px;
   top: -180px;
   right: -160px;
-  background: #e8f8ee;
+  background: var(--macaron-mint-light);
 }
 
 .decor--cream {
@@ -177,7 +177,7 @@ async function handleLogin() {
   height: 480px;
   bottom: -160px;
   left: -120px;
-  background: #fef3c7;
+  background: var(--macaron-yellow);
   opacity: 0.6;
   animation-delay: -8s;
 }
@@ -188,7 +188,7 @@ async function handleLogin() {
   bottom: 30%;
   right: 8%;
   background: transparent;
-  border: 3px solid #fde8e8;
+  border: 3px solid var(--macaron-coral);
   animation-delay: -16s;
 }
 
@@ -198,7 +198,7 @@ async function handleLogin() {
   top: 18%;
   left: 6%;
   background: transparent;
-  border: 3px solid #ede9fe;
+  border: 3px solid var(--macaron-purple);
   border-radius: 8px;
   animation-delay: -12s;
 }
@@ -222,14 +222,14 @@ async function handleLogin() {
 .brand-name {
   font-size: 32px;
   font-weight: 800;
-  color: #1a2e1f;
+  color: var(--color-primary);
   letter-spacing: -0.02em;
   margin: 0;
 }
 
 .brand-subtitle {
   font-size: 14px;
-  color: #8a9a8e;
+  color: var(--color-text-muted);
   margin-top: 6px;
 }
 
@@ -256,13 +256,13 @@ async function handleLogin() {
   margin-top: 20px;
   text-align: center;
   font-size: 13px;
-  color: #8a9a8e;
+  color: var(--color-text-muted);
 }
 
 .login-footer {
   margin-top: 56px;
   font-size: 12px;
-  color: #b0b8b2;
+  color: var(--color-text-muted);
 }
 
 /* 成功遮罩 */
@@ -281,7 +281,7 @@ async function handleLogin() {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: #1a2e1f;
+  background: var(--color-primary);
   color: #fff;
   font-size: 32px;
   display: flex;
@@ -293,7 +293,7 @@ async function handleLogin() {
 .success-text {
   font-size: 18px;
   font-weight: 600;
-  color: #1a2e1f;
+  color: var(--color-primary);
 }
 
 .login-success-enter-active { transition: opacity 0.3s ease; }
