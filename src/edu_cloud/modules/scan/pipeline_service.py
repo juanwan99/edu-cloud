@@ -243,6 +243,59 @@ def ensure_images_from_pdfs(image_dir: str, pages_per_student: int = 2, dpi: int
 
 
 
+_barcode_map: dict[str, str] = {}
+
+
+def build_barcode_map(image_dir: str, barcode_rect: dict, tpl_w: int, tpl_h: int) -> dict[str, str]:
+    """扫描所有 A 面文件建立 文件序号→条码学号 映射表。"""
+    global _barcode_map
+    from pyzbar.pyzbar import decode
+
+    d = Path(image_dir)
+    a_files = sorted([
+        f for f in d.iterdir()
+        if f.suffix.lower() in ('.jpg', '.png') and f.stem.endswith('A')
+    ])
+
+    sx = 1.0
+    sy = 1.0
+    if a_files:
+        sample = Image.open(a_files[0])
+        sx = sample.size[0] / tpl_w if tpl_w > 0 else 1.0
+        sy = sample.size[1] / tpl_h if tpl_h > 0 else 1.0
+
+    pad = 80
+    x1 = max(0, int(barcode_rect["x1"] * sx) - pad)
+    y1 = max(0, int(barcode_rect["y1"] * sy) - pad)
+    x2 = int(barcode_rect["x2"] * sx) + pad
+    y2 = int(barcode_rect["y2"] * sy) + pad
+
+    mapping = {}
+    for f in a_files:
+        stu_num = f.stem[:-1]
+        try:
+            img = Image.open(f)
+            crop = img.crop((x1, y1, x2, y2))
+            barcodes = decode(crop)
+            if barcodes:
+                mapping[stu_num] = barcodes[0].data.decode()
+        except Exception:
+            pass
+
+    _barcode_map = mapping
+    logger.info("barcode_map: built %d/%d entries from A-side files", len(mapping), len(a_files))
+    return mapping
+
+
+def _read_barcode_from_paired_a(b_path: Path) -> str | None:
+    """B 面文件从预建映射表获取对应 A 面条码学号。"""
+    stem = b_path.stem
+    if not stem.endswith("B"):
+        return None
+    stu_num = stem[:-1]
+    return _barcode_map.get(stu_num)
+
+
 def _extract_student_id(filename: str) -> str:
     """从文件名提取学生 ID。去掉面标识(A/B)和扩展名。"""
     name = Path(filename).stem
@@ -285,6 +338,10 @@ def process_one_image(
             )
     else:
         barcode_status = "skipped"  # 模板无 barcode_region，走文件名提取不算 fallback
+        # B 面无条码：从对应 A 面文件读取条码关联学生
+        student_id = _read_barcode_from_paired_a(image_path)
+        if student_id:
+            barcode_status = "paired_a"
 
     if not student_id:
         student_id = _extract_student_id(image_path.name)

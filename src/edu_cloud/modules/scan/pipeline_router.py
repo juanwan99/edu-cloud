@@ -363,6 +363,25 @@ async def start_pipeline(
         if swapped:
             logger.info("pipeline: auto-fixed %d swapped A/B pairs", swapped)
 
+    # B 面启动时，预建条码映射表（从 A 面文件读取条码→学号）
+    if req.side == "B":
+        a_tpl = (await db.execute(
+            select(Template).where(
+                Template.subject_id == req.subject_id,
+                Template.side == "A",
+            )
+        )).scalar_one_or_none()
+        if a_tpl:
+            a_bc = None
+            for r in (a_tpl.regions or []):
+                if r.get("type") == "barcode" and r.get("rect"):
+                    a_bc = r["rect"]
+                    break
+            if a_bc:
+                pipeline_service.build_barcode_map(
+                    req.image_dir, a_bc, a_tpl.image_width, a_tpl.image_height,
+                )
+
     # 列出文件
     try:
         files = pipeline_service.list_scan_images(req.image_dir, req.side)
