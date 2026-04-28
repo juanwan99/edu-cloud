@@ -545,7 +545,7 @@ git commit -m "feat(api): GET /notifications — 通知列表（status/since 过
 - Modify: `frontend/src/theme.js`
 - Modify: `frontend/src/App.vue` (移除 darkTheme)
 
-**Why:** 当前使用 Naive UI darkTheme，与 momowan 白底风格冲突。需要统一 CSS token。
+**Why:** 当前使用 Naive UI darkTheme，与 edu-cloud 白底风格冲突。需要统一 CSS token。
 
 - [ ] **Step 1: 更新 variables.css**
 
@@ -553,7 +553,7 @@ git commit -m "feat(api): GET /notifications — 通知列表（status/since 过
 
 - [ ] **Step 2: 更新 theme.js**
 
-Naive UI themeOverrides 对齐 momowan token：primaryColor → #1a2e1f，borderRadius → 10px 等。
+Naive UI themeOverrides 对齐 edu-cloud token：primaryColor → #1a2e1f，borderRadius → 10px 等。
 
 - [ ] **Step 3: App.vue 移除 darkTheme**
 
@@ -564,13 +564,13 @@ Naive UI themeOverrides 对齐 momowan token：primaryColor → #1a2e1f，border
 Run: `cd C:/Users/Administrator/edu-cloud/frontend && npx vite build`
 Expected: 构建成功，无报错
 
-Run: `npm run dev` → 浏览器检查登录页是否为白底 momowan 风格
+Run: `npm run dev` → 浏览器检查登录页是否为白底 edu-cloud 风格
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add frontend/src/assets/styles/variables.css frontend/src/theme.js frontend/src/App.vue
-git commit -m "style: CSS token 系统 + Naive UI 切换为 momowan light 主题"
+git commit -m "style: CSS token 系统 + Naive UI 切换为 edu-cloud light 主题"
 ```
 
 ---
@@ -839,7 +839,7 @@ git commit -m "feat(auth): role normalization + context 存储 + hasPermission +
 - [ ] **Step 1: 创建 AppHeader**
 
 68px 固定顶栏：Logo（edu-cloud 智能平台）+ SchoolContext + 搜索占位 + 通知铃占位 + 头像菜单占位。
-毛玻璃效果，momowan 风格。
+毛玻璃效果，edu-cloud 风格。
 
 - [ ] **Step 2: 创建 SchoolContext**
 

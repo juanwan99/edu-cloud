@@ -27,7 +27,7 @@ plan: C:\Users\Administrator\edu-cloud\docs\plans\2026-03-24-frontend-role-aware
 
 ### 用户偏好
 
-- **视觉风格必须使用 momowan-website 的设计语言**：深墨绿 #1a2e1f + macaron 柔彩 + 大圆角 24px + SVG mask-image 图标（不用 emoji）+ 系统字体栈
+- **视觉风格必须使用 [已清理-旧项目] 的设计语言**：深墨绿 #1a2e1f + macaron 柔彩 + 大圆角 24px + SVG mask-image 图标（不用 emoji）+ 系统字体栈
 - **质量第一**：每个 Batch 完成后必须跑 GPT code review
 - **校长关心全校健康度，教学只是一个板块**：dashboard 不要堆阅卷/批改细节
 - **未来扩展**：师资人事、后勤安全等板块用灰度占位卡片，不留空白
@@ -36,7 +36,7 @@ plan: C:\Users\Administrator\edu-cloud\docs\plans\2026-03-24-frontend-role-aware
 
 - 后端 SQLite in-memory（dev 模式），无 .env 文件
 - 前端 Vitest 4 + happy-dom（不用 jsdom）
-- Naive UI 当前启用 darkTheme，需切换为 light 并对齐 momowan token
+- Naive UI 当前启用 darkTheme，需切换为 light 并对齐 edu-cloud token
 - 现有 770 后端 + 27 前端测试必须保持全绿
 
 ## 启动 Prompt

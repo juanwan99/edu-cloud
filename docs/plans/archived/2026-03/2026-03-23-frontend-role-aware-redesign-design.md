@@ -28,9 +28,9 @@
 4. **AI 助手是浮窗**：从任何页面可调出，不锁死在固定面板
 5. **通知中心**：铃铛 + badge + 下拉面板是标准模式
 
-### momowan 设计语言
+### edu-cloud 设计语言
 
-采用 momowan-website 的视觉风格系统：
+采用 [已清理-旧项目] 的视觉风格系统：
 
 | Token | Value | 用途 |
 |-------|-------|------|
@@ -505,7 +505,7 @@ const MARKING_ROLES = [...SCHOOL_ADMIN_ROLES, 'homeroom_teacher', 'subject_teach
 
 对于无法立即支撑的 KPI（如教职工数），widget 显示为 `--`（加载中/无数据），不隐藏卡片。
 
-## §8 样式规范（momowan 对齐）
+## §8 样式规范（[已清理] 对齐）
 
 ### 卡片
 
@@ -639,8 +639,8 @@ variables.css 需补齐以下 token（当前缺失）：
 
 ### Naive UI 主题处理
 
-当前 App.vue 启用了 Naive UI `darkTheme`，与 momowan 白底风格冲突。实现时：
+当前 App.vue 启用了 Naive UI `darkTheme`，与 edu-cloud 白底风格冲突。实现时：
 
 1. 移除 `darkTheme`，切换为 light theme
-2. 通过 `theme.js` 的 `themeOverrides` 将 Naive UI 组件颜色对齐 momowan token
+2. 通过 `theme.js` 的 `themeOverrides` 将 Naive UI 组件颜色对齐 edu-cloud token
 3. Naive UI 组件（NButton, NCard, NDropdown 等）的 border-radius、色值通过 overrides 统一

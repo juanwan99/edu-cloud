@@ -26,7 +26,7 @@ plan: N/A
 - AI 阅卷链路已通：.env LLM_SLOT=grading-vision + /v1 路径 + worker ORM import 修复 + prompt 防截断
 - 化学 4 题 Rubric 已建；其余科目 47 道主观题 Rubric 待补
 - 教师 User 表已 ALTER TABLE 加 9 列；teacher_router 导入导出含 15 列 + 学科班级
-- nginx: edu.momowan.xyz 已删，唯一入口 https://mcu.asia（mcu-asia.conf）
+- nginx: edu.[已清理-旧域名] 已删，唯一入口 https://mcu.asia（mcu-asia.conf）
 - build 脚本追加 chmod + www-data 入 ops 组，403 永久修复
 - Worker 启动: `.venv/bin/python /tmp/start_worker.py`（arq CLI 与 Python 3.14 不兼容）
 - 下一步: commit → build 部署 → 补 Rubric → 手动打分验证 → 成绩发布

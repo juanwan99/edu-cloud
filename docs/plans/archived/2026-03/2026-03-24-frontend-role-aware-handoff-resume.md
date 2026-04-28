@@ -59,7 +59,7 @@ plan: C:\Users\Administrator\edu-cloud\docs\plans\2026-03-24-frontend-role-aware
 
 **T3 流程**。
 
-- **视觉风格必须使用 momowan 设计语言**（已在 T3 CSS Token 中落地）
+- **视觉风格必须使用 edu-cloud 设计语言**（已在 T3 CSS Token 中落地）
 - **质量第一**：每个 Batch 完成后必须跑 GPT code review
 - doc-sync-guard 要求：删除/重命名前端文件时必须同步更新 CLAUDE.md 项目结构
 - 当前 `router/index.js` 中 `/analysis` 路由引用的是 `AnalysisPage.vue`，但文件尚未正式 git add（只是 untracked）
