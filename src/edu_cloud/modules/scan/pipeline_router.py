@@ -355,6 +355,14 @@ async def start_pipeline(
             "barcode_region": bc_region,
         }
 
+    # A/B 面自动纠正（仅 A 面启动时执行，利用条码检测真实面）
+    if req.side == "A" and bc_region:
+        swapped = pipeline_service.auto_fix_ab_sides(
+            req.image_dir, bc_region, tpl.image_width, tpl.image_height,
+        )
+        if swapped:
+            logger.info("pipeline: auto-fixed %d swapped A/B pairs", swapped)
+
     # 列出文件
     try:
         files = pipeline_service.list_scan_images(req.image_dir, req.side)
@@ -512,8 +520,8 @@ async def import_pdf_to_images(
     created = pipeline_service.ensure_images_from_pdfs(
         req.dir_path, req.pages_per_student, req.dpi,
     )
-    a_count = sum(1 for f in d.rglob("*A.png"))
-    b_count = sum(1 for f in d.rglob("*B.png"))
+    a_count = sum(1 for f in d.iterdir() if f.name.endswith(("A.jpg", "A.png")))
+    b_count = sum(1 for f in d.iterdir() if f.name.endswith(("B.jpg", "B.png")))
     return {
         "created": created,
         "total_images": a_count + b_count,

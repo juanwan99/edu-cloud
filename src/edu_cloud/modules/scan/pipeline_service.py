@@ -64,13 +64,183 @@ def request_stop():
 
 
 def list_scan_images(image_dir: str, side: str = "A") -> list[Path]:
-    """列出扫描目录下指定面的 PNG 文件。"""
+    """列出扫描目录下指定面的图片文件（兼容 JPEG 和 PNG）。"""
     d = Path(image_dir)
     if not d.exists():
         raise FileNotFoundError(f"目录不存在: {image_dir}")
-    pattern = f"*{side}.png"
-    files = sorted(d.glob(pattern))
-    return files
+    by_stem: dict[str, Path] = {}
+    for f in [*d.glob(f"*{side}.jpg"), *d.glob(f"*{side}.png")]:
+        if f.stem not in by_stem:
+            by_stem[f.stem] = f
+    return sorted(by_stem.values())
+
+
+def auto_fix_ab_sides(image_dir: str, barcode_rect: dict, tpl_w: int, tpl_h: int) -> int:
+    """检测并修复 A/B 面文件名标反的情况。
+
+    通过条码区域暗像素比例判断真实 A/B 面：有条码 = A 面。
+    标反的文件对会被重命名交换。
+
+    Returns: 交换的文件对数量。
+    """
+    d = Path(image_dir)
+    a_files = sorted([
+        f for f in d.iterdir()
+        if f.suffix.lower() in ('.jpg', '.png') and f.stem.endswith('A')
+    ])
+    if not a_files:
+        return 0
+
+    swapped = 0
+    for a_file in a_files:
+        stu_num = a_file.stem[:-1]
+        b_file = None
+        for ext in ('.jpg', '.jpeg', '.png'):
+            candidate = d / f"{stu_num}B{ext}"
+            if candidate.exists():
+                b_file = candidate
+                break
+        if not b_file:
+            continue
+
+        a_has = _has_barcode(a_file, barcode_rect, tpl_w, tpl_h)
+        if a_has:
+            continue
+
+        b_has = _has_barcode(b_file, barcode_rect, tpl_w, tpl_h)
+        if not b_has:
+            continue
+
+        tmp = d / f"{stu_num}_swap_tmp{a_file.suffix}"
+        a_file.rename(tmp)
+        b_new_name = d / f"{stu_num}A{b_file.suffix}"
+        b_file.rename(b_new_name)
+        a_new_name = d / f"{stu_num}B{a_file.suffix}"
+        tmp.rename(a_new_name)
+        swapped += 1
+
+    if swapped:
+        logger.info("auto_fix_ab: swapped %d/%d pairs in %s", swapped, len(a_files), image_dir)
+    return swapped
+
+
+def _has_barcode(image_path: Path, barcode_rect: dict, tpl_w: int, tpl_h: int) -> bool:
+    """裁剪条码区域后用 pyzbar 解码，fallback 到暗像素比例 > 0.20。"""
+    from pyzbar.pyzbar import decode
+
+    img = Image.open(image_path)
+    img_w, img_h = img.size
+    sx = img_w / tpl_w if tpl_w > 0 else 1.0
+    sy = img_h / tpl_h if tpl_h > 0 else 1.0
+
+    pad = 80
+    x1 = max(0, int(barcode_rect["x1"] * sx) - pad)
+    y1 = max(0, int(barcode_rect["y1"] * sy) - pad)
+    x2 = min(img_w, int(barcode_rect["x2"] * sx) + pad)
+    y2 = min(img_h, int(barcode_rect["y2"] * sy) + pad)
+
+    crop = img.crop((x1, y1, x2, y2))
+    barcodes = decode(crop)
+    if barcodes:
+        return True
+
+    gray = np.array(crop.convert("L"))
+    if gray.size == 0:
+        return False
+    dark_ratio = np.mean(gray < 128)
+    return dark_ratio > 0.20
+
+
+def _render_page(args):
+    """Worker: render one PDF page to JPEG."""
+    pdf_path_str, page_num, out_path_str, dpi = args
+    import fitz
+    from PIL import Image as _PILImage
+    doc = fitz.open(pdf_path_str)
+    page = doc[page_num]
+    pix = page.get_pixmap(dpi=dpi)
+    img = _PILImage.frombytes("RGB", [pix.width, pix.height], pix.samples)
+    img.save(out_path_str, format="JPEG", quality=85)
+    doc.close()
+    return out_path_str
+
+
+def ensure_images_from_pdfs(image_dir: str, pages_per_student: int = 2, dpi: int = 150) -> int:
+    """检查目录中是否有 PDF，并行拆分为 PNG 图片（幂等）。
+
+    跨 PDF 全局递增编号，输出 0001A.png / 0001B.png，
+    直接适配原有 pipeline 命名逻辑。
+
+    Returns: 新生成的 PNG 数量
+    """
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+
+    d = Path(image_dir)
+    pdfs = sorted(d.rglob("*.pdf"), key=lambda p: p.stem)
+    if not pdfs:
+        return 0
+
+    sides = "AB"
+    tasks = []
+    global_stu = 0
+
+    for pdf_path in pdfs:
+        import fitz
+        doc = fitz.open(str(pdf_path))
+        n_pages = len(doc)
+        n_students = n_pages // pages_per_student
+        pdf_tasks = 0
+
+        for stu_idx in range(n_students):
+            global_stu += 1
+            for offset in range(pages_per_student):
+                page_num = stu_idx * pages_per_student + offset
+                side = sides[offset % len(sides)]
+                out_name = f"{global_stu:04d}{side}.jpg"
+                out_path = pdf_path.parent / out_name
+                png_compat = pdf_path.parent / f"{global_stu:04d}{side}.png"
+
+                if not out_path.exists() and not png_compat.exists():
+                    tasks.append((str(pdf_path), page_num, str(out_path), dpi))
+                    pdf_tasks += 1
+
+        remainder = n_pages % pages_per_student
+        if remainder:
+            global_stu += 1
+            for offset in range(remainder):
+                page_num = n_students * pages_per_student + offset
+                side = sides[offset % len(sides)]
+                out_name = f"{global_stu:04d}{side}.jpg"
+                out_path = pdf_path.parent / out_name
+                png_compat = pdf_path.parent / f"{global_stu:04d}{side}.png"
+                if not out_path.exists() and not png_compat.exists():
+                    tasks.append((str(pdf_path), page_num, str(out_path), dpi))
+                    pdf_tasks += 1
+
+        doc.close()
+        logger.info("pdf_import: %s -> %d pages, %d students, %d to render",
+                     pdf_path.name, n_pages, n_students, pdf_tasks)
+
+    if not tasks:
+        logger.info("pdf_import: all %d students already converted, skip", global_stu)
+        return 0
+
+    logger.info("pdf_import: %d total students, %d pages to render across %d workers",
+                global_stu, len(tasks), min(6, len(tasks)))
+    created = 0
+    with ProcessPoolExecutor(max_workers=6) as pool:
+        futures = {pool.submit(_render_page, t): t for t in tasks}
+        for fut in as_completed(futures):
+            try:
+                fut.result()
+                created += 1
+            except Exception as e:
+                t = futures[fut]
+                logger.error("pdf_import: failed to render page %d of %s: %s", t[1], t[0], e)
+
+    logger.info("pdf_import: done, %d images created", created)
+    return created
+
 
 
 def _extract_student_id(filename: str) -> str:
@@ -143,8 +313,8 @@ def process_one_image(
                 "y2": int(rect["y2"] * sy),
             }
             cropped = crop_region(img, scaled_rect)
-            out_path = os.path.join(stu_dir, f"{region['id']}.png")
-            cropped.save(out_path)
+            out_path = os.path.join(stu_dir, f"{region['id']}.jpg")
+            cropped.save(out_path, format="JPEG", quality=85)
             crops.append({
                 "region_id": region["id"],
                 "name": region.get("name", region["id"]),
@@ -229,6 +399,10 @@ async def run_pipeline(
         if _running:
             raise RuntimeError("流水线正在运行")
         _running = True
+
+    pdf_created = ensure_images_from_pdfs(image_dir)
+    if pdf_created:
+        logger.info("pipeline: auto-converted PDFs -> %d PNG images in %s", pdf_created, image_dir)
 
     files = list_scan_images(image_dir, side)
     progress = PipelineProgress(total=len(files), status="running", current_subject_id=subject_id)
