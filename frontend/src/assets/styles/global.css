@@ -8,9 +8,10 @@
 
 body {
   font-family: var(--font-sans);
+  font-size: 15px;
   color: var(--color-text);
   background: var(--color-bg);
-  line-height: 1.7;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -40,7 +41,7 @@ a {
 }
 
 .page-subtitle {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--color-text-secondary);
   margin-top: 4px;
   text-wrap: pretty;
@@ -73,7 +74,7 @@ a {
 }
 
 .stat-card .stat-label {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--color-text-secondary);
   margin-top: 4px;
 }
