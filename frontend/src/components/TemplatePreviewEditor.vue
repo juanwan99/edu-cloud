@@ -461,7 +461,7 @@ onBeforeUnmount(() => { if (typeof window !== 'undefined') window.removeEventLis
   border-bottom: 1px solid var(--n-border-color);
   flex-shrink: 0;
 }
-.toolbar-label { font-size: 12px; color: #999; margin-left: 4px; }
+.toolbar-label { font-size: 16px; color: #999; margin-left: 4px; }
 
 .tpl-editor > :last-child {
   display: flex;
@@ -534,17 +534,17 @@ onBeforeUnmount(() => { if (typeof window !== 'undefined') window.removeEventLis
 
 .tpl-rid {
   position: absolute; top: 2px; left: 4px;
-  font-size: 11px; font-weight: 600;
+  font-size: 16px; font-weight: 600;
   text-shadow: 0 0 3px rgba(0,0,0,0.8);
 }
 .tpl-rtype {
   position: absolute; top: 2px; right: 4px;
-  font-size: 10px; color: #ccc; background: rgba(0,0,0,0.5);
+  font-size: 16px; color: #ccc; background: rgba(0,0,0,0.5);
   padding: 0 4px; border-radius: 2px;
 }
 .tpl-rqno {
   position: absolute; bottom: 2px; left: 4px;
-  font-size: 11px; font-weight: 600; color: #f0c040;
+  font-size: 16px; font-weight: 600; color: #f0c040;
   text-shadow: 0 0 3px rgba(0,0,0,0.8);
 }
 /* resize handles */
@@ -572,7 +572,7 @@ onBeforeUnmount(() => { if (typeof window !== 'undefined') window.removeEventLis
 /* sidebar */
 .sidebar-title {
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
   border-bottom: 1px solid var(--n-border-color);
 }
@@ -581,7 +581,7 @@ onBeforeUnmount(() => { if (typeof window !== 'undefined') window.removeEventLis
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
-  font-size: 12px;
+  font-size: 16px;
   cursor: pointer;
   border-bottom: 1px solid rgba(255,255,255,0.04);
 }

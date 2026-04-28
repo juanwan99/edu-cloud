@@ -5,7 +5,7 @@
       <div style="text-align: center; padding: 24px 0;">
         <div class="guide-icon">&#128100;</div>
         <n-h4 style="margin: 12px 0 8px;">尚未绑定孩子</n-h4>
-        <p style="color: rgba(255,255,255,0.45); font-size: 14px; margin-bottom: 16px;">
+        <p style="color: rgba(255,255,255,0.45); font-size: 16px; margin-bottom: 16px;">
           请先绑定孩子信息，才能查看学习数据
         </p>
         <n-button type="primary" @click="$router.push('/parent/bind')">
@@ -41,7 +41,7 @@
       <!-- Score summary card -->
       <n-card v-if="latestScore" class="score-brief" style="margin-bottom: 16px;">
         <div class="score-brief-header">
-          <span style="font-size: 14px; font-weight: 600;">最近考试</span>
+          <span style="font-size: 16px; font-weight: 600;">最近考试</span>
           <n-tag size="small" type="info">{{ latestScore.exam_name || '考试' }}</n-tag>
         </div>
         <div class="score-brief-body">
@@ -235,7 +235,7 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .student-class {
-  font-size: 13px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.45);
   margin-top: 2px;
 }
@@ -261,7 +261,7 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .stat-label {
-  font-size: 11px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.4);
   margin-top: 2px;
 }
@@ -289,7 +289,7 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .score-brief-label {
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.4);
   margin-top: 2px;
 }
@@ -326,7 +326,7 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .quick-entry-label {
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.65);
 }
 
@@ -344,7 +344,7 @@ watch(() => props.currentChild, async (child) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -365,7 +365,7 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .record-name {
-  font-size: 14px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.85);
   white-space: nowrap;
   overflow: hidden;
@@ -373,7 +373,7 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .record-time {
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.35);
   margin-top: 2px;
 }

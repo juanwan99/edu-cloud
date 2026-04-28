@@ -3,7 +3,7 @@
     <div class="panel-title">主观题列表</div>
     <div v-if="loading" class="loading-tip">加载中...</div>
     <div v-else-if="questions.length === 0" class="empty-tip">暂无主观题</div>
-    <n-button v-if="!loading" size="medium" block dashed style="margin-bottom:10px;font-size:14px;font-weight:700;color:var(--color-success, #4ade80);border-color:var(--color-success, #4ade80)" @click="$emit('add-question')">+ 添加题目</n-button>
+    <n-button v-if="!loading" size="medium" block dashed style="margin-bottom:10px;font-size: 16px;font-weight:700;color:var(--color-success, #4ade80);border-color:var(--color-success, #4ade80)" @click="$emit('add-question')">+ 添加题目</n-button>
     <div
       v-for="q in questions"
       :key="q.question_id"
@@ -70,7 +70,7 @@ defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', '
 }
 
 .panel-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: #d0dcd2;
   margin-bottom: 10px;
@@ -131,7 +131,7 @@ defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', '
 }
 
 .q-title {
-  font-size: 13px;
+  font-size: 16px;
   color: #d0dcd2;
   margin-bottom: 5px;
   font-weight: 500;
@@ -153,7 +153,7 @@ defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', '
 }
 
 .t {
-  font-size: 11px;
+  font-size: 16px;
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 500;
@@ -176,12 +176,12 @@ defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', '
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 .q-progress {
-  font-size: 11px;
+  font-size: 16px;
   color: #b0c0b4;
   margin-top: 4px;
 }
 .q-del {
-  font-size: 14px; color: #8a9a8e; cursor: pointer;
+  font-size: 16px; color: #8a9a8e; cursor: pointer;
   opacity: 0; transition: opacity 0.15s; text-decoration: none;
   flex-shrink: 0; padding: 4px 6px; font-weight: 700;
 }
@@ -189,14 +189,14 @@ defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', '
 .q-del:hover { opacity: 1 !important; color: #f87171; }
 
 .loading-tip {
-  font-size: 13px;
+  font-size: 16px;
   color: #8a9a8e;
   padding: 16px 0;
   text-align: center;
 }
 
 .empty-tip {
-  font-size: 13px;
+  font-size: 16px;
   color: #8a9a8e;
   padding: 8px 0;
 }

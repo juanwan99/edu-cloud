@@ -37,7 +37,7 @@ defineExpose({ onChange })
   gap: 8px;
 }
 .label {
-  font-size: 13px;
+  font-size: 16px;
   color: var(--text-color-2);
 }
 </style>

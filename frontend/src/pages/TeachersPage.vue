@@ -72,7 +72,7 @@
           </n-form-item>
         </div>
         <n-divider style="margin: 12px 0;" />
-        <h4 style="margin: 0 0 12px; font-size: 14px;">角色与任教分配</h4>
+        <h4 style="margin: 0 0 12px; font-size: 16px;">角色与任教分配</h4>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px;">
           <n-form-item v-if="!editingId" label="角色（可多选）">
             <n-select v-model:value="form.roles" :options="createRoleOptions" multiple placeholder="可多选" />
@@ -105,7 +105,7 @@
           <n-upload :max="1" accept=".xlsx,.xls" :default-upload="false" @change="handleFileChange">
             <n-button>选择文件</n-button>
           </n-upload>
-          <div style="font-size: 12px; color: #999; margin-top: 8px; line-height: 1.8;">
+          <div style="font-size: 16px; color: #999; margin-top: 8px; line-height: 1.8;">
             <p style="margin: 0;">建议先<a href="#" @click.prevent="handleDownloadTemplate" style="color: #63e2b7;">下载导入模板</a>，按模板格式填写。</p>
             <p style="margin: 0;">支持 15 列：姓名/工号/手机/邮箱/性别/身份证/职称/入职日期/学历/毕业院校/办公电话/角色/任教学科/任教班级/备注</p>
             <p style="margin: 0;">最少只需「姓名」列，其余自动补全。默认密码 123456。</p>

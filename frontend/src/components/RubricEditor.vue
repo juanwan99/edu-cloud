@@ -76,7 +76,7 @@ function addItem() {
 </script>
 
 <style scoped>
-.re-empty { color: var(--color-text-muted); font-size: 13px; padding: 12px 0; text-align: center; }
+.re-empty { color: var(--color-text-muted); font-size: 16px; padding: 12px 0; text-align: center; }
 
 .re-row {
   display: flex; flex-direction: column; gap: 4px;
@@ -88,25 +88,25 @@ function addItem() {
 .re-head { display: flex; align-items: center; gap: 6px; }
 
 .re-idx {
-  font-size: 13px; font-weight: 700; color: var(--color-success, #6ee7a0);
+  font-size: 16px; font-weight: 700; color: var(--color-success, #6ee7a0);
   min-width: 20px; text-align: center; flex-shrink: 0;
 }
-.re-unit { font-size: 12px; color: var(--color-text-muted); flex-shrink: 0; }
+.re-unit { font-size: 16px; color: var(--color-text-muted); flex-shrink: 0; }
 .re-del {
-  font-size: 12px; color: var(--color-text-muted); cursor: pointer; flex-shrink: 0;
+  font-size: 16px; color: var(--color-text-muted); cursor: pointer; flex-shrink: 0;
   opacity: 0.3; transition: opacity 0.15s; text-decoration: none;
 }
 .re-del:hover { opacity: 1; color: var(--color-danger, #f87171); }
 
 .re-more {
-  font-size: 11px; color: var(--color-text-muted); cursor: pointer;
+  font-size: 16px; color: var(--color-text-muted); cursor: pointer;
   padding: 2px 0; text-decoration: none;
 }
 .re-more:hover { color: var(--color-success, #6ee7a0); }
 
 .re-legacy {
   display: flex; flex-direction: column; gap: 2px;
-  font-size: 11px; color: var(--color-text-secondary); line-height: 1.4;
+  font-size: 16px; color: var(--color-text-secondary); line-height: 1.4;
   padding-left: 20px; opacity: 0.6;
 }
 
@@ -114,9 +114,9 @@ function addItem() {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 0 0;
 }
-.re-add { font-size: 12px; color: var(--color-text-muted); cursor: pointer; text-decoration: none; }
+.re-add { font-size: 16px; color: var(--color-text-muted); cursor: pointer; text-decoration: none; }
 .re-add:hover { color: var(--color-success, #6ee7a0); }
 
-.re-total { font-size: 13px; font-weight: 600; color: var(--color-text-muted); }
+.re-total { font-size: 16px; font-weight: 600; color: var(--color-text-muted); }
 .re-total.warn { color: var(--color-warning, #f59e0b); }
 </style>

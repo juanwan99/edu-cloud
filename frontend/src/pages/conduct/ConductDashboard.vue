@@ -127,7 +127,7 @@
                   <n-tag :type="r.points >= 0 ? 'success' : 'error'" size="small">
                     {{ r.points >= 0 ? '+' : '' }}{{ r.points }}
                   </n-tag>
-                  <span style="font-size: 12px; color: rgba(255,255,255,0.4);">
+                  <span style="font-size: 16px; color: rgba(255,255,255,0.4);">
                     {{ r.created_at ? new Date(r.created_at).toLocaleString('zh-CN') : '' }}
                   </span>
                 </n-space>

@@ -128,14 +128,14 @@ function batchConfirm(edges) {
 <style scoped>
 .concept-header { margin-bottom: 16px; }
 .concept-header h3 { margin: 0 0 4px; }
-.desc { color: rgba(255,255,255,0.5); font-size: 13px; margin: 4px 0 0; }
+.desc { color: rgba(255,255,255,0.5); font-size: 16px; margin: 4px 0 0; }
 .relation-group { margin-bottom: 16px; }
 .group-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.group-label { font-weight: 600; font-size: 13px; color: rgba(255,255,255,0.7); }
+.group-label { font-weight: 600; font-size: 16px; color: rgba(255,255,255,0.7); }
 .relation-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
 .direction { font-family: monospace; color: rgba(255,255,255,0.4); width: 20px; text-align: center; }
 .peer-name { flex: 1; }
-.edge-status { font-size: 12px; color: rgba(255,255,255,0.4); min-width: 40px; }
+.edge-status { font-size: 16px; color: rgba(255,255,255,0.4); min-width: 40px; }
 .edge-status.rejected { color: #e88080; text-decoration: line-through; }
 .edge-status.teacher_reviewed { color: #63e2b7; }
 </style>

@@ -139,7 +139,7 @@ onMounted(async () => {
   line-height: 1;
 }
 .tab-label {
-  font-size: 11px;
+  font-size: 16px;
   margin-top: 2px;
 }
 </style>

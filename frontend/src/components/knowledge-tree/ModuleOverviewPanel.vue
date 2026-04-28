@@ -183,7 +183,7 @@ const crossModuleLinks = computed(() => {
   margin-bottom: 32px;
 }
 .cross-module-section h3 {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.6);
   margin: 0 0 12px;
@@ -198,7 +198,7 @@ const crossModuleLinks = computed(() => {
   margin-bottom: 24px;
 }
 .freq-stats-section h3 {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.6);
   margin: 0 0 12px;
@@ -216,7 +216,7 @@ const crossModuleLinks = computed(() => {
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.04);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 16px;
 }
 .freq-mod-name {
   font-weight: 500;
@@ -224,7 +224,7 @@ const crossModuleLinks = computed(() => {
 .freq-avg,
 .freq-cov {
   color: rgba(255, 255, 255, 0.7);
-  font-size: 12px;
+  font-size: 16px;
   white-space: nowrap;
 }
 .freq-bar {
@@ -242,7 +242,7 @@ const crossModuleLinks = computed(() => {
 .freq-legend {
   display: flex;
   gap: 16px;
-  font-size: 11px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.5);
   margin-top: 8px;
 }

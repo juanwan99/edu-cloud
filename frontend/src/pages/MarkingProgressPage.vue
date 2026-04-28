@@ -269,13 +269,13 @@ onUnmounted(() => {
 }
 
 .auto-refresh-label {
-  font-size: 13px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.6);
   white-space: nowrap;
 }
 
 .last-update {
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.4);
   white-space: nowrap;
 }

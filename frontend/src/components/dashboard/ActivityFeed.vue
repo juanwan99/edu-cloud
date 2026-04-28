@@ -60,7 +60,7 @@ const groupedItems = computed(() => {
 }
 
 .activity-feed__empty {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--color-text-muted);
   padding: 24px 0;
 }
@@ -70,7 +70,7 @@ const groupedItems = computed(() => {
 }
 
 .activity-feed__date {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--color-text-muted);
   margin-bottom: 8px;
@@ -103,14 +103,14 @@ const groupedItems = computed(() => {
 .activity-feed__dot--info { background: var(--macaron-purple); }
 
 .activity-feed__time {
-  font-size: 12px;
+  font-size: 16px;
   color: var(--color-text-muted);
   white-space: nowrap;
   min-width: 80px;
 }
 
 .activity-feed__text {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--color-text-secondary);
 }
 </style>

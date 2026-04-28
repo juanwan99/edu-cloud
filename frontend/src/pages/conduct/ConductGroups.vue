@@ -25,7 +25,7 @@
                 </n-popconfirm>
               </n-space>
             </template>
-            <div style="color: rgba(255,255,255,0.5); font-size: 13px;">
+            <div style="color: rgba(255,255,255,0.5); font-size: 16px;">
               {{ (group.members || []).length }} 名成员
             </div>
             <n-space v-if="group.members && group.members.length > 0" :size="4" style="margin-top: 8px; flex-wrap: wrap;">

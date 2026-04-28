@@ -57,7 +57,7 @@
             <n-button v-if="canCreate" type="primary" @click="showCreate = true">
               创建第一个联考
             </n-button>
-            <p v-else style="color: var(--color-text-muted); font-size: 13px;">
+            <p v-else style="color: var(--color-text-muted); font-size: 16px;">
               联考由具有创建权限的管理员发起
             </p>
           </template>
@@ -194,7 +194,7 @@ const columns = computed(() => [
           processing: pct < 100,
           style: 'flex: 1;',
         }),
-        h('span', { style: 'font-size: 12px; color: rgba(255,255,255,0.5); white-space: nowrap;' },
+        h('span', { style: 'font-size: 16px; color: rgba(255,255,255,0.5); white-space: nowrap;' },
           `${completed}/${total}`),
       ])
     },
@@ -317,7 +317,7 @@ onMounted(loadExams)
 <style scoped>
 .page-header { margin-bottom: 24px; }
 .page-title { font-size: 24px; font-weight: 700; margin: 0; }
-.page-subtitle { font-size: 14px; color: var(--color-text-muted); margin: 4px 0 0; }
+.page-subtitle { font-size: 16px; color: var(--color-text-muted); margin: 4px 0 0; }
 .stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

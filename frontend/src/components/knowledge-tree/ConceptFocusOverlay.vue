@@ -144,7 +144,7 @@ const canMarkReviewed = computed(() => {
 }
 .concept-desc {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.55);
 }
 .relations-section {
@@ -160,12 +160,12 @@ const canMarkReviewed = computed(() => {
   flex-wrap: wrap;
 }
 .group-label {
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.6);
   min-width: 100px;
 }
 .empty {
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.3);
 }
 .peer-tag {

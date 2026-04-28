@@ -106,8 +106,8 @@ function stageClass(stage) { return `tag-${stage}` }
 .subject-card.selected { background: #f8fdf9; border-color: #a0d0a8; }
 
 .card-left { display: flex; align-items: center; gap: 10px; }
-.card-name { font-weight: 700; font-size: 14px; }
-.stage-tag { display: inline-block; padding: 1px 10px; border-radius: 50px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.card-name { font-weight: 700; font-size: 16px; }
+.stage-tag { display: inline-block; padding: 1px 10px; border-radius: 50px; font-size: 16px; font-weight: 500; white-space: nowrap; }
 .tag-idle { background: #f3f4f6; color: #6b7280; }
 .tag-pending_detect { background: #fef3c7; color: #92400e; }
 .tag-pending_cut { background: #e0f2fe; color: #0369a1; }
@@ -118,13 +118,13 @@ function stageClass(stage) { return `tag-${stage}` }
 .tag-failed { background: #fee2e2; color: #dc2626; }
 .tag-done { background: #dcfce7; color: #166534; }
 
-.detect-tag { display: inline-block; padding: 1px 8px; border-radius: 50px; font-size: 11px; font-weight: 500; }
+.detect-tag { display: inline-block; padding: 1px 8px; border-radius: 50px; font-size: 16px; font-weight: 500; }
 .detect-tag.running { background: #fef3c7; color: #92400e; }
 .detect-tag.done { background: #dcfce7; color: #166534; }
 .detect-tag.failed { background: #fee2e2; color: #dc2626; }
 
 .card-mid { min-width: 0; }
-.card-detail { font-size: 13px; color: #555; }
+.card-detail { font-size: 16px; color: #555; }
 .card-detail b { font-weight: 600; }
 .card-detail.muted { color: #aaa; }
 .card-detail.err { color: #dc2626; font-weight: 600; }
@@ -135,9 +135,9 @@ function stageClass(stage) { return `tag-${stage}` }
 .prog-fill { height: 100%; background: #3b82f6; border-radius: 3px; transition: width 0.3s; }
 .prog-fill.warn { background: #f59e0b; }
 .prog-fill.purple { background: #8b5cf6; }
-.prog-text { font-size: 12px; color: #666; white-space: nowrap; }
+.prog-text { font-size: 16px; color: #666; white-space: nowrap; }
 
-.card-stats { display: flex; gap: 6px; font-size: 11px; color: #999; }
+.card-stats { display: flex; gap: 6px; font-size: 16px; color: #999; }
 .card-stats span { padding: 2px 6px; background: #f5f5f5; border-radius: 4px; }
 
 .card-actions { display: flex; gap: 6px; justify-content: flex-end; }

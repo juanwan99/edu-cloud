@@ -238,7 +238,7 @@ function handleLogout() {
   font-weight: 600;
 }
 .profile-phone {
-  font-size: 13px;
+  font-size: 16px;
   color: rgba(255,255,255,0.45);
   margin-top: 2px;
 }
@@ -253,10 +253,10 @@ function handleLogout() {
   min-width: 0;
 }
 .child-name {
-  font-size: 14px;
+  font-size: 16px;
 }
 .child-meta {
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255,255,255,0.4);
 }
 .child-stats {
@@ -266,7 +266,7 @@ function handleLogout() {
   gap: 2px;
 }
 .child-change {
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 500;
 }
 .child-change.positive {
@@ -276,13 +276,13 @@ function handleLogout() {
   color: #e88080;
 }
 .child-exam {
-  font-size: 11px;
+  font-size: 16px;
   color: rgba(255,255,255,0.35);
 }
 .version-info {
   text-align: center;
   padding: 24px 0 16px;
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255,255,255,0.25);
 }
 </style>

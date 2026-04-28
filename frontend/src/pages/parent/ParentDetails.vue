@@ -10,7 +10,7 @@
 
     <!-- Sparkline trend chart -->
     <n-card v-if="trendData.length > 1" style="margin-bottom: 16px;">
-      <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">积分走势（近30天）</div>
+      <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">积分走势（近30天）</div>
       <v-chart :option="trendOption" class="chart-height-sm" style="height: 120px;" autoresize />
     </n-card>
 

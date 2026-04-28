@@ -204,14 +204,14 @@ function handleSelect(keys) {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 .section-title {
-  font-size: 12px;
+  font-size: 16px;
   color: #888;
   margin-bottom: 8px;
 }
 .weak-item {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 16px;
   padding: 4px 0;
 }
 </style>

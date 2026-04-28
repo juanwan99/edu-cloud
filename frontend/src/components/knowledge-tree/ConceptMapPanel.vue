@@ -514,7 +514,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   flex: 1;
 }
@@ -527,7 +527,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.6);
 }
 .map-container {

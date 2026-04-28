@@ -230,7 +230,7 @@ async function handleLogin() {
 }
 
 .brand-subtitle {
-  font-size: 14px;
+  font-size: 16px;
   color: #8a9a8e;
   margin-top: 6px;
 }
@@ -262,13 +262,13 @@ async function handleLogin() {
 .login-hint {
   margin-top: 12px;
   text-align: center;
-  font-size: 13px;
+  font-size: 16px;
   color: #8a9a8e;
 }
 
 .login-footer {
   margin-top: 56px;
-  font-size: 12px;
+  font-size: 16px;
   color: #b0b8b2;
 }
 

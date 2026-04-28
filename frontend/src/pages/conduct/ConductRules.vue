@@ -41,7 +41,7 @@
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                   <span>{{ item.name }}</span>
-                  <div v-if="item.description" style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px;">
+                  <div v-if="item.description" style="font-size: 16px; color: rgba(255,255,255,0.4); margin-top: 2px;">
                     {{ item.description }}
                   </div>
                 </div>

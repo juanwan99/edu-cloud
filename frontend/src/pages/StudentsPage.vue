@@ -106,7 +106,7 @@
           <n-upload :max="1" accept=".xlsx,.xls" :default-upload="false" @change="handleFileChange">
             <n-button>选择文件</n-button>
           </n-upload>
-          <p style="font-size: 12px; color: #999; margin-top: 4px;">
+          <p style="font-size: 16px; color: #999; margin-top: 4px;">
             必填列：「姓名」「学号/准考证号」<br/>
             可选列：「班级」「性别」「选课组合」<br/>
             不选班级时，Excel 必须包含「班级」列（班级名需与系统一致）

@@ -67,7 +67,7 @@
       <template v-if="detailRow">
         <div class="detail-section">
           <div class="detail-row"><span class="detail-label">考试</span><span>{{ examNames[detailRow.exam_id] || detailRow.exam_id }}</span></div>
-          <div class="detail-row"><span class="detail-label">题目 ID</span><span style="font-family: monospace; font-size: 12px;">{{ detailRow.question_id }}</span></div>
+          <div class="detail-row"><span class="detail-label">题目 ID</span><span style="font-family: monospace; font-size: 16px;">{{ detailRow.question_id }}</span></div>
           <div class="detail-row"><span class="detail-label">得分</span><span>{{ detailRow.student_score }} / {{ detailRow.max_score }}</span></div>
           <div class="detail-row">
             <span class="detail-label">掌握状态</span>
@@ -80,11 +80,11 @@
           <div class="detail-row"><span class="detail-label">收藏</span><span>{{ detailRow.is_starred ? '★ 已收藏' : '未收藏' }}</span></div>
         </div>
         <div class="detail-section" v-if="detailRow.ai_feedback" style="margin-top: 16px;">
-          <h4 style="margin: 0 0 8px; font-size: 14px;">AI 反馈</h4>
+          <h4 style="margin: 0 0 8px; font-size: 16px;">AI 反馈</h4>
           <div class="detail-feedback">{{ detailRow.ai_feedback }}</div>
         </div>
         <div class="detail-section" v-if="detailRow.knowledge_point_ids?.length" style="margin-top: 16px;">
-          <h4 style="margin: 0 0 8px; font-size: 14px;">关联知识点</h4>
+          <h4 style="margin: 0 0 8px; font-size: 16px;">关联知识点</h4>
           <div style="display: flex; gap: 6px; flex-wrap: wrap;">
             <n-tag v-for="kp in detailRow.knowledge_point_ids" :key="kp" size="small">{{ kp }}</n-tag>
           </div>
@@ -137,7 +137,7 @@ const columns = computed(() => [
       const pct = row.max_score > 0 ? Math.round(row.student_score / row.max_score * 100) : 0
       const status = pct >= 60 ? 'success' : pct >= 40 ? 'warning' : 'error'
       return h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
-        h('span', { style: 'font-size: 13px; min-width: 45px;' }, `${row.student_score}/${row.max_score}`),
+        h('span', { style: 'font-size: 16px; min-width: 45px;' }, `${row.student_score}/${row.max_score}`),
         h(NProgress, { percentage: pct, showIndicator: false, status, style: 'width: 50px;' }),
       ])
     },
@@ -247,7 +247,7 @@ onMounted(async () => {
 <style scoped>
 .page-header { margin-bottom: 24px; }
 .page-title { font-size: 20px; font-weight: 700; margin: 0; }
-.page-subtitle { font-size: 14px; color: var(--color-text-muted); margin: 4px 0 0; }
+.page-subtitle { font-size: 16px; color: var(--color-text-muted); margin: 4px 0 0; }
 
 .filter-bar {
   display: flex;
@@ -278,7 +278,7 @@ onMounted(async () => {
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 16px;
   color: var(--color-text-muted);
   margin-top: 6px;
 }
@@ -293,7 +293,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   padding: 6px 0;
-  font-size: 14px;
+  font-size: 16px;
   border-bottom: 1px solid var(--color-border-light, #eee);
 }
 .detail-row:last-child { border-bottom: none; }
@@ -307,7 +307,7 @@ onMounted(async () => {
   background: white;
   padding: 12px;
   border-radius: var(--radius-sm, 4px);
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.8;
   white-space: pre-line;
   border: 1px solid var(--color-border-light, #eee);

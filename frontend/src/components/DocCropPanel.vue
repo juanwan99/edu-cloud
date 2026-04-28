@@ -502,7 +502,7 @@ async function handleSave() {
   border-bottom: 1px solid var(--border-color, #2e3e34);
   flex-shrink: 0;
 }
-.toolbar-hint { font-size: 12px; color: #8a9a8e; }
+.toolbar-hint { font-size: 16px; color: #8a9a8e; }
 .dc-body { display: flex; flex: 1; min-height: 0; }
 .dc-viewport {
   flex: 1; overflow: auto; position: relative; cursor: crosshair;
@@ -516,7 +516,7 @@ async function handleSave() {
 .dc-region.drawing { border: 2px dashed rgba(64,158,255,0.8); background: rgba(64,158,255,0.1); pointer-events: none; }
 .dc-region.active { z-index: 2; }
 .dc-label {
-  position: absolute; top: 2px; left: 4px; font-size: 11px; font-weight: 600;
+  position: absolute; top: 2px; left: 4px; font-size: 16px; font-weight: 600;
   text-shadow: 0 0 3px rgba(0,0,0,0.8);
   white-space: nowrap; pointer-events: none;
 }
@@ -537,14 +537,14 @@ async function handleSave() {
   width: 260px; border-left: 1px solid var(--border-color, #2e3e34);
   padding: 10px; overflow-y: auto; flex-shrink: 0;
 }
-.sidebar-title { font-size: 13px; font-weight: 700; color: #8a9a8e; margin-bottom: 8px; }
-.sidebar-hint { font-size: 11px; color: #666; line-height: 1.5; }
+.sidebar-title { font-size: 16px; font-weight: 700; color: #8a9a8e; margin-bottom: 8px; }
+.sidebar-hint { font-size: 16px; color: #666; line-height: 1.5; }
 .saved-section { margin-bottom: 4px; }
 .saved-item {
-  font-size: 12px; color: #8a9a8e; padding: 3px 4px;
+  font-size: 16px; color: #8a9a8e; padding: 3px 4px;
   display: flex; align-items: center; gap: 4px;
 }
-.saved-dot { color: #67c23a; font-size: 13px; }
+.saved-dot { color: #67c23a; font-size: 16px; }
 .dc-item {
   display: flex; align-items: center; gap: 6px; padding: 6px 4px;
   border-radius: 6px; cursor: pointer; margin-bottom: 4px;
@@ -554,8 +554,8 @@ async function handleSave() {
 .item-color { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .item-info { display: flex; gap: 4px; flex: 1; min-width: 0; align-items: center; flex-wrap: wrap; }
 .dc-child { padding-left: 16px; }
-.child-indent { color: #555; font-size: 12px; margin-right: 2px; flex-shrink: 0; }
+.child-indent { color: #555; font-size: 16px; margin-right: 2px; flex-shrink: 0; }
 .item-color.small { width: 7px; height: 7px; }
 
-.dc-empty { display: flex; align-items: center; justify-content: center; flex: 1; color: #8a9a8e; font-size: 14px; }
+.dc-empty { display: flex; align-items: center; justify-content: center; flex: 1; color: #8a9a8e; font-size: 16px; }
 </style>

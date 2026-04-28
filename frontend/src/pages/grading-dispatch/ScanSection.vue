@@ -45,11 +45,11 @@ watch(() => props.scanResults, (val) => {
 .scan-section { background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
 .scan-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; cursor: pointer; user-select: none; }
 .scan-header:hover { background: var(--body-color, #f9fafb); }
-.scan-toggle { font-size: 12px; color: #8a9a8e; width: 14px; }
-.scan-title { font-weight: 600; font-size: 13px; }
-.scan-hint { font-size: 12px; color: #16a34a; margin-left: auto; }
+.scan-toggle { font-size: 16px; color: #8a9a8e; width: 14px; }
+.scan-title { font-weight: 600; font-size: 16px; }
+.scan-hint { font-size: 16px; color: #16a34a; margin-left: auto; }
 .scan-body { padding: 0 16px 12px; }
 .scan-row { display: flex; gap: 8px; }
-.scan-status { font-size: 12px; color: #16a34a; font-family: monospace; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.upload-hint { font-size: 12px; color: #aaa; margin-top: 6px; }
+.scan-status { font-size: 16px; color: #16a34a; font-family: monospace; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-hint { font-size: 16px; color: #aaa; margin-top: 6px; }
 </style>

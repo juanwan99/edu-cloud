@@ -121,7 +121,7 @@ function handleClick() {
 }
 
 .dashboard-card__body {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--color-text-secondary);
 }
 
@@ -131,7 +131,7 @@ function handleClick() {
   right: 12px;
   background: var(--macaron-yellow);
   color: #854d0e;
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 600;
   padding: 2px 10px;
   border-radius: var(--radius-pill);

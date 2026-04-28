@@ -232,10 +232,10 @@ function handleReview(status) {
 }
 .answer {
   color: var(--n-text-color-3);
-  font-size: 13px;
+  font-size: 16px;
 }
 .evidence-item {
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
   word-break: break-all;
 }

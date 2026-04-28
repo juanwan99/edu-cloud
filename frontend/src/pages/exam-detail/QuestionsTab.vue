@@ -139,7 +139,7 @@ const qmgColumns = [
     title: '', key: 'actions', width: 60,
     render(row) {
       return h('a', {
-        style: 'color: #e88080; cursor: pointer; font-size: 12px',
+        style: 'color: #e88080; cursor: pointer; font-size: 16px',
         onClick: () => dialog.warning({
           title: '删除确认',
           content: `确定删除第 ${row.name} 题？`,

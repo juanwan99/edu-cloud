@@ -26,7 +26,7 @@ const contextName = computed(() => auth.currentContext?.name || '')
   padding: 4px 12px;
   background: var(--macaron-mint-light);
   border-radius: var(--radius-pill);
-  font-size: 13px;
+  font-size: 16px;
   color: var(--color-primary);
   font-weight: 500;
   max-width: 200px;

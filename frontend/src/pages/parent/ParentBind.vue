@@ -27,7 +27,7 @@
           <n-form-item :label="verifyLabel" path="verify_code">
             <n-input v-model:value="form.verify_code" :placeholder="verifyPlaceholder" />
             <template #feedback>
-              <span style="color: rgba(255,255,255,0.35); font-size: 12px;">
+              <span style="color: rgba(255,255,255,0.35); font-size: 16px;">
                 {{ verifyHint }}
               </span>
             </template>
@@ -227,7 +227,7 @@ onUnmounted(() => {
   margin-bottom: 4px;
 }
 .rel-label {
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255,255,255,0.7);
 }
 .rel-item.selected .rel-label {
@@ -258,7 +258,7 @@ onUnmounted(() => {
   margin-bottom: 12px;
 }
 .success-hint {
-  font-size: 13px;
+  font-size: 16px;
   color: rgba(255,255,255,0.4);
 }
 </style>

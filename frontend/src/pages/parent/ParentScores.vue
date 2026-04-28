@@ -170,13 +170,13 @@ onMounted(loadData)
 }
 
 .score-card__label {
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.6);
   margin-top: 4px;
 }
 
 .score-card__sub {
-  font-size: 11px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.35);
   margin-top: 2px;
 }
@@ -206,7 +206,7 @@ onMounted(loadData)
 }
 
 .exam-item__name {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -221,7 +221,7 @@ onMounted(loadData)
   justify-content: space-between;
   align-items: center;
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.45);
 }
 
@@ -235,7 +235,7 @@ onMounted(loadData)
   display: flex;
   justify-content: space-between;
   padding: 4px 0;
-  font-size: 13px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.7);
 }
 </style>

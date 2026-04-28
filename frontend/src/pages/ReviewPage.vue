@@ -24,7 +24,7 @@
             <n-button size="small" :loading="batchStarting" :disabled="batchStarting || batchProgress?.status === 'processing'" @click="showBatchPopover = true">AI 批量阅卷</n-button>
           </template>
           <div style="padding: 4px 0; min-width: 200px">
-            <div style="font-size: 13px; margin-bottom: 8px">阅卷数量（留空=全部）</div>
+            <div style="font-size: 16px; margin-bottom: 8px">阅卷数量（留空=全部）</div>
             <n-input-number v-model:value="batchLimit" :min="1" :max="9999" placeholder="全部" clearable size="small" style="width: 100%; margin-bottom: 10px" />
             <n-space justify="end">
               <n-button size="small" @click="showBatchPopover = false">取消</n-button>
@@ -105,7 +105,7 @@
             </div>
             <div v-if="ai.feedback" class="ai-feedback">{{ ai.feedback }}</div>
             <div v-if="ai.recognizedText" class="ai-ocr-text">
-              <div class="ai-ocr-title">OCR 识别结果</div>
+              <div class="ai-ocr-title">学生答案</div>
               <pre class="ai-ocr-content">{{ ai.recognizedText }}</pre>
             </div>
             <div v-if="ai.details?.length" class="ai-details">
@@ -123,6 +123,12 @@
                 </div>
                 <div v-if="item.reason" class="ai-sub-reason">{{ item.reason }}</div>
               </div>
+            </div>
+            <div v-if="ai.deductions?.length" class="ai-deductions">
+              <div class="ai-deductions-title">扣分点</div>
+              <ul class="ai-deductions-list">
+                <li v-for="(d, i) in ai.deductions" :key="i">{{ d }}</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -421,6 +427,8 @@ async function handleAiGradeSingle() {
       confidence: data.confidence,
       feedback: data.feedback,
       details: data.details || null,
+      deductions: data.deductions || null,
+      comment: data.comment || null,
       recognizedText: data.recognizedText || null,
     }
     currentScore.value = data.score
@@ -659,7 +667,7 @@ onUnmounted(() => {
 }
 
 .topbar-progress {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--color-text-secondary);
 }
 
@@ -676,7 +684,7 @@ onUnmounted(() => {
 }
 
 .batch-progress-text {
-  font-size: 12px;
+  font-size: 16px;
   color: #8a9a8e;
   white-space: nowrap;
 }
@@ -768,7 +776,7 @@ onUnmounted(() => {
   padding: 12px 16px;
   background: #f0f7ff;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 16px;
   color: #3b82f6;
 }
 
@@ -779,7 +787,7 @@ onUnmounted(() => {
 }
 
 .ai-title {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--color-text-primary, #1a1a1a);
 }
@@ -791,11 +799,11 @@ onUnmounted(() => {
 
 .ai-score-max {
   color: var(--color-text-muted);
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .ai-feedback {
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
   color: var(--color-text-secondary);
   max-height: 120px;
@@ -809,13 +817,13 @@ onUnmounted(() => {
   margin-bottom: 4px;
 }
 .ai-ocr-title {
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--color-text-muted, #999);
   margin-bottom: 4px;
 }
 .ai-ocr-content {
-  font-size: 12px;
+  font-size: 16px;
   line-height: 1.5;
   color: var(--color-text-secondary);
   background: var(--color-bg-subtle, #f8f8fa);
@@ -834,7 +842,7 @@ onUnmounted(() => {
 }
 
 .ai-details-title {
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--color-text-muted, #999);
   margin-bottom: 6px;
@@ -843,7 +851,7 @@ onUnmounted(() => {
 .ai-sub-header {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 16px;
   background: var(--color-bg-alt, #f7f8fa);
   padding: 4px 8px;
   border-radius: 4px;
@@ -855,7 +863,7 @@ onUnmounted(() => {
 }
 
 .ai-sub-answer {
-  font-size: 11px;
+  font-size: 16px;
   padding: 2px 8px;
   color: #cfd8d3;
 }
@@ -874,7 +882,7 @@ onUnmounted(() => {
 }
 
 .ai-sub-reason {
-  font-size: 11px;
+  font-size: 16px;
   line-height: 1.5;
   color: var(--color-text-secondary, #667085);
   padding: 2px 8px 4px;
@@ -882,6 +890,25 @@ onUnmounted(() => {
 
 .ai-sub {
   margin-bottom: 4px;
+}
+
+.ai-deductions {
+  border-top: 1px dashed var(--color-border-light, #e5e7eb);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+.ai-deductions-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #d03050;
+  margin-bottom: 4px;
+}
+.ai-deductions-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 16px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
 }
 
 .score-title {
@@ -933,7 +960,7 @@ onUnmounted(() => {
 .hotkey-hint {
   padding-top: 16px;
   border-top: 1px solid var(--color-border-light);
-  font-size: 12px;
+  font-size: 16px;
   color: var(--color-text-muted);
   display: flex;
   flex-direction: column;
@@ -947,6 +974,6 @@ onUnmounted(() => {
   border: 1px solid var(--color-border-light);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 16px;
 }
 </style>

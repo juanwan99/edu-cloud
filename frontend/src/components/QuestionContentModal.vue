@@ -155,7 +155,7 @@ function handleSave() {
 
 <style scoped>
 .field-label {
-  font-size: 12px;
+  font-size: 16px;
   color: var(--color-text-muted);
   margin-bottom: 6px;
   font-weight: 500;
@@ -180,12 +180,12 @@ function handleSave() {
 .preview-seq {
   position: absolute; top: 4px; left: 4px;
   background: rgba(0,0,0,0.6); color: var(--color-bg, #fff);
-  font-size: 10px; padding: 1px 5px; border-radius: 3px;
+  font-size: 16px; padding: 1px 5px; border-radius: 3px;
 }
 .paste-badge {
   position: absolute; bottom: 4px; left: 4px;
   background: var(--color-primary, #409eff); color: var(--color-bg, #fff);
-  font-size: 9px; padding: 1px 4px; border-radius: 3px;
+  font-size: 16px; padding: 1px 4px; border-radius: 3px;
 }
 .preview-delete {
   position: absolute; top: 4px; right: 4px;

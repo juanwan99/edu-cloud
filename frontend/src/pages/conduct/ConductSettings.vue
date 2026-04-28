@@ -23,7 +23,7 @@
                 刷新邀请码
               </n-button>
             </div>
-            <div style="font-size: 13px; color: rgba(255,255,255,0.4);">
+            <div style="font-size: 16px; color: rgba(255,255,255,0.4);">
               家长使用此邀请码注册并绑定学生
             </div>
           </n-space>
@@ -48,7 +48,7 @@
               :value="config.is_active !== false"
               @update:value="(v) => { config.is_active = v; saveConfig() }"
             />
-            <span style="color: rgba(255,255,255,0.4); font-size: 13px;">
+            <span style="color: rgba(255,255,255,0.4); font-size: 16px;">
               {{ config.is_active !== false ? '已启用' : '已停用' }}
             </span>
           </n-space>

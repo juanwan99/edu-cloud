@@ -61,7 +61,7 @@ defineProps({
 .weight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .weight-item { display: flex; justify-content: space-between; padding: 4px 8px; background: var(--card-color); border-radius: 3px; }
 .weight-item.priority { grid-column: 1 / -1; background: var(--primary-color-hover); color: white; }
-.weight-label { font-size: 12px; }
+.weight-label { font-size: 16px; }
 .weight-value { font-weight: 600; }
-.chapter-item { padding: 4px 8px; background: var(--card-color); border-radius: 3px; margin-bottom: 4px; font-size: 12px; }
+.chapter-item { padding: 4px 8px; background: var(--card-color); border-radius: 3px; margin-bottom: 4px; font-size: 16px; }
 </style>

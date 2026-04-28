@@ -16,7 +16,7 @@
           style="background: var(--macaron-purple-light);">
           <div class="stat-value">{{ subj.avg_score ?? '-' }}</div>
           <div class="stat-label">{{ subj.subject_name }} 平均分</div>
-          <div style="font-size: 12px; color: var(--color-text-muted); margin-top: 4px;">
+          <div style="font-size: 16px; color: var(--color-text-muted); margin-top: 4px;">
             最高 {{ subj.highest ?? '-' }} · 最低 {{ subj.lowest ?? '-' }}
           </div>
         </div>

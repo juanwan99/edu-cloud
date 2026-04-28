@@ -41,7 +41,7 @@
         @keyup.enter="doSearch"
       >
         <template #prefix>
-          <span style="font-size: 14px; color: var(--color-text-muted);">Q</span>
+          <span style="font-size: 16px; color: var(--color-text-muted);">Q</span>
         </template>
       </n-input>
       <n-select
@@ -249,7 +249,7 @@ onMounted(() => {
 <style scoped>
 .page-header { margin-bottom: 20px; }
 .page-title { font-size: 20px; font-weight: 700; margin: 0; }
-.page-subtitle { font-size: 13px; color: var(--color-text-muted); margin: 2px 0 0; }
+.page-subtitle { font-size: 16px; color: var(--color-text-muted); margin: 2px 0 0; }
 
 .stats-grid {
   display: grid;
@@ -272,7 +272,7 @@ onMounted(() => {
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 16px;
   color: var(--color-text-muted);
   margin-top: 4px;
 }
@@ -302,7 +302,7 @@ onMounted(() => {
 }
 
 .question-text {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.6;
   color: var(--color-text);
   word-break: break-word;
@@ -316,7 +316,7 @@ onMounted(() => {
 }
 
 .meta-score {
-  font-size: 12px;
+  font-size: 16px;
   color: var(--color-text-muted);
   margin-left: auto;
 }
@@ -335,7 +335,7 @@ onMounted(() => {
 }
 
 .kp-label {
-  font-size: 12px;
+  font-size: 16px;
   color: var(--color-text-muted);
 }
 

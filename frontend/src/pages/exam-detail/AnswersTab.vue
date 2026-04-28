@@ -192,7 +192,7 @@ async function handleSaveAnswers() {
 }
 .answer-num {
   font-weight: 700;
-  font-size: 15px;
+  font-size: 16px;
   min-width: 28px;
   text-align: center;
   color: var(--color-text-secondary);
@@ -208,7 +208,7 @@ async function handleSaveAnswers() {
   border: 1px solid var(--color-border-light, #ddd);
   border-radius: 6px;
   background: white;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
@@ -237,6 +237,6 @@ async function handleSaveAnswers() {
   padding: 10px 14px;
   background: var(--color-bg-alt, #f7f8fa);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 16px;
 }
 </style>

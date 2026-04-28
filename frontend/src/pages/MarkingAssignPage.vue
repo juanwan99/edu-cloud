@@ -290,7 +290,7 @@ onMounted(async () => {
 }
 .question-name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 16px;
 }
 .assign-row {
   display: flex;
@@ -300,7 +300,7 @@ onMounted(async () => {
 }
 .assign-detail {
   color: var(--color-text-muted, rgba(0, 0, 0, 0.45));
-  font-size: 12px;
+  font-size: 16px;
 }
 .add-teacher-row {
   display: flex;
@@ -319,6 +319,6 @@ onMounted(async () => {
 }
 .text-muted {
   color: var(--color-text-muted, rgba(0, 0, 0, 0.35));
-  font-size: 12px;
+  font-size: 16px;
 }
 </style>

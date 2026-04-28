@@ -7,15 +7,15 @@
       <div class="ctrl">
         <label>快速生成</label>
         <input type="number" id="choiceQuickCount" value="11" min="1" max="30" style="width:40px">
-        <span style="color:#5a6b5e;font-size:11px;">题 ×</span>
+        <span style="color:#5a6b5e;font-size: 16px;">题 ×</span>
         <input type="number" id="choiceQuickOptions" value="4" min="2" max="8" style="width:40px">
-        <span style="color:#5a6b5e;font-size:11px;">选项</span>
+        <span style="color:#5a6b5e;font-size: 16px;">选项</span>
         <button class="choice-gen-btn" id="choiceGenBtn">生成</button>
       </div>
       <div id="choiceList" class="choice-list"></div>
       <div class="ctrl"><label>每行题数</label><input type="range" id="choicePerRow" min="1" max="20" value="20"><span class="val" id="v_choicePerRow"></span></div>
       <div class="ctrl"><label>选项行距</label><input type="range" id="choiceRowGap" min="0" max="20" value="3" step="1"><span class="val" id="v_choiceRowGap"></span></div>
-      <button class="panel-btn" id="btnAddChoice" style="font-size:12px;padding:5px;">+ 添加选择题</button>
+      <button class="panel-btn" id="btnAddChoice" style="font-size: 16px;padding:5px;">+ 添加选择题</button>
 
       <!-- 填空题 & 解答题 -->
       <h2><i class="ico ico-layers"></i> 填空题 & 解答题</h2>
@@ -31,7 +31,7 @@
 
       <!-- 导出（内部按钮，由外部工具栏触发） -->
       <button id="btnExportPdf" style="display:none"></button>
-      <button id="btnExportSkeleton" class="panel-btn" style="font-size:11px;padding:4px;">导出 Skeleton</button>
+      <button id="btnExportSkeleton" class="panel-btn" style="font-size: 16px;padding:4px;">导出 Skeleton</button>
       <div id="status" class="status"></div>
 
       <!-- 缩放 -->
@@ -79,12 +79,12 @@
         <div class="ctrl"><label>题数</label><input type="range" id="fillCount" min="0" max="10" value="3"><span class="val" id="v_fillCount"></span></div>
         <div class="ctrl"><label>每题分值</label><input type="number" id="fillScore" min="1" max="20" value="5" style="width:50px"><span class="val" id="v_fillScore"></span></div>
         <div class="ctrl"><label>每排几题</label><input type="range" id="fillPerRow" min="1" max="4" value="2"><span class="val" id="v_fillPerRow"></span></div>
-        <div class="ctrl" style="color:#888;font-size:11px;">题号自动：选择题1~N → 填空N+1起 → 解答题继续</div>
+        <div class="ctrl" style="color:#888;font-size: 16px;">题号自动：选择题1~N → 填空N+1起 → 解答题继续</div>
 
         <h2><i class="ico ico-file"></i> 解答题</h2>
         <div class="ctrl"><label>题数</label><input type="range" id="essayCount" min="1" max="20" value="5"><span class="val" id="v_essayCount"></span></div>
         <div class="ctrl"><label>题目配置(JSON)</label></div>
-        <textarea id="essayConfig" style="width:100%;height:60px;background:#0f3460;color:#eee;border:1px solid #555;font-size:11px;padding:4px;" spellcheck="false">[{"score":10},{"score":12},{"score":12},{"score":12},{"score":14}]</textarea>
+        <textarea id="essayConfig" style="width:100%;height:60px;background:#0f3460;color:#eee;border:1px solid #555;font-size: 16px;padding:4px;" spellcheck="false">[{"score":10},{"score":12},{"score":12},{"score":12},{"score":14}]</textarea>
 
         <h2><i class="ico ico-file"></i> 纸张</h2>
         <div class="ctrl"><label>纸张</label>
@@ -95,7 +95,7 @@
         </div>
       </details>
 
-      <div v-if="readonly" style="margin-top: 12px; padding: 8px; background: #fff3cd; border-radius: 6px; font-size: 12px; color: #856404;">
+      <div v-if="readonly" style="margin-top: 12px; padding: 8px; background: #fff3cd; border-radius: 6px; font-size: 16px; color: #856404;">
         答题卡已发布，当前为只读模式
       </div>
     </div>
@@ -117,10 +117,10 @@
           <div class="tql-label">B 面</div>
           <img :src="'data:image/png;base64,' + tqlImages[1]">
         </div>
-        <div v-if="!tqlImages[0] && !tqlImages[1] && !tqlLoading" style="color:#999;font-size:13px;padding:40px;text-align:center;">
+        <div v-if="!tqlImages[0] && !tqlImages[1] && !tqlLoading" style="color:#999;font-size: 16px;padding:40px;text-align:center;">
           该科目无 TQL 模板图
         </div>
-        <div v-if="tqlLoading" style="color:#999;font-size:13px;padding:40px;text-align:center;">
+        <div v-if="tqlLoading" style="color:#999;font-size: 16px;padding:40px;text-align:center;">
           加载中...
         </div>
       </div>
@@ -803,7 +803,7 @@ defineExpose({
 .reset-btn {
   background: #5a3d2d !important;
   color: white !important;
-  font-size: 11px;
+  font-size: 16px;
 }
 .reset-btn:hover {
   background: #3d2a1a !important;
@@ -817,7 +817,7 @@ defineExpose({
   background: #1a2e1f !important;
 }
 .status {
-  font-size: 11px;
+  font-size: 16px;
   color: #8a9b8e;
   margin-top: 4px;
 }
@@ -847,13 +847,13 @@ defineExpose({
   border: 1px solid #ccc;
   background: #fff;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 16px;
   color: #666;
 }
 .view-toggle button:first-child { border-radius: 4px 0 0 4px; }
 .view-toggle button:nth-child(2) { border-radius: 0 4px 4px 0; border-left: none; }
 .fit-zoom-btn {
-  margin-left: 8px; padding: 3px 12px; font-size: 12px; border: 1px solid #ccc;
+  margin-left: 8px; padding: 3px 12px; font-size: 16px; border: 1px solid #ccc;
   border-radius: 4px; background: #fff; cursor: pointer; color: #666;
 }
 .fit-zoom-btn.active { background: #2d5a3d; color: #fff; border-color: #2d5a3d; }
@@ -871,7 +871,7 @@ defineExpose({
   margin-bottom: 16px;
 }
 .tql-label {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
   color: #333;
   margin-bottom: 6px;

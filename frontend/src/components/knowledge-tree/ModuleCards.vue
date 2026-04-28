@@ -73,7 +73,7 @@ function masteryColor(mastery) {
   align-items: center;
 }
 .module-name {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
 }
 .mastery-pct {

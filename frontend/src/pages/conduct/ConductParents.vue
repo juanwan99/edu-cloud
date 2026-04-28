@@ -44,7 +44,7 @@
               style="width: 240px;"
             />
             <n-space v-if="checkedKeys.length > 0" :size="8">
-              <span style="font-size: 13px; color: rgba(255,255,255,0.5);">已选 {{ checkedKeys.length }} 项</span>
+              <span style="font-size: 16px; color: rgba(255,255,255,0.5);">已选 {{ checkedKeys.length }} 项</span>
               <n-popconfirm @positive-click="handleBatchRemove">
                 <template #trigger>
                   <n-button size="small" type="error">批量移除</n-button>

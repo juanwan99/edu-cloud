@@ -5,7 +5,7 @@
       <n-gi v-for="tmpl in studioStore.templates" :key="tmpl.key">
         <n-card size="small" hoverable style="cursor: pointer" @click="$emit('select', tmpl)">
           <template #header>
-            <n-text style="font-size: 13px">{{ tmpl.name }}</n-text>
+            <n-text style="font-size: 16px">{{ tmpl.name }}</n-text>
           </template>
           <n-tag v-if="tmpl.requires_approval" size="tiny" type="warning">需审批</n-tag>
         </n-card>

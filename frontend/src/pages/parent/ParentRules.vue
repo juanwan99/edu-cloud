@@ -3,7 +3,7 @@
     <!-- Summary + Filter Bar -->
     <n-card size="small" style="margin-bottom: 16px;">
       <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px;">
-        <span style="font-size: 14px; color: rgba(255,255,255,0.7);">
+        <span style="font-size: 16px; color: rgba(255,255,255,0.7);">
           共 {{ totalCount }} 条规则
         </span>
         <n-tag type="success" size="small" :bordered="false">加分 {{ positiveCount }} 条</n-tag>
@@ -47,7 +47,7 @@
                     {{ item.points >= 0 ? '+' : '' }}{{ item.points }}
                   </n-tag>
                 </div>
-                <div v-if="item.description" style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px;">
+                <div v-if="item.description" style="font-size: 16px; color: rgba(255,255,255,0.4); margin-top: 4px;">
                   {{ item.description }}
                 </div>
               </n-list-item>

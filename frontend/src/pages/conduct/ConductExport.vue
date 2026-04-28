@@ -88,7 +88,7 @@
           size="small"
           :bordered="false"
         />
-        <div style="margin-top: 8px; font-size: 12px; color: rgba(255,255,255,0.4);">
+        <div style="margin-top: 8px; font-size: 16px; color: rgba(255,255,255,0.4);">
           共 {{ previewTotal }} 条记录，仅预览前 5 条
         </div>
       </n-card>
@@ -99,7 +99,7 @@
           <n-list-item v-for="(h, idx) in exportHistory" :key="idx">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span>{{ h.filename }}</span>
-              <span style="font-size: 12px; color: rgba(255,255,255,0.4);">{{ h.time }}</span>
+              <span style="font-size: 16px; color: rgba(255,255,255,0.4);">{{ h.time }}</span>
             </div>
           </n-list-item>
         </n-list>

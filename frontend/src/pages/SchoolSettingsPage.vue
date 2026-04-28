@@ -26,7 +26,7 @@
                   <n-text strong>{{ m.name }}</n-text>
                   <n-text depth="3" style="margin-left: 8px">{{ m.code }}</n-text>
                   <div v-if="MODULE_DESCRIPTIONS[m.code]" style="margin-top: 2px;">
-                    <n-text depth="3" style="font-size: 12px;">{{ MODULE_DESCRIPTIONS[m.code] }}</n-text>
+                    <n-text depth="3" style="font-size: 16px;">{{ MODULE_DESCRIPTIONS[m.code] }}</n-text>
                   </div>
                 </div>
               </div>
@@ -82,8 +82,8 @@
               <tbody>
                 <tr v-for="da in capDomainActions" :key="da.key">
                   <td>
-                    <n-text depth="2" style="font-size: 13px;">{{ da.domain }}</n-text>
-                    <n-text depth="3" style="font-size: 12px; margin-left: 4px;">/ {{ da.action }}</n-text>
+                    <n-text depth="2" style="font-size: 16px;">{{ da.domain }}</n-text>
+                    <n-text depth="3" style="font-size: 16px; margin-left: 4px;">/ {{ da.action }}</n-text>
                   </td>
                   <td v-for="role in capRoles" :key="role" style="text-align: center;">
                     <n-checkbox
@@ -347,7 +347,7 @@ onMounted(() => {
 .cap-matrix td {
   padding: 8px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-  font-size: 13px;
+  font-size: 16px;
 }
 .cap-matrix th {
   text-align: left;

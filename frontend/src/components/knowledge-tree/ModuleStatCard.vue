@@ -105,14 +105,14 @@ const progressColor = computed(() => {
   font-weight: 600;
 }
 .stat-label {
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.5);
 }
 .progress-section {
   margin-bottom: 12px;
 }
 .progress-label {
-  font-size: 12px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.6);
   margin-top: 4px;
 }

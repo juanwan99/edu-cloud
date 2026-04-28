@@ -49,8 +49,8 @@ const roleOptions = computed(() => {
     type: 'render',
     render: () =>
       h('div', { style: 'padding: 8px 16px; border-bottom: 1px solid var(--color-border-light);' }, [
-        h('div', { style: 'font-weight: 700; font-size: 14px; color: var(--color-text);' }, auth.displayName || ''),
-        h('div', { style: 'font-size: 12px; color: var(--color-text-muted); margin-top: 2px;' }, `${auth.roles.length} 个角色`),
+        h('div', { style: 'font-weight: 700; font-size: 16px; color: var(--color-text);' }, auth.displayName || ''),
+        h('div', { style: 'font-size: 16px; color: var(--color-text-muted); margin-top: 2px;' }, `${auth.roles.length} 个角色`),
       ]),
   })
 
@@ -75,8 +75,8 @@ const roleOptions = computed(() => {
             type: isCurrent ? 'success' : 'default',
             bordered: !isCurrent,
           }, { default: () => label }),
-          ctxName ? h('span', { style: 'font-size: 12px; color: var(--color-text-muted);' }, ctxName) : null,
-          isCurrent ? h('span', { style: 'margin-left: auto; font-size: 12px; color: var(--color-primary);' }, '\u2713') : null,
+          ctxName ? h('span', { style: 'font-size: 16px; color: var(--color-text-muted);' }, ctxName) : null,
+          isCurrent ? h('span', { style: 'margin-left: auto; font-size: 16px; color: var(--color-primary);' }, '\u2713') : null,
         ]),
     })
   })
@@ -125,7 +125,7 @@ function handleSwitch(key) {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--color-primary);
   flex-shrink: 0;
   transition: var(--transition);
@@ -143,7 +143,7 @@ function handleSwitch(key) {
 }
 
 .role-switcher__name {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--color-text);
   line-height: 1.3;
@@ -153,7 +153,7 @@ function handleSwitch(key) {
 }
 
 .role-switcher__role {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--color-text-muted);
   line-height: 1.3;
   overflow: hidden;

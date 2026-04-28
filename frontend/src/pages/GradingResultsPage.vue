@@ -14,8 +14,8 @@
     <!-- 整体进度条 -->
     <div v-if="task" style="margin-bottom: 20px;">
       <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-        <span style="font-size: 13px; color: var(--color-text-secondary);">批改进度</span>
-        <span style="font-size: 13px; color: var(--color-text-secondary);">{{ progressPercent }}%</span>
+        <span style="font-size: 16px; color: var(--color-text-secondary);">批改进度</span>
+        <span style="font-size: 16px; color: var(--color-text-secondary);">{{ progressPercent }}%</span>
       </div>
       <n-progress :percentage="progressPercent" :show-indicator="false"
         :color="progressPercent >= 100 ? '#16a34a' : '#2d5a3d'" rail-color="var(--macaron-mint-light)" />
@@ -45,12 +45,12 @@
     <div v-if="results.length > 0" style="display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
       <!-- 分数分布柱图 -->
       <n-card size="small" style="flex: 2; min-width: 360px;">
-        <template #header><span style="font-size: 14px; font-weight: 600;">分数分布</span></template>
+        <template #header><span style="font-size: 16px; font-weight: 600;">分数分布</span></template>
         <v-chart class="chart-height-md" :option="scoreDistOption" autoresize />
       </n-card>
       <!-- 置信度饼图 -->
       <n-card size="small" style="flex: 1; min-width: 280px;">
-        <template #header><span style="font-size: 14px; font-weight: 600;">置信度分布</span></template>
+        <template #header><span style="font-size: 16px; font-weight: 600;">置信度分布</span></template>
         <v-chart class="chart-height-md" :option="confidenceDistOption" autoresize />
       </n-card>
     </div>
@@ -85,7 +85,7 @@
               <span>{{ selectedResult.score }} / {{ selectedResult.max_score }}</span>
               <n-progress type="line" :percentage="scorePercent(selectedResult)" :show-indicator="false"
                 :color="scoreColor(selectedResult)" style="width: 120px;" />
-              <span style="font-size: 12px; color: var(--color-text-secondary);">
+              <span style="font-size: 16px; color: var(--color-text-secondary);">
                 {{ scorePercent(selectedResult) }}%
               </span>
             </div>

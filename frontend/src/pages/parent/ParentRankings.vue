@@ -9,11 +9,11 @@
         <div style="flex: 1;">
           <div style="font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.9);">
             第 {{ myRanking.rank }} 名
-            <span style="font-size: 14px; font-weight: 400; color: rgba(255,255,255,0.45);">
+            <span style="font-size: 16px; font-weight: 400; color: rgba(255,255,255,0.45);">
               / 共 {{ rankings.length }} 人
             </span>
           </div>
-          <div v-if="rankChange !== null" style="margin-top: 4px; font-size: 14px;">
+          <div v-if="rankChange !== null" style="margin-top: 4px; font-size: 16px;">
             <span v-if="rankChange > 0" style="color: #63e2b7;">
               ↑ 上升 {{ rankChange }} 名
             </span>
@@ -29,14 +29,14 @@
           <div style="font-size: 28px; font-weight: 700; color: #63e2b7;">
             {{ myRanking.total_points }}
           </div>
-          <div style="font-size: 12px; color: rgba(255,255,255,0.45);">总积分</div>
+          <div style="font-size: 16px; color: rgba(255,255,255,0.45);">总积分</div>
         </div>
       </div>
     </n-card>
 
     <!-- Score Distribution Bar -->
     <n-card v-if="rankings.length > 0" size="small" style="margin-bottom: 16px;">
-      <div style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 8px;">积分分布</div>
+      <div style="font-size: 16px; color: rgba(255,255,255,0.6); margin-bottom: 8px;">积分分布</div>
       <div style="position: relative; height: 28px; border-radius: 6px; overflow: hidden; display: flex;">
         <div
           :style="{

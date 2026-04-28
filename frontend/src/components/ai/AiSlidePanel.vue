@@ -124,13 +124,13 @@ defineEmits(['close'])
 
 .ai-panel-placeholder-text {
   margin-top: 12px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
 }
 
 .ai-panel-placeholder-hint {
   margin-top: 8px;
-  font-size: 13px;
+  font-size: 16px;
   opacity: 0.7;
 }
 
@@ -156,7 +156,7 @@ defineEmits(['close'])
   border-radius: var(--radius-md);
   background: var(--color-bg-alt);
   color: var(--color-text-secondary);
-  font-size: 14px;
+  font-size: 16px;
   outline: none;
   cursor: not-allowed;
 }

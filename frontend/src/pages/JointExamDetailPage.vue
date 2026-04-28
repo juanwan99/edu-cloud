@@ -230,7 +230,7 @@ onMounted(() => {
   justify-content: space-between;
   padding: 8px 0;
   border-bottom: 1px solid var(--color-border-light);
-  font-size: 14px;
+  font-size: 16px;
 }
 .info-row:last-child { border-bottom: none; }
 .info-row span:first-child { color: var(--color-text-muted); }

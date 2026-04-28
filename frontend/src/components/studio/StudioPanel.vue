@@ -11,7 +11,7 @@
           <template #description>
             <n-space size="small">
               <n-tag :type="statusType(doc.status)" size="small">{{ doc.status }}</n-tag>
-              <n-text depth="3" style="font-size: 12px">v{{ doc.version }}</n-text>
+              <n-text depth="3" style="font-size: 16px">v{{ doc.version }}</n-text>
             </n-space>
           </template>
         </n-thing>

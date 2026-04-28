@@ -592,7 +592,7 @@ async function handleBatchGenerate() {
 }
 
 .panel-title {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   color: #8a9a8e;
   margin-bottom: 10px;
@@ -645,7 +645,7 @@ async function handleBatchGenerate() {
 }
 
 .q-title {
-  font-size: 13px;
+  font-size: 16px;
   color: #d0dcd2;
   margin-bottom: 5px;
   font-weight: 500;
@@ -667,7 +667,7 @@ async function handleBatchGenerate() {
 }
 
 .t {
-  font-size: 11px;
+  font-size: 16px;
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 500;
@@ -684,7 +684,7 @@ async function handleBatchGenerate() {
 }
 
 .q-progress {
-  font-size: 11px;
+  font-size: 16px;
   color: #b0c0b4;
   margin-top: 4px;
 }
@@ -700,7 +700,7 @@ async function handleBatchGenerate() {
 }
 
 .content-text {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -727,7 +727,7 @@ async function handleBatchGenerate() {
   left: 4px;
   background: rgba(0,0,0,0.6);
   color: var(--color-bg, #fff);
-  font-size: 10px;
+  font-size: 16px;
   padding: 1px 5px;
   border-radius: 3px;
 }
@@ -754,27 +754,27 @@ async function handleBatchGenerate() {
 }
 
 .progress-label {
-  font-size: 13px;
+  font-size: 16px;
   color: #8a9a8e;
   margin-bottom: 4px;
 }
 
 .done-text {
-  font-size: 13px;
+  font-size: 16px;
   color: #4ade80;
   margin-top: 6px;
   font-weight: 600;
 }
 
 .fail-text {
-  font-size: 13px;
+  font-size: 16px;
   color: #f87171;
   margin-top: 6px;
   font-weight: 600;
 }
 
 .empty-tip {
-  font-size: 13px;
+  font-size: 16px;
   color: #8a9a8e;
   padding: 8px 0;
 }
@@ -785,7 +785,7 @@ async function handleBatchGenerate() {
 }
 
 .loading-tip {
-  font-size: 13px;
+  font-size: 16px;
   color: #8a9a8e;
   padding: 16px 0;
   text-align: center;

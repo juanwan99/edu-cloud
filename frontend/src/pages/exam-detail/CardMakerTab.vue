@@ -37,7 +37,7 @@
               <div style="font-size: 24px; margin-bottom: 8px;">&#9998;</div>
               <n-text strong>直接编辑答题卡</n-text>
               <br />
-              <n-text depth="3" style="font-size: 12px;">使用学科默认模板，手动调整题型结构</n-text>
+              <n-text depth="3" style="font-size: 16px;">使用学科默认模板，手动调整题型结构</n-text>
             </div>
           </n-card>
           <!-- 入口 B: 上传答案自动识别 -->
@@ -45,7 +45,7 @@
             <div style="text-align: center; padding: 8px 0;">
               <n-text strong>上传答案自动识别（可选）</n-text>
               <br />
-              <n-text depth="3" style="font-size: 12px; display: block; margin: 8px 0;">上传答案文件，自动识别题型填充到编辑器</n-text>
+              <n-text depth="3" style="font-size: 16px; display: block; margin: 8px 0;">上传答案文件，自动识别题型填充到编辑器</n-text>
             </div>
             <n-upload
               :key="uploadKey"
@@ -370,7 +370,7 @@ const answerColumns = [
         ? h('span', {
             class: 'math-preview',
             innerHTML: renderMath(row.answer),
-            style: 'font-size: 12px; color: #666;',
+            style: 'font-size: 16px; color: #666;',
           })
         : null,
     ])

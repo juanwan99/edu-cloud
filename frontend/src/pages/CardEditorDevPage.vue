@@ -1,7 +1,7 @@
 <template>
   <div style="padding: 8px;">
     <n-button text style="margin-bottom: 8px;" @click="$router.push(`/exams/${examId}`)">← 返回考试详情</n-button>
-    <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px; font-size:13px;">
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px; font-size: 16px;">
       <label>科目：</label>
       <select v-model="selectedSubject" style="padding:4px 8px;">
         <option v-for="s in subjects" :key="s.id" :value="s">{{ s.name }}</option>

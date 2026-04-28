@@ -145,7 +145,7 @@ const taskProgressPct = computed(() => {
 }
 
 .content-text {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -172,7 +172,7 @@ const taskProgressPct = computed(() => {
   left: 4px;
   background: rgba(0,0,0,0.6);
   color: var(--color-bg, #fff);
-  font-size: 10px;
+  font-size: 16px;
   padding: 1px 5px;
   border-radius: 3px;
 }
@@ -199,27 +199,27 @@ const taskProgressPct = computed(() => {
 }
 
 .progress-label {
-  font-size: 13px;
+  font-size: 16px;
   color: #8a9a8e;
   margin-bottom: 4px;
 }
 
 .done-text {
-  font-size: 13px;
+  font-size: 16px;
   color: #4ade80;
   margin-top: 6px;
   font-weight: 600;
 }
 
 .fail-text {
-  font-size: 13px;
+  font-size: 16px;
   color: #f87171;
   margin-top: 6px;
   font-weight: 600;
 }
 
 .empty-tip {
-  font-size: 13px;
+  font-size: 16px;
   color: #8a9a8e;
   padding: 8px 0;
 }
@@ -232,13 +232,13 @@ const taskProgressPct = computed(() => {
 }
 
 .limit-label {
-  font-size: 13px;
+  font-size: 16px;
   color: #cfd8d3;
   white-space: nowrap;
 }
 
 .limit-hint {
-  font-size: 12px;
+  font-size: 16px;
   color: #6b7c72;
   white-space: nowrap;
 }
