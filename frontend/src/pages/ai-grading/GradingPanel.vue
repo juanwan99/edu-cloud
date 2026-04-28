@@ -62,6 +62,77 @@
         />
       </n-card>
 
+      <!-- 学生答案预览 -->
+      <n-card class="detail-card" title="学生答案">
+        <template #header-extra>
+          <span v-if="studentAnswers.length" class="answer-count">
+            {{ currentAnswerIndex + 1 }} / {{ studentAnswers.length }}
+          </span>
+        </template>
+        <div v-if="answersLoading" class="empty-tip">加载中...</div>
+        <div v-else-if="!studentAnswers.length" class="empty-tip">暂无学生答案</div>
+        <template v-else>
+          <div class="answer-nav">
+            <n-button size="small" :disabled="currentAnswerIndex <= 0"
+                      @click="currentAnswerIndex--">&lt;</n-button>
+            <span class="student-label">学号: {{ currentAnswer.student_id }}</span>
+            <n-button size="small" :disabled="currentAnswerIndex >= studentAnswers.length - 1"
+                      @click="currentAnswerIndex++">></n-button>
+          </div>
+          <div v-if="currentAnswer.is_absent" class="status-tag absent">缺考</div>
+          <div v-else-if="currentAnswer.is_anomaly" class="status-tag anomaly">异常</div>
+          <div v-if="currentAnswer.image_url" class="answer-image-box">
+            <n-image :src="currentAnswer.image_url" object-fit="contain" class="answer-img" />
+          </div>
+          <div v-else class="empty-tip">无答卷图片</div>
+        </template>
+      </n-card>
+
+      <!-- 评分结果 -->
+      <n-card v-if="currentGradingResult" class="detail-card result-card" title="评分结果">
+        <template #header-extra>
+          <span class="score-badge">
+            {{ currentGradingResult.final_score ?? currentGradingResult.ai_score ?? '-' }}
+            / {{ currentGradingResult.max_score }}
+          </span>
+        </template>
+
+        <div class="result-meta">
+          <div class="result-row">
+            <span class="result-label">状态</span>
+            <n-tag :type="statusTagType" size="small">{{ statusText }}</n-tag>
+          </div>
+          <div v-if="currentGradingResult.ai_confidence != null" class="result-row">
+            <span class="result-label">置信度</span>
+            <span>{{ (currentGradingResult.ai_confidence * 100).toFixed(0) }}%</span>
+          </div>
+        </div>
+
+        <div v-if="currentGradingResult.ai_feedback" class="feedback-section">
+          <div class="section-title">评语</div>
+          <div class="feedback-text">{{ currentGradingResult.ai_feedback }}</div>
+        </div>
+
+        <div v-if="currentGradingResult.details?.length" class="details-section">
+          <div class="section-title">细化评分</div>
+          <div v-for="(sub, si) in currentGradingResult.details" :key="si" class="sub-question-block">
+            <div class="sub-header">
+              <span class="sub-label">{{ sub.subQuestion || `第${si + 1}小题` }}</span>
+              <span class="sub-score">{{ sub.score }}/{{ sub.fullScore }}分</span>
+            </div>
+            <div v-if="sub.blanks?.length" class="blanks-list">
+              <div v-for="(blank, bi) in sub.blanks" :key="bi"
+                   class="blank-item" :class="blank.correct ? 'correct' : 'wrong'">
+                <span>第{{ blank.index }}空: {{ blank.score }}/{{ blank.fullScore }}分
+                  {{ blank.correct ? '✓' : '✗' }}</span>
+                <span v-if="blank.answer" class="blank-answer">{{ blank.answer }}</span>
+                <span v-if="blank.reason" class="blank-reason">({{ blank.reason }})</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </n-card>
+
       <!-- 阅卷操作 -->
       <n-card class="detail-card" title="阅卷操作">
         <div v-if="taskProgress !== null" class="progress-area">
@@ -88,8 +159,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { NCard, NButton, NSpace, NProgress, NImage } from 'naive-ui'
+import { computed, ref, watch } from 'vue'
+import { NCard, NButton, NSpace, NProgress, NImage, NTag } from 'naive-ui'
 import RubricEditor from '../../components/RubricEditor.vue'
 
 const props = defineProps({
@@ -100,6 +171,8 @@ const props = defineProps({
   rubricSaving: { type: Boolean, default: false },
   taskProgress: { type: Object, default: null },
   gradingStarting: { type: Boolean, default: false },
+  studentAnswers: { type: Array, default: () => [] },
+  answersLoading: { type: Boolean, default: false },
 })
 
 defineEmits([
@@ -111,9 +184,34 @@ defineEmits([
   'start-grading',
 ])
 
+const currentAnswerIndex = ref(0)
+
+watch(() => props.studentAnswers, () => {
+  currentAnswerIndex.value = 0
+})
+
+const currentAnswer = computed(() => props.studentAnswers[currentAnswerIndex.value] || null)
+const currentGradingResult = computed(() => currentAnswer.value?.grading_result || null)
+
 const taskProgressPct = computed(() => {
   if (!props.taskProgress || !props.taskProgress.total) return 0
   return Math.round((props.taskProgress.graded / props.taskProgress.total) * 100)
+})
+
+const statusText = computed(() => {
+  const s = currentGradingResult.value?.status
+  if (s === 'ai_done') return 'AI 已评'
+  if (s === 'confirmed') return '已确认'
+  if (s === 'ai_pending') return '评分中'
+  return s || ''
+})
+
+const statusTagType = computed(() => {
+  const s = currentGradingResult.value?.status
+  if (s === 'confirmed') return 'success'
+  if (s === 'ai_done') return 'info'
+  if (s === 'ai_pending') return 'warning'
+  return 'default'
 })
 </script>
 
@@ -211,5 +309,170 @@ const taskProgressPct = computed(() => {
 .empty-tip.center {
   text-align: center;
   padding: 60px 0;
+}
+
+/* --- 学生答案预览 --- */
+.answer-count {
+  font-size: 12px;
+  color: #8a9a8e;
+}
+
+.answer-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.student-label {
+  font-size: 13px;
+  color: #c0d0c4;
+  flex: 1;
+  text-align: center;
+}
+
+.status-tag {
+  display: inline-block;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.status-tag.absent {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+}
+
+.status-tag.anomaly {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+.answer-image-box {
+  border: 1px solid #2e3e34;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0d1a12;
+}
+
+.answer-img {
+  width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+}
+
+/* --- 评分结果 --- */
+.result-card {
+  border-left: 3px solid #4ade80;
+}
+
+.score-badge {
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  color: #0d1a12;
+  padding: 3px 12px;
+  border-radius: 16px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.result-label {
+  color: #8a9a8e;
+}
+
+.feedback-section {
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a9a8e;
+  margin-bottom: 6px;
+}
+
+.feedback-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #c0d0c4;
+  white-space: pre-wrap;
+}
+
+.details-section {
+  border-top: 1px dashed #2e3e34;
+  padding-top: 12px;
+}
+
+.sub-question-block {
+  margin-bottom: 8px;
+}
+
+.sub-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(74, 222, 128, 0.08);
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.sub-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4ade80;
+}
+
+.sub-score {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4ade80;
+}
+
+.blanks-list {
+  padding-left: 12px;
+}
+
+.blank-item {
+  font-size: 12px;
+  padding: 3px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.blank-item.correct {
+  color: #4ade80;
+}
+
+.blank-item.wrong {
+  color: #f87171;
+}
+
+.blank-answer {
+  color: #8a9a8e;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blank-reason {
+  color: #6b7b6f;
+  font-size: 11px;
 }
 </style>

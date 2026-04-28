@@ -51,6 +51,8 @@
         :rubricSaving="rubricSaving"
         :taskProgress="taskProgress"
         :gradingStarting="gradingStarting"
+        :studentAnswers="studentAnswers"
+        :answersLoading="answersLoading"
         @edit-content="openContentModal"
         @remove-image="removeImage"
         @generate-rubric="handleGenerateRubric"
@@ -87,7 +89,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMessage, NButton } from 'naive-ui'
-import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
+import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, getQuestion, updateQuestionContent, uploadQuestionImage, getStudentAnswers } from '../api/grading'
 import { listExams } from '../api/exams'
 import { createQuestion, updateQuestion, deleteQuestion } from '../api/questions'
 import { listSubjects } from '../api/subjects'
@@ -128,6 +130,9 @@ const batchGenerating = ref(false)
 const gradingStarting = ref(false)
 const taskProgress = ref(null)
 let pollTimer = null
+
+const studentAnswers = ref([])
+const answersLoading = ref(false)
 
 const contentModalShow = ref(false)
 const contentModalTitle = ref('')
@@ -278,6 +283,7 @@ async function saveScore(q) {
 async function selectQuestion(q) {
   selectedQuestion.value = { ...q }
   rubricItems.value = []
+  studentAnswers.value = []
   taskProgress.value = null
   stopPolling()
   // Fetch full question details (content/reference_answer) from backend
@@ -287,7 +293,22 @@ async function selectQuestion(q) {
   } catch (e) {
     // Non-fatal: fall back to dispatch status fields
   }
-  await loadRubric(q.question_id)
+  await Promise.all([
+    loadRubric(q.question_id),
+    loadStudentAnswers(q.question_id),
+  ])
+}
+
+async function loadStudentAnswers(questionId) {
+  answersLoading.value = true
+  try {
+    const res = await getStudentAnswers(questionId)
+    studentAnswers.value = res.data || []
+  } catch (e) {
+    studentAnswers.value = []
+  } finally {
+    answersLoading.value = false
+  }
 }
 
 async function loadRubric(questionId) {
@@ -378,6 +399,9 @@ function startPolling(taskId) {
       if (task.status === 'completed' || task.status === 'failed') {
         stopPolling()
         await loadQuestions()
+        if (selectedQuestion.value) {
+          await loadStudentAnswers(selectedQuestion.value.question_id)
+        }
       }
     } catch (e) {
       stopPolling()
