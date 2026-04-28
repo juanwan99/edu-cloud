@@ -151,6 +151,8 @@ async def get_next_answer(
                 "details": details,
             },
             "max_score": max_score,
+            "is_anomaly": answer.is_anomaly,
+            "anomaly_type": answer.anomaly_type,
         }
 
     # ---- 默认 ungraded 模式 ----
@@ -231,6 +233,8 @@ async def get_next_answer(
         "position": {"current": graded + 1, "total": total},
         "ai": ai_info,
         "max_score": max_score,
+        "is_anomaly": answer.is_anomaly,
+        "anomaly_type": answer.anomaly_type,
     }
 
 

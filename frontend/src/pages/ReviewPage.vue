@@ -160,6 +160,34 @@
               </n-collapse>
             </div>
 
+            <!-- 异常标记 -->
+            <div class="anomaly-section">
+              <n-popselect
+                v-model:value="selectedAnomalyType"
+                :options="anomalyOptions"
+                trigger="click"
+                @update:value="handleFlag"
+              >
+                <n-button
+                  size="small"
+                  block
+                  :type="currentAnomaly ? 'warning' : 'default'"
+                  :ghost="!currentAnomaly"
+                >
+                  {{ currentAnomaly ? `已标记: ${anomalyLabel}` : '标记异常' }}
+                </n-button>
+              </n-popselect>
+              <n-button
+                v-if="currentAnomaly"
+                size="tiny"
+                text
+                type="error"
+                @click="handleClearFlag"
+              >
+                取消标记
+              </n-button>
+            </div>
+
             <!-- 提交按钮 -->
             <n-button
               type="primary"
@@ -192,7 +220,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
-import { getNext, submitScore } from '../api/marking'
+import { getNext, submitScore, flagAnswer } from '../api/marking'
 import { gradeSingle, createTask } from '../api/grading'
 import { useAuthStore } from '../stores/auth'
 import client from '../api/client'
@@ -225,6 +253,19 @@ const loadSeq = ref(0)
 const aiGrading = ref(false)
 const batchStarting = ref(false)
 const subjectId = ref(null)
+
+const currentAnomaly = ref(null)
+const selectedAnomalyType = ref(null)
+const anomalyOptions = [
+  { label: '扫描错误', value: 'scan_error' },
+  { label: '空白卷', value: 'blank' },
+  { label: '字迹模糊', value: 'illegible' },
+  { label: '答非所问', value: 'wrong_question' },
+  { label: '疑似作弊', value: 'suspected_cheating' },
+  { label: '其他', value: 'other' },
+]
+const anomalyLabelMap = Object.fromEntries(anomalyOptions.map(o => [o.value, o.label]))
+const anomalyLabel = computed(() => anomalyLabelMap[currentAnomaly.value] || currentAnomaly.value)
 
 // 图片缩放/拖拽
 const scale = ref(1)
@@ -268,6 +309,8 @@ function applyAnswer(answerPayload) {
   // AI 预测时自动预填分数供教师校对
   currentScore.value = ai.value ? ai.value.score : null
   comment.value = ''
+  currentAnomaly.value = answerPayload.anomaly_type || null
+  selectedAnomalyType.value = null
   resetZoom()
 }
 
@@ -354,6 +397,29 @@ async function handleBatchGrade() {
     message.error(e.response?.data?.detail || '启动批量阅卷失败')
   }
   batchStarting.value = false
+}
+
+async function handleFlag(value) {
+  if (!currentAnswerId.value) return
+  try {
+    await flagAnswer(currentAnswerId.value, value)
+    currentAnomaly.value = value
+    message.success('已标记异常')
+  } catch {
+    message.error('标记失败')
+  }
+}
+
+async function handleClearFlag() {
+  if (!currentAnswerId.value) return
+  try {
+    await flagAnswer(currentAnswerId.value, null)
+    currentAnomaly.value = null
+    selectedAnomalyType.value = null
+    message.success('已取消标记')
+  } catch {
+    message.error('取消标记失败')
+  }
 }
 
 function switchMode(mode) {
@@ -676,6 +742,12 @@ onUnmounted(() => {
   color: #fff;
   border-color: #18a058;
   box-shadow: 0 0 0 2px rgba(24, 160, 88, 0.3);
+}
+
+.anomaly-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .comment-section {

@@ -30,6 +30,7 @@ class StudentAnswer(Base, IdMixin, TimestampMixin):
     detected_answer: Mapped[str | None] = mapped_column(String(50), default=None)
     score: Mapped[float | None] = mapped_column(default=None)
     is_anomaly: Mapped[bool] = mapped_column(default=False)
+    anomaly_type: Mapped[str | None] = mapped_column(String(30), default=None)
     is_absent: Mapped[bool] = mapped_column(default=False)
     fill_ratios: Mapped[dict | None] = mapped_column(JSON, default=None)
     # Phase 1-C: paper-seg 上传时携带题型，供 AI 阅卷选 prompt

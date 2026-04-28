@@ -36,6 +36,10 @@ class ImportResponse(BaseModel):
     answers_skipped: int
 
 
+class FlagRequest(BaseModel):
+    anomaly_type: str | None = None
+
+
 class ScoreRequest(BaseModel):
     answer_id: str
     score: float
@@ -411,6 +415,40 @@ async def submit_score_endpoint(
         "ok": True,
         "next": {"done": False, "answer": next_ans} if next_ans else {"done": True, "answer": None},
     }
+
+
+# ---------- Anomaly flag ----------
+
+ANOMALY_TYPES = ["scan_error", "blank", "illegible", "wrong_question", "suspected_cheating", "other"]
+
+
+@router.patch("/answer/{answer_id}/flag")
+async def flag_answer(
+    answer_id: str,
+    req: FlagRequest,
+    current: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """标记/取消标记答卷异常。anomaly_type=null 时清除标记。"""
+    answer = (await db.execute(
+        select(StudentAnswer).where(
+            StudentAnswer.id == answer_id,
+            StudentAnswer.school_id == current["current_role"].school_id,
+        )
+    )).scalar_one_or_none()
+    if not answer:
+        raise HTTPException(404, "答卷不存在")
+
+    if req.anomaly_type is not None and req.anomaly_type not in ANOMALY_TYPES:
+        raise HTTPException(400, f"无效的异常类型，可选: {', '.join(ANOMALY_TYPES)}")
+
+    answer.is_anomaly = req.anomaly_type is not None
+    answer.anomaly_type = req.anomaly_type
+    await db.commit()
+
+    logger.info("flag_answer: answer=%s, anomaly_type=%s, by=%s",
+                answer_id, req.anomaly_type, current["user"].id)
+    return {"ok": True, "is_anomaly": answer.is_anomaly, "anomaly_type": answer.anomaly_type}
 
 
 # ---------- Progress ----------
