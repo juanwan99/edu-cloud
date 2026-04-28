@@ -16,10 +16,23 @@ _SUBJECTS = {
     "english", "politics", "history", "geography",
 }
 
+_CODE_TO_SUBJECT = {
+    "YW": "chinese", "yw": "chinese",
+    "SX": "math", "sx": "math",
+    "YY": "english", "yy": "english",
+    "SW": "biology", "sw": "biology",
+    "WL": "physics", "wl": "physics",
+    "HX": "chemistry", "hx": "chemistry",
+    "ZZ": "politics", "zz": "politics",
+    "LS": "history", "ls": "history",
+    "DL": "geography", "dl": "geography",
+}
+
 _cache: dict[str, dict] = {}
 
 
 def _load_subject(subject: str, level: str = "senior") -> dict | None:
+    subject = _CODE_TO_SUBJECT.get(subject, subject)
     key = f"{level}/{subject}"
     if key in _cache:
         return _cache[key]

@@ -432,17 +432,7 @@ async def grade_single_answer(
             plog["grading_model"] = llm.model
 
             if grading_prompt_tpl is None:
-                # Legacy 单步评分
-                plog["pipeline_type"] = "legacy"
-                plog["grading_prompt_type"] = "legacy_multimodal"
-                t_grade = _time.perf_counter()
-                grade_result = await llm.grade(
-                    images_b64=image_b64,
-                    rubric={"criteria": rubric.criteria},
-                    question={"name": question.name, "max_score": question.max_score},
-                    question_type=ans_qtype,
-                )
-                plog["grading_ms"] = int((_time.perf_counter() - t_grade) * 1000)
+                raise HTTPException(500, f"该科目（{subject_code}）缺少评分 prompt 配置，无法进行 AI 评分")
             else:
                 # 两步：OCR → 文本评分
                 plog["pipeline_type"] = "two_step"
@@ -472,36 +462,47 @@ async def grade_single_answer(
                 plog["ocr_text"] = extracted_text
                 plog["ocr_blanks_count"] = len(blanks)
 
-                char_stats = ""
-                if ans_qtype == "essay":
-                    import re
-                    raw_text = "".join(b.get("text", "") for b in blanks)
-                    cn_chars = len(re.findall(r'[一-鿿]', raw_text))
-                    en_words = len(re.findall(r'[a-zA-Z]+', raw_text))
-                    plog["char_count"] = cn_chars if cn_chars > en_words else en_words
-                    if cn_chars > en_words:
-                        char_stats = f"【字数统计】{cn_chars}字（基于OCR精确统计，请据此判断是否达到字数要求）"
-                    else:
-                        char_stats = f"【字数统计】{en_words}词（基于OCR精确统计，请据此判断是否达到词数要求）"
+                # OCR-based blank detection: all blanks empty → 0 score
+                non_empty = [b for b in blanks if b.get("text", "").strip()]
+                if len(non_empty) == 0:
+                    plog["pipeline_type"] = "blank"
+                    plog["is_blank"] = True
+                    plog["grading_ms"] = 0
+                    result_data = {
+                        "score": 0, "max_score": question.max_score,
+                        "feedback": "空白卷（所有填空均未检测到作答内容）", "confidence": 1.0, "raw_content": "",
+                        "details": [{"blankNo": b.get("blankNo", str(i+1)), "score": 0, "maxScore": 0, "reason": "未作答"} for i, b in enumerate(blanks)],
+                    }
+                else:
+                    char_stats = ""
+                    if ans_qtype == "essay":
+                        import re
+                        raw_text = "".join(b.get("text", "") for b in blanks)
+                        cn_chars = len(re.findall(r'[一-鿿]', raw_text))
+                        en_words = len(re.findall(r'[a-zA-Z]+', raw_text))
+                        plog["char_count"] = cn_chars if cn_chars > en_words else en_words
+                        if cn_chars > en_words:
+                            char_stats = f"【字数统计】{cn_chars}字（基于OCR精确统计，请据此判断是否达到字数要求）"
+                        else:
+                            char_stats = f"【字数统计】{en_words}词（基于OCR精确统计，请据此判断是否达到词数要求）"
 
-                plog["grading_prompt_type"] = "GRADING_TEXT"
-                grading_prompt = render_prompt(grading_prompt_tpl, {
-                    "fullScore": full_score,
-                    "rubric": rubric_text,
-                    "extractedText": extracted_text,
-                    "charStats": char_stats,
-                })
-                t_grade = _time.perf_counter()
-                grade_result = await llm.grade_text(prompt=grading_prompt, max_score=question.max_score)
-                plog["grading_ms"] = int((_time.perf_counter() - t_grade) * 1000)
-
-            result_data = {
-                "score": grade_result.score,
-                "max_score": grade_result.max_score,
-                "feedback": grade_result.feedback,
-                "confidence": grade_result.confidence,
-                "raw_content": grade_result.raw_content,
-            }
+                    plog["grading_prompt_type"] = "GRADING_TEXT"
+                    grading_prompt = render_prompt(grading_prompt_tpl, {
+                        "fullScore": full_score,
+                        "rubric": rubric_text,
+                        "extractedText": extracted_text,
+                        "charStats": char_stats,
+                    })
+                    t_grade = _time.perf_counter()
+                    grade_result = await llm.grade_text(prompt=grading_prompt, max_score=question.max_score)
+                    plog["grading_ms"] = int((_time.perf_counter() - t_grade) * 1000)
+                    result_data = {
+                        "score": grade_result.score,
+                        "max_score": grade_result.max_score,
+                        "feedback": grade_result.feedback,
+                        "confidence": grade_result.confidence,
+                        "raw_content": grade_result.raw_content,
+                    }
             plog["score"] = grade_result.score
             plog["confidence"] = grade_result.confidence
         except Exception as e:

@@ -112,26 +112,12 @@ async def _grade_single(
 
         grading_prompt_tpl = get_prompt(subject, "GRADING_TEXT", "senior")
         if grading_prompt_tpl is None:
-            plog["pipeline_type"] = "legacy"
-            plog["grading_model"] = llm.model
-            plog["grading_prompt_type"] = "legacy_multimodal"
-            t_grade = time.perf_counter()
-            grade_result = await llm.grade(
-                images_b64=image_b64,
-                rubric={"criteria": rubric_criteria},
-                question={"name": ad["question_name"], "max_score": ad["question_max_score"]},
-                question_type=ad.get("question_type"),
-            )
-            plog["grading_ms"] = int((time.perf_counter() - t_grade) * 1000)
-            plog["score"] = grade_result.score
-            plog["confidence"] = grade_result.confidence
+            plog["pipeline_type"] = "error"
+            plog["error_type"] = "no_prompt"
+            plog["error_message"] = f"No grading prompt for subject '{subject}'"
             plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
-            return {
-                "answer_id": answer_id, "question_id": question_id,
-                "score": grade_result.score, "max_score": grade_result.max_score,
-                "feedback": grade_result.feedback, "confidence": grade_result.confidence,
-                "raw_content": grade_result.raw_content,
-            }, None, plog
+            logger.error("grading_task: no prompt for subject=%s, answer=%s — legacy pipeline disabled", subject, answer_id)
+            return None, {"answer_id": answer_id, "error": plog["error_message"]}, plog
 
         # Two-step path
         plog["pipeline_type"] = "two_step"
@@ -164,6 +150,22 @@ async def _grade_single(
         extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
         plog["ocr_text"] = extracted_text
         plog["ocr_blanks_count"] = len(blanks)
+
+        # OCR-based blank detection: check each blank individually
+        non_empty_blanks = [b for b in blanks if b.get("text", "").strip()]
+        if len(non_empty_blanks) == 0:
+            plog["pipeline_type"] = "blank"
+            plog["is_blank"] = True
+            plog["score"] = 0
+            plog["confidence"] = 1.0
+            plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+            logger.info("grading_task: OCR blank detection — all %d blanks empty, answer=%s", len(blanks), answer_id)
+            return {
+                "answer_id": answer_id, "question_id": question_id,
+                "score": 0, "max_score": ad["question_max_score"],
+                "feedback": "空白卷（所有填空均未检测到作答内容）", "confidence": 1.0, "raw_content": "",
+                "details": [{"blankNo": b.get("blankNo", str(i+1)), "score": 0, "maxScore": 0, "reason": "未作答"} for i, b in enumerate(blanks)],
+            }, None, plog
 
         # Character count for essay questions
         char_stats = ""
