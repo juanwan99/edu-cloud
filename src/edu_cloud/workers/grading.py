@@ -272,11 +272,11 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                 llm_url, llm_key, llm_model = None, None, None
                 logger.warning("grading_task: task=%s, llm_config DB lookup failed, fallback to .env", task_id, exc_info=True)
 
-            use_gemini = task.grading_mode == "batch" and settings.GEMINI_API_KEY
+            use_gemini = bool(settings.GEMINI_API_KEY)
             if use_gemini:
                 llm_key = settings.GEMINI_API_KEY
                 llm_model = settings.GEMINI_MODEL
-                logger.info("grading_task: task=%s, using Gemini official API (batch mode, model=%s)", task_id, llm_model)
+                logger.info("grading_task: task=%s, using Gemini official API (mode=%s, model=%s)", task_id, task.grading_mode, llm_model)
             llm = _create_llm_client(
                 api_url=llm_url, api_key=llm_key, model=llm_model,
                 use_gemini_official=bool(use_gemini),

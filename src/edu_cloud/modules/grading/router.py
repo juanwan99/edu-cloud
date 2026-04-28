@@ -411,18 +411,23 @@ async def grade_single_answer(
             "feedback": "空白卷", "confidence": 1.0, "raw_content": "",
         }
     else:
-        # 6. 创建 LLM 客户端
-        from edu_cloud.modules.exam.slot_selector import get_llm_config, SLOT_AI_GRADING
-        from edu_cloud.modules.grading.llm_client import LLMClient
-        try:
-            llm_url, llm_key, llm_model = await get_llm_config(
-                db, slot=SLOT_AI_GRADING, school_id=school_id,
-            )
-        except Exception:
-            llm_url, llm_key, llm_model = None, None, None
-
+        # 6. 创建 LLM 客户端（优先 Gemini 官方直连）
         from edu_cloud.workers.grading import _create_llm_client
-        llm = _create_llm_client(api_url=llm_url, api_key=llm_key, model=llm_model)
+        use_gemini = bool(settings.GEMINI_API_KEY)
+        if use_gemini:
+            llm = _create_llm_client(
+                api_key=settings.GEMINI_API_KEY, model=settings.GEMINI_MODEL,
+                use_gemini_official=True,
+            )
+        else:
+            from edu_cloud.modules.exam.slot_selector import get_llm_config, SLOT_AI_GRADING
+            try:
+                llm_url, llm_key, llm_model = await get_llm_config(
+                    db, slot=SLOT_AI_GRADING, school_id=school_id,
+                )
+            except Exception:
+                llm_url, llm_key, llm_model = None, None, None
+            llm = _create_llm_client(api_url=llm_url, api_key=llm_key, model=llm_model)
 
         blanks = []
         try:
@@ -454,7 +459,10 @@ async def grade_single_answer(
                     plog["ocr_prompt_type"] = "OCR_BASE"
 
                 t_ocr = _time.perf_counter()
-                blanks = await llm.extract_text(images_b64=[image_b64], prompt=ocr_prompt)
+                if use_gemini:
+                    blanks = await llm.extract_text(image_bytes=image_data, prompt=ocr_prompt)
+                else:
+                    blanks = await llm.extract_text(images_b64=[image_b64], prompt=ocr_prompt)
                 plog["ocr_ms"] = int((_time.perf_counter() - t_ocr) * 1000)
 
                 from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
