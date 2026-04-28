@@ -104,13 +104,17 @@
             </div>
             <div v-if="ai.feedback" class="ai-feedback">{{ ai.feedback }}</div>
             <div v-if="ai.details?.length" class="ai-details">
-              <div class="ai-details-title">细化评分</div>
+              <div class="ai-details-title">逐空评分</div>
               <div v-for="(item, i) in ai.details" :key="i" class="ai-sub">
                 <div class="ai-sub-header">
-                  <span>{{ item.blankNo || `第${i + 1}空` }}</span>
+                  <span class="ai-sub-label">第{{ item.blankNo || (i + 1) }}空</span>
                   <span class="ai-sub-score" :style="{ color: item.score > 0 ? '#18a058' : '#d03050' }">
-                    {{ item.score }}/{{ item.maxScore }}分 {{ item.score >= item.maxScore ? '✓' : item.score > 0 ? '△' : '✗' }}
+                    {{ item.score }}/{{ item.maxScore }}分 {{ item.correct ? '✓' : item.score > 0 ? '△' : '✗' }}
                   </span>
+                </div>
+                <div v-if="item.answer != null" class="ai-sub-answer">
+                  <span class="ai-sub-answer-label">识别：</span>
+                  <span :class="item.answer ? '' : 'ai-sub-empty'">{{ item.answer || '（未作答）' }}</span>
                 </div>
                 <div v-if="item.reason" class="ai-sub-reason">{{ item.reason }}</div>
               </div>
@@ -412,6 +416,7 @@ async function handleAiGradeSingle() {
       confidence: data.confidence,
       feedback: data.feedback,
       details: data.details || null,
+      recognizedText: data.recognizedText || null,
     }
     currentScore.value = data.score
     if (data.already_confirmed) {
@@ -817,6 +822,25 @@ onUnmounted(() => {
 
 .ai-sub-score {
   font-weight: 600;
+}
+
+.ai-sub-answer {
+  font-size: 11px;
+  padding: 2px 8px;
+  color: #cfd8d3;
+}
+
+.ai-sub-answer-label {
+  color: #6b7c72;
+}
+
+.ai-sub-empty {
+  color: #d03050;
+  font-style: italic;
+}
+
+.ai-sub-label {
+  font-weight: 500;
 }
 
 .ai-sub-reason {

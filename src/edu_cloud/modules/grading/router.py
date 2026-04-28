@@ -422,6 +422,7 @@ async def grade_single_answer(
         from edu_cloud.workers.grading import _create_llm_client
         llm = _create_llm_client(api_url=llm_url, api_key=llm_key, model=llm_model)
 
+        blanks = []
         try:
             from edu_cloud.modules.grading.prompts import get_prompt, render_prompt
             from edu_cloud.modules.grading.rubric_formatter import format_rubric_for_grading
@@ -542,33 +543,50 @@ async def grade_single_answer(
         error_message=plog.get("error_message"),
     ))
 
-    # 8. 写入 GradingResult（upsert）
-    details = None
-    try:
-        raw_parsed = json.loads(result_data.get("raw_content", ""))
-        details = raw_parsed.get("details")
-    except (json.JSONDecodeError, TypeError):
-        pass
+    # 8. 构建 details（合并 OCR 识别结果）
+    details = result_data.get("details")
+    recognized_text = plog.get("ocr_text")
+    if details is None:
+        try:
+            raw_parsed = json.loads(result_data.get("raw_content", ""))
+            details = raw_parsed.get("details")
+        except (json.JSONDecodeError, TypeError):
+            pass
 
+    ocr_by_no = {str(b.get("blankNo", "")): b.get("text", "") for b in blanks} if blanks else {}
+    if details and isinstance(details, list):
+        for d in details:
+            bno = str(d.get("blankNo", ""))
+            if bno in ocr_by_no:
+                d["answer"] = ocr_by_no[bno]
+            d["correct"] = d.get("score", 0) >= d.get("maxScore", 1)
+
+    ai_raw = {
+        "raw_content": result_data.get("raw_content", ""),
+        "details": details,
+        "recognizedText": recognized_text,
+    }
+
+    # 9. 写入 GradingResult（upsert）
     existing_gr = (await db.execute(
         select(GradingResult).where(GradingResult.answer_id == req.answer_id)
     )).scalar_one_or_none()
 
     if existing_gr:
         if existing_gr.status == "confirmed":
-            # 已确认的不覆盖，只返回 AI 结果供对比
             return {
                 "score": result_data["score"],
                 "max_score": result_data["max_score"],
                 "feedback": result_data["feedback"],
                 "confidence": result_data["confidence"],
                 "details": details,
+                "recognizedText": recognized_text,
                 "already_confirmed": True,
             }
         existing_gr.ai_score = result_data["score"]
         existing_gr.ai_confidence = result_data["confidence"]
         existing_gr.ai_feedback = result_data["feedback"]
-        existing_gr.ai_raw_response = {"raw_content": result_data["raw_content"], "details": details}
+        existing_gr.ai_raw_response = ai_raw
         existing_gr.status = "ai_done"
     else:
         gr = GradingResult(
@@ -578,7 +596,7 @@ async def grade_single_answer(
             ai_score=result_data["score"],
             ai_confidence=result_data["confidence"],
             ai_feedback=result_data["feedback"],
-            ai_raw_response={"raw_content": result_data["raw_content"], "details": details},
+            ai_raw_response=ai_raw,
             final_score=result_data["score"],
             max_score=result_data["max_score"],
             status="ai_done",
@@ -595,6 +613,7 @@ async def grade_single_answer(
         "feedback": result_data["feedback"],
         "confidence": result_data["confidence"],
         "details": details,
+        "recognizedText": recognized_text,
         "already_confirmed": False,
     }
 

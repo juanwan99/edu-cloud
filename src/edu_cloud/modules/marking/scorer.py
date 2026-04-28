@@ -135,8 +135,10 @@ async def get_next_answer(
         max_score = q.max_score if q else 0.0
 
         details = None
+        recognized_text = None
         if ai_done_q.ai_raw_response and isinstance(ai_done_q.ai_raw_response, dict):
             details = ai_done_q.ai_raw_response.get("details")
+            recognized_text = ai_done_q.ai_raw_response.get("recognizedText")
 
         return {
             "answer_id": answer.id,
@@ -149,6 +151,7 @@ async def get_next_answer(
                 "feedback": ai_done_q.ai_feedback,
                 "result_id": ai_done_q.id,
                 "details": details,
+                "recognizedText": recognized_text,
             },
             "max_score": max_score,
             "is_anomaly": answer.is_anomaly,
@@ -210,14 +213,17 @@ async def get_next_answer(
     ai_info = None
     if ai_row and ai_row.ai_score is not None:
         det = None
+        rec_text = None
         if ai_row.ai_raw_response and isinstance(ai_row.ai_raw_response, dict):
             det = ai_row.ai_raw_response.get("details")
+            rec_text = ai_row.ai_raw_response.get("recognizedText")
         ai_info = {
             "score": ai_row.ai_score,
             "confidence": ai_row.ai_confidence,
             "feedback": ai_row.ai_feedback,
             "result_id": ai_row.id,
             "details": det,
+            "recognizedText": rec_text,
         }
 
     # 查题目满分
@@ -273,14 +279,17 @@ async def get_answer_at(
     if gr:
         if gr.ai_score is not None:
             det = None
+            rec_text = None
             if gr.ai_raw_response and isinstance(gr.ai_raw_response, dict):
                 det = gr.ai_raw_response.get("details")
+                rec_text = gr.ai_raw_response.get("recognizedText")
             ai_info = {
                 "score": gr.ai_score,
                 "confidence": gr.ai_confidence,
                 "feedback": gr.ai_feedback,
                 "result_id": gr.id,
                 "details": det,
+                "recognizedText": rec_text,
             }
         if gr.status == "confirmed":
             graded_score = gr.final_score

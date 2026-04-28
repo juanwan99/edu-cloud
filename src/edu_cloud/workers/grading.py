@@ -201,6 +201,8 @@ async def _grade_single(
             "score": grade_result.score, "max_score": grade_result.max_score,
             "feedback": grade_result.feedback, "confidence": grade_result.confidence,
             "raw_content": grade_result.raw_content,
+            "recognizedText": extracted_text,
+            "ocr_blanks": blanks,
         }, None, plog
 
     except (ValueError, KeyError, TypeError, RuntimeError) as e:
@@ -391,12 +393,22 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                         errors.append(error_dict)
                         batch_failed += 1
                     else:
-                        details = None
-                        try:
-                            raw_parsed = json.loads(result_dict["raw_content"])
-                            details = raw_parsed.get("details")
-                        except (json.JSONDecodeError, TypeError):
-                            pass
+                        details = result_dict.get("details")
+                        if details is None:
+                            try:
+                                raw_parsed = json.loads(result_dict["raw_content"])
+                                details = raw_parsed.get("details")
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+
+                        ocr_blanks = result_dict.get("ocr_blanks") or []
+                        ocr_by_no = {str(b.get("blankNo", "")): b.get("text", "") for b in ocr_blanks}
+                        if details and isinstance(details, list):
+                            for d in details:
+                                bno = str(d.get("blankNo", ""))
+                                if bno in ocr_by_no:
+                                    d["answer"] = ocr_by_no[bno]
+                                d["correct"] = d.get("score", 0) >= d.get("maxScore", 1)
 
                         gr = GradingResult(
                             ai_task_id=task.id,
@@ -409,6 +421,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                             ai_raw_response={
                                 "raw_content": result_dict["raw_content"],
                                 "details": details,
+                                "recognizedText": result_dict.get("recognizedText"),
                             },
                             final_score=result_dict["score"],
                             max_score=result_dict["max_score"],
