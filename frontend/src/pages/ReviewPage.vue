@@ -83,6 +83,13 @@
                 @dblclick="resetZoom"
                 draggable="false"
               />
+              <img
+                v-for="(url, i) in childImageUrls"
+                :key="'child-' + i"
+                :src="url"
+                class="answer-image child-image"
+                draggable="false"
+              />
             </div>
           </div>
 
@@ -281,6 +288,7 @@ const done = ref(false)
 
 const currentAnswerId = ref(null)
 const imageUrl = ref('')
+const childImageUrls = ref([])
 const position = ref({ current: 0, total: 0 })
 const questionName = ref('')
 const maxScore = ref(10)
@@ -354,18 +362,28 @@ async function loadImage(answerId) {
   }
 }
 
-function applyAnswer(answerPayload) {
+async function applyAnswer(answerPayload) {
   currentAnswerId.value = answerPayload.answer_id
   position.value = answerPayload.position
   ai.value = answerPayload.ai || null
   if (answerPayload.max_score != null) maxScore.value = answerPayload.max_score
-  // AI 预测时自动预填分数供教师校对
   currentScore.value = ai.value ? ai.value.score : null
   comment.value = ''
   isGraded.value = false
   currentAnomaly.value = answerPayload.anomaly_type || null
   selectedAnomalyType.value = null
   resetZoom()
+
+  childImageUrls.value.forEach(u => URL.revokeObjectURL(u))
+  childImageUrls.value = []
+  if (answerPayload.child_answer_ids?.length) {
+    for (const cid of answerPayload.child_answer_ids) {
+      try {
+        const resp = await client.get(`/marking/answer/${cid}/image`, { responseType: 'blob' })
+        childImageUrls.value.push(URL.createObjectURL(resp.data))
+      } catch { /* skip */ }
+    }
+  }
 }
 
 async function loadNext() {
@@ -633,6 +651,7 @@ onUnmounted(() => {
   window.removeEventListener('mousemove', onDrag)
   window.removeEventListener('mouseup', stopDrag)
   if (imageUrl.value) URL.revokeObjectURL(imageUrl.value)
+  childImageUrls.value.forEach(u => URL.revokeObjectURL(u))
 })
 </script>
 
@@ -751,6 +770,10 @@ onUnmounted(() => {
   user-select: none;
   box-shadow: var(--shadow-md, 0 2px 12px rgba(0, 0, 0, 0.15));
   border-radius: 4px;
+}
+.child-image {
+  margin-top: 12px;
+  border: 2px solid #60a5fa;
 }
 
 .score-panel {
