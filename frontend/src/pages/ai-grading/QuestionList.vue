@@ -38,29 +38,18 @@
             {{ q.graded_count }}/{{ q.answer_count }} 已阅
           </div>
         </div>
+        <span v-if="q.parent_id" class="q-parent-label" @click.stop="$emit('set-parent', q, null)" title="点击取消挂载">↳{{ parentName(q.parent_id) }}</span>
+        <n-popselect v-else :options="mountOptions(q)" @update:value="pid => $emit('set-parent', q, pid)" trigger="click" :consistent-menu-width="false">
+          <a class="q-mount-icon" @click.stop title="挂载到其他题目">↳</a>
+        </n-popselect>
         <a class="q-del" @click.stop="$emit('delete-question', q)" title="删除题目">✕</a>
-      </div>
-      <div v-if="q.parent_id" class="q-parent-tag">
-        ↳ 挂载到 {{ parentName(q.parent_id) }}
-        <a class="q-unlink" @click.stop="$emit('set-parent', q, null)">取消</a>
-      </div>
-      <div v-else class="q-mount-row">
-        <n-select
-          size="tiny"
-          placeholder="挂载到..."
-          :value="null"
-          :options="mountOptions(q)"
-          @update:value="pid => $emit('set-parent', q, pid)"
-          style="max-width:140px"
-          :consistent-menu-width="false"
-        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { NInput, NInputNumber, NSelect } from 'naive-ui'
+import { NInput, NInputNumber, NPopselect } from 'naive-ui'
 
 const props = defineProps({
   questions: { type: Array, default: () => [] },
@@ -214,14 +203,16 @@ function mountOptions(q) {
 .question-item:hover .q-del { opacity: 0.7; }
 .q-del:hover { opacity: 1 !important; color: #f87171; }
 
-.q-parent-tag {
-  font-size: 16px; color: #60a5fa; padding: 2px 0 0 32px;
+.q-parent-label {
+  font-size: 16px; color: #6b7d70; cursor: pointer; text-decoration: none;
 }
-.q-unlink {
-  font-size: 16px; color: #8a9a8e; cursor: pointer; margin-left: 6px; text-decoration: none;
+.q-parent-label:hover { color: #f87171; }
+.q-mount-icon {
+  font-size: 16px; color: #6b7d70; cursor: pointer; text-decoration: none;
+  opacity: 0; transition: opacity 0.15s; padding: 0 4px;
 }
-.q-unlink:hover { color: #f87171; }
-.q-mount-row { padding: 2px 0 0 32px; }
+.question-item:hover .q-mount-icon { opacity: 0.5; }
+.q-mount-icon:hover { opacity: 1 !important; color: #60a5fa; }
 
 .loading-tip {
   font-size: 16px;
