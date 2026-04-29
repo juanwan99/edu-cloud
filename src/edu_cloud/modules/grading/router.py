@@ -793,21 +793,63 @@ async def create_grading_task(
         created_by=current["user"].id,
     )
     db.add(task)
+
+    # 自动为子题创建 Vision task（父题走两步，子题走 Vision 直评）
+    child_tasks = []
+    if req.question_id:
+        child_questions = (await db.execute(
+            select(Question).where(
+                Question.parent_id == req.question_id,
+                Question.school_id == school_id,
+            )
+        )).scalars().all()
+        for cq in child_questions:
+            # 清理子题旧结果（同父题逻辑）
+            old_child = (await db.execute(
+                select(GradingResult).where(
+                    GradingResult.question_id == cq.id,
+                    GradingResult.school_id == school_id,
+                    GradingResult.status.in_(["ai_pending", "ai_done"]),
+                )
+            )).scalars().all()
+            for old in old_child:
+                await db.delete(old)
+
+            ct = GradingTask(
+                subject_id=req.subject_id,
+                question_id=cq.id,
+                school_id=school_id,
+                status="pending",
+                total=0, completed=0, failed=0,
+                grading_limit=req.limit,
+                grading_mode=req.mode,
+                use_vision=True,
+                created_by=current["user"].id,
+            )
+            db.add(ct)
+            child_tasks.append(ct)
+            logger.info("create_grading_task: auto child task for question=%s (vision=true)", cq.name)
+
     await db.commit()
     await db.refresh(task)
+    for ct in child_tasks:
+        await db.refresh(ct)
 
-    logger.info("create_grading_task: id=%s, subject=%s, created_by=%s",
-                task.id, req.subject_id, current["user"].username)
+    logger.info("create_grading_task: id=%s, subject=%s, children=%d, created_by=%s",
+                task.id, req.subject_id, len(child_tasks), current["user"].username)
 
     # F007 orphan 防御：enqueue 失败必须清理已落库的 GradingTask
+    all_tasks = [task] + child_tasks
     try:
-        await enqueue_grading_task(task.id)
+        for t in all_tasks:
+            await enqueue_grading_task(t.id)
     except Exception as e:
         logger.error(
-            "create_grading_task: enqueue failed, cleaning up orphan task=%s, error=%s",
-            task.id, e, exc_info=True,
+            "create_grading_task: enqueue failed, cleaning up %d orphan tasks, error=%s",
+            len(all_tasks), e, exc_info=True,
         )
-        await db.delete(task)
+        for t in all_tasks:
+            await db.delete(t)
         await db.commit()
         raise HTTPException(503, f"任务队列暂不可用，请稍后重试: {e}")
 
