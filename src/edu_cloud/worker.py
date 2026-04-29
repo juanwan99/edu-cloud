@@ -99,6 +99,7 @@ async def run_agent_scheduled(ctx, school_id: str, task_type: str, params: dict 
 class WorkerSettings:
     """arq WorkerSettings — 通过 `arq edu_cloud.worker.WorkerSettings` 启动"""
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
+    job_timeout = 1800
     cron_jobs = [
         cron(run_auto_draft, hour=22, minute=0),  # 22:00 UTC = 06:00 UTC+8
         cron(run_w3_daily, hour=20, minute=0),     # 20:00 UTC = 04:00 UTC+8
