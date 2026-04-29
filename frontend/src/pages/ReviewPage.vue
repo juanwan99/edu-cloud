@@ -727,14 +727,13 @@ onUnmounted(() => {
 }
 
 .left-panel {
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .image-panel {
-  flex: none;
-  height: 45%;
+  flex: 1 1 0;
   min-height: 200px;
   overflow: hidden;
   background: #f0f0f0;
@@ -750,6 +749,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-shrink: 0;
+  max-height: 50%;
+  overflow-y: auto;
 }
 
 .ai-header-right {
@@ -765,7 +767,7 @@ onUnmounted(() => {
 
 .answer-image {
   max-width: 90%;
-  max-height: 85vh;
+  max-height: 100%;
   object-fit: contain;
   user-select: none;
   box-shadow: var(--shadow-md, 0 2px 12px rgba(0, 0, 0, 0.15));
