@@ -733,7 +733,8 @@ onUnmounted(() => {
 }
 
 .image-panel {
-  flex: 1;
+  flex: none;
+  height: 45%;
   min-height: 200px;
   overflow: hidden;
   background: #f0f0f0;
@@ -749,9 +750,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex-shrink: 1;
-  overflow-y: auto;
-  max-height: 50%;
 }
 
 .ai-header-right {
