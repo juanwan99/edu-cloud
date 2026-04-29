@@ -139,4 +139,18 @@ export function authGuard(to, from, next) {
 }
 
 router.beforeEach(authGuard)
+
+router.onError((err, to) => {
+  if (err.message?.includes('Failed to fetch dynamically imported module') ||
+      err.message?.includes('Importing a module script failed') ||
+      err.message?.includes('error loading dynamically imported module') ||
+      err.name === 'ChunkLoadError') {
+    const reloaded = sessionStorage.getItem('chunk_reload')
+    if (reloaded !== to.fullPath) {
+      sessionStorage.setItem('chunk_reload', to.fullPath)
+      window.location.assign(to.fullPath)
+    }
+  }
+})
+
 export default router
