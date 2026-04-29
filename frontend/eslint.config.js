@@ -29,6 +29,10 @@ export default [
         defineOptions: 'readonly',
         defineSlots: 'readonly',
         withDefaults: 'readonly',
+        __BUILD_TIME__: 'readonly',
+        __GIT_HASH__: 'readonly',
+        __SOURCE_DIRTY__: 'readonly',
+        __BUILD_ID__: 'readonly',
       },
     },
     rules: {
