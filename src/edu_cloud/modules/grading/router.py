@@ -70,10 +70,6 @@ def _validate_criteria(criteria: list[dict], question_max_score: float) -> None:
         if score < 0:
             raise HTTPException(422, f"criteria[{i}] score must be >= 0, got {score}")
 
-        answer = item.get("standardAnswer") or item.get("answer")
-        if not answer or not isinstance(answer, str) or not answer.strip():
-            raise HTTPException(422, f"criteria[{i}] missing standardAnswer or answer")
-
         total += score
 
     # Use a small tolerance for float comparison
@@ -308,6 +304,7 @@ class GradingTaskCreate(BaseModel):
     question_id: str | None = None
     limit: int | None = None
     mode: Literal["realtime", "batch"] = "realtime"
+    use_vision: bool = False
 
 
 def _task_response(t: GradingTask) -> dict:
@@ -329,6 +326,7 @@ def _task_response(t: GradingTask) -> dict:
 
 class GradeSingleRequest(BaseModel):
     answer_id: str
+    use_vision: bool = False
 
 
 @router.post("/grade-single")
@@ -441,7 +439,26 @@ async def grade_single_answer(
 
             plog["grading_model"] = llm.model
 
-            if grading_prompt_tpl is None:
+            # Vision-direct for non-text question types
+            _vision_tpl = get_prompt(subject_code, 'GRADING_VISION', 'senior') or get_prompt(subject_code, 'GRADING', 'senior')
+            _use_vision = req.use_vision and _vision_tpl
+
+            if _use_vision:
+                plog["pipeline_type"] = "vision_direct"
+                plog["grading_prompt_type"] = "GRADING_VISION"
+                rubric_text = format_rubric_for_grading(rubric.criteria)
+                _prompt = render_prompt(_vision_tpl, {
+                    "fullScore": str(question.max_score),
+                    "rubric": rubric_text,
+                })
+                t_grade = _time.perf_counter()
+                grade_result = await llm.grade_vision(
+                    images_b64=[image_b64],
+                    prompt=_prompt,
+                    max_score=question.max_score,
+                )
+                plog["grading_ms"] = int((_time.perf_counter() - t_grade) * 1000)
+            elif grading_prompt_tpl is None:
                 raise HTTPException(500, f"该科目（{subject_code}）缺少评分 prompt 配置，无法进行 AI 评分")
             else:
                 # 两步：OCR → 文本评分
@@ -772,6 +789,7 @@ async def create_grading_task(
         failed=0,
         grading_limit=req.limit,
         grading_mode=req.mode,
+        use_vision=req.use_vision,
         created_by=current["user"].id,
     )
     db.add(task)

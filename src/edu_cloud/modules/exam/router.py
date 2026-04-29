@@ -58,6 +58,7 @@ class QuestionUpdate(BaseModel):
     region_id: str | None = None
     knowledge_points: dict | None = None
     correct_answer: str | None = None
+    parent_id: str | None = None
 
 
 class QuestionContentUpdate(BaseModel):
@@ -89,6 +90,7 @@ def _question_response(q: Question) -> dict:
         "content_images": q.content_images,
         "reference_answer": q.reference_answer,
         "reference_answer_images": q.reference_answer_images,
+        "parent_id": q.parent_id,
     }
 
 

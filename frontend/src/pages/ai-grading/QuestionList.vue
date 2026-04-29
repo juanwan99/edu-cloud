@@ -40,14 +40,29 @@
         </div>
         <a class="q-del" @click.stop="$emit('delete-question', q)" title="删除题目">✕</a>
       </div>
+      <div v-if="q.parent_id" class="q-parent-tag">
+        ↳ 挂载到 {{ parentName(q.parent_id) }}
+        <a class="q-unlink" @click.stop="$emit('set-parent', q, null)">取消</a>
+      </div>
+      <div v-else class="q-mount-row">
+        <n-select
+          size="tiny"
+          placeholder="挂载到..."
+          :value="null"
+          :options="mountOptions(q)"
+          @update:value="pid => $emit('set-parent', q, pid)"
+          style="max-width:140px"
+          :consistent-menu-width="false"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { NInput, NInputNumber } from 'naive-ui'
+import { NInput, NInputNumber, NSelect } from 'naive-ui'
 
-defineProps({
+const props = defineProps({
   questions: { type: Array, default: () => [] },
   selectedQuestionId: { type: [String, Number], default: null },
   editingScoreId: { type: [String, Number], default: null },
@@ -56,7 +71,18 @@ defineProps({
   loading: { type: Boolean, default: false },
 })
 
-defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', 'add-question', 'start-edit-name', 'save-name', 'update-name-value', 'delete-question'])
+defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', 'add-question', 'start-edit-name', 'save-name', 'update-name-value', 'delete-question', 'set-parent'])
+
+function parentName(parentId) {
+  const p = props.questions.find(q => q.question_id === parentId)
+  return p ? (p.name || p.question_name) : '?'
+}
+
+function mountOptions(q) {
+  return props.questions
+    .filter(o => o.question_id !== q.question_id && !o.parent_id)
+    .map(o => ({ label: `第${o.name || o.question_name}题`, value: o.question_id }))
+}
 </script>
 
 <style scoped>
@@ -187,6 +213,15 @@ defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', '
 }
 .question-item:hover .q-del { opacity: 0.7; }
 .q-del:hover { opacity: 1 !important; color: #f87171; }
+
+.q-parent-tag {
+  font-size: 16px; color: #60a5fa; padding: 2px 0 0 32px;
+}
+.q-unlink {
+  font-size: 16px; color: #8a9a8e; cursor: pointer; margin-left: 6px; text-decoration: none;
+}
+.q-unlink:hover { color: #f87171; }
+.q-mount-row { padding: 2px 0 0 32px; }
 
 .loading-tip {
   font-size: 16px;

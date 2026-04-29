@@ -21,10 +21,12 @@ QUESTION_TYPE_CHOICE = "choice"
 QUESTION_TYPE_MULTI_CHOICE = "multi_choice"
 QUESTION_TYPE_FILL_BLANK = "fill_blank"
 QUESTION_TYPE_ESSAY = "essay"
+QUESTION_TYPE_DRAWING = "drawing"
 
 QUESTION_TYPES_OBJECTIVE = (QUESTION_TYPE_CHOICE, QUESTION_TYPE_MULTI_CHOICE)
-QUESTION_TYPES_SUBJECTIVE = (QUESTION_TYPE_FILL_BLANK, QUESTION_TYPE_ESSAY)
+QUESTION_TYPES_SUBJECTIVE = (QUESTION_TYPE_FILL_BLANK, QUESTION_TYPE_ESSAY, QUESTION_TYPE_DRAWING)
 QUESTION_TYPES_ALL = QUESTION_TYPES_OBJECTIVE + QUESTION_TYPES_SUBJECTIVE
+QUESTION_TYPES_VISUAL = (QUESTION_TYPE_DRAWING,)
 
 
 # ── exam-ai 迁入模型 ──────────────────────────────────────────────
@@ -79,6 +81,7 @@ class Question(Base, IdMixin, TimestampMixin):
     content_images: Mapped[list | None] = mapped_column(JSON, default=None)
     reference_answer: Mapped[str | None] = mapped_column(Text, default=None)
     reference_answer_images: Mapped[list | None] = mapped_column(JSON, default=None)
+    parent_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("questions.id"), default=None, index=True)
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
 
 

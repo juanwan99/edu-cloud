@@ -338,6 +338,7 @@ async def get_dispatch_status(
                     "rubric_source": q_rubric.source if q_rubric else None,
                     "answer_count": q_answer_count,
                     "graded_count": q_graded_count,
+                    "parent_id": q.parent_id,
                 })
 
         has_scan_dir = subj.name in scan_dir_map

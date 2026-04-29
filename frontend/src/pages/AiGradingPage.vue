@@ -40,6 +40,7 @@
         @save-name="saveName"
         @update-name-value="handleUpdateNameValue"
         @delete-question="handleDeleteQuestion"
+        @set-parent="handleSetParent"
       />
 
       <!-- 右侧：阅卷操作面板 -->
@@ -246,6 +247,16 @@ async function handleDeleteQuestion(q) {
     await loadQuestions()
   } catch (e) {
     message.error(e.response?.data?.detail || '删除失败')
+  }
+}
+
+async function handleSetParent(q, parentId) {
+  try {
+    await updateQuestion(q.question_id, { parent_id: parentId })
+    message.success(parentId ? '已挂载' : '已取消挂载')
+    await loadQuestions()
+  } catch (e) {
+    message.error(e.response?.data?.detail || '操作失败')
   }
 }
 
