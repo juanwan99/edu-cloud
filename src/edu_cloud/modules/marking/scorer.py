@@ -320,10 +320,20 @@ async def get_answer_at(
     )).scalar_one_or_none()
     max_score = q.max_score if q else 0.0
 
+    child_ids_q = select(Question.id).where(Question.parent_id == question_id)
+    child_answers = (await db.execute(
+        select(StudentAnswer).where(
+            StudentAnswer.question_id.in_(child_ids_q),
+            StudentAnswer.student_id == answer.student_id,
+        )
+    )).scalars().all()
+    child_answer_ids = [ca.id for ca in child_answers]
+
     return {
         "answer_id": answer.id,
         "student_id": answer.student_id,
         "image_path": answer.image_path,
+        "child_answer_ids": child_answer_ids,
         "position": {"current": offset + 1, "total": total},
         "ai": ai_info,
         "max_score": max_score,

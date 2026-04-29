@@ -396,7 +396,7 @@ async function loadNext() {
     if (data.done) {
       done.value = true
     } else {
-      applyAnswer(data.answer)
+      await applyAnswer(data.answer)
       browseIndex.value = data.answer.position.current - 1
       browsing.value = false
       await loadImage(data.answer.answer_id)
@@ -424,7 +424,7 @@ async function handleSubmit() {
     } else if (data.next?.done) {
       done.value = true
     } else if (data.next?.answer) {
-      applyAnswer(data.next.answer)
+      await applyAnswer(data.next.answer)
       await loadImage(data.next.answer.answer_id)
       await nextTick()
       scoreInputRef.value?.focus()
@@ -534,7 +534,7 @@ async function loadAnswerAt(offset) {
     if (seq !== loadSeq.value) return
     browseIndex.value = offset
     browsing.value = true
-    applyAnswer(data)
+    await applyAnswer(data)
     if (data.graded_score != null) {
       currentScore.value = data.graded_score
       comment.value = data.graded_comment || ''
