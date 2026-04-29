@@ -165,18 +165,26 @@ def _render_page(args):
     return out_path_str
 
 
+def _pdf_sort_key(stem: str):
+    """数字优先排序：'1'→1, '001'→1, '10'→10, 非数字按字符串。"""
+    try:
+        return (0, int(stem))
+    except ValueError:
+        return (1, stem)
+
+
 def ensure_images_from_pdfs(image_dir: str, pages_per_student: int = 2, dpi: int = 150) -> int:
-    """检查目录中是否有 PDF，并行拆分为 PNG 图片（幂等）。
+    """将目录中的 PDF 拆分为 JPG 图片（幂等）。
 
-    跨 PDF 全局递增编号，输出 0001A.png / 0001B.png，
-    直接适配原有 pipeline 命名逻辑。
+    pages_per_student=2: 双面答题卡，奇数页→A面，偶数页→B面
+    pages_per_student=1: 单面 A3 扫描（正反面并排在一页），每页→A面
 
-    Returns: 新生成的 PNG 数量
+    Returns: 新生成的图片数量
     """
-    from concurrent.futures import ProcessPoolExecutor, as_completed
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     d = Path(image_dir)
-    pdfs = sorted(d.rglob("*.pdf"), key=lambda p: p.stem)
+    pdfs = sorted(d.rglob("*.pdf"), key=lambda p: _pdf_sort_key(p.stem))
     if not pdfs:
         return 0
 
@@ -228,7 +236,7 @@ def ensure_images_from_pdfs(image_dir: str, pages_per_student: int = 2, dpi: int
     logger.info("pdf_import: %d total students, %d pages to render across %d workers",
                 global_stu, len(tasks), min(6, len(tasks)))
     created = 0
-    with ProcessPoolExecutor(max_workers=6) as pool:
+    with ThreadPoolExecutor(max_workers=6) as pool:
         futures = {pool.submit(_render_page, t): t for t in tasks}
         for fut in as_completed(futures):
             try:

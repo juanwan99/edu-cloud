@@ -355,10 +355,16 @@ async def start_pipeline(
             "barcode_region": bc_region,
         }
 
+    # 从已组装的 template dict 统一提取 barcode_region（两个分支都走这里）
+    bc_region = template.get("barcode_region")
+    tpl_size = template.get("image_size", {})
+    tpl_width = tpl_size.get("width", 0)
+    tpl_height = tpl_size.get("height", 0)
+
     # A/B 面自动纠正（仅 A 面启动时执行，利用条码检测真实面）
-    if req.side == "A" and bc_region:
+    if req.side == "A" and bc_region and tpl_width and tpl_height:
         swapped = pipeline_service.auto_fix_ab_sides(
-            req.image_dir, bc_region, tpl.image_width, tpl.image_height,
+            req.image_dir, bc_region, tpl_width, tpl_height,
         )
         if swapped:
             logger.info("pipeline: auto-fixed %d swapped A/B pairs", swapped)

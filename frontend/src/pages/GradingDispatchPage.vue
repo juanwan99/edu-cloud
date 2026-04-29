@@ -235,6 +235,11 @@ async function loadStatus(examId) {
     const res = await getDispatchStatus(examId)
 
     allSubjects.value = res.data || []
+
+    const hasCutting = (res.data || []).some(s => s.stage === 'cutting')
+    if (hasCutting && !pollTimer) {
+      startPolling()
+    }
   } catch (e) {
     message.error('加载阅卷状态失败')
     allSubjects.value = []
