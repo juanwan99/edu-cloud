@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+truth — Truthline: AI 开发环境真相对齐系统
+
+Usage:
+  truth status    显示当前真相链状态（源码→build→dist→nginx→后端）
+  truth doctor    诊断幽灵进程/端口占用/dist权限/systemd状态
+  truth help      显示此帮助
+
+EOF
+}
+
+case "${1:-help}" in
+  status)  exec "$SCRIPT_DIR/truth-status.sh" "$PROJECT_DIR" ;;
+  doctor)  exec "$SCRIPT_DIR/truth-doctor.sh" "$PROJECT_DIR" ;;
+  help|-h|--help) usage ;;
+  *)       echo "Unknown command: $1"; usage; exit 1 ;;
+esac

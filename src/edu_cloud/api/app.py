@@ -1,4 +1,6 @@
 import logging
+import os
+import subprocess
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
@@ -16,6 +18,39 @@ from edu_cloud.services.exceptions import (
 from edu_cloud.logging_config import request_id_var, current_user_var, setup_logging
 
 _BOOT_TIME = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _get_repo_root():
+    try:
+        return subprocess.check_output(
+            ['git', 'rev-parse', '--show-toplevel'], text=True
+        ).strip()
+    except Exception:
+        return os.path.dirname(os.path.abspath(__file__))
+
+
+def _get_git_hash():
+    try:
+        return subprocess.check_output(
+            ['git', 'rev-parse', '--short', 'HEAD'], text=True
+        ).strip()
+    except Exception:
+        return 'unknown'
+
+
+def _is_source_dirty():
+    try:
+        subprocess.check_call(
+            ['git', 'diff', '--quiet', 'HEAD', '--', 'src/'],
+            cwd=_get_repo_root()
+        )
+        return False
+    except Exception:
+        return True
+
+
+_GIT_HASH = _get_git_hash()
+_SOURCE_DIRTY = _is_source_dirty()
 
 logger = logging.getLogger(__name__)
 
@@ -333,6 +368,12 @@ def create_app() -> FastAPI:
 
     @app.get("/api/v1/version")
     async def version():
-        return {"version": "0.1.0", "boot_time": _BOOT_TIME}
+        return {
+            "version": "0.1.0",
+            "boot_time": _BOOT_TIME,
+            "git_hash": _GIT_HASH,
+            "source_dirty": _SOURCE_DIRTY,
+            "pid": os.getpid(),
+        }
 
     return app
