@@ -3,7 +3,7 @@
     <div class="top-bar">
       <div>
         <h2 class="page-title">扫描调度</h2>
-        <p class="page-subtitle">扫描切割 → 选择题判分 → AI 阅卷 → 教师校对</p>
+        <p class="page-subtitle">扫描切割 → 选择题自动判分</p>
       </div>
       <n-select
         v-model:value="selectedExamId"
@@ -48,10 +48,8 @@
         :batch-progress-text="batchProgressText"
         :selected-count="selectedSubjects.length"
         :can-batch-cut="canBatchCut"
-        :can-batch-grade="canBatchGrade"
         @batch-detect="handleBatchDetect"
         @batch-cut="handleBatchCut"
-        @batch-grade="handleBatchGrade"
       />
 
       <!-- 科目卡片 -->
@@ -60,20 +58,17 @@
           v-for="s in subjects" :key="s.subject_id"
           :subject="s"
           :is-selected="selectedSubjects.includes(s.subject_id)"
-          :progress-pct="progressPct"
+          :progress-pct="activeCutSubjectId === s.subject_id ? progressPct : 0"
           :detect-status="detectStatus[s.subject_id]"
           :show-detect="canDetect(s)"
           :show-cut="canCut(s)"
           :is-detect-loading="detectLoading === s.subject_id"
-          :is-grading-loading="gradingLoading === s.subject_id"
+          :is-cut-loading="cutLoading === s.subject_id"
           @toggle="toggleSubject"
           @detect="handleDetectTemplate"
           @preview="handlePreviewTemplate"
           @cut="handleStartCut"
           @stop-cut="handleStopCut"
-          @grade="handleStartGrade"
-          @go-review="$router.push({ name: 'MarkingSelect' })"
-          @go-ai-grading="goToAiGrading"
           @verify="handleVerify"
         />
 
@@ -122,11 +117,10 @@
 import { ref, computed, h, onMounted, onUnmounted } from 'vue'
 import { NSelect, NModal, NDataTable, NTag } from 'naive-ui'
 import { useMessage } from 'naive-ui'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { SCHOOL_ADMIN_ROLES } from '../config/roles.js'
 import { listExams } from '../api/exams'
-import { getDispatchStatus, createTask } from '../api/grading'
+import { getDispatchStatus } from '../api/grading'
 import { uploadScanFolder, pdfImport, scanDirectory, startPipeline, getPipelineProgress, stopPipeline, autoDetectCV, saveCVTemplate, getCVTemplate, fetchScanImageBlob, verifyTemplate, deleteOrphanQuestions } from '../api/scan'
 import TemplatePreviewEditor from '../components/TemplatePreviewEditor.vue'
 import SubjectStatusCard from './grading-dispatch/SubjectStatusCard.vue'
@@ -134,7 +128,6 @@ import ScanSection from './grading-dispatch/ScanSection.vue'
 import BatchOperationsBar from './grading-dispatch/BatchOperationsBar.vue'
 
 const message = useMessage()
-const router = useRouter()
 const auth = useAuthStore()
 
 const canManageAll = computed(() => SCHOOL_ADMIN_ROLES.includes(auth.roleName))
@@ -160,9 +153,12 @@ const uploadLoading = ref(false)
 const uploadProgress = ref('')
 
 const progressPct = ref(0)
+const activeCutSubjectId = ref(null)
+const cutLoading = ref(null)
 let pollTimer = null
+let pollBound = false
+let unboundPollCount = 0
 const detectLoading = ref(null)
-const gradingLoading = ref(null)
 const pendingBSide = ref(null)
 
 function countByStage(stage) {
@@ -171,13 +167,10 @@ function countByStage(stage) {
 
 const stageGroups = computed(() => {
   const defs = [
-    { key: 'done', label: '已完成' },
-    { key: 'active', label: '阅卷中', stages: ['ai_grading', 'reviewing'] },
-    { key: 'ready', label: '待阅卷' },
+    { key: 'done', label: '已切割', stages: ['ready', 'done', 'ai_grading', 'reviewing', 'failed'] },
     { key: 'pending_cut', label: '待切割' },
     { key: 'pending_detect', label: '待检测' },
     { key: 'idle', label: '待上传' },
-    { key: 'failed', label: '失败' },
   ]
   return defs.map(d => ({
     ...d,
@@ -236,12 +229,14 @@ async function loadStatus(examId) {
 
     allSubjects.value = res.data || []
 
-    const hasCutting = (res.data || []).some(s => s.stage === 'cutting')
-    if (hasCutting && !pollTimer) {
+    const cuttingSubject = (res.data || []).find(s => s.stage === 'cutting')
+    if (cuttingSubject && !pollTimer) {
+      activeCutSubjectId.value = cuttingSubject.subject_id
+      pollBound = true
       startPolling()
     }
   } catch (e) {
-    message.error('加载阅卷状态失败')
+    message.error('加载科目状态失败')
     allSubjects.value = []
   } finally {
     loading.value = false
@@ -558,28 +553,42 @@ async function handleStartCut(s) {
     message.error('找不到扫描目录，请先上传扫描图')
     return
   }
+  cutLoading.value = s.subject_id
   try {
     let hasB = false
     try {
       const tpl = (await getCVTemplate(s.subject_id)).data
       hasB = !!(tpl && tpl.B && tpl.B.regions && tpl.B.regions.length)
     } catch {}
-    await startPipeline(s.subject_id, 'A', dir)
+    const res = await startPipeline(s.subject_id, 'A', dir)
     if (hasB) pendingBSide.value = { subjectId: s.subject_id, dir }
+
+    // F002: 乐观更新 — 立即将本地 stage 改为 cutting
+    const entry = allSubjects.value.find(x => x.subject_id === s.subject_id)
+    if (entry) entry.stage = 'cutting'
+    activeCutSubjectId.value = s.subject_id
+    progressPct.value = 0
+    pollBound = false
+
+    message.info(`切割已启动（${res.data?.total_files || '?'} 份）`)
     startPolling()
-    await loadStatus(selectedExamId.value)
   } catch (e) {
     message.error('启动切割失败: ' + (e.response?.data?.detail || e.message))
+  } finally {
+    cutLoading.value = null
   }
 }
 
 async function handleStopCut() {
   try {
     await stopPipeline()
+    message.info('切割已停止')
   } catch (e) {
-    message.error('停止��败')
+    message.error('停止失败')
   }
   stopPolling()
+  activeCutSubjectId.value = null
+  pollBound = false
   await loadStatus(selectedExamId.value)
 }
 
@@ -623,44 +632,6 @@ async function handleBatchCut() {
   await loadStatus(selectedExamId.value)
 }
 
-// AI 阅卷
-async function handleStartGrade(s) {
-  gradingLoading.value = s.subject_id
-  try {
-    await createTask({ subject_id: s.subject_id })
-    await loadStatus(selectedExamId.value)
-  } catch (e) {
-    message.error('创建阅卷任务失败: ' + (e.response?.data?.detail || e.message))
-  } finally {
-    gradingLoading.value = null
-  }
-}
-
-const canBatchGrade = computed(() =>
-  selectedSubjects.value.some(id => {
-    const s = subjects.value.find(x => x.subject_id === id)
-    return s && s.stage === 'ready'
-  })
-)
-
-async function handleBatchGrade() {
-  for (const id of selectedSubjects.value) {
-    const s = subjects.value.find(x => x.subject_id === id)
-    if (s && s.stage === 'ready') {
-      try {
-        await createTask({ subject_id: s.subject_id })
-      } catch (e) {
-        message.error(`阅卷任务创建失���: ${s.subject_name}`)
-      }
-    }
-  }
-  await loadStatus(selectedExamId.value)
-}
-
-function goToAiGrading(s) {
-  router.push(`/exams/${selectedExamId.value}/ai-grading/${s.subject_id}`)
-}
-
 // --- 校对配置 ---
 const verifyShow = ref(false)
 const verifyLoading = ref(false)
@@ -683,7 +654,7 @@ const verifyCols = [
       : '-',
   },
   {
-    title: '题目（阅卷）',
+    title: '题目配置',
     key: 'question',
     render: (row) => row.question
       ? `${row.question.type} / ${row.question.max_score}分`
@@ -753,34 +724,81 @@ function toggleSubject(id, checked) {
 }
 
 // 进度轮询
+async function pollOnce() {
+  try {
+    const res = await getPipelineProgress()
+    const p = res.data
+
+    // F003: 绑定 activeCutSubjectId
+    if (p.status === 'running' && p.current_subject_id) {
+      activeCutSubjectId.value = p.current_subject_id
+      pollBound = true
+      unboundPollCount = 0
+      // V004: 同步本地 stage
+      const entry = allSubjects.value.find(x => x.subject_id === p.current_subject_id)
+      if (entry && entry.stage !== 'cutting') entry.stage = 'cutting'
+    }
+
+    // V003: 只有绑定后才更新进度，避免显示上一次任务的陈旧进度
+    if (pollBound && p.total > 0) {
+      progressPct.value = Math.round((p.processed / p.total) * 100)
+    }
+
+    if (p.status !== 'running') {
+      // V002: 宽限期最多 3 次（约 6 秒），超时后刷新状态
+      if (!pollBound) {
+        unboundPollCount++
+        if (unboundPollCount < 3) return
+        stopPolling()
+        activeCutSubjectId.value = null
+        await loadStatus(selectedExamId.value)
+        return
+      }
+
+      stopPolling()
+
+      // F007: 完成反馈（V005: processed 已是成功数）
+      if (p.failed > 0) {
+        message.warning(`切割完成：${p.processed} 成功，${p.failed} 失败`)
+      } else if (p.processed > 0) {
+        message.success(`切割完成：${p.processed} 份`)
+      }
+
+      activeCutSubjectId.value = null
+      pollBound = false
+      unboundPollCount = 0
+
+      if (pendingBSide.value) {
+        const { subjectId, dir } = pendingBSide.value
+        pendingBSide.value = null
+        try {
+          await startPipeline(subjectId, 'B', dir)
+          activeCutSubjectId.value = subjectId
+          progressPct.value = 0
+          pollBound = false
+          unboundPollCount = 0
+          // V004: B 面乐观更新 stage
+          const entry = allSubjects.value.find(x => x.subject_id === subjectId)
+          if (entry) entry.stage = 'cutting'
+          message.info('A 面切割完成，自动开始 B 面切割')
+          startPolling()
+        } catch (e) {
+          message.warning('B 面切割启动失败: ' + (e.response?.data?.detail || e.message))
+        }
+      }
+      await loadStatus(selectedExamId.value)
+    }
+  } catch (e) {
+    stopPolling()
+    message.warning('切割进度获取失败')
+  }
+}
+
 function startPolling() {
   stopPolling()
-  pollTimer = setInterval(async () => {
-    try {
-      const res = await getPipelineProgress()
-      const p = res.data
-      if (p.total > 0) {
-        progressPct.value = Math.round((p.processed / p.total) * 100)
-      }
-      if (p.status !== 'running') {
-        stopPolling()
-        if (pendingBSide.value) {
-          const { subjectId, dir } = pendingBSide.value
-          pendingBSide.value = null
-          try {
-            await startPipeline(subjectId, 'B', dir)
-            message.info('A 面切割完成，自动开始 B 面切割')
-            startPolling()
-          } catch (e) {
-            message.warning('B 面切割启动失败: ' + (e.response?.data?.detail || e.message))
-          }
-        }
-        await loadStatus(selectedExamId.value)
-      }
-    } catch (e) {
-      stopPolling()
-    }
-  }, 2000)
+  unboundPollCount = 0
+  pollOnce()
+  pollTimer = setInterval(pollOnce, 2000)
 }
 
 function stopPolling() {
@@ -790,13 +808,6 @@ function stopPolling() {
   }
 }
 
-const STAGE_LABELS = {
-  idle: '待上传', pending_detect: '待检测', pending_cut: '待切割',
-  cutting: '切割中', ready: '待阅卷',
-  ai_grading: 'AI 阅卷', reviewing: '校对中', failed: '失败', done: '已完成',
-}
-function stageLabel(stage) { return STAGE_LABELS[stage] || stage }
-function stageClass(stage) { return `tag-${stage}` }
 </script>
 
 <style scoped>
@@ -809,10 +820,7 @@ function stageClass(stage) { return `tag-${stage}` }
 .summary-item { display: flex; align-items: baseline; gap: 4px; }
 .summary-num { font-size: 20px; font-weight: 700; color: #333; }
 .summary-num.done { color: #16a34a; }
-.summary-num.active { color: #d97706; }
-.summary-num.ready { color: #7c3aed; }
 .summary-num.idle { color: #9ca3af; }
-.summary-num.failed { color: #dc2626; }
 .summary-label { font-size: 16px; color: #8a9a8e; }
 
 .scan-section { background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
@@ -838,11 +846,7 @@ function stageClass(stage) { return `tag-${stage}` }
 .tag-pending_detect { background: #fef3c7; color: #92400e; }
 .tag-pending_cut { background: #e0f2fe; color: #0369a1; }
 .tag-cutting { background: #dbeafe; color: #1e40af; }
-.tag-ready { background: #ede9fe; color: #5b21b6; }
-.tag-ai_grading { background: #fef3c7; color: #92400e; }
-.tag-reviewing { background: #fee2e2; color: #991b1b; }
-.tag-failed { background: #fee2e2; color: #dc2626; }
-.tag-done { background: #dcfce7; color: #166534; }
+.tag-ready { background: #dcfce7; color: #166534; }
 
 .detect-tag { display: inline-block; padding: 1px 8px; border-radius: 50px; font-size: 16px; font-weight: 500; }
 .detect-tag.running { background: #fef3c7; color: #92400e; }
@@ -854,14 +858,11 @@ function stageClass(stage) { return `tag-${stage}` }
 .card-detail { font-size: 16px; color: #555; }
 .card-detail b { font-weight: 600; }
 .card-detail.muted { color: #aaa; }
-.card-detail.err { color: #dc2626; font-weight: 600; }
 .card-detail.ok { color: #16a34a; font-weight: 600; }
 
 .prog-row { display: flex; align-items: center; gap: 10px; }
 .prog-bar { flex: 1; height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
 .prog-fill { height: 100%; background: #3b82f6; border-radius: 3px; transition: width 0.3s; }
-.prog-fill.warn { background: #f59e0b; }
-.prog-fill.purple { background: #8b5cf6; }
 .prog-text { font-size: 16px; color: #666; white-space: nowrap; }
 
 .card-stats { display: flex; gap: 6px; font-size: 16px; color: #999; }

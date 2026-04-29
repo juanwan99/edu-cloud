@@ -1,5 +1,5 @@
 """扫描流水线 API 端点。"""
-import asyncio
+
 import logging
 import os
 from pathlib import Path
@@ -513,9 +513,7 @@ async def start_pipeline(
         side=req.side,
     )
 
-    # 如果没有正在运行的队列，启动队列处理
-    if not pipeline_service.is_running():
-        asyncio.create_task(pipeline_service.run_queue())
+    pipeline_service.ensure_queue_running()
 
     queue_len = len(pipeline_service._queue) + (1 if pipeline_service.is_running() else 0)
     logger.info("Pipeline queued: subject=%s, dir=%s, files=%d, queue=%d",

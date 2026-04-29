@@ -12,7 +12,6 @@
     <div class="batch-bar" v-if="selectedCount > 0">
       <span>已选 <b>{{ selectedCount }}</b> 科</span>
       <n-button size="tiny" type="primary" @click="$emit('batch-cut')" :disabled="!canBatchCut">批量切割</n-button>
-      <n-button size="tiny" type="warning" @click="$emit('batch-grade')" :disabled="!canBatchGrade">批量 AI 阅卷</n-button>
     </div>
   </div>
 </template>
@@ -27,10 +26,9 @@ defineProps({
   batchProgressText: { type: String, default: '' },
   selectedCount: { type: Number, default: 0 },
   canBatchCut: { type: Boolean, default: false },
-  canBatchGrade: { type: Boolean, default: false },
 })
 
-defineEmits(['batch-detect', 'batch-cut', 'batch-grade'])
+defineEmits(['batch-detect', 'batch-cut'])
 </script>
 
 <style scoped>

@@ -35,6 +35,7 @@ _running = False
 # 多科目队列（F009 修复：每个队列项携带自己的 save_fn）
 _queue: list[dict] = []
 _queue_stopped: bool = False  # F013: 独立 stop 标志，不复用 _running
+_queue_task: asyncio.Task | None = None  # F004: 防止并发创建多个 run_queue
 
 
 def get_progress(pipeline_id: str = "default") -> dict:
@@ -643,6 +644,13 @@ def enqueue_pipeline(
         "save_objective_fn": save_objective_fn,
     })
     return len(_queue)
+
+
+def ensure_queue_running() -> None:
+    """确保 run_queue task 正在运行，防止并发创建多个（F004）。"""
+    global _queue_task
+    if _queue_task is None or _queue_task.done():
+        _queue_task = asyncio.create_task(run_queue())
 
 
 async def run_queue() -> list[dict]:

@@ -31,45 +31,21 @@
       <template v-else-if="subject.stage === 'pending_cut'">
         <span class="card-detail">模板就绪，<b>{{ subject.scan_images }}</b> 份待切割</span>
       </template>
-      <template v-else-if="subject.stage === 'ready'">
-        <span class="card-detail">主观题 <b>{{ subject.subjective_total }}</b> 份就绪</span>
-      </template>
-      <template v-else-if="subject.stage === 'ai_grading'">
-        <div class="prog-row">
-          <div class="prog-bar"><div class="prog-fill warn" :style="{ width: subject.subjective_total ? (subject.ai_graded/subject.subjective_total*100)+'%' : '0%' }"></div></div>
-          <span class="prog-text">{{ subject.ai_graded }}/{{ subject.subjective_total }}</span>
-        </div>
-      </template>
-      <template v-else-if="subject.stage === 'reviewing'">
-        <div class="prog-row">
-          <div class="prog-bar"><div class="prog-fill purple" :style="{ width: subject.ai_graded ? (subject.reviewed/subject.ai_graded*100)+'%' : '0%' }"></div></div>
-          <span class="prog-text">校对 {{ subject.reviewed }}/{{ subject.ai_graded }}</span>
-        </div>
-      </template>
-      <template v-else-if="subject.stage === 'failed'">
-        <span class="card-detail err">{{ subject.ai_failed }} 份失败</span>
-      </template>
-      <template v-else-if="subject.stage === 'done'">
-        <span class="card-detail ok">全部完成</span>
+      <template v-else-if="subject.answer_count > 0">
+        <span class="card-detail ok">已切割 <b>{{ subject.answer_count }}</b> 份</span>
       </template>
     </div>
 
     <div class="card-stats">
       <span v-if="subject.scan_images" title="扫描份数">{{ subject.scan_images }} 份</span>
       <span v-if="subject.answer_count" title="已切割">{{ subject.answer_count }} 切</span>
-      <span v-if="subject.objective_graded" title="客观题">{{ subject.objective_graded }} 客</span>
-      <span v-if="subject.subjective_total" title="主观题">{{ subject.subjective_total }} 主</span>
     </div>
 
     <div class="card-actions">
       <n-button v-if="showDetect" size="small" @click="$emit('detect', subject)" :loading="isDetectLoading">模板检测</n-button>
       <n-button v-if="showCut" size="small" @click="$emit('preview', subject)" :loading="isDetectLoading">预览模板</n-button>
-      <n-button v-if="showCut" size="small" type="primary" @click="$emit('cut', subject)">切割</n-button>
+      <n-button v-if="showCut" size="small" type="primary" @click="$emit('cut', subject)" :loading="isCutLoading">切割</n-button>
       <n-button v-if="subject.stage === 'cutting'" size="small" type="error" @click="$emit('stop-cut')">停止</n-button>
-      <n-button v-if="subject.stage === 'ready'" size="small" type="warning" @click="$emit('grade', subject)" :loading="isGradingLoading">AI 阅卷</n-button>
-      <n-button v-if="subject.stage === 'failed'" size="small" type="error" @click="$emit('grade', subject)">重试</n-button>
-      <n-button v-if="subject.stage === 'reviewing'" size="small" @click="$emit('go-review')">去校对</n-button>
-      <n-button size="small" @click="$emit('go-ai-grading', subject)">评分配置</n-button>
       <n-button size="small" type="tertiary" @click="$emit('verify', subject)">校对配置</n-button>
     </div>
   </div>
@@ -86,18 +62,21 @@ const props = defineProps({
   showDetect: { type: Boolean, default: false },
   showCut: { type: Boolean, default: false },
   isDetectLoading: { type: Boolean, default: false },
-  isGradingLoading: { type: Boolean, default: false },
+  isCutLoading: { type: Boolean, default: false },
 })
 
-defineEmits(['toggle', 'detect', 'preview', 'cut', 'stop-cut', 'grade', 'go-review', 'go-ai-grading', 'verify'])
+defineEmits(['toggle', 'detect', 'preview', 'cut', 'stop-cut', 'verify'])
 
 const STAGE_LABELS = {
   idle: '待上传', pending_detect: '待检测', pending_cut: '待切割',
-  cutting: '切割中', ready: '待阅卷',
-  ai_grading: 'AI 阅卷', reviewing: '校对中', failed: '失败', done: '已完成',
+  cutting: '切割中', ready: '已切割', done: '已切割',
+  ai_grading: '已切割', reviewing: '已切割', failed: '已切割',
 }
 function stageLabel(stage) { return STAGE_LABELS[stage] || stage }
-function stageClass(stage) { return `tag-${stage}` }
+function stageClass(stage) {
+  if (['ready', 'done', 'ai_grading', 'reviewing', 'failed'].includes(stage)) return 'tag-ready'
+  return `tag-${stage}`
+}
 </script>
 
 <style scoped>
@@ -112,11 +91,7 @@ function stageClass(stage) { return `tag-${stage}` }
 .tag-pending_detect { background: #fef3c7; color: #92400e; }
 .tag-pending_cut { background: #e0f2fe; color: #0369a1; }
 .tag-cutting { background: #dbeafe; color: #1e40af; }
-.tag-ready { background: #ede9fe; color: #5b21b6; }
-.tag-ai_grading { background: #fef3c7; color: #92400e; }
-.tag-reviewing { background: #fee2e2; color: #991b1b; }
-.tag-failed { background: #fee2e2; color: #dc2626; }
-.tag-done { background: #dcfce7; color: #166534; }
+.tag-ready { background: #dcfce7; color: #166534; }
 
 .detect-tag { display: inline-block; padding: 1px 8px; border-radius: 50px; font-size: 16px; font-weight: 500; }
 .detect-tag.running { background: #fef3c7; color: #92400e; }
@@ -127,14 +102,11 @@ function stageClass(stage) { return `tag-${stage}` }
 .card-detail { font-size: 16px; color: #555; }
 .card-detail b { font-weight: 600; }
 .card-detail.muted { color: #aaa; }
-.card-detail.err { color: #dc2626; font-weight: 600; }
 .card-detail.ok { color: #16a34a; font-weight: 600; }
 
 .prog-row { display: flex; align-items: center; gap: 10px; }
 .prog-bar { flex: 1; height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
 .prog-fill { height: 100%; background: #3b82f6; border-radius: 3px; transition: width 0.3s; }
-.prog-fill.warn { background: #f59e0b; }
-.prog-fill.purple { background: #8b5cf6; }
 .prog-text { font-size: 16px; color: #666; white-space: nowrap; }
 
 .card-stats { display: flex; gap: 6px; font-size: 16px; color: #999; }
