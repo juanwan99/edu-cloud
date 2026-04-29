@@ -31,9 +31,14 @@ check_port() {
   fi
 
   local pid
-  pid=$(echo "$holder" | grep -oP 'pid=\K[0-9]+' | head -1)
+  pid=$(echo "$holder" | grep -oP 'pid=\K[0-9]+' | head -1 || true)
   local bind_addr
   bind_addr=$(echo "$holder" | awk '{print $4}' | sed 's/:.*//')
+
+  if [ -z "$pid" ]; then
+    warn "port $port ($label): listening but PID unknown (no permission?)"
+    return
+  fi
 
   if [ "$bind_addr" = "0.0.0.0" ] || [ "$bind_addr" = "*" ]; then
     fail "port $port ($label): PID=$pid bound to 0.0.0.0 (PUBLIC EXPOSURE)"
@@ -43,7 +48,7 @@ check_port() {
   fi
 
   local ppid
-  ppid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ')
+  ppid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ' || true)
   if [ "$ppid" = "1" ]; then
     warn "  PID=$pid is an orphan (PPID=1) — may be a ghost process"
     ISSUES=$((ISSUES+1))
@@ -81,7 +86,8 @@ else
   ISSUES=$((ISSUES+GHOST_COUNT))
 fi
 
-MCP_COUNT=$(pgrep -fc 'mcp-server-filesystem' 2>/dev/null || echo 0)
+MCP_COUNT=0
+MCP_COUNT=$(pgrep -fc 'mcp-server-filesystem' 2>/dev/null) || MCP_COUNT=0
 if [ "$MCP_COUNT" -gt 10 ]; then
   warn "MCP filesystem servers: $MCP_COUNT instances (likely Claude session residuals)"
   ISSUES=$((ISSUES+1))
@@ -135,7 +141,8 @@ echo ""
 
 # ── 5. Claude Session Count ──
 echo -e "${BOLD}[Claude Sessions]${NC}"
-CLAUDE_COUNT=$(pgrep -fc 'claude' 2>/dev/null || echo 0)
+CLAUDE_COUNT=0
+CLAUDE_COUNT=$(pgrep -fc 'claude' 2>/dev/null) || CLAUDE_COUNT=0
 if [ "$CLAUDE_COUNT" -le 5 ]; then
   ok "$CLAUDE_COUNT active Claude process(es)"
 else

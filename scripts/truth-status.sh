@@ -55,7 +55,10 @@ if [ -f "$VERSION_JSON" ]; then
   info "build git_hash: $BUILD_HASH"
   info "build time: $BUILD_TIME"
 
-  if [ "$BUILD_HASH" = "$GIT_HASH" ] && [ "$FRONTEND_DIRTY" = "false" ]; then
+  if [ "$BUILD_DIRTY" = "True" ] || [ "$BUILD_DIRTY" = "true" ]; then
+    warn "dist/ was built from dirty source (source_dirty=true in version.json)"
+    [ -z "$BROKEN_AT" ] && BROKEN_AT="SOURCE → BUILD (built from dirty source)"
+  elif [ "$BUILD_HASH" = "$GIT_HASH" ] && [ "$FRONTEND_DIRTY" = "false" ]; then
     ok "dist/ matches current source"
   elif [ "$BUILD_HASH" != "$GIT_HASH" ]; then
     fail "dist/ built from $BUILD_HASH, source is $GIT_HASH"
