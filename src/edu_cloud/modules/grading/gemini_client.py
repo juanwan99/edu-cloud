@@ -34,16 +34,30 @@ class GeminiGradeResponse(BaseModel):
     recognized_text: str = ""
 
 
-def _log_usage(method: str, model: str, usage) -> None:
+def _log_usage(method: str, model: str, usage, finish_reason=None) -> None:
     if not usage:
         return
-    logger.info(
-        "gemini-usage method=%s model=%s in=%s out=%s cached=%s",
-        method, model,
-        getattr(usage, "prompt_token_count", 0),
-        getattr(usage, "candidates_token_count", 0),
-        getattr(usage, "cached_content_token_count", 0),
-    )
+    thoughts = getattr(usage, "thoughts_token_count", 0) or 0
+    candidates = getattr(usage, "candidates_token_count", 0) or 0
+    total = getattr(usage, "total_token_count", 0) or 0
+    if thoughts > 0:
+        logger.warning(
+            "gemini-usage method=%s model=%s in=%s out=%s thoughts=%s total=%s cached=%s finish=%s — THINKING DETECTED",
+            method, model,
+            getattr(usage, "prompt_token_count", 0),
+            candidates, thoughts, total,
+            getattr(usage, "cached_content_token_count", 0),
+            finish_reason,
+        )
+    else:
+        logger.info(
+            "gemini-usage method=%s model=%s in=%s out=%s thoughts=%s total=%s cached=%s finish=%s",
+            method, model,
+            getattr(usage, "prompt_token_count", 0),
+            candidates, thoughts, total,
+            getattr(usage, "cached_content_token_count", 0),
+            finish_reason,
+        )
 
 
 def _make_image_part(image_bytes: bytes) -> types.Part:
@@ -69,7 +83,7 @@ class GeminiClient:
     async def close(self):
         pass
 
-    def _get_config(self, max_tokens: int = 16384) -> types.GenerateContentConfig:
+    def _get_config(self, max_tokens: int = 2048) -> types.GenerateContentConfig:
         return types.GenerateContentConfig(
             max_output_tokens=max_tokens,
             temperature=0,
@@ -81,7 +95,7 @@ class GeminiClient:
         contents: list,
         *,
         method: str,
-        max_tokens: int = 16384,
+        max_tokens: int = 2048,
         cached_content: str | None = None,
     ) -> str:
         config = self._get_config(max_tokens)
@@ -101,7 +115,10 @@ class GeminiClient:
                     self._client.models.generate_content, **kwargs
                 )
 
-                _log_usage(method, self.model, response.usage_metadata)
+                finish = None
+                if response.candidates:
+                    finish = getattr(response.candidates[0], "finish_reason", None)
+                _log_usage(method, self.model, response.usage_metadata, finish)
 
                 if not response.text:
                     last_error = "Empty response from Gemini"
@@ -137,13 +154,18 @@ class GeminiClient:
             ),
         ]
 
-        text = await self._generate(contents, method="extract_text")
-        parsed = extract_json(text)
-        if parsed is None:
-            raise RuntimeError(f"Failed to parse OCR JSON: {text[:200]}")
-        if isinstance(parsed, dict):
-            return parsed.get("blanks", [])
-        return parsed
+        last_text = ""
+        for attempt in range(self.max_retries):
+            text = await self._generate(contents, method="extract_text")
+            parsed = extract_json(text)
+            if parsed is not None:
+                if isinstance(parsed, dict):
+                    return parsed.get("blanks", [])
+                return parsed
+            last_text = text
+            logger.warning("extract_text: JSON parse failed attempt %d/%d, text[:200]=%s",
+                           attempt + 1, self.max_retries, text[:200])
+        raise RuntimeError(f"Failed to parse OCR JSON after {self.max_retries} attempts: {last_text[:200]}")
 
     async def grade_text(
         self,
@@ -167,7 +189,7 @@ class GeminiClient:
         text = await self._generate(
             contents,
             method="grade_text",
-            max_tokens=16384,
+            max_tokens=2048,
             cached_content=cached_content_name,
         )
 
@@ -205,7 +227,7 @@ class GeminiClient:
         parts.append(types.Part.from_text(text=prompt))
 
         contents = [types.Content(role="user", parts=parts)]
-        text = await self._generate(contents, method="grade_vision", max_tokens=16384)
+        text = await self._generate(contents, method="grade_vision", max_tokens=4096)
 
         parsed = extract_json(text)
         if parsed is None or not isinstance(parsed, dict):
@@ -273,7 +295,7 @@ class GeminiClient:
             inline_req = types.InlinedRequest(
                 model=self.model,
                 contents=req["contents"],
-                config=self._get_config(req.get("max_tokens", 16384)),
+                config=self._get_config(req.get("max_tokens", 2048)),
             )
             inline_requests.append(inline_req)
 
@@ -312,9 +334,13 @@ class GeminiClient:
         if hasattr(job, "dest") and job.dest:
             dest = job.dest
             if hasattr(dest, "inlined_responses") and dest.inlined_responses:
-                for resp in dest.inlined_responses:
+                for i, resp in enumerate(dest.inlined_responses):
                     response = getattr(resp, "response", None)
                     if response and hasattr(response, "text"):
+                        finish = None
+                        if response.candidates:
+                            finish = getattr(response.candidates[0], "finish_reason", None)
+                        _log_usage(f"batch[{i}]", self.model, response.usage_metadata, finish)
                         results.append({"text": response.text, "usage": response.usage_metadata})
                     else:
                         results.append({"text": None, "error": str(resp)})
