@@ -580,7 +580,7 @@ function handleWheel(e) {
 function formatBlankNo(blankNo, index) {
   if (!blankNo) return `第${index + 1}空`
   const s = String(blankNo)
-  if (/^第.*空$/.test(s)) return s
+  if (s.startsWith('第')) return s
   return `第${s}空`
 }
 
