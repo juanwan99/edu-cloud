@@ -188,6 +188,42 @@ class GeminiClient:
             recognized_text=parsed.get("llmRecognizedText", ""),
         )
 
+    async def grade_vision(
+        self,
+        images_b64: str | list[str],
+        prompt: str,
+        max_score: float,
+    ) -> GeminiGradeResponse:
+        if isinstance(images_b64, str):
+            images_b64 = [images_b64]
+
+        import base64
+        parts = []
+        for img_b64 in images_b64:
+            img_bytes = base64.b64decode(img_b64)
+            parts.append(_make_image_part(img_bytes))
+        parts.append(types.Part.from_text(text=prompt))
+
+        contents = [types.Content(role="user", parts=parts)]
+        text = await self._generate(contents, method="grade_vision", max_tokens=16384)
+
+        parsed = extract_json(text)
+        if parsed is None or not isinstance(parsed, dict):
+            raise RuntimeError(f"Failed to parse vision grading JSON: {text[:200]}")
+
+        from edu_cloud.modules.grading.detail_flatten import flatten_llm_details
+        return GeminiGradeResponse(
+            score=min(max(parsed.get("score", 0), 0), max_score),
+            max_score=max_score,
+            feedback=parsed.get("comment", parsed.get("feedback", "")),
+            confidence=parsed.get("confidence"),
+            raw_content=text,
+            details=flatten_llm_details(parsed.get("details")),
+            deductions=parsed.get("deductions") or [],
+            comment=parsed.get("comment", ""),
+            recognized_text=parsed.get("llmRecognizedText", ""),
+        )
+
     async def _get_or_create_cache(
         self, cache_key: str, prompt_prefix: str,
     ) -> str | None:
