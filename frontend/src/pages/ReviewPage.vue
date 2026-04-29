@@ -26,6 +26,7 @@
           <div style="padding: 4px 0; min-width: 200px">
             <div style="font-size: 16px; margin-bottom: 8px">阅卷数量（留空=全部）</div>
             <n-input-number v-model:value="batchLimit" :min="1" :max="9999" placeholder="全部" clearable size="small" style="width: 100%; margin-bottom: 10px" />
+            <n-checkbox v-model:checked="batchUseVision" size="small" style="margin-bottom: 10px">Vision 直评（作图题必选）</n-checkbox>
             <n-space justify="end">
               <n-button size="small" @click="showBatchPopover = false">取消</n-button>
               <n-button size="small" type="primary" :loading="batchStarting" @click="handleBatchGrade">确认</n-button>
@@ -111,31 +112,26 @@
               </div>
             </div>
             <div v-if="ai.feedback" class="ai-feedback">{{ ai.feedback }}</div>
-            <div v-if="ai.recognizedText" class="ai-ocr-text">
-              <div class="ai-ocr-title">学生答案</div>
-              <pre class="ai-ocr-content">{{ ai.recognizedText }}</pre>
-            </div>
             <div v-if="ai.details?.length" class="ai-details">
               <div class="ai-details-title">逐空评分</div>
-              <div v-for="(item, i) in ai.details" :key="i" class="ai-sub">
+              <div v-for="(item, i) in ai.details" :key="i" class="ai-sub" :class="{ 'ai-sub--wrong': !item.correct && item.score === 0 }">
                 <div class="ai-sub-header">
-                  <span class="ai-sub-label">第{{ item.blankNo || (i + 1) }}空</span>
-                  <span class="ai-sub-score" :style="{ color: item.score > 0 ? '#18a058' : '#d03050' }">
-                    {{ item.score }}/{{ item.maxScore }}分 {{ item.correct ? '✓' : item.score > 0 ? '△' : '✗' }}
+                  <span class="ai-sub-label">{{ formatBlankNo(item.blankNo, i) }}</span>
+                  <span class="ai-sub-score" :class="item.correct ? 'ai-sub-score--pass' : item.score > 0 ? 'ai-sub-score--partial' : 'ai-sub-score--fail'">
+                    {{ item.score }}/{{ item.maxScore }} {{ item.correct ? '✓' : item.score > 0 ? '△' : '✗' }}
                   </span>
                 </div>
-                <div v-if="item.answer != null" class="ai-sub-answer">
-                  <span class="ai-sub-answer-label">识别：</span>
-                  <span :class="item.answer ? '' : 'ai-sub-empty'">{{ item.answer || '（未作答）' }}</span>
+                <div class="ai-sub-body">
+                  <div v-if="item.answer != null" class="ai-sub-answer">
+                    <span :class="item.answer ? '' : 'ai-sub-empty'">{{ item.answer || '未作答' }}</span>
+                  </div>
+                  <div v-if="item.reason" class="ai-sub-reason">{{ item.reason }}</div>
                 </div>
-                <div v-if="item.reason" class="ai-sub-reason">{{ item.reason }}</div>
               </div>
             </div>
             <div v-if="ai.deductions?.length" class="ai-deductions">
-              <div class="ai-deductions-title">扣分点</div>
-              <ul class="ai-deductions-list">
-                <li v-for="(d, i) in ai.deductions" :key="i">{{ d }}</li>
-              </ul>
+              <div class="ai-deductions-title">扣分项</div>
+              <div v-for="(d, i) in ai.deductions" :key="i" class="ai-deduction-item">{{ d }}</div>
             </div>
           </div>
         </div>
@@ -305,6 +301,7 @@ const loadSeq = ref(0)
 const aiGrading = ref(false)
 const batchStarting = ref(false)
 const batchLimit = ref(null)
+const batchUseVision = ref(false)
 const showBatchPopover = ref(false)
 const batchProgress = ref(null)
 let batchPollTimer = null
@@ -492,6 +489,7 @@ async function handleBatchGrade() {
   try {
     const payload = { subject_id: subjectId.value, question_id: questionId }
     if (batchLimit.value != null) payload.limit = batchLimit.value
+    if (batchUseVision.value) payload.use_vision = true
     const res = await createTask(payload)
     const taskId = res.data?.task_id || res.data?.id
     if (taskId) startBatchPoll(taskId)
@@ -530,7 +528,7 @@ async function loadAnswerAt(offset) {
   loading.value = true
   done.value = false
   try {
-    const { data } = await getAnswerAt(questionId, offset)
+    const { data } = await getAnswerAt(questionId, offset, reviewMode.value)
     if (seq !== loadSeq.value) return
     browseIndex.value = offset
     browsing.value = true
@@ -568,6 +566,13 @@ function switchMode(mode) {
 function handleWheel(e) {
   const delta = e.deltaY > 0 ? -0.1 : 0.1
   scale.value = Math.max(0.3, Math.min(5, scale.value + delta))
+}
+
+function formatBlankNo(blankNo, index) {
+  if (!blankNo) return `第${index + 1}空`
+  const s = String(blankNo)
+  if (/^第.*空$/.test(s)) return s
+  return `第${s}空`
 }
 
 function resetZoom() {
@@ -713,10 +718,16 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+.review-body :deep(.n-spin-content) {
+  height: 100%;
+}
+
 .review-main {
   display: grid;
   grid-template-columns: 1fr 340px;
+  grid-template-rows: 1fr;
   height: 100%;
+  overflow: hidden;
 }
 
 .review-done {
@@ -730,11 +741,12 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .image-panel {
-  flex: 1 1 0;
-  min-height: 200px;
+  height: 55%;
+  flex-shrink: 0;
   overflow: hidden;
   background: #f0f0f0;
   display: flex;
@@ -749,8 +761,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex-shrink: 0;
-  max-height: 50%;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -786,6 +798,7 @@ onUnmounted(() => {
   flex-direction: column;
   justify-content: space-between;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .score-section {
@@ -836,104 +849,95 @@ onUnmounted(() => {
   white-space: pre-wrap;
 }
 
-.ai-ocr-text {
-  border-top: 1px dashed var(--color-border-light, #e5e7eb);
-  padding-top: 8px;
-  margin-bottom: 4px;
-}
-.ai-ocr-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-text-muted, #999);
-  margin-bottom: 4px;
-}
-.ai-ocr-content {
-  font-size: 16px;
-  line-height: 1.5;
-  color: var(--color-text-secondary);
-  background: var(--color-bg-subtle, #f8f8fa);
-  border-radius: 4px;
-  padding: 6px 8px;
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 100px;
-  overflow-y: auto;
-}
 
 .ai-details {
-  border-top: 1px dashed var(--color-border-light, #e5e7eb);
-  padding-top: 8px;
+  border-top: 1px solid var(--color-border-light, #e5e7eb);
+  padding-top: 10px;
 }
 
 .ai-details-title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--color-text-muted, #999);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   margin-bottom: 6px;
+}
+
+.ai-sub {
+  border-left: 3px solid #e5e7eb;
+  margin-bottom: 6px;
+  border-radius: 0 6px 6px 0;
+  background: var(--color-bg-alt, #fafbfc);
+}
+
+.ai-sub--wrong {
+  border-left-color: #fca5a5;
+  background: #fef2f2;
 }
 
 .ai-sub-header {
   display: flex;
   justify-content: space-between;
-  font-size: 16px;
-  background: var(--color-bg-alt, #f7f8fa);
-  padding: 4px 8px;
-  border-radius: 4px;
-  margin-bottom: 2px;
+  align-items: center;
+  font-size: 14px;
+  padding: 4px 10px;
+}
+
+.ai-sub-label {
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1a1a);
 }
 
 .ai-sub-score {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.ai-sub-score--pass { color: #18a058; }
+.ai-sub-score--partial { color: #f0a020; }
+.ai-sub-score--fail { color: #d03050; }
+
+.ai-sub-body {
+  padding: 0 10px 6px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .ai-sub-answer {
-  font-size: 16px;
-  padding: 2px 8px;
-  color: #cfd8d3;
-}
-
-.ai-sub-answer-label {
-  color: #6b7c72;
+  color: var(--color-text-primary, #333);
+  font-weight: 500;
+  margin-bottom: 2px;
 }
 
 .ai-sub-empty {
   color: #d03050;
   font-style: italic;
-}
-
-.ai-sub-label {
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .ai-sub-reason {
-  font-size: 16px;
-  line-height: 1.5;
   color: var(--color-text-secondary, #667085);
-  padding: 2px 8px 4px;
-}
-
-.ai-sub {
-  margin-bottom: 4px;
 }
 
 .ai-deductions {
-  border-top: 1px dashed var(--color-border-light, #e5e7eb);
-  padding-top: 8px;
+  border-top: 1px solid var(--color-border-light, #e5e7eb);
+  padding-top: 10px;
   margin-top: 4px;
 }
 .ai-deductions-title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   color: #d03050;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
-.ai-deductions-list {
-  margin: 0;
-  padding-left: 16px;
-  font-size: 16px;
-  color: var(--color-text-secondary);
-  line-height: 1.6;
+.ai-deduction-item {
+  font-size: 13px;
+  color: var(--color-text-secondary, #667085);
+  line-height: 1.5;
+  padding: 3px 0 3px 12px;
+  border-left: 2px solid #fca5a5;
+  margin-bottom: 4px;
 }
 
 .score-title {
