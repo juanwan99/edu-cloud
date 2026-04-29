@@ -11,7 +11,7 @@ function getGitHash() {
 
 function isSourceDirty() {
   try {
-    execSync('git diff --quiet -- src/ vite.config.js package.json index.html', { cwd: fileURLToPath(new URL('.', import.meta.url)) })
+    execSync('git diff --quiet HEAD -- src/ vite.config.js package.json index.html', { cwd: fileURLToPath(new URL('.', import.meta.url)) })
     return false
   } catch { return true }
 }

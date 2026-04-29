@@ -41,7 +41,7 @@ def _get_git_hash():
 def _is_source_dirty():
     try:
         subprocess.check_call(
-            ['git', 'diff', '--quiet', '--', 'src/'],
+            ['git', 'diff', '--quiet', 'HEAD', '--', 'src/'],
             cwd=_get_repo_root()
         )
         return False

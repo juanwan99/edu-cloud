@@ -27,20 +27,21 @@ echo -e "${BOLD}[Source]${NC}"
 GIT_HASH=$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
 info "git HEAD: $GIT_HASH"
 
-if git -C "$PROJECT_DIR" diff --quiet -- frontend/src/ frontend/vite.config.js frontend/package.json frontend/index.html 2>/dev/null; then
+if git -C "$PROJECT_DIR" diff --quiet HEAD -- frontend/src/ frontend/vite.config.js frontend/package.json frontend/index.html 2>/dev/null; then
   FRONTEND_DIRTY=false
   ok "frontend/ build inputs clean (matches HEAD)"
 else
   FRONTEND_DIRTY=true
-  CHANGED=$(git -C "$PROJECT_DIR" diff --name-only -- frontend/src/ frontend/vite.config.js frontend/package.json frontend/index.html 2>/dev/null | wc -l)
+  CHANGED=$(git -C "$PROJECT_DIR" diff --name-only HEAD -- frontend/src/ frontend/vite.config.js frontend/package.json frontend/index.html 2>/dev/null | wc -l)
   warn "frontend/ build inputs dirty ($CHANGED files changed since HEAD)"
 fi
 
-if git -C "$PROJECT_DIR" diff --quiet -- src/ 2>/dev/null; then
+if git -C "$PROJECT_DIR" diff --quiet HEAD -- src/ 2>/dev/null; then
   ok "src/ (backend) clean"
 else
-  BACKEND_CHANGED=$(git -C "$PROJECT_DIR" diff --name-only -- src/ 2>/dev/null | wc -l)
-  warn "src/ (backend) dirty ($BACKEND_CHANGED files)"
+  BACKEND_CHANGED=$(git -C "$PROJECT_DIR" diff --name-only HEAD -- src/ 2>/dev/null | wc -l)
+  warn "src/ (backend) dirty ($BACKEND_CHANGED files — uvicorn --reload may serve uncommitted code)"
+  [ -z "$BROKEN_AT" ] && BROKEN_AT="SOURCE (backend has uncommitted changes)"
 fi
 echo ""
 

@@ -24,7 +24,7 @@ echo -e "${BOLD}[Ports]${NC}"
 check_port() {
   local port=$1 label=$2
   local holder
-  holder=$(ss -tlnp "sport = :$port" 2>/dev/null | grep LISTEN | head -1)
+  holder=$(ss -tlnp "sport = :$port" 2>/dev/null | grep LISTEN | head -1 || true)
   if [ -z "$holder" ]; then
     warn "port $port ($label): nobody listening"
     return
