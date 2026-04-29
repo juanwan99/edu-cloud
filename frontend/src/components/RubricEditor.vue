@@ -1,6 +1,9 @@
 <template>
   <n-spin :show="loading">
-    <div v-if="!modelValue || modelValue.length === 0" class="re-empty">暂无评分细则</div>
+    <div v-if="!modelValue || modelValue.length === 0" class="re-empty">
+      暂无评分细则
+      <a class="re-add" style="display:block;margin-top:8px" @click="addItem">+ 手动添加</a>
+    </div>
     <div v-else>
       <div v-for="(item, idx) in modelValue" :key="idx" class="re-row">
         <div class="re-head">

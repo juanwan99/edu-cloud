@@ -85,6 +85,10 @@
         <div class="mode-desc">
           {{ modeValue === 'realtime' ? '即时返回结果，适合少量或急用' : '异步处理，成本减半，适合大批量' }}
         </div>
+        <div class="grading-mode-row">
+          <n-checkbox v-model:checked="useVision" size="small">Vision 直评</n-checkbox>
+          <span class="limit-hint">跳过 OCR，直接看图评分（含图/表/图形的题目）</span>
+        </div>
         <div class="grading-limit-row">
           <span class="limit-label">阅卷数量</span>
           <n-input-number
@@ -102,7 +106,7 @@
           type="primary"
           :loading="gradingStarting"
           :disabled="taskProgress?.status === 'processing'"
-          @click="$emit('start-grading', limitValue, modeValue)"
+          @click="$emit('start-grading', limitValue, modeValue, useVision)"
           style="margin-top: 10px"
         >开始阅卷</n-button>
       </n-card>
@@ -113,7 +117,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { NCard, NButton, NSpace, NProgress, NImage, NInputNumber, NRadioGroup, NRadioButton } from 'naive-ui'
+import { NCard, NButton, NSpace, NProgress, NImage, NInputNumber, NRadioGroup, NRadioButton, NCheckbox } from 'naive-ui'
 import RubricEditor from '../../components/RubricEditor.vue'
 
 const props = defineProps({
@@ -137,6 +141,7 @@ defineEmits([
 
 const limitValue = ref(null)
 const modeValue = ref('realtime')
+const useVision = ref(false)
 
 const taskProgressPct = computed(() => {
   if (!props.taskProgress || !props.taskProgress.total) return 0
