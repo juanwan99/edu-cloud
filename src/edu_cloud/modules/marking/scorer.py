@@ -182,11 +182,20 @@ async def get_next_answer(
         )).scalars().all()
         child_answer_ids = [ca.id for ca in child_answers]
 
+        child_ai_list = []
+        for ca in child_answers:
+            ca_gr = (await db.execute(
+                select(GradingResult).where(GradingResult.answer_id == ca.id)
+            )).scalar_one_or_none()
+            if ca_gr:
+                child_ai_list.append(_build_ai_info(ca_gr))
+
         return {
             "answer_id": answer.id,
             "student_id": answer.student_id,
             "image_path": answer.image_path,
             "child_answer_ids": child_answer_ids,
+            "child_ai": child_ai_list,
             "position": {"current": ai_reviewed + 1, "total": ai_total},
             "ai": _build_ai_info(ai_done_q),
             "max_score": max_score,
@@ -264,11 +273,20 @@ async def get_next_answer(
     )).scalars().all()
     child_answer_ids = [ca.id for ca in child_answers]
 
+    child_ai_list = []
+    for ca in child_answers:
+        ca_gr = (await db.execute(
+            select(GradingResult).where(GradingResult.answer_id == ca.id)
+        )).scalar_one_or_none()
+        if ca_gr:
+            child_ai_list.append(_build_ai_info(ca_gr))
+
     return {
         "answer_id": answer.id,
         "student_id": answer.student_id,
         "image_path": answer.image_path,
         "child_answer_ids": child_answer_ids,
+        "child_ai": child_ai_list,
         "position": {"current": graded + 1, "total": total},
         "ai": ai_info,
         "max_score": max_score,
@@ -279,25 +297,48 @@ async def get_next_answer(
 
 async def get_answer_at(
     db: AsyncSession, question_id: str, school_id: str, offset: int,
+    mode: str = "ungraded",
 ) -> dict | None:
     """按索引获取某题的第 offset 份答卷（0-based），包含已有评分。"""
-    total = (await db.execute(
-        select(func.count()).select_from(StudentAnswer).where(
-            StudentAnswer.question_id == question_id,
-            StudentAnswer.school_id == school_id,
+    if mode == "ai_review":
+        base_q = (
+            select(StudentAnswer)
+            .join(GradingResult, GradingResult.answer_id == StudentAnswer.id)
+            .where(
+                StudentAnswer.question_id == question_id,
+                StudentAnswer.school_id == school_id,
+                GradingResult.ai_score.is_not(None),
+            )
         )
-    )).scalar() or 0
+        total = (await db.execute(
+            select(func.count()).select_from(base_q.subquery())
+        )).scalar() or 0
 
-    if offset < 0 or offset >= total:
-        return None
+        if offset < 0 or offset >= total:
+            return None
 
-    answer = (await db.execute(
-        select(StudentAnswer).where(
-            StudentAnswer.question_id == question_id,
-            StudentAnswer.school_id == school_id,
-        ).order_by(StudentAnswer.student_id)
-        .offset(offset).limit(1)
-    )).scalar_one_or_none()
+        answer = (await db.execute(
+            base_q.order_by(StudentAnswer.student_id)
+            .offset(offset).limit(1)
+        )).scalar_one_or_none()
+    else:
+        total = (await db.execute(
+            select(func.count()).select_from(StudentAnswer).where(
+                StudentAnswer.question_id == question_id,
+                StudentAnswer.school_id == school_id,
+            )
+        )).scalar() or 0
+
+        if offset < 0 or offset >= total:
+            return None
+
+        answer = (await db.execute(
+            select(StudentAnswer).where(
+                StudentAnswer.question_id == question_id,
+                StudentAnswer.school_id == school_id,
+            ).order_by(StudentAnswer.student_id)
+            .offset(offset).limit(1)
+        )).scalar_one_or_none()
 
     if not answer:
         return None
@@ -329,11 +370,20 @@ async def get_answer_at(
     )).scalars().all()
     child_answer_ids = [ca.id for ca in child_answers]
 
+    child_ai_list = []
+    for ca in child_answers:
+        ca_gr = (await db.execute(
+            select(GradingResult).where(GradingResult.answer_id == ca.id)
+        )).scalar_one_or_none()
+        if ca_gr:
+            child_ai_list.append(_build_ai_info(ca_gr))
+
     return {
         "answer_id": answer.id,
         "student_id": answer.student_id,
         "image_path": answer.image_path,
         "child_answer_ids": child_answer_ids,
+        "child_ai": child_ai_list,
         "position": {"current": offset + 1, "total": total},
         "ai": ai_info,
         "max_score": max_score,

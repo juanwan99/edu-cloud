@@ -134,6 +134,17 @@
               <div v-for="(d, i) in ai.deductions" :key="i" class="ai-deduction-item">{{ d }}</div>
             </div>
           </div>
+
+          <div v-for="(cai, ci) in childAi" :key="'cai-'+ci" class="ai-result-card child-ai-card">
+            <div class="ai-header">
+              <span class="ai-title">子题 AI 结果</span>
+              <div class="ai-header-right">
+                <span class="ai-score-num">{{ cai.score }}</span>
+                <n-tag type="info" round size="small" style="margin-left:6px">Vision</n-tag>
+              </div>
+            </div>
+            <div v-if="cai.feedback" class="ai-feedback">{{ cai.feedback }}</div>
+          </div>
         </div>
 
         <!-- 打分区 -->
@@ -285,6 +296,7 @@ const done = ref(false)
 const currentAnswerId = ref(null)
 const imageUrl = ref('')
 const childImageUrls = ref([])
+const childAi = ref([])
 const position = ref({ current: 0, total: 0 })
 const questionName = ref('')
 const maxScore = ref(10)
@@ -373,6 +385,7 @@ async function applyAnswer(answerPayload) {
 
   childImageUrls.value.forEach(u => URL.revokeObjectURL(u))
   childImageUrls.value = []
+  childAi.value = answerPayload.child_ai || []
   if (answerPayload.child_answer_ids?.length) {
     for (const cid of answerPayload.child_answer_ids) {
       try {
@@ -788,6 +801,10 @@ onUnmounted(() => {
 .child-image {
   margin-top: 12px;
   border: 2px solid #60a5fa;
+}
+.child-ai-card {
+  border-left: 3px solid #60a5fa;
+  margin-top: 8px;
 }
 
 .score-panel {
