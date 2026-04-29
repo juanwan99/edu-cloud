@@ -17,3 +17,8 @@ async def test_version(client):
     data = resp.json()
     assert "version" in data
     assert "boot_time" in data
+    assert "git_hash" in data
+    assert "source_dirty" in data
+    assert isinstance(data["source_dirty"], bool)
+    assert "pid" in data
+    assert isinstance(data["pid"], int)
