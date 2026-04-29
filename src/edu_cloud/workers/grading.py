@@ -123,15 +123,64 @@ async def _grade_single(
         from edu_cloud.modules.grading.prompts import get_prompt, render_prompt
 
         grading_prompt_tpl = get_prompt(subject, "GRADING_TEXT", "senior")
-        if grading_prompt_tpl is None:
+        vision_prompt_tpl = get_prompt(subject, "GRADING_VISION", "senior") or get_prompt(subject, "GRADING", "senior")
+
+        _is_drawing = ad.get("question_type") == "drawing"
+        _use_vision = (_is_drawing or ad.get("use_vision", False)) and vision_prompt_tpl
+
+        if _use_vision:
+            # Vision-direct: image + rubric → score (no OCR)
+            plog["pipeline_type"] = "vision_direct"
+            plog["grading_model"] = llm.model
+            from edu_cloud.modules.grading.rubric_formatter import format_rubric_for_grading as _fmt_rubric
+            _rubric_text = _fmt_rubric(rubric_criteria)
+            _full_score = str(ad["question_max_score"])
+            _vision_prompt = render_prompt(vision_prompt_tpl, {
+                "fullScore": _full_score,
+                "rubric": _rubric_text,
+            })
+            if ad.get("question_type") == "drawing":
+                from edu_cloud.modules.grading.prompts.base import DRAWING_HINT
+                _vision_prompt = DRAWING_HINT + _vision_prompt
+                plog["pipeline_type"] = "vision_direct_drawing"
+
+            plog["grading_prompt_type"] = "GRADING_VISION"
+            t_grade = time.perf_counter()
+            grade_result = await llm.grade_vision(
+                images_b64=[image_b64],
+                prompt=_vision_prompt,
+                max_score=ad["question_max_score"],
+            )
+            plog["grading_ms"] = int((time.perf_counter() - t_grade) * 1000)
+            plog["score"] = grade_result.score
+            plog["confidence"] = grade_result.confidence
+            plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+
+            _details = None
+            try:
+                import json as _json
+                _raw = _json.loads(grade_result.raw_content)
+                _details = _raw.get("details")
+            except Exception:
+                pass
+
+            return {
+                "answer_id": answer_id, "question_id": question_id,
+                "score": grade_result.score, "max_score": grade_result.max_score,
+                "feedback": grade_result.feedback, "confidence": grade_result.confidence,
+                "raw_content": grade_result.raw_content,
+                "details": _details,
+            }, None, plog
+
+        elif grading_prompt_tpl is None:
             plog["pipeline_type"] = "error"
             plog["error_type"] = "no_prompt"
             plog["error_message"] = f"No grading prompt for subject '{subject}'"
             plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
-            logger.error("grading_task: no prompt for subject=%s, answer=%s — legacy pipeline disabled", subject, answer_id)
+            logger.error("grading_task: no prompt for subject=%s, answer=%s", subject, answer_id)
             return None, {"answer_id": answer_id, "error": plog["error_message"]}, plog
 
-        # Two-step path
+        # Two-step path: OCR → text grading
         plog["pipeline_type"] = "two_step"
         plog["ocr_model"] = llm.model
         plog["grading_model"] = llm.model
@@ -357,6 +406,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                     "image_path": a.image_path,
                     "question_type": ans_qtype,
                     "subject_code": subject_code,
+                    "use_vision": getattr(task, "use_vision", False),
                 })
             if len(graded_rows) > 0:
                 logger.info("grading_task: excluded %d already graded answers", len(graded_rows))
