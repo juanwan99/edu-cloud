@@ -112,9 +112,9 @@
               </div>
             </div>
             <div v-if="ai.feedback" class="ai-feedback">{{ ai.feedback }}</div>
-            <div v-if="ai.details?.length" class="ai-details">
+            <div v-if="mergedDetails.length" class="ai-details">
               <div class="ai-details-title">逐空评分</div>
-              <div v-for="(item, i) in ai.details" :key="i" class="ai-sub" :class="{ 'ai-sub--wrong': !item.correct && item.score === 0 }">
+              <div v-for="(item, i) in mergedDetails" :key="i" class="ai-sub" :class="{ 'ai-sub--wrong': !item.correct && item.score === 0 }">
                 <div class="ai-sub-header">
                   <span class="ai-sub-label">{{ formatBlankNo(item.blankNo, i) }}</span>
                   <span class="ai-sub-score" :class="item.correct ? 'ai-sub-score--pass' : item.score > 0 ? 'ai-sub-score--partial' : 'ai-sub-score--fail'">
@@ -133,17 +133,6 @@
               <div class="ai-deductions-title">扣分项</div>
               <div v-for="(d, i) in ai.deductions" :key="i" class="ai-deduction-item">{{ d }}</div>
             </div>
-          </div>
-
-          <div v-for="(cai, ci) in childAi" :key="'cai-'+ci" class="ai-result-card child-ai-card">
-            <div class="ai-header">
-              <span class="ai-title">子题 AI 结果</span>
-              <div class="ai-header-right">
-                <span class="ai-score-num">{{ cai.score }}</span>
-                <n-tag type="info" round size="small" style="margin-left:6px">Vision</n-tag>
-              </div>
-            </div>
-            <div v-if="cai.feedback" class="ai-feedback">{{ cai.feedback }}</div>
           </div>
         </div>
 
@@ -297,6 +286,13 @@ const currentAnswerId = ref(null)
 const imageUrl = ref('')
 const childImageUrls = ref([])
 const childAi = ref([])
+const mergedDetails = computed(() => {
+  const main = ai.value?.details || []
+  const childDetails = childAi.value.flatMap(cai =>
+    (cai.details?.length ? cai.details : [{ blankNo: '作图', score: cai.score, maxScore: cai.score, correct: cai.score > 0, reason: cai.feedback }])
+  )
+  return [...main, ...childDetails]
+})
 const position = ref({ current: 0, total: 0 })
 const questionName = ref('')
 const maxScore = ref(10)
@@ -801,10 +797,6 @@ onUnmounted(() => {
 .child-image {
   margin-top: 12px;
   border: 2px solid #60a5fa;
-}
-.child-ai-card {
-  border-left: 3px solid #60a5fa;
-  margin-top: 8px;
 }
 
 .score-panel {
