@@ -204,14 +204,14 @@ function mountOptions(q) {
 .q-del:hover { opacity: 1 !important; color: #f87171; }
 
 .q-parent-label {
-  font-size: 16px; color: #6b7d70; cursor: pointer; text-decoration: none;
+  font-size: 18px; color: #60a5fa; cursor: pointer; text-decoration: none; font-weight: 700;
 }
 .q-parent-label:hover { color: #f87171; }
 .q-mount-icon {
-  font-size: 16px; color: #6b7d70; cursor: pointer; text-decoration: none;
-  opacity: 0; transition: opacity 0.15s; padding: 0 4px;
+  font-size: 20px; color: #8a9a8e; cursor: pointer; text-decoration: none;
+  opacity: 0; transition: opacity 0.15s; padding: 0 4px; font-weight: 700;
 }
-.question-item:hover .q-mount-icon { opacity: 0.5; }
+.question-item:hover .q-mount-icon { opacity: 0.7; }
 .q-mount-icon:hover { opacity: 1 !important; color: #60a5fa; }
 
 .loading-tip {
