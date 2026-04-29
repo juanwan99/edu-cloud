@@ -359,7 +359,7 @@ tests/
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
 | Tests | 2199 passed / 21 failed（既有债）后端 + 2404 前端 Vitest 0 failed（ECS 实测 @ 2026-04-28） | — |
 | Modules | 21 模块目录，路由已迁入。技术债 H-01 拆分后：`card` 含 `router.py`(839行) + `card_template_router.py`(230行) + `card_export_router.py`(326行)；`grading` 含 `router.py`(520行) + `grading_review_router.py`(396行) + `prompts/` 子包 + `gemini_client.py`(官方SDK) + `image_utils.py`(图片预处理) + `detail_flatten.py`(LLM输出标准化)；`analytics` 含 `router.py`(220行) + `analytics_report_router.py`(585行)。详见 `docs/2026-04-26-tech-debt-audit.md` §修复记录 | — |
-| Migrations | Alembic migration（88 表，33 个迁移，含 `3ab6982f3aef` questions.parent_id 子题挂载） | — |
+| Migrations | Alembic migration（88 表，34 个迁移，含 `360f62486518` grading_results.annotations + grading_tasks.use_vision） | — |
 
 ## 技术栈
 
@@ -558,6 +558,8 @@ tests/
 | GET | `/api/v1/grading/assignments` | 列出阅卷分配（VIEW_GRADING，需 exam_id） |
 | GET | `/api/v1/grading/progress/{exam_id}` | 阅卷进���汇总（VIEW_GRADING） |
 | GET | `/api/v1/grading/quality-report/{exam_id}` | 质量检查报告（VIEW_GRADING） |
+| PATCH | `/api/v1/grading/results/{id}/annotations` | 保存教师逐空标注（VIEW_GRADING，school_id 隔离） |
+| GET | `/api/v1/grading/annotations/summary` | 按 blankNo 聚合标注汇总（VIEW_GRADING，需 question_id） |
 | POST | `/api/v1/exams/{id}/publish` | 发布成绩（MANAGE_EXAM_RESULTS，前置条件检查） |
 | POST | `/api/v1/exams/{id}/archive` | 归档考试（MANAGE_EXAM_RESULTS） |
 | * | `/api/v1/marking/*` | 人工阅卷/分配（一题多人+answer_count 配额+DELETE /assignments/{id}）/导出；GET /next 支持 mode=ai_review 浏览 AI 已阅答卷 |

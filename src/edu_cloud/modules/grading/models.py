@@ -35,6 +35,7 @@ class GradingTask(Base, IdMixin, TimestampMixin):
     failed: Mapped[int] = mapped_column(default=0)
     grading_limit: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     grading_mode: Mapped[str] = mapped_column(String(20), default="realtime")  # realtime | batch
+    use_vision: Mapped[bool] = mapped_column(default=False)
     created_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
     error_log: Mapped[dict | None] = mapped_column(JSON, default=None)
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), index=True)
@@ -94,6 +95,7 @@ class GradingResult(Base, IdMixin, TimestampMixin):
         DateTime(timezone=True), nullable=True, default=None,
     )
     review_comment: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    annotations: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
 
     version: Mapped[int] = mapped_column(Integer, default=1)
 

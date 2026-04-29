@@ -282,6 +282,205 @@ async def _grade_single(
         return None, {"answer_id": answer_id, "error": str(e)}, plog
 
 
+async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_code, use_gemini_official):
+    """Gemini Batch API: prepare all → submit → poll → parse. Cost = 50% of realtime."""
+    from edu_cloud.modules.grading.prompts import get_prompt, render_prompt
+    from edu_cloud.modules.grading.rubric_formatter import format_rubric_for_grading
+    from edu_cloud.modules.grading.json_parser import extract_json
+    from edu_cloud.modules.grading.detail_flatten import flatten_llm_details
+    from google.genai import types
+
+    results = []  # [(result_dict|None, error_dict|None, plog)]
+    pending = []  # [(index_in_results, ad, plog, contents)]
+
+    for ad in answer_data:
+        answer_id = ad["answer_id"]
+        question_id = ad["question_id"]
+        plog = {
+            "answer_id": answer_id, "question_id": question_id,
+            "subject_code": subject_code, "question_type": ad.get("question_type", ""),
+            "pipeline_type": "unknown", "is_blank": False, "image_size_bytes": None,
+            "ocr_model": None, "ocr_prompt_type": None, "ocr_ms": None,
+            "ocr_text": None, "ocr_blanks_count": None, "char_count": None,
+            "grading_model": llm.model, "grading_prompt_type": None, "grading_ms": None,
+            "total_ms": None, "score": None, "confidence": None,
+            "error_type": None, "error_message": None,
+        }
+        t_start = time.perf_counter()
+        rubric_criteria = rubrics_by_question.get(question_id)
+        if not rubric_criteria:
+            plog["pipeline_type"] = "error"
+            plog["error_type"] = "no_rubric"
+            plog["error_message"] = f"No rubric for question {question_id}"
+            plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+            results.append((None, {"answer_id": answer_id, "error": plog["error_message"]}, plog))
+            continue
+
+        try:
+            image_b64 = await _read_image_b64(ad["image_path"])
+            plog["image_size_bytes"] = len(image_b64) * 3 // 4
+
+            if len(image_b64) < 6800:
+                plog.update(pipeline_type="blank", is_blank=True, score=0, confidence=1.0,
+                            total_ms=int((time.perf_counter() - t_start) * 1000))
+                results.append(({
+                    "answer_id": answer_id, "question_id": question_id,
+                    "score": 0, "max_score": ad["question_max_score"],
+                    "feedback": "空白卷", "confidence": 1.0, "raw_content": "",
+                }, None, plog))
+                continue
+
+            rubric_text = format_rubric_for_grading(rubric_criteria)
+            full_score = str(ad["question_max_score"])
+            grading_prompt_tpl = get_prompt(subject_code, "GRADING_TEXT", "senior")
+            vision_prompt_tpl = get_prompt(subject_code, "GRADING_VISION", "senior") or get_prompt(subject_code, "GRADING", "senior")
+            _is_drawing = ad.get("question_type") == "drawing"
+            _use_vision = (_is_drawing or ad.get("use_vision", False)) and vision_prompt_tpl
+
+            if _use_vision:
+                plog["pipeline_type"] = "vision_direct_drawing" if _is_drawing else "vision_direct"
+                plog["grading_prompt_type"] = "GRADING_VISION"
+                prompt = render_prompt(vision_prompt_tpl, {"fullScore": full_score, "rubric": rubric_text})
+                if _is_drawing:
+                    from edu_cloud.modules.grading.prompts.base import DRAWING_HINT
+                    prompt = DRAWING_HINT + prompt
+                # Build image parts
+                image_bytes = base64.b64decode(image_b64)
+                from edu_cloud.modules.grading.image_utils import resize_image_for_llm
+                parts = []
+                resized = resize_image_for_llm(image_bytes)
+                mime = "image/png" if resized[:4] == b"\x89PNG" else "image/jpeg"
+                parts.append(types.Part.from_bytes(data=resized, mime_type=mime))
+                # Reference answer images
+                has_ref = False
+                for ref_path in ad.get("reference_answer_images", []):
+                    try:
+                        ref_b64 = await _read_image_b64(ref_path.lstrip("/"))
+                        ref_bytes = base64.b64decode(ref_b64)
+                        ref_resized = resize_image_for_llm(ref_bytes)
+                        ref_mime = "image/png" if ref_resized[:4] == b"\x89PNG" else "image/jpeg"
+                        parts.append(types.Part.from_bytes(data=ref_resized, mime_type=ref_mime))
+                        has_ref = True
+                    except Exception:
+                        pass
+                if has_ref:
+                    prompt = "【第1张图片】学生作答\n【第2张图片】标准答案（请对比评分）\n\n" + prompt
+                parts.append(types.Part.from_text(text=prompt))
+                contents = [types.Content(role="user", parts=parts)]
+            else:
+                plog["pipeline_type"] = "two_step"
+                plog["grading_prompt_type"] = "GRADING_TEXT"
+                # OCR step (realtime — cheap and fast)
+                ocr_prompt = get_prompt(subject_code, "OCR_STRUCTURED", "senior") or get_prompt(subject_code, "OCR", "senior")
+                plog["ocr_prompt_type"] = "OCR_STRUCTURED" if get_prompt(subject_code, "OCR_STRUCTURED", "senior") else "OCR"
+                if ocr_prompt:
+                    structure = "\n".join(f"- {c.get('blankNo', '?')}: {c.get('subQ', '')}" for c in rubric_criteria)
+                    ocr_prompt = render_prompt(ocr_prompt, {"rubricStructure": structure})
+                else:
+                    from edu_cloud.modules.grading.prompts.base import OCR_PROMPT_BASE
+                    ocr_prompt = OCR_PROMPT_BASE
+                    plog["ocr_prompt_type"] = "OCR_BASE"
+                t_ocr = time.perf_counter()
+                image_bytes = base64.b64decode(image_b64)
+                blanks = await llm.extract_text(image_bytes=image_bytes, prompt=ocr_prompt)
+                plog["ocr_ms"] = int((time.perf_counter() - t_ocr) * 1000)
+                from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
+                blanks = validate_ocr_blanks(blanks)
+                blanks = recover_truncated_blanks(blanks, len(rubric_criteria))
+                extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
+                plog["ocr_text"] = extracted_text
+                plog["ocr_blanks_count"] = len(blanks)
+                non_empty = [b for b in blanks if b.get("text", "").strip()]
+                if not non_empty:
+                    plog.update(pipeline_type="blank", is_blank=True, score=0, confidence=1.0,
+                                total_ms=int((time.perf_counter() - t_start) * 1000))
+                    results.append(({
+                        "answer_id": answer_id, "question_id": question_id,
+                        "score": 0, "max_score": ad["question_max_score"],
+                        "feedback": "空白卷（所有填空均未检测到作答内容）", "confidence": 1.0, "raw_content": "",
+                        "details": [{"blankNo": b.get("blankNo", str(i+1)), "score": 0, "maxScore": 0, "reason": "未作答"} for i, b in enumerate(blanks)],
+                    }, None, plog))
+                    continue
+                char_stats = ""
+                grading_prompt = render_prompt(grading_prompt_tpl, {
+                    "fullScore": full_score, "rubric": rubric_text,
+                    "extractedText": extracted_text, "charStats": char_stats,
+                })
+                contents = [types.Content(role="user", parts=[types.Part.from_text(text=grading_prompt)])]
+
+            idx = len(results)
+            results.append(None)  # placeholder
+            pending.append((idx, ad, plog, contents, t_start))
+
+        except Exception as e:
+            plog["pipeline_type"] = plog["pipeline_type"] if plog["pipeline_type"] != "unknown" else "error"
+            plog["error_type"] = type(e).__name__
+            plog["error_message"] = str(e)
+            plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+            results.append((None, {"answer_id": answer_id, "error": str(e)}, plog))
+
+    if not pending:
+        return [r for r in results if r is not None]
+
+    # Submit to Gemini Batch API
+    logger.info("gemini_batch: submitting %d requests", len(pending))
+    batch_reqs = [{"contents": contents} for _, _, _, contents, _ in pending]
+    t_batch = time.perf_counter()
+    try:
+        job_name = await llm.create_batch_job(batch_reqs)
+        api_results = await llm.poll_batch_job(job_name, poll_interval=5, timeout=1200)
+    except Exception as e:
+        logger.error("gemini_batch: batch API failed: %s, falling back to realtime", e)
+        for idx, ad, plog, _, t_start in pending:
+            plog["error_type"] = "batch_failed"
+            plog["error_message"] = str(e)
+            plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+            results[idx] = (None, {"answer_id": ad["answer_id"], "error": str(e)}, plog)
+        return [r for r in results if r is not None]
+
+    batch_ms = int((time.perf_counter() - t_batch) * 1000)
+    logger.info("gemini_batch: completed in %dms, got %d results", batch_ms, len(api_results))
+
+    # Parse batch results
+    for i, (idx, ad, plog, _, t_start) in enumerate(pending):
+        if i >= len(api_results) or not api_results[i].get("text"):
+            plog["error_type"] = "batch_no_result"
+            plog["error_message"] = "No result from batch API"
+            plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+            results[idx] = (None, {"answer_id": ad["answer_id"], "error": "batch_no_result"}, plog)
+            continue
+
+        text = api_results[i]["text"]
+        plog["grading_ms"] = batch_ms // len(pending)
+        plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+
+        parsed = extract_json(text)
+        if not parsed or not isinstance(parsed, dict):
+            plog["error_type"] = "parse_error"
+            plog["error_message"] = f"Failed to parse: {text[:100]}"
+            results[idx] = (None, {"answer_id": ad["answer_id"], "error": plog["error_message"]}, plog)
+            continue
+
+        max_score = ad["question_max_score"]
+        score = min(max(parsed.get("score", 0), 0), max_score)
+        plog["score"] = score
+        plog["confidence"] = parsed.get("confidence")
+
+        results[idx] = ({
+            "answer_id": ad["answer_id"], "question_id": ad["question_id"],
+            "score": score, "max_score": max_score,
+            "feedback": parsed.get("comment", parsed.get("feedback", "")),
+            "confidence": parsed.get("confidence"),
+            "raw_content": text,
+            "details": flatten_llm_details(parsed.get("details")),
+            "deductions": parsed.get("deductions") or [],
+            "comment": parsed.get("comment", ""),
+            "recognizedText": parsed.get("llmRecognizedText", ""),
+        }, None, plog)
+
+    return [r for r in results if r is not None]
+
+
 async def _grade_with_semaphore(llm, ad, rubrics, *, use_gemini_official=False):
     async with _grading_semaphore:
         return await _grade_single(llm, ad, rubrics, use_gemini_official=use_gemini_official)
@@ -426,63 +625,101 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
             logger.info("grading_task: task=%s, answers=%d, rubrics=%d, batch_size=%d",
                         task_id, len(answer_data), len(rubrics_by_question), batch_size)
 
-            # Process in micro-batches
-            errors = []
-            processed = 0
-            for batch_start in range(0, len(answer_data), batch_size):
-                batch = answer_data[batch_start:batch_start + batch_size]
-                batch_num = batch_start // batch_size + 1
-                logger.info("grading_task: task=%s, batch %d, size=%d", task_id, batch_num, len(batch))
+            # Batch API mode: collect requests → submit → poll → parse
+            if task.grading_mode == "batch" and use_gemini:
+                batch_results = await _process_gemini_batch(
+                    llm, answer_data, rubrics_by_question, subject_code, use_gemini,
+                )
+                logger.info("grading_task: task=%s, batch API returned %d results", task_id, len(batch_results))
 
-                # Launch all LLM calls in this batch concurrently
-                coros = [_grade_with_semaphore(llm, ad, rubrics_by_question, use_gemini_official=use_gemini) for ad in batch]
-                batch_results = await asyncio.gather(*coros)
-
-                # Write results + pipeline logs to DB
+            # Realtime mode (or non-Gemini fallback): micro-batch concurrent calls with per-batch commit
+            else:
                 from edu_cloud.modules.grading.models import GradingPipelineLog
-                batch_completed = 0
-                batch_failed = 0
-                for result_dict, error_dict, plog in batch_results:
-                    # Always write pipeline log
-                    db.add(GradingPipelineLog(
-                        answer_id=plog["answer_id"],
-                        question_id=plog["question_id"],
-                        task_id=task.id,
-                        school_id=task.school_id,
-                        subject_code=plog.get("subject_code"),
-                        question_type=plog.get("question_type"),
-                        pipeline_type=plog["pipeline_type"],
-                        image_size_bytes=plog.get("image_size_bytes"),
-                        is_blank=plog.get("is_blank", False),
-                        ocr_model=plog.get("ocr_model"),
-                        ocr_prompt_type=plog.get("ocr_prompt_type"),
-                        ocr_ms=plog.get("ocr_ms"),
-                        ocr_text=plog.get("ocr_text"),
-                        ocr_blanks_count=plog.get("ocr_blanks_count"),
-                        char_count=plog.get("char_count"),
-                        grading_model=plog.get("grading_model"),
-                        grading_prompt_type=plog.get("grading_prompt_type"),
-                        grading_ms=plog.get("grading_ms"),
-                        total_ms=plog.get("total_ms"),
-                        score=plog.get("score"),
-                        confidence=plog.get("confidence"),
-                        error_type=plog.get("error_type"),
-                        error_message=plog.get("error_message"),
-                    ))
+                errors = []
+                processed = 0
+                for batch_start in range(0, len(answer_data), batch_size):
+                    batch = answer_data[batch_start:batch_start + batch_size]
+                    batch_num = batch_start // batch_size + 1
+                    logger.info("grading_task: task=%s, micro-batch %d, size=%d", task_id, batch_num, len(batch))
+                    coros = [_grade_with_semaphore(llm, ad, rubrics_by_question, use_gemini_official=use_gemini) for ad in batch]
+                    mb_results = await asyncio.gather(*coros)
+                    batch_completed = 0
+                    batch_failed = 0
+                    for result_dict, error_dict, plog in mb_results:
+                        db.add(GradingPipelineLog(
+                            answer_id=plog["answer_id"], question_id=plog["question_id"],
+                            task_id=task.id, school_id=task.school_id,
+                            subject_code=plog.get("subject_code"), question_type=plog.get("question_type"),
+                            pipeline_type=plog["pipeline_type"], image_size_bytes=plog.get("image_size_bytes"),
+                            is_blank=plog.get("is_blank", False),
+                            ocr_model=plog.get("ocr_model"), ocr_prompt_type=plog.get("ocr_prompt_type"),
+                            ocr_ms=plog.get("ocr_ms"), ocr_text=plog.get("ocr_text"),
+                            ocr_blanks_count=plog.get("ocr_blanks_count"), char_count=plog.get("char_count"),
+                            grading_model=plog.get("grading_model"), grading_prompt_type=plog.get("grading_prompt_type"),
+                            grading_ms=plog.get("grading_ms"), total_ms=plog.get("total_ms"),
+                            score=plog.get("score"), confidence=plog.get("confidence"),
+                            error_type=plog.get("error_type"), error_message=plog.get("error_message"),
+                        ))
+                        if error_dict is not None:
+                            errors.append(error_dict)
+                            batch_failed += 1
+                        else:
+                            details = result_dict.get("details") or []
+                            db.add(GradingResult(
+                                ai_task_id=task.id, answer_id=result_dict["answer_id"],
+                                question_id=result_dict["question_id"], school_id=task.school_id,
+                                ai_score=result_dict["score"], ai_confidence=result_dict["confidence"],
+                                ai_feedback=result_dict.get("comment") or result_dict.get("feedback", ""),
+                                ai_raw_response={
+                                    "raw_content": result_dict.get("raw_content", ""),
+                                    "details": details,
+                                    "deductions": result_dict.get("deductions") or [],
+                                    "comment": result_dict.get("comment", ""),
+                                    "recognizedText": result_dict.get("recognizedText"),
+                                },
+                                final_score=result_dict["score"], max_score=result_dict["max_score"],
+                                status="ai_done",
+                            ))
+                            batch_completed += 1
+                    processed += len(batch)
+                    result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
+                    task = result.scalar_one()
+                    task.completed += batch_completed
+                    task.failed += batch_failed
+                    await db.commit()
+                    logger.info("grading_task: task=%s, batch %d done, +%d/+%d, progress=%d/%d",
+                                task_id, batch_num, batch_completed, batch_failed, processed, len(answer_data))
 
+            # Batch API mode: write all results at once
+            if task.grading_mode == "batch" and use_gemini and batch_results:
+                from edu_cloud.modules.grading.models import GradingPipelineLog
+                errors = []
+                total_completed = 0
+                total_failed = 0
+                for result_dict, error_dict, plog in batch_results:
+                    db.add(GradingPipelineLog(
+                        answer_id=plog["answer_id"], question_id=plog["question_id"],
+                        task_id=task.id, school_id=task.school_id,
+                        subject_code=plog.get("subject_code"), question_type=plog.get("question_type"),
+                        pipeline_type=plog["pipeline_type"], image_size_bytes=plog.get("image_size_bytes"),
+                        is_blank=plog.get("is_blank", False),
+                        ocr_model=plog.get("ocr_model"), ocr_prompt_type=plog.get("ocr_prompt_type"),
+                        ocr_ms=plog.get("ocr_ms"), ocr_text=plog.get("ocr_text"),
+                        ocr_blanks_count=plog.get("ocr_blanks_count"), char_count=plog.get("char_count"),
+                        grading_model=plog.get("grading_model"), grading_prompt_type=plog.get("grading_prompt_type"),
+                        grading_ms=plog.get("grading_ms"), total_ms=plog.get("total_ms"),
+                        score=plog.get("score"), confidence=plog.get("confidence"),
+                        error_type=plog.get("error_type"), error_message=plog.get("error_message"),
+                    ))
                     if error_dict is not None:
                         errors.append(error_dict)
-                        batch_failed += 1
+                        total_failed += 1
                     else:
                         details = result_dict.get("details") or []
-
-                        gr = GradingResult(
-                            ai_task_id=task.id,
-                            answer_id=result_dict["answer_id"],
-                            question_id=result_dict["question_id"],
-                            school_id=task.school_id,
-                            ai_score=result_dict["score"],
-                            ai_confidence=result_dict["confidence"],
+                        db.add(GradingResult(
+                            ai_task_id=task.id, answer_id=result_dict["answer_id"],
+                            question_id=result_dict["question_id"], school_id=task.school_id,
+                            ai_score=result_dict["score"], ai_confidence=result_dict["confidence"],
                             ai_feedback=result_dict.get("comment") or result_dict.get("feedback", ""),
                             ai_raw_response={
                                 "raw_content": result_dict.get("raw_content", ""),
@@ -491,22 +728,15 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                                 "comment": result_dict.get("comment", ""),
                                 "recognizedText": result_dict.get("recognizedText"),
                             },
-                            final_score=result_dict["score"],
-                            max_score=result_dict["max_score"],
+                            final_score=result_dict["score"], max_score=result_dict["max_score"],
                             status="ai_done",
-                        )
-                        db.add(gr)
-                        batch_completed += 1
-
-                # Update progress after each batch
-                processed += len(batch)
+                        ))
+                        total_completed += 1
                 result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
                 task = result.scalar_one()
-                task.completed += batch_completed
-                task.failed += batch_failed
+                task.completed = total_completed
+                task.failed = total_failed
                 await db.commit()
-                logger.info("grading_task: task=%s, batch %d done, +%d completed, +%d failed, progress=%d/%d",
-                            task_id, batch_num, batch_completed, batch_failed, processed, len(answer_data))
 
             # Final status
             result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))

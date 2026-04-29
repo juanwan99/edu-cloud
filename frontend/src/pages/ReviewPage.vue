@@ -127,7 +127,40 @@
                   </div>
                   <div v-if="item.reason" class="ai-sub-reason">{{ item.reason }}</div>
                 </div>
+                <!-- 标注区 -->
+                <div class="ann-row">
+                  <div v-if="getAnnotation(item.blankNo || String(i))" class="ann-existing">
+                    <span class="ann-tag">{{ getAnnotation(item.blankNo || String(i)).target === 'ocr' ? 'OCR' : '评分' }}</span>
+                    <span class="ann-text">{{ getAnnotation(item.blankNo || String(i)).comment }}</span>
+                    <n-button size="tiny" text type="error" @click="removeAnnotation(item.blankNo || String(i))">删除</n-button>
+                  </div>
+                  <div v-else-if="annEditing === (item.blankNo || String(i))" class="ann-input-row">
+                    <n-radio-group v-model:value="annTarget" size="tiny">
+                      <n-radio-button value="ocr">OCR</n-radio-button>
+                      <n-radio-button value="score">评分</n-radio-button>
+                    </n-radio-group>
+                    <n-input v-model:value="annComment" size="small" placeholder="标注说明" @keyup.enter="submitAnnotation(item.blankNo || String(i))" style="flex:1" />
+                    <n-input-number v-if="annTarget === 'score'" v-model:value="annSuggestedScore" size="small" :min="0" :max="item.maxScore" placeholder="建议分" style="width:80px" />
+                    <n-button size="tiny" type="primary" @click="submitAnnotation(item.blankNo || String(i))">确认</n-button>
+                    <n-button size="tiny" @click="annEditing = null">取消</n-button>
+                  </div>
+                  <n-button v-else size="tiny" text @click="startAnnotation(item.blankNo || String(i))">+ 标注</n-button>
+                </div>
               </div>
+            </div>
+            <!-- 整题标注 -->
+            <div v-if="ai" class="ann-overall">
+              <div v-if="getAnnotation(null)" class="ann-existing">
+                <span class="ann-tag">整题</span>
+                <span class="ann-text">{{ getAnnotation(null).comment }}</span>
+                <n-button size="tiny" text type="error" @click="removeAnnotation(null)">删除</n-button>
+              </div>
+              <div v-else-if="annEditing === '_overall'" class="ann-input-row">
+                <n-input v-model:value="annComment" size="small" placeholder="整题标注" @keyup.enter="submitAnnotation(null)" style="flex:1" />
+                <n-button size="tiny" type="primary" @click="submitAnnotation(null)">确认</n-button>
+                <n-button size="tiny" @click="annEditing = null">取消</n-button>
+              </div>
+              <n-button v-else size="tiny" text @click="annEditing = '_overall'; annComment = ''; annTarget = 'score'">+ 整题标注</n-button>
             </div>
             <div v-if="ai.deductions?.length" class="ai-deductions">
               <div class="ai-deductions-title">扣分项</div>
@@ -302,6 +335,54 @@ const currentScore = ref(null)
 const comment = ref('')
 const scoreInputRef = ref(null)
 
+// Annotations
+const annotations = ref([])
+const annEditing = ref(null)
+const annTarget = ref('score')
+const annComment = ref('')
+const annSuggestedScore = ref(null)
+
+function getAnnotation(blankNo) {
+  const key = blankNo ?? '_overall'
+  return annotations.value.find(a => (a.blankNo ?? '_overall') === key)
+}
+
+function startAnnotation(blankNo) {
+  annEditing.value = blankNo ?? '_overall'
+  annComment.value = ''
+  annTarget.value = 'score'
+  annSuggestedScore.value = null
+}
+
+function removeAnnotation(blankNo) {
+  const key = blankNo ?? '_overall'
+  annotations.value = annotations.value.filter(a => (a.blankNo ?? '_overall') !== key)
+  saveAnnotations()
+}
+
+function submitAnnotation(blankNo) {
+  if (!annComment.value.trim()) return
+  const key = blankNo ?? '_overall'
+  annotations.value = annotations.value.filter(a => (a.blankNo ?? '_overall') !== key)
+  const item = { target: annTarget.value, blankNo: blankNo || null, comment: annComment.value.trim() }
+  if (annTarget.value === 'score' && annSuggestedScore.value != null) {
+    item.suggested_score = annSuggestedScore.value
+  }
+  annotations.value.push(item)
+  annEditing.value = null
+  saveAnnotations()
+}
+
+async function saveAnnotations() {
+  const resultId = ai.value?.result_id
+  if (!resultId) return
+  try {
+    await client.patch(`/grading/results/${resultId}/annotations`, annotations.value)
+  } catch {
+    message.error('标注保存失败')
+  }
+}
+
 const reviewMode = ref('ungraded')
 const browseIndex = ref(-1)
 const browsing = ref(false)
@@ -371,6 +452,8 @@ async function applyAnswer(answerPayload) {
   currentAnswerId.value = answerPayload.answer_id
   position.value = answerPayload.position
   ai.value = answerPayload.ai || null
+  annotations.value = answerPayload.annotations || []
+  annEditing.value = null
   if (answerPayload.max_score != null) maxScore.value = answerPayload.max_score
   currentScore.value = ai.value ? ai.value.score : null
   comment.value = ''
@@ -1013,5 +1096,45 @@ onUnmounted(() => {
   border-radius: 3px;
   font-family: inherit;
   font-size: 16px;
+}
+
+.ann-row {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed rgba(255,255,255,0.06);
+}
+
+.ann-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ann-existing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.ann-tag {
+  font-size: 16px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(250, 200, 80, 0.15);
+  color: #f0c050;
+  white-space: nowrap;
+}
+
+.ann-text {
+  font-size: 16px;
+  color: #cfd8d3;
+}
+
+.ann-overall {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.08);
 }
 </style>

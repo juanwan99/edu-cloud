@@ -715,19 +715,19 @@ async def create_grading_task(
         if ans_count == 0:
             raise HTTPException(400, "该题目暂无可批改答卷")
 
-        # AGP-004: Regrade semantics - clean old ai_pending/ai_done results
+        # AGP-004: Clean stale in-progress results only; preserve ai_done (incremental grading)
         old_results = (await db.execute(
             select(GradingResult).where(
                 GradingResult.question_id == req.question_id,
                 GradingResult.school_id == school_id,
-                GradingResult.status.in_(["ai_pending", "ai_done"]),
+                GradingResult.status == "ai_pending",
             )
         )).scalars().all()
         for old in old_results:
             await db.delete(old)
         if old_results:
             await db.commit()
-            logger.info("create_grading_task: cleaned %d stale results for question=%s",
+            logger.info("create_grading_task: cleaned %d stale ai_pending results for question=%s",
                         len(old_results), req.question_id)
 
     else:
@@ -764,19 +764,19 @@ async def create_grading_task(
         if answer_count == 0:
             raise HTTPException(400, "该科目暂无可批改答卷，请先完成扫描与切图")
 
-        # Subject-level: clean old ai_pending/ai_done results for all subjective questions
+        # Subject-level: clean stale ai_pending only; preserve ai_done
         old_results = (await db.execute(
             select(GradingResult).where(
                 GradingResult.question_id.in_(subjective_q_ids),
                 GradingResult.school_id == school_id,
-                GradingResult.status.in_(["ai_pending", "ai_done"]),
+                GradingResult.status == "ai_pending",
             )
         )).scalars().all()
         for old in old_results:
             await db.delete(old)
         if old_results:
             await db.commit()
-            logger.info("create_grading_task: cleaned %d stale subject-level results", len(old_results))
+            logger.info("create_grading_task: cleaned %d stale ai_pending subject-level results", len(old_results))
 
     # 创建 task（commit 以获得 ID），后续 enqueue 失败则清理 orphan
     task = GradingTask(
@@ -804,12 +804,12 @@ async def create_grading_task(
             )
         )).scalars().all()
         for cq in child_questions:
-            # 清理子题旧结果（同父题逻辑）
+            # 清理子题 ai_pending（保留 ai_done）
             old_child = (await db.execute(
                 select(GradingResult).where(
                     GradingResult.question_id == cq.id,
                     GradingResult.school_id == school_id,
-                    GradingResult.status.in_(["ai_pending", "ai_done"]),
+                    GradingResult.status == "ai_pending",
                 )
             )).scalars().all()
             for old in old_child:

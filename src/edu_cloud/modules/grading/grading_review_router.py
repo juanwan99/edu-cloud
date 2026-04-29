@@ -395,3 +395,79 @@ async def get_dispatch_status(
         })
 
     return result
+
+
+# --- Annotation API ---
+
+class AnnotationItem(BaseModel):
+    target: Literal["ocr", "score"]
+    blankNo: str | None = None
+    comment: str
+    suggested_score: float | None = None
+
+
+@router.patch("/results/{result_id}/annotations")
+async def save_annotations(
+    result_id: str,
+    items: list[AnnotationItem],
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+):
+    school_id = current["current_role"].school_id
+    gr = (await db.execute(
+        select(GradingResult).where(
+            GradingResult.id == result_id,
+            GradingResult.school_id == school_id,
+        )
+    )).scalar_one_or_none()
+    if not gr:
+        raise HTTPException(404, "评分记录不存在")
+
+    teacher_id = current["user"].id
+    annotations = [
+        {**item.model_dump(exclude_none=True), "teacher_id": teacher_id}
+        for item in items
+    ]
+    gr.annotations = annotations
+    await db.commit()
+    return {"ok": True, "count": len(annotations)}
+
+
+@router.get("/annotations/summary")
+async def get_annotation_summary(
+    question_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+):
+    school_id = current["current_role"].school_id
+    results = (await db.execute(
+        select(GradingResult).where(
+            GradingResult.question_id == question_id,
+            GradingResult.school_id == school_id,
+            GradingResult.annotations.is_not(None),
+        )
+    )).scalars().all()
+
+    by_blank: dict[str, list] = {}
+    for gr in results:
+        for ann in (gr.annotations or []):
+            key = ann.get("blankNo") or "_overall"
+            by_blank.setdefault(key, []).append({
+                "target": ann.get("target"),
+                "comment": ann.get("comment"),
+                "suggested_score": ann.get("suggested_score"),
+                "teacher_id": ann.get("teacher_id"),
+                "answer_id": gr.answer_id,
+                "ai_score": gr.ai_score,
+            })
+
+    summary = []
+    for blank_no, anns in sorted(by_blank.items()):
+        suggested = [a["suggested_score"] for a in anns if a.get("suggested_score") is not None]
+        summary.append({
+            "blankNo": blank_no,
+            "annotation_count": len(anns),
+            "suggested_score_avg": round(sum(suggested) / len(suggested), 2) if suggested else None,
+            "annotations": anns,
+        })
+    return {"question_id": question_id, "total_annotated": len(results), "by_blank": summary}

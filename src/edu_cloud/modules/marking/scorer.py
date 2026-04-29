@@ -201,6 +201,7 @@ async def get_next_answer(
             "max_score": max_score,
             "is_anomaly": answer.is_anomaly,
             "anomaly_type": answer.anomaly_type,
+            "annotations": ai_done_q.annotations or [],
         }
 
     # ---- 默认 ungraded 模式 ----
@@ -292,6 +293,7 @@ async def get_next_answer(
         "max_score": max_score,
         "is_anomaly": answer.is_anomaly,
         "anomaly_type": answer.anomaly_type,
+        "annotations": ai_row.annotations if ai_row else [],
     }
 
 
@@ -391,6 +393,7 @@ async def get_answer_at(
         "anomaly_type": answer.anomaly_type,
         "graded_score": graded_score,
         "graded_comment": graded_comment,
+        "annotations": gr.annotations if gr else [],
     }
 
 
