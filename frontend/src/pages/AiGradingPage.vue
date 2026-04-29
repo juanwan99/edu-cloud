@@ -602,6 +602,8 @@ async function handleBatchGenerate() {
   padding: 12px;
   position: sticky;
   top: 16px;
+  max-height: calc(100dvh - 64px - 48px - 32px);
+  overflow-y: auto;
 }
 
 .panel-title {
