@@ -1,9 +1,21 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
+import { execSync } from 'node:child_process'
+
+function fixDistPermissions() {
+  return {
+    name: 'fix-dist-permissions',
+    closeBundle() {
+      try {
+        execSync('chmod -R o+rX dist/', { cwd: fileURLToPath(new URL('.', import.meta.url)) })
+      } catch {}
+    },
+  }
+}
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), fixDistPermissions()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
