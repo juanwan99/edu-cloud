@@ -11,7 +11,7 @@ body {
   font-size: 16px;
   color: var(--color-text);
   background: var(--color-bg);
-  line-height: 1.6;
+  line-height: var(--lh-relaxed);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -32,10 +32,10 @@ a {
 }
 
 .page-title {
-  font-size: 30px;
-  font-weight: 800;
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semibold);
   color: var(--color-text);
-  line-height: 1.2;
+  line-height: var(--lh-tight);
   letter-spacing: -0.02em;
   text-wrap: balance;
 }
@@ -68,10 +68,10 @@ a {
 }
 
 .stat-card .stat-value {
-  font-size: 36px;
-  font-weight: 800;
+  font-size: var(--fs-display);
+  font-weight: var(--fw-semibold);
   letter-spacing: -0.03em;
-  line-height: 1.1;
+  line-height: var(--lh-tight);
   font-variant-numeric: tabular-nums;
 }
 

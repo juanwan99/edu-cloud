@@ -3,6 +3,8 @@ import { createPinia } from 'pinia'
 import naive from 'naive-ui'
 import router from './router/index.js'
 import App from './App.vue'
+import './assets/styles/variables.css'
+import './assets/styles/global.css'
 
 if (typeof __BUILD_TIME__ !== 'undefined') {
   console.log(
