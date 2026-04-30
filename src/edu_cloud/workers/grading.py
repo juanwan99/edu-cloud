@@ -283,15 +283,18 @@ async def _grade_single(
 
 
 async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_code, use_gemini_official):
-    """Gemini Batch API: prepare all → submit → poll → parse. Cost = 50% of realtime."""
+    """Gemini Batch API: 两阶段全 batch — OCR batch → 评分 batch。Cost = 50% of realtime."""
     from edu_cloud.modules.grading.prompts import get_prompt, render_prompt
     from edu_cloud.modules.grading.rubric_formatter import format_rubric_for_grading
     from edu_cloud.modules.grading.json_parser import extract_json
     from edu_cloud.modules.grading.detail_flatten import flatten_llm_details
+    from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
     from google.genai import types
 
     results = []  # [(result_dict|None, error_dict|None, plog)]
-    pending = []  # [(index_in_results, ad, plog, contents)]
+    # Phase 1 准备：分流 vision 直评 vs two-step OCR
+    vision_pending = []   # [(idx, ad, plog, contents, t_start)]
+    ocr_pending = []      # [(idx, ad, plog, ocr_contents, rubric_criteria, t_start)]
 
     for ad in answer_data:
         answer_id = ad["answer_id"]
@@ -302,7 +305,7 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
             "pipeline_type": "unknown", "is_blank": False, "image_size_bytes": None,
             "ocr_model": None, "ocr_prompt_type": None, "ocr_ms": None,
             "ocr_text": None, "ocr_blanks_count": None, "char_count": None,
-            "grading_model": llm.model, "grading_prompt_type": None, "grading_ms": None,
+            "grading_model": None, "grading_prompt_type": None, "grading_ms": None,
             "total_ms": None, "score": None, "confidence": None,
             "error_type": None, "error_message": None,
         }
@@ -344,14 +347,12 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
                 if _is_drawing:
                     from edu_cloud.modules.grading.prompts.base import DRAWING_HINT
                     prompt = DRAWING_HINT + prompt
-                # Build image parts
                 image_bytes = base64.b64decode(image_b64)
                 from edu_cloud.modules.grading.image_utils import resize_image_for_llm
                 parts = []
                 resized = resize_image_for_llm(image_bytes)
                 mime = "image/png" if resized[:4] == b"\x89PNG" else "image/jpeg"
                 parts.append(types.Part.from_bytes(data=resized, mime_type=mime))
-                # Reference answer images
                 has_ref = False
                 for ref_path in ad.get("reference_answer_images", []):
                     try:
@@ -367,10 +368,20 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
                     prompt = "【第1张图片】学生作答\n【第2张图片】标准答案（请对比评分）\n\n" + prompt
                 parts.append(types.Part.from_text(text=prompt))
                 contents = [types.Content(role="user", parts=parts)]
+                plog["grading_model"] = llm.model
+                idx = len(results)
+                results.append(None)
+                vision_pending.append((idx, ad, plog, contents, t_start))
+            elif grading_prompt_tpl is None:
+                plog["pipeline_type"] = "error"
+                plog["error_type"] = "no_prompt"
+                plog["error_message"] = f"No grading prompt for subject '{subject_code}'"
+                plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+                results.append((None, {"answer_id": answer_id, "error": plog["error_message"]}, plog))
+                continue
             else:
                 plog["pipeline_type"] = "two_step"
                 plog["grading_prompt_type"] = "GRADING_TEXT"
-                # OCR step (realtime — cheap and fast)
                 ocr_prompt = get_prompt(subject_code, "OCR_STRUCTURED", "senior") or get_prompt(subject_code, "OCR", "senior")
                 plog["ocr_prompt_type"] = "OCR_STRUCTURED" if get_prompt(subject_code, "OCR_STRUCTURED", "senior") else "OCR"
                 if ocr_prompt:
@@ -380,37 +391,19 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
                     from edu_cloud.modules.grading.prompts.base import OCR_PROMPT_BASE
                     ocr_prompt = OCR_PROMPT_BASE
                     plog["ocr_prompt_type"] = "OCR_BASE"
-                t_ocr = time.perf_counter()
                 image_bytes = base64.b64decode(image_b64)
-                blanks = await llm.extract_text(image_bytes=image_bytes, prompt=ocr_prompt)
-                plog["ocr_ms"] = int((time.perf_counter() - t_ocr) * 1000)
-                from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
-                blanks = validate_ocr_blanks(blanks)
-                blanks = recover_truncated_blanks(blanks, len(rubric_criteria))
-                extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
-                plog["ocr_text"] = extracted_text
-                plog["ocr_blanks_count"] = len(blanks)
-                non_empty = [b for b in blanks if b.get("text", "").strip()]
-                if not non_empty:
-                    plog.update(pipeline_type="blank", is_blank=True, score=0, confidence=1.0,
-                                total_ms=int((time.perf_counter() - t_start) * 1000))
-                    results.append(({
-                        "answer_id": answer_id, "question_id": question_id,
-                        "score": 0, "max_score": ad["question_max_score"],
-                        "feedback": "空白卷（所有填空均未检测到作答内容）", "confidence": 1.0, "raw_content": "",
-                        "details": [{"blankNo": b.get("blankNo", str(i+1)), "score": 0, "maxScore": 0, "reason": "未作答"} for i, b in enumerate(blanks)],
-                    }, None, plog))
-                    continue
-                char_stats = ""
-                grading_prompt = render_prompt(grading_prompt_tpl, {
-                    "fullScore": full_score, "rubric": rubric_text,
-                    "extractedText": extracted_text, "charStats": char_stats,
-                })
-                contents = [types.Content(role="user", parts=[types.Part.from_text(text=grading_prompt)])]
-
-            idx = len(results)
-            results.append(None)  # placeholder
-            pending.append((idx, ad, plog, contents, t_start))
+                from edu_cloud.modules.grading.image_utils import resize_image_for_llm
+                resized = resize_image_for_llm(image_bytes)
+                mime = "image/png" if resized[:4] == b"\x89PNG" else "image/jpeg"
+                ocr_contents = [types.Content(role="user", parts=[
+                    types.Part.from_bytes(data=resized, mime_type=mime),
+                    types.Part.from_text(text=ocr_prompt),
+                ])]
+                plog["ocr_model"] = llm.model
+                plog["grading_model"] = llm.model
+                idx = len(results)
+                results.append(None)
+                ocr_pending.append((idx, ad, plog, ocr_contents, rubric_criteria, t_start))
 
         except Exception as e:
             plog["pipeline_type"] = plog["pipeline_type"] if plog["pipeline_type"] != "unknown" else "error"
@@ -419,19 +412,93 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
             plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
             results.append((None, {"answer_id": answer_id, "error": str(e)}, plog))
 
-    if not pending:
+    # ── Phase 1: OCR batch ──
+    grade_pending = list(vision_pending)  # vision 直接进评分 batch
+
+    if ocr_pending:
+        logger.info("gemini_batch: phase1 OCR submitting %d requests", len(ocr_pending))
+        ocr_reqs = [{"contents": c} for _, _, _, c, _, _ in ocr_pending]
+        t_ocr_batch = time.perf_counter()
+        try:
+            ocr_job = await llm.create_batch_job(ocr_reqs)
+            ocr_results = await llm.poll_batch_job(ocr_job, poll_interval=5, timeout=1200)
+        except Exception as e:
+            logger.error("gemini_batch: OCR batch failed: %s", e)
+            for idx, ad, plog, _, _, t_start in ocr_pending:
+                plog["error_type"] = "ocr_batch_failed"
+                plog["error_message"] = str(e)
+                plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+                results[idx] = (None, {"answer_id": ad["answer_id"], "error": str(e)}, plog)
+            ocr_pending = []  # B002: 跳过解析循环
+            ocr_results = []
+
+        ocr_batch_ms = int((time.perf_counter() - t_ocr_batch) * 1000) if ocr_pending else 0
+        if ocr_pending:
+            logger.info("gemini_batch: phase1 OCR completed in %dms, got %d results", ocr_batch_ms, len(ocr_results))
+
+        for i, (idx, ad, plog, _, rubric_criteria, t_start) in enumerate(ocr_pending):
+            plog["ocr_ms"] = ocr_batch_ms // max(len(ocr_pending), 1)
+            if i >= len(ocr_results) or not ocr_results[i].get("text"):
+                plog["error_type"] = "ocr_batch_no_result"
+                plog["error_message"] = "No OCR result from batch"
+                plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+                results[idx] = (None, {"answer_id": ad["answer_id"], "error": plog["error_message"]}, plog)
+                continue
+
+            ocr_text = ocr_results[i]["text"]
+            ocr_parsed = extract_json(ocr_text)
+            if ocr_parsed is None:
+                plog["error_type"] = "ocr_parse_error"
+                plog["error_message"] = f"OCR JSON parse failed: {ocr_text[:100]}"
+                plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+                results[idx] = (None, {"answer_id": ad["answer_id"], "error": plog["error_message"]}, plog)
+                continue
+
+            if isinstance(ocr_parsed, dict):
+                blanks = ocr_parsed.get("blanks", [])
+            else:
+                blanks = ocr_parsed
+            blanks = validate_ocr_blanks(blanks)
+            blanks = recover_truncated_blanks(blanks, len(rubric_criteria))
+            extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
+            plog["ocr_text"] = extracted_text
+            plog["ocr_blanks_count"] = len(blanks)
+
+            non_empty = [b for b in blanks if b.get("text", "").strip()]
+            if not non_empty:
+                plog.update(pipeline_type="blank", is_blank=True, score=0, confidence=1.0,
+                            total_ms=int((time.perf_counter() - t_start) * 1000))
+                results[idx] = ({
+                    "answer_id": ad["answer_id"], "question_id": ad["question_id"],
+                    "score": 0, "max_score": ad["question_max_score"],
+                    "feedback": "空白卷（所有填空均未检测到作答内容）", "confidence": 1.0, "raw_content": "",
+                    "details": [{"blankNo": b.get("blankNo", str(j+1)), "score": 0, "maxScore": 0, "reason": "未作答"} for j, b in enumerate(blanks)],
+                }, None, plog)
+                continue
+
+            rubric_text = format_rubric_for_grading(rubric_criteria)
+            full_score = str(ad["question_max_score"])
+            grading_prompt_tpl = get_prompt(subject_code, "GRADING_TEXT", "senior")
+            grading_prompt = render_prompt(grading_prompt_tpl, {
+                "fullScore": full_score, "rubric": rubric_text,
+                "extractedText": extracted_text, "charStats": "",
+            })
+            contents = [types.Content(role="user", parts=[types.Part.from_text(text=grading_prompt)])]
+            grade_pending.append((idx, ad, plog, contents, t_start))
+
+    # ── Phase 2: 评分 batch（vision + text 一起提交）──
+    if not grade_pending:
         return [r for r in results if r is not None]
 
-    # Submit to Gemini Batch API
-    logger.info("gemini_batch: submitting %d requests", len(pending))
-    batch_reqs = [{"contents": contents} for _, _, _, contents, _ in pending]
+    logger.info("gemini_batch: phase2 grading submitting %d requests", len(grade_pending))
+    batch_reqs = [{"contents": contents} for _, _, _, contents, _ in grade_pending]
     t_batch = time.perf_counter()
     try:
         job_name = await llm.create_batch_job(batch_reqs)
         api_results = await llm.poll_batch_job(job_name, poll_interval=5, timeout=1200)
     except Exception as e:
-        logger.error("gemini_batch: batch API failed: %s, falling back to realtime", e)
-        for idx, ad, plog, _, t_start in pending:
+        logger.error("gemini_batch: grading batch failed: %s", e)
+        for idx, ad, plog, _, t_start in grade_pending:
             plog["error_type"] = "batch_failed"
             plog["error_message"] = str(e)
             plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
@@ -439,10 +506,10 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
         return [r for r in results if r is not None]
 
     batch_ms = int((time.perf_counter() - t_batch) * 1000)
-    logger.info("gemini_batch: completed in %dms, got %d results", batch_ms, len(api_results))
+    logger.info("gemini_batch: phase2 grading completed in %dms, got %d results", batch_ms, len(api_results))
 
     # Parse batch results
-    for i, (idx, ad, plog, _, t_start) in enumerate(pending):
+    for i, (idx, ad, plog, _, t_start) in enumerate(grade_pending):
         if i >= len(api_results) or not api_results[i].get("text"):
             plog["error_type"] = "batch_no_result"
             plog["error_message"] = "No result from batch API"
@@ -451,7 +518,7 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
             continue
 
         text = api_results[i]["text"]
-        plog["grading_ms"] = batch_ms // len(pending)
+        plog["grading_ms"] = batch_ms // len(grade_pending)
         plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
 
         parsed = extract_json(text)

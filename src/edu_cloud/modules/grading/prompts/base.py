@@ -15,13 +15,13 @@ GRADING_JSON_SCHEMA = """{
           "score": 得分,
           "fullScore": 满分,
           "correct": true/false,
-          "reason": "说明满足/不满足judgingRules中的哪些条件"
+          "reason": "判分依据（≤20字，说明为何对/错/部分对）"
         }
       ]
     }
   ],
-  "deductions": ["扣分点"],
-  "comment": "总评"
+  "deductions": ["1-1 应填xxx"],
+  "comment": "一句话总评（≤30字）"
 }"""
 
 FATAL_RULES = """【⚠️ 致命规则】
@@ -38,11 +38,15 @@ FATAL_RULES = """【⚠️ 致命规则】
    - subQuestion.score = 该小问所有blank.score之和
    - 总score = 所有subQuestion.score之和
 
-4. **reason必须具体**：
-   - ✓ "满足judgingRules中'xxx'的满分条件"
-   - ✗ "答案正确"
+4. **reason必须精简（≤20字）**：
+   - 直接说判分依据，禁止引用规则编号或"满足/不满足判分规则"等套话
+   - ✓ "③是子叶，应为④胚芽"
+   - ✓ "'条件'太泛，需具体到'温度'"
+   - ✓ "正确"
+   - ✗ "命中判分规则中xxx的0分条件"
+   - ✗ "满足judgingRules中xxx的满分条件"
 
-【生成顺序】先根据judgingRules写reason，再填score！"""
+【生成顺序】先根据judgingRules判定，再填score和精简reason！"""
 
 GRADING_METHOD_BASE = """对每个填空：
 1. **理解语境**：先看context，理解这道题的背景和答案逻辑
