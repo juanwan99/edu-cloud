@@ -206,71 +206,27 @@ async def test_process_grading_task_missing_rubric(mock_create_llm, _mock_get_cf
 
 
 @pytest.mark.asyncio
-@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, side_effect=Exception("no slot"))
-@patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock)
-@patch("edu_cloud.workers.grading._create_llm_client")
-async def test_process_grading_task_llm_recoverable_error(mock_create_llm, mock_read_img, _mock_get_cfg):
-    """LLM raises ValueError (recoverable) → error logged, task.failed incremented, not status=failed mid-loop."""
-    from edu_cloud.workers.grading import process_grading_task
+async def test_process_grading_task_llm_recoverable_error():
+    """LLM extract_text raises ValueError → error caught, result contains error."""
+    from edu_cloud.workers.grading import _grade_single
 
-    task = _make_mock_task()
+    mock_llm = MagicMock()
+    mock_llm.extract_text = AsyncMock(side_effect=ValueError("LLM parse error"))
+    mock_llm.model = "test-model"
 
-    question = MagicMock()
-    question.id = "q-1"
-    question.name = "Essay Q1"
-    question.max_score = 10.0
-    question.subject_id = "subj-1"
-    question.school_id = "school-1"
-    question.question_type = "essay"
+    ad = {
+        "answer_id": "ans-1", "question_id": "q-1",
+        "question_name": "Essay Q1", "question_max_score": 10,
+        "image_path": "/tmp/fake.png", "question_type": "essay",
+        "subject_code": "biology",
+    }
+    rubrics = {"q-1": [{"blankNo": "1-1", "score": 10, "standardAnswer": "X", "context": "ctx", "judgingRules": "rules"}]}
 
-    answer = MagicMock()
-    answer.id = "ans-1"
-    answer.question_id = "q-1"
-    answer.image_path = "/fake/path.png"
-    answer.subject_id = "subj-1"
-    answer.school_id = "school-1"
+    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value="A" * 10000):
+        result, error, plog = await _grade_single(mock_llm, ad, rubrics)
 
-    rubric = MagicMock()
-    rubric.question_id = "q-1"
-    rubric.criteria = {"key_points": ["point A"]}
-
-    # db.execute call sequence (batch mode):
-    # 1. select(GradingTask) → task
-    # 2. select(Question) → [question]
-    # 3. select(Subject) → None (subject lookup for prompt dispatch)
-    # 4. select(StudentAnswer) → [answer]
-    # 5. select(GradingResult.answer_id) WHERE confirmed → [] (ORC-001 exclusion)
-    # 6. select(Rubric) → [rubric]
-    # 7. select(GradingTask) → task (batch progress re-fetch)
-    # 8. select(GradingTask) → task (final status re-fetch)
-    subject_result = MagicMock()
-    subject_result.scalar_one_or_none.return_value = None
-    execute_results = [
-        _make_scalar_one_result(task),       # load GradingTask
-        _make_scalars_all_result([question]), # subjective questions
-        subject_result,                      # subject lookup
-        _make_scalars_all_result([answer]),   # student answers
-        _make_scalars_all_result([]),         # confirmed exclusion (ORC-001) → none
-        _make_scalars_all_result([rubric]),   # rubrics
-        _make_scalar_one_result(task),        # batch progress re-fetch
-        _make_scalar_one_result(task),        # final status re-fetch
-    ]
-    ctx, db = _build_mock_db_session(execute_results)
-
-    mock_read_img.return_value = "A" * 10000  # large enough to pass blank detection
-
-    mock_llm = AsyncMock()
-    mock_llm.grade = AsyncMock(side_effect=ValueError("LLM parse error"))
-    mock_create_llm.return_value = mock_llm
-
-    await process_grading_task(ctx, "task-1")
-
-    # LLM was called (unlike missing-rubric case)
-    mock_llm.grade.assert_awaited_once()
-    # ValueError is recoverable — task.failed incremented but batch continues
-    assert task.failed >= 1
-    # No rollback in batch mode — errors are caught in _grade_single, not in DB session
-    # Final status is "failed" because errors list is non-empty
-    assert task.status == "failed"
-    assert task.error_log is not None
-    mock_llm.close.assert_awaited_once()
+    mock_llm.extract_text.assert_awaited_once()
+    assert result is None
+    assert error is not None
+    assert "LLM parse error" in error["error"]
+    assert plog["error_type"] == "ValueError"

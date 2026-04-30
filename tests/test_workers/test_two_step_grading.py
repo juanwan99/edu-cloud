@@ -25,10 +25,11 @@ async def test_grade_single_two_step():
     rubrics = {"q1": [{"blankNo": "1-1", "score": 2, "standardAnswer": "动物细胞", "context": "ctx", "judgingRules": "rules"}]}
 
     with patch("edu_cloud.workers.grading._read_image_b64", return_value="A" * 10000):
-        result, error = await _grade_single(mock_llm, ad, rubrics)
+        result, error, plog = await _grade_single(mock_llm, ad, rubrics)
 
     assert error is None
     assert result["score"] == 2
+    assert plog["pipeline_type"] == "two_step"
     mock_llm.extract_text.assert_called_once()
     mock_llm.grade_text.assert_called_once()
 
@@ -49,24 +50,24 @@ async def test_grade_single_blank_detection():
 
     # Return a tiny base64 string (< 6800 chars = ~5KB)
     with patch("edu_cloud.workers.grading._read_image_b64", return_value="x" * 100):
-        result, error = await _grade_single(mock_llm, ad, rubrics)
+        result, error, plog = await _grade_single(mock_llm, ad, rubrics)
 
     assert error is None
     assert result["score"] == 0
     assert result["feedback"] == "空白卷"
+    assert plog["pipeline_type"] == "blank"
+    assert plog["is_blank"] is True
     mock_llm.extract_text.assert_not_called()
     mock_llm.grade_text.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_grade_single_fallback_no_subject_prompt():
-    """When subject prompt not found, falls back to legacy single-step grading."""
+    """When subject prompt not found, returns a no_prompt error."""
     from edu_cloud.workers.grading import _grade_single
 
     mock_llm = MagicMock()
-    mock_llm.grade = AsyncMock(return_value=GradeResponse(
-        score=3, max_score=5, feedback="partial", confidence=0.7, raw_content='{"score":3}'
-    ))
+    mock_llm.grade = AsyncMock()
 
     ad = {
         "answer_id": "a3", "question_id": "q1",
@@ -77,8 +78,10 @@ async def test_grade_single_fallback_no_subject_prompt():
     rubrics = {"q1": [{"blankNo": "1-1", "score": 5, "answer": "X"}]}
 
     with patch("edu_cloud.workers.grading._read_image_b64", return_value="A" * 10000):
-        result, error = await _grade_single(mock_llm, ad, rubrics)
+        result, error, plog = await _grade_single(mock_llm, ad, rubrics)
 
-    assert error is None
-    assert result["score"] == 3
-    mock_llm.grade.assert_called_once()
+    assert result is None
+    assert error == {"answer_id": "a3", "error": "No grading prompt for subject 'unknown_subject'"}
+    assert plog["pipeline_type"] == "error"
+    assert plog["error_type"] == "no_prompt"
+    mock_llm.grade.assert_not_called()
