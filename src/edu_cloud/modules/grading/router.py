@@ -506,15 +506,10 @@ async def grade_single_answer(
                 else:
                     char_stats = ""
                     if ans_qtype == "essay":
-                        import re
+                        from edu_cloud.modules.grading.prompts.base import count_essay_chars
                         raw_text = "".join(b.get("text", "") for b in blanks)
-                        cn_chars = len(re.findall(r'[一-鿿]', raw_text))
-                        en_words = len(re.findall(r'[a-zA-Z]+', raw_text))
-                        plog["char_count"] = cn_chars if cn_chars > en_words else en_words
-                        if cn_chars > en_words:
-                            char_stats = f"【字数统计】{cn_chars}字（基于OCR精确统计，请据此判断是否达到字数要求）"
-                        else:
-                            char_stats = f"【字数统计】{en_words}词（基于OCR精确统计，请据此判断是否达到词数要求）"
+                        char_count, char_stats = count_essay_chars(raw_text)
+                        plog["char_count"] = char_count
 
                     plog["grading_prompt_type"] = "GRADING_TEXT"
                     grading_prompt = render_prompt(grading_prompt_tpl, {
