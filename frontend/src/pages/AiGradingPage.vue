@@ -583,8 +583,8 @@ async function handleBatchGenerate() {
 }
 
 .page-title {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
   margin: 0;
 }
 
@@ -598,7 +598,7 @@ async function handleBatchGenerate() {
 .left-panel {
   background: var(--card-color, #1e2a22);
   border: 1px solid var(--border-color, #2e3e34);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   padding: 12px;
   position: sticky;
   top: 16px;
@@ -607,8 +607,8 @@ async function handleBatchGenerate() {
 }
 
 .panel-title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   color: #8a9a8e;
   margin-bottom: 10px;
   padding-bottom: 8px;
@@ -617,7 +617,7 @@ async function handleBatchGenerate() {
 
 .question-item {
   padding: 8px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   margin-bottom: 4px;
   transition: background 0.15s;
@@ -641,8 +641,8 @@ async function handleBatchGenerate() {
 }
 
 .q-num {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semibold);
   color: #e8f0ea;
   min-width: 32px;
   text-align: center;
@@ -660,15 +660,15 @@ async function handleBatchGenerate() {
 }
 
 .q-title {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: #d0dcd2;
   margin-bottom: 5px;
-  font-weight: 500;
+  font-weight: var(--fw-medium);
 }
 
 .q-score {
   color: #90c090;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .q-score.editable {
   cursor: pointer; border-bottom: 1px dashed #90c090;
@@ -682,10 +682,10 @@ async function handleBatchGenerate() {
 }
 
 .t {
-  font-size: 16px;
+  font-size: var(--fs-sm);
   padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 500;
+  border-radius: var(--r-xs);
+  font-weight: var(--fw-medium);
 }
 
 .t.ok {

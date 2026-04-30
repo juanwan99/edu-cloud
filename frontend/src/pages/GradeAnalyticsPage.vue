@@ -89,19 +89,19 @@ const barOption = computed(() => {
         name: '均分',
         type: 'bar',
         data: classes.map(c => c.avg_score),
-        itemStyle: { color: '#5470c6' },
+        itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--color-info').trim() || '#3b82f6' },
       },
       {
         name: '最高分',
         type: 'bar',
         data: classes.map(c => c.max_score),
-        itemStyle: { color: '#91cc75' },
+        itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim() || '#10b981' },
       },
       {
         name: '最低分',
         type: 'bar',
         data: classes.map(c => c.min_score),
-        itemStyle: { color: '#fac858' },
+        itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--color-warning').trim() || '#f59e0b' },
       },
     ],
   }

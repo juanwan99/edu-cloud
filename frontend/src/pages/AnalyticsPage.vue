@@ -114,6 +114,13 @@ import { getExam } from '../api/exams'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent])
 
+const rs = getComputedStyle(document.documentElement)
+const cSuccess = rs.getPropertyValue('--color-success').trim() || '#10b981'
+const cDanger = rs.getPropertyValue('--color-danger').trim() || '#ef4444'
+const cWarning = rs.getPropertyValue('--color-warning').trim() || '#f59e0b'
+const cPrimaryLight = rs.getPropertyValue('--color-primary-light').trim() || '#2d5a3d'
+const cTextMuted = rs.getPropertyValue('--color-text-muted').trim() || '#6b7d70'
+
 const route = useRoute()
 const examId = route.params.examId
 const loading = ref(true)
@@ -152,18 +159,18 @@ const distributionChartOption = computed(() => {
     xAxis: {
       type: 'category',
       data: intervals.map((i) => i.range),
-      axisLabel: { color: '#5a6b5e' },
+      axisLabel: { color: cTextMuted },
     },
     yAxis: {
       type: 'value',
       name: '人数',
-      axisLabel: { color: '#5a6b5e' },
+      axisLabel: { color: cTextMuted },
     },
     series: [{
       type: 'bar',
       data: intervals.map((i) => i.count),
       itemStyle: {
-        color: '#2d5a3d',
+        color: cPrimaryLight,
         borderRadius: [6, 6, 0, 0],
       },
       barWidth: '50%',
@@ -184,7 +191,7 @@ const questionColumns = [
     title: '得分率', key: 'score_rate', width: 200,
     render: (row) => {
       const pct = Math.round((row.score_rate || 0) * 100)
-      const color = pct < 60 ? '#dc3545' : pct < 80 ? '#d97706' : '#16a34a'
+      const color = pct < 60 ? cDanger : pct < 80 ? cWarning : cSuccess
       return h(NProgress, {
         type: 'line',
         percentage: pct,
@@ -208,7 +215,7 @@ const rankColumns = [
     render: (row) => {
       if (row.delta_grade == null) return '-'
       const v = row.delta_grade
-      const color = v > 0 ? '#16a34a' : v < 0 ? '#dc3545' : '#999'
+      const color = v > 0 ? cSuccess : v < 0 ? cDanger : cTextMuted
       const arrow = v > 0 ? '↑' : v < 0 ? '↓' : '-'
       return h('span', { style: { color, fontWeight: 600 } }, `${arrow}${Math.abs(v)}`)
     },
@@ -221,7 +228,7 @@ const criticalColumns = [
   { title: '得分', key: 'score', width: 80 },
   {
     title: '差距', key: 'gap', width: 80,
-    render: (row) => h('span', { style: { color: '#dc3545', fontWeight: 600 } }, `${row.gap} 分`),
+    render: (row) => h('span', { style: { color: cDanger, fontWeight: 600 } }, `${row.gap} 分`),
   },
 ]
 
@@ -316,21 +323,21 @@ onMounted(async () => {
 }
 
 .stat-detail {
-  font-size: 16px;
+  font-size: var(--fs-sm);
   color: var(--color-text-muted);
   margin-top: var(--space-1);
 }
 
 /* Diagnosis section */
 .diagnosis-header {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
 }
 
 .diagnosis-text {
   white-space: pre-line;
   line-height: 1.8;
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 
 .suggestions-list {

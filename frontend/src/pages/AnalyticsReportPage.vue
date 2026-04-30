@@ -155,7 +155,7 @@ const segmentChartOption = computed(() => {
     series: [{
       type: 'bar',
       data: segments.map(s => s.count),
-      itemStyle: { color: '#63e2b7' },
+      itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--color-success-border').trim() || '#6ee7b7' },
     }],
   }
 })

@@ -38,7 +38,7 @@
 
         <!-- 对比模式：选择 2 个班级/学生同图对比 -->
         <n-space v-if="dimension === 'class' || dimension === 'student'" align="center">
-          <span style="font-size: 16px; color: rgba(255,255,255,0.5);">对比模式：</span>
+          <span style="font-size: var(--fs-base); color: rgba(255,255,255,0.5);">对比模式：</span>
           <n-select
             v-model:value="compareIds"
             :options="dimension === 'class' ? classOptions : studentOptions"
@@ -52,7 +52,7 @@
 
         <!-- 指标选择器 -->
         <n-space v-if="trendData" align="center">
-          <span style="font-size: 16px; color: rgba(255,255,255,0.5);">显示指标：</span>
+          <span style="font-size: var(--fs-base); color: rgba(255,255,255,0.5);">显示指标：</span>
           <n-checkbox-group v-model:value="visibleMetrics">
             <n-space>
               <n-checkbox value="avg" label="均分" />
