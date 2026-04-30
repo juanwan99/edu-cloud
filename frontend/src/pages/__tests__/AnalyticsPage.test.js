@@ -121,8 +121,8 @@ describe('AnalyticsPage ECharts configuration', () => {
     expect(chartBlock).toContain("type: 'value'")
   })
 
-  it('uses green color for distribution bars', () => {
-    expect(content).toContain("color: '#2d5a3d'")
+  it('uses token color for distribution bars', () => {
+    expect(content).toContain("color: cPrimaryLight")
   })
 
   it('applies rounded corners to bars', () => {
@@ -159,10 +159,10 @@ describe('AnalyticsPage question columns', () => {
     expect(content).toContain('indicatorPlacement')
   })
 
-  it('uses color coding for score rate thresholds', () => {
-    expect(content).toContain("pct < 60 ? '#dc3545'")
-    expect(content).toContain("pct < 80 ? '#d97706'")
-    expect(content).toContain("'#16a34a'")
+  it('uses token color coding for score rate thresholds', () => {
+    expect(content).toContain("pct < 60 ? cDanger")
+    expect(content).toContain("pct < 80 ? cWarning")
+    expect(content).toContain("cSuccess")
   })
 })
 
