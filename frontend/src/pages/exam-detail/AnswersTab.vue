@@ -181,18 +181,18 @@ async function handleSaveAnswers() {
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--color-bg-alt, #f7f8fa);
+  border-radius: var(--r-sm);
+  background: var(--color-bg-alt);
   border: 1px solid transparent;
   transition: border-color 0.2s;
 }
 .answer-item.filled {
-  border-color: #18a058;
-  background: rgba(24, 160, 88, 0.06);
+  border-color: var(--color-success);
+  background: var(--color-success-bg-subtle);
 }
 .answer-num {
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-base);
   min-width: 28px;
   text-align: center;
   color: var(--color-text-secondary);
@@ -205,26 +205,26 @@ async function handleSaveAnswers() {
 .opt-btn {
   width: 36px;
   height: 32px;
-  border: 1px solid var(--color-border-light, #ddd);
-  border-radius: 6px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--r-xs);
   background: white;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   cursor: pointer;
   transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 .opt-btn:hover {
-  border-color: #18a058;
-  color: var(--color-primary, #18a058);
+  border-color: var(--color-success);
+  color: var(--color-primary);
 }
 .opt-btn.selected {
-  background: var(--color-primary, #18a058);
-  color: var(--color-bg, #fff);
-  border-color: var(--color-primary, #18a058);
+  background: var(--color-primary);
+  color: var(--color-bg);
+  border-color: var(--color-primary);
 }
 .opt-btn.multi.selected {
-  background: var(--color-info, #2080f0);
-  border-color: var(--color-info, #2080f0);
+  background: var(--color-info);
+  border-color: var(--color-info);
 }
 .skip-btn {
   opacity: 0.5;
@@ -235,8 +235,8 @@ async function handleSaveAnswers() {
   gap: 8px;
   margin-bottom: 16px;
   padding: 10px 14px;
-  background: var(--color-bg-alt, #f7f8fa);
-  border-radius: 8px;
-  font-size: 16px;
+  background: var(--color-bg-alt);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-base);
 }
 </style>

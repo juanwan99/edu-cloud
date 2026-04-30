@@ -37,7 +37,7 @@
               <div style="font-size: 24px; margin-bottom: 8px;">&#9998;</div>
               <n-text strong>直接编辑答题卡</n-text>
               <br />
-              <n-text depth="3" style="font-size: 16px;">使用学科默认模板，手动调整题型结构</n-text>
+              <n-text depth="3" style="font-size: var(--fs-base);">使用学科默认模板，手动调整题型结构</n-text>
             </div>
           </n-card>
           <!-- 入口 B: 上传答案自动识别 -->
@@ -45,7 +45,7 @@
             <div style="text-align: center; padding: 8px 0;">
               <n-text strong>上传答案自动识别（可选）</n-text>
               <br />
-              <n-text depth="3" style="font-size: 16px; display: block; margin: 8px 0;">上传答案文件，自动识别题型填充到编辑器</n-text>
+              <n-text depth="3" style="font-size: var(--fs-base); display: block; margin: 8px 0;">上传答案文件，自动识别题型填充到编辑器</n-text>
             </div>
             <n-upload
               :key="uploadKey"
@@ -140,7 +140,7 @@
             </n-button>
           </div>
         </template>
-        <iframe ref="previewIframe" :src="cardPreviewUrl" style="width: 100%; height: 800px; border: none; border-radius: 10px;" />
+        <iframe ref="previewIframe" :src="cardPreviewUrl" style="width: 100%; height: 800px; border: none; border-radius: var(--r-md);" />
       </n-card>
     </div>
 
@@ -150,7 +150,7 @@
         <div style="display: flex; justify-content: flex-end; padding: 12px 20px;">
           <n-button type="primary" size="small" @click="toggleFullscreen">关闭全屏 (ESC)</n-button>
         </div>
-        <iframe :src="cardPreviewUrl" style="flex: 1; border: none; margin: 0 20px 20px; border-radius: 8px; background: white;" />
+        <iframe :src="cardPreviewUrl" style="flex: 1; border: none; margin: 0 20px 20px; border-radius: var(--r-sm); background: white;" />
       </div>
     </teleport>
   </div>
@@ -370,7 +370,7 @@ const answerColumns = [
         ? h('span', {
             class: 'math-preview',
             innerHTML: renderMath(row.answer),
-            style: 'font-size: 16px; color: #666;',
+            style: 'font-size: var(--fs-base); color: var(--color-text-muted);',
           })
         : null,
     ])
@@ -470,6 +470,6 @@ async function handleBarcodeGenerate() {
 </script>
 
 <style scoped>
-.row-warning td { background-color: #fffbe6 !important; }
-.row-danger td { background-color: #fff1f0 !important; }
+.row-warning td { background-color: var(--color-warning-bg-subtle) !important; }
+.row-danger td { background-color: var(--color-danger-bg-subtle) !important; }
 </style>
