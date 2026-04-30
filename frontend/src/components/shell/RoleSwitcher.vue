@@ -49,8 +49,8 @@ const roleOptions = computed(() => {
     type: 'render',
     render: () =>
       h('div', { style: 'padding: 8px 16px; border-bottom: 1px solid var(--color-border-light);' }, [
-        h('div', { style: 'font-weight: 700; font-size: 16px; color: var(--color-text);' }, auth.displayName || ''),
-        h('div', { style: 'font-size: 16px; color: var(--color-text-muted); margin-top: 2px;' }, `${auth.roles.length} 个角色`),
+        h('div', { style: 'font-weight: var(--fw-semibold); font-size: var(--fs-base); color: var(--color-text);' }, auth.displayName || ''),
+        h('div', { style: 'font-size: var(--fs-base); color: var(--color-text-muted); margin-top: 2px;' }, `${auth.roles.length} 个角色`),
       ]),
   })
 
@@ -75,8 +75,8 @@ const roleOptions = computed(() => {
             type: isCurrent ? 'success' : 'default',
             bordered: !isCurrent,
           }, { default: () => label }),
-          ctxName ? h('span', { style: 'font-size: 16px; color: var(--color-text-muted);' }, ctxName) : null,
-          isCurrent ? h('span', { style: 'margin-left: auto; font-size: 16px; color: var(--color-primary);' }, '\u2713') : null,
+          ctxName ? h('span', { style: 'font-size: var(--fs-base); color: var(--color-text-muted);' }, ctxName) : null,
+          isCurrent ? h('span', { style: 'margin-left: auto; font-size: var(--fs-base); color: var(--color-primary);' }, '\u2713') : null,
         ]),
     })
   })
@@ -124,8 +124,8 @@ function handleSwitch(key) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-base);
   color: var(--color-primary);
   flex-shrink: 0;
   transition: var(--transition);
@@ -143,19 +143,19 @@ function handleSwitch(key) {
 }
 
 .role-switcher__name {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   color: var(--color-text);
-  line-height: 1.3;
+  line-height: var(--lh-snug);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .role-switcher__role {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
-  line-height: 1.3;
+  line-height: var(--lh-snug);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

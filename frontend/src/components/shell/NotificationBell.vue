@@ -104,13 +104,13 @@ onMounted(loadNotifications)
 }
 
 .notification-panel__title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   color: var(--color-text);
 }
 
 .notification-panel__count {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-primary);
 }
 
@@ -135,14 +135,14 @@ onMounted(loadNotifications)
 }
 
 .notification-item__title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   color: var(--color-text);
   margin-bottom: 2px;
 }
 
 .notification-item__summary {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -150,7 +150,7 @@ onMounted(loadNotifications)
 }
 
 .notification-item__time {
-  font-size: 16px;
+  font-size: var(--fs-sm);
   color: var(--color-text-muted);
   margin-top: 4px;
 }
@@ -159,6 +159,6 @@ onMounted(loadNotifications)
   padding: 24px 16px;
   text-align: center;
   color: var(--color-text-muted);
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 </style>

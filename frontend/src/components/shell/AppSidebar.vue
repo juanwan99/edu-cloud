@@ -151,8 +151,8 @@ watch(visibleGroups, autoExpandCurrentGroup)
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   text-decoration: none;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-medium);
   transition: var(--transition);
   white-space: nowrap;
   border-left: 3px solid transparent;
@@ -166,13 +166,13 @@ watch(visibleGroups, autoExpandCurrentGroup)
 .nav-item--active {
   color: var(--color-primary);
   background: var(--macaron-mint-light);
-  border-left-color: #10b981;
-  font-weight: 600;
+  border-left-color: var(--color-success);
+  font-weight: var(--fw-semibold);
 }
 
 .nav-item--child {
   padding: 8px 16px 8px 48px;
-  font-size: 16px;
+  font-size: var(--fs-base);
   border-left: none;
 }
 
@@ -180,7 +180,7 @@ watch(visibleGroups, autoExpandCurrentGroup)
   border-left: none;
   color: var(--color-primary);
   background: var(--macaron-mint-light);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 .nav-item__icon {
@@ -208,8 +208,8 @@ watch(visibleGroups, autoExpandCurrentGroup)
   padding: 11px 16px;
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   cursor: pointer;
   transition: var(--transition);
   white-space: nowrap;
