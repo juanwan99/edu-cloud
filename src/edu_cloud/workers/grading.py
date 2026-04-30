@@ -750,6 +750,9 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                                 final_score=result_dict["score"], max_score=result_dict["max_score"],
                                 status="ai_done",
                             ))
+                            sa = await db.get(StudentAnswer, result_dict["answer_id"])
+                            if sa:
+                                sa.score = result_dict["score"]
                             batch_completed += 1
                     processed += len(batch)
                     result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
@@ -801,6 +804,9 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                             final_score=result_dict["score"], max_score=result_dict["max_score"],
                             status="ai_done",
                         ))
+                        sa = await db.get(StudentAnswer, result_dict["answer_id"])
+                        if sa:
+                            sa.score = result_dict["score"]
                         total_completed += 1
                 result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
                 task = result.scalar_one()

@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from edu_cloud.modules.grading.models import GradingResult
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.student.models import Student
 
@@ -15,20 +16,21 @@ async def convert_level_score(
     levels: list[dict],
     class_id: str | None = None,
 ) -> dict | None:
-    # Use StudentAnswer to get per-subject scores (not ExamResult.total_score which is all-subject total)
+    effective_score = func.coalesce(GradingResult.final_score, StudentAnswer.score)
     stmt = (
         select(
             Student.id.label("student_id"),
             Student.name,
-            func.sum(StudentAnswer.score).label("total_score"),
+            func.sum(effective_score).label("total_score"),
         )
         .join(StudentAnswer, StudentAnswer.student_id == Student.id)
+        .outerjoin(GradingResult, GradingResult.answer_id == StudentAnswer.id)
         .where(StudentAnswer.exam_id == exam_id)
         .where(StudentAnswer.subject_id == subject_id)
         .where(StudentAnswer.school_id == school_id)
-        .where(StudentAnswer.score.is_not(None))
+        .where(effective_score.is_not(None))
         .group_by(Student.id, Student.name)
-        .order_by(func.sum(StudentAnswer.score).desc())
+        .order_by(func.sum(effective_score).desc())
     )
     if class_id:
         stmt = stmt.where(Student.class_id == class_id)
