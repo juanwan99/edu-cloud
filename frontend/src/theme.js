@@ -71,14 +71,14 @@ export const themeOverrides = {
   },
   Input: {
     borderRadius: '8px',
-    fontSizeMedium: '15px',
+    fontSizeMedium: '16px',
     fontSizeLarge: '16px',
     heightMedium: '40px',
     heightLarge: '44px',
   },
   Select: {
     borderRadius: '8px',
-    fontSizeMedium: '15px',
+    fontSizeMedium: '16px',
     fontSizeLarge: '16px',
     heightMedium: '40px',
     heightLarge: '44px',
