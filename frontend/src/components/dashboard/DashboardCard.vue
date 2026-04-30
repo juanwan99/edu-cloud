@@ -65,7 +65,7 @@ function handleClick() {
 <style scoped>
 .dashboard-card {
   background: var(--color-bg-card);
-  border-radius: var(--radius-xl);
+  border-radius: var(--r-md);
   border: 1px solid var(--color-border-light);
   padding: 24px;
   cursor: pointer;
@@ -114,14 +114,14 @@ function handleClick() {
 }
 
 .dashboard-card__title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   color: var(--color-text);
   margin: 0;
 }
 
 .dashboard-card__body {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-secondary);
 }
 
@@ -130,9 +130,9 @@ function handleClick() {
   top: 12px;
   right: 12px;
   background: var(--macaron-yellow);
-  color: #854d0e;
-  font-size: 16px;
-  font-weight: 600;
+  color: var(--color-warning-text);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
   padding: 2px 10px;
   border-radius: var(--radius-pill);
 }

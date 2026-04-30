@@ -150,8 +150,12 @@ const role = computed(() => normalizeRole(auth.currentRole?.role || ''))
 const config = computed(() => getDashboardConfig(role.value))
 
 // Chart theme colors — read from CSS vars for dark-mode compatibility
-const chartTextColor = getComputedStyle(document.documentElement).getPropertyValue('--color-text').trim() || '#1a2e1f'
-const chartSplitColor = getComputedStyle(document.documentElement).getPropertyValue('--color-border-light').trim() || '#f0f4f1'
+const rootStyle = getComputedStyle(document.documentElement)
+const chartTextColor = rootStyle.getPropertyValue('--color-text').trim() || 'rgba(15, 26, 18, 0.88)'
+const chartSplitColor = rootStyle.getPropertyValue('--color-border-light').trim() || '#e8efe9'
+const chartSuccessColor = rootStyle.getPropertyValue('--color-success').trim() || '#10b981'
+const chartWarningColor = rootStyle.getPropertyValue('--color-warning').trim() || '#f59e0b'
+const chartInfoColor = rootStyle.getPropertyValue('--color-info').trim() || '#3b82f6'
 
 const kpiData = ref({})
 const loading = ref(true)
@@ -267,8 +271,8 @@ async function fetchCharts() {
             { type: 'value', name: '及格率', position: 'right', max: 100, axisLabel: { formatter: '{value}%', color: chartTextColor }, nameTextStyle: { color: chartTextColor }, splitLine: { show: false } },
           ],
           series: [
-            { name: '平均分', type: 'line', smooth: true, data: trend.points.map(p => p.avg?.toFixed(1)), itemStyle: { color: '#2a9d8f' } },
-            { name: '及格率', type: 'line', smooth: true, yAxisIndex: 1, data: trend.points.map(p => (p.pass_rate * 100)?.toFixed(1)), itemStyle: { color: '#f4a261' } },
+            { name: '平均分', type: 'line', smooth: true, data: trend.points.map(p => p.avg?.toFixed(1)), itemStyle: { color: chartSuccessColor } },
+            { name: '及格率', type: 'line', smooth: true, yAxisIndex: 1, data: trend.points.map(p => (p.pass_rate * 100)?.toFixed(1)), itemStyle: { color: chartWarningColor } },
           ],
         }
       }
@@ -291,7 +295,7 @@ async function fetchCharts() {
           series: [{
             type: 'bar',
             data: sorted.map(c => c.median ?? 0),
-            itemStyle: { color: '#6c5ce7', borderRadius: [4, 4, 0, 0] },
+            itemStyle: { color: chartInfoColor, borderRadius: [4, 4, 0, 0] },
           }],
         }
       }
@@ -399,14 +403,14 @@ function getKpiValue(kpi) {
 }
 
 .welcome-banner__title {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
   color: var(--color-text);
   margin: 0 0 6px;
 }
 
 .welcome-banner__text {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-secondary);
   margin: 0 0 14px;
 }
@@ -472,7 +476,7 @@ function getKpiValue(kpi) {
 .todo-dot--purple { background: var(--macaron-purple); }
 
 .todo-text {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text);
 }
 
@@ -492,11 +496,11 @@ function getKpiValue(kpi) {
 }
 
 .chart-title {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
   margin: 0 0 10px;
   color: var(--color-text);
-  line-height: 1.2;
+  line-height: var(--lh-tight);
 }
 
 .chart-empty {
@@ -509,15 +513,15 @@ function getKpiValue(kpi) {
 }
 
 .chart-empty__text {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
   margin: 0;
 }
 
 /* Section title */
 .section-title {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
   color: var(--color-text);
   margin: 0 0 12px;
 }
@@ -556,8 +560,8 @@ function getKpiValue(kpi) {
 }
 
 .exam-card__name {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -568,7 +572,7 @@ function getKpiValue(kpi) {
 .exam-card__meta {
   display: flex;
   gap: 12px;
-  font-size: 16px;
+  font-size: var(--fs-sm);
   color: var(--color-text-muted);
 }
 

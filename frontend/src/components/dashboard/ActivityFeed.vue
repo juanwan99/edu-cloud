@@ -53,14 +53,14 @@ const groupedItems = computed(() => {
 }
 
 .activity-feed__title {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
   color: var(--color-text);
   margin-bottom: 20px;
 }
 
 .activity-feed__empty {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
   padding: 24px 0;
 }
@@ -70,8 +70,8 @@ const groupedItems = computed(() => {
 }
 
 .activity-feed__date {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   color: var(--color-text-muted);
   margin-bottom: 8px;
   padding-left: 20px;
@@ -103,14 +103,14 @@ const groupedItems = computed(() => {
 .activity-feed__dot--info { background: var(--macaron-purple); }
 
 .activity-feed__time {
-  font-size: 16px;
+  font-size: var(--fs-sm);
   color: var(--color-text-muted);
   white-space: nowrap;
   min-width: 80px;
 }
 
 .activity-feed__text {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-secondary);
 }
 </style>
