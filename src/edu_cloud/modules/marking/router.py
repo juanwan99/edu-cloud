@@ -428,6 +428,34 @@ async def get_answer_at_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     """按索引获取某题的第 offset 份答卷（0-based），支持前后翻页。"""
+    visible_codes = get_visible_subject_codes(current["current_role"])
+    if visible_codes is not None:
+        question = (await db.execute(
+            select(Question).where(Question.id == question_id)
+        )).scalar_one_or_none()
+        if question:
+            subject = (await db.execute(
+                select(Subject).where(Subject.id == question.subject_id)
+            )).scalar_one_or_none()
+            if subject and subject.code not in visible_codes:
+                raise HTTPException(403, "无权访问该科目的题目")
+
+    if mode not in ("ai_review", "reviewed") and not is_school_admin(current["current_role"]):
+        all_assign = (await db.execute(
+            select(GradingAssignment).where(
+                GradingAssignment.school_id == current["current_role"].school_id,
+            )
+        )).scalars().all()
+        has_any = any(_has_question_assigned(a, question_id) for a in all_assign)
+        if has_any:
+            mine = any(
+                _has_question_assigned(a, question_id)
+                and a.assigned_to == current["user"].id
+                for a in all_assign
+            )
+            if not mine:
+                raise HTTPException(403, "该题目未分配给您")
+
     from edu_cloud.modules.marking.scorer import get_answer_at
     result = await get_answer_at(db, question_id, current["current_role"].school_id, offset, mode=mode)
     if not result:

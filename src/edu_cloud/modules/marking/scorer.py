@@ -170,6 +170,7 @@ async def get_next_answer(
             select(StudentAnswer).where(
                 StudentAnswer.question_id.in_(child_ids_q),
                 StudentAnswer.student_id == answer.student_id,
+                StudentAnswer.school_id == school_id,
             )
         )).scalars().all()
         child_answer_ids = [ca.id for ca in child_answers]
@@ -251,6 +252,7 @@ async def get_next_answer(
             select(StudentAnswer).where(
                 StudentAnswer.question_id.in_(child_ids_q),
                 StudentAnswer.student_id == answer.student_id,
+                StudentAnswer.school_id == school_id,
             )
         )).scalars().all()
         child_answer_ids = [ca.id for ca in child_answers]
@@ -382,6 +384,8 @@ async def get_answer_at(
             .where(
                 StudentAnswer.question_id == question_id,
                 StudentAnswer.school_id == school_id,
+                GradingResult.school_id == school_id,
+                GradingResult.question_id == question_id,
                 GradingResult.status == "confirmed",
             )
         )
@@ -403,6 +407,8 @@ async def get_answer_at(
             .where(
                 StudentAnswer.question_id == question_id,
                 StudentAnswer.school_id == school_id,
+                GradingResult.school_id == school_id,
+                GradingResult.question_id == question_id,
                 GradingResult.ai_score.is_not(None),
             )
         )
