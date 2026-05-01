@@ -112,21 +112,21 @@ function handleSwitch(key) {
 }
 
 .role-switcher:hover {
-  background: var(--color-bg-alt);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .role-switcher__avatar {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: var(--macaron-mint-light);
-  border: 2px solid var(--macaron-mint);
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: var(--fw-semibold);
   font-size: var(--fs-base);
-  color: var(--color-primary);
+  color: #ffffff;
   flex-shrink: 0;
   transition: var(--transition);
 }
@@ -145,7 +145,7 @@ function handleSwitch(key) {
 .role-switcher__name {
   font-size: var(--fs-base);
   font-weight: var(--fw-semibold);
-  color: var(--color-text);
+  color: rgba(255, 255, 255, 0.95);
   line-height: var(--lh-snug);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -154,7 +154,7 @@ function handleSwitch(key) {
 
 .role-switcher__role {
   font-size: var(--fs-base);
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.6);
   line-height: var(--lh-snug);
   overflow: hidden;
   text-overflow: ellipsis;

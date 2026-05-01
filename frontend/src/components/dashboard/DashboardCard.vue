@@ -81,7 +81,7 @@ function handleClick() {
 
 .dashboard-card__title {
   font-size: var(--fs-base);
-  font-weight: var(--fw-semibold);
+  font-weight: 700;
   color: var(--color-text);
   margin: 0;
 }

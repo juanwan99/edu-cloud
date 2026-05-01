@@ -395,7 +395,7 @@ function getKpiValue(kpi) {
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 14px;
+  gap: 24px;
   margin-bottom: 20px;
 }
 
@@ -408,7 +408,7 @@ function getKpiValue(kpi) {
 }
 
 .quick-action-btn {
-  border-radius: var(--radius-pill) !important;
+  border-radius: 8px !important;
 }
 
 .quick-action-icon {
@@ -496,8 +496,8 @@ function getKpiValue(kpi) {
 
 /* Section title */
 .section-title {
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-semibold);
+  font-size: 20px;
+  font-weight: 800;
   color: var(--color-text);
   margin: 0 0 12px;
 }

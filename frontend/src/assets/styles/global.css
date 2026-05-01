@@ -28,21 +28,27 @@ a {
 }
 
 .page-header {
-  margin-bottom: var(--space-6);
+  margin-bottom: 28px;
 }
 
 .page-title {
-  font-size: var(--fs-2xl);
-  font-weight: var(--fw-semibold);
-  color: var(--color-text);
+  font-size: 32px;
+  font-weight: 800;
+  color: #1a1a1a;
   line-height: var(--lh-tight);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.035em;
   text-wrap: balance;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .page-subtitle {
-  font-size: 16px;
-  color: var(--color-text-muted);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: #72726c;
   margin-top: var(--space-2);
   text-wrap: pretty;
 }
@@ -68,17 +74,25 @@ a {
 }
 
 .stat-card .stat-value {
-  font-size: var(--fs-display);
-  font-weight: var(--fw-semibold);
+  font-size: 48px;
+  font-weight: 800;
   letter-spacing: -0.03em;
-  line-height: var(--lh-tight);
+  line-height: 1.05;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-card .stat-label {
-  font-size: 16px;
-  color: var(--color-text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #72726c;
   margin-top: var(--space-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 马卡龙标签 */
@@ -128,6 +142,63 @@ a {
   0%, 100% { transform: translate(0, 0); }
   33% { transform: translate(15px, -20px); }
   66% { transform: translate(-10px, 15px); }
+}
+
+/* V3.2 工具类 */
+.text-uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.text-eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #72726c;
+}
+
+.text-kpi {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: #1a1a1a;
+}
+
+.text-kpi-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #72726c;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: #72726c;
+}
+
+.empty-state__icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+.empty-state__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+}
+
+.empty-state__text {
+  font-size: 15px;
+  color: #72726c;
+  max-width: 360px;
+  margin: 0 auto;
 }
 
 /* 无障碍：减弱动效 */

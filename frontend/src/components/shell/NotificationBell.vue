@@ -85,14 +85,14 @@ onMounted(loadNotifications)
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   transition: var(--transition);
 }
 
 .bell-btn:hover {
-  background: var(--color-bg-alt);
-  color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .notification-panel__header {

@@ -220,18 +220,22 @@ async function handleLogin() {
 }
 
 .brand-name {
-  font-size: var(--fs-display);
-  font-weight: var(--fw-semibold);
-  color: var(--color-primary);
-  letter-spacing: -0.02em;
+  font-size: 48px;
+  font-weight: 800;
+  color: #1a7a4f;
+  letter-spacing: -0.035em;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .brand-subtitle {
-  font-size: var(--fs-base);
-  color: var(--color-text-muted);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #72726c;
   margin-top: 6px;
-  letter-spacing: 0.04em;
 }
 
 /* 表单区 */
@@ -249,10 +253,10 @@ async function handleLogin() {
   font-size: var(--fs-base);
   font-weight: var(--fw-semibold);
   letter-spacing: 3px;
-  border-radius: var(--r-lg) !important;
+  border-radius: 8px !important;
   margin-top: 4px;
-  background: linear-gradient(135deg, var(--color-success) 0%, #059669 100%) !important;
-  box-shadow: 0 4px 14px rgba(16,185,129,0.3);
+  background: #1a7a4f !important;
+  box-shadow: 0 4px 14px rgba(26, 122, 79, 0.25);
 }
 
 .login-hint {

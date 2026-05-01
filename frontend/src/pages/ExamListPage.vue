@@ -432,6 +432,22 @@ onMounted(loadExams)
   margin-top: 12px;
 }
 
+/* V3.2 Wells Collins table overrides */
+:deep(.n-data-table-th) {
+  font-size: 13px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700 !important;
+  color: #72726c !important;
+  background: #f0f0ee !important;
+}
+
+:deep(.n-data-table-td) {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+  line-height: 24px;
+}
+
 @media (max-width: 768px) {
   .stats-row {
     grid-template-columns: repeat(2, 1fr);

@@ -35,7 +35,8 @@ const displayValue = computed(() =>
 
 <style scoped>
 .kpi-card {
-  padding: 22px 26px;
+  padding: 24px;
+  min-height: auto;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border-light);
   transition: var(--transition);
@@ -48,25 +49,33 @@ const displayValue = computed(() =>
   box-shadow: var(--shadow-sm);
 }
 
-/* Color variants */
-.kpi-card--mint { background: linear-gradient(145deg, var(--macaron-mint-light) 0%, var(--color-success-bg) 130%); }
-.kpi-card--yellow { background: linear-gradient(145deg, var(--macaron-yellow-light) 0%, var(--color-warning-bg) 130%); }
-.kpi-card--coral { background: linear-gradient(145deg, var(--macaron-coral-light) 0%, var(--color-danger-bg) 130%); }
-.kpi-card--purple { background: linear-gradient(145deg, var(--macaron-purple-light) 0%, var(--macaron-purple) 130%); }
+/* Color variants — flat, no gradient */
+.kpi-card--mint { background: var(--macaron-mint-light); }
+.kpi-card--yellow { background: var(--macaron-yellow-light); }
+.kpi-card--coral { background: var(--macaron-coral-light); }
+.kpi-card--purple { background: var(--macaron-purple-light); }
 
 .kpi-card__value {
-  font-size: var(--fs-display);
-  font-weight: var(--fw-semibold);
+  font-size: 48px;
+  font-weight: 800;
   color: var(--color-primary);
   letter-spacing: -0.03em;
-  line-height: var(--lh-tight);
+  line-height: 1.05;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kpi-card__label {
-  font-size: var(--fs-base);
-  color: var(--color-text-secondary);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #72726c;
   margin-top: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kpi-card__sublabel {

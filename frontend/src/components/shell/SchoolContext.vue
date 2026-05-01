@@ -24,10 +24,10 @@ const contextName = computed(() => auth.currentContext?.name || '')
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
-  background: var(--macaron-mint-light);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-pill);
   font-size: var(--fs-base);
-  color: var(--color-primary);
+  color: rgba(255, 255, 255, 0.9);
   font-weight: var(--fw-medium);
   max-width: 200px;
 }
