@@ -12,7 +12,7 @@
         :class="['nav-item', { 'nav-item--active': isActive('/') }]"
         :title="collapsed ? '概览' : ''"
       >
-        <span class="nav-item__icon"><SidebarIcon name="dashboard" /></span>
+        <span class="nav-item__icon"><AppIcon name="dashboard" :size="18" /></span>
         <span v-show="!collapsed" class="nav-item__label">概览</span>
       </router-link>
 
@@ -22,7 +22,7 @@
           :title="collapsed ? group.label : ''"
           @click="handleGroupClick(group.key)"
         >
-          <span class="nav-item__icon"><SidebarIcon :name="group.icon || 'dashboard'" /></span>
+          <span class="nav-item__icon"><AppIcon :name="group.icon || 'dashboard'" :size="18" /></span>
           <span v-show="!collapsed" class="nav-group__label">{{ group.label }}</span>
           <svg v-show="!collapsed" :class="['nav-group__arrow', { 'nav-group__arrow--open': expandedGroups[group.key] }]" width="12" height="12" viewBox="0 0 12 12">
             <path d="M4 4.5l2 2 2-2" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
@@ -51,7 +51,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth.js'
 import { normalizeRole } from '../../config/roles.js'
 import { getSidebarGroups } from '../../config/sidebarConfig.js'
-import SidebarIcon from '../icons/SidebarIcons.vue'
+import AppIcon from '../AppIcon.vue'
 
 const route = useRoute()
 const auth = useAuthStore()

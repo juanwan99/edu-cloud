@@ -36,7 +36,7 @@
         @click="router.push(action.route)"
       >
         <template #icon>
-          <span class="quick-action-icon" :style="actionIconStyle(action.icon)" />
+          <AppIcon :name="action.icon" :size="16" />
         </template>
         {{ action.label }}
       </n-button>
@@ -135,6 +135,7 @@ import KpiCard from '../components/dashboard/KpiCard.vue'
 import DashboardCard from '../components/dashboard/DashboardCard.vue'
 import WidgetGrid from '../components/dashboard/WidgetGrid.vue'
 import ActivityFeed from '../components/dashboard/ActivityFeed.vue'
+import AppIcon from '../components/AppIcon.vue'
 import client from '../api/client.js'
 import { use } from 'echarts/core'
 import { LineChart, BarChart } from 'echarts/charts'
@@ -178,31 +179,6 @@ const quickActions = computed(() => {
   if (r === 'parent') return []
   return actions
 })
-
-// Icon mask style for quick action buttons
-const ICON_SVGS = {
-  exam: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z'/%3E%3Cpath d='M14 2v6h6M9 15l2 2 4-4'/%3E%3C/svg%3E",
-  document: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z'/%3E%3Cpath d='M14 2v6h6M16 13H8M16 17H8M10 9H8'/%3E%3C/svg%3E",
-  marking: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7'/%3E%3Cpath d='M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z'/%3E%3C/svg%3E",
-  chart: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M18 20V10M12 20V4M6 20v-6'/%3E%3C/svg%3E",
-}
-
-function actionIconStyle(icon) {
-  const svg = ICON_SVGS[icon]
-  if (!svg) return {}
-  return {
-    display: 'inline-block',
-    width: '16px',
-    height: '16px',
-    backgroundColor: 'currentColor',
-    maskImage: `url("${svg}")`,
-    WebkitMaskImage: `url("${svg}")`,
-    maskSize: 'contain',
-    WebkitMaskSize: 'contain',
-    maskRepeat: 'no-repeat',
-    WebkitMaskRepeat: 'no-repeat',
-  }
-}
 
 // Welcome banner: show when no exams exist yet
 const showWelcome = computed(() => {

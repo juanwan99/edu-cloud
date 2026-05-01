@@ -6,6 +6,7 @@ import {
   Calendar, FileEdit, PenTool, RefreshCw, User,
   Settings, Bell, Star, Briefcase, Shield,
   ClipboardList, Target, Search, ChevronRight,
+  Bot, ListTodo, BookCopy, Award, UserCircle,
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -38,6 +39,14 @@ const ICON_MAP = {
   target: Target,
   search: Search,
   'chevron-right': ChevronRight,
+  users: Users,
+  ai: Bot,
+  notification: Bell,
+  todo: ListTodo,
+  class: BookCopy,
+  paper: BookOpen,
+  score: Award,
+  profile: UserCircle,
 }
 
 const iconComponent = computed(() => ICON_MAP[props.name] || null)
