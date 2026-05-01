@@ -239,7 +239,7 @@ describe('SchoolSettingsPage API imports', () => {
     expect(content).toContain('FlaskConical')
     expect(content).toContain('Calendar')
     expect(content).toContain('Users')
-    expect(content).toContain('CheckboxOutline')
+    expect(content).toContain('CheckSquare')
   })
 })
 
