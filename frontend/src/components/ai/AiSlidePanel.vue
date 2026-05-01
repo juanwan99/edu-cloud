@@ -77,7 +77,7 @@ defineEmits(['close'])
 
 .ai-panel-title {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
   color: var(--color-text);
 }
 
@@ -124,8 +124,8 @@ defineEmits(['close'])
 
 .ai-panel-placeholder-text {
   margin-top: 12px;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-medium);
 }
 
 .ai-panel-placeholder-hint {

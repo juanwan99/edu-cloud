@@ -67,7 +67,7 @@
           <div style="display: flex; gap: 24px; flex-wrap: wrap;">
             <div v-for="ep in errorPatterns" :key="ep.id"
               style="flex: 1; min-width: 280px; background: white; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
-              <h3 style="margin: 0 0 12px; font-size: 16px; font-weight: 600;">{{ ep.subject_code }}</h3>
+              <h3 style="margin: 0 0 12px; font-size: var(--fs-base); font-weight: var(--fw-semibold);">{{ ep.subject_code }}</h3>
               <v-chart class="chart-height-sm" :option="makeErrorPieOption(ep)" autoresize />
               <div style="margin-top: 8px; font-size: 16px; color: var(--color-text-muted);">
                 共 {{ ep.total_errors }} 道错题 · {{ ep.exam_count }} 次考试
@@ -200,7 +200,7 @@ const knowledgeColumns = [
   { title: '掌握度', key: 'mastery_level', width: 160,
     render: (row) => {
       const pct = Math.round((row.mastery_level || 0) * 100)
-      const color = pct < 60 ? '#dc3545' : pct < 80 ? '#d97706' : '#16a34a'
+      const color = pct < 60 ? 'var(--color-danger)' : pct < 80 ? 'var(--color-warning)' : 'var(--color-success)'
       return h(NProgress, { type: 'line', percentage: pct, indicatorPlacement: 'inside', color, style: 'width: 120px;' })
     },
   },
@@ -273,10 +273,10 @@ onMounted(loadAll)
 
 <style scoped>
 .page-header { margin-bottom: 24px; }
-.page-title { font-size: 20px; font-weight: 600; margin: 0; color: var(--color-text-primary); }
+.page-title { font-size: var(--fs-xl); font-weight: var(--fw-semibold); margin: 0; color: var(--color-text-primary); }
 .page-subtitle { font-size: 16px; color: var(--color-text-muted); margin: 4px 0 0; }
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
 .stat-card { border-radius: var(--radius-lg); padding: 20px; text-align: center; }
-.stat-value { font-size: 22px; font-weight: 700; color: var(--color-text-primary); }
+.stat-value { font-size: 22px; font-weight: var(--fw-semibold); color: var(--color-text-primary); }
 .stat-label { font-size: 16px; color: var(--color-text-muted); margin-top: 4px; }
 </style>

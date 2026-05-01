@@ -88,8 +88,8 @@ const progressColor = computed(() => {
   margin-bottom: 12px;
 }
 .module-name {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
 }
 .stats-row {
   display: flex;
@@ -101,8 +101,8 @@ const progressColor = computed(() => {
   flex-direction: column;
 }
 .stat-value {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
 }
 .stat-label {
   font-size: 16px;

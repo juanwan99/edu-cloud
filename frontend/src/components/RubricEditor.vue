@@ -91,7 +91,7 @@ function addItem() {
 .re-head { display: flex; align-items: center; gap: 6px; }
 
 .re-idx {
-  font-size: 16px; font-weight: 700; color: var(--color-success, #6ee7a0);
+  font-size: var(--fs-base); font-weight: var(--fw-semibold); color: var(--color-success);
   min-width: 20px; text-align: center; flex-shrink: 0;
 }
 .re-unit { font-size: 16px; color: var(--color-text-muted); flex-shrink: 0; }
@@ -99,13 +99,13 @@ function addItem() {
   font-size: 16px; color: var(--color-text-muted); cursor: pointer; flex-shrink: 0;
   opacity: 0.3; transition: opacity 0.15s; text-decoration: none;
 }
-.re-del:hover { opacity: 1; color: var(--color-danger, #f87171); }
+.re-del:hover { opacity: 1; color: var(--color-danger); }
 
 .re-more {
   font-size: 16px; color: var(--color-text-muted); cursor: pointer;
   padding: 2px 0; text-decoration: none;
 }
-.re-more:hover { color: var(--color-success, #6ee7a0); }
+.re-more:hover { color: var(--color-success); }
 
 .re-legacy {
   display: flex; flex-direction: column; gap: 2px;
@@ -118,8 +118,8 @@ function addItem() {
   padding: 8px 0 0;
 }
 .re-add { font-size: 16px; color: var(--color-text-muted); cursor: pointer; text-decoration: none; }
-.re-add:hover { color: var(--color-success, #6ee7a0); }
+.re-add:hover { color: var(--color-success); }
 
-.re-total { font-size: 16px; font-weight: 600; color: var(--color-text-muted); }
-.re-total.warn { color: var(--color-warning, #f59e0b); }
+.re-total { font-size: var(--fs-base); font-weight: var(--fw-semibold); color: var(--color-text-muted); }
+.re-total.warn { color: var(--color-warning); }
 </style>

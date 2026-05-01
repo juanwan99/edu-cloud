@@ -315,8 +315,8 @@ onUnmounted(() => {
 }
 
 .subject-card h3 {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   margin: 0;
 }
 

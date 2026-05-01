@@ -514,8 +514,8 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-medium);
   flex: 1;
 }
 .module-dot {

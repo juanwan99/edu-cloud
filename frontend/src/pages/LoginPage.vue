@@ -220,15 +220,15 @@ async function handleLogin() {
 }
 
 .brand-name {
-  font-size: 38px;
-  font-weight: 800;
+  font-size: var(--fs-display);
+  font-weight: var(--fw-semibold);
   color: var(--color-primary);
   letter-spacing: -0.02em;
   margin: 0;
 }
 
 .brand-subtitle {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
   margin-top: 6px;
   letter-spacing: 0.04em;
@@ -246,25 +246,25 @@ async function handleLogin() {
 
 .login-btn {
   height: 50px;
-  font-size: 17px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   letter-spacing: 3px;
-  border-radius: 14px !important;
+  border-radius: var(--r-lg) !important;
   margin-top: 4px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  background: linear-gradient(135deg, var(--color-success) 0%, #059669 100%) !important;
   box-shadow: 0 4px 14px rgba(16,185,129,0.3);
 }
 
 .login-hint {
   margin-top: 20px;
   text-align: center;
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
 }
 
 .login-footer {
   margin-top: 56px;
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
 }
 
@@ -286,7 +286,7 @@ async function handleLogin() {
   border-radius: 50%;
   background: var(--color-primary);
   color: var(--color-bg, #fff);
-  font-size: 32px;
+  font-size: var(--fs-display);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -294,8 +294,8 @@ async function handleLogin() {
 }
 
 .success-text {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
   color: var(--color-primary);
 }
 

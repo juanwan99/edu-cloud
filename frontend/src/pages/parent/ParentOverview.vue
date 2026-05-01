@@ -5,7 +5,7 @@
       <div style="text-align: center; padding: 24px 0;">
         <div class="guide-icon">&#128100;</div>
         <n-h4 style="margin: 12px 0 8px;">尚未绑定孩子</n-h4>
-        <p style="color: rgba(255,255,255,0.45); font-size: 16px; margin-bottom: 16px;">
+        <p style="color: rgba(255,255,255,0.45); font-size: var(--fs-base); margin-bottom: 16px;">
           请先绑定孩子信息，才能查看学习数据
         </p>
         <n-button type="primary" @click="$router.push('/parent/bind')">
@@ -41,7 +41,7 @@
       <!-- Score summary card -->
       <n-card v-if="latestScore" class="score-brief" style="margin-bottom: 16px;">
         <div class="score-brief-header">
-          <span style="font-size: 16px; font-weight: 600;">最近考试</span>
+          <span style="font-size: var(--fs-base); font-weight: var(--fw-semibold);">最近考试</span>
           <n-tag size="small" type="info">{{ latestScore.exam_name || '考试' }}</n-tag>
         </div>
         <div class="score-brief-body">
@@ -201,7 +201,7 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .info-card {
-  border-radius: 16px;
+  border-radius: var(--r-lg);
 }
 
 .student-header {
@@ -218,7 +218,7 @@ watch(() => props.currentChild, async (child) => {
   align-items: center;
   justify-content: center;
   font-size: 22px;
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
   color: #1a1a2e;
   flex-shrink: 0;
 }
@@ -229,13 +229,13 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .student-name {
-  font-size: 17px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   color: rgba(255, 255, 255, 0.95);
 }
 
 .student-class {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.45);
   margin-top: 2px;
 }
@@ -251,8 +251,8 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .stat-value {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
   color: rgba(255, 255, 255, 0.85);
 }
 
@@ -261,7 +261,7 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .stat-label {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.4);
   margin-top: 2px;
 }
@@ -284,12 +284,12 @@ watch(() => props.currentChild, async (child) => {
 
 .score-brief-value {
   font-size: 22px;
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
   color: rgba(255, 255, 255, 0.85);
 }
 
 .score-brief-label {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.4);
   margin-top: 2px;
 }
@@ -306,7 +306,7 @@ watch(() => props.currentChild, async (child) => {
   align-items: center;
   cursor: pointer;
   padding: 12px 4px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   transition: background 0.2s;
 }
 
@@ -326,7 +326,7 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .quick-entry-label {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.65);
 }
 
@@ -344,8 +344,8 @@ watch(() => props.currentChild, async (child) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   flex-shrink: 0;
 }
 
@@ -365,7 +365,7 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .record-name {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.85);
   white-space: nowrap;
   overflow: hidden;
@@ -373,7 +373,7 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .record-time {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.35);
   margin-top: 2px;
 }

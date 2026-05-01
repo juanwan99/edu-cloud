@@ -3,21 +3,21 @@
     <!-- Ranking Info Card -->
     <n-card v-if="myRanking" style="margin-bottom: 16px;">
       <div style="display: flex; align-items: center; gap: 16px;">
-        <div style="font-size: 36px; line-height: 1;">
+        <div style="font-size: var(--fs-display); line-height: 1;">
           {{ trophyIcon }}
         </div>
         <div style="flex: 1;">
-          <div style="font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.9);">
+          <div style="font-size: 22px; font-weight: var(--fw-semibold); color: rgba(255,255,255,0.9);">
             第 {{ myRanking.rank }} 名
-            <span style="font-size: 16px; font-weight: 400; color: rgba(255,255,255,0.45);">
+            <span style="font-size: var(--fs-base); font-weight: var(--fw-regular); color: rgba(255,255,255,0.45);">
               / 共 {{ rankings.length }} 人
             </span>
           </div>
-          <div v-if="rankChange !== null" style="margin-top: 4px; font-size: 16px;">
-            <span v-if="rankChange > 0" style="color: #63e2b7;">
+          <div v-if="rankChange !== null" style="margin-top: 4px; font-size: var(--fs-base);">
+            <span v-if="rankChange > 0" style="color: var(--color-success);">
               ↑ 上升 {{ rankChange }} 名
             </span>
-            <span v-else-if="rankChange < 0" style="color: #e88080;">
+            <span v-else-if="rankChange < 0" style="color: var(--color-danger);">
               ↓ 下降 {{ Math.abs(rankChange) }} 名
             </span>
             <span v-else style="color: rgba(255,255,255,0.45);">
@@ -26,24 +26,24 @@
           </div>
         </div>
         <div style="text-align: right;">
-          <div style="font-size: 28px; font-weight: 700; color: #63e2b7;">
+          <div style="font-size: 28px; font-weight: var(--fw-semibold); color: #63e2b7;">
             {{ myRanking.total_points }}
           </div>
-          <div style="font-size: 16px; color: rgba(255,255,255,0.45);">总积分</div>
+          <div style="font-size: var(--fs-base); color: rgba(255,255,255,0.45);">总积分</div>
         </div>
       </div>
     </n-card>
 
     <!-- Score Distribution Bar -->
     <n-card v-if="rankings.length > 0" size="small" style="margin-bottom: 16px;">
-      <div style="font-size: 16px; color: rgba(255,255,255,0.6); margin-bottom: 8px;">积分分布</div>
+      <div style="font-size: var(--fs-base); color: rgba(255,255,255,0.6); margin-bottom: 8px;">积分分布</div>
       <div style="position: relative; height: 28px; border-radius: 6px; overflow: hidden; display: flex;">
         <div
           :style="{
             width: distBands.top10 + '%',
             background: 'rgba(99, 226, 183, 0.5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '16px', color: 'rgba(255,255,255,0.8)',
+            fontSize: 'var(--fs-base)', color: 'rgba(255,255,255,0.8)',
             minWidth: distBands.top10 > 8 ? 'auto' : '0',
           }"
         >
@@ -54,7 +54,7 @@
             width: distBands.mid50 + '%',
             background: 'rgba(112, 161, 255, 0.35)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '16px', color: 'rgba(255,255,255,0.7)',
+            fontSize: 'var(--fs-base)', color: 'rgba(255,255,255,0.7)',
           }"
         >
           中间50%
@@ -64,7 +64,7 @@
             width: distBands.bot40 + '%',
             background: 'rgba(255,255,255,0.08)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '16px', color: 'rgba(255,255,255,0.5)',
+            fontSize: 'var(--fs-base)', color: 'rgba(255,255,255,0.5)',
           }"
         >
           后40%
@@ -77,9 +77,9 @@
             position: 'absolute',
             left: myPositionPct + '%',
             transform: 'translateX(-50%)',
-            fontSize: '16px',
+            fontSize: 'var(--fs-base)',
             color: '#63e2b7',
-            fontWeight: 600,
+            fontWeight: 'var(--fw-semibold)',
             whiteSpace: 'nowrap',
           }"
         >
@@ -238,6 +238,6 @@ watch(() => props.currentChild, async (child) => {
 <style scoped>
 :deep(.highlight-row td) {
   background-color: rgba(99, 226, 183, 0.1) !important;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 </style>

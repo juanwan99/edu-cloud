@@ -9,9 +9,9 @@
       <div class="brand-area">
         <div class="brand-icon">
           <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
-            <path d="M24 6L4 16l20 10 20-10L24 6z" fill="#2d5a3d" opacity="0.3"/>
-            <path d="M24 12L4 22l20 10 20-10L24 12z" fill="#2d5a3d" opacity="0.6"/>
-            <path d="M24 18L4 28l20 10 20-10L24 18z" fill="#1a2e1f"/>
+            <path d="M24 6L4 16l20 10 20-10L24 6z" fill="var(--color-primary-light)" opacity="0.3"/>
+            <path d="M24 12L4 22l20 10 20-10L24 12z" fill="var(--color-primary-light)" opacity="0.6"/>
+            <path d="M24 18L4 28l20 10 20-10L24 18z" fill="var(--color-primary)"/>
           </svg>
         </div>
         <h1 class="brand-name">edu-cloud</h1>
@@ -147,7 +147,7 @@ async function handleLogin() {
   min-height: 100dvh;
   position: relative;
   overflow: hidden;
-  background: #ffffff;
+  background: var(--color-bg);
 }
 
 .login-content {
@@ -202,7 +202,7 @@ async function handleLogin() {
   left: 6%;
   background: transparent;
   border: 3px solid #ede9fe;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   animation-delay: -12s;
 }
 
@@ -223,14 +223,14 @@ async function handleLogin() {
 
 .brand-name {
   font-size: 28px;
-  font-weight: 800;
-  color: #1a2e1f;
+  font-weight: var(--fw-semibold);
+  color: var(--color-primary);
   letter-spacing: -0.02em;
   margin: 0;
 }
 
 .brand-subtitle {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: #8a9a8e;
   margin-top: 6px;
 }
@@ -242,33 +242,33 @@ async function handleLogin() {
 
 .login-btn {
   height: 48px;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   letter-spacing: 3px;
-  border-radius: 12px !important;
+  border-radius: var(--r-md) !important;
   margin-top: 4px;
 }
 
 .register-link {
-  color: #2d5a3d;
-  font-weight: 500;
+  color: var(--color-primary-light);
+  font-weight: var(--fw-medium);
   transition: color 0.2s;
 }
 
 .register-link:hover {
-  color: #1a2e1f;
+  color: var(--color-primary);
 }
 
 .login-hint {
   margin-top: 12px;
   text-align: center;
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: #8a9a8e;
 }
 
 .login-footer {
   margin-top: 56px;
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: #b0b8b2;
 }
 
@@ -289,7 +289,7 @@ async function handleLogin() {
   border-radius: 50%;
   background: var(--color-primary, #1a2e1f);
   color: var(--color-bg, #fff);
-  font-size: 32px;
+  font-size: var(--fs-display);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -297,9 +297,9 @@ async function handleLogin() {
 }
 
 .success-text {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1a2e1f;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--color-primary);
 }
 
 .login-success-enter-active { transition: opacity 0.3s ease; }

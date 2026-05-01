@@ -246,8 +246,8 @@ onMounted(loadExams)
   margin-bottom: 12px;
 }
 .subject-name {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   margin: 0;
   color: var(--color-text);
 }

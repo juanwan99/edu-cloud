@@ -173,8 +173,8 @@ const crossModuleLinks = computed(() => {
 }
 .panel-header h2 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
 }
 .cards-grid {
   display: grid;
@@ -183,8 +183,8 @@ const crossModuleLinks = computed(() => {
   margin-bottom: 32px;
 }
 .cross-module-section h3 {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-medium);
   color: rgba(255, 255, 255, 0.6);
   margin: 0 0 12px;
 }
@@ -198,8 +198,8 @@ const crossModuleLinks = computed(() => {
   margin-bottom: 24px;
 }
 .freq-stats-section h3 {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-medium);
   color: rgba(255, 255, 255, 0.6);
   margin: 0 0 12px;
 }
@@ -219,7 +219,7 @@ const crossModuleLinks = computed(() => {
   font-size: 16px;
 }
 .freq-mod-name {
-  font-weight: 500;
+  font-weight: var(--fw-medium);
 }
 .freq-avg,
 .freq-cov {

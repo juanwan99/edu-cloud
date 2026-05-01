@@ -154,7 +154,7 @@ onMounted(loadData)
 
 .score-card {
   background: rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   padding: 16px;
   text-align: center;
 }
@@ -165,18 +165,18 @@ onMounted(loadData)
 
 .score-card__value {
   font-size: 22px;
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
   color: #63e2b7;
 }
 
 .score-card__label {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.6);
   margin-top: 4px;
 }
 
 .score-card__sub {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.35);
   margin-top: 2px;
 }
@@ -206,13 +206,13 @@ onMounted(loadData)
 }
 
 .exam-item__name {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
 }
 
 .exam-item__score {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   color: #63e2b7;
 }
 
@@ -221,7 +221,7 @@ onMounted(loadData)
   justify-content: space-between;
   align-items: center;
   margin-top: 6px;
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.45);
 }
 
@@ -235,7 +235,7 @@ onMounted(loadData)
   display: flex;
   justify-content: space-between;
   padding: 4px 0;
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.7);
 }
 </style>

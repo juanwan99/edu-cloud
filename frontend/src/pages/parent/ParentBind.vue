@@ -27,7 +27,7 @@
           <n-form-item :label="verifyLabel" path="verify_code">
             <n-input v-model:value="form.verify_code" :placeholder="verifyPlaceholder" />
             <template #feedback>
-              <span style="color: rgba(255,255,255,0.35); font-size: 16px;">
+              <span style="color: rgba(255,255,255,0.35); font-size: var(--fs-base);">
                 {{ verifyHint }}
               </span>
             </template>
@@ -209,7 +209,7 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   padding: 12px 8px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   border: 1px solid rgba(255,255,255,0.12);
   cursor: pointer;
   transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
@@ -222,12 +222,12 @@ onUnmounted(() => {
   background: rgba(99,226,183,0.1);
 }
 .rel-icon {
-  font-size: 24px;
+  font-size: var(--fs-2xl);
   line-height: 1;
   margin-bottom: 4px;
 }
 .rel-label {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255,255,255,0.7);
 }
 .rel-item.selected .rel-label {
@@ -243,22 +243,22 @@ onUnmounted(() => {
   border-radius: 50%;
   background: rgba(99,226,183,0.15);
   color: #63e2b7;
-  font-size: 32px;
+  font-size: var(--fs-display);
   line-height: 64px;
   margin: 0 auto 16px;
 }
 .success-text {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
   margin-bottom: 8px;
 }
 .success-child {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255,255,255,0.7);
   margin-bottom: 12px;
 }
 .success-hint {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255,255,255,0.4);
 }
 </style>
