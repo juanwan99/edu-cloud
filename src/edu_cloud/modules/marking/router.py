@@ -292,8 +292,8 @@ async def next_answer(
             if subject and subject.code not in visible_codes:
                 raise HTTPException(403, "无权访问该科目的题目")
 
-    # Permission check 2: assignment-level access (ai_review/reviewed skip assignment check)
-    if mode in ("ai_review", "reviewed"):
+    # Permission check 2: assignment-level access (ai_review skips assignment check)
+    if mode == "ai_review":
         pass
     elif not is_school_admin(current["current_role"]):
         all_assign = (await db.execute(
