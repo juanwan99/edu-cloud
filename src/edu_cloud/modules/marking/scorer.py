@@ -345,6 +345,7 @@ async def get_next_answer(
         select(StudentAnswer).where(
             StudentAnswer.question_id.in_(child_ids_q),
             StudentAnswer.student_id == answer.student_id,
+            StudentAnswer.school_id == school_id,
         )
     )).scalars().all()
     child_answer_ids = [ca.id for ca in child_answers]
@@ -468,6 +469,7 @@ async def get_answer_at(
         select(StudentAnswer).where(
             StudentAnswer.question_id.in_(child_ids_q),
             StudentAnswer.student_id == answer.student_id,
+            StudentAnswer.school_id == school_id,
         )
     )).scalars().all()
     child_answer_ids = [ca.id for ca in child_answers]
