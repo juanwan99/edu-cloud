@@ -8,6 +8,7 @@ import { hasPermission } from '../config/permissions.js'
 
 export const routes = [
   { path: '/login', name: 'Login', component: () => import('../pages/LoginPage.vue') },
+  { path: '/login-gpt', name: 'LoginGpt', component: () => import('../pages/LoginPage-gpt-demo.vue') },
 
   {
     path: '/',
