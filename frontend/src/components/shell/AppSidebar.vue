@@ -81,6 +81,7 @@ function isActive(itemRoute) {
   if (itemRoute === '/') return route.path === '/'
   if (itemRoute === '/analytics/report') return route.path.startsWith('/analytics')
   if (itemRoute === '/conduct') return route.path === '/conduct'
+  if (itemRoute === '/marking') return route.path === '/marking'
   return route.path.startsWith(itemRoute)
 }
 

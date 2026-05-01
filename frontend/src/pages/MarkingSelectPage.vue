@@ -52,7 +52,7 @@
             :percentage="subjectProgress(subj)"
             :stroke-width="5"
             :show-indicator="true"
-            style="width: 40px; height: 40px;"
+            class="subject-progress"
           />
         </div>
         <n-data-table
@@ -268,6 +268,14 @@ onMounted(loadExams)
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: var(--fw-bold) !important;
+}
+
+.subject-progress {
+  width: 48px;
+  height: 48px;
+}
+:deep(.subject-progress .n-progress-text) {
+  font-size: 11px !important;
 }
 
 @media (max-width: 768px) {

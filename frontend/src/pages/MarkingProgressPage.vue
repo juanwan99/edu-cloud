@@ -75,7 +75,7 @@
             :percentage="subjectPercentage(subj)"
             :stroke-width="6"
             :color="subjectPercentage(subj) >= 100 ? '#2a9d8f' : '#f4a261'"
-            style="width: 60px; height: 60px;"
+            class="subject-progress"
           />
         </div>
         <n-data-table
@@ -327,5 +327,16 @@ onUnmounted(() => {
 
 .spin-icon {
   animation: spin 1s linear infinite;
+}
+
+.subject-progress {
+  width: 56px;
+  height: 56px;
+}
+:deep(.subject-progress .n-progress-text) {
+  font-size: 12px !important;
+}
+:deep(.overall-card .n-progress-text) {
+  font-size: 14px !important;
 }
 </style>
