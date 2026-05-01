@@ -118,6 +118,7 @@ async def get_next_answer(
     mode:
       - "ungraded": 未 confirmed 的答卷（默认，人工阅卷流程）
       - "ai_review": AI 已评(ai_done)但未确认的答卷（复核流程）
+      - "reviewed": 已确认的答卷（只读查看）
 
     返回结构：
     {
@@ -127,14 +128,86 @@ async def get_next_answer(
       max_score: float
     }
     """
+    if mode == "reviewed":
+        reviewed_q = (await db.execute(
+            select(GradingResult)
+            .join(StudentAnswer, GradingResult.answer_id == StudentAnswer.id)
+            .where(
+                GradingResult.question_id == question_id,
+                GradingResult.school_id == school_id,
+                GradingResult.status == "confirmed",
+            ).order_by(StudentAnswer.student_id)
+            .limit(1)
+        )).scalar_one_or_none()
+
+        if not reviewed_q:
+            return None
+
+        answer = (await db.execute(
+            select(StudentAnswer).where(
+                StudentAnswer.id == reviewed_q.answer_id,
+                StudentAnswer.school_id == school_id,
+            )
+        )).scalar_one_or_none()
+        if not answer:
+            return None
+
+        total_confirmed = (await db.execute(
+            select(func.count()).select_from(GradingResult).where(
+                GradingResult.question_id == question_id,
+                GradingResult.school_id == school_id,
+                GradingResult.status == "confirmed",
+            )
+        )).scalar() or 0
+
+        q = (await db.execute(
+            select(Question).where(Question.id == question_id)
+        )).scalar_one_or_none()
+        max_score = q.max_score if q else 0.0
+
+        child_ids_q = select(Question.id).where(Question.parent_id == question_id)
+        child_answers = (await db.execute(
+            select(StudentAnswer).where(
+                StudentAnswer.question_id.in_(child_ids_q),
+                StudentAnswer.student_id == answer.student_id,
+            )
+        )).scalars().all()
+        child_answer_ids = [ca.id for ca in child_answers]
+
+        child_ai_list = []
+        for ca in child_answers:
+            ca_gr = (await db.execute(
+                select(GradingResult).where(GradingResult.answer_id == ca.id)
+            )).scalar_one_or_none()
+            if ca_gr:
+                child_ai_list.append(_build_ai_info(ca_gr))
+
+        return {
+            "answer_id": answer.id,
+            "student_id": answer.student_id,
+            "image_path": answer.image_path,
+            "child_answer_ids": child_answer_ids,
+            "child_ai": child_ai_list,
+            "position": {"current": 1, "total": total_confirmed},
+            "ai": _build_ai_info(reviewed_q),
+            "max_score": max_score,
+            "is_anomaly": answer.is_anomaly,
+            "anomaly_type": answer.anomaly_type,
+            "annotations": reviewed_q.annotations or [],
+            "graded_score": reviewed_q.final_score,
+            "graded_comment": reviewed_q.review_comment,
+        }
+
     if mode == "ai_review":
         # 复核模式：取 AI 已评但未人工确认的答卷
         ai_done_q = (await db.execute(
-            select(GradingResult).where(
+            select(GradingResult)
+            .join(StudentAnswer, GradingResult.answer_id == StudentAnswer.id)
+            .where(
                 GradingResult.question_id == question_id,
                 GradingResult.school_id == school_id,
                 GradingResult.status == "ai_done",
-            ).order_by(GradingResult.created_at)
+            ).order_by(StudentAnswer.student_id)
             .limit(1)
         )).scalar_one_or_none()
 
@@ -302,7 +375,28 @@ async def get_answer_at(
     mode: str = "ungraded",
 ) -> dict | None:
     """按索引获取某题的第 offset 份答卷（0-based），包含已有评分。"""
-    if mode == "ai_review":
+    if mode == "reviewed":
+        base_q = (
+            select(StudentAnswer)
+            .join(GradingResult, GradingResult.answer_id == StudentAnswer.id)
+            .where(
+                StudentAnswer.question_id == question_id,
+                StudentAnswer.school_id == school_id,
+                GradingResult.status == "confirmed",
+            )
+        )
+        total = (await db.execute(
+            select(func.count()).select_from(base_q.subquery())
+        )).scalar() or 0
+
+        if offset < 0 or offset >= total:
+            return None
+
+        answer = (await db.execute(
+            base_q.order_by(StudentAnswer.student_id)
+            .offset(offset).limit(1)
+        )).scalar_one_or_none()
+    elif mode == "ai_review":
         base_q = (
             select(StudentAnswer)
             .join(GradingResult, GradingResult.answer_id == StudentAnswer.id)

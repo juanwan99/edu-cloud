@@ -11,6 +11,7 @@
         <n-button-group size="small">
           <n-button :type="reviewMode === 'ungraded' ? 'primary' : 'default'" @click="switchMode('ungraded')">待阅</n-button>
           <n-button :type="reviewMode === 'ai_review' ? 'primary' : 'default'" @click="switchMode('ai_review')">AI 复核</n-button>
+          <n-button :type="reviewMode === 'reviewed' ? 'primary' : 'default'" @click="switchMode('reviewed')">已复核</n-button>
         </n-button-group>
         <n-button-group size="small">
           <n-button :disabled="browseIndex <= 0 || loading" @click="goPrev">&#9664;</n-button>
@@ -54,13 +55,13 @@
     <n-spin :show="loading" class="review-body">
       <div v-if="done" class="review-done">
         <n-result
-          :status="reviewMode === 'ai_review' ? 'info' : 'success'"
-          :title="reviewMode === 'ai_review' ? '全部 AI 答卷已复核' : '全部批改完成'"
-          :description="reviewMode === 'ai_review' ? '该题所有 AI 评分均已确认' : '该题所有答卷已确认'"
+          :status="reviewMode === 'reviewed' ? 'info' : reviewMode === 'ai_review' ? 'info' : 'success'"
+          :title="reviewMode === 'reviewed' ? '暂无已复核的答卷' : reviewMode === 'ai_review' ? '全部 AI 答卷已复核' : '全部批改完成'"
+          :description="reviewMode === 'reviewed' ? '该题尚无已确认的评分记录' : reviewMode === 'ai_review' ? '该题所有 AI 评分均已确认' : '该题所有答卷已确认'"
         >
           <template #footer>
             <n-space>
-              <n-button v-if="reviewMode === 'ai_review'" @click="switchMode('ungraded')">切换到待阅模式</n-button>
+              <n-button v-if="reviewMode !== 'ungraded'" @click="switchMode('ungraded')">切换到待阅模式</n-button>
               <n-button type="primary" @click="$router.back()">返回上一级</n-button>
             </n-space>
           </template>
@@ -172,6 +173,34 @@
         <!-- 打分区 -->
         <div class="score-panel">
           <div class="score-section">
+            <!-- 已复核模式：只读展示 -->
+            <template v-if="reviewMode === 'reviewed'">
+              <h3 class="score-title">已复核评分</h3>
+              <div class="reviewed-score-display">
+                <span class="reviewed-score-num">{{ currentScore ?? '-' }}</span>
+                <span class="reviewed-score-max">/ {{ maxScore }}</span>
+              </div>
+              <div v-if="comment" class="reviewed-comment">
+                <span class="reviewed-comment-label">批注：</span>{{ comment }}
+              </div>
+              <div v-if="ai" class="reviewed-ai-compare">
+                <span class="reviewed-compare-label">AI 评分：</span>
+                <span class="reviewed-compare-score">{{ ai.score }}</span>
+                <span class="reviewed-compare-max">/ {{ maxScore }}</span>
+                <n-tag
+                  v-if="currentScore != null && ai.score != null"
+                  :type="Math.abs(currentScore - ai.score) <= 1 ? 'success' : Math.abs(currentScore - ai.score) <= 3 ? 'warning' : 'error'"
+                  round
+                  size="small"
+                  style="margin-left: 8px"
+                >
+                  差值 {{ (currentScore - ai.score) >= 0 ? '+' : '' }}{{ (currentScore - ai.score).toFixed(1) }}
+                </n-tag>
+              </div>
+            </template>
+
+            <!-- 正常模式：评分操作 -->
+            <template v-else>
             <!-- AI 试阅按钮（需 manage_grading 权限） -->
             <n-button
               v-if="canManageGrading && !ai && !aiGrading"
@@ -277,6 +306,7 @@
             >
               {{ isGraded ? '修改评分 (Enter)' : ai ? '确认并下一份 (Enter)' : '提交并下一份 (Enter)' }}
             </n-button>
+            </template>
           </div>
 
           <!-- 快捷键提示 -->
@@ -455,9 +485,15 @@ async function applyAnswer(answerPayload) {
   annotations.value = answerPayload.annotations || []
   annEditing.value = null
   if (answerPayload.max_score != null) maxScore.value = answerPayload.max_score
-  currentScore.value = ai.value ? ai.value.score : null
-  comment.value = ''
-  isGraded.value = false
+  if (answerPayload.graded_score != null) {
+    currentScore.value = answerPayload.graded_score
+    comment.value = answerPayload.graded_comment || ''
+    isGraded.value = true
+  } else {
+    currentScore.value = ai.value ? ai.value.score : null
+    comment.value = ''
+    isGraded.value = false
+  }
   currentAnomaly.value = answerPayload.anomaly_type || null
   selectedAnomalyType.value = null
   resetZoom()
@@ -1136,5 +1172,59 @@ onUnmounted(() => {
   margin-top: 8px;
   padding-top: 6px;
   border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.reviewed-score-display {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 12px 0;
+}
+
+.reviewed-score-num {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--color-primary, #18a058);
+  font-variant-numeric: tabular-nums;
+}
+
+.reviewed-score-max {
+  font-size: 18px;
+  color: var(--color-text-muted);
+}
+
+.reviewed-comment {
+  padding: 8px 12px;
+  background: var(--color-bg-alt, #fafbfc);
+  border-radius: 6px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.reviewed-comment-label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.reviewed-ai-compare {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 8px 0;
+  font-size: 16px;
+}
+
+.reviewed-compare-label {
+  color: var(--color-text-muted);
+}
+
+.reviewed-compare-score {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.reviewed-compare-max {
+  color: var(--color-text-muted);
 }
 </style>
