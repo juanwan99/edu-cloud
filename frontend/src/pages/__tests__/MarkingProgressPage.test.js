@@ -43,7 +43,7 @@ describe('MarkingProgressPage template sections', () => {
 
   it('contains manual refresh button with spinning icon', () => {
     expect(content).toContain('@click="manualRefresh"')
-    expect(content).toContain('reload-outline')
+    expect(content).toContain('RefreshCw')
     expect(content).toContain("{ 'spin-icon': refreshing }")
     expect(content).toContain('刷新')
   })
