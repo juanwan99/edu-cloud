@@ -11,9 +11,9 @@
       <div class="brand-area">
         <div class="brand-icon">
           <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
-            <path d="M24 6L4 16l20 10 20-10L24 6z" fill="#2d5a3d" opacity="0.3"/>
-            <path d="M24 12L4 22l20 10 20-10L24 12z" fill="#2d5a3d" opacity="0.6"/>
-            <path d="M24 18L4 28l20 10 20-10L24 18z" fill="#1a2e1f"/>
+            <path d="M24 6L4 16l20 10 20-10L24 6z" fill="var(--color-primary-light)" opacity="0.3"/>
+            <path d="M24 12L4 22l20 10 20-10L24 12z" fill="var(--color-primary-light)" opacity="0.6"/>
+            <path d="M24 18L4 28l20 10 20-10L24 18z" fill="var(--color-primary)"/>
           </svg>
         </div>
         <h1 class="brand-name">edu-cloud</h1>
