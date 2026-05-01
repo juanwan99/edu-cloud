@@ -14,11 +14,11 @@
   },
   "dependencies": {
     "@antv/g6": "^5.1.0",
-    "@vicons/ionicons5": "^0.13.0",
     "axios": "^1.13.6",
     "dompurify": "^3.4.1",
     "echarts": "^6.0.0",
     "katex": "^0.16.38",
+    "lucide-vue-next": "^1.0.0",
     "marked": "^17.0.4",
     "naive-ui": "^2.44.0",
     "pinia": "^3.0.4",

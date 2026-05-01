@@ -123,10 +123,10 @@ import {
   getCapabilities, setCapability, initCapabilities,
 } from '../api/schoolSettings.js'
 import {
-  BookOutline, SchoolOutline, PencilOutline, BarChartOutline,
-  FlaskOutline, CalendarOutline, DocumentTextOutline, PeopleOutline,
-  CheckboxOutline,
-} from '@vicons/ionicons5'
+  FileText, School, PenTool, BarChart3,
+  FlaskConical, Calendar, FileEdit, Users,
+  CheckSquare,
+} from 'lucide-vue-next'
 
 const MODULE_DESCRIPTIONS = {
   exam: '考试创建、科目管理、题目编辑、答题卡设计',
@@ -141,19 +141,19 @@ const MODULE_DESCRIPTIONS = {
 }
 
 const MODULE_ICONS = {
-  exam: BookOutline,
-  grading: PencilOutline,
-  homework: DocumentTextOutline,
-  study_analytics: BarChartOutline,
-  research: FlaskOutline,
-  teaching: SchoolOutline,
-  calendar: CalendarOutline,
-  studio: DocumentTextOutline,
-  conduct: PeopleOutline,
+  exam: FileText,
+  grading: PenTool,
+  homework: FileEdit,
+  study_analytics: BarChart3,
+  research: FlaskConical,
+  teaching: School,
+  calendar: Calendar,
+  studio: FileEdit,
+  conduct: Users,
 }
 
 function getModuleIcon(code) {
-  return MODULE_ICONS[code] || CheckboxOutline
+  return MODULE_ICONS[code] || CheckSquare
 }
 
 const auth = useAuthStore()

@@ -93,7 +93,6 @@
 <script setup>
 import { ref, h, computed, onMounted, onUnmounted, watch } from 'vue'
 import { NProgress, NIcon, useMessage } from 'naive-ui'
-import { ReloadOutline } from '@vicons/ionicons5'
 import { getProgress, exportCsv } from '../api/marking'
 import client from '../api/client'
 

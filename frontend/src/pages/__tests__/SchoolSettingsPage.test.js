@@ -114,18 +114,18 @@ describe('SchoolSettingsPage MODULE_DESCRIPTIONS constant', () => {
 
 describe('SchoolSettingsPage MODULE_ICONS mapping', () => {
   it('maps each module code to an icon component', () => {
-    expect(content).toContain('exam: BookOutline')
-    expect(content).toContain('grading: PencilOutline')
-    expect(content).toContain('homework: DocumentTextOutline')
-    expect(content).toContain('study_analytics: BarChartOutline')
-    expect(content).toContain('research: FlaskOutline')
-    expect(content).toContain('teaching: SchoolOutline')
-    expect(content).toContain('calendar: CalendarOutline')
-    expect(content).toContain('conduct: PeopleOutline')
+    expect(content).toContain('exam: FileText')
+    expect(content).toContain('grading: PenTool')
+    expect(content).toContain('homework: FileEdit')
+    expect(content).toContain('study_analytics: BarChart3')
+    expect(content).toContain('research: FlaskConical')
+    expect(content).toContain('teaching: School')
+    expect(content).toContain('calendar: Calendar')
+    expect(content).toContain('conduct: Users')
   })
 
-  it('getModuleIcon falls back to CheckboxOutline', () => {
-    expect(content).toContain('MODULE_ICONS[code] || CheckboxOutline')
+  it('getModuleIcon falls back to CheckSquare', () => {
+    expect(content).toContain('MODULE_ICONS[code] || CheckSquare')
   })
 })
 
@@ -230,15 +230,15 @@ describe('SchoolSettingsPage API imports', () => {
     expect(content).toContain("import { useAuthStore } from '../stores/auth.js'")
   })
 
-  it('imports icon components from ionicons5', () => {
-    expect(content).toContain("from '@vicons/ionicons5'")
-    expect(content).toContain('BookOutline')
-    expect(content).toContain('SchoolOutline')
-    expect(content).toContain('PencilOutline')
-    expect(content).toContain('BarChartOutline')
-    expect(content).toContain('FlaskOutline')
-    expect(content).toContain('CalendarOutline')
-    expect(content).toContain('PeopleOutline')
+  it('imports icon components from lucide-vue-next', () => {
+    expect(content).toContain("from 'lucide-vue-next'")
+    expect(content).toContain('FileText')
+    expect(content).toContain('School')
+    expect(content).toContain('PenTool')
+    expect(content).toContain('BarChart3')
+    expect(content).toContain('FlaskConical')
+    expect(content).toContain('Calendar')
+    expect(content).toContain('Users')
     expect(content).toContain('CheckboxOutline')
   })
 })

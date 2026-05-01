@@ -50,7 +50,6 @@ import {
   NConfigProvider, NLayout, NLayoutHeader, NLayoutContent,
   NButton, NIcon, NSelect, NMessageProvider
 } from 'naive-ui'
-import { PersonOutline } from '@vicons/ionicons5'
 import { getParentMe, getChildren } from '../api/conduct'
 
 const router = useRouter()
