@@ -58,7 +58,7 @@ function masteryColor(mastery) {
 }
 .module-card {
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   padding: 16px;
   cursor: pointer;
   transition: background 0.2s;
@@ -73,11 +73,11 @@ function masteryColor(mastery) {
   align-items: center;
 }
 .module-name {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-medium);
 }
 .mastery-pct {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
 }
 </style>

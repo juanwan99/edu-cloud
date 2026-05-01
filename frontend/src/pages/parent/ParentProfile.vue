@@ -222,8 +222,8 @@ function handleLogout() {
   border-radius: 50%;
   background: rgba(99,226,183,0.15);
   color: #63e2b7;
-  font-size: 22px;
-  font-weight: 600;
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semibold);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,11 +234,11 @@ function handleLogout() {
   min-width: 0;
 }
 .profile-name {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
 }
 .profile-phone {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255,255,255,0.45);
   margin-top: 2px;
 }
@@ -253,10 +253,10 @@ function handleLogout() {
   min-width: 0;
 }
 .child-name {
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 .child-meta {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255,255,255,0.4);
 }
 .child-stats {
@@ -266,23 +266,23 @@ function handleLogout() {
   gap: 2px;
 }
 .child-change {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-medium);
 }
 .child-change.positive {
-  color: #63e2b7;
+  color: var(--color-success-border);
 }
 .child-change.negative {
-  color: #e88080;
+  color: var(--color-danger);
 }
 .child-exam {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255,255,255,0.35);
 }
 .version-info {
   text-align: center;
   padding: 24px 0 16px;
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255,255,255,0.25);
 }
 </style>

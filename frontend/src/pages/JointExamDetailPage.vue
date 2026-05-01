@@ -215,7 +215,7 @@ onMounted(() => {
 
 <style scoped>
 .page-header { margin-bottom: 24px; }
-.page-title { font-size: 20px; font-weight: 700; margin: 0; }
+.page-title { font-size: var(--fs-xl); font-weight: var(--fw-semibold); margin: 0; }
 .page-subtitle { margin: 8px 0 0; }
 
 .info-card {
@@ -230,7 +230,7 @@ onMounted(() => {
   justify-content: space-between;
   padding: 8px 0;
   border-bottom: 1px solid var(--color-border-light);
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 .info-row:last-child { border-bottom: none; }
 .info-row span:first-child { color: var(--color-text-muted); }

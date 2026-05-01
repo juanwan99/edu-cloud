@@ -430,24 +430,24 @@ onMounted(init)
 
 <style scoped>
 .timetable-grid { overflow-x: auto; }
-.timetable-grid table { width: 100%; border-collapse: collapse; border-radius: 8px; overflow: hidden; }
-.timetable-grid th { background: rgba(99, 110, 180, 0.15); padding: 10px 8px; font-size: 16px; font-weight: 600; text-align: center; border: 1px solid rgba(255,255,255,0.06); }
+.timetable-grid table { width: 100%; border-collapse: collapse; border-radius: var(--r-sm); overflow: hidden; }
+.timetable-grid th { background: rgba(99, 110, 180, 0.15); padding: 10px 8px; font-size: var(--fs-base); font-weight: var(--fw-semibold); text-align: center; border: 1px solid rgba(255,255,255,0.06); }
 .timetable-grid td { padding: 6px 4px; text-align: center; border: 1px solid rgba(255,255,255,0.06); min-height: 50px; vertical-align: middle; }
-.period-name { font-weight: 600; font-size: 16px; background: rgba(99, 180, 130, 0.1); }
-.period-time { font-size: 16px; color: rgba(255,255,255,0.4); }
+.period-name { font-weight: var(--fw-semibold); font-size: var(--fs-base); background: rgba(99, 180, 130, 0.1); }
+.period-time { font-size: var(--fs-base); color: rgba(255,255,255,0.4); }
 .slot-cell { cursor: pointer; min-width: 100px; height: 52px; transition: background .15s; }
 .slot-cell:hover { background: rgba(255, 224, 130, 0.08); }
 .slot-content { display: flex; flex-direction: column; gap: 2px; position: relative; }
-.slot-subject { font-weight: 600; font-size: 16px; }
-.slot-teacher { font-size: 16px; color: rgba(255,255,255,0.5); }
-.slot-empty { color: rgba(255,255,255,0.2); font-size: 20px; }
+.slot-subject { font-weight: var(--fw-semibold); font-size: var(--fs-base); }
+.slot-teacher { font-size: var(--fs-base); color: rgba(255,255,255,0.5); }
+.slot-empty { color: rgba(255,255,255,0.2); font-size: var(--fs-xl); }
 .slot-vacant { }
 .slot-cell-empty { border: 1px dashed rgba(255,255,255,0.15) !important; background: rgba(255,255,255,0.02); }
 .slot-cell-conflict { border: 2px solid rgba(250, 200, 80, 0.6) !important; background: rgba(250, 200, 80, 0.06); }
 .break-row td { background: rgba(255,255,255,0.02); height: 28px; }
-.break-label { font-size: 16px; color: rgba(255,255,255,0.2); }
-.conflict-icon { display: inline-block; width: 16px; height: 16px; line-height: 16px; border-radius: 50%; background: rgba(250, 200, 80, 0.8); color: #1e1e2e; font-size: 16px; font-weight: 700; position: absolute; top: -4px; right: -4px; cursor: help; }
-.subject-stats { margin-top: 12px; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 8px; }
-.stats-label { font-size: 16px; font-weight: 600; color: rgba(255,255,255,0.6); }
-.slot-paste-target { color: rgba(99, 180, 130, 0.6) !important; font-size: 16px !important; border: 1px dashed rgba(99, 180, 130, 0.4); border-radius: 4px; padding: 2px 4px; }
+.break-label { font-size: var(--fs-base); color: rgba(255,255,255,0.2); }
+.conflict-icon { display: inline-block; width: 16px; height: 16px; line-height: 16px; border-radius: 50%; background: rgba(250, 200, 80, 0.8); color: #1e1e2e; font-size: var(--fs-base); font-weight: var(--fw-semibold); position: absolute; top: -4px; right: -4px; cursor: help; }
+.subject-stats { margin-top: 12px; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: var(--r-sm); }
+.stats-label { font-size: var(--fs-base); font-weight: var(--fw-semibold); color: rgba(255,255,255,0.6); }
+.slot-paste-target { color: rgba(99, 180, 130, 0.6) !important; font-size: var(--fs-base) !important; border: 1px dashed rgba(99, 180, 130, 0.4); border-radius: var(--r-xs); padding: 2px 4px; }
 </style>

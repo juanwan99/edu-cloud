@@ -347,12 +347,12 @@ onMounted(() => {
 .cap-matrix td {
   padding: 8px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 .cap-matrix th {
   text-align: left;
   color: rgba(255, 255, 255, 0.6);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
 }
 .cap-matrix tbody tr:hover {
   background: rgba(255, 255, 255, 0.04);

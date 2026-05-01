@@ -59,7 +59,7 @@
     <!-- 节次配置区 -->
     <div v-if="activeSemester" style="margin-top: 32px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h2 style="font-size: 17px; font-weight: 600; margin: 0;">
+        <h2 style="font-size: var(--fs-base); font-weight: var(--fw-semibold); margin: 0;">
           节次时间 · {{ activeSemester.name }}
         </h2>
         <n-button size="small" type="primary" @click="handleAddPeriod">添加节次</n-button>

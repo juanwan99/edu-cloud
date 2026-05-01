@@ -194,7 +194,7 @@ const columns = computed(() => [
           processing: pct < 100,
           style: 'flex: 1;',
         }),
-        h('span', { style: 'font-size: 16px; color: rgba(255,255,255,0.5); white-space: nowrap;' },
+        h('span', { style: 'font-size: var(--fs-base); color: rgba(255,255,255,0.5); white-space: nowrap;' },
           `${completed}/${total}`),
       ])
     },
@@ -316,8 +316,8 @@ onMounted(loadExams)
 
 <style scoped>
 .page-header { margin-bottom: 24px; }
-.page-title { font-size: 24px; font-weight: 700; margin: 0; }
-.page-subtitle { font-size: 16px; color: var(--color-text-muted); margin: 4px 0 0; }
+.page-title { font-size: var(--fs-2xl); font-weight: var(--fw-semibold); margin: 0; }
+.page-subtitle { font-size: var(--fs-base); color: var(--color-text-muted); margin: 4px 0 0; }
 .stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

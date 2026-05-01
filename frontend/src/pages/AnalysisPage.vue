@@ -34,7 +34,7 @@
 
     <div class="feature-grid">
       <n-card hoverable class="feature-card" @click="goExamAnalytics" :class="{ disabled: !selectedExamId }">
-        <div class="feature-icon" style="background: var(--macaron-mint-light); color: #2d5a3d;">
+        <div class="feature-icon" style="background: var(--macaron-mint-light); color: var(--color-primary-light);">
           <span style="font-size: 24px;">📊</span>
         </div>
         <div class="feature-title">考试分析</div>
@@ -149,19 +149,19 @@ onMounted(async () => {
 .feature-icon {
   width: 56px;
   height: 56px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 12px;
 }
 .feature-title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   margin-bottom: 8px;
 }
 .feature-desc {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.5);
   line-height: 1.4;
 }

@@ -330,7 +330,7 @@ onMounted(() => {
 }
 
 .text-medium {
-  font-weight: 500;
+  font-weight: var(--fw-medium);
 }
 
 .record-note {
@@ -339,7 +339,7 @@ onMounted(() => {
 }
 
 .text-muted {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.4);
 }
 </style>

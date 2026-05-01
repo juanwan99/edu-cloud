@@ -163,12 +163,12 @@ function renderSuffix({ option }) {
   const parts = []
   if (option.reviewStatus) {
     const icon = reviewStatusIcons[option.reviewStatus] || ''
-    if (icon) parts.push(h('span', { style: { fontSize: '16px', marginRight: '4px' } }, icon))
+    if (icon) parts.push(h('span', { style: { fontSize: 'var(--fs-base)', marginRight: '4px' } }, icon))
   }
   const m = option.mastery ?? 0
   if (m > 0) {
     parts.push(h('span', {
-      style: { color: masteryColor(m), fontSize: '16px' },
+      style: { color: masteryColor(m), fontSize: 'var(--fs-base)' },
     }, Math.round(m * 100) + '%'))
   }
   return parts.length ? h('span', { style: { marginLeft: '4px' } }, parts) : null
@@ -204,14 +204,14 @@ function handleSelect(keys) {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 .section-title {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: #888;
   margin-bottom: 8px;
 }
 .weak-item {
   display: flex;
   justify-content: space-between;
-  font-size: 16px;
+  font-size: var(--fs-base);
   padding: 4px 0;
 }
 </style>

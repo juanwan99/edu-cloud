@@ -278,7 +278,7 @@ onMounted(async () => {
 .question-card {
   background: var(--color-bg-card, rgba(255, 255, 255, 0.95));
   border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   padding: 12px 16px;
   margin-bottom: 12px;
 }
@@ -289,8 +289,8 @@ onMounted(async () => {
   margin-bottom: 8px;
 }
 .question-name {
-  font-weight: 600;
-  font-size: 16px;
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-base);
 }
 .assign-row {
   display: flex;
