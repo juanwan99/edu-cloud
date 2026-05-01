@@ -133,19 +133,21 @@
                   <div v-if="getAnnotation(item.blankNo || String(i))" class="ann-existing">
                     <span class="ann-tag">{{ getAnnotation(item.blankNo || String(i)).target === 'ocr' ? 'OCR' : '评分' }}</span>
                     <span class="ann-text">{{ getAnnotation(item.blankNo || String(i)).comment }}</span>
-                    <n-button size="tiny" text type="error" @click="removeAnnotation(item.blankNo || String(i))">删除</n-button>
+                    <n-button v-if="reviewMode !== 'reviewed'" size="tiny" text type="error" @click="removeAnnotation(item.blankNo || String(i))">删除</n-button>
                   </div>
-                  <div v-else-if="annEditing === (item.blankNo || String(i))" class="ann-input-row">
-                    <n-radio-group v-model:value="annTarget" size="tiny">
-                      <n-radio-button value="ocr">OCR</n-radio-button>
-                      <n-radio-button value="score">评分</n-radio-button>
-                    </n-radio-group>
-                    <n-input v-model:value="annComment" size="small" placeholder="标注说明" @keyup.enter="submitAnnotation(item.blankNo || String(i))" style="flex:1" />
-                    <n-input-number v-if="annTarget === 'score'" v-model:value="annSuggestedScore" size="small" :min="0" :max="item.maxScore" placeholder="建议分" style="width:80px" />
-                    <n-button size="tiny" type="primary" @click="submitAnnotation(item.blankNo || String(i))">确认</n-button>
-                    <n-button size="tiny" @click="annEditing = null">取消</n-button>
-                  </div>
-                  <n-button v-else size="tiny" text @click="startAnnotation(item.blankNo || String(i))">+ 标注</n-button>
+                  <template v-if="reviewMode !== 'reviewed'">
+                    <div v-if="annEditing === (item.blankNo || String(i))" class="ann-input-row">
+                      <n-radio-group v-model:value="annTarget" size="tiny">
+                        <n-radio-button value="ocr">OCR</n-radio-button>
+                        <n-radio-button value="score">评分</n-radio-button>
+                      </n-radio-group>
+                      <n-input v-model:value="annComment" size="small" placeholder="标注说明" @keyup.enter="submitAnnotation(item.blankNo || String(i))" style="flex:1" />
+                      <n-input-number v-if="annTarget === 'score'" v-model:value="annSuggestedScore" size="small" :min="0" :max="item.maxScore" placeholder="建议分" style="width:80px" />
+                      <n-button size="tiny" type="primary" @click="submitAnnotation(item.blankNo || String(i))">确认</n-button>
+                      <n-button size="tiny" @click="annEditing = null">取消</n-button>
+                    </div>
+                    <n-button v-else size="tiny" text @click="startAnnotation(item.blankNo || String(i))">+ 标注</n-button>
+                  </template>
                 </div>
               </div>
             </div>
@@ -154,14 +156,16 @@
               <div v-if="getAnnotation(null)" class="ann-existing">
                 <span class="ann-tag">整题</span>
                 <span class="ann-text">{{ getAnnotation(null).comment }}</span>
-                <n-button size="tiny" text type="error" @click="removeAnnotation(null)">删除</n-button>
+                <n-button v-if="reviewMode !== 'reviewed'" size="tiny" text type="error" @click="removeAnnotation(null)">删除</n-button>
               </div>
-              <div v-else-if="annEditing === '_overall'" class="ann-input-row">
-                <n-input v-model:value="annComment" size="small" placeholder="整题标注" @keyup.enter="submitAnnotation(null)" style="flex:1" />
-                <n-button size="tiny" type="primary" @click="submitAnnotation(null)">确认</n-button>
-                <n-button size="tiny" @click="annEditing = null">取消</n-button>
-              </div>
-              <n-button v-else size="tiny" text @click="annEditing = '_overall'; annComment = ''; annTarget = 'score'">+ 整题标注</n-button>
+              <template v-if="reviewMode !== 'reviewed'">
+                <div v-if="annEditing === '_overall'" class="ann-input-row">
+                  <n-input v-model:value="annComment" size="small" placeholder="整题标注" @keyup.enter="submitAnnotation(null)" style="flex:1" />
+                  <n-button size="tiny" type="primary" @click="submitAnnotation(null)">确认</n-button>
+                  <n-button size="tiny" @click="annEditing = null">取消</n-button>
+                </div>
+                <n-button v-else size="tiny" text @click="annEditing = '_overall'; annComment = ''; annTarget = 'score'">+ 整题标注</n-button>
+              </template>
             </div>
             <div v-if="ai.deductions?.length" class="ai-deductions">
               <div class="ai-deductions-title">扣分项</div>
@@ -744,6 +748,8 @@ function handleKeydown(e) {
     goNext()
     return
   }
+
+  if (reviewMode.value === 'reviewed') return
 
   if (e.key === 'Enter' && !e.target.closest('.n-input-number')) {
     handleSubmit()

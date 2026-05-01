@@ -423,12 +423,13 @@ async def submit_score_endpoint(
 async def get_answer_at_endpoint(
     question_id: str,
     offset: int = 0,
+    mode: str = "ungraded",
     current: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """按索引获取某题的第 offset 份答卷（0-based），支持前后翻页。"""
     from edu_cloud.modules.marking.scorer import get_answer_at
-    result = await get_answer_at(db, question_id, current["current_role"].school_id, offset)
+    result = await get_answer_at(db, question_id, current["current_role"].school_id, offset, mode=mode)
     if not result:
         raise HTTPException(404, "无更多答卷")
     return result
