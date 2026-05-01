@@ -26,7 +26,7 @@
       >
         <template #icon>
           <n-icon :class="{ 'spin-icon': refreshing }">
-            <reload-outline />
+            <RefreshCw :size="16" />
           </n-icon>
         </template>
         刷新
@@ -93,6 +93,7 @@
 <script setup>
 import { ref, h, computed, onMounted, onUnmounted, watch } from 'vue'
 import { NProgress, NIcon, useMessage } from 'naive-ui'
+import { RefreshCw } from 'lucide-vue-next'
 import { getProgress, exportCsv } from '../api/marking'
 import client from '../api/client'
 

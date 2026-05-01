@@ -14,7 +14,7 @@
               style="width: 120px;"
             />
             <n-button quaternary circle @click="$router.push('/parent/profile')">
-              <template #icon><n-icon><person-outline /></n-icon></template>
+              <template #icon><n-icon><User :size="18" /></n-icon></template>
             </n-button>
           </div>
         </n-layout-header>
@@ -50,6 +50,7 @@ import {
   NConfigProvider, NLayout, NLayoutHeader, NLayoutContent,
   NButton, NIcon, NSelect, NMessageProvider
 } from 'naive-ui'
+import { User } from 'lucide-vue-next'
 import { getParentMe, getChildren } from '../api/conduct'
 
 const router = useRouter()
