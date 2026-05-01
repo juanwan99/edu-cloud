@@ -1,55 +1,57 @@
 :root {
-  /* 颜色 */
-  --color-primary: #1a2e1f;
-  --color-primary-dark: #0f1c13;
-  --color-primary-light: #2d5a3d;
-  --color-accent: #10b981;
-  --color-accent-hover: #059669;
-  --color-bg: #ffffff;
-  --color-bg-alt: #f5f8f6;
+  /* ═══ V3.2 Wells Collins 风格设计系统 ═══ */
+
+  /* 品牌色：正翠绿 + 荧光黄绿 + 近黑 */
+  --color-primary: #1a7a4f;
+  --color-primary-dark: #145f3d;
+  --color-primary-light: #22956a;
+  --color-accent: #c8e64a;
+  --color-accent-hover: #b8d63a;
+  --color-bg: #f5f5f3;
+  --color-bg-alt: #f0f0ee;
   --color-bg-card: #ffffff;
-  --color-text: #0f1a12;
-  --color-text-secondary: #3d4f42;
-  --color-text-muted: #6b7d70;
-  --color-border: #d4ddd7;
-  --color-border-light: #e8efe9;
+  --color-text: #1a1a1a;
+  --color-text-secondary: #555550;
+  --color-text-muted: #72726c;
+  --color-border: #deded9;
+  --color-border-light: #e8e8e4;
 
   /* 语义色 */
-  --color-success: #10b981;
-  --color-danger: #ef4444;
-  --color-warning: #f59e0b;
-  --color-info: #3b82f6;
-  --color-bg-deep: #2d2d3d;
+  --color-success: #1a7a4f;
+  --color-danger: #dc2626;
+  --color-warning: #d97706;
+  --color-info: #2563eb;
+  --color-bg-deep: #1a1a1a;
 
-  /* Macaron 柔彩 */
-  --macaron-mint: #c8f0d4;
-  --macaron-mint-light: #d5f5e3;
-  --macaron-yellow: #fef3c7;
-  --macaron-yellow-light: #fef0c7;
-  --macaron-coral: #fde8e8;
-  --macaron-coral-light: #fde8e8;
-  --macaron-purple: #ede9fe;
-  --macaron-purple-light: #ede5ff;
-  --macaron-blue: #e0f2fe;
-  --macaron-blue-light: #dbeafe;
+  /* Macaron 柔彩（饱和度提升） */
+  --macaron-mint: #a7f3d0;
+  --macaron-mint-light: #d1fae5;
+  --macaron-yellow: #fde68a;
+  --macaron-yellow-light: #fef3c7;
+  --macaron-coral: #fecaca;
+  --macaron-coral-light: #fee2e2;
+  --macaron-purple: #c4b5fd;
+  --macaron-purple-light: #ede9fe;
+  --macaron-blue: #bae6fd;
+  --macaron-blue-light: #e0f2fe;
 
-  /* 圆角 */
-  --radius-sm: 12px;
-  --radius-md: 16px;
-  --radius-lg: 20px;
+  /* 圆角（收紧，不要太圆） */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
   --radius-xl: 24px;
-  --radius-pill: 50px;
+  --radius-pill: 999px;
 
   /* 阴影 */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 8px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.03);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.08), 0 4px 8px rgba(0,0,0,0.03);
-  --shadow-xl: 0 24px 48px rgba(26, 46, 31, 0.12);
+  --shadow-sm: 0 1px 2px rgba(26, 26, 26, 0.06);
+  --shadow-md: 0 4px 12px rgba(26, 26, 26, 0.08);
+  --shadow-lg: 0 18px 46px rgba(26, 26, 26, 0.09);
+  --shadow-xl: 0 32px 64px rgba(26, 26, 26, 0.12);
 
   /* 字体 */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
 
-  /* 间距 */
+  /* 间距（4px 基准） */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -58,9 +60,11 @@
   --space-6: 24px;
   --space-8: 32px;
   --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
 
   /* 动效 */
-  --transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 
   /* z-index scale */
   --z-sidebar: 90;
@@ -68,43 +72,47 @@
   --z-overlay: 200;
   --z-modal: 300;
 
-  /* Phase 1 Token: 字号 */
+  /* 字号（极端对比阶梯） */
+  --fs-2xs: 11px;
   --fs-xs: 12px;
-  --fs-sm: 14px;
-  --fs-md: 15px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
   --fs-base: 16px;
   --fs-lg: 18px;
   --fs-xl: 20px;
   --fs-2xl: 24px;
-  --fs-display: 32px;
+  --fs-3xl: 32px;
+  --fs-display: 48px;
 
-  /* Phase 1 Token: 字重 */
+  /* 字重 */
   --fw-regular: 400;
   --fw-medium: 500;
   --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-heavy: 800;
 
-  /* Phase 1 Token: 行高 */
-  --lh-tight: 1.2;
-  --lh-snug: 1.4;
+  /* 行高 */
+  --lh-tight: 1.05;
+  --lh-snug: 1.3;
   --lh-normal: 1.5;
   --lh-relaxed: 1.6;
 
-  /* Phase 1 Token: 圆角 */
+  /* 圆角（别名兼容） */
   --r-xs: 4px;
   --r-sm: 8px;
   --r-md: 12px;
-  --r-lg: 16px;
+  --r-lg: 18px;
   --r-full: 999px;
 
-  /* Phase 1 Token: 文字色 */
-  --text-primary: rgba(15, 26, 18, 0.88);
-  --text-secondary: rgba(15, 26, 18, 0.68);
-  --text-tertiary: rgba(15, 26, 18, 0.48);
-  --text-disabled: rgba(15, 26, 18, 0.28);
-  --text-placeholder: rgba(15, 26, 18, 0.38);
-  --text-inverse: rgba(255, 255, 255, 0.92);
+  /* 文字色（语义层） */
+  --text-primary: #1a1a1a;
+  --text-secondary: #555550;
+  --text-tertiary: #72726c;
+  --text-disabled: #96968f;
+  --text-placeholder: #96968f;
+  --text-inverse: #ffffff;
 
-  /* Phase 1 Token: 语义色扩展 */
+  /* 语义色扩展 */
   --color-success-bg-subtle: #ecfdf5;
   --color-success-bg: #d1fae5;
   --color-success-border: #6ee7b7;
@@ -124,4 +132,12 @@
   --color-info-bg: #dbeafe;
   --color-info-border: #93c5fd;
   --color-info-text: #1d4ed8;
+
+  /* 表格 */
+  --color-table-header: #f0f0ee;
+  --color-table-hover: #f0f8f4;
+
+  /* 侧栏 */
+  --color-sidebar-bg: #1a7a4f;
+  --color-sidebar-active: #c8e64a;
 }

@@ -376,7 +376,7 @@ tests/
 
 **前端（`frontend/`）：**
 - Vite 7 + Vue 3.5 (Composition API)
-- Naive UI 2.44（暗色主题）
+- Naive UI 2.44（V3.2 Wells Collins 设计系统：翠绿 #1a7a4f + 荧光黄绿 #c8e64a，深色顶栏/翠绿侧栏/浅灰内容区三层色差，theme.js 全局覆盖）
 - Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 42 子路由；完整 44 路由冻结于 _frozen/）
 - Pinia 3（状态管理）
 - Axios（HTTP 客户端，baseURL `/api/v1`）

@@ -4,8 +4,8 @@
       <div class="app-header__brand" @click="$router.push('/')">
         <span class="app-header__logo">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <rect width="28" height="28" rx="8" fill="var(--macaron-mint)"/>
-            <path d="M8 10h12M8 14h8M8 18h10" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round"/>
+            <rect width="28" height="28" rx="8" fill="var(--color-primary)"/>
+            <path d="M8 10h12M8 14h8M8 18h10" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
           </svg>
         </span>
         <span class="app-header__title">edu-cloud 智能平台</span>
@@ -49,13 +49,14 @@ import RoleSwitcher from './RoleSwitcher.vue'
   left: 0;
   right: 0;
   height: 64px;
-  background: rgba(255, 255, 255, 0.96);
-  border-bottom: 1px solid var(--color-border-light);
+  background: #1a1a1a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   z-index: var(--z-header);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: env(safe-area-inset-top) 24px 0;
+  color: #ffffff;
 }
 
 .app-header__left {
@@ -80,9 +81,9 @@ import RoleSwitcher from './RoleSwitcher.vue'
 
 .app-header__title {
   font-size: var(--fs-xl);
-  font-weight: var(--fw-semibold);
-  color: var(--color-primary);
-  letter-spacing: -0.01em;
+  font-weight: var(--fw-heavy);
+  color: #ffffff;
+  letter-spacing: -0.02em;
   white-space: nowrap;
 }
 
@@ -98,10 +99,10 @@ import RoleSwitcher from './RoleSwitcher.vue'
   gap: 6px;
   padding: 8px 16px;
   font-size: var(--fs-base);
-  background: var(--color-bg-alt);
-  border: 1px solid var(--color-border-light);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .search-icon {
@@ -113,12 +114,12 @@ import RoleSwitcher from './RoleSwitcher.vue'
   outline: none;
   background: transparent;
   font-size: var(--fs-base);
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.9);
   width: 140px;
   font-family: inherit;
 }
 
 .search-input::placeholder {
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.5);
 }
 </style>

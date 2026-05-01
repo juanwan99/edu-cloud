@@ -52,7 +52,7 @@ watch(() => route.path, () => { aiPanelOpen.value = false })
 .app-main {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
-  background: var(--color-bg-alt);
+  padding: 32px;
+  background: var(--color-bg);
 }
 </style>
