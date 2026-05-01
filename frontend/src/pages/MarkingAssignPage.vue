@@ -269,8 +269,8 @@ onMounted(async () => {
 <style scoped>
 .stats-row {
   display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 .stat-card {
   flex: 1;
@@ -279,14 +279,14 @@ onMounted(async () => {
   background: var(--color-bg-card, rgba(255, 255, 255, 0.95));
   border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
   border-radius: var(--r-sm);
-  padding: 12px 16px;
-  margin-bottom: 12px;
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
 }
 .question-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 .question-name {
   font-weight: var(--fw-semibold);
@@ -295,30 +295,30 @@ onMounted(async () => {
 .assign-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 0;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
 }
 .assign-detail {
   color: var(--color-text-muted, rgba(0, 0, 0, 0.45));
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 .add-teacher-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 8px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
   border-top: 1px dashed var(--color-border-light, rgba(0, 0, 0, 0.06));
 }
 .teacher-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 6px 0;
   border-bottom: 1px solid var(--color-border-light, rgba(0, 0, 0, 0.06));
 }
 .text-muted {
   color: var(--color-text-muted, rgba(0, 0, 0, 0.35));
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 </style>

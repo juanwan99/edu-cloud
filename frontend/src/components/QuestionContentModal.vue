@@ -163,7 +163,7 @@ function handleSave() {
 .image-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .preview-wrapper {
   position: relative;
@@ -178,17 +178,17 @@ function handleSave() {
   object-fit: contain;
 }
 .preview-seq {
-  position: absolute; top: 4px; left: 4px;
+  position: absolute; top: var(--space-1); left: var(--space-1);
   background: rgba(0,0,0,0.6); color: var(--color-bg, #fff);
   font-size: var(--fs-base); padding: 1px 5px; border-radius: 3px;
 }
 .paste-badge {
-  position: absolute; bottom: 4px; left: 4px;
+  position: absolute; bottom: var(--space-1); left: var(--space-1);
   background: var(--color-primary, #409eff); color: var(--color-bg, #fff);
   font-size: var(--fs-base); padding: 1px 4px; border-radius: 3px;
 }
 .preview-delete {
-  position: absolute; top: 4px; right: 4px;
+  position: absolute; top: var(--space-1); right: var(--space-1);
   opacity: 0; transition: opacity 0.15s;
 }
 </style>

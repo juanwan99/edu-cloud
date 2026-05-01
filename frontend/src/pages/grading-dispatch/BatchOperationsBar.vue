@@ -32,6 +32,6 @@ defineEmits(['batch-detect', 'batch-cut'])
 </script>
 
 <style scoped>
-.batch-bar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: #f0faf3; border: 1px solid #b8e6c8; border-radius: 12px; margin-bottom: 12px; font-size: 16px; }
-.batch-progress { font-size: 16px; color: #555; margin-left: 8px; }
+.batch-bar { display: flex; align-items: center; gap: 10px; padding: var(--space-2) var(--space-4); background: var(--color-success-bg-subtle); border: 1px solid var(--color-success-border); border-radius: var(--radius-md); margin-bottom: var(--space-3); font-size: var(--fs-base); }
+.batch-progress { font-size: var(--fs-base); color: var(--color-text-secondary); margin-left: var(--space-2); }
 </style>

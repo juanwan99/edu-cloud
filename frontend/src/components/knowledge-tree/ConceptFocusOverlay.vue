@@ -121,51 +121,51 @@ const canMarkReviewed = computed(() => {
 <style scoped>
 .focus-overlay {
   position: absolute;
-  bottom: 16px;
+  bottom: var(--space-4);
   left: 15%;
   right: 15%;
   background: rgba(30, 30, 40, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 16px 20px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-5);
   z-index: 20;
 }
 .overlay-header {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 .concept-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .concept-title h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 .concept-desc {
-  margin: 4px 0 0;
-  font-size: 16px;
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.55);
 }
 .relations-section {
-  margin-bottom: 12px;
-  padding-top: 8px;
+  margin-bottom: var(--space-3);
+  padding-top: var(--space-2);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 .relation-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin-bottom: 6px;
   flex-wrap: wrap;
 }
 .group-label {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.6);
   min-width: 100px;
 }
 .empty {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.3);
 }
 .peer-tag {
@@ -173,9 +173,9 @@ const canMarkReviewed = computed(() => {
 }
 .overlay-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: flex-end;
-  padding-top: 8px;
+  padding-top: var(--space-2);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 </style>

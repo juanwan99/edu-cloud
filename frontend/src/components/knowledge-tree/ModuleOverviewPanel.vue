@@ -161,7 +161,7 @@ const crossModuleLinks = computed(() => {
 
 <style scoped>
 .module-overview-panel {
-  padding: 24px;
+  padding: var(--space-6);
   height: 100%;
   overflow-y: auto;
 }
@@ -169,7 +169,7 @@ const crossModuleLinks = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 .panel-header h2 {
   margin: 0;
@@ -179,44 +179,44 @@ const crossModuleLinks = computed(() => {
 .cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-bottom: 32px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
 }
 .cross-module-section h3 {
   font-size: var(--fs-base);
   font-weight: var(--fw-medium);
   color: rgba(255, 255, 255, 0.6);
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-3);
 }
 .cross-module-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 /* T13: 模块考频统计 */
 .freq-stats-section {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 .freq-stats-section h3 {
   font-size: var(--fs-base);
   font-weight: var(--fw-medium);
   color: rgba(255, 255, 255, 0.6);
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-3);
 }
 .freq-stats-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .freq-stat-item {
   display: grid;
   grid-template-columns: 1fr auto auto;
-  gap: 12px;
+  gap: var(--space-3);
   align-items: center;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   background: rgba(255, 255, 255, 0.04);
   border-radius: 6px;
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 .freq-mod-name {
   font-weight: var(--fw-medium);
@@ -224,7 +224,7 @@ const crossModuleLinks = computed(() => {
 .freq-avg,
 .freq-cov {
   color: rgba(255, 255, 255, 0.7);
-  font-size: 16px;
+  font-size: var(--fs-base);
   white-space: nowrap;
 }
 .freq-bar {
@@ -234,24 +234,24 @@ const crossModuleLinks = computed(() => {
   border-radius: 3px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.08);
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 .freq-seg.high { background: #3b5998; }
 .freq-seg.mid { background: #8fa3d1; }
 .freq-seg.low { background: #d0daed; }
 .freq-legend {
   display: flex;
-  gap: 16px;
-  font-size: 16px;
+  gap: var(--space-4);
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.5);
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 .freq-legend .dot {
   display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 2px;
-  margin-right: 4px;
+  margin-right: var(--space-1);
   vertical-align: middle;
 }
 .freq-legend .dot.high { background: #3b5998; }

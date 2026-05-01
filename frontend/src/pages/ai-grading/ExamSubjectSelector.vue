@@ -38,7 +38,7 @@ defineEmits(['update:examId', 'update:subjectId'])
 <style scoped>
 .selector-bar {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 </style>

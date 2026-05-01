@@ -203,16 +203,16 @@ onMounted(loadExams)
 <style scoped>
 .toolbar {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
 .stat-card {
@@ -222,28 +222,28 @@ onMounted(loadExams)
 
 .stat-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: var(--space-2);
+  height: var(--space-2);
   border-radius: 50%;
-  margin-right: 4px;
+  margin-right: var(--space-1);
   vertical-align: middle;
 }
-.stat-dot--success { background: #2a9d8f; }
-.stat-dot--warning { background: #f4a261; }
+.stat-dot--success { background: var(--color-success); }
+.stat-dot--warning { background: var(--color-warning); }
 
 .subject-card {
   background: var(--color-bg-card, rgba(255,255,255,0.04));
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-light, rgba(255,255,255,0.09));
-  padding: 20px;
-  margin-bottom: 16px;
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
 }
 
 .subject-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 .subject-name {
   font-size: var(--fs-base);

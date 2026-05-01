@@ -224,7 +224,7 @@ function handleReview(status) {
 
 <style scoped>
 .detail-item {
-  padding: 8px 0;
+  padding: var(--space-2) 0;
   border-bottom: 1px solid var(--n-border-color);
 }
 .detail-item:last-child {
@@ -232,10 +232,10 @@ function handleReview(status) {
 }
 .answer {
   color: var(--n-text-color-3);
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 .evidence-item {
-  font-size: 16px;
+  font-size: var(--fs-base);
   line-height: 1.6;
   word-break: break-all;
 }

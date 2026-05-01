@@ -4,8 +4,8 @@
  * Validates:
  *  1. Component can be imported (smoke)
  *  2. Template contains key sections (top-bar, summary-bar, scan, batch-ops, subject-list, editor)
- *  3. API calls (listExams, getDispatchStatus, createTask, scan/pipeline APIs)
- *  4. State/data processing (stageGroups, STAGE_LABELS, canDetect, canCut, subjects filter, concurrency)
+ *  3. API calls (listExams, getDispatchStatus, scan/pipeline APIs)
+ *  4. State/data processing (stageGroups, canDetect, canCut, subjects filter, concurrency)
  *  5. Error handling (try-catch in multiple async functions)
  */
 import { describe, it, expect } from 'vitest'
@@ -52,7 +52,6 @@ describe('GradingDispatchPage template sections', () => {
     expect(content).toContain('<BatchOperationsBar')
     expect(content).toContain('@batch-detect="handleBatchDetect"')
     expect(content).toContain('@batch-cut="handleBatchCut"')
-    expect(content).toContain('@batch-grade="handleBatchGrade"')
   })
 
   it('contains SubjectStatusCard list', () => {
@@ -83,14 +82,14 @@ describe('GradingDispatchPage template sections', () => {
 describe('GradingDispatchPage page header', () => {
   it('has correct title and subtitle', () => {
     expect(content).toContain('扫描调度')
-    expect(content).toContain('扫描切割 → 选择题判分 → AI 阅卷 → 教师校对')
+    expect(content).toContain('扫描切割 → 选择题自动判分')
   })
 })
 
 describe('GradingDispatchPage API imports', () => {
   it('imports exam and grading APIs', () => {
     expect(content).toContain("import { listExams } from '../api/exams'")
-    expect(content).toContain("import { getDispatchStatus, createTask } from '../api/grading'")
+    expect(content).toContain("import { getDispatchStatus } from '../api/grading'")
   })
 
   it('imports scan/pipeline APIs', () => {
@@ -112,36 +111,19 @@ describe('GradingDispatchPage API imports', () => {
 })
 
 describe('GradingDispatchPage stageGroups computed', () => {
-  it('defines 7 stage group definitions', () => {
-    expect(content).toContain("{ key: 'done', label: '已完成' }")
-    expect(content).toContain("{ key: 'active', label: '阅卷中'")
-    expect(content).toContain("{ key: 'ready', label: '待阅卷' }")
+  it('defines 4 stage group definitions', () => {
+    expect(content).toContain("{ key: 'done', label: '已切割'")
     expect(content).toContain("{ key: 'pending_cut', label: '待切割' }")
     expect(content).toContain("{ key: 'pending_detect', label: '待检测' }")
     expect(content).toContain("{ key: 'idle', label: '待上传' }")
-    expect(content).toContain("{ key: 'failed', label: '失败' }")
   })
 
-  it('combines ai_grading and reviewing stages for active count', () => {
-    expect(content).toContain("stages: ['ai_grading', 'reviewing']")
+  it('combines ready/done/ai_grading/reviewing/failed stages for done count', () => {
+    expect(content).toContain("stages: ['ready', 'done', 'ai_grading', 'reviewing', 'failed']")
   })
 
   it('filters out groups with zero count', () => {
     expect(content).toContain('.filter(g => g.count > 0)')
-  })
-})
-
-describe('GradingDispatchPage STAGE_LABELS', () => {
-  it('defines 9 stage labels', () => {
-    expect(content).toContain("idle: '待上传'")
-    expect(content).toContain("pending_detect: '待检测'")
-    expect(content).toContain("pending_cut: '待切割'")
-    expect(content).toContain("cutting: '切割中'")
-    expect(content).toContain("ready: '待阅卷'")
-    expect(content).toContain("ai_grading: 'AI 阅卷'")
-    expect(content).toContain("reviewing: '校对中'")
-    expect(content).toContain("failed: '失败'")
-    expect(content).toContain("done: '已完成'")
   })
 })
 
@@ -206,7 +188,8 @@ describe('GradingDispatchPage template detect with A/B sides', () => {
   })
 
   it('handles missing B side gracefully', () => {
-    expect(content).toContain("} catch (_) { /* 无 B 面 */ }")
+    expect(content).toContain('/* B 面可能不存在 */')
+    expect(content).toContain('/* B 面检测失败，静默跳过 */')
   })
 })
 
@@ -242,24 +225,6 @@ describe('GradingDispatchPage onEditorConfirm', () => {
   })
 })
 
-describe('GradingDispatchPage grading actions', () => {
-  it('creates grading task for single subject', () => {
-    const gradeBlock = content.slice(
-      content.indexOf('async function handleStartGrade'),
-      content.indexOf('const canBatchGrade')
-    )
-    expect(gradeBlock).toContain('await createTask({ subject_id: s.subject_id })')
-  })
-
-  it('batch grade checks ready stage', () => {
-    expect(content).toContain("s.stage === 'ready'")
-  })
-
-  it('navigates to AI grading page', () => {
-    expect(content).toContain("router.push(`/exams/${selectedExamId.value}/ai-grading/${s.subject_id}`)")
-  })
-})
-
 describe('GradingDispatchPage error handling', () => {
   it('wraps onMounted exam list fetch in try-catch', () => {
     expect(content).toContain('onMounted(async () => {')
@@ -278,7 +243,7 @@ describe('GradingDispatchPage error handling', () => {
     )
     expect(fnBlock).toContain('try {')
     expect(fnBlock).toContain('} catch (e) {')
-    expect(fnBlock).toContain("message.error('加载阅卷状态失败')")
+    expect(fnBlock).toContain("message.error('加载科目状态失败')")
   })
 
   it('wraps handleScanDir in try-catch', () => {

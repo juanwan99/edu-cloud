@@ -281,6 +281,6 @@ onMounted(() => {
 
 <style scoped>
 :deep(.top-rank td) {
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 </style>

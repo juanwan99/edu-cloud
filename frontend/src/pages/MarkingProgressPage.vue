@@ -256,39 +256,39 @@ onUnmounted(() => {
 <style scoped>
 .toolbar {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
   flex-wrap: wrap;
 }
 
 .auto-refresh-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .auto-refresh-label {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: var(--fs-base);
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 
 .last-update {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: var(--fs-base);
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 
 .overall-card {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .overall-stats {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 48px;
+  gap: var(--space-12);
   flex-wrap: wrap;
 }
 
@@ -296,22 +296,22 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .subject-card {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-bg-card);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-light);
-  padding: 20px;
-  margin-bottom: 16px;
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
 }
 
 .subject-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .subject-card h3 {

@@ -52,16 +52,16 @@ defineProps({
 </script>
 
 <style scoped>
-.study-unit-tab { padding: 8px; }
-.empty { text-align: center; color: var(--text-color-3); padding: 20px; }
-.field-row { display: flex; margin-bottom: 8px; }
+.study-unit-tab { padding: var(--space-2); }
+.empty { text-align: center; color: var(--text-color-3); padding: var(--space-5); }
+.field-row { display: flex; margin-bottom: var(--space-2); }
 .label { color: var(--text-color-2); width: 100px; }
 .value { color: var(--text-color-1); }
-.section-title { font-weight: 600; margin: 14px 0 6px; color: var(--text-color-1); }
+.section-title { font-weight: var(--fw-semibold); margin: 14px 0 6px; color: var(--text-color-1); }
 .weight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .weight-item { display: flex; justify-content: space-between; padding: 4px 8px; background: var(--card-color); border-radius: 3px; }
 .weight-item.priority { grid-column: 1 / -1; background: var(--primary-color-hover); color: white; }
-.weight-label { font-size: 16px; }
-.weight-value { font-weight: 600; }
-.chapter-item { padding: 4px 8px; background: var(--card-color); border-radius: 3px; margin-bottom: 4px; font-size: 16px; }
+.weight-label { font-size: var(--fs-base); }
+.weight-value { font-weight: var(--fw-semibold); }
+.chapter-item { padding: 4px 8px; background: var(--card-color); border-radius: 3px; margin-bottom: 4px; font-size: var(--fs-base); }
 </style>

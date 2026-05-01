@@ -507,7 +507,7 @@ onMounted(async () => {
 
 .form-section-title {
   margin: 0 0 var(--space-3);
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 
 .form-actions {
@@ -518,7 +518,7 @@ onMounted(async () => {
 }
 
 .help-text {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
   margin-top: var(--space-2);
   line-height: 1.8;

@@ -157,7 +157,7 @@ describe('ConductRankings operations', () => {
 
   it('has top-rank CSS style for top 3', () => {
     expect(content).toContain('.top-rank td')
-    expect(content).toContain('font-weight: 600')
+    expect(content).toContain('font-weight: var(--fw-semibold)')
   })
 
   it('loads semesters and student rankings on mount', () => {

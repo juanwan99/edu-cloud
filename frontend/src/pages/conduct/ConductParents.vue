@@ -248,13 +248,13 @@ onMounted(() => {
 }
 
 .text-secondary {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.5);
 }
 
 .code-tag {
   font-family: monospace;
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 
 .full-width {

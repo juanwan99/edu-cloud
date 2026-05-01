@@ -113,11 +113,11 @@ function statusClass(concept) {
 
 <style scoped>
 .concept-review-list { display: flex; flex-direction: column; height: 100%; }
-.filters { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); }
-.progress-bar { padding: 8px 12px; }
-.progress-label { font-size: 16px; color: rgba(255,255,255,0.5); }
+.filters { padding: var(--space-3); border-bottom: 1px solid rgba(255,255,255,0.08); }
+.progress-bar { padding: var(--space-2) var(--space-3); }
+.progress-label { font-size: var(--fs-base); color: rgba(255,255,255,0.5); }
 .concept-list { flex: 1; overflow-y: auto; }
-.concept-item { display: flex; align-items: center; gap: 8px; }
+.concept-item { display: flex; align-items: center; gap: var(--space-2); }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .status-dot.published { background: #63e2b7; }
 .status-dot.warning { background: #f2c97d; }

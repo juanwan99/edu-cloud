@@ -506,14 +506,14 @@ defineExpose({
 .panel-toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 16px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .toolbar-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: var(--fs-base);
   font-weight: var(--fw-medium);
   flex: 1;
@@ -526,8 +526,8 @@ defineExpose({
 .toolbar-stats {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 16px;
+  gap: var(--space-2);
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.6);
 }
 .map-container {

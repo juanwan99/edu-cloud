@@ -153,15 +153,15 @@ const taskProgressPct = computed(() => {
 .right-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .detail-card {
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 .content-text {
-  font-size: 16px;
+  font-size: var(--fs-base);
   line-height: 1.6;
   white-space: pre-wrap;
 }
@@ -169,8 +169,8 @@ const taskProgressPct = computed(() => {
 .image-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .img-wrapper {
@@ -184,19 +184,19 @@ const taskProgressPct = computed(() => {
 
 .img-seq {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  top: var(--space-1);
+  left: var(--space-1);
   background: rgba(0,0,0,0.6);
   color: var(--color-bg, #fff);
-  font-size: 16px;
+  font-size: var(--fs-xs);
   padding: 1px 5px;
   border-radius: 3px;
 }
 
 .img-delete {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: var(--space-1);
+  right: var(--space-1);
   opacity: 0;
   transition: opacity 0.15s;
 }
@@ -211,65 +211,65 @@ const taskProgressPct = computed(() => {
 }
 
 .progress-area {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .progress-label {
-  font-size: 16px;
-  color: #8a9a8e;
-  margin-bottom: 4px;
+  font-size: var(--fs-base);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-1);
 }
 
 .done-text {
-  font-size: 16px;
-  color: #4ade80;
+  font-size: var(--fs-base);
+  color: var(--color-success);
   margin-top: 6px;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 .fail-text {
-  font-size: 16px;
-  color: #f87171;
+  font-size: var(--fs-base);
+  color: var(--color-danger);
   margin-top: 6px;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 .empty-tip {
-  font-size: 16px;
-  color: #8a9a8e;
-  padding: 8px 0;
+  font-size: var(--fs-base);
+  color: var(--color-text-muted);
+  padding: var(--space-2) 0;
 }
 
 .grading-limit-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 .limit-label {
-  font-size: 16px;
-  color: #cfd8d3;
+  font-size: var(--fs-base);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
 .limit-hint {
-  font-size: 16px;
-  color: #6b7c72;
+  font-size: var(--fs-base);
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 
 .grading-mode-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 .mode-desc {
-  font-size: 16px;
-  color: #6b7c72;
-  margin-bottom: 8px;
+  font-size: var(--fs-base);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
 }
 
 .empty-tip.center {

@@ -79,11 +79,11 @@ function addItem() {
 </script>
 
 <style scoped>
-.re-empty { color: var(--color-text-muted); font-size: 16px; padding: 12px 0; text-align: center; }
+.re-empty { color: var(--color-text-muted); font-size: var(--fs-base); padding: 12px 0; text-align: center; }
 
 .re-row {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 8px 0;
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-2) 0;
   border-bottom: 1px solid var(--border-color, #2e3e34);
 }
 .re-row:last-of-type { border-bottom: none; }
@@ -94,30 +94,30 @@ function addItem() {
   font-size: var(--fs-base); font-weight: var(--fw-semibold); color: var(--color-success);
   min-width: 20px; text-align: center; flex-shrink: 0;
 }
-.re-unit { font-size: 16px; color: var(--color-text-muted); flex-shrink: 0; }
+.re-unit { font-size: var(--fs-base); color: var(--color-text-muted); flex-shrink: 0; }
 .re-del {
-  font-size: 16px; color: var(--color-text-muted); cursor: pointer; flex-shrink: 0;
+  font-size: var(--fs-base); color: var(--color-text-muted); cursor: pointer; flex-shrink: 0;
   opacity: 0.3; transition: opacity 0.15s; text-decoration: none;
 }
 .re-del:hover { opacity: 1; color: var(--color-danger); }
 
 .re-more {
-  font-size: 16px; color: var(--color-text-muted); cursor: pointer;
+  font-size: var(--fs-base); color: var(--color-text-muted); cursor: pointer;
   padding: 2px 0; text-decoration: none;
 }
 .re-more:hover { color: var(--color-success); }
 
 .re-legacy {
   display: flex; flex-direction: column; gap: 2px;
-  font-size: 16px; color: var(--color-text-secondary); line-height: 1.4;
-  padding-left: 20px; opacity: 0.6;
+  font-size: var(--fs-base); color: var(--color-text-secondary); line-height: 1.4;
+  padding-left: var(--space-5); opacity: 0.6;
 }
 
 .re-foot {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 0 0;
+  padding: var(--space-2) 0 0;
 }
-.re-add { font-size: 16px; color: var(--color-text-muted); cursor: pointer; text-decoration: none; }
+.re-add { font-size: var(--fs-base); color: var(--color-text-muted); cursor: pointer; text-decoration: none; }
 .re-add:hover { color: var(--color-success); }
 
 .re-total { font-size: var(--fs-base); font-weight: var(--fw-semibold); color: var(--color-text-muted); }

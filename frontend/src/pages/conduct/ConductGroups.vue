@@ -248,7 +248,7 @@ onMounted(() => {
 
 .text-secondary {
   color: rgba(255, 255, 255, 0.5);
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 
 .member-tags {

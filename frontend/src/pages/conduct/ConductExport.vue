@@ -343,7 +343,7 @@ onMounted(() => {
 
 .preview-footer {
   margin-top: var(--space-2);
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.4);
 }
 
@@ -354,7 +354,7 @@ onMounted(() => {
 }
 
 .text-muted {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.4);
 }
 </style>

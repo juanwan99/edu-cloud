@@ -34,10 +34,10 @@ defineExpose({ onChange })
 .color-mode-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .label {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--text-color-2);
 }
 </style>

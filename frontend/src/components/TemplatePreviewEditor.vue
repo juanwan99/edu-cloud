@@ -456,12 +456,12 @@ onBeforeUnmount(() => { if (typeof window !== 'undefined') window.removeEventLis
 .tpl-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--n-border-color);
   flex-shrink: 0;
 }
-.toolbar-label { font-size: 16px; color: #999; margin-left: 4px; }
+.toolbar-label { font-size: var(--fs-base); color: var(--color-text-muted); margin-left: 4px; }
 
 .tpl-editor > :last-child {
   display: flex;
@@ -534,17 +534,17 @@ onBeforeUnmount(() => { if (typeof window !== 'undefined') window.removeEventLis
 
 .tpl-rid {
   position: absolute; top: 2px; left: 4px;
-  font-size: 16px; font-weight: 600;
+  font-size: var(--fs-base); font-weight: var(--fw-semibold);
   text-shadow: 0 0 3px rgba(0,0,0,0.8);
 }
 .tpl-rtype {
   position: absolute; top: 2px; right: 4px;
-  font-size: 16px; color: #ccc; background: rgba(0,0,0,0.5);
+  font-size: var(--fs-base); color: var(--color-border); background: rgba(0,0,0,0.5);
   padding: 0 4px; border-radius: 2px;
 }
 .tpl-rqno {
   position: absolute; bottom: 2px; left: 4px;
-  font-size: 16px; font-weight: 600; color: #f0c040;
+  font-size: var(--fs-base); font-weight: var(--fw-semibold); color: #f0c040;
   text-shadow: 0 0 3px rgba(0,0,0,0.8);
 }
 /* resize handles */
@@ -571,9 +571,9 @@ onBeforeUnmount(() => { if (typeof window !== 'undefined') window.removeEventLis
 
 /* sidebar */
 .sidebar-title {
-  padding: 8px 10px;
-  font-size: 16px;
-  font-weight: 600;
+  padding: var(--space-2) 10px;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   border-bottom: 1px solid var(--n-border-color);
 }
 .sidebar-item {
@@ -581,13 +581,13 @@ onBeforeUnmount(() => { if (typeof window !== 'undefined') window.removeEventLis
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
-  font-size: 16px;
+  font-size: var(--fs-base);
   cursor: pointer;
   border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 .sidebar-item:hover { background: rgba(255,255,255,0.05); }
 .sidebar-item.active { background: rgba(64,158,255,0.12); }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.stype { color: #888; margin-left: auto; }
-.sqno { color: #f0c040; font-weight: 600; }
+.stype { color: var(--color-text-muted); margin-left: auto; }
+.sqno { color: #f0c040; font-weight: var(--fw-semibold); }
 </style>

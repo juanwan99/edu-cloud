@@ -251,17 +251,17 @@ defineExpose({
 
 <style scoped>
 .toolbar-btn {
-  border: 1px solid rgba(0, 0, 0, 0.2) !important;
-  color: rgba(0, 0, 0, 0.75) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text) !important;
   background: transparent !important;
 }
 .toolbar-btn:hover {
-  border-color: rgba(0, 0, 0, 0.4) !important;
+  border-color: var(--color-text-secondary) !important;
   color: var(--color-text) !important;
-  background: rgba(0, 0, 0, 0.04) !important;
+  background: var(--color-bg-alt) !important;
 }
 .toolbar-btn:disabled {
-  border-color: rgba(0, 0, 0, 0.08) !important;
-  color: rgba(0, 0, 0, 0.25) !important;
+  border-color: var(--color-border-light) !important;
+  color: var(--color-text-muted) !important;
 }
 </style>

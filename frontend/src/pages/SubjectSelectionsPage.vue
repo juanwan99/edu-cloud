@@ -253,5 +253,5 @@ onMounted(loadData)
 .combo-card.checked { border-color: #63e2b7; background: rgba(99, 226, 183, 0.08); }
 .combo-card.added { opacity: 0.5; cursor: default; }
 .combo-header { display: flex; align-items: center; gap: 8px; }
-.combo-name { font-weight: 500; flex: 1; }
+.combo-name { font-weight: var(--fw-medium); flex: 1; }
 </style>

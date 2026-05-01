@@ -105,34 +105,10 @@ describe('SubjectStatusCard template - stage content', () => {
     expect(src).toContain('待切割')
   })
 
-  it('shows ready state', () => {
-    expect(src).toContain("subject.stage === 'ready'")
-    expect(src).toContain('subject.subjective_total')
-    expect(src).toContain('份就绪')
-  })
-
-  it('shows ai_grading progress', () => {
-    expect(src).toContain("subject.stage === 'ai_grading'")
-    expect(src).toContain('subject.ai_graded')
-    expect(src).toContain('prog-fill warn')
-  })
-
-  it('shows reviewing progress', () => {
-    expect(src).toContain("subject.stage === 'reviewing'")
-    expect(src).toContain('subject.reviewed')
-    expect(src).toContain('prog-fill purple')
-    expect(src).toContain('校对')
-  })
-
-  it('shows failed state', () => {
-    expect(src).toContain("subject.stage === 'failed'")
-    expect(src).toContain('subject.ai_failed')
-    expect(src).toContain('份失败')
-  })
-
-  it('shows done state', () => {
-    expect(src).toContain("subject.stage === 'done'")
-    expect(src).toContain('全部完成')
+  it('shows cut-complete state when answer_count > 0', () => {
+    expect(src).toContain('subject.answer_count > 0')
+    expect(src).toContain('已切割')
+    expect(src).toContain('subject.answer_count')
   })
 })
 
@@ -145,16 +121,6 @@ describe('SubjectStatusCard template - stats', () => {
   it('shows answer count', () => {
     expect(src).toContain('subject.answer_count')
     expect(src).toContain('切')
-  })
-
-  it('shows objective graded count', () => {
-    expect(src).toContain('subject.objective_graded')
-    expect(src).toContain('客')
-  })
-
-  it('shows subjective total count', () => {
-    expect(src).toContain('subject.subjective_total')
-    expect(src).toContain('主')
   })
 })
 
@@ -182,25 +148,9 @@ describe('SubjectStatusCard template - action buttons', () => {
     expect(src).toContain("$emit('stop-cut')")
   })
 
-  it('has AI grading button when ready', () => {
-    expect(src).toContain("subject.stage === 'ready'")
-    expect(src).toContain("$emit('grade', subject)")
-    expect(src).toContain('AI 阅卷')
-  })
-
-  it('has retry button on failure', () => {
-    expect(src).toContain("subject.stage === 'failed'")
-    expect(src).toContain('重试')
-  })
-
-  it('has go-review button when reviewing', () => {
-    expect(src).toContain("subject.stage === 'reviewing'")
-    expect(src).toContain('去校对')
-    expect(src).toContain("$emit('go-review')")
-  })
-
-  it('has go-ai-grading button always visible', () => {
-    expect(src).toContain("$emit('go-ai-grading', subject)")
+  it('has verify button', () => {
+    expect(src).toContain('校对配置')
+    expect(src).toContain("$emit('verify', subject)")
   })
 })
 
@@ -239,21 +189,19 @@ describe('SubjectStatusCard props', () => {
     expect(src).toContain('isDetectLoading: { type: Boolean, default: false }')
   })
 
-  it('defines isGradingLoading as Boolean', () => {
-    expect(src).toContain('isGradingLoading: { type: Boolean, default: false }')
+  it('defines isCutLoading as Boolean', () => {
+    expect(src).toContain('isCutLoading: { type: Boolean, default: false }')
   })
 })
 
 describe('SubjectStatusCard emits', () => {
-  it('declares all 8 emits', () => {
+  it('declares all 6 emits', () => {
     expect(src).toContain("'toggle'")
     expect(src).toContain("'detect'")
     expect(src).toContain("'preview'")
     expect(src).toContain("'cut'")
     expect(src).toContain("'stop-cut'")
-    expect(src).toContain("'grade'")
-    expect(src).toContain("'go-review'")
-    expect(src).toContain("'go-ai-grading'")
+    expect(src).toContain("'verify'")
   })
 })
 
@@ -264,11 +212,11 @@ describe('SubjectStatusCard stage labels', () => {
     expect(src).toContain("pending_detect: '待检测'")
     expect(src).toContain("pending_cut: '待切割'")
     expect(src).toContain("cutting: '切割中'")
-    expect(src).toContain("ready: '待阅卷'")
-    expect(src).toContain("ai_grading: 'AI 阅卷'")
-    expect(src).toContain("reviewing: '校对中'")
-    expect(src).toContain("failed: '失败'")
-    expect(src).toContain("done: '已完成'")
+    expect(src).toContain("ready: '已切割'")
+    expect(src).toContain("done: '已切割'")
+    expect(src).toContain("ai_grading: '已切割'")
+    expect(src).toContain("reviewing: '已切割'")
+    expect(src).toContain("failed: '已切割'")
   })
 
   it('has stageLabel function with fallback', () => {
@@ -276,22 +224,20 @@ describe('SubjectStatusCard stage labels', () => {
     expect(src).toContain('STAGE_LABELS[stage] || stage')
   })
 
-  it('has stageClass function', () => {
+  it('has stageClass function that maps ready/done/ai_grading/reviewing/failed to tag-ready', () => {
     expect(src).toContain('function stageClass(stage)')
+    expect(src).toContain("['ready', 'done', 'ai_grading', 'reviewing', 'failed'].includes(stage)")
+    expect(src).toContain("return 'tag-ready'")
     expect(src).toContain('`tag-${stage}`')
   })
 })
 
 describe('SubjectStatusCard CSS stage classes', () => {
-  it('has CSS classes for all stages', () => {
+  it('has CSS classes for base stages', () => {
     expect(src).toContain('.tag-idle')
     expect(src).toContain('.tag-pending_detect')
     expect(src).toContain('.tag-pending_cut')
     expect(src).toContain('.tag-cutting')
     expect(src).toContain('.tag-ready')
-    expect(src).toContain('.tag-ai_grading')
-    expect(src).toContain('.tag-reviewing')
-    expect(src).toContain('.tag-failed')
-    expect(src).toContain('.tag-done')
   })
 })

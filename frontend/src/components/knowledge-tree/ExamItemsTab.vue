@@ -84,18 +84,18 @@ function formatExamId(examId) {
 </script>
 
 <style scoped>
-.exam-items-tab { padding: 8px; }
-.loading, .empty { text-align: center; color: var(--text-color-3); padding: 20px; }
-.summary { font-size: 16px; color: var(--text-color-2); margin-bottom: 10px; }
-.item { border: 1px solid var(--border-color); border-radius: 4px; padding: 10px; margin-bottom: 8px; }
-.item-header { display: flex; gap: 8px; margin-bottom: 6px; font-size: 16px; }
+.exam-items-tab { padding: var(--space-2); }
+.loading, .empty { text-align: center; color: var(--text-color-3); padding: var(--space-5); }
+.summary { font-size: var(--fs-base); color: var(--text-color-2); margin-bottom: 10px; }
+.item { border: 1px solid var(--border-color); border-radius: var(--r-xs); padding: 10px; margin-bottom: 8px; }
+.item-header { display: flex; gap: 8px; margin-bottom: 6px; font-size: var(--fs-base); }
 .type-tag { background: var(--primary-color-hover); color: white; padding: 2px 6px; border-radius: 3px; }
 .exam-year { color: var(--text-color-2); }
 .score { color: var(--text-color-3); }
-.item-stem { font-size: 16px; line-height: 1.5; }
-.item-detail { margin-top: 8px; }
-.item-detail summary { cursor: pointer; font-size: 16px; color: var(--primary-color); }
-.answer { margin-top: 6px; color: var(--success-color); font-size: 16px; }
-.explanation { margin-top: 4px; color: var(--text-color-2); font-size: 16px; }
-.pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 12px; }
+.item-stem { font-size: var(--fs-base); line-height: 1.5; }
+.item-detail { margin-top: var(--space-2); }
+.item-detail summary { cursor: pointer; font-size: var(--fs-base); color: var(--primary-color); }
+.answer { margin-top: 6px; color: var(--success-color); font-size: var(--fs-base); }
+.explanation { margin-top: 4px; color: var(--text-color-2); font-size: var(--fs-base); }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: var(--space-3); }
 </style>

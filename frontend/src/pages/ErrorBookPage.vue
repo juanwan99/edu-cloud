@@ -245,34 +245,34 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-header { margin-bottom: 24px; }
+.page-header { margin-bottom: var(--space-6); }
 .page-title { font-size: var(--fs-xl); font-weight: var(--fw-semibold); margin: 0; }
 .page-subtitle { font-size: var(--fs-base); color: var(--color-text-muted); margin: 4px 0 0; }
 
 .filter-bar {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
 }
 
 .stat-card {
   background: var(--color-bg-alt);
-  padding: 16px;
+  padding: var(--space-4);
   border-radius: var(--radius-lg);
   text-align: center;
 }
 
 .stat-value {
-  font-size: 22px;
+  font-size: var(--fs-xl);
   font-weight: var(--fw-semibold);
   color: var(--color-primary);
 }
@@ -286,7 +286,7 @@ onMounted(async () => {
 .detail-section {
   background: var(--color-bg-alt, #f9f9f9);
   border-radius: var(--radius-lg, 8px);
-  padding: 16px;
+  padding: var(--space-4);
 }
 
 .detail-row {
@@ -305,7 +305,7 @@ onMounted(async () => {
 
 .detail-feedback {
   background: white;
-  padding: 12px;
+  padding: var(--space-3);
   border-radius: var(--r-xs);
   font-size: var(--fs-base);
   line-height: 1.8;

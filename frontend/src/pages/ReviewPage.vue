@@ -18,37 +18,6 @@
           <n-button :disabled="browseIndex >= position.total - 1 || loading" @click="goNext">&#9654;</n-button>
         </n-button-group>
       </div>
-      <div v-if="canManageGrading" class="topbar-actions">
-        <n-popover trigger="click" placement="bottom" :show="showBatchPopover">
-          <template #trigger>
-            <n-button size="small" :loading="batchStarting" :disabled="batchStarting || batchProgress?.status === 'processing'" @click="showBatchPopover = true">AI 批量阅卷</n-button>
-          </template>
-          <div style="padding: 4px 0; min-width: 200px">
-            <div style="font-size: 16px; margin-bottom: 8px">阅卷数量（留空=全部）</div>
-            <n-input-number v-model:value="batchLimit" :min="1" :max="9999" placeholder="全部" clearable size="small" style="width: 100%; margin-bottom: 10px" />
-            <n-checkbox v-model:checked="batchUseVision" size="small" style="margin-bottom: 10px">Vision 直评（作图题必选）</n-checkbox>
-            <n-space justify="end">
-              <n-button size="small" @click="showBatchPopover = false">取消</n-button>
-              <n-button size="small" type="primary" :loading="batchStarting" @click="handleBatchGrade">确认</n-button>
-            </n-space>
-          </div>
-        </n-popover>
-        <div v-if="batchProgress" class="batch-progress">
-          <template v-if="batchProgress.status === 'pending'">
-            <n-tag size="small" type="warning" round>排队中</n-tag>
-          </template>
-          <template v-else-if="batchProgress.status === 'processing'">
-            <n-progress type="line" :percentage="batchProgressPct" :show-indicator="false" style="width: 120px" />
-            <span class="batch-progress-text">{{ batchProgress.graded }}/{{ batchProgress.total }}</span>
-          </template>
-          <template v-else-if="batchProgress.status === 'completed'">
-            <n-tag size="small" type="success" round closable @close="batchProgress = null">完成 {{ batchProgress.graded }}/{{ batchProgress.total }}</n-tag>
-          </template>
-          <template v-else-if="batchProgress.status === 'failed'">
-            <n-tag size="small" type="error" round closable @close="batchProgress = null">失败</n-tag>
-          </template>
-        </div>
-      </div>
     </div>
 
     <n-spin :show="loading" class="review-body">
@@ -172,31 +141,25 @@
         <!-- 打分区 -->
         <div class="score-panel">
           <div class="score-section">
-            <!-- AI 试阅按钮（需 manage_grading 权限） -->
-            <n-button
-              v-if="canManageGrading && !ai && !aiGrading"
-              block
-              @click="handleAiGradeSingle"
-              :disabled="!currentAnswerId"
-            >
-              AI 试阅当前答卷
-            </n-button>
-            <div v-if="aiGrading" class="ai-grading-tip">
-              <n-spin size="small" />
-              <span>AI 评分中，请稍候...</span>
+            <h3 class="score-title">评分</h3>
+
+            <!-- AI vs 人工分值对比 -->
+            <div v-if="ai && isGraded && reviewMode === 'ai_review'" class="ai-manual-compare">
+              <span class="compare-label">人工评分：</span>
+              <span class="compare-score">{{ currentScore }}</span>
+              <span class="compare-separator">vs</span>
+              <span class="compare-label">AI 评分：</span>
+              <span class="compare-score">{{ ai.score }}</span>
+              <n-tag
+                v-if="currentScore != null && ai.score != null"
+                :type="Math.abs(currentScore - ai.score) <= 1 ? 'success' : Math.abs(currentScore - ai.score) <= 3 ? 'warning' : 'error'"
+                round
+                size="small"
+                style="margin-left: 8px"
+              >
+                差值 {{ (currentScore - ai.score) >= 0 ? '+' : '' }}{{ (currentScore - ai.score).toFixed(1) }}
+              </n-tag>
             </div>
-
-            <n-button
-              v-if="ai"
-              size="small"
-              block
-              class="btn-pill"
-              @click="currentScore = ai.score"
-            >
-              采纳 AI 分数 (A)
-            </n-button>
-
-            <h3 class="score-title">{{ ai ? '校对' : '评分' }}</h3>
 
             <!-- 分数输入 -->
             <n-input-number
@@ -282,7 +245,6 @@
           <!-- 快捷键提示 -->
           <div class="hotkey-hint">
             <div><kbd>0</kbd>-<kbd>9</kbd> 输入分数</div>
-            <div v-if="ai"><kbd>A</kbd> 采纳 AI 分数</div>
             <div><kbd>Enter</kbd> 提交</div>
             <div><kbd>←</kbd><kbd>→</kbd> 前后翻页</div>
             <div><kbd>Esc</kbd> 返回</div>
@@ -299,16 +261,11 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { getNext, submitScore, flagAnswer, getAnswerAt } from '../api/marking'
-import { gradeSingle, createTask, getTask } from '../api/grading'
-import { useAuthStore } from '../stores/auth'
 import client from '../api/client'
 
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
-
-const auth = useAuthStore()
-const canManageGrading = computed(() => auth.checkPermission('manage_grading'))
 
 const questionId = route.params.questionId
 const loading = ref(true)
@@ -387,19 +344,6 @@ const reviewMode = ref('ungraded')
 const browseIndex = ref(-1)
 const browsing = ref(false)
 const loadSeq = ref(0)
-const aiGrading = ref(false)
-const batchStarting = ref(false)
-const batchLimit = ref(null)
-const batchUseVision = ref(false)
-const showBatchPopover = ref(false)
-const batchProgress = ref(null)
-let batchPollTimer = null
-const batchProgressPct = computed(() => {
-  if (!batchProgress.value || !batchProgress.value.total) return 0
-  return Math.round((batchProgress.value.graded / batchProgress.value.total) * 100)
-})
-const subjectId = ref(null)
-
 const isGraded = ref(false)
 const currentAnomaly = ref(null)
 const selectedAnomalyType = ref(null)
@@ -534,74 +478,6 @@ async function handleSubmit() {
   submitting.value = false
 }
 
-async function handleAiGradeSingle() {
-  if (!currentAnswerId.value || aiGrading.value) return
-  aiGrading.value = true
-  try {
-    const { data } = await gradeSingle(currentAnswerId.value)
-    ai.value = {
-      score: data.score,
-      confidence: data.confidence,
-      feedback: data.feedback,
-      details: data.details || null,
-      deductions: data.deductions || null,
-      comment: data.comment || null,
-      recognizedText: data.recognizedText || null,
-    }
-    currentScore.value = data.score
-    if (data.already_confirmed) {
-      message.info('该答卷已有人工评分，AI 结果仅供参考')
-    } else {
-      message.success('AI 评分完成')
-    }
-  } catch (e) {
-    message.error(e.response?.data?.detail || 'AI 评分失败')
-  }
-  aiGrading.value = false
-}
-
-function stopBatchPoll() {
-  if (batchPollTimer) { clearInterval(batchPollTimer); batchPollTimer = null }
-}
-
-function startBatchPoll(taskId) {
-  stopBatchPoll()
-  batchProgress.value = { status: 'pending', graded: 0, total: 0 }
-  batchPollTimer = setInterval(async () => {
-    try {
-      const res = await getTask(taskId)
-      const t = res.data
-      batchProgress.value = { status: t.status, graded: t.completed || 0, total: t.total || 0 }
-      if (t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled') {
-        stopBatchPoll()
-        if (t.status === 'completed') message.success(`AI 批量阅卷完成（${t.completed}/${t.total}）`)
-        else if (t.status === 'failed') message.error('AI 批量阅卷失败')
-      }
-    } catch { stopBatchPoll() }
-  }, 3000)
-}
-
-async function handleBatchGrade() {
-  if (!subjectId.value) {
-    message.error('无法确定科目信息')
-    return
-  }
-  batchStarting.value = true
-  showBatchPopover.value = false
-  try {
-    const payload = { subject_id: subjectId.value, question_id: questionId }
-    if (batchLimit.value != null) payload.limit = batchLimit.value
-    if (batchUseVision.value) payload.use_vision = true
-    const res = await createTask(payload)
-    const taskId = res.data?.task_id || res.data?.id
-    if (taskId) startBatchPoll(taskId)
-    message.success('AI 批量阅卷任务已启动')
-  } catch (e) {
-    message.error(e.response?.data?.detail || '启动批量阅卷失败')
-  }
-  batchStarting.value = false
-}
-
 async function handleFlag(value) {
   if (!currentAnswerId.value) return
   try {
@@ -724,11 +600,6 @@ function handleKeydown(e) {
     return
   }
 
-  if ((e.key === 'a' || e.key === 'A') && ai.value && !e.target.closest('.n-input-number')) {
-    currentScore.value = ai.value.score
-    return
-  }
-
   if (e.key >= '0' && e.key <= '9' && !e.target.closest('.n-input-number')) {
     const num = parseInt(e.key)
     if (num <= maxScore.value) currentScore.value = num
@@ -739,7 +610,6 @@ async function loadQuestionInfo() {
   try {
     const { data } = await client.get(`/questions/${questionId}`)
     questionName.value = data.name
-    subjectId.value = data.subject_id
     if (maxScore.value === 10) maxScore.value = data.max_score
   } catch {
     questionName.value = '题目'
@@ -753,7 +623,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  stopBatchPoll()
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener('mousemove', onDrag)
   window.removeEventListener('mouseup', stopDrag)
@@ -788,31 +657,13 @@ onUnmounted(() => {
 }
 
 .topbar-question {
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-base);
 }
 
 .topbar-progress {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-secondary);
-}
-
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.batch-progress {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.batch-progress-text {
-  font-size: 16px;
-  color: #8a9a8e;
-  white-space: nowrap;
 }
 
 .review-body {
@@ -909,16 +760,6 @@ onUnmounted(() => {
   gap: 16px;
 }
 
-.ai-grading-tip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #f0f7ff;
-  border-radius: 8px;
-  font-size: 16px;
-  color: #3b82f6;
-}
 
 .ai-header {
   display: flex;
@@ -927,23 +768,23 @@ onUnmounted(() => {
 }
 
 .ai-title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-bold);
   color: var(--color-text-primary, #1a1a1a);
 }
 
 .ai-score-num {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
 }
 
 .ai-score-max {
   color: var(--color-text-muted);
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 
 .ai-feedback {
-  font-size: 16px;
+  font-size: var(--fs-base);
   line-height: 1.6;
   color: var(--color-text-secondary);
   max-height: 120px;
@@ -959,7 +800,7 @@ onUnmounted(() => {
 
 .ai-details-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   color: var(--color-text-muted, #999);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -987,12 +828,12 @@ onUnmounted(() => {
 }
 
 .ai-sub-label {
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   color: var(--color-text-primary, #1a1a1a);
 }
 
 .ai-sub-score {
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
@@ -1008,7 +849,7 @@ onUnmounted(() => {
 
 .ai-sub-answer {
   color: var(--color-text-primary, #333);
-  font-weight: 500;
+  font-weight: var(--fw-medium);
   margin-bottom: 2px;
 }
 
@@ -1029,7 +870,7 @@ onUnmounted(() => {
 }
 .ai-deductions-title {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   color: #d03050;
   margin-bottom: 6px;
 }
@@ -1043,8 +884,8 @@ onUnmounted(() => {
 }
 
 .score-title {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
   margin: 0;
 }
 
@@ -1060,8 +901,8 @@ onUnmounted(() => {
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius-sm);
   background: white;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
   cursor: pointer;
   transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
 }
@@ -1091,7 +932,7 @@ onUnmounted(() => {
 .hotkey-hint {
   padding-top: 16px;
   border-top: 1px solid var(--color-border-light);
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
   display: flex;
   flex-direction: column;
@@ -1105,7 +946,7 @@ onUnmounted(() => {
   border: 1px solid var(--color-border-light);
   border-radius: 3px;
   font-family: inherit;
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 
 .ann-row {
@@ -1129,7 +970,7 @@ onUnmounted(() => {
 }
 
 .ann-tag {
-  font-size: 16px;
+  font-size: var(--fs-base);
   padding: 1px 6px;
   border-radius: 3px;
   background: rgba(250, 200, 80, 0.15);
@@ -1138,7 +979,7 @@ onUnmounted(() => {
 }
 
 .ann-text {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: #cfd8d3;
 }
 
@@ -1146,6 +987,32 @@ onUnmounted(() => {
   margin-top: 8px;
   padding-top: 6px;
   border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.ai-manual-compare {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+  font-size: var(--fs-base);
+}
+
+.compare-label {
+  color: var(--color-text-muted, #6b7d70);
+}
+
+.compare-score {
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.compare-separator {
+  color: var(--color-text-muted, #6b7d70);
+  margin: 0 2px;
 }
 
 </style>

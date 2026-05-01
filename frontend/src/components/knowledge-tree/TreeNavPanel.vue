@@ -193,25 +193,25 @@ function handleSelect(keys) {
 .tree-nav-panel {
   height: 100%;
   overflow-y: auto;
-  padding: 12px;
+  padding: var(--space-3);
 }
 .nav-header {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 .weak-section {
-  margin-top: 16px;
-  padding-top: 12px;
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 .section-title {
   font-size: var(--fs-base);
-  color: #888;
-  margin-bottom: 8px;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
 }
 .weak-item {
   display: flex;
   justify-content: space-between;
   font-size: var(--fs-base);
-  padding: 4px 0;
+  padding: var(--space-1) 0;
 }
 </style>

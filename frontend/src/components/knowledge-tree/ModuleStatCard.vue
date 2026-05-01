@@ -78,14 +78,14 @@ const progressColor = computed(() => {
 <style scoped>
 .module-stat-card {
   cursor: pointer;
-  border-left: 4px solid;
+  border-left: var(--space-1) solid;
   transition: transform 0.15s;
 }
 .module-stat-card:hover {
   transform: translateY(-2px);
 }
 .card-header {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 .module-name {
   font-size: var(--fs-base);
@@ -93,8 +93,8 @@ const progressColor = computed(() => {
 }
 .stats-row {
   display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
 }
 .stat-item {
   display: flex;
@@ -105,16 +105,16 @@ const progressColor = computed(() => {
   font-weight: var(--fw-semibold);
 }
 .stat-label {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.5);
 }
 .progress-section {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 .progress-label {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.6);
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 .badges {
   display: flex;

@@ -795,7 +795,7 @@ defineExpose({
 .save-btn {
   background: #2d5a3d !important;
   color: white !important;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .save-btn:hover {
   background: #1a2e1f !important;
@@ -803,7 +803,7 @@ defineExpose({
 .reset-btn {
   background: #5a3d2d !important;
   color: white !important;
-  font-size: 16px;
+  font-size: var(--fs-base);
 }
 .reset-btn:hover {
   background: #3d2a1a !important;
@@ -811,18 +811,18 @@ defineExpose({
 .publish-btn {
   background: #2d5a3d !important;
   color: white !important;
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .publish-btn:hover {
   background: #1a2e1f !important;
 }
 .status {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: #8a9b8e;
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 .status.error {
-  color: #dc2626;
+  color: var(--color-danger);
 }
 /* 预览区域 */
 .preview-area {
@@ -837,24 +837,24 @@ defineExpose({
 .view-toggle {
   display: flex;
   gap: 0;
-  padding: 2px 4px;
-  background: #f5f5f5;
+  padding: 2px var(--space-1);
+  background: var(--color-bg-alt);
   border-bottom: 1px solid #e2e8e4;
   flex-shrink: 0;
 }
 .view-toggle button {
-  padding: 3px 12px;
-  border: 1px solid #ccc;
+  padding: 3px var(--space-3);
+  border: 1px solid var(--color-border);
   background: #fff;
   cursor: pointer;
-  font-size: 16px;
-  color: #666;
+  font-size: var(--fs-base);
+  color: var(--color-text-secondary);
 }
-.view-toggle button:first-child { border-radius: 4px 0 0 4px; }
-.view-toggle button:nth-child(2) { border-radius: 0 4px 4px 0; border-left: none; }
+.view-toggle button:first-child { border-radius: var(--r-xs) 0 0 var(--r-xs); }
+.view-toggle button:nth-child(2) { border-radius: 0 var(--r-xs) var(--r-xs) 0; border-left: none; }
 .fit-zoom-btn {
-  margin-left: 8px; padding: 3px 12px; font-size: 16px; border: 1px solid #ccc;
-  border-radius: 4px; background: #fff; cursor: pointer; color: #666;
+  margin-left: 8px; padding: 3px 12px; font-size: var(--fs-base); border: 1px solid var(--color-border);
+  border-radius: var(--r-xs); background: #fff; cursor: pointer; color: var(--color-text-secondary);
 }
 .fit-zoom-btn.active { background: #2d5a3d; color: #fff; border-color: #2d5a3d; }
 .view-toggle button.active {
@@ -864,22 +864,22 @@ defineExpose({
 }
 /* TQL 全宽显示 */
 .tql-view {
-  padding: 12px;
+  padding: var(--space-3);
   background: #e8e8e8;
 }
 .tql-img-wrap {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 .tql-label {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text);
   margin-bottom: 6px;
 }
 .tql-img-wrap img {
   width: 100%;
-  border: 1px solid #999;
-  border-radius: 4px;
+  border: 1px solid var(--color-text-muted);
+  border-radius: var(--r-xs);
   background: #fff;
 }
 </style>

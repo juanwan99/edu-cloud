@@ -72,7 +72,7 @@ describe('ReviewPage template layout', () => {
   })
 })
 
-describe('ReviewPage AI prediction card', () => {
+describe('ReviewPage AI result card', () => {
   it('conditionally shows AI card when ai data exists', () => {
     expect(content).toContain('v-if="ai"')
     expect(content).toContain('class="ai-result-card"')
@@ -80,7 +80,7 @@ describe('ReviewPage AI prediction card', () => {
 
   it('shows AI title and confidence tag', () => {
     expect(content).toContain('class="ai-title"')
-    expect(content).toContain('AI 预测')
+    expect(content).toContain('AI 阅卷结果')
     expect(content).toContain("ai.confidence >= 0.8 ? 'success' : 'warning'")
   })
 
@@ -95,17 +95,13 @@ describe('ReviewPage AI prediction card', () => {
     expect(content).toContain('v-if="ai.feedback"')
   })
 
-  it('has adopt AI score button', () => {
-    expect(content).toContain('@click="currentScore = ai.score"')
-    expect(content).toContain('采纳 AI 分数 (A)')
+  it('has score title in score panel', () => {
+    expect(content).toContain('class="score-title"')
+    expect(content).toContain('评分')
   })
 
-  it('changes title based on AI presence', () => {
-    expect(content).toContain("{{ ai ? '校对' : '评分' }}")
-  })
-
-  it('changes submit button text based on AI presence', () => {
-    expect(content).toContain("ai ? '确认并下一份 (Enter)' : '提交并下一份 (Enter)'")
+  it('changes submit button text based on graded and AI presence', () => {
+    expect(content).toContain("isGraded ? '修改评分 (Enter)' : ai ? '确认并下一份 (Enter)' : '提交并下一份 (Enter)'")
   })
 })
 
@@ -193,9 +189,11 @@ describe('ReviewPage keyboard shortcuts', () => {
     expect(content).toContain('handleSubmit()')
   })
 
-  it('A key adopts AI score', () => {
-    expect(content).toContain("(e.key === 'a' || e.key === 'A')")
-    expect(content).toContain('currentScore.value = ai.value.score')
+  it('Arrow keys navigate prev/next', () => {
+    expect(content).toContain("e.key === 'ArrowLeft'")
+    expect(content).toContain("e.key === 'ArrowRight'")
+    expect(content).toContain('goPrev()')
+    expect(content).toContain('goNext()')
   })
 
   it('number keys set score directly', () => {

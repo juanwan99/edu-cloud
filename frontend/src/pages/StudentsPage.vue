@@ -424,7 +424,7 @@ onMounted(async () => {
 }
 
 .help-text {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
   margin-top: var(--space-1);
 }

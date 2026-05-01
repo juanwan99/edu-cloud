@@ -31,27 +31,23 @@ describe('BatchOperationsBar template', () => {
     expect(content).toContain('selectedCount')
     expect(content).toContain('已选')
   })
-  it('has batch-cut and batch-grade buttons', () => {
+  it('has batch-cut button', () => {
     expect(content).toContain("$emit('batch-cut')")
     expect(content).toContain('批量切割')
-    expect(content).toContain("$emit('batch-grade')")
-    expect(content).toContain('批量 AI 阅卷')
   })
 })
 
 describe('BatchOperationsBar props', () => {
-  it('defines all 7 props', () => {
+  it('defines all 6 props', () => {
     expect(content).toContain('canManageAll:')
     expect(content).toContain('detectableCount:')
     expect(content).toContain('batchDetectLoading:')
     expect(content).toContain('batchProgressText:')
     expect(content).toContain('selectedCount:')
     expect(content).toContain('canBatchCut:')
-    expect(content).toContain('canBatchGrade:')
   })
-  it('defines 3 emits', () => {
+  it('defines 2 emits', () => {
     expect(content).toContain("'batch-detect'")
     expect(content).toContain("'batch-cut'")
-    expect(content).toContain("'batch-grade'")
   })
 })

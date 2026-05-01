@@ -256,11 +256,11 @@ onMounted(() => {
 
 .code-tag {
   font-family: monospace;
-  font-size: 18px;
+  font-size: var(--fs-lg);
 }
 
 .text-muted {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.4);
 }
 

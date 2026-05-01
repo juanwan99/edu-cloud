@@ -60,6 +60,6 @@ function handleEditEdge({ edgeId, source, target, type, strength }) {
 <style scoped>
 .relation-review-panel { display: flex; height: 100%; }
 .review-left { width: 260px; border-right: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; overflow: hidden; }
-.review-right { flex: 1; padding: 16px; overflow-y: auto; }
+.review-right { flex: 1; padding: var(--space-4); overflow-y: auto; }
 .empty-hint { display: flex; align-items: center; justify-content: center; height: 100%; color: rgba(255,255,255,0.3); }
 </style>

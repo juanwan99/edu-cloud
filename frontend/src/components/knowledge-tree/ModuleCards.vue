@@ -53,13 +53,13 @@ function masteryColor(mastery) {
 .module-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
-  padding: 16px;
+  gap: var(--space-3);
+  padding: var(--space-4);
 }
 .module-card {
   background: rgba(255, 255, 255, 0.05);
   border-radius: var(--r-md);
-  padding: 16px;
+  padding: var(--space-4);
   cursor: pointer;
   transition: background 0.2s;
   text-align: center;

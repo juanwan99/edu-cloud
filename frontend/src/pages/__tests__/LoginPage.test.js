@@ -48,8 +48,8 @@ describe('LoginPage template sections', () => {
     expect(content).toContain('class="login-form-area"')
     expect(content).toContain('v-model:value="form.username"')
     expect(content).toContain('v-model:value="form.password"')
-    expect(content).toContain('placeholder="请输入用户名"')
-    expect(content).toContain('placeholder="请输入密码"')
+    expect(content).toContain('placeholder="请输入用户名…"')
+    expect(content).toContain('placeholder="请输入密码…"')
   })
 
   it('contains remember-username checkbox', () => {

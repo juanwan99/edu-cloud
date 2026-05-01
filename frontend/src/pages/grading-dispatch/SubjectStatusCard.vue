@@ -80,37 +80,37 @@ function stageClass(stage) {
 </script>
 
 <style scoped>
-.subject-card { display: grid; grid-template-columns: 200px 1fr 140px 180px; align-items: center; gap: 12px; padding: 12px 16px; background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: 12px; transition: transform 0.15s ease-out, box-shadow 0.15s ease-out; }
-.subject-card:hover { border-color: #c0d0c4; }
-.subject-card.selected { background: #f8fdf9; border-color: #a0d0a8; }
+.subject-card { display: grid; grid-template-columns: 200px 1fr 140px 180px; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: var(--radius-md); transition: transform 0.15s ease-out, box-shadow 0.15s ease-out; }
+.subject-card:hover { border-color: var(--color-border); }
+.subject-card.selected { background: var(--color-success-bg-subtle); border-color: var(--color-success-border); }
 
 .card-left { display: flex; align-items: center; gap: 10px; }
-.card-name { font-weight: 700; font-size: 16px; }
-.stage-tag { display: inline-block; padding: 1px 10px; border-radius: 50px; font-size: 16px; font-weight: 500; white-space: nowrap; }
+.card-name { font-weight: var(--fw-bold); font-size: var(--fs-base); }
+.stage-tag { display: inline-block; padding: 1px 10px; border-radius: var(--radius-pill); font-size: var(--fs-base); font-weight: var(--fw-medium); white-space: nowrap; }
 .tag-idle { background: #f3f4f6; color: #6b7280; }
 .tag-pending_detect { background: #fef3c7; color: #92400e; }
 .tag-pending_cut { background: #e0f2fe; color: #0369a1; }
 .tag-cutting { background: #dbeafe; color: #1e40af; }
 .tag-ready { background: #dcfce7; color: #166534; }
 
-.detect-tag { display: inline-block; padding: 1px 8px; border-radius: 50px; font-size: 16px; font-weight: 500; }
+.detect-tag { display: inline-block; padding: 1px var(--space-2); border-radius: var(--radius-pill); font-size: var(--fs-base); font-weight: var(--fw-medium); }
 .detect-tag.running { background: #fef3c7; color: #92400e; }
 .detect-tag.done { background: #dcfce7; color: #166534; }
-.detect-tag.failed { background: #fee2e2; color: #dc2626; }
+.detect-tag.failed { background: #fee2e2; color: var(--color-danger); }
 
 .card-mid { min-width: 0; }
-.card-detail { font-size: 16px; color: #555; }
-.card-detail b { font-weight: 600; }
-.card-detail.muted { color: #aaa; }
-.card-detail.ok { color: #16a34a; font-weight: 600; }
+.card-detail { font-size: var(--fs-base); color: var(--color-text-secondary); }
+.card-detail b { font-weight: var(--fw-semibold); }
+.card-detail.muted { color: var(--color-text-muted); }
+.card-detail.ok { color: var(--color-success); font-weight: var(--fw-semibold); }
 
 .prog-row { display: flex; align-items: center; gap: 10px; }
-.prog-bar { flex: 1; height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
-.prog-fill { height: 100%; background: #3b82f6; border-radius: 3px; transition: width 0.3s; }
-.prog-text { font-size: 16px; color: #666; white-space: nowrap; }
+.prog-bar { flex: 1; height: 6px; background: var(--color-border); border-radius: 3px; overflow: hidden; }
+.prog-fill { height: 100%; background: var(--color-info); border-radius: 3px; transition: width 0.3s; }
+.prog-text { font-size: var(--fs-base); color: var(--color-text-secondary); white-space: nowrap; }
 
-.card-stats { display: flex; gap: 6px; font-size: 16px; color: #999; }
-.card-stats span { padding: 2px 6px; background: #f5f5f5; border-radius: 4px; }
+.card-stats { display: flex; gap: 6px; font-size: var(--fs-base); color: var(--color-text-muted); }
+.card-stats span { padding: 2px 6px; background: var(--color-bg-alt); border-radius: var(--r-xs); }
 
 .card-actions { display: flex; gap: 6px; justify-content: flex-end; }
 </style>

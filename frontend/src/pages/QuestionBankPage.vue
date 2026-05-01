@@ -247,48 +247,48 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.page-header { margin-bottom: 20px; }
+.page-header { margin-bottom: var(--space-5); }
 .page-title { font-size: var(--fs-xl); font-weight: var(--fw-semibold); margin: 0; }
 .page-subtitle { font-size: var(--fs-base); color: var(--color-text-muted); margin: 2px 0 0; }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
 }
 
 .stat-card {
   background: var(--color-bg-alt);
-  padding: 14px 16px;
+  padding: 14px var(--space-4);
   border-radius: var(--radius-md);
   text-align: center;
 }
 
 .stat-value {
-  font-size: 22px;
+  font-size: var(--fs-xl);
   font-weight: var(--fw-semibold);
   color: var(--color-primary);
 }
 
 .stat-label {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .filter-bar {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .question-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .question-card {
@@ -298,11 +298,11 @@ onMounted(() => {
 .question-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .question-text {
-  font-size: 16px;
+  font-size: var(--fs-base);
   line-height: 1.6;
   color: var(--color-text);
   word-break: break-word;
@@ -311,12 +311,12 @@ onMounted(() => {
 .question-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
 .meta-score {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
   margin-left: auto;
 }
@@ -335,14 +335,14 @@ onMounted(() => {
 }
 
 .kp-label {
-  font-size: 16px;
+  font-size: var(--fs-base);
   color: var(--color-text-muted);
 }
 
 .pagination-bar {
   display: flex;
   justify-content: center;
-  margin-top: 24px;
-  padding-bottom: 20px;
+  margin-top: var(--space-6);
+  padding-bottom: var(--space-5);
 }
 </style>
