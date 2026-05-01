@@ -159,10 +159,10 @@ describe('StudentProfilePage knowledge table', () => {
     expect(content).toContain("title: '练习'")
   })
 
-  it('colors mastery progress by threshold', () => {
-    expect(content).toContain("pct < 60 ? '#dc3545'")
-    expect(content).toContain("pct < 80 ? '#d97706'")
-    expect(content).toContain("'#16a34a'")
+  it('colors mastery progress by threshold using tokens', () => {
+    expect(content).toContain("pct < 60 ? 'var(--color-danger)'")
+    expect(content).toContain("pct < 80 ? 'var(--color-warning)'")
+    expect(content).toContain("'var(--color-success)'")
   })
 
   it('renders trend tags with Chinese labels', () => {
