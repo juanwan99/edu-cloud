@@ -263,6 +263,13 @@ onMounted(loadExams)
   box-shadow: inset 3px 0 0 rgba(255,255,255,0.15);
 }
 
+:deep(.n-data-table-th) {
+  font-size: var(--fs-sm) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: var(--fw-bold) !important;
+}
+
 @media (max-width: 768px) {
   .stats-row {
     grid-template-columns: 1fr;

@@ -582,12 +582,6 @@ async function handleBatchGenerate() {
   margin-bottom: 20px;
 }
 
-.page-title {
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-semibold);
-  margin: 0;
-}
-
 .main-layout {
   display: grid;
   grid-template-columns: 260px 1fr;

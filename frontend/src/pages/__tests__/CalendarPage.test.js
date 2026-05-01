@@ -407,8 +407,8 @@ describe('CalendarPage CSS classes', () => {
     expect(content).toContain('.page-header {')
   })
 
-  it('defines page-title styles', () => {
-    expect(content).toContain('.page-title {')
+  it('uses page-title class from global styles', () => {
+    expect(content).toContain('class="page-title"')
   })
 
   it('defines stats-grid as CSS grid', () => {

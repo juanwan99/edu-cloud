@@ -246,8 +246,6 @@ onMounted(async () => {
 
 <style scoped>
 .page-header { margin-bottom: var(--space-6); }
-.page-title { font-size: var(--fs-xl); font-weight: var(--fw-semibold); margin: 0; }
-.page-subtitle { font-size: var(--fs-base); color: var(--color-text-muted); margin: 4px 0 0; }
 
 .filter-bar {
   display: flex;
@@ -272,8 +270,6 @@ onMounted(async () => {
 }
 
 .stat-value {
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-semibold);
   color: var(--color-primary);
 }
 

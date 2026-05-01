@@ -248,8 +248,6 @@ onMounted(() => {
 
 <style scoped>
 .page-header { margin-bottom: var(--space-5); }
-.page-title { font-size: var(--fs-xl); font-weight: var(--fw-semibold); margin: 0; }
-.page-subtitle { font-size: var(--fs-base); color: var(--color-text-muted); margin: 2px 0 0; }
 
 .stats-grid {
   display: grid;
@@ -266,8 +264,6 @@ onMounted(() => {
 }
 
 .stat-value {
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-semibold);
   color: var(--color-primary);
 }
 

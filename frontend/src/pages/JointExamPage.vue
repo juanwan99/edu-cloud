@@ -316,8 +316,6 @@ onMounted(loadExams)
 
 <style scoped>
 .page-header { margin-bottom: 24px; }
-.page-title { font-size: var(--fs-2xl); font-weight: var(--fw-semibold); margin: 0; }
-.page-subtitle { font-size: var(--fs-base); color: var(--color-text-muted); margin: 4px 0 0; }
 .stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

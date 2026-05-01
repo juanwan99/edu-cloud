@@ -28,13 +28,13 @@ a {
 }
 
 .page-header {
-  margin-bottom: 28px;
+  margin-bottom: var(--space-8);
 }
 
 .page-title {
-  font-size: 32px;
-  font-weight: 800;
-  color: #1a1a1a;
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-heavy);
+  color: var(--color-text);
   line-height: var(--lh-tight);
   letter-spacing: -0.035em;
   text-wrap: balance;
@@ -44,11 +44,11 @@ a {
 }
 
 .page-subtitle {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-weight: 700;
-  color: #72726c;
+  font-weight: var(--fw-bold);
+  color: var(--color-text-muted);
   margin-top: var(--space-2);
   text-wrap: pretty;
 }
@@ -74,8 +74,8 @@ a {
 }
 
 .stat-card .stat-value {
-  font-size: 48px;
-  font-weight: 800;
+  font-size: var(--fs-display);
+  font-weight: var(--fw-heavy);
   letter-spacing: -0.03em;
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
@@ -85,10 +85,10 @@ a {
 }
 
 .stat-card .stat-label {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #72726c;
+  color: var(--color-text-muted);
   margin-top: var(--space-2);
   white-space: nowrap;
   overflow: hidden;
@@ -199,6 +199,20 @@ a {
   color: #72726c;
   max-width: 360px;
   margin: 0 auto;
+}
+
+/* V3.2 全局表头样式 */
+.n-data-table-th {
+  font-size: 13px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700 !important;
+  color: var(--color-text-muted) !important;
+  background: var(--color-table-header) !important;
+}
+
+.n-data-table-td {
+  padding: 14px 12px !important;
 }
 
 /* 无障碍：减弱动效 */

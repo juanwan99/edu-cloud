@@ -186,8 +186,6 @@ onMounted(loadEvents)
 
 <style scoped>
 .page-header { margin-bottom: 24px; }
-.page-title { font-size: var(--fs-xl); font-weight: var(--fw-semibold); margin: 0; }
-.page-subtitle { font-size: var(--fs-base); color: var(--color-text-muted); margin: 4px 0 0; }
 
 .stats-grid {
   display: grid;
