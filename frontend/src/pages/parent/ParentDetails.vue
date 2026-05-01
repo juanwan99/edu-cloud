@@ -1,6 +1,6 @@
 <template>
   <div>
-    <n-card v-if="currentChild" title="学生信息" style="margin-bottom: 16px;">
+    <n-card v-if="currentChild" title="学生信息" style="margin-bottom: var(--space-4);">
       <n-descriptions :column="1" label-placement="left" bordered size="small">
         <n-descriptions-item label="姓名">{{ currentChild.student_name }}</n-descriptions-item>
         <n-descriptions-item label="班级">{{ currentChild.class_name || '-' }}</n-descriptions-item>
@@ -9,13 +9,13 @@
     </n-card>
 
     <!-- Sparkline trend chart -->
-    <n-card v-if="trendData.length > 1" style="margin-bottom: 16px;">
-      <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">积分走势（近30天）</div>
+    <n-card v-if="trendData.length > 1" style="margin-bottom: var(--space-4);">
+      <div style="font-size: var(--fs-base); font-weight: var(--fw-semibold); margin-bottom: var(--space-2);">积分走势（近30天）</div>
       <v-chart :option="trendOption" class="chart-height-sm" style="height: 120px;" autoresize />
     </n-card>
 
     <!-- Filters -->
-    <n-card style="margin-bottom: 16px;">
+    <n-card style="margin-bottom: var(--space-4);">
       <div class="filter-row">
         <n-date-picker
           v-model:value="dateRange"

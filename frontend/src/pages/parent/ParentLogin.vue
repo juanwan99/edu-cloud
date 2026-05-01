@@ -19,7 +19,7 @@
       </div>
 
       <div class="login-form-area">
-        <n-alert v-if="loginError" type="error" :show-icon="true" closable style="margin-bottom: 16px;" @close="loginError = ''">
+        <n-alert v-if="loginError" type="error" :show-icon="true" closable style="margin-bottom: var(--space-4);" @close="loginError = ''">
           {{ loginError }}
         </n-alert>
 
@@ -39,7 +39,7 @@
             </n-input>
           </n-form-item>
 
-          <div style="margin-bottom: 20px;">
+          <div style="margin-bottom: var(--space-5);">
             <n-checkbox v-model:checked="rememberPhone">记住手机号</n-checkbox>
           </div>
 
@@ -48,7 +48,7 @@
           </n-button>
         </n-form>
 
-        <div style="margin-top: 20px; text-align: center;">
+        <div style="margin-top: var(--space-5); text-align: center;">
           <router-link to="/parent/register" class="register-link">还没有账号？立即注册</router-link>
         </div>
         <div class="login-hint">

@@ -1,5 +1,5 @@
 <template>
-  <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+  <div style="margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
     <n-form-item label="科目" label-placement="left" label-width="auto" style="margin-bottom: 0;">
       <n-select
         v-model:value="localSubjectId"

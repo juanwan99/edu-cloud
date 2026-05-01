@@ -6,7 +6,7 @@
     </div>
 
     <!-- 统计卡片区 -->
-    <n-grid :cols="4" :x-gap="12" :y-gap="12" style="margin-bottom: 16px;" v-if="semesterId">
+    <n-grid :cols="4" :x-gap="12" :y-gap="12" style="margin-bottom: var(--space-4);" v-if="semesterId">
       <n-gi>
         <n-card size="small">
           <n-statistic label="已排课班级" :value="timetableStats.classes_with_timetable || 0">
@@ -34,7 +34,7 @@
     </n-grid>
 
     <!-- 筛选栏 -->
-    <n-space style="margin-bottom: 16px;">
+    <n-space style="margin-bottom: var(--space-4);">
       <n-select v-model:value="selectedGrade" :options="gradeOptions" placeholder="选择年级"
         style="width: 140px;" @update:value="onGradeChange" />
       <n-select v-model:value="selectedClassId" :options="classOptions" placeholder="选择班级"

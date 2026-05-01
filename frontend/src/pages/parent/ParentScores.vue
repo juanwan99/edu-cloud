@@ -23,7 +23,7 @@
       </div>
 
       <!-- 考试成绩列表 -->
-      <n-h4 style="margin-top: 24px;">历次考试</n-h4>
+      <n-h4 style="margin-top: var(--space-6);">历次考试</n-h4>
       <div v-if="exams.length" class="exam-list">
         <div
           v-for="exam in exams"
@@ -60,7 +60,7 @@
       <n-empty v-else-if="!loading" description="暂无考试成绩" />
 
       <!-- 错题概览 -->
-      <div v-if="errorStats" style="margin-top: 24px;">
+      <div v-if="errorStats" style="margin-top: var(--space-6);">
         <n-h4>错题概况</n-h4>
         <div class="score-summary">
           <div class="score-card" style="background: rgba(230, 57, 70, 0.15);">

@@ -152,7 +152,7 @@ const questionColumns = [
           indicatorPlacement: 'inside',
           style: 'flex: 1;',
         }),
-        h('span', { style: 'font-size: 16px; color: var(--color-text-secondary); white-space: nowrap;' },
+        h('span', { style: 'font-size: var(--fs-base); color: var(--color-text-secondary); white-space: nowrap;' },
           `${row.graded_count}/${row.total_answers}`),
       ])
     },

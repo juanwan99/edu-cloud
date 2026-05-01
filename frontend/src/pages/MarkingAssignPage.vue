@@ -8,7 +8,7 @@
 
     <!-- 管理员/校长视图：分配面板 -->
     <template v-if="isManager">
-      <div style="display: flex; gap: 16px; margin-bottom: 16px; align-items: center;">
+      <div style="display: flex; gap: var(--space-4); margin-bottom: var(--space-4); align-items: center;">
         <n-select
           v-model:value="selectedExamId"
           :options="examOptions"

@@ -1,7 +1,7 @@
 <template>
   <n-modal v-model:show="visible" preset="card" style="width: 700px" :title="doc?.title || '文档预览'">
     <template v-if="doc">
-      <div v-for="(section, key) in doc.content_json" :key="key" style="margin-bottom: 16px">
+      <div v-for="(section, key) in doc.content_json" :key="key" style="margin-bottom: var(--space-4)">
         <n-h4>{{ section.title || key }}</n-h4>
         <n-input
           v-model:value="editableContent[key]"
@@ -10,7 +10,7 @@
           placeholder="AI 将在此生成内容..."
         />
       </div>
-      <n-space justify="end" style="margin-top: 16px">
+      <n-space justify="end" style="margin-top: var(--space-4)">
         <n-button @click="handleSave">保存修改</n-button>
         <n-button type="primary" @click="handleConfirm">
           {{ doc.status === 'draft' ? '确认审阅' : '导出 PDF' }}

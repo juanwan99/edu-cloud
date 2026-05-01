@@ -14,7 +14,7 @@
         </div>
       </div>
     </div>
-    <n-alert v-if="chatStore.error" type="error" closable style="margin: 8px">{{ chatStore.error }}</n-alert>
+    <n-alert v-if="chatStore.error" type="error" closable style="margin: var(--space-2)">{{ chatStore.error }}</n-alert>
     <div class="chat-input">
       <n-input v-model:value="inputText" placeholder="问一个关于教学数据的问题..." :disabled="chatStore.isStreaming" @keyup.enter="handleSend" />
       <n-button type="primary" :loading="chatStore.isStreaming" :disabled="!inputText.trim()" @click="handleSend">发送</n-button>

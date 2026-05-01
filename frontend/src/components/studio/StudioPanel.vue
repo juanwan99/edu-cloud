@@ -1,5 +1,5 @@
 <template>
-  <div style="padding: 12px; height: 100%; display: flex; flex-direction: column; overflow-y: auto;">
+  <div style="padding: var(--space-3); height: 100%; display: flex; flex-direction: column; overflow-y: auto;">
     <TemplateCards @select="handleTemplateSelect" />
 
     <n-divider />
@@ -11,7 +11,7 @@
           <template #description>
             <n-space size="small">
               <n-tag :type="statusType(doc.status)" size="small">{{ doc.status }}</n-tag>
-              <n-text depth="3" style="font-size: 16px">v{{ doc.version }}</n-text>
+              <n-text depth="3" style="font-size: var(--fs-base)">v{{ doc.version }}</n-text>
             </n-space>
           </template>
         </n-thing>

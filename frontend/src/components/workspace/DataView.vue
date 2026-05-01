@@ -1,8 +1,8 @@
 <template>
   <div style="display: flex; flex-direction: column; height: 100%;">
-    <div style="flex: 1; overflow-y: auto; padding-bottom: 8px;">
+    <div style="flex: 1; overflow-y: auto; padding-bottom: var(--space-2);">
       <template v-if="contextStore.dashboard">
-        <n-grid :cols="4" :x-gap="12" style="margin-bottom: 16px">
+        <n-grid :cols="4" :x-gap="12" style="margin-bottom: var(--space-4)">
           <n-gi>
             <n-statistic label="参加人数" :value="stats.count" />
           </n-gi>

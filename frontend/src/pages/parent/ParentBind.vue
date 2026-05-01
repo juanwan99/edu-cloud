@@ -6,14 +6,14 @@
         <n-alert
           v-if="existingCount > 0 && step === 1"
           type="info"
-          style="margin-bottom: 16px;"
+          style="margin-bottom: var(--space-4);"
           :title="`已绑定 ${existingCount} 个孩子`"
         >
           是否继续绑定新孩子？
         </n-alert>
 
         <!-- Steps indicator -->
-        <n-steps :current="step" size="small" style="margin-bottom: 20px;">
+        <n-steps :current="step" size="small" style="margin-bottom: var(--space-5);">
           <n-step title="填写信息" />
           <n-step title="验证" />
           <n-step title="完成" />
@@ -58,7 +58,7 @@
             v-if="step === 2"
             block
             secondary
-            style="margin-top: 8px;"
+            style="margin-top: var(--space-2);"
             @click="step = 1"
           >
             上一步

@@ -217,7 +217,7 @@ const rankColumns = [
       const v = row.delta_grade
       const color = v > 0 ? cSuccess : v < 0 ? cDanger : cTextMuted
       const arrow = v > 0 ? '↑' : v < 0 ? '↓' : '-'
-      return h('span', { style: { color, fontWeight: 600 } }, `${arrow}${Math.abs(v)}`)
+      return h('span', { style: { color, fontWeight: 'var(--fw-semibold)' } }, `${arrow}${Math.abs(v)}`)
     },
   },
 ]
@@ -228,7 +228,7 @@ const criticalColumns = [
   { title: '得分', key: 'score', width: 80 },
   {
     title: '差距', key: 'gap', width: 80,
-    render: (row) => h('span', { style: { color: cDanger, fontWeight: 600 } }, `${row.gap} 分`),
+    render: (row) => h('span', { style: { color: cDanger, fontWeight: 'var(--fw-semibold)' } }, `${row.gap} 分`),
   },
 ]
 

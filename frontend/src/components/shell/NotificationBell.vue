@@ -17,7 +17,7 @@
         <span class="notification-panel__count" v-if="unreadCount">{{ unreadCount }} 条未读</span>
       </div>
       <div class="notification-panel__body">
-        <div v-if="loading" style="padding: 24px; text-align: center;">
+        <div v-if="loading" style="padding: var(--space-6); text-align: center;">
           <n-spin size="small" />
         </div>
         <template v-else-if="notifications.length">

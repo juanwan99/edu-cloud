@@ -14,8 +14,8 @@
     <!-- 整体进度条 -->
     <div v-if="task" style="margin-bottom: 20px;">
       <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-        <span style="font-size: 16px; color: var(--color-text-secondary);">批改进度</span>
-        <span style="font-size: 16px; color: var(--color-text-secondary);">{{ progressPercent }}%</span>
+        <span style="font-size: var(--fs-base); color: var(--color-text-secondary);">批改进度</span>
+        <span style="font-size: var(--fs-base); color: var(--color-text-secondary);">{{ progressPercent }}%</span>
       </div>
       <n-progress :percentage="progressPercent" :show-indicator="false"
         :color="progressPercent >= 100 ? '#16a34a' : '#2d5a3d'" rail-color="var(--macaron-mint-light)" />
@@ -45,18 +45,18 @@
     <div v-if="results.length > 0" style="display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
       <!-- 分数分布柱图 -->
       <n-card size="small" style="flex: 2; min-width: 360px;">
-        <template #header><span style="font-size: 16px; font-weight: 600;">分数分布</span></template>
+        <template #header><span style="font-size: var(--fs-base); font-weight: var(--fw-semibold);">分数分布</span></template>
         <v-chart class="chart-height-md" :option="scoreDistOption" autoresize />
       </n-card>
       <!-- 置信度饼图 -->
       <n-card size="small" style="flex: 1; min-width: 280px;">
-        <template #header><span style="font-size: 16px; font-weight: 600;">置信度分布</span></template>
+        <template #header><span style="font-size: var(--fs-base); font-weight: var(--fw-semibold);">置信度分布</span></template>
         <v-chart class="chart-height-md" :option="confidenceDistOption" autoresize />
       </n-card>
     </div>
 
     <!-- 筛选 + 排序 -->
-    <div style="margin-bottom: 16px;">
+    <div style="margin-bottom: var(--space-4);">
       <n-space>
         <n-select v-model:value="filter" :options="filterOptions" style="width: 160px;" />
         <n-select v-model:value="sortBy" :options="sortOptions" style="width: 160px;" placeholder="排序方式" clearable />
@@ -85,7 +85,7 @@
               <span>{{ selectedResult.score }} / {{ selectedResult.max_score }}</span>
               <n-progress type="line" :percentage="scorePercent(selectedResult)" :show-indicator="false"
                 :color="scoreColor(selectedResult)" style="width: 120px;" />
-              <span style="font-size: 16px; color: var(--color-text-secondary);">
+              <span style="font-size: var(--fs-base); color: var(--color-text-secondary);">
                 {{ scorePercent(selectedResult) }}%
               </span>
             </div>
@@ -329,7 +329,7 @@ const columns = [
     title: 'AI 评分', key: 'score', width: 180, sorter: (a, b) => a.score - b.score,
     render: (row) => {
       const pct = scorePercent(row)
-      return h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+      return h('div', { style: 'display: flex; align-items: center; gap: var(--space-2);' }, [
         h('span', {}, `${row.score} / ${row.max_score}`),
         h(NProgress, { type: 'line', percentage: pct, showIndicator: false, color: scoreColor(row), style: 'width: 60px;' }),
       ])

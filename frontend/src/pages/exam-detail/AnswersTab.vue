@@ -1,5 +1,5 @@
 <template>
-  <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+  <div style="margin-bottom: var(--space-4); display: flex; align-items: center; gap: var(--space-3);">
     <n-select
       v-model:value="ansSubjectId"
       :options="subjectOptions"
@@ -29,7 +29,7 @@
     </n-button>
   </div>
 
-  <div v-if="ansLoading" style="text-align:center; padding:40px;"><n-spin /></div>
+  <div v-if="ansLoading" style="text-align:center; padding:var(--space-10);"><n-spin /></div>
   <div v-else-if="!ansSubjectId" class="empty-tip center">请选择科目</div>
   <div v-else-if="ansChoiceQuestions.length === 0" class="empty-tip center">暂无选择题，请用上方工具栏添加</div>
   <div v-else class="answer-grid">

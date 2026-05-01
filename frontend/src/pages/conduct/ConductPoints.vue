@@ -1,18 +1,18 @@
 <template>
   <div>
-    <n-page-header title="积分操作" subtitle="快速为学生加分或扣分" style="margin-bottom: 16px;" />
+    <n-page-header title="积分操作" subtitle="快速为学生加分或扣分" style="margin-bottom: var(--space-4);" />
 
-    <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: 16px;">
+    <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: var(--space-4);">
       当前角色未关联班级，请切换到班主任角色。
     </n-alert>
 
     <template v-if="classId">
       <!-- Quick add card -->
-      <n-card title="快速加分" style="margin-bottom: 16px;">
+      <n-card title="快速加分" style="margin-bottom: var(--space-4);">
         <n-space vertical :size="16">
           <!-- Student selection -->
           <div>
-            <div style="margin-bottom: 8px; font-weight: 500;">选择学生</div>
+            <div style="margin-bottom: var(--space-2); font-weight: var(--fw-medium);">选择学生</div>
             <n-select
               v-model:value="selectedStudents"
               :options="studentOptions"
@@ -25,7 +25,7 @@
 
           <!-- Rule quick buttons -->
           <div v-if="ruleCategories.length > 0">
-            <div style="margin-bottom: 8px; font-weight: 500;">班规快捷操作</div>
+            <div style="margin-bottom: var(--space-2); font-weight: var(--fw-medium);">班规快捷操作</div>
             <n-collapse>
               <n-collapse-item
                 v-for="cat in ruleCategories"

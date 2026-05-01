@@ -8,25 +8,25 @@
     </div>
 
     <!-- Module summary -->
-    <n-text v-if="modules.length" depth="2" style="display: block; margin-bottom: 16px;">
+    <n-text v-if="modules.length" depth="2" style="display: block; margin-bottom: var(--space-4);">
       已启用 {{ enabledCount }} / {{ modules.length }} 个模块
     </n-text>
 
     <n-tabs type="line" animated>
       <n-tab-pane name="modules" tab="功能模块">
-        <n-card title="功能模块管理" style="margin-top: 16px">
-          <p style="color: rgba(255,255,255,0.45); margin-bottom: 16px">启用或禁用学校可用的功能模块。禁用后，对应的导航菜单、API 和 AI 助手工具将不可用。</p>
+        <n-card title="功能模块管理" style="margin-top: var(--space-4)">
+          <p style="color: var(--color-text-tertiary); margin-bottom: var(--space-4)">启用或禁用学校可用的功能模块。禁用后，对应的导航菜单、API 和 AI 助手工具将不可用。</p>
           <n-space vertical>
             <div v-for="m in modules" :key="m.code" class="module-row">
               <div class="module-info">
-                <n-icon :size="20" style="margin-right: 10px; color: rgba(255,255,255,0.6);">
+                <n-icon :size="20" style="margin-right: 10px; color: var(--color-text-secondary);">
                   <component :is="getModuleIcon(m.code)" />
                 </n-icon>
                 <div>
                   <n-text strong>{{ m.name }}</n-text>
-                  <n-text depth="3" style="margin-left: 8px">{{ m.code }}</n-text>
+                  <n-text depth="3" style="margin-left: var(--space-2)">{{ m.code }}</n-text>
                   <div v-if="MODULE_DESCRIPTIONS[m.code]" style="margin-top: 2px;">
-                    <n-text depth="3" style="font-size: 16px;">{{ MODULE_DESCRIPTIONS[m.code] }}</n-text>
+                    <n-text depth="3" style="font-size: var(--fs-base);">{{ MODULE_DESCRIPTIONS[m.code] }}</n-text>
                   </div>
                 </div>
               </div>
@@ -45,17 +45,17 @@
       </n-tab-pane>
 
       <n-tab-pane name="settings" tab="学校设置">
-        <n-card title="配置项" style="margin-top: 16px">
+        <n-card title="配置项" style="margin-top: var(--space-4)">
           <n-data-table :columns="settingsColumns" :data="settings" :loading="loadingSettings" />
         </n-card>
       </n-tab-pane>
 
       <n-tab-pane name="capabilities" tab="能力矩阵">
-        <n-card title="角色能力矩阵" style="margin-top: 16px">
+        <n-card title="角色能力矩阵" style="margin-top: var(--space-4)">
           <template #header-extra>
             <n-button size="small" class="btn-pill" @click="handleInitCapabilities">初始化默认</n-button>
           </template>
-          <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 12px;">
+          <div style="margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-3);">
             <n-text>按角色筛选：</n-text>
             <n-select
               v-model:value="capRoleFilter"
@@ -65,10 +65,10 @@
               style="width: 200px"
             />
           </div>
-          <div v-if="loadingCaps" style="text-align: center; padding: 24px;">
+          <div v-if="loadingCaps" style="text-align: center; padding: var(--space-6);">
             <n-spin />
           </div>
-          <div v-else-if="capMatrix.length === 0" style="text-align: center; padding: 24px;">
+          <div v-else-if="capMatrix.length === 0" style="text-align: center; padding: var(--space-6);">
             <n-text depth="3">暂无能力配置，请点击"初始化默认"</n-text>
           </div>
           <div v-else class="cap-matrix-wrapper">
@@ -82,8 +82,8 @@
               <tbody>
                 <tr v-for="da in capDomainActions" :key="da.key">
                   <td>
-                    <n-text depth="2" style="font-size: 16px;">{{ da.domain }}</n-text>
-                    <n-text depth="3" style="font-size: 16px; margin-left: 4px;">/ {{ da.action }}</n-text>
+                    <n-text depth="2" style="font-size: var(--fs-base);">{{ da.domain }}</n-text>
+                    <n-text depth="3" style="font-size: var(--fs-base); margin-left: var(--space-1);">/ {{ da.action }}</n-text>
                   </td>
                   <td v-for="role in capRoles" :key="role" style="text-align: center;">
                     <n-checkbox

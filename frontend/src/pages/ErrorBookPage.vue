@@ -18,7 +18,7 @@
         @search="onStudentSearch"
         @update:value="onStudentSelect"
       />
-      <n-radio-group v-model:value="statusFilter" style="margin-left: 16px;" @update:value="loadErrorBook">
+      <n-radio-group v-model:value="statusFilter" style="margin-left: var(--space-4);" @update:value="loadErrorBook">
         <n-radio-button value="">全部</n-radio-button>
         <n-radio-button value="unmastered">未掌握</n-radio-button>
         <n-radio-button value="practicing">练习中</n-radio-button>
@@ -55,7 +55,7 @@
         :pagination="{ pageSize: 20 }"
         :bordered="false"
         size="small"
-        style="margin-top: 16px;"
+        style="margin-top: var(--space-4);"
         :row-props="(row) => ({ style: 'cursor: pointer;', onClick: () => showDetail(row) })"
       />
       <n-empty v-else-if="selectedStudentId && !loading" description="暂无错题记录" style="margin-top: 40px;" />
@@ -79,11 +79,11 @@
           <div class="detail-row"><span class="detail-label">重做次数</span><span>{{ detailRow.retry_count }} 次</span></div>
           <div class="detail-row"><span class="detail-label">收藏</span><span>{{ detailRow.is_starred ? '★ 已收藏' : '未收藏' }}</span></div>
         </div>
-        <div class="detail-section" v-if="detailRow.ai_feedback" style="margin-top: 16px;">
+        <div class="detail-section" v-if="detailRow.ai_feedback" style="margin-top: var(--space-4);">
           <h4 style="margin: 0 0 8px; font-size: var(--fs-base);">AI 反馈</h4>
           <div class="detail-feedback">{{ detailRow.ai_feedback }}</div>
         </div>
-        <div class="detail-section" v-if="detailRow.knowledge_point_ids?.length" style="margin-top: 16px;">
+        <div class="detail-section" v-if="detailRow.knowledge_point_ids?.length" style="margin-top: var(--space-4);">
           <h4 style="margin: 0 0 8px; font-size: var(--fs-base);">关联知识点</h4>
           <div style="display: flex; gap: 6px; flex-wrap: wrap;">
             <n-tag v-for="kp in detailRow.knowledge_point_ids" :key="kp" size="small">{{ kp }}</n-tag>
@@ -136,7 +136,7 @@ const columns = computed(() => [
     render: (row) => {
       const pct = row.max_score > 0 ? Math.round(row.student_score / row.max_score * 100) : 0
       const status = pct >= 60 ? 'success' : pct >= 40 ? 'warning' : 'error'
-      return h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+      return h('div', { style: 'display: flex; align-items: center; gap: var(--space-2);' }, [
         h('span', { style: 'font-size: var(--fs-base); min-width: 45px;' }, `${row.student_score}/${row.max_score}`),
         h(NProgress, { percentage: pct, showIndicator: false, status, style: 'width: 50px;' }),
       ])

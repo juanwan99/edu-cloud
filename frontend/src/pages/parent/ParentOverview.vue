@@ -2,10 +2,10 @@
   <div>
     <!-- No child bound: guide card -->
     <n-card v-if="!currentChild && !loading" class="guide-card">
-      <div style="text-align: center; padding: 24px 0;">
+      <div style="text-align: center; padding: var(--space-6) 0;">
         <div class="guide-icon">&#128100;</div>
-        <n-h4 style="margin: 12px 0 8px;">尚未绑定孩子</n-h4>
-        <p style="color: rgba(255,255,255,0.45); font-size: var(--fs-base); margin-bottom: 16px;">
+        <n-h4 style="margin: var(--space-3) 0 var(--space-2);">尚未绑定孩子</n-h4>
+        <p style="color: var(--color-text-tertiary); font-size: var(--fs-base); margin-bottom: var(--space-4);">
           请先绑定孩子信息，才能查看学习数据
         </p>
         <n-button type="primary" @click="$router.push('/parent/bind')">
@@ -16,7 +16,7 @@
 
     <template v-if="currentChild">
       <!-- Student info card -->
-      <n-card class="info-card" style="margin-bottom: 16px;">
+      <n-card class="info-card" style="margin-bottom: var(--space-4);">
         <div class="student-header">
           <div class="avatar-circle" :style="{ background: avatarBg }">
             {{ avatarLetter }}
@@ -39,7 +39,7 @@
       </n-card>
 
       <!-- Score summary card -->
-      <n-card v-if="latestScore" class="score-brief" style="margin-bottom: 16px;">
+      <n-card v-if="latestScore" class="score-brief" style="margin-bottom: var(--space-4);">
         <div class="score-brief-header">
           <span style="font-size: var(--fs-base); font-weight: var(--fw-semibold);">最近考试</span>
           <n-tag size="small" type="info">{{ latestScore.exam_name || '考试' }}</n-tag>
@@ -61,7 +61,7 @@
       </n-card>
 
       <!-- Quick entry buttons -->
-      <div class="quick-entries" style="margin-bottom: 16px;">
+      <div class="quick-entries" style="margin-bottom: var(--space-4);">
         <div class="quick-entry" @click="$router.push('/parent/scores')">
           <div class="quick-entry-icon" style="background: rgba(99,226,183,0.15); color: #63e2b7;">&#128202;</div>
           <div class="quick-entry-label">成绩查询</div>
@@ -81,7 +81,7 @@
       </div>
 
       <!-- Recent records -->
-      <n-card title="最近记录" style="margin-bottom: 16px;">
+      <n-card title="最近记录" style="margin-bottom: var(--space-4);">
         <n-spin :show="loading">
           <n-list v-if="records.length > 0" bordered>
             <n-list-item v-for="r in records" :key="r.id">

@@ -1,10 +1,10 @@
 <template>
-  <div style="display: flex; gap: 24px;">
+  <div style="display: flex; gap: var(--space-6);">
     <!-- 左侧：表单 -->
     <div style="flex: 1; min-width: 400px;">
       <!-- 答题卡配置 -->
       <n-card title="答题卡配置" size="small">
-        <n-form label-placement="left" label-width="70" :show-feedback="false" style="display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center;">
+        <n-form label-placement="left" label-width="70" :show-feedback="false" style="display: grid; grid-template-columns: 1fr auto; gap: var(--space-2) var(--space-3); align-items: center;">
           <n-form-item label="标题" style="grid-column: 1;">
             <n-input v-model:value="cardForm.cardTitle" placeholder="答题卡标题" size="small" />
           </n-form-item>
@@ -14,7 +14,7 @@
             <n-select v-model:value="cardForm.subjectId" :options="subjectOptions" placeholder="选择科目" size="small" @update:value="onSubjectSelect" />
           </n-form-item>
 
-          <div style="grid-column: 1 / -1; display: flex; gap: 12px;">
+          <div style="grid-column: 1 / -1; display: flex; gap: var(--space-3);">
             <n-form-item label="满分" label-width="42" style="flex: 0 0 130px;">
               <n-input-number v-model:value="cardForm.totalScore" :min="10" :max="300" :step="10" size="small" placeholder="100" />
             </n-form-item>
@@ -30,11 +30,11 @@
 
       <!-- Step 1: 选科目后显示两个入口 -->
       <template v-if="cardForm.subjectId && parseStep === 'upload'">
-        <div style="margin-top: 16px; display: flex; gap: 16px;">
+        <div style="margin-top: var(--space-4); display: flex; gap: var(--space-4);">
           <!-- 入口 A: 直接编辑答题卡 -->
           <n-card size="small" hoverable style="flex: 1; cursor: pointer;" @click="goToEditor">
-            <div style="text-align: center; padding: 20px 0;">
-              <div style="font-size: 24px; margin-bottom: 8px;">&#9998;</div>
+            <div style="text-align: center; padding: var(--space-5) 0;">
+              <div style="font-size: var(--fs-2xl); margin-bottom: var(--space-2);">&#9998;</div>
               <n-text strong>直接编辑答题卡</n-text>
               <br />
               <n-text depth="3" style="font-size: var(--fs-base);">使用学科默认模板，手动调整题型结构</n-text>
@@ -42,10 +42,10 @@
           </n-card>
           <!-- 入口 B: 上传答案自动识别 -->
           <n-card size="small" style="flex: 1;">
-            <div style="text-align: center; padding: 8px 0;">
+            <div style="text-align: center; padding: var(--space-2) 0;">
               <n-text strong>上传答案自动识别（可选）</n-text>
               <br />
-              <n-text depth="3" style="font-size: var(--fs-base); display: block; margin: 8px 0;">上传答案文件，自动识别题型填充到编辑器</n-text>
+              <n-text depth="3" style="font-size: var(--fs-base); display: block; margin: var(--space-2) 0;">上传答案文件，自动识别题型填充到编辑器</n-text>
             </div>
             <n-upload
               :key="uploadKey"
@@ -55,12 +55,12 @@
               :disabled="cardLoading"
             >
               <n-upload-dragger>
-                <div style="padding: 12px; text-align: center;">
+                <div style="padding: var(--space-3); text-align: center;">
                   <n-text depth="3">点击或拖拽上传 .docx / .pdf</n-text>
                 </div>
               </n-upload-dragger>
             </n-upload>
-            <n-spin v-if="cardLoading" size="small" style="margin-top: 8px;">
+            <n-spin v-if="cardLoading" size="small" style="margin-top: var(--space-2);">
               <template #description>正在解析答案并识别题型...</template>
             </n-spin>
           </n-card>
@@ -69,11 +69,11 @@
 
       <!-- Step 2: 答案预览编辑（可编辑表格） -->
       <template v-if="parseStep === 'answers'">
-        <n-card size="small" style="margin-top: 16px;">
+        <n-card size="small" style="margin-top: var(--space-4);">
           <template #header>
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span>答案预览</span>
-              <div style="display: flex; gap: 8px; align-items: center;">
+              <div style="display: flex; gap: var(--space-2); align-items: center;">
                 <n-tag :type="parsedStandardized.length === totalQuestions ? 'success' : 'warning'" size="small" round>
                   已识别 {{ parsedStandardized.length }} / {{ totalQuestions }} 题
                 </n-tag>
@@ -95,7 +95,7 @@
           />
 
           <!-- 分值汇总 -->
-          <div style="margin-top: 12px; display: flex; gap: 16px; align-items: center;">
+          <div style="margin-top: var(--space-3); display: flex; gap: var(--space-4); align-items: center;">
             <n-text>
               总分: <b>{{ scoreSum }}</b> / {{ cardForm.totalScore || 100 }}
             </n-text>
@@ -105,14 +105,14 @@
           </div>
         </n-card>
 
-        <div style="margin-top: 12px; display: flex; gap: 12px;">
+        <div style="margin-top: var(--space-3); display: flex; gap: var(--space-3);">
           <n-button @click="resetToUpload">重新上传</n-button>
           <n-button type="primary" @click="confirmAnswers">确认答案</n-button>
         </div>
       </template>
 
       <!-- 条码贴纸 -->
-      <n-card title="条码贴纸生成" size="small" style="margin-top: 24px;">
+      <n-card title="条码贴纸生成" size="small" style="margin-top: var(--space-6);">
         <n-upload
           :max="1"
           accept=".xlsx,.xls"
@@ -121,7 +121,7 @@
         >
           <n-button>上传学生名单 Excel</n-button>
         </n-upload>
-        <div v-if="barcodeFile" style="margin-top: 12px;">
+        <div v-if="barcodeFile" style="margin-top: var(--space-3);">
           <n-button type="primary" @click="handleBarcodeGenerate" :loading="barcodeLoading">
             下载条码贴纸 PDF
           </n-button>
@@ -147,10 +147,10 @@
     <!-- 全屏预览遮罩 -->
     <teleport to="body">
       <div v-if="isFullscreen" style="position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0,0,0,0.85); display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: flex-end; padding: 12px 20px;">
+        <div style="display: flex; justify-content: flex-end; padding: var(--space-3) var(--space-5);">
           <n-button type="primary" size="small" @click="toggleFullscreen">关闭全屏 (ESC)</n-button>
         </div>
-        <iframe :src="cardPreviewUrl" style="flex: 1; border: none; margin: 0 20px 20px; border-radius: var(--r-sm); background: white;" />
+        <iframe :src="cardPreviewUrl" style="flex: 1; border: none; margin: 0 var(--space-5) var(--space-5); border-radius: var(--r-sm); background: white;" />
       </div>
     </teleport>
   </div>
@@ -360,7 +360,7 @@ const answerColumns = [
     })
   },
   { title: '答案', key: 'answer', minWidth: 200,
-    render: (row) => h('div', { style: 'display: flex; gap: 4px; align-items: center;' }, [
+    render: (row) => h('div', { style: 'display: flex; gap: var(--space-1); align-items: center;' }, [
       h(NInput, {
         value: row.answer, size: 'small',
         onUpdateValue: (v) => { row.answer = v },

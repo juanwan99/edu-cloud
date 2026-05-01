@@ -69,7 +69,7 @@
               style="flex: 1; min-width: 280px; background: white; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
               <h3 style="margin: 0 0 12px; font-size: var(--fs-base); font-weight: var(--fw-semibold);">{{ ep.subject_code }}</h3>
               <v-chart class="chart-height-sm" :option="makeErrorPieOption(ep)" autoresize />
-              <div style="margin-top: 8px; font-size: 16px; color: var(--color-text-muted);">
+              <div style="margin-top: var(--space-2); font-size: var(--fs-base); color: var(--color-text-muted);">
                 共 {{ ep.total_errors }} 道错题 · {{ ep.exam_count }} 次考试
               </div>
             </div>

@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Avatar + basic info header -->
-    <n-card style="margin-bottom: 16px;">
+    <n-card style="margin-bottom: var(--space-4);">
       <div class="profile-header">
         <div class="avatar-circle">
           {{ avatarLetter }}
@@ -14,7 +14,7 @@
     </n-card>
 
     <!-- Profile info -->
-    <n-card title="个人信息" style="margin-bottom: 16px;">
+    <n-card title="个人信息" style="margin-bottom: var(--space-4);">
       <n-form :model="profileForm" ref="profileFormRef">
         <n-form-item label="姓名">
           <n-input v-model:value="profileForm.display_name" placeholder="请输入姓名" />
@@ -29,7 +29,7 @@
     </n-card>
 
     <!-- Change password -->
-    <n-card title="修改密码" style="margin-bottom: 16px;">
+    <n-card title="修改密码" style="margin-bottom: var(--space-4);">
       <n-form :model="pwdForm" :rules="pwdRules" ref="pwdFormRef">
         <n-form-item label="旧密码" path="old_password">
           <n-input v-model:value="pwdForm.old_password" type="password" placeholder="请输入旧密码" show-password-on="click" />
@@ -49,7 +49,7 @@
         v-if="showSecurityHint"
         type="warning"
         title="账号安全提示"
-        style="margin-top: 12px;"
+        style="margin-top: var(--space-3);"
         closable
         @close="showSecurityHint = false"
       >
@@ -83,7 +83,7 @@
         </n-list-item>
       </n-list>
       <n-empty v-else description="暂未绑定孩子" />
-      <n-button style="margin-top: 12px;" block secondary @click="$router.push('/parent/bind')">
+      <n-button style="margin-top: var(--space-3);" block secondary @click="$router.push('/parent/bind')">
         绑定新孩子
       </n-button>
     </n-card>
@@ -95,7 +95,7 @@
       negative-text="取消"
     >
       <template #trigger>
-        <n-button style="margin-top: 16px;" block type="error" secondary>
+        <n-button style="margin-top: var(--space-4);" block type="error" secondary>
           退出登录
         </n-button>
       </template>

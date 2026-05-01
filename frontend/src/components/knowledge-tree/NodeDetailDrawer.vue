@@ -17,8 +17,8 @@
         </n-descriptions>
 
         <!-- 详情数据（课标/教材/DA/真题） -->
-        <n-spin v-if="detailLoading" style="margin: 24px auto; display: block;" />
-        <n-tabs type="line" v-if="detail" style="margin-top: 12px;">
+        <n-spin v-if="detailLoading" style="margin: var(--space-6) auto; display: block;" />
+        <n-tabs type="line" v-if="detail" style="margin-top: var(--space-3);">
           <n-tab-pane name="curriculum" tab="课标要求">
             <div v-for="req in detail.curriculum" :key="req.requirement_id" class="detail-item">
               {{ req.content }}
@@ -78,7 +78,7 @@
             <n-form-item label="认知层级">
               <n-select v-model:value="editForm.bloom_level" :options="bloomOptions" clearable />
             </n-form-item>
-            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; gap: var(--space-2); align-items: center; margin-bottom: var(--space-3);">
               <n-button type="primary" size="small" @click="handleSave" :loading="saving">
                 保存修改
               </n-button>

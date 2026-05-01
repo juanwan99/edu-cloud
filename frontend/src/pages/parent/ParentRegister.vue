@@ -2,7 +2,7 @@
   <div class="register-container">
     <n-card style="max-width: 440px; width: 100%;">
       <template #header>
-        <span style="font-size: 20px; font-weight: 600;">家长注册</span>
+        <span style="font-size: var(--fs-xl); font-weight: var(--fw-semibold);">家长注册</span>
       </template>
         <!-- Step 1: Invite code -->
         <template v-if="step === 1">
@@ -14,14 +14,14 @@
               验证邀请码
             </n-button>
           </n-form>
-          <div style="margin-top: 16px; text-align: center;">
+          <div style="margin-top: var(--space-4); text-align: center;">
             <router-link to="/parent/login" style="color: #63e2b7;">已有账号？去登录</router-link>
           </div>
         </template>
 
         <!-- Step 2: Registration form -->
         <template v-if="step === 2">
-          <n-alert type="success" style="margin-bottom: 16px;">
+          <n-alert type="success" style="margin-bottom: var(--space-4);">
             班级: {{ classInfo.school_name }} - {{ classInfo.class_name }}
           </n-alert>
           <n-form :model="regForm" :rules="regRules" ref="regFormRef">

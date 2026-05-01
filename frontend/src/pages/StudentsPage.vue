@@ -223,7 +223,7 @@ const columns = [
   },
   {
     title: '操作', key: 'actions', width: 200,
-    render: (row) => h('div', { style: 'display: flex; gap: 8px;' }, [
+    render: (row) => h('div', { style: 'display: flex; gap: var(--space-2);' }, [
       h(NButton, { text: true, type: 'info', size: 'small', onClick: () => router.push({ name: 'StudentProfile', params: { studentId: row.id } }) }, { default: () => '画像' }),
       h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
       h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' }),

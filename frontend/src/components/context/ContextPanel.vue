@@ -1,5 +1,5 @@
 <template>
-  <div style="padding: 16px">
+  <div style="padding: var(--space-4)">
     <n-h4>考试</n-h4>
     <n-menu
       :options="examOptions"

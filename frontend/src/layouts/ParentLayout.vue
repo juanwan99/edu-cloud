@@ -3,9 +3,9 @@
     <n-message-provider>
       <n-layout style="min-height: 100dvh;">
         <!-- Top bar -->
-        <n-layout-header bordered style="height: 56px; display: flex; align-items: center; padding: 0 16px; justify-content: space-between;">
-          <span style="font-size: 18px; font-weight: 600;">家校互通</span>
-          <div style="display: flex; align-items: center; gap: 12px;">
+        <n-layout-header bordered style="height: 56px; display: flex; align-items: center; padding: 0 var(--space-4); justify-content: space-between;">
+          <span style="font-size: var(--fs-lg); font-weight: var(--fw-semibold);">家校互通</span>
+          <div style="display: flex; align-items: center; gap: var(--space-3);">
             <n-select
               v-if="children.length > 1"
               v-model:value="currentChildId"
@@ -20,7 +20,7 @@
         </n-layout-header>
 
         <!-- Content -->
-        <n-layout-content style="padding: 16px; padding-bottom: 72px;">
+        <n-layout-content style="padding: var(--space-4); padding-bottom: 72px;">
           <router-view :current-child="currentChild" />
         </n-layout-content>
 

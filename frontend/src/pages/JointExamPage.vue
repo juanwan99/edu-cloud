@@ -57,7 +57,7 @@
             <n-button v-if="canCreate" type="primary" @click="showCreate = true">
               创建第一个联考
             </n-button>
-            <p v-else style="color: var(--color-text-muted); font-size: 16px;">
+            <p v-else style="color: var(--color-text-muted); font-size: var(--fs-base);">
               联考由具有创建权限的管理员发起
             </p>
           </template>
@@ -84,7 +84,7 @@
         </n-form-item>
       </n-form>
       <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
           <n-button @click="showCreate = false">取消</n-button>
           <n-button type="primary" :loading="creating" @click="handleCreate">创建</n-button>
         </div>
@@ -186,7 +186,7 @@ const columns = computed(() => [
       const total = participants.length || 1
       const completed = participants.filter(p => p.status === 'completed' || p.status === 'done').length
       const pct = Math.round((completed / total) * 100)
-      return h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
+      return h('div', { style: 'display: flex; align-items: center; gap: var(--space-2);' }, [
         h(NProgress, {
           type: 'line',
           percentage: pct,
@@ -194,7 +194,7 @@ const columns = computed(() => [
           processing: pct < 100,
           style: 'flex: 1;',
         }),
-        h('span', { style: 'font-size: var(--fs-base); color: rgba(255,255,255,0.5); white-space: nowrap;' },
+        h('span', { style: 'font-size: var(--fs-base); color: var(--color-text-muted); white-space: nowrap;' },
           `${completed}/${total}`),
       ])
     },
@@ -241,7 +241,7 @@ const columns = computed(() => [
       }
 
       return h('div', {
-        style: 'display: flex; gap: 8px;',
+        style: 'display: flex; gap: var(--space-2);',
         onClick: (e) => e.stopPropagation(),
       }, buttons)
     },

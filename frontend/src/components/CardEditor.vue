@@ -7,15 +7,15 @@
       <div class="ctrl">
         <label>快速生成</label>
         <input type="number" id="choiceQuickCount" value="11" min="1" max="30" style="width:40px">
-        <span style="color:#5a6b5e;font-size: 16px;">题 ×</span>
+        <span style="color:#5a6b5e;font-size: var(--fs-base);">题 ×</span>
         <input type="number" id="choiceQuickOptions" value="4" min="2" max="8" style="width:40px">
-        <span style="color:#5a6b5e;font-size: 16px;">选项</span>
+        <span style="color:#5a6b5e;font-size: var(--fs-base);">选项</span>
         <button class="choice-gen-btn" id="choiceGenBtn">生成</button>
       </div>
       <div id="choiceList" class="choice-list"></div>
       <div class="ctrl"><label>每行题数</label><input type="range" id="choicePerRow" min="1" max="20" value="20"><span class="val" id="v_choicePerRow"></span></div>
       <div class="ctrl"><label>选项行距</label><input type="range" id="choiceRowGap" min="0" max="20" value="3" step="1"><span class="val" id="v_choiceRowGap"></span></div>
-      <button class="panel-btn" id="btnAddChoice" style="font-size: 16px;padding:5px;">+ 添加选择题</button>
+      <button class="panel-btn" id="btnAddChoice" style="font-size: var(--fs-base);padding:5px;">+ 添加选择题</button>
 
       <!-- 填空题 & 解答题 -->
       <h2><i class="ico ico-layers"></i> 填空题 & 解答题</h2>
@@ -31,11 +31,11 @@
 
       <!-- 导出（内部按钮，由外部工具栏触发） -->
       <button id="btnExportPdf" style="display:none"></button>
-      <button id="btnExportSkeleton" class="panel-btn" style="font-size: 16px;padding:4px;">导出 Skeleton</button>
+      <button id="btnExportSkeleton" class="panel-btn" style="font-size: var(--fs-base);padding:var(--space-1);">导出 Skeleton</button>
       <div id="status" class="status"></div>
 
       <!-- 缩放 -->
-      <div class="ctrl" style="margin-top:8px;"><label>缩放(%)</label><input type="range" id="zoom" min="20" max="100" value="60"><span class="val" id="v_zoom"></span></div>
+      <div class="ctrl" style="margin-top:var(--space-2);"><label>缩放(%)</label><input type="range" id="zoom" min="20" max="100" value="60"><span class="val" id="v_zoom"></span></div>
 
       <!-- 高级选项 -->
       <details class="advanced-section">
@@ -79,12 +79,12 @@
         <div class="ctrl"><label>题数</label><input type="range" id="fillCount" min="0" max="10" value="3"><span class="val" id="v_fillCount"></span></div>
         <div class="ctrl"><label>每题分值</label><input type="number" id="fillScore" min="1" max="20" value="5" style="width:50px"><span class="val" id="v_fillScore"></span></div>
         <div class="ctrl"><label>每排几题</label><input type="range" id="fillPerRow" min="1" max="4" value="2"><span class="val" id="v_fillPerRow"></span></div>
-        <div class="ctrl" style="color:#888;font-size: 16px;">题号自动：选择题1~N → 填空N+1起 → 解答题继续</div>
+        <div class="ctrl" style="color:var(--color-text-muted);font-size: var(--fs-base);">题号自动：选择题1~N → 填空N+1起 → 解答题继续</div>
 
         <h2><i class="ico ico-file"></i> 解答题</h2>
         <div class="ctrl"><label>题数</label><input type="range" id="essayCount" min="1" max="20" value="5"><span class="val" id="v_essayCount"></span></div>
         <div class="ctrl"><label>题目配置(JSON)</label></div>
-        <textarea id="essayConfig" style="width:100%;height:60px;background:#0f3460;color:#eee;border:1px solid #555;font-size: 16px;padding:4px;" spellcheck="false">[{"score":10},{"score":12},{"score":12},{"score":12},{"score":14}]</textarea>
+        <textarea id="essayConfig" style="width:100%;height:60px;background:#0f3460;color:#eee;border:1px solid #555;font-size: var(--fs-base);padding:var(--space-1);" spellcheck="false">[{"score":10},{"score":12},{"score":12},{"score":12},{"score":14}]</textarea>
 
         <h2><i class="ico ico-file"></i> 纸张</h2>
         <div class="ctrl"><label>纸张</label>
@@ -95,7 +95,7 @@
         </div>
       </details>
 
-      <div v-if="readonly" style="margin-top: 12px; padding: 8px; background: #fff3cd; border-radius: 6px; font-size: 16px; color: #856404;">
+      <div v-if="readonly" style="margin-top: var(--space-3); padding: var(--space-2); background: #fff3cd; border-radius: var(--r-md); font-size: var(--fs-base); color: #856404;">
         答题卡已发布，当前为只读模式
       </div>
     </div>
@@ -117,10 +117,10 @@
           <div class="tql-label">B 面</div>
           <img :src="'data:image/png;base64,' + tqlImages[1]">
         </div>
-        <div v-if="!tqlImages[0] && !tqlImages[1] && !tqlLoading" style="color:#999;font-size: 16px;padding:40px;text-align:center;">
+        <div v-if="!tqlImages[0] && !tqlImages[1] && !tqlLoading" style="color:var(--color-text-muted);font-size: var(--fs-base);padding:var(--space-10);text-align:center;">
           该科目无 TQL 模板图
         </div>
-        <div v-if="tqlLoading" style="color:#999;font-size: 16px;padding:40px;text-align:center;">
+        <div v-if="tqlLoading" style="color:var(--color-text-muted);font-size: var(--fs-base);padding:var(--space-10);text-align:center;">
           加载中...
         </div>
       </div>

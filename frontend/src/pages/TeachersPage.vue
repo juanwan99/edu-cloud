@@ -201,8 +201,8 @@ const columns = [
     render: (row) => {
       const codes = new Set()
       ;(row.roles || []).forEach(r => (r.subject_codes || []).forEach(c => codes.add(c)))
-      if (!codes.size) return h('span', { style: 'color: #999;' }, '未分配')
-      return h('div', { style: 'display: flex; gap: 4px; flex-wrap: wrap;' },
+      if (!codes.size) return h('span', { style: 'color: var(--color-text-muted);' }, '未分配')
+      return h('div', { style: 'display: flex; gap: var(--space-1); flex-wrap: wrap;' },
         [...codes].map(c => h(NTag, { size: 'small', round: true, type: 'success' }, { default: () => subjectLabels[c] || c }))
       )
     },
@@ -214,7 +214,7 @@ const columns = [
       ;(row.roles || []).filter(r => r.role === 'subject_teacher').forEach(r =>
         (r.class_ids || []).forEach(cid => { const c = classMap.value[cid]; if (c?.grade) grades.add(c.grade) })
       )
-      if (!grades.size) return h('span', { style: 'color: #999;' }, '-')
+      if (!grades.size) return h('span', { style: 'color: var(--color-text-muted);' }, '-')
       return [...grades].join('、')
     },
   },
@@ -231,8 +231,8 @@ const columns = [
           if (c) names.push(c.name)
         })
       )
-      if (!names.length) return h('span', { style: 'color: #999;' }, '未分配')
-      return h('div', { style: 'display: flex; gap: 4px; flex-wrap: wrap;' },
+      if (!names.length) return h('span', { style: 'color: var(--color-text-muted);' }, '未分配')
+      return h('div', { style: 'display: flex; gap: var(--space-1); flex-wrap: wrap;' },
         names.map(n => h(NTag, { size: 'small', round: true }, { default: () => n }))
       )
     },
@@ -260,7 +260,7 @@ const columns = [
   { title: '手机', key: 'phone', width: 120, render: (row) => row.phone || '-' },
   {
     title: '操作', key: 'actions', width: 100, fixed: 'right',
-    render: (row) => h('div', { style: 'display: flex; gap: 8px;' }, [
+    render: (row) => h('div', { style: 'display: flex; gap: var(--space-2);' }, [
       h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
       h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' }),
     ]),

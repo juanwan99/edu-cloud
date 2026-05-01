@@ -1,6 +1,6 @@
 <template>
   <div>
-    <n-page-header title="积分排行" style="margin-bottom: 16px;">
+    <n-page-header title="积分排行" style="margin-bottom: var(--space-4);">
       <template #extra>
         <n-space :size="12">
           <n-input
@@ -23,13 +23,13 @@
       </template>
     </n-page-header>
 
-    <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: 16px;">
+    <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: var(--space-4);">
       当前角色未关联班级，请切换到班主任角色。
     </n-alert>
 
     <template v-if="classId">
       <!-- Distribution chart -->
-      <n-card title="排名分布" size="small" style="margin-bottom: 16px;">
+      <n-card title="排名分布" size="small" style="margin-bottom: var(--space-4);">
         <v-chart v-if="distOption" class="chart-height-sm" :option="distOption" autoresize />
         <n-empty v-else description="暂无数据" />
       </n-card>

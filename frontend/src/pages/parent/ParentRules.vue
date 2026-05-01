@@ -1,15 +1,15 @@
 <template>
   <div>
     <!-- Summary + Filter Bar -->
-    <n-card size="small" style="margin-bottom: 16px;">
-      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px;">
-        <span style="font-size: 16px; color: rgba(255,255,255,0.7);">
+    <n-card size="small" style="margin-bottom: var(--space-4);">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3);">
+        <span style="font-size: var(--fs-base); color: rgba(255,255,255,0.7);">
           共 {{ totalCount }} 条规则
         </span>
         <n-tag type="success" size="small" :bordered="false">加分 {{ positiveCount }} 条</n-tag>
         <n-tag type="error" size="small" :bordered="false">扣分 {{ negativeCount }} 条</n-tag>
       </div>
-      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+      <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
         <n-radio-group v-model:value="filterMode" size="small">
           <n-radio-button value="all">全部</n-radio-button>
           <n-radio-button value="positive">加分项</n-radio-button>
@@ -47,7 +47,7 @@
                     {{ item.points >= 0 ? '+' : '' }}{{ item.points }}
                   </n-tag>
                 </div>
-                <div v-if="item.description" style="font-size: 16px; color: rgba(255,255,255,0.4); margin-top: 4px;">
+                <div v-if="item.description" style="font-size: var(--fs-base); color: rgba(255,255,255,0.4); margin-top: var(--space-1);">
                   {{ item.description }}
                 </div>
               </n-list-item>

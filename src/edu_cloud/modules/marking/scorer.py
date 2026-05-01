@@ -305,48 +305,44 @@ async def get_answer_at(
     db: AsyncSession, question_id: str, school_id: str, offset: int,
     mode: str = "ungraded",
 ) -> dict | None:
-    """按索引获取某题的第 offset 份答卷（0-based），包含已有评分。"""
+    """按索引获取某题的第 offset 份答卷（0-based），包含已有评分。
+
+    mode:
+      - "ungraded": 全量答卷集合（默认）
+      - "ai_review": 仅 AI 已评(ai_done)的答卷子集
+
+    同一 mode 下 offset 与 get_next_answer() 的浏览集合一致。
+    """
     if mode == "ai_review":
-        base_q = (
-            select(StudentAnswer)
-            .join(GradingResult, GradingResult.answer_id == StudentAnswer.id)
-            .where(
-                StudentAnswer.question_id == question_id,
-                StudentAnswer.school_id == school_id,
-                GradingResult.school_id == school_id,
-                GradingResult.question_id == question_id,
-                GradingResult.ai_score.is_not(None),
-            )
+        # 复核模式：仅包含有 ai_done GradingResult 的答卷
+        ai_done_answer_ids = select(GradingResult.answer_id).where(
+            GradingResult.question_id == question_id,
+            GradingResult.school_id == school_id,
+            GradingResult.status == "ai_done",
         )
-        total = (await db.execute(
-            select(func.count()).select_from(base_q.subquery())
-        )).scalar() or 0
-
-        if offset < 0 or offset >= total:
-            return None
-
-        answer = (await db.execute(
-            base_q.order_by(StudentAnswer.student_id)
-            .offset(offset).limit(1)
-        )).scalar_one_or_none()
+        base_filter = [
+            StudentAnswer.question_id == question_id,
+            StudentAnswer.school_id == school_id,
+            StudentAnswer.id.in_(ai_done_answer_ids),
+        ]
     else:
-        total = (await db.execute(
-            select(func.count()).select_from(StudentAnswer).where(
-                StudentAnswer.question_id == question_id,
-                StudentAnswer.school_id == school_id,
-            )
-        )).scalar() or 0
+        base_filter = [
+            StudentAnswer.question_id == question_id,
+            StudentAnswer.school_id == school_id,
+        ]
 
-        if offset < 0 or offset >= total:
-            return None
+    total = (await db.execute(
+        select(func.count()).select_from(StudentAnswer).where(*base_filter)
+    )).scalar() or 0
 
-        answer = (await db.execute(
-            select(StudentAnswer).where(
-                StudentAnswer.question_id == question_id,
-                StudentAnswer.school_id == school_id,
-            ).order_by(StudentAnswer.student_id)
-            .offset(offset).limit(1)
-        )).scalar_one_or_none()
+    if offset < 0 or offset >= total:
+        return None
+
+    answer = (await db.execute(
+        select(StudentAnswer).where(*base_filter)
+        .order_by(StudentAnswer.student_id)
+        .offset(offset).limit(1)
+    )).scalar_one_or_none()
 
     if not answer:
         return None

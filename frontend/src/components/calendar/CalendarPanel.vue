@@ -1,9 +1,9 @@
 <template>
-  <div style="padding: 12px">
+  <div style="padding: var(--space-3)">
     <n-h4>学期日历</n-h4>
 
     <!-- 创建事件 -->
-    <n-button size="small" type="primary" @click="showCreate = true" style="margin-bottom: 12px">
+    <n-button size="small" type="primary" @click="showCreate = true" style="margin-bottom: var(--space-3)">
       + 新增事件
     </n-button>
 
@@ -13,7 +13,7 @@
         <n-thing :title="event.title">
           <template #description>
             <n-tag :type="typeMap[event.type] || 'default'" size="small">{{ event.type }}</n-tag>
-            <n-text depth="3" style="margin-left: 8px">{{ event.event_date }}</n-text>
+            <n-text depth="3" style="margin-left: var(--space-2)">{{ event.event_date }}</n-text>
           </template>
         </n-thing>
       </n-list-item>

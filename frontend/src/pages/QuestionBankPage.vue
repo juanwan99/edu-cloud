@@ -106,7 +106,7 @@
           </div>
         </n-card>
       </div>
-      <n-empty v-else-if="!loading && searched" description="未找到匹配的题目" style="margin-top: 40px;">
+      <n-empty v-else-if="!loading && searched" description="未找到匹配的题目" style="margin-top: var(--space-10);">
         <template #extra>
           <n-button size="small" @click="resetFilters">清除筛选</n-button>
         </template>

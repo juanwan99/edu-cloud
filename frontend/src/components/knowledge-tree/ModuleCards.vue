@@ -19,7 +19,7 @@
         :rail-color="'rgba(255,255,255,0.1)'"
         :stroke-width="6"
         :show-indicator="false"
-        style="width: 80px; height: 80px; margin: 12px auto"
+        style="width: 80px; height: 80px; margin: var(--space-3) auto"
       />
     </div>
   </div>

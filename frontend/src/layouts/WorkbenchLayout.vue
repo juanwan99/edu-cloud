@@ -7,10 +7,10 @@
     </n-layout-sider>
     <!-- Center -->
     <n-layout>
-      <n-layout-header bordered style="height: 56px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between;">
+      <n-layout-header bordered style="height: 56px; padding: 0 var(--space-4); display: flex; align-items: center; justify-content: space-between;">
         <slot name="header" />
       </n-layout-header>
-      <n-layout-content content-style="padding: 16px; height: calc(100dvh - 56px); overflow-y: auto;">
+      <n-layout-content content-style="padding: var(--space-4); height: calc(100dvh - 56px); overflow-y: auto;">
         <slot name="center" />
       </n-layout-content>
     </n-layout>

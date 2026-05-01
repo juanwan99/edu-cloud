@@ -1,43 +1,43 @@
 <template>
   <div>
     <!-- Ranking Info Card -->
-    <n-card v-if="myRanking" style="margin-bottom: 16px;">
-      <div style="display: flex; align-items: center; gap: 16px;">
+    <n-card v-if="myRanking" style="margin-bottom: var(--space-4);">
+      <div style="display: flex; align-items: center; gap: var(--space-4);">
         <div style="font-size: var(--fs-display); line-height: 1;">
           {{ trophyIcon }}
         </div>
         <div style="flex: 1;">
-          <div style="font-size: 22px; font-weight: var(--fw-semibold); color: rgba(255,255,255,0.9);">
+          <div style="font-size: var(--fs-2xl); font-weight: var(--fw-semibold); color: rgba(255,255,255,0.9);">
             第 {{ myRanking.rank }} 名
-            <span style="font-size: var(--fs-base); font-weight: var(--fw-regular); color: rgba(255,255,255,0.45);">
+            <span style="font-size: var(--fs-base); font-weight: var(--fw-regular); color: var(--color-text-tertiary);">
               / 共 {{ rankings.length }} 人
             </span>
           </div>
-          <div v-if="rankChange !== null" style="margin-top: 4px; font-size: var(--fs-base);">
+          <div v-if="rankChange !== null" style="margin-top: var(--space-1); font-size: var(--fs-base);">
             <span v-if="rankChange > 0" style="color: var(--color-success);">
               ↑ 上升 {{ rankChange }} 名
             </span>
             <span v-else-if="rankChange < 0" style="color: var(--color-danger);">
               ↓ 下降 {{ Math.abs(rankChange) }} 名
             </span>
-            <span v-else style="color: rgba(255,255,255,0.45);">
+            <span v-else style="color: var(--color-text-tertiary);">
               — 排名不变
             </span>
           </div>
         </div>
         <div style="text-align: right;">
-          <div style="font-size: 28px; font-weight: var(--fw-semibold); color: #63e2b7;">
+          <div style="font-size: var(--fs-2xl); font-weight: var(--fw-semibold); color: #63e2b7;">
             {{ myRanking.total_points }}
           </div>
-          <div style="font-size: var(--fs-base); color: rgba(255,255,255,0.45);">总积分</div>
+          <div style="font-size: var(--fs-base); color: var(--color-text-tertiary);">总积分</div>
         </div>
       </div>
     </n-card>
 
     <!-- Score Distribution Bar -->
-    <n-card v-if="rankings.length > 0" size="small" style="margin-bottom: 16px;">
-      <div style="font-size: var(--fs-base); color: rgba(255,255,255,0.6); margin-bottom: 8px;">积分分布</div>
-      <div style="position: relative; height: 28px; border-radius: 6px; overflow: hidden; display: flex;">
+    <n-card v-if="rankings.length > 0" size="small" style="margin-bottom: var(--space-4);">
+      <div style="font-size: var(--fs-base); color: var(--color-text-secondary); margin-bottom: var(--space-2);">积分分布</div>
+      <div style="position: relative; height: 28px; border-radius: var(--r-md); overflow: hidden; display: flex;">
         <div
           :style="{
             width: distBands.top10 + '%',
@@ -64,7 +64,7 @@
             width: distBands.bot40 + '%',
             background: 'rgba(255,255,255,0.08)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 'var(--fs-base)', color: 'rgba(255,255,255,0.5)',
+            fontSize: 'var(--fs-base)', color: 'var(--color-text-tertiary)',
           }"
         >
           后40%

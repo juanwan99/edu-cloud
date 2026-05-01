@@ -1,5 +1,5 @@
 <template>
-  <div style="margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+  <div style="margin-bottom: var(--space-4); display: flex; align-items: center; gap: var(--space-3);">
     <n-select
       v-model:value="qmgSubjectId"
       :options="subjectOptions"
@@ -14,7 +14,7 @@
     <n-button size="small" type="primary" @click="handleAddQuestion" :disabled="!qmgSubjectId">添加题目</n-button>
   </div>
 
-  <div v-if="qmgLoading" style="text-align:center; padding:40px;"><n-spin /></div>
+  <div v-if="qmgLoading" style="text-align:center; padding:var(--space-10);"><n-spin /></div>
   <div v-else-if="!qmgSubjectId" class="empty-tip center">请选择科目</div>
   <div v-else-if="qmgQuestions.length === 0" class="empty-tip center">暂无题目</div>
   <n-data-table v-else :columns="qmgColumns" :data="qmgQuestions" size="small" :row-key="r => r.id" />

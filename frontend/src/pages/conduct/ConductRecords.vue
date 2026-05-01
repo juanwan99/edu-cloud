@@ -1,14 +1,14 @@
 <template>
   <div>
-    <n-page-header title="积分记录" subtitle="查看和管理所有操行积分变动" style="margin-bottom: 16px;" />
+    <n-page-header title="积分记录" subtitle="查看和管理所有操行积分变动" style="margin-bottom: var(--space-4);" />
 
-    <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: 16px;">
+    <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: var(--space-4);">
       当前角色未关联班级，请切换到班主任角色。
     </n-alert>
 
     <template v-if="classId">
       <!-- Stat cards -->
-      <n-grid :cols="3" :x-gap="16" :y-gap="16" style="margin-bottom: 16px;">
+      <n-grid :cols="3" :x-gap="16" :y-gap="16" style="margin-bottom: var(--space-4);">
         <n-gi>
           <n-card size="small">
             <n-statistic label="本周记录数" :value="statCards.weekCount" />
@@ -31,7 +31,7 @@
       </n-grid>
 
       <!-- Filters -->
-      <n-card size="small" style="margin-bottom: 16px;">
+      <n-card size="small" style="margin-bottom: var(--space-4);">
         <n-space>
           <n-input
             v-model:value="filterStudent"
@@ -67,7 +67,7 @@
       </n-card>
 
       <!-- Batch delete bar -->
-      <div v-if="checkedRowKeys.length > 0" style="margin-bottom: 12px;">
+      <div v-if="checkedRowKeys.length > 0" style="margin-bottom: var(--space-3);">
         <n-space align="center">
           <span style="color: rgba(255,255,255,0.65);">已选 {{ checkedRowKeys.length }} 条</span>
           <n-popconfirm @positive-click="handleBatchDelete">

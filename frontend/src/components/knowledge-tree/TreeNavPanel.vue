@@ -2,7 +2,7 @@
   <div class="tree-nav-panel">
     <div class="nav-header">
       <slot name="student-selector" />
-      <n-radio-group v-model:value="navMode" size="small" style="margin-bottom: 8px; width: 100%">
+      <n-radio-group v-model:value="navMode" size="small" style="margin-bottom: var(--space-2); width: 100%">
         <n-radio-button value="module">按模块</n-radio-button>
         <n-radio-button value="chapter">按教材章节</n-radio-button>
       </n-radio-group>
@@ -11,7 +11,7 @@
         placeholder="搜索知识点..."
         clearable
         size="small"
-        style="margin-bottom: 8px"
+        style="margin-bottom: var(--space-2)"
       />
     </div>
     <n-tree
@@ -163,7 +163,7 @@ function renderSuffix({ option }) {
   const parts = []
   if (option.reviewStatus) {
     const icon = reviewStatusIcons[option.reviewStatus] || ''
-    if (icon) parts.push(h('span', { style: { fontSize: 'var(--fs-base)', marginRight: '4px' } }, icon))
+    if (icon) parts.push(h('span', { style: { fontSize: 'var(--fs-base)', marginRight: 'var(--space-1)' } }, icon))
   }
   const m = option.mastery ?? 0
   if (m > 0) {
@@ -171,7 +171,7 @@ function renderSuffix({ option }) {
       style: { color: masteryColor(m), fontSize: 'var(--fs-base)' },
     }, Math.round(m * 100) + '%'))
   }
-  return parts.length ? h('span', { style: { marginLeft: '4px' } }, parts) : null
+  return parts.length ? h('span', { style: { marginLeft: 'var(--space-1)' } }, parts) : null
 }
 
 function handleSelect(keys) {
