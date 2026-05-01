@@ -309,21 +309,20 @@ async def get_answer_at(
 
     mode:
       - "ungraded": 全量答卷集合（默认）
-      - "ai_review": 仅 AI 已评(ai_done)的答卷子集
+      - "ai_review": AI 已评的答卷子集（含 ai_done 和 confirmed）
 
     同一 mode 下 offset 与 get_next_answer() 的浏览集合一致。
     """
     if mode == "ai_review":
-        # 复核模式：仅包含有 ai_done GradingResult 的答卷
-        ai_done_answer_ids = select(GradingResult.answer_id).where(
+        ai_scored_answer_ids = select(GradingResult.answer_id).where(
             GradingResult.question_id == question_id,
             GradingResult.school_id == school_id,
-            GradingResult.status == "ai_done",
+            GradingResult.ai_score.is_not(None),
         )
         base_filter = [
             StudentAnswer.question_id == question_id,
             StudentAnswer.school_id == school_id,
-            StudentAnswer.id.in_(ai_done_answer_ids),
+            StudentAnswer.id.in_(ai_scored_answer_ids),
         ]
     else:
         base_filter = [

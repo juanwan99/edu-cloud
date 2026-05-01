@@ -15,7 +15,7 @@
     <n-tabs type="line" animated>
       <n-tab-pane name="modules" tab="功能模块">
         <n-card title="功能模块管理" style="margin-top: var(--space-4)">
-          <p style="color: var(--color-text-tertiary); margin-bottom: var(--space-4)">启用或禁用学校可用的功能模块。禁用后，对应的导航菜单、API 和 AI 助手工具将不可用。</p>
+          <p style="color: var(--color-text-muted); margin-bottom: var(--space-4)">启用或禁用学校可用的功能模块。禁用后，对应的导航菜单、API 和 AI 助手工具将不可用。</p>
           <n-space vertical>
             <div v-for="m in modules" :key="m.code" class="module-row">
               <div class="module-info">

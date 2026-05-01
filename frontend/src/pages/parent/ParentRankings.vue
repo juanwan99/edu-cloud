@@ -9,7 +9,7 @@
         <div style="flex: 1;">
           <div style="font-size: var(--fs-2xl); font-weight: var(--fw-semibold); color: rgba(255,255,255,0.9);">
             第 {{ myRanking.rank }} 名
-            <span style="font-size: var(--fs-base); font-weight: var(--fw-regular); color: var(--color-text-tertiary);">
+            <span style="font-size: var(--fs-base); font-weight: var(--fw-regular); color: var(--color-text-muted);">
               / 共 {{ rankings.length }} 人
             </span>
           </div>
@@ -20,7 +20,7 @@
             <span v-else-if="rankChange < 0" style="color: var(--color-danger);">
               ↓ 下降 {{ Math.abs(rankChange) }} 名
             </span>
-            <span v-else style="color: var(--color-text-tertiary);">
+            <span v-else style="color: var(--color-text-muted);">
               — 排名不变
             </span>
           </div>
@@ -29,7 +29,7 @@
           <div style="font-size: var(--fs-2xl); font-weight: var(--fw-semibold); color: #63e2b7;">
             {{ myRanking.total_points }}
           </div>
-          <div style="font-size: var(--fs-base); color: var(--color-text-tertiary);">总积分</div>
+          <div style="font-size: var(--fs-base); color: var(--color-text-muted);">总积分</div>
         </div>
       </div>
     </n-card>
@@ -64,7 +64,7 @@
             width: distBands.bot40 + '%',
             background: 'rgba(255,255,255,0.08)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 'var(--fs-base)', color: 'var(--color-text-tertiary)',
+            fontSize: 'var(--fs-base)', color: 'var(--color-text-muted)',
           }"
         >
           后40%

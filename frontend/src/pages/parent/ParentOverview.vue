@@ -5,7 +5,7 @@
       <div style="text-align: center; padding: var(--space-6) 0;">
         <div class="guide-icon">&#128100;</div>
         <n-h4 style="margin: var(--space-3) 0 var(--space-2);">尚未绑定孩子</n-h4>
-        <p style="color: var(--color-text-tertiary); font-size: var(--fs-base); margin-bottom: var(--space-4);">
+        <p style="color: var(--color-text-muted); font-size: var(--fs-base); margin-bottom: var(--space-4);">
           请先绑定孩子信息，才能查看学习数据
         </p>
         <n-button type="primary" @click="$router.push('/parent/bind')">
