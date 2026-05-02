@@ -66,9 +66,9 @@
           <div v-for="(a, i) in anchors" :key="i" class="anchor-row">
             <div class="anchor-head">
               <span class="anchor-tier">{{ a.tier }}</span>
-              <span class="anchor-score-label">人工分</span>
+              <span class="anchor-score-label">校准分</span>
               <n-input-number size="tiny" :value="a.score" :min="0" :max="question.max_score || 50"
-                style="width:68px" @update:value="v => updateAnchor(i, 'score', v)" />
+                :show-button="false" style="width:68px" @update:value="v => updateAnchor(i, 'score', v)" />
             </div>
             <n-input size="small" type="textarea" :value="a.summary"
               :placeholder="a.placeholder"

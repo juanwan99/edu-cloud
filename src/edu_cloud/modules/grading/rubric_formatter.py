@@ -72,11 +72,11 @@ def format_rubric_for_grading(items: list[dict] | None) -> str:
         if anchors and isinstance(anchors, list):
             valid = [a for a in anchors if a and a.get("summary")]
             if valid:
-                result += "\n\n【评分参照样本】以下是同场考试的人工评分样本，帮助你校准整体印象：\n"
+                result += "\n\n【评分参照样本】以下是同场考试的校准样本，帮助你校准整体印象：\n"
                 for a in valid:
                     tier = a.get("tier", "")
                     score = a.get("score", "?")
                     summary = a.get("summary", "")
-                    result += f"\n■ {tier}（人工评分: {score}分）\n{summary}\n"
+                    result += f"\n■ {tier}（校准分: {score}分）\n{summary}\n"
 
     return result
