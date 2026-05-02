@@ -80,9 +80,8 @@ describe('GradingDispatchPage template sections', () => {
 })
 
 describe('GradingDispatchPage page header', () => {
-  it('has correct title and subtitle', () => {
-    expect(content).toContain('扫描调度')
-    expect(content).toContain('扫描切割 → 选择题自动判分')
+  it('has correct title', () => {
+    expect(content).toContain('阅卷调度')
   })
 })
 

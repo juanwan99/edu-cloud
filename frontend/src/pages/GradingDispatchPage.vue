@@ -131,7 +131,7 @@
 </template>
 
 <script setup>
-import { ref, computed, h, onMounted, onUnmounted } from 'vue'
+import { ref, computed, h, watch, onMounted, onUnmounted } from 'vue'
 import { NSelect, NModal, NDataTable, NTag, NTabs, NTabPane } from 'naive-ui'
 import { useMessage } from 'naive-ui'
 import { useRoute } from 'vue-router'
@@ -151,8 +151,12 @@ const route = useRoute()
 const message = useMessage()
 const auth = useAuthStore()
 
-const TAB_MAP = { assign: 'assign', progress: 'progress' }
-const activeTab = ref(TAB_MAP[route.query.tab] || 'scan')
+const VALID_TABS = new Set(['scan', 'assign', 'progress'])
+const activeTab = ref(VALID_TABS.has(route.query.tab) ? route.query.tab : 'scan')
+
+watch(() => route.query.tab, (tab) => {
+  activeTab.value = VALID_TABS.has(tab) ? tab : 'scan'
+})
 
 const canManageAll = computed(() => SCHOOL_ADMIN_ROLES.includes(auth.roleName))
 const mySubjectCodes = computed(() => auth.currentRole?.subject_codes || null)

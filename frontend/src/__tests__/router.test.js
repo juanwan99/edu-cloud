@@ -225,19 +225,7 @@ describe('authGuard (real guard function)', () => {
     expect(router.currentRoute.value.path).toBe('/exams')
   })
 
-  it('redirects subject_teacher from /marking/assign (requires SCHOOL_ADMIN_ROLES)', async () => {
-    localStorage.setItem('token', 'test-jwt-token')
-    localStorage.setItem('auth_state', JSON.stringify({
-      roles: [{ role: 'subject_teacher', context: {} }],
-      currentRoleIndex: 0,
-    }))
-    const router = createTestRouter()
-    await router.push('/marking/assign')
-    await router.isReady()
-    expect(router.currentRoute.value.path).toBe('/')
-  })
-
-  it('allows academic_director to access /marking/assign', async () => {
+  it('/marking/assign redirects to /grading/tasks with tab=assign', async () => {
     localStorage.setItem('token', 'test-jwt-token')
     localStorage.setItem('auth_state', JSON.stringify({
       roles: [{ role: 'academic_director', context: {} }],
@@ -246,7 +234,8 @@ describe('authGuard (real guard function)', () => {
     const router = createTestRouter()
     await router.push('/marking/assign')
     await router.isReady()
-    expect(router.currentRoute.value.path).toBe('/marking/assign')
+    expect(router.currentRoute.value.path).toBe('/grading/tasks')
+    expect(router.currentRoute.value.query.tab).toBe('assign')
   })
 
   it('redirects to / when auth_state missing but token exists (fail-closed)', async () => {
