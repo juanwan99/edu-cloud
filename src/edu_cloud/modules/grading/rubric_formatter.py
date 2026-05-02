@@ -27,11 +27,19 @@ def format_rubric_for_grading(items: list[dict] | None) -> str:
         answer = item.get("standardAnswer") or item.get("answer", "")
 
         text = f"【第{blank_no}空】（{score}分）\n"
-        text += f"标准答案：{answer}\n"
 
         eq = item.get("equivalentAnswers")
-        if eq and isinstance(eq, list) and len(eq) > 0:
-            text += f"等价答案（必须给满分）：{' / '.join(str(a) for a in eq)}\n"
+        all_answers = [answer] if answer else []
+        if eq and isinstance(eq, list):
+            for a in eq:
+                if a and str(a) not in all_answers:
+                    all_answers.append(str(a))
+
+        if len(all_answers) > 1:
+            text += f"满分答案（任一均给{score}分）：{' / '.join(all_answers)}\n"
+            text += f'⚠️ 命中上述任一答案必须给满分，不得以"不完整/不规范/缺少后缀"为由扣分\n'
+        else:
+            text += f"标准答案：{answer}\n"
 
         context = item.get("context", "")
         if context:
@@ -39,19 +47,19 @@ def format_rubric_for_grading(items: list[dict] | None) -> str:
 
         rules = item.get("judgingRules", "")
         if rules:
-            text += f"判分规则：{rules}\n"
+            text += f"判分细则：{rules}\n"
 
         scoring = item.get("scoringRules")
         if scoring and isinstance(scoring, list):
             lines = [f"  - {r['condition']} → {r['score']}分" for r in scoring if isinstance(r, dict)]
             if lines:
-                text += f"得分梯度：\n" + "\n".join(lines) + "\n"
+                text += "部分分：\n" + "\n".join(lines) + "\n"
 
         exclusion = item.get("exclusionRules")
         if exclusion and isinstance(exclusion, list):
             lines = [f"  - {r['pattern']}（{r.get('reason', '')}）" for r in exclusion if isinstance(r, dict)]
             if lines:
-                text += f"排除项（直接0分）：\n" + "\n".join(lines) + "\n"
+                text += "排除项（直接0分）：\n" + "\n".join(lines) + "\n"
 
         wrong = item.get("typicalWrongAnswers")
         if wrong and isinstance(wrong, list) and len(wrong) > 0:

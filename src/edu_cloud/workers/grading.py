@@ -16,6 +16,7 @@ from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Question, Subject, QUESTION_TYPES_SUBJECTIVE
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
+from edu_cloud.modules.grading.equivalence_guard import apply_equivalence_guard
 import edu_cloud.models.user  # noqa: F401 — FK resolution for grading_tasks.created_by
 import edu_cloud.models.school  # noqa: F401 — FK resolution for *.school_id
 
@@ -271,6 +272,15 @@ async def _grade_single(
         t_grade = time.perf_counter()
         grade_result = await llm.grade_text(prompt=grading_prompt, max_score=ad["question_max_score"])
         plog["grading_ms"] = int((time.perf_counter() - t_grade) * 1000)
+
+        if grade_result.details and rubric_criteria:
+            guarded = apply_equivalence_guard(
+                {"score": grade_result.score, "details": grade_result.details},
+                rubric_criteria,
+            )
+            grade_result.score = guarded["score"]
+            grade_result.details = guarded["details"]
+
         plog["score"] = grade_result.score
         plog["confidence"] = grade_result.confidence
         plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
