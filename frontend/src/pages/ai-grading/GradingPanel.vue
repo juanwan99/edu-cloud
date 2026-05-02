@@ -72,7 +72,7 @@
                 :show-button="false" style="width:68px" @update:value="v => updateAnchor(i, 'score', v)" />
             </div>
             <div class="anchor-field">
-              <span class="anchor-field-label">作文摘要</span>
+              <span class="anchor-field-label">作文原文</span>
               <n-input size="small" type="textarea" :value="a.summary"
                 :placeholder="a.summaryPlaceholder"
                 :autosize="{ minRows: 2, maxRows: 3 }"
@@ -176,9 +176,9 @@ const isEssay = computed(() => {
 })
 
 const ANCHOR_TIERS = [
-  { tier: '高分档', range: '一/二类文 40-50分', summaryPlaceholder: '作文内容摘要：主题、叙事脉络、情感表达等', reasonPlaceholder: '评分理由：为什么给这个分数，如扣题准确、叙事完整、情感真挚…' },
-  { tier: '中分档', range: '三类文 35-39分', summaryPlaceholder: '作文内容摘要：主题、叙事脉络、情感表达等', reasonPlaceholder: '评分理由：如基本扣题、有叙事但情感一般…' },
-  { tier: '低分档', range: '四/五类文 0-34分', summaryPlaceholder: '作文内容摘要：主题、叙事脉络、情感表达等', reasonPlaceholder: '评分理由：如跑题、残篇、字数严重不足…' },
+  { tier: '高分档', range: '一/二类文 40-50分', summaryPlaceholder: '粘贴作文原文', reasonPlaceholder: '评分理由：为什么给这个分数，如扣题准确、叙事完整、情感真挚…' },
+  { tier: '中分档', range: '三类文 35-39分', summaryPlaceholder: '粘贴作文原文', reasonPlaceholder: '评分理由：如基本扣题、有叙事但情感一般…' },
+  { tier: '低分档', range: '四/五类文 0-34分', summaryPlaceholder: '粘贴作文原文', reasonPlaceholder: '评分理由：如跑题、残篇、字数严重不足…' },
 ]
 
 const anchors = computed(() => {
