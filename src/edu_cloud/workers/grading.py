@@ -640,7 +640,17 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
             )
 
             # Find subjective questions
-            if task.question_id:
+            if task.question_ids:
+                # Multi-question batch: load specified questions
+                q_result = await db.execute(
+                    select(Question).where(
+                        Question.id.in_(task.question_ids),
+                        Question.subject_id == task.subject_id,
+                        Question.school_id == task.school_id,
+                        Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
+                    )
+                )
+            elif task.question_id:
                 # Question-level: only load specified question
                 q_result = await db.execute(
                     select(Question).where(

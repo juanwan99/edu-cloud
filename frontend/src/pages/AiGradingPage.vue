@@ -10,6 +10,8 @@
       <n-button v-if="examId && subjectId" size="small" @click="showDocCrop = true">上传文档裁剪</n-button>
       <n-button v-if="examId && subjectId && questions.length" size="small" type="primary"
                 :loading="batchGenerating" @click="handleBatchGenerate">批量生成细则</n-button>
+      <n-button v-if="checkedQuestionIds.length >= 2" size="small" type="primary"
+                :loading="batchGrading" @click="handleBatchGrading">批量阅卷 ({{ checkedQuestionIds.length }}题)</n-button>
     </div>
 
     <!-- 选择器：无路由参数时显示 -->
@@ -30,10 +32,12 @@
       <QuestionList
         :questions="questions"
         :selectedQuestionId="selectedQuestion?.question_id"
+        :checkedIds="checkedQuestionIds"
         :editingScoreId="editingScoreId"
         :generatingSet="generatingSet"
         :loading="loadingQuestions"
         @select="selectQuestion"
+        @update:checkedIds="checkedQuestionIds = $event"
         @start-edit-score="startEditScore"
         @save-score="saveScore"
         @update-score-value="handleUpdateScoreValue"
@@ -130,6 +134,8 @@ const rubricSaving = ref(false)
 const showDocCrop = ref(false)
 const batchGenerating = ref(false)
 
+const checkedQuestionIds = ref([])
+const batchGrading = ref(false)
 const gradingStarting = ref(false)
 const taskProgress = ref(null)
 let pollTimer = null
@@ -189,6 +195,7 @@ async function onSubjectSelected(val) {
   selectedSubjectId.value = val
   questions.value = []
   selectedQuestion.value = null
+  checkedQuestionIds.value = []
   taskProgress.value = null
   stopPolling()
   await loadQuestions()
@@ -548,6 +555,27 @@ async function handleDocCropSave(results) {
   if (ok) await loadQuestions()
 }
 
+async function handleBatchGrading() {
+  if (checkedQuestionIds.value.length === 0) return
+  batchGrading.value = true
+  try {
+    const payload = {
+      subject_id: subjectId.value,
+      question_ids: checkedQuestionIds.value,
+    }
+    const res = await createTask(payload)
+    const taskId = res.data?.task_id || res.data?.id
+    if (taskId) {
+      startPolling(taskId)
+    }
+    message.success(`批量阅卷已启动 (${checkedQuestionIds.value.length} 题)`)
+  } catch (e) {
+    message.error('批量阅卷启动失败: ' + (e.response?.data?.detail || e.message))
+  } finally {
+    batchGrading.value = false
+  }
+}
+
 async function handleBatchGenerate() {
   batchGenerating.value = true
   let ok = 0, fail = 0
@@ -591,115 +619,6 @@ async function handleBatchGenerate() {
   grid-template-columns: 260px 1fr;
   gap: 16px;
   align-items: start;
-}
-
-.left-panel {
-  background: var(--card-color, #1e2a22);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--r-md);
-  padding: 12px;
-  position: sticky;
-  top: 16px;
-  max-height: calc(100dvh - 64px - 48px - 32px);
-  overflow-y: auto;
-}
-
-.panel-title {
-  font-size: var(--fs-base);
-  font-weight: var(--fw-semibold);
-  color: #c8d4ca;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.question-item {
-  padding: 8px;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  margin-bottom: 4px;
-  transition: background 0.15s;
-  border: 1px solid transparent;
-}
-
-.question-item:hover {
-  background: #242e28;
-  border-color: #3a4a3e;
-}
-
-.question-item.active {
-  background: #1a3020;
-  border-color: #4ade80;
-}
-
-.q-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.q-num {
-  font-size: var(--fs-2xl);
-  font-weight: var(--fw-semibold);
-  color: #e8f0ea;
-  min-width: 32px;
-  text-align: center;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.question-item.active .q-num {
-  color: #4ade80;
-}
-
-.q-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.q-title {
-  font-size: var(--fs-base);
-  color: #e8f0ea;
-  margin-bottom: 5px;
-  font-weight: var(--fw-medium);
-}
-
-.q-score {
-  color: #a8e0a8;
-  font-weight: var(--fw-semibold);
-}
-.q-score.editable {
-  cursor: pointer; border-bottom: 1px dashed #a8e0a8;
-  margin-left: 6px;
-}
-
-.q-tags {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.t {
-  font-size: var(--fs-sm);
-  padding: 2px 6px;
-  border-radius: var(--r-xs);
-  font-weight: var(--fw-medium);
-}
-
-.t.ok {
-  background: #1a4020;
-  color: #6ee7a0;
-}
-
-.t.warn {
-  background: #3a2a0a;
-  color: #fcd34d;
-}
-
-.q-progress {
-  font-size: 16px;
-  color: #d0dcd4;
-  margin-top: 4px;
 }
 
 .right-panel {

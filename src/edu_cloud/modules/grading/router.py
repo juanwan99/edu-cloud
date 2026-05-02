@@ -356,6 +356,7 @@ async def generate_rubric_endpoint(
 class GradingTaskCreate(BaseModel):
     subject_id: str
     question_id: str | None = None
+    question_ids: list[str] | None = None
     limit: int | None = None
     mode: Literal["realtime", "batch"] = "realtime"
     use_vision: bool = False
@@ -366,6 +367,7 @@ def _task_response(t: GradingTask) -> dict:
         "id": t.id,
         "subject_id": t.subject_id,
         "question_id": t.question_id,
+        "question_ids": t.question_ids,
         "status": t.status,
         "total": t.total,
         "completed": t.completed,
@@ -720,6 +722,9 @@ async def create_grading_task(
 ):
     school_id = current["current_role"].school_id
 
+    if req.question_id and req.question_ids:
+        raise HTTPException(400, "question_id 和 question_ids 不能同时指定")
+
     # 前置校验 1：Subject 归属
     result = await db.execute(
         select(Subject).where(
@@ -730,7 +735,54 @@ async def create_grading_task(
     if not result.scalar_one_or_none():
         raise HTTPException(404, "Subject not found")
 
-    if req.question_id:
+    if req.question_ids:
+        # --- Multi-question batch path ---
+        q_rows = (await db.execute(
+            select(Question).where(
+                Question.id.in_(req.question_ids),
+                Question.subject_id == req.subject_id,
+                Question.school_id == school_id,
+                Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
+            )
+        )).scalars().all()
+        found_ids = {q.id for q in q_rows}
+        missing = set(req.question_ids) - found_ids
+        if missing:
+            raise HTTPException(400, f"以下题目不存在、不属于该科目或非主观题: {missing}")
+
+        rubric_count = (await db.execute(
+            select(func.count(Rubric.id)).where(
+                Rubric.question_id.in_(req.question_ids),
+                Rubric.school_id == school_id,
+            )
+        )).scalar() or 0
+        if rubric_count < len(req.question_ids):
+            raise HTTPException(400, "部分题目未配置评分标准（Rubric），请先为所有选中题目生成细则")
+
+        answer_count = (await db.execute(
+            select(func.count(StudentAnswer.id)).where(
+                StudentAnswer.subject_id == req.subject_id,
+                StudentAnswer.school_id == school_id,
+                StudentAnswer.question_id.in_(req.question_ids),
+            )
+        )).scalar() or 0
+        if answer_count == 0:
+            raise HTTPException(400, "选中题目暂无可批改答卷")
+
+        old_results = (await db.execute(
+            select(GradingResult).where(
+                GradingResult.question_id.in_(req.question_ids),
+                GradingResult.school_id == school_id,
+                GradingResult.status == "ai_pending",
+            )
+        )).scalars().all()
+        for old in old_results:
+            await db.delete(old)
+        if old_results:
+            await db.commit()
+            logger.info("create_grading_task: cleaned %d stale ai_pending for batch questions", len(old_results))
+
+    elif req.question_id:
         # --- Question-level path ---
         # AGP-001: validate question belongs to subject AND is subjective
         q_row = (await db.execute(
@@ -830,7 +882,8 @@ async def create_grading_task(
     # 创建 task（commit 以获得 ID），后续 enqueue 失败则清理 orphan
     task = GradingTask(
         subject_id=req.subject_id,
-        question_id=req.question_id,  # None for subject-level
+        question_id=req.question_id,
+        question_ids=req.question_ids,
         school_id=school_id,
         status="pending",
         total=0,

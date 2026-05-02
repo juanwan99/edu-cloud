@@ -359,7 +359,7 @@ tests/
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）| — |
 | Tests | 2199 passed / 21 failed（既有债）后端 + 2404 前端 Vitest 0 failed（ECS 实测 @ 2026-04-28） | — |
 | Modules | 21 模块目录，路由已迁入。技术债 H-01 拆分后：`card` 含 `router.py`(839行) + `card_template_router.py`(230行) + `card_export_router.py`(326行)；`grading` 含 `router.py`(520行) + `grading_review_router.py`(396行) + `prompts/` 子包 + `gemini_client.py`(官方SDK) + `image_utils.py`(图片预处理) + `detail_flatten.py`(LLM输出标准化)；`analytics` 含 `router.py`(220行) + `analytics_report_router.py`(585行)。详见 `docs/2026-04-26-tech-debt-audit.md` §修复记录 | — |
-| Migrations | Alembic migration（88 表，34 个迁移，含 `360f62486518` grading_results.annotations + grading_tasks.use_vision） | — |
+| Migrations | Alembic migration（88 表，35 个迁移，含 `7c3052a2ed11` grading_tasks.question_ids 批量阅卷） | — |
 
 ## 技术栈
 

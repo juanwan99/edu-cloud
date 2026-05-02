@@ -1,6 +1,11 @@
 <template>
   <div class="left-panel">
-    <div class="panel-title">主观题列表</div>
+    <div class="panel-title">
+      <span>主观题列表</span>
+      <a v-if="questions.length > 1" class="select-all-link" @click="toggleAll">
+        {{ checkedIds.length === questions.length ? '取消全选' : '全选' }}
+      </a>
+    </div>
     <div v-if="loading" class="loading-tip">加载中...</div>
     <div v-else-if="questions.length === 0" class="empty-tip">暂无主观题</div>
     <n-button v-if="!loading" size="medium" block dashed style="margin-bottom:10px;font-size: var(--fs-base);font-weight:var(--fw-bold);color:var(--color-success, #4ade80);border-color:var(--color-success, #4ade80)" @click="$emit('add-question')">+ 添加题目</n-button>
@@ -12,6 +17,7 @@
       @click="$emit('select', q)"
     >
       <div class="q-row">
+        <n-checkbox :checked="checkedIds.includes(q.question_id)" @update:checked="toggleCheck(q.question_id)" @click.stop size="small" />
         <span v-if="editingNameId !== q.question_id" class="q-num editable" @click.stop="$emit('start-edit-name', q)">{{ q.name || q.question_name }}</span>
         <n-input v-else :value="q.name || q.question_name" size="small" style="width:48px;font-size:var(--fs-xl);font-weight:var(--fw-bold);text-align:center"
           @update:value="v => $emit('update-name-value', q, v)"
@@ -49,18 +55,34 @@
 </template>
 
 <script setup>
-import { NInput, NInputNumber, NPopselect } from 'naive-ui'
+import { NInput, NInputNumber, NPopselect, NCheckbox } from 'naive-ui'
 
 const props = defineProps({
   questions: { type: Array, default: () => [] },
   selectedQuestionId: { type: [String, Number], default: null },
+  checkedIds: { type: Array, default: () => [] },
   editingScoreId: { type: [String, Number], default: null },
   editingNameId: { type: [String, Number], default: null },
   generatingSet: { type: Set, default: () => new Set() },
   loading: { type: Boolean, default: false },
 })
 
-defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', 'add-question', 'start-edit-name', 'save-name', 'update-name-value', 'delete-question', 'set-parent'])
+const emit = defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', 'add-question', 'start-edit-name', 'save-name', 'update-name-value', 'delete-question', 'set-parent', 'update:checkedIds'])
+
+function toggleCheck(qid) {
+  const s = new Set(props.checkedIds)
+  if (s.has(qid)) s.delete(qid)
+  else s.add(qid)
+  emit('update:checkedIds', [...s])
+}
+
+function toggleAll() {
+  if (props.checkedIds.length === props.questions.length) {
+    emit('update:checkedIds', [])
+  } else {
+    emit('update:checkedIds', props.questions.map(q => q.question_id))
+  }
+}
 
 function parentName(parentId) {
   const p = props.questions.find(q => q.question_id === parentId)
@@ -76,6 +98,10 @@ function mountOptions(q) {
 
 <style scoped>
 .left-panel {
+  --color-text: #e8f0ea;
+  --color-text-secondary: #b0c0b5;
+  --color-text-muted: #8a9b90;
+  --color-success: #4ade80;
   background: var(--card-color, #1e2a22);
   border: 1px solid var(--border-color, #2e3e34);
   border-radius: var(--radius-md);
@@ -87,12 +113,26 @@ function mountOptions(q) {
 }
 
 .panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: var(--fs-base);
   font-weight: var(--fw-bold);
   color: var(--color-text-secondary);
   margin-bottom: 10px;
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--border-color, #2e3e34);
+}
+
+.select-all-link {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-decoration: none;
+}
+.select-all-link:hover {
+  color: var(--color-success);
 }
 
 .question-item {

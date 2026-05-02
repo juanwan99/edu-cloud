@@ -29,6 +29,7 @@ class GradingTask(Base, IdMixin, TimestampMixin):
     question_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("questions.id"), default=None, nullable=True, index=True,
     )
+    question_ids: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
     status: Mapped[str] = mapped_column(String(20), default="pending")
     total: Mapped[int] = mapped_column(default=0)
     completed: Mapped[int] = mapped_column(default=0)
