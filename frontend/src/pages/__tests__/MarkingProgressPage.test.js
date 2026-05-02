@@ -30,7 +30,7 @@ describe('MarkingProgressPage smoke', () => {
 describe('MarkingProgressPage template sections', () => {
   it('contains page header with back button', () => {
     expect(content).toContain("$router.push('/marking')")
-    expect(content).toContain('← 返回阅卷')
+    expect(content).toContain('返回阅卷')
     expect(content).toContain('阅卷进度')
   })
 

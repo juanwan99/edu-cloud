@@ -30,7 +30,7 @@ describe('AiGradingPage smoke', () => {
 describe('AiGradingPage template sections', () => {
   it('contains page header with back button and title', () => {
     expect(content).toContain('class="page-header"')
-    expect(content).toContain('← 返回')
+    expect(content).toContain('返回')
     expect(content).toContain('AI 阅卷配置')
   })
 

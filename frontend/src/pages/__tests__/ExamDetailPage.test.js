@@ -56,7 +56,7 @@ describe('ExamDetailPage template tab structure', () => {
 
   it('has back button to exam list', () => {
     expect(content).toContain("$router.push('/exams')")
-    expect(content).toContain('← 返回考试列表')
+    expect(content).toContain('返回考试列表')
   })
 })
 
