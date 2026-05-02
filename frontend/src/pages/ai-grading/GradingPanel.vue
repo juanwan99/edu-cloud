@@ -62,18 +62,23 @@
         />
         <div v-if="isEssay" class="anchor-section">
           <div class="anchor-title">评分锚定范文（作文校准用，可选）</div>
-          <div class="anchor-hint">配置高/中/低三档真实样本，AI 评分时以此为参照校准尺度</div>
+          <div class="anchor-hint">配置高/中/低三档真实样本，AI 评分时以此为参照校准尺度。样本可来自本次或历次考试，只需作文类型相近（如同为记叙文）即可</div>
           <div v-for="(a, i) in anchors" :key="i" class="anchor-row">
             <div class="anchor-head">
               <span class="anchor-tier">{{ a.tier }}</span>
+              <span class="anchor-range">{{ a.range }}</span>
               <span class="anchor-score-label">校准分</span>
               <n-input-number size="tiny" :value="a.score" :min="0" :max="question.max_score || 50"
                 :show-button="false" style="width:68px" @update:value="v => updateAnchor(i, 'score', v)" />
             </div>
             <n-input size="small" type="textarea" :value="a.summary"
-              :placeholder="a.placeholder"
-              :autosize="{ minRows: 2, maxRows: 4 }"
+              :placeholder="a.summaryPlaceholder"
+              :autosize="{ minRows: 2, maxRows: 3 }"
               @update:value="v => updateAnchor(i, 'summary', v)" />
+            <n-input size="small" type="textarea" :value="a.reason"
+              :placeholder="a.reasonPlaceholder"
+              :autosize="{ minRows: 1, maxRows: 3 }"
+              @update:value="v => updateAnchor(i, 'reason', v)" />
           </div>
         </div>
       </n-card>
@@ -165,9 +170,9 @@ const isEssay = computed(() => {
 })
 
 const ANCHOR_TIERS = [
-  { tier: '高分档', placeholder: '二类文样本摘要：扣题+叙事完整+感情真挚，人工给了多少分、为什么' },
-  { tier: '中分档', placeholder: '三类文样本摘要：扣题+有叙事但情感一般，人工给了多少分、为什么' },
-  { tier: '低分档', placeholder: '五类文样本摘要：跑题/残篇/字数严重不足，人工给了多少分、为什么' },
+  { tier: '高分档', range: '一/二类文 40-50分', summaryPlaceholder: '作文内容摘要：主题、叙事脉络、情感表达等', reasonPlaceholder: '评分理由：为什么给这个分数，如扣题准确、叙事完整、情感真挚…' },
+  { tier: '中分档', range: '三类文 35-39分', summaryPlaceholder: '作文内容摘要：主题、叙事脉络、情感表达等', reasonPlaceholder: '评分理由：如基本扣题、有叙事但情感一般…' },
+  { tier: '低分档', range: '四/五类文 0-34分', summaryPlaceholder: '作文内容摘要：主题、叙事脉络、情感表达等', reasonPlaceholder: '评分理由：如跑题、残篇、字数严重不足…' },
 ]
 
 const anchors = computed(() => {
@@ -176,6 +181,7 @@ const anchors = computed(() => {
     ...t,
     score: saved[i]?.score ?? null,
     summary: saved[i]?.summary ?? '',
+    reason: saved[i]?.reason ?? '',
   }))
 })
 
@@ -366,8 +372,14 @@ const taskProgressPct = computed(() => {
   min-width: 56px;
 }
 
+.anchor-range {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+
 .anchor-score-label {
   font-size: var(--fs-base);
   color: var(--color-text-muted);
+  margin-left: auto;
 }
 </style>
