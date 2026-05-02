@@ -71,14 +71,20 @@
               <n-input-number size="tiny" :value="a.score" :min="0" :max="question.max_score || 50"
                 :show-button="false" style="width:68px" @update:value="v => updateAnchor(i, 'score', v)" />
             </div>
-            <n-input size="small" type="textarea" :value="a.summary"
-              :placeholder="a.summaryPlaceholder"
-              :autosize="{ minRows: 2, maxRows: 3 }"
-              @update:value="v => updateAnchor(i, 'summary', v)" />
-            <n-input size="small" type="textarea" :value="a.reason"
-              :placeholder="a.reasonPlaceholder"
-              :autosize="{ minRows: 1, maxRows: 3 }"
-              @update:value="v => updateAnchor(i, 'reason', v)" />
+            <div class="anchor-field">
+              <span class="anchor-field-label">作文摘要</span>
+              <n-input size="small" type="textarea" :value="a.summary"
+                :placeholder="a.summaryPlaceholder"
+                :autosize="{ minRows: 2, maxRows: 3 }"
+                @update:value="v => updateAnchor(i, 'summary', v)" />
+            </div>
+            <div class="anchor-field">
+              <span class="anchor-field-label">评分理由</span>
+              <n-input size="small" type="textarea" :value="a.reason"
+                :placeholder="a.reasonPlaceholder"
+                :autosize="{ minRows: 1, maxRows: 3 }"
+                @update:value="v => updateAnchor(i, 'reason', v)" />
+            </div>
           </div>
         </div>
       </n-card>
@@ -381,5 +387,16 @@ const taskProgressPct = computed(() => {
   font-size: var(--fs-base);
   color: var(--color-text-muted);
   margin-left: auto;
+}
+
+.anchor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.anchor-field-label {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
 }
 </style>

@@ -70,7 +70,7 @@ def format_rubric_for_grading(items: list[dict] | None) -> str:
         result += "\n" + _ESSAY_CALIBRATION
         anchors = items[0].get("essayAnchors")
         if anchors and isinstance(anchors, list):
-            valid = [a for a in anchors if a and a.get("summary")]
+            valid = [a for a in anchors if a and (a.get("summary") or a.get("reason"))]
             if valid:
                 result += "\n\n【评分参照样本】以下是校准样本，帮助你校准整体印象：\n"
                 for a in valid:
