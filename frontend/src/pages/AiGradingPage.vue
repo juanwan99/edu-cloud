@@ -591,7 +591,7 @@ async function handleBatchGenerate() {
 
 .left-panel {
   background: var(--card-color, #1e2a22);
-  border: 1px solid var(--border-color, #2e3e34);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--r-md);
   padding: 12px;
   position: sticky;
@@ -606,7 +606,7 @@ async function handleBatchGenerate() {
   color: #8a9a8e;
   margin-bottom: 10px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--border-color, #2e3e34);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .question-item {
@@ -753,7 +753,7 @@ async function handleBatchGenerate() {
   max-width: 240px;
   max-height: 180px;
   border-radius: 6px;
-  border: 1px solid var(--border-color, #2e3e34);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   object-fit: contain;
   cursor: pointer;
 }

@@ -217,6 +217,7 @@ const taskProgressPct = computed(() => {
 
 .detail-card {
   border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .content-text {
@@ -264,7 +265,7 @@ const taskProgressPct = computed(() => {
   max-width: 240px;
   max-height: 180px;
   border-radius: 6px;
-  border: 1px solid var(--border-color, #2e3e34);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   object-fit: contain;
   cursor: pointer;
 }
@@ -339,7 +340,7 @@ const taskProgressPct = computed(() => {
 .anchor-section {
   margin-top: var(--space-3);
   padding-top: var(--space-3);
-  border-top: 1px dashed var(--border-color, #2e3e34);
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
 }
 
 .anchor-title {
@@ -360,7 +361,7 @@ const taskProgressPct = computed(() => {
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--border-color, #2e3e34);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .anchor-row:last-child { border-bottom: none; }
