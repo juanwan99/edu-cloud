@@ -603,7 +603,7 @@ async function handleBatchGenerate() {
 .panel-title {
   font-size: var(--fs-base);
   font-weight: var(--fw-semibold);
-  color: #8a9a8e;
+  color: #c8d4ca;
   margin-bottom: 10px;
   padding-bottom: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
@@ -655,17 +655,17 @@ async function handleBatchGenerate() {
 
 .q-title {
   font-size: var(--fs-base);
-  color: #d0dcd2;
+  color: #e8f0ea;
   margin-bottom: 5px;
   font-weight: var(--fw-medium);
 }
 
 .q-score {
-  color: #90c090;
+  color: #a8e0a8;
   font-weight: var(--fw-semibold);
 }
 .q-score.editable {
-  cursor: pointer; border-bottom: 1px dashed #90c090;
+  cursor: pointer; border-bottom: 1px dashed #a8e0a8;
   margin-left: 6px;
 }
 
@@ -694,7 +694,7 @@ async function handleBatchGenerate() {
 
 .q-progress {
   font-size: 16px;
-  color: #b0c0b4;
+  color: #d0dcd4;
   margin-top: 4px;
 }
 
@@ -764,7 +764,7 @@ async function handleBatchGenerate() {
 
 .progress-label {
   font-size: 16px;
-  color: #8a9a8e;
+  color: #c0ccc2;
   margin-bottom: 4px;
 }
 
@@ -784,7 +784,7 @@ async function handleBatchGenerate() {
 
 .empty-tip {
   font-size: 16px;
-  color: #8a9a8e;
+  color: #c0ccc2;
   padding: 8px 0;
 }
 
@@ -795,7 +795,7 @@ async function handleBatchGenerate() {
 
 .loading-tip {
   font-size: 16px;
-  color: #8a9a8e;
+  color: #c0ccc2;
   padding: 16px 0;
   text-align: center;
 }
