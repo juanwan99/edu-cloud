@@ -1,6 +1,11 @@
 <template>
   <div class="left-panel">
-    <div class="panel-title">主观题列表</div>
+    <div class="panel-title">
+      <span>主观题列表</span>
+      <a v-if="questions.length > 1" class="select-all-link" @click.stop="toggleAll">
+        {{ checkedIds.length === questions.length ? '取消' : '全选' }}
+      </a>
+    </div>
     <div v-if="loading" class="loading-tip">加载中...</div>
     <div v-else-if="questions.length === 0" class="empty-tip">暂无主观题</div>
     <n-button v-if="!loading" size="medium" block dashed style="margin-bottom:10px;font-size: var(--fs-base);font-weight:var(--fw-bold);color:var(--color-success, #4ade80);border-color:var(--color-success, #4ade80)" @click="$emit('add-question')">+ 添加题目</n-button>
@@ -12,6 +17,7 @@
       @click="$emit('select', q)"
     >
       <div class="q-row">
+        <n-checkbox :checked="checkedIds.includes(q.question_id)" @update:checked="toggleCheck(q.question_id)" @click.stop size="small" />
         <span v-if="editingNameId !== q.question_id" class="q-num editable" @click.stop="$emit('start-edit-name', q)">{{ q.name || q.question_name }}</span>
         <n-input v-else :value="q.name || q.question_name" size="small" style="width:48px;font-size:var(--fs-xl);font-weight:var(--fw-bold);text-align:center"
           @update:value="v => $emit('update-name-value', q, v)"
@@ -33,6 +39,7 @@
             </span>
             <span v-if="generatingSet?.has?.(q.question_id)" class="t gen">生成中...</span>
             <span v-else class="t" :class="q.has_rubric ? 'ok' : 'warn'">{{ q.has_rubric ? '细则' : '无细则' }}</span>
+            <span class="t vision-tag" :class="visionMap[q.question_id] ? 'vision-on' : 'vision-off'" @click.stop="$emit('toggle-vision', q.question_id)">{{ visionMap[q.question_id] ? 'Vision' : 'OCR' }}</span>
           </div>
           <div v-if="q.answer_count" class="q-progress">
             {{ q.graded_count }}/{{ q.answer_count }} 已阅
@@ -49,18 +56,32 @@
 </template>
 
 <script setup>
-import { NInput, NInputNumber, NPopselect } from 'naive-ui'
+import { NInput, NInputNumber, NPopselect, NCheckbox } from 'naive-ui'
 
 const props = defineProps({
   questions: { type: Array, default: () => [] },
   selectedQuestionId: { type: [String, Number], default: null },
+  checkedIds: { type: Array, default: () => [] },
+  visionMap: { type: Object, default: () => ({}) },
   editingScoreId: { type: [String, Number], default: null },
   editingNameId: { type: [String, Number], default: null },
   generatingSet: { type: Set, default: () => new Set() },
   loading: { type: Boolean, default: false },
 })
 
-defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', 'add-question', 'start-edit-name', 'save-name', 'update-name-value', 'delete-question', 'set-parent'])
+const emit = defineEmits(['select', 'start-edit-score', 'save-score', 'update-score-value', 'add-question', 'start-edit-name', 'save-name', 'update-name-value', 'delete-question', 'set-parent', 'update:checkedIds', 'toggle-vision'])
+
+function toggleCheck(qid) {
+  const s = new Set(props.checkedIds)
+  if (s.has(qid)) s.delete(qid)
+  else s.add(qid)
+  emit('update:checkedIds', [...s])
+}
+
+function toggleAll() {
+  if (props.checkedIds.length === props.questions.length) emit('update:checkedIds', [])
+  else emit('update:checkedIds', props.questions.map(q => q.question_id))
+}
 
 function parentName(parentId) {
   const p = props.questions.find(q => q.question_id === parentId)
@@ -91,6 +112,9 @@ function mountOptions(q) {
 }
 
 .panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: var(--fs-base);
   font-weight: var(--fw-bold);
   color: var(--color-text-secondary);
@@ -193,6 +217,32 @@ function mountOptions(q) {
   background: #0a2a3a;
   color: var(--color-info);
   animation: pulse 1.5s infinite;
+}
+.vision-tag {
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.vision-off {
+  background: #2a2e2c;
+  color: #8a9b90;
+}
+.vision-on {
+  background: #0a2a3a;
+  color: #60a5fa;
+}
+.vision-tag:hover {
+  opacity: 0.8;
+}
+
+.select-all-link {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  text-decoration: none;
+}
+.select-all-link:hover {
+  color: var(--color-success);
 }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
