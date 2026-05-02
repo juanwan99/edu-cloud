@@ -89,24 +89,72 @@ async def generate_rubric_via_llm(
 ) -> list[dict]:
     """Build prompt and call LLM to generate rubric criteria.
 
-    Module-level function so it can be mocked in tests.
+    Uses the new prompts system (subject-specific build_rubric_generation)
+    with Gemini official SDK. Falls back to legacy LLMClient if Gemini unavailable.
     """
-    from edu_cloud.modules.grading.prompts_legacy import build_rubric_generation_prompt
-    from edu_cloud.modules.grading.llm_client import LLMClient
+    from edu_cloud.modules.grading.prompts import get_prompt, render_prompt
+    from edu_cloud.modules.grading.gemini_client import GeminiClient, _make_image_part
+    from edu_cloud.modules.grading.json_parser import extract_json
+    from google.genai import types
 
     content = question.content or ""
     reference_answer = question.reference_answer or ""
 
-    # Collect image paths from question (content_images + reference_answer_images)
+    # Determine subject code for prompt selection
+    subject_result = await db.execute(
+        select(Subject).where(Subject.id == question.subject_id)
+    )
+    subject = subject_result.scalar_one_or_none()
+    subject_code = subject.code if subject else ""
+
+    # Try new prompts system first
+    rubric_prompt_tpl = get_prompt(subject_code, "RUBRIC_GENERATION", "senior")
+
+    if not rubric_prompt_tpl:
+        # Fallback to legacy for subjects without new prompts
+        from edu_cloud.modules.grading.prompts_legacy import build_rubric_generation_prompt
+        from edu_cloud.modules.grading.llm_client import LLMClient
+
+        messages = build_rubric_generation_prompt(
+            content=content,
+            reference_answer=reference_answer,
+            max_score=max_score,
+            question_type=question.question_type,
+        )
+        client = LLMClient(
+            api_url=settings.LLM_API_URL,
+            api_key=settings.LLM_API_KEY,
+            model=settings.LLM_MODEL,
+            timeout=settings.LLM_TIMEOUT,
+            max_retries=settings.LLM_MAX_RETRIES,
+            slot=settings.LLM_SLOT,
+        )
+        try:
+            return await client.generate_rubric(messages, images_b64=None)
+        finally:
+            await client.close()
+
+    # New prompts path: build prompt with subject-specific template
+    image_desc = ""
+    question_section = f"【题目原文】\n{content or '(见图片)'}"
+    answer_section = f"【参考答案】\n{reference_answer or '(见图片)'}"
+
+    prompt_text = render_prompt(rubric_prompt_tpl, {
+        "imageDescription": image_desc,
+        "questionSection": question_section,
+        "answerSection": answer_section,
+        "fullScore": str(max_score),
+    })
+
+    # Collect images
     all_image_paths: list[str] = []
     if question.content_images:
         all_image_paths.extend(question.content_images)
     if question.reference_answer_images:
         all_image_paths.extend(question.reference_answer_images)
 
-    # Convert local image paths to base64
     upload_root = Path(settings.UPLOAD_DIR).resolve()
-    images_b64: list[str] = []
+    parts: list = []
     for img_path in all_image_paths:
         if img_path.startswith("/uploads/"):
             local = upload_root / img_path.split("/uploads/", 1)[1]
@@ -118,30 +166,28 @@ async def generate_rubric_via_llm(
             continue
         if local.exists() and str(local).startswith(str(upload_root)):
             try:
-                with open(local, "rb") as f:
-                    images_b64.append(base64.b64encode(f.read()).decode())
+                parts.append(_make_image_part(local.read_bytes()))
             except OSError:
                 logger.warning("generate_rubric_via_llm: cannot read image %s", local)
 
-    messages = build_rubric_generation_prompt(
-        content=content,
-        reference_answer=reference_answer,
-        max_score=max_score,
-        question_type=question.question_type,
-    )
+    parts.append(types.Part.from_text(text=prompt_text))
+    contents = [types.Content(role="user", parts=parts)]
 
-    client = LLMClient(
-        api_url=settings.LLM_API_URL,
-        api_key=settings.LLM_API_KEY,
-        model=settings.LLM_MODEL,
-        timeout=settings.LLM_TIMEOUT,
+    # Call Gemini
+    client = GeminiClient(
+        api_key=settings.GEMINI_API_KEY or settings.LLM_API_KEY,
+        model=settings.GEMINI_MODEL or settings.LLM_MODEL,
         max_retries=settings.LLM_MAX_RETRIES,
-        slot=settings.LLM_SLOT,
     )
-    try:
-        return await client.generate_rubric(messages, images_b64=images_b64 or None)
-    finally:
-        await client.close()
+    raw = await client._generate(contents, method="rubric_gen", max_tokens=16384)
+    parsed = extract_json(raw)
+
+    if parsed and isinstance(parsed, dict) and "rubricItems" in parsed:
+        return parsed["rubricItems"]
+    elif parsed and isinstance(parsed, list):
+        return parsed
+
+    raise HTTPException(500, f"Failed to parse rubric generation response")
 
 
 # --- Rubric generate schema ---
