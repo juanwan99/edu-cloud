@@ -31,14 +31,14 @@
           <n-form-item path="username">
             <n-input v-model:value="form.username" placeholder="请输入用户名…" size="large" :input-props="{ autocomplete: 'username' }">
               <template #prefix>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a9a8e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6B7A90" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               </template>
             </n-input>
           </n-form-item>
           <n-form-item path="password">
             <n-input v-model:value="form.password" type="password" placeholder="请输入密码…" size="large" show-password-on="click" :input-props="{ autocomplete: 'current-password' }" @keyup.enter="handleLogin">
               <template #prefix>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a9a8e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6B7A90" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </template>
             </n-input>
           </n-form-item>
@@ -139,7 +139,9 @@ async function handleLogin() {
   min-height: 100dvh;
   position: relative;
   overflow: hidden;
-  background: var(--color-bg);
+  background:
+    radial-gradient(900px 500px at 12% -10%, #ffffff 0%, #F3F7FF 55%, transparent 70%),
+    linear-gradient(165deg, #F7F9FD 0%, #EEF3FF 100%);
 }
 
 .login-content {
@@ -153,7 +155,7 @@ async function handleLogin() {
   padding: 24px 16px;
 }
 
-/* 装饰圆 — 实心、有边界感 */
+/* 装饰 — 柔和几何，不花哨 */
 .decor {
   position: absolute;
   border-radius: 50%;
@@ -161,41 +163,40 @@ async function handleLogin() {
 }
 
 .decor--mint {
-  width: 620px;
-  height: 620px;
-  top: -180px;
-  right: -160px;
-  background: var(--macaron-mint-light);
+  width: 520px;
+  height: 520px;
+  top: -200px;
+  right: -180px;
+  background: radial-gradient(circle, rgba(31,91,215,0.06) 0%, transparent 70%);
 }
 
 .decor--cream {
-  width: 480px;
-  height: 480px;
-  bottom: -160px;
-  left: -120px;
-  background: var(--macaron-yellow);
-  opacity: 0.6;
+  width: 400px;
+  height: 400px;
+  bottom: -180px;
+  left: -140px;
+  background: radial-gradient(circle, rgba(31,91,215,0.04) 0%, transparent 70%);
   animation-delay: -8s;
 }
 
 .decor--pink-ring {
-  width: 80px;
-  height: 80px;
+  width: 60px;
+  height: 60px;
   bottom: 30%;
-  right: 8%;
+  right: 10%;
   background: transparent;
-  border: 3px solid var(--macaron-coral);
+  border: 2px solid rgba(31,91,215,0.1);
   animation-delay: -16s;
 }
 
 .decor--lavender {
-  width: 60px;
-  height: 60px;
+  width: 48px;
+  height: 48px;
   top: 18%;
-  left: 6%;
+  left: 8%;
   background: transparent;
-  border: 3px solid var(--macaron-purple);
-  border-radius: 8px;
+  border: 2px solid rgba(31,91,215,0.08);
+  border-radius: 12px;
   animation-delay: -12s;
 }
 
@@ -218,7 +219,7 @@ async function handleLogin() {
 .brand-name {
   font-size: 48px;
   font-weight: 800;
-  color: #1a7a4f;
+  color: #111C33;
   letter-spacing: -0.035em;
   margin: 0;
   white-space: nowrap;
@@ -230,7 +231,7 @@ async function handleLogin() {
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #72726c;
+  color: #6B7A90;
   margin-top: 6px;
 }
 
@@ -249,23 +250,30 @@ async function handleLogin() {
   font-size: var(--fs-base);
   font-weight: var(--fw-semibold);
   letter-spacing: 3px;
-  border-radius: 8px !important;
+  border-radius: 12px !important;
   margin-top: 4px;
-  background: #1a7a4f !important;
-  box-shadow: 0 4px 14px rgba(26, 122, 79, 0.25);
+  background: #1F5BD7 !important;
+  border-color: #1F5BD7 !important;
+  box-shadow: 0 8px 24px rgba(31, 91, 215, 0.25);
+}
+
+.login-btn:hover {
+  background: #1849B0 !important;
+  border-color: #1849B0 !important;
+  box-shadow: 0 8px 24px rgba(31, 91, 215, 0.35);
 }
 
 .login-hint {
   margin-top: 20px;
   text-align: center;
   font-size: var(--fs-base);
-  color: var(--color-text-muted);
+  color: #6B7A90;
 }
 
 .login-footer {
   margin-top: 56px;
   font-size: var(--fs-base);
-  color: var(--color-text-muted);
+  color: #6B7A90;
 }
 
 /* 成功遮罩 */
@@ -284,8 +292,8 @@ async function handleLogin() {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: var(--color-primary);
-  color: var(--color-bg, #fff);
+  background: #1F5BD7;
+  color: #fff;
   font-size: var(--fs-display);
   display: flex;
   align-items: center;
@@ -296,7 +304,7 @@ async function handleLogin() {
 .success-text {
   font-size: var(--fs-xl);
   font-weight: var(--fw-semibold);
-  color: var(--color-primary);
+  color: #1F5BD7;
 }
 
 .login-success-enter-active { transition: opacity 0.3s ease; }
