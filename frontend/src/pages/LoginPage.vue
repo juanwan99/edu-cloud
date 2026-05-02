@@ -10,13 +10,9 @@
       <!-- 品牌区 -->
       <div class="brand-area">
         <div class="brand-icon">
-          <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
-            <path d="M24 6L4 16l20 10 20-10L24 6z" fill="var(--color-primary-light)" opacity="0.3"/>
-            <path d="M24 12L4 22l20 10 20-10L24 12z" fill="var(--color-primary-light)" opacity="0.6"/>
-            <path d="M24 18L4 28l20 10 20-10L24 18z" fill="var(--color-primary)"/>
-          </svg>
+          <img src="../assets/images/logo.svg" alt="MÖBIUS" width="64" height="64" />
         </div>
-        <h1 class="brand-name">edu-cloud</h1>
+        <h1 class="brand-name">MÖBIUS</h1>
         <p class="brand-subtitle">智能教育云平台</p>
       </div>
 
@@ -62,7 +58,7 @@
       </div>
 
       <div class="login-footer">
-        &copy; {{ new Date().getFullYear() }} edu-cloud · 教育云平台
+        &copy; {{ new Date().getFullYear() }} MÖBIUS · 智能教育云平台
       </div>
     </div>
 

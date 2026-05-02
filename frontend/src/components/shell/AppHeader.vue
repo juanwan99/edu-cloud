@@ -3,12 +3,9 @@
     <div class="app-header__left">
       <div class="app-header__brand" @click="$router.push('/')">
         <span class="app-header__logo">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <rect width="28" height="28" rx="8" fill="var(--color-primary)"/>
-            <path d="M8 10h12M8 14h8M8 18h10" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+          <img src="../../assets/images/logo.svg" alt="MÖBIUS" width="28" height="28" />
         </span>
-        <span class="app-header__title">edu-cloud 智能平台</span>
+        <span class="app-header__title">MÖBIUS</span>
       </div>
       <SchoolContext />
     </div>
