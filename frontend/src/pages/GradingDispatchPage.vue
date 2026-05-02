@@ -2,8 +2,7 @@
   <div class="dispatch-page">
     <div class="top-bar">
       <div>
-        <h2 class="page-title">扫描调度</h2>
-        <p class="page-subtitle">扫描切割 → 选择题自动判分</p>
+        <h2 class="page-title">阅卷调度</h2>
       </div>
       <n-select
         v-model:value="selectedExamId"
@@ -13,6 +12,22 @@
         @update:value="onExamChange"
       />
     </div>
+
+    <n-tabs v-model:value="activeTab" type="line" style="margin-bottom: 12px;">
+      <n-tab-pane name="scan" tab="扫描调度"></n-tab-pane>
+      <n-tab-pane name="assign" tab="阅卷分配"></n-tab-pane>
+      <n-tab-pane name="progress" tab="阅卷进度"></n-tab-pane>
+    </n-tabs>
+
+    <template v-if="activeTab === 'assign'">
+      <MarkingAssignTab :exam-id="selectedExamId" />
+    </template>
+
+    <template v-else-if="activeTab === 'progress'">
+      <MarkingProgressTab :exam-id="selectedExamId" />
+    </template>
+
+    <template v-else>
 
     <template v-if="selectedExamId">
       <!-- 汇总条 -->
@@ -110,13 +125,16 @@
                       max-height="55vh" :bordered="false" />
       </template>
     </n-modal>
+
+    </template><!-- end v-else (scan tab) -->
   </div>
 </template>
 
 <script setup>
 import { ref, computed, h, onMounted, onUnmounted } from 'vue'
-import { NSelect, NModal, NDataTable, NTag } from 'naive-ui'
+import { NSelect, NModal, NDataTable, NTag, NTabs, NTabPane } from 'naive-ui'
 import { useMessage } from 'naive-ui'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { SCHOOL_ADMIN_ROLES } from '../config/roles.js'
 import { listExams } from '../api/exams'
@@ -126,9 +144,15 @@ import TemplatePreviewEditor from '../components/TemplatePreviewEditor.vue'
 import SubjectStatusCard from './grading-dispatch/SubjectStatusCard.vue'
 import ScanSection from './grading-dispatch/ScanSection.vue'
 import BatchOperationsBar from './grading-dispatch/BatchOperationsBar.vue'
+import MarkingAssignTab from './grading-dispatch/MarkingAssignTab.vue'
+import MarkingProgressTab from './grading-dispatch/MarkingProgressTab.vue'
 
+const route = useRoute()
 const message = useMessage()
 const auth = useAuthStore()
+
+const TAB_MAP = { assign: 'assign', progress: 'progress' }
+const activeTab = ref(TAB_MAP[route.query.tab] || 'scan')
 
 const canManageAll = computed(() => SCHOOL_ADMIN_ROLES.includes(auth.roleName))
 const mySubjectCodes = computed(() => auth.currentRole?.subject_codes || null)
