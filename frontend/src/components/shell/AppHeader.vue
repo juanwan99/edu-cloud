@@ -3,9 +3,9 @@
     <div class="app-header__left">
       <div class="app-header__brand" @click="$router.push('/')">
         <span class="app-header__logo">
-          <img src="../../assets/images/logo.svg" alt="MÖBIUS" width="28" height="28" />
+          <img src="../../assets/images/logo.svg" alt="微与积" width="28" height="28" />
         </span>
-        <span class="app-header__title">MÖBIUS</span>
+        <span class="app-header__title">微与积</span>
       </div>
       <SchoolContext />
     </div>

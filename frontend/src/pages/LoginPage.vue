@@ -10,9 +10,9 @@
       <!-- 品牌区 -->
       <div class="brand-area">
         <div class="brand-icon">
-          <img src="../assets/images/logo.svg" alt="MÖBIUS" width="64" height="64" />
+          <img src="../assets/images/logo.svg" alt="微与积" width="64" height="64" />
         </div>
-        <h1 class="brand-name">MÖBIUS</h1>
+        <h1 class="brand-name">微与积</h1>
         <p class="brand-subtitle">智能教育云平台</p>
       </div>
 
@@ -58,7 +58,7 @@
       </div>
 
       <div class="login-footer">
-        &copy; {{ new Date().getFullYear() }} MÖBIUS · 智能教育云平台
+        &copy; {{ new Date().getFullYear() }} 微与积 · 智能教育云平台
       </div>
     </div>
 
