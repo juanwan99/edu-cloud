@@ -1,6 +1,9 @@
 <template>
   <div style="padding: 8px;">
-    <n-button text style="margin-bottom: 8px;" @click="$router.push(`/exams/${examId}`)">← 返回考试详情</n-button>
+    <n-button text style="margin-bottom: 8px;" @click="$router.push(`/exams/${examId}`)">
+      <template #icon><n-icon><ArrowLeft :size="16" /></n-icon></template>
+      返回考试详情
+    </n-button>
     <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px; font-size: 16px;">
       <label>科目：</label>
       <select v-model="selectedSubject" style="padding:4px 8px;">
@@ -22,6 +25,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { NIcon } from 'naive-ui'
+import { ArrowLeft } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 import CardEditor from '../components/CardEditor.vue'
 import { listSubjects } from '../api/subjects'

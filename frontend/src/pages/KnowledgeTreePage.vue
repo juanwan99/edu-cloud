@@ -20,7 +20,8 @@
         >
           <template #student-selector>
             <n-button size="small" quaternary @click="backToCards" style="margin-bottom: 8px">
-              ← 返回模块概览
+              <template #icon><n-icon><ArrowLeft :size="14" /></n-icon></template>
+              返回模块概览
             </n-button>
           </template>
         </TreeNavPanel>
@@ -94,7 +95,8 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { NButton, NTabs, NTabPane, useMessage } from 'naive-ui'
+import { NButton, NTabs, NTabPane, NIcon, useMessage } from 'naive-ui'
+import { ArrowLeft } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import { useKnowledgeTree } from '../components/knowledge-tree/useKnowledgeTree'
 import ModuleCards from '../components/knowledge-tree/ModuleCards.vue'

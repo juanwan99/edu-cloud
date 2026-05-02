@@ -1,7 +1,10 @@
 <template>
   <div>
     <div class="page-header">
-      <n-button text style="margin-bottom: 8px;" @click="$router.push('/marking')">← 返回阅卷</n-button>
+      <n-button text style="margin-bottom: 8px;" @click="$router.push('/marking')">
+        <template #icon><n-icon><ArrowLeft :size="16" /></n-icon></template>
+        返回阅卷
+      </n-button>
       <h1 class="page-title">阅卷任务分配</h1>
       <p class="page-subtitle">将题目分配给指定教师阅卷，支持一题多人</p>
     </div>
@@ -120,7 +123,8 @@
 
 <script setup>
 import { h, ref, reactive, computed, onMounted } from 'vue'
-import { NButton, NTag, NSelect, useMessage } from 'naive-ui'
+import { NButton, NTag, NSelect, NIcon, useMessage } from 'naive-ui'
+import { ArrowLeft } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import client from '../api/client'

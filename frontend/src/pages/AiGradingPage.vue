@@ -1,7 +1,10 @@
 <template>
   <div class="ai-grading-page">
     <div class="page-header">
-      <n-button text @click="$router.push(hasRouteParams ? '/grading/tasks' : '/')">← 返回</n-button>
+      <n-button text @click="$router.push(hasRouteParams ? '/grading/tasks' : '/')">
+        <template #icon><n-icon><ArrowLeft :size="16" /></n-icon></template>
+        返回
+      </n-button>
       <h2 class="page-title">AI 阅卷配置</h2>
       <div style="flex:1" />
       <n-button v-if="examId && subjectId" size="small" @click="showDocCrop = true">上传文档裁剪</n-button>
@@ -87,7 +90,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useMessage, NButton } from 'naive-ui'
+import { useMessage, NButton, NIcon } from 'naive-ui'
+import { ArrowLeft } from 'lucide-vue-next'
 import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
 import { listExams } from '../api/exams'
 import { createQuestion, updateQuestion, deleteQuestion } from '../api/questions'

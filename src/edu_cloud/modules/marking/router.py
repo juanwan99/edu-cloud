@@ -224,11 +224,18 @@ async def list_teachers(
         )
     )
     rows = result.all()
-    return [
-        {"id": u.id, "username": u.username, "display_name": u.display_name,
-         "role": r.role, "subject_codes": r.subject_codes}
-        for u, r in rows
-    ]
+    seen: dict = {}
+    for u, r in rows:
+        if u.id not in seen:
+            seen[u.id] = {
+                "id": u.id, "username": u.username, "display_name": u.display_name,
+                "role": r.role, "subject_codes": list(r.subject_codes or []),
+            }
+        else:
+            for code in (r.subject_codes or []):
+                if code not in seen[u.id]["subject_codes"]:
+                    seen[u.id]["subject_codes"].append(code)
+    return list(seen.values())
 
 
 # ---------- Import ----------

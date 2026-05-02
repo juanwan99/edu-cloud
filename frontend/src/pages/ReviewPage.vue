@@ -3,7 +3,8 @@
     <!-- 顶栏 -->
     <div class="review-topbar">
       <n-button text @click="$router.back()">
-        <span style="font-size: 18px; margin-right: 4px;">&#8592;</span> 返回上一级
+        <template #icon><n-icon><ArrowLeft :size="16" /></n-icon></template>
+        返回上一级
       </n-button>
       <div class="topbar-info">
         <span class="topbar-question">{{ questionName }}</span>
@@ -30,7 +31,10 @@
           <template #footer>
             <n-space>
               <n-button @click="switchMode('ai_review')">查看 AI 复核记录</n-button>
-              <n-button type="primary" @click="$router.back()">返回上一级</n-button>
+              <n-button type="primary" @click="$router.back()">
+                <template #icon><n-icon><ArrowLeft :size="16" /></n-icon></template>
+                返回上一级
+              </n-button>
             </n-space>
           </template>
         </n-result>
@@ -259,7 +263,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useMessage } from 'naive-ui'
+import { useMessage, NIcon } from 'naive-ui'
+import { ArrowLeft } from 'lucide-vue-next'
 import { getNext, submitScore, flagAnswer, getAnswerAt } from '../api/marking'
 import client from '../api/client'
 

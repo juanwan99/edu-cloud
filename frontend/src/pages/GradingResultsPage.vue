@@ -1,7 +1,10 @@
 <template>
   <div>
     <div class="page-header">
-      <n-button text style="margin-bottom: 8px;" @click="$router.push('/grading/tasks')">← 返回阅卷任务</n-button>
+      <n-button text style="margin-bottom: 8px;" @click="$router.push('/grading/tasks')">
+        <template #icon><n-icon><ArrowLeft :size="16" /></n-icon></template>
+        返回阅卷任务
+      </n-button>
       <h1 class="page-title">批改结果</h1>
       <div style="display: flex; gap: 12px; margin-top: 12px;">
         <n-tag v-if="task" :type="taskStatusType(task.status)" round>{{ taskStatusLabel(task.status) }}</n-tag>
@@ -115,7 +118,8 @@
 <script setup>
 import { h, ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { NTag, NButton, NProgress } from 'naive-ui'
+import { NTag, NButton, NProgress, NIcon } from 'naive-ui'
+import { ArrowLeft } from 'lucide-vue-next'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'

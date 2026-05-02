@@ -1,7 +1,10 @@
 <template>
   <div>
     <div class="page-header">
-      <n-button text style="margin-bottom: 8px;" @click="$router.push('/joint-exams')">← 返回联考列表</n-button>
+      <n-button text style="margin-bottom: 8px;" @click="$router.push('/joint-exams')">
+        <template #icon><n-icon><ArrowLeft :size="16" /></n-icon></template>
+        返回联考列表
+      </n-button>
       <h1 class="page-title">{{ exam?.name || '加载中...' }}</h1>
       <p class="page-subtitle">
         <n-tag v-if="exam" size="small" :type="statusType">{{ statusLabel }}</n-tag>
@@ -97,7 +100,8 @@
 import { h, ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
-import { NButton, NTag } from 'naive-ui'
+import { NButton, NTag, NIcon } from 'naive-ui'
+import { ArrowLeft } from 'lucide-vue-next'
 import {
   getJointExam, addParticipant, removeParticipant,
   distributeExam, forceCompleteExam,

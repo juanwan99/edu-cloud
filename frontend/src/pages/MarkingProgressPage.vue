@@ -1,7 +1,10 @@
 <template>
   <div>
     <div class="page-header">
-      <n-button text style="margin-bottom: 8px;" @click="$router.push('/marking')">← 返回阅卷</n-button>
+      <n-button text style="margin-bottom: 8px;" @click="$router.push('/marking')">
+        <template #icon><n-icon><ArrowLeft :size="16" /></n-icon></template>
+        返回阅卷
+      </n-button>
       <h1 class="page-title">阅卷进度</h1>
       <p class="page-subtitle">查看各科目、各题的批改进度</p>
     </div>
@@ -93,7 +96,7 @@
 <script setup>
 import { ref, h, computed, onMounted, onUnmounted, watch } from 'vue'
 import { NProgress, NIcon, useMessage } from 'naive-ui'
-import { RefreshCw } from 'lucide-vue-next'
+import { RefreshCw, ArrowLeft } from 'lucide-vue-next'
 import { getProgress, exportCsv } from '../api/marking'
 import client from '../api/client'
 
