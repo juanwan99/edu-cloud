@@ -89,62 +89,13 @@
         </div>
       </n-card>
 
-      <!-- 阅卷操作 -->
-      <n-card class="detail-card" title="阅卷操作">
-        <div v-if="taskProgress !== null" class="progress-area">
-          <div class="progress-label">进度: {{ taskProgress.graded }}/{{ taskProgress.total }}</div>
-          <n-progress
-            type="line"
-            :percentage="taskProgressPct"
-            :show-indicator="false"
-            style="margin-top: 6px"
-          />
-          <div v-if="taskProgress.status === 'completed'" class="done-text">阅卷完成</div>
-          <div v-else-if="taskProgress.status === 'failed'" class="fail-text">阅卷失败</div>
-        </div>
-        <div class="grading-mode-row">
-          <span class="limit-label">阅卷模式</span>
-          <n-radio-group v-model:value="modeValue" size="small">
-            <n-radio-button value="realtime">实时模式</n-radio-button>
-            <n-radio-button value="batch">经济模式</n-radio-button>
-          </n-radio-group>
-        </div>
-        <div class="mode-desc">
-          {{ modeValue === 'realtime' ? '即时返回结果，适合少量或急用' : '异步处理，成本减半，适合大批量' }}
-        </div>
-        <div class="grading-mode-row">
-          <n-checkbox v-model:checked="useVision" size="small">Vision 直评</n-checkbox>
-          <span class="limit-hint">跳过 OCR，直接看图评分（含图/表/图形的题目）</span>
-        </div>
-        <div class="grading-limit-row">
-          <span class="limit-label">阅卷数量</span>
-          <n-input-number
-            v-model:value="limitValue"
-            :min="1"
-            :max="9999"
-            placeholder="全部"
-            clearable
-            size="small"
-            style="width: 140px"
-          />
-          <span class="limit-hint">留空则批改全部</span>
-        </div>
-        <n-button
-          type="primary"
-          :loading="gradingStarting"
-          :disabled="taskProgress?.status === 'processing'"
-          @click="$emit('start-grading', limitValue, modeValue, useVision)"
-          style="margin-top: 10px"
-        >开始阅卷</n-button>
-      </n-card>
-
     </template>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { NCard, NButton, NSpace, NProgress, NImage, NInputNumber, NRadioGroup, NRadioButton, NCheckbox } from 'naive-ui'
+import { computed } from 'vue'
+import { NCard, NButton, NSpace, NImage, NInputNumber } from 'naive-ui'
 import RubricEditor from '../../components/RubricEditor.vue'
 
 const props = defineProps({
@@ -153,8 +104,6 @@ const props = defineProps({
   rubricLoading: { type: Boolean, default: false },
   rubricGenerating: { type: Boolean, default: false },
   rubricSaving: { type: Boolean, default: false },
-  taskProgress: { type: Object, default: null },
-  gradingStarting: { type: Boolean, default: false },
 })
 
 const emit = defineEmits([
@@ -163,12 +112,7 @@ const emit = defineEmits([
   'generate-rubric',
   'save-rubric',
   'update:rubricItems',
-  'start-grading',
 ])
-
-const limitValue = ref(null)
-const modeValue = ref('realtime')
-const useVision = ref(false)
 
 const isEssay = computed(() => {
   const items = props.rubricItems || []
@@ -202,10 +146,7 @@ function updateAnchor(idx, field, value) {
   emit('update:rubricItems', items)
 }
 
-const taskProgressPct = computed(() => {
-  if (!props.taskProgress || !props.taskProgress.total) return 0
-  return Math.round((props.taskProgress.graded / props.taskProgress.total) * 100)
-})
+
 </script>
 
 <style scoped>
@@ -270,66 +211,10 @@ const taskProgressPct = computed(() => {
   cursor: pointer;
 }
 
-.progress-area {
-  margin-bottom: var(--space-3);
-}
-
-.progress-label {
-  font-size: var(--fs-base);
-  color: var(--color-text-muted);
-  margin-bottom: var(--space-1);
-}
-
-.done-text {
-  font-size: var(--fs-base);
-  color: var(--color-success);
-  margin-top: 6px;
-  font-weight: var(--fw-semibold);
-}
-
-.fail-text {
-  font-size: var(--fs-base);
-  color: var(--color-danger);
-  margin-top: 6px;
-  font-weight: var(--fw-semibold);
-}
-
 .empty-tip {
   font-size: var(--fs-base);
   color: var(--color-text-muted);
   padding: var(--space-2) 0;
-}
-
-.grading-limit-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-1);
-}
-
-.limit-label {
-  font-size: var(--fs-base);
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
-.limit-hint {
-  font-size: var(--fs-base);
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
-.grading-mode-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-1);
-}
-
-.mode-desc {
-  font-size: var(--fs-base);
-  color: var(--color-text-muted);
-  margin-bottom: var(--space-2);
 }
 
 .empty-tip.center {

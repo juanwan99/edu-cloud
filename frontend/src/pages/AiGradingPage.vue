@@ -10,9 +10,24 @@
       <n-button v-if="examId && subjectId" size="small" @click="showDocCrop = true">上传文档裁剪</n-button>
       <n-button v-if="examId && subjectId && questions.length" size="small" type="primary"
                 :loading="batchGenerating" @click="handleBatchGenerate">批量生成细则</n-button>
-      <n-button v-if="examId && subjectId && questions.length" size="small" type="primary"
-                :loading="batchGrading" :disabled="taskProgress?.status === 'processing'"
-                @click="handleBatchGrading">批量阅卷</n-button>
+    </div>
+
+    <!-- 阅卷设置栏 -->
+    <div class="settings-bar" v-if="examId && subjectId && questions.length">
+      <n-radio-group v-model:value="modeValue" size="small">
+        <n-radio-button value="realtime">实时</n-radio-button>
+        <n-radio-button value="batch">经济</n-radio-button>
+      </n-radio-group>
+      <n-checkbox v-model:checked="useVision" size="small">Vision</n-checkbox>
+      <n-input-number v-model:value="limitValue" :min="1" :max="9999" placeholder="全部" clearable size="small" style="width:100px" />
+      <n-button size="small" type="primary" :loading="gradingStarting" :disabled="!selectedQuestion || isProcessing" @click="handleStartGrading">开始阅卷</n-button>
+      <n-button size="small" type="warning" :loading="batchGrading" :disabled="isProcessing" @click="confirmBatchGrading">全部启动</n-button>
+      <div v-if="taskProgress" class="bar-progress">
+        <span class="bar-progress-text">{{ taskProgress.graded }}/{{ taskProgress.total }}</span>
+        <n-progress type="line" :percentage="taskProgressPct" :show-indicator="false" style="width:120px" />
+        <span v-if="taskProgress.status === 'completed'" class="bar-done">完成</span>
+        <span v-else-if="taskProgress.status === 'failed'" class="bar-fail">失败</span>
+      </div>
     </div>
 
     <!-- 选择器：无路由参数时显示 -->
@@ -56,14 +71,11 @@
         :rubricLoading="rubricLoading"
         :rubricGenerating="rubricGenerating"
         :rubricSaving="rubricSaving"
-        :taskProgress="taskProgress"
-        :gradingStarting="gradingStarting"
         @edit-content="openContentModal"
         @remove-image="removeImage"
         @generate-rubric="handleGenerateRubric"
         @save-rubric="handleSaveRubric"
         @update:rubricItems="rubricItems = $event"
-        @start-grading="handleStartGrading"
       />
     </div>
 
@@ -93,7 +105,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useMessage, NButton, NIcon } from 'naive-ui'
+import { useMessage, useDialog, NButton, NIcon, NRadioGroup, NRadioButton, NCheckbox, NInputNumber, NProgress } from 'naive-ui'
 import { ArrowLeft } from 'lucide-vue-next'
 import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
 import { listExams } from '../api/exams'
@@ -107,6 +119,7 @@ import GradingPanel from './ai-grading/GradingPanel.vue'
 
 const route = useRoute()
 const message = useMessage()
+const dialog = useDialog()
 
 const hasRouteParams = computed(() => !!route.params.examId && !!route.params.subjectId)
 
@@ -133,10 +146,20 @@ const rubricSaving = ref(false)
 const showDocCrop = ref(false)
 const batchGenerating = ref(false)
 
+const modeValue = ref('realtime')
+const useVision = ref(false)
+const limitValue = ref(null)
 const batchGrading = ref(false)
 const gradingStarting = ref(false)
 const taskProgress = ref(null)
 let pollTimer = null
+
+const isProcessing = computed(() => taskProgress.value?.status === 'processing')
+const taskProgressPct = computed(() => {
+  if (!taskProgress.value?.total) return 0
+  return Math.round((taskProgress.value.graded / taskProgress.value.total) * 100)
+})
+const totalAnswers = computed(() => questions.value.reduce((sum, q) => sum + (q.answer_count || 0), 0))
 
 const contentModalShow = ref(false)
 const contentModalTitle = ref('')
@@ -216,6 +239,9 @@ async function loadQuestions() {
       })
     } else {
       questions.value = []
+    }
+    if (questions.value.length && !selectedQuestion.value) {
+      selectQuestion(questions.value[0])
     }
   } catch (e) {
     message.error('加载题目失败')
@@ -363,22 +389,17 @@ async function handleSaveRubric() {
   }
 }
 
-async function handleStartGrading(limit, mode, useVision) {
+async function handleStartGrading() {
   if (!selectedQuestion.value) return
   gradingStarting.value = true
   try {
-    const payload = {
-      subject_id: subjectId.value,
-      question_id: selectedQuestion.value.question_id,
-    }
-    if (limit != null) payload.limit = limit
-    if (mode) payload.mode = mode
-    if (useVision) payload.use_vision = true
+    const payload = { subject_id: subjectId.value, question_id: selectedQuestion.value.question_id }
+    if (limitValue.value != null) payload.limit = limitValue.value
+    if (modeValue.value) payload.mode = modeValue.value
+    if (useVision.value) payload.use_vision = true
     const res = await createTask(payload)
     const taskId = res.data?.task_id || res.data?.id
-    if (taskId) {
-      startPolling(taskId)
-    }
+    if (taskId) startPolling(taskId)
     message.success('阅卷任务已启动')
   } catch (e) {
     message.error('启动失败: ' + (e.response?.data?.detail || e.message))
@@ -552,15 +573,27 @@ async function handleDocCropSave(results) {
   if (ok) await loadQuestions()
 }
 
-async function handleBatchGrading() {
+function confirmBatchGrading() {
+  dialog.warning({
+    title: '确认批量阅卷',
+    content: `即将阅卷全部 ${questions.value.length} 道主观题，共约 ${totalAnswers.value} 份答卷（${modeValue.value === 'batch' ? '经济模式' : '实时模式'}${limitValue.value ? '，每题限 ' + limitValue.value + ' 份' : ''}）`,
+    positiveText: '确认启动',
+    negativeText: '取消',
+    onPositive: executeBatchGrading,
+  })
+}
+
+async function executeBatchGrading() {
   batchGrading.value = true
   try {
-    const res = await createTask({ subject_id: subjectId.value })
+    const payload = { subject_id: subjectId.value }
+    if (limitValue.value != null) payload.limit = limitValue.value
+    if (modeValue.value) payload.mode = modeValue.value
+    if (useVision.value) payload.use_vision = true
+    const res = await createTask(payload)
     const taskId = res.data?.task_id || res.data?.id
-    if (taskId) {
-      startPolling(taskId)
-    }
-    message.success('批量阅卷已启动（全部主观题）')
+    if (taskId) startPolling(taskId)
+    message.success('批量阅卷已启动')
   } catch (e) {
     message.error('批量阅卷启动失败: ' + (e.response?.data?.detail || e.message))
   } finally {
@@ -604,6 +637,42 @@ async function handleBatchGenerate() {
   align-items: center;
   gap: 16px;
   margin-bottom: 20px;
+}
+
+.settings-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: var(--card-color, #1e2a22);
+  border: 1px solid var(--border-color, #2e3e34);
+  border-radius: var(--radius-md);
+}
+
+.bar-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.bar-progress-text {
+  font-size: var(--fs-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.bar-done {
+  font-size: var(--fs-sm);
+  color: var(--color-success);
+  font-weight: var(--fw-semibold);
+}
+
+.bar-fail {
+  font-size: var(--fs-sm);
+  color: var(--color-danger);
+  font-weight: var(--fw-semibold);
 }
 
 .main-layout {
