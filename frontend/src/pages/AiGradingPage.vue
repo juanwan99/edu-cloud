@@ -10,8 +10,9 @@
       <n-button v-if="examId && subjectId" size="small" @click="showDocCrop = true">上传文档裁剪</n-button>
       <n-button v-if="examId && subjectId && questions.length" size="small" type="primary"
                 :loading="batchGenerating" @click="handleBatchGenerate">批量生成细则</n-button>
-      <n-button v-if="checkedQuestionIds.length >= 2" size="small" type="primary"
-                :loading="batchGrading" @click="handleBatchGrading">批量阅卷 ({{ checkedQuestionIds.length }}题)</n-button>
+      <n-button v-if="examId && subjectId && questions.length" size="small" type="primary"
+                :loading="batchGrading" :disabled="taskProgress?.status === 'processing'"
+                @click="handleBatchGrading">批量阅卷</n-button>
     </div>
 
     <!-- 选择器：无路由参数时显示 -->
@@ -32,12 +33,10 @@
       <QuestionList
         :questions="questions"
         :selectedQuestionId="selectedQuestion?.question_id"
-        :checkedIds="checkedQuestionIds"
         :editingScoreId="editingScoreId"
         :generatingSet="generatingSet"
         :loading="loadingQuestions"
         @select="selectQuestion"
-        @update:checkedIds="checkedQuestionIds = $event"
         @start-edit-score="startEditScore"
         @save-score="saveScore"
         @update-score-value="handleUpdateScoreValue"
@@ -134,7 +133,6 @@ const rubricSaving = ref(false)
 const showDocCrop = ref(false)
 const batchGenerating = ref(false)
 
-const checkedQuestionIds = ref([])
 const batchGrading = ref(false)
 const gradingStarting = ref(false)
 const taskProgress = ref(null)
@@ -195,7 +193,6 @@ async function onSubjectSelected(val) {
   selectedSubjectId.value = val
   questions.value = []
   selectedQuestion.value = null
-  checkedQuestionIds.value = []
   taskProgress.value = null
   stopPolling()
   await loadQuestions()
@@ -556,19 +553,14 @@ async function handleDocCropSave(results) {
 }
 
 async function handleBatchGrading() {
-  if (checkedQuestionIds.value.length === 0) return
   batchGrading.value = true
   try {
-    const payload = {
-      subject_id: subjectId.value,
-      question_ids: checkedQuestionIds.value,
-    }
-    const res = await createTask(payload)
+    const res = await createTask({ subject_id: subjectId.value })
     const taskId = res.data?.task_id || res.data?.id
     if (taskId) {
       startPolling(taskId)
     }
-    message.success(`批量阅卷已启动 (${checkedQuestionIds.value.length} 题)`)
+    message.success('批量阅卷已启动（全部主观题）')
   } catch (e) {
     message.error('批量阅卷启动失败: ' + (e.response?.data?.detail || e.message))
   } finally {
