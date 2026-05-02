@@ -165,10 +165,11 @@ const taskProgressPct = computed(() => {
   return Math.round((taskProgress.value.graded / taskProgress.value.total) * 100)
 })
 
-function initVisionMap() {
+function mergeVisionMap() {
+  const prev = visionMap.value
   const map = {}
   for (const q of questions.value) {
-    map[q.question_id] = (q.content_image_count || 0) > 0
+    map[q.question_id] = q.question_id in prev ? prev[q.question_id] : (q.content_image_count || 0) > 0
   }
   visionMap.value = map
 }
@@ -256,8 +257,7 @@ async function loadQuestions() {
     } else {
       questions.value = []
     }
-    initVisionMap()
-    checkedQuestionIds.value = []
+    mergeVisionMap()
     if (questions.value.length && !selectedQuestion.value) {
       selectQuestion(questions.value[0])
     }
@@ -341,8 +341,6 @@ async function saveScore(q) {
 async function selectQuestion(q) {
   selectedQuestion.value = { ...q }
   rubricItems.value = []
-  taskProgress.value = null
-  stopPolling()
   // Fetch full question details (content/reference_answer) from backend
   try {
     const res = await getQuestion(q.question_id)
@@ -416,6 +414,7 @@ async function handleStartGrading() {
     if (limitValue.value != null) payload.limit = limitValue.value
     if (modeValue.value) payload.mode = modeValue.value
     if (visionMap.value[qid]) payload.use_vision = true
+    taskProgress.value = { status: 'processing', graded: 0, total: 0 }
     const res = await createTask(payload)
     const taskId = res.data?.task_id || res.data?.id
     if (taskId) {
@@ -433,18 +432,19 @@ async function handleStartGrading() {
 function startPolling() {
   stopPolling()
   pollTimer = setInterval(async () => {
-    let totalGraded = 0, totalCount = 0, allDone = true
+    let totalGraded = 0, totalCount = 0, allDone = true, anyFailed = false
     for (const tid of activeTaskIds) {
       try {
         const res = await getTask(tid)
         const t = res.data
         totalGraded += t.completed || 0
         totalCount += t.total || 0
+        if (t.status === 'failed') anyFailed = true
         if (t.status !== 'completed' && t.status !== 'failed') allDone = false
       } catch { /* ignore */ }
     }
     taskProgress.value = {
-      status: allDone ? 'completed' : 'processing',
+      status: allDone ? (anyFailed ? 'failed' : 'completed') : 'processing',
       graded: totalGraded,
       total: totalCount,
     }
@@ -616,15 +616,16 @@ function confirmBatchGrading() {
     content: lines.join('，'),
     positiveText: '确认启动',
     negativeText: '取消',
-    onPositive: executeBatchGrading,
+    onPositive: () => executeBatchGrading([...ids]),
   })
 }
 
-async function executeBatchGrading() {
-  const ids = checkedQuestionIds.value
-  const visionIds = ids.filter(id => visionMap.value[id])
-  const ocrIds = ids.filter(id => !visionMap.value[id])
+async function executeBatchGrading(idsSnapshot) {
+  if (!idsSnapshot?.length) return
+  const visionIds = idsSnapshot.filter(id => visionMap.value[id])
+  const ocrIds = idsSnapshot.filter(id => !visionMap.value[id])
   batchGrading.value = true
+  taskProgress.value = { status: 'processing', graded: 0, total: 0 }
   activeTaskIds = []
   try {
     for (const [qids, vision] of [[ocrIds, false], [visionIds, true]]) {
@@ -636,12 +637,16 @@ async function executeBatchGrading() {
       const taskId = res.data?.task_id || res.data?.id
       if (taskId) activeTaskIds.push(taskId)
     }
-    if (activeTaskIds.length) startPolling()
-    message.success(`批量阅卷已启动 (${ids.length} 题)`)
+    message.success(`批量阅卷已启动 (${idsSnapshot.length} 题)`)
   } catch (e) {
-    message.error('批量阅卷启动失败: ' + (e.response?.data?.detail || e.message))
+    if (activeTaskIds.length) {
+      message.warning('部分任务启动成功，部分失败')
+    } else {
+      message.error('批量阅卷启动失败: ' + (e.response?.data?.detail || e.message))
+    }
   } finally {
     batchGrading.value = false
+    if (activeTaskIds.length) startPolling()
   }
 }
 
