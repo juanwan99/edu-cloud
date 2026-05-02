@@ -169,7 +169,7 @@ function mergeVisionMap() {
   const prev = visionMap.value
   const map = {}
   for (const q of questions.value) {
-    map[q.question_id] = q.question_id in prev ? prev[q.question_id] : (q.content_image_count || 0) > 0
+    map[q.question_id] = q.question_id in prev ? prev[q.question_id] : false
   }
   visionMap.value = map
 }
