@@ -181,22 +181,29 @@ _EN_WORD_RE = re.compile(r'[a-zA-Z]+')
 _DIGIT_RE = re.compile(r'[0-9０-９]')
 
 
+_OCR_CHAR_COEFF = 1.08  # OCR 漏识别补偿：实测 OCR 字数普遍偏低 ~8%
+
+
 def count_essay_chars(raw_text: str) -> tuple[int, str]:
     """统计作文字数（汉字+标点+数字），返回 (字数, charStats 提示文本)。
 
     中考/高考作文方格纸规则：汉字、标点、数字各占一格均计字数；
     段首空格（含全角空格）和换行不计。
+    乘以 _OCR_CHAR_COEFF 补偿 OCR 漏识别。
     """
     cn_chars = len(_CN_CHAR_RE.findall(raw_text))
     cn_punc = len(_CN_PUNC_RE.findall(raw_text))
     digits = len(_DIGIT_RE.findall(raw_text))
     en_words = len(_EN_WORD_RE.findall(raw_text))
 
+    import math
     if cn_chars >= en_words and cn_chars > 0:
-        total = cn_chars + cn_punc + digits
-        return total, f"【字数统计】{total}字（汉字{cn_chars}+标点{cn_punc}+数字{digits}，基于OCR统计，请据此判断是否达到字数要求）"
+        raw_total = cn_chars + cn_punc + digits
+        total = math.ceil(raw_total * _OCR_CHAR_COEFF)
+        return total, f"【字数统计】约{total}字（基于OCR识别，已校准；请以此数字判断是否达到字数要求，禁止自行重新估算字数）"
     elif en_words > 0:
-        return en_words, f"【字数统计】{en_words}词（基于OCR统计，请据此判断是否达到词数要求）"
+        total = math.ceil(en_words * _OCR_CHAR_COEFF)
+        return total, f"【字数统计】约{total}词（基于OCR识别，已校准；请以此数字判断是否达到词数要求，禁止自行重新估算词数）"
     else:
         total = cn_punc + digits
         return total, ""

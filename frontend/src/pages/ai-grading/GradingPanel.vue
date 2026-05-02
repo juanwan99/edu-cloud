@@ -60,6 +60,22 @@
           :max-score="question.max_score || 0"
           :loading="rubricLoading"
         />
+        <div v-if="isEssay" class="anchor-section">
+          <div class="anchor-title">评分锚定范文（作文校准用，可选）</div>
+          <div class="anchor-hint">配置高/中/低三档真实样本，AI 评分时以此为参照校准尺度</div>
+          <div v-for="(a, i) in anchors" :key="i" class="anchor-row">
+            <div class="anchor-head">
+              <span class="anchor-tier">{{ a.tier }}</span>
+              <span class="anchor-score-label">人工分</span>
+              <n-input-number size="tiny" :value="a.score" :min="0" :max="question.max_score || 50"
+                style="width:68px" @update:value="v => updateAnchor(i, 'score', v)" />
+            </div>
+            <n-input size="small" type="textarea" :value="a.summary"
+              :placeholder="a.placeholder"
+              :autosize="{ minRows: 2, maxRows: 4 }"
+              @update:value="v => updateAnchor(i, 'summary', v)" />
+          </div>
+        </div>
       </n-card>
 
       <!-- 阅卷操作 -->
@@ -130,7 +146,7 @@ const props = defineProps({
   gradingStarting: { type: Boolean, default: false },
 })
 
-defineEmits([
+const emit = defineEmits([
   'edit-content',
   'remove-image',
   'generate-rubric',
@@ -142,6 +158,37 @@ defineEmits([
 const limitValue = ref(null)
 const modeValue = ref('realtime')
 const useVision = ref(false)
+
+const isEssay = computed(() => {
+  const items = props.rubricItems || []
+  return items.length === 1 && (items[0]?.score || 0) >= 40
+})
+
+const ANCHOR_TIERS = [
+  { tier: '高分档', placeholder: '二类文样本摘要：扣题+叙事完整+感情真挚，人工给了多少分、为什么' },
+  { tier: '中分档', placeholder: '三类文样本摘要：扣题+有叙事但情感一般，人工给了多少分、为什么' },
+  { tier: '低分档', placeholder: '五类文样本摘要：跑题/残篇/字数严重不足，人工给了多少分、为什么' },
+]
+
+const anchors = computed(() => {
+  const saved = (props.rubricItems?.[0]?.essayAnchors) || []
+  return ANCHOR_TIERS.map((t, i) => ({
+    ...t,
+    score: saved[i]?.score ?? null,
+    summary: saved[i]?.summary ?? '',
+  }))
+})
+
+function updateAnchor(idx, field, value) {
+  const items = [...props.rubricItems]
+  const item = { ...items[0] }
+  const arr = [...(item.essayAnchors || [null, null, null])]
+  while (arr.length < 3) arr.push(null)
+  arr[idx] = { ...(arr[idx] || {}), tier: ANCHOR_TIERS[idx].tier, [field]: value }
+  item.essayAnchors = arr
+  items[0] = item
+  emit('update:rubricItems', items)
+}
 
 const taskProgressPct = computed(() => {
   if (!props.taskProgress || !props.taskProgress.total) return 0
@@ -275,5 +322,52 @@ const taskProgressPct = computed(() => {
 .empty-tip.center {
   text-align: center;
   padding: 60px 0;
+}
+
+.anchor-section {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--border-color, #2e3e34);
+}
+
+.anchor-title {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.anchor-hint {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.anchor-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-color, #2e3e34);
+}
+
+.anchor-row:last-child { border-bottom: none; }
+
+.anchor-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.anchor-tier {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+  color: var(--color-success);
+  min-width: 56px;
+}
+
+.anchor-score-label {
+  font-size: var(--fs-base);
+  color: var(--color-text-muted);
 }
 </style>

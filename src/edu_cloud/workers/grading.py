@@ -36,9 +36,16 @@ def _create_llm_client(
     """
     if use_gemini_official:
         from edu_cloud.modules.grading.gemini_client import GeminiClient
+        if settings.VERTEX_AI_PROJECT:
+            return GeminiClient(
+                vertex_project=settings.VERTEX_AI_PROJECT,
+                vertex_location=settings.VERTEX_AI_LOCATION,
+                model=model or settings.GEMINI_MODEL,
+                max_retries=settings.LLM_MAX_RETRIES,
+            )
         return GeminiClient(
-            api_key=api_key or settings.LLM_API_KEY,
-            model=model or settings.LLM_MODEL,
+            api_key=api_key or settings.GEMINI_API_KEY,
+            model=model or settings.GEMINI_MODEL,
             max_retries=settings.LLM_MAX_RETRIES,
         )
 
@@ -60,6 +67,18 @@ async def _read_image_b64(path: str) -> str:
 
 
 _grading_semaphore = asyncio.Semaphore(20)
+
+_ESSAY_CHAR_CAPS = [(200, 10), (400, 25)]  # (字数阈值, 分数上限)
+
+
+def _apply_essay_score_cap(score: float, char_count: int | None, question_type: str, max_score: float) -> float:
+    """作文字数硬规则：残篇/严重不足时限制最高分。仅对作文题（max_score>=40）生效。"""
+    if question_type != "essay" or max_score < 40 or char_count is None:
+        return score
+    for threshold, cap in _ESSAY_CHAR_CAPS:
+        if char_count < threshold:
+            return min(score, cap)
+    return score
 
 
 async def _grade_single(
@@ -256,9 +275,15 @@ async def _grade_single(
         plog["confidence"] = grade_result.confidence
         plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
 
+        final_score = _apply_essay_score_cap(
+            grade_result.score, plog.get("char_count"),
+            ad.get("question_type", ""), ad["question_max_score"],
+        )
+        plog["score"] = final_score
+
         return {
             "answer_id": answer_id, "question_id": question_id,
-            "score": grade_result.score, "max_score": grade_result.max_score,
+            "score": final_score, "max_score": grade_result.max_score,
             "feedback": grade_result.feedback, "confidence": grade_result.confidence,
             "raw_content": grade_result.raw_content,
             "details": grade_result.details,
@@ -533,6 +558,10 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
 
         max_score = ad["question_max_score"]
         score = min(max(parsed.get("score", 0), 0), max_score)
+        score = _apply_essay_score_cap(
+            score, plog.get("char_count"),
+            ad.get("question_type", ""), max_score,
+        )
         plog["score"] = score
         plog["confidence"] = parsed.get("confidence")
 
@@ -590,7 +619,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                 llm_url, llm_key, llm_model = None, None, None
                 logger.warning("grading_task: task=%s, llm_config DB lookup failed, fallback to .env", task_id, exc_info=True)
 
-            use_gemini = bool(settings.GEMINI_API_KEY)
+            use_gemini = bool(settings.GEMINI_API_KEY or settings.VERTEX_AI_PROJECT)
             if use_gemini:
                 llm_key = settings.GEMINI_API_KEY
                 llm_model = settings.GEMINI_MODEL

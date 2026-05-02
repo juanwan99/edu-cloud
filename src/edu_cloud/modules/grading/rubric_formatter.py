@@ -1,5 +1,11 @@
 """Format rubric criteria items into text for LLM grading prompts."""
 
+_ESSAY_CALIBRATION = """
+【⚠️ 整体印象定档提示】
+作文评分应先形成整体印象再定档，不要逐条找问题累积扣分。
+人工阅卷老师的评分习惯：通读全文→整体感觉属于哪个档次→在档内微调。
+错别字、语病、字数略有不足等细节瑕疵，只在档内微调时考虑，不影响整体定档。"""
+
 
 def format_rubric_for_grading(items: list[dict] | None) -> str:
     if not items:
@@ -57,4 +63,20 @@ def format_rubric_for_grading(items: list[dict] | None) -> str:
 
         parts.append(text)
 
-    return "\n---\n".join(parts)
+    result = "\n---\n".join(parts)
+
+    # 有 essayAnchors 字段 → 作文题，追加整体定档提示 + 锚定范文
+    if len(items) == 1 and items[0].get("essayAnchors"):
+        result += "\n" + _ESSAY_CALIBRATION
+        anchors = items[0].get("essayAnchors")
+        if anchors and isinstance(anchors, list):
+            valid = [a for a in anchors if a and a.get("summary")]
+            if valid:
+                result += "\n\n【评分参照样本】以下是同场考试的人工评分样本，帮助你校准整体印象：\n"
+                for a in valid:
+                    tier = a.get("tier", "")
+                    score = a.get("score", "?")
+                    summary = a.get("summary", "")
+                    result += f"\n■ {tier}（人工评分: {score}分）\n{summary}\n"
+
+    return result

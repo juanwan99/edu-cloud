@@ -1,0 +1,14 @@
+{
+  "gates": {
+    "code_review_batch1": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "102cbc323b085cd4f1d0e67bd2d71434117742fd6642e7032ada6c44fb7854d1",
+      "report_path": "docs/plans/.codex-review-2026-05-02_150340.log",
+      "updated": "2026-05-02T15:12:09.828778+08:00",
+      "reason": "GPT quick review: 5 findings (P1×2+P2×3) all fixed",
+      "subject_ref": "staged changes"
+    }
+  }
+}

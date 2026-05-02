@@ -174,11 +174,19 @@ async def generate_rubric_via_llm(
     contents = [types.Content(role="user", parts=parts)]
 
     # Call Gemini
-    client = GeminiClient(
-        api_key=settings.GEMINI_API_KEY or settings.LLM_API_KEY,
-        model=settings.GEMINI_MODEL or settings.LLM_MODEL,
-        max_retries=settings.LLM_MAX_RETRIES,
-    )
+    if settings.VERTEX_AI_PROJECT:
+        client = GeminiClient(
+            vertex_project=settings.VERTEX_AI_PROJECT,
+            vertex_location=settings.VERTEX_AI_LOCATION,
+            model=settings.GEMINI_MODEL or settings.LLM_MODEL,
+            max_retries=settings.LLM_MAX_RETRIES,
+        )
+    else:
+        client = GeminiClient(
+            api_key=settings.GEMINI_API_KEY or settings.LLM_API_KEY,
+            model=settings.GEMINI_MODEL or settings.LLM_MODEL,
+            max_retries=settings.LLM_MAX_RETRIES,
+        )
     raw = await client._generate(contents, method="rubric_gen", max_tokens=16384)
     parsed = extract_json(raw)
 
@@ -459,7 +467,7 @@ async def grade_single_answer(
     else:
         # 6. 创建 LLM 客户端（优先 Gemini 官方直连）
         from edu_cloud.workers.grading import _create_llm_client
-        use_gemini = bool(settings.GEMINI_API_KEY)
+        use_gemini = bool(settings.GEMINI_API_KEY or settings.VERTEX_AI_PROJECT)
         if use_gemini:
             llm = _create_llm_client(
                 api_key=settings.GEMINI_API_KEY, model=settings.GEMINI_MODEL,

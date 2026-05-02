@@ -67,18 +67,36 @@ def _make_image_part(image_bytes: bytes) -> types.Part:
 
 
 class GeminiClient:
-    """Gemini 官方 API 客户端，支持实时和 Batch 双模式。"""
+    """Gemini 官方 API 客户端，支持实时和 Batch 双模式。
+
+    支持两种连接方式：
+    - API Key 模式（AI Studio）：传入 api_key
+    - Vertex AI 模式（Cloud 赠金）：传入 vertex_project + vertex_location
+    """
 
     def __init__(
         self,
-        api_key: str,
+        api_key: str | None = None,
         model: str = "gemini-2.5-flash",
         max_retries: int = 3,
+        *,
+        vertex_project: str | None = None,
+        vertex_location: str | None = None,
     ):
         self.model = model
         self.max_retries = max_retries
-        self._client = genai.Client(api_key=api_key)
         self._cache_map: dict[str, str] = {}
+
+        if vertex_project:
+            self._client = genai.Client(
+                vertexai=True,
+                project=vertex_project,
+                location=vertex_location or "global",
+            )
+            self._mode = "vertex"
+        else:
+            self._client = genai.Client(api_key=api_key)
+            self._mode = "api_key"
 
     async def close(self):
         pass
