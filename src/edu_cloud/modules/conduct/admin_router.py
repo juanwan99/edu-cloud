@@ -2,7 +2,7 @@
 import logging
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,13 +14,15 @@ from edu_cloud.modules.conduct.schemas import (
     RuleCategoryCreate, RuleItemCreate,
     GroupCreate, GroupMemberAdd,
 )
-from edu_cloud.modules.conduct import admin_service, rules_service, export_service
+from edu_cloud.modules.conduct import admin_service, rules_service, export_service, scope_service
+from edu_cloud.api.permissions import get_visible_class_ids
 from edu_cloud.modules.conduct.permissions import (
     check_class_scope,
     check_resource_class,
     check_rule_item_class,
     check_students_class,
 )
+from edu_cloud.models.school import School
 from edu_cloud.modules.conduct.models import (
     ConductRuleCategory, ConductRuleItem, ConductGroup, ConductSemester, ConductRecord,
 )
@@ -28,6 +30,48 @@ from edu_cloud.modules.conduct.models import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/conduct", tags=["conduct-admin"])
+
+
+# ═══════════════════════════════════════════════════
+# Overview (Scope-Adaptive aggregation)
+# ═══════════════════════════════════════════════════
+
+@router.get("/overview")
+async def get_overview(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(Permission.VIEW_CONDUCT)),
+):
+    """Return conduct overview data at the appropriate scope for the current user's role.
+
+    Auto-dispatches to class/school/district scope based on active_role.
+    """
+    role = current_user["current_role"]
+
+    if role.role in ("platform_admin", "district_admin"):
+        # District scope: use role's school district or "default"
+        if role.school_id:
+            school = await db.get(School, role.school_id)
+            district = school.district if school and school.district else "default"
+        else:
+            district = "default"
+        return await scope_service.get_conduct_overview(db, "district", [district])
+
+    if role.role in ("principal", "academic_director"):
+        # School scope
+        if not role.school_id:
+            raise HTTPException(400, "Role has no school_id")
+        return await scope_service.get_conduct_overview(db, "school", [role.school_id])
+
+    # Other roles: check for class_ids
+    visible = get_visible_class_ids(role)
+    if visible:
+        return await scope_service.get_conduct_overview(db, "class", visible)
+
+    # School-scoped role without class_ids
+    if role.school_id:
+        return await scope_service.get_conduct_overview(db, "school", [role.school_id])
+
+    raise HTTPException(400, "Cannot determine scope for overview")
 
 
 # ═══════════════════════════════════════════════════
