@@ -23,23 +23,18 @@
 
     <!-- Statistics summary -->
     <div v-if="subjects.length > 0" class="stats-row">
-      <n-card size="small" class="stat-card">
-        <n-statistic label="总题目数" :value="totalQuestions" />
-      </n-card>
-      <n-card size="small" class="stat-card">
-        <n-statistic label="已完成" :value="completedQuestions">
-          <template #prefix>
-            <span class="stat-dot stat-dot--success" />
-          </template>
-        </n-statistic>
-      </n-card>
-      <n-card size="small" class="stat-card">
-        <n-statistic label="待批改" :value="pendingQuestions">
-          <template #prefix>
-            <span class="stat-dot stat-dot--warning" />
-          </template>
-        </n-statistic>
-      </n-card>
+      <div class="stat-card">
+        <div class="stat-label">总题目数</div>
+        <div class="stat-value">{{ totalQuestions }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已完成</div>
+        <div class="stat-value">{{ completedQuestions }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">待批改</div>
+        <div class="stat-value">{{ pendingQuestions }}</div>
+      </div>
     </div>
 
     <n-spin :show="loading">
@@ -76,7 +71,7 @@
 <script setup>
 import { ref, computed, h, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NProgress, NStatistic, NCard } from 'naive-ui'
+import { NButton, NProgress } from 'naive-ui'
 import { listSubjects } from '../api/marking'
 import client from '../api/client'
 
@@ -214,21 +209,6 @@ onMounted(loadExams)
   gap: var(--space-4);
   margin-bottom: var(--space-6);
 }
-
-.stat-card {
-  border: 1px solid var(--color-border-light, rgba(255,255,255,0.09));
-}
-
-.stat-dot {
-  display: inline-block;
-  width: var(--space-2);
-  height: var(--space-2);
-  border-radius: 50%;
-  margin-right: var(--space-1);
-  vertical-align: middle;
-}
-.stat-dot--success { background: var(--color-success); }
-.stat-dot--warning { background: var(--color-warning); }
 
 .subject-card {
   border-radius: var(--radius-lg);

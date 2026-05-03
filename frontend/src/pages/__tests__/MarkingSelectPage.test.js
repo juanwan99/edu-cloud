@@ -56,9 +56,11 @@ describe('MarkingSelectPage template structure', () => {
     expect(content).toContain('待批改')
   })
 
-  it('contains stat dots for visual indicators', () => {
-    expect(content).toContain('class="stat-dot stat-dot--success"')
-    expect(content).toContain('class="stat-dot stat-dot--warning"')
+  it('uses plain stat label/value markup', () => {
+    expect(content).toContain('class="stat-label"')
+    expect(content).toContain('class="stat-value"')
+    expect(content).not.toContain('n-statistic')
+    expect(content).not.toContain('stat-dot')
   })
 
   it('contains subject card list', () => {

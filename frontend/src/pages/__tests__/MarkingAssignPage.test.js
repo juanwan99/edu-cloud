@@ -3,7 +3,7 @@
  *
  * Validates:
  *  1. Component can be imported (smoke)
- *  2. Template contains stats row (stat-card, n-statistic)
+ *  2. Template contains stats row (stat-card, stat-label, stat-value)
  *  3. No hardcoded light-theme colors
  *  4. Per-question card layout with multi-teacher support
  *  5. Teacher workload badge present (teacherWorkload)
@@ -59,8 +59,10 @@ describe('MarkingAssignPage statistics section', () => {
     expect(content).toContain('class="stat-card"')
   })
 
-  it('contains n-statistic components', () => {
-    expect(content).toContain('n-statistic')
+  it('uses plain stat label/value markup', () => {
+    expect(content).toContain('class="stat-label"')
+    expect(content).toContain('class="stat-value"')
+    expect(content).not.toContain('n-statistic')
   })
 
   it('shows assigned count / total', () => {

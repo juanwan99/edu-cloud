@@ -23,23 +23,21 @@
 
       <!-- 统计卡片区 -->
       <div v-if="selectedExamId" class="stats-row">
-        <n-card size="small" class="stat-card">
-          <n-statistic label="已分配题目">
-            <template #default>
-              {{ assignedQuestionCount }} / {{ totalQuestionCount }}
-            </template>
-          </n-statistic>
-        </n-card>
-        <n-card size="small" class="stat-card">
-          <n-statistic label="参与教师数" :value="participatingTeacherCount" />
-        </n-card>
-        <n-card size="small" class="stat-card">
-          <n-statistic label="未分配题目" :value="unassignedCount">
-            <template #suffix>
-              <n-tag v-if="unassignedCount > 0" size="tiny" type="warning" round>待处理</n-tag>
-            </template>
-          </n-statistic>
-        </n-card>
+        <div class="stat-card">
+          <div class="stat-label">已分配题目</div>
+          <div class="stat-value">{{ assignedQuestionCount }} / {{ totalQuestionCount }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">参与教师数</div>
+          <div class="stat-value">{{ participatingTeacherCount }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">未分配题目</div>
+          <div class="stat-value">
+            {{ unassignedCount }}
+            <n-tag v-if="unassignedCount > 0" size="tiny" type="warning" round>待处理</n-tag>
+          </div>
+        </div>
       </div>
 
       <div v-if="selectedExamId" style="display: flex; gap: 24px;">

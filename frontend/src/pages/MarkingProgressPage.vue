@@ -47,11 +47,13 @@
       <!-- 总进度 -->
       <n-card v-if="progress" class="overall-card" size="small">
         <div class="overall-stats">
-          <div class="stat-item">
-            <n-statistic label="已批改" :value="progress.overall.graded" />
+          <div class="stat-card">
+            <div class="stat-label">已批改</div>
+            <div class="stat-value">{{ progress.overall.graded }}</div>
           </div>
-          <div class="stat-item">
-            <n-statistic label="总计" :value="progress.overall.total" />
+          <div class="stat-card">
+            <div class="stat-label">总计</div>
+            <div class="stat-value">{{ progress.overall.total }}</div>
           </div>
           <div class="stat-item">
             <n-progress
@@ -61,10 +63,12 @@
               style="width: 80px;"
             />
           </div>
-          <div class="stat-item">
-            <n-statistic label="剩余待批改" :value="remainingCount">
-              <template #suffix>题</template>
-            </n-statistic>
+          <div class="stat-card">
+            <div class="stat-label">剩余待批改</div>
+            <div class="stat-value">
+              {{ remainingCount }}
+              <span class="stat-suffix">题</span>
+            </div>
           </div>
         </div>
       </n-card>
@@ -300,6 +304,13 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   gap: var(--space-1);
+}
+
+.stat-suffix {
+  margin-left: var(--space-1);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-muted);
 }
 
 .subject-card {
