@@ -49,6 +49,7 @@ class ConductClassConfig(Base, IdMixin, TimestampMixin):
         JSON, default=None, nullable=True,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    alert_threshold: Mapped[int | None] = mapped_column(Integer, default=None, nullable=True)
 
 
 class ConductRuleCategory(Base, IdMixin):
@@ -140,8 +141,8 @@ class ConductNotification(Base, IdMixin):
     student_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("students.id"), index=True, nullable=False,
     )
-    record_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("conduct_records.id"), nullable=False,
+    record_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("conduct_records.id"), nullable=True,
     )
     title: Mapped[str] = mapped_column(String(100), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
