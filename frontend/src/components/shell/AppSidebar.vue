@@ -1,8 +1,8 @@
 <template>
-  <aside :class="['sidebar', { 'sidebar--collapsed': collapsed }]">
+  <aside :class="['sidebar', { 'sidebar--collapsed': effectiveCollapsed }]">
     <div class="sidebar__toggle" @click="collapsed = !collapsed">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path v-if="collapsed" d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path v-if="effectiveCollapsed" d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
         <path v-else d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>
@@ -10,26 +10,26 @@
       <router-link
         to="/"
         :class="['nav-item', { 'nav-item--active': isActive('/') }]"
-        :title="collapsed ? '概览' : ''"
+        :title="effectiveCollapsed ? '概览' : ''"
       >
         <span class="nav-item__icon"><AppIcon name="dashboard" :size="18" /></span>
-        <span v-show="!collapsed" class="nav-item__label">概览</span>
+        <span v-show="!effectiveCollapsed" class="nav-item__label">概览</span>
       </router-link>
 
       <div v-for="group in visibleGroups" :key="group.key" class="nav-group">
         <div
           :class="['nav-group__header', { 'nav-group__header--active': isGroupActive(group) }]"
-          :title="collapsed ? group.label : ''"
-          @click="handleGroupClick(group.key)"
+          :title="effectiveCollapsed ? group.label : ''"
+          @click="handleGroupClick(group)"
         >
           <span class="nav-item__icon"><AppIcon :name="group.icon || 'dashboard'" :size="18" /></span>
-          <span v-show="!collapsed" class="nav-group__label">{{ group.label }}</span>
-          <svg v-show="!collapsed" :class="['nav-group__arrow', { 'nav-group__arrow--open': expandedGroups[group.key] }]" width="12" height="12" viewBox="0 0 12 12">
+          <span v-show="!effectiveCollapsed" class="nav-group__label">{{ group.label }}</span>
+          <svg v-show="!effectiveCollapsed" :class="['nav-group__arrow', { 'nav-group__arrow--open': expandedGroups[group.key] }]" width="12" height="12" viewBox="0 0 12 12">
             <path d="M4 4.5l2 2 2-2" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
         <transition name="slide">
-          <div v-show="!collapsed && expandedGroups[group.key]" class="nav-group__children">
+          <div v-show="!effectiveCollapsed && expandedGroups[group.key]" class="nav-group__children">
             <router-link
               v-for="item in group.children"
               :key="item.route"
@@ -46,17 +46,27 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth.js'
 import { normalizeRole } from '../../config/roles.js'
 import { getSidebarGroups } from '../../config/sidebarConfig.js'
 import AppIcon from '../AppIcon.vue'
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
+const sidebarCollapseQuery = '(max-width: 1180px)'
 const collapsed = ref(false)
+const isNarrowScreen = ref(false)
 const expandedGroups = reactive({})
+let mediaQueryList = null
+let mediaQueryListener = null
+
+mediaQueryList = createMediaQueryList()
+if (mediaQueryList) {
+  isNarrowScreen.value = mediaQueryList.matches
+}
 
 const currentNormalizedRole = computed(() => {
   const raw = auth.currentRole?.role
@@ -68,12 +78,18 @@ const visibleGroups = computed(() => {
   return getSidebarGroups(currentNormalizedRole.value, modules)
 })
 
-function handleGroupClick(key) {
-  if (collapsed.value) {
-    collapsed.value = false
-    expandedGroups[key] = true
+const effectiveCollapsed = computed(() => collapsed.value || isNarrowScreen.value)
+
+function createMediaQueryList() {
+  if (typeof window === 'undefined' || !window.matchMedia) return null
+  return window.matchMedia(sidebarCollapseQuery)
+}
+
+function handleGroupClick(group) {
+  if (effectiveCollapsed.value && group.children?.length > 0) {
+    router.push(group.children[0].route)
   } else {
-    expandedGroups[key] = !expandedGroups[key]
+    expandedGroups[group.key] = !expandedGroups[group.key]
   }
 }
 
@@ -99,6 +115,30 @@ function autoExpandCurrentGroup() {
 
 watch(() => route.path, autoExpandCurrentGroup, { immediate: true })
 watch(visibleGroups, autoExpandCurrentGroup)
+
+onMounted(() => {
+  mediaQueryList = mediaQueryList || createMediaQueryList()
+  if (!mediaQueryList) return
+  mediaQueryListener = event => {
+    isNarrowScreen.value = event.matches
+  }
+  isNarrowScreen.value = mediaQueryList.matches
+  if (mediaQueryList.addEventListener) {
+    mediaQueryList.addEventListener('change', mediaQueryListener)
+  } else {
+    mediaQueryList.addListener?.(mediaQueryListener)
+  }
+})
+
+onUnmounted(() => {
+  if (mediaQueryList && mediaQueryListener) {
+    if (mediaQueryList.removeEventListener) {
+      mediaQueryList.removeEventListener('change', mediaQueryListener)
+    } else {
+      mediaQueryList.removeListener?.(mediaQueryListener)
+    }
+  }
+})
 
 </script>
 

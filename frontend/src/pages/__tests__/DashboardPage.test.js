@@ -98,6 +98,8 @@ describe('DashboardPage entry permission filtering', () => {
     expect(content).toContain("permission: 'view_scores'")
     expect(content).toContain("permission: 'view_knowledge_tree'")
     expect(content).toContain('auth.checkPermission')
+    expect(content).toContain("moduleCode: 'grading'")
+    expect(content).toContain('enabledModules.includes(item.moduleCode)')
   })
 
   it('filters out entries for parent role', () => {

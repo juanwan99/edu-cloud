@@ -258,6 +258,7 @@ const dashboardKpis = computed(() =>
 const entryItems = computed(() => {
   const r = role.value
   if (r === 'parent') return []
+  const enabledModules = auth.enabledModules || []
 
   const items = [
     {
@@ -268,6 +269,7 @@ const entryItems = computed(() => {
       sub: '自动识别与智能评分',
       route: '/ai-grading',
       permission: ['manage_grading', 'view_grading'],
+      moduleCode: 'grading',
       buttonText: '立即使用',
       buttonTone: 'yellow',
     },
@@ -297,7 +299,9 @@ const entryItems = computed(() => {
 
   return items.filter(item => {
     const required = Array.isArray(item.permission) ? item.permission : [item.permission]
-    return required.some(perm => auth.checkPermission(perm))
+    const hasPermission = required.some(perm => auth.checkPermission(perm))
+    if (item.moduleCode && !enabledModules.includes(item.moduleCode)) return false
+    return hasPermission
   })
 })
 

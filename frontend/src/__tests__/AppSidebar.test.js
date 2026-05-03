@@ -3,6 +3,8 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick, reactive } from 'vue'
 
+const mockRouterPush = vi.hoisted(() => vi.fn())
+
 // Mock sidebarConfig to return predictable grouped items
 // AppSidebar.vue calls getSidebarGroups(role, enabledModules) for grouped navigation
 vi.mock('../config/sidebarConfig.js', () => ({
@@ -46,6 +48,7 @@ vi.mock('../config/roles.js', () => ({
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ path: '/' }),
+  useRouter: () => ({ push: mockRouterPush }),
   RouterLink: {
     template: '<a><slot /></a>',
     props: ['to'],
@@ -73,6 +76,7 @@ describe('AppSidebar module filtering', () => {
     mockAuth.currentRole = { role: 'principal', school_id: 'school-1' }
     mockAuth.enabledModules = []
     mockAuth.modulesLoaded = false
+    mockRouterPush.mockClear()
   })
 
   it('shows all groups when modulesLoaded=false (not yet loaded)', async () => {
@@ -104,5 +108,25 @@ describe('AppSidebar module filtering', () => {
     // All groups are still shown (empty enabledModules means no module filtering in our mock)
     const groupHeaders = wrapper.findAll('.nav-group__header')
     expect(groupHeaders).toHaveLength(3)
+  })
+
+  it('navigates to the first child when clicking a group on forced-collapsed screens', async () => {
+    const originalMatchMedia = window.matchMedia
+    window.matchMedia = vi.fn().mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })
+
+    let wrapper
+    try {
+      wrapper = mount(AppSidebar)
+      await nextTick()
+      await wrapper.find('.nav-group__header').trigger('click')
+      expect(mockRouterPush).toHaveBeenCalledWith('/exams')
+    } finally {
+      wrapper?.unmount()
+      window.matchMedia = originalMatchMedia
+    }
   })
 })
