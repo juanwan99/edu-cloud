@@ -116,7 +116,7 @@ async function htmlToImageFile(html) {
   const container = document.createElement('div')
   Object.assign(container.style, {
     position: 'fixed', left: '-9999px', top: '0',
-    background: '#fff', color: '#1a1a1a', padding: 'var(--space-4)',
+    background: '#fff', color: '#09061B', padding: 'var(--space-4)',
     fontSize: 'var(--fs-base)', lineHeight: '1.6', maxWidth: '800px',
   })
   container.innerHTML = html

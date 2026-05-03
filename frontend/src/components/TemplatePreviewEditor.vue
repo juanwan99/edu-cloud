@@ -473,7 +473,7 @@ onBeforeUnmount(() => { if (typeof window !== 'undefined') window.removeEventLis
   flex: 1;
   overflow: auto;
   position: relative;
-  background: #1a1a1a;
+  background: #09061B;
   cursor: crosshair;
 }
 .tpl-viewport.split-active, .tpl-viewport.split-active .tpl-region {

@@ -258,8 +258,8 @@ const confidenceDistOption = computed(() => {
       center: ['50%', '45%'],
       data: [
         { value: high, name: '高 (>=80%)', itemStyle: { color: '#22C55E' } },
-        { value: mid, name: '中 (50-80%)', itemStyle: { color: '#d97706' } },
-        { value: low, name: '低 (<50%)', itemStyle: { color: '#dc3545' } },
+        { value: mid, name: '中 (50-80%)', itemStyle: { color: '#ED9A51' } },
+        { value: low, name: '低 (<50%)', itemStyle: { color: '#dc2626' } },
       ].filter((d) => d.value > 0),
       label: { color: '#8a9a8e' },
     }],
@@ -282,8 +282,8 @@ function scorePercent(row) {
 
 function scoreColor(row) {
   const pct = scorePercent(row)
-  if (pct < 60) return '#dc3545'
-  if (pct < 80) return '#d97706'
+  if (pct < 60) return '#dc2626'
+  if (pct < 80) return '#ED9A51'
   return '#22C55E'
 }
 

@@ -218,8 +218,8 @@ describe('GradingResultsPage helper functions', () => {
 
   it('scoreColor returns color based on percentage thresholds', () => {
     expect(content).toContain('function scoreColor(row)')
-    expect(content).toContain("if (pct < 60) return '#dc3545'")
-    expect(content).toContain("if (pct < 80) return '#d97706'")
+    expect(content).toContain("if (pct < 60) return '#dc2626'")
+    expect(content).toContain("if (pct < 80) return '#ED9A51'")
     expect(content).toContain("return '#22C55E'")
   })
 

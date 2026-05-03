@@ -506,7 +506,7 @@ async function handleSave() {
 .dc-body { display: flex; flex: 1; min-height: 0; }
 .dc-viewport {
   flex: 1; overflow: auto; position: relative; cursor: crosshair;
-  background: #1a1a1a; user-select: none; -webkit-user-select: none;
+  background: #09061B; user-select: none; -webkit-user-select: none;
 }
 .dc-canvas { position: relative; }
 .dc-bg { display: block; width: 100%; height: 100%; pointer-events: none; }

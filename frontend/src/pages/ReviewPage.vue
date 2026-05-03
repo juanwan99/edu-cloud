@@ -784,7 +784,7 @@ onUnmounted(() => {
 .ai-title {
   font-size: var(--fs-base);
   font-weight: var(--fw-bold);
-  color: var(--color-text-primary, #1a1a1a);
+  color: var(--color-text-primary, #09061B);
 }
 
 .ai-score-num {
@@ -843,7 +843,7 @@ onUnmounted(() => {
 
 .ai-sub-label {
   font-weight: var(--fw-semibold);
-  color: var(--color-text-primary, #1a1a1a);
+  color: var(--color-text-primary, #09061B);
 }
 
 .ai-sub-score {
