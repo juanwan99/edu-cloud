@@ -347,6 +347,7 @@ async function saveAnnotations() {
 
 const reviewMode = ref('ungraded')
 const browseIndex = ref(-1)
+const savedOffsets = { ungraded: -1, ai_review: -1 }
 const browsing = ref(false)
 const loadSeq = ref(0)
 const isGraded = ref(false)
@@ -446,6 +447,7 @@ async function loadNext() {
     } else {
       await applyAnswer(data.answer)
       browseIndex.value = data.answer.position.current - 1
+      savedOffsets[reviewMode.value] = browseIndex.value
       browsing.value = false
       await loadImage(data.answer.answer_id)
     }
@@ -514,6 +516,7 @@ async function loadAnswerAt(offset) {
     const { data } = await getAnswerAt(questionId, offset, reviewMode.value)
     if (seq !== loadSeq.value) return
     browseIndex.value = offset
+    savedOffsets[reviewMode.value] = offset
     browsing.value = true
     await applyAnswer(data)
     if (data.graded_score != null) {
@@ -541,8 +544,14 @@ function goNext() {
 
 function switchMode(mode) {
   if (reviewMode.value === mode) return
+  savedOffsets[reviewMode.value] = browseIndex.value
   reviewMode.value = mode
-  loadNext()
+  const saved = savedOffsets[mode]
+  if (saved >= 0) {
+    loadAnswerAt(saved)
+  } else {
+    loadNext()
+  }
 }
 
 // 图片缩放

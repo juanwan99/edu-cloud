@@ -60,6 +60,74 @@ class LLMClient:
     async def close(self):
         await self._http.aclose()
 
+    async def grade_vision(
+        self,
+        images_b64: str | list[str],
+        prompt: str,
+        max_score: float,
+    ) -> GradeResponse:
+        """Vision-direct grading: image + rubric prompt → score (no OCR step)."""
+        if isinstance(images_b64, str):
+            images_b64 = [images_b64]
+
+        content_parts: list[dict] = []
+        for img in images_b64:
+            content_parts.append({"type": "image_url", "image_url": {"url": _img_data_url(img)}})
+        content_parts.append({"type": "text", "text": prompt})
+
+        messages = [{"role": "user", "content": content_parts}]
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "max_tokens": 32768,
+            "temperature": 0,
+        }
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        if self.slot:
+            headers["X-LLM-Slot"] = self.slot
+
+        last_error = None
+        for attempt in range(self.max_retries):
+            try:
+                resp = await self._http.post(
+                    f"{self.api_url}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                )
+                if resp.status_code != 200:
+                    last_error = f"HTTP {resp.status_code}: {resp.text}"
+                    logger.warning("grade_vision attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
+                    continue
+
+                data = resp.json()
+                _log_llm_usage("grade_vision", data, self.model)
+                choices = data.get("choices") or []
+                if not choices:
+                    last_error = "Empty choices"
+                    continue
+
+                content = choices[0]["message"]["content"]
+                parsed = extract_json(content)
+                if parsed is None or not isinstance(parsed, dict):
+                    last_error = "Failed to parse JSON from vision grading response"
+                    continue
+                return GradeResponse(
+                    score=min(max(parsed.get("score", 0), 0), max_score),
+                    max_score=max_score,
+                    feedback=parsed.get("comment", parsed.get("feedback", "")),
+                    confidence=parsed.get("confidence", 0.0),
+                    raw_content=content,
+                )
+
+            except (httpx.TimeoutException, httpx.ConnectError) as e:
+                last_error = f"Network error: {e}"
+                logger.warning("grade_vision attempt %d/%d: %s", attempt + 1, self.max_retries, last_error)
+
+        raise RuntimeError(f"grade_vision failed after {self.max_retries} attempts: {last_error}")
+
     async def generate_rubric(
         self,
         messages: list[dict],

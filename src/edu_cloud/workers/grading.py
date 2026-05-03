@@ -164,10 +164,25 @@ async def _grade_single(
                 _vision_prompt = DRAWING_HINT + _vision_prompt
                 plog["pipeline_type"] = "vision_direct_drawing"
 
+            # Load reference answer images (standard answer) for visual comparison
+            all_images_b64 = [image_b64]
+            ref_paths = ad.get("reference_answer_images", [])
+            has_ref = False
+            for ref_path in ref_paths:
+                try:
+                    resolved = ref_path.lstrip("/")
+                    ref_b64 = await _read_image_b64(resolved)
+                    all_images_b64.append(ref_b64)
+                    has_ref = True
+                except Exception:
+                    logger.warning("vision: failed to read reference image: %s", ref_path)
+            if has_ref:
+                _vision_prompt = "【第1张图片】学生作答\n【第2张图片】标准答案（请对比评分）\n\n" + _vision_prompt
+
             plog["grading_prompt_type"] = "GRADING_VISION"
             t_grade = time.perf_counter()
             grade_result = await llm.grade_vision(
-                images_b64=[image_b64],
+                images_b64=all_images_b64,
                 prompt=_vision_prompt,
                 max_score=ad["question_max_score"],
             )
@@ -725,6 +740,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                     "question_type": ans_qtype,
                     "subject_code": subject_code,
                     "use_vision": getattr(task, "use_vision", False),
+                    "reference_answer_images": q.reference_answer_images or [],
                 })
             if len(graded_rows) > 0:
                 logger.info("grading_task: excluded %d already graded answers", len(graded_rows))
