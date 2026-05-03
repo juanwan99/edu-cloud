@@ -1,0 +1,14 @@
+{
+  "gates": {
+    "code_review_migration": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "7c0b9b305f1b9da74c74e86dcb2c6e6afaeae1f24ea4616bb4375ef4b55a74a1",
+      "report_path": "/home/ops/projects/edu-cloud/docs/plans/knowledge-unification-review-report-migration.md",
+      "updated": "2026-05-04T07:17:36.809489+08:00",
+      "subject_ref": "file:alembic/versions/51c91f4d98e8_add_edge_evidence_and_node_course_code.py",
+      "round": 1
+    }
+  }
+}
