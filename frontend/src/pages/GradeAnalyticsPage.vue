@@ -95,7 +95,7 @@ const barOption = computed(() => {
         name: '最高分',
         type: 'bar',
         data: classes.map(c => c.max_score),
-        itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim() || '#10b981' },
+        itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim() || '#22C55E' },
       },
       {
         name: '最低分',

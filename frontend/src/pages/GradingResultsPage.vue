@@ -21,7 +21,7 @@
         <span style="font-size: var(--fs-base); color: var(--color-text-secondary);">{{ progressPercent }}%</span>
       </div>
       <n-progress :percentage="progressPercent" :show-indicator="false"
-        :color="progressPercent >= 100 ? '#16a34a' : '#2d5a3d'" rail-color="var(--macaron-mint-light)" />
+        :color="progressPercent >= 100 ? '#22C55E' : '#644CF0'" rail-color="var(--macaron-mint-light)" />
     </div>
 
     <!-- 统计摘要卡片 -->
@@ -225,7 +225,7 @@ const scoreDistOption = computed(() => {
       type: 'bar',
       data: buckets,
       itemStyle: {
-        color: '#2d5a3d',
+        color: '#644CF0',
         borderRadius: [6, 6, 0, 0],
       },
       barWidth: '50%',
@@ -257,7 +257,7 @@ const confidenceDistOption = computed(() => {
       radius: ['40%', '70%'],
       center: ['50%', '45%'],
       data: [
-        { value: high, name: '高 (>=80%)', itemStyle: { color: '#16a34a' } },
+        { value: high, name: '高 (>=80%)', itemStyle: { color: '#22C55E' } },
         { value: mid, name: '中 (50-80%)', itemStyle: { color: '#d97706' } },
         { value: low, name: '低 (<50%)', itemStyle: { color: '#dc3545' } },
       ].filter((d) => d.value > 0),
@@ -284,7 +284,7 @@ function scoreColor(row) {
   const pct = scorePercent(row)
   if (pct < 60) return '#dc3545'
   if (pct < 80) return '#d97706'
-  return '#16a34a'
+  return '#22C55E'
 }
 
 function confidenceType(c) {

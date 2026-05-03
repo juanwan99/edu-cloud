@@ -115,10 +115,10 @@ import { getExam } from '../api/exams'
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent])
 
 const rs = getComputedStyle(document.documentElement)
-const cSuccess = rs.getPropertyValue('--color-success').trim() || '#10b981'
+const cSuccess = rs.getPropertyValue('--color-success').trim() || '#22C55E'
 const cDanger = rs.getPropertyValue('--color-danger').trim() || '#ef4444'
 const cWarning = rs.getPropertyValue('--color-warning').trim() || '#f59e0b'
-const cPrimaryLight = rs.getPropertyValue('--color-primary-light').trim() || '#2d5a3d'
+const cPrimaryLight = rs.getPropertyValue('--color-primary-light').trim() || '#644CF0'
 const cTextMuted = rs.getPropertyValue('--color-text-muted').trim() || '#6b7d70'
 
 const route = useRoute()

@@ -154,7 +154,7 @@ const config = computed(() => getDashboardConfig(role.value))
 const rootStyle = getComputedStyle(document.documentElement)
 const chartTextColor = rootStyle.getPropertyValue('--color-text').trim() || 'rgba(15, 26, 18, 0.88)'
 const chartSplitColor = rootStyle.getPropertyValue('--color-border-light').trim() || '#e8efe9'
-const chartSuccessColor = rootStyle.getPropertyValue('--color-success').trim() || '#10b981'
+const chartSuccessColor = rootStyle.getPropertyValue('--color-success').trim() || '#22C55E'
 const chartWarningColor = rootStyle.getPropertyValue('--color-warning').trim() || '#f59e0b'
 const chartInfoColor = rootStyle.getPropertyValue('--color-info').trim() || '#3b82f6'
 
