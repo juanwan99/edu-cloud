@@ -14,7 +14,8 @@ from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import GradingResult
 from edu_cloud.modules.bank.models import BankQuestion, StudentErrorBook
-from edu_cloud.modules.knowledge.models import KnowledgePoint, QuestionKnowledgePoint
+from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern
 from edu_cloud.modules.student.models import Student
 
@@ -108,7 +109,7 @@ async def populate_error_books(db: AsyncSession, *, exam_id: str, school_id: str
         gr = gr_result.scalar_one_or_none()
 
         kp_result = await db.execute(
-            select(QuestionKnowledgePoint.knowledge_point_id)
+            select(QuestionKnowledgePoint.concept_id)
             .where(QuestionKnowledgePoint.question_id == q.id)
         )
         kp_ids = [row[0] for row in kp_result.all()]
@@ -267,24 +268,25 @@ async def generate_exam_snapshots(db: AsyncSession, *, exam_id: str, school_id: 
         q_ids = list({q_id for scores_list in eff_scores.values() for q_id, _, _ in scores_list})
         if q_ids:
             kp_links = await db.execute(
-                select(QuestionKnowledgePoint.question_id, KnowledgePoint.code, KnowledgePoint.name)
-                .join(KnowledgePoint, KnowledgePoint.id == QuestionKnowledgePoint.knowledge_point_id)
+                select(QuestionKnowledgePoint.question_id,
+                       ConceptGraphNode.id, ConceptGraphNode.name)
+                .join(ConceptGraphNode, ConceptGraphNode.id == QuestionKnowledgePoint.concept_id)
                 .where(QuestionKnowledgePoint.question_id.in_(q_ids))
             )
             q_to_kp: dict[str, tuple[str, str]] = {}
-            for q_id, kp_code, kp_name in kp_links.all():
-                q_to_kp[q_id] = (kp_code, kp_name)
+            for q_id, concept_id, concept_name in kp_links.all():
+                q_to_kp[q_id] = (concept_id, concept_name)
 
             for stu_id, scores_list in eff_scores.items():
                 kp_agg: dict[str, dict] = {}
                 for q_id, eff, max_s in scores_list:
                     if q_id in q_to_kp:
-                        kp_code, kp_name = q_to_kp[q_id]
-                        if kp_code not in kp_agg:
-                            kp_agg[kp_code] = {"name": kp_name, "score": 0, "max": 0}
-                        kp_agg[kp_code]["score"] += eff
-                        kp_agg[kp_code]["max"] += max_s
-                for kp_code, d in kp_agg.items():
+                        concept_id, concept_name = q_to_kp[q_id]
+                        if concept_id not in kp_agg:
+                            kp_agg[concept_id] = {"name": concept_name, "score": 0, "max": 0}
+                        kp_agg[concept_id]["score"] += eff
+                        kp_agg[concept_id]["max"] += max_s
+                for concept_id, d in kp_agg.items():
                     d["score"] = round(d["score"], 2)
                     d["max"] = round(d["max"], 2)
                     d["rate"] = round(d["score"] / d["max"], 4) if d["max"] > 0 else 0
@@ -340,7 +342,7 @@ async def update_knowledge_mastery(db: AsyncSession, *, exam_id: str, school_id:
         return 0
 
     answers = await db.execute(
-        select(StudentAnswer, Question, QuestionKnowledgePoint.knowledge_point_id)
+        select(StudentAnswer, Question, QuestionKnowledgePoint.concept_id)
         .join(Question, Question.id == StudentAnswer.question_id)
         .join(QuestionKnowledgePoint, QuestionKnowledgePoint.question_id == Question.id)
         .where(
@@ -352,22 +354,22 @@ async def update_knowledge_mastery(db: AsyncSession, *, exam_id: str, school_id:
     )
 
     agg: dict[tuple[str, str], list[float]] = {}
-    for sa, q, kp_id in answers.all():
+    for sa, q, concept_id in answers.all():
         eff = await _get_effective_score(db, answer_id=sa.id)
         if eff is None:
             eff = sa.score or 0.0
         rate = eff / q.max_score if q.max_score > 0 else 0
-        agg.setdefault((sa.student_id, kp_id), []).append(rate)
+        agg.setdefault((sa.student_id, concept_id), []).append(rate)
 
     updated = 0
-    for (stu_id, kp_id), rates in agg.items():
+    for (stu_id, concept_id), rates in agg.items():
         new_rate = sum(rates) / len(rates) if rates else 0
         cnt = len(rates)
 
         existing = await db.execute(
             select(StudentKnowledgeMastery).where(
                 StudentKnowledgeMastery.student_id == stu_id,
-                StudentKnowledgeMastery.knowledge_point_id == kp_id,
+                StudentKnowledgeMastery.concept_id == concept_id,
             )
         )
         mastery = existing.scalar_one_or_none()
@@ -399,7 +401,7 @@ async def update_knowledge_mastery(db: AsyncSession, *, exam_id: str, school_id:
             mastery.confidence = min(1.0, mastery.attempt_count / 20)
         else:
             mastery = StudentKnowledgeMastery(
-                school_id=school_id, student_id=stu_id, knowledge_point_id=kp_id,
+                school_id=school_id, student_id=stu_id, concept_id=concept_id,
                 mastery_level=round(new_rate, 4), confidence=min(1.0, cnt / 20),
                 attempt_count=cnt, correct_count=cnt if new_rate >= 0.9 else 0,
                 partial_count=cnt if 0 < new_rate < 0.9 else 0,
@@ -512,7 +514,7 @@ async def _update_adaptive_mastery(db: AsyncSession, *, exam_id: str, school_id:
     kp_map: dict[str, list[str]] = defaultdict(list)
     for q_id in question_map:
         kps = await db.execute(
-            select(QuestionKnowledgePoint.knowledge_point_id).where(
+            select(QuestionKnowledgePoint.concept_id).where(
                 QuestionKnowledgePoint.question_id == q_id
             )
         )
