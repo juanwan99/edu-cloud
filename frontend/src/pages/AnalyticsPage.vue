@@ -240,7 +240,7 @@ const wrongColumns = [
     title: '得分率', key: 'avg_score_rate', width: 200,
     render: (row) => {
       const pct = Math.round((row.avg_score_rate || 0) * 100)
-      const color = pct < 40 ? '#dc3545' : pct < 60 ? '#d97706' : '#16a34a'
+      const color = pct < 40 ? '#dc2626' : pct < 60 ? '#ED9A51' : '#16a34a'
       return h(NProgress, {
         type: 'line', percentage: pct, indicatorPlacement: 'inside', color,
         style: 'width: 160px;',
