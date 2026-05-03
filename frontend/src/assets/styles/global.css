@@ -405,15 +405,15 @@ tbody tr:hover {
   border-radius: inherit;
 }
 
-/* Naive UI Progress 覆盖 */
-.n-progress .n-progress-graph-line-rail {
-  height: 7px !important;
-  border-radius: var(--radius-pill) !important;
-  background: var(--color-bg) !important;
+/* Naive UI Progress 覆盖（不用 !important，让组件 prop inline style 优先） */
+.app-main .n-progress .n-progress-graph-line-rail {
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
 }
 
-.n-progress .n-progress-graph-line-fill {
-  border-radius: var(--radius-pill) !important;
+.app-main .n-progress .n-progress-graph-line-fill {
+  border-radius: var(--radius-pill);
 }
 
 .app-main .prog-fill--yellow { background: linear-gradient(90deg, #F8D850, #F4DA4C); }
