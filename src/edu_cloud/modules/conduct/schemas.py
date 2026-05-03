@@ -80,3 +80,4 @@ class ConductConfigUpdate(BaseModel):
     verify_code_type: Optional[str] = None
     required_parent_fields: Optional[list[str]] = None
     is_active: Optional[bool] = None
+    alert_threshold: Optional[int] = None

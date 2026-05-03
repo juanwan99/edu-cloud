@@ -1,12 +1,15 @@
 """积分事件处理：记录积分后自动通知家长。"""
 import logging
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.models.guardian import GuardianStudentLink
 from edu_cloud.modules.student.models import Student
-from edu_cloud.modules.conduct.models import ConductRecord, ConductNotification
+from edu_cloud.modules.conduct.models import (
+    ConductRecord, ConductNotification, ConductClassConfig,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,4 +63,99 @@ async def notify_parents_on_points(db: AsyncSession, record_id: str) -> int:
         "notify_parents: created %d notifications for record %s",
         count, record_id,
     )
+    return count
+
+
+async def check_alert_threshold(db: AsyncSession, student_id: str, class_id: str) -> int:
+    """Check if student's cumulative points are below the class alert threshold.
+
+    If so, create alert notifications for bound parents.
+    Returns number of notifications created (0 if no alert needed).
+    """
+    # 1. Fetch ConductClassConfig
+    config = (
+        await db.execute(
+            select(ConductClassConfig).where(ConductClassConfig.class_id == class_id)
+        )
+    ).scalar_one_or_none()
+    if config is None or config.alert_threshold is None:
+        return 0
+
+    threshold = config.alert_threshold
+
+    # 2. Calculate cumulative points
+    cumulative = (
+        await db.execute(
+            select(func.coalesce(func.sum(ConductRecord.points), 0)).where(
+                ConductRecord.student_id == student_id,
+                ConductRecord.class_id == class_id,
+            )
+        )
+    ).scalar()
+
+    if cumulative >= threshold:
+        return 0
+
+    # 3. Fetch student name
+    student = await db.get(Student, student_id)
+    if not student:
+        logger.warning("check_alert_threshold: student %s not found", student_id)
+        return 0
+
+    # 4. Query parent links
+    links = (
+        await db.execute(
+            select(GuardianStudentLink).where(
+                GuardianStudentLink.student_id == student_id,
+            )
+        )
+    ).scalars().all()
+
+    if not links:
+        return 0
+
+    # 5. Build alert content
+    title = (
+        f"[预警] {student.name} 积分低于预警线"
+        f"（当前 {cumulative}，预警线 {threshold}）"
+    )
+    body = "请关注孩子在校行为表现，积分已低于班级设定的预警线。"
+
+    # 6. Dedup: skip if unread alert exists for this student+parent within 7 days
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    count = 0
+    for link in links:
+        existing = (
+            await db.execute(
+                select(ConductNotification.id).where(
+                    and_(
+                        ConductNotification.parent_user_id == link.guardian_user_id,
+                        ConductNotification.student_id == student_id,
+                        ConductNotification.is_read == False,  # noqa: E712
+                        ConductNotification.title.like("[预警]%"),
+                        ConductNotification.created_at >= seven_days_ago,
+                    )
+                )
+            )
+        ).scalar_one_or_none()
+        if existing:
+            continue
+
+        notification = ConductNotification(
+            parent_user_id=link.guardian_user_id,
+            student_id=student_id,
+            record_id=None,
+            title=title,
+            body=body,
+        )
+        db.add(notification)
+        count += 1
+
+    if count:
+        await db.commit()
+        logger.info(
+            "check_alert_threshold: created %d alert notifications for student %s "
+            "(cumulative=%d, threshold=%d)",
+            count, student_id, cumulative, threshold,
+        )
     return count
