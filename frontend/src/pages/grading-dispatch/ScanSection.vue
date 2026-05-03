@@ -42,7 +42,7 @@ watch(() => props.scanResults, (val) => {
 </script>
 
 <style scoped>
-.scan-section { background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: var(--r-md); margin-bottom: 12px; overflow: hidden; }
+.scan-section { background: var(--color-bg-card); border: 1px solid var(--color-border-light); border-radius: var(--r-md); margin-bottom: 12px; overflow: hidden; }
 .scan-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; cursor: pointer; user-select: none; }
 .scan-header:hover { background: var(--body-color, #f9fafb); }
 .scan-toggle { font-size: var(--fs-base); color: #8a9a8e; width: 14px; }

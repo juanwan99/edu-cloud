@@ -6,11 +6,11 @@
     </div>
 
     <div class="stats-grid" style="margin-bottom: 24px;">
-      <div class="stat-card" style="background: var(--macaron-mint-light);">
+      <div class="stat-card">
         <div class="stat-value">{{ exams.length }}</div>
         <div class="stat-label">考试总数</div>
       </div>
-      <div class="stat-card" style="background: var(--macaron-purple-light);">
+      <div class="stat-card">
         <div class="stat-value">{{ recentExams.length }}</div>
         <div class="stat-label">近期考试</div>
       </div>

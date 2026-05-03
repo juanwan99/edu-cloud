@@ -13,19 +13,19 @@
 
       <!-- 概览卡片 -->
       <div class="stats-grid" v-if="latestSnapshot">
-        <div class="stat-card" style="background: var(--macaron-mint-light);">
+        <div class="stat-card">
           <div class="stat-value">{{ latestSnapshot.total_score ?? '-' }}</div>
           <div class="stat-label">最近总分</div>
         </div>
-        <div class="stat-card" style="background: var(--macaron-purple-light);">
+        <div class="stat-card">
           <div class="stat-value">{{ latestSnapshot.grade_rank ?? '-' }}</div>
           <div class="stat-label">年级排名</div>
         </div>
-        <div class="stat-card" style="background: var(--macaron-yellow-light);">
+        <div class="stat-card">
           <div class="stat-value">{{ latestSnapshot.class_rank ?? '-' }}</div>
           <div class="stat-label">班级排名</div>
         </div>
-        <div class="stat-card" style="background: var(--macaron-coral-light);">
+        <div class="stat-card">
           <div class="stat-value">{{ knowledgeList.length }}</div>
           <div class="stat-label">知识点掌握</div>
         </div>

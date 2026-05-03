@@ -222,7 +222,7 @@ onMounted(() => {
 .page-subtitle { margin: 8px 0 0; }
 
 .info-card {
-  background: white;
+  background: var(--color-bg-card);
   padding: 20px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-light);

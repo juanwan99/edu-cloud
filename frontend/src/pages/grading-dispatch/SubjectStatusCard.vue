@@ -80,7 +80,7 @@ function stageClass(stage) {
 </script>
 
 <style scoped>
-.subject-card { display: grid; grid-template-columns: 200px 1fr 140px 180px; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: var(--radius-md); transition: transform 0.15s ease-out, box-shadow 0.15s ease-out; }
+.subject-card { display: grid; grid-template-columns: 200px 1fr 140px 180px; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--color-bg-card); border: 1px solid var(--color-border-light); border-radius: var(--radius-md); transition: transform 0.15s ease-out, box-shadow 0.15s ease-out; }
 .subject-card:hover { border-color: var(--color-border); }
 .subject-card.selected { background: var(--color-success-bg-subtle); border-color: var(--color-success-border); }
 

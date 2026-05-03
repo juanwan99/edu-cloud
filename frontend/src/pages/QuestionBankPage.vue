@@ -11,19 +11,19 @@
         <div class="stat-value">{{ statsData.total_count }}</div>
         <div class="stat-label">题目总数</div>
       </div>
-      <div class="stat-card" style="background: var(--macaron-coral-light, #fff0f0);">
+      <div class="stat-card">
         <div class="stat-value" style="color: var(--color-danger, #e63946);">
           {{ Object.keys(statsData.by_question_type).length }}
         </div>
         <div class="stat-label">题型分类</div>
       </div>
-      <div class="stat-card" style="background: var(--macaron-yellow-light, #fff8e1);">
+      <div class="stat-card">
         <div class="stat-value" style="color: var(--color-warning, #f4a261);">
           {{ Object.keys(statsData.by_difficulty_level).length }}
         </div>
         <div class="stat-label">难度等级</div>
       </div>
-      <div class="stat-card" style="background: var(--macaron-mint-light, #e8f5e9);">
+      <div class="stat-card">
         <div class="stat-value" style="color: var(--color-success, #2a9d8f);">
           {{ Object.keys(statsData.by_source).length }}
         </div>
@@ -257,7 +257,6 @@ onMounted(() => {
 }
 
 .stat-card {
-  background: var(--color-bg-alt);
   padding: 14px var(--space-4);
   border-radius: var(--radius-md);
   text-align: center;

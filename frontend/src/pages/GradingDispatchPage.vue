@@ -849,7 +849,7 @@ function stopPolling() {
 .summary-num.idle { color: #9ca3af; }
 .summary-label { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.12em; font-weight: var(--fw-bold); color: var(--color-text-muted); }
 
-.scan-section { background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: var(--radius-md); margin-bottom: var(--space-3); overflow: hidden; }
+.scan-section { background: var(--color-bg-card); border: 1px solid var(--color-border-light); border-radius: var(--radius-md); margin-bottom: var(--space-3); overflow: hidden; }
 .scan-header { display: flex; align-items: center; gap: var(--space-2); padding: 10px var(--space-4); cursor: pointer; user-select: none; }
 .scan-header:hover { background: var(--body-color, #f9fafb); }
 .scan-toggle { font-size: var(--fs-base); color: var(--color-text-muted); width: var(--fs-md); }
@@ -861,7 +861,7 @@ function stopPolling() {
 .batch-bar { display: flex; align-items: center; gap: 10px; padding: var(--space-2) var(--space-4); background: var(--color-success-bg-subtle); border: 1px solid var(--color-success-border); border-radius: var(--radius-md); margin-bottom: var(--space-3); font-size: var(--fs-base); }
 
 .subject-list { display: flex; flex-direction: column; gap: 6px; }
-.subject-card { display: grid; grid-template-columns: 200px 1fr 140px 180px; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--card-color, #fff); border: 1px solid var(--border-color, #e2e8e4); border-radius: var(--radius-md); transition: transform 0.15s ease-out, box-shadow 0.15s ease-out; }
+.subject-card { display: grid; grid-template-columns: 200px 1fr 140px 180px; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--color-bg-card); border: 1px solid var(--color-border-light); border-radius: var(--radius-md); transition: transform 0.15s ease-out, box-shadow 0.15s ease-out; }
 .subject-card:hover { border-color: var(--color-border); }
 .subject-card.selected { background: var(--color-success-bg-subtle); border-color: var(--color-success-border); }
 

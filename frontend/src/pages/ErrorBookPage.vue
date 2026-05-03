@@ -29,15 +29,15 @@
     <n-spin :show="loading">
       <!-- 统计卡片 -->
       <div class="stats-grid" v-if="stats">
-        <div class="stat-card" style="background: var(--macaron-coral-light, #fff0f0);">
+        <div class="stat-card">
           <div class="stat-value" style="color: var(--color-danger, #e63946);">{{ stats.unmastered }}</div>
           <div class="stat-label">未掌握</div>
         </div>
-        <div class="stat-card" style="background: var(--macaron-yellow-light, #fff8e1);">
+        <div class="stat-card">
           <div class="stat-value" style="color: var(--color-warning, #f4a261);">{{ stats.practicing }}</div>
           <div class="stat-label">练习中</div>
         </div>
-        <div class="stat-card" style="background: var(--macaron-mint-light, #e8f5e9);">
+        <div class="stat-card">
           <div class="stat-value" style="color: var(--color-success, #2a9d8f);">{{ stats.mastered }}</div>
           <div class="stat-label">已掌握</div>
         </div>
@@ -263,7 +263,6 @@ onMounted(async () => {
 }
 
 .stat-card {
-  background: var(--color-bg-alt);
   padding: var(--space-4);
   border-radius: var(--radius-lg);
   text-align: center;
