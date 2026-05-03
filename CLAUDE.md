@@ -213,6 +213,7 @@ frontend/src/
     permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
     sidebarConfig.js        # 5 板块分组（考试阅卷/教研教学/教务管理/学生管理/学校管理）+ SIDEBAR_GROUPS + getSidebarGroups(role, enabledModules) 权限动态过滤 + getSidebarItems(role) 兼容扁平接口
     dashboardConfig.js      # 角色→仪表盘 KPI/Widget JSON 配置
+    chartTheme.js           # ECharts 全局色板常量（CHART_PALETTE/TEXT_COLOR/SPLIT_COLOR）
   stores/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）

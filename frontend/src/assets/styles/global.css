@@ -69,7 +69,6 @@ a {
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
@@ -95,30 +94,30 @@ a {
   text-overflow: ellipsis;
 }
 
-/* 马卡龙标签 */
+/* 语义标签 */
 .tag-mint {
-  background: var(--macaron-mint-light);
+  background: var(--surface-success);
   color: #166534;
 }
 
 .tag-yellow {
-  background: var(--macaron-yellow-light);
-  color: #854d0e;
+  background: var(--surface-accent);
+  color: #9A5E20;
 }
 
 .tag-coral {
-  background: var(--macaron-coral-light);
+  background: var(--surface-danger);
   color: #991b1b;
 }
 
 .tag-purple {
-  background: var(--macaron-purple-light);
-  color: #5b21b6;
+  background: var(--surface-primary);
+  color: #4F3EC9;
 }
 
 .tag-blue {
-  background: var(--macaron-blue-light);
-  color: #0c4a6e;
+  background: var(--surface-info);
+  color: #4F3EC9;
 }
 
 /* 工具类 */
@@ -155,7 +154,7 @@ a {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #72726c;
+  color: var(--color-text-muted);
 }
 
 .text-kpi {
@@ -163,7 +162,7 @@ a {
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.03em;
-  color: #1a1a1a;
+  color: var(--color-text);
 }
 
 .text-kpi-label {
@@ -171,14 +170,14 @@ a {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #72726c;
+  color: var(--color-text-muted);
 }
 
 /* 空状态 */
 .empty-state {
   text-align: center;
   padding: 48px 24px;
-  color: #72726c;
+  color: var(--color-text-muted);
 }
 
 .empty-state__icon {
@@ -190,13 +189,13 @@ a {
 .empty-state__title {
   font-size: 18px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--color-text);
   margin-bottom: 8px;
 }
 
 .empty-state__text {
   font-size: 15px;
-  color: #72726c;
+  color: var(--color-text-muted);
   max-width: 360px;
   margin: 0 auto;
 }
