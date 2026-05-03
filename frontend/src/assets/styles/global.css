@@ -107,7 +107,7 @@ a {
 
 .tag-coral {
   background: var(--surface-danger);
-  color: #991b1b;
+  color: var(--color-danger-text);
 }
 
 .tag-purple {

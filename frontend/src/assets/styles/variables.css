@@ -45,16 +45,16 @@
   --surface-info: #e8e4fd;
   --surface-info-light: #f5f3ff;
 
-  /* Macaron 别名（兼容过渡，指向新 surface） */
-  --macaron-mint: #4ADE80;
+  /* Macaron 别名（兼容过渡，全部指向新 surface） */
+  --macaron-mint: var(--color-success);
   --macaron-mint-light: var(--surface-success);
-  --macaron-yellow: #F4DA4C;
+  --macaron-yellow: var(--color-accent);
   --macaron-yellow-light: var(--surface-accent);
-  --macaron-coral: #fca5a5;
+  --macaron-coral: var(--color-danger);
   --macaron-coral-light: var(--surface-danger);
-  --macaron-purple: #8B7AF5;
+  --macaron-purple: var(--color-primary);
   --macaron-purple-light: var(--surface-primary);
-  --macaron-blue: #8B7AF5;
+  --macaron-blue: var(--color-info);
   --macaron-blue-light: var(--surface-info);
 
   /* 圆角（收紧，不要太圆） */
