@@ -54,13 +54,21 @@ async def get_overview(
         raise HTTPException(status_code=403, detail="家长请使用家长端接口")
 
     if role.role in ("platform_admin", "district_admin"):
-        # District scope: use role's school district or "default"
         if role.school_id:
             school = await db.get(School, role.school_id)
-            district = school.district if school and school.district else "default"
+            district = school.district if school and school.district else None
+            districts = [district] if district else []
         else:
-            district = "default"
-        return await scope_service.get_conduct_overview(db, "district", [district])
+            # F-007: platform_admin without school — query all active districts
+            rows = (await db.execute(
+                select(School.district).where(
+                    School.is_active.is_(True), School.district.isnot(None),
+                ).distinct()
+            )).scalars().all()
+            districts = [d for d in rows if d]
+        if not districts:
+            return {"scope_type": "district", "summary": {"total_schools": 0, "total_students": 0}, "school_comparison": [], "trend": []}
+        return await scope_service.get_conduct_overview(db, "district", districts)
 
     if role.role in ("principal", "academic_director"):
         # School scope
