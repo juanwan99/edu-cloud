@@ -57,14 +57,16 @@ def knowledge_db_with_hierarchy(tmp_path):
 
 @pytest.mark.asyncio
 async def test_sync_all_tables(db, knowledge_db_path):
-    """F005: 单事务同步后 4 张表都有数据（确定性 fixture，无 skip）。"""
+    """F005: 单事务同步后 4 张表都有数据（确定性 fixture，无 skip）。
+    3-layer tree: 1 module + 2 concepts = 3 nodes; 2 orphan contains + 1 concept-relation = 3 edges.
+    """
     from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
     r = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_path)
     assert r["status"] == "synced"
-    assert r["nodes"] == 2
-    assert r["edges"] == 1
-    assert (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar() == 2
-    assert (await db.execute(select(func.count()).select_from(ConceptGraphEdge))).scalar() == 1
+    assert r["nodes"] == 3  # 1 module(M1) + 2 L1 concepts
+    assert r["edges"] == 3  # 2 contains(module→orphan) + 1 concept-relation
+    assert (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar() == 3
+    assert (await db.execute(select(func.count()).select_from(ConceptGraphEdge))).scalar() == 3
     assert (await db.execute(select(func.count()).select_from(DaCatalogSnapshot))).scalar() == 1
     assert (await db.execute(select(func.count()).select_from(DaKnowledgePointMap))).scalar() == 1
 
@@ -118,23 +120,29 @@ async def test_sync_commit_persists(db_engine, knowledge_db_path):
     # 第二个独立 session: 验证数据真正持久化（不是 flush 幻觉）
     async with make_session() as s2:
         count = (await s2.execute(select(func.count()).select_from(ConceptGraphNode))).scalar()
-        assert count == 2, f"Expected 2 nodes persisted across sessions, got {count}"
+        assert count == 3, f"Expected 3 nodes (1 module + 2 concepts) persisted across sessions, got {count}"
 
 
 # --- 层级重构同步测试 ---
 
 @pytest.mark.asyncio
 async def test_sync_l1_only(db, knowledge_db_with_hierarchy):
-    """同步后只有 L1 概念 + BigConcept 节点，无 evidence。"""
+    """同步后有 Module + L1 概念 + BigConcept 节点，无 evidence。"""
     from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
     r = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_with_hierarchy)
     assert r["status"] == "synced"
 
-    # 节点：2 L1 + 1 BigConcept = 3（evidence 不同步）
+    # 节点：1 module(M1) + 2 L1 + 1 BigConcept = 4（evidence 不同步）
     total = (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar()
-    assert total == 3
+    assert total == 4
 
     # 验证 node_type
+    modules = (await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.node_type == "module")
+    )).scalars().all()
+    assert len(modules) == 1
+    assert modules[0].id == "mod:bio_sr:M1"
+
     concepts = (await db.execute(
         select(ConceptGraphNode).where(ConceptGraphNode.node_type == "concept")
     )).scalars().all()
@@ -220,14 +228,14 @@ async def test_da_map_unchanged_after_sync(db, knowledge_db_with_hierarchy):
 
 @pytest.mark.asyncio
 async def test_sync_old_db_no_hierarchy(db, knowledge_db_path):
-    """旧版 knowledge.db（无 big_concepts 表）不崩溃，正常同步 L1。"""
+    """旧版 knowledge.db（无 big_concepts 表）不崩溃，正常同步 L1 + module。"""
     from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
     r = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_path)
     assert r["status"] == "synced"
 
-    # 2 L1 nodes, 0 BigConcepts, 0 maps
+    # 1 module(M1) + 2 L1 nodes, 0 BigConcepts, 0 maps
     total = (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar()
-    assert total == 2
+    assert total == 3
 
     map_count = (await db.execute(select(func.count()).select_from(ConceptBigConceptMap))).scalar()
     assert map_count == 0
@@ -271,8 +279,8 @@ async def test_sync_stats_failure_does_not_break_sync(db, knowledge_db_path, mon
     # sync 完整跑完（status=synced），stats 失败被 best-effort 吞掉
     result = await sync_knowledge_on_startup(db, knowledge_db_path)
     assert result["status"] == "synced"
-    # sync 本身持久化的数据应保留
-    assert (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar() == 2
+    # sync 本身持久化的数据应保留（1 module + 2 concepts = 3）
+    assert (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar() == 3
 
 
 @pytest.mark.asyncio
