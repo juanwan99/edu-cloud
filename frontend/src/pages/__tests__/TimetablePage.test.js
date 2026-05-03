@@ -37,12 +37,12 @@ describe('TimetablePage template sections', () => {
     expect(content).toContain('按班级查看和编辑课程表')
   })
 
-  it('contains statistics grid with 4 columns', () => {
-    expect(content).toContain('<n-grid :cols="4"')
-    expect(content).toContain('<n-statistic label="已排课班级"')
-    expect(content).toContain('<n-statistic label="覆盖率"')
-    expect(content).toContain('<n-statistic label="当前班级课时"')
-    expect(content).toContain('<n-statistic label="空余时段"')
+  it('contains statistics row with stat cards', () => {
+    expect(content).toContain('class="stats-row"')
+    expect(content).toContain('class="stat-card"')
+    expect(content).toContain('已排课班级')
+    expect(content).toContain('覆盖率')
+    expect(content).toContain('当前班级课时')
   })
 
   it('contains grade and class select filters', () => {

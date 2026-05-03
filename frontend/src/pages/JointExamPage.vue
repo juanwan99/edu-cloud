@@ -12,23 +12,18 @@
 
     <!-- 统计卡片 -->
     <div class="stats-row">
-      <n-card size="small" class="stat-card">
-        <n-statistic label="总联考数" :value="stats.total" />
-      </n-card>
-      <n-card size="small" class="stat-card">
-        <n-statistic label="进行中" :value="stats.active">
-          <template #suffix>
-            <n-tag size="tiny" type="info" round>活跃</n-tag>
-          </template>
-        </n-statistic>
-      </n-card>
-      <n-card size="small" class="stat-card">
-        <n-statistic label="已完成" :value="stats.done">
-          <template #suffix>
-            <n-tag size="tiny" type="success" round>完成</n-tag>
-          </template>
-        </n-statistic>
-      </n-card>
+      <div class="stat-card">
+        <div class="stat-label">总联考数</div>
+        <div class="stat-value">{{ stats.total }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">进行中</div>
+        <div class="stat-value">{{ stats.active }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已完成</div>
+        <div class="stat-value">{{ stats.done }}</div>
+      </div>
     </div>
 
     <!-- 状态筛选 -->

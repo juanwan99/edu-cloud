@@ -6,32 +6,28 @@
     </div>
 
     <!-- 统计卡片区 -->
-    <n-grid :cols="4" :x-gap="12" :y-gap="12" style="margin-bottom: var(--space-4);" v-if="semesterId">
-      <n-gi>
-        <n-card size="small">
-          <n-statistic label="已排课班级" :value="timetableStats.classes_with_timetable || 0">
-            <template #suffix>/ {{ timetableStats.total_classes || 0 }}</template>
-          </n-statistic>
-        </n-card>
-      </n-gi>
-      <n-gi>
-        <n-card size="small">
-          <n-statistic label="覆盖率" :value="coveragePercent">
-            <template #suffix>%</template>
-          </n-statistic>
-        </n-card>
-      </n-gi>
-      <n-gi>
-        <n-card size="small">
-          <n-statistic label="当前班级课时" :value="currentClassSlotCount" />
-        </n-card>
-      </n-gi>
-      <n-gi>
-        <n-card size="small">
-          <n-statistic label="空余时段" :value="emptySlotCount" />
-        </n-card>
-      </n-gi>
-    </n-grid>
+    <div v-if="semesterId" class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">已排课班级</div>
+        <div class="stat-value">
+          {{ timetableStats.classes_with_timetable || 0 }}<span class="stat-suffix">/ {{ timetableStats.total_classes || 0 }}</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">覆盖率</div>
+        <div class="stat-value">
+          {{ coveragePercent }}<span class="stat-suffix">%</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">当前班级课时</div>
+        <div class="stat-value">{{ currentClassSlotCount }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">空余时段</div>
+        <div class="stat-value">{{ emptySlotCount }}</div>
+      </div>
+    </div>
 
     <!-- 筛选栏 -->
     <n-space style="margin-bottom: var(--space-4);">
@@ -429,6 +425,20 @@ onMounted(init)
 </script>
 
 <style scoped>
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: var(--space-4);
+}
+
+.stat-suffix {
+  margin-left: var(--space-1);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-muted);
+}
+
 .timetable-grid { overflow-x: auto; }
 .timetable-grid table { width: 100%; border-collapse: collapse; border-radius: var(--r-sm); overflow: hidden; }
 .timetable-grid th { background: rgba(99, 110, 180, 0.15); padding: 10px 8px; font-size: var(--fs-base); font-weight: var(--fw-semibold); text-align: center; border: 1px solid rgba(255,255,255,0.06); }
@@ -450,4 +460,8 @@ onMounted(init)
 .subject-stats { margin-top: 12px; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: var(--r-sm); }
 .stats-label { font-size: var(--fs-base); font-weight: var(--fw-semibold); color: rgba(255,255,255,0.6); }
 .slot-paste-target { color: rgba(99, 180, 130, 0.6) !important; font-size: var(--fs-base) !important; border: 1px dashed rgba(99, 180, 130, 0.4); border-radius: var(--r-xs); padding: 2px 4px; }
+
+@media (max-width: 768px) {
+  .stats-row { grid-template-columns: 1fr; }
+}
 </style>
