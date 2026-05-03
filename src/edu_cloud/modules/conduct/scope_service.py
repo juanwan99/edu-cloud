@@ -16,6 +16,42 @@ from edu_cloud.modules.student.models import Student, Class
 logger = logging.getLogger(__name__)
 
 
+async def _weekly_trend(
+    db: AsyncSession,
+    class_ids: list[str],
+    weeks: int,
+) -> list[dict]:
+    """Aggregate weekly positive/negative record counts for given class_ids."""
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())
+    trend = []
+    for i in range(weeks - 1, -1, -1):
+        ws = week_start - timedelta(weeks=i)
+        we = ws + timedelta(days=6)
+        pos = (await db.execute(
+            select(func.count(ConductRecord.id)).where(
+                ConductRecord.class_id.in_(class_ids),
+                ConductRecord.date >= ws,
+                ConductRecord.date <= we,
+                ConductRecord.points > 0,
+            )
+        )).scalar() or 0
+        neg = (await db.execute(
+            select(func.count(ConductRecord.id)).where(
+                ConductRecord.class_id.in_(class_ids),
+                ConductRecord.date >= ws,
+                ConductRecord.date <= we,
+                ConductRecord.points < 0,
+            )
+        )).scalar() or 0
+        trend.append({
+            "week_start": ws.isoformat(),
+            "positive": pos,
+            "negative": neg,
+        })
+    return trend
+
+
 async def get_conduct_overview(
     db: AsyncSession,
     scope_type: str,
@@ -91,34 +127,7 @@ async def _class_overview(
     bottom = [{"name": r.name, "points": int(r.total)} for r in rows[-5:]] if len(rows) > 5 else list(reversed(top))
 
     # --- trend (weekly positive/negative counts) ---
-    today = date.today()
-    # Align to Monday of current week
-    week_start = today - timedelta(days=today.weekday())
-    trend = []
-    for i in range(weeks - 1, -1, -1):
-        ws = week_start - timedelta(weeks=i)
-        we = ws + timedelta(days=6)
-        pos = (await db.execute(
-            select(func.count(ConductRecord.id)).where(
-                ConductRecord.class_id.in_(class_ids),
-                ConductRecord.date >= ws,
-                ConductRecord.date <= we,
-                ConductRecord.points > 0,
-            )
-        )).scalar() or 0
-        neg = (await db.execute(
-            select(func.count(ConductRecord.id)).where(
-                ConductRecord.class_id.in_(class_ids),
-                ConductRecord.date >= ws,
-                ConductRecord.date <= we,
-                ConductRecord.points < 0,
-            )
-        )).scalar() or 0
-        trend.append({
-            "week_start": ws.isoformat(),
-            "positive": pos,
-            "negative": neg,
-        })
+    trend = await _weekly_trend(db, class_ids, weeks)
 
     return {
         "scope_type": "class",
@@ -183,6 +192,9 @@ async def _school_overview(db: AsyncSession, school_ids: list[str]) -> dict:
             for r in rows
         ]
 
+    # Weekly trend (aggregate all classes in school)
+    trend = await _weekly_trend(db, class_ids_in_school, 4) if class_ids_in_school else []
+
     return {
         "scope_type": "school",
         "summary": {
@@ -191,6 +203,7 @@ async def _school_overview(db: AsyncSession, school_ids: list[str]) -> dict:
             "class_count": class_count,
         },
         "class_comparison": comparison,
+        "trend": trend,
     }
 
 
@@ -252,6 +265,13 @@ async def _district_overview(db: AsyncSession, district_names: list[str]) -> dic
                 "avg_points": record_stats.get(sid, {}).get("avg_points", 0.0),
             })
 
+    # Weekly trend (aggregate all classes across all schools in district)
+    all_class_ids: list[str] = []
+    if school_ids:
+        cls_stmt = select(Class.id).where(Class.school_id.in_(school_ids))
+        all_class_ids = [r for r in (await db.execute(cls_stmt)).scalars().all()]
+    trend = await _weekly_trend(db, all_class_ids, 4) if all_class_ids else []
+
     return {
         "scope_type": "district",
         "summary": {
@@ -259,4 +279,5 @@ async def _district_overview(db: AsyncSession, district_names: list[str]) -> dic
             "total_students": total_students,
         },
         "school_comparison": school_comparison,
+        "trend": trend,
     }

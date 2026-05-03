@@ -54,6 +54,22 @@
           </n-space>
         </n-card>
 
+        <!-- Alert Threshold -->
+        <n-card title="行为预警" class="section-gap">
+          <n-form-item label="预警积分线">
+            <n-input-number
+              v-model:value="alertThreshold"
+              :min="-100"
+              :max="100"
+              placeholder="不设置则不启用预警"
+              clearable
+              style="width: 200px"
+              @update:value="saveConfig"
+            />
+          </n-form-item>
+          <n-text depth="3">当学生累计积分低于此值时，系统将自动通知家长。留空表示不启用。</n-text>
+        </n-card>
+
         <!-- Semester Management -->
         <n-card title="学期管理">
           <template #header-extra>
@@ -112,7 +128,7 @@ import { ref, computed, onMounted } from 'vue'
 import {
   NPageHeader, NCard, NSpace, NTag, NButton, NRadioGroup, NRadio,
   NSwitch, NList, NListItem, NModal, NForm, NFormItem, NInput,
-  NDatePicker, NEmpty, NSpin, NAlert, useMessage,
+  NInputNumber, NDatePicker, NEmpty, NSpin, NAlert, NText, useMessage,
 } from 'naive-ui'
 import { useAuthStore } from '../../stores/auth'
 import {
@@ -130,6 +146,7 @@ const config = ref({
   verify_code_type: 'id_card',
   is_active: true,
 })
+const alertThreshold = ref(null)
 const loading = ref(false)
 const regenerating = ref(false)
 
@@ -150,6 +167,7 @@ async function loadConfig() {
       verify_code_type: data.verify_code_type || 'id_card',
       is_active: data.is_active !== false,
     }
+    alertThreshold.value = data.alert_threshold ?? null
   } catch {
     // defaults are fine
   } finally {
@@ -163,6 +181,7 @@ async function saveConfig() {
     await updateConductConfig(classId.value, {
       verify_code_type: config.value.verify_code_type,
       is_active: config.value.is_active,
+      alert_threshold: alertThreshold.value,
     })
     message.success('设置已保存')
   } catch (e) {

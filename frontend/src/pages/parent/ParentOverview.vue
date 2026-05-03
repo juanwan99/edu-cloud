@@ -29,6 +29,25 @@
       </n-list>
     </n-card>
 
+    <!-- Semester summary (below notifications, above student info) -->
+    <n-card v-if="semesterReport" size="small" style="margin-bottom: var(--space-4);">
+      <template #header>学期评价</template>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">累计积分</div>
+          <div class="stat-value">{{ studentTotalPoints }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">班级排名</div>
+          <div class="stat-value">{{ studentRank }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">班级均分</div>
+          <div class="stat-value">{{ semesterReport.summary?.avg_points?.toFixed(1) || '-' }}</div>
+        </div>
+      </div>
+    </n-card>
+
     <template v-if="currentChild">
       <!-- Student info card -->
       <n-card class="info-card" style="margin-bottom: var(--space-4);">
@@ -142,6 +161,9 @@ const ranking = ref(null)
 const latestScore = ref(null)
 const loading = ref(false)
 const notifications = ref([])
+const semesterReport = ref(null)
+const studentTotalPoints = ref(0)
+const studentRank = ref('-')
 
 // Load notifications on component init
 getParentNotifications(true).then(res => {
@@ -197,7 +219,7 @@ watch(() => props.currentChild, async (child) => {
       latestScore.value = null
     }
 
-    // Fetch ranking
+    // Fetch ranking + semester summary
     try {
       const rankRes = await getChildRankings(child.student_id)
       const rankData = rankRes.data
@@ -210,8 +232,23 @@ watch(() => props.currentChild, async (child) => {
       } else {
         ranking.value = null
       }
+
+      // Build semester report from rankings data
+      const rankings = Array.isArray(rankData) ? rankData : []
+      if (rankings.length > 0) {
+        const myEntry = rankings.find(r => r.student_id === child.student_id)
+        if (myEntry) {
+          studentTotalPoints.value = myEntry.total_points ?? 0
+          studentRank.value = myEntry.rank || rankings.indexOf(myEntry) + 1
+        }
+        const avgPts = rankings.reduce((s, r) => s + (r.total_points || 0), 0) / rankings.length
+        semesterReport.value = { summary: { avg_points: avgPts } }
+      } else {
+        semesterReport.value = null
+      }
     } catch {
       ranking.value = null
+      semesterReport.value = null
     }
   } catch {
     records.value = []
@@ -408,5 +445,30 @@ watch(() => props.currentChild, async (child) => {
   font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.35);
   margin-top: 2px;
+}
+
+.stats-row {
+  display: flex;
+  gap: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.stat-card .stat-label {
+  font-size: var(--fs-base);
+  color: rgba(255, 255, 255, 0.45);
+  margin-top: 4px;
+}
+
+.stat-card .stat-value {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  color: rgba(255, 255, 255, 0.85);
 }
 </style>

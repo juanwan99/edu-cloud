@@ -113,3 +113,9 @@ export const getParentNotifications = (unreadOnly = false) =>
   parentClient.get('/conduct/parent/notifications', { params: { unread_only: unreadOnly } })
 export const markNotificationsRead = () =>
   parentClient.post('/conduct/parent/notifications/read-all')
+
+// ── Semester reports ──
+export const getClassReport = (classId, params) =>
+  api.get(`/conduct/classes/${classId}/report`, { params })
+export const getSchoolReport = (schoolId, params) =>
+  api.get(`/conduct/schools/${schoolId}/report`, { params })

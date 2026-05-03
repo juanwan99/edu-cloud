@@ -137,7 +137,7 @@
       </n-card>
       </template>
 
-      <!-- SCHOOL scope: class comparison table -->
+      <!-- SCHOOL scope: class comparison table + trend -->
       <template v-else-if="scopeType === 'school'">
         <n-card title="班级德育对比" class="section-gap">
           <n-data-table
@@ -146,9 +146,12 @@
             size="small"
           />
         </n-card>
+        <n-card title="积分趋势（最近 4 周）" size="small" class="section-gap" v-if="overviewData?.trend?.length">
+          <v-chart :option="overviewTrendOption" class="chart-height-sm" autoresize />
+        </n-card>
       </template>
 
-      <!-- DISTRICT scope: school comparison table -->
+      <!-- DISTRICT scope: school comparison table + trend -->
       <template v-else-if="scopeType === 'district'">
         <n-card title="学校德育对比" class="section-gap">
           <n-data-table
@@ -156,6 +159,9 @@
             :data="overviewData?.school_comparison || []"
             size="small"
           />
+        </n-card>
+        <n-card title="积分趋势（最近 4 周）" size="small" class="section-gap" v-if="overviewData?.trend?.length">
+          <v-chart :option="overviewTrendOption" class="chart-height-sm" autoresize />
         </n-card>
       </template>
     </n-spin>
@@ -322,6 +328,25 @@ function buildPieOption(plusTotal, minusTotal) {
     }],
   }
 }
+
+// Trend chart for school/district scopes (uses backend-aggregated trend data)
+const overviewTrendOption = computed(() => {
+  const trend = overviewData.value?.trend
+  if (!trend?.length) return null
+  const labels = trend.map(t => t.week_start?.slice(5) || '')
+  return {
+    ...CHART_DEFAULTS,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
+    legend: { ...CHART_DEFAULTS.legend, data: ['加分', '扣分'] },
+    grid: { ...CHART_DEFAULTS.grid, left: 40, right: 16, top: 36, bottom: 24 },
+    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: labels },
+    yAxis: { ...CHART_DEFAULTS.yAxis, type: 'value' },
+    series: [
+      { name: '加分', type: 'line', data: trend.map(t => t.positive), smooth: true, itemStyle: { color: CHART_PALETTE[1] }, areaStyle: { color: 'rgba(244,218,76,0.15)' } },
+      { name: '扣分', type: 'line', data: trend.map(t => t.negative), smooth: true, itemStyle: { color: '#e88080' }, areaStyle: { color: 'rgba(232,128,128,0.15)' } },
+    ],
+  }
+})
 
 async function loadDashboard() {
   if (!classId.value) return
