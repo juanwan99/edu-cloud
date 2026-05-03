@@ -1,75 +1,84 @@
-"""知识点 DB 查询工具（2 个）。L3_knowledge_db 类别。
+"""知识点查询工具（统一到 ConceptGraphNode 体系）。"""
+from sqlalchemy import select
 
-基于 modules/knowledge 的关系型数据库查询（与 knowledge.py 的内存索引互补）。
-"""
 from edu_cloud.ai.registry import tools
 from edu_cloud.ai.tool_context import ToolContext, ToolResult
 
 
 @tools.register(
     name="get_knowledge_tree",
-    description="获取某学科的知识点树。返回指定层级的知识点列表。不传 parent_id 返回顶层节点。",
+    description=(
+        "获取指定科目的知识点树。返回三层结构：模块→学习单元→概念。"
+        "每个节点包含 id（语义化字符串如 BIO_SR_CP_M1_CELL_THEORY）、name、"
+        "node_type（module/study_unit/concept）、primary_module、description。"
+    ),
     category="L3_knowledge_db",
+    module_code="knowledge",
     domain="knowledge",
-    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
-    risk_level="low",
-    is_read_only=True,
-    sensitivity="school",
     parameters={
-        "type": "object",
-        "properties": {
-            "course_code": {"type": "string", "description": "学科代码，如 SX(数学)、YW(语文)、YY(英语)"},
-            "parent_id": {"type": "string", "description": "父知识点 ID，不传则返回顶层"},
-        },
-        "required": ["course_code"],
+        "course_code": {"type": "string", "description": "科目代码: SW(生物)/SX(数学)", "default": "SW"},
+        "module": {"type": "string", "description": "模块过滤: M1/M2/M3/M4/M5/all", "default": "all"},
     },
 )
 async def get_knowledge_tree(input: dict, ctx: ToolContext) -> ToolResult:
-    course_code = input.get("course_code", "")
-    parent_id = input.get("parent_id")
-    try:
-        from edu_cloud.modules.knowledge.service import list_knowledge_points
-        kps = await list_knowledge_points(
-            ctx.db, course_code=course_code, parent_id=parent_id,
-            school_id=ctx.school_id,
-        )
-        return ToolResult(success=True, data={
-            "knowledge_points": [
-                {"id": kp.id, "code": kp.code, "name": kp.name, "level": kp.level, "grade_hint": kp.grade_hint}
-                for kp in kps
-            ]
+    from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge
+
+    course_code = input.get("course_code", "SW")
+    module_filter = input.get("module", "all")
+
+    stmt = select(ConceptGraphNode).where(ConceptGraphNode.course_code == course_code)
+    if module_filter != "all":
+        stmt = stmt.where(ConceptGraphNode.primary_module == module_filter)
+
+    result = await ctx.db.execute(stmt)
+    nodes = result.scalars().all()
+
+    node_ids = [n.id for n in nodes]
+    edges = await ctx.db.execute(
+        select(ConceptGraphEdge.source_id, ConceptGraphEdge.target_id)
+        .where(ConceptGraphEdge.relation_type == "contains",
+               ConceptGraphEdge.target_id.in_(node_ids))
+    )
+    child_to_parent = {row[1]: row[0] for row in edges.all()}
+
+    items = []
+    for n in nodes:
+        items.append({
+            "id": n.id,
+            "name": n.name,
+            "node_type": n.node_type,
+            "primary_module": n.primary_module,
+            "description": n.description,
+            "parent_id": child_to_parent.get(n.id),
         })
-    except Exception as e:
-        return ToolResult(success=False, error=str(e))
+
+    return ToolResult(success=True, data={"knowledge_points": items, "total": len(items)})
 
 
 @tools.register(
     name="get_question_knowledge_points",
-    description="获取某道题目关联的知识点列表。",
+    description="查询题目关联的知识点。返回概念列表（id + name + module）。",
     category="L3_knowledge_db",
+    module_code="knowledge",
     domain="knowledge",
-    allowed_roles=["platform_admin", "district_admin", "principal", "academic_director", "grade_leader", "homeroom_teacher", "subject_teacher"],
-    risk_level="low",
-    is_read_only=True,
-    sensitivity="school",
     parameters={
-        "type": "object",
-        "properties": {
-            "question_id": {"type": "string", "description": "题目 ID"},
-        },
-        "required": ["question_id"],
+        "question_id": {"type": "string", "description": "题目 ID", "required": True},
     },
 )
 async def get_question_knowledge_points(input: dict, ctx: ToolContext) -> ToolResult:
-    question_id = input.get("question_id", "")
-    try:
-        from edu_cloud.modules.knowledge.service import get_question_knowledge_points as svc_get
-        kps = await svc_get(ctx.db, question_id=question_id)
-        return ToolResult(success=True, data={
-            "knowledge_points": [
-                {"id": kp.id, "code": kp.code, "name": kp.name, "level": kp.level}
-                for kp in kps
-            ]
-        })
-    except Exception as e:
-        return ToolResult(success=False, error=str(e))
+    from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+    from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
+
+    question_id = input["question_id"]
+    result = await ctx.db.execute(
+        select(ConceptGraphNode)
+        .join(QuestionKnowledgePoint, QuestionKnowledgePoint.concept_id == ConceptGraphNode.id)
+        .where(QuestionKnowledgePoint.question_id == question_id)
+    )
+    nodes = result.scalars().all()
+    return ToolResult(success=True, data={
+        "knowledge_points": [
+            {"id": n.id, "name": n.name, "module": n.primary_module}
+            for n in nodes
+        ],
+    })
