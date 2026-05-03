@@ -1,7 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" aria-label="微与积">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" aria-label="微与积">
   <rect width="16" height="16" rx="3" fill="#09061B"/>
-  <path d="M8 3 C5 6 4 9 4 13" stroke="#F4DA4C" stroke-width="2" stroke-linecap="round"/>
-  <path d="M8 3 C11 6 12 9 12 13" stroke="#F4DA4C" stroke-width="2" stroke-linecap="round"/>
-  <path d="M8 4 V13" stroke="#F4DA4C" stroke-width="2" stroke-linecap="round"/>
-  <path d="M8 7 L5.5 9.5 M8 7 L10.5 9.5" stroke="#F4DA4C" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M8 2.5 C5 5.5 4 8.5 4 13 L8 13 L12 13 C12 8.5 11 5.5 8 2.5Z" fill="#F4DA4C"/>
 </svg>
