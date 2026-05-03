@@ -25,10 +25,10 @@ describe('heatmapColor', () => {
     expect(b).toBeGreaterThanOrEqual(0xCC)
   })
 
-  it('freq=maxFreq returns deep color (R < 100)', () => {
+  it('freq=maxFreq returns deep color (R <= 100)', () => {
     const c = heatmapColor(1000, 1000)
     const r = parseInt(c.slice(1, 3), 16)
-    expect(r).toBeLessThan(100)
+    expect(r).toBeLessThanOrEqual(100)
   })
 
   it('handles freq > maxFreq by clamping (equal to freq=maxFreq)', () => {

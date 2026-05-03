@@ -220,7 +220,7 @@ describe('GradingResultsPage helper functions', () => {
     expect(content).toContain('function scoreColor(row)')
     expect(content).toContain("if (pct < 60) return '#dc3545'")
     expect(content).toContain("if (pct < 80) return '#d97706'")
-    expect(content).toContain("return '#16a34a'")
+    expect(content).toContain("return '#22C55E'")
   })
 
   it('confidenceType returns tag type based on confidence level', () => {

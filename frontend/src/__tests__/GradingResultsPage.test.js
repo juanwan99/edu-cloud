@@ -131,7 +131,7 @@ describe('GradingResultsPage score helpers', () => {
     await flushPromises()
     const vm = wrapper.vm
 
-    expect(vm.scoreColor({ score: 9, max_score: 10 })).toBe('#16a34a') // >=80%
+    expect(vm.scoreColor({ score: 9, max_score: 10 })).toBe('#22C55E') // >=80%
     expect(vm.scoreColor({ score: 7, max_score: 10 })).toBe('#d97706') // 60-80%
     expect(vm.scoreColor({ score: 3, max_score: 10 })).toBe('#dc3545') // <60%
   })

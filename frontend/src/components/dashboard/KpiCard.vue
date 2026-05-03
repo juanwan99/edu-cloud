@@ -71,7 +71,7 @@ const displayValue = computed(() =>
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #72726c;
+  color: var(--color-text-muted);
   margin-top: 8px;
   white-space: nowrap;
   overflow: hidden;
