@@ -55,11 +55,10 @@ describe('StudentProfilePage template structure', () => {
     expect(content).toContain('知识点掌握')
   })
 
-  it('uses macaron theme colors for stat cards', () => {
-    expect(content).toContain('var(--macaron-mint-light)')
-    expect(content).toContain('var(--macaron-purple-light)')
-    expect(content).toContain('var(--macaron-yellow-light)')
-    expect(content).toContain('var(--macaron-coral-light)')
+  it('uses shared stat-card class styling for overview cards', () => {
+    const statCards = content.match(/<div class="stat-card">/g) || []
+    expect(statCards).toHaveLength(4)
+    expect(content).toContain('.stat-card { border-radius: var(--radius-lg); padding: var(--space-5); text-align: center; }')
   })
 })
 

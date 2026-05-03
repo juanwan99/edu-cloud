@@ -30,7 +30,7 @@ describe('AnalyticsTrendPage smoke', () => {
 
 describe('AnalyticsTrendPage template sections', () => {
   it('wraps in analytics-trend class', () => {
-    expect(content).toContain('class="analytics-trend"')
+    expect(content).toContain('class="page-wrap analytics-trend"')
   })
 
   it('has exam multi-select filter', () => {

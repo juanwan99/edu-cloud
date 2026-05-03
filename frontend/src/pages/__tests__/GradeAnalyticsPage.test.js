@@ -31,11 +31,11 @@ describe('GradeAnalyticsPage smoke', () => {
 
 describe('GradeAnalyticsPage template structure', () => {
   it('contains grade-analytics root class', () => {
-    expect(content).toContain('class="grade-analytics"')
+    expect(content).toContain('class="page-wrap grade-analytics"')
   })
 
-  it('contains card with title', () => {
-    expect(content).toContain('title="年级分析"')
+  it('contains page title', () => {
+    expect(content).toContain('<h1 class="page-title">年级分析</h1>')
   })
 
   it('contains grade selector', () => {
