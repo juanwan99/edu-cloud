@@ -2,16 +2,69 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 import { execSync } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+
+const projectRoot = fileURLToPath(new URL('.', import.meta.url))
+
+function findGitPath(startDir) {
+  let dir = startDir
+  while (true) {
+    const candidate = join(dir, '.git')
+    if (existsSync(candidate)) return candidate
+    const parent = dirname(dir)
+    if (parent === dir) return null
+    dir = parent
+  }
+}
+
+function resolveGitDir(gitPath) {
+  if (statSync(gitPath).isDirectory()) return gitPath
+  const content = readFileSync(gitPath, 'utf-8').trim()
+  const match = content.match(/^gitdir:\s*(.+)$/)
+  if (!match) return null
+  return resolve(dirname(gitPath), match[1])
+}
+
+function readGitHashFromFiles() {
+  const gitPath = findGitPath(projectRoot)
+  if (!gitPath) return null
+
+  const gitDir = resolveGitDir(gitPath)
+  if (!gitDir) return null
+
+  const head = readFileSync(join(gitDir, 'HEAD'), 'utf-8').trim()
+  if (!head.startsWith('ref: ')) return head.slice(0, 7)
+
+  const ref = head.slice(5)
+  const refPath = join(gitDir, ref)
+  if (existsSync(refPath)) return readFileSync(refPath, 'utf-8').trim().slice(0, 7)
+
+  const packedRefsPath = join(gitDir, 'packed-refs')
+  if (!existsSync(packedRefsPath)) return null
+
+  const packedRef = readFileSync(packedRefsPath, 'utf-8')
+    .split('\n')
+    .find((line) => line.endsWith(` ${ref}`))
+  return packedRef ? packedRef.split(' ')[0].slice(0, 7) : null
+}
 
 function getGitHash() {
-  try { return execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim() }
-  catch { return 'unknown' }
+  try {
+    return execSync('git rev-parse --short HEAD', { cwd: projectRoot, encoding: 'utf-8' }).trim()
+  } catch {
+    try {
+      const hash = readGitHashFromFiles()
+      return /^[0-9a-f]{7,}$/i.test(hash) ? hash.toLowerCase() : 'unknown'
+    } catch {
+      return 'unknown'
+    }
+  }
 }
 
 function isSourceDirty() {
   try {
-    execSync('git diff --quiet HEAD -- src/ vite.config.js package.json index.html', { cwd: fileURLToPath(new URL('.', import.meta.url)) })
+    execSync('git diff --quiet HEAD -- src/ vite.config.js package.json index.html', { cwd: projectRoot })
     return false
   } catch { return true }
 }
@@ -22,7 +75,7 @@ function generateVersionJson() {
   return {
     name: 'generate-version-json',
     closeBundle() {
-      const distDir = fileURLToPath(new URL('./dist', import.meta.url))
+      const distDir = join(projectRoot, 'dist')
       const data = {
         build_time: new Date().toISOString(),
         git_hash: getGitHash(),
@@ -39,7 +92,7 @@ function fixDistPermissions() {
     name: 'fix-dist-permissions',
     closeBundle() {
       try {
-        execSync('chmod -R o+rX dist/', { cwd: fileURLToPath(new URL('.', import.meta.url)) })
+        execSync('chmod -R o+rX dist/', { cwd: projectRoot })
       } catch {}
     },
   }

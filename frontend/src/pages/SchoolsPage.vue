@@ -10,19 +10,27 @@
 
     <!-- Stats Cards -->
     <div class="stats-row">
-      <n-card size="small" class="stat-card">
-        <n-statistic label="学校总数" :value="stats.total" />
-      </n-card>
-      <n-card size="small" class="stat-card">
-        <n-statistic label="活跃学校" :value="stats.active">
-          <template #suffix>
-            <n-tag size="tiny" type="success" round>活跃</n-tag>
-          </template>
-        </n-statistic>
-      </n-card>
-      <n-card size="small" class="stat-card">
-        <n-statistic label="学区数" :value="stats.districts" />
-      </n-card>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--yellow">
+          <AppIcon name="school" :size="20" />
+        </div>
+        <div class="stat-label">学校总数</div>
+        <div class="stat-value">{{ stats.total ?? '--' }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--purple">
+          <AppIcon name="marking" :size="20" />
+        </div>
+        <div class="stat-label">活跃学校</div>
+        <div class="stat-value">{{ stats.active ?? '--' }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--orange">
+          <AppIcon name="chart" :size="20" />
+        </div>
+        <div class="stat-label">学区数</div>
+        <div class="stat-value">{{ stats.districts ?? '--' }}</div>
+      </div>
     </div>
 
     <!-- Search + Filter + View Toggle -->
@@ -94,6 +102,7 @@ import { ref, reactive, computed, onMounted, h } from 'vue'
 import { NTag } from 'naive-ui'
 import { useMessage } from 'naive-ui'
 import { listSchools, createSchool } from '../api/schools'
+import AppIcon from '../components/AppIcon.vue'
 
 const message = useMessage()
 const loading = ref(true)
@@ -185,8 +194,19 @@ onMounted(loadSchools)
   gap: 12px;
   margin-bottom: 16px;
 }
-.stat-card {
-  text-align: center;
+.stat-icon--yellow {
+  background: var(--color-accent);
+  color: var(--color-bg-deep);
+}
+
+.stat-icon--purple {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.stat-icon--orange {
+  background: var(--color-warning);
+  color: #ffffff;
 }
 .filter-bar {
   display: flex;

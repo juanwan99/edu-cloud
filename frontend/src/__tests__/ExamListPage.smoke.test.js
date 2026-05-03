@@ -30,8 +30,10 @@ describe('ExamListPage smoke', () => {
 })
 
 describe('ExamListPage stats cards', () => {
-  it('has NStatistic components for stats', () => {
-    expect(content).toContain('n-statistic')
+  it('has demo-style div stat cards', () => {
+    expect(content).toContain('stat-icon stat-icon--yellow')
+    expect(content).toContain('stat-label')
+    expect(content).toContain('stat-value')
     expect(content).toContain('考试总数')
     expect(content).toContain('进行中')
     expect(content).toContain('已完成')

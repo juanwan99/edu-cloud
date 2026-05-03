@@ -10,26 +10,34 @@
 
     <!-- Stats Cards -->
     <div class="stats-row">
-      <n-card size="small" class="stat-card">
-        <n-statistic label="考试总数" :value="stats.total" />
-      </n-card>
-      <n-card size="small" class="stat-card">
-        <n-statistic label="进行中" :value="stats.active">
-          <template #suffix>
-            <n-tag size="tiny" type="warning" round>活跃</n-tag>
-          </template>
-        </n-statistic>
-      </n-card>
-      <n-card size="small" class="stat-card">
-        <n-statistic label="已完成" :value="stats.completed">
-          <template #suffix>
-            <n-tag size="tiny" type="success" round>完成</n-tag>
-          </template>
-        </n-statistic>
-      </n-card>
-      <n-card size="small" class="stat-card">
-        <n-statistic label="草稿" :value="stats.draft" />
-      </n-card>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--yellow">
+          <AppIcon name="exam" :size="20" />
+        </div>
+        <div class="stat-label">考试总数</div>
+        <div class="stat-value">{{ stats.total ?? '--' }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--purple">
+          <AppIcon name="marking" :size="20" />
+        </div>
+        <div class="stat-label">进行中</div>
+        <div class="stat-value">{{ stats.active ?? '--' }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--orange">
+          <AppIcon name="chart" :size="20" />
+        </div>
+        <div class="stat-label">已完成</div>
+        <div class="stat-value">{{ stats.completed ?? '--' }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--ink">
+          <AppIcon name="document" :size="20" />
+        </div>
+        <div class="stat-label">草稿</div>
+        <div class="stat-value">{{ stats.draft ?? '--' }}</div>
+      </div>
     </div>
 
     <!-- Search + Filter Bar -->
@@ -127,6 +135,7 @@ import { h, ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NTag, NButton, NPopconfirm, useMessage } from 'naive-ui'
 import { listExams, createExam, archiveExam, deleteExam } from '../api/exams'
+import AppIcon from '../components/AppIcon.vue'
 
 const router = useRouter()
 const message = useMessage()
@@ -408,8 +417,24 @@ onMounted(loadExams)
   margin-bottom: 24px;
 }
 
-.stat-card {
-  text-align: center;
+.stat-icon--yellow {
+  background: var(--color-accent);
+  color: var(--color-bg-deep);
+}
+
+.stat-icon--purple {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.stat-icon--orange {
+  background: var(--color-warning);
+  color: #ffffff;
+}
+
+.stat-icon--ink {
+  background: var(--color-bg-deep);
+  color: var(--color-accent);
 }
 
 .filter-bar {
