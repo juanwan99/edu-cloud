@@ -175,3 +175,43 @@ async def test_alert_notification_content(db, school_class_student, conduct_conf
     assert "-7" in notif.title
     assert "0" in notif.title
     assert "请关注孩子在校行为表现" in notif.body
+
+
+@pytest.mark.anyio
+async def test_dedup_works_after_mark_all_read(db, school_class_student, conduct_config):
+    """F-005: Alert dedup must work even after parent marks all notifications as read.
+
+    Previously, dedup checked is_read==False, so marking alerts as read would
+    allow duplicate alerts on the next points change. Now dedup checks for ANY
+    alert notification (read or unread) within the 7-day window.
+    """
+    from sqlalchemy import update
+
+    school, cls, student = school_class_student
+    config = conduct_config
+    config.alert_threshold = 0
+    await db.commit()
+
+    operator = await _make_operator(db)
+    await _make_parent(db, "alert_p6", "13800000006", student.id, school.id)
+
+    # Create records below threshold
+    await _add_record(db, student.id, cls.id, operator.id, -5)
+
+    # First alert triggers
+    first = await check_alert_threshold(db, student.id, cls.id)
+    assert first == 1
+
+    # Simulate parent marking all notifications as read
+    await db.execute(
+        update(ConductNotification)
+        .where(ConductNotification.student_id == student.id)
+        .values(is_read=True)
+    )
+    await db.commit()
+
+    # Second call should still dedup (returns 0), even though alerts are now read
+    second = await check_alert_threshold(db, student.id, cls.id)
+    assert second == 0, (
+        "Alert dedup bypassed after mark-all-read: duplicate alert was created"
+    )

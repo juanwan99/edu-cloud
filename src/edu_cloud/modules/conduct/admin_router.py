@@ -45,8 +45,13 @@ async def get_overview(
     """Return conduct overview data at the appropriate scope for the current user's role.
 
     Auto-dispatches to class/school/district scope based on active_role.
+    Parents must use the parent-specific endpoints, not the admin overview.
     """
     role = current_user["current_role"]
+
+    # F-001: Parents have VIEW_CONDUCT but must not access admin overview
+    if role.role == "parent":
+        raise HTTPException(status_code=403, detail="家长请使用家长端接口")
 
     if role.role in ("platform_admin", "district_admin"):
         # District scope: use role's school district or "default"
@@ -352,6 +357,10 @@ async def get_school_rules(
     current_user: dict = Depends(require_permission(Permission.MANAGE_CONDUCT_RULES)),
 ):
     """List school-level rule categories with nested items."""
+    # F-003: Validate school scope
+    role = current_user["current_role"]
+    if role.school_id and role.school_id != school_id:
+        raise HTTPException(status_code=403, detail="无权访问该学校规则")
     categories = (
         await db.execute(
             select(ConductRuleCategory)
@@ -398,6 +407,10 @@ async def create_school_rule_category(
     current_user: dict = Depends(require_permission(Permission.MANAGE_CONDUCT_RULES)),
 ):
     """Create a school-level rule category."""
+    # F-003: Validate school scope
+    role = current_user["current_role"]
+    if role.school_id and role.school_id != school_id:
+        raise HTTPException(status_code=403, detail="无权访问该学校规则")
     return await rules_service.create_category(
         db, school_id=school_id, name=data.name, scope="school", sort_order=data.sort_order,
     )
@@ -543,6 +556,10 @@ async def get_school_report(
     current_user: dict = Depends(require_permission(Permission.VIEW_CONDUCT)),
 ):
     """Generate a school-wide semester conduct evaluation report."""
+    # F-002: Validate school scope — users bound to a school can only access their own
+    role = current_user["current_role"]
+    if role.school_id and role.school_id != school_id:
+        raise HTTPException(status_code=403, detail="无权访问该学校数据")
     from edu_cloud.modules.conduct.report_service import generate_school_report
     return await generate_school_report(db, school_id, semester_id)
 
