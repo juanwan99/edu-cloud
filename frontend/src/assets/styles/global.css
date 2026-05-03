@@ -581,6 +581,57 @@ tbody tr:hover {
   margin: 28px 0;
 }
 
+/* 页面头部通用布局 */
+.app-main .page-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* 筛选栏统一 */
+.app-main .filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.app-main .filter-bar .n-input,
+.app-main .filter-bar .n-select {
+  min-height: 40px;
+}
+
+/* 统计行（非 Dashboard 页面） */
+.app-main .stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.app-main .stats-row .stat-card {
+  min-height: auto;
+  padding: 20px 22px;
+}
+
+/* 卡片网格 */
+.app-main .card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* 操作按钮组 */
+.app-main .action-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 /* 无障碍：减弱动效 */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

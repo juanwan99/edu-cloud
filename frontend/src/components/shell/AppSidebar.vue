@@ -105,7 +105,7 @@ watch(visibleGroups, autoExpandCurrentGroup)
 <style scoped>
 .sidebar {
   width: 250px;
-  background: var(--color-sidebar-bg);
+  background: linear-gradient(180deg, #09061B 0%, #0d0a1f 100%);
   border-right: none;
   transition: width 0.2s ease-out;
   display: flex;
@@ -129,6 +129,8 @@ watch(visibleGroups, autoExpandCurrentGroup)
   cursor: pointer;
   color: rgba(255, 255, 255, 0.6);
   transition: var(--transition);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 8px;
 }
 
 .sidebar__toggle:hover {
@@ -162,16 +164,18 @@ watch(visibleGroups, autoExpandCurrentGroup)
   border-left: 3px solid transparent;
 }
 
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+.nav-item:hover:not(.nav-item--active) {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .nav-item--active {
-  color: var(--color-text);
   background: var(--color-sidebar-active);
+  color: var(--color-bg-deep);
+  font-weight: 700;
+  box-shadow: 0 2px 12px rgba(244, 218, 76, 0.25);
+  border-radius: var(--radius-sm);
   border-left-color: transparent;
-  font-weight: var(--fw-bold);
 }
 
 .nav-item--child {
@@ -182,9 +186,9 @@ watch(visibleGroups, autoExpandCurrentGroup)
 
 .nav-item--child.nav-item--active {
   border-left: none;
-  color: var(--color-text);
+  color: var(--color-bg-deep);
   background: var(--color-sidebar-active);
-  font-weight: var(--fw-bold);
+  font-weight: 700;
 }
 
 .nav-item__icon {
@@ -233,6 +237,11 @@ watch(visibleGroups, autoExpandCurrentGroup)
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.35);
+  font-weight: 600;
 }
 
 .nav-group__arrow {
