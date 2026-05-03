@@ -67,20 +67,19 @@ function isNavActive(item) {
 
 <style scoped>
 .app-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  position: static;
+  flex: 0 0 64px;
+  width: 100%;
   height: 64px;
   background: var(--surface-header-gradient);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 10px 30px rgba(9, 6, 27, 0.12);
-  z-index: var(--z-header);
+  box-shadow: none;
+  z-index: auto;
   display: grid;
   grid-template-columns: minmax(280px, auto) 1fr auto;
   align-items: center;
   gap: 24px;
-  padding: env(safe-area-inset-top) 32px 0;
+  padding: 0 32px;
   color: #ffffff;
 }
 
@@ -263,11 +262,17 @@ function isNavActive(item) {
 
 @media (max-width: 860px) {
   .app-header {
-    padding-right: 18px;
-    padding-left: 18px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-right: 16px;
+    padding-left: 16px;
+    gap: 12px;
   }
 
   .app-header__search {
+    display: none;
+  }
+
+  :deep(.school-context) {
     display: none;
   }
 }

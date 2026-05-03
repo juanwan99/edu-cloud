@@ -25,7 +25,7 @@ export const routes = [
       { path: 'grading/tasks', name: 'GradingDispatch', component: () => import('../pages/GradingDispatchPage.vue'), meta: { roles: GRADING_DISPATCH_ROLES } },
       { path: 'grading/tasks/:id', name: 'GradingResults', component: () => import('../pages/GradingResultsPage.vue'), meta: { roles: SCHOOL_ADMIN_ROLES } },
       { path: 'marking', name: 'MarkingSelect', component: () => import('../pages/MarkingSelectPage.vue'), meta: { roles: MARKING_ROLES } },
-      { path: 'marking/grade/:questionId', name: 'Review', component: () => import('../pages/ReviewPage.vue'), meta: { roles: MARKING_ROLES } },
+      { path: 'marking/grade/:questionId', name: 'Review', component: () => import('../pages/ReviewPage.vue'), meta: { roles: MARKING_ROLES, shellMode: 'workspace' } },
       { path: 'marking/assign', redirect: { name: 'GradingDispatch', query: { tab: 'assign' } } },
       { path: 'marking/progress', redirect: { name: 'GradingDispatch', query: { tab: 'progress' } } },
       { path: 'ai-grading', name: 'AiGradingEntry',
@@ -39,7 +39,7 @@ export const routes = [
       { path: 'profile/student/:studentId', name: 'StudentProfile', component: () => import('../pages/StudentProfilePage.vue'), meta: { permissions: ['view_scores'] } },
 
       // 知识图谱
-      { path: 'knowledge-tree', name: 'KnowledgeTree', component: () => import('../pages/KnowledgeTreePage.vue'), meta: { permissions: ['view_knowledge_tree'] } },
+      { path: 'knowledge-tree', name: 'KnowledgeTree', component: () => import('../pages/KnowledgeTreePage.vue'), meta: { permissions: ['view_knowledge_tree'], shellMode: 'workspace' } },
 
       // 题库
       { path: 'question-bank', name: 'QuestionBank', component: () => import('../pages/QuestionBankPage.vue'), meta: { permissions: ['view_question_bank'] } },

@@ -1,101 +1,103 @@
 <template>
-  <div class="analytics-report">
-    <n-card title="分析报告">
-      <n-space vertical :size="16">
-        <n-space>
-          <n-select
-            v-model:value="selectedExamIds"
-            :options="examOptions"
-            multiple
-            placeholder="选择考试（可多选）"
-            style="min-width: 300px"
-          />
-          <n-select
-            v-model:value="selectedMetrics"
-            :options="metricOptions"
-            multiple
-            placeholder="选择指标"
-            style="min-width: 200px"
-          />
-          <n-select
-            v-model:value="exportSubjectId"
-            :options="subjectOptions"
-            placeholder="选择导出科目"
-            style="min-width: 180px"
-            clearable
-          />
-          <n-button type="primary" @click="runQuery" :loading="loading">
-            生成分析
-          </n-button>
-          <n-button
-            @click="() => handleDownload('pdf')"
-            :loading="exporting"
-            :disabled="!canExport"
-          >
-            导出 PDF
-          </n-button>
-          <n-button
-            @click="() => handleDownload('xlsx')"
-            :loading="exporting"
-            :disabled="!canExport"
-          >
-            导出 Excel
-          </n-button>
-        </n-space>
+  <div class="page-wrap analytics-report">
+    <div class="page-header">
+      <h1 class="page-title">分析报告</h1>
+    </div>
 
-        <template v-if="reportData">
-          <n-tabs type="line">
-            <n-tab-pane v-if="reportData.metrics.summary" name="summary" tab="总览">
-              <n-descriptions bordered :column="3">
-                <n-descriptions-item label="参考人数">
-                  {{ reportData.metrics.summary.total_students }}
-                </n-descriptions-item>
-                <n-descriptions-item
-                  v-for="subj in reportData.metrics.summary.subjects || []"
-                  :key="subj.subject_id"
-                  :label="subj.subject_name + ' 均分'"
-                >
-                  {{ subj.avg_score }}
-                </n-descriptions-item>
-              </n-descriptions>
-            </n-tab-pane>
-
-            <n-tab-pane v-if="reportData.metrics.segments" name="segments" tab="分数段分布">
-              <v-chart class="chart-height-xl" :option="segmentChartOption" />
-            </n-tab-pane>
-
-            <n-tab-pane v-if="reportData.metrics.ranking" name="ranking" tab="班级排名">
-              <n-data-table
-                :columns="rankingColumns"
-                :data="reportData.metrics.ranking.class_rankings || []"
-                :pagination="false"
-              />
-            </n-tab-pane>
-
-            <n-tab-pane v-if="reportData.metrics.top_bottom" name="top_bottom" tab="尖子生/临界生">
-              <n-space vertical>
-                <n-card title="前 10%">
-                  <n-data-table
-                    :columns="topColumns"
-                    :data="reportData.metrics.top_bottom.top_10pct"
-                    :pagination="false"
-                    size="small"
-                  />
-                </n-card>
-                <n-card title="后 10%">
-                  <n-data-table
-                    :columns="topColumns"
-                    :data="reportData.metrics.top_bottom.bottom_10pct"
-                    :pagination="false"
-                    size="small"
-                  />
-                </n-card>
-              </n-space>
-            </n-tab-pane>
-          </n-tabs>
-        </template>
+    <n-space vertical :size="16">
+      <n-space>
+        <n-select
+          v-model:value="selectedExamIds"
+          :options="examOptions"
+          multiple
+          placeholder="选择考试（可多选）"
+          style="min-width: 300px"
+        />
+        <n-select
+          v-model:value="selectedMetrics"
+          :options="metricOptions"
+          multiple
+          placeholder="选择指标"
+          style="min-width: 200px"
+        />
+        <n-select
+          v-model:value="exportSubjectId"
+          :options="subjectOptions"
+          placeholder="选择导出科目"
+          style="min-width: 180px"
+          clearable
+        />
+        <n-button type="primary" @click="runQuery" :loading="loading">
+          生成分析
+        </n-button>
+        <n-button
+          @click="() => handleDownload('pdf')"
+          :loading="exporting"
+          :disabled="!canExport"
+        >
+          导出 PDF
+        </n-button>
+        <n-button
+          @click="() => handleDownload('xlsx')"
+          :loading="exporting"
+          :disabled="!canExport"
+        >
+          导出 Excel
+        </n-button>
       </n-space>
-    </n-card>
+
+      <template v-if="reportData">
+        <n-tabs type="line">
+          <n-tab-pane v-if="reportData.metrics.summary" name="summary" tab="总览">
+            <n-descriptions bordered :column="3">
+              <n-descriptions-item label="参考人数">
+                {{ reportData.metrics.summary.total_students }}
+              </n-descriptions-item>
+              <n-descriptions-item
+                v-for="subj in reportData.metrics.summary.subjects || []"
+                :key="subj.subject_id"
+                :label="subj.subject_name + ' 均分'"
+              >
+                {{ subj.avg_score }}
+              </n-descriptions-item>
+            </n-descriptions>
+          </n-tab-pane>
+
+          <n-tab-pane v-if="reportData.metrics.segments" name="segments" tab="分数段分布">
+            <v-chart class="chart-height-xl" :option="segmentChartOption" />
+          </n-tab-pane>
+
+          <n-tab-pane v-if="reportData.metrics.ranking" name="ranking" tab="班级排名">
+            <n-data-table
+              :columns="rankingColumns"
+              :data="reportData.metrics.ranking.class_rankings || []"
+              :pagination="false"
+            />
+          </n-tab-pane>
+
+          <n-tab-pane v-if="reportData.metrics.top_bottom" name="top_bottom" tab="尖子生/临界生">
+            <n-space vertical>
+              <n-card title="前 10%">
+                <n-data-table
+                  :columns="topColumns"
+                  :data="reportData.metrics.top_bottom.top_10pct"
+                  :pagination="false"
+                  size="small"
+                />
+              </n-card>
+              <n-card title="后 10%">
+                <n-data-table
+                  :columns="topColumns"
+                  :data="reportData.metrics.top_bottom.bottom_10pct"
+                  :pagination="false"
+                  size="small"
+                />
+              </n-card>
+            </n-space>
+          </n-tab-pane>
+        </n-tabs>
+      </template>
+    </n-space>
   </div>
 </template>
 

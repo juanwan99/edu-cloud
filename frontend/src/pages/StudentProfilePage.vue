@@ -34,7 +34,7 @@
       <n-tabs type="line" style="margin-top: 24px;">
         <!-- 成绩趋势 -->
         <n-tab-pane name="trend" tab="成绩趋势">
-          <div style="background: white; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
+          <div style="padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
             <v-chart v-if="trendChartOption" class="chart-height-lg" :option="trendChartOption" autoresize />
             <n-empty v-else description="暂无多次考试数据" />
           </div>
@@ -42,7 +42,7 @@
 
         <!-- 排名变化 -->
         <n-tab-pane name="ranking" tab="排名变化">
-          <div style="background: white; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
+          <div style="padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
             <v-chart v-if="rankingChartOption" class="chart-height-lg" :option="rankingChartOption" autoresize />
             <n-empty v-else description="暂无排名数据" />
           </div>
@@ -51,7 +51,7 @@
         <!-- 知识点掌握 -->
         <n-tab-pane name="knowledge" tab="知识点掌握">
           <div style="display: flex; gap: 24px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 300px; background: white; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
+            <div style="flex: 1; min-width: 300px; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
               <v-chart v-if="radarChartOption" class="chart-height-lg" :option="radarChartOption" autoresize />
               <n-empty v-else description="暂无知识点数据" />
             </div>
@@ -66,7 +66,7 @@
         <n-tab-pane name="errors" tab="错误分析">
           <div style="display: flex; gap: 24px; flex-wrap: wrap;">
             <div v-for="ep in errorPatterns" :key="ep.id"
-              style="flex: 1; min-width: 280px; background: white; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
+              style="flex: 1; min-width: 280px; padding: 24px; border-radius: var(--radius-lg); border: 1px solid var(--color-border-light);">
               <h3 style="margin: 0 0 12px; font-size: var(--fs-base); font-weight: var(--fw-semibold);">{{ ep.subject_code }}</h3>
               <v-chart class="chart-height-sm" :option="makeErrorPieOption(ep)" autoresize />
               <div style="margin-top: var(--space-2); font-size: var(--fs-base); color: var(--color-text-muted);">

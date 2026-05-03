@@ -300,7 +300,6 @@ onMounted(async () => {
 }
 
 .detail-feedback {
-  background: white;
   padding: var(--space-3);
   border-radius: var(--r-xs);
   font-size: var(--fs-base);

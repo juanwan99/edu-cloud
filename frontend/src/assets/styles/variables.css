@@ -200,4 +200,7 @@
   --text-color-3: var(--color-text-muted);
   --success-color: var(--color-success);
   --warning-color: var(--color-warning);
+
+  /* 展示字体 */
+  --font-serif-display: 'Playfair Display', 'Noto Serif SC', 'Songti SC', Georgia, serif;
 }

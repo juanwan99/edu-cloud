@@ -216,7 +216,6 @@ onMounted(loadExams)
 }
 
 .stat-card {
-  background: var(--color-bg-card, rgba(255,255,255,0.04));
   border: 1px solid var(--color-border-light, rgba(255,255,255,0.09));
 }
 
@@ -232,7 +231,6 @@ onMounted(loadExams)
 .stat-dot--warning { background: var(--color-warning); }
 
 .subject-card {
-  background: var(--color-bg-card, rgba(255,255,255,0.04));
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-light, rgba(255,255,255,0.09));
   padding: var(--space-5);

@@ -1,82 +1,84 @@
 <template>
-  <div class="analytics-trend">
-    <n-card title="成绩趋势">
-      <n-space vertical :size="16">
-        <!-- 筛选器行 -->
-        <n-space wrap>
-          <n-select
-            v-model:value="selectedExamIds"
-            :options="examOptions"
-            multiple
-            placeholder="选择考试（至少2次）"
-            style="min-width: 300px"
-          />
-          <n-radio-group v-model:value="dimension">
-            <n-radio-button value="grade">年级</n-radio-button>
-            <n-radio-button value="class">班级</n-radio-button>
-            <n-radio-button value="student">学生</n-radio-button>
-          </n-radio-group>
-          <n-select
-            v-if="dimension === 'class'"
-            v-model:value="selectedClassId"
-            :options="classOptions"
-            placeholder="选择班级"
-            style="min-width: 150px"
-          />
-          <n-select
-            v-if="dimension === 'student'"
-            v-model:value="selectedStudentId"
-            :options="studentOptions"
-            placeholder="选择学生"
-            filterable
-            style="min-width: 150px"
-          />
-          <n-button type="primary" @click="loadTrend" :loading="loading">
-            查看趋势
-          </n-button>
-        </n-space>
+  <div class="page-wrap analytics-trend">
+    <div class="page-header">
+      <h1 class="page-title">成绩趋势</h1>
+    </div>
 
-        <!-- 对比模式：选择 2 个班级/学生同图对比 -->
-        <n-space v-if="dimension === 'class' || dimension === 'student'" align="center">
-          <span style="font-size: var(--fs-base); color: rgba(255,255,255,0.5);">对比模式：</span>
-          <n-select
-            v-model:value="compareIds"
-            :options="dimension === 'class' ? classOptions : studentOptions"
-            multiple
-            :max-tag-count="2"
-            placeholder="选择 2 个对比对象（可选）"
-            :filterable="dimension === 'student'"
-            style="min-width: 280px"
-          />
-        </n-space>
-
-        <!-- 指标选择器 -->
-        <n-space v-if="trendData" align="center">
-          <span style="font-size: var(--fs-base); color: rgba(255,255,255,0.5);">显示指标：</span>
-          <n-checkbox-group v-model:value="visibleMetrics">
-            <n-space>
-              <n-checkbox value="avg" label="均分" />
-              <n-checkbox value="pass_rate" label="及格率" />
-              <n-checkbox value="excellent_rate" label="优秀率" />
-              <n-checkbox value="score" label="得分" v-if="dimension === 'student'" />
-            </n-space>
-          </n-checkbox-group>
-        </n-space>
-
-        <!-- 图表区域 -->
-        <div v-if="chartOption" style="position: relative;">
-          <n-button
-            size="small"
-            quaternary
-            style="position: absolute; right: 8px; top: 0; z-index: 2;"
-            @click="exportChart"
-          >
-            导出图片
-          </n-button>
-          <v-chart ref="chartRef" class="chart-height-xl" :option="chartOption" />
-        </div>
+    <n-space vertical :size="16">
+      <!-- 筛选器行 -->
+      <n-space wrap>
+        <n-select
+          v-model:value="selectedExamIds"
+          :options="examOptions"
+          multiple
+          placeholder="选择考试（至少2次）"
+          style="min-width: 300px"
+        />
+        <n-radio-group v-model:value="dimension">
+          <n-radio-button value="grade">年级</n-radio-button>
+          <n-radio-button value="class">班级</n-radio-button>
+          <n-radio-button value="student">学生</n-radio-button>
+        </n-radio-group>
+        <n-select
+          v-if="dimension === 'class'"
+          v-model:value="selectedClassId"
+          :options="classOptions"
+          placeholder="选择班级"
+          style="min-width: 150px"
+        />
+        <n-select
+          v-if="dimension === 'student'"
+          v-model:value="selectedStudentId"
+          :options="studentOptions"
+          placeholder="选择学生"
+          filterable
+          style="min-width: 150px"
+        />
+        <n-button type="primary" @click="loadTrend" :loading="loading">
+          查看趋势
+        </n-button>
       </n-space>
-    </n-card>
+
+      <!-- 对比模式：选择 2 个班级/学生同图对比 -->
+      <n-space v-if="dimension === 'class' || dimension === 'student'" align="center">
+        <span style="font-size: var(--fs-base); color: rgba(255,255,255,0.5);">对比模式：</span>
+        <n-select
+          v-model:value="compareIds"
+          :options="dimension === 'class' ? classOptions : studentOptions"
+          multiple
+          :max-tag-count="2"
+          placeholder="选择 2 个对比对象（可选）"
+          :filterable="dimension === 'student'"
+          style="min-width: 280px"
+        />
+      </n-space>
+
+      <!-- 指标选择器 -->
+      <n-space v-if="trendData" align="center">
+        <span style="font-size: var(--fs-base); color: rgba(255,255,255,0.5);">显示指标：</span>
+        <n-checkbox-group v-model:value="visibleMetrics">
+          <n-space>
+            <n-checkbox value="avg" label="均分" />
+            <n-checkbox value="pass_rate" label="及格率" />
+            <n-checkbox value="excellent_rate" label="优秀率" />
+            <n-checkbox value="score" label="得分" v-if="dimension === 'student'" />
+          </n-space>
+        </n-checkbox-group>
+      </n-space>
+
+      <!-- 图表区域 -->
+      <div v-if="chartOption" style="position: relative;">
+        <n-button
+          size="small"
+          quaternary
+          style="position: absolute; right: 8px; top: 0; z-index: 2;"
+          @click="exportChart"
+        >
+          导出图片
+        </n-button>
+        <v-chart ref="chartRef" class="chart-height-xl" :option="chartOption" />
+      </div>
+    </n-space>
   </div>
 </template>
 

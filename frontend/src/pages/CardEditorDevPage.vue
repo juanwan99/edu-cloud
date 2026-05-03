@@ -1,5 +1,5 @@
 <template>
-  <div style="padding: 8px;">
+  <div class="card-editor-dev-page">
     <n-button text style="margin-bottom: 8px;" @click="$router.push(`/exams/${examId}`)">
       <template #icon><n-icon><ArrowLeft :size="16" /></n-icon></template>
       返回考试详情
@@ -57,3 +57,9 @@ onMounted(async () => {
   } catch {}
 })
 </script>
+
+<style scoped>
+.card-editor-dev-page {
+  padding: 8px;
+}
+</style>

@@ -649,7 +649,7 @@ onUnmounted(() => {
 .review-container {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 68px);
+  height: 100%;
   background: var(--color-bg);
 }
 

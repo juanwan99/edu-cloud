@@ -1,43 +1,45 @@
 <template>
-  <div class="grade-analytics">
-    <n-card title="年级分析">
-      <n-space vertical :size="16">
-        <!-- Selectors -->
-        <n-space>
-          <n-select
-            v-model:value="selectedGradeId"
-            :options="gradeOptions"
-            placeholder="选择年级"
-            style="min-width: 150px"
-            @update:value="onGradeChange"
-          />
-          <n-select
-            v-model:value="selectedExamId"
-            :options="examOptions"
-            placeholder="选择考试"
-            style="min-width: 250px"
-          />
-          <n-button type="primary" @click="loadAll" :loading="loading">
-            查看分析
-          </n-button>
-        </n-space>
+  <div class="page-wrap grade-analytics">
+    <div class="page-header">
+      <h1 class="page-title">年级分析</h1>
+    </div>
 
-        <!-- Overview: class comparison bar chart -->
-        <n-card v-if="overviewData" title="班级对比" size="small">
-          <v-chart class="chart-height-lg" :option="barOption" />
-        </n-card>
-
-        <!-- Trend: grade trend line chart -->
-        <n-card v-if="trendData && trendData.points.length" title="考情趋势" size="small">
-          <v-chart class="chart-height-lg" :option="lineOption" />
-        </n-card>
-
-        <!-- Subjects: radar chart -->
-        <n-card v-if="subjectsData && subjectsData.subjects.length" title="科目对比" size="small">
-          <v-chart class="chart-height-xl" :option="radarOption" />
-        </n-card>
+    <n-space vertical :size="16">
+      <!-- Selectors -->
+      <n-space>
+        <n-select
+          v-model:value="selectedGradeId"
+          :options="gradeOptions"
+          placeholder="选择年级"
+          style="min-width: 150px"
+          @update:value="onGradeChange"
+        />
+        <n-select
+          v-model:value="selectedExamId"
+          :options="examOptions"
+          placeholder="选择考试"
+          style="min-width: 250px"
+        />
+        <n-button type="primary" @click="loadAll" :loading="loading">
+          查看分析
+        </n-button>
       </n-space>
-    </n-card>
+
+      <!-- Overview: class comparison bar chart -->
+      <n-card v-if="overviewData" title="班级对比" size="small">
+        <v-chart class="chart-height-lg" :option="barOption" />
+      </n-card>
+
+      <!-- Trend: grade trend line chart -->
+      <n-card v-if="trendData && trendData.points.length" title="考情趋势" size="small">
+        <v-chart class="chart-height-lg" :option="lineOption" />
+      </n-card>
+
+      <!-- Subjects: radar chart -->
+      <n-card v-if="subjectsData && subjectsData.subjects.length" title="科目对比" size="small">
+        <v-chart class="chart-height-xl" :option="radarOption" />
+      </n-card>
+    </n-space>
   </div>
 </template>
 

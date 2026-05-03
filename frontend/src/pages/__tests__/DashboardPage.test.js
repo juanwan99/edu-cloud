@@ -3,9 +3,9 @@
  *
  * Validates:
  *  1. Component can be imported (smoke)
- *  2. Template contains new sections (quick-actions, todo, recent-exams, welcome-banner, chart-empty)
+ *  2. Template contains new sections (entry-stack, todo, recent-exams, welcome-banner, chart-empty)
  *  3. Chart-card uses theme-aware background (no hardcoded white)
- *  4. Quick actions config is role-aware (parent gets empty)
+ *  4. Entry cards are permission-aware (parent gets empty)
  *  5. Exam status helpers return correct Chinese text
  */
 import { describe, it, expect } from 'vitest'
@@ -28,9 +28,12 @@ describe('DashboardPage smoke', () => {
 })
 
 describe('DashboardPage template sections', () => {
-  it('contains quick-actions section', () => {
-    expect(content).toContain('class="quick-actions"')
-    expect(content).toContain('quick-action-btn')
+  it('contains permission-gated entry stack', () => {
+    expect(content).toContain('entryItems.length > 0')
+    expect(content).toContain('v-for="entry in entryItems"')
+    expect(content).toContain('<router-link')
+    expect(content).toContain(':to="entry.route"')
+    expect(content).toContain("`entry--${entry.tone}`")
   })
 
   it('contains todo-section', () => {
@@ -38,10 +41,9 @@ describe('DashboardPage template sections', () => {
     expect(content).toContain('todo-item')
   })
 
-  it('contains recent-exams cards', () => {
-    expect(content).toContain('class="recent-exams"')
-    expect(content).toContain('exam-card')
-    expect(content).toContain('exam-card__header')
+  it('contains recent-exams table', () => {
+    expect(content).toContain('recent-table')
+    expect(content).toContain('recentExams')
   })
 
   it('contains welcome-banner for empty state', () => {
@@ -55,17 +57,29 @@ describe('DashboardPage template sections', () => {
   })
 })
 
+describe('DashboardPage demo data removal', () => {
+  it('does not contain static KPI delta copy', () => {
+    expect(content).not.toContain('+12% 较上学期')
+    expect(content).not.toContain('stat-delta')
+  })
+
+  it('does not contain static grading progress samples', () => {
+    expect(content).not.toContain('65/100')
+    expect(content).not.toContain('38/100')
+    expect(content).not.toContain('92/100')
+  })
+
+  it('does not contain static teacher ranking samples', () => {
+    expect(content).not.toContain('教师排行')
+    expect(content).not.toContain('张海燕')
+    expect(content).not.toContain('李明')
+    expect(content).not.toContain('王芳')
+  })
+})
+
 describe('DashboardPage dark theme adaptation', () => {
-  it('chart-card uses CSS var background instead of hardcoded white', () => {
-    // Extract the .chart-card style block
-    const styleMatch = content.match(/\.chart-card\s*\{[^}]+\}/)
-    expect(styleMatch).not.toBeNull()
-    const chartCardStyle = styleMatch[0]
-    // Must NOT contain "background: white" or "background: #fff"
-    expect(chartCardStyle).not.toMatch(/background:\s*white/)
-    expect(chartCardStyle).not.toMatch(/background:\s*#fff/)
-    // Must use CSS variable
-    expect(chartCardStyle).toContain('var(--color-bg-card')
+  it('chart uses .card class with global styles (no inline hardcoded bg)', () => {
+    expect(content).toContain('class="card chart-card"')
   })
 
   it('ECharts options include transparent backgroundColor', () => {
@@ -77,23 +91,51 @@ describe('DashboardPage dark theme adaptation', () => {
   })
 })
 
-describe('DashboardPage quick actions role filtering', () => {
-  it('defines 4 quick action entries', () => {
-    // Count the action objects in the quickActions computed
-    const actionMatches = content.match(/\{ label: '.*?', icon: '.*?', route: '.*?'/g)
-    expect(actionMatches).not.toBeNull()
-    expect(actionMatches.length).toBe(4)
+describe('DashboardPage entry permission filtering', () => {
+  it('defines permission-gated entry items', () => {
+    expect(content).toContain('const entryItems = computed')
+    expect(content).toContain("permission: ['manage_grading', 'view_grading']")
+    expect(content).toContain("permission: 'view_scores'")
+    expect(content).toContain("permission: 'view_knowledge_tree'")
+    expect(content).toContain('auth.checkPermission')
   })
 
-  it('filters out actions for parent role', () => {
+  it('filters out entries for parent role', () => {
     expect(content).toContain("if (r === 'parent') return []")
   })
 
   it('includes correct route targets', () => {
-    expect(content).toContain("route: '/exams'")
-    expect(content).toContain("route: '/homework'")
-    expect(content).toContain("route: '/grading/tasks'")
+    expect(content).toContain("route: '/ai-grading'")
     expect(content).toContain("route: '/analytics/report'")
+    expect(content).toContain("route: '/knowledge-tree'")
+  })
+
+  it('uses semantic links for entry cards without nested buttons', () => {
+    const entryBlock = content.slice(
+      content.indexOf('<aside v-if="entryItems.length > 0"'),
+      content.indexOf('</aside>')
+    )
+    expect(entryBlock).toContain('<router-link')
+    expect(entryBlock).not.toContain('role="button"')
+    expect(entryBlock).not.toContain('tabindex="0"')
+    expect(entryBlock).not.toContain('@keyup.enter')
+    expect(entryBlock).not.toContain('<button')
+  })
+})
+
+describe('DashboardPage grading and todo cards', () => {
+  it('derives grading progress from recent grading exams', () => {
+    expect(content).toContain('const gradingProgressItems = computed')
+    expect(content).toContain(".filter(exam => exam.status === 'grading')")
+    expect(content).toContain('normalizeGradingProgress(exam.grading_progress)')
+    expect(content).toContain('暂无阅卷任务')
+  })
+
+  it('renders todo items in the former ranking card', () => {
+    expect(content).toContain('待办列表')
+    expect(content).toContain('v-for="(todo, index) in todoItems"')
+    expect(content).toContain('class="friend friend--clickable"')
+    expect(content).toContain('暂无待办')
   })
 })
 
@@ -140,18 +182,14 @@ describe('DashboardPage fetchCharts', () => {
     expect(content).toContain("client.get('/analytics/report/trend/grade'")
   })
 
-  it('fetches class boxplot for comparison chart', () => {
-    expect(content).toContain('/analytics/exam/')
-    expect(content).toContain('/class-boxplot')
-  })
-
   it('builds trendOption with correct series', () => {
     expect(content).toContain("name: '平均分'")
     expect(content).toContain("name: '及格率'")
   })
 
-  it('builds classOption bar chart sorted by median', () => {
-    expect(content).toContain('.sort((a, b) => (b.median || 0) - (a.median || 0))')
+  it('does not retain unreachable classOption chart branch', () => {
+    expect(content).not.toContain('classOption')
+    expect(content).not.toContain('/class-boxplot')
   })
 })
 

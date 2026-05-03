@@ -1,9 +1,6 @@
 <template>
   <div class="dashboard-page">
-    <div class="page-header">
-      <h1 class="page-title">{{ config?.title || '概览' }}</h1>
-      <p class="page-subtitle">欢迎回来，{{ auth.user?.display_name }}</p>
-    </div>
+    <h1 class="greeting">早上好，{{ auth.user?.display_name || '老师' }}</h1>
 
     <!-- Welcome Banner (first login / no exams) -->
     <div v-if="showWelcome" class="welcome-banner">
@@ -15,7 +12,7 @@
     </div>
 
     <!-- KPI Row -->
-    <div class="kpi-row">
+    <div class="stat-row">
       <div
         v-for="kpi in dashboardKpis"
         :key="kpi.id"
@@ -27,23 +24,6 @@
         <div class="stat-label">{{ kpi.label }}</div>
         <div class="stat-value">{{ getKpiValue(kpi) }}</div>
       </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="quick-actions">
-      <n-button
-        v-for="action in quickActions"
-        :key="action.label"
-        class="quick-action-btn"
-        :type="action.type || 'default'"
-        secondary
-        @click="router.push(action.route)"
-      >
-        <template #icon>
-          <AppIcon :name="action.icon" :size="16" />
-        </template>
-        {{ action.label }}
-      </n-button>
     </div>
 
     <!-- Todo Reminders -->
@@ -60,54 +40,141 @@
       </div>
     </div>
 
-    <!-- Charts Row (with empty state) -->
-    <div class="charts-row" v-if="trendOption || classOption">
-      <div class="chart-card" v-if="trendOption">
-        <h3 class="chart-title">考试成绩趋势</h3>
-        <v-chart class="chart-height-md" :option="trendOption" autoresize />
-      </div>
-      <div class="chart-card" v-if="classOption">
-        <h3 class="chart-title">班级平均分对比</h3>
-        <v-chart class="chart-height-md" :option="classOption" autoresize />
-      </div>
-    </div>
-    <div v-else-if="!loading" class="chart-empty">
-      <p class="chart-empty__text">暂无考试数据，完成考试后将自动生成趋势图表</p>
-      <n-button type="primary" style="margin-top: 16px;" @click="router.push('/exams')">创建考试</n-button>
-    </div>
+    <div class="dashboard-grid">
+      <div class="dashboard-left">
+        <!-- Main Chart (with empty state) -->
+        <div v-if="trendOption" class="card chart-card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">成绩趋势</div>
+              <div class="card-sub">跟踪最近考试表现</div>
+            </div>
+            <div class="toggle" aria-label="图表周期切换">
+              <button type="button" class="toggle__item">周</button>
+              <button type="button" class="toggle__item active">月</button>
+              <button type="button" class="toggle__item">学期</button>
+            </div>
+          </div>
+          <div class="chart-legend">
+            <span class="chart-legend__item">
+              <span class="chart-legend__dot chart-legend__dot--purple" />
+              平均分
+            </span>
+            <span class="chart-legend__item">
+              <span class="chart-legend__dot chart-legend__dot--yellow" />
+              及格率
+            </span>
+          </div>
+          <v-chart class="chart-height-md" :option="trendOption" autoresize />
+        </div>
+        <div v-else-if="!loading" class="card chart-card chart-empty">
+          <p class="chart-empty__text">暂无考试数据，完成考试后将自动生成趋势图表</p>
+          <n-button type="primary" style="margin-top: 16px;" @click="router.push('/exams')">创建考试</n-button>
+        </div>
 
-    <!-- Recent Exams Cards -->
-    <div v-if="recentExams.length > 0" class="recent-exams">
-      <h3 class="section-title">最近考试</h3>
-      <div class="exam-cards-row">
-        <div
-          v-for="exam in recentExams"
-          :key="exam.id"
-          class="exam-card"
-          @click="router.push(`/exams/${exam.id}`)"
-        >
-          <div class="exam-card__header">
-            <span class="exam-card__name">{{ exam.name }}</span>
-            <n-tag :type="examStatusType(exam.status)" size="small" round>
-              {{ examStatusText(exam.status) }}
-            </n-tag>
+        <div class="dashboard-split">
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">阅卷进度</div>
+              <span class="card-meta">本月</span>
+            </div>
+            <template v-if="gradingProgressItems.length > 0">
+              <div v-for="item in gradingProgressItems" :key="item.id" class="prog">
+                <div class="prog-head">
+                  <span class="prog-label">{{ item.name }}</span>
+                  <span class="prog-val">{{ item.progressText }}</span>
+                </div>
+                <div class="prog-track">
+                  <div
+                    :class="['prog-fill', `prog-fill--${item.tone}`]"
+                    :style="{ width: `${item.percent}%` }"
+                  />
+                </div>
+              </div>
+            </template>
+            <p v-else class="card-empty__text">暂无阅卷任务</p>
           </div>
-          <div class="exam-card__meta">
-            <span v-if="exam.subject_count != null">{{ exam.subject_count }} 个科目</span>
-            <span v-if="exam.created_at">{{ formatDate(exam.created_at) }}</span>
+
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title">待办列表</div>
+              <span class="card-meta">实时</span>
+            </div>
+            <template v-if="todoItems.length > 0">
+              <div
+                v-for="(todo, index) in todoItems"
+                :key="todo.label"
+                class="friend friend--clickable"
+                @click="router.push(todo.route)"
+              >
+                <div :class="['friend__avatar', todoAvatarClass(index)]">{{ todoInitial(todo) }}</div>
+                <span class="friend__name">{{ todo.label }}</span>
+                <span class="friend__score">{{ todo.count }}</span>
+                <span class="friend__unit">项</span>
+              </div>
+            </template>
+            <p v-else class="card-empty__text">暂无待办</p>
           </div>
-          <n-progress
-            v-if="exam.status === 'grading' && exam.grading_progress != null"
-            type="line"
-            :percentage="exam.grading_progress"
-            :show-indicator="false"
-            :height="4"
-            style="margin-top: 8px;"
-          />
         </div>
       </div>
-      <div class="recent-exams__footer">
+
+      <aside v-if="entryItems.length > 0" class="entry-stack" aria-label="快速入口">
+        <router-link
+          v-for="entry in entryItems"
+          :key="entry.route"
+          :to="entry.route"
+          :class="['entry', `entry--${entry.tone}`]"
+        >
+          <div :class="['entry__icon', `entry__icon--${entry.iconTone}`]">
+            <AppIcon :name="entry.icon" :size="18" />
+          </div>
+          <div class="entry__title">{{ entry.title }}</div>
+          <div class="entry__sub">{{ entry.sub }}</div>
+          <div class="entry__bottom">
+            <span class="entry__date">{{ entry.date }}</span>
+            <span :class="['entry__btn', `entry__btn--${entry.buttonTone}`]">
+              {{ entry.buttonText }}
+            </span>
+          </div>
+        </router-link>
+      </aside>
+    </div>
+
+    <div class="divider" />
+
+    <!-- Recent Exams Table -->
+    <div v-if="recentExams.length > 0" class="card recent-exams">
+      <div class="card-head">
+        <div class="card-title">最近考试</div>
         <n-button text type="primary" @click="router.push('/exams')">查看全部考试 &rarr;</n-button>
+      </div>
+      <div class="recent-table-wrap">
+        <table class="recent-table">
+          <thead>
+            <tr>
+              <th>考试名称</th>
+              <th>日期</th>
+              <th>科目</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="exam in recentExams"
+              :key="exam.id"
+              @click="router.push(`/exams/${exam.id}`)"
+            >
+              <td class="recent-exam-name">{{ exam.name }}</td>
+              <td>{{ exam.created_at ? formatDate(exam.created_at) : '--' }}</td>
+              <td>{{ exam.subject_count != null ? exam.subject_count + ' 个科目' : '--' }}</td>
+              <td>
+                <n-tag :type="examStatusType(exam.status)" size="small" round>
+                  {{ examStatusText(exam.status) }}
+                </n-tag>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -131,7 +198,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NTag, NProgress } from 'naive-ui'
+import { NButton, NTag } from 'naive-ui'
 import { useAuthStore } from '../stores/auth'
 import { getDashboardConfig } from '../config/dashboardConfig'
 import { normalizeRole } from '../config/roles'
@@ -141,12 +208,12 @@ import ActivityFeed from '../components/dashboard/ActivityFeed.vue'
 import AppIcon from '../components/AppIcon.vue'
 import client from '../api/client.js'
 import { use } from 'echarts/core'
-import { LineChart, BarChart } from 'echarts/charts'
+import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 
-use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
+use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -159,16 +226,16 @@ const chartTextColor = rootStyle.getPropertyValue('--color-text').trim() || 'rgb
 const chartSplitColor = rootStyle.getPropertyValue('--color-border-light').trim() || '#e8efe9'
 const chartSuccessColor = rootStyle.getPropertyValue('--color-primary').trim() || '#644CF0'
 const chartWarningColor = rootStyle.getPropertyValue('--color-accent').trim() || '#F4DA4C'
-const chartInfoColor = rootStyle.getPropertyValue('--color-warning').trim() || '#ED9A51'
 
 const kpiData = ref({})
 const loading = ref(true)
 const trendOption = ref(null)
-const classOption = ref(null)
 const activityItems = ref([])
 const recentExams = ref([])
 const todoItems = ref([])
 const statToneSequence = ['yellow', 'purple', 'orange', 'ink']
+const progressToneSequence = ['yellow', 'purple', 'orange']
+const friendToneSequence = ['friend__avatar--yellow', 'friend__avatar--purple', 'friend__avatar--orange']
 const kpiIconMap = {
   total_exams: 'exam',
   total_students: 'people',
@@ -189,18 +256,68 @@ const dashboardKpis = computed(() =>
   }))
 )
 
-// Quick actions config (role-aware)
-const quickActions = computed(() => {
+const entryItems = computed(() => {
   const r = role.value
-  const actions = [
-    { label: '创建考试', icon: 'exam', route: '/exams', type: 'primary' },
-    { label: '布置作业', icon: 'document', route: '/homework' },
-    { label: '阅卷调度', icon: 'marking', route: '/grading/tasks' },
-    { label: '成绩分析', icon: 'chart', route: '/analytics/report' },
-  ]
-  // Teachers see all 4; admin roles see all 4 too
   if (r === 'parent') return []
-  return actions
+
+  const items = [
+    {
+      tone: 'dark',
+      iconTone: 'yellow',
+      icon: 'ai',
+      title: 'AI 智能阅卷',
+      sub: '自动识别与智能评分',
+      route: '/ai-grading',
+      permission: ['manage_grading', 'view_grading'],
+      date: '今日可用',
+      buttonText: '立即使用',
+      buttonTone: 'yellow',
+    },
+    {
+      tone: 'yellow',
+      iconTone: 'dark',
+      icon: 'chart',
+      title: '多维成绩分析',
+      sub: '年级 / 班级 / 学生对比',
+      route: '/analytics/report',
+      permission: 'view_scores',
+      date: '成绩报告',
+      buttonText: '查看',
+      buttonTone: 'dark',
+    },
+    {
+      tone: 'purple',
+      iconTone: 'light',
+      icon: 'chart',
+      title: '知识图谱',
+      sub: '学科知识全景可视化',
+      route: '/knowledge-tree',
+      permission: 'view_knowledge_tree',
+      date: '数学 · 物理',
+      buttonText: '探索',
+      buttonTone: 'light',
+    },
+  ]
+
+  return items.filter(item => {
+    const required = Array.isArray(item.permission) ? item.permission : [item.permission]
+    return required.some(perm => auth.checkPermission(perm))
+  })
+})
+
+const gradingProgressItems = computed(() => {
+  return recentExams.value
+    .filter(exam => exam.status === 'grading')
+    .map((exam, index) => {
+      const progress = normalizeGradingProgress(exam.grading_progress)
+      return {
+        id: exam.id,
+        name: exam.name || '未命名考试',
+        percent: progress.percent,
+        progressText: progress.text,
+        tone: progressToneSequence[index % progressToneSequence.length],
+      }
+    })
 })
 
 // Welcome banner: show when no exams exist yet
@@ -222,6 +339,45 @@ function examStatusText(status) {
 function formatDate(dateStr) {
   const d = new Date(dateStr)
   return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+}
+
+function clampProgress(value) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return 0
+  return Math.max(0, Math.min(100, Math.round(numeric)))
+}
+
+function normalizeGradingProgress(progress) {
+  if (progress == null) return { percent: 0, text: '--' }
+
+  if (typeof progress === 'number' || typeof progress === 'string') {
+    const percent = clampProgress(progress)
+    return { percent, text: `${percent}%` }
+  }
+
+  const graded = Number(progress.graded ?? progress.graded_count ?? progress.completed ?? progress.done)
+  const total = Number(progress.total ?? progress.total_answers ?? progress.count)
+  const rawPercent = progress.percentage ?? progress.percent
+
+  if (Number.isFinite(graded) && Number.isFinite(total) && total > 0) {
+    const percent = rawPercent == null ? clampProgress((graded / total) * 100) : clampProgress(rawPercent)
+    return { percent, text: `${graded}/${total}` }
+  }
+
+  if (rawPercent != null) {
+    const percent = clampProgress(rawPercent)
+    return { percent, text: `${percent}%` }
+  }
+
+  return { percent: 0, text: '--' }
+}
+
+function todoAvatarClass(index) {
+  return friendToneSequence[index % friendToneSequence.length]
+}
+
+function todoInitial(todo) {
+  return String(todo.label || '待办').trim().charAt(0) || '待'
 }
 
 async function fetchKpiData() {
@@ -276,29 +432,6 @@ async function fetchCharts() {
         }
       }
     } catch { /* no trend data */ }
-
-    // Class comparison (use first completed exam, top 10 classes by median)
-    try {
-      const firstExam = completed[0]
-      const { data: classData } = await client.get(`/analytics/exam/${firstExam.id}/class-boxplot`)
-      const classes = classData.classes || []
-      if (classes.length > 0) {
-        const sorted = [...classes].sort((a, b) => (b.median || 0) - (a.median || 0)).slice(0, 10)
-        classOption.value = {
-          backgroundColor: 'transparent',
-          textStyle: { color: chartTextColor },
-          tooltip: { trigger: 'axis', formatter: (p) => `${p[0].name}<br/>中位数: ${p[0].value}` },
-          grid: { left: 50, right: 20, top: 20, bottom: 60 },
-          xAxis: { type: 'category', data: sorted.map(c => c.name || ''), axisLabel: { rotate: 30, fontSize: 16, color: chartTextColor } },
-          yAxis: { type: 'value', name: '中位数', nameTextStyle: { color: chartTextColor }, axisLabel: { color: chartTextColor }, splitLine: { lineStyle: { color: chartSplitColor } } },
-          series: [{
-            type: 'bar',
-            data: sorted.map(c => c.median ?? 0),
-            itemStyle: { color: chartInfoColor, borderRadius: [4, 4, 0, 0] },
-          }],
-        }
-      }
-    } catch { /* no class data */ }
   } catch { /* no exams */ }
 }
 
@@ -388,15 +521,6 @@ function getKpiValue(kpi) {
 </script>
 
 <style scoped>
-.dashboard-page {
-  max-width: 1280px;
-  margin: 0 auto;
-}
-
-.page-header {
-  margin-bottom: 28px;
-}
-
 /* Welcome banner */
 .welcome-banner {
   background: var(--macaron-mint-light);
@@ -417,14 +541,6 @@ function getKpiValue(kpi) {
   font-size: var(--fs-base);
   color: var(--color-text-secondary);
   margin: 0 0 14px;
-}
-
-/* KPI row */
-.kpi-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
 }
 
 .dashboard-stat {
@@ -519,23 +635,6 @@ function getKpiValue(kpi) {
   font-variant-numeric: tabular-nums;
 }
 
-/* Quick actions */
-.quick-actions {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-
-.quick-action-btn {
-  border-radius: 14px !important;
-  font-weight: 700 !important;
-}
-
-.quick-action-icon {
-  vertical-align: middle;
-}
-
 /* Todo section */
 .todo-section {
   display: flex;
@@ -579,114 +678,15 @@ function getKpiValue(kpi) {
   color: var(--color-text);
 }
 
-/* Charts */
-.charts-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.chart-card {
-  background: var(--color-bg-card, rgba(255,255,255,0.04));
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-light);
-  padding: 24px;
-  box-shadow: var(--shadow-card);
-  transition: box-shadow 0.2s ease;
-}
-
-.chart-card:hover {
-  box-shadow: var(--shadow-card-hover);
-}
-
-.chart-title {
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-bold);
-  margin: 0 0 18px;
-  color: var(--color-text);
-  line-height: var(--lh-tight);
-  letter-spacing: -0.02em;
-}
-
-.chart-empty {
-  background: var(--color-bg-card, rgba(255,255,255,0.04));
-  border-radius: var(--radius-lg);
-  border: 1px dashed var(--color-border);
-  padding: 32px;
-  text-align: center;
-  margin-bottom: 20px;
-  box-shadow: var(--shadow-card);
-}
-
 .chart-empty__text {
   font-size: var(--fs-base);
   color: var(--color-text-muted);
   margin: 0;
 }
 
-/* Section title */
-.section-title {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--color-text);
-  margin: 0 0 12px;
-}
-
 /* Recent exams */
 .recent-exams {
   margin-bottom: 24px;
-}
-
-.exam-cards-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
-}
-
-.exam-card {
-  background: var(--color-bg-card, rgba(255,255,255,0.04));
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-light);
-  padding: 18px 20px;
-  cursor: pointer;
-  box-shadow: var(--shadow-card);
-  transition: var(--transition);
-}
-
-.exam-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card-hover);
-  border-color: var(--color-border);
-}
-
-.exam-card__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.exam-card__name {
-  font-size: var(--fs-base);
-  font-weight: var(--fw-semibold);
-  color: var(--color-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 200px;
-}
-
-.exam-card__meta {
-  display: flex;
-  gap: 12px;
-  font-size: var(--fs-sm);
-  color: var(--color-text-muted);
-}
-
-.recent-exams__footer {
-  margin-top: 12px;
-  text-align: right;
 }
 
 /* Module grid */
@@ -695,24 +695,249 @@ function getKpiValue(kpi) {
 }
 
 @media (max-width: 768px) {
-  .kpi-row {
-    grid-template-columns: repeat(2, 1fr);
+  .todo-section {
+    flex-direction: column;
+  }
+}
+
+/* Batch 4 dashboard demo alignment */
+.greeting {
+  font-family: var(--font-serif-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 34px;
+  color: var(--color-text);
+  margin-bottom: 28px;
+  line-height: 1.1;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+  margin-bottom: 28px;
+}
+
+.dashboard-left {
+  min-width: 0;
+}
+
+.dashboard-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.entry-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.card {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  border: 1px solid var(--color-border-light);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
+
+.card-sub,
+.card-meta {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.chart-card {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.chart-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.chart-legend__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chart-legend__dot--purple { background: var(--color-primary); }
+.chart-legend__dot--yellow { background: var(--color-accent); }
+.chart-legend__dot--orange { background: var(--color-warning); }
+
+.chart-empty {
+  border-style: dashed;
+  margin-bottom: 0;
+  text-align: center;
+}
+
+.card-empty__text {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 15px;
+}
+
+.prog {
+  margin-bottom: 16px;
+}
+
+.prog:last-child {
+  margin-bottom: 0;
+}
+
+.prog-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-size: 15px;
+}
+
+.prog-label {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.prog-val {
+  color: var(--color-text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.friend--clickable {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding-left: 8px;
+  padding-right: 8px;
+  transition: background 0.15s ease;
+}
+
+.friend--clickable:hover {
+  background: var(--color-bg);
+}
+
+.entry__icon--yellow {
+  background: rgba(244, 218, 76, 0.18);
+  color: #F4DA4C;
+}
+
+.entry__icon--dark {
+  background: rgba(9, 6, 27, 0.1);
+  color: #09061B;
+}
+
+.entry__icon--light {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.recent-table-wrap {
+  overflow-x: auto;
+}
+
+.recent-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.recent-table th {
+  padding: 12px 14px;
+  border-bottom: 2px solid var(--color-border-light);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.recent-table td {
+  padding: 14px;
+  border-bottom: 1px solid var(--color-border-light);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.recent-table tbody tr {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.recent-table tbody tr:hover {
+  background: var(--color-bg);
+}
+
+.recent-exam-name {
+  font-weight: 700;
+  color: var(--color-text) !important;
+}
+
+@media (max-width: 768px) {
+  .stat-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .charts-row {
+  .dashboard-grid {
     grid-template-columns: 1fr;
   }
 
-  .chart-card {
+  .dashboard-split {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
     padding: 20px;
   }
 
-  .quick-actions {
+  .card-head {
+    align-items: flex-start;
     flex-direction: column;
   }
 
-  .todo-section {
-    flex-direction: column;
+  .recent-table {
+    min-width: 560px;
   }
 }
 </style>

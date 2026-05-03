@@ -238,7 +238,7 @@ onMounted(init)
 
 <style scoped>
 .knowledge-tree-page {
-  height: calc(100dvh - 64px);
+  height: 100%;
   overflow: hidden;
 }
 .main-layout {
