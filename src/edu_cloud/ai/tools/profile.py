@@ -71,7 +71,7 @@ async def get_student_knowledge_map(input: dict, ctx: ToolContext) -> ToolResult
         return ToolResult(success=True, data={
             "knowledge_map": [
                 {
-                    "knowledge_point_id": m.knowledge_point_id,
+                    "concept_id": m.concept_id,
                     "mastery_level": m.mastery_level,
                     "trend": m.trend,
                     "attempt_count": m.attempt_count,

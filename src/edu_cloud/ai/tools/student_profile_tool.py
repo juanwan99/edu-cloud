@@ -84,7 +84,7 @@ async def get_student_learning_profile(input: dict, ctx: ToolContext) -> ToolRes
 
     weak_points = [
         {
-            "kp": m.knowledge_point_id,
+            "kp": m.concept_id,
             "mastery": m.mastery_level,
             "attempts": m.attempt_count,
         }

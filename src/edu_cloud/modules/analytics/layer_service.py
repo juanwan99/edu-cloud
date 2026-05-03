@@ -87,7 +87,7 @@ async def layer_analysis(
     for row in knp_rows:
         label = student_layers.get(row.student_id)
         if label and row.stu_rate is not None:
-            layer_knp_rates[label][row.knp_id].append(float(row.stu_rate))
+            layer_knp_rates[label][row.concept_id].append(float(row.stu_rate))
 
     for layer in layers:
         knp_data = layer_knp_rates.get(layer["label"], {})
