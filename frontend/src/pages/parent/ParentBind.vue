@@ -215,11 +215,11 @@ onUnmounted(() => {
   transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
 }
 .rel-item:hover {
-  border-color: rgba(99,226,183,0.4);
+  border-color: rgba(244,218,76,0.4);
 }
 .rel-item.selected {
-  border-color: #63e2b7;
-  background: rgba(99,226,183,0.1);
+  border-color: #F4DA4C;
+  background: rgba(244,218,76,0.1);
 }
 .rel-icon {
   font-size: var(--fs-2xl);
@@ -231,7 +231,7 @@ onUnmounted(() => {
   color: rgba(255,255,255,0.7);
 }
 .rel-item.selected .rel-label {
-  color: #63e2b7;
+  color: #F4DA4C;
 }
 .success-area {
   text-align: center;
@@ -241,8 +241,8 @@ onUnmounted(() => {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: rgba(99,226,183,0.15);
-  color: #63e2b7;
+  background: rgba(244,218,76,0.15);
+  color: #F4DA4C;
   font-size: var(--fs-display);
   line-height: 64px;
   margin: 0 auto 16px;

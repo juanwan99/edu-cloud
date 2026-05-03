@@ -287,7 +287,7 @@ async function handleLogin() {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: var(--color-primary, #1a2e1f);
+  background: var(--color-primary, #09061B);
   color: var(--color-bg, #fff);
   font-size: var(--fs-display);
   display: flex;

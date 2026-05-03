@@ -160,13 +160,13 @@ onMounted(loadData)
 }
 
 .score-card--primary {
-  background: rgba(99, 226, 183, 0.10);
+  background: rgba(244, 218, 76, 0.10);
 }
 
 .score-card__value {
   font-size: 22px;
   font-weight: var(--fw-semibold);
-  color: #63e2b7;
+  color: #F4DA4C;
 }
 
 .score-card__label {
@@ -213,7 +213,7 @@ onMounted(loadData)
 .exam-item__score {
   font-size: var(--fs-base);
   font-weight: var(--fw-semibold);
-  color: #63e2b7;
+  color: #F4DA4C;
 }
 
 .exam-item__meta {

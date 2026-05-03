@@ -26,7 +26,7 @@
           </div>
         </div>
         <div style="text-align: right;">
-          <div style="font-size: var(--fs-2xl); font-weight: var(--fw-semibold); color: #63e2b7;">
+          <div style="font-size: var(--fs-2xl); font-weight: var(--fw-semibold); color: #F4DA4C;">
             {{ myRanking.total_points }}
           </div>
           <div style="font-size: var(--fs-base); color: var(--color-text-muted);">总积分</div>
@@ -41,7 +41,7 @@
         <div
           :style="{
             width: distBands.top10 + '%',
-            background: 'rgba(99, 226, 183, 0.5)',
+            background: 'rgba(244, 218, 76, 0.5)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 'var(--fs-base)', color: 'rgba(255,255,255,0.8)',
             minWidth: distBands.top10 > 8 ? 'auto' : '0',
@@ -78,7 +78,7 @@
             left: myPositionPct + '%',
             transform: 'translateX(-50%)',
             fontSize: 'var(--fs-base)',
-            color: '#63e2b7',
+            color: '#F4DA4C',
             fontWeight: 'var(--fw-semibold)',
             whiteSpace: 'nowrap',
           }"
@@ -216,7 +216,7 @@ function rowClassName(row) {
 
 function rowProps(row) {
   if (props.currentChild && row.student_id === props.currentChild.student_id) {
-    return { style: 'border-left: 3px solid #63e2b7;' }
+    return { style: 'border-left: 3px solid #F4DA4C;' }
   }
   return {}
 }
@@ -237,7 +237,7 @@ watch(() => props.currentChild, async (child) => {
 
 <style scoped>
 :deep(.highlight-row td) {
-  background-color: rgba(99, 226, 183, 0.1) !important;
+  background-color: rgba(244, 218, 76, 0.1) !important;
   font-weight: var(--fw-semibold);
 }
 </style>

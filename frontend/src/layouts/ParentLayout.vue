@@ -132,7 +132,7 @@ onMounted(async () => {
   transition: color 0.2s;
 }
 .tab-item.active {
-  color: #63e2b7;
+  color: #F4DA4C;
 }
 .tab-icon {
   font-size: 20px;

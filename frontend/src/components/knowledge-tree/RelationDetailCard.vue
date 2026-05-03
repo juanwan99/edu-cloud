@@ -137,5 +137,5 @@ function batchConfirm(edges) {
 .peer-name { flex: 1; }
 .edge-status { font-size: var(--fs-base); color: rgba(255,255,255,0.4); min-width: 40px; }
 .edge-status.rejected { color: #e88080; text-decoration: line-through; }
-.edge-status.teacher_reviewed { color: #63e2b7; }
+.edge-status.teacher_reviewed { color: #F4DA4C; }
 </style>

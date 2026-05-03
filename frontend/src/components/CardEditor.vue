@@ -793,12 +793,12 @@ defineExpose({
   overflow: visible;
 }
 .save-btn {
-  background: #2d5a3d !important;
+  background: #644CF0 !important;
   color: white !important;
   font-weight: var(--fw-semibold);
 }
 .save-btn:hover {
-  background: #1a2e1f !important;
+  background: #09061B !important;
 }
 .reset-btn {
   background: #5a3d2d !important;
@@ -809,12 +809,12 @@ defineExpose({
   background: #3d2a1a !important;
 }
 .publish-btn {
-  background: #2d5a3d !important;
+  background: #644CF0 !important;
   color: white !important;
   font-weight: var(--fw-semibold);
 }
 .publish-btn:hover {
-  background: #1a2e1f !important;
+  background: #09061B !important;
 }
 .status {
   font-size: var(--fs-base);
@@ -856,11 +856,11 @@ defineExpose({
   margin-left: 8px; padding: 3px 12px; font-size: var(--fs-base); border: 1px solid var(--color-border);
   border-radius: var(--r-xs); background: #fff; cursor: pointer; color: var(--color-text-secondary);
 }
-.fit-zoom-btn.active { background: #2d5a3d; color: #fff; border-color: #2d5a3d; }
+.fit-zoom-btn.active { background: #644CF0; color: #fff; border-color: #644CF0; }
 .view-toggle button.active {
-  background: #2d5a3d;
+  background: #644CF0;
   color: #fff;
-  border-color: #2d5a3d;
+  border-color: #644CF0;
 }
 /* TQL 全宽显示 */
 .tql-view {

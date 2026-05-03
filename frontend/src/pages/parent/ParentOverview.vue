@@ -46,7 +46,7 @@
         </div>
         <div class="score-brief-body">
           <div class="score-brief-item">
-            <div class="score-brief-value" style="color: #63e2b7;">{{ latestScore.total_score ?? '-' }}</div>
+            <div class="score-brief-value" style="color: #F4DA4C;">{{ latestScore.total_score ?? '-' }}</div>
             <div class="score-brief-label">总分</div>
           </div>
           <div class="score-brief-item" v-if="latestScore.class_rank">
@@ -63,7 +63,7 @@
       <!-- Quick entry buttons -->
       <div class="quick-entries" style="margin-bottom: var(--space-4);">
         <div class="quick-entry" @click="$router.push('/parent/scores')">
-          <div class="quick-entry-icon" style="background: rgba(99,226,183,0.15); color: #63e2b7;">&#128202;</div>
+          <div class="quick-entry-icon" style="background: rgba(244,218,76,0.15); color: #F4DA4C;">&#128202;</div>
           <div class="quick-entry-label">成绩查询</div>
         </div>
         <div class="quick-entry" @click="$router.push('/parent/rankings')">
@@ -134,7 +134,7 @@ const avatarLetter = computed(() => {
 
 const avatarBg = computed(() => {
   const name = props.currentChild?.student_name || ''
-  const colors = ['#63e2b7', '#64b5f6', '#ffb74d', '#ce93d8', '#ef9a9a', '#80cbc4']
+  const colors = ['#F4DA4C', '#64b5f6', '#ffb74d', '#ce93d8', '#ef9a9a', '#80cbc4']
   let hash = 0
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash)
@@ -257,7 +257,7 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .stat-item--primary .stat-value {
-  color: #63e2b7;
+  color: #F4DA4C;
 }
 
 .stat-label {
@@ -350,8 +350,8 @@ watch(() => props.currentChild, async (child) => {
 }
 
 .record-icon--up {
-  background: rgba(99, 226, 183, 0.15);
-  color: #63e2b7;
+  background: rgba(244, 218, 76, 0.15);
+  color: #F4DA4C;
 }
 
 .record-icon--down {

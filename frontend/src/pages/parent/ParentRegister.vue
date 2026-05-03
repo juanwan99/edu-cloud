@@ -15,7 +15,7 @@
             </n-button>
           </n-form>
           <div style="margin-top: var(--space-4); text-align: center;">
-            <router-link to="/parent/login" style="color: #63e2b7;">已有账号？去登录</router-link>
+            <router-link to="/parent/login" style="color: #F4DA4C;">已有账号？去登录</router-link>
           </div>
         </template>
 

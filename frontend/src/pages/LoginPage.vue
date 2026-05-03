@@ -46,14 +46,14 @@
             <n-form-item path="username">
               <n-input v-model:value="form.username" placeholder="请输入用户名…" size="large" :input-props="{ autocomplete: 'username' }">
                 <template #prefix>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6B7A90" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#A0A0A8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </template>
               </n-input>
             </n-form-item>
             <n-form-item path="password">
               <n-input v-model:value="form.password" type="password" placeholder="请输入密码…" size="large" show-password-on="click" :input-props="{ autocomplete: 'current-password' }" @keyup.enter="handleLogin">
                 <template #prefix>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6B7A90" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#A0A0A8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 </template>
               </n-input>
             </n-form-item>
@@ -173,7 +173,7 @@ async function handleLogin() {
 .login-brand {
   width: 380px;
   flex-shrink: 0;
-  background: linear-gradient(160deg, #111C33 0%, #1a2744 50%, #1F3A5F 100%);
+  background: linear-gradient(160deg, #09061B 0%, #12102a 50%, #1A1540 100%);
   color: #fff;
   padding: 48px 40px 32px;
   display: flex;
@@ -189,7 +189,7 @@ async function handleLogin() {
   width: 300px;
   height: 300px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(31, 91, 215, 0.2) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(100, 76, 240, 0.2) 0%, transparent 70%);
   top: -80px;
   right: -80px;
 }
@@ -200,7 +200,7 @@ async function handleLogin() {
   width: 200px;
   height: 200px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(31, 91, 215, 0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(244, 218, 76, 0.08) 0%, transparent 70%);
   bottom: -60px;
   left: -40px;
 }
@@ -275,14 +275,14 @@ async function handleLogin() {
 .form-title {
   font-size: 26px;
   font-weight: 800;
-  color: #111C33;
+  color: var(--color-text);
   letter-spacing: -0.02em;
   margin-bottom: 6px;
 }
 
 .form-desc {
   font-size: 14px;
-  color: #6B7A90;
+  color: var(--color-text-muted);
   margin-bottom: 32px;
 }
 
@@ -297,16 +297,16 @@ async function handleLogin() {
   letter-spacing: 3px;
   border-radius: 12px !important;
   margin-top: 4px;
-  background: #1F5BD7 !important;
-  border-color: #1F5BD7 !important;
-  box-shadow: 0 8px 24px rgba(31, 91, 215, 0.25);
+  background: #644CF0 !important;
+  border-color: #644CF0 !important;
+  box-shadow: 0 8px 24px rgba(100, 76, 240, 0.25);
   transition: all 0.2s;
 }
 
 .login-btn:hover {
-  background: #1849B0 !important;
-  border-color: #1849B0 !important;
-  box-shadow: 0 8px 24px rgba(31, 91, 215, 0.35);
+  background: #4F3EC9 !important;
+  border-color: #4F3EC9 !important;
+  box-shadow: 0 8px 24px rgba(100, 76, 240, 0.35);
   transform: translateY(-1px);
 }
 
@@ -314,7 +314,7 @@ async function handleLogin() {
   margin-top: 24px;
   text-align: center;
   font-size: 14px;
-  color: #6B7A90;
+  color: var(--color-text-muted);
 }
 
 /* 成功遮罩 */
@@ -333,7 +333,7 @@ async function handleLogin() {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: #1F5BD7;
+  background: #644CF0;
   color: #fff;
   font-size: 48px;
   display: flex;
@@ -345,7 +345,7 @@ async function handleLogin() {
 .success-text {
   font-size: 20px;
   font-weight: 600;
-  color: #1F5BD7;
+  color: #644CF0;
 }
 
 .login-success-enter-active { transition: opacity 0.3s ease; }

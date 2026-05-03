@@ -168,7 +168,7 @@ watch(visibleGroups, autoExpandCurrentGroup)
 }
 
 .nav-item--active {
-  color: #1a1a1a;
+  color: var(--color-text);
   background: var(--color-sidebar-active);
   border-left-color: transparent;
   font-weight: var(--fw-bold);
@@ -182,7 +182,7 @@ watch(visibleGroups, autoExpandCurrentGroup)
 
 .nav-item--child.nav-item--active {
   border-left: none;
-  color: #1a1a1a;
+  color: var(--color-text);
   background: var(--color-sidebar-active);
   font-weight: var(--fw-bold);
 }

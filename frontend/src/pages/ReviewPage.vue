@@ -851,7 +851,7 @@ onUnmounted(() => {
   font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
-.ai-sub-score--pass { color: #18a058; }
+.ai-sub-score--pass { color: #644CF0; }
 .ai-sub-score--partial { color: #f0a020; }
 .ai-sub-score--fail { color: #d03050; }
 
@@ -927,9 +927,9 @@ onUnmounted(() => {
 }
 
 .score-btn.active {
-  background: var(--color-primary, #18a058);
+  background: var(--color-primary, #644CF0);
   color: var(--color-bg, #fff);
-  border-color: var(--color-primary, #18a058);
+  border-color: var(--color-primary, #644CF0);
   box-shadow: 0 0 0 2px rgba(24, 160, 88, 0.3);
 }
 

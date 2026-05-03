@@ -249,8 +249,8 @@ onMounted(loadData)
   cursor: pointer;
   transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
 }
-.combo-card:hover:not(.added) { border-color: #63e2b7; }
-.combo-card.checked { border-color: #63e2b7; background: rgba(99, 226, 183, 0.08); }
+.combo-card:hover:not(.added) { border-color: #F4DA4C; }
+.combo-card.checked { border-color: #F4DA4C; background: rgba(99, 226, 183, 0.08); }
 .combo-card.added { opacity: 0.5; cursor: default; }
 .combo-header { display: flex; align-items: center; gap: 8px; }
 .combo-name { font-weight: var(--fw-medium); flex: 1; }

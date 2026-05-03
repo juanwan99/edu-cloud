@@ -220,8 +220,8 @@ function handleLogout() {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: rgba(99,226,183,0.15);
-  color: #63e2b7;
+  background: rgba(244,218,76,0.15);
+  color: #F4DA4C;
   font-size: var(--fs-2xl);
   font-weight: var(--fw-semibold);
   display: flex;

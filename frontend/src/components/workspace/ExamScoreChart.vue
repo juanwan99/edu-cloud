@@ -27,7 +27,7 @@ const chartOption = computed(() => ({
     {
       type: 'bar',
       data: props.distribution.map(d => d.count),
-      itemStyle: { color: '#63e2b7' },
+      itemStyle: { color: '#F4DA4C' },
     },
   ],
 }))

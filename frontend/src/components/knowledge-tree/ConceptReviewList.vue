@@ -119,7 +119,7 @@ function statusClass(concept) {
 .concept-list { flex: 1; overflow-y: auto; }
 .concept-item { display: flex; align-items: center; gap: var(--space-2); }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.status-dot.published { background: #63e2b7; }
+.status-dot.published { background: #F4DA4C; }
 .status-dot.warning { background: #f2c97d; }
 .status-dot.draft { background: rgba(255,255,255,0.3); }
 .concept-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

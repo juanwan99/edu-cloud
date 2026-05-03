@@ -159,14 +159,14 @@ const trendOption = computed(() => {
       data: values,
       smooth: true,
       symbol: 'none',
-      lineStyle: { color: '#63e2b7', width: 2 },
+      lineStyle: { color: '#F4DA4C', width: 2 },
       areaStyle: {
         color: {
           type: 'linear',
           x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
-            { offset: 0, color: 'rgba(99, 226, 183, 0.25)' },
-            { offset: 1, color: 'rgba(99, 226, 183, 0.02)' },
+            { offset: 0, color: 'rgba(244, 218, 76, 0.25)' },
+            { offset: 1, color: 'rgba(244, 218, 76, 0.02)' },
           ],
         },
       },

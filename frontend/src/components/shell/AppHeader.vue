@@ -46,7 +46,7 @@ import RoleSwitcher from './RoleSwitcher.vue'
   left: 0;
   right: 0;
   height: 64px;
-  background: #1a1a1a;
+  background: var(--color-bg-deep);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   z-index: var(--z-header);
   display: flex;
