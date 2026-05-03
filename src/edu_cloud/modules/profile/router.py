@@ -33,7 +33,7 @@ def _snapshot_response(s) -> dict:
 def _mastery_response(m) -> dict:
     return {
         "id": m.id, "student_id": m.student_id,
-        "knowledge_point_id": m.knowledge_point_id,
+        "concept_id": m.concept_id,
         "mastery_level": m.mastery_level, "confidence": m.confidence,
         "attempt_count": m.attempt_count, "correct_count": m.correct_count,
         "trend": m.trend, "recent_scores": m.recent_scores,
