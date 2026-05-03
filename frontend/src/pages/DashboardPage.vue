@@ -131,7 +131,6 @@
           <div class="entry__title">{{ entry.title }}</div>
           <div class="entry__sub">{{ entry.sub }}</div>
           <div class="entry__bottom">
-            <span class="entry__date">{{ entry.date }}</span>
             <span :class="['entry__btn', `entry__btn--${entry.buttonTone}`]">
               {{ entry.buttonText }}
             </span>
@@ -269,7 +268,6 @@ const entryItems = computed(() => {
       sub: '自动识别与智能评分',
       route: '/ai-grading',
       permission: ['manage_grading', 'view_grading'],
-      date: '今日可用',
       buttonText: '立即使用',
       buttonTone: 'yellow',
     },
@@ -281,7 +279,6 @@ const entryItems = computed(() => {
       sub: '年级 / 班级 / 学生对比',
       route: '/analytics/report',
       permission: 'view_scores',
-      date: '成绩报告',
       buttonText: '查看',
       buttonTone: 'dark',
     },
@@ -293,7 +290,6 @@ const entryItems = computed(() => {
       sub: '学科知识全景可视化',
       route: '/knowledge-tree',
       permission: 'view_knowledge_tree',
-      date: '数学 · 物理',
       buttonText: '探索',
       buttonTone: 'light',
     },

@@ -105,9 +105,7 @@ watch(() => route.path, () => { aiPanelOpen.value = false })
   }
 
   :deep(.sidebar .nav-item__label),
-  :deep(.sidebar .nav-group__label),
-  :deep(.sidebar .nav-group__arrow),
-  :deep(.sidebar .nav-group__children) {
+  :deep(.sidebar .nav-group__label) {
     display: none !important;
   }
 }
