@@ -165,8 +165,8 @@ async function handleLogin() {
   border-radius: 24px;
   overflow: hidden;
   box-shadow:
-    0 28px 70px rgba(31, 91, 215, 0.10),
-    0 8px 20px rgba(31, 91, 215, 0.06);
+    0 28px 70px rgba(100, 76, 240, 0.10),
+    0 8px 20px rgba(100, 76, 240, 0.06);
 }
 
 /* 左侧品牌面板 */

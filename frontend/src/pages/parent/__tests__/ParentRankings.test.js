@@ -64,7 +64,7 @@ describe('ParentRankings template sections', () => {
 
   it('highlights current child row', () => {
     expect(content).toContain('highlight-row')
-    expect(content).toContain("style: 'border-left: 3px solid #63e2b7;'")
+    expect(content).toContain("style: 'border-left: 3px solid #F4DA4C;'")
   })
 })
 

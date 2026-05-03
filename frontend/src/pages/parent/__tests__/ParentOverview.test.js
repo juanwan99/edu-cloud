@@ -114,7 +114,7 @@ describe('ParentOverview computed properties', () => {
 
   it('computes avatar background color from name hash', () => {
     expect(content).toContain('const avatarBg = computed')
-    expect(content).toContain("const colors = ['#63e2b7', '#64b5f6', '#ffb74d', '#ce93d8', '#ef9a9a', '#80cbc4']")
+    expect(content).toContain("const colors = ['#F4DA4C', '#64b5f6', '#ffb74d', '#ce93d8', '#ef9a9a', '#80cbc4']")
   })
 
   it('receives currentChild via props', () => {

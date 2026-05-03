@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :theme="darkTheme">
+  <n-config-provider :theme="darkTheme" :theme-overrides="parentThemeOverrides">
     <n-message-provider>
       <n-layout style="min-height: 100dvh;">
         <!-- Top bar -->
@@ -52,6 +52,21 @@ import {
 } from 'naive-ui'
 import { User } from 'lucide-vue-next'
 import { getParentMe, getChildren } from '../api/conduct'
+
+const parentThemeOverrides = {
+  common: {
+    primaryColor: '#F4DA4C',
+    primaryColorHover: '#E8CF40',
+    primaryColorPressed: '#D4B830',
+    primaryColorSuppl: '#F4DA4C',
+    bodyColor: '#09061B',
+    cardColor: '#12102a',
+    textColor1: '#ffffff',
+    textColor2: 'rgba(255,255,255,0.85)',
+    textColor3: 'rgba(255,255,255,0.5)',
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+}
 
 const router = useRouter()
 const route = useRoute()

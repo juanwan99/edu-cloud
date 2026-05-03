@@ -144,7 +144,7 @@ describe('ParentDetails trend chart', () => {
   it('configures line chart with gradient area', () => {
     expect(content).toContain("type: 'line'")
     expect(content).toContain('smooth: true')
-    expect(content).toContain("lineStyle: { color: '#63e2b7', width: 2 }")
+    expect(content).toContain("lineStyle: { color: '#F4DA4C', width: 2 }")
     expect(content).toContain("type: 'linear'")
   })
 
