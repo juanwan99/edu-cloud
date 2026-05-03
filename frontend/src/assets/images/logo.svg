@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-label="微与积 logo">
   <path
     d="M32 5 C19 17 12 34 12 58 M32 5 C45 17 52 34 52 58"
-    stroke="#e0eedc"
+    stroke="#F4DA4C"
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
   />
   <path
     d="M32 9 V58 M32 25 L21 36 M32 25 L43 36 M32 39 L23 48 M32 39 L41 48"
-    stroke="#e0eedc"
+    stroke="#F4DA4C"
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
