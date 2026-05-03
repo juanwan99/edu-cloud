@@ -289,21 +289,21 @@ async def add_points(
         await db.flush()
         created_ids.append(record.id)
 
-    await db.commit()
-
-    # Trigger parent notifications for each created record
+    # Trigger parent notifications + alert checks (same transaction)
     from edu_cloud.modules.conduct.event_service import (
         notify_parents_on_points, check_alert_threshold,
     )
     for rid in created_ids:
         await notify_parents_on_points(db, rid)
 
-    # Check alert thresholds for affected students
     seen_students: set[str] = set()
     for sid in student_ids:
         if sid not in seen_students:
             seen_students.add(sid)
             await check_alert_threshold(db, sid, class_id)
+
+    # Single commit: records + notifications + alerts atomically
+    await db.commit()
 
     return created_ids
 

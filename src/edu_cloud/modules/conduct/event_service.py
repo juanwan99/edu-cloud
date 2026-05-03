@@ -45,7 +45,7 @@ async def notify_parents_on_points(db: AsyncSession, record_id: str) -> int:
     title = f"{student.name} 德育积分变动 {point_str}"
     body = f"原因：{record.reason}（{record.date}）"
 
-    # 5. Create notifications
+    # 5. Create notifications (no commit — caller owns the transaction)
     count = 0
     for link in links:
         notification = ConductNotification(
@@ -58,11 +58,11 @@ async def notify_parents_on_points(db: AsyncSession, record_id: str) -> int:
         db.add(notification)
         count += 1
 
-    await db.commit()
-    logger.info(
-        "notify_parents: created %d notifications for record %s",
-        count, record_id,
-    )
+    if count:
+        logger.info(
+            "notify_parents: queued %d notifications for record %s",
+            count, record_id,
+        )
     return count
 
 
@@ -153,9 +153,8 @@ async def check_alert_threshold(db: AsyncSession, student_id: str, class_id: str
         count += 1
 
     if count:
-        await db.commit()
         logger.info(
-            "check_alert_threshold: created %d alert notifications for student %s "
+            "check_alert_threshold: queued %d alert notifications for student %s "
             "(cumulative=%d, threshold=%d)",
             count, student_id, cumulative, threshold,
         )

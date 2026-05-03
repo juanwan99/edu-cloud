@@ -261,9 +261,10 @@ async def test_get_notifications_endpoint(client, db, school_class_student):
     db.add(record)
     await db.commit()
 
-    # Trigger notification via service
+    # Trigger notification via service (caller must commit)
     count = await notify_parents_on_points(db, record.id)
     assert count == 1
+    await db.commit()
 
     # GET notifications
     resp = await client.get("/api/v1/conduct/parent/notifications", headers=headers)
@@ -310,6 +311,7 @@ async def test_mark_all_read(client, db, school_class_student):
         db.add(record)
         await db.commit()
         await notify_parents_on_points(db, record.id)
+        await db.commit()
 
     # Verify 2 unread notifications
     resp = await client.get(
