@@ -20,6 +20,7 @@ class ConceptGraphNode(Base):
     synced_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     # 层级重构新增列
     subject: Mapped[str | None] = mapped_column(String(30))
+    course_code: Mapped[str | None] = mapped_column(String(10), default=None, index=True)
     node_type: Mapped[str] = mapped_column(String(20), default="concept")  # concept | big_concept
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     review_status: Mapped[str | None] = mapped_column(String(20))
@@ -61,6 +62,8 @@ class ConceptGraphEdge(Base):
     relation_type: Mapped[str] = mapped_column(String(30), nullable=False)
     strength: Mapped[float] = mapped_column(Float, default=1.0)
     confidence: Mapped[float] = mapped_column(Float, default=1.0)
+    evidence: Mapped[str | None] = mapped_column(Text, default=None)
+    pedagogical_use: Mapped[str | None] = mapped_column(String(30), default=None)
     review_status: Mapped[str] = mapped_column(String(20), default="ai_draft")
     synced_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
