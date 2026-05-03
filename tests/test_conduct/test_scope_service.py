@@ -167,6 +167,19 @@ class TestSchoolScope:
             assert "record_count" in entry
             assert "avg_points" in entry
 
+    async def test_school_overview_has_trend(self, db, scope_data):
+        school_id = scope_data["school"].id
+        result = await get_conduct_overview(db, "school", [school_id])
+
+        assert "trend" in result
+        assert isinstance(result["trend"], list)
+        assert len(result["trend"]) == 4  # default 4 weeks
+        # Current week should have records (seeded today)
+        current_week = result["trend"][-1]
+        assert current_week["positive"] >= 0
+        assert current_week["negative"] >= 0
+        assert "week_start" in current_week
+
     async def test_school_overview_empty(self, db):
         """School with no classes returns empty comparison."""
         school = School(name="空学校", code="EMPTY01", is_active=True)
@@ -202,6 +215,13 @@ class TestDistrictScope:
         assert entry["total_students"] == 6
         assert entry["record_count"] == 5
         assert isinstance(entry["avg_points"], float)
+
+    async def test_district_overview_has_trend(self, db, scope_data):
+        result = await get_conduct_overview(db, "district", ["TestDistrict"])
+
+        assert "trend" in result
+        assert isinstance(result["trend"], list)
+        assert len(result["trend"]) == 4
 
     async def test_district_overview_no_schools(self, db):
         """District with no matching schools returns empty."""
