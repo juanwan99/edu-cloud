@@ -16,13 +16,17 @@
 
     <!-- KPI Row -->
     <div class="kpi-row">
-      <KpiCard
-        v-for="kpi in config?.kpis"
+      <div
+        v-for="kpi in dashboardKpis"
         :key="kpi.id"
-        :value="getKpiValue(kpi)"
-        :label="kpi.label"
-        :color="kpi.color"
-      />
+        :class="['stat-card', 'dashboard-stat', `dashboard-stat--${kpi.tone}`]"
+      >
+        <div :class="['stat-icon', `stat-icon--${kpi.tone}`]">
+          <AppIcon :name="kpi.icon" :size="20" />
+        </div>
+        <div class="stat-label">{{ kpi.label }}</div>
+        <div class="stat-value">{{ getKpiValue(kpi) }}</div>
+      </div>
     </div>
 
     <!-- Quick Actions -->
@@ -131,7 +135,6 @@ import { NButton, NTag, NProgress } from 'naive-ui'
 import { useAuthStore } from '../stores/auth'
 import { getDashboardConfig } from '../config/dashboardConfig'
 import { normalizeRole } from '../config/roles'
-import KpiCard from '../components/dashboard/KpiCard.vue'
 import DashboardCard from '../components/dashboard/DashboardCard.vue'
 import WidgetGrid from '../components/dashboard/WidgetGrid.vue'
 import ActivityFeed from '../components/dashboard/ActivityFeed.vue'
@@ -154,9 +157,9 @@ const config = computed(() => getDashboardConfig(role.value))
 const rootStyle = getComputedStyle(document.documentElement)
 const chartTextColor = rootStyle.getPropertyValue('--color-text').trim() || 'rgba(15, 26, 18, 0.88)'
 const chartSplitColor = rootStyle.getPropertyValue('--color-border-light').trim() || '#e8efe9'
-const chartSuccessColor = rootStyle.getPropertyValue('--color-success').trim() || '#22C55E'
-const chartWarningColor = rootStyle.getPropertyValue('--color-warning').trim() || '#f59e0b'
-const chartInfoColor = rootStyle.getPropertyValue('--color-info').trim() || '#3b82f6'
+const chartSuccessColor = rootStyle.getPropertyValue('--color-primary').trim() || '#644CF0'
+const chartWarningColor = rootStyle.getPropertyValue('--color-accent').trim() || '#F4DA4C'
+const chartInfoColor = rootStyle.getPropertyValue('--color-warning').trim() || '#ED9A51'
 
 const kpiData = ref({})
 const loading = ref(true)
@@ -165,6 +168,26 @@ const classOption = ref(null)
 const activityItems = ref([])
 const recentExams = ref([])
 const todoItems = ref([])
+const statToneSequence = ['yellow', 'purple', 'orange', 'ink']
+const kpiIconMap = {
+  total_exams: 'exam',
+  total_students: 'people',
+  pending_grading: 'marking',
+  pending_subjects: 'marking',
+  total_staff: 'academic',
+  total_classes: 'class',
+  subject_classes: 'class',
+  subject_avg: 'chart',
+  ai_tools: 'ai',
+}
+
+const dashboardKpis = computed(() =>
+  (config.value?.kpis || []).map((kpi, index) => ({
+    ...kpi,
+    tone: statToneSequence[index % statToneSequence.length],
+    icon: kpiIconMap[kpi.id] || ['exam', 'people', 'marking', 'chart'][index % 4],
+  }))
+)
 
 // Quick actions config (role-aware)
 const quickActions = computed(() => {
@@ -366,7 +389,12 @@ function getKpiValue(kpi) {
 
 <style scoped>
 .dashboard-page {
-  max-width: 1200px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 28px;
 }
 
 /* Welcome banner */
@@ -394,21 +422,114 @@ function getKpiValue(kpi) {
 /* KPI row */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 24px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.dashboard-stat {
+  min-height: 164px;
+  border: none;
+}
+
+.dashboard-stat--yellow {
+  background: var(--surface-stat-yellow);
+  box-shadow: var(--shadow-stat-yellow);
+}
+
+.dashboard-stat--yellow:hover {
+  box-shadow: var(--shadow-stat-yellow-hover);
+}
+
+.dashboard-stat--purple {
+  background: var(--surface-stat-purple);
+  box-shadow: var(--shadow-stat-purple);
+}
+
+.dashboard-stat--purple:hover {
+  box-shadow: var(--shadow-stat-purple-hover);
+}
+
+.dashboard-stat--orange {
+  background: var(--surface-stat-orange);
+  box-shadow: var(--shadow-stat-orange);
+}
+
+.dashboard-stat--orange:hover {
+  box-shadow: var(--shadow-stat-orange-hover);
+}
+
+.dashboard-stat--ink {
+  background: var(--surface-stat-ink);
+  box-shadow: var(--shadow-stat-ink);
+}
+
+.dashboard-stat--ink:hover {
+  box-shadow: var(--shadow-stat-ink-hover);
+}
+
+.dashboard-stat:hover {
+  transform: translateY(-1px);
+}
+
+.stat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.stat-icon--yellow {
+  background: var(--color-accent);
+  color: var(--color-bg-deep);
+}
+
+.stat-icon--purple {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.stat-icon--orange {
+  background: var(--color-warning);
+  color: #ffffff;
+}
+
+.stat-icon--ink {
+  background: var(--color-bg-deep);
+  color: var(--color-accent);
+}
+
+.dashboard-stat .stat-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.dashboard-stat .stat-value {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: 0;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Quick actions */
 .quick-actions {
   display: flex;
   gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
 }
 
 .quick-action-btn {
-  border-radius: 8px !important;
+  border-radius: 14px !important;
+  font-weight: 700 !important;
 }
 
 .quick-action-icon {
@@ -429,15 +550,17 @@ function getKpiValue(kpi) {
   gap: 8px;
   padding: 12px 18px;
   background: var(--color-bg-card, rgba(255,255,255,0.04));
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-light);
+  box-shadow: var(--shadow-card);
   cursor: pointer;
   transition: var(--transition);
 }
 
 .todo-item:hover {
   border-color: var(--color-border);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-1px);
 }
 
 .todo-dot {
@@ -460,32 +583,40 @@ function getKpiValue(kpi) {
 .charts-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-  gap: 16px;
+  gap: 20px;
   margin-bottom: 20px;
 }
 
 .chart-card {
   background: var(--color-bg-card, rgba(255,255,255,0.04));
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-light);
-  padding: 16px 20px;
+  padding: 24px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease;
+}
+
+.chart-card:hover {
+  box-shadow: var(--shadow-card-hover);
 }
 
 .chart-title {
   font-size: var(--fs-lg);
-  font-weight: var(--fw-semibold);
-  margin: 0 0 10px;
+  font-weight: var(--fw-bold);
+  margin: 0 0 18px;
   color: var(--color-text);
   line-height: var(--lh-tight);
+  letter-spacing: -0.02em;
 }
 
 .chart-empty {
   background: var(--color-bg-card, rgba(255,255,255,0.04));
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   border: 1px dashed var(--color-border);
   padding: 32px;
   text-align: center;
   margin-bottom: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .chart-empty__text {
@@ -510,21 +641,22 @@ function getKpiValue(kpi) {
 .exam-cards-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
+  gap: 16px;
 }
 
 .exam-card {
   background: var(--color-bg-card, rgba(255,255,255,0.04));
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-light);
-  padding: 14px 18px;
+  padding: 18px 20px;
   cursor: pointer;
-  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition);
 }
 
 .exam-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-card-hover);
   border-color: var(--color-border);
 }
 
@@ -565,6 +697,14 @@ function getKpiValue(kpi) {
 @media (max-width: 768px) {
   .kpi-row {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card {
+    padding: 20px;
   }
 
   .quick-actions {

@@ -10,9 +10,17 @@ body {
   font-family: var(--font-sans);
   font-size: 16px;
   color: var(--color-text);
-  background: var(--color-bg);
+  background: var(--surface-page-gradient);
   line-height: var(--lh-relaxed);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "tnum" 1, "cv02" 1, "cv03" 1, "cv04" 1;
+}
+
+body .app-main {
+  background: var(--surface-page-gradient) !important;
+  padding: 28px 36px 40px !important;
 }
 
 a {
@@ -22,7 +30,7 @@ a {
 
 /* 通用工具类 */
 .page-container {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: var(--space-8) var(--space-8);
 }
@@ -36,7 +44,7 @@ a {
   font-weight: var(--fw-heavy);
   color: var(--color-text);
   line-height: var(--lh-tight);
-  letter-spacing: -0.035em;
+  letter-spacing: -0.02em;
   text-wrap: balance;
   white-space: nowrap;
   overflow: hidden;
@@ -60,23 +68,62 @@ a {
 
 /* 统计卡片 */
 .stat-card {
-  padding: var(--space-5) var(--space-6);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-light);
-  background: var(--color-bg-card);
-  box-shadow: var(--shadow-sm);
+  padding: 26px 28px;
+  border-radius: var(--radius-lg);
+  border: none;
+  background: var(--surface-stat-yellow);
+  box-shadow: var(--shadow-stat-yellow);
   transition: var(--transition);
 }
 
 .stat-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-stat-yellow-hover);
+}
+
+.stat-card:nth-child(4n + 2) {
+  background: var(--surface-stat-purple);
+  box-shadow: var(--shadow-stat-purple);
+}
+
+.stat-card:nth-child(4n + 2):hover {
+  box-shadow: var(--shadow-stat-purple-hover);
+}
+
+.stat-card:nth-child(4n + 3) {
+  background: var(--surface-stat-orange);
+  box-shadow: var(--shadow-stat-orange);
+}
+
+.stat-card:nth-child(4n + 3):hover {
+  box-shadow: var(--shadow-stat-orange-hover);
+}
+
+.stat-card:nth-child(4n + 4) {
+  background: var(--surface-stat-ink);
+  box-shadow: var(--shadow-stat-ink);
+}
+
+.stat-card:nth-child(4n + 4):hover {
+  box-shadow: var(--shadow-stat-ink-hover);
+}
+
+.stat-card .stat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-4);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
 .stat-card .stat-value {
-  font-size: var(--fs-display);
-  font-weight: var(--fw-heavy);
-  letter-spacing: -0.03em;
-  line-height: 1.05;
+  font-size: 34px;
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+  letter-spacing: 0;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
@@ -84,11 +131,12 @@ a {
 }
 
 .stat-card .stat-label {
-  font-size: var(--fs-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--color-text-muted);
-  margin-top: var(--space-2);
+  margin-bottom: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -130,6 +178,10 @@ a {
 .chart-height-xl { height: 440px; }
 
 @media (max-width: 768px) {
+  body .app-main {
+    padding: 20px 16px 28px !important;
+  }
+
   .chart-height-sm { height: 220px; }
   .chart-height-md { height: 240px; }
   .chart-height-lg { height: 300px; }
@@ -158,10 +210,10 @@ a {
 }
 
 .text-kpi {
-  font-size: 48px;
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
   color: var(--color-text);
 }
 
@@ -200,18 +252,115 @@ a {
   margin: 0 auto;
 }
 
-/* V3.2 全局表头样式 */
+/* Demo 全局卡片/按钮/表格覆盖 */
+.n-card {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--color-border-light) !important;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.n-card:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+.n-card > .n-card-header {
+  padding-bottom: 10px;
+}
+
+.n-card .n-card-header__main {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
+
+.n-button {
+  border-radius: 14px !important;
+  font-weight: var(--fw-bold) !important;
+  letter-spacing: 0;
+  transition: var(--transition) !important;
+}
+
+.n-button:not(.n-button--text-type):not(.n-button--disabled) {
+  box-shadow: 0 2px 8px rgba(9, 6, 27, 0.06);
+}
+
+.n-button:not(.n-button--text-type):not(.n-button--disabled):hover {
+  transform: translateY(-1px);
+}
+
+.n-button--primary-type:not(.n-button--disabled) {
+  box-shadow: 0 4px 14px rgba(100, 76, 240, 0.20);
+}
+
+.n-button--primary-type:not(.n-button--disabled):hover {
+  box-shadow: 0 6px 18px rgba(100, 76, 240, 0.30);
+}
+
+.n-button--warning-type:not(.n-button--disabled) {
+  box-shadow: 0 4px 14px rgba(237, 154, 81, 0.20);
+}
+
+.n-button--warning-type:not(.n-button--disabled):hover {
+  box-shadow: 0 6px 18px rgba(237, 154, 81, 0.30);
+}
+
+.n-tag {
+  border-radius: var(--radius-pill) !important;
+  font-weight: var(--fw-semibold);
+}
+
+.n-data-table {
+  border-radius: var(--radius-lg) !important;
+  overflow: hidden;
+}
+
 .n-data-table-th {
   font-size: 13px !important;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 700 !important;
+  letter-spacing: 0.04em;
+  font-weight: var(--fw-semibold) !important;
   color: var(--color-text-muted) !important;
-  background: var(--color-table-header) !important;
+  background: var(--color-bg-card) !important;
+  border-bottom: 2px solid var(--color-border-light) !important;
 }
 
 .n-data-table-td {
   padding: 14px 12px !important;
+  color: var(--color-text-secondary) !important;
+  border-bottom: 1px solid var(--color-bg) !important;
+}
+
+.n-data-table-tr:hover .n-data-table-td {
+  background: #FAFAFA !important;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+thead th {
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  color: var(--color-text-muted);
+  border-bottom: 2px solid var(--color-border-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+tbody td {
+  padding: 14px;
+  border-bottom: 1px solid var(--color-bg);
+  color: var(--color-text-secondary);
+}
+
+tbody tr:hover {
+  background: #FAFAFA;
 }
 
 /* 无障碍：减弱动效 */

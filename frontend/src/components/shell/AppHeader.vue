@@ -10,6 +10,17 @@
       <SchoolContext />
     </div>
 
+    <nav class="app-header__nav" aria-label="主导航">
+      <router-link
+        v-for="item in navItems"
+        :key="item.route"
+        :to="item.route"
+        :class="['app-header__nav-item', { 'app-header__nav-item--active': isNavActive(item) }]"
+      >
+        {{ item.label }}
+      </router-link>
+    </nav>
+
     <div class="app-header__right">
       <!-- Search placeholder -->
       <div class="app-header__search">
@@ -34,9 +45,24 @@
 </template>
 
 <script setup>
+import { useRoute } from 'vue-router'
 import SchoolContext from './SchoolContext.vue'
 import NotificationBell from './NotificationBell.vue'
 import RoleSwitcher from './RoleSwitcher.vue'
+
+const route = useRoute()
+
+const navItems = [
+  { label: '概览', route: '/', exact: true },
+  { label: '考试管理', route: '/exams', match: '/exams' },
+  { label: '成绩分析', route: '/analytics/report', match: '/analytics' },
+  { label: '阅卷调度', route: '/grading/tasks', match: '/grading' },
+]
+
+function isNavActive(item) {
+  if (item.exact) return route.path === item.route
+  return route.path.startsWith(item.match || item.route)
+}
 </script>
 
 <style scoped>
@@ -46,42 +72,98 @@ import RoleSwitcher from './RoleSwitcher.vue'
   left: 0;
   right: 0;
   height: 64px;
-  background: var(--color-bg-deep);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-header-gradient);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 10px 30px rgba(9, 6, 27, 0.12);
   z-index: var(--z-header);
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(280px, auto) 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  padding: env(safe-area-inset-top) 24px 0;
+  gap: 24px;
+  padding: env(safe-area-inset-top) 32px 0;
   color: #ffffff;
 }
 
 .app-header__left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  min-width: 0;
 }
 
 .app-header__brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
   user-select: none;
+  min-width: 0;
 }
 
 .app-header__logo {
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: rgba(244, 218, 76, 0.15);
+  box-shadow: 0 4px 16px rgba(244, 218, 76, 0.20);
   flex-shrink: 0;
 }
 
+.app-header__logo img {
+  width: 30px;
+  height: 30px;
+  display: block;
+}
+
 .app-header__title {
-  font-size: var(--fs-xl);
+  font-size: 19px;
   font-weight: var(--fw-heavy);
   color: #ffffff;
   letter-spacing: -0.02em;
   white-space: nowrap;
+}
+
+.app-header__nav {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.app-header__nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 24px;
+  border-radius: var(--radius-pill);
+  color: #838093;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.2s ease;
+}
+
+.app-header__nav-item:hover {
+  color: #bbb8cc;
+}
+
+.app-header__nav-item--active {
+  background: var(--color-accent);
+  color: var(--color-bg-deep);
+  font-weight: 700;
+  box-shadow: 0 2px 12px rgba(244, 218, 76, 0.30);
 }
 
 .app-header__right {
@@ -93,13 +175,21 @@ import RoleSwitcher from './RoleSwitcher.vue'
 .app-header__search {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  font-size: var(--fs-base);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-sm);
-  color: rgba(255, 255, 255, 0.6);
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  color: #838093;
+  transition: var(--transition);
+}
+
+.app-header__search:focus-within,
+.app-header__search:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #bbb8cc;
 }
 
 .search-icon {
@@ -110,13 +200,75 @@ import RoleSwitcher from './RoleSwitcher.vue'
   border: none;
   outline: none;
   background: transparent;
-  font-size: var(--fs-base);
+  font-size: 15px;
   color: rgba(255, 255, 255, 0.9);
-  width: 140px;
+  width: 132px;
   font-family: inherit;
 }
 
 .search-input::placeholder {
   color: rgba(255, 255, 255, 0.5);
+}
+
+:deep(.school-context) {
+  min-height: 34px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+}
+
+:deep(.bell-btn) {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: #838093;
+}
+
+:deep(.bell-btn:hover) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #bbb8cc;
+}
+
+:deep(.role-switcher) {
+  border-radius: 12px;
+  padding: 0;
+}
+
+:deep(.role-switcher:hover) {
+  background: transparent;
+}
+
+:deep(.role-switcher__avatar) {
+  width: 42px;
+  height: 42px;
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-bg-deep);
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: 0 3px 12px rgba(244, 218, 76, 0.25);
+}
+
+@media (max-width: 1180px) {
+  .app-header {
+    grid-template-columns: minmax(220px, auto) auto;
+  }
+
+  .app-header__nav {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .app-header {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .app-header__search {
+    display: none;
+  }
 }
 </style>

@@ -45,17 +45,29 @@
   --surface-info: #e8e4fd;
   --surface-info-light: #f5f3ff;
 
-  /* Macaron 别名（兼容过渡，全部指向新 surface） */
-  --macaron-mint: var(--color-success);
-  --macaron-mint-light: var(--surface-success);
+  /* Demo 精致表面层：统计卡浅底 + 页面雾面背景 */
+  --surface-stat-yellow: #faf2d0;
+  --surface-stat-purple: #ebe7fd;
+  --surface-stat-orange: #fde9d6;
+  --surface-stat-ink: #e8e8f0;
+  --surface-ink-soft: #12102a;
+  --surface-page-gradient:
+    radial-gradient(ellipse 900px 600px at 12% 18%, rgba(100, 76, 240, 0.08), transparent),
+    radial-gradient(ellipse 700px 500px at 88% 80%, rgba(244, 218, 76, 0.06), transparent),
+    linear-gradient(155deg, #eceaf2 0%, #F4F5F9 40%, #F4F5F9 60%, #f0eee8 100%);
+  --surface-header-gradient: linear-gradient(180deg, #09061B 0%, #12102a 100%);
+
+  /* Macaron 别名（兼容旧组件，映射到 demo 冷暖撞色，不再输出薄荷绿） */
+  --macaron-mint: var(--color-accent);
+  --macaron-mint-light: var(--surface-stat-yellow);
   --macaron-yellow: var(--color-accent);
-  --macaron-yellow-light: var(--surface-accent);
-  --macaron-coral: var(--color-danger);
-  --macaron-coral-light: var(--surface-danger);
+  --macaron-yellow-light: var(--surface-stat-yellow);
+  --macaron-coral: var(--color-warning);
+  --macaron-coral-light: var(--surface-stat-orange);
   --macaron-purple: var(--color-primary);
-  --macaron-purple-light: var(--surface-primary);
+  --macaron-purple-light: var(--surface-stat-purple);
   --macaron-blue: var(--color-info);
-  --macaron-blue-light: var(--surface-info);
+  --macaron-blue-light: var(--surface-stat-ink);
 
   /* 圆角（收紧，不要太圆） */
   --radius-sm: 8px;
@@ -65,10 +77,24 @@
   --radius-pill: 999px;
 
   /* 阴影 */
-  --shadow-sm: 0 1px 2px rgba(9, 6, 27, 0.06);
-  --shadow-md: 0 4px 12px rgba(9, 6, 27, 0.08);
+  --shadow-sm: 0 2px 8px rgba(9, 6, 27, 0.04);
+  --shadow-md: 0 4px 16px rgba(9, 6, 27, 0.06);
   --shadow-lg: 0 18px 46px rgba(9, 6, 27, 0.09);
   --shadow-xl: 0 32px 64px rgba(9, 6, 27, 0.12);
+  --shadow-stage:
+    0 30px 80px rgba(9, 6, 27, 0.10),
+    0 10px 30px rgba(9, 6, 27, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  --shadow-card: 0 2px 8px rgba(9, 6, 27, 0.03);
+  --shadow-card-hover: 0 4px 16px rgba(9, 6, 27, 0.05);
+  --shadow-stat-yellow: 0 6px 20px rgba(244, 218, 76, 0.18);
+  --shadow-stat-yellow-hover: 0 12px 32px rgba(244, 218, 76, 0.28);
+  --shadow-stat-purple: 0 6px 20px rgba(100, 76, 240, 0.15);
+  --shadow-stat-purple-hover: 0 12px 32px rgba(100, 76, 240, 0.22);
+  --shadow-stat-orange: 0 6px 20px rgba(237, 154, 81, 0.15);
+  --shadow-stat-orange-hover: 0 12px 32px rgba(237, 154, 81, 0.22);
+  --shadow-stat-ink: 0 6px 20px rgba(9, 6, 27, 0.10);
+  --shadow-stat-ink-hover: 0 12px 32px rgba(9, 6, 27, 0.16);
 
   /* 字体 */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -156,8 +182,8 @@
   --color-info-text: #4F3EC9;
 
   /* 表格 */
-  --color-table-header: #F4F5F9;
-  --color-table-hover: rgba(100, 76, 240, 0.04);
+  --color-table-header: #ffffff;
+  --color-table-hover: #FAFAFA;
 
   /* 侧栏 */
   --color-sidebar-bg: #09061B;
