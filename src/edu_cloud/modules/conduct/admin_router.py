@@ -4,6 +4,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
@@ -263,7 +264,9 @@ async def create_rule_category(
 ):
     """Create a rule category."""
     check_class_scope(current_user, class_id)
-    return await rules_service.create_category(db, class_id, data.name, data.sort_order)
+    return await rules_service.create_category(
+        db, class_id=class_id, name=data.name, scope="class", sort_order=data.sort_order,
+    )
 
 
 @router.put("/classes/{class_id}/rules/categories/{cat_id}")
@@ -336,6 +339,68 @@ async def delete_rule_item(
     await check_resource_class(db, ConductRuleCategory, cat_id, class_id)
     await check_resource_class(db, ConductRuleItem, item_id, cat_id, class_id_path="category_id")
     return await rules_service.delete_item(db, item_id)
+
+
+# ═══════════════════════════════════════════════════
+# School-level Rules (Task 2 — Cascade)
+# ═══════════════════════════════════════════════════
+
+@router.get("/schools/{school_id}/rules")
+async def get_school_rules(
+    school_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(Permission.MANAGE_CONDUCT_RULES)),
+):
+    """List school-level rule categories with nested items."""
+    categories = (
+        await db.execute(
+            select(ConductRuleCategory)
+            .where(
+                ConductRuleCategory.school_id == school_id,
+                ConductRuleCategory.scope == "school",
+            )
+            .order_by(ConductRuleCategory.sort_order, ConductRuleCategory.name)
+        )
+    ).scalars().all()
+
+    result = []
+    for cat in categories:
+        items = (
+            await db.execute(
+                select(ConductRuleItem)
+                .where(ConductRuleItem.category_id == cat.id)
+                .order_by(ConductRuleItem.sort_order, ConductRuleItem.name)
+            )
+        ).scalars().all()
+        result.append({
+            "id": cat.id,
+            "name": cat.name,
+            "scope": cat.scope,
+            "sort_order": cat.sort_order,
+            "items": [
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "points": item.points,
+                    "sort_order": item.sort_order,
+                }
+                for item in items
+            ],
+        })
+    return result
+
+
+@router.post("/schools/{school_id}/rules/categories")
+async def create_school_rule_category(
+    school_id: str,
+    data: RuleCategoryCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(Permission.MANAGE_CONDUCT_RULES)),
+):
+    """Create a school-level rule category."""
+    return await rules_service.create_category(
+        db, school_id=school_id, name=data.name, scope="school", sort_order=data.sort_order,
+    )
 
 
 # ═══════════════════════════════════════════════════
