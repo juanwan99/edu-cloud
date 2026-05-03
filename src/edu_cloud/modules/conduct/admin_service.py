@@ -286,6 +286,12 @@ async def add_points(
         created_ids.append(record.id)
 
     await db.commit()
+
+    # Trigger parent notifications for each created record
+    from edu_cloud.modules.conduct.event_service import notify_parents_on_points
+    for rid in created_ids:
+        await notify_parents_on_points(db, rid)
+
     return created_ids
 
 

@@ -13,6 +13,7 @@ owns_tables:
   - conduct_groups
   - conduct_group_members
   - conduct_semesters
+  - conduct_notifications
 
 owns_routes:
   - /api/v1/conduct
@@ -23,6 +24,7 @@ exposes:
     - ParentService
     - RulesService
     - ExportService
+    - EventService
   events: []
 
 depends_on:
