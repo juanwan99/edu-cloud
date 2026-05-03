@@ -10,6 +10,8 @@ from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import GradingResult
 from edu_cloud.modules.student.models import Class, Student
+from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.services.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
@@ -302,36 +304,49 @@ async def class_knowledge(
 
     subj_ids = [s.id for s in subjects]
 
-    # 获取题目→知识点映射
+    # 获取题目 max_score 映射
     q_result = await db.execute(
-        select(Question.id, Question.knowledge_points, Question.max_score)
+        select(Question.id, Question.max_score)
         .where(Question.subject_id.in_(subj_ids), Question.school_id == school_id)
     )
-    q_kps: dict[str, list[str]] = {}
     q_max: dict[str, float] = {}
+    questions = q_result.all()
+    for q in questions:
+        q_max[q.id] = q.max_score
+
+    # 从 QKP 关联表构建题目→概念映射
+    q_ids = list(q_max.keys())
+    kp_links_result = await db.execute(
+        select(QuestionKnowledgePoint.question_id,
+               ConceptGraphNode.id, ConceptGraphNode.name)
+        .join(ConceptGraphNode, ConceptGraphNode.id == QuestionKnowledgePoint.concept_id)
+        .where(QuestionKnowledgePoint.question_id.in_(q_ids))
+    )
+    q_concept_map: dict[str, list[tuple[str, str]]] = {}
     all_kps: set[str] = set()
-    for q in q_result.all():
-        qid = q.id
-        q_max[qid] = q.max_score
-        kps = []
-        if q.knowledge_points and isinstance(q.knowledge_points, dict):
-            kps = q.knowledge_points.get("knowledge_ids", [])
-        q_kps[qid] = kps
-        all_kps.update(kps)
+    for q_id, concept_id, concept_name in kp_links_result.all():
+        q_concept_map.setdefault(q_id, []).append((concept_id, concept_name))
+        all_kps.add(concept_id)
 
     if not all_kps:
         return {"knowledge_points": [], "classes": []}
+
+    # 概念 id→name 映射（用于最终输出）
+    concept_name_map: dict[str, str] = {}
+    for concepts in q_concept_map.values():
+        for concept_id, concept_name in concepts:
+            concept_name_map[concept_id] = concept_name
 
     # 聚合每个学生每个知识点的得分率
     student_kp_scores: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
     for subj in subjects:
         scores = await get_effective_scores(db, subj.id, school_id, visible_class_ids)
         for s in scores:
-            kps = q_kps.get(s["question_id"], [])
+            concepts = q_concept_map.get(s["question_id"], [])
             max_s = q_max.get(s["question_id"], 1)
             rate = s["effective_score"] / max_s if max_s > 0 else 0
-            for kp in kps:
-                student_kp_scores[s["student_id"]][kp].append(rate)
+            for concept_id, _ in concepts:
+                student_kp_scores[s["student_id"]][concept_id].append(rate)
 
     # 学生→班级映射
     all_sids = list(student_kp_scores.keys())
@@ -359,10 +374,10 @@ async def class_knowledge(
     classes = []
     for cid, kp_data in class_kp_rates.items():
         mastery = []
-        for kp in kp_list:
-            rates = kp_data.get(kp, [])
+        for concept_id in kp_list:
+            rates = kp_data.get(concept_id, [])
             avg = round(sum(rates) / len(rates), 4) if rates else 0
-            mastery.append({"kp_id": kp, "name": kp, "rate": avg})
+            mastery.append({"kp_id": concept_id, "name": concept_name_map.get(concept_id, concept_id), "rate": avg})
         classes.append({"class_id": cid, "name": cls_map.get(cid, cid), "mastery": mastery})
     classes.sort(key=lambda x: x["name"])
     return {"knowledge_points": kp_list, "classes": classes}
