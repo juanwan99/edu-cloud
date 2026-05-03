@@ -51,13 +51,13 @@ class StudentAnalysis(Base):
 class StudentKnpMastery(Base):
     __tablename__ = "student_knp_mastery"
     __table_args__ = (
-        UniqueConstraint("student_id", "exam_id", "knp_id", name="uq_student_knp_mastery"),
+        UniqueConstraint("student_id", "exam_id", "concept_id", name="uq_student_knp_mastery"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     student_id: Mapped[str] = mapped_column(String(36), ForeignKey("students.id"), nullable=False, index=True)
     exam_id: Mapped[str] = mapped_column(String(36), ForeignKey("exams.id"), nullable=False, index=True)
-    knp_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    concept_id: Mapped[str] = mapped_column(String(64), nullable=False)
     school_id: Mapped[str] = mapped_column(String(36), ForeignKey("schools.id"), nullable=False, index=True)
     stu_rate = Column(NUMERIC(4, 3))
     class_rate = Column(NUMERIC(4, 3))

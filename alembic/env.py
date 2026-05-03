@@ -52,7 +52,7 @@ from edu_cloud.modules.bank.models import BankQuestion, StudentErrorBook  # noqa
 from edu_cloud.modules.profile.models import (  # noqa: F401
     StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern,
 )
-from edu_cloud.modules.knowledge.models import KnowledgePoint, QuestionKnowledgePoint  # noqa: F401
+from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint  # noqa: F401
 from edu_cloud.models.school_settings import SchoolSetting, SchoolModule  # noqa: F401
 from edu_cloud.models.teacher_assignment import TeacherAssignment  # noqa: F401
 from edu_cloud.models.subject_selection import SubjectSelection  # noqa: F401
