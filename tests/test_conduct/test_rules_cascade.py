@@ -182,3 +182,38 @@ async def test_create_school_rule_category_endpoint(
     cat = await db.get(ConductRuleCategory, data["id"])
     assert cat.school_id == school.id
     assert cat.class_id is None
+
+
+# ── F-004: School-scope rule item accepted in add_points ──
+
+
+@pytest.mark.anyio
+async def test_school_rule_item_accepted_in_add_points(
+    client, db, school_class_student, homeroom_headers, homeroom_teacher,
+):
+    """F-004: A school-scope rule item can be used when adding points to a class student.
+
+    School-level rules cascade into class view, so add_points should accept
+    rule_item_id from a school-scope category (not just class-scope).
+    """
+    school, cls, student = school_class_student
+
+    # Create school-scope category + item
+    school_cat = await _create_school_category(db, school.id, "校级纪律F004")
+    school_item = await rules_service.create_item(db, school_cat["id"], "打架", points=-5)
+
+    # Use it to add points in the class context
+    resp = await client.post(
+        f"/api/v1/conduct/classes/{cls.id}/records",
+        headers=homeroom_headers,
+        json={
+            "student_ids": [student.id],
+            "points": -5,
+            "reason": "校级规则加分测试",
+            "rule_item_id": school_item["id"],
+        },
+    )
+    assert resp.status_code == 200, (
+        f"School-scope rule_item_id rejected: status={resp.status_code} body={resp.text[:200]}"
+    )
+    assert len(resp.json()["created_ids"]) == 1

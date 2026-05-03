@@ -121,7 +121,9 @@ async def check_alert_threshold(db: AsyncSession, student_id: str, class_id: str
     )
     body = "请关注孩子在校行为表现，积分已低于班级设定的预警线。"
 
-    # 6. Dedup: skip if unread alert exists for this student+parent within 7 days
+    # 6. Dedup: skip if any alert exists for this student+parent within 7 days
+    # F-005: Check for ANY alert (read or unread) to prevent duplicate alerts
+    # when parents mark notifications as read then trigger a new points change
     seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
     count = 0
     for link in links:
@@ -131,7 +133,6 @@ async def check_alert_threshold(db: AsyncSession, student_id: str, class_id: str
                     and_(
                         ConductNotification.parent_user_id == link.guardian_user_id,
                         ConductNotification.student_id == student_id,
-                        ConductNotification.is_read == False,  # noqa: E712
                         ConductNotification.title.like("[预警]%"),
                         ConductNotification.created_at >= seven_days_ago,
                     )

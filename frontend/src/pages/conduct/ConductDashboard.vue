@@ -372,7 +372,7 @@ async function loadDashboard() {
     const startDate = getDateRange()
     const res = await getRecords(classId.value, {
       page: 1,
-      page_size: 200,
+      size: 200,
       start_date: startDate.toISOString().split('T')[0],
     })
     const items = res.data.items || res.data || []
