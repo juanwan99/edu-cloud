@@ -42,12 +42,15 @@ describe('TeacherAssignmentsPage template sections', () => {
   })
 
   it('contains summary statistics cards', () => {
-    expect(content).toContain('label="总排课数"')
+    expect(content).toContain('class="stats-row"')
+    expect(content).toContain('class="stat-card"')
+    expect(content).toContain('class="stat-label">总排课数')
     expect(content).toContain('summaryStats.totalAssignments')
-    expect(content).toContain('label="已排课教师"')
+    expect(content).toContain('class="stat-label">已排课教师')
     expect(content).toContain('summaryStats.teacherCount')
-    expect(content).toContain('label="平均课时"')
+    expect(content).toContain('class="stat-label">平均课时')
     expect(content).toContain('summaryStats.avgLoad')
+    expect(content).not.toContain('n-statistic')
   })
 
   it('contains filter selects for semester, teacher, and subject', () => {

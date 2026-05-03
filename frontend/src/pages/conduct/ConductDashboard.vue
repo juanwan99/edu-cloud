@@ -16,32 +16,28 @@
 
     <template v-if="classId">
       <!-- Stats cards -->
-      <n-grid :cols="4" :x-gap="16" :y-gap="16" class="section-gap">
-        <n-gi>
-          <n-card size="small">
-            <n-statistic label="总学生数" :value="stats.totalStudents" />
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card size="small">
-            <n-statistic label="加分总额" :value="stats.weeklyPlus">
-              <template #suffix>分</template>
-            </n-statistic>
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card size="small">
-            <n-statistic label="扣分总额" :value="stats.weeklyMinus">
-              <template #suffix>分</template>
-            </n-statistic>
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card size="small">
-            <n-statistic label="记录数" :value="stats.weeklyCount" />
-          </n-card>
-        </n-gi>
-      </n-grid>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">总学生数</div>
+          <div class="stat-value">{{ stats.totalStudents }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">加分总额</div>
+          <div class="stat-value">
+            {{ stats.weeklyPlus }}<span class="stat-suffix" style="color: var(--color-success);">+</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">扣分总额</div>
+          <div class="stat-value">
+            {{ stats.weeklyMinus }}<span class="stat-suffix" style="color: var(--color-danger);">-</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">记录数</div>
+          <div class="stat-value">{{ stats.weeklyCount }}</div>
+        </div>
+      </div>
 
       <!-- Charts row: trend + pie -->
       <n-grid :cols="2" :x-gap="16" class="section-gap">
@@ -157,7 +153,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import {
-  NPageHeader, NGrid, NGi, NCard, NStatistic, NList, NListItem,
+  NPageHeader, NGrid, NGi, NCard, NList, NListItem,
   NTag, NSpace, NSpin, NEmpty, NAlert, NRadioGroup, NRadioButton,
   NProgress, NButton,
 } from 'naive-ui'

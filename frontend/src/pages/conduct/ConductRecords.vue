@@ -8,27 +8,24 @@
 
     <template v-if="classId">
       <!-- Stat cards -->
-      <n-grid :cols="3" :x-gap="16" :y-gap="16" style="margin-bottom: var(--space-4);">
-        <n-gi>
-          <n-card size="small">
-            <n-statistic label="本周记录数" :value="statCards.weekCount" />
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card size="small">
-            <n-statistic label="加分总额" :value="statCards.plusTotal">
-              <template #suffix>分</template>
-            </n-statistic>
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card size="small">
-            <n-statistic label="扣分总额" :value="statCards.minusTotal">
-              <template #suffix>分</template>
-            </n-statistic>
-          </n-card>
-        </n-gi>
-      </n-grid>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">本周记录数</div>
+          <div class="stat-value">{{ statCards.weekCount }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">加分总额</div>
+          <div class="stat-value">
+            {{ statCards.plusTotal }}<span class="stat-suffix" style="color: var(--color-success);">+</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">扣分总额</div>
+          <div class="stat-value">
+            {{ statCards.minusTotal }}<span class="stat-suffix" style="color: var(--color-danger);">-</span>
+          </div>
+        </div>
+      </div>
 
       <!-- Filters -->
       <n-card size="small" style="margin-bottom: var(--space-4);">
@@ -103,8 +100,7 @@
 import { ref, computed, onMounted, h } from 'vue'
 import {
   NPageHeader, NCard, NDataTable, NInput, NDatePicker, NButton,
-  NSpace, NSpin, NTag, NPopconfirm, NAlert, NGrid, NGi,
-  NStatistic, NSelect, useMessage,
+  NSpace, NSpin, NTag, NPopconfirm, NAlert, NSelect, useMessage,
 } from 'naive-ui'
 import { useAuthStore } from '../../stores/auth'
 import { getRecords, deleteRecord } from '../../api/conduct'

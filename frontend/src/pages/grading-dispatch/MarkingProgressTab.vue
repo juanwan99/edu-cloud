@@ -27,11 +27,13 @@
     <n-spin :show="loading">
       <n-card v-if="progress" class="overall-card" size="small">
         <div class="overall-stats">
-          <div class="stat-item">
-            <n-statistic label="已批改" :value="progress.overall.graded" />
+          <div class="stat-card">
+            <div class="stat-label">已批改</div>
+            <div class="stat-value">{{ progress.overall.graded }}</div>
           </div>
-          <div class="stat-item">
-            <n-statistic label="总计" :value="progress.overall.total" />
+          <div class="stat-card">
+            <div class="stat-label">总计</div>
+            <div class="stat-value">{{ progress.overall.total }}</div>
           </div>
           <div class="stat-item">
             <n-progress
@@ -41,10 +43,9 @@
               style="width: 80px;"
             />
           </div>
-          <div class="stat-item">
-            <n-statistic label="剩余待批改" :value="remainingCount">
-              <template #suffix>题</template>
-            </n-statistic>
+          <div class="stat-card">
+            <div class="stat-label">剩余待批改</div>
+            <div class="stat-value">{{ remainingCount }} <n-tag size="tiny" :bordered="false">题</n-tag></div>
           </div>
         </div>
       </n-card>

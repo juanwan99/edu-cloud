@@ -9,27 +9,20 @@
     </div>
 
     <!-- 统计卡片 -->
-    <n-grid :cols="3" :x-gap="16" :y-gap="16" style="margin-bottom: 20px;">
-      <n-gi>
-        <n-card size="small">
-          <n-statistic label="当前学期" :value="activeSemester?.name || '未设置'" />
-        </n-card>
-      </n-gi>
-      <n-gi>
-        <n-card size="small">
-          <n-statistic label="剩余天数" :value="remainingDays">
-            <template #suffix>天</template>
-          </n-statistic>
-        </n-card>
-      </n-gi>
-      <n-gi>
-        <n-card size="small">
-          <n-statistic label="已配置节次" :value="periods.length">
-            <template #suffix>节</template>
-          </n-statistic>
-        </n-card>
-      </n-gi>
-    </n-grid>
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">当前学期</div>
+        <div class="stat-value">{{ activeSemester?.name || '未设置' }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">剩余天数</div>
+        <div class="stat-value">{{ remainingDays }} <n-tag size="tiny" :bordered="false">天</n-tag></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已配置节次</div>
+        <div class="stat-value">{{ periods.length }} <n-tag size="tiny" :bordered="false">节</n-tag></div>
+      </div>
+    </div>
 
     <!-- 学期时间线 -->
     <n-card v-if="semesters.length > 0" size="small" title="学期时间线" style="margin-bottom: 20px;">
@@ -115,7 +108,7 @@
 
 <script setup>
 import { ref, h, computed, onMounted } from 'vue'
-import { NButton, NTag, NStatistic, NTimePicker, useMessage, useDialog } from 'naive-ui'
+import { NButton, NTag, NTimePicker, useMessage, useDialog } from 'naive-ui'
 import { useAuthStore } from '../stores/auth.js'
 import {
   listSemesters, createSemester, activateSemester, getPeriods,

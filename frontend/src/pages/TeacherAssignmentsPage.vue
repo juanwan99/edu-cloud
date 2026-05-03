@@ -9,17 +9,20 @@
     </div>
 
     <!-- 统计卡片 -->
-    <n-space style="margin-bottom: 20px;" :size="16">
-      <n-card size="small" style="min-width: 160px;">
-        <n-statistic label="总排课数" :value="summaryStats.totalAssignments" />
-      </n-card>
-      <n-card size="small" style="min-width: 160px;">
-        <n-statistic label="已排课教师" :value="summaryStats.teacherCount" />
-      </n-card>
-      <n-card size="small" style="min-width: 160px;">
-        <n-statistic label="平均课时" :value="summaryStats.avgLoad" />
-      </n-card>
-    </n-space>
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">总排课数</div>
+        <div class="stat-value">{{ summaryStats.totalAssignments }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已排课教师</div>
+        <div class="stat-value">{{ summaryStats.teacherCount }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">平均课时</div>
+        <div class="stat-value">{{ summaryStats.avgLoad }}</div>
+      </div>
+    </div>
 
     <!-- 筛选栏 -->
     <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">

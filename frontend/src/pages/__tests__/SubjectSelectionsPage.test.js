@@ -43,12 +43,15 @@ describe('SubjectSelectionsPage template sections', () => {
   })
 
   it('contains summary statistics cards', () => {
-    expect(content).toContain('label="已启用组合"')
+    expect(content).toContain('class="stats-row"')
+    expect(content).toContain('class="stat-card"')
+    expect(content).toContain('class="stat-label">已启用组合')
     expect(content).toContain('activeCount')
-    expect(content).toContain('label="总组合数"')
+    expect(content).toContain('class="stat-label">总组合数')
     expect(content).toContain('selections.length')
-    expect(content).toContain('label="已分配学生"')
+    expect(content).toContain('class="stat-label">已分配学生')
     expect(content).toContain('totalAssigned')
+    expect(content).not.toContain('n-statistic')
   })
 
   it('contains combo grid with checkbox cards', () => {

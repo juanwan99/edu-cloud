@@ -44,7 +44,6 @@ async function createWrapper() {
         'n-button': { template: '<button @click="$emit(\'click\')"><slot /></button>', emits: ['click'] },
         'n-tag': { template: '<span class="n-tag"><slot /></span>' },
         'n-card': { template: '<div class="n-card"><slot /><slot name="header" /></div>' },
-        'n-statistic': { template: '<div class="n-statistic"><slot /></div>', props: ['label', 'value'] },
         'n-space': { template: '<div class="n-space"><slot /></div>' },
         'n-select': { template: '<div />', props: ['modelValue', 'options', 'placeholder', 'clearable'], emits: ['update:modelValue'] },
         'n-spin': { template: '<div><slot /></div>', props: ['show'] },
@@ -74,7 +73,7 @@ describe('GradingResultsPage computed aggregations', () => {
     await flushPromises()
 
     // Check that statistic cards are rendered (4 cards)
-    const stats = wrapper.findAll('.n-statistic')
+    const stats = wrapper.findAll('.stat-card')
     expect(stats.length).toBe(4)
 
     const vm = wrapper.vm

@@ -125,6 +125,13 @@ a {
   text-overflow: ellipsis;
 }
 
+.stat-suffix {
+  margin-left: var(--space-1);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text-muted);
+}
+
 .stat-card .stat-label {
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);

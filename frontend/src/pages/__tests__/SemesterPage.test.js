@@ -36,11 +36,15 @@ describe('SemesterPage template sections', () => {
     expect(content).toContain('管理学年学期、节次时间')
   })
 
-  it('contains statistics grid with 3 columns', () => {
-    expect(content).toContain('<n-grid :cols="3"')
-    expect(content).toContain('<n-statistic label="当前学期"')
-    expect(content).toContain('<n-statistic label="剩余天数"')
-    expect(content).toContain('<n-statistic label="已配置节次"')
+  it('contains statistics row with 3 stat cards', () => {
+    expect(content).toContain('class="stats-row"')
+    expect(content).toContain('class="stat-card"')
+    expect(content).toContain('class="stat-label">当前学期')
+    expect(content).toContain('class="stat-label">剩余天数')
+    expect(content).toContain('class="stat-label">已配置节次')
+    expect(content).toContain("activeSemester?.name || '未设置'")
+    expect(content).toContain('remainingDays')
+    expect(content).toContain('periods.length')
   })
 
   it('contains semester timeline section', () => {

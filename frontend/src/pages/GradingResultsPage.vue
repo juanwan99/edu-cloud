@@ -25,24 +25,24 @@
     </div>
 
     <!-- 统计摘要卡片 -->
-    <n-space style="margin-bottom: 20px;" :size="16" v-if="results.length > 0">
-      <n-card size="small" style="min-width: 160px;">
-        <n-statistic label="已批改 / 总数">
-          <template #default>{{ gradedCount }} / {{ results.length }}</template>
-        </n-statistic>
-      </n-card>
-      <n-card size="small" style="min-width: 160px;">
-        <n-statistic label="平均分" :value="avgScore" />
-      </n-card>
-      <n-card size="small" style="min-width: 160px;">
-        <n-statistic label="平均置信度">
-          <template #default>{{ avgConfidence }}%</template>
-        </n-statistic>
-      </n-card>
-      <n-card size="small" style="min-width: 160px;">
-        <n-statistic label="待复核数" :value="pendingReviewCount" />
-      </n-card>
-    </n-space>
+    <div v-if="results.length > 0" class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">已批改 / 总数</div>
+        <div class="stat-value">{{ gradedCount }} / {{ results.length }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">平均分</div>
+        <div class="stat-value">{{ avgScore }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">平均置信度</div>
+        <div class="stat-value">{{ avgConfidence }}<span class="stat-suffix">%</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">待复核数</div>
+        <div class="stat-value">{{ pendingReviewCount }}</div>
+      </div>
+    </div>
 
     <!-- 图表区域 -->
     <div v-if="results.length > 0" style="display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">

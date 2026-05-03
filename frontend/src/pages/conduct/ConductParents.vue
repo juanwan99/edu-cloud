@@ -20,18 +20,16 @@
       </n-card>
 
       <!-- Stat cards -->
-      <n-grid :cols="2" :x-gap="16" class="section-gap">
-        <n-gi>
-          <n-card size="small">
-            <n-statistic label="已注册家长数" :value="parents.length" />
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card size="small">
-            <n-statistic label="已绑定学生数" :value="boundStudentCount" />
-          </n-card>
-        </n-gi>
-      </n-grid>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">已注册家长数</div>
+          <div class="stat-value">{{ parents.length }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">已绑定学生数</div>
+          <div class="stat-value">{{ boundStudentCount }}</div>
+        </div>
+      </div>
 
       <!-- Search + Batch actions -->
       <n-card>
@@ -74,7 +72,7 @@
 import { ref, computed, onMounted, h } from 'vue'
 import {
   NPageHeader, NCard, NDataTable, NSpin, NButton, NPopconfirm,
-  NAlert, NTag, NInput, NSpace, NGrid, NGi, NStatistic,
+  NAlert, NTag, NInput, NSpace,
   useMessage,
 } from 'naive-ui'
 import { useAuthStore } from '../../stores/auth'

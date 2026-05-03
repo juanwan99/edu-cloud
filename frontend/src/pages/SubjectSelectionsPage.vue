@@ -11,17 +11,20 @@
     </div>
 
     <!-- 统计摘要 -->
-    <n-space v-if="selections.length" style="margin-bottom: 16px" :size="12">
-      <n-card size="small" style="min-width: 140px" :bordered="true">
-        <n-statistic label="已启用组合" :value="activeCount" />
-      </n-card>
-      <n-card size="small" style="min-width: 140px" :bordered="true">
-        <n-statistic label="总组合数" :value="selections.length" />
-      </n-card>
-      <n-card size="small" style="min-width: 140px" :bordered="true">
-        <n-statistic label="已分配学生" :value="totalAssigned" />
-      </n-card>
-    </n-space>
+    <div v-if="selections.length" class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">已启用组合</div>
+        <div class="stat-value">{{ activeCount }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">总组合数</div>
+        <div class="stat-value">{{ selections.length }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已分配学生</div>
+        <div class="stat-value">{{ totalAssigned }}</div>
+      </div>
+    </div>
 
     <n-spin :show="loading">
       <div class="combo-grid">
