@@ -519,6 +519,35 @@ async def activate_semester(
 
 
 # ═══════════════════════════════════════════════════
+# Reports (P2-T1)
+# ═══════════════════════════════════════════════════
+
+@router.get("/classes/{class_id}/report")
+async def get_class_report(
+    class_id: str,
+    semester_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(Permission.VIEW_CONDUCT)),
+):
+    """Generate a semester conduct evaluation report for a class."""
+    check_class_scope(current_user, class_id)
+    from edu_cloud.modules.conduct.report_service import generate_semester_report
+    return await generate_semester_report(db, class_id, semester_id)
+
+
+@router.get("/schools/{school_id}/report")
+async def get_school_report(
+    school_id: str,
+    semester_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(Permission.VIEW_CONDUCT)),
+):
+    """Generate a school-wide semester conduct evaluation report."""
+    from edu_cloud.modules.conduct.report_service import generate_school_report
+    return await generate_school_report(db, school_id, semester_id)
+
+
+# ═══════════════════════════════════════════════════
 # Export (Task 16)
 # ═══════════════════════════════════════════════════
 
