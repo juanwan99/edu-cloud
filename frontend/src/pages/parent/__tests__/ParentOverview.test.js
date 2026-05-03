@@ -90,7 +90,7 @@ describe('ParentOverview template sections', () => {
 
 describe('ParentOverview API calls', () => {
   it('imports API functions from conduct', () => {
-    expect(content).toContain("import { getChildRecords, getChildScores, getChildRankings } from '../../api/conduct'")
+    expect(content).toContain("import { getChildRecords, getChildScores, getChildRankings, getParentNotifications, markNotificationsRead } from '../../api/conduct'")
   })
 
   it('fetches child records', () => {

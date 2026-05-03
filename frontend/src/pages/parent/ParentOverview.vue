@@ -14,6 +14,21 @@
       </div>
     </n-card>
 
+    <!-- Notifications (above everything else) -->
+    <n-card v-if="notifications.length > 0" size="small" style="margin-bottom: var(--space-4);">
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span>最新动态</span>
+          <n-button text size="small" @click="handleMarkAllRead">全部已读</n-button>
+        </div>
+      </template>
+      <n-list size="small">
+        <n-list-item v-for="n in notifications.slice(0, 5)" :key="n.id">
+          <n-thing :title="n.title" :description="n.body" />
+        </n-list-item>
+      </n-list>
+    </n-card>
+
     <template v-if="currentChild">
       <!-- Student info card -->
       <n-card class="info-card" style="margin-bottom: var(--space-4);">
@@ -114,8 +129,8 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { NCard, NStatistic, NList, NListItem, NTag, NButton, NEmpty, NSpin, NH4 } from 'naive-ui'
-import { getChildRecords, getChildScores, getChildRankings } from '../../api/conduct'
+import { NCard, NStatistic, NList, NListItem, NTag, NButton, NEmpty, NSpin, NH4, NThing } from 'naive-ui'
+import { getChildRecords, getChildScores, getChildRankings, getParentNotifications, markNotificationsRead } from '../../api/conduct'
 
 const props = defineProps({
   currentChild: { type: Object, default: null },
@@ -126,6 +141,23 @@ const totalPoints = ref(0)
 const ranking = ref(null)
 const latestScore = ref(null)
 const loading = ref(false)
+const notifications = ref([])
+
+// Load notifications on component init
+getParentNotifications(true).then(res => {
+  notifications.value = res.data || []
+}).catch(() => {
+  notifications.value = []
+})
+
+async function handleMarkAllRead() {
+  try {
+    await markNotificationsRead()
+    notifications.value = []
+  } catch {
+    // silently ignore
+  }
+}
 
 const avatarLetter = computed(() => {
   const name = props.currentChild?.student_name || ''

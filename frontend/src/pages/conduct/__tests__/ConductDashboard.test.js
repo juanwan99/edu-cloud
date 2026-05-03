@@ -39,17 +39,13 @@ describe('ConductDashboard template sections', () => {
     expect(content).toContain('value="semester"')
   })
 
-  it('contains class-not-selected alert', () => {
-    expect(content).toContain('v-if="!classId"')
-    expect(content).toContain('未选择班级')
-    expect(content).toContain('请切换到班主任角色')
-  })
-
-  it('contains 4 stat cards (students, plus, minus, count)', () => {
-    expect(content).toContain('label="总学生数"')
-    expect(content).toContain('label="加分总额"')
-    expect(content).toContain('label="扣分总额"')
-    expect(content).toContain('label="记录数"')
+  it('contains scope-adaptive summary cards from overviewData', () => {
+    expect(content).toContain('class="stats-row"')
+    expect(content).toContain('class="stat-card"')
+    expect(content).toContain('v-if="overviewData?.summary"')
+    expect(content).toContain('v-for="(value, key) in summaryCards"')
+    expect(content).toContain('value.label')
+    expect(content).not.toContain('n-statistic')
   })
 
   it('contains trend chart and pie chart sections', () => {
@@ -82,8 +78,8 @@ describe('ConductDashboard template sections', () => {
 })
 
 describe('ConductDashboard API calls', () => {
-  it('imports getRecords and getStudentRankings from conduct API', () => {
-    expect(content).toContain("import { getRecords, getStudentRankings } from '../../api/conduct'")
+  it('imports getConductOverview, getRecords and getStudentRankings from conduct API', () => {
+    expect(content).toContain("import { getConductOverview, getRecords, getStudentRankings } from '../../api/conduct'")
   })
 
   it('calls getStudentRankings for rankings data', () => {
@@ -141,9 +137,9 @@ describe('ConductDashboard operations', () => {
     expect(content).toContain('items.slice(0, 10)')
   })
 
-  it('calls loadDashboard on mount when classId exists', () => {
+  it('calls loadOverview on mount', () => {
     expect(content).toContain('onMounted(')
-    expect(content).toContain('if (classId.value) loadDashboard()')
+    expect(content).toContain('onMounted(() => loadOverview())')
   })
 })
 
@@ -151,7 +147,7 @@ describe('ConductDashboard error handling', () => {
   it('wraps rankings loading in try-catch', () => {
     const loadDashboardBlock = content.slice(
       content.indexOf('async function loadDashboard'),
-      content.indexOf('onMounted(')
+      content.indexOf('async function loadOverview')
     )
     const catchCount = (loadDashboardBlock.match(/\} catch/g) || []).length
     expect(catchCount).toBeGreaterThanOrEqual(2)
@@ -165,5 +161,97 @@ describe('ConductDashboard error handling', () => {
   it('resets charts on records fetch error', () => {
     expect(content).toContain('trendOption.value = null')
     expect(content).toContain('pieOption.value = null')
+  })
+
+  it('wraps loadOverview in try-catch', () => {
+    const loadOverviewBlock = content.slice(
+      content.indexOf('async function loadOverview'),
+      content.indexOf('onMounted(')
+    )
+    expect(loadOverviewBlock).toContain('try {')
+    expect(loadOverviewBlock).toContain('} catch')
+    expect(loadOverviewBlock).toContain('Failed to load overview')
+  })
+})
+
+describe('ConductDashboard scope-adaptive rendering', () => {
+  it('has overviewData ref and scopeType computed', () => {
+    expect(content).toContain('const overviewData = ref(null)')
+    expect(content).toContain("overviewData.value?.scope_type || null")
+  })
+
+  it('calls getConductOverview in loadOverview', () => {
+    expect(content).toContain('getConductOverview()')
+    expect(content).toContain('overviewData.value = res.data')
+  })
+
+  it('loads class detail data when scope is class', () => {
+    expect(content).toContain("res.data.scope_type === 'class' && classId.value")
+    expect(content).toContain('await loadDashboard()')
+  })
+
+  it('renders class scope with v-if on scopeType', () => {
+    expect(content).toContain("v-if=\"scopeType === 'class'\"")
+    expect(content).toContain('title="积分最高"')
+    expect(content).toContain('title="积分最低"')
+  })
+
+  it('renders school scope with class comparison table', () => {
+    expect(content).toContain("v-else-if=\"scopeType === 'school'\"")
+    expect(content).toContain('title="班级德育对比"')
+    expect(content).toContain('classCompareColumns')
+    expect(content).toContain('class_comparison')
+  })
+
+  it('renders district scope with school comparison table', () => {
+    expect(content).toContain("v-else-if=\"scopeType === 'district'\"")
+    expect(content).toContain('title="学校德育对比"')
+    expect(content).toContain('schoolCompareColumns')
+    expect(content).toContain('school_comparison')
+  })
+
+  it('hides time range selector for non-class scopes', () => {
+    // The n-radio-group element has v-if="scopeType === 'class'" before v-model:value="timeRange"
+    // Both attributes are on the same <n-radio-group> element
+    expect(content).toContain('v-if="scopeType === \'class\'"')
+    // Verify v-if comes before the timeRange binding (same element)
+    const vifIdx = content.indexOf("v-if=\"scopeType === 'class'\"")
+    const modelIdx = content.indexOf('v-model:value="timeRange"')
+    expect(vifIdx).toBeLessThan(modelIdx)
+    expect(vifIdx).toBeGreaterThan(-1)
+  })
+
+  it('has classCompareColumns with class_name, record_count, avg_points', () => {
+    expect(content).toContain("title: '班级'")
+    expect(content).toContain("key: 'class_name'")
+    expect(content).toContain("key: 'record_count'")
+    expect(content).toContain("key: 'avg_points'")
+  })
+
+  it('has schoolCompareColumns with school_name, total_students, record_count, avg_points', () => {
+    expect(content).toContain("title: '学校'")
+    expect(content).toContain("key: 'school_name'")
+    expect(content).toContain("key: 'total_students'")
+  })
+
+  it('imports NDataTable from naive-ui', () => {
+    expect(content).toContain('NDataTable')
+  })
+
+  it('imports h from vue for render functions', () => {
+    expect(content).toContain("import { h, ref, computed, onMounted } from 'vue'")
+  })
+
+  it('has summaryCards computed that adapts to scope type', () => {
+    expect(content).toContain('const summaryCards = computed(')
+    expect(content).toContain("st === 'class'")
+    expect(content).toContain("st === 'school'")
+    expect(content).toContain("st === 'district'")
+  })
+
+  it('uses NDataTable for school and district tables', () => {
+    expect(content).toContain('<n-data-table')
+    expect(content).toContain(':columns="classCompareColumns"')
+    expect(content).toContain(':columns="schoolCompareColumns"')
   })
 })

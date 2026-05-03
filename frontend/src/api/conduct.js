@@ -100,3 +100,16 @@ export const exportRecords = (classId, params) =>
   api.get(`/conduct/classes/${classId}/export/records`, { params, responseType: 'blob' })
 export const exportRankings = (classId, params) =>
   api.get(`/conduct/classes/${classId}/export/rankings`, { params, responseType: 'blob' })
+
+// ── Scope-adaptive overview ──
+export const getConductOverview = () => api.get('/conduct/overview')
+
+// ── School-level rules ──
+export const getSchoolRules = (schoolId) => api.get(`/conduct/schools/${schoolId}/rules`)
+export const createSchoolCategory = (schoolId, data) => api.post(`/conduct/schools/${schoolId}/rules/categories`, data)
+
+// ── Parent notifications ──
+export const getParentNotifications = (unreadOnly = false) =>
+  parentClient.get('/conduct/parent/notifications', { params: { unread_only: unreadOnly } })
+export const markNotificationsRead = () =>
+  parentClient.post('/conduct/parent/notifications/read-all')
