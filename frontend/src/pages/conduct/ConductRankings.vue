@@ -191,7 +191,7 @@ function buildDistOption(rankings) {
     series: [{
       type: 'bar',
       data: buckets.map(b => b.count),
-      itemStyle: { color: 'rgba(99,226,183,0.7)', borderRadius: [4, 4, 0, 0] },
+      itemStyle: { color: 'rgba(244,218,76,0.7)', borderRadius: [4, 4, 0, 0] },
       barMaxWidth: 40,
     }],
   }

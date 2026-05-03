@@ -232,7 +232,7 @@ function buildTrendOption(items) {
     xAxis: { type: 'category', data: labels, axisLabel: { color: 'rgba(255,255,255,0.45)' }, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } } },
     yAxis: { type: 'value', axisLabel: { color: 'rgba(255,255,255,0.45)' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } } },
     series: [
-      { name: '加分', type: 'line', data: weeks.map(w => w.plus), smooth: true, itemStyle: { color: '#F4DA4C' }, areaStyle: { color: 'rgba(99,226,183,0.15)' } },
+      { name: '加分', type: 'line', data: weeks.map(w => w.plus), smooth: true, itemStyle: { color: '#F4DA4C' }, areaStyle: { color: 'rgba(244,218,76,0.15)' } },
       { name: '扣分', type: 'line', data: weeks.map(w => w.minus), smooth: true, itemStyle: { color: '#e88080' }, areaStyle: { color: 'rgba(232,128,128,0.15)' } },
     ],
   }

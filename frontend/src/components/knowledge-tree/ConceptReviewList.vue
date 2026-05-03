@@ -123,5 +123,5 @@ function statusClass(concept) {
 .status-dot.warning { background: #f2c97d; }
 .status-dot.draft { background: rgba(255,255,255,0.3); }
 .concept-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.active { background: rgba(99, 226, 183, 0.1) !important; }
+.active { background: rgba(100, 76, 240, 0.1) !important; }
 </style>

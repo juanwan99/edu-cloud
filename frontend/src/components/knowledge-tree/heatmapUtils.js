@@ -5,8 +5,8 @@
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
 const toHex = (v) => Math.round(v).toString(16).padStart(2, '0')
 
-const HEATMAP_LIGHT = [238, 238, 238]
-const HEATMAP_DEEP = [59, 89, 152]
+const HEATMAP_LIGHT = [237, 233, 254]
+const HEATMAP_DEEP = [100, 76, 240]
 
 export function heatmapColor(freq, maxFreq) {
   if (!Number.isFinite(maxFreq) || maxFreq <= 0) {
@@ -21,10 +21,10 @@ export function heatmapColor(freq, maxFreq) {
 }
 
 const MASTERY_COLORS = {
-  solid:   '#52C41A',
-  fragile: '#FAAD14',
-  weak:    '#FF4D4F',
-  unseen:  '#D9D9D9',
+  solid:   '#22C55E',
+  fragile: '#ED9A51',
+  weak:    '#dc2626',
+  unseen:  '#E8E8EF',
 }
 
 export function masteryColor(state) {
@@ -32,9 +32,9 @@ export function masteryColor(state) {
 }
 
 const REVIEW_COLORS = {
-  ai_draft:         '#D9D9D9',
-  teacher_reviewed: '#1890FF',
-  published:        '#52C41A',
+  ai_draft:         '#E8E8EF',
+  teacher_reviewed: '#644CF0',
+  published:        '#22C55E',
 }
 
 export function reviewStatusColor(status) {
