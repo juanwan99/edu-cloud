@@ -132,8 +132,8 @@ describe('GradingResultsPage score helpers', () => {
     const vm = wrapper.vm
 
     expect(vm.scoreColor({ score: 9, max_score: 10 })).toBe('#22C55E') // >=80%
-    expect(vm.scoreColor({ score: 7, max_score: 10 })).toBe('#d97706') // 60-80%
-    expect(vm.scoreColor({ score: 3, max_score: 10 })).toBe('#dc3545') // <60%
+    expect(vm.scoreColor({ score: 7, max_score: 10 })).toBe('#ED9A51') // 60-80%
+    expect(vm.scoreColor({ score: 3, max_score: 10 })).toBe('#dc2626') // <60%
   })
 
   it('confidenceType returns correct tag type', async () => {

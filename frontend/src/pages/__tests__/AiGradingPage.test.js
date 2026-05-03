@@ -205,17 +205,19 @@ describe('AiGradingPage grading task with polling', () => {
   })
 
   it('tracks grading progress with status/graded/total', () => {
-    expect(content).toContain('status: task.status')
-    expect(content).toContain('graded: task.completed || 0')
-    expect(content).toContain('total: task.total || 0')
+    expect(content).toContain("status: allDone ? (anyFailed ? 'failed' : 'completed') : 'processing'")
+    expect(content).toContain('graded: totalGraded')
+    expect(content).toContain('total: totalCount')
   })
 
   it('stops polling when task completes or fails', () => {
-    expect(content).toContain("task.status === 'completed' || task.status === 'failed'")
+    expect(content).toContain("if (t.status === 'failed') anyFailed = true")
+    expect(content).toContain("if (t.status !== 'completed' && t.status !== 'failed') allDone = false")
     const pollBlock = content.slice(
-      content.indexOf('function startPolling(taskId)'),
+      content.indexOf('function startPolling()'),
       content.indexOf('function stopPolling()')
     )
+    expect(pollBlock).toContain('if (allDone)')
     expect(pollBlock).toContain('stopPolling()')
   })
 
@@ -380,7 +382,7 @@ describe('AiGradingPage error handling', () => {
   it('wraps handleStartGrading in try-catch-finally', () => {
     const fnBlock = content.slice(
       content.indexOf('async function handleStartGrading'),
-      content.indexOf('function startPolling(taskId)')
+      content.indexOf('function startPolling()')
     )
     expect(fnBlock).toContain('} catch (e) {')
     expect(fnBlock).toContain('} finally {')
@@ -411,13 +413,14 @@ describe('AiGradingPage selectQuestion fetches full details', () => {
     expect(selectBlock).toContain('await loadRubric(q.question_id)')
   })
 
-  it('resets rubric and task progress when selecting new question', () => {
+  it('resets rubric and loads details when selecting new question', () => {
     const selectBlock = content.slice(
       content.indexOf('async function selectQuestion'),
       content.indexOf('async function loadRubric')
     )
+    expect(selectBlock).toContain('selectedQuestion.value = { ...q }')
     expect(selectBlock).toContain('rubricItems.value = []')
-    expect(selectBlock).toContain('taskProgress.value = null')
-    expect(selectBlock).toContain('stopPolling()')
+    expect(selectBlock).toContain('await getQuestion(q.question_id)')
+    expect(selectBlock).toContain('selectedQuestion.value = { ...selectedQuestion.value, ...res.data }')
   })
 })

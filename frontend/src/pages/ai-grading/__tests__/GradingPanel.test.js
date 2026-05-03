@@ -4,12 +4,12 @@
  * Covers:
  *   1. Smoke import
  *   2. Template structure (question content, answer, rubric, grading ops)
- *   3. Props definition (8 props)
- *   4. Emits definition (6 emits)
+ *   3. Props definition (5 props)
+ *   4. Emits definition (5 emits)
  *   5. RubricEditor component usage
- *   6. Task progress display
+ *   6. Essay anchor rubric controls
  *   7. Empty state
- *   8. Computed taskProgressPct
+ *   8. Computed essay anchor helpers
  */
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
@@ -116,46 +116,48 @@ describe('GradingPanel template - rubric card', () => {
   })
 })
 
-describe('GradingPanel template - grading operations card', () => {
-  it('has grading operations card', () => {
-    expect(src).toContain('title="阅卷操作"')
+describe('GradingPanel template - essay anchor controls', () => {
+  it('has essay anchor section', () => {
+    expect(src).toContain('v-if="isEssay"')
+    expect(src).toContain('class="anchor-section"')
+    expect(src).toContain('评分锚定范文（作文校准用，可选）')
   })
 
-  it('shows task progress when available', () => {
-    expect(src).toContain('taskProgress !== null')
-    expect(src).toContain('progress-area')
-    expect(src).toContain('taskProgress.graded')
-    expect(src).toContain('taskProgress.total')
+  it('shows anchor tiers and ranges', () => {
+    expect(src).toContain('高分档')
+    expect(src).toContain('中分档')
+    expect(src).toContain('低分档')
+    expect(src).toContain('一/二类文 40-50分')
   })
 
-  it('has progress bar', () => {
-    expect(src).toContain('n-progress')
-    expect(src).toContain(':percentage="taskProgressPct"')
+  it('has anchor score input', () => {
+    expect(src).toContain('class="anchor-score-label"')
+    expect(src).toContain(':max="question.max_score || 50"')
+    expect(src).toContain("@update:value=\"v => updateAnchor(i, 'score', v)\"")
   })
 
-  it('shows completed status', () => {
-    expect(src).toContain("taskProgress.status === 'completed'")
-    expect(src).toContain('阅卷完成')
-    expect(src).toContain('done-text')
+  it('has anchor summary editor', () => {
+    expect(src).toContain('作文原文')
+    expect(src).toContain('summaryPlaceholder')
+    expect(src).toContain("@update:value=\"v => updateAnchor(i, 'summary', v)\"")
   })
 
-  it('shows failed status', () => {
-    expect(src).toContain("taskProgress.status === 'failed'")
-    expect(src).toContain('阅卷失败')
-    expect(src).toContain('fail-text')
+  it('has anchor reason editor', () => {
+    expect(src).toContain('评分理由')
+    expect(src).toContain('reasonPlaceholder')
+    expect(src).toContain("@update:value=\"v => updateAnchor(i, 'reason', v)\"")
   })
 
-  it('has start grading button', () => {
-    expect(src).toContain('开始阅卷')
-    expect(src).toContain(':loading="gradingStarting"')
-    expect(src).toContain("$emit('start-grading', limitValue, modeValue, useVision)")
-    expect(src).toContain("taskProgress?.status === 'processing'")
+  it('has computed essay detection', () => {
+    expect(src).toContain('const isEssay = computed(() => {')
+    expect(src).toContain('items.length === 1')
+    expect(src).toContain('(items[0]?.score || 0) >= 40')
   })
 })
 
 describe('GradingPanel imports', () => {
-  it('imports NCard, NButton, NSpace, NProgress from naive-ui', () => {
-    expect(src).toContain('import { NCard, NButton, NSpace, NProgress, NImage, NInputNumber, NRadioGroup, NRadioButton, NCheckbox }')
+  it('imports NCard, NButton, NSpace, NImage, NInputNumber from naive-ui', () => {
+    expect(src).toContain('import { NCard, NButton, NSpace, NImage, NInputNumber }')
   })
 
   it('imports RubricEditor component', () => {
@@ -184,36 +186,36 @@ describe('GradingPanel props', () => {
     expect(src).toContain('rubricSaving: { type: Boolean, default: false }')
   })
 
-  it('defines taskProgress as optional Object', () => {
-    expect(src).toContain('taskProgress: { type: Object, default: null }')
+  it('defines props with defineProps', () => {
+    expect(src).toContain('const props = defineProps({')
   })
 
-  it('defines gradingStarting as Boolean', () => {
-    expect(src).toContain('gradingStarting: { type: Boolean, default: false }')
+  it('uses question max score for rubric editing', () => {
+    expect(src).toContain(':max-score="question.max_score || 0"')
   })
 })
 
 describe('GradingPanel emits', () => {
-  it('declares all 6 emits', () => {
+  it('declares all 5 emits', () => {
     expect(src).toContain("'edit-content'")
     expect(src).toContain("'remove-image'")
     expect(src).toContain("'generate-rubric'")
     expect(src).toContain("'save-rubric'")
     expect(src).toContain("'update:rubricItems'")
-    expect(src).toContain("'start-grading'")
   })
 })
 
-describe('GradingPanel taskProgressPct computed', () => {
-  it('computes percentage from graded/total', () => {
-    expect(src).toContain('const taskProgressPct = computed(')
-    expect(src).toContain('props.taskProgress.graded / props.taskProgress.total')
-    expect(src).toContain('Math.round')
-    expect(src).toContain('* 100')
+describe('GradingPanel computed helpers', () => {
+  it('computes essay mode from rubric score', () => {
+    expect(src).toContain('const isEssay = computed(() => {')
+    expect(src).toContain('const items = props.rubricItems || []')
+    expect(src).toContain('return items.length === 1 && (items[0]?.score || 0) >= 40')
   })
 
-  it('returns 0 when no progress data', () => {
-    expect(src).toContain('!props.taskProgress || !props.taskProgress.total')
-    expect(src).toContain('return 0')
+  it('builds anchor rows from saved essayAnchors', () => {
+    expect(src).toContain('const anchors = computed(() => {')
+    expect(src).toContain('const saved = (props.rubricItems?.[0]?.essayAnchors) || []')
+    expect(src).toContain('return ANCHOR_TIERS.map((t, i) => ({')
+    expect(src).toContain('score: saved[i]?.score ?? null')
   })
 })

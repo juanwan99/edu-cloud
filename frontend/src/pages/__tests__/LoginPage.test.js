@@ -30,9 +30,10 @@ describe('LoginPage smoke', () => {
 
 describe('LoginPage template sections', () => {
   it('contains brand area with name and subtitle', () => {
-    expect(content).toContain('class="brand-area"')
+    expect(content).toContain('class="login-brand"')
+    expect(content).toContain('class="brand-inner"')
     expect(content).toContain('class="brand-name"')
-    expect(content).toContain('edu-cloud')
+    expect(content).toContain('微与积')
     expect(content).toContain('class="brand-subtitle"')
   })
 
@@ -45,7 +46,8 @@ describe('LoginPage template sections', () => {
   })
 
   it('contains login form with username and password inputs', () => {
-    expect(content).toContain('class="login-form-area"')
+    expect(content).toContain('class="login-form-panel"')
+    expect(content).toContain('class="form-inner"')
     expect(content).toContain('v-model:value="form.username"')
     expect(content).toContain('v-model:value="form.password"')
     expect(content).toContain('placeholder="请输入用户名…"')
@@ -83,10 +85,10 @@ describe('LoginPage template sections', () => {
   })
 
   it('contains decorative elements', () => {
-    expect(content).toContain('class="decor decor--mint"')
-    expect(content).toContain('class="decor decor--cream"')
-    expect(content).toContain('class="decor decor--pink-ring"')
-    expect(content).toContain('class="decor decor--lavender"')
+    expect(content).toContain('class="brand-features"')
+    expect(content).toContain('class="feature-item"')
+    expect(content).toContain('.login-brand::before')
+    expect(content).toContain('.login-brand::after')
   })
 })
 
