@@ -76,6 +76,7 @@ import { useAuthStore } from '../../stores/auth'
 import {
   getStudentRankings, getGroupRankings, getSemesters, exportRankings,
 } from '../../api/conduct'
+import { CHART_DEFAULTS } from '../../config/chartTheme.js'
 
 use([BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -175,18 +176,17 @@ function buildDistOption(rankings) {
   })
   if (rankings.length === 0) return null
   return {
-    tooltip: { trigger: 'axis' },
-    grid: { left: 40, right: 16, top: 16, bottom: 24 },
+    ...CHART_DEFAULTS,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
+    grid: { ...CHART_DEFAULTS.grid, left: 40, right: 16, top: 16, bottom: 24 },
     xAxis: {
+      ...CHART_DEFAULTS.xAxis,
       type: 'category',
       data: buckets.map(b => b.label),
-      axisLabel: { color: 'rgba(255,255,255,0.45)' },
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } },
     },
     yAxis: {
+      ...CHART_DEFAULTS.yAxis,
       type: 'value',
-      axisLabel: { color: 'rgba(255,255,255,0.45)' },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
     },
     series: [{
       type: 'bar',

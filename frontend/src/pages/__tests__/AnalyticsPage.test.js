@@ -121,8 +121,8 @@ describe('AnalyticsPage ECharts configuration', () => {
     expect(chartBlock).toContain("type: 'value'")
   })
 
-  it('uses token color for distribution bars', () => {
-    expect(content).toContain("color: cPrimaryLight")
+  it('uses shared palette color for distribution bars', () => {
+    expect(content).toContain('color: CHART_PALETTE[0]')
   })
 
   it('applies rounded corners to bars', () => {
@@ -130,7 +130,7 @@ describe('AnalyticsPage ECharts configuration', () => {
   })
 
   it('configures tooltip with axis trigger', () => {
-    expect(content).toContain("tooltip: { trigger: 'axis' }")
+    expect(content).toContain("tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' }")
   })
 
   it('maps intervals to xAxis data and series data', () => {

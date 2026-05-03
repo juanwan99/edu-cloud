@@ -111,6 +111,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { queryReport, exportGradeReport, downloadBlob, getExamSummary } from '../api/analytics'
 import client from '../api/client'
+import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 
 use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 
@@ -151,13 +152,14 @@ const topColumns = [
 const segmentChartOption = computed(() => {
   const segments = reportData.value?.metrics?.segments?.intervals || []
   return {
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: segments.map(s => s.label) },
-    yAxis: { type: 'value' },
+    ...CHART_DEFAULTS,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
+    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: segments.map(s => s.label) },
+    yAxis: { ...CHART_DEFAULTS.yAxis, type: 'value' },
     series: [{
       type: 'bar',
       data: segments.map(s => s.count),
-      itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--color-success-border').trim() || '#6ee7b7' },
+      itemStyle: { color: CHART_PALETTE[3] },
     }],
   }
 })

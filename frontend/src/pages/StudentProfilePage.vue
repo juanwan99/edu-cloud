@@ -105,6 +105,7 @@ import {
   getStudentTrend, getStudentKnowledge,
   getStudentErrorPatterns, getStudentAiDiagnosis,
 } from '../api/profile.js'
+import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 
 use([LineChart, BarChart, RadarChart, PieChart, GridComponent, TooltipComponent, LegendComponent, RadarComponent, CanvasRenderer])
 
@@ -142,12 +143,13 @@ const trendChartOption = computed(() => {
   }))
 
   return {
-    tooltip: { trigger: 'axis' },
-    legend: { data: Object.keys(grouped) },
-    xAxis: { type: 'category', data: examLabels },
-    yAxis: { type: 'value', name: '分数' },
+    ...CHART_DEFAULTS,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
+    legend: { ...CHART_DEFAULTS.legend, data: Object.keys(grouped) },
+    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: examLabels },
+    yAxis: { ...CHART_DEFAULTS.yAxis, type: 'value', name: '分数', nameTextStyle: { color: CHART_DEFAULTS.textStyle.color } },
     series,
-    grid: { left: 60, right: 20, top: 40, bottom: 40 },
+    grid: { ...CHART_DEFAULTS.grid, left: 60, right: 20, top: 40, bottom: 40 },
   }
 })
 
@@ -157,15 +159,16 @@ const rankingChartOption = computed(() => {
   if (data.length < 2) return null
   const reversed = [...data].reverse()
   return {
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['年级排名', '班级排名'] },
-    xAxis: { type: 'category', data: reversed.map((_, i) => `第${i + 1}次`) },
-    yAxis: { type: 'value', name: '排名', inverse: true, min: 1 },
+    ...CHART_DEFAULTS,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
+    legend: { ...CHART_DEFAULTS.legend, data: ['年级排名', '班级排名'] },
+    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: reversed.map((_, i) => `第${i + 1}次`) },
+    yAxis: { ...CHART_DEFAULTS.yAxis, type: 'value', name: '排名', inverse: true, min: 1, nameTextStyle: { color: CHART_DEFAULTS.textStyle.color } },
     series: [
-      { name: '年级排名', type: 'line', smooth: true, data: reversed.map(s => s.grade_rank), symbolSize: 6, itemStyle: { color: '#6366f1' } },
-      { name: '班级排名', type: 'line', smooth: true, data: reversed.map(s => s.class_rank), symbolSize: 6, itemStyle: { color: '#f59e0b' } },
+      { name: '年级排名', type: 'line', smooth: true, data: reversed.map(s => s.grade_rank), symbolSize: 6, itemStyle: { color: CHART_PALETTE[0] } },
+      { name: '班级排名', type: 'line', smooth: true, data: reversed.map(s => s.class_rank), symbolSize: 6, itemStyle: { color: CHART_PALETTE[2] } },
     ],
-    grid: { left: 60, right: 20, top: 40, bottom: 40 },
+    grid: { ...CHART_DEFAULTS.grid, left: 60, right: 20, top: 40, bottom: 40 },
   }
 })
 
@@ -174,7 +177,11 @@ const radarChartOption = computed(() => {
   if (!knowledgeList.value.length) return null
   const top = knowledgeList.value.slice(0, 12)
   return {
-    tooltip: {},
+    ...CHART_DEFAULTS,
+    grid: undefined,
+    xAxis: undefined,
+    yAxis: undefined,
+    tooltip: { ...CHART_DEFAULTS.tooltip },
     radar: {
       indicator: top.map(k => ({
         name: (k.knowledge_point_name || k.knowledge_point_id || '').slice(0, 8),
@@ -222,11 +229,15 @@ function makeErrorPieOption(ep) {
     name, value: Math.round(value * 100),
   }))
   return {
-    tooltip: { trigger: 'item', formatter: '{b}: {d}%' },
+    ...CHART_DEFAULTS,
+    grid: undefined,
+    xAxis: undefined,
+    yAxis: undefined,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'item', formatter: '{b}: {d}%' },
     series: [{
       type: 'pie', radius: ['40%', '70%'],
       data,
-      label: { show: true, formatter: '{b}\n{d}%', fontSize: 16 },
+      label: { show: true, formatter: '{b}\n{d}%', fontSize: 16, color: CHART_DEFAULTS.textStyle.color },
       emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,.15)' } },
     }],
   }

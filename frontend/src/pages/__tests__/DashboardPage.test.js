@@ -83,11 +83,14 @@ describe('DashboardPage dark theme adaptation', () => {
   })
 
   it('ECharts options include transparent backgroundColor', () => {
-    expect(content).toContain("backgroundColor: 'transparent'")
+    expect(content).toContain("import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'")
+    expect(content).toContain('...CHART_DEFAULTS')
   })
 
-  it('ECharts options use chartTextColor for axis labels', () => {
-    expect(content).toContain('axisLabel: { color: chartTextColor }')
+  it('ECharts options use shared chart defaults and palette', () => {
+    expect(content).toContain('axisLabel: { ...CHART_DEFAULTS.yAxis.axisLabel')
+    expect(content).toContain('itemStyle: { color: CHART_PALETTE[0] }')
+    expect(content).toContain('itemStyle: { color: CHART_PALETTE[1] }')
   })
 })
 

@@ -92,6 +92,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { getGradeTrend, getClassTrend, getStudentTrend } from '../api/analytics'
 import client from '../api/client'
+import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, CanvasRenderer])
 
@@ -109,44 +110,35 @@ const studentOptions = ref([])
 const trendData = ref(null)
 const visibleMetrics = ref(['avg', 'pass_rate'])
 
-// 暗色主题样式常量
-const DARK_TEXT = 'rgba(255, 255, 255, 0.65)'
-const DARK_SPLIT = 'rgba(255, 255, 255, 0.08)'
-const DARK_AXIS = 'rgba(255, 255, 255, 0.35)'
-const SERIES_COLORS = ['#644CF0', '#F4DA4C', '#ED9A51', '#22C55E', '#8B7AF5', '#09061B']
+const SERIES_COLORS = CHART_PALETTE
 
-function buildDarkThemeBase(xData) {
+function buildChartBase(xData) {
   return {
+    ...CHART_DEFAULTS,
     tooltip: {
+      ...CHART_DEFAULTS.tooltip,
       trigger: 'axis',
-      backgroundColor: 'rgba(30, 30, 30, 0.95)',
-      borderColor: 'rgba(255, 255, 255, 0.1)',
-      textStyle: { color: DARK_TEXT },
     },
-    legend: {
-      textStyle: { color: DARK_TEXT },
-    },
-    grid: { left: 60, right: 60, bottom: 40, top: 50 },
+    grid: { ...CHART_DEFAULTS.grid, left: 60, right: 60, bottom: 40, top: 50 },
     xAxis: {
+      ...CHART_DEFAULTS.xAxis,
       type: 'category',
       data: xData,
-      axisLabel: { color: DARK_TEXT },
-      axisLine: { lineStyle: { color: DARK_AXIS } },
       splitLine: { show: false },
     },
     yAxis: [
       {
+        ...CHART_DEFAULTS.yAxis,
         type: 'value',
         name: '分数',
-        nameTextStyle: { color: DARK_TEXT },
-        axisLabel: { color: DARK_TEXT },
-        splitLine: { lineStyle: { color: DARK_SPLIT } },
+        nameTextStyle: { color: CHART_DEFAULTS.textStyle.color },
       },
       {
+        ...CHART_DEFAULTS.yAxis,
         type: 'value',
         name: '百分比 (%)',
-        nameTextStyle: { color: DARK_TEXT },
-        axisLabel: { color: DARK_TEXT, formatter: '{value}%' },
+        nameTextStyle: { color: CHART_DEFAULTS.textStyle.color },
+        axisLabel: { ...CHART_DEFAULTS.yAxis.axisLabel, formatter: '{value}%' },
         splitLine: { show: false },
         min: 0,
         max: 100,
@@ -160,7 +152,7 @@ const chartOption = computed(() => {
   if (!trendData.value?.points?.length) return null
   const points = trendData.value.points
   const xData = points.map(p => p.exam_name)
-  const opt = buildDarkThemeBase(xData)
+  const opt = buildChartBase(xData)
   const vm = visibleMetrics.value
 
   if (dimension.value === 'grade') {
@@ -275,7 +267,7 @@ function exportChart() {
     message.warning('图表未就绪')
     return
   }
-  const url = chart.getDataURL({ type: 'png', backgroundColor: '#1e1e1e', pixelRatio: 2 })
+  const url = chart.getDataURL({ type: 'png', backgroundColor: CHART_DEFAULTS.backgroundColor, pixelRatio: 2 })
   const a = document.createElement('a')
   a.href = url
   a.download = `trend-${dimension.value}-${Date.now()}.png`

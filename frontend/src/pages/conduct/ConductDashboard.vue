@@ -168,6 +168,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { useAuthStore } from '../../stores/auth'
 import { getRecords, getStudentRankings } from '../../api/conduct'
+import { CHART_DEFAULTS, CHART_PALETTE } from '../../config/chartTheme.js'
 
 use([LineChart, PieChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -226,13 +227,14 @@ function buildTrendOption(items) {
   })
   const labels = weeks.map((w, i) => `第${i + 1}周`)
   return {
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['加分', '扣分'], textStyle: { color: 'rgba(255,255,255,0.65)' } },
-    grid: { left: 40, right: 16, top: 36, bottom: 24 },
-    xAxis: { type: 'category', data: labels, axisLabel: { color: 'rgba(255,255,255,0.45)' }, axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } } },
-    yAxis: { type: 'value', axisLabel: { color: 'rgba(255,255,255,0.45)' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } } },
+    ...CHART_DEFAULTS,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
+    legend: { ...CHART_DEFAULTS.legend, data: ['加分', '扣分'] },
+    grid: { ...CHART_DEFAULTS.grid, left: 40, right: 16, top: 36, bottom: 24 },
+    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: labels },
+    yAxis: { ...CHART_DEFAULTS.yAxis, type: 'value' },
     series: [
-      { name: '加分', type: 'line', data: weeks.map(w => w.plus), smooth: true, itemStyle: { color: '#F4DA4C' }, areaStyle: { color: 'rgba(244,218,76,0.15)' } },
+      { name: '加分', type: 'line', data: weeks.map(w => w.plus), smooth: true, itemStyle: { color: CHART_PALETTE[1] }, areaStyle: { color: 'rgba(244,218,76,0.15)' } },
       { name: '扣分', type: 'line', data: weeks.map(w => w.minus), smooth: true, itemStyle: { color: '#e88080' }, areaStyle: { color: 'rgba(232,128,128,0.15)' } },
     ],
   }
@@ -241,16 +243,20 @@ function buildTrendOption(items) {
 function buildPieOption(plusTotal, minusTotal) {
   if (plusTotal === 0 && minusTotal === 0) return null
   return {
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    legend: { bottom: 0, textStyle: { color: 'rgba(255,255,255,0.65)' } },
+    ...CHART_DEFAULTS,
+    grid: undefined,
+    xAxis: undefined,
+    yAxis: undefined,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { ...CHART_DEFAULTS.legend, bottom: 0 },
     series: [{
       type: 'pie',
       radius: ['45%', '70%'],
       center: ['50%', '45%'],
       avoidLabelOverlap: true,
-      label: { show: true, color: 'rgba(255,255,255,0.65)' },
+      label: { show: true, color: CHART_DEFAULTS.textStyle.color },
       data: [
-        { value: plusTotal, name: '加分', itemStyle: { color: '#F4DA4C' } },
+        { value: plusTotal, name: '加分', itemStyle: { color: CHART_PALETTE[1] } },
         { value: minusTotal, name: '扣分', itemStyle: { color: '#e88080' } },
       ],
     }],

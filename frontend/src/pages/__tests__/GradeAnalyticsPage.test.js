@@ -121,8 +121,8 @@ describe('GradeAnalyticsPage line chart configuration', () => {
   })
 
   it('uses dual Y axes for scores and rates', () => {
-    expect(content).toContain("{ type: 'value', name: '分数' }")
-    expect(content).toContain("{ type: 'value', name: '比率'")
+    expect(content).toContain("{ ...CHART_DEFAULTS.yAxis, type: 'value', name: '分数'")
+    expect(content).toContain("{ ...CHART_DEFAULTS.yAxis, type: 'value', name: '比率'")
   })
 
   it('formats rate axis as percentage', () => {

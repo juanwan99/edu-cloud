@@ -111,15 +111,14 @@ import {
   getExamDiagnosis, getStudentRankings, getCriticalStudents, getCommonWrongQuestions,
 } from '../api/analytics'
 import { getExam } from '../api/exams'
+import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 
 use([CanvasRenderer, BarChart, GridComponent, TooltipComponent, LegendComponent])
 
-const rs = getComputedStyle(document.documentElement)
-const cSuccess = rs.getPropertyValue('--color-success').trim() || '#22C55E'
-const cDanger = rs.getPropertyValue('--color-danger').trim() || '#ef4444'
-const cWarning = rs.getPropertyValue('--color-warning').trim() || '#f59e0b'
-const cPrimaryLight = rs.getPropertyValue('--color-primary-light').trim() || '#644CF0'
-const cTextMuted = rs.getPropertyValue('--color-text-muted').trim() || '#6b7d70'
+const cSuccess = CHART_PALETTE[3]
+const cDanger = '#ef4444'
+const cWarning = CHART_PALETTE[2]
+const cTextMuted = CHART_DEFAULTS.textStyle.color
 
 const route = useRoute()
 const examId = route.params.examId
@@ -155,27 +154,29 @@ const distributionChartOption = computed(() => {
   if (!distribution.value) return {}
   const intervals = distribution.value.intervals || []
   return {
-    tooltip: { trigger: 'axis' },
+    ...CHART_DEFAULTS,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
     xAxis: {
+      ...CHART_DEFAULTS.xAxis,
       type: 'category',
       data: intervals.map((i) => i.range),
-      axisLabel: { color: cTextMuted },
     },
     yAxis: {
+      ...CHART_DEFAULTS.yAxis,
       type: 'value',
       name: '人数',
-      axisLabel: { color: cTextMuted },
+      nameTextStyle: { color: CHART_DEFAULTS.textStyle.color },
     },
     series: [{
       type: 'bar',
       data: intervals.map((i) => i.count),
       itemStyle: {
-        color: cPrimaryLight,
+        color: CHART_PALETTE[0],
         borderRadius: [6, 6, 0, 0],
       },
       barWidth: '50%',
     }],
-    grid: { left: 60, right: 20, top: 40, bottom: 40 },
+    grid: { ...CHART_DEFAULTS.grid, left: 60, right: 20, top: 40, bottom: 40 },
   }
 })
 

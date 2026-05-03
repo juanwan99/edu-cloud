@@ -60,6 +60,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { getChildRecords } from '../../api/conduct'
+import { CHART_DEFAULTS } from '../../config/chartTheme.js'
 
 use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
@@ -132,27 +133,26 @@ const trendOption = computed(() => {
   const values = trendData.value.map(d => d.cumulative)
 
   return {
-    grid: { top: 8, right: 8, bottom: 20, left: 40 },
+    ...CHART_DEFAULTS,
+    grid: { ...CHART_DEFAULTS.grid, top: 8, right: 8, bottom: 20, left: 40 },
     tooltip: {
+      ...CHART_DEFAULTS.tooltip,
       trigger: 'axis',
-      backgroundColor: 'rgba(30, 30, 46, 0.95)',
-      borderColor: 'rgba(255,255,255,0.1)',
-      textStyle: { color: 'rgba(255,255,255,0.85)', fontSize: 16 },
       formatter: (params) => {
         const p = params[0]
         return `${p.name}<br/>累计积分: ${p.value}`
       },
     },
     xAxis: {
+      ...CHART_DEFAULTS.xAxis,
       type: 'category',
       data: dates,
-      axisLabel: { fontSize: 16, color: 'rgba(255,255,255,0.35)' },
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+      axisLabel: { ...CHART_DEFAULTS.xAxis.axisLabel, fontSize: 16 },
     },
     yAxis: {
+      ...CHART_DEFAULTS.yAxis,
       type: 'value',
-      axisLabel: { fontSize: 16, color: 'rgba(255,255,255,0.35)' },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+      axisLabel: { ...CHART_DEFAULTS.yAxis.axisLabel, fontSize: 16 },
     },
     series: [{
       type: 'line',

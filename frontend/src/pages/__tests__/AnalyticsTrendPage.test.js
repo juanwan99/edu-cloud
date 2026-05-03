@@ -132,23 +132,18 @@ describe('AnalyticsTrendPage ECharts configuration', () => {
     expect(content).toContain('CanvasRenderer')
   })
 
-  it('defines dark theme constants', () => {
-    expect(content).toContain("const DARK_TEXT = 'rgba(255, 255, 255, 0.65)'")
-    expect(content).toContain("const DARK_SPLIT = 'rgba(255, 255, 255, 0.08)'")
-    expect(content).toContain("const DARK_AXIS = 'rgba(255, 255, 255, 0.35)'")
+  it('imports shared chart theme defaults', () => {
+    expect(content).toContain("import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'")
+    expect(content).toContain('...CHART_DEFAULTS')
   })
 
-  it('defines SERIES_COLORS palette with 6 colors', () => {
-    expect(content).toContain('const SERIES_COLORS = [')
-    const colorsMatch = content.match(/SERIES_COLORS = \[([^\]]+)\]/)
-    expect(colorsMatch).not.toBeNull()
-    const colors = colorsMatch[1].split(',').map(c => c.trim())
-    expect(colors.length).toBe(6)
+  it('uses shared palette for series colors', () => {
+    expect(content).toContain('const SERIES_COLORS = CHART_PALETTE')
   })
 
-  it('buildDarkThemeBase creates dual yAxis config', () => {
+  it('buildChartBase creates dual yAxis config', () => {
     const fnBlock = content.slice(
-      content.indexOf('function buildDarkThemeBase'),
+      content.indexOf('function buildChartBase'),
       content.indexOf('const chartOption'),
     )
     expect(fnBlock).toContain("type: 'category'")
@@ -159,9 +154,10 @@ describe('AnalyticsTrendPage ECharts configuration', () => {
     expect(fnBlock).toContain('max: 100')
   })
 
-  it('applies dark theme tooltip styling', () => {
-    expect(content).toContain("backgroundColor: 'rgba(30, 30, 30, 0.95)'")
-    expect(content).toContain("borderColor: 'rgba(255, 255, 255, 0.1)'")
+  it('applies shared tooltip defaults', () => {
+    expect(content).toContain('tooltip: {')
+    expect(content).toContain('...CHART_DEFAULTS.tooltip')
+    expect(content).toContain("trigger: 'axis'")
   })
 })
 
@@ -247,9 +243,9 @@ describe('AnalyticsTrendPage exportChart', () => {
     expect(content).toContain("message.warning('图表未就绪')")
   })
 
-  it('exports as PNG with dark background and 2x pixel ratio', () => {
+  it('exports as PNG with shared default background and 2x pixel ratio', () => {
     expect(content).toContain("type: 'png'")
-    expect(content).toContain("backgroundColor: '#1e1e1e'")
+    expect(content).toContain('backgroundColor: CHART_DEFAULTS.backgroundColor')
     expect(content).toContain('pixelRatio: 2')
   })
 

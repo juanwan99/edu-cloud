@@ -201,6 +201,7 @@ import { NButton, NTag } from 'naive-ui'
 import { useAuthStore } from '../stores/auth'
 import { getDashboardConfig } from '../config/dashboardConfig'
 import { normalizeRole } from '../config/roles'
+import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 import DashboardCard from '../components/dashboard/DashboardCard.vue'
 import WidgetGrid from '../components/dashboard/WidgetGrid.vue'
 import ActivityFeed from '../components/dashboard/ActivityFeed.vue'
@@ -218,13 +219,6 @@ const router = useRouter()
 const auth = useAuthStore()
 const role = computed(() => normalizeRole(auth.currentRole?.role || ''))
 const config = computed(() => getDashboardConfig(role.value))
-
-// Chart theme colors — read from CSS vars for dark-mode compatibility
-const rootStyle = getComputedStyle(document.documentElement)
-const chartTextColor = rootStyle.getPropertyValue('--color-text').trim() || 'rgba(15, 26, 18, 0.88)'
-const chartSplitColor = rootStyle.getPropertyValue('--color-border-light').trim() || '#e8efe9'
-const chartSuccessColor = rootStyle.getPropertyValue('--color-primary').trim() || '#644CF0'
-const chartWarningColor = rootStyle.getPropertyValue('--color-accent').trim() || '#F4DA4C'
 
 const kpiData = ref({})
 const loading = ref(true)
@@ -415,19 +409,18 @@ async function fetchCharts() {
       const { data: trend } = await client.get('/analytics/report/trend/grade', { params: { exam_ids: examIds } })
       if (trend.points?.length >= 2) {
         trendOption.value = {
-          backgroundColor: 'transparent',
-          textStyle: { color: chartTextColor },
-          tooltip: { trigger: 'axis' },
-          legend: { data: ['平均分', '及格率'], bottom: 0, textStyle: { color: chartTextColor } },
-          grid: { left: 50, right: 50, top: 20, bottom: 40 },
-          xAxis: { type: 'category', data: trend.points.map(p => p.exam_name?.slice(0, 10) || ''), axisLabel: { color: chartTextColor } },
+          ...CHART_DEFAULTS,
+          tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
+          legend: { ...CHART_DEFAULTS.legend, data: ['平均分', '及格率'], bottom: 0 },
+          grid: { ...CHART_DEFAULTS.grid, left: 50, right: 50, top: 20, bottom: 40 },
+          xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: trend.points.map(p => p.exam_name?.slice(0, 10) || '') },
           yAxis: [
-            { type: 'value', name: '分数', position: 'left', nameTextStyle: { color: chartTextColor }, axisLabel: { color: chartTextColor }, splitLine: { lineStyle: { color: chartSplitColor } } },
-            { type: 'value', name: '及格率', position: 'right', max: 100, axisLabel: { formatter: '{value}%', color: chartTextColor }, nameTextStyle: { color: chartTextColor }, splitLine: { show: false } },
+            { ...CHART_DEFAULTS.yAxis, type: 'value', name: '分数', position: 'left', nameTextStyle: { color: CHART_DEFAULTS.textStyle.color } },
+            { ...CHART_DEFAULTS.yAxis, type: 'value', name: '及格率', position: 'right', max: 100, axisLabel: { ...CHART_DEFAULTS.yAxis.axisLabel, formatter: '{value}%' }, nameTextStyle: { color: CHART_DEFAULTS.textStyle.color }, splitLine: { show: false } },
           ],
           series: [
-            { name: '平均分', type: 'line', smooth: true, data: trend.points.map(p => p.avg?.toFixed(1)), itemStyle: { color: chartSuccessColor } },
-            { name: '及格率', type: 'line', smooth: true, yAxisIndex: 1, data: trend.points.map(p => (p.pass_rate * 100)?.toFixed(1)), itemStyle: { color: chartWarningColor } },
+            { name: '平均分', type: 'line', smooth: true, data: trend.points.map(p => p.avg?.toFixed(1)), itemStyle: { color: CHART_PALETTE[0] } },
+            { name: '及格率', type: 'line', smooth: true, yAxisIndex: 1, data: trend.points.map(p => (p.pass_rate * 100)?.toFixed(1)), itemStyle: { color: CHART_PALETTE[1] } },
           ],
         }
       }

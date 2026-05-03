@@ -126,6 +126,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import { BarChart, PieChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import { getTask, listResults } from '../api/grading'
+import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 
 use([CanvasRenderer, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent])
 
@@ -210,27 +211,29 @@ const scoreDistOption = computed(() => {
     else buckets[4]++
   })
   return {
-    tooltip: { trigger: 'axis' },
+    ...CHART_DEFAULTS,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
     xAxis: {
+      ...CHART_DEFAULTS.xAxis,
       type: 'category',
       data: labels,
-      axisLabel: { color: '#8a9a8e' },
     },
     yAxis: {
+      ...CHART_DEFAULTS.yAxis,
       type: 'value',
       name: '人数',
-      axisLabel: { color: '#8a9a8e' },
+      nameTextStyle: { color: CHART_DEFAULTS.textStyle.color },
     },
     series: [{
       type: 'bar',
       data: buckets,
       itemStyle: {
-        color: '#644CF0',
+        color: CHART_PALETTE[0],
         borderRadius: [6, 6, 0, 0],
       },
       barWidth: '50%',
     }],
-    grid: { left: 60, right: 20, top: 40, bottom: 40 },
+    grid: { ...CHART_DEFAULTS.grid, left: 60, right: 20, top: 40, bottom: 40 },
   }
 })
 
@@ -247,21 +250,25 @@ const confidenceDistOption = computed(() => {
     else low++
   })
   return {
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    ...CHART_DEFAULTS,
+    grid: undefined,
+    xAxis: undefined,
+    yAxis: undefined,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: {
+      ...CHART_DEFAULTS.legend,
       bottom: 0,
-      textStyle: { color: '#8a9a8e' },
     },
     series: [{
       type: 'pie',
       radius: ['40%', '70%'],
       center: ['50%', '45%'],
       data: [
-        { value: high, name: '高 (>=80%)', itemStyle: { color: '#22C55E' } },
-        { value: mid, name: '中 (50-80%)', itemStyle: { color: '#ED9A51' } },
+        { value: high, name: '高 (>=80%)', itemStyle: { color: CHART_PALETTE[3] } },
+        { value: mid, name: '中 (50-80%)', itemStyle: { color: CHART_PALETTE[2] } },
         { value: low, name: '低 (<50%)', itemStyle: { color: '#dc2626' } },
       ].filter((d) => d.value > 0),
-      label: { color: '#8a9a8e' },
+      label: { color: CHART_DEFAULTS.textStyle.color },
     }],
   }
 })

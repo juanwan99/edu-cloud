@@ -57,6 +57,7 @@ import {
   getGradeOverview, getGradeExamTrend, getGradeSubjects,
 } from '../api/analytics'
 import client from '../api/client'
+import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 
 use([
   BarChart, LineChart, RadarChart,
@@ -82,28 +83,29 @@ const barOption = computed(() => {
   const classes = overviewData.value.classes
   const names = classes.map(c => c.class_name)
   return {
-    tooltip: { trigger: 'axis' },
-    legend: {},
-    xAxis: { type: 'category', data: names },
-    yAxis: { type: 'value' },
+    ...CHART_DEFAULTS,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
+    legend: { ...CHART_DEFAULTS.legend },
+    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: names },
+    yAxis: { ...CHART_DEFAULTS.yAxis, type: 'value' },
     series: [
       {
         name: '均分',
         type: 'bar',
         data: classes.map(c => c.avg_score),
-        itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--color-info').trim() || '#3b82f6' },
+        itemStyle: { color: CHART_PALETTE[0] },
       },
       {
         name: '最高分',
         type: 'bar',
         data: classes.map(c => c.max_score),
-        itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim() || '#22C55E' },
+        itemStyle: { color: CHART_PALETTE[3] },
       },
       {
         name: '最低分',
         type: 'bar',
         data: classes.map(c => c.min_score),
-        itemStyle: { color: getComputedStyle(document.documentElement).getPropertyValue('--color-warning').trim() || '#f59e0b' },
+        itemStyle: { color: CHART_PALETTE[2] },
       },
     ],
   }
@@ -114,12 +116,13 @@ const lineOption = computed(() => {
   if (!trendData.value?.points?.length) return {}
   const points = trendData.value.points
   return {
-    tooltip: { trigger: 'axis' },
-    legend: {},
-    xAxis: { type: 'category', data: points.map(p => p.exam_name) },
+    ...CHART_DEFAULTS,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
+    legend: { ...CHART_DEFAULTS.legend },
+    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: points.map(p => p.exam_name) },
     yAxis: [
-      { type: 'value', name: '分数' },
-      { type: 'value', name: '比率', max: 1, axisLabel: { formatter: v => `${(v * 100).toFixed(0)}%` } },
+      { ...CHART_DEFAULTS.yAxis, type: 'value', name: '分数', nameTextStyle: { color: CHART_DEFAULTS.textStyle.color } },
+      { ...CHART_DEFAULTS.yAxis, type: 'value', name: '比率', max: 1, nameTextStyle: { color: CHART_DEFAULTS.textStyle.color }, axisLabel: { ...CHART_DEFAULTS.yAxis.axisLabel, formatter: v => `${(v * 100).toFixed(0)}%` } },
     ],
     series: [
       {
@@ -153,7 +156,11 @@ const radarOption = computed(() => {
   if (!subjectsData.value?.subjects?.length) return {}
   const subjects = subjectsData.value.subjects
   return {
-    tooltip: {},
+    ...CHART_DEFAULTS,
+    grid: undefined,
+    xAxis: undefined,
+    yAxis: undefined,
+    tooltip: { ...CHART_DEFAULTS.tooltip },
     radar: {
       indicator: subjects.map(s => ({
         name: s.subject_name,
