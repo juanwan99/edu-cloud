@@ -58,7 +58,7 @@ async def get_children(
 
 class LinkRequest(BaseModel):
     question_id: str
-    knowledge_point_id: str
+    concept_id: str
     is_primary: bool = True
 
 
@@ -70,10 +70,10 @@ async def link_question_to_kp(
 ):
     link = await knowledge_service.link_question(
         db, question_id=req.question_id,
-        knowledge_point_id=req.knowledge_point_id, is_primary=req.is_primary,
+        concept_id=req.concept_id, is_primary=req.is_primary,
     )
     return {"id": link.id, "question_id": link.question_id,
-            "knowledge_point_id": link.knowledge_point_id}
+            "concept_id": link.concept_id}
 
 
 @router.get("/question/{question_id}")

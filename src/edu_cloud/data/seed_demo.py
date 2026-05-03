@@ -23,7 +23,8 @@ from edu_cloud.models.school import School
 from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.student.models import Student
-from edu_cloud.modules.knowledge.models import KnowledgePoint, QuestionKnowledgePoint
+from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.modules.conduct.models import StudentProfile
 from edu_cloud.modules.conduct.crypto import encrypt
 
@@ -216,19 +217,21 @@ async def seed_demo_data(db: AsyncSession, school_code: str = "TEST01") -> dict:
         await db.flush()
         logger.info("seed: created %d student profiles (verify_code = last 6 of student_number)", profile_created)
 
-    # === 知识点 seed ===
-    from edu_cloud.data.seed_knowledge_math import seed_math_knowledge
-    kp_created = await seed_math_knowledge(db)
+    # === 知识图谱节点 code → id 映射（数学概念）===
+    kp_result = await db.execute(
+        select(ConceptGraphNode).where(
+            ConceptGraphNode.course_code == "SW",
+            ConceptGraphNode.node_type == "concept",
+        )
+    )
+    kp_map = {kp.id: kp.id for kp in kp_result.scalars().all()}
+    # Also build a map by name/code for MATH_QUESTIONS kp_code strings
+    kp_by_code_result = await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.node_type == "concept")
+    )
+    kp_code_map = {kp.id: kp.id for kp in kp_by_code_result.scalars().all()}
 
-    from edu_cloud.data.seed_knowledge_biology import seed_biology_knowledge
-    bio_created = await seed_biology_knowledge(db, db_path="./edu-knowledge-base/knowledge.db")
-    kp_created += bio_created
-
-    # 查知识点 code → id 映射
-    kp_result = await db.execute(select(KnowledgePoint).where(KnowledgePoint.course_code == "SX"))
-    kp_map = {kp.code: kp.id for kp in kp_result.scalars().all()}
-
-    stats = {"kp_seeded": kp_created, "exams": [], "total_answers": 0}
+    stats = {"exams": [], "total_answers": 0}
 
     # === 两次考试 ===
     exams_config = [
@@ -286,11 +289,11 @@ async def seed_demo_data(db: AsyncSession, school_code: str = "TEST01") -> dict:
                     await db.flush()
                     questions.append(q)
 
-                    # 关联知识点
-                    if kp_code and kp_code in kp_map:
+                    # 关联知识点（concept_id = ConceptGraphNode.id 语义 string）
+                    if kp_code and kp_code in kp_code_map:
                         db.add(QuestionKnowledgePoint(
                             question_id=q.id,
-                            knowledge_point_id=kp_map[kp_code],
+                            concept_id=kp_code_map[kp_code],
                             is_primary=True,
                         ))
             elif subj_code == "YW":
