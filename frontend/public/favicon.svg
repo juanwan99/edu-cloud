@@ -1,6 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" aria-label="微与积">
-  <rect width="16" height="16" rx="3.5" fill="#F4DA4C"/>
-  <path d="M8 3 V13" stroke="#09061B" stroke-width="2.2" stroke-linecap="round"/>
-  <path d="M8 6 L5 9 M8 6 L11 9" stroke="#09061B" stroke-width="2" stroke-linecap="round"/>
-  <path d="M8 9.5 L5.5 12 M8 9.5 L10.5 12" stroke="#09061B" stroke-width="1.6" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" aria-label="微与积 favicon">
+  <rect width="16" height="16" rx="3.5" fill="#09061B"/>
+  <path
+    d="M8 1.5 C4.9 4.2 3.1 8.2 3 14.5 M8 1.5 C11.1 4.2 12.9 8.2 13 14.5"
+    stroke="#F4DA4C"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M8 2.8 V14.3 M8 6.2 L5.3 8.7 M8 6.2 L10.7 8.7 M8 9.8 L5.8 12 M8 9.8 L10.2 12"
+    stroke="#F4DA4C"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
 </svg>
