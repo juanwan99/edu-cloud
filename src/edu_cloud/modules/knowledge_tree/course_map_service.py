@@ -5,7 +5,6 @@ import sqlite3
 from pathlib import Path
 
 import sqlalchemy as sa
-import sqlalchemy.orm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.config import settings
@@ -131,8 +130,8 @@ async def get_module_overview(
                 pass
         for mod, dist in band_accum.items():
             if dist:
-                top = sorted(dist, key=dist.get, reverse=True)[:2]
-                module_top_bands[mod] = [_BAND_NAMES.get(b, b) for b in top]
+                top = sorted(dist, key=lambda b: dist.get(b, 0), reverse=True)[:2]
+                module_top_bands[mod] = [_BAND_NAMES.get(b, b) for b in top if b is not None]
 
     # ── 3. ModuleCardData ─────────────────────────────────────────────────────
     module_cards: list[ModuleCardData] = []
@@ -472,9 +471,6 @@ async def get_study_unit_detail(
             textbook=[], prerequisites=[], successors=[],
             contrasts=[], concepts=[], curriculum=[], exam_patterns=[],
         )
-
-    # Module of this SU (for module labels)
-    su_module = su_row["module"] or "unknown"
 
     # SU name map for prereq/successor resolution
     su_name_map: dict[str, tuple[str, str]] = {}  # id → (name, module)
