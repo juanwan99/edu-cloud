@@ -74,23 +74,41 @@ def parse_failures(stdout):
     for line in stdout.splitlines():
         if line.startswith('FAILED '):
             test_id = line[7:].strip()
-            if ' - ' in test_id:
-                test_id = test_id.split(' - ')[0]
+            if '::' in test_id:
+                test_id = test_id.split(' ')[0]
             failures.add(test_id)
     return failures
 
 
+def _detect_collection_errors(stdout, stderr, rc):
+    """Detect pytest collection/import errors that don't produce FAILED lines."""
+    if rc in (2, 3, 4):
+        return True
+    error_markers = ('ERRORS', 'collection error', 'ImportError', 'ModuleNotFoundError')
+    combined = (stdout or '') + (stderr or '')
+    return any(m in combined for m in error_markers)
+
+
 def main():
     extra_args = [a for a in sys.argv[1:] if a != '--update-only']
+    is_full_run = not extra_args or all(a.startswith('-') for a in extra_args)
 
     print("Running pytest...")
     stdout, stderr, rc = run_pytest(extra_args)
+
+    if _detect_collection_errors(stdout, stderr, rc):
+        print(f"\n❌ pytest collection/import error detected (exit code {rc}).")
+        print("Fix collection errors before checking regression baseline.")
+        if stderr:
+            for line in stderr.splitlines()[-10:]:
+                print(f"  {line}")
+        sys.exit(1)
 
     actual_failures = parse_failures(stdout)
     known = load_baseline()
 
     new_failures = actual_failures - known
-    fixed = known - actual_failures
+    fixed = (known - actual_failures) if is_full_run else set()
 
     if fixed:
         known -= fixed
@@ -99,7 +117,7 @@ def main():
     if new_failures:
         print(f"\n❌ {len(new_failures)} NEW failure(s) detected (not in baseline):")
         for t in sorted(new_failures):
-            print(f"  🔴 {t}")
+            print(f"  {t}")
         print(f"\nKnown failures: {len(known & actual_failures)}")
         print(f"New failures:   {len(new_failures)}")
         print("\nTo add to baseline (if intentional): edit .quality/known-pytest-failures.txt")
@@ -109,6 +127,8 @@ def main():
     print(f"   Known failures still present: {len(known & actual_failures)}")
     if fixed:
         print(f"   Known failures fixed: {len(fixed)}")
+    if not is_full_run:
+        print(f"   (partial run — known failures not auto-removed)")
     passed_line = [l for l in stdout.splitlines() if 'passed' in l]
     if passed_line:
         print(f"   {passed_line[-1].strip()}")
