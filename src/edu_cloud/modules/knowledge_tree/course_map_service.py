@@ -1,7 +1,9 @@
 """课程地图聚合服务 — 从 knowledge.db + PG 构建课程概览/模块地图/学习单元详情。"""
 import json
 import logging
+import re
 import sqlite3
+from collections import defaultdict
 from pathlib import Path
 
 import sqlalchemy as sa
@@ -51,9 +53,10 @@ _BAND_NAMES = {
     "far": "综合迁移",
 }
 
+_MODULE_RE = re.compile(r"_M(\d+)_")
+
 
 def _open_kb(kb_path: str | None) -> sqlite3.Connection | None:
-    """打开 knowledge.db，path 不存在时返回 None。"""
     path = Path(kb_path) if kb_path else Path(settings.KNOWLEDGE_DB_PATH)
     if not path.exists():
         logger.warning("knowledge.db not found at %s", path)
@@ -80,6 +83,11 @@ def _json_list(val: str | None) -> list:
         return []
 
 
+def _concept_module(concept_id: str) -> str:
+    m = _MODULE_RE.search(concept_id)
+    return f"M{m.group(1)}" if m else "unknown"
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # get_module_overview
 # ──────────────────────────────────────────────────────────────────────────────
@@ -93,7 +101,6 @@ async def get_module_overview(
 
     # ── 1. Study units grouped by module ──────────────────────────────────────
     module_su: dict[str, list[sqlite3.Row]] = {m: [] for m in _MODULE_NAMES}
-    module_concept_ids: dict[str, set[str]] = {m: set() for m in _MODULE_NAMES}
 
     if conn and _table_exists(conn, "study_units"):
         for row in conn.execute(
@@ -103,8 +110,14 @@ async def get_module_overview(
             mod = row["module"]
             if mod in module_su:
                 module_su[mod].append(row)
-                for cid in _json_list(row["source_concept_ids"]):
-                    module_concept_ids[mod].add(cid)
+
+    # [M3 fix] L1 concept count per module from concepts table (not source_concept_ids)
+    module_l1_count: dict[str, int] = {m: 0 for m in _MODULE_NAMES}
+    if conn and _table_exists(conn, "concepts"):
+        for row in conn.execute("SELECT id FROM concepts WHERE knowledge_level='L1'"):
+            mod = _concept_module(row["id"])
+            if mod in module_l1_count:
+                module_l1_count[mod] += 1
 
     # ── 2. exam_tags per module from seed_su_exam_stats ───────────────────────
     module_top_bands: dict[str, list[str]] = {m: [] for m in _MODULE_NAMES}
@@ -114,7 +127,6 @@ async def get_module_overview(
             "SELECT study_unit_id, transfer_band_dist FROM seed_su_exam_stats "
             "WHERE transfer_band_dist IS NOT NULL"
         ):
-            # find which module owns this su
             su_mod = None
             for mod, rows in module_su.items():
                 if any(r["id"] == row["study_unit_id"] for r in rows):
@@ -143,7 +155,7 @@ async def get_module_overview(
             name=name,
             tagline=_MODULE_TAGLINES.get(mod_id, ""),
             study_unit_count=len(rows),
-            concept_count=len(module_concept_ids[mod_id]),
+            concept_count=module_l1_count[mod_id],
             total_hours=round(total_minutes / 45, 1),
             exam_tags=module_top_bands[mod_id],
         ))
@@ -179,6 +191,7 @@ async def get_module_overview(
         logger.warning("bridge_to query failed: %s", exc)
 
     # ── 5. Curriculum summary ─────────────────────────────────────────────────
+    # [H1 fix] requirement_type actual values are 'content'/'academic'
     content_count = 0
     academic_count = 0
     big_concepts: list[str] = []
@@ -188,14 +201,17 @@ async def get_module_overview(
             "SELECT requirement_type FROM curriculum_requirements"
         ):
             rt = row["requirement_type"] or ""
-            if rt == "content_requirement":
+            if rt == "content":
                 content_count += 1
-            elif rt == "academic_requirement":
+            elif rt == "academic":
                 academic_count += 1
 
-    if conn and _table_exists(conn, "big_concepts"):
-        for row in conn.execute("SELECT DISTINCT name FROM big_concepts"):
-            big_concepts.append(row["name"])
+        # [H1 fix] Read big_concepts from curriculum_requirements.big_concept
+        for row in conn.execute(
+            "SELECT DISTINCT big_concept FROM curriculum_requirements "
+            "WHERE big_concept IS NOT NULL AND big_concept != ''"
+        ):
+            big_concepts.append(row["big_concept"])
 
     curriculum = CurriculumSummary(
         content_count=content_count,
@@ -204,6 +220,7 @@ async def get_module_overview(
     )
 
     # ── 6. Exam summary ───────────────────────────────────────────────────────
+    # [H3 fix] Use COUNT(DISTINCT item_id) for actual question counts
     total_items = 0
     near_count = 0
     mid_count = 0
@@ -215,7 +232,8 @@ async def get_module_overview(
 
     if conn and _table_exists(conn, "q_matrix"):
         for row in conn.execute(
-            "SELECT transfer_band, COUNT(*) AS cnt FROM q_matrix GROUP BY transfer_band"
+            "SELECT transfer_band, COUNT(DISTINCT item_id) AS cnt "
+            "FROM q_matrix GROUP BY transfer_band"
         ):
             band = row["transfer_band"]
             cnt = row["cnt"]
@@ -258,7 +276,6 @@ async def get_module_map(
 
     # ── 1. Study units for module ─────────────────────────────────────────────
     su_rows: list[sqlite3.Row] = []
-    study_unit_id_to_row: dict[str, sqlite3.Row] = {}
     if conn and _table_exists(conn, "study_units"):
         for row in conn.execute(
             "SELECT id, name, description, estimated_minutes, "
@@ -267,9 +284,7 @@ async def get_module_map(
             (module,),
         ):
             su_rows.append(row)
-            study_unit_id_to_row[row["id"]] = row
 
-    # Build id→name map for prerequisite resolution
     su_name_map: dict[str, str] = {}
     if conn and _table_exists(conn, "study_units"):
         for row in conn.execute("SELECT id, name FROM study_units"):
@@ -278,19 +293,21 @@ async def get_module_map(
     study_unit_cards: list[StudyUnitCard] = []
     total_minutes = 0
     all_concept_ids: set[str] = set()
+    all_da_ids: set[str] = set()
 
     for row in su_rows:
         prereq_ids = _json_list(row["prerequisite_unit_ids"])
         prereq_names = [su_name_map.get(pid, pid) for pid in prereq_ids]
         concept_ids = _json_list(row["source_concept_ids"])
         all_concept_ids.update(concept_ids)
+        for da_id in _json_list(row["linked_da_ids"]):
+            all_da_ids.add(da_id)
 
-        # concept names
         concept_names: list[str] = []
         if conn and concept_ids:
-            placeholders = ",".join("?" * len(concept_ids))
+            ph = ",".join("?" * len(concept_ids))
             for crow in conn.execute(
-                f"SELECT name FROM concepts WHERE id IN ({placeholders})", concept_ids
+                f"SELECT name FROM concepts WHERE id IN ({ph})", concept_ids
             ):
                 concept_names.append(crow["name"])
 
@@ -305,67 +322,76 @@ async def get_module_map(
             concept_names=concept_names,
         ))
 
-    # ── 2. Concept clusters via big_concept ───────────────────────────────────
+    # ── 2. Concept clusters via curriculum_requirements.big_concept ───────────
+    # [M1 fix] big_concepts/concept_big_concept_map are empty;
+    # use DA chain: SU.linked_da_ids → seed_req_da_map → curriculum_requirements.big_concept
     concept_clusters: list[ConceptCluster] = []
-    if conn and all_concept_ids and _table_exists(conn, "concept_big_concept_map"):
-        bc_to_concepts: dict[str, list[str]] = {}
-        bc_id_to_name: dict[str, str] = {}
-        if _table_exists(conn, "big_concepts"):
-            for row in conn.execute("SELECT id, name FROM big_concepts WHERE module=?", (module,)):
-                bc_id_to_name[row["id"]] = row["name"]
-
-        placeholders = ",".join("?" * len(all_concept_ids))
-        for row in conn.execute(
-            f"SELECT cbcm.concept_id, cbcm.big_concept_id, c.name AS concept_name "
-            f"FROM concept_big_concept_map cbcm "
-            f"JOIN concepts c ON c.id = cbcm.concept_id "
-            f"WHERE cbcm.concept_id IN ({placeholders})",
-            list(all_concept_ids),
-        ):
-            bc_id = row["big_concept_id"]
-            if bc_id not in bc_to_concepts:
-                bc_to_concepts[bc_id] = []
-            bc_to_concepts[bc_id].append(row["concept_name"])
-
-        for bc_id, names in bc_to_concepts.items():
-            bc_name = bc_id_to_name.get(bc_id, bc_id)
-            concept_clusters.append(ConceptCluster(big_concept=bc_name, concepts=names))
-
-    # ── 3. Curriculum per big_concept ─────────────────────────────────────────
-    curriculum: list[ModuleCurriculumItem] = []
-    if conn and su_rows and _table_exists(conn, "curriculum_requirements") and _table_exists(conn, "seed_req_da_map"):
-        # Collect all DA ids linked to this module's SUs
-        da_ids: set[str] = set()
+    if conn and all_da_ids and _table_exists(conn, "curriculum_requirements") and _table_exists(conn, "seed_req_da_map"):
+        ph = ",".join("?" * len(all_da_ids))
+        bc_concepts: dict[str, set[str]] = defaultdict(set)
+        da_to_su_concepts: dict[str, set[str]] = {}
         for row in su_rows:
             for da_id in _json_list(row["linked_da_ids"]):
-                da_ids.add(da_id)
+                da_to_su_concepts.setdefault(da_id, set()).update(
+                    _json_list(row["source_concept_ids"])
+                )
 
-        if da_ids:
-            placeholders = ",".join("?" * len(da_ids))
-            req_rows = conn.execute(
-                f"SELECT DISTINCT cr.id, cr.text, cr.requirement_type "
-                f"FROM curriculum_requirements cr "
-                f"JOIN seed_req_da_map srdm ON srdm.req_id = cr.id "
-                f"WHERE srdm.da_id IN ({placeholders})",
-                list(da_ids),
-            ).fetchall()
+        for row in conn.execute(
+            f"SELECT DISTINCT cr.big_concept, srdm.da_id "
+            f"FROM curriculum_requirements cr "
+            f"JOIN seed_req_da_map srdm ON srdm.req_id = cr.id "
+            f"WHERE srdm.da_id IN ({ph}) AND cr.big_concept IS NOT NULL AND cr.big_concept != ''",
+            list(all_da_ids),
+        ):
+            bc = row["big_concept"]
+            for cid in da_to_su_concepts.get(row["da_id"], set()):
+                bc_concepts[bc].add(cid)
 
-            # Group by big_concept (use requirement_type as grouping key here)
-            if req_rows:
-                curriculum.append(ModuleCurriculumItem(
-                    big_concept=_MODULE_NAMES.get(module, module),
-                    requirements=[r["text"] for r in req_rows],
-                ))
+        concept_name_map: dict[str, str] = {}
+        if bc_concepts and conn:
+            all_cids = set()
+            for cids in bc_concepts.values():
+                all_cids.update(cids)
+            if all_cids:
+                ph2 = ",".join("?" * len(all_cids))
+                for crow in conn.execute(
+                    f"SELECT id, name FROM concepts WHERE id IN ({ph2})", list(all_cids)
+                ):
+                    concept_name_map[crow["id"]] = crow["name"]
+
+        for bc, cids in bc_concepts.items():
+            names = [concept_name_map.get(c, c) for c in sorted(cids)]
+            if names:
+                concept_clusters.append(ConceptCluster(big_concept=bc, concepts=names))
+
+    # ── 3. Curriculum per big_concept ─────────────────────────────────────────
+    # [M2 fix] Group by curriculum_requirements.big_concept instead of lumping all into one
+    curriculum: list[ModuleCurriculumItem] = []
+    if conn and all_da_ids and _table_exists(conn, "curriculum_requirements") and _table_exists(conn, "seed_req_da_map"):
+        ph = ",".join("?" * len(all_da_ids))
+        bc_reqs: dict[str, list[str]] = defaultdict(list)
+        for row in conn.execute(
+            f"SELECT DISTINCT cr.id, cr.text, cr.big_concept "
+            f"FROM curriculum_requirements cr "
+            f"JOIN seed_req_da_map srdm ON srdm.req_id = cr.id "
+            f"WHERE srdm.da_id IN ({ph})",
+            list(all_da_ids),
+        ):
+            bc = row["big_concept"] or _MODULE_NAMES.get(module, module)
+            bc_reqs[bc].append(row["text"])
+
+        for bc, texts in bc_reqs.items():
+            curriculum.append(ModuleCurriculumItem(big_concept=bc, requirements=texts))
 
     # ── 4. Exam profile from seed_su_exam_stats ───────────────────────────────
     exam_profile = ModuleExamProfile(total_items=0, near_pct=0.0, mid_pct=0.0, far_pct=0.0)
     if conn and su_rows and _table_exists(conn, "seed_su_exam_stats"):
-        study_unit_ids = [r["id"] for r in su_rows]
-        placeholders = ",".join("?" * len(study_unit_ids))
+        su_ids = [r["id"] for r in su_rows]
+        ph = ",".join("?" * len(su_ids))
         band_totals: dict[str, float] = {}
         for row in conn.execute(
-            f"SELECT transfer_band_dist FROM seed_su_exam_stats WHERE study_unit_id IN ({placeholders})",
-            study_unit_ids,
+            f"SELECT transfer_band_dist FROM seed_su_exam_stats WHERE study_unit_id IN ({ph})",
+            su_ids,
         ):
             try:
                 dist = json.loads(row["transfer_band_dist"])
@@ -446,15 +472,15 @@ async def get_study_unit_detail(
     """构建学习单元详情（前置/后续/对比/教材定位/课标/高考题型）。"""
     conn = _open_kb(kb_path)
 
-    if conn is None or not _table_exists(conn, "study_units"):
-        # Return a minimal empty response
-        return StudyUnitDetailResponse(
-            id=study_unit_id, name=study_unit_id, estimated_minutes=0,
-            textbook=[], prerequisites=[], successors=[],
-            contrasts=[], concepts=[], curriculum=[], exam_patterns=[],
-        )
+    _empty = StudyUnitDetailResponse(
+        id=study_unit_id, name=study_unit_id, estimated_minutes=0,
+        textbook=[], prerequisites=[], successors=[],
+        contrasts=[], concepts=[], curriculum=[], exam_patterns=[],
+    )
 
-    # ── 1. Load main SU row ───────────────────────────────────────────────────
+    if conn is None or not _table_exists(conn, "study_units"):
+        return _empty
+
     su_row = conn.execute(
         "SELECT id, name, description, estimated_minutes, "
         "prerequisite_unit_ids, source_concept_ids, textbook_anchor_ids, "
@@ -464,16 +490,10 @@ async def get_study_unit_detail(
     ).fetchone()
 
     if su_row is None:
-        if conn:
-            conn.close()
-        return StudyUnitDetailResponse(
-            id=study_unit_id, name=study_unit_id, estimated_minutes=0,
-            textbook=[], prerequisites=[], successors=[],
-            contrasts=[], concepts=[], curriculum=[], exam_patterns=[],
-        )
+        conn.close()
+        return _empty
 
-    # SU name map for prereq/successor resolution
-    su_name_map: dict[str, tuple[str, str]] = {}  # id → (name, module)
+    su_name_map: dict[str, tuple[str, str]] = {}
     for row in conn.execute("SELECT id, name, module FROM study_units"):
         su_name_map[row["id"]] = (row["name"], row["module"] or "unknown")
 
@@ -485,7 +505,7 @@ async def get_study_unit_detail(
             category="必经前置", target_name=name, target_module=mod
         ))
 
-    # ── 3. Successors (SUs that list this SU as prerequisite) ─────────────────
+    # ── 3. Successors ─────────────────────────────────────────────────────────
     successors: list[RelationItem] = []
     for row in conn.execute(
         "SELECT id, name, module, prerequisite_unit_ids FROM study_units "
@@ -493,26 +513,27 @@ async def get_study_unit_detail(
     ):
         prereqs = _json_list(row["prerequisite_unit_ids"])
         if study_unit_id in prereqs:
-            mod = row["module"] or "unknown"
             successors.append(RelationItem(
-                category="后续单元", target_name=row["name"], target_module=mod
+                category="后续单元",
+                target_name=row["name"],
+                target_module=row["module"] or "unknown",
             ))
 
-    # ── 4. Contrasts from concept_relations ───────────────────────────────────
+    # ── 4. Contrasts ──────────────────────────────────────────────────────────
     contrasts: list[RelationItem] = []
     concept_ids = _json_list(su_row["source_concept_ids"])
 
     if concept_ids and _table_exists(conn, "concept_relations"):
-        placeholders = ",".join("?" * len(concept_ids))
+        ph = ",".join("?" * len(concept_ids))
         for row in conn.execute(
-            f"SELECT cr.source_id, cr.target_id, cr.evidence, c.name AS target_name "
+            f"SELECT cr.evidence, c.name AS target_name "
             f"FROM concept_relations cr "
             f"JOIN concepts c ON c.id = cr.target_id "
-            f"WHERE cr.relation_type='contrast' AND cr.source_id IN ({placeholders})",
+            f"WHERE cr.relation_type='contrast' AND cr.source_id IN ({ph})",
             concept_ids,
         ):
             contrasts.append(RelationItem(
-                category="对比关系",
+                category="易混对照",
                 target_name=row["target_name"],
                 evidence=row["evidence"],
             ))
@@ -520,10 +541,9 @@ async def get_study_unit_detail(
     # ── 5. Concepts ───────────────────────────────────────────────────────────
     concepts: list[dict] = []
     if concept_ids and _table_exists(conn, "concepts"):
-        placeholders = ",".join("?" * len(concept_ids))
+        ph = ",".join("?" * len(concept_ids))
         for row in conn.execute(
-            f"SELECT id, name, knowledge_level, description FROM concepts "
-            f"WHERE id IN ({placeholders})",
+            f"SELECT id, name, knowledge_level, description FROM concepts WHERE id IN ({ph})",
             concept_ids,
         ):
             concepts.append({
@@ -534,37 +554,48 @@ async def get_study_unit_detail(
             })
 
     # ── 6. Textbook anchors ───────────────────────────────────────────────────
+    # [H2 fix] textbook_anchor_ids point to content_blocks, not sections
     textbook: list[TextbookAnchor] = []
     anchor_ids = _json_list(su_row["textbook_anchor_ids"])
-    if anchor_ids and _table_exists(conn, "sections"):
-        placeholders = ",".join("?" * len(anchor_ids))
+    if anchor_ids and _table_exists(conn, "content_blocks"):
+        ph = ",".join("?" * len(anchor_ids))
+        has_sections = _table_exists(conn, "sections")
         has_docs = _table_exists(conn, "documents")
-        if has_docs:
+
+        if has_sections and has_docs:
+            seen: set[str] = set()
             for row in conn.execute(
-                f"SELECT s.title AS section_title, d.title AS book, "
-                f"s.page_start, s.page_end "
-                f"FROM sections s JOIN documents d ON s.document_id = d.id "
-                f"WHERE s.id IN ({placeholders})",
+                f"SELECT DISTINCT s.id AS sec_id, s.chapter_title, s.title AS section_title, "
+                f"s.page_start, s.page_end, d.title AS book "
+                f"FROM content_blocks cb "
+                f"JOIN sections s ON cb.section_id = s.id "
+                f"JOIN documents d ON s.document_id = d.id "
+                f"WHERE cb.id IN ({ph})",
                 anchor_ids,
             ):
+                key = row["sec_id"]
+                if key in seen:
+                    continue
+                seen.add(key)
                 page_range = ""
                 if row["page_start"] is not None:
                     page_range = f"P{row['page_start']}"
-                    if row["page_end"]:
+                    if row["page_end"] and row["page_end"] != row["page_start"]:
                         page_range += f"-{row['page_end']}"
+                section = row["section_title"] or ""
+                if row["chapter_title"] and row["chapter_title"] not in section:
+                    section = f"{row['chapter_title']} · {section}"
                 textbook.append(TextbookAnchor(
                     book=row["book"] or "",
-                    section=row["section_title"] or "",
+                    section=section,
                     page_range=page_range,
                 ))
         else:
             for row in conn.execute(
-                f"SELECT title, page_start, page_end FROM sections WHERE id IN ({placeholders})",
+                f"SELECT DISTINCT title, page FROM content_blocks WHERE id IN ({ph})",
                 anchor_ids,
             ):
-                page_range = ""
-                if row["page_start"] is not None:
-                    page_range = f"P{row['page_start']}"
+                page_range = f"P{row['page']}" if row["page"] else ""
                 textbook.append(TextbookAnchor(
                     book="教材", section=row["title"] or "", page_range=page_range,
                 ))
@@ -573,15 +604,14 @@ async def get_study_unit_detail(
     curriculum: list[CurriculumRequirement] = []
     da_ids = _json_list(su_row["linked_da_ids"])
     if da_ids and _table_exists(conn, "curriculum_requirements") and _table_exists(conn, "seed_req_da_map"):
-        placeholders = ",".join("?" * len(da_ids))
+        ph = ",".join("?" * len(da_ids))
         for row in conn.execute(
             f"SELECT DISTINCT cr.id, cr.text, cr.requirement_type "
             f"FROM curriculum_requirements cr "
             f"JOIN seed_req_da_map srdm ON srdm.req_id = cr.id "
-            f"WHERE srdm.da_id IN ({placeholders})",
+            f"WHERE srdm.da_id IN ({ph})",
             da_ids,
         ):
-            # Extract mastery verb: first word of text typically
             text = row["text"] or ""
             mastery_verb = text.split("、")[0].split("，")[0][:8] if text else ""
             curriculum.append(CurriculumRequirement(
@@ -591,30 +621,36 @@ async def get_study_unit_detail(
             ))
 
     # ── 8. Exam patterns via DA → q_matrix → assessment_items ────────────────
+    # [M4 fix] Separate COUNT from LIMIT-3 sample
     exam_patterns: list[ExamPatternGroup] = []
     if da_ids and _table_exists(conn, "q_matrix") and _table_exists(conn, "assessment_items"):
-        placeholders = ",".join("?" * len(da_ids))
+        ph = ",".join("?" * len(da_ids))
         for band in ("near", "mid", "far"):
-            items = conn.execute(
+            count_row = conn.execute(
+                f"SELECT COUNT(DISTINCT ai.id) AS cnt "
+                f"FROM q_matrix qm JOIN assessment_items ai ON qm.item_id = ai.id "
+                f"WHERE qm.attribute_id IN ({ph}) AND qm.transfer_band=?",
+                [*da_ids, band],
+            ).fetchone()
+            cnt = count_row["cnt"] if count_row else 0
+            if cnt == 0:
+                continue
+            samples = conn.execute(
                 f"SELECT DISTINCT ai.id, ai.stem, ai.question_type "
-                f"FROM q_matrix qm "
-                f"JOIN assessment_items ai ON qm.item_id = ai.id "
-                f"WHERE qm.attribute_id IN ({placeholders}) AND qm.transfer_band=? "
-                f"LIMIT 3",
+                f"FROM q_matrix qm JOIN assessment_items ai ON qm.item_id = ai.id "
+                f"WHERE qm.attribute_id IN ({ph}) AND qm.transfer_band=? LIMIT 3",
                 [*da_ids, band],
             ).fetchall()
-            if items:
-                exam_patterns.append(ExamPatternGroup(
-                    band=_BAND_NAMES.get(band, band),
-                    count=len(items),
-                    sample_items=[
-                        {"id": i["id"], "stem": (i["stem"] or "")[:200], "type": i["question_type"]}
-                        for i in items
-                    ],
-                ))
+            exam_patterns.append(ExamPatternGroup(
+                band=_BAND_NAMES.get(band, band),
+                count=cnt,
+                sample_items=[
+                    {"id": i["id"], "stem": (i["stem"] or "")[:200], "type": i["question_type"]}
+                    for i in samples
+                ],
+            ))
 
-    if conn:
-        conn.close()
+    conn.close()
 
     return StudyUnitDetailResponse(
         id=su_row["id"],

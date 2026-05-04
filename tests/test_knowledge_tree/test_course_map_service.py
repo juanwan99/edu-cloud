@@ -115,24 +115,23 @@ def _create_course_map_db(path: Path) -> str:
             source_concept_ids TEXT,
             prerequisite_unit_ids TEXT,
             textbook_anchor_ids TEXT,
-            linked_da_ids TEXT,
-            exam_tags TEXT
+            linked_da_ids TEXT
         )
     """)
     cur.executemany(
-        "INSERT INTO study_units VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO study_units VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
             (
                 "SU_M1_01", "细胞膜与细胞壁", "细胞膜功能概述", "M1", 90,
-                '["BIO_M1_C1"]', '[]', '["SEC_01"]', '["DA_M1_01"]', '["基础"]',
+                '["BIO_M1_C1"]', '[]', '["CB_01","CB_02"]', '["DA_M1_01"]',
             ),
             (
                 "SU_M1_02", "光合作用与化能合成", "光能转化机制", "M1", 135,
-                '["BIO_M1_C2"]', '["SU_M1_01"]', '["SEC_02"]', '["DA_M1_02"]', '["综合"]',
+                '["BIO_M1_C2"]', '["SU_M1_01"]', '["CB_03"]', '["DA_M1_02"]',
             ),
             (
                 "SU_M3_01", "神经调节基础", "神经系统概述", "M3", 90,
-                '["BIO_M3_C1"]', '[]', '[]', '["DA_M3_01"]', '["迁移"]',
+                '["BIO_M3_C1"]', '[]', '[]', '["DA_M3_01"]',
             ),
         ],
     )
@@ -152,16 +151,39 @@ def _create_course_map_db(path: Path) -> str:
         CREATE TABLE sections (
             id TEXT PRIMARY KEY,
             document_id TEXT,
+            chapter_title TEXT,
             title TEXT,
             page_start INTEGER,
             page_end INTEGER
         )
     """)
     cur.executemany(
-        "INSERT INTO sections VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO sections VALUES (?, ?, ?, ?, ?, ?)",
         [
-            ("SEC_01", "DOC_01", "第一章第一节", 12, 15),
-            ("SEC_02", "DOC_01", "第一章第四节", 28, 35),
+            ("SEC_01", "DOC_01", "第一章 走近细胞", "第一节 细胞的基本结构", 12, 15),
+            ("SEC_02", "DOC_01", "第一章 走近细胞", "第四节 光合作用", 28, 35),
+        ],
+    )
+
+    # content_blocks (textbook_anchor_ids point here)
+    cur.execute("""
+        CREATE TABLE content_blocks (
+            id TEXT PRIMARY KEY,
+            section_id TEXT,
+            document_id TEXT,
+            type TEXT,
+            title TEXT,
+            page INTEGER,
+            content TEXT,
+            ordinal INTEGER
+        )
+    """)
+    cur.executemany(
+        "INSERT INTO content_blocks VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            ("CB_01", "SEC_01", "DOC_01", "body_text", "概述", 12, "细胞膜结构...", 1),
+            ("CB_02", "SEC_01", "DOC_01", "body_text", "功能", 13, "物质运输...", 2),
+            ("CB_03", "SEC_02", "DOC_01", "body_text", "光反应", 28, "叶绿体...", 1),
         ],
     )
 
@@ -177,9 +199,9 @@ def _create_course_map_db(path: Path) -> str:
     cur.executemany(
         "INSERT INTO curriculum_requirements VALUES (?, ?, ?, ?)",
         [
-            ("REQ_01", "描述细胞膜的结构", "content_requirement", "BC_M1_01"),
-            ("REQ_02", "分析光合作用过程", "content_requirement", "BC_M1_01"),
-            ("REQ_03", "解释神经调节机制", "academic_requirement", "BC_M3_01"),
+            ("REQ_01", "描述细胞膜的结构", "content", "BC_M1_01"),
+            ("REQ_02", "分析光合作用过程", "content", "BC_M1_01"),
+            ("REQ_03", "解释神经调节机制", "academic", "BC_M3_01"),
         ],
     )
 
