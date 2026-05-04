@@ -38,6 +38,7 @@ async def _check_student_in_scope(
 ) -> tuple[Student | None, str | None]:
     """校验 student 的 class_id 是否在 ctx.class_ids 中。
 
+    Parent 角色通过 guardian link 校验（不依赖 class_ids）。
     Returns: (student, error_msg). error_msg 非 None 表示越权。
     """
     student = (
@@ -45,6 +46,17 @@ async def _check_student_in_scope(
     ).scalar_one_or_none()
     if student is None:
         return None, f"student '{student_id}' not found"
+    if ctx.role == "parent":
+        from edu_cloud.models.guardian import GuardianStudentLink
+        link = (await ctx.db.execute(
+            select(GuardianStudentLink).where(
+                GuardianStudentLink.guardian_user_id == ctx.user_id,
+                GuardianStudentLink.student_id == student_id,
+            )
+        )).scalar_one_or_none()
+        if link is None:
+            return student, f"student '{student_id}' not linked to parent"
+        return student, None
     if ctx.class_ids is None:
         return student, None
     if student.class_id not in ctx.class_ids:
@@ -516,6 +528,7 @@ async def get_class_conduct_overview(input: dict, ctx: ToolContext) -> ToolResul
     risk_level="low",
     is_read_only=True,
     sensitivity="student",
+    allowed_roles=["homeroom_teacher", "academic_director", "principal", "grade_leader"],
 )
 async def analyze_student_behavior(input: dict, ctx: ToolContext) -> ToolResult:
     student_id = input.get("student_id", "")
