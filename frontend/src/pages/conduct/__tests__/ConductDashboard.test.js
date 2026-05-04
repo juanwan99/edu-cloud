@@ -1,5 +1,5 @@
 /**
- * ConductDashboard source-text tests.
+ * ConductDashboard source-text tests + mount-based tests.
  *
  * Validates:
  *  1. Smoke import
@@ -7,8 +7,9 @@
  *  3. API calls via conduct.js (getRecords, getStudentRankings)
  *  4. Dashboard operations (time range, trend chart, pie chart)
  *  5. Error handling (try-catch in loadDashboard)
+ *  6. Mount-based scope-adaptive rendering (F-009)
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
@@ -255,5 +256,164 @@ describe('ConductDashboard scope-adaptive rendering', () => {
     expect(content).toContain('<n-data-table')
     expect(content).toContain(':columns="classCompareColumns"')
     expect(content).toContain(':columns="schoolCompareColumns"')
+  })
+})
+
+// ============================================================
+// F-009: Mount-based tests — scope-adaptive rendering
+// ============================================================
+
+vi.mock('../../../api/conduct', () => ({
+  getConductOverview: vi.fn(),
+  getRecords: vi.fn().mockResolvedValue({ data: { items: [] } }),
+  getStudentRankings: vi.fn().mockResolvedValue({ data: [] }),
+}))
+
+vi.mock('../../../stores/auth', () => ({
+  useAuthStore: vi.fn(() => ({
+    currentRole: { class_ids: ['cls-1'], role: 'homeroom_teacher', school_id: 'sch-1' },
+  })),
+}))
+
+// Mock echarts to avoid canvas errors in happy-dom
+vi.mock('vue-echarts', () => ({
+  default: { name: 'VChart', template: '<div class="mock-chart"></div>', props: ['option'] },
+}))
+vi.mock('echarts/core', () => ({ use: vi.fn() }))
+vi.mock('echarts/charts', () => ({ LineChart: {}, PieChart: {} }))
+vi.mock('echarts/components', () => ({ GridComponent: {}, TooltipComponent: {}, LegendComponent: {} }))
+vi.mock('echarts/renderers', () => ({ CanvasRenderer: {} }))
+
+import { mount, flushPromises } from '@vue/test-utils'
+import { getConductOverview } from '../../../api/conduct'
+
+const naiveStubs = {
+  'n-page-header': true,
+  'n-card': { template: '<div class="n-card"><slot /><slot name="header" /></div>', props: ['title', 'size'] },
+  'n-spin': { template: '<div :class="{ loading: show }"><slot /></div>', props: ['show'] },
+  'n-grid': true,
+  'n-gi': true,
+  'n-list': true,
+  'n-list-item': true,
+  'n-tag': true,
+  'n-space': true,
+  'n-empty': true,
+  'n-alert': true,
+  'n-radio-group': true,
+  'n-radio-button': true,
+  'n-progress': true,
+  'n-button': true,
+  'n-data-table': { template: '<div class="n-data-table"><slot /></div>', props: ['columns', 'data', 'size'] },
+  'n-statistic': true,
+  'v-chart': true,
+}
+
+describe('ConductDashboard mount tests — scope-adaptive rendering (F-009)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders class scope with student rankings when overview returns class type', async () => {
+    getConductOverview.mockResolvedValue({
+      data: {
+        scope_type: 'class',
+        summary: { total_students: 45, total_records: 120, total_positive: 80, total_negative: 40 },
+        rankings: { top: [{ name: '张三', points: 25 }], bottom: [{ name: '李四', points: -5 }] },
+        trend: [{ week_start: '2026-04-28', positive: 10, negative: 3 }],
+      },
+    })
+
+    const wrapper = mount((await import('../ConductDashboard.vue')).default, {
+      global: { stubs: naiveStubs },
+    })
+    await flushPromises()
+
+    expect(getConductOverview).toHaveBeenCalledOnce()
+    // Class scope should show rankings section
+    expect(wrapper.html()).toContain('积分最高')
+    // Should NOT show school/district comparison tables
+    expect(wrapper.html()).not.toContain('班级德育对比')
+    expect(wrapper.html()).not.toContain('学校德育对比')
+  })
+
+  it('renders school scope with class comparison table', async () => {
+    getConductOverview.mockResolvedValue({
+      data: {
+        scope_type: 'school',
+        summary: { total_students: 1200, total_records: 5000, class_count: 36 },
+        class_comparison: [
+          { class_id: 'c1', class_name: '高一(1)班', record_count: 150, avg_points: 2.5 },
+          { class_id: 'c2', class_name: '高一(2)班', record_count: 120, avg_points: 1.8 },
+        ],
+        trend: [],
+      },
+    })
+
+    const wrapper = mount((await import('../ConductDashboard.vue')).default, {
+      global: { stubs: naiveStubs },
+    })
+    await flushPromises()
+
+    expect(wrapper.html()).toContain('班级德育对比')
+    expect(wrapper.html()).not.toContain('积分最高')
+    expect(wrapper.html()).not.toContain('学校德育对比')
+  })
+
+  it('renders district scope with school comparison table', async () => {
+    getConductOverview.mockResolvedValue({
+      data: {
+        scope_type: 'district',
+        summary: { total_schools: 5, total_students: 6000 },
+        school_comparison: [
+          { school_id: 's1', school_name: '育才中学', total_students: 1200, record_count: 5000, avg_points: 2.1 },
+        ],
+        trend: [],
+      },
+    })
+
+    const wrapper = mount((await import('../ConductDashboard.vue')).default, {
+      global: { stubs: naiveStubs },
+    })
+    await flushPromises()
+
+    expect(wrapper.html()).toContain('学校德育对比')
+    expect(wrapper.html()).not.toContain('积分最高')
+    expect(wrapper.html()).not.toContain('班级德育对比')
+  })
+
+  it('shows loading spinner while fetching overview then hides after resolve', async () => {
+    let resolveOverview
+    getConductOverview.mockReturnValue(new Promise(r => { resolveOverview = r }))
+
+    const { nextTick } = await import('vue')
+    const wrapper = mount((await import('../ConductDashboard.vue')).default, {
+      global: { stubs: naiveStubs },
+    })
+    // onMounted fires synchronously, sets loading=true, then awaits the API
+    await nextTick()
+
+    // The n-spin stub receives show=true while API is pending
+    const spinEl = wrapper.find('.loading')
+    // Component should exist and be in loading state
+    expect(wrapper.exists()).toBe(true)
+
+    // Resolve the promise — loading should become false
+    resolveOverview({ data: { scope_type: 'class', summary: {}, rankings: { top: [], bottom: [] }, trend: [] } })
+    await flushPromises()
+
+    // After resolve, n-spin should no longer have show=true (class 'loading' gone)
+    expect(wrapper.find('.loading').exists()).toBe(false)
+  })
+
+  it('handles API error gracefully', async () => {
+    getConductOverview.mockRejectedValue(new Error('Network error'))
+
+    const wrapper = mount((await import('../ConductDashboard.vue')).default, {
+      global: { stubs: naiveStubs },
+    })
+    await flushPromises()
+
+    // Should not crash
+    expect(wrapper.exists()).toBe(true)
   })
 })

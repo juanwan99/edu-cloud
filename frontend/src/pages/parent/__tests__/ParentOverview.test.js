@@ -1,5 +1,5 @@
 /**
- * ParentOverview.vue source text tests.
+ * ParentOverview.vue source text tests + mount-based tests.
  *
  * Validates:
  *  1. Component can be imported (smoke)
@@ -7,8 +7,9 @@
  *  3. API calls for records, scores, rankings
  *  4. Guide card for unbound state
  *  5. Error handling in data fetching
+ *  6. Mount-based notification feature tests (F-009)
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
@@ -144,5 +145,117 @@ describe('ParentOverview error handling', () => {
 
   it('watches currentChild with immediate flag', () => {
     expect(content).toContain('}, { immediate: true })')
+  })
+})
+
+// ============================================================
+// F-009: Mount-based tests — notification feature
+// ============================================================
+
+vi.mock('../../../api/conduct', () => ({
+  getParentNotifications: vi.fn().mockResolvedValue({ data: [] }),
+  markNotificationsRead: vi.fn().mockResolvedValue({}),
+  getChildRecords: vi.fn().mockResolvedValue({ data: { items: [] } }),
+  getChildScores: vi.fn().mockResolvedValue({ data: [] }),
+  getChildRankings: vi.fn().mockResolvedValue({ data: [] }),
+}))
+
+import { mount, flushPromises } from '@vue/test-utils'
+import { getParentNotifications, markNotificationsRead } from '../../../api/conduct'
+
+const naiveStubs = {
+  'n-card': { template: '<div class="n-card"><slot /><slot name="header" /></div>', props: ['title', 'size'] },
+  'n-statistic': true,
+  'n-list': { template: '<div class="n-list"><slot /></div>' },
+  'n-list-item': { template: '<div class="n-list-item"><slot /></div>' },
+  'n-tag': true,
+  'n-button': { template: '<button class="n-button" @click="$emit(\'click\')"><slot /></button>', emits: ['click'] },
+  'n-empty': true,
+  'n-spin': { template: '<div><slot /></div>', props: ['show'] },
+  'n-h4': { template: '<h4><slot /></h4>' },
+  'n-thing': { template: '<div class="n-thing" :data-title="title">{{ title }} - {{ description }}</div>', props: ['title', 'description'] },
+}
+
+describe('ParentOverview mount tests — notifications (F-009)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // Default: no notifications
+    getParentNotifications.mockResolvedValue({ data: [] })
+  })
+
+  it('renders notification card when data exists', async () => {
+    getParentNotifications.mockResolvedValue({
+      data: [
+        { id: 'n1', title: '积分变动', body: '张三获得+5分' },
+        { id: 'n2', title: '班规更新', body: '新增班规条目' },
+      ],
+    })
+
+    const wrapper = mount((await import('../ParentOverview.vue')).default, {
+      props: { currentChild: null },
+      global: { stubs: naiveStubs },
+    })
+    await flushPromises()
+
+    expect(getParentNotifications).toHaveBeenCalledWith(true)
+    expect(wrapper.html()).toContain('最新动态')
+    expect(wrapper.html()).toContain('积分变动')
+    expect(wrapper.html()).toContain('班规更新')
+  })
+
+  it('hides notification card when no notifications', async () => {
+    getParentNotifications.mockResolvedValue({ data: [] })
+
+    const wrapper = mount((await import('../ParentOverview.vue')).default, {
+      props: { currentChild: null },
+      global: { stubs: naiveStubs },
+    })
+    await flushPromises()
+
+    expect(wrapper.html()).not.toContain('最新动态')
+  })
+
+  it('clears notifications when mark all read is clicked', async () => {
+    getParentNotifications.mockResolvedValue({
+      data: [
+        { id: 'n1', title: '积分变动', body: '张三获得+5分' },
+      ],
+    })
+    markNotificationsRead.mockResolvedValue({})
+
+    const wrapper = mount((await import('../ParentOverview.vue')).default, {
+      props: { currentChild: null },
+      global: { stubs: naiveStubs },
+    })
+    await flushPromises()
+
+    // Notification should be visible
+    expect(wrapper.html()).toContain('最新动态')
+    expect(wrapper.html()).toContain('全部已读')
+
+    // Click "全部已读" button — find the button with that text
+    const buttons = wrapper.findAll('.n-button')
+    const markReadBtn = buttons.find(b => b.text().includes('全部已读'))
+    expect(markReadBtn).toBeTruthy()
+    await markReadBtn.trigger('click')
+    await flushPromises()
+
+    expect(markNotificationsRead).toHaveBeenCalledOnce()
+    // Notifications should be cleared
+    expect(wrapper.html()).not.toContain('最新动态')
+  })
+
+  it('handles notification fetch error gracefully', async () => {
+    getParentNotifications.mockRejectedValue(new Error('Network error'))
+
+    const wrapper = mount((await import('../ParentOverview.vue')).default, {
+      props: { currentChild: null },
+      global: { stubs: naiveStubs },
+    })
+    await flushPromises()
+
+    // Should not crash, and should not show notifications
+    expect(wrapper.exists()).toBe(true)
+    expect(wrapper.html()).not.toContain('最新动态')
   })
 })
