@@ -32,3 +32,18 @@ export async function getStatsOverview(module = 'all') {
   })
   return resp.data
 }
+
+export async function getCourseMapOverview() {
+  const resp = await client.get('/knowledge-tree/course-map/overview')
+  return resp.data
+}
+
+export async function getCourseMapModule(module) {
+  const resp = await client.get(`/knowledge-tree/course-map/module/${module}`)
+  return resp.data
+}
+
+export async function getCourseMapStudyUnit(suId) {
+  const resp = await client.get(`/knowledge-tree/course-map/study-unit/${encodeURIComponent(suId)}`)
+  return resp.data
+}

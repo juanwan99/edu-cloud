@@ -1,5 +1,8 @@
 import { ref, computed } from 'vue'
-import { getGraph, getMastery, editGraph, qualityCheck, getStatsOverview } from '../../api/knowledgeTree'
+import {
+  getGraph, getMastery, editGraph, qualityCheck, getStatsOverview,
+  getCourseMapOverview, getCourseMapModule, getCourseMapStudyUnit,
+} from '../../api/knowledgeTree'
 
 export function useKnowledgeTree() {
   const navigationData = ref([])
@@ -9,6 +12,9 @@ export function useKnowledgeTree() {
   const qualitySummary = ref(null)
   const modulesQuality = ref({})
   const statsOverview = ref(null)
+  const courseMapOverview = ref(null)
+  const courseMapModule = ref(null)
+  const courseMapStudyUnit = ref(null)
   const loading = ref(false)
   const selectedModule = ref('all')
   const selectedStudentId = ref(null)
@@ -87,11 +93,37 @@ export function useKnowledgeTree() {
     }
   }
 
+  async function loadCourseMapOverview() {
+    try {
+      courseMapOverview.value = await getCourseMapOverview()
+    } catch (e) {
+      courseMapOverview.value = null
+    }
+  }
+
+  async function loadCourseMapModule(module) {
+    try {
+      courseMapModule.value = await getCourseMapModule(module)
+    } catch (e) {
+      courseMapModule.value = null
+    }
+  }
+
+  async function loadCourseMapStudyUnit(suId) {
+    try {
+      courseMapStudyUnit.value = await getCourseMapStudyUnit(suId)
+    } catch (e) {
+      courseMapStudyUnit.value = null
+    }
+  }
+
   return {
     navigationData, graphData, masteryData, qualityIssues, qualitySummary,
     modulesQuality, statsOverview,
+    courseMapOverview, courseMapModule, courseMapStudyUnit,
     loading, selectedModule, selectedStudentId, moduleMastery, nodesWithMastery,
     loadGraph, loadMastery, loadQuality, loadAllModulesQuality, loadStatsOverview, applyEdit,
+    loadCourseMapOverview, loadCourseMapModule, loadCourseMapStudyUnit,
   }
 }
 
