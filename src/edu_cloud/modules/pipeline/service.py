@@ -273,15 +273,14 @@ async def generate_exam_snapshots(db: AsyncSession, *, exam_id: str, school_id: 
                 .join(ConceptGraphNode, ConceptGraphNode.id == QuestionKnowledgePoint.concept_id)
                 .where(QuestionKnowledgePoint.question_id.in_(q_ids))
             )
-            q_to_kp: dict[str, tuple[str, str]] = {}
+            q_to_kp: dict[str, list[tuple[str, str]]] = {}
             for q_id, concept_id, concept_name in kp_links.all():
-                q_to_kp[q_id] = (concept_id, concept_name)
+                q_to_kp.setdefault(q_id, []).append((concept_id, concept_name))
 
             for stu_id, scores_list in eff_scores.items():
                 kp_agg: dict[str, dict] = {}
                 for q_id, eff, max_s in scores_list:
-                    if q_id in q_to_kp:
-                        concept_id, concept_name = q_to_kp[q_id]
+                    for concept_id, concept_name in q_to_kp.get(q_id, []):
                         if concept_id not in kp_agg:
                             kp_agg[concept_id] = {"name": concept_name, "score": 0, "max": 0}
                         kp_agg[concept_id]["score"] += eff
