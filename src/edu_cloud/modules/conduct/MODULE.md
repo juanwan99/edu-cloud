@@ -44,6 +44,8 @@ depends_on:
     - add_conduct_points
     - get_conduct_rules
     - get_class_conduct_overview
+    - analyze_student_behavior
+    - get_class_behavior_insights
 
 created: 2026-04-12
 last_reviewed: 2026-04-14
@@ -60,5 +62,5 @@ design_docs:
 
 ## 边界
 
-- **做什么**：积分 CRUD + 班规 CRUD + 排行榜 + 小组管理 + 学期管理 + 家长门户 + PII 加密 + 6 AI 工具
+- **做什么**：积分 CRUD + 班规 CRUD + 排行榜 + 小组管理 + 学期管理 + 家长门户 + PII 加密 + 8 AI 工具
 - **不做什么**：学生基本信息(student) / 成绩考试(exam/analytics) / 通知推送(notifications) / AI Chat 入口(ai)

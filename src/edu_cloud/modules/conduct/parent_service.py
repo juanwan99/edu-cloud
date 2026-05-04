@@ -2,6 +2,7 @@
 import logging
 import random
 import string
+from datetime import date, timedelta
 
 from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -564,6 +565,100 @@ async def get_child_error_book(
             }
             for e in items
         ],
+    }
+
+
+async def get_child_behavior_summary(
+    db: AsyncSession, user_id: str, student_id: str, days: int = 30,
+) -> dict:
+    """Simplified behavior summary for parent-facing endpoint."""
+    await _verify_guardian_link(db, user_id, student_id)
+
+    student = (
+        await db.execute(select(Student).where(Student.id == student_id))
+    ).scalar_one_or_none()
+    if not student:
+        raise NotFoundError("未找到学生")
+
+    since = date.today() - timedelta(days=days)
+    midpoint = date.today() - timedelta(days=days // 2)
+
+    # All records in the period
+    stmt = (
+        select(ConductRecord)
+        .where(
+            ConductRecord.student_id == student_id,
+            ConductRecord.date >= since,
+        )
+        .order_by(ConductRecord.date.asc())
+    )
+    records = (await db.execute(stmt)).scalars().all()
+
+    # Split into two halves for trend
+    first_half = [r for r in records if r.date < midpoint]
+    second_half = [r for r in records if r.date >= midpoint]
+
+    first_avg = (sum(r.points for r in first_half) / len(first_half)) if first_half else 0
+    second_avg = (sum(r.points for r in second_half) / len(second_half)) if second_half else 0
+
+    if not first_half and not second_half:
+        trend = "stable"
+    elif first_avg == 0 and second_avg == 0:
+        trend = "stable"
+    elif first_avg == 0:
+        trend = "improving" if second_avg > 0 else "declining"
+    else:
+        ratio = (second_avg - first_avg) / abs(first_avg) if first_avg != 0 else 0
+        if ratio > 0.1:
+            trend = "improving"
+        elif ratio < -0.1:
+            trend = "declining"
+        else:
+            trend = "stable"
+
+    trend_labels = {
+        "improving": "进步中",
+        "declining": "需关注",
+        "stable": "保持稳定",
+    }
+
+    total_points = sum(r.points for r in records)
+    positive_count = sum(1 for r in records if r.points > 0)
+    negative_count = sum(1 for r in records if r.points < 0)
+
+    # Top 3 deduction reasons (just reason text)
+    neg_stmt = (
+        select(ConductRecord.reason)
+        .where(
+            ConductRecord.student_id == student_id,
+            ConductRecord.date >= since,
+            ConductRecord.points < 0,
+        )
+        .group_by(ConductRecord.reason)
+        .order_by(func.count().desc())
+        .limit(3)
+    )
+    neg_rows = (await db.execute(neg_stmt)).scalars().all()
+    top_issues = list(neg_rows)
+
+    # Positive streak: consecutive positive from most recent
+    streak = 0
+    if records:
+        for r in reversed(records):
+            if r.points > 0:
+                streak += 1
+            else:
+                break
+
+    return {
+        "student_name": student.name,
+        "trend": trend,
+        "trend_label": trend_labels[trend],
+        "total_points": total_points,
+        "positive_count": positive_count,
+        "negative_count": negative_count,
+        "top_issues": top_issues,
+        "positive_streak_days": streak,
     }
 
 

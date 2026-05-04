@@ -94,6 +94,19 @@ async def parent_children(
     return await parent_service.get_children(db, user.id)
 
 
+@router.get("/parent/children/{student_id}/behavior-summary")
+async def get_child_behavior_summary(
+    student_id: str,
+    days: int = 30,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Get simplified behavior summary for a bound child (parent-facing)."""
+    return await parent_service.get_child_behavior_summary(
+        db, current_user["user"].id, student_id, days=days,
+    )
+
+
 @router.get("/parent/children/{student_id}/records")
 async def get_child_records(
     student_id: str,
