@@ -1,19 +1,12 @@
 <template>
   <div>
-    <n-page-header title="德育概览" class="section-gap">
-      <template #extra>
-        <n-radio-group
-          v-if="scopeType === 'class'"
-          v-model:value="timeRange"
-          size="small"
-          @update:value="loadDashboard"
-        >
-          <n-radio-button value="week">本周</n-radio-button>
-          <n-radio-button value="month">本月</n-radio-button>
-          <n-radio-button value="semester">本学期</n-radio-button>
-        </n-radio-group>
-      </template>
-    </n-page-header>
+    <div v-if="scopeType === 'class'" style="margin-bottom: var(--space-4); text-align: right;">
+      <n-radio-group v-model:value="timeRange" size="small" @update:value="loadDashboard">
+        <n-radio-button value="week">本周</n-radio-button>
+        <n-radio-button value="month">本月</n-radio-button>
+        <n-radio-button value="semester">本学期</n-radio-button>
+      </n-radio-group>
+    </div>
 
     <n-spin :show="loading">
       <!-- Summary cards (all scopes) -->
@@ -121,7 +114,7 @@
           </n-list>
           <n-empty v-else description="暂无记录">
             <template #extra>
-              <n-button type="primary" size="small" @click="$router.push({ name: 'ConductPoints' })">去记积分</n-button>
+              <n-button type="primary" size="small" @click="$router.push({ path: '/conduct', query: { tab: 'points' } })">去记积分</n-button>
             </template>
           </n-empty>
         </n-spin>
@@ -130,9 +123,9 @@
       <!-- Quick actions -->
       <n-card size="small">
         <n-space justify="center" :size="16">
-          <n-button type="primary" @click="$router.push({ name: 'ConductPoints' })">记积分</n-button>
-          <n-button type="info" @click="$router.push({ name: 'ConductRankings' })">查排行</n-button>
-          <n-button type="default" @click="$router.push({ name: 'ConductExport' })">导出</n-button>
+          <n-button type="primary" @click="$router.push({ path: '/conduct', query: { tab: 'points' } })">记积分</n-button>
+          <n-button type="info" @click="$router.push({ path: '/conduct', query: { tab: 'rankings' } })">查排行</n-button>
+          <n-button type="default" @click="$router.push({ path: '/conduct', query: { tab: 'records' } })">查记录</n-button>
         </n-space>
       </n-card>
       </template>
@@ -171,7 +164,7 @@
 <script setup>
 import { h, ref, computed, onMounted } from 'vue'
 import {
-  NPageHeader, NGrid, NGi, NCard, NList, NListItem,
+  NGrid, NGi, NCard, NList, NListItem,
   NTag, NSpace, NSpin, NEmpty, NRadioGroup, NRadioButton,
   NProgress, NButton, NDataTable,
 } from 'naive-ui'

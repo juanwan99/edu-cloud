@@ -28,9 +28,9 @@ describe('ConductSettings smoke', () => {
 })
 
 describe('ConductSettings template sections', () => {
-  it('contains page header with title and subtitle', () => {
-    expect(content).toContain('title="德育设置"')
-    expect(content).toContain('班级操行管理配置')
+  it('contains class-not-selected alert and invite code management', () => {
+    expect(content).toContain('v-if="!classId"')
+    expect(content).toContain('title="邀请码管理"')
   })
 
   it('contains class-not-selected alert', () => {

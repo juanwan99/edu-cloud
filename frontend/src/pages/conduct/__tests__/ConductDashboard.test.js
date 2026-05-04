@@ -29,8 +29,9 @@ describe('ConductDashboard smoke', () => {
 })
 
 describe('ConductDashboard template sections', () => {
-  it('contains page header with title', () => {
-    expect(content).toContain('title="德育概览"')
+  it('contains time range radio group directly in div', () => {
+    expect(content).toContain('<n-radio-group')
+    expect(content).toContain('v-model:value="timeRange"')
   })
 
   it('contains time range radio group (week/month/semester)', () => {
@@ -68,13 +69,13 @@ describe('ConductDashboard template sections', () => {
     expect(content).toContain('recentRecords')
   })
 
-  it('contains quick action buttons', () => {
-    expect(content).toContain("name: 'ConductPoints'")
-    expect(content).toContain("name: 'ConductRankings'")
-    expect(content).toContain("name: 'ConductExport'")
+  it('contains quick action buttons with tab query navigation', () => {
+    expect(content).toContain("path: '/conduct', query: { tab: 'points' }")
+    expect(content).toContain("path: '/conduct', query: { tab: 'rankings' }")
+    expect(content).toContain("path: '/conduct', query: { tab: 'records' }")
     expect(content).toContain('记积分')
     expect(content).toContain('查排行')
-    expect(content).toContain('导出')
+    expect(content).toContain('查记录')
   })
 })
 

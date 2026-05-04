@@ -1,10 +1,8 @@
 <template>
   <div>
-    <n-page-header title="小组管理" subtitle="创建和管理班级小组" class="section-gap">
-      <template #extra>
-        <n-button type="primary" @click="openCreateGroup">创建小组</n-button>
-      </template>
-    </n-page-header>
+    <div style="display: flex; justify-content: flex-end; margin-bottom: var(--space-4);">
+      <n-button type="primary" @click="openCreateGroup">创建小组</n-button>
+    </div>
 
     <n-alert v-if="!classId" type="warning" title="未选择班级" class="section-gap">
       当前角色未关联班级，请切换到班主任角色。
@@ -101,7 +99,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import {
-  NPageHeader, NGrid, NGi, NCard, NButton, NSpace, NTag, NList,
+  NGrid, NGi, NCard, NButton, NSpace, NTag, NList,
   NListItem, NModal, NForm, NFormItem, NInput, NDrawer, NDrawerContent,
   NSelect, NPopconfirm, NDivider, NEmpty, NSpin, NAlert, useMessage,
 } from 'naive-ui'

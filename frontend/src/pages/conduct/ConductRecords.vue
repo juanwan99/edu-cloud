@@ -1,6 +1,5 @@
 <template>
   <div>
-    <n-page-header title="积分记录" subtitle="查看和管理所有操行积分变动" style="margin-bottom: var(--space-4);" />
 
     <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: var(--space-4);">
       当前角色未关联班级，请切换到班主任角色。
@@ -60,6 +59,7 @@
             @update:value="handleFilterChange"
           />
           <n-button @click="resetFilters">重置</n-button>
+          <n-button type="primary" ghost :loading="exporting" @click="handleExportRecords">导出记录</n-button>
         </n-space>
       </n-card>
 
@@ -99,11 +99,11 @@
 <script setup>
 import { ref, computed, onMounted, h } from 'vue'
 import {
-  NPageHeader, NCard, NDataTable, NInput, NDatePicker, NButton,
+  NCard, NDataTable, NInput, NDatePicker, NButton,
   NSpace, NSpin, NTag, NPopconfirm, NAlert, NSelect, useMessage,
 } from 'naive-ui'
 import { useAuthStore } from '../../stores/auth'
-import { getRecords, deleteRecord } from '../../api/conduct'
+import { getRecords, deleteRecord, exportRecords } from '../../api/conduct'
 
 const auth = useAuthStore()
 const message = useMessage()
@@ -297,6 +297,31 @@ async function handleBatchDelete() {
     await loadWeekStats()
   } else {
     message.error('删除失败')
+  }
+}
+
+const exporting = ref(false)
+
+async function handleExportRecords() {
+  exporting.value = true
+  try {
+    const params = {}
+    if (dateRange.value) {
+      params.start_date = new Date(dateRange.value[0]).toISOString().split('T')[0]
+      params.end_date = new Date(dateRange.value[1]).toISOString().split('T')[0]
+    }
+    const res = await exportRecords(classId.value, params)
+    const url = window.URL.createObjectURL(new Blob([res.data]))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `conduct-records-${new Date().toISOString().slice(0, 10)}.xlsx`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (e) {
+    message.error(e.response?.data?.detail || '导出失败')
+  } finally {
+    exporting.value = false
   }
 }
 

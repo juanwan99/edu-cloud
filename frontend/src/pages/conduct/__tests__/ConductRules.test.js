@@ -28,9 +28,10 @@ describe('ConductRules smoke', () => {
 })
 
 describe('ConductRules template sections', () => {
-  it('contains page header with title and subtitle', () => {
-    expect(content).toContain('title="班规管理"')
-    expect(content).toContain('管理积分规则分类和条目')
+  it('contains add category button in top bar', () => {
+    expect(content).toContain('display: flex')
+    expect(content).toContain('@click="showAddCategory = true"')
+    expect(content).toContain('添加分类')
   })
 
   it('contains add category button in header', () => {

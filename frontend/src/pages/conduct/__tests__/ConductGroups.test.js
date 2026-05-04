@@ -28,9 +28,10 @@ describe('ConductGroups smoke', () => {
 })
 
 describe('ConductGroups template sections', () => {
-  it('contains page header with title and subtitle', () => {
-    expect(content).toContain('title="小组管理"')
-    expect(content).toContain('创建和管理班级小组')
+  it('contains create group button in top bar', () => {
+    expect(content).toContain('display: flex')
+    expect(content).toContain('@click="openCreateGroup"')
+    expect(content).toContain('创建小组')
   })
 
   it('contains create group button in header', () => {
