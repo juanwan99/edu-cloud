@@ -312,3 +312,134 @@ async def test_sync_skipped_branch_computes_stats_when_empty(db, knowledge_db_pa
     assert len(call_log) == 2, (
         f"F001: skipped 分支在 stats 为空时未触发补算，call_log={call_log}"
     )
+
+
+# --- P0-R1: 三层树 + edge evidence 测试 ---
+
+def _create_test_knowledge_db_v2(path: str):
+    """新 schema fixture：含 study_units 完整列 + edge evidence。"""
+    conn = sqlite3.connect(path)
+    conn.execute("""CREATE TABLE concepts (
+        id TEXT PRIMARY KEY, name TEXT, knowledge_level TEXT, description TEXT,
+        difficulty INTEGER, bloom_level TEXT, aliases_json TEXT, evidence_ids_json TEXT, review_status TEXT
+    )""")
+    # M1: 2 concepts, M2: 1 concept
+    conn.execute("INSERT INTO concepts VALUES ('BIO_SR_CP_M1_A','光合作用','L1','光合描述',4,'apply',NULL,NULL,'ai_draft')")
+    conn.execute("INSERT INTO concepts VALUES ('BIO_SR_CP_M1_B','细胞分裂','L1','分裂描述',3,'understand',NULL,NULL,'ai_draft')")
+    conn.execute("INSERT INTO concepts VALUES ('BIO_SR_CP_M2_C','基因突变','L1','突变描述',5,'analyze',NULL,NULL,'ai_draft')")
+
+    conn.execute("""CREATE TABLE concept_relations (
+        source_id TEXT, target_id TEXT, relation_type TEXT, strength REAL, confidence REAL,
+        evidence TEXT, pedagogical_use TEXT
+    )""")
+    conn.execute("INSERT INTO concept_relations VALUES ('BIO_SR_CP_M1_A','BIO_SR_CP_M1_B','prerequisite_hard',1.0,0.9,'教材第三章实验证据','diagnosis')")
+    conn.execute("INSERT INTO concept_relations VALUES ('BIO_SR_CP_M1_B','BIO_SR_CP_M2_C','related',0.8,0.7,NULL,NULL)")
+
+    conn.execute("""CREATE TABLE study_units (
+        id TEXT PRIMARY KEY, name TEXT, description TEXT, source_concept_ids TEXT,
+        module TEXT, estimated_minutes INTEGER, linked_da_ids TEXT
+    )""")
+    conn.execute("""INSERT INTO study_units VALUES ('su:bio_sr:m1_001','光合作用单元','单元描述','["BIO_SR_CP_M1_A"]','M1',45,'["da:bio_sr:m1_001"]')""")
+    conn.execute("""INSERT INTO study_units VALUES ('su:bio_sr:m1_002','细胞分裂单元','单元描述','["BIO_SR_CP_M1_B"]','M1',30,NULL)""")
+    conn.execute("""INSERT INTO study_units VALUES ('su:bio_sr:m2_001','基因突变单元','单元描述','["BIO_SR_CP_M2_C"]','M2',60,NULL)""")
+
+    conn.execute("CREATE TABLE diagnostic_attributes (id TEXT PRIMARY KEY, name TEXT, linked_concept_ids TEXT, observable_behaviors TEXT, common_cause_families TEXT, required_evidence_modes TEXT, common_errors TEXT, description TEXT)")
+    conn.execute("""INSERT INTO diagnostic_attributes VALUES ('da:bio_sr:m1_001','DA1','["BIO_SR_CP_M1_A"]','["obs"]','["gap"]','["recall"]','[]','d')""")
+
+    # 不创建 big_concepts / map 表（测试三层树不需要 BC）
+    conn.commit()
+    conn.close()
+
+
+@pytest.fixture
+def knowledge_db_v2(tmp_path):
+    p = str(tmp_path / "knowledge.db")
+    _create_test_knowledge_db_v2(p)
+    return p
+
+
+@pytest.mark.asyncio
+async def test_sync_three_layer_tree(db, knowledge_db_v2):
+    """R1: 验证 module → study_unit → concept 三层投影精确。"""
+    from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
+    r = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_v2)
+    assert r["status"] == "synced"
+
+    # 节点：2 modules (M1,M2) + 3 study_units + 3 concepts = 8
+    assert r["nodes"] == 8
+
+    modules = (await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.node_type == "module")
+    )).scalars().all()
+    assert len(modules) == 2
+    mod_ids = {m.id for m in modules}
+    assert mod_ids == {"mod:bio_sr:M1", "mod:bio_sr:M2"}
+
+    sus = (await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.node_type == "study_unit")
+    )).scalars().all()
+    assert len(sus) == 3
+    su_ids = {s.id for s in sus}
+    assert su_ids == {"su:bio_sr:m1_001", "su:bio_sr:m1_002", "su:bio_sr:m2_001"}
+
+    concepts = (await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.node_type == "concept")
+    )).scalars().all()
+    assert len(concepts) == 3
+
+    # contains edges: 2 mod→su(M1) + 1 mod→su(M2) + 3 su→concept = 6
+    contains_edges = (await db.execute(
+        select(ConceptGraphEdge).where(ConceptGraphEdge.relation_type == "contains")
+    )).scalars().all()
+    assert len(contains_edges) == 6
+
+    # 验证 mod→su 边
+    mod_su_edges = [(e.source_id, e.target_id) for e in contains_edges if e.target_id.startswith("su:")]
+    assert set(mod_su_edges) == {
+        ("mod:bio_sr:M1", "su:bio_sr:m1_001"),
+        ("mod:bio_sr:M1", "su:bio_sr:m1_002"),
+        ("mod:bio_sr:M2", "su:bio_sr:m2_001"),
+    }
+
+    # 验证 su→concept 边
+    su_concept_edges = [(e.source_id, e.target_id) for e in contains_edges if e.target_id.startswith("BIO_")]
+    assert set(su_concept_edges) == {
+        ("su:bio_sr:m1_001", "BIO_SR_CP_M1_A"),
+        ("su:bio_sr:m1_002", "BIO_SR_CP_M1_B"),
+        ("su:bio_sr:m2_001", "BIO_SR_CP_M2_C"),
+    }
+
+    # concept-relation 边: 2 条
+    rel_edges = (await db.execute(
+        select(ConceptGraphEdge).where(ConceptGraphEdge.relation_type != "contains")
+    )).scalars().all()
+    assert len(rel_edges) == 2
+
+
+@pytest.mark.asyncio
+async def test_sync_edge_evidence_projection(db, knowledge_db_v2):
+    """R1 补充: 验证 knowledge.db concept_relations 的 evidence 和 pedagogical_use 投影到 ConceptGraphEdge。"""
+    from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
+    await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_v2)
+
+    # 有 evidence 的边
+    edge_with_ev = (await db.execute(
+        select(ConceptGraphEdge).where(
+            ConceptGraphEdge.source_id == "BIO_SR_CP_M1_A",
+            ConceptGraphEdge.target_id == "BIO_SR_CP_M1_B",
+            ConceptGraphEdge.relation_type == "prerequisite_hard",
+        )
+    )).scalar_one()
+    assert edge_with_ev.evidence == "教材第三章实验证据"
+    assert edge_with_ev.pedagogical_use == "diagnosis"
+
+    # 无 evidence 的边
+    edge_no_ev = (await db.execute(
+        select(ConceptGraphEdge).where(
+            ConceptGraphEdge.source_id == "BIO_SR_CP_M1_B",
+            ConceptGraphEdge.target_id == "BIO_SR_CP_M2_C",
+            ConceptGraphEdge.relation_type == "related",
+        )
+    )).scalar_one()
+    assert edge_no_ev.evidence is None
+    assert edge_no_ev.pedagogical_use is None
