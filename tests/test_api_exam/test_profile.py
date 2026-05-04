@@ -1,6 +1,6 @@
 import pytest
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern
-from edu_cloud.modules.knowledge.models import KnowledgePoint
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.models.exam import Exam
 from edu_cloud.models.school import School
 
@@ -29,7 +29,8 @@ async def test_create_exam_snapshot(db):
 
 @pytest.mark.asyncio
 async def test_create_knowledge_mastery(db):
-    kp = KnowledgePoint(code="MATH_FUNC", name="函数", course_code="SX", level=1)
+    from datetime import datetime, timezone
+    kp = ConceptGraphNode(id="MATH_FUNC", name="函数", knowledge_level="L1", primary_module="M1", synced_at=datetime.now(timezone.utc), course_code="SX")
     db.add(kp)
     await db.flush()
 
@@ -39,7 +40,7 @@ async def test_create_knowledge_mastery(db):
 
     mastery = StudentKnowledgeMastery(
         school_id=school.id, student_id="stu001",
-        knowledge_point_id=kp.id, mastery_level=0.75,
+        concept_id=kp.id, mastery_level=0.75,
         confidence=0.8, attempt_count=10, correct_count=7,
         trend="improving", recent_scores=[0.6, 0.7, 0.8, 0.75, 0.8],
     )

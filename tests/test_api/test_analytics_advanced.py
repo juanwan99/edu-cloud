@@ -6,7 +6,7 @@ from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import GradingResult
 from edu_cloud.modules.student.models import Class, Student
-from edu_cloud.modules.knowledge.models import KnowledgePoint
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.modules.profile.models import StudentKnowledgeMastery, StudentErrorPattern
 from tests.conftest import *  # noqa
 
@@ -106,12 +106,17 @@ async def test_student_ai_diagnosis_with_mastery(client, school_admin_headers, s
     exam, subj, stu, _ = await _seed_knowledge_exam(db, seed_school)
     school, _ = seed_school
 
-    kp = KnowledgePoint(code="photosynthesis", name="光合作用", school_id=school.id)
+    from datetime import datetime, timezone
+    kp = ConceptGraphNode(
+        id="photosynthesis", name="光合作用", course_code="biology",
+        node_type="concept", knowledge_level="L1", primary_module="M1",
+        synced_at=datetime.now(timezone.utc),
+    )
     db.add(kp)
     await db.flush()
 
     mastery = StudentKnowledgeMastery(
-        student_id=stu.id, knowledge_point_id=kp.id, school_id=school.id,
+        student_id=stu.id, concept_id=kp.id, school_id=school.id,
         mastery_level=0.35, trend="declining", recent_scores=[0.5, 0.4, 0.35],
         last_exam_id=exam.id,
     )

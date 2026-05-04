@@ -1,10 +1,12 @@
 """知识点查询服务（统一到 ConceptGraphNode）。"""
 import logging
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge
 from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+from edu_cloud.services.exceptions import ConflictError
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +56,13 @@ async def link_question(
         question_id=question_id, concept_id=concept_id, is_primary=is_primary,
     )
     db.add(qkp)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise ConflictError(
+            f"Link already exists: question={question_id}, concept={concept_id}"
+        ) from exc
     return qkp
 
 

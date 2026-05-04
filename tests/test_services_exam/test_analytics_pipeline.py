@@ -11,7 +11,8 @@ from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.student.models import Class, Student
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import GradingTask, GradingResult
-from edu_cloud.modules.knowledge.models import KnowledgePoint, QuestionKnowledgePoint
+from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.modules.analytics.models import ClassAnalysis, StudentAnalysis, StudentKnpMastery
 
 
@@ -60,15 +61,16 @@ async def pipeline_data(db: AsyncSession):
     await db.flush()
 
     # Knowledge points (linked to math questions)
-    kp_algebra = KnowledgePoint(code="ALG", name="代数", school_id=school.id)
-    kp_geom = KnowledgePoint(code="GEO", name="几何", school_id=school.id)
+    from datetime import datetime, timezone
+    kp_algebra = ConceptGraphNode(id="ALG", name="代数", knowledge_level="L1", primary_module="M1", synced_at=datetime.now(timezone.utc))
+    kp_geom = ConceptGraphNode(id="GEO", name="几何", knowledge_level="L1", primary_module="M1", synced_at=datetime.now(timezone.utc))
     db.add_all([kp_algebra, kp_geom])
     await db.flush()
     # M1, M2 → algebra; M3 → geometry
     db.add_all([
-        QuestionKnowledgePoint(question_id=mq1.id, knowledge_point_id=kp_algebra.id),
-        QuestionKnowledgePoint(question_id=mq2.id, knowledge_point_id=kp_algebra.id),
-        QuestionKnowledgePoint(question_id=mq3.id, knowledge_point_id=kp_geom.id),
+        QuestionKnowledgePoint(question_id=mq1.id, concept_id=kp_algebra.id),
+        QuestionKnowledgePoint(question_id=mq2.id, concept_id=kp_algebra.id),
+        QuestionKnowledgePoint(question_id=mq3.id, concept_id=kp_geom.id),
     ])
 
     task = GradingTask(
@@ -234,7 +236,7 @@ async def test_student_knp_mastery_populated(db: AsyncSession, pipeline_data):
     assert len(rows) == 8
 
     def find(student_id, knp_id):
-        return next(r for r in rows if r.student_id == student_id and r.knp_id == knp_id)
+        return next(r for r in rows if r.student_id == student_id and r.concept_id == knp_id)
 
     # s1 algebra: (M1=36/40 + M2=24/30) → (36+24)/(40+30) = 60/70 ≈ 0.857
     s1_alg = find(pipeline_data["s1_id"], pipeline_data["kp_algebra_id"])

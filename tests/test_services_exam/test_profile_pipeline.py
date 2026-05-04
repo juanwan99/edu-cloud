@@ -3,7 +3,8 @@ from edu_cloud.models.school import School
 from edu_cloud.models.student import Class, Student
 from edu_cloud.models.exam import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.knowledge.models import KnowledgePoint, QuestionKnowledgePoint
+from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern
 from edu_cloud.modules.bank.models import StudentErrorBook
 from edu_cloud.modules.grading.models import GradingResult, GradingTask
@@ -42,8 +43,9 @@ async def _setup_full_exam(db):
     await db.flush()
 
     # 2 道题，各关联 1 个知识点
-    kp1 = KnowledgePoint(code="MATH_FUNC", name="函数", course_code="SX", level=1)
-    kp2 = KnowledgePoint(code="MATH_TRIG", name="三角函数", course_code="SX", level=1)
+    from datetime import datetime, timezone
+    kp1 = ConceptGraphNode(id="MATH_FUNC", name="函数", knowledge_level="L1", primary_module="M1", synced_at=datetime.now(timezone.utc), course_code="SX")
+    kp2 = ConceptGraphNode(id="MATH_TRIG", name="三角函数", knowledge_level="L1", primary_module="M1", synced_at=datetime.now(timezone.utc), course_code="SX")
     db.add_all([kp1, kp2])
     await db.flush()
 
@@ -52,8 +54,8 @@ async def _setup_full_exam(db):
     db.add_all([q1, q2])
     await db.flush()
 
-    db.add(QuestionKnowledgePoint(question_id=q1.id, knowledge_point_id=kp1.id, is_primary=True))
-    db.add(QuestionKnowledgePoint(question_id=q2.id, knowledge_point_id=kp2.id, is_primary=True))
+    db.add(QuestionKnowledgePoint(question_id=q1.id, concept_id=kp1.id, is_primary=True))
+    db.add(QuestionKnowledgePoint(question_id=q2.id, concept_id=kp2.id, is_primary=True))
     await db.flush()
 
     # 5 个学生的成绩: (q1_score, q2_score)
@@ -281,13 +283,14 @@ async def test_mastery_uses_effective_score(db):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    kp = KnowledgePoint(code="M_EFF_KP", name="测试KP", course_code="SX", level=1)
+    from datetime import datetime, timezone
+    kp = ConceptGraphNode(id="M_EFF_KP", name="测试KP", knowledge_level="L1", primary_module="M1", synced_at=datetime.now(timezone.utc), course_code="SX")
     db.add(kp)
     await db.flush()
     q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     db.add(q)
     await db.flush()
-    db.add(QuestionKnowledgePoint(question_id=q.id, knowledge_point_id=kp.id, is_primary=True))
+    db.add(QuestionKnowledgePoint(question_id=q.id, concept_id=kp.id, is_primary=True))
 
     sa = StudentAnswer(
         exam_id=exam.id, subject_id=subj.id, student_id=stu.id,
@@ -319,7 +322,7 @@ async def test_mastery_uses_effective_score(db):
     mastery_result = await db.execute(
         select(StudentKnowledgeMastery).where(
             StudentKnowledgeMastery.student_id == stu.id,
-            StudentKnowledgeMastery.knowledge_point_id == kp.id,
+            StudentKnowledgeMastery.concept_id == kp.id,
         )
     )
     mastery = mastery_result.scalar_one()
@@ -339,7 +342,7 @@ async def test_mastery_idempotent_same_exam(db):
     m_result = await db.execute(
         select(StudentKnowledgeMastery).where(StudentKnowledgeMastery.student_id == students[0].id)
     )
-    counts_before = {m.knowledge_point_id: m.attempt_count for m in m_result.scalars().all()}
+    counts_before = {m.concept_id: m.attempt_count for m in m_result.scalars().all()}
 
     # 重跑
     updated2 = await update_knowledge_mastery(db, exam_id=exam.id, school_id=school.id)
@@ -350,7 +353,7 @@ async def test_mastery_idempotent_same_exam(db):
         select(StudentKnowledgeMastery).where(StudentKnowledgeMastery.student_id == students[0].id)
     )
     for m in m_result2.scalars().all():
-        assert m.attempt_count == counts_before[m.knowledge_point_id]
+        assert m.attempt_count == counts_before[m.concept_id]
 
 
 @pytest.mark.asyncio

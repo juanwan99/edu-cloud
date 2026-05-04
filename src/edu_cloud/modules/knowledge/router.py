@@ -1,7 +1,7 @@
 """知识点路由 — 从 exam-ai 迁入。"""
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,6 +45,8 @@ async def get_knowledge_point(
     current: dict = Depends(get_current_user),
 ):
     kp = await knowledge_service.get_knowledge_point(db, kp_id=kp_id)
+    if kp is None:
+        raise HTTPException(status_code=404, detail="Knowledge point not found")
     return _kp_response(kp)
 
 
@@ -74,6 +76,7 @@ async def link_question_to_kp(
         db, question_id=req.question_id,
         concept_id=req.concept_id, is_primary=req.is_primary,
     )
+    await db.commit()
     return {"id": link.id, "question_id": link.question_id,
             "concept_id": link.concept_id}
 
