@@ -92,7 +92,7 @@ describe('ConductRecords API calls', () => {
     expect(content).toContain('getRecords(classId.value, {')
     // pagination params
     expect(content).toContain('page: page.value')
-    expect(content).toContain('page_size: pageSize.value')
+    expect(content).toContain('size: pageSize.value')
   })
 
   it('calls deleteRecord for single deletion', () => {
@@ -163,7 +163,7 @@ describe('ConductRecords operations', () => {
   it('loads week stats separately for stat cards', () => {
     expect(content).toContain('async function loadWeekStats()')
     expect(content).toContain('7 * 24 * 60 * 60 * 1000')
-    expect(content).toContain("page_size: 200")
+    expect(content).toContain("size: 200")
   })
 
   it('handles batch delete with success count', () => {

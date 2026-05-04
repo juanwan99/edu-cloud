@@ -94,7 +94,7 @@ describe('ParentOverview API calls', () => {
   })
 
   it('fetches child records', () => {
-    expect(content).toContain('await getChildRecords(child.student_id, { page: 1, page_size: 10 })')
+    expect(content).toContain('await getChildRecords(child.student_id, { page: 1, size: 10 })')
   })
 
   it('fetches latest score', () => {

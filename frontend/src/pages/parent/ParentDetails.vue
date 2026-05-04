@@ -185,7 +185,7 @@ async function fetchRecords() {
   try {
     const params = {
       page: pagination.value.page,
-      page_size: pagination.value.pageSize,
+      size: pagination.value.pageSize,
     }
 
     // Apply date range filter
@@ -211,7 +211,7 @@ async function fetchAllForTrend() {
     // Fetch recent records for trend calculation
     const res = await getChildRecords(props.currentChild.student_id, {
       page: 1,
-      page_size: 200,
+      size: 200,
     })
     const data = res.data
     allRecords.value = data.items || data || []
