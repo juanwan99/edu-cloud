@@ -203,7 +203,7 @@ watch(() => props.currentChild, async (child) => {
     totalPoints.value = child.total_points ?? 0
 
     // Fetch records
-    const recordsRes = await getChildRecords(child.student_id, { page: 1, page_size: 10 })
+    const recordsRes = await getChildRecords(child.student_id, { page: 1, size: 10 })
     records.value = recordsRes.data.items || recordsRes.data || []
 
     // Fetch latest score

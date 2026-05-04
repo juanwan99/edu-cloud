@@ -79,7 +79,7 @@ describe('ParentDetails API calls', () => {
 
   it('fetches all records for trend calculation', () => {
     expect(content).toContain('async function fetchAllForTrend()')
-    expect(content).toContain('page_size: 200')
+    expect(content).toContain('size: 200')
   })
 })
 

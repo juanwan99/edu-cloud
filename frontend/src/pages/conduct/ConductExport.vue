@@ -197,7 +197,7 @@ async function handlePreview() {
   previewing.value = true
   try {
     if (exportType.value === 'records') {
-      const params = { page: 1, page_size: 5 }
+      const params = { page: 1, size: 5 }
       if (dateRange.value && dateRange.value.length === 2) {
         params.start_date = new Date(dateRange.value[0]).toISOString().split('T')[0]
         params.end_date = new Date(dateRange.value[1]).toISOString().split('T')[0]
@@ -268,7 +268,7 @@ async function handleExport() {
       // CSV: fetch data via JSON API, convert client-side
       let allData = []
       if (exportType.value === 'records') {
-        const params = { page: 1, page_size: 9999 }
+        const params = { page: 1, size: 9999 }
         if (dateRange.value && dateRange.value.length === 2) {
           params.start_date = new Date(dateRange.value[0]).toISOString().split('T')[0]
           params.end_date = new Date(dateRange.value[1]).toISOString().split('T')[0]
