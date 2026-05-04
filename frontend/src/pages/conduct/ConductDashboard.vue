@@ -2,7 +2,12 @@
   <div>
     <n-page-header title="德育概览" class="section-gap">
       <template #extra>
-        <n-radio-group v-model:value="timeRange" size="small" @update:value="loadDashboard">
+        <n-radio-group
+          v-if="scopeType === 'class'"
+          v-model:value="timeRange"
+          size="small"
+          @update:value="loadDashboard"
+        >
           <n-radio-button value="week">本周</n-radio-button>
           <n-radio-button value="month">本月</n-radio-button>
           <n-radio-button value="semester">本学期</n-radio-button>
@@ -10,35 +15,19 @@
       </template>
     </n-page-header>
 
-    <n-alert v-if="!classId" type="warning" title="未选择班级" class="section-gap">
-      当前角色未关联班级，请切换到班主任角色。
-    </n-alert>
-
-    <template v-if="classId">
-      <!-- Stats cards -->
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-label">总学生数</div>
-          <div class="stat-value">{{ stats.totalStudents }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">加分总额</div>
+    <n-spin :show="loading">
+      <!-- Summary cards (all scopes) -->
+      <div v-if="overviewData?.summary" class="stats-row">
+        <div v-for="(value, key) in summaryCards" :key="key" class="stat-card">
+          <div class="stat-label">{{ value.label }}</div>
           <div class="stat-value">
-            {{ stats.weeklyPlus }}<span class="stat-suffix" style="color: var(--color-success);">+</span>
+            {{ value.value }}<span v-if="value.suffix" class="stat-suffix" :style="{ color: value.suffixColor }">{{ value.suffix }}</span>
           </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">扣分总额</div>
-          <div class="stat-value">
-            {{ stats.weeklyMinus }}<span class="stat-suffix" style="color: var(--color-danger);">-</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">记录数</div>
-          <div class="stat-value">{{ stats.weeklyCount }}</div>
         </div>
       </div>
 
+      <!-- CLASS scope: existing view -->
+      <template v-if="scopeType === 'class'">
       <!-- Charts row: trend + pie -->
       <n-grid :cols="2" :x-gap="16" class="section-gap">
         <n-gi>
@@ -146,16 +135,45 @@
           <n-button type="default" @click="$router.push({ name: 'ConductExport' })">导出</n-button>
         </n-space>
       </n-card>
-    </template>
+      </template>
+
+      <!-- SCHOOL scope: class comparison table + trend -->
+      <template v-else-if="scopeType === 'school'">
+        <n-card title="班级德育对比" class="section-gap">
+          <n-data-table
+            :columns="classCompareColumns"
+            :data="overviewData?.class_comparison || []"
+            size="small"
+          />
+        </n-card>
+        <n-card title="积分趋势（最近 4 周）" size="small" class="section-gap" v-if="overviewData?.trend?.length">
+          <v-chart :option="overviewTrendOption" class="chart-height-sm" autoresize />
+        </n-card>
+      </template>
+
+      <!-- DISTRICT scope: school comparison table + trend -->
+      <template v-else-if="scopeType === 'district'">
+        <n-card title="学校德育对比" class="section-gap">
+          <n-data-table
+            :columns="schoolCompareColumns"
+            :data="overviewData?.school_comparison || []"
+            size="small"
+          />
+        </n-card>
+        <n-card title="积分趋势（最近 4 周）" size="small" class="section-gap" v-if="overviewData?.trend?.length">
+          <v-chart :option="overviewTrendOption" class="chart-height-sm" autoresize />
+        </n-card>
+      </template>
+    </n-spin>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { h, ref, computed, onMounted } from 'vue'
 import {
   NPageHeader, NGrid, NGi, NCard, NList, NListItem,
-  NTag, NSpace, NSpin, NEmpty, NAlert, NRadioGroup, NRadioButton,
-  NProgress, NButton,
+  NTag, NSpace, NSpin, NEmpty, NRadioGroup, NRadioButton,
+  NProgress, NButton, NDataTable,
 } from 'naive-ui'
 import { use } from 'echarts/core'
 import { LineChart, PieChart } from 'echarts/charts'
@@ -163,13 +181,17 @@ import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/compon
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { useAuthStore } from '../../stores/auth'
-import { getRecords, getStudentRankings } from '../../api/conduct'
+import { getConductOverview, getRecords, getStudentRankings } from '../../api/conduct'
 import { CHART_DEFAULTS, CHART_PALETTE } from '../../config/chartTheme.js'
 
 use([LineChart, PieChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const auth = useAuthStore()
 const classId = computed(() => auth.currentRole?.class_ids?.[0] || null)
+
+const overviewData = ref(null)
+const scopeType = computed(() => overviewData.value?.scope_type || null)
+const loading = ref(false)
 
 const timeRange = ref('week')
 const stats = ref({ totalStudents: 0, weeklyPlus: 0, weeklyMinus: 0, weeklyCount: 0 })
@@ -190,6 +212,54 @@ const minPoints = computed(() => {
   if (bottomStudents.value.length === 0) return -1
   return Math.min(...bottomStudents.value.map(s => s.total_points), -1)
 })
+
+// Summary cards adapt to scope
+const summaryCards = computed(() => {
+  const s = overviewData.value?.summary
+  if (!s) return {}
+  const st = scopeType.value
+  if (st === 'class') {
+    return {
+      totalStudents: { label: '总学生数', value: s.total_students ?? stats.value.totalStudents },
+      totalPositive: { label: '加分总额', value: s.total_positive ?? stats.value.weeklyPlus, suffix: '+', suffixColor: 'var(--color-success)' },
+      totalNegative: { label: '扣分总额', value: s.total_negative ?? stats.value.weeklyMinus, suffix: '-', suffixColor: 'var(--color-danger)' },
+      totalRecords: { label: '记录数', value: s.total_records ?? stats.value.weeklyCount },
+    }
+  }
+  if (st === 'school') {
+    return {
+      totalStudents: { label: '总学生数', value: s.total_students ?? 0 },
+      totalRecords: { label: '总记录数', value: s.total_records ?? 0 },
+      classCount: { label: '班级数', value: s.class_count ?? 0 },
+    }
+  }
+  if (st === 'district') {
+    return {
+      totalSchools: { label: '学校数', value: s.total_schools ?? 0 },
+      totalStudents: { label: '总学生数', value: s.total_students ?? 0 },
+    }
+  }
+  return {}
+})
+
+// Table columns for school/district scopes
+const classCompareColumns = [
+  { title: '班级', key: 'class_name' },
+  { title: '记录数', key: 'record_count', sorter: 'default' },
+  {
+    title: '平均积分',
+    key: 'avg_points',
+    sorter: 'default',
+    render: (row) => h(NTag, { type: row.avg_points >= 0 ? 'success' : 'error', size: 'small' }, () => row.avg_points.toFixed(1)),
+  },
+]
+
+const schoolCompareColumns = [
+  { title: '学校', key: 'school_name' },
+  { title: '学生数', key: 'total_students' },
+  { title: '记录数', key: 'record_count', sorter: 'default' },
+  { title: '平均积分', key: 'avg_points', sorter: 'default' },
+]
 
 function getDateRange() {
   const now = new Date()
@@ -259,6 +329,25 @@ function buildPieOption(plusTotal, minusTotal) {
   }
 }
 
+// Trend chart for school/district scopes (uses backend-aggregated trend data)
+const overviewTrendOption = computed(() => {
+  const trend = overviewData.value?.trend
+  if (!trend?.length) return null
+  const labels = trend.map(t => t.week_start?.slice(5) || '')
+  return {
+    ...CHART_DEFAULTS,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
+    legend: { ...CHART_DEFAULTS.legend, data: ['加分', '扣分'] },
+    grid: { ...CHART_DEFAULTS.grid, left: 40, right: 16, top: 36, bottom: 24 },
+    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: labels },
+    yAxis: { ...CHART_DEFAULTS.yAxis, type: 'value' },
+    series: [
+      { name: '加分', type: 'line', data: trend.map(t => t.positive), smooth: true, itemStyle: { color: CHART_PALETTE[1] }, areaStyle: { color: 'rgba(244,218,76,0.15)' } },
+      { name: '扣分', type: 'line', data: trend.map(t => t.negative), smooth: true, itemStyle: { color: '#e88080' }, areaStyle: { color: 'rgba(232,128,128,0.15)' } },
+    ],
+  }
+})
+
 async function loadDashboard() {
   if (!classId.value) return
   loadingRankings.value = true
@@ -283,7 +372,7 @@ async function loadDashboard() {
     const startDate = getDateRange()
     const res = await getRecords(classId.value, {
       page: 1,
-      page_size: 200,
+      size: 200,
       start_date: startDate.toISOString().split('T')[0],
     })
     const items = res.data.items || res.data || []
@@ -304,9 +393,23 @@ async function loadDashboard() {
   }
 }
 
-onMounted(() => {
-  if (classId.value) loadDashboard()
-})
+async function loadOverview() {
+  loading.value = true
+  try {
+    const res = await getConductOverview()
+    overviewData.value = res.data
+    // If class scope, also load detailed data for charts
+    if (res.data.scope_type === 'class' && classId.value) {
+      await loadDashboard()
+    }
+  } catch (e) {
+    console.error('Failed to load overview:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => loadOverview())
 </script>
 
 <style scoped>

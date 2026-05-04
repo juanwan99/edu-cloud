@@ -49,6 +49,7 @@ class ConductClassConfig(Base, IdMixin, TimestampMixin):
         JSON, default=None, nullable=True,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    alert_threshold: Mapped[int | None] = mapped_column(Integer, default=None, nullable=True)
 
 
 class ConductRuleCategory(Base, IdMixin):
@@ -127,6 +128,28 @@ class ConductRecord(Base, IdMixin):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
+class ConductNotification(Base, IdMixin):
+    """家长端通知（积分变动触发）"""
+    __tablename__ = "conduct_notifications"
+
+    parent_user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), index=True, nullable=False,
+    )
+    student_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("students.id"), index=True, nullable=False,
+    )
+    record_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("conduct_records.id"), nullable=True,
+    )
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
     )
 
 

@@ -212,7 +212,7 @@ async function loadRecords() {
   try {
     const params = {
       page: page.value,
-      page_size: pageSize.value,
+      size: pageSize.value,
     }
     if (filterStudent.value) params.student_name = filterStudent.value
     if (dateRange.value && dateRange.value.length === 2) {
@@ -236,7 +236,7 @@ async function loadWeekStats() {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     const res = await getRecords(classId.value, {
       page: 1,
-      page_size: 200,
+      size: 200,
       start_date: weekAgo.toISOString().split('T')[0],
     })
     const items = res.data.items || res.data || []

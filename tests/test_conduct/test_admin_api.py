@@ -6,6 +6,7 @@ from edu_cloud.modules.conduct.crypto import encrypt
 from edu_cloud.models.guardian import GuardianStudentLink
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
+from edu_cloud.shared.auth import create_access_token
 
 
 @pytest.mark.anyio
@@ -441,4 +442,87 @@ async def test_remove_group_member_cross_class_student_rejected(
     )
     assert resp.status_code == 404, (
         f"跨班 student_id (path) 未被拒绝: status={resp.status_code} body={resp.text[:200]}"
+    )
+
+
+# ── F-001: Parent calling /overview gets 403 ──
+
+
+@pytest.mark.anyio
+async def test_parent_overview_denied(client, db, school_class_student):
+    """F-001: Parent with VIEW_CONDUCT must not access admin /overview endpoint."""
+    school, cls, student = school_class_student
+    parent = User(username="parent_overview", display_name="家长A")
+    parent.set_password("test123")
+    db.add(parent)
+    await db.flush()
+    ur = UserRole(
+        user_id=parent.id, role="parent", school_id=school.id, is_primary=True,
+    )
+    db.add(ur)
+    await db.commit()
+
+    token = create_access_token({"sub": parent.id, "role": "parent"})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = await client.get("/api/v1/conduct/overview", headers=headers)
+    assert resp.status_code == 403, (
+        f"Parent should be blocked from /overview: status={resp.status_code}"
+    )
+    assert "家长" in resp.json()["detail"]
+
+
+# ── F-002: Cross-school report access gets 403 ──
+
+
+@pytest.mark.anyio
+async def test_cross_school_report_denied(client, db, school_class_student, homeroom_headers):
+    """F-002: User bound to school A cannot access school B's report."""
+    school_a, cls, _ = school_class_student
+    # Create a different school
+    from edu_cloud.models.school import School
+    school_b = School(name="另一中学", code="OTHER2026", is_active=True)
+    db.add(school_b)
+    await db.commit()
+
+    # homeroom_teacher belongs to school_a, tries to access school_b report
+    resp = await client.get(
+        f"/api/v1/conduct/schools/{school_b.id}/report",
+        headers=homeroom_headers,
+    )
+    assert resp.status_code == 403, (
+        f"Cross-school report not blocked: status={resp.status_code}"
+    )
+    assert "无权" in resp.json()["detail"]
+
+
+# ── F-003: Cross-school rules access gets 403 ──
+
+
+@pytest.mark.anyio
+async def test_cross_school_rules_denied(client, db, school_class_student, homeroom_headers):
+    """F-003: User bound to school A cannot read school B's rules."""
+    school_a, cls, _ = school_class_student
+    from edu_cloud.models.school import School
+    school_b = School(name="另一中学B", code="OTHERB2026", is_active=True)
+    db.add(school_b)
+    await db.commit()
+
+    # GET school rules
+    resp = await client.get(
+        f"/api/v1/conduct/schools/{school_b.id}/rules",
+        headers=homeroom_headers,
+    )
+    assert resp.status_code == 403, (
+        f"Cross-school GET rules not blocked: status={resp.status_code}"
+    )
+
+    # POST school rule category
+    resp = await client.post(
+        f"/api/v1/conduct/schools/{school_b.id}/rules/categories",
+        headers=homeroom_headers,
+        json={"name": "恶意创建", "sort_order": 0},
+    )
+    assert resp.status_code == 403, (
+        f"Cross-school POST rules not blocked: status={resp.status_code}"
     )

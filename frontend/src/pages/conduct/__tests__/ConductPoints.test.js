@@ -86,8 +86,8 @@ describe('ConductPoints API calls', () => {
     expect(content).toContain('getRules(classId.value)')
   })
 
-  it('calls getRecords with page_size 20 for recent records', () => {
-    expect(content).toContain('getRecords(classId.value, { page: 1, page_size: 20 })')
+  it('calls getRecords with size 20 for recent records', () => {
+    expect(content).toContain('getRecords(classId.value, { page: 1, size: 20 })')
   })
 
   it('calls addPoints for both rule application and manual submission', () => {

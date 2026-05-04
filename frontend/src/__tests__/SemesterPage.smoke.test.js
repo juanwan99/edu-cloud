@@ -26,8 +26,8 @@ describe('SemesterPage smoke', () => {
 })
 
 describe('SemesterPage enhancement markers', () => {
-  it('has statistics cards (NStatistic)', () => {
-    expect(content).toContain('n-statistic')
+  it('has statistics cards', () => {
+    expect(content).toContain('stat-card')
     expect(content).toContain('当前学期')
     expect(content).toContain('剩余天数')
     expect(content).toContain('已配置节次')

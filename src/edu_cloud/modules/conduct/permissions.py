@@ -87,19 +87,35 @@ async def check_rule_item_class(
     rule_item_id: str,
     class_id: str,
 ) -> object:
-    """校验 rule_item 属本班（通过 rule_category.class_id 间接校验）。
+    """校验 rule_item 属本班或属本班所在学校的校级规则。
 
-    合并 rule_item 存在性与班级归属为单一 join 查询，
-    对外统一返回 404——不泄露"存在但属外班"信息。
+    合并 rule_item 存在性与归属为单一 join 查询。
+    F-004: School-scope rule items (category.scope == "school") cascade into class view,
+    so we accept items where category.school_id matches the class's school_id.
 
-    Raises: HTTPException 404 (rule_item 不存在 或 属外班)
+    Raises: HTTPException 404 (rule_item 不存在 或 不属于本班/本校)
     """
+    from edu_cloud.modules.student.models import Class
+    from sqlalchemy import or_
+
+    # Look up the class's school_id for school-scope rule matching
+    cls = (await db.execute(select(Class).where(Class.id == class_id))).scalar_one_or_none()
+    school_id = cls.school_id if cls else None
+
+    # Match: class-scope item belonging to this class, OR school-scope item belonging to this school
+    scope_filters = [ConductRuleCategory.class_id == class_id]
+    if school_id:
+        scope_filters.append(
+            (ConductRuleCategory.scope == "school")
+            & (ConductRuleCategory.school_id == school_id)
+        )
+
     stmt = (
         select(ConductRuleItem)
         .join(ConductRuleCategory, ConductRuleItem.category_id == ConductRuleCategory.id)
         .where(
             ConductRuleItem.id == rule_item_id,
-            ConductRuleCategory.class_id == class_id,
+            or_(*scope_filters),
         )
     )
     result = (await db.execute(stmt)).scalar_one_or_none()

@@ -1,4 +1,4 @@
-"""Agent 工具 — 操行/德育积分查询与操作（6 tools）。
+"""Agent 工具 — 操行/德育积分查询与操作（8 tools）。
 
 F003 Hardening: 每个工具先通过 class_ids / student.class_id 与 ctx.class_ids 做交集校验，
 避免 AI 绕过 DataScope 跨班读写。校级+ 角色的 ctx.class_ids 为 None = 全可见。
@@ -487,4 +487,327 @@ async def get_class_conduct_overview(input: dict, ctx: ToolContext) -> ToolResul
         })
     except Exception as e:
         logger.exception("get_class_conduct_overview failed")
+        return ToolResult(success=False, error=str(e))
+
+
+# ═══════════════════════════════════════════════════
+# 7. analyze_student_behavior — 学生行为模式分析
+# ═══════════════════════════════════════════════════
+
+@tools.register(
+    name="analyze_student_behavior",
+    description="分析学生行为模式：识别行为趋势（上升/下降/稳定）、高频扣分原因、行为改善建议。",
+    parameters={
+        "type": "object",
+        "properties": {
+            "student_id": {"type": "string", "description": "学生 ID"},
+            "days": {"type": "integer", "description": "分析天数（默认 30）", "default": 30},
+        },
+        "required": ["student_id"],
+    },
+    category="L6_profile",
+    module_code="conduct",
+    domain="L6_profile",
+    risk_level="low",
+    is_read_only=True,
+    sensitivity="student",
+)
+async def analyze_student_behavior(input: dict, ctx: ToolContext) -> ToolResult:
+    student_id = input.get("student_id", "")
+    days = input.get("days", 30)
+    student, scope_err = await _check_student_in_scope(ctx, student_id)
+    if scope_err:
+        return ToolResult(success=False, error=scope_err)
+    # F-001: Additional school scope check for school-level roles (class_ids=None)
+    if ctx.class_ids is None and ctx.school_id:
+        if student.school_id != ctx.school_id:
+            return ToolResult(success=False, error=f"student '{student_id}' not in current school")
+    try:
+        since = date.today() - timedelta(days=days)
+        midpoint = date.today() - timedelta(days=days // 2)
+
+        # All records in the period
+        stmt = (
+            select(ConductRecord)
+            .where(
+                ConductRecord.student_id == student_id,
+                ConductRecord.date >= since,
+            )
+            .order_by(ConductRecord.date.asc())
+        )
+        records = (await ctx.db.execute(stmt)).scalars().all()
+
+        # Split into two halves for trend analysis
+        first_half = [r for r in records if r.date < midpoint]
+        second_half = [r for r in records if r.date >= midpoint]
+
+        first_avg = (sum(r.points for r in first_half) / len(first_half)) if first_half else 0
+        second_avg = (sum(r.points for r in second_half) / len(second_half)) if second_half else 0
+
+        # Trend: within 10% threshold considered stable
+        if not first_half and not second_half:
+            trend = "stable"
+        elif first_avg == 0 and second_avg == 0:
+            trend = "stable"
+        elif first_avg == 0:
+            trend = "improving" if second_avg > 0 else "declining"
+        else:
+            ratio = (second_avg - first_avg) / abs(first_avg) if first_avg != 0 else 0
+            if ratio > 0.1:
+                trend = "improving"
+            elif ratio < -0.1:
+                trend = "declining"
+            else:
+                trend = "stable"
+
+        total_points = sum(r.points for r in records)
+        positive_count = sum(1 for r in records if r.points > 0)
+        negative_count = sum(1 for r in records if r.points < 0)
+
+        # Top deduction reasons (negative records, GROUP BY reason, TOP 3)
+        neg_stmt = (
+            select(
+                ConductRecord.reason,
+                func.count().label("cnt"),
+            )
+            .where(
+                ConductRecord.student_id == student_id,
+                ConductRecord.date >= since,
+                ConductRecord.points < 0,
+            )
+            .group_by(ConductRecord.reason)
+            .order_by(func.count().desc())
+            .limit(3)
+        )
+        neg_rows = (await ctx.db.execute(neg_stmt)).all()
+        top_deduction_reasons = [{"reason": r[0], "count": r[1]} for r in neg_rows]
+
+        # Top reward reasons (positive records, GROUP BY reason, TOP 3)
+        pos_stmt = (
+            select(
+                ConductRecord.reason,
+                func.count().label("cnt"),
+            )
+            .where(
+                ConductRecord.student_id == student_id,
+                ConductRecord.date >= since,
+                ConductRecord.points > 0,
+            )
+            .group_by(ConductRecord.reason)
+            .order_by(func.count().desc())
+            .limit(3)
+        )
+        pos_rows = (await ctx.db.execute(pos_stmt)).all()
+        top_reward_reasons = [{"reason": r[0], "count": r[1]} for r in pos_rows]
+
+        # Positive streak: consecutive DAYS with net positive points (F-002)
+        streak = 0
+        if records:
+            from collections import defaultdict
+            daily_points = defaultdict(int)
+            for r in records:
+                daily_points[r.date] += r.points
+            for d in sorted(daily_points.keys(), reverse=True):
+                if daily_points[d] > 0:
+                    streak += 1
+                else:
+                    break
+
+        # Risk level: high if total < 0, medium if below class average, low otherwise
+        # Subquery: per-student total points in the period
+        per_student = (
+            select(
+                func.coalesce(func.sum(ConductRecord.points), 0).label("stu_total"),
+            )
+            .select_from(Student)
+            .outerjoin(ConductRecord, (ConductRecord.student_id == Student.id) & (ConductRecord.date >= since))
+            .where(Student.class_id == student.class_id)
+            .group_by(Student.id)
+        ).subquery()
+        class_avg_row = (
+            await ctx.db.execute(select(func.avg(per_student.c.stu_total)))
+        ).scalar()
+        class_avg = float(class_avg_row) if class_avg_row else 0
+
+        if total_points < 0:
+            risk_level = "high"
+        elif total_points < class_avg:
+            risk_level = "medium"
+        else:
+            risk_level = "low"
+
+        return ToolResult(success=True, data={
+            "student_name": student.name,
+            "period_days": days,
+            "trend": trend,
+            "total_points": total_points,
+            "positive_count": positive_count,
+            "negative_count": negative_count,
+            "top_deduction_reasons": top_deduction_reasons,
+            "top_reward_reasons": top_reward_reasons,
+            "positive_streak_days": streak,
+            "risk_level": risk_level,
+        })
+    except Exception as e:
+        logger.exception("analyze_student_behavior failed")
+        return ToolResult(success=False, error=str(e))
+
+
+# ═══════════════════════════════════════════════════
+# 8. get_class_behavior_insights — 班级行为洞察
+# ═══════════════════════════════════════════════════
+
+@tools.register(
+    name="get_class_behavior_insights",
+    description="班级行为洞察：识别高风险学生、班级行为热点（最常见的加扣分原因）、班级整体趋势。",
+    parameters={
+        "type": "object",
+        "properties": {
+            "class_id": {"type": "string", "description": "班级 ID"},
+            "days": {"type": "integer", "description": "分析天数（默认 30）", "default": 30},
+        },
+        "required": ["class_id"],
+    },
+    category="L2_conduct",
+    module_code="conduct",
+    domain="L2_conduct",
+    risk_level="low",
+    is_read_only=True,
+    sensitivity="school",
+)
+async def get_class_behavior_insights(input: dict, ctx: ToolContext) -> ToolResult:
+    class_id = input.get("class_id", "")
+    days = input.get("days", 30)
+    scope_err = _check_class_in_scope(ctx, class_id)
+    if scope_err:
+        return ToolResult(success=False, error=scope_err)
+    # F-001: Additional school scope check for school-level roles (class_ids=None)
+    if ctx.class_ids is None and ctx.school_id:
+        from edu_cloud.modules.student.models import Class as ClassModel
+        cls = (await ctx.db.execute(select(ClassModel).where(ClassModel.id == class_id))).scalar_one_or_none()
+        if cls and cls.school_id != ctx.school_id:
+            return ToolResult(success=False, error=f"class '{class_id}' not in current school")
+    try:
+        since = date.today() - timedelta(days=days)
+        midpoint = date.today() - timedelta(days=days // 2)
+
+        # All records for this class in the period
+        all_records_stmt = (
+            select(ConductRecord)
+            .where(
+                ConductRecord.class_id == class_id,
+                ConductRecord.date >= since,
+            )
+        )
+        all_records = (await ctx.db.execute(all_records_stmt)).scalars().all()
+
+        total_records = len(all_records)
+        daily_avg_records = round(total_records / max(days, 1), 2)
+
+        # Class trend: first half vs second half average points
+        first_half = [r for r in all_records if r.date < midpoint]
+        second_half = [r for r in all_records if r.date >= midpoint]
+
+        first_avg = (sum(r.points for r in first_half) / len(first_half)) if first_half else 0
+        second_avg = (sum(r.points for r in second_half) / len(second_half)) if second_half else 0
+
+        if not first_half and not second_half:
+            class_trend = "stable"
+        elif first_avg == 0 and second_avg == 0:
+            class_trend = "stable"
+        elif first_avg == 0:
+            class_trend = "improving" if second_avg > 0 else "declining"
+        else:
+            ratio = (second_avg - first_avg) / abs(first_avg) if first_avg != 0 else 0
+            if ratio > 0.1:
+                class_trend = "improving"
+            elif ratio < -0.1:
+                class_trend = "declining"
+            else:
+                class_trend = "stable"
+
+        # At-risk students: negative total points, sorted worst first (top 5)
+        risk_stmt = (
+            select(
+                Student.id,
+                Student.name,
+                func.coalesce(func.sum(ConductRecord.points), 0).label("total"),
+            )
+            .join(ConductRecord, ConductRecord.student_id == Student.id)
+            .where(
+                ConductRecord.class_id == class_id,
+                ConductRecord.date >= since,
+            )
+            .group_by(Student.id, Student.name)
+            .having(func.sum(ConductRecord.points) < 0)
+            .order_by(func.sum(ConductRecord.points).asc())
+            .limit(5)
+        )
+        risk_rows = (await ctx.db.execute(risk_stmt)).all()
+        at_risk_students = [
+            {"name": r[1], "total_points": int(r[2])} for r in risk_rows
+        ]
+
+        # Most improved: student with largest positive delta (second_half_avg - first_half_avg)
+        # Compute per-student first/second half averages
+        student_records: dict[str, dict] = {}
+        for r in all_records:
+            sid = r.student_id
+            if sid not in student_records:
+                student_records[sid] = {"first": [], "second": []}
+            if r.date < midpoint:
+                student_records[sid]["first"].append(r.points)
+            else:
+                student_records[sid]["second"].append(r.points)
+
+        best_delta = None
+        best_student_id = None
+        for sid, halves in student_records.items():
+            f_avg = sum(halves["first"]) / len(halves["first"]) if halves["first"] else 0
+            s_avg = sum(halves["second"]) / len(halves["second"]) if halves["second"] else 0
+            delta = s_avg - f_avg
+            if best_delta is None or delta > best_delta:
+                best_delta = delta
+                best_student_id = sid
+
+        most_improved = None
+        if best_student_id and best_delta is not None and best_delta > 0:
+            imp_student = (
+                await ctx.db.execute(select(Student.name).where(Student.id == best_student_id))
+            ).scalar()
+            if imp_student:
+                most_improved = {"name": imp_student, "delta": round(best_delta, 1)}
+
+        # Hotspot reasons: GROUP BY reason, ORDER BY count DESC, TOP 5
+        hotspot_stmt = (
+            select(
+                ConductRecord.reason,
+                func.count().label("cnt"),
+                func.avg(ConductRecord.points).label("avg_pts"),
+            )
+            .where(
+                ConductRecord.class_id == class_id,
+                ConductRecord.date >= since,
+            )
+            .group_by(ConductRecord.reason)
+            .order_by(func.count().desc())
+            .limit(5)
+        )
+        hotspot_rows = (await ctx.db.execute(hotspot_stmt)).all()
+        hotspot_reasons = [
+            {"reason": r[0], "count": r[1], "avg_points": round(float(r[2]), 1)}
+            for r in hotspot_rows
+        ]
+
+        return ToolResult(success=True, data={
+            "class_id": class_id,
+            "period_days": days,
+            "class_trend": class_trend,
+            "daily_avg_records": daily_avg_records,
+            "at_risk_students": at_risk_students,
+            "most_improved": most_improved,
+            "hotspot_reasons": hotspot_reasons,
+        })
+    except Exception as e:
+        logger.exception("get_class_behavior_insights failed")
         return ToolResult(success=False, error=str(e))

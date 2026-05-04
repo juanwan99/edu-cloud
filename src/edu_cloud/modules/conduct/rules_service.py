@@ -1,22 +1,44 @@
 """班规管理业务逻辑"""
 import logging
 
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, or_, case, literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.conduct.models import ConductRuleCategory, ConductRuleItem
+from edu_cloud.modules.student.models import Class
 from edu_cloud.services.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
 
 async def get_rules(db: AsyncSession, class_id: str) -> list[dict]:
-    """Get nested categories + items for a class."""
+    """Get nested categories + items for a class.
+
+    Includes both class-scope rules and school-scope rules (cascade).
+    School-scope rules are sorted first and marked as readonly.
+    """
+    # Look up the class's school_id
+    cls = (await db.execute(select(Class).where(Class.id == class_id))).scalar_one_or_none()
+    school_id = cls.school_id if cls else None
+
+    # Build filter: class rules OR school rules for the same school
+    filters = [ConductRuleCategory.class_id == class_id]
+    if school_id:
+        filters.append(
+            (ConductRuleCategory.school_id == school_id)
+            & (ConductRuleCategory.scope == "school")
+        )
+
+    # Sort: school-scope first (scope ASC: "class" > "school"), then sort_order, then name
+    scope_order = case(
+        (ConductRuleCategory.scope == "school", literal(0)),
+        else_=literal(1),
+    )
     categories = (
         await db.execute(
             select(ConductRuleCategory)
-            .where(ConductRuleCategory.class_id == class_id)
-            .order_by(ConductRuleCategory.sort_order, ConductRuleCategory.name)
+            .where(or_(*filters))
+            .order_by(scope_order, ConductRuleCategory.sort_order, ConductRuleCategory.name)
         )
     ).scalars().all()
 
@@ -33,6 +55,8 @@ async def get_rules(db: AsyncSession, class_id: str) -> list[dict]:
         result.append({
             "id": cat.id,
             "name": cat.name,
+            "scope": cat.scope,
+            "readonly": cat.scope == "school",
             "sort_order": cat.sort_order,
             "items": [
                 {
@@ -49,19 +73,35 @@ async def get_rules(db: AsyncSession, class_id: str) -> list[dict]:
 
 
 async def create_category(
-    db: AsyncSession, class_id: str, name: str, sort_order: int = 0,
+    db: AsyncSession,
+    class_id: str | None = None,
+    school_id: str | None = None,
+    name: str = "",
+    scope: str = "class",
+    sort_order: int = 0,
 ) -> dict:
-    """Create a rule category for a class."""
+    """Create a rule category for a class or school.
+
+    When scope="school", class_id is set to None and school_id is required.
+    """
+    if scope == "school":
+        class_id = None
     cat = ConductRuleCategory(
         class_id=class_id,
+        school_id=school_id if scope == "school" else None,
         name=name,
-        scope="class",
+        scope=scope,
         sort_order=sort_order,
     )
     db.add(cat)
     await db.commit()
     await db.refresh(cat)
-    return {"id": cat.id, "name": cat.name, "sort_order": cat.sort_order}
+    return {
+        "id": cat.id,
+        "name": cat.name,
+        "scope": cat.scope,
+        "sort_order": cat.sort_order,
+    }
 
 
 async def update_category(

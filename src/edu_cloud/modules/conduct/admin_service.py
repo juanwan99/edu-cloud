@@ -35,6 +35,7 @@ async def get_config(db: AsyncSession, class_id: str) -> dict:
         "verify_code_type": config.verify_code_type,
         "required_parent_fields": config.required_parent_fields,
         "is_active": config.is_active,
+        "alert_threshold": config.alert_threshold,
     }
 
 
@@ -62,6 +63,8 @@ async def update_config(db: AsyncSession, class_id: str, data: dict) -> dict:
         config.required_parent_fields = data["required_parent_fields"]
     if "is_active" in data and data["is_active"] is not None:
         config.is_active = data["is_active"]
+    if "alert_threshold" in data:
+        config.alert_threshold = data["alert_threshold"]
 
     await db.commit()
     await db.refresh(config)
@@ -73,6 +76,7 @@ async def update_config(db: AsyncSession, class_id: str, data: dict) -> dict:
         "verify_code_type": config.verify_code_type,
         "required_parent_fields": config.required_parent_fields,
         "is_active": config.is_active,
+        "alert_threshold": config.alert_threshold,
     }
 
 
@@ -285,7 +289,22 @@ async def add_points(
         await db.flush()
         created_ids.append(record.id)
 
+    # Trigger parent notifications + alert checks (same transaction)
+    from edu_cloud.modules.conduct.event_service import (
+        notify_parents_on_points, check_alert_threshold,
+    )
+    for rid in created_ids:
+        await notify_parents_on_points(db, rid)
+
+    seen_students: set[str] = set()
+    for sid in student_ids:
+        if sid not in seen_students:
+            seen_students.add(sid)
+            await check_alert_threshold(db, sid, class_id)
+
+    # Single commit: records + notifications + alerts atomically
     await db.commit()
+
     return created_ids
 
 

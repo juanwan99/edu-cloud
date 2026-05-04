@@ -39,12 +39,15 @@ describe('ConductRecords template sections', () => {
   })
 
   it('contains 3 stat cards (week count, plus total, minus total)', () => {
-    expect(content).toContain('label="本周记录数"')
-    expect(content).toContain('label="加分总额"')
-    expect(content).toContain('label="扣分总额"')
+    expect(content).toContain('class="stats-row"')
+    expect(content).toContain('class="stat-card"')
+    expect(content).toContain('class="stat-label">本周记录数')
+    expect(content).toContain('class="stat-label">加分总额')
+    expect(content).toContain('class="stat-label">扣分总额')
     expect(content).toContain('statCards.weekCount')
     expect(content).toContain('statCards.plusTotal')
     expect(content).toContain('statCards.minusTotal')
+    expect(content).not.toContain('n-statistic')
   })
 
   it('contains filter section (student name, type, rule, date range)', () => {
@@ -89,7 +92,7 @@ describe('ConductRecords API calls', () => {
     expect(content).toContain('getRecords(classId.value, {')
     // pagination params
     expect(content).toContain('page: page.value')
-    expect(content).toContain('page_size: pageSize.value')
+    expect(content).toContain('size: pageSize.value')
   })
 
   it('calls deleteRecord for single deletion', () => {
@@ -160,7 +163,7 @@ describe('ConductRecords operations', () => {
   it('loads week stats separately for stat cards', () => {
     expect(content).toContain('async function loadWeekStats()')
     expect(content).toContain('7 * 24 * 60 * 60 * 1000')
-    expect(content).toContain("page_size: 200")
+    expect(content).toContain("size: 200")
   })
 
   it('handles batch delete with success count', () => {

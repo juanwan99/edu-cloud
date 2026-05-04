@@ -2,8 +2,9 @@
 import logging
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
@@ -14,13 +15,15 @@ from edu_cloud.modules.conduct.schemas import (
     RuleCategoryCreate, RuleItemCreate,
     GroupCreate, GroupMemberAdd,
 )
-from edu_cloud.modules.conduct import admin_service, rules_service, export_service
+from edu_cloud.modules.conduct import admin_service, rules_service, export_service, scope_service
+from edu_cloud.api.permissions import get_visible_class_ids
 from edu_cloud.modules.conduct.permissions import (
     check_class_scope,
     check_resource_class,
     check_rule_item_class,
     check_students_class,
 )
+from edu_cloud.models.school import School
 from edu_cloud.modules.conduct.models import (
     ConductRuleCategory, ConductRuleItem, ConductGroup, ConductSemester, ConductRecord,
 )
@@ -28,6 +31,61 @@ from edu_cloud.modules.conduct.models import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/conduct", tags=["conduct-admin"])
+
+
+# ═══════════════════════════════════════════════════
+# Overview (Scope-Adaptive aggregation)
+# ═══════════════════════════════════════════════════
+
+@router.get("/overview")
+async def get_overview(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(Permission.VIEW_CONDUCT)),
+):
+    """Return conduct overview data at the appropriate scope for the current user's role.
+
+    Auto-dispatches to class/school/district scope based on active_role.
+    Parents must use the parent-specific endpoints, not the admin overview.
+    """
+    role = current_user["current_role"]
+
+    # F-001: Parents have VIEW_CONDUCT but must not access admin overview
+    if role.role == "parent":
+        raise HTTPException(status_code=403, detail="家长请使用家长端接口")
+
+    if role.role in ("platform_admin", "district_admin"):
+        if role.school_id:
+            school = await db.get(School, role.school_id)
+            district = school.district if school and school.district else None
+            districts = [district] if district else []
+        else:
+            # F-007: platform_admin without school — query all active districts
+            rows = (await db.execute(
+                select(School.district).where(
+                    School.is_active.is_(True), School.district.isnot(None),
+                ).distinct()
+            )).scalars().all()
+            districts = [d for d in rows if d]
+        if not districts:
+            return {"scope_type": "district", "summary": {"total_schools": 0, "total_students": 0}, "school_comparison": [], "trend": []}
+        return await scope_service.get_conduct_overview(db, "district", districts)
+
+    if role.role in ("principal", "academic_director"):
+        # School scope
+        if not role.school_id:
+            raise HTTPException(400, "Role has no school_id")
+        return await scope_service.get_conduct_overview(db, "school", [role.school_id])
+
+    # Other roles: check for class_ids
+    visible = get_visible_class_ids(role)
+    if visible:
+        return await scope_service.get_conduct_overview(db, "class", visible)
+
+    # School-scoped role without class_ids
+    if role.school_id:
+        return await scope_service.get_conduct_overview(db, "school", [role.school_id])
+
+    raise HTTPException(400, "Cannot determine scope for overview")
 
 
 # ═══════════════════════════════════════════════════
@@ -219,7 +277,9 @@ async def create_rule_category(
 ):
     """Create a rule category."""
     check_class_scope(current_user, class_id)
-    return await rules_service.create_category(db, class_id, data.name, data.sort_order)
+    return await rules_service.create_category(
+        db, class_id=class_id, name=data.name, scope="class", sort_order=data.sort_order,
+    )
 
 
 @router.put("/classes/{class_id}/rules/categories/{cat_id}")
@@ -292,6 +352,76 @@ async def delete_rule_item(
     await check_resource_class(db, ConductRuleCategory, cat_id, class_id)
     await check_resource_class(db, ConductRuleItem, item_id, cat_id, class_id_path="category_id")
     return await rules_service.delete_item(db, item_id)
+
+
+# ═══════════════════════════════════════════════════
+# School-level Rules (Task 2 — Cascade)
+# ═══════════════════════════════════════════════════
+
+@router.get("/schools/{school_id}/rules")
+async def get_school_rules(
+    school_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(Permission.MANAGE_CONDUCT_RULES)),
+):
+    """List school-level rule categories with nested items."""
+    # F-003: Validate school scope
+    role = current_user["current_role"]
+    if role.school_id and role.school_id != school_id:
+        raise HTTPException(status_code=403, detail="无权访问该学校规则")
+    categories = (
+        await db.execute(
+            select(ConductRuleCategory)
+            .where(
+                ConductRuleCategory.school_id == school_id,
+                ConductRuleCategory.scope == "school",
+            )
+            .order_by(ConductRuleCategory.sort_order, ConductRuleCategory.name)
+        )
+    ).scalars().all()
+
+    result = []
+    for cat in categories:
+        items = (
+            await db.execute(
+                select(ConductRuleItem)
+                .where(ConductRuleItem.category_id == cat.id)
+                .order_by(ConductRuleItem.sort_order, ConductRuleItem.name)
+            )
+        ).scalars().all()
+        result.append({
+            "id": cat.id,
+            "name": cat.name,
+            "scope": cat.scope,
+            "sort_order": cat.sort_order,
+            "items": [
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "points": item.points,
+                    "sort_order": item.sort_order,
+                }
+                for item in items
+            ],
+        })
+    return result
+
+
+@router.post("/schools/{school_id}/rules/categories")
+async def create_school_rule_category(
+    school_id: str,
+    data: RuleCategoryCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(Permission.MANAGE_CONDUCT_RULES)),
+):
+    """Create a school-level rule category."""
+    # F-003: Validate school scope
+    role = current_user["current_role"]
+    if role.school_id and role.school_id != school_id:
+        raise HTTPException(status_code=403, detail="无权访问该学校规则")
+    return await rules_service.create_category(
+        db, school_id=school_id, name=data.name, scope="school", sort_order=data.sort_order,
+    )
 
 
 # ═══════════════════════════════════════════════════
@@ -407,6 +537,39 @@ async def activate_semester(
     check_class_scope(current_user, class_id)
     await check_resource_class(db, ConductSemester, semester_id, class_id)
     return await admin_service.activate_semester(db, semester_id)
+
+
+# ═══════════════════════════════════════════════════
+# Reports (P2-T1)
+# ═══════════════════════════════════════════════════
+
+@router.get("/classes/{class_id}/report")
+async def get_class_report(
+    class_id: str,
+    semester_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(Permission.VIEW_CONDUCT)),
+):
+    """Generate a semester conduct evaluation report for a class."""
+    check_class_scope(current_user, class_id)
+    from edu_cloud.modules.conduct.report_service import generate_semester_report
+    return await generate_semester_report(db, class_id, semester_id)
+
+
+@router.get("/schools/{school_id}/report")
+async def get_school_report(
+    school_id: str,
+    semester_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_permission(Permission.VIEW_CONDUCT)),
+):
+    """Generate a school-wide semester conduct evaluation report."""
+    # F-002: Validate school scope — users bound to a school can only access their own
+    role = current_user["current_role"]
+    if role.school_id and role.school_id != school_id:
+        raise HTTPException(status_code=403, detail="无权访问该学校数据")
+    from edu_cloud.modules.conduct.report_service import generate_school_report
+    return await generate_school_report(db, school_id, semester_id)
 
 
 # ═══════════════════════════════════════════════════

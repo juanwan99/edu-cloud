@@ -175,7 +175,7 @@ async function loadRecentRecords() {
   if (!classId.value) return
   loadingRecords.value = true
   try {
-    const res = await getRecords(classId.value, { page: 1, page_size: 20 })
+    const res = await getRecords(classId.value, { page: 1, size: 20 })
     recentRecords.value = res.data.items || res.data || []
   } catch {
     recentRecords.value = []

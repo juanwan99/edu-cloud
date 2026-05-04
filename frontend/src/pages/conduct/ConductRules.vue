@@ -21,10 +21,11 @@
             <n-space align="center" :size="8">
               <span class="text-medium">{{ cat.name }}</span>
               <n-tag size="tiny" :bordered="false">{{ (cat.items || []).length }} 条</n-tag>
+              <n-tag v-if="cat.scope === 'school'" type="info" size="small">学校规则</n-tag>
             </n-space>
           </template>
           <template #header-extra>
-            <n-space :size="4" @click.stop>
+            <n-space v-if="!cat.readonly" :size="4" @click.stop>
               <n-button size="tiny" quaternary @click="openEditCategory(cat)">编辑</n-button>
               <n-popconfirm @positive-click="handleDeleteCategory(cat.id)">
                 <template #trigger>
@@ -52,13 +53,15 @@
                   >
                     {{ item.default_points >= 0 ? '+' : '' }}{{ item.default_points }}
                   </n-tag>
-                  <n-button size="tiny" quaternary @click="openEditItem(cat, item)">编辑</n-button>
-                  <n-popconfirm @positive-click="handleDeleteItem(cat.id, item.id)">
-                    <template #trigger>
-                      <n-button size="tiny" quaternary type="error">删除</n-button>
-                    </template>
-                    确定删除规则「{{ item.name }}」？
-                  </n-popconfirm>
+                  <template v-if="!cat.readonly">
+                    <n-button size="tiny" quaternary @click="openEditItem(cat, item)">编辑</n-button>
+                    <n-popconfirm @positive-click="handleDeleteItem(cat.id, item.id)">
+                      <template #trigger>
+                        <n-button size="tiny" quaternary type="error">删除</n-button>
+                      </template>
+                      确定删除规则「{{ item.name }}」？
+                    </n-popconfirm>
+                  </template>
                 </n-space>
               </div>
             </n-list-item>

@@ -14,6 +14,59 @@
       </div>
     </n-card>
 
+    <!-- Notifications (above everything else) -->
+    <n-card v-if="notifications.length > 0" size="small" style="margin-bottom: var(--space-4);">
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span>最新动态</span>
+          <n-button text size="small" @click="handleMarkAllRead">全部已读</n-button>
+        </div>
+      </template>
+      <n-list size="small">
+        <n-list-item v-for="n in notifications.slice(0, 5)" :key="n.id">
+          <n-thing :title="n.title" :description="n.body" />
+        </n-list-item>
+      </n-list>
+    </n-card>
+
+    <!-- Behavior analysis card (below notifications) -->
+    <n-card v-if="behaviorSummary" size="small" style="margin-bottom: var(--space-4);">
+      <template #header>行为分析</template>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">行为趋势</div>
+          <div class="stat-value" :style="{ color: trendColor }">{{ behaviorSummary.trend_label }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">连续表现良好</div>
+          <div class="stat-value">{{ behaviorSummary.positive_streak_days }}天</div>
+        </div>
+      </div>
+      <div v-if="behaviorSummary.top_issues?.length" style="margin-top: var(--space-3);">
+        <n-text depth="3">需关注：</n-text>
+        <n-tag v-for="issue in behaviorSummary.top_issues" :key="issue" size="small" type="warning" style="margin: 2px;">{{ issue }}</n-tag>
+      </div>
+    </n-card>
+
+    <!-- Semester summary (below notifications, above student info) -->
+    <n-card v-if="semesterReport" size="small" style="margin-bottom: var(--space-4);">
+      <template #header>学期评价</template>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">累计积分</div>
+          <div class="stat-value">{{ studentTotalPoints }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">班级排名</div>
+          <div class="stat-value">{{ studentRank }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">班级均分</div>
+          <div class="stat-value">{{ semesterReport.summary?.avg_points?.toFixed(1) || '-' }}</div>
+        </div>
+      </div>
+    </n-card>
+
     <template v-if="currentChild">
       <!-- Student info card -->
       <n-card class="info-card" style="margin-bottom: var(--space-4);">
@@ -114,8 +167,8 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { NCard, NStatistic, NList, NListItem, NTag, NButton, NEmpty, NSpin, NH4 } from 'naive-ui'
-import { getChildRecords, getChildScores, getChildRankings } from '../../api/conduct'
+import { NCard, NStatistic, NList, NListItem, NTag, NButton, NEmpty, NSpin, NH4, NThing, NText } from 'naive-ui'
+import { getChildRecords, getChildScores, getChildRankings, getParentNotifications, markNotificationsRead, getChildBehaviorSummary } from '../../api/conduct'
 
 const props = defineProps({
   currentChild: { type: Object, default: null },
@@ -126,6 +179,34 @@ const totalPoints = ref(0)
 const ranking = ref(null)
 const latestScore = ref(null)
 const loading = ref(false)
+const notifications = ref([])
+const semesterReport = ref(null)
+const studentTotalPoints = ref(0)
+const studentRank = ref('-')
+const behaviorSummary = ref(null)
+
+const trendColor = computed(() => {
+  const t = behaviorSummary.value?.trend
+  if (t === 'improving') return '#4caf50'
+  if (t === 'declining') return '#e63946'
+  return 'rgba(255, 255, 255, 0.85)'
+})
+
+// Load notifications on component init
+getParentNotifications(true).then(res => {
+  notifications.value = res.data || []
+}).catch(() => {
+  notifications.value = []
+})
+
+async function handleMarkAllRead() {
+  try {
+    await markNotificationsRead()
+    notifications.value = []
+  } catch {
+    // silently ignore
+  }
+}
 
 const avatarLetter = computed(() => {
   const name = props.currentChild?.student_name || ''
@@ -143,13 +224,19 @@ const avatarBg = computed(() => {
 })
 
 watch(() => props.currentChild, async (child) => {
+  // F-003: Clear stale data on child switch (including null)
+  behaviorSummary.value = null
+  records.value = []
+  latestScore.value = null
+  ranking.value = null
+  semesterReport.value = null
   if (!child) return
   loading.value = true
   try {
     totalPoints.value = child.total_points ?? 0
 
     // Fetch records
-    const recordsRes = await getChildRecords(child.student_id, { page: 1, page_size: 10 })
+    const recordsRes = await getChildRecords(child.student_id, { page: 1, size: 10 })
     records.value = recordsRes.data.items || recordsRes.data || []
 
     // Fetch latest score
@@ -165,7 +252,7 @@ watch(() => props.currentChild, async (child) => {
       latestScore.value = null
     }
 
-    // Fetch ranking
+    // Fetch ranking + semester summary
     try {
       const rankRes = await getChildRankings(child.student_id)
       const rankData = rankRes.data
@@ -178,8 +265,31 @@ watch(() => props.currentChild, async (child) => {
       } else {
         ranking.value = null
       }
+
+      // Build semester report from rankings data
+      const rankings = Array.isArray(rankData) ? rankData : []
+      if (rankings.length > 0) {
+        const myEntry = rankings.find(r => r.student_id === child.student_id)
+        if (myEntry) {
+          studentTotalPoints.value = myEntry.total_points ?? 0
+          studentRank.value = myEntry.rank || rankings.indexOf(myEntry) + 1
+        }
+        const avgPts = rankings.reduce((s, r) => s + (r.total_points || 0), 0) / rankings.length
+        semesterReport.value = { summary: { avg_points: avgPts } }
+      } else {
+        semesterReport.value = null
+      }
     } catch {
       ranking.value = null
+      semesterReport.value = null
+    }
+
+    // Fetch behavior summary
+    try {
+      const behaviorRes = await getChildBehaviorSummary(child.student_id)
+      behaviorSummary.value = behaviorRes.data
+    } catch {
+      behaviorSummary.value = null
     }
   } catch {
     records.value = []
@@ -376,5 +486,30 @@ watch(() => props.currentChild, async (child) => {
   font-size: var(--fs-base);
   color: rgba(255, 255, 255, 0.35);
   margin-top: 2px;
+}
+
+.stats-row {
+  display: flex;
+  gap: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.stat-card .stat-label {
+  font-size: var(--fs-base);
+  color: rgba(255, 255, 255, 0.45);
+  margin-top: 4px;
+}
+
+.stat-card .stat-value {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  color: rgba(255, 255, 255, 0.85);
 }
 </style>

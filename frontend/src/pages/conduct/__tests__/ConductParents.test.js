@@ -46,10 +46,13 @@ describe('ConductParents template sections', () => {
   })
 
   it('contains stat cards for parent count and bound students', () => {
-    expect(content).toContain('label="已注册家长数"')
-    expect(content).toContain('label="已绑定学生数"')
-    expect(content).toContain(':value="parents.length"')
-    expect(content).toContain(':value="boundStudentCount"')
+    expect(content).toContain('class="stats-row"')
+    expect(content).toContain('class="stat-card"')
+    expect(content).toContain('class="stat-label">已注册家长数')
+    expect(content).toContain('class="stat-label">已绑定学生数')
+    expect(content).toContain('{{ parents.length }}')
+    expect(content).toContain('{{ boundStudentCount }}')
+    expect(content).not.toContain('n-statistic')
   })
 
   it('contains search input for name/phone', () => {

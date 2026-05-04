@@ -603,3 +603,214 @@ async def test_get_children_returns_class_id(client, db, conduct_config, school_
     # 关键断言：class_id 字段必须存在且非空
     assert "class_id" in children[0], "get_children 必须返回 class_id (F004)"
     assert children[0]["class_id"], "class_id 不能为空字符串"
+
+
+# ── Phase 3: behavior-summary endpoint ──
+
+@pytest.mark.anyio
+async def test_parent_behavior_summary(client, db, conduct_config, school_class_student):
+    """GET /parent/children/{id}/behavior-summary returns structured behavior data."""
+    school, cls, student = school_class_student
+    token, headers, student = await _register_and_bind(
+        client, db, school_class_student, "13800800001",
+    )
+
+    # Create some conduct records to analyze
+    operator = User(username="op_behavior", display_name="行为老师")
+    operator.set_password("123")
+    db.add(operator)
+    await db.flush()
+
+    db.add(ConductRecord(
+        student_id=student.id, class_id=cls.id, points=5,
+        reason="表现优秀", date=date.today(), operator_id=operator.id,
+    ))
+    db.add(ConductRecord(
+        student_id=student.id, class_id=cls.id, points=-2,
+        reason="迟到", date=date.today(), operator_id=operator.id,
+    ))
+    await db.commit()
+
+    resp = await client.get(
+        f"/api/v1/conduct/parent/children/{student.id}/behavior-summary",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["student_name"] == "张三"
+    assert data["trend"] in ("improving", "declining", "stable")
+    assert data["trend_label"] in ("进步中", "需关注", "保持稳定")
+    assert data["total_points"] == 3  # 5 + (-2)
+    assert data["positive_count"] == 1
+    assert data["negative_count"] == 1
+    assert isinstance(data["top_issues"], list)
+    assert isinstance(data["positive_streak_days"], int)
+
+
+@pytest.mark.anyio
+async def test_parent_behavior_summary_unbound_rejected(
+    client, db, conduct_config, school_class_student,
+):
+    """GET behavior-summary for unbound student → 403."""
+    school, cls, student = school_class_student
+
+    resp = await client.post("/api/v1/conduct/parent/register", json={
+        "invite_code": "TEST01",
+        "display_name": "未绑定行为家长",
+        "phone": "13800800002",
+        "password": "abc123",
+    })
+    assert resp.status_code == 200
+    headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+    resp = await client.get(
+        f"/api/v1/conduct/parent/children/{student.id}/behavior-summary",
+        headers=headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_parent_behavior_summary_empty_records(
+    client, db, conduct_config, school_class_student,
+):
+    """GET behavior-summary with no records returns stable/zero."""
+    token, headers, student = await _register_and_bind(
+        client, db, school_class_student, "13800800003",
+    )
+
+    resp = await client.get(
+        f"/api/v1/conduct/parent/children/{student.id}/behavior-summary",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["trend"] == "stable"
+    assert data["trend_label"] == "保持稳定"
+    assert data["total_points"] == 0
+    assert data["positive_count"] == 0
+    assert data["negative_count"] == 0
+    assert data["top_issues"] == []
+    assert data["positive_streak_days"] == 0
+
+
+# ── F-004: Trend-specific tests for behavior-summary endpoint ──
+
+
+@pytest.mark.anyio
+async def test_parent_behavior_summary_trend_improving(
+    client, db, conduct_config, school_class_student,
+):
+    """F-004: First half negative, second half positive -> improving trend."""
+    from datetime import timedelta
+
+    school, cls, student = school_class_student
+    token, headers, student = await _register_and_bind(
+        client, db, school_class_student, "13800900001",
+    )
+
+    operator = User(username="op_trend_imp", display_name="趋势老师1")
+    operator.set_password("123")
+    db.add(operator)
+    await db.flush()
+
+    today = date.today()
+    # First 15 days: negative
+    for i in range(15):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=-1,
+            reason="扣分", date=today - timedelta(days=30 - i),
+            operator_id=operator.id,
+        ))
+    # Last 15 days: positive
+    for i in range(15):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=3,
+            reason="加分", date=today - timedelta(days=15 - i),
+            operator_id=operator.id,
+        ))
+    await db.commit()
+
+    resp = await client.get(
+        f"/api/v1/conduct/parent/children/{student.id}/behavior-summary",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["trend"] == "improving"
+
+
+@pytest.mark.anyio
+async def test_parent_behavior_summary_trend_declining(
+    client, db, conduct_config, school_class_student,
+):
+    """F-004: First half positive, second half negative -> declining trend."""
+    from datetime import timedelta
+
+    school, cls, student = school_class_student
+    token, headers, student = await _register_and_bind(
+        client, db, school_class_student, "13800900002",
+    )
+
+    operator = User(username="op_trend_dec", display_name="趋势老师2")
+    operator.set_password("123")
+    db.add(operator)
+    await db.flush()
+
+    today = date.today()
+    # First 15 days: positive
+    for i in range(15):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=3,
+            reason="加分", date=today - timedelta(days=30 - i),
+            operator_id=operator.id,
+        ))
+    # Last 15 days: negative
+    for i in range(15):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=-1,
+            reason="扣分", date=today - timedelta(days=15 - i),
+            operator_id=operator.id,
+        ))
+    await db.commit()
+
+    resp = await client.get(
+        f"/api/v1/conduct/parent/children/{student.id}/behavior-summary",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["trend"] == "declining"
+
+
+# ── F-005: Streak boundary tests for behavior-summary endpoint ──
+
+
+@pytest.mark.anyio
+async def test_parent_behavior_summary_streak_multirecord_day(
+    client, db, conduct_config, school_class_student,
+):
+    """F-005: Same day with multiple positive records counts as 1 streak day."""
+    school, cls, student = school_class_student
+    token, headers, student = await _register_and_bind(
+        client, db, school_class_student, "13800900003",
+    )
+
+    operator = User(username="op_streak_multi", display_name="连击老师")
+    operator.set_password("123")
+    db.add(operator)
+    await db.flush()
+
+    # 3 positive records on the same date
+    for _ in range(3):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=2,
+            reason="表现好", date=date.today(),
+            operator_id=operator.id,
+        ))
+    await db.commit()
+
+    resp = await client.get(
+        f"/api/v1/conduct/parent/children/{student.id}/behavior-summary",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["positive_streak_days"] == 1
