@@ -239,7 +239,7 @@ def _create_course_map_db(path: Path) -> str:
     # seed_su_exam_stats
     cur.execute("""
         CREATE TABLE seed_su_exam_stats (
-            su_id TEXT PRIMARY KEY,
+            study_unit_id TEXT PRIMARY KEY,
             transfer_band_dist TEXT
         )
     """)
@@ -384,7 +384,7 @@ async def test_get_study_unit_detail(db, course_map_db):
     """StudyUnitDetailResponse for SU_M1_02: prerequisites, textbook, exam_patterns."""
     from edu_cloud.modules.knowledge_tree.course_map_service import get_study_unit_detail
 
-    result = await get_study_unit_detail(db, su_id="SU_M1_02", kb_path=course_map_db)
+    result = await get_study_unit_detail(db, study_unit_id="SU_M1_02", kb_path=course_map_db)
 
     assert result.id == "SU_M1_02"
     assert result.name == "光合作用与化能合成"
@@ -419,7 +419,7 @@ async def test_get_study_unit_detail_successors(db, course_map_db):
     """SU_M1_01 should have SU_M1_02 as a successor."""
     from edu_cloud.modules.knowledge_tree.course_map_service import get_study_unit_detail
 
-    result = await get_study_unit_detail(db, su_id="SU_M1_01", kb_path=course_map_db)
+    result = await get_study_unit_detail(db, study_unit_id="SU_M1_01", kb_path=course_map_db)
 
     assert result.id == "SU_M1_01"
     successor_names = [s.target_name for s in result.successors]
@@ -431,7 +431,7 @@ async def test_get_study_unit_detail_contrasts(db, course_map_db):
     """SU_M1_01 (contains BIO_M1_C1) should have contrast with BIO_M1_C2."""
     from edu_cloud.modules.knowledge_tree.course_map_service import get_study_unit_detail
 
-    result = await get_study_unit_detail(db, su_id="SU_M1_01", kb_path=course_map_db)
+    result = await get_study_unit_detail(db, study_unit_id="SU_M1_01", kb_path=course_map_db)
 
     contrast_names = [c.target_name for c in result.contrasts]
     assert "光合作用" in contrast_names
@@ -443,7 +443,7 @@ async def test_get_study_unit_detail_missing(db, course_map_db):
     """Non-existent SU returns fallback response without crashing."""
     from edu_cloud.modules.knowledge_tree.course_map_service import get_study_unit_detail
 
-    result = await get_study_unit_detail(db, su_id="NONEXISTENT", kb_path=course_map_db)
+    result = await get_study_unit_detail(db, study_unit_id="NONEXISTENT", kb_path=course_map_db)
     assert result.id == "NONEXISTENT"
     assert result.prerequisites == []
     assert result.exam_patterns == []

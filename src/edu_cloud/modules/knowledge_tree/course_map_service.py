@@ -97,8 +97,8 @@ async def get_module_overview(
 
     if conn and _table_exists(conn, "study_units"):
         for row in conn.execute(
-            "SELECT id, name, module, estimated_minutes, source_concept_ids, "
-            "exam_tags FROM study_units"
+            "SELECT id, name, module, estimated_minutes, source_concept_ids "
+            "FROM study_units"
         ):
             mod = row["module"]
             if mod in module_su:
@@ -111,13 +111,13 @@ async def get_module_overview(
     if conn and _table_exists(conn, "seed_su_exam_stats"):
         band_accum: dict[str, dict[str, float]] = {m: {} for m in _MODULE_NAMES}
         for row in conn.execute(
-            "SELECT su_id, transfer_band_dist FROM seed_su_exam_stats "
+            "SELECT study_unit_id, transfer_band_dist FROM seed_su_exam_stats "
             "WHERE transfer_band_dist IS NOT NULL"
         ):
             # find which module owns this su
             su_mod = None
             for mod, rows in module_su.items():
-                if any(r["id"] == row["su_id"] for r in rows):
+                if any(r["id"] == row["study_unit_id"] for r in rows):
                     su_mod = mod
                     break
             if su_mod is None:
@@ -258,7 +258,7 @@ async def get_module_map(
 
     # ── 1. Study units for module ─────────────────────────────────────────────
     su_rows: list[sqlite3.Row] = []
-    su_id_to_row: dict[str, sqlite3.Row] = {}
+    study_unit_id_to_row: dict[str, sqlite3.Row] = {}
     if conn and _table_exists(conn, "study_units"):
         for row in conn.execute(
             "SELECT id, name, description, estimated_minutes, "
@@ -267,7 +267,7 @@ async def get_module_map(
             (module,),
         ):
             su_rows.append(row)
-            su_id_to_row[row["id"]] = row
+            study_unit_id_to_row[row["id"]] = row
 
     # Build id→name map for prerequisite resolution
     su_name_map: dict[str, str] = {}
@@ -360,12 +360,12 @@ async def get_module_map(
     # ── 4. Exam profile from seed_su_exam_stats ───────────────────────────────
     exam_profile = ModuleExamProfile(total_items=0, near_pct=0.0, mid_pct=0.0, far_pct=0.0)
     if conn and su_rows and _table_exists(conn, "seed_su_exam_stats"):
-        su_ids = [r["id"] for r in su_rows]
-        placeholders = ",".join("?" * len(su_ids))
+        study_unit_ids = [r["id"] for r in su_rows]
+        placeholders = ",".join("?" * len(study_unit_ids))
         band_totals: dict[str, float] = {}
         for row in conn.execute(
-            f"SELECT transfer_band_dist FROM seed_su_exam_stats WHERE su_id IN ({placeholders})",
-            su_ids,
+            f"SELECT transfer_band_dist FROM seed_su_exam_stats WHERE study_unit_id IN ({placeholders})",
+            study_unit_ids,
         ):
             try:
                 dist = json.loads(row["transfer_band_dist"])
@@ -440,7 +440,7 @@ async def get_module_map(
 
 async def get_study_unit_detail(
     db: AsyncSession,
-    su_id: str,
+    study_unit_id: str,
     kb_path: str | None = None,
 ) -> StudyUnitDetailResponse:
     """构建学习单元详情（前置/后续/对比/教材定位/课标/高考题型）。"""
@@ -449,7 +449,7 @@ async def get_study_unit_detail(
     if conn is None or not _table_exists(conn, "study_units"):
         # Return a minimal empty response
         return StudyUnitDetailResponse(
-            id=su_id, name=su_id, estimated_minutes=0,
+            id=study_unit_id, name=study_unit_id, estimated_minutes=0,
             textbook=[], prerequisites=[], successors=[],
             contrasts=[], concepts=[], curriculum=[], exam_patterns=[],
         )
@@ -460,14 +460,14 @@ async def get_study_unit_detail(
         "prerequisite_unit_ids, source_concept_ids, textbook_anchor_ids, "
         "linked_da_ids, module "
         "FROM study_units WHERE id=?",
-        (su_id,),
+        (study_unit_id,),
     ).fetchone()
 
     if su_row is None:
         if conn:
             conn.close()
         return StudyUnitDetailResponse(
-            id=su_id, name=su_id, estimated_minutes=0,
+            id=study_unit_id, name=study_unit_id, estimated_minutes=0,
             textbook=[], prerequisites=[], successors=[],
             contrasts=[], concepts=[], curriculum=[], exam_patterns=[],
         )
@@ -492,7 +492,7 @@ async def get_study_unit_detail(
         "WHERE prerequisite_unit_ids IS NOT NULL"
     ):
         prereqs = _json_list(row["prerequisite_unit_ids"])
-        if su_id in prereqs:
+        if study_unit_id in prereqs:
             mod = row["module"] or "unknown"
             successors.append(RelationItem(
                 category="后续单元", target_name=row["name"], target_module=mod
