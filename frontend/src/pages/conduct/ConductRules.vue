@@ -1,10 +1,8 @@
 <template>
   <div>
-    <n-page-header title="班规管理" subtitle="管理积分规则分类和条目" class="section-gap">
-      <template #extra>
-        <n-button type="primary" @click="showAddCategory = true">添加分类</n-button>
-      </template>
-    </n-page-header>
+    <div style="display: flex; justify-content: flex-end; margin-bottom: var(--space-4);">
+      <n-button type="primary" @click="showAddCategory = true">添加分类</n-button>
+    </div>
 
     <n-alert v-if="!classId" type="warning" title="未选择班级" class="section-gap">
       当前角色未关联班级，请切换到班主任角色。

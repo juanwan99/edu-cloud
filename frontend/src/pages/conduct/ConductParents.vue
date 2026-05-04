@@ -1,6 +1,5 @@
 <template>
   <div>
-    <n-page-header title="家长管理" subtitle="查看和管理已注册家长" class="section-gap" />
 
     <n-alert v-if="!classId" type="warning" title="未选择班级" class="section-gap">
       当前角色未关联班级，请切换到班主任角色。

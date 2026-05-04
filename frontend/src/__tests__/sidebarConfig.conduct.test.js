@@ -1,64 +1,62 @@
 /**
- * sidebarConfig conduct T3 permission-based sidebar tests
+ * sidebarConfig conduct permission-based sidebar tests
  *
- * Replaces frozen-mode tests (2026-04-18).
- * SIDEBAR_GROUPS + getSidebarGroups now derive sidebar entries from permissions.js.
+ * Post-restructure: 10 flat items → 2 entries (德育工作台 + 德育设置)
  */
 import { describe, it, expect } from 'vitest'
 import { getSidebarItems, SIDEBAR_GROUPS } from '../config/sidebarConfig.js'
 import { ROLE_PERMISSIONS } from '../config/permissions.js'
 
-const CONDUCT_ROUTE_PREFIX = '/conduct'
-
-describe('T3 — sidebar 按 permissions 派生（conduct 矩阵）', () => {
+describe('sidebar conduct 条目按角色权限派生', () => {
   const getConductItems = (role) => {
     const items = getSidebarItems(role)
     return items.filter(it => it.moduleCode === 'conduct').map(it => it.route)
   }
 
-  it('platform_admin 看到 9 项 conduct', () => {
-    expect(getConductItems('platform_admin')).toHaveLength(9)
+  it('platform_admin 看到 2 项 conduct', () => {
+    expect(getConductItems('platform_admin')).toHaveLength(2)
   })
 
-  it('academic_director 看到 8 项', () => {
-    const routes = getConductItems('academic_director')
-    expect(routes).toHaveLength(8)
+  it('district_admin 看到 2 项 conduct', () => {
+    expect(getConductItems('district_admin')).toHaveLength(2)
   })
 
-  it('grade_leader 看到 6 项', () => {
-    expect(getConductItems('grade_leader')).toHaveLength(6)
+  it('academic_director 看到 2 项', () => {
+    expect(getConductItems('academic_director')).toHaveLength(2)
+  })
+
+  it('homeroom_teacher 看到 2 项', () => {
+    expect(getConductItems('homeroom_teacher')).toHaveLength(2)
+  })
+
+  it('principal 看到 1 项（仅工作台）', () => {
+    const routes = getConductItems('principal')
+    expect(routes).toHaveLength(1)
+    expect(routes[0]).toBe('/conduct')
+  })
+
+  it('grade_leader 看到 1 项（仅工作台）', () => {
+    expect(getConductItems('grade_leader')).toHaveLength(1)
+  })
+
+  it('subject_teacher 看到 1 项（仅工作台）', () => {
+    expect(getConductItems('subject_teacher')).toHaveLength(1)
+  })
+
+  it('parent 看到 1 项（仅工作台）', () => {
+    expect(getConductItems('parent')).toHaveLength(1)
   })
 
   it('lesson_prep_leader 无 conduct 入口', () => {
     expect(getConductItems('lesson_prep_leader')).toHaveLength(0)
   })
 
-  it('principal 4 项', () => {
-    expect(getConductItems('principal')).toHaveLength(4)
-  })
-
-  it('homeroom_teacher 9 项', () => {
-    expect(getConductItems('homeroom_teacher')).toHaveLength(9)
-  })
-
-  it('subject_teacher 5 项', () => {
-    expect(getConductItems('subject_teacher')).toHaveLength(5)
-  })
-
-  it('teaching_research_leader 0 项', () => {
+  it('teaching_research_leader 无 conduct 入口', () => {
     expect(getConductItems('teaching_research_leader')).toHaveLength(0)
-  })
-
-  it('parent 3 项', () => {
-    expect(getConductItems('parent')).toHaveLength(3)
-  })
-
-  it('district_admin 看到 9 项 conduct', () => {
-    expect(getConductItems('district_admin')).toHaveLength(9)
   })
 })
 
-describe('T3 (R1-F007) — conduct items perm 合法性治理', () => {
+describe('conduct items perm 合法性治理', () => {
   it('每个 perm 字段都在合法 permission 集', () => {
     const allPerms = new Set()
     for (const perms of Object.values(ROLE_PERMISSIONS)) {

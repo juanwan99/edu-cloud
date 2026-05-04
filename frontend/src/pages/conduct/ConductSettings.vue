@@ -1,6 +1,5 @@
 <template>
   <div>
-    <n-page-header title="德育设置" subtitle="班级操行管理配置" class="section-gap" />
 
     <n-alert v-if="!classId" type="warning" title="未选择班级" class="section-gap">
       当前角色未关联班级，请切换到班主任角色。

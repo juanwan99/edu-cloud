@@ -1,27 +1,25 @@
 <template>
   <div>
-    <n-page-header title="积分排行" style="margin-bottom: var(--space-4);">
-      <template #extra>
-        <n-space :size="12">
-          <n-input
-            v-model:value="searchName"
-            placeholder="搜索学生姓名"
-            clearable
-            size="small"
-            style="width: 160px;"
-          />
-          <n-select
-            v-model:value="semesterId"
-            :options="semesterOptions"
-            placeholder="选择学期"
-            clearable
-            size="small"
-            style="width: 180px;"
-          />
-          <n-button size="small" type="primary" :loading="exporting" @click="handleExport">导出排行</n-button>
-        </n-space>
-      </template>
-    </n-page-header>
+    <div style="display: flex; justify-content: flex-end; margin-bottom: var(--space-4);">
+      <n-space :size="12">
+        <n-input
+          v-model:value="searchName"
+          placeholder="搜索学生姓名"
+          clearable
+          size="small"
+          style="width: 160px;"
+        />
+        <n-select
+          v-model:value="semesterId"
+          :options="semesterOptions"
+          placeholder="选择学期"
+          clearable
+          size="small"
+          style="width: 180px;"
+        />
+        <n-button size="small" type="primary" :loading="exporting" @click="handleExport">导出排行</n-button>
+      </n-space>
+    </div>
 
     <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: var(--space-4);">
       当前角色未关联班级，请切换到班主任角色。

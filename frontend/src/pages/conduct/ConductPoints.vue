@@ -1,6 +1,5 @@
 <template>
   <div>
-    <n-page-header title="积分操作" subtitle="快速为学生加分或扣分" style="margin-bottom: var(--space-4);" />
 
     <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: var(--space-4);">
       当前角色未关联班级，请切换到班主任角色。

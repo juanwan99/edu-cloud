@@ -28,8 +28,9 @@ describe('ConductRankings smoke', () => {
 })
 
 describe('ConductRankings template sections', () => {
-  it('contains page header with title', () => {
-    expect(content).toContain('title="积分排行"')
+  it('contains filter controls in flex layout', () => {
+    expect(content).toContain('display: flex')
+    expect(content).toContain('n-space')
   })
 
   it('contains search input for student name', () => {

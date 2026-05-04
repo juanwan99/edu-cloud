@@ -28,9 +28,9 @@ describe('ConductPoints smoke', () => {
 })
 
 describe('ConductPoints template sections', () => {
-  it('contains page header with title and subtitle', () => {
-    expect(content).toContain('title="积分操作"')
-    expect(content).toContain('快速为学生加分或扣分')
+  it('contains class-not-selected alert and quick add card', () => {
+    expect(content).toContain('v-if="!classId"')
+    expect(content).toContain('title="快速加分"')
   })
 
   it('contains class-not-selected alert', () => {

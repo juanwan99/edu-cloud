@@ -1,6 +1,5 @@
 <template>
   <div>
-    <n-page-header title="积分记录" subtitle="查看和管理所有操行积分变动" style="margin-bottom: var(--space-4);" />
 
     <n-alert v-if="!classId" type="warning" title="未选择班级" style="margin-bottom: var(--space-4);">
       当前角色未关联班级，请切换到班主任角色。

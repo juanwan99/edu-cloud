@@ -28,9 +28,9 @@ describe('ConductParents smoke', () => {
 })
 
 describe('ConductParents template sections', () => {
-  it('contains page header with title and subtitle', () => {
-    expect(content).toContain('title="家长管理"')
-    expect(content).toContain('查看和管理已注册家长')
+  it('contains class-not-selected alert and invite code section', () => {
+    expect(content).toContain('v-if="!classId"')
+    expect(content).toContain('班级邀请码')
   })
 
   it('contains class-not-selected alert', () => {

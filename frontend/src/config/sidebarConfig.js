@@ -41,16 +41,9 @@ const SIDEBAR_GROUPS = [
     label: '学生管理',
     icon: 'people',
     children: [
-      { label: '学生信息', route: '/students', perm: 'view_students' },
-      { label: '德育概览', route: '/conduct', moduleCode: 'conduct', perm: 'view_conduct' },
-      { label: '积分操作', route: '/conduct/points', moduleCode: 'conduct', perm: 'manage_conduct' },
-      { label: '积分记录', route: '/conduct/records', moduleCode: 'conduct', perm: 'view_conduct' },
-      { label: '排行榜', route: '/conduct/rankings', moduleCode: 'conduct', perm: 'view_conduct' },
-      { label: '班规管理', route: '/conduct/rules', moduleCode: 'conduct', perm: 'manage_conduct_rules' },
-      { label: '小组管理', route: '/conduct/groups', moduleCode: 'conduct', perm: 'manage_conduct' },
-      { label: '家长管理', route: '/conduct/parents', moduleCode: 'conduct', perm: 'manage_conduct_parents' },
+      { label: '学生档案', route: '/students', perm: 'view_students' },
+      { label: '德育工作台', route: '/conduct', moduleCode: 'conduct', perm: 'view_conduct' },
       { label: '德育设置', route: '/conduct/settings', moduleCode: 'conduct', perm: 'manage_conduct_rules' },
-      { label: '数据导出', route: '/conduct/export', moduleCode: 'conduct', perm: 'export_conduct' },
     ],
   },
   {

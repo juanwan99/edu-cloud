@@ -28,9 +28,9 @@ describe('ConductRecords smoke', () => {
 })
 
 describe('ConductRecords template sections', () => {
-  it('contains page header with title and subtitle', () => {
-    expect(content).toContain('title="积分记录"')
-    expect(content).toContain('查看和管理所有操行积分变动')
+  it('contains class-not-selected alert and stats row', () => {
+    expect(content).toContain('v-if="!classId"')
+    expect(content).toContain('class="stats-row"')
   })
 
   it('contains class-not-selected alert', () => {
