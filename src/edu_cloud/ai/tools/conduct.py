@@ -22,12 +22,15 @@ logger = logging.getLogger(__name__)
 # ── F003: scope 校验辅助 ──
 
 def _check_class_in_scope(ctx: ToolContext, class_id: str) -> str | None:
-    """校验 class_id 是否在 ctx.class_ids 中。
+    """校验 class_id 是否在 ctx.class_ids 中，且 class 属于 ctx.school_id。
 
+    Parent 角色通过 guardian link 校验（class_ids 为 None 不等于全可见）。
     Returns: None 表示通过；非 None 表示错误消息。
     """
+    if ctx.role == "parent":
+        return f"class '{class_id}' not accessible to parent role via this tool"
     if ctx.class_ids is None:
-        return None  # None = 校级以上，全可见
+        return None  # None = 校级以上角色，全可见（已通过 allowed_roles 限定）
     if class_id not in ctx.class_ids:
         return f"class '{class_id}' out of scope for role {ctx.role}"
     return None
@@ -57,6 +60,8 @@ async def _check_student_in_scope(
         if link is None:
             return student, f"student '{student_id}' not linked to parent"
         return student, None
+    if student.school_id != ctx.school_id:
+        return student, f"student '{student_id}' not in current school"
     if ctx.class_ids is None:
         return student, None
     if student.class_id not in ctx.class_ids:
@@ -405,7 +410,7 @@ async def add_conduct_points(input: dict, ctx: ToolContext) -> ToolResult:
     risk_level="low",
     is_read_only=True,
     sensitivity="school",
-    allowed_roles=["homeroom_teacher", "subject_teacher", "academic_director", "principal", "grade_leader", "parent"],
+    allowed_roles=["homeroom_teacher", "subject_teacher", "academic_director", "principal", "grade_leader"],
 )
 async def get_conduct_rules(input: dict, ctx: ToolContext) -> ToolResult:
     class_id = input.get("class_id", "")
