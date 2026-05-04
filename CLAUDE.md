@@ -339,6 +339,7 @@ scripts/
   db_doctor.py          # ORM vs DB schema drift 检测（--startup/--strict/--json）
   db_migrate            # 安全 migration wrapper（flock→backup→dry-run→doctor→upgrade）；唯一合法 migration 路径
   db_branch             # branch DB 隔离工具（init/refresh/prune/list/status）
+  pytest_delta.py       # no-new-failures 回归门禁（对比 .quality/known-pytest-failures.txt 基线）
   e2e_joint_exam.py     # 端到端联考验证脚本（2 校完整流程）
 tests/
   conftest.py           # SQLite in-memory + AsyncClient + admin/school/db_engine fixtures

@@ -1,0 +1,12 @@
+# Known pytest failures baseline — auto-maintained by scripts/pytest_delta.py
+# Last updated: 2026-05-04
+# These are pre-existing failures, not regressions. Reviewed weekly.
+tests/test_services_exam/test_llm_client.py::test_llm_client_grade_retry_on_error
+tests/test_services_exam/test_llm_client.py::test_llm_client_retry_on_non_json_response
+tests/test_services_exam/test_llm_client.py::test_llm_client_retry_on_empty_choices
+tests/test_services_exam/test_llm_client.py::test_llm_client_retry_on_timeout
+tests/test_services_exam/test_llm_client.py::test_llm_client_retry_on_non_dict_json
+tests/test_services_exam/test_llm_client.py::test_llm_client_exhausted_retries
+tests/test_services_exam/test_llm_client_new.py::test_grade_accepts_multiple_images
+tests/test_services_exam/test_rubric_formatter.py::test_basic_format
+tests/test_services_exam/test_rubric_validation.py::test_missing_answer_and_standard_answer

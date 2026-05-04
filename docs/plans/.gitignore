@@ -1,0 +1,4 @@
+# Temporary startup prompts (session-specific, not governance artifacts)
+*-startup-prompt.md
+# Raw codex review logs (GPT output preserved via hash in gates.json)
+.codex-*.log
