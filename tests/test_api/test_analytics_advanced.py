@@ -41,6 +41,29 @@ async def _seed_knowledge_exam(db, seed_school):
     q = Question(name="1", question_type="essay", max_score=10, subject_id=subj.id, school_id=school.id)
     db.add(q)
     await db.flush()
+
+    # 创建 ConceptGraphNode + QuestionKnowledgePoint，使 JOIN 查询有实际数据
+    from datetime import datetime, timezone
+    from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+
+    node1 = ConceptGraphNode(
+        id="BIO_SR_CP_M1_PHOTOSYNTHESIS", name="光合作用", course_code="biology",
+        node_type="concept", knowledge_level="L1", primary_module="M1",
+        synced_at=datetime.now(timezone.utc),
+    )
+    node2 = ConceptGraphNode(
+        id="BIO_SR_CP_M1_CELL_DIVISION", name="细胞分裂", course_code="biology",
+        node_type="concept", knowledge_level="L1", primary_module="M1",
+        synced_at=datetime.now(timezone.utc),
+    )
+    db.add_all([node1, node2])
+    await db.flush()
+
+    qkp1 = QuestionKnowledgePoint(question_id=q.id, concept_id="BIO_SR_CP_M1_PHOTOSYNTHESIS")
+    qkp2 = QuestionKnowledgePoint(question_id=q.id, concept_id="BIO_SR_CP_M1_CELL_DIVISION")
+    db.add_all([qkp1, qkp2])
+    await db.flush()
+
     sa = StudentAnswer(exam_id=exam.id, subject_id=subj.id, student_id=stu.id, question_id=q.id, school_id=school.id)
     db.add(sa)
     await db.flush()
@@ -68,15 +91,17 @@ async def test_class_knowledge_returns_structure(client, school_admin_headers, s
     data = resp.json()
     assert "knowledge_points" in data
     assert "classes" in data
-    # F004: 值级断言 — seed 数据有"光合作用""细胞分裂"两个知识点
+    # 值级断言：seed 数据通过 QKP 关联了 2 个 concept
     assert len(data["knowledge_points"]) == 2
-    assert "光合作用" in data["knowledge_points"]
-    assert "细胞分裂" in data["knowledge_points"]
+    assert "BIO_SR_CP_M1_PHOTOSYNTHESIS" in data["knowledge_points"]
+    assert "BIO_SR_CP_M1_CELL_DIVISION" in data["knowledge_points"]
     assert len(data["classes"]) >= 1
     cls = data["classes"][0]
     assert len(cls["mastery"]) == 2
     for m in cls["mastery"]:
         assert 0 <= m["rate"] <= 1
+        assert m["kp_id"] in ("BIO_SR_CP_M1_PHOTOSYNTHESIS", "BIO_SR_CP_M1_CELL_DIVISION")
+        assert m["name"] in ("光合作用", "细胞分裂")
 
 
 @pytest.mark.asyncio
