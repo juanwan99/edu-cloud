@@ -91,7 +91,11 @@ def _detect_collection_errors(stdout, stderr, rc):
 
 def main():
     extra_args = [a for a in sys.argv[1:] if a != '--update-only']
-    is_full_run = not extra_args or all(a.startswith('-') for a in extra_args)
+    PARTIAL_FLAGS = ('--lf', '--ff', '-x', '--maxfail', '--ignore', '-k', '--last-failed')
+    is_full_run = not extra_args or not any(
+        any(a.startswith(f) for f in PARTIAL_FLAGS)
+        for a in extra_args
+    )
 
     print("Running pytest...")
     stdout, stderr, rc = run_pytest(extra_args)

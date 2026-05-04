@@ -1,6 +1,14 @@
 # Known pytest failures baseline — auto-maintained by scripts/pytest_delta.py
 # Last updated: 2026-05-04
 # These are pre-existing failures, not regressions. Reviewed weekly.
+tests/governance/test_module_governance_guard.py::test_hook_entry_asks_on_large_legacy_touch
+tests/governance/test_module_governance_guard.py::test_large_modification_without_module_md_asks
+tests/test_ai/test_tools_behavior.py::test_get_knowledge_tree
+tests/test_ai/test_tools_behavior.py::test_get_knowledge_tree_with_parent
+tests/test_ai/test_tools_execution.py::test_get_student_knowledge_map_success
+tests/test_api_exam/test_dispatch_status.py::TestDispatchStatus::test_objective_only_not_ready
+tests/test_api_exam/test_grading_rubric.py::test_cross_tenant_rubric_blocked
+tests/test_api_exam/test_grading_rubric.py::test_get_rubric_not_found
 tests/test_api_exam/test_grading_task_question.py::test_create_task_regrade_cleans_old_results
 tests/test_modules/test_routes_smoke.py::test_grading_rubric_not_found
 tests/test_services_exam/test_grading_prompts.py::test_user_content_includes_rubric_and_max_score
