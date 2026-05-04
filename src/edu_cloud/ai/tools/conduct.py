@@ -77,6 +77,7 @@ async def _check_student_in_scope(
     risk_level="low",
     is_read_only=True,
     sensitivity="school",
+    allowed_roles=["homeroom_teacher", "subject_teacher", "academic_director", "principal", "grade_leader"],
 )
 async def get_conduct_rankings(input: dict, ctx: ToolContext) -> ToolResult:
     class_id = input.get("class_id", "")
@@ -155,6 +156,7 @@ async def get_conduct_rankings(input: dict, ctx: ToolContext) -> ToolResult:
     risk_level="low",
     is_read_only=True,
     sensitivity="student",
+    allowed_roles=["homeroom_teacher", "subject_teacher", "academic_director", "principal", "grade_leader", "parent"],
 )
 async def get_student_conduct_summary(input: dict, ctx: ToolContext) -> ToolResult:
     student_id = input.get("student_id", "")
@@ -248,6 +250,7 @@ async def get_student_conduct_summary(input: dict, ctx: ToolContext) -> ToolResu
     risk_level="low",
     is_read_only=True,
     sensitivity="school",
+    allowed_roles=["homeroom_teacher", "subject_teacher", "academic_director", "principal", "grade_leader"],
 )
 async def get_conduct_records(input: dict, ctx: ToolContext) -> ToolResult:
     class_id = input.get("class_id", "")
@@ -390,6 +393,7 @@ async def add_conduct_points(input: dict, ctx: ToolContext) -> ToolResult:
     risk_level="low",
     is_read_only=True,
     sensitivity="school",
+    allowed_roles=["homeroom_teacher", "subject_teacher", "academic_director", "principal", "grade_leader", "parent"],
 )
 async def get_conduct_rules(input: dict, ctx: ToolContext) -> ToolResult:
     class_id = input.get("class_id", "")
@@ -425,6 +429,7 @@ async def get_conduct_rules(input: dict, ctx: ToolContext) -> ToolResult:
     risk_level="low",
     is_read_only=True,
     sensitivity="school",
+    allowed_roles=["homeroom_teacher", "subject_teacher", "academic_director", "principal", "grade_leader"],
 )
 async def get_class_conduct_overview(input: dict, ctx: ToolContext) -> ToolResult:
     class_id = input.get("class_id", "")
@@ -674,6 +679,7 @@ async def analyze_student_behavior(input: dict, ctx: ToolContext) -> ToolResult:
     risk_level="low",
     is_read_only=True,
     sensitivity="school",
+    allowed_roles=["homeroom_teacher", "academic_director", "principal", "grade_leader"],
 )
 async def get_class_behavior_insights(input: dict, ctx: ToolContext) -> ToolResult:
     class_id = input.get("class_id", "")

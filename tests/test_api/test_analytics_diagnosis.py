@@ -103,7 +103,7 @@ async def test_class_diagnosis_worst_top5(client, school_admin_headers, seed_sch
     worst = data["worstKnowledges"]
     assert len(worst) <= 5
     # kp1 (avg ~0.25) 应排第一
-    assert worst[0]["knp_id"] == "kp1"
+    assert worst[0]["concept_id"] == "kp1"
     # 升序排列
     rates = [w["rate"] for w in worst]
     assert rates == sorted(rates)
@@ -139,7 +139,7 @@ async def test_class_diagnosis_max_diff(client, school_admin_headers, seed_schoo
     max_diff = data["maxScoreDiffKnowledges"]
     assert len(max_diff) <= 5
     # kp3 差值 0.8 应排第一
-    assert max_diff[0]["knp_id"] == "kp3"
+    assert max_diff[0]["concept_id"] == "kp3"
     assert abs(max_diff[0]["diff"] - 0.8) < 0.01
     # 降序
     diffs = [m["diff"] for m in max_diff]

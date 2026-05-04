@@ -42,8 +42,8 @@ def upgrade() -> None:
     conn.execute(sa.text("""
         CREATE TABLE question_knowledge_points_new (
             id VARCHAR(36) NOT NULL PRIMARY KEY,
-            created_at DATETIME NOT NULL,
-            updated_at DATETIME NOT NULL,
+            created_at TIMESTAMP NOT NULL,
+            updated_at TIMESTAMP NOT NULL,
             question_id VARCHAR(36) NOT NULL REFERENCES questions(id),
             concept_id VARCHAR(64) NOT NULL REFERENCES concept_graph_nodes(id),
             is_primary BOOLEAN NOT NULL,
@@ -75,8 +75,8 @@ def upgrade() -> None:
     conn.execute(sa.text("""
         CREATE TABLE student_knowledge_mastery_new (
             id VARCHAR(36) NOT NULL PRIMARY KEY,
-            created_at DATETIME NOT NULL,
-            updated_at DATETIME NOT NULL,
+            created_at TIMESTAMP NOT NULL,
+            updated_at TIMESTAMP NOT NULL,
             student_id VARCHAR(100) NOT NULL,
             concept_id VARCHAR(64) NOT NULL REFERENCES concept_graph_nodes(id),
             mastery_level FLOAT NOT NULL,
@@ -87,7 +87,7 @@ def upgrade() -> None:
             trend VARCHAR(20) NOT NULL,
             recent_scores JSON,
             last_exam_id VARCHAR(36),
-            last_exam_date DATETIME,
+            last_exam_date TIMESTAMP,
             school_id VARCHAR(36) NOT NULL REFERENCES schools(id),
             UNIQUE (student_id, concept_id)
         )
