@@ -14,12 +14,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/knowledge", tags=["knowledge"])
 
 
-def _kp_response(kp) -> dict:
+def _kp_response(node) -> dict:
     return {
-        "id": kp.id, "code": kp.code, "name": kp.name,
-        "course_code": kp.course_code, "level": kp.level,
-        "parent_id": kp.parent_id, "grade_hint": kp.grade_hint,
-        "description": kp.description,
+        "id": node.id,
+        "name": node.name,
+        "node_type": node.node_type,
+        "primary_module": node.primary_module,
+        "description": node.description,
+        "course_code": node.course_code,
     }
 
 
