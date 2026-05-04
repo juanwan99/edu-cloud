@@ -692,3 +692,125 @@ async def test_parent_behavior_summary_empty_records(
     assert data["negative_count"] == 0
     assert data["top_issues"] == []
     assert data["positive_streak_days"] == 0
+
+
+# ── F-004: Trend-specific tests for behavior-summary endpoint ──
+
+
+@pytest.mark.anyio
+async def test_parent_behavior_summary_trend_improving(
+    client, db, conduct_config, school_class_student,
+):
+    """F-004: First half negative, second half positive -> improving trend."""
+    from datetime import timedelta
+
+    school, cls, student = school_class_student
+    token, headers, student = await _register_and_bind(
+        client, db, school_class_student, "13800900001",
+    )
+
+    operator = User(username="op_trend_imp", display_name="趋势老师1")
+    operator.set_password("123")
+    db.add(operator)
+    await db.flush()
+
+    today = date.today()
+    # First 15 days: negative
+    for i in range(15):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=-1,
+            reason="扣分", date=today - timedelta(days=30 - i),
+            operator_id=operator.id,
+        ))
+    # Last 15 days: positive
+    for i in range(15):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=3,
+            reason="加分", date=today - timedelta(days=15 - i),
+            operator_id=operator.id,
+        ))
+    await db.commit()
+
+    resp = await client.get(
+        f"/api/v1/conduct/parent/children/{student.id}/behavior-summary",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["trend"] == "improving"
+
+
+@pytest.mark.anyio
+async def test_parent_behavior_summary_trend_declining(
+    client, db, conduct_config, school_class_student,
+):
+    """F-004: First half positive, second half negative -> declining trend."""
+    from datetime import timedelta
+
+    school, cls, student = school_class_student
+    token, headers, student = await _register_and_bind(
+        client, db, school_class_student, "13800900002",
+    )
+
+    operator = User(username="op_trend_dec", display_name="趋势老师2")
+    operator.set_password("123")
+    db.add(operator)
+    await db.flush()
+
+    today = date.today()
+    # First 15 days: positive
+    for i in range(15):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=3,
+            reason="加分", date=today - timedelta(days=30 - i),
+            operator_id=operator.id,
+        ))
+    # Last 15 days: negative
+    for i in range(15):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=-1,
+            reason="扣分", date=today - timedelta(days=15 - i),
+            operator_id=operator.id,
+        ))
+    await db.commit()
+
+    resp = await client.get(
+        f"/api/v1/conduct/parent/children/{student.id}/behavior-summary",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["trend"] == "declining"
+
+
+# ── F-005: Streak boundary tests for behavior-summary endpoint ──
+
+
+@pytest.mark.anyio
+async def test_parent_behavior_summary_streak_multirecord_day(
+    client, db, conduct_config, school_class_student,
+):
+    """F-005: Same day with multiple positive records counts as 1 streak day."""
+    school, cls, student = school_class_student
+    token, headers, student = await _register_and_bind(
+        client, db, school_class_student, "13800900003",
+    )
+
+    operator = User(username="op_streak_multi", display_name="连击老师")
+    operator.set_password("123")
+    db.add(operator)
+    await db.flush()
+
+    # 3 positive records on the same date
+    for _ in range(3):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=2,
+            reason="表现好", date=date.today(),
+            operator_id=operator.id,
+        ))
+    await db.commit()
+
+    resp = await client.get(
+        f"/api/v1/conduct/parent/children/{student.id}/behavior-summary",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["positive_streak_days"] == 1

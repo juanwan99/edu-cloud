@@ -303,3 +303,214 @@ async def test_get_class_behavior_insights_empty_class(db, school_class_student)
     assert result.data["class_trend"] == "stable"
     assert result.data["at_risk_students"] == []
     assert result.data["most_improved"] is None
+
+
+# ── F-004: Trend-specific tests ──
+
+
+@pytest.mark.anyio
+async def test_analyze_behavior_trend_improving(db, school_class_student):
+    """F-004: First half negative, second half positive -> improving."""
+    from datetime import date, timedelta
+    from edu_cloud.ai.tool_context import ToolContext
+    from edu_cloud.ai.tools.conduct import analyze_student_behavior
+    from edu_cloud.modules.conduct.models import ConductRecord
+
+    school, cls, student = school_class_student
+    today = date.today()
+
+    # First 15 days: all negative (-1 each day)
+    for i in range(15):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=-1,
+            reason="扣分", date=today - timedelta(days=30 - i),
+            operator_id="op1", source="manual",
+        ))
+    # Last 15 days: all positive (+3 each day)
+    for i in range(15):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=3,
+            reason="加分", date=today - timedelta(days=15 - i),
+            operator_id="op1", source="manual",
+        ))
+    await db.commit()
+
+    ctx = ToolContext(
+        db=db, school_id=school.id, user_id="u1", role="principal",
+        class_ids=None,
+    )
+    result = await analyze_student_behavior({"student_id": student.id, "days": 30}, ctx)
+    assert result.success is True
+    assert result.data["trend"] == "improving"
+
+
+@pytest.mark.anyio
+async def test_analyze_behavior_trend_declining(db, school_class_student):
+    """F-004: First half positive, second half negative -> declining."""
+    from datetime import date, timedelta
+    from edu_cloud.ai.tool_context import ToolContext
+    from edu_cloud.ai.tools.conduct import analyze_student_behavior
+    from edu_cloud.modules.conduct.models import ConductRecord
+
+    school, cls, student = school_class_student
+    today = date.today()
+
+    # First 15 days: all positive (+3 each day)
+    for i in range(15):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=3,
+            reason="加分", date=today - timedelta(days=30 - i),
+            operator_id="op1", source="manual",
+        ))
+    # Last 15 days: all negative (-1 each day)
+    for i in range(15):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=-1,
+            reason="扣分", date=today - timedelta(days=15 - i),
+            operator_id="op1", source="manual",
+        ))
+    await db.commit()
+
+    ctx = ToolContext(
+        db=db, school_id=school.id, user_id="u1", role="principal",
+        class_ids=None,
+    )
+    result = await analyze_student_behavior({"student_id": student.id, "days": 30}, ctx)
+    assert result.success is True
+    assert result.data["trend"] == "declining"
+
+
+# ── F-005: Streak boundary tests ──
+
+
+@pytest.mark.anyio
+async def test_analyze_behavior_streak_multirecord_day(db, school_class_student):
+    """F-005: Same day with 3 positive records should count as 1 day, not 3."""
+    from datetime import date
+    from edu_cloud.ai.tool_context import ToolContext
+    from edu_cloud.ai.tools.conduct import analyze_student_behavior
+    from edu_cloud.modules.conduct.models import ConductRecord
+
+    school, cls, student = school_class_student
+
+    # 3 positive records on the same date
+    for _ in range(3):
+        db.add(ConductRecord(
+            student_id=student.id, class_id=cls.id, points=2,
+            reason="表现好", date=date.today(),
+            operator_id="op1", source="manual",
+        ))
+    await db.commit()
+
+    ctx = ToolContext(
+        db=db, school_id=school.id, user_id="u1", role="principal",
+        class_ids=None,
+    )
+    result = await analyze_student_behavior({"student_id": student.id, "days": 30}, ctx)
+    assert result.success is True
+    assert result.data["positive_streak_days"] == 1
+
+
+@pytest.mark.anyio
+async def test_analyze_behavior_streak_broken_by_negative(db, school_class_student):
+    """F-005: Negative day breaks the streak — only most recent positive day counts."""
+    from datetime import date, timedelta
+    from edu_cloud.ai.tool_context import ToolContext
+    from edu_cloud.ai.tools.conduct import analyze_student_behavior
+    from edu_cloud.modules.conduct.models import ConductRecord
+
+    school, cls, student = school_class_student
+    today = date.today()
+
+    # Day 1 (2 days ago): +5
+    db.add(ConductRecord(
+        student_id=student.id, class_id=cls.id, points=5,
+        reason="表现好", date=today - timedelta(days=2),
+        operator_id="op1", source="manual",
+    ))
+    # Day 2 (yesterday): -2 (breaks streak)
+    db.add(ConductRecord(
+        student_id=student.id, class_id=cls.id, points=-2,
+        reason="迟到", date=today - timedelta(days=1),
+        operator_id="op1", source="manual",
+    ))
+    # Day 3 (today): +3
+    db.add(ConductRecord(
+        student_id=student.id, class_id=cls.id, points=3,
+        reason="积极发言", date=today,
+        operator_id="op1", source="manual",
+    ))
+    await db.commit()
+
+    ctx = ToolContext(
+        db=db, school_id=school.id, user_id="u1", role="principal",
+        class_ids=None,
+    )
+    result = await analyze_student_behavior({"student_id": student.id, "days": 30}, ctx)
+    assert result.success is True
+    # Only today counts — yesterday was negative, breaking the streak
+    assert result.data["positive_streak_days"] == 1
+
+
+# ── F-006: Cross-school scope tests ──
+
+
+@pytest.mark.anyio
+async def test_analyze_behavior_cross_school_denied(db, school_class_student):
+    """F-006: School-level role cannot analyze student from different school."""
+    from edu_cloud.ai.tool_context import ToolContext
+    from edu_cloud.ai.tools.conduct import analyze_student_behavior
+    from edu_cloud.models.school import School
+    from edu_cloud.modules.student.models import Class, Student
+
+    school_a, cls_a, _ = school_class_student
+
+    # Create a different school + class + student
+    school_b = School(name="另一所中学", code="OTHER2026", is_active=True)
+    db.add(school_b)
+    await db.flush()
+    cls_b = Class(name="初一(1)班", grade="初一", grade_number=1, school_id=school_b.id)
+    db.add(cls_b)
+    await db.flush()
+    student_b = Student(
+        name="王五", student_number="2026099", class_id=cls_b.id, school_id=school_b.id,
+    )
+    db.add(student_b)
+    await db.commit()
+
+    # ctx for school A principal (class_ids=None = school-level)
+    ctx = ToolContext(
+        db=db, school_id=school_a.id, user_id="u1", role="principal",
+        class_ids=None,
+    )
+    result = await analyze_student_behavior({"student_id": student_b.id}, ctx)
+    assert result.success is False
+    assert "not in current school" in (result.error or "")
+
+
+@pytest.mark.anyio
+async def test_class_behavior_insights_cross_school_denied(db, school_class_student):
+    """F-006: School-level role cannot get insights for class from different school."""
+    from edu_cloud.ai.tool_context import ToolContext
+    from edu_cloud.ai.tools.conduct import get_class_behavior_insights
+    from edu_cloud.models.school import School
+    from edu_cloud.modules.student.models import Class
+
+    school_a, _, _ = school_class_student
+
+    # Create a different school + class
+    school_b = School(name="另一所中学", code="OTHER2027", is_active=True)
+    db.add(school_b)
+    await db.flush()
+    cls_b = Class(name="初一(1)班", grade="初一", grade_number=1, school_id=school_b.id)
+    db.add(cls_b)
+    await db.commit()
+
+    # ctx for school A principal (class_ids=None = school-level)
+    ctx = ToolContext(
+        db=db, school_id=school_a.id, user_id="u1", role="principal",
+        class_ids=None,
+    )
+    result = await get_class_behavior_insights({"class_id": cls_b.id}, ctx)
+    assert result.success is False
+    assert "not in current school" in (result.error or "")
