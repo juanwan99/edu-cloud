@@ -28,11 +28,17 @@ const mockState = {
   nodesWithMastery: ref([]),
   qualityIssues: ref([]),
   modulesQuality: ref({}),
-  statsOverview: ref(null),  // Phase 1 T13
+  statsOverview: ref(null),
+  courseMapOverview: ref(null),
+  courseMapModule: ref(null),
+  courseMapStudyUnit: ref(null),
   loadGraphCalls: [],
   loadQualityCalls: [],
   loadAllModulesQualityCalls: 0,
-  loadStatsOverviewCalls: 0,  // Phase 1 T13
+  loadStatsOverviewCalls: 0,
+  loadCourseMapOverviewCalls: 0,
+  loadCourseMapModuleCalls: [],
+  loadCourseMapStudyUnitCalls: [],
   loadMasteryCalls: [],
   applyEditCalls: [],
 }
@@ -50,10 +56,16 @@ function resetMockState() {
   mockState.qualityIssues.value = []
   mockState.modulesQuality.value = {}
   mockState.statsOverview.value = null
+  mockState.courseMapOverview.value = null
+  mockState.courseMapModule.value = null
+  mockState.courseMapStudyUnit.value = null
   mockState.loadGraphCalls.length = 0
   mockState.loadQualityCalls.length = 0
   mockState.loadAllModulesQualityCalls = 0
   mockState.loadStatsOverviewCalls = 0
+  mockState.loadCourseMapOverviewCalls = 0
+  mockState.loadCourseMapModuleCalls.length = 0
+  mockState.loadCourseMapStudyUnitCalls.length = 0
   mockState.loadMasteryCalls.length = 0
   mockState.applyEditCalls.length = 0
 }
@@ -70,6 +82,18 @@ vi.mock('../../components/knowledge-tree/useKnowledgeTree', () => ({
     qualityIssues: mockState.qualityIssues,
     modulesQuality: mockState.modulesQuality,
     statsOverview: mockState.statsOverview,
+    courseMapOverview: mockState.courseMapOverview,
+    courseMapModule: mockState.courseMapModule,
+    courseMapStudyUnit: mockState.courseMapStudyUnit,
+    loadCourseMapOverview: vi.fn(async () => {
+      mockState.loadCourseMapOverviewCalls++
+    }),
+    loadCourseMapModule: vi.fn(async (mod) => {
+      mockState.loadCourseMapModuleCalls.push(mod)
+    }),
+    loadCourseMapStudyUnit: vi.fn(async (suId) => {
+      mockState.loadCourseMapStudyUnitCalls.push(suId)
+    }),
     loadGraph: vi.fn(async (mod = 'all') => {
       mockState.loadGraphCalls.push(mod)
       mockState.selectedModule.value = mod
@@ -235,11 +259,44 @@ const stubs = {
     emits: ['edit'],
     template: '<div class="relation-review-stub">RelationReviewPanel</div>',
   },
+  CourseMapOverview: defineComponent({
+    name: 'CourseMapOverview',
+    props: ['data'],
+    emits: ['select-module'],
+    setup(_, { emit }) {
+      return () => h('div', {
+        class: 'course-map-overview-stub',
+        onClick: () => emit('select-module', 'M1'),
+      }, 'CourseMapOverview')
+    },
+  }),
+  ModuleMapView: defineComponent({
+    name: 'ModuleMapView',
+    props: ['data'],
+    emits: ['select-unit', 'back'],
+    setup(_, { emit }) {
+      return () => h('div', { class: 'module-map-view-stub' }, [
+        h('button', { class: 'back-btn', onClick: () => emit('back') }, 'back'),
+        h('button', { class: 'select-unit-btn', onClick: () => emit('select-unit', 'su:m1_001') }, 'unit'),
+      ])
+    },
+  }),
+  StudyUnitDetail: defineComponent({
+    name: 'StudyUnitDetail',
+    props: ['data'],
+    emits: ['select-concept', 'back'],
+    setup(_, { emit }) {
+      return () => h('div', { class: 'study-unit-detail-stub' }, [
+        h('button', { class: 'back-btn', onClick: () => emit('back') }, 'back'),
+        h('button', { class: 'select-concept-btn', onClick: () => emit('select-concept', 'BIO_SR_CP_M1_A') }, 'concept'),
+      ])
+    },
+  }),
 }
 
 import KnowledgeTreePage from '../../pages/KnowledgeTreePage.vue'
 
-async function mountPage() {
+async function mountPage(viewMode = 'course-map') {
   setActivePinia(createPinia())
   const wrapper = mount(KnowledgeTreePage, {
     global: {
@@ -247,11 +304,15 @@ async function mountPage() {
     },
     attachTo: document.body,
   })
-  // 等待 init() 完成（T13 追加 loadStatsOverview → 多 1 个 await，多 1 tick）
   await nextTick()
   await nextTick()
   await nextTick()
   await nextTick()
+  if (viewMode !== 'course-map') {
+    wrapper.vm.viewMode = viewMode
+    await nextTick()
+    await nextTick()
+  }
   return wrapper
 }
 
@@ -262,58 +323,53 @@ describe('KnowledgeTreePage real mount (F-003 fix)', () => {
   })
 
   describe('入口状态机 (F-001 cover)', () => {
-    it('subject_teacher → init() sets showCards=false → ModuleOverviewPanel visible', async () => {
+    it('subject_teacher → init() sets showCards=false → CourseMapOverview visible (default view)', async () => {
       mockAuth.roleName.value = 'subject_teacher'
       const wrapper = await mountPage()
 
-      // showCards 应为 false → ModuleCards 不渲染
       expect(wrapper.find('.module-cards-stub').exists()).toBe(false)
-      // main-layout 渲染 ModuleOverviewPanel（selectedModule='all'）
-      expect(wrapper.find('.module-overview-stub').exists()).toBe(true)
-      expect(wrapper.find('.concept-map-stub').exists()).toBe(false)
+      expect(wrapper.find('.course-map-overview-stub').exists()).toBe(true)
     })
 
-    it('platform_admin → F-001 fix: showCards=false → teacher workbench entry', async () => {
+    it('platform_admin → F-001 fix: showCards=false → course map entry', async () => {
       mockAuth.roleName.value = 'platform_admin'
-      // platform_admin 不在 needsStudentSelector 列表，但有 edit_knowledge_tree 权限
       const wrapper = await mountPage()
 
       expect(wrapper.find('.module-cards-stub').exists()).toBe(false)
-      expect(wrapper.find('.module-overview-stub').exists()).toBe(true)
+      expect(wrapper.find('.course-map-overview-stub').exists()).toBe(true)
     })
 
-    it('district_admin → F-001 fix: showCards=false → teacher workbench entry', async () => {
+    it('district_admin → F-001 fix: showCards=false → course map entry', async () => {
       mockAuth.roleName.value = 'district_admin'
       const wrapper = await mountPage()
 
       expect(wrapper.find('.module-cards-stub').exists()).toBe(false)
-      expect(wrapper.find('.module-overview-stub').exists()).toBe(true)
+      expect(wrapper.find('.course-map-overview-stub').exists()).toBe(true)
     })
 
     it('parent → showCards=true → ModuleCards visible', async () => {
       mockAuth.roleName.value = 'parent'
-      // parent 无 edit_knowledge_tree 权限
       const wrapper = await mountPage()
 
       expect(wrapper.find('.module-cards-stub').exists()).toBe(true)
       expect(wrapper.find('.module-overview-stub').exists()).toBe(false)
     })
 
-    it('subject_teacher init() triggers loadAllModulesQuality when canEdit', async () => {
+    it('subject_teacher init() triggers loadCourseMapOverview', async () => {
       await mountPage()
-      expect(mockState.loadAllModulesQualityCalls).toBe(1)
+      expect(mockState.loadCourseMapOverviewCalls).toBe(1)
     })
 
-    it('parent init() skips loadAllModulesQuality', async () => {
+    it('parent init() also loads courseMapOverview (but stays on ModuleCards)', async () => {
       mockAuth.roleName.value = 'parent'
       await mountPage()
-      expect(mockState.loadAllModulesQualityCalls).toBe(0)
+      expect(mockState.loadCourseMapOverviewCalls).toBe(1)
     })
   })
 
-  describe('INV-004 mutex routing', () => {
+  describe('INV-004 mutex routing (graph-review mode)', () => {
     it('selectedModule=all → only ModuleOverviewPanel rendered', async () => {
-      const wrapper = await mountPage()
+      const wrapper = await mountPage('graph-review')
       mockState.selectedModule.value = 'all'
       await nextTick()
 
@@ -322,7 +378,7 @@ describe('KnowledgeTreePage real mount (F-003 fix)', () => {
     })
 
     it('selectedModule=M1 → only ConceptMapPanel rendered', async () => {
-      const wrapper = await mountPage()
+      const wrapper = await mountPage('graph-review')
       mockState.selectedModule.value = 'M1'
       await nextTick()
 
@@ -332,15 +388,13 @@ describe('KnowledgeTreePage real mount (F-003 fix)', () => {
     })
 
     it('select-module event on ModuleOverviewPanel switches to ConceptMapPanel', async () => {
-      const wrapper = await mountPage()
+      const wrapper = await mountPage('graph-review')
       expect(wrapper.find('.module-overview-stub').exists()).toBe(true)
 
       await wrapper.find('.module-overview-stub').trigger('click')
       await nextTick()
 
-      // selectedModule 已切换到 M1
       expect(mockState.selectedModule.value).toBe('M1')
-      // handleModuleSelect('M1') 会调 loadGraph('M1') + loadQuality('M1')
       expect(mockState.loadGraphCalls).toContain('M1')
       expect(mockState.loadQualityCalls).toContain('M1')
     })
@@ -348,52 +402,43 @@ describe('KnowledgeTreePage real mount (F-003 fix)', () => {
 
   describe('F-002 fix: handleBackToOverview refreshes qualityIssues', () => {
     it('back-to-overview event → loadQuality(all) called alongside loadAllModulesQuality', async () => {
-      const wrapper = await mountPage()
-      // 先切到 M1
+      const wrapper = await mountPage('graph-review')
       mockState.selectedModule.value = 'M1'
       mockState.loadGraphCalls.length = 0
       mockState.loadQualityCalls.length = 0
       mockState.loadAllModulesQualityCalls = 0
       await nextTick()
 
-      // 触发 ConceptMapPanel 的 back 按钮
       await wrapper.find('.back-btn').trigger('click')
       await nextTick()
       await nextTick()
 
       expect(mockState.selectedModule.value).toBe('all')
       expect(mockState.loadGraphCalls).toContain('all')
-      // F-002 关键断言：loadQuality('all') 必须被调用
       expect(mockState.loadQualityCalls).toContain('all')
       expect(mockState.loadAllModulesQualityCalls).toBeGreaterThan(0)
     })
 
-    // F-005 修复：handleModuleSelect('all') 对称分支必须用真实 mount 驱动
     it('handleModuleSelect(all) via TreeNavPanel select-module → loadQuality(all) + loadAllModulesQuality', async () => {
-      const wrapper = await mountPage()
-      // 先进入 M1 状态，然后通过 TreeNavPanel 切换回 'all'
+      const wrapper = await mountPage('graph-review')
       mockState.selectedModule.value = 'M1'
       await nextTick()
       mockState.loadGraphCalls.length = 0
       mockState.loadQualityCalls.length = 0
       mockState.loadAllModulesQualityCalls = 0
 
-      // TreeNavPanel stub 发出 select-module='all' → 真实 handleModuleSelect('all')
       await wrapper.find('.tree-nav-select-all').trigger('click')
       await nextTick()
       await nextTick()
 
       expect(mockState.selectedModule.value).toBe('all')
       expect(mockState.loadGraphCalls).toContain('all')
-      // F-005 核心断言：handleModuleSelect('all') 必须同时调 loadQuality('all')
       expect(mockState.loadQualityCalls).toContain('all')
-      // 同时调 loadAllModulesQuality
       expect(mockState.loadAllModulesQualityCalls).toBeGreaterThan(0)
     })
 
     it('handleModuleSelect(Mx) via TreeNavPanel → only loadQuality(Mx), not loadAllModulesQuality', async () => {
-      const wrapper = await mountPage()
-      // 起始 selectedModule='all' (mountPage 默认) → 切到 M2
+      const wrapper = await mountPage('graph-review')
       mockState.loadGraphCalls.length = 0
       mockState.loadQualityCalls.length = 0
       mockState.loadAllModulesQualityCalls = 0
@@ -405,16 +450,13 @@ describe('KnowledgeTreePage real mount (F-003 fix)', () => {
       expect(mockState.selectedModule.value).toBe('M2')
       expect(mockState.loadGraphCalls).toContain('M2')
       expect(mockState.loadQualityCalls).toContain('M2')
-      // Mx 路径下不应触发 loadAllModulesQuality
       expect(mockState.loadAllModulesQualityCalls).toBe(0)
     })
 
-    // F-006 修复：确定性驱动 parent ModuleCards → handleModuleSelect('M1')
     it('parent role → ModuleCards select M1 → handleModuleSelect M1 (loadGraph only, no quality)', async () => {
       mockAuth.roleName.value = 'parent'
       const wrapper = await mountPage()
 
-      // parent 必须看到 ModuleCards（canEdit=false 入口分支）— 确定性断言
       const moduleCardsStub = wrapper.find('.module-cards-stub')
       expect(moduleCardsStub.exists()).toBe(true)
 
@@ -422,45 +464,34 @@ describe('KnowledgeTreePage real mount (F-003 fix)', () => {
       mockState.loadQualityCalls.length = 0
       mockState.loadAllModulesQualityCalls = 0
 
-      // 确定性触发 ModuleCards 点击 → stub onClick emit 'select' 'M1' → 页面 @select="handleModuleSelect"
       await moduleCardsStub.trigger('click')
       await nextTick()
       await nextTick()
 
-      // handleModuleSelect('M1') 一定被调用 → loadGraph('M1') 必须发生
       expect(mockState.loadGraphCalls).toContain('M1')
       expect(mockState.selectedModule.value).toBe('M1')
-      // canEdit=false → 即使走到 Mx 分支也跳过 loadQuality / loadAllModulesQuality
       expect(mockState.loadQualityCalls).toHaveLength(0)
       expect(mockState.loadAllModulesQualityCalls).toBe(0)
     })
 
-    // F-006 修复：canEdit=false 场景下 back-to-overview 负分支
-    // 模拟 canEdit 由 true 变 false 后再 back-to-overview（边缘场景：权限收窄）
     it('handleBackToOverview with canEdit=false → loadGraph(all) only, no quality refresh', async () => {
-      // 起始 canEdit=true（subject_teacher），挂载后切换到无权限角色
       mockAuth.roleName.value = 'subject_teacher'
-      const wrapper = await mountPage()
+      const wrapper = await mountPage('graph-review')
       mockState.selectedModule.value = 'M1'
       await nextTick()
 
-      // 切换角色到 grade_leader（无 edit_knowledge_tree 权限）→ canEdit computed 重算为 false
       mockAuth.roleName.value = 'grade_leader'
       await nextTick()
-      // canEdit watcher 会把 activeTab 切回 graph —— ConceptMapPanel 仍然渲染
       mockState.loadGraphCalls.length = 0
       mockState.loadQualityCalls.length = 0
       mockState.loadAllModulesQualityCalls = 0
 
-      // 触发 back-to-overview
       await wrapper.find('.back-btn').trigger('click')
       await nextTick()
       await nextTick()
 
-      // selectedModule 重置 + loadGraph('all') 发生
       expect(mockState.selectedModule.value).toBe('all')
       expect(mockState.loadGraphCalls).toContain('all')
-      // canEdit=false → 跳过 loadQuality / loadAllModulesQuality（负分支）
       expect(mockState.loadQualityCalls).toHaveLength(0)
       expect(mockState.loadAllModulesQualityCalls).toBe(0)
     })
@@ -468,7 +499,7 @@ describe('KnowledgeTreePage real mount (F-003 fix)', () => {
 
   describe('handleMarkReviewed dispatches set_review_status', () => {
     it('mark-reviewed event → applyEdit called with set_review_status op', async () => {
-      const wrapper = await mountPage()
+      const wrapper = await mountPage('graph-review')
       mockState.selectedModule.value = 'M1'
       await nextTick()
 
@@ -483,50 +514,33 @@ describe('KnowledgeTreePage real mount (F-003 fix)', () => {
     })
   })
 
-  // R2 F001/F002：T10 集成层接线断言
-  //
-  // 反证矩阵（Executor 手动验证）：
-  //   a) 删除 KnowledgeTreePage.vue:50 `:has-student="!!selectedStudentId"` 绑定
-  //      → "toggle wired with hasStudent ..." 断言 fail（data-has-student 不再更新）
-  //   b) 删除 ConceptMapPanel `:color-mode="colorMode"` 绑定
-  //      → "ConceptMapPanel 收到 colorMode=exam_frequency" 断言 fail（data-color-mode 为 undefined）
-  //   c) 删除 `watch(selectedStudentId, ...)` auto-switch
-  //      → "auto-switch colorMode → mastery" 断言 fail（colorMode 保持 exam_frequency）
   describe('Phase 1 T10 — selectedStudentId 单一真源 & auto-switch (F001/F002)', () => {
     it('进入 Mx 模块：ColorModeToggle 挂载，初始 hasStudent=false，ConceptMapPanel 收到 colorMode=exam_frequency', async () => {
       mockAuth.roleName.value = 'subject_teacher'
-      const wrapper = await mountPage()
-      // 进入 Mx 分支（ColorModeToggle 仅在 selectedModule !== 'all' 时渲染）
+      const wrapper = await mountPage('graph-review')
       mockState.selectedModule.value = 'M1'
       await nextTick()
       await nextTick()
 
       const toggle = wrapper.find('.color-mode-toggle-stub')
       expect(toggle.exists()).toBe(true)
-      // F001 语义：composable selectedStudentId 未写入 → hasStudent=false
       expect(toggle.attributes('data-has-student')).toBe('false')
-      // 默认 colorMode = 'exam_frequency'
       expect(toggle.attributes('data-mode')).toBe('exam_frequency')
 
       const cmp = wrapper.find('.concept-map-stub')
       expect(cmp.exists()).toBe(true)
-      // F002 关键断言：ConceptMapPanel 必须通过 :color-mode 绑定接收 colorMode prop
       expect(cmp.attributes('data-color-mode')).toBe('exam_frequency')
     })
 
-    it('composable selectedStudentId 写入后 hasStudent=true（F001 单一真源——解构 composable ref，不自建本地 ref）', async () => {
+    it('composable selectedStudentId 写入后 hasStudent=true', async () => {
       mockAuth.roleName.value = 'subject_teacher'
-      const wrapper = await mountPage()
+      const wrapper = await mountPage('graph-review')
       mockState.selectedModule.value = 'M1'
       await nextTick()
       await nextTick()
 
       expect(wrapper.find('.color-mode-toggle-stub').attributes('data-has-student')).toBe('false')
 
-      // 模拟 useKnowledgeTree.loadMastery 内部 `selectedStudentId.value = studentId`
-      // F001 bug 版本（本地 ref）下：页面的 selectedStudentId 与 composable 的是两个不同 ref，
-      //                              外部对 composable ref 写入，页面不会响应 → 断言 fail。
-      // F001 修复后：页面解构的就是 composable 的 ref，外部写入即时可见 → 断言 pass。
       mockState.selectedStudentId.value = 'student_1'
       await nextTick()
       await nextTick()
@@ -536,21 +550,18 @@ describe('KnowledgeTreePage real mount (F-003 fix)', () => {
 
     it('selectedStudentId 写入触发 auto-switch：ConceptMapPanel colorMode exam_frequency → mastery', async () => {
       mockAuth.roleName.value = 'subject_teacher'
-      const wrapper = await mountPage()
+      const wrapper = await mountPage('graph-review')
       mockState.selectedModule.value = 'M1'
       await nextTick()
       await nextTick()
 
-      // 初始 colorMode 默认值
       expect(wrapper.find('.concept-map-stub').attributes('data-color-mode')).toBe('exam_frequency')
 
-      // 触发 watch(selectedStudentId) → colorMode = 'mastery'
       mockState.selectedStudentId.value = 'student_1'
       await nextTick()
       await nextTick()
 
       expect(wrapper.find('.concept-map-stub').attributes('data-color-mode')).toBe('mastery')
-      // ColorModeToggle 也应同步收到新值
       expect(wrapper.find('.color-mode-toggle-stub').attributes('data-mode')).toBe('mastery')
     })
   })
