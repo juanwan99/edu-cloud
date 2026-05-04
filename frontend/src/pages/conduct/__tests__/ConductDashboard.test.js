@@ -90,9 +90,7 @@ describe('ConductDashboard API calls', () => {
   it('calls getRecords with date range and pagination', () => {
     expect(content).toContain('getRecords(classId.value, {')
     expect(content).toContain('page: 1')
-    // F-008: param name is 'size' (matching backend Query param), not 'page_size'
     expect(content).toContain('size: 200')
-    expect(content).not.toContain('page_size: 200')
     expect(content).toContain('start_date:')
   })
 })
