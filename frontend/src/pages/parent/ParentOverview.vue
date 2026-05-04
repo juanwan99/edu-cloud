@@ -224,6 +224,12 @@ const avatarBg = computed(() => {
 })
 
 watch(() => props.currentChild, async (child) => {
+  // F-003: Clear stale data on child switch (including null)
+  behaviorSummary.value = null
+  records.value = []
+  latestScore.value = null
+  ranking.value = null
+  semesterReport.value = null
   if (!child) return
   loading.value = true
   try {

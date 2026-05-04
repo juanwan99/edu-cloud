@@ -641,11 +641,15 @@ async def get_child_behavior_summary(
     neg_rows = (await db.execute(neg_stmt)).scalars().all()
     top_issues = list(neg_rows)
 
-    # Positive streak: consecutive positive from most recent
+    # Positive streak: consecutive DAYS with net positive points (F-002)
     streak = 0
     if records:
-        for r in reversed(records):
-            if r.points > 0:
+        from collections import defaultdict
+        daily_points = defaultdict(int)
+        for r in records:
+            daily_points[r.date] += r.points
+        for d in sorted(daily_points.keys(), reverse=True):
+            if daily_points[d] > 0:
                 streak += 1
             else:
                 break

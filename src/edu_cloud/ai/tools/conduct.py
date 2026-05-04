@@ -518,6 +518,10 @@ async def analyze_student_behavior(input: dict, ctx: ToolContext) -> ToolResult:
     student, scope_err = await _check_student_in_scope(ctx, student_id)
     if scope_err:
         return ToolResult(success=False, error=scope_err)
+    # F-001: Additional school scope check for school-level roles (class_ids=None)
+    if ctx.class_ids is None and ctx.school_id:
+        if student.school_id != ctx.school_id:
+            return ToolResult(success=False, error=f"student '{student_id}' not in current school")
     try:
         since = date.today() - timedelta(days=days)
         midpoint = date.today() - timedelta(days=days // 2)
@@ -596,11 +600,15 @@ async def analyze_student_behavior(input: dict, ctx: ToolContext) -> ToolResult:
         pos_rows = (await ctx.db.execute(pos_stmt)).all()
         top_reward_reasons = [{"reason": r[0], "count": r[1]} for r in pos_rows]
 
-        # Positive streak: consecutive days with positive points from most recent
+        # Positive streak: consecutive DAYS with net positive points (F-002)
         streak = 0
         if records:
-            for r in reversed(records):
-                if r.points > 0:
+            from collections import defaultdict
+            daily_points = defaultdict(int)
+            for r in records:
+                daily_points[r.date] += r.points
+            for d in sorted(daily_points.keys(), reverse=True):
+                if daily_points[d] > 0:
                     streak += 1
                 else:
                     break
@@ -673,6 +681,12 @@ async def get_class_behavior_insights(input: dict, ctx: ToolContext) -> ToolResu
     scope_err = _check_class_in_scope(ctx, class_id)
     if scope_err:
         return ToolResult(success=False, error=scope_err)
+    # F-001: Additional school scope check for school-level roles (class_ids=None)
+    if ctx.class_ids is None and ctx.school_id:
+        from edu_cloud.modules.student.models import Class as ClassModel
+        cls = (await ctx.db.execute(select(ClassModel).where(ClassModel.id == class_id))).scalar_one_or_none()
+        if cls and cls.school_id != ctx.school_id:
+            return ToolResult(success=False, error=f"class '{class_id}' not in current school")
     try:
         since = date.today() - timedelta(days=days)
         midpoint = date.today() - timedelta(days=days // 2)
