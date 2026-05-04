@@ -63,7 +63,7 @@ async def _seed_diagnosis_data(db, seed_school):
             m = StudentKnpMastery(
                 student_id=students[i].id,
                 exam_id=exam.id,
-                knp_id=kp_id,
+                concept_id=kp_id,
                 school_id=school.id,
                 stu_rate=rate,
                 class_rate=sum(rates) / len(rates),

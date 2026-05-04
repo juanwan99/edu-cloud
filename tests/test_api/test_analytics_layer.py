@@ -68,7 +68,7 @@ async def _seed_layer_data(db, seed_school):
     ]
     for stu, rate in zip(students, [d[1] for d in knp_data]):
         db.add(StudentKnpMastery(
-            student_id=stu.id, exam_id=exam.id, knp_id="kp_001",
+            student_id=stu.id, exam_id=exam.id, concept_id="kp_001",
             school_id=school.id, stu_rate=rate, class_rate=0.7, grade_rate=0.7,
         ))
 

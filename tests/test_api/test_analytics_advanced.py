@@ -38,8 +38,7 @@ async def _seed_knowledge_exam(db, seed_school):
     subj = Subject(name="生物", code="biology", exam_id=exam.id, school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(name="1", question_type="essay", max_score=10, subject_id=subj.id, school_id=school.id,
-                 knowledge_points={"knowledge_ids": ["光合作用", "细胞分裂"]})
+    q = Question(name="1", question_type="essay", max_score=10, subject_id=subj.id, school_id=school.id)
     db.add(q)
     await db.flush()
     sa = StudentAnswer(exam_id=exam.id, subject_id=subj.id, student_id=stu.id, question_id=q.id, school_id=school.id)
