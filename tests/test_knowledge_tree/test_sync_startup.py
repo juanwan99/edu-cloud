@@ -443,3 +443,102 @@ async def test_sync_edge_evidence_projection(db, knowledge_db_v2):
     )).scalar_one()
     assert edge_no_ev.evidence is None
     assert edge_no_ev.pedagogical_use is None
+
+
+@pytest.mark.asyncio
+async def test_sync_upsert_preserves_fk_refs(db, knowledge_db_path):
+    """R3: resync 后 FK 引用 concept_graph_nodes 的数据不丢失。
+
+    验证 sync 使用 upsert 而非 DELETE ALL nodes：
+    1. 同步创建 nodes
+    2. 创建 QuestionKnowledgePoint 和 StudentKnpMastery 引用这些 nodes
+    3. 强制 resync（清空 edge+DA 触发非 skipped 路径）
+    4. 断言 QKP 和 StudentKnpMastery 记录仍在
+    """
+    from sqlalchemy import delete
+    from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
+    from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+    from edu_cloud.modules.analytics.models import StudentKnpMastery
+    from edu_cloud.modules.exam.models import Exam, Subject, Question
+    from edu_cloud.modules.student.models import Class, Student
+    from edu_cloud.models.school import School
+
+    # 1. 首次同步（创建 nodes）
+    r1 = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_path)
+    assert r1["status"] == "synced"
+
+    # fixture 会创建 BIO_SR_CP_M1_A 和 BIO_SR_CP_M1_B
+    node_a = (await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.id == "BIO_SR_CP_M1_A")
+    )).scalar_one()
+    assert node_a is not None
+
+    # 2. 创建 FK 引用数据
+    school = School(name="FK测试校", code="FKTEST", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+
+    exam = Exam(name="FK考试", status="completed", school_id=school.id)
+    db.add(exam)
+    await db.flush()
+
+    subj = Subject(name="生物", code="biology", exam_id=exam.id, school_id=school.id)
+    db.add(subj)
+    await db.flush()
+
+    q = Question(name="1", question_type="essay", max_score=10, subject_id=subj.id, school_id=school.id)
+    db.add(q)
+    await db.flush()
+
+    cls = Class(name="高一(1)班", grade="高一", grade_number=10, school_id=school.id)
+    db.add(cls)
+    await db.flush()
+
+    stu = Student(name="FK学生", student_number="FK001", class_id=cls.id, school_id=school.id, grade="高一")
+    db.add(stu)
+    await db.flush()
+
+    # QKP 引用 concept node
+    qkp = QuestionKnowledgePoint(question_id=q.id, concept_id="BIO_SR_CP_M1_A")
+    db.add(qkp)
+    await db.flush()
+
+    # StudentKnpMastery 引用 concept node
+    knp_mastery = StudentKnpMastery(
+        student_id=stu.id, exam_id=exam.id, concept_id="BIO_SR_CP_M1_A",
+        school_id=school.id, stu_rate=0.8, class_rate=0.7, grade_rate=0.7,
+    )
+    db.add(knp_mastery)
+    await db.commit()
+
+    # 记录 IDs
+    qkp_id = qkp.id
+    mastery_id = knp_mastery.id
+
+    # 3. 强制 resync（清空 DA 触发非 skipped 路径）
+    from edu_cloud.modules.adaptive.models import DaCatalogSnapshot, DaKnowledgePointMap
+    await db.execute(delete(DaCatalogSnapshot))
+    await db.execute(delete(DaKnowledgePointMap))
+    await db.commit()
+
+    r2 = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_path)
+    assert r2["status"] == "synced", "DA 清空后应重新同步"
+
+    # 4. 断言 FK 引用数据仍在
+    qkp_after = (await db.execute(
+        select(QuestionKnowledgePoint).where(QuestionKnowledgePoint.id == qkp_id)
+    )).scalar_one_or_none()
+    assert qkp_after is not None, "QuestionKnowledgePoint 被 resync 删除了！upsert 不安全"
+    assert qkp_after.concept_id == "BIO_SR_CP_M1_A"
+
+    mastery_after = (await db.execute(
+        select(StudentKnpMastery).where(StudentKnpMastery.id == mastery_id)
+    )).scalar_one_or_none()
+    assert mastery_after is not None, "StudentKnpMastery 被 resync 删除了！upsert 不安全"
+    assert mastery_after.concept_id == "BIO_SR_CP_M1_A"
+
+    # 5. 节点仍在且被更新
+    node_a_after = (await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.id == "BIO_SR_CP_M1_A")
+    )).scalar_one()
+    assert node_a_after.synced_at >= node_a.synced_at
