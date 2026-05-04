@@ -192,11 +192,20 @@ async def _sync_graph(
     study_units = data["study_units"]
     edge_evidence = data["edge_evidence"]
 
-    # 先删除依赖表
+    # KNU-007: 仅删边和 map（无 FK 指向它们）；节点改为 upsert 防止 FK 违约。
+    # question_knowledge_points.concept_id 和 student_knp_mastery.concept_id
+    # 都有 FK → concept_graph_nodes.id，直接 DELETE ALL nodes 会触发 FK violation。
     await db.execute(sa.delete(ConceptBigConceptMap))
     await db.execute(sa.delete(ConceptGraphEdge))
-    await db.execute(sa.delete(ConceptGraphNode))
     await db.flush()
+
+    async def _upsert_node(node_id: str, **kwargs) -> None:
+        existing = await db.get(ConceptGraphNode, node_id)
+        if existing:
+            for k, v in kwargs.items():
+                setattr(existing, k, v)
+        else:
+            db.add(ConceptGraphNode(id=node_id, **kwargs))
 
     # 1. 写 Module 节点（5 个）
     modules_seen: set[str] = set()
@@ -208,38 +217,38 @@ async def _sync_graph(
     for mod in sorted(modules_seen):
         mod_id = f"mod:bio_sr:{mod}"
         mod_name = _MODULE_NAMES.get(mod, mod)
-        db.add(ConceptGraphNode(
-            id=mod_id, name=mod_name, knowledge_level="L1",
+        await _upsert_node(
+            mod_id, name=mod_name, knowledge_level="L1",
             primary_module=mod, description=None,
             node_type="module", subject="biology", course_code="SW",
             synced_at=now,
-        ))
+        )
     await db.flush()
 
     # 2. 写 Study Unit 节点（99 个）
     for su in study_units:
-        db.add(ConceptGraphNode(
-            id=su["id"], name=su["name"], knowledge_level="L1",
+        await _upsert_node(
+            su["id"], name=su["name"], knowledge_level="L1",
             primary_module=su["module"], description=su.get("description"),
             node_type="study_unit", subject="biology", course_code="SW",
             synced_at=now,
-        ))
+        )
     await db.flush()
 
     # 3. 写 BigConcept 节点
     for n in bc_nodes:
-        db.add(ConceptGraphNode(
-            id=n["id"], name=n["name"], knowledge_level=n["knowledge_level"],
+        await _upsert_node(
+            n["id"], name=n["name"], knowledge_level=n["knowledge_level"],
             primary_module=n["primary_module"], description=n.get("description"),
             node_type="big_concept", display_order=n.get("display_order", 0),
             synced_at=now,
-        ))
+        )
     await db.flush()
 
     # 4. 写 L1 Concept 节点（108 个，enriched with subject/course_code）
     for n in l1_nodes:
-        db.add(ConceptGraphNode(
-            id=n["id"], name=n["name"], knowledge_level=n["knowledge_level"],
+        await _upsert_node(
+            n["id"], name=n["name"], knowledge_level=n["knowledge_level"],
             primary_module=n["primary_module"], description=n.get("description"),
             node_type="concept", subject="biology", course_code="SW",
             difficulty=n.get("difficulty"),
@@ -248,7 +257,7 @@ async def _sync_graph(
             evidence_ids_json=n.get("evidence_ids_json"),
             review_status=n.get("review_status"),
             synced_at=now,
-        ))
+        )
     await db.flush()
 
     # 5. 写 BigConcept map
