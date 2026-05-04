@@ -446,7 +446,7 @@ async def test_sync_edge_evidence_projection(db, knowledge_db_v2):
 
 
 @pytest.mark.asyncio
-async def test_sync_upsert_preserves_fk_refs(db, knowledge_db_path):
+async def test_sync_upsert_preserves_fk_refs(db, db_engine, knowledge_db_path):
     """R3: resync 后 FK 引用 concept_graph_nodes 的数据不丢失。
 
     验证 sync 使用 upsert 而非 DELETE ALL nodes：
@@ -454,14 +454,23 @@ async def test_sync_upsert_preserves_fk_refs(db, knowledge_db_path):
     2. 创建 QuestionKnowledgePoint 和 StudentKnpMastery 引用这些 nodes
     3. 强制 resync（清空 edge+DA 触发非 skipped 路径）
     4. 断言 QKP 和 StudentKnpMastery 记录仍在
+
+    R2 强化：开启 SQLite FK 约束，确保 DELETE ALL nodes 回归
+    会触发真正的 FK violation 而非假绿。
     """
-    from sqlalchemy import delete
+    import sqlalchemy as sa
+    from sqlalchemy import delete, text
     from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
     from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
     from edu_cloud.modules.analytics.models import StudentKnpMastery
     from edu_cloud.modules.exam.models import Exam, Subject, Question
     from edu_cloud.modules.student.models import Class, Student
     from edu_cloud.models.school import School
+
+    # 开启 SQLite FK 约束（默认关闭，不开则 DELETE 不报错）
+    async with db_engine.connect() as raw_conn:
+        await raw_conn.execute(text("PRAGMA foreign_keys = ON"))
+        await raw_conn.commit()
 
     # 1. 首次同步（创建 nodes）
     r1 = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_path)
@@ -542,3 +551,45 @@ async def test_sync_upsert_preserves_fk_refs(db, knowledge_db_path):
         select(ConceptGraphNode).where(ConceptGraphNode.id == "BIO_SR_CP_M1_A")
     )).scalar_one()
     assert node_a_after.synced_at >= node_a.synced_at
+
+
+@pytest.mark.asyncio
+async def test_delete_all_nodes_would_fail_with_fk(db, db_engine, knowledge_db_path):
+    """R3 反证：如果回退到 DELETE ALL nodes，FK 约束会阻止。
+
+    这是 R3 的 mutant killer——证明 upsert 不是巧合而是必要。
+    """
+    import sqlalchemy as sa
+    from sqlalchemy import delete, text
+    from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
+    from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+    from edu_cloud.modules.exam.models import Exam, Subject, Question
+    from edu_cloud.models.school import School
+
+    # 开启 FK
+    async with db_engine.connect() as raw_conn:
+        await raw_conn.execute(text("PRAGMA foreign_keys = ON"))
+        await raw_conn.commit()
+
+    # 同步 + 创建 FK 引用
+    await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_path)
+
+    school = School(name="反证校", code="PROOF", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+    exam = Exam(name="反证考试", status="completed", school_id=school.id)
+    db.add(exam)
+    await db.flush()
+    subj = Subject(name="生物", code="biology", exam_id=exam.id, school_id=school.id)
+    db.add(subj)
+    await db.flush()
+    q = Question(name="1", question_type="essay", max_score=10, subject_id=subj.id, school_id=school.id)
+    db.add(q)
+    await db.flush()
+    db.add(QuestionKnowledgePoint(question_id=q.id, concept_id="BIO_SR_CP_M1_A"))
+    await db.commit()
+
+    # 尝试 DELETE ALL nodes——FK 约束应阻止
+    with pytest.raises(sa.exc.IntegrityError):
+        await db.execute(delete(ConceptGraphNode))
+        await db.flush()
