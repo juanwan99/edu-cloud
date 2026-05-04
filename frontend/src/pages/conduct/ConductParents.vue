@@ -70,7 +70,7 @@
 <script setup>
 import { ref, computed, onMounted, h } from 'vue'
 import {
-  NPageHeader, NCard, NDataTable, NSpin, NButton, NPopconfirm,
+  NCard, NDataTable, NSpin, NButton, NPopconfirm,
   NAlert, NTag, NInput, NSpace,
   useMessage,
 } from 'naive-ui'

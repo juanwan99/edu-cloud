@@ -62,7 +62,7 @@
 <script setup>
 import { ref, computed, onMounted, h, watch } from 'vue'
 import {
-  NPageHeader, NTabs, NTabPane, NDataTable, NSelect, NSpace,
+  NTabs, NTabPane, NDataTable, NSelect, NSpace,
   NSpin, NTag, NAlert, NInput, NButton, useMessage,
 } from 'naive-ui'
 import { use } from 'echarts/core'

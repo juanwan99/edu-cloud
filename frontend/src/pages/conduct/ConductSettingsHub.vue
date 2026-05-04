@@ -20,7 +20,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NPageHeader, NTabs, NTabPane } from 'naive-ui'
 import { useAuthStore } from '../../stores/auth'
@@ -39,15 +39,17 @@ const activeTab = ref(route.query.tab || 'rules')
 const role = computed(() => auth.currentRole?.role || '')
 const canManageParents = computed(() => hasPermission(role.value, 'manage_conduct_parents'))
 
+const validTabs = ['rules', 'groups', 'parents', 'config']
+
+watch(() => route.query.tab, (tab) => {
+  if (tab && validTabs.includes(tab)) {
+    activeTab.value = tab
+  }
+})
+
 function onTabChange(tab) {
   router.replace({ query: { ...route.query, tab } })
 }
-
-onMounted(() => {
-  if (route.query.tab && ['rules', 'groups', 'parents', 'config'].includes(route.query.tab)) {
-    activeTab.value = route.query.tab
-  }
-})
 </script>
 
 <style scoped>

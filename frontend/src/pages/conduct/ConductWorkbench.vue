@@ -26,7 +26,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NPageHeader, NTabs, NTabPane, NTag, NSpace } from 'naive-ui'
 import { useAuthStore } from '../../stores/auth'
@@ -62,15 +62,17 @@ const scopeTagType = computed(() => {
   return 'default'
 })
 
+const validTabs = ['overview', 'points', 'records', 'rankings']
+
+watch(() => route.query.tab, (tab) => {
+  if (tab && validTabs.includes(tab)) {
+    activeTab.value = tab
+  }
+})
+
 function onTabChange(tab) {
   router.replace({ query: { ...route.query, tab } })
 }
-
-onMounted(() => {
-  if (route.query.tab && ['overview', 'points', 'records', 'rankings'].includes(route.query.tab)) {
-    activeTab.value = route.query.tab
-  }
-})
 </script>
 
 <style scoped>

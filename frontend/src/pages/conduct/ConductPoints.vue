@@ -94,7 +94,7 @@
 <script setup>
 import { ref, computed, onMounted, h } from 'vue'
 import {
-  NPageHeader, NCard, NSpace, NSelect, NButton, NInputNumber,
+  NCard, NSpace, NSelect, NButton, NInputNumber,
   NInput, NDataTable, NSpin, NDivider, NCollapse, NCollapseItem,
   NAlert, NTag, useMessage,
 } from 'naive-ui'

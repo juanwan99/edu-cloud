@@ -112,7 +112,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import {
-  NPageHeader, NCard, NCollapse, NCollapseItem, NList, NListItem,
+  NCard, NCollapse, NCollapseItem, NList, NListItem,
   NTag, NButton, NSpace, NModal, NForm, NFormItem, NInput,
   NInputNumber, NEmpty, NSpin, NPopconfirm, NAlert, useMessage,
 } from 'naive-ui'
