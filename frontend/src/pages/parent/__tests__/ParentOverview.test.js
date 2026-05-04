@@ -1,5 +1,5 @@
 /**
- * ParentOverview.vue source text tests.
+ * ParentOverview.vue source text tests + mount-based tests.
  *
  * Validates:
  *  1. Component can be imported (smoke)
@@ -7,8 +7,9 @@
  *  3. API calls for records, scores, rankings
  *  4. Guide card for unbound state
  *  5. Error handling in data fetching
+ *  6. Mount-based notification feature tests (F-009)
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
