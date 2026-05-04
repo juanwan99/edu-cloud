@@ -101,10 +101,10 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-04-26：2199 passed / 21 failed（既有债）/ 23 skipped
+# 后端 ECS pytest 实测 @ 2026-05-04：2246 passed / 33 failed（既有债）/ 23 skipped
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
-# 前端 Vitest + happy-dom（frontend/ 2404 tests, 0 failed @ 2026-04-28）
+# 前端 Vitest + happy-dom（frontend/ 2421 tests, 0 failed @ 2026-05-04）
 cd /home/ops/projects/edu-cloud/frontend && npx vitest run
 ```
 <!-- key-end -->
@@ -166,16 +166,18 @@ frontend/src/
       ParentRankings.vue    # 班级排行榜（当前孩子高亮）
       ParentRules.vue       # 班规查看（分类折叠面板+正负分标签，F004 字段修正 item.points）
       ParentProfile.vue     # 个人中心（编辑姓名/改密码/已绑定孩子/退出）
-    conduct/                # 管理端操行页面（AppShell 内，权限守卫，classId 从 auth store 读取）
-      ConductDashboard.vue  # 德育概览（统计卡片+本周加扣分+积分最高/最低+最近记录）
-      ConductPoints.vue     # 积分操作（学生多选+班规快捷按钮+手动输入+最近记录）
-      ConductRules.vue      # 班规管理（分类折叠+条目 CRUD+积分标签）
-      ConductRankings.vue   # 排��榜（学生/小组 Tab+学期筛选）
-      ConductRecords.vue    # 积分记录（分页表格+学生/日期过滤+删除）
-      ConductGroups.vue     # 小组管理（卡片网格+成员抽屉+添加/移除）
-      ConductSettings.vue   # 德育设置（邀请码+验证方式+模块开关+学期管理）
-      ConductParents.vue    # 家长管理（表格+移除）
-      ConductExport.vue     # 数据导出（记录/排行榜+日期/学期筛选+Excel 下载）
+    conduct/                # 管理端操行页面（AppShell 内，权限守卫，侧边栏 3 入口：工作台+设置+学生档案）
+      ConductWorkbench.vue  # 德育工作台壳（NTabs: 概览/记积分/记录/排行，角色 scope 标签，query.tab 同步）
+      ConductSettingsHub.vue # 德育设置壳（NTabs: 班规/小组/家长绑定/预警学期，query.tab 同步）
+      ConductDashboard.vue  # 概览 Tab（scope-adaptive: class 走势图+排名/school 班级对比/district 学校对比）
+      ConductPoints.vue     # 记积分 Tab（学生多选+班规快捷按钮+手动输入+最近记录）
+      ConductRecords.vue    # 记录 Tab（分页表格+学生/日期过滤+删除+导出按钮）
+      ConductRankings.vue   # 排行 Tab（学生/小组 Tab+学期筛选+导出按钮）
+      ConductRules.vue      # 班规 Tab（分类折叠+条目 CRUD+积分标签+学校规则继承）
+      ConductGroups.vue     # 小组 Tab（卡片网格+成员抽屉+添加/移除）
+      ConductParents.vue    # 家长 Tab（表格+邀请码+移除）
+      ConductSettings.vue   # 预警学期 Tab（邀请码+验证方式+预警阈值+学期管理）
+      ConductExport.vue     # 完整导出（记录/排行榜+日期/学期筛选+Excel，旧路径重定向到记录 Tab）
   components/
     shell/
       AppHeader.vue         # 68px 毛玻璃顶栏（Logo/SchoolContext/搜索/通知铃/角色切换）
@@ -218,7 +220,7 @@ frontend/src/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
-  router/                   # Vue Router（AppShell 42 子路由含 /ai-grading 无参入口 + /knowledge-tree / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
+  router/                   # Vue Router（AppShell 39 子路由+7 conduct 重定向，含 /ai-grading 无参入口 + /knowledge-tree / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -300,7 +302,7 @@ src/edu_cloud/
     tool_access.py      # ToolAccessResolver（RBAC ∩ Module ∩ Capability 三重过滤）
     models.py           # AiSession/AiToolCall 表
     tools/
-      __init__.py       # 触发全部 23 个工具模块注册（62 tools + exam_subject_id 统一查询）
+      __init__.py       # 触发全部 23 个工具模块注册（63 tools + exam_subject_id 统一查询）
       analytics.py      # L2_cross_school（2）: get_exam_scores/get_class_stats
       analytics_score.py # L2_analytics（5）: exam_summary/distribution/question/student/class scores
       analytics_compare.py # L2_analytics（3）: compare_classes/rank_students/grade_aggregates
@@ -315,7 +317,7 @@ src/edu_cloud/
       homework.py       # L2_homework（5）: task list/stats/submit/assign/remedial
       analytics_report.py # L2_analytics（3）: get_score_segments/compare_exams/generate_analysis_report
       knowledge_tree.py # L1_knowledge（1）: edit_knowledge_graph
-      conduct.py    # L2_conduct（6）: conduct rankings/records/rules/points/overview/summary
+      conduct.py    # L2_conduct（8）: conduct rankings/records/rules/points/overview/summary + analyze_student_behavior/get_class_behavior_insights
       adaptive.py       # L1_knowledge（1）: diagnose_and_recommend
       card_layout.py    # L1_exam（3）: card_parse_answers, card_auto_layout, card_adjust_layout
       class_report_tool.py # L2_analytics（1）: get_class_report
@@ -378,7 +380,7 @@ tests/
 **前端（`frontend/`）：**
 - Vite 7 + Vue 3.5 (Composition API)
 - Naive UI 2.44（V3.2 Wells Collins 设计系统：翠绿 #1a7a4f + 荧光黄绿 #c8e64a，深色顶栏/翠绿侧栏/浅灰内容区三层色差，theme.js 全局覆盖）
-- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 42 子路由；完整 44 路由冻结于 _frozen/）
+- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 39 子路由+7 重定向；完整 44 路由冻结于 _frozen/）
 - Pinia 3（状态管理）
 - Axios（HTTP 客户端，baseURL `/api/v1`）
 - ECharts 6 + vue-echarts（图表）
