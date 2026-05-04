@@ -29,6 +29,25 @@
       </n-list>
     </n-card>
 
+    <!-- Behavior analysis card (below notifications) -->
+    <n-card v-if="behaviorSummary" size="small" style="margin-bottom: var(--space-4);">
+      <template #header>行为分析</template>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">行为趋势</div>
+          <div class="stat-value" :style="{ color: trendColor }">{{ behaviorSummary.trend_label }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">连续表现良好</div>
+          <div class="stat-value">{{ behaviorSummary.positive_streak_days }}天</div>
+        </div>
+      </div>
+      <div v-if="behaviorSummary.top_issues?.length" style="margin-top: var(--space-3);">
+        <n-text depth="3">需关注：</n-text>
+        <n-tag v-for="issue in behaviorSummary.top_issues" :key="issue" size="small" type="warning" style="margin: 2px;">{{ issue }}</n-tag>
+      </div>
+    </n-card>
+
     <!-- Semester summary (below notifications, above student info) -->
     <n-card v-if="semesterReport" size="small" style="margin-bottom: var(--space-4);">
       <template #header>学期评价</template>
@@ -148,8 +167,8 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { NCard, NStatistic, NList, NListItem, NTag, NButton, NEmpty, NSpin, NH4, NThing } from 'naive-ui'
-import { getChildRecords, getChildScores, getChildRankings, getParentNotifications, markNotificationsRead } from '../../api/conduct'
+import { NCard, NStatistic, NList, NListItem, NTag, NButton, NEmpty, NSpin, NH4, NThing, NText } from 'naive-ui'
+import { getChildRecords, getChildScores, getChildRankings, getParentNotifications, markNotificationsRead, getChildBehaviorSummary } from '../../api/conduct'
 
 const props = defineProps({
   currentChild: { type: Object, default: null },
@@ -164,6 +183,14 @@ const notifications = ref([])
 const semesterReport = ref(null)
 const studentTotalPoints = ref(0)
 const studentRank = ref('-')
+const behaviorSummary = ref(null)
+
+const trendColor = computed(() => {
+  const t = behaviorSummary.value?.trend
+  if (t === 'improving') return '#4caf50'
+  if (t === 'declining') return '#e63946'
+  return 'rgba(255, 255, 255, 0.85)'
+})
 
 // Load notifications on component init
 getParentNotifications(true).then(res => {
@@ -249,6 +276,14 @@ watch(() => props.currentChild, async (child) => {
     } catch {
       ranking.value = null
       semesterReport.value = null
+    }
+
+    // Fetch behavior summary
+    try {
+      const behaviorRes = await getChildBehaviorSummary(child.student_id)
+      behaviorSummary.value = behaviorRes.data
+    } catch {
+      behaviorSummary.value = null
     }
   } catch {
     records.value = []

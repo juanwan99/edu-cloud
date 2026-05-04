@@ -603,3 +603,92 @@ async def test_get_children_returns_class_id(client, db, conduct_config, school_
     # 关键断言：class_id 字段必须存在且非空
     assert "class_id" in children[0], "get_children 必须返回 class_id (F004)"
     assert children[0]["class_id"], "class_id 不能为空字符串"
+
+
+# ── Phase 3: behavior-summary endpoint ──
+
+@pytest.mark.anyio
+async def test_parent_behavior_summary(client, db, conduct_config, school_class_student):
+    """GET /parent/children/{id}/behavior-summary returns structured behavior data."""
+    school, cls, student = school_class_student
+    token, headers, student = await _register_and_bind(
+        client, db, school_class_student, "13800800001",
+    )
+
+    # Create some conduct records to analyze
+    operator = User(username="op_behavior", display_name="行为老师")
+    operator.set_password("123")
+    db.add(operator)
+    await db.flush()
+
+    db.add(ConductRecord(
+        student_id=student.id, class_id=cls.id, points=5,
+        reason="表现优秀", date=date.today(), operator_id=operator.id,
+    ))
+    db.add(ConductRecord(
+        student_id=student.id, class_id=cls.id, points=-2,
+        reason="迟到", date=date.today(), operator_id=operator.id,
+    ))
+    await db.commit()
+
+    resp = await client.get(
+        f"/api/v1/conduct/parent/children/{student.id}/behavior-summary",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["student_name"] == "张三"
+    assert data["trend"] in ("improving", "declining", "stable")
+    assert data["trend_label"] in ("进步中", "需关注", "保持稳定")
+    assert data["total_points"] == 3  # 5 + (-2)
+    assert data["positive_count"] == 1
+    assert data["negative_count"] == 1
+    assert isinstance(data["top_issues"], list)
+    assert isinstance(data["positive_streak_days"], int)
+
+
+@pytest.mark.anyio
+async def test_parent_behavior_summary_unbound_rejected(
+    client, db, conduct_config, school_class_student,
+):
+    """GET behavior-summary for unbound student → 403."""
+    school, cls, student = school_class_student
+
+    resp = await client.post("/api/v1/conduct/parent/register", json={
+        "invite_code": "TEST01",
+        "display_name": "未绑定行为家长",
+        "phone": "13800800002",
+        "password": "abc123",
+    })
+    assert resp.status_code == 200
+    headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+    resp = await client.get(
+        f"/api/v1/conduct/parent/children/{student.id}/behavior-summary",
+        headers=headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_parent_behavior_summary_empty_records(
+    client, db, conduct_config, school_class_student,
+):
+    """GET behavior-summary with no records returns stable/zero."""
+    token, headers, student = await _register_and_bind(
+        client, db, school_class_student, "13800800003",
+    )
+
+    resp = await client.get(
+        f"/api/v1/conduct/parent/children/{student.id}/behavior-summary",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["trend"] == "stable"
+    assert data["trend_label"] == "保持稳定"
+    assert data["total_points"] == 0
+    assert data["positive_count"] == 0
+    assert data["negative_count"] == 0
+    assert data["top_issues"] == []
+    assert data["positive_streak_days"] == 0
