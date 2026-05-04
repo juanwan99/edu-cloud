@@ -135,3 +135,35 @@ async def edit_graph(
     applied = await service.apply_edits(db, operations)
     logger.info("knowledge tree edited: %d operations applied", applied)
     return EditResponse(success=True, applied=applied)
+
+
+# ── Course Map endpoints ─────────────────────────────────────────────────────
+
+
+@router.get("/course-map/overview")
+async def get_course_map_overview(
+    db: AsyncSession = Depends(get_db),
+    current=Depends(require_permission(Permission.VIEW_KNOWLEDGE_TREE)),
+):
+    from edu_cloud.modules.knowledge_tree.course_map_service import get_module_overview
+    return await get_module_overview(db)
+
+
+@router.get("/course-map/module/{module}")
+async def get_course_map_module(
+    module: str,
+    db: AsyncSession = Depends(get_db),
+    current=Depends(require_permission(Permission.VIEW_KNOWLEDGE_TREE)),
+):
+    from edu_cloud.modules.knowledge_tree.course_map_service import get_module_map
+    return await get_module_map(db, module)
+
+
+@router.get("/course-map/study-unit/{su_id:path}")
+async def get_course_map_study_unit(
+    su_id: str,
+    db: AsyncSession = Depends(get_db),
+    current=Depends(require_permission(Permission.VIEW_KNOWLEDGE_TREE)),
+):
+    from edu_cloud.modules.knowledge_tree.course_map_service import get_study_unit_detail
+    return await get_study_unit_detail(db, su_id)
