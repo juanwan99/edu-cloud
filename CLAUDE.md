@@ -336,6 +336,9 @@ src/edu_cloud/
   logging_config.py     # 双输出（Console UTC+8 + JSONL RotatingFile）
   worker.py             # arq WorkerSettings（3 functions: auto_draft/grading/pipeline）
 scripts/
+  db_doctor.py          # ORM vs DB schema drift 检测（--startup/--strict/--json）
+  db_migrate            # 安全 migration wrapper（flock→backup→dry-run→doctor→upgrade）；唯一合法 migration 路径
+  db_branch             # branch DB 隔离工具（init/refresh/prune/list/status）
   e2e_joint_exam.py     # 端到端联考验证脚本（2 校完整流程）
 tests/
   conftest.py           # SQLite in-memory + AsyncClient + admin/school/db_engine fixtures
@@ -362,7 +365,7 @@ tests/
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）+ ConceptGraphNode 统一引用（旧 knowledge_points UUID 已废弃）| — |
 | Tests | 2246 passed / 33 failed（既有债）后端 + 2421 前端 Vitest 0 failed（ECS 实测 @ 2026-05-04） | — |
 | Modules | 21 模块目录，路由已迁入。技术债 H-01 拆分后：`card` 含 `router.py`(839行) + `card_template_router.py`(230行) + `card_export_router.py`(326行)；`grading` 含 `router.py`(520行) + `grading_review_router.py`(396行) + `prompts/` 子包 + `gemini_client.py`(官方SDK) + `image_utils.py`(图片预处理) + `detail_flatten.py`(LLM输出标准化)；`analytics` 含 `router.py`(220行) + `analytics_report_router.py`(585行) + `diagnosis_service.py` + `insights_service.py` + `pipeline_service.py`。详见 `docs/2026-04-26-tech-debt-audit.md` §修复记录 | — |
-| Migrations | Alembic migration（90 表，43 个迁移，head `ed1f8408241c` knowledge FK unification） | — |
+| Migrations | Alembic migration（90 表，43 个迁移，head `ed1f8408241c` knowledge FK unification）。**唯一合法 migration 路径：`python scripts/db_migrate [target]`**（直接 `alembic upgrade` 被 env.py guard 阻断） | — |
 
 ## 技术栈
 

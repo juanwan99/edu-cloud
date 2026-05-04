@@ -136,6 +136,37 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def _check_migration_guard() -> None:
+    """Block direct 'alembic upgrade/downgrade' on prod DB without wrapper."""
+    import os as _os
+    import sys as _sys
+    if _os.environ.get("EDU_CLOUD_MIGRATION_WRAPPER"):
+        return
+    argv = _sys.argv
+    is_mutating = any(cmd in argv for cmd in ("upgrade", "downgrade"))
+    if not is_mutating:
+        return
+    db_url = config.get_main_option("sqlalchemy.url") or ""
+    # Resolve to absolute path and only block the canonical prod DB
+    _prod_db = _os.path.realpath(_os.path.join(_os.path.dirname(__file__), "..", "edu_cloud.db"))
+    _target_db = ""
+    if "sqlite" in db_url:
+        _raw = db_url.split("///")[-1] if "///" in db_url else ""
+        if _raw:
+            _target_db = _os.path.realpath(_raw)
+    if _target_db == _prod_db:
+        raise RuntimeError(
+            "\n\n"
+            "  ╔══════════════════════════════════════════════════════════════╗\n"
+            "  ║  BLOCKED: Direct migration on prod DB is not allowed.      ║\n"
+            "  ║  Use: python scripts/db_migrate [target]                   ║\n"
+            "  ╚══════════════════════════════════════════════════════════════╝\n"
+        )
+
+
+_check_migration_guard()
+
+
 def do_run_migrations(connection: Connection) -> None:
     context.configure(connection=connection, target_metadata=target_metadata)
 

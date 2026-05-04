@@ -164,5 +164,111 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Irreversible: knowledge_points table dropped, data lost."""
-    raise NotImplementedError("Irreversible migration: knowledge_points table dropped")
+    """Structural-only reverse for downgrade-base test.
+
+    Recreates knowledge_points and restores old FK column names so
+    ``alembic downgrade base`` can drop all tables cleanly.
+    Column set is simplified — NOT the exact original schema.
+    Do NOT rely on this for running old code against the downgraded DB.
+    """
+    conn = op.get_bind()
+
+    # 5-reverse. Recreate knowledge_points table
+    conn.execute(sa.text("""
+        CREATE TABLE knowledge_points (
+            id VARCHAR(36) NOT NULL PRIMARY KEY,
+            created_at TIMESTAMP NOT NULL,
+            updated_at TIMESTAMP NOT NULL,
+            name VARCHAR(200) NOT NULL,
+            subject VARCHAR(20),
+            parent_id VARCHAR(36) REFERENCES knowledge_points(id),
+            level INTEGER,
+            sort_order INTEGER,
+            description TEXT,
+            school_id VARCHAR(36) NOT NULL,
+            exam_frequency INTEGER DEFAULT 0,
+            curriculum_ref VARCHAR(200)
+        )
+    """))
+
+    # 4-reverse. Add questions.knowledge_points JSON column back
+    with op.batch_alter_table("questions") as batch_op:
+        batch_op.add_column(sa.Column("knowledge_points", sa.JSON, nullable=True))
+
+    # 3-reverse. student_knp_mastery: concept_id → knp_id
+    conn.execute(sa.text("""
+        CREATE TABLE student_knp_mastery_old (
+            id INTEGER NOT NULL PRIMARY KEY,
+            student_id VARCHAR(36) NOT NULL REFERENCES students(id),
+            exam_id VARCHAR(36) NOT NULL REFERENCES exams(id),
+            knp_id VARCHAR(36),
+            school_id VARCHAR(36) NOT NULL REFERENCES schools(id),
+            stu_rate NUMERIC(4, 3),
+            class_rate NUMERIC(4, 3),
+            grade_rate NUMERIC(4, 3),
+            CONSTRAINT uq_student_knp_mastery UNIQUE (student_id, exam_id, knp_id)
+        )
+    """))
+    conn.execute(sa.text("""
+        INSERT INTO student_knp_mastery_old
+            (id, student_id, exam_id, knp_id, school_id, stu_rate, class_rate, grade_rate)
+        SELECT id, student_id, exam_id, concept_id, school_id, stu_rate, class_rate, grade_rate
+        FROM student_knp_mastery
+    """))
+    conn.execute(sa.text("DROP TABLE student_knp_mastery"))
+    conn.execute(sa.text("ALTER TABLE student_knp_mastery_old RENAME TO student_knp_mastery"))
+
+    # 2-reverse. student_knowledge_mastery: concept_id → knowledge_point_id
+    conn.execute(sa.text("""
+        CREATE TABLE student_knowledge_mastery_old (
+            id VARCHAR(36) NOT NULL PRIMARY KEY,
+            created_at TIMESTAMP NOT NULL,
+            updated_at TIMESTAMP NOT NULL,
+            student_id VARCHAR(100) NOT NULL,
+            knowledge_point_id VARCHAR(36) REFERENCES knowledge_points(id),
+            mastery_level FLOAT NOT NULL,
+            confidence FLOAT NOT NULL,
+            attempt_count INTEGER NOT NULL,
+            correct_count INTEGER NOT NULL,
+            partial_count INTEGER NOT NULL,
+            trend VARCHAR(20) NOT NULL,
+            recent_scores JSON,
+            last_exam_id VARCHAR(36),
+            last_exam_date TIMESTAMP,
+            school_id VARCHAR(36) NOT NULL REFERENCES schools(id),
+            UNIQUE (student_id, knowledge_point_id)
+        )
+    """))
+    conn.execute(sa.text("""
+        INSERT INTO student_knowledge_mastery_old
+            (id, created_at, updated_at, student_id, knowledge_point_id,
+             mastery_level, confidence, attempt_count, correct_count, partial_count,
+             trend, recent_scores, last_exam_id, last_exam_date, school_id)
+        SELECT id, created_at, updated_at, student_id, concept_id,
+               mastery_level, confidence, attempt_count, correct_count, partial_count,
+               trend, recent_scores, last_exam_id, last_exam_date, school_id
+        FROM student_knowledge_mastery
+    """))
+    conn.execute(sa.text("DROP TABLE student_knowledge_mastery"))
+    conn.execute(sa.text("ALTER TABLE student_knowledge_mastery_old RENAME TO student_knowledge_mastery"))
+
+    # 1-reverse. question_knowledge_points: concept_id → knowledge_point_id
+    conn.execute(sa.text("""
+        CREATE TABLE question_knowledge_points_old (
+            id VARCHAR(36) NOT NULL PRIMARY KEY,
+            created_at TIMESTAMP NOT NULL,
+            updated_at TIMESTAMP NOT NULL,
+            question_id VARCHAR(36) NOT NULL REFERENCES questions(id),
+            knowledge_point_id VARCHAR(36) REFERENCES knowledge_points(id),
+            is_primary BOOLEAN NOT NULL,
+            UNIQUE (question_id, knowledge_point_id)
+        )
+    """))
+    conn.execute(sa.text("""
+        INSERT INTO question_knowledge_points_old
+            (id, created_at, updated_at, question_id, knowledge_point_id, is_primary)
+        SELECT id, created_at, updated_at, question_id, concept_id, is_primary
+        FROM question_knowledge_points
+    """))
+    conn.execute(sa.text("DROP TABLE question_knowledge_points"))
+    conn.execute(sa.text("ALTER TABLE question_knowledge_points_old RENAME TO question_knowledge_points"))

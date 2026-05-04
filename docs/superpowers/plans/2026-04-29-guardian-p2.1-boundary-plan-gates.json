@@ -1,5 +1,6 @@
 {
-  "code_review_batch1": {
+  "gates": {
+    "code_review_batch1": {
     "status": "pass",
     "reviewer": "gpt",
     "subject_hash": "b542eda062bdf9d2",
@@ -9,5 +10,6 @@
     "subject_ref": "commit:f7d1ba3..b4ef291",
     "timestamp": "2026-04-30T07:26:39+08:00",
     "required": true
+    }
   }
 }

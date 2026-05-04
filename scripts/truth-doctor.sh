@@ -150,6 +150,28 @@ else
 fi
 echo ""
 
+# ── 6. DB Schema Drift Check ──
+echo -e "${BOLD}[DB Schema]${NC}"
+DOCTOR_OUT=$("$PROJECT_DIR/.venv/bin/python" "$PROJECT_DIR/scripts/db_doctor.py" --json 2>/dev/null || echo '{"hard":-1}')
+HARD=$(echo "$DOCTOR_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('hard',-1))" 2>/dev/null || echo -1)
+WARNS=$(echo "$DOCTOR_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('warn',0))" 2>/dev/null || echo 0)
+ORM_T=$(echo "$DOCTOR_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('orm_tables',0))" 2>/dev/null || echo 0)
+DB_T=$(echo "$DOCTOR_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('db_tables',0))" 2>/dev/null || echo 0)
+ALVER=$(echo "$DOCTOR_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('alembic_version','?'))" 2>/dev/null || echo "?")
+
+if [ "$HARD" = "-1" ]; then
+  fail "db_doctor failed to run"
+  ISSUES=$((ISSUES+1))
+elif [ "$HARD" -gt 0 ]; then
+  fail "ORM-DB drift: $HARD HARD failures (will cause 500)"
+  ISSUES=$((ISSUES+HARD))
+elif [ "$WARNS" -gt 0 ]; then
+  warn "ORM-DB: $WARNS warnings (orphan tables/columns)"
+else
+  ok "ORM-DB aligned: $ORM_T tables, alembic $ALVER"
+fi
+echo ""
+
 # ── Summary ──
 echo -e "${BOLD}[Summary]${NC}"
 if [ "$ISSUES" -eq 0 ]; then
