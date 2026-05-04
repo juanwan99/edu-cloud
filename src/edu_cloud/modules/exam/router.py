@@ -47,7 +47,6 @@ class QuestionCreate(BaseModel):
     question_type: Literal["choice", "multi_choice", "fill_blank", "essay"]
     max_score: float = 0.0
     region_id: str | None = None
-    knowledge_points: dict | None = None
     correct_answer: str | None = None
 
 
@@ -56,7 +55,6 @@ class QuestionUpdate(BaseModel):
     question_type: Literal["choice", "multi_choice", "fill_blank", "essay"] | None = None
     max_score: float | None = None
     region_id: str | None = None
-    knowledge_points: dict | None = None
     correct_answer: str | None = None
     parent_id: str | None = None
 
@@ -84,7 +82,7 @@ def _question_response(q: Question) -> dict:
     return {
         "id": q.id, "subject_id": q.subject_id, "name": q.name,
         "question_type": q.question_type, "max_score": q.max_score,
-        "region_id": q.region_id, "knowledge_points": q.knowledge_points,
+        "region_id": q.region_id,
         "correct_answer": q.correct_answer,
         "content": q.content,
         "content_images": q.content_images,
@@ -190,7 +188,7 @@ async def create_question(
     q = Question(
         subject_id=req.subject_id, name=req.name, question_type=req.question_type,
         max_score=req.max_score, region_id=req.region_id,
-        knowledge_points=req.knowledge_points, correct_answer=req.correct_answer,
+        correct_answer=req.correct_answer,
         school_id=sid,
     )
     db.add(q)

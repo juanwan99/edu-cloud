@@ -5,7 +5,7 @@ from sqlalchemy import select
 from edu_cloud.ai.tool_context import ToolContext, ToolResult
 from edu_cloud.models.school import School
 from edu_cloud.modules.exam.models import Exam
-from edu_cloud.modules.knowledge.models import KnowledgePoint
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery
 from edu_cloud.modules.student.models import Student
 
@@ -75,23 +75,32 @@ async def profile_seed(db):
         class_rank=5, school_id=school.id,
     ))
 
+    from datetime import datetime, timezone
     # Knowledge mastery (weak point: mastery < 0.6)
-    kp = KnowledgePoint(code="MATH-W01", name="二次函数", course_code="math", school_id=school.id)
+    kp = ConceptGraphNode(
+        id="MATH-W01", name="二次函数", course_code="math",
+        node_type="concept", knowledge_level="L1", primary_module="M1",
+        synced_at=datetime.now(timezone.utc),
+    )
     db.add(kp)
     await db.flush()
 
     db.add(StudentKnowledgeMastery(
-        student_id=student.id, knowledge_point_id=kp.id,
+        student_id=student.id, concept_id=kp.id,
         mastery_level=0.35, attempt_count=4, school_id=school.id,
     ))
 
     # A well-mastered knowledge point (should NOT appear in weak_points)
-    kp2 = KnowledgePoint(code="MATH-S01", name="一元一次方程", course_code="math", school_id=school.id)
+    kp2 = ConceptGraphNode(
+        id="MATH-S01", name="一元一次方程", course_code="math",
+        node_type="concept", knowledge_level="L1", primary_module="M1",
+        synced_at=datetime.now(timezone.utc),
+    )
     db.add(kp2)
     await db.flush()
 
     db.add(StudentKnowledgeMastery(
-        student_id=student.id, knowledge_point_id=kp2.id,
+        student_id=student.id, concept_id=kp2.id,
         mastery_level=0.9, attempt_count=10, school_id=school.id,
     ))
 

@@ -38,10 +38,10 @@ class StudentExamSnapshot(Base, IdMixin, TimestampMixin):
 class StudentKnowledgeMastery(Base, IdMixin, TimestampMixin):
     """知识点掌握度 — 每次考试后增量更新。"""
     __tablename__ = "student_knowledge_mastery"
-    __table_args__ = (UniqueConstraint("student_id", "knowledge_point_id"),)
+    __table_args__ = (UniqueConstraint("student_id", "concept_id"),)
 
     student_id: Mapped[str] = mapped_column(String(100))
-    knowledge_point_id: Mapped[str] = mapped_column(String(36), ForeignKey("knowledge_points.id"), index=True)
+    concept_id: Mapped[str] = mapped_column(String(64), ForeignKey("concept_graph_nodes.id"), index=True)
 
     mastery_level: Mapped[float] = mapped_column(Float, default=0.0)
     confidence: Mapped[float] = mapped_column(Float, default=0.0)

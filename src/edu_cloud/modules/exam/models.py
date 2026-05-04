@@ -75,7 +75,6 @@ class Question(Base, IdMixin, TimestampMixin):
     question_type: Mapped[str] = mapped_column(String(20))  # choice / multi_choice / fill_blank / essay
     max_score: Mapped[float] = mapped_column(default=0.0)
     region_id: Mapped[str | None] = mapped_column(String(50), default=None)
-    knowledge_points: Mapped[dict | None] = mapped_column(JSON, default=None)
     correct_answer: Mapped[str | None] = mapped_column(String(50), default=None)
     content: Mapped[str | None] = mapped_column(Text, default=None)
     content_images: Mapped[list | None] = mapped_column(JSON, default=None)

@@ -41,13 +41,13 @@ async def class_diagnosis(
 
     kp_rates: dict[str, list[float]] = defaultdict(list)
     for r in rows:
-        kp_rates[r.knp_id].append(float(r.stu_rate))
+        kp_rates[r.concept_id].append(float(r.stu_rate))
 
     total_kps = len(kp_rates)
 
     # worstKnowledges: 按班级平均掌握率升序 Top5
     kp_avg = [
-        {"knp_id": kp, "rate": round(sum(rates) / len(rates), 4)}
+        {"concept_id": kp, "rate": round(sum(rates) / len(rates), 4)}
         for kp, rates in kp_rates.items()
     ]
     kp_avg.sort(key=lambda x: x["rate"])
@@ -55,18 +55,18 @@ async def class_diagnosis(
 
     # unmasterMaxCntKnowledges: stu_rate < 0.6 的学生数降序 Top5
     kp_unmaster = [
-        {"knp_id": kp, "count": sum(1 for r in rates if r < UNMASTER_THRESHOLD)}
+        {"concept_id": kp, "count": sum(1 for r in rates if r < UNMASTER_THRESHOLD)}
         for kp, rates in kp_rates.items()
     ]
-    kp_unmaster.sort(key=lambda x: (-x["count"], x["knp_id"]))
+    kp_unmaster.sort(key=lambda x: (-x["count"], x["concept_id"]))
     unmaster = kp_unmaster[:5]
 
     # maxScoreDiffKnowledges: (max - min) 降序 Top5
     kp_diff = [
-        {"knp_id": kp, "diff": round(max(rates) - min(rates), 4)}
+        {"concept_id": kp, "diff": round(max(rates) - min(rates), 4)}
         for kp, rates in kp_rates.items()
     ]
-    kp_diff.sort(key=lambda x: (-x["diff"], x["knp_id"]))
+    kp_diff.sort(key=lambda x: (-x["diff"], x["concept_id"]))
     max_diff = kp_diff[:5]
 
     weak_count = math.floor(total_kps * 0.3)

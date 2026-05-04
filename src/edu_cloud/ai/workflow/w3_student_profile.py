@@ -62,7 +62,7 @@ async def update_knowledge_mastery(ctx: WorkflowContext) -> dict:
             existing = (await db.execute(
                 select(StudentKnowledgeMastery).where(
                     StudentKnowledgeMastery.student_id == r.student_id,
-                    StudentKnowledgeMastery.knowledge_point_id == kp_id,
+                    StudentKnowledgeMastery.concept_id == kp_id,
                 )
             )).scalars().first()
 
@@ -115,7 +115,7 @@ async def update_knowledge_mastery(ctx: WorkflowContext) -> dict:
                 # New record
                 mastery = StudentKnowledgeMastery(
                     student_id=r.student_id,
-                    knowledge_point_id=kp_id,
+                    concept_id=kp_id,
                     mastery_level=round(rate, 4),
                     confidence=0.3,
                     attempt_count=1,
@@ -254,7 +254,7 @@ async def compute_class_weakness(ctx: WorkflowContext) -> dict:
     class_weaknesses: dict[str, list[dict]] = defaultdict(list)
     for mastery, class_id in rows:
         class_weaknesses[class_id].append({
-            "knowledge_point_id": mastery.knowledge_point_id,
+            "concept_id": mastery.concept_id,
             "student_id": mastery.student_id,
             "mastery_level": mastery.mastery_level,
         })

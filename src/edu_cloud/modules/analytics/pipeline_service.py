@@ -123,12 +123,12 @@ async def _load_kp_links(
     if not all_q_ids:
         return {}
     result = await db.execute(
-        select(QuestionKnowledgePoint.question_id, QuestionKnowledgePoint.knowledge_point_id)
+        select(QuestionKnowledgePoint.question_id, QuestionKnowledgePoint.concept_id)
         .where(QuestionKnowledgePoint.question_id.in_(all_q_ids))
     )
     links: dict[str, list[str]] = defaultdict(list)
     for r in result.all():
-        links[r.question_id].append(r.knowledge_point_id)
+        links[r.question_id].append(r.concept_id)
     return dict(links)
 
 
@@ -356,7 +356,7 @@ def _compute_weak_kps(
         for kp_id, d in kp_agg.items():
             rate = d["score"] / d["max"] if d["max"] > 0 else 0
             if rate < WEAK_KNP_THRESHOLD:
-                weak.append({"knp_id": kp_id, "mastery_rate": round(rate, 4)})
+                weak.append({"concept_id": kp_id, "mastery_rate": round(rate, 4)})
         if weak:
             weak.sort(key=lambda x: x["mastery_rate"])
             result[stu_id] = weak
@@ -405,7 +405,7 @@ async def _compute_knp_mastery(
             select(StudentKnpMastery).where(
                 StudentKnpMastery.student_id == stu_id,
                 StudentKnpMastery.exam_id == exam_id,
-                StudentKnpMastery.knp_id == kp_id,
+                StudentKnpMastery.concept_id == kp_id,
             )
         )).scalar_one_or_none()
 
@@ -421,7 +421,7 @@ async def _compute_knp_mastery(
                 setattr(existing, k, v)
         else:
             m = StudentKnpMastery(
-                student_id=stu_id, exam_id=exam_id, knp_id=kp_id, **values,
+                student_id=stu_id, exam_id=exam_id, concept_id=kp_id, **values,
             )
             db.add(m)
         count += 1

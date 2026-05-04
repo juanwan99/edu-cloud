@@ -78,12 +78,16 @@ async def get_overview(
 
     # Other roles: check for class_ids
     visible = get_visible_class_ids(role)
+    if visible is None:
+        # School-wide visibility (principal, academic_director, etc.)
+        if role.school_id:
+            return await scope_service.get_conduct_overview(db, "school", [role.school_id])
+        raise HTTPException(400, "Cannot determine scope for overview")
     if visible:
         return await scope_service.get_conduct_overview(db, "class", visible)
 
-    # School-scoped role without class_ids
-    if role.school_id:
-        return await scope_service.get_conduct_overview(db, "school", [role.school_id])
+    # Empty class_ids = no access (not fallback to school)
+    return {"classes": [], "total_students": 0, "summary": {}}
 
     raise HTTPException(400, "Cannot determine scope for overview")
 
@@ -201,7 +205,7 @@ async def add_points_batch(
 async def get_records(
     class_id: str,
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(20, ge=1, le=500),
     student_id: str | None = None,
     start_date: str | None = None,
     end_date: str | None = None,

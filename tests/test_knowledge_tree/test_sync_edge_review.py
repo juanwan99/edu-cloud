@@ -61,7 +61,8 @@ def test_read_knowledge_db_with_edge_review_status(tmp_path):
     """sync 读取 edge review_status（新 schema）。"""
     db_path = str(tmp_path / "knowledge.db")
     _create_test_knowledge_db(db_path, with_review_status=True)
-    l1_nodes, bc_nodes, edges, maps = _read_knowledge_db(db_path)
+    data = _read_knowledge_db(db_path)
+    edges = data["edges"]
     assert len(edges) == 1
     assert edges[0]["review_status"] == "teacher_reviewed"
 
@@ -70,7 +71,8 @@ def test_read_knowledge_db_without_edge_review_status(tmp_path):
     """sync 读取旧 schema（无 review_status 列）→ 默认 None。"""
     db_path = str(tmp_path / "knowledge.db")
     _create_test_knowledge_db(db_path, with_review_status=False)
-    l1_nodes, bc_nodes, edges, maps = _read_knowledge_db(db_path)
+    data = _read_knowledge_db(db_path)
+    edges = data["edges"]
     assert len(edges) == 1
     assert edges[0]["review_status"] is None
 
@@ -81,8 +83,8 @@ async def test_sync_writes_edge_review_status(db, tmp_path):
     from edu_cloud.modules.knowledge_tree.sync_service import _read_knowledge_db, _sync_graph
     db_path = str(tmp_path / "knowledge.db")
     _create_test_knowledge_db(db_path, with_review_status=True)
-    l1_nodes, bc_nodes, edges, maps = _read_knowledge_db(db_path)
-    await _sync_graph(db, l1_nodes, bc_nodes, edges, maps)
+    data = _read_knowledge_db(db_path)
+    await _sync_graph(db, data)
     await db.commit()
     edge = (await db.execute(
         select(ConceptGraphEdge).where(

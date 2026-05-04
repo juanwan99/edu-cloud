@@ -5,7 +5,7 @@ from sqlalchemy import select
 from edu_cloud.ai.workflow.engine import WorkflowContext
 from edu_cloud.models.school import School
 from edu_cloud.modules.exam.models import Exam, ExamResult
-from edu_cloud.modules.knowledge.models import KnowledgePoint
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery
 from edu_cloud.modules.student.models import Class, Student
 
@@ -59,7 +59,8 @@ async def seeded_exam_with_knowledge(db):
     await db.flush()
 
     # Seed a knowledge point so FK constraint is satisfied
-    kp = KnowledgePoint(code="MATH-001", name="一元一次方程", course_code="math", school_id=school.id)
+    from datetime import datetime, timezone
+    kp = ConceptGraphNode(id="MATH-001", name="一元一次方程", knowledge_level="L1", primary_module="M1", synced_at=datetime.now(timezone.utc), course_code="math")
     db.add(kp)
     await db.flush()
 
@@ -134,7 +135,7 @@ async def test_update_knowledge_mastery_creates_record(db, seeded_exam_with_know
     row = (await db.execute(
         select(StudentKnowledgeMastery).where(
             StudentKnowledgeMastery.student_id == data.student_id,
-            StudentKnowledgeMastery.knowledge_point_id == data.kp_id,
+            StudentKnowledgeMastery.concept_id == data.kp_id,
         )
     )).scalars().first()
     assert row is not None
@@ -159,7 +160,7 @@ async def test_update_knowledge_mastery_idempotent_same_exam(db, seeded_exam_wit
     row = (await db.execute(
         select(StudentKnowledgeMastery).where(
             StudentKnowledgeMastery.student_id == data.student_id,
-            StudentKnowledgeMastery.knowledge_point_id == data.kp_id,
+            StudentKnowledgeMastery.concept_id == data.kp_id,
         )
     )).scalars().first()
     assert row.attempt_count == 1  # NOT 2
@@ -294,13 +295,14 @@ async def test_compute_class_weakness_finds_low_mastery(db):
     db.add(student)
     await db.flush()
 
-    kp = KnowledgePoint(code="MATH-W1", name="方程", course_code="math", school_id=school.id)
+    from datetime import datetime, timezone
+    kp = ConceptGraphNode(id="MATH-W1", name="方程", knowledge_level="L1", primary_module="M1", synced_at=datetime.now(timezone.utc), course_code="math")
     db.add(kp)
     await db.flush()
 
     # Low mastery (0.2 < 0.4 threshold)
     db.add(StudentKnowledgeMastery(
-        student_id=student.id, knowledge_point_id=kp.id,
+        student_id=student.id, concept_id=kp.id,
         mastery_level=0.2, confidence=0.5, attempt_count=3,
         correct_count=0, partial_count=1, trend="declining",
         school_id=school.id,
@@ -343,13 +345,14 @@ async def test_compute_class_weakness_ignores_high_mastery(db):
     db.add(student)
     await db.flush()
 
-    kp = KnowledgePoint(code="MATH-S1", name="函数", course_code="math", school_id=school.id)
+    from datetime import datetime, timezone
+    kp = ConceptGraphNode(id="MATH-S1", name="函数", knowledge_level="L1", primary_module="M1", synced_at=datetime.now(timezone.utc), course_code="math")
     db.add(kp)
     await db.flush()
 
     # Mastery at threshold (0.4) → NOT weak
     db.add(StudentKnowledgeMastery(
-        student_id=student.id, knowledge_point_id=kp.id,
+        student_id=student.id, concept_id=kp.id,
         mastery_level=0.4, confidence=0.6, attempt_count=5,
         correct_count=2, partial_count=1, trend="stable",
         school_id=school.id,
@@ -401,12 +404,17 @@ async def test_generate_learning_advice_creates_tasks(db):
     db.add(student)
     await db.flush()
 
-    kp = KnowledgePoint(code="MATH-A1", name="几何", course_code="math", school_id=school.id)
+    from datetime import datetime, timezone
+    kp = ConceptGraphNode(
+        id="MATH-A1", name="几何", course_code="math",
+        node_type="concept", knowledge_level="L1", primary_module="M1",
+        synced_at=datetime.now(timezone.utc),
+    )
     db.add(kp)
     await db.flush()
 
     db.add(StudentKnowledgeMastery(
-        student_id=student.id, knowledge_point_id=kp.id,
+        student_id=student.id, concept_id=kp.id,
         mastery_level=0.15, confidence=0.4, attempt_count=4,
         correct_count=0, partial_count=1, trend="declining",
         school_id=school.id,

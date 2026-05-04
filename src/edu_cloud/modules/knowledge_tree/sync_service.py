@@ -32,10 +32,19 @@ def _column_exists(conn: sqlite3.Connection, table_name: str, col_name: str) -> 
     return col_name in cols
 
 
-def _read_knowledge_db(db_path: str) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
-    """读取 knowledge.db：L1 concepts + big_concepts + edges + map。
+_MODULE_NAMES = {
+    "M1": "分子与细胞",
+    "M2": "遗传与进化",
+    "M3": "稳态与调节",
+    "M4": "生态与环境",
+    "M5": "生物技术与工程",
+}
 
-    Returns: (l1_nodes, big_concept_nodes, edges, maps)
+
+def _read_knowledge_db(db_path: str) -> dict:
+    """读取 knowledge.db：L1 concepts + big_concepts + edges + map + study_units + edge_evidence。
+
+    Returns: dict with keys: concepts, big_concepts, edges, maps, study_units, edge_evidence
     """
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -48,6 +57,7 @@ def _read_knowledge_db(db_path: str) -> tuple[list[dict], list[dict], list[dict]
     has_review = _column_exists(conn, "concepts", "review_status")
     has_big_concepts = _table_exists(conn, "big_concepts")
     has_map = _table_exists(conn, "concept_big_concept_map")
+    has_study_units = _table_exists(conn, "study_units")
 
     # 1. 只读 L1 concepts
     cols = "id, name, knowledge_level, description"
@@ -119,70 +129,210 @@ def _read_knowledge_db(db_path: str) -> tuple[list[dict], list[dict], list[dict]
                     "is_primary": bool(row["is_primary"]),
                 })
 
+    # 5. Study units（容错：表不存在 / 旧 schema 缺列 → 返回空）
+    study_units = []
+    if has_study_units and _column_exists(conn, "study_units", "name"):
+        su_rows = conn.execute(
+            "SELECT id, name, description, source_concept_ids, module, estimated_minutes FROM study_units"
+        ).fetchall()
+        for su in su_rows:
+            source_ids = json.loads(su["source_concept_ids"]) if su["source_concept_ids"] else []
+            study_units.append({
+                "id": su["id"], "name": su["name"], "description": su["description"],
+                "source_concept_ids": source_ids, "module": su["module"],
+                "estimated_minutes": su["estimated_minutes"],
+            })
+
+    # 6. Edge evidence + pedagogical_use（enrichment for concept-relation edges）
+    #    容错：旧 schema 可能没有 evidence/pedagogical_use 列
+    edge_evidence: dict[tuple[str, str, str], dict] = {}
+    has_edge_evidence = _column_exists(conn, "concept_relations", "evidence")
+    has_edge_ped = _column_exists(conn, "concept_relations", "pedagogical_use")
+    if has_edge_evidence or has_edge_ped:
+        ev_cols = "source_id, target_id, relation_type"
+        if has_edge_evidence:
+            ev_cols += ", evidence"
+        if has_edge_ped:
+            ev_cols += ", pedagogical_use"
+        enriched_edges = conn.execute(f"SELECT {ev_cols} FROM concept_relations").fetchall()
+        for e in enriched_edges:
+            key = (e["source_id"], e["target_id"], e["relation_type"])
+            edge_evidence[key] = {
+                "evidence": e["evidence"] if has_edge_evidence else None,
+                "pedagogical_use": e["pedagogical_use"] if has_edge_ped else None,
+            }
+
     conn.close()
-    return l1_nodes, bc_nodes, edges, maps
+    return {
+        "concepts": l1_nodes,
+        "big_concepts": bc_nodes,
+        "edges": edges,
+        "maps": maps,
+        "study_units": study_units,
+        "edge_evidence": edge_evidence,
+    }
 
 
 async def _sync_graph(
     db: AsyncSession,
-    l1_nodes: list[dict],
-    bc_nodes: list[dict],
-    edges: list[dict],
-    maps: list[dict],
-) -> None:
-    """写入图谱数据（仅 flush，不 commit — F002 单事务）。"""
-    now = datetime.now()
+    data: dict,
+) -> dict:
+    """写入 3 层图谱数据（仅 flush，不 commit — F002 单事务）。
 
-    # 先删除依赖表
+    Layers: module → study_unit → concept (+ big_concept)
+    Edges: contains (hierarchy) + concept-relation (enriched with evidence/pedagogical_use)
+
+    Returns: counts dict for logging.
+    """
+    now = datetime.now()
+    l1_nodes = data["concepts"]
+    bc_nodes = data["big_concepts"]
+    edges = data["edges"]
+    maps = data["maps"]
+    study_units = data["study_units"]
+    edge_evidence = data["edge_evidence"]
+
+    # KNU-007: 仅删边和 map（无 FK 指向它们）；节点改为 upsert 防止 FK 违约。
+    # question_knowledge_points.concept_id 和 student_knp_mastery.concept_id
+    # 都有 FK → concept_graph_nodes.id，直接 DELETE ALL nodes 会触发 FK violation。
     await db.execute(sa.delete(ConceptBigConceptMap))
     await db.execute(sa.delete(ConceptGraphEdge))
-    await db.execute(sa.delete(ConceptGraphNode))
     await db.flush()
 
-    # 写 BigConcept 节点
+    async def _upsert_node(node_id: str, **kwargs) -> None:
+        existing = await db.get(ConceptGraphNode, node_id)
+        if existing:
+            for k, v in kwargs.items():
+                setattr(existing, k, v)
+        else:
+            db.add(ConceptGraphNode(id=node_id, **kwargs))
+
+    # 1. 写 Module 节点（5 个）
+    modules_seen: set[str] = set()
+    for n in l1_nodes:
+        modules_seen.add(n["primary_module"])
+    for su in study_units:
+        modules_seen.add(su["module"])
+
+    for mod in sorted(modules_seen):
+        mod_id = f"mod:bio_sr:{mod}"
+        mod_name = _MODULE_NAMES.get(mod, mod)
+        await _upsert_node(
+            mod_id, name=mod_name, knowledge_level="L1",
+            primary_module=mod, description=None,
+            node_type="module", subject="biology", course_code="SW",
+            synced_at=now,
+        )
+    await db.flush()
+
+    # 2. 写 Study Unit 节点（99 个）
+    for su in study_units:
+        await _upsert_node(
+            su["id"], name=su["name"], knowledge_level="L1",
+            primary_module=su["module"], description=su.get("description"),
+            node_type="study_unit", subject="biology", course_code="SW",
+            synced_at=now,
+        )
+    await db.flush()
+
+    # 3. 写 BigConcept 节点
     for n in bc_nodes:
-        db.add(ConceptGraphNode(
-            id=n["id"], name=n["name"], knowledge_level=n["knowledge_level"],
+        await _upsert_node(
+            n["id"], name=n["name"], knowledge_level=n["knowledge_level"],
             primary_module=n["primary_module"], description=n.get("description"),
             node_type="big_concept", display_order=n.get("display_order", 0),
             synced_at=now,
-        ))
+        )
     await db.flush()
 
-    # 写 L1 Concept 节点
+    # 4. 写 L1 Concept 节点（108 个，enriched with subject/course_code）
     for n in l1_nodes:
-        db.add(ConceptGraphNode(
-            id=n["id"], name=n["name"], knowledge_level=n["knowledge_level"],
+        await _upsert_node(
+            n["id"], name=n["name"], knowledge_level=n["knowledge_level"],
             primary_module=n["primary_module"], description=n.get("description"),
-            node_type="concept",
+            node_type="concept", subject="biology", course_code="SW",
             difficulty=n.get("difficulty"),
             bloom_level=n.get("bloom_level"),
             aliases_json=n.get("aliases_json"),
             evidence_ids_json=n.get("evidence_ids_json"),
             review_status=n.get("review_status"),
             synced_at=now,
-        ))
+        )
     await db.flush()
 
-    # 写 edges
-    for e in edges:
-        db.add(ConceptGraphEdge(
-            source_id=e["source_id"], target_id=e["target_id"],
-            relation_type=e["relation_type"], strength=e["strength"],
-            confidence=e["confidence"],
-            review_status=e.get("review_status"),
-            synced_at=now,
-        ))
-    await db.flush()
-
-    # 写 map
+    # 5. 写 BigConcept map
     for m in maps:
         db.add(ConceptBigConceptMap(
             concept_id=m["concept_id"],
             big_concept_id=m["big_concept_id"],
             is_primary=m["is_primary"],
         ))
+    await db.flush()
+
+    # 6. 写 hierarchy contains edges
+    #    a) module → study_unit (one per SU)
+    #    b) study_unit → concept (each SU maps to exactly 1 concept via source_concept_ids)
+    #    c) module → orphan concept (concepts with no SU, linked directly to module)
+    contains_count = 0
+    concept_to_su: dict[str, str] = {}  # concept_id → study_unit_id (for orphan detection)
+
+    for su in study_units:
+        mod_id = f"mod:bio_sr:{su['module']}"
+        # module → study_unit
+        db.add(ConceptGraphEdge(
+            source_id=mod_id, target_id=su["id"],
+            relation_type="contains", strength=1.0, confidence=1.0,
+            synced_at=now,
+        ))
+        contains_count += 1
+
+        # study_unit → concept(s)
+        for cid in su["source_concept_ids"]:
+            db.add(ConceptGraphEdge(
+                source_id=su["id"], target_id=cid,
+                relation_type="contains", strength=1.0, confidence=1.0,
+                synced_at=now,
+            ))
+            contains_count += 1
+            concept_to_su[cid] = su["id"]
+
+    # orphan concepts → direct module link
+    for n in l1_nodes:
+        if n["id"] not in concept_to_su:
+            mod_id = f"mod:bio_sr:{n['primary_module']}"
+            db.add(ConceptGraphEdge(
+                source_id=mod_id, target_id=n["id"],
+                relation_type="contains", strength=1.0, confidence=1.0,
+                synced_at=now,
+            ))
+            contains_count += 1
+
+    await db.flush()
+
+    # 7. 写 concept-relation edges（enriched with evidence + pedagogical_use）
+    for e in edges:
+        key = (e["source_id"], e["target_id"], e["relation_type"])
+        ev = edge_evidence.get(key, {})
+        db.add(ConceptGraphEdge(
+            source_id=e["source_id"], target_id=e["target_id"],
+            relation_type=e["relation_type"], strength=e["strength"],
+            confidence=e["confidence"],
+            evidence=ev.get("evidence"),
+            pedagogical_use=ev.get("pedagogical_use"),
+            review_status=e.get("review_status"),
+            synced_at=now,
+        ))
     await db.flush()  # F002: 不 commit，由 sync_knowledge_on_startup 统一提交
+
+    return {
+        "modules": len(modules_seen),
+        "study_units": len(study_units),
+        "concepts": len(l1_nodes),
+        "big_concepts": len(bc_nodes),
+        "edges": len(edges),
+        "contains": contains_count,
+        "maps": len(maps),
+    }
 
 
 async def sync_knowledge_on_startup(db: AsyncSession, knowledge_db_path: str | None = None) -> dict:
@@ -207,19 +357,26 @@ async def sync_knowledge_on_startup(db: AsyncSession, knowledge_db_path: str | N
     edge_count = (await db.execute(select(func.count()).select_from(ConceptGraphEdge))).scalar() or 0
     da_count = (await db.execute(select(func.count()).select_from(DaCatalogSnapshot))).scalar() or 0
     kp_count = (await db.execute(select(func.count()).select_from(DaKnowledgePointMap))).scalar() or 0
-    if node_count > 0 and edge_count > 0 and da_count > 0 and kp_count > 0:
-        logger.debug("sync: all projections populated (%d nodes, %d edges, %d DAs, %d KP maps), skipping",
-                     node_count, edge_count, da_count, kp_count)
+    # 3-layer tree: check module nodes exist (upgrade path from old schema → force re-sync)
+    has_modules = (await db.execute(
+        select(func.count()).select_from(ConceptGraphNode).where(
+            ConceptGraphNode.node_type == "module"
+        )
+    )).scalar() or 0
+    if node_count > 0 and edge_count > 0 and da_count > 0 and kp_count > 0 and has_modules > 0:
+        logger.debug("sync: all projections populated (%d nodes, %d edges, %d DAs, %d KP maps, %d modules), skipping",
+                     node_count, edge_count, da_count, kp_count, has_modules)
         # F001 修复: skipped 分支也要保障 concept_stats 存在（生产升级路径 + 失败自愈）
         await _ensure_concept_stats(db, str(path))
         return {"status": "skipped", "nodes": node_count}
 
-    # 1. 图谱同步
-    l1_nodes, bc_nodes, edges, maps = _read_knowledge_db(str(path))
-    await _sync_graph(db, l1_nodes, bc_nodes, edges, maps)
-    total_nodes = len(l1_nodes) + len(bc_nodes)
-    logger.info("sync: knowledge graph → PG (%d L1 + %d BC nodes, %d edges, %d maps)",
-                len(l1_nodes), len(bc_nodes), len(edges), len(maps))
+    # 1. 图谱同步（3 层树：module → study_unit → concept + enriched edges）
+    data = _read_knowledge_db(str(path))
+    counts = await _sync_graph(db, data)
+    total_nodes = counts["modules"] + counts["study_units"] + counts["concepts"] + counts["big_concepts"]
+    logger.info("sync: knowledge graph → PG (%d modules, %d SUs, %d concepts, %d BC, %d edges, %d contains, %d maps)",
+                counts["modules"], counts["study_units"], counts["concepts"], counts["big_concepts"],
+                counts["edges"], counts["contains"], counts["maps"])
 
     # 2. DA 目录 + DA-KP 映射
     from edu_cloud.modules.adaptive.sync import sync_da_catalog, sync_da_kp_map
@@ -233,7 +390,7 @@ async def sync_knowledge_on_startup(db: AsyncSession, knowledge_db_path: str | N
     # Phase 1 (INV-003): 同步完成后触发 stats 计算（best-effort，失败不阻塞）
     await _ensure_concept_stats(db, str(path))
 
-    return {"status": "synced", "nodes": total_nodes, "edges": len(edges), "das": da_count, "kp_map": kp_count}
+    return {"status": "synced", "nodes": total_nodes, "edges": counts["edges"] + counts["contains"], "das": da_count, "kp_map": kp_count}
 
 
 async def _ensure_concept_stats(db: AsyncSession, kb_path: str) -> None:

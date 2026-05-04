@@ -6,7 +6,7 @@ from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import GradingResult
 from edu_cloud.modules.student.models import Class, Student
-from edu_cloud.modules.knowledge.models import KnowledgePoint
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.modules.profile.models import StudentKnowledgeMastery, StudentErrorPattern
 from tests.conftest import *  # noqa
 
@@ -38,10 +38,32 @@ async def _seed_knowledge_exam(db, seed_school):
     subj = Subject(name="生物", code="biology", exam_id=exam.id, school_id=school.id)
     db.add(subj)
     await db.flush()
-    q = Question(name="1", question_type="essay", max_score=10, subject_id=subj.id, school_id=school.id,
-                 knowledge_points={"knowledge_ids": ["光合作用", "细胞分裂"]})
+    q = Question(name="1", question_type="essay", max_score=10, subject_id=subj.id, school_id=school.id)
     db.add(q)
     await db.flush()
+
+    # 创建 ConceptGraphNode + QuestionKnowledgePoint，使 JOIN 查询有实际数据
+    from datetime import datetime, timezone
+    from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+
+    node1 = ConceptGraphNode(
+        id="BIO_SR_CP_M1_PHOTOSYNTHESIS", name="光合作用", course_code="biology",
+        node_type="concept", knowledge_level="L1", primary_module="M1",
+        synced_at=datetime.now(timezone.utc),
+    )
+    node2 = ConceptGraphNode(
+        id="BIO_SR_CP_M1_CELL_DIVISION", name="细胞分裂", course_code="biology",
+        node_type="concept", knowledge_level="L1", primary_module="M1",
+        synced_at=datetime.now(timezone.utc),
+    )
+    db.add_all([node1, node2])
+    await db.flush()
+
+    qkp1 = QuestionKnowledgePoint(question_id=q.id, concept_id="BIO_SR_CP_M1_PHOTOSYNTHESIS")
+    qkp2 = QuestionKnowledgePoint(question_id=q.id, concept_id="BIO_SR_CP_M1_CELL_DIVISION")
+    db.add_all([qkp1, qkp2])
+    await db.flush()
+
     sa = StudentAnswer(exam_id=exam.id, subject_id=subj.id, student_id=stu.id, question_id=q.id, school_id=school.id)
     db.add(sa)
     await db.flush()
@@ -69,15 +91,17 @@ async def test_class_knowledge_returns_structure(client, school_admin_headers, s
     data = resp.json()
     assert "knowledge_points" in data
     assert "classes" in data
-    # F004: 值级断言 — seed 数据有"光合作用""细胞分裂"两个知识点
+    # 值级断言：seed 数据通过 QKP 关联了 2 个 concept
     assert len(data["knowledge_points"]) == 2
-    assert "光合作用" in data["knowledge_points"]
-    assert "细胞分裂" in data["knowledge_points"]
+    assert "BIO_SR_CP_M1_PHOTOSYNTHESIS" in data["knowledge_points"]
+    assert "BIO_SR_CP_M1_CELL_DIVISION" in data["knowledge_points"]
     assert len(data["classes"]) >= 1
     cls = data["classes"][0]
     assert len(cls["mastery"]) == 2
     for m in cls["mastery"]:
         assert 0 <= m["rate"] <= 1
+        assert m["kp_id"] in ("BIO_SR_CP_M1_PHOTOSYNTHESIS", "BIO_SR_CP_M1_CELL_DIVISION")
+        assert m["name"] in ("光合作用", "细胞分裂")
 
 
 @pytest.mark.asyncio
@@ -106,12 +130,17 @@ async def test_student_ai_diagnosis_with_mastery(client, school_admin_headers, s
     exam, subj, stu, _ = await _seed_knowledge_exam(db, seed_school)
     school, _ = seed_school
 
-    kp = KnowledgePoint(code="photosynthesis", name="光合作用", school_id=school.id)
+    from datetime import datetime, timezone
+    kp = ConceptGraphNode(
+        id="photosynthesis", name="光合作用", course_code="biology",
+        node_type="concept", knowledge_level="L1", primary_module="M1",
+        synced_at=datetime.now(timezone.utc),
+    )
     db.add(kp)
     await db.flush()
 
     mastery = StudentKnowledgeMastery(
-        student_id=stu.id, knowledge_point_id=kp.id, school_id=school.id,
+        student_id=stu.id, concept_id=kp.id, school_id=school.id,
         mastery_level=0.35, trend="declining", recent_scores=[0.5, 0.4, 0.35],
         last_exam_id=exam.id,
     )

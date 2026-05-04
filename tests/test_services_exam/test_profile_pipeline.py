@@ -3,7 +3,8 @@ from edu_cloud.models.school import School
 from edu_cloud.models.student import Class, Student
 from edu_cloud.models.exam import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.knowledge.models import KnowledgePoint, QuestionKnowledgePoint
+from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern
 from edu_cloud.modules.bank.models import StudentErrorBook
 from edu_cloud.modules.grading.models import GradingResult, GradingTask
@@ -42,8 +43,9 @@ async def _setup_full_exam(db):
     await db.flush()
 
     # 2 道题，各关联 1 个知识点
-    kp1 = KnowledgePoint(code="MATH_FUNC", name="函数", course_code="SX", level=1)
-    kp2 = KnowledgePoint(code="MATH_TRIG", name="三角函数", course_code="SX", level=1)
+    from datetime import datetime, timezone
+    kp1 = ConceptGraphNode(id="MATH_FUNC", name="函数", knowledge_level="L1", primary_module="M1", synced_at=datetime.now(timezone.utc), course_code="SX")
+    kp2 = ConceptGraphNode(id="MATH_TRIG", name="三角函数", knowledge_level="L1", primary_module="M1", synced_at=datetime.now(timezone.utc), course_code="SX")
     db.add_all([kp1, kp2])
     await db.flush()
 
@@ -52,8 +54,8 @@ async def _setup_full_exam(db):
     db.add_all([q1, q2])
     await db.flush()
 
-    db.add(QuestionKnowledgePoint(question_id=q1.id, knowledge_point_id=kp1.id, is_primary=True))
-    db.add(QuestionKnowledgePoint(question_id=q2.id, knowledge_point_id=kp2.id, is_primary=True))
+    db.add(QuestionKnowledgePoint(question_id=q1.id, concept_id=kp1.id, is_primary=True))
+    db.add(QuestionKnowledgePoint(question_id=q2.id, concept_id=kp2.id, is_primary=True))
     await db.flush()
 
     # 5 个学生的成绩: (q1_score, q2_score)
@@ -281,13 +283,14 @@ async def test_mastery_uses_effective_score(db):
     subj = Subject(exam_id=exam.id, name="数学", code="SX", school_id=school.id)
     db.add(subj)
     await db.flush()
-    kp = KnowledgePoint(code="M_EFF_KP", name="测试KP", course_code="SX", level=1)
+    from datetime import datetime, timezone
+    kp = ConceptGraphNode(id="M_EFF_KP", name="测试KP", knowledge_level="L1", primary_module="M1", synced_at=datetime.now(timezone.utc), course_code="SX")
     db.add(kp)
     await db.flush()
     q = Question(subject_id=subj.id, school_id=school.id, name="1", question_type="essay", max_score=10)
     db.add(q)
     await db.flush()
-    db.add(QuestionKnowledgePoint(question_id=q.id, knowledge_point_id=kp.id, is_primary=True))
+    db.add(QuestionKnowledgePoint(question_id=q.id, concept_id=kp.id, is_primary=True))
 
     sa = StudentAnswer(
         exam_id=exam.id, subject_id=subj.id, student_id=stu.id,
@@ -319,7 +322,7 @@ async def test_mastery_uses_effective_score(db):
     mastery_result = await db.execute(
         select(StudentKnowledgeMastery).where(
             StudentKnowledgeMastery.student_id == stu.id,
-            StudentKnowledgeMastery.knowledge_point_id == kp.id,
+            StudentKnowledgeMastery.concept_id == kp.id,
         )
     )
     mastery = mastery_result.scalar_one()
@@ -339,7 +342,7 @@ async def test_mastery_idempotent_same_exam(db):
     m_result = await db.execute(
         select(StudentKnowledgeMastery).where(StudentKnowledgeMastery.student_id == students[0].id)
     )
-    counts_before = {m.knowledge_point_id: m.attempt_count for m in m_result.scalars().all()}
+    counts_before = {m.concept_id: m.attempt_count for m in m_result.scalars().all()}
 
     # 重跑
     updated2 = await update_knowledge_mastery(db, exam_id=exam.id, school_id=school.id)
@@ -350,7 +353,7 @@ async def test_mastery_idempotent_same_exam(db):
         select(StudentKnowledgeMastery).where(StudentKnowledgeMastery.student_id == students[0].id)
     )
     for m in m_result2.scalars().all():
-        assert m.attempt_count == counts_before[m.knowledge_point_id]
+        assert m.attempt_count == counts_before[m.concept_id]
 
 
 @pytest.mark.asyncio
@@ -456,3 +459,102 @@ async def test_error_patterns_cross_exam_accumulates(db):
     assert pattern.exam_count == 2  # 2 distinct exams
     assert "计算错误" in pattern.error_distribution
     assert "概念混淆" in pattern.error_distribution
+
+
+@pytest.mark.asyncio
+async def test_snapshot_multi_knowledge_per_question(db):
+    """R4: 一题多知识点时 knowledge_scores 不丢失（dict 覆盖回归杀手）。"""
+    from datetime import datetime, timezone
+    from edu_cloud.modules.exam.models import Exam, Subject, Question
+    from edu_cloud.modules.scan.models import StudentAnswer
+    from edu_cloud.modules.grading.models import GradingResult
+    from edu_cloud.modules.student.models import Class, Student
+    from edu_cloud.models.school import School
+    from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+    from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
+    from edu_cloud.modules.profile.models import StudentExamSnapshot
+    from edu_cloud.modules.pipeline.service import generate_exam_snapshots
+
+    # Setup
+    school = School(name="R4测试校", code="R4TEST", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+
+    cls = Class(name="高一(1)班", grade="高一", grade_number=10, school_id=school.id)
+    db.add(cls)
+    await db.flush()
+
+    stu = Student(name="多KP学生", student_number="R4001", class_id=cls.id, school_id=school.id, grade="高一")
+    db.add(stu)
+    await db.flush()
+
+    exam = Exam(name="多KP考试", status="completed", school_id=school.id)
+    db.add(exam)
+    await db.flush()
+
+    subj = Subject(name="生物", code="biology", exam_id=exam.id, school_id=school.id)
+    db.add(subj)
+    await db.flush()
+
+    # 一道题，满分 10
+    q = Question(name="1", question_type="essay", max_score=10, subject_id=subj.id, school_id=school.id)
+    db.add(q)
+    await db.flush()
+
+    # 两个概念节点
+    node_a = ConceptGraphNode(
+        id="BIO_SR_CP_M1_CONCEPT_A", name="概念A", course_code="biology",
+        node_type="concept", knowledge_level="L1", primary_module="M1",
+        synced_at=datetime.now(timezone.utc),
+    )
+    node_b = ConceptGraphNode(
+        id="BIO_SR_CP_M1_CONCEPT_B", name="概念B", course_code="biology",
+        node_type="concept", knowledge_level="L1", primary_module="M1",
+        synced_at=datetime.now(timezone.utc),
+    )
+    db.add_all([node_a, node_b])
+    await db.flush()
+
+    # 同一道题关联两个 concept
+    qkp_a = QuestionKnowledgePoint(question_id=q.id, concept_id="BIO_SR_CP_M1_CONCEPT_A")
+    qkp_b = QuestionKnowledgePoint(question_id=q.id, concept_id="BIO_SR_CP_M1_CONCEPT_B")
+    db.add_all([qkp_a, qkp_b])
+    await db.flush()
+
+    # 答题 + 评分
+    sa = StudentAnswer(exam_id=exam.id, subject_id=subj.id, student_id=stu.id, question_id=q.id, school_id=school.id)
+    db.add(sa)
+    await db.flush()
+
+    gr = GradingResult(
+        answer_id=sa.id, question_id=q.id, school_id=school.id,
+        final_score=7.0, max_score=10.0, status="confirmed", source="manual",
+    )
+    db.add(gr)
+    await db.commit()
+
+    # 执行
+    created = await generate_exam_snapshots(db, exam_id=exam.id, school_id=school.id)
+    assert created >= 1
+
+    # 验证 snapshot
+    snap = (await db.execute(
+        select(StudentExamSnapshot).where(
+            StudentExamSnapshot.student_id == stu.id,
+            StudentExamSnapshot.exam_id == exam.id,
+        )
+    )).scalar_one()
+
+    kp_scores = snap.knowledge_scores
+    assert kp_scores is not None, "knowledge_scores 不应为空"
+
+    # 关键断言：两个 concept 都应该在 knowledge_scores 中
+    assert "BIO_SR_CP_M1_CONCEPT_A" in kp_scores, "概念A 被 dict 覆盖丢失了！"
+    assert "BIO_SR_CP_M1_CONCEPT_B" in kp_scores, "概念B 被 dict 覆盖丢失了！"
+
+    # 两个概念的分数应该一样（同一道题，7/10）
+    for concept_id in ("BIO_SR_CP_M1_CONCEPT_A", "BIO_SR_CP_M1_CONCEPT_B"):
+        kp = kp_scores[concept_id]
+        assert kp["score"] == 7.0, f"{concept_id} score should be 7.0"
+        assert kp["max"] == 10.0, f"{concept_id} max should be 10.0"
+        assert abs(kp["rate"] - 0.7) < 0.01, f"{concept_id} rate should be ~0.7"

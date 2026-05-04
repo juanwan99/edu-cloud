@@ -1,8 +1,9 @@
-"""学生画像查询（从 exam-ai 迁入）。"""
+"""学生画像查询（统一到 ConceptGraphNode）。"""
 import logging
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern
 
 logger = logging.getLogger(__name__)
@@ -27,14 +28,13 @@ async def get_student_knowledge_map(
     db: AsyncSession, *, student_id: str, school_id: str,
     course_code: str | None = None,
 ) -> list[StudentKnowledgeMastery]:
-    from edu_cloud.modules.knowledge.models import KnowledgePoint
     stmt = (
         select(StudentKnowledgeMastery)
         .where(StudentKnowledgeMastery.student_id == student_id, StudentKnowledgeMastery.school_id == school_id)
     )
     if course_code:
-        stmt = stmt.join(KnowledgePoint, KnowledgePoint.id == StudentKnowledgeMastery.knowledge_point_id)
-        stmt = stmt.where(KnowledgePoint.course_code == course_code)
+        stmt = stmt.join(ConceptGraphNode, ConceptGraphNode.id == StudentKnowledgeMastery.concept_id)
+        stmt = stmt.where(ConceptGraphNode.course_code == course_code)
     stmt = stmt.order_by(StudentKnowledgeMastery.mastery_level)
     result = await db.execute(stmt)
     return list(result.scalars().all())
@@ -45,34 +45,33 @@ async def get_class_knowledge_weakness(
     class_student_ids: list[str], course_code: str | None = None,
     top_n: int = 5,
 ) -> list[dict]:
-    from edu_cloud.modules.knowledge.models import KnowledgePoint
     stmt = (
         select(
-            StudentKnowledgeMastery.knowledge_point_id,
-            KnowledgePoint.name,
-            KnowledgePoint.code,
+            StudentKnowledgeMastery.concept_id,
+            ConceptGraphNode.name,
+            ConceptGraphNode.id,
             func.avg(StudentKnowledgeMastery.mastery_level).label("avg_mastery"),
             func.count().label("student_count"),
         )
-        .join(KnowledgePoint, KnowledgePoint.id == StudentKnowledgeMastery.knowledge_point_id)
+        .join(ConceptGraphNode, ConceptGraphNode.id == StudentKnowledgeMastery.concept_id)
         .where(
             StudentKnowledgeMastery.student_id.in_(class_student_ids),
             StudentKnowledgeMastery.school_id == school_id,
         )
     )
     if course_code:
-        stmt = stmt.where(KnowledgePoint.course_code == course_code)
+        stmt = stmt.where(ConceptGraphNode.course_code == course_code)
 
     stmt = (
         stmt
-        .group_by(StudentKnowledgeMastery.knowledge_point_id, KnowledgePoint.name, KnowledgePoint.code)
+        .group_by(StudentKnowledgeMastery.concept_id, ConceptGraphNode.name, ConceptGraphNode.id)
         .order_by(func.avg(StudentKnowledgeMastery.mastery_level))
         .limit(top_n)
     )
     result = await db.execute(stmt)
     return [
         {
-            "knowledge_point_id": row[0], "name": row[1], "code": row[2],
+            "concept_id": row[0], "name": row[1], "code": row[2],
             "avg_mastery": round(float(row[3]), 4), "student_count": row[4],
         }
         for row in result.all()

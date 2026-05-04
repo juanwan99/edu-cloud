@@ -396,7 +396,7 @@ async def student_ai_diagnosis(
 
     for m in rows:
         item = {
-            "kp_name": m.knowledge_point_id,
+            "kp_name": m.concept_id,
             "mastery_level": round(m.mastery_level, 4) if m.mastery_level else 0,
             "trend": m.trend or "stable",
             "recent_scores": m.recent_scores or [],

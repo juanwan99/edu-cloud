@@ -72,7 +72,7 @@ async def lifespan(app: FastAPI):
     import edu_cloud.modules.scan.models  # noqa: F401 — ScanTask/StudentAnswer
     import edu_cloud.modules.grading.models  # noqa: F401 — Rubric/GradingTask/GradingResult/GradingAssignment/GradingQualityCheck
     import edu_cloud.modules.marking.models  # noqa: F401 — (emptied, merged into grading module)
-    import edu_cloud.modules.knowledge.models  # noqa: F401 — KnowledgePoint/QuestionKnowledgePoint
+    import edu_cloud.modules.knowledge.models  # noqa: F401 — QuestionKnowledgePoint
     import edu_cloud.modules.bank.models  # noqa: F401 — BankQuestion/StudentErrorBook
     import edu_cloud.modules.profile.models  # noqa: F401 — StudentExamSnapshot/KnowledgeMastery/ErrorPattern
     import edu_cloud.ai.models  # noqa: F401 — AiSession/AiToolCall

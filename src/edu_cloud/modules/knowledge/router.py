@@ -1,7 +1,7 @@
 """知识点路由 — 从 exam-ai 迁入。"""
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,12 +14,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/knowledge", tags=["knowledge"])
 
 
-def _kp_response(kp) -> dict:
+def _kp_response(node) -> dict:
     return {
-        "id": kp.id, "code": kp.code, "name": kp.name,
-        "course_code": kp.course_code, "level": kp.level,
-        "parent_id": kp.parent_id, "grade_hint": kp.grade_hint,
-        "description": kp.description,
+        "id": node.id,
+        "name": node.name,
+        "node_type": node.node_type,
+        "primary_module": node.primary_module,
+        "description": node.description,
+        "course_code": node.course_code,
     }
 
 
@@ -43,6 +45,8 @@ async def get_knowledge_point(
     current: dict = Depends(get_current_user),
 ):
     kp = await knowledge_service.get_knowledge_point(db, kp_id=kp_id)
+    if kp is None:
+        raise HTTPException(status_code=404, detail="Knowledge point not found")
     return _kp_response(kp)
 
 
@@ -58,7 +62,7 @@ async def get_children(
 
 class LinkRequest(BaseModel):
     question_id: str
-    knowledge_point_id: str
+    concept_id: str
     is_primary: bool = True
 
 
@@ -70,10 +74,11 @@ async def link_question_to_kp(
 ):
     link = await knowledge_service.link_question(
         db, question_id=req.question_id,
-        knowledge_point_id=req.knowledge_point_id, is_primary=req.is_primary,
+        concept_id=req.concept_id, is_primary=req.is_primary,
     )
+    await db.commit()
     return {"id": link.id, "question_id": link.question_id,
-            "knowledge_point_id": link.knowledge_point_id}
+            "concept_id": link.concept_id}
 
 
 @router.get("/question/{question_id}")

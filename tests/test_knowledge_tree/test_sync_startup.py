@@ -57,14 +57,16 @@ def knowledge_db_with_hierarchy(tmp_path):
 
 @pytest.mark.asyncio
 async def test_sync_all_tables(db, knowledge_db_path):
-    """F005: 单事务同步后 4 张表都有数据（确定性 fixture，无 skip）。"""
+    """F005: 单事务同步后 4 张表都有数据（确定性 fixture，无 skip）。
+    3-layer tree: 1 module + 2 concepts = 3 nodes; 2 orphan contains + 1 concept-relation = 3 edges.
+    """
     from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
     r = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_path)
     assert r["status"] == "synced"
-    assert r["nodes"] == 2
-    assert r["edges"] == 1
-    assert (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar() == 2
-    assert (await db.execute(select(func.count()).select_from(ConceptGraphEdge))).scalar() == 1
+    assert r["nodes"] == 3  # 1 module(M1) + 2 L1 concepts
+    assert r["edges"] == 3  # 2 contains(module→orphan) + 1 concept-relation
+    assert (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar() == 3
+    assert (await db.execute(select(func.count()).select_from(ConceptGraphEdge))).scalar() == 3
     assert (await db.execute(select(func.count()).select_from(DaCatalogSnapshot))).scalar() == 1
     assert (await db.execute(select(func.count()).select_from(DaKnowledgePointMap))).scalar() == 1
 
@@ -118,23 +120,29 @@ async def test_sync_commit_persists(db_engine, knowledge_db_path):
     # 第二个独立 session: 验证数据真正持久化（不是 flush 幻觉）
     async with make_session() as s2:
         count = (await s2.execute(select(func.count()).select_from(ConceptGraphNode))).scalar()
-        assert count == 2, f"Expected 2 nodes persisted across sessions, got {count}"
+        assert count == 3, f"Expected 3 nodes (1 module + 2 concepts) persisted across sessions, got {count}"
 
 
 # --- 层级重构同步测试 ---
 
 @pytest.mark.asyncio
 async def test_sync_l1_only(db, knowledge_db_with_hierarchy):
-    """同步后只有 L1 概念 + BigConcept 节点，无 evidence。"""
+    """同步后有 Module + L1 概念 + BigConcept 节点，无 evidence。"""
     from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
     r = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_with_hierarchy)
     assert r["status"] == "synced"
 
-    # 节点：2 L1 + 1 BigConcept = 3（evidence 不同步）
+    # 节点：1 module(M1) + 2 L1 + 1 BigConcept = 4（evidence 不同步）
     total = (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar()
-    assert total == 3
+    assert total == 4
 
     # 验证 node_type
+    modules = (await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.node_type == "module")
+    )).scalars().all()
+    assert len(modules) == 1
+    assert modules[0].id == "mod:bio_sr:M1"
+
     concepts = (await db.execute(
         select(ConceptGraphNode).where(ConceptGraphNode.node_type == "concept")
     )).scalars().all()
@@ -220,14 +228,14 @@ async def test_da_map_unchanged_after_sync(db, knowledge_db_with_hierarchy):
 
 @pytest.mark.asyncio
 async def test_sync_old_db_no_hierarchy(db, knowledge_db_path):
-    """旧版 knowledge.db（无 big_concepts 表）不崩溃，正常同步 L1。"""
+    """旧版 knowledge.db（无 big_concepts 表）不崩溃，正常同步 L1 + module。"""
     from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
     r = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_path)
     assert r["status"] == "synced"
 
-    # 2 L1 nodes, 0 BigConcepts, 0 maps
+    # 1 module(M1) + 2 L1 nodes, 0 BigConcepts, 0 maps
     total = (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar()
-    assert total == 2
+    assert total == 3
 
     map_count = (await db.execute(select(func.count()).select_from(ConceptBigConceptMap))).scalar()
     assert map_count == 0
@@ -271,8 +279,8 @@ async def test_sync_stats_failure_does_not_break_sync(db, knowledge_db_path, mon
     # sync 完整跑完（status=synced），stats 失败被 best-effort 吞掉
     result = await sync_knowledge_on_startup(db, knowledge_db_path)
     assert result["status"] == "synced"
-    # sync 本身持久化的数据应保留
-    assert (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar() == 2
+    # sync 本身持久化的数据应保留（1 module + 2 concepts = 3）
+    assert (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar() == 3
 
 
 @pytest.mark.asyncio
@@ -304,3 +312,284 @@ async def test_sync_skipped_branch_computes_stats_when_empty(db, knowledge_db_pa
     assert len(call_log) == 2, (
         f"F001: skipped 分支在 stats 为空时未触发补算，call_log={call_log}"
     )
+
+
+# --- P0-R1: 三层树 + edge evidence 测试 ---
+
+def _create_test_knowledge_db_v2(path: str):
+    """新 schema fixture：含 study_units 完整列 + edge evidence。"""
+    conn = sqlite3.connect(path)
+    conn.execute("""CREATE TABLE concepts (
+        id TEXT PRIMARY KEY, name TEXT, knowledge_level TEXT, description TEXT,
+        difficulty INTEGER, bloom_level TEXT, aliases_json TEXT, evidence_ids_json TEXT, review_status TEXT
+    )""")
+    # M1: 2 concepts, M2: 1 concept
+    conn.execute("INSERT INTO concepts VALUES ('BIO_SR_CP_M1_A','光合作用','L1','光合描述',4,'apply',NULL,NULL,'ai_draft')")
+    conn.execute("INSERT INTO concepts VALUES ('BIO_SR_CP_M1_B','细胞分裂','L1','分裂描述',3,'understand',NULL,NULL,'ai_draft')")
+    conn.execute("INSERT INTO concepts VALUES ('BIO_SR_CP_M2_C','基因突变','L1','突变描述',5,'analyze',NULL,NULL,'ai_draft')")
+
+    conn.execute("""CREATE TABLE concept_relations (
+        source_id TEXT, target_id TEXT, relation_type TEXT, strength REAL, confidence REAL,
+        evidence TEXT, pedagogical_use TEXT
+    )""")
+    conn.execute("INSERT INTO concept_relations VALUES ('BIO_SR_CP_M1_A','BIO_SR_CP_M1_B','prerequisite_hard',1.0,0.9,'教材第三章实验证据','diagnosis')")
+    conn.execute("INSERT INTO concept_relations VALUES ('BIO_SR_CP_M1_B','BIO_SR_CP_M2_C','related',0.8,0.7,NULL,NULL)")
+
+    conn.execute("""CREATE TABLE study_units (
+        id TEXT PRIMARY KEY, name TEXT, description TEXT, source_concept_ids TEXT,
+        module TEXT, estimated_minutes INTEGER, linked_da_ids TEXT
+    )""")
+    conn.execute("""INSERT INTO study_units VALUES ('su:bio_sr:m1_001','光合作用单元','单元描述','["BIO_SR_CP_M1_A"]','M1',45,'["da:bio_sr:m1_001"]')""")
+    conn.execute("""INSERT INTO study_units VALUES ('su:bio_sr:m1_002','细胞分裂单元','单元描述','["BIO_SR_CP_M1_B"]','M1',30,NULL)""")
+    conn.execute("""INSERT INTO study_units VALUES ('su:bio_sr:m2_001','基因突变单元','单元描述','["BIO_SR_CP_M2_C"]','M2',60,NULL)""")
+
+    conn.execute("CREATE TABLE diagnostic_attributes (id TEXT PRIMARY KEY, name TEXT, linked_concept_ids TEXT, observable_behaviors TEXT, common_cause_families TEXT, required_evidence_modes TEXT, common_errors TEXT, description TEXT)")
+    conn.execute("""INSERT INTO diagnostic_attributes VALUES ('da:bio_sr:m1_001','DA1','["BIO_SR_CP_M1_A"]','["obs"]','["gap"]','["recall"]','[]','d')""")
+
+    # 不创建 big_concepts / map 表（测试三层树不需要 BC）
+    conn.commit()
+    conn.close()
+
+
+@pytest.fixture
+def knowledge_db_v2(tmp_path):
+    p = str(tmp_path / "knowledge.db")
+    _create_test_knowledge_db_v2(p)
+    return p
+
+
+@pytest.mark.asyncio
+async def test_sync_three_layer_tree(db, knowledge_db_v2):
+    """R1: 验证 module → study_unit → concept 三层投影精确。"""
+    from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
+    r = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_v2)
+    assert r["status"] == "synced"
+
+    # 节点：2 modules (M1,M2) + 3 study_units + 3 concepts = 8
+    assert r["nodes"] == 8
+
+    modules = (await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.node_type == "module")
+    )).scalars().all()
+    assert len(modules) == 2
+    mod_ids = {m.id for m in modules}
+    assert mod_ids == {"mod:bio_sr:M1", "mod:bio_sr:M2"}
+
+    sus = (await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.node_type == "study_unit")
+    )).scalars().all()
+    assert len(sus) == 3
+    su_ids = {s.id for s in sus}
+    assert su_ids == {"su:bio_sr:m1_001", "su:bio_sr:m1_002", "su:bio_sr:m2_001"}
+
+    concepts = (await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.node_type == "concept")
+    )).scalars().all()
+    assert len(concepts) == 3
+
+    # contains edges: 2 mod→su(M1) + 1 mod→su(M2) + 3 su→concept = 6
+    contains_edges = (await db.execute(
+        select(ConceptGraphEdge).where(ConceptGraphEdge.relation_type == "contains")
+    )).scalars().all()
+    assert len(contains_edges) == 6
+
+    # 验证 mod→su 边
+    mod_su_edges = [(e.source_id, e.target_id) for e in contains_edges if e.target_id.startswith("su:")]
+    assert set(mod_su_edges) == {
+        ("mod:bio_sr:M1", "su:bio_sr:m1_001"),
+        ("mod:bio_sr:M1", "su:bio_sr:m1_002"),
+        ("mod:bio_sr:M2", "su:bio_sr:m2_001"),
+    }
+
+    # 验证 su→concept 边
+    su_concept_edges = [(e.source_id, e.target_id) for e in contains_edges if e.target_id.startswith("BIO_")]
+    assert set(su_concept_edges) == {
+        ("su:bio_sr:m1_001", "BIO_SR_CP_M1_A"),
+        ("su:bio_sr:m1_002", "BIO_SR_CP_M1_B"),
+        ("su:bio_sr:m2_001", "BIO_SR_CP_M2_C"),
+    }
+
+    # concept-relation 边: 2 条
+    rel_edges = (await db.execute(
+        select(ConceptGraphEdge).where(ConceptGraphEdge.relation_type != "contains")
+    )).scalars().all()
+    assert len(rel_edges) == 2
+
+
+@pytest.mark.asyncio
+async def test_sync_edge_evidence_projection(db, knowledge_db_v2):
+    """R1 补充: 验证 knowledge.db concept_relations 的 evidence 和 pedagogical_use 投影到 ConceptGraphEdge。"""
+    from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
+    await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_v2)
+
+    # 有 evidence 的边
+    edge_with_ev = (await db.execute(
+        select(ConceptGraphEdge).where(
+            ConceptGraphEdge.source_id == "BIO_SR_CP_M1_A",
+            ConceptGraphEdge.target_id == "BIO_SR_CP_M1_B",
+            ConceptGraphEdge.relation_type == "prerequisite_hard",
+        )
+    )).scalar_one()
+    assert edge_with_ev.evidence == "教材第三章实验证据"
+    assert edge_with_ev.pedagogical_use == "diagnosis"
+
+    # 无 evidence 的边
+    edge_no_ev = (await db.execute(
+        select(ConceptGraphEdge).where(
+            ConceptGraphEdge.source_id == "BIO_SR_CP_M1_B",
+            ConceptGraphEdge.target_id == "BIO_SR_CP_M2_C",
+            ConceptGraphEdge.relation_type == "related",
+        )
+    )).scalar_one()
+    assert edge_no_ev.evidence is None
+    assert edge_no_ev.pedagogical_use is None
+
+
+@pytest.mark.asyncio
+async def test_sync_upsert_preserves_fk_refs(db, db_engine, knowledge_db_path):
+    """R3: resync 后 FK 引用 concept_graph_nodes 的数据不丢失。
+
+    验证 sync 使用 upsert 而非 DELETE ALL nodes：
+    1. 同步创建 nodes
+    2. 创建 QuestionKnowledgePoint 和 StudentKnpMastery 引用这些 nodes
+    3. 强制 resync（清空 edge+DA 触发非 skipped 路径）
+    4. 断言 QKP 和 StudentKnpMastery 记录仍在
+
+    R2 强化：开启 SQLite FK 约束，确保 DELETE ALL nodes 回归
+    会触发真正的 FK violation 而非假绿。
+    """
+    import sqlalchemy as sa
+    from sqlalchemy import delete, text
+    from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
+    from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+    from edu_cloud.modules.analytics.models import StudentKnpMastery
+    from edu_cloud.modules.exam.models import Exam, Subject, Question
+    from edu_cloud.modules.student.models import Class, Student
+    from edu_cloud.models.school import School
+
+    # 开启 SQLite FK 约束（默认关闭，不开则 DELETE 不报错）
+    async with db_engine.connect() as raw_conn:
+        await raw_conn.execute(text("PRAGMA foreign_keys = ON"))
+        await raw_conn.commit()
+
+    # 1. 首次同步（创建 nodes）
+    r1 = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_path)
+    assert r1["status"] == "synced"
+
+    # fixture 会创建 BIO_SR_CP_M1_A 和 BIO_SR_CP_M1_B
+    node_a = (await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.id == "BIO_SR_CP_M1_A")
+    )).scalar_one()
+    assert node_a is not None
+
+    # 2. 创建 FK 引用数据
+    school = School(name="FK测试校", code="FKTEST", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+
+    exam = Exam(name="FK考试", status="completed", school_id=school.id)
+    db.add(exam)
+    await db.flush()
+
+    subj = Subject(name="生物", code="biology", exam_id=exam.id, school_id=school.id)
+    db.add(subj)
+    await db.flush()
+
+    q = Question(name="1", question_type="essay", max_score=10, subject_id=subj.id, school_id=school.id)
+    db.add(q)
+    await db.flush()
+
+    cls = Class(name="高一(1)班", grade="高一", grade_number=10, school_id=school.id)
+    db.add(cls)
+    await db.flush()
+
+    stu = Student(name="FK学生", student_number="FK001", class_id=cls.id, school_id=school.id, grade="高一")
+    db.add(stu)
+    await db.flush()
+
+    # QKP 引用 concept node
+    qkp = QuestionKnowledgePoint(question_id=q.id, concept_id="BIO_SR_CP_M1_A")
+    db.add(qkp)
+    await db.flush()
+
+    # StudentKnpMastery 引用 concept node
+    knp_mastery = StudentKnpMastery(
+        student_id=stu.id, exam_id=exam.id, concept_id="BIO_SR_CP_M1_A",
+        school_id=school.id, stu_rate=0.8, class_rate=0.7, grade_rate=0.7,
+    )
+    db.add(knp_mastery)
+    await db.commit()
+
+    # 记录 IDs
+    qkp_id = qkp.id
+    mastery_id = knp_mastery.id
+
+    # 3. 强制 resync（清空 DA 触发非 skipped 路径）
+    from edu_cloud.modules.adaptive.models import DaCatalogSnapshot, DaKnowledgePointMap
+    await db.execute(delete(DaCatalogSnapshot))
+    await db.execute(delete(DaKnowledgePointMap))
+    await db.commit()
+
+    r2 = await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_path)
+    assert r2["status"] == "synced", "DA 清空后应重新同步"
+
+    # 4. 断言 FK 引用数据仍在
+    qkp_after = (await db.execute(
+        select(QuestionKnowledgePoint).where(QuestionKnowledgePoint.id == qkp_id)
+    )).scalar_one_or_none()
+    assert qkp_after is not None, "QuestionKnowledgePoint 被 resync 删除了！upsert 不安全"
+    assert qkp_after.concept_id == "BIO_SR_CP_M1_A"
+
+    mastery_after = (await db.execute(
+        select(StudentKnpMastery).where(StudentKnpMastery.id == mastery_id)
+    )).scalar_one_or_none()
+    assert mastery_after is not None, "StudentKnpMastery 被 resync 删除了！upsert 不安全"
+    assert mastery_after.concept_id == "BIO_SR_CP_M1_A"
+
+    # 5. 节点仍在且被更新
+    node_a_after = (await db.execute(
+        select(ConceptGraphNode).where(ConceptGraphNode.id == "BIO_SR_CP_M1_A")
+    )).scalar_one()
+    assert node_a_after.synced_at >= node_a.synced_at
+
+
+@pytest.mark.asyncio
+async def test_delete_all_nodes_would_fail_with_fk(db, db_engine, knowledge_db_path):
+    """R3 反证：如果回退到 DELETE ALL nodes，FK 约束会阻止。
+
+    这是 R3 的 mutant killer——证明 upsert 不是巧合而是必要。
+    """
+    import sqlalchemy as sa
+    from sqlalchemy import delete, text
+    from edu_cloud.modules.knowledge_tree.sync_service import sync_knowledge_on_startup
+    from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+    from edu_cloud.modules.exam.models import Exam, Subject, Question
+    from edu_cloud.models.school import School
+
+    # 开启 FK
+    async with db_engine.connect() as raw_conn:
+        await raw_conn.execute(text("PRAGMA foreign_keys = ON"))
+        await raw_conn.commit()
+
+    # 同步 + 创建 FK 引用
+    await sync_knowledge_on_startup(db, knowledge_db_path=knowledge_db_path)
+
+    school = School(name="反证校", code="PROOF", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+    exam = Exam(name="反证考试", status="completed", school_id=school.id)
+    db.add(exam)
+    await db.flush()
+    subj = Subject(name="生物", code="biology", exam_id=exam.id, school_id=school.id)
+    db.add(subj)
+    await db.flush()
+    q = Question(name="1", question_type="essay", max_score=10, subject_id=subj.id, school_id=school.id)
+    db.add(q)
+    await db.flush()
+    db.add(QuestionKnowledgePoint(question_id=q.id, concept_id="BIO_SR_CP_M1_A"))
+    await db.commit()
+
+    # 尝试 DELETE ALL nodes——FK 约束应阻止
+    with pytest.raises(sa.exc.IntegrityError):
+        await db.execute(delete(ConceptGraphNode))
+        await db.flush()
