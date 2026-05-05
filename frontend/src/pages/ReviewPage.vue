@@ -85,9 +85,9 @@
                 </n-tag>
               </div>
             </div>
-            <div v-if="ai.feedback" class="ai-feedback" :class="{ 'ai-feedback--collapsed': !feedbackExpanded }" @click="feedbackExpanded = !feedbackExpanded">
-              {{ ai.feedback }}
-              <span v-if="!feedbackExpanded" class="ai-feedback-toggle">展开</span>
+            <div v-if="ai.feedback" class="ai-feedback-wrap">
+              <div class="ai-feedback" :class="{ 'ai-feedback--collapsed': !feedbackExpanded }">{{ ai.feedback }}</div>
+              <n-button v-if="ai.feedback.length > 80" text size="tiny" class="ai-feedback-toggle" @click="feedbackExpanded = !feedbackExpanded">{{ feedbackExpanded ? '收起' : '展开' }}</n-button>
             </div>
             <div v-if="mergedDetails.length" class="ai-details">
               <div class="ai-details-title">逐空评分</div>
@@ -790,7 +790,7 @@ onUnmounted(() => {
 .ai-title {
   font-size: var(--fs-base);
   font-weight: var(--fw-bold);
-  color: var(--color-text-primary, #09061B);
+  color: var(--color-text);
 }
 
 .ai-score-num {
@@ -809,13 +809,17 @@ onUnmounted(() => {
   margin-right: 6px;
 }
 
+.ai-feedback-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .ai-feedback {
   font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--color-text-secondary);
   white-space: pre-wrap;
-  cursor: pointer;
-  position: relative;
 }
 
 .ai-feedback--collapsed {
@@ -826,9 +830,8 @@ onUnmounted(() => {
 }
 
 .ai-feedback-toggle {
+  align-self: flex-start;
   color: var(--color-primary);
-  font-size: var(--fs-xs, 12px);
-  margin-left: 4px;
 }
 
 
@@ -1009,12 +1012,14 @@ onUnmounted(() => {
 
 .ann-row > .n-button:last-child {
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s;
 }
 
 .ai-sub:hover .ann-row > .n-button:last-child,
 .ai-sub:focus-within .ann-row > .n-button:last-child {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .ann-input-row {
