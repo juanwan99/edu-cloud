@@ -102,6 +102,7 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
             "sub": user.id,
             "role": primary.role,
             "active_role_id": primary.id,
+            **({"school_id": primary.school_id} if primary.school_id else {}),
         })
         logger.info("login ok: user=%s, role=%s", req.username, primary.role)
         business_event("login", "user", user.id, role=primary.role)
@@ -163,6 +164,7 @@ async def switch_role(
         "sub": user.id,
         "role": target_role.role,
         "active_role_id": target_role.id,
+        **({"school_id": target_role.school_id} if target_role.school_id else {}),
     })
     ctx = await _build_role_context(target_role, db)
     logger.info("switch-role: user=%s, new_role=%s", user.username, target_role.role)

@@ -38,6 +38,23 @@ function getCurrentUserId() {
   }
 }
 
+function _getTokenHash() {
+  // Simple hash of the current JWT token for user identity binding.
+  // Used to ensure stored error events belong to the current logged-in user.
+  try {
+    const token = localStorage.getItem('token')
+    if (!token) return null
+    // Use a simple hash (sum of char codes mod a large prime) for lightweight identity check
+    let hash = 0
+    for (let i = 0; i < token.length; i++) {
+      hash = ((hash << 5) - hash + token.charCodeAt(i)) | 0
+    }
+    return hash.toString(36)
+  } catch {
+    return null
+  }
+}
+
 class ClientLogger {
   constructor() {
     this.sessionId = crypto.randomUUID()
@@ -156,6 +173,13 @@ class ClientLogger {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       keepalive: true,
+    }).then(response => {
+      if (response.ok) {
+        // Clear persisted error queue on successful flush to prevent duplicates
+        const userId = getCurrentUserId()
+        const key = userId ? `${STORAGE_KEY}_${userId}` : STORAGE_KEY
+        localStorage.removeItem(key)
+      }
     }).catch(() => {
       // On failure, re-queue error events for localStorage persistence
       for (const ev of events) {
@@ -165,16 +189,19 @@ class ClientLogger {
   }
 
   _storeErrorEvent(event) {
+    // Only persist error-level events to localStorage
+    if (event.level !== 'error') return
     try {
       const userId = getCurrentUserId()
+      const tokenHash = _getTokenHash()
       const key = userId ? `${STORAGE_KEY}_${userId}` : STORAGE_KEY
       const raw = localStorage.getItem(key)
       let stored = raw ? JSON.parse(raw) : []
       // Filter expired
       const now = Date.now()
       stored = stored.filter(e => (now - e._stored_at) < STORED_TTL_MS)
-      // Add new event (cap at MAX_STORED)
-      stored.push({ ...event, _stored_at: now })
+      // Add new event (cap at MAX_STORED), tag with token hash for user binding
+      stored.push({ ...event, _stored_at: now, _token_hash: tokenHash })
       if (stored.length > MAX_STORED) stored = stored.slice(-MAX_STORED)
       localStorage.setItem(key, JSON.stringify(stored))
     } catch { /* quota exceeded or private browsing */ }
@@ -188,14 +215,20 @@ class ClientLogger {
       if (!raw) return
       const stored = JSON.parse(raw)
       const now = Date.now()
-      const valid = stored.filter(e => (now - e._stored_at) < STORED_TTL_MS)
+      const currentHash = _getTokenHash()
+      // Only restore events that are not expired AND match the current user's token
+      const valid = stored.filter(e =>
+        (now - e._stored_at) < STORED_TTL_MS &&
+        (!e._token_hash || e._token_hash === currentHash)
+      )
       if (valid.length === 0) {
         localStorage.removeItem(key)
         return
       }
-      // Strip internal field and re-queue
+      // Strip internal fields and re-queue
       for (const ev of valid) {
         delete ev._stored_at
+        delete ev._token_hash
         this.queue.push(ev)
       }
       localStorage.removeItem(key)
