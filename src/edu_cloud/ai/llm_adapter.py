@@ -144,7 +144,10 @@ class LLMProxyAdapter:
                 status = exc.response.status_code
                 if status == 429:
                     if attempt < max_retries_429:
-                        retry_after = float(exc.response.headers.get("Retry-After", 1 << attempt))
+                        try:
+                            retry_after = float(exc.response.headers.get("Retry-After", 1 << attempt))
+                        except (ValueError, TypeError):
+                            retry_after = float(1 << attempt)
                         log_event(
                             __name__, logging.WARNING, "llm", "llm.call.retry",
                             f"LLM 429 rate limited, retry {attempt + 1}/{max_retries_429}",

@@ -65,6 +65,8 @@ async def receive_client_logs(payload: ClientLogPayload, request: Request):
 
     # Log each event
     for ev in payload.events:
+        safe_data = {k: v for k, v in (ev.data or {}).items()
+                     if k not in ("trace_id", "user_id", "school_id", "page_route")}
         log_event(
             "edu_cloud.client",
             logging.WARNING if ev.level == "error" else logging.INFO,
@@ -79,7 +81,7 @@ async def receive_client_logs(payload: ClientLogPayload, request: Request):
             trace_id=ev.trace_id,
             user_id=user_id,
             school_id=school_id,
-            **ev.data,
+            **safe_data,
         )
 
     return Response(status_code=204)

@@ -176,7 +176,7 @@ def business_event(
     }
     logger.handle(record)
     if _business_handler:
-        _business_handler.emit(record)
+        _business_handler.handle(record)
 
 
 # --- Structured Log Helpers ---
