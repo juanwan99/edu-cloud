@@ -624,22 +624,7 @@ async function handleDocCropSave(results) {
 }
 
 function confirmBatchGrading() {
-  const ids = checkedQuestionIds.value
-  const answerCount = questions.value
-    .filter(q => ids.includes(q.question_id))
-    .reduce((s, q) => s + (q.answer_count || 0), 0)
-  const visionCount = ids.filter(id => visionMap.value[id]).length
-  const lines = [`${ids.length} 道题，约 ${answerCount} 份答卷`]
-  if (visionCount) lines.push(`Vision: ${visionCount} 题`)
-  lines.push(modeValue.value === 'batch' ? '经济模式' : '实时模式')
-  if (limitValue.value) lines.push(`每题限 ${limitValue.value} 份`)
-  dialog.warning({
-    title: '确认批量阅卷',
-    content: lines.join('，'),
-    positiveText: '确认启动',
-    negativeText: '取消',
-    onPositive: () => executeBatchGrading([...ids]),
-  })
+  executeBatchGrading([...checkedQuestionIds.value])
 }
 
 async function executeBatchGrading(idsSnapshot) {

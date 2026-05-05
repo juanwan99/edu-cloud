@@ -439,10 +439,6 @@ async function loadNext() {
     const { data } = await getNext(questionId, reviewMode.value)
     if (seq !== loadSeq.value) return
     if (data.done) {
-      if (reviewMode.value === 'ai_review') {
-        await loadAnswerAt(0)
-        return
-      }
       done.value = true
     } else {
       await applyAnswer(data.answer)
@@ -525,9 +521,13 @@ async function loadAnswerAt(offset) {
       isGraded.value = true
     }
     await loadImage(data.answer_id)
-  } catch {
+  } catch (e) {
     if (seq !== loadSeq.value) return
-    message.error('加载失败')
+    if (e?.response?.status === 404 && reviewMode.value === 'ai_review') {
+      done.value = true
+    } else {
+      message.error('加载失败')
+    }
   }
   loading.value = false
   await nextTick()
