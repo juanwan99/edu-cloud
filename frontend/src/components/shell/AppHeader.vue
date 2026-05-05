@@ -106,8 +106,8 @@ function isNavActive(item) {
   width: 46px;
   height: 46px;
   border-radius: 14px;
-  background: rgba(255, 242, 235, 0.9);
-  box-shadow: 0 4px 16px rgba(180, 20, 60, 0.12);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
   flex-shrink: 0;
 }
 

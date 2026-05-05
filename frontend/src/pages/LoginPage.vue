@@ -218,8 +218,8 @@ async function handleLogin() {
   width: 96px;
   height: 96px;
   border-radius: 22px;
-  background: rgba(255, 242, 235, 0.9);
-  box-shadow: 0 6px 24px rgba(180, 20, 60, 0.15);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
 }
 
 .brand-name {
