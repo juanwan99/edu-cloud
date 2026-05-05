@@ -91,37 +91,36 @@
             </div>
             <div v-if="mergedDetails.length" class="ai-details">
               <div class="ai-details-title">逐空评分</div>
-              <div v-for="(item, i) in mergedDetails" :key="i" class="ai-sub" :class="item.correct ? 'ai-sub--pass' : item.score > 0 ? 'ai-sub--partial' : 'ai-sub--wrong'">
-                <div class="ai-sub-header">
-                  <span class="ai-sub-label">{{ formatBlankNo(item.blankNo, i) }}</span>
-                  <span class="ai-sub-score" :class="item.correct ? 'ai-sub-score--pass' : item.score > 0 ? 'ai-sub-score--partial' : 'ai-sub-score--fail'">
-                    {{ item.score }}/{{ item.maxScore }} {{ item.correct ? '✓' : item.score > 0 ? '△' : '✗' }}
-                  </span>
-                </div>
-                <div class="ai-sub-body">
-                  <div v-if="item.answer != null" class="ai-sub-answer">
-                    <span class="ai-sub-field-label">答：</span><span :class="item.answer ? '' : 'ai-sub-empty'">{{ item.answer || '未作答' }}</span>
+              <div class="ai-details-grid">
+                <div v-for="(item, i) in mergedDetails" :key="i" class="ai-sub" :class="item.correct ? 'ai-sub--pass' : item.score > 0 ? 'ai-sub--partial' : 'ai-sub--wrong'">
+                  <div class="ai-sub-header">
+                    <span class="ai-sub-label">{{ formatBlankNo(item.blankNo, i) }}</span>
+                    <span class="ai-sub-score" :class="item.correct ? 'ai-sub-score--pass' : item.score > 0 ? 'ai-sub-score--partial' : 'ai-sub-score--fail'">
+                      {{ item.score }}/{{ item.maxScore }} {{ item.correct ? '✓' : item.score > 0 ? '△' : '✗' }}
+                    </span>
+                    <n-button v-if="!getAnnotation(item.blankNo || String(i)) && annEditing !== (item.blankNo || String(i))" class="ann-hover-btn" size="tiny" text @click.stop="startAnnotation(item.blankNo || String(i))">+</n-button>
                   </div>
-                  <div v-if="item.reason" class="ai-sub-reason"><span class="ai-sub-field-label">理：</span>{{ item.reason }}</div>
-                </div>
-                <!-- 标注区 -->
-                <div class="ann-row">
+                  <div class="ai-sub-body">
+                    <div v-if="item.answer != null" class="ai-sub-answer">
+                      <span class="ai-sub-field-label">答：</span><span :class="item.answer ? '' : 'ai-sub-empty'">{{ item.answer || '未作答' }}</span>
+                    </div>
+                    <div v-if="item.reason" class="ai-sub-reason"><span class="ai-sub-field-label">理：</span>{{ item.reason }}</div>
+                  </div>
                   <div v-if="getAnnotation(item.blankNo || String(i))" class="ann-existing">
                     <span class="ann-tag">{{ getAnnotation(item.blankNo || String(i)).target === 'ocr' ? 'OCR' : '评分' }}</span>
                     <span class="ann-text">{{ getAnnotation(item.blankNo || String(i)).comment }}</span>
-                    <n-button size="tiny" text type="error" @click="removeAnnotation(item.blankNo || String(i))">删除</n-button>
+                    <n-button size="tiny" text type="error" @click="removeAnnotation(item.blankNo || String(i))">删</n-button>
                   </div>
                   <div v-if="annEditing === (item.blankNo || String(i))" class="ann-input-row">
-                      <n-radio-group v-model:value="annTarget" size="tiny">
-                        <n-radio-button value="ocr">OCR</n-radio-button>
-                        <n-radio-button value="score">评分</n-radio-button>
-                      </n-radio-group>
-                      <n-input v-model:value="annComment" size="small" placeholder="标注说明" @keyup.enter="submitAnnotation(item.blankNo || String(i))" style="flex:1" />
-                      <n-input-number v-if="annTarget === 'score'" v-model:value="annSuggestedScore" size="small" :min="0" :max="item.maxScore" placeholder="建议分" style="width:80px" />
-                      <n-button size="tiny" type="primary" @click="submitAnnotation(item.blankNo || String(i))">确认</n-button>
-                      <n-button size="tiny" @click="annEditing = null">取消</n-button>
-                    </div>
-                    <n-button v-else size="tiny" text @click="startAnnotation(item.blankNo || String(i))">+ 标注</n-button>
+                    <n-radio-group v-model:value="annTarget" size="tiny">
+                      <n-radio-button value="ocr">OCR</n-radio-button>
+                      <n-radio-button value="score">评分</n-radio-button>
+                    </n-radio-group>
+                    <n-input v-model:value="annComment" size="small" placeholder="标注说明" @keyup.enter="submitAnnotation(item.blankNo || String(i))" style="flex:1" />
+                    <n-input-number v-if="annTarget === 'score'" v-model:value="annSuggestedScore" size="small" :min="0" :max="item.maxScore" placeholder="建议分" style="width:80px" />
+                    <n-button size="tiny" type="primary" @click="submitAnnotation(item.blankNo || String(i))">确认</n-button>
+                    <n-button size="tiny" @click="annEditing = null">取消</n-button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -849,9 +848,14 @@ onUnmounted(() => {
   margin-bottom: 4px;
 }
 
+.ai-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
 .ai-sub {
   border-left: 3px solid var(--color-border);
-  margin-bottom: 4px;
   border-radius: 0 4px 4px 0;
   background: var(--color-bg-alt);
 }
@@ -1005,19 +1009,15 @@ onUnmounted(() => {
   font-size: var(--fs-base);
 }
 
-.ann-row {
-  margin-top: 2px;
-  padding: 2px 8px;
-}
-
-.ann-row > .n-button:last-child {
+.ann-hover-btn {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s;
+  margin-left: auto;
+  font-size: 14px;
 }
 
-.ai-sub:hover .ann-row > .n-button:last-child,
-.ai-sub:focus-within .ann-row > .n-button:last-child {
+.ai-sub:hover .ann-hover-btn {
   opacity: 1;
   pointer-events: auto;
 }
@@ -1025,15 +1025,18 @@ onUnmounted(() => {
 .ann-input-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
+  padding: 3px 8px;
+  border-top: 1px dashed var(--color-border-light);
 }
 
 .ann-existing {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 0;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
 }
 
 .ann-tag {
