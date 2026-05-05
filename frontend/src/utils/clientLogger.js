@@ -32,7 +32,7 @@ function getCurrentUserId() {
     const state = localStorage.getItem('auth_state')
     if (!state) return null
     const parsed = JSON.parse(state)
-    return parsed.userId || parsed.user_id || null
+    return parsed.user?.id || null
   } catch {
     return null
   }
@@ -217,9 +217,10 @@ class ClientLogger {
       const now = Date.now()
       const currentHash = _getTokenHash()
       // Only restore events that are not expired AND match the current user's token
+      // Events without _token_hash are discarded (legacy/unverifiable)
       const valid = stored.filter(e =>
         (now - e._stored_at) < STORED_TTL_MS &&
-        (!e._token_hash || e._token_hash === currentHash)
+        e._token_hash && e._token_hash === currentHash
       )
       if (valid.length === 0) {
         localStorage.removeItem(key)
