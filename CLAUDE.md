@@ -563,7 +563,7 @@ tests/
 | GET | `/api/v1/grading/tasks/{task_id}` | 阅卷任务详情 |
 | POST | `/api/v1/grading/assignments` | 创建阅卷分配（MANAGE_GRADING） |
 | GET | `/api/v1/grading/assignments` | 列出阅卷分配（VIEW_GRADING，需 exam_id） |
-| GET | `/api/v1/grading/progress/{exam_id}` | 阅卷进���汇总（VIEW_GRADING） |
+| GET | `/api/v1/grading/progress/{exam_id}` | 阅卷进度汇总（VIEW_GRADING） |
 | GET | `/api/v1/grading/quality-report/{exam_id}` | 质量检查报告（VIEW_GRADING） |
 | PATCH | `/api/v1/grading/results/{id}/annotations` | 保存教师逐空标注（VIEW_GRADING，school_id 隔离） |
 | GET | `/api/v1/grading/annotations/summary` | 按 blankNo 聚合标注汇总（VIEW_GRADING，需 question_id） |
