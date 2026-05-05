@@ -21,21 +21,27 @@ def apply_equivalence_guard(
     if not criteria or not grade_result:
         return grade_result
 
-    eq_map: dict[str, tuple[float, set[str]]] = {}
+    eq_map: dict[str, tuple[float, set[str], dict[str, str]]] = {}
     for item in criteria:
         bn = str(item.get("blankNo", ""))
         score = float(item.get("score", 0))
         answer = item.get("standardAnswer") or item.get("answer", "")
         all_answers = set()
+        norm_to_orig: dict[str, str] = {}
         if answer:
-            all_answers.add(_normalize(answer))
+            n = _normalize(answer)
+            all_answers.add(n)
+            norm_to_orig[n] = str(answer)
         eq = item.get("equivalentAnswers")
         if eq and isinstance(eq, list):
             for a in eq:
                 if a:
-                    all_answers.add(_normalize(str(a)))
+                    n = _normalize(str(a))
+                    all_answers.add(n)
+                    if n not in norm_to_orig:
+                        norm_to_orig[n] = str(a)
         if all_answers:
-            eq_map[bn] = (score, all_answers)
+            eq_map[bn] = (score, all_answers, norm_to_orig)
 
     if not eq_map:
         return grade_result
@@ -56,11 +62,22 @@ def apply_equivalence_guard(
             if not eq_entry:
                 continue
 
-            full_score, valid_answers = eq_entry
-            if student_ans in valid_answers and blank.get("score", 0) < full_score:
+            full_score, valid_answers, norm_to_orig = eq_entry
+            reason = str(blank.get("reason", ""))
+            exclusion_keywords = ("排除", "典型错误", "缺", "不完整", "不符", "偏离")
+            if (
+                student_ans in valid_answers
+                and blank.get("score", 0) < full_score
+                and not any(kw in reason for kw in exclusion_keywords)
+            ):
                 blank["score"] = full_score
                 blank["correct"] = True
-                blank["reason"] = "命中等价答案"
+                matched_orig = norm_to_orig.get(student_ans, "")
+                raw_answer = str(blank.get("answer", ""))
+                if matched_orig and raw_answer and matched_orig != raw_answer:
+                    blank["reason"] = f"与满分答案'{matched_orig}'等价"
+                else:
+                    blank["reason"] = f"与满分答案'{matched_orig or raw_answer}'一致"
                 corrected += 1
 
     if corrected > 0:

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from typing import Literal
 
@@ -59,6 +60,21 @@ def _log_usage(method: str, model: str, usage, finish_reason=None) -> None:
             getattr(usage, "cached_content_token_count", 0),
             finish_reason,
         )
+
+
+_OCR_BLANK_MARKERS = {"", "（未作答）", "(未作答)", "未作答", "（无法辨识）", "(无法辨识)", "无法辨识", "[空]", "[?]", "空白"}
+
+
+def _ocr_needs_quality_retry(blanks: list[dict], expected_count: int | None) -> bool:
+    if not blanks:
+        return True
+    meaningful = [b for b in blanks if re.sub(r"\s+", "", str(b.get("text", ""))) not in _OCR_BLANK_MARKERS]
+    if not meaningful:
+        return True
+    if expected_count and expected_count >= 3:
+        blankish = len(blanks) - len(meaningful)
+        return blankish / max(expected_count, 1) >= 0.8 and len(meaningful) <= 1
+    return False
 
 
 def _make_image_part(image_bytes: bytes, *, skip_resize: bool = False) -> types.Part:
@@ -224,6 +240,8 @@ class GeminiClient:
         *,
         skip_resize: bool = False,
         max_tokens: int = 2048,
+        expected_count: int | None = None,
+        quality_retry: bool = False,
     ) -> list[dict]:
         image_part = _make_image_part(image_bytes, skip_resize=skip_resize)
         contents = [
@@ -234,13 +252,37 @@ class GeminiClient:
         ]
 
         last_text = ""
+        quality_retried = False
         for attempt in range(self.max_retries):
             text = await self._generate(contents, method="extract_text", max_tokens=max_tokens)
             parsed = extract_json(text)
             if parsed is not None:
-                if isinstance(parsed, dict):
-                    return parsed.get("blanks", [])
-                return parsed
+                blanks = parsed.get("blanks", []) if isinstance(parsed, dict) else parsed
+                if (
+                    quality_retry
+                    and not quality_retried
+                    and not skip_resize
+                    and _ocr_needs_quality_retry(blanks, expected_count)
+                ):
+                    quality_retried = True
+                    retry_image = _make_image_part(image_bytes, skip_resize=True)
+                    retry_prompt = prompt + (
+                        "\n\n【OCR质量复核】上一次识别疑似把有笔迹答案判成未作答。"
+                        "请重新查看原图，使用原始清晰度逐空识别；只要有学生书写痕迹就尽力还原原文，"
+                        "仍无法辨认才填（无法辨识），不要因为答案可能错误而填未作答。"
+                    )
+                    contents = [
+                        types.Content(
+                            role="user",
+                            parts=[retry_image, types.Part.from_text(text=retry_prompt)],
+                        ),
+                    ]
+                    logger.warning(
+                        "extract_text: quality retry triggered attempt=%d/%d expected=%s blanks=%d",
+                        attempt + 1, self.max_retries, expected_count, len(blanks or []),
+                    )
+                    continue
+                return blanks
             last_text = text
             logger.warning("extract_text: JSON parse failed attempt %d/%d, text[:200]=%s",
                            attempt + 1, self.max_retries, text[:200])

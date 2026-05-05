@@ -375,7 +375,10 @@ async def _grade_single(
             t_ocr = time.perf_counter()
             if use_gemini_official:
                 image_bytes = base64.b64decode(image_b64)
-                blanks = await llm.extract_text(image_bytes=image_bytes, prompt=ocr_prompt)
+                blanks = await llm.extract_text(
+                    image_bytes=image_bytes, prompt=ocr_prompt,
+                    expected_count=len(rubric_criteria), quality_retry=True,
+                )
             else:
                 blanks = await llm.extract_text(images_b64=[image_b64], prompt=ocr_prompt)
             plog["ocr_ms"] = int((time.perf_counter() - t_ocr) * 1000)
@@ -388,15 +391,15 @@ async def _grade_single(
             plog["ocr_text"] = extracted_text
             plog["ocr_blanks_count"] = len(blanks)
 
-        # OCR-based blank detection: check each blank individually
-        non_empty_blanks = [b for b in blanks if b.get("text", "").strip()]
-        if len(non_empty_blanks) == 0:
-            plog["pipeline_type"] = "blank"
+        _BLANK_MARKERS = {"", "（未作答）", "(未作答)", "未作答", "（无法辨识）", "(无法辨识)", "无法辨识", "[空]", "[?]", "空白"}
+        meaningful_blanks = [b for b in blanks if str(b.get("text", "")).strip().replace(" ", "") not in _BLANK_MARKERS]
+        if len(meaningful_blanks) == 0:
+            plog["pipeline_type"] = "ocr_no_content"
             plog["is_blank"] = True
             plog["score"] = 0
-            plog["confidence"] = 1.0
+            plog["confidence"] = 0.2
             plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
-            logger.info("grading_task: OCR blank detection — all %d blanks empty, answer=%s", len(blanks), answer_id)
+            logger.info("grading_task: OCR no meaningful content — all %d blanks empty/unrecognized, answer=%s", len(blanks), answer_id)
             return {
                 "answer_id": answer_id, "question_id": question_id,
                 "score": 0, "max_score": ad["question_max_score"],

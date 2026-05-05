@@ -114,8 +114,8 @@ def format_rubric_for_grading(items: list[dict] | None) -> str:
                     all_answers.append(str(a))
 
         if len(all_answers) > 1:
-            text += f"满分答案（任一均给{score}分）：{' / '.join(all_answers)}\n"
-            text += f'⚠️ 命中上述任一答案必须给满分，不得以"不完整/不规范/缺少后缀"为由扣分\n'
+            text += f"候选满分答案（需完整等值且未命中排除项，才给{score}分）：{' / '.join(all_answers)}\n"
+            text += "⚠️ 上述答案不是关键词池；若学生答案缺少题目要求的对象、限定、因果或形式要求，应按判分细则给部分分\n"
         else:
             text += f"标准答案：{answer}\n"
 
