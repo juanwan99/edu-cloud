@@ -16,6 +16,7 @@ from edu_cloud.modules.exam.models import Exam, Question, Subject, QUESTION_TYPE
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.card.models import Template
+from edu_cloud.logging_config import business_event
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -700,9 +701,11 @@ async def enqueue_grading_task(task_id: str) -> None:
     from arq import create_pool
     from arq.connections import RedisSettings
     from edu_cloud.config import settings
+    from edu_cloud.logging_config import get_trace_context
+    trace_ctx = get_trace_context()
     redis = await create_pool(RedisSettings.from_dsn(settings.REDIS_URL))
     try:
-        await redis.enqueue_job("process_grading_task", task_id)
+        await redis.enqueue_job("process_grading_task", task_id, _trace_ctx=trace_ctx)
         logger.info("enqueue_grading_task: task=%s queued to Redis", task_id)
     except Exception:
         logger.error("enqueue_grading_task: failed to queue task=%s", task_id, exc_info=True)
@@ -938,6 +941,7 @@ async def create_grading_task(
 
     logger.info("create_grading_task: id=%s, subject=%s, children=%d, created_by=%s",
                 task.id, req.subject_id, len(child_tasks), current["user"].username)
+    business_event("task_create", "grading_task", task.id, exam_id=req.subject_id)
 
     # F007 orphan 防御：enqueue 失败必须清理已落库的 GradingTask
     all_tasks = [task] + child_tasks

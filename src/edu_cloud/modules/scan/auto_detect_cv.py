@@ -413,8 +413,8 @@ async def _llm_label(
             resp = await client.post(
                 LLM_PROXY_URL, json=body, headers={"X-LLM-Slot": SLOT}
             )
-        except httpx.TimeoutException:
-            logger.warning("LLM label timeout")
+        except httpx.TimeoutException as e:
+            logger.error("LLM label request timed out after 120s: %s", e, exc_info=True)
             return [], "timeout"
 
     if resp.status_code != 200:

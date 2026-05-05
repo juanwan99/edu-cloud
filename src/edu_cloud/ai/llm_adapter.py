@@ -9,6 +9,7 @@ from typing import Any, AsyncGenerator, Protocol
 import httpx
 
 from edu_cloud.ai.schemas import Message, ToolCall
+from edu_cloud.logging_config import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -113,15 +114,30 @@ class LLMProxyAdapter:
     async def _post_with_retry(self, url: str, headers: dict, json: dict) -> httpx.Response:
         """POST with graded retry. Uses config LLM_MAX_RETRIES / LLM_TIMEOUT."""
         import asyncio
+        import time as _time
         from edu_cloud.config import settings
 
         max_retries_429 = min(settings.LLM_MAX_RETRIES, 3)
         last_exc: Exception | None = None
 
+        log_event(
+            __name__, logging.DEBUG, "llm", "llm.call.start",
+            f"LLM call to {url}",
+            url=url, slot=self._slot,
+        )
+        t_start = _time.perf_counter()
+
         for attempt in range(1 + max_retries_429):  # 1 initial + retries
             try:
                 resp = await self._http.post(url, headers=headers, json=json)
                 resp.raise_for_status()
+                duration_ms = (_time.perf_counter() - t_start) * 1000
+                log_event(
+                    __name__, logging.INFO, "llm", "llm.call.completed",
+                    f"LLM call completed in {duration_ms:.0f}ms",
+                    duration_ms=duration_ms, url=url, slot=self._slot,
+                    status_code=resp.status_code,
+                )
                 return resp
             except httpx.HTTPStatusError as exc:
                 last_exc = exc
@@ -129,25 +145,75 @@ class LLMProxyAdapter:
                 if status == 429:
                     if attempt < max_retries_429:
                         retry_after = float(exc.response.headers.get("Retry-After", 1 << attempt))
+                        log_event(
+                            __name__, logging.WARNING, "llm", "llm.call.retry",
+                            f"LLM 429 rate limited, retry {attempt + 1}/{max_retries_429}",
+                            attempt=attempt + 1, reason="rate_limited",
+                            retry_after=retry_after, url=url,
+                        )
                         await asyncio.sleep(min(retry_after, 8))
                         continue
                 elif 500 <= status <= 503:
                     if attempt == 0:
+                        log_event(
+                            __name__, logging.WARNING, "llm", "llm.call.retry",
+                            f"LLM {status} server error, retry {attempt + 1}",
+                            attempt=attempt + 1, reason=f"server_error_{status}",
+                            url=url,
+                        )
                         await asyncio.sleep(0)  # yield, no delay for tests
                         continue
+                duration_ms = (_time.perf_counter() - t_start) * 1000
+                log_event(
+                    __name__, logging.ERROR, "llm", "llm.call.failed",
+                    f"LLM call failed: HTTP {status}",
+                    duration_ms=duration_ms, url=url, slot=self._slot,
+                    status_code=status, error=str(exc),
+                )
                 raise  # 4xx (non-429) or exhausted retries
             except httpx.TimeoutException as exc:
                 last_exc = exc
                 if attempt == 0:
+                    log_event(
+                        __name__, logging.WARNING, "llm", "llm.call.retry",
+                        "LLM timeout, retry 1",
+                        attempt=1, reason="timeout", url=url,
+                    )
                     continue
+                duration_ms = (_time.perf_counter() - t_start) * 1000
+                log_event(
+                    __name__, logging.ERROR, "llm", "llm.call.failed",
+                    f"LLM call failed: timeout after {duration_ms:.0f}ms",
+                    duration_ms=duration_ms, url=url, slot=self._slot,
+                    error=str(exc),
+                )
                 raise
             except httpx.RequestError as exc:
                 last_exc = exc
                 if attempt == 0:
+                    log_event(
+                        __name__, logging.WARNING, "llm", "llm.call.retry",
+                        f"LLM request error, retry 1: {type(exc).__name__}",
+                        attempt=1, reason="request_error", url=url,
+                    )
                     await asyncio.sleep(0)
                     continue
+                duration_ms = (_time.perf_counter() - t_start) * 1000
+                log_event(
+                    __name__, logging.ERROR, "llm", "llm.call.failed",
+                    f"LLM call failed: {type(exc).__name__}",
+                    duration_ms=duration_ms, url=url, slot=self._slot,
+                    error=str(exc),
+                )
                 raise
 
+        duration_ms = (_time.perf_counter() - t_start) * 1000
+        log_event(
+            __name__, logging.ERROR, "llm", "llm.call.failed",
+            f"LLM call exhausted retries after {duration_ms:.0f}ms",
+            duration_ms=duration_ms, url=url, slot=self._slot,
+            error=str(last_exc),
+        )
         raise last_exc  # type: ignore[misc]
 
     async def chat_stream(self, request: LLMRequest) -> AsyncGenerator[LLMChunk, None]:

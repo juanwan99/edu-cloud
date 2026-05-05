@@ -343,9 +343,11 @@ src/edu_cloud/
     upload_validation.py # 图片上传 magic bytes 验证（替代 Python 3.13 废弃的 imghdr）
   config.py             # Settings（DB/Redis/JWT/ENCRYPTION_KEY(PII加密)/LLM(timeout=180s)/GEMINI_API_KEY+GEMINI_MODEL(官方直连)/GRADING_BATCH_SIZE(20)/UPLOAD_DIR/知识库/AI Agent 配置，BaseSettings）
   database.py           # async engine + session factory（PostgreSQL 连接池 pool_size=20/max_overflow=40/pool_recycle=3600）
-  logging_config.py     # 双输出（Console UTC+8 + JSONL RotatingFile）
+  logging_config.py     # 日志系统 v2（进程分文件日滚 JSONL + 全链路 trace_id + business_event() + log_event()）
   worker.py             # arq WorkerSettings（6 functions: auto_draft/grading/pipeline/w3_daily/w6_hourly/agent_scheduled）
 scripts/
+  edu-log               # 日志查询 CLI（trace/req/user/exam/frontend/llm/slow/tail/stats，13 命令）
+  edu-log-maintain      # 日志维护（14d 压缩/120d 删除/365d business/12GB 上限，cron 每日 03:00）
   db_doctor.py          # ORM vs DB schema drift 检测（--startup/--strict/--json）
   db_migrate            # 安全 migration wrapper（flock→backup→dry-run→doctor→upgrade）；唯一合法 migration 路径
   db_branch             # branch DB 隔离工具（init/refresh/prune/list/status）
@@ -404,8 +406,14 @@ tests/
 
 ## 日志体系
 
-与 exam-ai 保持一致：双输出（Console + JSONL）、Request ID 追踪、UTC+8 时区。
-日志文件：`logs/app.jsonl`，10MB 轮转，5 份备份。
+日志系统 v2（设计文档：`docs/plans/2026-05-05-logging-system-redesign.md`）：
+- **进程分文件**：`logs/api/edu-api-*.jsonl`（API）+ `logs/worker/edu-worker-*.jsonl`（Worker）+ `logs/business/edu-biz-*.jsonl`（业务事件归档）
+- **统一 Schema**：每条含 v/ts/level/layer/event/trace_id/req_id/user_id/school_id/duration_ms/data
+- **全链路追踪**：trace_id 从前端→HTTP→arq Worker→LLM 调用全程传播
+- **前端日志上报**：`POST /api/v1/client-logs`（clientLogger.js 批量发送 + 错误立即发 + sendBeacon 兜底）
+- **查询工具**：`scripts/edu-log trace|req|user|exam|frontend|llm|slow|tail|stats`
+- **保留策略**：14 天热存 → 120 天 gzip → business 保留 365 天（`scripts/edu-log-maintain` cron）
+- **业务事件**：`business_event()` 记录状态变更/分数修改/权限拒绝/登录等
 
 <!-- key-start -->
 ## 端口约定
@@ -643,6 +651,12 @@ tests/
 | POST | `/api/v1/calendar/events` | GENERATE_NOTIFICATION | 创建校历事件（含通知规则） |
 | GET | `/api/v1/calendar/events` | 已登录 | 列出本校校历事件（支持 start/end 日期过滤） |
 | DELETE | `/api/v1/calendar/events/{id}` | GENERATE_NOTIFICATION | 软删除校历事件（is_active=False） |
+
+### 前端日志端点
+
+| 方法 | 路径 | 权限 | 用途 |
+|------|------|------|------|
+| POST | `/api/v1/client-logs` | 已登录（可选） | 前端日志批量上报（client_session_id + events[]，限流 100/min/session） |
 
 ### 通知端点（JWT 认证）
 

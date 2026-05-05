@@ -184,6 +184,7 @@ async def _grade_single(
     rubrics_by_question: dict,
     *,
     use_gemini_official: bool = False,
+    ds_grading_llm=None,
 ) -> tuple[dict | None, dict | None, dict]:
     """Grade a single answer using two-step pipeline: OCR -> text-based grading.
 
@@ -524,7 +525,7 @@ async def _grade_single(
                     "ocr_blanks": blanks,
                 }, None, plog
 
-        # Standard text grading (non-essay or no anchors)
+        # Standard text grading (non-essay or no anchors) — always use DeepSeek
         plog["grading_prompt_type"] = "GRADING_TEXT"
         grading_prompt = render_prompt(grading_prompt_tpl, {
             "fullScore": full_score,
@@ -533,8 +534,12 @@ async def _grade_single(
             "charStats": char_stats,
         })
 
+        if not ds_grading_llm:
+            raise RuntimeError("DEEPSEEK_API_KEY not configured for text grading")
+        plog["grading_model"] = "deepseek-v4-flash"
+
         t_grade = time.perf_counter()
-        grade_result = await llm.grade_text(prompt=grading_prompt, max_score=ad["question_max_score"])
+        grade_result = await ds_grading_llm.grade_text(prompt=grading_prompt, max_score=ad["question_max_score"])
         plog["grading_ms"] = int((time.perf_counter() - t_grade) * 1000)
 
         if grade_result.details and rubric_criteria:
@@ -854,13 +859,27 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
     return [r for r in results if r is not None]
 
 
-async def _grade_with_semaphore(llm, ad, rubrics, *, use_gemini_official=False):
+async def _grade_with_semaphore(llm, ad, rubrics, *, use_gemini_official=False, ds_grading_llm=None):
     async with _grading_semaphore:
-        return await _grade_single(llm, ad, rubrics, use_gemini_official=use_gemini_official)
+        return await _grade_single(llm, ad, rubrics, use_gemini_official=use_gemini_official, ds_grading_llm=ds_grading_llm)
 
 
-async def process_grading_task(ctx: dict, task_id: str) -> None:
+async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None = None) -> None:
     """Process a single grading task: load answers, call LLM in micro-batches, save results."""
+    from edu_cloud.logging_config import trace_id_var, request_id_var, current_user_var, current_school_var
+
+    # Restore trace context propagated from the API request
+    _ctx_tokens = []
+    if _trace_ctx:
+        _ctx_tokens.append(trace_id_var.set(_trace_ctx.get("trace_id", "-")))
+        _ctx_tokens.append(request_id_var.set(_trace_ctx.get("req_id", "-")))
+        _uid = _trace_ctx.get("user_id")
+        if _uid:
+            _ctx_tokens.append(current_user_var.set(_uid))
+        _sid = _trace_ctx.get("school_id")
+        if _sid:
+            _ctx_tokens.append(current_school_var.set(_sid))
+
     task_start = time.perf_counter()
     logger.info("grading_task START: task=%s", task_id)
 
@@ -902,6 +921,18 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                 api_url=llm_url, api_key=llm_key, model=llm_model,
                 use_gemini_official=bool(use_gemini),
             )
+
+            # DeepSeek client for text grading (shared across all answers)
+            from edu_cloud.modules.grading.llm_client import LLMClient as _LLMClient
+            ds_grading_llm = None
+            if settings.DEEPSEEK_API_KEY:
+                ds_grading_llm = _LLMClient(
+                    api_url="https://api.deepseek.com/v1",
+                    api_key=settings.DEEPSEEK_API_KEY,
+                    model="deepseek-v4-flash",
+                    timeout=180,
+                    max_retries=3,
+                )
 
             # Find subjective questions
             if task.question_ids:
@@ -1000,9 +1031,18 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
             )
             rubrics_by_question = {r.question_id: r.criteria for r in rubric_result.scalars().all()}
 
-            if task.grading_limit and task.grading_limit > 0 and len(answer_data) > task.grading_limit:
-                logger.info("grading_task: applying limit %d (total available %d)", task.grading_limit, len(answer_data))
-                answer_data = answer_data[:task.grading_limit]
+            if task.grading_limit and task.grading_limit > 0:
+                from collections import defaultdict
+                by_question = defaultdict(list)
+                for ad in answer_data:
+                    by_question[ad["question_id"]].append(ad)
+                limited = []
+                for qid, ads in by_question.items():
+                    limited.extend(ads[:task.grading_limit])
+                if len(limited) < len(answer_data):
+                    logger.info("grading_task: applying per-question limit %d (%d questions, %d→%d)",
+                                task.grading_limit, len(by_question), len(answer_data), len(limited))
+                answer_data = limited
 
             task.total = len(answer_data)
             await db.commit()
@@ -1033,7 +1073,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                 if anchor_answers:
                     for ad in anchor_answers:
                         try:
-                            r = await _grade_single(llm, ad, rubrics_by_question, use_gemini_official=use_gemini)
+                            r = await _grade_single(llm, ad, rubrics_by_question, use_gemini_official=use_gemini, ds_grading_llm=ds_grading_llm)
                             batch_results.append(r)
                         except Exception as e:
                             logger.warning("grading_task: anchor fallback failed for %s: %s", ad["answer_id"], e)
@@ -1051,7 +1091,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                     batch = answer_data[batch_start:batch_start + batch_size]
                     batch_num = batch_start // batch_size + 1
                     logger.info("grading_task: task=%s, micro-batch %d, size=%d", task_id, batch_num, len(batch))
-                    coros = [_grade_with_semaphore(llm, ad, rubrics_by_question, use_gemini_official=use_gemini) for ad in batch]
+                    coros = [_grade_with_semaphore(llm, ad, rubrics_by_question, use_gemini_official=use_gemini, ds_grading_llm=ds_grading_llm) for ad in batch]
                     mb_results = await asyncio.gather(*coros)
                     batch_completed = 0
                     batch_failed = 0
@@ -1169,6 +1209,9 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
             await llm.close()
         if local_engine is not None:
             await local_engine.dispose()
+        # Reset trace context tokens
+        for _tok in _ctx_tokens:
+            _tok.var.reset(_tok)
 
 
 async def run_post_exam_pipeline(ctx: dict, exam_id: str, school_id: str) -> None:

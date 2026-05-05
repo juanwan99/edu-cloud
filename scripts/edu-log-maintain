@@ -1,0 +1,259 @@
+#!/home/ops/projects/edu-cloud/.venv/bin/python
+"""edu-log-maintain: Maintenance script for edu-cloud log files.
+
+Handles compression, deletion, and disk quota enforcement.
+Run daily via cron.
+
+# 0 3 * * * /home/ops/projects/edu-cloud/.venv/bin/python /home/ops/projects/edu-cloud/scripts/edu-log-maintain
+"""
+import gzip
+import os
+import shutil
+import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+LOGS_ROOT = Path("/home/ops/projects/edu-cloud/logs")
+TZ_CST = timezone(timedelta(hours=8))
+
+# Policy
+COMPRESS_AFTER_DAYS = 14       # Compress .jsonl files older than 14 days
+DELETE_API_WORKER_DAYS = 120   # Delete api/worker .gz files older than 120 days
+DELETE_BUSINESS_DAYS = 365     # Delete business .gz files older than 365 days
+MAX_DISK_BYTES = 12 * 1024 * 1024 * 1024  # 12 GB quota
+
+# Directories
+API_DIR = LOGS_ROOT / "api"
+WORKER_DIR = LOGS_ROOT / "worker"
+BUSINESS_DIR = LOGS_ROOT / "business"
+
+
+def now_cst() -> datetime:
+    return datetime.now(TZ_CST)
+
+
+def extract_date_from_filename(filename: str) -> datetime | None:
+    """Extract date from log filename like edu-api-2026-05-05.000.jsonl"""
+    parts = filename.replace(".jsonl", "").replace(".gz", "").split("-")
+    for i, p in enumerate(parts):
+        if len(p) == 4 and p.isdigit() and i + 2 < len(parts):
+            try:
+                date_str = f"{parts[i]}-{parts[i+1]}-{parts[i+2].split('.')[0]}"
+                return datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=TZ_CST)
+            except (ValueError, IndexError):
+                pass
+    return None
+
+
+def is_protected(filepath: Path) -> bool:
+    """Never delete today's or yesterday's files."""
+    today = now_cst().replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday = today - timedelta(days=1)
+
+    file_date = extract_date_from_filename(filepath.name)
+    if file_date is None:
+        # If we can't parse date, check mtime
+        mtime = datetime.fromtimestamp(filepath.stat().st_mtime, tz=TZ_CST)
+        return mtime >= yesterday
+
+    return file_date >= yesterday
+
+
+def compress_old_jsonl(directory: Path, older_than_days: int) -> list[str]:
+    """Compress .jsonl files older than threshold."""
+    actions = []
+    if not directory.exists():
+        return actions
+
+    cutoff = now_cst() - timedelta(days=older_than_days)
+
+    for f in sorted(directory.iterdir()):
+        if not f.name.endswith(".jsonl"):
+            continue
+        if is_protected(f):
+            continue
+
+        file_date = extract_date_from_filename(f.name)
+        if file_date is None:
+            # Fall back to mtime
+            mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=TZ_CST)
+            if mtime >= cutoff:
+                continue
+        elif file_date >= cutoff:
+            continue
+
+        # Compress
+        gz_path = f.with_suffix(f.suffix + ".gz")
+        try:
+            original_size = f.stat().st_size
+            with open(f, "rb") as f_in:
+                with gzip.open(gz_path, "wb", compresslevel=6) as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            compressed_size = gz_path.stat().st_size
+            f.unlink()
+            ratio = (1 - compressed_size / original_size) * 100 if original_size > 0 else 0
+            actions.append(
+                f"  Compressed {f.name} -> {gz_path.name} "
+                f"({format_size(original_size)} -> {format_size(compressed_size)}, {ratio:.0f}% saved)"
+            )
+        except OSError as e:
+            actions.append(f"  ERROR compressing {f.name}: {e}")
+            if gz_path.exists():
+                gz_path.unlink()
+
+    return actions
+
+
+def delete_old_gz(directory: Path, older_than_days: int) -> list[str]:
+    """Delete .gz files older than threshold."""
+    actions = []
+    if not directory.exists():
+        return actions
+
+    cutoff = now_cst() - timedelta(days=older_than_days)
+
+    for f in sorted(directory.iterdir()):
+        if not (f.name.endswith(".gz") or f.name.endswith(".jsonl.gz")):
+            continue
+        if is_protected(f):
+            continue
+
+        file_date = extract_date_from_filename(f.name)
+        if file_date is None:
+            mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=TZ_CST)
+            if mtime >= cutoff:
+                continue
+        elif file_date >= cutoff:
+            continue
+
+        size = f.stat().st_size
+        try:
+            f.unlink()
+            actions.append(f"  Deleted {f.name} ({format_size(size)})")
+        except OSError as e:
+            actions.append(f"  ERROR deleting {f.name}: {e}")
+
+    return actions
+
+
+def enforce_disk_quota() -> list[str]:
+    """If logs/ exceeds MAX_DISK_BYTES, delete oldest non-business archives."""
+    actions = []
+    if not LOGS_ROOT.exists():
+        return actions
+
+    total_size = sum(f.stat().st_size for f in LOGS_ROOT.rglob("*") if f.is_file())
+    if total_size <= MAX_DISK_BYTES:
+        return actions
+
+    actions.append(
+        f"  Disk usage {format_size(total_size)} exceeds quota {format_size(MAX_DISK_BYTES)}"
+    )
+
+    # Collect deletable archives (non-business, .gz, not protected)
+    candidates = []
+    for d in [API_DIR, WORKER_DIR]:
+        if not d.exists():
+            continue
+        for f in d.iterdir():
+            if not (f.name.endswith(".gz") or f.name.endswith(".jsonl.gz")):
+                continue
+            if is_protected(f):
+                continue
+            file_date = extract_date_from_filename(f.name)
+            mtime = f.stat().st_mtime
+            candidates.append((file_date or datetime.fromtimestamp(mtime, tz=TZ_CST), f))
+
+    # Sort oldest first
+    candidates.sort(key=lambda x: x[0])
+
+    freed = 0
+    needed = total_size - MAX_DISK_BYTES
+    for _, f in candidates:
+        if freed >= needed:
+            break
+        size = f.stat().st_size
+        try:
+            f.unlink()
+            freed += size
+            actions.append(f"  Quota cleanup: deleted {f.name} ({format_size(size)})")
+        except OSError as e:
+            actions.append(f"  ERROR during quota cleanup {f.name}: {e}")
+
+    if freed > 0:
+        actions.append(f"  Freed {format_size(freed)} total")
+
+    return actions
+
+
+def format_size(size_bytes: int) -> str:
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024*1024):.1f} MB"
+    else:
+        return f"{size_bytes / (1024*1024*1024):.2f} GB"
+
+
+def main():
+    timestamp = now_cst().strftime("%Y-%m-%d %H:%M:%S %z")
+    print(f"=== edu-log-maintain @ {timestamp} ===")
+    print()
+
+    all_actions = []
+
+    # Step 1: Compress old .jsonl files (api + worker only, business stays uncompressed longer)
+    print("[1/4] Compressing .jsonl files older than 14 days (api, worker)...")
+    for d in [API_DIR, WORKER_DIR]:
+        actions = compress_old_jsonl(d, COMPRESS_AFTER_DAYS)
+        all_actions.extend(actions)
+        for a in actions:
+            print(a)
+    if not any(a for a in all_actions):
+        print("  Nothing to compress")
+
+    # Step 2: Delete old api/worker archives
+    print(f"\n[2/4] Deleting api/worker .gz files older than {DELETE_API_WORKER_DAYS} days...")
+    step2_actions = []
+    for d in [API_DIR, WORKER_DIR]:
+        actions = delete_old_gz(d, DELETE_API_WORKER_DAYS)
+        step2_actions.extend(actions)
+        all_actions.extend(actions)
+        for a in actions:
+            print(a)
+    if not step2_actions:
+        print("  Nothing to delete")
+
+    # Step 3: Delete old business archives
+    print(f"\n[3/4] Deleting business .gz files older than {DELETE_BUSINESS_DAYS} days...")
+    step3_actions = delete_old_gz(BUSINESS_DIR, DELETE_BUSINESS_DAYS)
+    all_actions.extend(step3_actions)
+    for a in step3_actions:
+        print(a)
+    if not step3_actions:
+        print("  Nothing to delete")
+
+    # Step 4: Disk quota enforcement
+    print(f"\n[4/4] Checking disk quota ({format_size(MAX_DISK_BYTES)} limit)...")
+    step4_actions = enforce_disk_quota()
+    all_actions.extend(step4_actions)
+    for a in step4_actions:
+        print(a)
+    if not step4_actions:
+        # Report current usage
+        if LOGS_ROOT.exists():
+            total = sum(f.stat().st_size for f in LOGS_ROOT.rglob("*") if f.is_file())
+            print(f"  Current usage: {format_size(total)} / {format_size(MAX_DISK_BYTES)}")
+
+    # Summary
+    action_count = len([a for a in all_actions if not a.strip().startswith("ERROR")])
+    error_count = len([a for a in all_actions if "ERROR" in a])
+    print(f"\n=== Done: {action_count} actions, {error_count} errors ===")
+
+    sys.exit(1 if error_count > 0 else 0)
+
+
+if __name__ == "__main__":
+    main()

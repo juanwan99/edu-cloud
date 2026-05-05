@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.database import get_db
 from edu_cloud.shared.auth import create_access_token
 from edu_cloud.api.deps import get_current_user
+from edu_cloud.logging_config import business_event
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +104,7 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
             "active_role_id": primary.id,
         })
         logger.info("login ok: user=%s, role=%s", req.username, primary.role)
+        business_event("login", "user", user.id, role=primary.role)
         roles_data = []
         for r in roles:
             ctx = await _build_role_context(r, db)
@@ -131,6 +133,7 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
         }
 
     logger.warning("login failed: username=%s", req.username)
+    business_event("login_failed", "user", req.username, reason="invalid credentials")
     raise HTTPException(401, "Invalid credentials")
 
 

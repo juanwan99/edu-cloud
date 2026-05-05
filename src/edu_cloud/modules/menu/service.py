@@ -1,9 +1,12 @@
+import logging
 from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.menu.models import MenuConfig
+
+logger = logging.getLogger(__name__)
 
 
 class MenuService:
@@ -21,6 +24,7 @@ class MenuService:
             role: 用户当前角色
             enabled_modules: 学校已启用的模块列表/集合，None 表示不过滤
         """
+        logger.debug("get_menus_for_user: role=%s, enabled_modules=%s", role, enabled_modules)
         stmt = (
             select(MenuConfig)
             .where(MenuConfig.is_active.is_(True))

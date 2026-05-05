@@ -1,10 +1,13 @@
 """StudioService: document CRUD with version tracking and status state machine."""
+import logging
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.models.document import Document, DocumentVersion
 from edu_cloud.services.exceptions import NotFoundError, PermissionDeniedError, StateError
+
+logger = logging.getLogger(__name__)
 
 VALID_TRANSITIONS = {
     "draft": ["reviewed"],
@@ -43,6 +46,7 @@ class StudioService:
         )
         self.db.add(doc)
         await self.db.flush()
+        logger.info("document_created: id=%s, type=%s, school_id=%s", doc.id, type, school_id)
         return doc
 
     async def update_document(
@@ -84,8 +88,10 @@ class StudioService:
                 "Notifications must be approved before execution. "
                 "Transition: reviewed → pending → approved → executed"
             )
+        old_status = doc.status
         doc.status = new_status
         await self.db.flush()
+        logger.info("document_transition: id=%s, %s -> %s", doc_id, old_status, new_status)
         return doc
 
     async def list_documents(

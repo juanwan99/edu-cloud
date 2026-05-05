@@ -96,10 +96,18 @@ async def run_agent_scheduled(ctx, school_id: str, task_type: str, params: dict 
     logger.info("Agent scheduled task: school=%s type=%s", school_id, task_type)
 
 
+async def on_worker_startup(ctx):
+    """Worker startup hook: initialize logging for worker process."""
+    from edu_cloud.logging_config import setup_logging
+    setup_logging(process="worker")
+    logger.info("arq worker started, logging initialized (process=worker)")
+
+
 class WorkerSettings:
     """arq WorkerSettings — 通过 `arq edu_cloud.worker.WorkerSettings` 启动"""
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
     job_timeout = 1800
+    on_startup = on_worker_startup
     cron_jobs = [
         cron(run_auto_draft, hour=22, minute=0),  # 22:00 UTC = 06:00 UTC+8
         cron(run_w3_daily, hour=20, minute=0),     # 20:00 UTC = 04:00 UTC+8

@@ -1,0 +1,550 @@
+#!/home/ops/projects/edu-cloud/.venv/bin/python
+"""edu-log: CLI query tool for edu-cloud JSONL logs.
+
+Searches across logs/api/, logs/worker/, logs/business/ directories.
+Supports compressed (.gz) and uncompressed (.jsonl) files.
+"""
+import argparse
+import gzip
+import json
+import os
+import sys
+import time
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+LOGS_ROOT = Path("/home/ops/projects/edu-cloud/logs")
+LOG_DIRS = {
+    "api": LOGS_ROOT / "api",
+    "worker": LOGS_ROOT / "worker",
+    "business": LOGS_ROOT / "business",
+}
+TZ_CST = timezone(timedelta(hours=8))
+
+
+def parse_since(since_str: str) -> datetime:
+    """Parse '7d' or '3d' into a datetime cutoff."""
+    if not since_str:
+        since_str = "7d"
+    since_str = since_str.strip().lower()
+    if since_str.endswith("d"):
+        days = int(since_str[:-1])
+    elif since_str.endswith("h"):
+        hours = int(since_str[:-1])
+        return datetime.now(TZ_CST) - timedelta(hours=hours)
+    else:
+        days = int(since_str)
+    return datetime.now(TZ_CST) - timedelta(days=days)
+
+
+def find_log_files(since: datetime, layers: list[str] | None = None) -> list[Path]:
+    """Find all log files newer than `since` in relevant directories."""
+    files = []
+    dirs_to_search = []
+
+    if layers:
+        for layer in layers:
+            if layer in LOG_DIRS:
+                dirs_to_search.append(LOG_DIRS[layer])
+            else:
+                # Search all dirs for layer-based filtering
+                dirs_to_search.extend(LOG_DIRS.values())
+                break
+    else:
+        dirs_to_search = list(LOG_DIRS.values())
+
+    # Deduplicate
+    dirs_to_search = list(dict.fromkeys(dirs_to_search))
+
+    for d in dirs_to_search:
+        if not d.exists():
+            continue
+        for f in sorted(d.iterdir()):
+            if not (f.name.endswith(".jsonl") or f.name.endswith(".jsonl.gz")):
+                continue
+            # Try to extract date from filename: edu-api-YYYY-MM-DD.NNN.jsonl
+            try:
+                parts = f.stem.replace(".jsonl", "").split("-")
+                # Find date portion (YYYY-MM-DD)
+                date_str = None
+                for i, p in enumerate(parts):
+                    if len(p) == 4 and p.isdigit() and i + 2 < len(parts):
+                        date_str = f"{parts[i]}-{parts[i+1]}-{parts[i+2].split('.')[0]}"
+                        break
+                if date_str:
+                    file_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=TZ_CST)
+                    if file_date >= since.replace(hour=0, minute=0, second=0, microsecond=0):
+                        files.append(f)
+                else:
+                    # Can't parse date, include it (might be relevant)
+                    files.append(f)
+            except (ValueError, IndexError):
+                files.append(f)
+
+    return sorted(files)
+
+
+def open_log_file(path: Path):
+    """Open a log file, handling .gz transparently."""
+    if path.suffix == ".gz" or path.name.endswith(".jsonl.gz"):
+        return gzip.open(path, "rt", encoding="utf-8")
+    return open(path, "r", encoding="utf-8")
+
+
+def format_line(record: dict, jsonl_output: bool = False) -> str:
+    """Format a log record for display."""
+    if jsonl_output:
+        return json.dumps(record, ensure_ascii=False)
+
+    ts = record.get("ts", "")
+    # Shorten timestamp for display: keep HH:MM:SS.mmm
+    if "T" in ts:
+        time_part = ts.split("T")[1][:12]  # HH:MM:SS.mmm
+        date_part = ts.split("T")[0][5:]    # MM-DD
+        ts_display = f"{date_part} {time_part}"
+    else:
+        ts_display = ts[:19]
+
+    level = (record.get("level") or "").upper()
+    layer = record.get("layer") or ""
+    msg = record.get("msg") or record.get("event") or ""
+    trace_id = record.get("trace_id") or "-"
+    req_id = record.get("req_id") or "-"
+
+    # Color by level
+    level_str = f"{level:<5}"
+    suffix_parts = []
+    if trace_id and trace_id != "-":
+        suffix_parts.append(f"tr={trace_id}")
+    if req_id and req_id != "-":
+        suffix_parts.append(f"req={req_id}")
+    suffix = "  " + " ".join(suffix_parts) if suffix_parts else ""
+
+    return f"{ts_display} {level_str} {layer:<8} {msg}{suffix}"
+
+
+def matches_filter(record: dict, filters: dict) -> bool:
+    """Check if a record matches all specified filters."""
+    for key, value in filters.items():
+        if value is None:
+            continue
+
+        if key == "level":
+            rec_level = (record.get("level") or "").upper()
+            if rec_level != value.upper():
+                return False
+        elif key == "layer":
+            rec_layer = (record.get("layer") or "").lower()
+            if rec_layer != value.lower():
+                return False
+        elif key == "trace_id":
+            if record.get("trace_id") != value:
+                return False
+        elif key == "req_id":
+            if record.get("req_id") != value:
+                return False
+        elif key == "user_id":
+            rec_user = record.get("user_id")
+            # Also check in data/context fields
+            if str(rec_user) != str(value):
+                data = record.get("data") or {}
+                if str(data.get("user_id")) != str(value):
+                    return False
+        elif key == "exam_id":
+            # Check msg, data, or any field containing exam_id
+            found = False
+            if str(value) in (record.get("msg") or ""):
+                found = True
+            if record.get("exam_id") == value:
+                found = True
+            data = record.get("data") or {}
+            if str(data.get("exam_id")) == str(value):
+                found = True
+            if not found:
+                return False
+        elif key == "task_id":
+            found = False
+            if record.get("task_id") == value:
+                found = True
+            if str(value) in (record.get("msg") or ""):
+                found = True
+            data = record.get("data") or {}
+            if str(data.get("task_id")) == str(value):
+                found = True
+            if not found:
+                return False
+        elif key == "action":
+            rec_action = record.get("action") or record.get("event") or ""
+            if value.lower() not in rec_action.lower():
+                return False
+        elif key == "min_duration_ms":
+            duration = record.get("duration_ms")
+            if duration is None:
+                data = record.get("data") or {}
+                duration = data.get("duration_ms")
+            if duration is None or float(duration) <= float(value):
+                return False
+
+    return True
+
+
+def search_logs(files: list[Path], filters: dict, jsonl_output: bool = False, limit: int = 0):
+    """Search through log files and print matching records."""
+    count = 0
+    for f in files:
+        try:
+            with open_log_file(f) as fh:
+                for line_num, line in enumerate(fh, 1):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError:
+                        print(f"[WARN] Malformed JSON in {f.name}:{line_num}", file=sys.stderr)
+                        continue
+
+                    if matches_filter(record, filters):
+                        print(format_line(record, jsonl_output))
+                        count += 1
+                        if limit and count >= limit:
+                            return count
+        except (OSError, gzip.BadGzipFile) as e:
+            print(f"[WARN] Cannot read {f}: {e}", file=sys.stderr)
+            continue
+
+    return count
+
+
+def cmd_trace(args):
+    since = parse_since(args.since)
+    files = find_log_files(since)
+    filters = {"trace_id": args.trace_id}
+    count = search_logs(files, filters, args.jsonl)
+    if count == 0:
+        print(f"No logs found for trace_id={args.trace_id}", file=sys.stderr)
+
+
+def cmd_req(args):
+    since = parse_since(args.since)
+    files = find_log_files(since)
+    filters = {"req_id": args.req_id}
+    count = search_logs(files, filters, args.jsonl)
+    if count == 0:
+        print(f"No logs found for req_id={args.req_id}", file=sys.stderr)
+
+
+def cmd_user(args):
+    since = parse_since(args.since)
+    files = find_log_files(since)
+    filters = {"user_id": args.user_id}
+    count = search_logs(files, filters, args.jsonl)
+    if count == 0:
+        print(f"No logs found for user_id={args.user_id}", file=sys.stderr)
+
+
+def cmd_exam(args):
+    since = parse_since(args.since)
+    files = find_log_files(since)
+    filters = {"exam_id": args.exam_id}
+    count = search_logs(files, filters, args.jsonl)
+    if count == 0:
+        print(f"No logs found for exam_id={args.exam_id}", file=sys.stderr)
+
+
+def cmd_task(args):
+    since = parse_since(args.since)
+    files = find_log_files(since)
+    filters = {"task_id": args.task_id}
+    count = search_logs(files, filters, args.jsonl)
+    if count == 0:
+        print(f"No logs found for task_id={args.task_id}", file=sys.stderr)
+
+
+def cmd_frontend(args):
+    since = parse_since(args.since)
+    files = find_log_files(since)
+    filters = {"layer": "client"}
+    if args.level:
+        filters["level"] = args.level
+    count = search_logs(files, filters, args.jsonl)
+    if count == 0:
+        print("No frontend (layer=client) logs found", file=sys.stderr)
+
+
+def cmd_llm(args):
+    since = parse_since(args.since)
+    files = find_log_files(since)
+    filters = {"layer": "llm"}
+    if args.level:
+        filters["level"] = args.level
+    count = search_logs(files, filters, args.jsonl)
+    if count == 0:
+        print("No LLM layer logs found", file=sys.stderr)
+
+
+def cmd_business(args):
+    since = parse_since(args.since)
+    files = find_log_files(since, layers=["business"])
+    filters = {}
+    if args.action:
+        filters["action"] = args.action
+    count = search_logs(files, filters, args.jsonl)
+    if count == 0:
+        print("No business logs found", file=sys.stderr)
+
+
+def cmd_slow(args):
+    since = parse_since(args.since)
+    files = find_log_files(since)
+    filters = {"min_duration_ms": args.over}
+    count = search_logs(files, filters, args.jsonl)
+    if count == 0:
+        print(f"No logs with duration_ms > {args.over}", file=sys.stderr)
+
+
+def cmd_alerts(args):
+    since = parse_since(args.since)
+    files = find_log_files(since)
+    filters = {"layer": "alert"}
+    count = search_logs(files, filters, args.jsonl)
+    if count == 0:
+        print("No alert layer logs found", file=sys.stderr)
+
+
+def cmd_errors(args):
+    since = parse_since(args.since)
+    files = find_log_files(since)
+    filters = {"level": "ERROR"}
+    count = search_logs(files, filters, args.jsonl)
+    if count == 0:
+        print("No ERROR level logs found", file=sys.stderr)
+
+
+def cmd_tail(args):
+    """Tail the most recent log file(s), following new lines."""
+    layer_filter = args.layer.lower() if args.layer else None
+    level_filter = args.level.upper() if args.level else None
+
+    # Find the most recent files
+    target_dirs = []
+    if layer_filter and layer_filter in LOG_DIRS:
+        target_dirs.append(LOG_DIRS[layer_filter])
+    else:
+        target_dirs = [d for d in LOG_DIRS.values() if d.exists()]
+
+    latest_files = []
+    for d in target_dirs:
+        if not d.exists():
+            continue
+        jsonl_files = sorted(
+            [f for f in d.iterdir() if f.name.endswith(".jsonl")],
+            key=lambda f: f.stat().st_mtime,
+            reverse=True,
+        )
+        if jsonl_files:
+            latest_files.append(jsonl_files[0])
+
+    if not latest_files:
+        print("No active log files found", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Tailing: {', '.join(f.name for f in latest_files)}", file=sys.stderr)
+
+    # Seek to end of each file
+    file_handles = []
+    for f in latest_files:
+        fh = open(f, "r", encoding="utf-8")
+        fh.seek(0, 2)  # Seek to end
+        file_handles.append((f, fh))
+
+    try:
+        while True:
+            had_output = False
+            for f, fh in file_handles:
+                line = fh.readline()
+                if line:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+
+                    # Apply filters
+                    if level_filter and (record.get("level") or "").upper() != level_filter:
+                        continue
+                    if layer_filter and (record.get("layer") or "").lower() != layer_filter:
+                        continue
+
+                    print(format_line(record, args.jsonl))
+                    had_output = True
+
+            if not had_output:
+                time.sleep(0.3)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        for _, fh in file_handles:
+            fh.close()
+
+
+def cmd_stats(args):
+    """Show log file statistics."""
+    print(f"{'Directory':<12} {'Files':<8} {'Size':<12} {'Oldest':<12} {'Newest':<12}")
+    print("-" * 60)
+
+    total_size = 0
+    total_files = 0
+
+    for name, d in LOG_DIRS.items():
+        if not d.exists():
+            print(f"{name:<12} {'(missing)'}")
+            continue
+
+        files = [f for f in d.iterdir() if f.name.endswith((".jsonl", ".jsonl.gz", ".gz"))]
+        if not files:
+            print(f"{name:<12} {'0':<8} {'0 B':<12} {'-':<12} {'-':<12}")
+            continue
+
+        size = sum(f.stat().st_size for f in files)
+        total_size += size
+        total_files += len(files)
+
+        # Extract dates from filenames
+        dates = []
+        for f in files:
+            parts = f.stem.replace(".jsonl", "").split("-")
+            for i, p in enumerate(parts):
+                if len(p) == 4 and p.isdigit() and i + 2 < len(parts):
+                    try:
+                        date_str = f"{parts[i]}-{parts[i+1]}-{parts[i+2].split('.')[0]}"
+                        dates.append(date_str)
+                    except (ValueError, IndexError):
+                        pass
+                    break
+
+        oldest = min(dates) if dates else "-"
+        newest = max(dates) if dates else "-"
+
+        size_str = format_size(size)
+        print(f"{name:<12} {len(files):<8} {size_str:<12} {oldest:<12} {newest:<12}")
+
+    print("-" * 60)
+    print(f"{'TOTAL':<12} {total_files:<8} {format_size(total_size):<12}")
+
+
+def format_size(size_bytes: int) -> str:
+    """Format bytes into human-readable size."""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024*1024):.1f} MB"
+    else:
+        return f"{size_bytes / (1024*1024*1024):.2f} GB"
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="edu-log",
+        description="Query edu-cloud JSONL logs",
+    )
+    # Shared parent parsers for common flags
+    output_parent = argparse.ArgumentParser(add_help=False)
+    output_parent.add_argument("--jsonl", action="store_true", help="Output raw JSONL")
+
+    since_parent = argparse.ArgumentParser(add_help=False)
+    since_parent.add_argument("--since", default="7d", help="Time range (e.g. 7d, 3d, 24h)")
+
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # trace
+    p = subparsers.add_parser("trace", parents=[output_parent, since_parent],
+                              help="Find all logs with a trace_id")
+    p.add_argument("trace_id")
+    p.set_defaults(func=cmd_trace)
+
+    # req
+    p = subparsers.add_parser("req", parents=[output_parent, since_parent],
+                              help="Find all logs with a req_id")
+    p.add_argument("req_id")
+    p.set_defaults(func=cmd_req)
+
+    # user
+    p = subparsers.add_parser("user", parents=[output_parent, since_parent],
+                              help="All logs for a user")
+    p.add_argument("user_id")
+    p.set_defaults(func=cmd_user)
+
+    # exam
+    p = subparsers.add_parser("exam", parents=[output_parent, since_parent],
+                              help="All logs mentioning an exam")
+    p.add_argument("exam_id")
+    p.set_defaults(func=cmd_exam)
+
+    # task
+    p = subparsers.add_parser("task", parents=[output_parent, since_parent],
+                              help="All logs for a grading task")
+    p.add_argument("task_id")
+    p.set_defaults(func=cmd_task)
+
+    # frontend
+    p = subparsers.add_parser("frontend", parents=[output_parent, since_parent],
+                              help="Frontend (layer=client) logs")
+    p.add_argument("--level", help="Filter by level (ERROR, WARNING, INFO, DEBUG)")
+    p.set_defaults(func=cmd_frontend)
+
+    # llm
+    p = subparsers.add_parser("llm", parents=[output_parent, since_parent],
+                              help="LLM layer logs")
+    p.add_argument("--level", help="Filter by level")
+    p.set_defaults(func=cmd_llm)
+
+    # business
+    p = subparsers.add_parser("business", parents=[output_parent, since_parent],
+                              help="Business event logs")
+    p.add_argument("--action", help="Filter by action/event name")
+    p.set_defaults(func=cmd_business)
+
+    # slow
+    p = subparsers.add_parser("slow", parents=[output_parent, since_parent],
+                              help="Logs with duration_ms > threshold")
+    p.add_argument("--over", type=int, required=True, help="Duration threshold in ms")
+    p.set_defaults(func=cmd_slow)
+
+    # alerts
+    p = subparsers.add_parser("alerts", parents=[output_parent, since_parent],
+                              help="Alert layer logs")
+    p.set_defaults(func=cmd_alerts)
+
+    # errors
+    p = subparsers.add_parser("errors", parents=[output_parent, since_parent],
+                              help="All ERROR level logs")
+    p.set_defaults(func=cmd_errors)
+
+    # tail
+    p = subparsers.add_parser("tail", parents=[output_parent],
+                              help="Follow latest log file(s)")
+    p.add_argument("--layer", help="Filter by layer (api, worker, business, client, llm)")
+    p.add_argument("--level", help="Filter by level")
+    p.set_defaults(func=cmd_tail)
+
+    # stats
+    p = subparsers.add_parser("stats", help="Show log file statistics")
+    p.set_defaults(func=cmd_stats)
+
+    args = parser.parse_args()
+    try:
+        args.func(args)
+    except KeyboardInterrupt:
+        sys.exit(0)
+    except BrokenPipeError:
+        # Handle piping to head/less gracefully
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

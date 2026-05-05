@@ -10,6 +10,7 @@ from jose import ExpiredSignatureError, JWTError
 
 from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
 from edu_cloud.services.exceptions import PermissionDeniedError
+from edu_cloud.logging_config import business_event
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,10 @@ def require_permission(permission: Permission):
     """Factory: returns a FastAPI dependency that checks the user has a permission."""
     async def checker(current: dict = Depends(get_current_user)):
         if permission not in current["permissions"]:
+            business_event(
+                "permission_denied", "user", current["user"].id,
+                reason=f"missing {permission.value}",
+            )
             raise PermissionDeniedError(
                 f"Role '{current['current_role'].role}' lacks permission '{permission.value}'"
             )

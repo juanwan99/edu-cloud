@@ -17,6 +17,7 @@ from edu_cloud.modules.exam.models import Exam, Question, Subject, QUESTION_TYPE
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.card.models import Template
+from edu_cloud.logging_config import business_event
 
 logger = logging.getLogger(__name__)
 
@@ -430,6 +431,11 @@ async def save_annotations(
     ]
     gr.annotations = annotations
     await db.commit()
+    business_event(
+        "annotation_save", "grading_result", result_id,
+        fields_changed={"annotation_count": len(annotations)},
+        exam_id=gr.question_id,
+    )
     return {"ok": True, "count": len(annotations)}
 
 

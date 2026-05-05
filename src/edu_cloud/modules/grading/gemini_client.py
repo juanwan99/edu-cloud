@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from edu_cloud.modules.grading.json_parser import extract_json
 from edu_cloud.modules.grading.image_utils import resize_image_for_llm
+from edu_cloud.logging_config import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,13 @@ class GeminiClient:
     ) -> str:
         config = self._get_config(max_tokens)
 
+        log_event(
+            __name__, logging.DEBUG, "llm", "llm.gemini.start",
+            f"Gemini {method} starting (model={self.model})",
+            model=self.model, method=method,
+        )
+        t_start = time.perf_counter()
+
         last_error = None
         for attempt in range(self.max_retries):
             try:
@@ -144,8 +152,23 @@ class GeminiClient:
                         "gemini %s attempt %d/%d: %s",
                         method, attempt + 1, self.max_retries, last_error,
                     )
+                    log_event(
+                        __name__, logging.WARNING, "llm", "llm.gemini.retry",
+                        f"Gemini {method} empty response, retry {attempt + 1}/{self.max_retries}",
+                        model=self.model, method=method,
+                        attempt=attempt + 1, reason="empty_response",
+                    )
                     continue
 
+                duration_ms = (time.perf_counter() - t_start) * 1000
+                input_tokens = getattr(response.usage_metadata, "prompt_token_count", 0) or 0
+                output_tokens = getattr(response.usage_metadata, "candidates_token_count", 0) or 0
+                log_event(
+                    __name__, logging.INFO, "llm", "llm.gemini.completed",
+                    f"Gemini {method} completed in {duration_ms:.0f}ms",
+                    duration_ms=duration_ms, model=self.model, method=method,
+                    input_tokens=input_tokens, output_tokens=output_tokens,
+                )
                 return response.text
 
             except Exception as e:
@@ -154,7 +177,21 @@ class GeminiClient:
                     "gemini %s attempt %d/%d: %s",
                     method, attempt + 1, self.max_retries, last_error,
                 )
+                log_event(
+                    __name__, logging.WARNING, "llm", "llm.gemini.retry",
+                    f"Gemini {method} error, retry {attempt + 1}/{self.max_retries}: {type(e).__name__}",
+                    model=self.model, method=method,
+                    attempt=attempt + 1, reason=type(e).__name__,
+                    error=str(e)[:200],
+                )
 
+        duration_ms = (time.perf_counter() - t_start) * 1000
+        log_event(
+            __name__, logging.ERROR, "llm", "llm.gemini.failed",
+            f"Gemini {method} failed after {self.max_retries} attempts",
+            duration_ms=duration_ms, model=self.model, method=method,
+            error=last_error,
+        )
         raise RuntimeError(
             f"gemini {method} failed after {self.max_retries} attempts: {last_error}"
         )

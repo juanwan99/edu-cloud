@@ -1,9 +1,13 @@
+import logging
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.modules.adaptive.models import StudentDaMastery, DaCatalogSnapshot
 from edu_cloud.modules.adaptive.bkt_engine import classify_da_state
 from edu_cloud.modules.adaptive.path_planner import plan_learning_path
 from edu_cloud.modules.adaptive.question_selector import select_transfer_band, filter_candidates
+
+logger = logging.getLogger(__name__)
 
 
 async def get_da_study_unit_map(db: AsyncSession) -> dict[str, str]:
@@ -40,6 +44,8 @@ async def diagnose_and_recommend(
 
     Returns: {da_states, learning_path, recommended_questions}
     """
+    logger.info("diagnose_and_recommend: student_id=%s, school_id=%s, da_ids=%s",
+                student_id, school_id, da_ids)
     # 1. 查询学生所有 DA 掌握度
     stmt = select(StudentDaMastery).where(
         StudentDaMastery.school_id == school_id,

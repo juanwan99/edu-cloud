@@ -79,7 +79,7 @@ async def standardize_answers(parsed: list[dict]) -> list[dict]:
             resp.raise_for_status()
             data = resp.json()
     except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.ConnectError) as e:
-        logger.warning("LLM request failed (%s), using fallback heuristic", e)
+        logger.error("LLM standardize_answers request failed: %s %s", type(e).__name__, e, exc_info=True)
         return _fallback_heuristic(parsed)
 
     content = data["choices"][0]["message"]["content"]

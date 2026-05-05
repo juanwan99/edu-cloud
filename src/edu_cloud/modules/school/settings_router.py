@@ -12,6 +12,7 @@ from edu_cloud.services.school_settings_service import (
     set_module_enabled, get_enabled_modules, init_school_modules,
 )
 from edu_cloud.services.exceptions import ValidationError, PermissionDeniedError
+from edu_cloud.logging_config import business_event
 
 logger = logging.getLogger(__name__)
 
@@ -109,4 +110,10 @@ async def toggle_module(
         )
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    old_state = "disabled" if body.enabled else "enabled"
+    new_state = "enabled" if body.enabled else "disabled"
+    business_event(
+        "module_toggle", "school_module", f"{school_id}:{module_code}",
+        old_state=old_state, new_state=new_state,
+    )
     return {"code": module.module_code, "enabled": module.enabled}
