@@ -19,8 +19,7 @@
         <n-radio-button value="batch">经济</n-radio-button>
       </n-radio-group>
       <n-input-number v-model:value="limitValue" :min="1" :max="9999" placeholder="全部" clearable size="small" style="width:100px" />
-      <n-button size="small" type="primary" :loading="gradingStarting" :disabled="!selectedQuestion || isProcessing" @click="handleStartGrading">开始阅卷</n-button>
-      <n-button v-if="checkedQuestionIds.length" size="small" type="warning" :loading="batchGrading" :disabled="isProcessing" @click="confirmBatchGrading">开始所选 ({{ checkedQuestionIds.length }}题)</n-button>
+      <n-button size="small" type="primary" :loading="gradingStarting || batchGrading" :disabled="gradingDisabled" @click="handleUnifiedGrading">{{ gradingButtonLabel }}</n-button>
       <div v-if="taskProgress" class="bar-progress">
         <span class="bar-progress-text">{{ taskProgress.graded }}/{{ taskProgress.total }}</span>
         <n-progress type="line" :percentage="taskProgressPct" :show-indicator="false" style="width:120px" />
@@ -160,6 +159,24 @@ let pollTimer = null
 let activeTaskIds = []
 
 const isProcessing = computed(() => taskProgress.value?.status === 'processing')
+
+const gradingDisabled = computed(() => {
+  if (isProcessing.value) return true
+  return !checkedQuestionIds.value.length && !selectedQuestion.value
+})
+
+const gradingButtonLabel = computed(() => {
+  const n = checkedQuestionIds.value.length
+  return n > 0 ? `开始阅卷 (${n}题)` : '开始阅卷'
+})
+
+function handleUnifiedGrading() {
+  if (checkedQuestionIds.value.length > 0) {
+    confirmBatchGrading()
+  } else {
+    handleStartGrading()
+  }
+}
 const taskProgressPct = computed(() => {
   if (!taskProgress.value?.total) return 0
   return Math.round((taskProgress.value.graded / taskProgress.value.total) * 100)
