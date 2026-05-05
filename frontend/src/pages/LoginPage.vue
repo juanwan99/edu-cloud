@@ -5,7 +5,7 @@
       <div class="login-brand">
         <div class="brand-inner">
           <div class="brand-icon">
-            <img src="../assets/images/logo.png" alt="微与积" width="56" height="56" />
+            <img src="../assets/images/logo.png" alt="微与积" width="72" height="72" />
           </div>
           <h1 class="brand-name">微与积</h1>
           <p class="brand-subtitle">智能教育云平台</p>
