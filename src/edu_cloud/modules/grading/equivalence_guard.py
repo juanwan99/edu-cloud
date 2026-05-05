@@ -64,7 +64,7 @@ def apply_equivalence_guard(
 
             full_score, valid_answers, norm_to_orig = eq_entry
             reason = str(blank.get("reason", ""))
-            exclusion_keywords = ("排除", "典型错误", "缺", "不完整", "不符", "偏离")
+            exclusion_keywords = ("排除", "典型错误", "缺少", "缺失", "不完整", "不符", "偏离", "要点不全")
             if (
                 student_ans in valid_answers
                 and blank.get("score", 0) < full_score

@@ -72,8 +72,9 @@ def _ocr_needs_quality_retry(blanks: list[dict], expected_count: int | None) -> 
     if not meaningful:
         return True
     if expected_count and expected_count >= 3:
-        blankish = len(blanks) - len(meaningful)
-        return blankish / max(expected_count, 1) >= 0.8 and len(meaningful) <= 1
+        missing = max(0, expected_count - len(blanks))
+        blankish = len(blanks) - len(meaningful) + missing
+        return blankish / expected_count >= 0.8 and len(meaningful) <= 1
     return False
 
 
@@ -253,7 +254,8 @@ class GeminiClient:
 
         last_text = ""
         quality_retried = False
-        for attempt in range(self.max_retries):
+        total_attempts = self.max_retries + (1 if quality_retry and not skip_resize else 0)
+        for attempt in range(total_attempts):
             text = await self._generate(contents, method="extract_text", max_tokens=max_tokens)
             parsed = extract_json(text)
             if parsed is not None:

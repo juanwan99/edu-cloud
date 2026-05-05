@@ -8,7 +8,7 @@ ROLE = "高中生物阅卷专家"
 
 RUBRIC_GENERATION = build_rubric_generation(
     ROLE,
-    "生物注意概念层级：简称、上位词、日常说法不改变机制时可给满分或部分分；结构/物质/过程混淆不得等价"
+    "生物注意概念层级：完整等值简称放 equivalentAnswers；上位词、日常说法放 scoringRules 给部分分；结构/物质/过程混淆放 exclusionRules"
 )
 
 RUBRIC_GENERATION_CONFIG = {"temperature": 0.7, "max_tokens": 32768}
