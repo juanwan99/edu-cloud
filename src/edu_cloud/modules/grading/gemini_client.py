@@ -67,6 +67,26 @@ def _make_image_part(image_bytes: bytes, *, skip_resize: bool = False) -> types.
     return types.Part.from_bytes(data=data, mime_type=mime)
 
 
+def _ensure_vertex_credentials() -> None:
+    """Ensure GOOGLE_APPLICATION_CREDENTIALS is in os.environ for Vertex AI.
+
+    pydantic-settings loads .env into its own Settings object but does NOT
+    inject into os.environ. The google-auth library reads credentials path
+    exclusively from os.environ, so we bridge the gap here.
+    """
+    import os
+    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        return
+    # Walk up from this file to project root: .../src/edu_cloud/modules/grading/ -> project root
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )))
+    creds_path = os.path.join(project_root, ".secrets", "vertex-ai-sa.json")
+    if os.path.exists(creds_path):
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = creds_path
+        logger.info("Injected GOOGLE_APPLICATION_CREDENTIALS=%s", creds_path)
+
+
 class GeminiClient:
     """Gemini 官方 API 客户端，支持实时和 Batch 双模式。
 
@@ -89,6 +109,7 @@ class GeminiClient:
         self._cache_map: dict[str, str] = {}
 
         if vertex_project:
+            _ensure_vertex_credentials()
             self._client = genai.Client(
                 vertexai=True,
                 project=vertex_project,

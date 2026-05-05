@@ -193,6 +193,7 @@ async def get_next_answer(
             if ca_gr:
                 child_ai_list.append(_build_ai_info(ca_gr))
 
+        graded_score = answer.score
         return {
             "answer_id": answer.id,
             "student_id": answer.student_id,
@@ -202,6 +203,7 @@ async def get_next_answer(
             "position": {"current": ai_reviewed + 1, "total": ai_total},
             "ai": _build_ai_info(ai_done_q),
             "max_score": max_score,
+            "graded_score": graded_score,
             "is_anomaly": answer.is_anomaly,
             "anomaly_type": answer.anomaly_type,
             "annotations": ai_done_q.annotations or [],
@@ -358,6 +360,8 @@ async def get_answer_at(
         if gr.status == "confirmed":
             graded_score = gr.final_score
             graded_comment = gr.review_comment
+    if graded_score is None and answer.score is not None:
+        graded_score = answer.score
 
     q = (await db.execute(
         select(Question).where(Question.id == question_id)

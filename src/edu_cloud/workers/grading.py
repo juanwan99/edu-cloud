@@ -916,6 +916,10 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             if use_gemini:
                 llm_key = settings.GEMINI_API_KEY
                 llm_model = settings.GEMINI_MODEL
+                # Vertex AI batch API 不支持内联数据，强制 realtime
+                if settings.VERTEX_AI_PROJECT and task.grading_mode == "batch":
+                    task.grading_mode = "realtime"
+                    logger.info("grading_task: task=%s, Vertex AI does not support batch, forcing realtime", task_id)
                 logger.info("grading_task: task=%s, using Gemini official API (mode=%s, model=%s)", task_id, task.grading_mode, llm_model)
             llm = _create_llm_client(
                 api_url=llm_url, api_key=llm_key, model=llm_model,
