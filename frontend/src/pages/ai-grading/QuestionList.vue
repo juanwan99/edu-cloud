@@ -97,17 +97,17 @@ function mountOptions(q) {
 
 <style scoped>
 .left-panel {
-  --color-text: #e8f0ea;
-  --color-text-secondary: #b0c0b5;
-  --color-text-muted: #8a9b90;
-  --color-success: #4ade80;
-  background: var(--card-color, #1e2a22);
-  border: 1px solid var(--border-color, #2e3e34);
+  --color-text: #09061B;
+  --color-text-secondary: #3d4f42;
+  --color-text-muted: #6b7d70;
+  --color-success: #15803d;
+  background: var(--card-color, #fff);
+  border: 1px solid var(--border-color, #e5e7eb);
   border-radius: var(--radius-md);
   padding: var(--space-3);
   position: sticky;
   top: var(--space-4);
-  max-height: calc(100dvh - 64px - 48px - 32px);
+  max-height: calc(100dvh - 280px);
   overflow-y: auto;
 }
 
@@ -120,7 +120,7 @@ function mountOptions(q) {
   color: var(--color-text-secondary);
   margin-bottom: 10px;
   padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-color, #2e3e34);
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
 }
 
 .question-item {
@@ -130,15 +130,16 @@ function mountOptions(q) {
   margin-bottom: var(--space-1);
   transition: background 0.15s;
   border: 1px solid transparent;
+  position: relative;
 }
 
 .question-item:hover {
-  background: #242e28;
-  border-color: #3a4a3e;
+  background: #f3f4f6;
+  border-color: #d1d5db;
 }
 
 .question-item.active {
-  background: #1a3020;
+  background: #f0fdf4;
   border-color: var(--color-success);
 }
 
@@ -176,10 +177,14 @@ function mountOptions(q) {
 }
 
 .q-title {
-  font-size: var(--fs-base);
+  font-size: var(--fs-sm);
   color: var(--color-text-secondary);
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   font-weight: var(--fw-medium);
+  display: flex;
+  gap: 4px;
+  align-items: baseline;
+  white-space: nowrap;
 }
 
 .q-score {
@@ -205,30 +210,32 @@ function mountOptions(q) {
 }
 
 .t.ok {
-  background: #1a4020;
-  color: #6ee7a0;
+  background: #dcfce7;
+  color: #166534;
 }
 
 .t.warn {
-  background: #3a2a0a;
-  color: #fcd34d;
+  background: #fef3c7;
+  color: #92400e;
 }
 .t.gen {
-  background: #0a2a3a;
-  color: var(--color-info);
+  background: #dbeafe;
+  color: #1e40af;
   animation: pulse 1.5s infinite;
 }
 .vision-tag {
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
+  border: 1px solid currentColor;
+  padding: 2px 8px;
 }
 .vision-off {
-  background: #2a2e2c;
-  color: #8a9b90;
+  background: #f3f4f6;
+  color: #6b7280;
 }
 .vision-on {
-  background: #0a2a3a;
-  color: #60a5fa;
+  background: #dbeafe;
+  color: #2563eb;
 }
 .vision-tag:hover {
   opacity: 0.8;
@@ -254,7 +261,7 @@ function mountOptions(q) {
 .q-del {
   font-size: var(--fs-sm); color: var(--color-text-muted); cursor: pointer;
   opacity: 0; transition: opacity 0.15s; text-decoration: none;
-  flex-shrink: 0; padding: var(--space-1) 6px; font-weight: var(--fw-bold);
+  position: absolute; right: 8px; top: 8px; padding: var(--space-1) 6px; font-weight: var(--fw-bold);
 }
 .question-item:hover .q-del { opacity: 0.7; }
 .q-del:hover { opacity: 1 !important; color: var(--color-danger); }

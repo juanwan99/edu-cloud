@@ -726,7 +726,7 @@ async function handleBatchGenerate() {
 
 .main-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 300px 1fr;
   gap: 16px;
   align-items: start;
 }
