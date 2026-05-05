@@ -106,14 +106,14 @@ function isNavActive(item) {
   width: 46px;
   height: 46px;
   border-radius: 14px;
-  background: rgba(255, 230, 235, 0.9);
-  box-shadow: 0 4px 16px rgba(180, 20, 60, 0.15);
+  background: rgba(255, 242, 235, 0.9);
+  box-shadow: 0 4px 16px rgba(180, 20, 60, 0.12);
   flex-shrink: 0;
 }
 
 .app-header__logo img {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: block;
 }
 
