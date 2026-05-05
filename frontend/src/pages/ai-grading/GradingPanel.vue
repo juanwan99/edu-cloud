@@ -95,7 +95,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { NCard, NButton, NSpace, NImage, NInputNumber } from 'naive-ui'
+import { NCard, NButton, NSpace, NImage, NInput, NInputNumber } from 'naive-ui'
 import RubricEditor from '../../components/RubricEditor.vue'
 
 const props = defineProps({

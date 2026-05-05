@@ -52,7 +52,6 @@ def _validate_criteria(criteria: list[dict], question_max_score: float) -> None:
     Raises HTTPException 422 on:
     - Missing or empty blankNo
     - Missing or non-numeric score, or score < 0
-    - Missing or empty answer
     - Sum of scores != question max_score
     """
     if not criteria:
@@ -955,7 +954,10 @@ async def create_grading_task(
         await db.commit()
         raise HTTPException(503, f"任务队列暂不可用，请稍后重试: {e}")
 
-    return _task_response(task)
+    resp = _task_response(task)
+    if child_tasks:
+        resp["child_task_ids"] = [str(ct.id) for ct in child_tasks]
+    return resp
 
 
 @router.get("/tasks")

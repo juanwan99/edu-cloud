@@ -7,13 +7,17 @@
       </n-button>
       <h2 class="page-title">AI 阅卷配置</h2>
       <div style="flex:1" />
-      <n-button v-if="examId && subjectId" size="small" @click="showDocCrop = true">上传文档裁剪</n-button>
-      <n-button v-if="examId && subjectId && questions.length" size="small" type="primary"
+      <n-button v-if="examId && subjectId && canManageGrading" size="small" @click="showDocCrop = true">上传文档裁剪</n-button>
+      <n-button v-if="examId && subjectId && questions.length && canManageGrading" size="small" type="primary"
                 :loading="batchGenerating" @click="handleBatchGenerate">批量生成细则</n-button>
     </div>
 
+    <n-alert v-if="examId && subjectId && !canManageGrading" type="info" style="margin-bottom:12px">
+      当前角色仅有查看权限，无法配置或启动阅卷
+    </n-alert>
+
     <!-- 阅卷设置栏 -->
-    <div class="settings-bar" v-if="examId && subjectId && questions.length">
+    <div class="settings-bar" v-if="examId && subjectId && questions.length && canManageGrading">
       <n-radio-group v-model:value="modeValue" size="small">
         <n-radio-button value="realtime">实时</n-radio-button>
         <n-radio-button value="batch">经济</n-radio-button>
@@ -107,7 +111,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useMessage, useDialog, NButton, NIcon, NRadioGroup, NRadioButton, NInputNumber, NProgress } from 'naive-ui'
+import { useMessage, useDialog, NButton, NIcon, NRadioGroup, NRadioButton, NInputNumber, NProgress, NAlert } from 'naive-ui'
+import { useAuthStore } from '../stores/auth'
 import { ArrowLeft } from 'lucide-vue-next'
 import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
 import { listExams } from '../api/exams'
@@ -122,8 +127,10 @@ import GradingPanel from './ai-grading/GradingPanel.vue'
 const route = useRoute()
 const message = useMessage()
 const dialog = useDialog()
+const auth = useAuthStore()
 
 const hasRouteParams = computed(() => !!route.params.examId && !!route.params.subjectId)
+const canManageGrading = computed(() => (auth.permissions || []).includes('manage_grading'))
 
 const selectedExamId = ref(null)
 const selectedSubjectId = ref(null)
@@ -434,7 +441,7 @@ async function handleStartGrading() {
     const res = await createTask(payload)
     const taskId = res.data?.task_id || res.data?.id
     if (taskId) {
-      activeTaskIds = [taskId]
+      activeTaskIds = [taskId, ...(res.data?.child_task_ids || [])]
       startPolling()
     }
     message.success('阅卷任务已启动')
@@ -617,7 +624,22 @@ async function handleDocCropSave(results) {
 }
 
 function confirmBatchGrading() {
-  executeBatchGrading([...checkedQuestionIds.value])
+  const ids = checkedQuestionIds.value
+  const answerCount = questions.value
+    .filter(q => ids.includes(q.question_id))
+    .reduce((s, q) => s + (q.answer_count || 0), 0)
+  const visionCount = ids.filter(id => visionMap.value[id]).length
+  const lines = [`${ids.length} 道题，约 ${answerCount} 份答卷`]
+  if (visionCount) lines.push(`Vision: ${visionCount} 题`)
+  lines.push(modeValue.value === 'batch' ? '经济模式' : '实时模式')
+  if (limitValue.value) lines.push(`每题限 ${limitValue.value} 份`)
+  dialog.warning({
+    title: '确认批量阅卷',
+    content: lines.join('，'),
+    positiveText: '确认启动',
+    negativeText: '取消',
+    onPositive: () => executeBatchGrading([...ids]),
+  })
 }
 
 async function executeBatchGrading(idsSnapshot) {
@@ -653,16 +675,24 @@ async function executeBatchGrading(idsSnapshot) {
 async function handleBatchGenerate() {
   batchGenerating.value = true
   let ok = 0, fail = 0
+  const skipped = []
   try {
     for (const q of questions.value) {
       try {
         await generateRubric(q.question_id, q.max_score || 0)
         ok++
       } catch (e) {
-        if (e.response?.status !== 400) fail++
+        fail++
+        if (e.response?.status === 400) {
+          skipped.push(q.name || q.question_name)
+        }
       }
     }
-    message.success(`批量生成完成: ${ok} 成功${fail ? ', ' + fail + ' 失败' : ''}`)
+    let msg = `批量生成完成: ${ok} 成功`
+    if (fail) msg += `, ${fail} 失败`
+    if (skipped.length) msg += `（第 ${skipped.join('、')} 题缺题干或答案）`
+    if (fail) message.warning(msg)
+    else message.success(msg)
     await loadQuestions()
   } finally {
     batchGenerating.value = false

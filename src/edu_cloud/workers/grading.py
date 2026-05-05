@@ -1006,15 +1006,41 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
 
             task.total = len(answer_data)
             await db.commit()
+            errors = []  # default: both batch and realtime branches may re-assign
             logger.info("grading_task: task=%s, answers=%d, rubrics=%d, batch_size=%d",
                         task_id, len(answer_data), len(rubrics_by_question), batch_size)
 
             # Batch API mode: collect requests → submit → poll → parse
+            # Split out essay-anchor answers → realtime fallback (anchor scoring not supported in batch)
             if task.grading_mode == "batch" and use_gemini:
+                anchor_answers = []
+                plain_answers = []
+                for ad in answer_data:
+                    rc = rubrics_by_question.get(ad["question_id"])
+                    has_anchor = (rc and rc[0].get("essayAnchors")) if rc else False
+                    if has_anchor:
+                        anchor_answers.append(ad)
+                    else:
+                        plain_answers.append(ad)
+                if anchor_answers:
+                    logger.info("grading_task: task=%s, %d answers with essay anchors → realtime fallback",
+                                task_id, len(anchor_answers))
                 batch_results = await _process_gemini_batch(
-                    llm, answer_data, rubrics_by_question, subject_code, use_gemini,
-                )
+                    llm, plain_answers, rubrics_by_question, subject_code, use_gemini,
+                ) if plain_answers else []
                 logger.info("grading_task: task=%s, batch API returned %d results", task_id, len(batch_results))
+                # Process anchor answers via realtime fallback
+                if anchor_answers:
+                    for ad in anchor_answers:
+                        try:
+                            r = await _grade_single_answer(llm, ad, rubrics_by_question, use_gemini_official=use_gemini)
+                            batch_results.append(r)
+                        except Exception as e:
+                            logger.warning("grading_task: anchor fallback failed for %s: %s", ad["answer_id"], e)
+                            plog_err = {"answer_id": ad["answer_id"], "question_id": ad["question_id"],
+                                        "pipeline_type": "essay_anchor_fallback", "error_type": "anchor_fallback",
+                                        "error_message": str(e)}
+                            batch_results.append((None, {"answer_id": ad["answer_id"], "error": str(e)}, plog_err))
 
             # Realtime mode (or non-Gemini fallback): micro-batch concurrent calls with per-batch commit
             else:

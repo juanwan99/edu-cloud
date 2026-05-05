@@ -315,11 +315,11 @@ async def get_dispatch_status(
                     )
                 )).scalar() or 0
 
-                # Count graded results for this question
                 q_graded_count = (await db.execute(
                     select(func.count(GradingResult.id)).where(
                         GradingResult.question_id == q.id,
                         GradingResult.school_id == effective_school_id,
+                        GradingResult.status.in_(["ai_done", "confirmed"]),
                     )
                 )).scalar() or 0
 
@@ -360,7 +360,7 @@ async def get_dispatch_status(
             stage = "pending_cut"
         elif not grading_task and can_ai_grade:
             stage = "ready"
-        elif not grading_task and answer_count > 0:
+        elif not grading_task and answer_count > 0 and any(q.get("has_rubric") for q in questions_info):
             stage = "ready"
         elif not grading_task:
             stage = "pending_cut" if has_template else "idle"
