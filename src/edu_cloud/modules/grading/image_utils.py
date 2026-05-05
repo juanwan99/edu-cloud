@@ -42,3 +42,28 @@ def resize_image_for_llm(image_bytes: bytes, max_dim: int = MAX_DIMENSION) -> by
         w, h, new_w, new_h, len(image_bytes), len(result),
     )
     return result
+
+
+_INK_COEFF = 7000
+
+
+def estimate_char_count_cv(image_bytes: bytes) -> int:
+    """用墨迹面积比估算手写字数（去格线后）。精度 ±15%，用于校验 LLM OCR 是否丢页。"""
+    import cv2
+    import numpy as np
+
+    arr = np.frombuffer(image_bytes, dtype=np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        return 0
+    h, w = img.shape
+
+    _, binary = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    hk = cv2.getStructuringElement(cv2.MORPH_RECT, (w // 20, 1))
+    vk = cv2.getStructuringElement(cv2.MORPH_RECT, (1, h // 15))
+    binary = cv2.subtract(binary, cv2.morphologyEx(binary, cv2.MORPH_OPEN, hk))
+    binary = cv2.subtract(binary, cv2.morphologyEx(binary, cv2.MORPH_OPEN, vk))
+
+    ratio = np.count_nonzero(binary) / binary.size
+    return int(ratio * _INK_COEFF)

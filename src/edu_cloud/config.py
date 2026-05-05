@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3-flash-preview"
 
+    # DeepSeek (essay anchor scoring)
+    DEEPSEEK_API_KEY: str = ""
+
     # Vertex AI (优先于 GEMINI_API_KEY，使用 $300 Cloud 赠金)
     VERTEX_AI_PROJECT: str = ""
     VERTEX_AI_LOCATION: str = "global"

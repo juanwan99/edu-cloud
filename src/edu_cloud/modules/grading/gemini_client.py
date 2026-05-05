@@ -60,10 +60,10 @@ def _log_usage(method: str, model: str, usage, finish_reason=None) -> None:
         )
 
 
-def _make_image_part(image_bytes: bytes) -> types.Part:
-    resized = resize_image_for_llm(image_bytes)
-    mime = "image/png" if resized[:4] == b"\x89PNG" else "image/jpeg"
-    return types.Part.from_bytes(data=resized, mime_type=mime)
+def _make_image_part(image_bytes: bytes, *, skip_resize: bool = False) -> types.Part:
+    data = image_bytes if skip_resize else resize_image_for_llm(image_bytes)
+    mime = "image/png" if data[:4] == b"\x89PNG" else "image/jpeg"
+    return types.Part.from_bytes(data=data, mime_type=mime)
 
 
 class GeminiClient:
@@ -163,8 +163,11 @@ class GeminiClient:
         self,
         image_bytes: bytes,
         prompt: str,
+        *,
+        skip_resize: bool = False,
+        max_tokens: int = 2048,
     ) -> list[dict]:
-        image_part = _make_image_part(image_bytes)
+        image_part = _make_image_part(image_bytes, skip_resize=skip_resize)
         contents = [
             types.Content(
                 role="user",
@@ -174,7 +177,7 @@ class GeminiClient:
 
         last_text = ""
         for attempt in range(self.max_retries):
-            text = await self._generate(contents, method="extract_text")
+            text = await self._generate(contents, method="extract_text", max_tokens=max_tokens)
             parsed = extract_json(text)
             if parsed is not None:
                 if isinstance(parsed, dict):
@@ -184,6 +187,21 @@ class GeminiClient:
             logger.warning("extract_text: JSON parse failed attempt %d/%d, text[:200]=%s",
                            attempt + 1, self.max_retries, text[:200])
         raise RuntimeError(f"Failed to parse OCR JSON after {self.max_retries} attempts: {last_text[:200]}")
+
+    async def extract_essay_text(
+        self,
+        image_bytes: bytes,
+        prompt: str,
+    ) -> str:
+        """作文 OCR：跳过 resize、高 token 限制、返回纯文本。"""
+        image_part = _make_image_part(image_bytes, skip_resize=True)
+        contents = [
+            types.Content(
+                role="user",
+                parts=[image_part, types.Part.from_text(text=prompt)],
+            ),
+        ]
+        return await self._generate(contents, method="extract_essay_text", max_tokens=8192)
 
     async def grade_text(
         self,

@@ -170,7 +170,37 @@ def build_rubric_generation(role: str, equivalent_hint: str = "") -> str:
     )
 
 
+ESSAY_OCR_PROMPT = """请识别图片中的手写中文作文内容，完整逐字逐段输出原文文字。
+图片包含左右两页内容，请务必从左页第一行开始，逐行识别全部页面的文字。
+只输出作文正文，不要添加任何说明、标题标注或格式标记。
+保持原文（包括错字），被划掉的内容忽略。"""
+
+
 import re
+
+_SENTENCE_END_RE = re.compile(r"[。！？…）》”’']$")
+
+
+def clean_essay_ocr(text: str) -> str:
+    """去除 OCR 产生的假换行，保留段落分隔和首行标题。"""
+    if not text:
+        return text
+    lines = text.split('\n')
+    parts = []
+    for i, line in enumerate(lines):
+        s = line.rstrip()
+        if not s:
+            parts.append('\n')
+            continue
+        parts.append(s)
+        if i < len(lines) - 1:
+            nxt = lines[i + 1].strip()
+            if not nxt or _SENTENCE_END_RE.search(s) or i == 0:
+                parts.append('\n')
+        else:
+            parts.append('\n')
+    return ''.join(parts).strip()
+
 
 _CN_CHAR_RE = re.compile(r'[一-鿿]')
 _CN_PUNC_RE = re.compile(
