@@ -1,6 +1,6 @@
 # ECS / Linux pytest 装配指南
 
-> 适用：在 ECS（Ubuntu 22.04）上让 `python -m pytest` 能跑 edu-cloud 全量 1958 测试。
+> 适用：在 ECS（Ubuntu 22.04）上让 `python -m pytest` 能跑 edu-cloud 全量 2246 测试。
 > 首次装配实证 2026-04-18（T-H 任务）。
 
 ## §1. 前置依赖
