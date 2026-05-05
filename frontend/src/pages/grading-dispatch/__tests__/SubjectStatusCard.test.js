@@ -214,8 +214,8 @@ describe('SubjectStatusCard stage labels', () => {
     expect(src).toContain("cutting: '切割中'")
     expect(src).toContain("ready: '已切割'")
     expect(src).toContain("done: '已切割'")
-    expect(src).toContain("ai_grading: '已切割'")
-    expect(src).toContain("reviewing: '已切割'")
+    expect(src).toContain("ai_grading: 'AI阅卷中'")
+    expect(src).toContain("reviewing: '待复核'")
     expect(src).toContain("failed: '已切割'")
   })
 
@@ -224,11 +224,20 @@ describe('SubjectStatusCard stage labels', () => {
     expect(src).toContain('STAGE_LABELS[stage] || stage')
   })
 
-  it('has stageClass function that maps ready/done/ai_grading/reviewing/failed to tag-ready', () => {
+  it('has stageClass function with ai_grading and reviewing specific classes', () => {
     expect(src).toContain('function stageClass(stage)')
-    expect(src).toContain("['ready', 'done', 'ai_grading', 'reviewing', 'failed'].includes(stage)")
-    expect(src).toContain("return 'tag-ready'")
+    expect(src).toContain("stage === 'ai_grading'")
+    expect(src).toContain("'tag-ai-grading'")
+    expect(src).toContain("stage === 'reviewing'")
+    expect(src).toContain("'tag-reviewing'")
     expect(src).toContain('`tag-${stage}`')
+  })
+
+  it('has dual progress bar for grading progress', () => {
+    expect(src).toContain('dual-prog')
+    expect(src).toContain('dual-prog-fill ai')
+    expect(src).toContain('dual-prog-fill manual')
+    expect(src).toContain('subject.subjective_total')
   })
 })
 
