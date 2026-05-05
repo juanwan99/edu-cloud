@@ -151,7 +151,7 @@ function mountOptions(q) {
 .q-check :deep(.n-checkbox-box) {
   width: 18px;
   height: 18px;
-  border: 2px solid #9ca3af;
+  border: 2px solid #6b7280;
   border-radius: 4px;
 }
 .q-check :deep(.n-checkbox-box--checked) {
