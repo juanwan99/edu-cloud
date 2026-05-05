@@ -155,7 +155,7 @@ const columns = [
     key: 'ai_progress',
     width: 160,
     render(row) {
-      const aiCount = (row.ai_done_count || 0) + (row.ai_confirmed_count || 0)
+      const aiCount = row.ai_scored_count || 0
       const total = row.total_answers || 0
       const pct = total > 0 ? Math.min(100, Math.round(aiCount / total * 100)) : 0
       return h('div', { style: 'display:flex;align-items:center;gap:6px;' }, [

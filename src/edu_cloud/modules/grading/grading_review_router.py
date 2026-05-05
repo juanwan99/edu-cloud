@@ -248,9 +248,9 @@ async def get_dispatch_status(
         grading_task_id = grading_task.id if grading_task else None
         ai_failed = grading_task.failed if grading_task else 0
 
-        ai_done_count = 0
-        ai_confirmed_count = 0
+        ai_scored_count = 0
         manual_confirmed_count = 0
+        confirmed_total = 0
         if subjective_q_ids_early := (await db.execute(
             select(Question.id).where(
                 Question.subject_id == subj.id,
@@ -258,23 +258,28 @@ async def get_dispatch_status(
                 Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
             )
         )).scalars().all():
-            rows = (await db.execute(
-                select(GradingResult.status, GradingResult.source, func.count(GradingResult.id))
-                .where(
+            ai_scored_count = (await db.execute(
+                select(func.count(GradingResult.id)).where(
                     GradingResult.question_id.in_(subjective_q_ids_early),
                     GradingResult.school_id == effective_school_id,
-                    GradingResult.status.in_(["ai_done", "confirmed"]),
+                    GradingResult.ai_score.isnot(None),
                 )
-                .group_by(GradingResult.status, GradingResult.source)
-            )).all()
-            for status, source, cnt in rows:
-                if status == "ai_done":
-                    ai_done_count += cnt
-                elif status == "confirmed":
-                    if source in ("ai", "ai_override"):
-                        ai_confirmed_count += cnt
-                    else:
-                        manual_confirmed_count += cnt
+            )).scalar() or 0
+            confirmed_total = (await db.execute(
+                select(func.count(GradingResult.id)).where(
+                    GradingResult.question_id.in_(subjective_q_ids_early),
+                    GradingResult.school_id == effective_school_id,
+                    GradingResult.status == "confirmed",
+                )
+            )).scalar() or 0
+            manual_confirmed_count = (await db.execute(
+                select(func.count(GradingResult.id)).where(
+                    GradingResult.question_id.in_(subjective_q_ids_early),
+                    GradingResult.school_id == effective_school_id,
+                    GradingResult.status == "confirmed",
+                    GradingResult.ai_score.is_(None),
+                )
+            )).scalar() or 0
 
         # ai_pending: 聚合所有 processing 任务
         ai_pending_count = 0
@@ -293,8 +298,8 @@ async def get_dispatch_status(
             ai_pending_count = max(0, processing_tasks[0] - processing_tasks[1] - processing_tasks[2])
 
         # 兼容旧字段
-        ai_graded = ai_done_count + ai_confirmed_count
-        reviewed = ai_confirmed_count + manual_confirmed_count
+        ai_graded = ai_scored_count
+        reviewed = confirmed_total
 
         # F011 修复：subjective_total 查询提前到 stage 推导之前
         subjective_total = (await db.execute(
@@ -346,26 +351,28 @@ async def get_dispatch_status(
                     )
                 )).scalar() or 0
 
-                q_graded_rows = (await db.execute(
-                    select(GradingResult.status, GradingResult.source, func.count(GradingResult.id))
-                    .where(
+                q_ai_scored = (await db.execute(
+                    select(func.count(GradingResult.id)).where(
                         GradingResult.question_id == q.id,
                         GradingResult.school_id == effective_school_id,
-                        GradingResult.status.in_(["ai_done", "confirmed"]),
+                        GradingResult.ai_score.isnot(None),
                     )
-                    .group_by(GradingResult.status, GradingResult.source)
-                )).all()
-                q_ai_done = 0
-                q_ai_confirmed = 0
-                q_manual_confirmed = 0
-                for st, src, cnt in q_graded_rows:
-                    if st == "ai_done":
-                        q_ai_done += cnt
-                    elif src in ("ai", "ai_override"):
-                        q_ai_confirmed += cnt
-                    else:
-                        q_manual_confirmed += cnt
-                q_graded_count = q_ai_done + q_ai_confirmed + q_manual_confirmed
+                )).scalar() or 0
+                q_confirmed = (await db.execute(
+                    select(func.count(GradingResult.id)).where(
+                        GradingResult.question_id == q.id,
+                        GradingResult.school_id == effective_school_id,
+                        GradingResult.status == "confirmed",
+                    )
+                )).scalar() or 0
+                q_manual_only = (await db.execute(
+                    select(func.count(GradingResult.id)).where(
+                        GradingResult.question_id == q.id,
+                        GradingResult.school_id == effective_school_id,
+                        GradingResult.status == "confirmed",
+                        GradingResult.ai_score.is_(None),
+                    )
+                )).scalar() or 0
 
                 content_imgs = q.content_images or []
                 ref_imgs = q.reference_answer_images or []
@@ -381,10 +388,9 @@ async def get_dispatch_status(
                     "has_rubric": q_rubric is not None,
                     "rubric_source": q_rubric.source if q_rubric else None,
                     "answer_count": q_answer_count,
-                    "graded_count": q_graded_count,
-                    "ai_done_count": q_ai_done,
-                    "ai_confirmed_count": q_ai_confirmed,
-                    "manual_confirmed_count": q_manual_confirmed,
+                    "graded_count": q_confirmed,
+                    "ai_scored_count": q_ai_scored,
+                    "manual_confirmed_count": q_manual_only,
                     "parent_id": q.parent_id,
                 })
 
@@ -415,7 +421,7 @@ async def get_dispatch_status(
             stage = "failed"
         elif grading_task.status in ("pending", "processing"):
             stage = "ai_grading"
-        elif ai_done_count > 0:
+        elif ai_scored_count > confirmed_total:
             stage = "reviewing"
         elif grading_task.status == "completed":
             stage = "done"
@@ -436,9 +442,9 @@ async def get_dispatch_status(
             "objective_total": objective_graded,
             "objective_graded": objective_graded,
             "subjective_total": subjective_total,
-            "ai_done_count": ai_done_count,
-            "ai_confirmed_count": ai_confirmed_count,
+            "ai_scored_count": ai_scored_count,
             "manual_confirmed_count": manual_confirmed_count,
+            "confirmed_total": confirmed_total,
             "ai_pending_count": ai_pending_count,
             "ai_graded": ai_graded,
             "ai_failed": ai_failed,

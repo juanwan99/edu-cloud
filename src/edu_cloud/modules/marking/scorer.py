@@ -102,33 +102,34 @@ async def get_subjects_with_progress(
                 )
             )).scalar() or 0
 
-            graded_rows = (await db.execute(
-                select(GradingResult.status, GradingResult.source, func.count())
-                .where(
+            ai_scored = (await db.execute(
+                select(func.count()).select_from(GradingResult).where(
                     GradingResult.question_id == q.id,
                     GradingResult.school_id == school_id,
-                    GradingResult.status.in_(["ai_done", "confirmed"]),
+                    GradingResult.ai_score.isnot(None),
                 )
-                .group_by(GradingResult.status, GradingResult.source)
-            )).all()
-            ai_done = 0
-            ai_confirmed = 0
-            manual_confirmed = 0
-            for status, source, cnt in graded_rows:
-                if status == "ai_done":
-                    ai_done += cnt
-                elif source in ("ai", "ai_override"):
-                    ai_confirmed += cnt
-                else:
-                    manual_confirmed += cnt
-            graded = ai_confirmed + manual_confirmed
+            )).scalar() or 0
+            confirmed = (await db.execute(
+                select(func.count()).select_from(GradingResult).where(
+                    GradingResult.question_id == q.id,
+                    GradingResult.school_id == school_id,
+                    GradingResult.status == "confirmed",
+                )
+            )).scalar() or 0
+            manual_only = (await db.execute(
+                select(func.count()).select_from(GradingResult).where(
+                    GradingResult.question_id == q.id,
+                    GradingResult.school_id == school_id,
+                    GradingResult.status == "confirmed",
+                    GradingResult.ai_score.is_(None),
+                )
+            )).scalar() or 0
 
             q_list.append({
                 "id": q.id, "name": q.name, "max_score": q.max_score,
-                "total_answers": total, "graded_count": graded,
-                "ai_done_count": ai_done,
-                "ai_confirmed_count": ai_confirmed,
-                "manual_confirmed_count": manual_confirmed,
+                "total_answers": total, "graded_count": confirmed,
+                "ai_scored_count": ai_scored,
+                "manual_confirmed_count": manual_only,
             })
 
         result.append({"id": subj.id, "name": subj.name, "questions": q_list})

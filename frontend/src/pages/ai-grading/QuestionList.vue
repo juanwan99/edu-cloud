@@ -42,7 +42,7 @@
             <span class="t vision-tag" :class="visionMap[q.question_id] ? 'vision-on' : 'vision-off'" @click.stop="$emit('toggle-vision', q.question_id)">{{ visionMap[q.question_id] ? 'Vision' : 'OCR' }}</span>
           </div>
           <div v-if="q.answer_count" class="q-progress">
-            <span class="q-prog-ai">AI {{ (q.ai_done_count || 0) + (q.ai_confirmed_count || 0) }}</span>
+            <span class="q-prog-ai">AI {{ q.ai_scored_count || 0 }}</span>
             <span class="q-prog-manual">人工 {{ q.manual_confirmed_count || 0 }}</span>
             <span class="q-prog-total">/ {{ q.answer_count }}</span>
           </div>

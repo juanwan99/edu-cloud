@@ -140,7 +140,7 @@ const questionColumns = [
     key: 'progress',
     render(row) {
       const total = row.total_answers || 0
-      const aiCount = (row.ai_done_count || 0) + (row.ai_confirmed_count || 0)
+      const aiCount = row.ai_scored_count || 0
       const manualCount = row.manual_confirmed_count || 0
       const aiPct = total > 0 ? Math.min(100, Math.round(aiCount / total * 100)) : 0
       const manualPct = total > 0 ? Math.min(100, Math.round(manualCount / total * 100)) : 0
