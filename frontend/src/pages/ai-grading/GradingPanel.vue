@@ -62,7 +62,7 @@
         />
         <div v-if="isEssay" class="anchor-section">
           <div class="anchor-title">评分锚定范文（作文校准用，可选）</div>
-          <div class="anchor-hint">配置高/中/低三档真实样本，AI 评分时以此为参照校准尺度。样本可来自本次或历次考试，只需作文类型相近（如同为记叙文）即可</div>
+          <div class="anchor-hint">配置 5 档真实样本（至少填 3 档：42/38/35 分），AI 评分时以此为参照校准尺度。高分≥39时自动触发二次确认</div>
           <div v-for="(a, i) in anchors" :key="i" class="anchor-row">
             <div class="anchor-head">
               <span class="anchor-tier">{{ a.tier }}</span>
@@ -120,9 +120,11 @@ const isEssay = computed(() => {
 })
 
 const ANCHOR_TIERS = [
-  { tier: '高分档', range: '一/二类文 40-50分', summaryPlaceholder: '粘贴作文原文', reasonPlaceholder: '评分理由：为什么给这个分数，如扣题准确、叙事完整、情感真挚…' },
-  { tier: '中分档', range: '三类文 35-39分', summaryPlaceholder: '粘贴作文原文', reasonPlaceholder: '评分理由：如基本扣题、有叙事但情感一般…' },
-  { tier: '低分档', range: '四/五类文 0-34分', summaryPlaceholder: '粘贴作文原文', reasonPlaceholder: '评分理由：如跑题、残篇、字数严重不足…' },
+  { tier: '优秀档', range: '一类文 46分左右', summaryPlaceholder: '粘贴作文原文（二次确认用）', reasonPlaceholder: '多个生动场景，语言有持续表现力，结构精巧' },
+  { tier: '良好档', range: '二类文 43分左右', summaryPlaceholder: '粘贴作文原文（二次确认用）', reasonPlaceholder: '完整变化链，情感真挚' },
+  { tier: '中等档', range: '二类文 42分左右', summaryPlaceholder: '粘贴作文原文（主评基准线）', reasonPlaceholder: '有心理变化和具体场景' },
+  { tier: '合格档', range: '三类文 38分左右', summaryPlaceholder: '粘贴作文原文（主评基准线）', reasonPlaceholder: '切题完整通顺，材料普通' },
+  { tier: '偏弱档', range: '三类文 35分左右', summaryPlaceholder: '粘贴作文原文（主评基准线）', reasonPlaceholder: '叙事松散，细节缺乏' },
 ]
 
 const anchors = computed(() => {
@@ -138,9 +140,9 @@ const anchors = computed(() => {
 function updateAnchor(idx, field, value) {
   const items = [...props.rubricItems]
   const item = { ...items[0] }
-  const arr = [...(item.essayAnchors || [null, null, null])]
-  while (arr.length < 3) arr.push(null)
-  arr[idx] = { ...(arr[idx] || {}), tier: ANCHOR_TIERS[idx].tier, [field]: value }
+  const arr = [...(item.essayAnchors || [])]
+  while (arr.length < ANCHOR_TIERS.length) arr.push(null)
+  arr[idx] = { ...(arr[idx] || {}), tier: ANCHOR_TIERS[idx].tier, range: ANCHOR_TIERS[idx].range, [field]: value }
   item.essayAnchors = arr
   items[0] = item
   emit('update:rubricItems', items)
