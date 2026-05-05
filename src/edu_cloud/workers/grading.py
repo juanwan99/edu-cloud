@@ -222,8 +222,13 @@ async def _grade_single(
         image_b64 = await _read_image_b64(ad["image_path"])
         plog["image_size_bytes"] = len(image_b64) * 3 // 4
 
-        # Blank detection
-        if len(image_b64) < 6800:
+        # Blank detection: size check + CV ink ratio
+        image_bytes_raw = base64.b64decode(image_b64)
+        _is_blank = len(image_b64) < 6800
+        if not _is_blank:
+            from edu_cloud.modules.grading.image_utils import is_blank_image_cv
+            _is_blank = is_blank_image_cv(image_bytes_raw)
+        if _is_blank:
             plog["pipeline_type"] = "blank"
             plog["is_blank"] = True
             plog["score"] = 0

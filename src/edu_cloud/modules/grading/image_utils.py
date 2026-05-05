@@ -44,6 +44,31 @@ def resize_image_for_llm(image_bytes: bytes, max_dim: int = MAX_DIMENSION) -> by
     return result
 
 
+_BLANK_INK_THRESHOLD = 0.003
+
+
+def is_blank_image_cv(image_bytes: bytes) -> bool:
+    """CV 空白检测：墨迹率 < 0.3% 判定为空白卷。去除格线后纯手写墨迹极少。"""
+    import cv2
+    import numpy as np
+
+    arr = np.frombuffer(image_bytes, dtype=np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        return False
+    h, w = img.shape
+
+    _, binary = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    hk = cv2.getStructuringElement(cv2.MORPH_RECT, (max(w // 20, 1), 1))
+    vk = cv2.getStructuringElement(cv2.MORPH_RECT, (1, max(h // 15, 1)))
+    binary = cv2.subtract(binary, cv2.morphologyEx(binary, cv2.MORPH_OPEN, hk))
+    binary = cv2.subtract(binary, cv2.morphologyEx(binary, cv2.MORPH_OPEN, vk))
+
+    ratio = np.count_nonzero(binary) / binary.size
+    return ratio < _BLANK_INK_THRESHOLD
+
+
 _INK_COEFF = 7000
 
 
