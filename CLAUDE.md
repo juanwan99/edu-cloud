@@ -206,10 +206,10 @@ frontend/src/
       KnowledgeHeatmap.vue    # 知识点掌握热力图（班级×知识点，vue-echarts）
     context/ workspace/ studio/ calendar/  # 云平台三栏组件
   assets/styles/
-    variables.css           # CSS 设计 token（颜色/语义色/圆角/阴影/字体/间距 scale/动效/z-index 4 层级；最小字号 16px 地板，accent #10b981，文字色加深 #0f1a12/#3d4f42/#6b7d70）
+    variables.css           # CSS 设计 token（颜色/语义色/圆角/阴影/字体/间距 scale/动效/z-index 4 层级；品牌色 primary #644CF0/accent #F4DA4C，文字色 #09061B/#5a5a68/#A0A0A8）
     global.css              # 全局样式 + 工具类（page-title 30px/w800, stat-card 36px/w800, tag-*/chart-height-*/tabular-nums/prefers-reduced-motion）
   card-editor/              # 答题卡编辑器原生 JS（5 模块：model/render/interact/panel/export）
-  api/                      # API 调用层（16 模块 + client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染）
+  api/                      # API 调用层（26 文件含 client.js，baseURL /api/v1；conduct.js 含独立 parentClient 用 cp_token；students.js 学生CRUD+导入导出；teachers.js 教师CRUD+导入导出；cards.js 含 renderDocPages 文档渲染）
   config/
     roles.js                # 10 角色枚举 + 旧别名映射 + normalizeRole()
     permissions.js          # 角色→权限映射（镜像后端 core/permissions.py）+ hasPermission()
@@ -220,7 +220,7 @@ frontend/src/
     auth.js                 # Pinia auth（多角色 + switchRole，edu-cloud 版）
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
-  router/                   # Vue Router（AppShell 39 子路由+7 conduct 重定向，含 /ai-grading 无参入口 + /knowledge-tree / 冻结完整版 44 路由在 _frozen/index.full.js；/parent/* 跳过平台 auth）
+  router/                   # Vue Router（52 路由：AppShell 39 子路由+7 conduct 重定向 + parent 9 路由 + login + catch-all；含 /ai-grading 无参入口 + /knowledge-tree；冻结备份在 _frozen/；/parent/* 跳过平台 auth）
   main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
   App.vue                   # 根组件
 ```
@@ -279,13 +279,19 @@ src/edu_cloud/
     __init__.py         # 包入口
     loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
     store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）
-  ai/
+  ai/                    # AI Agent 子系统（32 核心文件 + 24 工具文件）
+    agent_loop.py       # AgentLoop 核心循环（plan→tool exec→answer 状态机）
+    agent_spec.py       # AgentSpec（Agent 规格定义）
+    agent_team.py       # AgentTeam（多 Agent 协作）
+    runtime.py          # AgentRuntime（统一运行时入口）
+    supervisor.py       # Supervisor（Agent 执行监管）
     data_scope.py       # DataScope（frozen 数据可见性快照）+ DataScopeBuilder（10 角色 fail-closed 派生）
     scoped_query.py     # ScopedQuery（统一 scope WHERE 注入 + 参数越权拦截 ScopeViolationError）
-    agent_loop.py       # AgentLoop 核心循环（plan→tool exec→answer 状态机，替代旧 agent.py）
     llm_adapter.py      # LLMProxyAdapter（统一 LLM 适配器，走 llm-proxy）
     capability_probe.py # CapabilityProbe（模型能力检测→tier→LoopStrategy）
     sensitivity_router.py # SensitivityRouter（双通道路由，student 工具锁定主通道）
+    intent_router.py    # IntentRouter（意图识别路由）
+    model_router.py     # ModelRouter（模型选择路由）
     prompts.py          # build_teacher_prompt（角色感知 system prompt 模板）
     tool_context.py     # ToolContext + ToolResult（统一工具签名 (input, ctx) → ToolResult）
     tool_executor.py    # ToolExecutor + ToolOrchestrator（并行/串行工具执行）
@@ -295,6 +301,10 @@ src/edu_cloud/
     memory_store.py     # MemoryStore（entity_memory/project_state CRUD + 冲突合并，跨会话持久化）
     memory_extractor.py # MemoryExtractor（会话结束后提取实体记忆并写入 MemoryStore）
     memory_injector.py  # MemoryInjector（会话启动时加载跨会话记忆，格式化注入 system prompt；角色 scope 安全策略）
+    shared_state.py     # SharedState（跨 Agent 共享状态）
+    scope_version.py    # ScopeVersion（scope 版本控制）
+    entity_extractor.py # EntityExtractor（实体提取）
+    grounded.py         # Grounded（事实性校验）
     schemas.py          # ChatMessage/ToolCall/AgentEvent 数据模型
     anonymizer.py       # 会话级姓名脱敏（字段检测 + student_number 剥离）
     audit.py            # AuditLogger（DB 持久化 AiSession/AiToolCall）
@@ -334,7 +344,7 @@ src/edu_cloud/
   config.py             # Settings（DB/Redis/JWT/ENCRYPTION_KEY(PII加密)/LLM(timeout=180s)/GEMINI_API_KEY+GEMINI_MODEL(官方直连)/GRADING_BATCH_SIZE(20)/UPLOAD_DIR/知识库/AI Agent 配置，BaseSettings）
   database.py           # async engine + session factory（PostgreSQL 连接池 pool_size=20/max_overflow=40/pool_recycle=3600）
   logging_config.py     # 双输出（Console UTC+8 + JSONL RotatingFile）
-  worker.py             # arq WorkerSettings（3 functions: auto_draft/grading/pipeline）
+  worker.py             # arq WorkerSettings（6 functions: auto_draft/grading/pipeline/w3_daily/w6_hourly/agent_scheduled）
 scripts/
   db_doctor.py          # ORM vs DB schema drift 检测（--startup/--strict/--json）
   db_migrate            # 安全 migration wrapper（flock→backup→dry-run→doctor→upgrade）；唯一合法 migration 路径
@@ -358,10 +368,10 @@ tests/
 
 | 层 | 已实现 | 未实现（规划中）|
 |---|--------|--------------|
-| API | 276 路由（含 academic 10 + exam schedule 2 + analytics 进阶 8） | 共享 AI 阅卷 |
+| API | 320 路由（43 router 文件，跨 21 模块 + 平台级路由） | 共享 AI 阅卷 |
 | Models | 88 表（modules/ 下 18 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表 + academic 3 表 + alembic_version） | — |
-| Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline + exceptions | AI grading 生产接入 |
-| Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 10 角色映射 | — |
+| Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline/Conduct/KnowledgeTree/Scan/Adaptive + exceptions | AI grading 生产接入 |
+| Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 15 角色映射（10 活跃 + 5 legacy 兼容） | — |
 | AI | 63 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile + allowed_roles RBAC | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）+ ConceptGraphNode 统一引用（旧 knowledge_points UUID 已废弃）| — |
 | Tests | 2246 passed / 33 failed（既有债）后端 + 2421 前端 Vitest 0 failed（ECS 实测 @ 2026-05-04） | — |
@@ -375,7 +385,7 @@ tests/
 - SQLAlchemy 2.0 (async) + asyncpg (PostgreSQL)
 - Alembic (migrations)
 - python-jose (JWT) + bcrypt
-- arq + Redis (后台任务：联考下发、批量阅卷、报表生成)
+- arq + Redis (后台任务：联考下发、批量阅卷、报表生成、学生画像 W3 日任务、异常巡检 W6 时任务、Agent 调度)
 - httpx (调用学校端 API)
 - google-genai (Gemini 官方 SDK，AI 阅卷双模式：realtime 实时 + batch 经济半价)
 - opencv-python-headless + pyzbar (扫描图视觉处理：定位点检测/裁切/条码识别)
@@ -383,8 +393,8 @@ tests/
 
 **前端（`frontend/`）：**
 - Vite 7 + Vue 3.5 (Composition API)
-- Naive UI 2.44（V3.2 Wells Collins 设计系统：翠绿 #1a7a4f + 荧光黄绿 #c8e64a，深色顶栏/翠绿侧栏/浅灰内容区三层色差，theme.js 全局覆盖）
-- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 39 子路由+7 重定向；完整 44 路由冻结于 _frozen/）
+- Naive UI 2.44（冷暖撞色设计系统：深墨 #09061B + 金黄 #F4DA4C + 冷紫 #644CF0 + 橙 #ED9A51，暗色侧栏/紫色主色调/浅灰内容区三层色差，theme.js 全局覆盖）
+- Vue Router 4（AppShell 根布局 + 角色/权限守卫，login 外置 + 52 路由含 parent 系列；完整路由冻结于 _frozen/）
 - Pinia 3（状态管理）
 - Axios（HTTP 客户端，baseURL `/api/v1`）
 - ECharts 6 + vue-echarts（图表）
@@ -469,7 +479,7 @@ tests/
 |------|------|------|------|
 | GET | `/api/v1/schools/{id}/settings` | MANAGE_SCHOOL_SETTINGS | 获取学校 KV 配置（支持 category 过滤） |
 | PATCH | `/api/v1/schools/{id}/settings` | MANAGE_SCHOOL_SETTINGS | 创建/更新配置项 |
-| GET | `/api/v1/schools/{id}/modules` | MANAGE_SCHOOL_SETTINGS | 获取全部模块状态（8 个） |
+| GET | `/api/v1/schools/{id}/modules` | MANAGE_SCHOOL_SETTINGS | 获取全部模块状态（9 个） |
 | GET | `/api/v1/schools/{id}/modules/enabled` | 已登录（school scope） | 获取已启用模块代码列表 |
 | PATCH | `/api/v1/schools/{id}/modules/{code}` | MANAGE_SCHOOL_SETTINGS | 启用/禁用模块 |
 

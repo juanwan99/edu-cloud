@@ -5,6 +5,7 @@
 > 调研方法: 机械扫描缩小候选 → 分批阅读 + 交叉验证（file:line + 调用方 grep + git log；证据强度按严重度分层，见文末自审说明）
 > 设计依据: `docs/plans/2026-04-13-module-governance-design.md` §3.3
 > 使用方式: 逐条由用户 approve/reject/defer；approve 的条目进入 P2 落地一并处置；defer 的进入 `debt-report.md`
+> **更新（2026-05-05）**：MODULE.md 缺失问题已解决——21 个模块全部补齐 MODULE.md。13 条 findings 的 P2 落地状态待用户逐条确认。
 
 ---
 

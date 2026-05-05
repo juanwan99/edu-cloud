@@ -1,8 +1,12 @@
-<!-- legacy-format -->
-# 双前端业务边界规范
+<!-- pre-takeover: archived for history, not active spec -->
+<!-- STALE: frontend-nuxt/ 已退役（2026-04-25 takeover-index 裁定），本文档仅供历史参考 -->
+# 双前端业务边界规范（已归档）
 
-> 生效日期：2026-04-17
-> 适用范围：edu-cloud 仓库内 `frontend/`（生产主前端）+ `frontend-nuxt/`（haofenshu 复刻骨架）
+> **归档声明（2026-05-05）**：frontend-nuxt/ 骨架已退役，edu-cloud 唯一生产前端为 `frontend/`（Vite + Naive UI）。
+> 本文档保留供历史追溯，不再作为活规范。新前端开发直接遵循 CLAUDE.md 项目结构段。
+
+> 原生效日期：2026-04-17
+> 适用范围：edu-cloud 仓库内 `frontend/`（生产主前端）+ `frontend-nuxt/`（haofenshu 复刻骨架，已退役）
 > 决策来源：2026-04-17 技术债清理 · Q3 = B 共存（`docs/plans/archived/2026-04/2026-04-17-tech-debt-cleanup-handoff.md`）
 > 相关规范：`docs/arch/module-template.md`、`docs/arch/orm-placement.md`
 
