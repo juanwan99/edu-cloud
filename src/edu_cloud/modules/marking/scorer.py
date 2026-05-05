@@ -89,6 +89,7 @@ async def get_subjects_with_progress(
             total = (await db.execute(
                 select(func.count()).select_from(StudentAnswer).where(
                     StudentAnswer.question_id == q.id,
+                    StudentAnswer.school_id == school_id,
                 )
             )).scalar() or 0
 
@@ -96,6 +97,7 @@ async def get_subjects_with_progress(
                 select(GradingResult.status, GradingResult.source, func.count())
                 .where(
                     GradingResult.question_id == q.id,
+                    GradingResult.school_id == school_id,
                     GradingResult.status.in_(["ai_done", "confirmed"]),
                 )
                 .group_by(GradingResult.status, GradingResult.source)

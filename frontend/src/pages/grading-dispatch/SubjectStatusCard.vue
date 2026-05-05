@@ -52,7 +52,6 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
 import { NButton, NCheckbox } from 'naive-ui'
 
 const props = defineProps({
@@ -67,22 +66,6 @@ const props = defineProps({
 })
 
 defineEmits(['toggle', 'detect', 'preview', 'cut', 'stop-cut', 'verify'])
-
-const aiGraded = computed(() => {
-  const s = props.subject
-  return (s.ai_done_count || 0) + (s.ai_confirmed_count || 0) + (s.ai_pending_count || 0)
-})
-
-const aiPct = computed(() => {
-  const total = props.subject.subjective_total || 0
-  return total > 0 ? Math.min(100, Math.round(aiGraded.value / total * 100)) : 0
-})
-
-const manualPct = computed(() => {
-  const total = props.subject.subjective_total || 0
-  const manual = props.subject.manual_confirmed_count || 0
-  return total > 0 ? Math.min(100, Math.round(manual / total * 100)) : 0
-})
 
 const STAGE_LABELS = {
   idle: '待上传', pending_detect: '待检测', pending_cut: '待切割',
@@ -130,16 +113,7 @@ function stageClass(stage) {
 .prog-fill { height: 100%; background: var(--color-info); border-radius: 3px; transition: width 0.3s; }
 .prog-text { font-size: var(--fs-base); color: var(--color-text-secondary); white-space: nowrap; }
 
-.dual-prog { display: flex; flex-direction: column; gap: 3px; }
-.dual-prog-row { display: flex; align-items: center; gap: 6px; }
-.dual-prog-label { font-size: 11px; font-weight: var(--fw-semibold); width: 28px; text-align: right; flex-shrink: 0; }
-.dual-prog-label.ai { color: var(--color-primary); }
-.dual-prog-label.manual { color: var(--color-warning); }
-.dual-prog-bar { flex: 1; height: 4px; background: var(--color-border-light); border-radius: 2px; overflow: hidden; }
-.dual-prog-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
-.dual-prog-fill.ai { background: var(--color-primary); }
-.dual-prog-fill.manual { background: var(--color-warning); }
-.dual-prog-num { font-size: 11px; color: var(--color-text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 50px; }
+
 
 .card-stats { display: flex; gap: 6px; font-size: var(--fs-base); color: var(--color-text-muted); }
 .card-stats span { padding: 2px 6px; background: var(--color-bg-alt); border-radius: var(--r-xs); }
