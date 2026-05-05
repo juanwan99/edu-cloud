@@ -29,15 +29,20 @@ def _create_llm_client(
     model: str | None = None,
     *,
     use_gemini_official: bool = False,
+    grading_mode: str = "realtime",
 ) -> "LLMClient | GeminiClient":
     """Create LLM client for grading.
 
     use_gemini_official=True → 使用 Gemini 官方 SDK（实时+Batch 双模式）
     use_gemini_official=False → 使用 httpx 代理客户端（兼容旧路径）
+
+    Vertex AI batch API 不支持内联数据源（要求 GCS/BigQuery），
+    因此 batch 模式强制使用 Developer API（API Key）客户端。
     """
     if use_gemini_official:
         from edu_cloud.modules.grading.gemini_client import GeminiClient
-        if settings.VERTEX_AI_PROJECT:
+        # Vertex AI batch API 不支持 inline data，batch 模式必须走 Developer API
+        if settings.VERTEX_AI_PROJECT and grading_mode != "batch":
             return GeminiClient(
                 vertex_project=settings.VERTEX_AI_PROJECT,
                 vertex_location=settings.VERTEX_AI_LOCATION,
@@ -520,7 +525,7 @@ async def _grade_single(
                     "feedback": feedback, "confidence": None,
                     "raw_content": raw_content,
                     "details": [{"blankNo": "1", "score": final_score, "maxScore": ad["question_max_score"],
-                                 "reason": f"s1={s1} s2={s2} → {final_score}"}],
+                                 "reason": reason_c1 or feedback}],
                     "recognizedText": extracted_text,
                     "ocr_blanks": blanks,
                 }, None, plog
@@ -864,6 +869,48 @@ async def _grade_with_semaphore(llm, ad, rubrics, *, use_gemini_official=False, 
         return await _grade_single(llm, ad, rubrics, use_gemini_official=use_gemini_official, ds_grading_llm=ds_grading_llm)
 
 
+async def _upsert_ai_result(db, task, result_dict):
+    """Upsert GradingResult: if manual record exists, overwrite with AI result."""
+    details = result_dict.get("details") or []
+    answer_id = result_dict["answer_id"]
+    existing = (await db.execute(
+        select(GradingResult).where(GradingResult.answer_id == answer_id)
+    )).scalar_one_or_none()
+
+    values = dict(
+        ai_task_id=task.id,
+        question_id=result_dict["question_id"],
+        school_id=task.school_id,
+        ai_score=result_dict["score"],
+        ai_confidence=result_dict["confidence"],
+        ai_feedback=result_dict.get("comment") or result_dict.get("feedback", ""),
+        ai_raw_response={
+            "raw_content": result_dict.get("raw_content", ""),
+            "details": details,
+            "deductions": result_dict.get("deductions") or [],
+            "comment": result_dict.get("comment", ""),
+            "recognizedText": result_dict.get("recognizedText"),
+        },
+        final_score=result_dict["score"],
+        max_score=result_dict["max_score"],
+        status="ai_done",
+        source=None,
+        reviewer_id=None,
+        reviewed_at=None,
+    )
+
+    if existing:
+        for k, v in values.items():
+            setattr(existing, k, v)
+        existing.version += 1
+    else:
+        db.add(GradingResult(answer_id=answer_id, **values))
+
+    sa = await db.get(StudentAnswer, answer_id)
+    if sa:
+        sa.score = result_dict["score"]
+
+
 async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None = None) -> None:
     """Process a single grading task: load answers, call LLM in micro-batches, save results."""
     from edu_cloud.logging_config import trace_id_var, request_id_var, current_user_var, current_school_var
@@ -916,14 +963,11 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             if use_gemini:
                 llm_key = settings.GEMINI_API_KEY
                 llm_model = settings.GEMINI_MODEL
-                # Vertex AI batch API 不支持内联数据，强制 realtime
-                if settings.VERTEX_AI_PROJECT and task.grading_mode == "batch":
-                    task.grading_mode = "realtime"
-                    logger.info("grading_task: task=%s, Vertex AI does not support batch, forcing realtime", task_id)
                 logger.info("grading_task: task=%s, using Gemini official API (mode=%s, model=%s)", task_id, task.grading_mode, llm_model)
             llm = _create_llm_client(
                 api_url=llm_url, api_key=llm_key, model=llm_model,
                 use_gemini_official=bool(use_gemini),
+                grading_mode=task.grading_mode,
             )
 
             # DeepSeek client for text grading (shared across all answers)
@@ -998,14 +1042,15 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             )
             answers_raw = a_result.scalars().all()
 
-            # Exclude answers that already have grading results (confirmed or ai_done)
+            # Exclude answers that already have AI results (pending or done)
+            # Pure manual (confirmed+source=manual) are NOT excluded — AI can re-grade them
             all_answer_ids = [a.id for a in answers_raw]
             graded_rows = set()
             if all_answer_ids:
                 graded_rows = set((await db.execute(
                     select(GradingResult.answer_id).where(
                         GradingResult.answer_id.in_(all_answer_ids),
-                        GradingResult.status.in_(["confirmed", "ai_done"]),
+                        GradingResult.status.in_(["ai_pending", "ai_done"]),
                     )
                 )).scalars().all())
 
@@ -1118,25 +1163,7 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
                             errors.append(error_dict)
                             batch_failed += 1
                         else:
-                            details = result_dict.get("details") or []
-                            db.add(GradingResult(
-                                ai_task_id=task.id, answer_id=result_dict["answer_id"],
-                                question_id=result_dict["question_id"], school_id=task.school_id,
-                                ai_score=result_dict["score"], ai_confidence=result_dict["confidence"],
-                                ai_feedback=result_dict.get("comment") or result_dict.get("feedback", ""),
-                                ai_raw_response={
-                                    "raw_content": result_dict.get("raw_content", ""),
-                                    "details": details,
-                                    "deductions": result_dict.get("deductions") or [],
-                                    "comment": result_dict.get("comment", ""),
-                                    "recognizedText": result_dict.get("recognizedText"),
-                                },
-                                final_score=result_dict["score"], max_score=result_dict["max_score"],
-                                status="ai_done",
-                            ))
-                            sa = await db.get(StudentAnswer, result_dict["answer_id"])
-                            if sa:
-                                sa.score = result_dict["score"]
+                            await _upsert_ai_result(db, task, result_dict)
                             batch_completed += 1
                     processed += len(batch)
                     result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
@@ -1172,25 +1199,7 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
                         errors.append(error_dict)
                         total_failed += 1
                     else:
-                        details = result_dict.get("details") or []
-                        db.add(GradingResult(
-                            ai_task_id=task.id, answer_id=result_dict["answer_id"],
-                            question_id=result_dict["question_id"], school_id=task.school_id,
-                            ai_score=result_dict["score"], ai_confidence=result_dict["confidence"],
-                            ai_feedback=result_dict.get("comment") or result_dict.get("feedback", ""),
-                            ai_raw_response={
-                                "raw_content": result_dict.get("raw_content", ""),
-                                "details": details,
-                                "deductions": result_dict.get("deductions") or [],
-                                "comment": result_dict.get("comment", ""),
-                                "recognizedText": result_dict.get("recognizedText"),
-                            },
-                            final_score=result_dict["score"], max_score=result_dict["max_score"],
-                            status="ai_done",
-                        ))
-                        sa = await db.get(StudentAnswer, result_dict["answer_id"])
-                        if sa:
-                            sa.score = result_dict["score"]
+                        await _upsert_ai_result(db, task, result_dict)
                         total_completed += 1
                 result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
                 task = result.scalar_one()

@@ -59,13 +59,22 @@ def _build_ai_info(gr) -> dict | None:
 async def get_subjects_with_progress(
     db: AsyncSession,
     exam_id: str,
-    school_id: str,
+    school_id: str | None,
     visible_codes: list[str] | None = None,
 ) -> list[dict]:
     """获取考试下所有科目及题目的阅卷进度。
 
     "已批改" = GradingResult.status == 'confirmed' 的答卷数。
     """
+    if not school_id:
+        from edu_cloud.modules.exam.models import Exam
+        exam_school = (await db.execute(
+            select(Exam.school_id).where(Exam.id == exam_id)
+        )).scalar_one_or_none()
+        if not exam_school:
+            return []
+        school_id = exam_school
+
     stmt = select(Subject).where(
         Subject.exam_id == exam_id, Subject.school_id == school_id
     )
