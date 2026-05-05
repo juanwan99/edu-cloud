@@ -130,7 +130,7 @@ const dialog = useDialog()
 const auth = useAuthStore()
 
 const hasRouteParams = computed(() => !!route.params.examId && !!route.params.subjectId)
-const canManageGrading = computed(() => (auth.permissions || []).includes('manage_grading'))
+const canManageGrading = computed(() => auth.checkPermission('manage_grading'))
 
 const selectedExamId = ref(null)
 const selectedSubjectId = ref(null)

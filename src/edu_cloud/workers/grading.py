@@ -1033,7 +1033,7 @@ async def process_grading_task(ctx: dict, task_id: str) -> None:
                 if anchor_answers:
                     for ad in anchor_answers:
                         try:
-                            r = await _grade_single_answer(llm, ad, rubrics_by_question, use_gemini_official=use_gemini)
+                            r = await _grade_single(llm, ad, rubrics_by_question, use_gemini_official=use_gemini)
                             batch_results.append(r)
                         except Exception as e:
                             logger.warning("grading_task: anchor fallback failed for %s: %s", ad["answer_id"], e)
