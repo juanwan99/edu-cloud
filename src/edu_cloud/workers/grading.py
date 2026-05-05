@@ -69,7 +69,7 @@ async def _read_image_b64(path: str) -> str:
 
 _grading_semaphore = asyncio.Semaphore(20)
 
-_ESSAY_CHAR_CAPS = [(200, 10), (400, 25)]  # (字数阈值, 分数上限)
+_ESSAY_CHAR_CAPS = [(20, 0), (150, 8), (200, 8), (350, 22), (450, 28), (500, 34)]
 
 
 def _apply_essay_score_cap(score: float, char_count: int | None, question_type: str, max_score: float) -> float:
@@ -80,6 +80,102 @@ def _apply_essay_score_cap(score: float, char_count: int | None, question_type: 
         if char_count < threshold:
             return min(score, cap)
     return score
+
+
+import math
+
+
+_SENTENCE_END = set("。！？…）》"''"）")
+
+
+def _detect_unfinished(char_count: int | None, ocr_tail: str) -> bool:
+    """代码层硬判定未完成：字数<500 且结尾无句末标点。"""
+    if char_count is None or char_count >= 500:
+        return False
+    tail = ocr_tail.rstrip()
+    if not tail:
+        return True
+    return tail[-1] not in _SENTENCE_END
+
+
+def _apply_boundary_guard(
+    score: float,
+    char_count: int | None,
+    c1_parsed: dict,
+    ocr_tail: str = "",
+) -> float:
+    """三层边界守卫：无效封顶 + 字数扣分/未完成封顶 + 议论式保底。"""
+    validity = c1_parsed.get("validity", "normal")
+    completion = c1_parsed.get("completion", "complete")
+    style = c1_parsed.get("style", "event")
+
+    # 代码层硬检测：模型可能误判 complete，用字数+尾部标点覆盖
+    if completion != "unfinished" and _detect_unfinished(char_count, ocr_tail):
+        completion = "unfinished"
+
+    caps: list[float] = [42.0]
+
+    # P1: 无效作文硬封顶
+    if validity == "invalid":
+        caps.append(15.0)
+
+    # P2: 字数不足扣分 + 未完成封顶
+    if char_count is not None and char_count < 600:
+        shortage_penalty = math.ceil((600 - char_count) / 50)
+        score -= shortage_penalty
+
+    if completion == "unfinished":
+        if char_count is not None and char_count < 500:
+            caps.append(28.0)
+        elif char_count is not None and char_count < 600:
+            caps.append(30.0)
+        else:
+            caps.append(32.0)
+    elif completion == "rushed":
+        if char_count is not None and char_count < 600:
+            caps.append(34.0)
+        else:
+            caps.append(36.0)
+
+    effective_cap = min(caps)
+    score = min(score, effective_cap)
+
+    # P3: 议论式记叙文保底（仅当未触发无效/未完成封顶时）
+    if (
+        effective_cap >= 37
+        and validity == "normal"
+        and completion == "complete"
+        and style == "reflective"
+        and char_count is not None
+        and char_count >= 550
+    ):
+        score = max(score, 37.0)
+        caps.append(40.0)
+        score = min(score, min(caps))
+
+    return max(0.0, min(42.0, round(score)))
+
+
+def _synthesize_essay_score(s1: float, s2: float | None) -> float:
+    """合成作文最终分数：s1（3锚主评）+ s2（5锚confirm）。
+
+    s2 作为确认信号，不与 s1 平均。39 分边界保守处理。
+    """
+    if s1 < 39:
+        return s1
+    if s1 == 39:
+        return 39
+    if s2 is None or s2 < 40:
+        return 39
+    if s1 == 40:
+        if s2 <= 43:
+            return 40
+        if s2 <= 45:
+            return 41
+        return 42
+    if s2 <= 45:
+        return min(s1, 42)
+    return min(s1 + 1, 42)
 
 
 async def _grade_single(
@@ -146,7 +242,9 @@ async def _grade_single(
         vision_prompt_tpl = get_prompt(subject, "GRADING_VISION", "senior") or get_prompt(subject, "GRADING", "senior")
 
         _is_drawing = ad.get("question_type") == "drawing"
-        _use_vision = (_is_drawing or ad.get("use_vision", False)) and vision_prompt_tpl
+        _is_essay = ad.get("question_type") == "essay" and ad["question_max_score"] >= 40
+        _essay_anchors_early = rubric_criteria[0].get("essayAnchors") if _is_essay and rubric_criteria else None
+        _use_vision = (_is_drawing or ad.get("use_vision", False)) and vision_prompt_tpl and not _essay_anchors_early
 
         if _use_vision:
             # Vision-direct: image + rubric → score (no OCR)
@@ -224,32 +322,60 @@ async def _grade_single(
         rubric_text = format_rubric_for_grading(rubric_criteria)
         full_score = str(ad["question_max_score"])
 
-        # Step 1: OCR
-        ocr_prompt = get_prompt(subject, "OCR_STRUCTURED", "senior") or get_prompt(subject, "OCR", "senior")
-        plog["ocr_prompt_type"] = "OCR_STRUCTURED" if get_prompt(subject, "OCR_STRUCTURED", "senior") else "OCR"
-        if ocr_prompt:
-            structure = "\n".join(f"- {c.get('blankNo', '?')}: {c.get('subQ', '')}" for c in rubric_criteria)
-            ocr_prompt = render_prompt(ocr_prompt, {"rubricStructure": structure})
-        else:
-            from edu_cloud.modules.grading.prompts.base import OCR_PROMPT_BASE
-            ocr_prompt = OCR_PROMPT_BASE
-            plog["ocr_prompt_type"] = "OCR_BASE"
+        # Detect essay with anchor-based scoring
+        _is_essay = ad.get("question_type") == "essay" and ad["question_max_score"] >= 40
+        _essay_anchors = rubric_criteria[0].get("essayAnchors") if _is_essay and rubric_criteria else None
 
-        t_ocr = time.perf_counter()
-        if use_gemini_official:
+        # Step 1: OCR (essay uses dedicated plain-text OCR + CV cross-check)
+        if _essay_anchors and use_gemini_official:
+            from edu_cloud.modules.grading.prompts.base import ESSAY_OCR_PROMPT, clean_essay_ocr
+            from edu_cloud.modules.grading.image_utils import estimate_char_count_cv
+            plog["ocr_prompt_type"] = "ESSAY_OCR"
+            plog["pipeline_type"] = "essay_anchor"
+            t_ocr = time.perf_counter()
             image_bytes = base64.b64decode(image_b64)
-            blanks = await llm.extract_text(image_bytes=image_bytes, prompt=ocr_prompt)
+            cv_estimate = estimate_char_count_cv(image_bytes)
+            plog["cv_char_estimate"] = cv_estimate
+            ocr_text = await llm.extract_essay_text(image_bytes=image_bytes, prompt=ESSAY_OCR_PROMPT)
+            ocr_text = ocr_text or ""
+            ocr_len = len(ocr_text)
+            if cv_estimate > 0 and ocr_len < cv_estimate * 0.5:
+                plog["ocr_retry"] = True
+                plog["ocr_first_len"] = ocr_len
+                ocr_text = await llm.extract_essay_text(image_bytes=image_bytes, prompt=ESSAY_OCR_PROMPT)
+                ocr_text = ocr_text or ""
+            ocr_text = clean_essay_ocr(ocr_text)
+            plog["ocr_ms"] = int((time.perf_counter() - t_ocr) * 1000)
+            blanks = [{"blankNo": "1", "text": ocr_text}]
+            extracted_text = ocr_text
+            plog["ocr_text"] = ocr_text[:500]
+            plog["ocr_blanks_count"] = 1
         else:
-            blanks = await llm.extract_text(images_b64=[image_b64], prompt=ocr_prompt)
-        plog["ocr_ms"] = int((time.perf_counter() - t_ocr) * 1000)
+            ocr_prompt = get_prompt(subject, "OCR_STRUCTURED", "senior") or get_prompt(subject, "OCR", "senior")
+            plog["ocr_prompt_type"] = "OCR_STRUCTURED" if get_prompt(subject, "OCR_STRUCTURED", "senior") else "OCR"
+            if ocr_prompt:
+                structure = "\n".join(f"- {c.get('blankNo', '?')}: {c.get('subQ', '')}" for c in rubric_criteria)
+                ocr_prompt = render_prompt(ocr_prompt, {"rubricStructure": structure})
+            else:
+                from edu_cloud.modules.grading.prompts.base import OCR_PROMPT_BASE
+                ocr_prompt = OCR_PROMPT_BASE
+                plog["ocr_prompt_type"] = "OCR_BASE"
 
-        from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
-        blanks = validate_ocr_blanks(blanks)
-        blanks = recover_truncated_blanks(blanks, len(rubric_criteria))
+            t_ocr = time.perf_counter()
+            if use_gemini_official:
+                image_bytes = base64.b64decode(image_b64)
+                blanks = await llm.extract_text(image_bytes=image_bytes, prompt=ocr_prompt)
+            else:
+                blanks = await llm.extract_text(images_b64=[image_b64], prompt=ocr_prompt)
+            plog["ocr_ms"] = int((time.perf_counter() - t_ocr) * 1000)
 
-        extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
-        plog["ocr_text"] = extracted_text
-        plog["ocr_blanks_count"] = len(blanks)
+            from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
+            blanks = validate_ocr_blanks(blanks)
+            blanks = recover_truncated_blanks(blanks, len(rubric_criteria))
+
+            extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
+            plog["ocr_text"] = extracted_text
+            plog["ocr_blanks_count"] = len(blanks)
 
         # OCR-based blank detection: check each blank individually
         non_empty_blanks = [b for b in blanks if b.get("text", "").strip()]
@@ -275,7 +401,125 @@ async def _grade_single(
             char_count, char_stats = count_essay_chars(raw_text)
             plog["char_count"] = char_count
 
-        # Step 2: Grade text
+        # Step 2: Grade — essay anchor path vs standard text grading
+        if _essay_anchors:
+            from edu_cloud.modules.grading.rubric_formatter import split_essay_anchors, build_essay_anchor_prompt
+            from edu_cloud.modules.grading.json_parser import extract_json
+            anchors_3, anchors_5 = split_essay_anchors(_essay_anchors)
+            if len(anchors_3) >= 3:
+                plog["grading_prompt_type"] = "ESSAY_ANCHOR_3+5"
+
+                ds_key = settings.DEEPSEEK_API_KEY
+                if not ds_key:
+                    raise RuntimeError("DEEPSEEK_API_KEY not configured for essay anchor scoring")
+                from edu_cloud.modules.grading.llm_client import LLMClient
+                ds_llm = LLMClient(
+                    api_url="https://api.deepseek.com/v1",
+                    api_key=ds_key,
+                    model="deepseek-v4-flash",
+                    timeout=180,
+                    max_retries=3,
+                )
+                plog["essay_scoring_model"] = "deepseek-v4-flash"
+
+                # Call 1: 3-anchor score (0-42) via DeepSeek
+                prompt_c1 = build_essay_anchor_prompt(extracted_text, char_stats, anchors_3, mode="score")
+                t_grade = time.perf_counter()
+                resp_c1 = await ds_llm.grade_text(prompt=prompt_c1, max_score=42)
+                c1_ms = int((time.perf_counter() - t_grade) * 1000)
+                c1_data = extract_json(resp_c1.raw_content)
+                c1_parsed = c1_data if isinstance(c1_data, dict) else {}
+                s1 = min(max(c1_parsed.get("score", 0), 0), 42)
+                above_boundary = c1_parsed.get("above_boundary", False)
+
+                # Call 2a: 5-anchor high-score confirm (s1 >= 39) via DeepSeek
+                s2 = None
+                c2_ms = 0
+                if s1 >= 39 and len(anchors_5) >= 5:
+                    prompt_c2 = build_essay_anchor_prompt(extracted_text, char_stats, anchors_5, mode="confirm")
+                    t_c2 = time.perf_counter()
+                    resp_c2 = await ds_llm.grade_text(prompt=prompt_c2, max_score=50)
+                    c2_ms = int((time.perf_counter() - t_c2) * 1000)
+                    c2_data = extract_json(resp_c2.raw_content)
+                    c2_parsed = c2_data if isinstance(c2_data, dict) else {}
+                    s2 = c2_parsed.get("score")
+                    if s2 is not None:
+                        s2 = float(s2)
+
+                # Call 2b: low-score review (s1 < 32) via DeepSeek
+                low_review = None
+                c3_ms = 0
+                if s1 < 32:
+                    prompt_c3 = build_essay_anchor_prompt(extracted_text, char_stats, [], mode="low_review")
+                    t_c3 = time.perf_counter()
+                    resp_c3 = await ds_llm.grade_text(prompt=prompt_c3, max_score=42)
+                    c3_ms = int((time.perf_counter() - t_c3) * 1000)
+                    c3_data = extract_json(resp_c3.raw_content)
+                    low_review = c3_data if isinstance(c3_data, dict) else {}
+                    plog["low_review"] = low_review
+
+                await ds_llm.close()
+
+                # Boundary guard: apply validity/completion/style rules
+                s1_guarded = _apply_boundary_guard(
+                    float(s1), plog.get("char_count"), c1_parsed,
+                    ocr_tail=extracted_text[-50:] if extracted_text else "",
+                )
+                plog["s1_raw"] = s1
+                plog["s1_guarded"] = s1_guarded
+                s1 = s1_guarded
+
+                # Synthesize with tiered logic
+                if s1 < 32 and low_review:
+                    if low_review.get("confirmed_low"):
+                        raw_final = float(min(max(low_review.get("score", s1), 0), 42))
+                    else:
+                        raw_final = max(float(s1), 34.0)
+                else:
+                    raw_final = _synthesize_essay_score(float(s1), s2)
+
+                final_score = _apply_essay_score_cap(
+                    raw_final, plog.get("char_count"), "essay", ad["question_max_score"],
+                )
+                plog["grading_ms"] = c1_ms + c2_ms + c3_ms
+                plog["score"] = final_score
+                plog["confidence"] = None
+                plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+
+                reason_c1 = c1_parsed.get("reason", "")
+                raw_content = json.dumps({
+                    "s1_raw": plog.get("s1_raw"), "s1": s1, "s2": s2,
+                    "above_boundary": above_boundary,
+                    "validity": c1_parsed.get("validity"),
+                    "completion": c1_parsed.get("completion"),
+                    "style": c1_parsed.get("style"),
+                    "low_review": low_review,
+                    "synthesized": raw_final, "final": final_score,
+                    "reason_c1": reason_c1,
+                }, ensure_ascii=False)
+
+                logger.info(
+                    "grading_task: essay_anchor answer=%s s1=%.0f s2=%s low=%s synth=%.0f final=%.0f char=%s",
+                    answer_id, s1, s2, low_review, raw_final, final_score, plog.get("char_count"),
+                )
+
+                feedback = reason_c1
+                if s1 < 32:
+                    feedback = f"⚠️低分预警，建议重点复核。{feedback}"
+                    plog["low_score_warning"] = True
+
+                return {
+                    "answer_id": answer_id, "question_id": question_id,
+                    "score": final_score, "max_score": ad["question_max_score"],
+                    "feedback": feedback, "confidence": None,
+                    "raw_content": raw_content,
+                    "details": [{"blankNo": "1", "score": final_score, "maxScore": ad["question_max_score"],
+                                 "reason": f"s1={s1} s2={s2} → {final_score}"}],
+                    "recognizedText": extracted_text,
+                    "ocr_blanks": blanks,
+                }, None, plog
+
+        # Standard text grading (non-essay or no anchors)
         plog["grading_prompt_type"] = "GRADING_TEXT"
         grading_prompt = render_prompt(grading_prompt_tpl, {
             "fullScore": full_score,
