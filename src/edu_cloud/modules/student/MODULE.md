@@ -2,7 +2,7 @@
 name: student
 status: active
 owner: backend
-layer: foundation
+layer: infrastructure
 
 owns_tables:
   - students

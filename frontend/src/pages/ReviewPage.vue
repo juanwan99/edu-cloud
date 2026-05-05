@@ -71,6 +71,7 @@
             <div class="ai-header">
               <span class="ai-title">AI 阅卷结果</span>
               <div class="ai-header-right">
+                <n-tag v-if="ai.deductions?.length" type="error" round size="small" class="ai-deduction-badge">扣 {{ ai.deductions.length }} 项</n-tag>
                 <span class="ai-score-num">{{ ai.score }}</span>
                 <span class="ai-score-max">/ {{ maxScore }}</span>
                 <n-tag
@@ -80,14 +81,17 @@
                   size="small"
                   style="margin-left: 8px"
                 >
-                  {{ (ai.confidence * 100).toFixed(0) + '%' }}
+                  置信度 {{ (ai.confidence * 100).toFixed(0) + '%' }}
                 </n-tag>
               </div>
             </div>
-            <div v-if="ai.feedback" class="ai-feedback">{{ ai.feedback }}</div>
+            <div v-if="ai.feedback" class="ai-feedback" :class="{ 'ai-feedback--collapsed': !feedbackExpanded }" @click="feedbackExpanded = !feedbackExpanded">
+              {{ ai.feedback }}
+              <span v-if="!feedbackExpanded" class="ai-feedback-toggle">展开</span>
+            </div>
             <div v-if="mergedDetails.length" class="ai-details">
               <div class="ai-details-title">逐空评分</div>
-              <div v-for="(item, i) in mergedDetails" :key="i" class="ai-sub" :class="{ 'ai-sub--wrong': !item.correct && item.score === 0 }">
+              <div v-for="(item, i) in mergedDetails" :key="i" class="ai-sub" :class="item.correct ? 'ai-sub--pass' : item.score > 0 ? 'ai-sub--partial' : 'ai-sub--wrong'">
                 <div class="ai-sub-header">
                   <span class="ai-sub-label">{{ formatBlankNo(item.blankNo, i) }}</span>
                   <span class="ai-sub-score" :class="item.correct ? 'ai-sub-score--pass' : item.score > 0 ? 'ai-sub-score--partial' : 'ai-sub-score--fail'">
@@ -96,9 +100,9 @@
                 </div>
                 <div class="ai-sub-body">
                   <div v-if="item.answer != null" class="ai-sub-answer">
-                    <span :class="item.answer ? '' : 'ai-sub-empty'">{{ item.answer || '未作答' }}</span>
+                    <span class="ai-sub-field-label">答：</span><span :class="item.answer ? '' : 'ai-sub-empty'">{{ item.answer || '未作答' }}</span>
                   </div>
-                  <div v-if="item.reason" class="ai-sub-reason">{{ item.reason }}</div>
+                  <div v-if="item.reason" class="ai-sub-reason"><span class="ai-sub-field-label">理：</span>{{ item.reason }}</div>
                 </div>
                 <!-- 标注区 -->
                 <div class="ann-row">
@@ -292,6 +296,7 @@ const position = ref({ current: 0, total: 0 })
 const questionName = ref('')
 const maxScore = ref(10)
 const ai = ref(null)  // {score, confidence, feedback, result_id} 或 null
+const feedbackExpanded = ref(false)
 
 const currentScore = ref(null)
 const comment = ref('')
@@ -404,6 +409,7 @@ async function applyAnswer(answerPayload) {
   ai.value = answerPayload.ai || null
   annotations.value = answerPayload.annotations || []
   annEditing.value = null
+  feedbackExpanded.value = false
   if (answerPayload.max_score != null) maxScore.value = answerPayload.max_score
   if (answerPayload.graded_score != null) {
     currentScore.value = answerPayload.graded_score
@@ -722,12 +728,12 @@ onUnmounted(() => {
 }
 
 .ai-result-card {
-  background: white;
-  border-top: 1px solid var(--color-border-light, #e5e7eb);
-  padding: 14px 20px;
+  background: var(--color-bg-card, #fff);
+  border-top: 1px solid var(--color-border-light);
+  padding: 10px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -736,7 +742,7 @@ onUnmounted(() => {
 .ai-header-right {
   display: flex;
   align-items: baseline;
-  gap: 2px;
+  gap: 4px;
 }
 
 .image-wrapper {
@@ -788,113 +794,146 @@ onUnmounted(() => {
 }
 
 .ai-score-num {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: var(--fw-bold);
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-score-max {
   color: var(--color-text-muted);
-  font-size: var(--fs-base);
+  font-size: var(--fs-sm);
+}
+
+.ai-deduction-badge {
+  margin-right: 6px;
 }
 
 .ai-feedback {
-  font-size: var(--fs-base);
-  line-height: 1.6;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
   color: var(--color-text-secondary);
-  max-height: 120px;
-  overflow-y: auto;
   white-space: pre-wrap;
+  cursor: pointer;
+  position: relative;
+}
+
+.ai-feedback--collapsed {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ai-feedback-toggle {
+  color: var(--color-primary);
+  font-size: var(--fs-xs, 12px);
+  margin-left: 4px;
 }
 
 
 .ai-details {
-  border-top: 1px solid var(--color-border-light, #e5e7eb);
-  padding-top: 10px;
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 6px;
 }
 
 .ai-details-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: var(--fw-semibold);
-  color: var(--color-text-muted, #999);
+  color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .ai-sub {
-  border-left: 3px solid #e5e7eb;
-  margin-bottom: 6px;
-  border-radius: 0 6px 6px 0;
-  background: var(--color-bg-alt, #fafbfc);
+  border-left: 3px solid var(--color-border);
+  margin-bottom: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--color-bg-alt);
+}
+
+.ai-sub--pass {
+  border-left-color: var(--color-primary);
+}
+
+.ai-sub--partial {
+  border-left-color: var(--color-warning);
 }
 
 .ai-sub--wrong {
-  border-left-color: #fca5a5;
-  background: #fef2f2;
+  border-left-color: var(--color-danger);
+  background: var(--surface-danger-light);
 }
 
 .ai-sub-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
-  padding: 4px 10px;
+  font-size: 13px;
+  padding: 3px 8px;
 }
 
 .ai-sub-label {
   font-weight: var(--fw-semibold);
-  color: var(--color-text-primary, #09061B);
+  color: var(--color-text);
 }
 
 .ai-sub-score {
   font-weight: var(--fw-bold);
-  font-size: 14px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  text-align: right;
 }
-.ai-sub-score--pass { color: #644CF0; }
-.ai-sub-score--partial { color: #f0a020; }
-.ai-sub-score--fail { color: #d03050; }
+.ai-sub-score--pass { color: var(--color-primary); }
+.ai-sub-score--partial { color: var(--color-warning); }
+.ai-sub-score--fail { color: var(--color-danger); }
 
 .ai-sub-body {
-  padding: 0 10px 6px;
-  font-size: 13px;
-  line-height: 1.5;
+  padding: 0 8px 4px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ai-sub-field-label {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  margin-right: 2px;
 }
 
 .ai-sub-answer {
-  color: var(--color-text-primary, #333);
-  font-weight: var(--fw-medium);
-  margin-bottom: 2px;
+  color: var(--color-text);
+  margin-bottom: 1px;
 }
 
 .ai-sub-empty {
-  color: #d03050;
+  color: var(--color-danger);
   font-style: italic;
-  font-weight: 400;
 }
 
 .ai-sub-reason {
-  color: var(--color-text-secondary, #667085);
+  color: var(--color-text-secondary);
 }
 
 .ai-deductions {
-  border-top: 1px solid var(--color-border-light, #e5e7eb);
-  padding-top: 10px;
-  margin-top: 4px;
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 6px;
+  margin-top: 2px;
 }
 .ai-deductions-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: var(--fw-semibold);
-  color: #d03050;
-  margin-bottom: 6px;
+  color: var(--color-danger);
+  margin-bottom: 4px;
 }
 .ai-deduction-item {
-  font-size: 13px;
-  color: var(--color-text-secondary, #667085);
-  line-height: 1.5;
-  padding: 3px 0 3px 12px;
-  border-left: 2px solid #fca5a5;
-  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+  padding: 2px 0 2px 10px;
+  border-left: 2px solid var(--surface-danger);
+  margin-bottom: 3px;
 }
 
 .score-title {
@@ -964,9 +1003,18 @@ onUnmounted(() => {
 }
 
 .ann-row {
-  margin-top: 4px;
-  padding-top: 4px;
-  border-top: 1px dashed rgba(255,255,255,0.06);
+  margin-top: 2px;
+  padding: 2px 8px;
+}
+
+.ann-row > .n-button:last-child {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.ai-sub:hover .ann-row > .n-button:last-child,
+.ai-sub:focus-within .ann-row > .n-button:last-child {
+  opacity: 1;
 }
 
 .ann-input-row {
@@ -980,42 +1028,43 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 0;
+  padding: 2px 0;
 }
 
 .ann-tag {
-  font-size: var(--fs-base);
+  font-size: 11px;
   padding: 1px 6px;
   border-radius: 3px;
-  background: rgba(250, 200, 80, 0.15);
-  color: #f0c050;
+  background: var(--surface-accent-light);
+  color: var(--color-warning);
   white-space: nowrap;
+  font-weight: var(--fw-semibold);
 }
 
 .ann-text {
-  font-size: var(--fs-base);
-  color: #cfd8d3;
+  font-size: 12px;
+  color: var(--color-text-secondary);
 }
 
 .ann-overall {
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border-light);
 }
 
 .ai-manual-compare {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  background: rgba(255,255,255,0.04);
-  border-radius: 6px;
-  font-size: var(--fs-base);
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  background: var(--surface-primary-light);
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--fs-sm);
 }
 
 .compare-label {
-  color: var(--color-text-muted, #6b7d70);
+  color: var(--color-text-muted);
 }
 
 .compare-score {
@@ -1025,7 +1074,7 @@ onUnmounted(() => {
 }
 
 .compare-separator {
-  color: var(--color-text-muted, #6b7d70);
+  color: var(--color-text-muted);
   margin: 0 2px;
 }
 
