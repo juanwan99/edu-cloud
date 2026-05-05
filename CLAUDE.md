@@ -411,7 +411,11 @@ tests/
 - **统一 Schema**：每条含 v/ts/level/layer/event/trace_id/req_id/user_id/school_id/duration_ms/data
 - **全链路追踪**：trace_id 从前端→HTTP→arq Worker→LLM 调用全程传播
 - **前端日志上报**：`POST /api/v1/client-logs`（clientLogger.js 批量发送 + 错误立即发 + sendBeacon 兜底）
-- **查询工具**：`scripts/edu-log trace|req|user|exam|frontend|llm|slow|tail|stats`
+- **查询工具**：`scripts/edu-log`——排查问题时优先用日志，不要从代码猜原因
+  - 先广后窄：`errors`/`alerts`/`slow`/`stats`/`tail` 定方向，再用 `trace`/`req`/`user`/`exam`/`task` 按 ID 精确定位
+  - 按来源分：前端问题用 `frontend`，LLM 问题用 `llm`，分数/状态问题用 `business`
+  - 阅卷/分数/导入类问题通常组合：`task` + `exam` + `business`；登录/权限类：`user` 或 `req`；慢接口：`slow` → `trace`
+  - 完整场景示例见 `docs/ops/logging.md`，单命令用法 `scripts/edu-log <command> --help`
 - **保留策略**：14 天热存 → 120 天 gzip → business 保留 365 天（`scripts/edu-log-maintain` cron）
 - **业务事件**：`business_event()` 记录状态变更/分数修改/权限拒绝/登录等
 
