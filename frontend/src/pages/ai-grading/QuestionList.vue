@@ -42,7 +42,9 @@
             <span class="t vision-tag" :class="visionMap[q.question_id] ? 'vision-on' : 'vision-off'" @click.stop="$emit('toggle-vision', q.question_id)">{{ visionMap[q.question_id] ? 'Vision' : 'OCR' }}</span>
           </div>
           <div v-if="q.answer_count" class="q-progress">
-            {{ q.graded_count }}/{{ q.answer_count }} 已阅
+            <span class="q-prog-ai">AI {{ (q.ai_done_count || 0) + (q.ai_confirmed_count || 0) }}</span>
+            <span class="q-prog-manual">人工 {{ q.manual_confirmed_count || 0 }}</span>
+            <span class="q-prog-total">/ {{ q.answer_count }}</span>
           </div>
         </div>
         <span v-if="q.parent_id" class="q-parent-label" @click.stop="$emit('set-parent', q, null)" title="点击取消挂载">↳{{ parentName(q.parent_id) }}</span>
@@ -263,10 +265,16 @@ function mountOptions(q) {
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 .q-progress {
-  font-size: var(--fs-sm);
+  font-size: 11px;
   color: var(--color-text-muted);
   margin-top: var(--space-1);
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
+.q-prog-ai { color: var(--color-primary); font-weight: var(--fw-semibold); }
+.q-prog-manual { color: var(--color-warning); font-weight: var(--fw-semibold); }
+.q-prog-total { color: var(--color-text-muted); }
 .q-del {
   font-size: var(--fs-sm); color: var(--color-text-muted); cursor: pointer;
   opacity: 0; transition: opacity 0.15s; text-decoration: none;

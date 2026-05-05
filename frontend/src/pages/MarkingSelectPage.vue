@@ -139,16 +139,18 @@ const questionColumns = [
     title: '进度',
     key: 'progress',
     render(row) {
-      const pct = row.total_answers > 0 ? Math.round(row.graded_count / row.total_answers * 100) : 0
-      return h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
-        h(NProgress, {
-          type: 'line',
-          percentage: pct,
-          indicatorPlacement: 'inside',
-          style: 'flex: 1;',
-        }),
-        h('span', { style: 'font-size: var(--fs-base); color: var(--color-text-secondary); white-space: nowrap;' },
-          `${row.graded_count}/${row.total_answers}`),
+      const total = row.total_answers || 0
+      const aiCount = (row.ai_done_count || 0) + (row.ai_confirmed_count || 0)
+      const manualCount = row.manual_confirmed_count || 0
+      const aiPct = total > 0 ? Math.min(100, Math.round(aiCount / total * 100)) : 0
+      const manualPct = total > 0 ? Math.min(100, Math.round(manualCount / total * 100)) : 0
+      const bar = (pct, color) => h('div', { style: 'flex:1;height:4px;background:var(--color-border-light);border-radius:2px;overflow:hidden;' }, [
+        h('div', { style: `height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width 0.3s;` }),
+      ])
+      const num = (label, count, color) => h('span', { style: `font-size:11px;color:${color};white-space:nowrap;font-variant-numeric:tabular-nums;` }, `${label} ${count}/${total}`)
+      return h('div', { style: 'display:flex;flex-direction:column;gap:3px;' }, [
+        h('div', { style: 'display:flex;align-items:center;gap:6px;' }, [bar(aiPct, 'var(--color-primary)'), num('AI', aiCount, 'var(--color-primary)')]),
+        h('div', { style: 'display:flex;align-items:center;gap:6px;' }, [bar(manualPct, 'var(--color-warning)'), num('人工', manualCount, 'var(--color-warning)')]),
       ])
     },
   },

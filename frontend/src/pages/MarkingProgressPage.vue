@@ -147,22 +147,39 @@ function rowProps(row) {
 }
 
 const columns = [
-  { title: '题号', key: 'name', width: 120 },
-  { title: '满分', key: 'max_score', width: 80 },
-  { title: '已批', key: 'graded_count', width: 80 },
-  { title: '总数', key: 'total_answers', width: 80 },
+  { title: '题号', key: 'name', width: 100 },
+  { title: '满分', key: 'max_score', width: 60 },
+  { title: '总数', key: 'total_answers', width: 60 },
   {
-    title: '进度',
-    key: 'progress',
+    title: 'AI 进度',
+    key: 'ai_progress',
+    width: 160,
     render(row) {
-      const pct = row.total_answers > 0
-        ? Math.round(row.graded_count / row.total_answers * 100)
-        : 0
-      return h(NProgress, {
-        type: 'line',
-        percentage: pct,
-        indicatorPlacement: 'inside',
-      })
+      const aiCount = (row.ai_done_count || 0) + (row.ai_confirmed_count || 0)
+      const total = row.total_answers || 0
+      const pct = total > 0 ? Math.min(100, Math.round(aiCount / total * 100)) : 0
+      return h('div', { style: 'display:flex;align-items:center;gap:6px;' }, [
+        h('div', { style: 'flex:1;height:4px;background:var(--color-border-light);border-radius:2px;overflow:hidden;' }, [
+          h('div', { style: `height:100%;width:${pct}%;background:var(--color-primary);border-radius:2px;transition:width 0.3s;` }),
+        ]),
+        h('span', { style: 'font-size:12px;color:var(--color-text-muted);white-space:nowrap;font-variant-numeric:tabular-nums;' }, `${aiCount}/${total}`),
+      ])
+    },
+  },
+  {
+    title: '人工进度',
+    key: 'manual_progress',
+    width: 160,
+    render(row) {
+      const manualCount = row.manual_confirmed_count || 0
+      const total = row.total_answers || 0
+      const pct = total > 0 ? Math.min(100, Math.round(manualCount / total * 100)) : 0
+      return h('div', { style: 'display:flex;align-items:center;gap:6px;' }, [
+        h('div', { style: 'flex:1;height:4px;background:var(--color-border-light);border-radius:2px;overflow:hidden;' }, [
+          h('div', { style: `height:100%;width:${pct}%;background:var(--color-warning);border-radius:2px;transition:width 0.3s;` }),
+        ]),
+        h('span', { style: 'font-size:12px;color:var(--color-text-muted);white-space:nowrap;font-variant-numeric:tabular-nums;' }, `${manualCount}/${total}`),
+      ])
     },
   },
 ]

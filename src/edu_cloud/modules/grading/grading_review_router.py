@@ -346,13 +346,26 @@ async def get_dispatch_status(
                     )
                 )).scalar() or 0
 
-                q_graded_count = (await db.execute(
-                    select(func.count(GradingResult.id)).where(
+                q_graded_rows = (await db.execute(
+                    select(GradingResult.status, GradingResult.source, func.count(GradingResult.id))
+                    .where(
                         GradingResult.question_id == q.id,
                         GradingResult.school_id == effective_school_id,
                         GradingResult.status.in_(["ai_done", "confirmed"]),
                     )
-                )).scalar() or 0
+                    .group_by(GradingResult.status, GradingResult.source)
+                )).all()
+                q_ai_done = 0
+                q_ai_confirmed = 0
+                q_manual_confirmed = 0
+                for st, src, cnt in q_graded_rows:
+                    if st == "ai_done":
+                        q_ai_done += cnt
+                    elif src in ("ai", "ai_override"):
+                        q_ai_confirmed += cnt
+                    else:
+                        q_manual_confirmed += cnt
+                q_graded_count = q_ai_done + q_ai_confirmed + q_manual_confirmed
 
                 content_imgs = q.content_images or []
                 ref_imgs = q.reference_answer_images or []
@@ -369,6 +382,9 @@ async def get_dispatch_status(
                     "rubric_source": q_rubric.source if q_rubric else None,
                     "answer_count": q_answer_count,
                     "graded_count": q_graded_count,
+                    "ai_done_count": q_ai_done,
+                    "ai_confirmed_count": q_ai_confirmed,
+                    "manual_confirmed_count": q_manual_confirmed,
                     "parent_id": q.parent_id,
                 })
 

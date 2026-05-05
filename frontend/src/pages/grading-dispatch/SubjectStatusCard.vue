@@ -31,20 +31,6 @@
       <template v-else-if="subject.stage === 'pending_cut'">
         <span class="card-detail">模板就绪，<b>{{ subject.scan_images }}</b> 份待切割</span>
       </template>
-      <template v-else-if="subject.subjective_total > 0">
-        <div class="dual-prog">
-          <div class="dual-prog-row">
-            <span class="dual-prog-label ai">AI</span>
-            <div class="dual-prog-bar"><div class="dual-prog-fill ai" :style="{ width: aiPct + '%' }"></div></div>
-            <span class="dual-prog-num">{{ aiGraded }}/{{ subject.subjective_total }}</span>
-          </div>
-          <div class="dual-prog-row">
-            <span class="dual-prog-label manual">人工</span>
-            <div class="dual-prog-bar"><div class="dual-prog-fill manual" :style="{ width: manualPct + '%' }"></div></div>
-            <span class="dual-prog-num">{{ subject.manual_confirmed_count || 0 }}/{{ subject.subjective_total }}</span>
-          </div>
-        </div>
-      </template>
       <template v-else-if="subject.answer_count > 0">
         <span class="card-detail ok">已切割 <b>{{ subject.answer_count }}</b> 份</span>
       </template>
