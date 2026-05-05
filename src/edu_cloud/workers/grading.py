@@ -870,17 +870,15 @@ async def _grade_with_semaphore(llm, ad, rubrics, *, use_gemini_official=False, 
 
 
 async def _upsert_ai_result(db, task, result_dict):
-    """Upsert GradingResult: if manual record exists, overwrite with AI result."""
+    """Upsert AI fields into GradingResult. Preserves manual score if exists."""
     details = result_dict.get("details") or []
     answer_id = result_dict["answer_id"]
     existing = (await db.execute(
         select(GradingResult).where(GradingResult.answer_id == answer_id)
     )).scalar_one_or_none()
 
-    values = dict(
+    ai_fields = dict(
         ai_task_id=task.id,
-        question_id=result_dict["question_id"],
-        school_id=task.school_id,
         ai_score=result_dict["score"],
         ai_confidence=result_dict["confidence"],
         ai_feedback=result_dict.get("comment") or result_dict.get("feedback", ""),
@@ -891,24 +889,29 @@ async def _upsert_ai_result(db, task, result_dict):
             "comment": result_dict.get("comment", ""),
             "recognizedText": result_dict.get("recognizedText"),
         },
-        final_score=result_dict["score"],
-        max_score=result_dict["max_score"],
-        status="ai_done",
-        source=None,
-        reviewer_id=None,
-        reviewed_at=None,
     )
 
-    if existing:
-        for k, v in values.items():
+    if existing and existing.status == "confirmed":
+        for k, v in ai_fields.items():
             setattr(existing, k, v)
         existing.version += 1
+    elif existing:
+        for k, v in ai_fields.items():
+            setattr(existing, k, v)
+        existing.final_score = result_dict["score"]
+        existing.max_score = result_dict["max_score"]
+        existing.status = "ai_done"
+        existing.version += 1
     else:
-        db.add(GradingResult(answer_id=answer_id, **values))
-
-    sa = await db.get(StudentAnswer, answer_id)
-    if sa:
-        sa.score = result_dict["score"]
+        db.add(GradingResult(
+            answer_id=answer_id,
+            question_id=result_dict["question_id"],
+            school_id=task.school_id,
+            final_score=result_dict["score"],
+            max_score=result_dict["max_score"],
+            status="ai_done",
+            **ai_fields,
+        ))
 
 
 async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None = None) -> None:
