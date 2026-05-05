@@ -212,7 +212,14 @@ async function handleLogin() {
 
 .brand-icon {
   margin-bottom: 24px;
-  filter: brightness(0) invert(1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+  background: rgba(255, 230, 235, 0.9);
+  box-shadow: 0 6px 24px rgba(180, 20, 60, 0.2);
 }
 
 .brand-name {
