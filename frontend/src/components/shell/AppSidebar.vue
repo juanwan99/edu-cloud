@@ -144,7 +144,7 @@ onUnmounted(() => {
 
 <style scoped>
 .sidebar {
-  width: 250px;
+  width: 200px;
   background: linear-gradient(180deg, #09061B 0%, #0d0a1f 100%);
   border-right: none;
   transition: width 0.2s ease-out;
@@ -277,10 +277,9 @@ onUnmounted(() => {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.35);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.5);
   font-weight: 600;
 }
 
