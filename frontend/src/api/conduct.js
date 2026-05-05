@@ -1,13 +1,47 @@
 import axios from 'axios'
-import api from './client'
+import api, { getTraceId } from './client'
+import clientLogger from '../utils/clientLogger.js'
+
+function randomHex12() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(6)), b => b.toString(16).padStart(2, '0')).join('')
+}
 
 // Separate axios instance for parent-authenticated calls (reads cp_token)
 const parentClient = axios.create({ baseURL: '/api/v1' })
 parentClient.interceptors.request.use(config => {
   const token = localStorage.getItem('cp_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
+
+  // Attach trace/request IDs
+  const requestId = 'rq_' + randomHex12()
+  config.headers['X-Trace-ID'] = getTraceId()
+  config.headers['X-Request-ID'] = requestId
+  config._meta = {
+    traceId: getTraceId(),
+    requestId,
+    startTime: Date.now(),
+  }
   return config
 })
+
+parentClient.interceptors.response.use(
+  res => {
+    const meta = res.config?._meta
+    if (meta?.startTime) {
+      const duration = Date.now() - meta.startTime
+      if (duration > 3000) {
+        clientLogger.slowApi(res.config, duration)
+      }
+    }
+    return res
+  },
+  err => {
+    if (err.response?.status !== 401) {
+      clientLogger.apiError(err, err.config)
+    }
+    return Promise.reject(err)
+  }
+)
 
 // ── Parent Auth (public, no token needed) ──
 export const getInviteInfo = (code) => api.get(`/conduct/invite/${code}/info`)

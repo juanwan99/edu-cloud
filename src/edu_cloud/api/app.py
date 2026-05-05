@@ -15,7 +15,10 @@ from edu_cloud.services.exceptions import (
     NotFoundError, PermissionDeniedError, ValidationError as SvcValidationError,
     ConflictError, StateError,
 )
-from edu_cloud.logging_config import request_id_var, current_user_var, setup_logging
+from edu_cloud.logging_config import (
+    request_id_var, current_user_var, trace_id_var, current_school_var,
+    log_event, setup_logging,
+)
 
 _BOOT_TIME = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -249,10 +252,13 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def request_logging(request: Request, call_next):
         req_id = request.headers.get("X-Request-ID") or uuid4().hex[:12]
+        trace_id = request.headers.get("X-Trace-ID") or f"tr_{uuid4().hex[:12]}"
         token = request_id_var.set(req_id)
+        trace_token = trace_id_var.set(trace_id)
 
-        # Best-effort: extract user_id from JWT for audit logging
+        # Best-effort: extract user_id and school_id from JWT for audit logging
         user_token = None
+        school_token = None
         auth_header = request.headers.get("authorization", "")
         if auth_header.startswith("Bearer "):
             try:
@@ -261,18 +267,32 @@ def create_app() -> FastAPI:
                 uid = payload.get("sub")
                 if uid:
                     user_token = current_user_var.set(uid)
+                school_id = payload.get("school_id")
+                if school_id:
+                    school_token = current_school_var.set(str(school_id))
             except Exception:
                 logger.debug("request log: token decode skipped")
 
         start = time.perf_counter()
+        path = request.url.path
         try:
             response = await call_next(request)
             ms = (time.perf_counter() - start) * 1000
-            path = request.url.path
-            if not path.startswith(("/docs", "/openapi", "/favicon")):
+            if not path.startswith(("/docs", "/openapi", "/favicon", "/api/v1/client-logs")):
                 log = logger.info if response.status_code < 400 else logger.warning
                 log("%s %s → %d (%.0fms)", request.method, path, response.status_code, ms)
+                # Slow request alert
+                if ms > 1000:
+                    log_event(
+                        "edu_cloud.api", logging.WARNING, "alert",
+                        "http.slow_request",
+                        f"Slow request: {request.method} {path} took {ms:.0f}ms",
+                        duration_ms=ms,
+                        method=request.method, path=path,
+                        status_code=response.status_code,
+                    )
             response.headers["X-Request-ID"] = req_id
+            response.headers["X-Trace-ID"] = trace_id
             return response
         except Exception as exc:
             # Let registered Service exceptions propagate to FastAPI exception_handlers
@@ -281,20 +301,27 @@ def create_app() -> FastAPI:
                 raise
             # Truly unknown exceptions → 500
             ms = (time.perf_counter() - start) * 1000
-            path = request.url.path
             logger.error("%s %s → 500 (%.0fms) unhandled exception", request.method, path, ms, exc_info=True)
             from starlette.responses import PlainTextResponse
             error_response = PlainTextResponse("Internal Server Error", status_code=500)
             error_response.headers["X-Request-ID"] = req_id
+            error_response.headers["X-Trace-ID"] = trace_id
             return error_response
         finally:
             request_id_var.reset(token)
+            trace_id_var.reset(trace_token)
             if user_token:
                 current_user_var.reset(user_token)
+            if school_token:
+                current_school_var.reset(school_token)
 
     # Register routers — auth stays in api/
     from edu_cloud.api.auth import router as auth_router
     app.include_router(auth_router)
+
+    # Client-side log ingestion (frontend errors/events)
+    from edu_cloud.api.client_logs import router as client_logs_router
+    app.include_router(client_logs_router)
 
     # Dashboard summary (role-scoped aggregation)
     from edu_cloud.api.dashboard import router as dashboard_router

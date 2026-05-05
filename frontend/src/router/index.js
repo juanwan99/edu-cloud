@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AppShell from '../layouts/AppShell.vue'
 import { SCHOOL_ADMIN_ROLES, EXAM_ROLES, MARKING_ROLES, GRADING_DISPATCH_ROLES, normalizeRole } from '../config/roles.js'
 import { hasPermission } from '../config/permissions.js'
+import clientLogger from '../utils/clientLogger.js'
 
 // Frozen 2026-04-19: only exam + grading + personnel
 // Full version: router/_frozen/index.full.js
@@ -143,6 +144,7 @@ export function authGuard(to, from, next) {
 router.beforeEach(authGuard)
 
 router.onError((err, to) => {
+  clientLogger.routeError(err, to)
   if (err.message?.includes('Failed to fetch dynamically imported module') ||
       err.message?.includes('Importing a module script failed') ||
       err.message?.includes('error loading dynamically imported module') ||
