@@ -168,7 +168,7 @@ let activeTaskIds = []
 const isProcessing = computed(() => taskProgress.value?.status === 'processing')
 
 const gradingDisabled = computed(() => {
-  if (isProcessing.value) return true
+  if (gradingStarting.value || batchGrading.value) return true
   return !checkedQuestionIds.value.length && !selectedQuestion.value
 })
 
@@ -441,7 +441,7 @@ async function handleStartGrading() {
     const res = await createTask(payload)
     const taskId = res.data?.task_id || res.data?.id
     if (taskId) {
-      activeTaskIds = [taskId, ...(res.data?.child_task_ids || [])]
+      activeTaskIds = [...activeTaskIds, taskId, ...(res.data?.child_task_ids || [])]
       startPolling()
     }
     message.success('阅卷任务已启动')
@@ -474,6 +474,7 @@ function startPolling() {
     }
     if (allDone) {
       stopPolling()
+      activeTaskIds = []
       await loadQuestions()
     }
   }, 3000)
@@ -632,7 +633,7 @@ async function executeBatchGrading(idsSnapshot) {
   const ocrIds = idsSnapshot.filter(id => !visionMap.value[id])
   batchGrading.value = true
   taskProgress.value = { status: 'processing', graded: 0, total: 0 }
-  activeTaskIds = []
+  const newTaskIds = []
   try {
     for (const [qids, vision] of [[ocrIds, false], [visionIds, true]]) {
       if (!qids.length) continue
@@ -641,19 +642,20 @@ async function executeBatchGrading(idsSnapshot) {
       if (modeValue.value) payload.mode = modeValue.value
       const res = await createTask(payload)
       const taskId = res.data?.task_id || res.data?.id
-      if (taskId) activeTaskIds.push(taskId)
+      if (taskId) newTaskIds.push(taskId)
     }
     message.success(`批量阅卷已启动 (${idsSnapshot.length} 题)`)
   } catch (e) {
     console.error('[AI-GRADING] batch createTask FAILED:', e.response?.status, e.response?.data, e.message)
-    if (activeTaskIds.length) {
+    if (newTaskIds.length) {
       message.warning('部分任务启动成功，部分失败')
     } else {
       message.error('批量阅卷启动失败: ' + (e.response?.data?.detail || e.message))
     }
   } finally {
     batchGrading.value = false
-    if (activeTaskIds.length) startPolling()
+    activeTaskIds = [...activeTaskIds, ...newTaskIds]
+    if (newTaskIds.length) startPolling()
   }
 }
 

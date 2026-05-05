@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     VERTEX_AI_LOCATION: str = "global"
 
     # AI Grading batch concurrency
-    GRADING_BATCH_SIZE: int = 20
+    GRADING_BATCH_SIZE: int = 40
 
     # AI Agent — capability tiers
     TIER_CONTEXT_THRESHOLDS: list[int] = [100_000, 30_000]

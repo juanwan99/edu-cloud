@@ -881,6 +881,25 @@ async def create_grading_task(
             await db.commit()
             logger.info("create_grading_task: cleaned %d stale ai_pending subject-level results", len(old_results))
 
+    # 并发防护：同题/同科目不允许重叠的 pending/processing 任务
+    overlap_filter = [
+        GradingTask.school_id == school_id,
+        GradingTask.subject_id == req.subject_id,
+        GradingTask.status.in_(["pending", "processing"]),
+    ]
+    if req.question_id:
+        overlap_filter.append(GradingTask.question_id == req.question_id)
+    elif req.question_ids:
+        overlap_filter.append(GradingTask.question_ids != None)
+    else:
+        overlap_filter.append(GradingTask.question_id == None)
+        overlap_filter.append(GradingTask.question_ids == None)
+    existing = (await db.execute(
+        select(func.count(GradingTask.id)).where(*overlap_filter)
+    )).scalar() or 0
+    if existing:
+        raise HTTPException(409, "该题目/科目已有正在运行的阅卷任务，请等待完成后再启动")
+
     # 创建 task（commit 以获得 ID），后续 enqueue 失败则清理 orphan
     task = GradingTask(
         subject_id=req.subject_id,

@@ -72,7 +72,7 @@ async def _read_image_b64(path: str) -> str:
     return base64.b64encode(data).decode()
 
 
-_grading_semaphore = asyncio.Semaphore(20)
+_grading_semaphore = asyncio.Semaphore(40)
 
 _ESSAY_CHAR_CAPS = [(20, 0), (150, 8), (200, 8), (350, 22), (450, 28), (500, 34)]
 
