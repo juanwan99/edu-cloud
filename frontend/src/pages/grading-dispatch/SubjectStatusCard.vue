@@ -31,6 +31,20 @@
       <template v-else-if="subject.stage === 'pending_cut'">
         <span class="card-detail">模板就绪，<b>{{ subject.scan_images }}</b> 份待切割</span>
       </template>
+      <template v-else-if="subject.subjective_total > 0">
+        <div class="dual-prog">
+          <div class="dual-prog-row">
+            <span class="dual-prog-label ai">AI</span>
+            <div class="dual-prog-bar"><div class="dual-prog-fill ai" :style="{ width: aiPct + '%' }"></div></div>
+            <span class="dual-prog-num">{{ aiGraded }}/{{ subject.subjective_total }}</span>
+          </div>
+          <div class="dual-prog-row">
+            <span class="dual-prog-label manual">人工</span>
+            <div class="dual-prog-bar"><div class="dual-prog-fill manual" :style="{ width: manualPct + '%' }"></div></div>
+            <span class="dual-prog-num">{{ subject.manual_confirmed_count || 0 }}/{{ subject.subjective_total }}</span>
+          </div>
+        </div>
+      </template>
       <template v-else-if="subject.answer_count > 0">
         <span class="card-detail ok">已切割 <b>{{ subject.answer_count }}</b> 份</span>
       </template>
@@ -52,6 +66,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { NButton, NCheckbox } from 'naive-ui'
 
 const props = defineProps({
@@ -67,14 +82,32 @@ const props = defineProps({
 
 defineEmits(['toggle', 'detect', 'preview', 'cut', 'stop-cut', 'verify'])
 
+const aiGraded = computed(() => {
+  const s = props.subject
+  return (s.ai_done_count || 0) + (s.ai_confirmed_count || 0) + (s.ai_pending_count || 0)
+})
+
+const aiPct = computed(() => {
+  const total = props.subject.subjective_total || 0
+  return total > 0 ? Math.min(100, Math.round(aiGraded.value / total * 100)) : 0
+})
+
+const manualPct = computed(() => {
+  const total = props.subject.subjective_total || 0
+  const manual = props.subject.manual_confirmed_count || 0
+  return total > 0 ? Math.min(100, Math.round(manual / total * 100)) : 0
+})
+
 const STAGE_LABELS = {
   idle: '待上传', pending_detect: '待检测', pending_cut: '待切割',
   cutting: '切割中', ready: '已切割', done: '已切割',
-  ai_grading: '已切割', reviewing: '已切割', failed: '已切割',
+  ai_grading: 'AI阅卷中', reviewing: '待复核', failed: '已切割',
 }
 function stageLabel(stage) { return STAGE_LABELS[stage] || stage }
 function stageClass(stage) {
-  if (['ready', 'done', 'ai_grading', 'reviewing', 'failed'].includes(stage)) return 'tag-ready'
+  if (stage === 'ai_grading') return 'tag-ai-grading'
+  if (stage === 'reviewing') return 'tag-reviewing'
+  if (['ready', 'done', 'failed'].includes(stage)) return 'tag-ready'
   return `tag-${stage}`
 }
 </script>
@@ -92,6 +125,8 @@ function stageClass(stage) {
 .tag-pending_cut { background: #e0f2fe; color: #0369a1; }
 .tag-cutting { background: #dbeafe; color: #1e40af; }
 .tag-ready { background: #dcfce7; color: #166534; }
+.tag-ai-grading { background: var(--surface-primary-light); color: var(--color-primary); }
+.tag-reviewing { background: var(--surface-accent-light); color: var(--color-warning); }
 
 .detect-tag { display: inline-block; padding: 1px var(--space-2); border-radius: var(--radius-pill); font-size: var(--fs-base); font-weight: var(--fw-medium); }
 .detect-tag.running { background: #fef3c7; color: #92400e; }
@@ -108,6 +143,17 @@ function stageClass(stage) {
 .prog-bar { flex: 1; height: 6px; background: var(--color-border); border-radius: 3px; overflow: hidden; }
 .prog-fill { height: 100%; background: var(--color-info); border-radius: 3px; transition: width 0.3s; }
 .prog-text { font-size: var(--fs-base); color: var(--color-text-secondary); white-space: nowrap; }
+
+.dual-prog { display: flex; flex-direction: column; gap: 3px; }
+.dual-prog-row { display: flex; align-items: center; gap: 6px; }
+.dual-prog-label { font-size: 11px; font-weight: var(--fw-semibold); width: 28px; text-align: right; flex-shrink: 0; }
+.dual-prog-label.ai { color: var(--color-primary); }
+.dual-prog-label.manual { color: var(--color-warning); }
+.dual-prog-bar { flex: 1; height: 4px; background: var(--color-border-light); border-radius: 2px; overflow: hidden; }
+.dual-prog-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+.dual-prog-fill.ai { background: var(--color-primary); }
+.dual-prog-fill.manual { background: var(--color-warning); }
+.dual-prog-num { font-size: 11px; color: var(--color-text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 50px; }
 
 .card-stats { display: flex; gap: 6px; font-size: var(--fs-base); color: var(--color-text-muted); }
 .card-stats span { padding: 2px 6px; background: var(--color-bg-alt); border-radius: var(--r-xs); }

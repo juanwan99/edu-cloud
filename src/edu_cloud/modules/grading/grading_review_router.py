@@ -244,21 +244,57 @@ async def get_dispatch_status(
             ).order_by(GradingTask.created_at.desc())
         )).scalars().first()
 
-        # 统计 GradingResult 校对状态
-        reviewed = 0
-        ai_graded = 0
-        ai_failed = 0
-        grading_task_id = None
-        if grading_task:
-            grading_task_id = grading_task.id
-            ai_graded = grading_task.completed
-            ai_failed = grading_task.failed
-            reviewed = (await db.execute(
-                select(func.count(GradingResult.id)).where(
-                    GradingResult.ai_task_id == grading_task.id,
-                    GradingResult.status == "confirmed",
+        # 统计 GradingResult 分类计数（一次 grouped aggregate）
+        grading_task_id = grading_task.id if grading_task else None
+        ai_failed = grading_task.failed if grading_task else 0
+
+        ai_done_count = 0
+        ai_confirmed_count = 0
+        manual_confirmed_count = 0
+        if subjective_q_ids_early := (await db.execute(
+            select(Question.id).where(
+                Question.subject_id == subj.id,
+                Question.school_id == effective_school_id,
+                Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
+            )
+        )).scalars().all():
+            rows = (await db.execute(
+                select(GradingResult.status, GradingResult.source, func.count(GradingResult.id))
+                .where(
+                    GradingResult.question_id.in_(subjective_q_ids_early),
+                    GradingResult.school_id == effective_school_id,
+                    GradingResult.status.in_(["ai_done", "confirmed"]),
                 )
-            )).scalar() or 0
+                .group_by(GradingResult.status, GradingResult.source)
+            )).all()
+            for status, source, cnt in rows:
+                if status == "ai_done":
+                    ai_done_count += cnt
+                elif status == "confirmed":
+                    if source in ("ai", "ai_override"):
+                        ai_confirmed_count += cnt
+                    else:
+                        manual_confirmed_count += cnt
+
+        # ai_pending: 聚合所有 processing 任务
+        ai_pending_count = 0
+        if grading_task_id:
+            processing_tasks = (await db.execute(
+                select(
+                    func.coalesce(func.sum(GradingTask.total), 0),
+                    func.coalesce(func.sum(GradingTask.completed), 0),
+                    func.coalesce(func.sum(GradingTask.failed), 0),
+                ).where(
+                    GradingTask.subject_id == subj.id,
+                    GradingTask.school_id == effective_school_id,
+                    GradingTask.status.in_(["pending", "processing"]),
+                )
+            )).one()
+            ai_pending_count = max(0, processing_tasks[0] - processing_tasks[1] - processing_tasks[2])
+
+        # 兼容旧字段
+        ai_graded = ai_done_count + ai_confirmed_count
+        reviewed = ai_confirmed_count + manual_confirmed_count
 
         # F011 修复：subjective_total 查询提前到 stage 推导之前
         subjective_total = (await db.execute(
@@ -271,13 +307,7 @@ async def get_dispatch_status(
 
         # 推导 stage（INV-003: ready 条件与 POST /grading/tasks 前置校验一致）
         has_subjective_answers = subjective_total > 0
-        subjective_q_ids = (await db.execute(
-            select(Question.id).where(
-                Question.subject_id == subj.id,
-                Question.school_id == effective_school_id,
-                Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
-            )
-        )).scalars().all()
+        subjective_q_ids = subjective_q_ids_early or []
         has_rubric = False
         if subjective_q_ids:
             rubric_count = (await db.execute(
@@ -369,10 +399,12 @@ async def get_dispatch_status(
             stage = "failed"
         elif grading_task.status in ("pending", "processing"):
             stage = "ai_grading"
-        elif grading_task.status == "completed" and reviewed < ai_graded:
+        elif ai_done_count > 0:
             stage = "reviewing"
-        else:
+        elif grading_task.status == "completed":
             stage = "done"
+        else:
+            stage = "ready"
 
         scan_image_count = scan_dir_map.get(subj.name, 0)
 
@@ -388,6 +420,10 @@ async def get_dispatch_status(
             "objective_total": objective_graded,
             "objective_graded": objective_graded,
             "subjective_total": subjective_total,
+            "ai_done_count": ai_done_count,
+            "ai_confirmed_count": ai_confirmed_count,
+            "manual_confirmed_count": manual_confirmed_count,
+            "ai_pending_count": ai_pending_count,
             "ai_graded": ai_graded,
             "ai_failed": ai_failed,
             "reviewed": reviewed,
