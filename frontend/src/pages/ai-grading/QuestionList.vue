@@ -17,7 +17,7 @@
       @click="$emit('select', q)"
     >
       <div class="q-row">
-        <n-checkbox :checked="checkedIds.includes(q.question_id)" @update:checked="toggleCheck(q.question_id)" @click.stop size="small" />
+        <n-checkbox :checked="checkedIds.includes(q.question_id)" @update:checked="toggleCheck(q.question_id)" @click.stop class="q-check" />
         <span v-if="editingNameId !== q.question_id" class="q-num editable" @click.stop="$emit('start-edit-name', q)">{{ q.name || q.question_name }}</span>
         <n-input v-else :value="q.name || q.question_name" size="small" style="width:48px;font-size:var(--fs-xl);font-weight:var(--fw-bold);text-align:center"
           @update:value="v => $emit('update-name-value', q, v)"
@@ -143,6 +143,19 @@ function mountOptions(q) {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.q-check {
+  flex-shrink: 0;
+}
+.q-check :deep(.n-checkbox-box) {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border);
+  border-radius: 4px;
+}
+.q-check :deep(.n-checkbox-box--checked) {
+  border-color: var(--color-primary);
 }
 
 .q-num {
