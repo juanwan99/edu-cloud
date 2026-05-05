@@ -97,12 +97,8 @@ function mountOptions(q) {
 
 <style scoped>
 .left-panel {
-  --color-text: #09061B;
-  --color-text-secondary: #3d4f42;
-  --color-text-muted: #6b7d70;
-  --color-success: #15803d;
-  background: var(--card-color, #fff);
-  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-3);
   position: sticky;
@@ -120,7 +116,7 @@ function mountOptions(q) {
   color: var(--color-text-secondary);
   margin-bottom: 10px;
   padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .question-item {
@@ -134,13 +130,13 @@ function mountOptions(q) {
 }
 
 .question-item:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: var(--color-bg-alt);
+  border-color: var(--color-border);
 }
 
 .question-item.active {
-  background: #f0fdf4;
-  border-color: var(--color-success);
+  background: var(--surface-primary-light);
+  border-color: var(--color-primary);
 }
 
 .q-row {
@@ -150,10 +146,10 @@ function mountOptions(q) {
 }
 
 .q-num {
-  font-size: var(--fs-xl);
+  font-size: var(--fs-lg);
   font-weight: var(--fw-bold);
   color: var(--color-text);
-  min-width: 32px;
+  min-width: 28px;
   text-align: center;
   flex-shrink: 0;
   line-height: 1;
@@ -168,7 +164,7 @@ function mountOptions(q) {
 }
 
 .question-item.active .q-num {
-  color: var(--color-success);
+  color: var(--color-primary);
 }
 
 .q-info {
@@ -188,11 +184,11 @@ function mountOptions(q) {
 }
 
 .q-score {
-  color: var(--color-success);
+  color: var(--color-primary);
   font-weight: var(--fw-semibold);
 }
 .q-score.editable {
-  cursor: pointer; border-bottom: 1px dashed var(--color-success);
+  cursor: pointer; border-bottom: 1px dashed var(--color-primary);
   margin-left: 6px;
 }
 
@@ -210,17 +206,17 @@ function mountOptions(q) {
 }
 
 .t.ok {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--surface-success);
+  color: var(--color-success-pressed);
 }
 
 .t.warn {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--surface-accent);
+  color: var(--color-warning-pressed);
 }
 .t.gen {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--surface-primary);
+  color: var(--color-primary-dark);
   animation: pulse 1.5s infinite;
 }
 .vision-tag {
@@ -230,12 +226,12 @@ function mountOptions(q) {
   padding: 2px 8px;
 }
 .vision-off {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--color-bg-alt);
+  color: var(--color-text-muted);
 }
 .vision-on {
-  background: #dbeafe;
-  color: #2563eb;
+  background: var(--surface-primary);
+  color: var(--color-primary);
 }
 .vision-tag:hover {
   opacity: 0.8;
@@ -249,7 +245,7 @@ function mountOptions(q) {
   text-decoration: none;
 }
 .select-all-link:hover {
-  color: var(--color-success);
+  color: var(--color-primary);
 }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
