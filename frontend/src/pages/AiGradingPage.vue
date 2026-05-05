@@ -171,7 +171,6 @@ const gradingButtonLabel = computed(() => {
 })
 
 function handleUnifiedGrading() {
-  console.log('[AI-GRADING] handleUnifiedGrading called, checkedIds:', checkedQuestionIds.value, 'selectedQ:', selectedQuestion.value?.question_id, 'subjectId:', subjectId.value)
   if (checkedQuestionIds.value.length > 0) {
     confirmBatchGrading()
   } else {
@@ -424,8 +423,6 @@ async function handleSaveRubric() {
 }
 
 async function handleStartGrading() {
-  console.log('[AI-GRADING] handleStartGrading called, selectedQ:', selectedQuestion.value)
-  if (!selectedQuestion.value) { console.log('[AI-GRADING] ABORT: no selectedQuestion'); return }
   const qid = selectedQuestion.value.question_id
   gradingStarting.value = true
   try {
@@ -433,10 +430,8 @@ async function handleStartGrading() {
     if (limitValue.value != null) payload.limit = limitValue.value
     if (modeValue.value) payload.mode = modeValue.value
     if (visionMap.value[qid]) payload.use_vision = true
-    console.log('[AI-GRADING] createTask payload:', JSON.stringify(payload))
     taskProgress.value = { status: 'processing', graded: 0, total: 0 }
     const res = await createTask(payload)
-    console.log('[AI-GRADING] createTask response:', res.status, res.data)
     const taskId = res.data?.task_id || res.data?.id
     if (taskId) {
       activeTaskIds = [taskId]
@@ -622,32 +617,12 @@ async function handleDocCropSave(results) {
 }
 
 function confirmBatchGrading() {
-  const ids = checkedQuestionIds.value
-  const visionCount = ids.filter(id => visionMap.value[id]).length
-  const ocrCount = ids.length - visionCount
-  const answerCount = questions.value
-    .filter(q => ids.includes(q.question_id))
-    .reduce((s, q) => s + (q.answer_count || 0), 0)
-  const lines = [`${ids.length} 道题，约 ${answerCount} 份答卷`]
-  if (visionCount) lines.push(`Vision: ${visionCount} 题`)
-  if (ocrCount) lines.push(`OCR: ${ocrCount} 题`)
-  lines.push(modeValue.value === 'batch' ? '经济模式' : '实时模式')
-  if (limitValue.value) lines.push(`每题限 ${limitValue.value} 份`)
-  dialog.warning({
-    title: '确认批量阅卷',
-    content: lines.join('，'),
-    positiveText: '确认启动',
-    negativeText: '取消',
-    onPositive: () => executeBatchGrading([...ids]),
-  })
+  executeBatchGrading([...checkedQuestionIds.value])
 }
 
 async function executeBatchGrading(idsSnapshot) {
-  console.log('[AI-GRADING] executeBatchGrading called, ids:', idsSnapshot, 'subjectId:', subjectId.value)
-  if (!idsSnapshot?.length) { console.log('[AI-GRADING] ABORT: empty ids'); return }
   const visionIds = idsSnapshot.filter(id => visionMap.value[id])
   const ocrIds = idsSnapshot.filter(id => !visionMap.value[id])
-  console.log('[AI-GRADING] visionIds:', visionIds, 'ocrIds:', ocrIds)
   batchGrading.value = true
   taskProgress.value = { status: 'processing', graded: 0, total: 0 }
   activeTaskIds = []
@@ -657,9 +632,7 @@ async function executeBatchGrading(idsSnapshot) {
       const payload = { subject_id: subjectId.value, question_ids: qids, use_vision: vision }
       if (limitValue.value != null) payload.limit = limitValue.value
       if (modeValue.value) payload.mode = modeValue.value
-      console.log('[AI-GRADING] batch createTask payload:', JSON.stringify(payload))
       const res = await createTask(payload)
-      console.log('[AI-GRADING] batch createTask response:', res.status, res.data)
       const taskId = res.data?.task_id || res.data?.id
       if (taskId) activeTaskIds.push(taskId)
     }

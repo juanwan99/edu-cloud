@@ -887,3 +887,4 @@ docker compose logs -f      # 查看日志
 启动时自动创建：
 - 平台管理员 `admin/123456`（User + UserRole platform_admin）
 - 育才实验中学（YCSY2026）：36 班 / 1500 学生 / 200 教师+行政（幂等，密码均 123456）
+
