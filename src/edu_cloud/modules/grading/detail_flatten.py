@@ -16,8 +16,9 @@ _REASON_PATTERNS = [
     (re.compile(r"命中\s*judgingRules\s*中\s*"), "命中评分标准中"),
     (re.compile(r"judgingRules\s*中\s*"), "评分标准中"),
     (re.compile(r"judgingRules"), "评分标准"),
+    (re.compile(r"scoringRules"), "得分规则"),
+    (re.compile(r"exclusionRules"), "排除规则"),
 ]
-
 
 def sanitize_reason(reason: str) -> str:
     if not reason:

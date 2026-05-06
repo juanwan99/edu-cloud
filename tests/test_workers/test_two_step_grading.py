@@ -12,7 +12,8 @@ async def test_grade_single_two_step():
     mock_llm.extract_text = AsyncMock(return_value=[
         {"blankNo": "1-1", "subQ": "(1)", "text": "动物细胞"},
     ])
-    mock_llm.grade_text = AsyncMock(return_value=GradeResponse(
+    mock_ds_llm = MagicMock()
+    mock_ds_llm.grade_text = AsyncMock(return_value=GradeResponse(
         score=2, max_score=2, feedback="correct", confidence=0.95, raw_content='{"score":2}'
     ))
 
@@ -25,13 +26,13 @@ async def test_grade_single_two_step():
     rubrics = {"q1": [{"blankNo": "1-1", "score": 2, "standardAnswer": "动物细胞", "context": "ctx", "judgingRules": "rules"}]}
 
     with patch("edu_cloud.workers.grading._read_image_b64", return_value="A" * 10000):
-        result, error, plog = await _grade_single(mock_llm, ad, rubrics)
+        result, error, plog = await _grade_single(mock_llm, ad, rubrics, ds_grading_llm=mock_ds_llm)
 
     assert error is None
     assert result["score"] == 2
     assert plog["pipeline_type"] == "two_step"
     mock_llm.extract_text.assert_called_once()
-    mock_llm.grade_text.assert_called_once()
+    mock_ds_llm.grade_text.assert_called_once()
 
 
 @pytest.mark.asyncio

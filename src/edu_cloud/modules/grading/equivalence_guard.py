@@ -1,8 +1,11 @@
-"""Post-LLM equivalence guard: force full score when answer exactly matches equivalentAnswers."""
+"""Post-LLM equivalence guard: force full score when answer exactly matches equivalentAnswers.
+
+Only uses equivalents declared in the rubric criteria — no hardcoded mappings.
+"""
 
 import re
 
-_NORMALIZE_RE = re.compile(r'[\s　.,，。、；;：:！!？?“”‘’"\'()（）\[\]【】{}]+')
+_NORMALIZE_RE = re.compile(r'[\s　.,，。、；;：:！!？?""\'\'()（）\[\]【】{}]+')
 
 
 def _normalize(text: str) -> str:
@@ -49,10 +52,17 @@ def apply_equivalence_guard(
     corrected = 0
     details = grade_result.get("details", [])
     for sub in details:
-        for blank in sub.get("blanks", []):
+        if "blanks" not in sub and "blankNo" in sub:
+            blanks_iter = [sub]
+        else:
+            blanks_iter = sub.get("blanks", [])
+        for blank in blanks_iter:
             idx = blank.get("index", 0)
-            sub_q = sub.get("subQuestion", "").replace("(", "").replace(")", "")
-            bn = f"{sub_q}-{idx}" if sub_q else str(idx)
+            if blank.get("blankNo"):
+                bn = str(blank["blankNo"]).replace("(", "").replace(")", "")
+            else:
+                sub_q = sub.get("subQuestion", "").replace("(", "").replace(")", "")
+                bn = f"{sub_q}-{idx}" if sub_q else str(idx)
 
             student_ans = _normalize(str(blank.get("answer", "")))
             if not student_ans:
@@ -63,12 +73,9 @@ def apply_equivalence_guard(
                 continue
 
             full_score, valid_answers, norm_to_orig = eq_entry
-            reason = str(blank.get("reason", ""))
-            exclusion_keywords = ("排除", "典型错误", "缺少", "缺失", "不完整", "不符", "偏离", "要点不全")
             if (
                 student_ans in valid_answers
                 and blank.get("score", 0) < full_score
-                and not any(kw in reason for kw in exclusion_keywords)
             ):
                 blank["score"] = full_score
                 blank["correct"] = True
@@ -82,7 +89,10 @@ def apply_equivalence_guard(
 
     if corrected > 0:
         for sub in details:
-            sub["score"] = sum(b.get("score", 0) for b in sub.get("blanks", []))
+            if "blanks" in sub:
+                sub["score"] = sum(b.get("score", 0) for b in sub.get("blanks", []))
+            elif "blankNo" in sub:
+                pass
         grade_result["score"] = sum(s.get("score", 0) for s in details)
 
     return grade_result
