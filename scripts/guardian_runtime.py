@@ -320,14 +320,28 @@ def issues_from_ports(ports: dict[str, Any], git_info: dict[str, Any]) -> list[d
         bind = item.get("bind")
         command = str(item.get("command") or "")
         service = item.get("service")
-        if port in {9000, 8080, 8100} and is_public_bind(bind):
+        is_vite_dev = "vite" in command and "/edu-cloud/frontend/" in command
+        public_bind = is_public_bind(bind)
+        if (port in {9000, 8080, 8100} or is_vite_dev) and public_bind:
             issues.append(
                 issue(
                     "PORT_PUBLIC_BIND",
-                    "red" if port in {9000, 8080} else "yellow",
+                    "red" if port in {9000, 8080} or is_vite_dev else "yellow",
                     f"port {port} is bound to {bind}",
                     "scripts/truth doctor --json",
-                    blocks_completion=port in {9000, 8080},
+                    blocks_completion=port in {9000, 8080} or is_vite_dev,
+                    source="codex_support.collect_ports",
+                )
+            )
+        if is_vite_dev and port != 8080:
+            issues.append(
+                issue(
+                    "PARALLEL_FRONTEND_DEV_SERVER",
+                    "red" if public_bind else "yellow",
+                    f"edu-cloud Vite dev server PID={item.get('pid')} on {bind}:{port}",
+                    f"inspect PID {item.get('pid')} and stop the stale frontend dev server if not current",
+                    blocks_completion=public_bind,
+                    required_before="handoff",
                     source="codex_support.collect_ports",
                 )
             )

@@ -373,6 +373,13 @@ def test_guardian_runtime_flags_parallel_backend_and_duplicate_worker(monkeypatc
                 "version_hash": "old999",
                 "version_source_dirty": False,
             },
+            {
+                "port": 8081,
+                "bind": "0.0.0.0",
+                "pid": 102,
+                "service": None,
+                "command": "node /home/ops/projects/edu-cloud/frontend/node_modules/.bin/vite --host 0.0.0.0 --port 8081",
+            },
         ],
     })
     monkeypatch.setattr(module, "collect_processes", lambda: {
@@ -391,7 +398,12 @@ def test_guardian_runtime_flags_parallel_backend_and_duplicate_worker(monkeypatc
     codes = {issue["issue_code"] for issue in snapshot["issues"]}
 
     assert snapshot["ports"]["listeners"][1]["port"] == 9001
-    assert {"PARALLEL_BACKEND_PROCESS", "PARALLEL_VERSION_DRIFT", "DUPLICATE_WORKER_PROCESS"} <= codes
+    assert {
+        "PARALLEL_BACKEND_PROCESS",
+        "PARALLEL_VERSION_DRIFT",
+        "PARALLEL_FRONTEND_DEV_SERVER",
+        "DUPLICATE_WORKER_PROCESS",
+    } <= codes
     assert snapshot["overall"] == "red"
 
 

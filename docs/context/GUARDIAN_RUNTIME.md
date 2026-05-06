@@ -56,6 +56,8 @@ Stable issue codes for parallel-version accidents:
 
 - `PARALLEL_BACKEND_PROCESS`: an edu-cloud backend is running outside canonical
   port 9000.
+- `PARALLEL_FRONTEND_DEV_SERVER`: an edu-cloud Vite dev server is running
+  outside canonical port 8080.
 - `PARALLEL_VERSION_DRIFT`: a backend listener reports a git hash different
   from source HEAD.
 - `PARALLEL_RUNTIME_DIRTY`: a backend listener reports `source_dirty=true`.
