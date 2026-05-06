@@ -124,7 +124,7 @@ async def submit_review(
 ):
     """教师对 AI 评分进行 approve / override 确认。
 
-    approve  → status=confirmed, source=ai, final_score 不变
+    approve  → status=confirmed, source=ai, final_score=ai_score
     override → status=confirmed, source=ai_override, final_score=adjusted_score
     """
     result = await db.execute(
@@ -150,6 +150,7 @@ async def submit_review(
     now = datetime.now(timezone.utc)
     if req.action == "approve":
         gr.source = "ai"
+        gr.final_score = gr.ai_score
     else:
         gr.source = "ai_override"
         gr.final_score = req.adjusted_score
