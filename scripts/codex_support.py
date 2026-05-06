@@ -346,6 +346,8 @@ def collect_processes() -> dict[str, object]:
                 continue
             if "codex-consult-claude" in command or "--no-session-persistence" in command:
                 continue
+            if "guardian-watch --once" in command:
+                continue
             details = process_details(pid)
             processes.append({
                 "pid": pid,
