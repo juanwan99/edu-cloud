@@ -116,6 +116,24 @@ def test_dual_core_responsibilities_are_formally_scoped():
             assert term in text
 
 
+def test_yuanshou_name_has_no_old_active_doc_aliases():
+    active_docs = [
+        PROJECT_ROOT / "AGENTS.md",
+        PROJECT_ROOT / "docs" / "context" / "GOVERNANCE_MODEL.md",
+        PROJECT_ROOT / "docs" / "context" / "NOW.md",
+        PROJECT_ROOT / "docs" / "context" / "ACTIVE_INDEX.md",
+        PROJECT_ROOT / "docs" / "context" / "COMMANDS.md",
+        PROJECT_ROOT / "docs" / "context" / "SAFETY_MATRIX.md",
+    ]
+
+    for path in active_docs:
+        normalized = " ".join(path.read_text(encoding="utf-8").split())
+        assert "元守双核心" in normalized or path.name == "SAFETY_MATRIX.md"
+        assert "EduCloud Dual-Core Control Plane" not in normalized
+        assert "Dual-Core Control Plane" not in normalized
+        assert "ECP-DualCore" not in normalized
+
+
 def test_codex_check_no_network_is_read_only_preflight():
     result = run_script("codex-check", "--no-network")
 
