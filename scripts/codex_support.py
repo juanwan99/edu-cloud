@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -103,13 +104,30 @@ def collect_git() -> dict[str, object]:
     }
 
 
+def path_has_open_handle(path: Path) -> bool:
+    if not shutil.which("fuser"):
+        return False
+    result = run(["fuser", str(path)], timeout=5)
+    return result.returncode == 0
+
+
 def collect_artifacts() -> dict[str, object]:
     risky = []
-    for name in ("edu_cloud.db-wal", "edu_cloud.db-shm", "data/.db_migrate.lock", ".codex", "frontend/.codex"):
+    runtime = []
+    for name in ("edu_cloud.db-wal", "edu_cloud.db-shm"):
+        path = PROJECT_ROOT / name
+        if not path.exists():
+            continue
+        if path_has_open_handle(path):
+            runtime.append(name)
+        else:
+            risky.append(name)
+    for name in ("data/.db_migrate.lock", ".codex", "frontend/.codex"):
         if (PROJECT_ROOT / name).exists():
             risky.append(name)
     return {
         "risky_paths": risky,
+        "runtime_paths": runtime,
         "backups_exists": (PROJECT_ROOT / "backups").exists(),
         "screenshots_exists": (PROJECT_ROOT / "screenshots").exists(),
     }

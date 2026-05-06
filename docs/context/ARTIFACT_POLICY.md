@@ -16,7 +16,7 @@ them without explicit user approval. The user approved classification on
 | Active source | `src/**`, `frontend/src/**`, `tests/**`, `docs/context/**` | Review and commit intentionally. Never discard blindly. |
 | Experiment data | `data/essay_*.json`, `data/deepseek_*.json`, `scripts/essay_*.py` | Keep local and ignored unless a reviewed baseline task explicitly promotes it. |
 | Local backup | `backups/**`, `*.db`, `*.db.bak*` | Do not commit. Keep local or archive outside repo after approval. |
-| SQLite runtime | `*.db-wal`, `*.db-shm`, `data/.db_migrate.lock` | Do not commit. Ignore. Do not copy active DB with `cp` or `rsync`. |
+| SQLite runtime | `*.db-wal`, `*.db-shm`, `data/.db_migrate.lock` | Do not commit. Ignore. Active WAL/SHM files are runtime state, not strict blockers. Do not copy active DB with `cp` or `rsync`. |
 | Screenshots | `screenshots/**` | Commit only named verification screenshots required by a task. |
 | Scratch patch scripts | `patch_*.py`, `convert_*.py` | Keep local and ignored unless reusable enough to promote into `scripts/`. |
 | External symlink | `edu-knowledge-base` | Treat as external read-only context unless task explicitly targets it. |

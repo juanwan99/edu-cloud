@@ -90,6 +90,7 @@ def main() -> int:
 
     print("Artifacts")
     print_kv("risky_paths", ", ".join(artifacts["risky_paths"]) or "none")
+    print_kv("runtime_paths", ", ".join(artifacts.get("runtime_paths", [])) or "none")
     print_kv("backups_exists", artifacts["backups_exists"])
     print_kv("screenshots_exists", artifacts["screenshots_exists"])
     return 0

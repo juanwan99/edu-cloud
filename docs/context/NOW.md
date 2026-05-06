@@ -76,7 +76,8 @@ stop the legacy process and rerun `scripts/truth doctor --json`.
 
 Local experiment and runtime artifacts are ignored rather than committed:
 
-- SQLite WAL/SHM and migration lock files
+- active SQLite WAL/SHM files, classified as runtime state by `codex-context`
+- stale migration lock files
 - `.codex` and `frontend/.codex`
 - backups and screenshots
 - local AI grading experiment data/scripts listed in `ARTIFACT_POLICY.md`

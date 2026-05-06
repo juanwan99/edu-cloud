@@ -35,6 +35,18 @@ def load_codex_verify_module():
     return module
 
 
+def load_codex_support_module():
+    scripts_dir = PROJECT_ROOT / "scripts"
+    sys.path.insert(0, str(scripts_dir))
+    loader = SourceFileLoader("codex_support_test", str(scripts_dir / "codex_support.py"))
+    spec = importlib.util.spec_from_loader("codex_support_test", loader)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["codex_support_test"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_codex_context_no_network_outputs_project_sections():
     result = run_script("codex-context", "--no-network")
 
@@ -77,6 +89,29 @@ def test_codex_check_no_network_is_read_only_preflight():
     assert "Codex Check" in result.stdout
     assert "Start Here" in result.stdout
     assert "Safety Risks" in result.stdout
+
+
+def test_codex_support_separates_active_sqlite_runtime(monkeypatch, tmp_path):
+    module = load_codex_support_module()
+    for name in ("edu_cloud.db-wal", "edu_cloud.db-shm", "data/.db_migrate.lock", ".codex"):
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(
+        module,
+        "path_has_open_handle",
+        lambda path: path.name in {"edu_cloud.db-wal", "edu_cloud.db-shm"},
+    )
+
+    artifacts = module.collect_artifacts()
+
+    assert artifacts["runtime_paths"] == ["edu_cloud.db-wal", "edu_cloud.db-shm"]
+    assert "data/.db_migrate.lock" in artifacts["risky_paths"]
+    assert ".codex" in artifacts["risky_paths"]
+    assert "edu_cloud.db-wal" not in artifacts["risky_paths"]
+    assert "edu_cloud.db-shm" not in artifacts["risky_paths"]
 
 
 def test_codex_verify_help_lists_supported_modes():
