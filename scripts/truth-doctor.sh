@@ -81,12 +81,8 @@ def check_port(port, label):
     if not shutil.which("ss"):
         return
     result = run(["ss", "-tlnp", f"sport = :{port}"])
-    holder = ""
-    for line in result.stdout.splitlines():
-        if "LISTEN" in line:
-            holder = line
-            break
-    if not holder:
+    holders = [line for line in result.stdout.splitlines() if "LISTEN" in line]
+    if not holders:
         if port == 9000:
             add_issue(
                 "BACKEND_DOWN",
@@ -96,26 +92,36 @@ def check_port(port, label):
                 "systemctl restart edu-cloud",
             )
         return
+    if len(holders) > 1:
+        add_issue(
+            "PORT_CONFLICT",
+            "red" if port == 9000 else "yellow",
+            f"port {port} ({label}) has {len(holders)} listeners",
+            port == 9000,
+            f"ss -tlnp 'sport = :{port}'",
+            "handoff",
+        )
 
-    pid_match = re.search(r"pid=(\d+)", holder)
-    bind_addr = holder.split()[3].rsplit(":", 1)[0] if len(holder.split()) >= 4 else ""
-    if bind_addr in {"0.0.0.0", "*", "[::]"}:
-        add_issue(
-            "PORT_DANGER",
-            "red",
-            f"port {port} ({label}) is bound to {bind_addr}",
-            port in {9000, 8080},
-            f"bind {label} to 127.0.0.1 or stop the public listener",
-        )
-    if pid_match and parent_pid(pid_match.group(1)) == "1" and not is_systemd_main_pid(pid_match.group(1)):
-        add_issue(
-            "GHOST_PROCESS",
-            "yellow",
-            f"port {port} ({label}) listener PID={pid_match.group(1)} is an orphan",
-            False,
-            f"inspect or stop PID {pid_match.group(1)}",
-            "session_end",
-        )
+    for holder in holders:
+        pid_match = re.search(r"pid=(\d+)", holder)
+        bind_addr = holder.split()[3].rsplit(":", 1)[0] if len(holder.split()) >= 4 else ""
+        if bind_addr in {"0.0.0.0", "*", "[::]"}:
+            add_issue(
+                "PORT_DANGER",
+                "red",
+                f"port {port} ({label}) is bound to {bind_addr}",
+                port in {9000, 8080},
+                f"bind {label} to 127.0.0.1 or stop the public listener",
+            )
+        if pid_match and parent_pid(pid_match.group(1)) == "1" and not is_systemd_main_pid(pid_match.group(1)):
+            add_issue(
+                "GHOST_PROCESS",
+                "yellow",
+                f"port {port} ({label}) listener PID={pid_match.group(1)} is an orphan",
+                False,
+                f"inspect or stop PID {pid_match.group(1)}",
+                "session_end",
+            )
 
 
 def check_ghost_processes():
@@ -263,43 +269,51 @@ echo -e "${BOLD}[Ports]${NC}"
 
 check_port() {
   local port=$1 label=$2
-  local holder
-  holder=$(ss -tlnp "sport = :$port" 2>/dev/null | grep LISTEN | head -1 || true)
-  if [ -z "$holder" ]; then
+  local holders count
+  holders=$(ss -tlnp "sport = :$port" 2>/dev/null | grep LISTEN || true)
+  if [ -z "$holders" ]; then
     warn "port $port ($label): nobody listening"
     return
   fi
-
-  local pid
-  pid=$(echo "$holder" | grep -oP 'pid=\K[0-9]+' | head -1 || true)
-  local bind_addr
-  bind_addr=$(echo "$holder" | awk '{print $4}' | sed 's/:.*//')
-
-  if [ -z "$pid" ]; then
-    warn "port $port ($label): listening but PID unknown (no permission?)"
-    return
-  fi
-
-  if [ "$bind_addr" = "0.0.0.0" ] || [ "$bind_addr" = "*" ]; then
-    fail "port $port ($label): PID=$pid bound to 0.0.0.0 (PUBLIC EXPOSURE)"
+  count=$(printf '%s\n' "$holders" | sed '/^$/d' | wc -l)
+  if [ "$count" -gt 1 ]; then
+    warn "port $port ($label): $count listeners detected (possible conflict)"
     ISSUES=$((ISSUES+1))
-  else
-    ok "port $port ($label): PID=$pid on $bind_addr"
   fi
 
-  local ppid
-  ppid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ' || true)
-  systemd_main="no"
-  for svc in edu-cloud llm-proxy edu-cloud-worker; do
-    svc_pid=$(systemctl show "$svc" -p MainPID --value 2>/dev/null || true)
-    if [ -n "$svc_pid" ] && [ "$svc_pid" != "0" ] && [ "$svc_pid" = "$pid" ]; then
-      systemd_main="yes"
+  while IFS= read -r holder; do
+    [ -z "$holder" ] && continue
+    local pid
+    pid=$(echo "$holder" | grep -oP 'pid=\K[0-9]+' | head -1 || true)
+    local bind_addr
+    bind_addr=$(echo "$holder" | awk '{print $4}' | sed 's/:.*//')
+
+    if [ -z "$pid" ]; then
+      warn "port $port ($label): listening but PID unknown (no permission?)"
+      continue
     fi
-  done
-  if [ "$ppid" = "1" ] && [ "$systemd_main" != "yes" ]; then
-    warn "  PID=$pid is an orphan (PPID=1) — may be a ghost process"
-    ISSUES=$((ISSUES+1))
-  fi
+
+    if [ "$bind_addr" = "0.0.0.0" ] || [ "$bind_addr" = "*" ]; then
+      fail "port $port ($label): PID=$pid bound to 0.0.0.0 (PUBLIC EXPOSURE)"
+      ISSUES=$((ISSUES+1))
+    else
+      ok "port $port ($label): PID=$pid on $bind_addr"
+    fi
+
+    local ppid
+    ppid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ' || true)
+    systemd_main="no"
+    for svc in edu-cloud llm-proxy edu-cloud-worker; do
+      svc_pid=$(systemctl show "$svc" -p MainPID --value 2>/dev/null || true)
+      if [ -n "$svc_pid" ] && [ "$svc_pid" != "0" ] && [ "$svc_pid" = "$pid" ]; then
+        systemd_main="yes"
+      fi
+    done
+    if [ "$ppid" = "1" ] && [ "$systemd_main" != "yes" ]; then
+      warn "  PID=$pid is an orphan (PPID=1) — may be a ghost process"
+      ISSUES=$((ISSUES+1))
+    fi
+  done <<< "$holders"
 }
 
 check_port 9000 "edu-cloud API"

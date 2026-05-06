@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -12,6 +13,12 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 KNOWN_FAILURES = PROJECT_ROOT / ".quality" / "known-pytest-failures.txt"
+SYSTEMD_SERVICES = ("edu-cloud", "llm-proxy", "edu-cloud-worker", "edu-cloud-guardian")
+EXPECTED_PORTS = {
+    9000: {"label": "edu-cloud API", "service": "edu-cloud", "required": True},
+    8080: {"label": "Vite dev server", "service": None, "required": False},
+    8100: {"label": "llm-proxy", "service": "llm-proxy", "required": False},
+}
 
 
 @dataclass
@@ -151,15 +158,16 @@ def collect_versions(no_network: bool = False) -> dict[str, object]:
                 data["nginx_hash"] = json.loads(remote.stdout).get("git_hash")
             except Exception:
                 data["nginx_hash"] = "unreadable"
-        backend = run(["curl", "-sf", "http://127.0.0.1:9000/api/v1/version"], timeout=5)
-        if backend.returncode == 0:
-            try:
-                parsed = json.loads(backend.stdout)
-                data["backend_hash"] = parsed.get("git_hash")
-                data["backend_source_dirty"] = parsed.get("source_dirty")
-                data["backend_pid"] = parsed.get("pid")
-            except Exception:
-                data["backend_hash"] = "unreadable"
+    backend = run(["curl", "-sf", "http://127.0.0.1:9000/api/v1/version"], timeout=5)
+    if backend.returncode == 0:
+        try:
+            parsed = json.loads(backend.stdout)
+            data["backend_hash"] = parsed.get("git_hash")
+            data["backend_source_dirty"] = parsed.get("source_dirty")
+            data["backend_pid"] = parsed.get("pid")
+            data["backend_boot_time"] = parsed.get("boot_time")
+        except Exception:
+            data["backend_hash"] = "unreadable"
     return data
 
 
@@ -199,6 +207,158 @@ def collect_guardian_health() -> dict[str, object]:
         "red_count": parsed.get("red_count", 0),
         "yellow_count": parsed.get("yellow_count", 0),
         "issues": parsed.get("issues", []),
+    }
+
+
+def systemd_main_pids() -> dict[int, str]:
+    services: dict[int, str] = {}
+    for service in SYSTEMD_SERVICES:
+        result = run(["systemctl", "show", service, "-p", "MainPID", "--value"], timeout=5)
+        value = result.stdout.strip()
+        if value.isdigit() and value != "0":
+            services[int(value)] = service
+    return services
+
+
+def process_details(pid: int) -> dict[str, object]:
+    result = run(["ps", "-p", str(pid), "-o", "ppid=,command="], timeout=5)
+    if result.returncode != 0:
+        return {"pid": pid, "ppid": None, "command": "", "cgroup": "", "cgroup_service": None}
+    text = result.stdout.strip()
+    if not text:
+        return {"pid": pid, "ppid": None, "command": "", "cgroup": "", "cgroup_service": None}
+    parts = text.split(maxsplit=1)
+    ppid = int(parts[0]) if parts and parts[0].isdigit() else None
+    command = parts[1] if len(parts) > 1 else ""
+    cgroup = process_cgroup(pid)
+    return {
+        "pid": pid,
+        "ppid": ppid,
+        "command": command,
+        "cgroup": cgroup,
+        "cgroup_service": service_from_cgroup(cgroup),
+    }
+
+
+def process_cgroup(pid: int) -> str:
+    path = Path("/proc") / str(pid) / "cgroup"
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
+
+
+def service_from_cgroup(cgroup: str) -> str | None:
+    for service in SYSTEMD_SERVICES:
+        if f"{service}.service" in cgroup:
+            return service
+    return None
+
+
+def parse_ss_listeners(output: str) -> list[dict[str, object]]:
+    listeners: list[dict[str, object]] = []
+    for line in output.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        parts = stripped.split()
+        if len(parts) < 4:
+            continue
+        local = parts[3]
+        if ":" not in local:
+            continue
+        bind, port_text = local.rsplit(":", 1)
+        if not port_text.isdigit():
+            continue
+        pid_match = re.search(r"pid=(\d+)", stripped)
+        process_match = re.search(r'users:\(\("([^"]+)"', stripped)
+        listeners.append({
+            "port": int(port_text),
+            "bind": bind,
+            "pid": int(pid_match.group(1)) if pid_match else None,
+            "process": process_match.group(1) if process_match else None,
+            "raw": stripped,
+        })
+    return listeners
+
+
+def _api_version_for_port(port: int) -> dict[str, object]:
+    result = run(["curl", "-sf", f"http://127.0.0.1:{port}/api/v1/version"], timeout=2)
+    if result.returncode != 0:
+        return {}
+    try:
+        parsed = json.loads(result.stdout)
+    except Exception:
+        return {"version_status": "unreadable"}
+    return {
+        "version_status": "ok",
+        "version_hash": parsed.get("git_hash"),
+        "version_source_dirty": parsed.get("source_dirty"),
+        "version_pid": parsed.get("pid"),
+        "version_boot_time": parsed.get("boot_time"),
+    }
+
+
+def collect_ports() -> dict[str, object]:
+    result = run(["ss", "-H", "-tlnp"], timeout=10)
+    if result.returncode != 0:
+        return {"status": "failed", "returncode": result.returncode, "listeners": []}
+    services = systemd_main_pids()
+    listeners = parse_ss_listeners(result.stdout)
+    for listener in listeners:
+        pid = listener.get("pid")
+        if isinstance(pid, int):
+            details = process_details(pid)
+            listener["ppid"] = details.get("ppid")
+            listener["command"] = details.get("command")
+            listener["cgroup"] = details.get("cgroup")
+            listener["service"] = services.get(pid) or details.get("cgroup_service")
+            command = str(listener.get("command") or "")
+            if "edu_cloud.api.app" in command:
+                listener.update(_api_version_for_port(int(listener["port"])))
+    expected = {
+        str(port): {**meta, "present": any(item.get("port") == port for item in listeners)}
+        for port, meta in EXPECTED_PORTS.items()
+    }
+    return {"status": "ok", "listeners": listeners, "expected": expected}
+
+
+def collect_processes() -> dict[str, object]:
+    service_pids = systemd_main_pids()
+    service_by_name = {service: pid for pid, service in service_pids.items()}
+    processes: list[dict[str, object]] = []
+    current_pid = os.getpid()
+    result = run([
+        "pgrep",
+        "-af",
+        r"edu_cloud\.api\.app|scripts/run-arq-worker|guardian-watch|llm_proxy\.app|edu_cloud\.worker|arq.*worker",
+    ], timeout=10)
+    if result.returncode in (0, 1):
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            pid_text, _, command = stripped.partition(" ")
+            if not pid_text.isdigit():
+                continue
+            pid = int(pid_text)
+            if pid == current_pid:
+                continue
+            if "codex-consult-claude" in command or "--no-session-persistence" in command:
+                continue
+            details = process_details(pid)
+            processes.append({
+                "pid": pid,
+                "ppid": details.get("ppid"),
+                "command": command,
+                "cgroup": details.get("cgroup"),
+                "service": service_pids.get(pid) or details.get("cgroup_service"),
+                "is_systemd_main": pid in service_pids,
+            })
+    return {
+        "status": "ok" if result.returncode in (0, 1) else "failed",
+        "services": service_by_name,
+        "project_processes": processes,
     }
 
 

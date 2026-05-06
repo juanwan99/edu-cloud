@@ -26,6 +26,9 @@ High-frequency checks:
 
 - worktree dirty/ahead state
 - frontend/backend dirty risk
+- port inventory for canonical API/dev/proxy ports and parallel backend binds
+- process inventory for systemd-owned services, duplicate workers, and extra
+  Guardian/watch processes
 - risky local artifacts vs active SQLite WAL/SHM runtime files
 - truth doctor health: ports, public binds, ghost processes, systemd state,
   Claude process count, dist permissions, and DB drift
@@ -36,6 +39,38 @@ Network-backed checks, when enabled:
 - local `frontend/dist/version.json`
 - remote `https://mcu.asia/version.json`
 - backend `http://127.0.0.1:9000/api/v1/version`
+- non-canonical edu-cloud backend listeners, when reachable on localhost, so a
+  debug backend on another port can be compared with the current source hash
+
+## Parallel Version Guardrails
+
+Guardian treats these as first-class inventory, not just log text:
+
+- `ports`: listening TCP ports from `ss -tlnp`, enriched with pid, command,
+  systemd owner, and edu-cloud `/api/v1/version` when applicable.
+- `processes`: project-related API, worker, Guardian, and llm-proxy processes,
+  enriched with systemd ownership.
+- `versions`: source HEAD, local dist, nginx, backend, and runtime dirty flags.
+
+Stable issue codes for parallel-version accidents:
+
+- `PARALLEL_BACKEND_PROCESS`: an edu-cloud backend is running outside canonical
+  port 9000.
+- `PARALLEL_VERSION_DRIFT`: a backend listener reports a git hash different
+  from source HEAD.
+- `PARALLEL_RUNTIME_DIRTY`: a backend listener reports `source_dirty=true`.
+- `DUPLICATE_WORKER_PROCESS`: more than one ARQ worker is present, or a worker
+  is not owned by `edu-cloud-worker.service`.
+- `PORT_CONFLICT`: a guarded port has multiple listeners.
+- `PORT_PUBLIC_BIND`: a guarded port is bound publicly.
+- `PORT_OWNER_MISMATCH`: a canonical port is owned by the wrong systemd service.
+- `BACKEND_HOT_RELOAD`: watch state saw the same backend PID report a different
+  hash or boot time, indicating a reload that needs human context.
+
+In watch mode, Guardian also persists `backend_runtimes` in
+`logs/guardian-state.json` so it can compare the current API listener PID,
+reported hash, and boot time with the previous sample. This catches reload-style
+version changes that a single `--once` snapshot cannot prove by itself.
 
 Model checks:
 

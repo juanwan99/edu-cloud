@@ -251,6 +251,8 @@ def test_guardian_runtime_builds_snapshot_from_existing_checks(monkeypatch, tmp_
         "screenshots_exists": False,
     })
     monkeypatch.setattr(module, "collect_versions", lambda no_network=False: {"dist_hash": "abc123", "network": "skipped"})
+    monkeypatch.setattr(module, "collect_ports", lambda: {"status": "ok", "listeners": [], "expected": {}})
+    monkeypatch.setattr(module, "collect_processes", lambda: {"status": "ok", "project_processes": [], "services": {}})
     monkeypatch.setattr(module, "collect_db", lambda: {"status": "ok", "hard": 0, "warn": 0})
     monkeypatch.setattr(module, "collect_guardian_health", lambda: {
         "status": "ok",
@@ -280,6 +282,185 @@ def test_guardian_runtime_builds_snapshot_from_existing_checks(monkeypatch, tmp_
     codes = {issue["issue_code"] for issue in snapshot["issues"]}
     assert {"BACKEND_DIRTY", "RISKY_ARTIFACT", "GHOST_PROCESS"} <= codes
     assert any(issue["blocks_completion"] for issue in snapshot["issues"] if issue["issue_code"] == "BACKEND_DIRTY")
+
+
+def test_codex_support_parses_ss_listener_inventory():
+    module = load_codex_support_module()
+    sample = (
+        'LISTEN 0 2048 0.0.0.0:9001 0.0.0.0:* users:(("python",pid=1234,fd=3))\n'
+        'LISTEN 0 4096 127.0.0.1:9000 0.0.0.0:* users:(("python",pid=2222,fd=9))\n'
+    )
+
+    listeners = module.parse_ss_listeners(sample)
+
+    assert listeners[0]["port"] == 9001
+    assert listeners[0]["bind"] == "0.0.0.0"
+    assert listeners[0]["pid"] == 1234
+    assert listeners[1]["port"] == 9000
+    assert listeners[1]["bind"] == "127.0.0.1"
+
+
+def test_codex_support_no_network_still_checks_local_backend(monkeypatch, tmp_path):
+    module = load_codex_support_module()
+    dist = tmp_path / "frontend" / "dist"
+    dist.mkdir(parents=True)
+    (dist / "version.json").write_text('{"git_hash": "abc123", "source_dirty": false}', encoding="utf-8")
+    calls = []
+
+    def fake_run(args, timeout=10, cwd=None):
+        calls.append(args)
+        if "http://127.0.0.1:9000/api/v1/version" in args:
+            return module.CommandResult(
+                args=args,
+                returncode=0,
+                stdout='{"git_hash": "abc123", "source_dirty": false, "pid": 42, "boot_time": "t0"}',
+                stderr="",
+            )
+        return module.CommandResult(args=args, returncode=1, stdout="", stderr="")
+
+    monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(module, "run", fake_run)
+
+    versions = module.collect_versions(no_network=True)
+
+    assert versions["backend_hash"] == "abc123"
+    assert versions["backend_pid"] == 42
+    assert versions["backend_boot_time"] == "t0"
+    assert not any("https://mcu.asia/version.json" in args for args in calls)
+
+
+def test_guardian_runtime_flags_parallel_backend_and_duplicate_worker(monkeypatch, tmp_path):
+    module = load_guardian_runtime_module()
+
+    monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(module, "collect_git", lambda: {
+        "branch": "master",
+        "head": "abc123",
+        "upstream": "origin/master",
+        "ahead": 0,
+        "status_entries": 0,
+        "backend_dirty": 0,
+        "frontend_dirty": 0,
+        "tests_dirty": 0,
+        "docs_dirty": 0,
+    })
+    monkeypatch.setattr(module, "collect_artifacts", lambda: {
+        "risky_paths": [],
+        "runtime_paths": [],
+        "backups_exists": False,
+        "screenshots_exists": False,
+    })
+    monkeypatch.setattr(module, "collect_versions", lambda no_network=False: {"dist_hash": "abc123", "network": "skipped"})
+    monkeypatch.setattr(module, "collect_ports", lambda: {
+        "status": "ok",
+        "expected": {"9000": {"label": "edu-cloud API", "required": True, "present": True}},
+        "listeners": [
+            {
+                "port": 9000,
+                "bind": "127.0.0.1",
+                "pid": 100,
+                "service": "edu-cloud",
+                "command": "python -m uvicorn edu_cloud.api.app:create_app --port 9000",
+                "version_hash": "abc123",
+                "version_source_dirty": False,
+            },
+            {
+                "port": 9001,
+                "bind": "0.0.0.0",
+                "pid": 101,
+                "service": None,
+                "command": "python -m uvicorn edu_cloud.api.app:create_app --port 9001",
+                "version_hash": "old999",
+                "version_source_dirty": False,
+            },
+        ],
+    })
+    monkeypatch.setattr(module, "collect_processes", lambda: {
+        "status": "ok",
+        "services": {"edu-cloud-worker": 200},
+        "project_processes": [
+            {"pid": 200, "service": "edu-cloud-worker", "command": "python scripts/run-arq-worker"},
+            {"pid": 201, "service": None, "command": "python scripts/run-arq-worker"},
+        ],
+    })
+    monkeypatch.setattr(module, "collect_db", lambda: {"status": "ok", "hard": 0, "warn": 0})
+    monkeypatch.setattr(module, "collect_guardian_health", lambda: {"status": "ok", "issues": []})
+    monkeypatch.setattr(module, "safety_risks", lambda no_network=False: [])
+
+    snapshot = module.build_snapshot(no_network=True)
+    codes = {issue["issue_code"] for issue in snapshot["issues"]}
+
+    assert snapshot["ports"]["listeners"][1]["port"] == 9001
+    assert {"PARALLEL_BACKEND_PROCESS", "PARALLEL_VERSION_DRIFT", "DUPLICATE_WORKER_PROCESS"} <= codes
+    assert snapshot["overall"] == "red"
+
+
+def test_guardian_runtime_flags_port_conflict_and_backend_hot_reload(monkeypatch, tmp_path):
+    module = load_guardian_runtime_module()
+
+    monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(module, "collect_git", lambda: {
+        "branch": "master",
+        "head": "new999",
+        "upstream": "origin/master",
+        "ahead": 0,
+        "status_entries": 0,
+        "backend_dirty": 0,
+        "frontend_dirty": 0,
+        "tests_dirty": 0,
+        "docs_dirty": 0,
+    })
+    monkeypatch.setattr(module, "collect_artifacts", lambda: {
+        "risky_paths": [],
+        "runtime_paths": [],
+        "backups_exists": False,
+        "screenshots_exists": False,
+    })
+    monkeypatch.setattr(module, "collect_versions", lambda no_network=False: {
+        "dist_hash": "new999",
+        "backend_hash": "new999",
+        "backend_pid": 100,
+        "backend_boot_time": "t1",
+        "network": "skipped",
+    })
+    monkeypatch.setattr(module, "collect_ports", lambda: {
+        "status": "ok",
+        "expected": {"9000": {"label": "edu-cloud API", "required": True, "present": True}},
+        "listeners": [
+            {
+                "port": 9000,
+                "bind": "0.0.0.0",
+                "pid": 101,
+                "service": None,
+                "command": "python -m uvicorn edu_cloud.api.app:create_app --port 9000",
+                "version_hash": "new999",
+                "version_source_dirty": False,
+                "version_boot_time": "t1",
+            },
+            {
+                "port": 9000,
+                "bind": "127.0.0.1",
+                "pid": 100,
+                "service": "edu-cloud",
+                "command": "python -m uvicorn edu_cloud.api.app:create_app --port 9000",
+                "version_hash": "new999",
+                "version_source_dirty": False,
+                "version_boot_time": "t1",
+            },
+        ],
+    })
+    monkeypatch.setattr(module, "collect_processes", lambda: {"status": "ok", "project_processes": [], "services": {}})
+    monkeypatch.setattr(module, "collect_db", lambda: {"status": "ok", "hard": 0, "warn": 0})
+    monkeypatch.setattr(module, "collect_guardian_health", lambda: {"status": "ok", "issues": []})
+    monkeypatch.setattr(module, "safety_risks", lambda no_network=False: [])
+
+    state = {"backend_runtimes": {"9000": {"pid": 100, "git_hash": "old123", "boot_time": "t1"}}}
+    config = module.WatchConfig(state_file=tmp_path / "guardian-state.json", jsonl_file=None)
+    snapshot = module.run_once(config, state)
+    codes = {issue["issue_code"] for issue in snapshot["issues"]}
+
+    assert {"PORT_CONFLICT", "PORT_PUBLIC_BIND", "BACKEND_HOT_RELOAD"} <= codes
+    assert state["backend_runtimes"]["9000"]["git_hash"] == "new999"
 
 
 def test_guardian_watch_once_json_outputs_runtime_schema():
@@ -346,8 +527,13 @@ def test_guardian_fingerprint_ignores_worktree_dirty_count_noise():
         dict(base[0], summary="working tree dirty: 15 changed/untracked path(s)"),
         base[1],
     ]
+    changed_pid = [
+        base[0],
+        dict(base[1], summary="ghost PID=2117999"),
+    ]
 
     assert module.issue_fingerprint(base) == module.issue_fingerprint(changed_count)
+    assert module.issue_fingerprint(base) == module.issue_fingerprint(changed_pid)
 
 
 def test_guardian_systemd_template_is_present():

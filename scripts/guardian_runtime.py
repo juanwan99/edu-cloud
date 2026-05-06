@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shlex
 import subprocess
 import time
@@ -24,6 +25,8 @@ from codex_support import (
     collect_db,
     collect_git,
     collect_guardian_health,
+    collect_ports,
+    collect_processes,
     collect_versions,
     safety_risks,
 )
@@ -254,6 +257,253 @@ def issues_from_versions(versions: dict[str, Any], git_info: dict[str, Any]) -> 
     return issues
 
 
+def is_public_bind(bind: object) -> bool:
+    value = str(bind or "")
+    return value in {"0.0.0.0", "[::]", "::", "*"}
+
+
+def issues_from_ports(ports: dict[str, Any], git_info: dict[str, Any]) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    if ports.get("status") not in {"ok", None}:
+        return [
+            issue(
+                "PORT_INVENTORY_FAILED",
+                "yellow",
+                f"port inventory status={ports.get('status')}",
+                "ss -tlnp",
+                required_before="handoff",
+                source="codex_support.collect_ports",
+            )
+        ]
+
+    listeners = [item for item in ports.get("listeners", []) if isinstance(item, dict)]
+    expected = ports.get("expected", {}) if isinstance(ports.get("expected"), dict) else {}
+    for port_text, meta in expected.items():
+        if not isinstance(meta, dict):
+            continue
+        if meta.get("required") and not meta.get("present"):
+            issues.append(
+                issue(
+                    "EXPECTED_PORT_MISSING",
+                    "red",
+                    f"required port {port_text} ({meta.get('label')}) has no listener",
+                    f"systemctl status {meta.get('service') or 'edu-cloud'}",
+                    blocks_completion=True,
+                    source="codex_support.collect_ports",
+                )
+            )
+
+    listeners_by_port: dict[int, list[dict[str, Any]]] = {}
+    for item in listeners:
+        port = item.get("port")
+        if isinstance(port, int):
+            listeners_by_port.setdefault(port, []).append(item)
+    for port, port_list in sorted(listeners_by_port.items()):
+        guarded = str(port) in expected or any("edu_cloud.api.app" in str(item.get("command") or "") for item in port_list)
+        if guarded and len(port_list) > 1:
+            pids = ", ".join(str(item.get("pid") or "unknown") for item in port_list)
+            issues.append(
+                issue(
+                    "PORT_CONFLICT",
+                    "red" if port == 9000 else "yellow",
+                    f"port {port} has {len(port_list)} listener(s): PID={pids}",
+                    f"ss -tlnp 'sport = :{port}'",
+                    blocks_completion=port == 9000,
+                    required_before="handoff",
+                    source="codex_support.collect_ports",
+                )
+            )
+
+    head = str(git_info.get("head") or "")
+    for item in listeners:
+        port = item.get("port")
+        bind = item.get("bind")
+        command = str(item.get("command") or "")
+        service = item.get("service")
+        if port in {9000, 8080, 8100} and is_public_bind(bind):
+            issues.append(
+                issue(
+                    "PORT_PUBLIC_BIND",
+                    "red" if port in {9000, 8080} else "yellow",
+                    f"port {port} is bound to {bind}",
+                    "scripts/truth doctor --json",
+                    blocks_completion=port in {9000, 8080},
+                    source="codex_support.collect_ports",
+                )
+            )
+        if "edu_cloud.api.app" in command and port != 9000:
+            public = is_public_bind(bind)
+            issues.append(
+                issue(
+                    "PARALLEL_BACKEND_PROCESS",
+                    "red" if public else "yellow",
+                    f"parallel edu-cloud backend PID={item.get('pid')} on {bind}:{port}",
+                    f"inspect PID {item.get('pid')} and stop the debug backend if stale",
+                    blocks_completion=public,
+                    required_before="handoff",
+                    source="codex_support.collect_ports",
+                )
+            )
+        if port == 9000 and "edu_cloud.api.app" in command and service != "edu-cloud":
+            issues.append(
+                issue(
+                    "PORT_OWNER_MISMATCH",
+                    "red",
+                    f"port 9000 is owned by {service}, expected edu-cloud",
+                    "systemctl status edu-cloud",
+                    blocks_completion=True,
+                    source="codex_support.collect_ports",
+                )
+            )
+        version_hash = item.get("version_hash")
+        if head and version_hash and version_hash != head:
+            issues.append(
+                issue(
+                    "PARALLEL_VERSION_DRIFT",
+                    "red",
+                    f"backend on port {port} reports {version_hash}, source HEAD is {head}",
+                    f"inspect PID {item.get('pid')} and restart/stop the stale backend",
+                    blocks_completion=True,
+                    source="codex_support.collect_ports",
+                )
+            )
+        if item.get("version_source_dirty") is True:
+            issues.append(
+                issue(
+                    "PARALLEL_RUNTIME_DIRTY",
+                    "red",
+                    f"backend on port {port} reports source_dirty=true",
+                    f"inspect PID {item.get('pid')} and restart from clean source",
+                    blocks_completion=True,
+                    source="codex_support.collect_ports",
+                )
+            )
+    return issues
+
+
+def issues_from_processes(processes: dict[str, Any]) -> list[dict[str, Any]]:
+    if processes.get("status") not in {"ok", None}:
+        return [
+            issue(
+                "PROCESS_INVENTORY_FAILED",
+                "yellow",
+                f"process inventory status={processes.get('status')}",
+                "pgrep -af 'edu_cloud|run-arq-worker|guardian-watch'",
+                required_before="handoff",
+                source="codex_support.collect_processes",
+            )
+        ]
+
+    project_processes = [
+        item for item in processes.get("project_processes", [])
+        if isinstance(item, dict)
+    ]
+    issues: list[dict[str, Any]] = []
+    workers = [
+        item for item in project_processes
+        if re.search(r"scripts/run-arq-worker|edu_cloud\.worker|arq.*worker", str(item.get("command") or ""))
+    ]
+    non_systemd_workers = [item for item in workers if item.get("service") != "edu-cloud-worker"]
+    if len(workers) > 1 or non_systemd_workers:
+        pids = ", ".join(str(item.get("pid")) for item in workers)
+        issues.append(
+            issue(
+                "DUPLICATE_WORKER_PROCESS",
+                "yellow",
+                f"{len(workers)} edu-cloud worker process(es) detected: {pids}",
+                "systemctl status edu-cloud-worker; inspect non-systemd workers before stopping",
+                blocks_completion=False,
+                required_before="session_end",
+                source="codex_support.collect_processes",
+            )
+        )
+
+    guardians = [item for item in project_processes if "guardian-watch" in str(item.get("command") or "")]
+    non_systemd_guardians = [item for item in guardians if item.get("service") != "edu-cloud-guardian"]
+    if len(guardians) > 1 or non_systemd_guardians:
+        pids = ", ".join(str(item.get("pid")) for item in guardians)
+        issues.append(
+            issue(
+                "DUPLICATE_GUARDIAN_PROCESS",
+                "yellow",
+                f"{len(guardians)} Guardian process(es) detected: {pids}",
+                "systemctl status edu-cloud-guardian; inspect extra guardian processes",
+                blocks_completion=False,
+                required_before="session_end",
+                source="codex_support.collect_processes",
+            )
+        )
+    return issues
+
+
+def backend_runtimes_from_snapshot(snapshot: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    ports = snapshot.get("ports") if isinstance(snapshot.get("ports"), dict) else {}
+    runtimes: dict[str, dict[str, Any]] = {}
+    for item in (ports.get("listeners", []) if isinstance(ports, dict) else []):
+        if not isinstance(item, dict):
+            continue
+        command = str(item.get("command") or "")
+        if "edu_cloud.api.app" not in command and item.get("version_status") != "ok":
+            continue
+        port = item.get("port")
+        if not isinstance(port, int):
+            continue
+        runtime = {
+            "port": port,
+            "pid": item.get("version_pid") or item.get("pid"),
+            "git_hash": item.get("version_hash"),
+            "source_dirty": item.get("version_source_dirty"),
+            "boot_time": item.get("version_boot_time"),
+            "bind": item.get("bind"),
+            "service": item.get("service"),
+        }
+        runtimes[str(port)] = runtime
+    return runtimes
+
+
+def issues_from_runtime_transitions(snapshot: dict[str, Any], state: dict[str, Any]) -> list[dict[str, Any]]:
+    previous = state.get("backend_runtimes")
+    if not isinstance(previous, dict):
+        return []
+    current = backend_runtimes_from_snapshot(snapshot)
+    issues: list[dict[str, Any]] = []
+    for port, runtime in current.items():
+        old = previous.get(port)
+        if not isinstance(old, dict):
+            continue
+        old_pid = old.get("pid")
+        new_pid = runtime.get("pid")
+        old_hash = old.get("git_hash")
+        new_hash = runtime.get("git_hash")
+        old_boot = old.get("boot_time")
+        new_boot = runtime.get("boot_time")
+        if old_pid and new_pid and old_pid == new_pid and old_hash and new_hash and old_hash != new_hash:
+            issues.append(
+                issue(
+                    "BACKEND_HOT_RELOAD",
+                    "yellow",
+                    f"backend port {port} kept PID={new_pid} but git hash changed {old_hash}->{new_hash}",
+                    f"inspect PID {new_pid}; restart through systemd if this was not intentional",
+                    blocks_completion=False,
+                    required_before="handoff",
+                    source="guardian-watch.runtime_state",
+                )
+            )
+        if old_pid and new_pid and old_pid == new_pid and old_boot and new_boot and old_boot != new_boot:
+            issues.append(
+                issue(
+                    "BACKEND_HOT_RELOAD",
+                    "yellow",
+                    f"backend port {port} kept PID={new_pid} but boot_time changed {old_boot}->{new_boot}",
+                    f"inspect PID {new_pid}; restart through systemd if this was not intentional",
+                    blocks_completion=False,
+                    required_before="handoff",
+                    source="guardian-watch.runtime_state",
+                )
+            )
+    return issues
+
+
 def dedupe_issues(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     by_key: dict[tuple[str, str], dict[str, Any]] = {}
     for item in items:
@@ -271,6 +521,26 @@ def dedupe_issues(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     )
 
 
+def rebuild_issue_summary(snapshot: dict[str, Any]) -> None:
+    issues = dedupe_issues([item for item in snapshot.get("issues", []) if isinstance(item, dict)])
+    red_count = sum(1 for item in issues if item.get("severity") == "red" or item.get("blocks_completion"))
+    yellow_count = sum(1 for item in issues if item.get("severity") == "yellow" and not item.get("blocks_completion"))
+    snapshot["issues"] = issues
+    snapshot["red_count"] = red_count
+    snapshot["yellow_count"] = yellow_count
+    snapshot["overall"] = "red" if red_count else "yellow" if yellow_count else "green"
+    snapshot["fingerprint"] = issue_fingerprint(issues)
+    snapshot["actions"] = [
+        {
+            "issue_code": item.get("issue_code"),
+            "required_before": item.get("required_before", "completion"),
+            "command_hint": item.get("command_hint"),
+            "blocks_completion": bool(item.get("blocks_completion")),
+        }
+        for item in issues
+    ]
+
+
 def issue_fingerprint(issues: list[dict[str, Any]]) -> str:
     payload = []
     for item in issues:
@@ -278,6 +548,10 @@ def issue_fingerprint(issues: list[dict[str, Any]]) -> str:
         summary = item.get("summary")
         if code == "WORKTREE_DIRTY":
             summary = "working tree dirty"
+        if code in {"GHOST_PROCESS", "DUPLICATE_WORKER_PROCESS", "DUPLICATE_GUARDIAN_PROCESS", "PORT_CONFLICT"}:
+            summary = re.sub(r"\bPID=\d+", "PID=<pid>", str(summary))
+            summary = re.sub(r"\bPID \d+", "PID <pid>", str(summary))
+            summary = re.sub(r"\bpid=\d+", "pid=<pid>", str(summary))
         payload.append(
             {
                 "issue_code": code,
@@ -294,6 +568,8 @@ def build_snapshot(*, no_network: bool = False, mode: str = "snapshot") -> dict[
     git_info = collect_git()
     artifacts = collect_artifacts()
     versions = collect_versions(no_network=no_network)
+    ports = collect_ports()
+    processes = collect_processes()
     db = collect_db()
     guardian = collect_guardian_health()
     risks = safety_risks(no_network=no_network)
@@ -314,6 +590,8 @@ def build_snapshot(*, no_network: bool = False, mode: str = "snapshot") -> dict[
     issues.extend(issues_from_safety_risks(risks))
     issues.extend(issues_from_artifacts(artifacts))
     issues.extend(issues_from_versions(versions, git_info))
+    issues.extend(issues_from_ports(ports, git_info))
+    issues.extend(issues_from_processes(processes))
     if guardian.get("status") == "ok":
         issues.extend(normalize_truth_issue(item) for item in guardian.get("issues", []) if isinstance(item, dict))
     elif guardian.get("status") != "ok":
@@ -365,6 +643,8 @@ def build_snapshot(*, no_network: bool = False, mode: str = "snapshot") -> dict[
         "fingerprint": issue_fingerprint(merged),
         "git": git_info,
         "versions": versions,
+        "ports": ports,
+        "processes": processes,
         "db": db,
         "artifacts": artifacts,
         "guardian_health": guardian,
@@ -543,6 +823,11 @@ def maybe_run_model_review(
 def run_once(config: WatchConfig, runtime_state: dict[str, Any] | None = None, *, mode: str = "once") -> dict[str, Any]:
     state = {} if runtime_state is None else runtime_state
     snapshot = build_snapshot(no_network=config.no_network, mode=mode)
+    transition_issues = issues_from_runtime_transitions(snapshot, state)
+    if transition_issues:
+        snapshot["issues"] = [*snapshot.get("issues", []), *transition_issues]
+        rebuild_issue_summary(snapshot)
+    state["backend_runtimes"] = backend_runtimes_from_snapshot(snapshot)
     if config.model_review and snapshot.get("overall") != "green":
         snapshot["model_review"] = {"status": "pending"}
         write_state(config.state_file, snapshot, state)
