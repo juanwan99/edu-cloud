@@ -287,8 +287,18 @@ def verify_schema(args: argparse.Namespace) -> int:
     return run_sequence(commands, args.dry_run)
 
 
+def verify_meta_gate(args: argparse.Namespace) -> int:
+    commands = [
+        ([str(PROJECT_ROOT / "scripts" / "meta-check"), "--strict"], PROJECT_ROOT),
+    ]
+    return run_sequence(commands, args.dry_run)
+
+
 def verify_full(args: argparse.Namespace) -> int:
     rc = verify_safety(args)
+    if rc != 0:
+        return rc
+    rc = verify_meta_gate(args)
     if rc != 0:
         return rc
     backend_args = argparse.Namespace(dry_run=args.dry_run, schema=False, pytest_args=[])

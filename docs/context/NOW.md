@@ -1,12 +1,13 @@
 # NOW
 
-Last refreshed: 2026-05-06 22:40 Asia/Shanghai
+Last refreshed: 2026-05-06 23:31 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
 
 ```bash
 scripts/codex-context --no-network
+scripts/meta-check --json --strict --task "current user task"
 scripts/guardian-watch --once --no-network --no-model-review
 scripts/truth-status.sh /home/ops/projects/edu-cloud
 scripts/truth doctor --json
@@ -45,10 +46,15 @@ Codex-native migration layer is now committed:
 
 - `AGENTS.md`: active Codex entrypoint.
 - `docs/context/GOVERNANCE_MODEL.md`: 元守双核心 model.
+- `docs/context/META_RUNTIME.md`: Meta Core task-contract runtime.
 - `docs/context/**`: current facts, commands, lessons, safety matrix, active
   index, artifact policy, and Claude auxiliary protocol.
 - `scripts/codex-context`: current project summary.
 - `scripts/codex-check`: read-only start-of-work preflight.
+- `scripts/meta-check`: synchronous Meta Core runtime. It emits
+  `meta.core.v1` snapshots and can write `logs/meta-state.json` for the latest
+  task contract. `scripts/codex-verify full` runs `scripts/meta-check --strict`
+  before backend/frontend gates.
 - `scripts/codex-consult-claude`: read-only Claude Code auxiliary reviewer
   wrapper.
 - `scripts/codex-verify`: completion verification wrapper with `safety`,
@@ -65,6 +71,16 @@ The governance model is formally **元守双核心**:
 - Guardian Core / 守护核: owns dirty state, truthline, DB/migration gates,
   safety scanning, frontend/backend build-runtime consistency, and environment
   hygiene.
+
+Meta runtime boundary:
+
+- allowed: classify active-context, NOW freshness, lesson, registration,
+  Claude-boundary, plan evidence, and task-obligation risks
+- allowed: write `logs/meta-state.json` when explicitly run with
+  `--write-state`
+- forbidden: auto-edit files, override user instructions, let Claude/GPT claim
+  completion, run builds/migrations/deploys, or replace Guardian realtime
+  monitoring
 
 Guardian realtime runtime boundary:
 

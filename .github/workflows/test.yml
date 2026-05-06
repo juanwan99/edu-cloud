@@ -10,9 +10,10 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m pip install pytest
-      - run: python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
+      - run: python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
       - run: python -m pytest tests/governance/test_codex_scripts.py -q
       - run: scripts/codex-check --no-network
+      - run: scripts/meta-check --json --strict
       - run: scripts/codex-context --no-network
       - run: scripts/codex-consult-claude --dry-run review CI smoke
       - run: scripts/codex-verify safety --repo-wide

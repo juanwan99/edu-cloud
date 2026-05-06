@@ -13,6 +13,7 @@ from codex_support import (
     collect_git,
     collect_guardian_health,
     collect_guardian_runtime_state,
+    collect_meta_runtime_state,
     collect_versions,
     count_known_failures,
     print_kv,
@@ -31,6 +32,7 @@ def main() -> int:
     artifacts = collect_artifacts()
     risks = safety_risks(no_network=args.no_network)
     guardian = collect_guardian_health()
+    meta_runtime = collect_meta_runtime_state()
     guardian_runtime = collect_guardian_runtime_state()
 
     print(f"Codex Context  {datetime.now().isoformat(timespec='seconds')}")
@@ -79,6 +81,17 @@ def main() -> int:
             print(f"  - {risk}")
     else:
         print("  - none detected")
+    print()
+
+    print("Meta Runtime")
+    print_kv("state", meta_runtime.get("status"))
+    if meta_runtime.get("status") == "ok":
+        print_kv("snapshot_at", meta_runtime.get("snapshot_at"))
+        print_kv("overall", meta_runtime.get("overall"))
+        print_kv("issues", meta_runtime.get("issue_count"))
+        print_kv("obligations", meta_runtime.get("obligation_count"))
+    else:
+        print_kv("state_file", meta_runtime.get("state_file"))
     print()
 
     print("Guardian Health")

@@ -33,7 +33,10 @@ Primary files and tools:
 - `docs/context/COMMANDS.md`
 - `docs/context/LESSONS.md`
 - `docs/context/CLAUDE_AUX.md`
+- `docs/context/META_RUNTIME.md`
 - `scripts/codex-context`
+- `scripts/meta-check`
+- `scripts/meta_runtime.py`
 - `scripts/codex-consult-claude`
 
 Core capabilities:
@@ -44,6 +47,34 @@ Core capabilities:
 - Evidence requirements for decisions and completion claims
 - Asset inventory before new design or architecture work
 - Claude read-only counter-review
+
+## Meta Runtime / 元控运行时
+
+`scripts/meta-check` is the executable Meta Core runtime. It is synchronous and
+task-bound: run it at task start, before broad design decisions, and before
+completion claims. It writes an optional latest state file at
+`logs/meta-state.json`.
+
+It guards:
+
+- active context documents exist and are indexed
+- `docs/context/NOW.md` has a fresh current-facts timestamp
+- project lessons include structural Meta risks from past failures
+- Meta runtime remains registered in active entrypoint docs
+- Claude auxiliary review remains read-only and Codex-led
+- changed plan/design/handoff documents include evidence, existing-asset
+  inventory, or delivery-path sections
+- current user task text is decomposed into obligations such as evidence
+  mining, read-only model review, implementation verification, autonomy, and
+  multi-step instruction handling
+
+Authority boundaries:
+
+- It may observe, classify, write a task-contract snapshot, and block a
+  completion claim when red issues are present.
+- It must not edit files automatically, replace user instructions, or declare
+  completion.
+- It must not replace Guardian's continuous environment monitoring.
 
 ## Guardian Core / 守护核
 

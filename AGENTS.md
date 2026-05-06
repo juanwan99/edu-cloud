@@ -6,6 +6,8 @@ edu-cloud uses **元守双核心**:
 
 - **Meta Core / 元控核**: owns direction, facts, task boundaries, context,
   Claude read-only counter-review, and the completion evidence contract.
+  Its task-bound runtime is `scripts/meta-check`; the contract is documented in
+  `docs/context/META_RUNTIME.md`.
 - **Guardian Core / 守护核**: owns dirty state, truthline, DB/migration gates,
   safety scanning, frontend/backend build-runtime consistency, and environment hygiene.
   Its realtime runtime is `scripts/guardian-watch`, installed by
@@ -17,9 +19,12 @@ The model is Codex-led and Claude-assisted.
 ## Start Here
 
 1. Run `scripts/codex-check`.
-2. Read `docs/context/NOW.md`.
-3. Read `docs/context/ACTIVE_INDEX.md` before using old plans or handoffs.
-4. Do not clean, stash, overwrite, or revert dirty work unless the user explicitly asks.
+2. Run `scripts/meta-check --task "<current user task>" --write-state` for
+   non-trivial tasks, especially tasks involving design, evidence, review, or
+   multi-step delivery.
+3. Read `docs/context/NOW.md`.
+4. Read `docs/context/ACTIVE_INDEX.md` before using old plans or handoffs.
+5. Do not clean, stash, overwrite, or revert dirty work unless the user explicitly asks.
 
 ## Project
 
@@ -53,6 +58,7 @@ The model is Codex-led and Claude-assisted.
 
 ```bash
 scripts/codex-check
+scripts/meta-check --json --strict
 scripts/codex-context --no-network
 scripts/guardian-watch --once --no-network --no-model-review
 scripts/codex-consult-claude --dry-run review "check read-only boundary"
@@ -87,6 +93,7 @@ Claude Code may be used only through `scripts/codex-consult-claude` as a Codex-i
 ## Current Context Files
 
 - `docs/context/GOVERNANCE_MODEL.md`: 元守双核心 model.
+- `docs/context/META_RUNTIME.md`: Meta Core task-contract runtime.
 - `docs/context/GUARDIAN_RUNTIME.md`: Guardian Core realtime runtime contract.
 - `docs/context/NOW.md`: current project facts and risks.
 - `docs/context/COMMANDS.md`: authoritative commands.

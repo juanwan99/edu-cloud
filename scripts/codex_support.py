@@ -234,6 +234,36 @@ def collect_guardian_runtime_state() -> dict[str, object]:
     }
 
 
+def collect_meta_runtime_state() -> dict[str, object]:
+    state_file = PROJECT_ROOT / "logs" / "meta-state.json"
+    if not state_file.exists():
+        return {"status": "missing", "state_file": str(state_file)}
+    try:
+        parsed = json.loads(state_file.read_text(encoding="utf-8"))
+    except Exception:
+        return {"status": "unreadable", "state_file": str(state_file)}
+    latest = parsed.get("latest_snapshot") if isinstance(parsed, dict) else {}
+    if not isinstance(latest, dict):
+        latest = {}
+    contract = latest.get("task_contract")
+    if not isinstance(contract, dict):
+        contract = {}
+    obligations = contract.get("obligations")
+    if not isinstance(obligations, list):
+        obligations = []
+    return {
+        "status": "ok",
+        "state_file": str(state_file),
+        "updated_at": parsed.get("updated_at") if isinstance(parsed, dict) else None,
+        "snapshot_at": latest.get("generated_at"),
+        "overall": latest.get("overall"),
+        "red_count": latest.get("red_count"),
+        "yellow_count": latest.get("yellow_count"),
+        "issue_count": len(latest.get("issues", [])) if isinstance(latest.get("issues"), list) else None,
+        "obligation_count": len(obligations),
+    }
+
+
 def safety_risks(no_network: bool = False) -> list[str]:
     git_info = collect_git()
     artifacts = collect_artifacts()

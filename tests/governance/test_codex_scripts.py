@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from importlib.machinery import SourceFileLoader
 
@@ -59,6 +60,18 @@ def load_guardian_runtime_module():
     return module
 
 
+def load_meta_runtime_module():
+    scripts_dir = PROJECT_ROOT / "scripts"
+    sys.path.insert(0, str(scripts_dir))
+    loader = SourceFileLoader("meta_runtime_test", str(scripts_dir / "meta_runtime.py"))
+    spec = importlib.util.spec_from_loader("meta_runtime_test", loader)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["meta_runtime_test"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_codex_context_no_network_outputs_project_sections():
     result = run_script("codex-context", "--no-network")
 
@@ -75,6 +88,7 @@ def test_codex_context_no_network_outputs_project_sections():
     assert "Guardian Health" in result.stdout
     assert "overall:" in result.stdout
     assert "issues:" in result.stdout
+    assert "Meta Runtime" in result.stdout
     assert "Guardian Runtime" in result.stdout
     assert "Verification Baseline" in result.stdout
 
@@ -90,10 +104,12 @@ def test_dual_core_governance_model_is_active_context():
     assert "ECP-DualCore" not in model_text
     assert "Meta Core" in model_text
     assert "Guardian Core" in model_text
+    assert "Meta Runtime" in model_text
     assert "Codex-led" in model_text
     assert "Claude-assisted" in model_text
 
     assert "docs/context/GOVERNANCE_MODEL.md" in active_index.read_text(encoding="utf-8")
+    assert "docs/context/META_RUNTIME.md" in active_index.read_text(encoding="utf-8")
     agents_text = agents.read_text(encoding="utf-8")
     assert "元守双核心" in agents_text
     assert "EduCloud Dual-Core Control Plane" not in agents_text
@@ -337,6 +353,123 @@ def test_guardian_systemd_template_is_present():
     assert "MemoryMax=512M" in unit_text
 
 
+def test_meta_runtime_builds_snapshot_from_context():
+    module = load_meta_runtime_module()
+
+    snapshot = module.build_snapshot(task="升级元能力核心，双模型启动，基于实证深度挖掘")
+
+    assert snapshot["schema"] == "meta.core.v1"
+    assert snapshot["overall"] in {"green", "yellow", "red"}
+    assert "task_contract" in snapshot
+    obligations = {item["code"] for item in snapshot["task_contract"]["obligations"]}
+    assert {"EVIDENCE_MATRIX", "CLAUDE_REVIEW", "IMPLEMENT_AND_VERIFY"} <= obligations
+    assert any(check["name"] == "active_docs" for check in snapshot["checks"])
+
+
+def test_meta_runtime_detects_missing_active_doc(tmp_path):
+    module = load_meta_runtime_module()
+    context = tmp_path / "docs" / "context"
+    context.mkdir(parents=True)
+    (context / "ACTIVE_INDEX.md").write_text(
+        """# Active Document Index
+
+## Active
+
+| Path | Status | Use |
+|---|---|---|
+| `AGENTS.md` | active | entry |
+| `docs/context/MISSING.md` | active | missing |
+
+## Candidate Active Work
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "AGENTS.md").write_text("entry\n", encoding="utf-8")
+
+    issues = module.check_active_docs(tmp_path)
+
+    assert any(issue["issue_code"] == "ACTIVE_DOC_MISSING" for issue in issues)
+
+
+def test_meta_runtime_ignores_historical_wildcards_in_active_index_intro(tmp_path):
+    module = load_meta_runtime_module()
+    context = tmp_path / "docs" / "context"
+    context.mkdir(parents=True)
+    (context / "ACTIVE_INDEX.md").write_text(
+        """# Active Document Index
+
+Anything not listed here, including `docs/plans/**`, is historical.
+
+## Active
+
+| Path | Status | Use |
+|---|---|---|
+| `AGENTS.md` | active | entry |
+
+## Candidate Active Work
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "AGENTS.md").write_text("entry\n", encoding="utf-8")
+
+    assert module.check_active_docs(tmp_path) == []
+
+
+def test_meta_runtime_detects_plan_without_evidence():
+    module = load_meta_runtime_module()
+
+    issues = module.check_plan_contract(
+        Path("docs/superpowers/plans/demo-plan.md"),
+        "# Demo Implementation Plan\n\n**Goal:** Build it.\n\n**Architecture:** New thing.\n",
+    )
+
+    assert any(issue["issue_code"] == "PLAN_EVIDENCE_GAP" for issue in issues)
+
+
+def test_meta_runtime_detects_stale_now_facts(tmp_path):
+    module = load_meta_runtime_module()
+    context = tmp_path / "docs" / "context"
+    context.mkdir(parents=True)
+    (context / "NOW.md").write_text(
+        "# NOW\n\nLast refreshed: 2026-05-01 08:00 Asia/Shanghai\n",
+        encoding="utf-8",
+    )
+    now = datetime(2026, 5, 6, 8, 0, tzinfo=timezone(timedelta(hours=8)))
+
+    issues = module.check_now_freshness(tmp_path, now=now)
+
+    stale = [issue for issue in issues if issue["issue_code"] == "STALE_FACTS"]
+    assert stale
+    assert stale[0]["severity"] == "red"
+    assert stale[0]["blocks_completion"] is True
+
+
+def test_meta_check_once_json_outputs_schema():
+    result = run_script(
+        "meta-check",
+        "--json",
+        "--task",
+        "升级元能力核心，双模型启动，基于实证深度挖掘",
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["schema"] == "meta.core.v1"
+    assert payload["task_contract"]["task"]
+    assert "issues" in payload
+
+
+def test_meta_runtime_contract_and_lessons_are_active():
+    lessons = (PROJECT_ROOT / "docs" / "context" / "LESSONS.md").read_text(encoding="utf-8")
+    commands = (PROJECT_ROOT / "docs" / "context" / "COMMANDS.md").read_text(encoding="utf-8")
+    model = (PROJECT_ROOT / "docs" / "context" / "GOVERNANCE_MODEL.md").read_text(encoding="utf-8")
+
+    for lesson in ("L017", "L019", "L022"):
+        assert lesson in lessons
+    assert "scripts/meta-check" in commands
+    assert "docs/context/META_RUNTIME.md" in model
+
+
 def test_frontend_dev_server_binds_loopback_by_default():
     config = (PROJECT_ROOT / "frontend" / "vite.config.js").read_text(encoding="utf-8")
 
@@ -377,6 +510,7 @@ def test_codex_consult_claude_system_prompt_preserves_codex_authority():
     assert "Codex is the orchestrator" in result.stdout
     assert "AGENTS.md is authoritative" in result.stdout
     assert "CLAUDE.md is historical" in result.stdout
+    assert "Meta Core task contract" in result.stdout
     assert "Do not edit files" in result.stdout
 
 
@@ -540,6 +674,7 @@ def test_codex_verify_full_schema_dry_run_lists_schema_gate_once():
     result = run_script("codex-verify", "full", "--dry-run", "--schema", "--no-network", "--allow-dirty-build")
 
     assert result.returncode == 0
+    assert "scripts/meta-check --strict" in result.stdout
     assert result.stdout.count("scripts/db_doctor.py --strict") == 1
     assert "scripts/pytest_delta.py" in result.stdout
     assert "npm run build" in result.stdout
@@ -565,9 +700,10 @@ def test_ci_governance_job_runs_codex_smoke_checks():
 
     assert "governance:" in text
     for command in (
-        "python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker",
+        "python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker",
         "python -m pytest tests/governance/test_codex_scripts.py -q",
         "scripts/codex-check --no-network",
+        "scripts/meta-check --json --strict",
         "scripts/codex-context --no-network",
         "scripts/codex-consult-claude --dry-run review CI smoke",
         "scripts/codex-verify safety --repo-wide",

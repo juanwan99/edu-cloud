@@ -7,6 +7,7 @@ Authoritative command reference for Codex work in `edu-cloud`.
 ```bash
 cd /home/ops/projects/edu-cloud
 scripts/codex-check
+scripts/meta-check --task "current user task" --write-state
 scripts/codex-context --no-network
 git status --short --branch
 ```
@@ -18,6 +19,34 @@ Meta Core / 元控核 covers direction, facts, task boundaries, context, Claude
 read-only counter-review, and the completion evidence contract. Guardian Core /
 守护核 covers dirty state, truthline, DB/migration gates, safety scanning,
 frontend/backend build-runtime consistency, and environment hygiene.
+
+## Meta Runtime
+
+One-shot task-contract check:
+
+```bash
+scripts/meta-check --task "current user task"
+scripts/meta-check --json --task "current user task"
+```
+
+Write the latest task-contract state for `scripts/codex-context`:
+
+```bash
+scripts/meta-check --task "current user task" --write-state
+```
+
+Strict automation mode:
+
+```bash
+scripts/meta-check --strict --task "current user task"
+```
+
+`scripts/meta-check` emits `meta.core.v1`. It checks active-context documents,
+`NOW.md` freshness, migrated Meta lessons, Meta runtime registration, Claude
+read-only boundaries, changed plan/design/handoff evidence sections, and task
+obligations inferred from the current user instruction. It is synchronous and
+advisory: it may block completion when red issues exist, but it does not edit
+files, run migrations, build, deploy, or declare completion.
 
 ## Truthline
 
@@ -219,9 +248,10 @@ scripts/codex-verify full --schema
 `.github/workflows/test.yml` includes a lightweight `governance` job that runs:
 
 ```bash
-python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
+python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
 python -m pytest tests/governance/test_codex_scripts.py -q
 scripts/codex-check --no-network
+scripts/meta-check --json --strict
 scripts/codex-context --no-network
 scripts/codex-consult-claude --dry-run review CI smoke
 scripts/codex-verify safety --repo-wide

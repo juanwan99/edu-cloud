@@ -22,8 +22,9 @@ def main() -> int:
     print()
     print("Start Here")
     print("  1. Read AGENTS.md")
-    print("  2. Read docs/context/NOW.md")
-    print("  3. Do not clean or overwrite existing dirty work without explicit approval")
+    print("  2. Run scripts/meta-check --task \"<current user task>\" --write-state for non-trivial tasks")
+    print("  3. Read docs/context/NOW.md")
+    print("  4. Do not clean or overwrite existing dirty work without explicit approval")
     print()
 
     print("Git")
@@ -40,6 +41,7 @@ def main() -> int:
     print()
 
     print("Next Commands")
+    print("  scripts/meta-check --json --strict")
     print("  scripts/codex-context --no-network")
     print("  scripts/codex-verify backend --dry-run")
     print("  scripts/codex-verify frontend --dry-run")
