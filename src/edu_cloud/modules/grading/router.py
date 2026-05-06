@@ -674,7 +674,6 @@ async def grade_single_answer(
             ai_confidence=result_data["confidence"],
             ai_feedback=feedback,
             ai_raw_response=ai_raw,
-            final_score=result_data["score"],
             max_score=result_data["max_score"],
             status="ai_done",
         )
@@ -1017,7 +1016,7 @@ async def list_grading_tasks(
 async def cancel_grading_task(
     task_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(require_permission("manage_grading")),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     school_id = current["current_role"].school_id
     filters = [GradingTask.id == task_id]

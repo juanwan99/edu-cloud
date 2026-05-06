@@ -976,6 +976,9 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             # Load task
             result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
             task = result.scalar_one()
+            if task.status == "cancelled":
+                logger.info("grading_task: task=%s already cancelled, skipping", task_id)
+                return
             task.status = "processing"
             await db.commit()
             logger.info("grading_task: task=%s, subject=%s, status→processing", task_id, task.subject_id)
@@ -1216,8 +1219,8 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             # Batch API mode: write all results at once
             if task.grading_mode == "batch" and use_gemini and batch_results:
                 await db.refresh(task, ["status"])
-                if task.status == "failed":
-                    logger.warning("grading_task: task=%s was externally cancelled, skipping batch write", task_id)
+                if task.status in ("failed", "cancelled"):
+                    logger.warning("grading_task: task=%s was externally %s, skipping batch write", task_id, task.status)
                     return
                 from edu_cloud.modules.grading.models import GradingPipelineLog
                 errors = []
@@ -1250,10 +1253,11 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
                 task.failed = total_failed
                 await db.commit()
 
-            # Final status
+            # Final status (respect external cancellation)
             result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
             task = result.scalar_one()
-            task.status = "failed" if errors else "completed"
+            if task.status != "cancelled":
+                task.status = "failed" if errors else "completed"
             task.error_log = errors if errors else None
             await db.commit()
 
