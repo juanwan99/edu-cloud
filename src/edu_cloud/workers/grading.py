@@ -108,6 +108,7 @@ def _apply_boundary_guard(
     char_count: int | None,
     c1_parsed: dict,
     ocr_tail: str = "",
+    max_score: float = 50.0,
 ) -> float:
     """三层边界守卫：无效封顶 + 字数扣分/未完成封顶 + 议论式保底。"""
     validity = c1_parsed.get("validity", "normal")
@@ -118,7 +119,7 @@ def _apply_boundary_guard(
     if completion != "unfinished" and _detect_unfinished(char_count, ocr_tail):
         completion = "unfinished"
 
-    caps: list[float] = [42.0]
+    caps: list[float] = [float(max_score)]
 
     # P1: 无效作文硬封顶
     if validity == "invalid":
@@ -158,29 +159,22 @@ def _apply_boundary_guard(
         caps.append(40.0)
         score = min(score, min(caps))
 
-    return max(0.0, min(42.0, round(score)))
+    return max(0.0, min(float(max_score), round(score)))
 
 
-def _synthesize_essay_score(s1: float, s2: float | None) -> float:
-    """合成作文最终分数：s1（3锚主评）+ s2（5锚confirm）。
-
-    s2 作为确认信号，不与 s1 平均。39 分边界保守处理。
-    """
+def _synthesize_essay_score(s1: float, s2: float | None, max_score: float = 50.0) -> float:
+    """合成作文最终分数：s1 主评 + s2 确认。双通道接近时取均值。"""
+    s1 = max(0.0, min(float(s1), float(max_score)))
+    if s2 is None:
+        return s1
+    s2 = max(0.0, min(float(s2), float(max_score)))
     if s1 < 39:
         return s1
-    if s1 == 39:
-        return 39
-    if s2 is None or s2 < 40:
-        return 39
-    if s1 == 40:
-        if s2 <= 43:
-            return 40
-        if s2 <= 45:
-            return 41
-        return 42
-    if s2 <= 45:
-        return min(s1, 42)
-    return min(s1 + 1, 42)
+    if abs(s2 - s1) <= 4:
+        return float(round((s1 + s2) / 2))
+    if s2 > s1:
+        return min(float(round((s1 + s2) / 2)), float(max_score))
+    return s1
 
 
 async def _grade_single(
@@ -385,7 +379,7 @@ async def _grade_single(
 
             from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
             blanks = validate_ocr_blanks(blanks)
-            blanks = recover_truncated_blanks(blanks, len(rubric_criteria))
+            blanks = recover_truncated_blanks(blanks, rubric_criteria)
 
             extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
             plog["ocr_text"] = extracted_text
@@ -439,11 +433,11 @@ async def _grade_single(
                 # Call 1: 3-anchor score (0-42) via DeepSeek
                 prompt_c1 = build_essay_anchor_prompt(extracted_text, char_stats, anchors_3, mode="score")
                 t_grade = time.perf_counter()
-                resp_c1 = await ds_llm.grade_text(prompt=prompt_c1, max_score=42)
+                resp_c1 = await ds_llm.grade_text(prompt=prompt_c1, max_score=ad["question_max_score"])
                 c1_ms = int((time.perf_counter() - t_grade) * 1000)
                 c1_data = extract_json(resp_c1.raw_content)
                 c1_parsed = c1_data if isinstance(c1_data, dict) else {}
-                s1 = min(max(c1_parsed.get("score", 0), 0), 42)
+                s1 = min(max(c1_parsed.get("score", 0), 0), ad["question_max_score"])
                 above_boundary = c1_parsed.get("above_boundary", False)
 
                 # Call 2a: 5-anchor high-score confirm (s1 >= 39) via DeepSeek
@@ -466,7 +460,7 @@ async def _grade_single(
                 if s1 < 32:
                     prompt_c3 = build_essay_anchor_prompt(extracted_text, char_stats, [], mode="low_review")
                     t_c3 = time.perf_counter()
-                    resp_c3 = await ds_llm.grade_text(prompt=prompt_c3, max_score=42)
+                    resp_c3 = await ds_llm.grade_text(prompt=prompt_c3, max_score=ad["question_max_score"])
                     c3_ms = int((time.perf_counter() - t_c3) * 1000)
                     c3_data = extract_json(resp_c3.raw_content)
                     low_review = c3_data if isinstance(c3_data, dict) else {}
@@ -478,6 +472,7 @@ async def _grade_single(
                 s1_guarded = _apply_boundary_guard(
                     float(s1), plog.get("char_count"), c1_parsed,
                     ocr_tail=extracted_text[-50:] if extracted_text else "",
+                    max_score=ad["question_max_score"],
                 )
                 plog["s1_raw"] = s1
                 plog["s1_guarded"] = s1_guarded
@@ -486,11 +481,11 @@ async def _grade_single(
                 # Synthesize with tiered logic
                 if s1 < 32 and low_review:
                     if low_review.get("confirmed_low"):
-                        raw_final = float(min(max(low_review.get("score", s1), 0), 42))
+                        raw_final = float(min(max(low_review.get("score", s1), 0), ad["question_max_score"]))
                     else:
-                        raw_final = max(float(s1), 34.0)
+                        raw_final = max(float(s1), float(low_review.get("score", s1)), 35.0)
                 else:
-                    raw_final = _synthesize_essay_score(float(s1), s2)
+                    raw_final = _synthesize_essay_score(float(s1), s2, ad["question_max_score"])
 
                 final_score = _apply_essay_score_cap(
                     raw_final, plog.get("char_count"), "essay", ad["question_max_score"],
@@ -518,7 +513,7 @@ async def _grade_single(
                 )
 
                 feedback = reason_c1
-                if s1 < 32:
+                if final_score < 32:
                     feedback = f"⚠️低分预警，建议重点复核。{feedback}"
                     plog["low_score_warning"] = True
 
@@ -589,8 +584,8 @@ async def _grade_single(
         return None, {"answer_id": answer_id, "error": str(e)}, plog
 
 
-async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_code, use_gemini_official):
-    """Gemini Batch API: 两阶段全 batch — OCR batch → 评分 batch。Cost = 50% of realtime."""
+async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_code, use_gemini_official, ds_grading_llm=None):
+    """Gemini Batch API 仅用于 OCR；文本评分强制 DeepSeek，避免 Gemini batch 评分幻觉。"""
     from edu_cloud.modules.grading.prompts import get_prompt, render_prompt
     from edu_cloud.modules.grading.rubric_formatter import format_rubric_for_grading
     from edu_cloud.modules.grading.json_parser import extract_json
@@ -766,7 +761,7 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
             else:
                 blanks = ocr_parsed
             blanks = validate_ocr_blanks(blanks)
-            blanks = recover_truncated_blanks(blanks, len(rubric_criteria))
+            blanks = recover_truncated_blanks(blanks, rubric_criteria)
             extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
             plog["ocr_text"] = extracted_text
             plog["ocr_blanks_count"] = len(blanks)
@@ -798,10 +793,43 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
                 "fullScore": full_score, "rubric": rubric_text,
                 "extractedText": extracted_text, "charStats": char_stats,
             })
-            contents = [types.Content(role="user", parts=[types.Part.from_text(text=grading_prompt)])]
-            grade_pending.append((idx, ad, plog, contents, t_start))
 
-    # ── Phase 2: 评分 batch（vision + text 一起提交）──
+            if not ds_grading_llm:
+                plog["error_type"] = "no_deepseek"
+                plog["error_message"] = "DEEPSEEK_API_KEY not configured for batch text grading"
+                plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+                results[idx] = (None, {"answer_id": ad["answer_id"], "error": plog["error_message"]}, plog)
+                continue
+
+            plog["grading_model"] = "deepseek-v4-flash"
+            plog["grading_prompt_type"] = "GRADING_TEXT"
+            t_grade = time.perf_counter()
+            grade_result = await ds_grading_llm.grade_text(prompt=grading_prompt, max_score=ad["question_max_score"])
+            plog["grading_ms"] = int((time.perf_counter() - t_grade) * 1000)
+
+            if grade_result.details and rubric_criteria:
+                guarded = apply_equivalence_guard(
+                    {"score": grade_result.score, "details": grade_result.details},
+                    rubric_criteria,
+                )
+                grade_result.score = guarded["score"]
+                grade_result.details = guarded["details"]
+
+            score = _apply_essay_score_cap(grade_result.score, plog.get("char_count"), ad.get("question_type", ""), ad["question_max_score"])
+            plog["score"] = score
+            plog["confidence"] = grade_result.confidence
+            plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+            results[idx] = ({
+                "answer_id": ad["answer_id"], "question_id": ad["question_id"],
+                "score": score, "max_score": ad["question_max_score"],
+                "feedback": grade_result.feedback,
+                "confidence": grade_result.confidence,
+                "raw_content": grade_result.raw_content,
+                "details": grade_result.details,
+                "recognizedText": extracted_text,
+            }, None, plog)
+
+    # ── Phase 2: 仅 vision_direct 仍走 Gemini batch ──
     if not grade_pending:
         return [r for r in results if r is not None]
 
@@ -901,7 +929,6 @@ async def _upsert_ai_result(db, task, result_dict):
     elif existing:
         for k, v in ai_fields.items():
             setattr(existing, k, v)
-        existing.final_score = result_dict["score"]
         existing.max_score = result_dict["max_score"]
         existing.status = "ai_done"
         existing.version += 1
@@ -910,7 +937,6 @@ async def _upsert_ai_result(db, task, result_dict):
             answer_id=answer_id,
             question_id=result_dict["question_id"],
             school_id=task.school_id,
-            final_score=result_dict["score"],
             max_score=result_dict["max_score"],
             status="ai_done",
             **ai_fields,
@@ -1048,7 +1074,7 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             )
             answers_raw = a_result.scalars().all()
 
-            # Exclude answers that already have AI score (any status)
+            # Exclude answers that already have a grading result (AI or manual confirmed)
             all_answer_ids = [a.id for a in answers_raw]
             graded_rows = set()
             if all_answer_ids:
@@ -1056,7 +1082,7 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
                     select(GradingResult.answer_id).where(
                         GradingResult.answer_id.in_(all_answer_ids),
                         or_(
-                            GradingResult.status.in_(["ai_pending", "ai_done"]),
+                            GradingResult.status.in_(["ai_pending", "ai_done", "confirmed"]),
                             GradingResult.ai_score.is_not(None),
                         ),
                     )
@@ -1124,6 +1150,7 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
                                 task_id, len(anchor_answers))
                 batch_results = await _process_gemini_batch(
                     llm, plain_answers, rubrics_by_question, subject_code, use_gemini,
+                    ds_grading_llm=ds_grading_llm,
                 ) if plain_answers else []
                 logger.info("grading_task: task=%s, batch API returned %d results", task_id, len(batch_results))
                 # Process anchor answers via realtime fallback
