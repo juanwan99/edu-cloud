@@ -1,5 +1,8 @@
 # edu-cloud — 教育云平台
 
+> Historical/deep reference. Codex active entrypoint is `AGENTS.md`;
+> current facts live in `docs/context/NOW.md`.
+
 > **架构边界声明（2026-04-16 takeover `00cfc3d` 后生效）**
 >
 > ECS 是**单一权威开发环境**，与原 Windows/WSL 环境已**完全切断**。
@@ -16,7 +19,8 @@
 > `docs/plans/2026-04-14-auth-fail-closed-repair-design.md` /
 > `docs/plans/2026-04-14-conduct-roadmap-design.md` 等 64 文件，W4 多 2 份 R4/R5 review report）已加
 > `<!-- pre-takeover: archived for history, not active spec -->` 顶部 marker 隔离。
-> 这些历史产物仅供追溯，不作活规格使用；活规格以 CLAUDE.md + 当前 plan/handoff 为准。
+> 这些历史产物仅供追溯，不作活规格使用；Codex 接管后活规格以 `AGENTS.md`
+> + `docs/context/ACTIVE_INDEX.md` 为准。
 
 <!-- key-start -->
 ## 项目定位
@@ -915,4 +919,3 @@ docker compose logs -f      # 查看日志
 启动时自动创建：
 - 平台管理员 `admin/123456`（User + UserRole platform_admin）
 - 育才实验中学（YCSY2026）：36 班 / 1500 学生 / 200 教师+行政（幂等，密码均 123456）
-

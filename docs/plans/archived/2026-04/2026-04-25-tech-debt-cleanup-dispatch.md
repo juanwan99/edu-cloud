@@ -49,7 +49,7 @@ Migration DAG 本身健康（单头线性链），问题纯粹是"没跑 upgrade
 **Step 1: 备份 dev DB**
 ```bash
 cd ~/projects/edu-cloud
-cp edu_cloud.db edu_cloud.db.bak-pre-drift-fix-$(date +%Y%m%d)
+Use the SQLite backup API or the project migration wrapper; do not copy active SQLite files with `cp`.
 ```
 > 注：这是 dev DB（非活跃生产）��cp 可用。
 

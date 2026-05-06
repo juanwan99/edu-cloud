@@ -17,8 +17,8 @@ EOF
 }
 
 case "${1:-help}" in
-  status)  exec "$SCRIPT_DIR/truth-status.sh" "$PROJECT_DIR" ;;
-  doctor)  exec "$SCRIPT_DIR/truth-doctor.sh" "$PROJECT_DIR" ;;
+  status)  shift; exec "$SCRIPT_DIR/truth-status.sh" "$PROJECT_DIR" "$@" ;;
+  doctor)  shift; exec "$SCRIPT_DIR/truth-doctor.sh" "$PROJECT_DIR" "$@" ;;
   help|-h|--help) usage ;;
   *)       echo "Unknown command: $1"; usage; exit 1 ;;
 esac

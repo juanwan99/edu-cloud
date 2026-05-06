@@ -21,7 +21,7 @@ blocks: [D02, D04]
 - `grades` + `teaching_plans` 表存在（create_all 建的）但 alembic 不知道 → 需先 DROP 再让 migration 重建
 
 **执行序列**:
-1. `cp edu_cloud.db edu_cloud.db.bak-pre-drift-fix-$(date +%Y%m%d)`
+1. Use the SQLite backup API or the project migration wrapper; do not copy active SQLite files with `cp`.
 2. 确认 grades/teaching_plans 0 行后 DROP TABLE
 3. `.venv/bin/python -m alembic upgrade head`
 4. 验证: alembic current = `f311eb126798` / bank_questions 24 列 / classes 有 grade_id / grades+teaching_plans 存在

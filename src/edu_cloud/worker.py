@@ -106,7 +106,8 @@ async def on_worker_startup(ctx):
 class WorkerSettings:
     """arq WorkerSettings — 通过 `arq edu_cloud.worker.WorkerSettings` 启动"""
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
-    job_timeout = 1800
+    max_jobs = 8
+    job_timeout = 7200
     on_startup = on_worker_startup
     cron_jobs = [
         cron(run_auto_draft, hour=22, minute=0),  # 22:00 UTC = 06:00 UTC+8

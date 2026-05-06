@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+"""Print the current Codex-native project context."""
+
+from __future__ import annotations
+
+import argparse
+from datetime import datetime
+
+from codex_support import (
+    PROJECT_ROOT,
+    collect_artifacts,
+    collect_db,
+    collect_git,
+    collect_guardian_health,
+    collect_versions,
+    count_known_failures,
+    print_kv,
+    safety_risks,
+)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Print edu-cloud Codex context.")
+    parser.add_argument("--no-network", action="store_true", help="Skip curl checks to mcu.asia/backend.")
+    args = parser.parse_args()
+
+    git_info = collect_git()
+    versions = collect_versions(no_network=args.no_network)
+    db = collect_db()
+    artifacts = collect_artifacts()
+    risks = safety_risks(no_network=args.no_network)
+    guardian = collect_guardian_health()
+
+    print(f"Codex Context  {datetime.now().isoformat(timespec='seconds')}")
+    print_kv("project", PROJECT_ROOT, 0)
+    print()
+
+    print("Dual-Core Control Plane")
+    print_kv("Meta Core", "context, scope, active docs, evidence, Claude read-only review")
+    print_kv("Guardian Core", "dirty state, truthline, DB, build, tests, safety")
+    print()
+
+    print("Git")
+    for key in ("branch", "head", "upstream", "ahead", "status_entries"):
+        print_kv(key, git_info[key])
+    print()
+
+    print("Dirty Summary")
+    for key in ("backend_dirty", "frontend_dirty", "tests_dirty", "docs_dirty"):
+        print_kv(key, git_info[key])
+    print()
+
+    print("Truthline")
+    for key in ("dist_hash", "dist_source_dirty", "dist_build_time", "nginx_hash", "backend_hash", "backend_source_dirty", "backend_pid", "network"):
+        if key in versions:
+            print_kv(key, versions[key])
+    print()
+
+    print("Verification Baseline")
+    print_kv("known_pytest_failures", count_known_failures())
+    print_kv("db_doctor", db.get("status"))
+    if db.get("status") == "ok":
+        print_kv("alembic_version", db.get("alembic_version"))
+        print_kv("db_hard", db.get("hard"))
+        print_kv("db_warn", db.get("warn"))
+    print()
+
+    print("Safety Risks")
+    if risks:
+        for risk in risks:
+            print(f"  - {risk}")
+    else:
+        print("  - none detected")
+    print()
+
+    print("Guardian Health")
+    print_kv("overall", guardian.get("overall", guardian.get("status")))
+    print_kv("issues", guardian.get("issue_count", "unknown"))
+    if guardian.get("status") == "ok":
+        for issue in list(guardian.get("issues", []))[:5]:
+            if not isinstance(issue, dict):
+                continue
+            code = issue.get("issue_code", "UNKNOWN")
+            summary = issue.get("summary", "")
+            blocks = " blocks_completion" if issue.get("blocks_completion") else ""
+            print(f"  - {code}{blocks}: {summary}")
+        if int(guardian.get("issue_count") or 0) > 5:
+            print(f"  ... and {int(guardian.get('issue_count') or 0) - 5} more")
+    print()
+
+    print("Artifacts")
+    print_kv("risky_paths", ", ".join(artifacts["risky_paths"]) or "none")
+    print_kv("backups_exists", artifacts["backups_exists"])
+    print_kv("screenshots_exists", artifacts["screenshots_exists"])
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

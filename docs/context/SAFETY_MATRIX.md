@@ -1,0 +1,48 @@
+# Safety Matrix
+
+Each row maps a valuable Claude-era rule to Codex-native enforcement. The `ID`
+column is the lightweight governance registry for the EduCloud Dual-Core Control
+Plane.
+
+| ID | Risk | Source | Current Defense | Completion Evidence | Gap |
+|---|---|---|---|---|---|
+| S-001 | Dirty frontend build ships unreviewed code | L021 / delivery contract | `scripts/codex-verify frontend` blocks dirty frontend inputs; CI frontend job runs `npm run build` | `npm run lint`, `npm run build`, `scripts/truth-status.sh`, `curl https://mcu.asia/version.json` | CI does not verify live `https://mcu.asia`; completion still requires production URL evidence |
+| S-002 | Source/build/nginx/backend drift | L013 / truthline | `scripts/truth-status.sh`, `scripts/codex-context`, `scripts/codex-verify frontend`, `scripts/truth doctor --json` | Truthline output shows matching hashes and exits 0 only when aligned; Guardian doctor emits issue/action JSON | Add historical drift/event trend tracking if repeated incidents appear |
+| S-003 | Direct Alembic mutation | Migration gate repair | `scripts/db_migrate`, `alembic/env.py` prod DB guard, `scripts/codex-verify safety`, CI governance job, CI Alembic smoke | `scripts/codex-verify schema`; safety scan has no direct `alembic upgrade/downgrade` hits | Expand safety scan to changed docs if needed |
+| S-004 | Active SQLite copy | L016 | AGENTS hard ban, artifact policy, `scripts/codex-verify safety`, CI governance job | Safety scan has no shell-level SQLite copy commands; use backup API | Repo-wide DB-copy scan is enabled for non-ignored files |
+| S-005 | Secret leakage | Claude secret guard | `.gitignore` covers `.env` and `.secrets`; AGENTS ban; `scripts/codex-verify safety --repo-wide` scans changed scripts plus non-ignored repo files for secrets | Safety scan has no probable key/private-key hits | Rotate any credentials that ever appeared in historical docs; current-tree redaction is not history rewriting |
+| S-006 | Destructive git cleanup | Claude destructive git guard | AGENTS hard ban; `scripts/codex-verify safety` scans changed scripts; CI governance job runs safety | Safety scan has no destructive cleanup hits; user approval required for any real destructive git command | Optional local git hook installer in P2 |
+| S-007 | Claude auxiliary overreach | Codex dual-model control | `scripts/codex-consult-claude` grants only `Read,Grep,Glob,LS`, disallows write tools and Bash, and disables session persistence | Dry-run command shows read-only tools and no resume/continue/destructive permissions | Real Claude findings remain advisory; Codex must verify before acting |
+| S-008 | Historical docs polluting current work | L018 / takeover cleanup | `ACTIVE_INDEX.md`, AGENTS ban | Active document path appears in index | Needs periodic freshness review |
+| S-009 | Completion without evidence | Completion guard | `scripts/codex-verify` commands, CI governance dry-run | Final answer includes command and result | No automatic stop hook in Codex; rely on explicit verifier |
+| S-010 | Artifact noise | Current untracked state | `ARTIFACT_POLICY.md`, `.gitignore` updates | `git status` separates source changes from local artifacts; user-approved local AI grading artifacts are ignored | Periodic cleanup can archive ignored artifacts after explicit approval |
+| S-011 | Fix-loop or rapid patch drift | Claude trajectory/fix-loop discipline | AGENTS and `GOVERNANCE_MODEL.md` require stopping after repeated failed fixes; `scripts/codex-context` exposes dirty scope before work | Final answer states root cause and verification after repeated fixes | Add structured edit/verification event counter before automating |
+| S-012 | Evidence-less decisions or negative assertions | Claude decision-evidence discipline | Meta Core requires grep/read/file-line evidence for scope, negative assertions, and architecture choices | Design/plan/final answer cites concrete files, commands, or outputs | Add template checks only if this becomes noisy |
+| S-013 | Existing asset bypass or parallel systems | Claude planning-inventory discipline | Meta Core requires existing asset inventory before new subsystem work; `ACTIVE_INDEX.md` controls active docs | Design/plan lists existing backend/frontend/test assets and delivery path | Add a future design-doc linter if repeated |
+
+## Enforcement Strength
+
+- Hard script gate: command exits non-zero and blocks completion.
+- Advisory script gate: command reports risk, may exit 0 for preflight.
+- Documentation rule: must be obeyed, but not machine-enforced yet.
+- P2 CI: planned long-term enforcement.
+
+## Guardian Issue Codes
+
+Guardian Core should use these stable issue codes when reporting environment
+health:
+
+- `BUILD_DRIFT`
+- `NGINX_DRIFT`
+- `BACKEND_DRIFT`
+- `FRONTEND_DIRTY`
+- `BACKEND_DIRTY`
+- `GHOST_PROCESS`
+- `BACKEND_DOWN`
+- `PORT_DANGER`
+- `SERVICE_BYPASS`
+- `CLAUDE_SESSION_RISK`
+- `DB_SCHEMA_DRIFT`
+
+Each issue should eventually carry `severity`, `summary`, `blocks_completion`,
+and `command_hint`.

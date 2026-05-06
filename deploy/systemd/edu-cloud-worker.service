@@ -1,0 +1,19 @@
+[Unit]
+Description=edu-cloud arq worker
+After=network.target docker.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=ops
+Group=ops
+WorkingDirectory=/home/ops/projects/edu-cloud
+EnvironmentFile=/home/ops/projects/edu-cloud/.env
+ExecStart=/home/ops/projects/edu-cloud/.venv/bin/python /home/ops/projects/edu-cloud/scripts/run-arq-worker
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/home/ops/logs/edu-cloud-worker.log
+StandardError=append:/home/ops/logs/edu-cloud-worker.log
+
+[Install]
+WantedBy=multi-user.target

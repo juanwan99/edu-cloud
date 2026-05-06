@@ -200,8 +200,8 @@ for sid in ['e1cc167b-d148-4cd4-8f3b-56db078a876f', 'd27b05c7-037d-4351-a3c4-a7e
 | 项 | 值 | 位置 |
 |---|---|---|
 | ECS SSH | `ops@47.121.197.52:22` Ed25519 + TOTP | ecs-auto-ssh.py |
-| VECTO_KEY | sk-fOIzJEyD0PvKDFvwv4v7kMdtAOL9zQoPwoeijQfQyQGxXLgz | llm-proxy .env |
-| VECTO_KEY2 | sk-4xkL2UoY6W4jWDTrE5u9OP7CLAtU0f4dBqTvX9xoiF1fqJc3 | 同上 |
+| VECTO_KEY | [REDACTED] | llm-proxy .env |
+| VECTO_KEY2 | [REDACTED] | 同上 |
 | JWT secret | 在 edu-cloud .env | 不改 |
 | sudo | `ops` 免密，仅 systemctl restart | — |
 

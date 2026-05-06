@@ -1,0 +1,192 @@
+# Command Manual
+
+Authoritative command reference for Codex work in `edu-cloud`.
+
+## Start Of Work
+
+```bash
+cd /home/ops/projects/edu-cloud
+scripts/codex-check
+scripts/codex-context --no-network
+git status --short --branch
+```
+
+`codex-check` is read-only. Default mode reports risks and exits 0. Use `--strict` when a non-zero exit is wanted for automation.
+
+`scripts/codex-context` prints the EduCloud Dual-Core Control Plane summary:
+Meta Core covers context, scope, active docs, evidence, and Claude read-only
+review; Guardian Core covers dirty state, truthline, DB, build, tests, and
+safety.
+
+## Truthline
+
+```bash
+scripts/truth status
+scripts/truth doctor
+scripts/truth doctor --json
+scripts/truth-status.sh /home/ops/projects/edu-cloud
+scripts/truth-doctor.sh /home/ops/projects/edu-cloud
+```
+
+`truth status` checks source -> build -> nginx -> backend alignment. `truth doctor` checks ports, ghost processes, dist permissions, systemd state, Claude process count, and DB schema drift.
+`truth doctor --json` emits Guardian Core issue/action data with schema
+`guardian.doctor.v1`.
+
+`scripts/truth-status.sh` exits 0 only when the diagnosis is aligned. Any
+`BROKEN AT:` diagnosis exits non-zero and must block completion evidence.
+
+## Frontend
+
+```bash
+cd /home/ops/projects/edu-cloud/frontend
+npm run lint
+npm run build
+```
+
+Preferred completion gate:
+
+```bash
+cd /home/ops/projects/edu-cloud
+scripts/codex-verify frontend
+```
+
+Rules:
+
+- `https://mcu.asia` is the only user-visible frontend verification URL.
+- `localhost:*` is debug-only evidence.
+- `scripts/codex-verify frontend` refuses dirty frontend build inputs by default.
+- `--allow-dirty-build` is only for debug and must not be used for completion claims.
+- The frontend gate validates local `frontend/dist/version.json` against HEAD
+  and, with network enabled, validates `https://mcu.asia/version.json` against
+  local dist.
+
+## Backend
+
+Targeted pytest:
+
+```bash
+.venv/bin/python -m pytest tests/path/test_file.py::test_name -q
+```
+
+No-new-failures gate:
+
+```bash
+.venv/bin/python scripts/pytest_delta.py
+scripts/codex-verify backend
+```
+
+Pass extra pytest args through `codex-verify backend` after `--`:
+
+```bash
+scripts/codex-verify backend -- tests/test_api/test_health.py -q
+```
+
+Known failures baseline:
+
+```bash
+.quality/known-pytest-failures.txt
+```
+
+## Schema And Migrations
+
+Read-only:
+
+```bash
+scripts/db_migrate --current
+scripts/db_migrate --history
+.venv/bin/python scripts/db_doctor.py --json
+```
+
+Mutating migration path:
+
+```bash
+scripts/db_migrate head
+scripts/db_migrate <revision>
+```
+
+Schema verification:
+
+```bash
+scripts/codex-verify schema
+```
+
+Rules:
+
+- Do not run direct `alembic upgrade` or `alembic downgrade` on the project DB.
+- `scripts/db_migrate` performs lock -> backup -> dry-run -> doctor -> real upgrade -> doctor.
+- If code touches ORM models or Alembic versions, run `scripts/codex-verify schema`.
+
+## Safety Scan
+
+```bash
+scripts/codex-verify safety
+scripts/codex-verify safety --repo-wide
+```
+
+The safety scan checks changed script files for:
+
+- direct `alembic upgrade/downgrade`
+- `cp` or `rsync` against `.db` files
+- destructive git cleanup commands
+- probable hardcoded API keys or private keys
+
+`--repo-wide` additionally scans all non-ignored repository files for probable
+API keys, private key blocks, and shell-level SQLite copy commands. Use it for
+governance completion evidence and CI smoke.
+
+## Claude Auxiliary Reviewer
+
+Check auth:
+
+```bash
+scripts/codex-consult-claude --auth-status
+```
+
+Use Claude as a full-repo read-only reviewer:
+
+```bash
+scripts/codex-consult-claude review "review the current governance migration"
+scripts/codex-consult-claude design "critique this implementation plan"
+scripts/codex-consult-claude history "triage historical handoffs for active facts"
+scripts/codex-consult-claude tests "find missing regression tests"
+scripts/codex-consult-claude risk "look for migration/data/secret/delivery risks"
+```
+
+Boundary:
+
+- Claude can read the repo with `Read`, `Grep`, `Glob`, and `LS`.
+- Claude cannot write files or run Bash.
+- Claude runs without session persistence.
+- Codex must apply changes and run verification.
+
+## Full Verification
+
+```bash
+scripts/codex-verify full
+scripts/codex-verify full --schema
+```
+
+`full` runs backend and frontend gates. `--schema` adds DB/Alembic verification.
+
+## CI Governance Job
+
+`.github/workflows/test.yml` includes a lightweight `governance` job that runs:
+
+```bash
+python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/run-arq-worker
+python -m pytest tests/governance/test_codex_scripts.py -q
+scripts/codex-check --no-network
+scripts/codex-context --no-network
+scripts/codex-consult-claude --dry-run review CI smoke
+scripts/codex-verify safety --repo-wide
+scripts/codex-verify full --dry-run --schema --no-network
+```
+
+This CI job validates the Codex governance layer itself. It is intentionally smoke-level; task completion still needs the real mode-specific verification command.
+
+The existing CI backend/frontend jobs also include:
+
+```bash
+python -m pytest tests/test_alembic_migration.py -q
+cd frontend && npm run build
+```

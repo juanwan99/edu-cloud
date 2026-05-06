@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""Read-only Codex preflight check."""
+
+from __future__ import annotations
+
+import argparse
+from datetime import datetime
+
+from codex_support import collect_git, print_kv, safety_risks
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Run read-only Codex preflight checks.")
+    parser.add_argument("--strict", action="store_true", help="Exit non-zero when safety risks are present.")
+    parser.add_argument("--no-network", action="store_true", help="Skip curl checks to mcu.asia/backend.")
+    args = parser.parse_args()
+
+    git_info = collect_git()
+    risks = safety_risks(no_network=args.no_network)
+
+    print(f"Codex Check  {datetime.now().isoformat(timespec='seconds')}")
+    print()
+    print("Start Here")
+    print("  1. Read AGENTS.md")
+    print("  2. Read docs/context/NOW.md")
+    print("  3. Do not clean or overwrite existing dirty work without explicit approval")
+    print()
+
+    print("Git")
+    for key in ("branch", "head", "upstream", "ahead", "status_entries", "backend_dirty", "frontend_dirty"):
+        print_kv(key, git_info[key])
+    print()
+
+    print("Safety Risks")
+    if risks:
+        for risk in risks:
+            print(f"  - {risk}")
+    else:
+        print("  - none detected")
+    print()
+
+    print("Next Commands")
+    print("  scripts/codex-context --no-network")
+    print("  scripts/codex-verify backend --dry-run")
+    print("  scripts/codex-verify frontend --dry-run")
+
+    return 1 if args.strict and risks else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

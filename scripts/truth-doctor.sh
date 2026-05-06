@@ -2,6 +2,13 @@
 set -euo pipefail
 
 PROJECT_DIR="${1:-.}"
+JSON_MODE=false
+if [ "${1:-}" = "--json" ]; then
+  PROJECT_DIR="."
+  JSON_MODE=true
+elif [ "${2:-}" = "--json" ]; then
+  JSON_MODE=true
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -14,6 +21,233 @@ warn() { echo -e "  ${YELLOW}!${NC} $1"; }
 fail() { echo -e "  ${RED}✗${NC} $1"; }
 
 ISSUES=0
+
+if [ "$JSON_MODE" = "true" ]; then
+  export PROJECT_DIR
+  python3 - <<'PY'
+import json
+import os
+import re
+import shutil
+import subprocess
+from datetime import datetime
+
+
+project_dir = os.environ.get("PROJECT_DIR", ".")
+issues = []
+SYSTEMD_MAIN_PIDS = set()
+
+
+def run(args, timeout=5):
+    try:
+        return subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+    except Exception as exc:
+        return subprocess.CompletedProcess(args, 99, "", str(exc))
+
+
+def add_issue(issue_code, severity, summary, blocks_completion=False, command_hint="", required_before="completion"):
+    issue = {
+        "issue_code": issue_code,
+        "severity": severity,
+        "summary": summary,
+        "blocks_completion": bool(blocks_completion),
+        "command_hint": command_hint,
+        "required_before": required_before,
+    }
+    issues.append(issue)
+
+
+def parent_pid(pid):
+    result = run(["ps", "-p", str(pid), "-o", "ppid="])
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def collect_systemd_main_pids():
+    for svc in ("edu-cloud", "llm-proxy", "edu-cloud-worker"):
+        active = run(["systemctl", "is-active", svc]).stdout.strip()
+        if active != "active":
+            continue
+        result = run(["systemctl", "show", svc, "-p", "MainPID", "--value"])
+        pid = result.stdout.strip()
+        if pid and pid != "0":
+            SYSTEMD_MAIN_PIDS.add(pid)
+
+
+def is_systemd_main_pid(pid):
+    return str(pid) in SYSTEMD_MAIN_PIDS
+
+
+def check_port(port, label):
+    if not shutil.which("ss"):
+        return
+    result = run(["ss", "-tlnp", f"sport = :{port}"])
+    holder = ""
+    for line in result.stdout.splitlines():
+        if "LISTEN" in line:
+            holder = line
+            break
+    if not holder:
+        if port == 9000:
+            add_issue(
+                "BACKEND_DOWN",
+                "red",
+                f"port {port} ({label}) has nobody listening",
+                True,
+                "systemctl restart edu-cloud",
+            )
+        return
+
+    pid_match = re.search(r"pid=(\d+)", holder)
+    bind_addr = holder.split()[3].rsplit(":", 1)[0] if len(holder.split()) >= 4 else ""
+    if bind_addr in {"0.0.0.0", "*", "[::]"}:
+        add_issue(
+            "PORT_DANGER",
+            "red",
+            f"port {port} ({label}) is bound to {bind_addr}",
+            port in {9000, 8080},
+            f"bind {label} to 127.0.0.1 or stop the public listener",
+        )
+    if pid_match and parent_pid(pid_match.group(1)) == "1" and not is_systemd_main_pid(pid_match.group(1)):
+        add_issue(
+            "GHOST_PROCESS",
+            "yellow",
+            f"port {port} ({label}) listener PID={pid_match.group(1)} is an orphan",
+            False,
+            f"inspect or stop PID {pid_match.group(1)}",
+            "session_end",
+        )
+
+
+def check_ghost_processes():
+    result = run(["ps", "aux"])
+    pattern = re.compile(r"vite.*--port|nuxt dev|uvicorn.*--reload|http\.server|arq.*worker")
+    for line in result.stdout.splitlines():
+        if not pattern.search(line) or "grep" in line:
+            continue
+        parts = line.split(None, 10)
+        if len(parts) < 11:
+            continue
+        pid = parts[1]
+        if parent_pid(pid) == "1" and not is_systemd_main_pid(pid):
+            cmd = parts[10][:120]
+            add_issue(
+                "GHOST_PROCESS",
+                "yellow",
+                f"ghost PID={pid}: {cmd}",
+                False,
+                f"inspect or stop PID {pid}",
+                "session_end",
+            )
+
+
+def check_dist():
+    dist_dir = os.path.join(project_dir, "frontend", "dist")
+    index = os.path.join(dist_dir, "index.html")
+    version = os.path.join(dist_dir, "version.json")
+    if not os.path.isdir(dist_dir):
+        add_issue("BUILD_DRIFT", "red", "frontend/dist directory not found", True, "cd frontend && npm run build")
+        return
+    if not os.path.exists(index):
+        add_issue("BUILD_DRIFT", "red", "frontend/dist/index.html not found", True, "cd frontend && npm run build")
+    elif not os.access(index, os.R_OK):
+        add_issue("BUILD_DRIFT", "red", "frontend/dist/index.html not readable", True, "fix dist permissions")
+    if not os.path.exists(version):
+        add_issue("BUILD_DRIFT", "yellow", "frontend/dist/version.json missing", True, "cd frontend && npm run build")
+
+
+def check_systemd():
+    for svc in ("edu-cloud", "llm-proxy"):
+        state = run(["systemctl", "is-active", svc]).stdout.strip()
+        if svc == "edu-cloud" and state != "active":
+            uvicorn = run(["pgrep", "-f", "uvicorn.*9000"])
+            if uvicorn.returncode == 0:
+                add_issue(
+                    "SERVICE_BYPASS",
+                    "yellow",
+                    "edu-cloud.service inactive while uvicorn :9000 is running manually",
+                    False,
+                    "restart edu-cloud through systemd or document manual debug mode",
+                    "session_end",
+                )
+
+
+def check_claude_processes():
+    result = run(["pgrep", "-fc", "claude"])
+    try:
+        count = int(result.stdout.strip() or "0")
+    except ValueError:
+        count = 0
+    if count > 5:
+        add_issue(
+            "CLAUDE_SESSION_RISK",
+            "yellow",
+            f"{count} Claude processes active",
+            False,
+            "close stale Claude sessions",
+            "session_end",
+        )
+
+
+def check_db():
+    py = os.path.join(project_dir, ".venv", "bin", "python")
+    doctor = os.path.join(project_dir, "scripts", "db_doctor.py")
+    if not os.path.exists(py) or not os.path.exists(doctor):
+        return
+    result = run([py, doctor, "--json"], timeout=20)
+    if result.returncode != 0:
+        add_issue("DB_SCHEMA_DRIFT", "red", "db_doctor failed to run", True, f"{py} scripts/db_doctor.py --strict")
+        return
+    try:
+        data = json.loads(result.stdout)
+    except Exception:
+        add_issue("DB_SCHEMA_DRIFT", "red", "db_doctor output unreadable", True, f"{py} scripts/db_doctor.py --strict")
+        return
+    hard = int(data.get("hard", 0) or 0)
+    warn = int(data.get("warn", 0) or 0)
+    if hard > 0:
+        add_issue("DB_SCHEMA_DRIFT", "red", f"ORM-DB drift has {hard} hard failure(s)", True, f"{py} scripts/db_doctor.py --strict")
+    elif warn > 0:
+        add_issue("DB_SCHEMA_DRIFT", "yellow", f"ORM-DB drift has {warn} warning(s)", False, f"{py} scripts/db_doctor.py --strict")
+
+
+collect_systemd_main_pids()
+for port, label in ((9000, "edu-cloud API"), (8080, "Vite dev server"), (8100, "llm-proxy")):
+    check_port(port, label)
+check_ghost_processes()
+check_dist()
+check_systemd()
+check_claude_processes()
+check_db()
+
+overall = "green"
+if any(issue["severity"] == "red" for issue in issues):
+    overall = "red"
+elif issues:
+    overall = "yellow"
+
+payload = {
+    "schema": "guardian.doctor.v1",
+    "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    "overall": overall,
+    "issue_count": len(issues),
+    "red_count": sum(1 for issue in issues if issue["severity"] == "red"),
+    "yellow_count": sum(1 for issue in issues if issue["severity"] == "yellow"),
+    "issues": issues,
+    "actions": [
+        {
+            "issue_code": issue["issue_code"],
+            "required_before": issue["required_before"],
+            "command_hint": issue["command_hint"],
+            "blocks_completion": issue["blocks_completion"],
+        }
+        for issue in issues
+        if issue["command_hint"]
+    ],
+}
+print(json.dumps(payload, ensure_ascii=False, indent=2))
+PY
+  exit 0
+fi
 
 echo -e "${BOLD}Truthline Doctor${NC}  $(date '+%H:%M:%S')"
 echo ""
@@ -49,7 +283,14 @@ check_port() {
 
   local ppid
   ppid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ' || true)
-  if [ "$ppid" = "1" ]; then
+  systemd_main="no"
+  for svc in edu-cloud llm-proxy edu-cloud-worker; do
+    svc_pid=$(systemctl show "$svc" -p MainPID --value 2>/dev/null || true)
+    if [ -n "$svc_pid" ] && [ "$svc_pid" != "0" ] && [ "$svc_pid" = "$pid" ]; then
+      systemd_main="yes"
+    fi
+  done
+  if [ "$ppid" = "1" ] && [ "$systemd_main" != "yes" ]; then
     warn "  PID=$pid is an orphan (PPID=1) — may be a ghost process"
     ISSUES=$((ISSUES+1))
   fi
@@ -73,7 +314,15 @@ while IFS= read -r line; do
   start=$(ps -p "$pid" -o lstart= 2>/dev/null | xargs)
   cmd=$(echo "$line" | awk '{for(i=11;i<=NF;i++) printf "%s ",$i; print ""}' | head -c 80)
 
-  if [ "$ppid" = "1" ]; then
+  systemd_main="no"
+  for svc in edu-cloud llm-proxy edu-cloud-worker; do
+    svc_pid=$(systemctl show "$svc" -p MainPID --value 2>/dev/null || true)
+    if [ -n "$svc_pid" ] && [ "$svc_pid" != "0" ] && [ "$svc_pid" = "$pid" ]; then
+      systemd_main="yes"
+    fi
+  done
+
+  if [ "$ppid" = "1" ] && [ "$systemd_main" != "yes" ]; then
     warn "ghost PID=$pid (since $start): $cmd"
     GHOST_COUNT=$((GHOST_COUNT+1))
   fi
@@ -123,11 +372,12 @@ echo ""
 
 # ── 4. systemd Service Check ──
 echo -e "${BOLD}[systemd Services]${NC}"
-for svc in edu-cloud llm-proxy; do
+for svc in edu-cloud llm-proxy edu-cloud-worker; do
   if systemctl is-active --quiet "$svc" 2>/dev/null; then
     ok "$svc.service: active"
   else
-    STATE=$(systemctl is-active "$svc" 2>/dev/null || echo "not-found")
+    STATE=$(systemctl is-active "$svc" 2>/dev/null || true)
+    STATE=${STATE:-not-found}
     warn "$svc.service: $STATE"
     if [ "$svc" = "edu-cloud" ]; then
       if pgrep -f 'uvicorn.*9000' > /dev/null 2>&1; then

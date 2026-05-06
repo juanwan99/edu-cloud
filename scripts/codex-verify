@@ -1,0 +1,351 @@
+#!/usr/bin/env python3
+"""Codex completion verification entrypoint."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import shlex
+import subprocess
+from pathlib import Path
+
+from codex_support import PROJECT_ROOT, dirty_paths
+
+
+FRONTEND_INPUTS = (
+    "frontend/src/",
+    "frontend/public/",
+    "frontend/package.json",
+    "frontend/package-lock.json",
+    "frontend/vite.config",
+    "frontend/index.html",
+)
+
+
+def shell_join(cmd: list[str]) -> str:
+    return " ".join(shlex.quote(part) for part in cmd)
+
+
+def run_cmd(cmd: list[str], cwd: Path = PROJECT_ROOT) -> int:
+    print(f"+ {shell_join(cmd)}")
+    result = subprocess.run(cmd, cwd=cwd)
+    return result.returncode
+
+
+def run_sequence(commands: list[tuple[list[str], Path]], dry_run: bool) -> int:
+    for cmd, cwd in commands:
+        if dry_run:
+            where = "" if cwd == PROJECT_ROOT else f"  (cwd={cwd})"
+            print(f"+ {shell_join(cmd)}{where}")
+            continue
+        rc = run_cmd(cmd, cwd=cwd)
+        if rc != 0:
+            return rc
+    return 0
+
+
+def git_head() -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() if result.returncode == 0 else "unknown"
+
+
+def read_json_file(path: Path) -> dict[str, object] | None:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def fetch_json(url: str) -> dict[str, object] | None:
+    result = subprocess.run(["curl", "-sf", url], cwd=PROJECT_ROOT, capture_output=True, text=True)
+    if result.returncode != 0:
+        return None
+    try:
+        return json.loads(result.stdout)
+    except Exception:
+        return None
+
+
+def _is_dirty_value(value: object) -> bool:
+    if value is True:
+        return True
+    if isinstance(value, str):
+        return value.lower() == "true"
+    return False
+
+
+def frontend_version_alignment_errors(
+    local: dict[str, object] | None,
+    remote: dict[str, object] | None,
+    head: str,
+    allow_dirty_build: bool = False,
+) -> list[str]:
+    errors: list[str] = []
+    if not local:
+        return ["local frontend/dist/version.json is missing or unreadable"]
+
+    local_hash = str(local.get("git_hash") or "")
+    if not local_hash:
+        errors.append("local dist/version.json missing git_hash")
+    elif head != "unknown" and local_hash != head:
+        errors.append(f"local dist/version.json git_hash {local_hash} does not match HEAD {head}")
+
+    if _is_dirty_value(local.get("source_dirty")) and not allow_dirty_build:
+        errors.append("local dist/version.json has source_dirty=true")
+
+    if remote is not None:
+        remote_hash = str(remote.get("git_hash") or "")
+        if not remote_hash:
+            errors.append("remote version.json missing git_hash")
+        elif local_hash and remote_hash != local_hash:
+            errors.append(f"remote version.json git_hash {remote_hash} does not match local dist {local_hash}")
+
+    return errors
+
+
+def verify_frontend_version_alignment(args: argparse.Namespace) -> int:
+    if args.dry_run:
+        target = "local frontend/dist/version.json git_hash == HEAD and source_dirty=false"
+        if not args.no_network:
+            target += "; remote https://mcu.asia/version.json git_hash == local dist"
+        print(f"+ frontend version alignment: {target}")
+        return 0
+
+    local = read_json_file(PROJECT_ROOT / "frontend" / "dist" / "version.json")
+    remote = None if args.no_network else fetch_json("https://mcu.asia/version.json")
+    if not args.no_network and remote is None:
+        print("Frontend version alignment failed:")
+        print("  - remote https://mcu.asia/version.json is unreachable or unreadable")
+        return 1
+
+    errors = frontend_version_alignment_errors(
+        local=local,
+        remote=remote,
+        head=git_head(),
+        allow_dirty_build=args.allow_dirty_build,
+    )
+    if errors:
+        print("Frontend version alignment failed:")
+        for error in errors:
+            print(f"  - {error}")
+        return 1
+    print("Frontend version alignment ok")
+    return 0
+
+
+def changed_script_files() -> list[Path]:
+    result = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return []
+    paths: list[Path] = []
+    for line in result.stdout.splitlines():
+        if len(line) < 4:
+            continue
+        raw = line[3:].strip()
+        if raw.startswith('"') and raw.endswith('"'):
+            raw = raw[1:-1]
+        path = PROJECT_ROOT / raw
+        if not path.is_file():
+            continue
+        is_script = raw.startswith("scripts/") or raw.endswith((".py", ".sh", ".bash"))
+        if is_script:
+            paths.append(path)
+    return paths
+
+
+def repo_wide_safety_files() -> list[Path]:
+    result = subprocess.run(
+        ["git", "ls-files", "-co", "--exclude-standard"],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return []
+    paths: list[Path] = []
+    for raw in result.stdout.splitlines():
+        path = PROJECT_ROOT / raw
+        if path.is_file():
+            paths.append(path)
+    return paths
+
+
+SAFETY_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    ("direct alembic mutation", re.compile(r"\balembic\s+(upgrade|downgrade)\b")),
+    ("active sqlite copy", re.compile(r"\b(?:cp|rsync)\b\s+(?:-[^\s]+\s+)*[^\n]*\S+\.db\b")),
+    ("destructive git cleanup", re.compile(r"\bgit\s+(?:reset\s+--hard|clean\s+-[A-Za-z]*f|checkout\s+(?:--\s+)?\.|restore\s+(?:--staged\s+)?\.)\b")),
+    ("probable API key", re.compile(r"\b(?:sk-[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{20,})\b")),
+    ("private key block", re.compile(r"-----BEGIN\s+(?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----")),
+]
+
+REPO_WIDE_SAFETY_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    ("active sqlite copy", SAFETY_PATTERNS[1][1]),
+    ("probable API key", SAFETY_PATTERNS[3][1]),
+    ("private key block", SAFETY_PATTERNS[4][1]),
+]
+
+
+def scan_safety_files(paths: list[Path], patterns: list[tuple[str, re.Pattern[str]]]) -> list[str]:
+    findings: list[str] = []
+    for path in paths:
+        try:
+            if path.stat().st_size > 1_000_000:
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        rel = path.relative_to(PROJECT_ROOT)
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            if "re.compile(" in line:
+                continue
+            for label, pattern in patterns:
+                if not pattern.search(line):
+                    continue
+                if label == "direct alembic mutation" and ("db_migrate" in line or "EDU_CLOUD_MIGRATION_WRAPPER" in line):
+                    continue
+                if label == "active sqlite copy" and ".backup" in line:
+                    continue
+                findings.append(f"{rel}:{line_no}: {label}")
+    return findings
+
+
+def verify_safety(args: argparse.Namespace) -> int:
+    print("Safety scan")
+    findings = scan_safety_files(changed_script_files(), SAFETY_PATTERNS)
+    if getattr(args, "repo_wide", False):
+        print("  repo-wide secret/db-copy scan")
+        findings.extend(scan_safety_files(repo_wide_safety_files(), REPO_WIDE_SAFETY_PATTERNS))
+    if findings:
+        print("  blocked dangerous pattern(s):")
+        for finding in findings:
+            print(f"  - {finding}")
+        return 1
+    print("  no dangerous changed-script patterns found")
+    return 0
+
+
+def verify_frontend(args: argparse.Namespace) -> int:
+    dirty = dirty_paths(FRONTEND_INPUTS)
+    if dirty and not args.allow_dirty_build:
+        print("Refusing frontend build: frontend build inputs are dirty.")
+        for path in dirty[:20]:
+            print(f"  - {path}")
+        if len(dirty) > 20:
+            print(f"  ... and {len(dirty) - 20} more")
+        print("Commit/stash first, or use --allow-dirty-build for debug-only evidence.")
+        return 1
+
+    frontend = PROJECT_ROOT / "frontend"
+    commands: list[tuple[list[str], Path]] = [
+        (["npm", "run", "lint"], frontend),
+        (["npm", "run", "build"], frontend),
+    ]
+    if not args.no_network:
+        commands.extend([
+            ([str(PROJECT_ROOT / "scripts" / "truth-status.sh"), str(PROJECT_ROOT)], PROJECT_ROOT),
+            (["curl", "-sf", "https://mcu.asia/version.json"], PROJECT_ROOT),
+        ])
+    rc = run_sequence(commands, args.dry_run)
+    if rc != 0:
+        return rc
+    return verify_frontend_version_alignment(args)
+
+
+def verify_backend(args: argparse.Namespace) -> int:
+    py = str(PROJECT_ROOT / ".venv" / "bin" / "python")
+    pytest_args = list(args.pytest_args or [])
+    if pytest_args and pytest_args[0] == "--":
+        pytest_args = pytest_args[1:]
+    partial_flags = ("--lf", "--ff", "-x", "--maxfail", "--ignore", "-k", "--last-failed")
+    if pytest_args and not any(any(arg.startswith(flag) for flag in partial_flags) for arg in pytest_args):
+        pytest_args = ["--ff", *pytest_args]
+    commands: list[tuple[list[str], Path]] = [
+        ([py, "scripts/pytest_delta.py", *pytest_args], PROJECT_ROOT),
+    ]
+    if args.schema:
+        commands.append(([py, "scripts/db_doctor.py", "--strict"], PROJECT_ROOT))
+    return run_sequence(commands, args.dry_run)
+
+
+def verify_schema(args: argparse.Namespace) -> int:
+    py = str(PROJECT_ROOT / ".venv" / "bin" / "python")
+    commands = [
+        ([py, "scripts/db_doctor.py", "--strict"], PROJECT_ROOT),
+        ([py, "-m", "pytest", "tests/test_alembic_migration.py", "-q"], PROJECT_ROOT),
+    ]
+    return run_sequence(commands, args.dry_run)
+
+
+def verify_full(args: argparse.Namespace) -> int:
+    rc = verify_safety(args)
+    if rc != 0:
+        return rc
+    backend_args = argparse.Namespace(dry_run=args.dry_run, schema=False, pytest_args=[])
+    frontend_args = argparse.Namespace(
+        dry_run=args.dry_run,
+        no_network=args.no_network,
+        allow_dirty_build=args.allow_dirty_build,
+    )
+    rc = verify_backend(backend_args)
+    if rc != 0:
+        return rc
+    if args.schema:
+        rc = verify_schema(args)
+        if rc != 0:
+            return rc
+    return verify_frontend(frontend_args)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run Codex completion verification.")
+    sub = parser.add_subparsers(dest="mode", required=True)
+
+    frontend = sub.add_parser("frontend", help="lint, build, truth-status, mcu.asia version check")
+    frontend.add_argument("--dry-run", action="store_true", help="Print commands without running them.")
+    frontend.add_argument("--no-network", action="store_true", help="Skip mcu.asia/backend curl checks.")
+    frontend.add_argument("--allow-dirty-build", action="store_true", help="Allow dirty frontend build for debug-only evidence.")
+    frontend.set_defaults(func=verify_frontend)
+
+    backend = sub.add_parser("backend", help="run pytest_delta or targeted pytest args")
+    backend.add_argument("--dry-run", action="store_true", help="Print commands without running them.")
+    backend.add_argument("--schema", action="store_true", help="Also run db_doctor --strict.")
+    backend.add_argument("pytest_args", nargs=argparse.REMAINDER, help="Extra args passed to pytest_delta.py after --.")
+    backend.set_defaults(func=verify_backend)
+
+    schema = sub.add_parser("schema", help="run db_doctor and Alembic smoke tests")
+    schema.add_argument("--dry-run", action="store_true", help="Print commands without running them.")
+    schema.set_defaults(func=verify_schema)
+
+    safety = sub.add_parser("safety", help="scan changed scripts for dangerous commands and secrets")
+    safety.add_argument("--repo-wide", action="store_true", help="Also scan non-ignored repo files for secrets and SQLite-copy commands.")
+    safety.set_defaults(func=verify_safety)
+
+    full = sub.add_parser("full", help="backend + frontend verification")
+    full.add_argument("--dry-run", action="store_true", help="Print commands without running them.")
+    full.add_argument("--schema", action="store_true", help="Include schema verification.")
+    full.add_argument("--no-network", action="store_true", help="Skip mcu.asia/backend curl checks.")
+    full.add_argument("--allow-dirty-build", action="store_true", help="Allow dirty frontend build for debug-only evidence.")
+    full.set_defaults(func=verify_full)
+
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

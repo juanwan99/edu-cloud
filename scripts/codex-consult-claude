@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+"""Invoke Claude Code as a read-only auxiliary reviewer for Codex."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+from codex_support import PROJECT_ROOT
+
+
+READ_ONLY_TOOLS = "Read,Grep,Glob,LS"
+DISALLOWED_TOOLS = "Bash,Edit,Write,MultiEdit,NotebookEdit"
+DEFAULT_TIMEOUT_SECONDS = 900
+
+MODE_GUIDANCE = {
+    "review": "Review implementation, architecture, and governance changes. Lead with concrete risks and missing tests.",
+    "design": "Critique a proposed design. Look for brittle assumptions, hidden coupling, and simpler alternatives.",
+    "history": "Read historical docs only as candidate evidence. Identify what is still relevant and what is stale.",
+    "tests": "Find missing test coverage and propose focused regression tests.",
+    "risk": "Look for safety, migration, data, secret, destructive command, and delivery verification risks.",
+    "question": "Answer the question using read-only repository inspection when useful.",
+}
+
+SYSTEM_PROMPT = """You are Claude Code running as a read-only auxiliary reviewer invoked by Codex.
+
+Codex is the orchestrator, editor, verifier, and source of completion claims.
+AGENTS.md is authoritative. docs/context/NOW.md is the current fact source.
+docs/context/ACTIVE_INDEX.md controls which historical docs are active.
+CLAUDE.md is historical/deep reference, not the active entrypoint.
+
+You may read, grep, glob, and list files under the allowed repository.
+Do not edit files. Do not write files. Do not run Bash. Do not run git,
+database, migration, frontend, backend, or deployment commands.
+
+Your output is advisory only. Provide findings, risks, alternatives, and
+specific file references. Do not declare work complete. Do not tell Codex to
+skip verification. If you need command output, ask Codex to run the command.
+"""
+
+
+def shell_join(cmd: list[str]) -> str:
+    return " ".join(shlex.quote(part) for part in cmd)
+
+
+def build_user_prompt(mode: str, task: str) -> str:
+    return f"""Mode: {mode}
+Mode guidance: {MODE_GUIDANCE[mode]}
+
+Repository: {PROJECT_ROOT}
+
+Start by reading AGENTS.md, docs/context/NOW.md, and docs/context/ACTIVE_INDEX.md.
+Use CLAUDE.md only as historical/deep reference if the task explicitly requires it.
+
+Task:
+{task.strip()}
+
+Return a concise report with:
+- Findings, ordered by severity.
+- Evidence with file paths.
+- Open questions or assumptions.
+- Recommended Codex next steps.
+"""
+
+
+def build_claude_command(args: argparse.Namespace, prompt: str) -> list[str]:
+    cmd = [
+        "claude",
+        "-p",
+        "--no-session-persistence",
+        "--permission-mode",
+        "plan",
+        "--tools",
+        READ_ONLY_TOOLS,
+        "--disallowedTools",
+        DISALLOWED_TOOLS,
+        "--add-dir",
+        str(PROJECT_ROOT),
+        "--append-system-prompt",
+        SYSTEM_PROMPT,
+        "--output-format",
+        args.output_format,
+    ]
+    if args.model:
+        cmd.extend(["--model", args.model])
+    if args.effort:
+        cmd.extend(["--effort", args.effort])
+    cmd.append(prompt)
+    return cmd
+
+
+def auth_status() -> int:
+    claude = shutil.which("claude")
+    if not claude:
+        print("claude CLI not found on PATH", file=sys.stderr)
+        return 1
+    result = subprocess.run(
+        [claude, "auth", "status"],
+        cwd=Path(tempfile.gettempdir()),
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+    return result.returncode
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Invoke Claude as a read-only Claude Code auxiliary reviewer for Codex."
+    )
+    parser.add_argument("--dry-run", action="store_true", help="Print the Claude command without running it.")
+    parser.add_argument("--print-system-prompt", action="store_true", help="Print the fixed Claude auxiliary system prompt.")
+    parser.add_argument("--auth-status", action="store_true", help="Run `claude auth status` outside the repo.")
+    parser.add_argument("--output-format", choices=("text", "json"), default="text", help="Claude print output format.")
+    parser.add_argument("--model", help="Optional Claude model alias or full model id.")
+    parser.add_argument("--effort", choices=("low", "medium", "high", "xhigh", "max"), help="Optional Claude effort level.")
+    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_SECONDS, help="Maximum runtime in seconds.")
+    parser.add_argument("mode", nargs="?", choices=tuple(MODE_GUIDANCE), help="Consultation mode.")
+    parser.add_argument("task", nargs=argparse.REMAINDER, help="Task text for Claude.")
+    args = parser.parse_args()
+
+    if args.print_system_prompt:
+        print(SYSTEM_PROMPT)
+        return 0
+    if args.auth_status:
+        return auth_status()
+    if not args.mode:
+        parser.error("mode is required unless --print-system-prompt or --auth-status is used")
+    task = " ".join(args.task).strip()
+    if not task:
+        parser.error("task is required")
+
+    prompt = build_user_prompt(args.mode, task)
+    cmd = build_claude_command(args, prompt)
+
+    if args.dry_run:
+        print(shell_join(cmd))
+        return 0
+
+    claude = shutil.which("claude")
+    if not claude:
+        print("claude CLI not found on PATH", file=sys.stderr)
+        return 1
+    cmd[0] = claude
+
+    consult_cwd = Path(tempfile.gettempdir()) / "codex-claude-consult"
+    consult_cwd.mkdir(parents=True, exist_ok=True)
+    try:
+        result = subprocess.run(cmd, cwd=consult_cwd, timeout=args.timeout)
+    except subprocess.TimeoutExpired:
+        print(f"Claude consult timed out after {args.timeout}s", file=sys.stderr)
+        return 124
+    return result.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

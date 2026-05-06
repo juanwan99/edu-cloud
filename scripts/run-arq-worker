@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""Run the edu-cloud arq worker with the project's production settings."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+
+import arq.worker
+from arq import func
+from arq.worker import Worker
+
+from edu_cloud.worker import WorkerSettings
+
+
+def patch_worker_event_loop() -> None:
+    """Keep arq compatible with Python builds where get_event_loop is strict."""
+    original = arq.worker.Worker.__init__
+    if getattr(original, "_edu_cloud_event_loop_patch", False):
+        return
+
+    def patched(self, *args, **kwargs):
+        try:
+            asyncio.get_event_loop()
+        except RuntimeError:
+            asyncio.set_event_loop(asyncio.new_event_loop())
+        original(self, *args, **kwargs)
+
+    patched._edu_cloud_event_loop_patch = True
+    arq.worker.Worker.__init__ = patched
+
+
+def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    patch_worker_event_loop()
+
+    worker = Worker(
+        functions=[func(f) for f in WorkerSettings.functions],
+        cron_jobs=WorkerSettings.cron_jobs,
+        redis_settings=WorkerSettings.redis_settings,
+        on_startup=WorkerSettings.on_startup,
+        max_jobs=WorkerSettings.max_jobs,
+        job_timeout=WorkerSettings.job_timeout,
+    )
+    loop.run_until_complete(worker.async_run())
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

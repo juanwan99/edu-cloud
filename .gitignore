@@ -42,21 +42,50 @@ uploads/
 # Databases
 *.db
 *.db.bak*
+*.db-wal
+*.db-shm
+data/.db_migrate.lock
 
 # Codex review raw logs (生成于 codex-review skill；不入版本库)
 docs/plans/.codex-*
 
 # External knowledge base (独立 repo，不纳入 edu-cloud 版本控制)
+edu-knowledge-base
 edu-knowledge-base/
 
 # Playwright MCP snapshots
 .playwright-mcp/
 frontend/.playwright-mcp/
 frontend/e2e/
+frontend/.task/
 
 # Node modules (root level, frontend has its own)
 node_modules/
+package-lock.json
 
 # Codex CLI local state
+.codex
 .codex/
+frontend/.codex
 .secrets/
+
+# Local artifacts
+backups/
+screenshots/
+
+# Local AI grading experiments and private evaluation artifacts
+data/deepseek_*.json
+data/essay_*.json
+data/regrade_results.json
+docs/2026-05-02-grading-pipeline-optimization-handoff.md
+docs/ai-grading-baseline*.json
+docs/ai-grading-quality-handoff.md
+docs/anchor-essays.md
+docs/anchor-essays.tar.gz
+docs/anchor-essays/
+docs/anchor-samples.md
+scripts/deepseek_grading_eval.py
+scripts/essay_*.py
+patch_*.py
+convert_*.py
+src/edu_cloud/data/import_jingyan_yuwen.py

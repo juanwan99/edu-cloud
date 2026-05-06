@@ -140,7 +140,8 @@ echo ""
 echo -e "${BOLD}[Diagnosis]${NC}"
 if [ -z "$BROKEN_AT" ]; then
   echo -e "  ${GREEN}${BOLD}ALL ALIGNED${NC} — source, build, nginx, backend versions match"
+  exit 0
 else
   echo -e "  ${RED}${BOLD}BROKEN AT: $BROKEN_AT${NC}"
+  exit 1
 fi
-echo ""

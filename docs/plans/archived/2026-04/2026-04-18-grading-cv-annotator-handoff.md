@@ -118,8 +118,8 @@ POST /api/v1/scan/pipeline/scan-dir  body: {"dir_path": "/home/ops/projects/edu-
 
 ### 2.6 LLM key 更新 ✓
 用户给了新 key 替换 vectorengine.ai 通道（`/home/ops/projects/llm-proxy/.env`）：
-- `VECTO_KEY=sk-fOIzJEyD0PvKDFvwv4v7kMdtAOL9zQoPwoeijQfQyQGxXLgz`（官转 主力）
-- `VECTO_KEY2=sk-4xkL2UoY6W4jWDTrE5u9OP7CLAtU0f4dBqTvX9xoiF1fqJc3`（优质官转 备用）
+- `VECTO_KEY=[REDACTED]`（官转 主力）
+- `VECTO_KEY2=[REDACTED]`（优质官转 备用）
 已 `sudo -n systemctl restart llm-proxy`，pro 通道解锁（直连 `api.vectorengine.ai/v1` + `gemini-3-pro-preview` 返回 200）。
 
 ---
@@ -229,8 +229,8 @@ python /c/Users/Administrator/AppData/Local/Temp/cdp_fetch.py --url "https://mcu
 |---|---|---|
 | ECS SSH | `ops@47.121.197.52:22`，Ed25519 key `~/.ssh/aliyun_emergency` + passphrase + TOTP | `ecs-auto-ssh.py` 里写死 |
 | 教务登录 | `admin_academic_director_2` / `123456` | 调试 Chrome 9223 localStorage 已有 JWT |
-| VECTO_KEY | sk-fOIzJEyD0PvKDFvwv4v7kMdtAOL9zQoPwoeijQfQyQGxXLgz | `/home/ops/projects/llm-proxy/.env` |
-| VECTO_KEY2 | sk-4xkL2UoY6W4jWDTrE5u9OP7CLAtU0f4dBqTvX9xoiF1fqJc3 | 同上 |
+| VECTO_KEY | [REDACTED] | `/home/ops/projects/llm-proxy/.env` |
+| VECTO_KEY2 | [REDACTED] | 同上 |
 | AIPROXY_OAI_KEY | sk-1bd2780c...（未动） | 同上 |
 | sudo | `ops` 免密 sudo（`-n` 可用），仅用于 `systemctl restart edu-cloud/llm-proxy`，不做其他 sudo 动作 | —— |
 
