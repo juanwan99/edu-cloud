@@ -159,7 +159,7 @@ const batchGenerating = ref(false)
 
 const checkedQuestionIds = ref([])
 const visionMap = ref({})
-const modeValue = ref('batch')
+const modeValue = ref('realtime')
 const limitValue = ref(null)
 const batchGrading = ref(false)
 const gradingStarting = ref(false)
