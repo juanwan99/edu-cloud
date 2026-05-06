@@ -890,13 +890,27 @@ async def create_grading_task(
     if req.question_id:
         overlap_filter.append(GradingTask.question_id == req.question_id)
     elif req.question_ids:
-        overlap_filter.append(GradingTask.question_ids != None)
+        import json as _json
+        running_tasks = (await db.execute(
+            select(GradingTask).where(*overlap_filter, GradingTask.question_ids != None)
+        )).scalars().all()
+        req_set = set(req.question_ids)
+        existing = 0
+        for rt in running_tasks:
+            try:
+                rt_ids = set(_json.loads(rt.question_ids)) if isinstance(rt.question_ids, str) else set(rt.question_ids)
+            except Exception:
+                rt_ids = set()
+            if req_set & rt_ids:
+                existing = 1
+                break
     else:
         overlap_filter.append(GradingTask.question_id == None)
         overlap_filter.append(GradingTask.question_ids == None)
-    existing = (await db.execute(
-        select(func.count(GradingTask.id)).where(*overlap_filter)
-    )).scalar() or 0
+    if not req.question_ids:
+        existing = (await db.execute(
+            select(func.count(GradingTask.id)).where(*overlap_filter)
+        )).scalar() or 0
     if existing:
         raise HTTPException(409, "该题目/科目已有正在运行的阅卷任务，请等待完成后再启动")
 
@@ -997,6 +1011,27 @@ async def list_grading_tasks(
         q = q.where(GradingTask.subject_id == subject_id)
     result = await db.execute(q.order_by(GradingTask.created_at.desc()))
     return [_task_response(t) for t in result.scalars().all()]
+
+
+@router.post("/tasks/{task_id}/cancel")
+async def cancel_grading_task(
+    task_id: str,
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(require_permission("manage_grading")),
+):
+    school_id = current["current_role"].school_id
+    filters = [GradingTask.id == task_id]
+    if school_id:
+        filters.append(GradingTask.school_id == school_id)
+    result = await db.execute(select(GradingTask).where(*filters))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(404, "Task not found")
+    if task.status in ("completed", "cancelled", "failed"):
+        return {"status": task.status, "message": "Task already finished"}
+    task.status = "cancelled"
+    await db.commit()
+    return {"status": "cancelled", "message": "Task cancelled"}
 
 
 @router.get("/tasks/{task_id}")

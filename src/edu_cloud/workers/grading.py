@@ -9,7 +9,7 @@ import logging
 import time
 import aiofiles
 
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from edu_cloud.config import settings
@@ -1048,15 +1048,17 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             )
             answers_raw = a_result.scalars().all()
 
-            # Exclude answers that already have AI results (pending or done)
-            # Pure manual (confirmed+source=manual) are NOT excluded — AI can re-grade them
+            # Exclude answers that already have AI score (any status)
             all_answer_ids = [a.id for a in answers_raw]
             graded_rows = set()
             if all_answer_ids:
                 graded_rows = set((await db.execute(
                     select(GradingResult.answer_id).where(
                         GradingResult.answer_id.in_(all_answer_ids),
-                        GradingResult.status.in_(["ai_pending", "ai_done"]),
+                        or_(
+                            GradingResult.status.in_(["ai_pending", "ai_done"]),
+                            GradingResult.ai_score.is_not(None),
+                        ),
                     )
                 )).scalars().all())
 
@@ -1174,6 +1176,10 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
                     processed += len(batch)
                     result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
                     task = result.scalar_one()
+                    if task.status == "cancelled":
+                        logger.info("grading_task: task=%s cancelled by user after batch %d", task_id, batch_num)
+                        await db.commit()
+                        return
                     task.completed += batch_completed
                     task.failed += batch_failed
                     await db.commit()
@@ -1182,6 +1188,10 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
 
             # Batch API mode: write all results at once
             if task.grading_mode == "batch" and use_gemini and batch_results:
+                await db.refresh(task, ["status"])
+                if task.status == "failed":
+                    logger.warning("grading_task: task=%s was externally cancelled, skipping batch write", task_id)
+                    return
                 from edu_cloud.modules.grading.models import GradingPipelineLog
                 errors = []
                 total_completed = 0

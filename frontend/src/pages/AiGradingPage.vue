@@ -22,6 +22,8 @@
       <n-progress type="line" :percentage="taskProgressPct" :show-indicator="false" color="#644CF0" rail-color="rgba(100,76,240,0.12)" style="width:200px" />
       <span v-if="taskProgress.status === 'completed'" class="bar-done">完成</span>
       <span v-else-if="taskProgress.status === 'failed'" class="bar-fail">失败</span>
+      <span v-else-if="taskProgress.status === 'cancelled'" class="bar-fail">已取消</span>
+      <n-button v-if="taskProgress.status === 'processing'" size="tiny" quaternary type="error" @click="handleCancelTasks">取消</n-button>
     </div>
 
     <!-- 阅卷设置栏 -->
@@ -116,7 +118,7 @@ import { useRoute } from 'vue-router'
 import { useMessage, useDialog, NButton, NIcon, NRadioGroup, NRadioButton, NInputNumber, NProgress, NAlert } from 'naive-ui'
 import { useAuthStore } from '../stores/auth'
 import { ArrowLeft } from 'lucide-vue-next'
-import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, listTasks, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
+import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, listTasks, cancelTask, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
 import { listExams } from '../api/exams'
 import { createQuestion, updateQuestion, deleteQuestion } from '../api/questions'
 import { listSubjects } from '../api/subjects'
@@ -505,6 +507,16 @@ function stopPolling() {
     clearInterval(pollTimer)
     pollTimer = null
   }
+}
+
+async function handleCancelTasks() {
+  for (const tid of activeTaskIds) {
+    try { await cancelTask(tid) } catch { /* ignore */ }
+  }
+  stopPolling()
+  taskProgress.value = { ...taskProgress.value, status: 'cancelled' }
+  activeTaskIds = []
+  message.success('已取消阅卷任务')
 }
 
 function openContentModal(type) {
