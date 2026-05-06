@@ -70,6 +70,7 @@ function isSourceDirty() {
 }
 
 const buildId = `build-${Date.now()}`
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:9000'
 
 function generateVersionJson() {
   return {
@@ -117,11 +118,11 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:9000',
+        target: apiProxyTarget,
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:9000',
+        target: apiProxyTarget,
         changeOrigin: true,
       }
     }
