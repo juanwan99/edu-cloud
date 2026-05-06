@@ -16,6 +16,14 @@
       当前角色仅有查看权限，无法配置或启动阅卷
     </n-alert>
 
+    <!-- 全局进度条（不受科目选择影响） -->
+    <div v-if="taskProgress" class="bar-progress" style="margin-bottom:8px">
+      <span class="bar-progress-num">{{ taskProgress.graded }}</span><span class="bar-progress-sep">/{{ taskProgress.total }}</span>
+      <n-progress type="line" :percentage="taskProgressPct" :show-indicator="false" color="#644CF0" rail-color="rgba(100,76,240,0.12)" style="width:200px" />
+      <span v-if="taskProgress.status === 'completed'" class="bar-done">完成</span>
+      <span v-else-if="taskProgress.status === 'failed'" class="bar-fail">失败</span>
+    </div>
+
     <!-- 阅卷设置栏 -->
     <div class="settings-bar" v-if="examId && subjectId && questions.length && canManageGrading">
       <n-radio-group v-model:value="modeValue" size="small">
@@ -24,12 +32,6 @@
       </n-radio-group>
       <n-input-number v-model:value="limitValue" :min="1" :max="9999" placeholder="全部" clearable size="small" style="width:100px" />
       <n-button size="small" type="primary" :loading="gradingStarting || batchGrading" :disabled="gradingDisabled" @click="handleUnifiedGrading">{{ gradingButtonLabel }}</n-button>
-      <div v-if="taskProgress" class="bar-progress">
-        <span class="bar-progress-text">{{ taskProgress.graded }}/{{ taskProgress.total }}</span>
-        <n-progress type="line" :percentage="taskProgressPct" :show-indicator="false" style="width:120px" />
-        <span v-if="taskProgress.status === 'completed'" class="bar-done">完成</span>
-        <span v-else-if="taskProgress.status === 'failed'" class="bar-fail">失败</span>
-      </div>
     </div>
 
     <!-- 选择器：无路由参数时显示 -->
@@ -114,7 +116,7 @@ import { useRoute } from 'vue-router'
 import { useMessage, useDialog, NButton, NIcon, NRadioGroup, NRadioButton, NInputNumber, NProgress, NAlert } from 'naive-ui'
 import { useAuthStore } from '../stores/auth'
 import { ArrowLeft } from 'lucide-vue-next'
-import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
+import { getDispatchStatus, generateRubric, getRubric, saveRubric, createTask, getTask, listTasks, getQuestion, updateQuestionContent, uploadQuestionImage } from '../api/grading'
 import { listExams } from '../api/exams'
 import { createQuestion, updateQuestion, deleteQuestion } from '../api/questions'
 import { listSubjects } from '../api/subjects'
@@ -157,7 +159,7 @@ const batchGenerating = ref(false)
 
 const checkedQuestionIds = ref([])
 const visionMap = ref({})
-const modeValue = ref('realtime')
+const modeValue = ref('batch')
 const limitValue = ref(null)
 const batchGrading = ref(false)
 const gradingStarting = ref(false)
@@ -214,7 +216,23 @@ onMounted(async () => {
   } else {
     await loadExamList()
   }
+  await restoreActiveTasks()
 })
+
+async function restoreActiveTasks() {
+  try {
+    const res = await listTasks()
+    const tasks = res.data || []
+    const running = tasks.filter(t => t.status === 'processing' || t.status === 'pending')
+    if (running.length) {
+      activeTaskIds = running.map(t => t.id)
+      const graded = running.reduce((s, t) => s + (t.completed || 0), 0)
+      const total = running.reduce((s, t) => s + (t.total || 0), 0)
+      taskProgress.value = { status: 'processing', graded, total }
+      startPolling()
+    }
+  } catch { /* ignore */ }
+}
 
 async function loadExamList() {
   loadingExams.value = true
@@ -258,8 +276,10 @@ async function onSubjectSelected(val) {
   questions.value = []
   selectedQuestion.value = null
   taskProgress.value = null
+  activeTaskIds = []
   stopPolling()
   await loadQuestions()
+  await restoreActiveTasks()
 }
 
 onUnmounted(() => {
@@ -723,10 +743,18 @@ async function handleBatchGenerate() {
   margin-left: auto;
 }
 
-.bar-progress-text {
-  font-size: var(--fs-sm);
+.bar-progress-num {
+  font-size: 18px;
+  font-weight: 700;
+  color: #644CF0;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-progress-sep {
+  font-size: 14px;
+  font-weight: 500;
   color: var(--color-text-muted);
-  white-space: nowrap;
+  margin-right: 4px;
 }
 
 .bar-done {
