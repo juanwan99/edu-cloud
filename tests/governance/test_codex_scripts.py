@@ -53,8 +53,10 @@ def test_codex_context_no_network_outputs_project_sections():
     assert result.returncode == 0, result.stderr
     assert "Codex Context" in result.stdout
     assert "Dual-Core Control Plane" in result.stdout
-    assert "Meta Core" in result.stdout
-    assert "Guardian Core" in result.stdout
+    assert "Meta Core / 元控核" in result.stdout
+    assert "Guardian Core / 守护核" in result.stdout
+    assert "Claude read-only counter-review" in result.stdout
+    assert "frontend/backend build-runtime consistency" in result.stdout
     assert "Git" in result.stdout
     assert "Dirty Summary" in result.stdout
     assert "Guardian Health" in result.stdout
@@ -78,8 +80,36 @@ def test_dual_core_governance_model_is_active_context():
     assert "docs/context/GOVERNANCE_MODEL.md" in active_index.read_text(encoding="utf-8")
     agents_text = agents.read_text(encoding="utf-8")
     assert "EduCloud Dual-Core Control Plane" in agents_text
-    assert "Meta Core prevents task drift" in agents_text
-    assert "Guardian Core prevents operational accidents" in agents_text
+    assert "Meta Core / 元控核" in agents_text
+    assert "Guardian Core / 守护核" in agents_text
+
+
+def test_dual_core_responsibilities_are_formally_scoped():
+    model_text = (PROJECT_ROOT / "docs" / "context" / "GOVERNANCE_MODEL.md").read_text(encoding="utf-8")
+    agents_text = (PROJECT_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+
+    meta_terms = [
+        "direction",
+        "facts",
+        "task boundaries",
+        "context",
+        "Claude read-only counter-review",
+        "completion evidence contract",
+    ]
+    guardian_terms = [
+        "dirty state",
+        "truthline",
+        "DB/migration gates",
+        "safety scanning",
+        "frontend/backend build-runtime consistency",
+        "environment hygiene",
+    ]
+
+    for text in (model_text, agents_text):
+        for term in meta_terms:
+            assert term in text
+        for term in guardian_terms:
+            assert term in text
 
 
 def test_codex_check_no_network_is_read_only_preflight():

@@ -1,6 +1,7 @@
 # EduCloud Dual-Core Control Plane
 
-The edu-cloud governance model is the **EduCloud Dual-Core Control Plane**.
+The edu-cloud governance model is the **EduCloud Dual-Core Control Plane**
+(`ECP-DualCore`).
 It is Codex-led and Claude-assisted: Codex is the operator, editor, verifier,
 and source of completion claims; Claude is a full-repository read-only reviewer.
 
@@ -9,14 +10,17 @@ and source of completion claims; Claude is a full-repository read-only reviewer.
 The control plane keeps daily work aligned with the user's goal and prevents
 operational accidents. It is explicit, script-backed, and reviewable in git.
 
-## Meta Core
+## Meta Core / 元控核
 
-Meta Core prevents task drift. It answers:
+Meta Core prevents task drift and execution drift. It owns direction, facts,
+task boundaries, context, Claude read-only counter-review, and the completion evidence contract.
+
+It answers:
 
 - What facts and documents are active now?
 - What is the task boundary?
 - Which historical docs are safe to read?
-- Does this task need Claude read-only review?
+- Does this task need Claude read-only counter-review?
 - What evidence is required before a completion claim?
 - Is this change following existing project assets instead of creating a parallel system?
 
@@ -38,11 +42,14 @@ Core capabilities:
 - Scope and task-boundary discipline
 - Evidence requirements for decisions and completion claims
 - Asset inventory before new design or architecture work
-- Claude read-only adversarial review
+- Claude read-only counter-review
 
-## Guardian Core
+## Guardian Core / 守护核
 
-Guardian Core prevents operational accidents. It answers:
+Guardian Core prevents operational accidents. It owns dirty state, truthline,
+DB/migration gates, safety scanning, frontend/backend build-runtime consistency, and environment hygiene.
+
+It answers:
 
 - Is the working tree safe to build from?
 - Are source, dist, nginx, backend, and browser evidence aligned?

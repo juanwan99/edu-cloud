@@ -2,7 +2,14 @@
 
 This is the active Codex entrypoint. `CLAUDE.md` is historical/deep reference only.
 
-edu-cloud uses the **EduCloud Dual-Core Control Plane**: Meta Core prevents task drift; Guardian Core prevents operational accidents. The model is Codex-led and Claude-assisted.
+edu-cloud uses the **EduCloud Dual-Core Control Plane**:
+
+- **Meta Core / 元控核**: owns direction, facts, task boundaries, context,
+  Claude read-only counter-review, and the completion evidence contract.
+- **Guardian Core / 守护核**: owns dirty state, truthline, DB/migration gates,
+  safety scanning, frontend/backend build-runtime consistency, and environment hygiene.
+
+The model is Codex-led and Claude-assisted.
 
 ## Start Here
 

@@ -36,8 +36,14 @@ def main() -> int:
     print()
 
     print("Dual-Core Control Plane")
-    print_kv("Meta Core", "context, scope, active docs, evidence, Claude read-only review")
-    print_kv("Guardian Core", "dirty state, truthline, DB, build, tests, safety")
+    print_kv(
+        "Meta Core / 元控核",
+        "direction, facts, task boundaries, context, Claude read-only counter-review, completion evidence contract",
+    )
+    print_kv(
+        "Guardian Core / 守护核",
+        "dirty state, truthline, DB/migration gates, safety scanning, frontend/backend build-runtime consistency, environment hygiene",
+    )
     print()
 
     print("Git")

@@ -54,12 +54,14 @@ Codex-native migration layer is now committed:
   `frontend`, `backend`, `schema`, and `full` modes.
 - `.github/workflows/test.yml`: governance, backend, and frontend CI smoke.
 
-The governance model is the **EduCloud Dual-Core Control Plane**:
+The governance model is formally the **EduCloud Dual-Core Control Plane**
+(`ECP-DualCore`):
 
-- Meta Core: prevents task drift through active context, scope, evidence, and
-  Claude read-only review.
-- Guardian Core: prevents operational accidents through dirty-state, truthline,
-  DB, build, test, safety, and service checks.
+- Meta Core / 元控核: owns direction, facts, task boundaries, context, Claude
+  read-only counter-review, and the completion evidence contract.
+- Guardian Core / 守护核: owns dirty state, truthline, DB/migration gates,
+  safety scanning, frontend/backend build-runtime consistency, and environment
+  hygiene.
 
 ## AI Grading State
 
