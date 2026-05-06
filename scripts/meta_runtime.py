@@ -22,6 +22,10 @@ SCHEMA = "meta.core.v1"
 STATE_SCHEMA = "meta.state.v1"
 REQUIRED_META_LESSONS = ("L013", "L015", "L017", "L019", "L020", "L022")
 SHANGHAI_TZ = timezone(timedelta(hours=8))
+PLAN_REFERENCE_RE = re.compile(
+    r"(?:[\w./-]+\.(?:md|py|js|vue|sh|json|ya?ml|txt):\d+|"
+    r"`[^`]*(?:/|\.md|\.py|\.js|\.vue|\.sh|\.json|\.ya?ml|\.txt)[^`]*`)"
+)
 
 
 def utc_now() -> str:
@@ -260,18 +264,32 @@ def check_plan_contract(path: Path, text: str) -> list[dict[str, Any]]:
     rel = str(path)
     if not (rel.startswith("docs/plans/") or rel.startswith("docs/superpowers/plans/")):
         return []
+    if path.suffix != ".md":
+        return []
     if rel.endswith(".log") or "/archived/" in rel:
         return []
     lower = text.lower()
     evidence_terms = ("evidence", "现有资产盘点", "实证", "evidence_refs", "交付路径")
-    if any(term.lower() in lower for term in evidence_terms):
+    has_evidence_marker = any(term.lower() in lower for term in evidence_terms)
+    has_reference = bool(PLAN_REFERENCE_RE.search(text))
+    if has_evidence_marker and has_reference:
         return []
+    summary = (
+        f"plan/design document lacks concrete evidence reference: {rel}"
+        if has_evidence_marker
+        else f"plan/design document lacks an evidence or asset-inventory section: {rel}"
+    )
+    hint = (
+        f"add at least one file:line or backticked asset path reference to {rel}"
+        if has_evidence_marker
+        else f"add Evidence / 现有资产盘点 / 交付路径 to {rel}"
+    )
     return [
         issue(
             "PLAN_EVIDENCE_GAP",
             "yellow",
-            f"plan/design document lacks an evidence or asset-inventory section: {rel}",
-            f"add Evidence / 现有资产盘点 / 交付路径 to {rel}",
+            summary,
+            hint,
             required_before="handoff",
             source="plan-contract",
         )
@@ -281,6 +299,86 @@ def check_plan_contract(path: Path, text: str) -> list[dict[str, Any]]:
 def check_changed_plan_contracts(project_root: Path = PROJECT_ROOT) -> list[dict[str, Any]]:
     issues: list[dict[str, Any]] = []
     for rel in run_git_status(project_root):
+        path = project_root / rel
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        issues.extend(check_plan_contract(Path(rel), text))
+    return issues
+
+
+def recent_plan_paths(project_root: Path = PROJECT_ROOT, limit: int = 20) -> list[str]:
+    paths, _error = recent_plan_paths_with_error(project_root, limit=limit)
+    return paths
+
+
+def recent_plan_paths_with_error(project_root: Path = PROJECT_ROOT, limit: int = 20) -> tuple[list[str], str | None]:
+    upstream = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    if upstream.returncode == 0 and upstream.stdout.strip():
+        range_spec = f"{upstream.stdout.strip()}...HEAD"
+    else:
+        range_spec = f"HEAD~{limit}..HEAD"
+    result = subprocess.run(
+        [
+            "git",
+            "diff",
+            "--name-only",
+            range_spec,
+            "--",
+            "docs/plans/*.md",
+            "docs/superpowers/plans/*.md",
+        ],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "git diff failed"
+        return [], detail
+    seen: set[str] = set()
+    paths: list[str] = []
+    for raw in result.stdout.splitlines():
+        rel = raw.strip()
+        if not rel or rel in seen:
+            continue
+        seen.add(rel)
+        paths.append(rel)
+    return paths, None
+
+
+def check_recent_plan_contracts(
+    project_root: Path = PROJECT_ROOT,
+    *,
+    recent_paths: list[str] | None = None,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    if recent_paths is None:
+        paths, error = recent_plan_paths_with_error(project_root, limit=limit)
+        if error:
+            return [
+                issue(
+                    "PLAN_SCAN_INCONCLUSIVE",
+                    "yellow",
+                    "recent committed plan scan could not determine git range: " + error,
+                    "run scripts/meta-check --check-recent-plans from a branch with an upstream, or inspect recent plan docs manually",
+                    required_before="handoff",
+                    source="plan-contract",
+                )
+            ]
+    else:
+        paths = recent_paths
+    for rel in paths:
         path = project_root / rel
         if not path.is_file():
             continue
@@ -315,14 +413,68 @@ def task_obligations(task: str | None) -> list[dict[str, str]]:
     return deduped
 
 
+def obligation_codes(obligations: list[dict[str, str]]) -> set[str]:
+    return {str(item.get("code")) for item in obligations if item.get("code")}
+
+
+def baseline_obligations(path: Path) -> list[dict[str, str]]:
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    latest = parsed.get("latest_snapshot") if isinstance(parsed, dict) else {}
+    contract = latest.get("task_contract") if isinstance(latest, dict) else {}
+    obligations = contract.get("obligations") if isinstance(contract, dict) else []
+    if not isinstance(obligations, list):
+        return []
+    return [item for item in obligations if isinstance(item, dict)]
+
+
+def check_task_contract_drift(
+    baseline_path: Path,
+    *,
+    current_obligations: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    baseline_codes = obligation_codes(baseline_obligations(baseline_path))
+    current_codes = obligation_codes(current_obligations)
+    if not baseline_codes:
+        return [
+            issue(
+                "TASK_CONTRACT_DRIFT",
+                "yellow",
+                f"baseline task contract is missing or has no obligations: {baseline_path}",
+                "run scripts/meta-check --task \"...\" --write-state before drift checks",
+                required_before="handoff",
+                source="task-drift",
+            )
+        ]
+    missing = sorted(baseline_codes - current_codes)
+    if not missing:
+        return []
+    return [
+        issue(
+            "TASK_CONTRACT_DRIFT",
+            "yellow",
+            "current task contract lost baseline obligation(s): " + ", ".join(missing),
+            "re-run scripts/meta-check with the full current user task or re-anchor the task contract",
+            required_before="completion",
+            source="task-drift",
+        )
+    ]
+
+
 def build_snapshot(
     *,
     project_root: Path = PROJECT_ROOT,
     task: str | None = None,
     include_git: bool = True,
+    check_recent_plans: bool = False,
+    check_drift: bool = False,
+    baseline_state: Path | None = None,
 ) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
     all_issues: list[dict[str, Any]] = []
+    obligations = task_obligations(task)
     for name, func in (
         ("active_docs", check_active_docs),
         ("lesson_coverage", check_lesson_coverage),
@@ -337,11 +489,21 @@ def build_snapshot(
         issues = check_changed_plan_contracts(project_root)
         checks.append({"name": "changed_plan_contracts", "status": "ok" if not issues else "issue", "issue_count": len(issues)})
         all_issues.extend(issues)
+    if check_recent_plans:
+        issues = check_recent_plan_contracts(project_root)
+        checks.append({"name": "recent_plan_contracts", "status": "ok" if not issues else "issue", "issue_count": len(issues)})
+        all_issues.extend(issues)
+    if check_drift:
+        issues = check_task_contract_drift(
+            baseline_state or project_root / "logs" / "meta-state.json",
+            current_obligations=obligations,
+        )
+        checks.append({"name": "task_contract_drift", "status": "ok" if not issues else "issue", "issue_count": len(issues)})
+        all_issues.extend(issues)
 
     red_count = sum(1 for item in all_issues if item["severity"] == "red" or item.get("blocks_completion"))
     yellow_count = sum(1 for item in all_issues if item["severity"] == "yellow" and not item.get("blocks_completion"))
     overall = "red" if red_count else "yellow" if yellow_count else "green"
-    obligations = task_obligations(task)
     return {
         "schema": SCHEMA,
         "generated_at": utc_now(),
@@ -407,6 +569,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--strict", action="store_true", help="Exit non-zero for red or yellow issues.")
     parser.add_argument("--task", help="Current user task text for task-contract extraction.")
     parser.add_argument("--no-git", action="store_true", help="Skip changed plan/design evidence checks.")
+    parser.add_argument("--check-recent-plans", action="store_true", help="Also check recent committed plan/design files.")
+    parser.add_argument("--check-drift", action="store_true", help="Compare current task obligations with a baseline state file.")
+    parser.add_argument("--baseline-state", type=Path, help="Baseline meta-state file for --check-drift.")
     parser.add_argument("--state-file", type=Path, default=PROJECT_ROOT / "logs" / "meta-state.json")
     parser.add_argument("--write-state", action="store_true", help="Write latest state to logs/meta-state.json.")
     return parser.parse_args(argv)
@@ -414,7 +579,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    snapshot = build_snapshot(task=args.task, include_git=not args.no_git)
+    snapshot = build_snapshot(
+        task=args.task,
+        include_git=not args.no_git,
+        check_recent_plans=args.check_recent_plans,
+        check_drift=args.check_drift,
+        baseline_state=args.baseline_state,
+    )
     if args.write_state:
         write_state(args.state_file, snapshot)
     if args.json:

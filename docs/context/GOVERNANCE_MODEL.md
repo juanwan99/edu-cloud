@@ -64,6 +64,10 @@ It guards:
 - Claude auxiliary review remains read-only and Codex-led
 - changed plan/design/handoff documents include evidence, existing-asset
   inventory, or delivery-path sections
+- optional recent committed plan scans catch evidence gaps after a plan has
+  already been committed
+- optional drift checks compare the current task obligations against the
+  baseline `logs/meta-state.json`
 - current user task text is decomposed into obligations such as evidence
   mining, read-only model review, implementation verification, autonomy, and
   multi-step instruction handling

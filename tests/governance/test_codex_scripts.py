@@ -60,6 +60,18 @@ def load_guardian_runtime_module():
     return module
 
 
+def load_codex_consult_module():
+    scripts_dir = PROJECT_ROOT / "scripts"
+    sys.path.insert(0, str(scripts_dir))
+    loader = SourceFileLoader("codex_consult_claude_test", str(scripts_dir / "codex-consult-claude"))
+    spec = importlib.util.spec_from_loader("codex_consult_claude_test", loader)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["codex_consult_claude_test"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def load_meta_runtime_module():
     scripts_dir = PROJECT_ROOT / "scripts"
     sys.path.insert(0, str(scripts_dir))
@@ -426,6 +438,85 @@ def test_meta_runtime_detects_plan_without_evidence():
     assert any(issue["issue_code"] == "PLAN_EVIDENCE_GAP" for issue in issues)
 
 
+def test_meta_runtime_detects_empty_evidence_section_without_file_reference():
+    module = load_meta_runtime_module()
+
+    issues = module.check_plan_contract(
+        Path("docs/superpowers/plans/demo-plan.md"),
+        "# Demo Implementation Plan\n\n## Evidence\n\nEvidence: TBD.\n",
+    )
+
+    assert any(issue["issue_code"] == "PLAN_EVIDENCE_GAP" for issue in issues)
+
+
+def test_meta_runtime_checks_recent_committed_plan_contracts(tmp_path):
+    module = load_meta_runtime_module()
+    plan = tmp_path / "docs" / "superpowers" / "plans" / "recent-plan.md"
+    plan.parent.mkdir(parents=True)
+    plan.write_text("# Recent Plan\n\n## Architecture\n\nNew subsystem.\n", encoding="utf-8")
+
+    issues = module.check_recent_plan_contracts(
+        tmp_path,
+        recent_paths=["docs/superpowers/plans/recent-plan.md"],
+    )
+
+    assert any(issue["issue_code"] == "PLAN_EVIDENCE_GAP" for issue in issues)
+
+
+def test_meta_runtime_detects_task_contract_drift(tmp_path):
+    module = load_meta_runtime_module()
+    baseline = tmp_path / "meta-state.json"
+    baseline.write_text(
+        json.dumps(
+            {
+                "schema": "meta.state.v1",
+                "latest_snapshot": {
+                    "task_contract": {
+                        "obligations": [
+                            {"code": "EVIDENCE_MATRIX", "summary": "evidence"},
+                            {"code": "CLAUDE_REVIEW", "summary": "review"},
+                        ]
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    issues = module.check_task_contract_drift(
+        baseline,
+        current_obligations=[{"code": "EVIDENCE_MATRIX", "summary": "evidence"}],
+    )
+
+    assert any(issue["issue_code"] == "TASK_CONTRACT_DRIFT" for issue in issues)
+
+
+def test_meta_runtime_write_state_is_atomic_and_readable(tmp_path):
+    module = load_meta_runtime_module()
+    state_file = tmp_path / "meta-state.json"
+    snapshot = module.build_snapshot(project_root=PROJECT_ROOT, task="测试写入状态", include_git=False)
+
+    module.write_state(state_file, snapshot)
+
+    parsed = json.loads(state_file.read_text(encoding="utf-8"))
+    assert parsed["schema"] == "meta.state.v1"
+    assert parsed["latest_snapshot"]["schema"] == "meta.core.v1"
+    assert not (tmp_path / "meta-state.json.tmp").exists()
+
+
+def test_meta_runtime_reports_inconclusive_recent_plan_scan(monkeypatch, tmp_path):
+    module = load_meta_runtime_module()
+
+    def fake_run(cmd, cwd=None, capture_output=True, text=True, timeout=10):
+        return subprocess.CompletedProcess(cmd, 128, "", "fatal: bad revision")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    issues = module.check_recent_plan_contracts(tmp_path)
+
+    assert any(issue["issue_code"] == "PLAN_SCAN_INCONCLUSIVE" for issue in issues)
+
+
 def test_meta_runtime_detects_stale_now_facts(tmp_path):
     module = load_meta_runtime_module()
     context = tmp_path / "docs" / "context"
@@ -512,6 +603,36 @@ def test_codex_consult_claude_system_prompt_preserves_codex_authority():
     assert "CLAUDE.md is historical" in result.stdout
     assert "Meta Core task contract" in result.stdout
     assert "Do not edit files" in result.stdout
+
+
+def test_codex_consult_claude_injects_meta_state_obligations(monkeypatch, tmp_path):
+    module = load_codex_consult_module()
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "meta-state.json").write_text(
+        json.dumps(
+            {
+                "schema": "meta.state.v1",
+                "latest_snapshot": {
+                    "overall": "green",
+                    "task_contract": {
+                        "obligations": [
+                            {"code": "EVIDENCE_MATRIX", "summary": "produce evidence-backed findings"},
+                            {"code": "CLAUDE_REVIEW", "summary": "run read-only review"},
+                        ]
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
+
+    prompt = module.build_user_prompt("review", "check meta core")
+
+    assert "Current Meta Core task contract" in prompt
+    assert "EVIDENCE_MATRIX" in prompt
+    assert "CLAUDE_REVIEW" in prompt
 
 
 def test_codex_verify_backend_target_args_are_marked_partial():

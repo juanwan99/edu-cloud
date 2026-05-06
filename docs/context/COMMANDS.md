@@ -41,12 +41,21 @@ Strict automation mode:
 scripts/meta-check --strict --task "current user task"
 ```
 
+Deep checks for long-running or design-heavy work:
+
+```bash
+scripts/meta-check --task "current user task" --write-state
+scripts/meta-check --task "current user task" --check-drift --baseline-state logs/meta-state.json
+scripts/meta-check --check-recent-plans
+```
+
 `scripts/meta-check` emits `meta.core.v1`. It checks active-context documents,
 `NOW.md` freshness, migrated Meta lessons, Meta runtime registration, Claude
-read-only boundaries, changed plan/design/handoff evidence sections, and task
-obligations inferred from the current user instruction. It is synchronous and
-advisory: it may block completion when red issues exist, but it does not edit
-files, run migrations, build, deploy, or declare completion.
+read-only boundaries, changed and recent plan/design/handoff evidence sections,
+baseline task-contract drift, and task obligations inferred from the current
+user instruction. It is synchronous and advisory: it may block completion when
+red issues exist, but it does not edit files, run migrations, build, deploy, or
+declare completion.
 
 ## Truthline
 

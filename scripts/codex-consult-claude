@@ -48,6 +48,27 @@ skip verification. If you need command output, ask Codex to run the command.
 """
 
 
+def meta_state_summary() -> str:
+    state_file = PROJECT_ROOT / "logs" / "meta-state.json"
+    if not state_file.exists():
+        return "Current Meta Core task contract: unavailable; logs/meta-state.json is missing."
+    try:
+        parsed = json.loads(state_file.read_text(encoding="utf-8"))
+    except Exception:
+        return "Current Meta Core task contract: unavailable; logs/meta-state.json is unreadable."
+    latest = parsed.get("latest_snapshot") if isinstance(parsed, dict) else {}
+    contract = latest.get("task_contract") if isinstance(latest, dict) else {}
+    obligations = contract.get("obligations") if isinstance(contract, dict) else []
+    if not isinstance(obligations, list) or not obligations:
+        return f"Current Meta Core task contract: overall={latest.get('overall')}; obligations=none."
+    lines = [f"Current Meta Core task contract: overall={latest.get('overall')}"]
+    for item in obligations[:8]:
+        if not isinstance(item, dict):
+            continue
+        lines.append(f"- {item.get('code')}: {item.get('summary')}")
+    return "\n".join(lines)
+
+
 def shell_join(cmd: list[str]) -> str:
     return " ".join(shlex.quote(part) for part in cmd)
 
@@ -60,6 +81,8 @@ Repository: {PROJECT_ROOT}
 
 Start by reading AGENTS.md, docs/context/NOW.md, and docs/context/ACTIVE_INDEX.md.
 Use CLAUDE.md only as historical/deep reference if the task explicitly requires it.
+
+{meta_state_summary()}
 
 Task:
 {task.strip()}

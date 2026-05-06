@@ -32,6 +32,10 @@ task-contract plane. It checks:
 - Claude auxiliary review remains read-only
 - changed plan/design/handoff files include evidence, asset inventory, or
   delivery-path sections
+- optional recent committed plan/design files include evidence and a concrete
+  file or asset reference
+- optional drift checks preserve the baseline task obligations from
+  `logs/meta-state.json`
 - current task text implies explicit obligations such as evidence mining,
   Claude review, implementation verification, autonomy, and instruction
   decomposition
@@ -55,6 +59,28 @@ Meta runtime must not:
 Meta is synchronous and task-bound. It is intentionally not a systemd watcher:
 Guardian monitors the environment continuously; Meta should run at task start,
 before broad design decisions, and before completion claims.
+
+## Deep Checks
+
+Use these when the task is long-running, design-heavy, or follows a model
+review that found structural risk:
+
+```bash
+scripts/meta-check --task "current user task" --write-state
+scripts/meta-check --task "current user task" --check-drift --baseline-state logs/meta-state.json
+scripts/meta-check --check-recent-plans
+```
+
+`--check-drift` compares current obligations to the baseline state and reports
+`TASK_CONTRACT_DRIFT` if an obligation disappears. `--check-recent-plans`
+checks recently committed `docs/plans/**` and `docs/superpowers/plans/**` files
+for evidence sections that include a concrete file, file-line, or asset
+reference. If the git range cannot be resolved, it reports
+`PLAN_SCAN_INCONCLUSIVE` instead of silently skipping the check.
+
+Task-obligation extraction is heuristic. Use stable task text when writing a
+baseline for `--check-drift`; if the user materially changes the task, write a
+new baseline rather than treating the drift warning as a failure.
 
 ## Completion Evidence
 

@@ -19,9 +19,9 @@ column is the lightweight governance registry for 元守双核心.
 | S-012 | Evidence-less decisions or negative assertions | Claude decision-evidence discipline | Meta Core requires grep/read/file-line evidence for scope, negative assertions, and architecture choices | Design/plan/final answer cites concrete files, commands, or outputs | Add template checks only if this becomes noisy |
 | S-013 | Existing asset bypass or parallel systems | Claude planning-inventory discipline | Meta Core requires existing asset inventory before new subsystem work; `ACTIVE_INDEX.md` controls active docs | Design/plan lists existing backend/frontend/test assets and delivery path | Add a future design-doc linter if repeated |
 | S-014 | Work-time drift goes unseen between manual checks | Guardian realtime requirement | `scripts/guardian-watch` runs once or continuously; systemd template `deploy/systemd/edu-cloud-guardian.service` writes latest state and JSONL history; model review is rate-limited and read-only | `systemctl is-active edu-cloud-guardian.service`; `scripts/guardian-watch --once --json --no-network --no-model-review`; `logs/guardian-state.json` has fresh `guardian.watch.v1` | GPT model review needs a working local GPT CLI/API wrapper before it can be enabled safely |
-| S-015 | Multi-step user instruction loss, role drift, or compact forgetting | L022 | `scripts/meta-check --task ...` emits explicit `task_contract.obligations`; `scripts/codex-context` shows latest Meta runtime state | `scripts/meta-check --json --task "..."`; final answer maps work to extracted obligations | No automatic Codex stop hook; run at task start and before completion |
-| S-016 | Model review optimizes the wrong local problem | L017 | Meta Core keeps Claude/GPT review advisory, read-only, and bound to user intent, active assets, and completion oracle | `scripts/codex-consult-claude --dry-run review ...`; `scripts/meta-check --json --task "双模型..."` includes `CLAUDE_REVIEW` | A GPT reviewer needs a vetted read-only wrapper before use |
-| S-017 | Live task truth is absent during long execution | L019 / behavior audit | `scripts/meta-check --write-state` writes `logs/meta-state.json`; changed plans are checked for evidence or delivery path; `scripts/codex-verify full` runs `scripts/meta-check --strict` | `scripts/meta-check --json --strict`; `scripts/codex-context --no-network` shows `Meta Runtime` | Meta is synchronous by design; Guardian remains the continuous process watcher |
+| S-015 | Multi-step user instruction loss, role drift, or compact forgetting | L022 | `scripts/meta-check --task ...` emits explicit `task_contract.obligations`; `scripts/meta-check --check-drift` compares against baseline obligations; `scripts/codex-context` shows latest Meta runtime state | `scripts/meta-check --json --task "..."`; `scripts/meta-check --task "..." --check-drift --baseline-state logs/meta-state.json`; final answer maps work to extracted obligations | No automatic Codex stop hook; run at task start and before completion |
+| S-016 | Model review optimizes the wrong local problem | L017 | Meta Core keeps Claude/GPT review advisory, read-only, and bound to user intent, active assets, and completion oracle; `scripts/codex-consult-claude` injects current meta-state obligations when available | `scripts/codex-consult-claude --dry-run review ...`; `scripts/meta-check --json --task "双模型..."` includes `CLAUDE_REVIEW` | A GPT reviewer needs a vetted read-only wrapper before use |
+| S-017 | Live task truth is absent during long execution | L019 / behavior audit | `scripts/meta-check --write-state` writes `logs/meta-state.json`; changed and recent plans are checked for evidence or delivery path; `scripts/codex-verify full` runs `scripts/meta-check --strict` | `scripts/meta-check --json --strict`; `scripts/meta-check --check-recent-plans`; `scripts/codex-context --no-network` shows `Meta Runtime` | Meta is synchronous by design; Guardian remains the continuous process watcher |
 
 ## Enforcement Strength
 
@@ -67,6 +67,8 @@ context, and evidence-contract health:
 - `META_RUNTIME_UNREGISTERED`
 - `CLAUDE_BOUNDARY_GAP`
 - `PLAN_EVIDENCE_GAP`
+- `PLAN_SCAN_INCONCLUSIVE`
+- `TASK_CONTRACT_DRIFT`
 
 Each issue carries `severity`, `summary`, `blocks_completion`,
 `required_before`, and `command_hint`.

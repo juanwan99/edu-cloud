@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-05-06 23:31 Asia/Shanghai
+Last refreshed: 2026-05-06 23:47 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -54,9 +54,12 @@ Codex-native migration layer is now committed:
 - `scripts/meta-check`: synchronous Meta Core runtime. It emits
   `meta.core.v1` snapshots and can write `logs/meta-state.json` for the latest
   task contract. `scripts/codex-verify full` runs `scripts/meta-check --strict`
-  before backend/frontend gates.
+  before backend/frontend gates. Deep checks include `--check-drift` for
+  baseline obligation loss and `--check-recent-plans` for committed plan
+  evidence gaps.
 - `scripts/codex-consult-claude`: read-only Claude Code auxiliary reviewer
-  wrapper.
+  wrapper. It injects current `logs/meta-state.json` obligations into the review
+  prompt when available.
 - `scripts/codex-verify`: completion verification wrapper with `safety`,
   `frontend`, `backend`, `schema`, and `full` modes.
 - `scripts/guardian-watch`: realtime Guardian Core runtime. It emits
@@ -75,7 +78,7 @@ The governance model is formally **元守双核心**:
 Meta runtime boundary:
 
 - allowed: classify active-context, NOW freshness, lesson, registration,
-  Claude-boundary, plan evidence, and task-obligation risks
+  Claude-boundary, changed/recent plan evidence, and task-obligation drift
 - allowed: write `logs/meta-state.json` when explicitly run with
   `--write-state`
 - forbidden: auto-edit files, override user instructions, let Claude/GPT claim
