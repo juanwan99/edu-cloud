@@ -6,7 +6,7 @@
 """
 import logging
 from collections import Counter, defaultdict
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -199,22 +199,25 @@ async def _compute_question_stats(
 async def _get_effective_scores_for_subject(
     db: AsyncSession, *, exam_id: str, subject_id: str, school_id: str,
 ) -> dict[str, list[tuple[str, float, float]]]:
-    answers = await db.execute(
-        select(StudentAnswer, Question)
-        .join(Question, Question.id == StudentAnswer.question_id)
-        .where(
-            StudentAnswer.exam_id == exam_id,
-            StudentAnswer.subject_id == subject_id,
-            StudentAnswer.school_id == school_id,
-            StudentAnswer.is_absent.is_(False),
+    from edu_cloud.modules.analytics import get_effective_scores
+
+    q_ids = await db.execute(
+        select(Question.id).where(
+            Question.subject_id == subject_id,
+            Question.school_id == school_id,
         )
     )
+    valid_question_ids = {row[0] for row in q_ids.all()}
+
     result: dict[str, list[tuple[str, float, float]]] = {}
-    for sa, q in answers.all():
-        eff = await _get_effective_score(db, answer_id=sa.id)
-        if eff is None:
-            eff = sa.score or 0.0
-        result.setdefault(sa.student_id, []).append((q.id, eff, q.max_score))
+    for score in await get_effective_scores(db, subject_id, school_id):
+        if score["question_id"] not in valid_question_ids:
+            continue
+        result.setdefault(score["student_id"], []).append((
+            score["question_id"],
+            score["effective_score"],
+            score["max_score"],
+        ))
     return result
 
 

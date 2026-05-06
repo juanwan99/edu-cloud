@@ -75,6 +75,46 @@
             />
           </n-tab-pane>
 
+          <n-tab-pane v-if="reportData.metrics.questions" name="questions" tab="题目分析">
+            <h3 class="tab-heading">题目分析</h3>
+            <n-data-table
+              :columns="questionColumns"
+              :data="questionRows"
+              :pagination="{ pageSize: 20 }"
+              size="small"
+            />
+          </n-tab-pane>
+
+          <n-tab-pane v-if="studentRankings.length" name="students" tab="学生排名">
+            <h3 class="tab-heading">学生排名</h3>
+            <n-data-table
+              :columns="studentColumns"
+              :data="studentRankings"
+              :pagination="{ pageSize: 20 }"
+              size="small"
+            />
+          </n-tab-pane>
+
+          <n-tab-pane v-if="commonWrongRows.length" name="wrong" tab="常错题">
+            <h3 class="tab-heading">常错题</h3>
+            <n-data-table
+              :columns="wrongColumns"
+              :data="commonWrongRows"
+              :pagination="{ pageSize: 20 }"
+              size="small"
+            />
+          </n-tab-pane>
+
+          <n-tab-pane v-if="criticalRows.length" name="critical" tab="临界生">
+            <h3 class="tab-heading">临界生</h3>
+            <n-data-table
+              :columns="criticalColumns"
+              :data="criticalRows"
+              :pagination="{ pageSize: 20 }"
+              size="small"
+            />
+          </n-tab-pane>
+
           <n-tab-pane v-if="reportData.metrics.top_bottom" name="top_bottom" tab="尖子生/临界生">
             <n-space vertical>
               <n-card title="前 10%">
@@ -109,7 +149,10 @@ import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
-import { queryReport, exportGradeReport, downloadBlob, getExamSummary } from '../api/analytics'
+import {
+  queryReport, exportGradeReport, downloadBlob, getExamSummary,
+  getStudentRankings, getCriticalStudents, getCommonWrongQuestions,
+} from '../api/analytics'
 import client from '../api/client'
 import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 
@@ -119,6 +162,9 @@ const message = useMessage()
 const loading = ref(false)
 const exporting = ref(false)
 const reportData = ref(null)
+const studentRankings = ref([])
+const criticalData = ref({})
+const commonWrongRows = ref([])
 const selectedExamIds = ref([])
 const selectedMetrics = ref(['summary', 'segments', 'ranking'])
 const examOptions = ref([])
@@ -144,10 +190,63 @@ const rankingColumns = [
   { title: '人数', key: 'student_count' },
 ]
 
+const questionColumns = [
+  { title: '科目', key: 'subject_name' },
+  { title: '题目', key: 'question_name' },
+  { title: '题型', key: 'question_type' },
+  { title: '满分', key: 'max_score' },
+  { title: '平均分', key: 'avg_score' },
+  { title: '得分率', key: 'score_rate', render: row => pct(row.score_rate) },
+  { title: '批改数', key: 'graded_count' },
+]
+
+const studentColumns = [
+  { title: '年排', key: 'grade_rank' },
+  { title: '姓名', key: 'name' },
+  { title: '得分', key: 'score' },
+  { title: '班排', key: 'class_rank' },
+  { title: '进退步', key: 'delta_grade', render: row => row.delta_grade ?? '-' },
+]
+
+const wrongColumns = [
+  { title: '题目', key: 'name' },
+  { title: '题型', key: 'question_type' },
+  { title: '错误人数', key: 'wrong_count' },
+  { title: '错误率', key: 'wrong_rate', render: row => pct(row.wrong_rate) },
+  { title: '平均得分率', key: 'mean_score_rate', render: row => pct(row.mean_score_rate) },
+]
+
+const criticalColumns = [
+  { title: '类型', key: 'type' },
+  { title: '姓名', key: 'name' },
+  { title: '得分', key: 'score' },
+  { title: '差距', key: 'gap' },
+]
+
 const topColumns = [
-  { title: '学生', key: 'student_id' },
+  { title: '姓名', key: 'name' },
+  { title: '班级', key: 'class_name' },
   { title: '总分', key: 'score' },
 ]
+
+const questionRows = computed(() => {
+  const groups = reportData.value?.metrics?.questions || []
+  return groups.flatMap(group => (group.questions || []).map(q => ({
+    ...q,
+    subject_id: group.subject_id,
+    subject_name: group.subject_name,
+  })))
+})
+
+const criticalRows = computed(() => [
+  ...(criticalData.value.near_pass || []).map(row => ({ ...row, type: '差及格' })),
+  ...(criticalData.value.near_excellent || []).map(row => ({ ...row, type: '差优秀' })),
+])
+
+function pct(value) {
+  if (value == null || Number.isNaN(Number(value))) return '-'
+  return `${Math.round(Number(value) * 100)}%`
+}
 
 const segmentChartOption = computed(() => {
   const segments = reportData.value?.metrics?.segments?.intervals || []
@@ -186,11 +285,28 @@ async function runQuery() {
       metrics: selectedMetrics.value,
     })
     reportData.value = resp.data
+    await loadSupplemental()
   } catch (e) {
     message.error(e.response?.data?.detail || '查询失败')
   } finally {
     loading.value = false
   }
+}
+
+async function loadSupplemental() {
+  studentRankings.value = []
+  criticalData.value = {}
+  commonWrongRows.value = []
+  if (selectedExamIds.value.length !== 1) return
+  const examId = selectedExamIds.value[0]
+  const [rankRes, critRes, wrongRes] = await Promise.allSettled([
+    getStudentRankings(examId),
+    getCriticalStudents(examId),
+    getCommonWrongQuestions(examId),
+  ])
+  if (rankRes.status === 'fulfilled') studentRankings.value = rankRes.value.data?.students || []
+  if (critRes.status === 'fulfilled') criticalData.value = critRes.value.data || {}
+  if (wrongRes.status === 'fulfilled') commonWrongRows.value = wrongRes.value.data?.questions || []
 }
 
 async function loadSubjects(examId) {
@@ -227,3 +343,11 @@ async function handleDownload(format) {
   }
 }
 </script>
+
+<style scoped>
+.tab-heading {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+</style>

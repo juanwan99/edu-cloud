@@ -5,14 +5,14 @@ import statistics as _statistics
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.exam.models import Exam, Subject
+from edu_cloud.modules.exam.models import Exam
 from edu_cloud.modules.analytics.service import (
     exam_summary, exam_distribution, grade_aggregates,
     subject_question_analysis, _get_subjects, _get_max_by_subject,
 )
 from edu_cloud.modules.analytics import get_effective_scores
 from edu_cloud.modules.analytics.segment_service import get_segment_config, compute_segments
-from edu_cloud.modules.student.models import Student
+from edu_cloud.modules.student.models import Class, Student
 from edu_cloud.models.agent_snapshot import ExamAnalysisSnapshot, ClassExamReport
 from edu_cloud.modules.profile.models import StudentExamSnapshot
 from edu_cloud.services.exceptions import NotFoundError
@@ -102,9 +102,33 @@ async def build_report(
         ranked = sorted(student_totals.items(), key=lambda x: x[1], reverse=True)
         n = len(ranked)
         top_n = max(1, n // 10)
+        student_rows = (await db.execute(
+            select(Student.id, Student.name, Student.class_id, Class.name.label("class_name"))
+            .outerjoin(Class, Class.id == Student.class_id)
+            .where(Student.school_id == school_id, Student.id.in_(list(student_totals.keys())))
+        )).all() if student_totals else []
+        student_meta = {
+            row.id: {
+                "name": row.name,
+                "class_id": row.class_id,
+                "class_name": row.class_name,
+            }
+            for row in student_rows
+        }
+
+        def _ranked_row(student_id: str, score: float) -> dict:
+            meta = student_meta.get(student_id, {})
+            return {
+                "student_id": student_id,
+                "name": meta.get("name") or student_id,
+                "class_id": meta.get("class_id"),
+                "class_name": meta.get("class_name"),
+                "score": round(score, 2),
+            }
+
         result_metrics["top_bottom"] = {
-            "top_10pct": [{"student_id": sid, "score": sc} for sid, sc in ranked[:top_n]],
-            "bottom_10pct": [{"student_id": sid, "score": sc} for sid, sc in ranked[-top_n:]],
+            "top_10pct": [_ranked_row(sid, sc) for sid, sc in ranked[:top_n]],
+            "bottom_10pct": [_ranked_row(sid, sc) for sid, sc in ranked[-top_n:]],
             "total_students": n,
         }
 

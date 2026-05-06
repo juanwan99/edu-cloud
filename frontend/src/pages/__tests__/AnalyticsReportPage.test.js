@@ -7,12 +7,18 @@ const mockQueryReport = vi.fn()
 const mockExportGradeReport = vi.fn()
 const mockGetExamSummary = vi.fn().mockResolvedValue({ data: { subjects: [] } })
 const mockDownloadBlob = vi.fn()
+const mockGetStudentRankings = vi.fn().mockResolvedValue({ data: { students: [] } })
+const mockGetCriticalStudents = vi.fn().mockResolvedValue({ data: { near_pass: [], near_excellent: [] } })
+const mockGetCommonWrongQuestions = vi.fn().mockResolvedValue({ data: { questions: [] } })
 
 vi.mock('../../api/analytics', () => ({
   queryReport: (...args) => mockQueryReport(...args),
   exportGradeReport: (...args) => mockExportGradeReport(...args),
   getExamSummary: (...args) => mockGetExamSummary(...args),
   downloadBlob: (...args) => mockDownloadBlob(...args),
+  getStudentRankings: (...args) => mockGetStudentRankings(...args),
+  getCriticalStudents: (...args) => mockGetCriticalStudents(...args),
+  getCommonWrongQuestions: (...args) => mockGetCommonWrongQuestions(...args),
 }))
 
 vi.mock('../../api/client', () => ({
@@ -85,6 +91,28 @@ describe('AnalyticsReportPage', () => {
     })
     expect(wrapper.vm.reportData).toBeTruthy()
     expect(wrapper.vm.reportData.metrics.summary.total_students).toBe(10)
+  })
+
+  it('renders question analysis when report includes questions metric', async () => {
+    mockQueryReport.mockResolvedValue({
+      data: {
+        exam_ids: ['e1'],
+        metrics: {
+          questions: [{
+            subject_id: 'subj-1',
+            subject_name: '语文',
+            questions: [{ question_id: 'q1', question_name: '1', score_rate: 0.5 }],
+          }],
+        },
+      },
+    })
+    const wrapper = createWrapper()
+    wrapper.vm.selectedExamIds = ['exam-1']
+    wrapper.vm.selectedMetrics = ['questions']
+    await wrapper.vm.runQuery()
+    await flushPromises()
+    expect(wrapper.text()).toContain('题目分析')
+    expect(wrapper.vm.questionRows).toHaveLength(1)
   })
 
   it('warns when downloading without exam + subject', async () => {

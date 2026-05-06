@@ -54,6 +54,7 @@ export const routes = [
 
       // 成绩分析
       { path: 'analytics/report', name: 'AnalyticsReport', component: () => import('../pages/AnalyticsReportPage.vue'), meta: { permissions: ['view_scores'] } },
+      { path: 'analytics/ai-report', name: 'AiGradingReport', component: () => import('../pages/AiGradingReportPage.vue'), meta: { permissions: ['view_scores'] } },
       { path: 'analytics/trend', name: 'AnalyticsTrend', component: () => import('../pages/AnalyticsTrendPage.vue'), meta: { permissions: ['view_scores'] } },
       { path: 'analytics/grade', name: 'GradeAnalytics', component: () => import('../pages/GradeAnalyticsPage.vue'), meta: { permissions: ['view_scores'] } },
       { path: 'analytics/:examId', name: 'Analytics', component: () => import('../pages/AnalyticsPage.vue'), meta: { roles: EXAM_ROLES } },

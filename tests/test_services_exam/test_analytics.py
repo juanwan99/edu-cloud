@@ -1,5 +1,4 @@
 import pytest
-import logging
 from edu_cloud.models.school import School
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
@@ -100,6 +99,26 @@ async def test_effective_scores(db, analytics_data):
     assert score_map["stu_0"] == 8.0   # AI 预评，待审 → final=8
     assert score_map["stu_1"] == 7.0   # 教师改分 → final=7
     assert score_map["stu_2"] == 9.0   # 教师 approve → final=9
+
+
+async def test_effective_scores_excludes_absent_answers(db, analytics_data):
+    absent = StudentAnswer(
+        exam_id=analytics_data["exam_id"],
+        subject_id=analytics_data["subject_id"],
+        student_id="absent-student",
+        question_id=analytics_data["question_id"],
+        school_id=analytics_data["school_id"],
+        score=10.0,
+        is_absent=True,
+    )
+    db.add(absent)
+    await db.commit()
+
+    scores = await get_effective_scores(
+        db, analytics_data["subject_id"], analytics_data["school_id"]
+    )
+
+    assert {s["student_id"] for s in scores} == {"stu_0", "stu_1", "stu_2"}
 
 
 async def test_exam_distribution_uses_school_config(db, analytics_data):

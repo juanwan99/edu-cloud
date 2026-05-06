@@ -11,6 +11,7 @@ const SIDEBAR_GROUPS = [
       { label: 'AI 阅卷', route: '/ai-grading', moduleCode: 'grading', perm: 'view_grading' },
       { label: '人工阅卷', route: '/marking', moduleCode: 'grading', perm: 'view_grading' },
       { label: '成绩分析', route: '/analytics/report', perm: 'view_scores' },
+      { label: 'AI 阅卷报告', route: '/analytics/ai-report', perm: 'view_scores' },
     ],
   },
   {

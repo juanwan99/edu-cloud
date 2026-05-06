@@ -2,7 +2,6 @@
 import pytest
 from edu_cloud.models.school import School
 from edu_cloud.models.user import User
-from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.exam import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import GradingTask, GradingResult
@@ -99,6 +98,22 @@ async def test_build_report_segments(db, report_data):
     assert "segments" in result["metrics"]
     intervals = result["metrics"]["segments"]["intervals"]
     assert len(intervals) == 4  # default 4 segments
+
+
+async def test_build_report_top_bottom_includes_student_display_fields(db, report_data):
+    from edu_cloud.modules.analytics.report_service import build_report
+    result = await build_report(
+        db,
+        school_id=report_data["school"].id,
+        exam_ids=[report_data["exams"][0]["exam"].id],
+        metrics=["top_bottom"],
+    )
+
+    top = result["metrics"]["top_bottom"]["top_10pct"][0]
+    assert top["name"] == "学生2"
+    assert top["class_id"] == report_data["class"].id
+    assert top["class_name"] == "一班"
+    assert top["score"] == 90.0
 
 
 async def test_grade_trend(db, report_data):

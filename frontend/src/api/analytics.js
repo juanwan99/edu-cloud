@@ -16,6 +16,7 @@ export const exportReport = (data) => client.post('/analytics/report/export', da
 export const getPowerOptions = () => client.get('/analytics/power-options')
 export const getQuestionInsights = (examId) => client.get(`/analytics/exam/${examId}/question-insights`)
 export const getExamDiagnosis = (examId, params) => client.get(`/analytics/exam/${examId}/diagnosis`, { params })
+export const getAiGradingReport = (examId, params) => client.get(`/analytics/exam/${examId}/ai-grading-report`, { params })
 export const getStudentRankings = (examId, params) => client.get(`/analytics/exam/${examId}/student-rankings`, { params })
 export const getCriticalStudents = (examId, params) => client.get(`/analytics/exam/${examId}/critical-students`, { params })
 export const getClassBoxplot = (examId, params) => client.get(`/analytics/exam/${examId}/class-boxplot`, { params })

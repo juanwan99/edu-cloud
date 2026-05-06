@@ -4,15 +4,12 @@
 幂等：按 UniqueConstraint upsert（merge），重跑覆盖而非重复。
 """
 import logging
-import math
 from collections import defaultdict
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Subject, Question
-from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.grading.models import GradingResult
 from edu_cloud.modules.student.models import Student
 from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
 from edu_cloud.modules.analytics.models import ClassAnalysis, StudentAnalysis, StudentKnpMastery
@@ -72,36 +69,18 @@ async def _load_effective_scores(
     db: AsyncSession, exam_id: str, subject_ids: list[str], school_id: str,
 ) -> dict[str, list[dict]]:
     """Returns {student_id: [{subject_id, question_id, score, max_score}, ...]}."""
-    # GradingResult.final_score 优先（AI 阅卷），fallback StudentAnswer.score（直接录入）
-    effective_score = func.coalesce(GradingResult.final_score, StudentAnswer.score)
-    stmt = (
-        select(
-            StudentAnswer.student_id,
-            StudentAnswer.subject_id,
-            StudentAnswer.question_id,
-            effective_score.label("effective_score"),
-            Question.max_score,
-        )
-        .outerjoin(GradingResult, GradingResult.answer_id == StudentAnswer.id)
-        .join(Question, Question.id == StudentAnswer.question_id)
-        .where(
-            StudentAnswer.exam_id == exam_id,
-            StudentAnswer.subject_id.in_(subject_ids),
-            StudentAnswer.school_id == school_id,
-        )
-    )
-    rows = (await db.execute(stmt)).all()
+    from edu_cloud.modules.analytics import get_effective_scores_batch
 
     by_student: dict[str, list[dict]] = defaultdict(list)
-    for row in rows:
-        if row.effective_score is None:
-            continue
-        by_student[row.student_id].append({
-            "subject_id": row.subject_id,
-            "question_id": row.question_id,
-            "score": float(row.effective_score),
-            "max_score": float(row.max_score),
-        })
+    rows_by_subject = await get_effective_scores_batch(db, subject_ids, school_id)
+    for subject_id, rows in rows_by_subject.items():
+        for row in rows:
+            by_student[row["student_id"]].append({
+                "subject_id": subject_id,
+                "question_id": row["question_id"],
+                "score": float(row["effective_score"]),
+                "max_score": float(row["max_score"]),
+            })
     return dict(by_student)
 
 
@@ -149,8 +128,6 @@ async def _compute_class_analysis(
 
         class_students: dict[str, list[tuple[str, float]]] = defaultdict(list)
         class_question_scores: dict[str, dict[str, list[tuple[float, float]]]] = defaultdict(lambda: defaultdict(list))
-        class_kp_scores: dict[str, dict[str, list[tuple[float, float]]]] = defaultdict(lambda: defaultdict(list))
-
         for stu_id, all_scores in scores.items():
             cls_id = student_class_map.get(stu_id)
             if not cls_id:

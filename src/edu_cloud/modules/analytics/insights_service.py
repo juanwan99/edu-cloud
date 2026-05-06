@@ -3,13 +3,13 @@ import logging
 import re
 from collections import Counter, defaultdict
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.grading.models import GradingResult
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.student.models import Class, Student
+from edu_cloud.modules.analytics.identity import resolve_student_identities
 from edu_cloud.services.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
@@ -60,27 +60,13 @@ async def common_wrong_questions(
 
     subj_ids = [s.id for s in subjects]
 
-    effective_score = func.coalesce(GradingResult.final_score, StudentAnswer.score)
-    stmt = (
-        select(
-            StudentAnswer.question_id,
-            effective_score.label("effective_score"),
-            Question.max_score,
-        )
-        .outerjoin(GradingResult, GradingResult.answer_id == StudentAnswer.id)
-        .join(Question, Question.id == StudentAnswer.question_id)
-        .where(
-            StudentAnswer.subject_id.in_(subj_ids),
-            StudentAnswer.school_id == school_id,
-            Question.max_score > 0,
-        )
-    )
-    if visible_class_ids is not None:
-        stmt = stmt.join(Student, Student.id == StudentAnswer.student_id).where(
-            Student.class_id.in_(visible_class_ids)
-        )
+    from edu_cloud.modules.analytics import get_effective_scores
 
-    rows = (await db.execute(stmt)).all()
+    rows = []
+    for subj in subjects:
+        rows.extend(await get_effective_scores(
+            db, subj.id, school_id, visible_class_ids,
+        ))
 
     q_total: dict[str, int] = defaultdict(int)
     q_wrong: dict[str, int] = defaultdict(int)
@@ -88,13 +74,13 @@ async def common_wrong_questions(
     q_max: dict[str, float] = {}
 
     for row in rows:
-        qid = row.question_id
-        if row.effective_score is None:
+        qid = row["question_id"]
+        if row["effective_score"] is None:
             continue
         q_total[qid] += 1
-        q_score_sum[qid] += row.effective_score
-        q_max[qid] = row.max_score
-        if row.effective_score < row.max_score * WRONG_THRESHOLD:
+        q_score_sum[qid] += row["effective_score"]
+        q_max[qid] = row["max_score"]
+        if row["effective_score"] < row["max_score"] * WRONG_THRESHOLD:
             q_wrong[qid] += 1
 
     q_result = await db.execute(
@@ -156,6 +142,7 @@ async def question_insights(
             GradingResult.ai_raw_response,
             GradingResult.final_score,
             GradingResult.max_score,
+            StudentAnswer.student_id,
         )
         .join(StudentAnswer, StudentAnswer.id == GradingResult.answer_id)
         .where(
@@ -164,12 +151,17 @@ async def question_insights(
             GradingResult.final_score.isnot(None),
         )
     )
-    if visible_class_ids is not None:
-        stmt = stmt.join(Student, Student.id == StudentAnswer.student_id).where(
-            Student.class_id.in_(visible_class_ids)
-        )
-
     rows = (await db.execute(stmt)).all()
+    identities = await resolve_student_identities(
+        db, school_id=school_id, raw_student_ids=[row.student_id for row in rows],
+    )
+    if visible_class_ids is not None:
+        visible_set = set(visible_class_ids)
+        rows = [
+            row for row in rows
+            if identities.get(row.student_id)
+            and identities[row.student_id].class_id in visible_set
+        ]
 
     # 按题聚合
     q_scores: dict[str, list[float]] = defaultdict(list)
@@ -230,7 +222,6 @@ async def question_insights(
 
         # 错因分布
         errors = q_errors.get(qid, Counter())
-        error_total = sum(errors.values())
         error_causes = []
         for cause, count in errors.most_common():
             error_causes.append({

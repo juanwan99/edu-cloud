@@ -3,7 +3,7 @@ import logging
 import statistics
 from collections import Counter, defaultdict
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Exam, Subject, Question
@@ -12,7 +12,6 @@ from edu_cloud.modules.grading.models import GradingResult
 from edu_cloud.modules.student.models import Class, Student
 from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
 from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
-from edu_cloud.services.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +44,25 @@ async def _get_student_scores(
 
     # 获取学生信息
     stu_result = await db.execute(
-        select(Student.id, Student.name, Student.class_id)
+        select(Student.id, Student.name, Student.class_id, Class.name.label("class_name"))
+        .outerjoin(Class, Class.id == Student.class_id)
         .where(Student.school_id == school_id)
     )
-    stu_map = {r.id: {"name": r.name, "class_id": r.class_id} for r in stu_result.all()}
+    stu_map = {
+        r.id: {"name": r.name, "class_id": r.class_id, "class_name": r.class_name}
+        for r in stu_result.all()
+    }
 
     result = []
     for sid, total in student_totals.items():
-        info = stu_map.get(sid, {"name": sid, "class_id": None})
-        result.append({"student_id": sid, "name": info["name"], "class_id": info["class_id"], "score": total})
+        info = stu_map.get(sid, {"name": sid, "class_id": None, "class_name": None})
+        result.append({
+            "student_id": sid,
+            "name": info["name"],
+            "class_id": info["class_id"],
+            "class_name": info["class_name"],
+            "score": total,
+        })
 
     result.sort(key=lambda x: x["score"], reverse=True)
     # 年级排名
@@ -147,6 +156,8 @@ async def student_rankings(
         students.append({
             "student_id": s["student_id"],
             "name": s["name"],
+            "class_id": s.get("class_id"),
+            "class_name": s.get("class_name"),
             "score": round(s["score"], 2),
             "class_rank": s.get("class_rank"),
             "grade_rank": s["grade_rank"],
@@ -390,14 +401,7 @@ async def class_error_patterns(
     visible_class_ids: list[str] | None = None,
 ) -> dict:
     """班级错误模式对比。"""
-    from edu_cloud.modules.analytics.insights_service import question_insights, _classify_error
-
-    insights = await question_insights(
-        db, exam_id=exam_id, school_id=school_id,
-        subject_id=subject_id,
-        visible_subject_codes=visible_subject_codes,
-        visible_class_ids=visible_class_ids,
-    )
+    from edu_cloud.modules.analytics.insights_service import _classify_error
 
     # 需要按班拆分 — 重新查询带 class_id 信息的 GradingResult
     subj_q = select(Subject.id).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
@@ -411,27 +415,34 @@ async def class_error_patterns(
 
     stmt = (
         select(
+            StudentAnswer.student_id,
             Student.class_id,
             GradingResult.ai_raw_response,
         )
         .select_from(GradingResult)
         .join(StudentAnswer, StudentAnswer.id == GradingResult.answer_id)
-        .join(Student, Student.id == StudentAnswer.student_id)
+        .outerjoin(Student, Student.id == StudentAnswer.student_id)
         .where(
             StudentAnswer.subject_id.in_(subj_ids),
             GradingResult.school_id == school_id,
             GradingResult.ai_raw_response.isnot(None),
         )
     )
-    if visible_class_ids is not None:
-        stmt = stmt.where(Student.class_id.in_(visible_class_ids))
 
     rows = (await db.execute(stmt)).all()
+    from edu_cloud.modules.analytics.identity import resolve_student_identities
+    identities = await resolve_student_identities(
+        db, school_id=school_id, raw_student_ids=[row.student_id for row in rows],
+    )
+    visible_set = set(visible_class_ids) if visible_class_ids is not None else None
 
     class_errors: dict[str, Counter] = defaultdict(Counter)
     all_types: set[str] = set()
     for row in rows:
-        cid = row.class_id
+        identity = identities.get(row.student_id)
+        cid = row.class_id or (identity.class_id if identity else None)
+        if not cid or (visible_set is not None and cid not in visible_set):
+            continue
         raw = row.ai_raw_response
         if not isinstance(raw, dict):
             continue

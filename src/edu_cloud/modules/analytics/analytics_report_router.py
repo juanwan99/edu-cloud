@@ -37,6 +37,7 @@ from edu_cloud.modules.analytics.level_score_service import convert_level_score
 from edu_cloud.modules.analytics.insights_service import (
     question_insights, exam_diagnosis, common_wrong_questions,
 )
+from edu_cloud.modules.analytics.ai_report_service import build_ai_grading_report
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +136,27 @@ async def get_exam_diagnosis(
     role = current["current_role"]
     return await exam_diagnosis(
         db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id,
+        class_id=class_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
+
+
+@router.get("/exam/{exam_id}/ai-grading-report")
+async def get_ai_grading_report(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """AI 阅卷报告：覆盖率、置信度、AI/人工差异、流水线质量和诊断建议。"""
+    role = current["current_role"]
+    return await build_ai_grading_report(
+        db,
+        exam_id=exam_id,
+        school_id=role.school_id,
         subject_id=subject_id,
         class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
