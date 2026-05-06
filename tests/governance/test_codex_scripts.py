@@ -47,6 +47,18 @@ def load_codex_support_module():
     return module
 
 
+def load_guardian_runtime_module():
+    scripts_dir = PROJECT_ROOT / "scripts"
+    sys.path.insert(0, str(scripts_dir))
+    loader = SourceFileLoader("guardian_runtime_test", str(scripts_dir / "guardian_runtime.py"))
+    spec = importlib.util.spec_from_loader("guardian_runtime_test", loader)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["guardian_runtime_test"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_codex_context_no_network_outputs_project_sections():
     result = run_script("codex-context", "--no-network")
 
@@ -63,6 +75,7 @@ def test_codex_context_no_network_outputs_project_sections():
     assert "Guardian Health" in result.stdout
     assert "overall:" in result.stdout
     assert "issues:" in result.stdout
+    assert "Guardian Runtime" in result.stdout
     assert "Verification Baseline" in result.stdout
 
 
@@ -186,6 +199,142 @@ def test_arq_worker_runner_and_systemd_template_are_present():
     assert "job_timeout" in runner_text
     assert "ExecStart=/home/ops/projects/edu-cloud/.venv/bin/python /home/ops/projects/edu-cloud/scripts/run-arq-worker" in unit_text
     assert "Restart=on-failure" in unit_text
+
+
+def test_guardian_runtime_builds_snapshot_from_existing_checks(monkeypatch, tmp_path):
+    module = load_guardian_runtime_module()
+
+    monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(module, "collect_git", lambda: {
+        "branch": "master",
+        "head": "abc123",
+        "upstream": "origin/master",
+        "ahead": 0,
+        "status_entries": 1,
+        "backend_dirty": 1,
+        "frontend_dirty": 0,
+        "tests_dirty": 0,
+        "docs_dirty": 0,
+    })
+    monkeypatch.setattr(module, "collect_artifacts", lambda: {
+        "risky_paths": ["data/.db_migrate.lock"],
+        "runtime_paths": ["edu_cloud.db-wal"],
+        "backups_exists": True,
+        "screenshots_exists": False,
+    })
+    monkeypatch.setattr(module, "collect_versions", lambda no_network=False: {"dist_hash": "abc123", "network": "skipped"})
+    monkeypatch.setattr(module, "collect_db", lambda: {"status": "ok", "hard": 0, "warn": 0})
+    monkeypatch.setattr(module, "collect_guardian_health", lambda: {
+        "status": "ok",
+        "overall": "yellow",
+        "issue_count": 1,
+        "red_count": 0,
+        "yellow_count": 1,
+        "issues": [
+            {
+                "issue_code": "GHOST_PROCESS",
+                "severity": "yellow",
+                "summary": "ghost worker",
+                "blocks_completion": False,
+                "command_hint": "inspect",
+                "required_before": "session_end",
+            }
+        ],
+    })
+    monkeypatch.setattr(module, "safety_risks", lambda no_network=False: ["backend source dirty: 1 file(s)"])
+
+    snapshot = module.build_snapshot(no_network=True)
+
+    assert snapshot["schema"] == "guardian.watch.v1"
+    assert snapshot["overall"] == "red"
+    assert snapshot["git"]["backend_dirty"] == 1
+    assert snapshot["artifacts"]["runtime_paths"] == ["edu_cloud.db-wal"]
+    codes = {issue["issue_code"] for issue in snapshot["issues"]}
+    assert {"BACKEND_DIRTY", "RISKY_ARTIFACT", "GHOST_PROCESS"} <= codes
+    assert any(issue["blocks_completion"] for issue in snapshot["issues"] if issue["issue_code"] == "BACKEND_DIRTY")
+
+
+def test_guardian_watch_once_json_outputs_runtime_schema():
+    result = run_script("guardian-watch", "--once", "--no-network", "--no-model-review", "--json")
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["schema"] == "guardian.watch.v1"
+    assert payload["mode"] == "once"
+    assert "overall" in payload
+    assert "issues" in payload
+
+
+def test_guardian_model_review_is_read_only_and_rate_limited(tmp_path):
+    module = load_guardian_runtime_module()
+    snapshot = {
+        "schema": "guardian.watch.v1",
+        "overall": "yellow",
+        "issues": [{"issue_code": "GHOST_PROCESS", "severity": "yellow", "summary": "ghost", "blocks_completion": False}],
+    }
+    state = {}
+    calls = []
+
+    def fake_runner(cmd, cwd=None, capture_output=True, text=True, timeout=300):
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, "readonly review", "")
+
+    config = module.WatchConfig(
+        model_review=True,
+        model_review_interval=3600,
+        model_review_dir=tmp_path,
+    )
+
+    first = module.maybe_run_model_review(snapshot, state, config, now=1000, runner=fake_runner)
+    second = module.maybe_run_model_review(snapshot, state, config, now=1001, runner=fake_runner)
+
+    assert first["status"] == "ran"
+    assert second["status"] == "skipped"
+    assert len(calls) == 1
+    command_text = " ".join(str(part) for part in calls[0])
+    assert "scripts/codex-consult-claude" in command_text
+    assert "risk" in command_text
+    assert "dangerously-skip-permissions" not in command_text
+    assert any(path.name.startswith("guardian-model-review-") for path in tmp_path.iterdir())
+
+
+def test_guardian_fingerprint_ignores_worktree_dirty_count_noise():
+    module = load_guardian_runtime_module()
+    base = [
+        {
+            "issue_code": "WORKTREE_DIRTY",
+            "severity": "yellow",
+            "summary": "working tree dirty: 12 changed/untracked path(s)",
+            "blocks_completion": False,
+        },
+        {
+            "issue_code": "GHOST_PROCESS",
+            "severity": "yellow",
+            "summary": "ghost PID=2117898",
+            "blocks_completion": False,
+        },
+    ]
+    changed_count = [
+        dict(base[0], summary="working tree dirty: 15 changed/untracked path(s)"),
+        base[1],
+    ]
+
+    assert module.issue_fingerprint(base) == module.issue_fingerprint(changed_count)
+
+
+def test_guardian_systemd_template_is_present():
+    runner = PROJECT_ROOT / "scripts" / "guardian-watch"
+    unit = PROJECT_ROOT / "deploy" / "systemd" / "edu-cloud-guardian.service"
+
+    runner_text = runner.read_text(encoding="utf-8")
+    unit_text = unit.read_text(encoding="utf-8")
+
+    assert "guardian_runtime" in runner_text
+    assert "ExecStart=/home/ops/projects/edu-cloud/.venv/bin/python /home/ops/projects/edu-cloud/scripts/guardian-watch" in unit_text
+    assert "--interval 15" in unit_text
+    assert "Restart=on-failure" in unit_text
+    assert "CPUQuota=25%" in unit_text
+    assert "MemoryMax=512M" in unit_text
 
 
 def test_frontend_dev_server_binds_loopback_by_default():
@@ -416,7 +565,7 @@ def test_ci_governance_job_runs_codex_smoke_checks():
 
     assert "governance:" in text
     for command in (
-        "python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/run-arq-worker",
+        "python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker",
         "python -m pytest tests/governance/test_codex_scripts.py -q",
         "scripts/codex-check --no-network",
         "scripts/codex-context --no-network",

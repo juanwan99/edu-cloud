@@ -36,6 +36,51 @@ scripts/truth-doctor.sh /home/ops/projects/edu-cloud
 `scripts/truth-status.sh` exits 0 only when the diagnosis is aligned. Any
 `BROKEN AT:` diagnosis exits non-zero and must block completion evidence.
 
+## Guardian Runtime
+
+One-shot local inspection:
+
+```bash
+scripts/guardian-watch --once --no-network --no-model-review
+scripts/guardian-watch --once --json --no-network --no-model-review
+```
+
+Continuous runtime:
+
+```bash
+scripts/guardian-watch --watch --interval 15 --model-review claude
+```
+
+Optional GPT review requires an explicit read-only local wrapper:
+
+```bash
+scripts/guardian-watch --watch --model-review gpt --model-review-command "path/to/read-only-gpt-review risk"
+```
+
+Systemd install/update path:
+
+```bash
+sudo cp deploy/systemd/edu-cloud-guardian.service /etc/systemd/system/edu-cloud-guardian.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now edu-cloud-guardian.service
+systemctl is-active edu-cloud-guardian.service
+```
+
+The runtime writes `logs/guardian-state.json`, `logs/guardian-watch.jsonl`, and
+rate-limited `logs/guardian-model-review-*.txt` reports. These are runtime logs
+and are intentionally ignored by git.
+
+Boundary:
+
+- It is advisory and continuous.
+- It does not auto-kill services, workers, port listeners, or Claude sessions.
+- It does not auto-delete DB/WAL/SHM, dirty source files, backups, screenshots,
+  experiment data, `.env`, or `.secrets`.
+- It can schedule Claude only through the read-only
+  `scripts/codex-consult-claude` wrapper.
+- GPT review is supported only through `--model-review-command`; no GPT command
+  is assumed safe by default.
+
 ## Frontend
 
 ```bash
@@ -174,7 +219,7 @@ scripts/codex-verify full --schema
 `.github/workflows/test.yml` includes a lightweight `governance` job that runs:
 
 ```bash
-python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/run-arq-worker
+python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
 python -m pytest tests/governance/test_codex_scripts.py -q
 scripts/codex-check --no-network
 scripts/codex-context --no-network

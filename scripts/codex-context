@@ -12,6 +12,7 @@ from codex_support import (
     collect_db,
     collect_git,
     collect_guardian_health,
+    collect_guardian_runtime_state,
     collect_versions,
     count_known_failures,
     print_kv,
@@ -30,6 +31,7 @@ def main() -> int:
     artifacts = collect_artifacts()
     risks = safety_risks(no_network=args.no_network)
     guardian = collect_guardian_health()
+    guardian_runtime = collect_guardian_runtime_state()
 
     print(f"Codex Context  {datetime.now().isoformat(timespec='seconds')}")
     print_kv("project", PROJECT_ROOT, 0)
@@ -92,6 +94,21 @@ def main() -> int:
             print(f"  - {code}{blocks}: {summary}")
         if int(guardian.get("issue_count") or 0) > 5:
             print(f"  ... and {int(guardian.get('issue_count') or 0) - 5} more")
+    print()
+
+    print("Guardian Runtime")
+    print_kv("service", guardian_runtime.get("service"))
+    print_kv("state", guardian_runtime.get("status"))
+    if guardian_runtime.get("status") == "ok":
+        print_kv("snapshot_at", guardian_runtime.get("snapshot_at"))
+        print_kv("overall", guardian_runtime.get("overall"))
+        print_kv("issues", guardian_runtime.get("issue_count"))
+        print_kv("fingerprint", guardian_runtime.get("fingerprint"))
+        model_review = guardian_runtime.get("model_review")
+        if isinstance(model_review, dict):
+            print_kv("model_review", model_review.get("status"))
+    else:
+        print_kv("state_file", guardian_runtime.get("state_file"))
     print()
 
     print("Artifacts")

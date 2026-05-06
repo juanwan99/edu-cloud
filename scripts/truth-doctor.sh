@@ -122,7 +122,8 @@ def check_ghost_processes():
     result = run(["ps", "aux"])
     pattern = re.compile(r"vite.*--port|nuxt dev|uvicorn.*--reload|http\.server|arq.*worker")
     for line in result.stdout.splitlines():
-        if not pattern.search(line) or "grep" in line:
+        match = pattern.search(line)
+        if not match or "grep" in line:
             continue
         parts = line.split(None, 10)
         if len(parts) < 11:
@@ -133,7 +134,7 @@ def check_ghost_processes():
             add_issue(
                 "GHOST_PROCESS",
                 "yellow",
-                f"ghost PID={pid}: {cmd}",
+                f"ghost PID={pid} ({match.group(0)[:40]}): {cmd}",
                 False,
                 f"inspect or stop PID {pid}",
                 "session_end",
@@ -172,11 +173,16 @@ def check_systemd():
 
 
 def check_claude_processes():
-    result = run(["pgrep", "-fc", "claude"])
-    try:
-        count = int(result.stdout.strip() or "0")
-    except ValueError:
-        count = 0
+    result = run(["pgrep", "-af", "claude"])
+    count = 0
+    for line in result.stdout.splitlines():
+        if "codex-consult-claude" in line:
+            continue
+        if "--no-session-persistence" in line:
+            continue
+        if "guardian-watch" in line:
+            continue
+        count += 1
     if count > 5:
         add_issue(
             "CLAUDE_SESSION_RISK",
@@ -313,6 +319,7 @@ while IFS= read -r line; do
   ppid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ')
   start=$(ps -p "$pid" -o lstart= 2>/dev/null | xargs)
   cmd=$(echo "$line" | awk '{for(i=11;i<=NF;i++) printf "%s ",$i; print ""}' | head -c 80)
+  match=$(echo "$line" | grep -oE "$GHOST_PATTERNS" | head -1 || true)
 
   systemd_main="no"
   for svc in edu-cloud llm-proxy edu-cloud-worker; do
@@ -323,7 +330,7 @@ while IFS= read -r line; do
   done
 
   if [ "$ppid" = "1" ] && [ "$systemd_main" != "yes" ]; then
-    warn "ghost PID=$pid (since $start): $cmd"
+    warn "ghost PID=$pid (${match:-unknown}, since $start): $cmd"
     GHOST_COUNT=$((GHOST_COUNT+1))
   fi
 done < <(ps aux | grep -E "$GHOST_PATTERNS" | grep -v grep || true)
@@ -392,7 +399,7 @@ echo ""
 # ── 5. Claude Session Count ──
 echo -e "${BOLD}[Claude Sessions]${NC}"
 CLAUDE_COUNT=0
-CLAUDE_COUNT=$(pgrep -fc 'claude' 2>/dev/null) || CLAUDE_COUNT=0
+CLAUDE_COUNT=$(pgrep -af 'claude' 2>/dev/null | grep -v 'codex-consult-claude' | grep -v -- '--no-session-persistence' | grep -v 'guardian-watch' | wc -l || true)
 if [ "$CLAUDE_COUNT" -le 5 ]; then
   ok "$CLAUDE_COUNT active Claude process(es)"
 else

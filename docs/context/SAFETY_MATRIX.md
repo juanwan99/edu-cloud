@@ -18,6 +18,7 @@ column is the lightweight governance registry for 元守双核心.
 | S-011 | Fix-loop or rapid patch drift | Claude trajectory/fix-loop discipline | AGENTS and `GOVERNANCE_MODEL.md` require stopping after repeated failed fixes; `scripts/codex-context` exposes dirty scope before work | Final answer states root cause and verification after repeated fixes | Add structured edit/verification event counter before automating |
 | S-012 | Evidence-less decisions or negative assertions | Claude decision-evidence discipline | Meta Core requires grep/read/file-line evidence for scope, negative assertions, and architecture choices | Design/plan/final answer cites concrete files, commands, or outputs | Add template checks only if this becomes noisy |
 | S-013 | Existing asset bypass or parallel systems | Claude planning-inventory discipline | Meta Core requires existing asset inventory before new subsystem work; `ACTIVE_INDEX.md` controls active docs | Design/plan lists existing backend/frontend/test assets and delivery path | Add a future design-doc linter if repeated |
+| S-014 | Work-time drift goes unseen between manual checks | Guardian realtime requirement | `scripts/guardian-watch` runs once or continuously; systemd template `deploy/systemd/edu-cloud-guardian.service` writes latest state and JSONL history; model review is rate-limited and read-only | `systemctl is-active edu-cloud-guardian.service`; `scripts/guardian-watch --once --json --no-network --no-model-review`; `logs/guardian-state.json` has fresh `guardian.watch.v1` | GPT model review needs a working local GPT CLI/API wrapper before it can be enabled safely |
 
 ## Enforcement Strength
 
@@ -42,6 +43,11 @@ health:
 - `SERVICE_BYPASS`
 - `CLAUDE_SESSION_RISK`
 - `DB_SCHEMA_DRIFT`
+- `UNPUSHED_COMMITS`
+- `WORKTREE_DIRTY`
+- `RISKY_ARTIFACT`
+- `GUARDIAN_DOCTOR_FAILED`
+- `DB_DOCTOR_FAILED`
 
 Each issue should eventually carry `severity`, `summary`, `blocks_completion`,
 and `command_hint`.

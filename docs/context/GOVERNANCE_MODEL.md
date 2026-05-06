@@ -63,13 +63,17 @@ Primary files and tools:
 
 - `docs/context/SAFETY_MATRIX.md`
 - `docs/context/ARTIFACT_POLICY.md`
+- `docs/context/GUARDIAN_RUNTIME.md`
 - `scripts/codex-check`
 - `scripts/codex-verify`
+- `scripts/guardian-watch`
+- `scripts/guardian_runtime.py`
 - `scripts/truth-status.sh`
 - `scripts/truth doctor`
 - `scripts/db_doctor.py`
 - `scripts/db_migrate`
 - `scripts/pytest_delta.py`
+- `deploy/systemd/edu-cloud-guardian.service`
 - `.github/workflows/test.yml`
 
 Core capabilities:
@@ -81,6 +85,45 @@ Core capabilities:
 - Migration and SQLite guardrails
 - Changed-script safety scanning and repo-wide secret/SQLite-copy scanning
 - Structured rule mapping through Safety Matrix IDs
+- Realtime advisory snapshots in `logs/guardian-state.json`
+- Rate-limited read-only Claude risk review when the runtime sees persistent
+  yellow/red health
+
+## Guardian Runtime / 守护运行时
+
+`scripts/guardian-watch` is the realtime Guardian Core runtime. It can run once
+for local inspection or continuously under systemd.
+
+It monitors:
+
+- git dirty/ahead state
+- truth doctor health: ports, public binds, ghost processes, systemd state,
+  Claude process count, dist permissions, and DB schema drift
+- frontend/backend truthline data from local dist, nginx, and backend version
+  endpoints when network checks are enabled
+- risky local artifacts vs active SQLite WAL/SHM runtime files
+- read-only model review state
+
+It writes:
+
+- latest state: `logs/guardian-state.json`
+- append-only event stream: `logs/guardian-watch.jsonl`
+- read-only model review reports: `logs/guardian-model-review-*.txt`
+
+Authority boundaries:
+
+- It may observe, classify, alert, and schedule read-only model review.
+- Claude review uses `scripts/codex-consult-claude`; GPT review requires an
+  explicit read-only command wrapper passed with `--model-review-command`.
+- It must not kill ARQ workers, backend services, Claude sessions, or port
+  listeners automatically.
+- It must not delete active SQLite DB/WAL/SHM files, dirty source files,
+  experiment data, backups, screenshots, `.env`, or `.secrets`.
+- It must not run git cleanup, migrations, builds, or deployment commands.
+
+The systemd template is `deploy/systemd/edu-cloud-guardian.service`. It runs the
+watcher every 15 seconds and enables rate-limited Claude review through
+`scripts/codex-consult-claude`.
 
 ## Authority
 

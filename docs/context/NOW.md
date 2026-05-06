@@ -1,12 +1,13 @@
 # NOW
 
-Last refreshed: 2026-05-06 21:58 Asia/Shanghai
+Last refreshed: 2026-05-06 22:40 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
 
 ```bash
 scripts/codex-context --no-network
+scripts/guardian-watch --once --no-network --no-model-review
 scripts/truth-status.sh /home/ops/projects/edu-cloud
 scripts/truth doctor --json
 ```
@@ -52,6 +53,9 @@ Codex-native migration layer is now committed:
   wrapper.
 - `scripts/codex-verify`: completion verification wrapper with `safety`,
   `frontend`, `backend`, `schema`, and `full` modes.
+- `scripts/guardian-watch`: realtime Guardian Core runtime. It emits
+  `guardian.watch.v1` snapshots and can run continuously from
+  `deploy/systemd/edu-cloud-guardian.service`.
 - `.github/workflows/test.yml`: governance, backend, and frontend CI smoke.
 
 The governance model is formally **元守双核心**:
@@ -61,6 +65,15 @@ The governance model is formally **元守双核心**:
 - Guardian Core / 守护核: owns dirty state, truthline, DB/migration gates,
   safety scanning, frontend/backend build-runtime consistency, and environment
   hygiene.
+
+Guardian realtime runtime boundary:
+
+- allowed: observe, classify, write `logs/guardian-state.json`, append
+  `logs/guardian-watch.jsonl`, and schedule rate-limited read-only Claude
+  reviews through `scripts/codex-consult-claude`
+- forbidden: auto-kill workers/services/Claude sessions, auto-delete
+  DB/WAL/SHM/dirty source/experiment data, run git cleanup, run migrations,
+  build, or deploy
 
 ## AI Grading State
 

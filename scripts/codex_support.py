@@ -202,6 +202,38 @@ def collect_guardian_health() -> dict[str, object]:
     }
 
 
+def collect_guardian_runtime_state() -> dict[str, object]:
+    state_file = PROJECT_ROOT / "logs" / "guardian-state.json"
+    service = run(["systemctl", "is-active", "edu-cloud-guardian"], timeout=5)
+    service_state = service.stdout.strip() if service.returncode == 0 else "inactive"
+    if not state_file.exists():
+        return {"status": "missing", "service": service_state, "state_file": str(state_file)}
+    try:
+        parsed = json.loads(state_file.read_text(encoding="utf-8"))
+    except Exception:
+        return {"status": "unreadable", "service": service_state, "state_file": str(state_file)}
+    latest = parsed.get("latest_snapshot") if isinstance(parsed, dict) else {}
+    runtime_state = parsed.get("runtime_state") if isinstance(parsed, dict) else {}
+    if not isinstance(latest, dict):
+        latest = {}
+    if not isinstance(runtime_state, dict):
+        runtime_state = {}
+    return {
+        "status": "ok",
+        "service": service_state,
+        "state_file": str(state_file),
+        "updated_at": parsed.get("updated_at") if isinstance(parsed, dict) else None,
+        "snapshot_at": latest.get("generated_at"),
+        "overall": latest.get("overall"),
+        "red_count": latest.get("red_count"),
+        "yellow_count": latest.get("yellow_count"),
+        "fingerprint": latest.get("fingerprint"),
+        "issue_count": len(latest.get("issues", [])) if isinstance(latest.get("issues"), list) else None,
+        "model_review": latest.get("model_review"),
+        "last_model_review": runtime_state.get("model_review"),
+    }
+
+
 def safety_risks(no_network: bool = False) -> list[str]:
     git_info = collect_git()
     artifacts = collect_artifacts()

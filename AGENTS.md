@@ -8,6 +8,9 @@ edu-cloud uses **元守双核心**:
   Claude read-only counter-review, and the completion evidence contract.
 - **Guardian Core / 守护核**: owns dirty state, truthline, DB/migration gates,
   safety scanning, frontend/backend build-runtime consistency, and environment hygiene.
+  Its realtime runtime is `scripts/guardian-watch`, installed by
+  `deploy/systemd/edu-cloud-guardian.service` when continuous monitoring is
+  needed.
 
 The model is Codex-led and Claude-assisted.
 
@@ -51,6 +54,7 @@ The model is Codex-led and Claude-assisted.
 ```bash
 scripts/codex-check
 scripts/codex-context --no-network
+scripts/guardian-watch --once --no-network --no-model-review
 scripts/codex-consult-claude --dry-run review "check read-only boundary"
 scripts/codex-verify safety
 scripts/codex-verify safety --repo-wide
@@ -83,6 +87,7 @@ Claude Code may be used only through `scripts/codex-consult-claude` as a Codex-i
 ## Current Context Files
 
 - `docs/context/GOVERNANCE_MODEL.md`: 元守双核心 model.
+- `docs/context/GUARDIAN_RUNTIME.md`: Guardian Core realtime runtime contract.
 - `docs/context/NOW.md`: current project facts and risks.
 - `docs/context/COMMANDS.md`: authoritative commands.
 - `docs/context/LESSONS.md`: project-specific lessons migrated from Claude.
