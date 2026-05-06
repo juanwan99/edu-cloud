@@ -43,7 +43,7 @@ Any `BROKEN AT:` diagnosis exits non-zero and blocks completion evidence.
 Codex-native migration layer is now committed:
 
 - `AGENTS.md`: active Codex entrypoint.
-- `docs/context/GOVERNANCE_MODEL.md`: EduCloud Dual-Core Control Plane model.
+- `docs/context/GOVERNANCE_MODEL.md`: 元守双核心 model.
 - `docs/context/**`: current facts, commands, lessons, safety matrix, active
   index, artifact policy, and Claude auxiliary protocol.
 - `scripts/codex-context`: current project summary.
@@ -54,8 +54,7 @@ Codex-native migration layer is now committed:
   `frontend`, `backend`, `schema`, and `full` modes.
 - `.github/workflows/test.yml`: governance, backend, and frontend CI smoke.
 
-The governance model is formally the **EduCloud Dual-Core Control Plane**
-(`ECP-DualCore`):
+The governance model is formally **元守双核心**:
 
 - Meta Core / 元控核: owns direction, facts, task boundaries, context, Claude
   read-only counter-review, and the completion evidence contract.

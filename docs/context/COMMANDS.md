@@ -13,10 +13,11 @@ git status --short --branch
 
 `codex-check` is read-only. Default mode reports risks and exits 0. Use `--strict` when a non-zero exit is wanted for automation.
 
-`scripts/codex-context` prints the EduCloud Dual-Core Control Plane summary:
-Meta Core covers context, scope, active docs, evidence, and Claude read-only
-review; Guardian Core covers dirty state, truthline, DB, build, tests, and
-safety.
+`scripts/codex-context` prints the 元守双核心 summary:
+Meta Core / 元控核 covers direction, facts, task boundaries, context, Claude
+read-only counter-review, and the completion evidence contract. Guardian Core /
+守护核 covers dirty state, truthline, DB/migration gates, safety scanning,
+frontend/backend build-runtime consistency, and environment hygiene.
 
 ## Truthline
 

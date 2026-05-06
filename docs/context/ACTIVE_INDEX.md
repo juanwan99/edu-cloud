@@ -7,7 +7,7 @@ Use this index before reading historical `docs/plans/**`. Anything not listed he
 | Path | Status | Use |
 |---|---|---|
 | `AGENTS.md` | active | Codex entrypoint and hard rules |
-| `docs/context/GOVERNANCE_MODEL.md` | active | EduCloud Dual-Core Control Plane model |
+| `docs/context/GOVERNANCE_MODEL.md` | active | 元守双核心 model |
 | `docs/context/NOW.md` | active | Current facts and risks |
 | `docs/context/COMMANDS.md` | active | Command reference |
 | `docs/context/LESSONS.md` | active | Project-specific migrated lessons |

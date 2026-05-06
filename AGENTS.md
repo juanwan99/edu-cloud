@@ -2,7 +2,7 @@
 
 This is the active Codex entrypoint. `CLAUDE.md` is historical/deep reference only.
 
-edu-cloud uses the **EduCloud Dual-Core Control Plane**:
+edu-cloud uses **元守双核心**:
 
 - **Meta Core / 元控核**: owns direction, facts, task boundaries, context,
   Claude read-only counter-review, and the completion evidence contract.
@@ -82,7 +82,7 @@ Claude Code may be used only through `scripts/codex-consult-claude` as a Codex-i
 
 ## Current Context Files
 
-- `docs/context/GOVERNANCE_MODEL.md`: EduCloud Dual-Core Control Plane model.
+- `docs/context/GOVERNANCE_MODEL.md`: 元守双核心 model.
 - `docs/context/NOW.md`: current project facts and risks.
 - `docs/context/COMMANDS.md`: authoritative commands.
 - `docs/context/LESSONS.md`: project-specific lessons migrated from Claude.

@@ -35,7 +35,7 @@ def main() -> int:
     print_kv("project", PROJECT_ROOT, 0)
     print()
 
-    print("Dual-Core Control Plane")
+    print("元守双核心")
     print_kv(
         "Meta Core / 元控核",
         "direction, facts, task boundaries, context, Claude read-only counter-review, completion evidence contract",

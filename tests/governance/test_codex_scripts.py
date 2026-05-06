@@ -52,7 +52,8 @@ def test_codex_context_no_network_outputs_project_sections():
 
     assert result.returncode == 0, result.stderr
     assert "Codex Context" in result.stdout
-    assert "Dual-Core Control Plane" in result.stdout
+    assert "元守双核心" in result.stdout
+    assert "Dual-Core Control Plane" not in result.stdout
     assert "Meta Core / 元控核" in result.stdout
     assert "Guardian Core / 守护核" in result.stdout
     assert "Claude read-only counter-review" in result.stdout
@@ -71,7 +72,9 @@ def test_dual_core_governance_model_is_active_context():
     agents = PROJECT_ROOT / "AGENTS.md"
 
     model_text = model.read_text(encoding="utf-8")
-    assert "EduCloud Dual-Core Control Plane" in model_text
+    assert "元守双核心" in model_text
+    assert "EduCloud Dual-Core Control Plane" not in model_text
+    assert "ECP-DualCore" not in model_text
     assert "Meta Core" in model_text
     assert "Guardian Core" in model_text
     assert "Codex-led" in model_text
@@ -79,7 +82,8 @@ def test_dual_core_governance_model_is_active_context():
 
     assert "docs/context/GOVERNANCE_MODEL.md" in active_index.read_text(encoding="utf-8")
     agents_text = agents.read_text(encoding="utf-8")
-    assert "EduCloud Dual-Core Control Plane" in agents_text
+    assert "元守双核心" in agents_text
+    assert "EduCloud Dual-Core Control Plane" not in agents_text
     assert "Meta Core / 元控核" in agents_text
     assert "Guardian Core / 守护核" in agents_text
 

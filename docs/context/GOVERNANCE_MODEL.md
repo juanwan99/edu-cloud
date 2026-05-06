@@ -1,13 +1,14 @@
-# EduCloud Dual-Core Control Plane
+# 元守双核心
 
-The edu-cloud governance model is the **EduCloud Dual-Core Control Plane**
-(`ECP-DualCore`).
+The edu-cloud governance model is **元守双核心**.
+The name means a two-core system: 元 for Meta Core / 元控核, and 守 for
+Guardian Core / 守护核.
 It is Codex-led and Claude-assisted: Codex is the operator, editor, verifier,
 and source of completion claims; Claude is a full-repository read-only reviewer.
 
 ## Purpose
 
-The control plane keeps daily work aligned with the user's goal and prevents
+The governance layer keeps daily work aligned with the user's goal and prevents
 operational accidents. It is explicit, script-backed, and reviewable in git.
 
 ## Meta Core / 元控核
