@@ -221,7 +221,7 @@ onMounted(async () => {
 
 async function restoreActiveTasks() {
   try {
-    const res = await listTasks()
+    const res = await listTasks({ subject_id: subjectId.value })
     const tasks = res.data || []
     const running = tasks.filter(t => t.status === 'processing' || t.status === 'pending')
     if (running.length) {

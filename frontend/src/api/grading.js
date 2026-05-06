@@ -1,6 +1,6 @@
 import client from './client'
 
-export const listTasks = () => client.get('/grading/tasks')
+export const listTasks = (params) => client.get('/grading/tasks', { params })
 export const createTask = (data) => client.post('/grading/tasks', data)
 export const getTask = (taskId) => client.get(`/grading/tasks/${taskId}`)
 export const listResults = (params) => client.get('/grading/results', { params })

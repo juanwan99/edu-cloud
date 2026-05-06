@@ -985,14 +985,17 @@ async def create_grading_task(
 
 @router.get("/tasks")
 async def list_grading_tasks(
+    subject_id: str | None = None,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(GradingTask)
-        .where(GradingTask.school_id == current["current_role"].school_id)
-        .order_by(GradingTask.created_at.desc())
-    )
+    school_id = current["current_role"].school_id
+    q = select(GradingTask)
+    if school_id:
+        q = q.where(GradingTask.school_id == school_id)
+    if subject_id:
+        q = q.where(GradingTask.subject_id == subject_id)
+    result = await db.execute(q.order_by(GradingTask.created_at.desc()))
     return [_task_response(t) for t in result.scalars().all()]
 
 
@@ -1002,12 +1005,11 @@ async def get_grading_task(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(GradingTask).where(
-            GradingTask.id == task_id,
-            GradingTask.school_id == current["current_role"].school_id,
-        )
-    )
+    school_id = current["current_role"].school_id
+    filters = [GradingTask.id == task_id]
+    if school_id:
+        filters.append(GradingTask.school_id == school_id)
+    result = await db.execute(select(GradingTask).where(*filters))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(404, "Task not found")
