@@ -11,6 +11,9 @@ owns_tables:
 
 owns_routes:
   - /api/v1/profile
+structure_pattern: standard
+max_router_loc: 150
+routers: [router.py]
 
 exposes:
   services:

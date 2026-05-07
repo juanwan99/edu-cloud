@@ -10,6 +10,9 @@ owns_tables:
   - timetable_slots
 
 owns_routes: []
+structure_pattern: standard
+max_router_loc: 300
+routers: [router.py]
 
 exposes:
   services: []

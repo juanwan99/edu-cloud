@@ -13,6 +13,9 @@ owns_tables:
 
 owns_routes:
   - /api/v1/knowledge-tree
+structure_pattern: standard
+max_router_loc: 200
+routers: [router.py]
 
 exposes:
   services:

@@ -8,6 +8,10 @@ modules:
   - time_periods
   - timetable_slots
   owns_routes: []
+  structure_pattern: standard
+  max_router_loc: 300
+  routers:
+  - router.py
   exposes:
     services: []
     events: []
@@ -19,6 +23,200 @@ modules:
   last_reviewed: 2026-04-24
   design_docs:
   - docs/plans/2026-04-24-academic-infrastructure-plan.md
+- name: adaptive
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - answer_logs
+  - student_da_mastery
+  - da_bkt_params
+  - da_knowledge_point_map
+  - question_da_override
+  - adaptive_cards
+  - da_catalog_snapshot
+  owns_routes: ''
+  structure_pattern: service-only
+  max_router_loc: 0
+  routers: []
+  exposes:
+    services:
+    - diagnose_and_recommend
+    - process_answer
+    - sync_da_catalog
+    - sync_da_kp_map
+    events: []
+  depends_on:
+    modules:
+    - knowledge_tree
+    services: []
+    ai_tools:
+    - diagnose_and_recommend
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs:
+  - docs/plans/2026-04-06-adaptive-learning-design.md
+- name: analytics
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - class_analysis
+  - student_analysis
+  - student_knp_mastery
+  owns_routes:
+  - /api/v1/analytics
+  structure_pattern: multi-router
+  max_router_loc: 650
+  routers:
+  - router.py
+  - analytics_report_router.py
+  exposes:
+    services:
+    - get_effective_scores
+    - get_effective_scores_batch
+    - compute_exam_analysis
+    - build_report
+    - get_grade_trend
+    - get_class_trend
+    - get_student_trend
+    - student_rankings
+    - critical_students
+    - class_diagnosis
+    events: []
+  depends_on:
+    modules:
+    - exam
+    - scan
+    - grading
+    - student
+    - knowledge
+    - knowledge_tree
+    - profile
+    - studio
+    services: []
+    ai_tools:
+    - get_exam_scores (analytics.py)
+    - get_class_stats (analytics.py)
+    - get_exam_summary (analytics_score.py)
+    - get_score_distribution (analytics_score.py)
+    - get_question_analysis (analytics_score.py)
+    - get_student_scores (analytics_score.py)
+    - get_class_scores (analytics_score.py)
+    - compare_classes (analytics_compare.py)
+    - rank_students (analytics_compare.py)
+    - get_grade_aggregates (analytics_compare.py)
+    - get_score_segments (analytics_report.py)
+    - compare_exams (analytics_report.py)
+    - generate_analysis_report (analytics_report.py)
+    - get_class_report (class_report_tool.py)
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs:
+  - docs/plans/2026-04-05-analytics-report-design.md
+- name: bank
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - bank_questions
+  - student_error_books
+  owns_routes:
+  - /api/v1/bank
+  structure_pattern: standard
+  max_router_loc: 200
+  routers:
+  - router.py
+  exposes:
+    services:
+    - list_bank_questions
+    - get_bank_question
+    - search_questions
+    - get_questions_stats_overview
+    - get_student_error_book
+    - get_error_book_stats
+    - get_error_knowledge_summary
+    - get_recommended_practice
+    events: []
+  depends_on:
+    modules:
+    - exam
+    - student
+    services: []
+    ai_tools:
+    - ai/tools/bank.py
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs: []
+- name: calendar
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - calendar_events
+  - notification_rules
+  - notifications
+  - teaching_plans
+  owns_routes:
+  - /api/v1/calendar
+  structure_pattern: standard
+  max_router_loc: 100
+  routers:
+  - router.py
+  exposes:
+    services:
+    - CalendarService
+    - NotificationService
+    - teaching_plan_service
+    events: []
+  depends_on:
+    modules:
+    - school
+    services:
+    - school_settings_service
+    ai_tools: []
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs: []
+- name: card
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - templates
+  - card_skeletons
+  owns_routes:
+  - /api/v1/card
+  - /api/v1/templates
+  structure_pattern: multi-router
+  max_router_loc: 850
+  routers:
+  - router.py
+  - template_router.py
+  - card_template_router.py
+  - card_export_router.py
+  exposes:
+    services:
+    - publish_card_atomic (publish_service)
+    - upsert_questions_from_skeleton (publish_service)
+    - render_card_v2 (rendering/renderer)
+    - calculate_layout (ai/tools/card_layout)
+    - html_to_pdf (export/html_export)
+    - TemplateLibrary (template/template_library)
+    - AnswerParser (parser/answer_parser)
+    events: []
+  depends_on:
+    modules:
+    - exam
+    services: []
+    ai_tools:
+    - card_parse_answers (card_layout.py)
+    - card_auto_layout (card_layout.py)
+    - card_adjust_layout (card_layout.py)
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs:
+  - docs/plans/2026-04-11-f003-question-writeback-design.md
 - name: conduct
   status: active
   owner: backend+frontend
@@ -32,14 +230,22 @@ modules:
   - conduct_groups
   - conduct_group_members
   - conduct_semesters
+  - conduct_notifications
   owns_routes:
   - /api/v1/conduct
+  structure_pattern: multi-router
+  max_router_loc: 650
+  routers:
+  - admin_router.py
+  - parent_router.py
+  - notification_router.py
   exposes:
     services:
     - AdminService
     - ParentService
     - RulesService
     - ExportService
+    - EventService
     events: []
   depends_on:
     modules:
@@ -58,11 +264,67 @@ modules:
     - add_conduct_points
     - get_conduct_rules
     - get_class_conduct_overview
+    - analyze_student_behavior
+    - get_class_behavior_insights
   created: 2026-04-12
   last_reviewed: 2026-04-14
   design_docs:
   - docs/plans/2026-04-12-conduct-module-design.md
   - docs/plans/2026-04-14-conduct-roadmap-design.md
+- name: exam
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - exams
+  - subjects
+  - questions
+  - exam_results
+  - joint_exams
+  - joint_exam_participants
+  - joint_exam_student_results
+  owns_routes:
+  - /api/v1/exams
+  - /api/v1/questions
+  - /api/v1/joint-exams
+  - /api/v1/joint-exams/{id}/results
+  - /api/v1/workspace
+  - /api/v1/llm-config
+  - /api/v1/exams/{id}/publish
+  - /api/v1/exams/{id}/archive
+  - /api/v1/exams/{id}/schedule
+  structure_pattern: multi-router
+  max_router_loc: 500
+  routers:
+  - router.py
+  - joint_exam_router.py
+  - results_router.py
+  - workspace_router.py
+  - llm_config_router.py
+  exposes:
+    services:
+    - ExamPublishService
+    - JointExamService
+    - ResultsService
+    - WorkspaceService
+    - create_exam
+    - get_exam
+    - create_subject
+    - get_llm_config
+    events: []
+  depends_on:
+    modules:
+    - grading
+    - pipeline
+    services: []
+    ai_tools:
+    - get_exam_list (exams.py)
+    - get_exam_detail (exams.py)
+    - get_subject_questions (exams.py)
+    - get_exam_overview (exam_overview.py)
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs: []
 - name: grading
   status: active
   owner: backend
@@ -75,6 +337,13 @@ modules:
   - grading_quality_checks
   owns_routes:
   - /api/v1/grading
+  structure_pattern: multi-router
+  max_router_loc: 1100
+  routers:
+  - router.py
+  - assignment_router.py
+  - quality_router.py
+  - grading_review_router.py
   exposes:
     services:
     - LLMClient
@@ -92,6 +361,108 @@ modules:
   design_docs:
   - docs/plans/2026-04-12-grading-dispatch-design.md
   - docs/plans/2026-03-16-ai-agent-design.md
+- name: homework
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - homework_tasks
+  - homework_submissions
+  owns_routes:
+  - /api/v1/homework
+  structure_pattern: standard
+  max_router_loc: 300
+  routers:
+  - router.py
+  exposes:
+    services:
+    - HomeworkTaskService
+    - HomeworkSubmissionService
+    events: []
+  depends_on:
+    modules:
+    - exam
+    - scan
+    - bank
+    services: []
+    ai_tools:
+    - ai/tools/homework.py
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs: []
+- name: knowledge
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - question_knowledge_points
+  owns_routes:
+  - /api/v1/knowledge
+  structure_pattern: standard
+  max_router_loc: 100
+  routers:
+  - router.py
+  exposes:
+    services:
+    - list_knowledge_points
+    - get_knowledge_point
+    - get_children
+    - link_question
+    - get_question_knowledge_points
+    - KnowledgeStore
+    events: []
+  depends_on:
+    modules:
+    - knowledge_tree
+    services: []
+    ai_tools:
+    - ai/tools/knowledge.py
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs: []
+- name: knowledge_tree
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - concept_graph_nodes
+  - concept_graph_edges
+  - concept_big_concept_map
+  - concept_stats
+  - edit_sync_failures
+  owns_routes:
+  - /api/v1/knowledge-tree
+  structure_pattern: standard
+  max_router_loc: 200
+  routers:
+  - router.py
+  exposes:
+    services:
+    - get_graph
+    - get_mastery
+    - search_concepts
+    - apply_edits
+    - sync_from_knowledge_db
+    events: []
+  depends_on:
+    modules:
+    - knowledge
+    - exam
+    - adaptive
+    services:
+    - core.permissions
+    - api.deps
+    ai_tools:
+    - edit_knowledge_graph
+    - get_knowledge_tree
+    - get_question_knowledge_points
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs:
+  - docs/plans/2026-04-05-knowledge-tree-design.md
+  - docs/plans/2026-04-09-knowledge-graph-restructure-design.md
+  - docs/plans/2026-04-09-knowledge-graph-model-design.md
+  - docs/plans/2026-04-10-teacher-workbench-design.md
 - name: marking
   status: active
   owner: backend
@@ -99,6 +470,10 @@ modules:
   owns_tables: []
   owns_routes:
   - /api/v1/marking
+  structure_pattern: standard
+  max_router_loc: 600
+  routers:
+  - router.py
   exposes:
     services:
     - get_next_answer
@@ -116,6 +491,52 @@ modules:
   created: 2026-03-16
   last_reviewed: 2026-04-27
   design_docs: []
+- name: menu
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - menu_configs
+  owns_routes:
+  - /api/v1/menus
+  structure_pattern: standard
+  max_router_loc: 50
+  routers:
+  - router.py
+  exposes:
+    services:
+    - MenuService
+    events: []
+  depends_on:
+    modules:
+    - school
+    services:
+    - school_settings_service
+    ai_tools: []
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs:
+  - docs/plans/2026-04-12-haofenshu-biz-replication-design.md
+- name: paper
+  status: active
+  owner: backend
+  layer: infrastructure
+  owns_tables: []
+  owns_routes: ''
+  structure_pattern: service-only
+  max_router_loc: 0
+  routers: []
+  exposes:
+    services:
+    - PaperService
+    events: []
+  depends_on:
+    modules: []
+    services: []
+    ai_tools: []
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs: []
 - name: pipeline
   status: active
   owner: backend
@@ -123,6 +544,10 @@ modules:
   owns_tables: []
   owns_routes:
   - /api/v1/pipeline
+  structure_pattern: standard
+  max_router_loc: 50
+  routers:
+  - router.py
   exposes:
     services:
     - run_full_pipeline
@@ -149,4 +574,180 @@ modules:
   design_docs:
   - docs/plans/2026-03-29-business-logic-backfill-design.md
   - docs/plans/2026-04-06-adaptive-learning-design.md
+- name: profile
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - student_exam_snapshots
+  - student_knowledge_mastery
+  - student_error_patterns
+  owns_routes:
+  - /api/v1/profile
+  structure_pattern: standard
+  max_router_loc: 150
+  routers:
+  - router.py
+  exposes:
+    services:
+    - get_student_trend
+    - get_student_knowledge_map
+    - get_student_error_pattern
+    - get_class_knowledge_weakness
+    events: []
+  depends_on:
+    modules:
+    - student
+    - knowledge_tree
+    - analytics
+    services: []
+    ai_tools:
+    - ai/tools/profile.py
+    - ai/tools/student_diagnosis.py
+    - ai/tools/student_profile_tool.py
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs: []
+- name: scan
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - scan_tasks
+  - student_answers
+  owns_routes:
+  - /api/v1/scan
+  structure_pattern: multi-router
+  max_router_loc: 1300
+  routers:
+  - router.py
+  - pipeline_router.py
+  exposes:
+    services:
+    - StorageService
+    - PipelineProgress
+    - auto_detect_cv_regions
+    - grade_objective_answer
+    - parse_tpl_file
+    events: []
+  depends_on:
+    modules:
+    - exam
+    - card
+    services: []
+    ai_tools: []
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs:
+  - docs/plans/2026-04-12-grading-dispatch-design.md
+- name: school
+  status: active
+  owner: backend
+  layer: infrastructure
+  owns_tables:
+  - schools
+  - school_settings
+  - school_modules
+  - teacher_assignments
+  - subject_selections
+  - capabilities
+  - audit_logs
+  owns_routes:
+  - /api/v1/schools
+  structure_pattern: multi-router
+  max_router_loc: 150
+  routers:
+  - router.py
+  - settings_router.py
+  - assignment_router.py
+  - selection_router.py
+  - capability_router.py
+  - audit_router.py
+  exposes:
+    services:
+    - SchoolService
+    - SchoolSettingsService
+    - TeacherAssignmentService
+    - SubjectSelectionService
+    - CapabilityService
+    - AuditService
+    events: []
+  depends_on:
+    modules: []
+    services:
+    - core.permissions
+    - api.deps
+    ai_tools: []
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs: []
+- name: student
+  status: active
+  owner: backend
+  layer: infrastructure
+  owns_tables:
+  - students
+  - classes
+  owns_routes:
+  - /api/v1/students
+  - /api/v1/classes
+  - /api/v1/grades
+  - /api/v1/teachers
+  structure_pattern: multi-router
+  max_router_loc: 600
+  routers:
+  - router.py
+  - teacher_router.py
+  exposes:
+    services:
+    - list_classes
+    - list_students
+    - get_student
+    - create_student
+    - update_student
+    - delete_student
+    events: []
+  depends_on:
+    modules: []
+    services:
+    - school_settings_service
+    ai_tools:
+    - ai/tools/students.py
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs: []
+- name: studio
+  status: active
+  owner: backend
+  layer: business
+  owns_tables:
+  - documents
+  - document_versions
+  - approval_flows
+  - approval_steps
+  owns_routes:
+  - /api/v1/studio
+  structure_pattern: standard
+  max_router_loc: 250
+  routers:
+  - router.py
+  exposes:
+    services:
+    - StudioService
+    - ApprovalService
+    - PaperService
+    events: []
+  depends_on:
+    modules:
+    - school
+    services:
+    - core.permissions
+    - api.deps
+    - services.paper_service
+    - services.notification_service
+    - templates.document_templates
+    ai_tools: []
+  created: '2026-05-05'
+  last_reviewed: '2026-05-05'
+  design_docs: []
 conflicts: []

@@ -8,6 +8,9 @@ owns_tables: []
 
 owns_routes:
   - /api/v1/marking
+structure_pattern: standard
+max_router_loc: 600
+routers: [router.py]
 
 exposes:
   services:

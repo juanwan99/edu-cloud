@@ -7,6 +7,9 @@ layer: infrastructure
 owns_tables: []
 
 owns_routes: ""
+structure_pattern: service-only
+max_router_loc: 0
+routers: []
 
 exposes:
   services:

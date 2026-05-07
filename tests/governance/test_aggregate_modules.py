@@ -99,6 +99,93 @@ def test_parse_module_md_nested_non_mapping_raises(tmp_path):
         parse_module_md(md)
 
 
+# --- 结构治理字段（structure_pattern / max_router_loc / routers）---
+
+
+def test_structure_pattern_valid_values(tmp_path):
+    """structure_pattern 只接受 standard / multi-router / service-only。"""
+    md = tmp_path / "MODULE.md"
+    md.write_text(
+        _frontmatter_with(
+            "structure_pattern: invalid\n"
+            "max_router_loc: 400\n"
+            "routers: []\n"
+            "exposes:\n  services: []\n  events: []\n"
+            "depends_on:\n  modules: []\n  services: []\n  ai_tools: []\n"
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ModuleGovernanceError, match="structure_pattern"):
+        parse_module_md(md)
+
+
+def test_structure_pattern_standard(tmp_path):
+    """合法 structure_pattern + max_router_loc + routers → 通过校验。"""
+    md = tmp_path / "MODULE.md"
+    md.write_text(
+        _frontmatter_with(
+            "structure_pattern: standard\n"
+            "max_router_loc: 350\n"
+            "routers: [router.py]\n"
+            "exposes:\n  services: []\n  events: []\n"
+            "depends_on:\n  modules: []\n  services: []\n  ai_tools: []\n"
+        ),
+        encoding="utf-8",
+    )
+    meta = parse_module_md(md)
+    assert meta["structure_pattern"] == "standard"
+    assert meta["max_router_loc"] == 350
+    assert meta["routers"] == ["router.py"]
+
+
+def test_max_router_loc_must_be_non_negative(tmp_path):
+    """max_router_loc 为负数 → raise。"""
+    md = tmp_path / "MODULE.md"
+    md.write_text(
+        _frontmatter_with(
+            "structure_pattern: standard\n"
+            "max_router_loc: -1\n"
+            "routers: []\n"
+            "exposes:\n  services: []\n  events: []\n"
+            "depends_on:\n  modules: []\n  services: []\n  ai_tools: []\n"
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ModuleGovernanceError, match="max_router_loc"):
+        parse_module_md(md)
+
+
+def test_max_router_loc_rejects_bool(tmp_path):
+    """max_router_loc: true (bool 是 int 子类) → raise。"""
+    md = tmp_path / "MODULE.md"
+    md.write_text(
+        _frontmatter_with(
+            "structure_pattern: standard\n"
+            "max_router_loc: true\n"
+            "routers: []\n"
+            "exposes:\n  services: []\n  events: []\n"
+            "depends_on:\n  modules: []\n  services: []\n  ai_tools: []\n"
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ModuleGovernanceError, match="max_router_loc"):
+        parse_module_md(md)
+
+
+def test_backward_compat_old_module_md(tmp_path):
+    """旧格式（无新字段）仍然通过校验——向后兼容。"""
+    md = tmp_path / "MODULE.md"
+    md.write_text(
+        _frontmatter_with(
+            "exposes:\n  services: []\n  events: []\n"
+            "depends_on:\n  modules: []\n  services: []\n  ai_tools: []\n"
+        ),
+        encoding="utf-8",
+    )
+    meta = parse_module_md(md)
+    assert "structure_pattern" not in meta  # optional, no default injected
+
+
 def test_detect_conflicts_finds_duplicate_owns_tables():
     """两个模块声明同一张表 → 返回冲突记录。"""
     modules = [

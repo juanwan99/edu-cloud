@@ -37,6 +37,7 @@ NESTED_REQUIRED: dict[str, list[str]] = {
 }
 VALID_STATUS = {"active", "deprecated", "experimental"}
 VALID_LAYER = {"business", "infrastructure", "cross-cutting"}
+VALID_STRUCTURE_PATTERN = {"standard", "multi-router", "service-only"}
 
 
 class ModuleGovernanceError(ValueError):
@@ -81,6 +82,23 @@ def parse_module_md(md_path: Path) -> dict[str, Any]:
                 raise ModuleGovernanceError(
                     f"{md_path}: missing required nested field '{parent}.{sub}'"
                 )
+    # ── 结构治理字段（可选，向后兼容） ──
+    if "structure_pattern" in meta:
+        if meta["structure_pattern"] not in VALID_STRUCTURE_PATTERN:
+            raise ModuleGovernanceError(
+                f"{md_path}: invalid structure_pattern '{meta['structure_pattern']}' "
+                f"(expected one of {VALID_STRUCTURE_PATTERN})"
+            )
+    if "max_router_loc" in meta:
+        if isinstance(meta["max_router_loc"], bool) or not isinstance(meta["max_router_loc"], int) or meta["max_router_loc"] < 0:
+            raise ModuleGovernanceError(
+                f"{md_path}: max_router_loc must be a non-negative integer"
+            )
+    if "routers" in meta:
+        if not isinstance(meta["routers"], list):
+            raise ModuleGovernanceError(
+                f"{md_path}: routers must be a list"
+            )
     return meta
 
 

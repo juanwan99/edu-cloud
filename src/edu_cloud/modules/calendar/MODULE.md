@@ -12,6 +12,9 @@ owns_tables:
 
 owns_routes:
   - /api/v1/calendar
+structure_pattern: standard
+max_router_loc: 100
+routers: [router.py]
 
 exposes:
   services:

@@ -11,6 +11,9 @@ owns_tables:
 
 owns_routes:
   - /api/v1/analytics
+structure_pattern: multi-router
+max_router_loc: 650
+routers: [router.py, analytics_report_router.py]
 
 exposes:
   services:

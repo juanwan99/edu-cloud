@@ -10,6 +10,9 @@ owns_tables:
 
 owns_routes:
   - /api/v1/scan
+structure_pattern: multi-router
+max_router_loc: 1300
+routers: [router.py, pipeline_router.py]
 
 exposes:
   services:

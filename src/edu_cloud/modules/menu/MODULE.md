@@ -9,6 +9,9 @@ owns_tables:
 
 owns_routes:
   - /api/v1/menus
+structure_pattern: standard
+max_router_loc: 50
+routers: [router.py]
 
 exposes:
   services:

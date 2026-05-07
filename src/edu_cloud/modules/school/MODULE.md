@@ -15,6 +15,9 @@ owns_tables:
 
 owns_routes:
   - /api/v1/schools
+structure_pattern: multi-router
+max_router_loc: 150
+routers: [router.py, settings_router.py, assignment_router.py, selection_router.py, capability_router.py, audit_router.py]
 
 exposes:
   services:

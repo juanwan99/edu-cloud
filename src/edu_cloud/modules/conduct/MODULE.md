@@ -17,6 +17,9 @@ owns_tables:
 
 owns_routes:
   - /api/v1/conduct
+structure_pattern: multi-router
+max_router_loc: 650
+routers: [admin_router.py, parent_router.py, notification_router.py]
 
 exposes:
   services:

@@ -23,6 +23,9 @@ owns_routes:
   - /api/v1/exams/{id}/publish
   - /api/v1/exams/{id}/archive
   - /api/v1/exams/{id}/schedule
+structure_pattern: multi-router
+max_router_loc: 500
+routers: [router.py, joint_exam_router.py, results_router.py, workspace_router.py, llm_config_router.py]
 
 exposes:
   services:

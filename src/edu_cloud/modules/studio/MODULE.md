@@ -12,6 +12,9 @@ owns_tables:
 
 owns_routes:
   - /api/v1/studio
+structure_pattern: standard
+max_router_loc: 250
+routers: [router.py]
 
 exposes:
   services:

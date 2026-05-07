@@ -14,6 +14,9 @@ owns_tables:
   - da_catalog_snapshot
 
 owns_routes: ""
+structure_pattern: service-only
+max_router_loc: 0
+routers: []
 
 exposes:
   services:

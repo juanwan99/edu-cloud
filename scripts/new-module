@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ── new-module — 一键生成符合标准的新模块目录结构 ──
+#
+# Usage: scripts/new-module <name> [--pattern standard|multi-router|service-only]
+# Default pattern: standard
+#
+# Creates:
+#   src/edu_cloud/modules/<name>/   (__init__.py, models.py, service.py, MODULE.md, [router.py])
+#   tests/test_modules/test_<name>/ (__init__.py, test_<name>_service.py)
+
+usage() {
+    cat <<EOF
+Usage: scripts/new-module <name> [--pattern standard|multi-router|service-only]
+
+Creates a new module under src/edu_cloud/modules/<name>/.
+
+Patterns:
+  standard      (default) — single router.py + service.py + models.py
+  multi-router  — same as standard; add extra router files manually
+  service-only  — no router.py (pure service module)
+
+Example:
+  scripts/new-module attendance
+  scripts/new-module reporting --pattern service-only
+EOF
+    exit 1
+}
+
+# ── Argument parsing ──
+
+[[ $# -lt 1 ]] && usage
+
+NAME="$1"
+shift
+
+if [[ ! "$NAME" =~ ^[a-z][a-z0-9_]*$ ]]; then
+    echo "ERROR: module name must be lowercase alphanumeric + underscore, starting with a letter (got '$NAME')"
+    exit 1
+fi
+
+PATTERN="standard"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --pattern)
+            [[ $# -lt 2 ]] && { echo "ERROR: --pattern requires a value"; exit 1; }
+            PATTERN="$2"
+            shift 2
+            ;;
+        *)
+            echo "ERROR: unknown argument '$1'"
+            usage
+            ;;
+    esac
+done
+
+# ── Validation ──
+
+case "$PATTERN" in
+    standard|multi-router|service-only) ;;
+    *) echo "ERROR: invalid pattern '$PATTERN' (expected: standard|multi-router|service-only)"; exit 1 ;;
+esac
+
+# Determine project root (script lives in scripts/)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+MODULE_DIR="$PROJECT_DIR/src/edu_cloud/modules/$NAME"
+TEST_DIR="$PROJECT_DIR/tests/test_modules/test_$NAME"
+
+if [[ -d "$MODULE_DIR" ]]; then
+    echo "ERROR: $MODULE_DIR already exists"
+    exit 1
+fi
+
+# ── Create module directory ──
+
+mkdir -p "$MODULE_DIR"
+touch "$MODULE_DIR/__init__.py"
+
+# ── MODULE.md ──
+
+TODAY=$(date +%Y-%m-%d)
+
+if [[ "$PATTERN" == "service-only" ]]; then
+    ROUTERS_VALUE="[]"
+    MAX_LOC_VALUE="0"
+else
+    ROUTERS_VALUE="[router.py]"
+    MAX_LOC_VALUE="350"
+fi
+
+cat > "$MODULE_DIR/MODULE.md" << YAML
+---
+name: $NAME
+status: active
+owner: backend
+layer: business
+owns_tables: []
+owns_routes: []
+structure_pattern: $PATTERN
+max_router_loc: $MAX_LOC_VALUE
+routers: $ROUTERS_VALUE
+exposes:
+  services: []
+  events: []
+depends_on:
+  modules: []
+  services: []
+  ai_tools: []
+created: "$TODAY"
+last_reviewed: "$TODAY"
+design_docs: []
+---
+
+# $NAME
+
+## 职责
+
+TODO: describe module responsibility.
+YAML
+
+# ── models.py ──
+
+cat > "$MODULE_DIR/models.py" << 'PY'
+"""Database models."""
+PY
+
+# ── service.py ──
+
+cat > "$MODULE_DIR/service.py" << 'PY'
+"""Business logic."""
+import logging
+
+logger = logging.getLogger(__name__)
+PY
+
+# ── router.py (skip for service-only) ──
+
+if [[ "$PATTERN" != "service-only" ]]; then
+cat > "$MODULE_DIR/router.py" << PY
+"""REST API routes."""
+import logging
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from edu_cloud.database import get_db
+from edu_cloud.api.deps import get_current_user
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/api/v1/$NAME", tags=["$NAME"])
+PY
+fi
+
+# ── Test directory ──
+
+mkdir -p "$TEST_DIR"
+touch "$TEST_DIR/__init__.py"
+
+cat > "$TEST_DIR/test_${NAME}_service.py" << 'PY'
+"""Service unit tests."""
+PY
+
+# ── Summary ──
+
+echo "Created module: $MODULE_DIR (pattern: $PATTERN)"
+echo ""
+echo "Files:"
+ls -1 "$MODULE_DIR/"
+echo ""
+echo "Tests:"
+ls -1 "$TEST_DIR/"
+echo ""
+echo "Next steps:"
+echo "  1. Edit MODULE.md: fill owns_tables, owns_routes, depends_on"
+echo "  2. Add router entry to src/edu_cloud/api/router_registry.py"
+echo "  3. Add model imports to alembic/env.py (if new tables)"
+echo "  4. Run: python scripts/governance/aggregate_modules.py"

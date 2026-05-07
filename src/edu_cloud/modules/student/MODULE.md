@@ -13,6 +13,9 @@ owns_routes:
   - /api/v1/classes
   - /api/v1/grades
   - /api/v1/teachers
+structure_pattern: multi-router
+max_router_loc: 600
+routers: [router.py, teacher_router.py]
 
 exposes:
   services:

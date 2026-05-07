@@ -11,6 +11,9 @@ owns_tables:
 owns_routes:
   - /api/v1/card
   - /api/v1/templates
+structure_pattern: multi-router
+max_router_loc: 850
+routers: [router.py, template_router.py, card_template_router.py, card_export_router.py]
 
 exposes:
   services:
