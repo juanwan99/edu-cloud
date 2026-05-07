@@ -87,21 +87,25 @@ class ModuleCheckMiddleware(BaseHTTPMiddleware):
             logger.debug("module_middleware: JWT decode failed for %s: %s", path, e)
             return await call_next(request)
 
-        if not active_role_id:
-            return await call_next(request)
-
-        # Query UserRole to get school_id
         from edu_cloud.database import async_session
-        from edu_cloud.models.user_role import UserRole
 
-        school_id = None
-        async with async_session() as db:
-            result = await db.execute(
-                select(UserRole.school_id).where(UserRole.id == active_role_id)
-            )
-            row = result.first()
-            if row:
-                school_id = row[0]
+        if not active_role_id:
+            # Impersonation tokens have effective_school_id instead
+            school_id = payload.get("effective_school_id") if payload.get("is_impersonation") else None
+            if not school_id:
+                return await call_next(request)
+        else:
+            # Query UserRole to get school_id
+            from edu_cloud.models.user_role import UserRole
+
+            school_id = None
+            async with async_session() as db:
+                result = await db.execute(
+                    select(UserRole.school_id).where(UserRole.id == active_role_id)
+                )
+                row = result.first()
+                if row:
+                    school_id = row[0]
 
         if not school_id:
             return await call_next(request)
