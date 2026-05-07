@@ -30,6 +30,8 @@ PERSONA_MAP: dict[str, str] = {
     "grade_leader": "teacher_assistant",
     "homeroom_teacher": "teacher_assistant",
     "subject_teacher": "teacher_assistant",
+    "teaching_research_leader": "teacher_assistant",
+    "lesson_prep_leader": "teacher_assistant",
     "parent": "parent_advisor",
 }
 
@@ -169,6 +171,40 @@ class DataScopeBuilder:
 
         # Should be unreachable (PERSONA_MAP gate), but fail-closed anyway
         raise DataScopeBuildError(f"Unhandled role: {role_str}")  # pragma: no cover
+
+    def build_from_override(
+        self,
+        *,
+        impersonator_id: str,
+        effective_role: str,
+        school_id: str,
+        scope_override: dict,
+    ) -> DataScope:
+        """Build DataScope directly from impersonation claims (no DB lookup).
+
+        Used when JWT contains is_impersonation=True. The scope is fully
+        specified in the token, so we skip UserRole/TeacherAssignment queries.
+        """
+        persona = PERSONA_MAP.get(effective_role)
+        if persona is None:
+            raise DataScopeBuildError(
+                f"Cannot impersonate unknown role '{effective_role}'"
+            )
+
+        return self._make(
+            user_id=impersonator_id,
+            school_id=school_id,
+            role=effective_role,
+            persona=persona,
+            visible_class_ids=scope_override.get("class_ids"),
+            visible_subject_codes=scope_override.get("subject_codes"),
+            visible_grade_ids=scope_override.get("grade_ids"),
+            # NOTE: full write access during impersonation.
+            # Future: add mode param to restrict to read-only.
+            can_write=True,
+            can_see_rankings=True,
+            can_cross_school=(effective_role in ("platform_admin", "district_admin")),
+        )
 
     # ── private helpers ───────────────────────────────────────────
 

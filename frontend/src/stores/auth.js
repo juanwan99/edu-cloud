@@ -44,7 +44,15 @@ export const useAuthStore = defineStore('auth', () => {
   const enabledModules = ref([])
   const modulesLoaded = ref(false)
 
-  const currentRole = computed(() => roles.value[currentRoleIndex.value] || null)
+  // Impersonation state — sessionStorage (关标签页即清)
+  const impersonation = ref(JSON.parse(sessionStorage.getItem('impersonation') || 'null'))
+
+  const isImpersonating = computed(() => !!impersonation.value)
+
+  const currentRole = computed(() => {
+    if (impersonation.value?.virtualRole) return impersonation.value.virtualRole
+    return roles.value[currentRoleIndex.value] || null
+  })
   const displayName = computed(() => user.value?.display_name || '')
   const roleName = computed(() => currentRole.value?.role || '')
   const currentContext = computed(() => currentRole.value?.context || null)
@@ -111,6 +119,60 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function impersonate(schoolId, role, scope = {}) {
+    const { startImpersonation } = await import('../api/impersonate.js')
+    const { data } = await startImpersonation(schoolId, role, scope)
+
+    // 保存原始 token 到 sessionStorage（关标签页即清，比 localStorage 安全）
+    const originalToken = token.value
+
+    // 构造虚拟角色对象（保证路由守卫和菜单正常工作）
+    const virtualRole = {
+      id: 'impersonated',
+      role: data.effective_role,
+      school_id: data.effective_school_id,
+      context: { type: 'school', id: data.effective_school_id, name: data.effective_school_name },
+      class_ids: data.scope?.class_ids || null,
+      subject_codes: data.scope?.subject_codes || null,
+      is_primary: false,
+    }
+
+    impersonation.value = {
+      effectiveRole: data.effective_role,
+      schoolId: data.effective_school_id,
+      schoolName: data.effective_school_name,
+      scope: data.scope,
+      originalToken,
+      virtualRole,
+    }
+    sessionStorage.setItem('impersonation', JSON.stringify(impersonation.value))
+
+    // 切换到 impersonation token
+    token.value = data.access_token
+    localStorage.setItem('token', data.access_token)
+
+    await loadModules()
+  }
+
+  async function stopImpersonation() {
+    const { exitImpersonation } = await import('../api/impersonate.js')
+    try {
+      const { data } = await exitImpersonation()
+      token.value = data.access_token
+      localStorage.setItem('token', data.access_token)
+    } catch {
+      // Fallback: 恢复原始 token
+      if (impersonation.value?.originalToken) {
+        token.value = impersonation.value.originalToken
+        localStorage.setItem('token', impersonation.value.originalToken)
+      }
+    }
+
+    impersonation.value = null
+    sessionStorage.removeItem('impersonation')
+    await loadModules()
+  }
+
   function logout() {
     token.value = ''
     user.value = null
@@ -118,6 +180,8 @@ export const useAuthStore = defineStore('auth', () => {
     currentRoleIndex.value = 0
     enabledModules.value = []
     modulesLoaded.value = false
+    impersonation.value = null
+    sessionStorage.removeItem('impersonation')
     localStorage.removeItem('token')
     localStorage.removeItem('auth_state')
     try { router.push('/login') } catch { /* test env */ }
@@ -127,6 +191,8 @@ export const useAuthStore = defineStore('auth', () => {
     token, user, roles, currentRole, currentRoleIndex,
     displayName, roleName, currentContext, isAdmin,
     enabledModules, modulesLoaded,
+    impersonation, isImpersonating,
     checkPermission, login, switchRole, logout, loadModules,
+    impersonate, stopImpersonation,
   }
 })

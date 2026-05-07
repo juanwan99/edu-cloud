@@ -30,6 +30,7 @@ request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 trace_id_var: ContextVar[str] = ContextVar("trace_id", default="-")
 current_user_var: ContextVar[str | None] = ContextVar("current_user_id", default=None)
 current_school_var: ContextVar[str | None] = ContextVar("current_school_id", default=None)
+impersonator_var: ContextVar[str | None] = ContextVar("impersonator_id", default=None)
 
 
 def get_trace_context() -> dict:
@@ -38,6 +39,7 @@ def get_trace_context() -> dict:
         "req_id": request_id_var.get(),
         "user_id": current_user_var.get(),
         "school_id": current_school_var.get(),
+        "impersonator_id": impersonator_var.get(),
     }
 
 

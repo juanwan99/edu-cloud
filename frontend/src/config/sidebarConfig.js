@@ -10,8 +10,8 @@ const SIDEBAR_GROUPS = [
       { label: '阅卷调度', route: '/grading/tasks', moduleCode: 'grading', perm: 'manage_grading' },
       { label: 'AI 阅卷', route: '/ai-grading', moduleCode: 'grading', perm: 'view_grading' },
       { label: '人工阅卷', route: '/marking', moduleCode: 'grading', perm: 'view_grading' },
-      { label: '成绩分析', route: '/analytics/report', perm: 'view_scores' },
-      { label: 'AI 阅卷报告', route: '/analytics/ai-report', perm: 'view_scores' },
+      { label: '成绩分析', route: '/analytics/report', moduleCode: 'study_analytics', perm: 'view_scores' },
+      { label: 'AI 阅卷报告', route: '/analytics/ai-report', moduleCode: 'study_analytics', perm: 'view_scores' },
     ],
   },
   {
@@ -57,6 +57,7 @@ const SIDEBAR_GROUPS = [
       { label: '学校配置', route: '/school-settings', perm: 'manage_school_config' },
       { label: '联考管理', route: '/joint-exams', perm: 'view_joint_exam' },
       { label: '校历管理', route: '/calendar', moduleCode: 'calendar' },
+      { label: '角色模拟', route: '/admin/impersonate', perm: 'manage_schools' },
     ],
   },
 ]

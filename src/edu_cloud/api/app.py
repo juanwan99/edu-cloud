@@ -259,6 +259,7 @@ def create_app() -> FastAPI:
         # Best-effort: extract user_id and school_id from JWT for audit logging
         user_token = None
         school_token = None
+        imp_token = None
         auth_header = request.headers.get("authorization", "")
         if auth_header.startswith("Bearer "):
             try:
@@ -267,9 +268,12 @@ def create_app() -> FastAPI:
                 uid = payload.get("sub")
                 if uid:
                     user_token = current_user_var.set(uid)
-                school_id = payload.get("school_id")
+                school_id = payload.get("school_id") or payload.get("effective_school_id")
                 if school_id:
                     school_token = current_school_var.set(str(school_id))
+                if payload.get("is_impersonation"):
+                    from edu_cloud.logging_config import impersonator_var
+                    imp_token = impersonator_var.set(payload.get("impersonator_id"))
             except Exception:
                 logger.debug("request log: token decode skipped")
 
@@ -314,10 +318,17 @@ def create_app() -> FastAPI:
                 current_user_var.reset(user_token)
             if school_token:
                 current_school_var.reset(school_token)
+            if imp_token:
+                from edu_cloud.logging_config import impersonator_var
+                impersonator_var.reset(imp_token)
 
     # Register routers — auth stays in api/
     from edu_cloud.api.auth import router as auth_router
     app.include_router(auth_router)
+
+    # Impersonation (platform_admin role simulation)
+    from edu_cloud.api.impersonate import router as impersonate_router
+    app.include_router(impersonate_router)
 
     # Client-side log ingestion (frontend errors/events)
     from edu_cloud.api.client_logs import router as client_logs_router

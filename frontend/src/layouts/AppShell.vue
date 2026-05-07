@@ -1,5 +1,6 @@
 <template>
-  <div :class="['app-shell', { 'app-shell--workspace': shellMode === 'workspace' }]">
+  <ImpersonationBar />
+  <div :class="['app-shell', { 'app-shell--workspace': shellMode === 'workspace' }]" :style="auth.isImpersonating ? { paddingTop: '36px' } : {}">
     <div class="app-body">
       <AppSidebar />
       <div class="app-stage">
@@ -19,6 +20,7 @@ import { computed, ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from '../components/shell/AppHeader.vue'
 import AppSidebar from '../components/shell/AppSidebar.vue'
+import ImpersonationBar from '../components/shell/ImpersonationBar.vue'
 import AiFloatingButton from '../components/ai/AiFloatingButton.vue'
 import AiSlidePanel from '../components/ai/AiSlidePanel.vue'
 import { useAuthStore } from '../stores/auth.js'

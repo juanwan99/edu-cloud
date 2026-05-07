@@ -53,10 +53,10 @@ export const routes = [
       { path: 'joint-exams/:id', name: 'JointExamDetail', component: () => import('../pages/JointExamDetailPage.vue'), meta: { permissions: ['view_joint_exam'] } },
 
       // 成绩分析
-      { path: 'analytics/report', name: 'AnalyticsReport', component: () => import('../pages/AnalyticsReportPage.vue'), meta: { permissions: ['view_scores'] } },
-      { path: 'analytics/ai-report', name: 'AiGradingReport', component: () => import('../pages/AiGradingReportPage.vue'), meta: { permissions: ['view_scores'] } },
-      { path: 'analytics/trend', name: 'AnalyticsTrend', component: () => import('../pages/AnalyticsTrendPage.vue'), meta: { permissions: ['view_scores'] } },
-      { path: 'analytics/grade', name: 'GradeAnalytics', component: () => import('../pages/GradeAnalyticsPage.vue'), meta: { permissions: ['view_scores'] } },
+      { path: 'analytics/report', name: 'AnalyticsReport', component: () => import('../pages/AnalyticsReportPage.vue'), meta: { permissions: ['view_scores'], moduleCode: 'study_analytics' } },
+      { path: 'analytics/ai-report', name: 'AiGradingReport', component: () => import('../pages/AiGradingReportPage.vue'), meta: { permissions: ['view_scores'], moduleCode: 'study_analytics' } },
+      { path: 'analytics/trend', name: 'AnalyticsTrend', component: () => import('../pages/AnalyticsTrendPage.vue'), meta: { permissions: ['view_scores'], moduleCode: 'study_analytics' } },
+      { path: 'analytics/grade', name: 'GradeAnalytics', component: () => import('../pages/GradeAnalyticsPage.vue'), meta: { permissions: ['view_scores'], moduleCode: 'study_analytics' } },
       { path: 'analytics/:examId', name: 'Analytics', component: () => import('../pages/AnalyticsPage.vue'), meta: { roles: EXAM_ROLES } },
 
       // 作业
@@ -90,6 +90,9 @@ export const routes = [
       { path: 'conduct/rules', redirect: { name: 'ConductSettingsHub', query: { tab: 'rules' } } },
       { path: 'conduct/groups', redirect: { name: 'ConductSettingsHub', query: { tab: 'groups' } } },
       { path: 'conduct/parents', redirect: { name: 'ConductSettingsHub', query: { tab: 'parents' } } },
+
+      // 超管工具
+      { path: 'admin/impersonate', name: 'Impersonate', component: () => import('../pages/ImpersonatePage.vue'), meta: { roles: ['platform_admin'] } },
     ]
   },
 
