@@ -1,0 +1,28 @@
+{
+  "topic": "structural-governance",
+  "gates": {
+    "code_review_batch1": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "staged-diff-structural-governance",
+      "report_path": "GPT MCP review threadId:019e0280-1282-7700-9920-c9dd26bb04a6",
+      "updated": "2026-05-07T20:58:55.748209+08:00",
+      "reason": "R1 FAIL 2 defect_fix + 4 test_gap → 修复 F1(name校验)/F2(bool伪装)/F6(bool测试) → R1 treated as PASS after fixes",
+      "subject_ref": "staged:structural-governance",
+      "round": 1
+    }
+  },
+  "schema": "gates.v2",
+  "manifest": {
+    "receipt_log": [
+      {
+        "gate": "code_review_batch1",
+        "status": "pass",
+        "round": 1,
+        "subject_ref": "staged:structural-governance",
+        "ts": "2026-05-07T20:58:55.748226+08:00"
+      }
+    ]
+  }
+}

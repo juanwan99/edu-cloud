@@ -232,7 +232,8 @@ frontend/src/
 ```
 src/edu_cloud/
   api/
-    app.py              # FastAPI 应用工厂 + lifespan + 请求日志中间件 + 全局异常处理器
+    app.py              # FastAPI 应用工厂 + lifespan + 请求日志中间件 + 全局异常处理器（路由注册委托给 router_registry.py）
+    router_registry.py  # 有序路由注册表（PLATFORM_ROUTERS + MODULE_ROUTERS），替代手工 include_router；新增模块在此注册
     deps.py             # 依赖注入（JWT 认证 get_current_user + require_permission）
     permissions.py      # 数据权限过滤（get_visible_class_ids/get_visible_subject_codes）
     auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）
@@ -345,11 +346,12 @@ src/edu_cloud/
   shared/
     auth.py             # JWT create/decode 工具函数
     upload_validation.py # 图片上传 magic bytes 验证（替代 Python 3.13 废弃的 imghdr）
-  config.py             # Settings（DB/Redis/JWT/ENCRYPTION_KEY(PII加密)/LLM(timeout=180s)/GEMINI_API_KEY+GEMINI_MODEL(官方直连)/GRADING_BATCH_SIZE(20)/UPLOAD_DIR/知识库/AI Agent 配置，BaseSettings）
+  config.py             # Settings（按域分组注释：Database/Security/Storage/Logging/CORS/LLM/Gemini/VertexAI/Grading/Agent/Knowledge/Paper，BaseSettings 平铺）
   database.py           # async engine + session factory（PostgreSQL 连接池 pool_size=20/max_overflow=40/pool_recycle=3600）
   logging_config.py     # 日志系统 v2（进程分文件日滚 JSONL + 全链路 trace_id + business_event() + log_event()）
   worker.py             # arq WorkerSettings（6 functions: auto_draft/grading/pipeline/w3_daily/w6_hourly/agent_scheduled）
 scripts/
+  new-module            # 模块脚手架（scripts/new-module <name> [--pattern standard|multi-router|service-only]），生成标准目录+MODULE.md+router+service+test
   edu-log               # 日志查询 CLI（trace/req/user/exam/frontend/llm/slow/tail/stats，13 命令）
   edu-log-maintain      # 日志维护（14d 压缩/120d 删除/365d business/12GB 上限，cron 每日 03:00）
   db_doctor.py          # ORM vs DB schema drift 检测（--startup/--strict/--json）

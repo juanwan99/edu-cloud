@@ -322,78 +322,9 @@ def create_app() -> FastAPI:
                 from edu_cloud.logging_config import impersonator_var
                 impersonator_var.reset(imp_token)
 
-    # Register routers — auth stays in api/
-    from edu_cloud.api.auth import router as auth_router
-    app.include_router(auth_router)
-
-    # Impersonation (platform_admin role simulation)
-    from edu_cloud.api.impersonate import router as impersonate_router
-    app.include_router(impersonate_router)
-
-    # Client-side log ingestion (frontend errors/events)
-    from edu_cloud.api.client_logs import router as client_logs_router
-    app.include_router(client_logs_router)
-
-    # Dashboard summary (role-scoped aggregation)
-    from edu_cloud.api.dashboard import router as dashboard_router
-    app.include_router(dashboard_router)
-
-    # AI agent stays in api/ (Batch 4)
-    from edu_cloud.api.ai import router as ai_router
-    app.include_router(ai_router)
-
-    # exam-ai compat layer (paper-seg zero-change integration)
-    from edu_cloud.api.compat_router import router as compat_router
-    app.include_router(compat_router)
-
-    # All module routers
-    from edu_cloud.modules.school.router import router as schools_router
-    from edu_cloud.modules.exam.router import router as exam_router
-    from edu_cloud.modules.exam.router import question_router
-    from edu_cloud.modules.exam.joint_exam_router import router as joint_exams_router
-    from edu_cloud.modules.exam.results_router import router as results_router
-    from edu_cloud.modules.exam.workspace_router import router as workspace_router
-    from edu_cloud.modules.exam.llm_config_router import router as llm_config_router
-    from edu_cloud.modules.student.router import router as student_router
-    from edu_cloud.modules.student.teacher_router import router as teacher_router
-    from edu_cloud.modules.card.router import router as card_router
-    from edu_cloud.modules.card.template_router import router as template_router
-    from edu_cloud.modules.scan.router import router as scan_router
-    from edu_cloud.modules.grading.router import router as grading_router
-    from edu_cloud.modules.grading.assignment_router import router as grading_assignment_router
-    from edu_cloud.modules.grading.quality_router import router as quality_router
-    from edu_cloud.modules.marking.router import router as marking_router
-    from edu_cloud.modules.analytics.router import router as analytics_router
-    from edu_cloud.modules.knowledge.router import router as knowledge_router
-    from edu_cloud.modules.pipeline.router import router as pipeline_router
-    from edu_cloud.modules.studio.router import router as studio_router
-    from edu_cloud.modules.calendar.router import router as calendar_router
-    from edu_cloud.api.notifications_api import router as notifications_router
-    from edu_cloud.modules.school.settings_router import router as settings_router
-    from edu_cloud.modules.school.assignment_router import router as assignment_router
-    from edu_cloud.modules.school.selection_router import router as selection_router
-    from edu_cloud.modules.school.capability_router import router as capability_router
-    from edu_cloud.modules.school.audit_router import router as audit_router
-    from edu_cloud.modules.homework.router import router as homework_router
-    from edu_cloud.modules.profile.router import router as profile_router
-    from edu_cloud.modules.bank.router import router as bank_router
-    from edu_cloud.modules.knowledge_tree.router import router as knowledge_tree_router
-    from edu_cloud.modules.scan.pipeline_router import router as scan_pipeline_router
-    from edu_cloud.modules.conduct.parent_router import router as conduct_parent_router
-    from edu_cloud.modules.conduct.admin_router import router as conduct_admin_router
-    from edu_cloud.modules.conduct.notification_router import router as conduct_notification_router
-    from edu_cloud.modules.menu.router import router as menu_router
-    from edu_cloud.modules.academic.router import router as academic_router
-    for r in [schools_router, settings_router, assignment_router, selection_router, capability_router, audit_router, homework_router, exam_router, question_router, joint_exams_router,
-              results_router, workspace_router, llm_config_router, student_router,
-              card_router, template_router, scan_router, grading_router,
-              marking_router, analytics_router, knowledge_router, pipeline_router,
-              studio_router, calendar_router, notifications_router,
-              grading_assignment_router, quality_router, profile_router, bank_router,
-              knowledge_tree_router, scan_pipeline_router,
-              conduct_parent_router, conduct_admin_router, conduct_notification_router, menu_router,
-              teacher_router, academic_router]:
-        app.include_router(r)
+    # ── Route registration (all routers from registry) ──
+    from edu_cloud.api.router_registry import register_all
+    register_all(app)
 
     from pathlib import Path
     from starlette.staticfiles import StaticFiles
