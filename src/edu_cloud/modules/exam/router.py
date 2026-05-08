@@ -130,7 +130,7 @@ async def update_exam(
     exam_id: str,
     req: ExamUpdate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     exam = await exam_service.update_exam(
         db, exam_id=exam_id, school_id=_school_id(current),
@@ -153,7 +153,7 @@ async def create_subject(
     exam_id: str,
     req: SubjectCreate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     subject = await exam_service.create_subject(
         db, exam_id=exam_id, name=req.name, code=req.code, school_id=_school_id(current),
@@ -177,7 +177,7 @@ async def list_subjects(
 async def create_question(
     req: QuestionCreate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     sid = _school_id(current)
     result = await db.execute(
@@ -234,7 +234,7 @@ async def update_question(
     question_id: str,
     req: QuestionUpdate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     result = await db.execute(
         select(Question).where(Question.id == question_id, Question.school_id == _school_id(current))
@@ -258,7 +258,7 @@ async def update_question(
 async def delete_question(
     question_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     result = await db.execute(
         select(Question).where(Question.id == question_id, Question.school_id == _school_id(current))

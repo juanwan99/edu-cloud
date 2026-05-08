@@ -80,7 +80,8 @@ async def compat_login(
 
 # ── 考试/科目列表 ──────────────────────────────────────────────
 
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
 from edu_cloud.models.exam import Exam, Subject
 
 
@@ -187,7 +188,7 @@ async def compat_create_scan_task(
     req: dict,
     response: Response,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """创建扫描任务。"""
     _emit_deprecation("/api/scan/tasks", "/api/v1/scan/tasks", response)
@@ -218,7 +219,7 @@ async def compat_update_scan_task(
     req: dict,
     response: Response,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """更新扫描进度。"""
     _emit_deprecation(
@@ -251,7 +252,7 @@ async def compat_upload_image(
     image: UploadFile = File(...),
     question_type: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
     storage: StorageService = Depends(get_storage),
 ):
     """接收 paper-seg 上传的切图。字段名与 exam-ai 完全一致。
@@ -322,7 +323,7 @@ async def compat_upload_objective(
     req: CompatUploadObjectiveRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """接收 paper-seg 上传的选择题识别结果。"""
     _emit_deprecation(
