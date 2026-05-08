@@ -137,6 +137,7 @@ frontend/src/
     AnalyticsPage.vue       # 成绩分析（ECharts）
     AnalyticsReportPage.vue # 分析报告（多考试+多指标查询，ECharts 分段柱图）
     AnalyticsTrendPage.vue  # 成绩趋势（年级/班级/学生维度折线图）
+    GradeAnalyticsPage.vue  # 年级分析（班级对比+考情趋势+科目雷达+箱线图+KP热力图）
     GradingDispatchPage.vue # 扫描调度中心壳（758行，科目列表+dispatch 轮询）
     grading-dispatch/       # GradingDispatchPage 子组件（技术债 H-02 拆分）
       SubjectStatusCard.vue # 科目状态卡片

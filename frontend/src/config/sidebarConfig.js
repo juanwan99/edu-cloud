@@ -8,10 +8,12 @@ const SIDEBAR_GROUPS = [
     children: [
       { label: '考试管理', route: '/exams', moduleCode: 'exam', perm: 'view_exams' },
       { label: '阅卷调度', route: '/grading/tasks', moduleCode: 'grading', perm: 'manage_grading' },
-      { label: 'AI 阅卷', route: '/ai-grading', moduleCode: 'grading', perm: 'view_grading' },
+      { label: 'AI 阅卷', route: '/ai-grading', moduleCode: 'grading', perm: 'manage_grading' },
       { label: '人工阅卷', route: '/marking', moduleCode: 'grading', perm: 'view_grading' },
       { label: '成绩分析', route: '/analytics/report', moduleCode: 'study_analytics', perm: 'view_scores' },
-      { label: 'AI 阅卷报告', route: '/analytics/ai-report', moduleCode: 'study_analytics', perm: 'view_scores' },
+      { label: '成绩趋势', route: '/analytics/trend', moduleCode: 'study_analytics', perm: 'view_scores' },
+      { label: '年级分析', route: '/analytics/grade', moduleCode: 'study_analytics', perm: 'view_scores' },
+      { label: '阅卷质量报告', route: '/analytics/ai-report', moduleCode: 'study_analytics', perm: 'view_scores' },
     ],
   },
   {

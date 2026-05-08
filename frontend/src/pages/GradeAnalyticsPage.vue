@@ -39,6 +39,16 @@
       <n-card v-if="subjectsData && subjectsData.subjects.length" title="科目对比" size="small">
         <v-chart class="chart-height-xl" :option="radarOption" />
       </n-card>
+
+      <!-- Boxplot: class score distribution -->
+      <n-card v-if="boxplotData && boxplotData.classes?.length" title="班级分数分布（箱线图）" size="small">
+        <v-chart class="chart-height-lg" :option="boxplotOption" />
+      </n-card>
+
+      <!-- Knowledge heatmap -->
+      <n-card v-if="knowledgeData && knowledgeData.knowledge_points?.length" title="知识点掌握热力图" size="small">
+        <v-chart class="chart-height-xl" :option="heatmapOption" />
+      </n-card>
     </n-space>
   </div>
 </template>
@@ -47,22 +57,24 @@
 import { ref, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import { use } from 'echarts/core'
-import { BarChart, LineChart, RadarChart } from 'echarts/charts'
+import { BarChart, LineChart, RadarChart, BoxplotChart, HeatmapChart } from 'echarts/charts'
 import {
   GridComponent, TooltipComponent, LegendComponent, RadarComponent,
+  VisualMapComponent,
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import {
   getGradeOverview, getGradeExamTrend, getGradeSubjects,
+  getClassBoxplot, getClassKnowledge,
 } from '../api/analytics'
 import client from '../api/client'
 import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 
 use([
-  BarChart, LineChart, RadarChart,
+  BarChart, LineChart, RadarChart, BoxplotChart, HeatmapChart,
   GridComponent, TooltipComponent, LegendComponent, RadarComponent,
-  CanvasRenderer,
+  VisualMapComponent, CanvasRenderer,
 ])
 
 const message = useMessage()
@@ -76,6 +88,8 @@ const examOptions = ref([])
 const overviewData = ref(null)
 const trendData = ref(null)
 const subjectsData = ref(null)
+const boxplotData = ref(null)
+const knowledgeData = ref(null)
 
 // Bar chart: class comparison
 const barOption = computed(() => {
@@ -178,12 +192,67 @@ const radarOption = computed(() => {
   }
 })
 
+// Boxplot: class score distribution
+const boxplotOption = computed(() => {
+  if (!boxplotData.value?.classes?.length) return {}
+  const classes = boxplotData.value.classes
+  return {
+    ...CHART_DEFAULTS,
+    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'item' },
+    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: classes.map(c => c.name) },
+    yAxis: { ...CHART_DEFAULTS.yAxis, type: 'value', name: '分数' },
+    series: [{
+      type: 'boxplot',
+      data: classes.map(c => [c.min, c.p25, c.median, c.p75, c.max]),
+      itemStyle: { color: CHART_PALETTE[0], borderColor: CHART_PALETTE[1] },
+    }],
+  }
+})
+
+// Heatmap: class × knowledge point mastery
+// 后端返回 { knowledge_points: [kp_id...], classes: [{name, mastery: [{kp_id, name, rate}]}] }
+const heatmapOption = computed(() => {
+  const cls = knowledgeData.value?.classes
+  if (!cls?.length || !cls[0]?.mastery?.length) return {}
+  const classNames = cls.map(c => c.name)
+  const kpNames = cls[0].mastery.map(m => m.name)
+  const data = []
+  cls.forEach((c, xi) => {
+    c.mastery.forEach((m, yi) => {
+      data.push([xi, yi, m.rate ?? 0])
+    })
+  })
+  return {
+    ...CHART_DEFAULTS,
+    tooltip: {
+      ...CHART_DEFAULTS.tooltip,
+      formatter: (p) => `${classNames[p.data[0]] || ''} / ${kpNames[p.data[1]] || ''}: ${(p.data[2] * 100).toFixed(0)}%`,
+    },
+    grid: { left: 120, right: 60, bottom: 60, top: 30 },
+    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: classNames, axisLabel: { ...CHART_DEFAULTS.xAxis?.axisLabel, rotate: 30 } },
+    yAxis: { ...CHART_DEFAULTS.yAxis, type: 'category', data: kpNames },
+    visualMap: {
+      min: 0, max: 1, calculable: true, orient: 'horizontal',
+      left: 'center', bottom: 0,
+      inRange: { color: ['#d94e5d', '#eac736', '#50a3ba'] },
+      textStyle: { color: CHART_DEFAULTS.textStyle.color },
+      formatter: v => `${(v * 100).toFixed(0)}%`,
+    },
+    series: [{
+      type: 'heatmap',
+      data,
+      label: { show: data.length <= 60, formatter: p => `${(p.data[2] * 100).toFixed(0)}%`, fontSize: 10 },
+    }],
+  }
+})
+
 async function onGradeChange() {
   overviewData.value = null
   trendData.value = null
   subjectsData.value = null
+  boxplotData.value = null
+  knowledgeData.value = null
   selectedExamId.value = null
-  // Reload exams might be needed in future
 }
 
 async function loadAll() {
@@ -197,14 +266,18 @@ async function loadAll() {
     const trendResp = await getGradeExamTrend(selectedGradeId.value)
     trendData.value = trendResp.data
 
-    // Load overview and subjects if exam selected
+    // Load overview, subjects, boxplot, knowledge if exam selected
     if (selectedExamId.value) {
-      const [overviewResp, subjectsResp] = await Promise.all([
+      const [overviewResp, subjectsResp, boxplotResp, knowledgeResp] = await Promise.all([
         getGradeOverview(selectedGradeId.value, selectedExamId.value),
         getGradeSubjects(selectedGradeId.value, selectedExamId.value),
+        getClassBoxplot(selectedExamId.value).catch(() => ({ data: { classes: [] } })),
+        getClassKnowledge(selectedExamId.value).catch(() => ({ data: { knowledge_points: [], classes: [] } })),
       ])
       overviewData.value = overviewResp.data
       subjectsData.value = subjectsResp.data
+      boxplotData.value = boxplotResp.data
+      knowledgeData.value = knowledgeResp.data
     }
   } catch (e) {
     message.error(e.response?.data?.detail || '加载失败')
