@@ -9,12 +9,11 @@ from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.modules.grading.assignment_service import GradingAssignmentService
+from edu_cloud.core.tenant import CROSS_SCHOOL_ROLES
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/grading", tags=["grading-assignments"])
-
-_CROSS_SCHOOL_ROLES = {"platform_admin", "district_admin"}
 
 
 class AssignBlockRequest(BaseModel):
@@ -28,7 +27,7 @@ class AssignBlockRequest(BaseModel):
 
 def _resolve_school_id(current: dict, requested_school_id: str | None = None) -> str:
     role = current["current_role"]
-    if role.role in _CROSS_SCHOOL_ROLES and requested_school_id:
+    if role.role in CROSS_SCHOOL_ROLES and requested_school_id:
         return requested_school_id
     return role.school_id
 

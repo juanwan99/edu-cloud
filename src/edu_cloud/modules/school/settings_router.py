@@ -12,20 +12,18 @@ from edu_cloud.services.school_settings_service import (
     set_module_enabled, get_enabled_modules, init_school_modules,
 )
 from edu_cloud.services.exceptions import ValidationError, PermissionDeniedError
+from edu_cloud.core.tenant import CROSS_SCHOOL_ROLES
 from edu_cloud.logging_config import business_event
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/schools/{school_id}", tags=["school-settings"])
 
-# Roles that are not bound to a single school (can manage any school)
-_CROSS_SCHOOL_ROLES = {"platform_admin", "district_admin"}
-
 
 def _check_school_scope(current: dict, school_id: str):
     """Ensure school-scoped roles only access their own school."""
     role = current["current_role"]
-    if role.role in _CROSS_SCHOOL_ROLES:
+    if role.role in CROSS_SCHOOL_ROLES:
         return
     if role.school_id != school_id:
         raise PermissionDeniedError("无权访问其他学校的配置")

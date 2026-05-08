@@ -9,6 +9,7 @@ from edu_cloud.api.deps import require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.services.joint_exam_service import JointExamService
 from edu_cloud.config import settings
+from edu_cloud.core.tenant import CROSS_SCHOOL_ROLES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/joint-exams", tags=["joint-exams"])
@@ -24,13 +25,10 @@ class AddParticipantRequest(BaseModel):
     school_id: str
 
 
-_CROSS_SCHOOL_ROLES = {"platform_admin", "district_admin"}
-
-
 async def _check_exam_access(exam_id: str, user: dict, db: AsyncSession) -> None:
     """非 admin 角色必须是联考参与校才能访问。"""
     role = user["current_role"].role
-    if role in _CROSS_SCHOOL_ROLES:
+    if role in CROSS_SCHOOL_ROLES:
         return
     school_id = user["current_role"].school_id
     if not school_id:
@@ -81,7 +79,7 @@ async def list_exams(
     db: AsyncSession = Depends(get_db),
 ):
     role = user["current_role"].role
-    if role in _CROSS_SCHOOL_ROLES:
+    if role in CROSS_SCHOOL_ROLES:
         school_id = None
     else:
         school_id = user["current_role"].school_id

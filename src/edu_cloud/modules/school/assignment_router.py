@@ -11,17 +11,16 @@ from edu_cloud.services.teacher_assignment_service import (
     list_assignments, create_assignments, delete_assignment, get_summary,
 )
 from edu_cloud.services.exceptions import NotFoundError, PermissionDeniedError
+from edu_cloud.core.tenant import CROSS_SCHOOL_ROLES
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/schools/{school_id}", tags=["teacher-assignments"])
 
-_CROSS_SCHOOL_ROLES = {"platform_admin", "district_admin"}
-
 
 def _check_school_scope(current: dict, school_id: str):
     role = current["current_role"]
-    if role.role in _CROSS_SCHOOL_ROLES:
+    if role.role in CROSS_SCHOOL_ROLES:
         return
     if role.school_id != school_id:
         raise PermissionDeniedError("无权访问其他学校的排课数据")
