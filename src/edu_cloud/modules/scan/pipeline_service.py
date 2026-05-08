@@ -77,79 +77,41 @@ def list_scan_images(image_dir: str, side: str = "A") -> list[Path]:
 
 
 def auto_fix_ab_sides(image_dir: str, barcode_rect: dict, tpl_w: int, tpl_h: int) -> int:
-    """检测并修复 A/B 面文件名标反的情况。
+    """Deprecated no-op.
 
-    通过条码区域暗像素比例判断真实 A/B 面：有条码 = A 面。
-    标反的文件对会被重命名交换。
-
-    Returns: 交换的文件对数量。
+    A/B side is defined only by the stable filename suffix. This function used
+    to mutate source upload files using barcode/dark-pixel heuristics, which
+    can misclassify essay pages and corrupt A/B pairing.
     """
-    d = Path(image_dir)
-    a_files = sorted([
-        f for f in d.iterdir()
-        if f.suffix.lower() in ('.jpg', '.png') and f.stem.endswith('A')
-    ])
-    if not a_files:
-        return 0
-
-    swapped = 0
-    for a_file in a_files:
-        stu_num = a_file.stem[:-1]
-        b_file = None
-        for ext in ('.jpg', '.jpeg', '.png'):
-            candidate = d / f"{stu_num}B{ext}"
-            if candidate.exists():
-                b_file = candidate
-                break
-        if not b_file:
-            continue
-
-        a_has = _has_barcode(a_file, barcode_rect, tpl_w, tpl_h)
-        if a_has:
-            continue
-
-        b_has = _has_barcode(b_file, barcode_rect, tpl_w, tpl_h)
-        if not b_has:
-            continue
-
-        tmp = d / f"{stu_num}_swap_tmp{a_file.suffix}"
-        a_file.rename(tmp)
-        b_new_name = d / f"{stu_num}A{b_file.suffix}"
-        b_file.rename(b_new_name)
-        a_new_name = d / f"{stu_num}B{a_file.suffix}"
-        tmp.rename(a_new_name)
-        swapped += 1
-
-    if swapped:
-        logger.info("auto_fix_ab: swapped %d/%d pairs in %s", swapped, len(a_files), image_dir)
-    return swapped
+    logger.warning("auto_fix_ab_sides disabled; A/B side is defined by filename only: %s", image_dir)
+    return 0
 
 
 def _has_barcode(image_path: Path, barcode_rect: dict, tpl_w: int, tpl_h: int) -> bool:
     """裁剪条码区域后用 pyzbar 解码，fallback 到暗像素比例 > 0.20。"""
     from pyzbar.pyzbar import decode
 
-    img = Image.open(image_path)
-    img_w, img_h = img.size
-    sx = img_w / tpl_w if tpl_w > 0 else 1.0
-    sy = img_h / tpl_h if tpl_h > 0 else 1.0
+    with Image.open(image_path) as img:
+        img_w, img_h = img.size
+        sx = img_w / tpl_w if tpl_w > 0 else 1.0
+        sy = img_h / tpl_h if tpl_h > 0 else 1.0
 
-    pad = 80
-    x1 = max(0, int(barcode_rect["x1"] * sx) - pad)
-    y1 = max(0, int(barcode_rect["y1"] * sy) - pad)
-    x2 = min(img_w, int(barcode_rect["x2"] * sx) + pad)
-    y2 = min(img_h, int(barcode_rect["y2"] * sy) + pad)
+        pad = 80
+        x1 = max(0, int(barcode_rect["x1"] * sx) - pad)
+        y1 = max(0, int(barcode_rect["y1"] * sy) - pad)
+        x2 = min(img_w, int(barcode_rect["x2"] * sx) + pad)
+        y2 = min(img_h, int(barcode_rect["y2"] * sy) + pad)
 
-    crop = img.crop((x1, y1, x2, y2))
-    barcodes = decode(crop)
-    if barcodes:
-        return True
+        crop = img.crop((x1, y1, x2, y2))
+        barcodes = decode(crop)
+        if barcodes:
+            return True
 
-    gray = np.array(crop.convert("L"))
-    if gray.size == 0:
-        return False
-    dark_ratio = np.mean(gray < 128)
-    return dark_ratio > 0.20
+        gray = np.array(crop.convert("L"))
+        if gray.size == 0:
+            return False
+        dark_ratio = np.mean(gray < 128)
+        return dark_ratio > 0.20
 
 
 def _render_page(args):
@@ -157,12 +119,11 @@ def _render_page(args):
     pdf_path_str, page_num, out_path_str, dpi = args
     import fitz
     from PIL import Image as _PILImage
-    doc = fitz.open(pdf_path_str)
-    page = doc[page_num]
-    pix = page.get_pixmap(dpi=dpi)
-    img = _PILImage.frombytes("RGB", [pix.width, pix.height], pix.samples)
-    img.save(out_path_str, format="JPEG", quality=85)
-    doc.close()
+    with fitz.open(pdf_path_str) as doc:
+        page = doc[page_num]
+        pix = page.get_pixmap(dpi=dpi)
+        img = _PILImage.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        img.save(out_path_str, format="JPEG", quality=85)
     return out_path_str
 
 
@@ -195,8 +156,8 @@ def ensure_images_from_pdfs(image_dir: str, pages_per_student: int = 2, dpi: int
 
     for pdf_path in pdfs:
         import fitz
-        doc = fitz.open(str(pdf_path))
-        n_pages = len(doc)
+        with fitz.open(str(pdf_path)) as doc:
+            n_pages = len(doc)
         n_students = n_pages // pages_per_student
         pdf_tasks = 0
 
@@ -253,6 +214,105 @@ def ensure_images_from_pdfs(image_dir: str, pages_per_student: int = 2, dpi: int
 
 
 _barcode_map: dict[str, str] = {}
+
+
+def clear_barcode_map() -> None:
+    """Clear cached A-side barcode mappings so B-side can fall back to filename pairing."""
+    _barcode_map.clear()
+
+
+def can_use_filename_pairing_for_b_side(
+    image_dir: str,
+    known_student_numbers: set[str] | None = None,
+    min_pair_ratio: float = 0.95,
+) -> tuple[bool, dict]:
+    """Return whether B-side can skip slow A-side barcode pre-scan.
+
+    Safe fast path:
+    - most B-side files have a matching A-side file with the same stem; and
+    - if student numbers exist in DB, most paired stems are known student numbers; or
+    - if no student numbers exist, paired stems look like explicit student numbers,
+      not short scanner sequence numbers such as 0001/0002.
+    """
+    known_student_numbers = {
+        str(n).strip() for n in (known_student_numbers or set()) if str(n).strip()
+    }
+    d = Path(image_dir)
+    if not d.is_dir():
+        return False, {"reason": "missing_dir"}
+
+    a_stems = {
+        f.stem[:-1]
+        for f in d.iterdir()
+        if f.is_file() and f.suffix.lower() in (".jpg", ".jpeg", ".png") and f.stem.endswith("A")
+    }
+    b_stems = {
+        f.stem[:-1]
+        for f in d.iterdir()
+        if f.is_file() and f.suffix.lower() in (".jpg", ".jpeg", ".png") and f.stem.endswith("B")
+    }
+    paired = a_stems & b_stems
+    if not b_stems:
+        return False, {"reason": "no_b_files", "a_count": len(a_stems), "b_count": 0}
+
+    pair_ratio = len(paired) / len(b_stems)
+    info = {
+        "a_count": len(a_stems),
+        "b_count": len(b_stems),
+        "paired_count": len(paired),
+        "pair_ratio": round(pair_ratio, 4),
+    }
+    if pair_ratio < min_pair_ratio:
+        return False, {**info, "reason": "insufficient_pairs"}
+
+    if known_student_numbers:
+        known_ratio = len(paired & known_student_numbers) / len(paired)
+        info["known_student_ratio"] = round(known_ratio, 4)
+        if known_ratio < min_pair_ratio:
+            return False, {**info, "reason": "paired_stems_not_student_numbers"}
+        return True, {**info, "reason": "paired_known_student_numbers"}
+
+    explicit_count = sum(1 for stem in paired if _looks_like_explicit_student_number(stem))
+    explicit_ratio = explicit_count / len(paired)
+    info["explicit_stem_ratio"] = round(explicit_ratio, 4)
+    if explicit_ratio < min_pair_ratio:
+        return False, {**info, "reason": "paired_stems_look_like_sequence_numbers"}
+    return True, {**info, "reason": "paired_explicit_filenames"}
+
+
+def _looks_like_explicit_student_number(stem: str) -> bool:
+    if len(stem) < 5:
+        return False
+    if re.fullmatch(r"0*\d{1,4}", stem):
+        return False
+    return any(ch.isdigit() for ch in stem)
+
+
+def can_use_filename_student_ids(
+    image_dir: str,
+    side: str = "A",
+    min_ratio: float = 0.95,
+) -> tuple[bool, dict]:
+    """Return whether scan filenames can be trusted as student numbers."""
+    try:
+        files = list_scan_images(image_dir, side)
+    except FileNotFoundError:
+        return False, {"reason": "missing_dir"}
+    if not files:
+        return False, {"reason": "no_files", "side": side}
+
+    ids = [_extract_student_id(f.name) for f in files]
+    explicit_count = sum(1 for sid in ids if _looks_like_explicit_student_number(sid))
+    explicit_ratio = explicit_count / len(files)
+    info = {
+        "side": side,
+        "file_count": len(files),
+        "explicit_count": explicit_count,
+        "explicit_ratio": round(explicit_ratio, 4),
+    }
+    if explicit_ratio < min_ratio:
+        return False, {**info, "reason": "filenames_not_explicit_student_numbers"}
+    return True, {**info, "reason": "explicit_filename_student_numbers"}
 
 
 def _infer_barcode_pattern(barcode_map: dict[str, str]) -> str | None:
@@ -354,7 +414,8 @@ def process_one_image(
     Returns:
         {student_id, crops: [{region_id, name, path, size}], errors: [str]}
     """
-    img = Image.open(str(image_path)).convert("RGB")
+    with Image.open(str(image_path)) as _raw_img:
+        img = _raw_img.convert("RGB")
     img_w, img_h = img.size
 
     # 条码识别（F004：失败必须记录，禁止静默）
@@ -362,7 +423,15 @@ def process_one_image(
     template_size = template.get("image_size")
     student_id = None
     barcode_status = "ok"  # ok / fallback_exception / fallback_none / skipped
-    if barcode_region:
+    filename_student_id = _extract_student_id(image_path.name)
+    prefer_filename_student_id = (
+        bool(template.get("prefer_filename_student_id"))
+        and _looks_like_explicit_student_number(filename_student_id)
+    )
+    if barcode_region and prefer_filename_student_id:
+        student_id = filename_student_id
+        barcode_status = "filename_explicit"
+    elif barcode_region:
         try:
             student_id = read_barcode(
                 image_path,
@@ -390,7 +459,7 @@ def process_one_image(
             barcode_status = "paired_a"
 
     if not student_id:
-        student_id = _extract_student_id(image_path.name)
+        student_id = filename_student_id
 
     # 模板尺寸 → 缩放比
     tpl_size = template.get("image_size", {})
@@ -416,6 +485,8 @@ def process_one_image(
                 "y2": int(rect["y2"] * sy),
             }
             cropped = crop_region(img, scaled_rect)
+            if cropped.mode != "RGB":
+                cropped = cropped.convert("RGB")
             out_path = os.path.join(stu_dir, f"{region['id']}.jpg")
             cropped.save(out_path, format="JPEG", quality=85)
             crops.append({
@@ -551,7 +622,8 @@ async def run_pipeline(
 
             progress.current_file = f.name
             try:
-                result = process_one_image(
+                result = await asyncio.to_thread(
+                    process_one_image,
                     f, template, output_dir, barcode_region,
                     expected_barcode_pattern=expected_barcode_pattern,
                 )
