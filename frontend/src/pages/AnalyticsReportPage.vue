@@ -217,11 +217,11 @@
           </n-tab-pane>
 
           <n-tab-pane name="ai-report" tab="AI 综合报告">
-            <n-empty description="选择考试后可生成 AI 分析报告（开发中）">
-              <template #extra>
-                <n-button size="small" disabled>生成 AI 报告</n-button>
-              </template>
-            </n-empty>
+            <AiDiagnosisReport
+              :exam-id="selectedExamId || ''"
+              :subject-id="selectedSubjectId"
+              :class-id="selectedClassId"
+            />
           </n-tab-pane>
         </n-tabs>
       </template>
@@ -249,6 +249,7 @@ import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 import KnowledgeDiagnosisPanel from '../components/analytics/KnowledgeDiagnosisPanel.vue'
 import LayerAnalysisPanel from '../components/analytics/LayerAnalysisPanel.vue'
 import TrendPanel from '../components/analytics/TrendPanel.vue'
+import AiDiagnosisReport from '../components/analytics/AiDiagnosisReport.vue'
 
 use([BarChart, LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 

@@ -38,6 +38,7 @@ from edu_cloud.modules.analytics.insights_service import (
     question_insights, exam_diagnosis, common_wrong_questions,
 )
 from edu_cloud.modules.analytics.ai_report_service import build_ai_grading_report
+from edu_cloud.modules.analytics.ai_diagnosis_service import get_or_generate as ai_diagnosis_get_or_generate
 
 logger = logging.getLogger(__name__)
 
@@ -613,3 +614,50 @@ async def grade_subject_comparison(
     return await get_grade_subject_comparison(
         db, school_id=role.school_id, grade_id=grade_id, exam_id=exam_id,
     )
+
+
+# --- AI 诊断 ---
+
+@router.post("/exam/{exam_id}/ai-diagnosis")
+async def generate_ai_diagnosis(
+    exam_id: str,
+    force_refresh: bool = Query(False),
+    subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """生成 AI 诊断报告（缓存命中则直接返回）。"""
+    role = current["current_role"]
+    return await ai_diagnosis_get_or_generate(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id, class_id=class_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+        user_role=role.role,
+        force_refresh=force_refresh,
+    )
+
+
+@router.get("/exam/{exam_id}/ai-diagnosis")
+async def get_ai_diagnosis(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    """获取缓存的 AI 诊断报告（不触发生成）。"""
+    from edu_cloud.modules.analytics.ai_diagnosis_service import build_snapshot, _get_cache
+    role = current["current_role"]
+    snapshot = await build_snapshot(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id, class_id=class_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+        user_role=role.role,
+    )
+    cached = await _get_cache(db, snapshot.snapshot.snapshot_hash)
+    if not cached:
+        return {"status": "not_found", "message": "尚未生成 AI 诊断报告"}
+    return cached

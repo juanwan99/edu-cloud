@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, JSON, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, JSON, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import NUMERIC
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -62,3 +62,20 @@ class StudentKnpMastery(Base):
     stu_rate = Column(NUMERIC(4, 3))
     class_rate = Column(NUMERIC(4, 3))
     grade_rate = Column(NUMERIC(4, 3))
+
+
+class AiDiagnosisCache(Base):
+    __tablename__ = "ai_diagnosis_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    exam_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    school_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    cache_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    scope: Mapped[str] = mapped_column(String(16), nullable=False, server_default="class")
+    subject_id = mapped_column(String(64), nullable=True)
+    class_id = mapped_column(String(64), nullable=True)
+    prompt_version: Mapped[str] = mapped_column(String(32), nullable=False, server_default="v1")
+    model_version: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
+    result_json = Column(Text, nullable=False)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    expires_at = Column(DateTime, nullable=False)

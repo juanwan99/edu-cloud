@@ -3,4 +3,5 @@ from edu_cloud.modules.analytics.models import (  # noqa: F401
     ClassAnalysis,
     StudentAnalysis,
     StudentKnpMastery,
+    AiDiagnosisCache,
 )

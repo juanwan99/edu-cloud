@@ -1,6 +1,7 @@
 import client from './client'
 
 export const getExamSummary = (examId) => client.get(`/analytics/exam/${examId}/summary`)
+export const getBasicReport = (examId, params = {}) => client.get(`/analytics/exam/${examId}/basic-report`, { params })
 export const getDistribution = (examId, params) => client.get(`/analytics/exam/${examId}/distribution`, { params })
 export const getSubjectQuestions = (subjectId) => client.get(`/analytics/subject/${subjectId}/questions`)
 
@@ -25,6 +26,9 @@ export const getClassDiagnosis = (examId, params) => client.get(`/analytics/exam
 export const getClassErrorPatterns = (examId, params) => client.get(`/analytics/exam/${examId}/class-error-patterns`, { params })
 export const getLayerAnalysis = (examId, params) => client.get(`/analytics/exam/${examId}/layer-analysis`, { params })
 export const getCommonWrongQuestions = (examId, params) => client.get(`/analytics/exam/${examId}/common-wrong-questions`, { params })
+
+export const generateAiDiagnosis = (examId, params = {}) => client.post(`/analytics/exam/${examId}/ai-diagnosis`, null, { params })
+export const getAiDiagnosis = (examId, params = {}) => client.get(`/analytics/exam/${examId}/ai-diagnosis`, { params })
 
 // WP-D: 年级聚合分析
 export const getGradeOverview = (gradeId, examId) => client.get(`/analytics/grade/${gradeId}/overview`, { params: { exam_id: examId } })
