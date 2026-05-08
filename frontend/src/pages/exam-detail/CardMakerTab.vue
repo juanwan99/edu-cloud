@@ -159,6 +159,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue'
 import { useMessage } from 'naive-ui'
+import DOMPurify from 'dompurify'
 import { NSelect, NInputNumber, NTag, NInput } from 'naive-ui'
 import { updateExam } from '../../api/exams'
 import { generateBarcode, parseAnswers, previewByWeights, generateCardV2 } from '../../api/cards'
@@ -369,7 +370,7 @@ const answerColumns = [
       row.answer && row.answer.includes('\\')
         ? h('span', {
             class: 'math-preview',
-            innerHTML: renderMath(row.answer),
+            innerHTML: DOMPurify.sanitize(renderMath(row.answer)),
             style: 'font-size: var(--fs-base); color: var(--color-text-muted);',
           })
         : null,

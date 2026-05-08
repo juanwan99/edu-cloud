@@ -29,7 +29,6 @@ export function applyCSSToPage(el, v) {
   s.setProperty('--example-width', v.exampleWidth + 'mm');
   s.setProperty('--notice-border-width', v.noticeBorderWidth + 'px');
   s.setProperty('--absent-padding', v.absentPadding + 'mm 2mm');
-  s.setProperty('--choice-row-gap', (v.choiceRowGap ?? 0.3) + 'px');
   el.dataset.paper = v.paperSize;
   const zoom = v.zoom / 100;
   el.style.transform = `scale(${zoom})`;
@@ -41,8 +40,7 @@ export function applyCSSToPage(el, v) {
 
 function buildChoiceGroupsHTML(v) {
   const symbols = 'ABCDEFGH';
-  const perRow = v.choicePerRow || 20;
-  const rowGap = (v.choiceRowGap ?? 0) + 'px';
+  const perRow = Math.max(v.choicePerRow || 16, 16);
   const configGroups = v.choiceGroups || [];
   const choices = window._choices || [];
 
@@ -78,7 +76,7 @@ function buildChoiceGroupsHTML(v) {
     const vertical = qs.length >= 4 && qs.length <= opts;
 
     if (vertical) {
-      const colTemplate = `2.5mm auto repeat(${opts}, 4mm) 2.5mm`;
+      const colTemplate = `3mm auto repeat(${opts}, 5mm) 3mm`;
       const rowCount = qs.length + 1;
       let cells = '<div class="omr-left"></div><div class="choice-cell"></div>';
       for (let o = 0; o < opts; o++) cells += `<div class="choice-cell choice-header">${symbols[o]}</div>`;
@@ -89,12 +87,12 @@ function buildChoiceGroupsHTML(v) {
         for (let o = 0; o < opts; o++) cells += `<div class="choice-cell"><span class="bracket">${symbols[o]}</span></div>`;
         cells += `<div class="omr-right"><div class="omr-dot"></div></div>`;
       }
-      return `<div class="choice-group"><div class="choice-grid-inner" style="row-gap: ${rowGap}; grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${rowCount}, auto);">${cells}</div></div>`;
+      return `<div class="choice-group"><div class="choice-grid-inner" style="grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${rowCount}, auto);">${cells}</div></div>`;
     } else {
       let html = '';
       // 固定列宽：始终按 perRow 列计算，不足的用空单元格填充，左对齐
       const colW = `${Math.floor(100 / perRow * 0.95)}%`;
-      const colTemplate = `2.5mm repeat(${perRow}, ${colW}) 2.5mm`;
+      const colTemplate = `4mm repeat(${perRow}, ${colW}) 4mm`;
       for (let start = 0; start < qs.length; start += perRow) {
         const batch = qs.slice(start, start + perRow);
         const count = batch.length;
@@ -109,126 +107,39 @@ function buildChoiceGroupsHTML(v) {
           for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
           cells += '<div class="omr-right"><div class="omr-dot"></div></div>';
         }
-        html += `<div class="choice-group"><div class="choice-grid-inner" style="row-gap: ${rowGap}; grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${rows}, auto);">${cells}</div></div>`;
+        html += `<div class="choice-group"><div class="choice-grid-inner" style="grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${rows}, auto);">${cells}</div></div>`;
       }
       return html;
     }
   }
 
-  // 扁平流 + 空间回收：混合选项数的行中，低选项题的空白区域被下一批题填充
-  // 例: 21-40 共用 A-D 行，E/F/G 行左侧填入 41-55 的题号+A/B/C，右侧填 36-40 的 E/F/G
+  // 编辑器统一网格：连续流 + 每行自适应 maxOpts
+  // 题号连续不切断，每行高度由该行内最大选项数决定（而非全局 maxOpts）
   const allQs = groups.flatMap(g => g.questions.map(q => ({ ...q, options: q.options || g.options })));
   let html = '';
-  const colTemplate = `2.5mm repeat(${perRow}, 1fr) 2.5mm`;
-  let qi = 0; // 全局题目游标
-
-  while (qi < allQs.length) {
-    const batch = allQs.slice(qi, qi + perRow);
+  const colTemplate = `4mm repeat(${perRow}, 1fr) 4mm`;
+  for (let start = 0; start < allQs.length; start += perRow) {
+    const batch = allQs.slice(start, start + perRow);
     const count = batch.length;
-    const batchMin = Math.min(...batch.map(q => q.options));
     const batchMax = Math.max(...batch.map(q => q.options));
-    qi += count;
-
-    if (batchMin === batchMax) {
-      // 同选项数：简单渲染
-      const rows = batchMax + 1;
-      let cells = '<div class="omr-left"></div>';
-      for (const q of batch) cells += `<div class="choice-cell choice-header">${q.qno}</div>`;
-      for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
-      cells += '<div class="omr-right"></div>';
-      for (let o = 0; o < batchMax; o++) {
-        cells += '<div class="omr-left"><div class="omr-dot"></div></div>';
-        for (const q of batch) cells += `<div class="choice-cell"><span class="bracket">${symbols[o]}</span></div>`;
-        for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
-        cells += '<div class="omr-right"><div class="omr-dot"></div></div>';
-      }
-      html += `<div class="choice-group"><div class="choice-grid-inner" style="row-gap: ${rowGap}; grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${rows}, auto);">${cells}</div></div>`;
-    } else {
-      // 混合选项数：公共行(A-D) + 回收行(E/F/G 右侧 + 下批题左侧)
-      const highQs = batch.filter(q => q.options > batchMin);
-      const highCount = highQs.length;
-      const extraOpts = batchMax - batchMin; // E/F/G 等额外行数
-      const fillSlots = perRow - highCount; // 左侧可填入的下批题数量
-
-      // 从全局游标取下批题填入空白
-      const nextBatch = allQs.slice(qi, qi + fillSlots);
-      const nextCount = nextBatch.length;
-      // 下批题的额外行数（超出 extraOpts 的部分在回收区域之后单独渲染）
-      const nextOpts = nextCount > 0 ? nextBatch[0].options : 0;
-      // 回收行能放多少行下批题选项：extraOpts 行 = 1 行题号 + (extraOpts-1) 行选项
-      const nextOptsInReclaim = Math.min(nextOpts, extraOpts - 1);
-
-      // 1) 公共行：所有题的 A-D
-      const commonRows = batchMin + 1; // 题号行 + batchMin 行选项
-      let cells = '<div class="omr-left"></div>';
-      for (const q of batch) cells += `<div class="choice-cell choice-header">${q.qno}</div>`;
-      for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
-      cells += '<div class="omr-right"></div>';
-      for (let o = 0; o < batchMin; o++) {
-        cells += '<div class="omr-left"><div class="omr-dot"></div></div>';
-        for (const q of batch) cells += `<div class="choice-cell"><span class="bracket">${symbols[o]}</span></div>`;
-        for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
-        cells += '<div class="omr-right"><div class="omr-dot"></div></div>';
-      }
-
-      // 2) 回收行：左侧=下批题(题号+选项)，右侧=高选项题的 E/F/G
-      // 第一回收行：左侧放下批题题号，右侧放高选项题的第 batchMin 个选项
-      for (let extra = 0; extra < extraOpts; extra++) {
-        const optIdx = batchMin + extra; // 当前渲染的选项索引（E=4, F=5, G=6）
-        cells += '<div class="omr-left">' + (nextCount > 0 || highCount > 0 ? '<div class="omr-dot"></div>' : '') + '</div>';
-
-        if (extra === 0) {
-          // 第一回收行左侧：下批题题号
-          for (let ni = 0; ni < nextCount; ni++) cells += `<div class="choice-cell choice-header">${nextBatch[ni].qno}</div>`;
-          for (let e = nextCount; e < fillSlots; e++) cells += '<div class="choice-cell"></div>';
-        } else if (extra - 1 < nextOptsInReclaim) {
-          // 后续回收行左侧：下批题选项 A/B/C...
-          const nOptIdx = extra - 1;
-          for (let ni = 0; ni < nextCount; ni++) {
-            if (nOptIdx < nextBatch[ni].options) {
-              cells += `<div class="choice-cell"><span class="bracket">${symbols[nOptIdx]}</span></div>`;
-            } else {
-              cells += '<div class="choice-cell"></div>';
-            }
-          }
-          for (let e = nextCount; e < fillSlots; e++) cells += '<div class="choice-cell"></div>';
+    const rows = batchMax + 1;
+    let cells = '<div class="omr-left"></div>';
+    for (const q of batch) cells += `<div class="choice-cell choice-header">${q.qno}</div>`;
+    for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
+    cells += '<div class="omr-right"></div>';
+    for (let o = 0; o < batchMax; o++) {
+      cells += '<div class="omr-left"><div class="omr-dot"></div></div>';
+      for (const q of batch) {
+        if (o < q.options) {
+          cells += `<div class="choice-cell"><span class="bracket">${symbols[o]}</span></div>`;
         } else {
-          // 超出下批题选项范围：空白
-          for (let e = 0; e < fillSlots; e++) cells += '<div class="choice-cell"></div>';
-        }
-
-        // 右侧：高选项题的额外选项
-        for (const q of highQs) cells += `<div class="choice-cell"><span class="bracket">${symbols[optIdx]}</span></div>`;
-        cells += '<div class="omr-right"><div class="omr-dot"></div></div>';
-      }
-
-      const totalRows = commonRows + extraOpts;
-      html += `<div class="choice-group"><div class="choice-grid-inner" style="row-gap: ${rowGap}; grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${totalRows}, auto);">${cells}</div></div>`;
-
-      // 3) 下批题已消耗部分：推进游标
-      if (nextCount > 0) {
-        qi += nextCount;
-        // 下批题剩余选项行（回收区域放不下的）单独渲染
-        const remainOpts = nextOpts - nextOptsInReclaim;
-        if (remainOpts > 0) {
-          const remRows = remainOpts;
-          let remCells = '';
-          for (let o = nextOptsInReclaim; o < nextOpts; o++) {
-            remCells += '<div class="omr-left"><div class="omr-dot"></div></div>';
-            for (let ni = 0; ni < nextCount; ni++) {
-              if (o < nextBatch[ni].options) {
-                remCells += `<div class="choice-cell"><span class="bracket">${symbols[o]}</span></div>`;
-              } else {
-                remCells += '<div class="choice-cell"></div>';
-              }
-            }
-            for (let e = nextCount; e < perRow; e++) remCells += '<div class="choice-cell"></div>';
-            remCells += '<div class="omr-right"><div class="omr-dot"></div></div>';
-          }
-          html += `<div class="choice-group"><div class="choice-grid-inner" style="row-gap: ${rowGap}; grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${remRows}, auto);">${remCells}</div></div>`;
+          cells += '<div class="choice-cell"></div>';
         }
       }
+      for (let e = count; e < perRow; e++) cells += '<div class="choice-cell"></div>';
+      cells += '<div class="omr-right"><div class="omr-dot"></div></div>';
     }
+    html += `<div class="choice-group"><div class="choice-grid-inner" style="grid-template-columns: ${colTemplate}; grid-template-rows: repeat(${rows}, auto);">${cells}</div></div>`;
   }
   return html;
 }
@@ -250,14 +161,12 @@ function buildFillHTML(v) {
 }
 
 function renderSingleBlank(b, regionId, si, bi) {
-  const answer = b.answer ? `<span class="blank-answer">${b.answer}</span>` : '';
   const label = b.label || '';
-  const fullClass = b.w === '100%' ? ' essay-line--full' : '';
   if (label) {
-    return `<div class="essay-line has-label${fullClass}" data-region="${regionId}" data-sub="${si}" data-blank="${bi}" style="--blank-w:${b.w}">` +
-           `<span class="blank-label">${label}</span><span class="blank-underline"></span>${answer}</div>`;
+    return `<div class="essay-line has-label" data-region="${regionId}" data-sub="${si}" data-blank="${bi}" style="width:${b.w}">` +
+           `<span class="blank-label">${label}</span><span class="blank-underline"></span></div>`;
   }
-  return `<div class="essay-line${fullClass}" data-region="${regionId}" data-sub="${si}" data-blank="${bi}" style="--blank-w:${b.w}">${answer}</div>`;
+  return `<div class="essay-line" data-region="${regionId}" data-sub="${si}" data-blank="${bi}" style="width:${b.w}"></div>`;
 }
 
 function renderSubsHTML(subs, regionId, cuts) {
@@ -283,7 +192,7 @@ function renderSubsHTML(subs, regionId, cuts) {
   for (let si = 0; si < subs.length; si++) {
     const s = subs[si];
     const blanks = s.blanks || Array.from({length: s.spaces || 3}, () => ({w: s.spaceWidth || '100%'}));
-    const subLabel = s.label || `（${s.sub}）`;
+    const subLabel = `（${s.sub}）`;
 
     const img = s.image;
     let imgHTML = '';
@@ -299,62 +208,17 @@ function renderSubsHTML(subs, regionId, cuts) {
       </div>`;
     }
 
-    // 标点规则：每个独立空（答案）的最后一行加标点；续行中间不加
-    // 独立空=1个 → 无标点；独立空≥2个 → 中间空末行加分号，最后空末行加句号
-    const independentCount = blanks.filter(b => !b.continuation).length;
-    function renderBlankWithSep(b, bi, isLast) {
-      const html = renderSingleBlank(b, regionId, si, bi);
-      if (independentCount <= 1) return html;
-      // 标点只加在每组的末行：下一个blank不存在或是新的独立空
-      const next = blanks[bi + 1];
-      const isGroupEnd = !next || !next.continuation;
-      if (!isGroupEnd) return html; // 续行中间，不加标点
-      // 判断后面还有没有独立空
-      const hasMoreGroups = blanks.slice(bi + 1).some(nb => !nb.continuation);
-      const punct = hasMoreGroups ? '；' : '。';
-      return html.replace('</div>', `<span class="blank-separator">${punct}</span></div>`);
-    }
+    const blanksHTML = `<div class="essay-blanks" data-region="${regionId}" data-sub="${si}">` +
+      `<div class="essay-first-line">` +
+        `<span class="essay-sub-label" contenteditable="true" data-region="${regionId}" data-sub="${si}" data-edit="sub">${subLabel}</span>` +
+        (blanks[0] ? renderSingleBlank(blanks[0], regionId, si, 0) : '') +
+      `</div>` +
+      blanks.slice(1).map((b, i) => renderSingleBlank(b, regionId, si, i + 1)).join('') +
+    `</div>`;
 
-    // 将 blanks 分组成视觉行：30% 短空两两配对同行，48%/100% 独占一行
-    function buildRows() {
-      const rows = [];
-      let i = 0;
-      while (i < blanks.length) {
-        const b = blanks[i];
-        if (b.w === '30%' && i + 1 < blanks.length && blanks[i + 1].w === '30%' && !blanks[i + 1].continuation) {
-          rows.push([i, i + 1]);
-          i += 2;
-        } else {
-          rows.push([i]);
-          i += 1;
-        }
-      }
-      return rows;
-    }
-    const rows = buildRows();
-    let rowsHTML = '';
-    for (let ri = 0; ri < rows.length; ri++) {
-      const idxs = rows[ri];
-      const cellsHTML = idxs.map(bi => renderBlankWithSep(blanks[bi], bi, bi === blanks.length - 1)).join('');
-      if (ri === 0) {
-        // 第一行：grid 布局，标签列 + 内容列
-        rowsHTML += `<div class="essay-row essay-row--first" data-region="${regionId}" data-sub="${si}">` +
-          `<span class="essay-sub-label" contenteditable="true" data-region="${regionId}" data-sub="${si}" data-edit="sub">${subLabel}</span>` +
-          `<div class="essay-row-content">${cellsHTML}</div>` +
-          `</div>`;
-      } else if (idxs.length > 1) {
-        // 多短空同行
-        rowsHTML += `<div class="essay-row"><div class="essay-row-content">${cellsHTML}</div></div>`;
-      } else {
-        // 单空独占一行（包裹在 essay-row 内保持间距一致）
-        rowsHTML += `<div class="essay-row">${cellsHTML}</div>`;
-      }
-    }
-
-    // sub-block：不再 inline flex 加权，由 CSS grid 自然堆叠
     html += `<div class="essay-sub-block" data-region="${regionId}" data-sub="${si}">` +
               `<span class="sub-del-btn" data-region="${regionId}" data-sub="${si}">×</span>` +
-              rowsHTML + imgHTML +
+              blanksHTML + imgHTML +
             `</div>`;
 
     // 在第 si 个小问后面插入分割线（如果有）
@@ -372,11 +236,6 @@ function renderEssayRegion(region, fillColumn) {
   const score = region.score || 0;
   const subs = region.subs || [];
   const flex = region.heightRatio || 1;
-  // 视觉定额模式：有 targetHeight_mm 时用固定高度，否则 fallback 到 flex
-  const targetH = region.targetHeight_mm;
-  const itemStyle = targetH
-    ? `flex: 0 0 auto; height: ${targetH}mm;`
-    : `flex: ${flex} 1 0;`;
 
   // 填空题：简洁横线格式
   if (region.type === 'fill') {
@@ -426,12 +285,10 @@ function renderEssayRegion(region, fillColumn) {
     }).join('');
   }
 
-  return `<div class="essay-item" style="${itemStyle}" data-region-id="${region.id}" data-region-type="essay" data-qno="${qno}">
+  return `<div class="essay-item" style="flex:${flex} 1 0;" data-region-id="${region.id}" data-region-type="essay" data-qno="${qno}">
     ${header}
     ${textsHTML}
-    <div class="essay-body">
-      ${renderSubsHTML(subs, region.id, region.cuts)}
-    </div>
+    ${renderSubsHTML(subs, region.id, region.cuts)}
   </div>`;
 }
 

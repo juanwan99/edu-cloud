@@ -1,6 +1,7 @@
 // interact.js — 交互层：分割线拖拽、区域选中、右键菜单
 import { splitRegion, mergeRegions, resizeDivider, renumberAll } from './model.js';
 import { renderFromLayout } from './render.js';
+import DOMPurify from 'dompurify';
 
 let selectedRegion = null;
 let selectedEl = null;
@@ -843,7 +844,7 @@ function showPasteDialog(regionId) {
 
   const dialog = document.createElement('div');
   dialog.className = 'paste-dialog';
-  dialog.innerHTML = `
+  dialog.innerHTML = DOMPurify.sanitize(`
     <div class="paste-dialog-inner">
       <div class="paste-dialog-title">插入内容</div>
       <div class="paste-area" contenteditable="true" data-placeholder="Ctrl+V 粘贴图片或文字"></div>
@@ -854,8 +855,8 @@ function showPasteDialog(regionId) {
         </label>
         <button class="paste-cancel">取消</button>
       </div>
-    </div>
-  `;
+    </div>`);
+
   document.body.appendChild(dialog);
 
   const pasteArea = dialog.querySelector('.paste-area');

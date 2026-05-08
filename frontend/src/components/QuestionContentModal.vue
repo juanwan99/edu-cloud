@@ -51,6 +51,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useMessage, NModal, NInput, NUpload, NButton, NSpace } from 'naive-ui'
+import DOMPurify from 'dompurify'
 
 const props = defineProps({
   show: Boolean,
@@ -119,7 +120,7 @@ async function htmlToImageFile(html) {
     background: '#fff', color: '#09061B', padding: 'var(--space-4)',
     fontSize: 'var(--fs-base)', lineHeight: '1.6', maxWidth: '800px',
   })
-  container.innerHTML = html
+  container.innerHTML = DOMPurify.sanitize(html)
   document.body.appendChild(container)
   try {
     const canvas = await html2canvas(container, { scale: 2, useCORS: true })
