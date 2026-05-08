@@ -6,36 +6,15 @@
 
     <n-space vertical :size="16">
       <div class="report-toolbar">
-        <n-select
-          v-model:value="selectedExamId"
-          :options="examOptions"
-          placeholder="选择考试"
-          class="toolbar-select"
-        />
-        <n-select
-          v-model:value="selectedSubjectId"
-          :options="subjectFilterOptions"
-          placeholder="全部科目"
-          class="toolbar-select"
-          clearable
-        />
-        <n-select
-          v-model:value="selectedClassId"
-          :options="classOptions"
-          placeholder="全部班级"
-          class="toolbar-select"
-          clearable
-        />
+        <PowerOptionsSelector @change="onFilterChange" />
         <n-select
           v-model:value="exportSubjectId"
           :options="subjectOptions"
           placeholder="选择导出科目"
           class="toolbar-select"
           clearable
+          style="min-width: 160px"
         />
-        <n-button type="primary" @click="runQuery" :loading="loading">
-          查看基础数据
-        </n-button>
         <n-button
           @click="() => handleDownload('pdf')"
           :loading="exporting"
@@ -235,7 +214,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { use } from 'echarts/core'
@@ -246,6 +225,7 @@ import VChart from 'vue-echarts'
 import { getBasicReport, exportGradeReport, downloadBlob } from '../api/analytics'
 import client from '../api/client'
 import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
+import PowerOptionsSelector from '../components/analytics/PowerOptionsSelector.vue'
 import KnowledgeDiagnosisPanel from '../components/analytics/KnowledgeDiagnosisPanel.vue'
 import LayerAnalysisPanel from '../components/analytics/LayerAnalysisPanel.vue'
 import TrendPanel from '../components/analytics/TrendPanel.vue'
@@ -262,19 +242,13 @@ const selectedExamId = ref(null)
 const selectedSubjectId = ref(null)
 const selectedClassId = ref(null)
 const exportSubjectId = ref(null)
-const examOptions = ref([])
-const classOptions = ref([])
 const availableSubjects = ref([])
 const validTabs = ['overview', 'subjects', 'classes', 'students', 'knowledge', 'layers', 'trend', 'ai-report']
 const activeTab = ref(validTabs.includes(route.query.tab) ? route.query.tab : 'overview')
 const studentKeyword = ref('')
 
-const currentGradeId = computed(() => basicReport.value?.scope?.grade_id || null)
-const currentSubjectCode = computed(() => {
-  if (!selectedSubjectId.value || !availableSubjects.value.length) return null
-  const s = availableSubjects.value.find(s => (s.subject_id || s.id) === selectedSubjectId.value)
-  return s?.code || s?.subject_code || null
-})
+const currentGradeId = ref(null)
+const currentSubjectCode = ref(null)
 
 const canExport = computed(
   () => !!selectedExamId.value && !!exportSubjectId.value && !exporting.value,
@@ -289,11 +263,6 @@ const subjectOptions = computed(() => {
   }))
 })
 
-const subjectFilterOptions = computed(() => [
-  { label: '全部科目', value: null },
-  ...subjectOptions.value,
-])
-
 const hasReportData = computed(() => {
   const overview = basicReport.value?.overview || {}
   return Number(overview.student_count || 0) > 0
@@ -307,8 +276,8 @@ const scopeTags = computed(() => {
   if (!report) return []
   const scope = report.scope || {}
   return [
-    `科目：${scope.subject_name || selectedLabel(subjectFilterOptions.value, selectedSubjectId.value, '全部科目')}`,
-    `班级：${scope.class_name || selectedLabel(classOptions.value, selectedClassId.value, '全部班级')}`,
+    `科目：${scope.subject_name || currentSubjectCode.value || '全部科目'}`,
+    `班级：${scope.class_name || (selectedClassId.value ? '' : '全部班级') || ''}`,
     scope.previous_exam?.name ? `对比：${scope.previous_exam.name}` : null,
   ].filter(Boolean)
 })
@@ -577,36 +546,11 @@ function segmentRange(row) {
   return `${row.boundary_min}%-${row.boundary_max}%`
 }
 
-function selectedLabel(options, value, fallback) {
-  if (!value) return fallback
-  return options.find(option => option.value === value)?.label || fallback
-}
-
 function buildQueryParams() {
   const params = {}
   if (selectedSubjectId.value) params.subject_id = selectedSubjectId.value
   if (selectedClassId.value) params.class_id = selectedClassId.value
   return params
-}
-
-async function loadExams() {
-  try {
-    const resp = await client.get('/exams')
-    examOptions.value = (resp.data || []).map(e => ({
-      label: e.name,
-      value: e.id,
-    }))
-  } catch { /* ignore */ }
-}
-
-async function loadClasses() {
-  try {
-    const resp = await client.get('/classes')
-    classOptions.value = (resp.data || []).map(c => ({
-      label: c.name,
-      value: c.id,
-    }))
-  } catch { /* ignore */ }
 }
 
 async function loadSubjects(examId) {
@@ -622,20 +566,13 @@ async function loadSubjects(examId) {
   }
 }
 
-onMounted(async () => {
-  await Promise.all([loadExams(), loadClasses()])
-})
-
 async function runQuery() {
-  if (!selectedExamId.value) {
-    message.warning('请选择一次考试')
-    return
-  }
+  if (!selectedExamId.value) return
   loading.value = true
   try {
     const resp = await getBasicReport(selectedExamId.value, buildQueryParams())
     basicReport.value = resp.data
-    activeTab.value = 'overview'
+    if (!activeTab.value || activeTab.value === 'overview') activeTab.value = 'overview'
     if (!exportSubjectId.value && subjectOptions.value.length === 1) {
       exportSubjectId.value = subjectOptions.value[0].value
     }
@@ -646,14 +583,17 @@ async function runQuery() {
   }
 }
 
-watch(selectedExamId, async (examId) => {
-  selectedSubjectId.value = null
-  selectedClassId.value = null
+async function onFilterChange(payload) {
+  selectedExamId.value = payload.examId
+  selectedSubjectId.value = payload.subjectId
+  selectedClassId.value = payload.classId
+  currentGradeId.value = payload.gradeId
+  currentSubjectCode.value = payload.subjectCode
   exportSubjectId.value = null
   basicReport.value = null
-  activeTab.value = 'overview'
-  await loadSubjects(examId)
-})
+  await loadSubjects(payload.examId)
+  if (payload.examId) await runQuery()
+}
 
 async function handleDownload(format) {
   if (!canExport.value) {

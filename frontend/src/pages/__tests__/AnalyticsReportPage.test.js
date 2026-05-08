@@ -22,6 +22,9 @@ vi.mock('../../api/analytics', () => ({
   downloadBlob: (...args) => mocks.downloadBlob(...args),
 }))
 
+vi.mock('../../components/analytics/PowerOptionsSelector.vue', () => ({
+  default: { name: 'PowerOptionsSelector', template: '<div class="power-opts" />', emits: ['change'] },
+}))
 vi.mock('../../components/analytics/KnowledgeDiagnosisPanel.vue', () => ({
   default: { name: 'KnowledgeDiagnosisPanel', template: '<div />', props: ['examId', 'subjectId', 'classId'] },
 }))
@@ -30,6 +33,9 @@ vi.mock('../../components/analytics/LayerAnalysisPanel.vue', () => ({
 }))
 vi.mock('../../components/analytics/TrendPanel.vue', () => ({
   default: { name: 'TrendPanel', template: '<div />', props: ['gradeId', 'classId', 'subjectCode'] },
+}))
+vi.mock('../../components/analytics/AiDiagnosisReport.vue', () => ({
+  default: { name: 'AiDiagnosisReport', template: '<div />', props: ['examId', 'subjectId', 'classId'] },
 }))
 
 vi.mock('../../api/client', () => ({
@@ -167,36 +173,31 @@ describe('AnalyticsReportPage', () => {
     mocks.clientGet.mockResolvedValue({ data: [] })
   })
 
-  it('renders basic report controls', () => {
+  it('renders PowerOptionsSelector', () => {
     const wrapper = createWrapper()
     expect(wrapper.html()).toBeTruthy()
-    expect(wrapper.text()).toContain('查看基础数据')
+    expect(wrapper.find('.power-opts').exists()).toBe(true)
   })
 
-  it('warns when querying without exam selection', async () => {
-    const wrapper = createWrapper()
-    const queryBtn = wrapper.findAll('button').find(b => b.text().includes('查看基础数据'))
-    await queryBtn.trigger('click')
-    await flushPromises()
-    expect(mocks.warning).toHaveBeenCalledWith('请选择一次考试')
-    expect(mocks.getBasicReport).not.toHaveBeenCalled()
-  })
-
-  it('calls getBasicReport with selected filters on successful query', async () => {
+  it('onFilterChange sets state and triggers query', async () => {
     mocks.getBasicReport.mockResolvedValue({ data: basicReportPayload() })
     const wrapper = createWrapper()
-    wrapper.vm.selectedExamId = 'exam-1'
-    wrapper.vm.selectedSubjectId = 'subj-1'
-    wrapper.vm.selectedClassId = 'class-1'
-    wrapper.vm.activeTab = 'students'
-    await wrapper.vm.runQuery()
+    await wrapper.vm.onFilterChange({
+      examId: 'exam-1',
+      subjectId: 'subj-1',
+      classId: 'class-1',
+      gradeId: 'grade-1',
+      subjectCode: 'YW',
+      scope: 'class',
+    })
     await flushPromises()
     expect(mocks.getBasicReport).toHaveBeenCalledWith('exam-1', {
       subject_id: 'subj-1',
       class_id: 'class-1',
     })
     expect(wrapper.vm.basicReport.overview.student_count).toBe(10)
-    expect(wrapper.vm.activeTab).toBe('overview')
+    expect(wrapper.vm.currentGradeId).toBe('grade-1')
+    expect(wrapper.vm.currentSubjectCode).toBe('YW')
     expect(wrapper.text()).toContain('科目：语文')
     expect(wrapper.text()).toContain('班级：七年级1班')
     expect(wrapper.text()).toContain('对比：上次考试')
@@ -267,5 +268,15 @@ describe('AnalyticsReportPage', () => {
     expect(mocks.exportGradeReport).toHaveBeenCalledWith('exam-1', 'subj-1', 'xlsx')
     expect(mocks.downloadBlob).toHaveBeenCalled()
     expect(mocks.error).not.toHaveBeenCalled()
+  })
+
+  it('onFilterChange without examId does not query', async () => {
+    const wrapper = createWrapper()
+    await wrapper.vm.onFilterChange({
+      examId: null, subjectId: null, classId: null,
+      gradeId: null, subjectCode: null, scope: 'grade',
+    })
+    await flushPromises()
+    expect(mocks.getBasicReport).not.toHaveBeenCalled()
   })
 })

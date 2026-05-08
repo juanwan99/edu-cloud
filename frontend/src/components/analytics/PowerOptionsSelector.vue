@@ -73,8 +73,8 @@ const selectedClass = computed(() => {
 
 const subjectOptions = computed(() => {
   if (!selectedGrade.value) return []
+  const all = [{ label: '全部科目', value: null }]
   if (selectedClassId.value === 'all') {
-    // Merge subjects from all real classes in the grade
     const seen = new Set()
     const merged = []
     for (const cls of selectedGrade.value.classes || []) {
@@ -86,13 +86,13 @@ const subjectOptions = computed(() => {
         }
       }
     }
-    return merged
+    return [...all, ...merged]
   }
-  if (!selectedClass.value) return []
-  return (selectedClass.value.subjects || []).map(s => ({
-    label: s.name,
-    value: s.code,
-  }))
+  if (!selectedClass.value) return all
+  return [
+    ...all,
+    ...(selectedClass.value.subjects || []).map(s => ({ label: s.name, value: s.code })),
+  ]
 })
 
 const examOptions = computed(() => {
@@ -142,12 +142,20 @@ function autoSelectFirst(options, setter) {
   return false
 }
 
+function resolveSubjectId() {
+  if (!selectedSubjectCode.value) return null
+  const exams = collectExams()
+  const exam = exams.find(e => e.id === selectedExamId.value) || exams[0]
+  return exam?.subject_id || null
+}
+
 function emitChange() {
   const isAll = selectedClassId.value === 'all'
   emit('change', {
     gradeId: selectedGradeId.value,
     classId: isAll ? null : selectedClassId.value,
-    subjectId: selectedSubjectCode.value,
+    subjectCode: selectedSubjectCode.value,
+    subjectId: resolveSubjectId(),
     examId: selectedExamId.value,
     scope: isAll ? 'grade' : 'class',
   })
@@ -161,7 +169,8 @@ function cascadeFromGrade() {
 }
 
 function cascadeFromClass() {
-  autoSelectFirst(subjectOptions.value, v => { selectedSubjectCode.value = v })
+  const realSubjects = subjectOptions.value.filter(o => o.value !== null)
+  autoSelectFirst(realSubjects, v => { selectedSubjectCode.value = v })
   cascadeFromSubject()
 }
 
