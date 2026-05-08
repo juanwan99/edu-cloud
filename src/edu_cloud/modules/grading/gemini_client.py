@@ -120,10 +120,13 @@ class GeminiClient:
         *,
         vertex_project: str | None = None,
         vertex_location: str | None = None,
+        request_timeout_s: float = 120.0,
     ):
         self.model = model
         self.max_retries = max_retries
+        self.request_timeout_s = request_timeout_s
         self._cache_map: dict[str, str] = {}
+        http_options = types.HttpOptions(timeout=int(request_timeout_s * 1000))
 
         if vertex_project:
             _ensure_vertex_credentials()
@@ -131,14 +134,21 @@ class GeminiClient:
                 vertexai=True,
                 project=vertex_project,
                 location=vertex_location or "global",
+                http_options=http_options,
             )
             self._mode = "vertex"
         else:
-            self._client = genai.Client(api_key=api_key)
+            self._client = genai.Client(api_key=api_key, http_options=http_options)
             self._mode = "api_key"
 
     async def close(self):
         pass
+
+    async def _to_thread_with_timeout(self, func, /, *args, **kwargs):
+        return await asyncio.wait_for(
+            asyncio.to_thread(func, *args, **kwargs),
+            timeout=self.request_timeout_s,
+        )
 
     def _get_config(self, max_tokens: int = 2048) -> types.GenerateContentConfig:
         return types.GenerateContentConfig(
@@ -175,7 +185,7 @@ class GeminiClient:
                 if cached_content:
                     kwargs["cached_content"] = cached_content
 
-                response = await asyncio.to_thread(
+                response = await self._to_thread_with_timeout(
                     self._client.models.generate_content, **kwargs
                 )
 
@@ -209,6 +219,19 @@ class GeminiClient:
                 )
                 return response.text
 
+            except asyncio.TimeoutError:
+                last_error = f"TimeoutError: Gemini {method} exceeded {self.request_timeout_s:.0f}s"
+                logger.warning(
+                    "gemini %s attempt %d/%d timed out after %.0fs",
+                    method, attempt + 1, self.max_retries, self.request_timeout_s,
+                )
+                log_event(
+                    __name__, logging.WARNING, "llm", "llm.gemini.retry",
+                    f"Gemini {method} timeout, retry {attempt + 1}/{self.max_retries}",
+                    model=self.model, method=method,
+                    attempt=attempt + 1, reason="TimeoutError",
+                    error=last_error,
+                )
             except Exception as e:
                 last_error = f"{type(e).__name__}: {e}"
                 logger.warning(
@@ -391,7 +414,7 @@ class GeminiClient:
             return self._cache_map[cache_key]
 
         try:
-            cached = await asyncio.to_thread(
+            cached = await self._to_thread_with_timeout(
                 self._client.caches.create,
                 model=self.model,
                 config=types.CreateCachedContentConfig(
@@ -437,7 +460,7 @@ class GeminiClient:
             )
             inline_requests.append(inline_req)
 
-        job = await asyncio.to_thread(
+        job = await self._to_thread_with_timeout(
             self._client.batches.create,
             model=self.model,
             src=inline_requests,
@@ -452,7 +475,7 @@ class GeminiClient:
         """轮询 Batch 任务直到完成，返回结果列表。"""
         start = time.monotonic()
         while time.monotonic() - start < timeout:
-            job = await asyncio.to_thread(
+            job = await self._to_thread_with_timeout(
                 self._client.batches.get, name=job_name,
             )
             state = str(job.state)
