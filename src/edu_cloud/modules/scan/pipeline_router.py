@@ -1,7 +1,9 @@
 """扫描流水线 API 端点。"""
 
 import logging
+import asyncio
 import os
+import re
 from pathlib import Path
 from typing import Callable, Awaitable
 
@@ -15,16 +17,125 @@ from edu_cloud.config import settings
 from edu_cloud.database import get_db
 # R4-F001: 运行时属性查找，让 client fixture monkey-patch 生效
 import edu_cloud.database as db_mod
-from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.api.deps import require_permission
 from edu_cloud.core.permissions import Permission
-from edu_cloud.modules.exam.models import Subject, Question, QUESTION_TYPES_OBJECTIVE
+from edu_cloud.modules.exam.models import Exam, Subject, Question, QUESTION_TYPES_OBJECTIVE
 from edu_cloud.modules.card.models import Template
 from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.modules.student.models import Student
 from edu_cloud.shared.storage import get_storage, StorageService
 from . import pipeline_service
 from .tpl_parser import parse_tpl_file
 
 logger = logging.getLogger(__name__)
+
+_JINGYAN_PAGE_NAME_RE = re.compile(
+    r"^(?P<student>[^_]+)_(?P<subject>[^_]+)_(?P<page>[12])_(?P<index>[01])(?P<suffix>\.[^.]+)$",
+    re.IGNORECASE,
+)
+_PAGE_TO_SIDE = {("1", "0"): "A", ("2", "1"): "B"}
+_PIPELINE_IMAGE_SUFFIX = {".png": ".png", ".jpg": ".jpg", ".jpeg": ".jpg"}
+_SUBJECT_CODE_BY_NAME = {
+    "语文": "YW",
+    "数学": "SX",
+    "英语": "YY",
+    "物理": "WL",
+    "化学": "HX",
+    "生物": "SW",
+    "政治": "ZZ",
+    "历史": "LS",
+    "地理": "DL",
+    "技术": "JS",
+}
+_AUTO_SUBJECT_SKIP_NAMES = {"", ".", "未分类"}
+
+
+def normalize_uploaded_scan_filename(filename: str) -> tuple[str, bool]:
+    """Normalize uploaded image names to the A/B convention used by the scanner."""
+    suffix = Path(filename).suffix.lower()
+    match = _JINGYAN_PAGE_NAME_RE.match(filename)
+    if match and suffix in _PIPELINE_IMAGE_SUFFIX:
+        side = _PAGE_TO_SIDE.get((match.group("page"), match.group("index")))
+        if side:
+            return f"{match.group('student')}{side}{_PIPELINE_IMAGE_SUFFIX[suffix]}", True
+
+    normalized_suffix = _PIPELINE_IMAGE_SUFFIX.get(suffix)
+    if normalized_suffix and Path(filename).suffix != normalized_suffix:
+        return Path(filename).with_suffix(normalized_suffix).name, True
+    return filename, False
+
+
+def _infer_exam_id_from_scan_dir(path: Path) -> str | None:
+    try:
+        scan_root = (Path(settings.UPLOAD_DIR).resolve() / "scan-input").resolve()
+        rel = path.resolve().relative_to(scan_root)
+    except (OSError, ValueError):
+        return None
+    return rel.parts[0] if rel.parts else None
+
+
+def _subject_code_for_scan_name(name: str, used_codes: set[str]) -> str:
+    base = _SUBJECT_CODE_BY_NAME.get(name.strip())
+    if not base:
+        base = re.sub(r"[^A-Za-z0-9]+", "", name).upper()[:10] or f"SUB{len(used_codes) + 1}"
+
+    code = base[:50]
+    i = 2
+    while code in used_codes:
+        suffix = str(i)
+        code = f"{base[:50 - len(suffix)]}{suffix}"
+        i += 1
+    used_codes.add(code)
+    return code
+
+
+async def _ensure_scan_subjects(
+    db: AsyncSession,
+    *,
+    exam_id: str | None,
+    school_id: str | None,
+    detected_subjects: list[dict],
+) -> int:
+    if not exam_id or not detected_subjects:
+        return 0
+
+    q = select(Exam).where(Exam.id == exam_id)
+    if school_id:
+        q = q.where(Exam.school_id == school_id)
+    exam = (await db.execute(q)).scalar_one_or_none()
+    if not exam:
+        return 0
+
+    effective_school_id = exam.school_id
+    existing = (await db.execute(
+        select(Subject).where(
+            Subject.exam_id == exam_id,
+            Subject.school_id == effective_school_id,
+        )
+    )).scalars().all()
+    existing_names = {s.name for s in existing}
+    used_codes = {s.code for s in existing}
+
+    created = 0
+    for item in detected_subjects:
+        name = str(item.get("name") or "").strip()
+        folder = str(item.get("folder") or "").strip()
+        if name in _AUTO_SUBJECT_SKIP_NAMES or folder == "." or name in existing_names:
+            continue
+        code = _subject_code_for_scan_name(name, used_codes)
+        db.add(Subject(exam_id=exam_id, name=name, code=code, school_id=effective_school_id))
+        existing_names.add(name)
+        created += 1
+
+    if created:
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            logger.warning("scan_directory: auto-create subjects conflicted for exam=%s", exam_id)
+            return 0
+        logger.info("scan_directory: auto-created %d subjects for exam=%s", created, exam_id)
+    return created
 
 
 def build_pipeline_save_answer_fn(
@@ -181,10 +292,21 @@ class BrowseDirRequest(BaseModel):
 @router.post("/browse-dir")
 async def browse_directory(
     req: BrowseDirRequest,
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
-    """浏览服务器目录，返回子文件夹列表。"""
-    d = Path(req.path) if req.path else Path(settings.UPLOAD_DIR).resolve()
+    """浏览服务器目录，返回子文件夹列表。仅限 UPLOAD_DIR 内。"""
+    upload_root = Path(settings.UPLOAD_DIR).resolve()
+
+    if req.path:
+        candidate = Path(req.path)
+        if not candidate.is_absolute():
+            candidate = upload_root / candidate
+        d = candidate.resolve()
+        if not d.is_relative_to(upload_root):
+            raise HTTPException(403, "只允许浏览上传目录")
+    else:
+        d = upload_root
+
     if not d.is_dir():
         raise HTTPException(400, f"目录不存在: {req.path}")
 
@@ -197,7 +319,7 @@ async def browse_directory(
                 sub_count = sum(1 for f in entry.iterdir() if f.is_dir())
                 items.append({
                     "name": entry.name,
-                    "path": str(entry),
+                    "path": str(entry.relative_to(upload_root)),
                     "has_images": img_count > 0,
                     "image_count": img_count,
                     "sub_dirs": sub_count,
@@ -205,15 +327,21 @@ async def browse_directory(
     except PermissionError:
         raise HTTPException(403, f"无权访问: {req.path}")
 
-    parent = str(d.parent) if str(d) != "/" else None
-    return {"current": str(d), "parent": parent, "items": items}
+    current_rel = "." if d == upload_root else str(d.relative_to(upload_root))
+    if d == upload_root:
+        parent_rel = None
+    elif d.parent == upload_root:
+        parent_rel = "."
+    else:
+        parent_rel = str(d.parent.relative_to(upload_root))
+    return {"current": current_rel, "parent": parent_rel, "items": items}
 
 
 @router.post("/upload-folder")
 async def upload_scan_folder(
     exam_id: str = Form(...),
     files: list[UploadFile] = File(...),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """接收用户上传的扫描图片，按子文件夹结构保存到服务器。"""
     school_id = current["current_role"].school_id
@@ -221,6 +349,7 @@ async def upload_scan_folder(
     base_dir.mkdir(parents=True, exist_ok=True)
 
     saved = 0
+    normalized = 0
     for f in files:
         if not f.filename:
             continue
@@ -236,6 +365,10 @@ async def upload_scan_folder(
         if not fname.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".pdf")):
             continue
 
+        fname, was_normalized = normalize_uploaded_scan_filename(fname)
+        if was_normalized:
+            normalized += 1
+
         target_dir = base_dir / sub_dir
         target_dir.mkdir(parents=True, exist_ok=True)
         target = target_dir / fname
@@ -243,8 +376,8 @@ async def upload_scan_folder(
         target.write_bytes(content)
         saved += 1
 
-    logger.info("upload_scan_folder: exam=%s saved=%d dir=%s", exam_id, saved, base_dir)
-    return {"dir_path": str(base_dir), "saved": saved}
+    logger.info("upload_scan_folder: exam=%s saved=%d normalized=%d dir=%s", exam_id, saved, normalized, base_dir)
+    return {"dir_path": str(base_dir), "saved": saved, "normalized": normalized}
 
 
 class ScanDirRequest(BaseModel):
@@ -261,7 +394,8 @@ class PdfImportRequest(BaseModel):
 @router.post("/scan-dir")
 async def scan_directory(
     req: ScanDirRequest,
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
+    db: AsyncSession = Depends(get_db),
 ):
     """扫描目录结构，返回科目子文件夹和图片统计。"""
     d = Path(req.dir_path)
@@ -303,14 +437,21 @@ async def scan_directory(
                 "first_file": a_imgs[0].name if a_imgs else imgs[0].name,
             })
 
-    return {"dir_path": req.dir_path, "subjects": subjects}
+    created_subjects = await _ensure_scan_subjects(
+        db,
+        exam_id=_infer_exam_id_from_scan_dir(d),
+        school_id=current["current_role"].school_id,
+        detected_subjects=subjects,
+    )
+
+    return {"dir_path": req.dir_path, "subjects": subjects, "created_subjects": created_subjects}
 
 
 @router.post("/start")
 async def start_pipeline(
     req: StartPipelineRequest,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
     storage: StorageService = Depends(get_storage),
 ):
     """启动扫描切割流水线。"""
@@ -361,32 +502,50 @@ async def start_pipeline(
     tpl_width = tpl_size.get("width", 0)
     tpl_height = tpl_size.get("height", 0)
 
-    # A/B 面自动纠正（仅 A 面启动时执行，利用条码检测真实面）
-    if req.side == "A" and bc_region and tpl_width and tpl_height:
-        swapped = pipeline_service.auto_fix_ab_sides(
-            req.image_dir, bc_region, tpl_width, tpl_height,
-        )
-        if swapped:
-            logger.info("pipeline: auto-fixed %d swapped A/B pairs", swapped)
+    can_use_filename_ids, filename_id_info = pipeline_service.can_use_filename_student_ids(
+        req.image_dir, req.side
+    )
+    if can_use_filename_ids:
+        template["prefer_filename_student_id"] = True
+        logger.info("pipeline: using filename student ids: %s", filename_id_info)
 
-    # B 面启动时，预建条码映射表（从 A 面文件读取条码→学号）
+    # A/B 面以稳定文件名为准。不要在切割前按图像黑度/条码自动改名；
+    # 这类启发式在作文格子上会误判，把原始上传目录里的 A/B 文件交换。
+
+    # B 面启动时，优先用成对文件名配对；否则预建条码映射表（从 A 面文件读取条码→学号）
     if req.side == "B":
-        a_tpl = (await db.execute(
-            select(Template).where(
-                Template.subject_id == req.subject_id,
-                Template.side == "A",
+        known_numbers = set((await db.execute(
+            select(Student.student_number).where(
+                Student.school_id == school_id,
+                Student.student_number.isnot(None),
+                Student.student_number != "",
             )
-        )).scalar_one_or_none()
-        if a_tpl:
-            a_bc = None
-            for r in (a_tpl.regions or []):
-                if r.get("type") == "barcode" and r.get("rect"):
-                    a_bc = r["rect"]
-                    break
-            if a_bc:
-                pipeline_service.build_barcode_map(
-                    req.image_dir, a_bc, a_tpl.image_width, a_tpl.image_height,
+        )).scalars().all())
+        can_pair_by_filename, pair_info = pipeline_service.can_use_filename_pairing_for_b_side(
+            req.image_dir, known_numbers
+        )
+        if can_pair_by_filename:
+            pipeline_service.clear_barcode_map()
+            logger.info("pipeline: B-side using filename pairing, skip barcode map: %s", pair_info)
+        else:
+            logger.info("pipeline: B-side barcode map required: %s", pair_info)
+            a_tpl = (await db.execute(
+                select(Template).where(
+                    Template.subject_id == req.subject_id,
+                    Template.side == "A",
                 )
+            )).scalar_one_or_none()
+            if a_tpl:
+                a_bc = None
+                for r in (a_tpl.regions or []):
+                    if r.get("type") == "barcode" and r.get("rect"):
+                        a_bc = r["rect"]
+                        break
+                if a_bc:
+                    await asyncio.to_thread(
+                        pipeline_service.build_barcode_map,
+                        req.image_dir, a_bc, a_tpl.image_width, a_tpl.image_height,
+                    )
 
     # 列出文件
     try:
@@ -525,7 +684,7 @@ async def start_pipeline(
 @router.post("/pdf-import")
 async def import_pdf_to_images(
     req: PdfImportRequest,
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """将目录中的 PDF 拆分为 PNG 图片，按 A/B 面命名。
 
@@ -556,13 +715,13 @@ async def import_pdf_to_images(
 
 
 @router.get("/progress")
-async def get_progress(current: dict = Depends(get_current_user)):
+async def get_progress(current: dict = Depends(require_permission(Permission.MANAGE_GRADING))):
     """获取流水线进度。"""
     return pipeline_service.get_progress()
 
 
 @router.post("/stop")
-async def stop_pipeline(current: dict = Depends(get_current_user)):
+async def stop_pipeline(current: dict = Depends(require_permission(Permission.MANAGE_GRADING))):
     """停止流水线。"""
     if not pipeline_service.is_running():
         raise HTTPException(400, "流水线未在运行")
@@ -574,7 +733,7 @@ async def stop_pipeline(current: dict = Depends(get_current_user)):
 async def preview_scan(
     req: PreviewRequest,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """预览单张扫描图的切割区域标注。"""
     import base64
@@ -640,6 +799,8 @@ async def preview_scan(
     if img_w > max_w:
         ratio = max_w / img_w
         img = img.resize((max_w, int(img_h * ratio)))
+    if img.mode != "RGB":
+        img = img.convert("RGB")
 
     buf = BytesIO()
     img.save(buf, format="JPEG", quality=80)
@@ -652,7 +813,7 @@ async def preview_scan(
 async def import_tpl(
     req: ImportTplRequest,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """导入 .tpl 文件到 Template 表。"""
     school_id = current["current_role"].school_id
@@ -706,7 +867,7 @@ async def import_tpl(
 @router.get('/scan-image')
 async def serve_scan_image(
     path: str,
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """提供扫描图片的 HTTP 访问（前端模板编辑器用）。"""
     from fastapi.responses import FileResponse
@@ -732,7 +893,7 @@ from edu_cloud.modules.scan.auto_detect_cv import AutoDetectCVRequest, auto_dete
 @router.post('/auto-detect-cv')
 async def auto_detect_cv_api(
     req: AutoDetectCVRequest,
-    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     return await auto_detect_cv_regions(req)
 
@@ -743,7 +904,7 @@ async def auto_detect_cv_api(
 async def get_cv_template(
     subject_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """查询某科目已有的 CV 检测 Template（A+B 面）。"""
     rows = (await db.execute(
@@ -775,7 +936,7 @@ class SaveCVTemplateRequest(BaseModel):
 async def save_cv_template(
     req: SaveCVTemplateRequest,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """将 CV 检测结果保存/更新为 Template（upsert）。"""
     school_id = current["current_role"].school_id
@@ -792,29 +953,56 @@ async def save_cv_template(
         select(Question).where(Question.subject_id == req.subject_id)
     )).scalars().all()
     qno_map = {}
-    for q in questions:
+    q_by_name = {str(q.name): q for q in questions}
+
+    def _qno_keys(qno) -> tuple:
+        keys = [str(qno)]
         try:
-            qno_map[int(q.name)] = str(q.id)
+            keys.append(int(str(qno).strip()))
         except (ValueError, TypeError):
-            qno_map[q.name] = str(q.id)
+            pass
+        return tuple(keys)
+
+    def _remember_question(qno, question: Question) -> None:
+        for key in _qno_keys(qno):
+            qno_map[key] = str(question.id)
+
+    for q in questions:
+        _remember_question(q.name, q)
 
     def _region_to_qtype(r):
         if r.get("type") == "choice_group":
             return "choice"
         return r.get("question_type", "essay")
 
+    explicit_subjective_qnos = {
+        str(r.get("qno"))
+        for r in req.regions
+        if r.get("type") not in ("choice_group", "barcode", "not_a_region")
+        and r.get("qno") not in (None, "")
+    }
+
     for r in req.regions:
-        if r.get("type") == "not_a_region":
+        region_type = r.get("type")
+        if region_type in ("not_a_region", "barcode"):
+            r.pop("question_id", None)
+            r.pop("question_ids", None)
             continue
         qno = r.get("qno")
-        if not qno:
-            continue
 
-        if r.get("type") == "choice_group":
-            start = r.get("start_no", 1)
-            rows = r.get("rows", 0)
-            for n in range(start, start + rows):
-                if n not in qno_map:
+        if region_type == "choice_group":
+            start = int(r.get("start_no", 1) or 1)
+            rows = int(r.get("rows", 0) or 0)
+            qnos = r.get("qnos") or list(range(start, start + rows))
+            q_ids = []
+            skipped = False
+            for n in qnos:
+                if str(n) in explicit_subjective_qnos:
+                    skipped = True
+                    continue
+
+                existing_q = q_by_name.get(str(n))
+                if not existing_q:
                     existing_q = (await db.execute(
                         select(Question).where(
                             Question.subject_id == req.subject_id,
@@ -822,21 +1010,40 @@ async def save_cv_template(
                         )
                     )).scalar_one_or_none()
                     if existing_q:
-                        qno_map[n] = str(existing_q.id)
-                    else:
-                        new_q = Question(
+                        q_by_name[str(n)] = existing_q
+
+                if existing_q:
+                    existing_q.question_type = "choice"
+                    existing_q.max_score = r.get("score", 0)
+                    _remember_question(n, existing_q)
+                    q_ids.append(str(existing_q.id))
+                else:
+                    new_q = Question(
                             subject_id=req.subject_id,
                             name=str(n),
                             question_type="choice",
                             max_score=r.get("score", 0),
                             school_id=school_id,
-                        )
-                        db.add(new_q)
-                        await db.flush()
-                        qno_map[n] = str(new_q.id)
-                        logger.info("auto_create_question: subject=%s qno=%d type=choice", subject.name, n)
+                    )
+                    db.add(new_q)
+                    await db.flush()
+                    q_by_name[str(n)] = new_q
+                    _remember_question(n, new_q)
+                    q_ids.append(str(new_q.id))
+                    logger.info("auto_create_question: subject=%s qno=%s type=choice", subject.name, n)
+
+            if not skipped and len(q_ids) == len(qnos):
+                r["question_ids"] = q_ids
+            else:
+                r.pop("question_ids", None)
         else:
-            if qno not in qno_map:
+            if not qno:
+                continue
+
+            qtype = _region_to_qtype(r)
+            score = r.get("score", 0)
+            existing_q = q_by_name.get(str(qno))
+            if not existing_q:
                 existing_q = (await db.execute(
                     select(Question).where(
                         Question.subject_id == req.subject_id,
@@ -844,36 +1051,42 @@ async def save_cv_template(
                     )
                 )).scalar_one_or_none()
                 if existing_q:
-                    qno_map[qno] = str(existing_q.id)
-                else:
-                    try:
-                        new_q = Question(
-                            subject_id=req.subject_id,
-                            name=str(qno),
-                            question_type=_region_to_qtype(r),
-                            max_score=r.get("score", 0),
-                            school_id=school_id,
-                        )
-                        db.add(new_q)
-                        await db.flush()
-                        qno_map[qno] = str(new_q.id)
-                        logger.info("auto_create_question: subject=%s qno=%s type=%s", subject.name, qno, new_q.question_type)
-                    except Exception:
-                        await db.rollback()
-                        existing_q = (await db.execute(
-                            select(Question).where(
-                                Question.subject_id == req.subject_id,
-                                Question.name == str(qno),
-                            )
-                        )).scalar_one_or_none()
-                        if existing_q:
-                            qno_map[qno] = str(existing_q.id)
+                    q_by_name[str(qno)] = existing_q
 
-        if qno in qno_map:
-            r["question_id"] = qno_map[qno]
-        qnos = r.get("qnos")
-        if qnos:
-            r["question_ids"] = [qno_map[n] for n in qnos if n in qno_map]
+            if existing_q:
+                existing_q.question_type = qtype
+                existing_q.max_score = score
+                _remember_question(qno, existing_q)
+                r["question_id"] = str(existing_q.id)
+            else:
+                try:
+                    new_q = Question(
+                        subject_id=req.subject_id,
+                        name=str(qno),
+                        question_type=qtype,
+                        max_score=score,
+                        school_id=school_id,
+                    )
+                    db.add(new_q)
+                    await db.flush()
+                    q_by_name[str(qno)] = new_q
+                    _remember_question(qno, new_q)
+                    r["question_id"] = str(new_q.id)
+                    logger.info("auto_create_question: subject=%s qno=%s type=%s", subject.name, qno, new_q.question_type)
+                except Exception:
+                    await db.rollback()
+                    existing_q = (await db.execute(
+                        select(Question).where(
+                            Question.subject_id == req.subject_id,
+                            Question.name == str(qno),
+                        )
+                    )).scalar_one_or_none()
+                    if existing_q:
+                        q_by_name[str(qno)] = existing_q
+                        existing_q.question_type = qtype
+                        existing_q.max_score = score
+                        _remember_question(qno, existing_q)
+                        r["question_id"] = str(existing_q.id)
 
     regions = [r for r in req.regions if r.get("type") != "not_a_region"]
 
@@ -909,7 +1122,7 @@ async def save_cv_template(
 async def verify_template(
     subject_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """校对模板区域 vs 题目配置，返回不一致项。"""
     templates = (await db.execute(
@@ -920,24 +1133,94 @@ async def verify_template(
         select(Question).where(Question.subject_id == subject_id)
     )).scalars().all()
 
+    question_by_id = {str(q.id): q for q in questions}
+
+    def _qno_sort_key(qno: str) -> tuple[int, str]:
+        return (int(qno) if qno.isdigit() else 999, qno)
+
+    def _question_qno(region: dict) -> str | None:
+        qno = region.get("qno")
+        if qno not in (None, ""):
+            return str(qno)
+        question_id = region.get("question_id")
+        question = question_by_id.get(str(question_id)) if question_id else None
+        return str(question.name) if question else None
+
+    def _choice_group_qnos(region: dict) -> list[str]:
+        qnos = region.get("qnos")
+        if qnos:
+            return [str(qno) for qno in qnos if qno not in (None, "")]
+        try:
+            start = int(region.get("start_no") or 1)
+            rows = int(region.get("rows") or 0)
+        except (TypeError, ValueError):
+            return []
+        return [str(n) for n in range(start, start + rows)]
+
+    def _template_display_type(region: dict) -> str:
+        return "choice_group" if region.get("type") == "choice_group" else "subjective"
+
+    def _template_compare_type(region: dict) -> str:
+        if region.get("type") == "choice_group":
+            return "choice"
+        return region.get("question_type") or "essay"
+
+    def _types_match(template_type: str, question_type: str | None) -> bool:
+        if template_type == "choice":
+            return question_type in QUESTION_TYPES_OBJECTIVE
+        if template_type in ("essay", "subjective"):
+            return question_type not in QUESTION_TYPES_OBJECTIVE
+        return template_type == question_type
+
+    def _add_template_item(items: dict, qno: str, region: dict, side: str) -> None:
+        score = region.get("score", 0) or 0
+        item = items.get(qno)
+        if not item:
+            items[qno] = {
+                "qno": qno,
+                "type": _template_display_type(region),
+                "compare_type": _template_compare_type(region),
+                "score": score,
+                "side": side,
+                "region_ids": [region.get("id")],
+            }
+            return
+
+        if region.get("id") not in item["region_ids"]:
+            item["region_ids"].append(region.get("id"))
+        if item["type"] == "choice_group" and region.get("type") != "choice_group":
+            item.update({
+                "type": _template_display_type(region),
+                "compare_type": _template_compare_type(region),
+                "score": score,
+                "side": side,
+            })
+        elif score > item["score"]:
+            item["score"] = score
+
+    explicit_region_qnos = set()
+    for tpl in templates:
+        for r in (tpl.regions or []):
+            if r.get("type") in ("barcode", "not_a_region", "choice_group"):
+                continue
+            qno = _question_qno(r)
+            if qno:
+                explicit_region_qnos.add(qno)
+
     tpl_items = {}
     for tpl in templates:
         for r in (tpl.regions or []):
             if r.get("type") in ("barcode", "not_a_region"):
                 continue
-            qno = r.get("qno")
-            if not qno:
-                continue
-            key = str(qno)
-            if key not in tpl_items:
-                tpl_items[key] = {
-                    "qno": key,
-                    "type": r.get("type", "subjective"),
-                    "score": r.get("score", 0),
-                    "side": tpl.side,
-                }
-            elif r.get("score", 0) > tpl_items[key]["score"]:
-                tpl_items[key]["score"] = r.get("score", 0)
+            if r.get("type") == "choice_group":
+                for qno in _choice_group_qnos(r):
+                    if qno in explicit_region_qnos:
+                        continue
+                    _add_template_item(tpl_items, qno, r, tpl.side)
+            else:
+                qno = _question_qno(r)
+                if qno:
+                    _add_template_item(tpl_items, qno, r, tpl.side)
 
     q_items = {}
     for q in questions:
@@ -952,8 +1235,7 @@ async def verify_template(
             "ids": [str(q.id)],
         }
 
-    all_qnos = sorted(set(list(tpl_items.keys()) + list(q_items.keys())),
-                       key=lambda x: (int(x) if x.isdigit() else 999, x))
+    all_qnos = sorted(set(list(tpl_items.keys()) + list(q_items.keys())), key=_qno_sort_key)
 
     results = []
     for qno in all_qnos:
@@ -972,6 +1254,12 @@ async def verify_template(
             if abs(t["score"] - q["max_score"]) > 0.01:
                 status = "score_mismatch"
                 issues.append(f'分值不一致：模板 {t["score"]} vs 题目 {q["max_score"]}')
+            if not _types_match(t["compare_type"], q["type"]):
+                status = "type_mismatch" if status == "match" else status
+                issues.append(f'题型不一致：模板 {t["compare_type"]} vs 题目 {q["type"]}')
+
+        if t:
+            t = {k: v for k, v in t.items() if k != "compare_type"}
 
         results.append({
             "qno": qno,
@@ -997,7 +1285,7 @@ async def delete_orphan_questions(
     subject_id: str,
     qnos: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """删除模板中不存在的多余题目。qnos 逗号分隔。"""
     qno_list = [q.strip() for q in qnos.split(",") if q.strip()]
