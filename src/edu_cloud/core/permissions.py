@@ -23,6 +23,9 @@ class Permission(str, Enum):
     MANAGE_SCHOOL_CONFIG = "manage_school_config"   # KV 配置/模块开关/能力矩阵/审计日志 → 校长
     MANAGE_SCHEDULING = "manage_scheduling"         # 排课/选考组合 → 教务主任
 
+    # ── 教师管理 ──
+    MANAGE_TEACHERS = "manage_teachers"         # 教师 CRUD/导入导出
+
     # ── 考试管理 ──
     MANAGE_EXAMS = "manage_exams"               # 校内考试 CRUD → 教务主任
     CREATE_JOINT_EXAM = "create_joint_exam"     # 创建联考
@@ -108,6 +111,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.MANAGE_SCHOOL_CONFIG,
         Permission.MANAGE_SCHEDULING,
         Permission.MANAGE_EXAMS,
+        Permission.MANAGE_TEACHERS,
         Permission.CREATE_JOINT_EXAM,
         Permission.MANAGE_JOINT_EXAM,
         Permission.VIEW_JOINT_EXAM,
@@ -140,6 +144,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     "principal": {
         Permission.VIEW_SCHOOLS,
         Permission.MANAGE_SCHOOL_CONFIG,     # 学校配置/模块/能力矩阵 → 校长职责
+        Permission.MANAGE_TEACHERS,          # 教师人事管理 → 校长职责
         Permission.MANAGE_SCHEDULING,        # 校长可管排课（通常委托教务，但有权限）
         Permission.MANAGE_EXAMS,             # 可创建考试（通常委托教务）
         Permission.CREATE_JOINT_EXAM,        # 联考决策需校长参与
@@ -170,6 +175,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
     "academic_director": {
         Permission.VIEW_SCHOOLS,
         Permission.MANAGE_SCHEDULING,        # 排课/选考组合 → 教务核心职责
+        Permission.MANAGE_TEACHERS,          # 教师调配 → 教务日常运营
         Permission.MANAGE_EXAMS,             # 校内考试 CRUD
         Permission.CREATE_JOINT_EXAM,
         Permission.MANAGE_JOINT_EXAM,

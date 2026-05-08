@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.config import settings
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.modules.student.models import Class
@@ -108,7 +109,7 @@ async def list_teachers(
     q: str | None = None,
     school_id: str | None = None,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     role = current["current_role"]
     target_school = school_id or role.school_id
@@ -150,7 +151,7 @@ async def list_teachers(
 async def create_teacher(
     req: TeacherCreate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     # ── ORC-001/ORC-002：school_id 决策 + 跨校权限守卫 ──
     current_role = current["current_role"]
@@ -210,7 +211,7 @@ async def update_teacher(
     user_id: str,
     req: TeacherUpdate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     school_id = current["current_role"].school_id
     role_check = await db.execute(
@@ -243,7 +244,7 @@ async def update_teacher(
 async def delete_teacher(
     user_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     school_id = current["current_role"].school_id
     roles_result = await db.execute(
@@ -270,7 +271,7 @@ async def export_teachers(
     template: str | None = None,
     school_id: str | None = None,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment
@@ -418,7 +419,7 @@ async def import_teachers(
     file: UploadFile = File(...),
     role: str = Form("subject_teacher"),
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     school_id = current["current_role"].school_id
     if role not in ALL_SCHOOL_ROLES:
