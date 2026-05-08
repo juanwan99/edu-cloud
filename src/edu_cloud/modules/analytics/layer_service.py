@@ -20,11 +20,21 @@ DEFAULT_LAYER_LABELS = ["优秀", "良好", "待提升"]
 
 async def layer_analysis(
     db: AsyncSession, *, exam_id: str, school_id: str,
+    subject_id: str | None = None,
+    class_id: str | None = None,
     visible_subject_codes: list[str] | None = None,
     visible_class_ids: list[str] | None = None,
 ) -> dict:
+    # Narrow class scope when class_id is specified
+    if class_id:
+        if visible_class_ids is not None and class_id not in visible_class_ids:
+            return {"exam_id": exam_id, "layers": [], "maxDiffKnowledges": []}
+        effective_class_ids = [class_id]
+    else:
+        effective_class_ids = visible_class_ids
+
     await _verify_exam(db, exam_id, school_id)
-    subjects = await _get_subjects(db, exam_id, school_id, visible_subject_codes)
+    subjects = await _get_subjects(db, exam_id, school_id, visible_subject_codes, subject_id)
     subj_ids = [s.id for s in subjects]
     if not subj_ids:
         return {"exam_id": exam_id, "layers": [], "maxDiffKnowledges": []}
@@ -32,7 +42,7 @@ async def layer_analysis(
     max_by_subject = await _get_max_by_subject(db, subj_ids, school_id)
     total_max = sum(max_by_subject.get(s.id, 0.0) for s in subjects)
 
-    scores_by_subject = await get_effective_scores_batch(db, subj_ids, school_id, visible_class_ids)
+    scores_by_subject = await get_effective_scores_batch(db, subj_ids, school_id, effective_class_ids)
     student_totals: dict[str, float] = defaultdict(float)
     for subj in subjects:
         for s in scores_by_subject.get(subj.id, []):

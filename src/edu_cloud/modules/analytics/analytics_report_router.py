@@ -111,6 +111,7 @@ async def get_common_wrong_questions(
 async def get_question_insights(
     exam_id: str,
     subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
@@ -119,6 +120,7 @@ async def get_question_insights(
     return await question_insights(
         db, exam_id=exam_id, school_id=role.school_id,
         subject_id=subject_id,
+        class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
     )
@@ -534,6 +536,7 @@ async def get_class_diagnosis(
 async def get_class_error_patterns(
     exam_id: str,
     subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
@@ -542,6 +545,7 @@ async def get_class_error_patterns(
     return await class_error_patterns(
         db, exam_id=exam_id, school_id=role.school_id,
         subject_id=subject_id,
+        class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
     )
@@ -552,12 +556,16 @@ async def get_class_error_patterns(
 @router.get("/exam/{exam_id}/layer-analysis")
 async def get_layer_analysis(
     exam_id: str,
+    subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
     role = current["current_role"]
     return await layer_analysis(
         db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id,
+        class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
     )

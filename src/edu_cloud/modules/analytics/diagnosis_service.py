@@ -11,6 +11,34 @@ from edu_cloud.modules.student.models import Student
 UNMASTER_THRESHOLD = 0.6
 
 
+async def _get_concept_ids_for_subject(
+    db: AsyncSession, exam_id: str, school_id: str, subject_id: str,
+) -> set[str]:
+    """Return concept_ids linked to questions of the given subject via QKP."""
+    from edu_cloud.modules.exam.models import Subject, Question
+    from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+
+    subj = (await db.execute(
+        select(Subject.id).where(
+            Subject.id == subject_id,
+            Subject.exam_id == exam_id,
+            Subject.school_id == school_id,
+        )
+    )).scalar_one_or_none()
+    if not subj:
+        return set()
+
+    rows = (await db.execute(
+        select(QuestionKnowledgePoint.concept_id).distinct()
+        .join(Question, Question.id == QuestionKnowledgePoint.question_id)
+        .where(
+            Question.subject_id == subject_id,
+            Question.school_id == school_id,
+        )
+    )).scalars().all()
+    return set(rows)
+
+
 async def class_diagnosis(
     db: AsyncSession, *, exam_id: str, school_id: str,
     subject_id: str | None = None,
@@ -18,6 +46,21 @@ async def class_diagnosis(
     visible_class_ids: list[str] | None = None,
 ) -> dict:
     effective_class_ids = [class_id] if class_id else visible_class_ids
+
+    # Resolve concept_ids when subject_id is specified
+    subject_concept_ids: set[str] | None = None
+    if subject_id:
+        subject_concept_ids = await _get_concept_ids_for_subject(
+            db, exam_id, school_id, subject_id,
+        )
+        if not subject_concept_ids:
+            return {
+                "worstKnowledges": [],
+                "unmasterMaxCntKnowledges": [],
+                "maxScoreDiffKnowledges": [],
+                "weakKnpCount": 0,
+                "filtered_by_subject": True,
+            }
 
     stmt = (
         select(StudentKnpMastery)
@@ -29,6 +72,8 @@ async def class_diagnosis(
     )
     if effective_class_ids is not None:
         stmt = stmt.where(Student.class_id.in_(effective_class_ids))
+    if subject_concept_ids is not None:
+        stmt = stmt.where(StudentKnpMastery.concept_id.in_(subject_concept_ids))
 
     rows = list((await db.execute(stmt)).scalars().all())
     if not rows:
@@ -71,9 +116,12 @@ async def class_diagnosis(
 
     weak_count = math.floor(total_kps * 0.3)
 
-    return {
+    result = {
         "worstKnowledges": worst,
         "unmasterMaxCntKnowledges": unmaster,
         "maxScoreDiffKnowledges": max_diff,
         "weakKnpCount": weak_count,
     }
+    if subject_id:
+        result["filtered_by_subject"] = True
+    return result

@@ -397,6 +397,7 @@ async def class_knowledge(
 async def class_error_patterns(
     db: AsyncSession, *, exam_id: str, school_id: str,
     subject_id: str | None = None,
+    class_id: str | None = None,
     visible_subject_codes: list[str] | None = None,
     visible_class_ids: list[str] | None = None,
 ) -> dict:
@@ -434,7 +435,14 @@ async def class_error_patterns(
     identities = await resolve_student_identities(
         db, school_id=school_id, raw_student_ids=[row.student_id for row in rows],
     )
-    visible_set = set(visible_class_ids) if visible_class_ids is not None else None
+    # Narrow to single class when class_id is specified
+    if class_id:
+        if visible_class_ids is not None and class_id not in visible_class_ids:
+            return {"error_types": [], "classes": []}
+        effective_class_ids = [class_id]
+    else:
+        effective_class_ids = visible_class_ids
+    visible_set = set(effective_class_ids) if effective_class_ids is not None else None
 
     class_errors: dict[str, Counter] = defaultdict(Counter)
     all_types: set[str] = set()

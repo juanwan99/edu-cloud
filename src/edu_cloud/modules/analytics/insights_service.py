@@ -112,6 +112,7 @@ async def common_wrong_questions(
 async def question_insights(
     db: AsyncSession, *, exam_id: str, school_id: str,
     subject_id: str | None = None,
+    class_id: str | None = None,
     visible_subject_codes: list[str] | None = None,
     visible_class_ids: list[str] | None = None,
 ) -> dict:
@@ -135,6 +136,14 @@ async def question_insights(
 
     subj_ids = [s.id for s in subjects]
 
+    # Narrow class scope when class_id is specified
+    if class_id:
+        if visible_class_ids is not None and class_id not in visible_class_ids:
+            return {"questions": []}
+        scoped_class_ids = [class_id]
+    else:
+        scoped_class_ids = visible_class_ids
+
     # 查询所有 GradingResult（有 ai_raw_response 的）
     stmt = (
         select(
@@ -155,8 +164,8 @@ async def question_insights(
     identities = await resolve_student_identities(
         db, school_id=school_id, raw_student_ids=[row.student_id for row in rows],
     )
-    if visible_class_ids is not None:
-        visible_set = set(visible_class_ids)
+    if scoped_class_ids is not None:
+        visible_set = set(scoped_class_ids)
         rows = [
             row for row in rows
             if identities.get(row.student_id)
