@@ -224,6 +224,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Rate limiting (N-H08 brute-force protection for login endpoints)
+    from edu_cloud.core.rate_limit import limiter
+    from slowapi import _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
     # Module check middleware — hard block for disabled modules
     from edu_cloud.api.module_middleware import ModuleCheckMiddleware
     app.add_middleware(ModuleCheckMiddleware)

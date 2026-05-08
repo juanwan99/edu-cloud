@@ -50,6 +50,19 @@ import edu_cloud.models.teaching_plan  # noqa: F401 — TeachingPlan（S1-C 骨�
 from edu_cloud.shared.auth import create_access_token
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Reset slowapi rate limiter state between tests.
+
+    All ASGI test-client requests share the same IP (127.0.0.1), so without
+    resetting, the 5/minute login limit bleeds across test functions.
+    """
+    from edu_cloud.core.rate_limit import limiter
+    limiter.reset()
+    yield
+    limiter.reset()
+
+
 @pytest.fixture
 async def db_engine():
     """In-memory SQLite engine (shared with db fixture)."""

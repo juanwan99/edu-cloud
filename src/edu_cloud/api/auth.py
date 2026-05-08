@@ -4,10 +4,12 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 from edu_cloud.database import get_db
 from edu_cloud.shared.auth import create_access_token
 from edu_cloud.api.deps import get_current_user
 from edu_cloud.logging_config import business_event
+from edu_cloud.core.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +75,8 @@ class SwitchRoleRequest(BaseModel):
 
 
 @router.post("/login")
-async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request: Request, req: LoginRequest, db: AsyncSession = Depends(get_db)):
     # 优先查新 User 模型
     from edu_cloud.models.user import User
     from edu_cloud.models.user_role import UserRole
