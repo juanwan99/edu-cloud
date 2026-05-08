@@ -62,7 +62,7 @@ async def get_editor_layout(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
-    """获取科目的可视化编辑器布局（按 subject_id 文件隔离）。"""
+    """获取科目的可视化编辑器布局（仅从 editor_layouts/ 已保存文件加载）。"""
     result = await db.execute(
         select(Subject).where(Subject.id == subject_id, Subject.school_id == current["current_role"].school_id)
     )
@@ -70,13 +70,9 @@ async def get_editor_layout(
     if not subject:
         raise HTTPException(404, "Subject not found")
 
-    from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
-    default_layout = get_default_layout(subject.name)
-
     path = _editor_layout_path(current["current_role"].school_id, subject_id)
     if not path.exists():
-        return {"found": True, "layout": default_layout, "source": "default",
-                "config": default_layout.get("config", {}), "choices": []}
+        return {"found": False}
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -85,85 +81,16 @@ async def get_editor_layout(
 
     layout = data.get("layout") or {}
     if not isinstance(layout, dict):
-        return {"found": True, "layout": default_layout, "source": "default",
-                "config": default_layout.get("config", {}), "choices": []}
+        return {"found": False}
 
-    # 结构校验：default 是 A4 但 saved 是 A3 → 历史坏数据，丢弃 saved 结构
-    saved_paper = layout.get("paper") or layout.get("config", {}).get("paperSize", "A3")
-    default_paper = default_layout.get("paper", "A3")
-
-    structure_mismatch = (default_paper == "A4" and saved_paper != "A4")
-
-    # 扩展 A4 结构校验：A4 每面应只有 1 column [F01 修复]
-    if not structure_mismatch and saved_paper == "A4":
-        saved_sides = layout.get("sides", [])
-        for side in saved_sides:
-            if len(side.get("columns", [])) > 1:
-                structure_mismatch = True
-                break
-
-    if structure_mismatch:
-        # 丢弃 saved 的结构，只合并样式类 config（排除结构性字段）
-        saved_config = data.get("config", {}) or {}
-        layout_config = layout.get("config", {}) if isinstance(layout, dict) else {}
-        style_keys = {
-            "examTitle", "titleSize", "subtitleSize", "titleSpacing", "subtitleSpacing",
-            "titleGap", "subtitleGap", "infoHeight", "infoPadding", "infoRowGap",
-            "infoFontSize", "infoBorderWidth", "nameLineWidth", "digitCount", "digitBoxSize",
-            "digitGap", "barcodeWidthPct", "barcodeTitleSize", "noticeHeight", "noticeLabelWidth",
-            "noticeLabelSize", "noticeFontSize", "exampleWidth", "noticeBorderWidth",
-            "absentPadding", "zoom",
-        }
-        style_config = {k: v for k, v in {**layout_config, **saved_config}.items() if k in style_keys}
-        result_layout = dict(default_layout)
-        result_config = {**default_layout.get("config", {}), **style_config}
-        result_layout["config"] = result_config
-        logger.info("get_editor_layout: structure mismatch (saved=%s, default=%s), discarding saved structure",
-                     saved_paper, default_paper)
-        return {"found": True, "layout": result_layout, "source": "default",
-                "config": result_config, "choices": []}
-
-    # 结构一致：合并 config 并补回历史坏数据中丢失的 choiceGroups
     layout_config = layout.get("config", {})
     saved_config = data.get("config", {}) or {}
     merged_config = {**layout_config, **saved_config}
-
-    if not merged_config.get("choiceGroups"):
-        default_groups = default_layout.get("config", {}).get("choiceGroups", [])
-        if default_groups:
-            merged_config["choiceGroups"] = default_groups
-
     layout["config"] = {**layout.get("config", {}), **merged_config}
 
     return {"found": True, "layout": layout, "source": "saved", "config": merged_config, "choices": data.get("choices", [])}
 
 
-@router.get("/tql-reference/{subject_id}")
-async def get_tql_reference(
-    subject_id: str,
-    db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
-):
-    """返回 TQL 模板原始图片（base64 PNG），用于编辑器对照。"""
-    result = await db.execute(
-        select(Subject).where(Subject.id == subject_id, Subject.school_id == current["current_role"].school_id)
-    )
-    subject = result.scalar_one_or_none()
-    if not subject:
-        raise HTTPException(404, "Subject not found")
-
-    from edu_cloud.modules.card.rendering.subject_defaults import _TQL_FILES, _normalize_subject, _resolve_tql_path
-    tql_path_raw = _TQL_FILES.get(subject.name) or _TQL_FILES.get(_normalize_subject(subject.name))
-    if not tql_path_raw:
-        return {"found": False, "images": {}}
-
-    tql_path = _resolve_tql_path(tql_path_raw)
-    if not Path(tql_path).exists():
-        return {"found": False, "images": {}}
-
-    from edu_cloud.modules.card.rendering.tpl_parser import parse_tpl_file
-    sk = parse_tpl_file(tql_path)
-    return {"found": True, "images": sk.get("tpl_images", {})}
 
 
 @router.put("/editor-layout/{subject_id}")
@@ -260,8 +187,8 @@ async def auto_layout_card(
     else:
         raise HTTPException(400, "需要 answer_file 或 parsed_questions")
 
-    result = calculate_layout(parsed)
     layout = _load_layout(school_id, subject_id, subject.name)
+    result = calculate_layout(parsed, layout.get("config"), existing_layout=layout)
     layout = _apply_to_regions(layout, result)
     _save_layout(school_id, subject_id, layout)
 
@@ -496,9 +423,9 @@ async def parse_answers(
                 })
 
         if structured:
-            v2_layout_result = calculate_layout(structured)
             school_id = current["current_role"].school_id
             layout_data = _load_layout(school_id, subject_id, subject.name)
+            v2_layout_result = calculate_layout(structured, layout_data.get("config"), existing_layout=layout_data)
             layout_data = _apply_to_regions(layout_data, v2_layout_result)
             _save_layout(school_id, subject_id, layout_data)
             logger.info("parse_answers: v2 layout applied, subject=%s, questions=%d",

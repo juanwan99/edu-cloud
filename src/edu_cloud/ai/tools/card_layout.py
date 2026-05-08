@@ -156,18 +156,33 @@ def _estimate_fixed_height(config: dict) -> float:
     return FIXED_BASE_H + choice_rows * CHOICE_ROW_H
 
 
-def calculate_layout(parsed_questions: list[dict], config: dict | None = None) -> dict:
+def _extract_anchors(layout: dict) -> dict[int, tuple[str, int]]:
+    """从已有 layout 提取 qno → (side, col) 锚点映射。"""
+    anchors = {}
+    for side in layout.get("sides", []):
+        side_name = side.get("side", "A")
+        for col in side.get("columns", []):
+            col_idx = col.get("col", 0)
+            for region in col.get("regions", []):
+                if region.get("type") in ("essay", "fill") and region.get("qno"):
+                    anchors[region["qno"]] = (side_name, col_idx)
+    return anchors
+
+
+def calculate_layout(
+    parsed_questions: list[dict],
+    config: dict | None = None,
+    existing_layout: dict | None = None,
+) -> dict:
     """核心排版算法：计算空间分配 + 列分配。
 
-    解决约束装箱问题：
-    - 硬约束 C1: 任何题不超出列高
-    - 硬约束 C2: 题目保持顺序
-    - 硬约束 C3: col0 的 essay 排在 fixed 之后
-    - 优化: 最小化空白，各列尽量均匀
+    如果提供 existing_layout，按模板锚点约束分配（保持原位）；
+    无锚点时走全局最优分割装箱。
 
     Args:
         parsed_questions: [{qno, total_score, subs: [{sub, answers: [str]}]}, ...]
         config: layout config（用于计算 col0 fixed 高度）
+        existing_layout: 已有 layout（用于提取 qno→列 锚点）
     """
     if not parsed_questions:
         return {"questions": [], "columns": [], "total_estimated_lines": 0}
@@ -211,56 +226,48 @@ def calculate_layout(parsed_questions: list[dict], config: dict | None = None) -
         {"side": "B", "col": 2, "capacity": col_avail, "items": []},
     ]
 
-    # ── Step 3: 最优分割装箱（保持顺序） ──
-    # col0 贪心填（受 fixed 限制），剩余题目在 col1/col2 间做最优分割
-    # 如需 B 面，同样对 B 面 3 列做最优分割
+    # ── Step 3: 装箱 ──
+    # 策略 A（有模板锚点）：按锚点分配到原列，新题和溢出才重分配
+    # 策略 B（无锚点）：全局最优分割装箱
 
-    def _optimal_split_2(items: list, cap1: float, cap2: float) -> int:
-        """在保持顺序的前提下，找到最佳分割点使 max(左总高, 右总高) 最小。
+    slot_idx = {}  # (side, col) → slot index
+    for i, s in enumerate(slots):
+        slot_idx[(s["side"], s["col"])] = i
 
-        返回分割点 k：items[:k] 放 col_left，items[k:] 放 col_right。
-        """
-        if not items:
-            return 0
-        heights = [it["_height_mm"] for it in items]
-        total = sum(heights)
-        best_k, best_max = 0, total  # k=0 表示全部放右列
-        left_h = 0
-        for k in range(len(items) + 1):
-            right_h = total - left_h
-            col_max = max(left_h, right_h)
-            if col_max < best_max:
-                best_max = col_max
-                best_k = k
-            if k < len(items):
-                left_h += heights[k]
-        return best_k
+    anchors = _extract_anchors(existing_layout) if existing_layout else {}
 
-    def _assign_to_slots(items: list, target_slots: list):
-        """将有序题目列表分配到 2 或 3 个 slot 中（最优分割）。"""
+    def _assign_to_slots_optimal(items: list, target_slots: list):
+        """将有序题目列表分配到 3 个 slot 中（最优分割）。"""
         if len(target_slots) == 1 or not items:
             target_slots[0]["items"].extend(items)
             return
         if len(target_slots) == 2:
-            k = _optimal_split_2(items, target_slots[0]["capacity"], target_slots[1]["capacity"])
-            target_slots[0]["items"].extend(items[:k])
-            target_slots[1]["items"].extend(items[k:])
+            heights = [it["_height_mm"] for it in items]
+            total = sum(heights)
+            best_k, best_max = 0, total
+            left_h = 0
+            for k in range(len(items) + 1):
+                right_h = total - left_h
+                if max(left_h, right_h) < best_max:
+                    best_max = max(left_h, right_h)
+                    best_k = k
+                if k < len(items):
+                    left_h += heights[k]
+            target_slots[0]["items"].extend(items[:best_k])
+            target_slots[1]["items"].extend(items[best_k:])
             return
-        # 3 个 slot：枚举所有 (k1, k2) 分割点，直接计算 3 列惩罚成本
         heights = [it["_height_mm"] for it in items]
         n = len(items)
         caps = [s["capacity"] for s in target_slots]
-        prefix = [0] * (n + 1)
+        prefix = [0.0] * (n + 1)
         for i in range(n):
             prefix[i + 1] = prefix[i] + heights[i]
-
         best_k1, best_k2, best_cost = 0, 0, float("inf")
         for k1 in range(n + 1):
             h0 = prefix[k1]
             for k2 in range(k1, n + 1):
                 h1 = prefix[k2] - prefix[k1]
                 h2 = prefix[n] - prefix[k2]
-                # 超容量惩罚：超出部分 3 倍权重
                 cost = 0
                 for h, cap in zip([h0, h1, h2], caps):
                     pen = h + (h - cap) * 2 if h > cap else h
@@ -273,16 +280,67 @@ def calculate_layout(parsed_questions: list[dict], config: dict | None = None) -
         target_slots[1]["items"].extend(items[best_k1:best_k2])
         target_slots[2]["items"].extend(items[best_k2:])
 
-    # col0 容量受限（fixed 区域），全局最优分割需考虑 col0 的特殊容量
-    total_h = sum(r["_height_mm"] for r in results)
-    a_total_cap = slots[0]["capacity"] + slots[1]["capacity"] + slots[2]["capacity"]
+    if anchors:
+        # 策略 A：模板约束装箱
+        unanchored = []
+        for r in results:
+            anchor = anchors.get(r["qno"])
+            if anchor and anchor in slot_idx:
+                slots[slot_idx[anchor]]["items"].append(r)
+            else:
+                unanchored.append(r)
 
-    if total_h <= a_total_cap:
-        # A 面放得下：对 3 列做全局最优分割（col0 容量特殊）
-        _assign_to_slots(results, [slots[0], slots[1], slots[2]])
+        # 新增题目：按 qno 顺序插入到有剩余空间的列（优先 A 面）
+        for r in unanchored:
+            placed = False
+            for s in slots:
+                used = sum(it["_height_mm"] for it in s["items"])
+                if used + r["_height_mm"] <= s["capacity"]:
+                    s["items"].append(r)
+                    placed = True
+                    break
+            if not placed:
+                # 所有列都满：放到 B 面最后一列
+                slots[-1]["items"].append(r)
+
+        # 溢出处理：列超载时把末尾题目移到有空间的列
+        for si, s in enumerate(slots):
+            while len(s["items"]) > 1:
+                used = sum(it["_height_mm"] for it in s["items"])
+                if used <= s["capacity"]:
+                    break
+                evicted = s["items"].pop()
+                placed = False
+                for target in slots[si + 1:]:
+                    t_used = sum(it["_height_mm"] for it in target["items"])
+                    if t_used + evicted["_height_mm"] <= target["capacity"]:
+                        target["items"].append(evicted)
+                        placed = True
+                        break
+                if not placed:
+                    slots[-1]["items"].append(evicted)
+                    break
     else:
-        # 需要 B 面：A 面 3 列 + B 面 3 列
-        _assign_to_slots(results, slots[0:6])
+        # 策略 B：全局最优分割装箱（无模板时）
+        total_h = sum(r["_height_mm"] for r in results)
+        a_total_cap = slots[0]["capacity"] + slots[1]["capacity"] + slots[2]["capacity"]
+
+        if total_h <= a_total_cap:
+            _assign_to_slots_optimal(results, [slots[0], slots[1], slots[2]])
+        else:
+            _assign_to_slots_optimal(results, [slots[0], slots[1], slots[2]])
+            overflow = []
+            for s in slots[0:3]:
+                col_overflow = []
+                while s["items"]:
+                    used = sum(it["_height_mm"] for it in s["items"])
+                    if used <= s["capacity"] or len(s["items"]) <= 1:
+                        break
+                    col_overflow.append(s["items"].pop())
+                col_overflow.reverse()
+                overflow.extend(col_overflow)
+            if overflow:
+                _assign_to_slots_optimal(overflow, [slots[3], slots[4], slots[5]])
 
     # ── Step 4: 视觉理想高度计算 ──
     # 用视觉行数（短空配对、续行合并），不用 blank 原始计数
@@ -360,7 +418,11 @@ def _load_layout(school_id: str, subject_id: str, subject_name: str) -> dict:
     path = _get_layout_path(school_id, subject_id)
     if path.exists():
         try:
-            return json.loads(path.read_text(encoding="utf-8")).get("layout", {})
+            data = json.loads(path.read_text(encoding="utf-8"))
+            layout = data.get("layout", {})
+            if "config" not in layout and "config" in data:
+                layout["config"] = data["config"]
+            return layout
         except (json.JSONDecodeError, OSError):
             pass
     from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
@@ -368,19 +430,20 @@ def _load_layout(school_id: str, subject_id: str, subject_name: str) -> dict:
 
 
 def _apply_to_regions(layout: dict, layout_result: dict) -> dict:
-    """重建 layout 的列分配和 regions 结构。
+    """非破坏式 merge：按 qno 更新排版数据，保留用户手调字段。
 
-    根据 calculate_layout() 的装箱结果，重新分配 essay regions 到正确的列。
-    保留 col0 的 fixed regions 不动。
+    策略：
+    1. 已有 region 且 qno 匹配 → 更新 subs/blanks/heightRatio/score，保留 cuts/texts/images 等
+    2. 新增题目（模板中没有的 qno）→ 插入到有剩余空间的列
+    3. 删除题目（模板有但答案没有的 qno）→ 保留 region（用户手动删除）
     """
     qmap = {q["qno"]: q for q in layout_result["questions"]}
-    col_assign = {}  # (side, col) → [qno, ...]
+    col_assign = {}
     for col_info in layout_result.get("columns", []):
         key = (col_info["side"], col_info["col"])
         col_assign[key] = col_info["questions"]
 
     if not col_assign:
-        # fallback: 没有列分配信息，回退到旧逻辑
         for side in layout.get("sides", []):
             for col in side.get("columns", []):
                 for region in col.get("regions", []):
@@ -388,58 +451,77 @@ def _apply_to_regions(layout: dict, layout_result: dict) -> dict:
                         lq = qmap[region["qno"]]
                         region["heightRatio"] = lq["heightRatio"]
                         region["subs"] = lq["subs"]
+                        region["score"] = lq.get("score", region.get("score", 0))
         return layout
 
-    # 重建 sides/columns 结构
+    # 建立已有 region 索引：qno → region dict（保留引用）
+    existing_regions = {}
+    for side in layout.get("sides", []):
+        for col in side.get("columns", []):
+            for region in col.get("regions", []):
+                if region.get("type") in ("essay", "fill") and region.get("qno"):
+                    existing_regions[region["qno"]] = region
+
+    # 收集已分配的 qno 集合，用于检测新增题目
+    assigned_qnos = set()
+    for qnos in col_assign.values():
+        assigned_qnos.update(qnos)
+
     for side in layout.get("sides", []):
         side_name = side.get("side", "A")
-        new_columns = []
-
-        # 收集本面所有分配到的列号
-        side_cols = sorted(set(
-            col for (s, col) in col_assign if s == side_name
-        ))
-
-        # 确保至少有原始列结构
         orig_cols = {c["col"]: c for c in side.get("columns", [])}
 
-        # 确定本面需要的列号范围
-        max_col = max(side_cols) if side_cols else (max(orig_cols.keys()) if orig_cols else 2)
-        all_col_indices = list(range(max_col + 1))
+        side_col_nums = sorted(set(
+            col for (s, col) in col_assign if s == side_name
+        ))
+        max_col = max(side_col_nums) if side_col_nums else (max(orig_cols.keys()) if orig_cols else 2)
 
-        for ci in all_col_indices:
+        new_columns = []
+        for ci in range(max_col + 1):
             orig = orig_cols.get(ci, {"col": ci, "regions": []})
-            # 保留 fixed regions
             fixed_regions = [r for r in orig.get("regions", []) if r.get("type") == "fixed"]
 
-            # 构建本列的 essay regions
             qnos = col_assign.get((side_name, ci), [])
             essay_regions = []
             for qno in qnos:
                 if qno not in qmap:
                     continue
                 q = qmap[qno]
-                region_data = {
-                    "id": f"essay-Q{qno}",
-                    "type": "essay",
-                    "qno": qno,
-                    "score": q.get("score", 0),
-                    "subs": q["subs"],
-                    "heightRatio": q["heightRatio"],
-                    "_side": side_name,
-                    "_col": ci,
-                    "_sideIdx": 0 if side_name == "A" else 1,
-                }
-                if "targetHeight_mm" in q:
-                    region_data["targetHeight_mm"] = q["targetHeight_mm"]
-                essay_regions.append(region_data)
+
+                if qno in existing_regions:
+                    # merge：更新排版数据，保留用户手调字段
+                    region = dict(existing_regions[qno])
+                    region["subs"] = q["subs"]
+                    region["heightRatio"] = q["heightRatio"]
+                    region["score"] = q.get("score", region.get("score", 0))
+                    if "targetHeight_mm" in q:
+                        region["targetHeight_mm"] = q["targetHeight_mm"]
+                else:
+                    # 新增题目
+                    region = {
+                        "id": f"essay-Q{qno}",
+                        "type": "essay",
+                        "qno": qno,
+                        "score": q.get("score", 0),
+                        "subs": q["subs"],
+                        "heightRatio": q["heightRatio"],
+                    }
+                    if "targetHeight_mm" in q:
+                        region["targetHeight_mm"] = q["targetHeight_mm"]
+
+                essay_regions.append(region)
+
+            # 保留不在本次答案中的手工 region（用户手动添加的题目）
+            for r in orig.get("regions", []):
+                if r.get("type") in ("essay", "fill") and r.get("qno"):
+                    if r["qno"] not in assigned_qnos:
+                        essay_regions.append(r)
 
             col_data = {"col": ci, "regions": fixed_regions + essay_regions}
-            # 透传题间间距
-            col_info = next((c for c in layout_result.get("columns", [])
-                            if c["side"] == side_name and c["col"] == ci), None)
-            if col_info and col_info.get("qGap_mm"):
-                col_data["qGap_mm"] = col_info["qGap_mm"]
+            ci_info = next((c for c in layout_result.get("columns", [])
+                           if c["side"] == side_name and c["col"] == ci), None)
+            if ci_info and ci_info.get("qGap_mm"):
+                col_data["qGap_mm"] = ci_info["qGap_mm"]
             new_columns.append(col_data)
 
         side["columns"] = new_columns
@@ -527,7 +609,7 @@ async def card_auto_layout(input: dict, ctx: ToolContext) -> ToolResult:
         return ToolResult(success=False, error="科目不存在")
 
     layout = _load_layout(ctx.school_id, subject_id, subject.name)
-    layout_result = calculate_layout(parsed_questions, layout.get("config"))
+    layout_result = calculate_layout(parsed_questions, layout.get("config"), existing_layout=layout)
     layout = _apply_to_regions(layout, layout_result)
     _save_layout(ctx.school_id, subject_id, layout)
 

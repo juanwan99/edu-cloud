@@ -303,14 +303,12 @@ class TestEditorLayout:
         monkeypatch.setattr(cards_mod, "_EDITOR_LAYOUT_DIR", tmp_path)
 
     async def test_get_layout_not_found(self, client: AsyncClient, seed_subject):
-        """No saved layout → returns default template with source='default'."""
+        """No saved layout → returns found=False (no fallback)."""
         headers, _, subject_id = seed_subject
         resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
         assert resp.status_code == 200
         data = resp.json()
-        assert data["found"] is True
-        assert data["source"] == "default"
-        assert "layout" in data and data["layout"] is not None
+        assert data["found"] is False
 
     async def test_save_and_load_layout(self, client: AsyncClient, seed_subject):
         """Save layout → load returns it."""
@@ -415,8 +413,8 @@ class TestEditorLayout:
         assert resp2.json()["layout"]["tag"] == "exam2"
         assert resp2.json()["layout"]["paper"] == "A3"
 
-    async def test_english_returns_a4_layout(self, client: AsyncClient, seed_subject, db):
-        """英语科目应返回 A4 双面布局。[F03 修复: assert 而非 if]"""
+    async def test_english_returns_not_found_without_saved_layout(self, client: AsyncClient, seed_subject, db):
+        """英语科目无保存布局 → found=False（无 fallback）。"""
         headers, exam_id, _ = seed_subject
         eng = Subject(
             exam_id=exam_id, name="英语", code="english",
@@ -428,18 +426,10 @@ class TestEditorLayout:
 
         resp = await client.get(f"/api/v1/card/editor-layout/{eng.id}", headers=headers)
         assert resp.status_code == 200
-        data = resp.json()
-        assert data["found"] is True
-        layout = data["layout"]
-        paper = layout.get("paper") or layout.get("config", {}).get("paperSize")
-        assert paper == "A4", f"英语应返回 A4，实际返回 {paper}"
-        assert len(layout["sides"]) == 2
-        for side in layout["sides"]:
-            assert len(side["columns"]) == 1
-            assert side["columns"][0]["col"] == 0
+        assert resp.json()["found"] is False
 
-    async def test_chemistry_returns_correct_layout(self, client: AsyncClient, seed_subject, db):
-        """化学科目布局结构一致性（无论 A3/A4，结构必须合法）。[F02 R2 修复]"""
+    async def test_chemistry_returns_not_found_without_saved_layout(self, client: AsyncClient, seed_subject, db):
+        """化学科目无保存布局 → found=False（无 fallback）。"""
         headers, exam_id, _ = seed_subject
         chem = Subject(
             exam_id=exam_id, name="化学", code="chemistry",
@@ -451,26 +441,10 @@ class TestEditorLayout:
 
         resp = await client.get(f"/api/v1/card/editor-layout/{chem.id}", headers=headers)
         assert resp.status_code == 200
-        data = resp.json()
-        assert data["found"] is True
-        layout = data["layout"]
-        paper = layout.get("paper") or layout.get("config", {}).get("paperSize")
-        assert paper in ("A3", "A4"), f"化学纸型应为 A3 或 A4，实际: {paper}"
-        # 无论哪种纸型，结构必须一致：A4 单 col，A3 多 col
-        if paper == "A4":
-            for side in layout["sides"]:
-                assert len(side["columns"]) == 1, f"A4 side {side['side']} 应有 1 column"
-        else:
-            assert len(layout["sides"][0]["columns"]) >= 2, "A3 A面应有 ≥2 columns"
-        # essay regions 必须有 heightRatio
-        for side in layout["sides"]:
-            for col in side["columns"]:
-                for r in col.get("regions", []):
-                    if r.get("type") == "essay":
-                        assert "heightRatio" in r, f"essay region 缺 heightRatio: {r.get('id')}"
+        assert resp.json()["found"] is False
 
-    async def test_a3_fallback_subject_stays_a3(self, client: AsyncClient, seed_subject, db):
-        """A3 fallback 科目（数学，选择题≤30）不应被误升为 A4。[F02 R2 负向测试]"""
+    async def test_math_returns_not_found_without_saved_layout(self, client: AsyncClient, seed_subject, db):
+        """数学科目无保存布局 → found=False（无 fallback）。"""
         headers, exam_id, _ = seed_subject
         math = Subject(
             exam_id=exam_id, name="数学", code="math",
@@ -482,10 +456,7 @@ class TestEditorLayout:
 
         resp = await client.get(f"/api/v1/card/editor-layout/{math.id}", headers=headers)
         assert resp.status_code == 200
-        layout = resp.json()["layout"]
-        paper = layout.get("paper") or layout.get("config", {}).get("paperSize")
-        assert paper == "A3", f"数学 fallback 应返回 A3，实际返回 {paper}"
-        assert len(layout["sides"][0]["columns"]) >= 2, "A3 A面应有 ≥2 columns"
+        assert resp.json()["found"] is False
 
 
 class TestParseAnswersMetadata:
