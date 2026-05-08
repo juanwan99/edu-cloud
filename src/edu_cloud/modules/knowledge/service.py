@@ -50,8 +50,20 @@ async def get_children(db: AsyncSession, *, parent_id: str) -> list[ConceptGraph
 
 
 async def link_question(
-    db: AsyncSession, *, question_id: str, concept_id: str, is_primary: bool = True,
+    db: AsyncSession, *, question_id: str, concept_id: str,
+    is_primary: bool = True, school_id: str | None = None,
 ) -> QuestionKnowledgePoint:
+    if school_id:
+        from edu_cloud.modules.exam.models import Question
+        from fastapi import HTTPException
+        q = (await db.execute(
+            select(Question).where(
+                Question.id == question_id,
+                Question.school_id == school_id,
+            )
+        )).scalar_one_or_none()
+        if not q:
+            raise HTTPException(404, "Question not found")
     qkp = QuestionKnowledgePoint(
         question_id=question_id, concept_id=concept_id, is_primary=is_primary,
     )
@@ -67,8 +79,19 @@ async def link_question(
 
 
 async def get_question_knowledge_points(
-    db: AsyncSession, *, question_id: str,
+    db: AsyncSession, *, question_id: str, school_id: str | None = None,
 ) -> list[ConceptGraphNode]:
+    if school_id:
+        from edu_cloud.modules.exam.models import Question
+        from fastapi import HTTPException
+        q = (await db.execute(
+            select(Question).where(
+                Question.id == question_id,
+                Question.school_id == school_id,
+            )
+        )).scalar_one_or_none()
+        if not q:
+            raise HTTPException(404, "Question not found")
     stmt = (
         select(ConceptGraphNode)
         .join(QuestionKnowledgePoint, QuestionKnowledgePoint.concept_id == ConceptGraphNode.id)

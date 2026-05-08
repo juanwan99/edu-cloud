@@ -6,7 +6,9 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
+from edu_cloud.core.tenant import get_school_id
 from edu_cloud.modules.knowledge import service as knowledge_service
 
 logger = logging.getLogger(__name__)
@@ -70,11 +72,13 @@ class LinkRequest(BaseModel):
 async def link_question_to_kp(
     req: LinkRequest,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.EDIT_KNOWLEDGE_TREE)),
 ):
+    school_id = get_school_id(current)
     link = await knowledge_service.link_question(
         db, question_id=req.question_id,
         concept_id=req.concept_id, is_primary=req.is_primary,
+        school_id=school_id,
     )
     await db.commit()
     return {"id": link.id, "question_id": link.question_id,
@@ -87,5 +91,8 @@ async def get_question_kps(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
-    kps = await knowledge_service.get_question_knowledge_points(db, question_id=question_id)
+    school_id = get_school_id(current)
+    kps = await knowledge_service.get_question_knowledge_points(
+        db, question_id=question_id, school_id=school_id,
+    )
     return [_kp_response(kp) for kp in kps]
