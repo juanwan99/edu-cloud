@@ -395,6 +395,9 @@ async def set_exam_schedule(
     exam = await db.get(Exam, exam_id)
     if not exam:
         raise HTTPException(404, "考试不存在")
+    _current_school = current["current_role"].school_id
+    if _current_school and exam.school_id != _current_school:
+        raise HTTPException(404, "考试不存在")
 
     for item in body.subjects:
         subject = await db.get(Subject, item.subject_id)
@@ -430,6 +433,9 @@ async def get_exam_schedule(
     from edu_cloud.modules.exam.models import Exam
     exam = await db.get(Exam, exam_id)
     if not exam:
+        raise HTTPException(404, "考试不存在")
+    _current_school = current["current_role"].school_id
+    if _current_school and exam.school_id != _current_school:
         raise HTTPException(404, "考试不存在")
 
     stmt = select(Subject).where(Subject.exam_id == exam_id).order_by(Subject.code)

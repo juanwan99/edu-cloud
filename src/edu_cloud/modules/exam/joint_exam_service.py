@@ -60,10 +60,17 @@ class JointExamService:
             ],
         }
 
-    async def list_exams(self, status: str | None = None) -> list[JointExam]:
+    async def list_exams(self, status: str | None = None, school_id: str | None = None) -> list[JointExam]:
         q = select(JointExam)
         if status:
             q = q.where(JointExam.status == status)
+        if school_id:
+            q = q.where(
+                JointExam.id.in_(
+                    select(JointExamParticipant.joint_exam_id)
+                    .where(JointExamParticipant.school_id == school_id)
+                )
+            )
         q = q.order_by(JointExam.created_at.desc())
         return list((await self.db.execute(q)).scalars().all())
 

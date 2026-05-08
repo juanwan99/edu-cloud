@@ -642,7 +642,10 @@ async def grade_single_answer(
 
     # 9. 写入 GradingResult（upsert）
     existing_gr = (await db.execute(
-        select(GradingResult).where(GradingResult.answer_id == req.answer_id)
+        select(GradingResult).where(
+            GradingResult.answer_id == req.answer_id,
+            GradingResult.school_id == school_id,
+        )
     )).scalar_one_or_none()
 
     feedback = comment or result_data.get("feedback", "")

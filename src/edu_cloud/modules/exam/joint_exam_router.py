@@ -17,12 +17,14 @@ router = APIRouter(prefix="/api/v1/joint-exams", tags=["joint-exams"])
 class CreateExamRequest(BaseModel):
     name: str
     subjects: list[dict]
-    creator_school_id: str
     description: str | None = None
 
 
 class AddParticipantRequest(BaseModel):
     school_id: str
+
+
+_CROSS_SCHOOL_ROLES = {"platform_admin", "district_admin"}
 
 
 @router.post("", status_code=201)
@@ -31,11 +33,15 @@ async def create_exam(
     user=Depends(require_permission(Permission.CREATE_JOINT_EXAM)),
     db: AsyncSession = Depends(get_db),
 ):
+    creator_school_id = user["current_role"].school_id
+    if not creator_school_id:
+        from fastapi import HTTPException
+        raise HTTPException(400, "联考创建需要学校级角色，平台管理员请切换到学校角色后操作")
     svc = JointExamService(db, upload_dir=settings.UPLOAD_DIR)
     exam = await svc.create_exam(
         name=req.name,
         subjects=req.subjects,
-        creator_school_id=req.creator_school_id,
+        creator_school_id=creator_school_id,
         created_by=user["user"].id,
         description=req.description,
     )
@@ -52,8 +58,16 @@ async def list_exams(
     user=Depends(require_permission(Permission.VIEW_JOINT_EXAM)),
     db: AsyncSession = Depends(get_db),
 ):
+    role = user["current_role"].role
+    if role in _CROSS_SCHOOL_ROLES:
+        school_id = None
+    else:
+        school_id = user["current_role"].school_id
+        if not school_id:
+            from fastapi import HTTPException
+            raise HTTPException(403, "Role has no school_id")
     svc = JointExamService(db)
-    exams = await svc.list_exams(status=status)
+    exams = await svc.list_exams(status=status, school_id=school_id)
     return [
         {"id": e.id, "name": e.name, "status": e.status,
          "subjects": e.subjects, "created_at": str(e.created_at)}

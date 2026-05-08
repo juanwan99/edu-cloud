@@ -140,6 +140,10 @@ async def ai_chat(
             except Exception as e:
                 logger.warning("Failed to create audit session: %s", e)
 
+        existing = _sessions.get(session_id)
+        if existing and existing.owner_id != user.id:
+            raise HTTPException(403, "Session belongs to another user")
+
         school_id = getattr(role_obj, "school_id", None)
 
         # Session state + Anonymizer

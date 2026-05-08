@@ -12,15 +12,18 @@ class ResultsService:
         self.db = db
 
     async def get_rankings(
-        self, exam_id: str, subject_code: str | None = None,
+        self, exam_id: str, school_id: str | None = None,
+        subject_code: str | None = None,
     ) -> list[dict]:
         if subject_code:
             q = (
                 select(JointExamStudentResult)
                 .where(JointExamStudentResult.joint_exam_id == exam_id)
                 .where(JointExamStudentResult.subject_code == subject_code)
-                .order_by(JointExamStudentResult.total_score.desc())
             )
+            if school_id:
+                q = q.where(JointExamStudentResult.school_id == school_id)
+            q = q.order_by(JointExamStudentResult.total_score.desc())
             results = (await self.db.execute(q)).scalars().all()
             return [
                 {"rank": i + 1, "student_name": r.student_name,
@@ -37,7 +40,11 @@ class ResultsService:
                     func.sum(JointExamStudentResult.total_score).label("total"),
                 )
                 .where(JointExamStudentResult.joint_exam_id == exam_id)
-                .group_by(
+            )
+            if school_id:
+                q = q.where(JointExamStudentResult.school_id == school_id)
+            q = (
+                q.group_by(
                     JointExamStudentResult.student_number,
                     JointExamStudentResult.student_name,
                     JointExamStudentResult.school_id,
@@ -52,7 +59,7 @@ class ResultsService:
                 for i, r in enumerate(rows)
             ]
 
-    async def get_school_comparison(self, exam_id: str) -> list[dict]:
+    async def get_school_comparison(self, exam_id: str, school_id: str | None = None) -> list[dict]:
         q = (
             select(
                 JointExamStudentResult.school_id,
@@ -62,10 +69,12 @@ class ResultsService:
                 func.count().label("count"),
             )
             .where(JointExamStudentResult.joint_exam_id == exam_id)
-            .group_by(
-                JointExamStudentResult.school_id,
-                JointExamStudentResult.subject_code,
-            )
+        )
+        if school_id:
+            q = q.where(JointExamStudentResult.school_id == school_id)
+        q = q.group_by(
+            JointExamStudentResult.school_id,
+            JointExamStudentResult.subject_code,
         )
         rows = (await self.db.execute(q)).all()
 

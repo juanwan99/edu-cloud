@@ -11,6 +11,16 @@ from jose import ExpiredSignatureError, JWTError
 
 from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
 from edu_cloud.services.exceptions import PermissionDeniedError
+
+# Write permissions stripped during impersonation (read-only by default).
+_IMPERSONATION_BLOCKED_PERMISSIONS = {
+    Permission.MANAGE_EXAMS, Permission.MANAGE_GRADING,
+    Permission.MANAGE_HOMEWORK, Permission.MANAGE_SCHOOLS,
+    Permission.MANAGE_SCHOOL_CONFIG, Permission.MANAGE_SCHEDULING,
+    Permission.MANAGE_JOINT_EXAM, Permission.CREATE_JOINT_EXAM,
+    Permission.MANAGE_EXAM_RESULTS, Permission.MANAGE_CONDUCT,
+    Permission.MANAGE_CONDUCT_RULES, Permission.MANAGE_CONDUCT_PARENTS,
+}
 from edu_cloud.logging_config import business_event
 
 logger = logging.getLogger(__name__)
@@ -112,11 +122,13 @@ async def get_current_user(
             grade_ids=scope_override.get("grade_ids"),
         )
 
+        full_perms = ROLE_PERMISSIONS.get(effective_role, set())
+        read_only_perms = full_perms - _IMPERSONATION_BLOCKED_PERMISSIONS
         return {
             "user": user,
             "roles": [],
             "current_role": virtual_role,
-            "permissions": ROLE_PERMISSIONS.get(effective_role, set()),
+            "permissions": read_only_perms,
             "is_impersonation": True,
             "impersonator_id": impersonator_id,
         }

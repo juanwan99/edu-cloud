@@ -59,7 +59,7 @@ class GradingResult(Base, IdMixin, TimestampMixin):
     """
     __tablename__ = "grading_results"
     __table_args__ = (
-        UniqueConstraint("answer_id"),
+        UniqueConstraint("school_id", "answer_id"),
         Index("ix_grading_result_school_status", "school_id", "status"),
         Index("ix_grading_result_question", "question_id"),
         Index("ix_grading_result_task", "ai_task_id"),

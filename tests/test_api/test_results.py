@@ -1,5 +1,9 @@
 import pytest
 
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
+from edu_cloud.shared.auth import create_access_token
+
 
 @pytest.fixture
 async def results_setup(client, admin_headers, db):
@@ -15,11 +19,24 @@ async def results_setup(client, admin_headers, db):
     s1_id = r1.json()["id"]
     s2_id = r2.json()["id"]
 
+    user = User(username="rk_director", display_name="排名主任")
+    user.set_password("test123")
+    db.add(user)
+    await db.flush()
+    role = UserRole(
+        user_id=user.id, role="academic_director",
+        school_id=s1_id, is_primary=True,
+    )
+    db.add(role)
+    await db.commit()
+    await db.refresh(user)
+    token = create_access_token({"sub": user.id, "active_role_id": role.id})
+    director_headers = {"Authorization": f"Bearer {token}"}
+
     er = await client.post("/api/v1/joint-exams", json={
         "name": "排名测试联考",
         "subjects": [{"code": "YW", "name": "语文", "max_score": 150}],
-        "creator_school_id": s1_id,
-    }, headers=admin_headers)
+    }, headers=director_headers)
     exam_id = er.json()["id"]
 
     await client.post(f"/api/v1/joint-exams/{exam_id}/participants",
