@@ -82,6 +82,7 @@
 import { ref, computed, watch } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import CardEditor from '../../components/CardEditor.vue'
+import client from '../../api/client'
 
 const props = defineProps({
   examId: { type: String, required: true },
@@ -138,30 +139,15 @@ async function handleAutoLayout() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const token = localStorage.getItem('token')
-      const uploadHeaders = {}
-      if (token) uploadHeaders['Authorization'] = `Bearer ${token}`
-      const uploadResp = await fetch('/api/v1/card/upload-answer', {
-        method: 'POST', headers: uploadHeaders, body: formData,
+      const uploadResp = await client.post('/card/upload-answer', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       })
-      if (!uploadResp.ok) {
-        message.warning('文件上传失败')
-        return
-      }
-      const { file_path } = await uploadResp.json()
+      const { file_path } = uploadResp.data
 
-      const headers = { 'Content-Type': 'application/json' }
-      if (token) headers['Authorization'] = `Bearer ${token}`
-      const resp = await fetch(`/api/v1/card/auto-layout/${localSubjectId.value}`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ answer_file: file_path }),
+      const resp = await client.post(`/card/auto-layout/${localSubjectId.value}`, {
+        answer_file: file_path,
       })
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}))
-        message.warning(err.detail || `排版失败: HTTP ${resp.status}`)
-        return
-      }
-      const result = await resp.json()
+      const result = resp.data
       cardEditorRef.value.applyAutoLayout(result)
       message.success(`小微已为 ${result.subject} ${result.questions?.length || 0} 道题完成排版`)
     } catch (e) {

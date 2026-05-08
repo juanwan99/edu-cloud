@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useAuthStore } from './auth'
 import { createSSEProcessor } from '../utils/sseParser'
+import client from '../api/client'
 
 export const useAiChatStore = defineStore('aiChat', () => {
   const messages = ref([])
@@ -14,11 +15,8 @@ export const useAiChatStore = defineStore('aiChat', () => {
 
   async function checkHealth() {
     try {
-      const resp = await fetch('/api/v1/ai/health', {
-        headers: { Authorization: `Bearer ${authStore.token}` },
-      })
-      const data = await resp.json()
-      isAvailable.value = data.status === 'available'
+      const resp = await client.get('/ai/health')
+      isAvailable.value = resp.data.status === 'available'
     } catch {
       isAvailable.value = false
     }
@@ -32,6 +30,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
     error.value = null
 
     try {
+      // SSE 流式请求：必须保留 fetch，Axios 不支持 ReadableStream (response.body.getReader)
       const resp = await fetch('/api/v1/ai/chat', {
         method: 'POST',
         headers: {

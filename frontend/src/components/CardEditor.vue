@@ -117,6 +117,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import DOMPurify from 'dompurify'
+import client from '../api/client'
 
 const props = defineProps({
   examId: { type: String, required: true },
@@ -245,20 +246,14 @@ function needsRebuild(v) {
 
 async function saveToServer(config) {
   const status = document.getElementById('status')
-  const token = localStorage.getItem('token')
-  const headers = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
 
   try {
     // Save per-subject layout if subjectId is available
     if (props.subjectId && window._cardLayout) {
-      await fetch(`/api/v1/card/editor-layout/${props.subjectId}`, {
-        method: 'PUT', headers,
-        body: JSON.stringify({
-          layout: window._cardLayout,
-          config: config || window._cardLayout?.config || {},
-          choices: window._choices || [],
-        }),
+      await client.put(`/card/editor-layout/${props.subjectId}`, {
+        layout: window._cardLayout,
+        config: config || window._cardLayout?.config || {},
+        choices: window._choices || [],
       })
     }
     if (status) {
@@ -267,7 +262,7 @@ async function saveToServer(config) {
     }
   } catch (e) {
     if (status) {
-      status.textContent = '保存失败: ' + e.message
+      status.textContent = '保存失败: ' + (e.response?.data?.detail || e.message)
       status.className = 'status error'
     }
   }
@@ -384,81 +379,76 @@ function initDefaultChoices() {
 
 async function loadFromServer() {
   const status = document.getElementById('status')
-  const token = localStorage.getItem('token')
-  const headers = {}
-  if (token) headers['Authorization'] = `Bearer ${token}`
 
   let loaded = false
 
   // Try per-subject layout first
   if (props.subjectId) {
     try {
-      const resp = await fetch(`/api/v1/card/editor-layout/${props.subjectId}`, { headers })
-      if (resp.ok) {
-        const data = await resp.json()
-        if (data.found && data.layout) {
-          // 合并 config：layout.config 为底，saved config 覆盖，避免坏数据遮盖好数据
-          const layoutConfig = data.layout?.config || {}
-          const savedConfig = data.config || {}
-          const mergedConfig = { ...layoutConfig, ...savedConfig }
-          window._cardLayout = data.layout
-          if (window._cardLayout) {
-            window._cardLayout.config = mergedConfig
-            // paperSize 单一真值：layout.paper 为权威，同步到 config.paperSize
-            if (window._cardLayout.paper) {
-              mergedConfig.paperSize = window._cardLayout.paper
-            } else if (mergedConfig.paperSize) {
-              window._cardLayout.paper = mergedConfig.paperSize
-            }
+      const resp = await client.get(`/card/editor-layout/${props.subjectId}`)
+      const data = resp.data
+      if (data.found && data.layout) {
+        // 合并 config：layout.config 为底，saved config 覆盖，避免坏数据遮盖好数据
+        const layoutConfig = data.layout?.config || {}
+        const savedConfig = data.config || {}
+        const mergedConfig = { ...layoutConfig, ...savedConfig }
+        window._cardLayout = data.layout
+        if (window._cardLayout) {
+          window._cardLayout.config = mergedConfig
+          // paperSize 单一真值：layout.paper 为权威，同步到 config.paperSize
+          if (window._cardLayout.paper) {
+            mergedConfig.paperSize = window._cardLayout.paper
+          } else if (mergedConfig.paperSize) {
+            window._cardLayout.paper = mergedConfig.paperSize
           }
-          // 语文 B 面 essay 默认为作文类型
-          if (window._cardLayout?.sides && mergedConfig.subjectTitle?.includes('语文')) {
-            const sideB = window._cardLayout.sides[1]
-            if (sideB) {
-              for (const col of sideB.columns) {
-                for (const r of (col.regions || [])) {
-                  if (r.type === 'essay' && !r.qtype) r.qtype = 'essay_cn'
-                }
-              }
-            }
-          }
-          if (data.choices && data.choices.length > 0) {
-            window._choices = data.choices
-          } else {
-            // 从 choiceGroups 精确初始化 _choices（保留真实题号和选项数）
-            if (mergedConfig.choiceGroups && mergedConfig.choiceGroups.length > 0) {
-              window._choices = []
-              for (const g of mergedConfig.choiceGroups) {
-                for (let i = 0; i < g.count; i++) {
-                  window._choices.push({ qno: g.start + i, options: g.options })
-                }
-              }
-            } else if (mergedConfig.choiceCount > 0) {
-              // fallback: 无 choiceGroups 时用连续编号
-              window._choices = []
-              for (let i = 1; i <= mergedConfig.choiceCount; i++) {
-                window._choices.push({ qno: i, options: mergedConfig.optionCount || 4 })
-              }
-            }
-          }
-          // Restore config values to form controls
-          const config = mergedConfig
-          for (const [k, v] of Object.entries(config)) {
-            if (k === '_layout' || k === 'essayConfig') continue
-            const el = document.getElementById(k)
-            if (el) el.value = v
-          }
-          if (config.essayConfig) {
-            const el = document.getElementById('essayConfig')
-            if (el) el.value = JSON.stringify(config.essayConfig, null, 0)
-          }
-          const v = getValues()
-          for (const k of structuralKeys) lastStructural[k] = v[k]
-          lastStructural._essayConfigStr = JSON.stringify(v.essayConfig || [])
-          if (status) status.textContent = '已加载科目布局'
-          layoutFromServer = true
-          loaded = true
         }
+        // 语文 B 面 essay 默认为作文类型
+        if (window._cardLayout?.sides && mergedConfig.subjectTitle?.includes('语文')) {
+          const sideB = window._cardLayout.sides[1]
+          if (sideB) {
+            for (const col of sideB.columns) {
+              for (const r of (col.regions || [])) {
+                if (r.type === 'essay' && !r.qtype) r.qtype = 'essay_cn'
+              }
+            }
+          }
+        }
+        if (data.choices && data.choices.length > 0) {
+          window._choices = data.choices
+        } else {
+          // 从 choiceGroups 精确初始化 _choices（保留真实题号和选项数）
+          if (mergedConfig.choiceGroups && mergedConfig.choiceGroups.length > 0) {
+            window._choices = []
+            for (const g of mergedConfig.choiceGroups) {
+              for (let i = 0; i < g.count; i++) {
+                window._choices.push({ qno: g.start + i, options: g.options })
+              }
+            }
+          } else if (mergedConfig.choiceCount > 0) {
+            // fallback: 无 choiceGroups 时用连续编号
+            window._choices = []
+            for (let i = 1; i <= mergedConfig.choiceCount; i++) {
+              window._choices.push({ qno: i, options: mergedConfig.optionCount || 4 })
+            }
+          }
+        }
+        // Restore config values to form controls
+        const config = mergedConfig
+        for (const [k, v] of Object.entries(config)) {
+          if (k === '_layout' || k === 'essayConfig') continue
+          const el = document.getElementById(k)
+          if (el) el.value = v
+        }
+        if (config.essayConfig) {
+          const el = document.getElementById('essayConfig')
+          if (el) el.value = JSON.stringify(config.essayConfig, null, 0)
+        }
+        const v = getValues()
+        for (const k of structuralKeys) lastStructural[k] = v[k]
+        lastStructural._essayConfigStr = JSON.stringify(v.essayConfig || [])
+        if (status) status.textContent = '已加载科目布局'
+        layoutFromServer = true
+        loaded = true
       }
     } catch { /* no subject layout */ }
   }
@@ -644,11 +634,8 @@ async function save() {
 async function resetToDefault() {
   if (!props.subjectId) return
   const status = document.getElementById('status')
-  const token = localStorage.getItem('token')
-  const headers = {}
-  if (token) headers['Authorization'] = `Bearer ${token}`
   try {
-    await fetch(`/api/v1/card/editor-layout/${props.subjectId}`, { method: 'DELETE', headers })
+    await client.delete(`/card/editor-layout/${props.subjectId}`)
     layoutFromServer = false
     window._cardLayout = null
     window._choices = []

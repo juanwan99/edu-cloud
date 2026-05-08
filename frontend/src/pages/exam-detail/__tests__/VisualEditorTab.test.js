@@ -96,6 +96,10 @@ describe('VisualEditorTab imports', () => {
     expect(src).toContain("import CardEditor from '../../components/CardEditor.vue'")
   })
 
+  it('imports Axios client', () => {
+    expect(src).toContain("import client from '../../api/client'")
+  })
+
   it('uses useMessage and useDialog', () => {
     expect(src).toContain('useMessage')
     expect(src).toContain('useDialog')
@@ -154,13 +158,13 @@ describe('VisualEditorTab handleAutoLayout', () => {
     expect(src).toContain("input.accept = '.docx'")
   })
 
-  it('uploads file via fetch to upload-answer endpoint', () => {
-    expect(src).toContain("'/api/v1/card/upload-answer'")
-    expect(src).toContain("method: 'POST'")
+  it('uploads file via Axios client to upload-answer endpoint', () => {
+    expect(src).toContain("'/card/upload-answer'")
+    expect(src).toContain("client.post")
   })
 
   it('calls auto-layout endpoint with subject ID', () => {
-    expect(src).toContain('`/api/v1/card/auto-layout/${localSubjectId.value}`')
+    expect(src).toContain('`/card/auto-layout/${localSubjectId.value}`')
   })
 
   it('applies layout result via cardEditorRef', () => {

@@ -1,11 +1,5 @@
 // export.js — PDF 和 skeleton JSON 导出
-
-function getAuthHeaders() {
-  const headers = { 'Content-Type': 'application/json' };
-  const token = localStorage.getItem('token');
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return headers;
-}
+import client from '../api/client'
 
 function getCurrentPaperSize() {
   return window._getValues?.()?.paperSize || 'A3';
@@ -22,14 +16,10 @@ export function initExport() {
       btnPdf.textContent = '导出中...';
       try {
         const html = await getCleanHTML();
-        const resp = await fetch('/api/v1/card/export/pdf', {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ html, paper_size: getCurrentPaperSize() }),
-        });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const blob = await resp.blob();
-        downloadBlob(blob, '答题卡.pdf');
+        const resp = await client.post('/card/export/pdf', {
+          html, paper_size: getCurrentPaperSize(),
+        }, { responseType: 'blob' });
+        downloadBlob(resp.data, '答题卡.pdf');
         status.textContent = 'PDF 导出成功';
         status.className = 'status';
       } catch (e) {
@@ -48,14 +38,10 @@ export function initExport() {
       btnSkeleton.textContent = '提取中...';
       try {
         const html = await getCleanHTML();
-        const resp = await fetch('/api/v1/card/export/skeleton', {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ html, paper_size: getCurrentPaperSize() }),
+        const resp = await client.post('/card/export/skeleton', {
+          html, paper_size: getCurrentPaperSize(),
         });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const json = await resp.json();
-        const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify(resp.data, null, 2)], { type: 'application/json' });
         downloadBlob(blob, 'skeleton.json');
         status.textContent = 'Skeleton 导出成功';
         status.className = 'status';
@@ -178,23 +164,16 @@ function downloadBlob(blob, filename) {
 export async function publishCard(subjectId, examId, filename = '答题卡.pdf') {
   const html = await getCleanHTML();
   const paperSize = getCurrentPaperSize();
-  const headers = getAuthHeaders();
 
-  const resp = await fetch('/api/v1/card/publish', {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      html,
-      subject_id: subjectId,
-      exam_id: examId,
-      paper_size: paperSize,
-    }),
-  });
-  if (!resp.ok) throw new Error(`发布失败: HTTP ${resp.status}`);
+  const resp = await client.post('/card/publish', {
+    html,
+    subject_id: subjectId,
+    exam_id: examId,
+    paper_size: paperSize,
+  }, { responseType: 'blob' });
 
-  const pdfBlob = await resp.blob();
-  downloadBlob(pdfBlob, filename);
-  return { pdf: pdfBlob };
+  downloadBlob(resp.data, filename);
+  return { pdf: resp.data };
 }
 
 // Expose getCleanHTML for external use
@@ -209,7 +188,6 @@ export { getCleanHTML };
  */
 export async function batchExportPdf(subjects, examTitle = '', onProgress = null) {
   const { renderFromLayout, applyCSSToPage } = await import('@/card-editor/render.js')
-  const headers = getAuthHeaders()
 
   // 创建隐藏渲染容器（宽度按科目纸型动态设置）
   const container = document.createElement('div')
@@ -234,9 +212,7 @@ export async function batchExportPdf(subjects, examTitle = '', onProgress = null
 
     try {
       // 1. 加载科目布局
-      const resp = await fetch(`/api/v1/card/editor-layout/${subj.id}`, { headers })
-      if (!resp.ok) { results.push({ name: subj.name, error: `HTTP ${resp.status}` }); continue }
-      const data = await resp.json()
+      const { data } = await client.get(`/card/editor-layout/${subj.id}`)
       if (!data.found || !data.layout) { results.push({ name: subj.name, error: '无布局数据' }); continue }
 
       const layout = data.layout
@@ -282,13 +258,11 @@ body { font-family: SimSun, "宋体", "Noto Serif CJK SC", serif; background: wh
 </style></head><body>${pagesHTML}</body></html>`
 
       // 4. 调用后端 PDF 接口
-      const pdfResp = await fetch('/api/v1/card/export/pdf', {
-        method: 'POST', headers,
-        body: JSON.stringify({ html: fullHTML, paper_size: paperSize }),
-      })
-      if (!pdfResp.ok) { results.push({ name: subj.name, error: `PDF 导出失败 HTTP ${pdfResp.status}` }); continue }
+      const pdfResp = await client.post('/card/export/pdf', {
+        html: fullHTML, paper_size: paperSize,
+      }, { responseType: 'blob' })
 
-      const blob = await pdfResp.blob()
+      const blob = pdfResp.data
       downloadBlob(blob, `答题卡_${subj.name}.pdf`)
       results.push({ name: subj.name, ok: true })
 
