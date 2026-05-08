@@ -54,12 +54,11 @@ QUESTION_ORDER = [
     ("生物", "28"),
     ("生物", "29"),
     ("生物", "30"),
-    ("生物", "31"),
 ]
 
 # Q26+Q31 是同一道题（Q31 是 Q26 的图表部分，拆分打分）
 # 人工把两者合在一起打（Q26 最高 14 分），AI 拆开打（Q26 满分 12 + Q31 满分 2）
-# 人机对比时需要合并 AI 的 Q26+Q31 分数
+# Panel1: 合并 AI 分数对比人工；Panel2: 合并 Q31 的答题数据到 Q26
 MERGED_QUESTIONS = {("生物", "31"): ("生物", "26")}
 
 UTC8 = timezone(timedelta(hours=8))
@@ -73,10 +72,11 @@ def main() -> None:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     try:
-        # Load raw rows per question (with ai_score, final_score, ai_raw_response)
+        # Load all questions including merged children (Q31)
+        all_qnos = list(QUESTION_ORDER) + list(MERGED_QUESTIONS.keys())
         rows_by_question = {
             (subject, qno): load_question_rows(conn, subject, qno)
-            for subject, qno in QUESTION_ORDER
+            for subject, qno in all_qnos
         }
         subject_totals = build_subject_totals(rows_by_question)
 
@@ -84,17 +84,20 @@ def main() -> None:
         answer_by_question = {}
         for subject, qno in QUESTION_ORDER:
             key = f"{subject}_Q{qno}"
+            # Merge child question rows into parent
+            merged_rows = list(rows_by_question[(subject, qno)])
+            for (child_s, child_q), (parent_s, parent_q) in MERGED_QUESTIONS.items():
+                if parent_s == subject and parent_q == qno:
+                    merged_rows.extend(rows_by_question.get((child_s, child_q), []))
             answer_by_question[key] = summarize_question(
-                subject, qno, rows_by_question[(subject, qno)],
+                subject, qno, merged_rows,
                 subject_totals.get(subject, {}),
             )
-        # Apply Q31 exclusion filter
-        answer_by_question = filter_full_data(answer_by_question)
 
         # Build per-question quality comparison data (panel 1 source)
         comparison_rows = {
             (subject, qno): load_comparison_rows(conn, subject, qno)
-            for subject, qno in QUESTION_ORDER
+            for subject, qno in all_qnos
         }
 
         subjects = sorted({s for s, _ in QUESTION_ORDER})
