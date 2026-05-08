@@ -108,29 +108,32 @@ const examOptions = computed(() => {
 // --- Helpers ---
 
 function collectExams() {
-  if (!selectedGrade.value || !selectedSubjectCode.value) return []
-  if (selectedClassId.value === 'all') {
-    // Merge exams for the subject across all real classes
-    const seen = new Set()
-    const merged = []
-    for (const cls of selectedGrade.value.classes || []) {
-      if (cls.id === 'all') continue
-      const subj = (cls.subjects || []).find(s => s.code === selectedSubjectCode.value)
-      if (!subj) continue
+  if (!selectedGrade.value) return []
+  const code = selectedSubjectCode.value
+  const seen = new Set()
+  const merged = []
+
+  function addExams(subjects) {
+    for (const subj of subjects) {
+      if (code && subj.code !== code) continue
       for (const ex of subj.exams || []) {
         if (!seen.has(ex.id)) {
           seen.add(ex.id)
-          merged.push(ex)
+          merged.push({ ...ex })
         }
       }
     }
-    return merged
   }
-  if (!selectedClass.value) return []
-  const subj = (selectedClass.value.subjects || []).find(
-    s => s.code === selectedSubjectCode.value
-  )
-  return subj?.exams || []
+
+  if (selectedClassId.value === 'all' || !code) {
+    for (const cls of selectedGrade.value.classes || []) {
+      if (cls.id === 'all') continue
+      addExams(cls.subjects || [])
+    }
+  } else if (selectedClass.value) {
+    addExams(selectedClass.value.subjects || [])
+  }
+  return merged
 }
 
 function autoSelectFirst(options, setter) {

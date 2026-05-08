@@ -583,7 +583,9 @@ async function runQuery() {
   }
 }
 
+let filterSeq = 0
 async function onFilterChange(payload) {
+  const seq = ++filterSeq
   selectedExamId.value = payload.examId
   selectedSubjectId.value = payload.subjectId
   selectedClassId.value = payload.classId
@@ -592,6 +594,7 @@ async function onFilterChange(payload) {
   exportSubjectId.value = null
   basicReport.value = null
   await loadSubjects(payload.examId)
+  if (seq !== filterSeq) return
   if (payload.examId) await runQuery()
 }
 
