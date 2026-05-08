@@ -300,7 +300,11 @@ async def _grade_single(
                 _raw = _json.loads(grade_result.raw_content)
                 _details = _raw.get("details")
             except Exception:
-                pass
+                logger.warning(
+                    "Failed to parse grading raw_content for answer %s",
+                    ad.get("answer_id", "unknown"),
+                    exc_info=True,
+                )
 
             return {
                 "answer_id": answer_id, "question_id": question_id,
@@ -665,7 +669,12 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
                         parts.append(types.Part.from_bytes(data=ref_resized, mime_type=ref_mime))
                         has_ref = True
                     except Exception:
-                        pass
+                        logger.warning(
+                            "Failed to load reference image %s for answer %s",
+                            ref_path,
+                            ad.get("answer_id", "unknown"),
+                            exc_info=True,
+                        )
                 if has_ref:
                     prompt = "【第1张图片】学生作答\n【第2张图片】标准答案（请对比评分）\n\n" + prompt
                 parts.append(types.Part.from_text(text=prompt))
