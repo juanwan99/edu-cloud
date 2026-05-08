@@ -13,7 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import require_permission
+from edu_cloud.core.permissions import Permission
 from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Exam, Subject
 from edu_cloud.modules.card.models import Template
@@ -38,7 +39,7 @@ class CardGenerateV2Request(BaseModel):
 async def generate_card_v2(
     body: CardGenerateV2Request,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """v2 答题卡生成：接收布局 JSON → 渲染 PDF + 写入 Template。"""
     from edu_cloud.modules.card.router import _get_skeleton_data
@@ -115,7 +116,7 @@ async def generate_card_v2(
 async def preview_card_v2(
     body: CardGenerateV2Request,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """v2 预览：渲染 PDF 但不写入 Template。"""
     from edu_cloud.modules.card.router import _get_skeleton_data
@@ -158,7 +159,7 @@ class HtmlExportRequest(BaseModel):
 @router.post("/export/pdf")
 async def export_card_pdf(
     body: HtmlExportRequest,
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """接收完整 HTML，用 playwright 转 PDF 返回。"""
     from edu_cloud.modules.card.export.html_export import html_to_pdf
@@ -170,7 +171,7 @@ async def export_card_pdf(
 @router.post("/export/skeleton")
 async def export_card_skeleton(
     body: HtmlExportRequest,
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """接收完整 HTML，提取 skeleton JSON 返回。"""
     from edu_cloud.modules.card.export.html_export import extract_skeleton
@@ -189,7 +190,7 @@ class PublishCardRequest(BaseModel):
 async def publish_card(
     body: PublishCardRequest,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """原子发布答题卡：HTML→PDF + upsert Question + 双面 Template + status→scanning。
 
@@ -216,7 +217,7 @@ async def publish_card(
 async def render_doc_pages(
     file: UploadFile = File(...),
     subject_id: str = Form(None),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """将上传的 Word/PDF 文档渲染为页面图片，返回每页 URL 和尺寸。"""
     import fitz  # pymupdf
@@ -283,7 +284,7 @@ async def render_doc_pages(
 @router.get("/doc-pages")
 async def get_doc_pages(
     subject_id: str,
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """查询科目已有的文档页面图片。"""
     upload_root = Path(settings.UPLOAD_DIR).resolve()
@@ -311,7 +312,7 @@ async def get_doc_pages(
 @router.get("/doc-page-image")
 async def get_doc_page_image(
     path: str,
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """通过 API 路径代理 doc-pages 图片，避免 nginx 不代理 /uploads 的问题。"""
     from starlette.responses import FileResponse

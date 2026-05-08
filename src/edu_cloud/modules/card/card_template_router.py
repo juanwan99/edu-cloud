@@ -10,7 +10,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import require_permission
+from edu_cloud.core.permissions import Permission
 from edu_cloud.modules.card.models import CardSkeleton
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ router = APIRouter()
 async def download_answer_template(
     subject_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """根据科目题目列表生成 Word 答案模板骨架，教师下载后填答案。"""
     from edu_cloud.modules.exam.models import Question, Subject
@@ -75,7 +76,7 @@ async def download_answer_template(
 
 @router.get("/templates/builtin")
 async def list_builtin_templates(
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """列出所有内置模板科目。"""
     from edu_cloud.modules.card.template.template_library import list_builtin_subjects
@@ -85,7 +86,7 @@ async def list_builtin_templates(
 @router.get("/templates/builtin/{subject}")
 async def get_builtin_template_detail(
     subject: str,
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """获取内置模板详情。"""
     from edu_cloud.modules.card.template.template_library import get_builtin_template
@@ -102,7 +103,7 @@ async def import_skeleton(
     file: UploadFile = File(...),
     subject_code: str = Form(...),
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """上传 .tpl 文件，解析为 CardSkeleton 并存入数据库。"""
     if not file.filename or not file.filename.endswith(".tpl"):
@@ -162,7 +163,7 @@ async def import_skeleton(
 @router.get("/skeleton/list")
 async def list_skeletons(
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """列出当前学校所有已导入骨架。"""
     result = await db.execute(
@@ -188,7 +189,7 @@ async def list_skeletons(
 async def get_skeleton(
     subject_code: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """获取骨架详情。"""
     result = await db.execute(
@@ -212,7 +213,7 @@ async def get_skeleton(
 async def delete_skeleton(
     subject_code: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """删除骨架。"""
     result = await db.execute(

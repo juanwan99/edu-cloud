@@ -26,7 +26,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import require_permission
+from edu_cloud.core.permissions import Permission
 from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Exam, Subject
 from edu_cloud.modules.card.models import Template, CardSkeleton
@@ -60,7 +61,7 @@ def _editor_layout_path(school_id: str, subject_id: str) -> Path:
 async def get_editor_layout(
     subject_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """获取科目的可视化编辑器布局（仅从 editor_layouts/ 已保存文件加载）。"""
     result = await db.execute(
@@ -98,7 +99,7 @@ async def save_editor_layout(
     subject_id: str,
     body: EditorLayoutBody,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """保存科目的可视化编辑器布局（按 subject_id 文件隔离）。"""
     result = await db.execute(
@@ -118,7 +119,7 @@ async def save_editor_layout(
 async def reset_editor_layout(
     subject_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """删除保存的编辑器布局，恢复为系统默认模板。"""
     result = await db.execute(
@@ -137,7 +138,7 @@ async def reset_editor_layout(
 @router.post("/upload-answer")
 async def upload_answer_file(
     file: UploadFile = File(...),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """上传答案文件（.docx）到临时目录，返回文件路径供 auto-layout 使用。"""
     import tempfile
@@ -161,7 +162,7 @@ async def auto_layout_card(
     subject_id: str,
     body: AutoLayoutRequest,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """小微智能排版：解析答案文件 → 计算空间分配 → 保存到编辑器布局。"""
     from edu_cloud.ai.tools.card_layout import calculate_layout, _load_layout, _apply_to_regions, _save_layout
@@ -201,7 +202,7 @@ async def generate_barcode(
     file: UploadFile = File(...),
     barcode_column: str = Form("准考证号"),
     name_column: str = Form("姓名"),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """上传学生 Excel，生成条码贴纸 PDF。"""
     if not file.filename or not file.filename.endswith((".xlsx", ".xls")):
@@ -286,7 +287,7 @@ async def parse_answers(
     paper_size: str = Form("A3"),
     sides: str = Form("duplex"),
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """解析答案文件（Word/PDF）→ LLM 标准化 → 自动创建题目 → 返回权重 + 骨架 + 布局。
 
@@ -473,7 +474,7 @@ class WeightsPreviewRequest(BaseModel):
 async def preview_by_weights(
     body: WeightsPreviewRequest,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """根据调整后权重重算布局并渲染预览 PDF。"""
     skeleton = body.skeleton
@@ -517,7 +518,7 @@ async def export_template_json(
     exam_id: str,
     subject_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """导出 paper-seg 兼容的切割模板 JSON。"""
     subj_result = await db.execute(
