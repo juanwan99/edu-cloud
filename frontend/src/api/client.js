@@ -17,7 +17,23 @@ const client = axios.create({ baseURL: '/api/v1' })
 
 client.interceptors.request.use(config => {
   const token = localStorage.getItem('token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (token) {
+    try {
+      const [, payloadB64] = token.split('.')
+      if (payloadB64) {
+        const base64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/')
+        const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=')
+        const payload = JSON.parse(atob(padded))
+        if (payload.exp && payload.exp * 1000 - Date.now() < 5 * 60 * 1000) {
+          localStorage.removeItem('token')
+          localStorage.removeItem('auth_state')
+          window.location.href = '/login'
+          return Promise.reject(new Error('Token expired'))
+        }
+      }
+    } catch { /* malformed token — let backend 401 handle */ }
+    config.headers.Authorization = `Bearer ${token}`
+  }
 
   // Attach trace/request IDs
   const requestId = 'rq_' + randomHex12()

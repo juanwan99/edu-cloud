@@ -4,6 +4,16 @@ import { SCHOOL_ADMIN_ROLES, EXAM_ROLES, MARKING_ROLES, GRADING_DISPATCH_ROLES, 
 import { hasPermission } from '../config/permissions.js'
 import clientLogger from '../utils/clientLogger.js'
 
+function decodeJwtPayload(token) {
+  try {
+    const base64Url = token.split('.')[1]
+    if (!base64Url) return null
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=')
+    return JSON.parse(atob(padded))
+  } catch { return null }
+}
+
 // Frozen 2026-04-19: only exam + grading + personnel
 // Full version: router/_frozen/index.full.js
 
@@ -122,7 +132,16 @@ export function authGuard(to, from, next) {
   if (to.path.startsWith('/parent')) return next()
 
   const requiresAuth = to.matched.some(r => r.meta.requiresAuth)
-  const token = localStorage.getItem('token')
+  let token = localStorage.getItem('token')
+
+  if (token) {
+    const payload = decodeJwtPayload(token)
+    if (!payload || (payload.exp && payload.exp * 1000 < Date.now())) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('auth_state')
+      token = null
+    }
+  }
 
   if (requiresAuth && !token) return next('/login')
   if (token && to.path === '/login') return next('/')

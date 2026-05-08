@@ -130,7 +130,7 @@ describe('authGuard (real guard function)', () => {
   })
 
   it('allows access to protected route with token and valid auth_state', async () => {
-    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     localStorage.setItem('auth_state', JSON.stringify({
       roles: [{ role: 'academic_director', context: {} }],
       currentRoleIndex: 0,
@@ -149,7 +149,7 @@ describe('authGuard (real guard function)', () => {
   })
 
   it('allows root with token', async () => {
-    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     const router = createTestRouter()
     await router.push('/')
     await router.isReady()
@@ -157,7 +157,7 @@ describe('authGuard (real guard function)', () => {
   })
 
   it('redirects /login to / when already authenticated', async () => {
-    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     const router = createTestRouter()
     await router.push('/login')
     await router.isReady()
@@ -165,7 +165,7 @@ describe('authGuard (real guard function)', () => {
   })
 
   it('redirects to / when role not allowed for route', async () => {
-    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     localStorage.setItem('auth_state', JSON.stringify({
       roles: [{ role: 'parent', context: {} }],
       currentRoleIndex: 0,
@@ -177,7 +177,7 @@ describe('authGuard (real guard function)', () => {
   })
 
   it('allows access when role is in allowed list', async () => {
-    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     localStorage.setItem('auth_state', JSON.stringify({
       roles: [{ role: 'academic_director', context: {} }],
       currentRoleIndex: 0,
@@ -189,7 +189,7 @@ describe('authGuard (real guard function)', () => {
   })
 
   it('redirects when permission not met', async () => {
-    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     localStorage.setItem('auth_state', JSON.stringify({
       roles: [{ role: 'parent', context: {} }],
       currentRoleIndex: 0,
@@ -201,7 +201,7 @@ describe('authGuard (real guard function)', () => {
   })
 
   it('allows access when permission is met', async () => {
-    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     localStorage.setItem('auth_state', JSON.stringify({
       roles: [{ role: 'platform_admin', context: {} }],
       currentRoleIndex: 0,
@@ -213,7 +213,7 @@ describe('authGuard (real guard function)', () => {
   })
 
   it('normalizes legacy role aliases for route guard', async () => {
-    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     localStorage.setItem('auth_state', JSON.stringify({
       roles: [{ role: 'teacher', context: {} }],
       currentRoleIndex: 0,
@@ -226,7 +226,7 @@ describe('authGuard (real guard function)', () => {
   })
 
   it('/marking/assign redirects to /grading/tasks with tab=assign', async () => {
-    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     localStorage.setItem('auth_state', JSON.stringify({
       roles: [{ role: 'academic_director', context: {} }],
       currentRoleIndex: 0,
@@ -239,7 +239,7 @@ describe('authGuard (real guard function)', () => {
   })
 
   it('redirects to / when auth_state missing but token exists (fail-closed)', async () => {
-    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     // No auth_state set
     const router = createTestRouter()
     await router.push('/schools')
@@ -248,7 +248,7 @@ describe('authGuard (real guard function)', () => {
   })
 
   it('redirects to / when auth_state is corrupt (fail-closed)', async () => {
-    localStorage.setItem('token', 'test-jwt-token')
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     localStorage.setItem('auth_state', '{corrupt json')
     const router = createTestRouter()
     await router.push('/exams')
