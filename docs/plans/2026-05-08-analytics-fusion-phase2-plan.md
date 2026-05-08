@@ -66,7 +66,10 @@
 - 目标目录：`frontend/src/`（Naive UI 主前端）
 - 生产 serving：nginx 443 → `frontend/dist/`
 - 用户访问：`https://mcu.asia`
-- 构建命令：`cd frontend && npx vite build`
+- 前端构建：`cd frontend && npx vite build`
+- 后端测试：`.venv/bin/python -m pytest --tb=short -q`
+- 前端测试：`cd frontend && npx vitest run`
+- migration：`python scripts/db_migrate`（T4 新增 ai_diagnosis_cache 表）
 
 ---
 
@@ -189,15 +192,15 @@
 
 **目标**：确保 6 Tab 与现有独立页面的路由兼容
 
-**改动范围**：
+**改动范围**（R2-F-005 修正：侧栏回归共识 2 入口）：
 - `/analytics/report` 渲染 6 Tab 工作台（主入口）
 - `/analytics/trend` 重定向到 `/analytics/report?tab=trend`
-- `/analytics/grade` 保留独立页面（年级维度专属，不合入 Tab）
-- 侧栏"成绩趋势"改为跳转到 report Tab 5
+- `/analytics/grade` 重定向到 `/analytics/report?tab=comparison`
+- **侧栏回退为 2 入口**：只保留"成绩分析"（→/analytics/report）和"阅卷质量报告"（→/analytics/ai-report），删除 Phase 1 新增的"成绩趋势"和"年级分析"入口（功能已合入 Tab 5 和 Tab 2）
 
 **文件清单**：
-- `frontend/src/router/index.js` — trend 路由 redirect
-- `frontend/src/config/sidebarConfig.js` — 趋势入口调整
+- `frontend/src/router/index.js` — trend/grade 路由 redirect
+- `frontend/src/config/sidebarConfig.js` — 回退为 2 入口
 
 **测试契约**：
 - 入口：访问 /analytics/trend 自动跳转到 /analytics/report?tab=trend
@@ -212,29 +215,38 @@
 
 **目标**：基于 T0 snapshot 契约，实现 LLM 诊断服务
 
+**依赖**（R2-F-003 修正）：T0（snapshot schema）+ T0.5（API 参数补齐，build_snapshot 调用 layer_analysis 需要 subject_id/class_id）
+
 **改动范围**：
 - 新建 `ai_diagnosis_service.py`
   - `build_snapshot()` — 聚合 exam_summary + class_stats + knowledge_mastery + layer_data → DiagnosisSnapshot
   - `generate_diagnosis()` — snapshot → prompt → Gemini → 结构化 JSON 输出
   - `get_or_generate()` — 缓存查找 → 不存在则生成
-- 缓存策略（F-003 修正）：
-  - key: `sha256(exam_id + school_id + scope + subject_id + class_id + score_version + knowledge_version + prompt_version + model_version + role_scope)`
+- 缓存策略（R2-F-001 修正，与总则 key 完全对齐）：
+  - key: `sha256(exam_id + school_id + scope + subject_id + class_id + filters_hash + score_version + knowledge_version + prompt_version + model_version + role_scope)`
+  - `filters_hash` = 用户选择的所有筛选条件的确定性 hash（含 segment_config 等）
   - 存储：数据库表 `ai_diagnosis_cache`（exam_id, cache_key, result_json, created_at, expires_at）
   - 考试类报告 7 天 TTL；手动重生成忽略缓存
+- **Migration**（R2-F-004 修正）：
+  - 新增 Alembic migration 创建 `ai_diagnosis_cache` 表
+  - 部署命令：`python scripts/db_migrate`
+  - 回滚：migration 含 down_revision，`python scripts/db_migrate downgrade -1`
+  - db_doctor 验证：`python scripts/db_doctor.py --strict`
 
 **新增路由**：
-- `POST /api/v1/analytics/exam/{exam_id}/ai-diagnosis` — 生成（可选 force_refresh=true）
-- `GET /api/v1/analytics/exam/{exam_id}/ai-diagnosis` — 获取缓存
+- `POST /api/v1/analytics/exam/{exam_id}/ai-diagnosis` — 生成（可选 force_refresh=true，可选 subject_id/class_id）
+- `GET /api/v1/analytics/exam/{exam_id}/ai-diagnosis` — 获取缓存（同筛选参数）
 
-**LLM 输出 schema**（结构化 JSON）：
+**LLM 输出 schema**（R2-F-002 修正：所有输出项均带 evidence_fact_ids + confidence）：
 ```json
 {
-  "summary": "整体评价文本",
+  "schema_version": "ai_diagnosis_output.v1",
+  "summary": {"text": "整体评价文本", "evidence_fact_ids": ["score:grade_avg", "score:pass_rate"], "confidence": "high"},
   "findings": [{"id": "F1", "text": "...", "evidence_fact_ids": ["kp:K031"], "confidence": "high"}],
-  "risk_alerts": [{"text": "...", "evidence_fact_ids": [...]}],
-  "teaching_actions": [{"text": "...", "target": "class_3", "priority": "high"}],
-  "student_followups": [{"text": "...", "layer": "need_help"}],
-  "data_limits": [{"text": "知识点映射覆盖率仅 62%", "fact_id": "quality:kp_coverage"}]
+  "risk_alerts": [{"text": "...", "evidence_fact_ids": ["layer:need_help"], "confidence": "medium"}],
+  "teaching_actions": [{"text": "...", "target": "class_3", "priority": "high", "evidence_fact_ids": ["kp:K031", "kp:K044"], "confidence": "medium"}],
+  "student_followups": [{"text": "...", "layer": "need_help", "evidence_fact_ids": ["layer:need_help"], "confidence": "medium"}],
+  "data_limits": [{"text": "知识点映射覆盖率仅 62%", "fact_id": "quality:kp_coverage", "confidence": "high"}]
 }
 ```
 
@@ -242,14 +254,16 @@
 - `src/edu_cloud/modules/analytics/ai_diagnosis_service.py` — 新服务
 - `src/edu_cloud/modules/analytics/snapshot_schema.py` — T0 已创建
 - `src/edu_cloud/modules/analytics/analytics_report_router.py` — 新增 2 路由
-- `tests/test_services_exam/test_ai_diagnosis.py` — 测试
+- `alembic/versions/xxxx_add_ai_diagnosis_cache.py` — migration
+- `tests/test_services_exam/test_ai_diagnosis.py` — 服务测试
+- `tests/test_alembic_migration.py` — migration 包含在既有 smoke test
 
 **测试契约**：
-- 入口：POST 请求返回结构化 AI 诊断 JSON，所有字段符合 schema
+- 入口：POST 请求返回结构化 AI 诊断 JSON，所有输出项含 evidence_fact_ids + confidence
 - 反例：prompt 缺少 data_quality → LLM 输出无证据结论（测试验证 data_quality 字段必须存在）
-- 边界：无知识点数据 → data_limits 含"知识点映射覆盖不足"；缓存命中 → 跳过 LLM 调用
-- 回归：现有 exam_diagnosis（模板版）不受影响，两者共存
-- 命令：`.venv/bin/python -m pytest tests/test_services_exam/test_ai_diagnosis.py -v`
+- 边界：无知识点数据 → data_limits 含"知识点映射覆盖不足"；缓存命中 → 跳过 LLM 调用；migration up/down 可逆
+- 回归：现有 exam_diagnosis（模板版）不受影响，两者共存；db_doctor --strict 通过
+- 命令：`.venv/bin/python -m pytest tests/test_services_exam/test_ai_diagnosis.py tests/test_alembic_migration.py -v`
 
 #### T5: AI 诊断前端
 
@@ -281,7 +295,7 @@
 |-------|-------|------|------|-----------|
 | Batch 0 | T0, T0.5 | 无 | 后端 schema + 参数补齐 | ~1 天 |
 | Batch 1 | T1, T2, T3 | T0.5（API 参数就绪）| 前端工作台重构 | ~2 天 |
-| Batch 2 | T4, T5 | T0 + T1 | AI 后端 + 前端 | ~2 天 |
+| Batch 2 | T4, T5 | T0 + T0.5 + T1 | AI 后端 + 前端 | ~2 天 |
 
 **可并行**：T0 和 T0.5 可并行（schema 定义与参数补齐无依赖）；T1/T2/T3 可并行
 **不可并行**：Batch 1 依赖 T0.5；T5 依赖 T4
@@ -305,6 +319,9 @@
 - ORC-001: 有效分优先级链（confirmed > ai_done > human > scan）不可变更
 - ORC-002: AnalyticsReportPage 现有 4 Tab 的数据和功能完全保留（映射到新 Tab 1/2/4）
 - ORC-003: AI 诊断不替代现有模板诊断（exam_diagnosis），两者共存
-- ORC-004: AI 缓存 key 必须含 10+ 维度确保同数据同输出
+- ORC-004: AI 缓存 key 精确为 `sha256(exam_id + school_id + scope + subject_id + class_id + filters_hash + score_version + knowledge_version + prompt_version + model_version + role_scope)`
 - ORC-005: powerOptions 权限裁剪不可绕过（school_id + visible_class_ids + visible_subject_codes）
 - ORC-006: 后端 API 参数补齐必须向后兼容（不传新参数 = 旧行为）
+- ORC-007: 共享筛选上下文约束：`all` 班级 → scope=grade，不传 class_id；具体班级 → 传 class_id
+- ORC-008: AI 输出每个条目（summary/findings/risk_alerts/teaching_actions/student_followups/data_limits）必须含 evidence_fact_ids + confidence 字段
+- ORC-009: 侧栏入口最终保持 2 个（成绩分析 + 阅卷质量报告），趋势/年级入口合入 Tab
