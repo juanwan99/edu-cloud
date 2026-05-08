@@ -290,35 +290,39 @@ def calculate_layout(
             else:
                 unanchored.append(r)
 
-        # 新增题目：按 qno 顺序插入到有剩余空间的列（优先 A 面）
+        # 新增题目：插入到最后一个有锚定题的列之后（保持题号顺序）
+        last_anchor_slot = max(
+            (slot_idx[a] for a in anchors.values() if a in slot_idx), default=0
+        )
         for r in unanchored:
             placed = False
-            for s in slots:
+            for s in slots[last_anchor_slot:] + slots[:last_anchor_slot]:
                 used = sum(it["_height_mm"] for it in s["items"])
                 if used + r["_height_mm"] <= s["capacity"]:
                     s["items"].append(r)
                     placed = True
                     break
             if not placed:
-                # 所有列都满：放到 B 面最后一列
                 slots[-1]["items"].append(r)
 
-        # 溢出处理：列超载时把末尾题目移到有空间的列
-        for si, s in enumerate(slots):
+        # 溢出处理：列超载时把末尾题目移到后续有空间的列
+        for si in range(len(slots)):
+            s = slots[si]
             while len(s["items"]) > 1:
                 used = sum(it["_height_mm"] for it in s["items"])
                 if used <= s["capacity"]:
                     break
                 evicted = s["items"].pop()
                 placed = False
-                for target in slots[si + 1:]:
+                for ti in range(si + 1, len(slots)):
+                    target = slots[ti]
                     t_used = sum(it["_height_mm"] for it in target["items"])
                     if t_used + evicted["_height_mm"] <= target["capacity"]:
                         target["items"].append(evicted)
                         placed = True
                         break
                 if not placed:
-                    slots[-1]["items"].append(evicted)
+                    s["items"].append(evicted)
                     break
     else:
         # 策略 B：全局最优分割装箱（无模板时）
