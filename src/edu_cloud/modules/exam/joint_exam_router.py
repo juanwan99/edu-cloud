@@ -27,6 +27,28 @@ class AddParticipantRequest(BaseModel):
 _CROSS_SCHOOL_ROLES = {"platform_admin", "district_admin"}
 
 
+async def _check_exam_access(exam_id: str, user: dict, db: AsyncSession) -> None:
+    """非 admin 角色必须是联考参与校才能访问。"""
+    role = user["current_role"].role
+    if role in _CROSS_SCHOOL_ROLES:
+        return
+    school_id = user["current_role"].school_id
+    if not school_id:
+        from fastapi import HTTPException
+        raise HTTPException(403, "Role has no school_id")
+    from sqlalchemy import select
+    from edu_cloud.models.joint_exam import JointExamParticipant
+    p = (await db.execute(
+        select(JointExamParticipant).where(
+            JointExamParticipant.joint_exam_id == exam_id,
+            JointExamParticipant.school_id == school_id,
+        )
+    )).scalar_one_or_none()
+    if not p:
+        from fastapi import HTTPException
+        raise HTTPException(404, "联考不存在")
+
+
 @router.post("", status_code=201)
 async def create_exam(
     req: CreateExamRequest,
@@ -81,6 +103,7 @@ async def get_exam(
     user=Depends(require_permission(Permission.VIEW_JOINT_EXAM)),
     db: AsyncSession = Depends(get_db),
 ):
+    await _check_exam_access(exam_id, user, db)
     svc = JointExamService(db)
     return await svc.get_exam_detail(exam_id)
 
@@ -92,6 +115,7 @@ async def add_participant(
     user=Depends(require_permission(Permission.MANAGE_JOINT_EXAM)),
     db: AsyncSession = Depends(get_db),
 ):
+    await _check_exam_access(exam_id, user, db)
     svc = JointExamService(db)
     p = await svc.add_participant(exam_id, req.school_id)
     return {"school_id": p.school_id, "status": p.status}
@@ -104,6 +128,7 @@ async def remove_participant(
     user=Depends(require_permission(Permission.MANAGE_JOINT_EXAM)),
     db: AsyncSession = Depends(get_db),
 ):
+    await _check_exam_access(exam_id, user, db)
     svc = JointExamService(db)
     await svc.remove_participant(exam_id, school_id)
 
@@ -114,6 +139,7 @@ async def distribute(
     user=Depends(require_permission(Permission.MANAGE_JOINT_EXAM)),
     db: AsyncSession = Depends(get_db),
 ):
+    await _check_exam_access(exam_id, user, db)
     svc = JointExamService(db, upload_dir=settings.UPLOAD_DIR)
     exam = await svc.distribute(exam_id)
     return {"id": exam.id, "status": exam.status}
@@ -125,6 +151,7 @@ async def force_complete(
     user=Depends(require_permission(Permission.MANAGE_JOINT_EXAM)),
     db: AsyncSession = Depends(get_db),
 ):
+    await _check_exam_access(exam_id, user, db)
     svc = JointExamService(db)
     exam = await svc.force_complete(exam_id)
     return {"id": exam.id, "status": exam.status}
