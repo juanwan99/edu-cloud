@@ -174,7 +174,7 @@ a { color: var(--accent); text-decoration: none; }
 <!-- ===== HERO ===== -->
 <div class="hero" id="hero">
   <h1><span>AI 阅卷分析报告</span></h1>
-  <p class="subtitle">2026 年第一学期期中考试 · 语文 / 地理 / 生物 · 共 18 题<br>生物 Q31 因 OCR 采集异常已剔除</p>
+  <p class="subtitle">2026 年第一学期期中考试 · 语文 / 地理 / 生物 · 共 19 题<br>生物 Q26+Q31 为同一题拆分（Q31 为图表部分），人机对比已合并计算</p>
   <div id="heroConclusions" class="conclusion-cards"></div>
   <div id="heroActions" style="margin-top:24px;max-width:1100px;margin-left:auto;margin-right:auto;"></div>
 </div>
@@ -246,7 +246,7 @@ var TEACHING = {
 };
 var SUBJECT_ORDER = [
   { name: "地理", keys: ["地理_Q26", "地理_Q27", "地理_Q28"] },
-  { name: "生物", keys: ["生物_Q26", "生物_Q27", "生物_Q28", "生物_Q29", "生物_Q30"] },
+  { name: "生物", keys: ["生物_Q26", "生物_Q27", "生物_Q28", "生物_Q29", "生物_Q30", "生物_Q31"] },
   { name: "语文", keys: ["语文_Q4", "语文_Q6", "语文_Q9", "语文_Q10", "语文_Q12", "语文_Q13", "语文_Q15", "语文_Q18、19", "语文_Q21、22", "语文_Q23"] }
 ];
 

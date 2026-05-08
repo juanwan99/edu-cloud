@@ -54,8 +54,13 @@ QUESTION_ORDER = [
     ("生物", "28"),
     ("生物", "29"),
     ("生物", "30"),
+    ("生物", "31"),
 ]
-ORIGINAL_QUESTION_ORDER = [*QUESTION_ORDER, ("生物", "31")]
+
+# Q26+Q31 是同一道题（Q31 是 Q26 的图表部分，拆分打分）
+# 人工把两者合在一起打（Q26 最高 14 分），AI 拆开打（Q26 满分 12 + Q31 满分 2）
+# 人机对比时需要合并 AI 的 Q26+Q31 分数
+MERGED_QUESTIONS = {("生物", "31"): ("生物", "26")}
 
 UTC8 = timezone(timedelta(hours=8))
 
@@ -97,7 +102,7 @@ def main() -> None:
         conn.close()
 
     # Assemble the two panels
-    panel1 = build_panel1_quality(comparison_rows, subjects)
+    panel1 = build_panel1_quality(comparison_rows, rows_by_question, subjects)
     panel2 = build_panel2_answer(answer_by_question, subjects)
 
     output = {
@@ -194,17 +199,67 @@ def load_comparison_rows(
 # Panel 1: AI Grading Quality (human vs AI comparison)
 # ---------------------------------------------------------------------------
 
+def _merge_comparison_rows(
+    comparison_rows: dict[tuple[str, str], list[dict[str, Any]]],
+    all_question_rows: dict[tuple[str, str], list[Any]],
+) -> dict[str, dict[str, Any]]:
+    """Merge Q26+Q31 AI scores for human comparison.
+
+    Human graded Q26 as one question (max 14), AI split into Q26 (max 12) + Q31 (max 2).
+    We add each student's Q31 AI score onto their Q26 AI score for fair comparison.
+    """
+    # Build Q31 AI score lookup by student_id
+    q31_ai_by_student: dict[str, float] = {}
+    for (subj, qno), target in MERGED_QUESTIONS.items():
+        q31_rows = all_question_rows.get((subj, qno), [])
+        for row in q31_rows:
+            sid = row["student_id"] if isinstance(row, dict) else row["student_id"]
+            ai = float(row["ai_score"] if isinstance(row, dict) else row["ai_score"])
+            if sid:
+                q31_ai_by_student[str(sid)] = ai
+
+    result: dict[str, dict[str, Any]] = {}
+    for (subj, qno) in QUESTION_ORDER:
+        if (subj, qno) in MERGED_QUESTIONS:
+            continue
+        key = f"{subj}_Q{qno}"
+        rows = comparison_rows.get((subj, qno), [])
+        if not rows:
+            continue
+
+        target_of = {v: k for k, v in MERGED_QUESTIONS.items()}
+        if (subj, qno) in target_of:
+            child_subj, child_qno = target_of[(subj, qno)]
+            child_max = all_question_rows.get((child_subj, child_qno), [])
+            child_max_score = float(child_max[0]["max_score"]) if child_max else 0
+            merged = []
+            for r in rows:
+                sid = str(r.get("student_id") or "")
+                extra_ai = q31_ai_by_student.get(sid, 0)
+                merged.append({
+                    **r,
+                    "ai_score": r["ai_score"] + extra_ai,
+                    "max_score": r["max_score"] + child_max_score,
+                })
+            result[key] = merged
+        else:
+            result[key] = rows
+
+    return result
+
+
 def build_panel1_quality(
     comparison_rows: dict[tuple[str, str], list[dict[str, Any]]],
+    all_question_rows: dict[tuple[str, str], list[Any]],
     subjects: list[str],
 ) -> dict[str, Any]:
+    merged_rows = _merge_comparison_rows(comparison_rows, all_question_rows)
+
     # Per-question stats
     by_question: dict[str, dict[str, Any]] = {}
     all_diffs: list[float] = []
 
-    for subject, qno in QUESTION_ORDER:
-        key = f"{subject}_Q{qno}"
-        rows = comparison_rows.get((subject, qno), [])
+    for key, rows in merged_rows.items():
         if not rows:
             continue
         q_stats = compute_comparison_stats(rows)

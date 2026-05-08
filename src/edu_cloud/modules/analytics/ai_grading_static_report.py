@@ -8,7 +8,7 @@ from typing import Any, Iterable
 
 
 BLANK_ANSWER = "空白"
-EXCLUDED_QUESTIONS = {("生物", "31")}
+EXCLUDED_QUESTIONS: set[tuple[str, str]] = set()
 
 
 @dataclass(frozen=True)
