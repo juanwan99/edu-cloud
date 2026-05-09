@@ -190,3 +190,90 @@ class TestDispatchStatus:
         data = resp.json()
         subject_status = next(s for s in data if s["subject_id"] == subject_id)
         assert subject_status["stage"] == "failed", f"Expected failed, got {subject_status['stage']}"
+
+    async def test_multi_subject_mixed_stages(self, client, db_engine, dispatch_fixtures, dispatch_headers):
+        """多科目混合状态：验证批量查询正确隔离每科数据。"""
+        exam_id = dispatch_fixtures["exam_id"]
+        school_id = dispatch_fixtures["school_id"]
+        math_subject_id = dispatch_fixtures["subject_id"]
+
+        from edu_cloud.modules.exam.models import Subject, Question
+        from edu_cloud.modules.scan.models import StudentAnswer
+        from edu_cloud.modules.grading.models import GradingTask, GradingResult, Rubric
+
+        async with db_engine.begin() as conn:
+            # 第二科目：英语（idle — 无任何数据）
+            await conn.execute(insert(Subject).values(
+                id="subj-eng", name="英语", exam_id=exam_id,
+                school_id=school_id, code="english",
+            ))
+
+            # 第三科目：语文（ready — 有答卷+rubric）
+            await conn.execute(insert(Subject).values(
+                id="subj-chn", name="语文", exam_id=exam_id,
+                school_id=school_id, code="chinese",
+            ))
+            await conn.execute(insert(Question).values(
+                id="q-chn-essay", subject_id="subj-chn", question_type="essay",
+                name="作文", max_score=60.0, school_id=school_id,
+            ))
+            await conn.execute(insert(StudentAnswer).values(
+                id="sa-chn-1", exam_id=exam_id, subject_id="subj-chn",
+                student_id="stu1", question_id="q-chn-essay",
+                image_path="/tmp/chn.png", school_id=school_id,
+            ))
+            await conn.execute(insert(Rubric).values(
+                id="rubric-chn", question_id="q-chn-essay",
+                criteria={"points": [{"desc": "优秀", "score": 60}]},
+                source="manual", school_id=school_id,
+            ))
+
+            # 数学：ai_grading 状态（有答卷+rubric+processing task）
+            await conn.execute(insert(StudentAnswer).values(
+                id="sa-math-multi", exam_id=exam_id, subject_id=math_subject_id,
+                student_id="stu1", question_id=dispatch_fixtures["subjective_question_id"],
+                image_path="/tmp/math.png", school_id=school_id,
+            ))
+            await conn.execute(insert(Rubric).values(
+                id="rubric-math-multi", question_id=dispatch_fixtures["subjective_question_id"],
+                criteria={"points": [{"desc": "正确", "score": 10}]},
+                source="ai_generated", school_id=school_id,
+            ))
+            await conn.execute(insert(GradingTask).values(
+                id="gt-math-proc", subject_id=math_subject_id, status="processing",
+                total=5, completed=2, failed=0,
+                created_by=dispatch_fixtures["user_id"], school_id=school_id,
+            ))
+
+        resp = await client.get(
+            f"/api/v1/grading/dispatch/status?exam_id={exam_id}",
+            headers=dispatch_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 3
+
+        by_code = {s["subject_code"]: s for s in data}
+
+        eng = by_code["english"]
+        assert eng["stage"] == "idle"
+        assert eng["answer_count"] == 0
+        assert eng["questions"] == []
+
+        chn = by_code["chinese"]
+        assert chn["stage"] == "ready"
+        assert chn["answer_count"] == 1
+        assert chn["subjective_total"] == 1
+        assert len(chn["questions"]) == 1
+        assert chn["questions"][0]["name"] == "作文"
+        assert chn["questions"][0]["has_rubric"] is True
+        assert chn["questions"][0]["max_score"] == 60.0
+
+        math = by_code["math"]
+        assert math["stage"] == "ai_grading"
+        assert math["answer_count"] == 1
+        assert math["ai_pending_count"] == 3
+        assert math["grading_task_id"] == "gt-math-proc"
+        assert len(math["questions"]) == 1
+        assert math["questions"][0]["has_rubric"] is True
+        assert math["questions"][0]["rubric_source"] == "ai_generated"

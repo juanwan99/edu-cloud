@@ -228,160 +228,154 @@ async def get_dispatch_status(
     )).scalars().all()
     tpl_set = set(tpl_rows)
 
+    subject_ids = [s.id for s in subjects]
+
+    # --- BQ1: StudentAnswer 聚合 per subject_id ---
+    sa_stats_rows = (await db.execute(
+        select(
+            StudentAnswer.subject_id,
+            func.count(StudentAnswer.id).label("answer_count"),
+            func.count(StudentAnswer.id).filter(
+                StudentAnswer.detected_answer.isnot(None)
+            ).label("objective_graded"),
+            func.count(StudentAnswer.id).filter(
+                StudentAnswer.image_path.isnot(None)
+            ).label("subjective_total"),
+        ).where(
+            StudentAnswer.subject_id.in_(subject_ids),
+            StudentAnswer.school_id == effective_school_id,
+        ).group_by(StudentAnswer.subject_id)
+    )).all()
+    sa_stats_map = {
+        row[0]: {"answer_count": row[1], "objective_graded": row[2], "subjective_total": row[3]}
+        for row in sa_stats_rows
+    }
+
+    # --- BQ2: GradingTask 全量（Python 侧取每科最新） ---
+    all_tasks = (await db.execute(
+        select(GradingTask).where(
+            GradingTask.subject_id.in_(subject_ids),
+            GradingTask.school_id == effective_school_id,
+        ).order_by(GradingTask.created_at.desc())
+    )).scalars().all()
+    latest_task_map: dict[str, GradingTask] = {}
+    for t in all_tasks:
+        if t.subject_id not in latest_task_map:
+            latest_task_map[t.subject_id] = t
+
+    # --- BQ3: 主观题 Question 全量 ---
+    all_subj_questions = (await db.execute(
+        select(Question).where(
+            Question.subject_id.in_(subject_ids),
+            Question.school_id == effective_school_id,
+            Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
+        )
+    )).scalars().all()
+    subj_q_by_subject: dict[str, list] = {}
+    all_subj_q_ids: list[str] = []
+    q_to_subject: dict[str, str] = {}
+    for q in all_subj_questions:
+        subj_q_by_subject.setdefault(q.subject_id, []).append(q)
+        all_subj_q_ids.append(q.id)
+        q_to_subject[q.id] = q.subject_id
+
+    # --- BQ4: GradingResult 统计 per question_id ---
+    gr_stats_map: dict[str, dict] = {}
+    if all_subj_q_ids:
+        gr_stats_rows = (await db.execute(
+            select(
+                GradingResult.question_id,
+                func.count(GradingResult.id).filter(GradingResult.ai_score.isnot(None)).label("ai_scored"),
+                func.count(GradingResult.id).filter(GradingResult.status == "confirmed").label("confirmed"),
+                func.count(GradingResult.id).filter(
+                    GradingResult.status == "confirmed",
+                    GradingResult.ai_score.is_(None),
+                ).label("manual_only"),
+            ).where(
+                GradingResult.question_id.in_(all_subj_q_ids),
+                GradingResult.school_id == effective_school_id,
+            ).group_by(GradingResult.question_id)
+        )).all()
+        gr_stats_map = {row[0]: {"ai_scored": row[1], "confirmed": row[2], "manual_only": row[3]} for row in gr_stats_rows}
+
+    # --- BQ5: AI pending 聚合 per subject_id ---
+    pending_rows = (await db.execute(
+        select(
+            GradingTask.subject_id,
+            func.coalesce(func.sum(GradingTask.total), 0),
+            func.coalesce(func.sum(GradingTask.completed), 0),
+            func.coalesce(func.sum(GradingTask.failed), 0),
+        ).where(
+            GradingTask.subject_id.in_(subject_ids),
+            GradingTask.school_id == effective_school_id,
+            GradingTask.status.in_(["pending", "processing"]),
+        ).group_by(GradingTask.subject_id)
+    )).all()
+    pending_map = {
+        row[0]: max(0, row[1] - row[2] - row[3])
+        for row in pending_rows
+    }
+
+    # --- BQ6: Rubric 全量 per question_id ---
+    all_rubric_map: dict[str, Rubric] = {}
+    if all_subj_q_ids:
+        all_rubrics = (await db.execute(
+            select(Rubric).where(
+                Rubric.question_id.in_(all_subj_q_ids),
+                Rubric.school_id == effective_school_id,
+            )
+        )).scalars().all()
+        all_rubric_map = {r.question_id: r for r in all_rubrics}
+
+    # --- BQ7: StudentAnswer counts per question_id (for questions_info) ---
+    ans_count_by_q: dict[str, int] = {}
+    if all_subj_q_ids:
+        ans_q_rows = (await db.execute(
+            select(
+                StudentAnswer.question_id,
+                func.count(StudentAnswer.id),
+            ).where(
+                StudentAnswer.question_id.in_(all_subj_q_ids),
+                StudentAnswer.school_id == effective_school_id,
+            ).group_by(StudentAnswer.question_id)
+        )).all()
+        ans_count_by_q = {row[0]: row[1] for row in ans_q_rows}
+
+    # --- 聚合 GradingResult 统计到 subject 级别 ---
+    def _subject_gr_stats(sid: str) -> tuple[int, int, int]:
+        q_ids = [q.id for q in subj_q_by_subject.get(sid, [])]
+        ai_scored = sum(gr_stats_map.get(qid, {}).get("ai_scored", 0) for qid in q_ids)
+        confirmed = sum(gr_stats_map.get(qid, {}).get("confirmed", 0) for qid in q_ids)
+        manual = sum(gr_stats_map.get(qid, {}).get("manual_only", 0) for qid in q_ids)
+        return ai_scored, confirmed, manual
+
     result = []
     for subj in subjects:
-        # 统计 StudentAnswer
-        answer_count = (await db.execute(
-            select(func.count(StudentAnswer.id)).where(
-                StudentAnswer.subject_id == subj.id,
-                StudentAnswer.school_id == effective_school_id,
-            )
-        )).scalar() or 0
+        sa = sa_stats_map.get(subj.id, {"answer_count": 0, "objective_graded": 0, "subjective_total": 0})
+        answer_count = sa["answer_count"]
+        objective_graded = sa["objective_graded"]
+        subjective_total = sa["subjective_total"]
 
-        # 统计选择题（有 detected_answer 的）
-        objective_graded = (await db.execute(
-            select(func.count(StudentAnswer.id)).where(
-                StudentAnswer.subject_id == subj.id,
-                StudentAnswer.school_id == effective_school_id,
-                StudentAnswer.detected_answer.isnot(None),
-            )
-        )).scalar() or 0
-
-        # 查 GradingTask
-        grading_task = (await db.execute(
-            select(GradingTask).where(
-                GradingTask.subject_id == subj.id,
-                GradingTask.school_id == effective_school_id,
-            ).order_by(GradingTask.created_at.desc())
-        )).scalars().first()
-
-        # 统计 GradingResult 分类计数（一次 grouped aggregate）
+        grading_task = latest_task_map.get(subj.id)
         grading_task_id = grading_task.id if grading_task else None
         ai_failed = grading_task.failed if grading_task else 0
 
-        ai_scored_count = 0
-        manual_confirmed_count = 0
-        confirmed_total = 0
-        if subjective_q_ids_early := (await db.execute(
-            select(Question.id).where(
-                Question.subject_id == subj.id,
-                Question.school_id == effective_school_id,
-                Question.question_type.in_(QUESTION_TYPES_SUBJECTIVE),
-            )
-        )).scalars().all():
-            ai_scored_count = (await db.execute(
-                select(func.count(GradingResult.id)).where(
-                    GradingResult.question_id.in_(subjective_q_ids_early),
-                    GradingResult.school_id == effective_school_id,
-                    GradingResult.ai_score.isnot(None),
-                )
-            )).scalar() or 0
-            confirmed_total = (await db.execute(
-                select(func.count(GradingResult.id)).where(
-                    GradingResult.question_id.in_(subjective_q_ids_early),
-                    GradingResult.school_id == effective_school_id,
-                    GradingResult.status == "confirmed",
-                )
-            )).scalar() or 0
-            manual_confirmed_count = (await db.execute(
-                select(func.count(GradingResult.id)).where(
-                    GradingResult.question_id.in_(subjective_q_ids_early),
-                    GradingResult.school_id == effective_school_id,
-                    GradingResult.status == "confirmed",
-                    GradingResult.ai_score.is_(None),
-                )
-            )).scalar() or 0
+        ai_scored_count, confirmed_total, manual_confirmed_count = _subject_gr_stats(subj.id)
+        ai_pending_count = pending_map.get(subj.id, 0)
 
-        # ai_pending: 聚合所有 processing 任务
-        ai_pending_count = 0
-        if grading_task_id:
-            processing_tasks = (await db.execute(
-                select(
-                    func.coalesce(func.sum(GradingTask.total), 0),
-                    func.coalesce(func.sum(GradingTask.completed), 0),
-                    func.coalesce(func.sum(GradingTask.failed), 0),
-                ).where(
-                    GradingTask.subject_id == subj.id,
-                    GradingTask.school_id == effective_school_id,
-                    GradingTask.status.in_(["pending", "processing"]),
-                )
-            )).one()
-            ai_pending_count = max(0, processing_tasks[0] - processing_tasks[1] - processing_tasks[2])
-
-        # 兼容旧字段
         ai_graded = ai_scored_count
         reviewed = confirmed_total
 
-        # F011 修复：subjective_total 查询提前到 stage 推导之前
-        subjective_total = (await db.execute(
-            select(func.count(StudentAnswer.id)).where(
-                StudentAnswer.subject_id == subj.id,
-                StudentAnswer.school_id == effective_school_id,
-                StudentAnswer.image_path.isnot(None),
-            )
-        )).scalar() or 0
-
-        # 推导 stage（INV-003: ready 条件与 POST /grading/tasks 前置校验一致）
+        subjective_q_ids = [q.id for q in subj_q_by_subject.get(subj.id, [])]
         has_subjective_answers = subjective_total > 0
-        subjective_q_ids = subjective_q_ids_early or []
-        has_rubric = False
-        if subjective_q_ids:
-            rubric_count = (await db.execute(
-                select(func.count(Rubric.id)).where(
-                    Rubric.question_id.in_(subjective_q_ids),
-                    Rubric.school_id == effective_school_id,
-                )
-            )).scalar() or 0
-            has_rubric = rubric_count > 0
+        has_rubric = any(qid in all_rubric_map for qid in subjective_q_ids)
         can_ai_grade = has_subjective_answers and has_rubric and len(subjective_q_ids) > 0
 
-        # Query question details for this subject (batch queries to avoid N+1)
         questions_info = []
         if subjective_q_ids:
-            subj_questions = sorted((await db.execute(
-                select(Question).where(Question.id.in_(subjective_q_ids))
-            )).scalars().all(), key=question_sort_key)
-
-            # Batch 1: rubrics by question_id
-            rubric_rows = (await db.execute(
-                select(Rubric).where(
-                    Rubric.question_id.in_(subjective_q_ids),
-                    Rubric.school_id == effective_school_id,
-                )
-            )).scalars().all()
-            rubric_map = {r.question_id: r for r in rubric_rows}
-
-            # Batch 2: answer counts grouped by question_id
-            ans_count_rows = (await db.execute(
-                select(
-                    StudentAnswer.question_id,
-                    func.count(StudentAnswer.id),
-                ).where(
-                    StudentAnswer.question_id.in_(subjective_q_ids),
-                    StudentAnswer.school_id == effective_school_id,
-                ).group_by(StudentAnswer.question_id)
-            )).all()
-            ans_count_map = {row[0]: row[1] for row in ans_count_rows}
-
-            # Batch 3: grading result stats grouped by question_id
-            gr_stats_rows = (await db.execute(
-                select(
-                    GradingResult.question_id,
-                    func.count(GradingResult.id).filter(GradingResult.ai_score.isnot(None)).label("ai_scored"),
-                    func.count(GradingResult.id).filter(GradingResult.status == "confirmed").label("confirmed"),
-                    func.count(GradingResult.id).filter(
-                        GradingResult.status == "confirmed",
-                        GradingResult.ai_score.is_(None),
-                    ).label("manual_only"),
-                ).where(
-                    GradingResult.question_id.in_(subjective_q_ids),
-                    GradingResult.school_id == effective_school_id,
-                ).group_by(GradingResult.question_id)
-            )).all()
-            gr_stats_map = {row[0]: {"ai_scored": row[1], "confirmed": row[2], "manual_only": row[3]} for row in gr_stats_rows}
-
+            subj_questions = sorted(subj_q_by_subject[subj.id], key=question_sort_key)
             for q in subj_questions:
-                q_rubric = rubric_map.get(q.id)
+                q_rubric = all_rubric_map.get(q.id)
                 q_stats = gr_stats_map.get(q.id, {"ai_scored": 0, "confirmed": 0, "manual_only": 0})
                 content_imgs = q.content_images or []
                 ref_imgs = q.reference_answer_images or []
@@ -396,7 +390,7 @@ async def get_dispatch_status(
                     "answer_image_count": len(ref_imgs),
                     "has_rubric": q_rubric is not None,
                     "rubric_source": q_rubric.source if q_rubric else None,
-                    "answer_count": ans_count_map.get(q.id, 0),
+                    "answer_count": ans_count_by_q.get(q.id, 0),
                     "graded_count": q_stats["confirmed"],
                     "ai_scored_count": q_stats["ai_scored"],
                     "manual_confirmed_count": q_stats["manual_only"],
