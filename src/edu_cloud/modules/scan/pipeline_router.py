@@ -79,12 +79,18 @@ def normalize_uploaded_scan_filename(filename: str) -> tuple[str, bool]:
 
 
 def _infer_exam_id_from_scan_dir(path: Path) -> str | None:
+    upload_root = Path(settings.UPLOAD_DIR).resolve()
+    resolved = path.resolve()
     try:
-        scan_root = (Path(settings.UPLOAD_DIR).resolve() / "scan-input").resolve()
-        rel = path.resolve().relative_to(scan_root)
+        rel = resolved.relative_to(upload_root)
     except (OSError, ValueError):
         return None
-    return rel.parts[0] if rel.parts else None
+    parts = rel.parts
+    if len(parts) >= 3 and parts[1] == "scan-input":
+        return parts[2]
+    if len(parts) >= 2 and parts[0] == "scan-input":
+        return parts[1]
+    return None
 
 
 def _subject_code_for_scan_name(name: str, used_codes: set[str]) -> str:
