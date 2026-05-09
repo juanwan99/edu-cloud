@@ -6,18 +6,20 @@ from PIL import Image
 
 
 async def test_S8d_start_pipeline_tracks_factory_and_asserts_identity(
-    client, db, tmp_path, pipeline_fixture
+    client, db, tmp_path, pipeline_fixture, monkeypatch
 ):
     """S8d: tracked_factory + identity 断言（DB 分支）。"""
     from edu_cloud.shared.auth import create_access_token
     from edu_cloud.models.user import User
     from edu_cloud.models.user_role import UserRole
     from edu_cloud.modules.scan import pipeline_router as pr_mod
+    from edu_cloud.config import settings
 
     fx = pipeline_fixture
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
 
-    scan_dir = tmp_path / "scan"
-    scan_dir.mkdir()
+    scan_dir = tmp_path / str(fx["school"].id) / "scan"
+    scan_dir.mkdir(parents=True)
     for i in range(2):
         Image.new("RGB", (200, 150), (255, 255, 255)).save(scan_dir / f"S{i:04d}A.png")
 
@@ -65,18 +67,20 @@ async def test_S8d_start_pipeline_tracks_factory_and_asserts_identity(
     assert captured_kwargs["save_answer_fn"] is factory_returns[0]
 
 
-async def test_start_pipeline_wires_save_objective_fn(client, db, tmp_path, pipeline_objective_fixture):
+async def test_start_pipeline_wires_save_objective_fn(client, db, tmp_path, pipeline_objective_fixture, monkeypatch):
     """Gate 2 R1 F002 回归：start_pipeline 必须装配 save_objective_fn。
     反例：如果 start_pipeline 漏掉 save_objective_fn 装配，captured_kwargs 中该键为 None。"""
     from edu_cloud.shared.auth import create_access_token
     from edu_cloud.models.user import User
     from edu_cloud.models.user_role import UserRole
     from edu_cloud.modules.scan import pipeline_router as pr_mod
+    from edu_cloud.config import settings
 
     fx = pipeline_objective_fixture
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
 
-    scan_dir = tmp_path / "scan_obj"
-    scan_dir.mkdir()
+    scan_dir = tmp_path / str(fx["school"].id) / "scan_obj"
+    scan_dir.mkdir(parents=True)
     Image.new("RGB", (200, 150), (255, 255, 255)).save(scan_dir / "S0001A.png")
 
     admin = User(username="obj_wire_admin", display_name="ObjWire"); admin.set_password("p")
@@ -122,16 +126,18 @@ async def test_start_pipeline_wires_save_objective_fn(client, db, tmp_path, pipe
         "save_objective_fn 必须入队，不能是 None"
 
 
-async def test_S8d_tpl_path_branch_wiring(client, db, tmp_path, pipeline_fixture):
+async def test_S8d_tpl_path_branch_wiring(client, db, tmp_path, pipeline_fixture, monkeypatch):
     """S8d-b: tpl_path 分支也调工厂 + identity 透传。"""
     from edu_cloud.shared.auth import create_access_token
     from edu_cloud.models.user import User
     from edu_cloud.models.user_role import UserRole
     from edu_cloud.modules.scan import pipeline_router as pr_mod
+    from edu_cloud.config import settings
     from PIL import Image
     import json
 
     fx = pipeline_fixture
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
 
     tpl_file = tmp_path / "test.tpl"
     tpl_file.write_text(json.dumps({
@@ -140,8 +146,8 @@ async def test_S8d_tpl_path_branch_wiring(client, db, tmp_path, pipeline_fixture
         "regions": [],
     }))
 
-    scan_dir = tmp_path / "scan_tpl"
-    scan_dir.mkdir()
+    scan_dir = tmp_path / str(fx["school"].id) / "scan_tpl"
+    scan_dir.mkdir(parents=True)
     Image.new("RGB", (200, 150), (255, 255, 255)).save(scan_dir / "S0001A.png")
 
     admin = User(username="s8d_tpl_admin", display_name="S8d Tpl"); admin.set_password("p")
@@ -226,7 +232,7 @@ async def pipeline_fixture(db):
     return {"school": school, "exam": exam, "subject": subject, "question": q1, "tpl_a": tpl_a}
 
 
-async def test_tpl_path_branch_fallback_wires_save_objective_fn(client, db, tmp_path, pipeline_objective_fixture):
+async def test_tpl_path_branch_fallback_wires_save_objective_fn(client, db, tmp_path, pipeline_objective_fixture, monkeypatch):
     """Gate 2 R2 F005 回归：tpl_path 分支也必须装配 save_objective_fn。
     tpl_parser 不会写 question_ids，必须走 fallback（按 qg_indexno 顺序映射）。
     反例：若 tpl_path 分支跳过 objective 装配，enqueue 收到 save_objective_fn=None。"""
@@ -234,9 +240,11 @@ async def test_tpl_path_branch_fallback_wires_save_objective_fn(client, db, tmp_
     from edu_cloud.models.user import User
     from edu_cloud.models.user_role import UserRole
     from edu_cloud.modules.scan import pipeline_router as pr_mod
+    from edu_cloud.config import settings
     import json
 
     fx = pipeline_objective_fixture
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
 
     # 写 tpl 文件（模拟月小二 .tpl 格式）—— 含 1 个 choice_group，2 行
     tpl_file = tmp_path / "obj.tpl"
@@ -254,8 +262,8 @@ async def test_tpl_path_branch_fallback_wires_save_objective_fn(client, db, tmp_
         },
     }))
 
-    scan_dir = tmp_path / "scan_tpl_obj"
-    scan_dir.mkdir()
+    scan_dir = tmp_path / str(fx["school"].id) / "scan_tpl_obj"
+    scan_dir.mkdir(parents=True)
     Image.new("RGB", (200, 150), (255, 255, 255)).save(scan_dir / "S0001A.png")
 
     admin = User(username="tpl_obj_admin", display_name="TplObj"); admin.set_password("p")
@@ -305,7 +313,7 @@ async def test_tpl_path_branch_fallback_wires_save_objective_fn(client, db, tmp_
         "tpl_path 分支 save_objective_fn 不能是 None"
 
 
-async def test_tpl_path_fallback_maps_by_question_number_not_creation_order(client, db, tmp_path):
+async def test_tpl_path_fallback_maps_by_question_number_not_creation_order(client, db, tmp_path, monkeypatch):
     """Gate 2 R3 F005 回归：fallback 必须按题号（Question.name）映射，不能按 created_at。
     反例场景：Question 倒序创建（名 '3' 先创建，名 '1' 后创建），
     如果用 created_at 消费则第 1 行绑到题号 3，顺序错乱。"""
@@ -315,7 +323,10 @@ async def test_tpl_path_fallback_maps_by_question_number_not_creation_order(clie
     from edu_cloud.models.user_role import UserRole
     from edu_cloud.modules.exam.models import Exam, Subject, Question
     from edu_cloud.modules.scan import pipeline_router as pr_mod
+    from edu_cloud.config import settings
     import json
+
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
 
     # Setup: 倒序创建 Question（题号 3 先于题号 1）
     school = School(name="F005Sch", code="F005SCH")
@@ -349,15 +360,15 @@ async def test_tpl_path_fallback_maps_by_question_number_not_creation_order(clie
         },
     }))
 
-    scan_dir = tmp_path / "scan_f005"
-    scan_dir.mkdir()
+    scan_dir = tmp_path / str(school.id) / "scan_f005"
+    scan_dir.mkdir(parents=True)
     Image.new("RGB", (200, 150), (255, 255, 255)).save(scan_dir / "S0001A.png")
 
     admin = User(username="f005_admin", display_name="F005"); admin.set_password("p")
     db.add(admin); await db.commit()
-    db.add(UserRole(user_id=admin.id, role="admin", school_id=school.id, is_primary=True))
-    await db.commit()
-    token = create_access_token({"sub": admin.id, "school_id": school.id, "role": "admin"})
+    role = UserRole(user_id=admin.id, role="admin", school_id=school.id, is_primary=True)
+    db.add(role); await db.commit()
+    token = create_access_token({"sub": admin.id, "school_id": school.id, "role": "admin", "active_role_id": role.id})
     headers = {"Authorization": f"Bearer {token}"}
 
     captured_kwargs = {}

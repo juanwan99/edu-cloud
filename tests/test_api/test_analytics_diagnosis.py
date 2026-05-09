@@ -3,9 +3,12 @@ import pytest
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.shared.auth import create_access_token
-from edu_cloud.modules.exam.models import Exam, Subject
+from datetime import datetime, timezone
+from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.student.models import Class, Student
 from edu_cloud.modules.analytics.models import StudentKnpMastery
+from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
+from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
 from tests.conftest import *  # noqa
 
 
@@ -41,6 +44,24 @@ async def _seed_diagnosis_data(db, seed_school):
 
     subj = Subject(name="数学", code="math", exam_id=exam.id, school_id=school.id)
     db.add(subj)
+    await db.flush()
+
+    kp_ids = ["kp1", "kp2", "kp3", "kp4", "kp5", "kp6", "kp7"]
+    now = datetime.now(timezone.utc)
+    for kp_id in kp_ids:
+        db.add(ConceptGraphNode(
+            id=kp_id, name=f"知识点{kp_id}", knowledge_level="L1",
+            primary_module="M1", synced_at=now,
+        ))
+    await db.flush()
+    for idx, kp_id in enumerate(kp_ids):
+        q = Question(
+            subject_id=subj.id, name=f"Q{idx+1}", question_type="fill_blank",
+            max_score=10, school_id=school.id,
+        )
+        db.add(q)
+        await db.flush()
+        db.add(QuestionKnowledgePoint(question_id=q.id, concept_id=kp_id))
     await db.flush()
 
     # 7 个知识点，各学生掌握率不同

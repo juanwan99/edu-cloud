@@ -14,8 +14,11 @@ from edu_cloud.shared.auth import create_access_token
 
 
 @pytest.fixture
-async def scan_seed(client, db, tmp_path):
+async def scan_seed(client, db, tmp_path, monkeypatch):
     """创建扫描测试种子数据 + 假扫描目录。"""
+    from edu_cloud.config import settings
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+
     school = School(id="scan_s1", name="扫描测试校", code="SCAN01")
     db.add(school)
     await db.flush()
@@ -24,7 +27,8 @@ async def scan_seed(client, db, tmp_path):
     user.set_password("pass123")
     db.add(user)
     await db.flush()
-    db.add(UserRole(user_id="scan_u1", role="principal", school_id="scan_s1", is_primary=True))
+    role = UserRole(user_id="scan_u1", role="principal", school_id="scan_s1", is_primary=True)
+    db.add(role)
     await db.commit()
 
     exam = Exam(id="scan_e1", name="扫描测试考试", school_id="scan_s1")
@@ -36,13 +40,18 @@ async def scan_seed(client, db, tmp_path):
     await db.commit()
 
     # 创建假扫描图
-    scan_dir = tmp_path / "scans"
-    scan_dir.mkdir()
+    scan_dir = tmp_path / "scan_s1" / "scans"
+    scan_dir.mkdir(parents=True)
     for i in range(3):
         img = Image.new("RGB", (200, 150), (240, 240, 240))
         img.save(scan_dir / f"STU{i + 1:03d}A.png")
 
-    token = create_access_token({"sub": "scan_u1", "role": "principal", "active_role_id": "dummy"})
+    token = create_access_token({
+        "sub": "scan_u1",
+        "role": "principal",
+        "school_id": "scan_s1",
+        "active_role_id": role.id,
+    })
     headers = {"Authorization": f"Bearer {token}"}
 
     return {

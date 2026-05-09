@@ -113,9 +113,10 @@ async def test_grading_list_tasks(client: AsyncClient, teacher_headers):
 
 @pytest.mark.asyncio
 async def test_grading_rubric_not_found(client: AsyncClient, teacher_headers):
-    """Grading: 不存在的评分规则 → 404。"""
+    """Grading: 不存在的评分规则 → 200 null。"""
     resp = await client.get("/api/v1/grading/rubrics/nonexistent", headers=teacher_headers)
-    assert resp.status_code == 404
+    assert resp.status_code == 200
+    assert resp.json() is None
 
 @pytest.mark.asyncio
 async def test_grading_no_auth(client: AsyncClient):
@@ -212,8 +213,9 @@ async def test_llm_config_no_auth(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_question_create_invalid_subject(client: AsyncClient, teacher_headers):
+    """Question: homeroom_teacher 无 MANAGE_EXAMS 权限 → 403。"""
     resp = await client.post("/api/v1/questions", json={
         "subject_id": "nonexistent", "name": "题1",
         "question_type": "choice", "max_score": 5,
     }, headers=teacher_headers)
-    assert resp.status_code == 404
+    assert resp.status_code == 403

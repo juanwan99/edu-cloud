@@ -24,11 +24,12 @@ async def seed_error_book_with_knowledge(db):
     user.set_password("test123")
     db.add(user)
     await db.flush()
-    db.add(UserRole(user_id=user.id, role="homeroom_teacher", school_id=school.id, is_primary=True))
-    await db.flush()
-
     cls = ClassGroup(name="八年级1班", grade="八年级", grade_number=8, school_id=school.id)
     db.add(cls)
+    await db.flush()
+
+    db.add(UserRole(user_id=user.id, role="homeroom_teacher", school_id=school.id,
+                    is_primary=True, class_ids=[cls.id]))
     await db.flush()
 
     student = Student(name="推荐学生A", student_number="R001", school_id=school.id,

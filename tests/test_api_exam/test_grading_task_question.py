@@ -388,16 +388,28 @@ async def test_create_task_regrade_cleans_old_results(mock_enqueue, client, db, 
     assert resp.status_code == 201, f"Expected 201, got {resp.status_code}: {resp.text}"
     mock_enqueue.assert_called_once()
 
-    # Verify: ai_pending and ai_done for answers[0] and answers[1] are gone
+    # Verify: ai_pending for answers[0] is cleaned; ai_done for answers[1] is preserved
+    # (AGP-004 update: only ai_pending is cleaned, ai_done is kept for incremental grading)
     cleaned_answer_ids = q_regrade_setup["answer_ids"][:2]
-    remaining = (await db.execute(
+    remaining_pending = (await db.execute(
         select(GradingResult).where(
             GradingResult.answer_id.in_(cleaned_answer_ids),
-            GradingResult.status.in_(["ai_pending", "ai_done"]),
+            GradingResult.status == "ai_pending",
         )
     )).scalars().all()
-    assert len(remaining) == 0, (
-        f"Expected stale ai_pending/ai_done to be cleaned, found {len(remaining)}"
+    assert len(remaining_pending) == 0, (
+        f"Expected stale ai_pending to be cleaned, found {len(remaining_pending)}"
+    )
+
+    # ai_done results should be preserved (incremental grading)
+    remaining_done = (await db.execute(
+        select(GradingResult).where(
+            GradingResult.answer_id.in_(cleaned_answer_ids),
+            GradingResult.status == "ai_done",
+        )
+    )).scalars().all()
+    assert len(remaining_done) == 1, (
+        f"Expected ai_done to be preserved, found {len(remaining_done)}"
     )
 
     # ORC-001: confirmed result for answers[2] must survive
