@@ -737,7 +737,7 @@ async def _get_skeleton_data(
     if school_id:
         skel_stmt = skel_stmt.where(CardSkeleton.school_id == school_id)
     result = await db.execute(skel_stmt)
-    skeleton_row = result.scalar_one_or_none()
+    skeleton_row = result.scalars().first()
     if skeleton_row:
         return skeleton_row.skeleton_data
 
