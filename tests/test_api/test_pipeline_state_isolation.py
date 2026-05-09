@@ -95,7 +95,6 @@ async def test_enqueue_records_school_id(pipeline_schools):
     old_school_id = pipeline_service._pipeline_school_id
     try:
         pipeline_service._pipeline_school_id = None
-        # Call enqueue_pipeline directly - it adds to queue
         pipeline_service.enqueue_pipeline(
             school_id=pipeline_schools["a"]["school_id"],
             subject_id="test-subj", image_dir="/tmp/nonexistent", side="A",
@@ -105,3 +104,23 @@ async def test_enqueue_records_school_id(pipeline_schools):
     finally:
         pipeline_service._queue.clear()
         pipeline_service._pipeline_school_id = old_school_id
+
+
+@pytest.mark.asyncio
+async def test_enqueue_does_not_overwrite_running_owner(pipeline_schools):
+    """F001: A校 pipeline 运行中，B校 enqueue 不应覆盖 _pipeline_school_id。"""
+    from edu_cloud.modules.scan import pipeline_service
+    pipeline_service._running = True
+    pipeline_service._pipeline_school_id = pipeline_schools["a"]["school_id"]
+    try:
+        pipeline_service.enqueue_pipeline(
+            school_id=pipeline_schools["b"]["school_id"],
+            subject_id="test-subj", image_dir="/tmp/nonexistent", side="A",
+            save_answer_fn=None, save_objective_fn=None,
+        )
+        assert pipeline_service._pipeline_school_id == pipeline_schools["a"]["school_id"], \
+            "Running pipeline owner should not be overwritten by new enqueue"
+    finally:
+        pipeline_service._queue.clear()
+        pipeline_service._running = False
+        pipeline_service._pipeline_school_id = None

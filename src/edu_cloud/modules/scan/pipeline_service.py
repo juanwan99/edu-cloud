@@ -737,7 +737,9 @@ def enqueue_pipeline(
     每个科目携带自己的 save_fn，不与其他科目共享（F009）。
     H4: 记录 school_id 用于租户隔离。"""
     global _pipeline_school_id
-    _pipeline_school_id = pipeline_kwargs.get("school_id")
+    new_school = pipeline_kwargs.get("school_id")
+    if not _running or _pipeline_school_id is None:
+        _pipeline_school_id = new_school
     _queue.append({
         "pipeline_kwargs": pipeline_kwargs,
         "save_answer_fn": save_answer_fn,

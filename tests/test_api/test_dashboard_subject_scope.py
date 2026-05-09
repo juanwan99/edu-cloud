@@ -67,37 +67,44 @@ async def test_workspace_context_excludes_other_subjects(client, dashboard_scope
                             headers=dashboard_scope_data["headers"])
     assert resp.status_code == 200
     data = resp.json()
-    if "exams" in data:
-        for exam in data.get("exams", []):
-            assert exam.get("subject_code") != "chinese", "数学教师不应看到语文科目"
+    all_codes = []
+    for exam in data.get("exams", []):
+        for subj in exam.get("subjects", []):
+            all_codes.append(subj.get("code", subj.get("subject_code", "")))
+        if exam.get("subject_code"):
+            all_codes.append(exam["subject_code"])
+    for code in all_codes:
+        assert code != "chinese", "数学教师不应看到语文科目"
 
 
 @pytest.mark.asyncio
 async def test_grade_overview_excludes_other_subjects(client, dashboard_scope_data, db):
-    """数学教师查看年级概览时，subjects 列表不应包含语文。"""
+    """数学教师查看年级概览时，返回的科目数据不应包含语文。"""
     import sqlalchemy
     from edu_cloud.models.class_group import ClassGroup
 
     school_id = dashboard_scope_data["school_id"]
-    # Need a grade and class for the overview to work
     cls = ClassGroup(name="初一1班", grade="初一", school_id=school_id, grade_id="g1")
     db.add(cls)
     await db.flush()
 
-    # Use the exam already created in the fixture
-    # The fixture creates an exam with math + chinese subjects
     from edu_cloud.modules.exam.models import Exam
     exam = (await db.execute(
         sqlalchemy.select(Exam).where(Exam.school_id == school_id)
     )).scalars().first()
+    assert exam is not None, "Fixture 应创建考试"
 
-    if exam:
-        resp = await client.get(
-            f"/api/v1/analytics/grade/g1/overview?exam_id={exam.id}",
-            headers=dashboard_scope_data["headers"],
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            if "subjects" in data:
-                subject_codes = [s.get("subject_code", s.get("code", "")) for s in data["subjects"]]
-                assert "chinese" not in subject_codes, "数学教师不应看到语文科目数据"
+    resp = await client.get(
+        f"/api/v1/analytics/grade/g1/overview?exam_id={exam.id}",
+        headers=dashboard_scope_data["headers"],
+    )
+    if resp.status_code == 404:
+        pass  # grade 不存在是合法行为，不是安全问题
+    elif resp.status_code == 200:
+        data = resp.json()
+        for cls_data in data.get("classes", []):
+            for subj in cls_data.get("subjects", []):
+                code = subj.get("subject_code", subj.get("code", ""))
+                assert code != "chinese", "数学教师不应看到语文科目数据"
+    else:
+        pytest.fail(f"Unexpected status {resp.status_code}: {resp.text}")
