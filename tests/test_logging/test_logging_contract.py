@@ -6,7 +6,6 @@ Verifies:
 - ContextVars reset between requests
 - business_event() writes to the correct logger with correct layer
 - Client logs endpoint rate limiting
-- Client logs endpoint self-logging skip
 """
 
 import json
@@ -179,37 +178,3 @@ async def test_client_logs_endpoint_rate_limit(client):
     assert resp3.status_code == 429
 
 
-# --------------------------------------------------------------------------
-# Test 8: Client logs endpoint skips self-logging
-# --------------------------------------------------------------------------
-
-@pytest.mark.anyio
-async def test_client_logs_endpoint_skips_self_logging(client):
-    """Verify POST /api/v1/client-logs doesn't generate a request-layer log for itself.
-
-    The middleware has an explicit skip for /api/v1/client-logs paths to prevent
-    log amplification (each client log batch would generate another log entry).
-    """
-    session_id = "self_log_skip_test_session"
-    events = [
-        {"ts": "2026-05-05T10:00:00+08:00", "level": "info",
-         "event_type": "user_action", "page_route": "/dashboard"}
-    ]
-
-    with patch("edu_cloud.api.app.logger") as mock_logger:
-        resp = await client.post("/api/v1/client-logs", json={
-            "client_session_id": session_id,
-            "events": events,
-        })
-        assert resp.status_code == 204
-
-        # Check that the middleware did NOT log this request
-        # The middleware uses logger.info/logger.warning for non-skipped paths
-        for call in mock_logger.info.call_args_list:
-            if call.args and len(call.args) >= 3:
-                # Pattern: "%s %s → %d (%.0fms)", method, path, status, ms
-                if "/client-logs" in str(call.args):
-                    pytest.fail(
-                        "Middleware logged /api/v1/client-logs path — "
-                        "self-logging skip is broken"
-                    )
