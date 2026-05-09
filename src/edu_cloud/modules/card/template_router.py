@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user
+from edu_cloud.core.tenant import get_school_id
 from edu_cloud.modules.card.models import Template
 from edu_cloud.modules.exam.models import Subject
 
@@ -42,19 +43,24 @@ async def upsert_template(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
-    school_id = current["current_role"].school_id
-    result = await db.execute(
-        select(Subject).where(Subject.id == subject_id, Subject.school_id == school_id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(404, "Subject not found")
+    school_id = get_school_id(current)
 
-    result = await db.execute(
-        select(Template).where(
-            Template.subject_id == subject_id, Template.side == side,
-            Template.school_id == school_id,
-        )
+    # D2: conditional Subject filter — admin (school_id=None) sees all schools
+    subj_stmt = select(Subject).where(Subject.id == subject_id)
+    if school_id:
+        subj_stmt = subj_stmt.where(Subject.school_id == school_id)
+    result = await db.execute(subj_stmt)
+    subject = result.scalar_one_or_none()
+    if not subject:
+        raise HTTPException(404, "Subject not found")
+    # Use subject's actual school_id for Template ownership
+    effective_school_id = subject.school_id
+
+    tpl_stmt = select(Template).where(
+        Template.subject_id == subject_id, Template.side == side,
+        Template.school_id == effective_school_id,
     )
+    result = await db.execute(tpl_stmt)
     template = result.scalar_one_or_none()
     is_update = template is not None
     if template:
@@ -68,7 +74,7 @@ async def upsert_template(
             subject_id=subject_id, side=side,
             image_width=body.image_width, image_height=body.image_height,
             anchors=body.anchors, regions=body.regions,
-            sample_image=body.sample_image, school_id=school_id,
+            sample_image=body.sample_image, school_id=effective_school_id,
         )
         db.add(template)
     try:
@@ -89,12 +95,14 @@ async def get_template(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(Template).where(
-            Template.subject_id == subject_id, Template.side == side,
-            Template.school_id == current["current_role"].school_id,
-        )
+    # D2: conditional Template filter — admin (school_id=None) sees all schools
+    school_id = get_school_id(current)
+    tpl_stmt = select(Template).where(
+        Template.subject_id == subject_id, Template.side == side,
     )
+    if school_id:
+        tpl_stmt = tpl_stmt.where(Template.school_id == school_id)
+    result = await db.execute(tpl_stmt)
     template = result.scalar_one_or_none()
     if not template:
         raise HTTPException(404, "Template not found")
@@ -107,10 +115,10 @@ async def list_templates(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(Template).where(
-            Template.subject_id == subject_id,
-            Template.school_id == current["current_role"].school_id,
-        )
-    )
+    # D2: conditional Template filter — admin (school_id=None) sees all schools
+    school_id = get_school_id(current)
+    tpl_stmt = select(Template).where(Template.subject_id == subject_id)
+    if school_id:
+        tpl_stmt = tpl_stmt.where(Template.school_id == school_id)
+    result = await db.execute(tpl_stmt)
     return [_template_response(t) for t in result.scalars()]

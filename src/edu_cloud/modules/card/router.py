@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import require_permission
 from edu_cloud.core.permissions import Permission
+from edu_cloud.core.tenant import get_school_id
 from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Exam, Subject
 from edu_cloud.modules.card.models import Template, CardSkeleton
@@ -521,15 +522,21 @@ async def export_template_json(
     current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """导出 paper-seg 兼容的切割模板 JSON。"""
-    subj_result = await db.execute(
-        select(Subject).where(Subject.id == subject_id, Subject.school_id == current["current_role"].school_id)
-    )
+    # D2: conditional filter — admin (school_id=None) sees all schools
+    school_id = get_school_id(current)
+
+    subj_stmt = select(Subject).where(Subject.id == subject_id)
+    if school_id:
+        subj_stmt = subj_stmt.where(Subject.school_id == school_id)
+    subj_result = await db.execute(subj_stmt)
     subject = subj_result.scalar_one_or_none()
     if not subject:
         raise HTTPException(404, "科目不存在")
-    exam_result = await db.execute(
-        select(Exam).where(Exam.id == subject.exam_id, Exam.school_id == current["current_role"].school_id)
-    )
+
+    exam_stmt = select(Exam).where(Exam.id == subject.exam_id)
+    if school_id:
+        exam_stmt = exam_stmt.where(Exam.school_id == school_id)
+    exam_result = await db.execute(exam_stmt)
     exam = exam_result.scalar_one_or_none()
     if not exam:
         raise HTTPException(403, "无权访问该科目模板")
@@ -538,7 +545,6 @@ async def export_template_json(
         Template.subject_id == subject_id,
         Template.side == "A",
     )
-    school_id = current["current_role"].school_id
     if school_id:
         tpl_stmt = tpl_stmt.where(Template.school_id == school_id)
     tpl_result = await db.execute(tpl_stmt)

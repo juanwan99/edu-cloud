@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import require_permission
 from edu_cloud.core.permissions import Permission
+from edu_cloud.core.tenant import get_school_id
 from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Exam, Subject
 from edu_cloud.modules.card.models import Template
@@ -223,14 +224,13 @@ async def render_doc_pages(
     current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """将上传的 Word/PDF 文档渲染为页面图片，返回每页 URL 和尺寸。"""
-    # Validate subject belongs to the caller's school
+    # D2: conditional Subject filter — admin (school_id=None) sees all schools
     if subject_id:
-        subj_result = await db.execute(
-            select(Subject).where(
-                Subject.id == subject_id,
-                Subject.school_id == current["current_role"].school_id,
-            )
-        )
+        school_id = get_school_id(current)
+        subj_stmt = select(Subject).where(Subject.id == subject_id)
+        if school_id:
+            subj_stmt = subj_stmt.where(Subject.school_id == school_id)
+        subj_result = await db.execute(subj_stmt)
         if not subj_result.scalar_one_or_none():
             raise HTTPException(403, "无权访问该科目")
 
@@ -302,13 +302,12 @@ async def get_doc_pages(
     current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """查询科目已有的文档页面图片。"""
-    # Validate subject belongs to the caller's school
-    subj_result = await db.execute(
-        select(Subject).where(
-            Subject.id == subject_id,
-            Subject.school_id == current["current_role"].school_id,
-        )
-    )
+    # D2: conditional Subject filter — admin (school_id=None) sees all schools
+    school_id = get_school_id(current)
+    subj_stmt = select(Subject).where(Subject.id == subject_id)
+    if school_id:
+        subj_stmt = subj_stmt.where(Subject.school_id == school_id)
+    subj_result = await db.execute(subj_stmt)
     if not subj_result.scalar_one_or_none():
         raise HTTPException(403, "无权访问该科目")
 
@@ -352,18 +351,25 @@ async def get_doc_page_image(
     if not full.is_relative_to(upload_root) or not full.is_file():
         raise HTTPException(404, "Image not found")
 
-    # If path is under doc-pages/{subject_id}/..., validate subject ownership
+    # D3: If path is under doc-pages/{id}/..., validate subject ownership.
+    # UUID hex batch_id (from render_doc_pages when no subject_id) is a temporary
+    # render — skip subject validation since it's not a real subject_id.
     import re
     m = re.match(r"doc-pages/([^/]+)/", rel)
     if m:
-        subject_id = m.group(1)
-        subj_result = await db.execute(
-            select(Subject).where(
-                Subject.id == subject_id,
-                Subject.school_id == current["current_role"].school_id,
-            )
-        )
-        if not subj_result.scalar_one_or_none():
-            raise HTTPException(403, "无权访问该科目图片")
+        possible_id = m.group(1)
+        # UUID hex format = temporary batch, skip subject validation
+        if not re.match(r'^[0-9a-f]{32}$', possible_id):
+            # Looks like a subject_id — validate ownership
+            school_id = get_school_id(current)
+            if school_id:
+                subj_result = await db.execute(
+                    select(Subject).where(
+                        Subject.id == possible_id,
+                        Subject.school_id == school_id,
+                    )
+                )
+                if not subj_result.scalar_one_or_none():
+                    raise HTTPException(403, "无权访问该科目图片")
 
     return FileResponse(str(full), media_type="image/png")

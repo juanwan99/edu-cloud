@@ -320,6 +320,13 @@ async def browse_directory(
     else:
         d = upload_root
 
+    # D1: tenant path isolation — non-admin users can only browse their school dir
+    school_id = get_school_id(current)
+    if school_id:
+        school_root = upload_root / school_id
+        if d != upload_root and not d.is_relative_to(school_root):
+            raise HTTPException(403, "只允许访问本校目录")
+
     if not d.is_dir():
         raise HTTPException(400, f"目录不存在: {req.path}")
 
@@ -900,6 +907,15 @@ async def serve_scan_image(
     resolved = _validate_path_within_upload_dir(path)
     if not resolved.is_file():
         raise HTTPException(404, f"图片不存在: {path}")
+
+    # D1: tenant path isolation — non-admin users can only access their school dir
+    school_id = get_school_id(current)
+    if school_id:
+        upload_root = Path(settings.UPLOAD_DIR).resolve()
+        school_root = upload_root / school_id
+        if not resolved.is_relative_to(school_root):
+            raise HTTPException(403, "只允许访问本校目录")
+
     suffix = resolved.suffix.lower()
     media = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg"}.get(suffix.lstrip("."), "application/octet-stream")
     return FileResponse(resolved, media_type=media)

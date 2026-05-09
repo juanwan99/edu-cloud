@@ -11,16 +11,40 @@ from edu_cloud.shared.auth import create_access_token
 
 
 @pytest.fixture
-async def grading_headers(db):
+async def scan_auth(db):
+    """Create an academic_director with school_id for tenant-aware scan tests (T1/D1).
+
+    Returns dict with 'headers' and 'school_id'.
+    """
+    from edu_cloud.models.school import School
+    school = School(name="扫描路径测试校", code="SCANP", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+
     user = User(username="scan_path_test", display_name="Scan Path Tester")
     user.set_password("test123")
     db.add(user)
     await db.flush()
-    db.add(UserRole(user_id=user.id, role="academic_director", is_primary=True))
+    db.add(UserRole(
+        user_id=user.id, role="academic_director",
+        school_id=school.id, is_primary=True,
+    ))
     await db.commit()
     await db.refresh(user)
-    token = create_access_token({"sub": user.id, "role": "academic_director"})
-    return {"Authorization": f"Bearer {token}"}
+    token = create_access_token({
+        "sub": user.id, "role": "academic_director",
+        "school_id": school.id,
+    })
+    return {
+        "headers": {"Authorization": f"Bearer {token}"},
+        "school_id": school.id,
+    }
+
+
+@pytest.fixture
+async def grading_headers(scan_auth):
+    """Backward-compatible alias — returns just the headers dict."""
+    return scan_auth["headers"]
 
 
 # ---------- scan-dir ----------
@@ -169,37 +193,41 @@ async def test_scan_image_rejects_traversal(client, grading_headers):
 
 
 @pytest.mark.asyncio
-async def test_scan_image_accepts_valid_file(client, grading_headers, tmp_path, monkeypatch):
+async def test_scan_image_accepts_valid_file(client, scan_auth, tmp_path, monkeypatch):
     from edu_cloud.config import settings
 
     upload_root = tmp_path / "uploads"
-    upload_root.mkdir()
-    img = upload_root / "test.png"
+    # D1: file must be under UPLOAD_DIR/{school_id}/ for tenant isolation
+    school_dir = upload_root / scan_auth["school_id"]
+    school_dir.mkdir(parents=True)
+    img = school_dir / "test.png"
     img.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
 
     resp = await client.get(
         "/api/v1/scan/pipeline/scan-image",
-        params={"path": "test.png"},
-        headers=grading_headers,
+        params={"path": f"{scan_auth['school_id']}/test.png"},
+        headers=scan_auth["headers"],
     )
     assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_scan_image_uploads_prefix_stripped(client, grading_headers, tmp_path, monkeypatch):
+async def test_scan_image_uploads_prefix_stripped(client, scan_auth, tmp_path, monkeypatch):
     """路径以 /uploads/ 开头时，前缀应被剥离后在 UPLOAD_DIR 内查找。"""
     from edu_cloud.config import settings
 
     upload_root = tmp_path / "uploads"
-    upload_root.mkdir()
-    img = upload_root / "scan.jpg"
+    # D1: file must be under UPLOAD_DIR/{school_id}/ for tenant isolation
+    school_dir = upload_root / scan_auth["school_id"]
+    school_dir.mkdir(parents=True)
+    img = school_dir / "scan.jpg"
     img.write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 100)
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
 
     resp = await client.get(
         "/api/v1/scan/pipeline/scan-image",
-        params={"path": "/uploads/scan.jpg"},
-        headers=grading_headers,
+        params={"path": f"/uploads/{scan_auth['school_id']}/scan.jpg"},
+        headers=scan_auth["headers"],
     )
     assert resp.status_code == 200

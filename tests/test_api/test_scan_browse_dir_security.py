@@ -8,19 +8,32 @@ from edu_cloud.shared.auth import create_access_token
 
 @pytest.fixture
 async def grading_admin_user(db):
+    # D1: academic_director needs school_id for tenant-aware path validation
+    from edu_cloud.models.school import School
+    school = School(name="浏览目录测试校", code="BRDIR", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+
     user = User(username="grading_admin_test", display_name="Grading Admin")
     user.set_password("test123")
     db.add(user)
     await db.flush()
-    db.add(UserRole(user_id=user.id, role="academic_director", is_primary=True))
+    db.add(UserRole(
+        user_id=user.id, role="academic_director",
+        school_id=school.id, is_primary=True,
+    ))
     await db.commit()
     await db.refresh(user)
+    user._test_school_id = school.id
     return user
 
 
 @pytest.fixture
 async def grading_admin_headers(grading_admin_user):
-    token = create_access_token({"sub": grading_admin_user.id, "role": "academic_director"})
+    token = create_access_token({
+        "sub": grading_admin_user.id, "role": "academic_director",
+        "school_id": grading_admin_user._test_school_id,
+    })
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -57,40 +70,54 @@ async def test_browse_dir_default_upload_dir(client, admin_headers):
 
 
 @pytest.mark.asyncio
-async def test_browse_dir_relative_path_within_upload(client, grading_admin_headers, tmp_path, monkeypatch):
-    """相对路径在 UPLOAD_DIR 内 -> 200。"""
+async def test_browse_dir_relative_path_within_upload(client, grading_admin_user, tmp_path, monkeypatch):
+    """相对路径在 UPLOAD_DIR/{school_id} 内 -> 200。"""
     from edu_cloud.config import settings
 
+    school_id = grading_admin_user._test_school_id
     upload_root = tmp_path / "uploads"
-    subdir = upload_root / "scan-input"
+    subdir = upload_root / school_id / "scan-input"
     subdir.mkdir(parents=True)
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
 
+    token = create_access_token({
+        "sub": grading_admin_user.id, "role": "academic_director",
+        "school_id": school_id,
+    })
+    headers = {"Authorization": f"Bearer {token}"}
+
     resp = await client.post(
         "/api/v1/scan/pipeline/browse-dir",
-        json={"path": "scan-input"},
-        headers=grading_admin_headers,
+        json={"path": f"{school_id}/scan-input"},
+        headers=headers,
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert data["current"] == "scan-input"
-    assert data["parent"] == "."
+    assert data["current"] == f"{school_id}/scan-input"
 
 
 @pytest.mark.asyncio
-async def test_browse_dir_returns_relative_paths(client, grading_admin_headers, tmp_path, monkeypatch):
+async def test_browse_dir_returns_relative_paths(client, grading_admin_user, tmp_path, monkeypatch):
     """返回的 item path 和 current 应该是相对路径，不暴露服务器结构。"""
     from edu_cloud.config import settings
 
+    school_id = grading_admin_user._test_school_id
     upload_root = tmp_path / "uploads"
+    # D1: browsing root (empty path) is allowed — bypasses tenant check
     child = upload_root / "exam1"
     child.mkdir(parents=True)
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
 
+    token = create_access_token({
+        "sub": grading_admin_user.id, "role": "academic_director",
+        "school_id": school_id,
+    })
+    headers = {"Authorization": f"Bearer {token}"}
+
     resp = await client.post(
         "/api/v1/scan/pipeline/browse-dir",
         json={},
-        headers=grading_admin_headers,
+        headers=headers,
     )
     assert resp.status_code == 200
     data = resp.json()

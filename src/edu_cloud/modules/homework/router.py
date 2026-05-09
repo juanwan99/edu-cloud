@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
+from edu_cloud.core.tenant import get_school_id
 from edu_cloud.modules.homework.service import HomeworkTaskService, HomeworkSubmissionService
 
 logger = logging.getLogger(__name__)
@@ -52,7 +53,8 @@ class GradeBatchRequest(BaseModel):
 
 
 def _school_id(current: dict) -> str:
-    return current["current_role"].school_id
+    """D4: Deprecated — use get_school_id() for fail-closed tenant isolation."""
+    return get_school_id(current)
 
 
 def _task_response(t) -> dict:
