@@ -53,6 +53,22 @@ describe('ReviewPage template layout', () => {
     expect(content).toContain('{{ position.current }} / {{ position.total }}')
   })
 
+  it('places page navigation below the answer image, not in the topbar', () => {
+    const topbarBlock = content.slice(
+      content.indexOf('class="review-topbar"'),
+      content.indexOf('<n-spin')
+    )
+    const imageBlock = content.slice(
+      content.indexOf('class="image-panel"'),
+      content.indexOf('<div v-if="ai" class="ai-result-card">')
+    )
+    expect(topbarBlock).not.toContain('goPrev')
+    expect(topbarBlock).not.toContain('goNext')
+    expect(imageBlock).toContain('class="review-pager"')
+    expect(imageBlock).toContain('@click="goPrev"')
+    expect(imageBlock).toContain('@click="goNext"')
+  })
+
   it('contains review-done state', () => {
     expect(content).toContain('class="review-done"')
     expect(content).toContain('全部批改完成')
@@ -62,6 +78,12 @@ describe('ReviewPage template layout', () => {
   it('contains image panel and score panel', () => {
     expect(content).toContain('class="image-panel"')
     expect(content).toContain('class="score-panel"')
+  })
+
+  it('contains floating review overlay with image and score panels', () => {
+    expect(content).toContain('class="floating-review-mask"')
+    expect(content).toContain('class="floating-image-stage"')
+    expect(content).toContain('class="floating-score-panel"')
   })
 
   it('contains hotkey hint section', () => {
@@ -110,7 +132,7 @@ describe('ReviewPage score input', () => {
     expect(content).toContain('v-model:value="currentScore"')
     expect(content).toContain(':min="0"')
     expect(content).toContain(':max="maxScore"')
-    expect(content).toContain(':step="0.5"')
+    expect(content).toContain(':step="scoreStep"')
   })
 
   it('has quick score buttons generated from maxScore', () => {
@@ -119,9 +141,16 @@ describe('ReviewPage score input', () => {
     expect(content).toContain("{ active: currentScore === s }")
   })
 
-  it('computes scoreButtons from 0 to maxScore', () => {
+  it('computes scoreButtons from 0 to maxScore with composition step support', () => {
     expect(content).toContain('const max = Math.floor(maxScore.value)')
-    expect(content).toContain('for (let i = 0; i <= max; i++) buttons.push(i)')
+    expect(content).toContain('const step = isCompositionQuestion.value ? 2 : 1')
+    expect(content).toContain('for (let i = 0; i <= max; i += step) buttons.push(i)')
+  })
+
+  it('uses 2 point scoring step for composition questions', () => {
+    expect(content).toContain('const isCompositionQuestion = computed')
+    expect(content).toContain('maxScore.value >= 40')
+    expect(content).toContain('const scoreStep = computed(() => isCompositionQuestion.value ? 2 : 0.5)')
   })
 
   it('has comment collapse section', () => {
@@ -136,37 +165,32 @@ describe('ReviewPage score input', () => {
 })
 
 describe('ReviewPage image zoom and drag', () => {
-  it('computes image transform style', () => {
-    expect(content).toContain('const imageTransform = computed')
-    expect(content).toContain('translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value})')
+  it('imports useImageZoom composable', () => {
+    expect(content).toContain("import { useImageZoom } from './review/useImageZoom'")
+    expect(content).toContain('useImageZoom()')
   })
 
-  it('handles wheel event for zoom', () => {
+  it('uses imageTransform and wheel handlers from composable', () => {
     expect(content).toContain('@wheel.prevent="handleWheel"')
-    expect(content).toContain('function handleWheel(e)')
-    expect(content).toContain('Math.max(0.3, Math.min(5, scale.value + delta))')
+    expect(content).toContain('imageTransform')
   })
 
-  it('supports mouse drag for panning', () => {
+  it('opens floating review from image click without changing submit flow', () => {
+    expect(content).toContain('@click.stop="openFloatingReview()"')
+    expect(content).toContain('@click.stop="openFloatingReview(true)"')
+    expect(content).toContain('const floatingReviewOpen = ref(false)')
+    expect(content).toContain('ref="floatingScoreInputRef"')
+  })
+
+  it('uses floating wheel and drag handlers in template', () => {
+    expect(content).toContain('@wheel="handleFloatingWheel"')
+    expect(content).toContain('overflow: hidden;')
+    expect(content).toContain('max-height: 100%;')
+  })
+
+  it('binds drag and zoom to template', () => {
     expect(content).toContain('@mousedown="startDrag"')
-    expect(content).toContain('function startDrag(e)')
-    expect(content).toContain('function onDrag(e)')
-    expect(content).toContain('function stopDrag()')
-  })
-
-  it('double-click resets zoom', () => {
-    expect(content).toContain('@dblclick="resetZoom"')
-    expect(content).toContain('function resetZoom()')
-  })
-
-  it('resetZoom restores defaults', () => {
-    const fnBlock = content.slice(
-      content.indexOf('function resetZoom()'),
-      content.indexOf('function startDrag')
-    )
-    expect(fnBlock).toContain('scale.value = 1')
-    expect(fnBlock).toContain('translateX.value = 0')
-    expect(fnBlock).toContain('translateY.value = 0')
+    expect(content).toContain('@dblclick.stop="resetZoom"')
   })
 })
 
@@ -179,8 +203,10 @@ describe('ReviewPage keyboard shortcuts', () => {
     expect(content).toContain("if (e.target.tagName === 'TEXTAREA') return")
   })
 
-  it('Escape key navigates back', () => {
+  it('Escape key closes floating mode before navigating back', () => {
     expect(content).toContain("if (e.key === 'Escape')")
+    expect(content).toContain('if (floatingReviewOpen.value)')
+    expect(content).toContain('closeFloatingReview()')
     expect(content).toContain('router.back()')
   })
 
@@ -204,7 +230,7 @@ describe('ReviewPage keyboard shortcuts', () => {
 
 describe('ReviewPage API calls', () => {
   it('imports getNext and submitScore from marking API', () => {
-    expect(content).toContain("import { getNext, submitScore, flagAnswer, getAnswerAt } from '../api/marking'")
+    expect(content).toContain("import { getNext, submitScore, getAnswerAt } from '../api/marking'")
   })
 
   it('loads next answer via getNext', () => {
@@ -244,8 +270,8 @@ describe('ReviewPage data flow', () => {
     expect(fnBlock).toContain('ai.value = answerPayload.ai || null')
   })
 
-  it('pre-fills score from AI prediction', () => {
-    expect(content).toContain('currentScore.value = ai.value ? ai.value.score : null')
+  it('pre-fills score from AI prediction via applyScoring', () => {
+    expect(content).toContain('applyScoring(answerPayload, ai.value)')
   })
 
   it('handles done state when no more answers', () => {
@@ -273,7 +299,7 @@ describe('ReviewPage error handling', () => {
   it('wraps handleSubmit in try-catch with detailed error', () => {
     const fnBlock = content.slice(
       content.indexOf('async function handleSubmit'),
-      content.indexOf('function handleWheel')
+      content.indexOf('async function loadAnswerAt')
     )
     expect(fnBlock).toContain('try {')
     expect(fnBlock).toContain('} catch')
@@ -296,9 +322,8 @@ describe('ReviewPage cleanup on unmount', () => {
     expect(content).toContain("window.removeEventListener('keydown', handleKeydown)")
   })
 
-  it('removes mousemove and mouseup listeners', () => {
-    expect(content).toContain("window.removeEventListener('mousemove', onDrag)")
-    expect(content).toContain("window.removeEventListener('mouseup', stopDrag)")
+  it('calls cleanupZoom on unmount', () => {
+    expect(content).toContain('cleanupZoom()')
   })
 
   it('revokes object URL on unmount', () => {

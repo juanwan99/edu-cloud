@@ -13,11 +13,6 @@
           <n-button :type="reviewMode === 'ungraded' ? 'primary' : 'default'" @click="switchMode('ungraded')">待阅</n-button>
           <n-button :type="reviewMode === 'ai_review' ? 'primary' : 'default'" @click="switchMode('ai_review')">AI 复核</n-button>
         </n-button-group>
-        <n-button-group size="small">
-          <n-button :disabled="browseIndex <= 0 || loading" @click="goPrev">&#9664;</n-button>
-          <n-button disabled style="min-width: 60px">{{ position.current }} / {{ position.total }}</n-button>
-          <n-button :disabled="browseIndex >= position.total - 1 || loading" @click="goNext">&#9654;</n-button>
-        </n-button-group>
       </div>
     </div>
 
@@ -44,6 +39,15 @@
         <!-- 左栏：图片 + AI 阅卷结果 -->
         <div class="left-panel">
           <div class="image-panel">
+            <n-button
+              v-if="imageUrl"
+              class="floating-open-btn"
+              size="small"
+              secondary
+              @click.stop="openFloatingReview(true)"
+            >
+              悬浮阅卷
+            </n-button>
             <div
               class="image-wrapper"
               :style="imageTransform"
@@ -53,18 +57,27 @@
               <img
                 v-if="imageUrl"
                 :src="imageUrl"
-                class="answer-image"
-                @dblclick="resetZoom"
+                class="answer-image answer-image--clickable"
+                @click.stop="openFloatingReview()"
+                @dblclick.stop="resetZoom"
                 draggable="false"
               />
               <img
                 v-for="(url, i) in childImageUrls"
                 :key="'child-' + i"
                 :src="url"
-                class="answer-image child-image"
+                class="answer-image child-image answer-image--clickable"
+                @click.stop="openFloatingReview()"
                 draggable="false"
               />
             </div>
+          </div>
+          <div class="review-pager">
+            <n-button-group size="small">
+              <n-button :disabled="browseIndex <= 0 || loading" @click="goPrev">&#9664;</n-button>
+              <n-button disabled class="review-pager-count">{{ position.current }} / {{ position.total }}</n-button>
+              <n-button :disabled="browseIndex >= position.total - 1 || loading" @click="goNext">&#9654;</n-button>
+            </n-button-group>
           </div>
 
           <div v-if="ai" class="ai-result-card">
@@ -174,7 +187,7 @@
               v-model:value="currentScore"
               :min="0"
               :max="maxScore"
-              :step="0.5"
+              :step="scoreStep"
               size="large"
               placeholder="输入分数"
               class="score-input"
@@ -260,6 +273,146 @@
         </div>
       </div>
     </n-spin>
+
+    <teleport to="body">
+      <div v-if="floatingReviewOpen && !done" class="floating-review-mask">
+        <div class="floating-review-shell">
+          <div class="floating-review-toolbar">
+            <div class="floating-review-title">
+              <span class="floating-question-name">{{ questionName }}</span>
+              <n-tag type="info" round size="small">满分 {{ maxScore }}</n-tag>
+              <span class="floating-position">{{ position.current }} / {{ position.total }}</span>
+            </div>
+            <n-button-group size="small">
+              <n-button @click="zoomOut">-</n-button>
+              <n-button @click="resetZoom">1:1</n-button>
+              <n-button @click="zoomIn">+</n-button>
+              <n-button type="primary" ghost @click="closeFloatingReview">关闭</n-button>
+            </n-button-group>
+          </div>
+
+          <div class="floating-review-layout">
+            <div class="floating-image-stage">
+              <div
+                class="floating-review-image-wrapper"
+                :style="imageTransform"
+                @wheel="handleFloatingWheel"
+                @mousedown="startDrag"
+              >
+                <img
+                  v-if="imageUrl"
+                  :src="imageUrl"
+                  class="floating-answer-image"
+                  @dblclick.stop="resetZoom"
+                  draggable="false"
+                />
+                <img
+                  v-for="(url, i) in childImageUrls"
+                  :key="'floating-child-' + i"
+                  :src="url"
+                  class="floating-answer-image floating-child-image"
+                  draggable="false"
+                />
+              </div>
+            </div>
+
+            <aside class="floating-score-panel">
+              <div class="floating-score-fixed">
+                <div class="floating-score-heading">
+                  <h3 class="score-title">评分</h3>
+                  <n-tag v-if="ai" size="small" round :type="ai.score != null ? 'info' : 'default'">
+                    AI {{ ai.score ?? '-' }} / {{ maxScore }}
+                  </n-tag>
+                </div>
+                <n-input-number
+                  ref="floatingScoreInputRef"
+                  v-model:value="currentScore"
+                  :min="0"
+                  :max="maxScore"
+                  :step="scoreStep"
+                  size="large"
+                  placeholder="输入分数"
+                  class="score-input"
+                  @keydown.enter="handleSubmit"
+                />
+              </div>
+
+              <div class="floating-score-scroll">
+                <div class="score-buttons">
+                  <button
+                    v-for="s in scoreButtons"
+                    :key="'floating-score-' + s"
+                    :class="['score-btn', { active: currentScore === s }]"
+                    @click="setScore(s)"
+                  >
+                    {{ s }}
+                  </button>
+                </div>
+
+                <div class="comment-section">
+                  <n-collapse>
+                    <n-collapse-item title="添加批注" name="floating-comment">
+                      <n-input
+                        v-model:value="comment"
+                        type="textarea"
+                        placeholder="可选批注"
+                        :rows="4"
+                      />
+                    </n-collapse-item>
+                  </n-collapse>
+                </div>
+
+                <div class="anomaly-section">
+                  <n-popselect
+                    v-model:value="selectedAnomalyType"
+                    :options="anomalyOptions"
+                    trigger="click"
+                    @update:value="handleFlag"
+                  >
+                    <n-button
+                      size="small"
+                      block
+                      :type="currentAnomaly ? 'warning' : 'default'"
+                      :ghost="!currentAnomaly"
+                    >
+                      {{ currentAnomaly ? `已标记: ${anomalyLabel}` : '标记异常' }}
+                    </n-button>
+                  </n-popselect>
+                  <n-button
+                    v-if="currentAnomaly"
+                    size="tiny"
+                    text
+                    type="error"
+                    @click="handleClearFlag"
+                  >
+                    取消标记
+                  </n-button>
+                </div>
+              </div>
+
+              <div class="floating-score-footer">
+                <n-button-group size="small" class="floating-review-nav">
+                  <n-button :disabled="browseIndex <= 0 || loading" @click="goPrev">&#9664;</n-button>
+                  <n-button disabled class="review-pager-count">{{ position.current }} / {{ position.total }}</n-button>
+                  <n-button :disabled="browseIndex >= position.total - 1 || loading" @click="goNext">&#9654;</n-button>
+                </n-button-group>
+                <n-button
+                  type="primary"
+                  size="large"
+                  block
+                  class="btn-pill"
+                  :loading="submitting"
+                  :disabled="currentScore === null"
+                  @click="handleSubmit"
+                >
+                  {{ isGraded ? '修改评分 (Enter)' : ai ? '确认并下一份 (Enter)' : '提交并下一份 (Enter)' }}
+                </n-button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </teleport>
   </div>
 </template>
 
@@ -268,8 +421,11 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessage, NIcon } from 'naive-ui'
 import { ArrowLeft } from 'lucide-vue-next'
-import { getNext, submitScore, flagAnswer, getAnswerAt } from '../api/marking'
+import { getNext, submitScore, getAnswerAt } from '../api/marking'
 import client from '../api/client'
+import { useImageZoom } from './review/useImageZoom'
+import { useAnnotations } from './review/useAnnotations'
+import { useScoring } from './review/useScoring'
 
 const route = useRoute()
 const router = useRouter()
@@ -284,6 +440,16 @@ const currentAnswerId = ref(null)
 const imageUrl = ref('')
 const childImageUrls = ref([])
 const childAi = ref([])
+const position = ref({ current: 0, total: 0 })
+const questionName = ref('')
+const questionType = ref('')
+const maxScore = ref(10)
+const ai = ref(null)
+const feedbackExpanded = ref(false)
+const scoreInputRef = ref(null)
+const floatingScoreInputRef = ref(null)
+const floatingReviewOpen = ref(false)
+
 const mergedDetails = computed(() => {
   const main = ai.value?.details || []
   const childDetails = childAi.value.flatMap(cai =>
@@ -291,104 +457,68 @@ const mergedDetails = computed(() => {
   )
   return [...main, ...childDetails]
 })
-const position = ref({ current: 0, total: 0 })
-const questionName = ref('')
-const maxScore = ref(10)
-const ai = ref(null)  // {score, confidence, feedback, result_id} 或 null
-const feedbackExpanded = ref(false)
 
-const currentScore = ref(null)
-const comment = ref('')
-const scoreInputRef = ref(null)
+const {
+  dragMoved,
+  imageTransform,
+  resetZoom, zoomIn, zoomOut,
+  handleWheel, handleFloatingWheel,
+  startDrag, stopDrag, cleanup: cleanupZoom,
+} = useImageZoom()
 
-// Annotations
-const annotations = ref([])
-const annEditing = ref(null)
-const annTarget = ref('score')
-const annComment = ref('')
-const annSuggestedScore = ref(null)
+const {
+  annotations, annEditing, annTarget, annComment, annSuggestedScore,
+  getAnnotation, startAnnotation, removeAnnotation: _removeAnnotation, submitAnnotation: _submitAnnotation,
+  resetAnnotations,
+} = useAnnotations()
 
-function getAnnotation(blankNo) {
-  const key = blankNo ?? '_overall'
-  return annotations.value.find(a => (a.blankNo ?? '_overall') === key)
-}
+const removeAnnotation = (blankNo) => _removeAnnotation(blankNo, ai.value?.result_id)
+const submitAnnotation = (blankNo) => _submitAnnotation(blankNo, ai.value?.result_id)
 
-function startAnnotation(blankNo) {
-  annEditing.value = blankNo ?? '_overall'
-  annComment.value = ''
-  annTarget.value = 'score'
-  annSuggestedScore.value = null
-}
+const {
+  currentScore, comment, isGraded,
+  currentAnomaly, selectedAnomalyType,
+  anomalyOptions, anomalyLabel,
+  setScore, applyScoring,
+  handleFlag: _handleFlag, handleClearFlag: _handleClearFlag,
+} = useScoring()
 
-function removeAnnotation(blankNo) {
-  const key = blankNo ?? '_overall'
-  annotations.value = annotations.value.filter(a => (a.blankNo ?? '_overall') !== key)
-  saveAnnotations()
-}
-
-function submitAnnotation(blankNo) {
-  if (!annComment.value.trim()) return
-  const key = blankNo ?? '_overall'
-  annotations.value = annotations.value.filter(a => (a.blankNo ?? '_overall') !== key)
-  const item = { target: annTarget.value, blankNo: blankNo || null, comment: annComment.value.trim() }
-  if (annTarget.value === 'score' && annSuggestedScore.value != null) {
-    item.suggested_score = annSuggestedScore.value
-  }
-  annotations.value.push(item)
-  annEditing.value = null
-  saveAnnotations()
-}
-
-async function saveAnnotations() {
-  const resultId = ai.value?.result_id
-  if (!resultId) return
-  try {
-    await client.patch(`/grading/results/${resultId}/annotations`, annotations.value)
-  } catch {
-    message.error('标注保存失败')
-  }
-}
+const handleFlag = (value) => _handleFlag(value, currentAnswerId.value)
+const handleClearFlag = () => _handleClearFlag(currentAnswerId.value)
 
 const reviewMode = ref('ungraded')
 const browseIndex = ref(-1)
 const savedOffsets = { ungraded: -1, ai_review: -1 }
 const browsing = ref(false)
 const loadSeq = ref(0)
-const isGraded = ref(false)
-const currentAnomaly = ref(null)
-const selectedAnomalyType = ref(null)
-const anomalyOptions = [
-  { label: '扫描错误', value: 'scan_error' },
-  { label: '空白卷', value: 'blank' },
-  { label: '字迹模糊', value: 'illegible' },
-  { label: '答非所问', value: 'wrong_question' },
-  { label: '疑似作弊', value: 'suspected_cheating' },
-  { label: '其他', value: 'other' },
-]
-const anomalyLabelMap = Object.fromEntries(anomalyOptions.map(o => [o.value, o.label]))
-const anomalyLabel = computed(() => anomalyLabelMap[currentAnomaly.value] || currentAnomaly.value)
 
-// 图片缩放/拖拽
-const scale = ref(1)
-const translateX = ref(0)
-const translateY = ref(0)
-const dragging = ref(false)
-const dragStart = ref({ x: 0, y: 0 })
-
-const imageTransform = computed(() => ({
-  transform: `translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value})`,
-  cursor: dragging.value ? 'grabbing' : 'grab',
-}))
-
+const isCompositionQuestion = computed(() =>
+  maxScore.value >= 40 && (!questionType.value || questionType.value === 'essay')
+)
+const scoreStep = computed(() => isCompositionQuestion.value ? 2 : 0.5)
 const scoreButtons = computed(() => {
   const max = Math.floor(maxScore.value)
   const buttons = []
-  for (let i = 0; i <= max; i++) buttons.push(i)
+  const step = isCompositionQuestion.value ? 2 : 1
+  for (let i = 0; i <= max; i += step) buttons.push(i)
+  if (buttons[buttons.length - 1] !== max) buttons.push(max)
   return buttons
 })
 
-function setScore(s) {
-  currentScore.value = s
+async function openFloatingReview(force = false) {
+  if (!imageUrl.value || (!force && dragMoved.value)) return
+  resetZoom()
+  floatingReviewOpen.value = true
+  dragMoved.value = false
+  await nextTick()
+  floatingScoreInputRef.value?.focus()
+}
+
+async function closeFloatingReview() {
+  floatingReviewOpen.value = false
+  stopDrag()
+  await nextTick()
+  scoreInputRef.value?.focus()
 }
 
 async function loadImage(answerId) {
@@ -406,21 +536,10 @@ async function applyAnswer(answerPayload) {
   currentAnswerId.value = answerPayload.answer_id
   position.value = answerPayload.position
   ai.value = answerPayload.ai || null
-  annotations.value = answerPayload.annotations || []
-  annEditing.value = null
+  resetAnnotations(answerPayload.annotations)
   feedbackExpanded.value = false
   if (answerPayload.max_score != null) maxScore.value = answerPayload.max_score
-  if (answerPayload.graded_score != null) {
-    currentScore.value = answerPayload.graded_score
-    comment.value = answerPayload.graded_comment || ''
-    isGraded.value = true
-  } else {
-    currentScore.value = ai.value ? ai.value.score : null
-    comment.value = ''
-    isGraded.value = false
-  }
-  currentAnomaly.value = answerPayload.anomaly_type || null
-  selectedAnomalyType.value = null
+  applyScoring(answerPayload, ai.value)
   resetZoom()
 
   childImageUrls.value.forEach(u => URL.revokeObjectURL(u))
@@ -445,6 +564,7 @@ async function loadNext() {
     if (seq !== loadSeq.value) return
     if (data.done) {
       done.value = true
+      closeFloatingReview()
     } else {
       await applyAnswer(data.answer)
       browseIndex.value = data.answer.position.current - 1
@@ -474,6 +594,7 @@ async function handleSubmit() {
       await loadNext()
     } else if (data.next?.done) {
       done.value = true
+      closeFloatingReview()
     } else if (data.next?.answer) {
       await applyAnswer(data.next.answer)
       await loadImage(data.next.answer.answer_id)
@@ -484,29 +605,6 @@ async function handleSubmit() {
     message.error(e.response?.data?.detail || '提交失败')
   }
   submitting.value = false
-}
-
-async function handleFlag(value) {
-  if (!currentAnswerId.value) return
-  try {
-    await flagAnswer(currentAnswerId.value, value)
-    currentAnomaly.value = value
-    message.success('已标记异常')
-  } catch {
-    message.error('标记失败')
-  }
-}
-
-async function handleClearFlag() {
-  if (!currentAnswerId.value) return
-  try {
-    await flagAnswer(currentAnswerId.value, null)
-    currentAnomaly.value = null
-    selectedAnomalyType.value = null
-    message.success('已取消标记')
-  } catch {
-    message.error('取消标记失败')
-  }
 }
 
 async function loadAnswerAt(offset) {
@@ -559,12 +657,6 @@ function switchMode(mode) {
   }
 }
 
-// 图片缩放
-function handleWheel(e) {
-  const delta = e.deltaY > 0 ? -0.1 : 0.1
-  scale.value = Math.max(0.3, Math.min(5, scale.value + delta))
-}
-
 function formatBlankNo(blankNo, index) {
   if (!blankNo) return `第${index + 1}空`
   const s = String(blankNo)
@@ -572,53 +664,16 @@ function formatBlankNo(blankNo, index) {
   return `第${s}空`
 }
 
-function resetZoom() {
-  scale.value = 1
-  translateX.value = 0
-  translateY.value = 0
-}
-
-function startDrag(e) {
-  dragging.value = true
-  dragStart.value = { x: e.clientX - translateX.value, y: e.clientY - translateY.value }
-  window.addEventListener('mousemove', onDrag)
-  window.addEventListener('mouseup', stopDrag)
-}
-
-function onDrag(e) {
-  if (!dragging.value) return
-  translateX.value = e.clientX - dragStart.value.x
-  translateY.value = e.clientY - dragStart.value.y
-}
-
-function stopDrag() {
-  dragging.value = false
-  window.removeEventListener('mousemove', onDrag)
-  window.removeEventListener('mouseup', stopDrag)
-}
-
 function handleKeydown(e) {
-  if (e.target.tagName === 'TEXTAREA') return
-
   if (e.key === 'Escape') {
+    if (floatingReviewOpen.value) { closeFloatingReview(); return }
     router.back()
     return
   }
-
-  if (e.key === 'ArrowLeft' && !e.target.closest('.n-input-number')) {
-    goPrev()
-    return
-  }
-  if (e.key === 'ArrowRight' && !e.target.closest('.n-input-number')) {
-    goNext()
-    return
-  }
-
-  if (e.key === 'Enter' && !e.target.closest('.n-input-number')) {
-    handleSubmit()
-    return
-  }
-
+  if (e.target.tagName === 'TEXTAREA') return
+  if (e.key === 'ArrowLeft' && !e.target.closest('.n-input-number')) { goPrev(); return }
+  if (e.key === 'ArrowRight' && !e.target.closest('.n-input-number')) { goNext(); return }
+  if (e.key === 'Enter' && !e.target.closest('.n-input-number')) { handleSubmit(); return }
   if (e.key >= '0' && e.key <= '9' && !e.target.closest('.n-input-number')) {
     const num = parseInt(e.key)
     if (num <= maxScore.value) currentScore.value = num
@@ -629,9 +684,11 @@ async function loadQuestionInfo() {
   try {
     const { data } = await client.get(`/questions/${questionId}`)
     questionName.value = data.name
+    questionType.value = data.question_type || ''
     if (maxScore.value === 10) maxScore.value = data.max_score
   } catch {
     questionName.value = '题目'
+    questionType.value = ''
   }
 }
 
@@ -643,8 +700,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('mousemove', onDrag)
-  window.removeEventListener('mouseup', stopDrag)
+  cleanupZoom()
   if (imageUrl.value) URL.revokeObjectURL(imageUrl.value)
   childImageUrls.value.forEach(u => URL.revokeObjectURL(u))
 })
@@ -724,6 +780,30 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+.floating-open-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.12));
+}
+
+.review-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  background: #fff;
+  border-top: 1px solid var(--color-border-light);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.review-pager-count {
+  min-width: 72px;
 }
 
 .ai-result-card {
@@ -757,6 +837,11 @@ onUnmounted(() => {
   box-shadow: var(--shadow-md, 0 2px 12px rgba(0, 0, 0, 0.15));
   border-radius: 4px;
 }
+
+.answer-image--clickable {
+  cursor: zoom-in;
+}
+
 .child-image {
   margin-top: 12px;
   border: 2px solid #60a5fa;
@@ -773,10 +858,192 @@ onUnmounted(() => {
   min-height: 0;
 }
 
+.floating-review-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  padding: 16px;
+  background: rgba(16, 20, 24, 0.72);
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.floating-review-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg-card, #fff);
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+}
+
+.floating-review-toolbar {
+  height: 56px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #fff;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.floating-review-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.floating-question-name {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-bold);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.floating-position {
+  font-size: var(--fs-base);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.floating-review-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 370px;
+}
+
+.floating-image-stage {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8eaed;
+}
+
+.floating-review-image-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  transform-origin: center center;
+  transition: transform 0.05s ease-out;
+}
+
+.floating-answer-image {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+
+.floating-child-image {
+  border: 2px solid #60a5fa;
+}
+
+.floating-review-image-wrapper:has(.floating-child-image) .floating-answer-image {
+  max-height: 48%;
+}
+
+.floating-score-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-left: 1px solid var(--color-border-light);
+}
+
+.floating-score-fixed {
+  flex-shrink: 0;
+  padding: 18px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.floating-score-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.floating-score-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.floating-score-footer {
+  flex-shrink: 0;
+  padding: 14px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.floating-review-nav {
+  width: 100%;
+  display: flex;
+}
+
+.floating-review-nav :deep(.n-button) {
+  flex: 1;
+}
+
 .score-section {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .floating-review-mask {
+    padding: 8px;
+  }
+
+  .floating-review-toolbar {
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+
+  .floating-review-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) 42vh;
+  }
+
+  .floating-score-panel {
+    border-left: 0;
+    border-top: 1px solid var(--color-border-light);
+  }
 }
 
 
