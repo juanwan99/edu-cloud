@@ -276,7 +276,7 @@ describe('GradeAnalyticsPage error handling', () => {
 
 describe('GradeAnalyticsPage ECharts setup', () => {
   it('registers required chart types', () => {
-    expect(content).toContain("import { BarChart, LineChart, RadarChart } from 'echarts/charts'")
+    expect(content).toContain("import { BarChart, LineChart, RadarChart, BoxplotChart, HeatmapChart } from 'echarts/charts'")
   })
 
   it('registers required components', () => {

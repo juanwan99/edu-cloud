@@ -233,11 +233,10 @@ describe('SubjectStatusCard stage labels', () => {
     expect(src).toContain('`tag-${stage}`')
   })
 
-  it('has dual progress bar for grading progress', () => {
-    expect(src).toContain('dual-prog')
-    expect(src).toContain('dual-prog-fill ai')
-    expect(src).toContain('dual-prog-fill manual')
-    expect(src).toContain('subject.subjective_total')
+  it('has progress bar for grading progress', () => {
+    expect(src).toContain('prog-bar')
+    expect(src).toContain('prog-fill')
+    expect(src).toContain('progressPct')
   })
 })
 

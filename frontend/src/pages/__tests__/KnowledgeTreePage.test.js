@@ -105,10 +105,6 @@ describe('KnowledgeTreePage composable and store usage', () => {
 })
 
 describe('KnowledgeTreePage state management', () => {
-  it('initializes activeTab to graph', () => {
-    expect(content).toContain("const activeTab = ref('graph')")
-  })
-
   it('initializes colorMode to exam_frequency', () => {
     expect(content).toContain("const colorMode = ref('exam_frequency')")
   })
@@ -117,11 +113,6 @@ describe('KnowledgeTreePage state management', () => {
     expect(content).toContain('watch(selectedStudentId')
     expect(content).toContain("colorMode.value = 'mastery'")
     expect(content).toContain("colorMode.value = 'exam_frequency'")
-  })
-
-  it('forces review tab back to graph when canEdit becomes false', () => {
-    expect(content).toContain('watch(canEdit')
-    expect(content).toContain("activeTab.value = 'graph'")
   })
 
   it('defines needsStudentSelector with correct role list', () => {
@@ -231,12 +222,6 @@ describe('KnowledgeTreePage review functionality', () => {
     )
     expect(fnBlock).toContain("op: 'set_review_status'")
     expect(fnBlock).toContain("status: 'teacher_reviewed'")
-  })
-
-  it('tab switch between graph and review views', () => {
-    expect(content).toContain('v-model:value="activeTab"')
-    expect(content).toContain('name="graph"')
-    expect(content).toContain('name="review"')
   })
 
   it('conditionally shows view tabs for editors', () => {
