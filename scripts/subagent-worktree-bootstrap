@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WT="${1:?Usage: subagent-worktree-bootstrap <worktree-path> [main-project-root]}"
+MAIN="${2:-/home/ops/projects/edu-cloud}"
+
+# -- validate worktree --
+if ! git -C "$WT" rev-parse --is-inside-work-tree &>/dev/null; then
+  echo '{"status":"error","msg":"not a git worktree"}' && exit 1
+fi
+if [ "$(git -C "$WT" rev-parse --git-common-dir)" = "$(git -C "$WT" rev-parse --git-dir)" ]; then
+  echo '{"status":"error","msg":"path is main repo, not a worktree"}' && exit 1
+fi
+
+MAIN_BRANCH=$(git -C "$MAIN" rev-parse --abbrev-ref HEAD)
+VENV_MODE="symlink"
+NPM_MODE="symlink"
+DB_STATUS="skipped"
+BE_STATUS="skip"
+FE_STATUS="skip"
+
+# -- python venv --
+PY_DEP_CHANGED=$(git -C "$WT" diff --name-only "$MAIN_BRANCH" -- \
+  pyproject.toml uv.lock 'requirements*.txt' 2>/dev/null || true)
+
+if [ -n "$PY_DEP_CHANGED" ]; then
+  python3 -m venv "$WT/.venv"
+  "$WT/.venv/bin/pip" install -e "$WT[dev]" -q
+  VENV_MODE="independent"
+else
+  ln -sfn "$MAIN/.venv" "$WT/.venv"
+fi
+
+# -- node_modules --
+NPM_DEP_CHANGED=$(git -C "$WT" diff --name-only "$MAIN_BRANCH" -- \
+  frontend/package.json frontend/package-lock.json 2>/dev/null || true)
+
+if [ -n "$NPM_DEP_CHANGED" ]; then
+  (cd "$WT/frontend" && npm ci --silent)
+  NPM_MODE="independent"
+else
+  ln -sfn "$MAIN/frontend/node_modules" "$WT/frontend/node_modules"
+fi
+
+# -- db branch --
+if [ -x "$WT/scripts/db_branch" ]; then
+  python3 "$WT/scripts/db_branch" init && DB_STATUS="created" || DB_STATUS="failed"
+fi
+
+# -- baseline tests --
+if BE_OUT=$("$WT/.venv/bin/python" -m pytest "$WT/tests/" -x -q --timeout=30 2>&1 | tail -5); then
+  BE_STATUS="pass"
+else
+  BE_STATUS="fail"
+fi
+
+if FE_OUT=$(cd "$WT/frontend" && npx vitest run --reporter=dot 2>&1 | tail -5); then
+  FE_STATUS="pass"
+else
+  FE_STATUS="fail"
+fi
+
+cat <<EOF
+{"status":"ok","venv_mode":"${VENV_MODE}","npm_mode":"${NPM_MODE}","db_branch":"${DB_STATUS}","baseline_backend":"${BE_STATUS}","baseline_frontend":"${FE_STATUS}"}
+EOF
