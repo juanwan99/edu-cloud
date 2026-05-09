@@ -7,7 +7,7 @@ from edu_cloud.modules.grading.prompts_legacy import build_grading_prompt
 
 
 def test_build_grading_prompt():
-    rubric = {"criteria": [{"point": "概念", "score": 3.0, "description": "正确"}]}
+    rubric = {"criteria": [{"blankNo": "1", "standardAnswer": "概念", "score": 3.0}]}
     question = {"name": "填空题1", "max_score": 10.0}
     messages = build_grading_prompt(rubric, question)
     assert len(messages) == 2
@@ -49,11 +49,16 @@ async def test_llm_client_grade_success():
         max_retries=1,
     )
 
+    rubric = {"criteria": [{"point": "概念", "score": 10.0, "description": "正确"}]}
+    question = {"name": "Q1", "max_score": 10.0}
+    messages = build_grading_prompt(rubric, question)
+    prompt_text = messages[-1]["content"]
+
     with patch.object(client._http, "post", new_callable=AsyncMock, return_value=mock_response):
-        result = await client.grade(
+        result = await client.grade_vision(
             images_b64="base64data",
-            rubric={"criteria": [{"point": "概念", "score": 10.0, "description": "正确"}]},
-            question={"name": "Q1", "max_score": 10.0},
+            prompt=prompt_text,
+            max_score=question["max_score"],
         )
     assert result.score == 8.0
     assert result.feedback == "回答正确"
@@ -99,11 +104,16 @@ async def test_llm_client_grade_retry_on_error():
             return error_response
         return success_response
 
+    rubric = {"criteria": []}
+    question = {"name": "Q1", "max_score": 10.0}
+    messages = build_grading_prompt(rubric, question)
+    prompt_text = messages[-1]["content"]
+
     with patch.object(client._http, "post", side_effect=mock_post):
-        result = await client.grade(
+        result = await client.grade_vision(
             images_b64="base64data",
-            rubric={"criteria": []},
-            question={"name": "Q1", "max_score": 10.0},
+            prompt=prompt_text,
+            max_score=question["max_score"],
         )
     assert result.score == 5.0
     assert call_count == 2
@@ -143,8 +153,13 @@ async def test_llm_client_retry_on_non_json_response():
             return non_json_response
         return success_response
 
+    rubric = {"criteria": []}
+    question = {"name": "Q", "max_score": 10.0}
+    messages = build_grading_prompt(rubric, question)
+    prompt_text = messages[-1]["content"]
+
     with patch.object(client._http, "post", side_effect=mock_post):
-        result = await client.grade(images_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
+        result = await client.grade_vision(images_b64="x", prompt=prompt_text, max_score=question["max_score"])
     assert result.score == 6.0
     assert call_count == 2
 
@@ -173,8 +188,13 @@ async def test_llm_client_retry_on_empty_choices():
             return empty_response
         return success_response
 
+    rubric = {"criteria": []}
+    question = {"name": "Q", "max_score": 10.0}
+    messages = build_grading_prompt(rubric, question)
+    prompt_text = messages[-1]["content"]
+
     with patch.object(client._http, "post", side_effect=mock_post):
-        result = await client.grade(images_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
+        result = await client.grade_vision(images_b64="x", prompt=prompt_text, max_score=question["max_score"])
     assert result.score == 9.0
     assert call_count == 2
 
@@ -198,8 +218,13 @@ async def test_llm_client_retry_on_timeout():
             raise httpx.ReadTimeout("Connection timed out")
         return success_response
 
+    rubric = {"criteria": []}
+    question = {"name": "Q", "max_score": 10.0}
+    messages = build_grading_prompt(rubric, question)
+    prompt_text = messages[-1]["content"]
+
     with patch.object(client._http, "post", side_effect=mock_post):
-        result = await client.grade(images_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
+        result = await client.grade_vision(images_b64="x", prompt=prompt_text, max_score=question["max_score"])
     assert result.score == 4.0
     assert call_count == 2
 
@@ -228,8 +253,13 @@ async def test_llm_client_retry_on_non_dict_json():
             return bad_response
         return success_response
 
+    rubric = {"criteria": []}
+    question = {"name": "Q", "max_score": 10.0}
+    messages = build_grading_prompt(rubric, question)
+    prompt_text = messages[-1]["content"]
+
     with patch.object(client._http, "post", side_effect=mock_post):
-        result = await client.grade(images_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
+        result = await client.grade_vision(images_b64="x", prompt=prompt_text, max_score=question["max_score"])
     assert result.score == 7.0
     assert call_count == 2
 
@@ -242,6 +272,11 @@ async def test_llm_client_exhausted_retries():
     async def mock_post(*args, **kwargs):
         raise httpx.ConnectError("Connection refused")
 
+    rubric = {"criteria": []}
+    question = {"name": "Q", "max_score": 10.0}
+    messages = build_grading_prompt(rubric, question)
+    prompt_text = messages[-1]["content"]
+
     with patch.object(client._http, "post", side_effect=mock_post):
-        with pytest.raises(RuntimeError, match="LLM call failed after 2 attempts"):
-            await client.grade(images_b64="x", rubric={"criteria": []}, question={"name": "Q", "max_score": 10.0})
+        with pytest.raises(RuntimeError, match="grade_vision failed after 2 attempts"):
+            await client.grade_vision(images_b64="x", prompt=prompt_text, max_score=question["max_score"])

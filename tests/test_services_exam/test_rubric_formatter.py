@@ -10,7 +10,7 @@ def test_basic_format():
     assert "【第1-1空】（2分）" in result
     assert "标准答案：动物细胞" in result
     assert "背景与逻辑：图中有中心体无细胞壁" in result
-    assert "判分规则：满分：答出动物细胞" in result
+    assert "判分细则：满分：答出动物细胞" in result
 
 
 def test_fallback_answer_field():

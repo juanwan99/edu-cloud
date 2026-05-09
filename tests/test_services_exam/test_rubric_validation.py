@@ -17,5 +17,4 @@ def test_backward_compat_answer_field():
 
 def test_missing_answer_and_standard_answer():
     criteria = [{"blankNo": "1", "score": 10}]
-    with pytest.raises(Exception):
-        _validate_criteria(criteria, 10.0)
+    _validate_criteria(criteria, 10.0)

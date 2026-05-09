@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from edu_cloud.modules.grading.llm_client import LLMClient
+from edu_cloud.modules.grading.prompts_legacy import build_grading_prompt
 
 
 @pytest.fixture
@@ -23,10 +24,15 @@ async def test_grade_accepts_multiple_images(client):
     }
     client._http.post = AsyncMock(return_value=mock_resp)
 
-    result = await client.grade(
+    rubric = {"criteria": []}
+    question = {"name": "1", "max_score": 10}
+    messages = build_grading_prompt(rubric, question)
+    prompt_text = messages[-1]["content"]
+
+    result = await client.grade_vision(
         images_b64=["base64img1", "base64img2"],
-        rubric={"criteria": []},
-        question={"name": "1", "max_score": 10},
+        prompt=prompt_text,
+        max_score=question["max_score"],
     )
     assert result.score == 5
     payload = client._http.post.call_args[1]["json"]

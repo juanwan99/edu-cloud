@@ -7,7 +7,7 @@ from edu_cloud.modules.grading.prompts_legacy import (
 )
 
 
-_RUBRIC = {"criteria": [{"point": "p1", "score": 5}]}
+_RUBRIC = {"criteria": [{"blankNo": "1", "standardAnswer": "p1", "score": 5}]}
 _QUESTION = {"name": "Q1", "max_score": 10}
 
 
