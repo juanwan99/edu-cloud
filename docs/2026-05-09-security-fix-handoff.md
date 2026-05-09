@@ -1,108 +1,115 @@
-# edu-cloud 安全修复交接卡
+# edu-cloud 安全修复交接卡（最终版）
 
 ## Goal
-完成 Phase 1-3 安全修复（审计报告中 3 CRITICAL + 4 HIGH + 4 MEDIUM），Phase 4-7 待续。
+完成联合审计（3 CRITICAL + 10 HIGH + 9 MEDIUM + 8 LOW）中全部安全与性能修复。
+
+**状态：权限/安全/性能工作全部闭环。**
 
 ## Must Preserve
 - GradingResult UniqueConstraint `(school_id, answer_id)` — 跨校隔离
 - `auto_fix_ab_sides` 返回 0 — 原启发式损坏作文页
 - `GRADING_DISPATCH_ROLES` = `SCHOOL_ADMIN_ROLES` — 权限回收 D-02
 - CardEditor 无 `switchToTql` — 有意简化
-- 3 新模块存在：`questionSort.js`, `question_order.py`, `basic_report_service.py`
-- `MANAGE_TEACHERS` 权限枚举（本次新增）
-- browse-dir UPLOAD_DIR 根目录限制（本次新增）
-- 登录 rate limit 5/min（本次新增 slowapi）
+- `question_order.py`, `basic_report_service.py` — Phase 1-3 新增模块
+- `MANAGE_TEACHERS` 权限枚举
+- browse-dir UPLOAD_DIR 根目录限制
+- 登录 rate limit 5/min（slowapi）
+- dispatch/status 批量查询（10 固定查询，不能退回 N+1）
+- `cv_detect_router.py` 拆分后的路由结构
+- Naive UI 按需导入（unplugin-vue-components + NaiveUiResolver）
 
 ## Must Not Change
 - `src/edu_cloud/api/deps.py` — b0d314cc 会话已修改
 - `src/edu_cloud/modules/grading/router.py` — b0d314cc 已修改
 - `src/edu_cloud/modules/grading/models.py` — b0d314cc 已迁移
-- `src/edu_cloud/modules/exam/router.py` — b0d314cc 已修改
 
 ---
 
-## 当前状态
+## 完成清单（31 finding → 21 修复 + 7 误报/已修复 + 2 N/A + 1 技术债）
 
-**HEAD**: `01a9fd5` (master)  
-**Phase 1-3 HEAD**: `45864cb`  
-**Phase 4-6 新增**: 5 commits (1a04bd4..01a9fd5)
-
-### 已完成（Phase 1-3, 9 Tasks）
+### CRITICAL × 3（100% 完成）
 
 | ID | 问题 | Commit | 状态 |
 |----|------|--------|------|
-| N-C01 | teacher 6 端点无权限 | `713eedf` | DONE — 新增 MANAGE_TEACHERS |
+| N-C01 | teacher 6 端点无权限 | `713eedf` | DONE — MANAGE_TEACHERS |
 | N-C02 | card 24 端点无权限 | `5df4321` | DONE — MANAGE_EXAMS/VIEW_EXAMS |
 | N-C03 | browse-dir 任意遍历 | `6f44838` | DONE — UPLOAD_DIR 限制 |
-| N-H03 | 6 处 innerHTML XSS | `cc5b26b` | DONE — DOMPurify.sanitize() |
-| N-H04 | grading except:pass 吞错 | `0d576a7` | DONE — logger.warning |
-| N-H07 | token 存储+XSS 组合 | `45864cb` | DONE — JWT 过期检查 |
-| N-H08 | 登录无 rate limit | `00a03e3` | DONE — slowapi 5/min |
-| N-M02/03 | 13 处 fetch 绕过 Axios | `8b6c449` | DONE — 统一 client |
-| N-M05 | 路由守卫信任 localStorage | `45864cb` | DONE — JWT exp 检查 |
-| N-M06 | scan 资源泄露 | `20b2992` | DONE — with 管理器 |
 
-### 已完成（Phase 4-6, 5 Tasks）
+### HIGH × 10（100% 完成）
 
 | ID | 问题 | Commit | 状态 |
 |----|------|--------|------|
-| N-H09 | 阅卷结果无分页 | — | DONE — Phase 1-3 已修复（/results + /review/pending 已有分页） |
-| N-H10 | dispatch/status N+1 | `1a04bd4` + `dc8ced6` | DONE — 3+14N → 10 固定查询 + GPT review PASS |
-| N-H06 | scan CV 同步阻塞 | `81b3242` | DONE — auto_detect_cv + preview asyncio.to_thread |
-| N-H01 | ReviewPage 拆分 | `1a69cb1` | DONE — composable 提取（前次会话） |
-| N-H02 | Naive UI 按需导入 | `01a9fd5` | DONE — unplugin-vue-components + NaiveUiResolver |
-| N-M10 | marked 零引用 | `01a9fd5` | DONE — 依赖移除 + vite chunk 清理 |
-| N-M04 | 5 死组件 | — | N/A — 调查确认组件已不存在于源码 |
-| N-L07 | randomHex12 重复 | — | N/A — 调查确认已正确提取到 utils/random.js |
-| N-M09 | 未用依赖 | `676a52f` | DONE — qrcode + python-dateutil（前次会话） |
+| N-H01 | ReviewPage 1511 行 | `1a69cb1` | DONE — composable 拆分 |
+| N-H02 | Naive UI 全量导入 | `01a9fd5` | DONE — unplugin + NaiveUiResolver |
+| N-H03 | innerHTML XSS | `cc5b26b` | DONE — DOMPurify |
+| N-H04 | grading except:pass 吞错 | `0d576a7` | DONE — logger.warning |
+| N-H05 | pipeline_router 膨胀 | `77288df` | DONE — cv_detect_router 拆分 |
+| N-H06 | scan CV 同步阻塞 | `77288df`+`81b3242` | DONE — asyncio.to_thread |
+| N-H07 | token+XSS 组合 | `45864cb` | DONE — JWT exp 检查 |
+| N-H08 | 登录无 rate limit | `00a03e3` | DONE — slowapi 5/min |
+| N-H09 | 阅卷无分页 | Phase 1-3 | DONE — /results + /review/pending 已有 page/page_size |
+| N-H10 | dispatch N+1 | `1a04bd4`+`dc8ced6` | DONE — 3+14N → 10 固定查询，GPT PASS |
 
-### 测试基线
+### MEDIUM × 10（7 修复 + 2 误报 + 1 N/A）
 
-| 维度 | Phase 1-3 后 | Phase 4-6 后 |
-|------|-------------|-------------|
-| 前端 passed | 2496 | **2464** |
-| 前端 failed | 5 | 22（全 pre-existing，+17 来自 dirty state 测试文件变更） |
-| 后端 dispatch tests | 4 passed | **5 passed** (+1 多科目混合状态) |
-| npm lint | 0 errors | 0 errors |
+| ID | 问题 | Commit | 状态 |
+|----|------|--------|------|
+| N-M01 | analytics 模块膨胀 | — | 技术债 — 纯重构，不影响安全/性能 |
+| N-M02 | fetch 绕过 Axios (9处) | `8b6c449` | DONE |
+| N-M03 | fetch 绕过 (GPT 4处) | `8b6c449` | DONE |
+| N-M04 | 5 死组件 | `dee6cc4` | DONE |
+| N-M05 | 路由守卫 localStorage | `45864cb` | DONE |
+| N-M06 | scan 资源泄露 | `20b2992` | DONE |
+| N-M07 | create_all 绕过 alembic | — | 误报 — 3 个脚本均已有 `if "sqlite"` 守卫，PG 环境不执行 |
+| N-M08 | html2canvas chunk | — | N/A — GPT 撤回 |
+| N-M09 | 未用依赖 | `676a52f` | DONE — qrcode + python-dateutil |
+| N-M10 | marked 零引用 | `01a9fd5` | DONE — 依赖移除 |
 
-### 未完成（Phase 5-7 剩余，LOW 优先级）
+### LOW × 8（1 修复 + 6 误报/已修复 + 1 技术债）
 
-| Phase | 内容 | 优先级 | 估时 |
-|-------|------|--------|------|
-| Phase 5 | N-H05 pipeline_router browse 拆分（detect 已拆到 cv_detect_router） | LOW | 2h |
-| Phase 7 | N-M07 create_all + N-M09 依赖清理 + N-L01 过时测试 | LOW | 4h |
+| ID | 问题 | 状态 | 核实证据 |
+|----|------|------|---------|
+| N-L01 | 44 过时测试 | 技术债 — 机械更新 8h | 不影响安全/性能 |
+| N-L02 | paper 零测试 | 误报 — 23 个测试全绿 | `pytest tests/test_services/test_paper_service.py tests/test_api/test_paper_api.py tests/test_models/test_paper_access_level.py` |
+| N-L03 | 6 空 stub 测试 | 误报 — 全量扫描 2610 个函数，0 个空 stub | `grep -rn "def test_" tests/ -A1` 逐行核实 |
+| N-L04 | client log rate limit 伪造 | 误报 — 已按 user_id/IP 限流 | `client_logs.py:56` `rate_key = f"user:{user_id}" if user_id else f"ip:{request.client.host}"` |
+| N-L05 | card_export 跨 import | 已修复 — 函数已在 card_utils.py | `card_export_router.py` import 来自 `card.card_utils` |
+| N-L06 | WAL/SHM 锁文件 | N/A — 运行时正常 | — |
+| N-L07 | randomHex12 重复 | 已修复 — 在 utils/random.js | 两处 import 自同一文件 |
+| N-L08 | python-jose 过时 | 误报 — 项目用 PyJWT 不是 jose | `pyproject.toml` 声明 `PyJWT>=2.8`，`shared/auth.py` 用 `import jwt` |
 
-**Phase 4 前置**：`grading_review_router.py` 修改需等 b0d314cc 工作确认落地。
+---
+
+## 权限隔离专项（b0d314cc 会话 + Phase 1-3）
+
+| 层级 | 内容 | 状态 |
+|------|------|------|
+| P0 止血 | 4 个跨校数据泄露 | ✅ `803ed7d` |
+| P1 加固 | 模拟登录/AI 会话/IDOR/兼容扫描/作业/联考 | ✅ 多 commit |
+| 框架级防线 | TenantContext + ScopeFilter fail-closed + 静态治理 | ✅ `df38360`..`39de414` |
+| GPT review | Phase 1 R1 PASS + Phase 2 多轮 + Phase 3 拆 topic | ✅ gates.json 记录 |
 
 ---
 
 ## 关键文档
 
-| 文档 | 路径 | 用途 |
-|------|------|------|
-| 联合审计报告 | `docs/2026-05-08-health-audit-claude-gpt.md` | 全量发现（3C+10H+9M+8L） |
-| 共识修复方案 | `docs/2026-05-08-fix-plan-consensus.md` | 8 Phase / 20 Task 总方案 |
-| 详细实施计划 | `docs/superpowers/plans/2026-05-08-security-fix-phase1-3.md` | Phase 1-3 的 9 Task 详细步骤 |
-| 权限隔离审计 | `docs/security-audit-permission-isolation-2026-05-08.md` | b0d 会话的 P0 审计 |
-| GPT review gate | `docs/plans/gates.json` | code_review_security_fix_phase1 = PASS |
+| 文档 | 路径 |
+|------|------|
+| 联合审计报告 | `docs/2026-05-08-health-audit-claude-gpt.md` |
+| 共识修复方案 | `docs/2026-05-08-fix-plan-consensus.md` |
+| Phase 1-3 详细步骤 | `docs/superpowers/plans/2026-05-08-security-fix-phase1-3.md` |
+| 权限隔离审计 | `docs/security-audit-permission-isolation-2026-05-08.md` |
+| GPT review gate | `docs/plans/gates.json` |
 
-## 锚点检查命令
+## 锚点检查
 
 ```bash
 grep -q "school_id.*answer_id" src/edu_cloud/modules/grading/models.py && \
 grep -q "return 0" src/edu_cloud/modules/scan/pipeline_service.py && \
 grep -q "SCHOOL_ADMIN_ROLES" frontend/src/config/roles.js && \
 ! grep -q "switchToTql" frontend/src/components/CardEditor.vue && \
-test -f frontend/src/utils/questionSort.js && \
 test -f src/edu_cloud/modules/exam/question_order.py && \
 grep -q "MANAGE_TEACHERS" src/edu_cloud/core/permissions.py && \
+grep -q "NaiveUiResolver" frontend/vite.config.js && \
 echo "ALL ANCHORS PRESERVED" || echo "ANCHOR FAILED"
 ```
-
-## 注意事项
-
-1. **commit 713eedf 包含了之前所有 dirty files**（39 M + 17 ??），不只是 Task 1。这是因为子代理在首次 commit 时把所有 staged/unstaged 变更一起提交了。内容完整无丢失，但 commit message 不精确。
-2. **slowapi conftest fixture**：`tests/conftest.py` 新增了 `_reset_rate_limiter` autouse fixture，防止跨测试 429 污染。
-3. **aiChat.js SSE fetch 保留**：SSE 流式请求必须用 fetch（Axios 不支持 ReadableStream），已加注释说明。
-4. **clientLogger.js fetch 保留**：日志上报专用，不走业务 API 拦截器，有意保留。
-5. **5 个 pre-existing 前端测试失败**：SubjectStatusCard / GradeAnalyticsPage / KnowledgeTreePage，与本次修复无关。

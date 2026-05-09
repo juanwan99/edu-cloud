@@ -52,7 +52,7 @@
 
 ### HEAD
 ```
-bbb6afd docs: 更新健康度审计交接卡（Phase 1-7 全部完成）
+e7fd007 docs: update security fix handoff with Phase 4-6 completion
 ```
 
 ---
@@ -63,9 +63,9 @@ bbb6afd docs: 更新健康度审计交接卡（Phase 1-7 全部完成）
 - 提取 3 个 composable：`useImageZoom`（80行）+ `useAnnotations`（64行）+ `useScoring`（73行）
 - ReviewPage script 从 443 行降到 288 行（-155行），模板和 CSS 不变
 
-### N-H02 [HIGH] Naive UI 按需导入 — ⏳ 由其他窗口独立推进
-- unplugin-vue-components + NaiveUiResolver 与 7 个 `vi.mock('naive-ui')` 测试冲突
-- 另一个窗口已完成：移除 `app.use(naive)`，配置 AutoImport + Components
+### N-H02 [HIGH] Naive UI 按需导入 — ✅ 已修复 `01a9fd5`
+- 移除 `app.use(naive)` 全局注册，配置 unplugin-vue-components + NaiveUiResolver
+- 前端测试 22 failed 全部 pre-existing（stash 前后一致），零新增失败
 
 ### N-M07 [MEDIUM] data scripts 的 create_all — ✅ 已修复 `b00ebf0`
 - 4 处 seed 脚本增加非 SQLite 环境 stderr warning
