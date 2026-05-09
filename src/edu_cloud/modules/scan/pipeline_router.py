@@ -759,15 +759,20 @@ async def import_pdf_to_images(
 
 @router.get("/progress")
 async def get_progress(current: dict = Depends(require_permission(Permission.MANAGE_GRADING))):
-    """获取流水线进度。"""
-    return pipeline_service.get_progress()
+    """获取流水线进度。H4: 其他学校的流水线对本校不可见。"""
+    school_id = get_school_id(current)
+    return pipeline_service.get_progress_for_school(school_id)
 
 
 @router.post("/stop")
 async def stop_pipeline(current: dict = Depends(require_permission(Permission.MANAGE_GRADING))):
-    """停止流水线。"""
+    """停止流水线。H4: 不能停止其他学校的流水线。"""
+    school_id = get_school_id(current)
     if not pipeline_service.is_running():
         raise HTTPException(400, "流水线未在运行")
+    owner = pipeline_service.get_pipeline_school_id()
+    if school_id and owner and owner != school_id:
+        raise HTTPException(403, "无权停止其他学校的流水线")
     pipeline_service.request_stop()
     return {"status": "stopping"}
 

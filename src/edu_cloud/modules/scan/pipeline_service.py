@@ -37,6 +37,9 @@ _queue: list[dict] = []
 _queue_stopped: bool = False  # F013: 独立 stop 标志，不复用 _running
 _queue_task: asyncio.Task | None = None  # F004: 防止并发创建多个 run_queue
 
+# H4: 租户隔离 — 记录当前运行流水线所属学校
+_pipeline_school_id: str | None = None
+
 
 def get_progress(pipeline_id: str = "default") -> dict:
     p = _progress.get(pipeline_id, PipelineProgress())
@@ -52,6 +55,28 @@ def get_progress(pipeline_id: str = "default") -> dict:
         "queue_remaining": len(_queue),
         "current_subject_id": p.current_subject_id,
     }
+
+
+def get_pipeline_school_id() -> str | None:
+    return _pipeline_school_id
+
+
+def get_progress_for_school(school_id: str | None) -> dict:
+    """H4: 如果当前运行的是其他学校的流水线，返回 idle 状态。"""
+    if school_id and _pipeline_school_id and _pipeline_school_id != school_id:
+        return {
+            "status": "idle",
+            "total": 0,
+            "processed": 0,
+            "failed": 0,
+            "current_file": "",
+            "warnings": [],
+            "barcode_failed": 0,
+            "barcode_failed_files": [],
+            "current_subject_id": "",
+            "queue_remaining": 0,
+        }
+    return get_progress()
 
 
 def is_running() -> bool:
@@ -709,7 +734,10 @@ def enqueue_pipeline(
     **pipeline_kwargs,
 ) -> int:
     """将一个科目加入切割队列，返回队列长度。
-    每个科目携带自己的 save_fn，不与其他科目共享（F009）。"""
+    每个科目携带自己的 save_fn，不与其他科目共享（F009）。
+    H4: 记录 school_id 用于租户隔离。"""
+    global _pipeline_school_id
+    _pipeline_school_id = pipeline_kwargs.get("school_id")
     _queue.append({
         "pipeline_kwargs": pipeline_kwargs,
         "save_answer_fn": save_answer_fn,
@@ -731,19 +759,23 @@ async def run_queue() -> list[dict]:
     F013 修复：不能用 `not _running` 判断 stop，因为 run_pipeline 正常结束
     也会在 finally 中复位 _running=False。改用独立的 _queue_stopped 标志，
     由 request_stop 同时设置。
+    H4: 队列清空后重置 _pipeline_school_id。
     """
-    global _queue_stopped
+    global _queue_stopped, _pipeline_school_id
     _queue_stopped = False
     results = []
-    while _queue:
-        if _queue_stopped:
-            _queue.clear()
-            break
-        item = _queue.pop(0)
-        result = await run_pipeline(
-            save_answer_fn=item["save_answer_fn"],
-            save_objective_fn=item["save_objective_fn"],
-            **item["pipeline_kwargs"],
-        )
-        results.append(result)
+    try:
+        while _queue:
+            if _queue_stopped:
+                _queue.clear()
+                break
+            item = _queue.pop(0)
+            result = await run_pipeline(
+                save_answer_fn=item["save_answer_fn"],
+                save_objective_fn=item["save_objective_fn"],
+                **item["pipeline_kwargs"],
+            )
+            results.append(result)
+    finally:
+        _pipeline_school_id = None
     return results
