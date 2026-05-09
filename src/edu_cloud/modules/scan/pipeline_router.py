@@ -518,8 +518,9 @@ async def start_pipeline(
     tpl_width = tpl_size.get("width", 0)
     tpl_height = tpl_size.get("height", 0)
 
+    image_dir_str = str(image_dir_resolved)
     can_use_filename_ids, filename_id_info = pipeline_service.can_use_filename_student_ids(
-        req.image_dir, req.side
+        image_dir_str, req.side
     )
     if can_use_filename_ids:
         template["prefer_filename_student_id"] = True
@@ -538,7 +539,7 @@ async def start_pipeline(
             )
         )).scalars().all())
         can_pair_by_filename, pair_info = pipeline_service.can_use_filename_pairing_for_b_side(
-            req.image_dir, known_numbers
+            image_dir_str, known_numbers
         )
         if can_pair_by_filename:
             pipeline_service.clear_barcode_map()
@@ -561,12 +562,12 @@ async def start_pipeline(
                 if a_bc:
                     await asyncio.to_thread(
                         pipeline_service.build_barcode_map,
-                        req.image_dir, a_bc, a_tpl.image_width, a_tpl.image_height,
+                        image_dir_str, a_bc, a_tpl.image_width, a_tpl.image_height,
                     )
 
     # 列出文件
     try:
-        files = pipeline_service.list_scan_images(req.image_dir, req.side)
+        files = pipeline_service.list_scan_images(image_dir_str, req.side)
     except FileNotFoundError as e:
         raise HTTPException(400, str(e))
 
@@ -680,7 +681,7 @@ async def start_pipeline(
     pipeline_service.enqueue_pipeline(
         save_answer_fn=save_answer_fn,
         save_objective_fn=save_objective_fn,
-        image_dir=req.image_dir,
+        image_dir=image_dir_str,
         template=template,
         output_dir=output_dir,
         exam_id=subject.exam_id,
@@ -717,7 +718,7 @@ async def import_pdf_to_images(
         raise HTTPException(400, f"目录下没有 PDF 文件: {req.dir_path}")
 
     created = pipeline_service.ensure_images_from_pdfs(
-        req.dir_path, req.pages_per_student, req.dpi,
+        str(d), req.pages_per_student, req.dpi,
     )
     a_count = sum(1 for f in d.iterdir() if f.name.endswith(("A.jpg", "A.png")))
     b_count = sum(1 for f in d.iterdir() if f.name.endswith(("B.jpg", "B.png")))
@@ -762,8 +763,9 @@ async def preview_scan(
     # 解析图片路径：指定路径 or 从目录取第一张
     image_path = req.image_path
     if not image_path and req.image_dir:
+        scan_dir = _validate_path_within_upload_dir(req.image_dir)
         try:
-            files = pipeline_service.list_scan_images(req.image_dir, req.side)
+            files = pipeline_service.list_scan_images(str(scan_dir), req.side)
             if files:
                 image_path = str(files[0])
         except FileNotFoundError:
@@ -771,7 +773,8 @@ async def preview_scan(
     if not image_path:
         raise HTTPException(400, "请指定图片路径或扫描目录")
 
-    if not os.path.isfile(image_path):
+    resolved_img = _validate_path_within_upload_dir(image_path)
+    if not resolved_img.is_file():
         raise HTTPException(400, f"文件不存在: {image_path}")
 
     # 加载模板
@@ -848,7 +851,7 @@ async def import_tpl(
         raise HTTPException(404, "科目不存在")
     school_id = subject.school_id
 
-    tpl_data = parse_tpl_file(req.tpl_path)
+    tpl_data = parse_tpl_file(str(tpl_resolved))
 
     # Upsert Template
     tpl_stmt = select(Template).where(

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,12 +54,11 @@ async def list_results(
     task_id: str | None = None,
     question_id: str | None = None,
     status: str | None = None,
-    page: int = 1,
-    page_size: int = 50,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
 ):
-    page_size = min(page_size, 200)
     base = select(GradingResult).where(GradingResult.school_id == current["current_role"].school_id)
     if task_id:
         base = base.where(GradingResult.ai_task_id == task_id)
@@ -79,13 +78,12 @@ async def list_results(
 
 @router.get("/review/pending")
 async def list_pending_reviews(
-    page: int = 1,
-    page_size: int = 50,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
 ):
     """返回 AI 已评但待教师确认的记录（status='ai_done'），分页。"""
-    page_size = min(page_size, 200)
     base = select(GradingResult).where(
         GradingResult.school_id == current["current_role"].school_id,
         GradingResult.status == "ai_done",
