@@ -10,10 +10,11 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.api.deps import require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Exam, Question, Subject, QUESTION_TYPES_SUBJECTIVE
+from edu_cloud.modules.exam.question_order import question_sort_key
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.card.models import Template
@@ -54,7 +55,7 @@ async def list_results(
     question_id: str | None = None,
     status: str | None = None,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
 ):
     stmt = select(GradingResult).where(GradingResult.school_id == current["current_role"].school_id)
     if task_id:
@@ -73,7 +74,7 @@ async def list_results(
 @router.get("/review/pending")
 async def list_pending_reviews(
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
 ):
     """返回 AI 已评但待教师确认的记录（status='ai_done'）。"""
     result = await db.execute(
@@ -91,7 +92,7 @@ async def list_pending_reviews(
 async def get_result(
     result_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
 ):
     result = await db.execute(
         select(GradingResult).where(
@@ -173,7 +174,7 @@ async def submit_review(
 async def get_dispatch_status(
     exam_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """聚合该考试所有科目的阅卷调度状态。"""
     school_id = current["current_role"].school_id
@@ -329,11 +330,11 @@ async def get_dispatch_status(
         questions_info = []
         if subjective_q_ids:
             # Get all subjective questions with their content/rubric/grading status
-            subj_questions = (await db.execute(
+            subj_questions = sorted((await db.execute(
                 select(Question).where(
                     Question.id.in_(subjective_q_ids),
                 )
-            )).scalars().all()
+            )).scalars().all(), key=question_sort_key)
 
             for q in subj_questions:
                 # Check if rubric exists

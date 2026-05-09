@@ -9,7 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
 from edu_cloud.api.permissions import get_visible_class_ids
 from edu_cloud.modules.student import service as student_service
 from edu_cloud.modules.student.models import Class
@@ -126,7 +127,7 @@ async def list_students(
 async def create_student(
     req: StudentCreate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     role = current["current_role"]
     student = await student_service.create_student(
@@ -143,7 +144,7 @@ async def update_student(
     student_id: str,
     req: StudentUpdate,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     role = current["current_role"]
     student = await student_service.update_student(
@@ -159,7 +160,7 @@ async def update_student(
 async def delete_student(
     student_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     role = current["current_role"]
     await student_service.delete_student(
@@ -173,7 +174,7 @@ async def import_students(
     class_id: str = Form(""),
     grade: str = Form(""),
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     role = current["current_role"]
     content = await file.read()

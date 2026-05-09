@@ -1,13 +1,15 @@
 """阅卷分配 API 路由。"""
 import logging
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.api.deps import require_permission
 from edu_cloud.core.permissions import Permission
+from edu_cloud.models.user_role import UserRole
 from edu_cloud.modules.grading.assignment_service import GradingAssignmentService
 from edu_cloud.core.tenant import CROSS_SCHOOL_ROLES
 
@@ -48,6 +50,17 @@ async def create_assignment(
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     school_id = _resolve_school_id(current, req.school_id)
+
+    # Validate teacher belongs to the target school
+    teacher_role = (await db.execute(
+        select(UserRole).where(
+            UserRole.user_id == req.teacher_id,
+            UserRole.school_id == school_id,
+        )
+    )).scalar_one_or_none()
+    if not teacher_role:
+        raise HTTPException(400, "Teacher does not belong to this school")
+
     result = await GradingAssignmentService.assign_block(
         db, exam_id=req.exam_id, subject_id=req.subject_id,
         question_ids=req.question_ids, teacher_id=req.teacher_id,

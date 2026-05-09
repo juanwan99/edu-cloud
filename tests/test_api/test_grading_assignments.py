@@ -1,16 +1,29 @@
 import pytest
 
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
+
 
 @pytest.mark.asyncio
-async def test_create_assignment(client, admin_headers, seed_school):
+async def test_create_assignment(client, admin_headers, seed_school, db):
     school, _ = seed_school
+
+    # Seed a teacher that belongs to the target school
+    teacher = User(username="assign_teacher", display_name="分配教师")
+    teacher.set_password("test123")
+    db.add(teacher)
+    await db.flush()
+    db.add(UserRole(user_id=teacher.id, role="subject_teacher",
+                    school_id=school.id, is_primary=True))
+    await db.commit()
+
     resp = await client.post(
         "/api/v1/grading/assignments",
         json={
             "exam_id": "fake-exam-id",
             "subject_id": "fake-subject-id",
             "question_ids": ["q1", "q2"],
-            "teacher_id": "fake-teacher-id",
+            "teacher_id": str(teacher.id),
             "school_id": str(school.id),
         },
         headers=admin_headers,
