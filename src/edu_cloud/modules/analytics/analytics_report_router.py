@@ -585,6 +585,7 @@ async def grade_overview(
     role = current["current_role"]
     return await get_grade_overview(
         db, school_id=role.school_id, grade_id=grade_id, exam_id=exam_id,
+        visible_subject_codes=get_visible_subject_codes(role),
     )
 
 

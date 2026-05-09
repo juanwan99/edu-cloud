@@ -80,6 +80,7 @@ async def _get_grade_exams(
 
 async def get_grade_overview(
     db: AsyncSession, school_id: str, grade_id: str, exam_id: str,
+    visible_subject_codes: list[str] | None = None,
 ) -> dict:
     """年级概览：某次考试中该年级各班级的聚合数据。
 
@@ -101,6 +102,8 @@ async def get_grade_overview(
 
     # Load subjects for this exam
     subjects = await _get_subjects(db, exam_id, school_id)
+    if visible_subject_codes is not None:
+        subjects = [s for s in subjects if s.code in visible_subject_codes]
     subj_ids = [s.id for s in subjects]
     if not subj_ids:
         return {

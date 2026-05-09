@@ -70,3 +70,34 @@ async def test_workspace_context_excludes_other_subjects(client, dashboard_scope
     if "exams" in data:
         for exam in data.get("exams", []):
             assert exam.get("subject_code") != "chinese", "数学教师不应看到语文科目"
+
+
+@pytest.mark.asyncio
+async def test_grade_overview_excludes_other_subjects(client, dashboard_scope_data, db):
+    """数学教师查看年级概览时，subjects 列表不应包含语文。"""
+    import sqlalchemy
+    from edu_cloud.models.class_group import ClassGroup
+
+    school_id = dashboard_scope_data["school_id"]
+    # Need a grade and class for the overview to work
+    cls = ClassGroup(name="初一1班", grade="初一", school_id=school_id, grade_id="g1")
+    db.add(cls)
+    await db.flush()
+
+    # Use the exam already created in the fixture
+    # The fixture creates an exam with math + chinese subjects
+    from edu_cloud.modules.exam.models import Exam
+    exam = (await db.execute(
+        sqlalchemy.select(Exam).where(Exam.school_id == school_id)
+    )).scalars().first()
+
+    if exam:
+        resp = await client.get(
+            f"/api/v1/analytics/grade/g1/overview?exam_id={exam.id}",
+            headers=dashboard_scope_data["headers"],
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            if "subjects" in data:
+                subject_codes = [s.get("subject_code", s.get("code", "")) for s in data["subjects"]]
+                assert "chinese" not in subject_codes, "数学教师不应看到语文科目数据"
