@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.database import get_db
 from edu_cloud.shared.auth import decode_token
-from jose import ExpiredSignatureError, JWTError
+from jwt import ExpiredSignatureError, InvalidTokenError as JWTError
 
 from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
 from edu_cloud.services.exceptions import PermissionDeniedError
@@ -61,10 +61,10 @@ async def get_current_user(
         payload = decode_token(credentials.credentials)
     except ExpiredSignatureError:
         # Allow expired impersonation tokens ONLY for the exit endpoint
-        from jose import jwt as jose_jwt
+        import jwt as pyjwt
         from edu_cloud.config import settings
         try:
-            payload = jose_jwt.decode(
+            payload = pyjwt.decode(
                 credentials.credentials,
                 settings.SECRET_KEY,
                 algorithms=[settings.ALGORITHM],

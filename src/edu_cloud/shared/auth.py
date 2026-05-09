@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from jose import jwt
+import jwt
 from edu_cloud.config import settings
 
 

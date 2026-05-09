@@ -1,16 +1,13 @@
 import axios from 'axios'
 import router from '../router/index.js'
 import clientLogger from '../utils/clientLogger.js'
+import { randomHex12 } from '../utils/random.js'
 
 // Page-level trace ID (stable per page load, reused across requests)
-let _pageTraceId = 'tr_' + Array.from(crypto.getRandomValues(new Uint8Array(6)), b => b.toString(16).padStart(2, '0')).join('')
+let _pageTraceId = 'tr_' + randomHex12()
 
 export function getTraceId() {
   return _pageTraceId
-}
-
-function randomHex12() {
-  return Array.from(crypto.getRandomValues(new Uint8Array(6)), b => b.toString(16).padStart(2, '0')).join('')
 }
 
 const client = axios.create({ baseURL: '/api/v1' })

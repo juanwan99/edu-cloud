@@ -28,6 +28,8 @@ import edu_cloud.models.joint_exam  # noqa: F401
 async def seed():
     settings = get_settings()
     engine = create_async_engine(settings.DATABASE_URL)
+    if "sqlite" not in settings.DATABASE_URL:
+        print("WARNING: 非 SQLite 环境请使用 scripts/db_migrate 管理 schema", file=sys.stderr)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

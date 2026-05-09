@@ -1,6 +1,6 @@
 import time
 import pytest
-from jose import jwt
+import jwt
 from edu_cloud.shared.auth import create_impersonation_token, decode_token
 from edu_cloud.config import settings
 
@@ -274,7 +274,7 @@ def test_data_scope_override_teaching_research_leader():
 async def test_expired_impersonation_token_rejected_by_normal_endpoint(client: AsyncClient):
     """F-004: Expired impersonation token must be rejected by non-exit endpoints."""
     import time
-    from jose import jwt
+    import jwt
     from edu_cloud.config import settings
 
     # Create an already-expired impersonation token

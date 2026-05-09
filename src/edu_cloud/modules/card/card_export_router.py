@@ -43,12 +43,12 @@ async def generate_card_v2(
     current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """v2 答题卡生成：接收布局 JSON → 渲染 PDF + 写入 Template。"""
-    from edu_cloud.modules.card.router import _get_skeleton_data
+    from edu_cloud.modules.card.card_utils import get_skeleton_data
 
     # D2-R2: admin bypass — use get_school_id for conditional tenant filter
     school_id = get_school_id(current)
 
-    skeleton = await _get_skeleton_data(body.subject_code, school_id, db)
+    skeleton = await get_skeleton_data(body.subject_code, school_id, db)
 
     # 获取科目（验证权限）
     subj_stmt = select(Subject).where(Subject.id == body.subject_id)
@@ -122,12 +122,12 @@ async def preview_card_v2(
     current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """v2 预览：渲染 PDF 但不写入 Template。"""
-    from edu_cloud.modules.card.router import _get_skeleton_data
+    from edu_cloud.modules.card.card_utils import get_skeleton_data
 
     # D2-R2: admin bypass — use get_school_id for conditional tenant filter
     school_id = get_school_id(current)
 
-    skeleton = await _get_skeleton_data(body.subject_code, school_id, db)
+    skeleton = await get_skeleton_data(body.subject_code, school_id, db)
 
     subj_stmt = select(Subject).where(Subject.id == body.subject_id)
     if school_id:

@@ -302,6 +302,8 @@ async def main():
     from edu_cloud.config import settings
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
 
+    if "sqlite" not in settings.DATABASE_URL:
+        print("WARNING: 非 SQLite 环境请使用 scripts/db_migrate 管理 schema", file=sys.stderr)
     if "sqlite" in settings.DATABASE_URL:
         from edu_cloud.models.base import Base
         import edu_cloud.models.school  # noqa

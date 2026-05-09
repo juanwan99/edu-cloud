@@ -480,7 +480,8 @@ async def preview_by_weights(
     """根据调整后权重重算布局并渲染预览 PDF。"""
     skeleton = body.skeleton
     if not skeleton:
-        skeleton = await _get_skeleton_data(body.subject_code, current["current_role"].school_id, db)
+        from edu_cloud.modules.card.card_utils import get_skeleton_data
+        skeleton = await get_skeleton_data(body.subject_code, current["current_role"].school_id, db)
 
     subj_result = await db.execute(
         select(Subject).where(
@@ -725,45 +726,3 @@ def _cluster_by_x(slots: list[dict], threshold_ratio: float = 0.15) -> list[list
     return clusters
 
 
-async def _get_skeleton_data(
-    subject_code: str, school_id: str | None, db: AsyncSession
-) -> dict:
-    """获取骨架数据：优先数据库，回退内置模板。"""
-    from edu_cloud.modules.card.template.template_library import (
-        get_builtin_template,
-        extract_fixed_parts,
-    )
-    skel_stmt = select(CardSkeleton).where(CardSkeleton.subject_code == subject_code)
-    if school_id:
-        skel_stmt = skel_stmt.where(CardSkeleton.school_id == school_id)
-    result = await db.execute(skel_stmt)
-    skeleton_row = result.scalars().first()
-    if skeleton_row:
-        return skeleton_row.skeleton_data
-
-    # 回退：从 DB 题目数据生成 skeleton
-    from edu_cloud.modules.exam.models import Question
-    from edu_cloud.modules.card.rendering.layout import build_skeleton_from_spec
-
-    # 查科目（需要 subject_id 来查题目）
-    subj_stmt = select(Subject).where(Subject.code == subject_code)
-    if school_id:
-        subj_stmt = subj_stmt.where(Subject.school_id == school_id)
-    subj_result = await db.execute(subj_stmt)
-    subj_row = subj_result.scalars().first()
-    if not subj_row:
-        raise HTTPException(404, f"科目 {subject_code} 无骨架且无题目数据")
-
-    q_stmt = select(Question).where(Question.subject_id == str(subj_row.id))
-    if school_id:
-        q_stmt = q_stmt.where(Question.school_id == school_id)
-    q_result = await db.execute(q_stmt)
-    db_questions = q_result.scalars().all()
-    q_list = []
-    for i, q in enumerate(sorted(db_questions, key=_q_sort_key)):
-        q_list.append({
-            "number": i + 1,
-            "question_type": q.question_type,
-            "options_count": 4,
-        })
-    return build_skeleton_from_spec(q_list, paper_size="A3", columns=3, exam_number_digits=8)

@@ -1,10 +1,7 @@
 import axios from 'axios'
 import api, { getTraceId } from './client'
 import clientLogger from '../utils/clientLogger.js'
-
-function randomHex12() {
-  return Array.from(crypto.getRandomValues(new Uint8Array(6)), b => b.toString(16).padStart(2, '0')).join('')
-}
+import { randomHex12 } from '../utils/random.js'
 
 // Separate axios instance for parent-authenticated calls (reads cp_token)
 const parentClient = axios.create({ baseURL: '/api/v1' })

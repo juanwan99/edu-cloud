@@ -14,9 +14,9 @@ from edu_cloud.logging_config import log_event
 router = APIRouter(prefix="/api/v1", tags=["client-logs"])
 logger = logging.getLogger(__name__)
 
-# Simple in-memory rate limiter: {client_session_id: (count, window_start)}
+# In-memory rate limiter keyed by user_id (authenticated) or IP (anonymous)
 _rate_counters: dict[str, tuple[int, float]] = defaultdict(lambda: (0, 0.0))
-_RATE_LIMIT = 100  # max events per session per minute
+_RATE_LIMIT = 100  # max events per key per minute
 _RATE_WINDOW = 60.0  # seconds
 
 
@@ -38,17 +38,6 @@ class ClientLogPayload(BaseModel):
 @router.post("/client-logs", status_code=204, response_class=Response)
 async def receive_client_logs(payload: ClientLogPayload, request: Request):
     """Accept a batch of client-side log events."""
-    session_id = payload.client_session_id
-
-    # Rate limiting
-    now = time.monotonic()
-    count, window_start = _rate_counters[session_id]
-    if now - window_start > _RATE_WINDOW:
-        count = 0
-        window_start = now
-    if count + len(payload.events) > _RATE_LIMIT:
-        return Response(status_code=429)
-    _rate_counters[session_id] = (count + len(payload.events), window_start)
 
     # Best-effort user/school extraction from JWT (sendBeacon may be anonymous)
     user_id = None
@@ -63,6 +52,17 @@ async def receive_client_logs(payload: ClientLogPayload, request: Request):
         except Exception:
             pass
 
+    # Rate limit by JWT user_id (trusted) or client IP (anonymous)
+    rate_key = f"user:{user_id}" if user_id else f"ip:{request.client.host}"
+    now = time.monotonic()
+    count, window_start = _rate_counters[rate_key]
+    if now - window_start > _RATE_WINDOW:
+        count = 0
+        window_start = now
+    if count + len(payload.events) > _RATE_LIMIT:
+        return Response(status_code=429)
+    _rate_counters[rate_key] = (count + len(payload.events), window_start)
+
     # Log each event
     for ev in payload.events:
         log_event(
@@ -71,7 +71,7 @@ async def receive_client_logs(payload: ClientLogPayload, request: Request):
             layer="client",
             event=ev.event_type,
             msg=f"[client] {ev.event_type} on {ev.page_route}",
-            client_session_id=session_id,
+            client_session_id=payload.client_session_id,
             build_id=payload.build_id,
             client_ts=ev.ts,
             client_level=ev.level,
