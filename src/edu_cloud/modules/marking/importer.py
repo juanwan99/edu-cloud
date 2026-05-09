@@ -43,14 +43,16 @@ async def import_from_folder(
     if not root.is_dir():
         raise ValueError(f"文件夹不存在: {folder_path} (resolved: {root})")
 
-    exam = (await db.execute(select(Exam).where(Exam.id == exam_id))).scalar_one_or_none()
+    exam = (await db.execute(
+        select(Exam).where(Exam.id == exam_id, Exam.school_id == school_id)
+    )).scalar_one_or_none()
     if not exam:
         raise ValueError(f"考试不存在: {exam_id}")
 
     # 预加载已有数据到内存，避免逐条查询
     existing_subjects = {}
     for s in (await db.execute(
-        select(Subject).where(Subject.exam_id == exam_id)
+        select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
     )).scalars().all():
         existing_subjects[s.name] = s
 
@@ -66,6 +68,7 @@ async def import_from_folder(
     for row in (await db.execute(
         select(StudentAnswer.student_id, StudentAnswer.question_id).where(
             StudentAnswer.exam_id == exam_id,
+            StudentAnswer.school_id == school_id,
         )
     )).all():
         existing_answers.add((exam_id, row[0], row[1]))
