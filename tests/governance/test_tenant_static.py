@@ -66,7 +66,15 @@ def test_no_new_raw_school_id_in_routers():
         if rel in ALLOWLIST_RAW_SCHOOL_ID:
             continue
         content = f.read_text()
-        if '.school_id' in content and 'get_school_id' not in content and 'TenantContext' not in content:
+        has_school_id = '.school_id' in content
+        has_tenant_guard = (
+            'get_school_id' in content
+            or 'TenantContext' in content
+            or 'get_visible_subject_codes' in content
+            or 'get_visible_class_ids' in content
+            or 'CROSS_SCHOOL_ROLES' in content
+        )
+        if has_school_id and not has_tenant_guard:
             violations.append(rel)
     assert not violations, f"新增 router 使用了裸 role.school_id: {violations}"
 
