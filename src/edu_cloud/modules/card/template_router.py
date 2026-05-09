@@ -50,7 +50,10 @@ async def upsert_template(
         raise HTTPException(404, "Subject not found")
 
     result = await db.execute(
-        select(Template).where(Template.subject_id == subject_id, Template.side == side)
+        select(Template).where(
+            Template.subject_id == subject_id, Template.side == side,
+            Template.school_id == school_id,
+        )
     )
     template = result.scalar_one_or_none()
     is_update = template is not None

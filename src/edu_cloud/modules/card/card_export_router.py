@@ -78,9 +78,11 @@ async def generate_card_v2(
         subject=subject.name if subject else "",
     )
 
-    tpl_result = await db.execute(
-        select(Template).where(Template.subject_id == body.subject_id, Template.side == "A")
-    )
+    school_id = current["current_role"].school_id
+    tpl_stmt = select(Template).where(Template.subject_id == body.subject_id, Template.side == "A")
+    if school_id:
+        tpl_stmt = tpl_stmt.where(Template.school_id == school_id)
+    tpl_result = await db.execute(tpl_stmt)
     tpl = tpl_result.scalar_one_or_none()
 
     template_values = {
@@ -217,9 +219,21 @@ async def publish_card(
 async def render_doc_pages(
     file: UploadFile = File(...),
     subject_id: str = Form(None),
+    db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """将上传的 Word/PDF 文档渲染为页面图片，返回每页 URL 和尺寸。"""
+    # Validate subject belongs to the caller's school
+    if subject_id:
+        subj_result = await db.execute(
+            select(Subject).where(
+                Subject.id == subject_id,
+                Subject.school_id == current["current_role"].school_id,
+            )
+        )
+        if not subj_result.scalar_one_or_none():
+            raise HTTPException(403, "无权访问该科目")
+
     import fitz  # pymupdf
 
     filename = (file.filename or "").lower()
@@ -284,9 +298,20 @@ async def render_doc_pages(
 @router.get("/doc-pages")
 async def get_doc_pages(
     subject_id: str,
+    db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """查询科目已有的文档页面图片。"""
+    # Validate subject belongs to the caller's school
+    subj_result = await db.execute(
+        select(Subject).where(
+            Subject.id == subject_id,
+            Subject.school_id == current["current_role"].school_id,
+        )
+    )
+    if not subj_result.scalar_one_or_none():
+        raise HTTPException(403, "无权访问该科目")
+
     upload_root = Path(settings.UPLOAD_DIR).resolve()
     out_dir = upload_root / "doc-pages" / subject_id
     if not out_dir.is_dir():
@@ -312,6 +337,7 @@ async def get_doc_pages(
 @router.get("/doc-page-image")
 async def get_doc_page_image(
     path: str,
+    db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
     """通过 API 路径代理 doc-pages 图片，避免 nginx 不代理 /uploads 的问题。"""
@@ -322,6 +348,22 @@ async def get_doc_page_image(
     if rel.startswith("uploads/"):
         rel = rel[len("uploads/"):]
     full = (upload_root / rel).resolve()
-    if not str(full).startswith(str(upload_root)) or not full.is_file():
+    # Use is_relative_to for safe prefix check (prevents directory name prefix collisions)
+    if not full.is_relative_to(upload_root) or not full.is_file():
         raise HTTPException(404, "Image not found")
+
+    # If path is under doc-pages/{subject_id}/..., validate subject ownership
+    import re
+    m = re.match(r"doc-pages/([^/]+)/", rel)
+    if m:
+        subject_id = m.group(1)
+        subj_result = await db.execute(
+            select(Subject).where(
+                Subject.id == subject_id,
+                Subject.school_id == current["current_role"].school_id,
+            )
+        )
+        if not subj_result.scalar_one_or_none():
+            raise HTTPException(403, "无权访问该科目图片")
+
     return FileResponse(str(full), media_type="image/png")

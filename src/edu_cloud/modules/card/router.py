@@ -534,12 +534,14 @@ async def export_template_json(
     if not exam:
         raise HTTPException(403, "无权访问该科目模板")
 
-    tpl_result = await db.execute(
-        select(Template).where(
-            Template.subject_id == subject_id,
-            Template.side == "A",
-        )
+    tpl_stmt = select(Template).where(
+        Template.subject_id == subject_id,
+        Template.side == "A",
     )
+    school_id = current["current_role"].school_id
+    if school_id:
+        tpl_stmt = tpl_stmt.where(Template.school_id == school_id)
+    tpl_result = await db.execute(tpl_stmt)
     tpl = tpl_result.scalar_one_or_none()
     if not tpl:
         raise HTTPException(404, "该科目还没有生成答题卡模板")
