@@ -70,11 +70,13 @@ async def test_scan_dir_rejects_traversal(client, grading_headers):
 
 
 @pytest.mark.asyncio
-async def test_scan_dir_accepts_valid_subdir(client, grading_headers, tmp_path, monkeypatch):
+async def test_scan_dir_accepts_valid_subdir(client, scan_auth, tmp_path, monkeypatch):
+    """D1-R2: scan-dir path must be under school_id subdir for non-admin."""
     from edu_cloud.config import settings
 
     upload_root = tmp_path / "uploads"
-    scan_dir = upload_root / "scan-input" / "exam1" / "yuwen"
+    # Place scan dir under school_id for tenant isolation
+    scan_dir = upload_root / scan_auth["school_id"] / "scan-input" / "exam1" / "yuwen"
     scan_dir.mkdir(parents=True)
     (scan_dir / "001A.png").write_bytes(b"\x89PNG")
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
@@ -82,7 +84,7 @@ async def test_scan_dir_accepts_valid_subdir(client, grading_headers, tmp_path, 
     resp = await client.post(
         "/api/v1/scan/pipeline/scan-dir",
         json={"dir_path": str(scan_dir)},
-        headers=grading_headers,
+        headers=scan_auth["headers"],
     )
     assert resp.status_code in (200, 400)
     assert resp.status_code != 403

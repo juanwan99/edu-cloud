@@ -310,6 +310,9 @@ async def browse_directory(
     """浏览服务器目录，返回子文件夹列表。仅限 UPLOAD_DIR 内。"""
     upload_root = Path(settings.UPLOAD_DIR).resolve()
 
+    # D1-R2: tenant path isolation — resolve school_id first, then constrain path
+    school_id = get_school_id(current)
+
     if req.path:
         candidate = Path(req.path)
         if not candidate.is_absolute():
@@ -318,13 +321,16 @@ async def browse_directory(
         if not d.is_relative_to(upload_root):
             raise HTTPException(403, "只允许浏览上传目录")
     else:
-        d = upload_root
+        # Empty path: admin sees upload_root, non-admin sees school_root
+        if school_id:
+            d = (upload_root / school_id).resolve()
+            d.mkdir(parents=True, exist_ok=True)
+        else:
+            d = upload_root
 
-    # D1: tenant path isolation — non-admin users can only browse their school dir
-    school_id = get_school_id(current)
     if school_id:
-        school_root = upload_root / school_id
-        if d != upload_root and not d.is_relative_to(school_root):
+        school_root = (upload_root / school_id).resolve()
+        if not d.is_relative_to(school_root):
             raise HTTPException(403, "只允许访问本校目录")
 
     if not d.is_dir():
@@ -419,6 +425,12 @@ async def scan_directory(
 ):
     """扫描目录结构，返回科目子文件夹和图片统计。"""
     d = _validate_path_within_upload_dir(req.dir_path)
+    # D1-R2: tenant path isolation — non-admin restricted to school subdir
+    school_id = get_school_id(current)
+    if school_id:
+        school_root = (Path(settings.UPLOAD_DIR).resolve() / school_id).resolve()
+        if not d.is_relative_to(school_root):
+            raise HTTPException(403, "只允许访问本校目录")
     if not d.is_dir():
         raise HTTPException(400, f"目录不存在: {req.dir_path}")
 
@@ -479,6 +491,11 @@ async def start_pipeline(
 
     # 验证目录（限制在 UPLOAD_DIR 内）
     image_dir_resolved = _validate_path_within_upload_dir(req.image_dir)
+    # D1-R2: tenant path isolation — non-admin restricted to school subdir
+    if school_id:
+        school_root = (Path(settings.UPLOAD_DIR).resolve() / school_id).resolve()
+        if not image_dir_resolved.is_relative_to(school_root):
+            raise HTTPException(403, "只允许访问本校目录")
     if not image_dir_resolved.is_dir():
         raise HTTPException(400, f"目录不存在: {req.image_dir}")
 

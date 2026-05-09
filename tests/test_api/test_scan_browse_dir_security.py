@@ -98,13 +98,14 @@ async def test_browse_dir_relative_path_within_upload(client, grading_admin_user
 
 @pytest.mark.asyncio
 async def test_browse_dir_returns_relative_paths(client, grading_admin_user, tmp_path, monkeypatch):
-    """返回的 item path 和 current 应该是相对路径，不暴露服务器结构。"""
+    """非 admin 空 path 返回 school_root 下的内容，路径是相对路径。"""
     from edu_cloud.config import settings
 
     school_id = grading_admin_user._test_school_id
     upload_root = tmp_path / "uploads"
-    # D1: browsing root (empty path) is allowed — bypasses tenant check
-    child = upload_root / "exam1"
+    # D1-R2: non-admin empty path → school_root, child dirs inside it
+    school_dir = upload_root / school_id
+    child = school_dir / "exam1"
     child.mkdir(parents=True)
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
 
@@ -121,7 +122,8 @@ async def test_browse_dir_returns_relative_paths(client, grading_admin_user, tmp
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert data["current"] == "."
+    # D1-R2: non-admin empty path resolves to school_id dir, not root "."
+    assert data["current"] == school_id
     # item paths 不应包含系统绝对路径
     for item in data["items"]:
         assert not item["path"].startswith("/"), f"path should be relative: {item['path']}"

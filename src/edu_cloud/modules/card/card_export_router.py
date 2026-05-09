@@ -45,22 +45,24 @@ async def generate_card_v2(
     """v2 答题卡生成：接收布局 JSON → 渲染 PDF + 写入 Template。"""
     from edu_cloud.modules.card.router import _get_skeleton_data
 
-    skeleton = await _get_skeleton_data(body.subject_code, current["current_role"].school_id, db)
+    # D2-R2: admin bypass — use get_school_id for conditional tenant filter
+    school_id = get_school_id(current)
+
+    skeleton = await _get_skeleton_data(body.subject_code, school_id, db)
 
     # 获取科目（验证权限）
-    subj_result = await db.execute(
-        select(Subject).where(
-            Subject.id == body.subject_id,
-            Subject.school_id == current["current_role"].school_id,
-        )
-    )
+    subj_stmt = select(Subject).where(Subject.id == body.subject_id)
+    if school_id:
+        subj_stmt = subj_stmt.where(Subject.school_id == school_id)
+    subj_result = await db.execute(subj_stmt)
     subject = subj_result.scalar_one_or_none()
     if not subject:
         raise HTTPException(404, "科目不存在")
 
-    exam_result = await db.execute(
-        select(Exam).where(Exam.id == body.exam_id, Exam.school_id == current["current_role"].school_id)
-    )
+    exam_stmt = select(Exam).where(Exam.id == body.exam_id)
+    if school_id:
+        exam_stmt = exam_stmt.where(Exam.school_id == school_id)
+    exam_result = await db.execute(exam_stmt)
     exam = exam_result.scalar_one_or_none()
 
     # 渲染 PDF
@@ -78,8 +80,6 @@ async def generate_card_v2(
         exam_id=str(body.exam_id),
         subject=subject.name if subject else "",
     )
-
-    school_id = current["current_role"].school_id
     tpl_stmt = select(Template).where(Template.subject_id == body.subject_id, Template.side == "A")
     if school_id:
         tpl_stmt = tpl_stmt.where(Template.school_id == school_id)
@@ -91,7 +91,7 @@ async def generate_card_v2(
         "image_height": tpl_data["image_size"]["height"],
         "anchors": tpl_data["anchors"],
         "regions": tpl_data["regions"],
-        "school_id": current["current_role"].school_id,
+        "school_id": subject.school_id,
     }
 
     if tpl:
@@ -124,21 +124,23 @@ async def preview_card_v2(
     """v2 预览：渲染 PDF 但不写入 Template。"""
     from edu_cloud.modules.card.router import _get_skeleton_data
 
-    skeleton = await _get_skeleton_data(body.subject_code, current["current_role"].school_id, db)
+    # D2-R2: admin bypass — use get_school_id for conditional tenant filter
+    school_id = get_school_id(current)
 
-    subj_result = await db.execute(
-        select(Subject).where(
-            Subject.id == body.subject_id,
-            Subject.school_id == current["current_role"].school_id,
-        )
-    )
+    skeleton = await _get_skeleton_data(body.subject_code, school_id, db)
+
+    subj_stmt = select(Subject).where(Subject.id == body.subject_id)
+    if school_id:
+        subj_stmt = subj_stmt.where(Subject.school_id == school_id)
+    subj_result = await db.execute(subj_stmt)
     subject = subj_result.scalar_one_or_none()
     if not subject:
         raise HTTPException(404, "科目不存在")
 
-    exam_result = await db.execute(
-        select(Exam).where(Exam.id == body.exam_id, Exam.school_id == current["current_role"].school_id)
-    )
+    exam_stmt = select(Exam).where(Exam.id == body.exam_id)
+    if school_id:
+        exam_stmt = exam_stmt.where(Exam.school_id == school_id)
+    exam_result = await db.execute(exam_stmt)
     exam = exam_result.scalar_one_or_none()
 
     pdf_bytes = render_card_v2(
