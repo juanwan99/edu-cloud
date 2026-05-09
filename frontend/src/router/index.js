@@ -68,6 +68,7 @@ export const routes = [
       { path: 'analytics/trend', redirect: { name: 'AnalyticsReport', query: { tab: 'trend' } } },
       { path: 'analytics/grade', redirect: { name: 'AnalyticsReport', query: { tab: 'classes' } } },
       { path: 'analytics/:examId', name: 'Analytics', component: () => import('../pages/AnalyticsPage.vue'), meta: { roles: EXAM_ROLES } },
+      { path: 'analytics', redirect: { name: 'AnalyticsReport' } },
 
       // 作业
       { path: 'homework', name: 'Homework', component: () => import('../pages/HomeworkPage.vue'), meta: { permissions: ['manage_grading'] } },

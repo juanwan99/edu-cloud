@@ -3,7 +3,7 @@
     <n-space vertical :size="16">
       <!-- Dimension radio -->
       <n-radio-group v-model:value="dimension" @update:value="onDimensionChange">
-        <n-radio-button value="grade">年级</n-radio-button>
+        <n-radio-button v-if="canViewGrade" value="grade">年级</n-radio-button>
         <n-radio-button value="class">班级</n-radio-button>
         <n-radio-button value="student">学生</n-radio-button>
       </n-radio-group>
@@ -37,6 +37,8 @@ import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { getGradeTrend, getClassTrend, getStudentTrend } from '../../api/analytics'
 import { CHART_DEFAULTS, CHART_PALETTE } from '../../config/chartTheme.js'
+import { useAuthStore } from '../../stores/auth.js'
+import { normalizeRole, SCHOOL_ADMIN_ROLES } from '../../config/roles.js'
 
 use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
@@ -48,7 +50,10 @@ const props = defineProps({
 
 const SERIES_COLORS = CHART_PALETTE
 
-const dimension = ref('grade')
+const auth = useAuthStore()
+const currentRole = normalizeRole(auth.currentRole?.role || '')
+const canViewGrade = SCHOOL_ADMIN_ROLES.includes(currentRole)
+const dimension = ref(canViewGrade ? 'grade' : 'class')
 const visibleMetrics = ref(['avg', 'pass_rate'])
 const loading = ref(false)
 const trendData = ref(null)
@@ -183,7 +188,7 @@ async function loadTrend() {
     if (props.subjectCode) params.subject_code = props.subjectCode
 
     if (dimension.value === 'grade') {
-      if (!props.gradeId) return
+      if (!props.gradeId || !canViewGrade) return
       params.grade_id = props.gradeId
       resp = await getGradeTrend(params)
     } else if (dimension.value === 'class') {

@@ -126,8 +126,13 @@ import { h, ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, NDropdown, useMessage, useDialog } from 'naive-ui'
 import { listStudents, createStudent, updateStudent, deleteStudent, importStudents, listClasses, listGrades, listSelections, exportStudents } from '../api/students'
+import { useAuthStore } from '../stores/auth.js'
+import { normalizeRole } from '../config/roles.js'
+import { hasPermission } from '../config/permissions.js'
 
 const router = useRouter()
+const auth = useAuthStore()
+const canManageScheduling = hasPermission(normalizeRole(auth.currentRole?.role || ''), 'manage_scheduling')
 
 const message = useMessage()
 const dialog = useDialog()
@@ -393,7 +398,7 @@ async function handleExportSelect(key) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadGrades(), loadClasses(), loadSelections()])
+  await Promise.all([loadGrades(), loadClasses(), canManageScheduling ? loadSelections() : Promise.resolve()])
   await loadStudents()
 })
 </script>
