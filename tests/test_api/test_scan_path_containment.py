@@ -90,6 +90,46 @@ async def test_scan_dir_accepts_valid_subdir(client, scan_auth, tmp_path, monkey
     assert resp.status_code != 403
 
 
+@pytest.mark.asyncio
+async def test_scan_dir_rejects_other_school(client, scan_auth, tmp_path, monkeypatch):
+    """T1-R3: scan-dir with path under another school's dir → 403."""
+    from edu_cloud.config import settings
+
+    upload_root = tmp_path / "uploads"
+    other_school = upload_root / "other-school-id" / "scan-input"
+    other_school.mkdir(parents=True)
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
+
+    resp = await client.post(
+        "/api/v1/scan/pipeline/scan-dir",
+        json={"dir_path": str(other_school)},
+        headers=scan_auth["headers"],
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_start_rejects_other_school(client, scan_auth, tmp_path, monkeypatch):
+    """T1-R3: start with image_dir under another school → 403."""
+    from edu_cloud.config import settings
+
+    upload_root = tmp_path / "uploads"
+    other_dir = upload_root / "other-school-id" / "images"
+    other_dir.mkdir(parents=True)
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
+
+    resp = await client.post(
+        "/api/v1/scan/pipeline/start",
+        json={
+            "image_dir": str(other_dir),
+            "subject_id": "00000000-0000-0000-0000-000000000001",
+            "side": "A",
+        },
+        headers=scan_auth["headers"],
+    )
+    assert resp.status_code == 403
+
+
 # ---------- start ----------
 
 @pytest.mark.asyncio
