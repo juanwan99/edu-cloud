@@ -131,7 +131,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'naive-ui': ['naive-ui'],
           'echarts': ['echarts', 'vue-echarts'],
           'vue-vendor': ['vue', 'vue-router', 'pinia'],
           'marked-katex': ['marked', 'katex'],
