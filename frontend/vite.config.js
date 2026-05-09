@@ -1,5 +1,8 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import AutoImport from 'unplugin-auto-import/vite'
+import Components from 'unplugin-vue-components/vite'
+import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
 import { fileURLToPath, URL } from 'node:url'
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -100,7 +103,19 @@ function fixDistPermissions() {
 }
 
 export default defineConfig({
-  plugins: [vue(), generateVersionJson(), fixDistPermissions()],
+  plugins: [
+    vue(),
+    AutoImport({
+      imports: [
+        { 'naive-ui': ['useDialog', 'useMessage', 'useNotification', 'useLoadingBar'] },
+      ],
+    }),
+    Components({
+      resolvers: [NaiveUiResolver()],
+    }),
+    generateVersionJson(),
+    fixDistPermissions(),
+  ],
   define: {
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     __GIT_HASH__: JSON.stringify(getGitHash()),
@@ -133,7 +148,7 @@ export default defineConfig({
         manualChunks: {
           'echarts': ['echarts', 'vue-echarts'],
           'vue-vendor': ['vue', 'vue-router', 'pinia'],
-          'marked-katex': ['marked', 'katex'],
+          'katex': ['katex'],
           'antv-g6': ['@antv/g6'],
           'html2canvas': ['html2canvas'],
         },

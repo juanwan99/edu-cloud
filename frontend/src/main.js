@@ -1,6 +1,5 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import naive from 'naive-ui'
 import router from './router/index.js'
 import App from './App.vue'
 import clientLogger from './utils/clientLogger.js'
@@ -16,7 +15,6 @@ if (typeof __BUILD_TIME__ !== 'undefined') {
 const app = createApp(App)
 app.use(createPinia())
 app.use(router)
-app.use(naive)
 
 // Global error handlers → clientLogger
 app.config.errorHandler = (err, instance, info) => {
