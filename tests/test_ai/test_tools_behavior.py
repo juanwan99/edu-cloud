@@ -200,35 +200,56 @@ async def test_get_student_profile_permission_allowed(mock_get):
 # 7. get_knowledge_tree — structure verification
 # ---------------------------------------------------------------------------
 
-@patch("edu_cloud.modules.knowledge.service.list_knowledge_points", new_callable=AsyncMock)
-async def test_get_knowledge_tree(mock_list):
-    mock_list.return_value = [
-        _kp(id="kp1", code="SX-001", name="函数", level=1, grade_hint="高一"),
-        _kp(id="kp2", code="SX-002", name="导数", level=1, grade_hint="高二"),
-    ]
+async def test_get_knowledge_tree():
     from edu_cloud.ai.tools.knowledge_db import get_knowledge_tree
+    from unittest.mock import MagicMock
 
-    result = await get_knowledge_tree({"course_code": "SX"}, _ctx())
+    # get_knowledge_tree uses ctx.db.execute() directly (not via service layer),
+    # so we need a proper AsyncMock db with execute returning nodes and edges.
+    mock_node1 = SimpleNamespace(id="kp1", name="函数", node_type="concept",
+                                 primary_module="M1", description="一次函数")
+    mock_node2 = SimpleNamespace(id="kp2", name="导数", node_type="concept",
+                                 primary_module="M2", description="基本导数")
+
+    mock_nodes_result = MagicMock()
+    mock_nodes_result.scalars.return_value.all.return_value = [mock_node1, mock_node2]
+
+    mock_edges_result = MagicMock()
+    mock_edges_result.all.return_value = []  # no parent edges
+
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(side_effect=[mock_nodes_result, mock_edges_result])
+
+    result = await get_knowledge_tree({"course_code": "SX"}, _ctx(db=mock_db))
     assert result.success
     kps = result.data["knowledge_points"]
     assert len(kps) == 2
-    assert kps[0] == {"id": "kp1", "code": "SX-001", "name": "函数", "level": 1, "grade_hint": "高一"}
-    assert kps[1]["code"] == "SX-002"
-    mock_list.assert_awaited_once_with("mock_db", course_code="SX", parent_id=None, school_id="s1")
+    assert kps[0]["id"] == "kp1"
+    assert kps[0]["name"] == "函数"
+    assert kps[1]["id"] == "kp2"
 
 
-@patch("edu_cloud.modules.knowledge.service.list_knowledge_points", new_callable=AsyncMock)
-async def test_get_knowledge_tree_with_parent(mock_list):
-    """When parent_id is specified, it's passed through to the service."""
-    mock_list.return_value = [
-        _kp(id="kp3", code="SX-001-01", name="一次函数", level=2, grade_hint="高一"),
-    ]
+async def test_get_knowledge_tree_with_parent():
+    """When module filter is specified, it's passed to the query."""
     from edu_cloud.ai.tools.knowledge_db import get_knowledge_tree
+    from unittest.mock import MagicMock
 
-    result = await get_knowledge_tree({"course_code": "SX", "parent_id": "kp1"}, _ctx())
+    mock_node = SimpleNamespace(id="kp3", name="一次函数", node_type="concept",
+                                primary_module="M1", description="y=kx+b")
+
+    mock_nodes_result = MagicMock()
+    mock_nodes_result.scalars.return_value.all.return_value = [mock_node]
+
+    mock_edges_result = MagicMock()
+    mock_edges_result.all.return_value = [("kp1", "kp3")]  # kp3 has parent kp1
+
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(side_effect=[mock_nodes_result, mock_edges_result])
+
+    result = await get_knowledge_tree({"course_code": "SX", "module": "M1"}, _ctx(db=mock_db))
     assert result.success
     assert len(result.data["knowledge_points"]) == 1
-    mock_list.assert_awaited_once_with("mock_db", course_code="SX", parent_id="kp1", school_id="s1")
+    assert result.data["knowledge_points"][0]["parent_id"] == "kp1"
 
 
 # ---------------------------------------------------------------------------

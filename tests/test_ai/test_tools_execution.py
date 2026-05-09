@@ -245,7 +245,7 @@ async def test_get_student_trend_success(mock_svc):
 @patch("edu_cloud.modules.profile.service.get_student_knowledge_map", new_callable=AsyncMock)
 async def test_get_student_knowledge_map_success(mock_svc):
     mock_svc.return_value = [
-        SimpleNamespace(knowledge_point_id="kp1", mastery_level=0.7,
+        SimpleNamespace(concept_id="kp1", mastery_level=0.7,
                        trend="up", attempt_count=3, recent_scores=[80, 85, 90]),
     ]
     from edu_cloud.ai.tools.profile import get_student_knowledge_map
