@@ -58,3 +58,15 @@ async def test_dashboard_pending_grading_respects_subject_scope(client, dashboar
     data = resp.json()
     assert data["pending_grading"] == 1, f"Expected 1 (math only), got {data['pending_grading']}"
     assert data["pending_subjects"] == 1, f"Expected 1 subject, got {data['pending_subjects']}"
+
+
+@pytest.mark.asyncio
+async def test_workspace_context_excludes_other_subjects(client, dashboard_scope_data):
+    """数学教师的工作台上下文不应包含语文科目数据。"""
+    resp = await client.get("/api/v1/workspace/context",
+                            headers=dashboard_scope_data["headers"])
+    assert resp.status_code == 200
+    data = resp.json()
+    if "exams" in data:
+        for exam in data.get("exams", []):
+            assert exam.get("subject_code") != "chinese", "数学教师不应看到语文科目"

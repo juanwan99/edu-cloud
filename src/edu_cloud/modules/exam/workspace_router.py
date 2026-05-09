@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
 from edu_cloud.api.deps import require_permission
+from edu_cloud.api.permissions import get_visible_subject_codes
 from edu_cloud.core.permissions import Permission
 from edu_cloud.services.workspace_service import WorkspaceService
 
@@ -22,6 +23,7 @@ async def get_context(
     scope = {
         "class_ids": getattr(role, "class_ids", None),
         "grade_ids": getattr(role, "grade_ids", None),
+        "subject_codes": get_visible_subject_codes(role),
     }
     school_id = getattr(role, "school_id", None)
     return await svc.get_context_tree(school_id, scope)
@@ -39,6 +41,7 @@ async def get_exam_dashboard(
     scope = {
         "class_ids": getattr(role, "class_ids", None),
         "grade_ids": getattr(role, "grade_ids", None),
+        "subject_codes": get_visible_subject_codes(role),
     }
     school_id = getattr(role, "school_id", None)
     return await svc.get_exam_dashboard(exam_id, school_id, scope)

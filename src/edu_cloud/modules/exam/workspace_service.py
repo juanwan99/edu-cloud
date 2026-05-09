@@ -26,13 +26,16 @@ class WorkspaceService:
             q = q.where(ClassGroup.id.in_(scope["class_ids"]))
         classes = (await self.db.execute(q)).scalars().all()
 
-        # Recent exams (most recent 20)
+        # Recent exams (most recent 20), filtered by subject scope
         q = (
             select(Exam)
             .where(Exam.school_id == school_id)
             .order_by(Exam.created_at.desc())
             .limit(20)
         )
+        subject_codes = scope.get("subject_codes")
+        if subject_codes is not None:
+            q = q.where(Exam.subject_code.in_(subject_codes))
         exams = (await self.db.execute(q)).scalars().all()
 
         return {
@@ -59,6 +62,15 @@ class WorkspaceService:
         if not school_id:
             return {"stats": {}, "score_distribution": []}
 
+        # Fetch exam once (used for subject scope check and max_score)
+        exam = await self.db.get(Exam, exam_id)
+
+        # Check subject scope before querying results
+        subject_codes = scope.get("subject_codes")
+        if subject_codes is not None:
+            if exam and exam.subject_code not in subject_codes:
+                return {"stats": {}, "score_distribution": []}
+
         q = select(ExamResult).where(
             ExamResult.exam_id == exam_id,
             ExamResult.school_id == school_id,
@@ -74,7 +86,6 @@ class WorkspaceService:
             return {"stats": {}, "score_distribution": []}
 
         # Score distribution by percentage ranges (adapts to different max scores)
-        exam = await self.db.get(Exam, exam_id)
         max_s = (exam.max_score if exam and exam.max_score else 100)
         bins = [0, max_s * 0.4, max_s * 0.6, max_s * 0.7, max_s * 0.8, max_s * 0.9, max_s + 0.1]
         labels = ["<40%", "40-59%", "60-69%", "70-79%", "80-89%", "90%+"]
