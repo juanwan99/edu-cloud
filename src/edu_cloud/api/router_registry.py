@@ -72,6 +72,7 @@ MODULE_ROUTERS: list[tuple[str, str]] = [
     ("edu_cloud.modules.knowledge_tree.router", "router"),
     # scan (continued)
     ("edu_cloud.modules.scan.pipeline_router", "router"),
+    ("edu_cloud.modules.scan.cv_detect_router", "router"),
     # conduct
     ("edu_cloud.modules.conduct.parent_router", "router"),
     ("edu_cloud.modules.conduct.admin_router", "router"),
