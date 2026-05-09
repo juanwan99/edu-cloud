@@ -102,7 +102,8 @@ async def get_submission_details(input: dict, ctx: ToolContext) -> ToolResult:
     try:
         await HomeworkTaskService.get_task(ctx.db, task_id=task_id, school_id=ctx.school_id)
         subs = await HomeworkSubmissionService.list_submissions(
-            ctx.db, task_id=task_id, status=status or None,
+            ctx.db, task_id=task_id, school_id=ctx.school_id,
+            status=status or None,
         )
         return ToolResult(success=True, data={"submissions": [
             {"id": s.id, "student_id": s.student_id, "status": s.status,

@@ -268,7 +268,7 @@ async def test_publish_creates_submissions(db, hw_with_students):
     )
     assert result.status == "active"
 
-    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
+    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id, school_id=f["school_id"])
     assert len(subs) == 3
     assert all(s.status == "pending" for s in subs)
 
@@ -316,9 +316,10 @@ async def test_submit_homework(db, hw_with_students):
     await HomeworkTaskService.transition_status(
         db, task_id=task.id, school_id=f["school_id"], action="publish",
     )
-    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
+    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id, school_id=f["school_id"])
     updated = await HomeworkSubmissionService.submit(
-        db, task_id=task.id, submission_id=subs[0].id, content='{"answer": "A"}',
+        db, task_id=task.id, submission_id=subs[0].id,
+        school_id=f["school_id"], content='{"answer": "A"}',
     )
     assert updated.status == "submitted"
     assert updated.submit_time is not None
@@ -336,10 +337,14 @@ async def test_grade_single(db, hw_with_students):
     await HomeworkTaskService.transition_status(
         db, task_id=task.id, school_id=f["school_id"], action="publish",
     )
-    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
-    await HomeworkSubmissionService.submit(db, task_id=task.id, submission_id=subs[0].id, content='{}')
+    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id, school_id=f["school_id"])
+    await HomeworkSubmissionService.submit(
+        db, task_id=task.id, submission_id=subs[0].id,
+        school_id=f["school_id"], content='{}',
+    )
     graded = await HomeworkSubmissionService.grade_single(
-        db, task_id=task.id, submission_id=subs[0].id, score=85.0,
+        db, task_id=task.id, submission_id=subs[0].id,
+        school_id=f["school_id"], score=85.0,
         feedback="不错", graded_by=f["teacher_id"],
     )
     assert graded.status == "graded"
@@ -359,9 +364,12 @@ async def test_grade_batch(db, hw_with_students):
     await HomeworkTaskService.transition_status(
         db, task_id=task.id, school_id=f["school_id"], action="publish",
     )
-    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
+    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id, school_id=f["school_id"])
     for s in subs:
-        await HomeworkSubmissionService.submit(db, task_id=task.id, submission_id=s.id, content='{}')
+        await HomeworkSubmissionService.submit(
+            db, task_id=task.id, submission_id=s.id,
+            school_id=f["school_id"], content='{}',
+        )
 
     grades = [
         {"student_id": f["student_ids"][0], "score": 90, "feedback": "优秀"},
@@ -369,7 +377,8 @@ async def test_grade_batch(db, hw_with_students):
         {"student_id": "nonexistent_id", "score": 60, "feedback": "无效"},
     ]
     count = await HomeworkSubmissionService.grade_batch(
-        db, task_id=task.id, grades=grades, graded_by=f["teacher_id"],
+        db, task_id=task.id, school_id=f["school_id"],
+        grades=grades, graded_by=f["teacher_id"],
     )
     assert count == 2  # 跳过 nonexistent
 
@@ -389,9 +398,12 @@ async def test_submit_after_close_rejected(db, hw_with_students):
     await HomeworkTaskService.transition_status(
         db, task_id=task.id, school_id=f["school_id"], action="close",
     )
-    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id)
+    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task.id, school_id=f["school_id"])
     with pytest.raises(StateError, match="已关闭"):
-        await HomeworkSubmissionService.submit(db, task_id=task.id, submission_id=subs[0].id, content='{}')
+        await HomeworkSubmissionService.submit(
+            db, task_id=task.id, submission_id=subs[0].id,
+            school_id=f["school_id"], content='{}',
+        )
 
 
 @pytest.mark.asyncio

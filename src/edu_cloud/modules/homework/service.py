@@ -349,9 +349,17 @@ class HomeworkSubmissionService:
 
     @staticmethod
     async def list_submissions(
-        db: AsyncSession, *, task_id: str, status: str | None = None,
+        db: AsyncSession, *, task_id: str, school_id: str,
+        status: str | None = None,
     ) -> list[HomeworkSubmission]:
-        stmt = select(HomeworkSubmission).where(HomeworkSubmission.task_id == task_id)
+        stmt = (
+            select(HomeworkSubmission)
+            .join(HomeworkTask, HomeworkSubmission.task_id == HomeworkTask.id)
+            .where(
+                HomeworkSubmission.task_id == task_id,
+                HomeworkTask.school_id == school_id,
+            )
+        )
         if status:
             stmt = stmt.where(HomeworkSubmission.status == status)
         stmt = stmt.order_by(HomeworkSubmission.student_id)
@@ -360,13 +368,21 @@ class HomeworkSubmissionService:
 
     @staticmethod
     async def submit(
-        db: AsyncSession, *, task_id: str, submission_id: str, content: str | None = None,
+        db: AsyncSession, *, task_id: str, submission_id: str,
+        school_id: str, content: str | None = None,
     ) -> HomeworkSubmission:
-        sub = await db.get(HomeworkSubmission, submission_id)
+        result = await db.execute(
+            select(HomeworkSubmission)
+            .join(HomeworkTask, HomeworkSubmission.task_id == HomeworkTask.id)
+            .where(
+                HomeworkSubmission.id == submission_id,
+                HomeworkSubmission.task_id == task_id,
+                HomeworkTask.school_id == school_id,
+            )
+        )
+        sub = result.scalar_one_or_none()
         if not sub:
             raise NotFoundError("提交记录不存在")
-        if sub.task_id != task_id:
-            raise ValidationError("提交记录不属于该作业")
         if sub.status != "pending":
             raise StateError(f"当前状态 {sub.status} 不允许提交")
         # F-04: 联查 task 状态，关闭/过期的作业不接受提交
@@ -381,14 +397,22 @@ class HomeworkSubmissionService:
 
     @staticmethod
     async def grade_single(
-        db: AsyncSession, *, task_id: str, submission_id: str, score: float,
+        db: AsyncSession, *, task_id: str, submission_id: str,
+        school_id: str, score: float,
         feedback: str | None = None, graded_by: str,
     ) -> HomeworkSubmission:
-        sub = await db.get(HomeworkSubmission, submission_id)
+        result = await db.execute(
+            select(HomeworkSubmission)
+            .join(HomeworkTask, HomeworkSubmission.task_id == HomeworkTask.id)
+            .where(
+                HomeworkSubmission.id == submission_id,
+                HomeworkSubmission.task_id == task_id,
+                HomeworkTask.school_id == school_id,
+            )
+        )
+        sub = result.scalar_one_or_none()
         if not sub:
             raise NotFoundError("提交记录不存在")
-        if sub.task_id != task_id:
-            raise ValidationError("提交记录不属于该作业")
         if sub.status != "submitted":
             raise StateError(f"当前状态 {sub.status} 不允许批改")
         sub.status = "graded"
@@ -401,17 +425,20 @@ class HomeworkSubmissionService:
 
     @staticmethod
     async def grade_batch(
-        db: AsyncSession, *, task_id: str,
+        db: AsyncSession, *, task_id: str, school_id: str,
         grades: list[dict], graded_by: str,
     ) -> int:
-        """批量批改，跳过无效 student_id。"""
+        """批量批改，跳过无效 student_id。school_id 通过 JOIN 校验归属。"""
         count = 0
         for g in grades:
             result = await db.execute(
-                select(HomeworkSubmission).where(
+                select(HomeworkSubmission)
+                .join(HomeworkTask, HomeworkSubmission.task_id == HomeworkTask.id)
+                .where(
                     HomeworkSubmission.task_id == task_id,
                     HomeworkSubmission.student_id == g["student_id"],
                     HomeworkSubmission.status == "submitted",
+                    HomeworkTask.school_id == school_id,
                 )
             )
             sub = result.scalar_one_or_none()

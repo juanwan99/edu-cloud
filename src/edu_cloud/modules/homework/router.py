@@ -234,9 +234,12 @@ async def list_submissions(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_HOMEWORK)),
 ):
+    school_id = _school_id(current)
     # 先验证 task 存在且属于本校
-    await HomeworkTaskService.get_task(db, task_id=task_id, school_id=_school_id(current))
-    subs = await HomeworkSubmissionService.list_submissions(db, task_id=task_id, status=status)
+    await HomeworkTaskService.get_task(db, task_id=task_id, school_id=school_id)
+    subs = await HomeworkSubmissionService.list_submissions(
+        db, task_id=task_id, school_id=school_id, status=status,
+    )
     return [_submission_response(s) for s in subs]
 
 
@@ -246,8 +249,12 @@ async def submit_homework(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_HOMEWORK)),
 ):
-    await HomeworkTaskService.get_task(db, task_id=task_id, school_id=_school_id(current))
-    sub = await HomeworkSubmissionService.submit(db, task_id=task_id, submission_id=sub_id, content=req.content)
+    school_id = _school_id(current)
+    await HomeworkTaskService.get_task(db, task_id=task_id, school_id=school_id)
+    sub = await HomeworkSubmissionService.submit(
+        db, task_id=task_id, submission_id=sub_id,
+        school_id=school_id, content=req.content,
+    )
     await db.commit()
     return _submission_response(sub)
 
@@ -258,9 +265,11 @@ async def grade_single(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.MANAGE_HOMEWORK)),
 ):
-    await HomeworkTaskService.get_task(db, task_id=task_id, school_id=_school_id(current))
+    school_id = _school_id(current)
+    await HomeworkTaskService.get_task(db, task_id=task_id, school_id=school_id)
     sub = await HomeworkSubmissionService.grade_single(
-        db, task_id=task_id, submission_id=sub_id, score=req.score,
+        db, task_id=task_id, submission_id=sub_id,
+        school_id=school_id, score=req.score,
         feedback=req.feedback, graded_by=current["user"].id,
     )
     await db.commit()
@@ -273,9 +282,11 @@ async def grade_batch(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.MANAGE_HOMEWORK)),
 ):
-    await HomeworkTaskService.get_task(db, task_id=task_id, school_id=_school_id(current))
+    school_id = _school_id(current)
+    await HomeworkTaskService.get_task(db, task_id=task_id, school_id=school_id)
     count = await HomeworkSubmissionService.grade_batch(
-        db, task_id=task_id, grades=req.grades, graded_by=current["user"].id,
+        db, task_id=task_id, school_id=school_id,
+        grades=req.grades, graded_by=current["user"].id,
     )
     await db.commit()
     return {"graded_count": count}
