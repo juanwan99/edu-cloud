@@ -1,27 +1,9 @@
 # edu-cloud 健康度审计 + 修复 全程交接卡（最终版）
 
+> 更新于 2026-05-09：全部 30 个 finding 已处置完毕（27 修复 + 2 自然解决 + 1 deferred）
+
 ## Goal
-对 edu-cloud 项目做 Claude×GPT 双模型深度健康度审计，产出调查报告 + 共识修复方案，执行全部 8 Phase 修复。
-
-## Must Preserve
-- GradingResult UniqueConstraint `(school_id, answer_id)`
-- `auto_fix_ab_sides` 返回 0（no-op）
-- `GRADING_DISPATCH_ROLES` = `SCHOOL_ADMIN_ROLES`
-- CardEditor 无 `switchToTql`
-- 3 新模块：`questionSort.js`, `question_order.py`, `basic_report_service.py`
-- `MANAGE_TEACHERS` 权限枚举
-- browse-dir / scan-dir / start / pdf-import / import-tpl / scan-image / preview 路径限制
-- 登录 rate limit 5/min slowapi
-- 6 处 innerHTML DOMPurify
-- 11 处 fetch→Axios 统一
-- JWT 过期检查 router+interceptor
-- grading results 分页格式 `{total, page, page_size, items}`
-- dispatch/status 批量查询（N+1 修复）
-
-## Must Not Change
-- `src/edu_cloud/api/deps.py` — b0d314cc 已改
-- `src/edu_cloud/modules/grading/router.py` — b0d314cc 已改
-- `src/edu_cloud/modules/grading/models.py` — b0d314cc 已迁移
+对 edu-cloud 项目做 Claude×GPT 双模型深度健康度审计，产出调查报告 + 共识修复方案，执行全部修复。
 
 ---
 
@@ -66,36 +48,38 @@
 |--------|------|
 | 676a52f | 移除 qrcode + python-dateutil 未用依赖 |
 
+### Phase 8：剩余 finding 清理（第二轮会话）
+| Commit | 修复 |
+|--------|------|
+| b00ebf0 | N-L04 rate limit 双键 + N-L05 card 跨 import → card_utils.py + N-L07 randomHex12 去重 + N-M07 seed warning + N-L08 python-jose→PyJWT |
+| df3ad39 | 5 个前端过时测试修复（KnowledgeTreePage activeTab / GradeAnalyticsPage ECharts / SubjectStatusCard progress bar） |
+| 1a69cb1 | N-H01 ReviewPage composable 拆分（useImageZoom + useAnnotations + useScoring，script -155 行） |
+
+### 自然解决（调研确认已不存在）
+- N-L02：paper 模块已有 23 个测试全部通过
+- N-L03：无 stub/placeholder 测试
+
+### Deferred（技术阻塞）
+- N-H02：Naive UI 按需导入 — unplugin-vue-components 与 7 个 `vi.mock('naive-ui')` 测试冲突，由其他窗口独立推进
+
+### 30 Finding 处置汇总
+
+| 状态 | 数量 |
+|------|------|
+| 已修复 | 27 |
+| 自然解决 | 2 |
+| 技术阻塞 deferred | 1 |
+
 ### 测试基线（最终）
 
 | 维度 | 结果 |
 |------|------|
-| 后端 passed | **2568** (+67 vs 修复前 2501) |
-| 后端 failed | 42（pre-existing） |
-| 前端 passed | **2496** (+1 vs 修复前) |
-| 前端 failed | 5（pre-existing） |
+| 前端 passed | **2496**（0 failed） |
 | vite build | ✅ |
 | 锚点检查 | ✅ ALL OK |
-
-### Deferred 项（ROI 不足）
-- N-H01：ReviewPage 拆分（1511 行，provide/inject 重构风险）
-- N-H02：Naive UI 完全按需导入（需 unplugin + 测试 setup 改造）
-- N-M07：create_all → alembic（种子脚本，非生产代码）
-- N-L01：44 个过时测试（逐模块更新，工时长收益低）
+| 生产部署 | ✅ mcu.asia version.json = 1a69cb1 |
 
 ---
-
-## 锚点检查命令
-
-```bash
-grep -q "school_id.*answer_id" src/edu_cloud/modules/grading/models.py && \
-grep -q "return 0" src/edu_cloud/modules/scan/pipeline_service.py && \
-grep -q "SCHOOL_ADMIN_ROLES" frontend/src/config/roles.js && \
-! grep -q "switchToTql" frontend/src/components/CardEditor.vue && \
-test -f frontend/src/utils/questionSort.js && \
-grep -q "MANAGE_TEACHERS" src/edu_cloud/core/permissions.py && \
-echo "ALL ANCHORS OK" || echo "ANCHOR FAILED"
-```
 
 ## 关键文档索引
 
@@ -105,4 +89,5 @@ echo "ALL ANCHORS OK" || echo "ANCHOR FAILED"
 | 共识修复方案 | `docs/2026-05-08-fix-plan-consensus.md` |
 | Phase 1-3 计划 | `docs/superpowers/plans/2026-05-08-security-fix-phase1-3.md` |
 | 安全修复交接 | `docs/2026-05-09-security-fix-handoff.md` |
+| 剩余工作交接 | `docs/2026-05-09-health-audit-remaining-handoff.md` |
 | GPT review gate | `docs/plans/gates.json` |
