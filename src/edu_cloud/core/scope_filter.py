@@ -18,11 +18,11 @@ class ScopeFilter:
         grade/class/subject 有 scope 值且 model 有对应列时才追加。"""
         if self.school_id:
             stmt = stmt.where(getattr(model, school_col) == self.school_id)
-        if self.class_ids and class_col:
+        if self.class_ids is not None and class_col:
             stmt = stmt.where(getattr(model, class_col).in_(self.class_ids))
-        if self.grade_ids and grade_col:
+        if self.grade_ids is not None and grade_col:
             stmt = stmt.where(getattr(model, grade_col).in_(self.grade_ids))
-        if self.subject_codes and subject_col:
+        if self.subject_codes is not None and subject_col:
             stmt = stmt.where(getattr(model, subject_col).in_(self.subject_codes))
         return stmt
 

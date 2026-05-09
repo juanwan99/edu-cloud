@@ -188,3 +188,25 @@ def require_permission(permission: Permission):
             )
         return current
     return checker
+
+
+from edu_cloud.core.tenant import TenantContext, get_school_id
+from edu_cloud.api.permissions import get_visible_class_ids, get_visible_subject_codes
+
+
+def _to_tuple(lst: list | None) -> tuple | None:
+    return None if lst is None else tuple(lst)
+
+
+async def get_tenant_context(
+    current: dict = Depends(get_current_user),
+) -> TenantContext:
+    role = current["current_role"]
+    return TenantContext(
+        user_id=str(current["user"].id),
+        role_id=str(role.id),
+        role_name=role.role,
+        school_id=get_school_id(current),
+        visible_class_ids=_to_tuple(get_visible_class_ids(role)),
+        visible_subject_codes=_to_tuple(get_visible_subject_codes(role)),
+    )
