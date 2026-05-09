@@ -3,6 +3,7 @@
 OpenCV 负责精确像素坐标，LLM 只做分类和语义标签（qno/score/type）。
 输出 type="subjective" 以兼容 pipeline_service 的切割过滤。
 """
+import asyncio
 import base64
 import io
 import json
@@ -549,11 +550,8 @@ def _build_opencv_only(
     }
 
 
-async def auto_detect_cv_regions(req: AutoDetectCVRequest) -> dict:
-    img_path = _resolve_image(req.image_path)
-    if not img_path.is_file():
-        raise HTTPException(404, f"图片不存在: {img_path}")
-
+def _detect_cv_sync(img_path: Path, min_area_ratio: float, prior_regions: list | None):
+    """CPU-bound CV 操作：imread + 矩形/条码/气泡检测。在 asyncio.to_thread 中运行。"""
     img_bgr = cv2.imread(str(img_path))
     if img_bgr is None:
         pil_img = Image.open(img_path).convert("RGB")
@@ -562,30 +560,21 @@ async def auto_detect_cv_regions(req: AutoDetectCVRequest) -> dict:
     h, w = img_bgr.shape[:2]
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
 
-    rects = _detect_rectangles(gray, req.min_area_ratio)
-    # Barcode detection (pyzbar, independent of contour detection)
+    rects = _detect_rectangles(gray, min_area_ratio)
     barcode_rects = _detect_barcode(gray)
     logger.info("auto_detect_cv: %s %dx%d → %d rects, %d barcodes", img_path.name, w, h, len(rects), len(barcode_rects))
 
     if not rects and not barcode_rects:
-        # 有 prior_regions（B 面）时，检查页面是否有实际内容再 fallback
         has_content = False
-        if req.prior_regions:
+        if prior_regions:
             _, bw = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY_INV)
             dark_ratio = np.count_nonzero(bw) / (w * h)
             has_content = dark_ratio > 0.02
             logger.info("auto_detect_cv: B-side content check: dark_ratio=%.4f has_content=%s", dark_ratio, has_content)
 
         if not has_content:
-            return {
-                "regions": [],
-                "width": w,
-                "height": h,
-                "method": "opencv+llm",
-                "raw": "no rects",
-            }
-        # B 面 fallback：OpenCV 检测不到矩形框（如写作虚线格纸），
-        # 将整页（去页边距）作为一个区域交给 LLM 判断
+            return {"rects": [], "barcode_rects": [], "bubble_hints": {}, "w": w, "h": h, "gray": gray, "empty": True}
+
         margin_x, margin_y = int(w * 0.05), int(h * 0.04)
         rects = [{"x": margin_x, "y": margin_y, "w": w - margin_x * 2, "h": h - margin_y * 2, "area": 0}]
         logger.info("auto_detect_cv: B-side fallback, using full-page rect")
@@ -596,6 +585,31 @@ async def auto_detect_cv_regions(req: AutoDetectCVRequest) -> dict:
         if bh:
             bubble_hints[i] = bh
             logger.info("  R%02d bubble: %dx%d", i + 1, bh["rows"], bh["cols"])
+
+    return {"rects": rects, "barcode_rects": barcode_rects, "bubble_hints": bubble_hints, "w": w, "h": h, "gray": gray, "empty": False}
+
+
+async def auto_detect_cv_regions(req: AutoDetectCVRequest) -> dict:
+    img_path = _resolve_image(req.image_path)
+    if not img_path.is_file():
+        raise HTTPException(404, f"图片不存在: {img_path}")
+
+    cv_result = await asyncio.to_thread(_detect_cv_sync, img_path, req.min_area_ratio, req.prior_regions)
+
+    w, h = cv_result["w"], cv_result["h"]
+    rects = cv_result["rects"]
+    barcode_rects = cv_result["barcode_rects"]
+    bubble_hints = cv_result["bubble_hints"]
+    gray = cv_result.get("gray")
+
+    if cv_result["empty"]:
+        return {
+            "regions": [],
+            "width": w,
+            "height": h,
+            "method": "opencv+llm",
+            "raw": "no rects",
+        }
 
     if req.skip_llm:
         return _build_opencv_only(rects, barcode_rects, bubble_hints, w, h)

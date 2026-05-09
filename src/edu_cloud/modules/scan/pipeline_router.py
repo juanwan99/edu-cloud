@@ -827,8 +827,7 @@ async def preview_scan(
     # 标注定位点（红框）
     from .vision import detect_anchors
     import numpy as np
-    gray = np.array(img.convert("L"))
-    anchors = detect_anchors(gray)
+    anchors = await asyncio.to_thread(lambda: detect_anchors(np.array(img.convert("L"))))
     for a in anchors:
         x, y, w, h = a["x"], a["y"], a["w"], a["h"]
         draw.rectangle([x, y, x + w, y + h], outline="red", width=3)
