@@ -202,13 +202,17 @@ class TestDispatchStatus:
         from edu_cloud.modules.grading.models import GradingTask, GradingResult, Rubric
 
         async with db_engine.begin() as conn:
-            # 第二科目：英语（idle — 无任何数据）
+            # 第二科目：英语（idle — 无任何数据，无主观题 → all_subj_q_ids 边界）
             await conn.execute(insert(Subject).values(
                 id="subj-eng", name="英语", exam_id=exam_id,
                 school_id=school_id, code="english",
             ))
+            await conn.execute(insert(Question).values(
+                id="q-eng-choice", subject_id="subj-eng", question_type="choice",
+                name="听力1", max_score=2.0, correct_answer="B", school_id=school_id,
+            ))
 
-            # 第三科目：语文（ready — 有答卷+rubric）
+            # 第三科目：语文（reviewing — 有答卷+rubric+completed task+GradingResult）
             await conn.execute(insert(Subject).values(
                 id="subj-chn", name="语文", exam_id=exam_id,
                 school_id=school_id, code="chinese",
@@ -222,10 +226,33 @@ class TestDispatchStatus:
                 student_id="stu1", question_id="q-chn-essay",
                 image_path="/tmp/chn.png", school_id=school_id,
             ))
+            await conn.execute(insert(StudentAnswer).values(
+                id="sa-chn-2", exam_id=exam_id, subject_id="subj-chn",
+                student_id="stu2", question_id="q-chn-essay",
+                image_path="/tmp/chn2.png", school_id=school_id,
+            ))
             await conn.execute(insert(Rubric).values(
                 id="rubric-chn", question_id="q-chn-essay",
                 criteria={"points": [{"desc": "优秀", "score": 60}]},
                 source="manual", school_id=school_id,
+            ))
+            await conn.execute(insert(GradingTask).values(
+                id="gt-chn-done", subject_id="subj-chn", status="completed",
+                total=2, completed=2, failed=0,
+                created_by=dispatch_fixtures["user_id"], school_id=school_id,
+            ))
+            # GradingResult: 2 个 AI 评分，1 个已确认，1 个待复核
+            await conn.execute(insert(GradingResult).values(
+                id="gr-chn-1", answer_id="sa-chn-1", question_id="q-chn-essay",
+                school_id=school_id, ai_task_id="gt-chn-done",
+                ai_score=55.0, ai_confidence=0.9, status="confirmed",
+                final_score=55.0, max_score=60.0, source="ai", version=1,
+            ))
+            await conn.execute(insert(GradingResult).values(
+                id="gr-chn-2", answer_id="sa-chn-2", question_id="q-chn-essay",
+                school_id=school_id, ai_task_id="gt-chn-done",
+                ai_score=48.0, ai_confidence=0.85, status="ai_done",
+                max_score=60.0, version=1,
             ))
 
             # 数学：ai_grading 状态（有答卷+rubric+processing task）
@@ -255,20 +282,31 @@ class TestDispatchStatus:
 
         by_code = {s["subject_code"]: s for s in data}
 
+        # 英语：纯选择题科目 → idle, 无主观题 questions
         eng = by_code["english"]
         assert eng["stage"] == "idle"
         assert eng["answer_count"] == 0
         assert eng["questions"] == []
+        assert eng["ai_scored_count"] == 0
+        assert eng["confirmed_total"] == 0
 
+        # 语文：reviewing（ai_scored_count=2 > confirmed_total=1）
         chn = by_code["chinese"]
-        assert chn["stage"] == "ready"
-        assert chn["answer_count"] == 1
-        assert chn["subjective_total"] == 1
+        assert chn["stage"] == "reviewing"
+        assert chn["answer_count"] == 2
+        assert chn["subjective_total"] == 2
+        assert chn["ai_scored_count"] == 2
+        assert chn["confirmed_total"] == 1
+        assert chn["manual_confirmed_count"] == 0
         assert len(chn["questions"]) == 1
-        assert chn["questions"][0]["name"] == "作文"
-        assert chn["questions"][0]["has_rubric"] is True
-        assert chn["questions"][0]["max_score"] == 60.0
+        q_chn = chn["questions"][0]
+        assert q_chn["name"] == "作文"
+        assert q_chn["has_rubric"] is True
+        assert q_chn["ai_scored_count"] == 2
+        assert q_chn["graded_count"] == 1
+        assert q_chn["answer_count"] == 2
 
+        # 数学：ai_grading
         math = by_code["math"]
         assert math["stage"] == "ai_grading"
         assert math["answer_count"] == 1

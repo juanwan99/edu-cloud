@@ -224,6 +224,7 @@ async def get_dispatch_status(
         select(Template.subject_id).where(
             Template.subject_id.in_([s.id for s in subjects]),
             Template.side == "A",
+            Template.school_id == effective_school_id,
         )
     )).scalars().all()
     tpl_set = set(tpl_rows)
