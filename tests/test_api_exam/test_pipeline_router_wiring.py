@@ -46,7 +46,7 @@ async def test_S8d_start_pipeline_tracks_factory_and_asserts_identity(
     with patch.object(pr_mod, "build_pipeline_save_answer_fn", side_effect=tracked_factory) as spy_factory, \
          patch("edu_cloud.modules.scan.pipeline_service.is_running", return_value=False), \
          patch("edu_cloud.modules.scan.pipeline_service.list_scan_images",
-               return_value=[str(scan_dir / "S0000A.png")]), \
+               return_value=[scan_dir / "S0000A.png"]), \
          patch("edu_cloud.modules.scan.pipeline_service.run_pipeline", side_effect=fake_run_pipeline):
         resp = await client.post(
             "/api/v1/scan/pipeline/start",
@@ -103,7 +103,7 @@ async def test_start_pipeline_wires_save_objective_fn(client, db, tmp_path, pipe
     with patch.object(pr_mod, "build_pipeline_save_objective_fn", wraps=pr_mod.build_pipeline_save_objective_fn) as spy_obj, \
          patch("edu_cloud.modules.scan.pipeline_service.is_running", return_value=False), \
          patch("edu_cloud.modules.scan.pipeline_service.list_scan_images",
-               return_value=[str(scan_dir / "S0001A.png")]), \
+               return_value=[scan_dir / "S0001A.png"]), \
          patch("edu_cloud.modules.scan.pipeline_service.enqueue_pipeline", side_effect=fake_enqueue), \
          patch("edu_cloud.modules.scan.pipeline_service.run_queue", side_effect=fake_run_pipeline):
         resp = await client.post(
@@ -173,7 +173,7 @@ async def test_S8d_tpl_path_branch_wiring(client, db, tmp_path, pipeline_fixture
     with patch.object(pr_mod, "build_pipeline_save_answer_fn", side_effect=tracked_factory) as spy_factory, \
          patch("edu_cloud.modules.scan.pipeline_service.is_running", return_value=False), \
          patch("edu_cloud.modules.scan.pipeline_service.list_scan_images",
-               return_value=[str(scan_dir / "S0001A.png")]), \
+               return_value=[scan_dir / "S0001A.png"]), \
          patch("edu_cloud.modules.scan.pipeline_service.run_pipeline", side_effect=fake_run_pipeline):
         resp = await client.post(
             "/api/v1/scan/pipeline/start",
@@ -286,7 +286,7 @@ async def test_tpl_path_branch_fallback_wires_save_objective_fn(client, db, tmp_
                       wraps=pr_mod.build_pipeline_save_objective_fn) as spy_obj, \
          patch("edu_cloud.modules.scan.pipeline_service.is_running", return_value=False), \
          patch("edu_cloud.modules.scan.pipeline_service.list_scan_images",
-               return_value=[str(scan_dir / "S0001A.png")]), \
+               return_value=[scan_dir / "S0001A.png"]), \
          patch("edu_cloud.modules.scan.pipeline_service.enqueue_pipeline", side_effect=fake_enqueue), \
          patch("edu_cloud.modules.scan.pipeline_service.run_queue", side_effect=fake_run_queue):
         resp = await client.post(
@@ -377,7 +377,7 @@ async def test_tpl_path_fallback_maps_by_question_number_not_creation_order(clie
                       wraps=pr_mod.build_pipeline_save_objective_fn) as spy_obj, \
          patch("edu_cloud.modules.scan.pipeline_service.is_running", return_value=False), \
          patch("edu_cloud.modules.scan.pipeline_service.list_scan_images",
-               return_value=[str(scan_dir / "S0001A.png")]), \
+               return_value=[scan_dir / "S0001A.png"]), \
          patch("edu_cloud.modules.scan.pipeline_service.enqueue_pipeline"), \
          patch("edu_cloud.modules.scan.pipeline_service.run_queue"):
         resp = await client.post(

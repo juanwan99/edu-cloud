@@ -371,7 +371,7 @@ async def upload_scan_folder(
 ):
     """接收用户上传的扫描图片，按子文件夹结构保存到服务器。"""
     school_id = current["current_role"].school_id
-    base_dir = Path(settings.UPLOAD_DIR).resolve() / "scan-input" / exam_id
+    base_dir = Path(settings.UPLOAD_DIR).resolve() / school_id / "scan-input" / exam_id
     base_dir.mkdir(parents=True, exist_ok=True)
 
     saved = 0
