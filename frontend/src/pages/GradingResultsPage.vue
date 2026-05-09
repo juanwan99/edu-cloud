@@ -374,7 +374,8 @@ onMounted(async () => {
       listResults({ task_id: taskId }),
     ])
     task.value = taskRes.data
-    results.value = resultsRes.data
+    const rd = resultsRes.data
+    results.value = Array.isArray(rd) ? rd : rd.items
   } catch { /* interceptor */ }
   loading.value = false
 })

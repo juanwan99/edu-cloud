@@ -54,38 +54,49 @@ async def list_results(
     task_id: str | None = None,
     question_id: str | None = None,
     status: str | None = None,
+    page: int = 1,
+    page_size: int = 50,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
 ):
-    stmt = select(GradingResult).where(GradingResult.school_id == current["current_role"].school_id)
+    page_size = min(page_size, 200)
+    base = select(GradingResult).where(GradingResult.school_id == current["current_role"].school_id)
     if task_id:
-        stmt = stmt.where(GradingResult.ai_task_id == task_id)
+        base = base.where(GradingResult.ai_task_id == task_id)
     if question_id:
-        stmt = stmt.where(GradingResult.question_id == question_id)
+        base = base.where(GradingResult.question_id == question_id)
     if status:
-        stmt = stmt.where(GradingResult.status == status)
-    result = await db.execute(stmt)
-    results = result.scalars().all()
-    logger.debug("list_results: filters={task=%s, question=%s, status=%s}, count=%d",
-                 task_id, question_id, status, len(results))
-    return [_result_response(r) for r in results]
+        base = base.where(GradingResult.status == status)
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar() or 0
+    rows = (await db.execute(
+        base.order_by(GradingResult.created_at.desc())
+        .offset((page - 1) * page_size).limit(page_size)
+    )).scalars().all()
+    logger.debug("list_results: filters={task=%s, question=%s, status=%s}, total=%d, page=%d",
+                 task_id, question_id, status, total, page)
+    return {"total": total, "page": page, "page_size": page_size, "items": [_result_response(r) for r in rows]}
 
 
 @router.get("/review/pending")
 async def list_pending_reviews(
+    page: int = 1,
+    page_size: int = 50,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_GRADING)),
 ):
-    """返回 AI 已评但待教师确认的记录（status='ai_done'）。"""
-    result = await db.execute(
-        select(GradingResult).where(
-            GradingResult.school_id == current["current_role"].school_id,
-            GradingResult.status == "ai_done",
-        )
+    """返回 AI 已评但待教师确认的记录（status='ai_done'），分页。"""
+    page_size = min(page_size, 200)
+    base = select(GradingResult).where(
+        GradingResult.school_id == current["current_role"].school_id,
+        GradingResult.status == "ai_done",
     )
-    pending = result.scalars().all()
-    logger.debug("list_pending_reviews: count=%d", len(pending))
-    return [_result_response(r) for r in pending]
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar() or 0
+    rows = (await db.execute(
+        base.order_by(GradingResult.created_at.desc())
+        .offset((page - 1) * page_size).limit(page_size)
+    )).scalars().all()
+    logger.debug("list_pending_reviews: total=%d, page=%d", total, page)
+    return {"total": total, "page": page, "page_size": page_size, "items": [_result_response(r) for r in rows]}
 
 
 @router.get("/results/{result_id}")
@@ -326,56 +337,54 @@ async def get_dispatch_status(
             has_rubric = rubric_count > 0
         can_ai_grade = has_subjective_answers and has_rubric and len(subjective_q_ids) > 0
 
-        # Query question details for this subject
+        # Query question details for this subject (batch queries to avoid N+1)
         questions_info = []
         if subjective_q_ids:
-            # Get all subjective questions with their content/rubric/grading status
             subj_questions = sorted((await db.execute(
-                select(Question).where(
-                    Question.id.in_(subjective_q_ids),
-                )
+                select(Question).where(Question.id.in_(subjective_q_ids))
             )).scalars().all(), key=question_sort_key)
 
-            for q in subj_questions:
-                # Check if rubric exists
-                q_rubric = (await db.execute(
-                    select(Rubric).where(
-                        Rubric.question_id == q.id,
-                        Rubric.school_id == effective_school_id,
-                    )
-                )).scalar_one_or_none()
+            # Batch 1: rubrics by question_id
+            rubric_rows = (await db.execute(
+                select(Rubric).where(
+                    Rubric.question_id.in_(subjective_q_ids),
+                    Rubric.school_id == effective_school_id,
+                )
+            )).scalars().all()
+            rubric_map = {r.question_id: r for r in rubric_rows}
 
-                # Count answers for this question
-                q_answer_count = (await db.execute(
-                    select(func.count(StudentAnswer.id)).where(
-                        StudentAnswer.question_id == q.id,
-                        StudentAnswer.school_id == effective_school_id,
-                    )
-                )).scalar() or 0
+            # Batch 2: answer counts grouped by question_id
+            ans_count_rows = (await db.execute(
+                select(
+                    StudentAnswer.question_id,
+                    func.count(StudentAnswer.id),
+                ).where(
+                    StudentAnswer.question_id.in_(subjective_q_ids),
+                    StudentAnswer.school_id == effective_school_id,
+                ).group_by(StudentAnswer.question_id)
+            )).all()
+            ans_count_map = {row[0]: row[1] for row in ans_count_rows}
 
-                q_ai_scored = (await db.execute(
-                    select(func.count(GradingResult.id)).where(
-                        GradingResult.question_id == q.id,
-                        GradingResult.school_id == effective_school_id,
-                        GradingResult.ai_score.isnot(None),
-                    )
-                )).scalar() or 0
-                q_confirmed = (await db.execute(
-                    select(func.count(GradingResult.id)).where(
-                        GradingResult.question_id == q.id,
-                        GradingResult.school_id == effective_school_id,
-                        GradingResult.status == "confirmed",
-                    )
-                )).scalar() or 0
-                q_manual_only = (await db.execute(
-                    select(func.count(GradingResult.id)).where(
-                        GradingResult.question_id == q.id,
-                        GradingResult.school_id == effective_school_id,
+            # Batch 3: grading result stats grouped by question_id
+            gr_stats_rows = (await db.execute(
+                select(
+                    GradingResult.question_id,
+                    func.count(GradingResult.id).filter(GradingResult.ai_score.isnot(None)).label("ai_scored"),
+                    func.count(GradingResult.id).filter(GradingResult.status == "confirmed").label("confirmed"),
+                    func.count(GradingResult.id).filter(
                         GradingResult.status == "confirmed",
                         GradingResult.ai_score.is_(None),
-                    )
-                )).scalar() or 0
+                    ).label("manual_only"),
+                ).where(
+                    GradingResult.question_id.in_(subjective_q_ids),
+                    GradingResult.school_id == effective_school_id,
+                ).group_by(GradingResult.question_id)
+            )).all()
+            gr_stats_map = {row[0]: {"ai_scored": row[1], "confirmed": row[2], "manual_only": row[3]} for row in gr_stats_rows}
 
+            for q in subj_questions:
+                q_rubric = rubric_map.get(q.id)
+                q_stats = gr_stats_map.get(q.id, {"ai_scored": 0, "confirmed": 0, "manual_only": 0})
                 content_imgs = q.content_images or []
                 ref_imgs = q.reference_answer_images or []
                 questions_info.append({
@@ -389,10 +398,10 @@ async def get_dispatch_status(
                     "answer_image_count": len(ref_imgs),
                     "has_rubric": q_rubric is not None,
                     "rubric_source": q_rubric.source if q_rubric else None,
-                    "answer_count": q_answer_count,
-                    "graded_count": q_confirmed,
-                    "ai_scored_count": q_ai_scored,
-                    "manual_confirmed_count": q_manual_only,
+                    "answer_count": ans_count_map.get(q.id, 0),
+                    "graded_count": q_stats["confirmed"],
+                    "ai_scored_count": q_stats["ai_scored"],
+                    "manual_confirmed_count": q_stats["manual_only"],
                     "parent_id": q.parent_id,
                 })
 

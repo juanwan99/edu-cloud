@@ -69,8 +69,9 @@ async def test_list_results_by_task(client, review_setup):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) == 2
-    assert all(r["status"] == "ai_done" for r in data)
+    assert data["total"] == 2
+    assert len(data["items"]) == 2
+    assert all(r["status"] == "ai_done" for r in data["items"])
 
 
 async def test_get_single_result(client, review_setup):
@@ -138,4 +139,6 @@ async def test_duplicate_review_rejected(client, review_setup):
 async def test_list_pending_reviews(client, review_setup):
     resp = await client.get("/api/v1/grading/review/pending", headers=review_setup["headers"])
     assert resp.status_code == 200
-    assert len(resp.json()) == 2  # both are ai_done (pending review) initially
+    data = resp.json()
+    assert data["total"] == 2
+    assert len(data["items"]) == 2  # both are ai_done (pending review) initially
