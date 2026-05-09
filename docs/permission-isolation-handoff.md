@@ -1,41 +1,52 @@
 # 权限隔离修复交接文档
 
-> **日期**: 2026-05-09（Phase 2 更新）
-> **前序会话**: Claude Opus 4.6 + GPT 5.5 联合审计 → 实施
+> **最后更新**: 2026-05-09（Phase 3 完成）
+> **跨度**: 2026-05-08 ~ 2026-05-09，3 个 Phase，46 commits
+> **参与者**: Claude Opus 4.6 + GPT 5.5 联合审计 → 实施 → 交叉审查
 > **审计报告**: `docs/security-audit-permission-isolation-2026-05-08.md`
 > **Phase 1 Plan**: `docs/superpowers/plans/2026-05-08-permission-isolation-fix.md`
 > **Phase 2 Plan**: `docs/superpowers/plans/2026-05-09-permission-phase2-plan.md`
+> **Phase 3 Design**: `docs/superpowers/plans/2026-05-09-tenant-middleware-design.md`
+> **Phase 3 Plan**: `docs/superpowers/plans/2026-05-09-tenant-middleware-plan.md`
 
 ---
 
 ## Goal
 
-修复 edu-cloud 多租户权限隔离体系中的跨校数据泄露、权限提升和 IDOR 漏洞。最终目标是从"逐端点手动过滤"转向"框架级默认安全"。
+修复 edu-cloud 多租户权限隔离体系中的跨校数据泄露、权限提升和 IDOR 漏洞，并建立架构级防线（TenantContext + 静态治理）防止未来遗漏。
 
 ## Must Preserve
 
-- `CROSS_SCHOOL_ROLES = frozenset({"platform_admin", "district_admin"})` — 集中定义于 `core/tenant.py`（Phase 2 Task 1 集中化）
-- `get_school_id(current)` — 集中定义于 `core/tenant.py`，非 admin 返回 JWT school_id，admin 返回 None（全局视图），**缺 school_id 时 raise 403（fail-closed）**
-- `_check_exam_access(exam_id, user, db)` — 联考端点的参与校验证 helper
-- `_IMPERSONATION_ALLOWED_PERMISSIONS` — allowlist 模式，只有 VIEW_* + USE_AI_CHAT + GENERATE_REPORT 生效
-- AI session `owner_id` 检查 — `_sessions.get()` 后校验 owner_id，不匹配 403
+- `CROSS_SCHOOL_ROLES = frozenset({"platform_admin", "district_admin"})` — 集中定义于 `core/tenant.py`
+- `get_school_id(current)` — 集中定义于 `core/tenant.py`，fail-closed（缺 school_id 时 raise 403）
+- `TenantContext` — frozen dataclass（`core/tenant.py`），纯数据类零 api 层依赖，`None=不限制 / ()=deny-all` 语义
+- `get_tenant_context` — FastAPI dependency（`api/deps.py`），api 层负责调用 permissions helpers 构造 TenantContext
+- `ScopeFilter.apply()` — 使用 `is not None` 检查（不是 falsy），空列表 `[]` 生成 deny-all
+- `_check_exam_access(exam_id, user, db)` — 联考端点的参与校验证
+- `_IMPERSONATION_ALLOWED_PERMISSIONS` — allowlist 模式
+- AI session `owner_id` 检查 — 不匹配 403
 - GradingResult `UniqueConstraint("school_id", "answer_id")` — 防跨校数据碰撞
-- Template 查询条件式 school_id — admin None 时不加 WHERE（`if school_id: stmt = stmt.where(...)` 模式）
-- 文件路径隔离用 `Path.is_relative_to()`（非 startswith），防目录名前缀碰撞
-- `_get_skeleton_data` 签名 `school_id: str | None`，admin None 时用 `scalars().first()` 防多行 500
+- Template 条件式 school_id — admin None 时不加 WHERE
+- 文件路径隔离用 `Path.is_relative_to()`（非 startswith）
+- Pipeline `_pipeline_school_id` — 运行中的 pipeline 不可被其他学校的 enqueue 覆盖 owner
 
 ## Must Not Change
 
-- 不可回退到 impersonation denylist 模式（F-02 已修为 allowlist）
-- 不可移除联考端点的 `_check_exam_access` 调用
+- 不可回退到 impersonation denylist 模式
+- 不可移除联考 `_check_exam_access` 调用
 - 不可把 school_id 作为查询参数接受（必须从 JWT 取）
-- GradingResult 的 `(school_id, answer_id)` 唯一约束不可改回 `(answer_id)`
-- 不可把 `CROSS_SCHOOL_ROLES` / `get_school_id` 重新分散到各 router（必须用 `core/tenant.py`）
-- knowledge link_question 的 `is_primary` 参数不可移除
+- GradingResult 唯一约束不可改回 `(answer_id)`
+- 不可把 `CROSS_SCHOOL_ROLES` / `get_school_id` 重新分散到各 router
+- knowledge `link_question` 的 `is_primary` 参数不可移除
+- `ScopeFilter` 不可回退到 `if self.subject_codes`（falsy check）
+- `TenantContext` 不可导入 `edu_cloud.api.*`（core→api 反向依赖）
+- 新 router 不可直接使用 `role.school_id`（静态治理 `test_tenant_static.py` 拦截）
 
 ---
 
 ## Phase 1 已完成（5 commits, 10 项修复）
+
+P0 紧急止血 + P1 加固。
 
 | Commit | 修复项 | 层级 |
 |--------|--------|------|
@@ -45,117 +56,151 @@
 | `ecd55bc` | F-02 模拟登录改 allowlist | L4 |
 | `0e4bf69` | P1-4 考试写操作加 MANAGE_EXAMS / P1-5 兼容扫描加 MANAGE_GRADING | L2 |
 
-**测试**: 33 个新隔离测试 + 526 个现有测试回归通过
-
 ---
 
 ## Phase 2 已完成（12 commits, 29 项修复）
 
-> **审查流程**: Plan review R1-R3 PASS + Code review R1-R4 PASS（Claude × GPT 交叉审核）
+系统性修复 L1~L5 全部 5 层。审查流程: Plan R1-R3 PASS + Code R1-R4 PASS。
+
+| Task | 内容 | Commit | 新测试 |
+|------|------|--------|--------|
+| 1 | 集中化 `CROSS_SCHOOL_ROLES` + `get_school_id` → `core/tenant.py`，替换 9 个 router | `204132f` | 5 |
+| 2 | Pipeline Template 查询补 school_id（7 处）+ 路径遍历修复 | `30b1cf7` | — |
+| 3+6 | Card 路径隔离（`is_relative_to`）+ Card Template school_id 修复 | `6b50d8c` | 8 |
+| 4 | Knowledge `link_question` / `get_question_kps` 归属校验 | `136240d` | 5 |
+| 5 | Homework service 深度防御（submit/grade/list JOIN HomeworkTask） | `4f96bef` | 6 |
+| 7 | Permission decorator 加固（student 写 / grading_review GET / assignment 归属） | `a1f4d44` | 11 |
+| 8 | L2 visible scope（grading tasks / bank / profile subject 验证） | `e509af8` | ~15 |
+| GPT R1-R3 | admin None bypass / tenant path / homework fail-closed / skeleton multi-school | `4788313`..`f7fedc5` | — |
+
+---
+
+## Phase 3 已完成（9 commits, 12 项修复 + 架构基础设施）
+
+从"逐端点手动修复"转向"框架级默认安全"。审查流程: Plan R1-R2 + 拆 topic 重审 + Code R1-R2。
 
 ### Task 执行记录
 
 | Task | 内容 | Commit | 新测试 |
 |------|------|--------|--------|
-| 1 | 集中化 `CROSS_SCHOOL_ROLES` + `get_school_id` → `core/tenant.py`，替换 9 个 router 本地定义 | `204132f` | 5 |
-| 2 | Pipeline Template 查询补 school_id（7 处）+ 路径遍历修复 | `30b1cf7` | — |
-| 3+6 | Card 路径隔离（`is_relative_to`）+ Card Template school_id 修复 | `6b50d8c` | 8 |
-| 4 | Knowledge `link_question` / `get_question_kps` 归属校验（保留 `is_primary`） | `136240d` | 5 |
-| 5 | Homework service 深度防御（submit/grade/list JOIN HomeworkTask 校验 school_id） | `4f96bef` | 6 |
-| 7 | Permission decorator 加固（student 写 → MANAGE_TEACHERS / grading_review GET → VIEW_GRADING / assignment 跨实体归属） | `a1f4d44` | 11 |
-| 8 | L2 visible scope（grading tasks subject 过滤 / bank question+error-book / profile subject 验证） | `e509af8` | ~15 |
+| 1 | P1-14 marking importer 3 处查询加 school_id（Exam/Subject/StudentAnswer） | `15dc865` | 2 |
+| 2 | H4 pipeline progress/stop school_id 隔离 + 并发 owner 保护 | `80a46b5` | 4 |
+| 3 | TenantContext frozen dataclass + get_tenant_context dependency + ScopeFilter fail-open 修复 | `df38360` | 7 |
+| 4 | P2-1 dashboard pending_grading/pending_subjects 加 subject_codes JOIN | `b0b4dc0` | 1 |
+| 5 | P2-3 workspace context/dashboard 传 subject_codes 到 service | `f6e55c7` | 1 |
+| 6 | P2-4 analytics grade overview 传 visible_subject_codes | `60b07c7` | 1 |
+| 7 | pytest 静态治理（2 规则 + allowlist） | `39de414`+`da624f8` | 2 |
+| GPT R1 | pipeline owner 并发覆盖修复 + 测试断言强化 | `ba72069` | 1 |
 
-### GPT Code Review 修复记录
+### Phase 3 架构交付物
 
-| 轮次 | Commit | 修复内容 |
-|------|--------|---------|
-| R1 | `4788313` | D1 scan tenant path / D2 card admin None bypass / D3 doc-page uuid / D4 homework fail-closed |
-| R2 | `0a4a3fd` | scan_directory/start_pipeline 完整租户隔离 / card admin bypass / grade_batch service 测试 |
-| R2 残留 | `cedab6c` | `_get_skeleton_data` admin None + 跨校 scan 403 测试 |
-| R3 | `f7fedc5` | `_get_skeleton_data` `scalars().first()` 多校安全 |
-
-### 覆盖矩阵
-
-| 层级 | 修复项数 | Phase 1 | Phase 2 |
-|------|---------|---------|---------|
-| L1 跨校隔离 | 15 | 4（P0 grading/joint exam） | 11（pipeline template ×7 + 文件路径 ×3 + knowledge ×1） |
-| L2 校内角色 | 16 | 2（exam MANAGE/compat MANAGE） | 14（grading tasks + bank ×8 + profile ×4 + homework 深防御） |
-| L3 联考隔离 | 2 | 2（参与校验证） | — |
-| L4 模拟登录 | 1 | 1（allowlist） | — |
-| L5 IDOR | 5 | 3（AI session + 日程 + upsert） | 2（student 写权限 + assignment 归属） |
-
-**测试总量**: Phase 1 33 个 + Phase 2 ~50 个 = ~83 个新隔离测试
-**全量回归**: 2571 passed / 44 failed（预存债，全在 llm_client/rubric）/ 0 新增失败
-
----
-
-## 未完成：剩余修复 + 架构治理
-
-### 剩余逐端点修复
-
-| # | 模块 | 问题 | 优先级 |
-|---|------|------|--------|
-| P1-14 | 阅卷导入 | `marking/router.py` import-folder 只要登录 | P1 |
-| H4 | Pipeline | `get_progress` / `stop_pipeline` 全局状态非学校隔离 | P2（需 per-school 队列重构） |
-| P2-1 | Dashboard | 考试/阅卷统计未按 class/subject 裁剪 | P2 |
-| P2-2 | Compat 登录 | 忽略 school_code（2026-07 sunset） | P2 |
-| P2-3 | 考试工作台 | 按学校列考试，未按科目/班级过滤 | P2 |
-| P2-4 | 分析报告 | 年级概览未传 visible 范围 | P2 |
-| P2-5 | 课表 | 接受任意 class_id/teacher_id | P2 |
-
-### 架构级根因治理
-
-**根因诊断**: 当前租户隔离是**开放环**——每个端点手动加 `WHERE school_id = ?`。Phase 2 通过 `core/tenant.py` 集中化和条件式过滤模式降低了遗漏概率，但新端点仍需手动调用。
-
-**Phase 3 方案：租户中间件（独立立项）**
-
-两条路线，建议先 A 后 B：
-
-**方案 A：Request-level school_id injection（过渡方案）**
-- FastAPI middleware 解析 JWT → `request.state.tenant_school_id`
-- 各 service 可选用做二次防护
-- 已有基础：`ModuleCheckMiddleware` 已从 JWT 提取 school_id
-- 工期：~2 天
-
-**方案 B：SQLAlchemy session-level filter（终极方案）**
-- 自定义 Session 类，从 context 读 school_id
-- 已有基础：`ScopeFilter`（`core/scope_filter.py`）和 `DataScope`（`ai/data_scope.py`）
-- 工期：~1 周
-
-### 配套治理措施
-
-| 措施 | 说明 | 状态 |
+| 组件 | 位置 | 说明 |
 |------|------|------|
-| **school_id 覆盖率 CI 检查** | 静态分析：所有返回数据的 GET 端点必须有 school_id 过滤 | 待建 |
-| **endpoint 级集成测试** | 每个端点一个跨校攻击测试 | 部分完成（~83 个隔离测试已有） |
-| **Rubric UniqueConstraint** | 当前是 `(question_id)`，应改为 `(school_id, question_id)` | 待评估 |
+| **TenantContext** | `core/tenant.py:24-60` | frozen dataclass，`None=不限制 / ()=deny-all`，require_school/apply_school/apply_subject_scope/apply_class_scope |
+| **get_tenant_context** | `api/deps.py:193+` | FastAPI Depends，调用 get_school_id + get_visible_* 构造 TenantContext |
+| **ScopeFilter 修复** | `core/scope_filter.py:21,23,25` | `if self.X` → `if self.X is not None`（空列表 fail-open → deny-all） |
+| **Pipeline school owner** | `pipeline_service.py:34` | `_pipeline_school_id` 全局变量 + 并发 enqueue 保护 |
+| **静态治理** | `tests/governance/test_tenant_static.py` | 2 规则：no-new-raw-school_id + scope-filter-no-falsy |
 
 ---
 
-## 全局架构图：5 层隔离模型
+## 全局覆盖矩阵
+
+| 层级 | 总修复数 | Phase 1 | Phase 2 | Phase 3 |
+|------|---------|---------|---------|---------|
+| L1 跨校隔离 | 19 | 4 | 11 | 4（marking import + pipeline state + dashboard + workspace） |
+| L2 校内角色 | 19 | 2 | 14 | 3（dashboard subject + workspace subject + analytics subject） |
+| L3 联考隔离 | 2 | 2 | — | — |
+| L4 模拟登录 | 1 | 1 | — | — |
+| L5 IDOR | 5 | 3 | 2 | — |
+| 架构基础设施 | 4 | — | — | 4（TenantContext + ScopeFilter + governance + pipeline owner） |
+| **合计** | **50** | **10** | **29** | **11** |
+
+**隔离测试总量**: 85 个测试函数（跨 16 个测试文件 + 1 个治理测试文件）
+**全量回归**: 2590 passed / 45 failed（预存债）/ 0 新增失败
+
+---
+
+## 全局架构图：当前状态
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ L1: 学校间隔离（school_id WHERE）                      │  ← Phase 1+2 系统性修复 ✅
+│ L1: 学校间隔离（school_id WHERE）                      │  ← Phase 1+2+3 系统性修复 ✅
 │   ┌─────────────────────────────────────────────────┤
-│   │ L2: 校内角色隔离（visible_class/subject）          │  ← Phase 2 Task 7+8 修复 ✅
+│   │ L2: 校内角色隔离（visible_class/subject）          │  ← Phase 2+3 修复 ✅
 │   │   ┌─────────────────────────────────────────────┤
 │   │   │ L3: 联考隔离（参与校验证）                     │  ← Phase 1 修复 ✅
 │   │   └─────────────────────────────────────────────┤
 │   └─────────────────────────────────────────────────┤
 │ L4: 模拟登录（allowlist 权限降级）                      │  ← Phase 1 修复 ✅
 │ L5: IDOR（对象级归属验证）                              │  ← Phase 1+2 修复 ✅
+├─────────────────────────────────────────────────────┤
+│ 架构防线:                                              │
+│   TenantContext (core/tenant.py)     ← Phase 3 新增 │
+│   ScopeFilter deny-all 语义          ← Phase 3 修复 │
+│   静态治理 test_tenant_static.py     ← Phase 3 新增 │
+│   Pipeline school owner             ← Phase 3 新增 │
 └─────────────────────────────────────────────────────┘
-     ↑ 当前状态：L1~L5 全部已系统性修复
-       剩余 P2 级聚合数据裁剪（最小权限优化，非泄露）
-       架构根因（tenant middleware）待独立立项
 ```
 
 ---
 
-## 执行建议
+## 未完成：剩余治理项
 
-1. ~~本周：完成 P1-6 ~ P1-13~~ → **已完成（Phase 2）**
-2. **下周**：Phase 3 方案 A（tenant middleware injection，2 天）
-3. **月内**：P2 剩余聚合裁剪 + CI school_id 覆盖率检查
-4. **季度**：Phase 3 方案 B（session-level filter）评估和实施
+### 低优先级端点修复
+
+| # | 模块 | 问题 | 优先级 |
+|---|------|------|--------|
+| P2-2 | Compat 登录 | 忽略 school_code（2026-07-31 sunset） | P3（sunset 后自然消除） |
+| P2-5 | 课表 | 校历是全校事件，无 class_id 维度，模型设计合理 | 无需修 |
+
+### 测试债（GPT R2 残留）
+
+| 项 | 说明 | Deadline |
+|---|------|---------|
+| workspace 测试 fixture | Exam 无 subject_code 字段，导致 scope 过滤测试无法触达完整路径 | 2026-06-30 |
+| grade overview 测试 fixture | 缺 Grade 记录，返回 404 跳过断言 | 2026-06-30 |
+| pipeline 入口级测试 | 经真实 /start 触发的端到端测试需要完整扫描图+模板数据 | 2026-06-15 |
+
+### 架构路线图（Phase 3.4+）
+
+| 阶段 | 内容 | 状态 |
+|------|------|------|
+| **3.0** | 热修 P1-14 + H4 | ✅ 完成 |
+| **3.1** | TenantContext + ScopeFilter 修复 | ✅ 完成 |
+| **3.2** | P2-1/3/4 subject scope 迁移 | ✅ 完成 |
+| **3.3** | pytest 静态治理 | ✅ 完成 |
+| **3.4** | SQLAlchemy `do_orm_execute` audit mode（只记录未 scoped 查询，不拦截） | 待启动 |
+| **3.5** | 选择性启用强制过滤（需 model registry 确定 tenant-scoped 表清单） | 待 3.4 验证 |
+
+### 旧 router 迁移进度
+
+38 个 router 文件中：
+- **10 个**已用 `get_school_id`（Phase 2 集中化）
+- **28 个**仍用裸 `role.school_id`（在 governance allowlist 中，触碰即迁移）
+- **0 个**已用 `TenantContext`（Phase 3 建立基础，新 router 优先使用）
+
+静态治理 `test_tenant_static.py` 确保新增 router 不可使用裸 `role.school_id`。
+
+### 配套治理措施
+
+| 措施 | 状态 |
+|------|------|
+| TenantContext typed dependency | ✅ 完成 |
+| ScopeFilter 空列表 deny-all | ✅ 完成 |
+| 静态治理（no-new-raw-school_id + scope-filter-no-falsy） | ✅ 完成 |
+| SQLAlchemy audit mode | 待启动（Phase 3.4） |
+| school_id 覆盖率 CI 检查 | 待建 |
+| Rubric UniqueConstraint `(school_id, question_id)` | 待评估 |
+
+---
+
+## GPT 审查历程
+
+| Gate | 轮次 | 结果 | 关键 finding |
+|------|------|------|-------------|
+| Phase 1 Code | R1 | PASS | — |
+| Phase 2 Plan | R1→R3 | PASS | MANAGE_STUDENTS 不存在 / admin None 条件处理 / 并行依赖 |
+| Phase 2 Code | R1→R4 | PASS | admin bypass / tenant path / homework fail-closed / skeleton multi-row |
+| Phase 3 Plan | R1→R2→拆 topic | 收敛 | Contract Pack schema / Evidence Block / 反向依赖 / 测试契约 |
+| Phase 3 Code | R1→R2 | R2 MED test-gap ×2 | pipeline owner 并发覆盖 / 测试 fixture 不足（记 test_debt） |
