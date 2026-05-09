@@ -1,7 +1,7 @@
 """学情画像 API 路由 — 成绩趋势/知识点掌握/薄弱诊断/错误模式。"""
 import logging
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
@@ -57,6 +57,11 @@ async def get_student_trend(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_SCORES)),
 ):
+    from edu_cloud.api.permissions import get_visible_subject_codes
+    visible_subjects = get_visible_subject_codes(current["current_role"])
+    if visible_subjects is not None and subject_code and subject_code not in visible_subjects:
+        raise HTTPException(403, "No access to this subject")
+
     snapshots = await service.get_student_trend(
         db, student_id=student_id, school_id=_school_id(current),
         subject_code=subject_code, limit=limit,
@@ -71,6 +76,11 @@ async def get_student_knowledge_map(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_SCORES)),
 ):
+    from edu_cloud.api.permissions import get_visible_subject_codes
+    visible_subjects = get_visible_subject_codes(current["current_role"])
+    if visible_subjects is not None and course_code and course_code not in visible_subjects:
+        raise HTTPException(403, "No access to this subject")
+
     items = await service.get_student_knowledge_map(
         db, student_id=student_id, school_id=_school_id(current),
         course_code=course_code,
@@ -85,6 +95,11 @@ async def get_student_error_patterns(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_SCORES)),
 ):
+    from edu_cloud.api.permissions import get_visible_subject_codes
+    visible_subjects = get_visible_subject_codes(current["current_role"])
+    if visible_subjects is not None and subject_code and subject_code not in visible_subjects:
+        raise HTTPException(403, "No access to this subject")
+
     patterns = await service.get_student_error_pattern(
         db, student_id=student_id, school_id=_school_id(current),
         subject_code=subject_code,
@@ -100,8 +115,14 @@ async def get_class_knowledge_weakness(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_SCORES)),
 ):
+    from edu_cloud.api.permissions import get_visible_class_ids
     from edu_cloud.models.student import Student
     from sqlalchemy import select
+
+    visible_classes = get_visible_class_ids(current["current_role"])
+    if visible_classes is not None and class_id not in visible_classes:
+        raise HTTPException(403, "No access to this class")
+
     result = await db.execute(
         select(Student.id).where(
             Student.school_id == _school_id(current),

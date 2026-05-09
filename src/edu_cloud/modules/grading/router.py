@@ -1005,12 +1005,23 @@ async def list_grading_tasks(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
+    from edu_cloud.api.permissions import get_visible_subject_codes
+
     school_id = current["current_role"].school_id
     q = select(GradingTask)
     if school_id:
         q = q.where(GradingTask.school_id == school_id)
     if subject_id:
         q = q.where(GradingTask.subject_id == subject_id)
+
+    # L2: filter by visible subject codes
+    visible_subjects = get_visible_subject_codes(current["current_role"])
+    if visible_subjects is not None:
+        q = (
+            q.join(Subject, GradingTask.subject_id == Subject.id)
+            .where(Subject.code.in_(visible_subjects))
+        )
+
     result = await db.execute(q.order_by(GradingTask.created_at.desc()))
     return [_task_response(t) for t in result.scalars().all()]
 
@@ -1042,6 +1053,8 @@ async def get_grading_task(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(get_current_user),
 ):
+    from edu_cloud.api.permissions import get_visible_subject_codes
+
     school_id = current["current_role"].school_id
     filters = [GradingTask.id == task_id]
     if school_id:
@@ -1050,6 +1063,16 @@ async def get_grading_task(
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(404, "Task not found")
+
+    # L2: verify task's subject is within visible scope
+    visible_subjects = get_visible_subject_codes(current["current_role"])
+    if visible_subjects is not None:
+        subject = (await db.execute(
+            select(Subject).where(Subject.id == task.subject_id)
+        )).scalar_one_or_none()
+        if not subject or subject.code not in visible_subjects:
+            raise HTTPException(403, "No access to this subject")
+
     return _task_response(task)
 
 

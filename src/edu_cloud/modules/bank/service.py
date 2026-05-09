@@ -10,12 +10,28 @@ from edu_cloud.services.exceptions import NotFoundError
 logger = logging.getLogger(__name__)
 
 
+def _apply_subject_filter(stmt, visible_subject_codes: list[str] | None):
+    """L2: JOIN BankQuestion→Question→Subject to filter by visible subject codes."""
+    if visible_subject_codes is None:
+        return stmt
+    from edu_cloud.modules.exam.models import Question, Subject
+    return (
+        stmt
+        .join(Question, BankQuestion.source_question_id == Question.id)
+        .join(Subject, Question.subject_id == Subject.id)
+        .where(Subject.code.in_(visible_subject_codes))
+    )
+
+
 async def get_bank_question(
     db: AsyncSession, *, bank_question_id: str, school_id: str,
+    visible_subject_codes: list[str] | None = None,
 ) -> BankQuestion:
-    result = await db.execute(
-        select(BankQuestion).where(BankQuestion.id == bank_question_id, BankQuestion.school_id == school_id)
+    stmt = select(BankQuestion).where(
+        BankQuestion.id == bank_question_id, BankQuestion.school_id == school_id,
     )
+    stmt = _apply_subject_filter(stmt, visible_subject_codes)
+    result = await db.execute(stmt)
     bq = result.scalar_one_or_none()
     if not bq:
         raise NotFoundError("Bank question not found")
@@ -26,6 +42,7 @@ async def list_bank_questions(
     db: AsyncSession, *, school_id: str, question_type: str | None = None,
     min_difficulty: float | None = None, max_difficulty: float | None = None,
     limit: int = 50,
+    visible_subject_codes: list[str] | None = None,
 ) -> list[BankQuestion]:
     stmt = select(BankQuestion).where(BankQuestion.school_id == school_id)
     if question_type:
@@ -34,6 +51,7 @@ async def list_bank_questions(
         stmt = stmt.where(BankQuestion.difficulty >= min_difficulty)
     if max_difficulty is not None:
         stmt = stmt.where(BankQuestion.difficulty <= max_difficulty)
+    stmt = _apply_subject_filter(stmt, visible_subject_codes)
     stmt = stmt.order_by(BankQuestion.created_at.desc()).limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())
@@ -64,9 +82,11 @@ async def search_questions(
     keyword: str | None = None,
     page: int = 1,
     page_size: int = 20,
+    visible_subject_codes: list[str] | None = None,
 ) -> dict:
     """多条件 AND 组合搜索题库，返回分页结果。"""
     base = select(BankQuestion).where(BankQuestion.school_id == school_id)
+    base = _apply_subject_filter(base, visible_subject_codes)
 
     if question_type:
         base = base.where(BankQuestion.question_type == question_type)
@@ -102,36 +122,42 @@ async def search_questions(
 
 async def get_questions_stats_overview(
     db: AsyncSession, *, school_id: str,
+    visible_subject_codes: list[str] | None = None,
 ) -> dict:
     """题库统计概览：总数 + 按 question_type / difficulty_level / source 分组。"""
-    base_where = BankQuestion.school_id == school_id
+    # Build a base subquery that includes L2 subject filter
+    base_stmt = select(BankQuestion.id).where(BankQuestion.school_id == school_id)
+    base_stmt = _apply_subject_filter(base_stmt, visible_subject_codes)
+    base_subq = base_stmt.subquery()
 
     # 总数
     total = (await db.execute(
-        select(func.count()).where(base_where)
+        select(func.count()).select_from(base_subq)
     )).scalar() or 0
+
+    # For grouped queries, build filtered base select
+    filtered = select(BankQuestion).where(BankQuestion.school_id == school_id)
+    filtered = _apply_subject_filter(filtered, visible_subject_codes)
+    filtered_subq = filtered.subquery()
 
     # 按 question_type 分组
     by_type_rows = (await db.execute(
-        select(BankQuestion.question_type, func.count().label("cnt"))
-        .where(base_where)
-        .group_by(BankQuestion.question_type)
+        select(filtered_subq.c.question_type, func.count().label("cnt"))
+        .group_by(filtered_subq.c.question_type)
     )).all()
     by_question_type = {row[0]: row[1] for row in by_type_rows if row[0]}
 
     # 按 difficulty_level 分组
     by_diff_rows = (await db.execute(
-        select(BankQuestion.difficulty_level, func.count().label("cnt"))
-        .where(base_where)
-        .group_by(BankQuestion.difficulty_level)
+        select(filtered_subq.c.difficulty_level, func.count().label("cnt"))
+        .group_by(filtered_subq.c.difficulty_level)
     )).all()
     by_difficulty_level = {row[0]: row[1] for row in by_diff_rows if row[0]}
 
     # 按 source 分组
     by_src_rows = (await db.execute(
-        select(BankQuestion.source, func.count().label("cnt"))
-        .where(base_where)
-        .group_by(BankQuestion.source)
+        select(filtered_subq.c.source, func.count().label("cnt"))
+        .group_by(filtered_subq.c.source)
     )).all()
     by_source = {row[0]: row[1] for row in by_src_rows if row[0]}
 
