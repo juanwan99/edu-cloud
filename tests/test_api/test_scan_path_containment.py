@@ -1,0 +1,205 @@
+"""scan 端点路径遍历安全测试 — scan-dir / start / pdf-import / import-tpl / scan-image。
+
+补充 test_scan_browse_dir_security.py（仅覆盖 browse-dir），
+确保所有文件路径入口都限制在 UPLOAD_DIR 内。
+"""
+
+import pytest
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
+from edu_cloud.shared.auth import create_access_token
+
+
+@pytest.fixture
+async def grading_headers(db):
+    user = User(username="scan_path_test", display_name="Scan Path Tester")
+    user.set_password("test123")
+    db.add(user)
+    await db.flush()
+    db.add(UserRole(user_id=user.id, role="academic_director", is_primary=True))
+    await db.commit()
+    await db.refresh(user)
+    token = create_access_token({"sub": user.id, "role": "academic_director"})
+    return {"Authorization": f"Bearer {token}"}
+
+
+# ---------- scan-dir ----------
+
+@pytest.mark.asyncio
+async def test_scan_dir_rejects_absolute_path(client, grading_headers):
+    resp = await client.post(
+        "/api/v1/scan/pipeline/scan-dir",
+        json={"dir_path": "/etc"},
+        headers=grading_headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_scan_dir_rejects_traversal(client, grading_headers):
+    resp = await client.post(
+        "/api/v1/scan/pipeline/scan-dir",
+        json={"dir_path": "../../../etc"},
+        headers=grading_headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_scan_dir_accepts_valid_subdir(client, grading_headers, tmp_path, monkeypatch):
+    from edu_cloud.config import settings
+
+    upload_root = tmp_path / "uploads"
+    scan_dir = upload_root / "scan-input" / "exam1" / "yuwen"
+    scan_dir.mkdir(parents=True)
+    (scan_dir / "001A.png").write_bytes(b"\x89PNG")
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
+
+    resp = await client.post(
+        "/api/v1/scan/pipeline/scan-dir",
+        json={"dir_path": str(scan_dir)},
+        headers=grading_headers,
+    )
+    assert resp.status_code in (200, 400)
+    assert resp.status_code != 403
+
+
+# ---------- start ----------
+
+@pytest.mark.asyncio
+async def test_start_rejects_absolute_path(client, grading_headers):
+    resp = await client.post(
+        "/api/v1/scan/pipeline/start",
+        json={
+            "image_dir": "/etc",
+            "subject_id": "00000000-0000-0000-0000-000000000001",
+            "side": "A",
+        },
+        headers=grading_headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_start_rejects_traversal(client, grading_headers):
+    resp = await client.post(
+        "/api/v1/scan/pipeline/start",
+        json={
+            "image_dir": "../../../etc",
+            "subject_id": "00000000-0000-0000-0000-000000000001",
+            "side": "A",
+        },
+        headers=grading_headers,
+    )
+    assert resp.status_code == 403
+
+
+# ---------- pdf-import ----------
+
+@pytest.mark.asyncio
+async def test_pdf_import_rejects_absolute_path(client, grading_headers):
+    resp = await client.post(
+        "/api/v1/scan/pipeline/pdf-import",
+        json={"dir_path": "/etc"},
+        headers=grading_headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_pdf_import_rejects_traversal(client, grading_headers):
+    resp = await client.post(
+        "/api/v1/scan/pipeline/pdf-import",
+        json={"dir_path": "../../etc"},
+        headers=grading_headers,
+    )
+    assert resp.status_code == 403
+
+
+# ---------- import-tpl ----------
+
+@pytest.mark.asyncio
+async def test_import_tpl_rejects_absolute_path(client, grading_headers):
+    resp = await client.post(
+        "/api/v1/scan/pipeline/import-tpl",
+        json={
+            "tpl_path": "/etc/passwd",
+            "subject_id": "00000000-0000-0000-0000-000000000001",
+            "side": "A",
+        },
+        headers=grading_headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_import_tpl_rejects_traversal(client, grading_headers):
+    resp = await client.post(
+        "/api/v1/scan/pipeline/import-tpl",
+        json={
+            "tpl_path": "../../../etc/passwd",
+            "subject_id": "00000000-0000-0000-0000-000000000001",
+            "side": "A",
+        },
+        headers=grading_headers,
+    )
+    assert resp.status_code == 403
+
+
+# ---------- scan-image ----------
+
+@pytest.mark.asyncio
+async def test_scan_image_rejects_absolute_path(client, grading_headers):
+    resp = await client.get(
+        "/api/v1/scan/pipeline/scan-image",
+        params={"path": "/etc/passwd"},
+        headers=grading_headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_scan_image_rejects_traversal(client, grading_headers):
+    resp = await client.get(
+        "/api/v1/scan/pipeline/scan-image",
+        params={"path": "../../../etc/passwd"},
+        headers=grading_headers,
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_scan_image_accepts_valid_file(client, grading_headers, tmp_path, monkeypatch):
+    from edu_cloud.config import settings
+
+    upload_root = tmp_path / "uploads"
+    upload_root.mkdir()
+    img = upload_root / "test.png"
+    img.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
+
+    resp = await client.get(
+        "/api/v1/scan/pipeline/scan-image",
+        params={"path": "test.png"},
+        headers=grading_headers,
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_scan_image_uploads_prefix_stripped(client, grading_headers, tmp_path, monkeypatch):
+    """路径以 /uploads/ 开头时，前缀应被剥离后在 UPLOAD_DIR 内查找。"""
+    from edu_cloud.config import settings
+
+    upload_root = tmp_path / "uploads"
+    upload_root.mkdir()
+    img = upload_root / "scan.jpg"
+    img.write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 100)
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
+
+    resp = await client.get(
+        "/api/v1/scan/pipeline/scan-image",
+        params={"path": "/uploads/scan.jpg"},
+        headers=grading_headers,
+    )
+    assert resp.status_code == 200

@@ -19,6 +19,7 @@ from edu_cloud.database import get_db
 import edu_cloud.database as db_mod
 from edu_cloud.api.deps import require_permission
 from edu_cloud.core.permissions import Permission
+from edu_cloud.core.tenant import get_school_id
 from edu_cloud.modules.exam.models import Exam, Subject, Question, QUESTION_TYPES_OBJECTIVE
 from edu_cloud.modules.card.models import Template
 from edu_cloud.modules.scan.models import StudentAnswer
@@ -28,6 +29,18 @@ from . import pipeline_service
 from .tpl_parser import parse_tpl_file
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_path_within_upload_dir(p: str | Path) -> Path:
+    upload_root = Path(settings.UPLOAD_DIR).resolve()
+    candidate = Path(p)
+    if not candidate.is_absolute():
+        candidate = upload_root / candidate
+    resolved = candidate.resolve()
+    if not resolved.is_relative_to(upload_root):
+        raise HTTPException(403, "只允许访问上传目录内的路径")
+    return resolved
+
 
 _JINGYAN_PAGE_NAME_RE = re.compile(
     r"^(?P<student>[^_]+)_(?P<subject>[^_]+)_(?P<page>[12])_(?P<index>[01])(?P<suffix>\.[^.]+)$",
@@ -398,7 +411,7 @@ async def scan_directory(
     db: AsyncSession = Depends(get_db),
 ):
     """扫描目录结构，返回科目子文件夹和图片统计。"""
-    d = Path(req.dir_path)
+    d = _validate_path_within_upload_dir(req.dir_path)
     if not d.is_dir():
         raise HTTPException(400, f"目录不存在: {req.dir_path}")
 
@@ -455,10 +468,11 @@ async def start_pipeline(
     storage: StorageService = Depends(get_storage),
 ):
     """启动扫描切割流水线。"""
-    school_id = current["current_role"].school_id
+    school_id = get_school_id(current)
 
-    # 验证目录
-    if not os.path.isdir(req.image_dir):
+    # 验证目录（限制在 UPLOAD_DIR 内）
+    image_dir_resolved = _validate_path_within_upload_dir(req.image_dir)
+    if not image_dir_resolved.is_dir():
         raise HTTPException(400, f"目录不存在: {req.image_dir}")
 
     # 获取 subject（platform_admin 可跨校）
@@ -472,16 +486,18 @@ async def start_pipeline(
 
     # 加载模板
     if req.tpl_path:
-        if not os.path.isfile(req.tpl_path):
+        tpl_resolved = _validate_path_within_upload_dir(req.tpl_path)
+        if not tpl_resolved.is_file():
             raise HTTPException(400, f"tpl 文件不存在: {req.tpl_path}")
-        template = parse_tpl_file(req.tpl_path)
+        template = parse_tpl_file(str(tpl_resolved))
     else:
-        tpl = (await db.execute(
-            select(Template).where(
-                Template.subject_id == req.subject_id,
-                Template.side == req.side,
-            )
-        )).scalar_one_or_none()
+        tpl_stmt = select(Template).where(
+            Template.subject_id == req.subject_id,
+            Template.side == req.side,
+        )
+        if school_id:
+            tpl_stmt = tpl_stmt.where(Template.school_id == school_id)
+        tpl = (await db.execute(tpl_stmt)).scalar_one_or_none()
         if not tpl:
             raise HTTPException(404, "模板不存在，请先发布答题卡或导入 .tpl 文件")
         bc_region = None
@@ -529,12 +545,13 @@ async def start_pipeline(
             logger.info("pipeline: B-side using filename pairing, skip barcode map: %s", pair_info)
         else:
             logger.info("pipeline: B-side barcode map required: %s", pair_info)
-            a_tpl = (await db.execute(
-                select(Template).where(
-                    Template.subject_id == req.subject_id,
-                    Template.side == "A",
-                )
-            )).scalar_one_or_none()
+            a_tpl_stmt = select(Template).where(
+                Template.subject_id == req.subject_id,
+                Template.side == "A",
+            )
+            if school_id:
+                a_tpl_stmt = a_tpl_stmt.where(Template.school_id == school_id)
+            a_tpl = (await db.execute(a_tpl_stmt)).scalar_one_or_none()
             if a_tpl:
                 a_bc = None
                 for r in (a_tpl.regions or []):
@@ -691,7 +708,7 @@ async def import_pdf_to_images(
     用于批量扫描件（A3 双面 PDF）的预处理。
     拆出的 PNG 可直接用于扫描流水线。
     """
-    d = Path(req.dir_path)
+    d = _validate_path_within_upload_dir(req.dir_path)
     if not d.is_dir():
         raise HTTPException(400, f"目录不存在: {req.dir_path}")
 
@@ -740,7 +757,7 @@ async def preview_scan(
     from PIL import Image, ImageDraw
     from io import BytesIO
 
-    school_id = current["current_role"].school_id
+    school_id = get_school_id(current)
 
     # 解析图片路径：指定路径 or 从目录取第一张
     image_path = req.image_path
@@ -758,12 +775,13 @@ async def preview_scan(
         raise HTTPException(400, f"文件不存在: {image_path}")
 
     # 加载模板
-    tpl = (await db.execute(
-        select(Template).where(
-            Template.subject_id == req.subject_id,
-            Template.side == req.side,
-        )
-    )).scalar_one_or_none()
+    tpl_stmt = select(Template).where(
+        Template.subject_id == req.subject_id,
+        Template.side == req.side,
+    )
+    if school_id:
+        tpl_stmt = tpl_stmt.where(Template.school_id == school_id)
+    tpl = (await db.execute(tpl_stmt)).scalar_one_or_none()
     if not tpl:
         raise HTTPException(404, "模板不存在")
 
@@ -816,9 +834,10 @@ async def import_tpl(
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """导入 .tpl 文件到 Template 表。"""
-    school_id = current["current_role"].school_id
+    school_id = get_school_id(current)
 
-    if not os.path.isfile(req.tpl_path):
+    tpl_resolved = _validate_path_within_upload_dir(req.tpl_path)
+    if not tpl_resolved.is_file():
         raise HTTPException(400, f"tpl 文件不存在: {req.tpl_path}")
 
     q = select(Subject).where(Subject.id == req.subject_id)
@@ -832,12 +851,13 @@ async def import_tpl(
     tpl_data = parse_tpl_file(req.tpl_path)
 
     # Upsert Template
-    existing = (await db.execute(
-        select(Template).where(
-            Template.subject_id == req.subject_id,
-            Template.side == req.side,
-        )
-    )).scalar_one_or_none()
+    tpl_stmt = select(Template).where(
+        Template.subject_id == req.subject_id,
+        Template.side == req.side,
+    )
+    if school_id:
+        tpl_stmt = tpl_stmt.where(Template.school_id == school_id)
+    existing = (await db.execute(tpl_stmt)).scalar_one_or_none()
 
     values = {
         "image_width": tpl_data["image_size"]["width"],
@@ -871,17 +891,11 @@ async def serve_scan_image(
 ):
     """提供扫描图片的 HTTP 访问（前端模板编辑器用）。"""
     from fastapi.responses import FileResponse
-    upload_root = Path(settings.UPLOAD_DIR).resolve()
     if path.startswith("/uploads/"):
-        resolved = upload_root / path.split("/uploads/", 1)[1]
-    elif path.startswith("/"):
-        resolved = Path(path)
-    else:
-        resolved = upload_root / path
+        path = path.split("/uploads/", 1)[1]
+    resolved = _validate_path_within_upload_dir(path)
     if not resolved.is_file():
         raise HTTPException(404, f"图片不存在: {path}")
-    if not str(resolved.resolve()).startswith(str(upload_root.resolve())):
-        raise HTTPException(403, "只能访问 uploads 目录下的图片")
     suffix = resolved.suffix.lower()
     media = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg"}.get(suffix.lstrip("."), "application/octet-stream")
     return FileResponse(resolved, media_type=media)
@@ -907,9 +921,11 @@ async def get_cv_template(
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """查询某科目已有的 CV 检测 Template（A+B 面）。"""
-    rows = (await db.execute(
-        select(Template).where(Template.subject_id == subject_id)
-    )).scalars().all()
+    school_id = get_school_id(current)
+    tpl_stmt = select(Template).where(Template.subject_id == subject_id)
+    if school_id:
+        tpl_stmt = tpl_stmt.where(Template.school_id == school_id)
+    rows = (await db.execute(tpl_stmt)).scalars().all()
     if not rows:
         raise HTTPException(404, "该科目尚无模板")
     result = {}
@@ -939,7 +955,7 @@ async def save_cv_template(
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """将 CV 检测结果保存/更新为 Template（upsert）。"""
-    school_id = current["current_role"].school_id
+    school_id = get_school_id(current)
 
     q = select(Subject).where(Subject.id == req.subject_id)
     if school_id:
@@ -949,9 +965,10 @@ async def save_cv_template(
         raise HTTPException(404, "科目不存在")
     school_id = subject.school_id
 
-    questions = (await db.execute(
-        select(Question).where(Question.subject_id == req.subject_id)
-    )).scalars().all()
+    q_stmt = select(Question).where(Question.subject_id == req.subject_id)
+    if school_id:
+        q_stmt = q_stmt.where(Question.school_id == school_id)
+    questions = (await db.execute(q_stmt)).scalars().all()
     qno_map = {}
     q_by_name = {str(q.name): q for q in questions}
 
@@ -1090,12 +1107,13 @@ async def save_cv_template(
 
     regions = [r for r in req.regions if r.get("type") != "not_a_region"]
 
-    existing = (await db.execute(
-        select(Template).where(
-            Template.subject_id == req.subject_id,
-            Template.side == req.side,
-        )
-    )).scalar_one_or_none()
+    tpl_stmt = select(Template).where(
+        Template.subject_id == req.subject_id,
+        Template.side == req.side,
+    )
+    if school_id:
+        tpl_stmt = tpl_stmt.where(Template.school_id == school_id)
+    existing = (await db.execute(tpl_stmt)).scalar_one_or_none()
 
     if existing:
         existing.regions = regions
@@ -1125,13 +1143,17 @@ async def verify_template(
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """校对模板区域 vs 题目配置，返回不一致项。"""
-    templates = (await db.execute(
-        select(Template).where(Template.subject_id == subject_id)
-    )).scalars().all()
+    school_id = get_school_id(current)
 
-    questions = (await db.execute(
-        select(Question).where(Question.subject_id == subject_id)
-    )).scalars().all()
+    tpl_stmt = select(Template).where(Template.subject_id == subject_id)
+    if school_id:
+        tpl_stmt = tpl_stmt.where(Template.school_id == school_id)
+    templates = (await db.execute(tpl_stmt)).scalars().all()
+
+    q_stmt = select(Question).where(Question.subject_id == subject_id)
+    if school_id:
+        q_stmt = q_stmt.where(Question.school_id == school_id)
+    questions = (await db.execute(q_stmt)).scalars().all()
 
     question_by_id = {str(q.id): q for q in questions}
 
@@ -1288,16 +1310,18 @@ async def delete_orphan_questions(
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """删除模板中不存在的多余题目。qnos 逗号分隔。"""
+    school_id = get_school_id(current)
     qno_list = [q.strip() for q in qnos.split(",") if q.strip()]
     if not qno_list:
         return {"deleted": 0}
 
-    to_delete = (await db.execute(
-        select(Question).where(
-            Question.subject_id == subject_id,
-            Question.name.in_(qno_list),
-        )
-    )).scalars().all()
+    del_stmt = select(Question).where(
+        Question.subject_id == subject_id,
+        Question.name.in_(qno_list),
+    )
+    if school_id:
+        del_stmt = del_stmt.where(Question.school_id == school_id)
+    to_delete = (await db.execute(del_stmt)).scalars().all()
 
     count = 0
     for q in to_delete:
