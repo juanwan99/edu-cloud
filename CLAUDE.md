@@ -226,7 +226,7 @@ frontend/src/
     aiChat.js               # AI 对话（SSE + tool_call 展示，exam-ai 版）
     context.js / studio.js  # 云平台上下文/Studio
   router/                   # Vue Router（52 路由：AppShell 39 子路由+7 conduct 重定向 + parent 9 路由 + login + catch-all；含 /ai-grading 无参入口 + /knowledge-tree；冻结备份在 _frozen/；/parent/* 跳过平台 auth）
-  main.js                   # 入口（Naive UI 暗色主题 + Pinia + Router）
+  main.js                   # 入口（Pinia + Router，Naive UI 按需导入 via unplugin-vue-components）
   App.vue                   # 根组件
 ```
 
@@ -383,8 +383,8 @@ tests/
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 15 角色映射（10 活跃 + 5 legacy 兼容） | — |
 | AI | 63 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile + allowed_roles RBAC | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）+ ConceptGraphNode 统一引用（旧 knowledge_points UUID 已废弃）| — |
-| Tests | 2246 passed / 33 failed（既有债）后端 + 2421 前端 Vitest 0 failed（ECS 实测 @ 2026-05-04） | — |
-| Modules | 21 模块目录，路由已迁入。技术债 H-01 拆分后：`card` 含 `router.py`(839行) + `card_template_router.py`(230行) + `card_export_router.py`(326行)；`grading` 含 `router.py`(520行) + `grading_review_router.py`(396行) + `prompts/` 子包 + `gemini_client.py`(官方SDK) + `image_utils.py`(图片预处理) + `detail_flatten.py`(LLM输出标准化)；`analytics` 含 `router.py`(220行) + `analytics_report_router.py`(585行) + `diagnosis_service.py` + `insights_service.py` + `pipeline_service.py`。详见 `docs/2026-04-26-tech-debt-audit.md` §修复记录 | — |
+| Tests | 2504 passed / 43 failed（既有债）后端 + 2496 前端 Vitest 0 failed（ECS 实测 @ 2026-05-09） | — |
+| Modules | 21 模块目录，路由已迁入。技术债拆分后：`card` 含 `router.py`(839行) + `card_template_router.py`(230行) + `card_export_router.py`(326行) + `card_utils.py`(54行)；`scan` 含 `pipeline_router.py`(907行) + `cv_detect_router.py`(430行)；`grading` 含 `router.py`(520行) + `grading_review_router.py`(396行) + `prompts/` 子包 + `gemini_client.py`(官方SDK) + `image_utils.py`(图片预处理) + `detail_flatten.py`(LLM输出标准化)；`analytics` 含 `router.py`(220行) + `analytics_report_router.py`(585行) + `diagnosis_service.py` + `insights_service.py` + `pipeline_service.py`。`ReviewPage.vue` 拆分为 3 composable（`review/useImageZoom.js` + `useAnnotations.js` + `useScoring.js`）。详见 `docs/2026-04-26-tech-debt-audit.md` §修复记录 | — |
 | Migrations | Alembic migration（90 表，43 个迁移，head `ed1f8408241c` knowledge FK unification）。**唯一合法 migration 路径：`python scripts/db_migrate [target]`**（直接 `alembic upgrade` 被 env.py guard 阻断） | — |
 
 ## 技术栈
@@ -393,7 +393,7 @@ tests/
 - FastAPI + Uvicorn
 - SQLAlchemy 2.0 (async) + asyncpg (PostgreSQL)
 - Alembic (migrations)
-- python-jose (JWT) + bcrypt
+- PyJWT (JWT) + bcrypt
 - arq + Redis (后台任务：联考下发、批量阅卷、报表生成、学生画像 W3 日任务、异常巡检 W6 时任务、Agent 调度)
 - httpx (调用学校端 API)
 - google-genai (Gemini 官方 SDK，AI 阅卷双模式：realtime 实时 + batch 经济半价)
