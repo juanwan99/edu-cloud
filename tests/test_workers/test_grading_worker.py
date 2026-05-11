@@ -115,14 +115,18 @@ async def test_process_grading_task_no_subjective_questions(mock_create_llm, _mo
 
     task = _make_mock_task()
 
-    # db.execute call sequence:
-    # 1. select(GradingTask) → task
-    # 2. select(Question) → empty list
-    # 3. select(Subject) → None (subject lookup for prompt dispatch)
+    # db.execute call sequence (CAS task claim):
+    # 1. update(GradingTask) WHERE status=pending → rowcount=1 (CAS claim)
+    # 2. select(GradingTask) → task (re-read after claim)
+    # 3. select(Question) → empty list
+    # 4. select(Subject) → None (subject lookup for prompt dispatch)
+    cas_result = MagicMock()
+    cas_result.rowcount = 1
     subject_result = MagicMock()
     subject_result.scalar_one_or_none.return_value = None
     execute_results = [
-        _make_scalar_one_result(task),   # load GradingTask
+        cas_result,                      # CAS claim: pending → processing
+        _make_scalar_one_result(task),   # re-read GradingTask after claim
         _make_scalars_all_result([]),     # no subjective questions
         subject_result,                  # subject lookup
     ]
@@ -139,7 +143,7 @@ async def test_process_grading_task_no_subjective_questions(mock_create_llm, _mo
     mock_llm.grade.assert_not_called()
     # LLM client should be closed
     mock_llm.close.assert_awaited_once()
-    # DB commit called at least twice (processing + completed)
+    # DB commit called at least twice (claim + completed)
     assert db.commit.await_count >= 2
 
 
@@ -167,19 +171,23 @@ async def test_process_grading_task_missing_rubric(mock_create_llm, _mock_get_cf
     answer.subject_id = "subj-1"
     answer.school_id = "school-1"
 
-    # db.execute call sequence (batch mode):
-    # 1. select(GradingTask) → task
-    # 2. select(Question) → [question]
-    # 3. select(Subject) → None (subject lookup for prompt dispatch)
-    # 4. select(StudentAnswer) → [answer]
-    # 5. select(GradingResult.answer_id) WHERE confirmed → [] (ORC-001 exclusion)
-    # 6. select(Rubric) → [] (no rubric!)
-    # 7. select(GradingTask) → task (batch progress re-fetch)
-    # 8. select(GradingTask) → task (final status re-fetch)
+    # db.execute call sequence (CAS task claim + batch mode):
+    # 1. update(GradingTask) WHERE status=pending → rowcount=1 (CAS claim)
+    # 2. select(GradingTask) → task (re-read after claim)
+    # 3. select(Question) → [question]
+    # 4. select(Subject) → None (subject lookup for prompt dispatch)
+    # 5. select(StudentAnswer) → [answer]
+    # 6. select(GradingResult.answer_id) WHERE confirmed → [] (ORC-001 exclusion)
+    # 7. select(Rubric) → [] (no rubric!)
+    # 8. select(GradingTask) → task (batch progress re-fetch)
+    # 9. select(GradingTask) → task (final status re-fetch)
+    cas_result = MagicMock()
+    cas_result.rowcount = 1
     subject_result = MagicMock()
     subject_result.scalar_one_or_none.return_value = None
     execute_results = [
-        _make_scalar_one_result(task),       # load GradingTask
+        cas_result,                          # CAS claim: pending → processing
+        _make_scalar_one_result(task),       # re-read GradingTask after claim
         _make_scalars_all_result([question]), # subjective questions
         subject_result,                      # subject lookup
         _make_scalars_all_result([answer]),   # student answers
