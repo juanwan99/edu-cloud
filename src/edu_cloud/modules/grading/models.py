@@ -4,7 +4,7 @@ from typing import Optional
 
 from sqlalchemy import (
     String, Float, Integer, Text, DateTime, ForeignKey, JSON,
-    UniqueConstraint, Index,
+    UniqueConstraint, Index, CheckConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,6 +24,12 @@ class Rubric(Base, IdMixin, TimestampMixin):
 
 class GradingTask(Base, IdMixin, TimestampMixin):
     __tablename__ = "grading_tasks"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')",
+            name="ck_grading_tasks_status",
+        ),
+    )
 
     subject_id: Mapped[str] = mapped_column(String(36), ForeignKey("subjects.id"), index=True)
     question_id: Mapped[str | None] = mapped_column(
@@ -63,6 +69,10 @@ class GradingResult(Base, IdMixin, TimestampMixin):
         Index("ix_grading_result_school_status", "school_id", "status"),
         Index("ix_grading_result_question", "question_id"),
         Index("ix_grading_result_task", "ai_task_id"),
+        CheckConstraint(
+            "status IN ('ai_pending', 'ai_done', 'confirmed')",
+            name="ck_grading_results_status",
+        ),
     )
 
     answer_id: Mapped[str] = mapped_column(

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     String, Integer, Float, Text, ForeignKey, JSON, Boolean, DateTime,
-    UniqueConstraint, Index, Column,
+    UniqueConstraint, Index, Column, CheckConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -33,11 +33,16 @@ QUESTION_TYPES_VISUAL = (QUESTION_TYPE_DRAWING,)
 
 class Exam(Base, IdMixin, TimestampMixin):
     __tablename__ = "exams"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'scanning', 'grading', 'reviewing', 'completed', 'published', 'archived')",
+            name="ck_exams_status",
+        ),
+    )
 
     name: Mapped[str] = mapped_column(String(200))
     card_title: Mapped[str] = mapped_column(String(200), default="")
     status: Mapped[str] = mapped_column(String(20), default="draft")
-    # status: draft -> scanning -> grading -> reviewing -> completed
     exam_type: Mapped[str | None] = mapped_column(String(20), default=None)
     grade_scope: Mapped[str | None] = mapped_column(String(50), default=None)
     semester: Mapped[str | None] = mapped_column(String(50), default=None)
