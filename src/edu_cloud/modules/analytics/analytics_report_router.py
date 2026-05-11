@@ -12,7 +12,7 @@ from edu_cloud.core.auth import get_current_user, require_permission
 from edu_cloud.api.permissions import get_visible_subject_codes, get_visible_class_ids
 from edu_cloud.core.permissions import Permission
 from edu_cloud.modules.analytics.report_service import (
-    build_report, get_grade_trend, get_class_trend, get_student_trend,
+    build_report, basic_report, get_grade_trend, get_class_trend, get_student_trend,
 )
 from edu_cloud.modules.analytics.exporters import (
     build_grade_subject_report,
@@ -87,6 +87,25 @@ async def level_score_convert(
     if result is None:
         raise HTTPException(404, "无成绩数据")
     return result
+
+
+# --- Basic Report (all-in-one for AnalyticsReportPage) ---
+
+@router.get("/exam/{exam_id}/basic-report")
+async def get_basic_report(
+    exam_id: str,
+    subject_id: str | None = Query(None),
+    class_id: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current: dict = Depends(get_current_user),
+):
+    role = current["current_role"]
+    return await basic_report(
+        db, exam_id=exam_id, school_id=role.school_id,
+        subject_id=subject_id, class_id=class_id,
+        visible_subject_codes=get_visible_subject_codes(role),
+        visible_class_ids=get_visible_class_ids(role),
+    )
 
 
 # --- AI 深度分析 ---

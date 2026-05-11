@@ -35,11 +35,11 @@ async def _get_student_scores(
     if not subj_ids:
         return []
 
-    from edu_cloud.modules.analytics import get_effective_scores
+    from edu_cloud.modules.analytics import get_effective_scores_batch
     student_totals: dict[str, float] = defaultdict(float)
+    scores_by_subject = await get_effective_scores_batch(db, subj_ids, school_id, visible_class_ids)
     for sid in subj_ids:
-        scores = await get_effective_scores(db, sid, school_id, visible_class_ids)
-        for s in scores:
+        for s in scores_by_subject.get(sid, []):
             student_totals[s["student_id"]] += s["effective_score"]
 
     # 获取学生信息
@@ -181,7 +181,7 @@ async def critical_students(
     """临界生筛选：差 N 分及格/优秀。F005 修复：返回 worst_question。"""
     from edu_cloud.modules.analytics.segment_service import get_segment_config
     from edu_cloud.modules.analytics.service import _get_max_by_subject, _get_subjects
-    from edu_cloud.modules.analytics import get_effective_scores as _get_eff
+    from edu_cloud.modules.analytics import get_effective_scores_batch as _batch_eff
 
     if class_id:
         if visible_class_ids is not None and class_id not in visible_class_ids:
@@ -214,9 +214,9 @@ async def critical_students(
     )
     q_meta = {r.id: {"name": r.name, "max_score": r.max_score} for r in q_meta_result.all()}
 
+    eff_by_subject = await _batch_eff(db, subj_ids, school_id, effective_class_ids)
     for subj in subjects:
-        eff_scores = await _get_eff(db, subj.id, school_id, effective_class_ids)
-        for s in eff_scores:
+        for s in eff_by_subject.get(subj.id, []):
             sid = s["student_id"]
             loss = s["max_score"] - s["effective_score"]
             if loss > 0:
@@ -302,7 +302,7 @@ async def class_knowledge(
 ) -> dict:
     """班级×知识点 掌握率热力图数据。"""
     from edu_cloud.modules.exam.models import Subject, Question
-    from edu_cloud.modules.analytics import get_effective_scores
+    from edu_cloud.modules.analytics import get_effective_scores_batch as _batch_scores
 
     subj_q = select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
     if subject_id:
@@ -349,10 +349,10 @@ async def class_knowledge(
             concept_name_map[concept_id] = concept_name
 
     # 聚合每个学生每个知识点的得分率
+    scores_by_subject = await _batch_scores(db, subj_ids, school_id, visible_class_ids)
     student_kp_scores: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
     for subj in subjects:
-        scores = await get_effective_scores(db, subj.id, school_id, visible_class_ids)
-        for s in scores:
+        for s in scores_by_subject.get(subj.id, []):
             concepts = q_concept_map.get(s["question_id"], [])
             max_s = q_max.get(s["question_id"], 1)
             rate = s["effective_score"] / max_s if max_s > 0 else 0

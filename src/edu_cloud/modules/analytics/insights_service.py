@@ -60,13 +60,14 @@ async def common_wrong_questions(
 
     subj_ids = [s.id for s in subjects]
 
-    from edu_cloud.modules.analytics import get_effective_scores
+    from edu_cloud.modules.analytics import get_effective_scores_batch
 
+    scores_by_subject = await get_effective_scores_batch(
+        db, [s.id for s in subjects], school_id, visible_class_ids,
+    )
     rows = []
     for subj in subjects:
-        rows.extend(await get_effective_scores(
-            db, subj.id, school_id, visible_class_ids,
-        ))
+        rows.extend(scores_by_subject.get(subj.id, []))
 
     q_total: dict[str, int] = defaultdict(int)
     q_wrong: dict[str, int] = defaultdict(int)

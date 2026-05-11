@@ -157,34 +157,14 @@
             <n-empty v-else description="请先选择考试" />
           </n-tab-pane>
 
-          <n-tab-pane name="layers" tab="学生/分层学情">
-            <div class="report-panel" v-if="filteredStudentRows.length">
-              <div class="student-rank-tools">
-                <h3>学生排名</h3>
-                <n-input
-                  v-model:value="studentKeyword"
-                  placeholder="搜索学生姓名/学号/班级"
-                  clearable
-                  size="small"
-                  class="student-search"
-                />
-              </div>
-              <n-data-table
-                :columns="studentColumns"
-                :data="filteredStudentRows"
-                :pagination="{ pageSize: 20 }"
-                :scroll-x="studentTableScrollX"
-                size="small"
-              />
-            </div>
-            <n-divider v-if="filteredStudentRows.length" />
+          <n-tab-pane name="layers" tab="分层学情">
             <LayerAnalysisPanel
               v-if="selectedExamId"
               :exam-id="selectedExamId"
               :subject-id="selectedSubjectId"
               :class-id="selectedClassId"
             />
-            <n-empty v-if="!selectedExamId" description="请先选择考试" />
+            <n-empty v-else description="请先选择考试" />
           </n-tab-pane>
 
           <n-tab-pane name="trend" tab="趋势追踪">
@@ -323,26 +303,6 @@ const classColumns = [
   { title: '优秀率', key: 'excellent_rate', width: 90, render: row => pct(row.excellent_rate) },
 ]
 
-const classSubjectColumns = [
-  { title: '班级', key: 'class_name', width: 120 },
-  { title: '科目', key: 'subject_name', width: 100 },
-  { title: '满分', key: 'full_score', width: 80, render: row => fmt(row.full_score) },
-  { title: '参考人数', key: 'student_count', width: 90 },
-  { title: '平均分', key: 'avg_score', width: 90, render: row => fmt(row.avg_score) },
-  { title: '最高分', key: 'max_score', width: 90, render: row => fmt(row.max_score) },
-  { title: '最低分', key: 'min_score', width: 90, render: row => fmt(row.min_score) },
-  { title: '得分率', key: 'score_rate', width: 90, render: row => pct(row.score_rate) },
-  { title: '及格率', key: 'pass_rate', width: 90, render: row => pct(row.pass_rate) },
-  { title: '优秀率', key: 'excellent_rate', width: 90, render: row => pct(row.excellent_rate) },
-]
-
-const segmentColumns = [
-  { title: '分数段', key: 'label' },
-  { title: '区间', key: 'range', render: row => segmentRange(row) },
-  { title: '人数', key: 'count' },
-  { title: '占比', key: 'percentage', render: row => pct(row.percentage) },
-]
-
 const studentColumns = computed(() => [
   { title: '排名', key: 'grade_rank', width: 70 },
   { title: '姓名', key: 'name', width: 100 },
@@ -376,14 +336,6 @@ const filteredStudentRows = computed(() => {
 })
 
 const studentTableScrollX = computed(() => 820 + subjectScoreColumns.value.length * 96)
-
-const classSubjectRows = computed(() => (basicReport.value?.classes || []).flatMap(row => (
-  row.subjects || []
-).map(subject => ({
-  ...subject,
-  class_id: row.class_id,
-  class_name: row.class_name,
-}))))
 
 const segmentChartOption = computed(() => {
   const segments = basicReport.value?.distribution || []
@@ -609,6 +561,25 @@ async function handleDownload(format) {
       selectedExamId.value, exportSubjectId.value, format,
     )
     downloadBlob(resp, `年级报告.${format}`)
+  } catch (e) {
+    message.error(e.response?.data?.detail || '导出失败')
+  } finally {
+    exporting.value = false
+  }
+}
+
+async function exportStudentRank() {
+  if (!filteredStudentRows.value.length) return
+  if (!selectedExamId.value) return
+  const subjectId = exportSubjectId.value || (subjectOptions.value[0]?.value)
+  if (!subjectId) {
+    message.warning('请先选择导出科目')
+    return
+  }
+  exporting.value = true
+  try {
+    const resp = await exportGradeReport(selectedExamId.value, subjectId, 'xlsx')
+    downloadBlob(resp, '学生排名.xlsx')
   } catch (e) {
     message.error(e.response?.data?.detail || '导出失败')
   } finally {

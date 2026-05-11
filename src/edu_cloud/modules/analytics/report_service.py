@@ -1,6 +1,7 @@
 """自定义分析构建器 + 跨考试对比 + PDF 导出。"""
 import logging
 import statistics as _statistics
+from collections import defaultdict
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,8 +10,9 @@ from edu_cloud.modules.exam.models import Exam
 from edu_cloud.modules.analytics.service import (
     exam_summary, exam_distribution, grade_aggregates,
     subject_question_analysis, _get_subjects, _get_max_by_subject,
+    _verify_exam,
 )
-from edu_cloud.modules.analytics import get_effective_scores
+from edu_cloud.modules.analytics import get_effective_scores, get_effective_scores_batch
 from edu_cloud.modules.analytics.segment_service import get_segment_config, compute_segments
 from edu_cloud.modules.student.models import Class, Student
 from edu_cloud.models.agent_snapshot import ExamAnalysisSnapshot, ClassExamReport
@@ -135,6 +137,240 @@ async def build_report(
     return {
         "exam_ids": exam_ids,
         "metrics": result_metrics,
+    }
+
+
+def _empty_report(exam: "Exam") -> dict:
+    return {
+        "exam": {"name": exam.name, "id": exam.id},
+        "overview": {
+            "student_count": 0, "subject_count": 0, "total_full_score": 0,
+            "avg_score": None, "max_score": None, "min_score": None,
+            "pass_rate": 0, "excellent_rate": 0, "full_score_count": 0,
+        },
+        "subjects": [], "classes": [], "students": [], "distribution": [],
+        "scope": {
+            "has_previous_exam": False, "subject_name": None,
+            "class_name": None, "previous_exam": None,
+        },
+    }
+
+
+async def basic_report(
+    db: AsyncSession,
+    *,
+    exam_id: str,
+    school_id: str,
+    subject_id: str | None = None,
+    class_id: str | None = None,
+    visible_subject_codes: list[str] | None = None,
+    visible_class_ids: list[str] | None = None,
+) -> dict:
+    """All-in-one report aggregating overview/subjects/classes/students/distribution."""
+    from edu_cloud.modules.analytics.ranking_service import _find_prev_exam
+
+    exam = await _verify_exam(db, exam_id, school_id)
+    subjects = await _get_subjects(db, exam_id, school_id, visible_subject_codes, subject_id)
+    if not subjects:
+        return _empty_report(exam)
+
+    subj_ids = [s.id for s in subjects]
+    max_by_subject = await _get_max_by_subject(db, subj_ids, school_id)
+    total_full_score = sum(max_by_subject.get(s.id, 0) for s in subjects)
+
+    effective_class_ids = visible_class_ids
+    if class_id:
+        if visible_class_ids is not None and class_id not in visible_class_ids:
+            return _empty_report(exam)
+        effective_class_ids = [class_id]
+
+    scores_by_subject = await get_effective_scores_batch(
+        db, subj_ids, school_id, effective_class_ids,
+    )
+
+    student_subject_scores: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    student_totals: dict[str, float] = defaultdict(float)
+    all_student_ids: set[str] = set()
+
+    for subj in subjects:
+        for s in scores_by_subject.get(subj.id, []):
+            sid = s["student_id"]
+            all_student_ids.add(sid)
+            student_totals[sid] += s["effective_score"]
+            student_subject_scores[sid][subj.code] += s["effective_score"]
+
+    # --- Subject stats ---
+    subject_entries = []
+    for subj in subjects:
+        stu_scores: dict[str, float] = defaultdict(float)
+        for s in scores_by_subject.get(subj.id, []):
+            stu_scores[s["student_id"]] += s["effective_score"]
+        vals = list(stu_scores.values())
+        full = max_by_subject.get(subj.id, 0)
+        cnt = len(vals)
+        avg = sum(vals) / cnt if cnt else 0
+        pass_cnt = sum(1 for v in vals if full > 0 and v >= full * 0.6)
+        exc_cnt = sum(1 for v in vals if full > 0 and v >= full * 0.85)
+        subject_entries.append({
+            "subject_id": subj.id, "subject_code": subj.code, "subject_name": subj.name,
+            "full_score": full, "student_count": cnt,
+            "avg_score": round(avg, 2) if cnt else None,
+            "max_score": round(max(vals), 2) if vals else None,
+            "min_score": round(min(vals), 2) if vals else None,
+            "score_rate": round(avg / full, 4) if cnt and full > 0 else 0,
+            "pass_rate": round(pass_cnt / cnt, 4) if cnt else 0,
+            "excellent_rate": round(exc_cnt / cnt, 4) if cnt else 0,
+        })
+
+    # --- Student info (batch) ---
+    stu_ids_list = list(student_totals.keys())
+    stu_info: dict[str, dict] = {}
+    if stu_ids_list:
+        stu_result = await db.execute(
+            select(Student.id, Student.name, Student.student_number, Student.class_id,
+                   Class.name.label("class_name"))
+            .outerjoin(Class, Class.id == Student.class_id)
+            .where(Student.id.in_(stu_ids_list), Student.school_id == school_id)
+        )
+        for r in stu_result.all():
+            stu_info[r.id] = {
+                "name": r.name, "student_number": r.student_number,
+                "class_id": r.class_id, "class_name": r.class_name,
+            }
+
+    # --- Rankings ---
+    ranked = sorted(student_totals.items(), key=lambda x: x[1], reverse=True)
+    grade_ranks = {sid: i + 1 for i, (sid, _) in enumerate(ranked)}
+    by_class: dict[str, list[tuple[str, float]]] = defaultdict(list)
+    for sid, total in ranked:
+        cid = stu_info.get(sid, {}).get("class_id")
+        if cid:
+            by_class[cid].append((sid, total))
+    class_ranks: dict[str, int] = {}
+    for cls_students in by_class.values():
+        for i, (sid, _) in enumerate(cls_students):
+            class_ranks[sid] = i + 1
+
+    # --- Delta (previous exam) ---
+    prev_exam_id = await _find_prev_exam(db, exam_id, school_id)
+    prev_exam_info = None
+    prev_grade_ranks: dict[str, int] = {}
+    prev_class_ranks: dict[str, int] = {}
+    if prev_exam_id:
+        prev_exam_obj = (await db.execute(
+            select(Exam).where(Exam.id == prev_exam_id, Exam.school_id == school_id)
+        )).scalar_one_or_none()
+        if prev_exam_obj:
+            prev_exam_info = {"name": prev_exam_obj.name}
+        prev_subjects = await _get_subjects(db, prev_exam_id, school_id, visible_subject_codes, subject_id)
+        if prev_subjects:
+            prev_subj_ids = [s.id for s in prev_subjects]
+            prev_by_subj = await get_effective_scores_batch(db, prev_subj_ids, school_id, effective_class_ids)
+            prev_totals: dict[str, float] = defaultdict(float)
+            for subj in prev_subjects:
+                for s in prev_by_subj.get(subj.id, []):
+                    prev_totals[s["student_id"]] += s["effective_score"]
+            prev_ranked = sorted(prev_totals.items(), key=lambda x: x[1], reverse=True)
+            for i, (sid, _) in enumerate(prev_ranked):
+                prev_grade_ranks[sid] = i + 1
+            prev_by_cls: dict[str, list[tuple[str, float]]] = defaultdict(list)
+            for sid, total in prev_ranked:
+                cid = stu_info.get(sid, {}).get("class_id")
+                if cid:
+                    prev_by_cls[cid].append((sid, total))
+            for cls_students in prev_by_cls.values():
+                for i, (sid, _) in enumerate(cls_students):
+                    prev_class_ranks[sid] = i + 1
+
+    # --- Build student entries ---
+    student_entries = []
+    for sid, total in ranked:
+        info = stu_info.get(sid, {})
+        gr = grade_ranks[sid]
+        cr = class_ranks.get(sid)
+        pgr = prev_grade_ranks.get(sid)
+        pcr = prev_class_ranks.get(sid)
+        subj_map = {code: {"score": round(sc, 2)} for code, sc in student_subject_scores[sid].items()}
+        student_entries.append({
+            "student_id": sid,
+            "name": info.get("name", sid),
+            "student_number": info.get("student_number"),
+            "class_name": info.get("class_name"),
+            "total_score": round(total, 2),
+            "score_rate": round(total / total_full_score, 4) if total_full_score > 0 else 0,
+            "grade_rank": gr, "class_rank": cr,
+            "delta_grade": (pgr - gr) if pgr is not None else None,
+            "delta_class": (pcr - cr) if pcr is not None and cr is not None else None,
+            "subject_scores": subj_map,
+        })
+
+    # --- Class stats ---
+    class_entries = []
+    for cid, cls_students in by_class.items():
+        vals = [t for _, t in cls_students]
+        cnt = len(vals)
+        avg = sum(vals) / cnt if cnt else 0
+        pass_cnt = sum(1 for v in vals if total_full_score > 0 and v >= total_full_score * 0.6)
+        exc_cnt = sum(1 for v in vals if total_full_score > 0 and v >= total_full_score * 0.85)
+        cname = stu_info.get(cls_students[0][0], {}).get("class_name", "") if cls_students else ""
+        class_entries.append({
+            "class_id": cid, "class_name": cname, "student_count": cnt,
+            "avg_score": round(avg, 2) if cnt else None,
+            "max_score": round(max(vals), 2) if vals else None,
+            "min_score": round(min(vals), 2) if vals else None,
+            "score_rate": round(avg / total_full_score, 4) if cnt and total_full_score > 0 else 0,
+            "pass_rate": round(pass_cnt / cnt, 4) if cnt else 0,
+            "excellent_rate": round(exc_cnt / cnt, 4) if cnt else 0,
+        })
+    class_entries.sort(key=lambda x: (x["avg_score"] is None, -(x["avg_score"] or 0)))
+    for i, entry in enumerate(class_entries):
+        entry["rank"] = i + 1
+
+    # --- Distribution ---
+    dist_data = await exam_distribution(
+        db, exam_id=exam_id, school_id=school_id, subject_id=subject_id,
+        visible_subject_codes=visible_subject_codes,
+        visible_class_ids=effective_class_ids,
+    )
+
+    # --- Overview ---
+    all_vals = list(student_totals.values())
+    n = len(all_vals)
+    overview_avg = sum(all_vals) / n if n else 0
+    pass_n = sum(1 for v in all_vals if total_full_score > 0 and v >= total_full_score * 0.6)
+    exc_n = sum(1 for v in all_vals if total_full_score > 0 and v >= total_full_score * 0.85)
+    full_n = sum(1 for v in all_vals if total_full_score > 0 and abs(v - total_full_score) < 0.01)
+
+    # --- Scope ---
+    scope_subject = subjects[0].name if subject_id and subjects else None
+    scope_class = None
+    if class_id:
+        for info in stu_info.values():
+            if info.get("class_id") == class_id:
+                scope_class = info.get("class_name")
+                break
+
+    return {
+        "exam": {"name": exam.name, "id": exam.id},
+        "overview": {
+            "student_count": len(all_student_ids), "subject_count": len(subjects),
+            "total_full_score": total_full_score,
+            "avg_score": round(overview_avg, 2) if n else None,
+            "max_score": round(max(all_vals), 2) if all_vals else None,
+            "min_score": round(min(all_vals), 2) if all_vals else None,
+            "pass_rate": round(pass_n / n, 4) if n else 0,
+            "excellent_rate": round(exc_n / n, 4) if n else 0,
+            "full_score_count": full_n,
+        },
+        "subjects": subject_entries,
+        "classes": class_entries,
+        "students": student_entries,
+        "distribution": dist_data.get("intervals", []),
+        "scope": {
+            "has_previous_exam": prev_exam_id is not None,
+            "subject_name": scope_subject, "class_name": scope_class,
+            "previous_exam": prev_exam_info,
+        },
     }
 
 
