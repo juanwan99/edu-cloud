@@ -144,11 +144,10 @@ async def get_current_user(
         active_role_id = payload.get("active_role_id")
         if active_role_id:
             active = next((r for r in roles if r.id == active_role_id), None)
+            if active is None:
+                raise HTTPException(401, "角色已失效，请重新登录")
         else:
             active = next((r for r in roles if r.is_primary), roles[0])
-
-        if active is None:
-            active = roles[0]
 
         # Set tenant context for audit listener (None for cross-school roles)
         from edu_cloud.core.tenant import CROSS_SCHOOL_ROLES

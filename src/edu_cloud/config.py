@@ -8,6 +8,9 @@ _logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
 
+    # ── Environment ──────────────────────────────────────────────────
+    ENVIRONMENT: str = "development"  # development / staging / production
+
     # ── Database ─────────────────────────────────────────────────────
     DATABASE_URL: str = "sqlite+aiosqlite:///:memory:"
     REDIS_URL: str = "redis://localhost:6379/0"
