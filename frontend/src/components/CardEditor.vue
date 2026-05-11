@@ -1,5 +1,5 @@
 <template>
-  <div class="card-editor-wrapper">
+  <div class="card-editor-wrapper" :class="{ 'tql-mode': viewMode === 'tql' }">
     <button class="panel-toggle" ref="panelToggleRef" title="收起/展开面板" @click="togglePanel">‹</button>
     <div class="panel" ref="panelRef">
       <!-- 选择题 -->
@@ -100,13 +100,30 @@
       </div>
     </div>
 
-    <!-- 预览区 -->
+    <!-- 预览区：编辑器 / TQL 切换 -->
     <div class="preview-area">
       <div v-if="subjectId" class="view-toggle">
         <button :class="{ active: viewMode === 'editor' }" @click="viewMode = 'editor'">编辑器</button>
+        <button :class="{ active: viewMode === 'tql' }" @click="switchToTql">TQL 模板</button>
         <button v-if="viewMode === 'editor'" class="fit-zoom-btn" :class="{ active: isFitMode }" @click="toggleFitMode">{{ isFitMode ? '适应' : '1:1' }}</button>
       </div>
       <div v-show="viewMode === 'editor'" class="preview-wrap" id="previewWrap" ref="previewWrapRef"></div>
+      <div v-if="viewMode === 'tql'" class="tql-view">
+        <div v-if="tqlImages[0]" class="tql-img-wrap">
+          <div class="tql-label">A 面</div>
+          <img :src="'data:image/png;base64,' + tqlImages[0]">
+        </div>
+        <div v-if="tqlImages[1]" class="tql-img-wrap">
+          <div class="tql-label">B 面</div>
+          <img :src="'data:image/png;base64,' + tqlImages[1]">
+        </div>
+        <div v-if="!tqlImages[0] && !tqlImages[1] && !tqlLoading" style="color:var(--color-text-muted);font-size: var(--fs-base);padding:var(--space-10);text-align:center;">
+          该科目无 TQL 模板图
+        </div>
+        <div v-if="tqlLoading" style="color:var(--color-text-muted);font-size: var(--fs-base);padding:var(--space-10);text-align:center;">
+          加载中...
+        </div>
+      </div>
     </div>
 
     <input type="file" id="hiddenImgInput" accept="image/*" style="display:none">
@@ -136,6 +153,26 @@ const previewWrapRef = ref(null)
 
 const viewMode = ref('editor')
 const isFitMode = ref(true)
+
+// TQL 对照
+const tqlImages = ref({})
+const tqlLoading = ref(false)
+
+async function switchToTql() {
+  viewMode.value = 'tql'
+  if (tqlImages.value[0] || tqlImages.value[1]) return
+  if (!props.subjectId) return
+  tqlLoading.value = true
+  try {
+    const resp = await client.get(`/card/tql-reference/${props.subjectId}`)
+    const data = resp.data
+    tqlImages.value = data.found ? data.images : {}
+  } catch (e) {
+    console.error('Failed to load TQL reference:', e)
+  } finally {
+    tqlLoading.value = false
+  }
+}
 
 function toggleFitMode() {
   isFitMode.value = !isFitMode.value
@@ -196,7 +233,7 @@ const params = {
 
 const structuralKeys = ['choiceCount', 'optionCount', 'fillCount', 'essayCount', 'paperSize']
 let lastStructural = {}
-let layoutFromServer = false
+let layoutFromServer = false  // 从 API/TQL 加载的布局，不允许被 needsRebuild 覆盖
 
 function getValues() {
   const base = { ...(window._cardLayout?.config || {}) }
@@ -274,7 +311,7 @@ function onAnyChange(userEdit = false) {
   if (!previewWrap) return
 
   const v = getValues()
-  // 从 API 加载的布局：只同步样式参数，保护结构性字段（paperSize/sides）
+  // 从 API/TQL 加载的布局：只同步样式参数，保护结构性字段（paperSize/sides）
   if (layoutFromServer && window._cardLayout) {
     const protectedPaperSize = window._cardLayout.config?.paperSize
     window._cardLayout.config = { ...window._cardLayout.config, ...v }
@@ -413,6 +450,35 @@ async function loadFromServer() {
             }
           }
         }
+        // 结构修正：合并 col3+ 到 col2，填充空中间栏（仅 A3 布局）
+        const isA4Layout = (mergedConfig.paperSize === 'A4' || window._cardLayout.paper === 'A4')
+        if (window._cardLayout?.sides && !isA4Layout) {
+          for (const side of window._cardLayout.sides) {
+            const cols = side.columns || []
+            if (cols.length > 3) {
+              for (let c = 3; c < cols.length; c++) {
+                if (cols[2]) cols[2].regions = (cols[2].regions || []).concat(cols[c].regions || [])
+              }
+              side.columns = cols.slice(0, 3)
+            }
+            while (side.columns.length < 3) side.columns.push({ col: side.columns.length, regions: [] })
+            for (let c = 0; c < 2; c++) {
+              if (side.columns[c].regions.length > 0) continue
+              for (let nc = c + 1; nc < 3; nc++) {
+                const nfRegs = side.columns[nc].regions.filter(r => r.type !== 'fixed')
+                if (nfRegs.length === 0) continue
+                if (nfRegs.length === 1) {
+                  side.columns[c].regions = side.columns[nc].regions
+                  side.columns[nc].regions = []
+                } else {
+                  const idx = side.columns[nc].regions.findIndex(r => r.type !== 'fixed')
+                  side.columns[c].regions = side.columns[nc].regions.splice(idx, 1)
+                }
+                break
+              }
+            }
+          }
+        }
         if (data.choices && data.choices.length > 0) {
           window._choices = data.choices
         } else {
@@ -476,7 +542,7 @@ onMounted(async () => {
   const link = document.createElement('link')
   link.id = 'card-editor-styles'
   link.rel = 'stylesheet'
-  link.href = '/card-editor/styles-d0da20b6.css?v=' + Date.now()
+  link.href = '/card-editor/styles.css?v=' + Date.now()
   document.head.appendChild(link)
 
   // Initialize global state
@@ -770,5 +836,29 @@ defineExpose({
   background: #644CF0;
   color: #fff;
   border-color: #644CF0;
+}
+.card-editor-wrapper.tql-mode {
+  height: auto;
+  min-height: auto;
+  overflow: visible;
+}
+.tql-view {
+  padding: var(--space-3);
+  background: #e8e8e8;
+}
+.tql-img-wrap {
+  margin-bottom: var(--space-4);
+}
+.tql-label {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text);
+  margin-bottom: 6px;
+}
+.tql-img-wrap img {
+  width: 100%;
+  border: 1px solid var(--color-text-muted);
+  border-radius: var(--r-xs);
+  background: #fff;
 }
 </style>
