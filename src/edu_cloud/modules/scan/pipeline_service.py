@@ -596,12 +596,16 @@ async def run_pipeline(
             不匹配的条码视为误读并 fallback。如不传入且 barcode_map 已建，
             则自动从 barcode_map 推断主流格式。
     """
-    global _running
+    global _running, _pipeline_school_id
 
     async with _lock:
         if _running:
             raise RuntimeError("流水线正在运行")
         _running = True
+
+    if school_id and _pipeline_school_id != school_id:
+        _barcode_map.clear()
+        _pipeline_school_id = school_id
 
     pdf_created = ensure_images_from_pdfs(image_dir)
     if pdf_created:
@@ -772,6 +776,10 @@ async def run_queue() -> list[dict]:
                 _queue.clear()
                 break
             item = _queue.pop(0)
+            item_school = item["pipeline_kwargs"].get("school_id")
+            if item_school and item_school != _pipeline_school_id:
+                _barcode_map.clear()
+                _pipeline_school_id = item_school
             result = await run_pipeline(
                 save_answer_fn=item["save_answer_fn"],
                 save_objective_fn=item["save_objective_fn"],
@@ -780,4 +788,5 @@ async def run_queue() -> list[dict]:
             results.append(result)
     finally:
         _pipeline_school_id = None
+        _barcode_map.clear()
     return results

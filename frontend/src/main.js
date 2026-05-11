@@ -27,5 +27,6 @@ window.onerror = (msg, src, line, col, err) => {
 window.onunhandledrejection = (event) => {
   clientLogger.jsError(event.reason, 'unhandledrejection')
 }
+clientLogger.setupConsoleCapture()
 
 app.mount('#app')

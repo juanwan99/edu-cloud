@@ -118,6 +118,25 @@ class ClientLogger {
     })
   }
 
+  setupConsoleCapture() {
+    const self = this
+    const origError = console.error
+    const origWarn = console.warn
+    console.error = function (...args) {
+      self._push('error', 'console_error', {
+        message: args.map(a => (a instanceof Error ? a.message : String(a))).join(' '),
+        stack: args.find(a => a instanceof Error)?.stack?.slice(0, 1000),
+      })
+      origError.apply(console, args)
+    }
+    console.warn = function (...args) {
+      self._push('warn', 'console_warn', {
+        message: args.map(a => String(a)).join(' '),
+      })
+      origWarn.apply(console, args)
+    }
+  }
+
   // --- Internal ---
 
   _push(level, eventType, data) {
