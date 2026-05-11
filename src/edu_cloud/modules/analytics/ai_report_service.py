@@ -415,7 +415,7 @@ def _student_watchlist(scoped_rows: list[tuple]) -> list[dict]:
             student["max_score"] += float(row.max_score or 0)
         if row.ai_confidence is not None and float(row.ai_confidence) < LOW_CONFIDENCE_THRESHOLD:
             student["low_confidence_count"] += 1
-        if row.ai_score is not None and row.grading_status != "confirmed":
+        if row.grading_status == "ai_done":
             student["pending_review_count"] += 1
         if row.is_anomaly:
             student["anomaly_count"] += 1

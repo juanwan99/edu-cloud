@@ -184,7 +184,7 @@ async def get_next_answer(
             select(func.count()).select_from(GradingResult).where(
                 GradingResult.question_id == question_id,
                 GradingResult.school_id == school_id,
-                GradingResult.ai_score.is_not(None),
+                GradingResult.source.in_(["ai", "ai_override"]),
             )
         )).scalar() or 0
 
@@ -192,7 +192,7 @@ async def get_next_answer(
             select(func.count()).select_from(GradingResult).where(
                 GradingResult.question_id == question_id,
                 GradingResult.school_id == school_id,
-                GradingResult.ai_score.is_not(None),
+                GradingResult.source.in_(["ai", "ai_override"]),
                 GradingResult.status == "confirmed",
             )
         )).scalar() or 0
@@ -346,7 +346,7 @@ async def get_answer_at(
         ai_scored_answer_ids = select(GradingResult.answer_id).where(
             GradingResult.question_id == question_id,
             GradingResult.school_id == school_id,
-            GradingResult.ai_score.is_not(None),
+            GradingResult.source.in_(["ai", "ai_override"]),
         )
         base_filter = [
             StudentAnswer.question_id == question_id,
