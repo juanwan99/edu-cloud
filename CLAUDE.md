@@ -362,7 +362,7 @@ scripts/
   e2e_joint_exam.py     # 端到端联考验证脚本（2 校完整流程）
 tests/
   conftest.py           # SQLite in-memory + AsyncClient + admin/school/db_engine fixtures
-  test_api/             # 平台 API 测试（health/deps/schools/joint_exams/sync_v2/results）
+  test_api/             # 平台 API 测试（health/deps/schools/joint_exams/sync_v2/results/tenant_isolation）
   test_api_exam/        # 考试 API 测试（exam-ai 迁入，32 文件）
   test_services/        # 平台 Service 单测（exceptions/school/joint_exam/results）
   test_services_exam/   # 考试 Service 单测（exam-ai 迁入，27 文件）

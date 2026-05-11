@@ -216,16 +216,14 @@ async def bind_child(
     if existing_link:
         raise ValidationError("已绑定该学生")
 
-    # Get parent role for school_id
-    role = (
+    # Derive school_id from the target student's class (not the parent role),
+    # so cross-school binds are prevented (H-3 tenant isolation fix).
+    cls = (
         await db.execute(
-            select(UserRole).where(
-                UserRole.user_id == user_id,
-                UserRole.role == "parent",
-            )
+            select(Class).where(Class.id == class_id)
         )
     ).scalar_one_or_none()
-    school_id = role.school_id if role else ""
+    school_id = cls.school_id if cls else ""
 
     link = GuardianStudentLink(
         guardian_user_id=user_id,
