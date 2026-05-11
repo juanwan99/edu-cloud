@@ -84,8 +84,8 @@ async def test_update_exam_full_lifecycle(db):
 
 
 @pytest.mark.asyncio
-async def test_update_exam_completed_pipeline_error_non_blocking(db):
-    """completed 触发 pipeline 失败时，状态仍为 completed（设计意图：pipeline 是副作用）。"""
+async def test_update_exam_completed_pipeline_error_rollback(db):
+    """C-3: pipeline 失败时回滚到 reviewing，允许用户重试。"""
     from unittest.mock import patch, AsyncMock
     school = School(name="PF", code="PF01", district="X")
     db.add(school)
@@ -93,10 +93,9 @@ async def test_update_exam_completed_pipeline_error_non_blocking(db):
     exam = await create_exam(db, name="Pipeline测试", card_title="PF", school_id=school.id)
     for status in ["scanning", "grading", "reviewing"]:
         exam = await update_exam(db, exam_id=exam.id, school_id=school.id, status=status)
-    # Mock pipeline to raise — status should still be completed (non-blocking)
     with patch("edu_cloud.modules.pipeline.service.run_full_pipeline", new_callable=AsyncMock, side_effect=RuntimeError("pipeline boom")):
         exam = await update_exam(db, exam_id=exam.id, school_id=school.id, status="completed")
-        assert exam.status == "completed"
+        assert exam.status == "reviewing"
 
 
 @pytest.mark.asyncio

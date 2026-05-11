@@ -994,6 +994,7 @@ async def _upsert_ai_result(db, task, result_dict):
 async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None = None) -> None:
     """Process a single grading task: load answers, call LLM in micro-batches, save results."""
     from edu_cloud.logging_config import trace_id_var, request_id_var, current_user_var, current_school_var
+    from edu_cloud.core.tenant_registry import set_tenant
 
     # Restore trace context propagated from the API request
     _ctx_tokens = []
@@ -1006,6 +1007,7 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
         _sid = _trace_ctx.get("school_id")
         if _sid:
             _ctx_tokens.append(current_school_var.set(_sid))
+            set_tenant(_sid)
 
     task_start = time.perf_counter()
     logger.info("grading_task START: task=%s", task_id)
@@ -1330,7 +1332,8 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             await llm.close()
         if local_engine is not None:
             await local_engine.dispose()
-        # Reset trace context tokens
+        from edu_cloud.core.tenant_registry import clear_tenant
+        clear_tenant()
         for _tok in _ctx_tokens:
             _tok.var.reset(_tok)
 

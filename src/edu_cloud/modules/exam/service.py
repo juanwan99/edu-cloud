@@ -73,7 +73,7 @@ async def update_exam(
         try:
             validate_transition("exam", exam.status, status)
         except StateError as e:
-            raise ValidationError(str(e)) from e
+            raise ValidationError(f"无效的状态变更: {e}") from e
         changes["status"] = (exam.status, status)
         exam.status = status
     await db.commit()
