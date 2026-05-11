@@ -46,6 +46,7 @@ async def get_invite_info(db: AsyncSession, code: str) -> dict:
         raise NotFoundError("邀请码无效或已失效")
     config, cls, school = row
     return {
+        "class_id": str(config.class_id),
         "class_name": cls.name,
         "school_name": school.name,
         "verify_code_type": config.verify_code_type,

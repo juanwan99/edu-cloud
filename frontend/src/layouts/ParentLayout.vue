@@ -29,7 +29,11 @@
 
           <!-- Content with transition -->
           <main class="parent-content">
-            <router-view v-slot="{ Component }">
+            <div v-if="loadError" class="load-error">
+              <p>{{ loadError }}</p>
+              <n-button size="small" @click="retryInit">重试</n-button>
+            </div>
+            <router-view v-else v-slot="{ Component }">
               <transition name="fade" mode="out-in">
                 <component
                   :is="Component"
@@ -72,7 +76,7 @@ import { ref, computed, onMounted, provide, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { darkTheme } from 'naive-ui'
 import {
-  NConfigProvider, NLayout, NMessageProvider
+  NConfigProvider, NLayout, NMessageProvider, NButton
 } from 'naive-ui'
 import { Home, BarChart3, Star, UserRound, Bell, ChevronDown } from 'lucide-vue-next'
 import { getParentMe, getChildren } from '../api/conduct'
@@ -152,6 +156,7 @@ const currentChildId = ref(null)
 const parentInfo = ref(null)
 const hasUnread = ref(false)
 const showSwitcher = ref(false)
+const loadError = ref('')
 
 const currentChild = computed(() =>
   children.value.find(c => c.student_id === currentChildId.value) || children.value[0] || null
@@ -185,8 +190,12 @@ function isActive(path) {
   return route.path.startsWith(path)
 }
 
-// --- Init ---
-onMounted(async () => {
+async function retryInit() {
+  loadError.value = ''
+  await initLayout()
+}
+
+async function initLayout() {
   const token = localStorage.getItem('cp_token')
   if (!token) {
     router.replace('/parent/login')
@@ -205,9 +214,13 @@ onMounted(async () => {
     if (err.response?.status === 401) {
       localStorage.removeItem('cp_token')
       router.replace('/parent/login')
+    } else {
+      loadError.value = '加载失败，请下拉刷新重试'
     }
   }
-})
+}
+
+onMounted(initLayout)
 </script>
 
 <style scoped>
@@ -348,6 +361,14 @@ onMounted(async () => {
   font-size: var(--p-fs-tab);
   line-height: var(--p-lh-tab);
   margin-top: 2px;
+}
+
+/* Load error */
+.load-error {
+  text-align: center;
+  padding: 60px var(--p-space-4);
+  color: var(--p-text-3);
+  font-size: var(--p-fs-body);
 }
 
 /* Page transition */

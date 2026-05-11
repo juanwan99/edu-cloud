@@ -1,34 +1,21 @@
 <template>
-  <teleport to="body">
-    <transition name="drawer-fade">
-      <div v-if="visible" class="child-switcher-overlay" @click.self="close">
-        <div class="child-switcher-drawer">
-          <div class="child-switcher-header">切换孩子</div>
-          <div class="child-switcher-body">
-            <div v-for="child in children" :key="child.student_id" class="child-item" :class="{ 'child-item--active': child.student_id === currentId }" @click="handleSelect(child.student_id)">
-              <div class="child-avatar" :style="{ background: avatarColor(child.student_name) }">{{ child.student_name?.charAt(0) || '?' }}</div>
-              <div class="child-info">
-                <div class="child-name">{{ child.student_name }}</div>
-                <div class="child-class">{{ child.class_name || '未分配班级' }}</div>
-              </div>
-              <Check v-if="child.student_id === currentId" :size="20" class="child-check" />
+  <transition name="drawer-fade">
+    <div v-if="visible" class="child-switcher-overlay" @click.self="close">
+      <div class="child-switcher-drawer">
+        <div class="child-switcher-header">切换孩子</div>
+        <div class="child-switcher-body">
+          <div v-for="child in children" :key="child.student_id" class="child-item" :class="{ 'child-item--active': child.student_id === currentId }" @click="handleSelect(child.student_id)">
+            <div class="child-avatar" :style="{ background: avatarColor(child.student_name) }">{{ child.student_name?.charAt(0) || '?' }}</div>
+            <div class="child-info">
+              <div class="child-name">{{ child.student_name }}</div>
+              <div class="child-class">{{ child.class_name || '未分配班级' }}</div>
             </div>
+            <Check v-if="child.student_id === currentId" :size="20" class="child-check" />
           </div>
         </div>
       </div>
-    </transition>
-  </teleport>
-  <!-- Inline mirror for test environments where teleport body is not accessible -->
-  <div v-if="visible" class="child-switcher-inline" aria-hidden="true" style="display:contents">
-    <div v-for="child in children" :key="'i-' + child.student_id" class="child-item" :class="{ 'child-item--active': child.student_id === currentId }" @click="handleSelect(child.student_id)">
-      <div class="child-avatar" :style="{ background: avatarColor(child.student_name) }">{{ child.student_name?.charAt(0) || '?' }}</div>
-      <div class="child-info">
-        <div class="child-name">{{ child.student_name }}</div>
-        <div class="child-class">{{ child.class_name || '未分配班级' }}</div>
-      </div>
-      <Check v-if="child.student_id === currentId" :size="20" class="child-check" />
     </div>
-  </div>
+  </transition>
 </template>
 
 <script setup>

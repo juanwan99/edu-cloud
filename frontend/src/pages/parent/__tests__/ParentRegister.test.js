@@ -36,7 +36,7 @@ describe('ParentRegister template sections', () => {
 
   it('has step 2: registration form', () => {
     expect(content).toContain('v-if="step === 2"')
-    expect(content).toContain('v-model:value="regForm.name"')
+    expect(content).toContain('v-model:value="regForm.display_name"')
     expect(content).toContain('v-model:value="regForm.phone"')
     expect(content).toContain('v-model:value="regForm.password"')
   })

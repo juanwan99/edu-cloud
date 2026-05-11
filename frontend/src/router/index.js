@@ -119,10 +119,10 @@ export const routes = [
       { path: 'scores', name: 'ParentScores', component: () => import('../pages/parent/ParentScores.vue') },
       { path: 'conduct', name: 'ParentConduct', component: () => import('../pages/parent/ParentConduct.vue') },
       { path: 'profile', name: 'ParentProfile', component: () => import('../pages/parent/ParentProfile.vue') },
-      // Redirects for old routes
-      { path: 'rankings', redirect: { name: 'ParentConduct' } },
-      { path: 'rules', redirect: { name: 'ParentConduct' } },
-      { path: 'details', redirect: { name: 'ParentConduct' } },
+      // Redirects for old routes — preserve semantic via query tab
+      { path: 'rankings', redirect: { name: 'ParentConduct', query: { tab: 'rankings' } } },
+      { path: 'rules', redirect: { name: 'ParentConduct', query: { tab: 'rules' } } },
+      { path: 'details', redirect: { name: 'ParentConduct', query: { tab: 'records' } } },
     ]
   },
 

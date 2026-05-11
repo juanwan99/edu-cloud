@@ -1,6 +1,6 @@
 <template>
-  <n-config-provider :theme="darkTheme" :theme-overrides="authThemeOverrides">
-    <div class="auth-page" data-theme="dark">
+  <n-config-provider :theme="naiveTheme" :theme-overrides="themeOverrides">
+    <div class="auth-page" :data-theme="effectiveTheme">
       <div class="auth-brand">
         <h1 class="auth-brand__title">绑定孩子</h1>
         <p class="auth-brand__sub">完成绑定即可查看孩子信息</p>
@@ -86,28 +86,14 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
-import { darkTheme } from 'naive-ui'
 import {
   NConfigProvider, NForm, NFormItem, NInput, NButton,
   NAlert
 } from 'naive-ui'
 import { bindChild } from '../../api/conduct'
+import { useParentTheme } from '../../components/parent/useParentTheme'
 
-const authThemeOverrides = {
-  common: {
-    primaryColor: '#F4DA4C',
-    primaryColorHover: '#E8CF40',
-    primaryColorPressed: '#D4B830',
-    primaryColorSuppl: '#F4DA4C',
-    bodyColor: '#09061B',
-    cardColor: '#181433',
-    textColor1: '#F6F3FF',
-    textColor2: '#C9C2DD',
-    textColor3: '#9B93B5',
-    borderColor: 'rgba(255,255,255,0.08)',
-    inputColor: '#121026',
-  },
-}
+const { effectiveTheme, naiveTheme, themeOverrides } = useParentTheme()
 
 const router = useRouter()
 const formRef = ref(null)
@@ -151,6 +137,7 @@ const verifyHint = computed(() => {
 })
 
 const form = ref({
+  class_id: localStorage.getItem('cp_class_id') || '',
   student_name: '',
   verify_code: '',
   relationship: null,

@@ -109,7 +109,8 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   NTag, NCollapse, NCollapseItem, NButton,
   NRadioGroup, NRadioButton, NInput
@@ -121,11 +122,15 @@ import ParentEmpty from '../../components/parent/ParentEmpty.vue'
 import NumberRoll from '../../components/parent/NumberRoll.vue'
 import { getChildRecords, getChildRankings, getClassRulesParent } from '../../api/conduct'
 
+const route = useRoute()
+
 const props = defineProps({
   currentChild: { type: Object, default: null },
 })
 
-const segment = ref('records')
+const validSegments = ['records', 'rankings', 'rules']
+const initTab = validSegments.includes(route.query.tab) ? route.query.tab : 'records'
+const segment = ref(initTab)
 const segments = [
   { label: '记录', value: 'records' },
   { label: '排名', value: 'rankings' },
@@ -159,7 +164,7 @@ const myRanking = computed(() => rankings.value.find(r => r.student_id === props
 const rankingsTotal = computed(() => rankings.value.length)
 const percentile = computed(() => {
   if (!myRanking.value || !rankingsTotal.value) return 0
-  return Math.round((1 - (myRanking.value.rank - 1) / rankingsTotal.value) * 100)
+  return Math.round((myRanking.value.rank / rankingsTotal.value) * 100)
 })
 const rankChangeClass = computed(() => {
   if (!myRanking.value?.previous_rank) return ''

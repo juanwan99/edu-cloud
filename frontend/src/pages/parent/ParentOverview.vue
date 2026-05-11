@@ -218,7 +218,7 @@ async function loadData() {
       const rankings = Array.isArray(data) ? data : []
       const myEntry = rankings.find(r => r.student_id === child.student_id)
       if (myEntry && rankings.length > 0) {
-        classPercentile.value = Math.round((1 - (myEntry.rank - 1) / rankings.length) * 100)
+        classPercentile.value = Math.round((myEntry.rank / rankings.length) * 100)
         rankChange.value = myEntry.previous_rank ? myEntry.previous_rank - myEntry.rank : null
         totalPoints.value = myEntry.total_points ?? 0
       }

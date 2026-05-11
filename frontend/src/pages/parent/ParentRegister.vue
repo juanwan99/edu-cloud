@@ -1,6 +1,6 @@
 <template>
-  <n-config-provider :theme="darkTheme" :theme-overrides="authThemeOverrides">
-    <div class="auth-page" data-theme="dark">
+  <n-config-provider :theme="naiveTheme" :theme-overrides="themeOverrides">
+    <div class="auth-page" :data-theme="effectiveTheme">
       <div class="auth-brand">
         <h1 class="auth-brand__title">家长注册</h1>
         <p class="auth-brand__sub">edu-cloud 教育云平台</p>
@@ -35,8 +35,8 @@
             班级: {{ classInfo.school_name }} - {{ classInfo.class_name }}
           </n-alert>
           <n-form :model="regForm" :rules="regRules" ref="regFormRef">
-            <n-form-item label="姓名" path="name">
-              <n-input v-model:value="regForm.name" placeholder="请输入您的姓名" size="large" />
+            <n-form-item label="姓名" path="display_name">
+              <n-input v-model:value="regForm.display_name" placeholder="请输入您的姓名" size="large" />
             </n-form-item>
             <n-form-item label="手机号" path="phone">
               <n-input v-model:value="regForm.phone" placeholder="请输入手机号" size="large" />
@@ -65,27 +65,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { darkTheme } from 'naive-ui'
 import {
   NConfigProvider, NForm, NFormItem, NInput, NButton, NSelect, NAlert
 } from 'naive-ui'
 import { getInviteInfo, parentRegister } from '../../api/conduct'
+import { useParentTheme } from '../../components/parent/useParentTheme'
 
-const authThemeOverrides = {
-  common: {
-    primaryColor: '#F4DA4C',
-    primaryColorHover: '#E8CF40',
-    primaryColorPressed: '#D4B830',
-    primaryColorSuppl: '#F4DA4C',
-    bodyColor: '#09061B',
-    cardColor: '#181433',
-    textColor1: '#F6F3FF',
-    textColor2: '#C9C2DD',
-    textColor3: '#9B93B5',
-    borderColor: 'rgba(255,255,255,0.08)',
-    inputColor: '#121026',
-  },
-}
+const { effectiveTheme, naiveTheme, themeOverrides } = useParentTheme()
 
 const router = useRouter()
 const route = useRoute()
@@ -103,13 +89,13 @@ const inviteRules = {
 }
 
 const regForm = ref({
-  name: '',
+  display_name: '',
   phone: '',
   password: '',
   relationship: null,
 })
 const regRules = {
-  name: { required: true, message: '请输入姓名', trigger: 'blur' },
+  display_name: { required: true, message: '请输入姓名', trigger: 'blur' },
   phone: { required: true, message: '请输入手机号', trigger: 'blur' },
   password: { required: true, message: '请输入密码', trigger: 'blur', min: 6 },
   relationship: { required: true, message: '请选择关系', trigger: 'change' },
@@ -160,6 +146,7 @@ async function handleRegister() {
       invite_code: inviteForm.value.code,
     })
     localStorage.setItem('cp_token', res.data.access_token)
+    localStorage.setItem('cp_class_id', classInfo.value.class_id || '')
     router.push('/parent/bind')
   } catch (err) {
     window.$message?.error(err.response?.data?.detail || '注册失败')

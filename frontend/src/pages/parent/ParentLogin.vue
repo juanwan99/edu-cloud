@@ -1,6 +1,6 @@
 <template>
-  <n-config-provider :theme="darkTheme" :theme-overrides="authThemeOverrides">
-    <div class="auth-page" data-theme="dark">
+  <n-config-provider :theme="naiveTheme" :theme-overrides="themeOverrides">
+    <div class="auth-page" :data-theme="effectiveTheme">
       <div class="auth-brand">
         <h1 class="auth-brand__title">家校互通</h1>
         <p class="auth-brand__sub">edu-cloud 教育云平台</p>
@@ -61,27 +61,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { darkTheme } from 'naive-ui'
 import { NConfigProvider, NForm, NFormItem, NInput, NButton, NCheckbox, NAlert } from 'naive-ui'
 import { parentLogin } from '../../api/conduct'
+import { useParentTheme } from '../../components/parent/useParentTheme'
 
+const { effectiveTheme, naiveTheme, themeOverrides } = useParentTheme()
 const REMEMBER_KEY = 'parent_remembered_phone'
-
-const authThemeOverrides = {
-  common: {
-    primaryColor: '#F4DA4C',
-    primaryColorHover: '#E8CF40',
-    primaryColorPressed: '#D4B830',
-    primaryColorSuppl: '#F4DA4C',
-    bodyColor: '#09061B',
-    cardColor: '#181433',
-    textColor1: '#F6F3FF',
-    textColor2: '#C9C2DD',
-    textColor3: '#9B93B5',
-    borderColor: 'rgba(255,255,255,0.08)',
-    inputColor: '#121026',
-  },
-}
 
 const router = useRouter()
 const formRef = ref(null)

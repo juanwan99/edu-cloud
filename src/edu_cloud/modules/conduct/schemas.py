@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 # ── Parent Auth ──
 class InviteCodeInfo(BaseModel):
+    class_id: str
     class_name: str
     school_name: str
     verify_code_type: str

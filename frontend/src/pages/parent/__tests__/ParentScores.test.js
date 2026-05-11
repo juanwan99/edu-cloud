@@ -34,7 +34,7 @@ describe('ParentScores smoke', () => {
 
 describe('ParentScores segmented control', () => {
   it('has NSegmented with exam/subject options', () => {
-    expect(content).toContain('n-segmented v-model:value="segment"')
+    expect(content).toContain('n-radio-group v-model:value="segment"')
     expect(content).toContain("{ label: '考试', value: 'exam' }")
     expect(content).toContain("{ label: '学科', value: 'subject' }")
   })
