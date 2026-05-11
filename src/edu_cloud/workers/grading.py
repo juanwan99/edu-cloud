@@ -9,7 +9,7 @@ import logging
 import time
 import aiofiles
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from edu_cloud.config import settings
@@ -939,11 +939,46 @@ async def _upsert_ai_result(db, task, result_dict):
         )
         return "skipped_confirmed"
     elif existing:
-        for k, v in ai_fields.items():
-            setattr(existing, k, v)
-        existing.max_score = result_dict["max_score"]
-        existing.status = "ai_done"
-        existing.version += 1
+        # CAS update: only succeed if version has not changed since we loaded it
+        loaded_version = existing.version
+        cas_result = await db.execute(
+            update(GradingResult)
+            .where(
+                GradingResult.id == existing.id,
+                GradingResult.version == loaded_version,
+            )
+            .values(
+                **ai_fields,
+                max_score=result_dict["max_score"],
+                status="ai_done",
+                version=loaded_version + 1,
+            )
+        )
+        if cas_result.rowcount == 0:
+            # Version conflict — re-read and check if confirmed
+            logger.warning("grading_version_conflict: answer=%s, loaded_version=%d, re-reading", answer_id, loaded_version)
+            await db.refresh(existing)
+            if existing.status == "confirmed":
+                logger.warning("grading_isolation: answer=%s became confirmed during CAS retry, skipping", answer_id)
+                return "skipped_confirmed"
+            # Retry once with fresh version
+            retry_result = await db.execute(
+                update(GradingResult)
+                .where(
+                    GradingResult.id == existing.id,
+                    GradingResult.version == existing.version,
+                )
+                .values(
+                    **ai_fields,
+                    max_score=result_dict["max_score"],
+                    status="ai_done",
+                    version=existing.version + 1,
+                )
+            )
+            if retry_result.rowcount == 0:
+                logger.error("grading_version_conflict: answer=%s, retry also failed, giving up", answer_id)
+                return "version_conflict"
+        await db.flush()
     else:
         db.add(GradingResult(
             answer_id=answer_id,
@@ -985,15 +1020,23 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
     llm = None
     try:
         async with session_factory() as db:
-            # Load task
+            # Atomically claim task: CAS pending → processing
+            claim_result = await db.execute(
+                update(GradingTask)
+                .where(GradingTask.id == task_id, GradingTask.status == "pending")
+                .values(status="processing")
+            )
+            await db.commit()
+            if claim_result.rowcount == 0:
+                # Task was already claimed by another worker, or cancelled
+                check = await db.execute(select(GradingTask.status).where(GradingTask.id == task_id))
+                current_status = check.scalar_one_or_none()
+                logger.info("grading_task: task=%s not claimable (current_status=%s), skipping", task_id, current_status)
+                return
+            # Re-read full task object after successful claim
             result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
             task = result.scalar_one()
-            if task.status == "cancelled":
-                logger.info("grading_task: task=%s already cancelled, skipping", task_id)
-                return
-            task.status = "processing"
-            await db.commit()
-            logger.info("grading_task: task=%s, subject=%s, status→processing", task_id, task.subject_id)
+            logger.info("grading_task: task=%s, subject=%s, status→processing (CAS claimed)", task_id, task.subject_id)
 
             # Resolve LLM config: school override → platform default → .env fallback
             from edu_cloud.modules.exam.slot_selector import get_llm_config, SLOT_AI_GRADING
