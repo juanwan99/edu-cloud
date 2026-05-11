@@ -22,14 +22,20 @@ export function createSSEProcessor(handlers = {}) {
       const event = JSON.parse(jsonStr)
       if (event.type === 'answer') {
         handlers.onAnswer?.(event.data?.content || '')
+      } else if (event.type === 'thinking') {
+        handlers.onThinking?.(event.data?.content || '')
+      } else if (event.type === 'plan') {
+        handlers.onPlan?.(event.data?.tasks || [])
+      } else if (event.type === 'task_update') {
+        handlers.onTaskUpdate?.(event.data)
       } else if (event.type === 'tool_call') {
-        handlers.onToolCall?.(event.data?.tool)
+        handlers.onToolCall?.(event.data?.tool, event.data?.arguments)
       } else if (event.type === 'tool_result') {
-        handlers.onToolResult?.(event.data?.tool)
+        handlers.onToolResult?.(event.data?.tool, event.data?.result)
       } else if (event.type === 'error') {
         handlers.onError?.(event.data?.message || 'Unknown error')
       } else if (event.type === 'done') {
-        handlers.onDone?.(event.session_id)
+        handlers.onDone?.(event.data?.session_id)
       }
     } catch { /* ignore malformed JSON */ }
   }

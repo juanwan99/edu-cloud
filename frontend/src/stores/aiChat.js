@@ -59,6 +59,14 @@ export const useAiChatStore = defineStore('aiChat', () => {
       messages.value.push(assistantMsg)
 
       const processor = createSSEProcessor({
+        onThinking(text) { assistantMsg.thinking = (assistantMsg.thinking || '') + text + '\n' },
+        onPlan(tasks) { assistantMsg.plan = tasks },
+        onTaskUpdate(data) {
+          if (assistantMsg.plan) {
+            const t = assistantMsg.plan.find(x => x.id === data.id)
+            if (t) t.status = data.status
+          }
+        },
         onAnswer(content) { assistantMsg.content += content },
         onToolCall(tool) { assistantMsg.tools.push({ name: tool, status: 'running' }) },
         onToolResult(tool) {

@@ -66,7 +66,7 @@ describe('createSSEProcessor (real import)', () => {
 
   it('captures session_id from done event', () => {
     const result = processChunks([
-      'data: {"type":"done","session_id":"sess-abc"}\n',
+      'data: {"type":"done","data":{"session_id":"sess-abc"}}\n',
     ])
     expect(result.sessionId).toBe('sess-abc')
   })
@@ -114,7 +114,7 @@ describe('createSSEProcessor (real import)', () => {
       'data: {"type":"tool_call","data":{"tool":"exam_list"}}\n',
       'data: {"type":"tool_result","data":{"tool":"exam_list"}}\n',
       'data: {"type":"answer","data":{"content":"Found 3 exams."}}\n',
-      'data: {"type":"done","session_id":"s-final"}\n',
+      'data: {"type":"done","data":{"session_id":"s-final"}}\n',
     ])
     expect(result.tools).toHaveLength(1)
     expect(result.tools[0].status).toBe('done')
