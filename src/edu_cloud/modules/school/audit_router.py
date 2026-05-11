@@ -37,24 +37,29 @@ async def api_list_audit_logs(
     db: AsyncSession = Depends(get_db),
 ):
     _check_school_scope(current, school_id)
-    logs = await list_audit_logs(
+    logs, total = await list_audit_logs(
         db, school_id=school_id,
         entity_type=entity_type, user_id=user_id, action=action,
         start_date=start_date, end_date=end_date,
         limit=limit, offset=offset,
     )
-    return [
-        {
-            "id": log.id,
-            "school_id": log.school_id,
-            "user_id": log.user_id,
-            "entity_type": log.entity_type,
-            "entity_id": log.entity_id,
-            "action": log.action,
-            "before_data": log.before_data,
-            "after_data": log.after_data,
-            "request_id": log.request_id,
-            "created_at": log.created_at.isoformat() if log.created_at else None,
-        }
-        for log in logs
-    ]
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "items": [
+            {
+                "id": log.id,
+                "school_id": log.school_id,
+                "user_id": log.user_id,
+                "entity_type": log.entity_type,
+                "entity_id": log.entity_id,
+                "action": log.action,
+                "before_data": log.before_data,
+                "after_data": log.after_data,
+                "request_id": log.request_id,
+                "created_at": log.created_at.isoformat() if log.created_at else None,
+            }
+            for log in logs
+        ],
+    }

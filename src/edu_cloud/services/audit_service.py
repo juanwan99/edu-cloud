@@ -2,7 +2,7 @@ import functools
 import logging
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.models.audit_log import AuditLog
@@ -63,21 +63,23 @@ async def list_audit_logs(
     end_date: str | None = None,
     limit: int = 50,
     offset: int = 0,
-) -> list[AuditLog]:
-    stmt = select(AuditLog).where(AuditLog.school_id == school_id)
+) -> tuple[list[AuditLog], int]:
+    base = select(AuditLog).where(AuditLog.school_id == school_id)
     if entity_type:
-        stmt = stmt.where(AuditLog.entity_type == entity_type)
+        base = base.where(AuditLog.entity_type == entity_type)
     if user_id:
-        stmt = stmt.where(AuditLog.user_id == user_id)
+        base = base.where(AuditLog.user_id == user_id)
     if action:
-        stmt = stmt.where(AuditLog.action == action)
+        base = base.where(AuditLog.action == action)
     if start_date:
-        stmt = stmt.where(AuditLog.created_at >= start_date)
+        base = base.where(AuditLog.created_at >= start_date)
     if end_date:
-        stmt = stmt.where(AuditLog.created_at <= end_date)
-    stmt = stmt.order_by(AuditLog.created_at.desc()).offset(offset).limit(limit)
+        base = base.where(AuditLog.created_at <= end_date)
+    count_result = await db.execute(select(func.count()).select_from(base.subquery()))
+    total = count_result.scalar() or 0
+    stmt = base.order_by(AuditLog.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    return list(result.scalars().all()), total
 
 
 def audited(entity_type: str, *, action: str = "create", id_param: str = "entity_id"):

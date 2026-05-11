@@ -6,7 +6,9 @@ async def test_list_audit_logs_empty(client, admin_headers, seed_school):
     school, _ = seed_school
     resp = await client.get(f"/api/v1/schools/{school.id}/audit-logs", headers=admin_headers)
     assert resp.status_code == 200
-    assert resp.json() == []
+    body = resp.json()
+    assert body["total"] == 0
+    assert body["items"] == []
 
 
 @pytest.mark.asyncio
@@ -19,7 +21,7 @@ async def test_list_audit_logs_after_setting_change(client, admin_headers, seed_
     )
     resp = await client.get(f"/api/v1/schools/{school.id}/audit-logs", headers=admin_headers)
     assert resp.status_code == 200
-    data = resp.json()
+    data = resp.json()["items"]
     assert len(data) >= 1
     assert data[0]["entity_type"] == "school_setting"
 
@@ -36,12 +38,10 @@ async def test_audit_log_captures_user_and_request_id(client, admin_headers, see
     )
     resp = await client.get(f"/api/v1/schools/{school.id}/audit-logs", headers=admin_headers)
     assert resp.status_code == 200
-    data = resp.json()
+    data = resp.json()["items"]
     assert len(data) >= 1
-    # F-06: user_id should be the admin user's ID (not None, not "-")
     assert data[0]["user_id"] is not None
     assert data[0]["user_id"] != "-"
-    # F-06: request_id should be the custom header we sent
     assert data[0]["request_id"] == "f06-test-req-id"
 
 
@@ -64,7 +64,7 @@ async def test_list_audit_logs_filter_entity_type(client, admin_headers, seed_sc
         headers=admin_headers,
     )
     assert resp.status_code == 200
-    data = resp.json()
+    data = resp.json()["items"]
     assert all(d["entity_type"] == "school_setting" for d in data)
 
 
@@ -83,14 +83,16 @@ async def test_list_audit_logs_pagination(client, admin_headers, seed_school):
         headers=admin_headers,
     )
     assert resp.status_code == 200
-    assert len(resp.json()) == 2
+    body = resp.json()
+    assert len(body["items"]) == 2
+    assert body["total"] >= 5
 
     resp = await client.get(
         f"/api/v1/schools/{school.id}/audit-logs?limit=2&offset=3",
         headers=admin_headers,
     )
     assert resp.status_code == 200
-    assert len(resp.json()) == 2
+    assert len(resp.json()["items"]) == 2
 
 
 @pytest.mark.asyncio
@@ -103,29 +105,26 @@ async def test_list_audit_logs_date_filter(client, admin_headers, seed_school):
         headers=admin_headers,
     )
 
-    # Future date → should return 0 results
     resp = await client.get(
         f"/api/v1/schools/{school.id}/audit-logs?start_date=2099-01-01T00:00:00",
         headers=admin_headers,
     )
     assert resp.status_code == 200
-    assert len(resp.json()) == 0
+    assert resp.json()["total"] == 0
 
-    # Past date as end_date → should return 0 results
     resp = await client.get(
         f"/api/v1/schools/{school.id}/audit-logs?end_date=2000-01-01T00:00:00",
         headers=admin_headers,
     )
     assert resp.status_code == 200
-    assert len(resp.json()) == 0
+    assert resp.json()["total"] == 0
 
-    # Wide range → should include the setting change
     resp = await client.get(
         f"/api/v1/schools/{school.id}/audit-logs?start_date=2020-01-01T00:00:00&end_date=2099-12-31T23:59:59",
         headers=admin_headers,
     )
     assert resp.status_code == 200
-    assert len(resp.json()) >= 1
+    assert resp.json()["total"] >= 1
 
 
 @pytest.mark.asyncio
