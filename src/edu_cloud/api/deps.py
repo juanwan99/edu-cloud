@@ -10,6 +10,7 @@ from edu_cloud.shared.auth import decode_token
 from jwt import ExpiredSignatureError, InvalidTokenError as JWTError
 
 from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
+from edu_cloud.core.tenant_registry import set_tenant
 from edu_cloud.services.exceptions import PermissionDeniedError
 
 # Allowlist: only these permissions survive during impersonation.
@@ -114,6 +115,8 @@ async def get_current_user(
 
         full_perms = ROLE_PERMISSIONS.get(effective_role, set())
         read_only_perms = full_perms & _IMPERSONATION_ALLOWED_PERMISSIONS
+        # Set tenant context for audit listener
+        set_tenant(effective_school_id)
         return {
             "user": user,
             "roles": [],
@@ -146,6 +149,11 @@ async def get_current_user(
 
         if active is None:
             active = roles[0]
+
+        # Set tenant context for audit listener (None for cross-school roles)
+        from edu_cloud.core.tenant import CROSS_SCHOOL_ROLES
+        tenant_school_id = None if active.role in CROSS_SCHOOL_ROLES else active.school_id
+        set_tenant(tenant_school_id)
 
         return {
             "user": user,

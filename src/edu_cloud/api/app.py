@@ -332,6 +332,9 @@ def create_app() -> FastAPI:
             if imp_token:
                 from edu_cloud.logging_config import impersonator_var
                 impersonator_var.reset(imp_token)
+            # Clear tenant context to prevent leaking across requests
+            from edu_cloud.core.tenant_registry import clear_tenant
+            clear_tenant()
 
     # ── Route registration (all routers from registry) ──
     from edu_cloud.api.router_registry import register_all
