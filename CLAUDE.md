@@ -192,7 +192,7 @@ frontend/src/
       NotificationBell.vue  # 通知铃铛（NBadge + NPopover，占位）
     ai/
       AiFloatingButton.vue  # 右下角 AI 助手浮动按钮（权限 use_ai_chat 控制可见性）
-      AiSlidePanel.vue      # 右侧 400px 滑出 AI 面板（路由变化自动关闭）
+      AiSlidePanel.vue      # 右侧 420px 滑出 AI 聊天面板（SSE 流式 + tool_call 展示 + thinking/plan 显示）
     CardEditor.vue          # 可视化答题卡编辑器（封装 card-editor/）
     TemplatePreviewEditor.vue # 扫描模板区域编辑器（检测结果叠加+拖拽/缩放/分割，A/B双面）
     RubricEditor.vue        # 评分细则展示/编辑（v-model criteria 数组，分值合计校验）
