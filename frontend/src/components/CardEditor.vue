@@ -476,7 +476,7 @@ onMounted(async () => {
   const link = document.createElement('link')
   link.id = 'card-editor-styles'
   link.rel = 'stylesheet'
-  link.href = '/card-editor/styles-d0da20b6.css?v=' + Date.now()
+  link.href = '/card-editor/styles.css?v=' + Date.now()
   document.head.appendChild(link)
 
   // Initialize global state

@@ -29,6 +29,7 @@ export function applyCSSToPage(el, v) {
   s.setProperty('--example-width', v.exampleWidth + 'mm');
   s.setProperty('--notice-border-width', v.noticeBorderWidth + 'px');
   s.setProperty('--absent-padding', v.absentPadding + 'mm 2mm');
+  s.setProperty('--choice-row-gap', (v.choiceRowGap ?? 0.3) + 'px');
   el.dataset.paper = v.paperSize;
   const zoom = v.zoom / 100;
   el.style.transform = `scale(${zoom})`;
@@ -40,7 +41,7 @@ export function applyCSSToPage(el, v) {
 
 function buildChoiceGroupsHTML(v) {
   const symbols = 'ABCDEFGH';
-  const perRow = Math.max(v.choicePerRow || 16, 16);
+  const perRow = v.choicePerRow || 20;
   const configGroups = v.choiceGroups || [];
   const choices = window._choices || [];
 
