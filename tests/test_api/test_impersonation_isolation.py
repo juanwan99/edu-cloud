@@ -4,11 +4,9 @@ from edu_cloud.api.deps import _IMPERSONATION_ALLOWED_PERMISSIONS
 
 
 def test_impersonation_allowed_are_read_only():
-    """allowlist 只包含查看/消费类权限。"""
+    """allowlist 只包含查看类权限（view_* only）。"""
     for p in _IMPERSONATION_ALLOWED_PERMISSIONS:
-        assert (
-            "view" in p.value or "use" in p.value or p == Permission.GENERATE_REPORT
-        ), f"{p} should be read-only"
+        assert "view" in p.value, f"{p} should be a view-only permission"
 
 
 def test_impersonation_retains_view_permissions():

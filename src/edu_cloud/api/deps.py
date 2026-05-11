@@ -13,6 +13,8 @@ from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
 from edu_cloud.services.exceptions import PermissionDeniedError
 
 # Allowlist: only these permissions survive during impersonation.
+# H-1: USE_AI_CHAT and GENERATE_REPORT removed — AI chat grants access to
+# the full data domain, and report generation is a write-equivalent operation.
 _IMPERSONATION_ALLOWED_PERMISSIONS = {
     Permission.VIEW_SCHOOLS,
     Permission.VIEW_JOINT_EXAM,
@@ -25,8 +27,6 @@ _IMPERSONATION_ALLOWED_PERMISSIONS = {
     Permission.VIEW_HOMEWORK,
     Permission.VIEW_KNOWLEDGE_TREE,
     Permission.VIEW_CONDUCT,
-    Permission.USE_AI_CHAT,
-    Permission.GENERATE_REPORT,
 }
 from edu_cloud.logging_config import business_event
 
@@ -56,36 +56,19 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """平台用户认证（JWT）。返回 dict 含 user/roles/current_role/permissions。"""
-    _expired_impersonation = False
     try:
         payload = decode_token(credentials.credentials)
     except ExpiredSignatureError:
-        # Allow expired impersonation tokens ONLY for the exit endpoint
-        import jwt as pyjwt
-        from edu_cloud.config import settings
-        try:
-            payload = pyjwt.decode(
-                credentials.credentials,
-                settings.SECRET_KEY,
-                algorithms=[settings.ALGORITHM],
-                options={"verify_exp": False},
-            )
-        except JWTError:
-            raise HTTPException(401, "Token expired")
-        if not payload.get("is_impersonation"):
-            raise HTTPException(401, "Token expired")
-        _expired_impersonation = True
+        # C-1 fix: expired tokens are always rejected, including impersonation.
+        # Impersonation tokens have a 30-min hard expiry; there is no grace period.
+        logger.info("token_expired: impersonation or normal token rejected")
+        raise HTTPException(401, "Token expired")
     except JWTError:
         raise HTTPException(401, "Invalid token")
 
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(401, "Invalid token")
-
-    # Expired impersonation tokens can ONLY enter the impersonation branch
-    # (for exit endpoint). Normal business endpoints reject them.
-    if _expired_impersonation and not payload.get("is_impersonation"):
-        raise HTTPException(401, "Token expired")
 
     # ── Impersonation 分支 ──
     if payload.get("is_impersonation"):

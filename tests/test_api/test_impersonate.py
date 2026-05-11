@@ -271,28 +271,88 @@ def test_data_scope_override_teaching_research_leader():
 
 
 @pytest.mark.asyncio
-async def test_expired_impersonation_token_rejected_by_normal_endpoint(client: AsyncClient):
-    """F-004: Expired impersonation token must be rejected by non-exit endpoints."""
-    import time
-    import jwt
+async def test_expired_impersonation_token_rejected(client, admin_user):
+    """C-1: Expired impersonation token must be rejected with 401, same as normal expired tokens."""
+    import time as _time
     from edu_cloud.config import settings
 
-    # Create an already-expired impersonation token
+    # Create an already-expired impersonation token for a real admin user
     payload = {
-        "sub": "admin-uuid",
+        "sub": admin_user.id,
         "is_impersonation": True,
-        "impersonator_id": "admin-uuid",
+        "impersonator_id": admin_user.id,
         "effective_role": "subject_teacher",
         "effective_school_id": "school-uuid",
         "scope_override": {"class_ids": ["c1"], "subject_codes": ["math"], "grade_ids": None},
-        "exp": int(time.time()) - 60,  # expired 1 min ago
+        "exp": int(_time.time()) - 60,  # expired 1 min ago
     }
     expired_token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-    # Should be rejected by a normal business endpoint
+    # Must get 401 on any endpoint, not succeed with impersonation permissions
     resp = await client.get(
-        "/api/v1/schools",
+        "/api/v1/dashboard/summary",
         headers={"Authorization": f"Bearer {expired_token}"},
     )
-    # Must get 401 (not 403 or 200)
+    assert resp.status_code == 401, (
+        f"Expired impersonation token should be rejected, got {resp.status_code}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_expired_impersonation_token_rejected_on_exit(client, admin_user):
+    """C-1: Expired impersonation token must also be rejected on the exit endpoint."""
+    import time as _time
+    from edu_cloud.config import settings
+
+    payload = {
+        "sub": admin_user.id,
+        "is_impersonation": True,
+        "impersonator_id": admin_user.id,
+        "effective_role": "principal",
+        "effective_school_id": "school-uuid",
+        "scope_override": {"class_ids": None, "subject_codes": None, "grade_ids": None},
+        "exp": int(_time.time()) - 60,
+    }
+    expired_token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+    resp = await client.post(
+        "/api/v1/auth/impersonate/exit",
+        headers={"Authorization": f"Bearer {expired_token}"},
+    )
     assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_impersonation_cannot_use_ai_chat(client, admin_user):
+    """H-1: Impersonation must not grant USE_AI_CHAT permission."""
+    from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
+    from edu_cloud.api.deps import _IMPERSONATION_ALLOWED_PERMISSIONS
+
+    # USE_AI_CHAT must not be in the allowlist
+    assert Permission.USE_AI_CHAT not in _IMPERSONATION_ALLOWED_PERMISSIONS
+
+    # Verify at runtime: create impersonation token for a role that normally has USE_AI_CHAT
+    imp_token = create_impersonation_token(
+        impersonator_id=admin_user.id,
+        effective_role="subject_teacher",
+        effective_school_id="test-school-id",
+        scope_override={"class_ids": ["c1"], "subject_codes": ["math"], "grade_ids": None},
+    )
+    # AI chat endpoint should reject impersonation user
+    resp = await client.post(
+        "/api/v1/ai/chat",
+        json={"message": "test"},
+        headers={"Authorization": f"Bearer {imp_token}"},
+    )
+    # 403 = permission denied (not 200 or 500)
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_impersonation_cannot_generate_report(client, admin_user):
+    """H-1: Impersonation must not grant GENERATE_REPORT permission."""
+    from edu_cloud.core.permissions import Permission
+    from edu_cloud.api.deps import _IMPERSONATION_ALLOWED_PERMISSIONS
+
+    # GENERATE_REPORT must not be in the allowlist
+    assert Permission.GENERATE_REPORT not in _IMPERSONATION_ALLOWED_PERMISSIONS
