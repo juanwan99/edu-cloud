@@ -82,18 +82,19 @@ async def test_list_audit_logs(db, seed_school):
         entity_type="teacher_assignment", entity_id="e2", action="delete",
     )
 
-    logs = await list_audit_logs(db, school_id=school.id)
+    logs, total = await list_audit_logs(db, school_id=school.id)
     assert len(logs) == 2
+    assert total == 2
 
-    logs = await list_audit_logs(db, school_id=school.id, entity_type="school_setting")
+    logs, total = await list_audit_logs(db, school_id=school.id, entity_type="school_setting")
     assert len(logs) == 1
     assert logs[0].entity_type == "school_setting"
 
-    logs = await list_audit_logs(db, school_id=school.id, action="delete")
+    logs, total = await list_audit_logs(db, school_id=school.id, action="delete")
     assert len(logs) == 1
     assert logs[0].action == "delete"
 
-    logs = await list_audit_logs(db, school_id=school.id, user_id=user.id)
+    logs, total = await list_audit_logs(db, school_id=school.id, user_id=user.id)
     assert len(logs) == 2
 
 
