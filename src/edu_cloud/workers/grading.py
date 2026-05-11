@@ -1030,7 +1030,7 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             claim_result = await db.execute(
                 update(GradingTask)
                 .where(GradingTask.id == task_id, GradingTask.status == "pending")
-                .values(status="processing")
+                .values(status="processing", completed=0, failed=0)
             )
             await db.commit()
             if claim_result.rowcount == 0:
@@ -1330,6 +1330,21 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             elapsed = time.perf_counter() - task_start
             logger.info("grading_task DONE: task=%s, status=%s, completed=%d, failed=%d, elapsed=%.1fs",
                         task_id, task.status, task.completed, task.failed, elapsed)
+    except (Exception, asyncio.CancelledError) as exc:
+        logger.error("grading_task CRASH: task=%s, %s: %s", task_id, type(exc).__name__, exc)
+        try:
+            async with session_factory() as rescue_db:
+                await rescue_db.execute(
+                    update(GradingTask)
+                    .where(GradingTask.id == task_id, GradingTask.status == "processing")
+                    .values(status="failed", error_log=[f"worker crash: {type(exc).__name__}: {exc}"])
+                )
+                await rescue_db.commit()
+                logger.info("grading_task: rescued task=%s → failed", task_id)
+        except Exception as rescue_exc:
+            logger.error("grading_task: rescue failed for task=%s: %s", task_id, rescue_exc)
+        if not isinstance(exc, asyncio.CancelledError):
+            raise
     finally:
         if llm is not None:
             await llm.close()

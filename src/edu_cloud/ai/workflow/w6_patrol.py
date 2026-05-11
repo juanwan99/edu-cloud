@@ -86,9 +86,21 @@ async def scan_grading_overdue(ctx: WorkflowContext) -> dict:
         db.add(finding)
         finding_count += 1
 
+    auto_cancelled = 0
+    for task in tasks:
+        hours_elapsed = (datetime.now(timezone.utc) - _ensure_aware(task.created_at)).total_seconds() / 3600
+        if task.status == "pending" and hours_elapsed > 24:
+            task.status = "cancelled"
+            auto_cancelled += 1
+        elif task.status == "processing" and hours_elapsed > 4:
+            task.status = "failed"
+            task.error_log = [f"auto-timeout: stuck in processing for {hours_elapsed:.0f}h"]
+            auto_cancelled += 1
+
     await db.flush()
-    logger.info("scan_grading_overdue: %d findings for school %s", finding_count, school_id)
-    return {"finding_count": finding_count}
+    logger.info("scan_grading_overdue: %d findings, %d auto-cancelled for school %s",
+                finding_count, auto_cancelled, school_id)
+    return {"finding_count": finding_count, "auto_cancelled": auto_cancelled}
 
 
 # ---------------------------------------------------------------------------

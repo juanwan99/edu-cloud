@@ -225,7 +225,7 @@ async function restoreActiveTasks() {
   try {
     const res = await listTasks({ subject_id: subjectId.value })
     const tasks = res.data || []
-    const running = tasks.filter(t => t.status === 'processing' || t.status === 'pending')
+    const running = tasks.filter(t => t.status === 'processing')
     if (running.length) {
       activeTaskIds = running.map(t => t.id)
       const graded = running.reduce((s, t) => s + (t.completed || 0), 0)

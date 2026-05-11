@@ -1004,6 +1004,12 @@ async def list_grading_tasks(
             .where(Subject.code.in_(visible_subjects))
         )
 
+    from datetime import datetime, timedelta, timezone
+    stale_cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+    q = q.where(~(
+        (GradingTask.status == "pending") & (GradingTask.created_at < stale_cutoff)
+    ))
+
     result = await db.execute(q.order_by(GradingTask.created_at.desc()))
     return [_task_response(t) for t in result.scalars().all()]
 
