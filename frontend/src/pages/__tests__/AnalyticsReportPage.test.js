@@ -46,9 +46,25 @@ vi.mock('vue-echarts', () => ({
   default: { name: 'VChart', template: '<div />', props: ['option'] },
 }))
 
-vi.mock('naive-ui', () => ({
-  useMessage: () => ({ warning: mocks.warning, error: mocks.error }),
-}))
+vi.mock('naive-ui', () => {
+  const stub = (name) => ({ name, template: '<div><slot /></div>', props: { value: null, options: Array } })
+  return {
+    useMessage: () => ({ warning: mocks.warning, error: mocks.error, success: vi.fn(), info: vi.fn() }),
+    NSelect: stub('NSelect'),
+    NButton: stub('NButton'),
+    NCard: stub('NCard'),
+    NSpace: stub('NSpace'),
+    NTabs: stub('NTabs'),
+    NTabPane: stub('NTabPane'),
+    NDataTable: stub('NDataTable'),
+    NSpin: stub('NSpin'),
+    NTag: stub('NTag'),
+    NIcon: stub('NIcon'),
+    NInput: stub('NInput'),
+    NInputNumber: stub('NInputNumber'),
+    NImage: stub('NImage'),
+  }
+})
 
 function basicReportPayload() {
   return {

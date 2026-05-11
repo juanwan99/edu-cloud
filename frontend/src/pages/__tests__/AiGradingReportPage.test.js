@@ -24,9 +24,16 @@ vi.mock('vue-echarts', () => ({
 
 const mockWarning = vi.fn()
 const mockError = vi.fn()
-vi.mock('naive-ui', () => ({
-  useMessage: () => ({ warning: mockWarning, error: mockError }),
-}))
+vi.mock('naive-ui', () => {
+  const stub = (name) => ({ name, template: '<div><slot /></div>', props: { value: null } })
+  return {
+    useMessage: () => ({ warning: mockWarning, error: mockError, success: vi.fn(), info: vi.fn() }),
+    NSelect: stub('NSelect'), NButton: stub('NButton'), NCard: stub('NCard'),
+    NSpace: stub('NSpace'), NTabs: stub('NTabs'), NTabPane: stub('NTabPane'),
+    NDataTable: stub('NDataTable'), NSpin: stub('NSpin'), NTag: stub('NTag'),
+    NInput: stub('NInput'), NImage: stub('NImage'),
+  }
+})
 
 function createWrapper() {
   return mount(AiGradingReportPage, {
