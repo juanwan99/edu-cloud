@@ -60,6 +60,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from edu_cloud.startup_checks import run_startup_checks
+    await run_startup_checks(settings)
+
     # Dev: create tables + seed platform admin
     from edu_cloud.database import engine
     from edu_cloud.models.base import Base

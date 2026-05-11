@@ -1,3 +1,6 @@
+import os
+os.environ["SKIP_STARTUP_CHECKS"] = "1"
+
 import pytest
 import bcrypt
 from httpx import ASGITransport, AsyncClient
