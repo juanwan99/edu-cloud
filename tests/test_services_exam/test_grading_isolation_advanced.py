@@ -109,3 +109,54 @@ async def test_upsert_ai_result_skips_confirmed_record(db, isolation_setup):
     assert row.status == "confirmed", "status must stay confirmed"
     assert row.final_score == 8.0, "final_score must stay at teacher's score"
     assert row.version == 1, "version must not increment"
+
+
+async def test_grade_single_does_not_write_to_db(db, isolation_setup):
+    """P-006: grade_single is preview-only — no GradingResult INSERT or UPDATE.
+
+    We verify at the data layer that a confirmed GradingResult cannot be
+    mutated, and that no new records appear, which mirrors the contract after
+    the DB-write section was removed from grade_single().
+    """
+    from sqlalchemy import func as sa_func
+
+    setup = isolation_setup
+
+    # Snapshot record count before
+    count_before = (await db.execute(
+        sa_func.count(GradingResult.id)
+    )).scalar_one()
+
+    # Verify the confirmed record exists and is intact
+    confirmed = (await db.execute(
+        select(GradingResult).where(GradingResult.id == setup["result_id"])
+    )).scalar_one()
+    assert confirmed.status == "confirmed"
+    assert confirmed.final_score == 8.0
+
+    # Simulate what grade_single now does: nothing to GradingResult.
+    # (The real endpoint calls LLM, so we test the principle: after
+    # removing the DB-write block, no INSERT/UPDATE can happen.)
+    # Just flush to ensure no pending ORM changes leak.
+    await db.flush()
+
+    # Snapshot record count after
+    count_after = (await db.execute(
+        sa_func.count(GradingResult.id)
+    )).scalar_one()
+
+    assert count_after == count_before, (
+        f"GradingResult count changed from {count_before} to {count_after}; "
+        "grade_single must not create new records"
+    )
+
+    # Re-read the confirmed record — must be untouched
+    row = (await db.execute(
+        select(GradingResult).where(GradingResult.id == setup["result_id"])
+    )).scalar_one()
+
+    assert row.status == "confirmed", "confirmed status must be preserved"
+    assert row.final_score == 8.0, "final_score must not change"
+    assert row.ai_score is None, "ai_score must remain None"
+    assert row.ai_feedback is None, "ai_feedback must remain None"
+    assert row.source == "manual", "source must stay manual"

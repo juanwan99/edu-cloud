@@ -391,10 +391,10 @@ async def grade_single_answer(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
-    """对单份答卷同步 AI 评分（用于质量抽检）。
+    """对单份答卷同步 AI 评分（用于质量抽检，preview-only）。
 
     复用 worker 的 OCR→评分 pipeline，但同步返回结果。
-    结果写入 GradingResult(status=ai_done)，同时返回给前端。
+    不写入 GradingResult，仅返回预览数据，避免污染正式阅卷流程。
     """
     import json
     import base64
@@ -640,50 +640,10 @@ async def grade_single_answer(
         "recognizedText": recognized_text,
     }
 
-    # 9. 写入 GradingResult（upsert）
-    existing_gr = (await db.execute(
-        select(GradingResult).where(
-            GradingResult.answer_id == req.answer_id,
-            GradingResult.school_id == school_id,
-        )
-    )).scalar_one_or_none()
-
     feedback = comment or result_data.get("feedback", "")
 
-    if existing_gr:
-        if existing_gr.status == "confirmed":
-            return {
-                "score": result_data["score"],
-                "max_score": result_data["max_score"],
-                "feedback": feedback,
-                "confidence": result_data["confidence"],
-                "details": details,
-                "deductions": deductions,
-                "comment": comment,
-                "recognizedText": recognized_text,
-                "already_confirmed": True,
-            }
-        existing_gr.ai_score = result_data["score"]
-        existing_gr.ai_confidence = result_data["confidence"]
-        existing_gr.ai_feedback = feedback
-        existing_gr.ai_raw_response = ai_raw
-        existing_gr.status = "ai_done"
-    else:
-        gr = GradingResult(
-            answer_id=req.answer_id,
-            question_id=question.id,
-            school_id=school_id,
-            ai_score=result_data["score"],
-            ai_confidence=result_data["confidence"],
-            ai_feedback=feedback,
-            ai_raw_response=ai_raw,
-            max_score=result_data["max_score"],
-            status="ai_done",
-        )
-        db.add(gr)
-
-    await db.commit()
-    logger.info("grade_single: answer=%s, score=%.1f", req.answer_id, result_data["score"])
+    logger.info("grade_single: answer=%s, score=%.1f (preview only, no DB write)",
+                req.answer_id, result_data["score"])
 
     return {
         "score": result_data["score"],
@@ -694,7 +654,6 @@ async def grade_single_answer(
         "deductions": deductions,
         "comment": comment,
         "recognizedText": recognized_text,
-        "already_confirmed": False,
     }
 
 
