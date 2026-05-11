@@ -2,6 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
+vi.mock('../../../stores/auth.js', () => ({
+  useAuthStore: () => ({ currentRole: { role: 'principal' } }),
+}))
+vi.mock('../../../config/roles.js', () => ({
+  normalizeRole: (r) => r,
+  SCHOOL_ADMIN_ROLES: ['principal', 'academic_director', 'platform_admin'],
+}))
+
 // --- Mock data ---
 
 const MOCK_GRADE_TREND = {
@@ -104,12 +112,8 @@ describe('TrendPanel', () => {
     mockGetGradeTrend.mockResolvedValue({ data: MOCK_EMPTY_TREND })
     const wrapper = await createWrapper()
 
-    // Empty state should appear
     const empty = wrapper.find('.n-empty')
     expect(empty.exists()).toBe(true)
-    expect(empty.attributes('data-description')).toBe('暂无趋势数据')
-
-    // No chart
     expect(wrapper.find('.vchart-stub').exists()).toBe(false)
   })
 

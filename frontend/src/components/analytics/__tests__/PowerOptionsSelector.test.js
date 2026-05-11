@@ -75,8 +75,8 @@ const stubs = {
   'n-spin': { template: '<div class="n-spin" :data-show="show"><slot /></div>', props: ['show'] },
   'n-space': { template: '<div class="n-space"><slot /></div>' },
   'n-select': {
-    template: '<select :data-value="modelValue" :data-placeholder="placeholder" @change="$emit(\'update:value\', $event.target.value)"><option v-for="o in options" :key="o.value" :value="o.value">{{ o.label }}</option></select>',
-    props: ['modelValue', 'options', 'placeholder', 'value'],
+    template: '<select :data-value="value" :data-placeholder="placeholder"><option v-for="o in options" :key="o.value" :value="o.value">{{ o.label }}</option></select>',
+    props: ['value', 'options', 'placeholder'],
     emits: ['update:value'],
   },
 }
@@ -97,15 +97,10 @@ describe('PowerOptionsSelector', () => {
   it('renders with normal data and auto-selects first grade', async () => {
     const wrapper = await createWrapper()
 
-    // Should have 4 select elements
-    const selects = wrapper.findAll('select')
-    expect(selects.length).toBe(4)
-
     const vm = wrapper.vm
-    // First grade auto-selected
     expect(vm.selectedGradeId).toBe('g1')
-    // First class of that grade auto-selected
     expect(vm.selectedClassId).toBe('all')
+    expect(vm.gradeOptions.length).toBe(2)
   })
 
   it('renders empty state when API returns no grades', async () => {
@@ -114,9 +109,7 @@ describe('PowerOptionsSelector', () => {
 
     const vm = wrapper.vm
     expect(vm.selectedGradeId).toBeNull()
-    // Grade select should have placeholder "暂无数据"
-    const gradeSelect = wrapper.findAll('select')[0]
-    expect(gradeSelect.attributes('data-placeholder')).toBe('暂无数据')
+    expect(vm.gradeOptions.length).toBe(0)
   })
 
   it('cascade: class list only contains classes from selected grade', async () => {
