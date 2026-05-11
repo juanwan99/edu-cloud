@@ -252,7 +252,7 @@ class TestDispatchStatus:
                 id="gr-chn-2", answer_id="sa-chn-2", question_id="q-chn-essay",
                 school_id=school_id, ai_task_id="gt-chn-done",
                 ai_score=48.0, ai_confidence=0.85, status="ai_done",
-                max_score=60.0, version=1,
+                max_score=60.0, source="ai", version=1,
             ))
 
             # 数学：ai_grading 状态（有答卷+rubric+processing task）

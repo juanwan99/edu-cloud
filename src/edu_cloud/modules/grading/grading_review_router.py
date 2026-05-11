@@ -286,11 +286,12 @@ async def get_dispatch_status(
         gr_stats_rows = (await db.execute(
             select(
                 GradingResult.question_id,
-                func.count(GradingResult.id).filter(GradingResult.ai_score.isnot(None)).label("ai_scored"),
+                func.count(GradingResult.id).filter(
+                    GradingResult.source.in_(["ai", "ai_override"]),
+                ).label("ai_scored"),
                 func.count(GradingResult.id).filter(GradingResult.status == "confirmed").label("confirmed"),
                 func.count(GradingResult.id).filter(
-                    GradingResult.status == "confirmed",
-                    GradingResult.ai_score.is_(None),
+                    GradingResult.source == "manual",
                 ).label("manual_only"),
             ).where(
                 GradingResult.question_id.in_(all_subj_q_ids),

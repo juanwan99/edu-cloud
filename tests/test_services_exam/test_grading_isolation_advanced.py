@@ -258,3 +258,116 @@ async def test_concurrent_submit_prevents_double_confirm(db_engine):
         assert final.final_score is not None
         # At least one should have succeeded
         assert len(successes) >= 1
+
+
+@pytest.fixture
+async def school_and_question(db_engine):
+    """Setup: school -> exam -> subject -> question -> one answer."""
+    from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession, async_sessionmaker
+
+    factory = async_sessionmaker(db_engine, class_=_AsyncSession, expire_on_commit=False)
+    async with factory() as db:
+        school = School(name="P005School", code="P005")
+        db.add(school)
+        await db.commit()
+
+        exam = Exam(name="P005Exam", school_id=school.id)
+        db.add(exam)
+        await db.commit()
+
+        subject = Subject(exam_id=exam.id, name="Math", code="math", school_id=school.id)
+        db.add(subject)
+        await db.commit()
+
+        question = Question(
+            subject_id=subject.id, name="Q1", question_type="essay",
+            max_score=10.0, school_id=school.id,
+        )
+        db.add(question)
+        await db.commit()
+
+        answer = StudentAnswer(
+            exam_id=exam.id, subject_id=subject.id, student_id="stu_p005",
+            question_id=question.id, image_path="/fake/p005.png", school_id=school.id,
+        )
+        db.add(answer)
+        await db.commit()
+
+        return {
+            "school_id": school.id,
+            "exam_id": exam.id,
+            "subject_id": subject.id,
+            "question_id": question.id,
+            "answer_id": answer.id,
+        }
+
+
+@pytest.mark.asyncio
+async def test_dispatch_status_counts_with_mixed_sources(db_engine, school_and_question):
+    """P-005: dispatch stats must use source field, not ai_score IS NOT NULL."""
+    from sqlalchemy import func
+    from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession, async_sessionmaker
+
+    ids = school_and_question
+    from edu_cloud.modules.scan.models import StudentAnswer
+
+    factory = async_sessionmaker(db_engine, class_=_AsyncSession, expire_on_commit=False)
+    async with factory() as db:
+        extra_answers = []
+        for i in range(7):
+            a = StudentAnswer(
+                student_id=f"student-{i + 10}",
+                exam_id=ids["exam_id"],
+                question_id=ids["question_id"],
+                subject_id=ids["subject_id"],
+                school_id=ids["school_id"],
+            )
+            db.add(a)
+            extra_answers.append(a)
+        await db.flush()
+
+        all_answer_ids = [ids["answer_id"]] + [a.id for a in extra_answers]
+
+        sources = [
+            ("manual", None),
+            ("manual", None),
+            ("manual", None),
+            ("ai", 8.0),
+            ("ai", 9.0),
+            ("ai", 7.5),
+            ("ai_override", 6.0),
+            ("ai_override", 5.0),
+        ]
+        for i, (src, ai_sc) in enumerate(sources):
+            gr = GradingResult(
+                answer_id=all_answer_ids[i],
+                question_id=ids["question_id"],
+                school_id=ids["school_id"],
+                final_score=float(i + 5),
+                max_score=10.0,
+                status="confirmed",
+                source=src,
+                ai_score=ai_sc,
+            )
+            db.add(gr)
+        await db.commit()
+
+        # Verify source-based counting
+        ai_count = (await db.execute(
+            select(func.count()).select_from(GradingResult).where(
+                GradingResult.question_id == ids["question_id"],
+                GradingResult.school_id == ids["school_id"],
+                GradingResult.source.in_(["ai", "ai_override"]),
+            )
+        )).scalar()
+
+        manual_count = (await db.execute(
+            select(func.count()).select_from(GradingResult).where(
+                GradingResult.question_id == ids["question_id"],
+                GradingResult.school_id == ids["school_id"],
+                GradingResult.source == "manual",
+            )
+        )).scalar()
+
+        assert ai_count == 5, f"Expected 5 AI-sourced, got {ai_count}"
+        assert manual_count == 3, f"Expected 3 manual, got {manual_count}"

@@ -70,7 +70,7 @@ async def _seed_ai_report_exam(db):
         GradingResult(
             answer_id=essay2.id, question_id=q_essay.id, school_id=school.id,
             ai_score=4.0, ai_confidence=0.35, final_score=None, max_score=10.0,
-            status="ai_done", source=None,
+            status="ai_done", source="ai",
             ai_raw_response={"details": [{"blanks": [{"correct": False, "reason": "步骤不完整"}]}]},
         ),
     ])

@@ -215,11 +215,11 @@ def _coverage_section(scoped_rows: list[tuple]) -> dict:
         canonical_id for _, identity, canonical_id, _ in scoped_rows
         if identity and identity.canonical_student_id
     }
-    ai_scored = [row for row, *_ in scoped_rows if row.ai_score is not None]
+    ai_scored = [row for row, *_ in scoped_rows if row.grading_source in ("ai", "ai_override")]
     confirmed = [row for row, *_ in scoped_rows if row.grading_status == "confirmed"]
     pending_review = [
         row for row, *_ in scoped_rows
-        if row.ai_score is not None and row.grading_status != "confirmed"
+        if row.grading_status == "ai_done"
     ]
     final_scores = [row for row, *_ in scoped_rows if _effective_score(row) is not None]
     objective = [
@@ -245,8 +245,9 @@ def _coverage_section(scoped_rows: list[tuple]) -> dict:
 
 def _confidence_section(scoped_rows: list[tuple]) -> dict:
     values = [
-        float(row.ai_confidence) for row, *_ in scoped_rows
-        if row.ai_confidence is not None
+        float(row.ai_confidence)
+        for row, *_ in scoped_rows
+        if row.grading_source in ("ai", "ai_override") and row.ai_confidence is not None
     ]
     low = [v for v in values if v < LOW_CONFIDENCE_THRESHOLD]
     buckets = {
@@ -266,7 +267,7 @@ def _quality_section(scoped_rows: list[tuple]) -> dict:
     deltas = []
     large_delta_by_question: dict[str, dict] = {}
     for row, *_ in scoped_rows:
-        if row.ai_score is None or row.final_score is None:
+        if row.grading_source not in ("ai", "ai_override") or row.final_score is None:
             continue
         delta = float(row.final_score) - float(row.ai_score)
         abs_delta = abs(delta)

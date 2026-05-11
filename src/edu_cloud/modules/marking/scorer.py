@@ -106,7 +106,7 @@ async def get_subjects_with_progress(
                 select(func.count()).select_from(GradingResult).where(
                     GradingResult.question_id == q.id,
                     GradingResult.school_id == school_id,
-                    GradingResult.ai_score.isnot(None),
+                    GradingResult.source.in_(["ai", "ai_override"]),
                 )
             )).scalar() or 0
             confirmed = (await db.execute(
@@ -120,8 +120,7 @@ async def get_subjects_with_progress(
                 select(func.count()).select_from(GradingResult).where(
                     GradingResult.question_id == q.id,
                     GradingResult.school_id == school_id,
-                    GradingResult.status == "confirmed",
-                    GradingResult.ai_score.is_(None),
+                    GradingResult.source == "manual",
                 )
             )).scalar() or 0
 
