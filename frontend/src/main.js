@@ -4,6 +4,7 @@ import router from './router/index.js'
 import App from './App.vue'
 import clientLogger from './utils/clientLogger.js'
 import './assets/styles/variables.css'
+import './assets/styles/parent-tokens.css'
 import './assets/styles/global.css'
 
 if (typeof __BUILD_TIME__ !== 'undefined') {
