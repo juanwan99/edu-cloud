@@ -25,27 +25,22 @@ class MenuService:
             enabled_modules: 学校已启用的模块列表/集合，None 表示不过滤
         """
         logger.debug("get_menus_for_user: role=%s, enabled_modules=%s", role, enabled_modules)
+        # Single query: fetch all active menus, assemble tree in Python (O(n))
         stmt = (
             select(MenuConfig)
             .where(MenuConfig.is_active.is_(True))
-            .where(MenuConfig.parent_id.is_(None))
-            .order_by(MenuConfig.sort)
+            .order_by(MenuConfig.parent_id, MenuConfig.sort)
         )
         result = await self.session.execute(stmt)
-        top_menus = result.scalars().all()
+        all_menus = result.scalars().all()
 
-        child_stmt = (
-            select(MenuConfig)
-            .where(MenuConfig.is_active.is_(True))
-            .where(MenuConfig.parent_id.is_not(None))
-            .order_by(MenuConfig.sort)
-        )
-        child_result = await self.session.execute(child_stmt)
-        all_children = child_result.scalars().all()
-
+        top_menus: list[MenuConfig] = []
         children_by_parent: dict[int, list[MenuConfig]] = {}
-        for child in all_children:
-            children_by_parent.setdefault(child.parent_id, []).append(child)
+        for item in all_menus:
+            if item.parent_id is None:
+                top_menus.append(item)
+            else:
+                children_by_parent.setdefault(item.parent_id, []).append(item)
 
         menus = []
         for menu in top_menus:

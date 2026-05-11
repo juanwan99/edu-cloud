@@ -1,7 +1,7 @@
 """Exam / Subject 业务逻辑（从 exam-ai 迁入）。"""
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -105,14 +105,16 @@ async def delete_exam(db: AsyncSession, *, exam_id: str, school_id: str) -> None
     exam = await get_exam(db, exam_id=exam_id, school_id=school_id)
     if exam.status != "draft":
         raise ValidationError("只能删除草稿状态的考试")
-    questions = await db.execute(
-        select(Question).join(Subject).where(Subject.exam_id == exam_id)
+    # Bulk delete: questions first (FK → subjects), then subjects, then exam
+    subject_ids_result = await db.execute(
+        select(Subject.id).where(Subject.exam_id == exam_id)
     )
-    for q in questions.scalars():
-        await db.delete(q)
-    subjects = await db.execute(select(Subject).where(Subject.exam_id == exam_id))
-    for s in subjects.scalars():
-        await db.delete(s)
+    subject_ids = [row[0] for row in subject_ids_result.all()]
+    if subject_ids:
+        await db.execute(
+            delete(Question).where(Question.subject_id.in_(subject_ids))
+        )
+    await db.execute(delete(Subject).where(Subject.exam_id == exam_id))
     await db.delete(exam)
     await db.commit()
     logger.info("delete_exam: id=%s, school=%s", exam_id, school_id)
