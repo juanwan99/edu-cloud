@@ -28,23 +28,20 @@
             <div v-if="msg.role === 'user'" class="ai-msg-bubble ai-msg-bubble--user">{{ msg.content }}</div>
 
             <div v-else class="ai-msg-assistant">
-              <div v-if="msg.thinking" class="ai-thinking">
-                <span class="ai-thinking-label">思考中</span>
-                <span class="ai-thinking-text">{{ msg.thinking.trim() }}</span>
-              </div>
-
-              <div v-if="msg.plan && msg.plan.length" class="ai-plan">
-                <div v-for="task in msg.plan" :key="task.id" class="ai-plan-step">
-                  <span :class="['ai-plan-dot', task.status === 'completed' ? 'ai-plan-dot--done' : '']" />
-                  <span class="ai-plan-desc">{{ task.description }}</span>
+              <details v-if="hasProcess(msg)" class="ai-process" :open="!msg.content">
+                <summary class="ai-process-summary">
+                  <span v-if="processSummary(msg).running" class="ai-process-dot ai-process-dot--spin" />
+                  <span v-else class="ai-process-dot ai-process-dot--done" />
+                  {{ processSummary(msg).text }}
+                </summary>
+                <div class="ai-process-detail">
+                  <div v-if="msg.thinking" class="ai-detail-thinking">{{ msg.thinking.trim() }}</div>
+                  <div v-for="(tool, j) in (msg.tools || [])" :key="j" class="ai-detail-tool">
+                    <span :class="tool.status === 'done' ? 'ai-detail-dot--done' : 'ai-detail-dot--spin'" />
+                    {{ tool.name }}
+                  </div>
                 </div>
-              </div>
-
-              <div v-for="(tool, j) in (msg.tools || [])" :key="j" class="ai-tool">
-                <span :class="['ai-tool-dot', tool.status === 'done' ? 'ai-tool-dot--done' : 'ai-tool-dot--spin']" />
-                <span class="ai-tool-name">{{ tool.name }}</span>
-                <span class="ai-tool-status">{{ tool.status === 'done' ? '完成' : '执行中...' }}</span>
-              </div>
+              </details>
 
               <div v-if="msg.content" class="ai-msg-bubble ai-msg-bubble--assistant">
                 <div class="ai-content" v-text="msg.content" />
@@ -100,6 +97,20 @@ const lastAssistantHasContent = computed(() => {
   const last = msgs[msgs.length - 1]
   return last.role === 'assistant' && (last.content || last.tools?.length)
 })
+
+function hasProcess(msg) {
+  return msg.thinking || (msg.tools && msg.tools.length) || (msg.plan && msg.plan.length)
+}
+
+function processSummary(msg) {
+  const tools = msg.tools || []
+  const running = tools.some(t => t.status !== 'done')
+  const count = tools.length
+  if (running) return { text: `正在查询（${tools.filter(t => t.status === 'done').length}/${count}）...`, running: true }
+  if (count) return { text: `查询了 ${count} 个数据源`, running: false }
+  if (msg.thinking) return { text: '思考中...', running: !msg.content }
+  return { text: '处理中...', running: true }
+}
 
 async function send() {
   const text = inputText.value.trim()
@@ -282,89 +293,74 @@ onMounted(() => { chat.checkHealth() })
   margin: 4px 0;
 }
 
-/* Thinking */
-.ai-thinking {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  padding: 6px 10px;
-  background: var(--color-bg-alt);
-  border-radius: var(--radius-sm);
-  border-left: 3px solid var(--color-primary);
+/* Process (collapsible) */
+.ai-process {
   margin-bottom: 8px;
+  font-size: 13px;
 }
 
-.ai-thinking-label {
-  font-weight: var(--fw-semibold);
-  margin-right: 6px;
-}
-
-.ai-thinking-text {
-  opacity: 0.8;
-  white-space: pre-wrap;
-}
-
-/* Plan */
-.ai-plan {
+.ai-process-summary {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 6px;
-  margin-bottom: 8px;
-}
-
-.ai-plan-step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
   color: var(--color-text-secondary);
-}
-
-.ai-plan-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-border);
-  flex-shrink: 0;
-}
-
-.ai-plan-dot--done {
-  background: #22c55e;
-}
-
-/* Tool calls */
-.ai-tool {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  cursor: pointer;
   padding: 4px 0;
-  color: var(--color-text-secondary);
+  list-style: none;
 }
 
-.ai-tool-dot {
+.ai-process-summary::-webkit-details-marker { display: none; }
+
+.ai-process-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.ai-tool-dot--spin {
+.ai-process-dot--spin {
   background: var(--color-primary);
   animation: pulse 1.2s infinite;
 }
 
-.ai-tool-dot--done {
+.ai-process-dot--done {
   background: #22c55e;
 }
 
-.ai-tool-name {
-  font-family: monospace;
+.ai-process-detail {
+  padding: 6px 0 4px 14px;
+  border-left: 2px solid var(--color-border-light);
+  margin-left: 3px;
+  color: var(--color-text-secondary);
   font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.ai-tool-status {
+.ai-detail-thinking {
+  white-space: pre-wrap;
   opacity: 0.7;
+  margin-bottom: 4px;
 }
+
+.ai-detail-tool {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: monospace;
+}
+
+.ai-detail-dot--spin,
+.ai-detail-dot--done {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.ai-detail-dot--spin { background: var(--color-primary); }
+.ai-detail-dot--done { background: #22c55e; }
 
 /* Loading */
 .ai-loading {
