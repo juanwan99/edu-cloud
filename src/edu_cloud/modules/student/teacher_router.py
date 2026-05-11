@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.config import settings
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.auth import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole

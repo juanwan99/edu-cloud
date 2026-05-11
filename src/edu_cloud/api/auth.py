@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from edu_cloud.database import get_db
 from edu_cloud.shared.auth import create_access_token
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.core.auth import get_current_user
 from edu_cloud.logging_config import business_event
 from edu_cloud.core.rate_limit import limiter
 

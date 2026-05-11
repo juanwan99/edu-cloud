@@ -17,7 +17,7 @@ from edu_cloud.config import settings
 from edu_cloud.database import get_db
 # R4-F001: 运行时属性查找，让 client fixture monkey-patch 生效
 import edu_cloud.database as db_mod
-from edu_cloud.api.deps import require_permission
+from edu_cloud.core.auth import require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.core.tenant import get_school_id
 from edu_cloud.modules.exam.models import Exam, Subject, Question, QUESTION_TYPES_OBJECTIVE

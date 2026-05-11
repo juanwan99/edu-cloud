@@ -80,7 +80,7 @@ async def compat_login(
 
 # ── 考试/科目列表 ──────────────────────────────────────────────
 
-from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.auth import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.models.exam import Exam, Subject
 

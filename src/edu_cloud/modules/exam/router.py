@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user, require_permission
+from edu_cloud.core.auth import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.modules.exam.models import Question, Subject
 from edu_cloud.modules.exam import service as exam_service

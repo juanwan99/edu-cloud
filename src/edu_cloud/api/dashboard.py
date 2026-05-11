@@ -4,7 +4,7 @@ from sqlalchemy import select, func, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.core.auth import get_current_user
 from edu_cloud.api.permissions import get_visible_class_ids, get_visible_subject_codes
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])

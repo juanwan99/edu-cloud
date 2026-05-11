@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import require_permission
+from edu_cloud.core.auth import require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.core.tenant import get_school_id
 from edu_cloud.services.results_service import ResultsService

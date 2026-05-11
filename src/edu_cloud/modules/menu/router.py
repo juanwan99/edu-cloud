@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.api.deps import get_current_user
+from edu_cloud.core.auth import get_current_user
 from edu_cloud.database import get_db
 from edu_cloud.modules.menu.service import MenuService
 from edu_cloud.services.school_settings_service import get_enabled_modules

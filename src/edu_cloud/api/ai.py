@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import require_permission, get_current_user
+from edu_cloud.core.auth import require_permission, get_current_user
 from edu_cloud.core.permissions import Permission
 from edu_cloud.ai.registry import tools
 from edu_cloud.ai.audit import AuditLogger

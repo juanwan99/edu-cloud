@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
-from edu_cloud.api.deps import require_permission
+from edu_cloud.core.auth import require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.services.joint_exam_service import JointExamService
 from edu_cloud.config import settings
