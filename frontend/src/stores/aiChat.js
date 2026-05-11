@@ -22,10 +22,10 @@ export const useAiChatStore = defineStore('aiChat', () => {
     }
   }
 
-  async function sendMessage(content) {
+  async function sendMessage(content, refs = []) {
     if (!content.trim() || isLoading.value) return
 
-    messages.value.push({ role: 'user', content })
+    messages.value.push({ role: 'user', content, refs: refs.length ? refs : undefined })
     isLoading.value = true
     error.value = null
 
@@ -37,10 +37,11 @@ export const useAiChatStore = defineStore('aiChat', () => {
           Authorization: `Bearer ${authStore.token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          message: content,
-          session_id: sessionId.value,
-        }),
+        body: JSON.stringify((() => {
+          const body = { message: content, session_id: sessionId.value }
+          if (refs.length) body.refs = refs
+          return body
+        })()),
       })
 
       if (!resp.ok) {

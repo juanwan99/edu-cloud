@@ -56,7 +56,21 @@
           <div v-if="chat.error" class="ai-error">{{ chat.error }}</div>
         </div>
 
+        <div v-if="refs.length" class="ai-ref-chips">
+          <span v-for="(r, i) in refs" :key="i" class="ai-ref-chip">
+            {{ r.label }}
+            <button class="ai-ref-chip-x" @click="refs.splice(i, 1)">&#x2715;</button>
+          </span>
+        </div>
+
+        <RefPicker v-if="pickerOpen" @select="addRef" @close="pickerOpen = false" />
+
         <form class="ai-panel-footer" @submit.prevent="send">
+          <button type="button" class="ai-ref-btn" title="引用数据" @click="pickerOpen = true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16.5 6v11.5a4 4 0 01-8 0V5a2.5 2.5 0 015 0v10.5a1 1 0 01-2 0V6h-1.5v9.5a2.5 2.5 0 005 0V5a4 4 0 00-8 0v12.5a5.5 5.5 0 0011 0V6H16.5z"/>
+            </svg>
+          </button>
           <input
             ref="inputRef"
             v-model="inputText"
@@ -80,6 +94,7 @@
 <script setup>
 import { ref, watch, nextTick, computed, onMounted } from 'vue'
 import { useAiChatStore } from '../../stores/aiChat.js'
+import RefPicker from './RefPicker.vue'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -90,6 +105,8 @@ const chat = useAiChatStore()
 const inputText = ref('')
 const inputRef = ref(null)
 const bodyRef = ref(null)
+const refs = ref([])
+const pickerOpen = ref(false)
 
 const lastAssistantHasContent = computed(() => {
   const msgs = chat.messages
@@ -112,11 +129,27 @@ function processSummary(msg) {
   return { text: '处理中...', running: true }
 }
 
+function addRef(refData) {
+  if (!refs.value.find(r => r.id === refData.id && r.type === refData.type)) {
+    refs.value.push(refData)
+  }
+  if (refData.children) {
+    for (const child of refData.children) {
+      if (!refs.value.find(r => r.id === child.id && r.type === child.type)) {
+        refs.value.push(child)
+      }
+    }
+  }
+  pickerOpen.value = false
+}
+
 async function send() {
   const text = inputText.value.trim()
   if (!text) return
   inputText.value = ''
-  await chat.sendMessage(text)
+  const currentRefs = [...refs.value]
+  refs.value = []
+  await chat.sendMessage(text, currentRefs)
 }
 
 function scrollToBottom() {
@@ -447,6 +480,56 @@ onMounted(() => { chat.checkHealth() })
 .ai-send:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Ref chips */
+.ai-ref-chips {
+  padding: 4px 20px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-ref-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: rgba(100, 76, 240, 0.1);
+  color: var(--color-primary);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: var(--fw-medium);
+}
+
+.ai-ref-chip-x {
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.ai-ref-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+
+.ai-ref-btn:hover {
+  background: var(--color-bg-alt);
+  color: var(--color-primary);
 }
 
 /* Slide transition */
