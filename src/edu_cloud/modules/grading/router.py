@@ -437,7 +437,10 @@ async def grade_single_answer(
 
     # 4. 查科目（获取 subject_code）+ 学科可见性校验
     subject = (await db.execute(
-        select(Subject).where(Subject.id == question.subject_id)
+        select(Subject).where(
+            Subject.id == question.subject_id,
+            Subject.school_id == school_id,
+        )
     )).scalar_one_or_none()
     subject_code = subject.code if subject else ""
 
@@ -1047,7 +1050,10 @@ async def get_grading_task(
     visible_subjects = get_visible_subject_codes(current["current_role"])
     if visible_subjects is not None:
         subject = (await db.execute(
-            select(Subject).where(Subject.id == task.subject_id)
+            select(Subject).where(
+                Subject.id == task.subject_id,
+                Subject.school_id == school_id,
+            )
         )).scalar_one_or_none()
         if not subject or subject.code not in visible_subjects:
             raise HTTPException(403, "No access to this subject")

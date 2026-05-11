@@ -303,6 +303,7 @@ async def generate_exam_snapshots(db: AsyncSession, *, exam_id: str, school_id: 
                     StudentExamSnapshot.student_id == stu_id,
                     StudentExamSnapshot.exam_id == exam_id,
                     StudentExamSnapshot.subject_code == subj.code,
+                    StudentExamSnapshot.school_id == school_id,
                 )
             )
             snap = existing.scalar_one_or_none()
@@ -372,6 +373,7 @@ async def update_knowledge_mastery(db: AsyncSession, *, exam_id: str, school_id:
             select(StudentKnowledgeMastery).where(
                 StudentKnowledgeMastery.student_id == stu_id,
                 StudentKnowledgeMastery.concept_id == concept_id,
+                StudentKnowledgeMastery.school_id == school_id,
             )
         )
         mastery = existing.scalar_one_or_none()
@@ -465,6 +467,7 @@ async def update_error_patterns(db: AsyncSession, *, exam_id: str, school_id: st
                 select(StudentErrorPattern).where(
                     StudentErrorPattern.student_id == stu_id,
                     StudentErrorPattern.subject_code == subj.code,
+                    StudentErrorPattern.school_id == school_id,
                 )
             )
             pattern = existing.scalar_one_or_none()

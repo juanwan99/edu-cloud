@@ -1107,7 +1107,10 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
                         task_id, task.question_id, len(questions))
 
             # Get subject code for prompt dispatch
-            subject_result = await db.execute(select(Subject).where(Subject.id == task.subject_id))
+            subject_result = await db.execute(select(Subject).where(
+                Subject.id == task.subject_id,
+                Subject.school_id == task.school_id,
+            ))
             subject_row = subject_result.scalar_one_or_none()
             subject_code = subject_row.code if subject_row else ""
 
@@ -1139,6 +1142,7 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
                 graded_rows = set((await db.execute(
                     select(GradingResult.answer_id).where(
                         GradingResult.answer_id.in_(all_answer_ids),
+                        GradingResult.school_id == task.school_id,
                     )
                 )).scalars().all())
 
