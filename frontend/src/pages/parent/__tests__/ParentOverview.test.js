@@ -1,13 +1,13 @@
 /**
- * ParentOverview.vue source text tests + mount-based tests.
+ * ParentOverview.vue — action-oriented dashboard tests.
  *
  * Validates:
  *  1. Component can be imported (smoke)
- *  2. Template contains student info, score summary, quick entries, records
- *  3. API calls for records, scores, rankings
- *  4. Guide card for unbound state
- *  5. Error handling in data fetching
- *  6. Mount-based notification feature tests (F-009)
+ *  2. Source text contains key design elements (focus card, trend, behavior, updates)
+ *  3. API calls use Promise.allSettled for resilience
+ *  4. Empty state with ParentEmpty for unbound child
+ *  5. Focus items logic (negative behavior + rank drop)
+ *  6. Mount-based tests for data loading and card rendering
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { readFileSync } from 'fs'
@@ -28,131 +28,81 @@ describe('ParentOverview smoke', () => {
   }, 30000)
 })
 
-describe('ParentOverview template sections', () => {
-  it('contains guide card for unbound state', () => {
-    expect(content).toContain('v-if="!currentChild && !loading"')
-    expect(content).toContain('class="guide-card"')
-    expect(content).toContain('尚未绑定孩子')
-    expect(content).toContain('请先绑定孩子信息，才能查看学习数据')
-    expect(content).toContain("'/parent/bind'")
+describe('ParentOverview template — focus card', () => {
+  it('contains focus card with calm variant', () => {
+    expect(content).toContain('class="focus-card"')
+    expect(content).toContain("'focus-card--calm': !focusItems.length")
   })
 
-  it('contains student info card with avatar', () => {
-    expect(content).toContain('class="student-header"')
-    expect(content).toContain('class="avatar-circle"')
-    expect(content).toContain('{{ avatarLetter }}')
-    expect(content).toContain('{{ currentChild.student_name }}')
-    expect(content).toContain("currentChild.class_name || '未分配班级'")
+  it('shows actionable count when focus items exist', () => {
+    expect(content).toContain('focusItems.length')
   })
 
-  it('contains total points and ranking stats', () => {
-    expect(content).toContain('{{ totalPoints }}')
-    expect(content).toContain('总积分')
-    expect(content).toContain('v-if="ranking"')
-    expect(content).toContain('{{ ranking }}')
-    expect(content).toContain('排名')
+  it('shows calm message when nothing needs attention', () => {
+    expect(content).toContain('focus-card__header--calm')
+  })
+})
+
+describe('ParentOverview template — academic trend card', () => {
+  it('contains trend card with sparkline and percentile', () => {
+    expect(content).toContain('sparklineOption')
+    expect(content).toContain('classPercentile')
   })
 
-  it('contains score summary card', () => {
+  it('shows rank change with directional icon', () => {
+    expect(content).toContain('rankChangeClass')
+    expect(content).toContain('TrendingDown')
+    expect(content).toContain('TrendingUp')
+  })
+
+  it('shows latest score inline', () => {
     expect(content).toContain('v-if="latestScore"')
-    expect(content).toContain('class="score-brief"')
-    expect(content).toContain('最近考试')
-    expect(content).toContain("latestScore.total_score ?? '-'")
-    expect(content).toContain('班名次')
-    expect(content).toContain('年名次')
+    expect(content).toContain('trend-latest__score')
+    expect(content).toContain('latestScore.total_score')
+  })
+})
+
+describe('ParentOverview template — behavior card', () => {
+  it('uses positive-first behavior display', () => {
+    expect(content).toContain('behaviorSummary.positive_count || 0')
+    expect(content).toContain('behaviorSummary.negative_count || 0')
+    expect(content).toContain('behavior-tag--good')
+    expect(content).toContain('behavior-tag--warn')
   })
 
-  it('contains 4 quick entry buttons', () => {
-    expect(content).toContain('class="quick-entries"')
-    expect(content).toContain("'/parent/scores'")
-    expect(content).toContain('成绩查询')
-    expect(content).toContain("'/parent/rankings'")
-    expect(content).toContain('排行榜')
-    expect(content).toContain("'/parent/rules'")
-    expect(content).toContain('班规')
-    expect(content).toContain("'/parent/details'")
-    expect(content).toContain('操行记录')
-  })
-
-  it('contains recent records list with points tag', () => {
-    expect(content).toContain('v-for="r in records"')
-    expect(content).toContain("r.rule_name || r.note || '操行记录'")
+  it('shows recent records with positive framing', () => {
+    expect(content).toContain('recentRecords.slice(0, 3)')
+    expect(content).toContain("r.rule_name || r.note || '")
     expect(content).toContain("r.points >= 0 ? '+' : ''")
   })
 
-  it('contains empty state for no records', () => {
-    expect(content).toContain('description="暂无记录"')
-  })
-
-  it('contains button to view detailed records', () => {
-    expect(content).toContain('查看详细记录')
+  it('shows semester total', () => {
+    expect(content).toContain(':value="totalPoints"')
   })
 })
 
-describe('ParentOverview behavior analysis card', () => {
-  it('contains behavior analysis card with trend display', () => {
-    expect(content).toContain('v-if="behaviorSummary"')
-    expect(content).toContain('行为分析')
-    expect(content).toContain('行为趋势')
-    expect(content).toContain('behaviorSummary.trend_label')
-    expect(content).toContain('trendColor')
-  })
-
-  it('contains positive streak display', () => {
-    expect(content).toContain('连续表现良好')
-    expect(content).toContain('behaviorSummary.positive_streak_days')
-  })
-
-  it('contains top issues tags', () => {
-    expect(content).toContain('behaviorSummary.top_issues')
-    expect(content).toContain('需关注')
-    expect(content).toContain('type="warning"')
-  })
-
-  it('computes trendColor from behavior trend', () => {
-    expect(content).toContain('const trendColor = computed')
-    expect(content).toContain("'#4caf50'")  // improving color
-    expect(content).toContain("'#e63946'")  // declining color
-  })
-
-  it('fetches behavior summary in watch', () => {
-    expect(content).toContain('getChildBehaviorSummary(child.student_id)')
-    expect(content).toContain('behaviorSummary.value = behaviorRes.data')
-  })
-
-  it('imports getChildBehaviorSummary from conduct API', () => {
-    expect(content).toContain('getChildBehaviorSummary')
-    expect(content).toContain("from '../../api/conduct'")
+describe('ParentOverview template — data source attribution', () => {
+  it('shows data source on cards', () => {
+    expect(content).toContain('p-card__source')
+    expect(content).toContain('dataSource')
   })
 })
 
-describe('ParentOverview API calls', () => {
-  it('imports API functions from conduct', () => {
-    expect(content).toContain("import { getChildRecords, getChildScores, getChildRankings, getParentNotifications, markNotificationsRead, getChildBehaviorSummary } from '../../api/conduct'")
+describe('ParentOverview template — empty state and shared components', () => {
+  it('uses ParentEmpty for unbound child', () => {
+    expect(content).toContain('v-if="!currentChild"')
+    expect(content).toContain("'/parent/bind'")
   })
 
-  it('fetches child records', () => {
-    expect(content).toContain('await getChildRecords(child.student_id, { page: 1, size: 10 })')
+  it('uses shared PullRefresh wrapper', () => {
+    expect(content).toContain('PullRefresh')
+    expect(content).toContain(':loading="refreshing"')
+    expect(content).toContain('@refresh="loadData"')
   })
 
-  it('fetches latest score', () => {
-    expect(content).toContain('await getChildScores(child.student_id, { limit: 1 })')
-  })
-
-  it('fetches child rankings', () => {
-    expect(content).toContain('await getChildRankings(child.student_id)')
-  })
-})
-
-describe('ParentOverview computed properties', () => {
-  it('computes avatar letter from student name', () => {
-    expect(content).toContain("const name = props.currentChild?.student_name || ''")
-    expect(content).toContain("return name.charAt(0) || '?'")
-  })
-
-  it('computes avatar background color from name hash', () => {
-    expect(content).toContain('const avatarBg = computed')
-    expect(content).toContain("const colors = ['#F4DA4C', '#64b5f6', '#ffb74d', '#ce93d8', '#ef9a9a', '#80cbc4']")
+  it('uses ParentSkeleton for loading state', () => {
+    expect(content).toContain('ParentSkeleton')
+    expect(content).toContain('v-if="loading && !hasLoaded"')
   })
 
   it('receives currentChild via props', () => {
@@ -160,28 +110,46 @@ describe('ParentOverview computed properties', () => {
   })
 })
 
-describe('ParentOverview error handling', () => {
-  it('wraps score fetch in nested try-catch', () => {
-    const watchBlock = content.slice(
-      content.indexOf('watch(() => props.currentChild'),
-      content.indexOf('</script>')
-    )
-    // Should have multiple try-catch blocks for score and ranking
-    const catchCount = (watchBlock.match(/\} catch/g) || []).length
-    expect(catchCount).toBeGreaterThanOrEqual(3)
+describe('ParentOverview script — API and data flow', () => {
+  it('imports API functions from conduct', () => {
+    expect(content).toContain('getChildRecords')
+    expect(content).toContain('getChildExams')
+    expect(content).toContain('getChildRankings')
+    expect(content).toContain('getChildBehaviorSummary')
+    expect(content).toContain("from '../../api/conduct'")
   })
 
-  it('falls back to empty records on error', () => {
-    expect(content).toContain('records.value = []')
+  it('uses Promise.allSettled for resilient data fetching', () => {
+    expect(content).toContain('Promise.allSettled')
   })
 
-  it('falls back to null for score and ranking on error', () => {
-    expect(content).toContain('latestScore.value = null')
-    expect(content).toContain('ranking.value = null')
+  it('computes focus items from behavior and rank data', () => {
+    expect(content).toContain('const focusItems = computed')
+    expect(content).toContain('negative_count > 0')
+    expect(content).toContain('rankChange.value < -3')
   })
 
-  it('watches currentChild with immediate flag', () => {
+  it('watches currentChild with immediate flag and resets state', () => {
+    expect(content).toContain('watch(() => props.currentChild')
     expect(content).toContain('}, { immediate: true })')
+    expect(content).toContain('hasLoaded.value = false')
+  })
+
+  it('formats relative time', () => {
+    expect(content).toContain('function formatRelative')
+  })
+})
+
+describe('ParentOverview style — design tokens', () => {
+  it('uses --p-* design tokens for all colors', () => {
+    expect(content).toContain('var(--p-card-bg)')
+    expect(content).toContain('var(--p-card-radius)')
+    expect(content).toContain('var(--p-text-1)')
+    expect(content).toContain('var(--p-text-2)')
+    expect(content).toContain('var(--p-text-3)')
+    expect(content).toContain('var(--p-color-accent)')
+    expect(content).toContain('var(--p-color-success)')
+    expect(content).toContain('var(--p-color-warning)')
   })
 })
 
@@ -190,195 +158,126 @@ describe('ParentOverview error handling', () => {
 // ============================================================
 
 vi.mock('../../../api/conduct', () => ({
-  getParentNotifications: vi.fn().mockResolvedValue({ data: [] }),
-  markNotificationsRead: vi.fn().mockResolvedValue({}),
   getChildRecords: vi.fn().mockResolvedValue({ data: { items: [] } }),
   getChildScores: vi.fn().mockResolvedValue({ data: [] }),
+  getChildExams: vi.fn().mockResolvedValue({ data: [] }),
   getChildRankings: vi.fn().mockResolvedValue({ data: [] }),
   getChildBehaviorSummary: vi.fn().mockResolvedValue({ data: null }),
 }))
 
 import { mount, flushPromises } from '@vue/test-utils'
-import { getParentNotifications, markNotificationsRead, getChildBehaviorSummary } from '../../../api/conduct'
+import {
+  getChildRecords, getChildExams, getChildRankings, getChildBehaviorSummary,
+} from '../../../api/conduct'
 
-const naiveStubs = {
-  'n-card': { template: '<div class="n-card"><slot /><slot name="header" /></div>', props: ['title', 'size'] },
-  'n-statistic': true,
-  'n-list': { template: '<div class="n-list"><slot /></div>' },
-  'n-list-item': { template: '<div class="n-list-item"><slot /></div>' },
-  'n-tag': true,
-  'n-button': { template: '<button class="n-button" @click="$emit(\'click\')"><slot /></button>', emits: ['click'] },
-  'n-empty': true,
-  'n-spin': { template: '<div><slot /></div>', props: ['show'] },
-  'n-h4': { template: '<h4><slot /></h4>' },
-  'n-thing': { template: '<div class="n-thing" :data-title="title">{{ title }} - {{ description }}</div>', props: ['title', 'description'] },
-  'n-text': { template: '<span><slot /></span>', props: ['depth'] },
+const componentStubs = {
+  PullRefresh: { template: '<div class="pull-refresh"><slot /></div>', props: ['loading', 'lastUpdate'] },
+  ParentSkeleton: { template: '<div class="skeleton" />', props: ['rows'] },
+  ParentEmpty: { template: '<div class="empty"><slot name="action" /></div>', props: ['message'] },
+  NumberRoll: { template: '<span class="number-roll">{{ value }}</span>', props: ['value', 'size'] },
+  VChart: { template: '<div class="chart" />', props: ['option', 'autoresize'] },
+  Zap: { template: '<span class="icon-zap" />', props: ['size'] },
+  CircleCheck: { template: '<span class="icon-check" />', props: ['size'] },
+  ChevronRight: { template: '<span class="icon-chevron" />', props: ['size'] },
+  TrendingUp: { template: '<span class="icon-up" />', props: ['size'] },
+  TrendingDown: { template: '<span class="icon-down" />', props: ['size'] },
+  'n-button': { template: '<button class="n-button"><slot /></button>' },
+  'n-tag': { template: '<span class="n-tag"><slot /></span>', props: ['type', 'size', 'round'] },
 }
 
-describe('ParentOverview mount tests — notifications (F-009)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    // Default: no notifications
-    getParentNotifications.mockResolvedValue({ data: [] })
-  })
+describe('ParentOverview mount — empty state', () => {
+  beforeEach(() => vi.clearAllMocks())
 
-  it('renders notification card when data exists', async () => {
-    getParentNotifications.mockResolvedValue({
-      data: [
-        { id: 'n1', title: '积分变动', body: '张三获得+5分' },
-        { id: 'n2', title: '班规更新', body: '新增班规条目' },
-      ],
-    })
-
+  it('shows ParentEmpty when no child is bound', async () => {
     const wrapper = mount((await import('../ParentOverview.vue')).default, {
       props: { currentChild: null },
-      global: { stubs: naiveStubs },
+      global: { stubs: componentStubs },
     })
     await flushPromises()
 
-    expect(getParentNotifications).toHaveBeenCalledWith(true)
-    expect(wrapper.html()).toContain('最新动态')
-    expect(wrapper.html()).toContain('积分变动')
-    expect(wrapper.html()).toContain('班规更新')
-  })
-
-  it('hides notification card when no notifications', async () => {
-    getParentNotifications.mockResolvedValue({ data: [] })
-
-    const wrapper = mount((await import('../ParentOverview.vue')).default, {
-      props: { currentChild: null },
-      global: { stubs: naiveStubs },
-    })
-    await flushPromises()
-
-    expect(wrapper.html()).not.toContain('最新动态')
-  })
-
-  it('clears notifications when mark all read is clicked', async () => {
-    getParentNotifications.mockResolvedValue({
-      data: [
-        { id: 'n1', title: '积分变动', body: '张三获得+5分' },
-      ],
-    })
-    markNotificationsRead.mockResolvedValue({})
-
-    const wrapper = mount((await import('../ParentOverview.vue')).default, {
-      props: { currentChild: null },
-      global: { stubs: naiveStubs },
-    })
-    await flushPromises()
-
-    // Notification should be visible
-    expect(wrapper.html()).toContain('最新动态')
-    expect(wrapper.html()).toContain('全部已读')
-
-    // Click "全部已读" button — find the button with that text
-    const buttons = wrapper.findAll('.n-button')
-    const markReadBtn = buttons.find(b => b.text().includes('全部已读'))
-    expect(markReadBtn).toBeTruthy()
-    await markReadBtn.trigger('click')
-    await flushPromises()
-
-    expect(markNotificationsRead).toHaveBeenCalledOnce()
-    // Notifications should be cleared
-    expect(wrapper.html()).not.toContain('最新动态')
-  })
-
-  it('handles notification fetch error gracefully', async () => {
-    getParentNotifications.mockRejectedValue(new Error('Network error'))
-
-    const wrapper = mount((await import('../ParentOverview.vue')).default, {
-      props: { currentChild: null },
-      global: { stubs: naiveStubs },
-    })
-    await flushPromises()
-
-    // Should not crash, and should not show notifications
-    expect(wrapper.exists()).toBe(true)
-    expect(wrapper.html()).not.toContain('最新动态')
+    expect(wrapper.find('.empty').exists()).toBe(true)
+    expect(wrapper.find('.focus-card').exists()).toBe(false)
   })
 })
 
 // ============================================================
-// Phase 3: Mount-based tests — behavior summary card
+// Mount-based tests — data loading and card rendering
 // ============================================================
 
-describe('ParentOverview mount tests — behavior card (Phase 3)', () => {
+describe('ParentOverview mount — data loading', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    getParentNotifications.mockResolvedValue({ data: [] })
+    getChildRecords.mockResolvedValue({ data: { items: [] } })
+    getChildExams.mockResolvedValue({ data: [] })
+    getChildRankings.mockResolvedValue({ data: [] })
     getChildBehaviorSummary.mockResolvedValue({ data: null })
   })
 
-  it('renders behavior card when summary data is fetched', async () => {
-    const { getChildRecords, getChildScores, getChildRankings } = await import('../../../api/conduct')
-    getChildRecords.mockResolvedValue({ data: { items: [] } })
-    getChildScores.mockResolvedValue({ data: [] })
-    getChildRankings.mockResolvedValue({ data: [] })
-    getChildBehaviorSummary.mockResolvedValue({
-      data: {
-        student_name: '张三',
-        trend: 'improving',
-        trend_label: '进步���',
-        total_points: 15,
-        positive_count: 5,
-        negative_count: 1,
-        top_issues: ['迟到', '未交作业'],
-        positive_streak_days: 3,
-      },
-    })
-
+  it('calls all 4 API endpoints on child load', async () => {
     const wrapper = mount((await import('../ParentOverview.vue')).default, {
-      props: {
-        currentChild: { student_id: 's1', student_name: '张三', class_name: '高一(1)班' },
-      },
-      global: { stubs: naiveStubs },
+      props: { currentChild: { student_id: 's1', student_name: 'Test', class_name: 'Class A' } },
+      global: { stubs: componentStubs },
     })
-    // Multiple flushPromises to resolve nested sequential awaits in watch
-    await flushPromises()
-    await flushPromises()
     await flushPromises()
 
+    expect(getChildRecords).toHaveBeenCalledWith('s1', { page: 1, size: 10 })
+    expect(getChildExams).toHaveBeenCalledWith('s1')
+    expect(getChildRankings).toHaveBeenCalledWith('s1')
     expect(getChildBehaviorSummary).toHaveBeenCalledWith('s1')
-    // NCard renders header slot; body content may depend on NaiveUI internals
-    expect(wrapper.html()).toContain('行为分析')
   })
 
-  it('hides behavior card when no data', async () => {
-    const { getChildRecords, getChildScores, getChildRankings } = await import('../../../api/conduct')
-    getChildRecords.mockResolvedValue({ data: { items: [] } })
-    getChildScores.mockResolvedValue({ data: [] })
-    getChildRankings.mockResolvedValue({ data: [] })
-    getChildBehaviorSummary.mockResolvedValue({ data: null })
-
+  it('shows calm focus card when no issues', async () => {
     const wrapper = mount((await import('../ParentOverview.vue')).default, {
-      props: {
-        currentChild: { student_id: 's1', student_name: '张三', class_name: '高一(1)班' },
-      },
-      global: { stubs: naiveStubs },
+      props: { currentChild: { student_id: 's1', student_name: 'Test', class_name: 'Class A' } },
+      global: { stubs: componentStubs },
     })
     await flushPromises()
 
-    expect(wrapper.html()).not.toContain('行为分析')
+    expect(wrapper.find('.focus-card--calm').exists()).toBe(true)
   })
 
-  it('handles behavior summary fetch error gracefully', async () => {
-    const { getChildRecords, getChildScores, getChildRankings } = await import('../../../api/conduct')
-    getChildRecords.mockResolvedValue({ data: { items: [] } })
-    getChildScores.mockResolvedValue({ data: [] })
-    getChildRankings.mockResolvedValue({ data: [] })
-    getChildBehaviorSummary.mockRejectedValue(new Error('Network error'))
+  it('shows behavior card with positive-first when data exists', async () => {
+    getChildBehaviorSummary.mockResolvedValue({
+      data: { positive_count: 4, negative_count: 1 },
+    })
 
     const wrapper = mount((await import('../ParentOverview.vue')).default, {
-      props: {
-        currentChild: { student_id: 's1', student_name: '张三', class_name: '高一(1)班' },
-      },
-      global: { stubs: naiveStubs },
+      props: { currentChild: { student_id: 's1', student_name: 'Test', class_name: 'Class A' } },
+      global: { stubs: componentStubs },
     })
     await flushPromises()
 
-    // Should not crash
+    expect(wrapper.html()).toContain('加分')
+    expect(wrapper.html()).toContain('待改善')
+  })
+
+  it('shows focus item when negative behavior exists', async () => {
+    getChildBehaviorSummary.mockResolvedValue({
+      data: { positive_count: 2, negative_count: 3 },
+    })
+
+    const wrapper = mount((await import('../ParentOverview.vue')).default, {
+      props: { currentChild: { student_id: 's1', student_name: 'Test', class_name: 'Class A' } },
+      global: { stubs: componentStubs },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.focus-card--calm').exists()).toBe(false)
+  })
+
+  it('handles API errors gracefully without crashing', async () => {
+    getChildRecords.mockRejectedValue(new Error('fail'))
+    getChildExams.mockRejectedValue(new Error('fail'))
+    getChildRankings.mockRejectedValue(new Error('fail'))
+    getChildBehaviorSummary.mockRejectedValue(new Error('fail'))
+
+    const wrapper = mount((await import('../ParentOverview.vue')).default, {
+      props: { currentChild: { student_id: 's1', student_name: 'Test', class_name: 'Class A' } },
+      global: { stubs: componentStubs },
+    })
+    await flushPromises()
+
     expect(wrapper.exists()).toBe(true)
-    expect(wrapper.html()).not.toContain('行为分析')
+    expect(wrapper.find('.focus-card').exists()).toBe(true)
   })
 })

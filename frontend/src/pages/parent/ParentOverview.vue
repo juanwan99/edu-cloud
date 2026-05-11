@@ -1,515 +1,390 @@
 <template>
-  <div>
-    <!-- No child bound: guide card -->
-    <n-card v-if="!currentChild && !loading" class="guide-card">
-      <div style="text-align: center; padding: var(--space-6) 0;">
-        <div class="guide-icon">&#128100;</div>
-        <n-h4 style="margin: var(--space-3) 0 var(--space-2);">尚未绑定孩子</n-h4>
-        <p style="color: var(--color-text-muted); font-size: var(--fs-base); margin-bottom: var(--space-4);">
-          请先绑定孩子信息，才能查看学习数据
-        </p>
-        <n-button type="primary" @click="$router.push('/parent/bind')">
-          去绑定孩子
-        </n-button>
-      </div>
-    </n-card>
+  <PullRefresh :loading="refreshing" :last-update="lastUpdate" @refresh="loadData">
+    <ParentSkeleton v-if="loading && !hasLoaded" :rows="3" />
 
-    <!-- Notifications (above everything else) -->
-    <n-card v-if="notifications.length > 0" size="small" style="margin-bottom: var(--space-4);">
-      <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span>最新动态</span>
-          <n-button text size="small" @click="handleMarkAllRead">全部已读</n-button>
+    <template v-else>
+      <div v-if="!currentChild" class="p-empty-guide">
+        <ParentEmpty message="绑定孩子后即可查看">
+          <template #action>
+            <n-button type="primary" @click="$router.push('/parent/bind')">绑定孩子</n-button>
+          </template>
+        </ParentEmpty>
+      </div>
+
+      <template v-if="currentChild">
+        <!-- Tonight's focus card -->
+        <div class="focus-card" :class="{ 'focus-card--calm': !focusItems.length }">
+          <template v-if="focusItems.length">
+            <div class="focus-card__header">
+              <Zap :size="18" />
+              <span>今晚需关注 {{ focusItems.length }} 项</span>
+            </div>
+            <div v-for="(item, idx) in focusItems" :key="idx" class="focus-card__item" @click="item.action?.()">
+              <span>{{ item.text }}</span>
+              <ChevronRight :size="16" />
+            </div>
+          </template>
+          <template v-else>
+            <div class="focus-card__header focus-card__header--calm">
+              <CircleCheck :size="18" />
+              <span>今日无需关注事项</span>
+            </div>
+          </template>
+        </div>
+
+        <!-- Academic trend card -->
+        <div class="p-card" v-if="examTrend.length || latestScore">
+          <div class="p-card__header">
+            <span class="p-card__title">学业趋势</span>
+            <span class="p-card__action" @click="$router.push('/parent/scores')">详情 <ChevronRight :size="14" /></span>
+          </div>
+          <div class="trend-row">
+            <div class="trend-chart" v-if="examTrend.length >= 2">
+              <v-chart :option="sparklineOption" autoresize style="height: 80px;" />
+            </div>
+            <div class="trend-stats">
+              <div class="trend-stat">
+                <div class="trend-stat__label">班级位置</div>
+                <div class="trend-stat__value">
+                  前 <NumberRoll :value="classPercentile" size="var(--p-fs-section)" />%
+                </div>
+              </div>
+              <div v-if="rankChange !== null" class="trend-stat">
+                <div class="trend-stat__label">较上次</div>
+                <div class="trend-stat__value" :class="rankChangeClass">
+                  <component :is="rankChange < 0 ? TrendingDown : TrendingUp" :size="14" />
+                  {{ Math.abs(rankChange) }} 位
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-if="latestScore" class="trend-latest">
+            最近：{{ latestScore.exam_name || '考试' }}
+            <span class="trend-latest__score">总分 <NumberRoll :value="latestScore.total_score" /></span>
+          </div>
+          <div class="p-card__source">{{ dataSource }}</div>
+        </div>
+
+        <!-- Weekly behavior card -->
+        <div class="p-card" v-if="behaviorSummary">
+          <div class="p-card__header">
+            <span class="p-card__title">本周表现</span>
+            <span class="p-card__action" @click="$router.push('/parent/conduct')">详情 <ChevronRight :size="14" /></span>
+          </div>
+          <div class="behavior-summary">
+            <span class="behavior-tag behavior-tag--good">加分 {{ behaviorSummary.positive_count || 0 }} 次</span>
+            <span class="behavior-sep">·</span>
+            <span class="behavior-tag behavior-tag--warn">待改善 {{ behaviorSummary.negative_count || 0 }} 项</span>
+          </div>
+          <div v-if="recentRecords.length" class="behavior-recent">
+            <div v-for="r in recentRecords.slice(0, 3)" :key="r.id" class="behavior-item">
+              <n-tag :type="r.points >= 0 ? 'success' : 'warning'" size="small" round>
+                {{ r.points >= 0 ? '+' : '' }}{{ r.points }}
+              </n-tag>
+              <span class="behavior-item__text">{{ r.rule_name || r.note || '操行记录' }}</span>
+            </div>
+          </div>
+          <div class="behavior-total">
+            本学期累计 <NumberRoll :value="totalPoints" /> 分
+          </div>
+          <div class="p-card__source">{{ dataSource }}</div>
+        </div>
+
+        <!-- Latest updates -->
+        <div class="p-card" v-if="updates.length">
+          <div class="p-card__header">
+            <span class="p-card__title">最新动态</span>
+          </div>
+          <div v-for="u in updates" :key="u.id" class="update-item">
+            <span class="update-item__dot" />
+            <span class="update-item__text">{{ u.text }}</span>
+            <span class="update-item__time">{{ u.time }}</span>
+          </div>
         </div>
       </template>
-      <n-list size="small">
-        <n-list-item v-for="n in notifications.slice(0, 5)" :key="n.id">
-          <n-thing :title="n.title" :description="n.body" />
-        </n-list-item>
-      </n-list>
-    </n-card>
-
-    <!-- Behavior analysis card (below notifications) -->
-    <n-card v-if="behaviorSummary" size="small" style="margin-bottom: var(--space-4);">
-      <template #header>行为分析</template>
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-label">行为趋势</div>
-          <div class="stat-value" :style="{ color: trendColor }">{{ behaviorSummary.trend_label }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">连续表现良好</div>
-          <div class="stat-value">{{ behaviorSummary.positive_streak_days }}天</div>
-        </div>
-      </div>
-      <div v-if="behaviorSummary.top_issues?.length" style="margin-top: var(--space-3);">
-        <n-text depth="3">需关注：</n-text>
-        <n-tag v-for="issue in behaviorSummary.top_issues" :key="issue" size="small" type="warning" style="margin: 2px;">{{ issue }}</n-tag>
-      </div>
-    </n-card>
-
-    <!-- Semester summary (below notifications, above student info) -->
-    <n-card v-if="semesterReport" size="small" style="margin-bottom: var(--space-4);">
-      <template #header>学期评价</template>
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-label">累计积分</div>
-          <div class="stat-value">{{ studentTotalPoints }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">班级排名</div>
-          <div class="stat-value">{{ studentRank }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">班级均分</div>
-          <div class="stat-value">{{ semesterReport.summary?.avg_points?.toFixed(1) || '-' }}</div>
-        </div>
-      </div>
-    </n-card>
-
-    <template v-if="currentChild">
-      <!-- Student info card -->
-      <n-card class="info-card" style="margin-bottom: var(--space-4);">
-        <div class="student-header">
-          <div class="avatar-circle" :style="{ background: avatarBg }">
-            {{ avatarLetter }}
-          </div>
-          <div class="student-info">
-            <div class="student-name">{{ currentChild.student_name }}</div>
-            <div class="student-class">{{ currentChild.class_name || '未分配班级' }}</div>
-          </div>
-          <div class="student-stats">
-            <div class="stat-item stat-item--primary">
-              <div class="stat-value">{{ totalPoints }}</div>
-              <div class="stat-label">总积分</div>
-            </div>
-            <div class="stat-item" v-if="ranking">
-              <div class="stat-value">{{ ranking }}</div>
-              <div class="stat-label">排名</div>
-            </div>
-          </div>
-        </div>
-      </n-card>
-
-      <!-- Score summary card -->
-      <n-card v-if="latestScore" class="score-brief" style="margin-bottom: var(--space-4);">
-        <div class="score-brief-header">
-          <span style="font-size: var(--fs-base); font-weight: var(--fw-semibold);">最近考试</span>
-          <n-tag size="small" type="info">{{ latestScore.exam_name || '考试' }}</n-tag>
-        </div>
-        <div class="score-brief-body">
-          <div class="score-brief-item">
-            <div class="score-brief-value" style="color: #F4DA4C;">{{ latestScore.total_score ?? '-' }}</div>
-            <div class="score-brief-label">总分</div>
-          </div>
-          <div class="score-brief-item" v-if="latestScore.class_rank">
-            <div class="score-brief-value">{{ latestScore.class_rank }}</div>
-            <div class="score-brief-label">班名次</div>
-          </div>
-          <div class="score-brief-item" v-if="latestScore.grade_rank">
-            <div class="score-brief-value">{{ latestScore.grade_rank }}</div>
-            <div class="score-brief-label">年名次</div>
-          </div>
-        </div>
-      </n-card>
-
-      <!-- Quick entry buttons -->
-      <div class="quick-entries" style="margin-bottom: var(--space-4);">
-        <div class="quick-entry" @click="$router.push('/parent/scores')">
-          <div class="quick-entry-icon" style="background: rgba(244,218,76,0.15); color: #F4DA4C;">&#128202;</div>
-          <div class="quick-entry-label">成绩查询</div>
-        </div>
-        <div class="quick-entry" @click="$router.push('/parent/rankings')">
-          <div class="quick-entry-icon" style="background: rgba(255,183,77,0.15); color: #ffb74d;">&#127942;</div>
-          <div class="quick-entry-label">排行榜</div>
-        </div>
-        <div class="quick-entry" @click="$router.push('/parent/rules')">
-          <div class="quick-entry-icon" style="background: rgba(100,181,246,0.15); color: #64b5f6;">&#128203;</div>
-          <div class="quick-entry-label">班规</div>
-        </div>
-        <div class="quick-entry" @click="$router.push('/parent/details')">
-          <div class="quick-entry-icon" style="background: rgba(206,147,216,0.15); color: #ce93d8;">&#128221;</div>
-          <div class="quick-entry-label">操行记录</div>
-        </div>
-      </div>
-
-      <!-- Recent records -->
-      <n-card title="最近记录" style="margin-bottom: var(--space-4);">
-        <n-spin :show="loading">
-          <n-list v-if="records.length > 0" bordered>
-            <n-list-item v-for="r in records" :key="r.id">
-              <div class="record-item">
-                <div class="record-icon" :class="r.points >= 0 ? 'record-icon--up' : 'record-icon--down'">
-                  {{ r.points >= 0 ? '↑' : '↓' }}
-                </div>
-                <div class="record-content">
-                  <div class="record-name">{{ r.rule_name || r.note || '操行记录' }}</div>
-                  <div class="record-time">
-                    {{ r.created_at ? new Date(r.created_at).toLocaleString('zh-CN') : '' }}
-                  </div>
-                </div>
-                <n-tag :type="r.points >= 0 ? 'success' : 'error'" size="small">
-                  {{ r.points >= 0 ? '+' : '' }}{{ r.points }}
-                </n-tag>
-              </div>
-            </n-list-item>
-          </n-list>
-          <n-empty v-else description="暂无记录" />
-        </n-spin>
-      </n-card>
-
-      <n-button block secondary @click="$router.push('/parent/details')">
-        查看详细记录
-      </n-button>
     </template>
-  </div>
+  </PullRefresh>
 </template>
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { NCard, NStatistic, NList, NListItem, NTag, NButton, NEmpty, NSpin, NH4, NThing, NText } from 'naive-ui'
-import { getChildRecords, getChildScores, getChildRankings, getParentNotifications, markNotificationsRead, getChildBehaviorSummary } from '../../api/conduct'
+import { useRouter } from 'vue-router'
+import { NButton, NTag } from 'naive-ui'
+import { Zap, CircleCheck, ChevronRight, TrendingUp, TrendingDown } from 'lucide-vue-next'
+import VChart from 'vue-echarts'
+import PullRefresh from '../../components/parent/PullRefresh.vue'
+import ParentSkeleton from '../../components/parent/ParentSkeleton.vue'
+import ParentEmpty from '../../components/parent/ParentEmpty.vue'
+import NumberRoll from '../../components/parent/NumberRoll.vue'
+import {
+  getChildRecords, getChildScores, getChildRankings,
+  getChildBehaviorSummary, getChildExams
+} from '../../api/conduct'
+
+const router = useRouter()
 
 const props = defineProps({
   currentChild: { type: Object, default: null },
 })
 
-const records = ref([])
-const totalPoints = ref(0)
-const ranking = ref(null)
-const latestScore = ref(null)
 const loading = ref(false)
-const notifications = ref([])
-const semesterReport = ref(null)
-const studentTotalPoints = ref(0)
-const studentRank = ref('-')
+const refreshing = ref(false)
+const hasLoaded = ref(false)
+const lastUpdate = ref('')
+
+const examTrend = ref([])
+const latestScore = ref(null)
+const classPercentile = ref(0)
+const rankChange = ref(null)
 const behaviorSummary = ref(null)
+const recentRecords = ref([])
+const totalPoints = ref(0)
+const updates = ref([])
 
-const trendColor = computed(() => {
-  const t = behaviorSummary.value?.trend
-  if (t === 'improving') return '#4caf50'
-  if (t === 'declining') return '#e63946'
-  return 'rgba(255, 255, 255, 0.85)'
+const focusItems = computed(() => {
+  const items = []
+  if (behaviorSummary.value?.negative_count > 0) {
+    items.push({
+      text: `有 ${behaviorSummary.value.negative_count} 项待改善行为，建议今晚沟通`,
+      action: () => router.push('/parent/conduct'),
+    })
+  }
+  if (rankChange.value !== null && rankChange.value < -3) {
+    items.push({
+      text: `排名下降 ${Math.abs(rankChange.value)} 位，建议关注薄弱学科`,
+      action: () => router.push('/parent/scores'),
+    })
+  }
+  return items
 })
 
-// Load notifications on component init
-getParentNotifications(true).then(res => {
-  notifications.value = res.data || []
-}).catch(() => {
-  notifications.value = []
+const rankChangeClass = computed(() => {
+  if (rankChange.value == null) return ''
+  return rankChange.value < 0 ? 'trend-stat__value--down' : 'trend-stat__value--up'
 })
 
-async function handleMarkAllRead() {
+const dataSource = computed(() => {
+  const cls = props.currentChild?.class_name || ''
+  return cls ? `来自 ${cls} · ${lastUpdate.value || ''} 更新` : ''
+})
+
+const sparklineOption = computed(() => ({
+  grid: { top: 8, right: 8, bottom: 8, left: 8, containLabel: false },
+  xAxis: { type: 'category', show: false, data: examTrend.value.map((_, i) => i) },
+  yAxis: { type: 'value', show: false },
+  series: [{
+    type: 'line',
+    data: examTrend.value,
+    smooth: true,
+    symbol: 'circle',
+    symbolSize: 6,
+    lineStyle: { color: '#F4DA4C', width: 2 },
+    itemStyle: { color: '#F4DA4C' },
+    areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [
+      { offset: 0, color: 'rgba(244,218,76,0.25)' },
+      { offset: 1, color: 'rgba(244,218,76,0)' },
+    ] } },
+  }],
+}))
+
+async function loadData() {
+  const child = props.currentChild
+  if (!child) return
+
+  if (hasLoaded.value) refreshing.value = true
+  else loading.value = true
+
   try {
-    await markNotificationsRead()
-    notifications.value = []
-  } catch {
-    // silently ignore
+    const [recordsRes, examsRes, rankRes, behaviorRes] = await Promise.allSettled([
+      getChildRecords(child.student_id, { page: 1, size: 10 }),
+      getChildExams(child.student_id),
+      getChildRankings(child.student_id),
+      getChildBehaviorSummary(child.student_id),
+    ])
+
+    if (recordsRes.status === 'fulfilled') {
+      const data = recordsRes.value.data
+      recentRecords.value = data.items || data || []
+    }
+
+    if (examsRes.status === 'fulfilled') {
+      const exams = examsRes.value.data || []
+      examTrend.value = exams.slice(0, 5).map(e => e.total_score).reverse()
+      latestScore.value = exams[0] || null
+    }
+
+    if (rankRes.status === 'fulfilled') {
+      const data = rankRes.value.data
+      const rankings = Array.isArray(data) ? data : []
+      const myEntry = rankings.find(r => r.student_id === child.student_id)
+      if (myEntry && rankings.length > 0) {
+        classPercentile.value = Math.round((1 - (myEntry.rank - 1) / rankings.length) * 100)
+        rankChange.value = myEntry.previous_rank ? myEntry.previous_rank - myEntry.rank : null
+        totalPoints.value = myEntry.total_points ?? 0
+      }
+    }
+
+    if (behaviorRes.status === 'fulfilled') {
+      behaviorSummary.value = behaviorRes.value.data
+    }
+
+    const buildUpdates = []
+    if (latestScore.value) {
+      buildUpdates.push({
+        id: 'score',
+        text: `${latestScore.value.exam_name || '考试'}成绩已发布`,
+        time: formatRelative(latestScore.value.created_at),
+      })
+    }
+    if (recentRecords.value.length > 0) {
+      const latest = recentRecords.value[0]
+      buildUpdates.push({
+        id: 'record',
+        text: latest.rule_name || latest.note || '操行记录',
+        time: formatRelative(latest.created_at),
+      })
+    }
+    updates.value = buildUpdates
+
+    lastUpdate.value = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    hasLoaded.value = true
+  } finally {
+    loading.value = false
+    refreshing.value = false
   }
 }
 
-const avatarLetter = computed(() => {
-  const name = props.currentChild?.student_name || ''
-  return name.charAt(0) || '?'
-})
+function formatRelative(dateStr) {
+  if (!dateStr) return ''
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const hours = Math.floor(diff / 3600000)
+  if (hours < 1) return '刚刚'
+  if (hours < 24) return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  return days === 1 ? '昨天' : `${days}天前`
+}
 
-const avatarBg = computed(() => {
-  const name = props.currentChild?.student_name || ''
-  const colors = ['#F4DA4C', '#64b5f6', '#ffb74d', '#ce93d8', '#ef9a9a', '#80cbc4']
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  return colors[Math.abs(hash) % colors.length]
-})
-
-watch(() => props.currentChild, async (child) => {
-  // F-003: Clear stale data on child switch (including null)
-  behaviorSummary.value = null
-  records.value = []
+watch(() => props.currentChild, (child) => {
+  examTrend.value = []
   latestScore.value = null
-  ranking.value = null
-  semesterReport.value = null
-  if (!child) return
-  loading.value = true
-  try {
-    totalPoints.value = child.total_points ?? 0
-
-    // Fetch records
-    const recordsRes = await getChildRecords(child.student_id, { page: 1, size: 10 })
-    records.value = recordsRes.data.items || recordsRes.data || []
-
-    // Fetch latest score
-    try {
-      const scoreRes = await getChildScores(child.student_id, { limit: 1 })
-      const scoreData = scoreRes.data
-      if (Array.isArray(scoreData) && scoreData.length > 0) {
-        latestScore.value = scoreData[0]
-      } else {
-        latestScore.value = null
-      }
-    } catch {
-      latestScore.value = null
-    }
-
-    // Fetch ranking + semester summary
-    try {
-      const rankRes = await getChildRankings(child.student_id)
-      const rankData = rankRes.data
-      if (rankData && rankData.rank) {
-        ranking.value = rankData.rank
-      } else if (Array.isArray(rankData) && rankData.length > 0) {
-        // Find current child in rankings list
-        const myRank = rankData.find(r => r.student_id === child.student_id)
-        ranking.value = myRank?.rank ?? null
-      } else {
-        ranking.value = null
-      }
-
-      // Build semester report from rankings data
-      const rankings = Array.isArray(rankData) ? rankData : []
-      if (rankings.length > 0) {
-        const myEntry = rankings.find(r => r.student_id === child.student_id)
-        if (myEntry) {
-          studentTotalPoints.value = myEntry.total_points ?? 0
-          studentRank.value = myEntry.rank || rankings.indexOf(myEntry) + 1
-        }
-        const avgPts = rankings.reduce((s, r) => s + (r.total_points || 0), 0) / rankings.length
-        semesterReport.value = { summary: { avg_points: avgPts } }
-      } else {
-        semesterReport.value = null
-      }
-    } catch {
-      ranking.value = null
-      semesterReport.value = null
-    }
-
-    // Fetch behavior summary
-    try {
-      const behaviorRes = await getChildBehaviorSummary(child.student_id)
-      behaviorSummary.value = behaviorRes.data
-    } catch {
-      behaviorSummary.value = null
-    }
-  } catch {
-    records.value = []
-  } finally {
-    loading.value = false
-  }
+  classPercentile.value = 0
+  rankChange.value = null
+  behaviorSummary.value = null
+  recentRecords.value = []
+  totalPoints.value = 0
+  updates.value = []
+  hasLoaded.value = false
+  if (child) loadData()
 }, { immediate: true })
 </script>
 
 <style scoped>
-.guide-card {
-  margin-top: 60px;
+.focus-card {
+  background: var(--p-color-accent-surface);
+  border: 1px solid rgba(244, 218, 76, 0.2);
+  border-radius: var(--p-card-radius);
+  padding: var(--p-card-padding);
+  margin-bottom: var(--p-space-5);
 }
-
-.guide-icon {
-  font-size: 48px;
-  line-height: 1;
+.focus-card--calm {
+  background: var(--p-color-success-surface);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+.focus-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--p-fs-body);
+  font-weight: 600;
+  color: var(--p-color-accent);
   margin-bottom: 8px;
 }
-
-.info-card {
-  border-radius: var(--r-lg);
+.focus-card__header--calm {
+  color: var(--p-color-success);
+  margin-bottom: 0;
 }
-
-.student-header {
+.focus-card__item {
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: space-between;
+  padding: 10px 0;
+  font-size: var(--p-fs-body);
+  color: var(--p-text-2);
+  cursor: pointer;
+  border-top: 1px solid var(--p-border);
 }
 
-.avatar-circle {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  font-weight: var(--fw-semibold);
-  color: #1a1a2e;
-  flex-shrink: 0;
+.p-card {
+  background: var(--p-card-bg);
+  border: var(--p-card-border);
+  box-shadow: var(--p-card-shadow);
+  border-radius: var(--p-card-radius);
+  padding: var(--p-card-padding);
+  margin-bottom: var(--p-space-5);
 }
-
-.student-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.student-name {
-  font-size: var(--fs-base);
-  font-weight: var(--fw-semibold);
-  color: rgba(255, 255, 255, 0.95);
-}
-
-.student-class {
-  font-size: var(--fs-base);
-  color: rgba(255, 255, 255, 0.45);
-  margin-top: 2px;
-}
-
-.student-stats {
-  display: flex;
-  gap: 16px;
-  text-align: center;
-}
-
-.stat-item {
-  min-width: 48px;
-}
-
-.stat-value {
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-semibold);
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.stat-item--primary .stat-value {
-  color: #F4DA4C;
-}
-
-.stat-label {
-  font-size: var(--fs-base);
-  color: rgba(255, 255, 255, 0.4);
-  margin-top: 2px;
-}
-
-.score-brief-header {
+.p-card__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--p-space-3);
 }
-
-.score-brief-body {
-  display: flex;
-  gap: 24px;
+.p-card__title {
+  font-size: var(--p-fs-section);
+  font-weight: 600;
+  color: var(--p-text-1);
 }
-
-.score-brief-item {
-  text-align: center;
-}
-
-.score-brief-value {
-  font-size: 22px;
-  font-weight: var(--fw-semibold);
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.score-brief-label {
-  font-size: var(--fs-base);
-  color: rgba(255, 255, 255, 0.4);
-  margin-top: 2px;
-}
-
-.quick-entries {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-
-.quick-entry {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.p-card__action {
+  font-size: var(--p-fs-label);
+  color: var(--p-text-3);
   cursor: pointer;
-  padding: 12px 4px;
-  border-radius: var(--r-md);
-  transition: background 0.2s;
-}
-
-.quick-entry:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.quick-entry-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  margin-bottom: 6px;
+  gap: 2px;
+}
+.p-card__source {
+  font-size: var(--p-fs-label);
+  color: var(--p-text-3);
+  margin-top: var(--p-space-3);
 }
 
-.quick-entry-label {
-  font-size: var(--fs-base);
-  color: rgba(255, 255, 255, 0.65);
-}
-
-.record-item {
+.trend-row { display: flex; gap: var(--p-space-4); align-items: center; }
+.trend-chart { flex: 1; min-width: 0; }
+.trend-stats { display: flex; flex-direction: column; gap: var(--p-space-2); }
+.trend-stat__label { font-size: var(--p-fs-label); color: var(--p-text-3); }
+.trend-stat__value {
+  font-size: var(--p-fs-body);
+  font-weight: 600;
+  color: var(--p-text-1);
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
 }
+.trend-stat__value--up { color: var(--p-color-success); }
+.trend-stat__value--down { color: var(--p-color-warning); }
+.trend-latest {
+  font-size: var(--p-fs-body);
+  color: var(--p-text-2);
+  margin-top: var(--p-space-3);
+  padding-top: var(--p-space-3);
+  border-top: 1px solid var(--p-border);
+}
+.trend-latest__score { font-weight: 600; color: var(--p-text-1); font-variant-numeric: tabular-nums; }
 
-.record-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--fs-base);
-  font-weight: var(--fw-semibold);
-  flex-shrink: 0;
-}
+.behavior-summary { display: flex; align-items: center; gap: 8px; margin-bottom: var(--p-space-3); }
+.behavior-tag { font-size: var(--p-fs-body); font-weight: 500; }
+.behavior-tag--good { color: var(--p-color-success); }
+.behavior-tag--warn { color: var(--p-color-warning); }
+.behavior-sep { color: var(--p-text-3); }
+.behavior-recent { display: flex; flex-direction: column; gap: 8px; margin-bottom: var(--p-space-3); }
+.behavior-item { display: flex; align-items: center; gap: 8px; }
+.behavior-item__text { font-size: var(--p-fs-body); color: var(--p-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.behavior-total { font-size: var(--p-fs-body); color: var(--p-text-2); padding-top: var(--p-space-3); border-top: 1px solid var(--p-border); }
 
-.record-icon--up {
-  background: rgba(244, 218, 76, 0.15);
-  color: #F4DA4C;
-}
+.update-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+.update-item__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--p-color-accent); flex-shrink: 0; }
+.update-item__text { flex: 1; font-size: var(--p-fs-body); color: var(--p-text-2); }
+.update-item__time { font-size: var(--p-fs-label); color: var(--p-text-3); flex-shrink: 0; }
 
-.record-icon--down {
-  background: rgba(230, 57, 70, 0.15);
-  color: #e63946;
-}
-
-.record-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.record-name {
-  font-size: var(--fs-base);
-  color: rgba(255, 255, 255, 0.85);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.record-time {
-  font-size: var(--fs-base);
-  color: rgba(255, 255, 255, 0.35);
-  margin-top: 2px;
-}
-
-.stats-row {
-  display: flex;
-  gap: 16px;
-}
-
-.stat-card {
-  flex: 1;
-  text-align: center;
-  padding: 8px 4px;
-  border-radius: var(--r-md);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.stat-card .stat-label {
-  font-size: var(--fs-base);
-  color: rgba(255, 255, 255, 0.45);
-  margin-top: 4px;
-}
-
-.stat-card .stat-value {
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-semibold);
-  color: rgba(255, 255, 255, 0.85);
-}
+.p-empty-guide { padding-top: 60px; }
 </style>
