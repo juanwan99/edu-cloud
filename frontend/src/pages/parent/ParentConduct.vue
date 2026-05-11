@@ -3,7 +3,7 @@
     <ParentSkeleton v-if="loading && !hasLoaded" :rows="3" />
 
     <template v-else-if="currentChild">
-      <n-segmented v-model:value="segment" :options="segments" block class="segment-control" />
+      <n-radio-group v-model:value="segment" :options="segments" size="small" class="segment-control" />
 
       <!-- Records Timeline -->
       <template v-if="segment === 'records'">
@@ -111,7 +111,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
 import {
-  NSegmented, NTag, NCollapse, NCollapseItem, NButton,
+  NTag, NCollapse, NCollapseItem, NButton,
   NRadioGroup, NRadioButton, NInput
 } from 'naive-ui'
 import { TrendingUp, TrendingDown, Minus, Search } from 'lucide-vue-next'

@@ -3,7 +3,7 @@
     <ParentSkeleton v-if="loading && !hasLoaded" :rows="3" />
 
     <template v-else-if="currentChild">
-      <n-segmented v-model:value="segment" :options="segments" block class="segment-control" />
+      <n-radio-group v-model:value="segment" :options="segments" size="small" class="segment-control" />
 
       <!-- Exam View -->
       <template v-if="segment === 'exam'">
@@ -75,7 +75,7 @@
           <div class="p-card__header">
             <span class="p-card__title">学科趋势</span>
           </div>
-          <n-segmented v-model:value="selectedSubject" :options="subjectOptions" size="small" class="subject-selector" />
+          <n-radio-group v-model:value="selectedSubject" :options="subjectOptions" size="small" class="subject-selector" />
           <div v-if="subjectTrend.length >= 2" class="subject-chart">
             <v-chart :option="trendChartOption" autoresize style="height: 180px;" />
           </div>
@@ -111,7 +111,7 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { NSegmented, NCollapse, NCollapseItem } from 'naive-ui'
+import { NRadioGroup, NRadioButton, NCollapse, NCollapseItem } from 'naive-ui'
 import { AlertTriangle } from 'lucide-vue-next'
 import VChart from 'vue-echarts'
 import PullRefresh from '../../components/parent/PullRefresh.vue'
