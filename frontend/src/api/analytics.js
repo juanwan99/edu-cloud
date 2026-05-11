@@ -8,12 +8,9 @@ export const getSubjectQuestions = (subjectId) => client.get(`/analytics/subject
 export const getSegmentConfig = () => client.get('/analytics/segments/config')
 export const updateSegmentConfig = (data) => client.put('/analytics/segments/config', data)
 
-export const queryReport = (data) => client.post('/analytics/report/query', data)
 export const getGradeTrend = (params) => client.get('/analytics/report/trend/grade', { params })
 export const getClassTrend = (params) => client.get('/analytics/report/trend/class', { params })
 export const getStudentTrend = (params) => client.get('/analytics/report/trend/student', { params })
-export const exportReport = (data) => client.post('/analytics/report/export', data)
-
 export const getPowerOptions = () => client.get('/analytics/power-options')
 export const getQuestionInsights = (examId) => client.get(`/analytics/exam/${examId}/question-insights`)
 export const getExamDiagnosis = (examId, params) => client.get(`/analytics/exam/${examId}/diagnosis`, { params })
@@ -39,12 +36,6 @@ export const getGradeSubjects = (gradeId, examId) => client.get(`/analytics/grad
 export const exportGradeReport = (examId, subjectId, format = 'pdf') =>
   client.get(
     `/analytics/report/grade/${examId}/${subjectId}/export`,
-    { params: { format }, responseType: 'blob' },
-  )
-
-export const exportStudentReport = (studentId, examId, subjectId, format = 'pdf') =>
-  client.get(
-    `/analytics/report/student/${studentId}/${examId}/${subjectId}/export`,
     { params: { format }, responseType: 'blob' },
   )
 

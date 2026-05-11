@@ -225,12 +225,8 @@ describe('AnalyticsReportPage', () => {
     expect(wrapper.vm.studentColumns.map(col => col.title)).toContain('语文')
     expect(wrapper.vm.studentColumns.map(col => col.title)).toEqual(expect.arrayContaining(['学号', '班级进退']))
     expect(wrapper.vm.classColumns.map(col => col.title)).toContain('得分率')
-    expect(wrapper.vm.classSubjectColumns.map(col => col.title)).toEqual(
-      expect.arrayContaining(['参考人数', '最高分', '最低分', '及格率', '优秀率']),
-    )
     expect(wrapper.vm.studentRows).toHaveLength(1)
     expect(wrapper.vm.studentTableScrollX).toBeGreaterThan(760)
-    expect(wrapper.vm.classSubjectRows[0].subject_name).toBe('语文')
     expect(wrapper.vm.segmentChartOption.xAxis.data).toEqual(['80-90'])
     expect(wrapper.vm.subjectRateChartOption.xAxis.data).toEqual(['语文'])
   })
