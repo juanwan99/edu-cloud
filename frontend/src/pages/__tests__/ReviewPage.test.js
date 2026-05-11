@@ -267,10 +267,20 @@ describe('ReviewPage data flow', () => {
     )
     expect(fnBlock).toContain('currentAnswerId.value = answerPayload.answer_id')
     expect(fnBlock).toContain('position.value = answerPayload.position')
-    expect(fnBlock).toContain('ai.value = answerPayload.ai || null')
+    expect(fnBlock).toContain("ai.value = isReview ? (answerPayload.ai || null) : null")
   })
 
-  it('pre-fills score from AI prediction via applyScoring', () => {
+  it('suppresses AI data in ungraded mode to prevent anchoring bias', () => {
+    const fnBlock = content.slice(
+      content.indexOf('function applyAnswer('),
+      content.indexOf('async function loadNext')
+    )
+    expect(fnBlock).toContain("const isReview = reviewMode.value === 'ai_review'")
+    expect(fnBlock).toContain('childAi.value = isReview ?')
+    expect(fnBlock).toContain('resetAnnotations(isReview ?')
+  })
+
+  it('passes AI value to applyScoring (null in ungraded mode)', () => {
     expect(content).toContain('applyScoring(answerPayload, ai.value)')
   })
 

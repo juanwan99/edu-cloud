@@ -535,8 +535,9 @@ async function loadImage(answerId) {
 async function applyAnswer(answerPayload) {
   currentAnswerId.value = answerPayload.answer_id
   position.value = answerPayload.position
-  ai.value = answerPayload.ai || null
-  resetAnnotations(answerPayload.annotations)
+  const isReview = reviewMode.value === 'ai_review'
+  ai.value = isReview ? (answerPayload.ai || null) : null
+  resetAnnotations(isReview ? answerPayload.annotations : [])
   feedbackExpanded.value = false
   if (answerPayload.max_score != null) maxScore.value = answerPayload.max_score
   applyScoring(answerPayload, ai.value)
@@ -544,7 +545,7 @@ async function applyAnswer(answerPayload) {
 
   childImageUrls.value.forEach(u => URL.revokeObjectURL(u))
   childImageUrls.value = []
-  childAi.value = answerPayload.child_ai || []
+  childAi.value = isReview ? (answerPayload.child_ai || []) : []
   if (answerPayload.child_answer_ids?.length) {
     for (const cid of answerPayload.child_answer_ids) {
       try {
