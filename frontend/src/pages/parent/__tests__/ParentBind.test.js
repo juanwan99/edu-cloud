@@ -29,10 +29,10 @@ describe('ParentBind smoke', () => {
 
 describe('ParentBind template sections', () => {
   it('has 3-step indicator', () => {
-    expect(content).toContain(':current="step"')
-    expect(content).toContain('<n-step title="填写信息" />')
-    expect(content).toContain('<n-step title="验证" />')
-    expect(content).toContain('<n-step title="完成" />')
+    expect(content).toContain('class="step-indicator"')
+    expect(content).toContain('active: step === 1')
+    expect(content).toContain('active: step === 2')
+    expect(content).toContain('active: step === 3')
   })
 
   it('has student name input field', () => {

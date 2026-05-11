@@ -34,7 +34,7 @@ describe('ParentLogin template sections', () => {
   })
 
   it('contains brand area with platform name', () => {
-    expect(content).toContain('class="brand-area"')
+    expect(content).toContain('class="auth-brand"')
     expect(content).toContain('edu-cloud')
     expect(content).toContain('家校互通')
   })

@@ -1,35 +1,40 @@
 <template>
-  <n-config-provider :theme="darkTheme">
-    <div class="bind-container">
-      <n-card title="绑定孩子" style="max-width: 400px; width: 100%;">
+  <n-config-provider :theme="darkTheme" :theme-overrides="authThemeOverrides">
+    <div class="auth-page" data-theme="dark">
+      <div class="auth-brand">
+        <h1 class="auth-brand__title">绑定孩子</h1>
+        <p class="auth-brand__sub">完成绑定即可查看孩子信息</p>
+      </div>
+
+      <div class="auth-card">
         <!-- Already-bound detection -->
         <n-alert
           v-if="existingCount > 0 && step === 1"
           type="info"
-          style="margin-bottom: var(--space-4);"
+          style="margin-bottom: var(--p-space-4);"
           :title="`已绑定 ${existingCount} 个孩子`"
         >
           是否继续绑定新孩子？
         </n-alert>
 
         <!-- Steps indicator -->
-        <n-steps :current="step" size="small" style="margin-bottom: var(--space-5);">
-          <n-step title="填写信息" />
-          <n-step title="验证" />
-          <n-step title="完成" />
-        </n-steps>
+        <div class="step-indicator">
+          <div class="step-dot" :class="{ active: step === 1, done: step > 1 }">1</div>
+          <div class="step-line" :class="{ done: step > 1 }"></div>
+          <div class="step-dot" :class="{ active: step === 2, done: step > 2 }">2</div>
+          <div class="step-line" :class="{ done: step > 2 }"></div>
+          <div class="step-dot" :class="{ active: step === 3 }">3</div>
+        </div>
 
         <!-- Step 1 & 2: Form -->
         <n-form v-if="step <= 2" :model="form" :rules="rules" ref="formRef">
           <n-form-item label="学生姓名" path="student_name">
-            <n-input v-model:value="form.student_name" placeholder="请输入孩子姓名" />
+            <n-input v-model:value="form.student_name" placeholder="请输入孩子姓名" size="large" />
           </n-form-item>
           <n-form-item :label="verifyLabel" path="verify_code">
-            <n-input v-model:value="form.verify_code" :placeholder="verifyPlaceholder" />
+            <n-input v-model:value="form.verify_code" :placeholder="verifyPlaceholder" size="large" />
             <template #feedback>
-              <span style="color: rgba(255,255,255,0.35); font-size: var(--fs-base);">
-                {{ verifyHint }}
-              </span>
+              <span class="verify-hint">{{ verifyHint }}</span>
             </template>
           </n-form-item>
           <n-form-item label="与学生关系" path="relationship">
@@ -50,6 +55,7 @@
             type="primary"
             block
             :loading="loading"
+            size="large"
             @click="step === 1 ? goToStep2() : handleBind()"
           >
             {{ step === 1 ? '下一步' : '确认绑定' }}
@@ -58,7 +64,7 @@
             v-if="step === 2"
             block
             secondary
-            style="margin-top: var(--space-2);"
+            style="margin-top: var(--p-space-2);"
             @click="step = 1"
           >
             上一步
@@ -72,7 +78,7 @@
           <div class="success-child">{{ boundChildName }}</div>
           <div class="success-hint">{{ countdown }} 秒后跳转概览...</div>
         </div>
-      </n-card>
+      </div>
     </div>
   </n-config-provider>
 </template>
@@ -82,10 +88,26 @@ import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { darkTheme } from 'naive-ui'
 import {
-  NConfigProvider, NCard, NForm, NFormItem, NInput, NButton,
-  NSteps, NStep, NAlert
+  NConfigProvider, NForm, NFormItem, NInput, NButton,
+  NAlert
 } from 'naive-ui'
 import { bindChild } from '../../api/conduct'
+
+const authThemeOverrides = {
+  common: {
+    primaryColor: '#F4DA4C',
+    primaryColorHover: '#E8CF40',
+    primaryColorPressed: '#D4B830',
+    primaryColorSuppl: '#F4DA4C',
+    bodyColor: '#09061B',
+    cardColor: '#181433',
+    textColor1: '#F6F3FF',
+    textColor2: '#C9C2DD',
+    textColor3: '#9B93B5',
+    borderColor: 'rgba(255,255,255,0.08)',
+    inputColor: '#121026',
+  },
+}
 
 const router = useRouter()
 const formRef = ref(null)
@@ -190,75 +212,168 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.bind-container {
+.auth-page {
   min-height: 100dvh;
+  background: var(--p-bg-base);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--p-space-6);
+  font-family: var(--p-font);
+}
+
+.auth-brand {
+  text-align: center;
+  padding: 60px 0 40px;
+}
+
+.auth-brand__title {
+  font-size: var(--p-fs-page-title);
+  font-weight: 700;
+  color: var(--p-text-1);
+  margin: 0;
+}
+
+.auth-brand__sub {
+  font-size: var(--p-fs-body);
+  color: var(--p-text-3);
+  margin-top: var(--p-space-2);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--p-card-bg);
+  border: var(--p-card-border);
+  border-radius: var(--p-card-radius);
+  padding: var(--p-space-6);
+}
+
+.step-indicator {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  background: #18181c;
+  margin-bottom: var(--p-space-5);
 }
+
+.step-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--p-surface-3);
+  color: var(--p-text-3);
+  font-size: var(--p-fs-label);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.step-dot.active {
+  background: var(--p-color-accent);
+  color: #09061B;
+}
+
+.step-dot.done {
+  background: var(--p-color-accent-surface);
+  color: var(--p-color-accent);
+}
+
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--p-border);
+  margin: 0 var(--p-space-2);
+  max-width: 60px;
+  transition: background 0.2s;
+}
+
+.step-line.done {
+  background: var(--p-color-accent);
+}
+
+.verify-hint {
+  color: var(--p-text-disabled);
+  font-size: var(--p-fs-label);
+}
+
 .relationship-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   width: 100%;
 }
+
 .rel-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 12px 8px;
-  border-radius: var(--r-sm);
-  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--p-card-radius);
+  border: var(--p-card-border);
   cursor: pointer;
-  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  transition: border-color 0.2s, background 0.2s;
 }
+
 .rel-item:hover {
-  border-color: rgba(244,218,76,0.4);
+  border-color: var(--p-color-accent-hover);
 }
+
 .rel-item.selected {
-  border-color: #F4DA4C;
-  background: rgba(244,218,76,0.1);
+  border-color: var(--p-color-accent);
+  background: var(--p-color-accent-surface);
 }
+
 .rel-icon {
-  font-size: var(--fs-2xl);
+  font-size: var(--p-fs-section);
   line-height: 1;
   margin-bottom: 4px;
 }
+
 .rel-label {
-  font-size: var(--fs-base);
-  color: rgba(255,255,255,0.7);
+  font-size: var(--p-fs-label);
+  color: var(--p-text-3);
 }
+
 .rel-item.selected .rel-label {
-  color: #F4DA4C;
+  color: var(--p-color-accent);
 }
+
 .success-area {
   text-align: center;
   padding: 24px 0;
 }
+
 .success-icon {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: rgba(244,218,76,0.15);
-  color: #F4DA4C;
-  font-size: var(--fs-display);
+  background: var(--p-color-success-surface);
+  color: var(--p-color-success);
+  font-size: 32px;
   line-height: 64px;
   margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
 .success-text {
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-semibold);
+  font-size: var(--p-fs-section);
+  font-weight: 600;
+  color: var(--p-text-1);
   margin-bottom: 8px;
 }
+
 .success-child {
-  font-size: var(--fs-base);
-  color: rgba(255,255,255,0.7);
+  font-size: var(--p-fs-body);
+  color: var(--p-text-2);
   margin-bottom: 12px;
 }
+
 .success-hint {
-  font-size: var(--fs-base);
-  color: rgba(255,255,255,0.4);
+  font-size: var(--p-fs-body);
+  color: var(--p-text-disabled);
 }
 </style>
