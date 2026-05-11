@@ -124,10 +124,10 @@ describe('GradingPanel template - essay anchor controls', () => {
   })
 
   it('shows anchor tiers and ranges', () => {
-    expect(src).toContain('高分档')
-    expect(src).toContain('中分档')
-    expect(src).toContain('低分档')
-    expect(src).toContain('一/二类文 40-50分')
+    expect(src).toContain("tier: '优秀档'")
+    expect(src).toContain("tier: '中等档'")
+    expect(src).toContain("tier: '偏弱档'")
+    expect(src).toContain('一类文 46分左右')
   })
 
   it('has anchor score input', () => {
@@ -157,7 +157,7 @@ describe('GradingPanel template - essay anchor controls', () => {
 
 describe('GradingPanel imports', () => {
   it('imports NCard, NButton, NSpace, NImage, NInputNumber from naive-ui', () => {
-    expect(src).toContain('import { NCard, NButton, NSpace, NImage, NInputNumber }')
+    expect(src).toContain('import { NCard, NButton, NSpace, NImage, NInput, NInputNumber }')
   })
 
   it('imports RubricEditor component', () => {

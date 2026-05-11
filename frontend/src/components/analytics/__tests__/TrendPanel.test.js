@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 
 // --- Mock data ---
 
@@ -68,6 +69,7 @@ const stubs = {
 }
 
 async function createWrapper(propsData = {}) {
+  setActivePinia(createPinia())
   const comp = (await import('../TrendPanel.vue')).default
   const wrapper = mount(comp, {
     props: { gradeId: 'g1', ...propsData },

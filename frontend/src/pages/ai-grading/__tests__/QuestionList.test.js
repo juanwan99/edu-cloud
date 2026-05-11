@@ -128,9 +128,8 @@ describe('QuestionList template - status tags', () => {
 describe('QuestionList template - progress', () => {
   it('shows grading progress when available', () => {
     expect(src).toContain('q.answer_count')
-    expect(src).toContain('q-progress')
-    expect(src).toContain('q.graded_count')
-    expect(src).toContain('已阅')
+    expect(src).toContain('q.ai_scored_count')
+    expect(src).toContain('AI已评')
   })
 })
 

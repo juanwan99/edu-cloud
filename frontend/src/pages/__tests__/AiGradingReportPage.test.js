@@ -25,13 +25,14 @@ vi.mock('vue-echarts', () => ({
 const mockWarning = vi.fn()
 const mockError = vi.fn()
 vi.mock('naive-ui', () => {
-  const stub = (name) => ({ name, template: '<div><slot /></div>', props: { value: null } })
+  const stub = (name) => ({ name, template: '<div><slot /></div>', props: { value: null, options: Array } })
   return {
     useMessage: () => ({ warning: mockWarning, error: mockError, success: vi.fn(), info: vi.fn() }),
     NSelect: stub('NSelect'), NButton: stub('NButton'), NCard: stub('NCard'),
     NSpace: stub('NSpace'), NTabs: stub('NTabs'), NTabPane: stub('NTabPane'),
     NDataTable: stub('NDataTable'), NSpin: stub('NSpin'), NTag: stub('NTag'),
-    NInput: stub('NInput'), NImage: stub('NImage'),
+    NInput: stub('NInput'), NImage: stub('NImage'), NAlert: stub('NAlert'),
+    NGi: stub('NGi'), NGrid: stub('NGrid'), NStatistic: stub('NStatistic'),
   }
 })
 

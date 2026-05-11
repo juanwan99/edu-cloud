@@ -305,11 +305,13 @@ describe('AiGradingPage batch generate rubrics', () => {
   })
 
   it('skips 400 errors during batch', () => {
-    expect(content).toContain("if (e.response?.status !== 400) fail++")
+    expect(content).toContain("fail++")
+    expect(content).toContain("e.response?.status === 400")
   })
 
   it('shows completion message with counts', () => {
-    expect(content).toContain("message.success(`批量生成完成: ${ok} 成功${fail ? ', ' + fail + ' 失败' : ''}`)")
+    expect(content).toContain("批量生成完成:")
+    expect(content).toContain("message.success(msg)")
   })
 })
 

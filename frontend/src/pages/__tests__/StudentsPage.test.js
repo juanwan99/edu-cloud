@@ -112,7 +112,8 @@ describe('StudentsPage API calls', () => {
   })
 
   it('loads all reference data on mount', () => {
-    expect(content).toContain('await Promise.all([loadGrades(), loadClasses(), loadSelections()])')
+    expect(content).toContain('await Promise.all([loadGrades(), loadClasses()')
+    expect(content).toContain('loadSelections()')
     expect(content).toContain('await loadStudents()')
   })
 })

@@ -151,18 +151,18 @@ describe('MarkingProgressPage questionColorBand function', () => {
 })
 
 describe('MarkingProgressPage table columns', () => {
-  it('defines 5 columns with correct keys', () => {
-    expect(content).toContain("title: '题号', key: 'name', width: 120")
-    expect(content).toContain("title: '满分', key: 'max_score', width: 80")
-    expect(content).toContain("title: '已批', key: 'graded_count', width: 80")
-    expect(content).toContain("title: '总数', key: 'total_answers', width: 80")
-    expect(content).toContain("title: '进度'")
-    expect(content).toContain("key: 'progress'")
+  it('defines columns with correct keys', () => {
+    expect(content).toContain("title: '题号', key: 'name', width: 100")
+    expect(content).toContain("title: '满分', key: 'max_score', width: 60")
+    expect(content).toContain("title: '总数', key: 'total_answers', width: 60")
+    expect(content).toContain("title: 'AI 进度'")
+    expect(content).toContain("title: '人工进度'")
   })
 
-  it('renders progress column as NProgress line', () => {
-    expect(content).toContain("type: 'line'")
-    expect(content).toContain("indicatorPlacement: 'inside'")
+  it('renders progress columns with render functions', () => {
+    expect(content).toContain("key: 'ai_progress'")
+    expect(content).toContain("key: 'manual_progress'")
+    expect(content).toContain("render(row)")
   })
 })
 
