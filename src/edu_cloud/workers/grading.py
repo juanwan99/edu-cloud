@@ -932,9 +932,11 @@ async def _upsert_ai_result(db, task, result_dict):
     )
 
     if existing and existing.status == "confirmed":
-        for k, v in ai_fields.items():
-            setattr(existing, k, v)
-        existing.version += 1
+        logger.warning(
+            "grading_isolation: skipping AI write for confirmed answer=%s, source=%s",
+            answer_id, existing.source,
+        )
+        return "skipped_confirmed"
     elif existing:
         for k, v in ai_fields.items():
             setattr(existing, k, v)
@@ -1210,8 +1212,9 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
                             errors.append(error_dict)
                             batch_failed += 1
                         else:
-                            await _upsert_ai_result(db, task, result_dict)
-                            batch_completed += 1
+                            upsert_status = await _upsert_ai_result(db, task, result_dict)
+                            if upsert_status != "skipped_confirmed":
+                                batch_completed += 1
                     processed += len(batch)
                     result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
                     task = result.scalar_one()
@@ -1254,8 +1257,9 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
                         errors.append(error_dict)
                         total_failed += 1
                     else:
-                        await _upsert_ai_result(db, task, result_dict)
-                        total_completed += 1
+                        upsert_status = await _upsert_ai_result(db, task, result_dict)
+                        if upsert_status != "skipped_confirmed":
+                            total_completed += 1
                 result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
                 task = result.scalar_one()
                 task.completed = total_completed
