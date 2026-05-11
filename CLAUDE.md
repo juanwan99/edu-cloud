@@ -610,6 +610,7 @@ tests/
 | POST | `/api/v1/analytics/report/export` | GENERATE_REPORT | 生成分析报告文档（走 Studio） |
 | GET | `/api/v1/analytics/power-options` | 已登录 | 级联筛选树（年级→班级→科目→考试，RBAC 过滤） |
 | POST | `/api/v1/analytics/level-score/convert` | MANAGE_EXAM_RESULTS | 等级赋分转换（原始分→百分位等级→线性插值赋分） |
+| GET | `/api/v1/analytics/exam/{id}/basic-report` | 已登录 | 综合分析报告（总览/科目/班级/学生排名+进退步/分布/scope，AnalyticsReportPage 数据源） |
 | GET | `/api/v1/analytics/exam/{id}/question-insights` | 已登录 | 题目错因聚合 + 难度/区分度（AI 阅卷数据） |
 | GET | `/api/v1/analytics/exam/{id}/diagnosis` | 已登录 | 考试诊断文本（模板拼接，ORC-007 不调 LLM） |
 | GET | `/api/v1/analytics/exam/{id}/student-rankings` | 已登录 | 学生排名 + 进退步 delta |
