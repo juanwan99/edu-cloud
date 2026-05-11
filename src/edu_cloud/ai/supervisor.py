@@ -136,6 +136,16 @@ class Supervisor:
             await self._maybe_extract_memory(ctx, session_id)
             return
 
+        if not team_result.strip():
+            logger.warning("Team '%s' produced empty result, falling back to single loop", team.name)
+            async for event in self._run_single(
+                message, ctx, tool_specs=tool_specs,
+                system_prompt=system_prompt, history=history,
+            ):
+                yield event
+            await self._maybe_extract_memory(ctx, session_id)
+            return
+
         # Summarize team results via LLM
         summary = await self._summarize(message, team_result)
         # F002 fix: preserve multi-turn history

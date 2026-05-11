@@ -144,14 +144,15 @@ class AgentRuntime:
             anonymizer=context.anonymizer,
         )
 
-        # 7. Supervisor (F001 fix: preserve team_registry + sensitivity_router)
+        # 7. Supervisor — teams disabled: single loop handles all queries
+        #    (team routing adds latency + unreliable sub-agent execution)
         mem_extractor = self._memory_extractor if strategy.tier == 1 else None
         sensitivity_router = SensitivityRouter(primary=adapter, enhanced=None)
         supervisor = Supervisor(
             registry=tool_registry,
             adapter=adapter,
             strategy=strategy,
-            team_registry=default_team_registry,
+            team_registry=None,
             sensitivity_router=sensitivity_router,
             memory_extractor=mem_extractor,
         )
