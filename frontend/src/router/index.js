@@ -117,10 +117,12 @@ export const routes = [
       { path: '', name: 'ParentOverview', component: () => import('../pages/parent/ParentOverview.vue') },
       { path: 'bind', name: 'ParentBind', component: () => import('../pages/parent/ParentBind.vue') },
       { path: 'scores', name: 'ParentScores', component: () => import('../pages/parent/ParentScores.vue') },
-      { path: 'details', name: 'ParentDetails', component: () => import('../pages/parent/ParentDetails.vue') },
-      { path: 'rankings', name: 'ParentRankings', component: () => import('../pages/parent/ParentRankings.vue') },
-      { path: 'rules', name: 'ParentRules', component: () => import('../pages/parent/ParentRules.vue') },
+      { path: 'conduct', name: 'ParentConduct', component: () => import('../pages/parent/ParentConduct.vue') },
       { path: 'profile', name: 'ParentProfile', component: () => import('../pages/parent/ParentProfile.vue') },
+      // Redirects for old routes
+      { path: 'rankings', redirect: { name: 'ParentConduct' } },
+      { path: 'rules', redirect: { name: 'ParentConduct' } },
+      { path: 'details', redirect: { name: 'ParentConduct' } },
     ]
   },
 
