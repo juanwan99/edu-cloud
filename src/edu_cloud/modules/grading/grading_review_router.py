@@ -141,7 +141,7 @@ async def submit_review(
         select(GradingResult).where(
             GradingResult.id == result_id,
             GradingResult.school_id == current["current_role"].school_id,
-        )
+        ).with_for_update()
     )
     gr = result.scalar_one_or_none()
     if not gr:

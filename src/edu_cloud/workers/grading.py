@@ -915,6 +915,7 @@ async def _upsert_ai_result(db, task, result_dict):
     answer_id = result_dict["answer_id"]
     existing = (await db.execute(
         select(GradingResult).where(GradingResult.answer_id == answer_id)
+        .with_for_update(skip_locked=True)
     )).scalar_one_or_none()
 
     ai_fields = dict(

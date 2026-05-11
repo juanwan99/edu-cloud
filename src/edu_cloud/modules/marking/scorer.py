@@ -449,6 +449,7 @@ async def submit_score(
     """
     existing = (await db.execute(
         select(GradingResult).where(GradingResult.answer_id == answer_id)
+        .with_for_update()
     )).scalar_one_or_none()
 
     now = datetime.now(timezone.utc)

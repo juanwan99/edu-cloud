@@ -160,3 +160,101 @@ async def test_grade_single_does_not_write_to_db(db, isolation_setup):
     assert row.ai_score is None, "ai_score must remain None"
     assert row.ai_feedback is None, "ai_feedback must remain None"
     assert row.source == "manual", "source must stay manual"
+
+
+async def test_concurrent_submit_prevents_double_confirm(db_engine):
+    """P-004: concurrent operations on same answer — row lock prevents corruption.
+
+    NOTE: SQLite (used in tests) silently ignores with_for_update(), so this
+    test verifies the logic flow but won't actually test locking. The locking
+    is effective in PostgreSQL production.
+    """
+    import asyncio
+    from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession, async_sessionmaker
+    from edu_cloud.modules.marking.scorer import submit_score
+
+    factory = async_sessionmaker(db_engine, class_=_AsyncSession, expire_on_commit=False)
+
+    # Setup: school -> exam -> subject -> question -> answer -> ai_done GradingResult
+    async with factory() as setup_db:
+        school = School(name="P004School", code="P004")
+        setup_db.add(school)
+        await setup_db.commit()
+
+        user = User(username="p004_teacher", display_name="P004Teacher")
+        user.set_password("p")
+        setup_db.add(user)
+        await setup_db.commit()
+        setup_db.add(UserRole(user_id=user.id, role="teacher", school_id=school.id, is_primary=True))
+        await setup_db.flush()
+
+        exam = Exam(name="P004Exam", school_id=school.id)
+        setup_db.add(exam)
+        await setup_db.commit()
+
+        subject = Subject(exam_id=exam.id, name="Math", code="math", school_id=school.id)
+        setup_db.add(subject)
+        await setup_db.commit()
+
+        question = Question(
+            subject_id=subject.id, name="Q1", question_type="essay",
+            max_score=10.0, school_id=school.id,
+        )
+        setup_db.add(question)
+        await setup_db.commit()
+
+        answer = StudentAnswer(
+            exam_id=exam.id, subject_id=subject.id, student_id="stu_p004",
+            question_id=question.id, image_path="/fake/p004.png", school_id=school.id,
+        )
+        setup_db.add(answer)
+        await setup_db.commit()
+
+        gr = GradingResult(
+            answer_id=answer.id,
+            question_id=question.id,
+            school_id=school.id,
+            ai_score=8.0,
+            ai_confidence=0.9,
+            ai_feedback="Good",
+            max_score=10.0,
+            status="ai_done",
+            source=None,
+        )
+        setup_db.add(gr)
+        await setup_db.commit()
+
+        ids = {
+            "answer_id": answer.id,
+            "question_id": question.id,
+            "school_id": school.id,
+        }
+
+    errors = []
+    successes = []
+
+    async def do_submit(teacher_id, score):
+        async with factory() as db2:
+            try:
+                await submit_score(
+                    db2, ids["answer_id"], ids["question_id"],
+                    teacher_id, ids["school_id"], score, 10.0, f"by {teacher_id}",
+                )
+                successes.append(teacher_id)
+            except (ValueError, Exception) as e:
+                errors.append((teacher_id, str(e)))
+
+    await asyncio.gather(
+        do_submit("teacher-A", 7.0),
+        do_submit("teacher-B", 6.0),
+    )
+
+    # One succeeds, one fails (or both succeed but final state is consistent)
+    async with factory() as db:
+        final = (await db.execute(
+            select(GradingResult).where(GradingResult.answer_id == ids["answer_id"])
+        )).scalar_one()
+        assert final.status == "confirmed"
+        assert final.final_score is not None
+        # At least one should have succeeded
+        assert len(successes) >= 1
