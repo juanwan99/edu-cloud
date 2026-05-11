@@ -952,6 +952,7 @@ async def _upsert_ai_result(db, task, result_dict):
                 **ai_fields,
                 max_score=result_dict["max_score"],
                 status="ai_done",
+                source="ai",
                 version=loaded_version + 1,
             )
         )
@@ -973,6 +974,7 @@ async def _upsert_ai_result(db, task, result_dict):
                     **ai_fields,
                     max_score=result_dict["max_score"],
                     status="ai_done",
+                    source="ai",
                     version=existing.version + 1,
                 )
             )
@@ -987,6 +989,7 @@ async def _upsert_ai_result(db, task, result_dict):
             school_id=task.school_id,
             max_score=result_dict["max_score"],
             status="ai_done",
+            source="ai",
             **ai_fields,
         ))
 
