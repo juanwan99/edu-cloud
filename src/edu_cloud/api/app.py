@@ -131,7 +131,7 @@ async def lifespan(app: FastAPI):
         try:
             knowledge_store.load(settings.KNOWLEDGE_BASE_DIR)
         except Exception as e:
-            logger.warning(f"Knowledge base loading failed (non-fatal): {e}")
+            logger.error("Knowledge base loading failed (non-fatal): %s", e)
 
     # Seed platform admin (new User + UserRole model)
     from edu_cloud.database import async_session
