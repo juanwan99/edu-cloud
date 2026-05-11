@@ -676,6 +676,7 @@ async def create_grading_task(
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     school_id = current["current_role"].school_id
+    confirmed_count = 0
 
     if req.question_id and req.question_ids:
         raise HTTPException(400, "question_id 和 question_ids 不能同时指定")
@@ -737,6 +738,14 @@ async def create_grading_task(
             await db.commit()
             logger.info("create_grading_task: cleaned %d stale ai_pending for batch questions", len(old_results))
 
+        confirmed_count = (await db.execute(
+            select(func.count(GradingResult.id)).where(
+                GradingResult.question_id.in_(req.question_ids),
+                GradingResult.school_id == school_id,
+                GradingResult.status == "confirmed",
+            )
+        )).scalar() or 0
+
     elif req.question_id:
         # --- Question-level path ---
         # AGP-001: validate question belongs to subject AND is subjective
@@ -786,6 +795,14 @@ async def create_grading_task(
             logger.info("create_grading_task: cleaned %d stale ai_pending results for question=%s",
                         len(old_results), req.question_id)
 
+        confirmed_count = (await db.execute(
+            select(func.count(GradingResult.id)).where(
+                GradingResult.question_id == req.question_id,
+                GradingResult.school_id == school_id,
+                GradingResult.status == "confirmed",
+            )
+        )).scalar() or 0
+
     else:
         # --- Subject-level path (ORC-002: unchanged) ---
         # 前置校验 2：至少 1 道主观题（L72 worker fast-path 会 trivially completed）
@@ -833,6 +850,14 @@ async def create_grading_task(
         if old_results:
             await db.commit()
             logger.info("create_grading_task: cleaned %d stale ai_pending subject-level results", len(old_results))
+
+        confirmed_count = (await db.execute(
+            select(func.count(GradingResult.id)).where(
+                GradingResult.question_id.in_(subjective_q_ids),
+                GradingResult.school_id == school_id,
+                GradingResult.status == "confirmed",
+            )
+        )).scalar() or 0
 
     # 并发防护：同题/同科目不允许重叠的 pending/processing 任务
     overlap_filter = [
@@ -947,6 +972,9 @@ async def create_grading_task(
     resp = _task_response(task)
     if child_tasks:
         resp["child_task_ids"] = [str(ct.id) for ct in child_tasks]
+    if confirmed_count > 0:
+        resp["warning"] = f"{confirmed_count} 份答卷已有人工确认评分，AI 将跳过这些答卷"
+        resp["confirmed_skipped"] = confirmed_count
     return resp
 
 

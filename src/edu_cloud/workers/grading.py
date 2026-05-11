@@ -9,7 +9,7 @@ import logging
 import time
 import aiofiles
 
-from sqlalchemy import select, or_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from edu_cloud.config import settings
@@ -1089,17 +1089,13 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             )
             answers_raw = a_result.scalars().all()
 
-            # Exclude answers that already have a grading result (AI or manual confirmed)
+            # Exclude answers that already have a grading result
             all_answer_ids = [a.id for a in answers_raw]
             graded_rows = set()
             if all_answer_ids:
                 graded_rows = set((await db.execute(
                     select(GradingResult.answer_id).where(
                         GradingResult.answer_id.in_(all_answer_ids),
-                        or_(
-                            GradingResult.status.in_(["ai_pending", "ai_done", "confirmed"]),
-                            GradingResult.ai_score.is_not(None),
-                        ),
                     )
                 )).scalars().all())
 

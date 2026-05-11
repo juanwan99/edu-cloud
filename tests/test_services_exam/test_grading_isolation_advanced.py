@@ -371,3 +371,37 @@ async def test_dispatch_status_counts_with_mixed_sources(db_engine, school_and_q
 
         assert ai_count == 5, f"Expected 5 AI-sourced, got {ai_count}"
         assert manual_count == 3, f"Expected 3 manual, got {manual_count}"
+
+
+@pytest.mark.asyncio
+async def test_ai_done_then_manual_score_correct_source(db_engine, school_and_question):
+    """Normal flow: AI scores, teacher overrides — source must be ai_override."""
+    from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession, async_sessionmaker
+    from edu_cloud.modules.marking.scorer import submit_score
+
+    ids = school_and_question
+    factory = async_sessionmaker(db_engine, class_=_AsyncSession, expire_on_commit=False)
+
+    async with factory() as db:
+        gr = GradingResult(
+            answer_id=ids["answer_id"],
+            question_id=ids["question_id"],
+            school_id=ids["school_id"],
+            ai_score=8.0,
+            ai_confidence=0.9,
+            ai_feedback="AI says good",
+            max_score=10.0,
+            status="ai_done",
+        )
+        db.add(gr)
+        await db.commit()
+
+    async with factory() as db:
+        result = await submit_score(
+            db, ids["answer_id"], ids["question_id"],
+            "teacher-1", ids["school_id"], 6.0, 10.0, "I disagree",
+        )
+        assert result.status == "confirmed"
+        assert result.source == "ai_override"
+        assert result.final_score == 6.0
+        assert result.ai_score == 8.0
