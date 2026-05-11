@@ -78,6 +78,7 @@ async def _purge_expired_sessions():
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
+    refs: list[dict] | None = None
 
     @property
     def validated_message(self) -> str:
@@ -96,6 +97,32 @@ async def ai_health():
     return {"status": "available", "tools": tool_count}
 
 
+@router.get("/ref-types")
+async def ai_ref_types(current=Depends(get_current_user)):
+    from edu_cloud.ai.ref_types import REF_TYPES
+    return [t.to_dict() for t in REF_TYPES]
+
+
+@router.get("/refs")
+async def ai_refs(
+    type: str,
+    search: str | None = None,
+    parent_id: str | None = None,
+    limit: int = 20,
+    current=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from edu_cloud.ai.ref_resolvers import RESOLVERS
+    resolver = RESOLVERS.get(type)
+    if not resolver:
+        raise HTTPException(400, f"Unknown ref type: {type}")
+
+    role_obj = current["current_role"]
+    school_id = getattr(role_obj, "school_id", None) or ""
+    items = await resolver(db, school_id, search, parent_id, min(limit, 50))
+    return {"items": [item.to_dict() for item in items], "total": len(items)}
+
+
 @router.post("/chat")
 async def ai_chat(
     req: ChatRequest,
@@ -106,6 +133,13 @@ async def ai_chat(
         message = req.validated_message
     except ValueError as e:
         return {"error": str(e)}
+
+    # Inject ref context
+    if req.refs:
+        ref_lines = [f"[引用数据: {r.get('label','')}（{r.get('type','')}_id={r.get('id','')}）]"
+                     for r in req.refs if r.get("id")]
+        if ref_lines:
+            message = "\n".join(ref_lines) + "\n\n" + message
 
     user = current["user"]
     role_obj = current["current_role"]
