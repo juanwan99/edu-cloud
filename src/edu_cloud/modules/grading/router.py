@@ -632,14 +632,6 @@ async def grade_single_answer(
     comment = result_data.get("comment", "")
     recognized_text = plog.get("ocr_text")
 
-    ai_raw = {
-        "raw_content": result_data.get("raw_content", ""),
-        "details": details,
-        "deductions": deductions,
-        "comment": comment,
-        "recognizedText": recognized_text,
-    }
-
     feedback = comment or result_data.get("feedback", "")
 
     logger.info("grade_single: answer=%s, score=%.1f (preview only, no DB write)",
