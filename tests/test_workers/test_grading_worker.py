@@ -114,10 +114,11 @@ async def test_process_grading_task_no_subjective_questions(mock_create_llm, _mo
     from edu_cloud.workers.grading import process_grading_task
 
     task = _make_mock_task()
+    task.status = "processing"  # post-CAS state: worker code re-reads after claim
 
     # db.execute call sequence (CAS task claim):
     # 1. update(GradingTask) WHERE status=pending → rowcount=1 (CAS claim)
-    # 2. select(GradingTask) → task (re-read after claim)
+    # 2. select(GradingTask) → task (re-read after claim, status=processing)
     # 3. select(Question) → empty list
     # 4. select(Subject) → None (subject lookup for prompt dispatch)
     cas_result = MagicMock()
@@ -137,7 +138,7 @@ async def test_process_grading_task_no_subjective_questions(mock_create_llm, _mo
 
     await process_grading_task(ctx, "task-1")
 
-    # Task should transition: pending → processing → completed
+    # Task should transition: processing → completed
     assert task.status == "completed"
     # LLM grade should never be called
     mock_llm.grade.assert_not_called()
@@ -155,6 +156,7 @@ async def test_process_grading_task_missing_rubric(mock_create_llm, _mock_get_cf
     from edu_cloud.workers.grading import process_grading_task
 
     task = _make_mock_task()
+    task.status = "processing"  # post-CAS state: worker code re-reads after claim
 
     question = MagicMock()
     question.id = "q-1"
@@ -173,7 +175,7 @@ async def test_process_grading_task_missing_rubric(mock_create_llm, _mock_get_cf
 
     # db.execute call sequence (CAS task claim + batch mode):
     # 1. update(GradingTask) WHERE status=pending → rowcount=1 (CAS claim)
-    # 2. select(GradingTask) → task (re-read after claim)
+    # 2. select(GradingTask) → task (re-read after claim, status=processing)
     # 3. select(Question) → [question]
     # 4. select(Subject) → None (subject lookup for prompt dispatch)
     # 5. select(StudentAnswer) → [answer]

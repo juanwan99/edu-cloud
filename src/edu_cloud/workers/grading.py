@@ -17,6 +17,7 @@ from edu_cloud.modules.exam.models import Question, Subject, QUESTION_TYPES_SUBJ
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
 from edu_cloud.modules.grading.equivalence_guard import apply_equivalence_guard
+from edu_cloud.core.state_machine import validate_transition
 import edu_cloud.models.user  # noqa: F401 — FK resolution for grading_tasks.created_by
 import edu_cloud.models.school  # noqa: F401 — FK resolution for *.school_id
 
@@ -1115,6 +1116,7 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             subject_code = subject_row.code if subject_row else ""
 
             if not questions:
+                validate_transition("grading_task", task.status, "completed")
                 task.status = "completed"
                 await db.commit()
                 logger.info("grading_task DONE: task=%s, no subjective questions", task_id)
@@ -1314,7 +1316,9 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             result = await db.execute(select(GradingTask).where(GradingTask.id == task_id))
             task = result.scalar_one()
             if task.status != "cancelled":
-                task.status = "failed" if errors else "completed"
+                new_status = "failed" if errors else "completed"
+                validate_transition("grading_task", task.status, new_status)
+                task.status = new_status
             task.error_log = errors if errors else None
             await db.commit()
 

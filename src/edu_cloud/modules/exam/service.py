@@ -7,16 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.services.exceptions import NotFoundError, ValidationError, ConflictError
+from edu_cloud.core.state_machine import validate_transition, StateError
 
 logger = logging.getLogger(__name__)
-
-_VALID_STATUS_TRANSITIONS = {
-    "draft": {"scanning"},
-    "scanning": {"grading", "draft"},
-    "grading": {"reviewing"},
-    "reviewing": {"completed"},
-    # published 和 archived 只能通过 ExamPublishService 进入，不在此字典中
-}
 
 # published/archived 只能通过 ExamPublishService 进入，update_exam 不允许
 _PUBLISH_ONLY_STATUSES = {"published", "archived"}
@@ -77,9 +70,10 @@ async def update_exam(
             raise ValidationError(
                 f"无效的状态变更: {status} 只能通过 ExamPublishService 设置"
             )
-        allowed = _VALID_STATUS_TRANSITIONS.get(exam.status, set())
-        if status not in allowed:
-            raise ValidationError(f"无效的状态变更: {exam.status} → {status}")
+        try:
+            validate_transition("exam", exam.status, status)
+        except StateError as e:
+            raise ValidationError(str(e)) from e
         changes["status"] = (exam.status, status)
         exam.status = status
     await db.commit()
@@ -90,14 +84,20 @@ async def update_exam(
             exam_id,
             {k: f"{old}→{new}" for k, (old, new) in changes.items()},
         )
-    # DF-001: 考试状态 → completed 时自动触发数据流水线
+    # DF-001: 考试状态 -> completed 时自动触发数据流水线
     if status == "completed":
         try:
             from edu_cloud.modules.pipeline.service import run_full_pipeline
             results = await run_full_pipeline(db, exam_id=exam_id, school_id=school_id)
-            logger.info("auto_pipeline: exam=%s, results=%s", exam_id, results)
+            logger.info("auto_pipeline completed: exam=%s, results=%s", exam_id, results)
         except Exception:
             logger.error("auto_pipeline failed: exam=%s", exam_id, exc_info=True)
+            # C-3 fix: roll back to reviewing so user can retry
+            exam.status = "reviewing"
+            await db.flush()
+            logger.warning(
+                "auto_pipeline rollback: exam=%s status reverted to reviewing", exam_id,
+            )
     return exam
 
 
