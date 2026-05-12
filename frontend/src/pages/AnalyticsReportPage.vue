@@ -202,21 +202,24 @@ import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
-import { getBasicReport, exportGradeReport, downloadBlob } from '../api/analytics'
+import { getBasicReport } from '../api/analytics'
 import client from '../api/client'
-import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 import PowerOptionsSelector from '../components/analytics/PowerOptionsSelector.vue'
 import KnowledgeDiagnosisPanel from '../components/analytics/KnowledgeDiagnosisPanel.vue'
 import LayerAnalysisPanel from '../components/analytics/LayerAnalysisPanel.vue'
 import TrendPanel from '../components/analytics/TrendPanel.vue'
 import AiDiagnosisReport from '../components/analytics/AiDiagnosisReport.vue'
+import { buildSegmentChart, buildSubjectRateChart, buildRankTrendChart, buildClassCompareChart } from '../composables/useChartOptions'
+import { getSubjectColumns, getClassColumns, getStudentColumns, fmt, pct } from '../composables/useTableColumns'
+import { useReportExport } from '../composables/useReportExport'
 
 use([BarChart, LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
 const route = useRoute()
 const message = useMessage()
+const { exporting, handleDownload: doDownload, exportStudentRank: doExportRank } = useReportExport()
+
 const loading = ref(false)
-const exporting = ref(false)
 const basicReport = ref(null)
 const selectedExamId = ref(null)
 const selectedSubjectId = ref(null)
@@ -226,7 +229,6 @@ const availableSubjects = ref([])
 const validTabs = ['overview', 'subjects', 'classes', 'students', 'knowledge', 'layers', 'trend', 'ai-report']
 const activeTab = ref(validTabs.includes(route.query.tab) ? route.query.tab : 'overview')
 const studentKeyword = ref('')
-
 const currentGradeId = ref(null)
 const currentSubjectCode = ref(null)
 
@@ -279,52 +281,17 @@ const overviewCards = computed(() => {
   ]
 })
 
-const subjectColumns = [
-  { title: '科目', key: 'subject_name', width: 100 },
-  { title: '满分', key: 'full_score', width: 80, render: row => fmt(row.full_score) },
-  { title: '参考人数', key: 'student_count', width: 90 },
-  { title: '平均分', key: 'avg_score', width: 90, render: row => fmt(row.avg_score) },
-  { title: '最高分', key: 'max_score', width: 90, render: row => fmt(row.max_score) },
-  { title: '最低分', key: 'min_score', width: 90, render: row => fmt(row.min_score) },
-  { title: '得分率', key: 'score_rate', width: 90, render: row => pct(row.score_rate) },
-  { title: '及格率', key: 'pass_rate', width: 90, render: row => pct(row.pass_rate) },
-  { title: '优秀率', key: 'excellent_rate', width: 90, render: row => pct(row.excellent_rate) },
-]
+const segmentChartOption = computed(() => buildSegmentChart(basicReport.value?.distribution))
+const subjectRateChartOption = computed(() => buildSubjectRateChart(basicReport.value?.subjects))
+const rankTrendChartOption = computed(() => buildRankTrendChart(basicReport.value?.overview, basicReport.value?.exam?.name))
+const classCompareChartOption = computed(() => buildClassCompareChart(basicReport.value?.classes))
 
-const classColumns = [
-  { title: '排名', key: 'rank', width: 70 },
-  { title: '班级', key: 'class_name', width: 120 },
-  { title: '参考人数', key: 'student_count', width: 90 },
-  { title: '平均分', key: 'avg_score', width: 90, render: row => fmt(row.avg_score) },
-  { title: '最高分', key: 'max_score', width: 90, render: row => fmt(row.max_score) },
-  { title: '最低分', key: 'min_score', width: 90, render: row => fmt(row.min_score) },
-  { title: '得分率', key: 'score_rate', width: 90, render: row => pct(row.score_rate) },
-  { title: '及格率', key: 'pass_rate', width: 90, render: row => pct(row.pass_rate) },
-  { title: '优秀率', key: 'excellent_rate', width: 90, render: row => pct(row.excellent_rate) },
-]
-
-const studentColumns = computed(() => [
-  { title: '排名', key: 'grade_rank', width: 70 },
-  { title: '姓名', key: 'name', width: 100 },
-  { title: '班级', key: 'class_name', width: 120 },
-  { title: '学号', key: 'student_number', width: 110, render: row => row.student_number || '-' },
-  ...subjectScoreColumns.value,
-  { title: '总分', key: 'total_score', width: 90, render: row => fmt(row.total_score) },
-  { title: '得分率', key: 'score_rate', width: 90, render: row => pct(row.score_rate) },
-  { title: '班级排名', key: 'class_rank', width: 90 },
-  { title: '年级进退', key: 'delta_grade', width: 100, render: row => formatDelta(row.delta_grade) },
-  { title: '班级进退', key: 'delta_class', width: 100, render: row => formatDelta(row.delta_class) },
-])
-
-const subjectScoreColumns = computed(() => (basicReport.value?.subjects || []).map(subject => ({
-  title: subject.subject_name,
-  key: `subject_${subject.subject_code}`,
-  width: 90,
-  render: row => fmt(row.subject_scores?.[subject.subject_code]?.score),
-})))
+const subjectColumns = getSubjectColumns()
+const classColumns = getClassColumns()
+const studentColumns = computed(() => getStudentColumns(basicReport.value?.subjects))
+const studentTableScrollX = computed(() => 820 + (basicReport.value?.subjects || []).length * 96)
 
 const studentRows = computed(() => basicReport.value?.students || [])
-
 const filteredStudentRows = computed(() => {
   const keyword = studentKeyword.value.trim().toLowerCase()
   if (!keyword) return studentRows.value
@@ -334,169 +301,6 @@ const filteredStudentRows = computed(() => {
     row.class_name,
   ].some(value => String(value || '').toLowerCase().includes(keyword)))
 })
-
-const studentTableScrollX = computed(() => 820 + subjectScoreColumns.value.length * 96)
-
-const segmentChartOption = computed(() => {
-  const segments = basicReport.value?.distribution || []
-  return {
-    ...CHART_DEFAULTS,
-    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
-    grid: { left: 36, right: 16, top: 32, bottom: 34 },
-    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: segments.map(s => s.label) },
-    yAxis: { ...CHART_DEFAULTS.yAxis, type: 'value' },
-    series: [{
-      type: 'bar',
-      data: segments.map(s => s.count),
-      barMaxWidth: 34,
-      label: { show: true, position: 'top' },
-      itemStyle: { color: CHART_PALETTE[3] },
-    }],
-  }
-})
-
-const subjectRateChartOption = computed(() => {
-  const subjects = basicReport.value?.subjects || []
-  return {
-    ...CHART_DEFAULTS,
-    tooltip: {
-      ...CHART_DEFAULTS.tooltip,
-      trigger: 'axis',
-      valueFormatter: value => `${fmt(value)}%`,
-    },
-    grid: { left: 44, right: 16, top: 32, bottom: 34 },
-    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: subjects.map(s => s.subject_name) },
-    yAxis: {
-      ...CHART_DEFAULTS.yAxis,
-      type: 'value',
-      max: 100,
-      axisLabel: { formatter: '{value}%' },
-    },
-    series: [{
-      name: '得分率',
-      type: 'bar',
-      data: subjects.map(s => rateNumber(s.score_rate)),
-      barMaxWidth: 34,
-      label: { show: true, position: 'top', formatter: '{c}%' },
-      itemStyle: { color: CHART_PALETTE[0] },
-    }],
-  }
-})
-
-const rankTrendChartOption = computed(() => {
-  const overview = basicReport.value?.overview || {}
-  const examName = basicReport.value?.exam?.name || '本次考试'
-  const fullScore = Number(overview.total_full_score)
-  const passLine = Number.isFinite(fullScore) && fullScore > 0 ? roundNumber(fullScore * 0.6) : null
-  return {
-    ...CHART_DEFAULTS,
-    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
-    legend: { top: 0, data: ['平均分', '最高分', '及格线'] },
-    grid: { left: 44, right: 16, top: 42, bottom: 34 },
-    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: [examName] },
-    yAxis: { ...CHART_DEFAULTS.yAxis, type: 'value' },
-    series: [
-      {
-        name: '平均分',
-        type: 'line',
-        data: [chartNumber(overview.avg_score)],
-        smooth: true,
-        symbolSize: 8,
-        itemStyle: { color: CHART_PALETTE[0] },
-      },
-      {
-        name: '最高分',
-        type: 'line',
-        data: [chartNumber(overview.max_score)],
-        smooth: true,
-        symbolSize: 8,
-        itemStyle: { color: CHART_PALETTE[1] },
-      },
-      {
-        name: '及格线',
-        type: 'line',
-        data: [passLine],
-        smooth: true,
-        symbolSize: 8,
-        itemStyle: { color: CHART_PALETTE[2] },
-      },
-    ],
-  }
-})
-
-const classCompareChartOption = computed(() => {
-  const classes = basicReport.value?.classes || []
-  return {
-    ...CHART_DEFAULTS,
-    tooltip: { ...CHART_DEFAULTS.tooltip, trigger: 'axis' },
-    legend: { top: 0, data: ['平均分', '及格率'] },
-    grid: { left: 44, right: 44, top: 42, bottom: 34 },
-    xAxis: { ...CHART_DEFAULTS.xAxis, type: 'category', data: classes.map(row => row.class_name) },
-    yAxis: [
-      { ...CHART_DEFAULTS.yAxis, type: 'value' },
-      { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
-    ],
-    series: [
-      {
-        name: '平均分',
-        type: 'bar',
-        data: classes.map(row => chartNumber(row.avg_score)),
-        barMaxWidth: 34,
-        label: { show: true, position: 'top' },
-        itemStyle: { color: CHART_PALETTE[0] },
-      },
-      {
-        name: '及格率',
-        type: 'line',
-        yAxisIndex: 1,
-        data: classes.map(row => rateNumber(row.pass_rate)),
-        smooth: true,
-        symbolSize: 8,
-        itemStyle: { color: CHART_PALETTE[2] },
-      },
-    ],
-  }
-})
-
-function roundNumber(value) {
-  if (value == null || Number.isNaN(Number(value))) return null
-  return Math.round(Number(value) * 10) / 10
-}
-
-function chartNumber(value) {
-  return roundNumber(value)
-}
-
-function rateNumber(value) {
-  if (value == null || Number.isNaN(Number(value))) return 0
-  return Math.round(Number(value) * 1000) / 10
-}
-
-function fmt(value) {
-  if (value == null || Number.isNaN(Number(value))) return '-'
-  const n = Number(value)
-  return Number.isInteger(n) ? String(n) : n.toFixed(1)
-}
-
-function pct(value) {
-  if (value == null || Number.isNaN(Number(value))) return '-'
-  return `${Math.round(Number(value) * 100)}%`
-}
-
-function formatDelta(value) {
-  if (value == null || Number.isNaN(Number(value))) return '-'
-  const n = Number(value)
-  if (n > 0) return `进 ${n}`
-  if (n < 0) return `退 ${Math.abs(n)}`
-  return '持平'
-}
-
-function segmentRange(row) {
-  if (row.boundary_min == null || row.boundary_max == null) return '-'
-  if (row.boundary_min <= 0) return `${row.boundary_max}%以下`
-  if (row.boundary_max >= 101) return `${row.boundary_min}%及以上`
-  return `${row.boundary_min}%-${row.boundary_max}%`
-}
 
 function buildQueryParams() {
   const params = {}
@@ -550,25 +354,15 @@ async function onFilterChange(payload) {
   if (payload.examId) await runQuery()
 }
 
-async function handleDownload(format) {
+function handleDownload(format) {
   if (!canExport.value) {
     message.warning('请选择 1 次考试 + 1 个科目后再导出')
     return
   }
-  exporting.value = true
-  try {
-    const resp = await exportGradeReport(
-      selectedExamId.value, exportSubjectId.value, format,
-    )
-    downloadBlob(resp, `年级报告.${format}`)
-  } catch (e) {
-    message.error(e.response?.data?.detail || '导出失败')
-  } finally {
-    exporting.value = false
-  }
+  doDownload(selectedExamId.value, exportSubjectId.value, format)
 }
 
-async function exportStudentRank() {
+function exportStudentRank() {
   if (!filteredStudentRows.value.length) return
   if (!selectedExamId.value) return
   const subjectId = exportSubjectId.value || (subjectOptions.value[0]?.value)
@@ -576,15 +370,7 @@ async function exportStudentRank() {
     message.warning('请先选择导出科目')
     return
   }
-  exporting.value = true
-  try {
-    const resp = await exportGradeReport(selectedExamId.value, subjectId, 'xlsx')
-    downloadBlob(resp, '学生排名.xlsx')
-  } catch (e) {
-    message.error(e.response?.data?.detail || '导出失败')
-  } finally {
-    exporting.value = false
-  }
+  doExportRank(selectedExamId.value, subjectId)
 }
 </script>
 
