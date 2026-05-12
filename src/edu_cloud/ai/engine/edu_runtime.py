@@ -117,6 +117,8 @@ class EduAgentRuntime:
             model_slot=model_slot,
         )
 
+        trace.set_budget(budget)
+
         self._agent: Agent[AgentDeps, str | DeferredToolRequests] | None = None
         self._last_messages: list[Any] = []
         self._deferred_output: DeferredToolRequests | None = None
@@ -265,6 +267,7 @@ class EduAgentRuntime:
         self._deps.trace.record_event("run_end", {"elapsed_ms": elapsed_ms})
         self._deps.trace.flush()
         await self._deps.trace.flush_to_db(self._deps.db_sessionmaker)
+        await self._deps.artifacts.flush_to_db(self._deps.db_sessionmaker)
 
         self._deps.confirmations.purge_resolved()
 
@@ -290,8 +293,14 @@ class EduAgentRuntime:
 
         for cid in approved_ids:
             self._deps.confirmations.approve(cid)
+            self._deps.trace.record_event("confirmation_resolved", {
+                "confirmation_id": cid, "decision": "approve",
+            })
         for cid in (denied_ids or []):
             self._deps.confirmations.deny(cid)
+            self._deps.trace.record_event("confirmation_resolved", {
+                "confirmation_id": cid, "decision": "deny",
+            })
 
         event_queue: asyncio.Queue[AgentEvent | None] = asyncio.Queue()
         self._deps.event_queue = event_queue
@@ -347,6 +356,9 @@ class EduAgentRuntime:
             if result is not None and isinstance(result.output, str):
                 yield AgentEvent(type="answer", data={"content": result.output})
 
+        self._deps.trace.flush()
+        await self._deps.trace.flush_to_db(self._deps.db_sessionmaker, append_only=True)
+        await self._deps.artifacts.flush_to_db(self._deps.db_sessionmaker)
         self._deps.confirmations.purge_resolved()
 
         yield AgentEvent(type="done", data={

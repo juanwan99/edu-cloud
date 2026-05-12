@@ -42,28 +42,26 @@ async def test_ai_session_delete(client, ai_setup):
 
 
 async def test_ai_chat_empty_message(client, ai_setup):
-    """空消息 — edu-cloud 返回 200 + error 字段（validation in endpoint body）。"""
+    """空消息 — 返回 422。"""
     resp = await client.post(
         "/api/v1/ai/chat",
         json={"message": "   "},
         headers=ai_setup["headers"],
     )
-    # edu-cloud catches ValueError and returns {"error": "..."} with 200
-    # or 403 if user lacks USE_AI_CHAT permission
-    assert resp.status_code in (200, 403)
-    if resp.status_code == 200:
+    assert resp.status_code in (422, 403)
+    if resp.status_code == 422:
         data = resp.json()
-        assert "error" in data
+        assert "消息不能为空" in data.get("detail", "")
 
 
 async def test_ai_chat_too_long_message(client, ai_setup):
-    """超长消息 — edu-cloud 返回 200 + error 字段。"""
+    """超长消息 — 返回 422。"""
     resp = await client.post(
         "/api/v1/ai/chat",
         json={"message": "x" * 2001},
         headers=ai_setup["headers"],
     )
-    assert resp.status_code in (200, 403)
-    if resp.status_code == 200:
+    assert resp.status_code in (422, 403)
+    if resp.status_code == 422:
         data = resp.json()
-        assert "error" in data
+        assert "2000" in data.get("detail", "")

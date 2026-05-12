@@ -126,7 +126,7 @@ async def ai_chat(
     try:
         message = req.validated_message
     except ValueError as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=422, detail=str(e))
 
     if req.refs:
         ref_lines = [
@@ -201,6 +201,7 @@ async def ai_chat(
     all_tools = collect_all_tools()
     allowed_tools = filter_tools_for_role(
         all_tools, role=role, enabled_modules=enabled_modules,
+        capabilities=capabilities or None,
     )
     tool_names = [getattr(fn, "_edu_meta", None).name for fn in allowed_tools if getattr(fn, "_edu_meta", None)]
 

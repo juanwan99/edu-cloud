@@ -51,6 +51,8 @@ class TraceRecorder:
         self._events: list[TraceEvent] = []
         self._seq = 0
         self._log_dir = log_dir or Path("logs/ai-trace")
+        self._budget_initial: dict[str, Any] | None = None
+        self._budget_ref: Any = None
 
     def record_tool_call(self, record: ToolCallRecord, result: Any) -> None:
         self._seq += 1
@@ -84,6 +86,13 @@ class TraceRecorder:
         )
         self._events.append(event)
 
+    def set_budget(self, budget: Any) -> None:
+        self._budget_initial = {
+            "max_tokens": budget.max_tokens,
+            "max_tool_calls": budget.max_tool_calls,
+        }
+        self._budget_ref = budget
+
     def flush(self) -> None:
         """Write accumulated events to JSONL file."""
         if not self._events:
@@ -109,24 +118,47 @@ class TraceRecorder:
                 }
                 f.write(json.dumps(line, ensure_ascii=False) + "\n")
 
-    async def flush_to_db(self, db_sessionmaker: Any) -> None:
-        """Persist trace header + events to ai_agent_trace / ai_agent_trace_event tables."""
+    async def flush_to_db(self, db_sessionmaker: Any, *, append_only: bool = False) -> None:
+        """Persist trace header + events to DB.
+
+        append_only=True: query existing trace header, only append new events (resume path).
+        append_only=False: create trace header + write all events (run path).
+        """
         if not self._events:
             return
         try:
+            from sqlalchemy import select as sa_select
             from edu_cloud.models.ai_engine import AiAgentTrace, AiAgentTraceEvent
 
             async with db_sessionmaker() as db:
-                trace = AiAgentTrace(
-                    run_id=self.run_id,
-                    session_id=self.session_id,
-                    school_id=self.school_id,
-                    user_id=self._user_hash,
-                    role=self._role,
-                    status="completed",
-                    event_count=len(self._events),
-                )
-                db.add(trace)
+                if append_only:
+                    result = await db.execute(
+                        sa_select(AiAgentTrace).where(AiAgentTrace.run_id == self.run_id)
+                    )
+                    trace = result.scalar_one_or_none()
+                    if trace is None:
+                        logger.warning("append_only but no existing trace for run_id=%s", self.run_id)
+                        return
+                    trace.event_count = (trace.event_count or 0) + len(self._events)
+                else:
+                    trace = AiAgentTrace(
+                        run_id=self.run_id,
+                        session_id=self.session_id,
+                        school_id=self.school_id,
+                        user_id=self._user_hash,
+                        role=self._role,
+                        status="completed",
+                        event_count=len(self._events),
+                    )
+                    if self._budget_initial:
+                        trace.budget_initial_json = json.dumps(self._budget_initial)
+                    if self._budget_ref:
+                        trace.budget_final_json = json.dumps({
+                            "used_tokens": self._budget_ref.used_tokens,
+                            "used_tool_calls": self._budget_ref.used_tool_calls,
+                        })
+                    db.add(trace)
+
                 await db.flush()
 
                 for ev in self._events:

@@ -28,17 +28,17 @@ async def test_ai_chat_requires_auth(client):
 @pytest.mark.asyncio
 async def test_ai_chat_empty_message(client, teacher_headers):
     resp = await client.post("/api/v1/ai/chat", json={"message": ""}, headers=teacher_headers)
-    assert resp.status_code == 200
+    assert resp.status_code == 422
     data = resp.json()
-    assert "error" in data or "消息不能为空" in str(data)
+    assert "消息不能为空" in data.get("detail", "")
 
 
 @pytest.mark.asyncio
-async def test_ai_chat_empty_message_returns_error_key(client, teacher_headers):
+async def test_ai_chat_whitespace_message(client, teacher_headers):
     resp = await client.post("/api/v1/ai/chat", json={"message": "   "}, headers=teacher_headers)
-    assert resp.status_code == 200
+    assert resp.status_code == 422
     data = resp.json()
-    assert data.get("error") == "消息不能为空"
+    assert data.get("detail") == "消息不能为空"
 
 
 @pytest.mark.asyncio

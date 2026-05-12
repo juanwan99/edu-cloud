@@ -166,7 +166,7 @@ async def auto_layout_card(
     current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """小微智能排版：解析答案文件 → 计算空间分配 → 保存到编辑器布局。"""
-    from edu_cloud.ai.tools.card_layout import calculate_layout, _load_layout, _apply_to_regions, _save_layout
+    from edu_cloud.modules.card.layout_helpers import calculate_layout, _load_layout, _apply_to_regions, _save_layout
 
     school_id = current["current_role"].school_id
     subject = (await db.execute(
@@ -406,7 +406,7 @@ async def parse_answers(
     # 5. v2 排版引擎：结构化数据 → 空间分配 → 写入编辑器布局
     v2_layout_result = {}
     try:
-        from edu_cloud.ai.tools.card_layout import calculate_layout, _load_layout, _apply_to_regions, _save_layout
+        from edu_cloud.modules.card.layout_helpers import calculate_layout, _load_layout, _apply_to_regions, _save_layout
 
         if not is_pdf:
             structured = _v2_structured  # Word: 已在文件删除前解析好

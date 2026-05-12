@@ -1,6 +1,6 @@
 """calculate_layout + _apply_to_regions + _extract_anchors 单元测试。"""
 import pytest
-from edu_cloud.ai.tools.card_layout import (
+from edu_cloud.modules.card.layout_helpers import (
     calculate_layout, _apply_to_regions, _extract_anchors,
     _make_blanks_for_answer, _pick_blank_width,
 )

@@ -125,6 +125,27 @@ class ArtifactManager:
     def artifacts(self) -> dict[str, Artifact]:
         return dict(self._artifacts)
 
+    async def flush_to_db(self, db_sessionmaker: Any) -> None:
+        if not self._artifacts:
+            return
+        try:
+            from edu_cloud.models.ai_engine import AiArtifact
+            async with db_sessionmaker() as db:
+                for art in self._artifacts.values():
+                    db.add(AiArtifact(
+                        artifact_id=art.artifact_id,
+                        run_id=art.run_id,
+                        school_id=art.school_id,
+                        source_tool=art.source_tool,
+                        kind=art.kind,
+                        pii_level=art.pii_level,
+                        summary_json=json.dumps(art.summary, default=str),
+                        preview_json=json.dumps(art.preview, default=str),
+                    ))
+                await db.commit()
+        except Exception as exc:
+            logger.warning("ArtifactManager flush_to_db failed: %s", exc)
+
     def _build_summary(self, result: Any, source_tool: str) -> dict[str, Any]:
         if isinstance(result, list):
             return {"tool": source_tool, "row_count": len(result), "type": "list"}

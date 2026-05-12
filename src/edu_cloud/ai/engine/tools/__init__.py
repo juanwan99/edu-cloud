@@ -44,11 +44,14 @@ def filter_tools_for_role(
     *,
     role: str,
     enabled_modules: frozenset[str],
+    capabilities: dict[tuple[str, str], bool] | None = None,
 ) -> list[Any]:
     """Return only tools allowed for the given role and enabled modules.
 
     This is the registration-time RBAC filter. Tools still do a second
     hard check via PolicyToolGuardrail.before_tool() at call time.
+
+    capabilities=None means skip capability check (before_tool still enforces).
     """
     allowed = []
     for fn in all_tools:
@@ -59,5 +62,8 @@ def filter_tools_for_role(
             continue
         if meta.module_code not in enabled_modules:
             continue
+        if capabilities is not None and meta.requires_capabilities:
+            if not all(capabilities.get(cap, False) for cap in meta.requires_capabilities):
+                continue
         allowed.append(fn)
     return allowed
