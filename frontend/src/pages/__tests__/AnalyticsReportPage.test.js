@@ -37,6 +37,18 @@ vi.mock('../../components/analytics/TrendPanel.vue', () => ({
 vi.mock('../../components/analytics/AiDiagnosisReport.vue', () => ({
   default: { name: 'AiDiagnosisReport', template: '<div />', props: ['examId', 'subjectId', 'classId'] },
 }))
+vi.mock('../../components/analytics/OverviewPanel.vue', () => ({
+  default: { name: 'OverviewPanel', template: '<div />', props: ['report'] },
+}))
+vi.mock('../../components/analytics/SubjectAnalysisPanel.vue', () => ({
+  default: { name: 'SubjectAnalysisPanel', template: '<div />', props: ['report'] },
+}))
+vi.mock('../../components/analytics/ClassComparePanel.vue', () => ({
+  default: { name: 'ClassComparePanel', template: '<div />', props: ['report'] },
+}))
+vi.mock('../../components/analytics/StudentRankPanel.vue', () => ({
+  default: { name: 'StudentRankPanel', template: '<div />', props: ['report'] },
+}))
 
 vi.mock('../../api/client', () => ({
   default: { get: (...args) => mocks.clientGet(...args) },
@@ -216,19 +228,16 @@ describe('AnalyticsReportPage', () => {
     expect(wrapper.text()).toContain('学生排名')
   })
 
-  it('builds tab data from returned basic report', async () => {
+  it('passes report data to child panels after query', async () => {
     mocks.getBasicReport.mockResolvedValue({ data: basicReportPayload() })
     const wrapper = createWrapper()
     wrapper.vm.selectedExamId = 'exam-1'
     await wrapper.vm.runQuery()
     await flushPromises()
-    expect(wrapper.vm.studentColumns.map(col => col.title)).toContain('语文')
-    expect(wrapper.vm.studentColumns.map(col => col.title)).toEqual(expect.arrayContaining(['学号', '班级进退']))
-    expect(wrapper.vm.classColumns.map(col => col.title)).toContain('得分率')
-    expect(wrapper.vm.studentRows).toHaveLength(1)
-    expect(wrapper.vm.studentTableScrollX).toBeGreaterThan(760)
-    expect(wrapper.vm.segmentChartOption.xAxis.data).toEqual(['80-90'])
-    expect(wrapper.vm.subjectRateChartOption.xAxis.data).toEqual(['语文'])
+    expect(wrapper.vm.basicReport).toBeTruthy()
+    expect(wrapper.vm.basicReport.students).toHaveLength(1)
+    expect(wrapper.vm.basicReport.subjects[0].subject_name).toBe('语文')
+    expect(wrapper.vm.basicReport.distribution[0].label).toBe('80-90')
   })
 
   it('shows empty states before and after empty report', async () => {
