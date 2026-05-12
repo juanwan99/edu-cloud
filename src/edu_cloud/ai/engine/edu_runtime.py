@@ -230,6 +230,8 @@ class EduAgentRuntime:
                         approval.tool_name,
                         _parse_args(approval.args),
                     )
+                    from datetime import datetime, timedelta, timezone
+                    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=300)).isoformat()
                     yield AgentEvent(
                         type="confirmation_required",
                         data={
@@ -237,6 +239,7 @@ class EduAgentRuntime:
                             "tool_call_id": approval.tool_call_id,
                             "tool_name": approval.tool_name,
                             "args": _parse_args(approval.args),
+                            "expires_at": expires_at,
                         },
                     )
                 self._last_messages = list(result.all_messages())

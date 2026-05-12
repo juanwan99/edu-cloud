@@ -53,9 +53,13 @@
                   <div v-if="Object.keys(conf.args || {}).length" class="ai-confirm-args">
                     <span v-for="(v, k) in conf.args" :key="k" class="ai-confirm-arg">{{ k }}: {{ v }}</span>
                   </div>
-                  <div v-if="conf.status === 'pending'" class="ai-confirm-actions">
+                  <div v-if="conf.status === 'pending' && !isExpired(conf)" class="ai-confirm-actions">
                     <button class="ai-confirm-btn ai-confirm-btn--approve" @click="chat.resolveConfirmation(conf.id, 'approve')">批准执行</button>
                     <button class="ai-confirm-btn ai-confirm-btn--reject" @click="chat.resolveConfirmation(conf.id, 'reject')">拒绝</button>
+                    <span class="ai-confirm-countdown">{{ formatCountdown(conf) }}</span>
+                  </div>
+                  <div v-else-if="conf.status === 'pending'" class="ai-confirm-resolved ai-confirm-expired">
+                    已超时，操作未执行
                   </div>
                   <div v-else class="ai-confirm-resolved">
                     {{ conf.status === 'approved' ? '已批准' : '已拒绝' }}
@@ -112,7 +116,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, computed, onMounted } from 'vue'
+import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
 import { useAiChatStore } from '../../stores/aiChat.js'
 import RefPicker from './RefPicker.vue'
 
@@ -120,6 +124,22 @@ const props = defineProps({
   visible: { type: Boolean, default: false },
 })
 defineEmits(['close'])
+
+const now = ref(Date.now())
+let _tickTimer = null
+onMounted(() => { _tickTimer = setInterval(() => { now.value = Date.now() }, 1000) })
+onUnmounted(() => { clearInterval(_tickTimer) })
+
+function isExpired(conf) {
+  return conf.expiresAt && now.value > conf.expiresAt
+}
+function formatCountdown(conf) {
+  if (!conf.expiresAt) return ''
+  const remaining = Math.max(0, Math.ceil((conf.expiresAt - now.value) / 1000))
+  const m = Math.floor(remaining / 60)
+  const s = remaining % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
 
 const chat = useAiChatStore()
 const inputText = ref('')
@@ -525,10 +545,21 @@ onMounted(() => { chat.checkHealth() })
   border-color: #fca5a5;
 }
 
+.ai-confirm-countdown {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
 .ai-confirm-resolved {
   font-size: 13px;
   color: var(--color-text-secondary);
   font-style: italic;
+}
+
+.ai-confirm-expired {
+  color: #ef4444;
 }
 
 /* Error */

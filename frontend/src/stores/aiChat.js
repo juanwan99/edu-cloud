@@ -82,6 +82,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
             toolName: data.tool_name,
             args: data.args || {},
             status: 'pending',
+            expiresAt: data.expires_at ? new Date(data.expires_at).getTime() : Date.now() + 300000,
           }
           pendingConfirmations.value.push(conf)
           assistantMsg.confirmations = assistantMsg.confirmations || []

@@ -315,6 +315,9 @@ async def confirm_tool(
         raise HTTPException(404, "Run not found or expired")
 
     runtime = target_session.runtime
+    if runtime.deps.confirmations.is_expired(confirmation_id):
+        raise HTTPException(410, "确认已超时（5 分钟），操作未执行")
+
     if req.decision == "approve":
         approved_ids = [confirmation_id]
         denied_ids = []
