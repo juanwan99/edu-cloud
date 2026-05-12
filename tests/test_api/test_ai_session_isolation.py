@@ -1,7 +1,8 @@
 """AI 会话隔离测试。"""
 import pytest
 from unittest.mock import AsyncMock, patch
-from edu_cloud.api.ai import _SessionState, _sessions, _sessions_lock, Anonymizer
+from edu_cloud.ai.anonymizer import Anonymizer
+from edu_cloud.api.ai import _SessionState, _sessions, _sessions_lock
 
 
 @pytest.mark.asyncio

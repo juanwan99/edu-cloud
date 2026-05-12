@@ -109,6 +109,7 @@ def import_all_models():
         "edu_cloud.models.score_segment",
         "edu_cloud.models.grade",
         "edu_cloud.models.teaching_plan",
+        "edu_cloud.models.ai_engine",
     ]:
         try:
             importlib.import_module(mod)

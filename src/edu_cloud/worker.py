@@ -11,7 +11,7 @@ from edu_cloud.config import settings
 from edu_cloud.database import async_session
 from edu_cloud.tasks import auto_draft_notifications
 from edu_cloud.workers.grading import process_grading_task, run_post_exam_pipeline
-from edu_cloud.ai.runtime import SCHEDULED_PROMPTS
+from edu_cloud.ai.prompts import SCHEDULED_PROMPTS
 
 logger = logging.getLogger(__name__)
 

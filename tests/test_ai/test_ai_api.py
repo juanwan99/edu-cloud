@@ -124,27 +124,18 @@ async def test_ai_session_isolation(client, teacher_headers):
 
 @pytest.mark.asyncio
 async def test_ai_chat_sse_stream_via_http(client, teacher_headers):
-    """F004: HTTP entry-level SSE contract test — POST /api/v1/ai/chat returns SSE events."""
-    from edu_cloud.ai.llm_adapter import LLMResponse, TokenUsage
-    from edu_cloud.ai.schemas import ToolCall
+    """SSE contract test — POST /api/v1/ai/chat returns correct SSE event stream via EduAgentRuntime."""
+    from edu_cloud.ai.schemas import AgentEvent
 
-    call_count = 0
+    async def mock_run(self, user_message, *, message_history=None):
+        yield AgentEvent(type="thinking", data={"content": ""})
+        yield AgentEvent(type="tool_call", data={"tool": "get_exam_list", "arguments": {}})
+        yield AgentEvent(type="tool_result", data={"tool": "get_exam_list"})
+        yield AgentEvent(type="answer", data={"content": "考试列表已获取"})
+        yield AgentEvent(type="done", data={"run_id": "test", "session_id": "s1", "turns": 1, "tokens": 15})
 
-    async def mock_chat(self, request):
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            return LLMResponse(
-                tool_calls=[ToolCall(id="tc1", name="get_exam_list", arguments={}, _raw={})],
-                usage=TokenUsage(10, 5), stop_reason="tool_use",
-            )
-        return LLMResponse(content="考试列表已获取", usage=TokenUsage(10, 5), stop_reason="end_turn")
-
-    async def mock_determine_tier(self, adapter):
-        return 3
-
-    with patch("edu_cloud.ai.llm_adapter.LLMProxyAdapter.chat", mock_chat), \
-         patch("edu_cloud.ai.capability_probe.CapabilityProbe.determine_tier", mock_determine_tier):
+    with patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.run", mock_run), \
+         patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.build_agent", lambda self: None):
         resp = await client.post(
             "/api/v1/ai/chat",
             json={"message": "列出考试"},
@@ -153,7 +144,6 @@ async def test_ai_chat_sse_stream_via_http(client, teacher_headers):
         assert resp.status_code == 200
         assert "text/event-stream" in resp.headers.get("content-type", "")
 
-        # Parse SSE lines
         text = resp.text
         events = []
         for line in text.strip().split("\n"):
@@ -161,17 +151,14 @@ async def test_ai_chat_sse_stream_via_http(client, teacher_headers):
             if line.startswith("data: "):
                 events.append(json.loads(line[6:]))
 
-        # Must contain at least tool_call + tool_result + answer + done
         types = [e["type"] for e in events]
         assert "tool_call" in types, f"Missing tool_call in {types}"
         assert "tool_result" in types, f"Missing tool_result in {types}"
         assert "done" in types, f"Missing done in {types}"
 
-        # done event must have session_id
         done_evt = next(e for e in events if e["type"] == "done")
         assert "session_id" in done_evt["data"]
 
-        # tool_call should match INV-004 format (no 'id' field)
         tc_evt = next(e for e in events if e["type"] == "tool_call")
         assert "tool" in tc_evt["data"]
         assert "id" not in tc_evt["data"]

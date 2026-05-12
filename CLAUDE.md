@@ -240,7 +240,7 @@ src/edu_cloud/
     auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）
     dashboard.py        # GET /api/v1/dashboard/summary（角色 scope 聚合统计：students/classes/exams/staff/pending_grading/pending_subjects）
     notifications_api.py # GET /api/v1/notifications（通知列表，status/since 过滤）
-    ai.py               # AI Agent 路由（AgentRuntime pipeline: DataScope → AuditLogger → AgentContext → AgentRuntime.run() → SSE）
+    ai.py               # AI Agent 路由（EduAgentRuntime + Pydantic AI：POST /chat SSE + POST /runs/{id}/confirmations/{id} 写确认）
     compat_router.py    # exam-ai 兼容路由（/api 前缀，paper-seg 零改动对接，8 端点）
     module_middleware.py # ModuleCheckMiddleware — 禁用模块 API 硬拦截（JWT active_role_id → school_id 解析）
     # 以下为 re-export stubs，canonical → modules/
@@ -285,63 +285,26 @@ src/edu_cloud/
     __init__.py         # 包入口
     loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
     store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）
-  ai/                    # AI Agent 子系统（32 核心文件 + 24 工具文件）
-    agent_loop.py       # AgentLoop 核心循环（plan→tool exec→answer 状态机）
-    agent_spec.py       # AgentSpec（Agent 规格定义）
-    agent_team.py       # AgentTeam（多 Agent 协作）
-    runtime.py          # AgentRuntime（统一运行时入口）
-    supervisor.py       # Supervisor（Agent 执行监管）
-    data_scope.py       # DataScope（frozen 数据可见性快照）+ DataScopeBuilder（10 角色 fail-closed 派生）
-    scoped_query.py     # ScopedQuery（统一 scope WHERE 注入 + 参数越权拦截 ScopeViolationError）
-    llm_adapter.py      # LLMProxyAdapter（统一 LLM 适配器，走 llm-proxy）
-    capability_probe.py # CapabilityProbe（模型能力检测→tier→LoopStrategy）
-    sensitivity_router.py # SensitivityRouter（双通道路由，student 工具锁定主通道）
-    intent_router.py    # IntentRouter（意图识别路由）
-    model_router.py     # ModelRouter（模型选择路由）
-    prompts.py          # build_teacher_prompt（角色感知 system prompt 模板）
-    tool_context.py     # ToolContext + ToolResult（统一工具签名 (input, ctx) → ToolResult）
-    tool_executor.py    # ToolExecutor + ToolOrchestrator（并行/串行工具执行）
-    context_manager.py  # ContextManager（token 计数 + 压缩）
-    task_planner.py     # TaskPlanner（多步任务规划，tier≤2 启用）
-    session_memory.py   # SessionMemoryExtractor（会话记忆提取，tier=1 启用）
-    memory_store.py     # MemoryStore（entity_memory/project_state CRUD + 冲突合并，跨会话持久化）
-    memory_extractor.py # MemoryExtractor（会话结束后提取实体记忆并写入 MemoryStore）
-    memory_injector.py  # MemoryInjector（会话启动时加载跨会话记忆，格式化注入 system prompt；角色 scope 安全策略）
-    shared_state.py     # SharedState（跨 Agent 共享状态）
-    scope_version.py    # ScopeVersion（scope 版本控制）
-    entity_extractor.py # EntityExtractor（实体提取）
-    grounded.py         # Grounded（事实性校验）
-    schemas.py          # ChatMessage/ToolCall/AgentEvent 数据模型
-    anonymizer.py       # 会话级姓名脱敏（字段检测 + student_number 剥离）
-    audit.py            # AuditLogger（DB 持久化 AiSession/AiToolCall）
-    registry.py         # ToolRegistry + ToolSpec dataclass（元数据：domain/module_code/allowed_roles/risk_level）
-    tool_access.py      # ToolAccessResolver（RBAC ∩ Module ∩ Capability 三重过滤）
-    models.py           # AiSession/AiToolCall 表
-    tools/
-      __init__.py       # 触发全部 23 个工具模块注册（63 tools + exam_subject_id 统一查询）
-      analytics.py      # L2_cross_school（2）: get_exam_scores/get_class_stats
-      analytics_score.py # L2_analytics（5）: exam_summary/distribution/question/student/class scores
-      analytics_compare.py # L2_analytics（3）: compare_classes/rank_students/grade_aggregates
-      exams.py          # L1_exam（3）: exam_list/detail/subject_questions
-      students.py       # L1_student（4）: class_list/roster/search/profile
-      bank.py           # L5_bank（2）: error_book/question_stats
-      profile.py        # L6_profile（4）: trend/knowledge_map/weakness/error_pattern
-      knowledge.py      # L3_knowledge（4）: search_curriculum/textbook/concept/gaokao
-      knowledge_db.py   # L3_knowledge_db（2）: knowledge_tree/question_knowledge_points
-      grading_ops.py    # L1_exam（3）: grading_progress/quality_report/assign_grading
-      actions.py        # L4_action（2）: generate_report/comment
-      homework.py       # L2_homework（5）: task list/stats/submit/assign/remedial
-      analytics_report.py # L2_analytics（3）: get_score_segments/compare_exams/generate_analysis_report
-      knowledge_tree.py # L1_knowledge（1）: edit_knowledge_graph
-      conduct.py    # L2_conduct（8）: conduct rankings/records/rules/points/overview/summary + analyze_student_behavior/get_class_behavior_insights
-      adaptive.py       # L1_knowledge（1）: diagnose_and_recommend
-      card_layout.py    # L1_exam（3）: card_parse_answers, card_auto_layout, card_adjust_layout
-      class_report_tool.py # L2_analytics（1）: get_class_report
-      exam_overview.py  # L1_exam（1）: get_exam_overview
-      findings_tools.py # L1_agent（2）: get_findings, get_agent_tasks
-      memory_tools.py   # L1_agent（2）: memory_read, memory_write
-      student_diagnosis.py # L6_profile（1）: get_student_diagnosis
-      student_profile_tool.py # L6_profile（1）: get_student_learning_profile
+  ai/                    # AI Agent 子系统
+    engine/              # **Pydantic AI 引擎层（活跃，api/ai.py 的唯一后端）**
+      agent_deps.py     # AgentDeps — RunContext 依赖容器（替代 ToolContext，per-tool 独立 DB session）
+      edu_runtime.py    # EduAgentRuntime — 顶层编排（构建 Agent → asyncio.Queue SSE → 确认恢复）
+      policy_guardrail.py # PolicyToolGuardrail — 4 层硬检查（role/module/capability/scope）
+      budget.py         # AgentBudget — token/tool/write/wall-clock 硬限
+      confirmation_broker.py # ConfirmationBroker — 写操作暂停→SSE→前端确认卡→POST 恢复
+      artifact_manager.py # ArtifactManager — >32KB/50行 自动脱敏摘要
+      trace_recorder.py # TraceRecorder — JSONL + DB 双写（user_id SHA256）
+      tool_meta.py      # EduToolMeta — frozen 工具元数据
+      tool_wrapper.py   # @edu_tool 装饰器 + TOOL_META_REGISTRY 全局注册
+      tools/            # 65 个 @edu_tool 原生工具（15 模块文件）
+    # 以下为旧引擎组件（生产路径已不引用，保留供旧测试参照）
+    data_scope.py       # DataScope（frozen 数据可见性快照）+ DataScopeBuilder — 被 engine 引用
+    prompts.py          # build_teacher_prompt + SCHEDULED_PROMPTS — 被 engine/worker 引用
+    memory_store.py     # MemoryStore — 被 engine 引用
+    memory_injector.py  # MemoryInjector — 被 api/ai.py 引用
+    anonymizer.py       # Anonymizer — 被 engine 引用
+    schemas.py          # AgentEvent/ToolCall/Message — 被 engine 引用
+    tools/              # 旧 @registry.register 工具（23 模块，63 tools）— 生产路径不再调用
   workers/
     grading.py          # process_grading_task（AI 阅卷，微批次并发 GRADING_BATCH_SIZE=20，支持 realtime/batch 双模式）+ run_post_exam_pipeline（考后处理，已接线 pipeline）
   shared/
@@ -381,7 +344,7 @@ tests/
 | Models | 88 表（modules/ 下 18 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表 + academic 3 表 + alembic_version） | — |
 | Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline/Conduct/KnowledgeTree/Scan/Adaptive + exceptions | AI grading 生产接入 |
 | Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 15 角色映射（10 活跃 + 5 legacy 兼容） | — |
-| AI | 63 tools（23 模块）+ IntentResolver + ModelRouter + ToolAccessResolver + AgentProfile + allowed_roles RBAC | 常驻巡检 Agent |
+| AI | Pydantic AI 引擎（EduAgentRuntime）+ 65 @edu_tool（15 模块）+ PolicyToolGuardrail 4 层 RBAC + AgentBudget + ConfirmationBroker 写确认 + ArtifactManager 脱敏 + TraceRecorder DB 双写。旧 AgentLoop/Supervisor 已从生产路径切断 | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）+ ConceptGraphNode 统一引用（旧 knowledge_points UUID 已废弃）| — |
 | Tests | 2504 passed / 43 failed（既有债）后端 + 2496 前端 Vitest 0 failed（ECS 实测 @ 2026-05-09） | — |
 | Modules | 21 模块目录，路由已迁入。技术债拆分后：`card` 含 `router.py`(839行) + `card_template_router.py`(230行) + `card_export_router.py`(326行) + `card_utils.py`(54行)；`scan` 含 `pipeline_router.py`(907行) + `cv_detect_router.py`(430行)；`grading` 含 `router.py`(520行) + `grading_review_router.py`(396行) + `prompts/` 子包 + `gemini_client.py`(官方SDK) + `image_utils.py`(图片预处理) + `detail_flatten.py`(LLM输出标准化)；`analytics` 含 `router.py`(220行) + `analytics_report_router.py`(585行) + `diagnosis_service.py` + `insights_service.py` + `pipeline_service.py`。`ReviewPage.vue` 拆分为 3 composable（`review/useImageZoom.js` + `useAnnotations.js` + `useScoring.js`）。详见 `docs/2026-04-26-tech-debt-audit.md` §修复记录 | — |
@@ -724,12 +687,13 @@ tests/
 | GET | `/api/v1/bank/error-book/{student_id}` | VIEW_SCORES | 学生错题本（支持 mastery_status 过滤） |
 | GET | `/api/v1/bank/error-book/{student_id}/stats` | VIEW_SCORES | 错题统计（按掌握状态分组） |
 
-### AI Agent 端点（JWT 认证，Batch 4 迁入）
+### AI Agent 端点（JWT 认证，Pydantic AI 引擎）
 
 | 方法 | 路径 | 权限 | 用途 |
 |------|------|------|------|
 | GET | `/api/v1/ai/health` | 无 | 工具数量 + 状态 |
-| POST | `/api/v1/ai/chat` | USE_AI_CHAT | SSE 流式对话（multi-turn session，llm-proxy slot=ai-chat） |
+| POST | `/api/v1/ai/chat` | USE_AI_CHAT | SSE 流式对话（EduAgentRuntime + Pydantic AI，65 @edu_tool，RBAC 动态过滤） |
+| POST | `/api/v1/ai/runs/{run_id}/confirmations/{confirmation_id}` | USE_AI_CHAT | 写操作确认回传（approve/reject，SSE 返回执行结果） |
 | GET | `/api/v1/ai/sessions` | 已登录 | 列出当前用户的活跃会话（owner 隔离） |
 | DELETE | `/api/v1/ai/sessions/{session_id}` | 已登录 | 删除会话（仅 owner，他人 403） |
 

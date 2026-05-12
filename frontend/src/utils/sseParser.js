@@ -32,6 +32,8 @@ export function createSSEProcessor(handlers = {}) {
         handlers.onToolCall?.(event.data?.tool, event.data?.arguments)
       } else if (event.type === 'tool_result') {
         handlers.onToolResult?.(event.data?.tool, event.data?.result)
+      } else if (event.type === 'confirmation_required') {
+        handlers.onConfirmation?.(event.data)
       } else if (event.type === 'error') {
         handlers.onError?.(event.data?.message || 'Unknown error')
       } else if (event.type === 'done') {

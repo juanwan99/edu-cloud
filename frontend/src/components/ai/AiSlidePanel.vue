@@ -43,6 +43,26 @@
                 </div>
               </details>
 
+              <div v-if="msg.confirmations?.length" class="ai-confirmations">
+                <div v-for="conf in msg.confirmations" :key="conf.id" class="ai-confirm-card">
+                  <div class="ai-confirm-header">
+                    <span class="ai-confirm-icon">&#9888;</span>
+                    <span class="ai-confirm-title">写操作确认</span>
+                  </div>
+                  <div class="ai-confirm-tool">{{ conf.toolName }}</div>
+                  <div v-if="Object.keys(conf.args || {}).length" class="ai-confirm-args">
+                    <span v-for="(v, k) in conf.args" :key="k" class="ai-confirm-arg">{{ k }}: {{ v }}</span>
+                  </div>
+                  <div v-if="conf.status === 'pending'" class="ai-confirm-actions">
+                    <button class="ai-confirm-btn ai-confirm-btn--approve" @click="chat.resolveConfirmation(conf.id, 'approve')">批准执行</button>
+                    <button class="ai-confirm-btn ai-confirm-btn--reject" @click="chat.resolveConfirmation(conf.id, 'reject')">拒绝</button>
+                  </div>
+                  <div v-else class="ai-confirm-resolved">
+                    {{ conf.status === 'approved' ? '已批准' : '已拒绝' }}
+                  </div>
+                </div>
+              </div>
+
               <div v-if="msg.content" class="ai-msg-bubble ai-msg-bubble--assistant">
                 <div class="ai-content" v-text="msg.content" />
               </div>
@@ -416,6 +436,99 @@ onMounted(() => { chat.checkHealth() })
 @keyframes pulse {
   0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
   40% { opacity: 1; transform: scale(1); }
+}
+
+/* Confirmation cards */
+.ai-confirmations {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ai-confirm-card {
+  border: 1px solid #f59e0b;
+  border-radius: var(--radius-md);
+  padding: 12px;
+  background: #fffbeb;
+}
+
+.ai-confirm-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-weight: var(--fw-semibold);
+  font-size: 13px;
+  color: #92400e;
+}
+
+.ai-confirm-icon {
+  font-size: 16px;
+}
+
+.ai-confirm-tool {
+  font-family: monospace;
+  font-size: 13px;
+  color: #78350f;
+  margin-bottom: 6px;
+}
+
+.ai-confirm-args {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.ai-confirm-arg {
+  font-size: 12px;
+  padding: 2px 8px;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 10px;
+  color: #92400e;
+}
+
+.ai-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ai-confirm-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.ai-confirm-btn--approve {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.ai-confirm-btn--approve:hover {
+  opacity: 0.9;
+}
+
+.ai-confirm-btn--reject {
+  background: var(--color-bg-alt);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-light);
+}
+
+.ai-confirm-btn--reject:hover {
+  background: #fef2f2;
+  color: #ef4444;
+  border-color: #fca5a5;
+}
+
+.ai-confirm-resolved {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-style: italic;
 }
 
 /* Error */

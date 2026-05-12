@@ -112,3 +112,10 @@ def build_compact_prompt() -> str:
         "丢弃：工具调用的原始 JSON、重复的中间步骤、已被纠正的错误结论。\n"
         "用结构化列表输出，控制在 500 字以内。"
     )
+
+
+SCHEDULED_PROMPTS: dict[str, str] = {
+    "daily_grade_alert": "检查今天是否有异常成绩数据，如有则生成预警摘要。",
+    "weekly_class_report": "生成本周各班级的成绩变化摘要报告。",
+    "exam_analysis": "对刚发布的考试进行全面分析：成绩分布、薄弱知识点、班级对比。",
+}

@@ -1,62 +1,46 @@
-"""AI Agent API — chat SSE + sessions CRUD + health。"""
+"""AI Agent API — Pydantic AI engine (replaces old AgentLoop/Supervisor pipeline).
+
+Endpoints:
+  GET  /api/v1/ai/health               — tool count + status
+  GET  /api/v1/ai/ref-types             — reference type definitions
+  GET  /api/v1/ai/refs                  — reference resolver
+  POST /api/v1/ai/chat                  — SSE chat (EduAgentRuntime)
+  POST /api/v1/ai/runs/{run_id}/confirmations/{confirmation_id}  — write approval
+  GET  /api/v1/ai/sessions              — list sessions
+  DELETE /api/v1/ai/sessions/{id}       — delete session
+"""
 import asyncio
 import json
 import logging
+import time
 import uuid
-from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.database import get_db
-from edu_cloud.core.auth import require_permission, get_current_user
+from edu_cloud.core.auth import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
-from edu_cloud.ai.registry import tools
-from edu_cloud.ai.audit import AuditLogger
-from edu_cloud.ai.anonymizer import Anonymizer
-from edu_cloud.ai.tool_access import ToolAccessResolver
-from edu_cloud.ai.tool_context import ToolContext
-from edu_cloud.ai.llm_adapter import LLMProxyAdapter
-from edu_cloud.ai.capability_probe import CapabilityProbe, LoopStrategy
-from edu_cloud.ai.sensitivity_router import SensitivityRouter
-from edu_cloud.ai.prompts import build_teacher_prompt
-from edu_cloud.services.agent_profile_service import AgentProfileService
-from edu_cloud.services.school_settings_service import get_enabled_modules
-from edu_cloud.services.capability_service import get_capabilities
-from edu_cloud.config import settings
-import edu_cloud.ai.tools  # noqa: F401 — trigger tool registration
-from edu_cloud.ai.supervisor import Supervisor
-from edu_cloud.ai.agent_team import teams as team_registry
-from edu_cloud.ai.memory_store import MemoryStore
-from edu_cloud.ai.memory_injector import MemoryInjector
-from edu_cloud.ai.memory_extractor import MemoryExtractor
-import edu_cloud.ai.teams  # noqa: F401 — trigger team registration
-from edu_cloud.ai.runtime import AgentRuntime, AgentContext
-from edu_cloud.modules.exam.slot_selector import resolve_agent_slots
+from edu_cloud.database import async_session, get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 
 
 # ── Session state (in-memory, per-process) ──────────────────────────────
-@dataclass
-class _SessionState:
-    anonymizer: Anonymizer
-    owner_id: str = ""
-    history: list = None  # list[Message] — multi-turn conversation history
-    last_access: float = 0.0  # time.time() epoch
 
-    def __post_init__(self):
-        if self.history is None:
-            self.history = []
-        if not self.last_access:
-            import time
-            self.last_access = time.time()
+class _SessionState:
+    __slots__ = ("anonymizer", "owner_id", "history", "last_access", "runtime")
+
+    def __init__(self, *, anonymizer, owner_id: str = ""):
+        self.anonymizer = anonymizer
+        self.owner_id = owner_id
+        self.history: list = []
+        self.last_access: float = time.time()
+        self.runtime = None
 
     def touch(self):
-        import time
         self.last_access = time.time()
 
 
@@ -65,8 +49,7 @@ _sessions_lock = asyncio.Lock()
 
 
 async def _purge_expired_sessions():
-    """Remove sessions older than AI_SESSION_TTL."""
-    import time
+    from edu_cloud.config import settings
     ttl = settings.AI_SESSION_TTL
     now = time.time()
     expired = [sid for sid, s in _sessions.items() if now - s.last_access > ttl]
@@ -74,7 +57,8 @@ async def _purge_expired_sessions():
         del _sessions[sid]
 
 
-# ── Request model ────────────────────────────────────────────────────────
+# ── Request / Response models ───────────────────────────────────────────
+
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
@@ -90,11 +74,18 @@ class ChatRequest(BaseModel):
         return msg
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────
+class ConfirmationRequest(BaseModel):
+    decision: str  # "approve" | "reject"
+    idempotency_key: str | None = None
+    comment: str | None = None
+
+
+# ── Endpoints ────────────────────────────────────────────────────────────
+
 @router.get("/health")
 async def ai_health():
-    tool_count = len(tools.list_tools())
-    return {"status": "available", "tools": tool_count}
+    from edu_cloud.ai.engine.tool_wrapper import TOOL_META_REGISTRY
+    return {"status": "available", "tools": len(TOOL_META_REGISTRY)}
 
 
 @router.get("/ref-types")
@@ -134,139 +125,161 @@ async def ai_chat(
     except ValueError as e:
         return {"error": str(e)}
 
-    # Inject ref context
     if req.refs:
-        ref_lines = [f"[引用数据: {r.get('label','')}（{r.get('type','')}_id={r.get('id','')}）]"
-                     for r in req.refs if r.get("id")]
+        ref_lines = [
+            f"[引用数据: {r.get('label', '')}（{r.get('type', '')}_id={r.get('id', '')}）]"
+            for r in req.refs if r.get("id")
+        ]
         if ref_lines:
             message = "\n".join(ref_lines) + "\n\n" + message
 
     user = current["user"]
     role_obj = current["current_role"]
     role = role_obj.role if hasattr(role_obj, "role") else "unknown"
+    school_id = getattr(role_obj, "school_id", None)
+    session_id = req.session_id or str(uuid.uuid4())
 
-    # DataScope computation (best-effort)
+    # ── Session management ──
+    async with _sessions_lock:
+        from edu_cloud.ai.anonymizer import Anonymizer
+        existing = _sessions.get(session_id)
+        if existing and existing.owner_id != str(user.id):
+            raise HTTPException(403, "Session belongs to another user")
+
+        session_state = _sessions.setdefault(
+            session_id, _SessionState(anonymizer=Anonymizer(), owner_id=str(user.id)),
+        )
+        session_state.touch()
+        await _purge_expired_sessions()
+
+    # ── Build DataScope (best-effort) ──
     data_scope = None
     try:
         from edu_cloud.ai.data_scope import DataScopeBuilder
         data_scope = await DataScopeBuilder(db).build(user.id, role_id=role_obj.id)
     except Exception as scope_exc:
-        logger.warning("DataScope build failed, using manual scope: %s", scope_exc)
+        logger.warning("DataScope build failed: %s", scope_exc)
 
-    scope = {}
-    if hasattr(role_obj, "school_id") and role_obj.school_id:
-        scope["school"] = role_obj.school_id
-    if hasattr(role_obj, "class_ids") and role_obj.class_ids:
-        scope["classes"] = role_obj.class_ids
-    if hasattr(role_obj, "grade_ids") and role_obj.grade_ids:
-        scope["grades"] = role_obj.grade_ids
-    if hasattr(role_obj, "subject_codes") and role_obj.subject_codes:
-        scope["subjects"] = role_obj.subject_codes
-
-    # DB audit
-    audit = AuditLogger(db)
-    session_id = req.session_id or str(uuid.uuid4())
-
-    async with _sessions_lock:
-        if session_id not in _sessions:
-            try:
-                await audit.create_session(user.id, role, context=scope)
-            except Exception as e:
-                logger.warning("Failed to create audit session: %s", e)
-
-        existing = _sessions.get(session_id)
-        if existing and existing.owner_id != user.id:
-            raise HTTPException(403, "Session belongs to another user")
-
-        school_id = getattr(role_obj, "school_id", None)
-
-        # Session state + Anonymizer
-        session_state = _sessions.setdefault(
-            session_id, _SessionState(anonymizer=Anonymizer(), owner_id=user.id)
+    if data_scope is None:
+        from edu_cloud.ai.data_scope import DataScope
+        data_scope = DataScope(
+            user_id=str(user.id),
+            school_id=school_id or "",
+            role=role,
+            visible_class_ids=getattr(role_obj, "class_ids", None),
+            visible_subject_codes=getattr(role_obj, "subject_codes", None),
+            visible_grade_ids=getattr(role_obj, "grade_ids", None),
+            visible_student_ids=None,
+            district_ids=None,
+            can_write=True,
+            can_see_rankings=role != "parent",
+            can_cross_school=role in ("platform_admin", "district_admin"),
+            persona="teacher_assistant",
+            version=1,
         )
-        session_state.touch()
-        await _purge_expired_sessions()
 
-    # Agent profile + slot resolution (best-effort)
-    profile = None
-    enabled_modules = None
-    capabilities = {}
-    user_slots = []
-    system_slots = []
-    enhanced_enabled = False
+    # ── Load school config ──
+    enabled_modules: frozenset[str] = frozenset()
+    capabilities: dict[tuple[str, str], bool] = {}
     try:
+        from edu_cloud.services.school_settings_service import get_enabled_modules as _get_modules
+        from edu_cloud.services.capability_service import get_capabilities
+        if school_id:
+            mods = await _get_modules(db, school_id=school_id)
+            enabled_modules = frozenset(mods) if mods else frozenset()
+            caps_list = await get_capabilities(db, school_id=school_id, role=role)
+            capabilities = {(c.domain, c.action): c.enabled for c in caps_list}
+    except Exception as cfg_exc:
+        logger.warning("School config load failed: %s", cfg_exc)
+
+    # ── Collect and filter tools ──
+    from edu_cloud.ai.engine.tools import collect_all_tools, filter_tools_for_role
+    from edu_cloud.ai.engine.tool_wrapper import TOOL_META_REGISTRY
+    all_tools = collect_all_tools()
+    allowed_tools = filter_tools_for_role(
+        all_tools, role=role, enabled_modules=enabled_modules,
+    )
+    tool_names = [getattr(fn, "_edu_meta", None).name for fn in allowed_tools if getattr(fn, "_edu_meta", None)]
+
+    # ── Build system prompt (with memory) ──
+    from edu_cloud.ai.prompts import build_teacher_prompt
+    from edu_cloud.ai.memory_store import MemoryStore
+
+    memory_store = MemoryStore()
+    memory_context = ""
+    try:
+        from edu_cloud.ai.memory_injector import MemoryInjector
+        injector = MemoryInjector(store=memory_store)
+        memory_context = await injector.build_context(
+            db, school_id=school_id or "", user_id=str(user.id), role=role,
+        )
+    except Exception as mem_exc:
+        logger.warning("Memory injection failed: %s", mem_exc)
+
+    memories = [line for line in memory_context.split("\n") if line.strip()] if memory_context else None
+
+    system_prompt = build_teacher_prompt(
+        role=role,
+        display_name=user.display_name or "",
+        school_name=str(school_id or ""),
+        tool_names=tool_names,
+        tier=3,
+        memories=memories,
+    )
+
+    # ── Agent profile recording (best-effort) ──
+    profile = None
+    try:
+        from edu_cloud.services.agent_profile_service import AgentProfileService
         profile = await AgentProfileService.get_or_create(
             db, user_id=user.id, school_id=school_id or "", display_name=user.display_name,
         )
-        enabled_modules = await get_enabled_modules(db, school_id=school_id) if school_id else None
-        caps_list = await get_capabilities(db, school_id=school_id, role=role) if school_id else []
-        capabilities = {(c.domain, c.action): c.enabled for c in caps_list}
+    except Exception:
+        pass
 
-        # Dual-model slot resolution (F003 fix)
-        if school_id:
-            user_slots, system_slots = await resolve_agent_slots(db, school_id=school_id)
-            if system_slots:
-                from edu_cloud.models.school_settings import SchoolSetting
-                from sqlalchemy import select as sa_select
-                setting = (await db.execute(
-                    sa_select(SchoolSetting).where(
-                        SchoolSetting.school_id == school_id,
-                        SchoolSetting.key == "ai_enhanced_enabled",
-                    )
-                )).scalar_one_or_none()
-                enhanced_enabled = setting is not None and setting.value == "true"
-    except Exception as setup_exc:
-        logger.warning("Agent setup failed: %s", setup_exc)
+    # ── Build EduAgentRuntime ──
+    from edu_cloud.ai.engine.edu_runtime import EduAgentRuntime
 
-    # Build AgentContext
-    agent_ctx = AgentContext(
-        db=db,
+    runtime = EduAgentRuntime(
+        db_sessionmaker=async_session,
         user_id=str(user.id),
-        school_id=school_id or "",
+        school_id=str(school_id or ""),
         role=role,
         data_scope=data_scope,
-        session_id=session_id,
-        user_slots=user_slots,
-        system_slots=system_slots,
-        enhanced_enabled=enhanced_enabled,
-        class_ids=getattr(role_obj, "class_ids", None),
-        subject_codes=getattr(role_obj, "subject_codes", None),
+        enabled_modules=enabled_modules,
         capabilities=capabilities,
-        enabled_modules=list(enabled_modules) if enabled_modules else [],
-        display_name=user.display_name or "",
-        school_name=scope.get("school", ""),
         anonymizer=session_state.anonymizer,
+        memory=memory_store,
+        session_id=session_id,
+        system_prompt=system_prompt,
+        tool_meta_registry=TOOL_META_REGISTRY,
+        tool_functions=allowed_tools,
     )
+    runtime.build_agent()
 
-    runtime = AgentRuntime()
+    session_state.runtime = runtime
 
     async def event_stream():
         try:
             async for event in runtime.run(
-                message=message,
-                context=agent_ctx,
-                history=session_state.history,
+                message, message_history=session_state.history,
             ):
                 if event.type == "done":
                     event.data["session_id"] = session_id
                 yield f"data: {json.dumps(event.to_dict(), ensure_ascii=False)}\n\n"
         finally:
-            # F002: write back history from runtime
-            last_history = runtime.get_last_history()
-            if last_history is not None:
-                session_state.history = last_history
-            # F004: use real execution receipt
-            run_info = runtime.get_last_run_info() or {}
+            session_state.history = runtime.last_messages
             if profile is not None:
                 try:
+                    from edu_cloud.services.agent_profile_service import AgentProfileService
                     await AgentProfileService.record_run(
                         db,
                         profile_id=profile.id,
                         session_id=session_id,
-                        tools_resolved=run_info.get("tools_resolved", []),
+                        tools_resolved=tool_names,
                         tools_selected=[],
-                        model_used=run_info.get("model_used", "ai-chat"),
-                        model_tier=run_info.get("model_tier", "tier3"),
+                        model_used="ai-chat",
+                        model_tier="pydantic-ai",
                         intent_domains=[],
                     )
                     await db.commit()
@@ -280,11 +293,56 @@ async def ai_chat(
     )
 
 
+@router.post("/runs/{run_id}/confirmations/{confirmation_id}")
+async def confirm_tool(
+    run_id: str,
+    confirmation_id: str,
+    req: ConfirmationRequest,
+    current=Depends(require_permission(Permission.USE_AI_CHAT)),
+):
+    """Approve or reject a deferred write tool execution."""
+    user = current["user"]
+
+    async with _sessions_lock:
+        target_session = None
+        for _sid, state in _sessions.items():
+            rt = state.runtime
+            if rt is not None and rt.run_id == run_id and state.owner_id == str(user.id):
+                target_session = state
+                break
+
+    if target_session is None:
+        raise HTTPException(404, "Run not found or expired")
+
+    runtime = target_session.runtime
+    if req.decision == "approve":
+        approved_ids = [confirmation_id]
+        denied_ids = []
+    else:
+        approved_ids = []
+        denied_ids = [confirmation_id]
+
+    async def confirm_stream():
+        try:
+            async for event in runtime.resume_after_confirmation(
+                approved_ids=approved_ids,
+                denied_ids=denied_ids,
+            ):
+                yield f"data: {json.dumps(event.to_dict(), ensure_ascii=False)}\n\n"
+        finally:
+            target_session.history = runtime.last_messages
+
+    return StreamingResponse(
+        confirm_stream(),
+        media_type="text/event-stream",
+    )
+
+
 @router.get("/sessions")
 async def list_sessions(current=Depends(get_current_user)):
     user = current["user"]
     async with _sessions_lock:
-        owned = [sid for sid, s in _sessions.items() if s.owner_id == user.id]
+        owned = [sid for sid, s in _sessions.items() if s.owner_id == str(user.id)]
     return {"sessions": owned}
 
 
@@ -298,7 +356,7 @@ async def delete_session(
         state = _sessions.get(session_id)
         if state is None:
             return {"deleted": False, "reason": "session not found"}
-        if state.owner_id != user.id:
+        if state.owner_id != str(user.id):
             raise HTTPException(status_code=403, detail="无权删除他人会话")
         del _sessions[session_id]
     return {"deleted": True}

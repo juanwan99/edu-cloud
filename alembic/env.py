@@ -86,6 +86,9 @@ from edu_cloud.modules.conduct.models import (  # noqa: F401
 from edu_cloud.models.grade import Grade  # noqa: F401
 from edu_cloud.models.teaching_plan import TeachingPlan  # noqa: F401
 
+# ── AI engine (Step 2: Pydantic AI infrastructure) ──────────────────────
+from edu_cloud.models.ai_engine import AiArtifact, AiAgentTrace, AiAgentTraceEvent  # noqa: F401
+
 # ---------------------------------------------------------------------------
 # Alembic Config object, which provides access to the values within the .ini
 # ---------------------------------------------------------------------------

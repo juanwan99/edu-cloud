@@ -389,28 +389,25 @@ class TestOutputValidatorWiring:
 
 
 class TestApiLayerWiring:
-    """F006 R2: verify ai.py finally block uses runtime history/run_info."""
+    """Verify ai.py wiring to EduAgentRuntime (updated for Pydantic AI engine)."""
 
     def test_api_finally_reads_history(self):
-        """Deleting session_state.history writeback must break this test."""
-        import ast
+        """History writeback must use runtime.last_messages property."""
         import inspect
         from edu_cloud.api import ai as ai_module
 
         source = inspect.getsource(ai_module.ai_chat)
-        # Verify the finally block contains history writeback
-        assert "get_last_history" in source, "ai.py must call runtime.get_last_history()"
+        assert "runtime.last_messages" in source, "ai.py must read runtime.last_messages"
         assert "session_state.history" in source, "ai.py must write back to session_state.history"
 
-    def test_api_finally_reads_run_info(self):
-        """Deleting run_info usage must break this test."""
+    def test_api_uses_edu_agent_runtime(self):
+        """ai.py must construct EduAgentRuntime, not old AgentRuntime."""
         import inspect
         from edu_cloud.api import ai as ai_module
 
         source = inspect.getsource(ai_module.ai_chat)
-        assert "get_last_run_info" in source, "ai.py must call runtime.get_last_run_info()"
-        assert 'run_info.get("tools_resolved"' in source, "ai.py must use run_info for tools_resolved"
-        assert 'run_info.get("model_tier"' in source, "ai.py must use run_info for model_tier"
+        assert "EduAgentRuntime" in source, "ai.py must use EduAgentRuntime"
+        assert "AgentRuntime()" not in source, "ai.py must NOT use old AgentRuntime()"
 
 
 class TestWorkerEntry:
@@ -421,5 +418,5 @@ class TestWorkerEntry:
         assert "run_agent_scheduled" in func_names
 
     def test_scheduled_prompts_exist(self):
-        from edu_cloud.ai.runtime import SCHEDULED_PROMPTS
+        from edu_cloud.ai.prompts import SCHEDULED_PROMPTS
         assert "exam_analysis" in SCHEDULED_PROMPTS

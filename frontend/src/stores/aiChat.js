@@ -10,6 +10,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
   const isAvailable = ref(false)
   const sessionId = ref(null)
   const error = ref(null)
+  const pendingConfirmations = ref([])
 
   const authStore = useAuthStore()
 
@@ -74,6 +75,18 @@ export const useAiChatStore = defineStore('aiChat', () => {
           const t = assistantMsg.tools.find(x => x.name === tool && x.status === 'running')
           if (t) t.status = 'done'
         },
+        onConfirmation(data) {
+          const conf = {
+            id: data.tool_call_id,
+            runId: data.run_id,
+            toolName: data.tool_name,
+            args: data.args || {},
+            status: 'pending',
+          }
+          pendingConfirmations.value.push(conf)
+          assistantMsg.confirmations = assistantMsg.confirmations || []
+          assistantMsg.confirmations.push(conf)
+        },
         onError(msg) { error.value = msg },
         onDone(sid) { if (sid) sessionId.value = sid },
       })
@@ -90,10 +103,53 @@ export const useAiChatStore = defineStore('aiChat', () => {
     }
   }
 
+  async function resolveConfirmation(confirmationId, decision) {
+    const conf = pendingConfirmations.value.find(c => c.id === confirmationId)
+    if (!conf || conf.status !== 'pending') return
+
+    conf.status = decision === 'approve' ? 'approved' : 'rejected'
+
+    try {
+      const resp = await fetch(`/api/v1/ai/runs/${conf.runId}/confirmations/${confirmationId}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authStore.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ decision }),
+      })
+
+      if (!resp.ok) return
+
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      const lastMsg = messages.value[messages.value.length - 1]
+
+      const processor = createSSEProcessor({
+        onAnswer(content) { if (lastMsg) lastMsg.content += content },
+        onToolCall(tool) { if (lastMsg) { lastMsg.tools = lastMsg.tools || []; lastMsg.tools.push({ name: tool, status: 'running' }) } },
+        onToolResult(tool) { if (lastMsg) { const t = (lastMsg.tools || []).find(x => x.name === tool && x.status === 'running'); if (t) t.status = 'done' } },
+        onError(msg) { error.value = msg },
+        onDone(sid) { if (sid) sessionId.value = sid },
+      })
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        processor.push(decoder.decode(value, { stream: true }))
+      }
+    } catch (e) {
+      error.value = e.message
+    } finally {
+      pendingConfirmations.value = pendingConfirmations.value.filter(c => c.id !== confirmationId)
+    }
+  }
+
   function clearChat() {
     messages.value = []
     sessionId.value = null
     error.value = null
+    pendingConfirmations.value = []
   }
 
   return {
@@ -102,8 +158,10 @@ export const useAiChatStore = defineStore('aiChat', () => {
     isAvailable,
     sessionId,
     error,
+    pendingConfirmations,
     checkHealth,
     sendMessage,
+    resolveConfirmation,
     clearChat,
   }
 })
