@@ -119,6 +119,7 @@ class EduAgentRuntime:
 
         self._agent: Agent[AgentDeps, str | DeferredToolRequests] | None = None
         self._last_messages: list[Any] = []
+        self._deferred_output: DeferredToolRequests | None = None
 
     def _build_model(self) -> OpenAIChatModel:
         client = AsyncOpenAI(
@@ -194,11 +195,20 @@ class EduAgentRuntime:
 
         task = asyncio.create_task(_agent_task())
 
-        while True:
-            ev = await event_queue.get()
-            if ev is None:
-                break
-            yield ev
+        try:
+            while True:
+                ev = await event_queue.get()
+                if ev is None:
+                    break
+                yield ev
+        except (GeneratorExit, asyncio.CancelledError):
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            self._deps.event_queue = None
+            return
 
         await task
 
@@ -223,6 +233,7 @@ class EduAgentRuntime:
         else:
             result = result_box["result"]
             if isinstance(result.output, DeferredToolRequests):
+                self._deferred_output = result.output
                 deferred = result.output
                 for approval in deferred.approvals:
                     self._deps.confirmations.request_confirmation(
@@ -255,6 +266,8 @@ class EduAgentRuntime:
         self._deps.trace.flush()
         await self._deps.trace.flush_to_db(self._deps.db_sessionmaker)
 
+        self._deps.confirmations.purge_resolved()
+
         yield AgentEvent(type="done", data={
             "run_id": self._run_id,
             "session_id": self._session_id,
@@ -286,18 +299,20 @@ class EduAgentRuntime:
         history = message_history or self._last_messages
         result_box: dict[str, Any] = {}
 
+        deferred = self._deferred_output
+        tool_results = deferred.build_results(
+            approve_ids=set(approved_ids),
+        ) if deferred else None
+
         async def _resume_task() -> None:
             try:
-                result = await self._agent.run(
+                kwargs: dict[str, Any] = dict(
                     deps=self._deps,
                     message_history=history,
-                    deferred_tool_results=(
-                        DeferredToolRequests(
-                            approvals=[],
-                            calls=[],
-                        ).build_results(approve_all=True)
-                    ),
                 )
+                if tool_results is not None:
+                    kwargs["deferred_tool_results"] = tool_results
+                result = await self._agent.run(**kwargs)
                 result_box["result"] = result
             except Exception as exc:
                 result_box["error"] = exc
@@ -306,14 +321,24 @@ class EduAgentRuntime:
 
         task = asyncio.create_task(_resume_task())
 
-        while True:
-            ev = await event_queue.get()
-            if ev is None:
-                break
-            yield ev
+        try:
+            while True:
+                ev = await event_queue.get()
+                if ev is None:
+                    break
+                yield ev
+        except (GeneratorExit, asyncio.CancelledError):
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            self._deps.event_queue = None
+            return
 
         await task
         self._deps.event_queue = None
+        self._deferred_output = None
 
         if "error" in result_box:
             yield AgentEvent(type="error", data={"message": str(result_box["error"])})
@@ -321,6 +346,8 @@ class EduAgentRuntime:
             result = result_box.get("result")
             if result is not None and isinstance(result.output, str):
                 yield AgentEvent(type="answer", data={"content": result.output})
+
+        self._deps.confirmations.purge_resolved()
 
         yield AgentEvent(type="done", data={
             "run_id": self._run_id,

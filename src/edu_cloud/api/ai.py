@@ -14,6 +14,7 @@ import json
 import logging
 import time
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -31,7 +32,7 @@ router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 # ── Session state (in-memory, per-process) ──────────────────────────────
 
 class _SessionState:
-    __slots__ = ("anonymizer", "owner_id", "history", "last_access", "runtime")
+    __slots__ = ("anonymizer", "owner_id", "history", "last_access", "runtime", "run_lock")
 
     def __init__(self, *, anonymizer, owner_id: str = ""):
         self.anonymizer = anonymizer
@@ -39,6 +40,7 @@ class _SessionState:
         self.history: list = []
         self.last_access: float = time.time()
         self.runtime = None
+        self.run_lock = asyncio.Lock()
 
     def touch(self):
         self.last_access = time.time()
@@ -75,7 +77,7 @@ class ChatRequest(BaseModel):
 
 
 class ConfirmationRequest(BaseModel):
-    decision: str  # "approve" | "reject"
+    decision: Literal["approve", "reject"]
     idempotency_key: str | None = None
     comment: str | None = None
 
@@ -172,7 +174,7 @@ async def ai_chat(
             visible_grade_ids=getattr(role_obj, "grade_ids", None),
             visible_student_ids=None,
             district_ids=None,
-            can_write=True,
+            can_write=False,
             can_see_rankings=role != "parent",
             can_cross_school=role in ("platform_admin", "district_admin"),
             persona="teacher_assistant",
@@ -235,8 +237,8 @@ async def ai_chat(
         profile = await AgentProfileService.get_or_create(
             db, user_id=user.id, school_id=school_id or "", display_name=user.display_name,
         )
-    except Exception:
-        pass
+    except Exception as profile_exc:
+        logger.warning("AgentProfile load failed: %s", profile_exc)
 
     # ── Build EduAgentRuntime ──
     from edu_cloud.ai.engine.edu_runtime import EduAgentRuntime
@@ -261,15 +263,19 @@ async def ai_chat(
     session_state.runtime = runtime
 
     async def event_stream():
-        try:
-            async for event in runtime.run(
-                message, message_history=session_state.history,
-            ):
-                if event.type == "done":
-                    event.data["session_id"] = session_id
-                yield f"data: {json.dumps(event.to_dict(), ensure_ascii=False)}\n\n"
-        finally:
-            session_state.history = runtime.last_messages
+        if session_state.run_lock.locked():
+            yield f"data: {json.dumps({'type': 'error', 'data': {'message': '该会话正在处理中，请稍后重试'}}, ensure_ascii=False)}\n\n"
+            return
+        async with session_state.run_lock:
+            try:
+                async for event in runtime.run(
+                    message, message_history=session_state.history,
+                ):
+                    if event.type == "done":
+                        event.data["session_id"] = session_id
+                    yield f"data: {json.dumps(event.to_dict(), ensure_ascii=False)}\n\n"
+            finally:
+                session_state.history = runtime.last_messages
             if profile is not None:
                 try:
                     from edu_cloud.services.agent_profile_service import AgentProfileService
@@ -305,6 +311,7 @@ async def confirm_tool(
     user = current["user"]
 
     async with _sessions_lock:
+        await _purge_expired_sessions()
         target_session = None
         for _sid, state in _sessions.items():
             rt = state.runtime

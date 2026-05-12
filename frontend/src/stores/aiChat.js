@@ -120,7 +120,13 @@ export const useAiChatStore = defineStore('aiChat', () => {
         body: JSON.stringify({ decision }),
       })
 
-      if (!resp.ok) return
+      if (!resp.ok) {
+        if (resp.status === 410) {
+          conf.status = 'expired'
+          error.value = '确认已超时（5 分钟），操作未执行'
+        }
+        return
+      }
 
       const reader = resp.body.getReader()
       const decoder = new TextDecoder()

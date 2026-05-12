@@ -25,12 +25,12 @@ TOOL_META_REGISTRY: dict[str, EduToolMeta] = {}
 
 
 def _safe_serialize_args(kwargs: dict) -> dict:
-    """Best-effort serialize tool args for SSE (drop unserializable values)."""
+    """Best-effort serialize tool args for SSE — returns JSON-safe values."""
     out = {}
     for k, v in kwargs.items():
         try:
-            json.dumps(v, ensure_ascii=False, default=str)
-            out[k] = v
+            safe = json.loads(json.dumps(v, ensure_ascii=False, default=str))
+            out[k] = safe
         except (TypeError, ValueError):
             out[k] = str(v)
     return out
@@ -76,13 +76,22 @@ def edu_tool(
             from edu_cloud.ai.schemas import AgentEvent
 
             q = ctx.deps.event_queue
+            try:
+                record = await ctx.deps.policy.before_tool(meta, kwargs)
+            except Exception:
+                if q is not None:
+                    await q.put(AgentEvent(
+                        type="tool_result",
+                        data={"tool": name, "error": True, "denied": True},
+                    ))
+                raise
+
             if q is not None:
                 await q.put(AgentEvent(
                     type="tool_call",
                     data={"tool": name, "arguments": _safe_serialize_args(kwargs)},
                 ))
 
-            record = await ctx.deps.policy.before_tool(meta, kwargs)
             try:
                 result = await func(ctx, *args, **kwargs)
 

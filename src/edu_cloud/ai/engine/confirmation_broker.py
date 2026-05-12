@@ -21,7 +21,7 @@ class PendingConfirmation:
     tool_call_id: str
     tool_name: str
     args: dict[str, Any]
-    requested_at: float = field(default_factory=time.time)
+    requested_at: float = field(default_factory=time.monotonic)
     resolved: bool = False
     approved: bool = False
     resolved_at: float | None = None
@@ -68,7 +68,7 @@ class ConfirmationBroker:
         if pc and not pc.resolved:
             pc.resolved = True
             pc.approved = True
-            pc.resolved_at = time.time()
+            pc.resolved_at = time.monotonic()
             event = self._events.get(tool_call_id)
             if event:
                 event.set()
@@ -79,7 +79,7 @@ class ConfirmationBroker:
         if pc and not pc.resolved:
             pc.resolved = True
             pc.approved = False
-            pc.resolved_at = time.time()
+            pc.resolved_at = time.monotonic()
             event = self._events.get(tool_call_id)
             if event:
                 event.set()
@@ -105,4 +105,16 @@ class ConfirmationBroker:
         pc = self._pending.get(tool_call_id)
         if not pc:
             return True
-        return (time.time() - pc.requested_at) > self._timeout
+        return (time.monotonic() - pc.requested_at) > self._timeout
+
+    def purge_resolved(self) -> int:
+        """Remove resolved/expired entries to prevent memory growth."""
+        now = time.monotonic()
+        stale = [
+            cid for cid, pc in self._pending.items()
+            if pc.resolved or (now - pc.requested_at) > self._timeout
+        ]
+        for cid in stale:
+            self._pending.pop(cid, None)
+            self._events.pop(cid, None)
+        return len(stale)
