@@ -1,6 +1,6 @@
 <template>
   <div class="student-rank-panel">
-    <div class="report-panel">
+    <div class="panel-card">
       <div class="student-rank-tools">
         <h3>学生排名</h3>
         <div class="student-rank-actions">
@@ -59,14 +59,18 @@ const filteredStudentRows = computed(() => {
 </script>
 
 <style scoped>
-.report-panel {
-  padding-top: var(--space-3, 12px);
+.panel-card {
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--surface-color, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.report-panel h3 {
-  margin: 0 0 var(--space-3, 12px);
-  font-size: var(--fs-md, 16px);
-  font-weight: var(--fw-semibold, 600);
+.panel-card h3 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
 }
 
 .student-rank-tools {
@@ -74,12 +78,13 @@ const filteredStudentRows = computed(() => {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-3, 12px);
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .student-rank-actions {
   display: flex;
-  gap: var(--space-2, 8px);
+  gap: 8px;
   align-items: center;
 }
 

@@ -1,11 +1,11 @@
 <template>
   <div class="subject-analysis-panel">
     <div class="panel-grid">
-      <div class="report-panel">
+      <div class="panel-card">
         <h3>各科平均得分率</h3>
-        <v-chart class="chart-height-xl" :option="subjectRateChartOption" />
+        <v-chart class="chart-area" :option="subjectRateChartOption" />
       </div>
-      <div class="report-panel">
+      <div class="panel-card">
         <h3>科目详情</h3>
         <n-data-table
           :columns="subjectColumns"
@@ -43,20 +43,24 @@ const subjectColumns = getSubjectColumns()
 .panel-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
-  gap: var(--space-4, 16px);
+  gap: 16px;
 }
 
-.report-panel {
-  padding-top: var(--space-3, 12px);
+.panel-card {
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--surface-color, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.report-panel h3 {
-  margin: 0 0 var(--space-3, 12px);
-  font-size: var(--fs-md, 16px);
-  font-weight: var(--fw-semibold, 600);
+.panel-card h3 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
 }
 
-.chart-height-xl {
+.chart-area {
   height: 320px;
 }
 
