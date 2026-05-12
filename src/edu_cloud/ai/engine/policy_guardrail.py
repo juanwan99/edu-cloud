@@ -85,13 +85,20 @@ class PolicyToolGuardrail:
             self._check_capability(meta)
             self._check_scope(meta, args)
             self._budget.check_tool_call(is_write=not meta.is_read_only)
-        except ToolDenied:
+        except ToolDenied as td:
             record.denied = True
+            record.deny_reason = td.reason
+            self._trace.record_event("tool_denied", {
+                "tool": td.tool, "layer": td.layer, "reason": td.reason,
+            })
             raise
         except Exception as exc:
             record.denied = True
             record.deny_reason = str(exc)
-            raise ToolDenied(meta.name, str(exc), "budget") from exc
+            self._trace.record_event("tool_denied", {
+                "tool": meta.name, "layer": "unknown", "reason": str(exc),
+            })
+            raise ToolDenied(meta.name, str(exc), "unknown") from exc
 
         return record
 
