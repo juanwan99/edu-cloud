@@ -84,8 +84,9 @@ class ConfirmationRequest(BaseModel):
 
 @router.get("/health")
 async def ai_health():
-    from edu_cloud.ai.engine.tool_wrapper import TOOL_META_REGISTRY
-    return {"status": "available", "tools": len(TOOL_META_REGISTRY)}
+    from edu_cloud.ai.engine.tools import collect_all_tools
+    all_tools = collect_all_tools()
+    return {"status": "available", "tools": len(all_tools)}
 
 
 @router.get("/ref-types")
