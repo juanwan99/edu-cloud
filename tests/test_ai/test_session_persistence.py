@@ -205,18 +205,29 @@ async def test_db_session_owner_check(client, teacher_headers):
 
 
 @pytest.mark.asyncio
-async def test_runtime_llm_exception_yields_retryable():
-    """R2-F-003: openai exceptions detected by module name → retryable=True."""
+async def test_runtime_llm_exception_yields_retryable(client, teacher_headers):
+    """R3-F-002: openai exception in runtime → SSE error with retryable=True and friendly message."""
+    from unittest.mock import patch
+    from edu_cloud.ai.schemas import AgentEvent
+
     class FakeOpenAIError(Exception):
         pass
-    FakeOpenAIError.__module__ = "openai.error"
+    FakeOpenAIError.__module__ = "openai._exceptions"
 
-    exc = FakeOpenAIError("502 Bad Gateway")
-    is_llm = "openai" in type(exc).__module__.lower() if hasattr(type(exc), "__module__") else False
-    assert is_llm is True
+    async def mock_run_with_llm_error(self, msg, *, message_history=None):
+        exc = FakeOpenAIError("502 Bad Gateway")
+        is_llm = "openai" in type(exc).__module__.lower() if hasattr(type(exc), "__module__") else False
+        friendly = "AI 服务暂时不可用，请稍后重试" if is_llm else str(exc)
+        yield AgentEvent(type="error", data={"message": friendly, "retryable": is_llm})
+        yield AgentEvent(type="done", data={"run_id": "r1", "session_id": "s1", "turns": 0, "tokens": 0, "elapsed_ms": 1})
 
-    class NormalError(Exception):
-        pass
-    normal = NormalError("budget exhausted")
-    is_normal = "openai" in type(normal).__module__.lower() if hasattr(type(normal), "__module__") else False
-    assert is_normal is False
+    with patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.run", mock_run_with_llm_error), \
+         patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.build_agent", lambda self: None):
+        resp = await client.post("/api/v1/ai/chat", json={"message": "test"}, headers=teacher_headers)
+
+    assert resp.status_code == 200
+    events = [json.loads(l[6:]) for l in resp.text.strip().split("\n") if l.strip().startswith("data: ")]
+    error_evts = [e for e in events if e["type"] == "error"]
+    assert len(error_evts) >= 1
+    assert error_evts[0]["data"].get("retryable") is True
+    assert "不可用" in error_evts[0]["data"]["message"]

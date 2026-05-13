@@ -28,19 +28,19 @@ def upgrade() -> None:
     )
     op.create_index('ix_ai_chat_messages_session_created', 'ai_chat_messages', ['session_id', 'created_at'])
 
-    with op.batch_alter_table('ai_tool_calls') as batch_op:
-        batch_op.drop_constraint('fk_ai_tool_calls_session_id', type_='foreignkey')
+    with op.batch_alter_table('ai_tool_calls', recreate='auto') as batch_op:
+        batch_op.drop_constraint(None, type_='foreignkey')
         batch_op.create_foreign_key(
-            'fk_ai_tool_calls_session_id',
+            None,
             'ai_sessions', ['session_id'], ['id'], ondelete='CASCADE',
         )
 
 
 def downgrade() -> None:
-    with op.batch_alter_table('ai_tool_calls') as batch_op:
-        batch_op.drop_constraint('fk_ai_tool_calls_session_id', type_='foreignkey')
+    with op.batch_alter_table('ai_tool_calls', recreate='auto') as batch_op:
+        batch_op.drop_constraint(None, type_='foreignkey')
         batch_op.create_foreign_key(
-            'fk_ai_tool_calls_session_id',
+            None,
             'ai_sessions', ['session_id'], ['id'],
         )
 
