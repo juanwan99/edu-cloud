@@ -129,10 +129,14 @@ async def assign_remedial_homework(
     scope = ctx.deps.data_scope
     async with ctx.deps.get_db() as db:
         subj = (await db.execute(
-            select(Subject).where(Subject.id == subject_id)
+            select(Subject).where(
+                Subject.id == subject_id,
+                Subject.exam_id == exam_id,
+                Subject.school_id == scope.school_id,
+            )
         )).scalar_one_or_none()
         if not subj:
-            return json.dumps({"error": "科目不存在"})
+            return json.dumps({"error": "科目不存在或不属于该考试"})
 
         stmt = (
             select(ExamResult, Student)
@@ -156,33 +160,39 @@ async def assign_remedial_homework(
             "title": homework_title,
         }
 
-        class_ids = list({r.Student.class_id for r in rows if r.Student.class_id})
-        if not class_ids:
+        by_class: dict[str, list] = {}
+        for sa, student in rows:
+            cid = student.class_id
+            if cid:
+                by_class.setdefault(cid, []).append(student)
+
+        if not by_class:
             return json.dumps({"error": "学生未分配班级，无法创建作业"})
 
-        task = await HomeworkTaskService.create_task(
-            db, school_id=scope.school_id, title=homework_title,
-            task_type="post_exam", subject_code=subj.code,
-            class_id=class_ids[0], assigned_by=ctx.deps.user_id,
-            exam_id=exam_id, content=homework_content,
-        )
-
         from edu_cloud.modules.homework.models import HomeworkSubmission
-        for result, student in rows:
-            db.add(HomeworkSubmission(
-                task_id=task.id,
-                student_id=student.id,
-                status="pending",
-            ))
+        task_ids = []
+        for class_id, students_in_class in by_class.items():
+            task = await HomeworkTaskService.create_task(
+                db, school_id=scope.school_id, title=homework_title,
+                task_type="post_exam", subject_code=subj.code,
+                class_id=class_id, assigned_by=ctx.deps.user_id,
+                exam_id=exam_id, content=homework_content,
+            )
+            for student in students_in_class:
+                db.add(HomeworkSubmission(
+                    task_id=task.id, student_id=student.id, status="pending",
+                ))
+            task_ids.append(task.id)
         await db.flush()
         await db.commit()
 
     return json.dumps({
         "status": "ok",
-        "task_id": task.id,
+        "task_ids": task_ids,
         "title": homework_title,
         **preview,
-        "message": f"已为 {len(rows)} 名低于 {score_threshold} 分的学生创建补救作业「{homework_title}」",
+        "classes": len(by_class),
+        "message": f"已为 {len(rows)} 名低于 {score_threshold} 分的学生创建补救作业「{homework_title}」（{len(by_class)} 个班级）",
     }, ensure_ascii=False, default=str)
 
 

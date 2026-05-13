@@ -216,6 +216,8 @@ async def draft_parent_notification(
         if not students:
             return json.dumps({"error": "未找到符合条件的学生"})
 
+        found_ids = {s.id for s in students}
+        skipped_ids = [sid for sid in student_ids if sid not in found_ids]
         student_names = [s.name for s in students]
         svc = StudioService(db)
         doc = await svc.create_document(
@@ -240,7 +242,9 @@ async def draft_parent_notification(
         "status": "draft",
         "student_count": len(students),
         "students": student_names[:10],
-        "message": f"已为 {len(students)} 名学生家长创建{subject}成绩通知草稿，请在 Studio 中审批后发送。",
+        "skipped_ids": skipped_ids,
+        "message": f"已为 {len(students)} 名学生家长创建{subject}成绩通知草稿，请在 Studio 中审批后发送。"
+                   + (f"（{len(skipped_ids)} 名学生未找到或无权限）" if skipped_ids else ""),
     }, ensure_ascii=False, default=str)
 
 
