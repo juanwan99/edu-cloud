@@ -161,10 +161,13 @@ async def assign_remedial_homework(
         }
 
         by_class: dict[str, list] = {}
+        skipped_classless = 0
         for sa, student in rows:
             cid = student.class_id
             if cid:
                 by_class.setdefault(cid, []).append(student)
+            else:
+                skipped_classless += 1
 
         if not by_class:
             return json.dumps({"error": "学生未分配班级，无法创建作业"})
@@ -191,8 +194,11 @@ async def assign_remedial_homework(
         "task_ids": task_ids,
         "title": homework_title,
         **preview,
+        "assigned_count": sum(len(v) for v in by_class.values()),
+        "skipped_classless": skipped_classless,
         "classes": len(by_class),
-        "message": f"已为 {len(rows)} 名低于 {score_threshold} 分的学生创建补救作业「{homework_title}」（{len(by_class)} 个班级）",
+        "message": f"已为 {sum(len(v) for v in by_class.values())} 名低于 {score_threshold} 分的学生创建补救作业「{homework_title}」（{len(by_class)} 个班级）"
+                   + (f"，{skipped_classless} 名学生因未分配班级被跳过" if skipped_classless else ""),
     }, ensure_ascii=False, default=str)
 
 
