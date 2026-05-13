@@ -181,16 +181,32 @@ describe('AiSlidePanel context injection (S2)', () => {
     expect(w.find('.ai-context-card').exists()).toBe(false)
   })
 
-  it('updates context card when initialContext changes', async () => {
+  it('updates context card and prompt when initialContext changes', async () => {
     const w = mountPanel()
-    await w.setProps({ initialContext: { type: 'exam_analysis', label: '考试A', refs: [] } })
+    await w.setProps({ initialContext: { type: 'exam_analysis', label: '考试A', suggestedPrompt: 'promptA', refs: [] } })
     expect(w.text()).toContain('考试A')
-    await w.setProps({ initialContext: { type: 'exam_diagnosis', label: '考试B', refs: [] } })
+    expect(w.find('.ai-input').element.value).toBe('promptA')
+    await w.setProps({ initialContext: { type: 'exam_diagnosis', label: '考试B', suggestedPrompt: 'promptB', refs: [] } })
     expect(w.text()).toContain('考试B')
+    expect(w.find('.ai-input').element.value).toBe('promptB')
   })
 
   it('no context card when initialContext is null', () => {
     const w = mountPanel({ props: { initialContext: null } })
     expect(w.find('.ai-context-card').exists()).toBe(false)
+  })
+
+  it('send attaches context refs to chat.sendMessage', async () => {
+    const w = mountPanel()
+    const chat = useAiChatStore()
+    const spy = vi.spyOn(chat, 'sendMessage').mockResolvedValue()
+    const ctxRefs = [{ type: 'exam', id: 'e1', label: '期中考试' }]
+    await w.setProps({ initialContext: { type: 'exam_analysis', label: '测试', refs: ctxRefs } })
+    await w.find('.ai-input').setValue('hello')
+    await w.find('form').trigger('submit')
+    expect(spy).toHaveBeenCalledWith('hello', expect.arrayContaining([
+      expect.objectContaining({ type: 'exam', id: 'e1' }),
+    ]))
+    spy.mockRestore()
   })
 })

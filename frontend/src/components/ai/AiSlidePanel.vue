@@ -230,7 +230,7 @@ watch(() => props.visible, (v) => {
 watch(() => props.initialContext, (ctx) => {
   if (ctx) {
     activeContext.value = ctx
-    if (ctx.suggestedPrompt && !inputText.value) {
+    if (ctx.suggestedPrompt) {
       inputText.value = ctx.suggestedPrompt
     }
   } else {
