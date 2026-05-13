@@ -146,3 +146,59 @@ async def test_circuit_breaker_blocks_after_failures():
 
     _llm_circuit["failures"] = 0
     _llm_circuit["open_until"] = 0.0
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_returns_503(client, teacher_headers):
+    """Circuit open → POST /ai/chat returns 503."""
+    from edu_cloud.api.ai import _llm_circuit
+    import time as _time
+    _llm_circuit["failures"] = 3
+    _llm_circuit["open_until"] = _time.time() + 60
+
+    try:
+        resp = await client.post("/api/v1/ai/chat", json={"message": "hello"}, headers=teacher_headers)
+        assert resp.status_code == 503
+        assert "不可用" in resp.json().get("detail", "")
+    finally:
+        _llm_circuit["failures"] = 0
+        _llm_circuit["open_until"] = 0.0
+
+
+@pytest.mark.asyncio
+async def test_llm_error_yields_retryable_event(client, teacher_headers):
+    """LLM failure yields error event with retryable=True."""
+    from unittest.mock import patch
+    from edu_cloud.ai.schemas import AgentEvent
+
+    async def mock_run_error(self, msg, *, message_history=None):
+        yield AgentEvent(type="error", data={"message": "AI 服务暂时不可用，请稍后重试", "retryable": True})
+        yield AgentEvent(type="done", data={"run_id": "r1", "session_id": "s1", "turns": 0, "tokens": 0, "elapsed_ms": 1})
+
+    with patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.run", mock_run_error), \
+         patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.build_agent", lambda self: None):
+        resp = await client.post("/api/v1/ai/chat", json={"message": "test"}, headers=teacher_headers)
+    assert resp.status_code == 200
+    events = [json.loads(l[6:]) for l in resp.text.strip().split("\n") if l.strip().startswith("data: ")]
+    error_evts = [e for e in events if e["type"] == "error"]
+    assert len(error_evts) >= 1
+    assert error_evts[0]["data"].get("retryable") is True
+
+
+@pytest.mark.asyncio
+async def test_db_session_owner_check(client, teacher_headers):
+    """F-001: Cannot use another user's session via session_id param."""
+    from edu_cloud.database import async_session
+    async with async_session() as db:
+        db.add(AiSession(id="stolen-sess", user_id="other-user", role="subject_teacher"))
+        await db.commit()
+
+    from unittest.mock import patch
+    with patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.run", side_effect=Exception("should not reach")), \
+         patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.build_agent", lambda self: None):
+        resp = await client.post(
+            "/api/v1/ai/chat",
+            json={"message": "hijack", "session_id": "stolen-sess"},
+            headers=teacher_headers,
+        )
+    assert resp.status_code == 403

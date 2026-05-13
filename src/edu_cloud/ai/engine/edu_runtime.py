@@ -245,7 +245,9 @@ class EduAgentRuntime:
                 })
             else:
                 logger.exception("Agent run failed: %s", exc)
-                yield AgentEvent(type="error", data={"message": str(exc)})
+                is_llm_error = "openai" in type(exc).__module__.lower() if hasattr(type(exc), "__module__") else False
+                msg = "AI 服务暂时不可用，请稍后重试" if is_llm_error else str(exc)
+                yield AgentEvent(type="error", data={"message": msg, "retryable": is_llm_error})
         else:
             result = result_box["result"]
             if isinstance(result.output, DeferredToolRequests):

@@ -30,7 +30,7 @@ class AiChatMessage(Base, IdMixin, TimestampMixin):
 
 class AiToolCall(Base, IdMixin, TimestampMixin):
     __tablename__ = "ai_tool_calls"
-    session_id = Column(String, ForeignKey("ai_sessions.id"), nullable=False)
+    session_id = Column(String, ForeignKey("ai_sessions.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(String, nullable=False)
     role = Column(String(50), nullable=False)
     tool = Column(String(100), nullable=False)

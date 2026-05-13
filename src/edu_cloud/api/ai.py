@@ -231,7 +231,10 @@ async def ai_chat(
         existing_session = (await db.execute(
             sa_select(AiSession).where(AiSession.id == session_id)
         )).scalar_one_or_none()
-        if not existing_session:
+        if existing_session:
+            if existing_session.user_id != str(user.id):
+                raise HTTPException(403, "Session belongs to another user")
+        else:
             db.add(AiSession(
                 id=session_id,
                 user_id=str(user.id),
@@ -239,8 +242,34 @@ async def ai_chat(
                 school_id=school_id or None,
             ))
             await db.commit()
+    except HTTPException:
+        raise
     except Exception as sess_exc:
         logger.warning("AiSession DB write failed: %s", sess_exc)
+
+    # ── Cold restore: load recent messages from DB if hot cache is empty ──
+    if not session_state.history:
+        try:
+            from sqlalchemy import select as sa_select2
+            from edu_cloud.ai.models import AiChatMessage
+            recent = (await db.execute(
+                sa_select2(AiChatMessage)
+                .where(AiChatMessage.session_id == session_id)
+                .order_by(AiChatMessage.created_at.desc())
+                .limit(20)
+            )).scalars().all()
+            if recent:
+                from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
+                restored: list = []
+                for msg in reversed(recent):
+                    if msg.role_in_chat == "user":
+                        restored.append(ModelRequest(parts=[UserPromptPart(content=msg.content)]))
+                    elif msg.role_in_chat == "assistant":
+                        restored.append(ModelResponse(parts=[TextPart(content=msg.content)]))
+                session_state.history = restored
+                logger.info("Cold restored %d messages for session %s", len(restored), session_id)
+        except Exception as restore_exc:
+            logger.warning("Cold restore failed: %s", restore_exc)
 
     # ── Build DataScope (best-effort) ──
     data_scope = None
