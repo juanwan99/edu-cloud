@@ -70,6 +70,7 @@ class EduAgentRuntime:
         tool_meta_registry: dict[str, EduToolMeta] | None = None,
         budget: AgentBudget | None = None,
         tool_functions: list[Any] | None = None,
+        confirmation_timeout: float | None = None,
     ):
         self._run_id = uuid.uuid4().hex[:16]
         self._request_id = uuid.uuid4().hex[:12]
@@ -83,7 +84,9 @@ class EduAgentRuntime:
         trace = TraceRecorder(
             self._run_id, self._session_id, school_id, user_id, role,
         )
-        confirmations = ConfirmationBroker()
+        confirmations = ConfirmationBroker(
+            timeout=confirmation_timeout or 300.0,
+        )
         artifacts = ArtifactManager(self._run_id, school_id, anonymizer)
 
         policy = PolicyToolGuardrail(
@@ -244,7 +247,7 @@ class EduAgentRuntime:
                         _parse_args(approval.args),
                     )
                     from datetime import datetime, timedelta, timezone
-                    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=300)).isoformat()
+                    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=self._deps.confirmations._timeout)).isoformat()
                     yield AgentEvent(
                         type="confirmation_required",
                         data={
