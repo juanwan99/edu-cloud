@@ -241,13 +241,16 @@ class EduAgentRuntime:
                 self._deferred_output = result.output
                 deferred = result.output
                 for approval in deferred.approvals:
-                    self._deps.confirmations.request_confirmation(
+                    meta = self._deps.policy.get_meta(approval.tool_name)
+                    risk = meta.risk_level if meta else "medium"
+                    pc = self._deps.confirmations.request_confirmation(
                         approval.tool_call_id,
                         approval.tool_name,
                         _parse_args(approval.args),
+                        risk_level=risk,
                     )
                     from datetime import datetime, timedelta, timezone
-                    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=self._deps.confirmations._timeout)).isoformat()
+                    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=pc.timeout)).isoformat()
                     yield AgentEvent(
                         type="confirmation_required",
                         data={

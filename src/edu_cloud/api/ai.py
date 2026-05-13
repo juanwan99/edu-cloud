@@ -283,7 +283,7 @@ async def ai_chat(
     # ── Build EduAgentRuntime ──
     from edu_cloud.ai.engine.edu_runtime import EduAgentRuntime
 
-    confirm_timeout = 120.0 if role in ("platform_admin", "district_admin") else 300.0
+    #semantic-ok: timeout tiering moved to per-confirmation level in ConfirmationBroker (risk_level based)
     runtime = EduAgentRuntime(
         db_sessionmaker=async_session,
         user_id=str(user.id),
@@ -298,7 +298,6 @@ async def ai_chat(
         system_prompt=system_prompt,
         tool_meta_registry=TOOL_META_REGISTRY,
         tool_functions=allowed_tools,
-        confirmation_timeout=confirm_timeout,
     )
     runtime.build_agent()
 

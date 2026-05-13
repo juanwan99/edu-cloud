@@ -16,11 +16,15 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 300.0  # 5 minutes
 
 
+TIMEOUT_BY_RISK: dict[str, float] = {"low": 120.0}
+
+
 @dataclass(slots=True)
 class PendingConfirmation:
     tool_call_id: str
     tool_name: str
     args: dict[str, Any]
+    timeout: float = DEFAULT_TIMEOUT
     requested_at: float = field(default_factory=time.monotonic)
     resolved: bool = False
     approved: bool = False
@@ -47,12 +51,14 @@ class ConfirmationBroker:
         tool_call_id: str,
         tool_name: str,
         args: dict[str, Any],
+        risk_level: str = "medium",
     ) -> PendingConfirmation:
         """Register a pending write operation that needs teacher approval."""
         pc = PendingConfirmation(
             tool_call_id=tool_call_id,
             tool_name=tool_name,
             args=args,
+            timeout=TIMEOUT_BY_RISK.get(risk_level, self._timeout) if risk_level != "medium" else self._timeout,
         )
         self._pending[tool_call_id] = pc
         self._events[tool_call_id] = asyncio.Event()
@@ -105,14 +111,14 @@ class ConfirmationBroker:
         pc = self._pending.get(tool_call_id)
         if not pc:
             return True
-        return (time.monotonic() - pc.requested_at) > self._timeout
+        return (time.monotonic() - pc.requested_at) > pc.timeout
 
     def purge_resolved(self) -> int:
         """Remove resolved/expired entries to prevent memory growth."""
         now = time.monotonic()
         stale = [
             cid for cid, pc in self._pending.items()
-            if pc.resolved or (now - pc.requested_at) > self._timeout
+            if pc.resolved or (now - pc.requested_at) > pc.timeout
         ]
         for cid in stale:
             self._pending.pop(cid, None)
