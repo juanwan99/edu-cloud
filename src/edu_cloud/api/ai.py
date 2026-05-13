@@ -142,6 +142,43 @@ async def ai_chat(
     school_id = getattr(role_obj, "school_id", None)
     session_id = req.session_id or str(uuid.uuid4())
 
+    # ── Daily request limit (soft, experience-level throttle) ──
+    try:
+        from datetime import datetime, timezone, timedelta
+        from sqlalchemy import func, select as sa_select
+        from edu_cloud.models.ai_engine import AiAgentTrace
+
+        tz_utc8 = timezone(timedelta(hours=8))
+        today_start_utc8 = datetime.now(tz_utc8).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start_utc = today_start_utc8.astimezone(timezone.utc)
+
+        daily_count_result = await db.execute(
+            sa_select(func.count()).where(
+                AiAgentTrace.user_id == str(user.id),
+                AiAgentTrace.created_at >= today_start_utc,
+            )
+        )
+        daily_count = daily_count_result.scalar() or 0
+
+        daily_limit = 100
+        if school_id:
+            from edu_cloud.models.school_settings import SchoolSetting
+            limit_row = (await db.execute(
+                sa_select(SchoolSetting.value).where(
+                    SchoolSetting.school_id == school_id,
+                    SchoolSetting.key == "ai_daily_chat_limit",
+                )
+            )).scalar_one_or_none()
+            if limit_row:
+                daily_limit = int(limit_row)
+
+        if daily_count >= daily_limit:
+            raise HTTPException(status_code=429, detail=f"今日 AI 对话次数已达上限（{daily_limit}次）")
+    except HTTPException:
+        raise
+    except Exception as limit_exc:
+        logger.warning("Daily limit check failed: %s", limit_exc)
+
     # ── Session management ──
     async with _sessions_lock:
         from edu_cloud.ai.anonymizer import Anonymizer

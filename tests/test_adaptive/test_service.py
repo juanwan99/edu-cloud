@@ -43,9 +43,8 @@ async def test_diagnose_returns_da_states_and_path():
 
 
 def test_tool_registered():
-    """F001: 验证工具在标准导入路径下可注册"""
-    import edu_cloud.ai.tools  # noqa: F401 — trigger all registrations
-    from edu_cloud.ai.registry import tools
-    spec = tools.get("diagnose_and_recommend")
-    assert spec is not None
-    assert spec.category == "L6_adaptive"
+    """F001: 验证工具在新引擎注册"""
+    from edu_cloud.ai.engine.tools import collect_all_tools
+    all_tools = collect_all_tools()
+    names = {getattr(fn, "_edu_meta").name for fn in all_tools if getattr(fn, "_edu_meta", None)}
+    assert "diagnose_and_recommend" in names

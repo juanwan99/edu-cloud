@@ -37,12 +37,13 @@ def test_owns_tables_matches_orm_definitions():
 
 
 def test_exposes_ai_tools_matches_registry():
-    import edu_cloud.ai.tools  # noqa: F401
-    from edu_cloud.ai.registry import tools
+    from edu_cloud.ai.engine.tools import collect_all_tools
 
+    all_tools = collect_all_tools()
     actual = {
-        spec.name for spec in tools.get_all_specs()
-        if spec.module_code == "conduct"
+        getattr(fn, "_edu_meta").name
+        for fn in all_tools
+        if getattr(fn, "_edu_meta", None) and getattr(fn, "_edu_meta").module_code == "conduct"
     }
     fm = _load_frontmatter()
     declared = set((fm.get("depends_on") or {}).get("ai_tools") or [])
