@@ -204,30 +204,21 @@ async def test_db_session_owner_check(client, teacher_headers):
     assert resp.status_code == 403
 
 
-@pytest.mark.asyncio
-async def test_runtime_llm_exception_yields_retryable(client, teacher_headers):
-    """R3-F-002: openai exception in runtime → SSE error with retryable=True and friendly message."""
-    from unittest.mock import patch
-    from edu_cloud.ai.schemas import AgentEvent
+def test_classify_error_openai():
+    """R4-F-002: _classify_error detects openai exceptions → retryable=True + friendly message."""
+    from edu_cloud.ai.engine.edu_runtime import _classify_error
 
     class FakeOpenAIError(Exception):
         pass
     FakeOpenAIError.__module__ = "openai._exceptions"
 
-    async def mock_run_with_llm_error(self, msg, *, message_history=None):
-        exc = FakeOpenAIError("502 Bad Gateway")
-        is_llm = "openai" in type(exc).__module__.lower() if hasattr(type(exc), "__module__") else False
-        friendly = "AI 服务暂时不可用，请稍后重试" if is_llm else str(exc)
-        yield AgentEvent(type="error", data={"message": friendly, "retryable": is_llm})
-        yield AgentEvent(type="done", data={"run_id": "r1", "session_id": "s1", "turns": 0, "tokens": 0, "elapsed_ms": 1})
+    msg, retryable = _classify_error(FakeOpenAIError("502 Bad Gateway"))
+    assert retryable is True
+    assert "不可用" in msg
 
-    with patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.run", mock_run_with_llm_error), \
-         patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.build_agent", lambda self: None):
-        resp = await client.post("/api/v1/ai/chat", json={"message": "test"}, headers=teacher_headers)
+    msg2, retryable2 = _classify_error(ValueError("bad input"))
+    assert retryable2 is False
+    assert msg2 == "bad input"
 
-    assert resp.status_code == 200
-    events = [json.loads(l[6:]) for l in resp.text.strip().split("\n") if l.strip().startswith("data: ")]
-    error_evts = [e for e in events if e["type"] == "error"]
-    assert len(error_evts) >= 1
-    assert error_evts[0]["data"].get("retryable") is True
-    assert "不可用" in error_evts[0]["data"]["message"]
+    msg3, retryable3 = _classify_error(RuntimeError("timeout"))
+    assert retryable3 is False
