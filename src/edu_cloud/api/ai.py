@@ -384,20 +384,20 @@ async def ai_chat(
         if session_state.run_lock.locked():
             yield f"data: {json.dumps({'type': 'error', 'data': {'message': '该会话正在处理中，请稍后重试'}}, ensure_ascii=False)}\n\n"
             return
-        had_error = False
+        had_llm_error = False
         async with session_state.run_lock:
             try:
                 async for event in runtime.run(
                     message, message_history=session_state.history,
                 ):
-                    if event.type == "error":
-                        had_error = True
+                    if event.type == "error" and event.data.get("retryable"):
+                        had_llm_error = True
                     if event.type == "done":
                         event.data["session_id"] = session_id
                     yield f"data: {json.dumps(event.to_dict(), ensure_ascii=False)}\n\n"
             finally:
                 session_state.history = runtime.last_messages
-                if had_error:
+                if had_llm_error:
                     _circuit_record_failure()
                 else:
                     _circuit_record_success()

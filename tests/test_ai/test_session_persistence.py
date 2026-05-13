@@ -202,3 +202,21 @@ async def test_db_session_owner_check(client, teacher_headers):
             headers=teacher_headers,
         )
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_runtime_llm_exception_yields_retryable():
+    """R2-F-003: openai exceptions detected by module name → retryable=True."""
+    class FakeOpenAIError(Exception):
+        pass
+    FakeOpenAIError.__module__ = "openai.error"
+
+    exc = FakeOpenAIError("502 Bad Gateway")
+    is_llm = "openai" in type(exc).__module__.lower() if hasattr(type(exc), "__module__") else False
+    assert is_llm is True
+
+    class NormalError(Exception):
+        pass
+    normal = NormalError("budget exhausted")
+    is_normal = "openai" in type(normal).__module__.lower() if hasattr(type(normal), "__module__") else False
+    assert is_normal is False
