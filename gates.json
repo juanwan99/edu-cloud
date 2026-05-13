@@ -9,6 +9,30 @@
       "updated": "2026-05-02T15:12:09.828778+08:00",
       "reason": "GPT quick review: 5 findings (P1×2+P2×3) all fixed",
       "subject_ref": "staged changes"
+    },
+    "code_review_s1": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "88e51c726f0abc45fb91384d5d23926b6cfec1db5dd6ea00f4d3dc949c7be7dd",
+      "report_path": "GPT R5 WONTFIX (1 MED downgrade-only finding)",
+      "updated": "2026-05-13T12:02:01.880426+08:00",
+      "reason": "R1=6 R2=4 R3=3 R4=2 R5=1(WONTFIX), Phase -1 PASS 10/10",
+      "subject_ref": "commit:3ef7089..4ebc89b",
+      "round": 5
     }
+  },
+  "schema": "gates.v2",
+  "manifest": {
+    "receipt_log": [
+      {
+        "gate": "code_review_s1",
+        "status": "pass",
+        "round": 5,
+        "subject_ref": "commit:3ef7089..4ebc89b",
+        "subject_hash": "88e51c726f0abc45fb91384d5d23926b6cfec1db5dd6ea00f4d3dc949c7be7dd",
+        "ts": "2026-05-13T12:02:01.880450+08:00"
+      }
+    ]
   }
 }
