@@ -107,4 +107,86 @@ async def recommend_remedial(ctx: RunContext[AgentDeps], class_id: str, subject_
     return json.dumps({"message": "补救练习推荐功能开发中", "class_id": class_id, "subject_code": subject_code})
 
 
-ALL_TOOLS = [list_homework_tasks, get_homework_stats, get_submission_details, assign_homework, recommend_remedial]
+@edu_tool(
+    name="assign_remedial_homework", module_code="homework", domain="homework",
+    allowed_roles=_HW_WRITE_ROLES, risk_level="medium", is_read_only=False,
+    sensitivity="school", requires_capabilities=_HW_WRITE_CAP,
+)
+async def assign_remedial_homework(
+    ctx: RunContext[AgentDeps],
+    exam_id: str,
+    subject_id: str,
+    score_threshold: float,
+    homework_title: str,
+    homework_content: str = "",
+) -> str:
+    """为低于阈值的学生批量布置补救作业。查询成绩→预览学生→创建作业+提交记录。"""
+    from sqlalchemy import select
+    from edu_cloud.modules.exam.models import ExamResult, Subject
+    from edu_cloud.modules.student.models import Student
+    from edu_cloud.modules.homework.service import HomeworkTaskService
+
+    scope = ctx.deps.data_scope
+    async with ctx.deps.get_db() as db:
+        subj = (await db.execute(
+            select(Subject).where(Subject.id == subject_id)
+        )).scalar_one_or_none()
+        if not subj:
+            return json.dumps({"error": "科目不存在"})
+
+        stmt = (
+            select(ExamResult, Student)
+            .join(Student, ExamResult.student_id == Student.id)
+            .where(ExamResult.exam_id == exam_id)
+            .where(ExamResult.school_id == scope.school_id)
+            .where(ExamResult.total_score < score_threshold)
+        )
+        if scope.visible_class_ids is not None:
+            stmt = stmt.where(Student.class_id.in_(scope.visible_class_ids))
+
+        rows = (await db.execute(stmt)).all()
+        if not rows:
+            return json.dumps({"message": f"没有低于 {score_threshold} 分的学生", "count": 0})
+
+        student_names = [r.Student.name for r in rows[:20]]
+        preview = {
+            "count": len(rows),
+            "students_preview": student_names,
+            "threshold": score_threshold,
+            "title": homework_title,
+        }
+
+        class_ids = list({r.Student.class_id for r in rows if r.Student.class_id})
+        if not class_ids:
+            return json.dumps({"error": "学生未分配班级，无法创建作业"})
+
+        task = await HomeworkTaskService.create_task(
+            db, school_id=scope.school_id, title=homework_title,
+            task_type="post_exam", subject_code=subj.code,
+            class_id=class_ids[0], assigned_by=ctx.deps.user_id,
+            exam_id=exam_id, content=homework_content,
+        )
+
+        from edu_cloud.modules.homework.models import HomeworkSubmission
+        for result, student in rows:
+            db.add(HomeworkSubmission(
+                task_id=task.id,
+                student_id=student.id,
+                status="pending",
+            ))
+        await db.flush()
+        await db.commit()
+
+    return json.dumps({
+        "status": "ok",
+        "task_id": task.id,
+        "title": homework_title,
+        **preview,
+        "message": f"已为 {len(rows)} 名低于 {score_threshold} 分的学生创建补救作业「{homework_title}」",
+    }, ensure_ascii=False, default=str)
+
+
+ALL_TOOLS = [
+    list_homework_tasks, get_homework_stats, get_submission_details,
+    assign_homework, recommend_remedial, assign_remedial_homework,
+]

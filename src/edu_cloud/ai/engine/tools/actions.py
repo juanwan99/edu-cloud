@@ -178,4 +178,70 @@ async def generate_comment(ctx: RunContext[AgentDeps], student_number: str) -> s
     }, ensure_ascii=False, default=str)
 
 
-ALL_TOOLS = [generate_report, generate_comment]
+_CONDUCT_ROLES = frozenset({
+    "platform_admin", "academic_director", "grade_leader",
+    "homeroom_teacher", "subject_teacher",
+})
+
+
+@edu_tool(
+    name="draft_parent_notification", module_code="conduct", domain="action",
+    allowed_roles=_CONDUCT_ROLES, risk_level="high", is_read_only=False, sensitivity="student",
+)
+async def draft_parent_notification(
+    ctx: RunContext[AgentDeps],
+    student_ids: list[str],
+    subject: str,
+    template: str = "score_alert",
+) -> str:
+    """为指定学生家长生成通知草稿（不发送，存入 Studio 待审批）。"""
+    from edu_cloud.modules.student.models import Student
+    from edu_cloud.modules.studio.service import StudioService
+
+    if not student_ids:
+        return json.dumps({"error": "student_ids 不能为空"})
+    if len(student_ids) > 50:
+        return json.dumps({"error": "单次最多 50 名学生"})
+
+    scope = ctx.deps.data_scope
+    async with ctx.deps.get_db() as db:
+        stmt = select(Student).where(
+            Student.id.in_(student_ids),
+            Student.school_id == scope.school_id,
+        )
+        if scope.visible_class_ids is not None:
+            stmt = stmt.where(Student.class_id.in_(scope.visible_class_ids))
+        students = list((await db.execute(stmt)).scalars().all())
+
+        if not students:
+            return json.dumps({"error": "未找到符合条件的学生"})
+
+        student_names = [s.name for s in students]
+        svc = StudioService(db)
+        doc = await svc.create_document(
+            type="notification",
+            title=f"{subject} 成绩通知（{len(students)} 名学生家长）",
+            content_json={
+                "template": template,
+                "subject": subject,
+                "students": [{"id": s.id, "name": s.name, "number": s.student_number} for s in students],
+                "body": "",
+            },
+            school_id=scope.school_id,
+            created_by=ctx.deps.user_id,
+            source_context={"student_ids": student_ids, "template": template},
+        )
+        await db.commit()
+
+    return json.dumps({
+        "document_id": doc.id,
+        "type": "notification",
+        "title": doc.title,
+        "status": "draft",
+        "student_count": len(students),
+        "students": student_names[:10],
+        "message": f"已为 {len(students)} 名学生家长创建{subject}成绩通知草稿，请在 Studio 中审批后发送。",
+    }, ensure_ascii=False, default=str)
+
+
+ALL_TOOLS = [generate_report, generate_comment, draft_parent_notification]
