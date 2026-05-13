@@ -152,9 +152,11 @@ async def ai_chat(
         today_start_utc8 = datetime.now(tz_utc8).replace(hour=0, minute=0, second=0, microsecond=0)
         today_start_utc = today_start_utc8.astimezone(timezone.utc)
 
+        import hashlib
+        user_hash = hashlib.sha256(str(user.id).encode()).hexdigest()[:12]
         daily_count_result = await db.execute(
             sa_select(func.count()).where(
-                AiAgentTrace.user_id == str(user.id),
+                AiAgentTrace.user_id == user_hash,
                 AiAgentTrace.created_at >= today_start_utc,
             )
         )

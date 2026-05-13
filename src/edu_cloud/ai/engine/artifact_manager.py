@@ -143,6 +143,7 @@ class ArtifactManager:
                         preview_json=json.dumps(art.preview, default=str),
                     ))
                 await db.commit()
+            self._artifacts.clear()
         except Exception as exc:
             logger.warning("ArtifactManager flush_to_db failed: %s", exc)
 
