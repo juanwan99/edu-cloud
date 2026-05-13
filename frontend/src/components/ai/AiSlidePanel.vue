@@ -227,6 +227,17 @@ watch(() => props.visible, (v) => {
   }
 })
 
+watch(() => props.initialContext, (ctx) => {
+  if (ctx) {
+    activeContext.value = ctx
+    if (ctx.suggestedPrompt && !inputText.value) {
+      inputText.value = ctx.suggestedPrompt
+    }
+  } else {
+    activeContext.value = null
+  }
+})
+
 watch(() => chat.messages, scrollToBottom, { deep: true })
 
 onMounted(() => { chat.checkHealth() })

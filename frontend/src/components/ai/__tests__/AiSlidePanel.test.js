@@ -146,3 +146,51 @@ describe('AiSlidePanel timer lifecycle', () => {
     expect(spy).toHaveBeenCalled()
   })
 })
+
+describe('AiSlidePanel context injection (S2)', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
+  it('shows context card when initialContext is set via prop change', async () => {
+    const w = mountPanel()
+    const ctx = { type: 'exam_analysis', label: '期中考试 · 数学', refs: [{ type: 'exam', id: 'e1', label: '期中考试' }] }
+    await w.setProps({ initialContext: ctx })
+    expect(w.find('.ai-context-card').exists()).toBe(true)
+    expect(w.text()).toContain('期中考试 · 数学')
+  })
+
+  it('fills suggestedPrompt into input on context change', async () => {
+    const w = mountPanel()
+    const ctx = { type: 'exam_analysis', label: '期中考试', suggestedPrompt: '请分析这次考试', refs: [] }
+    await w.setProps({ initialContext: ctx })
+    expect(w.find('.ai-input').element.value).toBe('请分析这次考试')
+  })
+
+  it('removes context card on close button click', async () => {
+    const w = mountPanel()
+    await w.setProps({ initialContext: { type: 'exam_analysis', label: '测试', refs: [] } })
+    expect(w.find('.ai-context-card').exists()).toBe(true)
+    await w.find('.ai-context-remove').trigger('click')
+    expect(w.find('.ai-context-card').exists()).toBe(false)
+  })
+
+  it('clears context when initialContext changes to null', async () => {
+    const w = mountPanel()
+    await w.setProps({ initialContext: { type: 'exam_analysis', label: '测试', refs: [] } })
+    expect(w.find('.ai-context-card').exists()).toBe(true)
+    await w.setProps({ initialContext: null })
+    expect(w.find('.ai-context-card').exists()).toBe(false)
+  })
+
+  it('updates context card when initialContext changes', async () => {
+    const w = mountPanel()
+    await w.setProps({ initialContext: { type: 'exam_analysis', label: '考试A', refs: [] } })
+    expect(w.text()).toContain('考试A')
+    await w.setProps({ initialContext: { type: 'exam_diagnosis', label: '考试B', refs: [] } })
+    expect(w.text()).toContain('考试B')
+  })
+
+  it('no context card when initialContext is null', () => {
+    const w = mountPanel({ props: { initialContext: null } })
+    expect(w.find('.ai-context-card').exists()).toBe(false)
+  })
+})
