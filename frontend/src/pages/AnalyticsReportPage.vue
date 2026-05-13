@@ -29,6 +29,15 @@
         >
           导出 Excel
         </n-button>
+        <n-button
+          v-if="selectedExamId"
+          type="primary"
+          ghost
+          class="btn-pill"
+          @click="openAiDiagnosis"
+        >
+          AI 深度诊断
+        </n-button>
       </div>
 
       <template v-if="basicReport">
@@ -118,7 +127,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { inject, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { getBasicReport } from '../api/analytics'
@@ -150,6 +159,23 @@ const validTabs = ['overview', 'subjects', 'classes', 'students', 'knowledge', '
 const activeTab = ref(validTabs.includes(route.query.tab) ? route.query.tab : 'overview')
 const currentGradeId = ref(null)
 const currentSubjectCode = ref(null)
+
+const openAiWithContext = inject('openAiWithContext', null)
+function openAiDiagnosis() {
+  if (!openAiWithContext || !selectedExamId.value) return
+  const examName = basicReport.value?.exam?.name || '考试'
+  const refsArr = [{ type: 'exam', id: selectedExamId.value, label: examName }]
+  if (selectedSubjectId.value) {
+    const subj = (basicReport.value?.subjects || []).find(s => (s.subject_id || s.id) === selectedSubjectId.value)
+    if (subj) refsArr.push({ type: 'subject', id: selectedSubjectId.value, label: subj.subject_name || subj.name })
+  }
+  openAiWithContext({
+    type: 'exam_diagnosis',
+    label: `${examName} 深度诊断`,
+    refs: refsArr,
+    suggestedPrompt: '请对这次考试做全面诊断分析',
+  })
+}
 
 const canExport = computed(
   () => !!selectedExamId.value && !!exportSubjectId.value && !exporting.value,

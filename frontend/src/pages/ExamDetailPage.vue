@@ -16,6 +16,9 @@
             <n-tag v-if="exam" :type="statusType(exam.status)" round size="small">{{ statusLabel(exam.status) }}</n-tag>
           </p>
         </div>
+        <n-button v-if="exam" type="primary" ghost class="btn-pill" @click="openAiAnalysis">
+          AI 分析本考试
+        </n-button>
       </div>
 
       <n-tabs v-model:value="activeTab" type="line">
@@ -111,7 +114,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { inject, ref, reactive, computed, onMounted } from 'vue'
 import { NIcon } from 'naive-ui'
 import { ArrowLeft } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
@@ -156,6 +159,17 @@ const availablePresetSubjects = computed(() => {
   return PRESET_SUBJECTS.filter(s => !existing.has(s.code))
 })
 const rubricForm = reactive({ criteria: '', reference_answer: '', questionId: '' })
+
+const openAiWithContext = inject('openAiWithContext', null)
+function openAiAnalysis() {
+  if (!openAiWithContext || !exam.value) return
+  openAiWithContext({
+    type: 'exam_analysis',
+    label: exam.value.name,
+    refs: [{ type: 'exam', id: examId, label: exam.value.name }],
+    suggestedPrompt: '请分析这次考试的整体情况',
+  })
+}
 
 const statusMap = {
   draft: { label: '草稿', type: 'default' },

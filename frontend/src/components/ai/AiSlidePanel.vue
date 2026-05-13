@@ -80,6 +80,11 @@
           <div v-if="chat.error" class="ai-error">{{ chat.error }}</div>
         </div>
 
+        <div v-if="activeContext" class="ai-context-card">
+          <span class="ai-context-label">{{ activeContext.label }}</span>
+          <button class="ai-context-remove" @click="activeContext = null">&times;</button>
+        </div>
+
         <div v-if="refs.length" class="ai-ref-chips">
           <span v-for="(r, i) in refs" :key="i" class="ai-ref-chip">
             {{ r.label }}
@@ -122,8 +127,11 @@ import RefPicker from './RefPicker.vue'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
+  initialContext: { type: Object, default: null },
 })
 defineEmits(['close'])
+
+const activeContext = ref(null)
 
 const now = ref(Date.now())
 let _tickTimer = null
@@ -188,6 +196,13 @@ async function send() {
   if (!text) return
   inputText.value = ''
   const currentRefs = [...refs.value]
+  if (activeContext.value?.refs) {
+    for (const r of activeContext.value.refs) {
+      if (!currentRefs.find(cr => cr.id === r.id && cr.type === r.type)) {
+        currentRefs.push(r)
+      }
+    }
+  }
   refs.value = []
   await chat.sendMessage(text, currentRefs)
 }
@@ -201,6 +216,12 @@ function scrollToBottom() {
 watch(() => props.visible, (v) => {
   if (v) {
     chat.checkHealth()
+    if (props.initialContext) {
+      activeContext.value = props.initialContext
+      if (props.initialContext.suggestedPrompt && !inputText.value) {
+        inputText.value = props.initialContext.suggestedPrompt
+      }
+    }
     nextTick(() => inputRef.value?.focus())
     scrollToBottom()
   }
@@ -624,6 +645,38 @@ onMounted(() => { chat.checkHealth() })
 .ai-send:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Context card */
+.ai-context-card {
+  margin: 0 20px 4px;
+  padding: 6px 12px;
+  background: rgba(100, 76, 240, 0.08);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.ai-context-label {
+  font-weight: var(--fw-medium);
+}
+
+.ai-context-remove {
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.ai-context-remove:hover {
+  color: var(--color-text);
 }
 
 /* Ref chips */

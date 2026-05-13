@@ -11,12 +11,12 @@
       </div>
     </div>
     <AiFloatingButton @toggle="aiPanelOpen = !aiPanelOpen" />
-    <AiSlidePanel :visible="aiPanelOpen" @close="aiPanelOpen = false" />
+    <AiSlidePanel :visible="aiPanelOpen" :initial-context="aiContext" @close="aiPanelOpen = false" />
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, provide, ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from '../components/shell/AppHeader.vue'
 import AppSidebar from '../components/shell/AppSidebar.vue'
@@ -26,9 +26,17 @@ import AiSlidePanel from '../components/ai/AiSlidePanel.vue'
 import { useAuthStore } from '../stores/auth.js'
 
 const aiPanelOpen = ref(false)
+const aiContext = ref(null)
 const route = useRoute()
 const auth = useAuthStore()
 const shellMode = computed(() => route.meta.shellMode)
+
+function openAiWithContext(context) {
+  aiContext.value = context
+  aiPanelOpen.value = true
+}
+
+provide('openAiWithContext', openAiWithContext)
 
 onMounted(() => {
   if (auth.token && auth.currentRole?.school_id && !auth.modulesLoaded) {
@@ -36,7 +44,10 @@ onMounted(() => {
   }
 })
 
-watch(() => route.path, () => { aiPanelOpen.value = false })
+watch(() => route.path, () => {
+  aiPanelOpen.value = false
+  aiContext.value = null
+})
 </script>
 
 <style scoped>
