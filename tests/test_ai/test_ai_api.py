@@ -62,39 +62,32 @@ async def test_ai_sessions_delete(client, teacher_headers):
 
 @pytest.mark.asyncio
 async def test_ai_session_lifecycle(client, teacher_headers):
-    """Seed a session → list shows it → delete it → list no longer shows it."""
-    from edu_cloud.api.ai import _sessions, _SessionState
-    from edu_cloud.ai.anonymizer import Anonymizer
-
-    # Decode teacher user_id from JWT
+    """Seed a session in DB → list shows it → delete it → list no longer shows it."""
+    from edu_cloud.api.ai import _sessions
     from edu_cloud.shared.auth import decode_token
     token = teacher_headers["Authorization"].split(" ")[1]
-    payload = decode_token(token)
-    teacher_user_id = payload["sub"]
+    teacher_user_id = decode_token(token)["sub"]
 
     test_sid = "test-lifecycle-session"
-    # Seed a session directly into the in-memory store with correct owner
-    _sessions[test_sid] = _SessionState(
-        anonymizer=Anonymizer(),
-        owner_id=teacher_user_id,
-    )
+    from edu_cloud.ai.models import AiSession
+    from edu_cloud.database import async_session
+    async with async_session() as db:
+        db.add(AiSession(id=test_sid, user_id=teacher_user_id, role="subject_teacher"))
+        await db.commit()
+
     try:
-        # List should include our session
         resp = await client.get("/api/v1/ai/sessions", headers=teacher_headers)
         assert resp.status_code == 200
-        assert test_sid in resp.json()["sessions"]
+        ids = [s["id"] for s in resp.json()["sessions"]]
+        assert test_sid in ids
 
-        # Delete it
         resp = await client.delete(f"/api/v1/ai/sessions/{test_sid}", headers=teacher_headers)
         assert resp.status_code == 200
         assert resp.json()["deleted"] is True
 
-        # List should no longer include it
         resp = await client.get("/api/v1/ai/sessions", headers=teacher_headers)
-        assert test_sid not in resp.json()["sessions"]
-
-        # Also verify in-memory state
-        assert test_sid not in _sessions
+        ids = [s["id"] for s in resp.json()["sessions"]]
+        assert test_sid not in ids
     finally:
         _sessions.pop(test_sid, None)
 
@@ -102,24 +95,20 @@ async def test_ai_session_lifecycle(client, teacher_headers):
 @pytest.mark.asyncio
 async def test_ai_session_isolation(client, teacher_headers):
     """Integration F002: sessions are owner-scoped — user cannot see/delete others' sessions."""
-    from edu_cloud.api.ai import _sessions, _SessionState
-    from edu_cloud.ai.anonymizer import Anonymizer
+    from edu_cloud.ai.models import AiSession
+    from edu_cloud.database import async_session
 
     other_sid = "other-user-session"
-    _sessions[other_sid] = _SessionState(
-        anonymizer=Anonymizer(),
-        owner_id="some-other-user-id",
-    )
-    try:
-        # List should NOT include the other user's session
-        resp = await client.get("/api/v1/ai/sessions", headers=teacher_headers)
-        assert other_sid not in resp.json()["sessions"]
+    async with async_session() as db:
+        db.add(AiSession(id=other_sid, user_id="some-other-user-id", role="subject_teacher"))
+        await db.commit()
 
-        # Delete should be forbidden (403)
-        resp = await client.delete(f"/api/v1/ai/sessions/{other_sid}", headers=teacher_headers)
-        assert resp.status_code == 403
-    finally:
-        _sessions.pop(other_sid, None)
+    resp = await client.get("/api/v1/ai/sessions", headers=teacher_headers)
+    ids = [s["id"] for s in resp.json()["sessions"]]
+    assert other_sid not in ids
+
+    resp = await client.delete(f"/api/v1/ai/sessions/{other_sid}", headers=teacher_headers)
+    assert resp.status_code == 403
 
 
 @pytest.mark.asyncio

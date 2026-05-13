@@ -59,6 +59,33 @@ async def _purge_expired_sessions():
         del _sessions[sid]
 
 
+# ── LLM Circuit Breaker ─────────────────────────────────────────────────
+
+_llm_circuit = {"failures": 0, "open_until": 0.0}
+_CIRCUIT_THRESHOLD = 3
+_CIRCUIT_COOLDOWN = 30.0
+
+
+def _circuit_record_failure():
+    _llm_circuit["failures"] += 1
+    if _llm_circuit["failures"] >= _CIRCUIT_THRESHOLD:
+        _llm_circuit["open_until"] = time.time() + _CIRCUIT_COOLDOWN
+
+
+def _circuit_record_success():
+    _llm_circuit["failures"] = 0
+    _llm_circuit["open_until"] = 0.0
+
+
+def _circuit_is_open() -> bool:
+    if _llm_circuit["open_until"] > time.time():
+        return True
+    if _llm_circuit["open_until"] > 0 and time.time() >= _llm_circuit["open_until"]:
+        _llm_circuit["failures"] = 0
+        _llm_circuit["open_until"] = 0.0
+    return False
+
+
 # ── Request / Response models ───────────────────────────────────────────
 
 class ChatRequest(BaseModel):
@@ -123,6 +150,9 @@ async def ai_chat(
     current=Depends(require_permission(Permission.USE_AI_CHAT)),
     db: AsyncSession = Depends(get_db),
 ):
+    if _circuit_is_open():
+        raise HTTPException(status_code=503, detail="AI 服务暂时不可用，请稍后重试")
+
     try:
         message = req.validated_message
     except ValueError as e:
@@ -193,6 +223,24 @@ async def ai_chat(
         )
         session_state.touch()
         await _purge_expired_sessions()
+
+    # ── Persist session to DB (upsert, best-effort) ──
+    try:
+        from sqlalchemy import select as sa_select
+        from edu_cloud.ai.models import AiSession
+        existing_session = (await db.execute(
+            sa_select(AiSession).where(AiSession.id == session_id)
+        )).scalar_one_or_none()
+        if not existing_session:
+            db.add(AiSession(
+                id=session_id,
+                user_id=str(user.id),
+                role=role,
+                school_id=school_id or None,
+            ))
+            await db.commit()
+    except Exception as sess_exc:
+        logger.warning("AiSession DB write failed: %s", sess_exc)
 
     # ── Build DataScope (best-effort) ──
     data_scope = None
@@ -307,16 +355,23 @@ async def ai_chat(
         if session_state.run_lock.locked():
             yield f"data: {json.dumps({'type': 'error', 'data': {'message': '该会话正在处理中，请稍后重试'}}, ensure_ascii=False)}\n\n"
             return
+        had_error = False
         async with session_state.run_lock:
             try:
                 async for event in runtime.run(
                     message, message_history=session_state.history,
                 ):
+                    if event.type == "error":
+                        had_error = True
                     if event.type == "done":
                         event.data["session_id"] = session_id
                     yield f"data: {json.dumps(event.to_dict(), ensure_ascii=False)}\n\n"
             finally:
                 session_state.history = runtime.last_messages
+                if had_error:
+                    _circuit_record_failure()
+                else:
+                    _circuit_record_success()
             if profile is not None:
                 try:
                     from edu_cloud.services.agent_profile_service import AgentProfileService
@@ -391,24 +446,93 @@ async def confirm_tool(
 
 
 @router.get("/sessions")
-async def list_sessions(current=Depends(get_current_user)):
+async def list_sessions(
+    current=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import select as sa_select
+    from edu_cloud.ai.models import AiSession
     user = current["user"]
-    async with _sessions_lock:
-        owned = [sid for sid, s in _sessions.items() if s.owner_id == str(user.id)]
-    return {"sessions": owned}
+    rows = (await db.execute(
+        sa_select(AiSession)
+        .where(AiSession.user_id == str(user.id))
+        .order_by(AiSession.updated_at.desc())
+        .limit(50)
+    )).scalars().all()
+    return {"sessions": [
+        {"id": s.id, "role": s.role, "school_id": s.school_id, "created_at": str(s.created_at), "updated_at": str(s.updated_at)}
+        for s in rows
+    ]}
+
+
+@router.get("/sessions/{session_id}/messages")
+async def list_session_messages(
+    session_id: str,
+    page: int = 1,
+    page_size: int = 20,
+    current=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import func, select as sa_select
+    from edu_cloud.ai.models import AiChatMessage, AiSession
+    user = current["user"]
+
+    session_row = (await db.execute(
+        sa_select(AiSession).where(AiSession.id == session_id)
+    )).scalar_one_or_none()
+    if not session_row:
+        raise HTTPException(404, "Session not found")
+    if session_row.user_id != str(user.id):
+        raise HTTPException(403, "无权查看他人会话")
+
+    page_size = min(max(page_size, 1), 50)
+    offset = (max(page, 1) - 1) * page_size
+
+    total = (await db.execute(
+        sa_select(func.count()).where(AiChatMessage.session_id == session_id)
+    )).scalar() or 0
+
+    rows = (await db.execute(
+        sa_select(AiChatMessage)
+        .where(AiChatMessage.session_id == session_id)
+        .order_by(AiChatMessage.created_at.desc())
+        .offset(offset).limit(page_size)
+    )).scalars().all()
+
+    return {
+        "messages": [
+            {"id": m.id, "role": m.role_in_chat, "content": m.content, "metadata": m.metadata_json, "created_at": str(m.created_at)}
+            for m in reversed(rows)
+        ],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 @router.delete("/sessions/{session_id}")
 async def delete_session(
     session_id: str,
     current=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
+    from sqlalchemy import select as sa_select, delete as sa_delete
+    from edu_cloud.ai.models import AiSession
     user = current["user"]
+
+    row = (await db.execute(
+        sa_select(AiSession).where(AiSession.id == session_id)
+    )).scalar_one_or_none()
+    if row is None:
+        async with _sessions_lock:
+            state = _sessions.pop(session_id, None)
+        return {"deleted": state is not None}
+    if row.user_id != str(user.id):
+        raise HTTPException(status_code=403, detail="无权删除他人会话")
+
+    await db.execute(sa_delete(AiSession).where(AiSession.id == session_id))
+    await db.commit()
+
     async with _sessions_lock:
-        state = _sessions.get(session_id)
-        if state is None:
-            return {"deleted": False, "reason": "session not found"}
-        if state.owner_id != str(user.id):
-            raise HTTPException(status_code=403, detail="无权删除他人会话")
-        del _sessions[session_id]
+        _sessions.pop(session_id, None)
     return {"deleted": True}

@@ -42,6 +42,21 @@ logger = logging.getLogger(__name__)
 
 LLM_PROXY_BASE = "http://localhost:8100/v1"
 
+_llm_clients: dict[str, AsyncOpenAI] = {}
+
+
+def get_llm_client(slot: str) -> AsyncOpenAI:
+    if slot not in _llm_clients:
+        import httpx
+        _llm_clients[slot] = AsyncOpenAI(
+            base_url=LLM_PROXY_BASE,
+            api_key="unused",
+            default_headers={"X-LLM-Slot": slot},
+            max_retries=2,
+            timeout=httpx.Timeout(180.0, connect=10.0),
+        )
+    return _llm_clients[slot]
+
 
 class EduAgentRuntime:
     """Top-level orchestrator: one instance per /api/v1/ai/chat request.
@@ -127,11 +142,7 @@ class EduAgentRuntime:
         self._deferred_output: DeferredToolRequests | None = None
 
     def _build_model(self) -> OpenAIChatModel:
-        client = AsyncOpenAI(
-            base_url=LLM_PROXY_BASE,
-            api_key="unused",
-            default_headers={"X-LLM-Slot": self._model_slot},
-        )
+        client = get_llm_client(self._model_slot)
         return OpenAIChatModel(
             "edu-cloud-agent",
             provider=OpenAIProvider(openai_client=client),
@@ -277,6 +288,13 @@ class EduAgentRuntime:
 
         self._deps.confirmations.purge_resolved()
 
+        assistant_text = None
+        if "result" not in result_box:
+            pass
+        elif isinstance(result_box["result"].output, str):
+            assistant_text = result_box["result"].output
+        await self._persist_messages(user_message, assistant_text)
+
         yield AgentEvent(type="done", data={
             "run_id": self._run_id,
             "session_id": self._session_id,
@@ -387,6 +405,36 @@ class EduAgentRuntime:
     @property
     def agent(self) -> Agent[AgentDeps, str | DeferredToolRequests] | None:
         return self._agent
+
+
+    async def _persist_messages(
+        self,
+        user_message: str,
+        assistant_output: str | None,
+        *,
+        tool_calls: list[dict] | None = None,
+    ) -> None:
+        """Write user + assistant messages to DB (best-effort)."""
+        try:
+            from edu_cloud.ai.models import AiChatMessage
+            async with self._deps.db_sessionmaker() as db:
+                db.add(AiChatMessage(
+                    session_id=self._session_id,
+                    role_in_chat="user",
+                    content=user_message,
+                ))
+                if assistant_output:
+                    import json as _json
+                    meta = _json.dumps({"tool_calls": tool_calls}, ensure_ascii=False) if tool_calls else None
+                    db.add(AiChatMessage(
+                        session_id=self._session_id,
+                        role_in_chat="assistant",
+                        content=assistant_output,
+                        metadata_json=meta,
+                    ))
+                await db.commit()
+        except Exception as exc:
+            logger.warning("Failed to persist chat messages: %s", exc)
 
 
 def _parse_args(args: str | dict) -> dict:
