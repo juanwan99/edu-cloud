@@ -238,7 +238,9 @@ async function onExamChange(examId) {
 }
 
 async function tryAutoDetectScanDir(examId) {
-  const path = `/home/ops/projects/edu-cloud/uploads/scan-input/${examId}`
+  const schoolId = auth.currentRole?.school_id
+  if (!schoolId) return
+  const path = `/home/ops/projects/edu-cloud/uploads/${schoolId}/scan-input/${examId}`
   try {
     const res = await scanDirectory(path)
     const subs = res.data?.subjects || []
@@ -570,7 +572,9 @@ function getScanDirFallback(s) {
   const dir = getScanDir(s)
   if (dir) return dir
   if (s.has_scan_dir && selectedExamId.value) {
-    return `/home/ops/projects/edu-cloud/uploads/scan-input/${selectedExamId.value}/${s.subject_name}`
+    const schoolId = auth.currentRole?.school_id
+    if (!schoolId) return null
+    return `/home/ops/projects/edu-cloud/uploads/${schoolId}/scan-input/${selectedExamId.value}/${s.subject_name}`
   }
   return null
 }

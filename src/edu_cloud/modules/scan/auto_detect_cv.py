@@ -381,7 +381,7 @@ async def _llm_label(
         prompt += SIDE_B_CONTEXT.format(A_SIDE_SUMMARY="\n".join(summary_parts))
 
     MAX_LLM_DIM = 1280
-    pil_img = Image.open(img_path)
+    pil_img = Image.open(img_path).convert("RGB")
     if max(pil_img.size) > MAX_LLM_DIM:
         pil_img.thumbnail((MAX_LLM_DIM, MAX_LLM_DIM), Image.LANCZOS)
     buf = io.BytesIO()
