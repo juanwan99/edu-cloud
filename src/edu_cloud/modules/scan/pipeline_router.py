@@ -45,18 +45,18 @@ def _validate_path_within_upload_dir(p: str | Path) -> Path:
 async def _check_scan_path_tenant(
     path: Path, school_id: str | None, db: AsyncSession,
 ) -> None:
-    """按 exam 归属验证扫描路径的租户隔离（替代目录前缀校验）。"""
+    """按 exam 归属验证扫描路径的租户隔离。"""
     if not school_id:
         return
     exam_id = _infer_exam_id_from_scan_dir(path)
     if not exam_id:
         return
-    exam = (await db.execute(
+    exam_school = (await db.execute(
         select(Exam.school_id).where(Exam.id == exam_id)
     )).scalar_one_or_none()
-    if exam is None:
+    if exam_school is None:
         return
-    if exam != school_id:
+    if exam_school != school_id:
         raise HTTPException(403, "只允许访问本校考试的扫描数据")
 
 
@@ -735,6 +735,7 @@ async def start_pipeline(
 async def import_pdf_to_images(
     req: PdfImportRequest,
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
+    db: AsyncSession = Depends(get_db),
 ):
     """将目录中的 PDF 拆分为 PNG 图片，按 A/B 面命名。
 
@@ -742,6 +743,8 @@ async def import_pdf_to_images(
     拆出的 PNG 可直接用于扫描流水线。
     """
     d = _validate_path_within_upload_dir(req.dir_path)
+    school_id = get_school_id(current)
+    await _check_scan_path_tenant(d, school_id, db)
     if not d.is_dir():
         raise HTTPException(400, f"目录不存在: {req.dir_path}")
 
@@ -876,6 +879,7 @@ async def import_tpl(
     school_id = get_school_id(current)
 
     tpl_resolved = _validate_path_within_upload_dir(req.tpl_path)
+    await _check_scan_path_tenant(tpl_resolved, school_id, db)
     if not tpl_resolved.is_file():
         raise HTTPException(400, f"tpl 文件不存在: {req.tpl_path}")
 

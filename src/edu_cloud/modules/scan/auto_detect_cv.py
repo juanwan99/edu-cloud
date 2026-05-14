@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 from edu_cloud.config import settings
 
-LLM_PROXY_URL = f"{settings.LLM_API_URL}/chat/completions"
+LLM_PROXY_URL = f"{settings.LLM_API_URL}/v1/chat/completions"
 SLOT = "answer-vision"
 FRONTEND_DIST = Path("frontend/dist").resolve()
 
