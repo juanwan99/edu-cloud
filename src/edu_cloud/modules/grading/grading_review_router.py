@@ -206,8 +206,11 @@ async def get_dispatch_status(
 
     from edu_cloud.modules.scan import pipeline_service
 
-    # 一次性扫描根目录，构建科目→图片数映射
-    scan_root = Path(settings.UPLOAD_DIR).resolve() / effective_school_id / "scan-input" / exam_id
+    # 一次性扫描根目录，构建科目→图片数映射（兼容新旧存储布局）
+    upload_root = Path(settings.UPLOAD_DIR).resolve()
+    scan_root = upload_root / effective_school_id / "scan-input" / exam_id
+    if not scan_root.is_dir():
+        scan_root = upload_root / "scan-input" / exam_id
     scan_dir_map = {}
     if scan_root.is_dir():
         for sub in scan_root.iterdir():
