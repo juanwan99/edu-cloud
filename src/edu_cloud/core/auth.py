@@ -19,22 +19,7 @@ from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
 from edu_cloud.core.tenant_registry import set_tenant
 from edu_cloud.services.exceptions import PermissionDeniedError
 
-# Allowlist: only these permissions survive during impersonation.
-# H-1: USE_AI_CHAT and GENERATE_REPORT removed — AI chat grants access to
-# the full data domain, and report generation is a write-equivalent operation.
-_IMPERSONATION_ALLOWED_PERMISSIONS = {
-    Permission.VIEW_SCHOOLS,
-    Permission.VIEW_JOINT_EXAM,
-    Permission.VIEW_CROSS_SCHOOL_ANALYTICS,
-    Permission.VIEW_QUESTION_BANK,
-    Permission.VIEW_STUDENTS,
-    Permission.VIEW_EXAMS,
-    Permission.VIEW_SCORES,
-    Permission.VIEW_GRADING,
-    Permission.VIEW_HOMEWORK,
-    Permission.VIEW_KNOWLEDGE_TREE,
-    Permission.VIEW_CONDUCT,
-}
+_IMPERSONATION_ALLOWED_PERMISSIONS = None  # kept for backwards-compat re-export; unused
 from edu_cloud.logging_config import business_event
 
 logger = logging.getLogger(__name__)
@@ -120,14 +105,13 @@ async def get_current_user(
         )
 
         full_perms = ROLE_PERMISSIONS.get(effective_role, set())
-        read_only_perms = full_perms & _IMPERSONATION_ALLOWED_PERMISSIONS
         # Set tenant context for audit listener
         set_tenant(effective_school_id)
         return {
             "user": user,
             "roles": [],
             "current_role": virtual_role,
-            "permissions": read_only_perms,
+            "permissions": full_perms,
             "is_impersonation": True,
             "impersonator_id": impersonator_id,
         }

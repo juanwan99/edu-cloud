@@ -432,6 +432,8 @@ tests/
 | teacher | subject_teacher | exam-ai 迁入测试使用 |
 | head_teacher | homeroom_teacher | exam-ai 迁入测试使用 |
 
+**角色模拟**（`api/impersonate.py` + `core/auth.py`）：仅 platform_admin 可调用 `POST /api/v1/auth/impersonate`，模拟登录继承目标角色的完整权限（含 MANAGE_* 写权限），所有操作审计日志记录 impersonator_id。可模拟角色：principal / academic_director / teaching_research_leader / grade_leader / lesson_prep_leader / homeroom_teacher / subject_teacher。
+
 ## API 端点（已实现）
 
 ### 平台端点（JWT 认证）

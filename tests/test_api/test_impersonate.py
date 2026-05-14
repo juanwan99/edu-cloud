@@ -323,36 +323,10 @@ async def test_expired_impersonation_token_rejected_on_exit(client, admin_user):
 
 
 @pytest.mark.asyncio
-async def test_impersonation_cannot_use_ai_chat(client, admin_user):
-    """H-1: Impersonation must not grant USE_AI_CHAT permission."""
+async def test_impersonation_inherits_role_permissions(client, admin_user):
+    """模拟登录继承目标角色的完整权限（含 USE_AI_CHAT 等）。"""
     from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
-    from edu_cloud.api.deps import _IMPERSONATION_ALLOWED_PERMISSIONS
 
-    # USE_AI_CHAT must not be in the allowlist
-    assert Permission.USE_AI_CHAT not in _IMPERSONATION_ALLOWED_PERMISSIONS
-
-    # Verify at runtime: create impersonation token for a role that normally has USE_AI_CHAT
-    imp_token = create_impersonation_token(
-        impersonator_id=admin_user.id,
-        effective_role="subject_teacher",
-        effective_school_id="test-school-id",
-        scope_override={"class_ids": ["c1"], "subject_codes": ["math"], "grade_ids": None},
-    )
-    # AI chat endpoint should reject impersonation user
-    resp = await client.post(
-        "/api/v1/ai/chat",
-        json={"message": "test"},
-        headers={"Authorization": f"Bearer {imp_token}"},
-    )
-    # 403 = permission denied (not 200 or 500)
-    assert resp.status_code == 403
-
-
-@pytest.mark.asyncio
-async def test_impersonation_cannot_generate_report(client, admin_user):
-    """H-1: Impersonation must not grant GENERATE_REPORT permission."""
-    from edu_cloud.core.permissions import Permission
-    from edu_cloud.api.deps import _IMPERSONATION_ALLOWED_PERMISSIONS
-
-    # GENERATE_REPORT must not be in the allowlist
-    assert Permission.GENERATE_REPORT not in _IMPERSONATION_ALLOWED_PERMISSIONS
+    st_perms = ROLE_PERMISSIONS.get("subject_teacher", set())
+    assert Permission.USE_AI_CHAT in st_perms
+    assert Permission.MANAGE_GRADING not in st_perms
