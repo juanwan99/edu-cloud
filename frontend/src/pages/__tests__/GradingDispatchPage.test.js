@@ -148,8 +148,8 @@ describe('GradingDispatchPage canDetect and canCut logic', () => {
     expect(fnBlock).toContain('mySubjectCodes.value.includes(s.subject_code)')
   })
 
-  it('canCut checks pending_cut stage', () => {
-    expect(content).toContain("return s.stage === 'pending_cut'")
+  it('canCut checks has_template and excludes idle/cutting', () => {
+    expect(content).toContain("s.has_template && !['idle', 'cutting'].includes(s.stage)")
   })
 })
 

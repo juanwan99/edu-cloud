@@ -423,6 +423,8 @@ async def get_dispatch_status(
             stage = "ready"
         elif not grading_task and answer_count > 0 and any(q.get("has_rubric") for q in questions_info):
             stage = "ready"
+        elif not grading_task and answer_count > 0 and subjective_total > 0:
+            stage = "ready"
         elif not grading_task:
             stage = "pending_cut" if has_template else "idle"
         elif grading_task.status == "failed":

@@ -44,7 +44,7 @@
     <div class="card-actions">
       <n-button v-if="showDetect" size="small" @click="$emit('detect', subject)" :loading="isDetectLoading">模板检测</n-button>
       <n-button v-if="showCut" size="small" @click="$emit('preview', subject)" :loading="isDetectLoading">预览模板</n-button>
-      <n-button v-if="showCut" size="small" type="primary" @click="$emit('cut', subject)" :loading="isCutLoading">切割</n-button>
+      <n-button v-if="showCut" size="small" type="primary" @click="$emit('cut', subject)" :loading="isCutLoading">{{ subject.answer_count > 0 ? '重新切割' : '切割' }}</n-button>
       <n-button v-if="subject.stage === 'cutting'" size="small" type="error" @click="$emit('stop-cut')">停止</n-button>
       <n-button size="small" type="tertiary" @click="$emit('verify', subject)">校对配置</n-button>
     </div>

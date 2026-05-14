@@ -9,7 +9,7 @@ from typing import Callable, Awaitable
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -596,6 +596,27 @@ async def start_pipeline(
                         pipeline_service.build_barcode_map,
                         image_dir_str, a_bc, a_tpl.image_width, a_tpl.image_height,
                     )
+
+    # 重新切割：清除该科目+面的旧 StudentAnswer 数据
+    old_count_result = await db.execute(
+        select(func.count(StudentAnswer.id)).where(
+            StudentAnswer.subject_id == req.subject_id,
+            StudentAnswer.school_id == school_id,
+            StudentAnswer.side == req.side,
+        )
+    )
+    old_count = old_count_result.scalar() or 0
+    if old_count > 0:
+        await db.execute(
+            StudentAnswer.__table__.delete().where(
+                StudentAnswer.subject_id == req.subject_id,
+                StudentAnswer.school_id == school_id,
+                StudentAnswer.side == req.side,
+            )
+        )
+        await db.commit()
+        logger.info("pipeline recut: deleted %d old answers for subject=%s side=%s",
+                     old_count, req.subject_id, req.side)
 
     # 列出文件
     try:

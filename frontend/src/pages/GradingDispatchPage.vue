@@ -323,9 +323,9 @@ function canDetect(s) {
   return mySubjectCodes.value.includes(s.subject_code)
 }
 
-// 切割：有模板 + 待切割阶段
+// 切割/重新切割：有模板即可（已切割过的也支持重新切割）
 function canCut(s) {
-  return s.stage === 'pending_cut'
+  return s.has_template && !['idle', 'cutting'].includes(s.stage)
 }
 
 const detectableSubjects = computed(() => subjects.value.filter(s => canDetect(s)))
