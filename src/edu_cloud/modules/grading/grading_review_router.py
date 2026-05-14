@@ -292,9 +292,12 @@ async def get_dispatch_status(
                 func.count(GradingResult.id).filter(
                     GradingResult.source.in_(["ai", "ai_override"]),
                 ).label("ai_scored"),
-                func.count(GradingResult.id).filter(GradingResult.status == "confirmed").label("confirmed"),
+                func.count(GradingResult.id).filter(
+                    (GradingResult.status == "confirmed") | ((GradingResult.source == "manual") & (GradingResult.final_score.isnot(None))),
+                ).label("confirmed"),
                 func.count(GradingResult.id).filter(
                     GradingResult.source == "manual",
+                    GradingResult.final_score.isnot(None),
                 ).label("manual_only"),
             ).where(
                 GradingResult.question_id.in_(all_subj_q_ids),

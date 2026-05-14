@@ -7,7 +7,7 @@
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Subject, Question
@@ -113,7 +113,10 @@ async def get_subjects_with_progress(
                 select(func.count()).select_from(GradingResult).where(
                     GradingResult.question_id == q.id,
                     GradingResult.school_id == school_id,
-                    GradingResult.status == "confirmed",
+                    or_(
+                        GradingResult.status == "confirmed",
+                        (GradingResult.source == "manual") & (GradingResult.final_score.isnot(None)),
+                    ),
                 )
             )).scalar() or 0
             manual_only = (await db.execute(
@@ -121,6 +124,7 @@ async def get_subjects_with_progress(
                     GradingResult.question_id == q.id,
                     GradingResult.school_id == school_id,
                     GradingResult.source == "manual",
+                    GradingResult.final_score.isnot(None),
                 )
             )).scalar() or 0
 
