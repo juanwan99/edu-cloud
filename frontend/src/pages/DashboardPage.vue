@@ -385,6 +385,7 @@ async function fetchKpiData() {
 }
 
 async function fetchCharts() {
+  if (!auth.currentRole?.school_id) return
   try {
     const { data: exams } = await client.get('/exams', { params: { limit: 10 } })
     const examList = Array.isArray(exams) ? exams : (exams.items || [])
