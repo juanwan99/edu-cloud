@@ -91,37 +91,55 @@ async def test_scan_dir_accepts_valid_subdir(client, scan_auth, tmp_path, monkey
 
 
 @pytest.mark.asyncio
-async def test_scan_dir_rejects_other_school(client, scan_auth, tmp_path, monkeypatch):
-    """T1-R3: scan-dir with path under another school's dir → 403."""
+async def test_scan_dir_rejects_other_school_exam(client, scan_auth, db, tmp_path, monkeypatch):
+    """Tenant isolation: scan-dir with exam belonging to another school → 403."""
     from edu_cloud.config import settings
+    from edu_cloud.models.school import School
+    from edu_cloud.modules.exam.models import Exam
+
+    other_school = School(name="其他学校", code="OTHER", district="测试区", api_key_hash="x")
+    db.add(other_school)
+    await db.flush()
+    exam = Exam(name="他校考试", school_id=other_school.id, status="draft")
+    db.add(exam)
+    await db.commit()
 
     upload_root = tmp_path / "uploads"
-    other_school = upload_root / "other-school-id" / "scan-input"
-    other_school.mkdir(parents=True)
+    scan_dir = upload_root / "scan-input" / exam.id
+    scan_dir.mkdir(parents=True)
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
 
     resp = await client.post(
         "/api/v1/scan/pipeline/scan-dir",
-        json={"dir_path": str(other_school)},
+        json={"dir_path": str(scan_dir)},
         headers=scan_auth["headers"],
     )
     assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_start_rejects_other_school(client, scan_auth, tmp_path, monkeypatch):
-    """T1-R3: start with image_dir under another school → 403."""
+async def test_start_rejects_other_school_exam(client, scan_auth, db, tmp_path, monkeypatch):
+    """Tenant isolation: start with image_dir of another school's exam → 403."""
     from edu_cloud.config import settings
+    from edu_cloud.models.school import School
+    from edu_cloud.modules.exam.models import Exam
+
+    other_school = School(name="其他学校B", code="OTHERB", district="测试区", api_key_hash="x")
+    db.add(other_school)
+    await db.flush()
+    exam = Exam(name="他校考试B", school_id=other_school.id, status="draft")
+    db.add(exam)
+    await db.commit()
 
     upload_root = tmp_path / "uploads"
-    other_dir = upload_root / "other-school-id" / "images"
-    other_dir.mkdir(parents=True)
+    img_dir = upload_root / "scan-input" / exam.id / "yuwen"
+    img_dir.mkdir(parents=True)
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
 
     resp = await client.post(
         "/api/v1/scan/pipeline/start",
         json={
-            "image_dir": str(other_dir),
+            "image_dir": str(img_dir),
             "subject_id": "00000000-0000-0000-0000-000000000001",
             "side": "A",
         },

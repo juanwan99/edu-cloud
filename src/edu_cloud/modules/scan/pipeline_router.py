@@ -42,6 +42,24 @@ def _validate_path_within_upload_dir(p: str | Path) -> Path:
     return resolved
 
 
+async def _check_scan_path_tenant(
+    path: Path, school_id: str | None, db: AsyncSession,
+) -> None:
+    """按 exam 归属验证扫描路径的租户隔离（替代目录前缀校验）。"""
+    if not school_id:
+        return
+    exam_id = _infer_exam_id_from_scan_dir(path)
+    if not exam_id:
+        return
+    exam = (await db.execute(
+        select(Exam.school_id).where(Exam.id == exam_id)
+    )).scalar_one_or_none()
+    if exam is None:
+        return
+    if exam != school_id:
+        raise HTTPException(403, "只允许访问本校考试的扫描数据")
+
+
 _JINGYAN_PAGE_NAME_RE = re.compile(
     r"^(?P<student>[^_]+)_(?P<subject>[^_]+)_(?P<page>[12])_(?P<index>[01])(?P<suffix>\.[^.]+)$",
     re.IGNORECASE,
@@ -312,11 +330,10 @@ class BrowseDirRequest(BaseModel):
 async def browse_directory(
     req: BrowseDirRequest,
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
+    db: AsyncSession = Depends(get_db),
 ):
     """浏览服务器目录，返回子文件夹列表。仅限 UPLOAD_DIR 内。"""
     upload_root = Path(settings.UPLOAD_DIR).resolve()
-
-    # D1-R2: tenant path isolation — resolve school_id first, then constrain path
     school_id = get_school_id(current)
 
     if req.path:
@@ -327,17 +344,9 @@ async def browse_directory(
         if not d.is_relative_to(upload_root):
             raise HTTPException(403, "只允许浏览上传目录")
     else:
-        # Empty path: admin sees upload_root, non-admin sees school_root
-        if school_id:
-            d = (upload_root / school_id).resolve()
-            d.mkdir(parents=True, exist_ok=True)
-        else:
-            d = upload_root
+        d = upload_root
 
-    if school_id:
-        school_root = (upload_root / school_id).resolve()
-        if not d.is_relative_to(school_root):
-            raise HTTPException(403, "只允许访问本校目录")
+    await _check_scan_path_tenant(d, school_id, db)
 
     if not d.is_dir():
         raise HTTPException(400, f"目录不存在: {req.path}")
@@ -431,12 +440,8 @@ async def scan_directory(
 ):
     """扫描目录结构，返回科目子文件夹和图片统计。"""
     d = _validate_path_within_upload_dir(req.dir_path)
-    # D1-R2: tenant path isolation — non-admin restricted to school subdir
     school_id = get_school_id(current)
-    if school_id:
-        school_root = (Path(settings.UPLOAD_DIR).resolve() / school_id).resolve()
-        if not d.is_relative_to(school_root):
-            raise HTTPException(403, "只允许访问本校目录")
+    await _check_scan_path_tenant(d, school_id, db)
     if not d.is_dir():
         raise HTTPException(400, f"目录不存在: {req.dir_path}")
 
@@ -497,11 +502,7 @@ async def start_pipeline(
 
     # 验证目录（限制在 UPLOAD_DIR 内）
     image_dir_resolved = _validate_path_within_upload_dir(req.image_dir)
-    # D1-R2: tenant path isolation — non-admin restricted to school subdir
-    if school_id:
-        school_root = (Path(settings.UPLOAD_DIR).resolve() / school_id).resolve()
-        if not image_dir_resolved.is_relative_to(school_root):
-            raise HTTPException(403, "只允许访问本校目录")
+    await _check_scan_path_tenant(image_dir_resolved, school_id, db)
     if not image_dir_resolved.is_dir():
         raise HTTPException(400, f"目录不存在: {req.image_dir}")
 
@@ -926,6 +927,7 @@ async def import_tpl(
 async def serve_scan_image(
     path: str,
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
+    db: AsyncSession = Depends(get_db),
 ):
     """提供扫描图片的 HTTP 访问（前端模板编辑器用）。"""
     from fastapi.responses import FileResponse
@@ -935,13 +937,8 @@ async def serve_scan_image(
     if not resolved.is_file():
         raise HTTPException(404, f"图片不存在: {path}")
 
-    # D1: tenant path isolation — non-admin users can only access their school dir
     school_id = get_school_id(current)
-    if school_id:
-        upload_root = Path(settings.UPLOAD_DIR).resolve()
-        school_root = upload_root / school_id
-        if not resolved.is_relative_to(school_root):
-            raise HTTPException(403, "只允许访问本校目录")
+    await _check_scan_path_tenant(resolved, school_id, db)
 
     suffix = resolved.suffix.lower()
     media = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg"}.get(suffix.lstrip("."), "application/octet-stream")
