@@ -382,11 +382,13 @@ async def browse_directory(
 async def upload_scan_folder(
     exam_id: str = Form(...),
     files: list[UploadFile] = File(...),
+    db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
     """接收用户上传的扫描图片，按子文件夹结构保存到服务器。"""
-    school_id = current["current_role"].school_id
+    school_id = get_school_id(current)
     base_dir = Path(settings.UPLOAD_DIR).resolve() / school_id / "scan-input" / exam_id
+    await _check_scan_path_tenant(base_dir, school_id, db)
     base_dir.mkdir(parents=True, exist_ok=True)
 
     saved = 0
@@ -825,6 +827,7 @@ async def preview_scan(
     image_path = req.image_path
     if not image_path and req.image_dir:
         scan_dir = _validate_path_within_upload_dir(req.image_dir)
+        await _check_scan_path_tenant(scan_dir, school_id, db)
         try:
             files = await asyncio.to_thread(pipeline_service.list_scan_images, str(scan_dir), req.side)
             if files:
@@ -835,6 +838,7 @@ async def preview_scan(
         raise HTTPException(400, "请指定图片路径或扫描目录")
 
     resolved_img = _validate_path_within_upload_dir(image_path)
+    await _check_scan_path_tenant(resolved_img, school_id, db)
     if not resolved_img.is_file():
         raise HTTPException(400, f"文件不存在: {image_path}")
 

@@ -219,7 +219,10 @@ async def get_next_answer(
         child_ai_list = []
         for ca in child_answers:
             ca_gr = (await db.execute(
-                select(GradingResult).where(GradingResult.answer_id == ca.id)
+                select(GradingResult).where(
+                    GradingResult.answer_id == ca.id,
+                    GradingResult.school_id == school_id,
+                )
             )).scalar_one_or_none()
             if ca_gr:
                 child_ai_list.append(_build_ai_info(ca_gr))
@@ -260,12 +263,14 @@ async def get_next_answer(
     # 查已 confirmed 的 answer_id 集
     confirmed_ids_q = select(GradingResult.answer_id).where(
         GradingResult.question_id == question_id,
+        GradingResult.school_id == school_id,
         GradingResult.status == "confirmed",
     )
 
     answer = (await db.execute(
         select(StudentAnswer).where(
             StudentAnswer.question_id == question_id,
+            StudentAnswer.school_id == school_id,
             StudentAnswer.id.not_in(confirmed_ids_q),
         ).order_by(StudentAnswer.student_id)
         .limit(1)
@@ -277,19 +282,24 @@ async def get_next_answer(
     total = (await db.execute(
         select(func.count()).select_from(StudentAnswer).where(
             StudentAnswer.question_id == question_id,
+            StudentAnswer.school_id == school_id,
         )
     )).scalar() or 0
 
     graded = (await db.execute(
         select(func.count()).select_from(GradingResult).where(
             GradingResult.question_id == question_id,
+            GradingResult.school_id == school_id,
             GradingResult.status == "confirmed",
         )
     )).scalar() or 0
 
     # AI 预测（如果已有 ai_done 记录）
     ai_row = (await db.execute(
-        select(GradingResult).where(GradingResult.answer_id == answer.id)
+        select(GradingResult).where(
+            GradingResult.answer_id == answer.id,
+            GradingResult.school_id == school_id,
+        )
     )).scalar_one_or_none()
 
     ai_info = _build_ai_info(ai_row) if ai_row else None
@@ -314,7 +324,10 @@ async def get_next_answer(
     child_ai_list = []
     for ca in child_answers:
         ca_gr = (await db.execute(
-            select(GradingResult).where(GradingResult.answer_id == ca.id)
+            select(GradingResult).where(
+                GradingResult.answer_id == ca.id,
+                GradingResult.school_id == school_id,
+            )
         )).scalar_one_or_none()
         if ca_gr:
             child_ai_list.append(_build_ai_info(ca_gr))
@@ -380,7 +393,10 @@ async def get_answer_at(
         return None
 
     gr = (await db.execute(
-        select(GradingResult).where(GradingResult.answer_id == answer.id)
+        select(GradingResult).where(
+            GradingResult.answer_id == answer.id,
+            GradingResult.school_id == school_id,
+        )
     )).scalar_one_or_none()
 
     ai_info = None
@@ -412,7 +428,10 @@ async def get_answer_at(
     child_ai_list = []
     for ca in child_answers:
         ca_gr = (await db.execute(
-            select(GradingResult).where(GradingResult.answer_id == ca.id)
+            select(GradingResult).where(
+                GradingResult.answer_id == ca.id,
+                GradingResult.school_id == school_id,
+            )
         )).scalar_one_or_none()
         if ca_gr:
             child_ai_list.append(_build_ai_info(ca_gr))
@@ -451,8 +470,10 @@ async def submit_score(
     - 若已 confirmed：抛 ValueError（调用方转 409）
     """
     existing = (await db.execute(
-        select(GradingResult).where(GradingResult.answer_id == answer_id)
-        .with_for_update()
+        select(GradingResult).where(
+            GradingResult.answer_id == answer_id,
+            GradingResult.school_id == school_id,
+        ).with_for_update()
     )).scalar_one_or_none()
 
     now = datetime.now(timezone.utc)

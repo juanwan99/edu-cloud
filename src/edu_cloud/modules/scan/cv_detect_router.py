@@ -1,6 +1,7 @@
 """CV 检测 + 模板校验子路由（从 pipeline_router.py 拆出）。"""
 
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -13,6 +14,7 @@ from edu_cloud.core.permissions import Permission
 from edu_cloud.core.tenant import get_school_id
 from edu_cloud.modules.exam.models import Question, Subject, QUESTION_TYPES_OBJECTIVE
 from edu_cloud.modules.card.models import Template
+from edu_cloud.config import settings
 from edu_cloud.modules.scan.auto_detect_cv import AutoDetectCVRequest, auto_detect_cv_regions
 
 logger = logging.getLogger(__name__)
@@ -25,6 +27,18 @@ async def auto_detect_cv_api(
     req: AutoDetectCVRequest,
     current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
 ):
+    school_id = get_school_id(current)
+    p = req.image_path.strip()
+    if p.startswith("/uploads/"):
+        upload_root = Path(settings.UPLOAD_DIR).resolve()
+        resolved = (upload_root / p.split("/uploads/", 1)[1]).resolve()
+        if not resolved.is_relative_to(upload_root):
+            raise HTTPException(403, "路径越界")
+        rel_parts = resolved.relative_to(upload_root).parts
+        if school_id and rel_parts and rel_parts[0] != school_id:
+            raise HTTPException(403, "只允许访问本校的上传文件")
+    elif not p.startswith("/samples/"):
+        raise HTTPException(400, "image_path 只允许 /uploads/ 或 /samples/ 前缀")
     return await auto_detect_cv_regions(req)
 
 
