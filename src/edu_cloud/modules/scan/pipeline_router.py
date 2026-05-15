@@ -48,6 +48,14 @@ async def _check_scan_path_tenant(
     """按 exam 归属验证扫描路径的租户隔离。"""
     if not school_id:
         return
+    upload_root = Path(settings.UPLOAD_DIR).resolve()
+    resolved = path.resolve()
+    try:
+        rel = resolved.relative_to(upload_root)
+    except (OSError, ValueError):
+        return
+    if not rel.parts or rel.parts[0] != school_id:
+        raise HTTPException(403, "只允许访问本校的上传目录")
     exam_id = _infer_exam_id_from_scan_dir(path)
     if not exam_id:
         return
@@ -343,6 +351,8 @@ async def browse_directory(
         d = candidate.resolve()
         if not d.is_relative_to(upload_root):
             raise HTTPException(403, "只允许浏览上传目录")
+    elif school_id:
+        d = upload_root / school_id
     else:
         d = upload_root
 
@@ -387,7 +397,15 @@ async def upload_scan_folder(
 ):
     """接收用户上传的扫描图片，按子文件夹结构保存到服务器。"""
     school_id = get_school_id(current)
+    if not school_id:
+        raise HTTPException(403, "上传扫描图片需要学校上下文")
+    if "/" in exam_id or "\\" in exam_id or exam_id in (".", ".."):
+        raise HTTPException(400, "无效的考试 ID")
     base_dir = Path(settings.UPLOAD_DIR).resolve() / school_id / "scan-input" / exam_id
+    if not base_dir.resolve().is_relative_to(
+        Path(settings.UPLOAD_DIR).resolve() / school_id / "scan-input"
+    ):
+        raise HTTPException(403, "路径越界")
     await _check_scan_path_tenant(base_dir, school_id, db)
     base_dir.mkdir(parents=True, exist_ok=True)
 
@@ -407,6 +425,8 @@ async def upload_scan_folder(
 
         if not fname.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".pdf")):
             continue
+        if sub_dir in (".", "..", "") or "/" in sub_dir or "\\" in sub_dir:
+            sub_dir = "未分类"
 
         fname, was_normalized = normalize_uploaded_scan_filename(fname)
         if was_normalized:
@@ -415,6 +435,8 @@ async def upload_scan_folder(
         target_dir = base_dir / sub_dir
         target_dir.mkdir(parents=True, exist_ok=True)
         target = target_dir / fname
+        if not target.resolve().is_relative_to(base_dir):
+            continue
         content = await f.read()
         target.write_bytes(content)
         saved += 1

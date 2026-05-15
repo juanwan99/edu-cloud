@@ -469,6 +469,15 @@ async def submit_score(
     - 若无：新建 source='manual', status='confirmed'
     - 若已 confirmed：抛 ValueError（调用方转 409）
     """
+    answer_check = (await db.execute(
+        select(StudentAnswer.id).where(
+            StudentAnswer.id == answer_id,
+            StudentAnswer.school_id == school_id,
+        )
+    )).scalar_one_or_none()
+    if not answer_check:
+        raise ValueError("答卷不存在或不属于该学校")
+
     existing = (await db.execute(
         select(GradingResult).where(
             GradingResult.answer_id == answer_id,

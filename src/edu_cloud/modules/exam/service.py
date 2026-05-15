@@ -70,6 +70,10 @@ async def update_exam(
             raise ValidationError(
                 f"无效的状态变更: {status} 只能通过 ExamPublishService 设置"
             )
+        if exam.status == "completed" and status == "reviewing":
+            raise ValidationError(
+                "completed→reviewing 仅限 pipeline 内部恢复，不可通过 API 触发"
+            )
         try:
             validate_transition("exam", exam.status, status)
         except StateError as e:
@@ -92,9 +96,11 @@ async def update_exam(
             logger.info("auto_pipeline completed: exam=%s, results=%s", exam_id, results)
         except Exception:
             logger.error("auto_pipeline failed: exam=%s", exam_id, exc_info=True)
+            await db.rollback()
+            await db.refresh(exam)
             validate_transition("exam", exam.status, "reviewing")
             exam.status = "reviewing"
-            await db.flush()
+            await db.commit()
             logger.warning(
                 "auto_pipeline rollback: exam=%s status reverted to reviewing", exam_id,
             )

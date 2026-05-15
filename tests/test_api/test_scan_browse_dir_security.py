@@ -98,12 +98,12 @@ async def test_browse_dir_relative_path_within_upload(client, grading_admin_user
 
 @pytest.mark.asyncio
 async def test_browse_dir_returns_relative_paths(client, grading_admin_user, tmp_path, monkeypatch):
-    """空 path 返回 upload_root，路径是相对路径。"""
+    """空 path 返回本校目录，路径是相对路径。"""
     from edu_cloud.config import settings
 
     upload_root = tmp_path / "uploads"
-    child = upload_root / "scan-input"
-    child.mkdir(parents=True)
+    school_dir = upload_root / grading_admin_user._test_school_id / "scan-input"
+    school_dir.mkdir(parents=True)
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_root))
 
     token = create_access_token({
@@ -119,6 +119,6 @@ async def test_browse_dir_returns_relative_paths(client, grading_admin_user, tmp
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert data["current"] == "."
+    assert data["current"] == grading_admin_user._test_school_id
     for item in data["items"]:
         assert not item["path"].startswith("/"), f"path should be relative: {item['path']}"
