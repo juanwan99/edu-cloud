@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Exam
 from edu_cloud.modules.grading.models import GradingAssignment, GradingQualityCheck
+from edu_cloud.core.state_machine import validate_transition
 from edu_cloud.services.exceptions import StateError
 from edu_cloud.logging_config import business_event
 
@@ -41,6 +42,7 @@ class ExamPublishService:
             raise StateError(f"{len(high_issues)} high-severity quality issues unresolved")
 
         old_status = exam.status
+        validate_transition("exam", old_status, "published")
         exam.status = "published"
         await db.flush()
         logger.info("exam_published: exam_id=%s, school_id=%s", exam_id, school_id)
@@ -84,6 +86,7 @@ class ExamPublishService:
                 f"Cannot archive exam in status '{exam.status}'"
             )
         old_status = exam.status
+        validate_transition("exam", old_status, "archived")
         exam.status = "archived"
         await db.flush()
         logger.info("exam_archived: exam_id=%s, school_id=%s", exam_id, school_id)

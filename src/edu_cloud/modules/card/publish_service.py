@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy.exc import IntegrityError
+from edu_cloud.core.state_machine import validate_transition
 from edu_cloud.modules.exam.models import Exam, Question, Subject
 from edu_cloud.modules.card.export.html_export import html_to_pdf, extract_skeleton
 
@@ -253,6 +254,7 @@ async def publish_card_atomic(
                 skeleton=skeleton, question_map=question_map,
             )
             if exam.status == "draft":
+                validate_transition("exam", exam.status, "scanning")
                 exam.status = "scanning"
         await db.commit()
     except Exception:

@@ -472,6 +472,7 @@ async def submit_score(
     answer_check = (await db.execute(
         select(StudentAnswer.id).where(
             StudentAnswer.id == answer_id,
+            StudentAnswer.question_id == question_id,
             StudentAnswer.school_id == school_id,
         )
     )).scalar_one_or_none()

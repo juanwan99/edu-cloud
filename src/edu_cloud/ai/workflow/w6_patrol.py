@@ -13,6 +13,7 @@ from edu_cloud.ai.workflow.registry import StepDefinition, WorkflowDefinition
 from edu_cloud.models.agent_finding import AgentFinding
 from edu_cloud.models.agent_snapshot import ClassExamReport
 from edu_cloud.modules.exam.models import Exam
+from edu_cloud.core.state_machine import validate_transition, StateError
 from edu_cloud.modules.grading.models import GradingTask
 from edu_cloud.modules.homework.models import HomeworkSubmission, HomeworkTask
 
@@ -90,12 +91,20 @@ async def scan_grading_overdue(ctx: WorkflowContext) -> dict:
     for task in tasks:
         hours_elapsed = (datetime.now(timezone.utc) - _ensure_aware(task.created_at)).total_seconds() / 3600
         if task.status == "pending" and hours_elapsed > 24:
-            task.status = "cancelled"
-            auto_cancelled += 1
+            try:
+                validate_transition("grading_task", task.status, "cancelled")
+                task.status = "cancelled"
+                auto_cancelled += 1
+            except StateError:
+                logger.warning("patrol skip: task %s status=%s→cancelled blocked", task.id, task.status)
         elif task.status == "processing" and hours_elapsed > 4:
-            task.status = "failed"
-            task.error_log = [f"auto-timeout: stuck in processing for {hours_elapsed:.0f}h"]
-            auto_cancelled += 1
+            try:
+                validate_transition("grading_task", task.status, "failed")
+                task.status = "failed"
+                task.error_log = [f"auto-timeout: stuck in processing for {hours_elapsed:.0f}h"]
+                auto_cancelled += 1
+            except StateError:
+                logger.warning("patrol skip: task %s status=%s→failed blocked", task.id, task.status)
 
     await db.flush()
     logger.info("scan_grading_overdue: %d findings, %d auto-cancelled for school %s",
