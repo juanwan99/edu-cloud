@@ -1,0 +1,23 @@
+#!/bin/bash
+# branch-check — 变更行分支覆盖检查
+# 用法: scripts/branch-check [pytest args...]
+# 依赖: pip install diff-cover pytest-cov
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+BASE=$(git merge-base HEAD main 2>/dev/null || echo "HEAD~1")
+
+echo "=== 运行测试 + branch coverage ==="
+.venv/bin/python -m pytest --cov=src/edu_cloud --cov-branch --cov-report=xml -q "$@"
+
+echo ""
+echo "=== 变更行分支覆盖 (vs $BASE) ==="
+.venv/bin/diff-cover coverage.xml --compare-branch="$BASE" --fail-under=70 || {
+    echo ""
+    echo "⚠️  变更行分支覆盖率不足 70%"
+    echo "检查上方报告中 missing branches，补充异常路径测试"
+    exit 1
+}
+
+echo ""
+echo "✓ 变更行分支覆盖通过"

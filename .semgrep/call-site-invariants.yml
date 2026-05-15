@@ -1,0 +1,22 @@
+rules:
+  - id: scan-endpoint-missing-tenant-check
+    message: |
+      Scan 端点缺少 _check_scan_path_tenant() 调用。
+      pipeline_router.py 中所有处理用户路径的端点必须调用此函数验证租户归属。
+      如果此端点不处理用户路径（如纯状态查询），添加 # nosemgrep 并注明理由。
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-inside: |
+          @router.$METHOD(...)
+          async def $FUNC(...):
+              ...
+      - pattern-not: |
+          @router.$METHOD(...)
+          async def $FUNC(...):
+              ...
+              await _check_scan_path_tenant(...)
+              ...
+    paths:
+      include:
+        - "**/scan/pipeline_router.py"
