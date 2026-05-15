@@ -37,7 +37,12 @@ async def auto_detect_cv_api(
         rel_parts = resolved.relative_to(upload_root).parts
         if school_id and rel_parts and rel_parts[0] != school_id:
             raise HTTPException(403, "只允许访问本校的上传文件")
-    elif not p.startswith("/samples/"):
+    elif p.startswith("/samples/"):
+        samples_root = Path("frontend/dist/samples").resolve()
+        resolved = (Path("frontend/dist") / p.lstrip("/")).resolve()
+        if not resolved.is_relative_to(samples_root):
+            raise HTTPException(403, "路径越界")
+    else:
         raise HTTPException(400, "image_path 只允许 /uploads/ 或 /samples/ 前缀")
     return await auto_detect_cv_regions(req)
 
