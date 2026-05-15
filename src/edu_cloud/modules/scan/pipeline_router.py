@@ -542,6 +542,7 @@ async def start_pipeline(
     # 加载模板
     if req.tpl_path:
         tpl_resolved = _validate_path_within_upload_dir(req.tpl_path)
+        await _check_scan_path_tenant(tpl_resolved, school_id, db)
         if not tpl_resolved.is_file():
             raise HTTPException(400, f"tpl 文件不存在: {req.tpl_path}")
         template = parse_tpl_file(str(tpl_resolved))
