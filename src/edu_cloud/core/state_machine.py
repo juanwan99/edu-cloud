@@ -13,7 +13,7 @@ STATE_MACHINES: dict[str, dict] = {
             "scanning": {"grading", "draft"},
             "grading": {"reviewing"},
             "reviewing": {"completed"},
-            "completed": {"published", "archived"},
+            "completed": {"published", "archived", "reviewing"},
             "published": {"archived"},
         },
     },

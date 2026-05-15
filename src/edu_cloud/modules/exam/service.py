@@ -92,7 +92,7 @@ async def update_exam(
             logger.info("auto_pipeline completed: exam=%s, results=%s", exam_id, results)
         except Exception:
             logger.error("auto_pipeline failed: exam=%s", exam_id, exc_info=True)
-            # C-3 fix: roll back to reviewing so user can retry
+            validate_transition("exam", exam.status, "reviewing")
             exam.status = "reviewing"
             await db.flush()
             logger.warning(
