@@ -622,12 +622,11 @@ async def start_pipeline(
                         image_dir_str, a_bc, a_tpl.image_width, a_tpl.image_height,
                     )
 
-    # 重新切割：清除该科目+面的旧 StudentAnswer 数据
+    # 重新切割：清除该科目的旧 StudentAnswer 数据
     old_count_result = await db.execute(
         select(func.count(StudentAnswer.id)).where(
             StudentAnswer.subject_id == req.subject_id,
             StudentAnswer.school_id == school_id,
-            StudentAnswer.side == req.side,
         )
     )
     old_count = old_count_result.scalar() or 0
@@ -636,12 +635,11 @@ async def start_pipeline(
             StudentAnswer.__table__.delete().where(
                 StudentAnswer.subject_id == req.subject_id,
                 StudentAnswer.school_id == school_id,
-                StudentAnswer.side == req.side,
             )
         )
         await db.commit()
-        logger.info("pipeline recut: deleted %d old answers for subject=%s side=%s",
-                     old_count, req.subject_id, req.side)
+        logger.info("pipeline recut: deleted %d old answers for subject=%s",
+                     old_count, req.subject_id)
 
     # 列出文件
     try:

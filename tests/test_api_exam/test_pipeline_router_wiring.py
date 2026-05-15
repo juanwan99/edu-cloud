@@ -139,7 +139,9 @@ async def test_S8d_tpl_path_branch_wiring(client, db, tmp_path, pipeline_fixture
     fx = pipeline_fixture
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
 
-    tpl_file = tmp_path / "test.tpl"
+    tpl_dir = tmp_path / str(fx["school"].id)
+    tpl_dir.mkdir(parents=True, exist_ok=True)
+    tpl_file = tpl_dir / "test.tpl"
     tpl_file.write_text(json.dumps({
         "image_size": {"width": 200, "height": 150},
         "anchors": [],
@@ -247,7 +249,9 @@ async def test_tpl_path_branch_fallback_wires_save_objective_fn(client, db, tmp_
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
 
     # 写 tpl 文件（模拟月小二 .tpl 格式）—— 含 1 个 choice_group，2 行
-    tpl_file = tmp_path / "obj.tpl"
+    tpl_dir = tmp_path / str(fx["school"].id)
+    tpl_dir.mkdir(parents=True, exist_ok=True)
+    tpl_file = tpl_dir / "obj.tpl"
     tpl_file.write_text(json.dumps({
         "tplInfo": {"iwidth": 200, "iheight": 150, "tpl_name": "obj_tpl"},
         "datas": {
@@ -346,7 +350,9 @@ async def test_tpl_path_fallback_maps_by_question_number_not_creation_order(clie
                   question_type="choice", max_score=3.0, correct_answer="A")
     db.add(q1); await db.commit()
 
-    tpl_file = tmp_path / "f005.tpl"
+    tpl_dir = tmp_path / str(school.id)
+    tpl_dir.mkdir(parents=True, exist_ok=True)
+    tpl_file = tpl_dir / "f005.tpl"
     tpl_file.write_text(json.dumps({
         "tplInfo": {"iwidth": 200, "iheight": 150},
         "datas": {
