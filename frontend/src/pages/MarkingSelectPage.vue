@@ -159,15 +159,20 @@ const questionColumns = [
     key: 'action',
     width: 120,
     render(row) {
-      const done = row.graded_count >= row.total_answers && row.total_answers > 0
+      const total = row.total_answers || 0
+      const graded = row.graded_count || 0
+      const pct = total > 0 ? graded / total : 0
+      let label = '开始阅卷'
+      if (pct >= 1) label = '复核'
+      else if (pct >= 0.5) label = '继续阅卷'
       return h(
         NButton,
         {
           size: 'small',
-          type: done ? 'default' : 'primary',
+          type: pct >= 1 ? 'default' : 'primary',
           onClick: () => router.push(`/marking/grade/${row.id}`),
         },
-        { default: () => done ? '查看' : '开始阅卷' },
+        { default: () => label },
       )
     },
   },
