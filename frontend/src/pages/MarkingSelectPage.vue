@@ -170,7 +170,7 @@ const questionColumns = [
         {
           size: 'small',
           type: pct >= 1 ? 'default' : 'primary',
-          onClick: () => router.push(`/marking/grade/${row.id}`),
+          onClick: () => router.push(pct >= 1 ? `/marking/grade/${row.id}?mode=reviewed` : `/marking/grade/${row.id}`),
         },
         { default: () => label },
       )

@@ -431,6 +431,7 @@ async def get_answer_at_endpoint(
     question_id: str,
     offset: int = 0,
     mode: str = "ungraded",
+    divergence_min: float | None = None,
     current: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -464,7 +465,7 @@ async def get_answer_at_endpoint(
                 raise HTTPException(403, "该题目未分配给您")
 
     from edu_cloud.modules.marking.scorer import get_answer_at
-    result = await get_answer_at(db, question_id, current["current_role"].school_id, offset, mode=mode)
+    result = await get_answer_at(db, question_id, current["current_role"].school_id, offset, mode=mode, divergence_min=divergence_min)
     if not result:
         raise HTTPException(404, "无更多答卷")
     return result

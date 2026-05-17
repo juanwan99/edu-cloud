@@ -12,7 +12,14 @@
         <n-button-group size="small">
           <n-button :type="reviewMode === 'ungraded' ? 'primary' : 'default'" @click="switchMode('ungraded')">待阅</n-button>
           <n-button :type="reviewMode === 'ai_review' ? 'primary' : 'default'" @click="switchMode('ai_review')">AI 复核</n-button>
+          <n-button :type="reviewMode === 'reviewed' ? 'primary' : 'default'" @click="switchMode('reviewed')">已批改</n-button>
         </n-button-group>
+        <template v-if="reviewMode === 'reviewed'">
+          <n-switch v-model:value="divergenceFilter" size="small" style="margin-left: 12px;" />
+          <span style="font-size: 12px; color: var(--color-text-secondary); margin-left: 4px;">只看分歧 ≥</span>
+          <n-input-number v-model:value="divergenceMin" size="tiny" :min="1" :max="50" style="width: 60px; margin-left: 4px;" :disabled="!divergenceFilter" @update:value="reloadReviewed" />
+          <span style="font-size: 12px; color: var(--color-text-secondary); margin-left: 2px;">分</span>
+        </template>
       </div>
     </div>
 
@@ -20,12 +27,13 @@
       <div v-if="done" class="review-done">
         <n-result
           status="success"
-          title="全部批改完成"
-          description="该题所有答卷已确认"
+          :title="reviewMode === 'reviewed' ? (divergenceFilter ? '无分歧答卷' : '已浏览全部') : '全部批改完成'"
+          :description="reviewMode === 'reviewed' ? (divergenceFilter ? '当前阈值下无匹配答卷，可调低阈值或关闭筛选' : '该题所有已批改答卷已浏览完毕') : '该题所有答卷已确认'"
         >
           <template #footer>
             <n-space>
-              <n-button @click="switchMode('ai_review')">查看 AI 复核记录</n-button>
+              <n-button v-if="reviewMode !== 'reviewed'" @click="switchMode('ai_review')">查看 AI 复核记录</n-button>
+              <n-button v-if="reviewMode !== 'reviewed'" @click="switchMode('reviewed')">查看已批改</n-button>
               <n-button type="primary" @click="$router.back()">
                 <template #icon><n-icon><ArrowLeft :size="16" /></n-icon></template>
                 返回上一级
@@ -486,9 +494,11 @@ const {
 const handleFlag = (value) => _handleFlag(value, currentAnswerId.value)
 const handleClearFlag = () => _handleClearFlag(currentAnswerId.value)
 
-const reviewMode = ref('ungraded')
+const reviewMode = ref(route.query.mode === 'reviewed' ? 'reviewed' : 'ungraded')
 const browseIndex = ref(-1)
-const savedOffsets = { ungraded: -1, ai_review: -1 }
+const savedOffsets = { ungraded: -1, ai_review: -1, reviewed: -1 }
+const divergenceFilter = ref(false)
+const divergenceMin = ref(3)
 const browsing = ref(false)
 const loadSeq = ref(0)
 
@@ -561,7 +571,8 @@ async function loadNext() {
   loading.value = true
   done.value = false
   try {
-    const { data } = await getNext(questionId, reviewMode.value)
+    const extra = reviewMode.value === 'reviewed' && divergenceFilter.value ? { divergence_min: divergenceMin.value } : {}
+    const { data } = await getNext(questionId, reviewMode.value, extra)
     if (seq !== loadSeq.value) return
     if (data.done) {
       done.value = true
@@ -613,7 +624,8 @@ async function loadAnswerAt(offset) {
   loading.value = true
   done.value = false
   try {
-    const { data } = await getAnswerAt(questionId, offset, reviewMode.value)
+    const extra = reviewMode.value === 'reviewed' && divergenceFilter.value ? { divergence_min: divergenceMin.value } : {}
+    const { data } = await getAnswerAt(questionId, offset, reviewMode.value, extra)
     if (seq !== loadSeq.value) return
     browseIndex.value = offset
     savedOffsets[reviewMode.value] = offset
@@ -656,6 +668,12 @@ function switchMode(mode) {
   } else {
     loadNext()
   }
+}
+
+function reloadReviewed() {
+  if (reviewMode.value !== 'reviewed') return
+  savedOffsets.reviewed = -1
+  loadNext()
 }
 
 function formatBlankNo(blankNo, index) {

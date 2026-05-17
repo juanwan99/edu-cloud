@@ -142,7 +142,7 @@ async def get_subjects_with_progress(
 async def get_next_answer(
     db: AsyncSession, question_id: str, school_id: str,
     *, teacher_id: str | None = None,
-    mode: str = "ungraded",
+    mode: str = "ungraded", divergence_min: float | None = None,
 ) -> dict | None:
     """获取该题下一份答卷 + AI 预测（若存在）。
 
@@ -158,6 +158,9 @@ async def get_next_answer(
       max_score: float
     }
     """
+    if mode == "reviewed":
+        return await get_answer_at(db, question_id, school_id, 0, mode="reviewed", divergence_min=divergence_min)
+
     if mode == "ai_review":
         # 复核模式：取 AI 已评但未人工确认的答卷
         ai_done_q = (await db.execute(
@@ -349,7 +352,7 @@ async def get_next_answer(
 
 async def get_answer_at(
     db: AsyncSession, question_id: str, school_id: str, offset: int,
-    mode: str = "ungraded",
+    mode: str = "ungraded", divergence_min: float | None = None,
 ) -> dict | None:
     """按索引获取某题的第 offset 份答卷（0-based），包含已有评分。
 
@@ -359,11 +362,31 @@ async def get_answer_at(
 
     同一 mode 下 offset 与 get_next_answer() 的浏览集合一致。
     """
-    if mode == "ai_review":
+    if mode == "reviewed":
+        confirmed_ids = select(GradingResult.answer_id).where(
+            GradingResult.question_id == question_id,
+            GradingResult.school_id == school_id,
+            GradingResult.status == "confirmed",
+        )
+        if divergence_min is not None and divergence_min > 0:
+            confirmed_ids = select(GradingResult.answer_id).where(
+                GradingResult.question_id == question_id,
+                GradingResult.school_id == school_id,
+                GradingResult.status == "confirmed",
+                GradingResult.ai_score.isnot(None),
+                GradingResult.final_score.isnot(None),
+                func.abs(GradingResult.ai_score - GradingResult.final_score) >= divergence_min,
+            )
+        base_filter = [
+            StudentAnswer.question_id == question_id,
+            StudentAnswer.school_id == school_id,
+            StudentAnswer.id.in_(confirmed_ids),
+        ]
+    elif mode == "ai_review":
         ai_scored_answer_ids = select(GradingResult.answer_id).where(
             GradingResult.question_id == question_id,
             GradingResult.school_id == school_id,
-            GradingResult.source.in_(["ai", "ai_override"]),
+            GradingResult.ai_score.isnot(None),
         )
         base_filter = [
             StudentAnswer.question_id == question_id,
@@ -490,7 +513,17 @@ async def submit_score(
 
     if existing:
         if existing.status == "confirmed":
-            raise ValueError("该答卷已评分")
+            old_score = existing.final_score
+            existing.final_score = score
+            existing.reviewer_id = marker_id
+            existing.reviewed_at = now
+            audit = f"复核改分: {old_score} → {score}"
+            existing.review_comment = f"{audit}; {comment}" if comment else audit
+            existing.version = existing.version + 1
+            await db.commit()
+            await db.refresh(existing)
+            logger.info("review_rescore: answer=%s old=%s new=%s reviewer=%s", answer_id, old_score, score, marker_id)
+            return existing
         # AI 预评 → 教师校对：判断 approve 还是 override
         if existing.ai_score is not None and abs((existing.ai_score or 0) - score) < 1e-6:
             existing.source = "ai"
