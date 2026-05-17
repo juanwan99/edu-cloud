@@ -404,7 +404,7 @@ async def submit_score_endpoint(
         raise HTTPException(400, f"分数必须在 0-{question.max_score} 之间")
 
     try:
-        await submit_score(
+        gr = await submit_score(
             db, req.answer_id, answer.question_id,
             current["user"].id, current["current_role"].school_id,
             req.score, question.max_score, req.comment,
@@ -412,7 +412,8 @@ async def submit_score_endpoint(
     except ValueError as e:
         raise HTTPException(409, str(e))
 
-    await update_assignment_progress(db, answer.question_id, current["user"].id, current["current_role"].school_id)
+    if not getattr(gr, '_is_rescore', False):
+        await update_assignment_progress(db, answer.question_id, current["user"].id, current["current_role"].school_id)
 
     next_ans = await get_next_answer(
         db, answer.question_id, current["current_role"].school_id,

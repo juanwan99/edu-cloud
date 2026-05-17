@@ -518,11 +518,15 @@ async def submit_score(
             existing.reviewer_id = marker_id
             existing.reviewed_at = now
             audit = f"复核改分: {old_score} → {score}"
-            existing.review_comment = f"{audit}; {comment}" if comment else audit
+            prev = existing.review_comment or ""
+            existing.review_comment = f"{prev}\n{audit}" if prev else audit
+            if comment:
+                existing.review_comment += f"; {comment}"
             existing.version = existing.version + 1
             await db.commit()
             await db.refresh(existing)
             logger.info("review_rescore: answer=%s old=%s new=%s reviewer=%s", answer_id, old_score, score, marker_id)
+            existing._is_rescore = True
             return existing
         # AI 预评 → 教师校对：判断 approve 还是 override
         if existing.ai_score is not None and abs((existing.ai_score or 0) - score) < 1e-6:

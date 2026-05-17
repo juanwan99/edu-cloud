@@ -602,8 +602,13 @@ async function handleSubmit() {
       score: currentScore.value,
       comment: comment.value || undefined,
     })
-    if (reviewMode.value === 'ai_review') {
-      await loadNext()
+    if (reviewMode.value === 'ai_review' || reviewMode.value === 'reviewed') {
+      if (browseIndex.value < position.value.total - 1) {
+        await loadAnswerAt(browseIndex.value + 1)
+      } else {
+        done.value = true
+        closeFloatingReview()
+      }
     } else if (data.next?.done) {
       done.value = true
       closeFloatingReview()
