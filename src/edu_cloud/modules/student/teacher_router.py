@@ -112,7 +112,7 @@ async def list_teachers(
     current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     role = current["current_role"]
-    if school_id and role.school_id and school_id != role.school_id:
+    if school_id and (role.school_id is None or role.school_id != school_id):
         if Permission.MANAGE_SCHOOLS not in current["permissions"]:
             raise HTTPException(403, "无权查看其他学校的教师")
     target_school = school_id or role.school_id
@@ -280,7 +280,7 @@ async def export_teachers(
     from openpyxl.comments import Comment
 
     _role = current["current_role"]
-    if school_id and _role.school_id and school_id != _role.school_id:
+    if school_id and (_role.school_id is None or _role.school_id != school_id):
         if Permission.MANAGE_SCHOOLS not in current["permissions"]:
             raise HTTPException(403, "无权导出其他学校的教师")
     target_school = school_id or _role.school_id
