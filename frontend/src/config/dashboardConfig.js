@@ -32,6 +32,7 @@ const TEACHER_CONFIG = {
 const DASHBOARD_CONFIGS = {
   platform_admin: ADMIN_CONFIG,
   district_admin: ADMIN_CONFIG,
+  school_admin: ADMIN_CONFIG,
   principal: ADMIN_CONFIG,
   academic_director: ADMIN_CONFIG,
   teaching_research_leader: TEACHER_CONFIG,

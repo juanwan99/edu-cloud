@@ -71,7 +71,7 @@ async def get_overview(
             return {"scope_type": "district", "summary": {"total_schools": 0, "total_students": 0}, "school_comparison": [], "trend": []}
         return await scope_service.get_conduct_overview(db, "district", districts)
 
-    if role.role in ("principal", "academic_director"):
+    if role.role in ("school_admin", "principal", "academic_director"):
         # School scope
         if not role.school_id:
             raise HTTPException(400, "Role has no school_id")

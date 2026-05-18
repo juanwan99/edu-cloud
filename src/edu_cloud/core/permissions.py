@@ -5,6 +5,7 @@
   行政线：校长 → 年级组长 → 班主任 → 学生
 
 权限设计原则：
+  - 校管理员 = 校长全部权限（通常由信息技术教师担任，负责系统日常运维）
   - 校长 >= 教务主任（查看权限），校长偏审批/配置，教务偏日常运营
   - 教务主任拥有考试/排课/阅卷全生命周期管理权
   - 学校配置（人事/模块/能力矩阵）归校长，教学调度（排课/选考）归教务
@@ -137,6 +138,37 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.MANAGE_CONDUCT,
         Permission.MANAGE_CONDUCT_RULES,
         Permission.MANAGE_CONDUCT_PARENTS,
+        Permission.EXPORT_CONDUCT,
+    },
+
+    # ── 校管理员：拥有校长全部权限，通常由信息技术教师担任 ──
+    "school_admin": {
+        Permission.VIEW_SCHOOLS,
+        Permission.MANAGE_SCHOOL_CONFIG,
+        Permission.MANAGE_TEACHERS,
+        Permission.MANAGE_SCHEDULING,
+        Permission.MANAGE_EXAMS,
+        Permission.CREATE_JOINT_EXAM,
+        Permission.MANAGE_JOINT_EXAM,
+        Permission.VIEW_JOINT_EXAM,
+        Permission.VIEW_CROSS_SCHOOL_ANALYTICS,
+        Permission.VIEW_QUESTION_BANK,
+        Permission.VIEW_STUDENTS,
+        Permission.VIEW_EXAMS,
+        Permission.VIEW_SCORES,
+        Permission.GENERATE_REPORT,
+        Permission.APPROVE_NOTIFICATION,
+        Permission.SEND_NOTIFICATION,
+        Permission.GENERATE_NOTIFICATION,
+        Permission.USE_AI_CHAT,
+        Permission.MANAGE_GRADING,
+        Permission.VIEW_GRADING,
+        Permission.MANAGE_EXAM_RESULTS,
+        Permission.MANAGE_HOMEWORK,
+        Permission.VIEW_HOMEWORK,
+        Permission.VIEW_KNOWLEDGE_TREE,
+        Permission.EDIT_KNOWLEDGE_TREE,
+        Permission.VIEW_CONDUCT,
         Permission.EXPORT_CONDUCT,
     },
 

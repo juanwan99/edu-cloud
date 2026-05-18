@@ -25,6 +25,7 @@ from edu_cloud.models.user_role import UserRole
 PERSONA_MAP: dict[str, str] = {
     "platform_admin": "admin_analyst",
     "district_admin": "admin_analyst",
+    "school_admin": "school_leader",
     "principal": "school_leader",
     "academic_director": "teacher_assistant",
     "grade_leader": "teacher_assistant",
@@ -129,7 +130,7 @@ class DataScopeBuilder:
                 can_cross_school=True,
             )
 
-        if role_str == "principal":
+        if role_str in ("school_admin", "principal"):
             return self._make(
                 user_id=user_id,
                 school_id=school_id,

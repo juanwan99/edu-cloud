@@ -4,6 +4,7 @@ from __future__ import annotations
 ROLE_CN = {
     "platform_admin": "平台管理员",
     "district_admin": "教育局管理员",
+    "school_admin": "校管理员",
     "principal": "校长",
     "academic_director": "教务主任",
     "grade_leader": "年级组长",

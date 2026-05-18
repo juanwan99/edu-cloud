@@ -17,6 +17,7 @@ _MAX_EPISODES = 5
 _FULL_SCOPE_ROLES = frozenset({
     "platform_admin",
     "district_admin",
+    "school_admin",
     "principal",
     "academic_director",
     "admin",  # compat alias

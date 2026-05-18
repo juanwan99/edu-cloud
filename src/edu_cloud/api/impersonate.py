@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 IMPERSONATABLE_ROLES = [
+    "school_admin",
     "principal",
     "academic_director",
     "teaching_research_leader",

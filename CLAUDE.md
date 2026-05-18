@@ -343,7 +343,7 @@ tests/
 | API | 320 路由（43 router 文件，跨 21 模块 + 平台级路由） | 共享 AI 阅卷 |
 | Models | 88 表（modules/ 下 18 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表 + academic 3 表 + alembic_version） | — |
 | Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline/Conduct/KnowledgeTree/Scan/Adaptive + exceptions | AI grading 生产接入 |
-| Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 15 角色映射（10 活跃 + 5 legacy 兼容） | — |
+| Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 16 角色映射（11 活跃 + 5 legacy 兼容） | — |
 | AI | Pydantic AI 引擎（EduAgentRuntime）+ 65 @edu_tool（15 模块）+ PolicyToolGuardrail 4 层 RBAC + AgentBudget + ConfirmationBroker 写确认 + ArtifactManager DB 持久化 + TraceRecorder DB 双写 + budget snapshot。旧 AgentLoop/Supervisor/tools/ 已删除（2026-05-13），保留 anonymizer/data_scope/memory_*/prompts/ref_*/schemas/models/workflow | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）+ ConceptGraphNode 统一引用（旧 knowledge_points UUID 已废弃）| — |
 | Tests | 2321 passed / 2 failed（governance hook）后端 + 2368 前端 Vitest 0 failed（ECS 实测 @ 2026-05-13，旧引擎 447 测试随代码删除） | — |
@@ -413,6 +413,7 @@ tests/
 |------|-------|---------|------|
 | platform_admin | 全局 | 全部权限 | 平台超管 |
 | district_admin | 辖区 | 辖区学校管理+跨校分析 | 教育局管理员 |
+| school_admin | 全校 | = 校长全部权限，系统日常运维 | 校管理员（通常由信息技术教师担任） |
 | principal | 全校 | 审批/学校配置/全局查看（>= 教务查看权） | 校长 |
 | academic_director | 全校 | 考试/排课/阅卷/选考运营管理 | 教务主任 |
 | teaching_research_leader | 全校·单学科 | 跨年级学科教研、质量分析 | 教研组长 |
@@ -432,7 +433,7 @@ tests/
 | teacher | subject_teacher | exam-ai 迁入测试使用 |
 | head_teacher | homeroom_teacher | exam-ai 迁入测试使用 |
 
-**角色模拟**（`api/impersonate.py` + `core/auth.py`）：仅 platform_admin 可调用 `POST /api/v1/auth/impersonate`，模拟登录继承目标角色的完整权限（含 MANAGE_* 写权限），所有操作审计日志记录 impersonator_id。可模拟角色：principal / academic_director / teaching_research_leader / grade_leader / lesson_prep_leader / homeroom_teacher / subject_teacher。
+**角色模拟**（`api/impersonate.py` + `core/auth.py`）：仅 platform_admin 可调用 `POST /api/v1/auth/impersonate`，模拟登录继承目标角色的完整权限（含 MANAGE_* 写权限），所有操作审计日志记录 impersonator_id。可模拟角色：school_admin / principal / academic_director / teaching_research_leader / grade_leader / lesson_prep_leader / homeroom_teacher / subject_teacher。
 
 ## API 端点（已实现）
 

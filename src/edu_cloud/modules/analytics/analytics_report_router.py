@@ -227,7 +227,7 @@ async def grade_trend_api(
     current: dict = Depends(get_current_user),
 ):
     role = current["current_role"]
-    GRADE_TREND_ROLES = {"principal", "academic_director", "grade_leader", "platform_admin", "district_admin"}
+    GRADE_TREND_ROLES = {"school_admin", "principal", "academic_director", "grade_leader", "platform_admin", "district_admin"}
     if role.role not in GRADE_TREND_ROLES:
         raise HTTPException(403, "无权查看年级趋势")
     ids = [eid.strip() for eid in exam_ids.split(",") if eid.strip()]

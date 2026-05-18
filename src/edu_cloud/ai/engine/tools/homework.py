@@ -9,7 +9,7 @@ from edu_cloud.ai.engine.agent_deps import AgentDeps
 from edu_cloud.ai.engine.tool_wrapper import edu_tool
 
 _HW_READ_ROLES = frozenset({
-    "platform_admin", "district_admin", "principal",
+    "platform_admin", "district_admin", "school_admin", "principal",
     "academic_director", "grade_leader",
     "homeroom_teacher", "subject_teacher", "parent",
 })

@@ -27,6 +27,15 @@ export const ROLE_PERMISSIONS = {
     'use_ai_chat', 'manage_grading', 'view_grading', 'manage_exam_results',
     'manage_homework', 'view_homework', 'view_knowledge_tree', 'edit_knowledge_tree',
     'view_conduct', 'manage_conduct', 'manage_conduct_rules', 'manage_conduct_parents', 'export_conduct'],
+  school_admin: [
+    'view_schools', 'manage_school_config', 'manage_scheduling', 'manage_exams',
+    'create_joint_exam', 'manage_joint_exam', 'view_joint_exam',
+    'view_cross_school_analytics', 'view_question_bank',
+    'view_students', 'view_exams', 'view_scores', 'generate_report',
+    'approve_notification', 'send_notification', 'generate_notification',
+    'use_ai_chat', 'manage_grading', 'view_grading', 'manage_exam_results',
+    'manage_homework', 'view_homework', 'view_knowledge_tree', 'edit_knowledge_tree',
+    'view_conduct', 'export_conduct'],
   principal: [
     'view_schools', 'manage_school_config', 'manage_scheduling', 'manage_exams',
     'create_joint_exam', 'manage_joint_exam', 'view_joint_exam',

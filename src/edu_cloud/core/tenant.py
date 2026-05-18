@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy import false as sa_false
 
 CROSS_SCHOOL_ROLES: frozenset[str] = frozenset({"platform_admin", "district_admin"})
+# school_admin is school-scoped (not cross-school) — intentionally excluded
 
 
 def get_school_id(current: dict) -> str | None:

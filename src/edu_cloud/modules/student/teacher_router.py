@@ -26,12 +26,12 @@ TEACHER_ROLES = {
     "grade_leader", "lesson_prep_leader",
 }
 ALL_SCHOOL_ROLES = TEACHER_ROLES | {
-    "principal", "academic_director", "district_admin",
+    "school_admin", "principal", "academic_director", "district_admin",
 }
 
 _ROLE_LABELS = {
     "platform_admin": "平台管理员", "district_admin": "区管理员",
-    "principal": "校长", "academic_director": "教务主任",
+    "school_admin": "校管理员", "principal": "校长", "academic_director": "教务主任",
     "teaching_research_leader": "教研组长", "grade_leader": "年级组长",
     "lesson_prep_leader": "备课组长", "homeroom_teacher": "班主任",
     "subject_teacher": "科任教师",

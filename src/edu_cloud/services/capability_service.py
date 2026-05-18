@@ -13,6 +13,10 @@ from edu_cloud.services.exceptions import ValidationError
 # 默认模板: role → {domain: {action: enabled}}
 # platform_admin / district_admin 不生成 capability 行（跳过检查）
 DEFAULT_CAPABILITIES: dict[str, dict[str, dict[str, bool]]] = {
+    "school_admin": {
+        domain: {"read": True, "write": True}
+        for domain in CAPABILITY_DOMAINS
+    },
     "principal": {
         domain: {"read": True, "write": True}
         for domain in CAPABILITY_DOMAINS
