@@ -5,9 +5,6 @@ export const getBasicReport = (examId, params = {}) => client.get(`/analytics/ex
 export const getDistribution = (examId, params) => client.get(`/analytics/exam/${examId}/distribution`, { params })
 export const getSubjectQuestions = (subjectId) => client.get(`/analytics/subject/${subjectId}/questions`)
 
-export const getSegmentConfig = () => client.get('/analytics/segments/config')
-export const updateSegmentConfig = (data) => client.put('/analytics/segments/config', data)
-
 export const getGradeTrend = (params) => client.get('/analytics/report/trend/grade', { params })
 export const getClassTrend = (params) => client.get('/analytics/report/trend/class', { params })
 export const getStudentTrend = (params) => client.get('/analytics/report/trend/student', { params })

@@ -40,10 +40,6 @@
         </n-card>
       </n-tab-pane>
 
-      <n-tab-pane name="segments" tab="分数段">
-        <ScoreSegmentSettings />
-      </n-tab-pane>
-
       <n-tab-pane name="settings" tab="学校设置">
         <n-card title="配置项" style="margin-top: var(--space-4)">
           <n-data-table :columns="settingsColumns" :data="settings" :loading="loadingSettings" />
@@ -76,14 +72,14 @@
               <thead>
                 <tr>
                   <th style="min-width: 100px;">域 / 操作</th>
-                  <th v-for="role in capRoles" :key="role" style="min-width: 90px; text-align: center;">{{ role }}</th>
+                  <th v-for="role in capRoles" :key="role" style="min-width: 90px; text-align: center;">{{ ROLE_LABELS[role] || role }}</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="da in capDomainActions" :key="da.key">
                   <td>
-                    <n-text depth="2" style="font-size: var(--fs-base);">{{ da.domain }}</n-text>
-                    <n-text depth="3" style="font-size: var(--fs-base); margin-left: var(--space-1);">/ {{ da.action }}</n-text>
+                    <n-text depth="2" style="font-size: var(--fs-base);">{{ DOMAIN_LABELS[da.domain] || da.domain }}</n-text>
+                    <n-text depth="3" style="font-size: var(--fs-base); margin-left: var(--space-1);">/ {{ ACTION_LABELS[da.action] || da.action }}</n-text>
                   </td>
                   <td v-for="role in capRoles" :key="role" style="text-align: center;">
                     <n-checkbox
@@ -115,9 +111,9 @@
 <script setup>
 import { ref, computed, onMounted, h } from 'vue'
 import { NText, NIcon } from 'naive-ui'
-import ScoreSegmentSettings from '../components/analytics/ScoreSegmentSettings.vue'
 import { useMessage } from 'naive-ui'
 import { useAuthStore } from '../stores/auth.js'
+import { ROLE_LABELS } from '../config/roles.js'
 import {
   getSchoolModules, toggleModule, getSchoolSettings, updateSchoolSetting,
   getCapabilities, setCapability, initCapabilities,
@@ -168,16 +164,18 @@ const capabilities = ref([])
 const loadingCaps = ref(false)
 const capRoleFilter = ref(null)
 
+const DOMAIN_LABELS = {
+  exam: '考试管理', grading: '阅卷系统', homework: '作业管理',
+  study_analytics: '学情分析', research: '教研题库', teaching: '教学管理',
+  calendar: '校历日程', studio: '文档中心', system: '系统管理',
+}
+const ACTION_LABELS = { read: '读', write: '写' }
+
 const capRoleOptions = [
-  { label: 'school_admin', value: 'school_admin' },
-  { label: 'principal', value: 'principal' },
-  { label: 'academic_director', value: 'academic_director' },
-  { label: 'teaching_research_leader', value: 'teaching_research_leader' },
-  { label: 'grade_leader', value: 'grade_leader' },
-  { label: 'lesson_prep_leader', value: 'lesson_prep_leader' },
-  { label: 'homeroom_teacher', value: 'homeroom_teacher' },
-  { label: 'subject_teacher', value: 'subject_teacher' },
-]
+  'school_admin', 'principal', 'academic_director',
+  'teaching_research_leader', 'grade_leader', 'lesson_prep_leader',
+  'homeroom_teacher', 'subject_teacher',
+].map(r => ({ label: ROLE_LABELS[r] || r, value: r }))
 
 // Inline settings editing state
 const showEditSetting = ref(false)

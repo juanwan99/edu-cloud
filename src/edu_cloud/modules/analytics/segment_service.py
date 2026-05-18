@@ -1,13 +1,4 @@
-"""分数段配置 CRUD + 分段计算。"""
-import logging
-
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from edu_cloud.models.score_segment import ScoreSegmentConfig
-from edu_cloud.services.exceptions import ValidationError
-
-logger = logging.getLogger(__name__)
+"""分数段计算（硬编码默认阈值，不再支持学校自定义配置）。"""
 
 DEFAULT_BOUNDARIES = [85, 70, 60]
 DEFAULT_LABELS = ["优秀", "良好", "及格", "不及格"]
@@ -29,7 +20,6 @@ def compute_segments(
     sorted_boundaries = sorted(boundaries, reverse=True)
 
     if not sorted_boundaries:
-        # 无阈值：所有人归入单一段
         return [{
             "label": labels[0] if labels else "全部",
             "count": n,
@@ -41,7 +31,7 @@ def compute_segments(
     for i, label in enumerate(labels):
         if i == 0:
             b_min = sorted_boundaries[0]
-            b_max = 101  # inclusive upper
+            b_max = 101
         elif i < len(sorted_boundaries):
             b_min = sorted_boundaries[i]
             b_max = sorted_boundaries[i - 1]
@@ -55,7 +45,6 @@ def compute_segments(
             if b_min <= pct < b_max:
                 count += 1
             elif i == 0 and pct >= b_min:
-                # 最高段: >= boundary
                 count += 1
 
         segments.append({
@@ -70,84 +59,7 @@ def compute_segments(
 
 
 async def get_segment_config(
-    db: AsyncSession, school_id: str, subject_code: str | None = None,
+    db, school_id: str, subject_code: str | None = None,
 ) -> tuple[list[int], list[str]]:
-    """获取分数段配置。优先科目覆盖，fallback 学校默认，最终 fallback 硬编码默认。"""
-    if subject_code:
-        result = await db.execute(
-            select(ScoreSegmentConfig).where(
-                ScoreSegmentConfig.school_id == school_id,
-                ScoreSegmentConfig.subject_code == subject_code,
-            )
-        )
-        cfg = result.scalar_one_or_none()
-        if cfg:
-            return cfg.boundaries, cfg.labels
-
-    # fallback: 学校默认
-    result = await db.execute(
-        select(ScoreSegmentConfig).where(
-            ScoreSegmentConfig.school_id == school_id,
-            ScoreSegmentConfig.subject_code.is_(None),
-        )
-    )
-    cfg = result.scalar_one_or_none()
-    if cfg:
-        return cfg.boundaries, cfg.labels
-
+    """返回硬编码默认分数段配置（db 参数保留以兼容调用方签名）。"""
     return DEFAULT_BOUNDARIES, DEFAULT_LABELS
-
-
-async def upsert_segment_config(
-    db: AsyncSession,
-    school_id: str,
-    boundaries: list[int],
-    labels: list[str],
-    created_by: str | None = None,
-    subject_code: str | None = None,
-) -> ScoreSegmentConfig:
-    """创建或更新分数段配置（upsert 语义）。"""
-    if len(labels) != len(boundaries) + 1:
-        raise ValidationError(f"labels 数量({len(labels)})必须比 boundaries({len(boundaries)})多 1")
-    if boundaries != sorted(boundaries, reverse=True):
-        raise ValidationError("boundaries 必须降序排列")
-    if any(b < 0 or b > 100 for b in boundaries):
-        raise ValidationError("boundaries 值必须在 0-100 之间")
-
-    result = await db.execute(
-        select(ScoreSegmentConfig).where(
-            ScoreSegmentConfig.school_id == school_id,
-            ScoreSegmentConfig.subject_code == subject_code
-            if subject_code
-            else ScoreSegmentConfig.subject_code.is_(None),
-        )
-    )
-    cfg = result.scalar_one_or_none()
-
-    if cfg:
-        cfg.boundaries = boundaries
-        cfg.labels = labels
-    else:
-        cfg = ScoreSegmentConfig(
-            school_id=school_id,
-            subject_code=subject_code,
-            boundaries=boundaries,
-            labels=labels,
-            created_by=created_by,
-        )
-        db.add(cfg)
-
-    await db.flush()
-    return cfg
-
-
-async def list_segment_configs(
-    db: AsyncSession, school_id: str,
-) -> list[ScoreSegmentConfig]:
-    """列出学校所有分数段配置（默认 + 科目覆盖）。"""
-    result = await db.execute(
-        select(ScoreSegmentConfig).where(
-            ScoreSegmentConfig.school_id == school_id,
-        )
-    )
-    return list(result.scalars().all())

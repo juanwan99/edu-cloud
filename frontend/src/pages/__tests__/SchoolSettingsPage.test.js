@@ -46,19 +46,19 @@ describe('SchoolSettingsPage template sections', () => {
     expect(content).toContain('个模块')
   })
 
-  it('uses n-tabs with four tab panes', () => {
+  it('uses n-tabs with three tab panes', () => {
     expect(content).toContain('<n-tabs type="line" animated>')
     expect(content).toContain('name="modules"')
-    expect(content).toContain('name="segments"')
     expect(content).toContain('name="settings"')
     expect(content).toContain('name="capabilities"')
+    expect(content).not.toContain('name="segments"')
   })
 
   it('tab labels are correct', () => {
     expect(content).toContain('tab="功能模块"')
-    expect(content).toContain('tab="分数段"')
     expect(content).toContain('tab="学校设置"')
     expect(content).toContain('tab="能力矩阵"')
+    expect(content).not.toContain('tab="分数段"')
   })
 })
 
@@ -129,10 +129,10 @@ describe('SchoolSettingsPage MODULE_ICONS mapping', () => {
   })
 })
 
-describe('SchoolSettingsPage segments tab', () => {
-  it('embeds ScoreSegmentSettings component', () => {
-    expect(content).toContain('<ScoreSegmentSettings />')
-    expect(content).toContain("import ScoreSegmentSettings from '../components/analytics/ScoreSegmentSettings.vue'")
+describe('SchoolSettingsPage segments tab removed', () => {
+  it('no longer contains ScoreSegmentSettings', () => {
+    expect(content).not.toContain('<ScoreSegmentSettings />')
+    expect(content).not.toContain('ScoreSegmentSettings')
   })
 })
 
@@ -269,14 +269,18 @@ describe('SchoolSettingsPage reactive state', () => {
 })
 
 describe('SchoolSettingsPage capRoleOptions', () => {
-  it('lists all 7 role options', () => {
+  it('lists all 8 role options including school_admin', () => {
     const roles = [
-      'principal', 'academic_director', 'teaching_research_leader',
+      'school_admin', 'principal', 'academic_director', 'teaching_research_leader',
       'grade_leader', 'lesson_prep_leader', 'homeroom_teacher', 'subject_teacher',
     ]
     for (const role of roles) {
-      expect(content).toContain(`value: '${role}'`)
+      expect(content).toContain(`'${role}'`)
     }
+  })
+
+  it('uses ROLE_LABELS for display', () => {
+    expect(content).toContain('ROLE_LABELS[r] || r')
   })
 })
 

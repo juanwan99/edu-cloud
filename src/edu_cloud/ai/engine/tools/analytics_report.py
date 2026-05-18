@@ -17,18 +17,16 @@ _REPORT_WRITE_ROLES = frozenset({"platform_admin", "academic_director", "grade_l
 
 @edu_tool(name="get_score_segments", module_code="exam", domain="analytics", allowed_roles=_REPORT_ROLES, sensitivity="school")
 async def get_score_segments(ctx: RunContext[AgentDeps], exam_id: str, subject_code: str | None = None) -> str:
-    """Get score segment distribution with school-configured boundaries."""
-    from edu_cloud.modules.analytics.segment_service import get_segment_config
+    """Get score segment distribution (fixed boundaries: 85/70/60)."""
     from edu_cloud.modules.analytics.service import exam_distribution
     scope = ctx.deps.data_scope
     async with ctx.deps.get_db() as db:
-        config = await get_segment_config(db, scope.school_id, subject_code)
         data = await exam_distribution(
             db, exam_id=exam_id, school_id=scope.school_id,
             visible_subject_codes=scope.visible_subject_codes,
             visible_class_ids=scope.visible_class_ids,
         )
-    return json.dumps({"config": config, "distribution": data}, ensure_ascii=False, default=str)
+    return json.dumps({"distribution": data}, ensure_ascii=False, default=str)
 
 
 @edu_tool(name="compare_exams", module_code="exam", domain="analytics", allowed_roles=_REPORT_ROLES, sensitivity="school")
