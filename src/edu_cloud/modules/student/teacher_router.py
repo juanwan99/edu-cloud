@@ -2,7 +2,7 @@
 import io
 import logging
 
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select, func
@@ -112,9 +112,11 @@ async def list_teachers(
     current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     role = current["current_role"]
+    if school_id and role.school_id and school_id != role.school_id:
+        if Permission.MANAGE_SCHOOLS not in current["permissions"]:
+            raise HTTPException(403, "无权查看其他学校的教师")
     target_school = school_id or role.school_id
     if not target_school:
-        # platform_admin 无 school_id 时，取第一个学校
         from edu_cloud.models.school import School
         first = await db.execute(select(School).limit(1))
         s = first.scalar_one_or_none()
@@ -277,7 +279,11 @@ async def export_teachers(
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.comments import Comment
 
-    target_school = school_id or current["current_role"].school_id
+    _role = current["current_role"]
+    if school_id and _role.school_id and school_id != _role.school_id:
+        if Permission.MANAGE_SCHOOLS not in current["permissions"]:
+            raise HTTPException(403, "无权导出其他学校的教师")
+    target_school = school_id or _role.school_id
     if not target_school:
         from edu_cloud.models.school import School
         first = await db.execute(select(School).limit(1))
