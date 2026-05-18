@@ -5,8 +5,8 @@ import { getSidebarItems } from '../config/sidebarConfig.js'
 import { getDashboardConfig } from '../config/dashboardConfig.js'
 
 describe('roles config', () => {
-  it('has 10 canonical roles', () => {
-    expect(CANONICAL_ROLES).toHaveLength(10)
+  it('has 11 canonical roles', () => {
+    expect(CANONICAL_ROLES).toHaveLength(11)
   })
   it('normalizes legacy aliases', () => {
     expect(normalizeRole('admin')).toBe('platform_admin')

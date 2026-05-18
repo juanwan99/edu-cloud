@@ -95,9 +95,9 @@ describe('TeachersPage — 超管跨校创建契约锁（ORC-003/ORC-004）', ()
     await flushPromises()
     wrapper.vm.selectedSchool = 'sch_jy'
     await flushPromises()
-    expect(wrapper.vm.createRoleOptions.length).toBe(2)
+    expect(wrapper.vm.createRoleOptions.length).toBe(3)
     const values = wrapper.vm.createRoleOptions.map((o) => o.value).sort()
-    expect(values).toEqual(['academic_director', 'principal'])
+    expect(values).toEqual(['academic_director', 'principal', 'school_admin'])
     expect(wrapper.vm.importRoleOptions.length).toBeGreaterThanOrEqual(8)
   })
 
