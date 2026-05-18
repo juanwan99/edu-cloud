@@ -176,7 +176,7 @@ watch(canEdit, (val) => {
   }
 })
 const needsStudentSelector = computed(() =>
-  ['subject_teacher', 'homeroom_teacher', 'principal', 'academic_director', 'grade_leader'].includes(authStore.roleName)
+  ['subject_teacher', 'homeroom_teacher', 'school_admin', 'principal', 'academic_director', 'grade_leader'].includes(authStore.roleName)
 )
 const studentId = computed(() => {
   if (!needsStudentSelector.value) return null

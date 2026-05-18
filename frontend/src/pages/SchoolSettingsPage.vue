@@ -169,6 +169,7 @@ const loadingCaps = ref(false)
 const capRoleFilter = ref(null)
 
 const capRoleOptions = [
+  { label: 'school_admin', value: 'school_admin' },
   { label: 'principal', value: 'principal' },
   { label: 'academic_director', value: 'academic_director' },
   { label: 'teaching_research_leader', value: 'teaching_research_leader' },

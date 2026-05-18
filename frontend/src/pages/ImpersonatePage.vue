@@ -112,6 +112,7 @@ const classes = ref([])
 const grades = ref([])
 
 const IMPERSONATABLE_ROLES = [
+  { value: 'school_admin', label: ROLE_LABELS.school_admin || '校管理员' },
   { value: 'principal', label: ROLE_LABELS.principal || '校长' },
   { value: 'academic_director', label: ROLE_LABELS.academic_director || '教务主任' },
   { value: 'teaching_research_leader', label: ROLE_LABELS.teaching_research_leader || '教研组长' },

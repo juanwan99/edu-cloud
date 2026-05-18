@@ -149,8 +149,8 @@ const selectedSchool = ref(null)
 const roleLabels = {
   subject_teacher: '科任教师', homeroom_teacher: '班主任',
   teaching_research_leader: '教研组长', grade_leader: '年级组长',
-  lesson_prep_leader: '备课组长', principal: '校长',
-  academic_director: '教务主任', district_admin: '区管理员',
+  lesson_prep_leader: '备课组长', school_admin: '校管理员',
+  principal: '校长', academic_director: '教务主任', district_admin: '区管理员',
 }
 const subjectLabels = {
   YW: '语文', SX: '数学', YY: '英语', WL: '物理', HX: '化学',
@@ -165,6 +165,7 @@ const isPlatformAdmin = computed(() => {
 
 const ROLE_OPTIONS_ALL = Object.entries(roleLabels).map(([value, label]) => ({ label, value }))
 const ROLE_OPTIONS_CROSS_SCHOOL = [
+  { label: '校管理员', value: 'school_admin' },
   { label: '校长', value: 'principal' },
   { label: '教务主任', value: 'academic_director' },
 ]

@@ -48,7 +48,7 @@ const canManageConduct = computed(() => hasPermission(role.value, 'manage_conduc
 const scopeLabel = computed(() => {
   const r = role.value
   if (r === 'district_admin') return '区域视图'
-  if (r === 'principal' || r === 'academic_director') return '全校视图'
+  if (r === 'school_admin' || r === 'principal' || r === 'academic_director') return '全校视图'
   if (r === 'grade_leader') return '年级视图'
   if (r === 'homeroom_teacher') return '班级视图'
   if (r === 'subject_teacher') return '任教班视图'
@@ -58,7 +58,7 @@ const scopeLabel = computed(() => {
 const scopeTagType = computed(() => {
   const r = role.value
   if (r === 'district_admin') return 'warning'
-  if (r === 'principal' || r === 'academic_director') return 'info'
+  if (r === 'school_admin' || r === 'principal' || r === 'academic_director') return 'info'
   return 'default'
 })
 
