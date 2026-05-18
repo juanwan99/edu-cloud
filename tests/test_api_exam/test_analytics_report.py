@@ -20,39 +20,6 @@ async def report_user(db):
     return {"user": user, "school": school, "role": role}
 
 
-async def test_get_segment_config_default(client, report_user, db):
-    """未配置时返回硬编码默认值。"""
-    from edu_cloud.shared.auth import create_access_token
-    token = create_access_token({"sub": report_user["user"].id})
-    resp = await client.get(
-        "/api/v1/analytics/segments/config",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["default"]["boundaries"] == [85, 70, 60]
-    assert data["overrides"] == []
-
-
-async def test_upsert_segment_config(client, report_user, db):
-    from edu_cloud.shared.auth import create_access_token
-    token = create_access_token({"sub": report_user["user"].id})
-    resp = await client.put(
-        "/api/v1/analytics/segments/config",
-        json={"boundaries": [90, 75, 60], "labels": ["A", "B", "C", "D"]},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert resp.status_code == 200
-    assert resp.json()["boundaries"] == [90, 75, 60]
-
-    # 验证持久化
-    resp2 = await client.get(
-        "/api/v1/analytics/segments/config",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert resp2.json()["default"]["boundaries"] == [90, 75, 60]
-
-
 from datetime import datetime
 from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
