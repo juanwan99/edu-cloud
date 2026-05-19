@@ -216,7 +216,14 @@ def create_app() -> FastAPI:
     )
     logger.info("edu-cloud starting, boot_time=%s", _BOOT_TIME)
 
-    app = FastAPI(title="edu-cloud", version="0.1.0", lifespan=lifespan)
+    _is_prod = settings.ENVIRONMENT == "production"
+    app = FastAPI(
+        title="edu-cloud",
+        version="0.1.0",
+        lifespan=lifespan,
+        docs_url=None if _is_prod else "/docs",
+        redoc_url=None if _is_prod else "/redoc",
+    )
 
     # CORS — must be added before other middleware
     app.add_middleware(
@@ -308,6 +315,9 @@ def create_app() -> FastAPI:
                     )
             response.headers["X-Request-ID"] = req_id
             response.headers["X-Trace-ID"] = trace_id
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
             return response
         except Exception as exc:
             # Let registered Service exceptions propagate to FastAPI exception_handlers

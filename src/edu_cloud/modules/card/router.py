@@ -180,7 +180,14 @@ async def auto_layout_card(
         parsed = body.parsed_questions
     elif body.answer_file:
         from pathlib import Path
-        if not Path(body.answer_file).exists():
+        import tempfile as _tempfile
+        answer_path = Path(body.answer_file).resolve()
+        allowed_dirs = [Path(_tempfile.gettempdir()).resolve(), Path(settings.UPLOAD_DIR).resolve()]
+        if not any(str(answer_path).startswith(str(d)) for d in allowed_dirs):
+            raise HTTPException(400, "文件路径不在允许范围内")
+        if answer_path.suffix.lower() != ".docx":
+            raise HTTPException(400, "仅支持 .docx 文件")
+        if not answer_path.exists():
             raise HTTPException(400, f"文件不存在: {body.answer_file}")
         from edu_cloud.modules.card.parser.answer_parser import parse_answer_docx
         parsed = parse_answer_docx(body.answer_file)

@@ -22,13 +22,16 @@ router = APIRouter(prefix="/api/v1/conduct", tags=["conduct-parent"])
 
 
 @router.get("/invite/{code}/info", response_model=InviteCodeInfo)
-async def invite_code_info(code: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def invite_code_info(request: Request, code: str, db: AsyncSession = Depends(get_db)):
     """Public: validate invite code and return class/school info."""
     return await parent_service.get_invite_info(db, code)
 
 
 @router.post("/parent/register")
+@limiter.limit("10/minute")
 async def parent_register(
+    request: Request,
     body: ParentRegisterRequest,
     db: AsyncSession = Depends(get_db),
 ):

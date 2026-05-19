@@ -1,6 +1,6 @@
 """Parent authentication service — register, login, bind child, query children."""
 import logging
-import random
+import secrets
 import string
 from datetime import date, timedelta
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 def generate_invite_code(length: int = 6) -> str:
     """Generate a random uppercase + digits invite code."""
     chars = string.ascii_uppercase + string.digits
-    return "".join(random.choices(chars, k=length))
+    return "".join(secrets.choice(chars) for _ in range(length))
 
 
 async def get_invite_info(db: AsyncSession, code: str) -> dict:

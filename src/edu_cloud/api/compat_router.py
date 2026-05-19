@@ -10,9 +10,11 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 
 from edu_cloud.database import get_db
 from edu_cloud.shared.auth import create_access_token
+from edu_cloud.core.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +47,9 @@ class CompatLoginRequest(BaseModel):
 
 
 @router.post("/auth/login")
+@limiter.limit("5/minute")
 async def compat_login(
+    request: Request,
     req: CompatLoginRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
@@ -284,6 +288,13 @@ async def compat_upload_image(
         raise HTTPException(404, "Question not found")
 
     data = await image.read()
+    from edu_cloud.config import settings as _settings
+    max_bytes = _settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    if len(data) > max_bytes:
+        raise HTTPException(413, f"文件过大，上限 {_settings.MAX_UPLOAD_SIZE_MB}MB")
+    from edu_cloud.shared.upload_validation import detect_image_type
+    if detect_image_type(data[:32]) is None:
+        raise HTTPException(400, "不支持的图片格式")
     path = await storage.save(
         school_id=school_id, exam_id=exam_id, subject_id=subject_id,
         question_id=question_id, student_id=student_id, data=data,

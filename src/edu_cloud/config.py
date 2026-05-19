@@ -24,13 +24,19 @@ class Settings(BaseSettings):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if self.SECRET_KEY == "change-me":
+        _INSECURE_KEYS = {"change-me", "change-me-in-production", "dev-secret-key-change-in-production"}
+        if self.SECRET_KEY in _INSECURE_KEYS:
+            if self.ENVIRONMENT == "production":
+                raise RuntimeError("SECRET_KEY is insecure — refusing to start in production")
             warnings.warn(
-                "SECRET_KEY is using default value 'change-me'. "
-                "Set SECRET_KEY in .env for production!",
+                "SECRET_KEY is using an insecure default. Set SECRET_KEY in .env!",
                 stacklevel=2,
             )
             _logger.warning("SECRET_KEY is using insecure default value")
+        if self.ENCRYPTION_KEY in {"change-me-in-production", "change-me"}:
+            if self.ENVIRONMENT == "production":
+                raise RuntimeError("ENCRYPTION_KEY is insecure — refusing to start in production")
+            _logger.warning("ENCRYPTION_KEY is using insecure default value")
 
     # ── Storage ──────────────────────────────────────────────────────
     UPLOAD_DIR: str = "./uploads"
