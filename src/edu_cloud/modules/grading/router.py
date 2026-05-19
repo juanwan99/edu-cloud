@@ -682,6 +682,32 @@ async def create_grading_task(
     school_id = current["current_role"].school_id
     confirmed_count = 0
 
+    # 成本控制：每校每日 AI 批改上限
+    from edu_cloud.modules.grading.models import GradingPipelineLog
+    from datetime import date as _date
+    from sqlalchemy import func as _sa_func
+    _today_count = (await db.execute(
+        select(_sa_func.count()).select_from(GradingPipelineLog).where(
+            GradingPipelineLog.school_id == school_id,
+            _sa_func.date(GradingPipelineLog.created_at) == _date.today(),
+        )
+    )).scalar_one()
+    _daily_limit = 10000
+    try:
+        from edu_cloud.models.school_settings import SchoolSetting
+        _row = (await db.execute(
+            select(SchoolSetting.value).where(
+                SchoolSetting.school_id == school_id,
+                SchoolSetting.key == "ai_daily_grading_limit",
+            )
+        )).scalar_one_or_none()
+        if _row:
+            _daily_limit = int(_row)
+    except Exception:
+        pass
+    if _today_count >= _daily_limit:
+        raise HTTPException(429, f"今日 AI 批改量已达上限 ({_daily_limit})")
+
     if req.question_id and req.question_ids:
         raise HTTPException(400, "question_id 和 question_ids 不能同时指定")
 

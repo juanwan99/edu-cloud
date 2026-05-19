@@ -386,8 +386,9 @@ async def _grade_single(
             blanks = validate_ocr_blanks(blanks)
             blanks = recover_truncated_blanks(blanks, rubric_criteria)
 
-            extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
-            plog["ocr_text"] = extracted_text
+            _raw_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
+            extracted_text = f"<student_answer>\n{_raw_text}\n</student_answer>"
+            plog["ocr_text"] = _raw_text
             plog["ocr_blanks_count"] = len(blanks)
 
         _BLANK_MARKERS = {"", "（未作答）", "(未作答)", "未作答", "（无法辨识）", "(无法辨识)", "无法辨识", "[空]", "[?]", "空白"}
@@ -772,8 +773,9 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
                 blanks = ocr_parsed
             blanks = validate_ocr_blanks(blanks)
             blanks = recover_truncated_blanks(blanks, rubric_criteria)
-            extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
-            plog["ocr_text"] = extracted_text
+            _raw_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
+            extracted_text = f"<student_answer>\n{_raw_text}\n</student_answer>"
+            plog["ocr_text"] = _raw_text
             plog["ocr_blanks_count"] = len(blanks)
 
             non_empty = [b for b in blanks if b.get("text", "").strip()]
