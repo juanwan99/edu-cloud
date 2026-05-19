@@ -61,6 +61,9 @@ class Permission(str, Enum):
     # ── 论文 ──
     WRITE_PAPER = "write_paper"
 
+    # ── 成绩导入 ──
+    IMPORT_EXAMS = "import_exams"               # 外部考试成绩导入 → 教务/校管
+
     # ── 阅卷管理 ──
     MANAGE_GRADING = "manage_grading"           # 阅卷分配/调度 → 教务
     VIEW_GRADING = "view_grading"               # 查看阅卷进度
@@ -148,6 +151,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.MANAGE_TEACHERS,
         Permission.MANAGE_SCHEDULING,
         Permission.MANAGE_EXAMS,
+        Permission.IMPORT_EXAMS,
         Permission.CREATE_JOINT_EXAM,
         Permission.MANAGE_JOINT_EXAM,
         Permission.VIEW_JOINT_EXAM,
@@ -209,6 +213,7 @@ ROLE_PERMISSIONS: dict[str, set[Permission]] = {
         Permission.MANAGE_SCHEDULING,        # 排课/选考组合 → 教务核心职责
         Permission.MANAGE_TEACHERS,          # 教师调配 → 教务日常运营
         Permission.MANAGE_EXAMS,             # 校内考试 CRUD
+        Permission.IMPORT_EXAMS,             # 成绩导入
         Permission.CREATE_JOINT_EXAM,
         Permission.MANAGE_JOINT_EXAM,
         Permission.VIEW_JOINT_EXAM,
