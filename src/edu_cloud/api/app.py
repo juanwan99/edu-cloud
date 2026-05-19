@@ -223,6 +223,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         docs_url=None if _is_prod else "/docs",
         redoc_url=None if _is_prod else "/redoc",
+        openapi_url=None if _is_prod else "/openapi.json",
     )
 
     # CORS — must be added before other middleware

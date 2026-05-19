@@ -287,9 +287,9 @@ async def compat_upload_image(
     if not question:
         raise HTTPException(404, "Question not found")
 
-    data = await image.read()
     from edu_cloud.config import settings as _settings
     max_bytes = _settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    data = await image.read(max_bytes + 1)
     if len(data) > max_bytes:
         raise HTTPException(413, f"文件过大，上限 {_settings.MAX_UPLOAD_SIZE_MB}MB")
     from edu_cloud.shared.upload_validation import detect_image_type

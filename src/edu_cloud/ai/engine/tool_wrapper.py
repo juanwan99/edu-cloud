@@ -95,11 +95,14 @@ def edu_tool(
             try:
                 result = await func(ctx, *args, **kwargs)
 
-                if isinstance(result, str) and hasattr(ctx.deps, "anonymizer") and ctx.deps.anonymizer:
+                if hasattr(ctx.deps, "anonymizer") and ctx.deps.anonymizer:
                     try:
-                        _parsed = json.loads(result)
-                        _parsed = ctx.deps.anonymizer.anonymize(_parsed)
-                        result = json.dumps(_parsed, ensure_ascii=False)
+                        if isinstance(result, str):
+                            _data = json.loads(result)
+                            _data = ctx.deps.anonymizer.anonymize(_data)
+                            result = json.dumps(_data, ensure_ascii=False)
+                        elif isinstance(result, (dict, list)):
+                            result = ctx.deps.anonymizer.anonymize(result)
                     except (json.JSONDecodeError, TypeError, AttributeError):
                         pass
 

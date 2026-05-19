@@ -387,7 +387,8 @@ async def _grade_single(
             blanks = recover_truncated_blanks(blanks, rubric_criteria)
 
             _raw_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
-            extracted_text = f"<student_answer>\n{_raw_text}\n</student_answer>"
+            _sanitized = _raw_text.replace("</student_answer>", "&lt;/student_answer&gt;")
+        extracted_text = f"<student_answer>\n{_sanitized}\n</student_answer>"
             plog["ocr_text"] = _raw_text
             plog["ocr_blanks_count"] = len(blanks)
 
@@ -774,7 +775,8 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
             blanks = validate_ocr_blanks(blanks)
             blanks = recover_truncated_blanks(blanks, rubric_criteria)
             _raw_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
-            extracted_text = f"<student_answer>\n{_raw_text}\n</student_answer>"
+            _sanitized = _raw_text.replace("</student_answer>", "&lt;/student_answer&gt;")
+        extracted_text = f"<student_answer>\n{_sanitized}\n</student_answer>"
             plog["ocr_text"] = _raw_text
             plog["ocr_blanks_count"] = len(blanks)
 
