@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 import jwt
 from edu_cloud.config import settings
 
@@ -7,6 +8,7 @@ def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode["exp"] = expire
+    to_encode.setdefault("jti", uuid4().hex)
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -38,5 +40,6 @@ def create_impersonation_token(
         "effective_school_id": effective_school_id,
         "scope_override": scope_override,
         "exp": expire,
+        "jti": uuid4().hex,
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)

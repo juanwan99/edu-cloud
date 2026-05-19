@@ -51,8 +51,6 @@ async def get_current_user(
     try:
         payload = decode_token(credentials.credentials)
     except ExpiredSignatureError:
-        # C-1 fix: expired tokens are always rejected, including impersonation.
-        # Impersonation tokens have a 30-min hard expiry; there is no grace period.
         logger.info("token_expired: impersonation or normal token rejected")
         raise HTTPException(401, "Token expired")
     except JWTError:
@@ -61,6 +59,12 @@ async def get_current_user(
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(401, "Invalid token")
+
+    jti = payload.get("jti")
+    if jti:
+        from edu_cloud.core.token_store import is_revoked
+        if await is_revoked(jti):
+            raise HTTPException(401, "Token revoked")
 
     # ── Impersonation 分支 ──
     if payload.get("is_impersonation"):

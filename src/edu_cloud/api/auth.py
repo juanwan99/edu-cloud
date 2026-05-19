@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from edu_cloud.database import get_db
-from edu_cloud.shared.auth import create_access_token
+from edu_cloud.shared.auth import create_access_token, decode_token
 from edu_cloud.core.auth import get_current_user
 from edu_cloud.logging_config import business_event
 from edu_cloud.core.rate_limit import limiter
@@ -184,3 +184,20 @@ async def switch_role(
             **({"class_ids": target_role.class_ids} if target_role.class_ids else {}),
         },
     }
+
+
+@router.post("/logout")
+async def logout(request: Request, current: dict = Depends(get_current_user)):
+    """Revoke the current token."""
+    from edu_cloud.core.token_store import revoke_token
+    auth = request.headers.get("authorization", "")
+    if auth.startswith("Bearer "):
+        try:
+            payload = decode_token(auth[7:])
+            jti = payload.get("jti")
+            if jti:
+                await revoke_token(jti)
+                return {"ok": True}
+        except Exception:
+            pass
+    return {"ok": True}

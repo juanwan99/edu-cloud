@@ -14,7 +14,7 @@ import json
 import re
 
 
-def extract_json(text: str) -> dict | list | None:
+def extract_json(text: str, *, expected_details_count: int | None = None) -> dict | list | None:
     """Extract JSON object or array from LLM response text.
 
     Tries 5 strategies in order:
@@ -24,6 +24,8 @@ def extract_json(text: str) -> dict | list | None:
     4. Greedy: find first opener, try progressively shorter substrings
     5. Truncation repair: close open brackets/braces
 
+    If expected_details_count is set and the result is a dict with a
+    'details' list that has fewer items, returns None (forces retry).
     Returns parsed dict/list, or None if no valid JSON found.
     """
     if not text or not text.strip():
@@ -57,6 +59,8 @@ def extract_json(text: str) -> dict | list | None:
     # Level 5: truncation repair — close open brackets/braces
     result = _repair_truncated(text)
     if result is not None:
+        if _is_incomplete(result, expected_details_count):
+            return None
         return result
 
     return None
@@ -198,3 +202,15 @@ def _repair_truncated(text: str) -> dict | list | None:
             except json.JSONDecodeError:
                 continue
     return None
+
+
+def _is_incomplete(parsed: dict | list, expected_details_count: int | None) -> bool:
+    """Check if a parsed grading response is incomplete (truncation artifact)."""
+    if expected_details_count is None or not isinstance(parsed, dict):
+        return False
+    details = parsed.get("details")
+    if not isinstance(details, list):
+        return False
+    if len(details) < expected_details_count:
+        return True
+    return False
