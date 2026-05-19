@@ -28,6 +28,7 @@ export const routes = [
       { path: '', name: 'Dashboard', component: () => import('../pages/DashboardPage.vue') },
 
       // 考试
+      { path: 'exam-import', name: 'ExamImport', component: () => import('../pages/ExamImportPage.vue'), meta: { permissions: ['import_exams'] } },
       { path: 'exams', name: 'ExamList', component: () => import('../pages/ExamListPage.vue'), meta: { roles: EXAM_ROLES } },
       { path: 'exams/:id', name: 'ExamDetail', component: () => import('../pages/ExamDetailPage.vue'), meta: { roles: EXAM_ROLES } },
       { path: 'card-dev/:examId', name: 'CardEditorDev', component: () => import('../pages/CardEditorDevPage.vue'), meta: { roles: EXAM_ROLES } },

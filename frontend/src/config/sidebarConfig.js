@@ -7,6 +7,7 @@ const SIDEBAR_GROUPS = [
     icon: 'exam',
     children: [
       { label: '考试管理', route: '/exams', moduleCode: 'exam', perm: 'view_exams' },
+      { label: '成绩导入', route: '/exam-import', moduleCode: 'exam', perm: 'import_exams' },
       { label: '阅卷调度', route: '/grading/tasks', moduleCode: 'grading', perm: 'manage_grading' },
       { label: 'AI 阅卷', route: '/ai-grading', moduleCode: 'grading', perm: 'manage_grading' },
       { label: '人工阅卷', route: '/marking', moduleCode: 'grading', perm: 'view_grading' },

@@ -28,7 +28,7 @@ export const ROLE_PERMISSIONS = {
     'manage_homework', 'view_homework', 'view_knowledge_tree', 'edit_knowledge_tree',
     'view_conduct', 'manage_conduct', 'manage_conduct_rules', 'manage_conduct_parents', 'export_conduct'],
   school_admin: [
-    'view_schools', 'manage_school_config', 'manage_scheduling', 'manage_exams',
+    'view_schools', 'manage_school_config', 'manage_scheduling', 'manage_exams', 'import_exams',
     'create_joint_exam', 'manage_joint_exam', 'view_joint_exam',
     'view_cross_school_analytics', 'view_question_bank',
     'view_students', 'view_exams', 'view_scores', 'generate_report',
@@ -46,7 +46,7 @@ export const ROLE_PERMISSIONS = {
     'manage_homework', 'view_homework', 'view_knowledge_tree', 'edit_knowledge_tree',
     'view_conduct', 'export_conduct'],
   academic_director: [
-    'view_schools', 'manage_scheduling', 'manage_exams',
+    'view_schools', 'manage_scheduling', 'manage_exams', 'import_exams',
     'create_joint_exam', 'manage_joint_exam', 'view_joint_exam',
     'view_cross_school_analytics', 'manage_question_bank', 'view_question_bank',
     'view_students', 'view_exams', 'view_scores', 'generate_report',
