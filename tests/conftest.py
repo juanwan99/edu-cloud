@@ -50,6 +50,7 @@ import edu_cloud.modules.academic.models  # noqa: F401
 # ── S1-C admin schema (2026-04-24): design §4.1 deliverables 1.3/1.4 ──
 import edu_cloud.models.grade  # noqa: F401 — Grade（S1-C 新表，触发 FK grades.id 建表）
 import edu_cloud.models.teaching_plan  # noqa: F401 — TeachingPlan（S1-C 骨架表）
+import edu_cloud.modules.exam_import.models  # noqa: F401 — ExamImportSession
 from edu_cloud.shared.auth import create_access_token
 
 
