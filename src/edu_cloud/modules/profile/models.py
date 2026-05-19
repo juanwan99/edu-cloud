@@ -17,6 +17,7 @@ class StudentExamSnapshot(Base, IdMixin, TimestampMixin):
     subject_code: Mapped[str] = mapped_column(String(50))
 
     total_score: Mapped[float] = mapped_column(Float)
+    converted_score: Mapped[float | None] = mapped_column(Float, default=None)
     max_score: Mapped[float] = mapped_column(Float)
     score_rate: Mapped[float] = mapped_column(Float)
 
