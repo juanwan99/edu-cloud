@@ -27,6 +27,7 @@ from edu_cloud.modules.student.models import Student, Class
 from edu_cloud.modules.exam.models import Exam, Subject, Question, ExamResult
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import GradingResult
+from edu_cloud.modules.profile.models import StudentExamSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -303,6 +304,90 @@ async def commit_import(
 
     await db.commit()
     return stats
+
+
+# ── post-import pipeline ────────────────────────────────────────
+
+
+async def run_post_import_pipeline(
+    db: AsyncSession,
+    *,
+    exam_id: str,
+    school_id: str,
+    import_mode: str,  # "questions" or "totals"
+    parsed: ParsedExamData,
+    matched_students: dict[str, MatchedStudent],
+) -> dict:
+    """Run post-import data generation: snapshot + error_book + score overrides.
+
+    1. Always generate exam snapshots (rank/score_rate from actual answers).
+    2. If import_mode != "totals", populate error_books and update error_patterns.
+    3. Override snapshot fields with imported official values (converted_score,
+       class_rank, school_rank, raw_total) — official data takes priority over
+       computed values.
+
+    Returns {"snapshots": N, "error_books": N, "error_patterns": N, "overrides": N}.
+    """
+    from edu_cloud.modules.pipeline.service import (
+        generate_exam_snapshots,
+        populate_error_books,
+        update_error_patterns,
+    )
+
+    # Step 1: always generate snapshots
+    snapshots = await generate_exam_snapshots(db, exam_id=exam_id, school_id=school_id)
+
+    # Step 2: error books only for question-level imports
+    errors = 0
+    patterns = 0
+    if import_mode != "totals":
+        errors = await populate_error_books(db, exam_id=exam_id, school_id=school_id)
+        patterns = await update_error_patterns(db, exam_id=exam_id, school_id=school_id)
+
+    # Step 3: override snapshot with imported official values
+    overrides = 0
+    for subj_data in parsed.subjects:
+        for stu_score in subj_data.students:
+            match = matched_students.get(stu_score.student_key)
+            if not match:
+                continue
+            if stu_score.converted_score is None and stu_score.class_rank is None:
+                continue
+
+            # Find the generated snapshot
+            snap = (await db.execute(select(StudentExamSnapshot).where(
+                StudentExamSnapshot.student_id == match.edu_student_id,
+                StudentExamSnapshot.exam_id == exam_id,
+                StudentExamSnapshot.subject_code == subj_data.subject_code,
+                StudentExamSnapshot.school_id == school_id,
+            ))).scalar_one_or_none()
+
+            if not snap:
+                continue
+
+            if stu_score.converted_score is not None:
+                snap.converted_score = stu_score.converted_score
+            if stu_score.grade_level is not None:
+                snap.error_summary = snap.error_summary or {}
+                snap.error_summary["grade_level"] = stu_score.grade_level
+            if stu_score.class_rank is not None:
+                snap.class_rank = stu_score.class_rank
+            if stu_score.school_rank is not None:
+                snap.grade_rank = stu_score.school_rank
+            # Sync official raw_total into snapshot
+            if stu_score.raw_total is not None and snap.max_score and snap.max_score > 0:
+                snap.total_score = stu_score.raw_total
+                snap.score_rate = round(stu_score.raw_total / snap.max_score, 4)
+            overrides += 1
+
+    await db.commit()
+
+    return {
+        "snapshots": snapshots,
+        "error_books": errors,
+        "error_patterns": patterns,
+        "overrides": overrides,
+    }
 
 
 # ── private upsert helpers ───────────────────────────────────────

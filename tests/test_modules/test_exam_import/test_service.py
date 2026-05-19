@@ -18,9 +18,12 @@ from edu_cloud.modules.exam_import.parser import (
 from edu_cloud.modules.exam_import.service import (
     match_students,
     commit_import,
+    run_post_import_pipeline,
     _normalize_class,
     MatchResult,
 )
+from edu_cloud.modules.profile.models import StudentExamSnapshot
+from edu_cloud.modules.bank.models import StudentErrorBook
 
 pytestmark = pytest.mark.asyncio
 
@@ -468,3 +471,117 @@ async def test_commit_absent_then_normal(db: AsyncSession):
     assert len(scored_gr) >= 2
     assert all(g.status == "confirmed" for g in gr_list)
     assert all(g.source == "import_questions" for g in scored_gr)
+
+
+# ── run_post_import_pipeline tests ──────────────────────────────
+
+
+async def test_post_import_pipeline_preserves_converted_score(db: AsyncSession):
+    """Pipeline generates snapshot and preserves imported converted_score."""
+    school, stu, matched = await _seed_for_commit(db)
+
+    # Build parsed data with converted_score and raw_total
+    parsed = _make_parsed_data(
+        students=[
+            StudentScore(
+                student_key="S001",
+                student_name="甲",
+                raw_total=85.0,
+                converted_score=85.0,
+                class_rank=1,
+                school_rank=5,
+                question_scores={"选择1": 3.0, "选择2": 0.0, "17": 8.0},
+            ),
+        ],
+    )
+
+    # Step 1: commit the import
+    stats = await commit_import(
+        db,
+        parsed=parsed,
+        matched_students=matched,
+        school_id=school.id,
+        exam_name="联考期中",
+        exam_type="joint",
+        grade_scope="高一",
+        import_mode="questions",
+    )
+    exam_id = stats["exam_id"]
+
+    # Step 2: run pipeline
+    pipeline_result = await run_post_import_pipeline(
+        db,
+        exam_id=exam_id,
+        school_id=school.id,
+        import_mode="questions",
+        parsed=parsed,
+        matched_students=matched,
+    )
+
+    assert pipeline_result["snapshots"] >= 1
+    assert pipeline_result["overrides"] >= 1
+
+    # Verify snapshot has converted_score preserved
+    snap = (await db.execute(select(StudentExamSnapshot).where(
+        StudentExamSnapshot.student_id == stu.id,
+        StudentExamSnapshot.exam_id == exam_id,
+        StudentExamSnapshot.subject_code == "YW",
+    ))).scalar_one()
+
+    assert snap.converted_score == 85.0
+    assert snap.total_score == 85.0
+    assert snap.class_rank == 1
+    assert snap.grade_rank == 5
+
+
+async def test_post_import_pipeline_totals_skips_error_books(db: AsyncSession):
+    """Totals mode skips error_book generation."""
+    school, stu, matched = await _seed_for_commit(db)
+
+    parsed = _make_parsed_data(
+        students=[
+            StudentScore(
+                student_key="S001",
+                student_name="甲",
+                raw_total=85.0,
+                class_rank=1,
+                school_rank=5,
+                question_scores={"选择1": 3.0, "选择2": 0.0, "17": 8.0},
+            ),
+        ],
+    )
+
+    # Commit with totals mode
+    stats = await commit_import(
+        db,
+        parsed=parsed,
+        matched_students=matched,
+        school_id=school.id,
+        exam_name="联考期中",
+        exam_type="joint",
+        grade_scope="高一",
+        import_mode="totals",
+    )
+    exam_id = stats["exam_id"]
+
+    # Run pipeline with totals mode
+    pipeline_result = await run_post_import_pipeline(
+        db,
+        exam_id=exam_id,
+        school_id=school.id,
+        import_mode="totals",
+        parsed=parsed,
+        matched_students=matched,
+    )
+
+    # Snapshots should be generated
+    assert pipeline_result["snapshots"] >= 1
+    # Error books should be skipped
+    assert pipeline_result["error_books"] == 0
+    assert pipeline_result["error_patterns"] == 0
+
+    # Double-check no error book entries exist
+    error_books = (await db.execute(select(StudentErrorBook).where(
+        StudentErrorBook.exam_id == exam_id,
+    ))).scalars().all()
+    assert len(error_books) == 0
