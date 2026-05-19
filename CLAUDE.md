@@ -106,10 +106,10 @@ cd /home/ops/projects/edu-cloud/frontend && npx vite build
 ## 测试命令
 
 ```bash
-# 后端 ECS pytest 实测 @ 2026-05-04：2246 passed / 33 failed（既有债）/ 23 skipped
+# 后端 pytest（2314 passed / 12 failed / 23 skipped @ 2026-05-19）
 cd /home/ops/projects/edu-cloud && .venv/bin/python -m pytest --tb=short -q
 
-# 前端 Vitest + happy-dom（frontend/ 2421 tests, 0 failed @ 2026-05-04）
+# 前端 Vitest + happy-dom（2373 passed / 3 failed @ 2026-05-19）
 cd /home/ops/projects/edu-cloud/frontend && npx vitest run
 ```
 <!-- key-end -->
@@ -251,18 +251,31 @@ src/edu_cloud/
     studio.py → modules/studio/router.py
     calendar.py → modules/calendar/router.py
     workspace.py → modules/exam/workspace_router.py
-  models/
+  models/               # 44 个 ORM 模型文件，按域分组：
     base.py             # Base + IdMixin(UUID) + TenantMixin(school_id) + TimestampMixin(UTC)
-    school_settings.py  # SchoolSetting（KV 配置）+ SchoolModule（模块开关）+ MODULE_CODES/DEFAULT_ENABLED
-    teacher_assignment.py # TeacherAssignment（教师排课记录：教师×班级×科目×学期）
-    subject_selection.py # SubjectSelection（学校选考科目组合：物化生/史地政等）
-    capability.py       # Capability（学校级角色能力配置：域×操作×角色）
-    audit_log.py        # AuditLog（实体变更审计日志）
-    agent_profile.py    # AgentProfile（Agent 身份）+ AgentRun（执行记录）
+    # —— 平台级 ——
     school.py           # RegisteredSchool（学校档案 + API Key + 心跳）
-    platform_user.py    # PlatformUser（4 角色 + bcrypt 密码）
-    joint_exam.py       # JointExam + JointExamParticipant + JointExamStudentResult
-    score_segment.py    # ScoreSegmentConfig（学校级分数段配置，per school + optional per subject override）
+    user.py / user_role.py # PlatformUser + UserRole（多角色）
+    school_settings.py  # SchoolSetting（KV）+ SchoolModule（模块开关）
+    teacher_assignment.py / subject_selection.py / capability.py  # 排课/选考/能力矩阵
+    audit_log.py / notification.py / menu.py  # 审计/通知/菜单
+    # —— 考试与阅卷 ——
+    exam.py / student.py / class_group.py / grade.py  # 考试/学生/班级/年级
+    grading.py / scan.py / card.py  # 阅卷任务/扫描/答题卡
+    score_segment.py    # 分数段配置（学校+科目覆盖）
+    # —— 分析与画像 ——
+    analytics.py / profile.py / bank.py  # 统计/画像/题库
+    knowledge.py / knowledge_tree.py / adaptive.py  # 知识库/图谱/自适应（BKT）
+    # —— 业务扩展 ——
+    conduct.py / guardian.py  # 德育（8 表）+ 家长绑定
+    homework.py / academic.py / calendar.py  # 作业/教务/校历
+    joint_exam.py       # 联考 + 参与校 + 跨校成绩
+    # —— AI Agent ——
+    ai_engine.py / ai_session.py  # LLM 槽位/会话
+    agent_profile.py / agent_finding.py / agent_memory.py / agent_snapshot.py  # Agent 身份/发现/记忆/快照
+    # —— 工作流 ——
+    document.py / workflow.py / approval.py  # Studio 文档/工作流/审批
+    scope_version.py / teaching_plan.py / llm_slot.py / memory.py  # 其他
   services/
     exceptions.py       # 5 个自定义异常（NotFound/Permission/Validation/Conflict/State）
     school_service.py   # 学校 CRUD + API Key 管理
@@ -280,7 +293,7 @@ src/edu_cloud/
     import_real_exam.py   # 真实考试数据导入工具（exam-ai 迁入）
   core/
     events.py           # 进程内 EventBus（exam.published handler 已接入 pipeline）
-    permissions.py      # 34 个 Permission 枚举 + 10 角色 RBAC 映射
+    permissions.py      # 49 个 Permission 枚举 + 10 角色 RBAC 映射
     scope_filter.py     # ScopeFilter 工具类（基于 UserRole 注入 WHERE 条件）
   knowledge/
     __init__.py         # 包入口
@@ -297,7 +310,7 @@ src/edu_cloud/
       trace_recorder.py # TraceRecorder — JSONL + DB 双写（user_id SHA256）
       tool_meta.py      # EduToolMeta — frozen 工具元数据
       tool_wrapper.py   # @edu_tool 装饰器 + TOOL_META_REGISTRY 全局注册
-      tools/            # 65 个 @edu_tool 原生工具（15 模块文件）
+      tools/            # 68 个 @edu_tool 原生工具（16 模块文件）
     # 以下为旧引擎组件（生产路径已不引用，保留供旧测试参照）
     data_scope.py       # DataScope（frozen 数据可见性快照）+ DataScopeBuilder — 被 engine 引用
     prompts.py          # build_teacher_prompt + SCHEDULED_PROMPTS — 被 engine/worker 引用
@@ -315,16 +328,33 @@ src/edu_cloud/
   database.py           # async engine + session factory（PostgreSQL 连接池 pool_size=20/max_overflow=40/pool_recycle=3600）
   logging_config.py     # 日志系统 v2（进程分文件日滚 JSONL + 全链路 trace_id + business_event() + log_event()）
   worker.py             # arq WorkerSettings（6 functions: auto_draft/grading/pipeline/w3_daily/w6_hourly/agent_scheduled）
-scripts/
-  new-module            # 模块脚手架（scripts/new-module <name> [--pattern standard|multi-router|service-only]），生成标准目录+MODULE.md+router+service+test
+scripts/               # 60+ 脚本，按职责分类：
+  # —— 数据库 ——
+  db_migrate            # 安全 migration wrapper（flock→backup→dry-run→doctor→upgrade）；唯一合法 migration 路径
+  db_doctor.py          # ORM vs DB schema drift 检测（--startup/--strict/--json）
+  db_branch             # branch DB 隔离工具（init/refresh/prune/list/status）
+  # —— 日志 ——
   edu-log               # 日志查询 CLI（trace/req/user/exam/frontend/llm/slow/tail/stats，13 命令）
   edu-log-maintain      # 日志维护（14d 压缩/120d 删除/365d business/12GB 上限，cron 每日 03:00）
-  db_doctor.py          # ORM vs DB schema drift 检测（--startup/--strict/--json）
-  db_migrate            # 安全 migration wrapper（flock→backup→dry-run→doctor→upgrade）；唯一合法 migration 路径
-  db_branch             # branch DB 隔离工具（init/refresh/prune/list/status）
+  # —— 模块与种子 ——
+  new-module            # 模块脚手架（scripts/new-module <name> [--pattern standard|multi-router|service-only]）
+  seed_data.py / seed_menus.py  # 演示数据/菜单种子
+  # —— AI 阅卷校准 ——
+  essay_v*.py           # 8+ 版本迭代阅卷测试脚本
+  calibrate_*.py        # 阅卷校准（scan/bio_geo/universal）
+  bench_llm_concurrency.py  # LLM 并发基准测试
+  # —— 验证与治理 ——
   pytest_delta.py       # no-new-failures 回归门禁（对比 .quality/known-pytest-failures.txt 基线）
   e2e_joint_exam.py     # 端到端联考验证脚本（2 校完整流程）
-tests/
+  codex-check / codex-verify / meta-check  # 代码/元治理检查
+  truth / truth-doctor.sh / truth-status.sh  # 真源状态检查
+  guardian_runtime.py / guardian-watch  # Guardian 守护运行时
+  # —— 部署与知识 ——
+  setup_ecs_dev.sh / subagent-worktree-bootstrap  # 环境初始化
+  run-arq-worker        # arq Worker 启动
+  sync_concept_graph.py / migrate_knowledge_hierarchy.py  # 知识图谱同步/迁移
+  import_mcu_planning_weights.py  # 知识点规划权重导入
+tests/                 # 306 个测试文件，17 个子目录：
   conftest.py           # SQLite in-memory + AsyncClient + admin/school/db_engine fixtures
   test_api/             # 平台 API 测试（health/deps/schools/joint_exams/sync_v2/results/tenant_isolation）
   test_api_exam/        # 考试 API 测试（exam-ai 迁入，32 文件）
@@ -332,8 +362,17 @@ tests/
   test_services_exam/   # 考试 Service 单测（exam-ai 迁入，27 文件）
   test_exam_misc/       # 考试杂项测试（answer_standardizer/template_library/integration）
   test_models/          # 模型单测
+  test_modules/         # 模块级集成测试
   test_knowledge/       # 知识库单测（loader/store）
+  test_knowledge_tree/  # 知识图谱测试
   test_workers/         # Worker 单测（grading task 注册/签名验证）
+  test_conduct/         # 德育模块测试
+  test_adaptive/        # 自适应学习测试（BKT/路径规划）
+  test_ai/              # AI Agent 测试
+  test_core/            # 核心层测试（权限/scope）
+  test_logging/         # 日志系统测试
+  test_menu/            # 菜单测试
+  governance/           # 治理规则测试
   test_alembic_migration.py  # Alembic 迁移 smoke test（upgrade/downgrade/表集合对比）
 ```
 
@@ -344,12 +383,12 @@ tests/
 | API | 320 路由（43 router 文件，跨 21 模块 + 平台级路由） | 共享 AI 阅卷 |
 | Models | 88 表（modules/ 下 18 模块 + core 平台表 + AI Agent 表 + agent evolution 8 表 + score_segment_config + knowledge_tree 3 表 + adaptive 7 表 + academic 3 表 + alembic_version） | — |
 | Services | School/JointExam/Results/Paper/Studio/Calendar/Notification/HomeworkTask/HomeworkSubmission/Analytics/Profile/Bank/Pipeline/Conduct/KnowledgeTree/Scan/Adaptive + exceptions | AI grading 生产接入 |
-| Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 34 权限 + 16 角色映射（11 活跃 + 5 legacy 兼容） | — |
-| AI | Pydantic AI 引擎（EduAgentRuntime）+ 65 @edu_tool（15 模块）+ PolicyToolGuardrail 4 层 RBAC + AgentBudget + ConfirmationBroker 写确认 + ArtifactManager DB 持久化 + TraceRecorder DB 双写 + budget snapshot。旧 AgentLoop/Supervisor/tools/ 已删除（2026-05-13），保留 anonymizer/data_scope/memory_*/prompts/ref_*/schemas/models/workflow | 常驻巡检 Agent |
+| Core | EventBus（exam.published handler 已接入 pipeline）, RBAC 49 权限 + 10 角色映射 | — |
+| AI | Pydantic AI 引擎（EduAgentRuntime）+ 68 @edu_tool（16 模块）+ PolicyToolGuardrail 4 层 RBAC + AgentBudget + ConfirmationBroker 写确认 + ArtifactManager DB 持久化 + TraceRecorder DB 双写 + budget snapshot。旧 AgentLoop/Supervisor/tools/ 已删除（2026-05-13），保留 anonymizer/data_scope/memory_*/prompts/ref_*/schemas/models/workflow | 常驻巡检 Agent |
 | Knowledge | KnowledgeStore（课标/L0/L1/高考索引，关键字搜索，全局单例）+ L3 查询工具（4 tools，启动加载）+ ConceptGraphNode 统一引用（旧 knowledge_points UUID 已废弃）| — |
-| Tests | 2321 passed / 2 failed（governance hook）后端 + 2368 前端 Vitest 0 failed（ECS 实测 @ 2026-05-13，旧引擎 447 测试随代码删除） | — |
+| Tests | 后端：2314 passed / 12 failed / 23 skipped（306 测试文件）+ 前端：2373 passed / 3 failed Vitest（ECS @ 2026-05-19） | — |
 | Modules | 21 模块目录，路由已迁入。技术债拆分后：`card` 含 `router.py`(839行) + `card_template_router.py`(230行) + `card_export_router.py`(326行) + `card_utils.py`(54行) + `layout_helpers.py`(排版纯函数，从旧 ai/tools/card_layout.py 提取)；`scan` 含 `pipeline_router.py`(907行) + `cv_detect_router.py`(430行)；`grading` 含 `router.py`(520行) + `grading_review_router.py`(396行) + `prompts/` 子包 + `gemini_client.py`(官方SDK) + `image_utils.py`(图片预处理) + `detail_flatten.py`(LLM输出标准化)；`analytics` 含 `router.py`(220行) + `analytics_report_router.py`(585行) + `diagnosis_service.py` + `insights_service.py` + `pipeline_service.py`。`ReviewPage.vue` 拆分为 3 composable（`review/useImageZoom.js` + `useAnnotations.js` + `useScoring.js`）。详见 `docs/2026-04-26-tech-debt-audit.md` §修复记录 | — |
-| Migrations | Alembic migration（90 表，43 个迁移，head `ed1f8408241c` knowledge FK unification）。**唯一合法 migration 路径：`python scripts/db_migrate [target]`**（直接 `alembic upgrade` 被 env.py guard 阻断） | — |
+| Migrations | Alembic migration（48 个迁移文件）。**唯一合法 migration 路径：`python scripts/db_migrate [target]`**（直接 `alembic upgrade` 被 env.py guard 阻断） | — |
 
 ## 技术栈
 
