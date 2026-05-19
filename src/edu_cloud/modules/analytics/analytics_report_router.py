@@ -45,6 +45,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+async def _exam_school(db: AsyncSession, role, exam_id: str) -> str:
+    """Cross-school roles (school_id=None) need the exam's own school_id."""
+    if role.school_id is not None:
+        return role.school_id
+    from edu_cloud.modules.exam.models import Exam as _E
+    row = (await db.execute(sa_select(_E.school_id).where(_E.id == exam_id))).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(404, "Exam not found")
+    return row
+
+
 # --- PowerOptions 级联筛选器 ---
 
 @router.get("/power-options")
@@ -76,9 +87,10 @@ async def level_score_convert(
 ):
     """等级赋分转换：原始分按百分位划分等级，线性插值赋分。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, body["exam_id"])
     result = await convert_level_score(
         db,
-        school_id=role.school_id,
+        school_id=sid,
         exam_id=body["exam_id"],
         subject_id=body["subject_id"],
         levels=body["levels"],
@@ -100,8 +112,9 @@ async def get_basic_report(
     current: dict = Depends(get_current_user),
 ):
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await basic_report(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id, class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
@@ -119,8 +132,9 @@ async def get_common_wrong_questions(
 ):
     """常错题聚合：按题错误人数和平均得分率，按错误率降序。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await common_wrong_questions(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id,
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
@@ -137,8 +151,9 @@ async def get_question_insights(
 ):
     """题目错因聚合 + 难度/区分度。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await question_insights(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id,
         class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
@@ -156,8 +171,9 @@ async def get_exam_diagnosis(
 ):
     """考试诊断文本（模板拼接，ORC-007 不调 LLM）。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await exam_diagnosis(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id,
         class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
@@ -175,10 +191,11 @@ async def get_ai_grading_report(
 ):
     """AI 阅卷报告：覆盖率、置信度、AI/人工差异、流水线质量和诊断建议。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await build_ai_grading_report(
         db,
         exam_id=exam_id,
-        school_id=role.school_id,
+        school_id=sid,
         subject_id=subject_id,
         class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
@@ -199,6 +216,7 @@ async def report_query(
     exam_ids = body.get("exam_ids", [])
     if not exam_ids:
         raise HTTPException(422, "exam_ids 不能为空")
+    sid = await _exam_school(db, role, exam_ids[0])
     RESTRICTED_METRICS = {"ranking", "top_bottom"}
     RESTRICTED_ROLES = {"parent", "homeroom_teacher", "subject_teacher"}
     ALL_METRICS = ["summary", "segments", "ranking", "questions", "top_bottom"]
@@ -209,7 +227,7 @@ async def report_query(
         allowed_metrics = requested_metrics
     return await build_report(
         db,
-        school_id=role.school_id,
+        school_id=sid,
         exam_ids=exam_ids,
         metrics=allowed_metrics,
         subject_codes=body.get("subject_codes"),
@@ -231,8 +249,9 @@ async def grade_trend_api(
     if role.role not in GRADE_TREND_ROLES:
         raise HTTPException(403, "无权查看年级趋势")
     ids = [eid.strip() for eid in exam_ids.split(",") if eid.strip()]
+    sid = await _exam_school(db, role, ids[0]) if ids else role.school_id
     return await get_grade_trend(
-        db, school_id=role.school_id, exam_ids=ids,
+        db, school_id=sid, exam_ids=ids,
         subject_code=subject_code,
         visible_subject_codes=get_visible_subject_codes(role),
     )
@@ -250,11 +269,12 @@ async def class_trend_api(
     if role.role == "parent":
         raise HTTPException(403, "家长无权查看班级趋势")
     ids = [eid.strip() for eid in exam_ids.split(",") if eid.strip()]
+    sid = await _exam_school(db, role, ids[0]) if ids else role.school_id
     vis_classes = get_visible_class_ids(role)
     if vis_classes is not None and class_id not in vis_classes:
         raise HTTPException(403, "无权访问该班级")
     return await get_class_trend(
-        db, school_id=role.school_id, exam_ids=ids, class_id=class_id,
+        db, school_id=sid, exam_ids=ids, class_id=class_id,
         subject_code=subject_code,
         visible_subject_codes=get_visible_subject_codes(role),
     )
@@ -271,6 +291,7 @@ async def student_trend_api(
     """显式校验 student_id 可见性（班级/家长 guardian）。"""
     role = current["current_role"]
     ids = [eid.strip() for eid in exam_ids.split(",") if eid.strip()]
+    sid = await _exam_school(db, role, ids[0]) if ids else role.school_id
     # 家长：只能查自己孩子（优先于班级可见性）
     if role.role == "parent":
         from edu_cloud.models.guardian import GuardianStudentLink
@@ -296,7 +317,7 @@ async def student_trend_api(
             if not stu_row or stu_row.class_id not in vis_classes:
                 raise HTTPException(403, "无权查看该学生数据")
     return await get_student_trend(
-        db, school_id=role.school_id, exam_ids=ids, student_id=student_id,
+        db, school_id=sid, exam_ids=ids, student_id=student_id,
         subject_code=subject_code,
         visible_subject_codes=get_visible_subject_codes(role),
     )
@@ -314,6 +335,7 @@ async def export_report(
     exam_ids = body.get("exam_ids", [])
     if not exam_ids:
         raise HTTPException(422, "exam_ids 不能为空")
+    sid = await _exam_school(db, role, exam_ids[0])
 
     RESTRICTED_METRICS = {"ranking", "top_bottom"}
     RESTRICTED_ROLES = {"parent", "homeroom_teacher", "subject_teacher"}
@@ -325,7 +347,7 @@ async def export_report(
         allowed_metrics = requested_metrics
 
     report_data = await build_report(
-        db, school_id=role.school_id, exam_ids=exam_ids,
+        db, school_id=sid, exam_ids=exam_ids,
         metrics=allowed_metrics,
         subject_codes=body.get("subject_codes"),
         class_ids=body.get("class_ids"),
@@ -348,12 +370,12 @@ async def export_report(
             "config": {"exam_ids": exam_ids, "metrics": body.get("metrics")},
             "sections": report_data["metrics"],
         },
-        school_id=role.school_id,
+        school_id=sid,
         created_by=user.id,
     )
     # Studio 状态流转：draft → reviewed → executed
-    await svc.transition_status(doc.id, "reviewed", school_id=role.school_id)
-    await svc.transition_status(doc.id, "executed", school_id=role.school_id)
+    await svc.transition_status(doc.id, "reviewed", school_id=sid)
+    await svc.transition_status(doc.id, "executed", school_id=sid)
     await db.commit()
 
     return {
@@ -378,9 +400,10 @@ async def export_grade_subject_report(
     权限：通过 visible_subject_codes / visible_class_ids 过滤。
     """
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     try:
         report = await build_grade_subject_report(
-            db, exam_id=exam_id, subject_id=subject_id, school_id=role.school_id,
+            db, exam_id=exam_id, subject_id=subject_id, school_id=sid,
             visible_subject_codes=get_visible_subject_codes(role),
             visible_class_ids=get_visible_class_ids(role),
         )
@@ -424,10 +447,11 @@ async def export_student_subject_report(
     家长/学生本人走 conduct/parent 体系（cp_token），不在此端点。
     """
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     try:
         report = await build_student_subject_report(
             db, student_id=student_id, exam_id=exam_id, subject_id=subject_id,
-            school_id=role.school_id,
+            school_id=sid,
             visible_subject_codes=get_visible_subject_codes(role),
             visible_class_ids=get_visible_class_ids(role),
         )
@@ -471,8 +495,9 @@ async def get_student_rankings(
 ):
     """学生排名 + 进退步 delta。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await student_rankings(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id, class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
@@ -490,8 +515,9 @@ async def get_critical_students(
 ):
     """临界生筛选。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await critical_students(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id, class_id=class_id,
         threshold=threshold,
         visible_subject_codes=get_visible_subject_codes(role),
@@ -508,8 +534,9 @@ async def get_class_boxplot(
 ):
     """各班分数箱线图数据。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await class_boxplot(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id,
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
@@ -527,8 +554,9 @@ async def get_class_knowledge(
 ):
     """班级×知识点 掌握率热力图。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await class_knowledge(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id,
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
@@ -544,8 +572,9 @@ async def get_class_diagnosis(
     current: dict = Depends(get_current_user),
 ):
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await class_diagnosis(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id,
         class_id=class_id,
         visible_class_ids=get_visible_class_ids(role),
@@ -562,8 +591,9 @@ async def get_class_error_patterns(
 ):
     """班级错误模式对比。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await class_error_patterns(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id,
         class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
@@ -582,8 +612,9 @@ async def get_layer_analysis(
     current: dict = Depends(get_current_user),
 ):
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await layer_analysis(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id,
         class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
@@ -602,8 +633,9 @@ async def grade_overview(
 ):
     """年级概览：某次考试中该年级各班级的聚合数据。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await get_grade_overview(
-        db, school_id=role.school_id, grade_id=grade_id, exam_id=exam_id,
+        db, school_id=sid, grade_id=grade_id, exam_id=exam_id,
         visible_subject_codes=get_visible_subject_codes(role),
     )
 
@@ -631,8 +663,9 @@ async def grade_subject_comparison(
 ):
     """年级科目对比：某次考试中该年级各科目的聚合数据。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await get_grade_subject_comparison(
-        db, school_id=role.school_id, grade_id=grade_id, exam_id=exam_id,
+        db, school_id=sid, grade_id=grade_id, exam_id=exam_id,
     )
 
 
@@ -649,8 +682,9 @@ async def generate_ai_diagnosis(
 ):
     """生成 AI 诊断报告（缓存命中则直接返回）。"""
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     return await ai_diagnosis_get_or_generate(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id, class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
@@ -670,8 +704,9 @@ async def get_ai_diagnosis(
     """获取缓存的 AI 诊断报告（不触发生成）。"""
     from edu_cloud.modules.analytics.ai_diagnosis_service import build_snapshot, _get_cache
     role = current["current_role"]
+    sid = await _exam_school(db, role, exam_id)
     snapshot = await build_snapshot(
-        db, exam_id=exam_id, school_id=role.school_id,
+        db, exam_id=exam_id, school_id=sid,
         subject_id=subject_id, class_id=class_id,
         visible_subject_codes=get_visible_subject_codes(role),
         visible_class_ids=get_visible_class_ids(role),
