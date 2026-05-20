@@ -467,7 +467,7 @@ async def scan_directory(
     school_id = get_school_id(current)
     await _check_scan_path_tenant(d, school_id, db)
     if not d.is_dir():
-        raise HTTPException(400, f"目录不存在: {req.dir_path}")
+        return {"dir_path": req.dir_path, "subjects": [], "created_subjects": 0}
 
     subjects = []
     for sub in sorted(d.iterdir()):

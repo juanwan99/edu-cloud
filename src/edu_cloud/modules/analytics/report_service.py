@@ -262,7 +262,14 @@ async def basic_report(
         )).scalar_one_or_none()
         if prev_exam_obj:
             prev_exam_info = {"name": prev_exam_obj.name}
-        prev_subjects = await _get_subjects(db, prev_exam_id, school_id, visible_subject_codes, subject_id)
+        if subject_id:
+            current_codes = [s.code for s in subjects]
+            prev_subjects = await _get_subjects(
+                db, prev_exam_id, school_id,
+                visible_subject_codes=current_codes,
+            )
+        else:
+            prev_subjects = await _get_subjects(db, prev_exam_id, school_id, visible_subject_codes)
         if prev_subjects:
             prev_subj_ids = [s.id for s in prev_subjects]
             prev_by_subj = await get_effective_scores_batch(db, prev_subj_ids, school_id, effective_class_ids)
