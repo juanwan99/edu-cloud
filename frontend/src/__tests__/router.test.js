@@ -43,9 +43,9 @@ describe('Route definitions (real routes)', () => {
     expect(routes).toHaveLength(6)
   })
 
-  it('AppShell has 45 child routes', () => {
+  it('AppShell has 47 child routes', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
-    expect(shell.children).toHaveLength(45)
+    expect(shell.children).toHaveLength(47)
   })
 
   it('calendar route requires view_scores permission', () => {
@@ -106,6 +106,21 @@ describe('Route definitions (real routes)', () => {
     const marking = shell.children.find(r => r.path === 'marking')
     expect(marking).toBeTruthy()
     expect(marking.meta?.roles).toBeDefined()
+  })
+
+  it('grading dispatch requires manage_grading permission instead of broad role access', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const gradingDispatch = shell.children.find(r => r.path === 'grading/tasks')
+    expect(gradingDispatch).toBeTruthy()
+    expect(gradingDispatch.meta?.permissions).toEqual(['manage_grading'])
+    expect(gradingDispatch.meta?.roles).toBeUndefined()
+  })
+
+  it('homework route is guarded by homework permissions', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const homework = shell.children.find(r => r.path === 'homework')
+    expect(homework).toBeTruthy()
+    expect(homework.meta?.permissions).toEqual(['view_homework', 'manage_homework'])
   })
 })
 
@@ -212,7 +227,7 @@ describe('authGuard (real guard function)', () => {
     expect(router.currentRoute.value.path).toBe('/schools')
   })
 
-  it('normalizes legacy role aliases for route guard', async () => {
+  it('normalizes historical role aliases for route guard', async () => {
     localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     localStorage.setItem('auth_state', JSON.stringify({
       roles: [{ role: 'teacher', context: {} }],
@@ -254,5 +269,39 @@ describe('authGuard (real guard function)', () => {
     await router.push('/exams')
     await router.isReady()
     expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('does not allow subject teacher to access grading dispatch', async () => {
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
+    localStorage.setItem('auth_state', JSON.stringify({
+      roles: [{ role: 'subject_teacher', context: {} }],
+      currentRoleIndex: 0,
+    }))
+    const router = createTestRouter()
+    await router.push('/grading/tasks')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('allows subject teacher to access homework by homework permission', async () => {
+    localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
+    localStorage.setItem('auth_state', JSON.stringify({
+      roles: [{ role: 'subject_teacher', context: {} }],
+      currentRoleIndex: 0,
+    }))
+    const router = createTestRouter()
+    await router.push('/homework')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/homework')
+  })
+})
+
+
+describe('Router personnel permission alignment', () => {
+  it('teachers route is guarded by manage_teachers permission', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const teachers = shell.children.find(r => r.path === 'teachers')
+    expect(teachers).toBeTruthy()
+    expect(teachers.meta?.permissions).toEqual(['manage_teachers'])
   })
 })

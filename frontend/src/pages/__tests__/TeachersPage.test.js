@@ -288,3 +288,16 @@ describe('TeachersPage table columns', () => {
     expect(content).toContain("fixed: 'right'")
   })
 })
+
+
+describe('TeachersPage action access policy', () => {
+  it('gates teacher write actions with manage_teachers', () => {
+    expect(content).toContain("import { normalizeRole } from '../config/roles.js'")
+    expect(content).toContain("import { hasPermission } from '../config/permissions.js'")
+    expect(content).toContain("const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || ''))")
+    expect(content).toContain("const canManageTeachers = computed(() => hasPermission(normalizedRole.value, 'manage_teachers'))")
+    expect(content).toContain('v-if="canManageTeachers"')
+    expect(content).toContain('if (!canManageTeachers.value) return []')
+    expect(content).toContain('if (!canManageTeachers.value) return')
+  })
+})

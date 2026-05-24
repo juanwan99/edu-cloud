@@ -234,3 +234,17 @@ describe('StudentsPage table columns', () => {
     expect(content).toContain("{ default: () => '删除' }")
   })
 })
+
+
+describe('StudentsPage action permission policy', () => {
+  it('gates roster mutation actions behind manage_scheduling', () => {
+    expect(content).toContain("const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || ''))")
+    expect(content).toContain("const canManageStudents = computed(() => hasPermission(normalizedRole.value, 'manage_scheduling'))")
+    expect(content).toContain('v-if="canManageStudents"')
+    expect(content).toContain('if (canManageStudents.value) {')
+  })
+
+  it('guards create, update, delete, import, and export handlers programmatically', () => {
+    expect(content).toContain('if (!canManageStudents.value) return')
+  })
+})

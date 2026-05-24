@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AppShell from '../layouts/AppShell.vue'
-import { SCHOOL_ADMIN_ROLES, EXAM_ROLES, MARKING_ROLES, GRADING_DISPATCH_ROLES, normalizeRole } from '../config/roles.js'
+import { SCHOOL_ADMIN_ROLES, EXAM_ROLES, MARKING_ROLES, normalizeRole } from '../config/roles.js'
 import { hasPermission } from '../config/permissions.js'
 import clientLogger from '../utils/clientLogger.js'
 
@@ -26,6 +26,7 @@ export const routes = [
     meta: { requiresAuth: true },
     children: [
       { path: '', name: 'Dashboard', component: () => import('../pages/DashboardPage.vue') },
+      { path: 'workbench-preview', name: 'RoleWorkbenchPreview', component: () => import('../pages/RoleWorkbenchPreviewPage.vue') },
 
       // 考试
       { path: 'exam-import', name: 'ExamImport', component: () => import('../pages/ExamImportPage.vue'), meta: { permissions: ['import_exams'] } },
@@ -34,7 +35,7 @@ export const routes = [
       { path: 'card-dev/:examId', name: 'CardEditorDev', component: () => import('../pages/CardEditorDevPage.vue'), meta: { roles: EXAM_ROLES } },
 
       // 阅卷
-      { path: 'grading/tasks', name: 'GradingDispatch', component: () => import('../pages/GradingDispatchPage.vue'), meta: { roles: GRADING_DISPATCH_ROLES } },
+      { path: 'grading/tasks', name: 'GradingDispatch', component: () => import('../pages/GradingDispatchPage.vue'), meta: { permissions: ['manage_grading'] } },
       { path: 'grading/tasks/:id', name: 'GradingResults', component: () => import('../pages/GradingResultsPage.vue'), meta: { roles: SCHOOL_ADMIN_ROLES } },
       { path: 'marking', name: 'MarkingSelect', component: () => import('../pages/MarkingSelectPage.vue'), meta: { roles: MARKING_ROLES } },
       { path: 'marking/grade/:questionId', name: 'Review', component: () => import('../pages/ReviewPage.vue'), meta: { roles: MARKING_ROLES, shellMode: 'workspace' } },
@@ -42,10 +43,10 @@ export const routes = [
       { path: 'marking/progress', redirect: { name: 'GradingDispatch', query: { tab: 'progress' } } },
       { path: 'ai-grading', name: 'AiGradingEntry',
         component: () => import('../pages/AiGradingPage.vue'),
-        meta: { roles: GRADING_DISPATCH_ROLES } },
+        meta: { permissions: ['manage_grading'] } },
       { path: 'exams/:examId/ai-grading/:subjectId', name: 'AiGrading',
         component: () => import('../pages/AiGradingPage.vue'),
-        meta: { roles: GRADING_DISPATCH_ROLES } },
+        meta: { permissions: ['manage_grading'] } },
 
       // 学生画像
       { path: 'profile/student/:studentId', name: 'StudentProfile', component: () => import('../pages/StudentProfilePage.vue'), meta: { permissions: ['view_scores'] } },
@@ -72,7 +73,7 @@ export const routes = [
       { path: 'analytics', redirect: { name: 'AnalyticsReport' } },
 
       // 作业
-      { path: 'homework', name: 'Homework', component: () => import('../pages/HomeworkPage.vue'), meta: { permissions: ['manage_grading'] } },
+      { path: 'homework', name: 'Homework', component: () => import('../pages/HomeworkPage.vue'), meta: { permissions: ['view_homework', 'manage_homework'] } },
 
       // 校历
       { path: 'calendar', name: 'Calendar', component: () => import('../pages/CalendarPage.vue'), meta: { permissions: ['view_scores'] } },
@@ -84,7 +85,7 @@ export const routes = [
 
       // 人员信息
       { path: 'students', name: 'Students', component: () => import('../pages/StudentsPage.vue'), meta: { permissions: ['view_students', 'manage_scheduling'] } },
-      { path: 'teachers', name: 'Teachers', component: () => import('../pages/TeachersPage.vue'), meta: { permissions: ['manage_scheduling', 'manage_school_config'] } },
+      { path: 'teachers', name: 'Teachers', component: () => import('../pages/TeachersPage.vue'), meta: { permissions: ['manage_teachers'] } },
       { path: 'schools', name: 'Schools', component: () => import('../pages/SchoolsPage.vue'), meta: { permissions: ['manage_schools'] } },
       { path: 'school-settings', name: 'SchoolSettings', component: () => import('../pages/SchoolSettingsPage.vue'), meta: { permissions: ['manage_school_config'] } },
       { path: 'assignments', name: 'TeacherAssignments', component: () => import('../pages/TeacherAssignmentsPage.vue'), meta: { permissions: ['manage_scheduling'] } },

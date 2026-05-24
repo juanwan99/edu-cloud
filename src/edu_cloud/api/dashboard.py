@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.database import get_db
 from edu_cloud.core.auth import get_current_user
-from edu_cloud.api.permissions import get_visible_class_ids, get_visible_subject_codes
+from edu_cloud.api.permissions import resolve_visible_class_ids, get_visible_subject_codes
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 
@@ -17,7 +17,7 @@ async def get_summary(
 ):
     role = current["current_role"]
     school_id = role.school_id
-    visible_classes = get_visible_class_ids(role)
+    visible_classes = await resolve_visible_class_ids(db, role)
     visible_subjects = get_visible_subject_codes(role)
 
     from edu_cloud.models.student import Student

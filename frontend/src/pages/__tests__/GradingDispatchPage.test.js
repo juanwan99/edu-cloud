@@ -104,7 +104,7 @@ describe('GradingDispatchPage API imports', () => {
   })
 
   it('imports role config for permission check', () => {
-    expect(content).toContain("import { SCHOOL_ADMIN_ROLES } from '../config/roles.js'")
+    expect(content).toContain("import { normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'")
     expect(content).toContain("import { useAuthStore } from '../stores/auth'")
   })
 })
@@ -127,13 +127,15 @@ describe('GradingDispatchPage stageGroups computed', () => {
 })
 
 describe('GradingDispatchPage subject filtering', () => {
-  it('filters subjects by role and subject codes', () => {
-    expect(content).toContain('canManageAll.value || !mySubjectCodes.value')
+  it('filters subjects by all-school or scoped dispatch role', () => {
+    expect(content).toContain('if (canManageAll.value) return allSubjects.value')
+    expect(content).toContain('if (canManageOwnSubject.value && mySubjectCodes.value)')
     expect(content).toContain('mySubjectCodes.value.includes(s.subject_code)')
+    expect(content).toContain('return []')
   })
 
-  it('computes canManageAll from SCHOOL_ADMIN_ROLES', () => {
-    expect(content).toContain('SCHOOL_ADMIN_ROLES.includes(auth.roleName)')
+  it('computes canManageAll from normalized role and manage_grading permission', () => {
+    expect(content).toContain('canManageGrading.value && SCHOOL_ADMIN_ROLES.includes(normalizedRole.value)')
   })
 })
 
@@ -144,8 +146,7 @@ describe('GradingDispatchPage canDetect and canCut logic', () => {
       content.indexOf('function canCut(s)')
     )
     expect(fnBlock).toContain("s.stage !== 'pending_detect'")
-    expect(fnBlock).toContain('canManageAll.value')
-    expect(fnBlock).toContain('mySubjectCodes.value.includes(s.subject_code)')
+    expect(fnBlock).toContain('if (!canManageSubject(s)) return false')
   })
 
   it('canCut checks has_template and excludes idle/cutting', () => {
@@ -313,5 +314,30 @@ describe('GradingDispatchPage onExamChange resets state', () => {
     expect(fnBlock).toContain('selectedSubjects.value = []')
     expect(fnBlock).toContain('scanResults.value = []')
     expect(fnBlock).toContain("scanRootDir.value = ''")
+  })
+})
+
+
+describe('GradingDispatchPage action permission policy', () => {
+  it('separates all-school dispatch from scoped lesson-prep dispatch', () => {
+    expect(content).toContain("import { normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'")
+    expect(content).toContain("const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || auth.roleName || ''))")
+    expect(content).toContain("const canManageGrading = computed(() => auth.checkPermission('manage_grading'))")
+    expect(content).toContain('const canManageAll = computed(() => canManageGrading.value && SCHOOL_ADMIN_ROLES.includes(normalizedRole.value))')
+    expect(content).toContain("const canManageOwnSubject = computed(() => canManageGrading.value && normalizedRole.value === 'lesson_prep_leader')")
+  })
+
+  it('requires manage_grading before template detection or cutting actions', () => {
+    const detectBlock = content.slice(
+      content.indexOf('function canDetect(s)'),
+      content.indexOf('const detectableSubjects')
+    )
+    expect(detectBlock).toContain('if (!canManageSubject(s)) return false')
+
+    const cutBlock = content.slice(
+      content.indexOf('function canCut(s)'),
+      content.indexOf('const detectableSubjects')
+    )
+    expect(cutBlock).toContain('if (!canManageSubject(s)) return false')
   })
 })

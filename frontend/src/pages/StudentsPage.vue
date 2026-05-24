@@ -5,7 +5,7 @@
         <h1 class="page-title">学生管理</h1>
         <p class="page-subtitle">管理学生信息，支持 Excel 批量导入</p>
       </div>
-      <div class="action-buttons">
+      <div v-if="canManageStudents" class="action-buttons">
         <n-dropdown :options="exportOptions" @select="handleExportSelect">
           <n-button class="btn-pill">导出 Excel</n-button>
         </n-dropdown>
@@ -132,7 +132,8 @@ import { hasPermission } from '../config/permissions.js'
 
 const router = useRouter()
 const auth = useAuthStore()
-const canManageScheduling = hasPermission(normalizeRole(auth.currentRole?.role || ''), 'manage_scheduling')
+const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || ''))
+const canManageStudents = computed(() => hasPermission(normalizedRole.value, 'manage_scheduling'))
 
 const message = useMessage()
 const dialog = useDialog()
@@ -228,11 +229,18 @@ const columns = [
   },
   {
     title: '操作', key: 'actions', width: 200,
-    render: (row) => h('div', { style: 'display: flex; gap: var(--space-2);' }, [
-      h(NButton, { text: true, type: 'info', size: 'small', onClick: () => router.push({ name: 'StudentProfile', params: { studentId: row.id } }) }, { default: () => '画像' }),
-      h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
-      h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' }),
-    ]),
+    render: (row) => {
+      const buttons = [
+        h(NButton, { text: true, type: 'info', size: 'small', onClick: () => router.push({ name: 'StudentProfile', params: { studentId: row.id } }) }, { default: () => '画像' }),
+      ]
+      if (canManageStudents.value) {
+        buttons.push(
+          h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
+          h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' }),
+        )
+      }
+      return h('div', { style: 'display: flex; gap: var(--space-2);' }, buttons)
+    },
   },
 ]
 
@@ -294,6 +302,7 @@ async function loadStudents() {
 }
 
 async function handleCreate() {
+  if (!canManageStudents.value) return
   if (!createForm.name || !createForm.student_number) {
     message.warning('姓名和学号为必填')
     return
@@ -311,6 +320,7 @@ async function handleCreate() {
 }
 
 function openEdit(row) {
+  if (!canManageStudents.value) return
   editingId.value = row.id
   Object.assign(editForm, {
     name: row.name, student_number: row.student_number,
@@ -322,6 +332,7 @@ function openEdit(row) {
 }
 
 async function handleUpdate() {
+  if (!canManageStudents.value) return
   saving.value = true
   try {
     await updateStudent(editingId.value, editForm)
@@ -334,6 +345,7 @@ async function handleUpdate() {
 }
 
 function handleDelete(row) {
+  if (!canManageStudents.value) return
   dialog.warning({
     title: '确认删除',
     content: `确定要删除学生「${row.name}」吗？`,
@@ -356,6 +368,7 @@ function handleFileChange({ fileList }) {
 }
 
 async function handleImport() {
+  if (!canManageStudents.value) return
   if (!importFile.value) { message.warning('请选择文件'); return }
   importing.value = true
   try {
@@ -380,6 +393,7 @@ const exportOptions = [
 ]
 
 async function handleExportSelect(key) {
+  if (!canManageStudents.value) return
   try {
     const params = {}
     if (key === 'template') params.template = '1'
@@ -398,7 +412,7 @@ async function handleExportSelect(key) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadGrades(), loadClasses(), canManageScheduling ? loadSelections() : Promise.resolve()])
+  await Promise.all([loadGrades(), loadClasses(), canManageStudents.value ? loadSelections() : Promise.resolve()])
   await loadStudents()
 })
 </script>

@@ -2,6 +2,7 @@ import pytest
 from edu_cloud.models.school import School
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
+from edu_cloud.models.class_group import ClassGroup
 from edu_cloud.modules.exam.models import Exam, Subject
 from edu_cloud.modules.grading.models import GradingTask
 from edu_cloud.shared.auth import create_access_token
@@ -108,3 +109,45 @@ async def test_grade_overview_excludes_other_subjects(client, dashboard_scope_da
                 assert code != "chinese", "数学教师不应看到语文科目数据"
     else:
         pytest.fail(f"Unexpected status {resp.status_code}: {resp.text}")
+
+
+@pytest.mark.asyncio
+async def test_dashboard_grade_leader_counts_assigned_grade_only(client, db):
+    """Grade leader with only grade_ids should see assigned-grade counts, not 0 or whole school."""
+    school = School(name="年级范围校", code="GLDS", district="D", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+
+    grade7 = ClassGroup(name="七年级1班", grade="七年级", grade_number=7, school_id=school.id)
+    grade8 = ClassGroup(name="八年级1班", grade="八年级", grade_number=8, school_id=school.id)
+    db.add_all([grade7, grade8])
+    await db.flush()
+
+    from edu_cloud.models.student import Student
+    db.add_all([
+        Student(name="七年级学生", student_number="GL001", class_id=grade7.id, school_id=school.id, grade="七年级"),
+        Student(name="八年级学生", student_number="GL002", class_id=grade8.id, school_id=school.id, grade="八年级"),
+    ])
+    await db.flush()
+
+    user = User(username="grade_leader_dash", display_name="年级组长")
+    user.set_password("test123")
+    db.add(user)
+    await db.flush()
+
+    role = UserRole(user_id=user.id, role="grade_leader", school_id=school.id, grade_ids=["7"], is_primary=True)
+    db.add(role)
+    await db.commit()
+
+    token = create_access_token({
+        "sub": user.id,
+        "role": "grade_leader",
+        "school_id": school.id,
+        "active_role_id": role.id,
+    })
+
+    resp = await client.get("/api/v1/dashboard/summary", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_classes"] == 1
+    assert data["total_students"] == 1

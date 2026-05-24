@@ -161,6 +161,31 @@ class DataScopeBuilder:
                 can_see_rankings=True,
             )
 
+
+        if role_str == "teaching_research_leader":
+            return self._make(
+                user_id=user_id,
+                school_id=school_id,
+                role=role_str,
+                persona=persona,
+                visible_subject_codes=role_row.subject_codes or [],
+                can_write=True,
+                can_see_rankings=True,
+            )
+
+        if role_str == "lesson_prep_leader":
+            return self._make(
+                user_id=user_id,
+                school_id=school_id,
+                role=role_str,
+                persona=persona,
+                visible_class_ids=role_row.class_ids or None,
+                visible_subject_codes=role_row.subject_codes or [],
+                visible_grade_ids=role_row.grade_ids or [],
+                can_write=True,
+                can_see_rankings=True,
+            )
+
         if role_str == "homeroom_teacher":
             return await self._build_homeroom(user_id, school_id, role_row, persona)
 

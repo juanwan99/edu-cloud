@@ -1,5 +1,5 @@
 /**
- * sidebarConfig conduct permission-based sidebar tests
+ * sidebarConfig conduct role-policy sidebar tests
  *
  * Post-restructure: 10 flat items → 2 entries (德育工作台 + 德育设置)
  */
@@ -39,8 +39,8 @@ describe('sidebar conduct 条目按角色权限派生', () => {
     expect(getConductItems('grade_leader')).toHaveLength(1)
   })
 
-  it('subject_teacher 看到 1 项（仅工作台）', () => {
-    expect(getConductItems('subject_teacher')).toHaveLength(1)
+  it('subject_teacher 默认无 conduct 入口', () => {
+    expect(getConductItems('subject_teacher')).toHaveLength(0)
   })
 
   it('parent 看到 1 项（仅工作台）', () => {

@@ -33,6 +33,7 @@
               <n-switch
                 :value="m.enabled"
                 :loading="toggling === m.code"
+                :disabled="!canManageSchoolConfig"
                 @update:value="(v) => handleToggle(m.code, v)"
               />
             </div>
@@ -49,7 +50,7 @@
       <n-tab-pane name="capabilities" tab="能力矩阵">
         <n-card title="角色能力矩阵" style="margin-top: var(--space-4)">
           <template #header-extra>
-            <n-button size="small" class="btn-pill" @click="handleInitCapabilities">初始化默认</n-button>
+            <n-button v-if="canManageSchoolConfig" size="small" class="btn-pill" @click="handleInitCapabilities">初始化默认</n-button>
           </template>
           <div style="margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-3);">
             <n-text>按角色筛选：</n-text>
@@ -84,6 +85,7 @@
                   <td v-for="role in capRoles" :key="role" style="text-align: center;">
                     <n-checkbox
                       :checked="getCapValue(role, da.domain, da.action)"
+                      :disabled="!canManageSchoolConfig"
                       @update:checked="(v) => handleSetCapability(role, da.domain, da.action, v)"
                     />
                   </td>
@@ -114,6 +116,8 @@ import { NText, NIcon } from 'naive-ui'
 import { useMessage } from 'naive-ui'
 import { useAuthStore } from '../stores/auth.js'
 import { ROLE_LABELS } from '../config/roles.js'
+import { normalizeRole } from '../config/roles.js'
+import { hasPermission } from '../config/permissions.js'
 import {
   getSchoolModules, toggleModule, getSchoolSettings, updateSchoolSetting,
   getCapabilities, setCapability, initCapabilities,
@@ -153,6 +157,8 @@ function getModuleIcon(code) {
 }
 
 const auth = useAuthStore()
+const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || ''))
+const canManageSchoolConfig = computed(() => hasPermission(normalizedRole.value, 'manage_school_config'))
 const message = useMessage()
 const modules = ref([])
 const settings = ref([])
@@ -229,12 +235,14 @@ const settingsColumns = [
 ]
 
 function startEditSetting(row) {
+  if (!canManageSchoolConfig.value) return
   editingSettingRow.value = row
   editingSettingValue.value = row.value || ''
   showEditSetting.value = true
 }
 
 async function handleSaveSetting() {
+  if (!canManageSchoolConfig.value) return
   if (!editingSettingRow.value) return
   try {
     await updateSchoolSetting(schoolId(), {
@@ -282,6 +290,7 @@ async function loadCapabilities() {
 }
 
 async function handleToggle(code, enabled) {
+  if (!canManageSchoolConfig.value) return
   toggling.value = code
   try {
     await toggleModule(schoolId(), code, enabled)
@@ -295,6 +304,7 @@ async function handleToggle(code, enabled) {
 }
 
 async function handleSetCapability(role, domain, action, enabled) {
+  if (!canManageSchoolConfig.value) return
   try {
     await setCapability(schoolId(), { role, domain, action, enabled })
     // Update local state optimistically
@@ -307,6 +317,7 @@ async function handleSetCapability(role, domain, action, enabled) {
 }
 
 async function handleInitCapabilities() {
+  if (!canManageSchoolConfig.value) return
   try {
     await initCapabilities(schoolId())
     message.success('能力矩阵已初始化')

@@ -4,32 +4,44 @@
     :value="auth.currentRoleIndex"
     @select="handleSwitch"
     placement="bottom-end"
+    trigger="click"
     :style="{ maxHeight: '70vh', overflowY: 'auto' }"
     scrollable
   >
-    <div class="role-switcher" :title="displayLabel">
+    <button
+      type="button"
+      class="role-switcher"
+      :title="displayLabel"
+      :aria-label="`切换身份：${displayLabel}`"
+    >
       <span class="role-switcher__avatar">
         {{ auth.displayName?.[0] || 'U' }}
       </span>
+      <span v-if="compact" class="role-switcher__compact-role">{{ displayLabel }}</span>
       <span v-if="!compact" class="role-switcher__info">
         <span class="role-switcher__name">{{ auth.displayName }}</span>
         <span class="role-switcher__role">{{ displayLabel }}</span>
       </span>
-    </div>
+    </button>
   </n-dropdown>
 </template>
 
 <script setup>
 import { h, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { NTag } from 'naive-ui'
 import { useAuthStore } from '../../stores/auth.js'
 import { normalizeRole, ROLE_LABELS } from '../../config/roles.js'
+import { canAccessRouteForRole } from '../../config/routeAccess.js'
+import { getSidebarItems } from '../../config/sidebarConfig.js'
 
 defineProps({
   compact: { type: Boolean, default: false },
 })
 
 const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 
 const displayLabel = computed(() => {
   const raw = auth.currentRole?.role
@@ -88,16 +100,35 @@ const roleOptions = computed(() => {
   return items
 })
 
-function handleSwitch(key) {
+function isRouteInRoleWorkbench(roleKey, path, enabledModules) {
+  if (path === '/') return true
+  return getSidebarItems(roleKey, enabledModules).some(item => {
+    if (item.route === '/') return false
+    return path === item.route || path.startsWith(`${item.route}/`)
+  })
+}
+
+async function handleSwitch(key) {
   if (key === 'logout') {
     auth.logout()
     return
   }
   if (key === 'header' || key === 'divider') return
   if (typeof key === 'number' && key !== auth.currentRoleIndex) {
-    auth.switchRole(key)
+    const targetRole = auth.roles[key]?.role
+    const targetRoleKey = normalizeRole(targetRole)
+    const switched = await auth.switchRole(key)
+    if (!switched) return
+    const enabledModules = auth.modulesLoaded ? auth.enabledModules : []
+    const routeAllowed = canAccessRouteForRole(targetRoleKey, route.path, enabledModules)
+    const routeInWorkbench = isRouteInRoleWorkbench(targetRoleKey, route.path, enabledModules)
+    if (!routeAllowed || !routeInWorkbench) {
+      router.push('/')
+    }
   }
 }
+
+defineExpose({ handleSwitch })
 </script>
 
 <style scoped>
@@ -106,6 +137,10 @@ function handleSwitch(key) {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   padding: 4px;
   border-radius: var(--radius-sm);
   transition: var(--transition);
@@ -140,6 +175,17 @@ function handleSwitch(key) {
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+.role-switcher__compact-role {
+  max-width: 132px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-snug);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .role-switcher__name {

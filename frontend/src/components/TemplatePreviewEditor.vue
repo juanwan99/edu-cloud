@@ -53,7 +53,7 @@
 
         <div style="flex:1" />
         <n-button size="small" quaternary @click="$emit('cancel')">取消</n-button>
-        <n-button size="small" type="primary" @click="handleConfirm">确��保存</n-button>
+        <n-button size="small" type="primary" @click="handleConfirm">确认保存</n-button>
       </div>
 
       <div class="tpl-viewport" ref="viewport" :class="{ 'split-active': splitMode }"
@@ -536,11 +536,13 @@ onBeforeUnmount(() => { if (typeof window !== 'undefined') window.removeEventLis
   position: absolute; top: 2px; left: 4px;
   font-size: var(--fs-base); font-weight: var(--fw-semibold);
   text-shadow: 0 0 3px rgba(0,0,0,0.8);
+  white-space: nowrap;
 }
 .tpl-rtype {
   position: absolute; top: 2px; right: 4px;
   font-size: var(--fs-base); color: var(--color-border); background: rgba(0,0,0,0.5);
   padding: 0 4px; border-radius: 2px;
+  white-space: nowrap;
 }
 .tpl-rqno {
   position: absolute; bottom: 2px; left: 4px;

@@ -159,6 +159,40 @@ describe('auth store login()', () => {
     // findIndex returns -1 when no match, || 0 should fallback to 0
     expect(store.currentRoleIndex).toBe(0)
   })
+
+  it('login prefers highest-priority admin identity when no primary role exists', async () => {
+    client.post.mockResolvedValueOnce({
+      data: {
+        access_token: 'jwt-admin',
+        user: { id: 'u3', display_name: 'Chen' },
+        roles: [
+          { id: 'r1', role: 'subject_teacher', is_primary: false, context: null },
+          { id: 'r2', role: 'school_admin', is_primary: false, context: { type: 'school', name: 'Yucai' } },
+        ],
+      },
+    })
+    const store = useAuthStore()
+    await store.login('chen', 'pass')
+    expect(store.currentRoleIndex).toBe(1)
+    expect(store.currentRole.role).toBe('school_admin')
+  })
+
+  it('login still respects backend primary role over local priority', async () => {
+    client.post.mockResolvedValueOnce({
+      data: {
+        access_token: 'jwt-primary',
+        user: { id: 'u4', display_name: 'Gao' },
+        roles: [
+          { id: 'r1', role: 'school_admin', is_primary: false, context: null },
+          { id: 'r2', role: 'subject_teacher', is_primary: true, context: null },
+        ],
+      },
+    })
+    const store = useAuthStore()
+    await store.login('gao', 'pass')
+    expect(store.currentRoleIndex).toBe(1)
+    expect(store.currentRole.role).toBe('subject_teacher')
+  })
 })
 
 describe('auth store switchRole()', () => {
@@ -183,7 +217,8 @@ describe('auth store switchRole()', () => {
     client.post.mockResolvedValueOnce({
       data: { access_token: 'new-jwt' },
     })
-    await store.switchRole(1)
+    const ok = await store.switchRole(1)
+    expect(ok).toBe(true)
     expect(store.currentRoleIndex).toBe(1)
     expect(store.token).toBe('new-jwt')
     expect(localStorage.getItem('token')).toBe('new-jwt')
@@ -202,7 +237,8 @@ describe('auth store switchRole()', () => {
     localStorage.setItem('auth_state', JSON.stringify(saved))
     const store = useAuthStore()
     client.post.mockRejectedValueOnce(new Error('network error'))
-    await store.switchRole(1)
+    const ok = await store.switchRole(1)
+    expect(ok).toBe(false)
     expect(store.currentRoleIndex).toBe(0) // rolled back
     expect(store.token).toBe('old-jwt') // unchanged
   })

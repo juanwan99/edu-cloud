@@ -32,3 +32,17 @@ describe('T1 — lesson_prep_leader conduct 权限回收', () => {
     expect(hasPermission('lesson_prep_leader', 'use_ai_chat')).toBe(true)
   })
 })
+
+
+describe('教师管理权限镜像', () => {
+  it('前端镜像包含后端教师管理权限 manage_teachers', () => {
+    expect(hasPermission('school_admin', 'manage_teachers')).toBe(true)
+    expect(hasPermission('principal', 'manage_teachers')).toBe(true)
+    expect(hasPermission('academic_director', 'manage_teachers')).toBe(true)
+  })
+
+  it('普通教师不具备教师 CRUD 权限', () => {
+    expect(hasPermission('subject_teacher', 'manage_teachers')).toBe(false)
+    expect(hasPermission('homeroom_teacher', 'manage_teachers')).toBe(false)
+  })
+})

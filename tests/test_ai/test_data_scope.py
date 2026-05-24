@@ -437,3 +437,68 @@ async def test_build_scope_parent_cross_school_isolation(db):
         f"Expected only school A child, got {scope.visible_student_ids}"
     )
     assert child_b not in (scope.visible_student_ids or [])
+
+
+@pytest.mark.asyncio
+async def test_build_scope_teaching_research_leader_uses_subject_scope(db):
+    """teaching_research_leader -> subject scope across school, no class narrowing."""
+    user = User(username="trl_scope", display_name="教研组长")
+    user.set_password("x")
+    db.add(user)
+    await db.flush()
+
+    school = School(name="教研校", code="TRL01", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+
+    role = UserRole(
+        user_id=user.id,
+        role="teaching_research_leader",
+        school_id=school.id,
+        subject_codes=["SX"],
+        is_primary=True,
+    )
+    db.add(role)
+    await db.commit()
+
+    builder = DataScopeBuilder(db)
+    scope = await builder.build(user.id, role.id)
+
+    assert scope.role == "teaching_research_leader"
+    assert scope.visible_subject_codes == ["SX"]
+    assert scope.visible_class_ids is None
+    assert scope.visible_grade_ids is None
+    assert scope.can_write is True
+
+
+@pytest.mark.asyncio
+async def test_build_scope_lesson_prep_leader_uses_grade_and_subject_scope(db):
+    """lesson_prep_leader -> grade + subject scope for same-grade same-subject work."""
+    user = User(username="lpl_scope", display_name="备课组长")
+    user.set_password("x")
+    db.add(user)
+    await db.flush()
+
+    school = School(name="备课校", code="LPL01", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+
+    role = UserRole(
+        user_id=user.id,
+        role="lesson_prep_leader",
+        school_id=school.id,
+        grade_ids=["7"],
+        subject_codes=["SX"],
+        is_primary=True,
+    )
+    db.add(role)
+    await db.commit()
+
+    builder = DataScopeBuilder(db)
+    scope = await builder.build(user.id, role.id)
+
+    assert scope.role == "lesson_prep_leader"
+    assert scope.visible_grade_ids == ["7"]
+    assert scope.visible_subject_codes == ["SX"]
+    assert scope.visible_class_ids is None
+    assert scope.can_write is True

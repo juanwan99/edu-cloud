@@ -2,6 +2,53 @@
   <div class="dashboard-page">
     <h1 class="greeting">早上好，{{ auth.user?.display_name || '老师' }}</h1>
 
+    <section class="teacher-hero">
+      <div class="teacher-hero__content">
+        <div class="teacher-hero__eyebrow">{{ workbenchProfile.label }}工作台</div>
+        <h2 class="teacher-hero__title">{{ workbenchProfile.title }}</h2>
+        <p class="teacher-hero__text">{{ workbenchProfile.summary }}</p>
+      </div>
+      <div class="teacher-hero__actions">
+        <n-button
+          v-for="(action, index) in heroActions"
+          :key="action.route"
+          :type="index === 0 ? 'primary' : 'default'"
+          :secondary="index !== 0"
+          size="large"
+          @click="router.push(action.route)"
+        >
+          {{ action.label }}
+        </n-button>
+      </div>
+    </section>
+
+    <section class="role-context-strip" aria-label="当前身份上下文">
+      <div
+        v-for="item in roleContextItems"
+        :key="item.label"
+        class="role-context-item"
+      >
+        <span class="role-context-item__label">{{ item.label }}</span>
+        <strong>{{ item.value }}</strong>
+        <small>{{ item.desc }}</small>
+      </div>
+    </section>
+
+    <section class="workflow-strip" aria-label="当前身份业务主线">
+      <router-link
+        v-for="stage in workflowStages"
+        :key="stage.key"
+        :to="stage.route"
+        class="workflow-stage"
+      >
+        <span class="workflow-stage__index">{{ stage.index }}</span>
+        <span class="workflow-stage__body">
+          <strong>{{ stage.title }}</strong>
+          <small>{{ stage.desc }}</small>
+        </span>
+      </router-link>
+    </section>
+
     <!-- Welcome Banner (first login / no exams) -->
     <div v-if="showWelcome" class="welcome-banner">
       <div class="welcome-banner__content">
@@ -39,6 +86,85 @@
         <n-tag :type="todo.tagType" size="small" round>{{ todo.count }}</n-tag>
       </div>
     </div>
+
+    <section class="teacher-workspace">
+      <article class="card priority-panel">
+        <div class="card-head">
+          <div>
+            <div class="card-title">今天先做什么</div>
+            <div class="card-sub">按当前身份动作排序，而不是按系统模块排序</div>
+          </div>
+          <n-tag type="warning" size="small" round>任务优先</n-tag>
+        </div>
+        <div class="priority-list">
+          <button
+            v-for="action in priorityActions"
+            :key="action.title"
+            type="button"
+            class="priority-item"
+            @click="router.push(action.route)"
+          >
+            <span :class="['priority-item__dot', `priority-item__dot--${action.tone}`]" />
+            <span class="priority-item__main">
+              <strong>{{ action.title }}</strong>
+              <small>{{ action.desc }}</small>
+            </span>
+            <n-tag :type="action.tagType" size="small" round>{{ action.tag }}</n-tag>
+          </button>
+        </div>
+      </article>
+
+      <article v-if="roleActionPanel.items.length > 0" class="card report-action-panel">
+        <div class="card-head">
+          <div>
+            <div class="card-title">{{ roleActionPanel.title }}</div>
+            <div class="card-sub">{{ roleActionPanel.sub }}</div>
+          </div>
+          <n-button v-if="canAccessRoute(roleActionPanel.actionRoute)" text type="primary" @click="router.push(roleActionPanel.actionRoute)">
+            {{ roleActionPanel.actionLabel }}
+          </n-button>
+        </div>
+        <div class="report-action-grid">
+          <button
+            v-for="item in roleActionPanel.items"
+            :key="item.title"
+            type="button"
+            class="report-action"
+            @click="router.push(item.route)"
+          >
+            <span :class="['report-action__badge', `report-action__badge--${item.tone}`]">{{ item.label }}</span>
+            <strong>{{ item.title }}</strong>
+            <small>{{ item.desc }}</small>
+          </button>
+        </div>
+      </article>
+    </section>
+
+    <section class="card business-map">
+      <div class="card-head">
+        <div>
+          <div class="card-title">次级业务入口</div>
+          <div class="card-sub">主任务之外只保留当前身份最常用的补充入口</div>
+        </div>
+      </div>
+      <div class="business-map__grid">
+        <div v-for="group in secondaryBusinessGroups" :key="group.title" class="business-group">
+          <div class="business-group__title">{{ group.title }}</div>
+          <router-link
+            v-for="item in group.items"
+            :key="item.route"
+            :to="item.route"
+            class="business-link"
+          >
+            <span>
+              <strong>{{ item.title }}</strong>
+              <small>{{ item.desc }}</small>
+            </span>
+            <span class="business-link__arrow">&rarr;</span>
+          </router-link>
+        </div>
+      </div>
+    </section>
 
     <div class="dashboard-grid">
       <div class="dashboard-left">
@@ -180,7 +306,7 @@
     <!-- Module Cards Grid -->
     <WidgetGrid :columns="2" class="module-grid">
       <DashboardCard
-        v-for="widget in config?.widgets"
+        v-for="widget in dashboardWidgets"
         :key="widget.id"
         :title="widget.title"
         :icon="widget.icon"
@@ -200,7 +326,14 @@ import { useRouter } from 'vue-router'
 import { NButton, NTag } from 'naive-ui'
 import { useAuthStore } from '../stores/auth'
 import { getDashboardConfig } from '../config/dashboardConfig'
+import { getSidebarItems } from '../config/sidebarConfig.js'
 import { normalizeRole } from '../config/roles'
+import { getWorkbenchProfile } from '../config/workbenchProfiles.js'
+import { buildAdminPriorityActions, buildRoleActionPanel } from '../config/roleWorkbenches.js'
+import {
+  ROUTE_ACCESS_REQUIREMENTS,
+  canAccessRequirementForRole,
+} from '../config/routeAccess.js'
 import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 import DashboardCard from '../components/dashboard/DashboardCard.vue'
 import WidgetGrid from '../components/dashboard/WidgetGrid.vue'
@@ -219,6 +352,8 @@ const router = useRouter()
 const auth = useAuthStore()
 const role = computed(() => normalizeRole(auth.currentRole?.role || ''))
 const config = computed(() => getDashboardConfig(role.value))
+const workbenchProfile = computed(() => getWorkbenchProfile(role.value))
+const adminRoleKeys = new Set(['platform_admin', 'district_admin', 'school_admin', 'principal'])
 
 const kpiData = ref({})
 const loading = ref(true)
@@ -241,6 +376,197 @@ const kpiIconMap = {
   ai_tools: 'ai',
 }
 
+const moduleFallbacks = ['exam', 'grading', 'calendar', 'studio']
+
+function moduleEnabled(moduleCode) {
+  if (!moduleCode) return true
+  const enabled = auth.enabledModules || []
+  if (!auth.modulesLoaded && enabled.length === 0) return moduleFallbacks.includes(moduleCode)
+  if (enabled.length === 0) return true
+  return enabled.includes(moduleCode)
+}
+
+function canAccess(item) {
+  const enabledModules = auth.modulesLoaded ? auth.enabledModules : []
+  return canAccessRequirementForRole(role.value, item, enabledModules)
+}
+
+const routeAccessRequirements = ROUTE_ACCESS_REQUIREMENTS
+
+function canAccessRoute(route) {
+  const requirement = routeAccessRequirements[route]
+  return requirement ? canAccess(requirement) : true
+}
+
+const heroActions = computed(() => [
+  workbenchProfile.value.primaryAction,
+  workbenchProfile.value.secondaryAction,
+]
+  .filter(Boolean)
+  .filter(action => canAccessRoute(action.route))
+  .slice(0, 2))
+
+const workflowStages = computed(() =>
+  workbenchProfile.value.flow
+    .filter(stage => canAccessRoute(stage.route))
+    .map((stage, index) => ({
+      ...stage,
+      key: `${stage.route}-${stage.title}`,
+      index: String(index + 1),
+    })),
+)
+
+function countLabel(values, unit) {
+  return Array.isArray(values) && values.length ? `${values.length} ${unit}` : ''
+}
+
+const scopeSummary = computed(() => {
+  const current = auth.currentRole || {}
+  if (!current.role) return '未设置范围'
+  if (adminRoleKeys.has(role.value)) return auth.currentContext?.name || '全校'
+
+  const parts = [
+    countLabel(current.grade_ids, '个年级'),
+    countLabel(current.class_ids, '个班级'),
+    countLabel(current.subject_codes, '个学科'),
+  ].filter(Boolean)
+
+  return parts.length ? parts.join(' · ') : (auth.currentContext?.name || '当前职责范围')
+})
+
+const roleContextItems = computed(() => [
+  {
+    label: '当前身份',
+    value: workbenchProfile.value.label,
+    desc: auth.currentContext?.name || '当前登录身份',
+  },
+  {
+    label: '数据范围',
+    value: scopeSummary.value,
+    desc: workbenchProfile.value.owns,
+  },
+  {
+    label: '默认隐藏',
+    value: '已收起无关入口',
+    desc: workbenchProfile.value.hides,
+  },
+  {
+    label: '多身份提醒',
+    value: auth.roles.length > 1 ? `${auth.roles.length} 个身份` : '单一身份',
+    desc: auth.roles.length > 1 ? '切换身份后再处理另一条工作流' : '当前只展示此身份工作流',
+  },
+])
+
+const reportActionItems = computed(() => {
+  const reviewAction = auth.checkPermission('manage_grading')
+    ? {
+        label: '复核',
+        title: '处理阅卷和 AI 结果风险',
+        desc: '将待确认项前置，避免报告发布后再返工。',
+        route: '/grading/tasks',
+        permission: 'manage_grading',
+        moduleCode: 'grading',
+        tone: 'coral',
+      }
+    : {
+        label: '阅卷',
+        title: '处理我的阅卷任务',
+        desc: '只进入自己被分配的阅卷范围，不暴露调度入口。',
+        route: '/marking',
+        permission: 'view_grading',
+        moduleCode: 'grading',
+        tone: 'coral',
+      }
+
+  return [
+    {
+      label: '概览',
+      title: '先看本次考试关键结论',
+      desc: '把平均分、分层、薄弱知识点集中在一个报告入口。',
+      route: '/analytics/report',
+      permission: 'view_scores',
+      moduleCode: 'study_analytics',
+      tone: 'yellow',
+    },
+    reviewAction,
+    {
+      label: '讲评',
+      title: '转成课堂讲评与追问',
+      desc: '从错因、区分度和知识点生成讲评动作。',
+      route: '/analytics/ai-report',
+      permission: ['view_scores', 'generate_report'],
+      moduleCode: 'study_analytics',
+      tone: 'purple',
+    },
+    {
+      label: '巩固',
+      title: '进入作业和错题闭环',
+      desc: '把分析后的补偿练习放到诊断之后。',
+      route: '/homework',
+      permission: 'view_homework',
+      moduleCode: 'homework',
+      tone: 'mint',
+    },
+  ].filter(canAccess)
+})
+
+const roleActionPanel = computed(() => {
+  const roleSpecificPanel = buildRoleActionPanel(role.value, {
+    summary: kpiData.value,
+    recentExams: recentExams.value,
+    todoItems: todoItems.value,
+  })
+  if (roleSpecificPanel) {
+    return {
+      ...roleSpecificPanel,
+      items: roleSpecificPanel.items.filter(item => canAccessRoute(item.route)),
+    }
+  }
+
+  return {
+    title: '报告行动中心',
+    sub: '报告承接讲评、巩固和资源沉淀',
+    actionLabel: '进入分析 →',
+    actionRoute: '/analytics/report',
+    items: reportActionItems.value,
+  }
+})
+
+const businessGroups = computed(() =>
+  workbenchProfile.value.modules
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => canAccessRoute(item.route)),
+    }))
+    .filter(group => group.items.length > 0),
+)
+
+const secondaryBusinessGroups = computed(() =>
+  businessGroups.value
+    .map(group => ({
+      ...group,
+      items: group.items.slice(0, 3),
+    }))
+    .filter(group => group.items.length > 0)
+    .slice(0, 2),
+)
+
+const currentWorkbenchRoutes = computed(() => {
+  const enabledModules = auth.modulesLoaded ? auth.enabledModules : []
+  return new Set(getSidebarItems(role.value, enabledModules).map(item => item.route))
+})
+
+function isCurrentWorkbenchRoute(route) {
+  if (!route || route === '/') return true
+  return currentWorkbenchRoutes.value.has(route)
+}
+
+const dashboardWidgets = computed(() =>
+  (config.value?.widgets || []).filter(widget =>
+    canAccessRoute(widget.route) && isCurrentWorkbenchRoute(widget.route),
+  ),
+)
+
 const dashboardKpis = computed(() =>
   (config.value?.kpis || []).map((kpi, index) => ({
     ...kpi,
@@ -248,6 +574,26 @@ const dashboardKpis = computed(() =>
     icon: kpiIconMap[kpi.id] || ['exam', 'people', 'marking', 'chart'][index % 4],
   }))
 )
+
+const profilePriorityActions = computed(() => {
+  if (adminRoleKeys.has(role.value)) {
+    return buildAdminPriorityActions({
+      summary: kpiData.value,
+      recentExams: recentExams.value,
+      todoItems: todoItems.value,
+    }).filter(action => canAccessRoute(action.route))
+  }
+
+  return workbenchProfile.value.priorities
+    .filter(action => canAccessRoute(action.route))
+    .map(action => ({
+      ...action,
+      tag: action.meta,
+      tagType: action.tone === 'orange' ? 'warning' : action.tone === 'yellow' ? 'success' : 'default',
+    }))
+})
+
+const priorityActions = computed(() => profilePriorityActions.value)
 
 const entryItems = computed(() => {
   const r = role.value
@@ -262,7 +608,7 @@ const entryItems = computed(() => {
       title: 'AI 智能阅卷',
       sub: '自动识别与智能评分',
       route: '/ai-grading',
-      permission: ['manage_grading', 'view_grading'],
+      permission: 'manage_grading',
       moduleCode: 'grading',
       buttonText: '立即使用',
       buttonTone: 'yellow',
@@ -286,6 +632,7 @@ const entryItems = computed(() => {
       sub: '学科知识全景可视化',
       route: '/knowledge-tree',
       permission: 'view_knowledge_tree',
+      moduleCode: 'research',
       buttonText: '探索',
       buttonTone: 'light',
     },
@@ -295,8 +642,9 @@ const entryItems = computed(() => {
     const required = Array.isArray(item.permission) ? item.permission : [item.permission]
     const hasPermission = required.some(perm => auth.checkPermission(perm))
     if (item.moduleCode && !enabledModules.includes(item.moduleCode)) return false
-    return hasPermission
-  })
+    if (!isCurrentWorkbenchRoute(item.route)) return false
+    return hasPermission && canAccessRoute(item.route)
+  }).slice(0, 2)
 })
 
 const gradingProgressItems = computed(() => {
@@ -515,6 +863,334 @@ function getKpiValue(kpi) {
 </script>
 
 <style scoped>
+.teacher-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: end;
+  background: linear-gradient(135deg, #ffffff 0%, rgba(244, 218, 76, 0.08) 45%, rgba(126, 87, 194, 0.08) 100%);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  padding: 28px;
+  margin-bottom: 18px;
+}
+
+.teacher-hero__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+}
+
+.teacher-hero__eyebrow::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 6px rgba(244, 218, 76, 0.16);
+}
+
+.teacher-hero__title {
+  font-size: 28px;
+  line-height: 1.18;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: var(--color-text);
+  margin: 0 0 10px;
+}
+
+.teacher-hero__text {
+  max-width: 760px;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.teacher-hero__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.role-context-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.role-context-item {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-card);
+}
+
+.role-context-item__label,
+.role-context-item strong,
+.role-context-item small {
+  display: block;
+}
+
+.role-context-item__label {
+  margin-bottom: 6px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.role-context-item strong {
+  margin-bottom: 5px;
+  color: var(--color-text);
+  font-size: 15px;
+}
+
+.role-context-item small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workflow-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.workflow-stage {
+  display: flex;
+  gap: 12px;
+  min-height: 104px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-light);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition);
+}
+
+.workflow-stage:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.workflow-stage__index {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--color-bg-deep);
+  color: var(--color-accent);
+  font-weight: 800;
+}
+
+.workflow-stage__body {
+  min-width: 0;
+}
+
+.workflow-stage strong,
+.workflow-stage small {
+  display: block;
+}
+
+.workflow-stage strong {
+  color: var(--color-text);
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+.workflow-stage small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.teacher-workspace {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.35fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.priority-list,
+.report-action-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.priority-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 14px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  transition: var(--transition);
+}
+
+.priority-item:hover {
+  background: var(--color-bg-card);
+  border-color: var(--color-border);
+  transform: translateY(-1px);
+}
+
+.priority-item__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.priority-item__dot--coral { background: var(--macaron-coral); }
+.priority-item__dot--yellow { background: var(--macaron-yellow); }
+.priority-item__dot--purple { background: var(--macaron-purple); }
+
+.priority-item__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.priority-item strong,
+.priority-item small {
+  display: block;
+}
+
+.priority-item strong {
+  color: var(--color-text);
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.priority-item small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.report-action-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.report-action {
+  min-height: 142px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  text-align: left;
+  padding: 16px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  transition: var(--transition);
+}
+
+.report-action:hover {
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-card);
+  transform: translateY(-2px);
+}
+
+.report-action strong {
+  color: var(--color-text);
+  font-size: 15px;
+}
+
+.report-action small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.report-action__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.report-action__badge--yellow { background: var(--macaron-yellow); color: var(--color-warning-text); }
+.report-action__badge--coral { background: var(--macaron-coral); color: #9f1239; }
+.report-action__badge--purple { background: var(--macaron-purple); color: #ffffff; }
+.report-action__badge--mint { background: var(--macaron-mint); color: #14532d; }
+
+.business-map {
+  margin-bottom: 24px;
+}
+
+.business-map__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.business-group {
+  padding: 16px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.business-group__title {
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.business-link {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  color: inherit;
+  text-decoration: none;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.business-link strong,
+.business-link small {
+  display: block;
+}
+
+.business-link strong {
+  color: var(--color-text);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.business-link small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.business-link__arrow {
+  color: var(--color-primary);
+  font-weight: 800;
+}
+
 /* Welcome banner */
 .welcome-banner {
   background: var(--macaron-mint-light);
@@ -761,7 +1437,7 @@ function getKpiValue(kpi) {
   font-size: 18px;
   font-weight: 700;
   color: var(--color-text);
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .card-sub,
@@ -909,6 +1585,33 @@ function getKpiValue(kpi) {
 }
 
 @media (max-width: 768px) {
+  .teacher-hero,
+  .teacher-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .teacher-hero {
+    padding: 22px;
+  }
+
+  .teacher-hero__actions {
+    justify-content: flex-start;
+  }
+
+  .role-context-strip,
+  .workflow-strip,
+  .business-map__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-stage {
+    min-height: auto;
+  }
+
+  .report-action-grid {
+    grid-template-columns: 1fr;
+  }
+
   .stat-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

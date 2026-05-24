@@ -164,7 +164,7 @@ describe('ExamListPage table columns', () => {
   })
 
   it('archive button only shows for completed exams', () => {
-    expect(content).toContain("if (row.status === 'completed')")
+    expect(content).toContain("if (canManageExams.value && row.status === 'completed')")
   })
 
   it('row click navigates to exam detail', () => {
@@ -268,5 +268,23 @@ describe('ExamListPage responsive design', () => {
 
   it('wraps filter bar on small screens', () => {
     expect(content).toContain('flex-wrap: wrap')
+  })
+})
+
+
+describe('ExamListPage action permission policy', () => {
+  it('gates create modal and destructive row actions behind manage_exams', () => {
+    expect(content).toContain("import { useAuthStore } from '../stores/auth.js'")
+    expect(content).toContain("import { normalizeRole } from '../config/roles.js'")
+    expect(content).toContain("import { hasPermission } from '../config/permissions.js'")
+    expect(content).toContain("const canManageExams = computed(() => hasPermission(normalizedRole.value, 'manage_exams'))")
+    expect(content).toContain('v-if="canManageExams"')
+    expect(content).toContain('if (canManageExams.value && row.status === \'completed\')')
+    expect(content).toContain('if (canManageExams.value && row.status === \'draft\')')
+    expect(content).toContain('if (canManageExams.value) {')
+  })
+
+  it('guards mutation handlers even if called programmatically', () => {
+    expect(content).toContain('if (!canManageExams.value) return')
   })
 })

@@ -5,7 +5,7 @@
         <h1 class="page-title">作业管理</h1>
         <p class="page-subtitle">布置、发布、批改作业</p>
       </div>
-      <n-space>
+      <n-space v-if="canManageHomework">
         <n-button type="primary" @click="showCreate = true">布置作业</n-button>
         <n-button type="warning" @click="showRemedial = true">考后推送</n-button>
       </n-space>
@@ -112,7 +112,13 @@ import { NButton, NTag, NSpace, NInputNumber, useMessage, useDialog } from 'naiv
 import { listTasks, createTask, publishTask, closeTask, deleteTask, listSubmissions, gradeSingle, createFromExam, getContentDetail } from '../api/homework.js'
 import { listClasses } from '../api/students.js'
 import { listExams } from '../api/exams.js'
+import { useAuthStore } from '../stores/auth.js'
+import { normalizeRole } from '../config/roles.js'
+import { hasPermission } from '../config/permissions.js'
 
+const auth = useAuthStore()
+const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || ''))
+const canManageHomework = computed(() => hasPermission(normalizedRole.value, 'manage_homework'))
 const message = useMessage()
 const dialog = useDialog()
 const loading = ref(false)
@@ -170,9 +176,9 @@ const columns = [
     render: (row) => h(NSpace, { size: 4 }, { default: () => [
       h(NButton, { text: true, type: 'info', size: 'small', onClick: () => openSubmissions(row) }, { default: () => '详情' }),
       (row.task_type === 'remedial' || row.task_type === 'post_exam') ? h(NButton, { text: true, type: 'info', size: 'small', onClick: () => openContentDetail(row) }, { default: () => '题目' }) : null,
-      row.status === 'draft' ? h(NButton, { text: true, type: 'success', size: 'small', onClick: () => handlePublish(row) }, { default: () => '发布' }) : null,
-      row.status === 'active' ? h(NButton, { text: true, type: 'warning', size: 'small', onClick: () => handleClose(row) }, { default: () => '关闭' }) : null,
-      row.status === 'draft' ? h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' }) : null,
+      canManageHomework.value && row.status === 'draft' ? h(NButton, { text: true, type: 'success', size: 'small', onClick: () => handlePublish(row) }, { default: () => '发布' }) : null,
+      canManageHomework.value && row.status === 'active' ? h(NButton, { text: true, type: 'warning', size: 'small', onClick: () => handleClose(row) }, { default: () => '关闭' }) : null,
+      canManageHomework.value && row.status === 'draft' ? h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' }) : null,
     ].filter(Boolean) }),
   },
 ]
@@ -207,6 +213,7 @@ async function loadTasks() {
 }
 
 async function handleCreate() {
+  if (!canManageHomework.value) return
   if (!form.value.title || !form.value.subject_code) { message.warning('请填写标题和科目'); return }
   try {
     const payload = { ...form.value }
@@ -221,6 +228,7 @@ async function handleCreate() {
 }
 
 async function handlePublish(row) {
+  if (!canManageHomework.value) return
   try {
     await publishTask(row.id)
     message.success('作业已发布')
@@ -229,6 +237,7 @@ async function handlePublish(row) {
 }
 
 async function handleClose(row) {
+  if (!canManageHomework.value) return
   try {
     await closeTask(row.id)
     message.success('作业已关闭')
@@ -237,6 +246,7 @@ async function handleClose(row) {
 }
 
 async function handleDelete(row) {
+  if (!canManageHomework.value) return
   dialog.warning({
     title: '确认删除', content: `确定删除「${row.title}」？`,
     positiveText: '删除', negativeText: '取消',
@@ -272,6 +282,7 @@ async function handleExamSelect() {
 }
 
 async function handleCreateRemedial() {
+  if (!canManageHomework.value) return
   if (!remedialForm.value.exam_id || !remedialForm.value.class_id) {
     message.warning('请选择考试和班级')
     return

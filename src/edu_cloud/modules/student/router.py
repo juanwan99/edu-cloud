@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.database import get_db
 from edu_cloud.core.auth import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
-from edu_cloud.api.permissions import get_visible_class_ids
+from edu_cloud.api.permissions import resolve_visible_class_ids
 from edu_cloud.modules.student import service as student_service
 from edu_cloud.modules.student.models import Class
 from edu_cloud.models.subject_selection import SubjectSelection
@@ -62,9 +62,10 @@ async def list_classes(
 ):
     role = current["current_role"]
     target_school = school_id or role.school_id
+    visible_class_ids = await resolve_visible_class_ids(db, role)
     classes = await student_service.list_classes(
         db, school_id=target_school, grade=grade,
-        visible_class_ids=get_visible_class_ids(role),
+        visible_class_ids=visible_class_ids,
     )
     return [_class_response(c) for c in classes]
 
@@ -75,9 +76,10 @@ async def list_grades(
     current: dict = Depends(get_current_user),
 ):
     role = current["current_role"]
+    visible_class_ids = await resolve_visible_class_ids(db, role)
     classes = await student_service.list_classes(
         db, school_id=role.school_id,
-        visible_class_ids=get_visible_class_ids(role),
+        visible_class_ids=visible_class_ids,
     )
     grades = sorted(set(c.grade for c in classes if c.grade))
     return [{"name": g} for g in grades]
@@ -94,10 +96,11 @@ async def list_students(
     current: dict = Depends(get_current_user),
 ):
     role = current["current_role"]
+    visible_class_ids = await resolve_visible_class_ids(db, role)
     if grade and not class_id:
         grade_classes = await student_service.list_classes(
             db, school_id=role.school_id, grade=grade,
-            visible_class_ids=get_visible_class_ids(role),
+            visible_class_ids=visible_class_ids,
         )
         grade_class_ids = [c.id for c in grade_classes]
         all_students = []
@@ -105,20 +108,20 @@ async def list_students(
             batch = await student_service.list_students(
                 db, school_id=role.school_id, class_id=cid,
                 selection_id=selection_id, subject_code=subject_code,
-                visible_class_ids=get_visible_class_ids(role),
+                visible_class_ids=visible_class_ids,
             )
             all_students.extend(batch)
         return [_student_response(s) for s in all_students]
     if q:
         students = await student_service.search_students(
             db, school_id=role.school_id, query=q,
-            visible_class_ids=get_visible_class_ids(role),
+            visible_class_ids=visible_class_ids,
         )
     else:
         students = await student_service.list_students(
             db, school_id=role.school_id, class_id=class_id,
             selection_id=selection_id, subject_code=subject_code,
-            visible_class_ids=get_visible_class_ids(role),
+            visible_class_ids=visible_class_ids,
         )
     return [_student_response(s) for s in students]
 
@@ -181,7 +184,7 @@ async def import_students(
     return await student_service.import_students(
         db, school_id=role.school_id, class_id=class_id, grade=grade,
         file_content=content, filename=file.filename or "",
-        visible_class_ids=get_visible_class_ids(role),
+        visible_class_ids=visible_class_ids,
     )
 
 
@@ -217,9 +220,11 @@ async def export_students(
     ws.column_dimensions["F"].width = 22
     ws.column_dimensions["G"].width = 20
 
-    classes_result = await db.execute(
-        select(Class).where(Class.school_id == role.school_id)
-    )
+    visible_class_ids = await resolve_visible_class_ids(db, role)
+    classes_query = select(Class).where(Class.school_id == role.school_id)
+    if visible_class_ids is not None:
+        classes_query = classes_query.where(Class.id.in_(visible_class_ids))
+    classes_result = await db.execute(classes_query)
     all_classes = list(classes_result.scalars().all())
     class_map = {c.id: c.name for c in all_classes}
 
@@ -267,7 +272,7 @@ async def export_students(
     else:
         students = await student_service.list_students(
             db, school_id=role.school_id, class_id=class_id,
-            visible_class_ids=get_visible_class_ids(role),
+            visible_class_ids=visible_class_ids,
         )
         sel_result = await db.execute(
             select(SubjectSelection).where(SubjectSelection.school_id == role.school_id)

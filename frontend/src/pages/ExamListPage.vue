@@ -5,7 +5,7 @@
         <h1 class="page-title">考试管理</h1>
         <p class="page-subtitle">管理所有考试和科目</p>
       </div>
-      <n-button type="primary" class="btn-pill" @click="showCreate = true">创建考试</n-button>
+      <n-button v-if="canManageExams" type="primary" class="btn-pill" @click="showCreate = true">创建考试</n-button>
     </div>
 
     <!-- Stats Cards -->
@@ -87,7 +87,7 @@
         size="large"
       >
         <template #extra>
-          <n-button type="primary" class="btn-pill" @click="showCreate = true">创建第一场考试</n-button>
+          <n-button v-if="canManageExams" type="primary" class="btn-pill" @click="showCreate = true">创建第一场考试</n-button>
         </template>
       </n-empty>
       <n-empty
@@ -135,10 +135,16 @@ import { h, ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NTag, NButton, NPopconfirm, useMessage } from 'naive-ui'
 import { listExams, createExam, archiveExam, deleteExam } from '../api/exams'
+import { useAuthStore } from '../stores/auth.js'
+import { normalizeRole } from '../config/roles.js'
+import { hasPermission } from '../config/permissions.js'
 import AppIcon from '../components/AppIcon.vue'
 
 const router = useRouter()
 const message = useMessage()
+const auth = useAuthStore()
+const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || ''))
+const canManageExams = computed(() => hasPermission(normalizedRole.value, 'manage_exams'))
 const loading = ref(true)
 const exams = ref([])
 const showCreate = ref(false)
@@ -277,7 +283,7 @@ const columns = [
       ]
 
       // Archive button (only for completed exams)
-      if (row.status === 'completed') {
+      if (canManageExams.value && row.status === 'completed') {
         buttons.push(
           h(NPopconfirm, {
             onPositiveClick: () => handleArchive(row.id),
@@ -292,7 +298,7 @@ const columns = [
         )
       }
 
-      if (row.status === 'draft') {
+      if (canManageExams.value && row.status === 'draft') {
         buttons.push(
           h(NPopconfirm, {
             onPositiveClick: () => handleDelete(row.id),
@@ -307,15 +313,16 @@ const columns = [
         )
       }
 
-      // Copy button
-      buttons.push(
-        h(NButton, {
-          text: true,
-          type: 'default',
-          size: 'small',
-          onClick: () => handleCopy(row),
-        }, { default: () => '复制' })
-      )
+      if (canManageExams.value) {
+        buttons.push(
+          h(NButton, {
+            text: true,
+            type: 'default',
+            size: 'small',
+            onClick: () => handleCopy(row),
+          }, { default: () => '复制' })
+        )
+      }
 
       return h('div', {
         style: 'display: flex; gap: 8px;',
@@ -342,6 +349,7 @@ async function loadExams() {
 }
 
 async function handleCreate() {
+  if (!canManageExams.value) return
   try {
     await createFormRef.value?.validate()
   } catch { return }
@@ -373,6 +381,7 @@ async function handleCreate() {
 }
 
 async function handleArchive(examId) {
+  if (!canManageExams.value) return
   try {
     await archiveExam(examId)
     message.success('考试已归档')
@@ -383,6 +392,7 @@ async function handleArchive(examId) {
 }
 
 async function handleDelete(examId) {
+  if (!canManageExams.value) return
   try {
     await deleteExam(examId)
     message.success('考试已删除')
@@ -393,6 +403,7 @@ async function handleDelete(examId) {
 }
 
 function handleCopy(exam) {
+  if (!canManageExams.value) return
   createForm.name = `${exam.name} (副本)`
   createForm.card_title = exam.card_title || ''
   createForm.exam_date = null

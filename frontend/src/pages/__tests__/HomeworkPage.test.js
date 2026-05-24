@@ -218,15 +218,15 @@ describe('HomeworkPage CRUD operations', () => {
   })
 
   it('renders publish button only for draft status', () => {
-    expect(content).toContain("row.status === 'draft' ? h(NButton, { text: true, type: 'success', size: 'small', onClick: () => handlePublish(row) }")
+    expect(content).toContain("canManageHomework.value && row.status === 'draft' ? h(NButton, { text: true, type: 'success', size: 'small', onClick: () => handlePublish(row) }")
   })
 
   it('renders close button only for active status', () => {
-    expect(content).toContain("row.status === 'active' ? h(NButton, { text: true, type: 'warning', size: 'small', onClick: () => handleClose(row) }")
+    expect(content).toContain("canManageHomework.value && row.status === 'active' ? h(NButton, { text: true, type: 'warning', size: 'small', onClick: () => handleClose(row) }")
   })
 
   it('renders delete button only for draft status', () => {
-    expect(content).toContain("row.status === 'draft' ? h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }")
+    expect(content).toContain("canManageHomework.value && row.status === 'draft' ? h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }")
   })
 })
 
@@ -459,5 +459,21 @@ describe('HomeworkPage columns definition', () => {
     expect(content).toContain("row.task_type === 'remedial' || row.task_type === 'post_exam'")
     expect(content).toContain("onClick: () => openContentDetail(row)")
     expect(content).toContain("default: () => '题目'")
+  })
+})
+
+
+describe('HomeworkPage action access policy', () => {
+  it('gates homework mutations with manage_homework while keeping read actions visible', () => {
+    expect(content).toContain("import { useAuthStore } from '../stores/auth.js'")
+    expect(content).toContain("import { normalizeRole } from '../config/roles.js'")
+    expect(content).toContain("import { hasPermission } from '../config/permissions.js'")
+    expect(content).toContain("const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || ''))")
+    expect(content).toContain("const canManageHomework = computed(() => hasPermission(normalizedRole.value, 'manage_homework'))")
+    expect(content).toContain('v-if="canManageHomework"')
+    expect(content).toContain("canManageHomework.value && row.status === 'draft'")
+    expect(content).toContain("canManageHomework.value && row.status === 'active'")
+    expect(content).toContain('if (!canManageHomework.value) return')
+    expect(content).toContain("default: () => '详情'")
   })
 })

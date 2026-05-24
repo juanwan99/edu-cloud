@@ -5,7 +5,7 @@
         <h1 class="page-title">排课管理</h1>
         <p class="page-subtitle">管理教师排课信息，查看工作量统计</p>
       </div>
-      <n-button type="primary" class="btn-pill" @click="openCreate">新增排课</n-button>
+      <n-button v-if="canManageScheduling" type="primary" class="btn-pill" @click="openCreate">新增排课</n-button>
     </div>
 
     <!-- 统计卡片 -->
@@ -110,6 +110,8 @@
 import { ref, computed, h, onMounted } from 'vue'
 import { NButton, useMessage } from 'naive-ui'
 import { useAuthStore } from '../stores/auth.js'
+import { normalizeRole } from '../config/roles.js'
+import { hasPermission } from '../config/permissions.js'
 import { getAssignments, createAssignments, deleteAssignment, getAssignmentSummary } from '../api/teacherAssignments.js'
 import { listTeachers } from '../api/teachers.js'
 import { listClasses } from '../api/students.js'
@@ -132,6 +134,8 @@ function subjectLabel(code) {
 }
 
 const auth = useAuthStore()
+const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || ''))
+const canManageScheduling = computed(() => hasPermission(normalizedRole.value, 'manage_scheduling'))
 const message = useMessage()
 const rows = ref([])
 const loading = ref(false)
@@ -263,6 +267,7 @@ const columns = [
     key: 'actions',
     width: 80,
     render(row) {
+      if (!canManageScheduling.value) return null
       return h(NButton, {
         size: 'small',
         type: 'error',
@@ -343,6 +348,7 @@ async function loadSummary() {
 
 // Create assignment
 async function handleCreate() {
+  if (!canManageScheduling.value) return
   if (!form.value.user_id || !form.value.subject_code || !form.value.semester || !form.value.class_ids.length) {
     message.warning('请填写所有必填项')
     return
@@ -367,6 +373,7 @@ async function handleCreate() {
 
 // Delete assignment
 async function handleDelete(id) {
+  if (!canManageScheduling.value) return
   try {
     await deleteAssignment(schoolId(), id)
     message.success('已删除')
@@ -378,6 +385,7 @@ async function handleDelete(id) {
 
 // Open create modal with defaults
 function openCreate() {
+  if (!canManageScheduling.value) return
   resetForm()
   if (currentSemesterId.value) {
     form.value.semester = currentSemesterId.value

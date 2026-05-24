@@ -5,7 +5,7 @@
         <h1 class="page-title">选考组合</h1>
         <p class="page-subtitle">管理学校提供的选考科目组合（新高考 3+1+2）</p>
       </div>
-      <n-button type="primary" :disabled="!toAdd.length" @click="handleBatchCreate">
+      <n-button v-if="canManageScheduling" type="primary" :disabled="!toAdd.length" @click="handleBatchCreate">
         批量添加 ({{ toAdd.length }})
       </n-button>
     </div>
@@ -32,7 +32,7 @@
           :class="{ added: combo.exists, checked: combo.checked }"
           @click="toggleCombo(combo)">
           <div class="combo-header">
-            <n-checkbox :checked="combo.checked" :disabled="combo.exists" @click.stop
+            <n-checkbox :checked="combo.checked" :disabled="!canManageScheduling || combo.exists" @click.stop
               @update:checked="(v) => combo.checked = v" />
             <span class="combo-name">{{ combo.name }}</span>
             <n-tag v-if="combo.exists" type="success" size="small" :bordered="false">已添加</n-tag>
@@ -53,7 +53,7 @@
           <template #header-extra>
             <n-space :size="8" align="center">
               <n-tag :type="modeTagType(s.mode)" size="small">{{ s.mode }}</n-tag>
-              <n-switch :value="s.is_active" size="small" @update:value="(v) => handleToggle(s.id, v)" />
+              <n-switch :value="s.is_active" size="small" :disabled="!canManageScheduling" @update:value="(v) => handleToggle(s.id, v)" />
             </n-space>
           </template>
           <n-space size="small" align="center">
@@ -63,7 +63,7 @@
             </n-tag>
           </n-space>
           <template #action>
-            <n-space :size="8">
+            <n-space v-if="canManageScheduling" :size="8">
               <n-button size="small" @click="openEdit(s)">编辑</n-button>
               <n-popconfirm @positive-click="handleDelete(s.id)">
                 <template #trigger>
@@ -89,6 +89,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useAuthStore } from '../stores/auth.js'
+import { normalizeRole } from '../config/roles.js'
+import { hasPermission } from '../config/permissions.js'
 import { getSelections, createSelection, updateSelection, deleteSelection } from '../api/subjectSelections.js'
 import { listStudents } from '../api/students.js'
 
@@ -115,6 +117,8 @@ function generateCombos() {
 }
 
 const auth = useAuthStore()
+const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || ''))
+const canManageScheduling = computed(() => hasPermission(normalizedRole.value, 'manage_scheduling'))
 const message = useMessage()
 const selections = ref([])
 const loading = ref(false)
@@ -144,6 +148,7 @@ function subjectLabel(code) {
 }
 
 function toggleCombo(combo) {
+  if (!canManageScheduling.value) return
   if (combo.exists) return
   combo.checked = !combo.checked
 }
@@ -183,6 +188,7 @@ async function loadData() {
 }
 
 async function handleBatchCreate() {
+  if (!canManageScheduling.value) return
   const items = toAdd.value
   if (!items.length) return
   loading.value = true
@@ -199,6 +205,7 @@ async function handleBatchCreate() {
 }
 
 async function handleToggle(id, active) {
+  if (!canManageScheduling.value) return
   try {
     await updateSelection(schoolId(), id, { is_active: active })
     await loadData()
@@ -206,6 +213,7 @@ async function handleToggle(id, active) {
 }
 
 async function handleDelete(id) {
+  if (!canManageScheduling.value) return
   try {
     await deleteSelection(schoolId(), id)
     message.success('已删除')
@@ -214,12 +222,14 @@ async function handleDelete(id) {
 }
 
 function openEdit(s) {
+  if (!canManageScheduling.value) return
   editId.value = s.id
   editName.value = s.name
   editVisible.value = true
 }
 
 async function handleEditSave() {
+  if (!canManageScheduling.value) return false
   if (!editName.value.trim()) {
     message.warning('名称不能为空')
     return false

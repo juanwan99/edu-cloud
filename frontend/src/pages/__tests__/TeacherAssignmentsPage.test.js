@@ -276,3 +276,16 @@ describe('TeacherAssignmentsPage class sort', () => {
     expect(content).toContain("(a.name || '').localeCompare(b.name || '')")
   })
 })
+
+
+describe('TeacherAssignmentsPage action access policy', () => {
+  it('gates scheduling write actions with manage_scheduling', () => {
+    expect(content).toContain("import { normalizeRole } from '../config/roles.js'")
+    expect(content).toContain("import { hasPermission } from '../config/permissions.js'")
+    expect(content).toContain("const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || ''))")
+    expect(content).toContain("const canManageScheduling = computed(() => hasPermission(normalizedRole.value, 'manage_scheduling'))")
+    expect(content).toContain('v-if="canManageScheduling"')
+    expect(content).toContain('if (!canManageScheduling.value) return null')
+    expect(content).toContain('if (!canManageScheduling.value) return')
+  })
+})

@@ -559,3 +559,16 @@ describe('SchoolSettingsPage styles', () => {
     expect(content).toContain('.cap-matrix tbody tr:hover')
   })
 })
+
+
+describe('SchoolSettingsPage action access policy', () => {
+  it('gates school configuration mutations with manage_school_config', () => {
+    expect(content).toContain("import { normalizeRole } from '../config/roles.js'")
+    expect(content).toContain("import { hasPermission } from '../config/permissions.js'")
+    expect(content).toContain("const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || ''))")
+    expect(content).toContain("const canManageSchoolConfig = computed(() => hasPermission(normalizedRole.value, 'manage_school_config'))")
+    expect(content).toContain('v-if="canManageSchoolConfig"')
+    expect(content).toContain(':disabled="!canManageSchoolConfig"')
+    expect(content).toContain('if (!canManageSchoolConfig.value) return')
+  })
+})

@@ -28,6 +28,22 @@ describe('DashboardPage smoke', () => {
 })
 
 describe('DashboardPage template sections', () => {
+  it('uses shared workbench profile copy for the hero and workflow', () => {
+    expect(content).toContain("import { getWorkbenchProfile } from '../config/workbenchProfiles.js'")
+    expect(content).toContain('const workbenchProfile = computed')
+    expect(content).toContain('{{ workbenchProfile.label }}工作台')
+    expect(content).toContain('{{ workbenchProfile.title }}')
+    expect(content).toContain('{{ workbenchProfile.summary }}')
+    expect(content).toContain('workbenchProfile.value.flow')
+    expect(content).toContain('workbenchProfile.value.modules')
+  })
+
+  it('guards school admin workbench routes by real route permissions', () => {
+    expect(content).toContain("import {\n  ROUTE_ACCESS_REQUIREMENTS,\n  canAccessRequirementForRole,\n} from '../config/routeAccess.js'")
+    expect(content).toContain('const routeAccessRequirements = ROUTE_ACCESS_REQUIREMENTS')
+    expect(content).toContain('canAccessRequirementForRole(role.value, item, enabledModules)')
+  })
+
   it('contains permission-gated entry stack', () => {
     expect(content).toContain('entryItems.length > 0')
     expect(content).toContain('v-for="entry in entryItems"')
@@ -54,6 +70,33 @@ describe('DashboardPage template sections', () => {
   it('contains chart-empty fallback', () => {
     expect(content).toContain('chart-empty')
     expect(content).toContain('chart-empty__text')
+  })
+})
+
+describe('DashboardPage role-first formal workbench', () => {
+  it('delegates role-specific action panels to the shared role workbench mapping', () => {
+    expect(content).toContain('const roleActionPanel = computed')
+    expect(content).toContain('const roleSpecificPanel = buildRoleActionPanel')
+    expect(content).toContain('if (roleSpecificPanel)')
+    expect(content).not.toContain("if (adminRoleKeys.has(role.value)) {\n    return {\n      title: '运行治理中心'")
+  })
+
+  it('uses workbench profile priorities for today actions', () => {
+    expect(content).toContain('workbenchProfile.value.priorities')
+    expect(content).toContain('profilePriorityActions')
+  })
+
+  it('uses live role workbench data for admin and middle-management panels', () => {
+    expect(content).toContain("import { buildAdminPriorityActions, buildRoleActionPanel } from '../config/roleWorkbenches.js'")
+    expect(content).toContain('buildAdminPriorityActions({')
+    expect(content).toContain('summary: kpiData.value')
+    expect(content).toContain('recentExams: recentExams.value')
+    expect(content).toContain('buildRoleActionPanel(role.value, {')
+    expect(content).toContain('const roleSpecificPanel = buildRoleActionPanel')
+  })
+
+  it('does not hard-code teacher-only report copy as the only second panel', () => {
+    expect(content).not.toContain('报告不再只是查看结果，而是讲评和巩固的入口')
   })
 })
 
@@ -97,7 +140,7 @@ describe('DashboardPage dark theme adaptation', () => {
 describe('DashboardPage entry permission filtering', () => {
   it('defines permission-gated entry items', () => {
     expect(content).toContain('const entryItems = computed')
-    expect(content).toContain("permission: ['manage_grading', 'view_grading']")
+    expect(content).toContain("permission: 'manage_grading'")
     expect(content).toContain("permission: 'view_scores'")
     expect(content).toContain("permission: 'view_knowledge_tree'")
     expect(content).toContain('auth.checkPermission')
@@ -125,6 +168,27 @@ describe('DashboardPage entry permission filtering', () => {
     expect(entryBlock).not.toContain('tabindex="0"')
     expect(entryBlock).not.toContain('@keyup.enter')
     expect(entryBlock).not.toContain('<button')
+  })
+})
+
+describe('DashboardPage dashboard widget access', () => {
+  it('renders module cards from route-filtered dashboardWidgets, not raw config widgets', () => {
+    expect(content).toContain("import { getSidebarItems } from '../config/sidebarConfig.js'")
+    expect(content).toContain('const dashboardWidgets = computed')
+    expect(content).toContain('v-for="widget in dashboardWidgets"')
+    expect(content).not.toContain('v-for="widget in config?.widgets"')
+  })
+
+  it('builds hero actions from the current role profile instead of naked permission checks', () => {
+    const start = content.indexOf('const heroActions = computed')
+    const end = content.indexOf('const workflowStages = computed', start)
+    const block = content.slice(start, end)
+
+    expect(block).toContain('workbenchProfile.value.primaryAction')
+    expect(block).toContain('workbenchProfile.value.secondaryAction')
+    expect(block).toContain('canAccessRoute(action.route)')
+    expect(block).not.toContain("auth.checkPermission('manage_exams')")
+    expect(block).not.toContain("auth.checkPermission('manage_grading')")
   })
 })
 
@@ -248,5 +312,33 @@ describe('DashboardPage error handling', () => {
     const fnBlock = content.slice(start, end)
     const catchCount = (fnBlock.match(/\} catch/g) || []).length
     expect(catchCount).toBeGreaterThanOrEqual(3)
+  })
+})
+
+
+describe('DashboardPage Phase 6 role-context layout', () => {
+  it('shows current identity, scope, hidden noise, and multi-role context near the top', () => {
+    expect(content).toContain('class="role-context-strip"')
+    expect(content).toContain('v-for="item in roleContextItems"')
+    expect(content).toContain("label: '当前身份'")
+    expect(content).toContain("label: '数据范围'")
+    expect(content).toContain("label: '默认隐藏'")
+    expect(content).toContain("label: '多身份提醒'")
+    expect(content).toContain('const roleContextItems = computed')
+    expect(content).toContain('const scopeSummary = computed')
+    expect(content).toContain('workbenchProfile.value.owns')
+    expect(content).toContain('workbenchProfile.value.hides')
+    expect(content).toContain('auth.roles.length > 1')
+  })
+
+  it('labels and limits secondary module choices instead of exposing another full menu', () => {
+    expect(content).toContain('const secondaryBusinessGroups = computed')
+    expect(content).toContain('group.items.slice(0, 3)')
+    expect(content).toContain('.slice(0, 2)')
+    expect(content).toContain('v-for="group in secondaryBusinessGroups"')
+    expect(content).toContain('次级业务入口')
+    expect(content).toContain('isCurrentWorkbenchRoute(item.route)')
+    expect(content).toContain('entryItems')
+    expect(content).toContain('.slice(0, 2)')
   })
 })

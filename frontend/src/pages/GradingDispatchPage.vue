@@ -136,7 +136,7 @@ import { NSelect, NModal, NDataTable, NTag, NTabs, NTabPane } from 'naive-ui'
 import { useMessage } from 'naive-ui'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { SCHOOL_ADMIN_ROLES } from '../config/roles.js'
+import { normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
 import { listExams } from '../api/exams'
 import { getDispatchStatus } from '../api/grading'
 import { uploadScanFolder, pdfImport, scanDirectory, startPipeline, getPipelineProgress, stopPipeline, autoDetectCV, saveCVTemplate, getCVTemplate, fetchScanImageBlob, verifyTemplate, deleteOrphanQuestions } from '../api/scan'
@@ -158,15 +158,21 @@ watch(() => route.query.tab, (tab) => {
   activeTab.value = VALID_TABS.has(tab) ? tab : 'scan'
 })
 
-const canManageAll = computed(() => SCHOOL_ADMIN_ROLES.includes(auth.roleName))
+const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || auth.roleName || ''))
+const canManageGrading = computed(() => auth.checkPermission('manage_grading'))
+const canManageAll = computed(() => canManageGrading.value && SCHOOL_ADMIN_ROLES.includes(normalizedRole.value))
+const canManageOwnSubject = computed(() => canManageGrading.value && normalizedRole.value === 'lesson_prep_leader')
 const mySubjectCodes = computed(() => auth.currentRole?.subject_codes || null)
 
 const selectedExamId = ref(null)
 const examOptions = ref([])
 const allSubjects = ref([])
 const subjects = computed(() => {
-  if (canManageAll.value || !mySubjectCodes.value) return allSubjects.value
-  return allSubjects.value.filter(s => mySubjectCodes.value.includes(s.subject_code))
+  if (canManageAll.value) return allSubjects.value
+  if (canManageOwnSubject.value && mySubjectCodes.value) {
+    return allSubjects.value.filter(s => mySubjectCodes.value.includes(s.subject_code))
+  }
+  return []
 })
 const selectedSubjects = ref([])
 const loading = ref(false)
@@ -315,16 +321,25 @@ async function handleFolderSelected(e) {
   }
 }
 
+function canManageSubject(s) {
+  if (!canManageGrading.value) return false
+  if (canManageAll.value) return true
+  if (canManageOwnSubject.value && mySubjectCodes.value) {
+    return mySubjectCodes.value.includes(s.subject_code)
+  }
+  return false
+}
+
 // 模板检测：无模板 + 有扫描图
 function canDetect(s) {
   if (s.stage !== 'pending_detect') return false
-  if (canManageAll.value) return true
-  if (!mySubjectCodes.value) return false
-  return mySubjectCodes.value.includes(s.subject_code)
+  if (!canManageSubject(s)) return false
+  return true
 }
 
 // 切割/重新切割：有模板即可（已切割过的也支持重新切割）
 function canCut(s) {
+  if (!canManageSubject(s)) return false
   return s.has_template && !['idle', 'cutting'].includes(s.stage)
 }
 
@@ -374,6 +389,7 @@ function findFirstFile(dir, side) {
 
 // 模板检测 → 打开编辑器（A 面 + 可选 B 面）
 async function handleDetectTemplate(s) {
+  if (!canManageSubject(s)) return
   const dir = getScanDirFallback(s)
   if (!dir) { message.error('找不到扫描目录'); return }
   detectLoading.value = s.subject_id
@@ -425,6 +441,7 @@ async function handleDetectTemplate(s) {
 
 // 预览已有模板（从 DB 加载 Template + 扫描图，打开编辑器）
 async function handlePreviewTemplate(s) {
+  if (!canManageSubject(s)) return
   detectLoading.value = s.subject_id
   try {
     const tplRes = await getCVTemplate(s.subject_id)
@@ -580,6 +597,7 @@ function getScanDirFallback(s) {
 }
 
 async function handleStartCut(s) {
+  if (!canManageSubject(s)) return
   const dir = getScanDirFallback(s)
   if (!dir) {
     message.error('找不到扫描目录，请先上传扫描图')

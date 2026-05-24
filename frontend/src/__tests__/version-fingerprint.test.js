@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
 
 describe('version fingerprint', () => {
   it('BUILD_TIME is defined and looks like ISO timestamp', () => {
@@ -19,5 +20,17 @@ describe('version fingerprint', () => {
   it('BUILD_ID is defined and starts with build-', () => {
     expect(typeof __BUILD_ID__).toBe('string')
     expect(__BUILD_ID__).toMatch(/^build-\d+$/)
+  })
+})
+
+describe('frontend build delivery safety', () => {
+  const viteConfig = readFileSync('vite.config.js', 'utf-8')
+
+  it('backs up the currently served dist inside the existing Vite build lifecycle', () => {
+    expect(viteConfig).toContain("name: 'backup-dist-before-build'")
+    expect(viteConfig).toContain("apply: 'build'")
+    expect(viteConfig).toContain('configResolved()')
+    expect(viteConfig).toContain('FRONTEND_DIST_BACKUP_DIR')
+    expect(viteConfig).toContain('backupDistBeforeBuild(),')
   })
 })

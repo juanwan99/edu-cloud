@@ -45,19 +45,25 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import SchoolContext from './SchoolContext.vue'
 import NotificationBell from './NotificationBell.vue'
 import RoleSwitcher from './RoleSwitcher.vue'
+import { useAuthStore } from '../../stores/auth.js'
+import { getHeaderNavItems } from '../../config/routeAccess.js'
+import { normalizeRole } from '../../config/roles.js'
 
 const route = useRoute()
+const auth = useAuthStore()
 
-const navItems = [
-  { label: '概览', route: '/', exact: true },
-  { label: '考试管理', route: '/exams', match: '/exams' },
-  { label: '成绩分析', route: '/analytics/report', match: '/analytics' },
-  { label: '阅卷调度', route: '/grading/tasks', match: '/grading' },
-]
+const moduleFallbacks = ['exam', 'grading', 'calendar', 'studio']
+
+const navItems = computed(() => {
+  const role = normalizeRole(auth.currentRole?.role)
+  const enabledModules = auth.modulesLoaded ? auth.enabledModules : moduleFallbacks
+  return getHeaderNavItems(role, enabledModules)
+})
 
 function isNavActive(item) {
   if (item.exact) return route.path === item.route

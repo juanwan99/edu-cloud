@@ -5,7 +5,7 @@
         <h1 class="page-title">教师管理</h1>
         <p class="page-subtitle">管理教师档案、学科与班级分配，支持 Excel 批量导入导出</p>
       </div>
-      <div class="action-buttons">
+      <div v-if="canManageTeachers" class="action-buttons">
         <n-button class="btn-pill" @click="handleDownloadTemplate">下载导入模板</n-button>
         <n-button class="btn-pill" @click="handleExport">导出花名册</n-button>
         <n-button class="btn-pill" @click="showImport = true">导入 Excel</n-button>
@@ -127,6 +127,8 @@ import { listTeachers, createTeacher, updateTeacher, deleteTeacher, importTeache
 import client from '../api/client'
 import { listSchools } from '../api/schools'
 import { useAuthStore } from '../stores/auth'
+import { normalizeRole } from '../config/roles.js'
+import { hasPermission } from '../config/permissions.js'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -145,6 +147,9 @@ const classesLoading = ref(false)
 const classMap = ref({})  // id → { name, grade }
 const schoolOptions = ref([])
 const selectedSchool = ref(null)
+const auth = useAuthStore()
+const normalizedRole = computed(() => normalizeRole(auth.currentRole?.role || ''))
+const canManageTeachers = computed(() => hasPermission(normalizedRole.value, 'manage_teachers'))
 
 const roleLabels = {
   subject_teacher: '科任教师', homeroom_teacher: '班主任',
@@ -158,10 +163,7 @@ const subjectLabels = {
   YS: '音乐', MS: '美术', XX: '信息技术',
 }
 
-const isPlatformAdmin = computed(() => {
-  const auth = useAuthStore()
-  return auth.currentRole?.role === 'platform_admin'
-})
+const isPlatformAdmin = computed(() => auth.currentRole?.role === 'platform_admin')
 
 const ROLE_OPTIONS_ALL = Object.entries(roleLabels).map(([value, label]) => ({ label, value }))
 const ROLE_OPTIONS_CROSS_SCHOOL = [
@@ -261,10 +263,13 @@ const columns = [
   { title: '手机', key: 'phone', width: 120, render: (row) => row.phone || '-' },
   {
     title: '操作', key: 'actions', width: 100, fixed: 'right',
-    render: (row) => h('div', { style: 'display: flex; gap: var(--space-2);' }, [
-      h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
-      h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' }),
-    ]),
+    render: (row) => {
+      if (!canManageTeachers.value) return []
+      return h('div', { style: 'display: flex; gap: var(--space-2);' }, [
+        h(NButton, { text: true, type: 'primary', size: 'small', onClick: () => openEdit(row) }, { default: () => '编辑' }),
+        h(NButton, { text: true, type: 'error', size: 'small', onClick: () => handleDelete(row) }, { default: () => '删除' }),
+      ])
+    },
   },
 ]
 
@@ -306,6 +311,7 @@ async function loadClasses() {
 }
 
 function openCreate() {
+  if (!canManageTeachers.value) return
   editingId.value = null
   Object.assign(form, defaultForm())
   if (isPlatformAdmin.value && selectedSchool.value) {
@@ -315,6 +321,7 @@ function openCreate() {
 }
 
 function openEdit(row) {
+  if (!canManageTeachers.value) return
   editingId.value = row.id
   Object.assign(form, {
     display_name: row.display_name || '',
@@ -335,6 +342,7 @@ function openEdit(row) {
 }
 
 async function handleSave() {
+  if (!canManageTeachers.value) return
   if (!form.display_name) { message.warning('姓名为必填'); return }
   if (!editingId.value && !form.username) { message.warning('用户名为必填'); return }
   saving.value = true
@@ -365,6 +373,7 @@ async function handleSave() {
 }
 
 function handleDelete(row) {
+  if (!canManageTeachers.value) return
   dialog.warning({
     title: '确认删除',
     content: `确定要删除教师「${row.display_name}」吗？将移除该教师在本校的所有角色。`,
@@ -387,6 +396,7 @@ function handleFileChange({ fileList }) {
 }
 
 async function handleImport() {
+  if (!canManageTeachers.value) return
   if (!importFile.value) { message.warning('请选择文件'); return }
   importing.value = true
   try {
@@ -414,6 +424,7 @@ function schoolParams() {
 }
 
 async function handleDownloadTemplate() {
+  if (!canManageTeachers.value) return
   try {
     const { data } = await downloadTemplate(schoolParams())
     triggerDownload(data, 'teachers_template.xlsx')
@@ -422,6 +433,7 @@ async function handleDownloadTemplate() {
 }
 
 async function handleExport() {
+  if (!canManageTeachers.value) return
   try {
     const { data } = await exportTeachers(schoolParams())
     triggerDownload(data, 'teachers.xlsx')
@@ -430,7 +442,6 @@ async function handleExport() {
 }
 
 async function initSchools() {
-  const auth = useAuthStore()
   if (isPlatformAdmin.value) {
     try {
       const { data } = await listSchools()

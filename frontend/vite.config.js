@@ -5,7 +5,7 @@ import Components from 'unplugin-vue-components/vite'
 import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
 import { fileURLToPath, URL } from 'node:url'
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
 const projectRoot = fileURLToPath(new URL('.', import.meta.url))
@@ -74,6 +74,73 @@ function isSourceDirty() {
 
 const buildId = `build-${Date.now()}`
 const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:9000'
+const distBackupLimit = Number.parseInt(process.env.FRONTEND_DIST_BACKUP_LIMIT || '20', 10)
+
+function formatBackupStamp(date) {
+  return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+}
+
+function resolveDistBackupRoot() {
+  if (process.env.FRONTEND_DIST_BACKUP_DIR) return process.env.FRONTEND_DIST_BACKUP_DIR
+  if (existsSync('/home/ops')) return '/home/ops/backups/edu-cloud/frontend-dist'
+  return null
+}
+
+function readCurrentDistVersion(versionPath) {
+  try {
+    return JSON.parse(readFileSync(versionPath, 'utf-8'))
+  } catch {
+    return {}
+  }
+}
+
+function pruneDistBackups(backupRoot) {
+  if (!Number.isFinite(distBackupLimit) || distBackupLimit <= 0) return
+  const backups = readdirSync(backupRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort()
+
+  for (const name of backups.slice(0, Math.max(0, backups.length - distBackupLimit))) {
+    rmSync(join(backupRoot, name), { recursive: true, force: true })
+  }
+}
+
+function backupDistBeforeBuild() {
+  return {
+    name: 'backup-dist-before-build',
+    apply: 'build',
+    configResolved() {
+      const distDir = join(projectRoot, 'dist')
+      const versionPath = join(distDir, 'version.json')
+      const indexPath = join(distDir, 'index.html')
+      if (!existsSync(versionPath) || !existsSync(indexPath)) return
+
+      const backupRoot = resolveDistBackupRoot()
+      if (!backupRoot) return
+
+      const previousVersion = readCurrentDistVersion(versionPath)
+      const previousBuildId = previousVersion.build_id || previousVersion.git_hash || 'unknown-build'
+      const backupDir = join(backupRoot, `${formatBackupStamp(new Date())}-${previousBuildId}-before-${buildId}`)
+
+      mkdirSync(backupDir, { recursive: true })
+      cpSync(distDir, join(backupDir, 'dist'), {
+        recursive: true,
+        dereference: false,
+        preserveTimestamps: true,
+      })
+      writeFileSync(join(backupDir, 'manifest.json'), JSON.stringify({
+        created_at: new Date().toISOString(),
+        reason: 'automatic backup before Vite overwrites frontend/dist',
+        previous_version: previousVersion,
+        next_build_id: buildId,
+        project_root: projectRoot,
+      }, null, 2) + '\n')
+      pruneDistBackups(backupRoot)
+      console.log(`[vite] backed up existing dist to ${backupDir}`)
+    },
+  }
+}
 
 function generateVersionJson() {
   return {
@@ -113,6 +180,7 @@ export default defineConfig({
     Components({
       resolvers: [NaiveUiResolver()],
     }),
+    backupDistBeforeBuild(),
     generateVersionJson(),
     fixDistPermissions(),
   ],

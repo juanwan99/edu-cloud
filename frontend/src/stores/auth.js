@@ -4,6 +4,7 @@ import client from '../api/client.js'
 import router from '../router/index.js'
 import { normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
 import { hasPermission } from '../config/permissions.js'
+import { chooseDefaultRoleIndex } from '../config/identityRouting.js'
 import { getEnabledModules } from '../api/schoolSettings.js'
 
 /** Persist auth state to localStorage */
@@ -74,8 +75,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = data.access_token
     user.value = data.user
     roles.value = data.roles
-    const primaryIdx = roles.value.findIndex(r => r.is_primary)
-    currentRoleIndex.value = primaryIdx >= 0 ? primaryIdx : 0
+    currentRoleIndex.value = chooseDefaultRoleIndex(roles.value)
     localStorage.setItem('token', data.access_token)
     saveAuthState(user.value, roles.value, currentRoleIndex.value)
     await loadModules()
@@ -93,13 +93,14 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('token', data.access_token)
       } catch {
         currentRoleIndex.value = oldIndex
-        return
+        return false
       }
     } else {
       currentRoleIndex.value = index
     }
     saveAuthState(user.value, roles.value, currentRoleIndex.value)
     await loadModules()
+    return true
   }
 
   async function loadModules() {
