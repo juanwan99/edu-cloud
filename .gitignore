@@ -89,3 +89,7 @@ scripts/essay_*.py
 patch_*.py
 convert_*.py
 src/edu_cloud/data/import_jingyan_yuwen.py
+
+# Local AI agent runtime state
+.claude/
+.review-receipts.jsonl

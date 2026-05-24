@@ -27,6 +27,7 @@ Use this index before reading historical `docs/plans/**`. Anything not listed he
 | `docs/plans/2026-05-05-grading-progress-split-plan.md` | candidate-active | Recent grading progress plan; verify implementation state before using. |
 | `docs/plans/2026-05-05-logging-system-redesign.md` | candidate-active | Logging redesign design; not part of Codex migration P0. |
 | `docs/plans/2026-05-06-choice-scan-handoff.md` | candidate-active | User-provided handoff for Jingyan biology/geography choice-scan recovery; not part of the current Dual-Core governance task. Verify DB/template state before execution. |
+| `docs/scan-calibration-handoff.md` | candidate-active | 2026-05-17 OMR calibration results and current `calibrate_scan.py` / `calibrate_universal.py` commands; verify DB and scan files before execution. |
 
 ## Completed / Reference
 
@@ -36,6 +37,9 @@ Use this index before reading historical `docs/plans/**`. Anything not listed he
 | `docs/marking-assign-handoff.md` | completed-reference | Header says assignment redesign implemented. |
 | `docs/plans/2026-04-29-truthline-p0-handoff.md` | reference | Truthline context only; current command is `scripts/truth`. |
 | `docs/plans/2026-04-29-truthline-p0-review-report.md` | reference | Review evidence only. |
+| `docs/plans/2026-05-12-agent-optimization-design-v2.md` | reference | Pydantic AI engine design referenced by `2026-05-12-agent-pydantic-ai-handoff.md`; current code imports pydantic_ai. |
+| `docs/superpowers/plans/2026-05-24-role-workbench-optimization.md` | reference | Role-specific workbench optimization planning record. |
+| `docs/superpowers/plans/2026-05-24-formal-role-workbench-rollout.md` | reference | Formal rollout plan for active-role dashboard/sidebar behavior. |
 
 ## Historical
 

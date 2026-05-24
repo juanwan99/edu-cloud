@@ -341,7 +341,7 @@ scripts/               # 60+ 脚本，按职责分类：
   seed_data.py / seed_menus.py  # 演示数据/菜单种子
   # —— AI 阅卷校准 ——
   essay_v*.py           # 8+ 版本迭代阅卷测试脚本
-  calibrate_*.py        # 阅卷校准（scan/bio_geo/universal）
+  calibrate_scan.py / calibrate_universal.py  # 阅卷校准（bio_geo 旧脚本已归档）
   bench_llm_concurrency.py  # LLM 并发基准测试
   # —— 验证与治理 ——
   pytest_delta.py       # no-new-failures 回归门禁（对比 .quality/known-pytest-failures.txt 基线）
