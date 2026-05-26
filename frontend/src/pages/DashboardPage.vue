@@ -301,6 +301,7 @@ import {
   buildRolePriorityActions,
   getRoleDashboardKpis,
 } from '../config/roleEntryMatrix.js'
+import { buildRoleWorkbenchSummary } from '../composables/useRoleWorkbenchData.js'
 import {
   ROUTE_ACCESS_REQUIREMENTS,
   canAccessRequirementForRole,
@@ -615,11 +616,12 @@ function todoInitial(todo) {
 
 async function fetchKpiData() {
   loading.value = true
-  kpiData.value = {}
+  let dashboard = {}
   try {
     const { data } = await client.get('/dashboard/summary')
-    kpiData.value = data
+    dashboard = data
   } catch { /* will show "--" */ }
+  kpiData.value = buildRoleWorkbenchSummary(role.value, { dashboard }).kpiData
   loading.value = false
 }
 
@@ -629,15 +631,7 @@ async function fetchCharts() {
     const { data: exams } = await client.get('/exams', { params: { limit: 10 } })
     const examList = Array.isArray(exams) ? exams : (exams.items || [])
 
-    // Populate recent exams cards (top 3)
-    recentExams.value = examList.slice(0, 3).map(e => ({
-      id: e.id,
-      name: e.name,
-      status: e.status,
-      subject_count: e.subjects?.length ?? e.subject_count ?? null,
-      created_at: e.created_at,
-      grading_progress: e.grading_progress ?? null,
-    }))
+    recentExams.value = buildRoleWorkbenchSummary(role.value, { exams: examList }).recentExams
 
     const completed = examList.filter(e => e.status === 'completed' || e.status === 'published')
     if (completed.length < 1) return
@@ -700,38 +694,37 @@ async function fetchActivity() {
 }
 
 async function fetchTodos() {
-  const items = []
+  let markingAssignments = []
+  let gradingTasks = []
+  let examList = []
+  let homeworkTasks = []
+
   try {
-    // Grading tasks in progress
+    const { data } = await client.get('/marking/my-assignments')
+    markingAssignments = Array.isArray(data) ? data : (data.items || [])
+  } catch { /* personal marking assignments not accessible */ }
+
+  try {
     const { data: tasks } = await client.get('/grading/tasks')
-    const taskList = Array.isArray(tasks) ? tasks : (tasks.items || [])
-    const processing = taskList.filter(t => t.status === 'processing' || t.status === 'pending')
-    if (processing.length > 0) {
-      items.push({ label: `${processing.length} 个阅卷任务进行中`, count: processing.length, route: '/grading/tasks', color: 'coral', tagType: 'warning' })
-    }
+    gradingTasks = Array.isArray(tasks) ? tasks : (tasks.items || [])
   } catch { /* grading tasks not accessible */ }
 
   try {
-    // Exams pending grading
     const { data: exams } = await client.get('/exams', { params: { limit: 50 } })
-    const examList = Array.isArray(exams) ? exams : (exams.items || [])
-    const pendingGrading = examList.filter(e => e.status === 'grading')
-    if (pendingGrading.length > 0) {
-      items.push({ label: `${pendingGrading.length} 场考试待阅卷`, count: pendingGrading.length, route: '/exams', color: 'yellow', tagType: 'info' })
-    }
+    examList = Array.isArray(exams) ? exams : (exams.items || [])
   } catch { /* exams not accessible */ }
 
   try {
-    // Homework tasks with pending submissions
     const { data: hwTasks } = await client.get('/homework/tasks', { params: { status: 'active' } })
-    const hwList = Array.isArray(hwTasks) ? hwTasks : (hwTasks.items || [])
-    const pendingHw = hwList.filter(t => t.stats?.pending > 0 || t.status === 'active')
-    if (pendingHw.length > 0) {
-      items.push({ label: `${pendingHw.length} 份作业待批改`, count: pendingHw.length, route: '/homework', color: 'purple', tagType: 'default' })
-    }
+    homeworkTasks = Array.isArray(hwTasks) ? hwTasks : (hwTasks.items || [])
   } catch { /* homework not accessible */ }
 
-  todoItems.value = items
+  todoItems.value = buildRoleWorkbenchSummary(role.value, {
+    exams: examList,
+    markingAssignments,
+    gradingTasks,
+    homeworkTasks,
+  }).todoItems
 }
 
 onMounted(() => {

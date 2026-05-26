@@ -88,6 +88,7 @@ describe('DashboardPage role-first formal workbench', () => {
   })
 
   it('uses live role workbench data for role panels and kpis', () => {
+    expect(content).toContain("import { buildRoleWorkbenchSummary } from '../composables/useRoleWorkbenchData.js'")
     expect(content).toContain('getRoleDashboardKpis(role.value)')
     expect(content).toContain('buildRolePriorityActions(role.value')
     expect(content).toContain('summary: kpiData.value')
@@ -210,12 +211,18 @@ describe('DashboardPage data fetching', () => {
     expect(content).toContain("client.get('/grading/tasks')")
   })
 
+  it('fetches personal marking assignments for role todo items', () => {
+    expect(content).toContain("client.get('/marking/my-assignments')")
+  })
+
   it('fetches homework tasks for todo items', () => {
     expect(content).toContain("client.get('/homework/tasks'")
   })
 
-  it('populates recentExams from exam list', () => {
-    expect(content).toContain('recentExams.value = examList.slice(0, 3)')
+  it('normalizes dashboard data through the active-role adapter', () => {
+    expect(content).toContain('kpiData.value = buildRoleWorkbenchSummary(role.value, { dashboard }).kpiData')
+    expect(content).toContain('recentExams.value = buildRoleWorkbenchSummary(role.value, { exams: examList }).recentExams')
+    expect(content).toContain('todoItems.value = buildRoleWorkbenchSummary(role.value, {')
   })
 })
 
@@ -288,7 +295,7 @@ describe('DashboardPage error handling', () => {
     const end = content.indexOf('onMounted(', start)
     const fnBlock = content.slice(start, end)
     const catchCount = (fnBlock.match(/\} catch/g) || []).length
-    expect(catchCount).toBeGreaterThanOrEqual(3)
+    expect(catchCount).toBeGreaterThanOrEqual(4)
   })
 })
 
