@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   chooseDefaultRoleIndex,
+  findRoleIndexByKey,
   getRoleKeyByLabel,
+  routeBelongsToRoleEntry,
   toRoleQuery,
 } from '../config/identityRouting.js'
+import { getRoleEntryPolicy } from '../config/roleEntryMatrix.js'
 
 const roles = [
   { id: 'r1', role: 'subject_teacher', is_primary: false },
@@ -51,5 +54,31 @@ describe('identity routing', () => {
 
   it('generates route query for a target role', () => {
     expect(toRoleQuery('grade_leader')).toEqual({ role: 'grade_leader' })
+  })
+
+  it('finds a role index by normalized role key', () => {
+    expect(findRoleIndexByKey([
+      { role: 'teacher' },
+      { role: 'grade_leader' },
+    ], 'subject_teacher')).toBe(0)
+    expect(findRoleIndexByKey(roles, 'principal')).toBe(-1)
+  })
+
+  it('checks whether a route belongs to the target role entry policy', () => {
+    expect(routeBelongsToRoleEntry(
+      '/analytics/report/student/42',
+      'principal',
+      getRoleEntryPolicy('principal'),
+    )).toBe(true)
+    expect(routeBelongsToRoleEntry(
+      '/school-settings',
+      'principal',
+      getRoleEntryPolicy('principal'),
+    )).toBe(false)
+    expect(routeBelongsToRoleEntry(
+      '/grading/tasks',
+      'subject_teacher',
+      getRoleEntryPolicy('subject_teacher'),
+    )).toBe(false)
   })
 })

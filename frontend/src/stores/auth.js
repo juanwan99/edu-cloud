@@ -4,7 +4,7 @@ import client from '../api/client.js'
 import router from '../router/index.js'
 import { normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
 import { hasPermission } from '../config/permissions.js'
-import { chooseDefaultRoleIndex } from '../config/identityRouting.js'
+import { chooseDefaultRoleIndex, findRoleIndexByKey } from '../config/identityRouting.js'
 import { getEnabledModules } from '../api/schoolSettings.js'
 
 /** Persist auth state to localStorage */
@@ -103,6 +103,12 @@ export const useAuthStore = defineStore('auth', () => {
     return true
   }
 
+  async function switchRoleByKey(roleKey) {
+    const index = findRoleIndexByKey(roles.value, roleKey)
+    if (index < 0) return false
+    return switchRole(index)
+  }
+
   async function loadModules() {
     const role = currentRole.value
     if (!role?.school_id) {
@@ -193,7 +199,7 @@ export const useAuthStore = defineStore('auth', () => {
     displayName, roleName, currentContext, isAdmin,
     enabledModules, modulesLoaded,
     impersonation, isImpersonating,
-    checkPermission, login, switchRole, logout, loadModules,
+    checkPermission, login, switchRole, switchRoleByKey, logout, loadModules,
     impersonate, stopImpersonation,
   }
 })

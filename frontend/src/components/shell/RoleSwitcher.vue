@@ -33,7 +33,8 @@ import { NTag } from 'naive-ui'
 import { useAuthStore } from '../../stores/auth.js'
 import { normalizeRole, ROLE_LABELS } from '../../config/roles.js'
 import { canAccessRouteForRole } from '../../config/routeAccess.js'
-import { getSidebarItems } from '../../config/sidebarConfig.js'
+import { getRoleEntryPolicy } from '../../config/roleEntryMatrix.js'
+import { routeBelongsToRoleEntry } from '../../config/identityRouting.js'
 
 defineProps({
   compact: { type: Boolean, default: false },
@@ -72,6 +73,7 @@ const roleOptions = computed(() => {
     const label = ROLE_LABELS[normalized] || role.role
     const ctxName = role.context?.name || ''
     const isCurrent = index === auth.currentRoleIndex
+    const primaryText = role.is_primary ? '主身份' : '可切换'
 
     items.push({
       key: index,
@@ -88,7 +90,8 @@ const roleOptions = computed(() => {
             bordered: !isCurrent,
           }, { default: () => label }),
           ctxName ? h('span', { style: 'font-size: var(--fs-base); color: var(--color-text-muted);' }, ctxName) : null,
-          isCurrent ? h('span', { style: 'margin-left: auto; font-size: var(--fs-base); color: var(--color-primary);' }, '\u2713') : null,
+          h('span', { style: 'font-size: var(--fs-base); color: var(--color-text-muted);' }, primaryText),
+          isCurrent ? h('span', { style: 'margin-left: auto; font-size: var(--fs-base); color: var(--color-primary);' }, '当前') : null,
         ]),
     })
   })
@@ -99,14 +102,6 @@ const roleOptions = computed(() => {
 
   return items
 })
-
-function isRouteInRoleWorkbench(roleKey, path, enabledModules) {
-  if (path === '/') return true
-  return getSidebarItems(roleKey, enabledModules).some(item => {
-    if (item.route === '/') return false
-    return path === item.route || path.startsWith(`${item.route}/`)
-  })
-}
 
 async function handleSwitch(key) {
   if (key === 'logout') {
@@ -121,7 +116,7 @@ async function handleSwitch(key) {
     if (!switched) return
     const enabledModules = auth.modulesLoaded ? auth.enabledModules : []
     const routeAllowed = canAccessRouteForRole(targetRoleKey, route.path, enabledModules)
-    const routeInWorkbench = isRouteInRoleWorkbench(targetRoleKey, route.path, enabledModules)
+    const routeInWorkbench = routeBelongsToRoleEntry(route.path, targetRoleKey, getRoleEntryPolicy(targetRoleKey))
     if (!routeAllowed || !routeInWorkbench) {
       router.push('/')
     }

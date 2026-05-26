@@ -40,6 +40,28 @@ export function chooseDefaultRoleIndex(roles = []) {
   return bestIndex
 }
 
+export function findRoleIndexByKey(roles = [], roleKey) {
+  const normalizedTarget = normalizeRole(roleKey)
+  return roles.findIndex(role => normalizeRole(role.role) === normalizedTarget)
+}
+
+export function routeBelongsToRoleEntry(routePath, roleKey, policy) {
+  if (routePath === '/') return true
+  const normalizedRoleKey = normalizeRole(roleKey)
+  if (!normalizedRoleKey) return false
+  if (!policy) return false
+
+  const visibleRoutes = new Set([
+    ...(policy.primaryRoutes || []),
+    ...(policy.secondaryRoutes || []),
+  ])
+
+  return [...visibleRoutes].some(route => {
+    if (route === '/') return false
+    return routePath === route || routePath.startsWith(`${route}/`)
+  })
+}
+
 export function getRoleKeyByLabel(label) {
   return ROLE_KEY_BY_LABEL[label] || ''
 }

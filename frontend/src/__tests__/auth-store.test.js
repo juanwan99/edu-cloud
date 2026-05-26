@@ -242,4 +242,47 @@ describe('auth store switchRole()', () => {
     expect(store.currentRoleIndex).toBe(0) // rolled back
     expect(store.token).toBe('old-jwt') // unchanged
   })
+
+  it('switchRoleByKey switches through the same switchRole path', async () => {
+    const saved = {
+      user: { id: 'u1', display_name: 'Alice' },
+      roles: [
+        { id: 'r1', role: 'principal', context: null },
+        { id: 'r2', role: 'subject_teacher', context: null },
+      ],
+      currentRoleIndex: 0,
+    }
+    localStorage.setItem('token', 'old-jwt')
+    localStorage.setItem('auth_state', JSON.stringify(saved))
+    const store = useAuthStore()
+    client.post.mockResolvedValueOnce({
+      data: { access_token: 'teacher-jwt' },
+    })
+
+    const ok = await store.switchRoleByKey('subject_teacher')
+
+    expect(ok).toBe(true)
+    expect(client.post).toHaveBeenCalledWith('/auth/switch-role', { role_id: 'r2' })
+    expect(store.currentRoleIndex).toBe(1)
+    expect(store.token).toBe('teacher-jwt')
+  })
+
+  it('switchRoleByKey returns false when the user does not have that identity', async () => {
+    const saved = {
+      user: { id: 'u1', display_name: 'Alice' },
+      roles: [
+        { id: 'r1', role: 'principal', context: null },
+      ],
+      currentRoleIndex: 0,
+    }
+    localStorage.setItem('token', 'old-jwt')
+    localStorage.setItem('auth_state', JSON.stringify(saved))
+    const store = useAuthStore()
+
+    const ok = await store.switchRoleByKey('subject_teacher')
+
+    expect(ok).toBe(false)
+    expect(client.post).not.toHaveBeenCalled()
+    expect(store.currentRoleIndex).toBe(0)
+  })
 })
