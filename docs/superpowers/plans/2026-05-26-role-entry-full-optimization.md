@@ -155,7 +155,7 @@ Run:
 
 ```bash
 cd /home/ops/projects/edu-cloud
-npm --prefix frontend test -- --run frontend/src/__tests__/AppHeader.test.js
+npm --prefix frontend test -- --run src/__tests__/AppHeader.test.js
 ```
 
 Expected: `2 passed`.
@@ -271,7 +271,7 @@ Run:
 
 ```bash
 cd /home/ops/projects/edu-cloud
-npm --prefix frontend test -- --run frontend/src/__tests__/roleEntryMatrix.test.js
+npm --prefix frontend test -- --run src/__tests__/roleEntryMatrix.test.js
 ```
 
 Expected: fail because `roleEntryMatrix.js` does not exist.
@@ -531,11 +531,11 @@ Run:
 ```bash
 cd /home/ops/projects/edu-cloud
 npm --prefix frontend test -- --run \
-  frontend/src/__tests__/roleEntryMatrix.test.js \
-  frontend/src/__tests__/routeAccess.test.js \
-  frontend/src/__tests__/sidebarConfig.rolePolicy.test.js \
-  frontend/src/__tests__/AppHeader.test.js \
-  frontend/src/__tests__/AppSidebar.test.js
+  src/__tests__/roleEntryMatrix.test.js \
+  src/__tests__/routeAccess.test.js \
+  src/__tests__/sidebarConfig.rolePolicy.test.js \
+  src/__tests__/AppHeader.test.js \
+  src/__tests__/AppSidebar.test.js
 ```
 
 Expected: all listed tests pass.
@@ -679,8 +679,8 @@ Run:
 ```bash
 cd /home/ops/projects/edu-cloud
 npm --prefix frontend test -- --run \
-  frontend/src/__tests__/roleEntryMatrix.test.js \
-  frontend/src/pages/__tests__/DashboardPage.test.js
+  src/__tests__/roleEntryMatrix.test.js \
+  src/pages/__tests__/DashboardPage.test.js
 ```
 
 Expected: pass, and `rg "roleWorkbenches|principal: 'school_admin'|getDashboardConfig" frontend/src` returns no production imports.
@@ -770,9 +770,9 @@ Run:
 
 ```bash
 npm --prefix frontend test -- --run \
-  frontend/src/__tests__/identityRouting.test.js \
-  frontend/src/__tests__/auth-store.test.js \
-  frontend/src/__tests__/RoleSwitcher.test.js
+  src/__tests__/identityRouting.test.js \
+  src/__tests__/auth-store.test.js \
+  src/__tests__/RoleSwitcher.test.js
 ```
 
 Expected: pass.
@@ -873,8 +873,8 @@ Run:
 
 ```bash
 npm --prefix frontend test -- --run \
-  frontend/src/composables/__tests__/useRoleWorkbenchData.test.js \
-  frontend/src/pages/__tests__/DashboardPage.test.js
+  src/composables/__tests__/useRoleWorkbenchData.test.js \
+  src/pages/__tests__/DashboardPage.test.js
 ```
 
 Expected: pass.
@@ -1011,7 +1011,7 @@ Do not broaden backend permissions here; this is frontend route consistency only
 Run:
 
 ```bash
-npm --prefix frontend test -- --run frontend/src/__tests__/router.test.js frontend/src/__tests__/routeAccess.test.js
+npm --prefix frontend test -- --run src/__tests__/router.test.js src/__tests__/routeAccess.test.js
 ```
 
 Expected: pass.
@@ -1038,17 +1038,17 @@ Run:
 
 ```bash
 npm --prefix frontend test -- --run \
-  frontend/src/__tests__/roleEntryMatrix.test.js \
-  frontend/src/__tests__/workbenchProfiles.test.js \
-  frontend/src/__tests__/routeAccess.test.js \
-  frontend/src/__tests__/sidebarConfig.rolePolicy.test.js \
-  frontend/src/__tests__/identityRouting.test.js \
-  frontend/src/__tests__/auth-store.test.js \
-  frontend/src/__tests__/AppHeader.test.js \
-  frontend/src/__tests__/AppSidebar.test.js \
-  frontend/src/__tests__/RoleSwitcher.test.js \
-  frontend/src/pages/__tests__/DashboardPage.test.js \
-  frontend/src/composables/__tests__/useRoleWorkbenchData.test.js
+  src/__tests__/roleEntryMatrix.test.js \
+  src/__tests__/workbenchProfiles.test.js \
+  src/__tests__/routeAccess.test.js \
+  src/__tests__/sidebarConfig.rolePolicy.test.js \
+  src/__tests__/identityRouting.test.js \
+  src/__tests__/auth-store.test.js \
+  src/__tests__/AppHeader.test.js \
+  src/__tests__/AppSidebar.test.js \
+  src/__tests__/RoleSwitcher.test.js \
+  src/pages/__tests__/DashboardPage.test.js \
+  src/composables/__tests__/useRoleWorkbenchData.test.js
 ```
 
 Expected: all pass.

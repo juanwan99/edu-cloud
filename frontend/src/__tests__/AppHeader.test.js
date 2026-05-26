@@ -69,8 +69,8 @@ describe('AppHeader role navigation', () => {
     const text = wrapper.find('.app-header__nav').text()
 
     expect(text).toContain('学校配置')
-    expect(text).toContain('教师管理')
-    expect(text).toContain('考试流程')
+    expect(text).toContain('教师与职务')
+    expect(text).toContain('数据导入')
     expect(text).toContain('数据报告')
     expect(text).not.toContain('阅卷调度')
     expect(text).not.toContain('我的阅卷')
@@ -89,6 +89,6 @@ describe('AppHeader role navigation', () => {
     expect(text).toContain('成绩分析')
     expect(text).toContain('作业管理')
     expect(text).not.toContain('阅卷调度')
-    expect(text).not.toContain('教师管理')
+    expect(text).not.toContain('教师与职务')
   })
 })
