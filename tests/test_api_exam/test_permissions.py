@@ -1,11 +1,24 @@
 """权限过滤集成测试 — 验证角色矩阵（R7 修复）。"""
+from types import SimpleNamespace
+
 import pytest
+from edu_cloud.api.permissions import get_visible_subject_codes
 from edu_cloud.models.school import School
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.exam import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.shared.auth import create_access_token
+
+
+def test_grade_leader_can_see_all_subjects_within_grade_scope():
+    role = SimpleNamespace(role="grade_leader", subject_codes=None)
+    assert get_visible_subject_codes(role) is None
+
+
+def test_lesson_prep_leader_stays_subject_scoped():
+    role = SimpleNamespace(role="lesson_prep_leader", subject_codes=["MATH"])
+    assert get_visible_subject_codes(role) == ["MATH"]
 
 
 @pytest.fixture
