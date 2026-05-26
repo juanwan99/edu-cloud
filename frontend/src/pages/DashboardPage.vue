@@ -244,25 +244,6 @@
         </div>
       </div>
 
-      <aside v-if="entryItems.length > 0" class="entry-stack" aria-label="快速入口">
-        <router-link
-          v-for="entry in entryItems"
-          :key="entry.route"
-          :to="entry.route"
-          :class="['entry', `entry--${entry.tone}`]"
-        >
-          <div :class="['entry__icon', `entry__icon--${entry.iconTone}`]">
-            <AppIcon :name="entry.icon" :size="18" />
-          </div>
-          <div class="entry__title">{{ entry.title }}</div>
-          <div class="entry__sub">{{ entry.sub }}</div>
-          <div class="entry__bottom">
-            <span :class="['entry__btn', `entry__btn--${entry.buttonTone}`]">
-              {{ entry.buttonText }}
-            </span>
-          </div>
-        </router-link>
-      </aside>
     </div>
 
     <div class="divider" />
@@ -303,18 +284,6 @@
       </div>
     </div>
 
-    <!-- Module Cards Grid -->
-    <WidgetGrid :columns="2" class="module-grid">
-      <DashboardCard
-        v-for="widget in dashboardWidgets"
-        :key="widget.id"
-        :title="widget.title"
-        :icon="widget.icon"
-        :route="widget.route"
-        :planned="widget.planned"
-      />
-    </WidgetGrid>
-
     <!-- Activity Feed -->
     <ActivityFeed :items="activityItems" />
   </div>
@@ -325,18 +294,18 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { NButton, NTag } from 'naive-ui'
 import { useAuthStore } from '../stores/auth'
-import { getDashboardConfig } from '../config/dashboardConfig'
-import { getSidebarItems } from '../config/sidebarConfig.js'
 import { normalizeRole } from '../config/roles'
 import { getWorkbenchProfile } from '../config/workbenchProfiles.js'
-import { buildAdminPriorityActions, buildRoleActionPanel } from '../config/roleWorkbenches.js'
+import {
+  buildRoleActionPanel,
+  buildRolePriorityActions,
+  getRoleDashboardKpis,
+} from '../config/roleEntryMatrix.js'
 import {
   ROUTE_ACCESS_REQUIREMENTS,
   canAccessRequirementForRole,
 } from '../config/routeAccess.js'
 import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
-import DashboardCard from '../components/dashboard/DashboardCard.vue'
-import WidgetGrid from '../components/dashboard/WidgetGrid.vue'
 import ActivityFeed from '../components/dashboard/ActivityFeed.vue'
 import AppIcon from '../components/AppIcon.vue'
 import client from '../api/client.js'
@@ -351,9 +320,8 @@ use([LineChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer
 const router = useRouter()
 const auth = useAuthStore()
 const role = computed(() => normalizeRole(auth.currentRole?.role || ''))
-const config = computed(() => getDashboardConfig(role.value))
 const workbenchProfile = computed(() => getWorkbenchProfile(role.value))
-const adminRoleKeys = new Set(['platform_admin', 'district_admin', 'school_admin', 'principal'])
+const schoolWideRoleKeys = new Set(['platform_admin', 'district_admin', 'school_admin', 'principal'])
 
 const kpiData = ref({})
 const loading = ref(true)
@@ -423,7 +391,7 @@ function countLabel(values, unit) {
 const scopeSummary = computed(() => {
   const current = auth.currentRole || {}
   if (!current.role) return '未设置范围'
-  if (adminRoleKeys.has(role.value)) return auth.currentContext?.name || '全校'
+  if (schoolWideRoleKeys.has(role.value)) return auth.currentContext?.name || '全校'
 
   const parts = [
     countLabel(current.grade_ids, '个年级'),
@@ -551,101 +519,24 @@ const secondaryBusinessGroups = computed(() =>
     .slice(0, 2),
 )
 
-const currentWorkbenchRoutes = computed(() => {
-  const enabledModules = auth.modulesLoaded ? auth.enabledModules : []
-  return new Set(getSidebarItems(role.value, enabledModules).map(item => item.route))
-})
-
-function isCurrentWorkbenchRoute(route) {
-  if (!route || route === '/') return true
-  return currentWorkbenchRoutes.value.has(route)
-}
-
-const dashboardWidgets = computed(() =>
-  (config.value?.widgets || []).filter(widget =>
-    canAccessRoute(widget.route) && isCurrentWorkbenchRoute(widget.route),
-  ),
-)
-
 const dashboardKpis = computed(() =>
-  (config.value?.kpis || []).map((kpi, index) => ({
+  getRoleDashboardKpis(role.value).map((kpi, index) => ({
     ...kpi,
     tone: statToneSequence[index % statToneSequence.length],
     icon: kpiIconMap[kpi.id] || ['exam', 'people', 'marking', 'chart'][index % 4],
   }))
 )
 
-const profilePriorityActions = computed(() => {
-  if (adminRoleKeys.has(role.value)) {
-    return buildAdminPriorityActions({
-      summary: kpiData.value,
-      recentExams: recentExams.value,
-      todoItems: todoItems.value,
-    }).filter(action => canAccessRoute(action.route))
-  }
-
-  return workbenchProfile.value.priorities
-    .filter(action => canAccessRoute(action.route))
-    .map(action => ({
-      ...action,
-      tag: action.meta,
-      tagType: action.tone === 'orange' ? 'warning' : action.tone === 'yellow' ? 'success' : 'default',
-    }))
-})
+const profilePriorityActions = computed(() =>
+  buildRolePriorityActions(role.value, {
+    profile: workbenchProfile.value,
+    summary: kpiData.value,
+    recentExams: recentExams.value,
+    todoItems: todoItems.value,
+  }).filter(action => canAccessRoute(action.route)),
+)
 
 const priorityActions = computed(() => profilePriorityActions.value)
-
-const entryItems = computed(() => {
-  const r = role.value
-  if (r === 'parent') return []
-  const enabledModules = auth.enabledModules || []
-
-  const items = [
-    {
-      tone: 'dark',
-      iconTone: 'yellow',
-      icon: 'ai',
-      title: 'AI 智能阅卷',
-      sub: '自动识别与智能评分',
-      route: '/ai-grading',
-      permission: 'manage_grading',
-      moduleCode: 'grading',
-      buttonText: '立即使用',
-      buttonTone: 'yellow',
-    },
-    {
-      tone: 'yellow',
-      iconTone: 'dark',
-      icon: 'chart',
-      title: '多维成绩分析',
-      sub: '年级 / 班级 / 学生对比',
-      route: '/analytics/report',
-      permission: 'view_scores',
-      buttonText: '查看',
-      buttonTone: 'dark',
-    },
-    {
-      tone: 'purple',
-      iconTone: 'light',
-      icon: 'chart',
-      title: '知识图谱',
-      sub: '学科知识全景可视化',
-      route: '/knowledge-tree',
-      permission: 'view_knowledge_tree',
-      moduleCode: 'research',
-      buttonText: '探索',
-      buttonTone: 'light',
-    },
-  ]
-
-  return items.filter(item => {
-    const required = Array.isArray(item.permission) ? item.permission : [item.permission]
-    const hasPermission = required.some(perm => auth.checkPermission(perm))
-    if (item.moduleCode && !enabledModules.includes(item.moduleCode)) return false
-    if (!isCurrentWorkbenchRoute(item.route)) return false
-    return hasPermission && canAccessRoute(item.route)
-  }).slice(0, 2)
-})
 
 const gradingProgressItems = computed(() => {
   return recentExams.value
@@ -1359,11 +1250,6 @@ function getKpiValue(kpi) {
   margin-bottom: 24px;
 }
 
-/* Module grid */
-.module-grid {
-  margin-bottom: 8px;
-}
-
 @media (max-width: 768px) {
   .todo-section {
     flex-direction: column;
@@ -1390,7 +1276,7 @@ function getKpiValue(kpi) {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   align-items: start;
   margin-bottom: 28px;
@@ -1405,11 +1291,6 @@ function getKpiValue(kpi) {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-top: 20px;
-}
-
-.entry-stack {
-  display: grid;
-  gap: 14px;
 }
 
 .card {
@@ -1526,21 +1407,6 @@ function getKpiValue(kpi) {
 
 .friend--clickable:hover {
   background: var(--color-bg);
-}
-
-.entry__icon--yellow {
-  background: rgba(244, 218, 76, 0.18);
-  color: #F4DA4C;
-}
-
-.entry__icon--dark {
-  background: rgba(9, 6, 27, 0.1);
-  color: #09061B;
-}
-
-.entry__icon--light {
-  background: rgba(255, 255, 255, 0.16);
-  color: #ffffff;
 }
 
 .recent-table-wrap {

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { CANONICAL_ROLES, ROLE_LABELS, normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
+import { CANONICAL_ROLES, normalizeRole, SCHOOL_ADMIN_ROLES } from '../config/roles.js'
 import { hasPermission, ROLE_PERMISSIONS } from '../config/permissions.js'
 import { getSidebarItems } from '../config/sidebarConfig.js'
-import { getDashboardConfig } from '../config/dashboardConfig.js'
+import { getRoleDashboardKpis, getRoleEntryPolicy } from '../config/roleEntryMatrix.js'
 
 describe('roles config', () => {
   it('has 11 canonical roles', () => {
@@ -50,36 +50,35 @@ describe('sidebar config', () => {
   })
 })
 
-describe('dashboard config', () => {
-  it('returns config for every canonical role', () => {
+describe('role entry dashboard config', () => {
+  it('returns dashboard kpis for every canonical role', () => {
     for (const role of CANONICAL_ROLES) {
-      const config = getDashboardConfig(role)
-      expect(config, `${role} should have dashboard config`).toBeTruthy()
-      expect(config.kpis).toBeDefined()
+      const kpis = getRoleDashboardKpis(role)
+      expect(Array.isArray(kpis), `${role} should have dashboard kpis`).toBe(true)
     }
   })
 
-  it('different roles have different titles', () => {
-    const titles = new Set()
-    for (const role of CANONICAL_ROLES) {
-      const config = getDashboardConfig(role)
-      if (config.title) titles.add(config.title)
-    }
-    // At least 4 distinct titles (admin/school/teacher/parent have different views)
-    expect(titles.size).toBeGreaterThanOrEqual(2)
+  it('keeps principal dashboard separate from school admin operations', () => {
+    const principalRoutes = getRoleEntryPolicy('principal').primaryRoutes
+    const adminRoutes = getRoleEntryPolicy('platform_admin').primaryRoutes
+
+    expect(principalRoutes).toContain('/analytics/report')
+    expect(principalRoutes).not.toContain('/school-settings')
+    expect(adminRoutes).toContain('/school-settings')
   })
 
-  it('platform_admin has schools widget, parent does not', () => {
-    const admin = getDashboardConfig('platform_admin')
-    const parent = getDashboardConfig('parent')
-    expect(admin.widgets.some(w => w.id === 'schools')).toBe(true)
-    expect(parent.widgets?.some(w => w.id === 'schools') ?? false).toBe(false)
+  it('different roles have different kpi labels', () => {
+    const labelSets = new Set()
+    for (const role of CANONICAL_ROLES) {
+      const labels = getRoleDashboardKpis(role).map(kpi => kpi.label).join('|')
+      labelSets.add(labels)
+    }
+    expect(labelSets.size).toBeGreaterThanOrEqual(4)
   })
 
   it('each kpi has required fields', () => {
     for (const role of CANONICAL_ROLES) {
-      const config = getDashboardConfig(role)
-      for (const kpi of config.kpis) {
+      for (const kpi of getRoleDashboardKpis(role)) {
         expect(kpi.id, `${role} kpi missing id`).toBeTruthy()
         expect(kpi.label, `${role} kpi missing label`).toBeTruthy()
         expect(kpi.color, `${role} kpi missing color`).toBeTruthy()

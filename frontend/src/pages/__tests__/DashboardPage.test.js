@@ -3,9 +3,9 @@
  *
  * Validates:
  *  1. Component can be imported (smoke)
- *  2. Template contains new sections (entry-stack, todo, recent-exams, welcome-banner, chart-empty)
+ *  2. Template contains role-first sections (todo, recent-exams, welcome-banner, chart-empty)
  *  3. Chart-card uses theme-aware background (no hardcoded white)
- *  4. Entry cards are permission-aware (parent gets empty)
+ *  4. Legacy module widgets and hard-coded quick entries are removed
  *  5. Exam status helpers return correct Chinese text
  */
 import { describe, it, expect } from 'vitest'
@@ -44,12 +44,11 @@ describe('DashboardPage template sections', () => {
     expect(content).toContain('canAccessRequirementForRole(role.value, item, enabledModules)')
   })
 
-  it('contains permission-gated entry stack', () => {
-    expect(content).toContain('entryItems.length > 0')
-    expect(content).toContain('v-for="entry in entryItems"')
-    expect(content).toContain('<router-link')
-    expect(content).toContain(':to="entry.route"')
-    expect(content).toContain("`entry--${entry.tone}`")
+  it('uses role modules for secondary business entries instead of hard-coded quick cards', () => {
+    expect(content).toContain('secondaryBusinessGroups')
+    expect(content).toContain('class="card business-map"')
+    expect(content).not.toContain('entry' + 'Items.length > 0')
+    expect(content).not.toContain('v-for="entry in entry' + 'Items"')
   })
 
   it('contains todo-section', () => {
@@ -74,21 +73,23 @@ describe('DashboardPage template sections', () => {
 })
 
 describe('DashboardPage role-first formal workbench', () => {
-  it('delegates role-specific action panels to the shared role workbench mapping', () => {
+  it('delegates role-specific action panels to the shared role entry matrix', () => {
     expect(content).toContain('const roleActionPanel = computed')
     expect(content).toContain('const roleSpecificPanel = buildRoleActionPanel')
     expect(content).toContain('if (roleSpecificPanel)')
+    expect(content).toContain("} from '../config/roleEntryMatrix.js'")
+    expect(content).not.toContain("from '../config/role" + "Workbenches.js'")
     expect(content).not.toContain("if (adminRoleKeys.has(role.value)) {\n    return {\n      title: '运行治理中心'")
   })
 
-  it('uses workbench profile priorities for today actions', () => {
-    expect(content).toContain('workbenchProfile.value.priorities')
+  it('uses the role entry matrix for today actions', () => {
+    expect(content).toContain('buildRolePriorityActions(role.value')
     expect(content).toContain('profilePriorityActions')
   })
 
-  it('uses live role workbench data for admin and middle-management panels', () => {
-    expect(content).toContain("import { buildAdminPriorityActions, buildRoleActionPanel } from '../config/roleWorkbenches.js'")
-    expect(content).toContain('buildAdminPriorityActions({')
+  it('uses live role workbench data for role panels and kpis', () => {
+    expect(content).toContain('getRoleDashboardKpis(role.value)')
+    expect(content).toContain('buildRolePriorityActions(role.value')
     expect(content).toContain('summary: kpiData.value')
     expect(content).toContain('recentExams: recentExams.value')
     expect(content).toContain('buildRoleActionPanel(role.value, {')
@@ -137,46 +138,22 @@ describe('DashboardPage dark theme adaptation', () => {
   })
 })
 
-describe('DashboardPage entry permission filtering', () => {
-  it('defines permission-gated entry items', () => {
-    expect(content).toContain('const entryItems = computed')
-    expect(content).toContain("permission: 'manage_grading'")
-    expect(content).toContain("permission: 'view_scores'")
-    expect(content).toContain("permission: 'view_knowledge_tree'")
-    expect(content).toContain('auth.checkPermission')
-    expect(content).toContain("moduleCode: 'grading'")
-    expect(content).toContain('enabledModules.includes(item.moduleCode)')
-  })
-
-  it('filters out entries for parent role', () => {
-    expect(content).toContain("if (r === 'parent') return []")
-  })
-
-  it('includes correct route targets', () => {
-    expect(content).toContain("route: '/ai-grading'")
-    expect(content).toContain("route: '/analytics/report'")
-    expect(content).toContain("route: '/knowledge-tree'")
-  })
-
-  it('uses semantic links for entry cards without nested buttons', () => {
-    const entryBlock = content.slice(
-      content.indexOf('<aside v-if="entryItems.length > 0"'),
-      content.indexOf('</aside>')
-    )
-    expect(entryBlock).toContain('<router-link')
-    expect(entryBlock).not.toContain('role="button"')
-    expect(entryBlock).not.toContain('tabindex="0"')
-    expect(entryBlock).not.toContain('@keyup.enter')
-    expect(entryBlock).not.toContain('<button')
+describe('DashboardPage role entry filtering', () => {
+  it('removes hard-coded quick entry cards so role matrix owns primary and secondary entry order', () => {
+    expect(content).not.toContain('const entry' + 'Items = computed')
+    expect(content).not.toContain('<aside v-if="entry' + 'Items.length > 0"')
+    expect(content).not.toContain('AI 智能阅卷')
+    expect(content).not.toContain('多维成绩分析')
+    expect(content).not.toContain('知识图谱</div>')
   })
 })
 
 describe('DashboardPage dashboard widget access', () => {
-  it('renders module cards from route-filtered dashboardWidgets, not raw config widgets', () => {
-    expect(content).toContain("import { getSidebarItems } from '../config/sidebarConfig.js'")
-    expect(content).toContain('const dashboardWidgets = computed')
-    expect(content).toContain('v-for="widget in dashboardWidgets"')
-    expect(content).not.toContain('v-for="widget in config?.widgets"')
+  it('does not render legacy dashboard widget cards beside the role workbench', () => {
+    expect(content).not.toContain("import { getSidebarItems } from '../config/sidebarConfig.js'")
+    expect(content).not.toContain('const dashboard' + 'Widgets = computed')
+    expect(content).not.toContain('v-for="widget in dashboard' + 'Widgets"')
+    expect(content).not.toContain('Widget' + 'Grid')
   })
 
   it('builds hero actions from the current role profile instead of naked permission checks', () => {
@@ -337,8 +314,9 @@ describe('DashboardPage Phase 6 role-context layout', () => {
     expect(content).toContain('.slice(0, 2)')
     expect(content).toContain('v-for="group in secondaryBusinessGroups"')
     expect(content).toContain('次级业务入口')
-    expect(content).toContain('isCurrentWorkbenchRoute(item.route)')
-    expect(content).toContain('entryItems')
+    expect(content).toContain('canAccessRoute(item.route)')
+    expect(content).not.toContain('isCurrentWorkbenchRoute(item.route)')
+    expect(content).not.toContain('entry' + 'Items')
     expect(content).toContain('.slice(0, 2)')
   })
 })
