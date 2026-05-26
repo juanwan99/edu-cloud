@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AppShell from '../layouts/AppShell.vue'
-import { SCHOOL_ADMIN_ROLES, EXAM_ROLES, MARKING_ROLES, normalizeRole } from '../config/roles.js'
+import { normalizeRole } from '../config/roles.js'
 import { hasPermission } from '../config/permissions.js'
 import clientLogger from '../utils/clientLogger.js'
 
@@ -29,24 +29,24 @@ export const routes = [
       { path: 'workbench-preview', name: 'RoleWorkbenchPreview', component: () => import('../pages/RoleWorkbenchPreviewPage.vue') },
 
       // 考试
-      { path: 'exam-import', name: 'ExamImport', component: () => import('../pages/ExamImportPage.vue'), meta: { permissions: ['import_exams'] } },
-      { path: 'exams', name: 'ExamList', component: () => import('../pages/ExamListPage.vue'), meta: { roles: EXAM_ROLES } },
-      { path: 'exams/:id', name: 'ExamDetail', component: () => import('../pages/ExamDetailPage.vue'), meta: { roles: EXAM_ROLES } },
-      { path: 'card-dev/:examId', name: 'CardEditorDev', component: () => import('../pages/CardEditorDevPage.vue'), meta: { roles: EXAM_ROLES } },
+      { path: 'exam-import', name: 'ExamImport', component: () => import('../pages/ExamImportPage.vue'), meta: { permissions: ['import_exams'], moduleCode: 'exam' } },
+      { path: 'exams', name: 'ExamList', component: () => import('../pages/ExamListPage.vue'), meta: { permissions: ['view_exams'], moduleCode: 'exam' } },
+      { path: 'exams/:id', name: 'ExamDetail', component: () => import('../pages/ExamDetailPage.vue'), meta: { permissions: ['view_exams'], moduleCode: 'exam' } },
+      { path: 'card-dev/:examId', name: 'CardEditorDev', component: () => import('../pages/CardEditorDevPage.vue'), meta: { permissions: ['manage_exams'], moduleCode: 'exam' } },
 
       // 阅卷
-      { path: 'grading/tasks', name: 'GradingDispatch', component: () => import('../pages/GradingDispatchPage.vue'), meta: { permissions: ['manage_grading'] } },
-      { path: 'grading/tasks/:id', name: 'GradingResults', component: () => import('../pages/GradingResultsPage.vue'), meta: { roles: SCHOOL_ADMIN_ROLES } },
-      { path: 'marking', name: 'MarkingSelect', component: () => import('../pages/MarkingSelectPage.vue'), meta: { roles: MARKING_ROLES } },
-      { path: 'marking/grade/:questionId', name: 'Review', component: () => import('../pages/ReviewPage.vue'), meta: { roles: MARKING_ROLES, shellMode: 'workspace' } },
+      { path: 'grading/tasks', name: 'GradingDispatch', component: () => import('../pages/GradingDispatchPage.vue'), meta: { permissions: ['manage_grading'], moduleCode: 'grading' } },
+      { path: 'grading/tasks/:id', name: 'GradingResults', component: () => import('../pages/GradingResultsPage.vue'), meta: { permissions: ['manage_grading'], moduleCode: 'grading' } },
+      { path: 'marking', name: 'MarkingSelect', component: () => import('../pages/MarkingSelectPage.vue'), meta: { permissions: ['view_grading'], moduleCode: 'grading' } },
+      { path: 'marking/grade/:questionId', name: 'Review', component: () => import('../pages/ReviewPage.vue'), meta: { permissions: ['view_grading'], moduleCode: 'grading', shellMode: 'workspace' } },
       { path: 'marking/assign', redirect: { name: 'GradingDispatch', query: { tab: 'assign' } } },
       { path: 'marking/progress', redirect: { name: 'GradingDispatch', query: { tab: 'progress' } } },
       { path: 'ai-grading', name: 'AiGradingEntry',
         component: () => import('../pages/AiGradingPage.vue'),
-        meta: { permissions: ['manage_grading'] } },
+        meta: { permissions: ['manage_grading'], moduleCode: 'grading' } },
       { path: 'exams/:examId/ai-grading/:subjectId', name: 'AiGrading',
         component: () => import('../pages/AiGradingPage.vue'),
-        meta: { permissions: ['manage_grading'] } },
+        meta: { permissions: ['manage_grading'], moduleCode: 'grading' } },
 
       // 学生画像
       { path: 'profile/student/:studentId', name: 'StudentProfile', component: () => import('../pages/StudentProfilePage.vue'), meta: { permissions: ['view_scores'] } },
@@ -69,7 +69,7 @@ export const routes = [
       { path: 'analytics/ai-report', name: 'AiGradingReport', component: () => import('../pages/AiGradingReportPage.vue'), meta: { permissions: ['view_scores'], moduleCode: 'study_analytics' } },
       { path: 'analytics/trend', redirect: { name: 'AnalyticsReport', query: { tab: 'trend' } } },
       { path: 'analytics/grade', redirect: { name: 'AnalyticsReport', query: { tab: 'classes' } } },
-      { path: 'analytics/:examId', name: 'Analytics', component: () => import('../pages/AnalyticsPage.vue'), meta: { roles: EXAM_ROLES } },
+      { path: 'analytics/:examId', name: 'Analytics', component: () => import('../pages/AnalyticsPage.vue'), meta: { permissions: ['view_scores'], moduleCode: 'study_analytics' } },
       { path: 'analytics', redirect: { name: 'AnalyticsReport' } },
 
       // 作业
@@ -105,7 +105,7 @@ export const routes = [
       { path: 'conduct/parents', redirect: { name: 'ConductSettingsHub', query: { tab: 'parents' } } },
 
       // 超管工具
-      { path: 'admin/impersonate', name: 'Impersonate', component: () => import('../pages/ImpersonatePage.vue'), meta: { roles: ['platform_admin'] } },
+      { path: 'admin/impersonate', name: 'Impersonate', component: () => import('../pages/ImpersonatePage.vue'), meta: { permissions: ['manage_schools'] } },
     ]
   },
 

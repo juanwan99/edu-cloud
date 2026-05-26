@@ -85,27 +85,34 @@ describe('Route definitions (real routes)', () => {
     expect(schools.meta?.permissions).toContain('manage_schools')
   })
 
-  it('exams route has EXAM_ROLES in meta', () => {
+  it('exams route is guarded by view_exams permission and exam module', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
     const exams = shell.children.find(r => r.path === 'exams')
     expect(exams).toBeTruthy()
-    expect(exams.meta?.roles).toBeDefined()
-    expect(exams.meta.roles.length).toBeGreaterThan(0)
+    expect(exams.meta?.permissions).toEqual(['view_exams'])
+    expect(exams.meta?.moduleCode).toBe('exam')
+    expect(exams.meta?.roles).toBeUndefined()
   })
 
-  it('parent cannot access exams route', () => {
+  it('exam detail route uses the same permission guard as exam list', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
-    const examRoute = shell.children.find(r => r.path === 'exams')
-    if (examRoute?.meta?.roles) {
-      expect(examRoute.meta.roles).not.toContain('parent')
-    }
+    const examRoute = shell.children.find(r => r.path === 'exams/:id')
+    expect(examRoute).toBeTruthy()
+    expect(examRoute.meta?.permissions).toEqual(['view_exams'])
+    expect(examRoute.meta?.moduleCode).toBe('exam')
   })
 
-  it('marking routes have MARKING_ROLES in meta', () => {
+  it('personal marking routes are guarded by view_grading permission', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
     const marking = shell.children.find(r => r.path === 'marking')
+    const review = shell.children.find(r => r.path === 'marking/grade/:questionId')
     expect(marking).toBeTruthy()
-    expect(marking.meta?.roles).toBeDefined()
+    expect(review).toBeTruthy()
+    expect(marking.meta?.permissions).toEqual(['view_grading'])
+    expect(marking.meta?.moduleCode).toBe('grading')
+    expect(marking.meta?.roles).toBeUndefined()
+    expect(review.meta?.permissions).toEqual(['view_grading'])
+    expect(review.meta?.moduleCode).toBe('grading')
   })
 
   it('grading dispatch requires manage_grading permission instead of broad role access', () => {
@@ -113,7 +120,16 @@ describe('Route definitions (real routes)', () => {
     const gradingDispatch = shell.children.find(r => r.path === 'grading/tasks')
     expect(gradingDispatch).toBeTruthy()
     expect(gradingDispatch.meta?.permissions).toEqual(['manage_grading'])
+    expect(gradingDispatch.meta?.moduleCode).toBe('grading')
     expect(gradingDispatch.meta?.roles).toBeUndefined()
+  })
+
+  it('admin impersonation is guarded by manage_schools permission', () => {
+    const shell = routes.find(r => r.path === '/' && r.children)
+    const impersonate = shell.children.find(r => r.path === 'admin/impersonate')
+    expect(impersonate).toBeTruthy()
+    expect(impersonate.meta?.permissions).toEqual(['manage_schools'])
+    expect(impersonate.meta?.roles).toBeUndefined()
   })
 
   it('homework route is guarded by homework permissions', () => {
@@ -191,7 +207,7 @@ describe('authGuard (real guard function)', () => {
     expect(router.currentRoute.value.path).toBe('/')
   })
 
-  it('allows access when role is in allowed list', async () => {
+  it('allows access when route permission is met', async () => {
     localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature')
     localStorage.setItem('auth_state', JSON.stringify({
       roles: [{ role: 'academic_director', context: {} }],
@@ -234,7 +250,7 @@ describe('authGuard (real guard function)', () => {
       currentRoleIndex: 0,
     }))
     const router = createTestRouter()
-    // teacher -> subject_teacher -> in EXAM_ROLES
+    // teacher -> subject_teacher -> has view_exams
     await router.push('/exams')
     await router.isReady()
     expect(router.currentRoute.value.path).toBe('/exams')

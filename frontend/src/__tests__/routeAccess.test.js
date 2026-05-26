@@ -19,6 +19,22 @@ describe('route access requirements', () => {
     })
   })
 
+  it('covers operational routes used by router guards', () => {
+    expect(getRouteAccessRequirement('/conduct/settings')).toEqual({
+      permission: 'manage_conduct_rules',
+      moduleCode: 'conduct',
+    })
+    expect(getRouteAccessRequirement('/selections')).toEqual({
+      permission: 'manage_scheduling',
+    })
+    expect(getRouteAccessRequirement('/schools')).toEqual({
+      permission: 'manage_schools',
+    })
+    expect(getRouteAccessRequirement('/admin/impersonate')).toEqual({
+      permission: 'manage_schools',
+    })
+  })
+
   it('allows school admin into school settings but not parent', () => {
     expect(canAccessRouteForRole('school_admin', '/school-settings', [])).toBe(true)
     expect(canAccessRouteForRole('parent', '/school-settings', [])).toBe(false)
