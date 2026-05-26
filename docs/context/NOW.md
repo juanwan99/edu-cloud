@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-05-06 23:47 Asia/Shanghai
+Last refreshed: 2026-05-26 23:16 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -15,15 +15,19 @@ scripts/truth doctor --json
 
 ## Current Facts
 
-- Branch: `master`
-- Upstream: `origin/master`
+- Branch: `codex/role-permission-phase2`
+- Upstream: none
 - Production URL: `https://mcu.asia`
 - Backend API: `127.0.0.1:9000`
 - Frontend artifact path: `frontend/dist/`
 - Known pytest baseline entries: 26 in `.quality/known-pytest-failures.txt`
-- DB doctor: ok, Alembic `ed1f8408241c`, hard=0, warn=0
-- Runtime services: `edu-cloud.service`, `llm-proxy.service`, and
-  `edu-cloud-worker.service` are active.
+- Current live hash: `d9b1c56`
+- Truthline at 2026-05-26 23:16 Asia/Shanghai: source, frontend build,
+  nginx, and backend are aligned on `d9b1c56`.
+- DB doctor is currently red: ORM declares `exam_import_sessions`, but the DB
+  has no such table; DB also contains orphan table `_audit_log`.
+- Runtime services: `edu-cloud.service` and `edu-cloud-worker.service` are
+  active at the live hash.
 - `edu-cloud-worker.service` is installed and enabled from
   `deploy/systemd/edu-cloud-worker.service`.
 
@@ -39,6 +43,15 @@ The latest verified delivery path is:
 
 Run `scripts/truth-status.sh /home/ops/projects/edu-cloud` for the live hash.
 Any `BROKEN AT:` diagnosis exits non-zero and blocks completion evidence.
+
+## Current Role-Entry Work
+
+- Active plan: `docs/superpowers/plans/2026-05-26-role-entry-full-optimization.md`.
+- Product direction: permission remains the access-control truth; role-entry
+  policy decides primary versus secondary UI visibility for the active identity.
+- Current known frontend test debt: the full Vitest suite still has historical
+  static assertion failures in marking/review tests; role-entry targeted tests
+  should be used for this batch, plus `scripts/codex-verify frontend`.
 
 ## Codex Migration State
 
