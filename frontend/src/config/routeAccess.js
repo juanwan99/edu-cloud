@@ -25,18 +25,27 @@ export const ROUTE_ACCESS_REQUIREMENTS = {
   '/calendar': { moduleCode: 'calendar' },
 }
 
-const SCHOOL_OPERATION_HEADER = [
+const SCHOOL_ADMIN_HEADER = [
   { label: '学校配置', route: '/school-settings', match: '/school-settings' },
-  { label: '教师管理', route: '/teachers', match: '/teachers' },
-  { label: '考试流程', route: '/exams', match: '/exams' },
+  { label: '教师与职务', route: '/teachers', match: '/teachers' },
+  { label: '组织关系', route: '/assignments', match: '/assignments' },
+  { label: '数据导入', route: '/exam-import', match: '/exam-import' },
   { label: '数据报告', route: '/analytics/report', match: '/analytics' },
 ]
 
+const PRINCIPAL_HEADER = [
+  { label: '质量总览', route: '/analytics/report', match: '/analytics' },
+  { label: '考试结果', route: '/exams', match: '/exams' },
+  { label: '审批查看', route: '/analytics/ai-report', match: '/analytics/ai-report' },
+  { label: '年级德育', route: '/conduct', match: '/conduct' },
+  { label: '联考复盘', route: '/joint-exams', match: '/joint-exams' },
+]
+
 export const HEADER_NAV_BY_ROLE = {
-  platform_admin: SCHOOL_OPERATION_HEADER,
-  district_admin: SCHOOL_OPERATION_HEADER,
-  school_admin: SCHOOL_OPERATION_HEADER,
-  principal: SCHOOL_OPERATION_HEADER,
+  platform_admin: SCHOOL_ADMIN_HEADER,
+  district_admin: SCHOOL_ADMIN_HEADER,
+  school_admin: SCHOOL_ADMIN_HEADER,
+  principal: PRINCIPAL_HEADER,
   academic_director: [
     { label: '教学运行', route: '/assignments', match: '/assignments' },
     { label: '考试管理', route: '/exams', match: '/exams' },
@@ -50,13 +59,13 @@ export const HEADER_NAV_BY_ROLE = {
     { label: '德育协同', route: '/conduct', match: '/conduct' },
   ],
   teaching_research_leader: [
-    { label: '知识体系', route: '/knowledge-tree', match: '/knowledge-tree' },
+    { label: '知识图谱', route: '/knowledge-tree', match: '/knowledge-tree' },
     { label: '题库建设', route: '/question-bank', match: '/question-bank' },
     { label: '学科趋势', route: '/analytics/report', match: '/analytics' },
     { label: '考试证据', route: '/exams', match: '/exams' },
   ],
   lesson_prep_leader: [
-    { label: '考试管理', route: '/exams', match: '/exams' },
+    { label: '学科考试', route: '/exams', match: '/exams' },
     { label: '阅卷分工', route: '/grading/tasks', match: '/grading' },
     { label: '学科报告', route: '/analytics/report', match: '/analytics' },
     { label: '题库沉淀', route: '/question-bank', match: '/question-bank' },

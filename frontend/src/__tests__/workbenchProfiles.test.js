@@ -8,6 +8,7 @@ import {
 
 const WORKBENCH_ROLES = [
   'school_admin',
+  'principal',
   'subject_teacher',
   'homeroom_teacher',
   'lesson_prep_leader',
@@ -29,7 +30,7 @@ describe('workbench profiles', () => {
     const profile = getWorkbenchProfile('school_admin')
     expect(profile.key).toBe('school_admin')
     expect(profile.label).toBe('校管理员')
-    expect(profile.title).toContain('学校基础数据')
+    expect(profile.title).toContain('系统基础数据')
     expect(profile.flow.map(stage => stage.route)).toContain('/school-settings')
     expect(profile.flow.map(stage => stage.route)).not.toContain('/marking')
   })
@@ -37,7 +38,13 @@ describe('workbench profiles', () => {
   it('maps broader admin roles to the school admin workbench instead of subject teacher', () => {
     expect(getWorkbenchProfile('platform_admin').key).toBe('school_admin')
     expect(getWorkbenchProfile('district_admin').key).toBe('school_admin')
-    expect(getWorkbenchProfile('principal').key).toBe('school_admin')
+  })
+
+  it('uses a principal governance profile instead of school admin operations', () => {
+    const profile = getWorkbenchProfile('principal')
+    expect(profile.key).toBe('principal')
+    expect(profile.primaryAction.route).toBe('/analytics/report')
+    expect(profile.hides).toContain('账号运维')
   })
 
   it('returns subject teacher profile as fallback', () => {

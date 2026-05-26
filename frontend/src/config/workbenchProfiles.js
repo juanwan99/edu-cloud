@@ -3,10 +3,10 @@
     key: 'school_admin',
     label: '校管理员',
     icon: 'school',
-    title: '从学校基础数据进入运行治理',
-    summary: '校管理员的核心不是个人教学闭环，而是学校配置、人员关系、权限秩序和全校考试流程是否正常运行。',
-    owns: '学校基础配置、学期校历、教师和班级关系、全校考试流程、模块和权限秩序',
-    hides: '个人阅卷明细、单学科备课、班主任日常跟进、平台级跨校运维',
+    title: '从系统基础数据进入学校运维',
+    summary: '校管理员是系统管理员，核心是账号、职务、组织关系、模块配置、数据导入和数据健康，不承担校长总览或教务日常主线。',
+    owns: '学校基础配置、账号职务、教师和班级关系、模块开关、数据导入和权限秩序',
+    hides: '校长审批总览、个人阅卷明细、单学科备课、班主任日常跟进、平台级跨校运维',
     primaryAction: { label: '检查学校配置', route: '/school-settings' },
     secondaryAction: { label: '查看考试流程', route: '/exams' },
     kpis: [
@@ -18,13 +18,13 @@
     priorities: [
       { title: '补齐学校基础配置', desc: '先确认学校资料、学期、校历和模块开关，避免后续流程缺少基础条件。', meta: '6 项', route: '/school-settings', tone: 'yellow' },
       { title: '检查教师任课和班级关系', desc: '教师、班级、学科关系是考试、成绩和作业能否正确流转的前提。', meta: '12 条', route: '/assignments', tone: 'purple' },
-      { title: '监控考试和阅卷流程', desc: '校管理员看流程是否卡住，不进入个人阅卷细节。', meta: '3 场', route: '/exams', tone: 'orange' },
+      { title: '排查数据导入和流程异常', desc: '校管理员看数据是否进得来、流程是否卡住，不进入个人教学细节。', meta: '3 项', route: '/exam-import', tone: 'orange' },
     ],
-    flowHint: '配置、组织、考试、数据权限是一条学校运行主线',
+    flowHint: '配置、组织、导入、权限是一条系统运维主线',
     flow: [
       { title: '校验基础配置', desc: '学校资料、学期、校历和模块开关先完整。', route: '/school-settings' },
       { title: '维护人员关系', desc: '教师、班级、学科、选科关系保持一致。', route: '/assignments' },
-      { title: '监控考试流程', desc: '考试创建、导入、阅卷、发布是否卡住。', route: '/exams' },
+      { title: '检查数据导入', desc: '外部成绩、学生、教师关系导入是否异常。', route: '/exam-import' },
       { title: '核查数据权限', desc: '教师职务、可见范围和数据归属是否正确。', route: '/teachers' },
     ],
     modules: [
@@ -45,11 +45,11 @@
         ],
       },
       {
-        title: '考试和数据流程',
+        title: '数据健康和流程排查',
         items: [
-          { title: '考试管理', desc: '全校考试组织和状态检查', route: '/exams' },
-          { title: '成绩导入', desc: '外部成绩和数据接入', route: '/exam-import' },
-          { title: '阅卷调度', desc: '监控阅卷流程和风险', route: '/grading/tasks' },
+          { title: '数据导入', desc: '外部成绩和基础数据接入', route: '/exam-import' },
+          { title: '考试流程', desc: '检查考试流程是否卡住', route: '/exams' },
+          { title: '阅卷流程', desc: '监控流程异常，不处理个人阅卷', route: '/grading/tasks' },
           { title: '成绩分析', desc: '确认报告发布和数据可用性', route: '/analytics/report' },
         ],
       },
@@ -59,6 +59,60 @@
       other: [
         { role: '教务主任', title: '教学运行异常 4 项', desc: '切到教务视角处理课表和教学计划。' },
         { role: '科任教师', title: '个人阅卷待处理 6 题', desc: '不在校管理员页展开个人阅卷。' },
+      ],
+    },
+  },
+  {
+    key: 'principal',
+    label: '校长',
+    icon: 'school',
+    title: '从学校质量总览进入审批和治理',
+    summary: '校长需要看到全校质量、年级班级态势、考试结果和审批事项；学生明细可以下钻查看，但不是一级入口。',
+    owns: '学校质量总览、考试结果、成绩发布和通知审批、年级班级风险、联考复盘',
+    hides: '账号运维、模块开关、任课关系维护、个人阅卷、单学科资源日常维护',
+    primaryAction: { label: '查看质量总览', route: '/analytics/report' },
+    secondaryAction: { label: '查看考试结果', route: '/exams' },
+    kpis: [
+      { label: '待审批', value: '4', meta: '成绩或通知', tone: 'yellow' },
+      { label: '质量风险', value: '5', meta: '年级和班级波动', tone: 'orange' },
+      { label: '考试结果', value: '3', meta: '近两周需关注', tone: 'purple' },
+      { label: '联考复盘', value: '1', meta: '待查看', tone: 'ink' },
+    ],
+    priorities: [
+      { title: '查看学校质量风险', desc: '先看年级、班级、学科波动，再下钻学生明细。', meta: '5 项', route: '/analytics/report', tone: 'yellow' },
+      { title: '确认考试结果和发布状态', desc: '校长关注结果、发布和异常，不进入日常配置。', meta: '3 场', route: '/exams', tone: 'purple' },
+      { title: '处理审批和通知事项', desc: '把成绩发布、通知审批和风险确认集中处理。', meta: '4 项', route: '/analytics/ai-report', tone: 'orange' },
+    ],
+    flowHint: '校长工作台看总览、看风险、做审批，再下钻明细',
+    flow: [
+      { title: '看学校质量总览', desc: '全校、年级、班级、学科态势先汇总。', route: '/analytics/report' },
+      { title: '定位风险对象', desc: '从年级班级或重点学生下钻到明细。', route: '/students' },
+      { title: '确认考试和审批', desc: '查看考试结果、发布状态和质量报告。', route: '/exams' },
+      { title: '复盘联考和通知', desc: '联考结果和学校通知承接治理动作。', route: '/joint-exams' },
+    ],
+    modules: [
+      {
+        title: '质量治理',
+        items: [
+          { title: '质量总览', desc: '学校、年级、班级质量态势', route: '/analytics/report' },
+          { title: '考试结果', desc: '考试结果和发布状态', route: '/exams' },
+          { title: '质量报告', desc: '阅卷质量和风险报告', route: '/analytics/ai-report' },
+        ],
+      },
+      {
+        title: '学生与德育',
+        items: [
+          { title: '学生明细', desc: '从风险下钻查看学生档案', route: '/students' },
+          { title: '德育概览', desc: '查看年级和班级德育态势', route: '/conduct' },
+          { title: '联考复盘', desc: '跨校或阶段考试复盘', route: '/joint-exams' },
+        ],
+      },
+    ],
+    overlap: {
+      current: '校长页只承载总览和审批；系统配置交给校管理员，教学运行交给教务主任。',
+      other: [
+        { role: '校管理员', title: '基础数据异常 2 项', desc: '切到校管理员视角处理账号、配置和导入。' },
+        { role: '教务主任', title: '阅卷流程异常 1 项', desc: '切到教务主任视角处理具体流程。' },
       ],
     },
   },
@@ -174,9 +228,9 @@
     key: 'lesson_prep_leader',
     label: '备课组长',
     icon: 'book',
-    title: '围绕本学科组织考试、阅卷和讲评',
-    summary: '备课组长需要看到同学科的组织视角，但不应承担年级全局、德育、教务排课等噪音。',
-    owns: '本学科考试准备、阅卷分工、学科质量分析、备课资料沉淀',
+    title: '围绕本学科组织考试、答题卡和阅卷',
+    summary: '备课组长需要看到本学科考试、答题卡、阅卷分工和讲评沉淀，但不承担年级全局、德育、教务排课等噪音。',
+    owns: '本学科考试准备、答题卡编辑、阅卷分工和控制、学科质量分析、备课资料沉淀',
     hides: '班级德育、全校人员配置、跨学科行政事项',
     primaryAction: { label: '管理学科考试', route: '/exams' },
     secondaryAction: { label: '查看阅卷进度', route: '/grading/tasks' },
@@ -187,13 +241,13 @@
       { label: '共性薄弱点', value: '9', meta: '跨班级', tone: 'ink' },
     ],
     priorities: [
-      { title: '确认本学科考试资料', desc: '试卷、题目标签、参考答案在发布前收敛。', meta: '2 场', route: '/exams', tone: 'yellow' },
+      { title: '确认本学科考试和答题卡', desc: '试卷、答题卡、题目标签、参考答案在发布前收敛。', meta: '2 场', route: '/exams', tone: 'yellow' },
       { title: '处理阅卷进度异常', desc: '只显示本学科异常，避免进入全校调度噪音。', meta: '1 项', route: '/grading/tasks', tone: 'orange' },
       { title: '沉淀讲评题和知识点', desc: '把高频错题和讲评资料进入题库和图谱。', meta: '6 份', route: '/question-bank', tone: 'purple' },
     ],
     flowHint: '学科组织从考前准备走到考后共研',
     flow: [
-      { title: '准备考试资源', desc: '维护本学科试卷、题目和知识点标签。', route: '/exams' },
+      { title: '准备考试和答题卡', desc: '维护本学科试卷、答题卡、题目和知识点标签。', route: '/exams' },
       { title: '组织阅卷分工', desc: '按题目和老师分配，监控异常进度。', route: '/grading/tasks' },
       { title: '汇总学科报告', desc: '查看跨班级共性问题和优秀样例。', route: '/analytics/report' },
       { title: '沉淀共研资源', desc: '题库、知识图谱、备课资料形成复用资产。', route: '/question-bank' },
@@ -202,8 +256,8 @@
       {
         title: '学科组织',
         items: [
-          { title: '考试管理', desc: '本学科考试和试卷材料', route: '/exams' },
-          { title: '阅卷调度', desc: '本学科分派和进度', route: '/grading/tasks' },
+          { title: '学科考试', desc: '本学科考试、答题卡和试卷材料', route: '/exams' },
+          { title: '阅卷分工', desc: '本学科分派、进度和控制', route: '/grading/tasks' },
           { title: '成绩分析', desc: '跨班级学科质量报告', route: '/analytics/report' },
         ],
       },
@@ -336,8 +390,8 @@
     key: 'academic_director',
     label: '教务主任',
     icon: 'academic',
-    title: '从教学运行进入全校配置和质量治理',
-    summary: '教务主任需要全校视角，但也应按运行、考试、质量、资源四块收敛，避免直接暴露所有后台菜单。',
+    title: '从教学运行进入考试流程和质量治理',
+    summary: '教务主任需要全校教学运行视角，但应按运行、考试、质量、资源四块收敛，避免变成系统管理员或后台总菜单。',
     owns: '全校教学运行、考试组织、阅卷质量、教师和课程配置',
     hides: '个人阅卷明细、单个班主任日常记录、平台级运维工具',
     primaryAction: { label: '查看教学运行', route: '/academic/timetable' },
@@ -404,7 +458,6 @@ export const WORKBENCH_PROFILES = Object.fromEntries(
 const WORKBENCH_PROFILE_ALIASES = {
   platform_admin: 'school_admin',
   district_admin: 'school_admin',
-  principal: 'school_admin',
 }
 
 export function getWorkbenchProfile(role) {

@@ -72,9 +72,16 @@ const headerRoutesFor = (role, modules = fullModules) => getHeaderNavItems(role,
 
 describe('header navigation registry', () => {
   it('builds school admin header from school operation priorities', () => {
-    expect(headerLabelsFor('school_admin')).toEqual(['概览', '学校配置', '教师管理', '考试流程', '数据报告'])
+    expect(headerLabelsFor('school_admin')).toEqual(['概览', '学校配置', '教师与职务', '组织关系', '数据导入', '数据报告'])
     expect(headerRoutesFor('school_admin')).not.toContain('/marking')
     expect(headerRoutesFor('school_admin')).not.toContain('/grading/tasks')
+  })
+
+  it('builds principal header from overview and approval priorities', () => {
+    expect(headerLabelsFor('principal')).toEqual(['概览', '质量总览', '考试结果', '审批查看', '年级德育', '联考复盘'])
+    expect(headerRoutesFor('principal')).not.toContain('/school-settings')
+    expect(headerRoutesFor('principal')).not.toContain('/teachers')
+    expect(headerRoutesFor('principal')).not.toContain('/assignments')
   })
 
   it('builds subject teacher header from personal teaching work', () => {
@@ -85,7 +92,7 @@ describe('header navigation registry', () => {
   })
 
   it('builds lesson prep leader header from subject collaboration work', () => {
-    expect(headerLabelsFor('lesson_prep_leader')).toEqual(['概览', '考试管理', '阅卷分工', '学科报告', '题库沉淀'])
+    expect(headerLabelsFor('lesson_prep_leader')).toEqual(['概览', '学科考试', '阅卷分工', '学科报告', '题库沉淀'])
     expect(headerRoutesFor('lesson_prep_leader')).not.toContain('/students')
     expect(headerRoutesFor('lesson_prep_leader')).not.toContain('/teachers')
   })

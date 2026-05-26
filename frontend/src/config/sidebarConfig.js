@@ -68,17 +68,38 @@ const SCHOOL_OPERATION_LABELS = {
   groups: {
     school: '学校基础',
     academic: '人员组织',
-    exam: '考试流程',
+    exam: '数据与流程',
     student: '学生数据',
   },
   routes: {
     '/teachers': '教师与职务',
+    '/school-settings': '学校配置',
     '/assignments': '任课关系',
+    '/selections': '选科关系',
     '/academic/semesters': '学期管理',
     '/academic/timetable': '课程表',
-    '/exams': '考试管理',
+    '/exam-import': '数据导入',
+    '/exams': '考试流程',
     '/grading/tasks': '阅卷流程',
     '/analytics/report': '数据报告',
+  },
+}
+
+const PRINCIPAL_OVERVIEW_LABELS = {
+  groups: {
+    exam: '质量治理',
+    student: '学生与德育',
+    school: '协同复盘',
+  },
+  routes: {
+    '/exams': '考试结果',
+    '/grading/tasks': '阅卷风险',
+    '/analytics/report': '质量总览',
+    '/analytics/ai-report': '质量报告',
+    '/students': '学生明细',
+    '/conduct': '德育概览',
+    '/joint-exams': '联考复盘',
+    '/calendar': '校历事件',
   },
 }
 
@@ -158,9 +179,9 @@ const LESSON_PREP_OPERATION_LABELS = {
     research: '资源沉淀',
   },
   routes: {
-    '/exams': '考试管理',
+    '/exams': '学科考试',
     '/grading/tasks': '阅卷分工',
-    '/ai-grading': 'AI 阅卷',
+    '/ai-grading': '阅卷控制',
     '/marking': '人工阅卷',
     '/analytics/report': '学科报告',
     '/analytics/ai-report': '质量报告',
@@ -177,7 +198,7 @@ const TEACHING_RESEARCH_OPERATION_LABELS = {
     exam: '质量证据',
   },
   routes: {
-    '/knowledge-tree': '知识体系',
+    '/knowledge-tree': '知识图谱',
     '/homework': '作业观察',
     '/question-bank': '题库建设',
     '/error-book': '错题追踪',
@@ -201,13 +222,18 @@ const ROLE_SIDEBAR_POLICY = {
   },
   school_admin: {
     groups: ['school', 'academic', 'exam', 'student'],
-    hiddenRoutes: ['/marking', '/homework', '/question-bank', '/knowledge-tree', '/error-book'],
+    hiddenRoutes: ['/ai-grading', '/marking', '/homework', '/question-bank', '/knowledge-tree', '/error-book'],
     labels: SCHOOL_OPERATION_LABELS,
   },
   principal: {
-    groups: ['school', 'academic', 'exam', 'student'],
-    hiddenRoutes: ['/marking', '/homework', '/question-bank', '/knowledge-tree', '/error-book'],
-    labels: SCHOOL_OPERATION_LABELS,
+    groups: ['exam', 'student', 'school'],
+    hiddenRoutes: [
+      '/school-settings', '/teachers', '/assignments', '/selections',
+      '/academic/semesters', '/academic/timetable', '/academic/teaching-plans',
+      '/exam-import', '/ai-grading', '/marking',
+      '/homework', '/question-bank', '/knowledge-tree', '/error-book',
+    ],
+    labels: PRINCIPAL_OVERVIEW_LABELS,
   },
   academic_director: {
     groups: ['academic', 'exam', 'student', 'school', 'research'],

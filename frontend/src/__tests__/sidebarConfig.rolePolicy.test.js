@@ -13,11 +13,12 @@ describe('role-aware sidebar policy', () => {
   it('school admin starts from school operation and hides personal teaching entries', () => {
     const groups = getSidebarGroups('school_admin', fullModules)
     expect(groups.map(group => group.key).slice(0, 2)).toEqual(['school', 'academic'])
-    expect(groups.map(group => group.label)).toEqual(['学校基础', '人员组织', '考试流程', '学生数据'])
+    expect(groups.map(group => group.label)).toEqual(['学校基础', '人员组织', '数据与流程', '学生数据'])
     const routes = routesFor('school_admin')
     expect(routes).toContain('/school-settings')
     expect(routes).toContain('/assignments')
     expect(routes).toContain('/grading/tasks')
+    expect(routes).not.toContain('/ai-grading')
     expect(routes).not.toContain('/marking')
     expect(routes).not.toContain('/homework')
     expect(routes).not.toContain('/question-bank')
@@ -33,9 +34,22 @@ describe('role-aware sidebar policy', () => {
     expect(schoolItems.map(item => item.label)).toContain('学校配置')
     expect(schoolItems.map(item => item.label)).toContain('校历管理')
     expect(academicItems.map(item => item.label)).toContain('任课关系')
-    expect(examItems.map(item => item.label)).toContain('考试管理')
+    expect(examItems.map(item => item.label)).toContain('考试流程')
+    expect(examItems.map(item => item.label)).toContain('数据导入')
     expect(examItems.map(item => item.label)).toContain('阅卷流程')
     expect(examItems.map(item => item.label)).toContain('数据报告')
+  })
+
+  it('principal sees governance overview instead of system administration', () => {
+    const routes = routesFor('principal')
+    expect(groupLabelsFor('principal')).toEqual(['质量治理', '学生与德育', '协同复盘'])
+    expect(routes).toContain('/analytics/report')
+    expect(routes).toContain('/exams')
+    expect(routes).toContain('/students')
+    expect(routes).toContain('/conduct')
+    expect(routes).not.toContain('/school-settings')
+    expect(routes).not.toContain('/teachers')
+    expect(routes).not.toContain('/assignments')
   })
 
   it('lesson prep leader sees subject organization but not school administration', () => {
@@ -52,7 +66,7 @@ describe('role-aware sidebar policy', () => {
   it('lesson prep leader navigation is framed around subject exam and resource work', () => {
     expect(groupLabelsFor('lesson_prep_leader')).toEqual(['学科考试', '资源沉淀'])
     expect(childLabelsFor('lesson_prep_leader', 'exam')).toEqual(
-      expect.arrayContaining(['考试管理', '阅卷分工', '学科报告', '质量报告'])
+      expect.arrayContaining(['学科考试', '阅卷分工', '学科报告', '质量报告'])
     )
     expect(childLabelsFor('lesson_prep_leader', 'research')).toEqual(
       expect.arrayContaining(['作业巩固', '题库沉淀', '知识图谱'])
@@ -111,7 +125,7 @@ describe('role-aware sidebar policy', () => {
   it('teaching research leader navigation is framed around teaching research quality', () => {
     expect(groupLabelsFor('teaching_research_leader')).toEqual(['教研资源', '质量证据'])
     expect(childLabelsFor('teaching_research_leader', 'research')).toEqual(
-      expect.arrayContaining(['知识体系', '题库建设', '作业观察'])
+      expect.arrayContaining(['知识图谱', '题库建设', '作业观察'])
     )
     expect(childLabelsFor('teaching_research_leader', 'exam')).toEqual(
       expect.arrayContaining(['考试证据', '学科趋势', '质量报告'])
