@@ -20,3 +20,39 @@ rules:
     paths:
       include:
         - "**/scan/pipeline_router.py"
+
+  - id: router-missing-school-id-filter
+    message: |
+      Router 端点执行数据库查询但未包含 school_id 过滤。
+      多租户隔离要求所有数据查询必须限定 school_id 范围。
+      如果此端点不需要租户隔离（如 platform_admin 全局查询），添加 # nosemgrep 并注明理由。
+    severity: WARNING
+    languages: [python]
+    patterns:
+      - pattern-inside: |
+          @router.$METHOD(...)
+          async def $FUNC(...):
+              ...
+      - pattern: $DB.execute($QUERY, ...)
+      - pattern-not: |
+          ... school_id ...
+    paths:
+      include:
+        - "**/modules/*/router.py"
+
+  - id: path-traversal-unvalidated-join
+    message: |
+      os.path.join 或 Path() 中使用了可能来自用户输入的变量。
+      必须验证结果路径不会逃逸出预期目录（使用 resolve() + is_relative_to() 或等价检查）。
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: os.path.join($BASE, ..., $USER_INPUT, ...)
+          - pattern: Path($BASE) / ... / $USER_INPUT
+    paths:
+      include:
+        - "**/modules/*/router.py"
+        - "**/modules/*/*.py"
+      exclude:
+        - "**/test*"

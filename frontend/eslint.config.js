@@ -37,6 +37,7 @@ export default [
     },
     rules: {
       'no-undef': 'error',
+      'vue/no-v-html': 'warn',
     },
   },
   {
