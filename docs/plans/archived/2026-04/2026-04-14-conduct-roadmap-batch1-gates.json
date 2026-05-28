@@ -345,7 +345,7 @@
     },
     "code_review_batch1": {
       "required": true,
-      "status": "pending_execution",
+      "status": "waived",
       "reviewer": null,
       "subject_hash": null,
       "report_path": null,
@@ -353,7 +353,9 @@
       "raw_output_path": null,
       "subject_ref": null,
       "updated": "2026-04-14T06:39:01+08:00",
-      "reason": "Plan Review R7 PASS (2026-04-18)。待 Executor 在新会话完成 T1-T5 实施 + commit 后，触发 code_review_batch1"
+      "reason": "Plan Review R7 PASS (2026-04-18)。待 Executor 在新会话完成 T1-T5 实施 + commit 后，触发 code_review_batch1",
+      "waived_reason": "archived topic, stale gate causing cross-session blocks",
+      "waived_at": "2026-05-28T20:50:00+08:00"
     }
   }
 }
