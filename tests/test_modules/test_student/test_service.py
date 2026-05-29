@@ -96,3 +96,44 @@ async def test_get_student_wrong_school(db):
     await db.refresh(stu)
     result = await get_student(db, student_id=stu.id, school_id=s2.id)
     assert result is None
+
+
+@pytest.mark.asyncio
+async def test_import_excel_class_name_respects_visible_class_ids(db):
+    """F-001 纵深防御: 受限 visible_class_ids 时, Excel 班级名命中不可见班级应跳过。
+
+    无防御时 "越权生" 会经 class_map.get("2班") 导入到不可见班级 c2。
+    """
+    import io
+    import openpyxl
+    from sqlalchemy import select
+    from edu_cloud.modules.student.service import import_students
+
+    school = School(name="VF3", code="VF03", district="X")
+    db.add(school)
+    await db.flush()
+    c1 = Class(name="1班", grade="七年级", school_id=school.id)
+    c2 = Class(name="2班", grade="七年级", school_id=school.id)
+    db.add_all([c1, c2])
+    await db.commit()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["姓名", "准考证号", "班级"])
+    ws.append(["可见生", "V001", "1班"])
+    ws.append(["越权生", "V002", "2班"])
+    buf = io.BytesIO()
+    wb.save(buf)
+
+    # 受限角色: 只可见 c1
+    await import_students(
+        db, school_id=school.id, file_content=buf.getvalue(),
+        filename="s.xlsx", visible_class_ids=[c1.id],
+    )
+
+    students = (await db.execute(
+        select(Student).where(Student.school_id == school.id)
+    )).scalars().all()
+    names = {s.name for s in students}
+    assert "可见生" in names       # 可见班级正常导入
+    assert "越权生" not in names   # F-001: 不可见班级被跳过

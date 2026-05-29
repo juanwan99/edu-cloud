@@ -306,6 +306,14 @@ async def import_students(
         if not row_class_id and class_col is not None and row[class_col]:
             class_name = str(row[class_col]).strip()
             row_class_id = class_map.get(class_name)
+            # 纵深防御（F-001）：受限角色不得经 Excel 班级名导入到不可见班级或新建班级。
+            # 固定 class_id 路径已在上方 visible_class_ids 校验；此处补 Excel 名称路径。
+            # 全可见角色 visible_class_ids 为 None，不受影响。
+            if visible_class_ids is not None and (
+                not row_class_id or row_class_id not in visible_class_ids
+            ):
+                skipped += 1
+                continue
             if not row_class_id and class_name:
                 new_class = Class(
                     name=class_name, grade=row_grade or grade or "",
