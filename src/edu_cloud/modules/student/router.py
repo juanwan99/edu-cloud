@@ -180,6 +180,7 @@ async def import_students(
     current: dict = Depends(require_permission(Permission.MANAGE_TEACHERS)),
 ):
     role = current["current_role"]
+    visible_class_ids = await resolve_visible_class_ids(db, role)
     content = await file.read()
     return await student_service.import_students(
         db, school_id=role.school_id, class_id=class_id, grade=grade,

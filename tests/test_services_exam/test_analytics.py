@@ -121,19 +121,14 @@ async def test_effective_scores_excludes_absent_answers(db, analytics_data):
     assert {s["student_id"] for s in scores} == {"stu_0", "stu_1", "stu_2"}
 
 
-async def test_exam_distribution_uses_school_config(db, analytics_data):
-    """exam_distribution 应使用学校配置的分数段而非硬编码。"""
-    from edu_cloud.modules.analytics.segment_service import upsert_segment_config
+async def test_exam_distribution_uses_default_segments(db, analytics_data):
+    """exam_distribution 使用硬编码默认分数段（学校自定义配置已废弃，见 segment_service）。"""
+    from edu_cloud.modules.analytics.segment_service import DEFAULT_LABELS
     from edu_cloud.modules.analytics.service import exam_distribution
 
     school_id = analytics_data["school_id"]
     exam_id = analytics_data["exam_id"]
-    await upsert_segment_config(
-        db, school_id, boundaries=[50], labels=["通过", "不通过"],
-    )
-    await db.commit()
 
     result = await exam_distribution(db, exam_id=exam_id, school_id=school_id)
     labels = [iv["label"] for iv in result["intervals"]]
-    assert "通过" in labels
-    assert "不通过" in labels
+    assert labels == DEFAULT_LABELS
