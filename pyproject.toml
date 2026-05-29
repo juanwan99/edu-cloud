@@ -26,6 +26,7 @@ dependencies = [
     "google-genai>=1.0,<2.0",
     "slowapi>=0.1.9",
     "pydantic-ai>=0.2",
+    "pymupdf>=1.27.2.3",
 ]
 
 [project.optional-dependencies]
