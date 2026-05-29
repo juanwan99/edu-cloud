@@ -1,6 +1,24 @@
 # edu-cloud 模块化架构改造（P0–P6）Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: 本 plan 为**追认式 plan**——P0–P6 代码已实现（112 架构测试通过），本文档补齐治理体系 T3 所需的设计记录与 `semantic_regression` 不变量，并定义真正待执行的**收尾 task**（审查 / build / 全量测试 / commit）。执行收尾用 superpowers:executing-plans。
+> **For agentic workers:** 本 plan 为**追认式 plan**——P0–P6 代码已实现，但经 codex-review（GPT-5.5）独立审查**判定 FAIL**：本 plan 原先声称的多条 `semantic_regression` 不变量实际不成立（详见下方状态更新与诊断报告）。**新架构未接入生产、已搁置接入**，故本 plan 不再作为「落地收尾」依据，仅留作历史设计记录。
+
+---
+
+## ⚠️ 状态更新（2026-05-29，codex-review 后）
+
+**判定：plan review FAIL（6 HIGH + 1 MED，全部工具验证属实）。方向已定：搁置接入，先清安全隐患。**
+
+- **新架构是「写了但没通电」的半成品**：`app.py:351` 启动仍用旧静态路由表 `register_all`，模块自注册 / SecureRouter / 权限编译器**均未接入生产**（F-001/F-003）。现有全站功能因此**未被破坏**。
+- **本 plan 原 `semantic_regression` 段的不变量多为「设计意图」而非「既成事实」，已被证伪**：
+  - R3 模块边界 DAG「无循环」→ 实际 **139 violations + 循环依赖**（F-002），audit 脚本不 gate。
+  - R4 权限编译 legacy 等价 → auth 运行时仍用旧 enum/dict，编译器未接入（F-003）。
+  - R6 事件 transactional outbox → 无 commit/rollback hook，`publish_service` 仍 flush 后即 emit（F-004）。
+  - R5 租户隔离 → BaseService 非 fail-closed，漏传 school_id 跨租户（F-005，已加警告 + 修测试误导断言）。
+  - R1 EventBus 命名漂移 → 已修 `triggers.py` 注解（F-006）。
+- **完整诊断与处置矩阵**：`docs/plans/2026-05-29-modular-arch-diagnosis.md`
+- **接入 / 租户策略 / 事件事务 / 边界债** 已立为后续设计议题（见诊断报告「核心决策点」），需走 brainstorming→design，不在本流程完成。
+
+---
 
 **Goal:** 把 edu-cloud 从「中央集权式路由注册 + 分散权限声明 + 模块强耦合」重构为「声明式模块自注册 + 单源权限编译 + 契约化模块边界」，让新模块零改动主干即可接入。
 
@@ -8,7 +26,7 @@
 
 **Tech Stack:** FastAPI + 异步 SQLAlchemy（后端）、Vue 3 + Naive UI + Vite（前端）、Pydantic V2（事件/分页模型）、AST 静态分析（审计脚本）。
 
-**实现状态:** 代码已落在工作树（32 个改动文件，HEAD `e7e5ddf` 之上未提交）。架构测试 `112 passed`。已清理迁移残留 `events_legacy.py.bak`。
+**实现状态（F-007 已修正）:** 模块化改造代码约 31 个文件落在工作树（不含本 plan 与诊断文档），plan 已 commit 于 `a65c480`。架构测试 `112 passed`——但**仅覆盖新模块的孤立单元，未覆盖接入后的生产路径**，且其中 `test_base_service` 曾把租户漏洞当预期断言（已修，见 F-005）。已清理迁移残留 `events_legacy.py.bak`。⚠️ 新架构**未接入生产**，详见上方状态更新。
 
 ---
 
