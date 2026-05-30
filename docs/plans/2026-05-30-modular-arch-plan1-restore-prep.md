@@ -1,0 +1,331 @@
+# 模块化架构接入 · Plan 1：恢复 WIP + 前置清理 + 边界 gate 前置
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **设计来源**：`docs/plans/2026-05-29-modular-arch-integration-design.md`（§4 前置清理 + 阶段0；已吸收 GPT 评审 7 finding）。
+> **本 Plan 范围**：渐进分层的**第一砖（准备层）**——把 stash 架构代码恢复进隔离 worktree、清理误导测试、立起边界冻结闸门。**不碰 `app.py`/`auth.py` 生产启动路径**（阶段1 接入是 Plan 2）。
+
+**Goal:** 将 stash@{0}（object `38fab1d`）的 P0–P6 架构 WIP 恢复进独立 git worktree，完成零风险前置清理（F-005/F-006/F-007），并在动任何生产代码前立起模块边界 baseline gate。
+
+**Architecture:** 隔离 worktree 作业（不污染主工作树）；恢复后立即 commit 固化（不再依赖可变 stash）；前置清理只改测试/文档，不改生产启动路径；边界 gate 用"冻结当前 139 违规为 baseline + negative-delta 检查"，先于阶段1–4 任何代码改动就位。
+
+**Tech Stack:** Python 3.14 + pytest + 异步 SQLAlchemy；git worktree + git stash；`scripts/audit_boundaries.py`（AST 跨模块导入审计）。
+
+**Tier:** T3（架构接入起点；但本 Plan 自身不动生产路径，风险集中在"恢复正确性"与"基线真实性"）。
+
+---
+
+## 前置事实（执行前必读）
+
+- **恢复对象**：`git stash list` 中 msg "WIP: 模块化架构 P0-P6..." 的不可变 object = `38fab1d548cc026ad81fea1aae172727398e383a`。**用 object 不用 `stash@{0}` 别名**（别名会漂移，GPT F-07）。
+- **stash 内容**：32 文件 / +4369 行（tracked 改动 3 个：`CLAUDE.md`、`triggers.py`、删 `events.py`；其余 29 个 untracked 新文件——见 design §2.2）。
+- **当前基线**：主分支 `codex/role-permission-phase2`，HEAD `40610c2`，工作树 clean，backend 运行 `b763888`。
+- **F-006 已在 stash 内修复**：`triggers.py` stash 版已用 `from edu_cloud.core.events import LegacyEventBus`（工作树版仍是旧 `EventBus`）。恢复即得，**本 Plan 不再单独改 triggers.py**，仅验证。
+
+---
+
+## Task 1：创建隔离 worktree 并恢复架构 WIP
+
+**Files:**
+- 无文件编辑（git 操作）
+
+- [ ] **Step 1: 创建隔离 worktree（用 using-git-worktrees skill 或原生命令）**
+
+Run:
+```bash
+cd /home/ops/projects/edu-cloud
+git worktree add ../edu-cloud-modular-arch codex/role-permission-phase2
+cd ../edu-cloud-modular-arch
+```
+Expected: 新 worktree 在 `../edu-cloud-modular-arch`，HEAD = `40610c2`，工作树 clean。
+
+- [ ] **Step 2: 在 worktree 中恢复 stash（用 apply 不用 pop，保留 stash 不丢）**
+
+Run:
+```bash
+git stash apply 38fab1d
+git status --short | wc -l
+```
+Expected: 恢复后 `git status` 显示 32 个文件变更（含 untracked 新文件）；`git stash list` 仍含原 stash（apply 不删）。
+
+- [ ] **Step 3: 验证关键架构文件已落地**
+
+Run:
+```bash
+ls src/edu_cloud/core/modules/loader.py \
+   src/edu_cloud/core/permission_compiler/roles.yaml \
+   src/edu_cloud/core/secure_router.py \
+   scripts/audit_boundaries.py
+git show :src/edu_cloud/ai/workflow/triggers.py 2>/dev/null | grep -c LegacyEventBus || grep -c LegacyEventBus src/edu_cloud/ai/workflow/triggers.py
+```
+Expected: 四个文件都存在；`triggers.py` 含 `LegacyEventBus`（F-006 已修，确认）。
+
+- [ ] **Step 4: 立即 commit 固化恢复态（不再依赖可变 stash，GPT F-07）**
+
+Run:
+```bash
+git add -A
+git commit -m "restore: 恢复模块化架构 P0-P6 WIP 到 worktree（base stash 38fab1d）"
+git rev-parse --short HEAD
+```
+Expected: 新 commit 记录恢复态 head；后续工作锚定此 commit。
+
+---
+
+## Task 2：记录恢复态全量测试基线
+
+**Files:**
+- Create: `docs/plans/.modular-arch-restore-baseline.txt`（基线快照，git 跟踪）
+
+- [ ] **Step 1: 跑全量后端测试，落盘基线**
+
+Run:
+```bash
+.venv/bin/python -m pytest --tb=no -q 2>&1 | tail -20 | tee docs/plans/.modular-arch-restore-baseline.txt
+```
+Expected: 输出 `N passed, M failed, K skipped` 形态。**记录 failed 清单**——这是"恢复态基线"，后续阶段测试数不得低于此（区分"新架构引入的已知失败"vs"真实回归"）。
+
+- [ ] **Step 2: 标注基线中每个 failed 的归属**
+
+在 `docs/plans/.modular-arch-restore-baseline.txt` 末尾追加每个 failing test 的一行归类：`新架构未接入引入 / 存量已知失败 / 需调查`。参照 design §2.2 与 memory（恢复前 clean 基线为"6 个非生产失败"）。
+
+- [ ] **Step 3: Commit 基线**
+
+Run:
+```bash
+git add docs/plans/.modular-arch-restore-baseline.txt
+git commit -m "test: 记录模块化架构恢复态测试基线"
+```
+
+---
+
+## Task 3：前置清理 F-006 验证 + F-007 plan 元数据
+
+**Files:**
+- Verify: `src/edu_cloud/ai/workflow/triggers.py`（仅验证，stash 已修）
+- Modify: `docs/plans/2026-05-29-modular-architecture-p0-p6-plan.md`（F-007 元数据笔误）
+
+- [ ] **Step 1: 验证 F-006（triggers 注解已是 LegacyEventBus）**
+
+Run:
+```bash
+grep -n "EventBus" src/edu_cloud/ai/workflow/triggers.py
+```
+Expected: 所有 `EventBus` 引用均为 `LegacyEventBus`（import 与类型注解一致）。若仍有裸 `EventBus` → 改为 `LegacyEventBus`。
+
+- [ ] **Step 2: 修 F-007 plan 元数据（文件数 31→实际、HEAD 漂移说明）**
+
+读取 `docs/plans/2026-05-29-modular-architecture-p0-p6-plan.md` 的"实现状态"段，把"32 文件 / HEAD e7e5ddf"更正为"32 文件变更（含 calendar/manifest 等），HEAD 已随后续 commit 漂移，以恢复 commit 为准"。
+
+- [ ] **Step 3: Commit**
+
+Run:
+```bash
+git add -A
+git commit -m "docs: 修 F-007 plan 元数据 + 确认 F-006 triggers 注解"
+```
+
+---
+
+## Task 4：前置清理 F-005 — 误导测试摘为独立 xfail
+
+**Files:**
+- Modify: `tests/test_base_service.py`（`test_list_tenant_isolation` 约 :138–:152）
+
+> **背景**：`test_base_service.py:152` `assert page_all.total == 8` 把"漏传 school_id 返回 8 条跨租户全部"记成现状（已带 FIXME 注释）。fail-closed 实现在**阶段3（Plan 3）**，故本 Plan **不改实现**，只把这个不安全断言摘成独立测试并标 `xfail(strict=True)`——消除"跨租户返回是对的"的误导，又不引入红测试。阶段3 实现 fail-closed 后该 xfail 会 xpass，strict 模式强制提醒去掉标记并转正。
+
+- [ ] **Step 1: 先读真实结构确认行号**
+
+Run:
+```bash
+sed -n '136,156p' tests/test_base_service.py
+```
+Expected: 看到 `test_list_tenant_isolation` 中 seed school-a(3)+school-b(5)，`page_all = await svc.list(db)`（漏传 school_id），`assert page_all.total == 8` 带 FIXME。
+
+- [ ] **Step 2: 改造——把漏传断言摘成独立 xfail 测试**
+
+在 `test_list_tenant_isolation` 中**删除**漏传 school_id 的 `page_all` 段（保留 school-a==3 / school-b==5 的正常租户隔离断言），并新增独立测试：
+
+```python
+@pytest.mark.xfail(
+    strict=True,
+    reason="F-005: BaseService fail-closed 实现在 Plan 3（阶段3）；"
+           "漏传 school_id 应拒绝/返回空，当前不安全返回跨租户全部。"
+           "实现后此用例 xpass，strict 模式会强制转正。",
+)
+async def test_list_missing_tenant_context_is_fail_closed(db, svc):
+    """漏传 school_id（缺失租户上下文）必须 fail-closed：不得返回跨租户数据。
+
+    反例：错误实现会 `return all 8 rows`（旧不安全行为）→ 本断言 total==0 失败暴露之。
+    边界：受限角色无 school_id（缺失上下文）≠ 授权全量角色（None=合法全校）——
+    后者由 Plan 3 的 UNRESTRICTED/MISSING 状态机区分，本用例仅锁缺失上下文一态。
+    """
+    await _seed_items(db, 3, school_id="school-a")
+    await _seed_items(db, 5, school_id="school-b")
+    page_all = await svc.list(db)  # 漏传 school_id = 缺失租户上下文
+    assert page_all.total == 0  # fail-closed：缺失上下文不返回任何跨租户行
+```
+
+- [ ] **Step 3: 运行确认为 xfail（非 pass、非 error）**
+
+Run:
+```bash
+.venv/bin/python -m pytest tests/test_base_service.py -q 2>&1 | tail -8
+```
+Expected: `test_list_missing_tenant_context_is_fail_closed` 计为 **xfailed**（当前实现非 fail-closed，断言 total==0 失败 → 符合 xfail 预期）；`test_list_tenant_isolation` 仍 pass；无新增 error。
+
+- [ ] **Step 4: Commit**
+
+Run:
+```bash
+git add tests/test_base_service.py
+git commit -m "test: F-005 误导断言摘为独立 xfail（fail-closed 期望，实现待 Plan 3）"
+```
+
+---
+
+## Task 5：边界 baseline gate 前置
+
+**Files:**
+- Modify: `scripts/audit_boundaries.py`（`main()` 增 `--check`/`--write-baseline`）
+- Create: `docs/plans/.boundary-baseline.json`（冻结的违规基线，git 跟踪）
+- Test: `tests/test_audit_boundaries_gate.py`
+
+> **背景**：`audit_boundaries.py` 当前 `main()` 永远 `sys.exit(0)`（仅报告）。本 Task 加 baseline 冻结 + negative-delta gate：`--write-baseline` 冻结当前违规总数，`--check` 在 `total_violations > baseline` 时 `exit(1)`。**先于阶段1–4 就位**（design §4 阶段0），拦截过渡期新增违规。存量 139 的消除仍属阶段4。
+
+- [ ] **Step 1: 跑现状，确认违规总数（baseline 真值）**
+
+Run:
+```bash
+.venv/bin/python scripts/audit_boundaries.py --json 2>&1 | grep -E "violation_count|total_violations"
+```
+Expected: 输出 `violation_count`（design 记 139；以**实测为准**，恢复态可能微调）。记下该数 N。
+
+- [ ] **Step 2: 写失败测试（gate 行为）**
+
+Create `tests/test_audit_boundaries_gate.py`：
+```python
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+SCRIPT = REPO / "scripts" / "audit_boundaries.py"
+BASELINE = REPO / "docs" / "plans" / ".boundary-baseline.json"
+
+
+def _run(*args):
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), *args],
+        capture_output=True, text=True, cwd=REPO,
+    )
+
+
+def test_check_passes_when_at_or_below_baseline():
+    """违规数 <= baseline 时 gate 通过（exit 0）。"""
+    assert BASELINE.exists(), "baseline 须由 --write-baseline 先生成"
+    r = _run("--check")
+    assert r.returncode == 0, f"在 baseline 内不应失败: {r.stderr}"
+
+
+def test_check_fails_when_above_baseline(tmp_path, monkeypatch):
+    """违规数 > baseline 时 gate 失败（exit 1）。用一个人为更低的 baseline 模拟新增违规。"""
+    fake = tmp_path / "baseline.json"
+    fake.write_text(json.dumps({"total_violations": -1}))  # 任何真实违规都会超过 -1
+    r = _run("--check", "--baseline", str(fake))
+    assert r.returncode == 1, f"超过 baseline 必须 exit 1: rc={r.returncode}"
+```
+
+- [ ] **Step 3: 运行测试确认失败**
+
+Run:
+```bash
+.venv/bin/python -m pytest tests/test_audit_boundaries_gate.py -q
+```
+Expected: FAIL（`--check`/`--baseline`/`--write-baseline` 尚未实现，argparse 报 unrecognized arguments 或 baseline 不存在）。
+
+- [ ] **Step 4: 实现 gate（改 `audit_boundaries.py` main）**
+
+在 `main()` 的 argparse 增参数并在 `result = audit()` 后分支处理（保留默认 `exit(0)` 行为向后兼容）：
+```python
+    ap.add_argument("--check", action="store_true",
+                    help="Gate mode: exit 1 if violations exceed baseline")
+    ap.add_argument("--write-baseline", action="store_true",
+                    help="Freeze current violations as baseline")
+    ap.add_argument("--baseline", default="docs/plans/.boundary-baseline.json",
+                    help="Baseline file path")
+    args = ap.parse_args()
+    result = audit()
+    if "error" in result:
+        print(result["error"], file=sys.stderr); sys.exit(0)
+
+    if args.write_baseline:
+        import json as _json
+        from pathlib import Path as _Path
+        n = result["total_violations"]
+        _Path(args.baseline).write_text(
+            _json.dumps({"total_violations": n}, indent=2), encoding="utf-8")
+        print(f"Baseline frozen at {n} violations -> {args.baseline}")
+        sys.exit(0)
+
+    if args.check:
+        import json as _json
+        from pathlib import Path as _Path
+        bf = _Path(args.baseline)
+        if not bf.exists():
+            print(f"Baseline missing: {args.baseline} (run --write-baseline)", file=sys.stderr)
+            sys.exit(2)
+        baseline_n = _json.loads(bf.read_text(encoding="utf-8"))["total_violations"]
+        cur = result["total_violations"]
+        if cur > baseline_n:
+            print(f"BOUNDARY GATE FAIL: {cur} > baseline {baseline_n} (+{cur - baseline_n} new)",
+                  file=sys.stderr)
+            sys.exit(1)
+        print(f"Boundary gate OK: {cur} <= baseline {baseline_n}")
+        sys.exit(0)
+```
+（其余 `--json`/`--graph`/默认报告分支保持不变。）
+
+- [ ] **Step 5: 冻结 baseline**
+
+Run:
+```bash
+.venv/bin/python scripts/audit_boundaries.py --write-baseline
+cat docs/plans/.boundary-baseline.json
+```
+Expected: 生成 `{"total_violations": N}`（N = Step 1 实测值）。
+
+- [ ] **Step 6: 运行测试确认通过**
+
+Run:
+```bash
+.venv/bin/python -m pytest tests/test_audit_boundaries_gate.py -q
+```
+Expected: PASS（`--check` 在 baseline 内 exit 0；人为低 baseline 触发 exit 1）。
+
+- [ ] **Step 7: Commit**
+
+Run:
+```bash
+git add scripts/audit_boundaries.py tests/test_audit_boundaries_gate.py docs/plans/.boundary-baseline.json
+git commit -m "feat: 边界 baseline gate 前置 — 冻结 139 + negative-delta 检查（design 阶段0/F-04）"
+```
+
+---
+
+## semantic_regression（ORC 不变量，codex-review 提取）
+
+- **ORC-1（恢复完整性）**：`git stash apply 38fab1d` 后工作树恰好新增/修改 32 文件；`git stash list` 仍含原 object（apply 未 drop）。验证：`git stash show --include-untracked --stat 38fab1d | tail -1` 显示 `32 files`。
+- **ORC-2（基线单调）**：恢复态测试基线（passed/failed 集合）落盘 `docs/plans/.modular-arch-restore-baseline.txt`；本 Plan 结束时 failed 集合 ⊆ 基线 failed ∪ {新增 xfail}，无新真实回归。验证：对比 Plan 前后 pytest failed 清单。
+- **ORC-3（F-005 不被静默）**：`test_list_missing_tenant_context_is_fail_closed` 在 CI 中为 **xfailed**（非 pass、非 skip、非 deselect）；实现 fail-closed 后会 xpass 并因 `strict=True` 失败提醒转正。验证：`pytest -rxX tests/test_base_service.py` 显示该用例 XFAIL。
+- **ORC-4（边界 gate 真实）**：`.boundary-baseline.json` 的 `total_violations` == `audit_boundaries.py --json` 实测值；`--check` 对 `cur > baseline` 返回 exit 1。验证：Task 5 Step 5/6。
+- **ORC-5（不碰生产路径）**：本 Plan 全程不修改 `src/edu_cloud/api/app.py`、`src/edu_cloud/core/auth.py`。验证：`git diff <Plan起点>..HEAD --name-only | grep -E "api/app.py|core/auth.py"` 应为空。
+
+---
+
+## Self-Review（写完即查）
+
+- **Spec 覆盖**：覆盖 design §4「前置清理」(F-005/F-006/F-007) + 「阶段0」(恢复 + 边界 gate 前置)。阶段1–4 不在本 Plan（后续 Plan 2–5），已显式声明。✅
+- **Placeholder 扫描**：无 TBD/TODO；每个代码步骤含完整代码；Task 4 Step 1 / Task 5 Step 1 先读真实文件再改，是核对非占位。✅
+- **类型一致**：`--baseline` 参数名在 main 实现、测试、`--write-baseline`/`--check` 三处一致；baseline 文件路径 `docs/plans/.boundary-baseline.json` 全文统一。✅
+- **风险**：Task 1 worktree 依赖主仓 .venv（依赖隔离策略：symlink 复用）；若 stash apply 冲突（HEAD 已从 stash base 漂移）→ 退回逐文件 `git checkout 38fab1d^3 -- <path>` 取 untracked + `git stash show -p` 打 tracked patch。
