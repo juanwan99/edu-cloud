@@ -18,7 +18,7 @@
 
 - **恢复对象**：`git stash list` 中 msg "WIP: 模块化架构 P0-P6..." 的不可变 object = `38fab1d548cc026ad81fea1aae172727398e383a`。**用 object 不用 `stash@{0}` 别名**（别名会漂移，GPT F-07）。
 - **stash 内容**：32 文件 / +4369 行（tracked 改动 3 个：`CLAUDE.md`、`triggers.py`、删 `events.py`；其余 29 个 untracked 新文件——见 design §2.2）。
-- **当前基线**：主分支 `codex/role-permission-phase2`，HEAD `40610c2`，工作树 clean，backend 运行 `b763888`。
+- **当前基线**：主分支 `codex/role-permission-phase2`，HEAD `d01d217`（= `40610c2` + 本 Plan doc commit），工作树 clean，backend 运行 `b763888`。worktree 基于 `d01d217` 新建分支 `modular-arch-restore`。
 - **F-006 已在 stash 内修复**：`triggers.py` stash 版已用 `from edu_cloud.core.events import LegacyEventBus`（工作树版仍是旧 `EventBus`）。恢复即得，**本 Plan 不再单独改 triggers.py**，仅验证。
 
 ---
@@ -33,10 +33,14 @@
 Run:
 ```bash
 cd /home/ops/projects/edu-cloud
-git worktree add ../edu-cloud-modular-arch codex/role-permission-phase2
+# 主工作树已 checkout codex/role-permission-phase2，git 拒绝同分支双 checkout → 必须用新分支隔离
+git worktree add -b modular-arch-restore ../edu-cloud-modular-arch d01d217
 cd ../edu-cloud-modular-arch
+# 复用主仓 .venv（Plan 1 无依赖文件变更 → symlink，等价 subagent-worktree-bootstrap 的无变更分支）
+ln -sfn /home/ops/projects/edu-cloud/.venv .venv
+.venv/bin/python --version  # 验证 symlink 生效（应为 Python 3.14.x）
 ```
-Expected: 新 worktree 在 `../edu-cloud-modular-arch`，HEAD = `40610c2`，工作树 clean。
+Expected: 新 worktree 在 `../edu-cloud-modular-arch`，分支 `modular-arch-restore`，HEAD = `d01d217`，工作树 clean；`.venv` symlink 指向主仓且 `python --version` 正常。
 
 - [ ] **Step 2: 在 worktree 中恢复 stash（用 apply 不用 pop，保留 stash 不丢）**
 
