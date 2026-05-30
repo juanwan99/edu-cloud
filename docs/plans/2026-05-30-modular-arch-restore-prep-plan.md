@@ -18,7 +18,7 @@
 
 - **恢复对象**：`git stash list` 中 msg "WIP: 模块化架构 P0-P6..." 的不可变 object = `38fab1d548cc026ad81fea1aae172727398e383a`。**用 object 不用 `stash@{0}` 别名**（别名会漂移，GPT F-07）。
 - **stash 内容**：32 文件 / +4369 行（tracked 改动 3 个：`CLAUDE.md`、`triggers.py`、删 `events.py`；其余 29 个 untracked 新文件——见 design §2.2）。
-- **当前基线**：主分支 `codex/role-permission-phase2`，HEAD `d01d217`（= `40610c2` + 本 Plan doc commit），工作树 clean，backend 运行 `b763888`。worktree 基于 `d01d217` 新建分支 `modular-arch-restore`。
+- **当前基线**：主分支 `codex/role-permission-phase2`，工作树 clean，backend 运行 `b763888`。Plan doc 首次 commit `d01d217`，其后叠加预审修正 `5921a49` 与 R1 修订 `9776ae0`，基线 tip 已随之前移。worktree 基于**主仓当前 HEAD**（含全部修订，见 Task 1 Step 1）新建分支 `modular-arch-restore`，不锚定具体旧 SHA（GPT R-001/R2-L001）。
 - **F-006 已在 stash 内修复**：`triggers.py` stash 版已用 `from edu_cloud.core.events import LegacyEventBus`（工作树版仍是旧 `EventBus`）。恢复即得，**本 Plan 不再单独改 triggers.py**，仅验证。
 
 ---
