@@ -1,4 +1,5 @@
-"""分数段配置模型。"""
+# DEPRECATED: 未使用的模型，保留仅因 alembic 迁移创建了对应表。
+# 正式删除需先写 DROP TABLE 迁移。
 from __future__ import annotations
 
 from typing import Optional
@@ -10,16 +11,6 @@ from edu_cloud.models.base import Base, IdMixin, TenantMixin, TimestampMixin
 
 
 class ScoreSegmentConfig(Base, IdMixin, TenantMixin, TimestampMixin):
-    """学校级分数段配置（per school + optional per subject override）。
-
-    Uniqueness (one default per school, one per school+subject) is enforced by:
-    - Service-layer upsert logic (all backends)
-    - Partial unique indexes added in the Alembic migration (PostgreSQL only)
-
-    The partial indexes use ``postgresql_where`` which SQLite cannot represent,
-    so they are kept out of the ORM model to avoid SQLite creating plain unique
-    indexes that break multi-row inserts in tests.
-    """
     __tablename__ = "score_segment_config"
 
     subject_code: Mapped[Optional[str]] = mapped_column(
