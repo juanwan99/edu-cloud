@@ -77,14 +77,19 @@ async def impersonate(
     if not school or not school.is_active:
         raise HTTPException(404, "School not found or inactive")
 
-    # 按角色校验必填 scope
+    # 按角色校验必填 scope（含类型检查）
     required_fields = SCOPE_REQUIRED.get(req.role, [])
     for field_name in required_fields:
         value = req.scope.get(field_name)
-        if not value:  # None or empty list
+        if not value:
             raise HTTPException(
                 422,
                 f"Role '{req.role}' requires non-empty scope field: {field_name}",
+            )
+        if not isinstance(value, list):
+            raise HTTPException(
+                422,
+                f"Scope field '{field_name}' must be a list",
             )
 
     # 校验 scope 中的 class_ids 属于目标学校
