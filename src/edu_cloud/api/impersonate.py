@@ -102,6 +102,20 @@ async def impersonate(
         if invalid:
             raise HTTPException(422, f"Classes not in target school: {list(invalid)}")
 
+    if req.scope.get("grade_ids"):
+        from edu_cloud.models.grade import Grade
+        grade_ids = req.scope["grade_ids"]
+        result = await db.execute(
+            select(Grade.id).where(
+                Grade.id.in_(grade_ids),
+                Grade.school_id == req.school_id,
+            )
+        )
+        valid_ids = set(result.scalars().all())
+        invalid = set(grade_ids) - valid_ids
+        if invalid:
+            raise HTTPException(422, f"Grades not in target school: {list(invalid)}")
+
     # 构造 scope_override
     scope_override = {
         "class_ids": req.scope.get("class_ids"),
