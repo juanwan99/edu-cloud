@@ -97,10 +97,13 @@ async def run_agent_scheduled(ctx, school_id: str, task_type: str, params: dict 
 
 
 async def on_worker_startup(ctx):
-    """Worker startup hook: initialize logging for worker process."""
+    """Worker startup hook: initialize logging and run health checks."""
     from edu_cloud.logging_config import setup_logging
+    from edu_cloud.startup_checks import run_startup_checks
+    from edu_cloud.config import settings
     setup_logging(process="worker")
-    logger.info("arq worker started, logging initialized (process=worker)")
+    await run_startup_checks(settings)
+    logger.info("arq worker started, all checks passed (process=worker)")
 
 
 class WorkerSettings:
