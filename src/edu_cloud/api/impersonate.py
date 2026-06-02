@@ -66,9 +66,11 @@ async def impersonate(
     """进入角色模拟。仅 platform_admin 可调用。"""
     user = current["user"]
 
-    # 权限校验：必须是 platform_admin
+    # 权限校验：必须有 impersonate_roles 权限（仅 platform_admin/admin）
+    from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS
     role_name = current["current_role"].role
-    if role_name not in ("platform_admin", "admin"):
+    role_perms = ROLE_PERMISSIONS.get(role_name, set())
+    if Permission.IMPERSONATE_ROLES not in role_perms:
         raise HTTPException(403, "Only platform_admin can impersonate")
 
     # 验证目标学校存在且活跃
