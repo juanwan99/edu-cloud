@@ -198,6 +198,6 @@ async def logout(request: Request, current: dict = Depends(get_current_user)):
             if jti:
                 await revoke_token(jti)
                 return {"ok": True}
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("logout: token revoke failed: %s", e)
     return {"ok": True}
