@@ -6,6 +6,7 @@ Deprecation: 本模块计划于 SUNSET_DATE 退役（见 docs/plans/compat-route
 import logging
 import warnings
 
+import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -17,6 +18,8 @@ from edu_cloud.shared.auth import create_access_token
 from edu_cloud.core.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
+
+_DUMMY_HASH = bcrypt.hashpw(b"timing-defense", bcrypt.gensalt()).decode()
 
 SUNSET_DATE = "2026-07-31"
 
@@ -61,6 +64,9 @@ async def compat_login(
 
     result = await db.execute(select(User).where(User.username == req.username))
     user = result.scalar_one_or_none()
+
+    if not user:
+        bcrypt.checkpw(req.password.encode(), _DUMMY_HASH.encode())
 
     if not user or not user.verify_password(req.password):
         raise HTTPException(401, "Invalid credentials")

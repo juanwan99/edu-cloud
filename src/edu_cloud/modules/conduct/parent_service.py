@@ -4,11 +4,14 @@ import secrets
 import string
 from datetime import date, timedelta
 
+import bcrypt
 from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from edu_cloud.models.user import User
+
+_DUMMY_HASH = bcrypt.hashpw(b"timing-defense", bcrypt.gensalt()).decode()
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.school import School
 from edu_cloud.modules.student.models import Class, Student
@@ -122,6 +125,8 @@ async def login_parent(db: AsyncSession, phone: str, password: str) -> dict:
             select(User).where(User.username == phone)
         )
     ).scalar_one_or_none()
+    if not user:
+        bcrypt.checkpw(password.encode(), _DUMMY_HASH.encode())
     if not user or not user.verify_password(password):
         raise ValidationError("手机号或密码错误")
 

@@ -1,5 +1,6 @@
 import logging
 
+import bcrypt
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -12,6 +13,8 @@ from edu_cloud.logging_config import business_event
 from edu_cloud.core.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
+
+_DUMMY_HASH = bcrypt.hashpw(b"timing-defense", bcrypt.gensalt()).decode()
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -83,6 +86,9 @@ async def login(request: Request, req: LoginRequest, db: AsyncSession = Depends(
 
     result = await db.execute(select(User).where(User.username == req.username))
     user = result.scalar_one_or_none()
+
+    if not user:
+        bcrypt.checkpw(req.password.encode(), _DUMMY_HASH.encode())
 
     if user and user.verify_password(req.password):
         if not user.is_active:
