@@ -205,16 +205,20 @@ class JointExamService:
         if not student_results:
             raise ValidationError("student_results cannot be empty")
 
+        student_numbers = [item["student_number"] for item in student_results]
+        existing_rows = (await self.db.execute(
+            select(JointExamStudentResult).where(
+                JointExamStudentResult.joint_exam_id == exam_id,
+                JointExamStudentResult.school_id == school_id,
+                JointExamStudentResult.subject_code == subject_code,
+                JointExamStudentResult.student_number.in_(student_numbers),
+            )
+        )).scalars().all()
+        existing_map = {r.student_number: r for r in existing_rows}
+
         count = 0
         for item in student_results:
-            existing = (await self.db.execute(
-                select(JointExamStudentResult).where(
-                    JointExamStudentResult.joint_exam_id == exam_id,
-                    JointExamStudentResult.school_id == school_id,
-                    JointExamStudentResult.subject_code == subject_code,
-                    JointExamStudentResult.student_number == item["student_number"],
-                )
-            )).scalar_one_or_none()
+            existing = existing_map.get(item["student_number"])
             if existing:
                 existing.total_score = item["total_score"]
                 existing.detail_scores = item["detail_scores"]
