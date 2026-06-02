@@ -353,17 +353,34 @@ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
             applied += 1
 
         elif op == "remove_node":
-            # 先删关联边
+            node_id = op_data["id"]
+            # 审计：记录即将被级联删除的 stats
+            stats_result = await db.execute(
+                sa.select(ConceptStats).where(ConceptStats.concept_id == node_id)
+            )
+            stats_row = stats_result.scalar_one_or_none()
+            if stats_row:
+                logger.info(
+                    "concept_stats_archived: node=%s, exam_frequency=%d, "
+                    "importance_score=%.2f, exam_coverage=%.2f, "
+                    "prerequisite_depth=%d",
+                    node_id, stats_row.exam_frequency,
+                    stats_row.importance_score, stats_row.exam_coverage,
+                    stats_row.prerequisite_depth,
+                )
+                await db.execute(
+                    sa.delete(ConceptStats).where(ConceptStats.concept_id == node_id)
+                )
             await db.execute(
                 sa.delete(ConceptGraphEdge).where(
                     sa.or_(
-                        ConceptGraphEdge.source_id == op_data["id"],
-                        ConceptGraphEdge.target_id == op_data["id"],
+                        ConceptGraphEdge.source_id == node_id,
+                        ConceptGraphEdge.target_id == node_id,
                     )
                 )
             )
             await db.execute(
-                sa.delete(ConceptGraphNode).where(ConceptGraphNode.id == op_data["id"])
+                sa.delete(ConceptGraphNode).where(ConceptGraphNode.id == node_id)
             )
             applied += 1
 

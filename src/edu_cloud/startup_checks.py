@@ -14,9 +14,15 @@ _INSECURE_DEFAULTS = {
 def check_critical_secrets(settings) -> list[str]:
     """检查关键密钥是否使用了默认值。返回错误列表。"""
     errors = []
+    env = getattr(settings, "ENVIRONMENT", "development")
     for attr, default_val in _INSECURE_DEFAULTS.items():
         if getattr(settings, attr, None) == default_val:
-            errors.append(f"{attr} 使用了不安全的默认值，必须在 .env 中覆盖")
+            if env != "development":
+                errors.append(
+                    f"{attr} 使用了不安全的默认值（ENVIRONMENT={env}），必须在 .env 中覆盖"
+                )
+            else:
+                errors.append(f"{attr} 使用了不安全的默认值，必须在 .env 中覆盖")
     return errors
 
 

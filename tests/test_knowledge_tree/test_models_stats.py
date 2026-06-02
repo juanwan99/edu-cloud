@@ -47,40 +47,72 @@ async def test_concept_stats_instantiation(db):
 
 
 @pytest.mark.asyncio
-async def test_concept_stats_cascade_on_node_delete(db):
-    """删除概念节点时 stats 应级联删除（FK ON DELETE CASCADE）"""
+async def test_concept_stats_restrict_on_node_delete(db):
+    """FK ON DELETE RESTRICT: 有 stats 时直接删节点应被拒绝，需先删 stats"""
     node = ConceptGraphNode(
-        id="TEST_CASCADE_001", name="级联测试", knowledge_level="L1",
+        id="TEST_RESTRICT_001", name="RESTRICT 测试", knowledge_level="L1",
         primary_module="M1", synced_at=datetime.now(),
     )
     db.add(node)
     await db.commit()
 
     stats = ConceptStats(
-        concept_id="TEST_CASCADE_001",
+        concept_id="TEST_RESTRICT_001",
         exam_frequency=50,
         computed_at=datetime.now(),
     )
     db.add(stats)
     await db.commit()
 
-    # 确保 SQLite FK 启用（PG 默认启用，SQLite 需 PRAGMA）
-    bind = db.get_bind() if hasattr(db, 'get_bind') else None
     try:
         await db.execute(sa.text("PRAGMA foreign_keys = ON"))
     except Exception:
         pass
 
+    # 先删 stats，再删节点（RESTRICT 要求显式删除依赖行）
     await db.execute(
-        sa.delete(ConceptGraphNode).where(ConceptGraphNode.id == "TEST_CASCADE_001")
+        sa.delete(ConceptStats).where(ConceptStats.concept_id == "TEST_RESTRICT_001")
+    )
+    await db.execute(
+        sa.delete(ConceptGraphNode).where(ConceptGraphNode.id == "TEST_RESTRICT_001")
     )
     await db.commit()
     db.expire_all()
 
     result = await db.execute(
-        sa.select(ConceptStats).where(ConceptStats.concept_id == "TEST_CASCADE_001")
+        sa.select(ConceptStats).where(ConceptStats.concept_id == "TEST_RESTRICT_001")
     )
     assert result.scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_concept_stats_restrict_blocks_direct_node_delete(db):
+    """FK ON DELETE RESTRICT: 有 stats 时直接删节点应失败（IntegrityError）"""
+    node = ConceptGraphNode(
+        id="TEST_RESTRICT_002", name="RESTRICT 拒绝测试", knowledge_level="L1",
+        primary_module="M1", synced_at=datetime.now(),
+    )
+    db.add(node)
+    await db.commit()
+
+    stats = ConceptStats(
+        concept_id="TEST_RESTRICT_002",
+        exam_frequency=50,
+        computed_at=datetime.now(),
+    )
+    db.add(stats)
+    await db.commit()
+
+    try:
+        await db.execute(sa.text("PRAGMA foreign_keys = ON"))
+    except Exception:
+        pass
+
+    with pytest.raises(Exception, match="FOREIGN KEY constraint failed"):
+        await db.execute(
+            sa.delete(ConceptGraphNode).where(ConceptGraphNode.id == "TEST_RESTRICT_002")
+        )
+    await db.rollback()
 
 
 @pytest.mark.asyncio

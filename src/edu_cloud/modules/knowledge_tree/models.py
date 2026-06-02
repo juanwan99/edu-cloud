@@ -88,7 +88,7 @@ class ConceptStats(Base):
 
     concept_id: Mapped[str] = mapped_column(
         String(64),
-        ForeignKey("concept_graph_nodes.id", ondelete="CASCADE"),
+        ForeignKey("concept_graph_nodes.id", ondelete="RESTRICT"),
         primary_key=True,
     )
     exam_frequency: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

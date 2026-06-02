@@ -29,6 +29,33 @@ def test_safe_settings_pass():
     assert len(errors) == 0
 
 
+def test_insecure_defaults_include_env_in_non_dev():
+    """非 development 环境的错误消息中应包含 ENVIRONMENT 信息"""
+    class StagingSettings(FakeSettings):
+        ENVIRONMENT = "staging"
+
+    errors = check_critical_secrets(StagingSettings())
+    assert len(errors) == 3
+    assert all("ENVIRONMENT=staging" in e for e in errors)
+
+
+def test_insecure_defaults_omit_env_in_dev():
+    """development 环境的错误消息不包含 ENVIRONMENT 标签"""
+    class DevSettings(FakeSettings):
+        ENVIRONMENT = "development"
+
+    errors = check_critical_secrets(DevSettings())
+    assert len(errors) == 3
+    assert all("ENVIRONMENT=" not in e for e in errors)
+
+
+def test_insecure_defaults_no_env_attr_defaults_to_dev():
+    """没有 ENVIRONMENT 属性时按 development 处理"""
+    errors = check_critical_secrets(FakeSettings())
+    assert len(errors) == 3
+    assert all("ENVIRONMENT=" not in e for e in errors)
+
+
 @pytest.mark.asyncio
 async def test_run_startup_checks_fails_on_defaults(monkeypatch):
     monkeypatch.delenv("SKIP_STARTUP_CHECKS", raising=False)
