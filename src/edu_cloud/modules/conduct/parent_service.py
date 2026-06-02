@@ -126,7 +126,7 @@ async def login_parent(db: AsyncSession, phone: str, password: str) -> dict:
         )
     ).scalar_one_or_none()
     if not user or not user.hashed_password:
-        bcrypt.checkpw(password.encode(), _DUMMY_HASH.encode())
+        bcrypt.checkpw(password.encode()[:72], _DUMMY_HASH.encode())
     if not user or not user.verify_password(password):
         raise ValidationError("手机号或密码错误")
 

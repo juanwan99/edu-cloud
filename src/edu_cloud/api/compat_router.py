@@ -66,7 +66,7 @@ async def compat_login(
     user = result.scalar_one_or_none()
 
     if not user or not user.hashed_password:
-        bcrypt.checkpw(req.password.encode(), _DUMMY_HASH.encode())
+        bcrypt.checkpw(req.password.encode()[:72], _DUMMY_HASH.encode())
 
     if not user or not user.verify_password(req.password):
         raise HTTPException(401, "Invalid credentials")
