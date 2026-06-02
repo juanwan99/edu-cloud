@@ -406,6 +406,76 @@ async def test_expired_impersonation_token_rejected_on_exit(client, admin_user):
 
 
 @pytest.mark.asyncio
+async def test_impersonate_cross_school_subject_codes_rejected(client, admin_user, db):
+    """SEC3: 跨校 subject_codes 应被拒绝。"""
+    from edu_cloud.shared.auth import create_access_token
+    from edu_cloud.models.school import School
+    from edu_cloud.modules.exam.models import Subject, Exam
+
+    school_a = School(name="Subject School A", code="SUBA01", district="Test")
+    school_b = School(name="Subject School B", code="SUBB01", district="Test")
+    db.add_all([school_a, school_b])
+    await db.commit()
+    await db.refresh(school_a)
+    await db.refresh(school_b)
+
+    exam = Exam(name="测试考试", school_id=school_a.id, subject_code="YW", subject_name="语文",
+                max_score=150, semester="2025-2026-2")
+    db.add(exam)
+    await db.flush()
+    subj = Subject(name="语文", code="YW", school_id=school_a.id, exam_id=exam.id)
+    db.add(subj)
+    await db.commit()
+
+    token = create_access_token({"sub": admin_user.id, "role": "platform_admin"})
+    resp = await client.post(
+        "/api/v1/auth/impersonate",
+        json={
+            "school_id": school_b.id,
+            "role": "teaching_research_leader",
+            "scope": {"subject_codes": ["YW"]},
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+    assert "Subject codes not in target school" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_impersonate_valid_subject_codes_accepted(client, admin_user, db):
+    """SEC3: 同校合法 subject_codes 应被接受。"""
+    from edu_cloud.shared.auth import create_access_token
+    from edu_cloud.models.school import School
+    from edu_cloud.modules.exam.models import Subject, Exam
+
+    school = School(name="Valid Subject School", code="VSUB01", district="Test")
+    db.add(school)
+    await db.commit()
+    await db.refresh(school)
+
+    exam = Exam(name="数学期中", school_id=school.id, subject_code="SX", subject_name="数学",
+                max_score=150, semester="2025-2026-2")
+    db.add(exam)
+    await db.flush()
+    subj = Subject(name="数学", code="SX", school_id=school.id, exam_id=exam.id)
+    db.add(subj)
+    await db.commit()
+
+    token = create_access_token({"sub": admin_user.id, "role": "platform_admin"})
+    resp = await client.post(
+        "/api/v1/auth/impersonate",
+        json={
+            "school_id": school.id,
+            "role": "teaching_research_leader",
+            "scope": {"subject_codes": ["SX"]},
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["effective_role"] == "teaching_research_leader"
+
+
+@pytest.mark.asyncio
 async def test_impersonation_inherits_role_permissions(client, admin_user):
     """模拟登录继承目标角色的完整权限（含 USE_AI_CHAT 等）。"""
     from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS

@@ -125,6 +125,25 @@ async def impersonate(
         if invalid:
             raise HTTPException(422, f"Grades not in target school: {list(invalid)}")
 
+    if req.scope.get("subject_codes"):
+        from edu_cloud.modules.exam.models import Subject
+        subject_codes = req.scope["subject_codes"]
+        if not isinstance(subject_codes, list):
+            raise HTTPException(422, "subject_codes must be a list")
+        result = await db.execute(
+            select(Subject.code).where(
+                Subject.code.in_(subject_codes),
+                Subject.school_id == req.school_id,
+            ).distinct()
+        )
+        valid_codes = set(result.scalars().all())
+        invalid = set(subject_codes) - valid_codes
+        if invalid:
+            raise HTTPException(
+                422,
+                f"Subject codes not in target school: {sorted(invalid)}",
+            )
+
     # 构造 scope_override — 仅接受 list 或 None，拒绝畸形值
     def _clean_scope(field_name, val):
         if val is None or isinstance(val, list):
