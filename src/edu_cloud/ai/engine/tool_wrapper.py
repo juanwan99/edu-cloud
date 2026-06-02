@@ -103,8 +103,9 @@ def edu_tool(
                             result = json.dumps(_data, ensure_ascii=False)
                         elif isinstance(result, (dict, list)):
                             result = ctx.deps.anonymizer.anonymize(result)
-                    except (json.JSONDecodeError, TypeError, AttributeError):
-                        pass
+                    except (json.JSONDecodeError, TypeError, AttributeError) as anon_err:
+                        logger.error("anonymization failed for tool %s: %s", name, anon_err)
+                        result = "[data redacted: anonymization error]"
 
                 processed = ctx.deps.artifacts.process_result(
                     name, result, sensitivity,
