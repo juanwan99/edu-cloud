@@ -30,9 +30,9 @@ class User(Base, IdMixin, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(String(500), default=None, nullable=True)
 
     def set_password(self, raw: str):
-        self.hashed_password = bcrypt.hashpw(raw.encode(), bcrypt.gensalt()).decode()
+        self.hashed_password = bcrypt.hashpw(raw.encode()[:72], bcrypt.gensalt()).decode()
 
     def verify_password(self, raw: str) -> bool:
         if not self.hashed_password:
             return False
-        return bcrypt.checkpw(raw.encode(), self.hashed_password.encode())
+        return bcrypt.checkpw(raw.encode()[:72], self.hashed_password.encode())
