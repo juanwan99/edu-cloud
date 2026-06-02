@@ -485,7 +485,8 @@ async def grade_single_answer(
                 llm_url, llm_key, llm_model = await get_llm_config(
                     db, slot=SLOT_AI_GRADING, school_id=school_id,
                 )
-            except Exception:
+            except Exception as e:
+                logger.error("grade_single: get_llm_config failed, using defaults: %s", e)
                 llm_url, llm_key, llm_model = None, None, None
             llm = _create_llm_client(api_url=llm_url, api_key=llm_key, model=llm_model)
 
