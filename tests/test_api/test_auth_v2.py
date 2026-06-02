@@ -112,6 +112,20 @@ async def test_login_nonexistent_user(client):
 
 
 @pytest.mark.asyncio
+async def test_login_timing_defense_nonexistent_user(client):
+    """SEC2: 不存在用户的登录应消耗与错误密码相近的时间（dummy bcrypt）。"""
+    import time
+    t0 = time.perf_counter()
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "timing_attack_probe", "password": "test"},
+    )
+    elapsed_ms = (time.perf_counter() - t0) * 1000
+    assert resp.status_code == 401
+    assert elapsed_ms > 50, "登录应消耗 bcrypt 时间，不应瞬间返回"
+
+
+@pytest.mark.asyncio
 async def test_login_jwt_contains_role_claims(client, seed_teacher):
     """登录返回的 JWT 包含 role 和 active_role_id claim。"""
     resp = await client.post(

@@ -201,6 +201,64 @@ async def test_impersonate_scope_required(client, admin_user, db):
 
 
 @pytest.mark.asyncio
+async def test_impersonate_cross_school_grade_ids_rejected(client, admin_user, db):
+    """SEC3: 跨校 grade_ids 应被拒绝。"""
+    from edu_cloud.shared.auth import create_access_token
+    from edu_cloud.models.school import School
+    from edu_cloud.models.grade import Grade
+
+    school_a = School(name="School A", code="GRDA01", district="Test")
+    school_b = School(name="School B", code="GRDB01", district="Test")
+    db.add_all([school_a, school_b])
+    await db.commit()
+    await db.refresh(school_a)
+    await db.refresh(school_b)
+
+    grade_in_a = Grade(school_id=school_a.id, name="七年级")
+    db.add(grade_in_a)
+    await db.commit()
+    await db.refresh(grade_in_a)
+
+    token = create_access_token({"sub": admin_user.id, "role": "platform_admin"})
+    resp = await client.post(
+        "/api/v1/auth/impersonate",
+        json={
+            "school_id": school_b.id,
+            "role": "grade_leader",
+            "scope": {"grade_ids": [grade_in_a.id]},
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+    assert "Grades not in target school" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_impersonate_grade_ids_type_validation(client, admin_user, db):
+    """SEC3: grade_ids 传非 list 类型应返回 422。"""
+    from edu_cloud.shared.auth import create_access_token
+    from edu_cloud.models.school import School
+
+    school = School(name="Type School", code="TYPS01", district="Test")
+    db.add(school)
+    await db.commit()
+    await db.refresh(school)
+
+    token = create_access_token({"sub": admin_user.id, "role": "platform_admin"})
+    resp = await client.post(
+        "/api/v1/auth/impersonate",
+        json={
+            "school_id": school.id,
+            "role": "grade_leader",
+            "scope": {"grade_ids": "not-a-list"},
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+    assert "list" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
 async def test_impersonate_nonexistent_school(client, admin_user):
     """Impersonating into a non-existent school returns 404."""
     from edu_cloud.shared.auth import create_access_token

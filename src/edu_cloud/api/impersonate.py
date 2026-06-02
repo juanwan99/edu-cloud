@@ -105,6 +105,8 @@ async def impersonate(
     if req.scope.get("grade_ids"):
         from edu_cloud.models.grade import Grade
         grade_ids = req.scope["grade_ids"]
+        if not isinstance(grade_ids, list):
+            raise HTTPException(422, "grade_ids must be a list")
         result = await db.execute(
             select(Grade.id).where(
                 Grade.id.in_(grade_ids),

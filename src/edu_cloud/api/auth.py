@@ -87,7 +87,7 @@ async def login(request: Request, req: LoginRequest, db: AsyncSession = Depends(
     result = await db.execute(select(User).where(User.username == req.username))
     user = result.scalar_one_or_none()
 
-    if not user:
+    if not user or not user.hashed_password:
         bcrypt.checkpw(req.password.encode(), _DUMMY_HASH.encode())
 
     if user and user.verify_password(req.password):
