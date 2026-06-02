@@ -476,6 +476,46 @@ async def test_impersonate_valid_subject_codes_accepted(client, admin_user, db):
 
 
 @pytest.mark.asyncio
+async def test_impersonate_scope_element_type_validation(client, admin_user, db):
+    """F-001: scope 列表元素必须是字符串，非 hashable 类型应返回 422 而非 500。"""
+    from edu_cloud.shared.auth import create_access_token
+    from edu_cloud.models.school import School
+
+    school = School(name="Element Type School", code="ELT001", district="Test")
+    db.add(school)
+    await db.commit()
+    await db.refresh(school)
+
+    token = create_access_token({"sub": admin_user.id, "role": "platform_admin"})
+
+    # grade_ids 含 dict 元素 → 应返回 422
+    resp = await client.post(
+        "/api/v1/auth/impersonate",
+        json={
+            "school_id": school.id,
+            "role": "grade_leader",
+            "scope": {"grade_ids": [{}]},
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+    assert "elements must be strings" in resp.json()["detail"]
+
+    # class_ids 含 int 元素 → 应返回 422
+    resp = await client.post(
+        "/api/v1/auth/impersonate",
+        json={
+            "school_id": school.id,
+            "role": "subject_teacher",
+            "scope": {"class_ids": [123], "subject_codes": ["SX"]},
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+    assert "elements must be strings" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_impersonation_inherits_role_permissions(client, admin_user):
     """模拟登录继承目标角色的完整权限（含 USE_AI_CHAT 等）。"""
     from edu_cloud.core.permissions import Permission, ROLE_PERMISSIONS

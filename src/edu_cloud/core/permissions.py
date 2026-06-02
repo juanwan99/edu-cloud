@@ -77,6 +77,9 @@ class Permission(str, Enum):
     VIEW_KNOWLEDGE_TREE = "view_knowledge_tree"
     EDIT_KNOWLEDGE_TREE = "edit_knowledge_tree"
 
+    # ── 角色模拟 ──
+    IMPERSONATE_ROLES = "impersonate_roles"    # 仅 platform_admin
+
     # ── 德育（Conduct） ──
     VIEW_CONDUCT = "view_conduct"
     MANAGE_CONDUCT = "manage_conduct"

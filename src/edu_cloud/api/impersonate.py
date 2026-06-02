@@ -92,12 +92,18 @@ async def impersonate(
                 f"Scope field '{field_name}' must be a list",
             )
 
+    def _validate_str_list(field_name: str, val: list) -> list[str]:
+        if not all(isinstance(v, str) for v in val):
+            raise HTTPException(422, f"{field_name} elements must be strings")
+        return val
+
     # 校验 scope 中的 class_ids 属于目标学校
     if req.scope.get("class_ids"):
         from edu_cloud.modules.student.models import Class
         class_ids = req.scope["class_ids"]
         if not isinstance(class_ids, list):
             raise HTTPException(422, "class_ids must be a list")
+        class_ids = _validate_str_list("class_ids", class_ids)
         result = await db.execute(
             select(Class.id).where(
                 Class.id.in_(class_ids),
@@ -114,6 +120,7 @@ async def impersonate(
         grade_ids = req.scope["grade_ids"]
         if not isinstance(grade_ids, list):
             raise HTTPException(422, "grade_ids must be a list")
+        grade_ids = _validate_str_list("grade_ids", grade_ids)
         result = await db.execute(
             select(Grade.id).where(
                 Grade.id.in_(grade_ids),
@@ -130,6 +137,7 @@ async def impersonate(
         subject_codes = req.scope["subject_codes"]
         if not isinstance(subject_codes, list):
             raise HTTPException(422, "subject_codes must be a list")
+        subject_codes = _validate_str_list("subject_codes", subject_codes)
         result = await db.execute(
             select(Subject.code).where(
                 Subject.code.in_(subject_codes),

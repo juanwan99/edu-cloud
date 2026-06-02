@@ -105,7 +105,7 @@ export const routes = [
       { path: 'conduct/parents', redirect: { name: 'ConductSettingsHub', query: { tab: 'parents' } } },
 
       // 超管工具
-      { path: 'admin/impersonate', name: 'Impersonate', component: () => import('../pages/ImpersonatePage.vue'), meta: { permissions: ['manage_schools'] } },
+      { path: 'admin/impersonate', name: 'Impersonate', component: () => import('../pages/ImpersonatePage.vue'), meta: { permissions: ['impersonate_roles'] } },
     ]
   },
 

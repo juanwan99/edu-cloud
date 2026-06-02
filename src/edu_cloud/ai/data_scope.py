@@ -151,12 +151,22 @@ class DataScopeBuilder:
             )
 
         if role_str == "grade_leader":
+            grade_ids = role_row.grade_ids or []
+            class_ids: list[str] = []
+            if grade_ids:
+                from edu_cloud.modules.student.models import Class
+                stmt = select(Class.id).where(
+                    Class.grade_id.in_(grade_ids),
+                    Class.school_id == school_id,
+                )
+                class_ids = list((await self._db.execute(stmt)).scalars().all())
             return self._make(
                 user_id=user_id,
                 school_id=school_id,
                 role=role_str,
                 persona=persona,
-                visible_grade_ids=role_row.grade_ids or [],
+                visible_class_ids=class_ids,
+                visible_grade_ids=grade_ids,
                 can_write=True,
                 can_see_rankings=True,
             )

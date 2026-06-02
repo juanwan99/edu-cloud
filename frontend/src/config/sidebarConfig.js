@@ -60,7 +60,7 @@ const SIDEBAR_GROUPS = [
       { label: '学校配置', route: '/school-settings', perm: 'manage_school_config' },
       { label: '联考管理', route: '/joint-exams', perm: 'view_joint_exam' },
       { label: '校历管理', route: '/calendar', moduleCode: 'calendar' },
-      { label: '角色模拟', route: '/admin/impersonate', perm: 'manage_schools' },
+      { label: '角色模拟', route: '/admin/impersonate', perm: 'impersonate_roles' },
     ],
   },
 ]

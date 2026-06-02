@@ -271,7 +271,10 @@ async def test_build_scope_homeroom_teacher(db):
 
 @pytest.mark.asyncio
 async def test_build_scope_grade_leader(db):
-    """grade_leader → visible_grade_ids from UserRole, visible_class_ids=None."""
+    """grade_leader → visible_grade_ids + visible_class_ids derived from grades."""
+    from edu_cloud.models.grade import Grade
+    from edu_cloud.modules.student.models import Class
+
     user = User(username="gl_test", display_name="年级组长")
     user.set_password("x")
     db.add(user)
@@ -279,6 +282,20 @@ async def test_build_scope_grade_leader(db):
 
     school = School(name="组长校", code="GL01", district="测试区", api_key_hash="x")
     db.add(school)
+    await db.flush()
+
+    grade7 = Grade(id="grade-7", school_id=school.id, name="七年级")
+    grade8 = Grade(id="grade-8", school_id=school.id, name="八年级")
+    db.add_all([grade7, grade8])
+    await db.flush()
+
+    cls_7a = Class(name="七年级1班", grade="七年级", grade_number=7,
+                   school_id=school.id, grade_id="grade-7")
+    cls_7b = Class(name="七年级2班", grade="七年级", grade_number=7,
+                   school_id=school.id, grade_id="grade-7")
+    cls_8a = Class(name="八年级1班", grade="八年级", grade_number=8,
+                   school_id=school.id, grade_id="grade-8")
+    db.add_all([cls_7a, cls_7b, cls_8a])
     await db.flush()
 
     role = UserRole(
@@ -297,7 +314,7 @@ async def test_build_scope_grade_leader(db):
     assert scope.role == "grade_leader"
     assert scope.persona == "teacher_assistant"
     assert scope.visible_grade_ids == ["grade-7", "grade-8"]
-    assert scope.visible_class_ids is None  # all classes in those grades
+    assert sorted(scope.visible_class_ids) == sorted([cls_7a.id, cls_7b.id, cls_8a.id])
     assert scope.can_write is True
 
 

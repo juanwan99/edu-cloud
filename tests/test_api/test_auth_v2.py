@@ -126,6 +126,20 @@ async def test_login_timing_defense_nonexistent_user(client):
 
 
 @pytest.mark.asyncio
+async def test_compat_login_timing_defense(client):
+    """F-002: compat 登录不存在用户也应消耗 bcrypt 时间。"""
+    import time
+    t0 = time.perf_counter()
+    resp = await client.post(
+        "/api/auth/login",
+        json={"username": "compat_timing_probe", "password": "test"},
+    )
+    elapsed_ms = (time.perf_counter() - t0) * 1000
+    assert resp.status_code == 401
+    assert elapsed_ms > 50, "compat 登录应消耗 bcrypt 时间"
+
+
+@pytest.mark.asyncio
 async def test_login_jwt_contains_role_claims(client, seed_teacher):
     """登录返回的 JWT 包含 role 和 active_role_id claim。"""
     resp = await client.post(

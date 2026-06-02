@@ -9,7 +9,7 @@ const _TEACHER_BASE = [
 
 export const ROLE_PERMISSIONS = {
   platform_admin: [
-    'manage_schools', 'view_schools', 'manage_school_config', 'manage_scheduling',
+    'manage_schools', 'view_schools', 'manage_school_config', 'manage_scheduling', 'impersonate_roles',
     'manage_teachers', 'manage_exams', 'create_joint_exam', 'manage_joint_exam', 'view_joint_exam',
     'view_cross_school_analytics', 'manage_question_bank', 'view_question_bank',
     'manage_users', 'manage_platform', 'view_students', 'view_exams', 'view_scores',
