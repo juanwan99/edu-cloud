@@ -125,16 +125,16 @@ async def impersonate(
         if invalid:
             raise HTTPException(422, f"Grades not in target school: {list(invalid)}")
 
-    # 构造 scope_override — 仅接受 list 或 None
-    def _clean_scope(val):
+    # 构造 scope_override — 仅接受 list 或 None，拒绝畸形值
+    def _clean_scope(field_name, val):
         if val is None or isinstance(val, list):
             return val
-        return None
+        raise HTTPException(422, f"Scope field '{field_name}' must be a list or null")
 
     scope_override = {
-        "class_ids": _clean_scope(req.scope.get("class_ids")),
-        "subject_codes": _clean_scope(req.scope.get("subject_codes")),
-        "grade_ids": _clean_scope(req.scope.get("grade_ids")),
+        "class_ids": _clean_scope("class_ids", req.scope.get("class_ids")),
+        "subject_codes": _clean_scope("subject_codes", req.scope.get("subject_codes")),
+        "grade_ids": _clean_scope("grade_ids", req.scope.get("grade_ids")),
     }
 
     token = create_impersonation_token(
