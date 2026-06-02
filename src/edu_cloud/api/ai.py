@@ -548,8 +548,9 @@ async def delete_session(
     current=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    import sqlalchemy as sa
     from sqlalchemy import select as sa_select, delete as sa_delete
-    from edu_cloud.ai.models import AiSession
+    from edu_cloud.ai.models import AiSession, AiChatMessage, AiToolCall
     user = current["user"]
 
     row = (await db.execute(
@@ -561,6 +562,20 @@ async def delete_session(
         return {"deleted": state is not None}
     if row.user_id != str(user.id):
         raise HTTPException(status_code=403, detail="无权删除他人会话")
+
+    msg_count = (await db.execute(
+        sa_select(sa.func.count()).select_from(AiChatMessage)
+        .where(AiChatMessage.session_id == session_id)
+    )).scalar() or 0
+    tool_count = (await db.execute(
+        sa_select(sa.func.count()).select_from(AiToolCall)
+        .where(AiToolCall.session_id == session_id)
+    )).scalar() or 0
+    if msg_count or tool_count:
+        logger.info(
+            "ai_session_deleted: session=%s, messages=%d, tool_calls=%d",
+            session_id, msg_count, tool_count,
+        )
 
     await db.execute(sa_delete(AiSession).where(AiSession.id == session_id))
     await db.commit()
