@@ -259,6 +259,31 @@ async def test_impersonate_grade_ids_type_validation(client, admin_user, db):
 
 
 @pytest.mark.asyncio
+async def test_impersonate_optional_scope_type_validation(client, admin_user, db):
+    """SEC3: 可选 scope 字段传非 list 真值应被 _clean_scope 拒绝为 422。"""
+    from edu_cloud.shared.auth import create_access_token
+    from edu_cloud.models.school import School
+
+    school = School(name="Clean School", code="CLN001", district="Test")
+    db.add(school)
+    await db.commit()
+    await db.refresh(school)
+
+    token = create_access_token({"sub": admin_user.id, "role": "platform_admin"})
+    resp = await client.post(
+        "/api/v1/auth/impersonate",
+        json={
+            "school_id": school.id,
+            "role": "principal",
+            "scope": {"subject_codes": "math"},
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+    assert "list" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
 async def test_impersonate_nonexistent_school(client, admin_user):
     """Impersonating into a non-existent school returns 404."""
     from edu_cloud.shared.auth import create_access_token
