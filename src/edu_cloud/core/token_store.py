@@ -43,10 +43,12 @@ async def is_revoked(jti: str) -> bool:
     """Check if a JTI has been revoked. Fail-open on Redis errors."""
     r = await _get_redis()
     if r is None:
+        logger.warning("is_revoked: Redis unavailable, fail-open (jti=%s)", jti)
         return False
     try:
         return await r.exists(f"{_REVOKE_PREFIX}{jti}") > 0
-    except Exception:
+    except Exception as e:
+        logger.warning("is_revoked: Redis error, fail-open: %s (jti=%s)", e, jti)
         return False
     finally:
         await r.aclose()
