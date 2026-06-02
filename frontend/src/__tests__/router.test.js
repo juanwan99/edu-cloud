@@ -124,11 +124,11 @@ describe('Route definitions (real routes)', () => {
     expect(gradingDispatch.meta?.roles).toBeUndefined()
   })
 
-  it('admin impersonation is guarded by manage_schools permission', () => {
+  it('admin impersonation is guarded by impersonate_roles permission', () => {
     const shell = routes.find(r => r.path === '/' && r.children)
     const impersonate = shell.children.find(r => r.path === 'admin/impersonate')
     expect(impersonate).toBeTruthy()
-    expect(impersonate.meta?.permissions).toEqual(['manage_schools'])
+    expect(impersonate.meta?.permissions).toEqual(['impersonate_roles'])
     expect(impersonate.meta?.roles).toBeUndefined()
   })
 

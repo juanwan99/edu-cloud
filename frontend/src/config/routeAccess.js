@@ -26,7 +26,7 @@ export const ROUTE_ACCESS_REQUIREMENTS = {
   '/selections': { permission: 'manage_scheduling' },
   '/teachers': { permission: 'manage_teachers' },
   '/schools': { permission: 'manage_schools' },
-  '/admin/impersonate': { permission: 'manage_schools' },
+  '/admin/impersonate': { permission: 'impersonate_roles' },
   '/calendar': { moduleCode: 'calendar' },
 }
 

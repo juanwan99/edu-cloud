@@ -31,7 +31,7 @@ describe('route access requirements', () => {
       permission: 'manage_schools',
     })
     expect(getRouteAccessRequirement('/admin/impersonate')).toEqual({
-      permission: 'manage_schools',
+      permission: 'impersonate_roles',
     })
   })
 
