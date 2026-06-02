@@ -372,6 +372,14 @@ async def apply_edits(db: AsyncSession, operations: list[dict]) -> int:
                     sa.delete(ConceptStats).where(ConceptStats.concept_id == node_id)
                 )
             await db.execute(
+                sa.delete(ConceptBigConceptMap).where(
+                    sa.or_(
+                        ConceptBigConceptMap.concept_id == node_id,
+                        ConceptBigConceptMap.big_concept_id == node_id,
+                    )
+                )
+            )
+            await db.execute(
                 sa.delete(ConceptGraphEdge).where(
                     sa.or_(
                         ConceptGraphEdge.source_id == node_id,
