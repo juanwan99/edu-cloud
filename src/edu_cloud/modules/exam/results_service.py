@@ -113,16 +113,26 @@ class ResultsService:
         if not results:
             raise NotFoundError(f"Student '{student_number}' not found in exam")
 
+        subject_codes = list({r.subject_code for r in results})
+        all_scores = (await self.db.execute(
+            select(
+                JointExamStudentResult.subject_code,
+                JointExamStudentResult.total_score,
+            )
+            .where(JointExamStudentResult.joint_exam_id == exam_id)
+            .where(JointExamStudentResult.subject_code.in_(subject_codes))
+        )).all()
+
+        from collections import defaultdict
+        scores_by_subject = defaultdict(list)
+        for row in all_scores:
+            scores_by_subject[row.subject_code].append(row.total_score)
+
         subjects_with_rank = []
         for r in results:
-            rank_q = (
-                select(func.count())
-                .select_from(JointExamStudentResult)
-                .where(JointExamStudentResult.joint_exam_id == exam_id)
-                .where(JointExamStudentResult.subject_code == r.subject_code)
-                .where(JointExamStudentResult.total_score > r.total_score)
+            higher_count = sum(
+                1 for s in scores_by_subject[r.subject_code] if s > r.total_score
             )
-            higher_count = (await self.db.execute(rank_q)).scalar() or 0
             subjects_with_rank.append({
                 "subject_code": r.subject_code, "total_score": r.total_score,
                 "rank": higher_count + 1,
