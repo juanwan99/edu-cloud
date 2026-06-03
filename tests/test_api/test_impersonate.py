@@ -523,3 +523,89 @@ async def test_impersonation_inherits_role_permissions(client, admin_user):
     st_perms = ROLE_PERMISSIONS.get("subject_teacher", set())
     assert Permission.USE_AI_CHAT in st_perms
     assert Permission.MANAGE_GRADING not in st_perms
+
+
+@pytest.mark.asyncio
+async def test_school_scoped_admin_cannot_cross_school_impersonate(client, admin_user, db):
+    """school-scoped admin 不能跨校模拟。"""
+    from edu_cloud.shared.auth import create_access_token
+    from edu_cloud.models.school import School
+    from edu_cloud.models.user_role import UserRole
+
+    school_a = School(name="School A", code="XSCH01", district="Test")
+    school_b = School(name="School B", code="XSCH02", district="Test")
+    db.add_all([school_a, school_b])
+    await db.commit()
+    await db.refresh(school_a)
+    await db.refresh(school_b)
+
+    scoped_role = UserRole(user_id=admin_user.id, role="admin", school_id=school_a.id)
+    db.add(scoped_role)
+    await db.commit()
+    await db.refresh(scoped_role)
+
+    token = create_access_token({
+        "sub": admin_user.id,
+        "role": "admin",
+        "school_id": school_a.id,
+        "active_role_id": scoped_role.id,
+    })
+    resp = await client.post(
+        "/api/v1/auth/impersonate",
+        json={"school_id": school_b.id, "role": "principal", "scope": {}},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 403
+    assert "different school" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_school_scoped_admin_can_same_school_impersonate(client, admin_user, db):
+    """school-scoped admin 可以模拟自己学校的角色。"""
+    from edu_cloud.shared.auth import create_access_token
+    from edu_cloud.models.school import School
+    from edu_cloud.models.user_role import UserRole
+
+    school = School(name="Same School", code="SAME01", district="Test")
+    db.add(school)
+    await db.commit()
+    await db.refresh(school)
+
+    scoped_role = UserRole(user_id=admin_user.id, role="admin", school_id=school.id)
+    db.add(scoped_role)
+    await db.commit()
+    await db.refresh(scoped_role)
+
+    token = create_access_token({
+        "sub": admin_user.id,
+        "role": "admin",
+        "school_id": school.id,
+        "active_role_id": scoped_role.id,
+    })
+    resp = await client.post(
+        "/api/v1/auth/impersonate",
+        json={"school_id": school.id, "role": "principal", "scope": {}},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["effective_role"] == "principal"
+
+
+@pytest.mark.asyncio
+async def test_platform_admin_can_cross_school_impersonate(client, admin_user, db):
+    """platform_admin（无 school_id）跨校模拟不受影响。"""
+    from edu_cloud.shared.auth import create_access_token
+    from edu_cloud.models.school import School
+
+    school = School(name="Any School", code="ANY001", district="Test")
+    db.add(school)
+    await db.commit()
+    await db.refresh(school)
+
+    token = create_access_token({"sub": admin_user.id, "role": "platform_admin"})
+    resp = await client.post(
+        "/api/v1/auth/impersonate",
+        json={"school_id": school.id, "role": "principal", "scope": {}},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200

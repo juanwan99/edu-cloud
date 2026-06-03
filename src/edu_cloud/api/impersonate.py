@@ -73,6 +73,11 @@ async def impersonate(
     if Permission.IMPERSONATE_ROLES not in role_perms:
         raise HTTPException(403, "Only platform_admin can impersonate")
 
+    # 学校边界：有 school_id 绑定的调用者只能模拟自己学校
+    caller_school_id = getattr(current.get("current_role"), "school_id", None)
+    if caller_school_id and caller_school_id != req.school_id:
+        raise HTTPException(403, "Cannot impersonate into a different school")
+
     # 验证目标学校存在且活跃
     from edu_cloud.models.school import School
     school = await db.get(School, req.school_id)
