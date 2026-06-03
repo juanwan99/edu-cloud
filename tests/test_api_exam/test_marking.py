@@ -153,13 +153,13 @@ async def test_next_and_score_flow(client, marking_setup):
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
 
-    # 重复打分应该 409
+    # 复核改分（279ea1a 起允许已 confirmed 记录改分，返回 200 + 审计日志）
     resp = await client.post(
         "/api/v1/marking/score",
         json={"answer_id": answer_id, "score": 9.0},
         headers=marking_setup["headers"],
     )
-    assert resp.status_code == 409
+    assert resp.status_code == 200
 
 
 # ---------- Progress ----------
