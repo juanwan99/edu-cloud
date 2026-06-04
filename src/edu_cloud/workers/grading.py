@@ -13,6 +13,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from edu_cloud.config import settings
+from edu_cloud.shared.path_safety import resolve_stored_file_path
 from edu_cloud.modules.exam.models import Question, Subject, QUESTION_TYPES_SUBJECTIVE
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
@@ -68,7 +69,8 @@ def _create_llm_client(
 
 
 async def _read_image_b64(path: str) -> str:
-    async with aiofiles.open(path, "rb") as f:
+    safe_path = resolve_stored_file_path(path)
+    async with aiofiles.open(str(safe_path), "rb") as f:
         data = await f.read()
     return base64.b64encode(data).decode()
 

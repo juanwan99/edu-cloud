@@ -8,7 +8,8 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.core.auth import get_current_user
+from edu_cloud.core.auth import get_current_user, require_permission
+from edu_cloud.core.permissions import Permission
 from edu_cloud.database import get_db
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
@@ -16,6 +17,7 @@ from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.exam.models import Exam, Question, Subject
 from edu_cloud.modules.grading.models import GradingAssignment
 from edu_cloud.api.permissions import get_visible_subject_codes, is_school_admin
+from edu_cloud.shared.path_safety import resolve_stored_file_path, resolve_user_input_path
 
 logger = logging.getLogger(__name__)
 
@@ -243,13 +245,14 @@ async def list_teachers(
 @router.post("/import", response_model=ImportResponse)
 async def import_folder(
     req: ImportRequest,
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.MANAGE_GRADING)),
     db: AsyncSession = Depends(get_db),
 ):
     """从文件夹导入切割好的答题图片。"""
+    resolved_root = resolve_user_input_path(req.folder_path)
     from edu_cloud.modules.marking.importer import import_from_folder
     try:
-        stats = await import_from_folder(db, req.exam_id, req.folder_path, current["current_role"].school_id)
+        stats = await import_from_folder(db, req.exam_id, str(resolved_root), current["current_role"].school_id)
     except ValueError as e:
         raise HTTPException(400, str(e))
     return stats
@@ -346,7 +349,8 @@ async def get_answer_image(
     if not answer or not answer.image_path:
         raise HTTPException(404, "答题图片不存在")
 
-    if not os.path.isfile(answer.image_path):
+    safe_path = resolve_stored_file_path(answer.image_path)
+    if not safe_path.is_file():
         raise HTTPException(404, f"图片文件不存在: {answer.image_path}")
 
     ext = os.path.splitext(answer.image_path)[1].lower()
@@ -357,7 +361,7 @@ async def get_answer_image(
     content_type = content_types.get(ext, "application/octet-stream")
 
     def iter_file():
-        with open(answer.image_path, "rb") as f:
+        with open(safe_path, "rb") as f:
             yield from iter(lambda: f.read(65536), b"")
 
     return StreamingResponse(iter_file(), media_type=content_type)

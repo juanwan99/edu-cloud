@@ -4,6 +4,7 @@ from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.modules.exam.models import Exam
 from edu_cloud.shared.auth import create_access_token
+from edu_cloud.config import settings
 
 
 @pytest.fixture
@@ -36,10 +37,17 @@ async def two_schools(db):
     }
 
 
+@pytest.fixture
+def upload_dir(tmp_path, monkeypatch):
+    """Set UPLOAD_DIR to tmp_path so test folders pass path containment."""
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+    return tmp_path
+
+
 @pytest.mark.asyncio
-async def test_import_rejects_other_school_exam(client, two_schools, tmp_path):
+async def test_import_rejects_other_school_exam(client, two_schools, upload_dir):
     """A校用户用 B校 exam_id 调用 import -> 400/404"""
-    folder = tmp_path / "subjects"
+    folder = upload_dir / "subjects"
     folder.mkdir()
     resp = await client.post("/api/v1/marking/import", json={
         "exam_id": two_schools["exam_b_id"],
@@ -50,13 +58,13 @@ async def test_import_rejects_other_school_exam(client, two_schools, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_import_accepts_own_school_exam(client, two_schools, db, tmp_path):
+async def test_import_accepts_own_school_exam(client, two_schools, db, upload_dir):
     """A校用户用自己学校的 exam_id -> 正常"""
     own_exam = Exam(name="A校考试", school_id=two_schools["school_a_id"], status="draft")
     db.add(own_exam)
     await db.commit()
 
-    folder = tmp_path / "empty_subjects"
+    folder = upload_dir / "empty_subjects"
     folder.mkdir()
     resp = await client.post("/api/v1/marking/import", json={
         "exam_id": own_exam.id,

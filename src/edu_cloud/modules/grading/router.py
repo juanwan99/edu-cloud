@@ -13,6 +13,7 @@ from edu_cloud.core.auth import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.core.state_machine import validate_transition
 from edu_cloud.config import settings
+from edu_cloud.shared.path_safety import resolve_stored_file_path
 from edu_cloud.modules.exam.models import Exam, Question, Subject, QUESTION_TYPES_SUBJECTIVE
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
 from edu_cloud.modules.scan.models import StudentAnswer
@@ -454,7 +455,8 @@ async def grade_single_answer(
     if not answer.image_path:
         raise HTTPException(400, "答卷无图片")
     try:
-        async with aiofiles.open(answer.image_path, "rb") as f:
+        safe_path = resolve_stored_file_path(answer.image_path)
+        async with aiofiles.open(str(safe_path), "rb") as f:
             image_data = await f.read()
         image_b64 = base64.b64encode(image_data).decode()
     except FileNotFoundError:

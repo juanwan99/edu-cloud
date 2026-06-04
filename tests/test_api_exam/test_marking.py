@@ -5,11 +5,14 @@ from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.exam import Exam
 from edu_cloud.modules.exam.models import Subject
 from edu_cloud.shared.auth import create_access_token
+from edu_cloud.config import settings
 
 
 @pytest.fixture
-async def marking_setup(client, db, tmp_path):
+async def marking_setup(client, db, tmp_path, monkeypatch):
     """创建测试学校/用户/考试 + 测试文件夹结构。"""
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+
     school = School(name="MK", code="MK01")
     db.add(school)
     await db.commit()
@@ -91,7 +94,7 @@ async def test_import_bad_folder(client, marking_setup):
         json={"exam_id": marking_setup["exam_id"], "folder_path": "/nonexistent"},
         headers=marking_setup["headers"],
     )
-    assert resp.status_code == 400
+    assert resp.status_code in (400, 403)
 
 
 # ---------- Subject listing ----------
