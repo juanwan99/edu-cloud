@@ -391,10 +391,16 @@ async def compat_upload_objective(
     results = []
     for ans in req.answers:
         q = (await db.execute(
-            select(Question).where(Question.id == ans.question_id, Question.school_id == school_id)
+            select(Question).where(
+                Question.id == ans.question_id,
+                Question.subject_id == req.subject_id,
+                Question.school_id == school_id,
+            )
         )).scalar_one_or_none()
+        if not q:
+            raise HTTPException(404, f"Question {ans.question_id} not found in subject {req.subject_id}")
         from edu_cloud.modules.scan.objective_grading import grade_objective_answer
-        if q and q.correct_answer:
+        if q.correct_answer:
             score, is_correct = grade_objective_answer(ans.detected_answer, q.correct_answer, q.max_score)
         else:
             score, is_correct = 0, False

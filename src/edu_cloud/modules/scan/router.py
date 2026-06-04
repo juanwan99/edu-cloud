@@ -15,6 +15,11 @@ from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer, ScanTask
 from edu_cloud.modules.scan.service import StorageService, get_storage
 from edu_cloud.config import settings
+from edu_cloud.core.ownership import (
+    verify_exam_subject_chain,
+    verify_exam_subject_question_chain,
+    verify_questions_belong_to_subject,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,21 +29,10 @@ router = APIRouter(prefix="/api/v1/scan", tags=["scan"])
 async def _verify_ownership(
     db: AsyncSession, school_id: str, exam_id: str, subject_id: str, question_id: str,
 ) -> None:
-    result = await db.execute(
-        select(Exam).where(Exam.id == exam_id, Exam.school_id == school_id)
+    await verify_exam_subject_question_chain(
+        db, school_id=school_id, exam_id=exam_id,
+        subject_id=subject_id, question_id=question_id,
     )
-    if not result.scalar_one_or_none():
-        raise HTTPException(404, "Exam not found")
-    result = await db.execute(
-        select(Subject).where(Subject.id == subject_id, Subject.school_id == school_id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(404, "Subject not found")
-    result = await db.execute(
-        select(Question).where(Question.id == question_id, Question.school_id == school_id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(404, "Question not found")
 
 
 @router.post("/upload", status_code=201)
@@ -115,17 +109,9 @@ async def upload_batch(
     if len(qids) != len(images):
         raise HTTPException(400, f"question_ids count ({len(qids)}) != images count ({len(images)})")
 
-    # Verify ownership for exam + subject + all questions
-    result = await db.execute(
-        select(Exam).where(Exam.id == exam_id, Exam.school_id == current["current_role"].school_id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(404, "Exam not found")
-    result = await db.execute(
-        select(Subject).where(Subject.id == subject_id, Subject.school_id == current["current_role"].school_id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(404, "Subject not found")
+    school_id = current["current_role"].school_id
+    await verify_exam_subject_chain(db, school_id=school_id, exam_id=exam_id, subject_id=subject_id)
+    await verify_questions_belong_to_subject(db, school_id=school_id, subject_id=subject_id, question_ids=qids)
 
     uploaded = 0
     errors = []
@@ -374,6 +360,7 @@ async def upload_objective(
         q_result = await db.execute(
             select(Question).where(
                 Question.id == ans.question_id,
+                Question.subject_id == req.subject_id,
                 Question.school_id == current["current_role"].school_id,
             )
         )
