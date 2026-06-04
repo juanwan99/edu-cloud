@@ -18,7 +18,7 @@ _CARD_ROLES = frozenset({
 })
 
 
-@edu_tool(name="card_parse_answers", module_code="card", domain="exam", allowed_roles=_CARD_ROLES, sensitivity="school")
+@edu_tool(name="card_parse_answers", module_code="exam", domain="exam", allowed_roles=_CARD_ROLES, sensitivity="school")
 async def card_parse_answers(ctx: RunContext[AgentDeps], file_path: str) -> str:
     """Parse answer document to extract question answers."""
     from edu_cloud.modules.card.parser.answer_parser import parse_answer_docx
@@ -27,7 +27,7 @@ async def card_parse_answers(ctx: RunContext[AgentDeps], file_path: str) -> str:
 
 
 @edu_tool(
-    name="card_auto_layout", module_code="card", domain="exam",
+    name="card_auto_layout", module_code="exam", domain="exam",
     allowed_roles=_CARD_ROLES, is_read_only=False, sensitivity="school",
 )
 async def card_auto_layout(
@@ -59,7 +59,7 @@ async def card_auto_layout(
 
 
 @edu_tool(
-    name="card_adjust_layout", module_code="card", domain="exam",
+    name="card_adjust_layout", module_code="exam", domain="exam",
     allowed_roles=_CARD_ROLES, is_read_only=False, sensitivity="school",
 )
 async def card_adjust_layout(ctx: RunContext[AgentDeps], subject_id: str, adjustments: list[dict] | None = None) -> str:

@@ -133,7 +133,7 @@ async def get_student_learning_profile(ctx: RunContext[AgentDeps], student_id: s
 
 # ── Knowledge DB ──
 
-@edu_tool(name="get_knowledge_tree", module_code="knowledge", domain="knowledge", allowed_roles=_ALL_ROLES, sensitivity="public")
+@edu_tool(name="get_knowledge_tree", module_code="research", domain="knowledge", allowed_roles=_ALL_ROLES, sensitivity="public")
 async def get_knowledge_tree(ctx: RunContext[AgentDeps], course_code: str | None = None) -> str:
     """Get knowledge graph tree structure."""
     from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge
@@ -151,7 +151,7 @@ async def get_knowledge_tree(ctx: RunContext[AgentDeps], course_code: str | None
     }, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_question_knowledge_points", module_code="knowledge", domain="knowledge", allowed_roles=_ALL_ROLES, sensitivity="public")
+@edu_tool(name="get_question_knowledge_points", module_code="research", domain="knowledge", allowed_roles=_ALL_ROLES, sensitivity="public")
 async def get_question_knowledge_points(ctx: RunContext[AgentDeps], question_id: str) -> str:
     """Get knowledge points linked to a question."""
     from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
