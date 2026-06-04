@@ -342,3 +342,78 @@ class TestImportTpl:
         data = resp.json()
         assert data["regions"] == 14  # 10 subjective + 4 choice_groups
         assert data["anchors"] == 4
+
+
+class TestPipelineObjectiveOwnershipChain:
+    """F-002: /start 的 question_ids 模板分支必须按 subject_id 过滤，
+    禁止把同校其他 subject 的 question 写入当前 subject（归属链）。
+    """
+
+    async def test_start_excludes_cross_subject_question_ids(
+        self, client, scan_seed, db, monkeypatch
+    ):
+        from unittest.mock import patch
+        from edu_cloud.config import settings
+        from edu_cloud.modules.scan import pipeline_service
+
+        monkeypatch.setattr(settings, "UPLOAD_DIR", str(Path(scan_seed["scan_dir"]).parents[1]))
+
+        # 当前 subject（地理）的客观题
+        q_own = Question(
+            id="q_own_geo", subject_id=scan_seed["subject_id"], name="1",
+            question_type="choice", max_score=3.0, correct_answer="A",
+            school_id="scan_s1",
+        )
+        # 同校另一 subject 的客观题（跨 subject，应被排除）
+        other_subject = Subject(
+            id="scan_sub2", exam_id=scan_seed["exam_id"], name="历史",
+            code="LS", school_id="scan_s1",
+        )
+        db.add_all([q_own, other_subject])
+        await db.flush()
+        q_other = Question(
+            id="q_other_his", subject_id="scan_sub2", name="1",
+            question_type="choice", max_score=3.0, correct_answer="B",
+            school_id="scan_s1",
+        )
+        db.add(q_other)
+
+        # 模板 region 显式引用两个 question（一个跨 subject）
+        tpl = Template(
+            subject_id=scan_seed["subject_id"], side="A",
+            image_width=200, image_height=150, anchors=[],
+            regions=[{
+                "id": "OBJ01", "type": "choice_group",
+                "rect": {"x1": 100, "y1": 10, "x2": 190, "y2": 70},
+                "cols": 4, "rows": 2, "qg_indexno": 1,
+                "question_ids": ["q_own_geo", "q_other_his"],
+            }],
+            school_id="scan_s1",
+        )
+        db.add(tpl)
+        await db.commit()
+
+        captured = {}
+
+        def _capture_factory(*args, **kwargs):
+            captured["questions_by_group"] = kwargs.get("questions_by_group")
+            async def _noop(**_):
+                return None
+            return _noop
+
+        with patch(
+            "edu_cloud.modules.scan.pipeline_router.build_pipeline_save_objective_fn",
+            side_effect=_capture_factory,
+        ), patch.object(pipeline_service, "enqueue_pipeline", lambda **kw: None):
+            resp = await client.post("/api/v1/scan/pipeline/start", json={
+                "subject_id": scan_seed["subject_id"],
+                "side": "A",
+                "image_dir": scan_seed["scan_dir"],
+            }, headers=scan_seed["headers"])
+
+        assert resp.status_code == 200, resp.text
+        qbg = captured.get("questions_by_group")
+        assert qbg is not None, "build_pipeline_save_objective_fn 未被调用（本 subject 题目应非空）"
+        all_qids = {q["id"] for group in qbg.values() for q in group}
+        assert "q_own_geo" in all_qids
+        assert "q_other_his" not in all_qids, "跨 subject 的 question 不得进入 questions_by_group"

@@ -239,6 +239,40 @@ def test_resolve_user_input_path_rejects_outside(tmp_path):
     assert exc_info.value.status_code == 403
 
 
+def test_resolve_user_input_path_rejects_sibling_prefix(tmp_path):
+    """兄弟前缀绕过：/x/uploads-evil 不得被判为在 /x/uploads 内（GPT R2 F-001）。
+
+    旧实现用 str.startswith 会误判 uploads-evil 命中 uploads 前缀；
+    is_relative_to 正确拒绝。
+    """
+    from fastapi import HTTPException
+    from edu_cloud.shared.path_safety import resolve_user_input_path
+    upload = tmp_path / "uploads"
+    upload.mkdir()
+    evil = tmp_path / "uploads-evil"
+    evil.mkdir()
+    secret = evil / "secret.png"
+    secret.write_bytes(b"x")
+
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_user_input_path(str(secret), allowed_roots=[upload])
+    assert exc_info.value.status_code == 403
+
+
+def test_resolve_stored_file_path_rejects_sibling_prefix(tmp_path):
+    """stored path 同样防兄弟前缀绕过。"""
+    from fastapi import HTTPException
+    from edu_cloud.shared.path_safety import resolve_stored_file_path
+    storage = tmp_path / "storage"
+    storage.mkdir()
+    evil = tmp_path / "storage-evil"
+    evil.mkdir()
+
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_stored_file_path(str(evil / "x.png"), allowed_roots=[storage])
+    assert exc_info.value.status_code == 403
+
+
 def test_resolve_stored_file_path_rejects_escape(tmp_path):
     """stored path 逃逸 → 403。"""
     from fastapi import HTTPException

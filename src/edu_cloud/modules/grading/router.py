@@ -13,7 +13,7 @@ from edu_cloud.core.auth import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.core.state_machine import validate_transition
 from edu_cloud.config import settings
-from edu_cloud.shared.path_safety import resolve_stored_file_path
+from edu_cloud.shared.path_safety import resolve_stored_file_path, resolve_user_input_path
 from edu_cloud.modules.exam.models import Exam, Question, Subject, QUESTION_TYPES_SUBJECTIVE
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
 from edu_cloud.modules.scan.models import StudentAnswer
@@ -158,15 +158,15 @@ async def generate_rubric_via_llm(
     upload_root = Path(settings.UPLOAD_DIR).resolve()
     parts: list = []
     for img_path in all_image_paths:
-        if img_path.startswith("/uploads/"):
-            local = upload_root / img_path.split("/uploads/", 1)[1]
-        else:
-            local = upload_root / img_path
+        # 兼容历史存储路径：/uploads/ 前缀剥离后按 UPLOAD_DIR 解析
+        candidate = img_path.split("/uploads/", 1)[1] if img_path.startswith("/uploads/") else img_path
+        # 用集中化 containment（is_relative_to）替代 startswith 前缀绕过校验
         try:
-            local = local.resolve()
-        except Exception:
+            local = resolve_user_input_path(candidate, allowed_roots=[upload_root])
+        except HTTPException:
+            logger.warning("generate_rubric_via_llm: image path escapes UPLOAD_DIR: %s", img_path)
             continue
-        if local.exists() and str(local).startswith(str(upload_root)):
+        if local.exists():
             try:
                 parts.append(_make_image_part(local.read_bytes()))
             except OSError:

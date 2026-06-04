@@ -686,6 +686,7 @@ async def start_pipeline(
             group_questions = (await db.execute(
                 select(Question).where(
                     Question.id.in_(q_ids),
+                    Question.subject_id == req.subject_id,
                     Question.school_id == school_id,
                 )
             )).scalars().all()
