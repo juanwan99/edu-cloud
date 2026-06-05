@@ -1,3 +1,7 @@
+---
+phase: design
+---
+
 # Phase 0.5 模块语义统一 设计 v4（2026-06-05）
 
 > 项目：`/home/ops/projects/edu-cloud`，分支 `feat/module-governance-repair`
