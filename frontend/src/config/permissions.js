@@ -14,7 +14,7 @@ export const ROLE_PERMISSIONS = {
     'view_cross_school_analytics', 'manage_question_bank', 'view_question_bank',
     'manage_users', 'manage_platform', 'view_students', 'view_exams', 'view_scores',
     'generate_report', 'generate_notification', 'approve_notification', 'send_notification',
-    'use_ai_chat', 'write_paper', 'manage_grading', 'view_grading',
+    'use_ai_chat', 'write_paper', 'import_exams', 'manage_grading', 'view_grading',
     'manage_exam_results', 'manage_homework', 'view_homework',
     'view_knowledge_tree', 'edit_knowledge_tree',
     'view_conduct', 'manage_conduct', 'manage_conduct_rules', 'manage_conduct_parents', 'export_conduct'],
