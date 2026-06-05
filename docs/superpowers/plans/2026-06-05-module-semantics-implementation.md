@@ -352,6 +352,12 @@ def test_backend_drift_tuple_mismatch_fails(truth):  # 反例 #12 元组漂移
             d["actual"] = "gated:conduct"  # 谎称已修，但实际仍 pass-through
     errs = cms.check_backend(bad, REPO)
     assert any("conduct-backend-fail-open" in e for e in errs)
+
+
+def test_backend_stale_truth_prefix_fails(truth):  # 反例 #14（F2）：真源声明但 discovery 未发现
+    discovered = {"/api/v1/grades": "pass-through"}  # 只发现一个，真源其余皆 stale
+    errs = cms._compare_backend(truth, discovered)
+    assert any("/api/v1/exams" in e and "未被 route discovery 发现" in e for e in errs)
 ```
 
 - [ ] **Step 2: 跑测试确认失败**
@@ -424,6 +430,10 @@ def _compare_backend(truth: dict, discovered_actual: dict[str, str]) -> list[str
         elif not (d["consumer"] == "backend_middleware" and d["locus"] == prefix
                   and d["expect"] == expect and d["actual"] == actual):
             errs.append(f"drift {drift_id} 四元组与实际不符: 登记 actual={d.get('actual')} vs 实际 {actual}")
+    # 反向覆盖（plan-review F2）：真源声明的 prefix 必须被 discovery 发现，否则是 stale 条目
+    for prefix in routes:
+        if prefix not in discovered_actual:
+            errs.append(f"真源 backend_routes 声明的 {prefix} 未被 route discovery 发现（stale 条目，应删除）")
     return errs
 
 
@@ -444,7 +454,7 @@ CHECKS = [check_self_consistency, check_backend]
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `.venv/bin/python -m pytest tests/governance/test_module_semantics.py -q`
-Expected: PASS (9 passed)
+Expected: PASS (10 passed)
 
 - [ ] **Step 5: Commit**
 
@@ -489,6 +499,18 @@ def test_frontend_wild_value_fails(truth):  # 反例 #6 野值
     parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {"/x": "ghost"}, "dashboard": ["ghost2"]}
     errs = cms._compare_frontend(truth, parsed)
     assert any("ghost" in e for e in errs)
+
+
+def test_frontend_undeclared_route_fails(truth):  # 反例 #15（F1）：未声明前端 route（fail-closed）
+    parsed = {"routeAccess": {"/brand-new": "exam"}, "router_meta": {}, "sidebar": {}, "dashboard": []}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/brand-new" in e and "fail-closed" in e for e in errs)
+
+
+def test_frontend_sidebar_mismatch_fails(truth):  # 反例 #16（F1）：sidebar 错配到另一合法值
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {"/exams": "grading"}, "dashboard": []}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/exams" in e and "不一致" in e for e in errs)
 ```
 
 - [ ] **Step 2: 跑测试确认失败**
@@ -541,12 +563,18 @@ def _compare_frontend(truth: dict, parsed: dict) -> list[str]:
     errs: list[str] = []
     codes = set(truth["school_module_codes"])
     fr = truth["frontend_route_module"]
-    # routeAccess / router_meta 逐 route 与真源比对（仅校验真源声明了的 route）
-    for surface in ("routeAccess", "router_meta"):
+    # routeAccess / sidebar：route 形态干净（无动态参数），作前端可见性真源 → fail-closed + 一致性（plan-review F1）
+    # 注：parse_frontend 仅捕获带 moduleCode 的条目，故 fr 须覆盖 routeAccess+sidebar 全部「带 moduleCode」的 route。
+    for surface in ("routeAccess", "sidebar"):
         for route, code in parsed[surface].items():
-            if route in fr and fr[route] is not None and code != fr[route]:
+            if route not in fr:
+                errs.append(f"前端 {surface} 出现未在 frontend_route_module 声明的 route {route}（fail-closed，plan-review F1）")
+            elif fr[route] is not None and code != fr[route]:
                 errs.append(f"前端 {surface} {route} moduleCode={code} 与真源 {fr[route]} 不一致")
-    # routeAccess vs router_meta 同 route 一致性
+    # router_meta：含动态参数路由（/exams/:id 等），不强制全声明；仅比对已声明 route + 与 routeAccess 一致性
+    for route, code in parsed["router_meta"].items():
+        if route in fr and fr[route] is not None and code != fr[route]:
+            errs.append(f"前端 router-meta {route} moduleCode={code} 与真源 {fr[route]} 不一致")
     for route in set(parsed["routeAccess"]) & set(parsed["router_meta"]):
         if parsed["routeAccess"][route] != parsed["router_meta"][route]:
             errs.append(f"前端 {route} 在 routeAccess 与 router-meta 间不一致")
@@ -571,7 +599,7 @@ CHECKS = [check_self_consistency, check_backend, check_frontend]
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `.venv/bin/python -m pytest tests/governance/test_module_semantics.py -q`
-Expected: PASS (13 passed)。若前端正例失败，按 stderr 提示的真实漂移核对真源 `frontend_route_module`（应与现状一致；现状漂移须在 known_drift，不在 frontend 比对里报红——见 Task 5 对 frontend drift 的豁免）。
+Expected: PASS (16 passed)。若前端正例失败，按 stderr 提示的真实漂移核对真源 `frontend_route_module`（应与现状一致；现状漂移须在 known_drift，不在 frontend 比对里报红——见 Task 5 对 frontend drift 的豁免）。
 
 - [ ] **Step 5: Commit**
 
@@ -727,7 +755,7 @@ CHECKS = [check_self_consistency, check_backend, check_frontend, check_frontend_
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `.venv/bin/python -m pytest tests/governance/test_module_semantics.py -q`
-Expected: PASS (19 passed)
+Expected: PASS (22 passed)
 
 - [ ] **Step 5: Commit**
 
@@ -757,7 +785,7 @@ Expected: 空输出（这些文件零改动）
 - [ ] **Step 2: 全量 governance 测试不回归**
 
 Run: `.venv/bin/python -m pytest tests/governance -q`
-Expected: PASS（含既有 + 19 新增，无 fail）
+Expected: PASS（含既有 + 22 新增，无 fail）
 
 - [ ] **Step 3: CI 接入**
 
@@ -789,7 +817,7 @@ git commit -m "ci: 模块语义守卫纳入测试流水线"
 **4. 已知风险与契约（plan-review R1 处置后）：**
 - 反例 #5 已改为硬断言（要求消息同时含 `/exams`+`routeAccess`+`router-meta`），实现时 `_compare_frontend` 冲突消息须为 `前端 {route} 在 routeAccess 与 router-meta 间不一致`，使断言稳定命中。
 - 前端正则解析若现状有未覆盖写法（多行对象），按 `check_permission_mirror.py` 的 `_extract_balanced` 手法增强，不放宽校验。
-- **risk_modules / test_debt**（对应 spec §4.1，F4）：高风险消费者 = `module_middleware`(后端门禁) / `routeAccess`+`router-meta`(前端可见性) / `SERVICE_CATALOG`(Portal)；测试债 = 当前无任一守卫保证四方对齐，本计划反例矩阵 + frontend drift 探测消除该债。frontend drift 探测器 `_FRONTEND_DRIFT_PROBES` 须随新增 frontend drift 同步扩展（无探测器即 fail-closed，反例 #13a 保证）。
+- **risk_modules / test_debt**（对应 spec §4.1，F4；plan-review R2 F3 补全）：高风险消费者 = `module_middleware`(后端门禁) / `routeAccess`+`router-meta`(前端可见性) / `sidebarConfig.js`(侧边栏) / `DashboardPage.vue`(首页硬编码) / `SERVICE_CATALOG`(Portal)；测试债 = 当前无任一守卫保证以上多方对齐，本计划反例矩阵 + frontend drift 探测消除该债。frontend drift 探测器 `_FRONTEND_DRIFT_PROBES` 须随新增 frontend drift 同步扩展（无探测器即 fail-closed，反例 #13a 保证）。
 
 ---
 

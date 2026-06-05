@@ -293,11 +293,13 @@ known_drift:
      - 实际 == 期望 → 绿。
      - 实际 != 期望但有 `drift` 字段，且 `known_drift` 中该 id 条目的 `(consumer, locus, expect, actual)` 四元组与当前实际**完全一致** → 绿（精确豁免）。仅按 id 放行会掩盖 drift 内容漂移（GPT P1-b），故必须匹配完整元组：actual 一旦变化（如真被修复或恶化）→ 元组失配 → 红。
      - **实际 != 期望且无登记 → 红**（新 fail-open / 错配 / 新增未声明 prefix）。
+   - **反向覆盖（plan-review R2 F2）**：真源 `backend_routes` 声明的每个 prefix 必须被 route discovery 发现，否则 → 红（stale 真源条目，强制删除），使 37/37 分母在入口级双向闭环。
 
-3. **前端逐 route 比对**（抓"合法值映射错"）
-   - 解析 routeAccess + router-meta（+ sidebar）每个 route 的 moduleCode。
-   - 与 `frontend_route_module[route]` 比对：值不一致 → 红（含 `/analytics→exam` 这类错配）；同一 route 在 routeAccess 与 router-meta 间不一致 → 红。
-   - DashboardPage / sidebar 出现的每个 moduleCode ∈ `school_module_codes`（野值检查）。
+3. **前端逐 route 比对**（抓"合法值映射错" + fail-closed，plan-review R2 F1）
+   - 解析 routeAccess + router-meta + sidebar + dashboard 的 moduleCode。
+   - **routeAccess / sidebar（route 形态干净，作可见性真源）**：每个 route 必须 ∈ `frontend_route_module`，否则 → 红（fail-closed，防"未声明前端入口用合法值"）；route 已声明且真源非 null 时值不一致 → 红（含 `/analytics→exam` 错配、sidebar 错配到另一合法值）。
+   - **router-meta（含动态参数路由 `/exams/:id`）**：不强制全声明；仅比对已声明 route + 与 routeAccess 同 route 一致性 → 不一致红。
+   - DashboardPage / sidebar / 各面出现的每个 moduleCode ∈ `school_module_codes`（野值检查）。
 
 4. **Portal 比对**：`SERVICE_CATALOG` 每条 `module_code` ∈ `school_module_codes` 且 == 其 `id`（`portal_services_expect_self_module`）。
 
