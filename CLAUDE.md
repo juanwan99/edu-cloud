@@ -42,6 +42,8 @@ cd frontend && npx vitest run                    # 前端
 |------|------|---------|
 | 模块定义/结构 | `docs/governance/modules.yaml` + 各模块 `MODULE.md`（模板 `docs/governance/MODULE-template.md`） | `scripts/governance/module_governance_guard.py`（聚合器 `aggregate_modules.py`） |
 
+> Phase 0.5（模块语义统一，设计已定待实施）：将新增 `docs/governance/module-semantics.yaml`（23 架构模块 ↔ 9 学校开关码单一声明式真源）+ `scripts/governance/check_module_semantics.py`（四方一致性守卫，行为不变、已知漂移登记禁新增）。设计见 `docs/superpowers/specs/2026-06-05-module-semantics-design.md`。
+
 ## 按需上下文（需要时 Read）
 
 | 信息 | 路径 |
