@@ -7,15 +7,25 @@
 **禁止手写 modules.yaml / dependency-graph.md / debt-report.md —— 单一真源在 MODULE.md。**
 
 CLI 退出码：
-- 0: 聚合成功且无冲突
-- 1: 聚合成功但发现 owns_tables/owns_routes 跨模块冲突（治理违规）
-- 2: 解析失败（MODULE.md frontmatter 非法）
+- 默认写入模式：
+  - 0: 聚合成功且无冲突
+  - 1: 聚合成功但发现 owns_tables/owns_routes 跨模块冲突（治理违规）
+  - 2: 解析失败（MODULE.md frontmatter 非法）
+- --check 只读检查模式：
+  - 0: clean，派生产物新鲜，无冲突，无债务
+  - 1: stale，派生产物与生成结果不同
+  - 2: parse error，MODULE.md frontmatter 非法
+  - 3: conflict，owns_tables / owns_routes 冲突
+  - 4: debt，仍有模块缺 MODULE.md
 
 被 `~/.claude/hooks/module_governance_guard.py` 通过 `parse_module_md` 共享契约使用。
 """
 from __future__ import annotations
 
+import argparse
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +48,7 @@ NESTED_REQUIRED: dict[str, list[str]] = {
 VALID_STATUS = {"active", "deprecated", "experimental"}
 VALID_LAYER = {"business", "infrastructure", "cross-cutting"}
 VALID_STRUCTURE_PATTERN = {"standard", "multi-router", "service-only"}
+DERIVED_FILES = ("modules.yaml", "dependency-graph.md", "debt-report.md")
 
 
 class ModuleGovernanceError(ValueError):
@@ -152,8 +163,8 @@ def _render_dep_graph(modules: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def _render_debt(modules_dir: Path, covered: set[str]) -> str:
-    """列出 modules/ 下缺 MODULE.md 的子目录。"""
+def _find_debt(modules_dir: Path, covered: set[str]) -> list[str]:
+    """列出 modules/ 下缺 MODULE.md 的子目录名。"""
     debt: list[str] = []
     for child in sorted(modules_dir.iterdir()):
         if (
@@ -163,9 +174,15 @@ def _render_debt(modules_dir: Path, covered: set[str]) -> str:
             and child.name not in covered
         ):
             debt.append(child.name)
+    return debt
+
+
+def _render_debt(modules_dir: Path, covered: set[str]) -> str:
+    """列出 modules/ 下缺 MODULE.md 的子目录。"""
+    debt = _find_debt(modules_dir, covered)
     lines = [
         "# MODULE.md 债务清单\n",
-        "> 自动生成。以下模块缺 MODULE.md，下次触碰时 hook 会 ask。\n",
+        "> 自动生成。以下模块缺 MODULE.md；治理守卫会 hard block 大变更或新模块提交。\n",
     ]
     if not debt:
         lines.append("_无债务——所有模块已合规。_\n")
@@ -175,9 +192,8 @@ def _render_debt(modules_dir: Path, covered: set[str]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def aggregate_all(modules_dir: Path, out_dir: Path) -> dict[str, Any]:
-    """主入口。返回统计信息 {modules, conflicts, debt}。"""
-    out_dir.mkdir(parents=True, exist_ok=True)
+def _build_outputs(modules_dir: Path) -> tuple[dict[str, str], dict[str, Any]]:
+    """基于 MODULE.md 生成派生产物文本和统计，不写磁盘。"""
     modules: list[dict[str, Any]] = []
     covered: set[str] = set()
     for child in sorted(modules_dir.iterdir()):
@@ -193,45 +209,119 @@ def aggregate_all(modules_dir: Path, out_dir: Path) -> dict[str, Any]:
             modules.append(meta)
             covered.add(meta["name"])
     conflicts = detect_conflicts(modules)
-
-    (out_dir / "modules.yaml").write_text(
-        yaml.safe_dump(
+    debt = _find_debt(modules_dir, covered)
+    outputs = {
+        "modules.yaml": yaml.safe_dump(
             {"modules": modules, "conflicts": conflicts},
             allow_unicode=True,
             sort_keys=False,
         ),
-        encoding="utf-8",
-    )
-    (out_dir / "dependency-graph.md").write_text(
-        _render_dep_graph(modules), encoding="utf-8"
-    )
-    (out_dir / "debt-report.md").write_text(
-        _render_debt(modules_dir, covered), encoding="utf-8"
-    )
+        "dependency-graph.md": _render_dep_graph(modules),
+        "debt-report.md": _render_debt(modules_dir, covered),
+    }
     total = len([c for c in modules_dir.iterdir() if c.is_dir() and c.name != "__pycache__" and not c.name.startswith("_")])
-    return {
+    stats = {
         "modules": len(modules),
         "conflicts": len(conflicts),
-        "debt": total - len(covered),
+        "debt": len(debt),
+        "total": total,
     }
+    return outputs, stats
+
+
+def aggregate_all(modules_dir: Path, out_dir: Path) -> dict[str, Any]:
+    """主入口。返回统计信息 {modules, conflicts, debt}。"""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    outputs, stats = _build_outputs(modules_dir)
+    for name, text in outputs.items():
+        (out_dir / name).write_text(text, encoding="utf-8")
+    return {k: stats[k] for k in ("modules", "conflicts", "debt")}
+
+
+def _resolve_repo(repo_arg: str | None) -> Path:
+    if repo_arg:
+        return Path(repo_arg).resolve()
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+        return Path(r.stdout.strip()).resolve()
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        return Path.cwd().resolve()
+
+
+def _checkout_staged_repo(repo: Path, tmp_root: Path) -> Path:
+    """导出 staged index 到临时目录，供 --check --staged 使用。"""
+    prefix = tmp_root.as_posix()
+    if not prefix.endswith("/"):
+        prefix += "/"
+    subprocess.run(
+        ["git", "-C", str(repo), "checkout-index", "--all", "--prefix", prefix],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    return tmp_root
+
+
+def check_outputs(repo: Path, *, staged: bool = False) -> tuple[int, dict[str, Any]]:
+    """只读检查派生产物新鲜度、冲突和 MODULE.md 债务。"""
+    with tempfile.TemporaryDirectory() as tmp:
+        check_repo = _checkout_staged_repo(repo, Path(tmp)) if staged else repo
+        modules_dir = check_repo / "src" / "edu_cloud" / "modules"
+        out_dir = check_repo / "docs" / "governance"
+        outputs, stats = _build_outputs(modules_dir)
+
+        stale = []
+        for name in DERIVED_FILES:
+            expected = outputs.get(name, "")
+            actual = (out_dir / name).read_text(encoding="utf-8") if (out_dir / name).exists() else ""
+            if expected != actual:
+                stale.append(name)
+
+        result = {
+            "modules": stats["modules"],
+            "conflicts": stats["conflicts"],
+            "debt": stats["debt"],
+            "stale": stale,
+            "mode": "staged" if staged else "working-tree",
+        }
+        if stats["conflicts"] > 0:
+            return 3, result
+        if stats["debt"] > 0:
+            return 4, result
+        if stale:
+            return 1, result
+        return 0, result
 
 
 def _main() -> int:
     """CLI 入口。"""
-    repo = Path(__file__).resolve().parents[2]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check", action="store_true", help="只读检查派生产物是否新鲜")
+    parser.add_argument("--staged", action="store_true", help="--check 时只信 staged index")
+    parser.add_argument("--repo", help="目标仓库路径，默认使用当前 git 仓库根")
+    args = parser.parse_args()
+
+    repo = _resolve_repo(args.repo)
     try:
-        cwd = Path.cwd()
-        candidate_modules = cwd / "src" / "edu_cloud" / "modules"
-        candidate_out = cwd / "docs" / "governance"
-        if candidate_modules.exists() and candidate_out.exists():
-            modules_dir = candidate_modules
-            out_dir = candidate_out
-        else:
-            modules_dir = repo / "src" / "edu_cloud" / "modules"
-            out_dir = repo / "docs" / "governance"
+        modules_dir = repo / "src" / "edu_cloud" / "modules"
+        out_dir = repo / "docs" / "governance"
+        if args.check:
+            code, result = check_outputs(repo, staged=args.staged)
+            print(f"Check: {result}")
+            return code
         stats = aggregate_all(modules_dir, out_dir)
     except ModuleGovernanceError as e:
         print(f"ERROR: {e}", file=sys.stderr)
+        return 2
+    except subprocess.CalledProcessError as e:
+        print(f"ERROR: staged checkout failed: {e}", file=sys.stderr)
         return 2
     print(f"Aggregated: {stats}")
     return 1 if stats["conflicts"] > 0 else 0

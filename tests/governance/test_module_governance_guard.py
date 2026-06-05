@@ -16,12 +16,17 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-# 允许 import ~/.claude/hooks/module_governance_guard
-sys.path.insert(0, str(Path.home() / ".claude" / "hooks"))
-# 允许 test fixtures 中用 aggregate_modules
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "governance"))
+SCRIPTS_GOVERNANCE = Path(__file__).resolve().parents[2] / "scripts" / "governance"
+# module_governance_guard 必须来自仓库内规则源；aggregate_modules 也从同目录提供。
+sys.path.insert(0, str(SCRIPTS_GOVERNANCE))
 
 import module_governance_guard as g  # noqa: E402
+
+
+def test_guard_source_is_repo_local():
+    assert Path(g.__file__).resolve() == (
+        SCRIPTS_GOVERNANCE / "module_governance_guard.py"
+    ).resolve()
 
 
 def _git_init(repo: Path):
@@ -230,12 +235,12 @@ def test_same_module_duplicate_owns_not_conflict():
 
 
 # --- 单元：check_touched_legacy（files + diff 契约 F006） ---
-def test_large_modification_without_module_md_asks(tmp_path):
+def test_large_modification_without_module_md_blocks(tmp_path):
     _git_init_with_module(tmp_path, "legacy", include_module_md=False)
     path = "src/edu_cloud/modules/legacy/service.py"
     diff = _sample_diff(path, added=40, deleted=20)
     result = g.check_touched_legacy([path], diff, tmp_path)
-    assert result["decision"] == "ask"
+    assert result["decision"] == "block"
     assert "legacy" in result["reason"]
 
 
@@ -261,14 +266,14 @@ def test_hook_entry_blocks_on_new_module_without_module_md(tmp_path):
     assert "newmod" in result["reason"]
 
 
-def test_hook_entry_asks_on_large_legacy_touch(tmp_path):
+def test_hook_entry_blocks_on_large_legacy_touch(tmp_path):
     _git_init_with_module(tmp_path, "legacy", include_module_md=False)
     path = "src/edu_cloud/modules/legacy/service.py"
     data = {"cwd": str(tmp_path), "tool_input": {"command": "git commit -m x"}}
     staged_info = {"files": [path], "diff": _sample_diff(path, 40, 20)}
     result = g.check(data, MagicMock(), staged_info=staged_info)
     assert result is not None
-    assert result["decision"] == "ask"
+    assert result["decision"] == "block"
 
 
 def test_hook_entry_allows_non_edu_cloud_repo(tmp_path):
@@ -443,3 +448,47 @@ def test_kill_switch_disables_entry(monkeypatch, tmp_path):
         "diff": _sample_diff("src/edu_cloud/modules/newmod/__init__.py", 1, 0),
     }
     assert g.check(data, MagicMock(), staged_info=staged_info) is None
+
+
+# --- CLI git-hook mode ---
+def test_git_hook_mode_blocks_new_module_without_module_md(tmp_path):
+    _git_init(tmp_path)
+    mdir = tmp_path / "src/edu_cloud/modules/newmod"
+    mdir.mkdir(parents=True)
+    (mdir / "__init__.py").write_text("", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPTS_GOVERNANCE / "module_governance_guard.py"),
+            "--git-hook-mode",
+            "--repo",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 1
+    assert "MODULE.md" in result.stderr
+
+
+def test_git_hook_mode_allows_empty_index(tmp_path):
+    _git_init(tmp_path)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPTS_GOVERNANCE / "module_governance_guard.py"),
+            "--git-hook-mode",
+            "--repo",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stderr
