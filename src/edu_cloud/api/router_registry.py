@@ -85,6 +85,8 @@ MODULE_ROUTERS: list[tuple[str, str]] = [
     ("edu_cloud.modules.academic.router", "router"),
     # exam-import
     ("edu_cloud.modules.exam_import.router", "router"),
+    # portal
+    ("edu_cloud.modules.portal.router", "router"),
 ]
 
 

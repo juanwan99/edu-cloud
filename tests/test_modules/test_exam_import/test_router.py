@@ -6,10 +6,12 @@ Two categories:
 """
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.models.school import School
+from edu_cloud.core.tenant import TenantContext
 from edu_cloud.modules.exam_import.models import ExamImportSession
 from edu_cloud.modules.exam_import.parser import (
     ParsedExamData,
@@ -17,10 +19,27 @@ from edu_cloud.modules.exam_import.parser import (
     StudentScore,
     QuestionDef,
 )
+from edu_cloud.modules.exam_import.router import _school_id_from
 from edu_cloud.modules.exam_import.service import match_students
 from edu_cloud.modules.student.models import Student, Class
 
 pytestmark = pytest.mark.asyncio
+
+
+async def test_school_scope_required_for_exam_import():
+    tenant = TenantContext(
+        user_id="u1",
+        role_id="r1",
+        role_name="platform_admin",
+        school_id=None,
+        visible_class_ids=None,
+        visible_subject_codes=None,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        _school_id_from(tenant)
+
+    assert exc.value.status_code == 403
 
 
 # ── helpers ──────────────────────────────────────────────────────

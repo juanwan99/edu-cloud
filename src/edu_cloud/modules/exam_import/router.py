@@ -14,8 +14,11 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.api.deps import get_current_user, get_db
+from edu_cloud.api.deps import get_db
 from edu_cloud.config import settings
+from edu_cloud.core.auth import get_tenant_context, require_permission
+from edu_cloud.core.permissions import Permission
+from edu_cloud.core.tenant import TenantContext
 from edu_cloud.modules.exam_import import parser, service
 from edu_cloud.modules.exam_import.models import ExamImportSession
 
@@ -26,13 +29,9 @@ router = APIRouter(prefix="/api/v1/exam-imports", tags=["exam-import"])
 ALLOWED_EXTENSIONS = {".xlsx", ".zip"}
 
 
-def _school_id_from(current: dict) -> str:
-    """Extract school_id from current_role; raise 400 if absent."""
-    role = current["current_role"]
-    school_id = role.school_id
-    if not school_id:
-        raise HTTPException(400, "当前角色无学校归属，无法执行导入操作")
-    return school_id
+def _school_id_from(tenant: TenantContext) -> str:
+    """Require a concrete school scope for exam import operations."""
+    return tenant.require_school()
 
 
 async def _get_session(
@@ -63,9 +62,10 @@ async def create_import(
     import_mode: str = Form("questions"),
     exam_date: str = Form(""),
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.IMPORT_EXAMS)),
+    tenant: TenantContext = Depends(get_tenant_context),
 ):
-    school_id = _school_id_from(current)
+    school_id = _school_id_from(tenant)
 
     # validate import_mode
     if import_mode not in ("questions", "totals"):
@@ -171,9 +171,10 @@ async def update_mapping(
     import_id: str,
     mapping: dict,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.IMPORT_EXAMS)),
+    tenant: TenantContext = Depends(get_tenant_context),
 ):
-    school_id = _school_id_from(current)
+    school_id = _school_id_from(tenant)
     session = await _get_session(db, import_id, school_id)
 
     if session.status != "previewing":
@@ -192,9 +193,10 @@ async def update_mapping(
 async def commit_import(
     import_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.IMPORT_EXAMS)),
+    tenant: TenantContext = Depends(get_tenant_context),
 ):
-    school_id = _school_id_from(current)
+    school_id = _school_id_from(tenant)
     session = await _get_session(db, import_id, school_id)
 
     if session.status != "previewing":
@@ -274,9 +276,10 @@ async def commit_import(
 async def get_import_status(
     import_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.IMPORT_EXAMS)),
+    tenant: TenantContext = Depends(get_tenant_context),
 ):
-    school_id = _school_id_from(current)
+    school_id = _school_id_from(tenant)
     session = await _get_session(db, import_id, school_id)
 
     return {
@@ -302,9 +305,10 @@ async def get_import_status(
 async def cancel_import(
     import_id: str,
     db: AsyncSession = Depends(get_db),
-    current: dict = Depends(get_current_user),
+    current: dict = Depends(require_permission(Permission.IMPORT_EXAMS)),
+    tenant: TenantContext = Depends(get_tenant_context),
 ):
-    school_id = _school_id_from(current)
+    school_id = _school_id_from(tenant)
     session = await _get_session(db, import_id, school_id)
 
     if session.status == "committed":
