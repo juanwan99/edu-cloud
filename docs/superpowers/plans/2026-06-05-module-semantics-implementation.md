@@ -12,7 +12,7 @@ phase: impl
 
 **Tech Stack:** Python 3.14 / PyYAML / FastAPI（route 展开）/ pytest / 正则解析前端 JS。
 
-> **设计真源：** `docs/superpowers/specs/2026-06-05-module-semantics-design.md`（v4）。本计划实现其 §3 真源 + §4 守卫六项 check + §5 反例矩阵（17 编号 / 19 反例测试）。
+> **设计真源：** `docs/superpowers/specs/2026-06-05-module-semantics-design.md`（v4）。本计划实现其 §3 真源 + §4 守卫六项 check + §5 反例矩阵（18 编号 / 20 反例测试）。
 > **Commit 边界：** spec §6 的"真源 / 守卫+测试+CI"两逻辑批次，按 TDD 细分为 6 个小 commit（每 commit ≤ 2 文件、< 500 行，满足 `derivation_scale_guard`）。
 
 ---
@@ -21,7 +21,7 @@ phase: impl
 
 - **Create** `docs/governance/module-semantics.yaml` — 真源（4 层：开关码镜像 / 架构模块归属 / 逐入口期望表 / known_drift）。纯数据。
 - **Create** `scripts/governance/check_module_semantics.py` — 守卫。函数边界：`load_truth()` / `check_self_consistency()` / `check_backend()` / `check_frontend()` / `check_frontend_drift()` / `check_portal()` / `check_known_drift()` / `main()`。**6 个 check 函数**（`CHECKS` 列表，与 spec §4 六项一一对应）；各 check 返回 `list[str]`（错误消息），`main` 聚合 + exit code。
-- **Create** `tests/governance/test_module_semantics.py` — 正例 4（self/backend/frontend/portal 各 `*_passes_on_real`）+ 反例 19（17 编号，#7 与 #13 各拆 2）= 端到端 23 测试。
+- **Create** `tests/governance/test_module_semantics.py` — 正例 4（self/backend/frontend/portal 各 `*_passes_on_real`）+ 反例 20（18 编号，#7 与 #13 各拆 2）= 端到端 24 测试。
 - **Modify** `.github/workflows/test.yml` — **backend job**（重依赖，已 `pip install -e ".[dev]"`）末尾加 `test_module_semantics` + `--check` 两行；governance job 轻依赖（仅 pytest+pyyaml）跑不了 `import create_app`，故不接 governance job（必修②）。
 
 ---
@@ -361,6 +361,13 @@ def test_backend_stale_truth_prefix_fails(truth):  # 反例 #14（F2）：真源
     discovered = {"/api/v1/grades": "pass-through"}  # 只发现一个，真源其余皆 stale
     errs = cms._compare_backend(truth, discovered)
     assert any("/api/v1/exams" in e and "未被 route discovery 发现" in e for e in errs)
+
+
+def test_backend_fixed_but_drift_retained_fails(truth):  # 反例 #18（R4 F-001）：实际已修复但 drift 仍保留
+    # academic 实际已修复：actual == expect == gated:teaching，但 backend_routes 仍挂 drift 字段 → stale drift 红
+    discovered = {"/api/v1/academic": "gated:teaching"}
+    errs = cms._compare_backend(truth, discovered)
+    assert any("/api/v1/academic" in e and "仍登记 drift" in e for e in errs), errs
 ```
 
 - [ ] **Step 2: 跑测试确认失败**
@@ -421,6 +428,10 @@ def _compare_backend(truth: dict, discovered_actual: dict[str, str]) -> list[str
         spec = routes[prefix]
         expect = spec["expect"]
         if actual == expect:
+            # 已达期望但仍挂 drift 登记 → stale drift（设计契约：入口被修复后强制删除登记，plan-review R4 F-001）
+            stale_drift = spec.get("drift")
+            if stale_drift:
+                errs.append(f"后端 {prefix} 实际已达期望 {expect}，但仍登记 drift={stale_drift}（疑似已修复，应从 backend_routes drift 字段 + known_drift 删除）")
             continue
         drift_id = spec.get("drift")
         if not drift_id:
@@ -457,7 +468,7 @@ CHECKS = [check_self_consistency, check_backend]
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `.venv/bin/python -m pytest tests/governance/test_module_semantics.py -q`
-Expected: PASS (10 passed)
+Expected: PASS (11 passed)
 
 - [ ] **Step 5: Commit**
 
@@ -611,7 +622,7 @@ CHECKS = [check_self_consistency, check_backend, check_frontend]
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `.venv/bin/python -m pytest tests/governance/test_module_semantics.py -q`
-Expected: PASS (17 passed)。若前端正例失败，按 stderr 提示的真实漂移核对真源 `frontend_route_module`（应与现状一致；现状漂移须在 known_drift，不在 frontend 比对里报红——见 Task 5 对 frontend drift 的豁免）。注：dashboard 现纳入 fail-closed + 一致性，其 5 个 route（/grading/tasks /marking /analytics/report /analytics/ai-report /homework）均已在 `frontend_route_module` 且一致，正例绿（必修③）。
+Expected: PASS (18 passed)。若前端正例失败，按 stderr 提示的真实漂移核对真源 `frontend_route_module`（应与现状一致；现状漂移须在 known_drift，不在 frontend 比对里报红——见 Task 5 对 frontend drift 的豁免）。注：dashboard 现纳入 fail-closed + 一致性，其 5 个 route（/grading/tasks /marking /analytics/report /analytics/ai-report /homework）均已在 `frontend_route_module` 且一致，正例绿（必修③）。
 
 - [ ] **Step 5: Commit**
 
@@ -767,7 +778,7 @@ CHECKS = [check_self_consistency, check_backend, check_frontend, check_frontend_
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `.venv/bin/python -m pytest tests/governance/test_module_semantics.py -q`
-Expected: PASS (23 passed)
+Expected: PASS (24 passed)
 
 - [ ] **Step 5: Commit**
 
@@ -825,7 +836,7 @@ git commit -m "ci: 模块语义守卫纳入测试流水线"
 
 ## Self-Review（计划自检）
 
-**1. Spec 覆盖：** §3 真源 4 层 → Task 1；§4 第1类自洽 → Task 2；第2类后端逐入口 → Task 3；第3类前端逐 route（含 dashboard route 级比对，必修③）→ Task 4；第4类 frontend drift 探测 + 第5类 Portal + 第6类 known_drift 收敛 → Task 5；§5 反例（19 测试 / 17 编号）→ #8#9(T2) #1#2#3#11#12#14(T3) #4#5#6#15#16#17(T4) #7×2#10#13a#13b(T5)；§7 验收（绿 + 零 diff）→ Task 6。覆盖完整。
+**1. Spec 覆盖：** §3 真源 4 层 → Task 1；§4 第1类自洽 → Task 2；第2类后端逐入口 → Task 3；第3类前端逐 route（含 dashboard route 级比对，必修③）→ Task 4；第4类 frontend drift 探测 + 第5类 Portal + 第6类 known_drift 收敛 → Task 5；§5 反例（20 测试 / 18 编号）→ #8#9(T2) #1#2#3#11#12#14#18(T3) #4#5#6#15#16#17(T4) #7×2#10#13a#13b(T5)；§7 验收（绿 + 零 diff）→ Task 6。覆盖完整。
 
 **2. Placeholder 扫描：** 无 TBD / 无"add error handling"；每 step 含完整代码或精确命令 + expected。
 
