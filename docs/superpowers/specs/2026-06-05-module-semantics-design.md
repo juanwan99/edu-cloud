@@ -152,6 +152,7 @@ backend_routes:               # prefix → expect: gated:<code> | exempt
   /api/v1/portal:           { expect: "exempt", drift: portal-not-in-exempt-list }
   /api/v1/grades:           { expect: "exempt", drift: grades-not-in-exempt-list }    # base-prefix+decorator 派生
   /api/v1/teachers:         { expect: "exempt", drift: teachers-not-in-exempt-list }  # base-prefix+decorator 派生
+  /api/v1/client-logs:      { expect: "exempt", drift: client-logs-not-in-exempt-list }  # base-prefix+decorator 派生（api/client_logs.py，plan-review F1）
   /api/v1/auth:             { expect: "exempt" }
   /api/v1/health:           { expect: "exempt" }
   /api/v1/version:          { expect: "exempt" }
@@ -252,6 +253,13 @@ known_drift:
     actual: "pass-through (implicit, behavior identical)"
     severity: hygiene
     note: base-prefix+decorator 派生（teacher_router.py:107）
+  - id: client-logs-not-in-exempt-list
+    consumer: backend_middleware
+    locus: /api/v1/client-logs
+    expect: "exempt (explicit)"
+    actual: "pass-through (implicit, behavior identical)"
+    severity: hygiene
+    note: base-prefix+decorator 派生（api/client_logs.py:14,38）；plan-review F1 补
   - id: studio-frontend-entry-missing
     consumer: frontend
     locus: routeAccess + sidebar + router-meta + dashboard
@@ -293,9 +301,14 @@ known_drift:
 
 4. **Portal 比对**：`SERVICE_CATALOG` 每条 `module_code` ∈ `school_module_codes` 且 == 其 `id`（`portal_services_expect_self_module`）。
 
-5. **known_drift 收敛**：`known_drift` 每条必须对应真源里某个带 `drift` 标记的入口（无孤儿登记）；某入口被修复后（实际==期望）若仍保留 drift 条目 → 红（强制删除，基线收紧不许"修了还挂登记"）。
+5. **known_drift 收敛 + frontend drift 探测（plan-review F2）**：backend drift 每条必须被某 `backend_routes` 入口的 `drift` 字段引用（无孤儿）。frontend drift（studio/teaching）**不按 id 硬编码放行**——每个须有探测器 `_FRONTEND_DRIFT_PROBES[id](parsed)→bool` 验证实际状态：drift 仍成立→绿；实际已不成立（疑似已修复）→红（应删登记）；无探测器的 frontend drift→红（fail-closed）。backend 入口被修复后仍留 drift → 元组失配（第2类）红。
 
 CLI：`--check`（exit≠0 即违规，供 CI）；`--update`（仅人工确认后刷新基线，与其它 governance 脚本一致）。
+
+### 4.1 Contract Pack 补全（risk_modules / test_debt，plan-review F4）
+
+- **risk_modules**（高风险消费者，守卫必须覆盖）：`api/module_middleware.py`（后端门禁）、`frontend/src/config/routeAccess.js` + `router/index.js`（前端可见性双源）、`sidebarConfig.js`、`pages/DashboardPage.vue`、`modules/portal/service.py::SERVICE_CATALOG`。
+- **test_debt**：当前**无**守卫保证以上多方对同一映射一致 → 本 Phase 反例矩阵 + frontend drift 探测消除该债；`_FRONTEND_DRIFT_PROBES` 须随新增 frontend drift 同步扩展（无探测器即 fail-closed）。
 
 ---
 

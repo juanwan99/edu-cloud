@@ -89,6 +89,7 @@ backend_routes:
   /api/v1/portal:           { expect: "exempt", drift: portal-not-in-exempt-list }
   /api/v1/grades:           { expect: "exempt", drift: grades-not-in-exempt-list }
   /api/v1/teachers:         { expect: "exempt", drift: teachers-not-in-exempt-list }
+  /api/v1/client-logs:      { expect: "exempt", drift: client-logs-not-in-exempt-list }
   /api/v1/auth:             { expect: "exempt" }
   /api/v1/health:           { expect: "exempt" }
   /api/v1/version:          { expect: "exempt" }
@@ -142,6 +143,7 @@ known_drift:
   - { id: portal-not-in-exempt-list,     consumer: backend_middleware, locus: /api/v1/portal,       expect: "exempt",                 actual: "pass-through", severity: hygiene }
   - { id: grades-not-in-exempt-list,     consumer: backend_middleware, locus: /api/v1/grades,       expect: "exempt",                 actual: "pass-through", severity: hygiene }
   - { id: teachers-not-in-exempt-list,   consumer: backend_middleware, locus: /api/v1/teachers,     expect: "exempt",                 actual: "pass-through", severity: hygiene }
+  - { id: client-logs-not-in-exempt-list, consumer: backend_middleware, locus: /api/v1/client-logs, expect: "exempt",                 actual: "pass-through", severity: hygiene }
   - { id: studio-frontend-entry-missing, consumer: frontend,           locus: "studio-entry",       expect: "present",                actual: "absent",       severity: ux }
   - { id: teaching-frontend-unwired,     consumer: frontend,           locus: "/academic/*",        expect: "moduleCode:teaching",    actual: "null",         severity: semantic }
 ```
@@ -149,7 +151,7 @@ known_drift:
 - [ ] **Step 2: 验证可解析**
 
 Run: `.venv/bin/python -c "import yaml; d=yaml.safe_load(open('docs/governance/module-semantics.yaml')); print(len(d['backend_routes']), len(d['known_drift']), len(d['architecture_to_module_code']))"`
-Expected: `36 10 23`
+Expected: `37 11 23`
 
 - [ ] **Step 3: Commit**
 
@@ -479,7 +481,8 @@ def test_frontend_route_drift_fails(truth):  # 反例 #4 routeAccess 漂移
 def test_frontend_meta_vs_routeaccess_inconsistent_fails(truth):  # 反例 #5
     parsed = {"routeAccess": {"/exams": "exam"}, "router_meta": {"/exams": "grading"}, "sidebar": {}, "dashboard": []}
     errs = cms._compare_frontend(truth, parsed)
-    assert any("/exams" in e and "router-meta" in e.lower() or "meta" in e for e in errs)
+    # 硬断言（plan-review F3）：必须是同一路由在两个具名 surface 间的冲突，不接受任意含 "meta" 的消息
+    assert any("/exams" in e and "routeAccess" in e and "router-meta" in e for e in errs), errs
 
 
 def test_frontend_wild_value_fails(truth):  # 反例 #6 野值
@@ -612,6 +615,21 @@ def test_known_drift_orphan_fails(truth):  # 反例 #10 孤儿
                                "locus": "/api/v1/nope", "expect": "x", "actual": "y", "severity": "low"})
     errs = cms.check_known_drift(bad, REPO)
     assert any("orphan-xyz" in e for e in errs)
+
+
+def test_frontend_drift_no_probe_fails(truth):  # 反例 #13a（F2）：frontend drift 无探测器 → fail-closed
+    bad = copy.deepcopy(truth)
+    bad["known_drift"].append({"id": "ghost-frontend-drift", "consumer": "frontend",
+                               "locus": "/x", "expect": "a", "actual": "b", "severity": "low"})
+    errs = cms.check_known_drift(bad, REPO)
+    assert any("ghost-frontend-drift" in e for e in errs)
+
+
+def test_frontend_drift_probe_detects_fix(truth):  # 反例 #13b（F2）：studio 实际已 present → drift 探测为「不成立」
+    present = {"routeAccess": {"/studio": "studio"}, "router_meta": {}, "sidebar": {}, "dashboard": []}
+    assert cms._FRONTEND_DRIFT_PROBES["studio-frontend-entry-missing"](present) is False
+    absent = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": []}
+    assert cms._FRONTEND_DRIFT_PROBES["studio-frontend-entry-missing"](absent) is True
 ```
 
 - [ ] **Step 2: 跑测试确认失败**
@@ -646,29 +664,70 @@ def check_portal(truth: dict, repo: Path) -> list[str]:
     return _compare_portal(truth, _load_service_catalog(repo))
 
 
-def check_known_drift(truth: dict, repo: Path) -> list[str]:
-    """收敛：每条 drift 的 id 必须被真源某入口的 drift 字段引用（无孤儿）。"""
+# frontend drift 实际探测器（plan-review F2）：id -> fn(parsed) -> bool（drift 是否「仍成立」）
+# 不硬编码白名单放行；每个 frontend drift 必须有探测器实际验证，新增无探测器 → fail-closed。
+def _all_frontend_codes(parsed: dict) -> set[str]:
+    return (set(parsed["routeAccess"].values()) | set(parsed["router_meta"].values())
+            | set(parsed["sidebar"].values()) | set(parsed["dashboard"]))
+
+
+def _academic_wired_to_teaching(parsed: dict) -> bool:
+    for surface in ("routeAccess", "router_meta"):
+        for route, code in parsed[surface].items():
+            if route.startswith("/academic") and code == "teaching":
+                return True
+    return False
+
+
+_FRONTEND_DRIFT_PROBES = {
+    "studio-frontend-entry-missing": lambda p: "studio" not in _all_frontend_codes(p),
+    "teaching-frontend-unwired": lambda p: not _academic_wired_to_teaching(p),
+}
+
+
+def check_frontend_drift(truth: dict, repo: Path) -> list[str]:
+    """frontend drift 按实际状态校验：drift 仍成立→绿；实际已不成立(疑似已修复)→红(应删登记)。"""
     errs: list[str] = []
-    referenced = {spec.get("drift") for spec in truth["backend_routes"].values() if spec.get("drift")}
-    # frontend drift（studio/teaching）由 frontend_route_module 隐式承载，白名单显式登记
-    frontend_drift_ids = {"studio-frontend-entry-missing", "teaching-frontend-unwired"}
-    referenced |= frontend_drift_ids
+    parsed = parse_frontend(repo)
     for d in truth["known_drift"]:
-        if d["id"] not in referenced:
-            errs.append(f"孤儿 known_drift: {d['id']} 未被任何真源入口引用")
+        if d["consumer"] != "frontend":
+            continue
+        probe = _FRONTEND_DRIFT_PROBES.get(d["id"])
+        if probe is None:
+            continue  # 无探测器的 frontend drift 由 check_known_drift 报 fail-closed
+        if not probe(parsed):
+            errs.append(f"frontend drift {d['id']} 实际已不成立（疑似已修复）→ 应从 known_drift 删除")
+    return errs
+
+
+def check_known_drift(truth: dict, repo: Path) -> list[str]:
+    """收敛：backend drift 必须被某 backend_route 的 drift 字段引用；
+    frontend drift 必须有实际探测器（由 check_frontend_drift 验证状态）。无硬编码白名单放行。"""
+    errs: list[str] = []
+    backend_refs = {s.get("drift") for s in truth["backend_routes"].values() if s.get("drift")}
+    for d in truth["known_drift"]:
+        consumer = d["consumer"]
+        if consumer == "backend_middleware":
+            if d["id"] not in backend_refs:
+                errs.append(f"孤儿 backend known_drift: {d['id']} 未被任何 backend_route 引用")
+        elif consumer == "frontend":
+            if d["id"] not in _FRONTEND_DRIFT_PROBES:
+                errs.append(f"frontend known_drift {d['id']} 无实际探测器，无法验证状态（fail-closed）")
+        else:
+            errs.append(f"known_drift {d['id']} consumer={consumer} 为未知类型")
     return errs
 ```
 
 加入 CHECKS（最终顺序）：
 
 ```python
-CHECKS = [check_self_consistency, check_backend, check_frontend, check_portal, check_known_drift]
+CHECKS = [check_self_consistency, check_backend, check_frontend, check_frontend_drift, check_portal, check_known_drift]
 ```
 
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `.venv/bin/python -m pytest tests/governance/test_module_semantics.py -q`
-Expected: PASS (17 passed)
+Expected: PASS (19 passed)
 
 - [ ] **Step 5: Commit**
 
@@ -698,7 +757,7 @@ Expected: 空输出（这些文件零改动）
 - [ ] **Step 2: 全量 governance 测试不回归**
 
 Run: `.venv/bin/python -m pytest tests/governance -q`
-Expected: PASS（含既有 + 17 新增，无 fail）
+Expected: PASS（含既有 + 19 新增，无 fail）
 
 - [ ] **Step 3: CI 接入**
 
@@ -727,7 +786,10 @@ git commit -m "ci: 模块语义守卫纳入测试流水线"
 
 **3. 类型/签名一致：** `load_truth`/`check_self_consistency`/`check_backend`/`_compare_backend`/`discover_backend_prefixes`/`_actual_gating`/`check_frontend`/`_compare_frontend`/`parse_frontend`/`check_portal`/`_compare_portal`/`_load_service_catalog`/`check_known_drift` 在定义任务与测试调用处签名一致；`CHECKS` 列表逐 task 追加，最终 5 个 check。
 
-**4. 已知风险：** 反例 #5 测试断言用了 `or`（弱断言）——实现时确保 `_compare_frontend` 对 routeAccess/router-meta 冲突输出含 "router-meta" 或 "不一致" 字样，使断言稳定命中。前端正则解析若现状有未覆盖的写法（如多行对象），按 `check_permission_mirror.py` 的 `_extract_balanced` 手法增强，不放宽校验。
+**4. 已知风险与契约（plan-review R1 处置后）：**
+- 反例 #5 已改为硬断言（要求消息同时含 `/exams`+`routeAccess`+`router-meta`），实现时 `_compare_frontend` 冲突消息须为 `前端 {route} 在 routeAccess 与 router-meta 间不一致`，使断言稳定命中。
+- 前端正则解析若现状有未覆盖写法（多行对象），按 `check_permission_mirror.py` 的 `_extract_balanced` 手法增强，不放宽校验。
+- **risk_modules / test_debt**（对应 spec §4.1，F4）：高风险消费者 = `module_middleware`(后端门禁) / `routeAccess`+`router-meta`(前端可见性) / `SERVICE_CATALOG`(Portal)；测试债 = 当前无任一守卫保证四方对齐，本计划反例矩阵 + frontend drift 探测消除该债。frontend drift 探测器 `_FRONTEND_DRIFT_PROBES` 须随新增 frontend drift 同步扩展（无探测器即 fail-closed，反例 #13a 保证）。
 
 ---
 

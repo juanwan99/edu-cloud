@@ -42,7 +42,7 @@ cd frontend && npx vitest run                    # 前端
 |------|------|---------|
 | 模块定义/结构 | `docs/governance/modules.yaml` + 各模块 `MODULE.md`（模板 `docs/governance/MODULE-template.md`） | `scripts/governance/module_governance_guard.py`（聚合器 `aggregate_modules.py`） |
 
-> Phase 0.5（模块语义统一，设计 v3 待实施）：将新增 `docs/governance/module-semantics.yaml`（逐入口期望表：架构模块/后端 prefix/前端 route/portal service ↔ 9 学校开关码）+ `scripts/governance/check_module_semantics.py`（逐路由比对守卫，行为不变、known_drift 按四元组精确豁免禁新增）。已登记 4 处 backend fail-open（academic/conduct/exam-imports/profile，只登记不修复）。设计见 `docs/superpowers/specs/2026-06-05-module-semantics-design.md`。
+> Phase 0.5（模块语义统一，设计 v3.1 + plan-review R1 处置，待实施）：将新增 `docs/governance/module-semantics.yaml`（逐入口期望表：架构模块/后端 prefix/前端 route/portal service ↔ 9 学校开关码）+ `scripts/governance/check_module_semantics.py`（守卫用 FastAPI app.routes 展开逐路由比对，行为不变、known_drift 按四元组精确豁免、frontend drift 实际探测禁过期）。已登记 4 处 backend fail-open（academic/conduct/exam-imports/profile）+ 5 处 hygiene（menus/portal/grades/teachers/client-logs，应显式 exempt），只登记不修复。设计见 `docs/superpowers/specs/2026-06-05-module-semantics-design.md`、计划见 `docs/superpowers/plans/2026-06-05-module-semantics-implementation.md`。
 
 ## 按需上下文（需要时 Read）
 
