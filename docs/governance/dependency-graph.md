@@ -4,7 +4,8 @@
 
 ```mermaid
 flowchart TD
-  adaptive --> knowledge_tree
+  academic --> calendar
+  academic --> student
   analytics --> exam
   analytics --> scan
   analytics --> grading
@@ -15,37 +16,47 @@ flowchart TD
   analytics --> studio
   bank --> exam
   bank --> student
-  calendar --> school
   card --> exam
+  conduct --> academic
+  conduct --> bank
+  conduct --> exam
+  conduct --> profile
   conduct --> student
-  conduct --> school
   exam --> grading
   exam --> pipeline
+  exam_import --> exam
+  exam_import --> grading
+  exam_import --> pipeline
+  exam_import --> profile
+  exam_import --> scan
+  exam_import --> student
+  grading --> card
   grading --> exam
   grading --> scan
   homework --> exam
   homework --> scan
   homework --> bank
+  knowledge --> exam
   knowledge --> knowledge_tree
-  knowledge_tree --> knowledge
-  knowledge_tree --> exam
   knowledge_tree --> adaptive
   marking --> exam
   marking --> scan
   marking --> grading
-  menu --> school
-  pipeline --> exam
-  pipeline --> scan
-  pipeline --> grading
+  pipeline --> analytics
   pipeline --> bank
-  pipeline --> knowledge
-  pipeline --> profile
-  pipeline --> student
   pipeline --> adaptive
-  profile --> student
+  pipeline --> exam
+  pipeline --> grading
+  pipeline --> knowledge
+  pipeline --> knowledge_tree
+  pipeline --> profile
+  pipeline --> scan
+  pipeline --> student
+  portal --> calendar
+  portal --> homework
   profile --> knowledge_tree
   profile --> analytics
   scan --> exam
   scan --> card
-  studio --> school
+  scan --> student
 ```

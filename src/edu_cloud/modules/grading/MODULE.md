@@ -26,6 +26,7 @@ exposes:
 
 depends_on:
   modules:
+    - card
     - exam
     - scan
   services: []

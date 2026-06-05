@@ -36,6 +36,12 @@ cd frontend && npx vitest run                    # 前端
 - 禁止 `print()`/`console.log()` 用于业务日志
 - 不得用 `cp`/`rsync` 复制活跃 SQLite（用 `.dump` 或 `.backup`）
 
+## 模块治理设施（2026-06-05 Phase -1 收口 · commit 时 staged index 强制校验）
+
+| 维度 | 真源 | 守卫脚本 |
+|------|------|---------|
+| 模块定义/结构 | `docs/governance/modules.yaml` + 各模块 `MODULE.md`（模板 `docs/governance/MODULE-template.md`） | `scripts/governance/module_governance_guard.py`（聚合器 `aggregate_modules.py`） |
+
 ## 按需上下文（需要时 Read）
 
 | 信息 | 路径 |

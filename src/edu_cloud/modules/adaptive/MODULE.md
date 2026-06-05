@@ -27,8 +27,7 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - knowledge_tree
+  modules: []
   services: []
   ai_tools:
     - diagnose_and_recommend

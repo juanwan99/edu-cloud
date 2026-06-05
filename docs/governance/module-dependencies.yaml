@@ -1,0 +1,507 @@
+version: 1
+generated_by: scripts/governance/check_module_dependencies.py --update
+modules:
+- academic
+- adaptive
+- analytics
+- bank
+- calendar
+- card
+- conduct
+- exam
+- exam_import
+- grading
+- homework
+- knowledge
+- knowledge_tree
+- marking
+- menu
+- paper
+- pipeline
+- portal
+- profile
+- scan
+- school
+- student
+- studio
+edges:
+- from: academic
+  to: calendar
+  occurrences:
+  - src/edu_cloud/modules/academic/router.py:11
+- from: academic
+  to: student
+  occurrences:
+  - src/edu_cloud/modules/academic/service.py:239
+- from: analytics
+  to: exam
+  occurrences:
+  - src/edu_cloud/modules/analytics/__init__.py:7
+  - src/edu_cloud/modules/analytics/ai_report_service.py:16
+  - src/edu_cloud/modules/analytics/analytics_report_router.py:52
+  - src/edu_cloud/modules/analytics/analytics_report_router.py:358
+  - src/edu_cloud/modules/analytics/diagnosis_service.py:18
+  - src/edu_cloud/modules/analytics/exporters.py:16
+  - src/edu_cloud/modules/analytics/exporters.py:75
+  - src/edu_cloud/modules/analytics/grade_service.py:13
+- from: analytics
+  to: grading
+  occurrences:
+  - src/edu_cloud/modules/analytics/__init__.py:5
+  - src/edu_cloud/modules/analytics/ai_diagnosis_service.py:164
+  - src/edu_cloud/modules/analytics/ai_diagnosis_service.py:165
+  - src/edu_cloud/modules/analytics/ai_report_service.py:17
+  - src/edu_cloud/modules/analytics/exporters.py:77
+  - src/edu_cloud/modules/analytics/insights_service.py:10
+  - src/edu_cloud/modules/analytics/level_score_service.py:6
+  - src/edu_cloud/modules/analytics/ranking_service.py:11
+- from: analytics
+  to: knowledge
+  occurrences:
+  - src/edu_cloud/modules/analytics/ai_report_service.py:18
+  - src/edu_cloud/modules/analytics/diagnosis_service.py:19
+  - src/edu_cloud/modules/analytics/pipeline_service.py:14
+  - src/edu_cloud/modules/analytics/ranking_service.py:13
+- from: analytics
+  to: knowledge_tree
+  occurrences:
+  - src/edu_cloud/modules/analytics/ranking_service.py:14
+- from: analytics
+  to: profile
+  occurrences:
+  - src/edu_cloud/modules/analytics/insights_service.py:374
+  - src/edu_cloud/modules/analytics/report_service.py:19
+- from: analytics
+  to: scan
+  occurrences:
+  - src/edu_cloud/modules/analytics/__init__.py:6
+  - src/edu_cloud/modules/analytics/ai_report_service.py:19
+  - src/edu_cloud/modules/analytics/exporters.py:76
+  - src/edu_cloud/modules/analytics/grade_service.py:57
+  - src/edu_cloud/modules/analytics/insights_service.py:11
+  - src/edu_cloud/modules/analytics/level_score_service.py:7
+  - src/edu_cloud/modules/analytics/ranking_service.py:10
+- from: analytics
+  to: student
+  occurrences:
+  - src/edu_cloud/modules/analytics/analytics_report_router.py:310
+  - src/edu_cloud/modules/analytics/diagnosis_service.py:9
+  - src/edu_cloud/modules/analytics/exporters.py:78
+  - src/edu_cloud/modules/analytics/grade_service.py:14
+  - src/edu_cloud/modules/analytics/identity.py:15
+  - src/edu_cloud/modules/analytics/level_score_service.py:8
+  - src/edu_cloud/modules/analytics/pipeline_service.py:13
+  - src/edu_cloud/modules/analytics/power_options_service.py:10
+- from: analytics
+  to: studio
+  occurrences:
+  - src/edu_cloud/modules/analytics/analytics_report_router.py:363
+- from: bank
+  to: exam
+  occurrences:
+  - src/edu_cloud/modules/bank/service.py:17
+- from: bank
+  to: student
+  occurrences:
+  - src/edu_cloud/modules/bank/router.py:68
+- from: card
+  to: exam
+  occurrences:
+  - src/edu_cloud/modules/card/card_export_router.py:20
+  - src/edu_cloud/modules/card/card_template_router.py:31
+  - src/edu_cloud/modules/card/card_utils.py:11
+  - src/edu_cloud/modules/card/card_utils.py:31
+  - src/edu_cloud/modules/card/publish_service.py:10
+  - src/edu_cloud/modules/card/router.py:33
+  - src/edu_cloud/modules/card/router.py:252
+  - src/edu_cloud/modules/card/router.py:306
+- from: conduct
+  to: academic
+  occurrences:
+  - src/edu_cloud/modules/conduct/admin_service.py:632
+- from: conduct
+  to: bank
+  occurrences:
+  - src/edu_cloud/modules/conduct/parent_service.py:552
+- from: conduct
+  to: exam
+  occurrences:
+  - src/edu_cloud/modules/conduct/parent_service.py:478
+  - src/edu_cloud/modules/conduct/parent_service.py:516
+- from: conduct
+  to: profile
+  occurrences:
+  - src/edu_cloud/modules/conduct/parent_service.py:477
+  - src/edu_cloud/modules/conduct/parent_service.py:515
+- from: conduct
+  to: student
+  occurrences:
+  - src/edu_cloud/modules/conduct/admin_service.py:10
+  - src/edu_cloud/modules/conduct/event_service.py:9
+  - src/edu_cloud/modules/conduct/export_service.py:11
+  - src/edu_cloud/modules/conduct/parent_service.py:17
+  - src/edu_cloud/modules/conduct/permissions.py:10
+  - src/edu_cloud/modules/conduct/permissions.py:98
+  - src/edu_cloud/modules/conduct/report_service.py:16
+  - src/edu_cloud/modules/conduct/rules_service.py:8
+- from: exam
+  to: grading
+  occurrences:
+  - src/edu_cloud/modules/exam/publish_service.py:8
+- from: exam
+  to: pipeline
+  occurrences:
+  - src/edu_cloud/modules/exam/publish_service.py:69
+  - src/edu_cloud/modules/exam/publish_service.py:76
+  - src/edu_cloud/modules/exam/service.py:94
+- from: exam_import
+  to: exam
+  occurrences:
+  - src/edu_cloud/modules/exam_import/service.py:27
+- from: exam_import
+  to: grading
+  occurrences:
+  - src/edu_cloud/modules/exam_import/service.py:29
+- from: exam_import
+  to: pipeline
+  occurrences:
+  - src/edu_cloud/modules/exam_import/service.py:331
+- from: exam_import
+  to: profile
+  occurrences:
+  - src/edu_cloud/modules/exam_import/service.py:30
+- from: exam_import
+  to: scan
+  occurrences:
+  - src/edu_cloud/modules/exam_import/service.py:28
+- from: exam_import
+  to: student
+  occurrences:
+  - src/edu_cloud/modules/exam_import/service.py:26
+- from: grading
+  to: card
+  occurrences:
+  - src/edu_cloud/modules/grading/grading_review_router.py:20
+  - src/edu_cloud/modules/grading/router.py:20
+- from: grading
+  to: exam
+  occurrences:
+  - src/edu_cloud/modules/grading/grading_review_router.py:16
+  - src/edu_cloud/modules/grading/grading_review_router.py:17
+  - src/edu_cloud/modules/grading/router.py:17
+  - src/edu_cloud/modules/grading/router.py:485
+- from: grading
+  to: scan
+  occurrences:
+  - src/edu_cloud/modules/grading/grading_review_router.py:19
+  - src/edu_cloud/modules/grading/grading_review_router.py:207
+  - src/edu_cloud/modules/grading/router.py:19
+- from: homework
+  to: bank
+  occurrences:
+  - src/edu_cloud/modules/homework/service.py:164
+  - src/edu_cloud/modules/homework/service.py:274
+- from: homework
+  to: exam
+  occurrences:
+  - src/edu_cloud/modules/homework/service.py:162
+- from: homework
+  to: scan
+  occurrences:
+  - src/edu_cloud/modules/homework/service.py:163
+- from: knowledge
+  to: exam
+  occurrences:
+  - src/edu_cloud/modules/knowledge/service.py:57
+  - src/edu_cloud/modules/knowledge/service.py:85
+- from: knowledge
+  to: knowledge_tree
+  occurrences:
+  - src/edu_cloud/modules/knowledge/service.py:7
+- from: knowledge_tree
+  to: adaptive
+  occurrences:
+  - src/edu_cloud/modules/knowledge_tree/service.py:14
+  - src/edu_cloud/modules/knowledge_tree/sync_service.py:355
+  - src/edu_cloud/modules/knowledge_tree/sync_service.py:382
+- from: marking
+  to: exam
+  occurrences:
+  - src/edu_cloud/modules/marking/exporter.py:9
+  - src/edu_cloud/modules/marking/importer.py:9
+  - src/edu_cloud/modules/marking/router.py:17
+  - src/edu_cloud/modules/marking/scorer.py:13
+  - src/edu_cloud/modules/marking/scorer.py:70
+- from: marking
+  to: grading
+  occurrences:
+  - src/edu_cloud/modules/marking/exporter.py:11
+  - src/edu_cloud/modules/marking/router.py:18
+  - src/edu_cloud/modules/marking/scorer.py:14
+  - src/edu_cloud/modules/marking/scorer.py:25
+- from: marking
+  to: scan
+  occurrences:
+  - src/edu_cloud/modules/marking/exporter.py:10
+  - src/edu_cloud/modules/marking/importer.py:10
+  - src/edu_cloud/modules/marking/router.py:16
+  - src/edu_cloud/modules/marking/scorer.py:15
+- from: pipeline
+  to: adaptive
+  occurrences:
+  - src/edu_cloud/modules/pipeline/service.py:498
+  - src/edu_cloud/modules/pipeline/service.py:499
+- from: pipeline
+  to: analytics
+  occurrences:
+  - src/edu_cloud/modules/pipeline/service.py:202
+  - src/edu_cloud/modules/pipeline/service.py:575
+- from: pipeline
+  to: bank
+  occurrences:
+  - src/edu_cloud/modules/pipeline/service.py:16
+- from: pipeline
+  to: exam
+  occurrences:
+  - src/edu_cloud/modules/pipeline/service.py:13
+- from: pipeline
+  to: grading
+  occurrences:
+  - src/edu_cloud/modules/pipeline/service.py:15
+- from: pipeline
+  to: knowledge
+  occurrences:
+  - src/edu_cloud/modules/pipeline/service.py:17
+- from: pipeline
+  to: knowledge_tree
+  occurrences:
+  - src/edu_cloud/modules/pipeline/service.py:18
+- from: pipeline
+  to: profile
+  occurrences:
+  - src/edu_cloud/modules/pipeline/service.py:19
+- from: pipeline
+  to: scan
+  occurrences:
+  - src/edu_cloud/modules/pipeline/service.py:14
+- from: pipeline
+  to: student
+  occurrences:
+  - src/edu_cloud/modules/pipeline/service.py:20
+- from: portal
+  to: calendar
+  occurrences:
+  - src/edu_cloud/modules/portal/service.py:15
+- from: portal
+  to: homework
+  occurrences:
+  - src/edu_cloud/modules/portal/service.py:16
+- from: profile
+  to: analytics
+  occurrences:
+  - src/edu_cloud/modules/profile/router.py:141
+- from: profile
+  to: knowledge_tree
+  occurrences:
+  - src/edu_cloud/modules/profile/service.py:6
+- from: scan
+  to: card
+  occurrences:
+  - src/edu_cloud/modules/scan/cv_detect_router.py:16
+  - src/edu_cloud/modules/scan/pipeline_router.py:24
+- from: scan
+  to: exam
+  occurrences:
+  - src/edu_cloud/modules/scan/cv_detect_router.py:15
+  - src/edu_cloud/modules/scan/pipeline_router.py:23
+  - src/edu_cloud/modules/scan/router.py:14
+- from: scan
+  to: student
+  occurrences:
+  - src/edu_cloud/modules/scan/pipeline_router.py:26
+cycles:
+- path:
+  - analytics
+  - exam
+  - pipeline
+  - analytics
+- path:
+  - analytics
+  - exam
+  - pipeline
+  - profile
+  - analytics
+- path:
+  - analytics
+  - grading
+  - card
+  - exam
+  - pipeline
+  - analytics
+- path:
+  - analytics
+  - grading
+  - card
+  - exam
+  - pipeline
+  - profile
+  - analytics
+- path:
+  - analytics
+  - grading
+  - exam
+  - pipeline
+  - analytics
+- path:
+  - analytics
+  - grading
+  - exam
+  - pipeline
+  - profile
+  - analytics
+- path:
+  - analytics
+  - grading
+  - scan
+  - card
+  - exam
+  - pipeline
+  - analytics
+- path:
+  - analytics
+  - grading
+  - scan
+  - card
+  - exam
+  - pipeline
+  - profile
+  - analytics
+- path:
+  - analytics
+  - grading
+  - scan
+  - exam
+  - pipeline
+  - analytics
+- path:
+  - analytics
+  - grading
+  - scan
+  - exam
+  - pipeline
+  - profile
+  - analytics
+- path:
+  - analytics
+  - knowledge
+  - exam
+  - pipeline
+  - analytics
+- path:
+  - analytics
+  - knowledge
+  - exam
+  - pipeline
+  - profile
+  - analytics
+- path:
+  - analytics
+  - profile
+  - analytics
+- path:
+  - analytics
+  - scan
+  - card
+  - exam
+  - pipeline
+  - analytics
+- path:
+  - analytics
+  - scan
+  - card
+  - exam
+  - pipeline
+  - profile
+  - analytics
+- path:
+  - analytics
+  - scan
+  - exam
+  - pipeline
+  - analytics
+- path:
+  - analytics
+  - scan
+  - exam
+  - pipeline
+  - profile
+  - analytics
+- path:
+  - bank
+  - exam
+  - pipeline
+  - bank
+- path:
+  - card
+  - exam
+  - grading
+  - card
+- path:
+  - card
+  - exam
+  - grading
+  - scan
+  - card
+- path:
+  - card
+  - exam
+  - pipeline
+  - grading
+  - card
+- path:
+  - card
+  - exam
+  - pipeline
+  - grading
+  - scan
+  - card
+- path:
+  - card
+  - exam
+  - pipeline
+  - scan
+  - card
+- path:
+  - exam
+  - grading
+  - exam
+- path:
+  - exam
+  - grading
+  - scan
+  - exam
+- path:
+  - exam
+  - pipeline
+  - exam
+- path:
+  - exam
+  - pipeline
+  - grading
+  - exam
+- path:
+  - exam
+  - pipeline
+  - grading
+  - scan
+  - exam
+- path:
+  - exam
+  - pipeline
+  - knowledge
+  - exam
+- path:
+  - exam
+  - pipeline
+  - scan
+  - exam

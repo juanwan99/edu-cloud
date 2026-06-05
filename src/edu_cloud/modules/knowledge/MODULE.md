@@ -25,6 +25,7 @@ exposes:
 
 depends_on:
   modules:
+    - exam
     - knowledge_tree
   services: []
   ai_tools:

@@ -25,7 +25,6 @@ exposes:
 
 depends_on:
   modules:
-    - student
     - knowledge_tree
     - analytics
   services: []

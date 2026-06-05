@@ -27,6 +27,7 @@ depends_on:
   modules:
     - exam
     - card
+    - student
   services: []
   ai_tools: []
 

@@ -19,8 +19,7 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - school
+  modules: []
   services:
     - school_settings_service
   ai_tools: []

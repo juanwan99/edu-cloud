@@ -24,14 +24,16 @@ exposes:
 
 depends_on:
   modules:
-    - exam
-    - scan
-    - grading
+    - analytics
     - bank
-    - knowledge
-    - profile
-    - student
     - adaptive
+    - exam
+    - grading
+    - knowledge
+    - knowledge_tree
+    - profile
+    - scan
+    - student
   services: []
   ai_tools: []
 

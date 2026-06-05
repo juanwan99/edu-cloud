@@ -24,8 +24,7 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - school
+  modules: []
   services:
     - core.permissions
     - api.deps

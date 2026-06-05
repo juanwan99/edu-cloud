@@ -19,7 +19,9 @@ exposes:
   events: []
 
 depends_on:
-  modules: []
+  modules:
+    - calendar
+    - student
   services: []
   ai_tools: []
 

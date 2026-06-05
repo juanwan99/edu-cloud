@@ -32,8 +32,11 @@ exposes:
 
 depends_on:
   modules:
+    - academic
+    - bank
+    - exam
+    - profile
     - student
-    - school
   services:
     - ai.registry
     - ai.tool_context

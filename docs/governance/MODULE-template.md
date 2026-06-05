@@ -135,6 +135,6 @@ design_docs:
 - **守卫 hook**: `~/.claude/hooks/module_governance_guard.py` 在 git commit 时强制：
   - 新建模块必须含 MODULE.md（block）
   - owns_tables / owns_routes 跨模块重复（block）
-  - 触碰存量模块 ≥50 行修改缺 MODULE.md（ask）
+  - 触碰存量模块 ≥50 行修改缺 MODULE.md（block）
   - 派生产物（modules.yaml 等）过期（block）
 - **KILL_SWITCH**: `EDU_GOVERNANCE_GUARD_DISABLED=1`

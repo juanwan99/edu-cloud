@@ -28,8 +28,6 @@ exposes:
 
 depends_on:
   modules:
-    - knowledge
-    - exam
     - adaptive
   services:
     - core.permissions
