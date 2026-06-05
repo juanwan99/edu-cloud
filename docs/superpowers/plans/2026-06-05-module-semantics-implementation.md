@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.14 / PyYAML / FastAPI（route 展开）/ pytest / 正则解析前端 JS。
 
-> **设计真源：** `docs/superpowers/specs/2026-06-05-module-semantics-design.md`（v3）。本计划实现其 §3 真源 + §4 守卫五类 + §5 十二反例。
+> **设计真源：** `docs/superpowers/specs/2026-06-05-module-semantics-design.md`（v4）。本计划实现其 §3 真源 + §4 守卫六项 check + §5 反例矩阵（17 编号 / 19 反例测试）。
 > **Commit 边界：** spec §6 的"真源 / 守卫+测试+CI"两逻辑批次，按 TDD 细分为 6 个小 commit（每 commit ≤ 2 文件、< 500 行，满足 `derivation_scale_guard`）。
 
 ---
@@ -16,9 +16,9 @@
 ## File Structure
 
 - **Create** `docs/governance/module-semantics.yaml` — 真源（4 层：开关码镜像 / 架构模块归属 / 逐入口期望表 / known_drift）。纯数据。
-- **Create** `scripts/governance/check_module_semantics.py` — 守卫。函数边界：`load_truth()` / `check_self_consistency()` / `check_backend()` / `check_frontend()` / `check_portal()` / `check_known_drift()` / `main()`。各 check 返回 `list[str]`（错误消息），`main` 聚合 + exit code。
-- **Create** `tests/governance/test_module_semantics.py` — 正例 1 + 反例 12。
-- **Modify** `.github/workflows/test.yml` — 治理检查段加一行调用。
+- **Create** `scripts/governance/check_module_semantics.py` — 守卫。函数边界：`load_truth()` / `check_self_consistency()` / `check_backend()` / `check_frontend()` / `check_frontend_drift()` / `check_portal()` / `check_known_drift()` / `main()`。**6 个 check 函数**（`CHECKS` 列表，与 spec §4 六项一一对应）；各 check 返回 `list[str]`（错误消息），`main` 聚合 + exit code。
+- **Create** `tests/governance/test_module_semantics.py` — 正例 4（self/backend/frontend/portal 各 `*_passes_on_real`）+ 反例 19（17 编号，#7 与 #13 各拆 2）= 端到端 23 测试。
+- **Modify** `.github/workflows/test.yml` — **backend job**（重依赖，已 `pip install -e ".[dev]"`）末尾加 `test_module_semantics` + `--check` 两行；governance job 轻依赖（仅 pytest+pyyaml）跑不了 `import create_app`，故不接 governance job（必修②）。
 
 ---
 
@@ -29,7 +29,7 @@
 
 - [ ] **Step 1: 写真源文件**
 
-完整写入（内容取自 spec §3 v3，已含 grades/teachers 与 10 条 known_drift）：
+完整写入（内容取自 spec §3 v4，已含 grades/teachers 与 11 条 known_drift；**不含 `/api/v1/subjects`**——非顶层 segment，见 spec §1.1）：
 
 ```yaml
 version: 2
@@ -66,7 +66,6 @@ architecture_to_module_code:
 # ── 第三层：逐入口期望表
 backend_routes:
   /api/v1/exams:            { expect: "gated:exam" }
-  /api/v1/subjects:         { expect: "gated:exam" }
   /api/v1/questions:        { expect: "gated:exam" }
   /api/v1/scan:             { expect: "gated:exam" }
   /api/v1/card:             { expect: "gated:exam" }
@@ -133,7 +132,7 @@ frontend_route_module:
 portal_services_expect_self_module: true
 dashboard_actions_expect_valid_only: true
 
-# ── 第四层：已知漂移登记（10 条；守卫按 consumer+locus+expect+actual 四元组匹配）
+# ── 第四层：已知漂移登记（11 条 = 9 backend + 2 frontend；守卫按 consumer+locus+expect+actual 四元组匹配）
 known_drift:
   - { id: academic-backend-fail-open,    consumer: backend_middleware, locus: /api/v1/academic,     expect: "gated:teaching",         actual: "pass-through", severity: security }
   - { id: conduct-backend-fail-open,     consumer: backend_middleware, locus: /api/v1/conduct,      expect: "gated:conduct",          actual: "pass-through", severity: security }
@@ -151,7 +150,7 @@ known_drift:
 - [ ] **Step 2: 验证可解析**
 
 Run: `.venv/bin/python -c "import yaml; d=yaml.safe_load(open('docs/governance/module-semantics.yaml')); print(len(d['backend_routes']), len(d['known_drift']), len(d['architecture_to_module_code']))"`
-Expected: `37 11 23`
+Expected: `36 11 23`（backend_routes 36 == `app.routes` 实测顶层 segment 数；known_drift 11；架构模块 23）
 
 - [ ] **Step 3: Commit**
 
@@ -483,34 +482,41 @@ def test_frontend_passes_on_real(truth):
 
 
 def test_frontend_route_drift_fails(truth):  # 反例 #4 routeAccess 漂移
-    parsed = {"routeAccess": {"/exams": "grading"}, "router_meta": {}, "sidebar": {}, "dashboard": []}
+    parsed = {"routeAccess": {"/exams": "grading"}, "router_meta": {}, "sidebar": {}, "dashboard": {}}
     errs = cms._compare_frontend(truth, parsed)
     assert any("/exams" in e for e in errs)
 
 
 def test_frontend_meta_vs_routeaccess_inconsistent_fails(truth):  # 反例 #5
-    parsed = {"routeAccess": {"/exams": "exam"}, "router_meta": {"/exams": "grading"}, "sidebar": {}, "dashboard": []}
+    parsed = {"routeAccess": {"/exams": "exam"}, "router_meta": {"/exams": "grading"}, "sidebar": {}, "dashboard": {}}
     errs = cms._compare_frontend(truth, parsed)
     # 硬断言（plan-review F3）：必须是同一路由在两个具名 surface 间的冲突，不接受任意含 "meta" 的消息
     assert any("/exams" in e and "routeAccess" in e and "router-meta" in e for e in errs), errs
 
 
 def test_frontend_wild_value_fails(truth):  # 反例 #6 野值
-    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {"/x": "ghost"}, "dashboard": ["ghost2"]}
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {"/x": "ghost"}, "dashboard": {"/y": "ghost2"}}
     errs = cms._compare_frontend(truth, parsed)
     assert any("ghost" in e for e in errs)
 
 
 def test_frontend_undeclared_route_fails(truth):  # 反例 #15（F1）：未声明前端 route（fail-closed）
-    parsed = {"routeAccess": {"/brand-new": "exam"}, "router_meta": {}, "sidebar": {}, "dashboard": []}
+    parsed = {"routeAccess": {"/brand-new": "exam"}, "router_meta": {}, "sidebar": {}, "dashboard": {}}
     errs = cms._compare_frontend(truth, parsed)
     assert any("/brand-new" in e and "fail-closed" in e for e in errs)
 
 
 def test_frontend_sidebar_mismatch_fails(truth):  # 反例 #16（F1）：sidebar 错配到另一合法值
-    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {"/exams": "grading"}, "dashboard": []}
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {"/exams": "grading"}, "dashboard": {}}
     errs = cms._compare_frontend(truth, parsed)
     assert any("/exams" in e and "不一致" in e for e in errs)
+
+
+def test_frontend_dashboard_route_mismatch_fails(truth):  # 反例 #17（必修③）：dashboard route 错配到另一合法值
+    # /homework 真源=homework，dashboard 给合法值 grading → route 已声明(fail-closed 通过)但值不一致 → 红
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {"/homework": "grading"}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/homework" in e and "dashboard" in e and "不一致" in e for e in errs), errs
 ```
 
 - [ ] **Step 2: 跑测试确认失败**
@@ -554,7 +560,9 @@ def parse_frontend(repo: Path) -> dict:
     sidebar_txt = _strip_js_comments((fe / "config/sidebarConfig.js").read_text(encoding="utf-8"))
     sidebar = dict(re.findall(r"route:\s*'(/[^']*)'[^}]*moduleCode:\s*'([a-z_]+)'", sidebar_txt))
     dash_txt = _strip_js_comments((fe / "pages/DashboardPage.vue").read_text(encoding="utf-8"))
-    dashboard = re.findall(r"moduleCode:\s*'([a-z_]+)'", dash_txt)
+    # dashboard action 带 route 字段（DashboardPage.vue:435,444,455,465,474），解析 (route, moduleCode) 对，
+    # 复用 sidebar 同款正则 → 升级为 route 级比对（必修③，不再只野值检查）
+    dashboard = dict(re.findall(r"route:\s*'(/[^']*)'[^}]*moduleCode:\s*'([a-z_]+)'", dash_txt))
     return {"routeAccess": route_access, "router_meta": router_meta,
             "sidebar": sidebar, "dashboard": dashboard}
 
@@ -563,9 +571,9 @@ def _compare_frontend(truth: dict, parsed: dict) -> list[str]:
     errs: list[str] = []
     codes = set(truth["school_module_codes"])
     fr = truth["frontend_route_module"]
-    # routeAccess / sidebar：route 形态干净（无动态参数），作前端可见性真源 → fail-closed + 一致性（plan-review F1）
-    # 注：parse_frontend 仅捕获带 moduleCode 的条目，故 fr 须覆盖 routeAccess+sidebar 全部「带 moduleCode」的 route。
-    for surface in ("routeAccess", "sidebar"):
+    # routeAccess / sidebar / dashboard：route 形态干净（无动态参数），作前端可见性真源 → fail-closed + 一致性（plan-review F1 + 必修③）
+    # 注：parse_frontend 仅捕获带 moduleCode 的条目，故 fr 须覆盖三者全部「带 moduleCode」的 route。
+    for surface in ("routeAccess", "sidebar", "dashboard"):
         for route, code in parsed[surface].items():
             if route not in fr:
                 errs.append(f"前端 {surface} 出现未在 frontend_route_module 声明的 route {route}（fail-closed，plan-review F1）")
@@ -578,8 +586,8 @@ def _compare_frontend(truth: dict, parsed: dict) -> list[str]:
     for route in set(parsed["routeAccess"]) & set(parsed["router_meta"]):
         if parsed["routeAccess"][route] != parsed["router_meta"][route]:
             errs.append(f"前端 {route} 在 routeAccess 与 router-meta 间不一致")
-    # 野值检查：所有面出现的 code ∈ 9
-    for code in (list(parsed["sidebar"].values()) + parsed["dashboard"]
+    # 野值检查（兜底）：所有面出现的 code ∈ 9
+    for code in (list(parsed["sidebar"].values()) + list(parsed["dashboard"].values())
                  + list(parsed["routeAccess"].values()) + list(parsed["router_meta"].values())):
         if code not in codes:
             errs.append(f"前端出现野值 moduleCode={code}（∉ 9 开关码）")
@@ -599,7 +607,7 @@ CHECKS = [check_self_consistency, check_backend, check_frontend]
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `.venv/bin/python -m pytest tests/governance/test_module_semantics.py -q`
-Expected: PASS (16 passed)。若前端正例失败，按 stderr 提示的真实漂移核对真源 `frontend_route_module`（应与现状一致；现状漂移须在 known_drift，不在 frontend 比对里报红——见 Task 5 对 frontend drift 的豁免）。
+Expected: PASS (17 passed)。若前端正例失败，按 stderr 提示的真实漂移核对真源 `frontend_route_module`（应与现状一致；现状漂移须在 known_drift，不在 frontend 比对里报红——见 Task 5 对 frontend drift 的豁免）。注：dashboard 现纳入 fail-closed + 一致性，其 5 个 route（/grading/tasks /marking /analytics/report /analytics/ai-report /homework）均已在 `frontend_route_module` 且一致，正例绿（必修③）。
 
 - [ ] **Step 5: Commit**
 
@@ -654,9 +662,9 @@ def test_frontend_drift_no_probe_fails(truth):  # 反例 #13a（F2）：frontend
 
 
 def test_frontend_drift_probe_detects_fix(truth):  # 反例 #13b（F2）：studio 实际已 present → drift 探测为「不成立」
-    present = {"routeAccess": {"/studio": "studio"}, "router_meta": {}, "sidebar": {}, "dashboard": []}
+    present = {"routeAccess": {"/studio": "studio"}, "router_meta": {}, "sidebar": {}, "dashboard": {}}
     assert cms._FRONTEND_DRIFT_PROBES["studio-frontend-entry-missing"](present) is False
-    absent = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": []}
+    absent = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {}}
     assert cms._FRONTEND_DRIFT_PROBES["studio-frontend-entry-missing"](absent) is True
 ```
 
@@ -696,7 +704,7 @@ def check_portal(truth: dict, repo: Path) -> list[str]:
 # 不硬编码白名单放行；每个 frontend drift 必须有探测器实际验证，新增无探测器 → fail-closed。
 def _all_frontend_codes(parsed: dict) -> set[str]:
     return (set(parsed["routeAccess"].values()) | set(parsed["router_meta"].values())
-            | set(parsed["sidebar"].values()) | set(parsed["dashboard"]))
+            | set(parsed["sidebar"].values()) | set(parsed["dashboard"].values()))
 
 
 def _academic_wired_to_teaching(parsed: dict) -> bool:
@@ -755,7 +763,7 @@ CHECKS = [check_self_consistency, check_backend, check_frontend, check_frontend_
 - [ ] **Step 4: 跑测试确认通过**
 
 Run: `.venv/bin/python -m pytest tests/governance/test_module_semantics.py -q`
-Expected: PASS (22 passed)
+Expected: PASS (23 passed)
 
 - [ ] **Step 5: Commit**
 
@@ -787,13 +795,18 @@ Expected: 空输出（这些文件零改动）
 Run: `.venv/bin/python -m pytest tests/governance -q`
 Expected: PASS（含既有 + 22 新增，无 fail）
 
-- [ ] **Step 3: CI 接入**
+- [ ] **Step 3: CI 接入（backend job，必修②）**
 
-在 `.github/workflows/test.yml` 找到既有治理检查段（`check_module_dependencies.py --check` 等所在行），其后追加一行（缩进对齐既有命令）：
+`check_module_semantics.py` 的 `discover_backend_prefixes` 需 `from edu_cloud.api.app import create_app`、`_load_service_catalog` 需 import `SERVICE_CATALOG` → **重依赖（fastapi 全套）**。CI 中 `governance` job 仅 `python -m pip install pytest pyyaml`（轻依赖，无 fastapi），import 会失败；`backend` job 已 `pip install -e ".[dev]" pymupdf`（重依赖）。故接入点选 **backend job**，命令用 `python`（CI runner，**非**本地 `.venv/bin/python`）。
+
+`backend` job 的 pytest 带 `--ignore=tests/governance`，不会自动跑本测试 → 在 backend job 末尾（`- run: python -m pytest tests/test_alembic_migration.py -q` 那行之后）追加两行（缩进对齐既有 `- run:`，6 空格）：
 
 ```yaml
-          .venv/bin/python scripts/governance/check_module_semantics.py --check
+      - run: python -m pytest tests/governance/test_module_semantics.py -q
+      - run: python scripts/governance/check_module_semantics.py --check
 ```
+
+> **不接 governance job**：该 job 设计为轻依赖纯静态检查，引入 fastapi 会破坏其边界。保留 `app.routes` 实测（Must Preserve）优先于"为挪进轻 job 而降级为 AST"。本地验收仍用 `.venv/bin/python`（Step 1）。
 
 - [ ] **Step 4: 提交（CI 一行 + 验收说明）**
 
@@ -808,16 +821,16 @@ git commit -m "ci: 模块语义守卫纳入测试流水线"
 
 ## Self-Review（计划自检）
 
-**1. Spec 覆盖：** §3 真源 4 层 → Task 1；§4.1 自洽 → Task 2；§4.2 后端逐入口 → Task 3；§4.3 前端 4 方 → Task 4；§4.4 Portal + §4.5 收敛 → Task 5；§5 十二反例 → #8#9(T2) #1#2#3#11#12(T3) #4#5#6(T4) #7#10(T5)；§7 验收（绿 + 零 diff）→ Task 6。覆盖完整。
+**1. Spec 覆盖：** §3 真源 4 层 → Task 1；§4 第1类自洽 → Task 2；第2类后端逐入口 → Task 3；第3类前端逐 route（含 dashboard route 级比对，必修③）→ Task 4；第4类 frontend drift 探测 + 第5类 Portal + 第6类 known_drift 收敛 → Task 5；§5 反例（19 测试 / 17 编号）→ #8#9(T2) #1#2#3#11#12#14(T3) #4#5#6#15#16#17(T4) #7×2#10#13a#13b(T5)；§7 验收（绿 + 零 diff）→ Task 6。覆盖完整。
 
 **2. Placeholder 扫描：** 无 TBD / 无"add error handling"；每 step 含完整代码或精确命令 + expected。
 
-**3. 类型/签名一致：** `load_truth`/`check_self_consistency`/`check_backend`/`_compare_backend`/`discover_backend_prefixes`/`_actual_gating`/`check_frontend`/`_compare_frontend`/`parse_frontend`/`check_portal`/`_compare_portal`/`_load_service_catalog`/`check_known_drift` 在定义任务与测试调用处签名一致；`CHECKS` 列表逐 task 追加，最终 5 个 check。
+**3. 类型/签名一致：** `load_truth`/`check_self_consistency`/`check_backend`/`_compare_backend`/`discover_backend_prefixes`/`_actual_gating`/`check_frontend`/`_compare_frontend`/`parse_frontend`/`check_frontend_drift`/`_FRONTEND_DRIFT_PROBES`/`_all_frontend_codes`/`check_portal`/`_compare_portal`/`_load_service_catalog`/`check_known_drift` 在定义任务与测试调用处签名一致；`CHECKS` 列表逐 task 追加，最终 **6 个 check**（`check_self_consistency` / `check_backend` / `check_frontend` / `check_frontend_drift` / `check_portal` / `check_known_drift`）。`parse_frontend` 的 dashboard 返回 dict（必修③），`_all_frontend_codes` 取 `.values()`。
 
 **4. 已知风险与契约（plan-review R1 处置后）：**
 - 反例 #5 已改为硬断言（要求消息同时含 `/exams`+`routeAccess`+`router-meta`），实现时 `_compare_frontend` 冲突消息须为 `前端 {route} 在 routeAccess 与 router-meta 间不一致`，使断言稳定命中。
 - 前端正则解析若现状有未覆盖写法（多行对象），按 `check_permission_mirror.py` 的 `_extract_balanced` 手法增强，不放宽校验。
-- **risk_modules / test_debt**（对应 spec §4.1，F4；plan-review R2 F3 补全）：高风险消费者 = `module_middleware`(后端门禁) / `routeAccess`+`router-meta`(前端可见性) / `sidebarConfig.js`(侧边栏) / `DashboardPage.vue`(首页硬编码) / `SERVICE_CATALOG`(Portal)；测试债 = 当前无任一守卫保证以上多方对齐，本计划反例矩阵 + frontend drift 探测消除该债。frontend drift 探测器 `_FRONTEND_DRIFT_PROBES` 须随新增 frontend drift 同步扩展（无探测器即 fail-closed，反例 #13a 保证）。
+- **risk_modules / test_debt**（对应 spec §4.1，F4；plan-review R2 F3 补全 + 必修⑥）：高风险消费者 = `module_middleware`(后端门禁) / `routeAccess`+`router-meta`(前端可见性) / `sidebarConfig.js`(侧边栏) / `DashboardPage.vue`(首页硬编码，route 级比对) / `SERVICE_CATALOG`(Portal) / `frontend/src/api/schoolSettings.js`(设置写入：纳入零 diff gate，不纳入逐 route 比对，必修⑥)；测试债 = 当前无任一守卫保证以上多方对齐，本计划反例矩阵 + frontend drift 探测消除该债。frontend drift 探测器 `_FRONTEND_DRIFT_PROBES` 须随新增 frontend drift 同步扩展（无探测器即 fail-closed，反例 #13a 保证）。
 
 ---
 
