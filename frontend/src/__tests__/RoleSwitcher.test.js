@@ -80,4 +80,12 @@ describe('RoleSwitcher route safety', () => {
     expect(source).toContain("role.is_primary ? '主身份' : '可切换'")
     expect(source).toContain("'当前'")
   })
+
+  // Phase 0.7A（R5 F-001）：切换身份后用门控上下文判定当前路由可达，移除
+  // `auth.modulesLoaded ? auth.enabledModules : []` fail-open 兜底。
+  it('uses module gate context instead of fail-open empty-array fallback', () => {
+    expect(source).toContain('moduleGateFromAuth(auth)')
+    expect(source).toContain('canAccessRouteForRole(targetRoleKey, route.path, moduleGateFromAuth(auth))')
+    expect(source).not.toContain('auth.modulesLoaded ? auth.enabledModules : []')
+  })
 })

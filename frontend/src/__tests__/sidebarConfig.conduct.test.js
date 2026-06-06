@@ -6,10 +6,14 @@
 import { describe, it, expect } from 'vitest'
 import { getSidebarItems, SIDEBAR_GROUPS } from '../config/sidebarConfig.js'
 import { ROLE_PERMISSIONS } from '../config/permissions.js'
+import { createModuleGate } from '../config/routeAccess.js'
 
 describe('sidebar conduct 条目按角色权限派生', () => {
+  // 本组验证「按角色权限派生 conduct 项」，模块维度正交 → 用 exempt gate 关闭模块过滤，
+  // 避免 Phase 0.7A fail-closed（无模块上下文时隐藏模块项）干扰权限派生断言。
+  const EXEMPT_GATE = createModuleGate({ schoolScoped: false })
   const getConductItems = (role) => {
-    const items = getSidebarItems(role)
+    const items = getSidebarItems(role, EXEMPT_GATE)
     return items.filter(it => it.moduleCode === 'conduct').map(it => it.route)
   }
 

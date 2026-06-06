@@ -92,3 +92,40 @@ describe('AppHeader role navigation', () => {
     expect(text).not.toContain('教师与职务')
   })
 })
+
+// Phase 0.7A（R5 F-001 MED security_design）：移除 moduleFallbacks 放行后，学校用户在模块
+// 未加载/加载失败/空列表时，header 模块导航 fail-closed 隐藏（概览始终保留）；加载并启用后恢复。
+describe('AppHeader module gating fail-closed (Phase 0.7A)', () => {
+  beforeEach(() => {
+    mockAuth.currentRole = { role: 'subject_teacher', school_id: 'school-1' }
+    mockAuth.checkPermission = vi.fn(perm => permissionByRole.subject_teacher?.includes(perm) || false)
+  })
+
+  it('fail-closed: hides module nav when modules loaded but empty (load failed / no module)', () => {
+    mockAuth.modulesLoaded = true
+    mockAuth.enabledModules = []
+    const text = mountHeader().find('.app-header__nav').text()
+    expect(text).not.toContain('相关考试')
+    expect(text).not.toContain('我的阅卷')
+    expect(text).not.toContain('成绩分析')
+    expect(text).not.toContain('作业管理')
+    expect(text).toContain('概览')
+  })
+
+  it('fail-closed: hides module nav when modules not yet loaded (no fallback放行)', () => {
+    mockAuth.modulesLoaded = false
+    mockAuth.enabledModules = []
+    const text = mountHeader().find('.app-header__nav').text()
+    expect(text).not.toContain('相关考试')
+    expect(text).not.toContain('我的阅卷')
+    expect(text).toContain('概览')
+  })
+
+  it('shows module nav once modules are loaded and enabled', () => {
+    mockAuth.modulesLoaded = true
+    mockAuth.enabledModules = ['exam', 'grading', 'study_analytics', 'homework']
+    const text = mountHeader().find('.app-header__nav').text()
+    expect(text).toContain('相关考试')
+    expect(text).toContain('我的阅卷')
+  })
+})

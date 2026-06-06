@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { getRouteAccessRequirement, canAccessRouteForRole, getHeaderNavItems } from '../config/routeAccess.js'
+import {
+  getRouteAccessRequirement,
+  canAccessRouteForRole,
+  getHeaderNavItems,
+  createModuleGate,
+  moduleGateFromAuth,
+  moduleMatches,
+} from '../config/routeAccess.js'
 
 describe('route access requirements', () => {
   it('guards school settings with school config permission', () => {
@@ -45,8 +52,62 @@ describe('route access requirements', () => {
     expect(canAccessRouteForRole('school_admin', '/grading/tasks', ['grading'])).toBe(true)
   })
 
-  it('treats empty enabledModules as no module filter', () => {
-    expect(canAccessRouteForRole('school_admin', '/grading/tasks', [])).toBe(true)
+  // Phase 0.7A（R5 F-001 MED security_design）：翻转旧 fail-open 契约。空列表 = 学校无模块/加载
+  // 失败 → 学校用户对模块 route 一律 fail-closed 拦截，不再「空=不过滤」放行。与 authGuard 一致。
+  it('fail-closed: empty enabledModules blocks module route for school user (legacy array form)', () => {
+    expect(canAccessRouteForRole('school_admin', '/grading/tasks', [])).toBe(false)
+  })
+})
+
+// Phase 0.7A 门控上下文：显式区分 4 态（未加载 / 加载失败 / 学校无模块 / admin 豁免），
+// 取代「空数组同时表达 4 态」。fail-closed 语义与 authGuard(router/index.js) 数学等价。
+describe('module gate fail-closed semantics (Phase 0.7A F-001)', () => {
+  const schoolGate = (enabledModules, modulesLoaded = true) =>
+    createModuleGate({ schoolScoped: true, modulesLoaded, enabledModules })
+
+  it('school user with module loaded + enabled is allowed', () => {
+    expect(canAccessRouteForRole('school_admin', '/grading/tasks', schoolGate(['grading']))).toBe(true)
+  })
+
+  it('school user with module loaded but NOT enabled is blocked', () => {
+    expect(canAccessRouteForRole('school_admin', '/grading/tasks', schoolGate(['exam']))).toBe(false)
+  })
+
+  it('school user with empty enabledModules (no module / load failed) is blocked', () => {
+    expect(canAccessRouteForRole('school_admin', '/grading/tasks', schoolGate([]))).toBe(false)
+  })
+
+  it('school user with modules NOT yet loaded is blocked (fail-closed during load window)', () => {
+    expect(canAccessRouteForRole('school_admin', '/grading/tasks', schoolGate([], false))).toBe(false)
+  })
+
+  it('admin / no school_id is exempt even with empty modules', () => {
+    const adminGate = createModuleGate({ schoolScoped: false, modulesLoaded: false, enabledModules: [] })
+    expect(canAccessRouteForRole('school_admin', '/grading/tasks', adminGate)).toBe(true)
+  })
+
+  it('non-module route is unaffected by gate (permission only)', () => {
+    expect(canAccessRouteForRole('school_admin', '/school-settings', schoolGate([]))).toBe(true)
+    expect(canAccessRouteForRole('parent', '/school-settings', schoolGate(['exam']))).toBe(false)
+  })
+
+  it('moduleMatches: null moduleCode always true; exempt always true; school fail-closed otherwise', () => {
+    expect(moduleMatches(null, schoolGate([]))).toBe(true)
+    expect(moduleMatches('grading', createModuleGate({ schoolScoped: false }))).toBe(true)
+    expect(moduleMatches('grading', schoolGate(['grading']))).toBe(true)
+    expect(moduleMatches('grading', schoolGate([]))).toBe(false)
+    expect(moduleMatches('grading', schoolGate(['grading'], false))).toBe(false)
+  })
+
+  it('moduleGateFromAuth mirrors authGuard: school_id present → scoped; absent → exempt', () => {
+    const schoolAuth = { currentRole: { school_id: 1 }, modulesLoaded: true, enabledModules: ['grading'] }
+    expect(moduleGateFromAuth(schoolAuth)).toEqual({ exempt: false, modulesLoaded: true, enabledModules: ['grading'] })
+
+    const adminAuth = { currentRole: { role: 'platform_admin' }, modulesLoaded: false, enabledModules: [] }
+    expect(moduleGateFromAuth(adminAuth).exempt).toBe(true)
+
+    const loadFailedAuth = { currentRole: { school_id: 1 }, modulesLoaded: true, enabledModules: [] }
+    expect(moduleMatches('grading', moduleGateFromAuth(loadFailedAuth))).toBe(false)
   })
 })
 
