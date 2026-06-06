@@ -53,13 +53,13 @@ export const routes = [
       { path: 'profile/student/:studentId', name: 'StudentProfile', component: () => import('../pages/StudentProfilePage.vue'), meta: { permissions: ['view_scores'], moduleCode: 'study_analytics' } },
 
       // 知识图谱
-      { path: 'knowledge-tree', name: 'KnowledgeTree', component: () => import('../pages/KnowledgeTreePage.vue'), meta: { permissions: ['view_knowledge_tree'], shellMode: 'workspace' } },
+      { path: 'knowledge-tree', name: 'KnowledgeTree', component: () => import('../pages/KnowledgeTreePage.vue'), meta: { permissions: ['view_knowledge_tree'], moduleCode: 'research', shellMode: 'workspace' } },
 
       // 题库
-      { path: 'question-bank', name: 'QuestionBank', component: () => import('../pages/QuestionBankPage.vue'), meta: { permissions: ['view_question_bank'] } },
+      { path: 'question-bank', name: 'QuestionBank', component: () => import('../pages/QuestionBankPage.vue'), meta: { permissions: ['view_question_bank'], moduleCode: 'research' } },
 
       // 错题本
-      { path: 'error-book', name: 'ErrorBook', component: () => import('../pages/ErrorBookPage.vue'), meta: { permissions: ['view_scores'] } },
+      { path: 'error-book', name: 'ErrorBook', component: () => import('../pages/ErrorBookPage.vue'), meta: { permissions: ['view_scores'], moduleCode: 'research' } },
 
       // 联考管理
       { path: 'joint-exams', name: 'JointExams', component: () => import('../pages/JointExamPage.vue'), meta: { permissions: ['view_joint_exam'] } },
@@ -74,10 +74,10 @@ export const routes = [
       { path: 'analytics', redirect: { name: 'AnalyticsReport' } },
 
       // 作业
-      { path: 'homework', name: 'Homework', component: () => import('../pages/HomeworkPage.vue'), meta: { permissions: ['view_homework', 'manage_homework'] } },
+      { path: 'homework', name: 'Homework', component: () => import('../pages/HomeworkPage.vue'), meta: { permissions: ['view_homework', 'manage_homework'], moduleCode: 'homework' } },
 
       // 校历
-      { path: 'calendar', name: 'Calendar', component: () => import('../pages/CalendarPage.vue'), meta: { permissions: ['view_scores'] } },
+      { path: 'calendar', name: 'Calendar', component: () => import('../pages/CalendarPage.vue'), meta: { permissions: ['view_scores'], moduleCode: 'calendar' } },
 
       // 教务管理
       { path: 'academic/semesters', name: 'Semesters', component: () => import('../pages/SemesterPage.vue'), meta: { permissions: ['manage_scheduling'] } },

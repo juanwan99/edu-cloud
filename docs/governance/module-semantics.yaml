@@ -95,6 +95,7 @@ frontend_route_module:
   "/": null  # sidebar「概览」首页 item，全角色可见，不受模块开关控制
   /students: null
   /joint-exams: null
+  /joint-exams/:id: null  # 动态非门控路由（联考详情，联考不受模块开关）；登记 null 使 router_meta 动态 fail-closed 自洽
   /school-settings: null
   /academic/teaching-plans: null
   /academic/timetable: null

@@ -246,8 +246,9 @@ def test_frontend_double_quote_modulecode_parsed(truth):  # 反例 #27（F-002 M
 # ===== R2 收口：门控面按 surface 独立 fail-closed（旧全局并集会被任一面的码掩盖 cross-surface 缺口）=====
 # 门控面 = routeAccess（canAccessRouteForRole→moduleMatches）/ sidebar（按 moduleCode 过滤菜单可见性）/
 #           dashboard（同 sidebar 过滤动作可见性）；三者运行时都消费 moduleCode。
-# router_meta 是纯文档面：authGuard(router/index.js) 只读 roles/permissions，不读 meta.moduleCode →
-#           其缺码不构成 fail-open，不纳入 presence 检查（设计决策 2026-06-06，体系设计者确认）。
+# router_meta 自 F-002 路径2（2026-06-06 设计者改判）起亦为门控面：authGuard(router/index.js:180) 消费
+#           to.meta.moduleCode → 受控 route 缺码=fail-open。因 surface=全路由表，用专属检查（受控覆盖+动态
+#           fail-closed），见 _compare_frontend (3) 段与下方 test_frontend_router_meta_* 用例。
 
 def test_frontend_routeaccess_missing_modulecode_despite_other_surfaces_fails(truth):  # R2-A1
     # /exams 在 sidebar/router_meta 都有码，但 routeAccess 门控面缺码 → routeAccess 必须独立报红（不被并集掩盖）
@@ -273,13 +274,47 @@ def test_frontend_dashboard_missing_modulecode_despite_routeaccess_fails(truth):
     assert any("/homework" in e and "dashboard" in e and "moduleCode" in e for e in errs), errs
 
 
-def test_frontend_router_meta_missing_modulecode_despite_routeaccess_passes(truth):  # R2-A4：router_meta 文档面豁免锁
-    # /exams 在 routeAccess 有码，router_meta 缺码 → router_meta 非门控面，不报红（门控由 routeAccess 承载）。
-    # 锁住设计决策：cross-surface 独立 fail-closed 只作用于门控面，router_meta 缺码不算 fail-open。
+def test_frontend_router_meta_controlled_missing_modulecode_fails(truth):  # F-002 路径2：取代旧 R2-A4 文档面豁免锁
+    # /exams 受控（fr=exam），即便 routeAccess 有码，router_meta 缺码也报红——router_meta 已升为门控面
+    # （authGuard 消费 to.meta），路径2 要求每个受控 route 在 router_meta 标码。旧 R2-A4「router_meta 缺码 passes」
+    # 已废止（它正是放过 R4 F-001 profile fail-open 的豁免锁）。
     parsed = {"routeAccess": {"/exams": "exam"}, "router_meta": {}, "sidebar": {}, "dashboard": {},
               "_surface_routes": {"routeAccess": {"/exams"}, "router_meta": {"/exams"}}}
     errs = cms._compare_frontend(truth, parsed)
-    assert not any("/exams" in e and "moduleCode" in e for e in errs), errs
+    assert any("/exams" in e and "router_meta" in e and "moduleCode" in e for e in errs), errs
+
+
+def test_frontend_router_meta_dynamic_controlled_missing_modulecode_fails(truth):  # F-002 路径2：受控动态 route 缺码（根治 F-001）
+    # /profile/student/:studentId 受控（fr=study_analytics），router_meta 露出却无码 → 报。
+    # 这正是 R4 F-001 的 fail-open 形态：动态路由 authGuard 唯一靠 to.meta，缺码=直达 fail-open。
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"router_meta": {"/profile/student/:studentId"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/profile/student/:studentId" in e and "moduleCode" in e for e in errs), errs
+
+
+def test_frontend_router_meta_dynamic_unregistered_fails(truth):  # F-002 路径2：动态未登记 route fail-closed
+    # 新增动态 route /widget/:id 仅在 router_meta 露出、未登记 fr → fail-closed（防新动态受控路由漏登记逃检）。
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"router_meta": {"/widget/:id"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/widget/:id" in e and "未在 frontend_route_module 声明" in e for e in errs), errs
+
+
+def test_frontend_router_meta_dynamic_null_route_passes(truth):  # F-002 路径2：动态 null route（如 /joint-exams/:id）放行
+    # /joint-exams/:id 真源=null（联考不受模块门控），动态但登记 null → 不 fail-closed、不报缺码。
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"router_meta": {"/joint-exams/:id"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert not any("/joint-exams/:id" in e for e in errs), errs
+
+
+def test_frontend_router_meta_catchall_route_passes(truth):  # F-002 路径2：catch-all 404 路由不误报
+    # Vue Router catch-all /:pathMatch(.*)* 是框架级 404 redirect，不经模块门控 → (b) 排除，不报。
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"router_meta": {"/:pathMatch(.*)*"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert not any("pathMatch" in e for e in errs), errs
 
 
 # ===== codex-review F-001 MED 修复：route 字段无序解析 =====
@@ -355,8 +390,10 @@ def test_frontend_unregistered_route_no_code_dashboard_fails(truth):  # 反例 #
     assert any("/brand-new" in e for e in errs), errs
 
 
-def test_frontend_unregistered_route_no_code_router_meta_passes(truth):  # 反例 #31：router_meta 非门控面不报
-    # 未登记 route 仅在 router_meta（非门控文档面）露出无码 → 不算 fail-open（设计决策 2026-06-06），不报红
+def test_frontend_unregistered_static_route_only_router_meta_passes(truth):  # F-002 路径2：静态未登记仅 router_meta 不 fail-closed
+    # 静态未登记 route 仅在 router_meta 露出无码 → 不报。router_meta 门控面只对「动态」route fail-closed
+    # （动态 authGuard 唯一靠 to.meta）；静态 route 门控由 routeAccess/sidebar/dashboard 承载，其 fail-closed 兜底。
+    # 这类「无 routeAccess 码 + 无 meta 码」的静态 route 在 runtime 本就不门控（等价 null），不报是 fail-open-safe。
     parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
               "_surface_routes": {"router_meta": {"/brand-new"}}}
     errs = cms._compare_frontend(truth, parsed)

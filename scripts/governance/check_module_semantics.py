@@ -235,9 +235,10 @@ def _compare_frontend(truth: dict, parsed: dict) -> list[str]:
     #     routeAccess（canAccessRouteForRole→moduleMatches，路由访问门控）
     #     sidebar（children.filter(c=>!c.moduleCode||enabled.has(c.moduleCode))，菜单可见性）
     #     dashboard（同 sidebar 模式按 moduleCode 过滤动作可见性）
-    #   router_meta 非门控面：authGuard(router/index.js) 只读 roles/permissions，不消费 meta.moduleCode（纯文档面，
-    #     真实 router meta 对 /calendar /error-book 等受控 route 本就无 moduleCode）→ 缺码不算 fail-open。
-    #     设计决策 2026-06-06（体系设计者确认）。
+    #   router_meta（authGuard router/index.js:180 消费 `requirement?.moduleCode || to.meta?.moduleCode`）自
+    #     2026-06-06（设计者改判，F-002 路径2）起为运行时门控源，不再是纯文档面。但其 surface = 全路由表
+    #     （含 /login /parent 等基础设施路由），不能并入 GATING_SURFACES 的整面 fail-closed（否则误伤非门控
+    #     路由），改由本函数末尾 (3) 段做「受控覆盖 + 动态 fail-closed」专属校验。
     GATING_SURFACES = ("routeAccess", "sidebar", "dashboard")
     ALL_SURFACES = ("routeAccess", "sidebar", "dashboard", "router_meta")
     surface_routes = parsed.get("_surface_routes")
@@ -272,6 +273,27 @@ def _compare_frontend(truth: dict, parsed: dict) -> list[str]:
                 else:
                     errs.append(f"前端受控 route {route} 在门控面 {surface} 露出但缺失 moduleCode"
                                 f"（真源期望 {fr[route]}，fail-open 缺口，codex-review F-001/R2）")
+        # (3) router_meta 门控面（F-002 路径2，2026-06-06 设计者确认）：authGuard 消费 to.meta.moduleCode →
+        #     router_meta 已是运行时门控源。因 surface=全路由表，不套用上方整面 fail-closed（避免误伤
+        #     /login /parent 等基础设施路由），改两条专属规则：
+        #       (a) 受控覆盖：每个受控 route（fr 非 null）若在 router_meta 露出，必须标 moduleCode。
+        #       (b) 动态 fail-closed：router_meta 中含动态段(:)的 route 必须在 fr 登记——动态路由 authGuard
+        #           唯一靠 to.meta（routeAccess 精确 key 匹配不到模板），漏登记=漏码=fail-open（根治 F-001）。
+        rm_surface = surface_routes.get("router_meta", set())
+        rm_declared = set(parsed.get("router_meta", {}).keys())
+        for route, want in fr.items():  # (a) 受控覆盖
+            if want is None:
+                continue
+            if route in rm_surface and route not in rm_declared:
+                errs.append(f"前端受控 route {route} 在门控面 router_meta 露出但缺失 moduleCode"
+                            f"（authGuard 消费 to.meta，fail-open 缺口，codex-review F-002 路径2）")
+        for route in sorted(rm_surface):  # (b) 动态 fail-closed
+            if ":" not in route or "(.*)" in route or route in rm_declared:
+                continue  # 非动态 / catch-all(/:pathMatch(.*)* 框架级 404，redirect 不门控) / 已有码 → 跳过
+            if route not in fr:
+                errs.append(f"前端动态 route {route} 在 router_meta 露出但未在 frontend_route_module 声明"
+                            f"（动态路由唯一靠 to.meta，fail-closed，codex-review F-002 路径2）")
+            # route in fr 且 fr[route] is None（动态 null route，如 /joint-exams/:id）→ 不受门控，放行
     return errs
 
 
