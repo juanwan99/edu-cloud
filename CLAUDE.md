@@ -49,6 +49,8 @@ cd frontend && npx vitest run                    # 前端
 
 > Phase 0.7A（已实施，处置 R5 F-001 MED security_design）：前端**可见性 surface** 统一 fail-closed。`routeAccess.js` 新增显式门控上下文 `createModuleGate`/`moduleGateFromAuth`（`{exempt,modulesLoaded,enabledModules}`），取代「空数组同时表达 未加载/失败/无模块/admin豁免」的 fail-open；`moduleMatches` 改 fail-closed（exempt 显式豁免）。`AppSidebar`/`AppHeader`/`RoleSwitcher`/`DashboardPage` 4 个 surface 经 `moduleGateFromAuth(auth)` 取门控，与 `authGuard` 数学等价（allow IFF 无 school_id 豁免 OR (已加载 && 启用)）；删 `AppHeader.moduleFallbacks` + `DashboardPage` 死代码 fallback。authGuard 不动。R6/R7 codex F-001：`RoleSwitcher` 切换身份后对**当前已匹配路由**改用 `canAccessMatchedRoute(role, path, route.meta, gate)`（routeAccess.js）——覆盖静态精确表 ∪ 动态 `route.meta`（**权限 + 模块**两维，与 authGuard 同源），堵动态子路由（`/exams/:id`、`/exams/:examId/ai-grading/:subjectId`）「停留动态模块/高权页 → 切到未启用该模块或无该权限的身份」绕过 fail-closed。
 
+> Phase 0.7B（drift burn-down，进行中）：后端中间件门控硬化。`module_middleware.py` 抽 `resolve_module_code`/`_longest_prefix_match`，匹配规则由 dict 插入序首匹配改为**最长前缀优先**，与守卫 `check_module_semantics._actual_gating` 严格同算法（exempt-first → ROUTE_MODULE_MAP 最长前缀；exempt 与 gated 前缀集互斥，重排 inert）——收口 R5-DC2 规则漂移（守卫绿但运行时重叠前缀可命中错误模块）。
+
 ## 按需上下文（需要时 Read）
 
 | 信息 | 路径 |

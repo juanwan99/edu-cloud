@@ -58,21 +58,42 @@ EXEMPT_PREFIXES = (
 )
 
 
+def _longest_prefix_match(path: str, route_map: dict) -> str | None:
+    """Return the module_code of the LONGEST matching prefix, or None.
+
+    Phase 0.7B item3 (R5-DC2): aligns with the guard
+    ``check_module_semantics._actual_gating`` which iterates
+    ``sorted(route_map, key=len, reverse=True)``. The previous dict
+    insertion-order first-match could resolve an overlapping prefix
+    (e.g. ``/api/v1/knowledge`` before ``/api/v1/knowledge-tree``) to a
+    different module than the guard models, producing a silent runtime drift.
+    """
+    for prefix in sorted(route_map, key=len, reverse=True):
+        if path.startswith(prefix):
+            return route_map[prefix]
+    return None
+
+
+def resolve_module_code(path: str) -> str | None:
+    """Decide the module_code to gate ``path`` on, or None to pass through.
+
+    Mirrors the guard's decision algorithm exactly: exempt prefixes first
+    (never gated), then longest-prefix gated match. Exempt and gated prefix
+    sets are disjoint, so the exempt-first ordering is behaviourally inert
+    today and only locks the two algorithms together against future overlap.
+    """
+    if any(path.startswith(p) for p in EXEMPT_PREFIXES):
+        return None
+    return _longest_prefix_match(path, ROUTE_MODULE_MAP)
+
+
 class ModuleCheckMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         path = request.url.path
 
-        # Skip exempt paths
-        if any(path.startswith(p) for p in EXEMPT_PREFIXES):
-            return await call_next(request)
-
-        # Find matching module
-        module_code = None
-        for prefix, code in ROUTE_MODULE_MAP.items():
-            if path.startswith(prefix):
-                module_code = code
-                break
-
+        # Resolve module via the shared guard-aligned decision (exempt-first,
+        # then longest-prefix gated). None => exempt or unmapped => pass through.
+        module_code = resolve_module_code(path)
         if module_code is None:
             return await call_next(request)
 

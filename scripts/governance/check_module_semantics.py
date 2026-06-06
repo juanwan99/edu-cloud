@@ -70,13 +70,15 @@ def _actual_gating(prefix: str, repo: Path) -> str:
     route_map = dict(re.findall(r'"(/api/v1/[^"]+)"\s*:\s*"([a-z_]+)"', mp))
     ex = re.search(r"EXEMPT_PREFIXES\s*=\s*\((.*?)\)", src, re.S).group(1)
     exempt = re.findall(r'"(/[^"]+)"', ex)
-    # middleware 用 startswith：最长匹配优先以稳定判定
-    for p in sorted(route_map, key=len, reverse=True):
-        if prefix.startswith(p):
-            return f"gated:{route_map[p]}"
+    # 与 module_middleware.resolve_module_code 严格同算法（0.7B item3 / R5-DC2）：
+    # exempt-first（基础设施永不门控），再 ROUTE_MODULE_MAP 最长前缀匹配。exempt 与 gated 前缀集互斥，
+    # 故 exempt-first 当前对所有判定 inert，仅把守卫模型与运行时锁死为同一算法以防未来重叠前缀分歧。
     for p in exempt:
         if prefix.startswith(p):
             return "exempt"
+    for p in sorted(route_map, key=len, reverse=True):
+        if prefix.startswith(p):
+            return f"gated:{route_map[p]}"
     return "pass-through"
 
 
