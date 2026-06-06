@@ -121,7 +121,9 @@ export const useAuthStore = defineStore('auth', () => {
       enabledModules.value = data
       modulesLoaded.value = true
     } catch {
-      enabledModules.value = ['exam', 'grading', 'calendar', 'studio']
+      // Phase 0.6 F-002 R3：API 失败给空列表而非默认 4 模块，使 authGuard 对有校用户 fail-closed
+      // （旧默认 4 模块会让已关闭模块经直达 URL 绕过门控）。modulesLoaded=true 标记「已尝试加载」。
+      enabledModules.value = []
       modulesLoaded.value = true
     }
   }

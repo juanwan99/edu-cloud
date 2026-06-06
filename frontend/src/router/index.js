@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AppShell from '../layouts/AppShell.vue'
 import { normalizeRole } from '../config/roles.js'
 import { hasPermission } from '../config/permissions.js'
-import { getRouteAccessRequirement, moduleMatches } from '../config/routeAccess.js'
+import { getRouteAccessRequirement } from '../config/routeAccess.js'
 import clientLogger from '../utils/clientLogger.js'
 
 function decodeJwtPayload(token) {
@@ -168,19 +168,26 @@ export async function authGuard(to, from, next) {
     } catch { return next('/') }
   }
 
-  // Phase 0.6 直达 URL 模块门控（fail-closed）：roles/permissions 通过后，按 routeAccess 真源的 moduleCode
-  // + 学校 enabledModules 二次门控，堵住「有权限但模块已关」经直达 URL 绕过 sidebar/routeAccess 的缺口。
+  // Phase 0.6 直达 URL 模块门控（fail-closed）：roles/permissions 通过后，按学校 enabledModules 二次门控，
+  // 堵住「有权限但模块已关」经直达 URL 绕过 sidebar/routeAccess 的缺口。
+  //   moduleCode 真源：routeAccess（静态 route 全覆盖）∪ to.meta.moduleCode（动态路由 /exams/:id 等，
+  //     getRouteAccessRequirement 精确 key 不匹配模板，靠 Vue Router 合并的 meta 兜底，F-001 R3）。
   //   DP1：modulesLoaded=false（刷新瞬间）先 await loadModules，不在加载空窗放行。
-  //   DP2：模块关闭命中 → next('/')，与 roles/permissions 拦截行为一致。
-  //   moduleCode 缺失 / null route（不受门控）→ requirement.moduleCode 为空，跳过门控。
+  //   F-002 R3 fail-closed：有 school_id 的登录用户，模块态必须「已成功加载且 moduleCode 在真实启用列表」，
+  //     否则拦截（不再因 enabledModules 空/加载失败而放行）。admin/平台角色无 school_id → 不受学校模块限制（保留）。
+  //   DP2：命中拦截 → next('/')。moduleCode 缺失 / null route（不受门控）→ 跳过。
   const requirement = getRouteAccessRequirement(to.path)
-  if (requirement?.moduleCode) {
+  const moduleCode = requirement?.moduleCode || to.meta?.moduleCode
+  if (moduleCode) {
     const { useAuthStore } = await import('../stores/auth.js')
     const auth = useAuthStore()
     if (!auth.modulesLoaded) {
-      try { await auth.loadModules() } catch { /* 加载失败保持现值，按下方 moduleMatches 判定 */ }
+      try { await auth.loadModules() } catch { /* 失败→enabledModules 空，有校身份下方 fail-closed 拦截 */ }
     }
-    if (!moduleMatches(requirement.moduleCode, auth.enabledModules)) return next('/')
+    const hasSchool = !!auth.currentRole?.school_id
+    if (hasSchool && !(auth.modulesLoaded && auth.enabledModules.includes(moduleCode))) {
+      return next('/')
+    }
   }
   next()
 }

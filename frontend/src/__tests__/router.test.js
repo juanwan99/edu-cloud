@@ -340,10 +340,11 @@ describe('authGuard module gating (Phase 0.6)', () => {
     setActivePinia(createPinia())
   })
 
-  function authedAs(role, { enabledModules, modulesLoaded } = {}) {
+  // schoolId 默认 1（有校身份 → fail-closed 门控生效）；传 null 模拟 admin/平台角色（无校豁免，F-002 保留 feature）
+  function authedAs(role, { enabledModules, modulesLoaded, schoolId = 1 } = {}) {
     localStorage.setItem('token', VALID_JWT)
     localStorage.setItem('auth_state', JSON.stringify({
-      roles: [{ role, context: {} }], currentRoleIndex: 0,
+      roles: [{ role, context: {}, school_id: schoolId }], currentRoleIndex: 0,
     }))
     const auth = useAuthStore()
     if (enabledModules !== undefined) auth.enabledModules = enabledModules
@@ -351,7 +352,7 @@ describe('authGuard module gating (Phase 0.6)', () => {
     return auth
   }
 
-  it('blocks direct URL to exam route when exam module disabled', async () => {
+  it('blocks direct URL to exam route when exam disabled (school user)', async () => {
     authedAs('academic_director', { enabledModules: ['grading'], modulesLoaded: true })
     const router = createTestRouter()
     await router.push('/exams')
@@ -359,7 +360,7 @@ describe('authGuard module gating (Phase 0.6)', () => {
     expect(router.currentRoute.value.path).toBe('/')
   })
 
-  it('allows direct URL when exam module enabled', async () => {
+  it('allows direct URL when exam enabled (school user)', async () => {
     authedAs('academic_director', { enabledModules: ['exam'], modulesLoaded: true })
     const router = createTestRouter()
     await router.push('/exams')
@@ -367,7 +368,7 @@ describe('authGuard module gating (Phase 0.6)', () => {
     expect(router.currentRoute.value.path).toBe('/exams')
   })
 
-  it('fail-closed: awaits loadModules when modules not yet loaded, then gates', async () => {
+  it('fail-closed: awaits loadModules when not loaded, then gates (school user)', async () => {
     const auth = authedAs('academic_director', { modulesLoaded: false })
     auth.loadModules = vi.fn(async () => {
       auth.enabledModules = ['grading']  // exam 关闭
@@ -380,7 +381,7 @@ describe('authGuard module gating (Phase 0.6)', () => {
     expect(router.currentRoute.value.path).toBe('/')
   })
 
-  it('does not gate when module enabled even if loaded lazily', async () => {
+  it('allows when module enabled even if loaded lazily (school user)', async () => {
     const auth = authedAs('academic_director', { modulesLoaded: false })
     auth.loadModules = vi.fn(async () => {
       auth.enabledModules = ['exam']
@@ -392,8 +393,44 @@ describe('authGuard module gating (Phase 0.6)', () => {
     expect(router.currentRoute.value.path).toBe('/exams')
   })
 
+  // F-001 R3：动态路由直达必须门控。getRouteAccessRequirement 精确 key 不匹配模板 /exams/:id，
+  // 靠 Vue Router 合并的 to.meta.moduleCode 兜底。
+  it('blocks dynamic detail URL /exams/:id when exam disabled (school user)', async () => {
+    authedAs('academic_director', { enabledModules: ['grading'], modulesLoaded: true })
+    const router = createTestRouter()
+    await router.push('/exams/123')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('allows dynamic detail URL /exams/:id when exam enabled (school user)', async () => {
+    authedAs('academic_director', { enabledModules: ['exam'], modulesLoaded: true })
+    const router = createTestRouter()
+    await router.push('/exams/123')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/exams/123')
+  })
+
+  // F-002 R3：有校身份 + enabledModules 空（加载失败/未配置）→ fail-closed 拦截（不再因空而放行）。
+  it('fail-closed: school user with empty enabledModules is blocked', async () => {
+    authedAs('academic_director', { enabledModules: [], modulesLoaded: true })
+    const router = createTestRouter()
+    await router.push('/exams')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  // F-002 R3：admin/平台角色无 school_id → 不受学校模块限制（feature 保留），即使 enabledModules 空也放行。
+  it('admin without school_id bypasses module gating', async () => {
+    authedAs('academic_director', { enabledModules: [], modulesLoaded: true, schoolId: null })
+    const router = createTestRouter()
+    await router.push('/exams')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/exams')
+  })
+
   it('does not gate uncontrolled (null) routes like /students', async () => {
-    authedAs('platform_admin', { enabledModules: [], modulesLoaded: true })
+    authedAs('platform_admin', { enabledModules: [], modulesLoaded: true, schoolId: null })
     const router = createTestRouter()
     await router.push('/students')
     await router.isReady()

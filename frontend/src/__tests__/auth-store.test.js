@@ -286,3 +286,24 @@ describe('auth store switchRole()', () => {
     expect(store.currentRoleIndex).toBe(0)
   })
 })
+
+
+describe('loadModules fail-closed (Phase 0.6 F-002)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorage.clear()
+  })
+
+  // F-002 R3：API 失败给空列表（而非默认 4 模块），使 authGuard 对有校用户 fail-closed。
+  it('sets empty enabledModules (not default 4) when getEnabledModules API fails', async () => {
+    client.get.mockRejectedValueOnce(new Error('api down'))
+    localStorage.setItem('token', 'fake-jwt')
+    localStorage.setItem('auth_state', JSON.stringify({
+      roles: [{ role: 'academic_director', context: {}, school_id: 1 }], currentRoleIndex: 0,
+    }))
+    const store = useAuthStore()
+    await store.loadModules()
+    expect(store.enabledModules).toEqual([])
+    expect(store.modulesLoaded).toBe(true)
+  })
+})
