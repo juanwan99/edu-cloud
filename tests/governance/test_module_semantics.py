@@ -190,3 +190,54 @@ def test_frontend_drift_locus_mismatch_fails(truth):  # 反例 #22（Task 5.1）
             d["locus"] = "wrong-locus"  # 篡改登记 locus，与 probe 契约不符 → 四元组失配红
     errs = cms.check_frontend_drift(bad, REPO)
     assert any("studio-frontend-entry-missing" in e and "F-003" in e for e in errs), errs
+
+
+# ===== codex-review F-001/F-002 修复：前端 fail-closed 缺口 =====
+# F-001 反例：受控 route 在某 surface 露出但全部露出面均缺失 moduleCode → fail-open 缺口必须报红。
+#   _surface_routes 携带每个 surface 实际出现的全部 route（含无 moduleCode 者）；旧格式 parsed（无此键）退化跳过。
+
+def test_frontend_routeaccess_missing_modulecode_fails(truth):  # 反例 #23（F-001 HIGH）
+    # /exams 真源=exam（受控），在 routeAccess 露出却无 moduleCode → fail-open，必须报红
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"routeAccess": {"/exams"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/exams" in e and "moduleCode" in e for e in errs), errs
+
+
+def test_frontend_router_meta_missing_modulecode_fails(truth):  # 反例 #24（F-001 HIGH）
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"router_meta": {"/exams"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/exams" in e and "moduleCode" in e for e in errs), errs
+
+
+def test_frontend_sidebar_missing_modulecode_fails(truth):  # 反例 #25（F-001 HIGH）
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"sidebar": {"/exams"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/exams" in e and "moduleCode" in e for e in errs), errs
+
+
+def test_frontend_dashboard_missing_modulecode_fails(truth):  # 反例 #26（F-001 HIGH）
+    # /homework 真源=homework（受控），在 dashboard 露出却无 moduleCode → 报红
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"dashboard": {"/homework"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/homework" in e and "moduleCode" in e for e in errs), errs
+
+
+def test_frontend_null_route_missing_modulecode_passes(truth):  # 反例 #23b：null route 缺码不应报（本就不该 gating）
+    # /students 真源=null，在 routeAccess 露出且无 moduleCode → 正确，不报红
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"routeAccess": {"/students"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert not any("/students" in e and "moduleCode" in e for e in errs), errs
+
+
+def test_frontend_double_quote_modulecode_parsed(truth):  # 反例 #27（F-002 MED）：双引号字面量须被解析并比对
+    # 双引号写法 "/exams": { moduleCode: "conduct" } 须解析为 {/exams: conduct} 并因与真源 exam 不一致而报红
+    pairs = cms._parse_route_module_pairs('"/exams": { permission: "view_exams", moduleCode: "conduct" }')
+    assert pairs == {"/exams": "conduct"}, pairs
+    parsed = {"routeAccess": pairs, "router_meta": {}, "sidebar": {}, "dashboard": {}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/exams" in e and "不一致" in e for e in errs), errs

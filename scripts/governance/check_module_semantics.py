@@ -121,6 +121,12 @@ def check_backend(truth: dict, repo: Path) -> list[str]:
     return _compare_backend(truth, discovered)
 
 
+# 引号字面量（F-002）：JS 中 route/moduleCode 既可单引号也可双引号，守卫两者都须识别，
+# 否则人工/格式化改成双引号后 frontend drift 与野值码会被漏检，流水线误报 clean。
+_Q = r"['\"]"          # 单或双引号定界符
+_NQ = r"[^'\"]"        # route/path 字面量内容（不含任何引号）
+
+
 def _strip_js_comments(text: str) -> str:
     text = re.sub(r"//.*", "", text)
     return re.sub(r"/\*.*?\*/", "", text, flags=re.S)
@@ -128,32 +134,60 @@ def _strip_js_comments(text: str) -> str:
 
 def _parse_route_module_pairs(text: str) -> dict[str, str]:
     """提取形如 '/route': { ... moduleCode: 'x' } 或 path:'/r' ... moduleCode:'x' 的对。
-    采用对象级扫描：先按 moduleCode 邻域回溯最近的 route/path 字面量。"""
+    采用对象级扫描：先按 moduleCode 邻域回溯最近的 route/path 字面量。单/双引号均识别（F-002）。"""
     text = _strip_js_comments(text)
     pairs: dict[str, str] = {}
     # routeAccess: '/route': { permission..., moduleCode: 'x' }
-    for m in re.finditer(r"'(/[^']*)'\s*:\s*\{[^}]*moduleCode:\s*'([a-z_]+)'", text):
+    for m in re.finditer(_Q + r"(/" + _NQ + r"*)" + _Q + r"\s*:\s*\{[^}]*moduleCode:\s*" + _Q + r"([a-z_]+)" + _Q, text):
         pairs[m.group(1)] = m.group(2)
     # router meta: { path: 'r', ... meta: { ... moduleCode: 'x' } }
-    for m in re.finditer(r"path:\s*'([^']+)'[^}]*moduleCode:\s*'([a-z_]+)'", text):
+    for m in re.finditer(r"path:\s*" + _Q + r"(" + _NQ + r"+)" + _Q + r"[^}]*moduleCode:\s*" + _Q + r"([a-z_]+)" + _Q, text):
         route = m.group(1)
         route = route if route.startswith("/") else "/" + route
         pairs.setdefault(route, m.group(2))
     return pairs
 
 
+def _surface_route_set(text: str, kind: str) -> set[str]:
+    """提取某 surface 实际出现的全部 route 字面量（含**不带 moduleCode** 者）——
+    F-001 fail-closed 检查的分母。kind ∈ {object_key, path_field, route_field}，单/双引号均识别。"""
+    text = _strip_js_comments(text)
+    if kind == "object_key":      # routeAccess: '/route': { ... }
+        return set(re.findall(_Q + r"(/" + _NQ + r"*)" + _Q + r"\s*:\s*\{", text))
+    if kind == "path_field":      # router meta: path: 'r'（归一化前导 /）
+        out: set[str] = set()
+        for r in re.findall(r"path:\s*" + _Q + r"(" + _NQ + r"+)" + _Q, text):
+            out.add(r if r.startswith("/") else "/" + r)
+        return out
+    # route_field: sidebar / dashboard 的 route: '/route'
+    return set(re.findall(r"route:\s*" + _Q + r"(/" + _NQ + r"*)" + _Q, text))
+
+
+_ROUTE_FIELD_MC = (r"route:\s*" + _Q + r"(/" + _NQ + r"*)" + _Q + r"[^}]*moduleCode:\s*" + _Q + r"([a-z_]+)" + _Q)
+
+
 def parse_frontend(repo: Path) -> dict:
     fe = repo / "frontend/src"
-    route_access = _parse_route_module_pairs((fe / "config/routeAccess.js").read_text(encoding="utf-8"))
-    router_meta = _parse_route_module_pairs((fe / "router/index.js").read_text(encoding="utf-8"))
+    ra_txt = (fe / "config/routeAccess.js").read_text(encoding="utf-8")
+    rm_txt = (fe / "router/index.js").read_text(encoding="utf-8")
     sidebar_txt = _strip_js_comments((fe / "config/sidebarConfig.js").read_text(encoding="utf-8"))
-    sidebar = dict(re.findall(r"route:\s*'(/[^']*)'[^}]*moduleCode:\s*'([a-z_]+)'", sidebar_txt))
     dash_txt = _strip_js_comments((fe / "pages/DashboardPage.vue").read_text(encoding="utf-8"))
+    route_access = _parse_route_module_pairs(ra_txt)
+    router_meta = _parse_route_module_pairs(rm_txt)
+    sidebar = dict(re.findall(_ROUTE_FIELD_MC, sidebar_txt))
     # dashboard action 带 route 字段（DashboardPage.vue:435,444,455,465,474），解析 (route, moduleCode) 对，
     # 复用 sidebar 同款正则 → 升级为 route 级比对（必修③，不再只野值检查）
-    dashboard = dict(re.findall(r"route:\s*'(/[^']*)'[^}]*moduleCode:\s*'([a-z_]+)'", dash_txt))
+    dashboard = dict(re.findall(_ROUTE_FIELD_MC, dash_txt))
+    # _surface_routes：每个 surface 实际露出的全部 route（含无 moduleCode 者），F-001 fail-closed 分母。
+    surface_routes = {
+        "routeAccess": _surface_route_set(ra_txt, "object_key"),
+        "router_meta": _surface_route_set(rm_txt, "path_field"),
+        "sidebar": _surface_route_set(sidebar_txt, "route_field"),
+        "dashboard": _surface_route_set(dash_txt, "route_field"),
+    }
     return {"routeAccess": route_access, "router_meta": router_meta,
-            "sidebar": sidebar, "dashboard": dashboard}
+            "sidebar": sidebar, "dashboard": dashboard,
+            "_surface_routes": surface_routes}
 
 
 def _compare_frontend(truth: dict, parsed: dict) -> list[str]:
@@ -181,6 +215,24 @@ def _compare_frontend(truth: dict, parsed: dict) -> list[str]:
                  + list(parsed["routeAccess"].values()) + list(parsed["router_meta"].values())):
         if code not in codes:
             errs.append(f"前端出现野值 moduleCode={code}（∉ 9 开关码）")
+    # F-001 fail-closed（codex-review HIGH）：受控 route（真源非 null）若在前端某 surface 露出，
+    # 却在**所有**露出它的 surface 都缺失 moduleCode → 门控声明彻底丢失 = fail-open 缺口，必须报红。
+    # 原实现只遍历「已解析出 moduleCode 的对」，删掉 moduleCode 即逃过检测（fail-open）。
+    # 分母 = _surface_routes（含无 moduleCode 的 route）。门控真正执行点是 routeAccess.moduleMatches，
+    # router_meta 等冗余面缺码不算缺口（只要任一面已声明即门控存在）；旧格式 parsed 无此键时退化跳过。
+    surface_routes = parsed.get("_surface_routes")
+    if surface_routes:
+        declared = set()
+        for surface in ("routeAccess", "sidebar", "dashboard", "router_meta"):
+            declared |= set(parsed.get(surface, {}).keys())
+        for route, want in fr.items():
+            if want is None:
+                continue  # null route 本就不该 gating，缺 moduleCode 正确
+            appears = sorted(s for s in ("routeAccess", "sidebar", "dashboard", "router_meta")
+                             if route in surface_routes.get(s, set()))
+            if appears and route not in declared:
+                errs.append(f"前端受控 route {route} 在 surface {appears} 露出但所有面均缺失 moduleCode"
+                            f"（真源期望 {want}，fail-open 缺口，codex-review F-001）")
     return errs
 
 
