@@ -34,10 +34,12 @@ def test_backend_passes_on_real(truth):
 
 
 def test_backend_unregistered_drift_id_fails(truth):  # 反例 #1 假修复
+    # 0.7B：conduct/exam-imports drift 已收口删除，改用仍保留的 academic-backend-fail-open 作范例。
+    # 删其 known_drift 登记但 backend_routes 仍引用 → 守卫报「引用的 drift 不在 known_drift」。
     bad = copy.deepcopy(truth)
-    bad["known_drift"] = [d for d in bad["known_drift"] if d["id"] != "conduct-backend-fail-open"]
+    bad["known_drift"] = [d for d in bad["known_drift"] if d["id"] != "academic-backend-fail-open"]
     errs = cms.check_backend(bad, REPO)
-    assert any("/api/v1/conduct" in e for e in errs)
+    assert any("/api/v1/academic" in e for e in errs)
 
 
 def test_backend_new_passthrough_prefix_fails(truth):  # 反例 #2 fail-closed
@@ -59,12 +61,13 @@ def test_backend_route_discovery_covers_decorator(truth):  # 反例 #11 base-pre
 
 
 def test_backend_drift_tuple_mismatch_fails(truth):  # 反例 #12 元组漂移
+    # 0.7B：改用仍保留的 academic-backend-fail-open（conduct 已收口）。
     bad = copy.deepcopy(truth)
     for d in bad["known_drift"]:
-        if d["id"] == "conduct-backend-fail-open":
-            d["actual"] = "gated:conduct"  # 谎称已修，但实际仍 pass-through
+        if d["id"] == "academic-backend-fail-open":
+            d["actual"] = "gated:teaching"  # 谎称已修，但实际仍 pass-through
     errs = cms.check_backend(bad, REPO)
-    assert any("conduct-backend-fail-open" in e for e in errs)
+    assert any("academic-backend-fail-open" in e for e in errs)
 
 
 def test_backend_stale_truth_prefix_fails(truth):  # 反例 #14（F2）：真源声明但 discovery 未发现

@@ -37,6 +37,10 @@ ROUTE_MODULE_MAP = {
     "/api/v1/pipeline": "exam",
     "/api/v1/knowledge-tree": "research",
     "/api/v1/bank": "research",
+    # Phase 0.7B item4: 收口后端 fail-open drift（参照 0.6C profile）。前端 /conduct、/exam-import
+    # 已标 moduleCode（authGuard 已 fail-close 导航），后端补同源门控 = 模块关闭即功能不可用。
+    "/api/v1/conduct": "conduct",
+    "/api/v1/exam-imports": "exam",
 }
 
 # Paths that are never blocked (core infrastructure + base info)
@@ -53,6 +57,13 @@ EXEMPT_PREFIXES = (
     "/api/v1/notifications",
     "/api/v1/llm-config",
     "/api/v1/workspace",
+    # Phase 0.7B item5: 收口 hygiene drift——这些入口本就 pass-through（不在 MAP），显式入 exempt
+    # 令豁免意图可见（行为零变更）。menus/portal/grades/teachers 为跨模块基础信息，client-logs 为前端日志回传。
+    "/api/v1/menus",
+    "/api/v1/portal",
+    "/api/v1/grades",
+    "/api/v1/teachers",
+    "/api/v1/client-logs",
     "/docs",
     "/openapi.json",
 )

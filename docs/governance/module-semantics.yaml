@@ -47,14 +47,14 @@ backend_routes:
   /api/v1/studio:           { expect: "gated:studio" }
   /api/v1/homework:         { expect: "gated:homework" }
   /api/v1/academic:         { expect: "gated:teaching", drift: academic-backend-fail-open }
-  /api/v1/conduct:          { expect: "gated:conduct",  drift: conduct-backend-fail-open }
-  /api/v1/exam-imports:     { expect: "gated:exam",     drift: exam-import-backend-fail-open }
+  /api/v1/conduct:          { expect: "gated:conduct" }    # 0.7B item4: 已补门控收口
+  /api/v1/exam-imports:     { expect: "gated:exam" }       # 0.7B item4: 已补门控收口
   /api/v1/profile:          { expect: "gated:study_analytics" }
-  /api/v1/menus:            { expect: "exempt", drift: menus-not-in-exempt-list }
-  /api/v1/portal:           { expect: "exempt", drift: portal-not-in-exempt-list }
-  /api/v1/grades:           { expect: "exempt", drift: grades-not-in-exempt-list }
-  /api/v1/teachers:         { expect: "exempt", drift: teachers-not-in-exempt-list }
-  /api/v1/client-logs:      { expect: "exempt", drift: client-logs-not-in-exempt-list }
+  /api/v1/menus:            { expect: "exempt" }           # 0.7B item5: 已入 exempt 收口
+  /api/v1/portal:           { expect: "exempt" }           # 0.7B item5: 已入 exempt 收口
+  /api/v1/grades:           { expect: "exempt" }           # 0.7B item5: 已入 exempt 收口
+  /api/v1/teachers:         { expect: "exempt" }           # 0.7B item5: 已入 exempt 收口
+  /api/v1/client-logs:      { expect: "exempt" }           # 0.7B item5: 已入 exempt 收口
   /api/v1/auth:             { expect: "exempt" }
   /api/v1/health:           { expect: "exempt" }
   /api/v1/version:          { expect: "exempt" }
@@ -109,15 +109,12 @@ frontend_route_module:
 portal_services_expect_self_module: true
 dashboard_actions_expect_valid_only: true
 
-# ── 第四层：已知漂移登记（11 条 = 9 backend + 2 frontend；守卫按 consumer+locus+expect+actual 四元组匹配）
+# ── 第四层：已知漂移登记（3 条 = 1 backend + 2 frontend；守卫按 consumer+locus+expect+actual 四元组匹配）
+# 0.7B 收口：conduct/exam-imports 补门控（item4）+ menus/portal/grades/teachers/client-logs 入 exempt（item5），
+# 7 条 backend drift 已删（守卫 stale-drift 检测强制：actual==expect 则必须删 drift 字段 + 本登记）。
+# academic 保留 fail-open drift：前端 /academic/* 仅 permission 无 moduleCode（teaching-frontend-unwired），
+# 单独后端 gating 会破坏页面，需前端 teaching wiring 配套，超出 0.7B「不改业务 UI」范围。
 known_drift:
   - { id: academic-backend-fail-open,    consumer: backend_middleware, locus: /api/v1/academic,     expect: "gated:teaching",         actual: "pass-through", severity: security }
-  - { id: conduct-backend-fail-open,     consumer: backend_middleware, locus: /api/v1/conduct,      expect: "gated:conduct",          actual: "pass-through", severity: security }
-  - { id: exam-import-backend-fail-open, consumer: backend_middleware, locus: /api/v1/exam-imports, expect: "gated:exam",             actual: "pass-through", severity: security }
-  - { id: menus-not-in-exempt-list,      consumer: backend_middleware, locus: /api/v1/menus,        expect: "exempt",                 actual: "pass-through", severity: hygiene }
-  - { id: portal-not-in-exempt-list,     consumer: backend_middleware, locus: /api/v1/portal,       expect: "exempt",                 actual: "pass-through", severity: hygiene }
-  - { id: grades-not-in-exempt-list,     consumer: backend_middleware, locus: /api/v1/grades,       expect: "exempt",                 actual: "pass-through", severity: hygiene }
-  - { id: teachers-not-in-exempt-list,   consumer: backend_middleware, locus: /api/v1/teachers,     expect: "exempt",                 actual: "pass-through", severity: hygiene }
-  - { id: client-logs-not-in-exempt-list, consumer: backend_middleware, locus: /api/v1/client-logs, expect: "exempt",                 actual: "pass-through", severity: hygiene }
   - { id: studio-frontend-entry-missing, consumer: frontend,           locus: "studio-entry",       expect: "present",                actual: "absent",       severity: ux }
   - { id: teaching-frontend-unwired,     consumer: frontend,           locus: "/academic/*",        expect: "moduleCode:teaching",    actual: "null",         severity: semantic }

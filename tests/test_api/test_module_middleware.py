@@ -46,3 +46,35 @@ def test_resolve_module_code_gated_uses_real_map():
 
 def test_resolve_module_code_unmapped_returns_none():
     assert resolve_module_code("/api/v1/totally-unknown") is None
+
+
+# ===== Phase 0.7B item4（后端 fail-open drift）：conduct / exam-imports 补门控 =====
+# 参照 0.6C profile 处置：前端 /conduct、/exam-import 已标 moduleCode（authGuard 已 fail-close 导航），
+# 后端补门控为同源 defense-in-depth——模块关闭=功能不可用（与 exam/grading/profile 一致），enabled 校无变化。
+# academic 不在此列：前端 /academic/* 仅 permission 无 moduleCode（未门控），后端单独 gating 会让有
+# manage_scheduling 但 teaching 关闭的校 403 破坏页面（teaching-frontend-unwired drift），保留为 known_drift。
+
+def test_conduct_api_gated_to_conduct_module():
+    assert ROUTE_MODULE_MAP['/api/v1/conduct'] == 'conduct'
+    assert resolve_module_code('/api/v1/conduct/records') == 'conduct'
+
+
+def test_exam_imports_api_gated_to_exam_module():
+    assert ROUTE_MODULE_MAP['/api/v1/exam-imports'] == 'exam'
+    assert resolve_module_code('/api/v1/exam-imports/preview') == 'exam'
+
+
+def test_exam_imports_does_not_shadow_exams_prefix():
+    # /api/v1/exams 与 /api/v1/exam-imports 前缀不重叠（最长前缀下各自归 exam，互不影响）
+    assert resolve_module_code('/api/v1/exams/123') == 'exam'
+    assert resolve_module_code('/api/v1/exam-imports/123') == 'exam'
+
+
+# ===== Phase 0.7B item5（hygiene drift）：menus/portal/grades/teachers/client-logs 显式入 exempt =====
+# 这些入口当前未在 MAP 也未在 EXEMPT → resolve 返回 None（pass-through）。加入 EXEMPT 后仍 None（exempt），
+# 行为零变更，仅令豁免意图显式（守卫据此从 pass-through 收口为 exempt，删 hygiene drift）。
+
+def test_hygiene_routes_pass_through_unchanged():
+    for path in ('/api/v1/menus', '/api/v1/portal/home', '/api/v1/grades',
+                 '/api/v1/teachers', '/api/v1/client-logs'):
+        assert resolve_module_code(path) is None, path
