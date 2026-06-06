@@ -53,46 +53,46 @@ Any `BROKEN AT:` diagnosis exits non-zero and blocks completion evidence.
   static assertion failures in marking/review tests; role-entry targeted tests
   should be used for this batch, plus `scripts/codex-verify frontend`.
 
-## Module Governance Phase 0.5 (2026-06-06)
+## Module Governance Phase 0.5 + 0.6 (2026-06-06)
 
-Module-semantics guard work is frozen at the dual-fix boundary on branch
-`feat/module-governance-repair`, HEAD `1cb7de7`.
+Branch `feat/module-governance-repair`. Module governance extended from static
+reconciliation (0.5) to runtime direct-URL gating (0.6).
 
-- Guard: `scripts/governance/check_module_semantics.py`; truth:
-  `docs/governance/module-semantics.yaml`; tests:
+Phase 0.5 — static module-semantics guard:
+- Guard `scripts/governance/check_module_semantics.py`; truth
+  `docs/governance/module-semantics.yaml`; tests
   `tests/governance/test_module_semantics.py`.
-- Fixes landed this session:
-  - `748587c` — MED: route-field moduleCode parser made order-insensitive
-    (`moduleCode`-first or `route`-first both parse to `{route: moduleCode}`).
-  - `1cb7de7` — codex-review R1 HIGH: an unregistered + no-moduleCode route
-    exposed on a gating surface no longer escapes fail-closed; truth
-    `frontend_route_module` now declares `/` explicitly as null (denominator
-    completion).
-- Evidence: `tests/governance` 163 passed; `check_module_semantics.py --check`
-  reports `Module semantics baseline clean`.
-- Final review: `codex-review code f82df2a..HEAD` = **R2 FINDINGS (NOT PASS)**.
-  Log `docs/plans/.codex-review-2026-06-06_143856.log`; receipt
-  `.review-receipts.jsonl` (`engine_review`, reviewed_sha `1cb7de7`).
+- `748587c` — MED: route-field moduleCode parser made order-insensitive.
+- `1cb7de7` — R1 HIGH: unregistered + no-moduleCode route on a gating surface
+  no longer escapes fail-closed; truth declares `/` as null (denominator).
 
-R2 findings are deferred to an independent topic (designer decision
-2026-06-06), NOT fixed in this boundary:
+Phase 0.6 — runtime hardening (resolves both R2 review findings):
+- `f51342a` — F-002: `check_frontend_drift` now uses the still-holding
+  `_FRONTEND_DRIFT_PROBES` set as a fail-closed denominator; deleting a
+  still-true drift row (studio/teaching) now fails.
+- `8606ac6` — F-001: `authGuard` (`frontend/src/router/index.js`) now gates
+  direct URLs by `enabledModules`. After roles/permissions pass it reads the
+  moduleCode from `routeAccess.js` (the sidebar gating truth) and applies
+  `moduleMatches`; fail-closed `await loadModules()` when not yet loaded;
+  disabled module → `next('/')`. routeAccess.js covers all 14 controlled
+  routes, so router_meta stays a documentation surface (no GATING_SURFACES
+  change needed).
 
-- **F-001 HIGH (design_concern)**: `authGuard` in
-  `frontend/src/router/index.js` reads only `meta.roles`/`meta.permissions`,
-  never `moduleCode`/`enabledModules`. A user with permission can reach a
-  disabled-module page via direct URL. The guard treats `router_meta` as a
-  non-gating surface (missing-code exempt), which masks this real fail-open.
-  Resolution needs a designer call: make `authGuard` consume `moduleCode`
-  (business-source change) OR register a frontend `known_drift` entry.
-- **F-002 MED (defect_gap)**: `check_frontend_drift` iterates only
-  YAML-registered drift, so deleting a still-true drift row still passes CI
-  (paper convergence, not real convergence). Needs the guard made fail-closed
-  against drift-row deletion.
+Evidence: `tests/governance` module-semantics 51 pass;
+`check_module_semantics.py --check` clean; frontend `router.test.js` 37 pass
+(5 new module-gating); full vitest 2478 passed / 3 pre-existing failures
+(marking/review static assertions, unrelated — verified by stash).
+
+Final review: NOT yet re-run after Phase 0.6. MUST run
+`codex-review code f82df2a..HEAD` and reach PASS before Phase 0.5/0.6 can be
+declared complete.
 
 ## Next Phase
 
-Phase 1 = Portal homepage aggregation contract (聚合合同) — the
-aggregation/contract layer, NOT copying portal business code directly.
+Phase 0.6 close-out: re-run codex-review to PASS — only then is this the
+auditable foundation. Portal homepage aggregation (聚合合同) is a LATER phase
+(Phase 1); do NOT enter Portal or absorb portal business code until the 0.6
+review PASSES.
 
 ## Codex Migration State
 
