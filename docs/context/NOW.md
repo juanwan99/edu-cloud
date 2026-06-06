@@ -99,18 +99,27 @@ now **implemented** in 3 commits (`70eeac2`/`b1a6d09`/`61ed166`):
 
 Local evidence: `check_module_semantics.py --check` clean; `tests/governance`
 55 pass; frontend `router.test.js`+`auth-store.test.js` 60 pass; backend
-profile suite 29 pass. **Gate NOT yet PASS** — pending re-review
-`codex-review range:f82df2a..HEAD`.
+profile suite 29 pass.
+
+R5 re-review (`codex-review range:f82df2a..HEAD`, reviewed_sha `7f4c296`) =
+**FINDINGS**: R4 F-001/F-002/F-003 confirmed FIXED (NOT re-reported → 0.6C goal
+met). 2 NEW out-of-scope, pre-existing `design_concern`s — menu-layer fail-open
+(MED; `moduleMatches` empty-list=allow vs authGuard fail-closed) + guard-vs-
+middleware prefix-match drift (LOW) — carved to **Phase 0.7 drift burn-down**
+(`docs/plans/2026-06-06-phase07-drift-burndown.md`, designer decision
+2026-06-06). Not the same findings as R4; not introduced by 0.6C commits.
 
 ## Next Phase
 
-Phase 0.6C coverage-completeness is **code-complete** (see Module Governance
-section above): the static guard now enforces that every controlled route
-carries a moduleCode in an authGuard-consumable source (guard-green == no
-runtime fail-open). **Remaining gate**: run `codex-review range:f82df2a..HEAD`
-and reach PASS. **Portal homepage aggregation (Phase 1) stays BLOCKED until that
-review PASSES** — do not start Portal work before then.
-See `docs/plans/2026-06-06-phase06-coverage-handoff.md` for the sub-task spec.
+Phase 0.6C coverage-completeness is **done & meets its R4 goal** (R5 confirmed
+the three R4 findings FIXED). The two NEW out-of-scope design_concerns from R5
+are carved to **Phase 0.7 drift burn-down**
+(`docs/plans/2026-06-06-phase07-drift-burndown.md`).
+
+**Portal homepage aggregation (Phase 1) stays BLOCKED** until the Phase 0.7
+key item (at least R5-DC1 menu-layer fail-open) is resolved or the designer
+explicitly unblocks it — do not start Portal work before then.
+See `docs/plans/2026-06-06-phase06-coverage-handoff.md` for the 0.6C spec.
 
 ## Codex Migration State
 
