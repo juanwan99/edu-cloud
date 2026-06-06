@@ -1,0 +1,120 @@
+version: 2
+
+# ── 第一层：9 个学校开关码（镜像 school_settings.py::MODULE_CODES）
+school_module_codes: [exam, grading, homework, study_analytics, research, teaching, calendar, studio, conduct]
+
+# ── 第二层：23 架构模块 → 开关码归属（键集校验自 modules.yaml）
+architecture_to_module_code:
+  exam: exam
+  exam_import: exam
+  scan: exam
+  card: exam
+  pipeline: exam
+  paper: exam
+  grading: grading
+  marking: grading
+  analytics: study_analytics
+  profile: study_analytics
+  adaptive: study_analytics
+  knowledge: research
+  knowledge_tree: research
+  bank: research
+  homework: homework
+  calendar: calendar
+  studio: studio
+  conduct: conduct
+  academic: teaching
+  menu: null
+  portal: null
+  school: null
+  student: null
+
+# ── 第三层：逐入口期望表
+backend_routes:
+  /api/v1/exams:            { expect: "gated:exam" }
+  /api/v1/questions:        { expect: "gated:exam" }
+  /api/v1/scan:             { expect: "gated:exam" }
+  /api/v1/card:             { expect: "gated:exam" }
+  /api/v1/templates:        { expect: "gated:exam" }
+  /api/v1/pipeline:         { expect: "gated:exam" }
+  /api/v1/grading:          { expect: "gated:grading" }
+  /api/v1/marking:          { expect: "gated:grading" }
+  /api/v1/analytics:        { expect: "gated:study_analytics" }
+  /api/v1/knowledge:        { expect: "gated:research" }
+  /api/v1/knowledge-tree:   { expect: "gated:research" }
+  /api/v1/bank:             { expect: "gated:research" }
+  /api/v1/calendar:         { expect: "gated:calendar" }
+  /api/v1/studio:           { expect: "gated:studio" }
+  /api/v1/homework:         { expect: "gated:homework" }
+  /api/v1/academic:         { expect: "gated:teaching", drift: academic-backend-fail-open }
+  /api/v1/conduct:          { expect: "gated:conduct",  drift: conduct-backend-fail-open }
+  /api/v1/exam-imports:     { expect: "gated:exam",     drift: exam-import-backend-fail-open }
+  /api/v1/profile:          { expect: "gated:study_analytics", drift: profile-backend-fail-open }
+  /api/v1/menus:            { expect: "exempt", drift: menus-not-in-exempt-list }
+  /api/v1/portal:           { expect: "exempt", drift: portal-not-in-exempt-list }
+  /api/v1/grades:           { expect: "exempt", drift: grades-not-in-exempt-list }
+  /api/v1/teachers:         { expect: "exempt", drift: teachers-not-in-exempt-list }
+  /api/v1/client-logs:      { expect: "exempt", drift: client-logs-not-in-exempt-list }
+  /api/v1/auth:             { expect: "exempt" }
+  /api/v1/health:           { expect: "exempt" }
+  /api/v1/version:          { expect: "exempt" }
+  /api/v1/schools:          { expect: "exempt" }
+  /api/v1/dashboard:        { expect: "exempt" }
+  /api/v1/ai:               { expect: "exempt" }
+  /api/v1/classes:          { expect: "exempt" }
+  /api/v1/students:         { expect: "exempt" }
+  /api/v1/joint-exams:      { expect: "exempt" }
+  /api/v1/notifications:    { expect: "exempt" }
+  /api/v1/llm-config:       { expect: "exempt" }
+  /api/v1/workspace:        { expect: "exempt" }
+
+frontend_route_module:
+  /exams: exam
+  /exam-import: exam
+  /marking: grading
+  /grading/tasks: grading
+  /ai-grading: grading
+  /analytics/report: study_analytics
+  /analytics/ai-report: study_analytics
+  /homework: homework
+  /question-bank: research
+  /knowledge-tree: research
+  /error-book: research
+  /conduct: conduct
+  /conduct/settings: conduct
+  /calendar: calendar
+  # 动态/detail 路由（router-meta 专有，R5 F-001 纳入同一基线分母）
+  /exams/:id: exam
+  /card-dev/:examId: exam
+  /grading/tasks/:id: grading
+  /marking/grade/:questionId: grading
+  /exams/:examId/ai-grading/:subjectId: grading
+  /analytics/:examId: study_analytics
+  /students: null
+  /joint-exams: null
+  /school-settings: null
+  /academic/teaching-plans: null
+  /academic/timetable: null
+  /academic/semesters: null
+  /assignments: null
+  /selections: null
+  /teachers: null
+  /schools: null
+  /admin/impersonate: null
+
+portal_services_expect_self_module: true
+dashboard_actions_expect_valid_only: true
+
+# ── 第四层：已知漂移登记（11 条 = 9 backend + 2 frontend；守卫按 consumer+locus+expect+actual 四元组匹配）
+known_drift:
+  - { id: academic-backend-fail-open,    consumer: backend_middleware, locus: /api/v1/academic,     expect: "gated:teaching",         actual: "pass-through", severity: security }
+  - { id: conduct-backend-fail-open,     consumer: backend_middleware, locus: /api/v1/conduct,      expect: "gated:conduct",          actual: "pass-through", severity: security }
+  - { id: exam-import-backend-fail-open, consumer: backend_middleware, locus: /api/v1/exam-imports, expect: "gated:exam",             actual: "pass-through", severity: security }
+  - { id: profile-backend-fail-open,     consumer: backend_middleware, locus: /api/v1/profile,      expect: "gated:study_analytics",  actual: "pass-through", severity: security }
+  - { id: menus-not-in-exempt-list,      consumer: backend_middleware, locus: /api/v1/menus,        expect: "exempt",                 actual: "pass-through", severity: hygiene }
+  - { id: portal-not-in-exempt-list,     consumer: backend_middleware, locus: /api/v1/portal,       expect: "exempt",                 actual: "pass-through", severity: hygiene }
+  - { id: grades-not-in-exempt-list,     consumer: backend_middleware, locus: /api/v1/grades,       expect: "exempt",                 actual: "pass-through", severity: hygiene }
+  - { id: teachers-not-in-exempt-list,   consumer: backend_middleware, locus: /api/v1/teachers,     expect: "exempt",                 actual: "pass-through", severity: hygiene }
+  - { id: client-logs-not-in-exempt-list, consumer: backend_middleware, locus: /api/v1/client-logs, expect: "exempt",                 actual: "pass-through", severity: hygiene }
+  - { id: studio-frontend-entry-missing, consumer: frontend,           locus: "studio-entry",       expect: "present",                actual: "absent",       severity: ux }
+  - { id: teaching-frontend-unwired,     consumer: frontend,           locus: "/academic/*",        expect: "moduleCode:teaching",    actual: "null",         severity: semantic }
