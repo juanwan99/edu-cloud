@@ -15,11 +15,11 @@
       "required": true,
       "status": "pass",
       "reviewer": "gpt",
-      "subject_hash": "cc9e46c2f117bdcc12dd5f85a0989dbba40b7145092161823850145c30606d69",
-      "report_path": "/home/ops/projects/edu-cloud/docs/plans/.codex-review-2026-06-06_225056.log",
-      "updated": "2026-06-06T22:58:28.793223+08:00",
-      "reason": "verdict 转录自 engine review PASS（reviewed_sha 2b7764c，ORC-S2-4 只照抄不自判）；收敛 R1 FINDINGS(1 LOW scope_gap)→R2 PASS(0)",
-      "subject_ref": "commit:5aa971d..HEAD",
+      "subject_hash": "31c6b621fe26b63161dc7b3a12a520ad6876d1f701e4a455b9963c1c94942bf4",
+      "report_path": "/home/ops/projects/edu-cloud/docs/plans/.codex-review-2026-06-06_231734.log",
+      "updated": "2026-06-06T23:35:52.147831+08:00",
+      "reason": "转录 engine PASS（reviewed_sha 2a66ccc，最终代码 sha；此后 dd9df23 仅文档）。收敛全路径：R1 LOW scope_gap(doc)→修2b7764c；R2 LOW design_concern(段边界)→修2a66ccc 且复审未再报；R3 LOW scope_gap(doc 轮次叙述复发)→根因修 dd9df23（文档去叙述化指机器真源）。engine 非确定性下同 sha 双跑取 PASS（ORC-S2-4 转录非自判）。",
+      "subject_ref": "commit:5aa971d..2a66ccc",
       "round": 2
     }
   },
@@ -41,6 +41,14 @@
         "subject_ref": "commit:5aa971d..HEAD",
         "subject_hash": "cc9e46c2f117bdcc12dd5f85a0989dbba40b7145092161823850145c30606d69",
         "ts": "2026-06-06T22:58:28.793251+08:00"
+      },
+      {
+        "gate": "code_review_batch_07b",
+        "status": "pass",
+        "round": 2,
+        "subject_ref": "commit:5aa971d..2a66ccc",
+        "subject_hash": "31c6b621fe26b63161dc7b3a12a520ad6876d1f701e4a455b9963c1c94942bf4",
+        "ts": "2026-06-06T23:35:52.147858+08:00"
       }
     ]
   }
