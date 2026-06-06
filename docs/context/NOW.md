@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-05-26 23:16 Asia/Shanghai
+Last refreshed: 2026-06-06 16:20 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -66,33 +66,49 @@ Phase 0.5 — static module-semantics guard:
 - `1cb7de7` — R1 HIGH: unregistered + no-moduleCode route on a gating surface
   no longer escapes fail-closed; truth declares `/` as null (denominator).
 
-Phase 0.6 — runtime hardening (resolves both R2 review findings):
-- `f51342a` — F-002: `check_frontend_drift` now uses the still-holding
-  `_FRONTEND_DRIFT_PROBES` set as a fail-closed denominator; deleting a
-  still-true drift row (studio/teaching) now fails.
-- `8606ac6` — F-001: `authGuard` (`frontend/src/router/index.js`) now gates
-  direct URLs by `enabledModules`. After roles/permissions pass it reads the
-  moduleCode from `routeAccess.js` (the sidebar gating truth) and applies
-  `moduleMatches`; fail-closed `await loadModules()` when not yet loaded;
-  disabled module → `next('/')`. routeAccess.js covers all 14 controlled
-  routes, so router_meta stays a documentation surface (no GATING_SURFACES
-  change needed).
+Phase 0.6 main body — runtime hardening (4 commits, resolves R2/R3 findings):
+- `f51342a` — drift fail-closed: `check_frontend_drift` uses the still-holding
+  `_FRONTEND_DRIFT_PROBES` set as denominator; deleting a still-true drift row
+  (studio/teaching) now fails.
+- `8606ac6` — authGuard direct-URL module gating (initial): roles/permissions
+  pass → gate by `enabledModules`; disabled module → `next('/')`.
+- `bd8be46` — R3 fixes: dynamic routes (`/exams/:id`) gated via
+  `to.meta.moduleCode` fallback; school users fail-closed (module state must be
+  loaded AND moduleCode in the enabled list, else block); admin (no `school_id`)
+  exempt; `loadModules` API failure returns empty list (not default 4).
 
-Evidence: `tests/governance` module-semantics 51 pass;
-`check_module_semantics.py --check` clean; frontend `router.test.js` 37 pass
-(5 new module-gating); full vitest 2478 passed / 3 pre-existing failures
-(marking/review static assertions, unrelated — verified by stash).
+Evidence: `tests/governance` 166 pass; `check_module_semantics.py --check`
+clean; `router.test.js` 41 pass (9 module-gating); `auth-store.test.js` 17 pass;
+full vitest 2483 passed / 3 pre-existing failures (marking/review static
+assertions, unrelated — verified by stash).
 
-Final review: NOT yet re-run after Phase 0.6. MUST run
-`codex-review code f82df2a..HEAD` and reach PASS before Phase 0.5/0.6 can be
-declared complete.
+Review status: `codex-review f82df2a..HEAD` reached **R4 = FINDINGS (NOT
+PASS)**, receipt `engine_review` reviewed_sha `bd8be46`. R1→R4 = 1→2→2→3
+(non-converging). Log `docs/plans/.codex-review-2026-06-06_160142.log`.
+
+R4 carved out to an independent sub-task (designer decision 2026-06-06):
+**Phase 0.6 coverage-completeness**. Root cause is architectural, not a
+patch — see sub-task doc below. R4 findings, NOT fixed in the main body:
+- **F-001 HIGH (security)**: `/profile/student/:studentId` (router/index.js:53)
+  has `view_scores` permission but NO moduleCode and is absent from
+  routeAccess/router-meta → `study_analytics`-off users reach it via direct URL
+  (backend `/api/v1/profile` is also pass-through → double fail-open). PRIORITY.
+- **F-002 MED (root cause)**: guard `GATING_SURFACES` excludes router_meta
+  (treated as doc surface), but authGuard now consumes `to.meta.moduleCode` →
+  guard-green ≠ runtime-safe; controlled routes missing moduleCode are not
+  caught by the governance script.
+- **F-003 LOW**: NOW.md staleness (resolved by this refresh; re-run
+  `scripts/meta-check`).
 
 ## Next Phase
 
-Phase 0.6 close-out: re-run codex-review to PASS — only then is this the
-auditable foundation. Portal homepage aggregation (聚合合同) is a LATER phase
-(Phase 1); do NOT enter Portal or absorb portal business code until the 0.6
-review PASSES.
+Phase 0.6 coverage-completeness sub-task (design → implement → review to PASS):
+make the static guard enforce that EVERY controlled route (fr non-null) carries
+a moduleCode in an authGuard-consumable source, so guard-green == no runtime
+fail-open. Then補齐 all missing-code routes (profile + calendar/error-book/
+homework/knowledge-tree/question-bank) and unify the authGuard moduleCode
+source. See `docs/plans/2026-06-06-phase06-coverage-handoff.md`. Portal homepage
+aggregation (Phase 1) stays blocked until the sub-task review PASSES.
 
 ## Codex Migration State
 
