@@ -6,8 +6,24 @@ import RoleSwitcher from '../components/shell/RoleSwitcher.vue'
 
 const push = vi.hoisted(() => vi.fn())
 const switchRole = vi.hoisted(() => vi.fn())
-const route = vi.hoisted(() => ({ path: '/marking' }))
+const route = vi.hoisted(() => ({ path: '/marking', meta: {} }))
 const source = readFileSync(resolve(process.cwd(), 'src/components/shell/RoleSwitcher.vue'), 'utf-8')
+
+const DEFAULT_AUTH = () => ({
+  displayName: 'Gao',
+  roles: [
+    { id: 'r1', role: 'subject_teacher', context: { name: 'Yucai' }, is_primary: true },
+    { id: 'r2', role: 'school_admin', context: { name: 'Yucai' }, is_primary: false },
+  ],
+  currentRoleIndex: 0,
+  currentRole: { id: 'r1', role: 'subject_teacher', context: { name: 'Yucai' } },
+  currentContext: { name: 'Yucai' },
+  enabledModules: ['exam', 'grading', 'study_analytics'],
+  modulesLoaded: true,
+  switchRole,
+  logout: vi.fn(),
+})
+const mockAuth = vi.hoisted(() => ({}))
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push }),
@@ -15,20 +31,7 @@ vi.mock('vue-router', () => ({
 }))
 
 vi.mock('../stores/auth.js', () => ({
-  useAuthStore: () => ({
-    displayName: 'Gao',
-    roles: [
-      { id: 'r1', role: 'subject_teacher', context: { name: 'Yucai' }, is_primary: true },
-      { id: 'r2', role: 'school_admin', context: { name: 'Yucai' }, is_primary: false },
-    ],
-    currentRoleIndex: 0,
-    currentRole: { id: 'r1', role: 'subject_teacher', context: { name: 'Yucai' } },
-    currentContext: { name: 'Yucai' },
-    enabledModules: ['exam', 'grading', 'study_analytics'],
-    modulesLoaded: true,
-    switchRole,
-    logout: vi.fn(),
-  }),
+  useAuthStore: () => mockAuth,
 }))
 
 vi.mock('naive-ui', () => ({
@@ -46,6 +49,9 @@ describe('RoleSwitcher route safety', () => {
     push.mockClear()
     switchRole.mockReset()
     route.path = '/marking'
+    route.meta = {}
+    Object.keys(mockAuth).forEach(k => delete mockAuth[k])
+    Object.assign(mockAuth, DEFAULT_AUTH())
   })
 
   it('returns to dashboard after switching identity away from a personal-only route', async () => {
@@ -85,7 +91,22 @@ describe('RoleSwitcher route safety', () => {
   // `auth.modulesLoaded ? auth.enabledModules : []` fail-open 兜底。
   it('uses module gate context instead of fail-open empty-array fallback', () => {
     expect(source).toContain('moduleGateFromAuth(auth)')
-    expect(source).toContain('canAccessRouteForRole(targetRoleKey, route.path, moduleGateFromAuth(auth))')
     expect(source).not.toContain('auth.modulesLoaded ? auth.enabledModules : []')
+    // R6 F-001：动态子路由（/exams/:id）用 route.meta.moduleCode 兜底（精确表匹配不到）
+    expect(source).toContain('moduleMatches(route.meta?.moduleCode, gate)')
+  })
+
+  // R6 F-001（MED security_design）：停留动态模块页 → 切到未启用该模块的学校身份 → 必须回退 /。
+  // 修复前 /exams/123 在 routeAccess 精确表匹配不到 moduleCode → fail-open 放行（不回退）。
+  it('fail-closed: redirects to / when switching to a school identity lacking the dynamic route module', async () => {
+    route.path = '/exams/123'
+    route.meta = { moduleCode: 'exam' }
+    mockAuth.currentRole = { id: 'r2', role: 'school_admin', school_id: 's1', context: { name: 'Yucai' } }
+    mockAuth.modulesLoaded = true
+    mockAuth.enabledModules = ['grading'] // exam 未启用
+    switchRole.mockResolvedValueOnce(true)
+    const wrapper = mount(RoleSwitcher, { props: { compact: true } })
+    await wrapper.vm.handleSwitch(1)
+    expect(push).toHaveBeenCalledWith('/')
   })
 })
