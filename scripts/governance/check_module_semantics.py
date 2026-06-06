@@ -334,6 +334,14 @@ def check_frontend_drift(truth: dict, repo: Path) -> list[str]:
     登记 expect/actual 须与 probe 契约一致；drift 仍成立→绿；实际已不成立(疑似已修复)→红(应删登记)。"""
     errs: list[str] = []
     parsed = parse_frontend(repo)
+    # fail-closed 分母（codex-review F-002）：probe 仍成立(still_holds=True)的 frontend drift 必须在 truth 登记。
+    # 旧实现只遍历 truth["known_drift"]，删一行仍成立的 drift row 就不被遍历 → 逃检（账面收敛）。此处以 probe 集为
+    # 分母反向校验：仍成立却未登记 → 报红。已不成立的 drift 不要求登记（登记着则由下方循环报"疑似已修复"）。
+    registered = {d["id"] for d in truth["known_drift"] if d.get("consumer") == "frontend"}
+    for drift_id, probe in _FRONTEND_DRIFT_PROBES.items():
+        if probe["still_holds"](parsed) and drift_id not in registered:
+            errs.append(f"frontend drift {drift_id} 实际仍成立但未在 known_drift 登记"
+                        f"（删登记逃检，fail-closed，codex-review F-002）")
     for d in truth["known_drift"]:
         if d["consumer"] != "frontend":
             continue
