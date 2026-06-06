@@ -49,8 +49,8 @@ export const routes = [
         component: () => import('../pages/AiGradingPage.vue'),
         meta: { permissions: ['manage_grading'], moduleCode: 'grading' } },
 
-      // 学生画像
-      { path: 'profile/student/:studentId', name: 'StudentProfile', component: () => import('../pages/StudentProfilePage.vue'), meta: { permissions: ['view_scores'] } },
+      // 学生画像（学情分析 → study_analytics 门控；动态路由靠 to.meta.moduleCode 兜底，F-001）
+      { path: 'profile/student/:studentId', name: 'StudentProfile', component: () => import('../pages/StudentProfilePage.vue'), meta: { permissions: ['view_scores'], moduleCode: 'study_analytics' } },
 
       // 知识图谱
       { path: 'knowledge-tree', name: 'KnowledgeTree', component: () => import('../pages/KnowledgeTreePage.vue'), meta: { permissions: ['view_knowledge_tree'], shellMode: 'workspace' } },

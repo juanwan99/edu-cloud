@@ -436,4 +436,23 @@ describe('authGuard module gating (Phase 0.6)', () => {
     await router.isReady()
     expect(router.currentRoute.value.path).toBe('/students')
   })
+
+  // F-001（R4 carve-out 子任务）：学生画像动态路由 /profile/student/:studentId 直达必须门控。
+  // profile 无 routeAccess 精确 key（动态段 :studentId），靠 to.meta.moduleCode='study_analytics' 兜底（同 /exams/:id）。
+  // 修复前：两源皆空 → moduleCode undefined → 跳过门控 → study_analytics 关闭仍直达可达（fail-open）。
+  it('blocks direct URL /profile/student/:studentId when study_analytics disabled (school user)', async () => {
+    authedAs('academic_director', { enabledModules: ['exam'], modulesLoaded: true })
+    const router = createTestRouter()
+    await router.push('/profile/student/123')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('allows direct URL /profile/student/:studentId when study_analytics enabled (school user)', async () => {
+    authedAs('academic_director', { enabledModules: ['study_analytics'], modulesLoaded: true })
+    const router = createTestRouter()
+    await router.push('/profile/student/123')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/profile/student/123')
+  })
 })
