@@ -241,3 +241,42 @@ def test_frontend_double_quote_modulecode_parsed(truth):  # 反例 #27（F-002 M
     parsed = {"routeAccess": pairs, "router_meta": {}, "sidebar": {}, "dashboard": {}}
     errs = cms._compare_frontend(truth, parsed)
     assert any("/exams" in e and "不一致" in e for e in errs), errs
+
+
+# ===== R2 收口：门控面按 surface 独立 fail-closed（旧全局并集会被任一面的码掩盖 cross-surface 缺口）=====
+# 门控面 = routeAccess（canAccessRouteForRole→moduleMatches）/ sidebar（按 moduleCode 过滤菜单可见性）/
+#           dashboard（同 sidebar 过滤动作可见性）；三者运行时都消费 moduleCode。
+# router_meta 是纯文档面：authGuard(router/index.js) 只读 roles/permissions，不读 meta.moduleCode →
+#           其缺码不构成 fail-open，不纳入 presence 检查（设计决策 2026-06-06，体系设计者确认）。
+
+def test_frontend_routeaccess_missing_modulecode_despite_other_surfaces_fails(truth):  # R2-A1
+    # /exams 在 sidebar/router_meta 都有码，但 routeAccess 门控面缺码 → routeAccess 必须独立报红（不被并集掩盖）
+    parsed = {"routeAccess": {}, "router_meta": {"/exams": "exam"}, "sidebar": {"/exams": "exam"}, "dashboard": {},
+              "_surface_routes": {"routeAccess": {"/exams"}, "router_meta": {"/exams"}, "sidebar": {"/exams"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/exams" in e and "routeAccess" in e and "moduleCode" in e for e in errs), errs
+
+
+def test_frontend_sidebar_missing_modulecode_despite_routeaccess_fails(truth):  # R2-A2
+    # /exams 在 routeAccess 有码，但 sidebar 门控面缺码 → sidebar 必须独立报红
+    parsed = {"routeAccess": {"/exams": "exam"}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"routeAccess": {"/exams"}, "sidebar": {"/exams"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/exams" in e and "sidebar" in e and "moduleCode" in e for e in errs), errs
+
+
+def test_frontend_dashboard_missing_modulecode_despite_routeaccess_fails(truth):  # R2-A3
+    # /homework 在 routeAccess 有码，但 dashboard 门控面缺码 → dashboard 必须独立报红
+    parsed = {"routeAccess": {"/homework": "homework"}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"routeAccess": {"/homework"}, "dashboard": {"/homework"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/homework" in e and "dashboard" in e and "moduleCode" in e for e in errs), errs
+
+
+def test_frontend_router_meta_missing_modulecode_despite_routeaccess_passes(truth):  # R2-A4：router_meta 文档面豁免锁
+    # /exams 在 routeAccess 有码，router_meta 缺码 → router_meta 非门控面，不报红（门控由 routeAccess 承载）。
+    # 锁住设计决策：cross-surface 独立 fail-closed 只作用于门控面，router_meta 缺码不算 fail-open。
+    parsed = {"routeAccess": {"/exams": "exam"}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"routeAccess": {"/exams"}, "router_meta": {"/exams"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert not any("/exams" in e and "moduleCode" in e for e in errs), errs

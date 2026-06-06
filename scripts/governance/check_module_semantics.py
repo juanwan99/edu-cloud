@@ -215,24 +215,43 @@ def _compare_frontend(truth: dict, parsed: dict) -> list[str]:
                  + list(parsed["routeAccess"].values()) + list(parsed["router_meta"].values())):
         if code not in codes:
             errs.append(f"前端出现野值 moduleCode={code}（∉ 9 开关码）")
-    # F-001 fail-closed（codex-review HIGH）：受控 route（真源非 null）若在前端某 surface 露出，
-    # 却在**所有**露出它的 surface 都缺失 moduleCode → 门控声明彻底丢失 = fail-open 缺口，必须报红。
-    # 原实现只遍历「已解析出 moduleCode 的对」，删掉 moduleCode 即逃过检测（fail-open）。
-    # 分母 = _surface_routes（含无 moduleCode 的 route）。门控真正执行点是 routeAccess.moduleMatches，
-    # router_meta 等冗余面缺码不算缺口（只要任一面已声明即门控存在）；旧格式 parsed 无此键时退化跳过。
+    # F-001 fail-closed（codex-review HIGH，R2 收口加强为两层）：受控 route（真源非 null）缺 moduleCode 的两类
+    # 缺口都报红。分母 = _surface_routes（含无 moduleCode 的 route）；旧格式 parsed 无此键时退化跳过；
+    # null route 缺码正确放行（本就不该 gating）。
+    #   门控面 = 运行时真正按 moduleCode 决定可达/可见的面：
+    #     routeAccess（canAccessRouteForRole→moduleMatches，路由访问门控）
+    #     sidebar（children.filter(c=>!c.moduleCode||enabled.has(c.moduleCode))，菜单可见性）
+    #     dashboard（同 sidebar 模式按 moduleCode 过滤动作可见性）
+    #   router_meta 非门控面：authGuard(router/index.js) 只读 roles/permissions，不消费 meta.moduleCode（纯文档面，
+    #     真实 router meta 对 /calendar /error-book 等受控 route 本就无 moduleCode）→ 缺码不算 fail-open。
+    #     设计决策 2026-06-06（体系设计者确认）。
+    GATING_SURFACES = ("routeAccess", "sidebar", "dashboard")
+    ALL_SURFACES = ("routeAccess", "sidebar", "dashboard", "router_meta")
     surface_routes = parsed.get("_surface_routes")
     if surface_routes:
+        # (1) 完全失控兜底：受控 route 露出却在**所有**面均无 moduleCode → 门控彻底丢失（含仅 router_meta 露出
+        #     而别处无声明的 orphan 场景，守住上一轮 F-001 HIGH）。
         declared = set()
-        for surface in ("routeAccess", "sidebar", "dashboard", "router_meta"):
+        for surface in ALL_SURFACES:
             declared |= set(parsed.get(surface, {}).keys())
         for route, want in fr.items():
             if want is None:
-                continue  # null route 本就不该 gating，缺 moduleCode 正确
-            appears = sorted(s for s in ("routeAccess", "sidebar", "dashboard", "router_meta")
-                             if route in surface_routes.get(s, set()))
+                continue
+            appears = sorted(s for s in ALL_SURFACES if route in surface_routes.get(s, set()))
             if appears and route not in declared:
                 errs.append(f"前端受控 route {route} 在 surface {appears} 露出但所有面均缺失 moduleCode"
                             f"（真源期望 {want}，fail-open 缺口，codex-review F-001）")
+        # (2) cross-surface 掩盖（R2）：门控面各自独立 fail-closed —— 受控 route 在某门控面露出却缺码，即使
+        #     别的面有码也报红（旧全局并集会被任一面的码掩盖，单门控面删码可逃检）。router_meta 不在此检查内。
+        for surface in GATING_SURFACES:
+            surface_declared = set(parsed.get(surface, {}).keys())
+            for route in sorted(surface_routes.get(surface, set())):
+                want = fr.get(route)
+                if want is None:
+                    continue
+                if route not in surface_declared:
+                    errs.append(f"前端受控 route {route} 在门控面 {surface} 露出但缺失 moduleCode"
+                                f"（真源期望 {want}，fail-open 缺口，codex-review F-001/R2）")
     return errs
 
 
