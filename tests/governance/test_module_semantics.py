@@ -134,3 +134,49 @@ def test_frontend_router_meta_dynamic_route_drift_fails(truth):  # 反例 #21（
     parsed = {"routeAccess": {}, "router_meta": {"/exams/:id": "grading"}, "sidebar": {}, "dashboard": {}}
     errs = cms._compare_frontend(truth, parsed)
     assert any("/exams/:id" in e and "不一致" in e for e in errs), errs
+
+
+def test_portal_passes_on_real(truth):
+    assert cms.check_portal(truth, REPO) == []
+
+
+def test_portal_service_module_mismatch_fails(truth):  # 反例 #7
+    errs = cms._compare_portal(truth, [{"id": "exam", "module_code": "grading"}])
+    assert any("exam" in e for e in errs)
+
+
+def test_portal_service_wild_value_fails(truth):  # 反例 #7 野值
+    errs = cms._compare_portal(truth, [{"id": "x", "module_code": "ghost"}])
+    assert any("ghost" in e for e in errs)
+
+
+def test_known_drift_orphan_fails(truth):  # 反例 #10 孤儿
+    bad = copy.deepcopy(truth)
+    bad["known_drift"].append({"id": "orphan-xyz", "consumer": "backend_middleware",
+                               "locus": "/api/v1/nope", "expect": "x", "actual": "y", "severity": "low"})
+    errs = cms.check_known_drift(bad, REPO)
+    assert any("orphan-xyz" in e for e in errs)
+
+
+def test_frontend_drift_no_probe_fails(truth):  # 反例 #13a（F2）：frontend drift 无探测器 → fail-closed
+    bad = copy.deepcopy(truth)
+    bad["known_drift"].append({"id": "ghost-frontend-drift", "consumer": "frontend",
+                               "locus": "/x", "expect": "a", "actual": "b", "severity": "low"})
+    errs = cms.check_known_drift(bad, REPO)
+    assert any("ghost-frontend-drift" in e for e in errs)
+
+
+def test_frontend_drift_probe_detects_fix(truth):  # 反例 #13b（F2）：studio 实际已 present → drift 探测为「不成立」
+    present = {"routeAccess": {"/studio": "studio"}, "router_meta": {}, "sidebar": {}, "dashboard": {}}
+    assert cms._FRONTEND_DRIFT_PROBES["studio-frontend-entry-missing"]["still_holds"](present) is False
+    absent = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {}}
+    assert cms._FRONTEND_DRIFT_PROBES["studio-frontend-entry-missing"]["still_holds"](absent) is True
+
+
+def test_frontend_drift_tuple_mismatch_fails(truth):  # 反例 #20（R5 F-003）：frontend drift expect/actual 篡改
+    bad = copy.deepcopy(truth)
+    for d in bad["known_drift"]:
+        if d["id"] == "studio-frontend-entry-missing":
+            d["actual"] = "present"  # 篡改登记 actual，与 probe 契约(absent)不符 → 四元组失配红
+    errs = cms.check_frontend_drift(bad, REPO)
+    assert any("studio-frontend-entry-missing" in e and "F-003" in e for e in errs), errs

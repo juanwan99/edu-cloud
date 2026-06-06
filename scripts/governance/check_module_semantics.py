@@ -188,7 +188,94 @@ def check_frontend(truth: dict, repo: Path) -> list[str]:
     return _compare_frontend(truth, parse_frontend(repo))
 
 
-CHECKS = [check_self_consistency, check_backend, check_frontend]
+def _load_service_catalog(repo: Path) -> list[dict]:
+    sys.path.insert(0, str(repo / "src"))
+    from edu_cloud.modules.portal.service import SERVICE_CATALOG
+    return [dict(item) for item in SERVICE_CATALOG]
+
+
+def _compare_portal(truth: dict, catalog: list[dict]) -> list[str]:
+    errs: list[str] = []
+    codes = set(truth["school_module_codes"])
+    for item in catalog:
+        mc = item.get("module_code")
+        if mc not in codes:
+            errs.append(f"Portal service {item.get('id')} module_code={mc} ∉ 9 开关码")
+        elif truth.get("portal_services_expect_self_module") and item.get("id") != mc:
+            errs.append(f"Portal service id={item.get('id')} != module_code={mc}")
+    return errs
+
+
+def check_portal(truth: dict, repo: Path) -> list[str]:
+    return _compare_portal(truth, _load_service_catalog(repo))
+
+
+# frontend drift 实际探测器（plan-review F2）：id -> fn(parsed) -> bool（drift 是否「仍成立」）
+# 不硬编码白名单放行；每个 frontend drift 必须有探测器实际验证，新增无探测器 → fail-closed。
+def _all_frontend_codes(parsed: dict) -> set[str]:
+    return (set(parsed["routeAccess"].values()) | set(parsed["router_meta"].values())
+            | set(parsed["sidebar"].values()) | set(parsed["dashboard"].values()))
+
+
+def _academic_wired_to_teaching(parsed: dict) -> bool:
+    for surface in ("routeAccess", "router_meta"):
+        for route, code in parsed[surface].items():
+            if route.startswith("/academic") and code == "teaching":
+                return True
+    return False
+
+
+# frontend drift 探测器（plan-review F2 + R5 F-003）：id -> {expect, actual, still_holds(parsed)->bool}
+# 四元组校验：known_drift 条目的 expect/actual 必须与 probe 契约一致（consumer=frontend 固定、locus 在条目），
+# 再由 still_holds 验证实际状态。消除"声称四元组豁免但实仅 probe"的不自洽（R5 F-003）。
+_FRONTEND_DRIFT_PROBES = {
+    "studio-frontend-entry-missing": {
+        "expect": "present", "actual": "absent",
+        "still_holds": lambda p: "studio" not in _all_frontend_codes(p)},
+    "teaching-frontend-unwired": {
+        "expect": "moduleCode:teaching", "actual": "null",
+        "still_holds": lambda p: not _academic_wired_to_teaching(p)},
+}
+
+
+def check_frontend_drift(truth: dict, repo: Path) -> list[str]:
+    """frontend drift 四元组校验（R5 F-003）+ 实际状态校验：
+    登记 expect/actual 须与 probe 契约一致；drift 仍成立→绿；实际已不成立(疑似已修复)→红(应删登记)。"""
+    errs: list[str] = []
+    parsed = parse_frontend(repo)
+    for d in truth["known_drift"]:
+        if d["consumer"] != "frontend":
+            continue
+        probe = _FRONTEND_DRIFT_PROBES.get(d["id"])
+        if probe is None:
+            continue  # 无探测器的 frontend drift 由 check_known_drift 报 fail-closed
+        # 四元组：登记的 expect/actual 必须与 probe 契约匹配（R5 F-003）
+        if d.get("expect") != probe["expect"] or d.get("actual") != probe["actual"]:
+            errs.append(f"frontend drift {d['id']} 登记 expect/actual=({d.get('expect')},{d.get('actual')}) 与 probe 契约 ({probe['expect']},{probe['actual']}) 不符（R5 F-003）")
+        if not probe["still_holds"](parsed):
+            errs.append(f"frontend drift {d['id']} 实际已不成立（疑似已修复）→ 应从 known_drift 删除")
+    return errs
+
+
+def check_known_drift(truth: dict, repo: Path) -> list[str]:
+    """收敛：backend drift 必须被某 backend_route 的 drift 字段引用；
+    frontend drift 必须有实际探测器（由 check_frontend_drift 验证状态）。无硬编码白名单放行。"""
+    errs: list[str] = []
+    backend_refs = {s.get("drift") for s in truth["backend_routes"].values() if s.get("drift")}
+    for d in truth["known_drift"]:
+        consumer = d["consumer"]
+        if consumer == "backend_middleware":
+            if d["id"] not in backend_refs:
+                errs.append(f"孤儿 backend known_drift: {d['id']} 未被任何 backend_route 引用")
+        elif consumer == "frontend":
+            if d["id"] not in _FRONTEND_DRIFT_PROBES:
+                errs.append(f"frontend known_drift {d['id']} 无实际探测器，无法验证状态（fail-closed）")
+        else:
+            errs.append(f"known_drift {d['id']} consumer={consumer} 为未知类型")
+    return errs
+
+
+CHECKS = [check_self_consistency, check_backend, check_frontend, check_frontend_drift, check_portal, check_known_drift]
 
 
 def run_all(truth: dict, repo: Path) -> list[str]:
