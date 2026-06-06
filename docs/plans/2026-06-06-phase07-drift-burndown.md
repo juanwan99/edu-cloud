@@ -25,19 +25,27 @@ surface 与后端中间件门控 fail 策略统一、守卫匹配规则与运行
    :subjectId` 需 manage_grading 但精确表匹配不到），完整修复 `3f98a30`：抽 `canAccessMatchedRoute`
    覆盖静态精确表 ∪ 动态 `route.meta`（权限+模块两维），与 authGuard 同源；R8 **零 MED/security finding**。
    **本项（连同 R6/R7 同根因变体）已结清**。
-2. **R5-DC2 (LOW, 规则漂移) — 留待 0.7B**: 守卫 `_actual_gating` 最长前缀匹配 vs 中间件
-   `ROUTE_MODULE_MAP` dict-first-match。当前 knowledge/knowledge-tree 同属 research 无影响；
-   统一匹配规则以防未来重叠前缀误判（守卫绿但运行时命中另一模块）。
-   **注**: R8 复审中此项未再被报（当前无触发），但仍属真实规则漂移，保留至 0.7B。
-3. **R8 LOW `defect_fix`（CRLF 尾随空白）— 留待 0.7B**: `frontend/src/__tests__/router.test.js` +
-   `frontend/src/stores/auth.js` 全文件 CRLF 行尾，`git diff --check f82df2a~1..HEAD` 报尾随空白
-   （每行含 `\r`）。**非 0.7A 改动引入**——`git diff --check 5fad3cc..HEAD`（0.7A 4 提交）exit=0 干净；
-   系 0.6 期提交写入 CRLF。不在 0.7A 重写这两文件（避免对预存 0.6 期文件做整文件行尾翻转的 scope 蔓延），
-   归入 0.7B 行尾规范化（连同其他 CRLF 文件统一治理）。
-4. **后端 fail-open known_drift (security)**: academic / conduct / exam-imports
-   (ROUTE_MODULE_MAP 缺 → pass-through)。参照 profile(0.6C 已修)逐个评估低风险后加门控。
-5. **后端 hygiene known_drift**: menus/portal/grades/teachers/client-logs 未在 exempt list。
-6. **前端 known_drift**: studio-entry 缺失(ux) / teaching 未接线(semantic)。
+2. **R5-DC2 (LOW, 规则漂移) — ✅ 已收口（`90c8a93`，0.7B item3）**: 守卫 `_actual_gating` 最长前缀匹配 vs 中间件
+   `ROUTE_MODULE_MAP` dict-first-match。**处置**: `module_middleware.py` 抽 `resolve_module_code`/
+   `_longest_prefix_match`，匹配规则由 dict-first 改最长前缀，与守卫严格同算法（exempt-first → 最长前缀）；
+   守卫 `_actual_gating` 同步重排 exempt-first（exempt/gated 前缀集互斥，inert）。无行为变更（重叠前缀今同模块）。
+   证据: 中间件 7 passed（含重叠前缀命中最长 RED→GREEN）+ 守卫 55 passed + --check clean。
+3. **R8 LOW `defect_fix`（CRLF 尾随空白）— ✅ 已收口（`0d78f55`，0.7B item2）**: `router.test.js` +
+   `auth.js` 全文件 CRLF→LF。纯行尾翻转零内容变更（`git diff --ignore-cr-at-eol --stat` 为空），转换后
+   60 passed。**作用域限定**: 仅 R8 点名的 2 个活跃源文件；全仓 Windows 遗留 CRLF（~80 活跃源文件含业务 UI）
+   属预存条件、不在 0.7B 范围、不碰业务 UI，留作未来独立 .gitattributes 规范化候选。
+4. **后端 fail-open known_drift (security) — ✅ 部分收口（`c989e09`，0.7B item4）**:
+   - **conduct / exam-imports — 已补门控**: `ROUTE_MODULE_MAP` 加 `/api/v1/conduct→conduct`、
+     `/api/v1/exam-imports→exam`。前端已标 moduleCode、authGuard 0.7A 已 fail-close 导航，后端补同源门控=
+     模块关即不可用（enabled 校无变化，disabled 校直达 API 403=正确收口）。证据: conduct+exam_import 153 passed。
+   - **academic — 保留 known_drift（不补门控）**: 前端 `/academic/*` 仅 `permission:manage_scheduling`、无
+     moduleCode（teaching-frontend-unwired）。单独后端 gating 会让有该权限但 teaching 关闭的校 403 破坏页面，
+     需前端 teaching wiring 配套——超出 0.7B「不改业务 UI」范围。保留 `academic-backend-fail-open` 登记。
+5. **后端 hygiene known_drift — ✅ 已收口（`c989e09`，0.7B item5）**: menus/portal/grades/teachers/client-logs
+   入 `EXEMPT_PREFIXES`。本就 pass-through（不在 MAP），显式豁免行为零变更，仅令意图可见。
+   守卫 stale-drift 检测强制：7 条 backend drift 已删（known_drift 11→3）。
+6. **前端 known_drift — 保留（不在 0.7B 范围）**: studio-entry 缺失(ux) / teaching 未接线(semantic)。
+   两者均涉及业务 UI（新增 studio 入口 / wiring /academic 到 teaching），违反「不改业务 UI」，保留为登记 drift。
 
 ## Must Preserve
 0.6C 成果：router_meta 完整门控面守卫 + profile 前后端门控(`70eeac2`/`b1a6d09`/`61ed166`) +

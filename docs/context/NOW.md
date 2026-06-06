@@ -154,11 +154,30 @@ Re-review `codex-review range:f82df2a..HEAD` R6→R8 (commits `2d2bfba`/`369625e
 
 Phase 0.6C **done**; Phase 0.7A (frontend module-visibility fail-closed, R5/R6/R7
 MED `security_design`) **done & committed** (`2d2bfba`..`3f98a30`), R8 re-review
-zero MED. **Portal homepage aggregation (Phase 1) stays BLOCKED** — per task
-contingency "only LOW remaining → plan Phase 0.7B", Portal unlock is a **designer
-decision** (execution engineer does not self-unlock). Phase 0.7B burn-down (R5-DC2
-LOW prefix drift + R8 LOW CRLF whitespace + backend fail-open/hygiene known_drift)
-tracked in `docs/plans/2026-06-06-phase07-drift-burndown.md`. See
+zero MED.
+
+Phase 0.7B drift burn-down **done & committed** (`fd89f10`/`0d78f55`/`90c8a93`/
+`c989e09`): ① untracked gate receipt committed; ② CRLF→LF on
+`router.test.js`+`auth.js` (R8 LOW, content-neutral); ③ R5-DC2 — middleware
+matching aligned to the guard's longest-prefix (`resolve_module_code`/
+`_longest_prefix_match`, exempt-first); ④ backend fail-open — `/api/v1/conduct`
+(conduct) and `/api/v1/exam-imports` (exam) gated; **`/api/v1/academic` kept as
+registered `academic-backend-fail-open` drift** — its frontend `/academic/*` is
+permission-only (no `moduleCode`, `teaching-frontend-unwired`), so backend-only
+gating would 403-break the pages for schools with `manage_scheduling` but
+`teaching` disabled; wiring the frontend is out of 0.7B scope ("不改业务 UI");
+⑤ hygiene — menus/portal/grades/teachers/client-logs added to `EXEMPT_PREFIXES`
+(behaviour-neutral, were already pass-through). `known_drift` 11→3 (academic
+backend + studio/teaching frontend). Evidence: guard `--check` clean;
+governance+middleware 66 passed; conduct+exam_import 153 passed; meta-check green.
+codex-review `range:5aa971d..HEAD` R1=FINDINGS (1 LOW `scope_gap` = stale
+ACTIVE_INDEX/NOW, resolved by this doc update → re-review).
+
+**Portal homepage aggregation (Phase 1) stays BLOCKED** — per task contingency
+"only LOW remaining → plan Phase 0.7B", Portal unlock is a **designer decision**
+(execution engineer does not self-unlock). After 0.7B only registered drift
+(academic/studio/teaching) plus the Portal unlock itself remain. Plan:
+`docs/plans/2026-06-06-phase07-drift-burndown.md`. See
 `docs/plans/2026-06-06-phase06-coverage-handoff.md` for 0.6C.
 
 ## Codex Migration State
