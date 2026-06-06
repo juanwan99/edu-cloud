@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getRouteAccessRequirement,
   canAccessRouteForRole,
+  canAccessMatchedRoute,
   getHeaderNavItems,
   createModuleGate,
   moduleGateFromAuth,
@@ -108,6 +109,36 @@ describe('module gate fail-closed semantics (Phase 0.7A F-001)', () => {
 
     const loadFailedAuth = { currentRole: { school_id: 1 }, modulesLoaded: true, enabledModules: [] }
     expect(moduleMatches('grading', moduleGateFromAuth(loadFailedAuth))).toBe(false)
+  })
+})
+
+// canAccessMatchedRoute：对「当前已匹配路由」综合判定，覆盖静态精确表 ∪ 动态 route.meta（权限+模块），
+// 与 authGuard 同源。动态子路由（/exams/:id、/exams/:examId/ai-grading/:subjectId）精确表匹配不到，
+// 靠 meta 兜底——堵 RoleSwitcher 切换路径上的 perm/module fail-open（R6/R7 F-001）。
+describe('canAccessMatchedRoute: static∪dynamic perm+module (Phase 0.7A R6/R7 F-001)', () => {
+  const schoolGate = (mods, loaded = true) =>
+    createModuleGate({ schoolScoped: true, modulesLoaded: loaded, enabledModules: mods })
+  const exemptGate = createModuleGate({ schoolScoped: false })
+
+  it('static route gates by table permission + module', () => {
+    expect(canAccessMatchedRoute('homeroom_teacher', '/grading/tasks', {}, schoolGate(['grading']))).toBe(true)
+    expect(canAccessMatchedRoute('homeroom_teacher', '/grading/tasks', {}, schoolGate([]))).toBe(false) // 模块未启用
+    expect(canAccessMatchedRoute('subject_teacher', '/grading/tasks', {}, schoolGate(['grading']))).toBe(false) // 无 manage_grading
+  })
+
+  it('dynamic route gates module via meta.moduleCode (school fail-closed; exempt bypass)', () => {
+    const meta = { moduleCode: 'exam' }
+    expect(canAccessMatchedRoute('school_admin', '/exams/123', meta, schoolGate(['grading']))).toBe(false) // exam 未启用
+    expect(canAccessMatchedRoute('school_admin', '/exams/123', meta, schoolGate(['exam']))).toBe(true)
+    expect(canAccessMatchedRoute('school_admin', '/exams/123', meta, exemptGate)).toBe(true) // admin 模块豁免
+  })
+
+  it('dynamic route gates permission via meta.permissions (NOT bypassed by module exemption)', () => {
+    const meta = { permissions: ['manage_grading'], moduleCode: 'grading' }
+    expect(canAccessMatchedRoute('homeroom_teacher', '/exams/1/ai-grading/2', meta, schoolGate(['grading']))).toBe(true)
+    expect(canAccessMatchedRoute('subject_teacher', '/exams/1/ai-grading/2', meta, schoolGate(['grading']))).toBe(false) // 无 manage_grading
+    expect(canAccessMatchedRoute('homeroom_teacher', '/exams/1/ai-grading/2', meta, schoolGate([]))).toBe(false) // 模块未启用
+    expect(canAccessMatchedRoute('subject_teacher', '/exams/1/ai-grading/2', meta, exemptGate)).toBe(false) // 模块豁免不豁免权限
   })
 })
 

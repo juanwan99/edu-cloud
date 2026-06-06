@@ -92,12 +92,12 @@ describe('RoleSwitcher route safety', () => {
   it('uses module gate context instead of fail-open empty-array fallback', () => {
     expect(source).toContain('moduleGateFromAuth(auth)')
     expect(source).not.toContain('auth.modulesLoaded ? auth.enabledModules : []')
-    // R6 F-001：动态子路由（/exams/:id）用 route.meta.moduleCode 兜底（精确表匹配不到）
-    expect(source).toContain('moduleMatches(route.meta?.moduleCode, gate)')
+    // R6/R7 F-001：当前路由可达性走 canAccessMatchedRoute（静态∪动态 meta，权限+模块）
+    expect(source).toContain('canAccessMatchedRoute(targetRoleKey, route.path, route.meta, moduleGateFromAuth(auth))')
   })
 
   // R6 F-001（MED security_design）：停留动态模块页 → 切到未启用该模块的学校身份 → 必须回退 /。
-  // 修复前 /exams/123 在 routeAccess 精确表匹配不到 moduleCode → fail-open 放行（不回退）。
+  // 修复前 /exams/123 在 routeAccess 精确表匹配不到 moduleCode → 模块维度 fail-open 放行（不回退）。
   it('fail-closed: redirects to / when switching to a school identity lacking the dynamic route module', async () => {
     route.path = '/exams/123'
     route.meta = { moduleCode: 'exam' }
@@ -107,6 +107,21 @@ describe('RoleSwitcher route safety', () => {
     switchRole.mockResolvedValueOnce(true)
     const wrapper = mount(RoleSwitcher, { props: { compact: true } })
     await wrapper.vm.handleSwitch(1)
+    expect(push).toHaveBeenCalledWith('/')
+  })
+
+  // R7 F-001（MED security_design）：停留高权动态页（meta.permissions）→ 切到无该权限的身份 → 必须回退 /。
+  // 修复前 /exams/:examId/ai-grading/:subjectId 精确表匹配不到 → 权限维度 fail-open（低权身份滞留高权页）。
+  it('fail-closed: redirects to / when target identity lacks the dynamic route permission', async () => {
+    route.path = '/exams/1/ai-grading/2'
+    route.meta = { permissions: ['manage_grading'], moduleCode: 'grading' }
+    mockAuth.currentRoleIndex = 1 // 当前 school_admin，切到 index 0 的 subject_teacher
+    mockAuth.currentRole = { id: 'r1', role: 'subject_teacher', school_id: 's1', context: { name: 'Yucai' } }
+    mockAuth.modulesLoaded = true
+    mockAuth.enabledModules = ['grading'] // 模块已启用，但 subject_teacher 无 manage_grading
+    switchRole.mockResolvedValueOnce(true)
+    const wrapper = mount(RoleSwitcher, { props: { compact: true } })
+    await wrapper.vm.handleSwitch(0)
     expect(push).toHaveBeenCalledWith('/')
   })
 })

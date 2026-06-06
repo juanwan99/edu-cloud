@@ -97,6 +97,23 @@ export function canAccessRouteForRole(role, route, gate) {
   return canAccessRequirementForRole(role, getRouteAccessRequirement(route), gate)
 }
 
+// 综合「当前已匹配路由」可达性判定（供 RoleSwitcher 等对**当前路由**判定可达性的 surface）。
+// 与 authGuard(router/index.js) 同源覆盖静态精确表 ∪ 动态 route.meta：
+//   权限 = 精确表 requirement.permission（permissionMatches）∧ route.meta.permissions（OR-any 命中其一）
+//   模块 = 精确表 requirement.moduleCode ∪ route.meta.moduleCode，走门控上下文 fail-closed
+// 动态子路由（/exams/:id、/exams/:examId/ai-grading/:subjectId 等）getRouteAccessRequirement 精确 key
+// 匹配不到 → 权限与模块均靠 meta 兜底，堵 RoleSwitcher 切换路径上的 perm/module fail-open（R6/R7 F-001）。
+export function canAccessMatchedRoute(role, path, meta, gate) {
+  const requirement = getRouteAccessRequirement(path)
+  const tablePermOk = permissionMatches(role, requirement?.permission)
+  const metaPerms = meta?.permissions
+  const metaPermOk = Array.isArray(metaPerms) && metaPerms.length
+    ? metaPerms.some(perm => hasPermission(normalizeRole(role), perm))
+    : true
+  const moduleCode = requirement?.moduleCode || meta?.moduleCode
+  return tablePermOk && metaPermOk && moduleMatches(moduleCode, gate)
+}
+
 
 export function getHeaderNavItems(role, gate) {
   const normalized = normalizeRole(role)

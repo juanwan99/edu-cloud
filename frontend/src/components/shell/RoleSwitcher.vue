@@ -32,7 +32,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { NTag } from 'naive-ui'
 import { useAuthStore } from '../../stores/auth.js'
 import { normalizeRole, ROLE_LABELS } from '../../config/roles.js'
-import { canAccessRouteForRole, moduleGateFromAuth, moduleMatches } from '../../config/routeAccess.js'
+import { canAccessMatchedRoute, moduleGateFromAuth } from '../../config/routeAccess.js'
 import { getRoleEntryPolicy } from '../../config/roleEntryMatrix.js'
 import { routeBelongsToRoleEntry } from '../../config/identityRouting.js'
 
@@ -114,13 +114,10 @@ async function handleSwitch(key) {
     const targetRoleKey = normalizeRole(targetRole)
     const switched = await auth.switchRole(key)
     if (!switched) return
-    // Phase 0.7A：用门控上下文取代「modulesLoaded ? enabledModules : []」fail-open 兜底。
-    // 切换后若目标身份（学校用户）模块未加载/失败/未启用该模块，则不视为「当前路由可达」→ 回 '/'。
-    // 动态子路由（/exams/:id 等）getRouteAccessRequirement 精确 key 匹配不到 → 靠 route.meta.moduleCode
-    // 兜底（与 authGuard router/index.js:180 同源），堵「停留动态模块页→切到未启用该模块身份」绕过 fail-closed（R6 F-001）。
-    const gate = moduleGateFromAuth(auth)
-    const routeAllowed = canAccessRouteForRole(targetRoleKey, route.path, gate)
-          && moduleMatches(route.meta?.moduleCode, gate)
+    // Phase 0.7A：当前路由可达性走门控上下文（fail-closed），取代「modulesLoaded ? enabledModules : []」。
+    // canAccessMatchedRoute 覆盖静态精确表 ∪ 动态 route.meta（权限+模块），与 authGuard 同源——
+    // 堵「停留动态模块/高权页 → 切到未启用该模块或无权限的身份」绕过 fail-closed（R6/R7 F-001）。
+    const routeAllowed = canAccessMatchedRoute(targetRoleKey, route.path, route.meta, moduleGateFromAuth(auth))
     const routeInWorkbench = routeBelongsToRoleEntry(route.path, targetRoleKey, getRoleEntryPolicy(targetRoleKey))
     if (!routeAllowed || !routeInWorkbench) {
       router.push('/')
