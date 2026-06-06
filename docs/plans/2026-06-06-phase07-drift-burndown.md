@@ -19,21 +19,33 @@ surface 与后端中间件门控 fail 策略统一、守卫匹配规则与运行
    (`createModuleGate`/`moduleGateFromAuth`)，4 个 surface（`AppSidebar`/`AppHeader`/`RoleSwitcher`/
    `DashboardPage`）统一经 `moduleGateFromAuth(auth)` 取门控、与 authGuard 数学等价 fail-closed；
    删 `AppHeader.moduleFallbacks` + `DashboardPage` 死代码 fallback；authGuard 不动。详见 NOW.md
-   "Phase 0.7A"。证据: 定向前端 176 pass / governance 170 pass / 守卫 --check clean / meta-check green。
-   R6 `codex-review` PASS 后本项结清。
-2. **R5-DC2 (LOW, 规则漂移)**: 守卫 `_actual_gating` 最长前缀匹配 vs 中间件
+   "Phase 0.7A"。证据: 定向前端 181 pass / governance 170 pass / 守卫 --check clean / meta-check green。
+   **复审收口**: `codex-review range:f82df2a..HEAD` R6→R8 迭代——R6 报 RoleSwitcher 动态路由**模块**维度
+   fail-open（MED，已修 `e1ff2e1`）；R7 报同根因**权限**维度 fail-open（MED，`/exams/:examId/ai-grading/
+   :subjectId` 需 manage_grading 但精确表匹配不到），完整修复 `3f98a30`：抽 `canAccessMatchedRoute`
+   覆盖静态精确表 ∪ 动态 `route.meta`（权限+模块两维），与 authGuard 同源；R8 **零 MED/security finding**。
+   **本项（连同 R6/R7 同根因变体）已结清**。
+2. **R5-DC2 (LOW, 规则漂移) — 留待 0.7B**: 守卫 `_actual_gating` 最长前缀匹配 vs 中间件
    `ROUTE_MODULE_MAP` dict-first-match。当前 knowledge/knowledge-tree 同属 research 无影响；
    统一匹配规则以防未来重叠前缀误判（守卫绿但运行时命中另一模块）。
-3. **后端 fail-open known_drift (security)**: academic / conduct / exam-imports
+   **注**: R8 复审中此项未再被报（当前无触发），但仍属真实规则漂移，保留至 0.7B。
+3. **R8 LOW `defect_fix`（CRLF 尾随空白）— 留待 0.7B**: `frontend/src/__tests__/router.test.js` +
+   `frontend/src/stores/auth.js` 全文件 CRLF 行尾，`git diff --check f82df2a~1..HEAD` 报尾随空白
+   （每行含 `\r`）。**非 0.7A 改动引入**——`git diff --check 5fad3cc..HEAD`（0.7A 4 提交）exit=0 干净；
+   系 0.6 期提交写入 CRLF。不在 0.7A 重写这两文件（避免对预存 0.6 期文件做整文件行尾翻转的 scope 蔓延），
+   归入 0.7B 行尾规范化（连同其他 CRLF 文件统一治理）。
+4. **后端 fail-open known_drift (security)**: academic / conduct / exam-imports
    (ROUTE_MODULE_MAP 缺 → pass-through)。参照 profile(0.6C 已修)逐个评估低风险后加门控。
-4. **后端 hygiene known_drift**: menus/portal/grades/teachers/client-logs 未在 exempt list。
-5. **前端 known_drift**: studio-entry 缺失(ux) / teaching 未接线(semantic)。
+5. **后端 hygiene known_drift**: menus/portal/grades/teachers/client-logs 未在 exempt list。
+6. **前端 known_drift**: studio-entry 缺失(ux) / teaching 未接线(semantic)。
 
 ## Must Preserve
 0.6C 成果：router_meta 完整门控面守卫 + profile 前后端门控(`70eeac2`/`b1a6d09`/`61ed166`) +
 主体 4 commit(`f51342a`/`8606ac6`/`bf421e8`/`bd8be46`) 不回退；动态 fail-closed 不削弱。
 
 ## Must Not Change
-- 不回退 Phase 0.5/0.6/0.6C 任何成果。
-- **Portal homepage aggregation (Phase 1) 在本 burn-down 关键项（至少 R5-DC1）处置或设计者
-  明确解锁前，保持 BLOCKED。**
+- 不回退 Phase 0.5/0.6/0.6C/0.7A 任何成果。
+- **Portal homepage aggregation (Phase 1)**: 关键项 R5-DC1（MED security_design 前端 surface
+  fail-open，含 R6/R7 同根因变体）已于 Phase 0.7A 处置结清、复审零 MED。剩余仅 LOW（R5-DC2 前缀漂移 +
+  R8 CRLF 尾随空白）归入 0.7B。**Portal 解锁为设计者决策**——按任务契约"只剩 LOW → 规划 0.7B"，
+  Portal 在设计者明确解锁前保持 BLOCKED（执行工程师不自行解锁）。

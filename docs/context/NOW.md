@@ -132,21 +132,34 @@ hidden; admin/no-school_id keep the exemption. `moduleMatches` is now fail-close
 
 Local evidence: targeted frontend `routeAccess`+`AppSidebar`+`AppHeader`+
 `RoleSwitcher`+`sidebarConfig`+`auth-store`+`router`+`config`+`DashboardPage`
-176 pass; full vitest 2498 pass / 3 pre-existing baseline failures (marking/review
+181 pass; full vitest 2498 pass / 3 pre-existing baseline failures (marking/review
 static assertions, unrelated); `tests/governance` 170 pass;
 `check_module_semantics.py --check` clean (guard parses declarations, unaffected);
-`meta-check --strict` green. R6 `codex-review range:f82df2a..HEAD` pending.
+`meta-check --strict` green.
+
+Re-review `codex-review range:f82df2a..HEAD` R6→R8 (commits `2d2bfba`/`369625e`/
+`e1ff2e1`/`3f98a30`):
+- R6: NEW MED `security_design` — `RoleSwitcher` switch-time current-route check used
+  the exact routeAccess table only; dynamic sub-routes (`/exams/:id`) missed the
+  module gate → fail-open. Fixed `e1ff2e1` (meta.moduleCode fallback).
+- R7: same-root-cause MED — the **permission** dimension of dynamic routes
+  (`/exams/:examId/ai-grading/:subjectId` needs `manage_grading`) also fail-open.
+  Fixed `3f98a30`: new `canAccessMatchedRoute(role,path,meta,gate)` covering exact
+  table ∪ dynamic `route.meta` (permission + module), authGuard-aligned.
+- R8: **zero MED/security findings** — Phase 0.7A security goal met. Sole residual =
+  1 LOW `defect_fix` (CRLF trailing whitespace in `router.test.js`/`auth.js`,
+  **0.6-era files, not 0.7A changes** — `git diff --check 5fad3cc..HEAD` is clean).
 
 ## Next Phase
 
-Phase 0.6C is **done** (R5 confirmed R4 findings FIXED). Phase 0.7A
-(frontend fail-closed, R5 F-001) is **implemented & locally verified**, pending R6
-`codex-review`. **Portal homepage aggregation (Phase 1) stays BLOCKED** until
-Phase 0.7A passes R6 `codex-review` (designer gate: PASS, or only LOW prefix-match
-drift remaining → plan Phase 0.7B). Remaining Phase 0.7 burn-down (R5 F-002 LOW +
-backend fail-open/hygiene known_drift) tracked in
-`docs/plans/2026-06-06-phase07-drift-burndown.md`. Do not start Portal work before
-the gate clears. See `docs/plans/2026-06-06-phase06-coverage-handoff.md` for 0.6C.
+Phase 0.6C **done**; Phase 0.7A (frontend module-visibility fail-closed, R5/R6/R7
+MED `security_design`) **done & committed** (`2d2bfba`..`3f98a30`), R8 re-review
+zero MED. **Portal homepage aggregation (Phase 1) stays BLOCKED** — per task
+contingency "only LOW remaining → plan Phase 0.7B", Portal unlock is a **designer
+decision** (execution engineer does not self-unlock). Phase 0.7B burn-down (R5-DC2
+LOW prefix drift + R8 LOW CRLF whitespace + backend fail-open/hygiene known_drift)
+tracked in `docs/plans/2026-06-06-phase07-drift-burndown.md`. See
+`docs/plans/2026-06-06-phase06-coverage-handoff.md` for 0.6C.
 
 ## Codex Migration State
 
