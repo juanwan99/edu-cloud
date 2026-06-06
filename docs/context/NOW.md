@@ -170,8 +170,11 @@ gating would 403-break the pages for schools with `manage_scheduling` but
 (behaviour-neutral, were already pass-through). `known_drift` 11→3 (academic
 backend + studio/teaching frontend). Evidence: guard `--check` clean;
 governance+middleware 66 passed; conduct+exam_import 153 passed; meta-check green.
-codex-review `range:5aa971d..HEAD` R1=FINDINGS (1 LOW `scope_gap` = stale
-ACTIVE_INDEX/NOW, resolved by this doc update → re-review).
+codex-review status lives in the machine source of truth — gate
+`code_review_batch_07b` in `docs/plans/2026-06-04-module-governance-repair-gates.json`
+plus `.review-receipts.jsonl`. This doc states the *work*; the gate states the
+*review verdict* (do not narrate per-round verdicts here — that narration goes
+stale every round and re-triggers a scope_gap finding).
 
 **Portal homepage aggregation (Phase 1) stays BLOCKED** — per task contingency
 "only LOW remaining → plan Phase 0.7B", Portal unlock is a **designer decision**
