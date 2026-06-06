@@ -1,0 +1,28 @@
+{
+  "gates": {
+    "code_review_batch1": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "05a63508b7c605042bff979ba394031be898a6765d017c52b0e29a750634150f",
+      "report_path": "docs/plans/.codex-review-2026-06-06_205940.log",
+      "updated": "2026-06-06T21:34:52.775812+08:00",
+      "reason": "Phase 0.7A 批次：机械转录 engine_review PASS verdict（reviewed_sha 5aa971d, range:5fad3cc..HEAD, ORC-S2-4 拔发证者边界，只照抄不自判）",
+      "subject_ref": "commit:5fad3cc..HEAD",
+      "round": 1
+    }
+  },
+  "schema": "gates.v2",
+  "manifest": {
+    "receipt_log": [
+      {
+        "gate": "code_review_batch1",
+        "status": "pass",
+        "round": 1,
+        "subject_ref": "commit:5fad3cc..HEAD",
+        "subject_hash": "05a63508b7c605042bff979ba394031be898a6765d017c52b0e29a750634150f",
+        "ts": "2026-06-06T21:34:52.775843+08:00"
+      }
+    ]
+  }
+}
