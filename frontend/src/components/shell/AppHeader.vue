@@ -51,18 +51,17 @@ import SchoolContext from './SchoolContext.vue'
 import NotificationBell from './NotificationBell.vue'
 import RoleSwitcher from './RoleSwitcher.vue'
 import { useAuthStore } from '../../stores/auth.js'
-import { getHeaderNavItems } from '../../config/routeAccess.js'
+import { getHeaderNavItems, moduleGateFromAuth } from '../../config/routeAccess.js'
 import { normalizeRole } from '../../config/roles.js'
 
 const route = useRoute()
 const auth = useAuthStore()
 
-const moduleFallbacks = ['exam', 'grading', 'calendar', 'studio']
-
+// Phase 0.7A：移除 moduleFallbacks 放行（模块未加载即放 4 个默认模块入口的 fail-open）。
+// 改用门控上下文：学校用户在未加载/加载失败/空列表时模块导航 fail-closed 隐藏，admin 豁免。
 const navItems = computed(() => {
   const role = normalizeRole(auth.currentRole?.role)
-  const enabledModules = auth.modulesLoaded ? auth.enabledModules : moduleFallbacks
-  return getHeaderNavItems(role, enabledModules)
+  return getHeaderNavItems(role, moduleGateFromAuth(auth))
 })
 
 function isNavActive(item) {

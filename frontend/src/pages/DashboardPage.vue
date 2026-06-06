@@ -305,6 +305,7 @@ import { buildRoleWorkbenchSummary } from '../composables/useRoleWorkbenchData.j
 import {
   ROUTE_ACCESS_REQUIREMENTS,
   canAccessRequirementForRole,
+  moduleGateFromAuth,
 } from '../config/routeAccess.js'
 import { CHART_DEFAULTS, CHART_PALETTE } from '../config/chartTheme.js'
 import ActivityFeed from '../components/dashboard/ActivityFeed.vue'
@@ -345,19 +346,16 @@ const kpiIconMap = {
   ai_tools: 'ai',
 }
 
-const moduleFallbacks = ['exam', 'grading', 'calendar', 'studio']
-
-function moduleEnabled(moduleCode) {
-  if (!moduleCode) return true
-  const enabled = auth.enabledModules || []
-  if (!auth.modulesLoaded && enabled.length === 0) return moduleFallbacks.includes(moduleCode)
-  if (enabled.length === 0) return true
-  return enabled.includes(moduleCode)
-}
+// #semantic-ok Phase 0.7A 安全收紧（R5 F-001 MED security_design）：
+//  1. moduleFallbacks + moduleEnabled 为死代码（定义后全文件无引用，已 grep 确认），其内含的
+//     「未加载放默认 4 模块 / 空列表 return true」正是 fail-open，整体删除。
+//  2. canAccess 旧用 `auth.modulesLoaded ? auth.enabledModules : []`，admin 与学校空列表都退化为
+//     空数组而被当「不过滤」放行。改用门控上下文后边界检查被**收紧**为 fail-closed：学校用户
+//     未加载/失败/空列表 → 隐藏；admin/无 school_id → gate.exempt 显式豁免。与 authGuard 对齐。
+const moduleGate = computed(() => moduleGateFromAuth(auth))
 
 function canAccess(item) {
-  const enabledModules = auth.modulesLoaded ? auth.enabledModules : []
-  return canAccessRequirementForRole(role.value, item, enabledModules)
+  return canAccessRequirementForRole(role.value, item, moduleGate.value)
 }
 
 const routeAccessRequirements = ROUTE_ACCESS_REQUIREMENTS

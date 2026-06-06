@@ -32,7 +32,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { NTag } from 'naive-ui'
 import { useAuthStore } from '../../stores/auth.js'
 import { normalizeRole, ROLE_LABELS } from '../../config/roles.js'
-import { canAccessRouteForRole } from '../../config/routeAccess.js'
+import { canAccessRouteForRole, moduleGateFromAuth } from '../../config/routeAccess.js'
 import { getRoleEntryPolicy } from '../../config/roleEntryMatrix.js'
 import { routeBelongsToRoleEntry } from '../../config/identityRouting.js'
 
@@ -114,8 +114,9 @@ async function handleSwitch(key) {
     const targetRoleKey = normalizeRole(targetRole)
     const switched = await auth.switchRole(key)
     if (!switched) return
-    const enabledModules = auth.modulesLoaded ? auth.enabledModules : []
-    const routeAllowed = canAccessRouteForRole(targetRoleKey, route.path, enabledModules)
+    // Phase 0.7A：用门控上下文取代「modulesLoaded ? enabledModules : []」fail-open 兜底。
+    // 切换后若目标身份（学校用户）模块未加载/失败/未启用该模块，则不视为「当前路由可达」→ 回 '/'。
+    const routeAllowed = canAccessRouteForRole(targetRoleKey, route.path, moduleGateFromAuth(auth))
     const routeInWorkbench = routeBelongsToRoleEntry(route.path, targetRoleKey, getRoleEntryPolicy(targetRoleKey))
     if (!routeAllowed || !routeInWorkbench) {
       router.push('/')

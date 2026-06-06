@@ -51,6 +51,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth.js'
 import { normalizeRole } from '../../config/roles.js'
 import { getSidebarGroups } from '../../config/sidebarConfig.js'
+import { moduleGateFromAuth } from '../../config/routeAccess.js'
 import AppIcon from '../AppIcon.vue'
 
 const route = useRoute()
@@ -73,10 +74,12 @@ const currentNormalizedRole = computed(() => {
   return raw ? normalizeRole(raw) : 'subject_teacher'
 })
 
-const visibleGroups = computed(() => {
-  const modules = auth.modulesLoaded ? auth.enabledModules : []
-  return getSidebarGroups(currentNormalizedRole.value, modules)
-})
+// Phase 0.7A：用门控上下文取代「modulesLoaded ? enabledModules : []」的 fail-open 兜底。
+// 学校用户在模块未加载/加载失败/空列表时，模块组随 getSidebarGroups fail-closed 隐藏；
+// admin/无 school_id 经 gate.exempt 豁免。与 authGuard 语义一致。
+const visibleGroups = computed(() =>
+  getSidebarGroups(currentNormalizedRole.value, moduleGateFromAuth(auth)),
+)
 
 const effectiveCollapsed = computed(() => collapsed.value || isNarrowScreen.value)
 

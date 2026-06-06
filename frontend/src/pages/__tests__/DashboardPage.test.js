@@ -39,9 +39,12 @@ describe('DashboardPage template sections', () => {
   })
 
   it('guards school admin workbench routes by real route permissions', () => {
-    expect(content).toContain("import {\n  ROUTE_ACCESS_REQUIREMENTS,\n  canAccessRequirementForRole,\n} from '../config/routeAccess.js'")
+    expect(content).toContain("import {\n  ROUTE_ACCESS_REQUIREMENTS,\n  canAccessRequirementForRole,\n  moduleGateFromAuth,\n} from '../config/routeAccess.js'")
     expect(content).toContain('const routeAccessRequirements = ROUTE_ACCESS_REQUIREMENTS')
-    expect(content).toContain('canAccessRequirementForRole(role.value, item, enabledModules)')
+    // Phase 0.7A：仪表盘动作可见性走门控上下文（fail-closed），不再传 modulesLoaded?enabledModules:[]
+    expect(content).toContain('canAccessRequirementForRole(role.value, item, moduleGate.value)')
+    expect(content).toContain('const moduleGate = computed(() => moduleGateFromAuth(auth))')
+    expect(content).not.toContain('const moduleFallbacks')
   })
 
   it('uses role modules for secondary business entries instead of hard-coded quick cards', () => {

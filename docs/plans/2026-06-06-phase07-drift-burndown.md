@@ -10,11 +10,17 @@
 surface 与后端中间件门控 fail 策略统一、守卫匹配规则与运行时中间件一致。
 
 ## Burn-down 清单（按优先级）
-1. **R5-DC1 (MED, 跨层 fail 策略不一致)**: 菜单可见性层 `moduleMatches`(`routeAccess.js:46`
-   空列表=允许) 与 authGuard(有校 fail-closed，`router.test.js:415` 实测) 策略不一致 →
-   loadModules 失败时菜单/入口**视觉 fail-open**（authGuard 兜底实际访问，仅 UX 不一致）。
-   surface: `sidebarConfig.js`/`AppSidebar.vue`/`AppHeader.vue`/`RoleSwitcher.vue`。
-   触及 Must Preserve(loadModules 失败给空) + 并发禁区 `sidebarConfig.js` → **需设计决策**。
+1. **R5-DC1 / codex F-001 (MED `security_design`) — ✅ 已处置于 Phase 0.7A（2026-06-06）**:
+   **订正定性**——codex 引擎实测分类为 `security_design`（非可延期 `design_concern`）：菜单可见性
+   层 `moduleMatches`(`routeAccess.js:46` 空列表=允许) + `AppHeader.moduleFallbacks` 与 authGuard
+   (有校 fail-closed，`router.test.js:415` 实测) 策略不一致 → loadModules 失败/未加载/无模块时菜单/
+   入口**视觉 fail-open**（authGuard 兜底实际访问，但 surface 自身是 fail-open 安全面缺陷）。
+   **处置**: `routeAccess.js` 引入显式门控上下文 `{exempt,modulesLoaded,enabledModules}`
+   (`createModuleGate`/`moduleGateFromAuth`)，4 个 surface（`AppSidebar`/`AppHeader`/`RoleSwitcher`/
+   `DashboardPage`）统一经 `moduleGateFromAuth(auth)` 取门控、与 authGuard 数学等价 fail-closed；
+   删 `AppHeader.moduleFallbacks` + `DashboardPage` 死代码 fallback；authGuard 不动。详见 NOW.md
+   "Phase 0.7A"。证据: 定向前端 176 pass / governance 170 pass / 守卫 --check clean / meta-check green。
+   R6 `codex-review` PASS 后本项结清。
 2. **R5-DC2 (LOW, 规则漂移)**: 守卫 `_actual_gating` 最长前缀匹配 vs 中间件
    `ROUTE_MODULE_MAP` dict-first-match。当前 knowledge/knowledge-tree 同属 research 无影响；
    统一匹配规则以防未来重叠前缀误判（守卫绿但运行时命中另一模块）。

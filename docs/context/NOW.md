@@ -103,23 +103,50 @@ profile suite 29 pass.
 
 R5 re-review (`codex-review range:f82df2a..HEAD`, reviewed_sha `7f4c296`) =
 **FINDINGS**: R4 F-001/F-002/F-003 confirmed FIXED (NOT re-reported → 0.6C goal
-met). 2 NEW out-of-scope, pre-existing `design_concern`s — menu-layer fail-open
-(MED; `moduleMatches` empty-list=allow vs authGuard fail-closed) + guard-vs-
-middleware prefix-match drift (LOW) — carved to **Phase 0.7 drift burn-down**
-(`docs/plans/2026-06-06-phase07-drift-burndown.md`, designer decision
-2026-06-06). Not the same findings as R4; not introduced by 0.6C commits.
+met). 2 NEW findings, out-of-scope of 0.6C but pre-existing:
+- **R5 F-001 = MED `security_design` (NOT a deferrable design_concern)** — engine
+  verified frontend module-gating fail-open: `loadModules` marks an empty list as
+  loaded, the shared menu-layer predicate `moduleMatches` (`routeAccess.js:46`
+  empty-list=allow) + `AppHeader.moduleFallbacks` treat empty/unknown as "no
+  filter", so multiple surfaces keep showing disabled-module entries to school
+  users. Evidence: `canAccessRouteForRole('school_admin','/grading/tasks',[])=true`.
+  authGuard already fail-closes the actual navigation, but the surface itself is a
+  fail-open security面缺陷 — **must be fixed in Phase 0.7A, not deferred**.
+- R5 F-002 = LOW `design_concern` — guard longest-prefix vs middleware
+  dict-first-match drift (knowledge/knowledge-tree both `research`, no impact today).
+
+## Phase 0.7A — frontend module-visibility fail-closed (2026-06-06, implemented)
+
+Resolves R5 F-001. Introduces an explicit **module gate context**
+`{exempt, modulesLoaded, enabledModules}` in `routeAccess.js`
+(`createModuleGate`/`moduleGateFromAuth`), replacing the overloaded empty array
+that conflated 未加载/加载失败/无模块/admin豁免. All four visibility surfaces
+(`AppSidebar`/`AppHeader`/`RoleSwitcher`/`DashboardPage`) now derive the gate via
+`moduleGateFromAuth(auth)` and share one predicate **mathematically equivalent to
+authGuard** (`router/index.js:187-188`): allow IFF
+`!school_id (exempt) OR (modulesLoaded && enabledModules.includes(code))`.
+School users with modules unknown/failed/empty → module entries fail-closed
+hidden; admin/no-school_id keep the exemption. `moduleMatches` is now fail-closed;
+`AppHeader.moduleFallbacks` removed; `DashboardPage.moduleEnabled/moduleFallbacks`
+(dead code) deleted. authGuard unchanged — surfaces align to it, not weaken it.
+
+Local evidence: targeted frontend `routeAccess`+`AppSidebar`+`AppHeader`+
+`RoleSwitcher`+`sidebarConfig`+`auth-store`+`router`+`config`+`DashboardPage`
+176 pass; full vitest 2498 pass / 3 pre-existing baseline failures (marking/review
+static assertions, unrelated); `tests/governance` 170 pass;
+`check_module_semantics.py --check` clean (guard parses declarations, unaffected);
+`meta-check --strict` green. R6 `codex-review range:f82df2a..HEAD` pending.
 
 ## Next Phase
 
-Phase 0.6C coverage-completeness is **done & meets its R4 goal** (R5 confirmed
-the three R4 findings FIXED). The two NEW out-of-scope design_concerns from R5
-are carved to **Phase 0.7 drift burn-down**
-(`docs/plans/2026-06-06-phase07-drift-burndown.md`).
-
-**Portal homepage aggregation (Phase 1) stays BLOCKED** until the Phase 0.7
-key item (at least R5-DC1 menu-layer fail-open) is resolved or the designer
-explicitly unblocks it — do not start Portal work before then.
-See `docs/plans/2026-06-06-phase06-coverage-handoff.md` for the 0.6C spec.
+Phase 0.6C is **done** (R5 confirmed R4 findings FIXED). Phase 0.7A
+(frontend fail-closed, R5 F-001) is **implemented & locally verified**, pending R6
+`codex-review`. **Portal homepage aggregation (Phase 1) stays BLOCKED** until
+Phase 0.7A passes R6 `codex-review` (designer gate: PASS, or only LOW prefix-match
+drift remaining → plan Phase 0.7B). Remaining Phase 0.7 burn-down (R5 F-002 LOW +
+backend fail-open/hygiene known_drift) tracked in
+`docs/plans/2026-06-06-phase07-drift-burndown.md`. Do not start Portal work before
+the gate clears. See `docs/plans/2026-06-06-phase06-coverage-handoff.md` for 0.6C.
 
 ## Codex Migration State
 

@@ -47,6 +47,8 @@ cd frontend && npx vitest run                    # 前端
 
 > Phase 0.6 + 0.6C（已实施，HEAD 见 `docs/context/NOW.md`）：`authGuard` 对直达 URL 二次模块门控（`8606ac6`/`bd8be46`）；0.6C 覆盖完整性子任务处置 codex-review R4 F-001/F-002——`check_module_semantics.py` 将 `router_meta` 升为完整门控面：每个受控 route（`fr` 非 null）必须在 router-meta 标 `moduleCode`、动态路由 fail-closed，守卫绿 == 运行时无 fail-open；`/profile/student/:studentId` 补 `study_analytics` 门控堵直达。
 
+> Phase 0.7A（已实施，处置 R5 F-001 MED security_design）：前端**可见性 surface** 统一 fail-closed。`routeAccess.js` 新增显式门控上下文 `createModuleGate`/`moduleGateFromAuth`（`{exempt,modulesLoaded,enabledModules}`），取代「空数组同时表达 未加载/失败/无模块/admin豁免」的 fail-open；`moduleMatches` 改 fail-closed（exempt 显式豁免）。`AppSidebar`/`AppHeader`/`RoleSwitcher`/`DashboardPage` 4 个 surface 经 `moduleGateFromAuth(auth)` 取门控，与 `authGuard` 数学等价（allow IFF 无 school_id 豁免 OR (已加载 && 启用)）；删 `AppHeader.moduleFallbacks` + `DashboardPage` 死代码 fallback。authGuard 不动。
+
 ## 按需上下文（需要时 Read）
 
 | 信息 | 路径 |

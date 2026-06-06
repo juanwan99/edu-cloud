@@ -1,5 +1,5 @@
 import { hasPermission } from './permissions.js'
-import { canAccessRouteForRole, getRouteAccessRequirement } from './routeAccess.js'
+import { canAccessRouteForRole, getRouteAccessRequirement, moduleMatches } from './routeAccess.js'
 import { getRoleSidebarPolicy } from './roleEntryMatrix.js'
 
 const SIDEBAR_GROUPS = [
@@ -93,20 +93,20 @@ export const CONDUCT_ITEMS = SIDEBAR_GROUPS
   .find(g => g.key === 'student')
   .children.filter(c => c.moduleCode === 'conduct')
 
-function canAccessSidebarItem(role, item, enabledModules) {
+// Phase 0.7A：统一走门控上下文（routeAccess 的 moduleMatches）。无 routeAccess 真源的项也用
+// 同一 fail-closed 语义判定 moduleCode，消除旧 `enabled.size > 0` 内联 fail-open 分支。
+function canAccessSidebarItem(role, item, gate) {
   if (getRouteAccessRequirement(item.route)) {
-    return canAccessRouteForRole(role, item.route, enabledModules)
+    return canAccessRouteForRole(role, item.route, gate)
   }
-  const enabled = new Set(enabledModules)
   if (item.perm && !hasPermission(role, item.perm)) return false
-  if (item.moduleCode && enabled.size > 0 && !enabled.has(item.moduleCode)) return false
-  return true
+  return moduleMatches(item.moduleCode, gate)
 }
 
-export function getSidebarGroups(role, enabledModules = []) {
+export function getSidebarGroups(role, gate) {
   const permissionFiltered = SIDEBAR_GROUPS
     .map(group => {
-      const visibleChildren = group.children.filter(item => canAccessSidebarItem(role, item, enabledModules))
+      const visibleChildren = group.children.filter(item => canAccessSidebarItem(role, item, gate))
       if (visibleChildren.length === 0) return null
       return { ...group, children: visibleChildren }
     })
@@ -114,8 +114,8 @@ export function getSidebarGroups(role, enabledModules = []) {
   return applyRolePolicy(role, permissionFiltered)
 }
 
-export function getSidebarItems(role, enabledModules = []) {
-  const groups = getSidebarGroups(role, enabledModules)
+export function getSidebarItems(role, gate) {
+  const groups = getSidebarGroups(role, gate)
   const items = [{ icon: 'dashboard', label: '概览', route: '/' }]
   for (const group of groups) {
     for (const child of group.children) {
