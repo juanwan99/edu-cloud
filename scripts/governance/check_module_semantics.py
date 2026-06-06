@@ -163,7 +163,20 @@ def _surface_route_set(text: str, kind: str) -> set[str]:
     return set(re.findall(r"route:\s*" + _Q + r"(/" + _NQ + r"*)" + _Q, text))
 
 
-_ROUTE_FIELD_MC = (r"route:\s*" + _Q + r"(/" + _NQ + r"*)" + _Q + r"[^}]*moduleCode:\s*" + _Q + r"([a-z_]+)" + _Q)
+def _parse_route_field_pairs(text: str) -> dict[str, str]:
+    """sidebar/dashboard 的 route 字段对：{ route: '/r', ... moduleCode: 'x' }。
+    无序解析（codex-review F-001 MED）：同对象内 route 在前或 moduleCode 在前都解析为 {route: moduleCode}；
+    _surface_route_set 本就只抓 route 字面量（order-insensitive），此处对齐以消除假阳性/漏报。
+    单/双引号均识别（F-002）；`[^}]` 不含右花括号，天然不跨对象边界。"""
+    text = _strip_js_comments(text)
+    pairs: dict[str, str] = {}
+    # route 在前、moduleCode 在后
+    for m in re.finditer(r"route:\s*" + _Q + r"(/" + _NQ + r"*)" + _Q + r"[^}]*moduleCode:\s*" + _Q + r"([a-z_]+)" + _Q, text):
+        pairs[m.group(1)] = m.group(2)
+    # moduleCode 在前、route 在后（顺序颠倒亦须识别）
+    for m in re.finditer(r"moduleCode:\s*" + _Q + r"([a-z_]+)" + _Q + r"[^}]*route:\s*" + _Q + r"(/" + _NQ + r"*)" + _Q, text):
+        pairs.setdefault(m.group(2), m.group(1))
+    return pairs
 
 
 def parse_frontend(repo: Path) -> dict:
@@ -174,10 +187,10 @@ def parse_frontend(repo: Path) -> dict:
     dash_txt = _strip_js_comments((fe / "pages/DashboardPage.vue").read_text(encoding="utf-8"))
     route_access = _parse_route_module_pairs(ra_txt)
     router_meta = _parse_route_module_pairs(rm_txt)
-    sidebar = dict(re.findall(_ROUTE_FIELD_MC, sidebar_txt))
+    sidebar = _parse_route_field_pairs(sidebar_txt)
     # dashboard action 带 route 字段（DashboardPage.vue:435,444,455,465,474），解析 (route, moduleCode) 对，
-    # 复用 sidebar 同款正则 → 升级为 route 级比对（必修③，不再只野值检查）
-    dashboard = dict(re.findall(_ROUTE_FIELD_MC, dash_txt))
+    # 复用 sidebar 同款无序解析 → 升级为 route 级比对（必修③，不再只野值检查）
+    dashboard = _parse_route_field_pairs(dash_txt)
     # _surface_routes：每个 surface 实际露出的全部 route（含无 moduleCode 者），F-001 fail-closed 分母。
     surface_routes = {
         "routeAccess": _surface_route_set(ra_txt, "object_key"),

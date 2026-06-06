@@ -280,3 +280,49 @@ def test_frontend_router_meta_missing_modulecode_despite_routeaccess_passes(trut
               "_surface_routes": {"routeAccess": {"/exams"}, "router_meta": {"/exams"}}}
     errs = cms._compare_frontend(truth, parsed)
     assert not any("/exams" in e and "moduleCode" in e for e in errs), errs
+
+
+# ===== codex-review F-001 MED 修复：route 字段无序解析 =====
+# 旧 _ROUTE_FIELD_MC 仅匹配 route 在前、moduleCode 在后；同对象内字段顺序颠倒（moduleCode 在前 / route 在后）时
+# sidebar/dashboard 漏解析 → 受控 route 假阳性「缺失 moduleCode」、null route 带码漏报。_surface_route_set
+# 本就只抓 route 字面量（order-insensitive），故两者不对称构成 finding。修复后两方向均须解析为 {route: moduleCode}。
+
+def test_route_field_pairs_modulecode_first(truth):  # F-001 解析层：moduleCode 在前亦须解析（单引号）
+    assert cms._parse_route_field_pairs("{ moduleCode: 'exam', route: '/exams' }") == {"/exams": "exam"}
+
+
+def test_route_field_pairs_route_first_still_parses(truth):  # F-001 解析层：route 在前不回退（双引号）
+    assert cms._parse_route_field_pairs('{ route: "/exams", moduleCode: "exam" }') == {"/exams": "exam"}
+
+
+def test_sidebar_null_route_modulecode_first_reports(truth):  # F-001 A1：sidebar null route moduleCode 在前 → 红
+    pairs = cms._parse_route_field_pairs("{ moduleCode: 'exam', route: '/students' }")
+    assert pairs == {"/students": "exam"}, pairs
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": pairs, "dashboard": {}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/students" in e and "null" in e for e in errs), errs
+
+
+def test_dashboard_null_route_modulecode_first_reports(truth):  # F-001 A2：dashboard null route moduleCode 在前 → 红
+    pairs = cms._parse_route_field_pairs("{ moduleCode: 'exam', route: '/students' }")
+    assert pairs == {"/students": "exam"}, pairs
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": pairs}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/students" in e and "null" in e for e in errs), errs
+
+
+def test_sidebar_route_modulecode_first_no_false_missing(truth):  # F-001 A3：受控 route moduleCode 在前 → 不误报缺失
+    pairs = cms._parse_route_field_pairs("{ moduleCode: 'exam', route: '/exams' }")
+    assert pairs == {"/exams": "exam"}, pairs
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": pairs, "dashboard": {},
+              "_surface_routes": {"sidebar": {"/exams"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert not any("/exams" in e and "moduleCode" in e for e in errs), errs
+
+
+def test_sidebar_route_modulecode_first_mismatch_reports(truth):  # F-001 A4：moduleCode 在前且与真源不一致 → 红
+    pairs = cms._parse_route_field_pairs("{ moduleCode: 'conduct', route: '/exams' }")
+    assert pairs == {"/exams": "conduct"}, pairs
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": pairs, "dashboard": {}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/exams" in e and "不一致" in e for e in errs), errs
