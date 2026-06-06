@@ -90,6 +90,8 @@ frontend_route_module:
   /marking/grade/:questionId: grading
   /exams/:examId/ai-grading/:subjectId: grading
   /analytics/:examId: study_analytics
+  # 不受模块门控的露出 route（显式 null = fail-closed 分母补全，未声明的新 route 仍报红）
+  "/": null  # sidebar「概览」首页 item，全角色可见，不受模块开关控制
   /students: null
   /joint-exams: null
   /school-settings: null

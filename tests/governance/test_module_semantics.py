@@ -326,3 +326,38 @@ def test_sidebar_route_modulecode_first_mismatch_reports(truth):  # F-001 A4：m
     parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": pairs, "dashboard": {}}
     errs = cms._compare_frontend(truth, parsed)
     assert any("/exams" in e and "不一致" in e for e in errs), errs
+
+
+# ===== codex-review F-001 HIGH（R3）：未登记 + 无 moduleCode 的门控面 route fail-closed 缺口 =====
+# 根因：cross-surface 检查 want = fr.get(route) 把「真源缺失（未登记）」与「真源显式 null」都坍缩成 None，
+# 一并 continue 放行 → 未在 module-semantics.yaml 声明、又无 moduleCode 的新 route 在门控面露出可逃检。
+# 修复：门控面分母先按 route∈fr 三态区分：未登记→fail-closed 报红；显式 null→放行；受控缺码→报缺失。
+
+def test_frontend_unregistered_route_no_code_routeaccess_fails(truth):  # 反例 #28（F-001 HIGH R3）
+    # /brand-new 未在真源声明 + 无 moduleCode，却在门控面 routeAccess 露出 → 必须 fail-closed（旧逻辑逃检返回 []）
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"routeAccess": {"/brand-new"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/brand-new" in e for e in errs), errs
+
+
+def test_frontend_unregistered_route_no_code_sidebar_fails(truth):  # 反例 #29（F-001 HIGH R3）
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"sidebar": {"/brand-new"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/brand-new" in e for e in errs), errs
+
+
+def test_frontend_unregistered_route_no_code_dashboard_fails(truth):  # 反例 #30（F-001 HIGH R3）
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"dashboard": {"/brand-new"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert any("/brand-new" in e for e in errs), errs
+
+
+def test_frontend_unregistered_route_no_code_router_meta_passes(truth):  # 反例 #31：router_meta 非门控面不报
+    # 未登记 route 仅在 router_meta（非门控文档面）露出无码 → 不算 fail-open（设计决策 2026-06-06），不报红
+    parsed = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {},
+              "_surface_routes": {"router_meta": {"/brand-new"}}}
+    errs = cms._compare_frontend(truth, parsed)
+    assert not any("/brand-new" in e for e in errs), errs

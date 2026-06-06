@@ -256,15 +256,22 @@ def _compare_frontend(truth: dict, parsed: dict) -> list[str]:
                             f"（真源期望 {want}，fail-open 缺口，codex-review F-001）")
         # (2) cross-surface 掩盖（R2）：门控面各自独立 fail-closed —— 受控 route 在某门控面露出却缺码，即使
         #     别的面有码也报红（旧全局并集会被任一面的码掩盖，单门控面删码可逃检）。router_meta 不在此检查内。
+        #   F-001 HIGH（codex-review R3）：分母按 route∈fr 三态精确区分——旧 `fr.get(route)` 把「未登记
+        #     （route∉fr）」与「真源显式 null」都坍缩成 None 一并放行，致未声明+无 moduleCode 的新 route
+        #     在门控面露出可逃检。修复：未登记→fail-closed 报红；显式 null→放行；受控缺码→报缺失 moduleCode。
         for surface in GATING_SURFACES:
             surface_declared = set(parsed.get(surface, {}).keys())
             for route in sorted(surface_routes.get(surface, set())):
-                want = fr.get(route)
-                if want is None:
-                    continue
-                if route not in surface_declared:
+                if route in surface_declared:
+                    continue  # 带 moduleCode，已由上方逐 surface 循环校验登记/值/null
+                if route not in fr:
+                    errs.append(f"前端门控面 {surface} 出现未在 frontend_route_module 声明的 route {route}"
+                                f"（无 moduleCode，fail-closed 缺口，codex-review F-001 HIGH/R3）")
+                elif fr[route] is None:
+                    continue  # 真源显式 null（不受门控），缺码正确放行
+                else:
                     errs.append(f"前端受控 route {route} 在门控面 {surface} 露出但缺失 moduleCode"
-                                f"（真源期望 {want}，fail-open 缺口，codex-review F-001/R2）")
+                                f"（真源期望 {fr[route]}，fail-open 缺口，codex-review F-001/R2）")
     return errs
 
 
