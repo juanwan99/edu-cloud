@@ -10,6 +10,17 @@
       "reason": "Phase 0.7A 批次：机械转录 engine_review PASS verdict（reviewed_sha 5aa971d, range:5fad3cc..HEAD, ORC-S2-4 拔发证者边界，只照抄不自判）",
       "subject_ref": "commit:5fad3cc..HEAD",
       "round": 1
+    },
+    "code_review_batch_07b": {
+      "required": true,
+      "status": "pass",
+      "reviewer": "gpt",
+      "subject_hash": "cc9e46c2f117bdcc12dd5f85a0989dbba40b7145092161823850145c30606d69",
+      "report_path": "/home/ops/projects/edu-cloud/docs/plans/.codex-review-2026-06-06_225056.log",
+      "updated": "2026-06-06T22:58:28.793223+08:00",
+      "reason": "verdict 转录自 engine review PASS（reviewed_sha 2b7764c，ORC-S2-4 只照抄不自判）；收敛 R1 FINDINGS(1 LOW scope_gap)→R2 PASS(0)",
+      "subject_ref": "commit:5aa971d..HEAD",
+      "round": 2
     }
   },
   "schema": "gates.v2",
@@ -22,6 +33,14 @@
         "subject_ref": "commit:5fad3cc..HEAD",
         "subject_hash": "05a63508b7c605042bff979ba394031be898a6765d017c52b0e29a750634150f",
         "ts": "2026-06-06T21:34:52.775843+08:00"
+      },
+      {
+        "gate": "code_review_batch_07b",
+        "status": "pass",
+        "round": 2,
+        "subject_ref": "commit:5aa971d..HEAD",
+        "subject_hash": "cc9e46c2f117bdcc12dd5f85a0989dbba40b7145092161823850145c30606d69",
+        "ts": "2026-06-06T22:58:28.793251+08:00"
       }
     ]
   }
