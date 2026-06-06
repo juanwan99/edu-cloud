@@ -28,6 +28,7 @@ Use this index before reading historical `docs/plans/**`. Anything not listed he
 | `docs/plans/2026-05-05-logging-system-redesign.md` | candidate-active | Logging redesign design; not part of Codex migration P0. |
 | `docs/plans/2026-05-06-choice-scan-handoff.md` | candidate-active | User-provided handoff for Jingyan biology/geography choice-scan recovery; not part of the current Dual-Core governance task. Verify DB/template state before execution. |
 | `docs/scan-calibration-handoff.md` | candidate-active | 2026-05-17 OMR calibration results and current `calibrate_scan.py` / `calibrate_universal.py` commands; verify DB and scan files before execution. |
+| `scripts/governance/check_module_semantics.py` + `docs/governance/module-semantics.yaml` | candidate-active | Phase 0.5 module-semantics guard, frozen at HEAD `1cb7de7` (dual-fix: MED order-insensitive parse + R1 HIGH fail-closed). R2 findings (router_meta direct-URL fail-open, drift-row deletion gap) deferred to an independent topic — see NOW.md "Module Governance Phase 0.5". |
 
 ## Completed / Reference
 

@@ -53,6 +53,47 @@ Any `BROKEN AT:` diagnosis exits non-zero and blocks completion evidence.
   static assertion failures in marking/review tests; role-entry targeted tests
   should be used for this batch, plus `scripts/codex-verify frontend`.
 
+## Module Governance Phase 0.5 (2026-06-06)
+
+Module-semantics guard work is frozen at the dual-fix boundary on branch
+`feat/module-governance-repair`, HEAD `1cb7de7`.
+
+- Guard: `scripts/governance/check_module_semantics.py`; truth:
+  `docs/governance/module-semantics.yaml`; tests:
+  `tests/governance/test_module_semantics.py`.
+- Fixes landed this session:
+  - `748587c` — MED: route-field moduleCode parser made order-insensitive
+    (`moduleCode`-first or `route`-first both parse to `{route: moduleCode}`).
+  - `1cb7de7` — codex-review R1 HIGH: an unregistered + no-moduleCode route
+    exposed on a gating surface no longer escapes fail-closed; truth
+    `frontend_route_module` now declares `/` explicitly as null (denominator
+    completion).
+- Evidence: `tests/governance` 163 passed; `check_module_semantics.py --check`
+  reports `Module semantics baseline clean`.
+- Final review: `codex-review code f82df2a..HEAD` = **R2 FINDINGS (NOT PASS)**.
+  Log `docs/plans/.codex-review-2026-06-06_143856.log`; receipt
+  `.review-receipts.jsonl` (`engine_review`, reviewed_sha `1cb7de7`).
+
+R2 findings are deferred to an independent topic (designer decision
+2026-06-06), NOT fixed in this boundary:
+
+- **F-001 HIGH (design_concern)**: `authGuard` in
+  `frontend/src/router/index.js` reads only `meta.roles`/`meta.permissions`,
+  never `moduleCode`/`enabledModules`. A user with permission can reach a
+  disabled-module page via direct URL. The guard treats `router_meta` as a
+  non-gating surface (missing-code exempt), which masks this real fail-open.
+  Resolution needs a designer call: make `authGuard` consume `moduleCode`
+  (business-source change) OR register a frontend `known_drift` entry.
+- **F-002 MED (defect_gap)**: `check_frontend_drift` iterates only
+  YAML-registered drift, so deleting a still-true drift row still passes CI
+  (paper convergence, not real convergence). Needs the guard made fail-closed
+  against drift-row deletion.
+
+## Next Phase
+
+Phase 1 = Portal homepage aggregation contract (聚合合同) — the
+aggregation/contract layer, NOT copying portal business code directly.
+
 ## Codex Migration State
 
 Codex-native migration layer is now committed:
