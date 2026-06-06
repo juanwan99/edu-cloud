@@ -49,7 +49,7 @@ backend_routes:
   /api/v1/academic:         { expect: "gated:teaching", drift: academic-backend-fail-open }
   /api/v1/conduct:          { expect: "gated:conduct",  drift: conduct-backend-fail-open }
   /api/v1/exam-imports:     { expect: "gated:exam",     drift: exam-import-backend-fail-open }
-  /api/v1/profile:          { expect: "gated:study_analytics", drift: profile-backend-fail-open }
+  /api/v1/profile:          { expect: "gated:study_analytics" }
   /api/v1/menus:            { expect: "exempt", drift: menus-not-in-exempt-list }
   /api/v1/portal:           { expect: "exempt", drift: portal-not-in-exempt-list }
   /api/v1/grades:           { expect: "exempt", drift: grades-not-in-exempt-list }
@@ -114,7 +114,6 @@ known_drift:
   - { id: academic-backend-fail-open,    consumer: backend_middleware, locus: /api/v1/academic,     expect: "gated:teaching",         actual: "pass-through", severity: security }
   - { id: conduct-backend-fail-open,     consumer: backend_middleware, locus: /api/v1/conduct,      expect: "gated:conduct",          actual: "pass-through", severity: security }
   - { id: exam-import-backend-fail-open, consumer: backend_middleware, locus: /api/v1/exam-imports, expect: "gated:exam",             actual: "pass-through", severity: security }
-  - { id: profile-backend-fail-open,     consumer: backend_middleware, locus: /api/v1/profile,      expect: "gated:study_analytics",  actual: "pass-through", severity: security }
   - { id: menus-not-in-exempt-list,      consumer: backend_middleware, locus: /api/v1/menus,        expect: "exempt",                 actual: "pass-through", severity: hygiene }
   - { id: portal-not-in-exempt-list,     consumer: backend_middleware, locus: /api/v1/portal,       expect: "exempt",                 actual: "pass-through", severity: hygiene }
   - { id: grades-not-in-exempt-list,     consumer: backend_middleware, locus: /api/v1/grades,       expect: "exempt",                 actual: "pass-through", severity: hygiene }

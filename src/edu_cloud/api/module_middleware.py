@@ -29,6 +29,7 @@ ROUTE_MODULE_MAP = {
     "/api/v1/grading": "grading",
     "/api/v1/marking": "grading",
     "/api/v1/analytics": "study_analytics",
+    "/api/v1/profile": "study_analytics",
     "/api/v1/knowledge": "research",
     "/api/v1/calendar": "calendar",
     "/api/v1/studio": "studio",
