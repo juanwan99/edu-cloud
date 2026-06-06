@@ -45,6 +45,8 @@ jobs:
           --ignore=tests/test_services_exam/test_card_e2e.py
           -k "not (test_alembic_migration or test_alembic_s1 or test_card_publish or test_grading_worker or test_objective_only_not_ready)"
       - run: python -m pytest tests/test_alembic_migration.py -q
+      - run: python -m pytest tests/governance/test_module_semantics.py -q
+      - run: python scripts/governance/check_module_semantics.py --check
 
   frontend:
     runs-on: ubuntu-latest
