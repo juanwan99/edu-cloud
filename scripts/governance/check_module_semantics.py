@@ -121,7 +121,74 @@ def check_backend(truth: dict, repo: Path) -> list[str]:
     return _compare_backend(truth, discovered)
 
 
-CHECKS = [check_self_consistency, check_backend]
+def _strip_js_comments(text: str) -> str:
+    text = re.sub(r"//.*", "", text)
+    return re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+
+
+def _parse_route_module_pairs(text: str) -> dict[str, str]:
+    """提取形如 '/route': { ... moduleCode: 'x' } 或 path:'/r' ... moduleCode:'x' 的对。
+    采用对象级扫描：先按 moduleCode 邻域回溯最近的 route/path 字面量。"""
+    text = _strip_js_comments(text)
+    pairs: dict[str, str] = {}
+    # routeAccess: '/route': { permission..., moduleCode: 'x' }
+    for m in re.finditer(r"'(/[^']*)'\s*:\s*\{[^}]*moduleCode:\s*'([a-z_]+)'", text):
+        pairs[m.group(1)] = m.group(2)
+    # router meta: { path: 'r', ... meta: { ... moduleCode: 'x' } }
+    for m in re.finditer(r"path:\s*'([^']+)'[^}]*moduleCode:\s*'([a-z_]+)'", text):
+        route = m.group(1)
+        route = route if route.startswith("/") else "/" + route
+        pairs.setdefault(route, m.group(2))
+    return pairs
+
+
+def parse_frontend(repo: Path) -> dict:
+    fe = repo / "frontend/src"
+    route_access = _parse_route_module_pairs((fe / "config/routeAccess.js").read_text(encoding="utf-8"))
+    router_meta = _parse_route_module_pairs((fe / "router/index.js").read_text(encoding="utf-8"))
+    sidebar_txt = _strip_js_comments((fe / "config/sidebarConfig.js").read_text(encoding="utf-8"))
+    sidebar = dict(re.findall(r"route:\s*'(/[^']*)'[^}]*moduleCode:\s*'([a-z_]+)'", sidebar_txt))
+    dash_txt = _strip_js_comments((fe / "pages/DashboardPage.vue").read_text(encoding="utf-8"))
+    # dashboard action 带 route 字段（DashboardPage.vue:435,444,455,465,474），解析 (route, moduleCode) 对，
+    # 复用 sidebar 同款正则 → 升级为 route 级比对（必修③，不再只野值检查）
+    dashboard = dict(re.findall(r"route:\s*'(/[^']*)'[^}]*moduleCode:\s*'([a-z_]+)'", dash_txt))
+    return {"routeAccess": route_access, "router_meta": router_meta,
+            "sidebar": sidebar, "dashboard": dashboard}
+
+
+def _compare_frontend(truth: dict, parsed: dict) -> list[str]:
+    errs: list[str] = []
+    codes = set(truth["school_module_codes"])
+    fr = truth["frontend_route_module"]
+    # routeAccess / sidebar / dashboard / router_meta：均纳入 fail-closed + 一致性 + null 检查
+    #   F-001(R5)：router_meta 动态路由(/exams/:id 等)纳入同一基线分母，改 fail-closed（不再"不强制声明"）
+    #   F-002(R5)：null route（真源声明不受门控）出现 moduleCode → 红
+    # 注：parse_frontend 仅捕获带 moduleCode 的条目，故 fr 须覆盖四面全部「带 moduleCode」的 route（含 6 动态路由）。
+    for surface in ("routeAccess", "sidebar", "dashboard", "router_meta"):
+        for route, code in parsed[surface].items():
+            if route not in fr:
+                errs.append(f"前端 {surface} 出现未在 frontend_route_module 声明的 route {route}（fail-closed，plan-review F1/R5 F-001）")
+            elif fr[route] is None:
+                errs.append(f"前端 {surface} {route} 真源期望 null（不受模块门控）却出现 moduleCode={code}（R5 F-002：null route 不应 gating）")
+            elif code != fr[route]:
+                errs.append(f"前端 {surface} {route} moduleCode={code} 与真源 {fr[route]} 不一致")
+    # routeAccess 与 router-meta 同 route 一致性（双源交叉校验）
+    for route in set(parsed["routeAccess"]) & set(parsed["router_meta"]):
+        if parsed["routeAccess"][route] != parsed["router_meta"][route]:
+            errs.append(f"前端 {route} 在 routeAccess 与 router-meta 间不一致")
+    # 野值检查（兜底）：所有面出现的 code ∈ 9
+    for code in (list(parsed["sidebar"].values()) + list(parsed["dashboard"].values())
+                 + list(parsed["routeAccess"].values()) + list(parsed["router_meta"].values())):
+        if code not in codes:
+            errs.append(f"前端出现野值 moduleCode={code}（∉ 9 开关码）")
+    return errs
+
+
+def check_frontend(truth: dict, repo: Path) -> list[str]:
+    return _compare_frontend(truth, parse_frontend(repo))
+
+
+CHECKS = [check_self_consistency, check_backend, check_frontend]
 
 
 def run_all(truth: dict, repo: Path) -> list[str]:
