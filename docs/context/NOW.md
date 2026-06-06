@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-06-06 16:20 Asia/Shanghai
+Last refreshed: 2026-06-06 18:25 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -15,7 +15,7 @@ scripts/truth doctor --json
 
 ## Current Facts
 
-- Branch: `codex/role-permission-phase2`
+- Branch: `feat/module-governance-repair`
 - Upstream: none
 - Production URL: `https://mcu.asia`
 - Backend API: `127.0.0.1:9000`
@@ -82,33 +82,35 @@ clean; `router.test.js` 41 pass (9 module-gating); `auth-store.test.js` 17 pass;
 full vitest 2483 passed / 3 pre-existing failures (marking/review static
 assertions, unrelated — verified by stash).
 
-Review status: `codex-review f82df2a..HEAD` reached **R4 = FINDINGS (NOT
-PASS)**, receipt `engine_review` reviewed_sha `bd8be46`. R1→R4 = 1→2→2→3
-(non-converging). Log `docs/plans/.codex-review-2026-06-06_160142.log`.
+Review status: `codex-review f82df2a..HEAD` previously reached **R4 = FINDINGS
+(NOT PASS)**, receipt `engine_review` reviewed_sha `bd8be46`. R4 was carved into
+the **Phase 0.6C coverage-completeness** sub-task (designer decision 2026-06-06),
+now **implemented** in 3 commits (`70eeac2`/`b1a6d09`/`61ed166`):
+- **F-001 HIGH (security) — FIXED** (`70eeac2`): `/profile/student/:studentId`
+  补 `moduleCode: study_analytics`（router-meta + module-semantics `fr`）+ 直达
+  拦截/放行 router 测试。
+- **F-002 MED (root cause) — FIXED** (`b1a6d09`): `check_module_semantics.py`
+  将 `router_meta` 升为完整门控面（受控覆盖 + 动态 fail-closed，catch-all 排除）；
+  补齐 calendar/error-book/homework/knowledge-tree/question-bank 5 个受控 route
+  的 router-meta moduleCode；改写旧豁免锁 R2-A4/#31 + 4 动态门控用例。
+- **后端 profile fail-open — FIXED** (`61ed166`): `ROUTE_MODULE_MAP` 加
+  `/api/v1/profile → study_analytics`，删 `profile-backend-fail-open` drift。
+- **F-003 LOW (NOW staleness) — resolved by this doc-correction commit.**
 
-R4 carved out to an independent sub-task (designer decision 2026-06-06):
-**Phase 0.6 coverage-completeness**. Root cause is architectural, not a
-patch — see sub-task doc below. R4 findings, NOT fixed in the main body:
-- **F-001 HIGH (security)**: `/profile/student/:studentId` (router/index.js:53)
-  has `view_scores` permission but NO moduleCode and is absent from
-  routeAccess/router-meta → `study_analytics`-off users reach it via direct URL
-  (backend `/api/v1/profile` is also pass-through → double fail-open). PRIORITY.
-- **F-002 MED (root cause)**: guard `GATING_SURFACES` excludes router_meta
-  (treated as doc surface), but authGuard now consumes `to.meta.moduleCode` →
-  guard-green ≠ runtime-safe; controlled routes missing moduleCode are not
-  caught by the governance script.
-- **F-003 LOW**: NOW.md staleness (resolved by this refresh; re-run
-  `scripts/meta-check`).
+Local evidence: `check_module_semantics.py --check` clean; `tests/governance`
+55 pass; frontend `router.test.js`+`auth-store.test.js` 60 pass; backend
+profile suite 29 pass. **Gate NOT yet PASS** — pending re-review
+`codex-review range:f82df2a..HEAD`.
 
 ## Next Phase
 
-Phase 0.6 coverage-completeness sub-task (design → implement → review to PASS):
-make the static guard enforce that EVERY controlled route (fr non-null) carries
-a moduleCode in an authGuard-consumable source, so guard-green == no runtime
-fail-open. Then補齐 all missing-code routes (profile + calendar/error-book/
-homework/knowledge-tree/question-bank) and unify the authGuard moduleCode
-source. See `docs/plans/2026-06-06-phase06-coverage-handoff.md`. Portal homepage
-aggregation (Phase 1) stays blocked until the sub-task review PASSES.
+Phase 0.6C coverage-completeness is **code-complete** (see Module Governance
+section above): the static guard now enforces that every controlled route
+carries a moduleCode in an authGuard-consumable source (guard-green == no
+runtime fail-open). **Remaining gate**: run `codex-review range:f82df2a..HEAD`
+and reach PASS. **Portal homepage aggregation (Phase 1) stays BLOCKED until that
+review PASSES** — do not start Portal work before then.
+See `docs/plans/2026-06-06-phase06-coverage-handoff.md` for the sub-task spec.
 
 ## Codex Migration State
 
