@@ -230,10 +230,10 @@ def _academic_wired_to_teaching(parsed: dict) -> bool:
 # 再由 still_holds 验证实际状态。消除"声称四元组豁免但实仅 probe"的不自洽（R5 F-003）。
 _FRONTEND_DRIFT_PROBES = {
     "studio-frontend-entry-missing": {
-        "expect": "present", "actual": "absent",
+        "locus": "studio-entry", "expect": "present", "actual": "absent",
         "still_holds": lambda p: "studio" not in _all_frontend_codes(p)},
     "teaching-frontend-unwired": {
-        "expect": "moduleCode:teaching", "actual": "null",
+        "locus": "/academic/*", "expect": "moduleCode:teaching", "actual": "null",
         "still_holds": lambda p: not _academic_wired_to_teaching(p)},
 }
 
@@ -249,9 +249,10 @@ def check_frontend_drift(truth: dict, repo: Path) -> list[str]:
         probe = _FRONTEND_DRIFT_PROBES.get(d["id"])
         if probe is None:
             continue  # 无探测器的 frontend drift 由 check_known_drift 报 fail-closed
-        # 四元组：登记的 expect/actual 必须与 probe 契约匹配（R5 F-003）
-        if d.get("expect") != probe["expect"] or d.get("actual") != probe["actual"]:
-            errs.append(f"frontend drift {d['id']} 登记 expect/actual=({d.get('expect')},{d.get('actual')}) 与 probe 契约 ({probe['expect']},{probe['actual']}) 不符（R5 F-003）")
+        # 四元组：登记的 locus/expect/actual 必须与 probe 契约匹配（R5 F-003 + Task 5.1 locus）
+        if (d.get("locus") != probe["locus"] or d.get("expect") != probe["expect"]
+                or d.get("actual") != probe["actual"]):
+            errs.append(f"frontend drift {d['id']} 登记 locus/expect/actual=({d.get('locus')},{d.get('expect')},{d.get('actual')}) 与 probe 契约 ({probe['locus']},{probe['expect']},{probe['actual']}) 不符（R5 F-003）")
         if not probe["still_holds"](parsed):
             errs.append(f"frontend drift {d['id']} 实际已不成立（疑似已修复）→ 应从 known_drift 删除")
     return errs

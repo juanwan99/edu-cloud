@@ -180,3 +180,13 @@ def test_frontend_drift_tuple_mismatch_fails(truth):  # 反例 #20（R5 F-003）
             d["actual"] = "present"  # 篡改登记 actual，与 probe 契约(absent)不符 → 四元组失配红
     errs = cms.check_frontend_drift(bad, REPO)
     assert any("studio-frontend-entry-missing" in e and "F-003" in e for e in errs), errs
+
+
+def test_frontend_drift_locus_mismatch_fails(truth):  # 反例 #22（Task 5.1）：frontend drift locus 篡改 → 四元组失配红
+    # 篡改 studio 的 locus，与 probe 契约(studio-entry)不符 → consumer,locus,expect,actual 四元组精确豁免要求报红
+    bad = copy.deepcopy(truth)
+    for d in bad["known_drift"]:
+        if d["id"] == "studio-frontend-entry-missing":
+            d["locus"] = "wrong-locus"  # 篡改登记 locus，与 probe 契约不符 → 四元组失配红
+    errs = cms.check_frontend_drift(bad, REPO)
+    assert any("studio-frontend-entry-missing" in e and "F-003" in e for e in errs), errs
