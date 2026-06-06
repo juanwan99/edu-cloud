@@ -1,6 +1,7 @@
 from edu_cloud.api.module_middleware import (
     ROUTE_MODULE_MAP,
     _longest_prefix_match,
+    _prefix_matches,
     resolve_module_code,
 )
 
@@ -78,3 +79,24 @@ def test_hygiene_routes_pass_through_unchanged():
     for path in ('/api/v1/menus', '/api/v1/portal/home', '/api/v1/grades',
                  '/api/v1/teachers', '/api/v1/client-logs'):
         assert resolve_module_code(path) is None, path
+
+
+# ===== Phase 0.7B item3 加固（codex-review R2 F-001 LOW design_concern）：段边界安全匹配 =====
+# 裸 startswith 是字符前缀而非路径段边界：/api/v1/conductors 会被 /api/v1/conduct 误命中 → conduct。
+# 最长前缀只解决「先匹配谁」，未解决「邻接同段名误命中」。修复：前缀须在段边界（== 或 prefix+'/'）匹配。
+
+def test_prefix_matches_segment_boundary():
+    assert _prefix_matches('/api/v1/conduct', '/api/v1/conduct') is True       # 精确
+    assert _prefix_matches('/api/v1/conduct/records', '/api/v1/conduct') is True  # 子路径
+    assert _prefix_matches('/api/v1/conductors', '/api/v1/conduct') is False   # 邻接同段名不命中
+    assert _prefix_matches('/docsify', '/docs') is False                       # 豁免前缀同理
+
+
+def test_resolve_module_code_no_adjacent_name_false_gating():
+    # 邻接路由名不应被错误门控（裸 startswith 会误命中，段边界修复后返回 None）
+    assert resolve_module_code('/api/v1/conductors') is None
+    assert resolve_module_code('/api/v1/exam-imports-v2') is None
+    # 合法路由与子路径仍正常门控
+    assert resolve_module_code('/api/v1/conduct') == 'conduct'
+    assert resolve_module_code('/api/v1/conduct/records') == 'conduct'
+    assert resolve_module_code('/api/v1/exam-imports/preview') == 'exam'

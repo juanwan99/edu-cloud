@@ -70,14 +70,17 @@ def _actual_gating(prefix: str, repo: Path) -> str:
     route_map = dict(re.findall(r'"(/api/v1/[^"]+)"\s*:\s*"([a-z_]+)"', mp))
     ex = re.search(r"EXEMPT_PREFIXES\s*=\s*\((.*?)\)", src, re.S).group(1)
     exempt = re.findall(r'"(/[^"]+)"', ex)
-    # 与 module_middleware.resolve_module_code 严格同算法（0.7B item3 / R5-DC2）：
-    # exempt-first（基础设施永不门控），再 ROUTE_MODULE_MAP 最长前缀匹配。exempt 与 gated 前缀集互斥，
-    # 故 exempt-first 当前对所有判定 inert，仅把守卫模型与运行时锁死为同一算法以防未来重叠前缀分歧。
+    # 与 module_middleware.resolve_module_code 严格同算法（0.7B item3 / R5-DC2 + R2 F-001 段边界加固）：
+    # exempt-first（基础设施永不门控），再 ROUTE_MODULE_MAP 最长前缀匹配；匹配须在路径段边界
+    # （== 或 prefix+'/'），与中间件 _prefix_matches 同义——裸 startswith 会让 /api/v1/conductors 误命中
+    # /api/v1/conduct。exempt 与 gated 前缀集互斥，exempt-first 对所有判定 inert，仅锁死两端为同一算法。
+    def _seg_match(p: str) -> bool:
+        return prefix == p or prefix.startswith(p + "/")
     for p in exempt:
-        if prefix.startswith(p):
+        if _seg_match(p):
             return "exempt"
     for p in sorted(route_map, key=len, reverse=True):
-        if prefix.startswith(p):
+        if _seg_match(p):
             return f"gated:{route_map[p]}"
     return "pass-through"
 

@@ -69,6 +69,17 @@ EXEMPT_PREFIXES = (
 )
 
 
+def _prefix_matches(path: str, prefix: str) -> bool:
+    """True iff ``prefix`` matches ``path`` at a path-segment boundary.
+
+    Phase 0.7B item3 hardening (codex-review R2 F-001): bare ``startswith`` is a
+    character prefix, not a segment boundary — ``/api/v1/conductors`` would match
+    ``/api/v1/conduct`` and get wrongly gated to the conduct module. A prefix
+    matches only when the path equals it or continues with ``/`` (a sub-path).
+    """
+    return path == prefix or path.startswith(prefix + "/")
+
+
 def _longest_prefix_match(path: str, route_map: dict) -> str | None:
     """Return the module_code of the LONGEST matching prefix, or None.
 
@@ -78,9 +89,10 @@ def _longest_prefix_match(path: str, route_map: dict) -> str | None:
     insertion-order first-match could resolve an overlapping prefix
     (e.g. ``/api/v1/knowledge`` before ``/api/v1/knowledge-tree``) to a
     different module than the guard models, producing a silent runtime drift.
+    Matching is segment-boundary safe (see ``_prefix_matches``).
     """
     for prefix in sorted(route_map, key=len, reverse=True):
-        if path.startswith(prefix):
+        if _prefix_matches(path, prefix):
             return route_map[prefix]
     return None
 
@@ -93,7 +105,7 @@ def resolve_module_code(path: str) -> str | None:
     sets are disjoint, so the exempt-first ordering is behaviourally inert
     today and only locks the two algorithms together against future overlap.
     """
-    if any(path.startswith(p) for p in EXEMPT_PREFIXES):
+    if any(_prefix_matches(path, p) for p in EXEMPT_PREFIXES):
         return None
     return _longest_prefix_match(path, ROUTE_MODULE_MAP)
 
