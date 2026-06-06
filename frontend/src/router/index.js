@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AppShell from '../layouts/AppShell.vue'
 import { normalizeRole } from '../config/roles.js'
 import { hasPermission } from '../config/permissions.js'
+import { getRouteAccessRequirement, moduleMatches } from '../config/routeAccess.js'
 import clientLogger from '../utils/clientLogger.js'
 
 function decodeJwtPayload(token) {
@@ -133,7 +134,7 @@ export const routes = [
 
 const router = createRouter({ history: createWebHistory(), routes })
 
-export function authGuard(to, from, next) {
+export async function authGuard(to, from, next) {
   if (to.path.startsWith('/parent')) return next()
 
   const requiresAuth = to.matched.some(r => r.meta.requiresAuth)
@@ -165,6 +166,21 @@ export function authGuard(to, from, next) {
         if (!allowed) return next('/')
       }
     } catch { return next('/') }
+  }
+
+  // Phase 0.6 直达 URL 模块门控（fail-closed）：roles/permissions 通过后，按 routeAccess 真源的 moduleCode
+  // + 学校 enabledModules 二次门控，堵住「有权限但模块已关」经直达 URL 绕过 sidebar/routeAccess 的缺口。
+  //   DP1：modulesLoaded=false（刷新瞬间）先 await loadModules，不在加载空窗放行。
+  //   DP2：模块关闭命中 → next('/')，与 roles/permissions 拦截行为一致。
+  //   moduleCode 缺失 / null route（不受门控）→ requirement.moduleCode 为空，跳过门控。
+  const requirement = getRouteAccessRequirement(to.path)
+  if (requirement?.moduleCode) {
+    const { useAuthStore } = await import('../stores/auth.js')
+    const auth = useAuthStore()
+    if (!auth.modulesLoaded) {
+      try { await auth.loadModules() } catch { /* 加载失败保持现值，按下方 moduleMatches 判定 */ }
+    }
+    if (!moduleMatches(requirement.moduleCode, auth.enabledModules)) return next('/')
   }
   next()
 }

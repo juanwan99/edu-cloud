@@ -4,9 +4,13 @@
  * Tests the actual route definitions and guard function from src/router/index.js.
  * A regression in the real code (e.g. removing requiresAuth) will cause these to fail.
  */
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createRouter, createWebHistory } from 'vue-router'
+import { setActivePinia, createPinia } from 'pinia'
 import { routes, authGuard } from '../router/index.js'
+import { useAuthStore } from '../stores/auth.js'
+
+const VALID_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoyMDkzNjQxMDYyfQ.fake_signature'
 
 // Stub lazy-loaded components so we don't need actual .vue files in test
 function stubRoutes(routeList) {
@@ -144,6 +148,7 @@ describe('Route definitions (real routes)', () => {
 describe('authGuard (real guard function)', () => {
   beforeEach(() => {
     localStorage.clear()
+    setActivePinia(createPinia())
   })
 
   it('redirects to /login when no token and route requires auth', async () => {
@@ -319,5 +324,79 @@ describe('Router personnel permission alignment', () => {
     const teachers = shell.children.find(r => r.path === 'teachers')
     expect(teachers).toBeTruthy()
     expect(teachers.meta?.permissions).toEqual(['manage_teachers'])
+  })
+})
+
+
+// ===== Phase 0.6 B — authGuard 直达 URL 模块门控（fail-closed）=====
+// authGuard 在 roles/permissions 通过后，按 routeAccess 真源的 moduleCode + enabledModules 追加门控：
+//   - 模块关闭 + 有权限 → 直达 URL 仍被拦截到 /（DP2）
+//   - 模块开启 → 放行
+//   - modulesLoaded=false（刷新瞬间）→ 先 await loadModules 再判定（DP1 fail-closed），不放空窗
+//   - moduleCode 缺失/null route（不受门控）→ 不拦
+describe('authGuard module gating (Phase 0.6)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+  })
+
+  function authedAs(role, { enabledModules, modulesLoaded } = {}) {
+    localStorage.setItem('token', VALID_JWT)
+    localStorage.setItem('auth_state', JSON.stringify({
+      roles: [{ role, context: {} }], currentRoleIndex: 0,
+    }))
+    const auth = useAuthStore()
+    if (enabledModules !== undefined) auth.enabledModules = enabledModules
+    if (modulesLoaded !== undefined) auth.modulesLoaded = modulesLoaded
+    return auth
+  }
+
+  it('blocks direct URL to exam route when exam module disabled', async () => {
+    authedAs('academic_director', { enabledModules: ['grading'], modulesLoaded: true })
+    const router = createTestRouter()
+    await router.push('/exams')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('allows direct URL when exam module enabled', async () => {
+    authedAs('academic_director', { enabledModules: ['exam'], modulesLoaded: true })
+    const router = createTestRouter()
+    await router.push('/exams')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/exams')
+  })
+
+  it('fail-closed: awaits loadModules when modules not yet loaded, then gates', async () => {
+    const auth = authedAs('academic_director', { modulesLoaded: false })
+    auth.loadModules = vi.fn(async () => {
+      auth.enabledModules = ['grading']  // exam 关闭
+      auth.modulesLoaded = true
+    })
+    const router = createTestRouter()
+    await router.push('/exams')
+    await router.isReady()
+    expect(auth.loadModules).toHaveBeenCalled()
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('does not gate when module enabled even if loaded lazily', async () => {
+    const auth = authedAs('academic_director', { modulesLoaded: false })
+    auth.loadModules = vi.fn(async () => {
+      auth.enabledModules = ['exam']
+      auth.modulesLoaded = true
+    })
+    const router = createTestRouter()
+    await router.push('/exams')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/exams')
+  })
+
+  it('does not gate uncontrolled (null) routes like /students', async () => {
+    authedAs('platform_admin', { enabledModules: [], modulesLoaded: true })
+    const router = createTestRouter()
+    await router.push('/students')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/students')
   })
 })

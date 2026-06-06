@@ -41,6 +41,7 @@ cd frontend && npx vitest run                    # 前端
 | 维度 | 真源 | 守卫脚本 |
 |------|------|---------|
 | 模块定义/结构 | `docs/governance/modules.yaml` + 各模块 `MODULE.md`（模板 `docs/governance/MODULE-template.md`） | `scripts/governance/module_governance_guard.py`（聚合器 `aggregate_modules.py`） |
+| 运行时路由门控（Phase 0.6） | `frontend/src/config/routeAccess.js`（route↔moduleCode↔permission 真源） | `frontend/src/router/index.js` `authGuard`：roles/permissions 通过后按学校 `enabledModules` 对直达 URL 二次 fail-closed 门控（modules 未加载先 `await loadModules`，模块关闭命中→`next('/')`） |
 
 > Phase 0.5（模块语义统一，设计 v4 + plan-review R1/R2 处置 + v4 必修6项处置，待实施）：将新增 `docs/governance/module-semantics.yaml`（逐入口期望表：架构模块/后端 prefix/前端 route/portal service ↔ 9 学校开关码；backend_routes 36 条 == `app.routes` 实测顶层 segment，方向 A）+ `scripts/governance/check_module_semantics.py`（6 个 check：守卫用 FastAPI `app.routes` 展开逐路由比对，前端 routeAccess/sidebar/dashboard 均做 route 级 fail-closed+一致性，行为不变、known_drift 按四元组精确豁免、frontend drift 实际探测禁过期）。已登记 11 处 known_drift = 9 backend（4 fail-open: academic/conduct/exam-imports/profile + 5 hygiene: menus/portal/grades/teachers/client-logs）+ 2 frontend（studio/teaching），只登记不修复；`schoolSettings.js` 设置写入消费点纳入零 diff gate。CI 接入 backend job（重依赖）。设计见 `docs/superpowers/specs/2026-06-05-module-semantics-design.md`、计划见 `docs/superpowers/plans/2026-06-05-module-semantics-implementation.md`。
 
