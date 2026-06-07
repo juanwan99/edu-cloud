@@ -183,12 +183,23 @@ across routeAccess/router-meta/sidebar; backend `/api/v1/academic → teaching` 
 deleted (`_FRONTEND_DRIFT_PROBES` keeps the teaching probe as a regression guard);
 `known_drift` 3→1 (only `studio-frontend-entry-missing`). teaching stays out of
 `DEFAULT_ENABLED`; middleware 403s when the `SchoolModule(teaching)` row exists &
-`enabled=False` — normally-init'd schools have it (`init_school_modules`). The
-absent-row pass-through is the **system-wide** gating semantic (all gated modules;
-legacy schools via backfill), not a 0.7D-specific regression — a designer-accepted
-residual (codex-review F-001, WONTFIX). Evidence: guard `--check` clean; governance
-55 + middleware 15 passed; academic backend + route_snapshot 21 passed; frontend
-targeted 106 passed.
+`enabled=False` — normally-init'd schools have it (`init_school_modules`).
+
+Phase 0.7E absent-row fail-open **closed** (codex-review F-001): the designer reversed the
+0.7D WONTFIX and ruled **Option B "system-wide principled fix"**. The dispatch absent-row
+default is now the pure helper `module_enabled_default(code,row)`, mirroring the frontend
+`get_all_modules` (`services/school_settings_service.py:109` `else (code in DEFAULT_ENABLED)`).
+**Present row** — the explicit `enabled` value always wins (behaviour unchanged). **Absent
+row** — enabled IFF `code in DEFAULT_ENABLED`, so non-default modules (teaching/research/
+study_analytics) with no row now **fail-closed 403**, while DEFAULT_ENABLED modules keep
+pass-through. The backend 403 surface and the frontend visibility surface are now a single
+source of truth, closing the absent-row fail-open **system-wide** (every gated module, not
+just academic). `init_school_modules` seeds all 9 rows for new schools, so normally-init'd
+schools are unaffected (present row); only un-backfilled legacy schools with a missing row
+are now fail-closed (a security fix, not a regression). teaching stays out of `DEFAULT_ENABLED`.
+Evidence: guard `--check` clean; 6 new pure-function unit tests; target suite (5 files) 87
+passed; full backend 2481 passed / 22 failed — the 22 are all pre-existing env failures
+(socksio/playwright/httpx), **0 module-gating 403s** (`grep 未启用` = 0).
 
 **Portal homepage aggregation (Phase 1) stays BLOCKED** — per task contingency
 "only LOW remaining → plan Phase 0.7B", Portal unlock is a **designer decision**
