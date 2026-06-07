@@ -4,6 +4,8 @@ from datetime import datetime
 from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge, ConceptBigConceptMap
 from edu_cloud.modules.adaptive.models import StudentDaMastery, DaKnowledgePointMap
 
+from tests._module_seed import enable_school_modules
+
 
 async def _seed_data(db):
     now = datetime.now()
@@ -162,6 +164,9 @@ async def test_edit_requires_edit_permission(client, db, observer_headers):
 async def test_mastery_school_scope_at_router_level(client, db, subject_teacher_headers):
     """R2-01: 路由级 school_id 过滤 — teacher 角色只能看到本校掌握度。"""
     await _seed_data(db)  # mastery 数据 school_id="SCH1"
+    # Phase 0.7E: subject_teacher 校级 token 访问 /api/v1/knowledge-tree（research，非默认）；
+    # 启用其学校模块使中间件放行，测试专注于路由级 school_id 过滤（跨校 mastery 隔离）。
+    await enable_school_modules(db)
     # subject_teacher 绑定的 school_id != "SCH1"，所以应该看不到掌握度
     resp = await client.get(
         "/api/v1/knowledge-tree/mastery?student_id=S001",

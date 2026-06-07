@@ -2,6 +2,16 @@
 import pytest
 from httpx import AsyncClient
 
+from tests._module_seed import enable_school_modules
+
+
+@pytest.fixture
+async def teacher_headers_modules_on(db, teacher_headers):
+    """Phase 0.7E: 启用 teacher 校的全部模块，使非默认 gated 路由（analytics→study_analytics /
+    knowledge→research）的中间件门控放行；本 smoke 文件断言的是 404/空列表语义，非模块门控。"""
+    await enable_school_modules(db)
+    return teacher_headers
+
 
 # ── TG-002: sync 删除回归 ──────────────────────────────────────────
 
@@ -141,13 +151,13 @@ async def test_marking_no_auth(client: AsyncClient):
 # ── Analytics 模块 ──────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_analytics_summary_not_found(client: AsyncClient, teacher_headers):
-    resp = await client.get("/api/v1/analytics/exam/nonexistent/summary", headers=teacher_headers)
+async def test_analytics_summary_not_found(client: AsyncClient, teacher_headers_modules_on):
+    resp = await client.get("/api/v1/analytics/exam/nonexistent/summary", headers=teacher_headers_modules_on)
     assert resp.status_code == 404
 
 @pytest.mark.asyncio
-async def test_analytics_distribution_not_found(client: AsyncClient, teacher_headers):
-    resp = await client.get("/api/v1/analytics/exam/nonexistent/distribution", headers=teacher_headers)
+async def test_analytics_distribution_not_found(client: AsyncClient, teacher_headers_modules_on):
+    resp = await client.get("/api/v1/analytics/exam/nonexistent/distribution", headers=teacher_headers_modules_on)
     assert resp.status_code == 404
 
 @pytest.mark.asyncio
@@ -159,14 +169,14 @@ async def test_analytics_no_auth(client: AsyncClient):
 # ── Knowledge 模块 ─────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_knowledge_list_empty(client: AsyncClient, teacher_headers):
-    resp = await client.get("/api/v1/knowledge/points?course_code=NONEXIST", headers=teacher_headers)
+async def test_knowledge_list_empty(client: AsyncClient, teacher_headers_modules_on):
+    resp = await client.get("/api/v1/knowledge/points?course_code=NONEXIST", headers=teacher_headers_modules_on)
     assert resp.status_code == 200
     assert resp.json() == []
 
 @pytest.mark.asyncio
-async def test_knowledge_point_not_found(client: AsyncClient, teacher_headers):
-    resp = await client.get("/api/v1/knowledge/points/nonexistent", headers=teacher_headers)
+async def test_knowledge_point_not_found(client: AsyncClient, teacher_headers_modules_on):
+    resp = await client.get("/api/v1/knowledge/points/nonexistent", headers=teacher_headers_modules_on)
     assert resp.status_code == 404
 
 @pytest.mark.asyncio
