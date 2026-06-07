@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-06-07 14:24 Asia/Shanghai
+Last refreshed: 2026-06-07 15:40 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -207,10 +207,21 @@ suite green. Added 4 dispatch regression tests (minimal FastAPI app + `ModuleChe
 explicit disabled → 403 / DEFAULT_ENABLED absent → 200); the mutation now fails the core test
 (catch). Target suite 91 passed (87+4); `28ddbf9`.
 
-**Portal homepage aggregation (Phase 1) stays BLOCKED** — per task contingency
-"only LOW remaining → plan Phase 0.7B", Portal unlock is a **designer decision**
-(execution engineer does not self-unlock). After 0.7D only the
-`studio-frontend-entry-missing` drift plus the Portal unlock itself remain. Plan:
+**Portal homepage aggregation (Phase 1) = CONDITIONAL UNLOCK** — designer decision
+(`sid:a4e5781a`), persisted in
+`docs/plans/2026-06-07-phase09-portal-unlock-decision.md`. **Not** unconditional,
+**not** KEEP BLOCKED: the source foundation is PASS (Phase 0.8,
+`docs/plans/2026-06-07-phase08-acceptance-decision.md`), so the unlock ruling stands,
+but **implementation is gated by runtime/DB cleanup** — three conditions must all go
+green before any Portal code: ① DB doctor red→green (currently red: `exam_import_sessions`
+missing table + orphan `_audit_log`); ② deploy/runtime hash aligned to HEAD `56ccd03`
+(currently backend `b763888` / dist `bfdbd50` ≠ HEAD, branch not yet fully deployed); ③ online-verify module
+gating / portal services keep fail-closed. First-cut scope: frontend homepage
+aggregation + consume existing `/api/v1/portal/*` (5 endpoints live,
+`modules/portal/router.py:25-57`) + service cards gated by `moduleGateFromAuth`.
+Foundation frozen: do NOT change `DEFAULT_ENABLED` / module middleware / authGuard /
+module-semantics. `studio-frontend-entry-missing` drift does not block unlock — close
+it only after Portal services actually expose a studio entry. Plan:
 `docs/plans/2026-06-06-phase07-drift-burndown.md`. See
 `docs/plans/2026-06-06-phase06-coverage-handoff.md` for 0.6C.
 
