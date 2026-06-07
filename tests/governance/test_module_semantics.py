@@ -34,12 +34,13 @@ def test_backend_passes_on_real(truth):
 
 
 def test_backend_unregistered_drift_id_fails(truth):  # 反例 #1 假修复
-    # 0.7B：conduct/exam-imports drift 已收口删除，改用仍保留的 academic-backend-fail-open 作范例。
-    # 删其 known_drift 登记但 backend_routes 仍引用 → 守卫报「引用的 drift 不在 known_drift」。
+    # 0.7D：academic backend drift 已收口删除，现已无真实 backend drift 可借用，改用合成入口。
+    # 构造引用了不在 known_drift 的 drift_id 的 backend_route → 守卫报「引用的 drift 不在 known_drift」。
     bad = copy.deepcopy(truth)
-    bad["known_drift"] = [d for d in bad["known_drift"] if d["id"] != "academic-backend-fail-open"]
-    errs = cms.check_backend(bad, REPO)
-    assert any("/api/v1/academic" in e for e in errs)
+    bad["backend_routes"]["/api/v1/synthetic"] = {"expect": "gated:exam", "drift": "ghost-backend-drift"}
+    discovered = {"/api/v1/synthetic": "pass-through"}  # 实际未达期望 → 走 drift 分支
+    errs = cms._compare_backend(bad, discovered)
+    assert any("/api/v1/synthetic" in e and "不在 known_drift" in e for e in errs), errs
 
 
 def test_backend_new_passthrough_prefix_fails(truth):  # 反例 #2 fail-closed
@@ -61,13 +62,16 @@ def test_backend_route_discovery_covers_decorator(truth):  # 反例 #11 base-pre
 
 
 def test_backend_drift_tuple_mismatch_fails(truth):  # 反例 #12 元组漂移
-    # 0.7B：改用仍保留的 academic-backend-fail-open（conduct 已收口）。
+    # 0.7D：academic backend drift 已删，改合成入口。drift 登记 actual=gated:teaching（谎称已修），
+    # 但实际仍 pass-through → 四元组 actual 与实际不符 → 红。
     bad = copy.deepcopy(truth)
-    for d in bad["known_drift"]:
-        if d["id"] == "academic-backend-fail-open":
-            d["actual"] = "gated:teaching"  # 谎称已修，但实际仍 pass-through
-    errs = cms.check_backend(bad, REPO)
-    assert any("academic-backend-fail-open" in e for e in errs)
+    bad["backend_routes"]["/api/v1/synthetic"] = {"expect": "gated:exam", "drift": "synthetic-drift"}
+    bad["known_drift"].append({"id": "synthetic-drift", "consumer": "backend_middleware",
+                               "locus": "/api/v1/synthetic", "expect": "gated:exam",
+                               "actual": "gated:teaching", "severity": "security"})
+    discovered = {"/api/v1/synthetic": "pass-through"}  # 实际仍 pass-through，与登记 actual=gated:teaching 不符
+    errs = cms._compare_backend(bad, discovered)
+    assert any("synthetic-drift" in e and "四元组" in e for e in errs), errs
 
 
 def test_backend_stale_truth_prefix_fails(truth):  # 反例 #14（F2）：真源声明但 discovery 未发现
@@ -77,10 +81,13 @@ def test_backend_stale_truth_prefix_fails(truth):  # 反例 #14（F2）：真源
 
 
 def test_backend_fixed_but_drift_retained_fails(truth):  # 反例 #18（R4 F-001）：实际已修复但 drift 仍保留
-    # academic 实际已修复：actual == expect == gated:teaching，但 backend_routes 仍挂 drift 字段 → stale drift 红
-    discovered = {"/api/v1/academic": "gated:teaching"}
-    errs = cms._compare_backend(truth, discovered)
-    assert any("/api/v1/academic" in e and "仍登记 drift" in e for e in errs), errs
+    # 0.7D：academic drift 已删（actual==expect 且无 drift 字段，正态）。改合成入口验证 stale-drift 检测：
+    # route 实际已达期望但 backend_routes 仍挂 drift 字段 → stale drift 红。
+    bad = copy.deepcopy(truth)
+    bad["backend_routes"]["/api/v1/synthetic"] = {"expect": "gated:exam", "drift": "stale-synthetic-drift"}
+    discovered = {"/api/v1/synthetic": "gated:exam"}  # 实际已达期望
+    errs = cms._compare_backend(bad, discovered)
+    assert any("/api/v1/synthetic" in e and "仍登记 drift" in e for e in errs), errs
 
 
 def test_frontend_passes_on_real(truth):
@@ -415,7 +422,12 @@ def test_frontend_drift_delete_studio_row_fails(truth):  # 反例 #32（F-002）
     assert any("studio-frontend-entry-missing" in e and "未在 known_drift 登记" in e for e in errs), errs
 
 
-def test_frontend_drift_delete_teaching_row_fails(truth):  # 反例 #33（F-002）：删 teaching drift row → 逃检必须失败
+def test_frontend_drift_teaching_regression_unregistered_fails(truth, monkeypatch):  # 反例 #33（F-002）：teaching 回退未接线且无登记 → fail-closed
+    # 0.7D：academic 已接 teaching，teaching-frontend-unwired 修复并删登记，但 _FRONTEND_DRIFT_PROBES 保留
+    # 探测器作回退守护。防回退正例：若 academic 被改回未接线（probe still_holds 回真）却无 known_drift 登记，
+    # 守卫必须 fail-closed 报红。真实代码现已接线（still_holds=False），故 mock parse_frontend 模拟未接线态。
+    unwired = {"routeAccess": {}, "router_meta": {}, "sidebar": {}, "dashboard": {}}
+    monkeypatch.setattr(cms, "parse_frontend", lambda repo: unwired)
     bad = copy.deepcopy(truth)
     bad["known_drift"] = [d for d in bad["known_drift"] if d["id"] != "teaching-frontend-unwired"]
     errs = cms.check_frontend_drift(bad, REPO)

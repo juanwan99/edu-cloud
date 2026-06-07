@@ -26,7 +26,7 @@ const SIDEBAR_GROUPS = [
       { label: '作业管理', route: '/homework', moduleCode: 'homework', perm: 'view_homework' },
       { label: '题库管理', route: '/question-bank', moduleCode: 'research', perm: 'view_question_bank' },
       { label: '错题本', route: '/error-book', moduleCode: 'research', perm: 'view_scores' },
-      { label: '教学计划', route: '/academic/teaching-plans', perm: 'manage_scheduling' },
+      { label: '教学计划', route: '/academic/teaching-plans', moduleCode: 'teaching', perm: 'manage_scheduling' },
     ],
   },
   {
@@ -36,8 +36,8 @@ const SIDEBAR_GROUPS = [
     children: [
       { label: '教师分配', route: '/assignments', perm: 'manage_scheduling' },
       { label: '选科管理', route: '/selections', perm: 'manage_scheduling' },
-      { label: '学期管理', route: '/academic/semesters', perm: 'manage_scheduling' },
-      { label: '课程表', route: '/academic/timetable', perm: 'manage_scheduling' },
+      { label: '学期管理', route: '/academic/semesters', moduleCode: 'teaching', perm: 'manage_scheduling' },
+      { label: '课程表', route: '/academic/timetable', moduleCode: 'teaching', perm: 'manage_scheduling' },
     ],
   },
   {

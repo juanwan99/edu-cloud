@@ -80,9 +80,9 @@ export const routes = [
       { path: 'calendar', name: 'Calendar', component: () => import('../pages/CalendarPage.vue'), meta: { permissions: ['view_scores'], moduleCode: 'calendar' } },
 
       // 教务管理
-      { path: 'academic/semesters', name: 'Semesters', component: () => import('../pages/SemesterPage.vue'), meta: { permissions: ['manage_scheduling'] } },
-      { path: 'academic/timetable', name: 'Timetable', component: () => import('../pages/TimetablePage.vue'), meta: { permissions: ['manage_scheduling'] } },
-      { path: 'academic/teaching-plans', name: 'TeachingPlans', component: () => import('../pages/TeachingPlanPage.vue'), meta: { permissions: ['manage_scheduling'] } },
+      { path: 'academic/semesters', name: 'Semesters', component: () => import('../pages/SemesterPage.vue'), meta: { permissions: ['manage_scheduling'], moduleCode: 'teaching' } },
+      { path: 'academic/timetable', name: 'Timetable', component: () => import('../pages/TimetablePage.vue'), meta: { permissions: ['manage_scheduling'], moduleCode: 'teaching' } },
+      { path: 'academic/teaching-plans', name: 'TeachingPlans', component: () => import('../pages/TeachingPlanPage.vue'), meta: { permissions: ['manage_scheduling'], moduleCode: 'teaching' } },
 
       // 人员信息
       { path: 'students', name: 'Students', component: () => import('../pages/StudentsPage.vue'), meta: { permissions: ['view_students', 'manage_scheduling'] } },

@@ -46,7 +46,7 @@ backend_routes:
   /api/v1/calendar:         { expect: "gated:calendar" }
   /api/v1/studio:           { expect: "gated:studio" }
   /api/v1/homework:         { expect: "gated:homework" }
-  /api/v1/academic:         { expect: "gated:teaching", drift: academic-backend-fail-open }
+  /api/v1/academic:         { expect: "gated:teaching" }    # 0.7D: 后端 fail-open 已收口（drift 删除）
   /api/v1/conduct:          { expect: "gated:conduct" }    # 0.7B item4: 已补门控收口
   /api/v1/exam-imports:     { expect: "gated:exam" }       # 0.7B item4: 已补门控收口
   /api/v1/profile:          { expect: "gated:study_analytics" }
@@ -97,9 +97,9 @@ frontend_route_module:
   /joint-exams: null
   /joint-exams/:id: null  # 动态非门控路由（联考详情，联考不受模块开关）；登记 null 使 router_meta 动态 fail-closed 自洽
   /school-settings: null
-  /academic/teaching-plans: null
-  /academic/timetable: null
-  /academic/semesters: null
+  /academic/teaching-plans: teaching   # 0.7D: 前端接 teaching 门控（routeAccess/router-meta/sidebar）
+  /academic/timetable: teaching        # 0.7D
+  /academic/semesters: teaching        # 0.7D
   /assignments: null
   /selections: null
   /teachers: null
@@ -109,12 +109,12 @@ frontend_route_module:
 portal_services_expect_self_module: true
 dashboard_actions_expect_valid_only: true
 
-# ── 第四层：已知漂移登记（3 条 = 1 backend + 2 frontend；守卫按 consumer+locus+expect+actual 四元组匹配）
-# 0.7B 收口：conduct/exam-imports 补门控（item4）+ menus/portal/grades/teachers/client-logs 入 exempt（item5），
-# 7 条 backend drift 已删（守卫 stale-drift 检测强制：actual==expect 则必须删 drift 字段 + 本登记）。
-# academic 保留 fail-open drift：前端 /academic/* 仅 permission 无 moduleCode（teaching-frontend-unwired），
-# 单独后端 gating 会破坏页面，需前端 teaching wiring 配套，超出 0.7B「不改业务 UI」范围。
+# ── 第四层：已知漂移登记（1 条 = 0 backend + 1 frontend；守卫按 consumer+locus+expect+actual 四元组匹配）
+# 0.7D 收口：academic 双面 fail-open 关闭——前端 /academic/* 接 teaching 门控（routeAccess/router-meta/
+# sidebar）+ 后端 /api/v1/academic 补门控（ROUTE_MODULE_MAP），academic-backend-fail-open 与
+# teaching-frontend-unwired 两条 drift 删除（守卫 stale-drift 检测强制：actual==expect 则必须删 drift 字段+登记）。
+# 注：check_module_semantics._FRONTEND_DRIFT_PROBES 仍保留 teaching-frontend-unwired 探测器作回退守护——
+# 若 academic 被改回未接 teaching（still_holds 回真）却无登记，守卫 fail-closed 报红。
+# 仅余 studio-frontend-entry-missing：studio 后端已门控但前端无入口（ux 缺口，待 studio 前端 wiring）。
 known_drift:
-  - { id: academic-backend-fail-open,    consumer: backend_middleware, locus: /api/v1/academic,     expect: "gated:teaching",         actual: "pass-through", severity: security }
   - { id: studio-frontend-entry-missing, consumer: frontend,           locus: "studio-entry",       expect: "present",                actual: "absent",       severity: ux }
-  - { id: teaching-frontend-unwired,     consumer: frontend,           locus: "/academic/*",        expect: "moduleCode:teaching",    actual: "null",         severity: semantic }

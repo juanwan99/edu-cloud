@@ -41,6 +41,11 @@ ROUTE_MODULE_MAP = {
     # 已标 moduleCode（authGuard 已 fail-close 导航），后端补同源门控 = 模块关闭即功能不可用。
     "/api/v1/conduct": "conduct",
     "/api/v1/exam-imports": "exam",
+    # Phase 0.7D: 收口 academic 后端 fail-open（双面 fail-open 最后一处）。前端 /academic/* 已配套
+    # 接 teaching 门控（routeAccess/router-meta/sidebar，authGuard 已 fail-close 导航），后端补同源
+    # defense-in-depth。teaching 默认未开启（不在 DEFAULT_ENABLED），但中间件仅在 SchoolModule(teaching)
+    # 行存在且 enabled=False 时 403；未配置行 → pass-through，前端入口亦隐藏，双面对齐。
+    "/api/v1/academic": "teaching",
 }
 
 # Paths that are never blocked (core infrastructure + base info)

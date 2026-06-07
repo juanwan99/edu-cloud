@@ -52,8 +52,9 @@ def test_resolve_module_code_unmapped_returns_none():
 # ===== Phase 0.7B item4（后端 fail-open drift）：conduct / exam-imports 补门控 =====
 # 参照 0.6C profile 处置：前端 /conduct、/exam-import 已标 moduleCode（authGuard 已 fail-close 导航），
 # 后端补门控为同源 defense-in-depth——模块关闭=功能不可用（与 exam/grading/profile 一致），enabled 校无变化。
-# academic 不在此列：前端 /academic/* 仅 permission 无 moduleCode（未门控），后端单独 gating 会让有
-# manage_scheduling 但 teaching 关闭的校 403 破坏页面（teaching-frontend-unwired drift），保留为 known_drift。
+# academic 在 0.7B 当时不补门控（前端 /academic/* 仅 permission 无 moduleCode），已由 0.7D 收口：
+# 前端三 surface 接 teaching + 后端补门控，academic-backend-fail-open 与 teaching-frontend-unwired drift 均删除
+# （见下方 Phase 0.7D 段与 test_academic_api_gated_to_teaching_module）。
 
 def test_conduct_api_gated_to_conduct_module():
     assert ROUTE_MODULE_MAP['/api/v1/conduct'] == 'conduct'
@@ -69,6 +70,26 @@ def test_exam_imports_does_not_shadow_exams_prefix():
     # /api/v1/exams 与 /api/v1/exam-imports 前缀不重叠（最长前缀下各自归 exam，互不影响）
     assert resolve_module_code('/api/v1/exams/123') == 'exam'
     assert resolve_module_code('/api/v1/exam-imports/123') == 'exam'
+
+
+# ===== Phase 0.7D（academic 双面 fail-open 收口）：academic 后端补 teaching 门控 =====
+# 前端 /academic/* 已接 teaching 门控（routeAccess/router-meta/sidebar，authGuard 已 fail-close 导航），
+# 后端 /api/v1/academic 补同源门控——模块关闭即功能不可用，闭合最后一处双面 fail-open。
+# teaching 默认未开启（不在 DEFAULT_ENABLED），但中间件仅在 SchoolModule(teaching) 行存在且 enabled=False
+# 时 403；未配置行 → pass-through，与前端入口隐藏双面对齐（参照 0.6C profile / 0.7B conduct）。
+
+def test_academic_api_gated_to_teaching_module():
+    assert ROUTE_MODULE_MAP['/api/v1/academic'] == 'teaching'
+    assert resolve_module_code('/api/v1/academic/semesters') == 'teaching'
+    assert resolve_module_code('/api/v1/academic/timetable') == 'teaching'
+    assert resolve_module_code('/api/v1/academic/teaching-plans') == 'teaching'
+
+
+def test_academic_segment_boundary_no_false_gating():
+    # 段边界安全：邻接同名前缀不应误命中 academic（裸 startswith 会让 /api/v1/academics 误命中）
+    assert resolve_module_code('/api/v1/academics') is None
+    # 精确与子路径正常门控
+    assert resolve_module_code('/api/v1/academic') == 'teaching'
 
 
 # ===== Phase 0.7B item5（hygiene drift）：menus/portal/grades/teachers/client-logs 显式入 exempt =====
