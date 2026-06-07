@@ -176,10 +176,24 @@ plus `.review-receipts.jsonl`. This doc states the *work*; the gate states the
 *review verdict* (do not narrate per-round verdicts here — that narration goes
 stale every round and re-triggers a scope_gap finding).
 
+Phase 0.7D academic double-sided fail-open **closed** (`4002d56`/`bfdbd50`): frontend
+`/academic/*` (teaching-plans/timetable/semesters) wired to `moduleCode: teaching`
+across routeAccess/router-meta/sidebar; backend `/api/v1/academic → teaching` in
+`ROUTE_MODULE_MAP`. `academic-backend-fail-open` + `teaching-frontend-unwired` drifts
+deleted (`_FRONTEND_DRIFT_PROBES` keeps the teaching probe as a regression guard);
+`known_drift` 3→1 (only `studio-frontend-entry-missing`). teaching stays out of
+`DEFAULT_ENABLED`; middleware 403s when the `SchoolModule(teaching)` row exists &
+`enabled=False` — normally-init'd schools have it (`init_school_modules`). The
+absent-row pass-through is the **system-wide** gating semantic (all gated modules;
+legacy schools via backfill), not a 0.7D-specific regression — a designer-accepted
+residual (codex-review F-001, WONTFIX). Evidence: guard `--check` clean; governance
+55 + middleware 15 passed; academic backend + route_snapshot 21 passed; frontend
+targeted 106 passed.
+
 **Portal homepage aggregation (Phase 1) stays BLOCKED** — per task contingency
 "only LOW remaining → plan Phase 0.7B", Portal unlock is a **designer decision**
-(execution engineer does not self-unlock). After 0.7B only registered drift
-(academic/studio/teaching) plus the Portal unlock itself remain. Plan:
+(execution engineer does not self-unlock). After 0.7D only the
+`studio-frontend-entry-missing` drift plus the Portal unlock itself remain. Plan:
 `docs/plans/2026-06-06-phase07-drift-burndown.md`. See
 `docs/plans/2026-06-06-phase06-coverage-handoff.md` for 0.6C.
 
