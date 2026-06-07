@@ -2,8 +2,10 @@ from edu_cloud.api.module_middleware import (
     ROUTE_MODULE_MAP,
     _longest_prefix_match,
     _prefix_matches,
+    module_enabled_default,
     resolve_module_code,
 )
+from edu_cloud.models.school_settings import DEFAULT_ENABLED, MODULE_CODES
 
 
 def test_bank_api_belongs_to_research_module():
@@ -75,8 +77,10 @@ def test_exam_imports_does_not_shadow_exams_prefix():
 # ===== Phase 0.7D（academic 双面 fail-open 收口）：academic 后端补 teaching 门控 =====
 # 前端 /academic/* 已接 teaching 门控（routeAccess/router-meta/sidebar，authGuard 已 fail-close 导航），
 # 后端 /api/v1/academic 补同源门控——模块关闭即功能不可用，闭合最后一处双面 fail-open。
-# teaching 默认未开启（不在 DEFAULT_ENABLED），但中间件仅在 SchoolModule(teaching) 行存在且 enabled=False
-# 时 403；未配置行 → pass-through，与前端入口隐藏双面对齐（参照 0.6C profile / 0.7B conduct）。
+# teaching 默认未开启（不在 DEFAULT_ENABLED）。0.7D 当时缺 SchoolModule(teaching) 行 → pass-through
+# （仅依赖正常建校 init_school_modules 已建 enabled=False 行才 403），codex-review F-001 标记此缺行 fail-open；
+# 0.7E 已收口：缺行按 module_enabled_default 镜像前端默认 → 非默认模块缺行 fail-closed 403（见文件末尾
+# Phase 0.7E 段），与前端入口隐藏双面对齐（参照 0.6C profile / 0.7B conduct）。
 
 def test_academic_api_gated_to_teaching_module():
     assert ROUTE_MODULE_MAP['/api/v1/academic'] == 'teaching'
@@ -121,3 +125,53 @@ def test_resolve_module_code_no_adjacent_name_false_gating():
     assert resolve_module_code('/api/v1/conduct') == 'conduct'
     assert resolve_module_code('/api/v1/conduct/records') == 'conduct'
     assert resolve_module_code('/api/v1/exam-imports/preview') == 'exam'
+
+
+# ===== Phase 0.7E（F-001 absent-row fail-open 收口）：缺行默认语义对齐前端 =====
+# 0.7D 遗留 F-001：中间件在缺 SchoolModule 行时 pass-through（fail-open），与前端 get_all_modules
+# （school_settings_service.py:109 `existing[code].enabled if code in existing else (code in
+# DEFAULT_ENABLED)`）不一致——非默认模块（teaching/research/study_analytics）缺行时前端隐藏入口、
+# 后端却放行，形成 API fail-open。0.7E 修复：dispatch 抽 module_enabled_default(code,row)，缺行
+# 镜像前端默认（在 DEFAULT_ENABLED 才启用）→ 非默认模块缺行 fail-closed 403；DEFAULT_ENABLED 模块
+# 缺行仍 pass-through（行为不变）；显式 SchoolModule 行的 enabled 值始终优先。下列单测脱离
+# DB/JWT/session 直测该纯函数语义（dispatch 第 208 行调用同一函数 → 单测即门控行为）。
+
+def test_absent_row_non_default_modules_fail_closed():
+    # 缺行（row=None）的非默认模块 → disabled → 中间件 403。F-001 核心收口。
+    # academic 路由 → teaching；bank/knowledge → research；analytics/profile → study_analytics。
+    for code in ('teaching', 'research', 'study_analytics'):
+        assert module_enabled_default(code, None) is False, code
+
+
+def test_absent_row_default_modules_pass_through_unchanged():
+    # 缺行的 DEFAULT_ENABLED 模块 → enabled（pass-through，未引入回归，行为与 0.7E 前一致）。
+    for code in DEFAULT_ENABLED:
+        assert module_enabled_default(code, None) is True, code
+
+
+def test_present_row_disabled_blocks_any_module():
+    # 显式行 enabled=False → disabled（显式值优先于 DEFAULT_ENABLED 默认，含默认模块也能被关）。
+    assert module_enabled_default('research', (False,)) is False     # 非默认显式关
+    assert module_enabled_default('exam', (False,)) is False         # 默认模块显式关 → 403
+
+
+def test_present_row_enabled_allows_any_module():
+    # 显式行 enabled=True → enabled（显式值优先，含非默认模块开启后放行）。
+    assert module_enabled_default('research', (True,)) is True       # 非默认显式开
+    assert module_enabled_default('teaching', (True,)) is True       # 非默认显式开 → 允许
+
+
+def test_academic_route_absent_teaching_row_fails_closed():
+    # 端到端语义：/api/v1/academic 经 resolve 命中 teaching（非默认），缺 teaching 行 → fail-closed。
+    # 串联路由解析（resolve_module_code）与缺行默认（module_enabled_default），表达 goal
+    # 「academic 缺行 → 403」的完整链路。
+    module_code = resolve_module_code('/api/v1/academic/semesters')
+    assert module_code == 'teaching'
+    assert module_enabled_default(module_code, None) is False
+
+
+def test_absent_row_default_mirrors_frontend_source_of_truth():
+    # 同源契约：中间件缺行默认逐模块镜像前端 get_all_modules 的 `else (code in DEFAULT_ENABLED)`，
+    # 两端共用 models 真源 DEFAULT_ENABLED，防止默认集漂移造成前后端可见性/门控不一致。
+    for code in MODULE_CODES:
+        assert module_enabled_default(code, None) is (code in DEFAULT_ENABLED), code

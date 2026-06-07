@@ -14,7 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from sqlalchemy import select
 
-from edu_cloud.models.school_settings import SchoolModule
+from edu_cloud.models.school_settings import SchoolModule, DEFAULT_ENABLED
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +43,9 @@ ROUTE_MODULE_MAP = {
     "/api/v1/exam-imports": "exam",
     # Phase 0.7D: 收口 academic 后端 fail-open（双面 fail-open 最后一处）。前端 /academic/* 已配套
     # 接 teaching 门控（routeAccess/router-meta/sidebar，authGuard 已 fail-close 导航），后端补同源
-    # defense-in-depth。teaching 默认未开启（不在 DEFAULT_ENABLED），但中间件仅在 SchoolModule(teaching)
-    # 行存在且 enabled=False 时 403；未配置行 → pass-through，前端入口亦隐藏，双面对齐。
+    # defense-in-depth。teaching 默认未开启（不在 DEFAULT_ENABLED）→ 缺 SchoolModule 行按下方
+    # dispatch 的 DEFAULT_ENABLED 默认判定为 disabled，与前端 get_all_modules 同源 fail-closed 403
+    # （F-001 全系统收口），与前端入口隐藏双面对齐。
     "/api/v1/academic": "teaching",
 }
 
@@ -115,6 +116,32 @@ def resolve_module_code(path: str) -> str | None:
     return _longest_prefix_match(path, ROUTE_MODULE_MAP)
 
 
+def module_enabled_default(module_code: str, row) -> bool:
+    """Resolve a gated module's effective enabled status for one school.
+
+    Mirrors the frontend ``get_all_modules`` default
+    (``school_settings_service.py:109``:
+    ``existing[code].enabled if code in existing else (code in DEFAULT_ENABLED)``)
+    so the backend 403 surface and the frontend visibility surface stay one source:
+
+    - **Present row** (``row is not None``): the explicit ``enabled`` value always
+      wins — a stored ``False``/``NULL`` row stays disabled (403), a ``True`` row
+      stays enabled.
+    - **Absent row** (``row is None``): a module is enabled IFF it is in
+      ``DEFAULT_ENABLED``. Non-default modules (teaching/research/study_analytics)
+      with no row are therefore fail-closed → 403, closing the absent-row fail-open
+      (Phase 0.7E, codex-review F-001). DEFAULT_ENABLED modules
+      (exam/grading/homework/calendar/studio/conduct) keep pass-through on an absent
+      row (enabled by default) — pre-0.7E behaviour unchanged.
+
+    ``row`` is the SQLAlchemy ``Row`` from ``result.first()`` (or ``None``); only
+    ``row[0]`` (the ``enabled`` column) is read, so tests may pass a plain tuple.
+    """
+    if row is not None:
+        return bool(row[0])
+    return module_code in DEFAULT_ENABLED
+
+
 class ModuleCheckMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         path = request.url.path
@@ -171,8 +198,15 @@ class ModuleCheckMiddleware(BaseHTTPMiddleware):
             )
             row = result.first()
 
-        # If module exists and is disabled -> block
-        if row is not None and not row[0]:
+        # Absent row mirrors the frontend get_all_modules default (enabled IFF in
+        # DEFAULT_ENABLED); a present row's explicit value wins. See
+        # module_enabled_default for the full contract (Phase 0.7E F-001 closure).
+        # #semantic-ok: the `row is not None` boundary check is not removed — it moved
+        # into module_enabled_default (returns bool(row[0]) only when row is present,
+        # else DEFAULT_ENABLED membership). Behaviour is identical to the prior inline
+        # expression; the check is now unit-testable without a DB/JWT/session.
+        enabled = module_enabled_default(module_code, row)
+        if not enabled:
             return JSONResponse(
                 status_code=403,
                 content={"detail": f"模块「{module_code}」未启用"},

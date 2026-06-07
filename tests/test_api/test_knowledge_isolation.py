@@ -12,6 +12,8 @@ from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.shared.auth import create_access_token
 
+from tests._module_seed import enable_school_modules
+
 
 @pytest.fixture
 async def two_schools(db):
@@ -65,6 +67,10 @@ async def two_schools(db):
     )
     db.add(node)
     await db.commit()
+
+    # Phase 0.7E: 两校均为校级 token；启用模块使中间件对 /api/v1/knowledge（research）放行，
+    # 测试专注于 link_question / get_question_kps 的跨校隔离逻辑本身。
+    await enable_school_modules(db, school_a.id, school_b.id)
 
     token_a = create_access_token({"sub": user_a.id, "active_role_id": role_a.id})
     token_b = create_access_token({"sub": user_b.id, "active_role_id": role_b.id})

@@ -16,6 +16,8 @@ from edu_cloud.modules.bank.models import BankQuestion
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentErrorPattern
 from edu_cloud.shared.auth import create_access_token
 
+from tests._module_seed import enable_school_modules
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -27,6 +29,10 @@ async def l2_school(db):
     db.add(school)
     await db.commit()
     await db.refresh(school)
+    # Phase 0.7E: 校级 token 测试需声明模块已启用，否则中间件对非默认 gated 路由
+    # (bank→research / profile/class-weakness→study_analytics) 缺行 fail-closed 403，
+    # 掩盖本文件真正断言的 L2 可见范围隔离逻辑。seed enabled=True 使门控放行。
+    await enable_school_modules(db, school.id)
     return school
 
 
