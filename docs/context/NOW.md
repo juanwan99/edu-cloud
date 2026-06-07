@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-06-06 18:25 Asia/Shanghai
+Last refreshed: 2026-06-07 14:24 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -200,6 +200,12 @@ are now fail-closed (a security fix, not a regression). teaching stays out of `D
 Evidence: guard `--check` clean; 6 new pure-function unit tests; target suite (5 files) 87
 passed; full backend 2481 passed / 22 failed — the 22 are all pre-existing env failures
 (socksio/playwright/httpx), **0 module-gating 403s** (`grep 未启用` = 0).
+**R1** (codex-review F-001 HIGH test_gap closed): the 6 pure-function tests never exercised
+the HTTP dispatch entry — mutating the absent-row default to fail-open left the 87-test target
+suite green. Added 4 dispatch regression tests (minimal FastAPI app + `ModuleCheckMiddleware`
++ ASGITransport: absent `SchoolModule(teaching)` row → HTTP 403 / explicit enabled → 200 /
+explicit disabled → 403 / DEFAULT_ENABLED absent → 200); the mutation now fails the core test
+(catch). Target suite 91 passed (87+4); `28ddbf9`.
 
 **Portal homepage aggregation (Phase 1) stays BLOCKED** — per task contingency
 "only LOW remaining → plan Phase 0.7B", Portal unlock is a **designer decision**
