@@ -1,11 +1,26 @@
+import pytest
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+import edu_cloud.database as _db_mod
 from edu_cloud.api.module_middleware import (
     ROUTE_MODULE_MAP,
+    ModuleCheckMiddleware,
     _longest_prefix_match,
     _prefix_matches,
     module_enabled_default,
     resolve_module_code,
 )
-from edu_cloud.models.school_settings import DEFAULT_ENABLED, MODULE_CODES
+from edu_cloud.models.school import School
+from edu_cloud.models.school_settings import (
+    DEFAULT_ENABLED,
+    MODULE_CODES,
+    SchoolModule,
+)
+from edu_cloud.models.user import User
+from edu_cloud.models.user_role import UserRole
+from edu_cloud.shared.auth import create_access_token
 
 
 def test_bank_api_belongs_to_research_module():
@@ -175,3 +190,104 @@ def test_absent_row_default_mirrors_frontend_source_of_truth():
     # 两端共用 models 真源 DEFAULT_ENABLED，防止默认集漂移造成前后端可见性/门控不一致。
     for code in MODULE_CODES:
         assert module_enabled_default(code, None) is (code in DEFAULT_ENABLED), code
+
+
+# ===== Phase 0.7E-R1（codex-review F-001 HIGH test_gap 收口）：HTTP middleware dispatch 入口回归 =====
+# 上方单测覆盖 module_enabled_default 的三态纯函数语义，但 codex-review F-001 指出 dispatch 的完整 HTTP
+# 入口链路（resolve_module_code → 解码 JWT 取 active_role_id → 查 UserRole.school_id → 查 SchoolModule
+# 行 → module_enabled_default 缺行默认 → 403）从未被 HTTP 路径验证：把 dispatch 的缺行判定突变回 fail-open
+# （`enabled = True if row is None else bool(row[0])`）后，原 87 个目标测试仍全部通过（test_gap）。
+# 下列测试经最小 FastAPI app + ModuleCheckMiddleware + ASGITransport 走完整 dispatch，缺 teaching 行时
+# 断言真实 HTTP 403——该突变下 test_http_academic_absent_teaching_row_returns_403 会失败（catch 回归），
+# 关闭 test_gap。关键：JWT 只带 active_role_id（不带 school_id），school_id 由 UserRole 行解析（与生产
+# JWT 同源——middleware 设计决策 F-02/F-03/F-04：JWT 不含 school_id）。
+
+
+@pytest.fixture
+async def mw_client(db_engine):
+    """最小 app：仅挂 ModuleCheckMiddleware + 两个测试 endpoint（teaching/exam 路由各一），经
+    ASGITransport 走真实 HTTP dispatch。middleware 绕过 DI 用全局 async_session，patch 到 test
+    engine（与 conftest `client` fixture 同手法；in-memory `:memory:` StaticPool 与 `db` fixture 共享
+    同一 DB）。"""
+    app = FastAPI()
+    app.add_middleware(ModuleCheckMiddleware)
+
+    @app.get("/api/v1/academic/semesters")
+    async def _academic():  # teaching — 非默认模块（不在 DEFAULT_ENABLED）
+        return {"ok": True, "route": "academic"}
+
+    @app.get("/api/v1/exams/list")
+    async def _exams():  # exam — DEFAULT_ENABLED 模块
+        return {"ok": True, "route": "exams"}
+
+    session_factory = async_sessionmaker(
+        db_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    orig_session = _db_mod.async_session
+    _db_mod.async_session = session_factory
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        yield c
+    _db_mod.async_session = orig_session
+
+
+async def _seed_school_role(db, *, modules=None):
+    """建 School + User + UserRole(school_id 指向该校)；可选 seed SchoolModule(code, enabled) 行。
+
+    返回 active_role_id 的 Bearer headers——JWT **只带 active_role_id**（不带 school_id），school_id
+    由 dispatch 反查 UserRole 行解析，复刻生产 token 结构（middleware F-02/F-03/F-04 设计）。
+    """
+    school = School(name="MW门控校", code="MWGATE", district="测试区", api_key_hash="x")
+    db.add(school)
+    await db.flush()
+    user = User(username="mw_gate_user", display_name="MW Gate User")
+    db.add(user)
+    await db.flush()
+    role = UserRole(
+        user_id=user.id, role="subject_teacher", school_id=school.id, is_primary=True
+    )
+    db.add(role)
+    await db.flush()
+    for code, enabled in (modules or {}).items():
+        db.add(SchoolModule(school_id=school.id, module_code=code, enabled=enabled))
+    await db.commit()
+    token = create_access_token({"sub": user.id, "active_role_id": role.id})
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.mark.asyncio
+async def test_http_academic_absent_teaching_row_returns_403(db, mw_client):
+    # F-001 核心：teaching 非默认模块，缺 SchoolModule(teaching) 行 → dispatch fail-closed 403。
+    # 突变 dispatch 缺行判定为 fail-open 后本断言失败 → catch 回归（关闭 test_gap 的判定测试）。
+    headers = await _seed_school_role(db)  # 不 seed 任何 SchoolModule 行
+    resp = await mw_client.get("/api/v1/academic/semesters", headers=headers)
+    assert resp.status_code == 403
+    assert "teaching" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_http_academic_explicit_enabled_row_passes(db, mw_client):
+    # 同校显式 SchoolModule(teaching, enabled=True) → 同路径放行到测试 endpoint（200）。
+    headers = await _seed_school_role(db, modules={"teaching": True})
+    resp = await mw_client.get("/api/v1/academic/semesters", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True, "route": "academic"}
+
+
+@pytest.mark.asyncio
+async def test_http_academic_explicit_disabled_row_returns_403(db, mw_client):
+    # 显式 SchoolModule(teaching, enabled=False) → 403（present-row 分支的 HTTP 验证，区别于缺行路径：
+    # 显式值始终优先，含默认与非默认模块）。
+    headers = await _seed_school_role(db, modules={"teaching": False})
+    resp = await mw_client.get("/api/v1/academic/semesters", headers=headers)
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_http_default_module_absent_row_passes(db, mw_client):
+    # 建议覆盖：DEFAULT_ENABLED 模块（exam）缺 SchoolModule 行 → 仍放行（缺行默认 pass-through 未被
+    # 0.7E 收口误伤，防过度收紧回归）。
+    headers = await _seed_school_role(db)  # 不 seed exam 行
+    resp = await mw_client.get("/api/v1/exams/list", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["route"] == "exams"
