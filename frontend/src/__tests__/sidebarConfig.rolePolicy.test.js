@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { getSidebarGroups, getSidebarItems } from '../config/sidebarConfig.js'
 
-const fullModules = ['exam', 'grading', 'calendar', 'homework', 'study_analytics', 'research', 'conduct']
+// Phase 0.7D：academic 入口（学期管理/课程表/教学计划）接 teaching 门控。role-policy 测试验证「角色」过滤，
+// 以「全模块开启的校」为基准，故 fullModules 含 teaching，使既有角色断言行为不变；teaching 关闭的 fail-closed
+// 行为由下方 'role-aware sidebar module gating' 的专项用例显式构造验证（不改生产 DEFAULT_ENABLED）。
+const fullModules = ['exam', 'grading', 'calendar', 'homework', 'study_analytics', 'research', 'conduct', 'teaching']
 const routesFor = role => getSidebarItems(role, fullModules).map(item => item.route)
 const groupLabelsFor = role => getSidebarGroups(role, fullModules).map(group => group.label)
 const childLabelsFor = (role, groupKey) =>
@@ -163,5 +166,26 @@ describe('role-aware sidebar module gating', () => {
     expect(routes).not.toContain('/question-bank')
     expect(routes).not.toContain('/knowledge-tree')
     expect(routes).not.toContain('/error-book')
+  })
+
+  // Phase 0.7D：academic 入口接 teaching 门控。teaching 默认未开启 → 有 manage_scheduling 的 academic_director
+  // 在 teaching 关闭时也看不到学期管理/课程表/教学计划（fail-closed），与 authGuard 直达拦截 + 后端 403 双面对齐。
+  it('hides academic teaching entries when the teaching module is disabled (0.7D fail-closed)', () => {
+    const withoutTeaching = ['exam', 'grading', 'calendar', 'homework', 'study_analytics', 'research', 'conduct']
+    const routes = getSidebarItems('academic_director', withoutTeaching).map(item => item.route)
+    expect(routes).not.toContain('/academic/semesters')
+    expect(routes).not.toContain('/academic/timetable')
+    expect(routes).not.toContain('/academic/teaching-plans')
+    // 同 academic 组的 permission-only 项（无 moduleCode）不受 teaching 门控影响，仍可见
+    expect(routes).toContain('/assignments')
+    expect(routes).toContain('/selections')
+  })
+
+  it('shows academic teaching entries when the teaching module is enabled', () => {
+    const withTeaching = ['exam', 'grading', 'calendar', 'homework', 'study_analytics', 'research', 'conduct', 'teaching']
+    const routes = getSidebarItems('academic_director', withTeaching).map(item => item.route)
+    expect(routes).toContain('/academic/semesters')
+    expect(routes).toContain('/academic/timetable')
+    expect(routes).toContain('/academic/teaching-plans')
   })
 })

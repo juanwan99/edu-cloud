@@ -143,6 +143,44 @@ describe('canAccessMatchedRoute: static∪dynamic perm+module (Phase 0.7A R6/R7 
 })
 
 
+// Phase 0.7D：academic 入口接 teaching 门控（前后端双面 fail-open 收口）。
+// /academic/* 由仅 permission(manage_scheduling) 升级为 permission + moduleCode:teaching。
+describe('academic routes gated by teaching module (Phase 0.7D)', () => {
+  const schoolGate = (mods, loaded = true) =>
+    createModuleGate({ schoolScoped: true, modulesLoaded: loaded, enabledModules: mods })
+
+  it('declares manage_scheduling permission + teaching module for academic routes', () => {
+    expect(getRouteAccessRequirement('/academic/semesters')).toEqual({
+      permission: 'manage_scheduling', moduleCode: 'teaching',
+    })
+    expect(getRouteAccessRequirement('/academic/timetable')).toEqual({
+      permission: 'manage_scheduling', moduleCode: 'teaching',
+    })
+    expect(getRouteAccessRequirement('/academic/teaching-plans')).toEqual({
+      permission: 'manage_scheduling', moduleCode: 'teaching',
+    })
+  })
+
+  it('fail-closed: school user with teaching disabled is blocked from academic routes', () => {
+    // academic_director 有 manage_scheduling（权限通过），但 teaching 未启用 → moduleMatches fail-closed
+    expect(canAccessRouteForRole('academic_director', '/academic/semesters', schoolGate([]))).toBe(false)
+    expect(canAccessRouteForRole('academic_director', '/academic/timetable', schoolGate(['exam']))).toBe(false)
+    expect(canAccessRouteForRole('academic_director', '/academic/teaching-plans', schoolGate([], false))).toBe(false)
+  })
+
+  it('allows academic routes when teaching enabled; admin/no-school exempt', () => {
+    expect(canAccessRouteForRole('academic_director', '/academic/semesters', schoolGate(['teaching']))).toBe(true)
+    expect(canAccessRouteForRole('academic_director', '/academic/timetable',
+      createModuleGate({ schoolScoped: false }))).toBe(true)
+  })
+
+  it('teaching module enabled but missing permission still blocks (permission ∧ module)', () => {
+    // subject_teacher 无 manage_scheduling → 即使 teaching 启用也不可达（权限与模块同时要求）
+    expect(canAccessRouteForRole('subject_teacher', '/academic/semesters', schoolGate(['teaching']))).toBe(false)
+  })
+})
+
+
 describe('route access phase2 alignment', () => {
   it('guards teacher management with the backend teacher CRUD permission', () => {
     expect(getRouteAccessRequirement('/teachers')).toEqual({

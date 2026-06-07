@@ -455,4 +455,31 @@ describe('authGuard module gating (Phase 0.6)', () => {
     await router.isReady()
     expect(router.currentRoute.value.path).toBe('/profile/student/123')
   })
+
+  // ===== Phase 0.7D：academic 入口接 teaching 门控（前后端双面 fail-open 收口）=====
+  // academic_director 有 manage_scheduling（权限通过）；teaching 默认未开启 → 直达 /academic/* 应 fail-closed 拦截。
+  // moduleCode 双源：routeAccess 静态精确表 ∪ to.meta.moduleCode（router/index.js 已两处都标 teaching）。
+  it('blocks direct URL /academic/semesters when teaching disabled (school user)', async () => {
+    authedAs('academic_director', { enabledModules: ['exam'], modulesLoaded: true })
+    const router = createTestRouter()
+    await router.push('/academic/semesters')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
+  it('allows direct URL /academic/semesters when teaching enabled (school user)', async () => {
+    authedAs('academic_director', { enabledModules: ['teaching'], modulesLoaded: true })
+    const router = createTestRouter()
+    await router.push('/academic/semesters')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/academic/semesters')
+  })
+
+  it('admin without school_id bypasses academic teaching gating', async () => {
+    authedAs('academic_director', { enabledModules: [], modulesLoaded: true, schoolId: null })
+    const router = createTestRouter()
+    await router.push('/academic/timetable')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/academic/timetable')
+  })
 })
