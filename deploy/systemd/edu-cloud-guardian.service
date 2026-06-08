@@ -12,7 +12,7 @@ Group=ops
 WorkingDirectory=/home/ops/projects/edu-cloud
 EnvironmentFile=-/home/ops/projects/edu-cloud/.env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/ops/projects/edu-cloud/.venv/bin/python /home/ops/projects/edu-cloud/scripts/guardian-watch --watch --interval 15 --state-file /home/ops/projects/edu-cloud/logs/guardian-state.json --jsonl-file /home/ops/projects/edu-cloud/logs/guardian-watch.jsonl --model-review claude --model-review-interval 3600
+ExecStart=/home/ops/projects/edu-cloud/.venv/bin/python /home/ops/projects/edu-cloud/scripts/guardian-watch --watch --interval 15 --state-file /home/ops/projects/edu-cloud/logs/guardian-state.json --jsonl-file /home/ops/projects/edu-cloud/logs/guardian-watch.jsonl --no-model-review
 Restart=on-failure
 RestartSec=10
 CPUQuota=25%
