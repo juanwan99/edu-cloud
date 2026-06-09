@@ -75,6 +75,26 @@ class Settings(BaseSettings):
     TIER_CONTEXT_THRESHOLDS: list[int] = [100_000, 30_000]
     MODEL_ROUTER_ADVANCED_KEYWORDS: list[str] | None = None  # None = use code defaults
     AI_SESSION_TTL: int = 7200  # seconds
+    AI_AGENT_PROVIDER: str = "coze"  # coze / current_pydantic
+    AI_AGENT_FALLBACK_PROVIDER: str = "current_pydantic"
+    AI_COZE_ENABLED: bool = False
+    AI_COZE_API_BASE: str = "http://localhost:8888"
+    AI_COZE_BOT_ID: str = ""
+    AI_COZE_API_TOKEN: str = ""
+    AI_COZE_TIMEOUT: int = 120
+    AI_COZE_TOOL_ALLOWLIST: list[str] = [
+        "get_exam_list",
+        "get_exam_summary",
+        "get_class_report",
+        "get_class_list",
+        "get_knowledge_tree",
+        "list_homework_tasks",
+        "get_homework_stats",
+        "generate_comment",
+    ]
+    AI_TOOL_GATEWAY_PUBLIC_BASE: str = ""
+    AI_TOOL_GATEWAY_TOKEN: str = ""
+    AI_TOOL_GATEWAY_HTTP_ENABLED: bool = False
 
     # ── Knowledge Base ───────────────────────────────────────────────
     KNOWLEDGE_BASE_DIR: str = "./edu-knowledge-base/subjects/biology_senior"

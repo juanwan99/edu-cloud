@@ -129,7 +129,8 @@ src/edu_cloud/
     auth.py             # POST /api/v1/auth/login（平台用户 JWT 登录）
     dashboard.py        # GET /api/v1/dashboard/summary（角色 scope 聚合统计：students/classes/exams/staff/pending_grading/pending_subjects）
     notifications_api.py # GET /api/v1/notifications（通知列表，status/since 过滤）
-    ai.py               # AI Agent 路由（EduAgentRuntime + Pydantic AI：POST /chat SSE + POST /runs/{id}/confirmations/{id} 写确认）
+    ai.py               # AI Agent 路由（AgentProvider：Coze-first + current_pydantic fallback；POST /chat SSE + 写确认）
+    ai_internal.py      # Internal Tool Gateway（Coze/外部 Agent 回调 edu 工具，仍由 edu 后端执行权限/审计/写确认）
     compat_router.py    # exam-ai 兼容路由（/api 前缀，paper-seg 零改动对接，8 端点）
     module_middleware.py # ModuleCheckMiddleware — 禁用模块 API 硬拦截（JWT active_role_id → school_id 解析）
     # 以下为 re-export stubs，canonical → modules/
@@ -188,7 +189,12 @@ src/edu_cloud/
     loader.py           # 知识库 JSON 文件加载（课标/L0/L1/高考索引）
     store.py            # 内存索引 KnowledgeStore + 全局单例 knowledge_store（关键字搜索）
   ai/                    # AI Agent 子系统
-    engine/              # **Pydantic AI 引擎层（活跃，api/ai.py 的唯一后端）**
+    providers/           # AgentProvider 抽象；CozeProvider 主链路 + current_pydantic fallback
+      base.py            # provider/run 协议与 AgentProviderContext
+      coze.py            # Coze SSE/required_action/submit_tool_outputs 映射到 edu SSE 合约
+      current_pydantic.py # 旧 EduAgentRuntime 适配器（短期 fallback）
+    tool_gateway.py      # Internal Tool Gateway；根据当前 DataScope/RBAC/capability 执行 @edu_tool
+    engine/              # Pydantic AI fallback 引擎层（current_pydantic provider 使用）
       agent_deps.py     # AgentDeps — RunContext 依赖容器（替代 ToolContext，per-tool 独立 DB session）
       edu_runtime.py    # EduAgentRuntime — 顶层编排（构建 Agent → asyncio.Queue SSE → 确认恢复）
       policy_guardrail.py # PolicyToolGuardrail — 4 层硬检查（role/module/capability/scope）
@@ -198,7 +204,7 @@ src/edu_cloud/
       trace_recorder.py # TraceRecorder — JSONL + DB 双写（user_id SHA256）
       tool_meta.py      # EduToolMeta — frozen 工具元数据
       tool_wrapper.py   # @edu_tool 装饰器 + TOOL_META_REGISTRY 全局注册
-      tools/            # 68 个 @edu_tool 原生工具（16 模块文件）
+      tools/            # 67 个 @edu_tool 原生工具（16 模块文件）
     # 以下为旧引擎组件（生产路径已不引用，保留供旧测试参照）
     data_scope.py       # DataScope（frozen 数据可见性快照）+ DataScopeBuilder — 被 engine 引用
     prompts.py          # build_teacher_prompt + SCHEDULED_PROMPTS — 被 engine/worker 引用

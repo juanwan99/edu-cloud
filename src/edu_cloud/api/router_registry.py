@@ -17,6 +17,7 @@ PLATFORM_ROUTERS: list[tuple[str, str]] = [
     ("edu_cloud.api.client_logs", "router"),
     ("edu_cloud.api.dashboard", "router"),
     ("edu_cloud.api.ai", "router"),
+    ("edu_cloud.api.ai_internal", "router"),
     ("edu_cloud.api.compat_router", "router"),
 ]
 

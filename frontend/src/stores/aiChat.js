@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuthStore } from './auth'
 import { createSSEProcessor } from '../utils/sseParser'
 import client from '../api/client'
@@ -11,15 +11,47 @@ export const useAiChatStore = defineStore('aiChat', () => {
   const sessionId = ref(null)
   const error = ref(null)
   const pendingConfirmations = ref([])
+  const providerStatus = ref(null)
 
   const authStore = useAuthStore()
+
+  const providerLabel = computed(() => {
+    if (!isAvailable.value) return '不可用'
+    const active = providerStatus.value?.active
+    if (active === 'coze') return 'Coze'
+    if (active === 'current_pydantic' || active === 'pydantic') return 'Fallback'
+    return active || 'AI'
+  })
+
+  const providerTone = computed(() => {
+    if (!isAvailable.value) return 'offline'
+    const active = providerStatus.value?.active
+    return active === 'coze' ? 'coze' : 'fallback'
+  })
+
+  const providerHint = computed(() => {
+    if (!isAvailable.value) return 'AI 服务不可用'
+    const provider = providerStatus.value
+    const active = provider?.active || 'unknown'
+    const coze = provider?.readiness?.coze
+    if (active === 'coze') {
+      if (coze?.tool_gateway_http_ready) return 'Coze 已启用，HTTP 工具网关可用'
+      return 'Coze 已启用，使用 edu-cloud 工具边界'
+    }
+    if (active === 'current_pydantic' || active === 'pydantic') {
+      return '正在使用备用 Agent'
+    }
+    return `当前 Agent: ${active}`
+  })
 
   async function checkHealth() {
     try {
       const resp = await client.get('/ai/health')
       isAvailable.value = resp.data.status === 'available'
+      providerStatus.value = resp.data.provider || null
     } catch {
       isAvailable.value = false
+      providerStatus.value = null
     }
   }
 
@@ -166,6 +198,10 @@ export const useAiChatStore = defineStore('aiChat', () => {
     sessionId,
     error,
     pendingConfirmations,
+    providerStatus,
+    providerLabel,
+    providerTone,
+    providerHint,
     checkHealth,
     sendMessage,
     resolveConfirmation,

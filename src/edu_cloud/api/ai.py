@@ -1,10 +1,10 @@
-"""AI Agent API — Pydantic AI engine (replaces old AgentLoop/Supervisor pipeline).
+"""AI Agent API — provider-routed chat entrypoint.
 
 Endpoints:
   GET  /api/v1/ai/health               — tool count + status
   GET  /api/v1/ai/ref-types             — reference type definitions
   GET  /api/v1/ai/refs                  — reference resolver
-  POST /api/v1/ai/chat                  — SSE chat (EduAgentRuntime)
+  POST /api/v1/ai/chat                  — SSE chat (AgentProvider)
   POST /api/v1/ai/runs/{run_id}/confirmations/{confirmation_id}  — write approval
   GET  /api/v1/ai/sessions              — list sessions
   DELETE /api/v1/ai/sessions/{id}       — delete session
@@ -32,7 +32,7 @@ router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 # ── Session state (in-memory, per-process) ──────────────────────────────
 
 class _SessionState:
-    __slots__ = ("anonymizer", "owner_id", "history", "last_access", "runtime", "run_lock")
+    __slots__ = ("anonymizer", "owner_id", "history", "last_access", "runtime", "run_lock", "provider_state")
 
     def __init__(self, *, anonymizer, owner_id: str = ""):
         self.anonymizer = anonymizer
@@ -41,9 +41,28 @@ class _SessionState:
         self.last_access: float = time.time()
         self.runtime = None
         self.run_lock = asyncio.Lock()
+        self.provider_state: dict = {}
 
     def touch(self):
         self.last_access = time.time()
+
+
+_PYDANTIC_HISTORY_PROVIDERS = {"current_pydantic", "pydantic"}
+
+
+def _runtime_uses_session_history(runtime) -> bool:
+    return getattr(runtime, "provider_name", "") in _PYDANTIC_HISTORY_PROVIDERS
+
+
+def _message_history_for_runtime(session_state: _SessionState, runtime) -> list | None:
+    if _runtime_uses_session_history(runtime):
+        return session_state.history
+    return None
+
+
+def _store_session_history_for_runtime(session_state: _SessionState, runtime) -> None:
+    if _runtime_uses_session_history(runtime):
+        session_state.history = runtime.last_messages
 
 
 _sessions: dict[str, _SessionState] = {}
@@ -113,9 +132,11 @@ class ConfirmationRequest(BaseModel):
 
 @router.get("/health")
 async def ai_health():
+    from edu_cloud.config import settings
+    from edu_cloud.ai.providers import provider_status
     from edu_cloud.ai.engine.tools import collect_all_tools
     all_tools = collect_all_tools()
-    return {"status": "available", "tools": len(all_tools)}
+    return {"status": "available", "tools": len(all_tools), "provider": provider_status(settings)}
 
 
 @router.get("/ref-types")
@@ -366,11 +387,11 @@ async def ai_chat(
     except Exception as profile_exc:
         logger.warning("AgentProfile load failed: %s", profile_exc)
 
-    # ── Build EduAgentRuntime ──
-    from edu_cloud.ai.engine.edu_runtime import EduAgentRuntime
+    # ── Build provider-backed run ──
+    from edu_cloud.ai.providers import AgentProviderContext, create_agent_run, create_fallback_agent_run
+    from edu_cloud.config import settings
 
-    #semantic-ok: timeout tiering moved to per-confirmation level in ConfirmationBroker (risk_level based)
-    runtime = EduAgentRuntime(
+    provider_context = AgentProviderContext(
         db_sessionmaker=async_session,
         user_id=str(user.id),
         school_id=str(school_id or ""),
@@ -384,8 +405,10 @@ async def ai_chat(
         system_prompt=system_prompt,
         tool_meta_registry=TOOL_META_REGISTRY,
         tool_functions=allowed_tools,
+        tool_names=tool_names,
+        provider_state=session_state.provider_state,
     )
-    runtime.build_agent()
+    runtime = await create_agent_run(settings, provider_context)
 
     session_state.runtime = runtime
 
@@ -396,23 +419,49 @@ async def ai_chat(
         had_llm_error = False
         had_success = False
         async with session_state.run_lock:
+            active_runtime = runtime
+            fallback_attempted = False
             try:
-                async for event in runtime.run(
-                    message, message_history=session_state.history,
-                ):
-                    if event.type == "error" and event.data.get("retryable"):
-                        had_llm_error = True
-                    if event.type == "answer":
-                        had_success = True
-                    if event.type == "done":
-                        event.data["session_id"] = session_id
-                    yield f"data: {json.dumps(event.to_dict(), ensure_ascii=False)}\n\n"
+                while True:
+                    switch_to_fallback = False
+                    async for event in active_runtime.run(
+                        message,
+                        message_history=_message_history_for_runtime(session_state, active_runtime),
+                    ):
+                        if (
+                            event.type == "error"
+                            and event.data.get("retryable")
+                            and not had_success
+                            and not fallback_attempted
+                        ):
+                            fallback_attempted = True
+                            try:
+                                fallback_runtime = await create_fallback_agent_run(settings, provider_context)
+                            except Exception as fallback_exc:
+                                logger.warning("AI fallback provider unavailable: %s", fallback_exc)
+                            else:
+                                if getattr(fallback_runtime, "provider_name", "") != getattr(active_runtime, "provider_name", ""):
+                                    active_runtime = fallback_runtime
+                                    session_state.runtime = fallback_runtime
+                                    switch_to_fallback = True
+                                    break
+
+                        if event.type == "error" and event.data.get("retryable"):
+                            had_llm_error = True
+                        if event.type == "answer":
+                            had_success = True
+                        if event.type == "done":
+                            event.data["session_id"] = session_id
+                        yield f"data: {json.dumps(event.to_dict(), ensure_ascii=False)}\n\n"
+                    if switch_to_fallback:
+                        continue
+                    break
             finally:
-                session_state.history = runtime.last_messages
-                if had_llm_error:
-                    _circuit_record_failure()
-                elif had_success:
+                _store_session_history_for_runtime(session_state, active_runtime)
+                if had_success:
                     _circuit_record_success()
+                elif had_llm_error:
+                    _circuit_record_failure()
             if profile is not None:
                 try:
                     from edu_cloud.services.agent_profile_service import AgentProfileService
@@ -422,8 +471,8 @@ async def ai_chat(
                         session_id=session_id,
                         tools_resolved=tool_names,
                         tools_selected=[],
-                        model_used="ai-chat",
-                        model_tier="pydantic-ai",
+                        model_used=getattr(active_runtime, "provider_name", "unknown"),
+                        model_tier=getattr(active_runtime, "provider_name", "unknown"),
                         intent_domains=[],
                     )
                     await db.commit()
@@ -460,7 +509,7 @@ async def confirm_tool(
         raise HTTPException(404, "Run not found or expired")
 
     runtime = target_session.runtime
-    if runtime.deps.confirmations.is_expired(confirmation_id):
+    if runtime.is_confirmation_expired(confirmation_id):
         raise HTTPException(410, "确认已超时（5 分钟），操作未执行")
 
     if req.decision == "approve":
@@ -478,7 +527,7 @@ async def confirm_tool(
             ):
                 yield f"data: {json.dumps(event.to_dict(), ensure_ascii=False)}\n\n"
         finally:
-            target_session.history = runtime.last_messages
+            _store_session_history_for_runtime(target_session, runtime)
 
     return StreamingResponse(
         confirm_stream(),

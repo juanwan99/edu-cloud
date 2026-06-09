@@ -12,12 +12,22 @@ async def test_session_created_in_db_on_chat(client, teacher_headers):
     from unittest.mock import patch
     from edu_cloud.ai.schemas import AgentEvent
 
-    async def mock_run(self, msg, *, message_history=None):
-        yield AgentEvent(type="answer", data={"content": "ok"})
-        yield AgentEvent(type="done", data={"run_id": "r1", "session_id": "s1", "turns": 0, "tokens": 0, "elapsed_ms": 1})
+    class FakeRun:
+        provider_name = "test_provider"
+        run_id = "r1"
+        last_messages = []
 
-    with patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.run", mock_run), \
-         patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.build_agent", lambda self: None):
+        async def run(self, msg, *, message_history=None):
+            yield AgentEvent(type="answer", data={"content": "ok"})
+            yield AgentEvent(type="done", data={"run_id": self.run_id, "session_id": "s1", "turns": 0, "tokens": 0, "elapsed_ms": 1})
+
+        def is_confirmation_expired(self, confirmation_id):
+            return False
+
+    async def create_agent_run(settings, context):
+        return FakeRun()
+
+    with patch("edu_cloud.ai.providers.create_agent_run", create_agent_run):
         resp = await client.post(
             "/api/v1/ai/chat",
             json={"message": "hello"},
@@ -171,12 +181,26 @@ async def test_llm_error_yields_retryable_event(client, teacher_headers):
     from unittest.mock import patch
     from edu_cloud.ai.schemas import AgentEvent
 
-    async def mock_run_error(self, msg, *, message_history=None):
-        yield AgentEvent(type="error", data={"message": "AI 服务暂时不可用，请稍后重试", "retryable": True})
-        yield AgentEvent(type="done", data={"run_id": "r1", "session_id": "s1", "turns": 0, "tokens": 0, "elapsed_ms": 1})
+    class FakeRun:
+        provider_name = "test_provider"
+        run_id = "r1"
+        last_messages = []
 
-    with patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.run", mock_run_error), \
-         patch("edu_cloud.ai.engine.edu_runtime.EduAgentRuntime.build_agent", lambda self: None):
+        async def run(self, msg, *, message_history=None):
+            yield AgentEvent(type="error", data={"message": "AI 服务暂时不可用，请稍后重试", "retryable": True})
+            yield AgentEvent(type="done", data={"run_id": self.run_id, "session_id": "s1", "turns": 0, "tokens": 0, "elapsed_ms": 1})
+
+        def is_confirmation_expired(self, confirmation_id):
+            return False
+
+    async def create_agent_run(settings, context):
+        return FakeRun()
+
+    async def create_fallback_agent_run(settings, context):
+        raise RuntimeError("fallback unavailable")
+
+    with patch("edu_cloud.ai.providers.create_agent_run", create_agent_run), \
+         patch("edu_cloud.ai.providers.create_fallback_agent_run", create_fallback_agent_run):
         resp = await client.post("/api/v1/ai/chat", json={"message": "test"}, headers=teacher_headers)
     assert resp.status_code == 200
     events = [json.loads(l[6:]) for l in resp.text.strip().split("\n") if l.strip().startswith("data: ")]

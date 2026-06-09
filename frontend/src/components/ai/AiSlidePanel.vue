@@ -3,7 +3,13 @@
     <div v-if="visible" class="ai-panel-overlay" @click.self="$emit('close')">
       <aside class="ai-panel">
         <header class="ai-panel-header">
-          <span class="ai-panel-title">AI 助手</span>
+          <div class="ai-panel-heading">
+            <span class="ai-panel-title">AI 助手</span>
+            <span :class="['ai-provider-chip', `ai-provider-chip--${chat.providerTone}`]" :title="chat.providerHint">
+              <span class="ai-provider-dot" />
+              {{ chat.providerLabel }}
+            </span>
+          </div>
           <div class="ai-panel-actions">
             <button v-if="chat.messages.length" class="ai-btn-icon" title="清空对话" @click="chat.clearChat()">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -274,10 +280,61 @@ onMounted(() => { chat.checkHealth() })
   flex-shrink: 0;
 }
 
+.ai-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .ai-panel-title {
   font-size: 15px;
   font-weight: var(--fw-semibold);
   color: var(--color-text);
+}
+
+.ai-provider-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 112px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-provider-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+}
+
+.ai-provider-chip--coze {
+  color: #0f766e;
+  border-color: #99f6e4;
+  background: #f0fdfa;
+}
+
+.ai-provider-chip--fallback {
+  color: #92400e;
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.ai-provider-chip--offline {
+  color: #991b1b;
+  border-color: #fecaca;
+  background: #fef2f2;
 }
 
 .ai-panel-actions {

@@ -1,10 +1,33 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import AiSlidePanel from '../AiSlidePanel.vue'
 import { useAiChatStore } from '../../../stores/aiChat.js'
+import client from '../../../api/client'
 
 vi.mock('../RefPicker.vue', () => ({ default: { template: '<div />' } }))
+vi.mock('../../../api/client', () => ({
+  default: {
+    get: vi.fn(),
+  },
+}))
+
+function mockHealth(data = {}) {
+  client.get.mockResolvedValue({
+    data: {
+      status: 'available',
+      provider: {
+        active: 'coze',
+        readiness: {
+          coze: {
+            tool_gateway_http_ready: false,
+          },
+        },
+      },
+      ...data,
+    },
+  })
+}
 
 function mountPanel(options = {}) {
   return mount(AiSlidePanel, {
@@ -26,7 +49,11 @@ function makeConf(overrides = {}) {
 }
 
 describe('AiSlidePanel', () => {
-  beforeEach(() => { setActivePinia(createPinia()) })
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    mockHealth()
+  })
 
   it('renders empty state when no messages', () => {
     const w = mountPanel()
@@ -66,10 +93,38 @@ describe('AiSlidePanel', () => {
     await w.vm.$nextTick()
     expect(w.text()).toContain('查询了 1 个数据源')
   })
+
+  it('renders Coze provider status from health', async () => {
+    const w = mountPanel()
+    await flushPromises()
+    const chip = w.find('.ai-provider-chip')
+    expect(chip.text()).toContain('Coze')
+    expect(chip.attributes('title')).toContain('Coze 已启用')
+  })
+
+  it('renders fallback provider status from health', async () => {
+    mockHealth({ provider: { active: 'current_pydantic' } })
+    const w = mountPanel()
+    await flushPromises()
+    const chip = w.find('.ai-provider-chip')
+    expect(chip.text()).toContain('Fallback')
+    expect(chip.attributes('title')).toContain('备用 Agent')
+  })
+
+  it('renders offline status when health fails', async () => {
+    client.get.mockRejectedValue(new Error('down'))
+    const w = mountPanel()
+    await flushPromises()
+    expect(w.find('.ai-provider-chip').text()).toContain('不可用')
+  })
 })
 
 describe('AiSlidePanel confirmation card', () => {
-  beforeEach(() => { setActivePinia(createPinia()) })
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    mockHealth()
+  })
 
   it('renders pending confirmation with approve/reject buttons', async () => {
     const w = mountPanel()
@@ -135,6 +190,8 @@ describe('AiSlidePanel confirmation card', () => {
 describe('AiSlidePanel timer lifecycle', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    vi.clearAllMocks()
+    mockHealth()
     vi.useFakeTimers()
   })
   afterEach(() => { vi.useRealTimers() })
@@ -148,7 +205,11 @@ describe('AiSlidePanel timer lifecycle', () => {
 })
 
 describe('AiSlidePanel context injection (S2)', () => {
-  beforeEach(() => { setActivePinia(createPinia()) })
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    mockHealth()
+  })
 
   it('shows context card when initialContext is set via prop change', async () => {
     const w = mountPanel()
