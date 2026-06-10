@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-06-07 15:40 Asia/Shanghai
+Last refreshed: 2026-06-10 15:47 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -21,15 +21,21 @@ scripts/truth doctor --json
 - Backend API: `127.0.0.1:9000`
 - Frontend artifact path: `frontend/dist/`
 - Known pytest baseline entries: 26 in `.quality/known-pytest-failures.txt`
-- Current live hash: `d9b1c56`
-- Truthline at 2026-05-26 23:16 Asia/Shanghai: source, frontend build,
-  nginx, and backend are aligned on `d9b1c56`.
-- DB doctor is currently red: ORM declares `exam_import_sessions`, but the DB
-  has no such table; DB also contains orphan table `_audit_log`.
-- Runtime services: `edu-cloud.service` and `edu-cloud-worker.service` are
-  active at the live hash.
-- `edu-cloud-worker.service` is installed and enabled from
+- Source HEAD (2026-06-10): `41a8ced` — source, frontend build, and nginx are
+  aligned on `41a8ced`; `https://mcu.asia/` returns 200, version.json matches.
+- Backend process is STALE (2026-06-10): PID `391900` (booted 2026-06-09 17:02)
+  runs `ebf7934`, not source `41a8ced`. truth-status diagnoses
+  `BROKEN AT: SOURCE → BACKEND (stale uvicorn, restart needed)`.
+- DB doctor is currently red: ORM declares `exam_import_sessions` (16 cols), but
+  the DB has no such table (HARD); DB also contains orphan table `_audit_log`
+  (7 cols, WARN). `alembic_version = a1b2_chat_msgs`.
+- Runtime services (2026-06-10): `edu-cloud.service` is **inactive** while a
+  manual uvicorn owns port 9000 (guardian SERVICE_BYPASS + GHOST_PROCESS +
+  PORT_OWNER_MISMATCH). Do NOT assume systemd-managed backend until restarted
+  through systemd. `edu-cloud-worker.service` remains installed/enabled from
   `deploy/systemd/edu-cloud-worker.service`.
+- Full 2026-06-10 runtime foundation evidence + recovery decision:
+  `docs/plans/2026-06-10-runtime-foundation-recovery.md`.
 
 ## Truthline
 
@@ -43,6 +49,25 @@ The latest verified delivery path is:
 
 Run `scripts/truth-status.sh /home/ops/projects/edu-cloud` for the live hash.
 Any `BROKEN AT:` diagnosis exits non-zero and blocks completion evidence.
+
+## Runtime Foundation Status (2026-06-10)
+
+Re-collected this date (truth-status / db_doctor / guardian-watch). All three
+standing blockers still hold on the runtime side; source/build/nginx are healthy
+at `41a8ced`:
+
+1. **Backend stale / orphan uvicorn / service inactive** — STILL BLOCKED.
+   Fix is "restart through systemd", but ordered after the DB migration.
+2. **DB schema drift** — STILL BLOCKED. `exam_import_sessions` missing + orphan
+   `_audit_log`; needs a migration **design** decision (not blind alembic). A
+   stale `data/.db_migrate.lock` is present.
+3. **Context stale** — was true (NOW.md sat at 2026-06-07 / `d9b1c56` /
+   "services active"); corrected by this refresh.
+
+**Recommended next window: DB migration design first, then the R1-B runtime
+operation window** (restart folded into the migration rollout). A backend
+restart alone leaves DB doctor red, so it does not unblock Portal. Detail +
+evidence: `docs/plans/2026-06-10-runtime-foundation-recovery.md`.
 
 ## Current Role-Entry Work
 
@@ -214,8 +239,9 @@ explicit disabled → 403 / DEFAULT_ENABLED absent → 200); the mutation now fa
 `docs/plans/2026-06-07-phase08-acceptance-decision.md`), so the unlock ruling stands,
 but **implementation is gated by runtime/DB cleanup** — three conditions must all go
 green before any Portal code: ① DB doctor red→green (currently red: `exam_import_sessions`
-missing table + orphan `_audit_log`); ② deploy/runtime hash aligned to HEAD `56ccd03`
-(currently backend `b763888` / dist `bfdbd50` ≠ HEAD, branch not yet fully deployed); ③ online-verify module
+missing table + orphan `_audit_log`); ② deploy/runtime hash aligned to HEAD
+(2026-06-10: source/dist/nginx aligned on HEAD `41a8ced`, but backend process is stale at
+`ebf7934` and `edu-cloud.service` is inactive — see "Runtime Foundation Status (2026-06-10)"); ③ online-verify module
 gating / portal services keep fail-closed. First-cut scope: frontend homepage
 aggregation + consume existing `/api/v1/portal/*` (5 endpoints live,
 `modules/portal/router.py:25-57`) + service cards gated by `moduleGateFromAuth`.
