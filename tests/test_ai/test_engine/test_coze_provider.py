@@ -5,10 +5,10 @@ import pytest
 
 from edu_cloud.ai.providers.base import AgentProviderContext
 from edu_cloud.ai.engine.tool_wrapper import edu_tool
-from edu_cloud.ai.providers.coze import CozeProvider, CozeRun
+from edu_cloud.ai.providers.coze import COZE_REQUIRED_ACTION_EVENTS, CozeProvider, CozeRun
 
 
-def _run():
+def _run(*, required_action_submit_enabled=False):
     ctx = AgentProviderContext(
         db_sessionmaker=None,
         user_id="u1",
@@ -31,6 +31,7 @@ def _run():
         AI_COZE_API_TOKEN="pat-test",
         AI_COZE_BOT_ID="bot-1",
         AI_COZE_TIMEOUT=120,
+        AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED=required_action_submit_enabled,
         AI_TOOL_GATEWAY_PUBLIC_BASE="",
     )
     return CozeRun(ctx, settings)
@@ -129,7 +130,7 @@ async def test_coze_resume_after_confirmation_executes_gateway_tool(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_coze_required_action_executes_gateway_and_submits_outputs(monkeypatch):
-    run = _run()
+    run = _run(required_action_submit_enabled=True)
     gateway = AsyncMock(return_value={"status": "ok", "result": {"items": ["exam-1"]}})
     monkeypatch.setattr("edu_cloud.ai.providers.coze.execute_registered_tool", gateway)
 
@@ -179,7 +180,7 @@ async def test_coze_required_action_executes_gateway_and_submits_outputs(monkeyp
 
 @pytest.mark.asyncio
 async def test_coze_required_action_write_tool_waits_for_edu_confirmation(monkeypatch):
-    run = _run()
+    run = _run(required_action_submit_enabled=True)
     gateway = AsyncMock(return_value={
         "status": "confirmation_required",
         "confirmation_id": "confirm-1",
@@ -219,7 +220,7 @@ async def test_coze_required_action_write_tool_waits_for_edu_confirmation(monkey
 
 @pytest.mark.asyncio
 async def test_coze_confirmed_write_submits_tool_output_back_to_coze(monkeypatch):
-    run = _run()
+    run = _run(required_action_submit_enabled=True)
     run._pending_confirmations["confirm-1"] = {
         "tool_name": "generate_comment",
         "arguments": {"student_number": "S001"},
@@ -258,6 +259,84 @@ async def test_coze_confirmed_write_submits_tool_output_back_to_coze(monkeypatch
     ]
     persist_assistant.assert_awaited_once_with("评语已生成")
     assert "confirm-1" not in run._pending_confirmations
+
+
+@pytest.mark.asyncio
+async def test_coze_required_action_event_is_not_executed_when_submit_is_not_ready(monkeypatch):
+    run = _run(required_action_submit_enabled=False)
+    gateway = AsyncMock()
+    monkeypatch.setattr("edu_cloud.ai.providers.coze.execute_registered_tool", gateway)
+
+    async def source():
+        yield (
+            "conversation.chat.required_action",
+            {
+                "id": "chat-1",
+                "conversation_id": "conv-1",
+                "required_action": {
+                    "submit_tool_outputs": {
+                        "tool_calls": [{
+                            "id": "tool-call-1",
+                            "function": {
+                                "name": "get_exam_list",
+                                "arguments": '{"status":"completed"}',
+                            },
+                        }],
+                    },
+                },
+            },
+        )
+
+    events = [event async for event in run._stream_and_map(source(), set(), [])]
+
+    assert [event.type for event in events] == ["error"]
+    assert events[0].data["mode"] == "coze_required_action"
+    assert events[0].data["retryable"] is False
+    gateway.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("event_name", sorted(COZE_REQUIRED_ACTION_EVENTS))
+async def test_coze_required_action_event_aliases_execute_only_when_submit_is_enabled(
+    event_name,
+    monkeypatch,
+):
+    run = _run(required_action_submit_enabled=True)
+    gateway = AsyncMock(return_value={"status": "ok", "result": {"items": ["exam-1"]}})
+    monkeypatch.setattr("edu_cloud.ai.providers.coze.execute_registered_tool", gateway)
+
+    async def fake_stream_tool_outputs(*, conversation_id, chat_id, tool_outputs):
+        yield (
+            "conversation.message.delta",
+            {"id": "answer-1", "type": "answer", "content": "已找到考试"},
+        )
+
+    monkeypatch.setattr(run, "_stream_coze_tool_outputs", fake_stream_tool_outputs)
+
+    async def source():
+        yield (
+            event_name,
+            {
+                "id": "chat-1",
+                "conversation_id": "conv-1",
+                "required_action": {
+                    "submit_tool_outputs": {
+                        "tool_calls": [{
+                            "id": "tool-call-1",
+                            "function": {
+                                "name": "get_exam_list",
+                                "arguments": '{"status":"completed"}',
+                            },
+                        }],
+                    },
+                },
+            },
+        )
+
+    events = [event async for event in run._stream_and_map(source(), set(), [])]
+
+    assert [event.type for event in events] == ["tool_call", "tool_result", "answer"]
+    gateway.assert_awaited_once()
 
 
 def test_coze_run_remembers_conversation_id():

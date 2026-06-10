@@ -36,7 +36,12 @@ using a Personal Access Token in the `Authorization: Bearer ...` header:
 edu-cloud's Coze provider uses:
 
 - `POST /v3/chat`
-- `POST /v3/chat/submit_tool_outputs`
+
+The current Coze CE runtime has `required_action` data structures in source, but
+no verified OpenAPI route for submitting agent tool outputs. On the ECS runtime,
+`POST /v3/chat/submit_tool_outputs` does not behave like a PAT-authenticated
+OpenAPI endpoint. Treat agent `required_action` submit/resume as not
+productized until a live route is proven.
 
 ## Required edu-cloud Settings
 
@@ -65,10 +70,10 @@ AI_TOOL_GATEWAY_TOKEN=<long-random-service-token>
 AI_TOOL_GATEWAY_HTTP_ENABLED=true
 ```
 
-If using Coze `requires_action` mode only, the public gateway settings are not
-required for chat readiness. The edu backend executes tools and submits tool
-outputs back to Coze. Keep `AI_TOOL_GATEWAY_HTTP_ENABLED=false` until the
-Coze-container-to-edu-cloud ingress has been deployed and verified.
+The current ECS runtime supports Coze chat readiness only. It does not have a
+live-proven agent `required_action` submit/resume loop. Keep
+`AI_TOOL_GATEWAY_HTTP_ENABLED=false` until the Coze-container-to-edu-cloud
+ingress has been deployed and verified.
 
 ## Current ECS Runtime
 
@@ -81,6 +86,7 @@ The verified ECS runtime uses:
 - `AI_COZE_ENABLED=true`.
 - `AI_TOOL_GATEWAY_PUBLIC_BASE=http://127.0.0.1:9000`.
 - `AI_TOOL_GATEWAY_HTTP_ENABLED=false` for native HTTP-plugin callbacks.
+- Coze agent `required_action` submit/resume is not enabled or live-proven.
 
 Coze Bot ID, PAT, and the local Coze account details are stored outside git.
 Do not paste those secrets into docs, tests, commit messages, or review notes.
@@ -113,9 +119,10 @@ Expected after Coze is configured:
     "coze": {
       "chat_ready": true,
       "missing": [],
+      "required_action_submit_ready": false,
       "tool_gateway_http_ready": false,
       "tool_modes": {
-        "coze_required_action": true,
+        "coze_required_action": false,
         "http_tool_gateway": false
       }
     }
@@ -123,9 +130,9 @@ Expected after Coze is configured:
 }
 ```
 
-`http_tool_gateway=false` is expected on the current ECS runtime. It means the
-native Coze HTTP-plugin callback ingress is not enabled yet; it does not block
-the Coze `requires_action` chat path.
+`coze_required_action=false` and `http_tool_gateway=false` are expected on the
+current ECS runtime. They mean Coze chat is available, but no Coze-to-edu tool
+execution path has been productized yet.
 
 ## Live Smoke
 
@@ -155,16 +162,14 @@ After provider smoke passes, call `/api/v1/ai/chat` with a normal teacher token.
 The public SSE shape must remain unchanged:
 
 - `thinking`
-- optional `tool_call`
-- optional `tool_result`
-- optional `confirmation_required`
+- optional `tool_call` / `tool_result` / `confirmation_required` only after a
+  Coze tool path is explicitly productized
 - `answer`
 - `done`
 
 The `done` event should include `"provider": "coze"` when Coze is active.
 
-For a role with real school context, the current gateway allowlist should expose
-the edu-side tools that passed live validation:
+For a role with real school context, the edu-side gateway allowlist can expose:
 
 - `get_class_list`
 - `get_exam_list`
@@ -187,18 +192,24 @@ Write validation:
 
 ## Tool Modes
 
-### Coze `requires_action`
+### Coze `required_action` / `requires_action`
 
-Preferred for keeping edu-cloud as the execution boundary:
+Do not treat this mode as ready on the current Coze CE runtime.
 
-1. Coze emits `conversation.chat.requires_action`.
-2. edu-cloud executes the allowed tool through `Internal Tool Gateway`.
-3. edu-cloud submits results to `/v3/chat/submit_tool_outputs`.
-4. Coze continues the streamed answer.
+Evidence from the current local Coze CE source/runtime:
 
-This mode is covered by provider tests and keeps the execution boundary inside
-edu-cloud. It does not require Coze Studio to reach `/internal/ai-tools` over
-HTTP.
+- Source contains `required_action` / `submit_tool_outputs` model structures.
+- Source exposes OpenAPI routes for `/v3/chat`, `/v3/chat/cancel`,
+  `/v3/chat/retrieve`, and `/v3/chat/message/list`.
+- Source/runtime did not show a PAT-authenticated OpenAPI route for
+  `/v3/chat/submit_tool_outputs`.
+- Current Bot live probes returned natural language instead of native tool calls.
+
+edu-cloud therefore treats `tool_modes.coze_required_action=false` unless a
+separate task proves a working submit/resume route and explicitly enables it.
+The provider accepts both `conversation.chat.required_action` and
+`conversation.chat.requires_action` event names, but reports a non-retryable
+configuration error instead of executing tools when submit/resume is not ready.
 
 ### HTTP Tool Gateway
 
@@ -217,7 +228,9 @@ separate deployment task, not a code-only Agent task.
 Provider readiness intentionally reports `tool_modes.http_tool_gateway=false`
 unless `AI_TOOL_GATEWAY_HTTP_ENABLED=true` and both public base/token settings
 are present. Do not flip this flag until the callback URL has been verified from
-inside `coze-server`.
+inside `coze-server`. Because current agent `required_action` submit/resume is
+not live-proven, HTTP Tool Gateway is the next productization path for Coze tool
+use.
 
 Recommended deployment plan for native Coze HTTP plugin callbacks:
 

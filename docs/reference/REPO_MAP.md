@@ -191,7 +191,7 @@ src/edu_cloud/
   ai/                    # AI Agent 子系统
     providers/           # AgentProvider 抽象；CozeProvider 主链路 + current_pydantic fallback
       base.py            # provider/run 协议与 AgentProviderContext
-      coze.py            # Coze SSE/required_action/submit_tool_outputs 映射到 edu SSE 合约
+      coze.py            # Coze chat/SSE 映射；required_action 仅在 submit/resume 证据齐备后启用
       current_pydantic.py # 旧 EduAgentRuntime 适配器（短期 fallback）
     tool_gateway.py      # Internal Tool Gateway；根据当前 DataScope/RBAC/capability 执行 @edu_tool
     engine/              # Pydantic AI fallback 引擎层（current_pydantic provider 使用）

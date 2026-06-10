@@ -31,6 +31,14 @@ DEFAULT_COZE_TOOL_ALLOWLIST = frozenset({
 })
 
 CONFIRMATION_TIMEOUT_SECONDS = 300.0
+COZE_REQUIRED_ACTION_EVENTS = frozenset({
+    "conversation.chat.requires_action",
+    "conversation.chat.required_action",
+})
+COZE_REQUIRED_ACTION_UNSUPPORTED_MESSAGE = (
+    "当前 Coze CE 运行态未验证可用的 OpenAPI 工具结果回传接口；"
+    "请先使用 Coze HTTP 插件回调到 edu Tool Gateway。"
+)
 
 
 class CozeRun:
@@ -96,6 +104,9 @@ class CozeRun:
                 self._pending_confirmations.pop(confirmation_id, None)
                 yield AgentEvent(type="tool_result", data={"tool": tool_name, "result": result.get("result")})
                 if pending.get("coze_conversation_id") and pending.get("coze_chat_id") and pending.get("coze_tool_call_id"):
+                    if not self._required_action_submit_ready():
+                        yield self._required_action_unavailable_event()
+                        continue
                     tool_outputs = list(pending.get("prior_tool_outputs") or [])
                     tool_outputs.append({
                         "tool_call_id": pending["coze_tool_call_id"],
@@ -318,11 +329,8 @@ class CozeRun:
             msg = payload.get("msg") or payload.get("message") or "Coze chat failed"
             return [AgentEvent(type="error", data={"message": msg, "retryable": True})]
 
-        if event == "conversation.chat.requires_action":
-            return [AgentEvent(
-                type="error",
-                data={"message": "Coze requires external tool action; use edu Tool Gateway plugin callback", "retryable": False},
-            )]
+        if event in COZE_REQUIRED_ACTION_EVENTS:
+            return [self._required_action_unavailable_event()]
 
         return []
 
@@ -335,7 +343,10 @@ class CozeRun:
         depth: int = 0,
     ) -> AsyncIterator[AgentEvent]:
         async for event, payload in source:
-            if event == "conversation.chat.requires_action":
+            if event in COZE_REQUIRED_ACTION_EVENTS:
+                if not self._required_action_submit_ready():
+                    yield self._required_action_unavailable_event()
+                    continue
                 async for item in self._handle_required_action(
                     payload,
                     emitted_delta_ids,
@@ -347,6 +358,19 @@ class CozeRun:
             mapped = self._map_event(event, payload, emitted_delta_ids, assistant_parts)
             for item in mapped:
                 yield item
+
+    def _required_action_submit_ready(self) -> bool:
+        return bool(getattr(self._settings, "AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED", False))
+
+    def _required_action_unavailable_event(self) -> AgentEvent:
+        return AgentEvent(
+            type="error",
+            data={
+                "message": COZE_REQUIRED_ACTION_UNSUPPORTED_MESSAGE,
+                "retryable": False,
+                "mode": "coze_required_action",
+            },
+        )
 
     async def _handle_required_action(
         self,

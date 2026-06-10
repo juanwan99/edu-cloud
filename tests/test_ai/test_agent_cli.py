@@ -56,6 +56,8 @@ class TestCLIArgs:
         data = json.loads(output)
         assert data["preferred"] == "coze"
         assert data["readiness"]["coze"]["chat_ready"] is True
+        assert data["readiness"]["coze"]["required_action_submit_ready"] is False
+        assert data["readiness"]["coze"]["tool_modes"]["coze_required_action"] is False
         assert "pat-secret" not in output
 
     def test_coze_live_smoke_exits_nonzero_when_unconfigured(self, capsys, monkeypatch):

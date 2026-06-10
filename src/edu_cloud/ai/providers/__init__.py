@@ -29,6 +29,10 @@ def provider_status(settings: Any) -> dict[str, Any]:
     gateway_public_base_configured = bool(getattr(settings, "AI_TOOL_GATEWAY_PUBLIC_BASE", ""))
     gateway_token_configured = bool(getattr(settings, "AI_TOOL_GATEWAY_TOKEN", ""))
     gateway_http_enabled = bool(getattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", False))
+    required_action_submit_enabled = bool(
+        getattr(settings, "AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED", False)
+    )
+    required_action_submit_ready = coze_ready and required_action_submit_enabled
     http_tool_gateway_ready = (
         coze_ready
         and gateway_http_enabled
@@ -49,8 +53,11 @@ def provider_status(settings: Any) -> dict[str, Any]:
                 "tool_gateway_token_configured": gateway_token_configured,
                 "tool_gateway_http_enabled": gateway_http_enabled,
                 "tool_gateway_http_ready": http_tool_gateway_ready,
+                "required_action_submit_enabled": required_action_submit_enabled,
+                "required_action_submit_ready": required_action_submit_ready,
+                "required_action_submit_endpoint": "/v3/chat/submit_tool_outputs",
                 "tool_modes": {
-                    "coze_required_action": coze_ready,
+                    "coze_required_action": required_action_submit_ready,
                     "http_tool_gateway": http_tool_gateway_ready,
                 },
             }

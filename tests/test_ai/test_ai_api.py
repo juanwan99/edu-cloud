@@ -21,6 +21,14 @@ async def test_ai_health_includes_tool_count(client):
 
 
 @pytest.mark.asyncio
+async def test_ai_health_reports_required_action_submit_not_ready_by_default(client):
+    resp = await client.get("/api/v1/ai/health")
+    coze = resp.json()["provider"]["readiness"]["coze"]
+    assert coze["required_action_submit_ready"] is False
+    assert coze["tool_modes"]["coze_required_action"] is False
+
+
+@pytest.mark.asyncio
 async def test_ai_chat_requires_auth(client):
     resp = await client.post("/api/v1/ai/chat", json={"message": "你好"})
     assert resp.status_code in (401, 403)

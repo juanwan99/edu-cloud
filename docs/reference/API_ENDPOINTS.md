@@ -261,7 +261,7 @@
 
 | 方法 | 路径 | 权限 | 用途 |
 |------|------|------|------|
-| GET | `/api/v1/ai/health` | 无 | 工具数量 + provider/readiness 状态（`provider.active`、`provider.fallback`、Coze `tool_modes.coze_required_action`、`tool_modes.http_tool_gateway`） |
+| GET | `/api/v1/ai/health` | 无 | 工具数量 + provider/readiness 状态（`provider.active`、`provider.fallback`、Coze `chat_ready`、`required_action_submit_ready`、`tool_modes.coze_required_action`、`tool_modes.http_tool_gateway`） |
 | POST | `/api/v1/ai/chat` | USE_AI_CHAT | SSE 流式对话（Coze-first AgentProvider，edu 后端统一执行 DataScope/RBAC/capability/工具壳；current_pydantic fallback） |
 | POST | `/api/v1/ai/runs/{run_id}/confirmations/{confirmation_id}` | USE_AI_CHAT | 写操作确认回传（approve/reject，SSE 返回执行结果） |
 | GET | `/api/v1/ai/sessions` | 已登录 | 列出当前用户的活跃会话（owner 隔离） |
@@ -274,7 +274,7 @@
 | GET | `/internal/ai-tools?context_token=...` | X-AI-Tool-Token | 列出当前 edu 上下文允许的工具目录和参数 schema |
 | POST | `/internal/ai-tools/{tool_name}` | X-AI-Tool-Token | 供 Coze/外部 Agent 回调执行 edu 工具；写工具先返回 confirmation_required |
 
-> 注：`/internal/ai-tools` 已注册不代表 Coze HTTP 插件模式已上线；`/api/v1/ai/health` 中 `tool_modes.http_tool_gateway` 只有在 `AI_TOOL_GATEWAY_HTTP_ENABLED=true` 且网关配置齐全时才为 true。当前主路径是 Coze `requires_action`，由 edu 后端执行工具并提交 outputs。
+> 注：`/internal/ai-tools` 已注册不代表 Coze HTTP 插件模式已上线；`/api/v1/ai/health` 中 `tool_modes.http_tool_gateway` 只有在 `AI_TOOL_GATEWAY_HTTP_ENABLED=true` 且网关配置齐全时才为 true。当前 Coze CE 运行态未验证可用的 agent `required_action` submit/resume 路径，`tool_modes.coze_required_action=false` 是预期状态；Coze 工具调用下一步应作为 HTTP plugin callback 独立产品化。
 
 ### exam-ai 兼容端点（`/api` 前缀，paper-seg 零改动对接）
 

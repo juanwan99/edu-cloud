@@ -14,6 +14,7 @@ def _settings(**overrides):
         AI_COZE_BOT_ID="",
         AI_COZE_API_TOKEN="",
         AI_COZE_TIMEOUT=120,
+        AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED=False,
         AI_TOOL_GATEWAY_PUBLIC_BASE="",
         AI_TOOL_GATEWAY_TOKEN="",
         AI_TOOL_GATEWAY_HTTP_ENABLED=False,
@@ -45,8 +46,26 @@ def test_provider_status_selects_coze_when_configured():
     assert status["available"]["coze"] is True
     assert status["readiness"]["coze"]["missing"] == []
     assert status["readiness"]["coze"]["chat_ready"] is True
-    assert status["readiness"]["coze"]["tool_modes"]["coze_required_action"] is True
+    assert status["readiness"]["coze"]["required_action_submit_enabled"] is False
+    assert status["readiness"]["coze"]["required_action_submit_ready"] is False
+    assert status["readiness"]["coze"]["tool_modes"]["coze_required_action"] is False
     assert status["readiness"]["coze"]["tool_modes"]["http_tool_gateway"] is False
+
+
+def test_provider_status_reports_required_action_ready_only_when_explicitly_enabled():
+    status = provider_status(_settings(
+        AI_COZE_ENABLED=True,
+        AI_COZE_BOT_ID="bot-1",
+        AI_COZE_API_TOKEN="pat-test",
+        AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED=True,
+    ))
+
+    coze = status["readiness"]["coze"]
+    assert coze["required_action_submit_enabled"] is True
+    assert coze["required_action_submit_ready"] is True
+    assert coze["required_action_submit_endpoint"] == "/v3/chat/submit_tool_outputs"
+    assert coze["tool_modes"]["coze_required_action"] is True
+    assert "pat-test" not in str(status)
 
 
 def test_provider_status_reports_gateway_readiness_without_secret_values():
