@@ -5,6 +5,7 @@
 导出/渲染/发布 → card_export_router.py
 """
 from __future__ import annotations
+import copy
 import json
 import logging
 import re
@@ -34,6 +35,7 @@ from edu_cloud.modules.exam.models import Exam, Subject
 from edu_cloud.modules.card.models import Template, CardSkeleton
 from edu_cloud.modules.card.export.barcode_gen import parse_student_excel, render_barcode_pdf
 from edu_cloud.modules.card.rendering.renderer import render_card_v2
+from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
 
 router = APIRouter(prefix="/api/v1/card", tags=["card"])
 
@@ -58,13 +60,25 @@ def _editor_layout_path(school_id: str, subject_id: str) -> Path:
     return _EDITOR_LAYOUT_DIR / f"{school_id}_{subject_id}.json"
 
 
+def _default_layout_response(subject_name: str) -> dict:
+    """学科默认布局响应（deepcopy 隔离 subject_defaults 模块级缓存，防污染）。"""
+    layout = copy.deepcopy(get_default_layout(subject_name))
+    return {
+        "found": True,
+        "source": "default",
+        "layout": layout,
+        "config": layout.get("config", {}),
+        "choices": [],
+    }
+
+
 @router.get("/editor-layout/{subject_id}")
 async def get_editor_layout(
     subject_id: str,
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.VIEW_EXAMS)),
 ):
-    """获取科目的可视化编辑器布局（仅从 editor_layouts/ 已保存文件加载）。"""
+    """获取科目的可视化编辑器布局：优先 editor_layouts/ 已保存文件，无保存时返回学科默认布局。"""
     result = await db.execute(
         select(Subject).where(Subject.id == subject_id, Subject.school_id == current["current_role"].school_id)
     )
@@ -74,16 +88,22 @@ async def get_editor_layout(
 
     path = _editor_layout_path(current["current_role"].school_id, subject_id)
     if not path.exists():
-        return {"found": False}
+        return _default_layout_response(subject.name)
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
-        return {"found": False}
+        logger.warning("get_editor_layout: unreadable layout file %s, falling back to subject default", path.name)
+        return _default_layout_response(subject.name)
+
+    if not isinstance(data, dict):
+        logger.warning("get_editor_layout: non-dict layout data in %s, falling back to subject default", path.name)
+        return _default_layout_response(subject.name)
 
     layout = data.get("layout") or {}
     if not isinstance(layout, dict):
-        return {"found": False}
+        logger.warning("get_editor_layout: non-dict layout in %s, falling back to subject default", path.name)
+        return _default_layout_response(subject.name)
 
     layout_config = layout.get("config", {})
     saved_config = data.get("config", {}) or {}

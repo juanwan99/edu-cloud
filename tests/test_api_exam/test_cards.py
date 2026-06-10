@@ -1,10 +1,13 @@
 """答题卡生成 API 测试。"""
+import copy
+
 import pytest
 from httpx import AsyncClient
 from edu_cloud.models.school import School
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.exam import Exam, Subject
+from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
 from edu_cloud.shared.auth import create_access_token
 
 
@@ -302,13 +305,19 @@ class TestEditorLayout:
         import edu_cloud.modules.card.router as cards_mod
         monkeypatch.setattr(cards_mod, "_EDITOR_LAYOUT_DIR", tmp_path)
 
-    async def test_get_layout_not_found(self, client: AsyncClient, seed_subject):
-        """No saved layout → returns found=False (no fallback)."""
+    async def test_get_layout_returns_subject_default_when_missing(self, client: AsyncClient, seed_subject):
+        """无保存布局 → 返回学科默认布局（found=True, source=default），不再 found=False。"""
         headers, _, subject_id = seed_subject
         resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
         assert resp.status_code == 200
         data = resp.json()
-        assert data["found"] is False
+        assert data["found"] is True
+        assert data["source"] == "default"
+        expected = get_default_layout("生物")
+        assert data["layout"]["paper"] == expected["paper"]
+        assert data["config"]["choiceCount"] == expected["config"]["choiceCount"]
+        assert data["config"]["subjectTitle"] == "生物"
+        assert data["choices"] == []
 
     async def test_save_and_load_layout(self, client: AsyncClient, seed_subject):
         """Save layout → load returns it."""
@@ -328,6 +337,7 @@ class TestEditorLayout:
         assert resp.status_code == 200
         data = resp.json()
         assert data["found"] is True
+        assert data["source"] == "saved"
         assert data["layout"]["paper"] == "A3"
         assert data["config"]["examTitle"] == "测试考试"
         assert data["choices"] == [{"qno": 1, "options": 4}]
@@ -413,8 +423,8 @@ class TestEditorLayout:
         assert resp2.json()["layout"]["tag"] == "exam2"
         assert resp2.json()["layout"]["paper"] == "A3"
 
-    async def test_english_returns_not_found_without_saved_layout(self, client: AsyncClient, seed_subject, db):
-        """英语科目无保存布局 → found=False（无 fallback）。"""
+    async def test_english_returns_subject_default_without_saved_layout(self, client: AsyncClient, seed_subject, db):
+        """英语科目无保存布局 → 返回英语学科默认布局（paper/choiceCount 与 subject_defaults 一致）。"""
         headers, exam_id, _ = seed_subject
         eng = Subject(
             exam_id=exam_id, name="英语", code="english",
@@ -426,10 +436,16 @@ class TestEditorLayout:
 
         resp = await client.get(f"/api/v1/card/editor-layout/{eng.id}", headers=headers)
         assert resp.status_code == 200
-        assert resp.json()["found"] is False
+        data = resp.json()
+        assert data["found"] is True
+        assert data["source"] == "default"
+        expected = get_default_layout("英语")
+        assert data["layout"]["paper"] == expected["paper"]
+        assert data["config"]["choiceCount"] == expected["config"]["choiceCount"]
+        assert data["config"]["choiceGroups"] == expected["config"]["choiceGroups"]
 
-    async def test_chemistry_returns_not_found_without_saved_layout(self, client: AsyncClient, seed_subject, db):
-        """化学科目无保存布局 → found=False（无 fallback）。"""
+    async def test_chemistry_returns_subject_default_without_saved_layout(self, client: AsyncClient, seed_subject, db):
+        """化学科目无保存布局 → 返回化学学科默认布局。"""
         headers, exam_id, _ = seed_subject
         chem = Subject(
             exam_id=exam_id, name="化学", code="chemistry",
@@ -441,10 +457,15 @@ class TestEditorLayout:
 
         resp = await client.get(f"/api/v1/card/editor-layout/{chem.id}", headers=headers)
         assert resp.status_code == 200
-        assert resp.json()["found"] is False
+        data = resp.json()
+        assert data["found"] is True
+        assert data["source"] == "default"
+        expected = get_default_layout("化学")
+        assert data["layout"]["paper"] == expected["paper"]
+        assert data["config"]["choiceCount"] == expected["config"]["choiceCount"]
 
-    async def test_math_returns_not_found_without_saved_layout(self, client: AsyncClient, seed_subject, db):
-        """数学科目无保存布局 → found=False（无 fallback）。"""
+    async def test_math_returns_subject_default_without_saved_layout(self, client: AsyncClient, seed_subject, db):
+        """数学科目无保存布局 → 返回数学学科默认布局。"""
         headers, exam_id, _ = seed_subject
         math = Subject(
             exam_id=exam_id, name="数学", code="math",
@@ -456,7 +477,62 @@ class TestEditorLayout:
 
         resp = await client.get(f"/api/v1/card/editor-layout/{math.id}", headers=headers)
         assert resp.status_code == 200
-        assert resp.json()["found"] is False
+        data = resp.json()
+        assert data["found"] is True
+        assert data["source"] == "default"
+        expected = get_default_layout("数学")
+        assert data["layout"]["paper"] == expected["paper"]
+        assert data["config"]["choiceCount"] == expected["config"]["choiceCount"]
+
+    async def test_corrupt_layout_file_falls_back_to_default(self, client: AsyncClient, seed_subject, tmp_path):
+        """保存文件损坏（非法 JSON）→ 回退学科默认布局，不 500 也不 found=False。"""
+        headers, _, subject_id = seed_subject
+        (tmp_path / f"s1_{subject_id}.json").write_text("{not valid json", encoding="utf-8")
+
+        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["found"] is True
+        assert data["source"] == "default"
+        assert data["layout"]["paper"] == get_default_layout("生物")["paper"]
+
+    async def test_non_dict_layout_falls_back_to_default(self, client: AsyncClient, seed_subject, tmp_path):
+        """保存数据 layout 字段非 dict → 回退学科默认布局。"""
+        headers, _, subject_id = seed_subject
+        (tmp_path / f"s1_{subject_id}.json").write_text(
+            '{"layout": [1, 2], "config": {}, "choices": []}', encoding="utf-8"
+        )
+
+        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["found"] is True
+        assert data["source"] == "default"
+
+    async def test_non_dict_top_level_falls_back_to_default(self, client: AsyncClient, seed_subject, tmp_path):
+        """保存数据顶层非 dict（JSON 数组）→ 回退学科默认布局，不 500。"""
+        headers, _, subject_id = seed_subject
+        (tmp_path / f"s1_{subject_id}.json").write_text("[1, 2, 3]", encoding="utf-8")
+
+        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["found"] is True
+        assert data["source"] == "default"
+
+    def test_default_layout_response_is_deepcopy(self):
+        """_default_layout_response 必须 deepcopy——污染返回值不得影响 subject_defaults 模块级缓存。"""
+        from edu_cloud.modules.card.router import _default_layout_response
+
+        baseline = copy.deepcopy(get_default_layout("数学"))
+
+        first = _default_layout_response("数学")
+        first["layout"]["config"]["choiceCount"] = -999
+        first["layout"]["sides"][0]["columns"][0]["regions"].clear()
+
+        second = _default_layout_response("数学")
+        assert second["layout"]["config"]["choiceCount"] == baseline["config"]["choiceCount"]
+        assert second["layout"]["sides"][0]["columns"][0]["regions"] == baseline["sides"][0]["columns"][0]["regions"]
 
 
 class TestParseAnswersMetadata:
