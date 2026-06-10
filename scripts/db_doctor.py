@@ -28,6 +28,11 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 ALLOWLIST_TABLES = {
     "alembic_version",
+    # Intentional trigger-based audit table: 6330 rows of pre-change old_data
+    # snapshots for grading_results / student_answers, fed by 4 DB triggers.
+    # Leading underscore marks it a system/internal table, never an ORM model.
+    # Recognized (not dropped); see docs/plans/2026-06-10-db-migration-design.md Q2.
+    "_audit_log",
 }
 
 ALLOWLIST_TABLE_PATTERNS = [

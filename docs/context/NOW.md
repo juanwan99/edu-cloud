@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-06-10 16:21 Asia/Shanghai
+Last refreshed: 2026-06-10 18:20 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -21,32 +21,30 @@ scripts/truth doctor --json
 - Backend API: `127.0.0.1:9000`
 - Frontend artifact path: `frontend/dist/`
 - Known pytest baseline entries: 26 in `.quality/known-pytest-failures.txt`
-- Source HEAD (2026-06-10): code-effective `41a8ced` (HEAD `44d3e62` is docs-only).
-  Source + `frontend/dist/version.json` align on `41a8ced` (`source_dirty=false`).
-  The **nginx surface was NOT re-verified this window** (`https://mcu.asia/version.json`
-  unreached; local `127.0.0.1` endpoints n/a) — treat nginx/dist alignment as
-  **UNVERIFIED** pending the exec window; phase09 last measured nginx at the stale
-  `bfdbd50`. Note: docs-only HEAD makes guardian/truth-status raw-HEAD compare
-  `dist_hash 41a8ced != HEAD 44d3e62` → a *false* `BUILD_DRIFT` (blocks_completion)
-  until dist is rebuilt on the post-docs HEAD. Detail + runbook:
-  `docs/plans/2026-06-10-db-migration-design.md` ("Frontend dist / BUILD_DRIFT Alignment").
-- Backend process is STALE (2026-06-10): PID `391900` (booted 2026-06-09 17:02)
-  runs `ebf7934`, not source `41a8ced`. truth-status diagnoses
-  `BROKEN AT: SOURCE → BACKEND (stale uvicorn, restart needed)`.
-- DB doctor is currently red: ORM declares `exam_import_sessions` (16 cols), but
-  the DB has no such table (HARD); DB also contains orphan table `_audit_log`
-  (7 cols, WARN). `alembic_version = a1b2_chat_msgs` (head is `e1f2_import_sess`,
-  a single forward step that creates `exam_import_sessions`).
+- Source HEAD (2026-06-10): `6f90994` (docs-only on code-effective `41a8ced`;
+  `git diff HEAD -- src/` clean). All three runtime surfaces now align on HEAD
+  `6f90994` with `source_dirty=false`: backend `/api/v1/version`,
+  `frontend/dist/version.json`, and nginx `https://mcu.asia/version.json`.
+  `scripts/truth-status.sh` exits 0 with no `BROKEN AT:` line. The earlier
+  docs-only false `BUILD_DRIFT` is cleared (dist rebuilt on HEAD `6f90994`).
+- Backend process (2026-06-10, post-takeover): under **systemd**
+  `edu-cloud.service` = **active**, PID `4017244` (booted 2026-06-10 18:17:14),
+  runs HEAD `6f90994`, `source_dirty=false`, owns `127.0.0.1:9000`. The prior
+  orphan manual uvicorn PID `391900` (`ebf7934`) was stopped; no SERVICE_BYPASS /
+  GHOST_PROCESS / PORT_OWNER_MISMATCH (guardian-watch red=0).
+- DB doctor is **green** (2026-06-10): `HARD=0 WARN=0` ("No drift detected").
+  Migration `a1b2_chat_msgs → e1f2_import_sess` applied via `scripts/db_migrate`
+  (backup → dry-run → `db_doctor --strict` → real upgrade; pre-migration backup
+  `backups/edu_cloud_20260610_181416_pre_migrate.db`). `exam_import_sessions`
+  (16 cols) now exists; `alembic current = e1f2_import_sess (head)`.
 - `_audit_log` is NOT a stray leftover: it is an intentional **trigger-backed**
   audit table (6330 rows of `old_data` snapshots for `grading_results` +
-  `student_answers`, plus a `_audit_log_cleanup` trigger). Disposition = **KEEP +
-  allowlist** in `scripts/db_doctor.py` (`ALLOWLIST_TABLES`), **never drop** —
-  dropping it destroys data and breaks 4 triggers. See the design doc below.
-- Runtime services (2026-06-10): `edu-cloud.service` is **inactive** while a
-  manual uvicorn owns port 9000 (guardian SERVICE_BYPASS + GHOST_PROCESS +
-  PORT_OWNER_MISMATCH). Do NOT assume systemd-managed backend until restarted
-  through systemd. `edu-cloud-worker.service` remains installed/enabled from
-  `deploy/systemd/edu-cloud-worker.service`.
+  `student_answers`, plus a `_audit_log_cleanup` trigger). Disposition applied =
+  **KEEP + allowlist** in `scripts/db_doctor.py` (`ALLOWLIST_TABLES`), **never
+  drop** — dropping it destroys data and breaks 4 triggers.
+- Runtime services (2026-06-10): `edu-cloud.service` **active** (systemd-managed
+  backend), `edu-cloud-worker.service` + `edu-cloud-guardian.service` active.
+  Backend is now systemd-managed — do not hand-launch a manual uvicorn.
 - Full 2026-06-10 runtime foundation evidence + recovery decision:
   `docs/plans/2026-06-10-runtime-foundation-recovery.md`.
 - DB migration + runtime takeover **design / runbook** (order, verify commands,
@@ -66,30 +64,33 @@ The latest verified delivery path is:
 Run `scripts/truth-status.sh /home/ops/projects/edu-cloud` for the live hash.
 Any `BROKEN AT:` diagnosis exits non-zero and blocks completion evidence.
 
-## Runtime Foundation Status (2026-06-10)
+## Runtime Foundation Status (2026-06-10) — R1 EXECUTION WINDOW DONE
 
-Re-collected this date (truth-status / db_doctor / guardian-watch). All three
-standing blockers still hold on the runtime side; source/build/nginx are healthy
-at `41a8ced`:
+The R1 takeover execution window (Yuanshou V2 contract `yc-20260610-a2979c86`)
+ran the `docs/plans/2026-06-10-db-migration-design.md` runbook. All three standing
+blockers are now **CLEARED**; source/build/nginx/backend all aligned on HEAD
+`6f90994`:
 
-1. **Backend stale / orphan uvicorn / service inactive** — STILL BLOCKED.
-   Fix is "restart through systemd", but ordered after the DB migration.
-2. **DB schema drift** — STILL BLOCKED, **design now done**. Fix path is the
-   single migration `a1b2_chat_msgs → e1f2_import_sess` via `scripts/db_migrate`
-   (creates `exam_import_sessions`), then allowlist `_audit_log`. Runbook +
-   rollback in `docs/plans/2026-06-10-db-migration-design.md`. A stale
-   `data/.db_migrate.lock` is present (advisory flock; verify no live holder).
-3. **Context stale** — was true (NOW.md sat at 2026-06-07 / `d9b1c56` /
-   "services active"); corrected by this refresh.
+1. **Backend stale / orphan uvicorn / service inactive** — **CLEARED.** Orphan
+   PID `391900` stopped; `edu-cloud.service` taken over by systemd (active,
+   PID `4017244`, HEAD `6f90994`, `source_dirty=false`, owns :9000). guardian-watch
+   red=0, no SERVICE_BYPASS / GHOST_PROCESS / PORT_OWNER_MISMATCH.
+2. **DB schema drift** — **CLEARED.** `scripts/db_migrate` applied
+   `a1b2_chat_msgs → e1f2_import_sess` (creates `exam_import_sessions`); `_audit_log`
+   allowlisted in `scripts/db_doctor.py`. db_doctor `HARD=0 WARN=0`. Pre-migration
+   backup `backups/edu_cloud_20260610_181416_pre_migrate.db` retained. **Execution
+   note:** the allowlist had to precede the migration — `db_migrate`'s internal
+   `db_doctor --strict` dry-run treats the `_audit_log` orphan as HARD, so the
+   design's Step-1-then-Step-2 order was reversed (both in-scope, root cause
+   unchanged).
+3. **Context stale** — corrected by this refresh (NOW.md now at the post-takeover
+   state).
 
-**Recommended next window: the DB migration + systemd takeover execution window**
-(design complete). Order: migrate DB → allowlist `_audit_log` → systemd takeover
-(stop orphan PID 391900 → `systemctl restart edu-cloud.service`), in parallel
-realign frontend dist + nginx to HEAD (Portal C2 dist leg + clears the docs-only
-false `BUILD_DRIFT`). A backend restart alone leaves DB doctor red, so it does not
-unblock Portal. Full order,
-verify commands, and rollback points: `docs/plans/2026-06-10-db-migration-design.md`
-(recovery context: `docs/plans/2026-06-10-runtime-foundation-recovery.md`).
+**Portal C1 (DB red→green) + C2 (backend+dist+nginx at HEAD) are now GREEN.**
+Remaining for Portal Phase 1 unlock: re-confirm C3 (online module-gating /
+portal-services fail-closed) and **designer sign-off** (executor does not
+self-unlock). Runbook + rollback points:
+`docs/plans/2026-06-10-db-migration-design.md`.
 
 ## Current Role-Entry Work
 
@@ -260,11 +261,12 @@ explicit disabled → 403 / DEFAULT_ENABLED absent → 200); the mutation now fa
 **not** KEEP BLOCKED: the source foundation is PASS (Phase 0.8,
 `docs/plans/2026-06-07-phase08-acceptance-decision.md`), so the unlock ruling stands,
 but **implementation is gated by runtime/DB cleanup** — three conditions must all go
-green before any Portal code: ① DB doctor red→green (currently red: `exam_import_sessions`
-missing table + orphan `_audit_log`); ② deploy/runtime hash aligned to HEAD
-(2026-06-10: source/dist/nginx aligned on HEAD `41a8ced`, but backend process is stale at
-`ebf7934` and `edu-cloud.service` is inactive — see "Runtime Foundation Status (2026-06-10)"); ③ online-verify module
-gating / portal services keep fail-closed. First-cut scope: frontend homepage
+green before any Portal code: ① DB doctor red→green (**GREEN 2026-06-10**: migration
+applied, `exam_import_sessions` created, `_audit_log` allowlisted, db_doctor HARD=0
+WARN=0); ② deploy/runtime hash aligned to HEAD (**GREEN 2026-06-10**: backend+dist+nginx
+all at HEAD `6f90994`, `source_dirty=false`, truth-status no `BROKEN AT:` — see "Runtime
+Foundation Status (2026-06-10) — R1 EXECUTION WINDOW DONE"); ③ online-verify module
+gating / portal services keep fail-closed (**still to re-confirm + designer sign-off**). First-cut scope: frontend homepage
 aggregation + consume existing `/api/v1/portal/*` (5 endpoints live,
 `modules/portal/router.py:25-57`) + service cards gated by `moduleGateFromAuth`.
 Foundation frozen: do NOT change `DEFAULT_ENABLED` / module middleware / authGuard /
