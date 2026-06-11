@@ -222,7 +222,6 @@ class TestSubjectDefaults:
         config = dict(SUBJECT_CONFIGS["化学"])
         config["subjectTitle"] = "化学"
         layout = _fallback_layout(config)
-        paper = layout["paper"]
         for side in layout["sides"]:
             for col in side["columns"]:
                 for r in col["regions"]:
@@ -240,39 +239,199 @@ class TestSubjectDefaults:
             assert len(layout["sides"][0]["columns"]) >= 2, f"{name} A面 should have ≥2 columns"
 
 
-@skip_no_tpl
-class TestTqlA4Contract:
-    """TQL 转换路径的 A4 契约测试（需要真实 .tpl 文件）。[F02 修复]"""
+class TestCanonicalSubjectDefaults:
+    """canonical_layouts/ 权威模板契约（2026-06-11 cardtpl-pack1）。
 
-    def test_tql_english_a4_single_column(self):
-        """TQL 英语模板转换后也满足 A4 单 column 契约。"""
+    取代原 TestTqlA4Contract：化学/英语/生物的 get_default_layout 现在优先返回
+    canonical 资产，不再走 TQL。契约显式编码纸张、列结构、qcols（essay 题号
+    按列分布）、choice/fill/essay 题量，防止再次退化为 generic 布局。
+    """
+
+    @staticmethod
+    def _essay_qnos_by_col(layout: dict, side_idx: int) -> list[list]:
+        return [
+            [r["qno"] for r in col["regions"] if r.get("type") == "essay"]
+            for col in layout["sides"][side_idx]["columns"]
+        ]
+
+    def test_chemistry_canonical_a4_multicolumn(self):
+        """化学 = A4 多栏 [3,1]：col0 Q15 / col1 Q16 / col2 Q17+Q18，14选择/0填空/4解答。"""
+        from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
+        layout = get_default_layout("化学")
+        assert layout["paper"] == "A4"
+        assert layout["config"]["paperSize"] == "A4"
+        assert [len(s["columns"]) for s in layout["sides"]] == [3, 1]
+        assert self._essay_qnos_by_col(layout, 0) == [[15], [16], [17, 18]]
+        assert self._essay_qnos_by_col(layout, 1) == [[]]
+        cfg = layout["config"]
+        assert cfg["choiceCount"] == 14
+        assert cfg["fillCount"] == 0
+        assert cfg["essayCount"] == 4
+        assert sum(g["count"] for g in cfg["choiceGroups"]) == 14
+
+    def test_chemistry_a_side_col0_has_fixed_regions(self):
+        """化学 A 面 col0 含完整 fixed 区（header/info/notice/choices）。"""
+        from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
+        layout = get_default_layout("化学")
+        roles = [r.get("role") for r in layout["sides"][0]["columns"][0]["regions"] if r["type"] == "fixed"]
+        assert roles == ["header", "info", "notice", "choices"]
+
+    def test_english_canonical_a4_single_column(self):
+        """英语 = A4 [1,1]：55选择 + 填空56-65 + 写作两节（B 面续写第一节 + 第二节）。"""
         from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
         layout = get_default_layout("英语")
         assert layout["paper"] == "A4"
-        for side in layout["sides"]:
-            assert len(side["columns"]) == 1, f"Side {side['side']} should have 1 column"
+        assert [len(s["columns"]) for s in layout["sides"]] == [1, 1]
+        cfg = layout["config"]
+        assert cfg["choiceCount"] == 55
+        assert sum(g["count"] for g in cfg["choiceGroups"]) == 55
+        assert cfg["fillCount"] == 10
+        assert cfg["fillStart"] == 56
+        assert cfg["essayCount"] == 2
+        assert cfg["essayConfig"] == [{"score": 15}, {"score": 25}]
+        a_regions = layout["sides"][0]["columns"][0]["regions"]
+        fill_qnos = [r["qno"] for r in a_regions if r["type"] == "fill"]
+        assert fill_qnos == list(range(56, 66))
+        a_essay_ids = [r["id"] for r in a_regions if r["type"] == "essay"]
+        assert a_essay_ids == ["essay-Q_写作第一节"]
+        b_essay_ids = [r["id"] for r in layout["sides"][1]["columns"][0]["regions"] if r["type"] == "essay"]
+        assert b_essay_ids == ["essay-Q_写作第一节-cont", "essay-Q_写作第二节"]
 
-    def test_tql_english_a_side_has_fixed_and_essay(self):
-        """TQL 英语 A 面 col 0 同时含 fixed + essay。"""
+    def test_biology_canonical_a3_three_columns(self):
+        """生物（PROVISIONAL，源自候选 e1cc167b，最终 canonical 待用户确认）：
+        A3 [3,3]：col0 Q17 / col1 Q18+Q19 / col2 Q20+Q21，16选择(13-16多选)/0填空/5解答。
+        注：候选 ab5a1279 与 e1cc167b 形状契约相同，替换不影响本测试。"""
         from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
-        layout = get_default_layout("英语")
-        regions = layout["sides"][0]["columns"][0]["regions"]
-        types = [r["type"] for r in regions]
-        assert "fixed" in types
-        assert "essay" in types
+        layout = get_default_layout("生物")
+        assert layout["paper"] == "A3"
+        assert [len(s["columns"]) for s in layout["sides"]] == [3, 3]
+        assert self._essay_qnos_by_col(layout, 0) == [[17], [18, 19], [20, 21]]
+        assert self._essay_qnos_by_col(layout, 1) == [[], [], []]
+        cfg = layout["config"]
+        assert cfg["choiceCount"] == 16
+        assert cfg["fillCount"] == 0
+        assert cfg["essayCount"] == 5
+        multi_groups = [(g["start"], g["count"]) for g in cfg["choiceGroups"] if g.get("multi")]
+        assert multi_groups == [(13, 3), (16, 1)]
 
-    def test_tql_chemistry_a4_contract(self):
-        """TQL 化学模板转换后满足 A4 契约。"""
+    def test_biology_not_generic_a4_shape(self):
+        """生物默认绝不能是前端 generic 形状（A4 单栏 / 11选择 / 3填空）——污染事故指纹。"""
         from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
-        layout = get_default_layout("化学")
-        if layout["paper"] == "A4":
-            for side in layout["sides"]:
-                assert len(side["columns"]) == 1
+        layout = get_default_layout("生物")
+        cfg = layout["config"]
+        assert layout["paper"] != "A4"
+        assert not (cfg["choiceCount"] == 11 and cfg["fillCount"] == 3)
 
-    def test_tql_essay_config_matches_count(self):
-        """TQL 英语: essayConfig 长度 == essayCount（A+B 面）。[F003 修复]"""
-        from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
-        layout = get_default_layout("英语")
-        config = layout["config"]
-        assert len(config["essayConfig"]) == config["essayCount"], \
-            f"essayConfig({len(config['essayConfig'])}) != essayCount({config['essayCount']})"
+
+class TestCanonicalFailClosed:
+    """canonical 资产不可用 fail-closed 契约（2026-06-11 cardtpl-pack3）。
+
+    取代 pack1 的静默 fallback 测试：已知 canonical 学科（化学/英语/生物）的
+    权威模板缺失、损坏或格式不合法时必须抛 CanonicalLayoutError，禁止静默
+    退回 TQL/SUBJECT_CONFIGS 泛化模板——静默降级正是 2026-06 模板劣化事故
+    的根源。非 canonical 学科不受影响，仍走原 fallback 链。
+    """
+
+    @pytest.fixture
+    def sd(self, monkeypatch, tmp_path):
+        """隔离 canonical 目录与模块缓存，返回 (module, canonical_dir)。"""
+        import edu_cloud.modules.card.rendering.subject_defaults as sd
+        monkeypatch.setattr(sd, "_LAYOUT_CACHE", {})
+        monkeypatch.setattr(sd, "_CANONICAL_DIR", tmp_path)
+        return sd, tmp_path
+
+    @pytest.mark.parametrize("subject", ["化学", "英语", "生物"])
+    def test_canonical_missing_fails_closed(self, sd, subject):
+        """canonical 文件缺失 → 抛 CanonicalLayoutError，不退泛化模板。"""
+        mod, _ = sd
+        with pytest.raises(mod.CanonicalLayoutError):
+            mod.get_default_layout(subject)
+
+    def test_canonical_corrupt_fails_closed(self, sd):
+        """canonical 文件损坏（非法 JSON）→ 抛 CanonicalLayoutError。"""
+        mod, cdir = sd
+        (cdir / "canonical_chemistry.json").write_text("{not valid json", encoding="utf-8")
+        with pytest.raises(mod.CanonicalLayoutError):
+            mod.get_default_layout("化学")
+
+    @pytest.mark.parametrize("payload", [
+        '"just a string"',                       # 顶层非 dict
+        '{"config": {}}',                        # 缺 sides
+        '{"config": {}, "sides": []}',           # sides 为空
+        '{"config": {}, "sides": [{"side": "A"}]}',  # side 缺 columns 列表
+        '{"sides": [{"side": "A", "columns": []}]}',  # 缺 config
+    ])
+    def test_canonical_malformed_fails_closed(self, sd, payload):
+        """canonical 文件为合法 JSON 但格式不合法 → 抛 CanonicalLayoutError。"""
+        mod, cdir = sd
+        (cdir / "canonical_chemistry.json").write_text(payload, encoding="utf-8")
+        with pytest.raises(mod.CanonicalLayoutError):
+            mod.get_default_layout("化学")
+
+    def test_non_canonical_subject_unaffected(self, sd):
+        """非 canonical 学科（物理）不受 fail-closed 影响，仍走原 fallback 链。"""
+        mod, _ = sd
+        layout = mod.get_default_layout("物理")
+        assert isinstance(layout, dict)
+        assert "sides" in layout
+
+    def test_failure_not_cached_recovers_after_repair(self, sd):
+        """失败不得写入缓存：资产修复后同名学科立即恢复正常返回。"""
+        mod, cdir = sd
+        target = cdir / "canonical_chemistry.json"
+        target.write_text("{not valid json", encoding="utf-8")
+        with pytest.raises(mod.CanonicalLayoutError):
+            mod.get_default_layout("化学")
+
+        from pathlib import Path
+        real = Path(__file__).resolve().parents[2] / (
+            "src/edu_cloud/modules/card/rendering/canonical_layouts/canonical_chemistry.json"
+        )
+        target.write_text(real.read_text(encoding="utf-8"), encoding="utf-8")
+        layout = mod.get_default_layout("化学")
+        assert layout["paper"] == "A4"
+        assert [len(s["columns"]) for s in layout["sides"]] == [3, 1]
+
+
+class TestCanonicalAssetHygiene:
+    """canonical_layouts/ 资产净化契约（2026-06-11 cardtpl-pack2）。
+
+    _side/_col/_sideIdx 等下划线前缀字段是前端渲染时注入的运行时标记，
+    不得持久化进 canonical 真源资产；打包部署必须随包分发这些资产。
+    """
+
+    def test_canonical_assets_have_no_runtime_underscore_keys(self):
+        """三个 canonical JSON 递归无任何下划线前缀 key。"""
+        from edu_cloud.modules.card.rendering import subject_defaults as sd
+        files = sorted(sd._CANONICAL_DIR.glob("canonical_*.json"))
+        assert len(files) >= 3, f"canonical_layouts 资产缺失: {files}"
+        for p in files:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            bad = []
+
+            def walk(x, path=""):
+                if isinstance(x, dict):
+                    for k, v in x.items():
+                        if k.startswith("_"):
+                            bad.append(f"{path}/{k}")
+                        walk(v, f"{path}/{k}")
+                elif isinstance(x, list):
+                    for i, v in enumerate(x):
+                        walk(v, f"{path}[{i}]")
+
+            walk(data)
+            assert not bad, f"{p.name} 含运行时字段: {bad[:10]}"
+
+    def test_pyproject_declares_canonical_layouts_package_data(self):
+        """pyproject 必须声明 canonical_layouts/*.json 为 package-data，
+        否则打包部署会静默丢失 canonical 模板、学科默认退化到 fallback。"""
+        import tomllib
+        from pathlib import Path
+        pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+        pkg_data = data.get("tool", {}).get("setuptools", {}).get("package-data", {})
+        assert any(
+            "canonical_layouts/*.json" in item
+            for vals in pkg_data.values() if isinstance(vals, list)
+            for item in vals
+        ), f"package-data 未声明 canonical_layouts/*.json: {pkg_data}"

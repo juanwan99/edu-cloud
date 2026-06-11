@@ -216,3 +216,271 @@ class TestBlankWidth:
         assert len(blanks) >= 2
         assert blanks[0].get("continuation") is None
         assert blanks[-1].get("continuation") is True
+
+
+# ── 共享污染防线（2026-06-11 cardtpl-pack2）──
+# _load_layout 是 auto-layout（router.auto_layout_card / parse_answers v2）与
+# AI card_layout 工具的共同读取入口；生物 generic 污染识别必须在该层
+# fail-closed，canonical 默认必须 deepcopy 隔离模块级缓存。
+
+import copy
+import json
+
+from edu_cloud.modules.card.layout_helpers import (
+    _load_layout, _save_layout, is_biology_generic_pollution,
+)
+from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
+
+
+POLLUTED_CONFIG = {
+    "subjectTitle": "生物", "paperSize": "A4",
+    "choiceCount": 11, "fillCount": 3, "essayCount": 5,
+}
+
+
+def _polluted_layout() -> dict:
+    """前端 createDefaultLayout 兜底形状：A4 双面各 1 列，11选择/3填空。"""
+    return {
+        "paper": "A4",
+        "config": dict(POLLUTED_CONFIG),
+        "sides": [
+            {"side": "A", "columns": [{"col": 0, "regions": []}]},
+            {"side": "B", "columns": [{"col": 0, "regions": []}]},
+        ],
+    }
+
+
+@pytest.fixture
+def layout_dir(tmp_path, monkeypatch):
+    """隔离 editor_layouts 目录，避免读写真实保存文件。"""
+    import edu_cloud.modules.card.layout_helpers as lh
+    monkeypatch.setattr(lh, "_EDITOR_LAYOUT_DIR", tmp_path)
+    return tmp_path
+
+
+class TestBiologyGenericPollutionFingerprint:
+    """五维指纹判定：全命中才为 True，任一维不符即放行。"""
+
+    def test_full_fingerprint_match_is_true(self):
+        assert is_biology_generic_pollution(_polluted_layout(), POLLUTED_CONFIG, "生物") is True
+
+    def test_subject_name_alone_triggers_without_subject_title(self):
+        """config 缺 subjectTitle 时，科目名=生物 仍触发识别。"""
+        config = {k: v for k, v in POLLUTED_CONFIG.items() if k != "subjectTitle"}
+        layout = _polluted_layout()
+        layout["config"] = dict(config)
+        assert is_biology_generic_pollution(layout, config, "生物") is True
+
+    def test_non_biology_subject_not_matched(self):
+        config = {**POLLUTED_CONFIG, "subjectTitle": "化学"}
+        assert is_biology_generic_pollution(_polluted_layout(), config, "化学") is False
+
+    def test_a3_paper_not_matched(self):
+        layout = _polluted_layout()
+        layout["paper"] = "A3"
+        config = {**POLLUTED_CONFIG, "paperSize": "A3"}
+        assert is_biology_generic_pollution(layout, config, "生物") is False
+
+    def test_multicolumn_sides_not_matched(self):
+        layout = _polluted_layout()
+        layout["sides"] = [
+            {"side": "A", "columns": [{"col": i, "regions": []} for i in range(3)]},
+            {"side": "B", "columns": [{"col": i, "regions": []} for i in range(3)]},
+        ]
+        assert is_biology_generic_pollution(layout, POLLUTED_CONFIG, "生物") is False
+
+    @pytest.mark.parametrize("key,value", [("choiceCount", 16), ("fillCount", 0)])
+    def test_count_dimensions_not_matched(self, key, value):
+        config = {**POLLUTED_CONFIG, key: value}
+        assert is_biology_generic_pollution(_polluted_layout(), config, "生物") is False
+
+
+class TestLoadLayoutPollutionGuard:
+    """_load_layout 读取侧防线：污染/损坏 → canonical 默认。"""
+
+    def _write(self, layout_dir, data):
+        (layout_dir / "s1_sub1.json").write_text(
+            json.dumps(data, ensure_ascii=False), encoding="utf-8"
+        )
+
+    def test_polluted_saved_layout_falls_back_to_canonical(self, layout_dir):
+        self._write(layout_dir, {
+            "layout": _polluted_layout(), "config": dict(POLLUTED_CONFIG), "choices": [],
+        })
+        layout = _load_layout("s1", "sub1", "生物")
+        assert layout["paper"] == "A3"
+        assert layout["config"]["choiceCount"] == 16
+        assert layout["config"]["fillCount"] == 0
+
+    def test_legitimate_saved_layout_returned_as_is(self, layout_dir):
+        legitimate = _polluted_layout()
+        legitimate["config"] = {**POLLUTED_CONFIG, "choiceCount": 16, "fillCount": 0}
+        self._write(layout_dir, {
+            "layout": legitimate, "config": dict(legitimate["config"]), "choices": [],
+        })
+        layout = _load_layout("s1", "sub1", "生物")
+        assert layout["paper"] == "A4"
+        assert layout["config"]["choiceCount"] == 16
+
+    def test_missing_file_returns_canonical_default(self, layout_dir):
+        layout = _load_layout("s1", "sub1", "生物")
+        assert layout["paper"] == "A3"
+        assert [len(s["columns"]) for s in layout["sides"]] == [3, 3]
+
+    def test_corrupt_file_falls_back_to_canonical(self, layout_dir):
+        (layout_dir / "s1_sub1.json").write_text("{not valid json", encoding="utf-8")
+        layout = _load_layout("s1", "sub1", "生物")
+        assert layout["paper"] == "A3"
+
+    def test_missing_layout_key_falls_back_to_canonical(self, layout_dir):
+        self._write(layout_dir, {"config": dict(POLLUTED_CONFIG), "choices": []})
+        layout = _load_layout("s1", "sub1", "生物")
+        assert layout["paper"] == "A3"
+
+    def test_default_fallback_is_deepcopy_isolated_from_cache(self, layout_dir):
+        """回退返回值被调用方原地修改（_apply_to_regions）不得污染模块缓存。"""
+        baseline = copy.deepcopy(get_default_layout("生物"))
+
+        layout = _load_layout("s1", "sub1", "生物")
+        layout["config"]["choiceCount"] = -999
+        layout["sides"][0]["columns"][0]["regions"].append({"id": "intruder", "type": "essay"})
+
+        fresh = get_default_layout("生物")
+        assert fresh["config"]["choiceCount"] == baseline["config"]["choiceCount"]
+        assert fresh["sides"][0]["columns"][0]["regions"] == baseline["sides"][0]["columns"][0]["regions"]
+
+    def test_polluted_fallback_is_deepcopy_isolated_from_cache(self, layout_dir):
+        self._write(layout_dir, {
+            "layout": _polluted_layout(), "config": dict(POLLUTED_CONFIG), "choices": [],
+        })
+        baseline = copy.deepcopy(get_default_layout("生物"))
+
+        layout = _load_layout("s1", "sub1", "生物")
+        layout["config"]["choiceCount"] = -999
+
+        assert get_default_layout("生物")["config"]["choiceCount"] == baseline["config"]["choiceCount"]
+
+
+class TestAutoLayoutChainPollutionGuard:
+    """auto-layout 全链路（_load_layout → calculate_layout → _apply_to_regions →
+    _save_layout）：污染 saved 文件不得在排版回写后存活。"""
+
+    PARSED = [
+        {"qno": 17, "total_score": 12,
+         "subs": [{"sub": 1, "answers": ["光合作用产生氧气"]}]},
+        {"qno": 18, "total_score": 12,
+         "subs": [{"sub": 1, "answers": ["细胞质"]}, {"sub": 2, "answers": ["线粒体"]}]},
+    ]
+
+    def test_polluted_saved_does_not_survive_auto_layout_roundtrip(self, layout_dir):
+        (layout_dir / "s1_sub1.json").write_text(
+            json.dumps({
+                "layout": _polluted_layout(), "config": dict(POLLUTED_CONFIG), "choices": [],
+            }, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+        layout = _load_layout("s1", "sub1", "生物")
+        result = calculate_layout(self.PARSED, layout.get("config"), existing_layout=layout)
+        layout = _apply_to_regions(layout, result)
+        _save_layout("s1", "sub1", layout)
+
+        saved = json.loads((layout_dir / "s1_sub1.json").read_text(encoding="utf-8"))
+        assert saved["layout"]["paper"] == "A3", "generic A4 形状不得在 auto-layout 回写后存活"
+        assert saved["config"]["choiceCount"] == 16
+        assert saved["config"]["fillCount"] == 0
+
+    def test_auto_layout_roundtrip_does_not_pollute_default_cache(self, layout_dir):
+        """回写链路基于 deepcopy 操作，模块缓存中的学科默认保持不变。"""
+        baseline = copy.deepcopy(get_default_layout("生物"))
+
+        layout = _load_layout("s1", "sub1", "生物")
+        result = calculate_layout(self.PARSED, layout.get("config"), existing_layout=layout)
+        layout = _apply_to_regions(layout, result)
+        _save_layout("s1", "sub1", layout)
+
+        fresh = get_default_layout("生物")
+        assert fresh == baseline, "auto-layout 回写不得污染 subject_defaults._LAYOUT_CACHE"
+
+
+def _underscore_keys(value, path=""):
+    """递归收集下划线前缀 key 的路径列表。"""
+    found = []
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if isinstance(k, str) and k.startswith("_"):
+                found.append(f"{path}/{k}")
+            found.extend(_underscore_keys(v, f"{path}/{k}"))
+    elif isinstance(value, list):
+        for i, v in enumerate(value):
+            found.extend(_underscore_keys(v, f"{path}[{i}]"))
+    return found
+
+
+class TestSaveLayoutRuntimeFieldStrip:
+    """保存链路运行时字段剥离契约（2026-06-11 cardtpl-pack3）。
+
+    _side/_col/_sideIdx 等下划线前缀字段由前端 render.js 渲染时注入、或由
+    TQL/SUBJECT_CONFIGS 生成器携带，仅服务当次渲染交互；editor_layouts
+    持久层必须与 canonical 资产同等净化（见 TestCanonicalAssetHygiene），
+    _save_layout 是 auto-layout / parse-answers v2 / AI card_layout 的
+    共用写入口。
+    """
+
+    def _dirty_layout(self) -> dict:
+        return {
+            "paper": "A3",
+            "config": {"subjectTitle": "物理", "choiceCount": 10},
+            "sides": [
+                {"side": "A", "columns": [
+                    {"col": 0, "regions": [
+                        {"id": "header", "type": "fixed", "role": "header",
+                         "_side": "A", "_col": 0, "_sideIdx": 0},
+                        {"id": "essay-11", "type": "essay", "qno": 11, "score": 6,
+                         "heightRatio": 1.0, "subs": [],
+                         "_side": "A", "_col": 0, "_sideIdx": 0, "_height_mm": 42.5},
+                    ]},
+                ]},
+            ],
+        }
+
+    def test_strip_runtime_render_fields_recursive_and_pure(self):
+        """递归剥离所有下划线前缀 key；合法字段保留；不修改入参。"""
+        from edu_cloud.modules.card.layout_helpers import strip_runtime_render_fields
+        dirty = self._dirty_layout()
+        snapshot = copy.deepcopy(dirty)
+
+        cleaned = strip_runtime_render_fields(dirty)
+
+        assert _underscore_keys(cleaned) == []
+        essay = cleaned["sides"][0]["columns"][0]["regions"][1]
+        assert essay["qno"] == 11
+        assert essay["score"] == 6
+        assert essay["heightRatio"] == 1.0
+        assert dirty == snapshot, "净化必须返回新结构，不得修改入参"
+
+    def test_save_layout_strips_runtime_fields(self, layout_dir):
+        """_save_layout 落盘文件递归无任何下划线前缀 key。"""
+        _save_layout("s1", "sub1", self._dirty_layout())
+
+        saved = json.loads((layout_dir / "s1_sub1.json").read_text(encoding="utf-8"))
+        assert _underscore_keys(saved) == []
+        regions = saved["layout"]["sides"][0]["columns"][0]["regions"]
+        assert [r["id"] for r in regions] == ["header", "essay-11"]
+
+    def test_auto_layout_roundtrip_persists_no_runtime_fields(self, layout_dir):
+        """物理默认布局（SUBJECT_CONFIGS fallback，自带 _side/_col/_sideIdx）经
+        auto-layout 全链路回写后，落盘文件递归无下划线前缀 key。"""
+        parsed = [
+            {"qno": 11, "total_score": 6,
+             "subs": [{"sub": 1, "answers": ["匀速直线运动"]}]},
+        ]
+        layout = _load_layout("s1", "sub1", "物理")
+        assert _underscore_keys(layout), "前置条件：物理默认布局应含运行时字段"
+
+        result = calculate_layout(parsed, layout.get("config"), existing_layout=layout)
+        layout = _apply_to_regions(layout, result)
+        _save_layout("s1", "sub1", layout)
+
+        saved = json.loads((layout_dir / "s1_sub1.json").read_text(encoding="utf-8"))
+        assert _underscore_keys(saved) == []

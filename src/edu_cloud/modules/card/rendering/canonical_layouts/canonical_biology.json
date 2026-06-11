@@ -1,0 +1,783 @@
+{
+  "paper": "A3",
+  "config": {
+    "examTitle": "",
+    "titleSize": 14,
+    "subtitleSize": 16,
+    "titleSpacing": 1,
+    "subtitleSpacing": 4,
+    "titleGap": 1,
+    "subtitleGap": 1.5,
+    "infoHeight": 18,
+    "infoPadding": 2,
+    "infoRowGap": 2,
+    "infoFontSize": 10,
+    "infoBorderWidth": 1,
+    "nameLineWidth": 35,
+    "digitCount": 10,
+    "digitBoxSize": 4.5,
+    "digitGap": 0.8,
+    "barcodeWidthPct": 40,
+    "barcodeTitleSize": 12,
+    "noticeHeight": 20,
+    "noticeLabelWidth": 6,
+    "noticeLabelSize": 10,
+    "noticeFontSize": 7,
+    "exampleWidth": 10,
+    "noticeBorderWidth": 1,
+    "absentPadding": 1,
+    "paperSize": "A3",
+    "zoom": 66,
+    "subjectTitle": "生物",
+    "choiceCount": 16,
+    "optionCount": 4,
+    "choicePerRow": 20,
+    "choiceGroups": [
+      {
+        "start": 1,
+        "count": 5,
+        "options": 4,
+        "x": 5.1,
+        "y": 37.2,
+        "w": 6.7
+      },
+      {
+        "start": 6,
+        "count": 5,
+        "options": 4,
+        "x": 13.8,
+        "y": 37.2,
+        "w": 6.6
+      },
+      {
+        "start": 11,
+        "count": 2,
+        "options": 4,
+        "x": 22.6,
+        "y": 37.2,
+        "w": 2.3
+      },
+      {
+        "start": 13,
+        "count": 3,
+        "options": 4,
+        "x": 25.6,
+        "y": 37.1,
+        "w": 3.9,
+        "multi": true
+      },
+      {
+        "start": 16,
+        "count": 1,
+        "options": 4,
+        "x": 31.4,
+        "y": 37.1,
+        "w": 0.8,
+        "multi": true
+      }
+    ],
+    "fillCount": 0,
+    "fillStart": 17,
+    "fillPerRow": 2,
+    "essayCount": 5,
+    "essayConfig": [
+      {
+        "score": 12.0
+      },
+      {
+        "score": 12.0
+      },
+      {
+        "score": 12.0
+      },
+      {
+        "score": 12.0
+      },
+      {
+        "score": 12.0
+      }
+    ]
+  },
+  "sides": [
+    {
+      "side": "A",
+      "columns": [
+        {
+          "col": 0,
+          "regions": [
+            {
+              "id": "header",
+              "type": "fixed",
+              "role": "header"
+            },
+            {
+              "id": "info",
+              "type": "fixed",
+              "role": "info"
+            },
+            {
+              "id": "notice",
+              "type": "fixed",
+              "role": "notice"
+            },
+            {
+              "id": "choices",
+              "type": "fixed",
+              "role": "choices",
+              "count": 16,
+              "options": 4,
+              "perRow": 20
+            },
+            {
+              "id": "essay-Q17",
+              "type": "essay",
+              "qno": 17,
+              "score": 12,
+              "subs": [
+                {
+                  "sub": 1,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 叶绿体基质；促进细胞伸长生长，诱导细胞分化，促进细胞"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "核分裂\n(2) ① 9；M3Z3或“Mg100%Zn100%",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "” ② A\n(3) ① 非气孔因素；缺Zn时，气孔导度较大，",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "而胞间CO_{2}浓度较低 ② 仅缺镁、镁和锌同时缺乏下气孔",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "导度和胞间CO_{2}浓度(或剩余组合下气孔导度和胞间CO_",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "{2}浓度)",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 2,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 叶绿体基质；促进细胞伸长生长，诱导细胞分化，促进细胞"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "核分裂\n(2) ① 9；M3Z3或“Mg100%Zn100%",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "” ② A\n(3) ① 非气孔因素；缺Zn时，气孔导度较大，",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "而胞间CO_{2}浓度较低 ② 仅缺镁、镁和锌同时缺乏下气孔",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "导度和胞间CO_{2}浓度(或剩余组合下气孔导度和胞间CO_",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "{2}浓度)",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 3,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 叶绿体基质；促进细胞伸长生长，诱导细胞分化，促进细胞"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "核分裂\n(2) ① 9；M3Z3或“Mg100%Zn100%",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "” ② A\n(3) ① 非气孔因素；缺Zn时，气孔导度较大，",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "而胞间CO_{2}浓度较低 ② 仅缺镁、镁和锌同时缺乏下气孔",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "导度和胞间CO_{2}浓度(或剩余组合下气孔导度和胞间CO_",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "{2}浓度)",
+                      "continuation": true
+                    }
+                  ]
+                }
+              ],
+              "heightRatio": 1.0,
+              "targetHeight_mm": 199.0
+            }
+          ]
+        },
+        {
+          "col": 1,
+          "regions": [
+            {
+              "id": "essay-Q18",
+              "type": "essay",
+              "qno": 18,
+              "score": 12,
+              "subs": [
+                {
+                  "sub": 1,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 基因突变；常染色体显性遗传\n(2) 该夫妻已经生出四"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "个女儿且全为正常，所以Ⅱ-5不携带致病基因的概率较大(应大于",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "1/2)或Ⅱ-5很可能是隐性纯合子\n(3) 泳道3中致病基因",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "对应的灰度值大于泳道1，而前者vinculin基因对应的灰度",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "值小于后者(泳道3中致病基因与vinculin基因对应的灰度",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "值的比大于泳道1中的)；371\n(4) 基因；蛋白质发挥功能",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "必须依赖于正确高级结构，而这种高级结构往往十分复杂",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 2,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 基因突变；常染色体显性遗传\n(2) 该夫妻已经生出四"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "个女儿且全为正常，所以Ⅱ-5不携带致病基因的概率较大(应大于",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "1/2)或Ⅱ-5很可能是隐性纯合子\n(3) 泳道3中致病基因",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "对应的灰度值大于泳道1，而前者vinculin基因对应的灰度",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "值小于后者(泳道3中致病基因与vinculin基因对应的灰度",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "值的比大于泳道1中的)；371\n(4) 基因；蛋白质发挥功能",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "必须依赖于正确高级结构，而这种高级结构往往十分复杂",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 3,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 基因突变；常染色体显性遗传\n(2) 该夫妻已经生出四"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "个女儿且全为正常，所以Ⅱ-5不携带致病基因的概率较大(应大于",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "1/2)或Ⅱ-5很可能是隐性纯合子\n(3) 泳道3中致病基因",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "对应的灰度值大于泳道1，而前者vinculin基因对应的灰度",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "值小于后者(泳道3中致病基因与vinculin基因对应的灰度",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "值的比大于泳道1中的)；371\n(4) 基因；蛋白质发挥功能",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "必须依赖于正确高级结构，而这种高级结构往往十分复杂",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 4,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 基因突变；常染色体显性遗传\n(2) 该夫妻已经生出四"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "个女儿且全为正常，所以Ⅱ-5不携带致病基因的概率较大(应大于",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "1/2)或Ⅱ-5很可能是隐性纯合子\n(3) 泳道3中致病基因",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "对应的灰度值大于泳道1，而前者vinculin基因对应的灰度",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "值小于后者(泳道3中致病基因与vinculin基因对应的灰度",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "值的比大于泳道1中的)；371\n(4) 基因；蛋白质发挥功能",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "必须依赖于正确高级结构，而这种高级结构往往十分复杂",
+                      "continuation": true
+                    }
+                  ]
+                }
+              ],
+              "heightRatio": 0.6302,
+              "targetHeight_mm": 266
+            },
+            {
+              "id": "essay-Q19",
+              "type": "essay",
+              "qno": 19,
+              "score": 12,
+              "subs": [
+                {
+                  "sub": 1,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 氧化分解生成CO_{2}和H_{2}O，释放能量；抗"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "利尿；行为性\n(2) 突触；A\n(3) 将容器A中适量的溶液",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "转移到容器B中(或将B容器中的心脏放到A容器中)；HA_{1",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "}<HA_{2}，HB_{1}=HB_{2}；HA_{1}<",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "HA_{2}，HB_{1}<HB_{2}",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 2,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 氧化分解生成CO_{2}和H_{2}O，释放能量；抗"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "利尿；行为性\n(2) 突触；A\n(3) 将容器A中适量的溶液",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "转移到容器B中(或将B容器中的心脏放到A容器中)；HA_{1",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "}<HA_{2}，HB_{1}=HB_{2}；HA_{1}<",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "HA_{2}，HB_{1}<HB_{2}",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 3,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 氧化分解生成CO_{2}和H_{2}O，释放能量；抗"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "利尿；行为性\n(2) 突触；A\n(3) 将容器A中适量的溶液",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "转移到容器B中(或将B容器中的心脏放到A容器中)；HA_{1",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "}<HA_{2}，HB_{1}=HB_{2}；HA_{1}<",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "HA_{2}，HB_{1}<HB_{2}",
+                      "continuation": true
+                    }
+                  ]
+                }
+              ],
+              "heightRatio": 0.3698,
+              "targetHeight_mm": 154
+            }
+          ],
+          "qGap_mm": 5
+        },
+        {
+          "col": 2,
+          "regions": [
+            {
+              "id": "essay-Q20",
+              "type": "essay",
+              "qno": 20,
+              "score": 12,
+              "subs": [
+                {
+                  "sub": 1,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 植物在研究区域的出现频率、种群密度、植株高度；群落演"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "替(或次生演替)\n(2) 从物质角度看，挺水植物可以吸收氮、",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "磷等无机盐；从能量角度看，挺水植物可有效阻挡阳光，抑制藻类疯",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "长\n(3) 在机体内浓度超过环境浓度；狐尾藻；黑藻对底泥中镉",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "的迁移系数高，在地上部分富集量更多，便于收割清除以降低底泥中",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "镉含量\n(4) 整体",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 2,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 植物在研究区域的出现频率、种群密度、植株高度；群落演"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "替(或次生演替)\n(2) 从物质角度看，挺水植物可以吸收氮、",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "磷等无机盐；从能量角度看，挺水植物可有效阻挡阳光，抑制藻类疯",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "长\n(3) 在机体内浓度超过环境浓度；狐尾藻；黑藻对底泥中镉",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "的迁移系数高，在地上部分富集量更多，便于收割清除以降低底泥中",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "镉含量\n(4) 整体",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 3,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 植物在研究区域的出现频率、种群密度、植株高度；群落演"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "替(或次生演替)\n(2) 从物质角度看，挺水植物可以吸收氮、",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "磷等无机盐；从能量角度看，挺水植物可有效阻挡阳光，抑制藻类疯",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "长\n(3) 在机体内浓度超过环境浓度；狐尾藻；黑藻对底泥中镉",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "的迁移系数高，在地上部分富集量更多，便于收割清除以降低底泥中",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "镉含量\n(4) 整体",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 4,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 植物在研究区域的出现频率、种群密度、植株高度；群落演"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "替(或次生演替)\n(2) 从物质角度看，挺水植物可以吸收氮、",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "磷等无机盐；从能量角度看，挺水植物可有效阻挡阳光，抑制藻类疯",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "长\n(3) 在机体内浓度超过环境浓度；狐尾藻；黑藻对底泥中镉",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "的迁移系数高，在地上部分富集量更多，便于收割清除以降低底泥中",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "镉含量\n(4) 整体",
+                      "continuation": true
+                    }
+                  ]
+                }
+              ],
+              "heightRatio": 0.6005,
+              "targetHeight_mm": 234
+            },
+            {
+              "id": "essay-Q21",
+              "type": "essay",
+              "qno": 21,
+              "score": 12,
+              "subs": [
+                {
+                  "sub": 1,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 构建基因表达载体(基因表达载体的构建)；受精卵\n(2"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": ") ① 5'GAATTCTACT 3'；5'GAATTCAT",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "GG 3' ② 终止密码子提前出现，导致翻译提前终止，无法得",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "到完整的融合蛋白 ③ C\n(3) 周期短；不受性别、年龄的限",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "制；易收集；提纯的纯度更高；产量高；不受生理状态的限制",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 2,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 构建基因表达载体(基因表达载体的构建)；受精卵\n(2"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": ") ① 5'GAATTCTACT 3'；5'GAATTCAT",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "GG 3' ② 终止密码子提前出现，导致翻译提前终止，无法得",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "到完整的融合蛋白 ③ C\n(3) 周期短；不受性别、年龄的限",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "制；易收集；提纯的纯度更高；产量高；不受生理状态的限制",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 3,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 构建基因表达载体(基因表达载体的构建)；受精卵\n(2"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": ") ① 5'GAATTCTACT 3'；5'GAATTCAT",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "GG 3' ② 终止密码子提前出现，导致翻译提前终止，无法得",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "到完整的融合蛋白 ③ C\n(3) 周期短；不受性别、年龄的限",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "制；易收集；提纯的纯度更高；产量高；不受生理状态的限制",
+                      "continuation": true
+                    }
+                  ]
+                }
+              ],
+              "heightRatio": 0.3995,
+              "targetHeight_mm": 154
+            }
+          ],
+          "qGap_mm": 5
+        }
+      ]
+    },
+    {
+      "side": "B",
+      "columns": [
+        {
+          "col": 0,
+          "regions": []
+        },
+        {
+          "col": 1,
+          "regions": []
+        },
+        {
+          "col": 2,
+          "regions": []
+        }
+      ]
+    }
+  ]
+}

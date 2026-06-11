@@ -5,6 +5,7 @@ Used by card/router.py and engine/tools/card_layout.py.
 """
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import math
@@ -13,6 +14,28 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 _EDITOR_LAYOUT_DIR = Path(__file__).resolve().parent.parent.parent.parent / "editor_layouts"
+
+
+def is_biology_generic_pollution(layout: dict, config: dict, subject_name: str) -> bool:
+    """生物 generic 污染指纹（2026-06 事故）。
+
+    前端 createDefaultLayout 兜底布局（A4 单栏、11选择/3填空）曾被误存为生物
+    saved layout。命中指纹的数据不得进入也不得离开持久层：
+    GET / _load_layout（auto-layout、parse-answers、AI card_layout 共用）
+    fail-closed 回退学科默认，PUT 拒绝写入。指纹五维：
+    subjectTitle/科目=生物、paper=A4、双面各 1 列、choiceCount=11、fillCount=3。
+    """
+    if config.get("subjectTitle") != "生物" and subject_name != "生物":
+        return False
+    if (layout.get("paper") or config.get("paperSize")) != "A4":
+        return False
+    sides = layout.get("sides") or []
+    if not isinstance(sides, list):
+        return False
+    cols = [len(s.get("columns") or []) for s in sides if isinstance(s, dict)]
+    if cols != [1, 1]:
+        return False
+    return config.get("choiceCount") == 11 and config.get("fillCount") == 3
 
 # ── 排版常量 ──
 
@@ -352,24 +375,65 @@ def calculate_layout(
 
 # ── 布局文件读写 ──
 
+def strip_runtime_render_fields(value):
+    """递归剥离下划线前缀的运行时渲染字段（_side/_col/_sideIdx 等）。
+
+    这些 key 由前端 render.js 渲染时注入、或由 TQL/SUBJECT_CONFIGS 布局
+    生成器携带，仅服务当次渲染交互，不属于持久化契约；editor_layouts
+    持久层必须与 canonical 资产同等净化（pack3）。返回净化后的新结构，
+    不修改入参。
+    """
+    if isinstance(value, dict):
+        return {
+            k: strip_runtime_render_fields(v)
+            for k, v in value.items()
+            if not (isinstance(k, str) and k.startswith("_"))
+        }
+    if isinstance(value, list):
+        return [strip_runtime_render_fields(v) for v in value]
+    return value
+
+
 def _get_layout_path(school_id: str, subject_id: str) -> Path:
     _EDITOR_LAYOUT_DIR.mkdir(exist_ok=True)
     return _EDITOR_LAYOUT_DIR / f"{school_id}_{subject_id}.json"
 
 
 def _load_layout(school_id: str, subject_id: str, subject_name: str) -> dict:
+    """加载已保存布局；文件缺失/损坏/命中污染指纹时回退学科默认。
+
+    已知 canonical 学科的默认资产本身不可用时，get_default_layout 抛
+    CanonicalLayoutError 并由本函数原样传播（fail-closed，pack3）。
+    auto-layout、parse-answers v2、AI card_layout 工具共用本入口。
+    回退分支返回 deepcopy：调用方会原地修改并回写（_apply_to_regions →
+    _save_layout），不得污染 subject_defaults._LAYOUT_CACHE 模块级缓存。
+    """
     path = _get_layout_path(school_id, subject_id)
     if path.exists():
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-            layout = data.get("layout", {})
-            if "config" not in layout and "config" in data:
-                layout["config"] = data["config"]
-            return layout
         except (json.JSONDecodeError, OSError):
-            pass
+            data = None
+        if isinstance(data, dict) and isinstance(data.get("layout"), dict):
+            layout = data["layout"]
+            merged_config = {**(layout.get("config") or {}), **(data.get("config") or {})}
+            if is_biology_generic_pollution(layout, merged_config, subject_name):
+                logger.warning(
+                    "_load_layout: saved layout %s matches biology generic pollution "
+                    "fingerprint (A4 [1,1] choice=11 fill=3), falling back to subject default",
+                    path.name,
+                )
+            else:
+                if "config" not in layout and "config" in data:
+                    layout["config"] = data["config"]
+                return layout
+        else:
+            logger.warning(
+                "_load_layout: unreadable or malformed layout file %s, falling back to subject default",
+                path.name,
+            )
     from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
-    return get_default_layout(subject_name)
+    return copy.deepcopy(get_default_layout(subject_name))
 
 
 def _apply_to_regions(layout: dict, layout_result: dict) -> dict:
@@ -462,6 +526,8 @@ def _apply_to_regions(layout: dict, layout_result: dict) -> dict:
 
 def _save_layout(school_id: str, subject_id: str, layout: dict):
     path = _get_layout_path(school_id, subject_id)
-    data = {"layout": layout, "config": layout.get("config", {}), "choices": []}
+    data = strip_runtime_render_fields(
+        {"layout": layout, "config": layout.get("config", {}), "choices": []}
+    )
     path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     logger.info("card_layout saved: %s", path.name)

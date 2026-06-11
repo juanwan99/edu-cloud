@@ -1,5 +1,6 @@
 """答题卡生成 API 测试。"""
 import copy
+import json
 
 import pytest
 from httpx import AsyncClient
@@ -519,6 +520,307 @@ class TestEditorLayout:
         data = resp.json()
         assert data["found"] is True
         assert data["source"] == "default"
+
+    # ── canonical 默认布局 API 契约（2026-06-11 cardtpl-pack1）──
+    # 显式编码纸张/列结构/qcols/题量，不与 get_default_layout 输出做 snapshot 等价，
+    # 防止"默认布局本身退化"时测试跟着退化。
+
+    @staticmethod
+    def _essay_qnos_by_col(layout: dict, side_idx: int) -> list[list]:
+        return [
+            [r["qno"] for r in col["regions"] if r.get("type") == "essay"]
+            for col in layout["sides"][side_idx]["columns"]
+        ]
+
+    async def test_chemistry_default_layout_is_canonical_a4_multicolumn(self, client: AsyncClient, seed_subject, db):
+        """化学无保存布局 → canonical A4 多栏 [3,1]，Q15-18 按列分布，14选择/0填空/4解答。"""
+        headers, exam_id, _ = seed_subject
+        chem = Subject(exam_id=exam_id, name="化学", code="HX", school_id="s1")
+        db.add(chem)
+        await db.commit()
+        await db.refresh(chem)
+
+        resp = await client.get(f"/api/v1/card/editor-layout/{chem.id}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["found"] is True
+        assert data["source"] == "default"
+        layout = data["layout"]
+        assert layout["paper"] == "A4"
+        assert [len(s["columns"]) for s in layout["sides"]] == [3, 1]
+        assert self._essay_qnos_by_col(layout, 0) == [[15], [16], [17, 18]]
+        assert data["config"]["choiceCount"] == 14
+        assert data["config"]["fillCount"] == 0
+        assert data["config"]["essayCount"] == 4
+
+    async def test_biology_default_layout_is_canonical_a3_not_generic(self, client: AsyncClient, seed_subject):
+        """生物无保存布局 → canonical A3 [3,3] Q17-21，绝不能再退化为 generic A4 11/3/5。"""
+        headers, _, subject_id = seed_subject
+        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["found"] is True
+        assert data["source"] == "default"
+        layout = data["layout"]
+        assert layout["paper"] == "A3"
+        assert [len(s["columns"]) for s in layout["sides"]] == [3, 3]
+        assert self._essay_qnos_by_col(layout, 0) == [[17], [18, 19], [20, 21]]
+        assert data["config"]["choiceCount"] == 16
+        assert data["config"]["fillCount"] == 0
+        assert data["config"]["essayCount"] == 5
+        # generic 污染指纹（前端 createDefaultLayout 默认 11选择/3填空）必须为假
+        assert not (data["config"]["choiceCount"] == 11 and data["config"]["fillCount"] == 3)
+
+    async def test_english_default_layout_is_canonical_a4(self, client: AsyncClient, seed_subject, db):
+        """英语无保存布局 → canonical A4 [1,1]，55选择 + 填空56-65 + 写作两节。"""
+        headers, exam_id, _ = seed_subject
+        eng = Subject(exam_id=exam_id, name="英语", code="YY", school_id="s1")
+        db.add(eng)
+        await db.commit()
+        await db.refresh(eng)
+
+        resp = await client.get(f"/api/v1/card/editor-layout/{eng.id}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["found"] is True
+        assert data["source"] == "default"
+        layout = data["layout"]
+        assert layout["paper"] == "A4"
+        assert [len(s["columns"]) for s in layout["sides"]] == [1, 1]
+        assert data["config"]["choiceCount"] == 55
+        assert data["config"]["fillCount"] == 10
+        assert data["config"]["essayCount"] == 2
+        a_regions = layout["sides"][0]["columns"][0]["regions"]
+        fill_qnos = [r["qno"] for r in a_regions if r.get("type") == "fill"]
+        assert fill_qnos == list(range(56, 66))
+
+    # ── canonical fail-closed API 契约（2026-06-11 cardtpl-pack3）──
+    # 已知 canonical 学科资产缺失/损坏时 GET 默认布局必须 500 fail-closed，
+    # 禁止把 TQL/SUBJECT_CONFIGS 泛化模板当学科默认返回给编辑器。
+
+    async def test_biology_canonical_missing_get_default_fails_closed_500(
+        self, client: AsyncClient, seed_subject, tmp_path, monkeypatch,
+    ):
+        """生物 canonical 资产缺失且无保存布局 → GET 500，不返回泛化默认。"""
+        import edu_cloud.modules.card.rendering.subject_defaults as sd
+        monkeypatch.setattr(sd, "_LAYOUT_CACHE", {})
+        monkeypatch.setattr(sd, "_CANONICAL_DIR", tmp_path / "empty_canonical")
+
+        headers, _, subject_id = seed_subject
+        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+        assert resp.status_code == 500
+        assert "canonical" in resp.json()["detail"]
+
+    async def test_biology_canonical_corrupt_auto_layout_fails_closed_500(
+        self, client: AsyncClient, seed_subject, tmp_path, monkeypatch,
+    ):
+        """生物 canonical 资产损坏 → auto-layout 500 fail-closed，不基于泛化模板排版回写。"""
+        import edu_cloud.modules.card.layout_helpers as lh
+        import edu_cloud.modules.card.rendering.subject_defaults as sd
+        monkeypatch.setattr(lh, "_EDITOR_LAYOUT_DIR", tmp_path)
+        canonical_dir = tmp_path / "broken_canonical"
+        canonical_dir.mkdir()
+        (canonical_dir / "canonical_biology.json").write_text("{not valid json", encoding="utf-8")
+        monkeypatch.setattr(sd, "_LAYOUT_CACHE", {})
+        monkeypatch.setattr(sd, "_CANONICAL_DIR", canonical_dir)
+
+        headers, _, subject_id = seed_subject
+        resp = await client.post(f"/api/v1/card/auto-layout/{subject_id}", json={
+            "parsed_questions": [
+                {"qno": 17, "total_score": 12,
+                 "subs": [{"sub": 1, "answers": ["光合作用产生氧气"]}]},
+            ],
+        }, headers=headers)
+        assert resp.status_code == 500
+        assert not (tmp_path / f"s1_{subject_id}.json").exists(), "fail-closed 后不得写入布局文件"
+
+    async def test_biology_polluted_saved_layout_falls_back_to_default(self, client: AsyncClient, seed_subject, tmp_path):
+        """生物 saved layout 命中 generic 污染指纹（A4 [1,1] 11选择/3填空）→
+        不得作为 source=saved 返回，fail-closed 回退学科默认。"""
+        headers, _, subject_id = seed_subject
+        polluted = {
+            "layout": {
+                "paper": "A4",
+                "config": {"subjectTitle": "生物", "paperSize": "A4",
+                           "choiceCount": 11, "fillCount": 3, "essayCount": 5},
+                "sides": [
+                    {"side": "A", "columns": [{"col": 0, "regions": []}]},
+                    {"side": "B", "columns": [{"col": 0, "regions": []}]},
+                ],
+            },
+            "config": {"subjectTitle": "生物", "paperSize": "A4",
+                       "choiceCount": 11, "fillCount": 3, "essayCount": 5},
+            "choices": [],
+        }
+        (tmp_path / f"s1_{subject_id}.json").write_text(
+            json.dumps(polluted, ensure_ascii=False), encoding="utf-8"
+        )
+
+        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["found"] is True
+        assert data["source"] == "default", "污染指纹 saved 不得以 source=saved 返回"
+        assert data["layout"]["paper"] == "A3"
+        assert data["config"]["choiceCount"] == 16
+        assert data["config"]["fillCount"] == 0
+
+    async def test_biology_legitimate_saved_layout_not_misjudged(self, client: AsyncClient, seed_subject, tmp_path):
+        """生物合法 saved layout（不命中全部指纹维度）→ 仍正常以 source=saved 返回。"""
+        headers, _, subject_id = seed_subject
+        legitimate = {
+            "layout": {
+                "paper": "A4",
+                "config": {"subjectTitle": "生物", "paperSize": "A4",
+                           "choiceCount": 16, "fillCount": 0, "essayCount": 5},
+                "sides": [
+                    {"side": "A", "columns": [{"col": 0, "regions": []}]},
+                    {"side": "B", "columns": [{"col": 0, "regions": []}]},
+                ],
+            },
+            "config": {"subjectTitle": "生物", "paperSize": "A4",
+                       "choiceCount": 16, "fillCount": 0, "essayCount": 5},
+            "choices": [],
+        }
+        (tmp_path / f"s1_{subject_id}.json").write_text(
+            json.dumps(legitimate, ensure_ascii=False), encoding="utf-8"
+        )
+
+        resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["source"] == "saved"
+        assert data["config"]["choiceCount"] == 16
+
+    # ── PUT 写入防线 + auto-layout 路径（2026-06-11 cardtpl-pack2）──
+
+    @staticmethod
+    def _polluted_body() -> dict:
+        """前端 createDefaultLayout 兜底形状：A4 双面各 1 列，11选择/3填空。"""
+        config = {"subjectTitle": "生物", "paperSize": "A4",
+                  "choiceCount": 11, "fillCount": 3, "essayCount": 5}
+        return {
+            "layout": {
+                "paper": "A4",
+                "config": dict(config),
+                "sides": [
+                    {"side": "A", "columns": [{"col": 0, "regions": []}]},
+                    {"side": "B", "columns": [{"col": 0, "regions": []}]},
+                ],
+            },
+            "config": dict(config),
+            "choices": [],
+        }
+
+    async def test_put_polluted_biology_layout_rejected_not_written(self, client: AsyncClient, seed_subject, tmp_path):
+        """PUT 命中生物 generic 污染指纹 → 422 拒绝，editor_layouts 不写入。"""
+        headers, _, subject_id = seed_subject
+        resp = await client.put(
+            f"/api/v1/card/editor-layout/{subject_id}",
+            json=self._polluted_body(), headers=headers,
+        )
+        assert resp.status_code == 422
+        assert "污染指纹" in resp.json()["detail"]
+        assert not (tmp_path / f"s1_{subject_id}.json").exists(), "拒绝后不得写入布局文件"
+
+    async def test_put_polluted_biology_layout_does_not_overwrite_existing(self, client: AsyncClient, seed_subject, tmp_path):
+        """已有合法 saved 布局时，污染 PUT 被拒且原文件内容不变。"""
+        headers, _, subject_id = seed_subject
+        existing = json.dumps({
+            "layout": {"paper": "A3", "tag": "legit", "sides": []},
+            "config": {"examTitle": "原布局"}, "choices": [],
+        }, ensure_ascii=False)
+        path = tmp_path / f"s1_{subject_id}.json"
+        path.write_text(existing, encoding="utf-8")
+
+        resp = await client.put(
+            f"/api/v1/card/editor-layout/{subject_id}",
+            json=self._polluted_body(), headers=headers,
+        )
+        assert resp.status_code == 422
+        assert path.read_text(encoding="utf-8") == existing, "污染 PUT 不得覆盖已有合法布局"
+
+    async def test_put_legitimate_biology_layout_accepted(self, client: AsyncClient, seed_subject, tmp_path):
+        """合法生物布局（不命中全部指纹维度）→ 正常保存，防线不过度拦截。"""
+        headers, _, subject_id = seed_subject
+        body = self._polluted_body()
+        body["layout"]["config"].update({"choiceCount": 16, "fillCount": 0})
+        body["config"].update({"choiceCount": 16, "fillCount": 0})
+
+        resp = await client.put(
+            f"/api/v1/card/editor-layout/{subject_id}", json=body, headers=headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+        assert (tmp_path / f"s1_{subject_id}.json").exists()
+
+    # ── PUT 持久化运行时字段剥离（2026-06-11 cardtpl-pack3）──
+
+    async def test_put_layout_sanitizes_runtime_fields_before_persistence(
+        self, client: AsyncClient, seed_subject, tmp_path,
+    ):
+        """PUT 布局含前端渲染注入的 _side/_col/_sideIdx → 200 保存，
+        落盘文件递归无任何下划线前缀 key，合法字段原样保留。"""
+        headers, _, subject_id = seed_subject
+        body = self._polluted_body()
+        body["layout"]["config"].update({"choiceCount": 16, "fillCount": 0})
+        body["config"].update({"choiceCount": 16, "fillCount": 0})
+        body["layout"]["sides"][0]["columns"][0]["regions"] = [
+            {"id": "header", "type": "fixed", "role": "header",
+             "_side": "A", "_col": 0, "_sideIdx": 0},
+            {"id": "essay-17", "type": "essay", "qno": 17, "score": 12,
+             "heightRatio": 1.0, "subs": [],
+             "_side": "A", "_col": 0, "_sideIdx": 0},
+        ]
+
+        resp = await client.put(
+            f"/api/v1/card/editor-layout/{subject_id}", json=body, headers=headers,
+        )
+        assert resp.status_code == 200
+
+        saved = json.loads((tmp_path / f"s1_{subject_id}.json").read_text(encoding="utf-8"))
+
+        def underscore_keys(value, path=""):
+            found = []
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    if isinstance(k, str) and k.startswith("_"):
+                        found.append(f"{path}/{k}")
+                    found.extend(underscore_keys(v, f"{path}/{k}"))
+            elif isinstance(value, list):
+                for i, v in enumerate(value):
+                    found.extend(underscore_keys(v, f"{path}[{i}]"))
+            return found
+
+        assert underscore_keys(saved) == [], "运行时字段不得持久化"
+        regions = saved["layout"]["sides"][0]["columns"][0]["regions"]
+        assert [r["id"] for r in regions] == ["header", "essay-17"]
+        assert regions[1]["qno"] == 17
+        assert regions[1]["score"] == 12
+
+    async def test_auto_layout_api_polluted_saved_uses_canonical_base(self, client: AsyncClient, seed_subject, tmp_path, monkeypatch):
+        """auto-layout 端点：saved 文件命中污染指纹 → _load_layout 回退 canonical，
+        排版回写结果基于 A3 canonical 而非 generic A4。"""
+        import edu_cloud.modules.card.layout_helpers as lh
+        monkeypatch.setattr(lh, "_EDITOR_LAYOUT_DIR", tmp_path)
+
+        headers, _, subject_id = seed_subject
+        path = tmp_path / f"s1_{subject_id}.json"
+        path.write_text(json.dumps(self._polluted_body(), ensure_ascii=False), encoding="utf-8")
+
+        resp = await client.post(f"/api/v1/card/auto-layout/{subject_id}", json={
+            "parsed_questions": [
+                {"qno": 17, "total_score": 12,
+                 "subs": [{"sub": 1, "answers": ["光合作用产生氧气"]}]},
+            ],
+        }, headers=headers)
+        assert resp.status_code == 200
+        assert resp.json()["applied"] is True
+
+        saved = json.loads(path.read_text(encoding="utf-8"))
+        assert saved["layout"]["paper"] == "A3", "generic A4 形状不得在 auto-layout 回写后存活"
+        assert saved["config"]["choiceCount"] == 16
+        assert saved["config"]["fillCount"] == 0
 
     def test_default_layout_response_is_deepcopy(self):
         """_default_layout_response 必须 deepcopy——污染返回值不得影响 subject_defaults 模块级缓存。"""

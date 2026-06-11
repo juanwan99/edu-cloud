@@ -197,6 +197,9 @@ const params = {
 const structuralKeys = ['choiceCount', 'optionCount', 'fillCount', 'essayCount', 'paperSize']
 let lastStructural = {}
 let layoutFromServer = false
+// 服务端布局加载失败时为 true：此时本地是前端 generic 兜底布局，
+// 必须禁止写回服务器，否则会把 generic 布局持久化覆盖真实模板（生物 A4 污染事故根因）
+let layoutLoadFailed = false
 
 function getValues() {
   const base = { ...(window._cardLayout?.config || {}) }
@@ -246,6 +249,14 @@ function needsRebuild(v) {
 
 async function saveToServer(config) {
   const status = document.getElementById('status')
+
+  if (layoutLoadFailed) {
+    if (status) {
+      status.textContent = '布局加载失败，已禁用保存以防覆盖服务器模板，请刷新重试'
+      status.className = 'status error'
+    }
+    return
+  }
 
   try {
     // Save per-subject layout if subjectId is available
@@ -448,9 +459,17 @@ async function loadFromServer() {
         lastStructural._essayConfigStr = JSON.stringify(v.essayConfig || [])
         if (status) status.textContent = '已加载科目布局'
         layoutFromServer = true
+        layoutLoadFailed = false
         loaded = true
+      } else {
+        // 后端契约：missing 布局也返回 found=true + 学科默认；走到这里说明响应异常，
+        // fail-closed 禁止保存，防止本地 generic 兜底布局覆盖服务器模板
+        layoutLoadFailed = true
       }
-    } catch { /* no subject layout */ }
+    } catch {
+      // API 失败（网络/服务端错误）：本地将退化为 generic 兜底布局，禁止写回
+      layoutLoadFailed = true
+    }
   }
 
   if (loaded) {

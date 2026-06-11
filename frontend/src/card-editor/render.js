@@ -669,29 +669,44 @@ function _renderA4(previewWrap, layout, config, digitBoxes, choiceGroupsHTML, fi
   tagRegions(sideA, 0);
   if (sideB) tagRegions(sideB, 1);
 
-  // A 面 col 0 的非 fixed regions
-  const aEssayRegions = sideA.columns[0]?.regions?.filter(r => r.type !== 'fixed') || [];
+  // 按源 columns 渲染视觉列结构——历史 canonical 模板（如化学 A4 [3,1]）的
+  // essay 分布在 col0/col1/col2，必须保留多栏视觉结构，不得摊平成单列，
+  // 也不得只取 col 0 整列丢题（essay-Q16/Q17/Q18）
+  function renderSideCols(side, sideIdx, extraClass) {
+    const cols = side.columns || [];
+    const colHTML = (col) => {
+      const regions = (col?.regions || []).filter(r => r.type !== 'fixed');
+      return renderColumnRegions(regions, false, sideIdx, col?.col ?? 0);
+    };
+    if (cols.length <= 1) {
+      const col = cols[0] || { col: 0, regions: [] };
+      return `<div class="a4-col${extraClass}" data-col="${col.col ?? 0}">${colHTML(col)}</div>`;
+    }
+    // 多栏 flex 结构由 styles.css 的 .a4-cols 规则保障，不再输出 inline style
+    const inner = cols.map(col =>
+      `<div class="a4-col" data-col="${col.col}">${colHTML(col)}</div>`
+    ).join('');
+    return `<div class="a4-cols">${inner}</div>`;
+  }
 
   const pageAContent = `
     <div class="a4-content">
       ${renderFixedRegions(config, digitBoxes, choiceGroupsHTML, fillHTML)}
-      <div class="a4-col">
-        ${renderColumnRegions(aEssayRegions, false, 0, 0)}
-      </div>
+      ${renderSideCols(sideA, 0, '')}
     </div>`;
 
   // B 面：有 regions 时渲染，无 regions 时不渲染 B 面 page [F05 修复]
+  // 内容判定覆盖全部列，防多列历史模板 B 面丢题
   let pageBHTML = '';
   if (sideB && sideB.columns) {
-    const bRegions = sideB.columns[0]?.regions || [];
-    if (bRegions.length > 0) {
+    const bHasContent = sideB.columns
+      .some(c => (c?.regions || []).some(r => r.type !== 'fixed'));
+    if (bHasContent) {
       pageBHTML = `
         <div class="page-label">B 面（背面）</div>
         <div class="page" data-paper="A4" data-side="B" id="pageB">
           <div class="a4-content">
-            <div class="a4-col a4-col--full">
-              ${renderColumnRegions(bRegions, false, 1, 0)}
-            </div>
+            ${renderSideCols(sideB, 1, ' a4-col--full')}
           </div>
         </div>`;
     }

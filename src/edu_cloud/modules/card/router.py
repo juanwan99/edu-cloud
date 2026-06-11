@@ -34,8 +34,9 @@ from edu_cloud.config import settings
 from edu_cloud.modules.exam.models import Exam, Subject
 from edu_cloud.modules.card.models import Template, CardSkeleton
 from edu_cloud.modules.card.export.barcode_gen import parse_student_excel, render_barcode_pdf
+from edu_cloud.modules.card.layout_helpers import is_biology_generic_pollution, strip_runtime_render_fields
 from edu_cloud.modules.card.rendering.renderer import render_card_v2
-from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
+from edu_cloud.modules.card.rendering.subject_defaults import CanonicalLayoutError, get_default_layout
 
 router = APIRouter(prefix="/api/v1/card", tags=["card"])
 
@@ -61,8 +62,14 @@ def _editor_layout_path(school_id: str, subject_id: str) -> Path:
 
 
 def _default_layout_response(subject_name: str) -> dict:
-    """学科默认布局响应（deepcopy 隔离 subject_defaults 模块级缓存，防污染）。"""
-    layout = copy.deepcopy(get_default_layout(subject_name))
+    """学科默认布局响应（deepcopy 隔离 subject_defaults 模块级缓存，防污染）。
+
+    canonical 资产不可用时 fail-closed 抛 500，不得退回泛化模板（pack3）。
+    """
+    try:
+        layout = copy.deepcopy(get_default_layout(subject_name))
+    except CanonicalLayoutError as e:
+        raise HTTPException(500, f"学科 canonical 模板资产不可用，已 fail-closed：{e}") from e
     return {
         "found": True,
         "source": "default",
@@ -110,6 +117,14 @@ async def get_editor_layout(
     merged_config = {**layout_config, **saved_config}
     layout["config"] = {**layout.get("config", {}), **merged_config}
 
+    if is_biology_generic_pollution(layout, merged_config, subject.name):
+        logger.warning(
+            "get_editor_layout: saved layout %s matches biology generic pollution "
+            "fingerprint (A4 [1,1] choice=11 fill=3), falling back to subject default",
+            path.name,
+        )
+        return _default_layout_response(subject.name)
+
     return {"found": True, "layout": layout, "source": "saved", "config": merged_config, "choices": data.get("choices", [])}
 
 
@@ -122,14 +137,35 @@ async def save_editor_layout(
     db: AsyncSession = Depends(get_db),
     current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
-    """保存科目的可视化编辑器布局（按 subject_id 文件隔离）。"""
+    """保存科目的可视化编辑器布局（按 subject_id 文件隔离）。
+
+    命中生物 generic 污染指纹的布局拒绝写入（422）——这是 2026-06 模板
+    劣化事故的写入侧防线，与 GET/_load_layout 的读取侧回退同源。
+    """
     result = await db.execute(
         select(Subject).where(Subject.id == subject_id, Subject.school_id == current["current_role"].school_id)
     )
-    if not result.scalar_one_or_none():
+    subject = result.scalar_one_or_none()
+    if not subject:
         raise HTTPException(404, "Subject not found")
 
-    editor_data = {"layout": body.layout, "config": body.config, "choices": body.choices}
+    layout_config = body.layout.get("config") if isinstance(body.layout.get("config"), dict) else {}
+    merged_config = {**(layout_config or {}), **(body.config or {})}
+    if is_biology_generic_pollution(body.layout, merged_config, subject.name):
+        logger.warning(
+            "save_editor_layout: rejected layout matching biology generic pollution "
+            "fingerprint (A4 [1,1] choice=11 fill=3), subject=%s", subject_id,
+        )
+        raise HTTPException(
+            422,
+            "拒绝保存：布局命中生物 generic 污染指纹（A4 单栏 11选择/3填空 兜底布局），"
+            "请刷新编辑器重新加载学科模板后再保存",
+        )
+
+    # 剥离前端渲染注入的 _side/_col/_sideIdx 等运行时字段，不得持久化（pack3）
+    editor_data = strip_runtime_render_fields(
+        {"layout": body.layout, "config": body.config, "choices": body.choices}
+    )
     path = _editor_layout_path(current["current_role"].school_id, subject_id)
     path.write_text(json.dumps(editor_data, ensure_ascii=False), encoding="utf-8")
     logger.info("save_editor_layout: subject=%s, path=%s", subject_id, path.name)
@@ -216,7 +252,10 @@ async def auto_layout_card(
     else:
         raise HTTPException(400, "需要 answer_file 或 parsed_questions")
 
-    layout = _load_layout(school_id, subject_id, subject.name)
+    try:
+        layout = _load_layout(school_id, subject_id, subject.name)
+    except CanonicalLayoutError as e:
+        raise HTTPException(500, f"学科 canonical 模板资产不可用，已 fail-closed：{e}") from e
     result = calculate_layout(parsed, layout.get("config"), existing_layout=layout)
     layout = _apply_to_regions(layout, result)
     _save_layout(school_id, subject_id, layout)

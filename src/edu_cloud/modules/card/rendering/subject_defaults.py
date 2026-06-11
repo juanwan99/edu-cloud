@@ -3,8 +3,17 @@
 数据来源：TQL 模板 D:/试卷数据/YueXiaoEr/Scanner/Templetes/ [141984xxx] 系列。
 每科的 SUBJECT_CONFIGS 定义题型结构，create_subject_layout() 生成完整布局 JSON。
 用户修改 SUBJECT_CONFIGS 中的数值即可调整各科默认模板。
+
+canonical_layouts/ 下的 canonical_*.json 是从历史已验证 editor_layouts 提取的
+权威模板（2026-06-11 cardtpl-pack1 收口），优先级高于 TQL 与 SUBJECT_CONFIGS fallback。
 """
 from __future__ import annotations
+
+import json
+import logging
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # ── 公共样式参数（所有学科共享，与 defaults.py 中数学模板一致） ──
 
@@ -512,6 +521,67 @@ def tql_to_editor_layout(tpl_path: str, subject_title: str = "") -> dict:
 
 _LAYOUT_CACHE: dict[str, dict] = {}
 
+# canonical 模板资产：从历史已验证 editor_layouts 提取，学科默认的最高优先级真源
+_CANONICAL_DIR = Path(__file__).resolve().parent / "canonical_layouts"
+_CANONICAL_FILES: dict[str, str] = {
+    "化学": "canonical_chemistry.json",   # A4 多栏 [3,1]，14选择/0填空/4解答(Q15-18)
+    "英语": "canonical_english.json",     # A4 [1,1]，55选择/10填空(56-65)/2写作
+    # 生物为 PROVISIONAL：源自候选 e1cc167b（3 候选中最新、score 与 essayConfig
+    # 自洽、heightRatio 归一），最终 canonical 待用户/产品确认（ab5a1279 同形状
+    # 可直接替换；9a1bc1c1 为旧 4 列结构需同步改契约测试）
+    "生物": "canonical_biology.json",     # A3 [3,3]，16选择(含多选)/0填空/5解答(Q17-21)
+}
+
+
+class CanonicalLayoutError(RuntimeError):
+    """已知 canonical 学科的权威模板资产不可用（缺失/损坏/格式不合法）。
+
+    fail-closed：禁止静默退回 TQL/SUBJECT_CONFIGS 泛化模板——静默降级会让
+    精排学科版式被 generic 布局覆盖（2026-06 模板劣化事故同源），需人工修复资产。
+    """
+
+
+def _validate_canonical_layout(layout: object) -> str | None:
+    """canonical 资产最小结构校验；合法返回 None，否则返回不合法原因。"""
+    if not isinstance(layout, dict):
+        return "top-level is not a JSON object"
+    if not isinstance(layout.get("config"), dict):
+        return "config missing or not an object"
+    sides = layout.get("sides")
+    if not isinstance(sides, list) or not sides:
+        return "sides missing or empty"
+    for s in sides:
+        if not isinstance(s, dict) or not isinstance(s.get("columns"), list):
+            return "side entry missing columns list"
+    return None
+
+
+def _load_canonical_layout(subject_name: str) -> dict | None:
+    """读取学科 canonical 模板。
+
+    无 canonical 映射的学科返回 None 走下一级 fallback；已知 canonical 学科
+    的资产缺失/损坏/格式不合法时抛 CanonicalLayoutError（fail-closed）。
+    """
+    fname = _CANONICAL_FILES.get(subject_name) or _CANONICAL_FILES.get(_normalize_subject(subject_name))
+    if not fname:
+        return None
+    path = _CANONICAL_DIR / fname
+    try:
+        layout = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        logger.error("canonical layout unreadable for %s (%s): %s", subject_name, path.name, e)
+        raise CanonicalLayoutError(
+            f"canonical 模板资产不可读：{subject_name} ({path.name}): {e}"
+        ) from e
+    reason = _validate_canonical_layout(layout)
+    if reason is not None:
+        logger.error("canonical layout malformed for %s (%s): %s", subject_name, path.name, reason)
+        raise CanonicalLayoutError(
+            f"canonical 模板资产格式不合法：{subject_name} ({path.name}): {reason}"
+        )
+    return layout
+
+
 # TQL 模板文件路径映射（[141984xxx] 系列）
 _TQL_BASE = "D:/试卷数据/YueXiaoEr/Scanner/Templetes"
 _TQL_FILES: dict[str, str] = {
@@ -543,14 +613,23 @@ def _normalize_subject(name: str) -> str:
 
 
 def get_default_layout(subject_name: str) -> dict:
-    """按学科名返回默认编辑器布局——直接从 TQL 精确转换。"""
+    """按学科名返回默认编辑器布局。
+
+    优先级：canonical_layouts/ 权威模板 > TQL 精确转换 > SUBJECT_CONFIGS fallback。
+    已知 canonical 学科的资产缺失/损坏/格式不合法时抛 CanonicalLayoutError
+    （fail-closed，失败不写缓存），仅无 canonical 映射的学科走后两级 fallback。
+    """
     if subject_name in _LAYOUT_CACHE:
         return _LAYOUT_CACHE[subject_name]
+
+    canonical = _load_canonical_layout(subject_name)
+    if canonical is not None:
+        _LAYOUT_CACHE[subject_name] = canonical
+        return canonical
 
     # 先精确匹配，再去后缀匹配（"物理A" → "物理"），自动转 WSL 路径
     tql_path_raw = _TQL_FILES.get(subject_name) or _TQL_FILES.get(_normalize_subject(subject_name))
     if tql_path_raw:
-        from pathlib import Path
         tql_path = _resolve_tql_path(tql_path_raw)
         if Path(tql_path).exists():
             layout = tql_to_editor_layout(tql_path, subject_title=subject_name)

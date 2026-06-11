@@ -49,6 +49,11 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# canonical 答题卡模板真源资产：打包部署时随包分发，缺失会让学科默认布局
+# 静默退化到 TQL/SUBJECT_CONFIGS fallback（2026-06 模板劣化治理 pack2）
+"edu_cloud.modules.card.rendering" = ["canonical_layouts/*.json"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 pythonpath = ["src"]

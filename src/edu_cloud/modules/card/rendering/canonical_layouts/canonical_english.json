@@ -1,0 +1,403 @@
+{
+  "paper": "A4",
+  "config": {
+    "examTitle": "",
+    "titleSize": 14,
+    "subtitleSize": 16,
+    "titleSpacing": 1,
+    "subtitleSpacing": 4,
+    "titleGap": 1,
+    "subtitleGap": 1.5,
+    "infoHeight": 18,
+    "infoPadding": 2,
+    "infoRowGap": 2,
+    "infoFontSize": 10,
+    "infoBorderWidth": 1,
+    "nameLineWidth": 35,
+    "digitCount": 10,
+    "digitBoxSize": 4.5,
+    "digitGap": 0.8,
+    "barcodeWidthPct": 40,
+    "barcodeTitleSize": 12,
+    "noticeHeight": 20,
+    "noticeLabelWidth": 6,
+    "noticeLabelSize": 10,
+    "noticeFontSize": 7,
+    "exampleWidth": 10,
+    "noticeBorderWidth": 1,
+    "absentPadding": 1,
+    "paperSize": "A4",
+    "zoom": 100,
+    "subjectTitle": "英语",
+    "choiceCount": 55,
+    "optionCount": 7,
+    "choicePerRow": 20,
+    "choiceGroups": [
+      {
+        "start": 1,
+        "options": 3,
+        "count": 20
+      },
+      {
+        "start": 21,
+        "options": 4,
+        "count": 15
+      },
+      {
+        "start": 36,
+        "options": 7,
+        "count": 5
+      },
+      {
+        "start": 41,
+        "options": 4,
+        "count": 15
+      }
+    ],
+    "fillCount": 10,
+    "fillStart": 56,
+    "fillPerRow": 3,
+    "essayCount": 2,
+    "essayConfig": [
+      {
+        "score": 15
+      },
+      {
+        "score": 25
+      }
+    ],
+    "choiceRowGap": 0,
+    "fillScore": 5
+  },
+  "sides": [
+    {
+      "side": "A",
+      "columns": [
+        {
+          "col": 0,
+          "regions": [
+            {
+              "id": "header",
+              "type": "fixed",
+              "role": "header"
+            },
+            {
+              "id": "info",
+              "type": "fixed",
+              "role": "info"
+            },
+            {
+              "id": "notice",
+              "type": "fixed",
+              "role": "notice"
+            },
+            {
+              "id": "choices",
+              "type": "fixed",
+              "role": "choices",
+              "count": 55,
+              "options": 7,
+              "perRow": 20
+            },
+            {
+              "id": "fill-56",
+              "type": "fill",
+              "qno": 56,
+              "spaces": 1,
+              "spaceWidth": "100%",
+              "heightRatio": 0.1
+            },
+            {
+              "id": "fill-57",
+              "type": "fill",
+              "qno": 57,
+              "spaces": 1,
+              "spaceWidth": "100%",
+              "heightRatio": 0.1
+            },
+            {
+              "id": "fill-58",
+              "type": "fill",
+              "qno": 58,
+              "spaces": 1,
+              "spaceWidth": "100%",
+              "heightRatio": 0.1
+            },
+            {
+              "id": "fill-59",
+              "type": "fill",
+              "qno": 59,
+              "spaces": 1,
+              "spaceWidth": "100%",
+              "heightRatio": 0.1
+            },
+            {
+              "id": "fill-60",
+              "type": "fill",
+              "qno": 60,
+              "spaces": 1,
+              "spaceWidth": "100%",
+              "heightRatio": 0.1
+            },
+            {
+              "id": "fill-61",
+              "type": "fill",
+              "qno": 61,
+              "spaces": 1,
+              "spaceWidth": "100%",
+              "heightRatio": 0.1
+            },
+            {
+              "id": "fill-62",
+              "type": "fill",
+              "qno": 62,
+              "spaces": 1,
+              "spaceWidth": "100%",
+              "heightRatio": 0.1
+            },
+            {
+              "id": "fill-63",
+              "type": "fill",
+              "qno": 63,
+              "spaces": 1,
+              "spaceWidth": "100%",
+              "heightRatio": 0.1
+            },
+            {
+              "id": "fill-64",
+              "type": "fill",
+              "qno": 64,
+              "spaces": 1,
+              "spaceWidth": "100%",
+              "heightRatio": 0.1
+            },
+            {
+              "id": "fill-65",
+              "type": "fill",
+              "qno": 65,
+              "spaces": 1,
+              "spaceWidth": "100%",
+              "heightRatio": 0.1
+            },
+            {
+              "id": "essay-Q_写作第一节",
+              "type": "essay",
+              "qno": 0,
+              "score": 15,
+              "subs": [
+                {
+                  "sub": 1,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 2,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 3,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 4,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 5,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 6,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                }
+              ],
+              "heightRatio": 1,
+              "displayLabel": "写作第一节"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "side": "B",
+      "columns": [
+        {
+          "col": 0,
+          "regions": [
+            {
+              "id": "essay-Q_写作第一节-cont",
+              "type": "essay",
+              "qno": 0,
+              "score": 0,
+              "subs": [],
+              "heightRatio": 0.2338,
+              "displayLabel": "写作第一节",
+              "continuation": true
+            },
+            {
+              "id": "essay-Q_写作第二节",
+              "type": "essay",
+              "qno": 0,
+              "score": 25,
+              "subs": [
+                {
+                  "sub": 1,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 2,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 3,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 4,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 5,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 6,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 7,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 8,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 9,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                },
+                {
+                  "sub": 10,
+                  "blanks": [
+                    {
+                      "w": "100%"
+                    },
+                    {
+                      "w": "100%"
+                    }
+                  ]
+                }
+              ],
+              "heightRatio": 0.7662,
+              "displayLabel": "写作第二节"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
