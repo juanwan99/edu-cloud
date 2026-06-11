@@ -36,7 +36,11 @@ from edu_cloud.modules.card.models import Template, CardSkeleton
 from edu_cloud.modules.card.export.barcode_gen import parse_student_excel, render_barcode_pdf
 from edu_cloud.modules.card.layout_helpers import is_biology_generic_pollution, strip_runtime_render_fields
 from edu_cloud.modules.card.rendering.renderer import render_card_v2
-from edu_cloud.modules.card.rendering.subject_defaults import CanonicalLayoutError, get_default_layout
+from edu_cloud.modules.card.rendering.subject_defaults import (
+    CanonicalLayoutError,
+    final_canonical_layout_drift_reason,
+    get_default_layout,
+)
 
 router = APIRouter(prefix="/api/v1/card", tags=["card"])
 
@@ -125,6 +129,14 @@ async def get_editor_layout(
         )
         return _default_layout_response(subject.name)
 
+    drift_reason = final_canonical_layout_drift_reason(layout, merged_config, subject.name)
+    if drift_reason:
+        logger.warning(
+            "get_editor_layout: saved layout %s rejected by final canonical guard: %s",
+            path.name, drift_reason,
+        )
+        return _default_layout_response(subject.name)
+
     return {"found": True, "layout": layout, "source": "saved", "config": merged_config, "choices": data.get("choices", [])}
 
 
@@ -163,6 +175,17 @@ async def save_editor_layout(
         )
 
     # 剥离前端渲染注入的 _side/_col/_sideIdx 等运行时字段，不得持久化（pack3）
+    drift_reason = final_canonical_layout_drift_reason(body.layout, merged_config, subject.name)
+    if drift_reason:
+        logger.warning(
+            "save_editor_layout: rejected final canonical drift, subject=%s, reason=%s",
+            subject_id, drift_reason,
+        )
+        raise HTTPException(
+            422,
+            f"refuse save: layout structure drift from final canonical ({drift_reason})",
+        )
+
     editor_data = strip_runtime_render_fields(
         {"layout": body.layout, "config": body.config, "choices": body.choices}
     )

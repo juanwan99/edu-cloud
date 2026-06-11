@@ -1,0 +1,323 @@
+{
+  "paper": "A3",
+  "config": {
+    "examTitle": "",
+    "titleSize": 14,
+    "subtitleSize": 16,
+    "titleSpacing": 1,
+    "subtitleSpacing": 4,
+    "titleGap": 1,
+    "subtitleGap": 1.5,
+    "infoHeight": 18,
+    "infoPadding": 2,
+    "infoRowGap": 2,
+    "infoFontSize": 10,
+    "infoBorderWidth": 1,
+    "nameLineWidth": 35,
+    "digitCount": 10,
+    "digitBoxSize": 4.5,
+    "digitGap": 0.8,
+    "barcodeWidthPct": 40,
+    "barcodeTitleSize": 12,
+    "noticeHeight": 20,
+    "noticeLabelWidth": 6,
+    "noticeLabelSize": 10,
+    "noticeFontSize": 7,
+    "exampleWidth": 10,
+    "noticeBorderWidth": 1,
+    "absentPadding": 1,
+    "paperSize": "A3",
+    "zoom": 66,
+    "subjectTitle": "历史",
+    "choiceCount": 16,
+    "optionCount": 4,
+    "choicePerRow": 20,
+    "choiceGroups": [
+      {
+        "start": 1,
+        "count": 5,
+        "options": 4,
+        "x": 5.1,
+        "y": 29.8,
+        "w": 6.7
+      },
+      {
+        "start": 6,
+        "count": 5,
+        "options": 4,
+        "x": 13.8,
+        "y": 29.9,
+        "w": 6.7
+      },
+      {
+        "start": 11,
+        "count": 5,
+        "options": 4,
+        "x": 22.6,
+        "y": 29.9,
+        "w": 6.7
+      },
+      {
+        "start": 16,
+        "count": 1,
+        "options": 4,
+        "x": 31.3,
+        "y": 29.9,
+        "w": 0.8
+      }
+    ],
+    "fillCount": 0,
+    "fillStart": 17,
+    "fillPerRow": 2,
+    "essayCount": 3,
+    "essayConfig": [
+      {
+        "score": 17.0
+      },
+      {
+        "score": 18.0
+      },
+      {
+        "score": 17.0
+      }
+    ]
+  },
+  "sides": [
+    {
+      "side": "A",
+      "columns": [
+        {
+          "col": 0,
+          "regions": [
+            {
+              "id": "header",
+              "type": "fixed",
+              "role": "header"
+            },
+            {
+              "id": "info",
+              "type": "fixed",
+              "role": "info"
+            },
+            {
+              "id": "notice",
+              "type": "fixed",
+              "role": "notice"
+            },
+            {
+              "id": "choices",
+              "type": "fixed",
+              "role": "choices",
+              "count": 16,
+              "options": 4,
+              "perRow": 20
+            }
+          ]
+        },
+        {
+          "col": 1,
+          "regions": [
+            {
+              "id": "essay-Q17",
+              "type": "essay",
+              "qno": 17,
+              "score": 18,
+              "subs": [
+                {
+                  "sub": 1,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 等级性与礼仪性；政治象征意义大于经济实质；文化传播与"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "整合功能。\n(2) 见评分参考及示例。",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 2,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 等级性与礼仪性；政治象征意义大于经济实质；文化传播与"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "整合功能。\n(2) 见评分参考及示例。",
+                      "continuation": true
+                    }
+                  ]
+                }
+              ],
+              "heightRatio": 0.6702,
+              "targetHeight_mm": 87.5
+            },
+            {
+              "id": "essay-Q18",
+              "type": "essay",
+              "qno": 18,
+              "score": 16,
+              "subs": [
+                {
+                  "sub": 1,
+                  "blanks": [
+                    {
+                      "w": "48%",
+                      "answer": "见评分标准及示例。"
+                    }
+                  ]
+                }
+              ],
+              "heightRatio": 0.3298,
+              "targetHeight_mm": 41.0
+            }
+          ],
+          "qGap_mm": 5
+        },
+        {
+          "col": 2,
+          "regions": [
+            {
+              "id": "essay-Q19",
+              "type": "essay",
+              "qno": 19,
+              "score": 18,
+              "subs": [
+                {
+                  "sub": 1,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 苏格拉底：古希腊城邦民主制由盛转衰，直接民主制的随意"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "性、盲目性弊端凸显；智者学派的相对主义冲击了城邦传统道德，导",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "致社会道德沦丧。弗朗西斯·培根：资本主义经济发展，新兴资产阶",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "级务实、进取精神的影响；文艺复兴与科学革命兴起，经院哲学的权",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "威受到动摇，对自然科学探索的需求增强。赫伯特·斯宾塞：工业革",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "命推动资本主义经济发展，自由竞争资本主义思想盛行；达尔文进化",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "论的影响，以及殖民扩张、社会不平等的现实状况。\n(2) 哲学",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "为政治奠定基础与提供指导：哲学为政治提供价值根基、合法性论证",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "与制度蓝图。政治实践催生与塑造哲学思考：政治实践为哲学提出现",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "实课题，推动哲学思想的发展与转向。",
+                      "continuation": true
+                    }
+                  ]
+                },
+                {
+                  "sub": 2,
+                  "blanks": [
+                    {
+                      "w": "100%",
+                      "answer": "(1) 苏格拉底：古希腊城邦民主制由盛转衰，直接民主制的随意"
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "性、盲目性弊端凸显；智者学派的相对主义冲击了城邦传统道德，导",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "致社会道德沦丧。弗朗西斯·培根：资本主义经济发展，新兴资产阶",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "级务实、进取精神的影响；文艺复兴与科学革命兴起，经院哲学的权",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "威受到动摇，对自然科学探索的需求增强。赫伯特·斯宾塞：工业革",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "命推动资本主义经济发展，自由竞争资本主义思想盛行；达尔文进化",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "论的影响，以及殖民扩张、社会不平等的现实状况。\n(2) 哲学",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "为政治奠定基础与提供指导：哲学为政治提供价值根基、合法性论证",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "与制度蓝图。政治实践催生与塑造哲学思考：政治实践为哲学提出现",
+                      "continuation": true
+                    },
+                    {
+                      "w": "100%",
+                      "answer": "实课题，推动哲学思想的发展与转向。",
+                      "continuation": true
+                    }
+                  ]
+                }
+              ],
+              "heightRatio": 1.0,
+              "targetHeight_mm": 270.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "side": "B",
+      "columns": [
+        {
+          "col": 0,
+          "regions": []
+        },
+        {
+          "col": 1,
+          "regions": []
+        },
+        {
+          "col": 2,
+          "regions": []
+        }
+      ]
+    }
+  ]
+}

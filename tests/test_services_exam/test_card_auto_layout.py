@@ -229,7 +229,11 @@ import json
 from edu_cloud.modules.card.layout_helpers import (
     _load_layout, _save_layout, is_biology_generic_pollution,
 )
-from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
+from edu_cloud.modules.card.rendering.subject_defaults import (
+    _CANONICAL_FILES,
+    final_canonical_layout_drift_reason,
+    get_default_layout,
+)
 
 
 POLLUTED_CONFIG = {
@@ -312,14 +316,15 @@ class TestLoadLayoutPollutionGuard:
         assert layout["config"]["choiceCount"] == 16
         assert layout["config"]["fillCount"] == 0
 
-    def test_legitimate_saved_layout_returned_as_is(self, layout_dir):
-        legitimate = _polluted_layout()
-        legitimate["config"] = {**POLLUTED_CONFIG, "choiceCount": 16, "fillCount": 0}
+    def test_structural_drift_saved_layout_falls_back_to_canonical(self, layout_dir):
+        drifted = _polluted_layout()
+        drifted["config"] = {**POLLUTED_CONFIG, "choiceCount": 16, "fillCount": 0}
         self._write(layout_dir, {
-            "layout": legitimate, "config": dict(legitimate["config"]), "choices": [],
+            "layout": drifted, "config": dict(drifted["config"]), "choices": [],
         })
         layout = _load_layout("s1", "sub1", "生物")
-        assert layout["paper"] == "A4"
+        assert layout["paper"] == "A3"
+        assert [len(s["columns"]) for s in layout["sides"]] == [3, 3]
         assert layout["config"]["choiceCount"] == 16
 
     def test_missing_file_returns_canonical_default(self, layout_dir):
@@ -417,6 +422,57 @@ def _underscore_keys(value, path=""):
     return found
 
 
+class TestFinalCanonicalLayoutContract:
+    FINAL_EXPECTED = {
+        "语文": {"paper": "A3", "columns": [3, 3], "choiceCount": 9, "fillCount": 0, "essayCount": 14},
+        "数学": {"paper": "A3", "columns": [3, 3], "choiceCount": 11, "fillCount": 0, "essayCount": 6},
+        "英语": {"paper": "A4", "columns": [1, 1], "choiceCount": 55, "fillCount": 10, "essayCount": 2},
+        "物理": {"paper": "A3", "columns": [3, 3], "choiceCount": 10, "fillCount": 0, "essayCount": 5},
+        "化学": {"paper": "A4", "columns": [3, 1], "choiceCount": 14, "fillCount": 0, "essayCount": 4},
+        "生物": {"paper": "A3", "columns": [3, 3], "choiceCount": 16, "fillCount": 0, "essayCount": 5},
+        "政治": {"paper": "A3", "columns": [3, 3], "choiceCount": 16, "fillCount": 0, "essayCount": 5},
+        "历史": {"paper": "A3", "columns": [3, 3], "choiceCount": 16, "fillCount": 0, "essayCount": 3},
+        "地理": {"paper": "A3", "columns": [3, 3], "choiceCount": 16, "fillCount": 0, "essayCount": 3},
+    }
+
+    def test_all_final_subjects_have_canonical_mapping(self):
+        assert set(_CANONICAL_FILES) == set(self.FINAL_EXPECTED)
+
+    @pytest.mark.parametrize("subject,expected", FINAL_EXPECTED.items())
+    def test_final_canonical_default_shape(self, subject, expected):
+        layout = get_default_layout(subject)
+        config = layout["config"]
+        assert layout["paper"] == expected["paper"]
+        assert [len(side["columns"]) for side in layout["sides"]] == expected["columns"]
+        assert config["choiceCount"] == expected["choiceCount"]
+        assert config["fillCount"] == expected["fillCount"]
+        assert config["essayCount"] == expected["essayCount"]
+        assert _underscore_keys(layout) == []
+
+    def test_chinese_final_canonical_has_composition_grid_contract(self):
+        layout = get_default_layout("语文")
+        regions = [
+            region
+            for side in layout["sides"]
+            for col in side["columns"]
+            for region in col["regions"]
+        ]
+        q23 = next(region for region in regions if region.get("qno") == 23)
+        assert q23["qtype"] == "essay_cn"
+        assert q23["charCount"] == 1200
+
+    def test_structural_drift_is_rejected_for_stale_biology_shape(self):
+        stale = {
+            "paper": "A4",
+            "config": {"subjectTitle": "生物", "choiceCount": 16, "fillCount": 0, "essayCount": 5},
+            "sides": [
+                {"side": "A", "columns": [{"col": 0, "regions": []}]},
+                {"side": "B", "columns": [{"col": 0, "regions": []}]},
+            ],
+        }
+        assert final_canonical_layout_drift_reason(stale, stale["config"], "生物")
+
+
 class TestSaveLayoutRuntimeFieldStrip:
     """保存链路运行时字段剥离契约（2026-06-11 cardtpl-pack3）。
 
@@ -476,7 +532,7 @@ class TestSaveLayoutRuntimeFieldStrip:
              "subs": [{"sub": 1, "answers": ["匀速直线运动"]}]},
         ]
         layout = _load_layout("s1", "sub1", "物理")
-        assert _underscore_keys(layout), "前置条件：物理默认布局应含运行时字段"
+        assert _underscore_keys(layout) == [], "final canonical default layouts must be runtime-field clean"
 
         result = calculate_layout(parsed, layout.get("config"), existing_layout=layout)
         layout = _apply_to_regions(layout, result)

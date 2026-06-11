@@ -408,6 +408,11 @@ def _load_layout(school_id: str, subject_id: str, subject_name: str) -> dict:
     回退分支返回 deepcopy：调用方会原地修改并回写（_apply_to_regions →
     _save_layout），不得污染 subject_defaults._LAYOUT_CACHE 模块级缓存。
     """
+    from edu_cloud.modules.card.rendering.subject_defaults import (
+        final_canonical_layout_drift_reason,
+        get_default_layout,
+    )
+
     path = _get_layout_path(school_id, subject_id)
     if path.exists():
         try:
@@ -424,15 +429,21 @@ def _load_layout(school_id: str, subject_id: str, subject_name: str) -> dict:
                     path.name,
                 )
             else:
-                if "config" not in layout and "config" in data:
-                    layout["config"] = data["config"]
-                return layout
+                drift_reason = final_canonical_layout_drift_reason(layout, merged_config, subject_name)
+                if drift_reason:
+                    logger.warning(
+                        "_load_layout: saved layout %s rejected by final canonical guard: %s",
+                        path.name, drift_reason,
+                    )
+                else:
+                    if "config" not in layout and "config" in data:
+                        layout["config"] = data["config"]
+                    return layout
         else:
             logger.warning(
                 "_load_layout: unreadable or malformed layout file %s, falling back to subject default",
                 path.name,
             )
-    from edu_cloud.modules.card.rendering.subject_defaults import get_default_layout
     return copy.deepcopy(get_default_layout(subject_name))
 
 

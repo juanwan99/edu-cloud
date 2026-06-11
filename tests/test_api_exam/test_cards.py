@@ -321,9 +321,9 @@ class TestEditorLayout:
         assert data["choices"] == []
 
     async def test_save_and_load_layout(self, client: AsyncClient, seed_subject):
-        """Save layout → load returns it."""
+        """Save canonical-compatible layout metadata -> load returns it."""
         headers, _, subject_id = seed_subject
-        layout = {"paper": "A3", "sides": [{"side": "A", "columns": []}]}
+        layout = copy.deepcopy(get_default_layout("生物"))
         config = {"examTitle": "测试考试"}
         choices = [{"qno": 1, "options": 4}]
 
@@ -333,7 +333,6 @@ class TestEditorLayout:
         assert resp.status_code == 200
         assert resp.json()["ok"] is True
 
-        # Load it back
         resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
         assert resp.status_code == 200
         data = resp.json()
@@ -378,16 +377,20 @@ class TestEditorLayout:
         assert resp.status_code == 404
 
     async def test_save_layout_overwrites_existing(self, client: AsyncClient, seed_subject):
-        """Saving layout twice overwrites the first."""
+        """Saving canonical-compatible layout twice overwrites metadata."""
         headers, _, subject_id = seed_subject
+        layout = copy.deepcopy(get_default_layout("生物"))
 
-        await client.put(f"/api/v1/card/editor-layout/{subject_id}", json={
-            "layout": {"paper": "A4", "sides": []}, "config": {}, "choices": [],
+        resp = await client.put(f"/api/v1/card/editor-layout/{subject_id}", json={
+            "layout": layout, "config": {"examTitle": "v1"}, "choices": [],
         }, headers=headers)
+        assert resp.status_code == 200
 
-        await client.put(f"/api/v1/card/editor-layout/{subject_id}", json={
-            "layout": {"paper": "A3", "sides": [{"side": "A"}]}, "config": {"examTitle": "v2"}, "choices": [{"qno": 1, "options": 4}],
+        layout2 = copy.deepcopy(get_default_layout("生物"))
+        resp = await client.put(f"/api/v1/card/editor-layout/{subject_id}", json={
+            "layout": layout2, "config": {"examTitle": "v2"}, "choices": [{"qno": 1, "options": 4}],
         }, headers=headers)
+        assert resp.status_code == 200
 
         resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
         data = resp.json()
@@ -407,20 +410,25 @@ class TestEditorLayout:
         db.add(subject2)
         await db.commit()
 
-        # Save different layouts for each subject
-        await client.put(f"/api/v1/card/editor-layout/{subject_id_1}", json={
-            "layout": {"paper": "A4", "tag": "exam1"}, "config": {}, "choices": [],
+        # Save different layouts for each subject. Final subjects require canonical structure;
+        # unknown subject names keep the old arbitrary-layout behavior.
+        layout1 = copy.deepcopy(get_default_layout("生物"))
+        layout1["tag"] = "exam1"
+        resp = await client.put(f"/api/v1/card/editor-layout/{subject_id_1}", json={
+            "layout": layout1, "config": {}, "choices": [],
         }, headers=headers)
-        await client.put("/api/v1/card/editor-layout/sub2", json={
+        assert resp.status_code == 200
+        resp = await client.put("/api/v1/card/editor-layout/sub2", json={
             "layout": {"paper": "A3", "tag": "exam2"}, "config": {}, "choices": [],
         }, headers=headers)
+        assert resp.status_code == 200
 
         # Each should return its own layout, not the other's
         resp1 = await client.get(f"/api/v1/card/editor-layout/{subject_id_1}", headers=headers)
         resp2 = await client.get("/api/v1/card/editor-layout/sub2", headers=headers)
 
         assert resp1.json()["layout"]["tag"] == "exam1"
-        assert resp1.json()["layout"]["paper"] == "A4"
+        assert resp1.json()["layout"]["paper"] == "A3"
         assert resp2.json()["layout"]["tag"] == "exam2"
         assert resp2.json()["layout"]["paper"] == "A3"
 
@@ -665,10 +673,10 @@ class TestEditorLayout:
         assert data["config"]["choiceCount"] == 16
         assert data["config"]["fillCount"] == 0
 
-    async def test_biology_legitimate_saved_layout_not_misjudged(self, client: AsyncClient, seed_subject, tmp_path):
-        """生物合法 saved layout（不命中全部指纹维度）→ 仍正常以 source=saved 返回。"""
+    async def test_biology_structural_drift_saved_layout_falls_back_to_default(self, client: AsyncClient, seed_subject, tmp_path):
+        """Saved layout that is not the final canonical structure must not be returned as saved."""
         headers, _, subject_id = seed_subject
-        legitimate = {
+        drifted = {
             "layout": {
                 "paper": "A4",
                 "config": {"subjectTitle": "生物", "paperSize": "A4",
@@ -683,16 +691,15 @@ class TestEditorLayout:
             "choices": [],
         }
         (tmp_path / f"s1_{subject_id}.json").write_text(
-            json.dumps(legitimate, ensure_ascii=False), encoding="utf-8"
+            json.dumps(drifted, ensure_ascii=False), encoding="utf-8"
         )
 
         resp = await client.get(f"/api/v1/card/editor-layout/{subject_id}", headers=headers)
         assert resp.status_code == 200
         data = resp.json()
-        assert data["source"] == "saved"
-        assert data["config"]["choiceCount"] == 16
-
-    # ── PUT 写入防线 + auto-layout 路径（2026-06-11 cardtpl-pack2）──
+        assert data["source"] == "default"
+        assert data["layout"]["paper"] == "A3"
+        assert [len(s["columns"]) for s in data["layout"]["sides"]] == [3, 3]
 
     @staticmethod
     def _polluted_body() -> dict:
@@ -711,6 +718,11 @@ class TestEditorLayout:
             "config": dict(config),
             "choices": [],
         }
+
+    @staticmethod
+    def _canonical_biology_body() -> dict:
+        layout = copy.deepcopy(get_default_layout("生物"))
+        return {"layout": layout, "config": dict(layout["config"]), "choices": []}
 
     async def test_put_polluted_biology_layout_rejected_not_written(self, client: AsyncClient, seed_subject, tmp_path):
         """PUT 命中生物 generic 污染指纹 → 422 拒绝，editor_layouts 不写入。"""
@@ -740,12 +752,10 @@ class TestEditorLayout:
         assert resp.status_code == 422
         assert path.read_text(encoding="utf-8") == existing, "污染 PUT 不得覆盖已有合法布局"
 
-    async def test_put_legitimate_biology_layout_accepted(self, client: AsyncClient, seed_subject, tmp_path):
-        """合法生物布局（不命中全部指纹维度）→ 正常保存，防线不过度拦截。"""
+    async def test_put_final_canonical_biology_layout_accepted(self, client: AsyncClient, seed_subject, tmp_path):
+        """Only the final canonical biology structure is accepted for saved layouts."""
         headers, _, subject_id = seed_subject
-        body = self._polluted_body()
-        body["layout"]["config"].update({"choiceCount": 16, "fillCount": 0})
-        body["config"].update({"choiceCount": 16, "fillCount": 0})
+        body = self._canonical_biology_body()
 
         resp = await client.put(
             f"/api/v1/card/editor-layout/{subject_id}", json=body, headers=headers,
@@ -754,7 +764,19 @@ class TestEditorLayout:
         assert resp.json()["ok"] is True
         assert (tmp_path / f"s1_{subject_id}.json").exists()
 
-    # ── PUT 持久化运行时字段剥离（2026-06-11 cardtpl-pack3）──
+    async def test_put_structural_drift_biology_layout_rejected(self, client: AsyncClient, seed_subject, tmp_path):
+        """Non-canonical structure is rejected even when it does not match the old pollution fingerprint."""
+        headers, _, subject_id = seed_subject
+        body = self._polluted_body()
+        body["layout"]["config"].update({"choiceCount": 16, "fillCount": 0})
+        body["config"].update({"choiceCount": 16, "fillCount": 0})
+
+        resp = await client.put(
+            f"/api/v1/card/editor-layout/{subject_id}", json=body, headers=headers,
+        )
+        assert resp.status_code == 422
+        assert "canonical" in resp.json()["detail"]
+        assert not (tmp_path / f"s1_{subject_id}.json").exists()
 
     async def test_put_layout_sanitizes_runtime_fields_before_persistence(
         self, client: AsyncClient, seed_subject, tmp_path,
@@ -762,16 +784,12 @@ class TestEditorLayout:
         """PUT 布局含前端渲染注入的 _side/_col/_sideIdx → 200 保存，
         落盘文件递归无任何下划线前缀 key，合法字段原样保留。"""
         headers, _, subject_id = seed_subject
-        body = self._polluted_body()
-        body["layout"]["config"].update({"choiceCount": 16, "fillCount": 0})
-        body["config"].update({"choiceCount": 16, "fillCount": 0})
-        body["layout"]["sides"][0]["columns"][0]["regions"] = [
-            {"id": "header", "type": "fixed", "role": "header",
-             "_side": "A", "_col": 0, "_sideIdx": 0},
-            {"id": "essay-17", "type": "essay", "qno": 17, "score": 12,
-             "heightRatio": 1.0, "subs": [],
-             "_side": "A", "_col": 0, "_sideIdx": 0},
-        ]
+        body = self._canonical_biology_body()
+        regions = body["layout"]["sides"][0]["columns"][0]["regions"]
+        regions[0].update({"_side": "A", "_col": 0, "_sideIdx": 0})
+        next(r for r in regions if r.get("qno") == 17).update(
+            {"_side": "A", "_col": 0, "_sideIdx": 0, "_height_mm": 42.5}
+        )
 
         resp = await client.put(
             f"/api/v1/card/editor-layout/{subject_id}", json=body, headers=headers,
@@ -794,9 +812,9 @@ class TestEditorLayout:
 
         assert underscore_keys(saved) == [], "运行时字段不得持久化"
         regions = saved["layout"]["sides"][0]["columns"][0]["regions"]
-        assert [r["id"] for r in regions] == ["header", "essay-17"]
-        assert regions[1]["qno"] == 17
-        assert regions[1]["score"] == 12
+        assert regions[0]["id"] == "header"
+        essay17 = next(r for r in regions if r.get("qno") == 17)
+        assert essay17["score"] == 12
 
     async def test_auto_layout_api_polluted_saved_uses_canonical_base(self, client: AsyncClient, seed_subject, tmp_path, monkeypatch):
         """auto-layout 端点：saved 文件命中污染指纹 → _load_layout 回退 canonical，

@@ -524,13 +524,17 @@ _LAYOUT_CACHE: dict[str, dict] = {}
 # canonical 模板资产：从历史已验证 editor_layouts 提取，学科默认的最高优先级真源
 _CANONICAL_DIR = Path(__file__).resolve().parent / "canonical_layouts"
 _CANONICAL_FILES: dict[str, str] = {
-    "化学": "canonical_chemistry.json",   # A4 多栏 [3,1]，14选择/0填空/4解答(Q15-18)
-    "英语": "canonical_english.json",     # A4 [1,1]，55选择/10填空(56-65)/2写作
-    # 生物为 PROVISIONAL：源自候选 e1cc167b（3 候选中最新、score 与 essayConfig
-    # 自洽、heightRatio 归一），最终 canonical 待用户/产品确认（ab5a1279 同形状
-    # 可直接替换；9a1bc1c1 为旧 4 列结构需同步改契约测试）
-    "生物": "canonical_biology.json",     # A3 [3,3]，16选择(含多选)/0填空/5解答(Q17-21)
+    "语文": "canonical_chinese.json",
+    "数学": "canonical_math.json",
+    "英语": "canonical_english.json",
+    "物理": "canonical_physics.json",
+    "化学": "canonical_chemistry.json",
+    "生物": "canonical_biology.json",
+    "政治": "canonical_politics.json",
+    "历史": "canonical_history.json",
+    "地理": "canonical_geography.json",
 }
+FINAL_CANONICAL_SUBJECTS = frozenset(_CANONICAL_FILES)
 
 
 class CanonicalLayoutError(RuntimeError):
@@ -554,6 +558,83 @@ def _validate_canonical_layout(layout: object) -> str | None:
         if not isinstance(s, dict) or not isinstance(s.get("columns"), list):
             return "side entry missing columns list"
     return None
+
+
+def _layout_structure_signature(layout: dict, config_override: dict | None = None) -> dict:
+    """Build a structural layout signature, ignoring answer text and runtime fields."""
+    config = {**(layout.get("config") or {}), **(config_override or {})}
+
+    def region_signature(region: dict) -> dict | None:
+        rtype = region.get("type")
+        if rtype == "fixed":
+            return {"type": "fixed", "role": region.get("role")}
+        if rtype == "fill":
+            return {"type": "fill", "qno": region.get("qno")}
+        if rtype == "essay":
+            sig = {"type": "essay", "qno": region.get("qno")}
+            for key in ("qtype", "displayLabel", "continuation", "charCount"):
+                if key in region:
+                    sig[key] = region.get(key)
+            return sig
+        return None
+
+    sides = []
+    for side in layout.get("sides") or []:
+        cols = []
+        for col in side.get("columns") or []:
+            regions = []
+            for region in col.get("regions") or []:
+                if isinstance(region, dict):
+                    rsig = region_signature(region)
+                    if rsig is not None:
+                        regions.append(rsig)
+            cols.append({"col": col.get("col"), "regions": regions})
+        sides.append({"side": side.get("side"), "columns": cols})
+
+    choice_groups = []
+    for group in config.get("choiceGroups") or []:
+        if isinstance(group, dict):
+            choice_groups.append({
+                "start": group.get("start"),
+                "count": group.get("count"),
+                "options": group.get("options"),
+                "multi": bool(group.get("multi")),
+            })
+
+    return {
+        "paper": layout.get("paper") or config.get("paperSize"),
+        "subjectTitle": _normalize_subject(config.get("subjectTitle", "")),
+        "choiceCount": config.get("choiceCount", 0),
+        "optionCount": config.get("optionCount", 4),
+        "fillCount": config.get("fillCount", 0),
+        "essayCount": config.get("essayCount", 0),
+        "choiceGroups": choice_groups,
+        "columns": [len(s.get("columns") or []) for s in layout.get("sides") or []],
+        "sides": sides,
+    }
+
+
+def final_canonical_layout_drift_reason(
+    layout: dict,
+    config: dict | None,
+    subject_name: str,
+) -> str | None:
+    """Saved/editor layouts for final subjects must match canonical structure."""
+    subject = _normalize_subject(subject_name)
+    if subject not in FINAL_CANONICAL_SUBJECTS:
+        return None
+    canonical = _load_canonical_layout(subject)
+    if canonical is None:
+        return f"{subject} missing canonical mapping"
+    candidate_sig = _layout_structure_signature(layout, config)
+    canonical_sig = _layout_structure_signature(canonical)
+    if candidate_sig == canonical_sig:
+        return None
+    return f"{subject} layout structure drift from final canonical"
+
+
+def is_final_canonical_subject(subject_name: str) -> bool:
+    return _normalize_subject(subject_name) in FINAL_CANONICAL_SUBJECTS
 
 
 def _load_canonical_layout(subject_name: str) -> dict | None:

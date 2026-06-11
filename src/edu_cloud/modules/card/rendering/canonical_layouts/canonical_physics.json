@@ -1,0 +1,168 @@
+{
+  "paper": "A3",
+  "config": {
+    "examTitle": "",
+    "titleSize": 14,
+    "subtitleSize": 16,
+    "titleSpacing": 1,
+    "subtitleSpacing": 4,
+    "titleGap": 1,
+    "subtitleGap": 1.5,
+    "infoHeight": 18,
+    "infoPadding": 2,
+    "infoRowGap": 2,
+    "infoFontSize": 10,
+    "infoBorderWidth": 1,
+    "nameLineWidth": 35,
+    "digitCount": 10,
+    "digitBoxSize": 4.5,
+    "digitGap": 0.8,
+    "barcodeWidthPct": 40,
+    "barcodeTitleSize": 12,
+    "noticeHeight": 20,
+    "noticeLabelWidth": 6,
+    "noticeLabelSize": 10,
+    "noticeFontSize": 7,
+    "exampleWidth": 10,
+    "noticeBorderWidth": 1,
+    "absentPadding": 1,
+    "paperSize": "A3",
+    "zoom": 73,
+    "subjectTitle": "物理",
+    "choiceCount": 10,
+    "optionCount": 4,
+    "choicePerRow": 16,
+    "choiceGroups": [
+      {
+        "start": 1,
+        "options": 4,
+        "count": 10
+      }
+    ],
+    "fillCount": 0,
+    "fillStart": 11,
+    "fillPerRow": 2,
+    "essayCount": 5,
+    "essayConfig": [
+      {
+        "score": 6
+      },
+      {
+        "score": 10
+      },
+      {
+        "score": 10
+      },
+      {
+        "score": 14
+      },
+      {
+        "score": 16
+      }
+    ],
+    "choiceRowGap": 0,
+    "fillScore": 5
+  },
+  "sides": [
+    {
+      "side": "A",
+      "columns": [
+        {
+          "col": 0,
+          "regions": [
+            {
+              "id": "header",
+              "type": "fixed",
+              "role": "header"
+            },
+            {
+              "id": "info",
+              "type": "fixed",
+              "role": "info"
+            },
+            {
+              "id": "notice",
+              "type": "fixed",
+              "role": "notice"
+            },
+            {
+              "id": "choices",
+              "type": "fixed",
+              "role": "choices",
+              "count": 10,
+              "options": 4,
+              "perRow": 20
+            }
+          ]
+        },
+        {
+          "col": 1,
+          "regions": [
+            {
+              "id": "essay-Q11",
+              "type": "essay",
+              "qno": 11,
+              "score": 6,
+              "subs": [],
+              "heightRatio": 0.3675
+            },
+            {
+              "id": "essay-Q12",
+              "type": "essay",
+              "qno": 12,
+              "score": 10,
+              "subs": [],
+              "heightRatio": 0.6325
+            }
+          ]
+        },
+        {
+          "col": 2,
+          "regions": [
+            {
+              "id": "essay-Q13",
+              "type": "essay",
+              "qno": 13,
+              "score": 10,
+              "subs": [],
+              "heightRatio": 0.4557
+            },
+            {
+              "id": "essay-Q14",
+              "type": "essay",
+              "qno": 14,
+              "score": 14,
+              "subs": [],
+              "heightRatio": 0.5443
+            },
+            {
+              "id": "essay-Q15",
+              "type": "essay",
+              "qno": 15,
+              "score": 16,
+              "subs": [],
+              "heightRatio": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "side": "B",
+      "columns": [
+        {
+          "col": 0,
+          "regions": []
+        },
+        {
+          "col": 1,
+          "regions": []
+        },
+        {
+          "col": 2,
+          "regions": []
+        }
+      ]
+    }
+  ]
+}
