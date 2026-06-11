@@ -8,6 +8,8 @@ Use this index before reading historical `docs/plans/**`. Anything not listed he
 |---|---|---|
 | `AGENTS.md` | active | Codex entrypoint and hard rules |
 | `docs/context/GOVERNANCE_MODEL.md` | active | 元守双核心 model |
+| `docs/context/CODEX_STEWARD.md` | active | Codex project stewardship and planning memory |
+| `docs/context/PARALLEL_DEVELOPMENT.md` | active | Safe parallel development modes, launch rules, and exclusive scopes |
 | `docs/context/META_RUNTIME.md` | active | Meta Core task-contract runtime |
 | `docs/context/GUARDIAN_RUNTIME.md` | active | Guardian Core realtime runtime contract |
 | `docs/context/NOW.md` | active | Current facts and risks |
@@ -16,6 +18,7 @@ Use this index before reading historical `docs/plans/**`. Anything not listed he
 | `docs/context/CLAUDE_AUX.md` | active | Claude Code read-only auxiliary model protocol |
 | `docs/context/SAFETY_MATRIX.md` | active | Rule enforcement map |
 | `docs/context/ARTIFACT_POLICY.md` | active | Local artifact, backup, screenshot, and scratch-script policy |
+| `docs/governance/foundation-boundaries.md` | active | Module boundary, coupling debt, and parallel development direction |
 | `.github/workflows/test.yml` | active | CI smoke checks for the Codex governance layer plus existing backend/frontend jobs |
 
 ## Candidate Active Work

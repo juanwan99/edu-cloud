@@ -18,6 +18,23 @@
 - Current actual cross-module import baseline: 55 edges and 30 historical
   cycles. These are allowed as existing debt; new edges or new cycles are not.
 
+## Long-Term Architecture Direction
+
+- Target shape: modular monolith first. Split services or repos only after
+  module contracts, ownership, and runtime boundaries are stable.
+- Existing 55 cross-module edges and 30 historical cycles are debt baseline,
+  not a design model. New work should reduce this baseline or leave it flat.
+- Prefer module-owned APIs, service facades, domain events, or explicit
+  contract files over direct imports into another module's internals.
+- Cross-module integration must be justified in the plan or evidence and paired
+  with a guard/test update when it changes architectural risk.
+- No new dependency cycle without explicit designer approval.
+- Strategic goal: increase safe parallelism so separate execution windows can
+  work by module or scope without hidden global side effects.
+- Operational rule: use `docs/context/PARALLEL_DEVELOPMENT.md` to classify
+  whether a task is read-only, docs-only, module-writer, frontend-only, or
+  exclusive before starting another execution window.
+
 ## Permissions Boundary
 
 - Backend source: `src/edu_cloud/core/permissions.py`.

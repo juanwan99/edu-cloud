@@ -16,6 +16,25 @@ edu-cloud uses **元守双核心**:
 
 The model is Codex-led and Claude-assisted.
 
+## Codex Stewardship
+
+Codex is the project steward for edu-cloud. Codex owns current facts,
+strategic direction, task planning, edits, verification, and completion
+claims. Claude may critique through the read-only auxiliary path, but Claude
+does not become the project authority.
+
+Long-term architecture direction: keep edu-cloud on a modular-monolith path
+that steadily increases safe parallel development. New work should reduce
+direct cross-module coupling, expose behavior through module-owned APIs,
+facades, or events where practical, and avoid new direct imports or cycles
+unless an explicit governance note justifies the tradeoff.
+
+See `docs/context/CODEX_STEWARD.md` and
+`docs/governance/foundation-boundaries.md`.
+
+For multiple Codex/Claude windows, read
+`docs/context/PARALLEL_DEVELOPMENT.md` before launching or assigning work.
+
 ## Start Here
 
 1. Run `scripts/codex-check`.
@@ -24,7 +43,9 @@ The model is Codex-led and Claude-assisted.
    multi-step delivery.
 3. Read `docs/context/NOW.md`.
 4. Read `docs/context/ACTIVE_INDEX.md` before using old plans or handoffs.
-5. Do not clean, stash, overwrite, or revert dirty work unless the user explicitly asks.
+5. For multi-window or urgent parallel work, read
+   `docs/context/PARALLEL_DEVELOPMENT.md`.
+6. Do not clean, stash, overwrite, or revert dirty work unless the user explicitly asks.
 
 ## Project
 
@@ -93,6 +114,8 @@ Claude Code may be used only through `scripts/codex-consult-claude` as a Codex-i
 ## Current Context Files
 
 - `docs/context/GOVERNANCE_MODEL.md`: 元守双核心 model.
+- `docs/context/CODEX_STEWARD.md`: Codex project stewardship and planning memory.
+- `docs/context/PARALLEL_DEVELOPMENT.md`: safe parallel development policy.
 - `docs/context/META_RUNTIME.md`: Meta Core task-contract runtime.
 - `docs/context/GUARDIAN_RUNTIME.md`: Guardian Core realtime runtime contract.
 - `docs/context/NOW.md`: current project facts and risks.
@@ -102,3 +125,4 @@ Claude Code may be used only through `scripts/codex-consult-claude` as a Codex-i
 - `docs/context/SAFETY_MATRIX.md`: rule source to script/CI enforcement map.
 - `docs/context/ACTIVE_INDEX.md`: active vs historical document index.
 - `docs/context/ARTIFACT_POLICY.md`: data, screenshot, backup, and scratch-script policy.
+- `docs/governance/foundation-boundaries.md`: module boundary and coupling-reduction direction.

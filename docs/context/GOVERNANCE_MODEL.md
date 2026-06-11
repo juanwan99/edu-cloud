@@ -14,7 +14,13 @@ operational accidents. It is explicit, script-backed, and reviewable in git.
 ## Meta Core / 元控核
 
 Meta Core prevents task drift and execution drift. It owns direction, facts,
-task boundaries, context, Claude read-only counter-review, and the completion evidence contract.
+task boundaries, context, Claude read-only counter-review, and the completion
+evidence contract.
+
+Meta Core also owns the long-term module-boundary direction: increase safe
+parallel development by reducing direct cross-module coupling, preferring
+module-owned APIs, facades, or events, and blocking new cycles unless the
+tradeoff is explicit.
 
 It answers:
 
@@ -24,16 +30,22 @@ It answers:
 - Does this task need Claude read-only counter-review?
 - What evidence is required before a completion claim?
 - Is this change following existing project assets instead of creating a parallel system?
+- Does this change preserve or improve module boundaries and future
+  parallel-development safety?
+- Which parallel-development mode is allowed for this task?
 
 Primary files and tools:
 
 - `AGENTS.md`
+- `docs/context/CODEX_STEWARD.md`
+- `docs/context/PARALLEL_DEVELOPMENT.md`
 - `docs/context/NOW.md`
 - `docs/context/ACTIVE_INDEX.md`
 - `docs/context/COMMANDS.md`
 - `docs/context/LESSONS.md`
 - `docs/context/CLAUDE_AUX.md`
 - `docs/context/META_RUNTIME.md`
+- `docs/governance/foundation-boundaries.md`
 - `scripts/codex-context`
 - `scripts/meta-check`
 - `scripts/meta_runtime.py`
@@ -46,6 +58,8 @@ Core capabilities:
 - Scope and task-boundary discipline
 - Evidence requirements for decisions and completion claims
 - Asset inventory before new design or architecture work
+- Module-boundary direction and coupling-reduction discipline
+- Parallel-work classification before launching extra windows
 - Claude read-only counter-review
 
 ## Meta Runtime / 元控运行时
