@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-06-10 18:20 Asia/Shanghai
+Last refreshed: 2026-06-10 20:42 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -21,15 +21,15 @@ scripts/truth doctor --json
 - Backend API: `127.0.0.1:9000`
 - Frontend artifact path: `frontend/dist/`
 - Known pytest baseline entries: 26 in `.quality/known-pytest-failures.txt`
-- Source HEAD (2026-06-10): `6f90994` (docs-only on code-effective `41a8ced`;
-  `git diff HEAD -- src/` clean). All three runtime surfaces now align on HEAD
-  `6f90994` with `source_dirty=false`: backend `/api/v1/version`,
-  `frontend/dist/version.json`, and nginx `https://mcu.asia/version.json`.
-  `scripts/truth-status.sh` exits 0 with no `BROKEN AT:` line. The earlier
-  docs-only false `BUILD_DRIFT` is cleared (dist rebuilt on HEAD `6f90994`).
+- Source HEAD (2026-06-10 20:37 re-verified): `c26379d` (coze required_action
+  fail-closed 收口). All runtime surfaces align on HEAD `c26379d` with
+  `source_dirty=false`: backend `/api/v1/version`, `frontend/dist/version.json`,
+  nginx `https://mcu.asia/version.json`. `scripts/truth-status.sh` reports
+  **ALL ALIGNED**, exit 0. 留痕补记：`6f90994 → c26379d` 的对齐（backend restart
+  19:05 + dist rebuild 19:12）发生在治理窗口外，已登记为 audit 风险 R-M2。
 - Backend process (2026-06-10, post-takeover): under **systemd**
-  `edu-cloud.service` = **active**, PID `4017244` (booted 2026-06-10 18:17:14),
-  runs HEAD `6f90994`, `source_dirty=false`, owns `127.0.0.1:9000`. The prior
+  `edu-cloud.service` = **active**, PID `4143044` (booted 2026-06-10 19:05:28),
+  runs HEAD `c26379d`, `source_dirty=false`, owns `127.0.0.1:9000`. The prior
   orphan manual uvicorn PID `391900` (`ebf7934`) was stopped; no SERVICE_BYPASS /
   GHOST_PROCESS / PORT_OWNER_MISMATCH (guardian-watch red=0).
 - DB doctor is **green** (2026-06-10): `HARD=0 WARN=0` ("No drift detected").
@@ -43,8 +43,17 @@ scripts/truth doctor --json
   **KEEP + allowlist** in `scripts/db_doctor.py` (`ALLOWLIST_TABLES`), **never
   drop** — dropping it destroys data and breaks 4 triggers.
 - Runtime services (2026-06-10): `edu-cloud.service` **active** (systemd-managed
-  backend), `edu-cloud-worker.service` + `edu-cloud-guardian.service` active.
-  Backend is now systemd-managed — do not hand-launch a manual uvicorn.
+  backend, PID 4143044), `edu-cloud-worker.service` **active**（PID `189590`，
+  2026-06-10 20:45:48 重启对齐 HEAD `c26379d`——此前 PID `1941124` 自 2026-05-29
+  跑 12 天前旧代码，即 audit 风险 R-H1 的 stale 缺口；窗口内两次 restart 详见留痕；
+  合同 `yc-20260610-776deb92`，留痕
+  `docs/reviews/2026-06-10-worker-runtime-alignment.md`），
+  `edu-cloud-guardian.service` active. Backend is systemd-managed — do not
+  hand-launch a manual uvicorn. guardian 对 worker 仍无版本/boot 新鲜度门控
+  （R-H1 监控盲区部分，待后续批次）。
+- Foundation stability audit (2026-06-10, read-only,合同 `yc-20260610-b3099133`):
+  `docs/reviews/2026-06-10-foundation-stability-audit.md` — 风险登记
+  R-H1..R-L6；Portal Phase 1 准入判定：C3 复验 + designer sign-off 仍缺。
 - Full 2026-06-10 runtime foundation evidence + recovery decision:
   `docs/plans/2026-06-10-runtime-foundation-recovery.md`.
 - DB migration + runtime takeover **design / runbook** (order, verify commands,
@@ -86,11 +95,13 @@ blockers are now **CLEARED**; source/build/nginx/backend all aligned on HEAD
 3. **Context stale** — corrected by this refresh (NOW.md now at the post-takeover
    state).
 
-**Portal C1 (DB red→green) + C2 (backend+dist+nginx at HEAD) are now GREEN.**
-Remaining for Portal Phase 1 unlock: re-confirm C3 (online module-gating /
-portal-services fail-closed) and **designer sign-off** (executor does not
-self-unlock). Runbook + rollback points:
-`docs/plans/2026-06-10-db-migration-design.md`.
+**Portal C1 (DB red→green) + C2 are now GREEN.** C2 的 worker 面实质缺口
+（audit R-H1：ARQ worker 12 天 stale）已于 2026-06-10 20:45 闭合——worker 重启
+对齐 HEAD `c26379d`（最终 PID 189590），C2 自此在 backend/dist/nginx/worker
+四面成立（留痕 `docs/reviews/2026-06-10-worker-runtime-alignment.md`）。Remaining for Portal
+Phase 1 unlock: re-confirm C3 (online module-gating / portal-services
+fail-closed) and **designer sign-off** (executor does not self-unlock).
+Runbook + rollback points: `docs/plans/2026-06-10-db-migration-design.md`.
 
 ## Current Role-Entry Work
 
@@ -264,8 +275,9 @@ but **implementation is gated by runtime/DB cleanup** — three conditions must 
 green before any Portal code: ① DB doctor red→green (**GREEN 2026-06-10**: migration
 applied, `exam_import_sessions` created, `_audit_log` allowlisted, db_doctor HARD=0
 WARN=0); ② deploy/runtime hash aligned to HEAD (**GREEN 2026-06-10**: backend+dist+nginx
-all at HEAD `6f90994`, `source_dirty=false`, truth-status no `BROKEN AT:` — see "Runtime
-Foundation Status (2026-06-10) — R1 EXECUTION WINDOW DONE"); ③ online-verify module
+at HEAD `c26379d`, `source_dirty=false`, truth-status ALL ALIGNED; worker 面缺口
+R-H1 已闭合，worker PID 189590 于 20:45:48 重启对齐 — see
+`docs/reviews/2026-06-10-worker-runtime-alignment.md`); ③ online-verify module
 gating / portal services keep fail-closed (**still to re-confirm + designer sign-off**). First-cut scope: frontend homepage
 aggregation + consume existing `/api/v1/portal/*` (5 endpoints live,
 `modules/portal/router.py:25-57`) + service cards gated by `moduleGateFromAuth`.
@@ -335,10 +347,12 @@ The AI grading prompt/rubric/guard changes are committed. Targeted AI grading
 tests have no new failures; the remaining prompt test failure is part of the
 known baseline.
 
-Live grading jobs can run for hours. A legacy shell-started ARQ worker may still
-be processing jobs started before `edu-cloud-worker.service` was installed. Do
-not kill it unless you accept ARQ cancellation/retry risk; after it drains,
-stop the legacy process and rerun `scripts/truth doctor --json`.
+Live grading jobs can run for hours. The legacy shell-started ARQ worker note
+is **obsolete**: as of 2026-06-10 (`ps` verified) the only `run-arq-worker`
+process system-wide is the systemd-managed `edu-cloud-worker.service`
+(PID 189590, restarted 2026-06-10 20:45:48 on HEAD `c26379d`). Worker restarts
+interrupt in-flight ARQ jobs (recovered via ARQ retry semantics) — schedule
+restarts accordingly.
 
 ## Artifact State
 
