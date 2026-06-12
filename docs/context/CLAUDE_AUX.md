@@ -1,11 +1,24 @@
 # Claude Auxiliary Model
 
-Claude Code may be used as a Codex-invoked auxiliary model with full repository read access and no write or command execution authority.
+This file covers **only** the optional read-only auxiliary review path
+(`scripts/codex-consult-claude`): Claude as a Codex-invoked reviewer with full
+repository read access and no write or command execution authority.
+
+It does **not** cover governed execution. Per the Q1 ruling
+(`docs/reviews/2026-06-12-w1-governance-acceptance.md`), Claude Code is the
+project's executor for write operations — but only inside a `yc start` window
+with an active Yuanshou V2 contract, where the V2 runtime machine-guards the
+write scope, evidence, and closeout. That execution channel and this read-only
+auxiliary channel are two different paths; do not conflate them.
 
 ## Authority
 
-- Codex is the orchestrator, editor, verifier, and source of completion claims.
-- Claude output is advisory until Codex verifies it.
+- Codex/Yuance is the orchestrator at the planning/review/acceptance layer;
+  it accepts or rejects findings and completion evidence.
+- Write operations belong to the governed Claude Code execution channel
+  (`yc start` + V2 contract), not to this auxiliary path.
+- Claude output in this auxiliary channel is advisory until Codex verifies it.
+- Completion claims are accepted by Codex/the user, never declared by Claude.
 - `AGENTS.md` is authoritative.
 - `docs/context/NOW.md` is the current fact source.
 - `docs/context/ACTIVE_INDEX.md` controls whether historical docs are active.
@@ -51,14 +64,14 @@ claude -p \
 
 The wrapper runs Claude from `/tmp/codex-claude-consult`, not the repo root. This reduces accidental activation of historical Claude project state while still granting repository read access through `--add-dir`.
 
-## Claude May
+## Claude May (in this auxiliary channel)
 
 - Read `AGENTS.md`, `docs/context/**`, source, tests, and docs.
 - Grep, glob, and list files.
 - Produce findings, risks, alternatives, and missing-test suggestions.
 - Ask Codex for command output when needed.
 
-## Claude Must Not
+## Claude Must Not (in this auxiliary channel)
 
 - Edit files.
 - Write files.
@@ -68,13 +81,19 @@ The wrapper runs Claude from `/tmp/codex-claude-consult`, not the repo root. Thi
 - Treat `CLAUDE.md` as the active project entrypoint.
 - Update `docs/context/**` directly.
 
+(Write work belongs to the separate governed execution channel: a Claude Code
+window opened via `yc start` with an active V2 contract.)
+
 ## Codex Must
 
 - Decide whether to accept Claude findings.
-- Apply any code or doc changes itself.
-- Run verification commands itself.
-- Update `NOW.md` and `ACTIVE_INDEX.md` when facts change.
-- Include command evidence in completion claims.
+- Route accepted code or doc changes into a governed Claude Code execution
+  window (`yc start` + V2 contract) instead of editing directly.
+- Define the contract's required evidence and verify the executor's
+  Completion Return Packet against it.
+- Ensure `NOW.md` and `ACTIVE_INDEX.md` updates are scheduled (via a governed
+  window) when facts change.
+- Include command evidence in completion acceptance.
 
 ## When To Consult Claude
 

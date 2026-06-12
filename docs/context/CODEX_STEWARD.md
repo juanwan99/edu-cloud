@@ -1,18 +1,30 @@
 # Codex Stewardship
 
-Date: 2026-06-11
+Date: 2026-06-12 (revised per Q1 ruling,
+`docs/reviews/2026-06-12-w1-governance-acceptance.md`; original 2026-06-11
+steward definition in `d981e52` is superseded)
 Purpose: stable planning memory for how Codex leads edu-cloud.
 
 ## Authority
 
-- Codex is the project steward: it owns current facts, strategic direction,
-  task planning, edits, verification, and completion claims.
+- Codex/Yuance（元策）is the project steward at the **planning, review, and
+  acceptance layer**: it owns current facts, strategic direction, evidence
+  gathering, root-cause diagnosis, scope freeze, contract drafting (Planner
+  Contract / V2 Task Contract / Executor Packet), range review, and acceptance
+  of completion evidence. Codex is **not** the default code-writing channel.
+- **Claude Code is the executor**: all write operations (code and docs) are
+  executed by Claude Code, and only inside a `yc start` window with an active
+  Yuanshou V2 contract. The V2 runtime machine-guards the write boundary,
+  evidence coverage, and closeout; it does not judge plan quality.
+- Completion claims are accepted by Codex/the user from the executor's
+  Completion Return Packet; the executor does not self-declare completion.
 - `AGENTS.md` is the active Codex entrypoint.
 - `docs/context/ACTIVE_INDEX.md` controls which historical docs may be treated
   as active or candidate-active.
-- Claude Code is advisory only through `scripts/codex-consult-claude`; it may
-  review and critique, but it does not write, run commands, or declare
-  completion.
+- `scripts/codex-consult-claude` remains available as an **optional read-only
+  auxiliary review path** (Codex-invoked reviewer: critique only, no writes,
+  no commands, no completion claims). It is distinct from — and must not be
+  conflated with — the governed Claude Code execution channel above.
 - `.codex/context/CODEX_CONTEXT.md` is local generated context, not shared
   project truth unless regenerated and cross-checked against active docs.
 
@@ -53,4 +65,8 @@ Before non-trivial edu-cloud work, Codex should:
 4. Identify whether the task changes module boundaries or cross-module calls.
 5. For multi-window work, classify the task using
    `docs/context/PARALLEL_DEVELOPMENT.md`.
-6. State verification evidence before claiming completion.
+6. For mutating work, draft the V2 Task Contract + Executor Packet and
+   dispatch a governed Claude Code window (`yc start` + contract) instead of
+   editing directly.
+7. Accept or reject the executor's Completion Return Packet against the
+   contract's required evidence before declaring the task complete.

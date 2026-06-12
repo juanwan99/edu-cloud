@@ -14,14 +14,30 @@ edu-cloud uses **元守双核心**:
   `deploy/systemd/edu-cloud-guardian.service` when continuous monitoring is
   needed.
 
-The model is Codex-led and Claude-assisted.
+The working model is the Yuanshou V2 division of roles (Q1 ruling 2026-06-12,
+`docs/reviews/2026-06-12-w1-governance-acceptance.md`):
+
+- **Codex/Yuance（元策）** plans, reviews, and accepts: evidence gathering,
+  root-cause diagnosis, scope freeze, Planner Contract / V2 Task Contract /
+  Executor Packet drafting, range review, and acceptance of completion
+  evidence. Codex is **not** the default code-writing channel.
+- **Claude Code** is the governed executor: it performs the write operations,
+  but only inside a `yc start` window with an active Yuanshou V2 contract.
+- **Yuanshou V2** guards execution boundaries, evidence coverage, and
+  closeout. It does not judge plan quality.
+- Completion claims are accepted by Codex/the user from the executor's
+  Completion Return Packet; Claude Code does not declare completion on its own.
 
 ## Codex Stewardship
 
-Codex is the project steward for edu-cloud. Codex owns current facts,
-strategic direction, task planning, edits, verification, and completion
-claims. Claude may critique through the read-only auxiliary path, but Claude
-does not become the project authority.
+Codex is the project steward for edu-cloud at the planning, review, and
+acceptance layer. Codex owns current facts, strategic direction, task
+planning, contract drafting, range review, and acceptance of completion
+evidence. Edits and other write operations are executed by Claude Code inside
+`yc start` + V2 contract windows; Codex does not edit by default. Claude may
+additionally critique through the optional read-only auxiliary path
+(`scripts/codex-consult-claude`), which is distinct from the governed
+execution channel and does not make Claude the project authority.
 
 Long-term architecture direction: keep edu-cloud on a modular-monolith path
 that steadily increases safe parallel development. New work should reduce
@@ -102,14 +118,23 @@ scripts/codex-verify full --schema
 
 `scripts/codex-verify frontend` refuses dirty frontend build inputs unless `--allow-dirty-build` is passed. Dirty builds are debug evidence only, not completion evidence.
 
-## Claude Auxiliary Model
+## Claude Channels
 
-Claude Code may be used only through `scripts/codex-consult-claude` as a Codex-invoked read-only auxiliary reviewer.
+Claude has two distinct channels. Do not conflate them:
 
-- Claude may read the full repository with `Read`, `Grep`, `Glob`, and `LS`.
-- Claude must not write files, run Bash, run git, run migrations, run DB commands, or declare completion.
-- Codex remains responsible for accepting/rejecting findings, editing files, running verification, and updating `docs/context/**`.
-- See `docs/context/CLAUDE_AUX.md` for the fixed boundary.
+1. **Governed execution（默认写通道）**: Claude Code executes write work inside
+   a `yc start` window with an active Yuanshou V2 contract —
+   `allowed_write_scope` / forbidden scope / evidence / closeout are
+   machine-enforced by the V2 runtime. The executor returns a Completion
+   Return Packet; Codex/the user accepts or rejects it.
+2. **Read-only auxiliary review（可选只读辅助审查）**:
+   `scripts/codex-consult-claude` invokes Claude as a Codex-invoked read-only
+   reviewer.
+   - Claude may read the full repository with `Read`, `Grep`, `Glob`, and `LS`.
+   - In this channel Claude must not write files, run Bash, run git, run
+     migrations, run DB commands, or declare completion.
+   - Codex remains responsible for accepting/rejecting findings.
+   - See `docs/context/CLAUDE_AUX.md` for the fixed boundary.
 
 ## Current Context Files
 

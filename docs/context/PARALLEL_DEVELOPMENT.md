@@ -82,8 +82,10 @@ contract explicitly grants push authority.
 ## Integration Rules
 
 - One integrator owns final merge/push for a batch.
-- Central context files are updated by the main Codex session after worker
-  results are accepted.
+- Central context files (`AGENTS.md`, `docs/context/**`) are updated through a
+  dedicated exclusive governed window (`yc start` + V2 contract) after Codex
+  accepts the worker results; Codex does not edit them directly (Q1 ruling,
+  `docs/reviews/2026-06-12-w1-governance-acceptance.md`).
 - A worker closeout must report `sid`, contract id/hash, changed files, commit
   hash if any, verification commands, dirty/staged status, and out-of-scope
   residue.

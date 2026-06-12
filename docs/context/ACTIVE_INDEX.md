@@ -19,6 +19,8 @@ Use this index before reading historical `docs/plans/**`. Anything not listed he
 | `docs/context/SAFETY_MATRIX.md` | active | Rule enforcement map |
 | `docs/context/ARTIFACT_POLICY.md` | active | Local artifact, backup, screenshot, and scratch-script policy |
 | `docs/governance/foundation-boundaries.md` | active | Module boundary, coupling debt, and parallel development direction |
+| `docs/governance/debt-ledger.md` | active | 地基债务台账（单一跨域债务真源，窗口选题驱动）：过程洞 A（runtime operation 未绑合同）/洞 B（review receipt 未绑 commit，13 commit gap）、R-H3/R-H4/R-H5、55 edges/30 cycles burn-down、AI tool module_code 语义债、known_drift=studio、Portal Phase 1 解锁前置条件 |
+| `docs/reviews/2026-06-12-w1-governance-acceptance.md` | active | W1 read_only 验收记录：accept 结论 + Q1 角色裁定（Codex/Yuance=规划审查验收、Claude Code=yc start+V2 contract 内执行、codex-consult-claude=可选只读辅助）+ 13 commit review gap（3688f32..26d98eb）处置表 + answer-card canonical 真源翻转登记 + coze required_action（AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED）死开关登记 |
 | `.github/workflows/test.yml` | active | CI smoke checks for the Codex governance layer plus existing backend/frontend jobs |
 
 ## Candidate Active Work
@@ -44,6 +46,8 @@ Use this index before reading historical `docs/plans/**`. Anything not listed he
 
 | Path | Status | Notes |
 |---|---|---|
+| `docs/reviews/2026-06-11-edu-foundation-deep-investigation.md` | reference | 2026-06-11 深度调查报告归档（W1 验收 accept；三层地基判断、风险登记、治理效能数据的证据真源） |
+| `docs/reviews/2026-06-11-edu-governance-handoff.md` | reference | 2026-06-11 治理交接包归档（W1 验收 accept；共识固化、13 commit 处置表、Q1–Q5 待裁定清单、W0–W5+ 窗口序列） |
 | `docs/sidebar-modular-restore-handoff.md` | completed-reference | Header says Part A/B completed and Part C hook work implemented. |
 | `docs/marking-assign-handoff.md` | completed-reference | Header says assignment redesign implemented. |
 | `docs/plans/2026-04-29-truthline-p0-handoff.md` | reference | Truthline context only; current command is `scripts/truth`. |

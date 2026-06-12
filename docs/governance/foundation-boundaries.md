@@ -17,6 +17,12 @@
   `scripts/governance/check_module_dependencies.py --check`.
 - Current actual cross-module import baseline: 55 edges and 30 historical
   cycles. These are allowed as existing debt; new edges or new cycles are not.
+- Cross-domain governance debt (process + structural) is tracked in the
+  **foundation debt ledger**: `docs/governance/debt-ledger.md` — single source
+  for open R-H3/R-H4/R-H5 risks, the 55-edge/30-cycle burn-down, runtime
+  operation / review receipt process holes, AI tool module_code debt,
+  `known_drift`=studio, and Portal Phase 1 unlock preconditions. Window topic
+  selection is ledger-driven; new debt is registered there first.
 
 ## Long-Term Architecture Direction
 
@@ -105,7 +111,11 @@
 
 ## Next Governance Batches
 
+Batch selection is driven by `docs/governance/debt-ledger.md` (risk × batch
+size × parallelizability), not by individual findings.
+
 1. Move the frontend homepage/workbench reads to `/api/v1/portal/*` instead of
    calling business modules one by one.
 2. Reclassify existing AI tools whose domain/module pairing is semantically
-   overloaded by `exam`, with role/scope tests in the same batch.
+   overloaded by `exam`, with role/scope tests in the same batch
+   (ledger entry D-04).

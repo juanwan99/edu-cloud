@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-06-10 20:42 Asia/Shanghai
+Last refreshed: 2026-06-12 20:47 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -16,7 +16,7 @@ scripts/truth doctor --json
 ## Current Facts
 
 - Branch: `feat/module-governance-repair`
-- Upstream: none
+- Upstream: `origin/feat/module-governance-repair`（2026-06-12 实测 0/0 同步）
 - Production URL: `https://mcu.asia`
 - Backend API: `127.0.0.1:9000`
 - Frontend artifact path: `frontend/dist/`
@@ -59,6 +59,36 @@ scripts/truth doctor --json
 - DB migration + runtime takeover **design / runbook** (order, verify commands,
   rollback points, risk register, Portal unlock gating):
   `docs/plans/2026-06-10-db-migration-design.md`.
+
+## Governance Truth Update (2026-06-12 · W1 验收 + W3 closeout)
+
+W1 read_only 验收记录（含全部细节与处置表）：
+`docs/reviews/2026-06-12-w1-governance-acceptance.md`。W3 执行窗合同
+`yc-20260612-899ea9ce`。
+
+- **Q1 角色裁定（设计者批准，真源已修订）**：Codex/Yuance（元策）= 规划、审查、
+  验收层，**不是默认写代码通道**；Claude Code = 执行者，写操作**仅在 `yc start` +
+  active Yuanshou V2 contract 内**；Yuanshou V2 = 运行边界/证据/closeout 守卫；
+  `scripts/codex-consult-claude` 保留为可选只读辅助审查路径（与执行通道不混淆）。
+  完成声明由 Codex/用户验收，执行者不自行宣布。已修订：`AGENTS.md`、
+  `docs/context/CODEX_STEWARD.md`、`docs/context/GOVERNANCE_MODEL.md`、
+  `docs/context/CLAUDE_AUX.md`（d981e52 的原 steward 权力定义随裁定失效）。
+- **13 commit review gap 登记**：`3688f32..26d98eb` 零 receipt（末条 receipt =
+  06-07 14:40 PASS@`3688f32`）。处置表见 W1 验收记录 §3（coze 线 + card 线两次
+  `codex-review range` 补审 + waiver/授权留痕/签认）。**本登记只记处置路径，
+  补审在独立 review-gap 合同窗口执行，不在 W3 跑 codex-review。**
+- **answer-card canonical 真源翻转登记**：`dafa6f8`/`77fa6f5`/`26d98eb`（tag
+  `answer-card-canonical-usable-2026-06-12`）把 9 学科权威模板锁入
+  `rendering/canonical_layouts/`，已保存布局偏离 canonical 即拒绝回退——布局真源
+  从「用户保存优先」翻转为「canonical 锁定 + 漂移拒绝」。架构级决策，此前无 plan
+  文档；设计意图已补登记（W1 验收记录 §4），设计合理性验收随 card 线补审处置。
+- **Coze required_action 死开关风险登记（R-M3）**：
+  `AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED` 未声明进 `config.py` Settings
+  （pydantic `extra="ignore"` 静默吞 env）→「显式开启」路径不可达。方向安全
+  （永远 fail-closed）但开关无效。台账条目 D-05，待 Q2 裁定（接线 vs 永久关闭）。
+- **地基债务台账落地**：`docs/governance/debt-ledger.md` 为跨域债务单一真源
+  （过程洞 A/B、55 边 30 环、AI 工具语义债、基线三口径、known_drift=studio、
+  Portal Phase 1 前置条件）。窗口选题自此台账驱动。
 
 ## Truthline
 

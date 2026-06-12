@@ -3,8 +3,15 @@
 The edu-cloud governance model is **元守双核心**.
 The name means a two-core system: 元 for Meta Core / 元控核, and 守 for
 Guardian Core / 守护核.
-It is Codex-led and Claude-assisted: Codex is the operator, editor, verifier,
-and source of completion claims; Claude is a full-repository read-only reviewer.
+
+Roles follow the Yuanshou V2 division (Q1 ruling 2026-06-12,
+`docs/reviews/2026-06-12-w1-governance-acceptance.md`): Codex/Yuance plans,
+reviews, and accepts — it is not the default write channel; Claude Code is the
+governed executor and writes only inside `yc start` + active V2 contract
+windows; Yuanshou V2 machine-guards execution boundaries, evidence, and
+closeout. Claude additionally serves as an optional full-repository read-only
+reviewer through `scripts/codex-consult-claude`. Completion claims are
+accepted by Codex/the user, never self-declared by the executor.
 
 ## Purpose
 
@@ -176,11 +183,18 @@ watcher every 15 seconds and enables rate-limited Claude review through
 
 ## Authority
 
-- Codex leads and edits.
-- Claude may read the full repository through `scripts/codex-consult-claude`.
-- Claude may critique Meta Core decisions and Guardian Core gaps.
-- Claude may not write files, run Bash, run migrations, or declare completion.
-- Completion claims require Codex-run verification evidence.
+- Codex/Yuance leads at the planning/review/acceptance layer; it drafts
+  contracts and packets and accepts evidence. It is not the default editor.
+- Claude Code executes write operations, only inside `yc start` windows with
+  an active Yuanshou V2 contract; the V2 runtime enforces the write boundary,
+  evidence coverage, and closeout mechanically.
+- Through the optional read-only path `scripts/codex-consult-claude`, Claude
+  may read the full repository and critique Meta Core decisions and Guardian
+  Core gaps; in that channel it may not write files, run Bash, run
+  migrations, or declare completion.
+- Completion claims require contract-bound verification evidence (the
+  contract's `required_evidence` + Completion Return Packet) and are accepted
+  by Codex/the user — the executor does not self-declare completion.
 
 ## Non-Goals
 

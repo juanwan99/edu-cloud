@@ -220,6 +220,11 @@ governance completion evidence and CI smoke.
 
 ## Claude Auxiliary Reviewer
 
+This wrapper is the **optional read-only auxiliary path** only. Governed write
+execution is a different channel: a Claude Code window opened via `yc start`
+with an active Yuanshou V2 contract (see `AGENTS.md` "Claude Channels" and
+`docs/context/CLAUDE_AUX.md`). Do not conflate the two.
+
 Check auth:
 
 ```bash
