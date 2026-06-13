@@ -75,6 +75,20 @@ live-proven agent `required_action` submit/resume loop. Keep
 `AI_TOOL_GATEWAY_HTTP_ENABLED=false` until the Coze-container-to-edu-cloud
 ingress has been deployed and verified.
 
+The agent `required_action` submit/resume gate is now a declared Settings field:
+
+```env
+# Fail-closed by default. Do NOT set true until a live-proven
+# /v3/chat/submit_tool_outputs route exists (see "Coze required_action" below).
+AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED=false
+```
+
+Before this was wired the switch existed only in the provider source and was
+silently dropped by `Settings` (pydantic `extra="ignore"`), so the documented
+"explicit enable" path was unreachable (debt ledger D-05). The flag is now bound
+to `Settings.AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED`, but its default remains
+`false`; leaving it unset keeps the existing fail-closed behaviour unchanged.
+
 ## Current ECS Runtime
 
 The verified ECS runtime uses:
@@ -207,6 +221,8 @@ Evidence from the current local Coze CE source/runtime:
 
 edu-cloud therefore treats `tool_modes.coze_required_action=false` unless a
 separate task proves a working submit/resume route and explicitly enables it.
+The explicit enable is `AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED=true` (default
+`false`); do not set it true until the submit/resume route is live-proven.
 The provider accepts both `conversation.chat.required_action` and
 `conversation.chat.requires_action` event names, but reports a non-retryable
 configuration error instead of executing tools when submit/resume is not ready.

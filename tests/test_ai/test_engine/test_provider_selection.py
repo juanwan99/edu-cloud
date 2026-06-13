@@ -23,6 +23,24 @@ def _settings(**overrides):
     return SimpleNamespace(**base)
 
 
+def test_settings_required_action_submit_defaults_false_and_binds_env(monkeypatch):
+    """Real Settings env binding: AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED must
+    default to false and read true only when the env var is explicitly set.
+
+    Guards against the D-05 dead-switch regression where the field was missing
+    from Settings and pydantic ``extra="ignore"`` silently dropped the env var.
+    """
+    from edu_cloud.config import Settings
+
+    monkeypatch.delenv("AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED", raising=False)
+    default_settings = Settings(_env_file=None)
+    assert default_settings.AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED is False
+
+    monkeypatch.setenv("AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED", "true")
+    enabled_settings = Settings(_env_file=None)
+    assert enabled_settings.AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED is True
+
+
 def test_provider_status_falls_back_to_current_when_coze_unconfigured():
     status = provider_status(_settings())
     assert status["preferred"] == "coze"

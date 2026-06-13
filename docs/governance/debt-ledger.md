@@ -69,7 +69,18 @@ gate 防回弹 ⑤ 测试基线单一真源自动刷新。
   （pydantic `extra="ignore"` 静默吞 env）→ 文档承诺的「显式开启」不可达。方向
   安全（永远 fail-closed）但开关无效。
 - 处置路径：等 Q2 裁定——接线进 Settings vs 裁定永久关闭并删开关叙述。
-- 状态：**open**（待裁定）。
+- 裁定（Q2，2026-06-13，合同 `yc-20260613-fca3212d`）：**接线进 Settings、默认
+  fail-closed**。`config.py` 声明 `AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED: bool =
+  False`，env 现可绑定（不再被 `extra="ignore"` 吞）；`.env.example` 补默认
+  `false`；RUNBOOK 明确开关存在但默认 false，submit/resume 未 live-proven 前不得
+  启用；provider 运行时逻辑不变、生产仍 fail-closed。
+- 证据：`Settings(_env_file=None)` 默认 `False`、env=true 后为 `True`；
+  `provider_status` 在显式开启下 `required_action_submit_enabled/ready` +
+  `tool_modes.coze_required_action` 三者 `True`；新增 Settings 真实 env 绑定回归
+  测试 + `test_provider_selection.py`/`test_coze_provider.py`/`test_ai_api.py`
+  聚焦套件通过。
+- 状态：**closed/resolved**（Q2 裁定接线落地，默认 fail-closed；未启用生产
+  required_action submit）。
 
 ### D-06 known_drift = studio-frontend-entry-missing — LOW · 登记内
 

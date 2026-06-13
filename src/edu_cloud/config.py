@@ -92,6 +92,11 @@ class Settings(BaseSettings):
         "get_homework_stats",
         "generate_comment",
     ]
+    # Coze agent required_action submit/resume gate. Fail-closed by default:
+    # leave false until a live-proven /v3/chat/submit_tool_outputs route exists
+    # (see docs/reference/AI_COZE_RUNBOOK.md). Declared here so the env var binds
+    # instead of being silently dropped by model_config extra="ignore".
+    AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED: bool = False
     AI_TOOL_GATEWAY_PUBLIC_BASE: str = ""
     AI_TOOL_GATEWAY_TOKEN: str = ""
     AI_TOOL_GATEWAY_HTTP_ENABLED: bool = False

@@ -82,10 +82,12 @@ W1 read_only 验收记录（含全部细节与处置表）：
   `rendering/canonical_layouts/`，已保存布局偏离 canonical 即拒绝回退——布局真源
   从「用户保存优先」翻转为「canonical 锁定 + 漂移拒绝」。架构级决策，此前无 plan
   文档；设计意图已补登记（W1 验收记录 §4），设计合理性验收随 card 线补审处置。
-- **Coze required_action 死开关风险登记（R-M3）**：
-  `AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED` 未声明进 `config.py` Settings
-  （pydantic `extra="ignore"` 静默吞 env）→「显式开启」路径不可达。方向安全
-  （永远 fail-closed）但开关无效。台账条目 D-05，待 Q2 裁定（接线 vs 永久关闭）。
+- **Coze required_action 死开关（R-M3 / D-05）= 已收口（2026-06-13，合同
+  `yc-20260613-fca3212d`）**：Q2 裁定**接线进 Settings、默认 fail-closed**。
+  `config.py` 声明 `AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED: bool = False`，env 现
+  可绑定（不再被 `extra="ignore"` 吞）；`.env.example` + RUNBOOK 同步默认 false 且
+  「submit/resume 未 live-proven 前不得启用」。provider 运行时逻辑不变、生产仍
+  fail-closed，未启用 required_action submit。台账条目 D-05 → closed/resolved。
 - **地基债务台账落地**：`docs/governance/debt-ledger.md` 为跨域债务单一真源
   （过程洞 A/B、55 边 30 环、AI 工具语义债、基线三口径、known_drift=studio、
   Portal Phase 1 前置条件）。窗口选题自此台账驱动。
