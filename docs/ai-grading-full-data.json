@@ -7,114 +7,116 @@
       "生物",
       "语文"
     ],
-    "generatedAt": "2026-05-08T14:51:32+08:00"
+    "generatedAt": "2026-06-13T21:19:18+08:00"
   },
   "panel1_quality": {
     "overall": {
-      "totalRecords": 23962,
-      "exactMatchRate": 46.3,
-      "within2Rate": 93.6,
-      "avgMAE": 0.85,
-      "avgBias": -0.17,
+      "totalRecords": 24031,
+      "exactMatchRate": 45.3,
+      "within2Rate": 91.5,
+      "avgMAE": 1.06,
+      "avgBias": -0.38,
       "biasDistribution": {
-        "<-3": 493,
-        "-3~-2": 507,
-        "-2~-1": 2196,
-        "-1~0": 4222,
-        "0": 11102,
-        "0~1": 3601,
-        "1~2": 1300,
-        "2~3": 295,
-        ">3": 246
+        "<-3": 973,
+        "-3~-2": 516,
+        "-2~-1": 2140,
+        "-1~0": 4146,
+        "0": 10879,
+        "0~1": 3556,
+        "1~2": 1268,
+        "2~3": 290,
+        ">3": 263
       },
       "conclusions": [
-        "18 题中 15 题 AI 与人工评分 ±2 分符合率超过 90%，整体可靠",
-        "语文_Q23 AI 系统偏低 0.1 分，±2 分符合率仅 54.8%，建议复核评分标准",
-        "AI 评分无系统性偏差，平均偏差在 ±0.3 分以内"
+        "18 题中 12 题 AI 与人工评分 ±2 分符合率超过 90%，整体需要关注",
+        "地理_Q27 AI 系统偏低 0.7 分，±2 分符合率仅 82.1%，建议复核评分标准",
+        "语文_Q23 AI 系统偏低 0.0 分，±2 分符合率仅 54.8%，建议复核评分标准",
+        "AI 整体偏保守（平均偏低 0.38 分），对学生略有不利但不影响区分度",
+        "地理学科 MAE 最高（1.82 分），建议备课组重点复核该学科 AI 评分"
       ]
     },
     "bySubject": {
       "地理": {
-        "studentCount": 1334,
-        "bias": -0.31,
-        "mae": 1.01,
-        "maxDiff": 8.0,
-        "within5Rate": 99.0,
-        "within10Rate": 100.0
+        "studentCount": 1339,
+        "bias": -1.18,
+        "mae": 1.82,
+        "maxDiff": 18.0,
+        "within5Rate": 92.1,
+        "within10Rate": 95.0
       },
       "生物": {
-        "studentCount": 1337,
-        "bias": -0.38,
-        "mae": 0.68,
-        "maxDiff": 7.0,
-        "within5Rate": 99.9,
-        "within10Rate": 100.0
+        "studentCount": 1342,
+        "bias": -0.63,
+        "mae": 0.91,
+        "maxDiff": 14.0,
+        "within5Rate": 97.5,
+        "within10Rate": 99.4
       },
       "语文": {
-        "studentCount": 1339,
+        "studentCount": 1341,
         "bias": -0.03,
-        "mae": 0.89,
-        "maxDiff": 31.0,
+        "mae": 0.9,
+        "maxDiff": 42.0,
         "within5Rate": 98.8,
         "within10Rate": 99.8
       }
     },
     "byQuestion": {
       "地理_Q26": {
-        "mae": 1.11,
-        "bias": -0.71,
-        "exactMatchRate": 52.1,
-        "within2Rate": 93.7,
-        "within5Rate": 98.5,
-        "within10Rate": 100.0,
-        "aiAvg": 10.61,
-        "humanAvg": 11.32,
-        "maxDiff": 8.0,
+        "mae": 1.91,
+        "bias": -1.54,
+        "exactMatchRate": 47.4,
+        "within2Rate": 86.9,
+        "within5Rate": 91.8,
+        "within10Rate": 95.4,
+        "aiAvg": 9.78,
+        "humanAvg": 11.33,
+        "maxDiff": 16.0,
         "riskLevel": "中风险",
         "maxScore": 16,
-        "sampleSize": 1334
+        "sampleSize": 1339
       },
       "地理_Q27": {
-        "mae": 1.13,
-        "bias": 0.2,
-        "exactMatchRate": 38.6,
-        "within2Rate": 88.7,
-        "within5Rate": 99.4,
-        "within10Rate": 100.0,
-        "aiAvg": 12.27,
+        "mae": 1.98,
+        "bias": -0.74,
+        "exactMatchRate": 36.0,
+        "within2Rate": 82.1,
+        "within5Rate": 92.3,
+        "within10Rate": 94.8,
+        "aiAvg": 11.33,
         "humanAvg": 12.07,
-        "maxDiff": 7.0,
-        "riskLevel": "中风险",
+        "maxDiff": 18.0,
+        "riskLevel": "高风险",
         "maxScore": 18,
-        "sampleSize": 1334
+        "sampleSize": 1338
       },
       "地理_Q28": {
-        "mae": 0.78,
-        "bias": -0.42,
-        "exactMatchRate": 56.5,
-        "within2Rate": 92.9,
-        "within5Rate": 99.1,
-        "within10Rate": 100.0,
-        "aiAvg": 10.93,
+        "mae": 1.58,
+        "bias": -1.24,
+        "exactMatchRate": 53.1,
+        "within2Rate": 86.3,
+        "within5Rate": 92.2,
+        "within10Rate": 95.0,
+        "aiAvg": 10.1,
         "humanAvg": 11.34,
-        "maxDiff": 8.0,
+        "maxDiff": 16.0,
         "riskLevel": "中风险",
         "maxScore": 16,
-        "sampleSize": 1334
+        "sampleSize": 1339
       },
       "语文_Q4": {
         "mae": 0.36,
-        "bias": 0.04,
-        "exactMatchRate": 70.3,
-        "within2Rate": 99.0,
+        "bias": 0.03,
+        "exactMatchRate": 70.6,
+        "within2Rate": 99.1,
         "within5Rate": 100.0,
         "within10Rate": 100.0,
         "aiAvg": 3.85,
-        "humanAvg": 3.81,
+        "humanAvg": 3.82,
         "maxDiff": 5.0,
         "riskLevel": "低风险",
         "maxScore": 5,
-        "sampleSize": 1339
+        "sampleSize": 1341
       },
       "语文_Q6": {
         "mae": 0.64,
@@ -159,46 +161,46 @@
         "sampleSize": 1339
       },
       "语文_Q12": {
-        "mae": 0.32,
+        "mae": 0.33,
         "bias": -0.1,
-        "exactMatchRate": 70.2,
-        "within2Rate": 100.0,
+        "exactMatchRate": 70.1,
+        "within2Rate": 99.9,
         "within5Rate": 100.0,
         "within10Rate": 100.0,
-        "aiAvg": 0.79,
-        "humanAvg": 0.9,
-        "maxDiff": 2.0,
-        "riskLevel": "低风险",
-        "maxScore": 3,
-        "sampleSize": 1337
-      },
-      "语文_Q13": {
-        "mae": 0.81,
-        "bias": -0.14,
-        "exactMatchRate": 42.7,
-        "within2Rate": 96.3,
-        "within5Rate": 100.0,
-        "within10Rate": 100.0,
-        "aiAvg": 1.57,
-        "humanAvg": 1.7,
+        "aiAvg": 0.8,
+        "humanAvg": 0.89,
         "maxDiff": 3.0,
         "riskLevel": "低风险",
-        "maxScore": 4,
-        "sampleSize": 1330
+        "maxScore": 3,
+        "sampleSize": 1339
       },
-      "语文_Q15": {
-        "mae": 0.82,
-        "bias": 0.09,
-        "exactMatchRate": 43.4,
-        "within2Rate": 97.6,
+      "语文_Q13": {
+        "mae": 0.83,
+        "bias": -0.11,
+        "exactMatchRate": 42.4,
+        "within2Rate": 95.7,
         "within5Rate": 100.0,
         "within10Rate": 100.0,
-        "aiAvg": 1.96,
-        "humanAvg": 1.87,
+        "aiAvg": 1.58,
+        "humanAvg": 1.69,
         "maxDiff": 4.0,
         "riskLevel": "低风险",
         "maxScore": 4,
-        "sampleSize": 1329
+        "sampleSize": 1339
+      },
+      "语文_Q15": {
+        "mae": 0.84,
+        "bias": 0.11,
+        "exactMatchRate": 43.1,
+        "within2Rate": 96.9,
+        "within5Rate": 100.0,
+        "within10Rate": 100.0,
+        "aiAvg": 1.97,
+        "humanAvg": 1.86,
+        "maxDiff": 4.0,
+        "riskLevel": "低风险",
+        "maxScore": 4,
+        "sampleSize": 1338
       },
       "语文_Q18、19": {
         "mae": 0.69,
@@ -229,103 +231,103 @@
         "sampleSize": 1339
       },
       "语文_Q23": {
-        "mae": 2.93,
-        "bias": -0.05,
+        "mae": 2.96,
+        "bias": -0.02,
         "exactMatchRate": 11.1,
         "within2Rate": 54.8,
-        "within5Rate": 87.5,
-        "within10Rate": 98.1,
-        "aiAvg": 37.22,
-        "humanAvg": 37.27,
-        "maxDiff": 31.0,
+        "within5Rate": 87.4,
+        "within10Rate": 98.0,
+        "aiAvg": 37.23,
+        "humanAvg": 37.24,
+        "maxDiff": 42.0,
         "riskLevel": "高风险",
         "maxScore": 50,
-        "sampleSize": 1326
+        "sampleSize": 1327
       },
       "生物_Q26": {
-        "mae": 1.25,
-        "bias": -1.13,
-        "exactMatchRate": 24.0,
-        "within2Rate": 90.7,
-        "within5Rate": 99.9,
-        "within10Rate": 100.0,
-        "aiAvg": 8.15,
+        "mae": 1.65,
+        "bias": -1.53,
+        "exactMatchRate": 23.7,
+        "within2Rate": 86.8,
+        "within5Rate": 95.7,
+        "within10Rate": 97.2,
+        "aiAvg": 7.75,
         "humanAvg": 9.28,
-        "maxDiff": 7.0,
+        "maxDiff": 14.0,
         "riskLevel": "中风险",
         "maxScore": 14,
-        "sampleSize": 1334
+        "sampleSize": 1339
       },
       "生物_Q27": {
-        "mae": 1.05,
-        "bias": -0.77,
-        "exactMatchRate": 34.3,
-        "within2Rate": 89.2,
-        "within5Rate": 99.7,
-        "within10Rate": 100.0,
-        "aiAvg": 4.72,
+        "mae": 1.25,
+        "bias": -0.97,
+        "exactMatchRate": 33.3,
+        "within2Rate": 86.4,
+        "within5Rate": 97.0,
+        "within10Rate": 99.8,
+        "aiAvg": 4.52,
         "humanAvg": 5.49,
-        "maxDiff": 6.0,
+        "maxDiff": 11.0,
         "riskLevel": "中风险",
         "maxScore": 11,
-        "sampleSize": 1263
+        "sampleSize": 1275
       },
       "生物_Q28": {
-        "mae": 0.37,
-        "bias": -0.17,
-        "exactMatchRate": 69.8,
-        "within2Rate": 99.0,
-        "within5Rate": 99.9,
+        "mae": 0.56,
+        "bias": -0.35,
+        "exactMatchRate": 66.4,
+        "within2Rate": 95.1,
+        "within5Rate": 99.0,
         "within10Rate": 100.0,
-        "aiAvg": 3.54,
+        "aiAvg": 3.35,
         "humanAvg": 3.7,
-        "maxDiff": 6.0,
+        "maxDiff": 8.0,
         "riskLevel": "低风险",
         "maxScore": 9,
-        "sampleSize": 1333
+        "sampleSize": 1338
       },
       "生物_Q29": {
-        "mae": 0.42,
-        "bias": 0.36,
-        "exactMatchRate": 64.2,
-        "within2Rate": 99.5,
+        "mae": 0.44,
+        "bias": 0.31,
+        "exactMatchRate": 63.5,
+        "within2Rate": 98.8,
         "within5Rate": 100.0,
         "within10Rate": 100.0,
-        "aiAvg": 1.64,
+        "aiAvg": 1.58,
         "humanAvg": 1.28,
-        "maxDiff": 3.0,
+        "maxDiff": 4.0,
         "riskLevel": "低风险",
         "maxScore": 6,
-        "sampleSize": 1337
+        "sampleSize": 1342
       },
       "生物_Q30": {
-        "mae": 0.31,
-        "bias": -0.17,
-        "exactMatchRate": 73.7,
-        "within2Rate": 99.6,
-        "within5Rate": 100.0,
+        "mae": 0.67,
+        "bias": -0.54,
+        "exactMatchRate": 71.0,
+        "within2Rate": 95.1,
+        "within5Rate": 95.9,
         "within10Rate": 100.0,
-        "aiAvg": 7.72,
+        "aiAvg": 7.35,
         "humanAvg": 7.89,
-        "maxDiff": 3.0,
+        "maxDiff": 10.0,
         "riskLevel": "低风险",
         "maxScore": 10,
-        "sampleSize": 1337
+        "sampleSize": 1342
       }
     }
   },
   "panel2_answer": {
     "overall": {
       "questionCount": 18,
-      "totalEvaluations": 25523,
-      "weightedScoreRate": 57.9,
-      "weightedDifficulty": 4.2,
+      "totalEvaluations": 25590,
+      "weightedScoreRate": 56.0,
+      "weightedDifficulty": 4.4,
       "focusCount": 8,
       "stableCount": 10,
       "conclusions": [
-        "全卷加权难度 4.2/10（适中），加权得分率 57.9%",
+        "全卷加权难度 4.4/10（适中），加权得分率 56.0%",
         "18 题中 10 题表现稳定，8 题需关注",
-        "生物整体得分率最低（43.5%），薄弱题：Q26、Q27、Q28、Q29",
+        "生物整体得分率最低（41.5%），薄弱题：Q26、Q27、Q28、Q29",
         "语文 Q9、语文 Q12、语文 Q13 零分率偏高（>=20%），建议教研组关注",
         "语文 Q12、语文 Q13、语文 Q23 区分度偏低，高低分组差异不明显"
       ]
@@ -333,15 +335,15 @@
     "bySubject": {
       "地理": {
         "questionCount": 3,
-        "avgScoreRate": 66.5,
-        "avgDifficulty": 3.3,
+        "avgScoreRate": 61.5,
+        "avgDifficulty": 3.9,
         "weakQuestions": [],
         "strongQuestions": []
       },
       "生物": {
         "questionCount": 5,
-        "avgScoreRate": 43.5,
-        "avgDifficulty": 5.7,
+        "avgScoreRate": 41.5,
+        "avgDifficulty": 5.8,
         "weakQuestions": [
           "Q26",
           "Q27",
@@ -352,7 +354,7 @@
       },
       "语文": {
         "questionCount": 10,
-        "avgScoreRate": 51.1,
+        "avgScoreRate": 51.2,
         "avgDifficulty": 4.9,
         "weakQuestions": [
           "Q12",
@@ -367,24 +369,24 @@
         "subject": "地理",
         "qno": "26",
         "maxScore": 16,
-        "total": 1355,
-        "avg": 10.44,
-        "fullMark": 204,
-        "fullMarkRate": 15.1,
-        "zero": 73,
-        "zeroRate": 5.4,
+        "total": 1360,
+        "avg": 9.63,
+        "fullMark": 176,
+        "fullMarkRate": 12.9,
+        "zero": 154,
+        "zeroRate": 11.3,
         "scoreDist": {
-          "0": 73,
-          "2": 26,
-          "4": 60,
-          "6": 126,
-          "8": 156,
-          "10": 229,
-          "12": 216,
+          "0": 154,
+          "2": 41,
+          "4": 58,
+          "6": 116,
+          "8": 146,
+          "10": 212,
+          "12": 205,
           "13": 1,
-          "14": 263,
+          "14": 250,
           "15": 1,
-          "16": 204
+          "16": 176
         },
         "blanks": [
           {
@@ -557,13 +559,13 @@
           {
             "blankNo": "1-1",
             "maxScore": 2,
-            "total": 1086,
+            "total": 1091,
             "correct": 919,
-            "wrong": 167,
+            "wrong": 172,
             "blank": 0,
-            "correctRate": 84.6,
-            "avgScore": 1.69,
-            "errorRate": 15.4,
+            "correctRate": 84.2,
+            "avgScore": 1.68,
+            "errorRate": 15.8,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -589,6 +591,11 @@
                 "answer": "北纬线",
                 "count": 5,
                 "reason": "应填'北回归线'或精确纬度，'北纬线'泛指，不特指"
+              },
+              {
+                "answer": "温度",
+                "count": 5,
+                "reason": "应为'北回归线'，写为'温度'，完全错误"
               },
               {
                 "answer": "北纬",
@@ -659,11 +666,6 @@
                 "answer": "北结",
                 "count": 1,
                 "reason": "应为'北回归线'，'北结'错误"
-              },
-              {
-                "answer": "北纬10度",
-                "count": 1,
-                "reason": "应为'北回归线'或'23.5°N'，北纬10度不是回归线"
               }
             ],
             "reasons": [
@@ -902,13 +904,13 @@
           {
             "blankNo": "2-1",
             "maxScore": 2,
-            "total": 1204,
+            "total": 1209,
             "correct": 693,
-            "wrong": 511,
+            "wrong": 516,
             "blank": 0,
-            "correctRate": 57.6,
+            "correctRate": 57.3,
             "avgScore": 1.15,
-            "errorRate": 42.4,
+            "errorRate": 42.7,
             "wrongAnswers": [
               {
                 "answer": "乙",
@@ -934,6 +936,11 @@
                 "answer": "丙甲",
                 "count": 7,
                 "reason": "应为甲，答成丙甲，指向错误"
+              },
+              {
+                "answer": "胚根",
+                "count": 5,
+                "reason": "应为'甲'或'阿拉伯半岛'，答非所问"
               },
               {
                 "answer": "非洲",
@@ -1004,11 +1011,6 @@
                 "answer": "印度半岛",
                 "count": 2,
                 "reason": "应为甲地或阿拉伯半岛，'印度半岛'是乙地"
-              },
-              {
-                "answer": "沙漠",
-                "count": 2,
-                "reason": "应填甲或阿拉伯半岛，写成沙漠不符合要求"
               }
             ],
             "reasons": [
@@ -1097,13 +1099,13 @@
           {
             "blankNo": "2-2",
             "maxScore": 2,
-            "total": 1089,
+            "total": 1094,
             "correct": 668,
-            "wrong": 421,
+            "wrong": 426,
             "blank": 0,
-            "correctRate": 61.3,
-            "avgScore": 1.23,
-            "errorRate": 38.7,
+            "correctRate": 61.1,
+            "avgScore": 1.22,
+            "errorRate": 38.9,
             "wrongAnswers": [
               {
                 "answer": "甲",
@@ -1112,8 +1114,13 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 19,
+                "count": 20,
                 "reason": "未作答"
+              },
+              {
+                "answer": "①",
+                "count": 5,
+                "reason": "应填乙或丙，'①'非图中代号且指向不明"
               },
               {
                 "answer": "甲丙",
@@ -1124,11 +1131,6 @@
                 "answer": "甲地",
                 "count": 2,
                 "reason": "应填乙地或丙地（湿润区），填甲地方向错误，0分"
-              },
-              {
-                "answer": "①",
-                "count": 2,
-                "reason": "应填乙或丙，'①'非图中代号且指向不明"
               },
               {
                 "answer": "亚洲",
@@ -1292,13 +1294,13 @@
           {
             "blankNo": "2-3",
             "maxScore": 2,
-            "total": 1208,
+            "total": 1213,
             "correct": 1064,
-            "wrong": 144,
+            "wrong": 149,
             "blank": 0,
-            "correctRate": 88.1,
-            "avgScore": 1.76,
-            "errorRate": 11.9,
+            "correctRate": 87.7,
+            "avgScore": 1.75,
+            "errorRate": 12.3,
             "wrongAnswers": [
               {
                 "answer": "甲",
@@ -1307,7 +1309,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 23,
+                "count": 24,
                 "reason": "未作答"
               },
               {
@@ -1319,6 +1321,11 @@
                 "answer": "丙甲",
                 "count": 5,
                 "reason": "应填'丙'，多写'甲'导致指向不明确，不给分"
+              },
+              {
+                "answer": "胚乳",
+                "count": 3,
+                "reason": "应为'丙'或'乙'，答非所问"
               },
               {
                 "answer": "印度",
@@ -1354,11 +1361,6 @@
                 "answer": "乙丙",
                 "count": 2,
                 "reason": "需填单个'乙'或'丙'，'乙丙'不符合要求"
-              },
-              {
-                "answer": "胚乳",
-                "count": 1,
-                "reason": "应为'丙'或'乙'，答非所问"
               },
               {
                 "answer": "炎热",
@@ -1408,7 +1410,7 @@
               },
               {
                 "reason": "未作答，不得分",
-                "count": 3
+                "count": 4
               },
               {
                 "reason": "空白未作答",
@@ -1487,13 +1489,13 @@
           {
             "blankNo": "2-4",
             "maxScore": 2,
-            "total": 1204,
+            "total": 1209,
             "correct": 493,
-            "wrong": 711,
+            "wrong": 716,
             "blank": 0,
-            "correctRate": 40.9,
+            "correctRate": 40.8,
             "avgScore": 0.82,
-            "errorRate": 59.1,
+            "errorRate": 59.2,
             "wrongAnswers": [
               {
                 "answer": "印度",
@@ -1516,14 +1518,14 @@
                 "reason": "应为印度洋，大西洋地理位置错误"
               },
               {
+                "answer": "（未作答）",
+                "count": 39,
+                "reason": "空白未作答，不得分"
+              },
+              {
                 "answer": "大西洋",
                 "count": 35,
                 "reason": "应为印度洋，大西洋位置错误"
-              },
-              {
-                "answer": "（未作答）",
-                "count": 34,
-                "reason": "空白未作答，不得分"
               },
               {
                 "answer": "北冰",
@@ -1626,7 +1628,15 @@
                 "count": 7
               },
               {
+                "reason": "未作答，不得分",
+                "count": 6
+              },
+              {
                 "reason": "应为印度洋，大西洋地理位置错误",
+                "count": 6
+              },
+              {
+                "reason": "未作答，0分",
                 "count": 6
               },
               {
@@ -1635,10 +1645,6 @@
               },
               {
                 "reason": "应为'印度洋'，写成'太平洋'，地理位置错误",
-                "count": 5
-              },
-              {
-                "reason": "未作答，不得分",
                 "count": 5
               },
               {
@@ -1666,10 +1672,6 @@
                 "count": 4
               },
               {
-                "reason": "未作答，0分",
-                "count": 4
-              },
-              {
                 "reason": "应为'印度洋'，写'印度'不完整，不给分",
                 "count": 4
               },
@@ -1682,13 +1684,13 @@
           {
             "blankNo": "3-1",
             "maxScore": 2,
-            "total": 1204,
+            "total": 1209,
             "correct": 747,
-            "wrong": 457,
+            "wrong": 462,
             "blank": 0,
-            "correctRate": 62.0,
+            "correctRate": 61.8,
             "avgScore": 1.24,
-            "errorRate": 38.0,
+            "errorRate": 38.2,
             "wrongAnswers": [
               {
                 "answer": "小麦",
@@ -1877,13 +1879,13 @@
           {
             "blankNo": "3-2",
             "maxScore": 2,
-            "total": 1201,
+            "total": 1206,
             "correct": 842,
-            "wrong": 359,
+            "wrong": 364,
             "blank": 0,
-            "correctRate": 70.1,
+            "correctRate": 69.8,
             "avgScore": 1.4,
-            "errorRate": 29.9,
+            "errorRate": 30.2,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -2072,18 +2074,23 @@
           {
             "blankNo": "4-1",
             "maxScore": 2,
-            "total": 1202,
+            "total": 1207,
             "correct": 912,
-            "wrong": 290,
+            "wrong": 295,
             "blank": 0,
-            "correctRate": 75.9,
-            "avgScore": 1.52,
-            "errorRate": 24.1,
+            "correctRate": 75.6,
+            "avgScore": 1.51,
+            "errorRate": 24.4,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
                 "count": 66,
                 "reason": "空白未作答"
+              },
+              {
+                "answer": "⑤",
+                "count": 4,
+                "reason": "应为'风沙'/'干旱'等，写为'⑤'，无意义"
               },
               {
                 "answer": "旱涝灾害",
@@ -2174,11 +2181,6 @@
                 "answer": "运输物资材料困难",
                 "count": 1,
                 "reason": "未答出沙漠自然环境困难，如风沙、高温等，属工程困难方向错误"
-              },
-              {
-                "answer": "有可能要费人力",
-                "count": 1,
-                "reason": "应填风沙/干旱等沙漠困难，未涉及自然环境，得0分"
               }
             ],
             "reasons": [
@@ -2265,11 +2267,11 @@
             ]
           }
         ],
-        "scoreRate": 65.2,
-        "difficulty10": 3.48,
+        "scoreRate": 60.2,
+        "difficulty10": 3.98,
         "difficultyLabel": "适中",
         "blankRate": 0.0,
-        "discrimination": 0.44,
+        "discrimination": 0.57,
         "qualityLevel": "相对稳定",
         "qualityIssues": [
           "表现稳定"
@@ -2279,32 +2281,32 @@
         "subject": "地理",
         "qno": "27",
         "maxScore": 18,
-        "total": 1355,
-        "avg": 12.09,
-        "fullMark": 110,
-        "fullMarkRate": 8.1,
-        "zero": 42,
-        "zeroRate": 3.1,
+        "total": 1359,
+        "avg": 11.16,
+        "fullMark": 106,
+        "fullMarkRate": 7.8,
+        "zero": 140,
+        "zeroRate": 10.3,
         "scoreDist": {
-          "0": 42,
+          "0": 140,
           "1": 2,
           "2": 12,
           "3": 8,
-          "4": 34,
+          "4": 32,
           "5": 14,
           "6": 56,
-          "7": 29,
-          "8": 90,
-          "9": 52,
-          "10": 92,
-          "11": 76,
-          "12": 115,
-          "13": 107,
-          "14": 159,
-          "15": 120,
-          "16": 166,
-          "17": 71,
-          "18": 110
+          "7": 27,
+          "8": 87,
+          "9": 47,
+          "10": 81,
+          "11": 66,
+          "12": 106,
+          "13": 100,
+          "14": 148,
+          "15": 111,
+          "16": 151,
+          "17": 65,
+          "18": 106
         },
         "blanks": [
           {
@@ -2420,13 +2422,13 @@
           {
             "blankNo": "1-1",
             "maxScore": 2,
-            "total": 1159,
+            "total": 1163,
             "correct": 816,
-            "wrong": 343,
+            "wrong": 347,
             "blank": 0,
-            "correctRate": 70.4,
-            "avgScore": 1.41,
-            "errorRate": 29.6,
+            "correctRate": 70.2,
+            "avgScore": 1.4,
+            "errorRate": 29.8,
             "wrongAnswers": [
               {
                 "answer": "东南亚",
@@ -2499,6 +2501,11 @@
                 "reason": "应为‘南亚’，多写‘南’字属错别字，不给分"
               },
               {
+                "answer": "物质",
+                "count": 2,
+                "reason": "答非所问，应填‘南亚’，错误"
+              },
+              {
                 "answer": "西班牙",
                 "count": 1,
                 "reason": "应选南亚，西班牙不属于选项，直接0分"
@@ -2522,11 +2529,6 @@
                 "answer": "南亚 西亚",
                 "count": 1,
                 "reason": "多写了排除项‘西亚’，不确定所选，按错误处理给0分"
-              },
-              {
-                "answer": "印度",
-                "count": 1,
-                "reason": "应为南亚/南亚地区，填写'印度'错误"
               }
             ],
             "reasons": [
@@ -2615,13 +2617,13 @@
           {
             "blankNo": "1-2",
             "maxScore": 2,
-            "total": 1206,
+            "total": 1209,
             "correct": 1005,
-            "wrong": 201,
+            "wrong": 204,
             "blank": 0,
-            "correctRate": 83.3,
-            "avgScore": 1.67,
-            "errorRate": 16.7,
+            "correctRate": 83.1,
+            "avgScore": 1.66,
+            "errorRate": 16.9,
             "wrongAnswers": [
               {
                 "answer": "太平",
@@ -2635,7 +2637,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 29,
+                "count": 30,
                 "reason": "空白未作答，不得分"
               },
               {
@@ -2694,6 +2696,11 @@
                 "reason": "应填'印度洋'或'印度'，'三'为数字，0分"
               },
               {
+                "answer": "能量",
+                "count": 2,
+                "reason": "答非所问，应填‘印度洋’，错误"
+              },
+              {
                 "answer": "南海 大西洋",
                 "count": 1,
                 "reason": "应填印度洋/印度，南海大西洋均错误"
@@ -2717,11 +2724,6 @@
                 "answer": "北温",
                 "count": 1,
                 "reason": "应填印度洋或印度，北温为五带概念，完全错误"
-              },
-              {
-                "answer": "光冰",
-                "count": 1,
-                "reason": "应为'印度洋'或'印度'，'光冰'完全错误"
               }
             ],
             "reasons": [
@@ -2810,17 +2812,17 @@
           {
             "blankNo": "2-1",
             "maxScore": 2,
-            "total": 1218,
+            "total": 1222,
             "correct": 492,
-            "wrong": 726,
+            "wrong": 730,
             "blank": 0,
-            "correctRate": 40.4,
+            "correctRate": 40.3,
             "avgScore": 0.81,
-            "errorRate": 59.6,
+            "errorRate": 59.7,
             "wrongAnswers": [
               {
                 "answer": "B",
-                "count": 289,
+                "count": 290,
                 "reason": "应为A，B选项地形起伏特征不符"
               },
               {
@@ -3069,13 +3071,13 @@
           {
             "blankNo": "3-1",
             "maxScore": 2,
-            "total": 1222,
+            "total": 1226,
             "correct": 978,
-            "wrong": 244,
+            "wrong": 248,
             "blank": 0,
-            "correctRate": 80.0,
+            "correctRate": 79.8,
             "avgScore": 1.6,
-            "errorRate": 20.0,
+            "errorRate": 20.2,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -3264,13 +3266,13 @@
           {
             "blankNo": "3-2",
             "maxScore": 2,
-            "total": 1212,
+            "total": 1215,
             "correct": 833,
-            "wrong": 379,
+            "wrong": 382,
             "blank": 0,
-            "correctRate": 68.7,
+            "correctRate": 68.6,
             "avgScore": 1.37,
-            "errorRate": 31.3,
+            "errorRate": 31.4,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -3459,13 +3461,13 @@
           {
             "blankNo": "3-3",
             "maxScore": 2,
-            "total": 1148,
+            "total": 1151,
             "correct": 1035,
-            "wrong": 113,
-            "blank": 0,
-            "correctRate": 90.2,
+            "wrong": 115,
+            "blank": 1,
+            "correctRate": 89.9,
             "avgScore": 1.8,
-            "errorRate": 9.8,
+            "errorRate": 10.1,
             "wrongAnswers": [
               {
                 "answer": "1月",
@@ -3558,14 +3560,14 @@
                 "reason": "应为7月，写'河'明显错误"
               },
               {
+                "answer": "减少",
+                "count": 1,
+                "reason": "应为'7月'，错误"
+              },
+              {
                 "answer": "4",
                 "count": 1,
                 "reason": "应填'7月'或'7'，学生写'4'错误，0分"
-              },
-              {
-                "answer": "干",
-                "count": 1,
-                "reason": "应为'7月/7'，学生填了降水特征'干'，月份错误"
               }
             ],
             "reasons": [
@@ -3654,17 +3656,17 @@
           {
             "blankNo": "3-4",
             "maxScore": 2,
-            "total": 1208,
+            "total": 1211,
             "correct": 539,
-            "wrong": 669,
-            "blank": 0,
-            "correctRate": 44.6,
-            "avgScore": 1.12,
-            "errorRate": 55.4,
+            "wrong": 671,
+            "blank": 1,
+            "correctRate": 44.5,
+            "avgScore": 1.11,
+            "errorRate": 55.5,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 76,
+                "count": 77,
                 "reason": "未作答，0分"
               },
               {
@@ -3849,13 +3851,13 @@
           {
             "blankNo": "4-1",
             "maxScore": 2,
-            "total": 1218,
+            "total": 1222,
             "correct": 922,
-            "wrong": 296,
+            "wrong": 300,
             "blank": 0,
-            "correctRate": 75.7,
+            "correctRate": 75.5,
             "avgScore": 1.51,
-            "errorRate": 24.3,
+            "errorRate": 24.5,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -4044,17 +4046,17 @@
           {
             "blankNo": "5-1",
             "maxScore": 2,
-            "total": 1218,
+            "total": 1222,
             "correct": 488,
-            "wrong": 730,
+            "wrong": 734,
             "blank": 0,
-            "correctRate": 40.1,
+            "correctRate": 39.9,
             "avgScore": 1.11,
-            "errorRate": 59.9,
+            "errorRate": 60.1,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 109,
+                "count": 110,
                 "reason": "未作答，0分"
               },
               {
@@ -4239,13 +4241,13 @@
           {
             "blankNo": "6-1",
             "maxScore": 2,
-            "total": 10,
+            "total": 11,
             "correct": 7,
-            "wrong": 3,
+            "wrong": 4,
             "blank": 0,
-            "correctRate": 70.0,
-            "avgScore": 1.5,
-            "errorRate": 30.0,
+            "correctRate": 63.6,
+            "avgScore": 1.36,
+            "errorRate": 36.4,
             "wrongAnswers": [
               {
                 "answer": "风大",
@@ -4256,6 +4258,11 @@
                 "answer": "（未作答）",
                 "count": 1,
                 "reason": "空白未作答，0分。"
+              },
+              {
+                "answer": "因为加强了光线强度",
+                "count": 1,
+                "reason": "完全错误，应为'7月'或'7'，内容为光合作用解释，与雨季月份无关"
               },
               {
                 "answer": "热量充足，降水丰沛，人口稠密，劳动力丰富。",
@@ -4273,17 +4280,21 @@
                 "count": 1
               },
               {
+                "reason": "完全错误，应为'7月'或'7'，内容为光合作用解释，与雨季月份无关",
+                "count": 1
+              },
+              {
                 "reason": "未提及材料二核心'耕地面积广'，只写了水热条件，给1分部分分",
                 "count": 1
               }
             ]
           }
         ],
-        "scoreRate": 67.2,
-        "difficulty10": 3.28,
+        "scoreRate": 62.0,
+        "difficulty10": 3.8,
         "difficultyLabel": "适中",
         "blankRate": 0.0,
-        "discrimination": 0.41,
+        "discrimination": 0.56,
         "qualityLevel": "相对稳定",
         "qualityIssues": [
           "表现稳定"
@@ -4293,28 +4304,28 @@
         "subject": "地理",
         "qno": "28",
         "maxScore": 16,
-        "total": 1355,
-        "avg": 10.76,
-        "fullMark": 155,
-        "fullMarkRate": 11.4,
-        "zero": 63,
-        "zeroRate": 4.6,
+        "total": 1360,
+        "avg": 9.95,
+        "fullMark": 145,
+        "fullMarkRate": 10.7,
+        "zero": 130,
+        "zeroRate": 9.6,
         "scoreDist": {
-          "0": 63,
-          "2": 27,
+          "0": 130,
+          "2": 54,
           "4": 71,
           "5": 5,
-          "6": 82,
-          "7": 19,
-          "8": 117,
-          "9": 41,
-          "10": 135,
-          "11": 66,
-          "12": 161,
-          "13": 104,
-          "14": 185,
-          "15": 124,
-          "16": 155
+          "6": 79,
+          "7": 17,
+          "8": 109,
+          "9": 40,
+          "10": 126,
+          "11": 62,
+          "12": 148,
+          "13": 94,
+          "14": 170,
+          "15": 110,
+          "16": 145
         },
         "blanks": [
           {
@@ -4440,13 +4451,13 @@
           {
             "blankNo": "1-1",
             "maxScore": 2,
-            "total": 1170,
+            "total": 1175,
             "correct": 854,
-            "wrong": 316,
+            "wrong": 321,
             "blank": 0,
-            "correctRate": 73.0,
-            "avgScore": 1.46,
-            "errorRate": 27.0,
+            "correctRate": 72.7,
+            "avgScore": 1.45,
+            "errorRate": 27.3,
             "wrongAnswers": [
               {
                 "answer": "热",
@@ -4544,9 +4555,9 @@
                 "reason": "答案含'热'(热带)排除项，且未明确'温带'，0分"
               },
               {
-                "answer": "湿温",
+                "answer": "能量",
                 "count": 2,
-                "reason": "应为'温带'或'北温带'，'湿温'不是热量带名称"
+                "reason": "应填热量带(北温带/温带)，答案'能量'与题意无关，0分"
               }
             ],
             "reasons": [
@@ -4635,13 +4646,13 @@
           {
             "blankNo": "1-2",
             "maxScore": 2,
-            "total": 1206,
+            "total": 1211,
             "correct": 1050,
-            "wrong": 156,
+            "wrong": 161,
             "blank": 0,
-            "correctRate": 87.1,
-            "avgScore": 1.74,
-            "errorRate": 12.9,
+            "correctRate": 86.7,
+            "avgScore": 1.73,
+            "errorRate": 13.3,
             "wrongAnswers": [
               {
                 "answer": "大西",
@@ -4659,14 +4670,14 @@
                 "reason": "应为太平洋或北冰洋，印度洋是排除项"
               },
               {
+                "answer": "（未作答）",
+                "count": 22,
+                "reason": "空白未作答，不得分"
+              },
+              {
                 "answer": "大西洋",
                 "count": 22,
                 "reason": "应填太平洋或北冰洋，大西洋为排除项，0分"
-              },
-              {
-                "answer": "（未作答）",
-                "count": 20,
-                "reason": "空白未作答，不得分"
               },
               {
                 "answer": "大平",
@@ -4677,6 +4688,11 @@
                 "answer": "印度洋",
                 "count": 11,
                 "reason": "应为太平洋或北冰洋，印度洋是排除项"
+              },
+              {
+                "answer": "卵巢",
+                "count": 2,
+                "reason": "答案'卵巢'非大洋名称，应填太平洋或北冰洋"
               },
               {
                 "answer": "海",
@@ -4714,6 +4730,11 @@
                 "reason": "应为'太平洋'或'北冰洋'，'水平'不是大洋名称"
               },
               {
+                "answer": "雌",
+                "count": 1,
+                "reason": "应填大洋'太平洋'或'北冰洋'，学生答案无意义"
+              },
+              {
                 "answer": "北半球",
                 "count": 1,
                 "reason": "应为太平洋或北冰洋，答成半球，错误"
@@ -4748,11 +4769,15 @@
                 "count": 3
               },
               {
+                "reason": "未作答，得0分",
+                "count": 3
+              },
+              {
                 "reason": "应为太平洋或北冰洋，大西洋是排除项，0分",
                 "count": 2
               },
               {
-                "reason": "未作答，得0分",
+                "reason": "空白未作答",
                 "count": 2
               },
               {
@@ -4810,23 +4835,19 @@
               {
                 "reason": "应为太平洋或北冰洋，印度洋是典型错误",
                 "count": 1
-              },
-              {
-                "reason": "填“大西洋”，属排除项错误，0分",
-                "count": 1
               }
             ]
           },
           {
             "blankNo": "1-3",
             "maxScore": 2,
-            "total": 1205,
+            "total": 1210,
             "correct": 886,
-            "wrong": 319,
+            "wrong": 324,
             "blank": 0,
-            "correctRate": 73.5,
-            "avgScore": 1.47,
-            "errorRate": 26.5,
+            "correctRate": 73.2,
+            "avgScore": 1.46,
+            "errorRate": 26.8,
             "wrongAnswers": [
               {
                 "answer": "大西",
@@ -4850,7 +4871,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 22,
+                "count": 25,
                 "reason": "空白未作答，不得分"
               },
               {
@@ -4935,6 +4956,10 @@
                 "count": 5
               },
               {
+                "reason": "空白未作答",
+                "count": 4
+              },
+              {
                 "reason": "应为北冰洋或太平洋，大西洋是排除项，0分",
                 "count": 3
               },
@@ -4951,10 +4976,6 @@
                 "count": 2
               },
               {
-                "reason": "空白未作答",
-                "count": 2
-              },
-              {
                 "reason": "应为太平洋或北冰洋，大西洋不是共同濒临的大洋",
                 "count": 2
               },
@@ -4964,6 +4985,10 @@
               },
               {
                 "reason": "亚洲不濒临大西洋，命中排除项，0分",
+                "count": 2
+              },
+              {
+                "reason": "未作答，得0分",
                 "count": 2
               },
               {
@@ -5004,10 +5029,6 @@
               },
               {
                 "reason": "应为太平洋或北冰洋，大西洋是排除项",
-                "count": 2
-              },
-              {
-                "reason": "应填太平洋或北冰洋，大西洋是排除项",
                 "count": 2
               }
             ]
@@ -5074,13 +5095,13 @@
           {
             "blankNo": "2-1",
             "maxScore": 2,
-            "total": 1207,
+            "total": 1212,
             "correct": 915,
-            "wrong": 292,
+            "wrong": 297,
             "blank": 0,
-            "correctRate": 75.8,
-            "avgScore": 1.52,
-            "errorRate": 24.2,
+            "correctRate": 75.5,
+            "avgScore": 1.51,
+            "errorRate": 24.5,
             "wrongAnswers": [
               {
                 "answer": "高原",
@@ -5089,7 +5110,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 74,
+                "count": 75,
                 "reason": "空白未作答，不得分"
               },
               {
@@ -5210,7 +5231,7 @@
               },
               {
                 "reason": "未作答，得0分",
-                "count": 5
+                "count": 6
               },
               {
                 "reason": "未作答，给0分",
@@ -5269,17 +5290,17 @@
           {
             "blankNo": "2-2",
             "maxScore": 2,
-            "total": 1169,
+            "total": 1174,
             "correct": 984,
-            "wrong": 185,
+            "wrong": 190,
             "blank": 0,
-            "correctRate": 84.2,
+            "correctRate": 83.8,
             "avgScore": 1.68,
-            "errorRate": 15.8,
+            "errorRate": 16.2,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 66,
+                "count": 67,
                 "reason": "空白未作答，0分"
               },
               {
@@ -5404,15 +5425,15 @@
                 "count": 5
               },
               {
+                "reason": "未作答，得0分",
+                "count": 4
+              },
+              {
                 "reason": "未作答，不给分",
                 "count": 3
               },
               {
                 "reason": "空白未作答，得0分",
-                "count": 3
-              },
-              {
-                "reason": "未作答，得0分",
                 "count": 3
               },
               {
@@ -5464,13 +5485,13 @@
           {
             "blankNo": "3-1",
             "maxScore": 2,
-            "total": 1207,
+            "total": 1212,
             "correct": 625,
-            "wrong": 582,
+            "wrong": 587,
             "blank": 0,
-            "correctRate": 51.8,
-            "avgScore": 1.04,
-            "errorRate": 48.2,
+            "correctRate": 51.6,
+            "avgScore": 1.03,
+            "errorRate": 48.4,
             "wrongAnswers": [
               {
                 "answer": "C",
@@ -5538,6 +5559,11 @@
                 "reason": "未选A/B/C/D，非有效选项，不得分"
               },
               {
+                "answer": "能量",
+                "count": 2,
+                "reason": "未选择字母A或写树枝状"
+              },
+              {
                 "answer": "向心状",
                 "count": 2,
                 "reason": "应为A/树枝状，'向心状'错误，0分"
@@ -5566,11 +5592,6 @@
                 "answer": "未作答",
                 "count": 1,
                 "reason": "空白未作答"
-              },
-              {
-                "answer": "地",
-                "count": 1,
-                "reason": "应选字母A，'地'不是有效选项"
               }
             ],
             "reasons": [
@@ -5659,13 +5680,13 @@
           {
             "blankNo": "3-2",
             "maxScore": 2,
-            "total": 1206,
+            "total": 1211,
             "correct": 842,
-            "wrong": 364,
+            "wrong": 369,
             "blank": 0,
-            "correctRate": 69.8,
-            "avgScore": 1.4,
-            "errorRate": 30.2,
+            "correctRate": 69.5,
+            "avgScore": 1.39,
+            "errorRate": 30.5,
             "wrongAnswers": [
               {
                 "answer": "A",
@@ -5684,7 +5705,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 45,
+                "count": 46,
                 "reason": "空白未作答，0分"
               },
               {
@@ -5834,6 +5855,10 @@
                 "count": 4
               },
               {
+                "reason": "未作答，得0分",
+                "count": 3
+              },
+              {
                 "reason": "亚洲河流应选B（放射状），选C错误",
                 "count": 3
               },
@@ -5844,27 +5869,23 @@
               {
                 "reason": "应为B（放射状），C为错误选项",
                 "count": 3
-              },
-              {
-                "reason": "未作答，给0分",
-                "count": 3
               }
             ]
           },
           {
             "blankNo": "4-1",
             "maxScore": 2,
-            "total": 1206,
+            "total": 1211,
             "correct": 329,
-            "wrong": 877,
+            "wrong": 882,
             "blank": 0,
-            "correctRate": 27.3,
-            "avgScore": 0.82,
-            "errorRate": 72.7,
+            "correctRate": 27.2,
+            "avgScore": 0.81,
+            "errorRate": 72.8,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 181,
+                "count": 182,
                 "reason": "未作答，0分"
               },
               {
@@ -5982,7 +6003,7 @@
               },
               {
                 "reason": "空白未作答",
-                "count": 13
+                "count": 14
               },
               {
                 "reason": "未作答",
@@ -6047,11 +6068,11 @@
             ]
           }
         ],
-        "scoreRate": 67.2,
-        "difficulty10": 3.28,
+        "scoreRate": 62.2,
+        "difficulty10": 3.78,
         "difficultyLabel": "适中",
         "blankRate": 0.0,
-        "discrimination": 0.46,
+        "discrimination": 0.59,
         "qualityLevel": "相对稳定",
         "qualityIssues": [
           "表现稳定"
@@ -8940,7 +8961,7 @@
         "difficulty10": 4.7,
         "difficultyLabel": "适中",
         "blankRate": 0.0,
-        "discrimination": 0.32,
+        "discrimination": 0.31,
         "qualityLevel": "相对稳定",
         "qualityIssues": [
           "表现稳定"
@@ -12125,17 +12146,17 @@
         "subject": "语文",
         "qno": "12",
         "maxScore": 3,
-        "total": 1339,
+        "total": 1341,
         "avg": 0.79,
-        "fullMark": 12,
-        "fullMarkRate": 0.9,
+        "fullMark": 14,
+        "fullMarkRate": 1.0,
         "zero": 399,
         "zeroRate": 29.8,
         "scoreDist": {
           "0": 399,
           "1": 832,
           "2": 96,
-          "3": 12
+          "3": 14
         },
         "blanks": [
           {
@@ -12336,13 +12357,13 @@
           {
             "blankNo": "1-1",
             "maxScore": 1,
-            "total": 1273,
-            "correct": 824,
+            "total": 1275,
+            "correct": 826,
             "wrong": 449,
             "blank": 0,
-            "correctRate": 64.7,
-            "avgScore": 0.77,
-            "errorRate": 35.3,
+            "correctRate": 64.8,
+            "avgScore": 0.78,
+            "errorRate": 35.2,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -12531,13 +12552,13 @@
           {
             "blankNo": "1-2",
             "maxScore": 2,
-            "total": 926,
-            "correct": 8,
+            "total": 927,
+            "correct": 9,
             "wrong": 918,
             "blank": 0,
-            "correctRate": 0.9,
+            "correctRate": 1.0,
             "avgScore": 0.06,
-            "errorRate": 99.1,
+            "errorRate": 99.0,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -13091,30 +13112,30 @@
         "subject": "语文",
         "qno": "13",
         "maxScore": 4,
-        "total": 1332,
-        "avg": 1.56,
-        "fullMark": 123,
-        "fullMarkRate": 9.2,
+        "total": 1341,
+        "avg": 1.58,
+        "fullMark": 132,
+        "fullMarkRate": 9.8,
         "zero": 277,
-        "zeroRate": 20.8,
+        "zeroRate": 20.7,
         "scoreDist": {
           "0": 277,
           "1": 313,
           "2": 580,
           "3": 39,
-          "4": 123
+          "4": 132
         },
         "blanks": [
           {
             "blankNo": "1",
             "maxScore": 1,
-            "total": 77,
-            "correct": 55,
-            "wrong": 22,
+            "total": 83,
+            "correct": 59,
+            "wrong": 24,
             "blank": 0,
-            "correctRate": 71.4,
-            "avgScore": 0.77,
-            "errorRate": 28.6,
+            "correctRate": 71.1,
+            "avgScore": 0.76,
+            "errorRate": 28.9,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -13145,6 +13166,11 @@
                 "answer": "“守望”一词，体现了盼望的感觉。",
                 "count": 1,
                 "reason": "未涉及爷爷和英烈/故土具体对象，仅泛化解释词义，不符合评分要求"
+              },
+              {
+                "answer": "瓣气传金柝",
+                "count": 1,
+                "reason": "“朔”字误写为“瓣”，错字不得分。"
               },
               {
                 "answer": "朔朔气传金柝",
@@ -13192,6 +13218,11 @@
                 "reason": "未按题目“北方战场寒冷”的语境要求填入对应诗句"
               },
               {
+                "answer": "气传金",
+                "count": 1,
+                "reason": "漏掉“朔”字且“金”后缺“柝”字，不完整不得分"
+              },
+              {
                 "answer": "不闻爷娘唤女声",
                 "count": 1,
                 "reason": "张冠李戴，未按题目情境要求填写描写寒冷的诗句。"
@@ -13220,6 +13251,10 @@
               },
               {
                 "reason": "未涉及爷爷和英烈/故土具体对象，仅泛化解释词义，不符合评分要求",
+                "count": 1
+              },
+              {
+                "reason": "“朔”字误写为“瓣”，错字不得分。",
                 "count": 1
               },
               {
@@ -13273,23 +13308,19 @@
               {
                 "reason": "多写了下一句内容，不符合默写唯一性要求",
                 "count": 1
-              },
-              {
-                "reason": "未按题目“北方战场寒冷”的语境要求填入对应诗句",
-                "count": 1
               }
             ]
           },
           {
             "blankNo": "1-1",
             "maxScore": 2,
-            "total": 1205,
-            "correct": 583,
+            "total": 1208,
+            "correct": 586,
             "wrong": 622,
             "blank": 0,
-            "correctRate": 48.4,
-            "avgScore": 1.36,
-            "errorRate": 51.6,
+            "correctRate": 48.5,
+            "avgScore": 1.37,
+            "errorRate": 51.5,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -13478,13 +13509,13 @@
           {
             "blankNo": "1-2",
             "maxScore": 2,
-            "total": 1149,
-            "correct": 121,
+            "total": 1156,
+            "correct": 128,
             "wrong": 1024,
             "blank": 4,
-            "correctRate": 10.5,
+            "correctRate": 11.1,
             "avgScore": 0.18,
-            "errorRate": 89.5,
+            "errorRate": 88.9,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -13673,13 +13704,13 @@
           {
             "blankNo": "2",
             "maxScore": 1,
-            "total": 72,
-            "correct": 60,
+            "total": 78,
+            "correct": 66,
             "wrong": 12,
             "blank": 0,
-            "correctRate": 83.3,
-            "avgScore": 0.83,
-            "errorRate": 16.7,
+            "correctRate": 84.6,
+            "avgScore": 0.85,
+            "errorRate": 15.4,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -13767,13 +13798,13 @@
           {
             "blankNo": "2-1",
             "maxScore": 1,
-            "total": 97,
-            "correct": 71,
+            "total": 104,
+            "correct": 78,
             "wrong": 26,
             "blank": 0,
-            "correctRate": 73.2,
-            "avgScore": 0.73,
-            "errorRate": 26.8,
+            "correctRate": 75.0,
+            "avgScore": 0.75,
+            "errorRate": 25.0,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -13913,13 +13944,13 @@
           {
             "blankNo": "2-2",
             "maxScore": 1,
-            "total": 37,
-            "correct": 13,
+            "total": 38,
+            "correct": 14,
             "wrong": 24,
             "blank": 0,
-            "correctRate": 35.1,
-            "avgScore": 0.41,
-            "errorRate": 64.9,
+            "correctRate": 36.8,
+            "avgScore": 0.42,
+            "errorRate": 63.2,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -14063,13 +14094,13 @@
           {
             "blankNo": "3-1",
             "maxScore": 1,
-            "total": 93,
-            "correct": 68,
-            "wrong": 25,
+            "total": 100,
+            "correct": 74,
+            "wrong": 26,
             "blank": 0,
-            "correctRate": 73.1,
-            "avgScore": 0.73,
-            "errorRate": 26.9,
+            "correctRate": 74.0,
+            "avgScore": 0.74,
+            "errorRate": 26.0,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -14090,6 +14121,11 @@
                 "answer": "马上相逢无纸笔",
                 "count": 1,
                 "reason": "该句为题干已给出的已知句，非要求填写的后句。"
+              },
+              {
+                "answer": "双袖龙钟泪不干(x)凭君传语报平安",
+                "count": 1,
+                "reason": "答案包含错误前句且有修改痕迹，不符合唯一性。"
               },
               {
                 "answer": "紫罢君传语报平安",
@@ -14154,6 +14190,10 @@
                 "count": 1
               },
               {
+                "reason": "答案包含错误前句且有修改痕迹，不符合唯一性。",
+                "count": 1
+              },
+              {
                 "reason": "未作答。",
                 "count": 1
               },
@@ -14212,11 +14252,11 @@
             ]
           }
         ],
-        "scoreRate": 39.0,
-        "difficulty10": 6.1,
+        "scoreRate": 39.5,
+        "difficulty10": 6.05,
         "difficultyLabel": "偏难",
         "blankRate": 0.1,
-        "discrimination": 0.19,
+        "discrimination": 0.18,
         "qualityLevel": "重点复核",
         "qualityIssues": [
           "区分度偏低",
@@ -14227,30 +14267,30 @@
         "subject": "语文",
         "qno": "15",
         "maxScore": 4,
-        "total": 1331,
-        "avg": 1.95,
-        "fullMark": 267,
-        "fullMarkRate": 20.1,
+        "total": 1340,
+        "avg": 1.97,
+        "fullMark": 276,
+        "fullMarkRate": 20.6,
         "zero": 283,
-        "zeroRate": 21.3,
+        "zeroRate": 21.1,
         "scoreDist": {
           "0": 283,
           "1": 75,
           "2": 662,
           "3": 44,
-          "4": 267
+          "4": 276
         },
         "blanks": [
           {
             "blankNo": "1-1",
             "maxScore": 2,
-            "total": 1217,
-            "correct": 910,
+            "total": 1226,
+            "correct": 919,
             "wrong": 307,
             "blank": 0,
-            "correctRate": 74.8,
-            "avgScore": 1.5,
-            "errorRate": 25.2,
+            "correctRate": 75.0,
+            "avgScore": 1.51,
+            "errorRate": 25.0,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -14439,13 +14479,13 @@
           {
             "blankNo": "1-2",
             "maxScore": 2,
-            "total": 1133,
-            "correct": 311,
+            "total": 1142,
+            "correct": 320,
             "wrong": 822,
             "blank": 0,
-            "correctRate": 27.4,
-            "avgScore": 0.59,
-            "errorRate": 72.6,
+            "correctRate": 28.0,
+            "avgScore": 0.6,
+            "errorRate": 72.0,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -15393,8 +15433,8 @@
             ]
           }
         ],
-        "scoreRate": 48.8,
-        "difficulty10": 5.12,
+        "scoreRate": 49.2,
+        "difficulty10": 5.08,
         "difficultyLabel": "偏难",
         "blankRate": 0.0,
         "discrimination": 0.28,
@@ -18208,7 +18248,7 @@
         "subject": "语文",
         "qno": "23",
         "maxScore": 50,
-        "total": 1339,
+        "total": 1340,
         "avg": 37.23,
         "fullMark": 0,
         "fullMarkRate": 0.0,
@@ -18236,7 +18276,7 @@
           "39": 107,
           "40": 196,
           "41": 61,
-          "42": 121,
+          "42": 122,
           "43": 38,
           "44": 79,
           "45": 14,
@@ -18257,27 +18297,27 @@
         "subject": "生物",
         "qno": "26",
         "maxScore": 12,
-        "total": 2713,
-        "avg": 4.01,
-        "fullMark": 179,
-        "fullMarkRate": 6.6,
-        "zero": 1366,
-        "zeroRate": 50.4,
+        "total": 2718,
+        "avg": 3.82,
+        "fullMark": 173,
+        "fullMarkRate": 6.4,
+        "zero": 1429,
+        "zeroRate": 52.6,
         "scoreDist": {
-          "0": 1366,
-          "1": 50,
-          "2": 93,
-          "3": 44,
-          "4": 46,
-          "5": 73,
-          "6": 72,
-          "7": 109,
-          "8": 127,
-          "9": 147,
+          "0": 1429,
+          "1": 49,
+          "2": 89,
+          "3": 43,
+          "4": 44,
+          "5": 70,
+          "6": 71,
+          "7": 103,
+          "8": 122,
+          "9": 139,
           "9.5": 1,
-          "10": 200,
-          "11": 206,
-          "12": 179
+          "10": 190,
+          "11": 195,
+          "12": 173
         },
         "blanks": [
           {
@@ -18391,13 +18431,13 @@
           {
             "blankNo": "1-1",
             "maxScore": 1,
-            "total": 1400,
+            "total": 1405,
             "correct": 952,
-            "wrong": 448,
+            "wrong": 453,
             "blank": 0,
-            "correctRate": 68.0,
+            "correctRate": 67.8,
             "avgScore": 0.68,
-            "errorRate": 32.0,
+            "errorRate": 32.2,
             "wrongAnswers": [
               {
                 "answer": "（图）",
@@ -18443,6 +18483,11 @@
                 "answer": "（无法辨识）",
                 "count": 7,
                 "reason": "无法辨识，不给分"
+              },
+              {
+                "answer": "北回归线",
+                "count": 6,
+                "reason": "应为“温度”，填“北回归线”完全无关"
               },
               {
                 "answer": "阳光",
@@ -18493,11 +18538,6 @@
                 "answer": "水分条件",
                 "count": 3,
                 "reason": "应填“温度”，学生答“水分条件”不符合语境"
-              },
-              {
-                "answer": "营养",
-                "count": 3,
-                "reason": "应填'温度'，学生答'营养'，概念错误"
               }
             ],
             "reasons": [
@@ -18926,13 +18966,13 @@
           {
             "blankNo": "2-1",
             "maxScore": 1,
-            "total": 1292,
+            "total": 1297,
             "correct": 818,
-            "wrong": 474,
+            "wrong": 479,
             "blank": 0,
-            "correctRate": 63.3,
+            "correctRate": 63.1,
             "avgScore": 0.63,
-            "errorRate": 36.7,
+            "errorRate": 36.9,
             "wrongAnswers": [
               {
                 "answer": "胚芽",
@@ -19005,6 +19045,11 @@
                 "reason": "应为'胚根'，写成'茎'属于概念错误"
               },
               {
+                "answer": "甲",
+                "count": 5,
+                "reason": "应为'胚根'，学生填'甲'，答非所问"
+              },
+              {
                 "answer": "根冠",
                 "count": 5,
                 "reason": "应为'胚根'，根冠是根尖结构，不是最先突破种皮的部分"
@@ -19028,11 +19073,6 @@
                 "answer": "（图画）",
                 "count": 4,
                 "reason": "学生答案仅标注'（图画）'，无具体内容，视为无法辨识，不给分。"
-              },
-              {
-                "answer": "胚乳",
-                "count": 3,
-                "reason": "应为'胚根'，写成了'胚乳'，概念错误"
               }
             ],
             "reasons": [
@@ -19121,13 +19161,13 @@
           {
             "blankNo": "2-2",
             "maxScore": 1,
-            "total": 1231,
+            "total": 1236,
             "correct": 684,
-            "wrong": 547,
+            "wrong": 552,
             "blank": 0,
-            "correctRate": 55.6,
-            "avgScore": 0.56,
-            "errorRate": 44.4,
+            "correctRate": 55.3,
+            "avgScore": 0.55,
+            "errorRate": 44.7,
             "wrongAnswers": [
               {
                 "answer": "③",
@@ -19190,6 +19230,11 @@
                 "reason": "应填序号①，指向胚乳，写⑤错误"
               },
               {
+                "answer": "乙",
+                "count": 3,
+                "reason": "应填序号①或1，学生答'乙'，方向错误"
+              },
+              {
                 "answer": "⑥",
                 "count": 3,
                 "reason": "应为序号①（胚乳），写⑥错误"
@@ -19210,6 +19255,11 @@
                 "reason": "未提供有效文字或图形，无法辨识答案内容"
               },
               {
+                "answer": "甲",
+                "count": 2,
+                "reason": "应为序号①或1，填“甲”错误"
+              },
+              {
                 "answer": "(图)",
                 "count": 2,
                 "reason": "仅写“(图)”，未明确表达传感器靠近种子或分布密度等要求，视为未作答"
@@ -19218,16 +19268,6 @@
                 "answer": "（图画）",
                 "count": 2,
                 "reason": "学生答案仅提供了图画，无法辨识具体内容，按未作答处理"
-              },
-              {
-                "answer": "胚轴",
-                "count": 1,
-                "reason": "应填序号①或1，胚轴是错误结构"
-              },
-              {
-                "answer": "D",
-                "count": 1,
-                "reason": "应为序号①或1，D不是对应序号"
               }
             ],
             "reasons": [
@@ -19316,13 +19356,13 @@
           {
             "blankNo": "2-3",
             "maxScore": 1,
-            "total": 1240,
+            "total": 1245,
             "correct": 644,
-            "wrong": 596,
+            "wrong": 601,
             "blank": 0,
-            "correctRate": 51.9,
+            "correctRate": 51.7,
             "avgScore": 0.52,
-            "errorRate": 48.1,
+            "errorRate": 48.3,
             "wrongAnswers": [
               {
                 "answer": "子叶",
@@ -19395,6 +19435,11 @@
                 "reason": "应为'胚乳'，写成了'根'"
               },
               {
+                "answer": "丙",
+                "count": 4,
+                "reason": "应为“胚乳”，填“丙”无关"
+              },
+              {
                 "answer": "叶绿体",
                 "count": 4,
                 "reason": "应为'胚乳'，'叶绿体'概念错误"
@@ -19418,11 +19463,6 @@
                 "answer": "土壤",
                 "count": 3,
                 "reason": "应为'胚乳'，写成'土壤'完全错误"
-              },
-              {
-                "answer": "花药",
-                "count": 2,
-                "reason": "应为'胚乳'或'子叶或胚乳'，写'花药'错误"
               }
             ],
             "reasons": [
@@ -19681,13 +19721,13 @@
           {
             "blankNo": "3-1",
             "maxScore": 1,
-            "total": 1254,
+            "total": 1259,
             "correct": 690,
-            "wrong": 564,
+            "wrong": 569,
             "blank": 0,
-            "correctRate": 55.0,
+            "correctRate": 54.8,
             "avgScore": 0.55,
-            "errorRate": 45.0,
+            "errorRate": 45.2,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -19876,13 +19916,13 @@
           {
             "blankNo": "3-2",
             "maxScore": 1,
-            "total": 1237,
+            "total": 1242,
             "correct": 878,
-            "wrong": 359,
+            "wrong": 364,
             "blank": 0,
-            "correctRate": 71.0,
+            "correctRate": 70.7,
             "avgScore": 0.71,
-            "errorRate": 29.0,
+            "errorRate": 29.3,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -19923,6 +19963,11 @@
                 "answer": "生长",
                 "count": 5,
                 "reason": "应为'成熟区'或'根毛区'，'生长'指伸长区，部位错误"
+              },
+              {
+                "answer": "水稻",
+                "count": 4,
+                "reason": "应为“成熟区”或“根毛”，填“水稻”错误"
               },
               {
                 "answer": "吸水",
@@ -19978,11 +20023,6 @@
                 "answer": "胚根",
                 "count": 2,
                 "reason": "应为'成熟区/根毛区'，写'胚根'错误，0分"
-              },
-              {
-                "answer": "根尖",
-                "count": 2,
-                "reason": "应为成熟区/根毛区，'根尖'太泛泛"
               }
             ],
             "reasons": [
@@ -20071,17 +20111,17 @@
           {
             "blankNo": "3-3",
             "maxScore": 1,
-            "total": 1146,
+            "total": 1151,
             "correct": 837,
-            "wrong": 309,
+            "wrong": 314,
             "blank": 0,
-            "correctRate": 73.0,
+            "correctRate": 72.7,
             "avgScore": 0.73,
-            "errorRate": 27.0,
+            "errorRate": 27.3,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 90,
+                "count": 91,
                 "reason": "空白未作答"
               },
               {
@@ -20123,6 +20163,11 @@
                 "answer": "养分",
                 "count": 4,
                 "reason": "应为'无机盐'，'养分'模糊不给分"
+              },
+              {
+                "answer": "洪涝",
+                "count": 4,
+                "reason": "应为“无机盐”，填“洪涝”无关"
               },
               {
                 "answer": "光合",
@@ -20173,17 +20218,12 @@
                 "answer": "土",
                 "count": 1,
                 "reason": "应填'无机盐'，'土'过于宽泛，非具体物质"
-              },
-              {
-                "answer": "肥料",
-                "count": 1,
-                "reason": "应为'无机盐'，'肥料'含有机物，概念不同"
               }
             ],
             "reasons": [
               {
                 "reason": "空白未作答",
-                "count": 27
+                "count": 28
               },
               {
                 "reason": "未作答",
@@ -20266,17 +20306,17 @@
           {
             "blankNo": "3-4",
             "maxScore": 1,
-            "total": 1239,
+            "total": 1244,
             "correct": 796,
-            "wrong": 443,
+            "wrong": 448,
             "blank": 0,
-            "correctRate": 64.2,
+            "correctRate": 64.0,
             "avgScore": 0.64,
-            "errorRate": 35.8,
+            "errorRate": 36.0,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 117,
+                "count": 122,
                 "reason": "空白未作答"
               },
               {
@@ -20378,7 +20418,7 @@
             "reasons": [
               {
                 "reason": "空白未作答",
-                "count": 30
+                "count": 32
               },
               {
                 "reason": "未作答",
@@ -20405,6 +20445,14 @@
                 "count": 5
               },
               {
+                "reason": "未作答，不得分",
+                "count": 5
+              },
+              {
+                "reason": "空白，未作答",
+                "count": 5
+              },
+              {
                 "reason": "未作答，得0分",
                 "count": 5
               },
@@ -20417,15 +20465,7 @@
                 "count": 4
               },
               {
-                "reason": "未作答，不得分",
-                "count": 4
-              },
-              {
                 "reason": "应为'蒸腾'，写'呼吸'概念错误",
-                "count": 4
-              },
-              {
-                "reason": "空白，未作答",
                 "count": 4
               },
               {
@@ -20441,6 +20481,10 @@
                 "count": 2
               },
               {
+                "reason": "未作答，给0分",
+                "count": 2
+              },
+              {
                 "reason": "应为'蒸腾作用'，'呼吸'是另一生理过程",
                 "count": 2
               },
@@ -20451,27 +20495,23 @@
               {
                 "reason": "应为'蒸腾作用'，写成'呼吸'概念错误",
                 "count": 2
-              },
-              {
-                "reason": "应为'蒸腾作用'，光合作用是合成有机物",
-                "count": 2
               }
             ]
           },
           {
             "blankNo": "3-5",
             "maxScore": 1,
-            "total": 1240,
+            "total": 1245,
             "correct": 745,
-            "wrong": 495,
+            "wrong": 500,
             "blank": 0,
-            "correctRate": 60.1,
+            "correctRate": 59.8,
             "avgScore": 0.6,
-            "errorRate": 39.9,
+            "errorRate": 40.2,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 166,
+                "count": 171,
                 "reason": "空白未作答"
               },
               {
@@ -20573,7 +20613,7 @@
             "reasons": [
               {
                 "reason": "空白未作答",
-                "count": 44
+                "count": 46
               },
               {
                 "reason": "未作答",
@@ -20597,7 +20637,7 @@
               },
               {
                 "reason": "未作答，不得分",
-                "count": 6
+                "count": 7
               },
               {
                 "reason": "空白未作答，不得分",
@@ -20605,7 +20645,7 @@
               },
               {
                 "reason": "空白，未作答",
-                "count": 3
+                "count": 4
               },
               {
                 "reason": "应为“水”循环",
@@ -20656,17 +20696,17 @@
           {
             "blankNo": "4-1",
             "maxScore": 1,
-            "total": 1248,
+            "total": 1253,
             "correct": 1035,
-            "wrong": 213,
+            "wrong": 218,
             "blank": 0,
-            "correctRate": 82.9,
+            "correctRate": 82.6,
             "avgScore": 0.83,
-            "errorRate": 17.1,
+            "errorRate": 17.4,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 54,
+                "count": 59,
                 "reason": "空白未作答"
               },
               {
@@ -20768,7 +20808,7 @@
             "reasons": [
               {
                 "reason": "空白未作答",
-                "count": 15
+                "count": 17
               },
               {
                 "reason": "未作答",
@@ -20784,14 +20824,14 @@
               },
               {
                 "reason": "未作答，不得分",
+                "count": 4
+              },
+              {
+                "reason": "空白，未作答",
                 "count": 3
               },
               {
                 "reason": "应为序号⑤（花药），③是其他结构",
-                "count": 2
-              },
-              {
-                "reason": "空白，未作答",
                 "count": 2
               },
               {
@@ -20851,17 +20891,17 @@
           {
             "blankNo": "4-2",
             "maxScore": 1,
-            "total": 1237,
+            "total": 1242,
             "correct": 948,
-            "wrong": 289,
+            "wrong": 294,
             "blank": 0,
-            "correctRate": 76.6,
-            "avgScore": 0.77,
-            "errorRate": 23.4,
+            "correctRate": 76.3,
+            "avgScore": 0.76,
+            "errorRate": 23.7,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 96,
+                "count": 101,
                 "reason": "空白未作答"
               },
               {
@@ -20963,7 +21003,7 @@
             "reasons": [
               {
                 "reason": "空白未作答",
-                "count": 25
+                "count": 27
               },
               {
                 "reason": "未作答",
@@ -20987,6 +21027,14 @@
               },
               {
                 "reason": "空白，未作答",
+                "count": 4
+              },
+              {
+                "reason": "未作答，不得分",
+                "count": 3
+              },
+              {
+                "reason": "未作答，给0分",
                 "count": 3
               },
               {
@@ -20998,19 +21046,11 @@
                 "count": 2
               },
               {
-                "reason": "未作答，不得分",
-                "count": 2
-              },
-              {
                 "reason": "未作答，得0分",
                 "count": 2
               },
               {
                 "reason": "应为'受精'，错别字且概念错误",
-                "count": 2
-              },
-              {
-                "reason": "未作答，给0分",
                 "count": 2
               },
               {
@@ -21046,17 +21086,17 @@
           {
             "blankNo": "4-3",
             "maxScore": 1,
-            "total": 1232,
+            "total": 1237,
             "correct": 859,
-            "wrong": 373,
+            "wrong": 378,
             "blank": 0,
-            "correctRate": 69.7,
-            "avgScore": 0.7,
-            "errorRate": 30.3,
+            "correctRate": 69.4,
+            "avgScore": 0.69,
+            "errorRate": 30.6,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 94,
+                "count": 99,
                 "reason": "空白未作答"
               },
               {
@@ -21158,7 +21198,7 @@
             "reasons": [
               {
                 "reason": "空白未作答",
-                "count": 26
+                "count": 28
               },
               {
                 "reason": "未作答",
@@ -21181,7 +21221,15 @@
                 "count": 6
               },
               {
+                "reason": "未作答，不得分",
+                "count": 4
+              },
+              {
                 "reason": "空白未作答，得0分",
+                "count": 4
+              },
+              {
+                "reason": "空白，未作答",
                 "count": 4
               },
               {
@@ -21189,15 +21237,7 @@
                 "count": 4
               },
               {
-                "reason": "未作答，不得分",
-                "count": 3
-              },
-              {
                 "reason": "应为'子房'，'胚珠'发育成种子",
-                "count": 3
-              },
-              {
-                "reason": "空白，未作答",
                 "count": 3
               },
               {
@@ -21549,8 +21589,8 @@
             ]
           }
         ],
-        "scoreRate": 33.4,
-        "difficulty10": 6.66,
+        "scoreRate": 31.8,
+        "difficulty10": 6.82,
         "difficultyLabel": "偏难",
         "blankRate": 0.0,
         "discrimination": 0,
@@ -21565,34 +21605,34 @@
         "subject": "生物",
         "qno": "27",
         "maxScore": 11,
-        "total": 1287,
-        "avg": 4.64,
+        "total": 1299,
+        "avg": 4.44,
         "fullMark": 7,
         "fullMarkRate": 0.5,
-        "zero": 179,
-        "zeroRate": 13.9,
+        "zero": 233,
+        "zeroRate": 17.9,
         "scoreDist": {
-          "0": 179,
+          "0": 233,
           "0.5": 1,
-          "1": 71,
+          "1": 67,
           "1.5": 2,
-          "2": 80,
+          "2": 77,
           "2.5": 9,
-          "3": 92,
+          "3": 84,
           "3.5": 7,
-          "4": 142,
+          "4": 136,
           "4.5": 11,
-          "5": 112,
+          "5": 107,
           "5.5": 8,
-          "6": 151,
+          "6": 145,
           "6.5": 11,
-          "7": 154,
+          "7": 147,
           "7.5": 21,
-          "8": 183,
+          "8": 181,
           "8.5": 2,
           "9": 21,
           "9.5": 4,
-          "10": 19,
+          "10": 18,
           "11": 7
         },
         "blanks": [
@@ -21692,13 +21732,13 @@
           {
             "blankNo": "1-1",
             "maxScore": 1,
-            "total": 1144,
+            "total": 1149,
             "correct": 600,
-            "wrong": 544,
+            "wrong": 549,
             "blank": 0,
-            "correctRate": 52.4,
-            "avgScore": 0.53,
-            "errorRate": 47.6,
+            "correctRate": 52.2,
+            "avgScore": 0.52,
+            "errorRate": 47.8,
             "wrongAnswers": [
               {
                 "answer": "光能",
@@ -21776,6 +21816,11 @@
                 "reason": "应填‘物质’，‘原料’非光合作用实质的两个方面"
               },
               {
+                "answer": "南亚",
+                "count": 5,
+                "reason": "答案应为'物质'等，'南亚'与光合作用实质无关，完全错误"
+              },
+              {
                 "answer": "空气",
                 "count": 4,
                 "reason": "应填“物质”，写“空气”概念错误，0分"
@@ -21794,11 +21839,6 @@
                 "answer": "呼吸",
                 "count": 3,
                 "reason": "应为'物质'，写成'呼吸'概念错误"
-              },
-              {
-                "answer": "光照",
-                "count": 3,
-                "reason": "应为'物质'，答'光照'概念错误"
               }
             ],
             "reasons": [
@@ -21887,13 +21927,13 @@
           {
             "blankNo": "1-2",
             "maxScore": 1,
-            "total": 1169,
+            "total": 1174,
             "correct": 655,
-            "wrong": 514,
+            "wrong": 519,
             "blank": 0,
-            "correctRate": 56.0,
+            "correctRate": 55.8,
             "avgScore": 0.56,
-            "errorRate": 44.0,
+            "errorRate": 44.2,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -21986,14 +22026,14 @@
                 "reason": "应填‘能量’，‘温度’概念错误"
               },
               {
+                "answer": "印度洋",
+                "count": 4,
+                "reason": "答案应为'能量'等，'印度洋'无关，错误"
+              },
+              {
                 "answer": "呼吸",
                 "count": 3,
                 "reason": "应为“能量”，学生填“呼吸”，概念错误"
-              },
-              {
-                "answer": "植物",
-                "count": 2,
-                "reason": "应填'能量'，概念错误"
               }
             ],
             "reasons": [
@@ -22082,17 +22122,17 @@
           {
             "blankNo": "1-3",
             "maxScore": 2,
-            "total": 1161,
+            "total": 1166,
             "correct": 694,
-            "wrong": 467,
+            "wrong": 472,
             "blank": 0,
-            "correctRate": 59.8,
+            "correctRate": 59.5,
             "avgScore": 1.36,
-            "errorRate": 40.2,
+            "errorRate": 40.5,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 160,
+                "count": 163,
                 "reason": "空白未作答"
               },
               {
@@ -22206,7 +22246,7 @@
               },
               {
                 "reason": "空白未作答，不得分",
-                "count": 11
+                "count": 12
               },
               {
                 "reason": "未作答，得0分",
@@ -22214,7 +22254,7 @@
               },
               {
                 "reason": "空白未作答，0分",
-                "count": 8
+                "count": 10
               },
               {
                 "reason": "空白，未作答",
@@ -22393,13 +22433,13 @@
           {
             "blankNo": "2-1",
             "maxScore": 1,
-            "total": 1167,
+            "total": 1172,
             "correct": 678,
-            "wrong": 489,
+            "wrong": 494,
             "blank": 0,
-            "correctRate": 58.1,
+            "correctRate": 57.8,
             "avgScore": 0.58,
-            "errorRate": 41.9,
+            "errorRate": 42.2,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -22588,9 +22628,9 @@
           {
             "blankNo": "2-2",
             "maxScore": 1,
-            "total": 1143,
+            "total": 1148,
             "correct": 72,
-            "wrong": 1071,
+            "wrong": 1076,
             "blank": 0,
             "correctRate": 6.3,
             "avgScore": 0.06,
@@ -22598,7 +22638,7 @@
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 271,
+                "count": 274,
                 "reason": "未作答，0分"
               },
               {
@@ -22728,7 +22768,7 @@
               },
               {
                 "reason": "空白未作答，0分",
-                "count": 20
+                "count": 22
               },
               {
                 "reason": "未指出样本量小或存在偶然性，答非所问",
@@ -22743,11 +22783,11 @@
                 "count": 12
               },
               {
-                "reason": "空白未作答，得0分",
-                "count": 11
+                "reason": "空白未作答，不得分",
+                "count": 12
               },
               {
-                "reason": "空白未作答，不得分",
+                "reason": "空白未作答，得0分",
                 "count": 11
               },
               {
@@ -22783,9 +22823,9 @@
           {
             "blankNo": "2-3",
             "maxScore": 2,
-            "total": 1164,
+            "total": 1169,
             "correct": 42,
-            "wrong": 1122,
+            "wrong": 1127,
             "blank": 0,
             "correctRate": 3.6,
             "avgScore": 0.08,
@@ -22793,7 +22833,7 @@
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 273,
+                "count": 276,
                 "reason": "空白未作答"
               },
               {
@@ -22907,7 +22947,7 @@
               },
               {
                 "reason": "空白未作答，0分",
-                "count": 24
+                "count": 26
               },
               {
                 "reason": "应为光合速率等于呼吸速率，概念错误",
@@ -22926,6 +22966,10 @@
                 "count": 11
               },
               {
+                "reason": "空白未作答，不得分",
+                "count": 8
+              },
+              {
                 "reason": "空白未作答，给0分",
                 "count": 8
               },
@@ -22935,10 +22979,6 @@
               },
               {
                 "reason": "未作答，给0分",
-                "count": 7
-              },
-              {
-                "reason": "空白未作答，不得分",
                 "count": 7
               },
               {
@@ -22978,13 +23018,13 @@
           {
             "blankNo": "3-1",
             "maxScore": 1,
-            "total": 1168,
+            "total": 1173,
             "correct": 533,
-            "wrong": 635,
+            "wrong": 640,
             "blank": 0,
-            "correctRate": 45.6,
+            "correctRate": 45.4,
             "avgScore": 0.46,
-            "errorRate": 54.4,
+            "errorRate": 54.6,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -23173,13 +23213,13 @@
           {
             "blankNo": "3-2",
             "maxScore": 2,
-            "total": 1164,
+            "total": 1169,
             "correct": 732,
-            "wrong": 432,
+            "wrong": 437,
             "blank": 0,
-            "correctRate": 62.9,
+            "correctRate": 62.6,
             "avgScore": 1.25,
-            "errorRate": 37.1,
+            "errorRate": 37.4,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -23366,11 +23406,11 @@
             ]
           }
         ],
-        "scoreRate": 42.2,
-        "difficulty10": 5.78,
+        "scoreRate": 40.4,
+        "difficulty10": 5.96,
         "difficultyLabel": "偏难",
         "blankRate": 0.0,
-        "discrimination": 0.49,
+        "discrimination": 0.52,
         "qualityLevel": "需要关注",
         "qualityIssues": [
           "得分率偏低"
@@ -23380,21 +23420,21 @@
         "subject": "生物",
         "qno": "28",
         "maxScore": 9,
-        "total": 1357,
-        "avg": 3.48,
+        "total": 1362,
+        "avg": 3.3,
         "fullMark": 9,
         "fullMarkRate": 0.7,
-        "zero": 87,
-        "zeroRate": 6.4,
+        "zero": 151,
+        "zeroRate": 11.1,
         "scoreDist": {
-          "0": 87,
-          "1": 122,
-          "2": 209,
-          "3": 291,
-          "4": 255,
-          "5": 202,
-          "6": 101,
-          "7": 56,
+          "0": 151,
+          "1": 120,
+          "2": 199,
+          "3": 280,
+          "4": 242,
+          "5": 189,
+          "6": 92,
+          "7": 55,
           "8": 25,
           "9": 9
         },
@@ -23402,13 +23442,13 @@
           {
             "blankNo": "1",
             "maxScore": 1,
-            "total": 68,
+            "total": 69,
             "correct": 56,
-            "wrong": 12,
+            "wrong": 13,
             "blank": 0,
-            "correctRate": 82.4,
-            "avgScore": 0.82,
-            "errorRate": 17.6,
+            "correctRate": 81.2,
+            "avgScore": 0.81,
+            "errorRate": 18.8,
             "wrongAnswers": [
               {
                 "answer": "筛管",
@@ -23419,6 +23459,11 @@
                 "answer": "稳程",
                 "count": 1,
                 "reason": "应为'导管'，写'稳程'完全错误"
+              },
+              {
+                "answer": "有丰富的水资源",
+                "count": 1,
+                "reason": "应为‘导管’，‘有丰富的水资源’与运输通道无关，错误"
               },
               {
                 "answer": "导管筛管",
@@ -23444,6 +23489,10 @@
                 "count": 1
               },
               {
+                "reason": "应为‘导管’，‘有丰富的水资源’与运输通道无关，错误",
+                "count": 1
+              },
+              {
                 "reason": "应填导管（运输水和无机盐），筛管运输有机物，概念混淆",
                 "count": 1
               },
@@ -23464,13 +23513,13 @@
           {
             "blankNo": "1-1",
             "maxScore": 1,
-            "total": 1197,
+            "total": 1200,
             "correct": 989,
-            "wrong": 208,
+            "wrong": 211,
             "blank": 0,
-            "correctRate": 82.6,
-            "avgScore": 0.83,
-            "errorRate": 17.4,
+            "correctRate": 82.4,
+            "avgScore": 0.82,
+            "errorRate": 17.6,
             "wrongAnswers": [
               {
                 "answer": "筛管",
@@ -23479,7 +23528,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 24,
+                "count": 26,
                 "reason": "未作答"
               },
               {
@@ -23528,6 +23577,11 @@
                 "reason": "含错误项‘筛管’，应只填‘导管’"
               },
               {
+                "answer": "降水多，气温高，光照足",
+                "count": 1,
+                "reason": "应填'导管'，答非所问，与水分运输通道无关"
+              },
+              {
                 "answer": "离导管",
                 "count": 1,
                 "reason": "应为'导管'，多写'离'字不属于轻微错别字，不给分"
@@ -23566,11 +23620,6 @@
                 "answer": "鼎盛",
                 "count": 1,
                 "reason": "应为'导管'，写'鼎盛'完全错误"
-              },
-              {
-                "answer": "异营",
-                "count": 1,
-                "reason": "应为'导管'，'异营'概念错误"
               }
             ],
             "reasons": [
@@ -23659,13 +23708,13 @@
           {
             "blankNo": "2",
             "maxScore": 1,
-            "total": 68,
+            "total": 69,
             "correct": 27,
-            "wrong": 41,
+            "wrong": 42,
             "blank": 0,
-            "correctRate": 39.7,
-            "avgScore": 0.4,
-            "errorRate": 60.3,
+            "correctRate": 39.1,
+            "avgScore": 0.39,
+            "errorRate": 60.9,
             "wrongAnswers": [
               {
                 "answer": "气孔",
@@ -23674,7 +23723,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 9,
+                "count": 10,
                 "reason": "未作答"
               },
               {
@@ -23753,6 +23802,10 @@
                 "count": 1
               },
               {
+                "reason": "空白未作答，得0分",
+                "count": 1
+              },
+              {
                 "reason": "应为'叶/叶片'，气孔是结构非器官",
                 "count": 1
               },
@@ -23799,23 +23852,19 @@
               {
                 "reason": "应填器官名称'叶/叶片'，气孔是结构不是器官",
                 "count": 1
-              },
-              {
-                "reason": "应为器官'叶'或'叶片'，'表皮'是组织层级，0分",
-                "count": 1
               }
             ]
           },
           {
             "blankNo": "2-1",
             "maxScore": 1,
-            "total": 1258,
+            "total": 1262,
             "correct": 557,
-            "wrong": 701,
+            "wrong": 705,
             "blank": 0,
-            "correctRate": 44.3,
+            "correctRate": 44.1,
             "avgScore": 0.44,
-            "errorRate": 55.7,
+            "errorRate": 55.9,
             "wrongAnswers": [
               {
                 "answer": "蒸腾",
@@ -23824,7 +23873,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 130,
+                "count": 134,
                 "reason": "未作答"
               },
               {
@@ -23933,11 +23982,11 @@
               },
               {
                 "reason": "空白未作答，不得分",
-                "count": 14
+                "count": 15
               },
               {
                 "reason": "空白未作答，得0分",
-                "count": 11
+                "count": 14
               },
               {
                 "reason": "未作答，0分",
@@ -24004,13 +24053,13 @@
           {
             "blankNo": "2-2",
             "maxScore": 1,
-            "total": 1194,
+            "total": 1197,
             "correct": 465,
-            "wrong": 729,
+            "wrong": 732,
             "blank": 0,
-            "correctRate": 38.9,
+            "correctRate": 38.8,
             "avgScore": 0.39,
-            "errorRate": 61.1,
+            "errorRate": 61.2,
             "wrongAnswers": [
               {
                 "answer": "气孔",
@@ -24019,7 +24068,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 130,
+                "count": 133,
                 "reason": "空白未作答"
               },
               {
@@ -24144,7 +24193,11 @@
               },
               {
                 "reason": "空白未作答，不得分",
-                "count": 10
+                "count": 11
+              },
+              {
+                "reason": "空白未作答，得0分",
+                "count": 9
               },
               {
                 "reason": "应为'叶'或'叶片'，气孔是结构而非器官",
@@ -24157,10 +24210,6 @@
               {
                 "reason": "应为'叶'或'叶片'，'气孔'是结构非器官",
                 "count": 8
-              },
-              {
-                "reason": "空白未作答，得0分",
-                "count": 7
               },
               {
                 "reason": "未作答，不得分",
@@ -24199,13 +24248,13 @@
           {
             "blankNo": "3",
             "maxScore": 1,
-            "total": 68,
+            "total": 69,
             "correct": 42,
-            "wrong": 26,
+            "wrong": 27,
             "blank": 0,
-            "correctRate": 61.8,
-            "avgScore": 0.62,
-            "errorRate": 38.2,
+            "correctRate": 60.9,
+            "avgScore": 0.61,
+            "errorRate": 39.1,
             "wrongAnswers": [
               {
                 "answer": "增加",
@@ -24214,7 +24263,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 3,
+                "count": 4,
                 "reason": "空白未作答"
               },
               {
@@ -24262,6 +24311,10 @@
               },
               {
                 "reason": "应为'减少/降低'，'增加'错误",
+                "count": 1
+              },
+              {
+                "reason": "空白未作答，得0分",
                 "count": 1
               },
               {
@@ -24319,23 +24372,19 @@
               {
                 "reason": "应为'减少'或'降低'，气孔关闭水分散失减少",
                 "count": 1
-              },
-              {
-                "reason": "应为保卫细胞，筛管运输有机物无关",
-                "count": 1
               }
             ]
           },
           {
             "blankNo": "3-1",
             "maxScore": 1,
-            "total": 1258,
+            "total": 1262,
             "correct": 453,
-            "wrong": 805,
+            "wrong": 809,
             "blank": 0,
-            "correctRate": 36.0,
+            "correctRate": 35.9,
             "avgScore": 0.36,
-            "errorRate": 64.0,
+            "errorRate": 64.1,
             "wrongAnswers": [
               {
                 "answer": "气孔",
@@ -24344,7 +24393,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 185,
+                "count": 189,
                 "reason": "空白未作答"
               },
               {
@@ -24456,20 +24505,20 @@
                 "count": 22
               },
               {
+                "reason": "空白未作答，得0分",
+                "count": 14
+              },
+              {
                 "reason": "应为'保卫细胞'，气孔是结构非细胞",
                 "count": 11
               },
               {
-                "reason": "空白未作答，得0分",
+                "reason": "空白未作答，不得分",
                 "count": 11
               },
               {
                 "reason": "应为'保卫细胞'，气孔是结构而非细胞",
                 "count": 11
-              },
-              {
-                "reason": "空白未作答，不得分",
-                "count": 10
               },
               {
                 "reason": "未作答，不得分",
@@ -24524,13 +24573,13 @@
           {
             "blankNo": "3-2",
             "maxScore": 1,
-            "total": 1257,
+            "total": 1261,
             "correct": 724,
-            "wrong": 533,
+            "wrong": 537,
             "blank": 0,
-            "correctRate": 57.6,
-            "avgScore": 0.58,
-            "errorRate": 42.4,
+            "correctRate": 57.4,
+            "avgScore": 0.57,
+            "errorRate": 42.6,
             "wrongAnswers": [
               {
                 "answer": "相同",
@@ -24539,7 +24588,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 48,
+                "count": 52,
                 "reason": "未作答"
               },
               {
@@ -24691,6 +24740,10 @@
                 "count": 5
               },
               {
+                "reason": "空白未作答，得0分",
+                "count": 4
+              },
+              {
                 "reason": "空白未作答，0分",
                 "count": 4
               },
@@ -24709,23 +24762,19 @@
               {
                 "reason": "应为'相反'，写成'相同'方向错误",
                 "count": 3
-              },
-              {
-                "reason": "应为相反，方向判断错误",
-                "count": 3
               }
             ]
           },
           {
             "blankNo": "3-3",
             "maxScore": 1,
-            "total": 1190,
+            "total": 1193,
             "correct": 764,
-            "wrong": 426,
+            "wrong": 429,
             "blank": 0,
-            "correctRate": 64.2,
+            "correctRate": 64.0,
             "avgScore": 0.64,
-            "errorRate": 35.8,
+            "errorRate": 36.0,
             "wrongAnswers": [
               {
                 "answer": "增加",
@@ -24734,7 +24783,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 59,
+                "count": 62,
                 "reason": "未作答"
               },
               {
@@ -24890,6 +24939,14 @@
                 "count": 5
               },
               {
+                "reason": "空白未作答，得0分",
+                "count": 4
+              },
+              {
+                "reason": "空白未作答，不得分",
+                "count": 3
+              },
+              {
                 "reason": "应为减少/降低，气孔关闭蒸腾减弱",
                 "count": 3
               },
@@ -24900,23 +24957,15 @@
               {
                 "reason": "应为'减少'，方向错误",
                 "count": 3
-              },
-              {
-                "reason": "气孔关闭会导致水分散失量减少",
-                "count": 3
-              },
-              {
-                "reason": "应为减少/降低，'增加'方向错误",
-                "count": 3
               }
             ]
           },
           {
             "blankNo": "4-1",
             "maxScore": 1,
-            "total": 1258,
+            "total": 1262,
             "correct": 149,
-            "wrong": 1109,
+            "wrong": 1113,
             "blank": 0,
             "correctRate": 11.8,
             "avgScore": 0.12,
@@ -24929,7 +24978,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 54,
+                "count": 58,
                 "reason": "未作答"
               },
               {
@@ -25109,9 +25158,9 @@
           {
             "blankNo": "4-2",
             "maxScore": 2,
-            "total": 1256,
+            "total": 1259,
             "correct": 70,
-            "wrong": 1186,
+            "wrong": 1189,
             "blank": 0,
             "correctRate": 5.6,
             "avgScore": 0.19,
@@ -25119,7 +25168,7 @@
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 345,
+                "count": 348,
                 "reason": "空白未作答"
               },
               {
@@ -25241,11 +25290,11 @@
               },
               {
                 "reason": "空白未作答，得0分",
-                "count": 17
+                "count": 19
               },
               {
                 "reason": "空白未作答，不得分",
-                "count": 17
+                "count": 18
               },
               {
                 "reason": "未作答，不得分",
@@ -25302,11 +25351,11 @@
             ]
           }
         ],
-        "scoreRate": 38.7,
-        "difficulty10": 6.13,
+        "scoreRate": 36.7,
+        "difficulty10": 6.33,
         "difficultyLabel": "偏难",
         "blankRate": 0.0,
-        "discrimination": 0.33,
+        "discrimination": 0.38,
         "qualityLevel": "需要关注",
         "qualityIssues": [
           "得分率偏低"
@@ -25316,20 +25365,20 @@
         "subject": "生物",
         "qno": "29",
         "maxScore": 6,
-        "total": 1357,
-        "avg": 1.62,
-        "fullMark": 3,
-        "fullMarkRate": 0.2,
-        "zero": 388,
-        "zeroRate": 28.6,
+        "total": 1362,
+        "avg": 1.56,
+        "fullMark": 2,
+        "fullMarkRate": 0.1,
+        "zero": 413,
+        "zeroRate": 30.3,
         "scoreDist": {
-          "0": 388,
-          "1": 319,
-          "2": 282,
-          "3": 202,
-          "4": 126,
-          "5": 37,
-          "6": 3
+          "0": 413,
+          "1": 324,
+          "2": 270,
+          "3": 197,
+          "4": 120,
+          "5": 36,
+          "6": 2
         },
         "blanks": [
           {
@@ -25468,13 +25517,13 @@
           {
             "blankNo": "1-1",
             "maxScore": 1,
-            "total": 1161,
+            "total": 1166,
             "correct": 488,
-            "wrong": 673,
+            "wrong": 678,
             "blank": 0,
-            "correctRate": 42.0,
+            "correctRate": 41.9,
             "avgScore": 0.42,
-            "errorRate": 58.0,
+            "errorRate": 58.1,
             "wrongAnswers": [
               {
                 "answer": "氧气",
@@ -25562,6 +25611,11 @@
                 "reason": "应填'有机物'或具体有机物名称，'呼吸'是过程非物质"
               },
               {
+                "answer": "北温",
+                "count": 3,
+                "reason": "答案“北温”为地理名词，与呼吸作用消耗有机物的生物学概念完全无关，不给分"
+              },
+              {
                 "answer": "氧气浓度",
                 "count": 3,
                 "reason": "应填有机物，氧气浓度不是物质消耗，直接0分"
@@ -25570,11 +25624,6 @@
                 "answer": "无机物",
                 "count": 3,
                 "reason": "应填'有机物'，学生写'无机物'概念错误"
-              },
-              {
-                "answer": "热量",
-                "count": 3,
-                "reason": "应填有机物/糖类等物质，热量是能量形式，属排除项"
               }
             ],
             "reasons": [
@@ -25818,13 +25867,13 @@
           {
             "blankNo": "2-1",
             "maxScore": 1,
-            "total": 1185,
+            "total": 1190,
             "correct": 265,
-            "wrong": 920,
+            "wrong": 925,
             "blank": 0,
-            "correctRate": 22.4,
+            "correctRate": 22.3,
             "avgScore": 0.22,
-            "errorRate": 77.6,
+            "errorRate": 77.7,
             "wrongAnswers": [
               {
                 "answer": "呼吸作用",
@@ -26013,13 +26062,13 @@
           {
             "blankNo": "2-2",
             "maxScore": 1,
-            "total": 1155,
+            "total": 1160,
             "correct": 344,
-            "wrong": 811,
+            "wrong": 816,
             "blank": 0,
-            "correctRate": 29.8,
+            "correctRate": 29.7,
             "avgScore": 0.3,
-            "errorRate": 70.2,
+            "errorRate": 70.3,
             "wrongAnswers": [
               {
                 "answer": "常氧",
@@ -26312,9 +26361,9 @@
           {
             "blankNo": "3-1",
             "maxScore": 1,
-            "total": 1184,
+            "total": 1189,
             "correct": 261,
-            "wrong": 923,
+            "wrong": 928,
             "blank": 0,
             "correctRate": 22.0,
             "avgScore": 0.23,
@@ -26332,7 +26381,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 109,
+                "count": 110,
                 "reason": "空白未作答"
               },
               {
@@ -26411,14 +26460,14 @@
                 "reason": "应填能量/热量，淀粉不能直接解释温度升高"
               },
               {
+                "answer": "（无法辨识）",
+                "count": 2,
+                "reason": "无法辨识，不得猜测给0分"
+              },
+              {
                 "answer": "蒸腾",
                 "count": 2,
                 "reason": "应填能量或热量，蒸腾作用不直接导致环境升温"
-              },
-              {
-                "answer": "氧化碳",
-                "count": 2,
-                "reason": "应为能量/热量，'氧化碳'误写且概念错误，0分"
               }
             ],
             "reasons": [
@@ -26507,9 +26556,9 @@
           {
             "blankNo": "3-2",
             "maxScore": 2,
-            "total": 1173,
+            "total": 1178,
             "correct": 85,
-            "wrong": 1088,
+            "wrong": 1093,
             "blank": 0,
             "correctRate": 7.2,
             "avgScore": 0.61,
@@ -26517,7 +26566,7 @@
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 151,
+                "count": 152,
                 "reason": "空白未作答，0分"
               },
               {
@@ -26700,50 +26749,51 @@
             ]
           }
         ],
-        "scoreRate": 27.0,
-        "difficulty10": 7.3,
+        "scoreRate": 26.0,
+        "difficulty10": 7.4,
         "difficultyLabel": "很难",
         "blankRate": 0.0,
-        "discrimination": 0.36,
+        "discrimination": 0.37,
         "qualityLevel": "需要关注",
         "qualityIssues": [
-          "得分率偏低"
+          "得分率偏低",
+          "零分率偏高"
         ]
       },
       "生物_Q30": {
         "subject": "生物",
         "qno": "30",
         "maxScore": 10,
-        "total": 1357,
-        "avg": 7.62,
-        "fullMark": 397,
-        "fullMarkRate": 29.3,
-        "zero": 71,
-        "zeroRate": 5.2,
+        "total": 1362,
+        "avg": 7.26,
+        "fullMark": 380,
+        "fullMarkRate": 27.9,
+        "zero": 133,
+        "zeroRate": 9.8,
         "scoreDist": {
-          "0": 71,
+          "0": 133,
           "1": 10,
-          "2": 13,
-          "3": 33,
-          "4": 33,
-          "5": 52,
-          "6": 88,
-          "7": 200,
-          "8": 229,
-          "9": 231,
-          "10": 397
+          "2": 12,
+          "3": 29,
+          "4": 32,
+          "5": 48,
+          "6": 86,
+          "7": 194,
+          "8": 221,
+          "9": 217,
+          "10": 380
         },
         "blanks": [
           {
             "blankNo": "1",
             "maxScore": 1,
-            "total": 49,
+            "total": 50,
             "correct": 38,
-            "wrong": 11,
+            "wrong": 12,
             "blank": 0,
-            "correctRate": 77.6,
-            "avgScore": 0.78,
-            "errorRate": 22.4,
+            "correctRate": 76.0,
+            "avgScore": 0.76,
+            "errorRate": 24.0,
             "wrongAnswers": [
               {
                 "answer": "睾丸",
@@ -26754,6 +26804,11 @@
                 "answer": "输卵管",
                 "count": 2,
                 "reason": "应为卵巢，输卵管是受精场所，概念错误"
+              },
+              {
+                "answer": "（未作答）",
+                "count": 2,
+                "reason": "未作答，0分"
               },
               {
                 "answer": "阴道",
@@ -26769,11 +26824,6 @@
                 "answer": "卵细胞",
                 "count": 1,
                 "reason": "应填器官名称“卵巢”，错写产生的细胞，概念错误"
-              },
-              {
-                "answer": "（未作答）",
-                "count": 1,
-                "reason": "空白未作答，应填'卵巢'"
               }
             ],
             "reasons": [
@@ -26802,6 +26852,10 @@
                 "count": 1
               },
               {
+                "reason": "未作答，0分",
+                "count": 1
+              },
+              {
                 "reason": "应为'卵巢'，填写'睾丸'，概念错误（雄性器官），0分",
                 "count": 1
               },
@@ -26822,13 +26876,13 @@
           {
             "blankNo": "1-1",
             "maxScore": 1,
-            "total": 1192,
+            "total": 1194,
             "correct": 999,
-            "wrong": 193,
+            "wrong": 195,
             "blank": 0,
-            "correctRate": 83.8,
+            "correctRate": 83.7,
             "avgScore": 0.84,
-            "errorRate": 16.2,
+            "errorRate": 16.3,
             "wrongAnswers": [
               {
                 "answer": "睾丸",
@@ -26852,7 +26906,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 13,
+                "count": 15,
                 "reason": "未作答，不得分"
               },
               {
@@ -26965,6 +27019,10 @@
                 "count": 2
               },
               {
+                "reason": "空白未作答，得0分",
+                "count": 2
+              },
+              {
                 "reason": "应为卵巢，睾丸是男性器官，错误",
                 "count": 2
               },
@@ -27007,23 +27065,19 @@
               {
                 "reason": "应为卵巢，填睾丸方向错误",
                 "count": 1
-              },
-              {
-                "reason": "应填‘卵巢’，‘阴道’为排除项，直接0分",
-                "count": 1
               }
             ]
           },
           {
             "blankNo": "1-2",
             "maxScore": 1,
-            "total": 1185,
+            "total": 1188,
             "correct": 1063,
-            "wrong": 122,
+            "wrong": 125,
             "blank": 0,
-            "correctRate": 89.7,
-            "avgScore": 0.9,
-            "errorRate": 10.3,
+            "correctRate": 89.5,
+            "avgScore": 0.89,
+            "errorRate": 10.5,
             "wrongAnswers": [
               {
                 "answer": "雄",
@@ -27032,7 +27086,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 19,
+                "count": 22,
                 "reason": "未作答，不得分"
               },
               {
@@ -27133,7 +27187,11 @@
               },
               {
                 "reason": "未作答，0分",
-                "count": 3
+                "count": 4
+              },
+              {
+                "reason": "空白未作答，得0分",
+                "count": 2
               },
               {
                 "reason": "未作答",
@@ -27184,10 +27242,6 @@
                 "count": 1
               },
               {
-                "reason": "空白未作答，得0分",
-                "count": 1
-              },
-              {
                 "reason": "应为雌性，学生答雄性，性别错误",
                 "count": 1
               },
@@ -27212,13 +27266,13 @@
           {
             "blankNo": "2",
             "maxScore": 1,
-            "total": 49,
+            "total": 50,
             "correct": 26,
-            "wrong": 23,
+            "wrong": 24,
             "blank": 0,
-            "correctRate": 53.1,
-            "avgScore": 0.53,
-            "errorRate": 46.9,
+            "correctRate": 52.0,
+            "avgScore": 0.52,
+            "errorRate": 48.0,
             "wrongAnswers": [
               {
                 "answer": "子宫",
@@ -27226,14 +27280,14 @@
                 "reason": "应为输卵管，子宫是胚胎发育场所"
               },
               {
+                "answer": "（未作答）",
+                "count": 4,
+                "reason": "未作答，0分"
+              },
+              {
                 "answer": "子宫内膜",
                 "count": 3,
                 "reason": "应为'输卵管'，子宫内膜是着床场所"
-              },
-              {
-                "answer": "（未作答）",
-                "count": 3,
-                "reason": "未作答，0分"
               },
               {
                 "answer": "胎盘",
@@ -27264,7 +27318,7 @@
             "reasons": [
               {
                 "reason": "未作答，0分",
-                "count": 2
+                "count": 3
               },
               {
                 "reason": "应为输卵管，子宫是胚胎发育场所",
@@ -27347,17 +27401,17 @@
           {
             "blankNo": "2-1",
             "maxScore": 1,
-            "total": 1231,
+            "total": 1234,
             "correct": 730,
-            "wrong": 501,
+            "wrong": 504,
             "blank": 0,
-            "correctRate": 59.3,
+            "correctRate": 59.2,
             "avgScore": 0.59,
-            "errorRate": 40.7,
+            "errorRate": 40.8,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 76,
+                "count": 79,
                 "reason": "未作答，0分"
               },
               {
@@ -27459,7 +27513,7 @@
             "reasons": [
               {
                 "reason": "未作答，0分",
-                "count": 16
+                "count": 17
               },
               {
                 "reason": "空白未作答",
@@ -27471,7 +27525,7 @@
               },
               {
                 "reason": "空白未作答，得0分",
-                "count": 6
+                "count": 7
               },
               {
                 "reason": "空白未作答，0分",
@@ -27542,13 +27596,13 @@
           {
             "blankNo": "2-2",
             "maxScore": 1,
-            "total": 1146,
+            "total": 1148,
             "correct": 482,
-            "wrong": 664,
+            "wrong": 666,
             "blank": 0,
-            "correctRate": 42.1,
+            "correctRate": 42.0,
             "avgScore": 0.42,
-            "errorRate": 57.9,
+            "errorRate": 58.0,
             "wrongAnswers": [
               {
                 "answer": "子宫",
@@ -27557,7 +27611,7 @@
               },
               {
                 "answer": "（未作答）",
-                "count": 69,
+                "count": 71,
                 "reason": "未作答"
               },
               {
@@ -27713,6 +27767,10 @@
                 "count": 5
               },
               {
+                "reason": "空白未作答，得0分",
+                "count": 5
+              },
+              {
                 "reason": "应为'输卵管'，子宫内膜是着床场所非受精场所",
                 "count": 4
               },
@@ -27727,27 +27785,23 @@
               {
                 "reason": "应为'输卵管'，子宫内膜是着床场所",
                 "count": 4
-              },
-              {
-                "reason": "空白未作答，得0分",
-                "count": 4
               }
             ]
           },
           {
             "blankNo": "3",
             "maxScore": 1,
-            "total": 49,
+            "total": 51,
             "correct": 45,
-            "wrong": 4,
+            "wrong": 6,
             "blank": 0,
-            "correctRate": 91.8,
-            "avgScore": 0.92,
-            "errorRate": 8.2,
+            "correctRate": 88.2,
+            "avgScore": 0.88,
+            "errorRate": 11.8,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 2,
+                "count": 3,
                 "reason": "未作答，0分"
               },
               {
@@ -27759,19 +27813,28 @@
                 "answer": "氧气",
                 "count": 1,
                 "reason": "应填结构名称，氧气是物质，概念错误"
+              },
+              {
+                "answer": "D",
+                "count": 1,
+                "reason": "应为'胎盘'或'脐带'，答'D'完全错误"
               }
             ],
             "reasons": [
+              {
+                "reason": "未作答，0分",
+                "count": 2
+              },
               {
                 "reason": "应为'胎盘'或'脐带'，'子宫'属排除项",
                 "count": 1
               },
               {
-                "reason": "未作答，0分",
+                "reason": "应填结构名称，氧气是物质，概念错误",
                 "count": 1
               },
               {
-                "reason": "应填结构名称，氧气是物质，概念错误",
+                "reason": "应为'胎盘'或'脐带'，答'D'完全错误",
                 "count": 1
               },
               {
@@ -27783,13 +27846,13 @@
           {
             "blankNo": "3-1",
             "maxScore": 1,
-            "total": 1232,
+            "total": 1236,
             "correct": 1006,
-            "wrong": 226,
+            "wrong": 230,
             "blank": 0,
-            "correctRate": 81.7,
-            "avgScore": 0.82,
-            "errorRate": 18.3,
+            "correctRate": 81.4,
+            "avgScore": 0.81,
+            "errorRate": 18.6,
             "wrongAnswers": [
               {
                 "answer": "子宫内膜",
@@ -27862,6 +27925,11 @@
                 "reason": "应为受精卵，精子是生殖细胞"
               },
               {
+                "answer": "C",
+                "count": 2,
+                "reason": "应为“子宫”，写字母“C”无关"
+              },
+              {
                 "answer": "腰",
                 "count": 2,
                 "reason": "应为子宫，答腰非专业术语，0分"
@@ -27885,11 +27953,6 @@
                 "answer": "胚胎 子宫",
                 "count": 1,
                 "reason": "多写'胚胎'，未准确书写'子宫'，不得分"
-              },
-              {
-                "answer": "（无法辨识）",
-                "count": 1,
-                "reason": "无法辨识，按0分处理"
               }
             ],
             "reasons": [
@@ -27978,13 +28041,13 @@
           {
             "blankNo": "3-2",
             "maxScore": 1,
-            "total": 1199,
+            "total": 1203,
             "correct": 1043,
-            "wrong": 155,
+            "wrong": 159,
             "blank": 1,
-            "correctRate": 87.0,
+            "correctRate": 86.7,
             "avgScore": 0.87,
-            "errorRate": 13.0,
+            "errorRate": 13.3,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
@@ -28047,6 +28110,11 @@
                 "reason": "应为胎盘或脐带，写成卵黄，概念错误，0分"
               },
               {
+                "answer": "B",
+                "count": 3,
+                "reason": "应为“胎盘”或“脐带”，写字母“B”错误"
+              },
+              {
                 "answer": "营养物质",
                 "count": 2,
                 "reason": "应为'胎盘'或'脐带'，'营养物质'是物质非结构"
@@ -28080,11 +28148,6 @@
                 "answer": "肚期",
                 "count": 1,
                 "reason": "应为'胎盘'或'脐带'，'肚期'无法辨识"
-              },
-              {
-                "answer": "乳汁",
-                "count": 1,
-                "reason": "应为胎盘或脐带，乳汁为乳腺分泌"
               }
             ],
             "reasons": [
@@ -28173,17 +28236,17 @@
           {
             "blankNo": "3-3",
             "maxScore": 1,
-            "total": 1143,
+            "total": 1145,
             "correct": 1003,
-            "wrong": 139,
+            "wrong": 141,
             "blank": 1,
-            "correctRate": 87.8,
+            "correctRate": 87.6,
             "avgScore": 0.88,
-            "errorRate": 12.2,
+            "errorRate": 12.4,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 47,
+                "count": 49,
                 "reason": "未作答，0分"
               },
               {
@@ -28316,6 +28379,10 @@
                 "count": 3
               },
               {
+                "reason": "空白未作答，得0分",
+                "count": 3
+              },
+              {
                 "reason": "应为'胎盘'或'脐带'，羊水非交换结构",
                 "count": 2
               },
@@ -28325,10 +28392,6 @@
               },
               {
                 "reason": "应为'胎盘'或'脐带'，'羊水'非物质交换结构",
-                "count": 2
-              },
-              {
-                "reason": "空白未作答，得0分",
                 "count": 2
               },
               {
@@ -28368,13 +28431,13 @@
           {
             "blankNo": "4-1",
             "maxScore": 1,
-            "total": 1228,
+            "total": 1232,
             "correct": 975,
-            "wrong": 252,
+            "wrong": 256,
             "blank": 1,
-            "correctRate": 79.4,
+            "correctRate": 79.1,
             "avgScore": 0.79,
-            "errorRate": 20.6,
+            "errorRate": 20.9,
             "wrongAnswers": [
               {
                 "answer": "发育",
@@ -28563,17 +28626,17 @@
           {
             "blankNo": "5-1",
             "maxScore": 2,
-            "total": 1230,
+            "total": 1234,
             "correct": 1117,
-            "wrong": 113,
+            "wrong": 117,
             "blank": 0,
-            "correctRate": 90.8,
-            "avgScore": 1.8,
-            "errorRate": 9.2,
+            "correctRate": 90.5,
+            "avgScore": 1.79,
+            "errorRate": 9.5,
             "wrongAnswers": [
               {
                 "answer": "（未作答）",
-                "count": 56,
+                "count": 60,
                 "reason": "未作答，得0分"
               },
               {
@@ -28675,11 +28738,11 @@
             "reasons": [
               {
                 "reason": "未作答，得0分",
-                "count": 11
+                "count": 12
               },
               {
                 "reason": "未作答，0分",
-                "count": 9
+                "count": 10
               },
               {
                 "reason": "空白未作答",
@@ -28694,15 +28757,15 @@
                 "count": 5
               },
               {
+                "reason": "空白未作答，得0分",
+                "count": 4
+              },
+              {
                 "reason": "未作答，给0分",
                 "count": 4
               },
               {
                 "reason": "空白未作答，0分",
-                "count": 3
-              },
-              {
-                "reason": "空白未作答，得0分",
                 "count": 3
               },
               {
@@ -28868,11 +28931,11 @@
             ]
           }
         ],
-        "scoreRate": 76.2,
-        "difficulty10": 2.38,
+        "scoreRate": 72.6,
+        "difficulty10": 2.74,
         "difficultyLabel": "适中",
         "blankRate": 0.0,
-        "discrimination": 0.41,
+        "discrimination": 0.52,
         "qualityLevel": "相对稳定",
         "qualityIssues": [
           "表现稳定"
