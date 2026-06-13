@@ -19,8 +19,9 @@ Use this index before reading historical `docs/plans/**`. Anything not listed he
 | `docs/context/SAFETY_MATRIX.md` | active | Rule enforcement map |
 | `docs/context/ARTIFACT_POLICY.md` | active | Local artifact, backup, screenshot, and scratch-script policy |
 | `docs/governance/foundation-boundaries.md` | active | Module boundary, coupling debt, and parallel development direction |
-| `docs/governance/debt-ledger.md` | active | 地基债务台账（单一跨域债务真源，窗口选题驱动）：过程洞 A（runtime operation 未绑合同）/洞 B（review receipt 未绑 commit，13 commit gap）、R-H3/R-H4/R-H5、55 edges/30 cycles burn-down、AI tool module_code 语义债、known_drift=studio、Portal Phase 1 解锁前置条件 |
-| `docs/reviews/2026-06-12-w1-governance-acceptance.md` | active | W1 read_only 验收记录：accept 结论 + Q1 角色裁定（Codex/Yuance=规划审查验收、Claude Code=yc start+V2 contract 内执行、codex-consult-claude=可选只读辅助）+ 13 commit review gap（3688f32..26d98eb）处置表 + answer-card canonical 真源翻转登记 + coze required_action（AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED）死开关登记 |
+| `docs/governance/debt-ledger.md` | active | 地基债务台账（单一跨域债务真源，窗口选题驱动）：过程洞 A（D-01 runtime-op）/洞 B（D-02 receipt-commit）**机械闸门已 W2 gate-built closed**，洞 B 历史 review-gap **16 commit（3688f32..6b1bdd3，L2 仍 open，闸门关闭≠历史债清账）**、R-H3/R-H4/R-H5、55 edges/30 cycles burn-down、AI tool module_code 语义债、D-07 测试基线三口径（open）、known_drift=studio、Portal Phase 1（D-08 blocked on W4+sign-off）。**Q3 W2-后校准见 `docs/reviews/2026-06-13-q3-foundation-debt-reconcile.md`** |
+| `docs/reviews/2026-06-13-q3-foundation-debt-reconcile.md` | active | Q3 地基债务台账校准记录（W2 后，合同 `yc-20260614-39eac63d`，sid:8d106de4）：D-01/D-02 拆两层——机械闸门 L1 = closed/gate-built（W2 96 passed + doctor READY）、历史 review-gap L2 = open（13→16 commit `3688f32..6b1bdd3`）；含 Fresh Evidence Pack / Root Cause Ladder（双层根因）/ 三层地基进度（运行态🟢 / 过程治理 机械层🟢+历史债层🔴 / 结构耦合🟡）/ 下一阶段排序。D-07/D-08 本窗不动 |
+| `docs/reviews/2026-06-12-w1-governance-acceptance.md` | active | W1 read_only 验收记录：accept 结论 + Q1 角色裁定（Codex/Yuance=规划审查验收、Claude Code=yc start+V2 contract 内执行、codex-consult-claude=可选只读辅助）+ review gap 处置表（W1 时 13 commit `3688f32..26d98eb`；**Q3 已校准为 16 commit `3688f32..6b1bdd3`**）+ answer-card canonical 真源翻转登记 + coze required_action（AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED）死开关登记 |
 | `.github/workflows/test.yml` | active | CI smoke checks for the Codex governance layer plus existing backend/frontend jobs |
 
 ## Candidate Active Work

@@ -8,7 +8,9 @@
 > 更新纪律：每个合同窗口收口时报仪表盘 delta；数字不动 = 没深度。
 > 证据底座：`docs/reviews/2026-06-11-edu-foundation-deep-investigation.md` +
 > `docs/reviews/2026-06-10-foundation-stability-audit.md`（R-H1..R-L6）+
-> `docs/reviews/2026-06-12-w1-governance-acceptance.md`。
+> `docs/reviews/2026-06-12-w1-governance-acceptance.md` +
+> `docs/reviews/2026-06-13-q3-foundation-debt-reconcile.md`（W2 后 Q3 校准：D-01/D-02
+> 机械闸门 closed、历史 review-gap 13→16）。
 
 ## 深度仪表盘（每窗口收口报 delta）
 
@@ -18,32 +20,52 @@
 | 跨模块依赖环 | 30（55 edges） | 持续下降 + gate 防回弹 |
 | AI tool 语义错挂 | ~46 个挤 `exam` 码 | 按 owner 归位 |
 | 测试基线口径 | 3 套 | 1 套、自动刷新 |
-| 无 receipt 提交 | 13（`3688f32..26d98eb`） | 0 且机械不可再发生 |
+| 无 receipt 提交（历史债，L2） | 16（`3688f32..6b1bdd3`，W1 时为 13） | 0（补审后清零） |
+| receipt/runtime-op 机械闸门（L1） | ✅ closed/gate-built（W2 live） | 已达成（机械不可再发生） |
+
+> 仪表盘口径校准（Q3，2026-06-13，合同 `yc-20260614-39eac63d`）：洞 A/洞 B 的
+> **机械闸门（L1）已 W2 gate-built closed**——「机械不可再发生」已达成；剩下的
+> **历史 review-gap（L2）是独立债项**，从 W1 的 13 增至 16 commit，需独立补审才清零。
+> 闸门关闭 ≠ 历史债清账，两层分开记。详见 `docs/reviews/2026-06-13-q3-foundation-debt-reconcile.md`。
 
 地基完工判据（全绿即转常态开发）：① doctor 常态 READY ② commit 必带
-receipt/waiver（机械强制）③ 运行态操作必在合同窗口内（机械强制）④ 环数下降且
-gate 防回弹 ⑤ 测试基线单一真源自动刷新。
+receipt/waiver（机械强制，**W2 已达成**）③ 运行态操作必在合同窗口内（机械强制，
+**W2 已达成**）④ 环数下降且 gate 防回弹 ⑤ 测试基线单一真源自动刷新。
 
 ## 债务条目
 
 ### D-01 runtime operation 未绑合同（洞 A）— HIGH · 过程
 
 - 内容：运行态操作（restart / rebuild / deploy）不经 V2 合同即可执行，零兜底。
-  R-M2 已实际发生 2 次（06-10 `6f90994→c26379d` 对齐；06-11 21:19 紧跟 push 的
-  restart+rebuild，均无留痕）。
-- 处置路径：W2（元守侧 writer，yuanshou 仓）实现「运行态操作绑合同」机械硬闸。
-- 状态：**open**（机械化优先级最高，与 D-02 并列）。
+- **机械闸门（L1）**：W2（元守侧 writer，yuanshou 仓）已实现「运行态操作绑合同」
+  机械硬闸并 live——`tests/v2/test_runtime_ops.py` + `test_boundary_guard_hook.py`
+  绿（与 git_rules/review_receipt 合计 96 passed），`scripts/yc doctor` READY、
+  source=origin=live 对齐。运行态操作此后机械强制在合同窗口内。
+- **历史事故（L2，背景化）**：R-M2 已实际发生 2 次（06-10 `6f90994→c26379d` 对齐；
+  06-11 21:19 紧跟 push 的 restart+rebuild，均无留痕），已在 NOW/audit 留痕；机械层
+  关闭后不再新增，无补审动作需求。
+- 状态：**closed/gate-built**（L1 闸门已建并 live；L2 历史事故背景化、不新增）。
+  Q3 校准（2026-06-13，合同 `yc-20260614-39eac63d`）确认。
 
 ### D-02 review receipt 未绑 commit（洞 B）— HIGH · 过程
 
-- 内容：commit 落地不强制 receipt/waiver，零兜底。实际事故：06-07 后 13 个 commit
-  零 receipt（`3688f32..26d98eb`，含 coze provider +2,946 行、answer-card
-  canonical +3,634 行）。
-- 处置路径：① W2 实现「receipt 绑 commit」机械硬闸；② 13 commit 按
-  `docs/reviews/2026-06-12-w1-governance-acceptance.md` §3 处置表执行
-  （两次 `codex-review range` 补审 + waiver/留痕/签认），在独立 review-gap
-  合同窗口跑，不在 W3。
-- 状态：**open**（闸门未建；13 commit 处置路径已登记待执行）。
+> **本条拆两层**：机械闸门（L1）已闭合；历史 review-gap（L2）仍开放。两层分开记，
+> 闸门关闭 ≠ 历史债清账。
+
+- **机械闸门（L1）= closed/gate-built**：W2（元守侧 writer，yuanshou 仓）已实现
+  「receipt 绑 commit」机械硬闸并 live——`tests/v2/test_review_receipt.py` +
+  `test_git_rules.py` 绿（合计 96 passed）。commit 落地此后机械强制带 receipt/waiver，
+  零 receipt 的 commit 不可再发生。
+- **历史 review-gap（L2）= open**：06-07 后零 receipt 的 commit 残留，**从 W1 记录的
+  13 commit 增至 16 commit**（`3688f32..6b1bdd3`，W1 后新增 `3c2b7e2`/`c0057df`/
+  `6b1bdd3`；含 coze provider +2,946 行、answer-card canonical +3,634 行）。
+  `.review-receipts.jsonl` 末条仍 = 06-07 14:40 `PASS@3688f32`。
+- 处置路径（L2）：按 `docs/reviews/2026-06-12-w1-governance-acceptance.md` §3 处置表
+  （两次 `codex-review range` 补审 + waiver/留痕/签认），在**独立 review-gap 合同窗口**
+  跑——**不在本 docs-only 校准窗，需带 review 授权的独立合同**。
+- 状态：**机械闸门 closed/gate-built；历史 16 commit review-gap 仍 open**。
+  Q3 校准（2026-06-13，合同 `yc-20260614-39eac63d`）确认计数 13→16，
+  详见 `docs/reviews/2026-06-13-q3-foundation-debt-reconcile.md`。
 
 ### D-03 跨模块耦合 55 edges / 30 cycles（R-H4）— HIGH · 结构
 
@@ -97,7 +119,9 @@ gate 防回弹 ⑤ 测试基线单一真源自动刷新。
   （0.7E 全量实跑）。失败集合无单一真源。
 - 处置路径：W3 后续批次/独立小窗——重启 `pytest_delta`，刷新
   known-pytest-failures，统一为单一自动刷新口径。
-- 状态：**open**。
+- 状态：**open**。Q3 校准（2026-06-13）read_only 复核三口径仍分裂（CLAUDE.md
+  「12 failed」05-19 / known-failures 26 条 05-06 后未刷新 / NOW.md「22 failed」
+  0.7E 实跑）——**本 docs-only 校准窗不假装关闭，留独立测试基线统一小窗**。
 
 ### D-08 Portal Phase 1 解锁前置条件 — 阻塞性 · 流程
 
@@ -107,7 +131,9 @@ gate 防回弹 ⑤ 测试基线单一真源自动刷新。
   按校过滤）+ **R-H5 生产 SchoolModule 行完整性核查**（最易漏）+ 设计者签发留痕
   （executor does not self-unlock）。
 - 处置路径：W4（C3 复验窗，read_only + 线上凭据）→ 设计者签发 → 解锁。
-- 状态：**blocked on W4 + sign-off**。
+- 状态：**blocked on W4 + sign-off**。Q3 校准（2026-06-13）确认 C3 线上复验 +
+  R-H5 生产 SchoolModule 行核查 + 设计者签发三项仍缺——**本 docs-only 校准窗不解锁
+  Portal、不自解锁**（executor does not self-unlock）。
 
 ### D-09 其余开放风险（指针登记，真源在 audit/调查报告）
 

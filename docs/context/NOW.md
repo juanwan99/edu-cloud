@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-06-12 20:47 Asia/Shanghai
+Last refreshed: 2026-06-13 (Q3 W2-后台账校准) · base 2026-06-12 20:47 Asia/Shanghai
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -73,10 +73,13 @@ W1 read_only 验收记录（含全部细节与处置表）：
   完成声明由 Codex/用户验收，执行者不自行宣布。已修订：`AGENTS.md`、
   `docs/context/CODEX_STEWARD.md`、`docs/context/GOVERNANCE_MODEL.md`、
   `docs/context/CLAUDE_AUX.md`（d981e52 的原 steward 权力定义随裁定失效）。
-- **13 commit review gap 登记**：`3688f32..26d98eb` 零 receipt（末条 receipt =
-  06-07 14:40 PASS@`3688f32`）。处置表见 W1 验收记录 §3（coze 线 + card 线两次
-  `codex-review range` 补审 + waiver/授权留痕/签认）。**本登记只记处置路径，
-  补审在独立 review-gap 合同窗口执行，不在 W3 跑 codex-review。**
+- **review gap 登记（Q3 校准为 16 commit）**：W1 登记 `3688f32..26d98eb` = 13 commit；
+  Q3 校准（2026-06-13，合同 `yc-20260614-39eac63d`）实测**已增至 16 commit**
+  （`3688f32..6b1bdd3`，W1 后新增 `3c2b7e2`/`c0057df`/`6b1bdd3`），末条 receipt 仍 =
+  06-07 14:40 PASS@`3688f32`。**口径区分**：这是**历史 review-gap（L2 历史债，仍 open）**；
+  W2 已落地「receipt 绑 commit」机械硬闸（L1，gate-built closed，零 receipt 的 commit
+  不可再发生）——**闸门关闭 ≠ 历史债清账**。处置表见 W1 验收记录 §3。**本登记只记处置
+  路径，补审在独立 review-gap 合同窗口执行，不在本 docs-only 校准窗跑 codex-review。**
 - **answer-card canonical 真源翻转登记**：`dafa6f8`/`77fa6f5`/`26d98eb`（tag
   `answer-card-canonical-usable-2026-06-12`）把 9 学科权威模板锁入
   `rendering/canonical_layouts/`，已保存布局偏离 canonical 即拒绝回退——布局真源
@@ -91,6 +94,27 @@ W1 read_only 验收记录（含全部细节与处置表）：
 - **地基债务台账落地**：`docs/governance/debt-ledger.md` 为跨域债务单一真源
   （过程洞 A/B、55 边 30 环、AI 工具语义债、基线三口径、known_drift=studio、
   Portal Phase 1 前置条件）。窗口选题自此台账驱动。
+
+## Governance Truth Update (2026-06-13 · Q3 W2-后台账校准)
+
+Q3 read_only 调查 → docs-only 校准（合同 `yc-20260614-39eac63d`，承接 W1 验收 +
+W2 元守侧机械硬闸落地）。完整记录：`docs/reviews/2026-06-13-q3-foundation-debt-reconcile.md`。
+
+- **D-01/D-02 拆两层（机械闸门 closed / 历史债 open）**：W2（元守侧 writer，yuanshou 仓）
+  已落地两个机械硬闸并 live——运行态操作绑合同（洞 A）+ commit 绑 receipt（洞 B），
+  `tests/v2/test_runtime_ops.py`/`test_review_receipt.py`/`test_git_rules.py`/
+  `test_boundary_guard_hook.py` 合计 **96 passed**，`scripts/yc doctor` READY、
+  source=origin=live 对齐。台账 **D-01 → closed/gate-built；D-02 机械闸门 →
+  closed/gate-built**。**关键口径**：机械闸门关闭（L1）只保证「此后不再发生」，
+  **历史 review-gap（L2）是独立债项、仍 open**，不因闸门建成自动清零。
+- **三层地基进度（W1 → W2 后）**：运行态 🟢（不变）/ 过程治理由整体 🔴 前进到
+  **机械层 🟢 + 历史债层 🔴**（review-gap 16 commit 仍待补审）/ 结构耦合 🟡（55 边 30 环
+  未动，W2 不触结构层）。**这是 W2 的真实 delta，不是「过程治理已转绿」。**
+- **D-07/D-08 不在本窗动**：D-07 测试基线三口径仍分裂（保持 open，留独立小窗）；
+  D-08 Portal Phase 1 仍 blocked on W4 + 设计者签发（**本窗不解锁 Portal、不自解锁**）。
+- **下一阶段顺序**：① review-gap 补审窗（独立 review 合同，处置 16 commit）→ ② W4
+  Portal C3 复验窗（read_only + 线上凭据）→ 设计者签发 → 解锁 → ③ D-07 测试基线
+  统一小窗 → ④ W5+ D-03 结构耦合 burn-down。
 
 ## Truthline
 
