@@ -236,6 +236,19 @@ Use only when Coze is configured with HTTP tools/plugins:
 3. Body includes `context_token` and `arguments`.
 4. Write tools return `confirmation_required` until approved by edu-cloud.
 
+The gateway is **fail-closed at the route level**. A registered route is not a
+usable gateway: while `AI_TOOL_GATEWAY_HTTP_ENABLED=false` (the default) both
+`GET /internal/ai-tools` and `POST /internal/ai-tools/{tool_name}` return `403`
+(`AI tool HTTP gateway is disabled`) even when a correct `X-AI-Tool-Token` is
+presented. The endpoints only reach token validation — and then the existing
+context/tool checks — once `AI_TOOL_GATEWAY_HTTP_ENABLED=true`, the route-level
+gate. With the gateway enabled the service-token gate applies:
+`AI_TOOL_GATEWAY_TOKEN` must be set (otherwise `403`, `token is required`) and the
+presented `X-AI-Tool-Token` must match it; a missing or wrong token still returns
+`403`, and only a correct token proceeds. `AI_TOOL_GATEWAY_PUBLIC_BASE` is not
+part of this token-validation gate — it feeds provider readiness and the external
+callback/prompt URL, not the runtime token check.
+
 The current ECS network does not yet expose a stable Coze-container-to-edu-cloud
 HTTP callback entrypoint. Direct tests from the Coze container to the host-bound
 edu service timed out. Productizing native Coze HTTP plugins should be a

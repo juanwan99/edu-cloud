@@ -274,7 +274,7 @@
 | GET | `/internal/ai-tools?context_token=...` | X-AI-Tool-Token | 列出当前 edu 上下文允许的工具目录和参数 schema |
 | POST | `/internal/ai-tools/{tool_name}` | X-AI-Tool-Token | 供 Coze/外部 Agent 回调执行 edu 工具；写工具先返回 confirmation_required |
 
-> 注：`/internal/ai-tools` 已注册不代表 Coze HTTP 插件模式已上线；`/api/v1/ai/health` 中 `tool_modes.http_tool_gateway` 只有在 `AI_TOOL_GATEWAY_HTTP_ENABLED=true` 且网关配置齐全时才为 true。当前 Coze CE 运行态未验证可用的 agent `required_action` submit/resume 路径，`tool_modes.coze_required_action=false` 是预期状态；Coze 工具调用下一步应作为 HTTP plugin callback 独立产品化。
+> 注：`/internal/ai-tools` 已注册不代表 Coze HTTP 插件模式可用。该网关**默认 fail-closed**：当 `AI_TOOL_GATEWAY_HTTP_ENABLED=false`（默认值）时，无论 `X-AI-Tool-Token` 是否正确，两个端点都直接返回 `403`（detail: `AI tool HTTP gateway is disabled`）。route gate `AI_TOOL_GATEWAY_HTTP_ENABLED=true` 后请求才进入 token 校验：service token gate `AI_TOOL_GATEWAY_TOKEN` 未配置返回 `403`（`token is required`），token 缺失/错误仍 `403`，正确 token 才进入 context/tool 校验。`AI_TOOL_GATEWAY_PUBLIC_BASE` 不是进入 token 校验的必要条件，它只影响 provider readiness 与外部 callback/prompt URL 构造。`/api/v1/ai/health` 中 `tool_modes.http_tool_gateway` 是更严格的 readiness 聚合：需 coze 就绪、网关启用、`AI_TOOL_GATEWAY_TOKEN` 与 `AI_TOOL_GATEWAY_PUBLIC_BASE` 均齐全才为 true。当前 Coze CE 运行态未验证可用的 agent `required_action` submit/resume 路径，`tool_modes.coze_required_action=false` 是预期状态；Coze 工具调用下一步应作为 HTTP plugin callback 独立产品化。
 
 ### exam-ai 兼容端点（`/api` 前缀，paper-seg 零改动对接）
 

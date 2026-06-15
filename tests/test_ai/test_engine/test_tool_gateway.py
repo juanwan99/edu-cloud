@@ -161,14 +161,68 @@ async def test_tool_gateway_denies_unavailable_tool():
 def test_internal_tool_route_requires_service_token(monkeypatch):
     from edu_cloud.config import settings
 
+    # With the HTTP gateway enabled, a missing service token is still rejected.
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", True)
     monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_TOKEN", "")
     with pytest.raises(HTTPException) as exc_info:
         _check_service_token(None)
     assert exc_info.value.status_code == 403
 
 
+def test_internal_tool_route_fail_closed_when_http_disabled(monkeypatch):
+    """F-001: even a correct token must be rejected while the HTTP gateway is off."""
+    from edu_cloud.config import settings
+
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", False)
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_TOKEN", "right-token")
+    with pytest.raises(HTTPException) as exc_info:
+        _check_service_token("right-token")
+    assert exc_info.value.status_code == 403
+    assert "disabled" in exc_info.value.detail.lower()
+
+
+def test_internal_tool_route_rejects_wrong_token_when_enabled(monkeypatch):
+    from edu_cloud.config import settings
+
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", True)
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_TOKEN", "right-token")
+    with pytest.raises(HTTPException) as exc_info:
+        _check_service_token("wrong-token")
+    assert exc_info.value.status_code == 403
+
+
+def test_internal_tool_route_accepts_correct_token_when_enabled(monkeypatch):
+    """Enabled gateway + correct token passes the service gate to reach context/tool checks."""
+    from edu_cloud.config import settings
+
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", True)
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_TOKEN", "right-token")
+    assert _check_service_token("right-token") is None
+
+
 @pytest.mark.asyncio
-async def test_internal_tool_list_route_requires_service_token(client):
+async def test_internal_tool_list_route_requires_service_token(client, monkeypatch):
+    from edu_cloud.config import settings
+
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", True)
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_TOKEN", "right-token")
     resp = await client.get("/internal/ai-tools", params={"context_token": "missing"})
 
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_internal_tool_list_route_fail_closed_by_default(client, monkeypatch):
+    """F-001 at the HTTP surface: default (disabled) returns 403 even with a correct token header."""
+    from edu_cloud.config import settings
+
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", False)
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_TOKEN", "right-token")
+    resp = await client.get(
+        "/internal/ai-tools",
+        params={"context_token": "missing"},
+        headers={"X-AI-Tool-Token": "right-token"},
+    )
+
+    assert resp.status_code == 403
+    assert "disabled" in resp.json()["detail"].lower()

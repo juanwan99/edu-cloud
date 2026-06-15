@@ -53,6 +53,12 @@ async def execute_ai_tool(
 
 
 def _check_service_token(token: str | None) -> None:
+    # Fail-closed: the HTTP tool gateway is off unless explicitly enabled. The
+    # routes stay registered, but a registered route is not a usable gateway —
+    # a correct token must still be rejected while AI_TOOL_GATEWAY_HTTP_ENABLED
+    # is false (F-001). The token checks below only run once the gateway is on.
+    if not settings.AI_TOOL_GATEWAY_HTTP_ENABLED:
+        raise HTTPException(status_code=403, detail="AI tool HTTP gateway is disabled")
     expected = settings.AI_TOOL_GATEWAY_TOKEN
     if not expected:
         raise HTTPException(status_code=403, detail="AI tool gateway token is required")
