@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone, timedelta
@@ -623,6 +624,86 @@ Anything not listed here, including `docs/plans/**`, is historical.
     (tmp_path / "AGENTS.md").write_text("entry\n", encoding="utf-8")
 
     assert module.check_active_docs(tmp_path) == []
+
+
+def test_meta_runtime_ignores_active_table_description_backticks(tmp_path):
+    module = load_meta_runtime_module()
+    context = tmp_path / "docs" / "context"
+    context.mkdir(parents=True)
+    (context / "ACTIVE_INDEX.md").write_text(
+        """# Active Document Index
+
+## Active
+
+| Path | Status | Use |
+|---|---|---|
+| `AGENTS.md` | active | review-gap 16 commit (`3688f32..6b1bdd3`), 合同 `yc-20260614-39eac63d` |
+
+## Candidate Active Work
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "AGENTS.md").write_text("entry\n", encoding="utf-8")
+
+    # The descriptive Use column carries a contract id and a commit range in
+    # backticks; neither must be treated as an active document path.
+    paths = module.active_index_paths((context / "ACTIVE_INDEX.md").read_text(encoding="utf-8"))
+    assert paths == ["AGENTS.md"]
+    assert "3688f32..6b1bdd3" not in paths
+    assert "yc-20260614-39eac63d" not in paths
+
+    assert module.check_active_docs(tmp_path) == []
+
+
+def test_meta_runtime_still_detects_missing_first_column_path_with_descriptor_noise(tmp_path):
+    module = load_meta_runtime_module()
+    context = tmp_path / "docs" / "context"
+    context.mkdir(parents=True)
+    (context / "ACTIVE_INDEX.md").write_text(
+        """# Active Document Index
+
+## Active
+
+| Path | Status | Use |
+|---|---|---|
+| `AGENTS.md` | active | entry |
+| `docs/context/MISSING.md` | active | range `3688f32..6b1bdd3` 合同 `yc-20260614-39eac63d` |
+
+## Candidate Active Work
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "AGENTS.md").write_text("entry\n", encoding="utf-8")
+
+    issues = module.check_active_docs(tmp_path)
+
+    missing = [issue for issue in issues if issue["issue_code"] == "ACTIVE_DOC_MISSING"]
+    # Only the real first-column path is missing; descriptor backticks add none.
+    assert len(missing) == 1
+    assert "docs/context/MISSING.md" in missing[0]["summary"]
+    assert not any("3688f32" in issue["summary"] for issue in issues)
+    assert not any("yc-20260614" in issue["summary"] for issue in issues)
+
+
+def test_meta_runtime_now_timestamp_is_machine_parseable():
+    module = load_meta_runtime_module()
+    text = (PROJECT_ROOT / "docs" / "context" / "NOW.md").read_text(encoding="utf-8")
+    match = re.search(
+        r"Last refreshed:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\s+Asia/Shanghai", text
+    )
+    assert match, "docs/context/NOW.md needs 'Last refreshed: YYYY-MM-DD HH:MM Asia/Shanghai'"
+    refreshed = datetime.strptime(match.group(1), "%Y-%m-%d %H:%M").replace(
+        tzinfo=timezone(timedelta(hours=8))
+    )
+
+    # One hour after the recorded refresh is fresh -> no STALE_FACTS issue, and
+    # in particular the "no parseable Last refreshed timestamp" false positive
+    # must be gone regardless of wall-clock time.
+    issues = module.check_now_freshness(PROJECT_ROOT, now=refreshed + timedelta(hours=1))
+    assert not any(
+        "no parseable Last refreshed timestamp" in issue["summary"] for issue in issues
+    )
+    assert issues == []
 
 
 def test_meta_runtime_detects_plan_without_evidence():

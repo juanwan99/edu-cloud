@@ -58,11 +58,24 @@ def active_index_paths(text: str) -> list[str]:
         return []
     active_text = text.split("## Active", 1)[1].split("## Candidate Active Work", 1)[0]
     paths: list[str] = []
-    for match in re.finditer(r"`([^`]+)`", active_text):
-        raw = match.group(1)
-        if raw.startswith("/") or raw.startswith("http"):
+    for line in active_text.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|"):
             continue
-        paths.append(raw)
+        # Only the first table column holds the active document path. The
+        # Status/Use columns carry prose (contract ids like `yc-...`, commit
+        # ranges like `3688f32..6b1bdd3`) whose backticks must not be mistaken
+        # for file paths. Header ("Path") and separator ("---") rows have no
+        # backticks, so they contribute nothing.
+        cells = stripped.split("|")
+        if len(cells) < 2:
+            continue
+        first_cell = cells[1]
+        for match in re.finditer(r"`([^`]+)`", first_cell):
+            raw = match.group(1).strip()
+            if not raw or raw.startswith("/") or raw.startswith("http"):
+                continue
+            paths.append(raw)
     return paths
 
 

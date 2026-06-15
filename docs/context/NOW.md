@@ -1,6 +1,7 @@
 # NOW
 
-Last refreshed: 2026-06-13 (Q3 W2-后台账校准) · base 2026-06-12 20:47 Asia/Shanghai
+Last refreshed: 2026-06-16 06:35 Asia/Shanghai
+（承接 Q3 W2-后台账校准；前次 base 2026-06-12 20:47）
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
