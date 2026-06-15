@@ -9,13 +9,44 @@ from __future__ import annotations
 import hmac
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Request, Response
+from fastapi.routing import APIRoute
 from pydantic import BaseModel, Field
 
 from edu_cloud.ai.tool_gateway import ToolGatewayError, describe_registered_tools, execute_registered_tool
 from edu_cloud.config import settings
 
-router = APIRouter(prefix="/internal/ai-tools", tags=["ai-internal"])
+
+class _FailClosedGatewayRoute(APIRoute):
+    """Fail closed *before* FastAPI request validation (F-001).
+
+    FastAPI validates query/path/body parameters before the endpoint body runs,
+    so a disabled-state check inside the handler lets a malformed request surface
+    a 422 (and the parameter/body schema) instead of the documented 403 while
+    ``AI_TOOL_GATEWAY_HTTP_ENABLED`` is false. Wrapping the route handler runs the
+    disabled check ahead of all parameter/body validation, so every request to
+    these routes returns 403 while the HTTP gateway is off — regardless of
+    missing/malformed query strings or bodies. When the gateway is enabled the
+    original handler runs unchanged, preserving the existing token/context/tool
+    validation behaviour (including 422 for genuinely malformed enabled requests).
+    """
+
+    def get_route_handler(self):
+        original_handler = super().get_route_handler()
+
+        async def fail_closed_handler(request: Request) -> Response:
+            if not settings.AI_TOOL_GATEWAY_HTTP_ENABLED:
+                raise HTTPException(status_code=403, detail="AI tool HTTP gateway is disabled")
+            return await original_handler(request)
+
+        return fail_closed_handler
+
+
+router = APIRouter(
+    prefix="/internal/ai-tools",
+    tags=["ai-internal"],
+    route_class=_FailClosedGatewayRoute,
+)
 
 
 class ToolGatewayRequest(BaseModel):

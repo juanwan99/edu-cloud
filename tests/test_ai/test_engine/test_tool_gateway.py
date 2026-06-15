@@ -226,3 +226,116 @@ async def test_internal_tool_list_route_fail_closed_by_default(client, monkeypat
 
     assert resp.status_code == 403
     assert "disabled" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_internal_tool_list_route_disabled_missing_context_returns_403(client, monkeypatch):
+    """F-001: disabled GET returns 403 *before* FastAPI query validation when context_token is missing.
+
+    A malformed request (no context_token) must not surface the 422 query schema while the gateway
+    is off; the disabled gate fails closed ahead of parameter validation.
+    """
+    from edu_cloud.config import settings
+
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", False)
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_TOKEN", "right-token")
+    resp = await client.get(
+        "/internal/ai-tools",
+        headers={"X-AI-Tool-Token": "right-token"},
+    )
+
+    assert resp.status_code == 403
+    assert "disabled" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_internal_tool_exec_route_disabled_valid_body_returns_403(client, monkeypatch):
+    """F-001 POST surface: disabled gateway returns 403 even for a well-formed body."""
+    from edu_cloud.config import settings
+
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", False)
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_TOKEN", "right-token")
+    resp = await client.post(
+        "/internal/ai-tools/some_tool",
+        json={"context_token": "missing", "arguments": {}},
+        headers={"X-AI-Tool-Token": "right-token"},
+    )
+
+    assert resp.status_code == 403
+    assert "disabled" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_internal_tool_exec_route_disabled_missing_body_returns_403(client, monkeypatch):
+    """F-001 POST surface: disabled returns 403 *before* body validation when the body is missing."""
+    from edu_cloud.config import settings
+
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", False)
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_TOKEN", "right-token")
+    resp = await client.post(
+        "/internal/ai-tools/some_tool",
+        headers={"X-AI-Tool-Token": "right-token"},
+    )
+
+    assert resp.status_code == 403
+    assert "disabled" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_internal_tool_exec_route_disabled_malformed_body_returns_403(client, monkeypatch):
+    """F-001 POST surface: disabled returns 403 *before* body validation for malformed JSON."""
+    from edu_cloud.config import settings
+
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", False)
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_TOKEN", "right-token")
+    resp = await client.post(
+        "/internal/ai-tools/some_tool",
+        content="{not valid json",
+        headers={
+            "X-AI-Tool-Token": "right-token",
+            "Content-Type": "application/json",
+        },
+    )
+
+    assert resp.status_code == 403
+    assert "disabled" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_internal_tool_exec_route_enabled_reaches_gateway_logic(client, monkeypatch):
+    """Non-regression: enabled + correct service token passes the disabled gate and reaches gateway
+    context validation (403 'context not found', distinct from the disabled-state 403)."""
+    from edu_cloud.config import settings
+
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", True)
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_TOKEN", "right-token")
+    resp = await client.post(
+        "/internal/ai-tools/some_tool",
+        json={"context_token": "missing", "arguments": {}},
+        headers={"X-AI-Tool-Token": "right-token"},
+    )
+
+    assert resp.status_code == 403
+    detail = resp.json()["detail"].lower()
+    assert "disabled" not in detail
+    assert "context" in detail
+
+
+@pytest.mark.asyncio
+async def test_internal_tool_exec_route_enabled_malformed_body_still_validates(client, monkeypatch):
+    """Non-regression: when enabled, a malformed body still surfaces FastAPI's 422; the disabled
+    gate only short-circuits while the gateway is off and never swallows real validation."""
+    from edu_cloud.config import settings
+
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_HTTP_ENABLED", True)
+    monkeypatch.setattr(settings, "AI_TOOL_GATEWAY_TOKEN", "right-token")
+    resp = await client.post(
+        "/internal/ai-tools/some_tool",
+        content="{not valid json",
+        headers={
+            "X-AI-Tool-Token": "right-token",
+            "Content-Type": "application/json",
+        },
+    )
+
+    assert resp.status_code == 422
