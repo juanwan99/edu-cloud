@@ -9,7 +9,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m pip install pytest pyyaml
+      - run: pip install -e ".[dev]" pyyaml
       - run: python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
       - run: python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py
       - run: python -m pytest tests/governance/test_codex_scripts.py -q

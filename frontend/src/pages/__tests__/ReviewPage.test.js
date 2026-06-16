@@ -234,7 +234,7 @@ describe('ReviewPage API calls', () => {
   })
 
   it('loads next answer via getNext', () => {
-    expect(content).toContain('const { data } = await getNext(questionId, reviewMode.value)')
+    expect(content).toContain('const { data } = await getNext(questionId, reviewMode.value, extra)')
   })
 
   it('submits score with answer_id, score, and optional comment', () => {

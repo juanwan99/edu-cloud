@@ -369,9 +369,15 @@ class TestCanonicalFailClosed:
             mod.get_default_layout("化学")
 
     def test_non_canonical_subject_unaffected(self, sd):
-        """非 canonical 学科（物理）不受 fail-closed 影响，仍走原 fallback 链。"""
+        """非 canonical 学科（音乐，无 canonical 映射）不受 fail-closed 影响，仍走原 fallback 链。
+
+        canonical 映射现已覆盖全部高考主科（语数英物化生政史地），故改用无
+        canonical/TQL 映射的非主科验证「无 canonical 映射 → _load_canonical_layout
+        返回 None → 走 SUBJECT_CONFIGS fallback」契约不退化（原用「物理」已随源码
+        将物理纳入 canonical 集合而失效）。
+        """
         mod, _ = sd
-        layout = mod.get_default_layout("物理")
+        layout = mod.get_default_layout("音乐")
         assert isinstance(layout, dict)
         assert "sides" in layout
 

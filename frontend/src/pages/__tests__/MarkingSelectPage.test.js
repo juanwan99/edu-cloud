@@ -161,11 +161,13 @@ describe('MarkingSelectPage table columns', () => {
   })
 
   it('action column navigates to marking grade page', () => {
-    expect(content).toContain("router.push(`/marking/grade/${row.id}`)")
+    expect(content).toContain('router.push(pct >= 1 ? `/marking/grade/${row.id}?mode=reviewed` : `/marking/grade/${row.id}`)')
   })
 
   it('action button shows different text based on completion', () => {
-    expect(content).toContain("done ? '查看' : '开始阅卷'")
+    expect(content).toContain("let label = '开始阅卷'")
+    expect(content).toContain("if (pct >= 1) label = '复核'")
+    expect(content).toContain("else if (pct >= 0.5) label = '继续阅卷'")
   })
 })
 
