@@ -213,12 +213,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'echarts': ['echarts', 'vue-echarts'],
-          'vue-vendor': ['vue', 'vue-router', 'pinia'],
-          'katex': ['katex'],
-          'antv-g6': ['@antv/g6'],
-          'html2canvas': ['html2canvas'],
+        manualChunks: (id) => {
+          if (id.includes('node_modules/echarts/') || id.includes('node_modules/vue-echarts/')) return 'echarts';
+          if (id.includes('node_modules/vue/') || id.includes('node_modules/vue-router/') || id.includes('node_modules/pinia/')) return 'vue-vendor';
+          if (id.includes('node_modules/katex/')) return 'katex';
+          if (id.includes('node_modules/@antv/g6/')) return 'antv-g6';
+          if (id.includes('node_modules/html2canvas/')) return 'html2canvas';
         },
       },
     },
