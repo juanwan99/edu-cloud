@@ -10,8 +10,11 @@ reviews, and accepts — it is not the default write channel; Claude Code is the
 governed executor and writes only inside `yc start` + active V2 contract
 windows; Yuanshou V2 machine-guards execution boundaries, evidence, and
 closeout. Claude additionally serves as an optional full-repository read-only
-reviewer through `scripts/codex-consult-claude`. Completion claims are
-accepted by Codex/the user, never self-declared by the executor.
+reviewer through `scripts/codex-consult-claude`. In short, the model is
+Codex-led and Claude-assisted: Codex/Yuance owns direction, review, and
+acceptance, while Claude Code is the governed executor and read-only
+counter-reviewer. Completion claims are accepted by Codex/the user, never
+self-declared by the executor.
 
 ## Purpose
 
@@ -21,8 +24,8 @@ operational accidents. It is explicit, script-backed, and reviewable in git.
 ## Meta Core / 元控核
 
 Meta Core prevents task drift and execution drift. It owns direction, facts,
-task boundaries, context, Claude read-only counter-review, and the completion
-evidence contract.
+task boundaries, context, Claude read-only counter-review, and the
+completion evidence contract.
 
 Meta Core also owns the long-term module-boundary direction: increase safe
 parallel development by reducing direct cross-module coupling, preferring
