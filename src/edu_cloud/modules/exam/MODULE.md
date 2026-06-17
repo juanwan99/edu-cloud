@@ -40,10 +40,10 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - grading
+  modules: []
   services:
     - exam_publish_pipeline
+    - exam_publish_checks
   ai_tools:
     - get_exam_list (exams.py)
     - get_exam_detail (exams.py)
@@ -68,7 +68,7 @@ design_docs: []
 
 ## 使用方式
 
-其他模块通过 import `edu_cloud.modules.exam.models` 引用 Exam/Subject/Question 表；外部通过 REST API `/api/v1/exams` 系列端点。ExamPublishService.publish 是成绩发布唯一入口，发布后处理经模块外编排服务 `edu_cloud.services.exam_publish_pipeline` 委托 pipeline（exam 不直接 import pipeline，D-03C）。
+其他模块通过 import `edu_cloud.modules.exam.models` 引用 Exam/Subject/Question 表；外部通过 REST API `/api/v1/exams` 系列端点。ExamPublishService.publish 是成绩发布唯一入口：发布前置检查（阅卷完成度 + 高危质量问题）经模块外服务 `edu_cloud.services.exam_publish_checks` 查询 grading（exam 不直接 import grading，D-03D）；发布后处理经模块外编排服务 `edu_cloud.services.exam_publish_pipeline` 委托 pipeline（exam 不直接 import pipeline，D-03C）。至此 exam 模块零跨模块 import 依赖边。
 
 ## 数据流
 
@@ -76,5 +76,7 @@ design_docs: []
 前端创建考试 → Exam(draft)
         → Subject/Question 配置
         → scan 扫描 → grading 阅卷 → Exam(completed)
-        → ExamPublishService.publish → services.exam_publish_pipeline → pipeline 考后计算 → Exam(published)
+        → ExamPublishService.publish
+            → services.exam_publish_checks 校验 grading 前置条件（阅卷完成 + 无高危质量问题）
+            → services.exam_publish_pipeline → pipeline 考后计算 → Exam(published)
 ```

@@ -143,10 +143,6 @@ edges:
   - src/edu_cloud/modules/conduct/permissions.py:98
   - src/edu_cloud/modules/conduct/report_service.py:16
   - src/edu_cloud/modules/conduct/rules_service.py:8
-- from: exam
-  to: grading
-  occurrences:
-  - src/edu_cloud/modules/exam/publish_service.py:8
 - from: exam_import
   to: exam
   occurrences:
@@ -303,24 +299,4 @@ edges:
   to: student
   occurrences:
   - src/edu_cloud/modules/scan/pipeline_router.py:26
-cycles:
-- path:
-  - card
-  - exam
-  - grading
-  - card
-- path:
-  - card
-  - exam
-  - grading
-  - scan
-  - card
-- path:
-  - exam
-  - grading
-  - exam
-- path:
-  - exam
-  - grading
-  - scan
-  - exam
+cycles: []

@@ -22,7 +22,6 @@ flowchart TD
   conduct --> exam
   conduct --> profile
   conduct --> student
-  exam --> grading
   exam_import --> exam
   exam_import --> grading
   exam_import --> pipeline

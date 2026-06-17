@@ -318,10 +318,10 @@ modules:
     - get_llm_config
     events: []
   depends_on:
-    modules:
-    - grading
+    modules: []
     services:
     - exam_publish_pipeline
+    - exam_publish_checks
     ai_tools:
     - get_exam_list (exams.py)
     - get_exam_detail (exams.py)

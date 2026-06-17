@@ -1,11 +1,9 @@
-"""成绩发布 Service — publish/archive 专��入口。"""
+"""成绩发布 Service — publish/archive 专用入口。"""
 import logging
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Exam
-from edu_cloud.modules.grading.models import GradingAssignment, GradingQualityCheck
 from edu_cloud.core.state_machine import validate_transition
 from edu_cloud.services.exceptions import StateError
 from edu_cloud.logging_config import business_event
@@ -23,23 +21,15 @@ class ExamPublishService:
                 f"Cannot publish exam in status '{exam.status}'"
             )
 
-        # 前置条件: 所有阅卷任务已完成
-        stmt = select(GradingAssignment).where(GradingAssignment.exam_id == exam_id)
-        result = await db.execute(stmt)
-        assignments = list(result.scalars().all())
-        incomplete = [a for a in assignments if a.status != "completed"]
-        if incomplete:
-            raise StateError(f"{len(incomplete)} grading assignments not completed")
-
-        # 前置条���: 无 HIGH severity 质量问题
-        stmt = select(GradingQualityCheck).where(
-            GradingQualityCheck.exam_id == exam_id,
-            GradingQualityCheck.severity == "high",
+        # 前置条件: 阅卷任务全部完成 + 无 HIGH severity 质量问题。grading 模型查询经
+        # 模块外服务 exam_publish_checks 执行，exam 不直接 import grading（D-03D，
+        # 消除 exam -> grading 依赖边及其参与的 4 个依赖环）。异常类型/信息语义不变。
+        from edu_cloud.services.exam_publish_checks import (
+            ensure_grading_complete,
+            ensure_no_high_severity_issues,
         )
-        result = await db.execute(stmt)
-        high_issues = list(result.scalars().all())
-        if high_issues:
-            raise StateError(f"{len(high_issues)} high-severity quality issues unresolved")
+        await ensure_grading_complete(db, exam_id=exam_id)
+        await ensure_no_high_severity_issues(db, exam_id=exam_id)
 
         old_status = exam.status
         validate_transition("exam", old_status, "published")
