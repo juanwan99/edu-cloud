@@ -33,7 +33,8 @@ depends_on:
     - profile
     - scan
     - student
-  services: []
+  services:
+    - student_identity
   ai_tools: []
 
 created: 2026-03-16
@@ -111,6 +112,7 @@ pipeline 读取多模块数据：
 
 ## 变更历史
 
+- 2026-06-17（D-03B ask-fix）: 修复 D-03B 引入的 canonical 身份回归——`_get_effective_scores_for_subject` 此前按 raw `StudentAnswer.student_id` 分组，同一学生的 UUID 答题与条码答题被拆成两个 `StudentExamSnapshot`；现复用模块外共享 resolver `services.student_identity.resolve_student_identities`（与 analytics `get_effective_scores` 同一归一化规则），按 `canonical_student_id` 聚合。pipeline 仍不 import analytics，跨模块依赖边不变
 - 2026-06-17: D-03B 核心解耦——`run_full_pipeline` 去掉 analytics 考后预聚合调用、`_get_effective_scores_for_subject` 改 pipeline 自有局部有效分查询；考后编排上移至模块外 `services.post_exam_pipeline`，删除 `pipeline -> analytics` 依赖边及其参与的 8 个环
 - 2026-04-06: 接入 adaptive 模块 BKT 更新（`_update_adaptive_mastery`），失败降级为非阻塞（R5 finding）
 - 2026-03-29: 从 exam-ai 迁入，拆分 6 个独立 service 函数

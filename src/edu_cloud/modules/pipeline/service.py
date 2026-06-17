@@ -18,6 +18,7 @@ from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
 from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern
 from edu_cloud.modules.student.models import Student
+from edu_cloud.services.student_identity import resolve_student_identities
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +205,12 @@ async def _get_effective_scores_for_subject(
     有效分 = COALESCE(GradingResult.final_score, StudentAnswer.score)，与本模块
     `_get_effective_score` 同一权威规则；inner join Question 限定本科目题目（等价于
     原 valid_question_ids 过滤），跳过缺考与无有效分的答题。
+
+    分组键是 **canonical student id**：扫描数据可能用 UUID（`students.id`）或外部
+    条码键（如经验条码）写入 `student_answers.student_id`，同一学生的选择题与主观题
+    可能落在不同 raw key。复用模块外共享 resolver `services.student_identity`
+    （与 analytics `get_effective_scores` 同一归一化规则）把 raw key 归一到 canonical
+    学生，避免同一学生被拆成多个 StudentExamSnapshot（D-03B 回归收口）。
     """
     effective = func.coalesce(GradingResult.final_score, StudentAnswer.score)
     rows = await db.execute(
@@ -224,11 +231,29 @@ async def _get_effective_scores_for_subject(
         )
     )
 
+    valid_rows = [row for row in rows.all() if row.effective_score is not None]
+    identities = await resolve_student_identities(
+        db,
+        school_id=school_id,
+        raw_student_ids=[row.student_id for row in valid_rows],
+    )
+    # 与 analytics.get_effective_scores 一致：花名册有匹配时丢弃 unmatched 的 raw key；
+    # 整批都匹配不上（如花名册未导入）时回退按 raw key 分组，避免丢失全部数据。
+    include_unmatched_rows = not any(
+        identity.canonical_student_id for identity in identities.values()
+    )
+
     result: dict[str, list[tuple[str, float, float]]] = {}
-    for row in rows.all():
-        if row.effective_score is None:
+    for row in valid_rows:
+        identity = identities.get(row.student_id)
+        if (not identity or identity.canonical_student_id is None) and not include_unmatched_rows:
             continue
-        result.setdefault(row.student_id, []).append(
+        canonical_student_id = (
+            identity.canonical_student_id
+            if identity and identity.canonical_student_id
+            else row.student_id
+        )
+        result.setdefault(canonical_student_id, []).append(
             (row.question_id, row.effective_score, row.max_score)
         )
     return result

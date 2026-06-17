@@ -87,10 +87,10 @@ edges:
   - src/edu_cloud/modules/analytics/diagnosis_service.py:9
   - src/edu_cloud/modules/analytics/exporters.py:78
   - src/edu_cloud/modules/analytics/grade_service.py:14
-  - src/edu_cloud/modules/analytics/identity.py:15
   - src/edu_cloud/modules/analytics/level_score_service.py:8
   - src/edu_cloud/modules/analytics/pipeline_service.py:13
   - src/edu_cloud/modules/analytics/power_options_service.py:10
+  - src/edu_cloud/modules/analytics/ranking_service.py:12
 - from: analytics
   to: studio
   occurrences:
@@ -247,8 +247,8 @@ edges:
 - from: pipeline
   to: adaptive
   occurrences:
-  - src/edu_cloud/modules/pipeline/service.py:511
-  - src/edu_cloud/modules/pipeline/service.py:512
+  - src/edu_cloud/modules/pipeline/service.py:536
+  - src/edu_cloud/modules/pipeline/service.py:537
 - from: pipeline
   to: bank
   occurrences:

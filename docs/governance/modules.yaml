@@ -95,7 +95,8 @@ modules:
     - knowledge_tree
     - profile
     - studio
-    services: []
+    services:
+    - student_identity
     ai_tools:
     - get_exam_scores (analytics.py)
     - get_class_stats (analytics.py)
@@ -603,7 +604,8 @@ modules:
     - profile
     - scan
     - student
-    services: []
+    services:
+    - student_identity
     ai_tools: []
   created: 2026-03-16
   last_reviewed: 2026-04-13

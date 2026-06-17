@@ -39,7 +39,8 @@ depends_on:
     - knowledge_tree
     - profile
     - studio
-  services: []
+  services:
+    - student_identity
   ai_tools:
     - get_exam_scores (analytics.py)
     - get_class_stats (analytics.py)
@@ -75,7 +76,7 @@ design_docs:
 
 ## 使用方式
 
-考后编排经模块外应用服务 `services.post_exam_pipeline.run_post_exam_pipeline` 调用 `compute_exam_analysis` 填充三张预计算表（D-03B：analytics 不再被 pipeline 模块直接 import）；前端通过 `/api/v1/analytics/*` 系列端点查询；AI Agent 通过 14 个工具函数提供自然语言分析能力。`get_effective_scores` 是有效分计算的公共入口（COALESCE GradingResult.final_score 和 StudentAnswer.score）。
+考后编排经模块外应用服务 `services.post_exam_pipeline.run_post_exam_pipeline` 调用 `compute_exam_analysis` 填充三张预计算表（D-03B：analytics 不再被 pipeline 模块直接 import）；前端通过 `/api/v1/analytics/*` 系列端点查询；AI Agent 通过 14 个工具函数提供自然语言分析能力。`get_effective_scores` 是有效分计算的公共入口（COALESCE GradingResult.final_score 和 StudentAnswer.score）。学生身份归一化（UUID/学号/经验条码 → canonical 学生）的权威实现位于模块外共享层 `services.student_identity`，`analytics.identity` 仅作向后兼容 re-export；pipeline 与 analytics 共享同一 resolver，避免跨模块依赖（D-03B ask-fix）。
 
 ## 数据流
 
