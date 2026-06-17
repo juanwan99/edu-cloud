@@ -28,7 +28,10 @@ scripts/truth doctor --json
 - Production URL: `https://mcu.asia`
 - Backend API: `127.0.0.1:9000`
 - Frontend artifact path: `frontend/dist/`
-- Known pytest baseline entries: 26 in `.quality/known-pytest-failures.txt`
+- Known pytest failures: single source `.quality/known-pytest-failures.txt`
+  (CI-aligned profile == `.github/workflows/test.yml` backend job filter ==
+  `scripts/codex-verify` `CI_BACKEND_PROFILE`; enforced no-new-failures by
+  `scripts/pytest_delta.py`). 不在 NOW.md 硬编码失败数；见 `docs/governance/debt-ledger.md` D-07。
 - Source HEAD (2026-06-10 20:37 re-verified): `c26379d` (coze required_action
   fail-closed 收口). All runtime surfaces align on HEAD `c26379d` with
   `source_dirty=false`: backend `/api/v1/version`, `frontend/dist/version.json`,
@@ -321,8 +324,10 @@ just academic). `init_school_modules` seeds all 9 rows for new schools, so norma
 schools are unaffected (present row); only un-backfilled legacy schools with a missing row
 are now fail-closed (a security fix, not a regression). teaching stays out of `DEFAULT_ENABLED`.
 Evidence: guard `--check` clean; 6 new pure-function unit tests; target suite (5 files) 87
-passed; full backend 2481 passed / 22 failed — the 22 are all pre-existing env failures
-(socksio/playwright/httpx), **0 module-gating 403s** (`grep 未启用` = 0).
+passed; full backend run at the time showed only pre-existing env failures
+(socksio/playwright/httpx), **0 module-gating 403s** (`grep 未启用` = 0). (Point-in-time
+0.7E evidence; current backend baseline is the single CI-aligned source
+`.quality/known-pytest-failures.txt`, not this historical count — see D-07.)
 **R1** (codex-review F-001 HIGH test_gap closed): the 6 pure-function tests never exercised
 the HTTP dispatch entry — mutating the absent-row default to fail-open left the 87-test target
 suite green. Added 4 dispatch regression tests (minimal FastAPI app + `ModuleCheckMiddleware`

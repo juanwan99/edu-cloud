@@ -1,22 +1,28 @@
-# Known pytest failures baseline — auto-maintained by scripts/pytest_delta.py
-# Last updated: 2026-05-06
-# These are pre-existing failures, not regressions. Reviewed weekly.
-tests/governance/test_module_governance_guard.py::test_hook_entry_asks_on_large_legacy_touch
-tests/governance/test_module_governance_guard.py::test_large_modification_without_module_md_asks
-tests/test_ai/test_tools_behavior.py::test_get_knowledge_tree
-tests/test_ai/test_tools_behavior.py::test_get_knowledge_tree_with_parent
-tests/test_ai/test_tools_execution.py::test_get_student_knowledge_map_success
-tests/test_api_exam/test_grading_rubric.py::test_cross_tenant_rubric_blocked
-tests/test_api_exam/test_grading_rubric.py::test_get_rubric_not_found
-tests/test_api_exam/test_grading_task_question.py::test_create_task_regrade_cleans_old_results
-tests/test_modules/test_routes_smoke.py::test_grading_rubric_not_found
-tests/test_services_exam/test_grading_prompts.py::test_user_content_includes_rubric_and_max_score
-tests/test_services_exam/test_grading_worker.py::test_batch_concurrency_25_answers
-tests/test_services_exam/test_grading_worker.py::test_batch_partial_failure_in_batch
-tests/test_services_exam/test_grading_worker.py::test_process_grading_task_partial_failure
-tests/test_services_exam/test_grading_worker.py::test_process_grading_task_routes_question_type_to_llm
-tests/test_services_exam/test_grading_worker.py::test_process_grading_task_success
-tests/test_services_exam/test_llm_client.py::test_build_grading_prompt
+# Known pytest failures baseline — single source of truth for the backend
+# completion baseline. Auto-maintained by scripts/pytest_delta.py (no-new-failures gate).
+#
+# Profile: the CI-aligned set == the .github/workflows/test.yml backend job
+# "Backend pytest (main suite)" filter == scripts/codex-verify CI_BACKEND_PROFILE.
+# The entries below are the pre-existing FAILED tests under that profile on the
+# local ECS .venv. Root cause is env-dependent, not a regression: the local venv
+# lacks httpx[socks] (the 'socksio' package) while the dev SOCKS proxy is active,
+# so every test that issues an httpx request fails/errors with
+#   ImportError: Using SOCKS proxy, but the 'socksio' package is not installed.
+# CI (full uv-synced deps) installs the socks extra, so CI greens these; this
+# file gates LOCAL runs via the no-new-failures delta only.
+#
+# Not gated by pytest_delta (it compares only "FAILED" lines, not setup "ERROR"
+# lines under --tb=no), but recorded here for an honest single source — 3 tests
+# ERROR at setup under this profile, same socksio root cause:
+#   tests/test_services_exam/test_llm_client_new.py::test_grade_accepts_multiple_images
+#   tests/test_services_exam/test_llm_client_new.py::test_extract_text
+#   tests/test_services_exam/test_llm_client_new.py::test_grade_text
+#
+# Last updated: 2026-06-17 (D-07 baseline unification, contract yc-20260617-31ea6942)
+tests/test_ai/test_engine/test_edu_runtime.py::test_runtime_builds_agent
+tests/test_ai/test_engine/test_sse_queue.py::test_queue_drain_handles_agent_error
+tests/test_ai/test_engine/test_sse_queue.py::test_queue_drain_receives_all_events
+tests/test_ai/test_engine/test_sse_queue.py::test_task_cancel_on_generator_close
 tests/test_services_exam/test_llm_client.py::test_llm_client_exhausted_retries
 tests/test_services_exam/test_llm_client.py::test_llm_client_grade_retry_on_error
 tests/test_services_exam/test_llm_client.py::test_llm_client_grade_success
@@ -24,6 +30,7 @@ tests/test_services_exam/test_llm_client.py::test_llm_client_retry_on_empty_choi
 tests/test_services_exam/test_llm_client.py::test_llm_client_retry_on_non_dict_json
 tests/test_services_exam/test_llm_client.py::test_llm_client_retry_on_non_json_response
 tests/test_services_exam/test_llm_client.py::test_llm_client_retry_on_timeout
-tests/test_services_exam/test_llm_client_new.py::test_grade_accepts_multiple_images
-tests/test_services_exam/test_rubric_formatter.py::test_basic_format
-tests/test_services_exam/test_rubric_validation.py::test_missing_answer_and_standard_answer
+tests/test_workers/test_grading_llm_routing.py::test_create_llm_client_none_values_use_defaults
+tests/test_workers/test_grading_llm_routing.py::test_create_llm_client_partial_override
+tests/test_workers/test_grading_llm_routing.py::test_create_llm_client_with_defaults
+tests/test_workers/test_grading_llm_routing.py::test_create_llm_client_with_overrides

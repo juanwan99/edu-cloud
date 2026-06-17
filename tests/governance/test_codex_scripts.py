@@ -995,6 +995,37 @@ def test_codex_verify_backend_target_args_are_marked_partial():
     assert "scripts/pytest_delta.py --ff tests/governance/test_codex_scripts.py -q" in result.stdout
 
 
+def test_codex_verify_backend_default_is_ci_aligned_profile():
+    # D-07: with no explicit targets, the documented backend completion gate runs
+    # the single CI-aligned pytest baseline profile, not a bare full pytest run.
+    result = run_script("codex-verify", "backend", "--dry-run")
+
+    assert result.returncode == 0
+    out = result.stdout
+    assert "scripts/pytest_delta.py" in out
+    assert "--ignore=tests/governance" in out
+    assert "--ignore=tests/test_services_exam/test_tql_renderer.py" in out
+    assert "--ignore=tests/test_services_exam/test_card_e2e.py" in out
+    assert (
+        "not (test_alembic_migration or test_alembic_s1 or test_card_publish "
+        "or test_grading_worker or test_objective_only_not_ready)"
+    ) in out
+
+
+def test_codex_verify_backend_profile_mirrors_ci_workflow():
+    # The documented backend completion gate and the CI backend job must gate the
+    # same single pytest baseline profile (D-07 unification). The codex-verify
+    # CI_BACKEND_PROFILE is the in-script source; assert every token is mirrored
+    # verbatim by the workflow so the two cannot silently drift apart.
+    module = load_codex_verify_module()
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+
+    for token in module.CI_BACKEND_PROFILE:
+        if token == "-k":
+            continue
+        assert token in workflow, f"CI workflow missing backend profile token: {token!r}"
+
+
 def test_codex_verify_frontend_dry_run_lists_version_alignment_gate():
     result = run_script("codex-verify", "frontend", "--dry-run", "--allow-dirty-build")
 

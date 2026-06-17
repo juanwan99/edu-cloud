@@ -77,7 +77,7 @@ For multiple Codex/Claude windows, read
 - User-visible frontend evidence must come from `https://mcu.asia`, not `localhost`.
 - Frontend source changes require `npm run lint`, `npm run build`, and `scripts/truth-status.sh`.
 - `localhost:8080` and `localhost:5173` are debug-only.
-- Backend completion requires pytest evidence: targeted pytest or `scripts/pytest_delta.py`.
+- Backend completion requires pytest evidence: `scripts/codex-verify backend` (no targets → the single CI-aligned profile, mirrored by the `.github/workflows/test.yml` backend job and gated against `.quality/known-pytest-failures.txt`) or a targeted `scripts/pytest_delta.py` run. The known-failures file is the one source of truth; do not cite hard-coded pass/fail counts as the baseline.
 - Schema work requires `scripts/db_migrate` and `scripts/db_doctor.py --strict`.
 - Completion claims must include the exact verification command and result.
 

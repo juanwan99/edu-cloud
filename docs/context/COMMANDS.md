@@ -165,13 +165,19 @@ No-new-failures gate:
 scripts/codex-verify backend
 ```
 
+`scripts/codex-verify backend` with no targets runs the **single CI-aligned
+profile** (`CI_BACKEND_PROFILE` in `scripts/codex-verify`), which mirrors the
+`.github/workflows/test.yml` backend job filter. This is the one source of truth
+for the backend completion baseline; do not hard-code pass/fail counts elsewhere.
+
 Pass extra pytest args through `codex-verify backend` after `--`:
 
 ```bash
 scripts/codex-verify backend -- tests/test_api/test_health.py -q
 ```
 
-Known failures baseline:
+Known failures baseline (the only place failure ids are tracked; refreshed by the
+no-new-failures gate, not by hand-edited counts in docs):
 
 ```bash
 .quality/known-pytest-failures.txt

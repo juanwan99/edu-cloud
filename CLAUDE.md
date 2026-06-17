@@ -67,7 +67,7 @@ cd frontend && npx vitest run                    # 前端
 | 活跃设计/计划索引 | `docs/context/ACTIVE_INDEX.md` |
 | 日志查询工具 | `scripts/edu-log <command> --help` |
 
-## 测试基线（2026-05-19）
+## 测试基线（单一真源，CI-aligned）
 
-- 后端：2314 passed / 12 failed / 23 skipped
-- 前端：2373 passed / 3 failed
+- 后端完成口径 = `.github/workflows/test.yml` backend job 的「Backend pytest (main suite)」过滤集（== `scripts/codex-verify` 的 `CI_BACKEND_PROFILE`）；由 `scripts/pytest_delta.py` 对 `.quality/known-pytest-failures.txt` 跑 no-new-failures 门控。**已知失败清单以该文件为唯一真源，不在文档硬编码失败数**（历史数字如 12/22/26 已废弃，见 `docs/governance/debt-ledger.md` D-07）。本地核验：`scripts/codex-verify backend`。
+- 前端：`cd frontend && npx vitest run`（已知失败见运行输出，不在文档硬编码计数）。
