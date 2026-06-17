@@ -25,7 +25,7 @@ jobs:
       - run: uv run python scripts/governance/check_permission_mirror.py
       - run: uv run python scripts/governance/module_governance_guard.py --git-hook-mode --repo "$(pwd)"
       - run: uv run scripts/codex-check --no-network
-      - run: uv run scripts/meta-check --json --strict
+      - run: uv run scripts/meta-check --json --fail-on-blocking
       - run: uv run scripts/codex-context --no-network
       - run: uv run scripts/codex-consult-claude --dry-run review CI smoke
       - run: uv run scripts/codex-verify safety --repo-wide
@@ -61,8 +61,10 @@ jobs:
           from edu_cloud.modules.school.router import router as school_router
           print("school_router routes", len(school_router.routes))
           PY
-      - run: >-
-          uv run python -m pytest --tb=short -q
+      - name: Backend pytest (main suite)
+        timeout-minutes: 30
+        run: >-
+          uv run python -m pytest --tb=short -q --durations=25
           --ignore=tests/governance
           --ignore=tests/test_services_exam/test_tql_renderer.py
           --ignore=tests/test_services_exam/test_card_e2e.py

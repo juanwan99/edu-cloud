@@ -35,10 +35,16 @@ Write the latest task-contract state for `scripts/codex-context`:
 scripts/meta-check --task "current user task" --write-state
 ```
 
-Strict automation mode:
+Exit gates:
 
 ```bash
+# Legacy strict (local/dev): any non-green snapshot exits non-zero,
+# including a non-blocking yellow such as a stale-but-recent NOW.md.
 scripts/meta-check --strict --task "current user task"
+
+# CI-safe: exit non-zero only for red or blocks_completion issues;
+# a non-blocking yellow exits zero. Used by CI and codex-verify full.
+scripts/meta-check --json --fail-on-blocking
 ```
 
 Deep checks for long-running or design-heavy work:
@@ -265,7 +271,7 @@ scripts/codex-verify full --schema
 python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
 python -m pytest tests/governance/test_codex_scripts.py -q
 scripts/codex-check --no-network
-scripts/meta-check --json --strict
+scripts/meta-check --json --fail-on-blocking
 scripts/codex-context --no-network
 scripts/codex-consult-claude --dry-run review CI smoke
 scripts/codex-verify safety --repo-wide

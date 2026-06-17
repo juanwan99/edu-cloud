@@ -82,13 +82,30 @@ Task-obligation extraction is heuristic. Use stable task text when writing a
 baseline for `--check-drift`; if the user materially changes the task, write a
 new baseline rather than treating the drift warning as a failure.
 
+## Exit Modes
+
+`scripts/meta-check` has two non-zero exit gates; without either flag it always
+exits zero (report-only).
+
+- `--strict` (legacy, local/dev): exit non-zero for **any** non-green snapshot —
+  red issues OR a non-blocking yellow (e.g. `STALE_FACTS` in the 24-72h window).
+  Use it interactively when you want the full signal.
+- `--fail-on-blocking` (CI-safe): exit non-zero **only** when `red_count > 0` or
+  any issue carries `blocks_completion=true`; a non-blocking yellow exits zero.
+  Use it in deterministic pipelines so a stale-but-recent `NOW.md` does not fail
+  CI on a clock. `NOW.md` past the 72h red threshold is blocking and still fails.
+
+CI (`.github/workflows/test.yml` `governance` job) and `scripts/codex-verify
+full` both use `--fail-on-blocking`. The flags are independent; passing both
+applies the stricter result.
+
 ## Completion Evidence
 
 For Meta runtime changes, use:
 
 ```bash
 .venv/bin/python -m pytest tests/governance/test_codex_scripts.py -q
-scripts/meta-check --json --strict
+scripts/meta-check --json --fail-on-blocking   # CI-safe gate (or --strict locally for full signal)
 scripts/codex-context --no-network
 scripts/codex-verify safety --repo-wide
 ```

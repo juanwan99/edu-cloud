@@ -1,7 +1,14 @@
 # NOW
 
-Last refreshed: 2026-06-16 06:35 Asia/Shanghai
-（承接 Q3 W2-后台账校准；前次 base 2026-06-12 20:47）
+Last refreshed: 2026-06-17 09:31 Asia/Shanghai
+（P0C-3B：meta-check CI 出口语义修复 + backend CI 可观测性；前次 refresh 2026-06-16 06:35）
+
+**Current task (P0C-3B, this window):** `scripts/meta-check` 新增 `--fail-on-blocking`
+（仅 `red_count>0` 或任一 `blocks_completion=true` 时 exit 1，non-blocking yellow
+如 `STALE_FACTS` 放行）；`--strict` 旧语义保留（任何非 green 即 exit 1，本地/人审用）。
+CI `governance` step（`.github/workflows/test.yml`）与 `scripts/codex-verify full`
+的 meta gate 已切到 `--fail-on-blocking`，让确定性流水线不再被时间敏感的 yellow 拖垮。
+backend 主 pytest 加 `--durations=25` + `timeout-minutes: 30` 可观测性。未 commit（待授权）。
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -357,8 +364,11 @@ Codex-native migration layer is now committed:
 - `scripts/codex-check`: read-only start-of-work preflight.
 - `scripts/meta-check`: synchronous Meta Core runtime. It emits
   `meta.core.v1` snapshots and can write `logs/meta-state.json` for the latest
-  task contract. `scripts/codex-verify full` runs `scripts/meta-check --strict`
-  before backend/frontend gates. Deep checks include `--check-drift` for
+  task contract. `scripts/codex-verify full` runs
+  `scripts/meta-check --fail-on-blocking` (CI-safe gate: only red/blocking issues
+  fail; non-blocking yellow passes) before backend/frontend gates. The legacy
+  `--strict` gate (any non-green fails) stays available for local/dev use. Deep
+  checks include `--check-drift` for
   baseline obligation loss and `--check-recent-plans` for committed plan
   evidence gaps.
 - `scripts/codex-consult-claude`: read-only Claude Code auxiliary reviewer

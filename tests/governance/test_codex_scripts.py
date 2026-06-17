@@ -829,6 +829,73 @@ def test_meta_check_once_json_outputs_schema():
     assert "issues" in payload
 
 
+def test_meta_runtime_fail_on_blocking_passes_non_blocking_yellow():
+    module = load_meta_runtime_module()
+    yellow = {
+        "overall": "yellow",
+        "red_count": 0,
+        "issues": [
+            {"issue_code": "STALE_FACTS", "severity": "yellow", "blocks_completion": False},
+        ],
+    }
+    # CI-safe gate lets a non-blocking yellow pass...
+    assert module.decide_exit_code(yellow, strict=False, fail_on_blocking=True) == 0
+    # ...while the legacy strict gate still fails the very same snapshot.
+    assert module.decide_exit_code(yellow, strict=True, fail_on_blocking=False) == 1
+    assert module.has_blocking_issue(yellow) is False
+
+
+def test_meta_runtime_fail_on_blocking_fails_red_or_blocking():
+    module = load_meta_runtime_module()
+    red = {
+        "overall": "red",
+        "red_count": 1,
+        "issues": [
+            {"issue_code": "ACTIVE_DOC_MISSING", "severity": "red", "blocks_completion": True},
+        ],
+    }
+    assert module.decide_exit_code(red, strict=False, fail_on_blocking=True) == 1
+    # A yellow-severity issue that still blocks completion must also fail, even
+    # when a caller hands us a snapshot whose red_count was not folded in.
+    blocking_yellow = {
+        "overall": "yellow",
+        "red_count": 0,
+        "issues": [
+            {"issue_code": "TASK_CONTRACT_DRIFT", "severity": "yellow", "blocks_completion": True},
+        ],
+    }
+    assert module.has_blocking_issue(blocking_yellow) is True
+    assert module.decide_exit_code(blocking_yellow, strict=False, fail_on_blocking=True) == 1
+
+
+def test_meta_runtime_green_snapshot_passes_both_modes():
+    module = load_meta_runtime_module()
+    green = {"overall": "green", "red_count": 0, "issues": []}
+    assert module.decide_exit_code(green, strict=True, fail_on_blocking=False) == 0
+    assert module.decide_exit_code(green, strict=False, fail_on_blocking=True) == 0
+
+
+def test_meta_check_cli_accepts_fail_on_blocking_flag():
+    module = load_meta_runtime_module()
+    args = module.parse_args(["--json", "--fail-on-blocking"])
+    assert args.fail_on_blocking is True
+    assert args.strict is False
+    # The legacy flag must remain available alongside the new one.
+    legacy = module.parse_args(["--json", "--strict"])
+    assert legacy.strict is True
+    assert legacy.fail_on_blocking is False
+
+
+def test_meta_check_fail_on_blocking_flag_is_wired_into_cli():
+    result = run_script("meta-check", "--json", "--fail-on-blocking")
+    # The flag must be accepted (an argparse error would exit 2) and still emit a
+    # parseable snapshot. The gate result (0 or 1) tracks live NOW.md freshness,
+    # so we assert it is a valid gate exit, not a fixed, time-dependent code.
+    assert result.returncode in (0, 1), result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["schema"] == "meta.core.v1"
+
+
 def test_meta_runtime_contract_and_lessons_are_active():
     lessons = (PROJECT_ROOT / "docs" / "context" / "LESSONS.md").read_text(encoding="utf-8")
     commands = (PROJECT_ROOT / "docs" / "context" / "COMMANDS.md").read_text(encoding="utf-8")
@@ -1074,7 +1141,8 @@ def test_codex_verify_full_schema_dry_run_lists_schema_gate_once():
     result = run_script("codex-verify", "full", "--dry-run", "--schema", "--no-network", "--allow-dirty-build")
 
     assert result.returncode == 0
-    assert "scripts/meta-check --strict" in result.stdout
+    assert "scripts/meta-check --fail-on-blocking" in result.stdout
+    assert "scripts/meta-check --strict" not in result.stdout
     assert result.stdout.count("scripts/db_doctor.py --strict") == 1
     assert "scripts/pytest_delta.py" in result.stdout
     assert "npm run build" in result.stdout
@@ -1110,7 +1178,7 @@ def test_ci_governance_job_runs_codex_smoke_checks():
         "python scripts/governance/check_permission_mirror.py",
         "python scripts/governance/module_governance_guard.py --git-hook-mode --repo \"$(pwd)\"",
         "scripts/codex-check --no-network",
-        "scripts/meta-check --json --strict",
+        "scripts/meta-check --json --fail-on-blocking",
         "scripts/codex-context --no-network",
         "scripts/codex-consult-claude --dry-run review CI smoke",
         "scripts/codex-verify safety --repo-wide",
@@ -1119,3 +1187,21 @@ def test_ci_governance_job_runs_codex_smoke_checks():
         "cd frontend && npm run build",
     ):
         assert command in text
+
+
+def test_ci_governance_job_uses_blocking_meta_gate_not_strict():
+    workflow = PROJECT_ROOT / ".github" / "workflows" / "test.yml"
+    text = workflow.read_text(encoding="utf-8")
+
+    # CI must not be tripped by a time-sensitive non-blocking yellow snapshot.
+    assert "scripts/meta-check --json --fail-on-blocking" in text
+    assert "scripts/meta-check --json --strict" not in text
+
+
+def test_ci_backend_job_has_pytest_observability():
+    workflow = PROJECT_ROOT / ".github" / "workflows" / "test.yml"
+    text = workflow.read_text(encoding="utf-8")
+
+    # Backend main suite must surface slow tests and cap its wall-clock runtime.
+    assert "--durations=25" in text
+    assert "timeout-minutes:" in text

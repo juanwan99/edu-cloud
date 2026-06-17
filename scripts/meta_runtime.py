@@ -576,10 +576,44 @@ def print_human(snapshot: dict[str, Any]) -> None:
         print(f"  hint: {item['command_hint']}")
 
 
+def has_blocking_issue(snapshot: dict[str, Any]) -> bool:
+    """Return True when the snapshot carries a completion-blocking signal.
+
+    Blocking means either a red-counted issue or any issue flagged
+    ``blocks_completion``. ``build_snapshot`` already folds ``blocks_completion``
+    into ``red_count``, but we also scan the raw issues so the predicate stays
+    correct for hand-built snapshots and future severities.
+    """
+    if snapshot.get("red_count"):
+        return True
+    return any(item.get("blocks_completion") for item in snapshot.get("issues", []))
+
+
+def decide_exit_code(snapshot: dict[str, Any], *, strict: bool, fail_on_blocking: bool) -> int:
+    """Resolve the process exit code from a snapshot and the gate flags.
+
+    ``--strict`` keeps the legacy behavior: any non-green snapshot (red OR a
+    non-blocking yellow) exits non-zero. ``--fail-on-blocking`` is CI-safe: only
+    red or ``blocks_completion`` issues exit non-zero, so a stale-but-non-blocking
+    yellow (e.g. a ``STALE_FACTS`` warning inside the 24-72h window) does not fail
+    a deterministic pipeline. Flags are independent; either may trip exit 1.
+    """
+    if strict and snapshot.get("overall") != "green":
+        return 1
+    if fail_on_blocking and has_blocking_issue(snapshot):
+        return 1
+    return 0
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run Meta Core task-contract checks.")
     parser.add_argument("--json", action="store_true", help="Print JSON output.")
-    parser.add_argument("--strict", action="store_true", help="Exit non-zero for red or yellow issues.")
+    parser.add_argument("--strict", action="store_true", help="Exit non-zero for any non-green snapshot (red or non-blocking yellow). Legacy local/dev gate.")
+    parser.add_argument(
+        "--fail-on-blocking",
+        action="store_true",
+        help="CI-safe gate: exit non-zero only for red or blocks_completion issues; non-blocking yellow exits zero.",
+    )
     parser.add_argument("--task", help="Current user task text for task-contract extraction.")
     parser.add_argument("--no-git", action="store_true", help="Skip changed plan/design evidence checks.")
     parser.add_argument("--check-recent-plans", action="store_true", help="Also check recent committed plan/design files.")
@@ -605,9 +639,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(snapshot, ensure_ascii=False, indent=2))
     else:
         print_human(snapshot)
-    if args.strict and snapshot["overall"] != "green":
-        return 1
-    return 0
+    return decide_exit_code(snapshot, strict=args.strict, fail_on_blocking=args.fail_on_blocking)
 
 
 if __name__ == "__main__":
