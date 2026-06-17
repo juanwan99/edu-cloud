@@ -4,49 +4,72 @@ on: [push, pull_request]
 jobs:
   governance:
     runs-on: ubuntu-latest
+    env:
+      UV_FROZEN: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install -e ".[dev]" pyyaml
-      - run: python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
-      - run: python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py
-      - run: python -m pytest tests/governance/test_codex_scripts.py -q
-      - run: python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_tenant_static.py -q
-      - run: python scripts/governance/aggregate_modules.py --check
-      - run: python scripts/governance/check_ai_tool_modules.py
-      - run: python scripts/governance/check_module_dependencies.py --check
-      - run: python scripts/governance/check_permission_mirror.py
-      - run: python scripts/governance/module_governance_guard.py --git-hook-mode --repo "$(pwd)"
-      - run: scripts/codex-check --no-network
-      - run: scripts/meta-check --json --strict
-      - run: scripts/codex-context --no-network
-      - run: scripts/codex-consult-claude --dry-run review CI smoke
-      - run: scripts/codex-verify safety --repo-wide
-      - run: scripts/codex-verify full --dry-run --schema --no-network
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --extra dev --python 3.11
+      - run: uv run python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
+      - run: uv run python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py
+      - run: uv run python -m pytest tests/governance/test_codex_scripts.py -q
+      - run: uv run python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_tenant_static.py -q
+      - run: uv run python scripts/governance/aggregate_modules.py --check
+      - run: uv run python scripts/governance/check_ai_tool_modules.py
+      - run: uv run python scripts/governance/check_module_dependencies.py --check
+      - run: uv run python scripts/governance/check_permission_mirror.py
+      - run: uv run python scripts/governance/module_governance_guard.py --git-hook-mode --repo "$(pwd)"
+      - run: uv run scripts/codex-check --no-network
+      - run: uv run scripts/meta-check --json --strict
+      - run: uv run scripts/codex-context --no-network
+      - run: uv run scripts/codex-consult-claude --dry-run review CI smoke
+      - run: uv run scripts/codex-verify safety --repo-wide
+      - run: uv run scripts/codex-verify full --dry-run --schema --no-network
 
   backend:
     runs-on: ubuntu-latest
+    env:
+      UV_FROZEN: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq libgl1 libglib2.0-0 libzbar0 libzbar-dev
-      - run: pip install -e ".[dev]" pymupdf
+      - run: uv sync --frozen --extra dev --python 3.11
+      - name: Dependency & route diagnostics
+        run: |
+          uv run python - <<'PY'
+          import sys
+          from importlib.metadata import version
+          print("python", sys.version.split()[0])
+          for p in ("fastapi", "starlette", "pytest"):
+              print(p, version(p))
+          from edu_cloud.api.app import create_app
+          print("app routes", len(create_app().routes))
+          from edu_cloud.modules.school.router import router as school_router
+          print("school_router routes", len(school_router.routes))
+          PY
       - run: >-
-          python -m pytest --tb=short -q
+          uv run python -m pytest --tb=short -q
           --ignore=tests/governance
           --ignore=tests/test_services_exam/test_tql_renderer.py
           --ignore=tests/test_services_exam/test_card_e2e.py
           -k "not (test_alembic_migration or test_alembic_s1 or test_card_publish or test_grading_worker or test_objective_only_not_ready)"
-      - run: python -m pytest tests/test_alembic_migration.py -q
-      - run: python -m pytest tests/governance/test_module_semantics.py -q
-      - run: python scripts/governance/check_module_semantics.py --check
+      - run: uv run python -m pytest tests/test_alembic_migration.py -q
+      - run: uv run python -m pytest tests/governance/test_module_semantics.py -q
+      - run: uv run python scripts/governance/check_module_semantics.py --check
 
   frontend:
     runs-on: ubuntu-latest
