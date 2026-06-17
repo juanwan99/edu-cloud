@@ -86,8 +86,14 @@ def main() -> int:
     print("Meta Runtime")
     print_kv("state", meta_runtime.get("status"))
     if meta_runtime.get("status") == "ok":
-        print_kv("snapshot_at", meta_runtime.get("snapshot_at"))
-        print_kv("overall", meta_runtime.get("overall"))
+        stale = bool(meta_runtime.get("stale"))
+        age_label = meta_runtime.get("age_label") or "unknown"
+        freshness = "STALE — point-in-time snapshot, not current truth" if stale else "fresh"
+        print_kv("snapshot_at", f"{meta_runtime.get('snapshot_at')} ({age_label} ago, {freshness})")
+        if stale:
+            print_kv("overall", f"{meta_runtime.get('overall')} (stale snapshot — run scripts/meta-check to refresh before trusting)")
+        else:
+            print_kv("overall", meta_runtime.get("overall"))
         print_kv("issues", meta_runtime.get("issue_count"))
         print_kv("obligations", meta_runtime.get("obligation_count"))
     else:

@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -19,6 +21,36 @@ EXPECTED_PORTS = {
     8080: {"label": "Vite dev server", "service": None, "required": False},
     8100: {"label": "llm-proxy", "service": "llm-proxy", "required": False},
 }
+
+# Path prefixes whose change between a deployed git hash and the source HEAD is a
+# real runtime drift: the built frontend bundle or the backend/worker process
+# would genuinely serve different code. Everything else (docs, governance,
+# CI workflow, tests, the observability scripts themselves) is documentation /
+# governance only and a deployed artifact that merely trails HEAD by such commits
+# is still functionally current. This set is intentionally the same one the task
+# stop-conditions enumerate as must-stay-red: source, frontend build inputs,
+# dependencies, deploy, and the worker entrypoint.
+RUNTIME_DRIFT_PREFIXES = (
+    "src/",
+    "pyproject.toml",
+    "uv.lock",
+    "alembic.ini",
+    "alembic/",
+    "frontend/src/",
+    "frontend/public/",
+    "frontend/index.html",
+    "frontend/package.json",
+    "frontend/package-lock.json",
+    "frontend/vite.config",
+    "frontend/vitest.config",
+    "deploy/",
+    "scripts/run-arq-worker",
+)
+
+# A persisted meta snapshot older than this (seconds) is treated as point-in-time
+# state, not current truth: it predates likely working-tree changes and must be
+# labelled stale rather than presented as the live overall.
+META_STATE_FRESH_SECONDS = 3600
 
 
 @dataclass
@@ -79,6 +111,151 @@ def count_known_failures() -> int:
         if stripped and not stripped.startswith("#"):
             count += 1
     return count
+
+
+def git_commit_exists(ref: str) -> bool:
+    """True only when ``ref`` resolves to a commit in the local repository."""
+    if not ref or ref in {"unknown", "unreadable"}:
+        return False
+    return git("cat-file", "-e", f"{ref}^{{commit}}").returncode == 0
+
+
+def classify_hash_drift(base: str, head: str) -> dict[str, object]:
+    """Classify a deployed-hash vs source-HEAD difference.
+
+    Returns ``{"status": <status>, "paths": [...]}`` where status is:
+
+    * ``"runtime"`` — at least one runtime-relevant file (source, frontend build
+      input, dependency, deploy, worker entrypoint) changed between ``base`` and
+      ``head``; the deployed artifact is genuinely stale and the caller must keep
+      the drift red/blocking. ``paths`` lists the offending files.
+    * ``"docs_only"`` — the two commits differ only by documentation / governance
+      / CI / test / observability-script changes, so the deployed bundle and
+      backend process are functionally current; the caller should report a
+      non-blocking informational drift instead of a runtime failure.
+    * ``"unknown"`` — at least one ref is not present locally or the diff could
+      not be computed, so the drift cannot be proven docs-only and the caller
+      must stay conservative (treat it as runtime red).
+    """
+    if base == head:
+        return {"status": "docs_only", "paths": []}
+    if not git_commit_exists(base) or not git_commit_exists(head):
+        return {"status": "unknown", "paths": []}
+    result = git("diff", "--name-only", f"{base}..{head}")
+    if result.returncode != 0:
+        return {"status": "unknown", "paths": []}
+    changed = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    runtime_paths = sorted({path for path in changed if path.startswith(RUNTIME_DRIFT_PREFIXES)})
+    if runtime_paths:
+        return {"status": "runtime", "paths": runtime_paths}
+    return {"status": "docs_only", "paths": []}
+
+
+def is_claude_cli_process(command: str) -> bool:
+    """True only for a genuine Claude Code CLI invocation.
+
+    A real Claude CLI runs the ``claude`` executable directly (an npm bin shim,
+    symlink, or a node/bun launch of the claude-code ``cli.js`` entrypoint).
+    Commands that merely *reference* Claude — a ``.claude`` config path in a
+    grep/git argument, the ``claude-meta`` git repo, or wrapper scripts such as
+    ``yuanshou-claude`` / ``codex-consult-claude`` whose own ``argv[0]`` basename
+    is not ``claude`` — are not Claude sessions and must not be counted.
+    """
+    command = (command or "").strip()
+    if not command:
+        return False
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        parts = command.split()
+    if not parts:
+        return False
+    exe = os.path.basename(parts[0])
+    if exe == "claude":
+        return True
+    if exe in {"node", "nodejs", "bun", "deno"}:
+        for token in parts[1:]:
+            if token.startswith("-"):
+                continue
+            base = os.path.basename(token)
+            return base == "claude" or (token.endswith("cli.js") and "claude" in token)
+    return False
+
+
+def count_claude_cli_processes() -> int:
+    """Count live Claude Code CLI sessions, excluding read-only consult reviewers.
+
+    Uses ``pgrep -af claude`` for discovery (a broad net), then keeps only
+    commands that are actually the Claude CLI (:func:`is_claude_cli_process`)
+    and drops stateless ``--no-session-persistence`` consult invocations.
+    """
+    result = run(["pgrep", "-af", "claude"], timeout=10)
+    if result.returncode not in (0, 1):
+        return 0
+    count = 0
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        pid_text, _, command = stripped.partition(" ")
+        if not pid_text.isdigit():
+            continue
+        if "--no-session-persistence" in command:
+            continue
+        if is_claude_cli_process(command):
+            count += 1
+    return count
+
+
+def _parse_iso(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    text = value.strip().replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _age_label(seconds: float) -> str:
+    seconds = int(max(0, seconds))
+    days, rem = divmod(seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes = rem // 60
+    if days:
+        return f"{days}d {hours}h"
+    if hours:
+        return f"{hours}h {minutes}m"
+    return f"{minutes}m"
+
+
+def snapshot_freshness(
+    as_of: object,
+    *,
+    now: datetime | None = None,
+    fresh_seconds: int = META_STATE_FRESH_SECONDS,
+) -> dict[str, object]:
+    """Describe how fresh a persisted snapshot timestamp is relative to ``now``.
+
+    An unparseable or missing timestamp is treated as stale so a snapshot whose
+    age cannot be established is never presented as current truth.
+    """
+    moment = _parse_iso(as_of)
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    if moment is None:
+        return {"as_of": as_of, "age_seconds": None, "age_label": "unknown", "stale": True}
+    age = (current - moment).total_seconds()
+    return {
+        "as_of": as_of,
+        "age_seconds": age,
+        "age_label": _age_label(age),
+        "stale": age > fresh_seconds,
+    }
 
 
 def collect_git() -> dict[str, object]:
@@ -396,7 +573,7 @@ def collect_guardian_runtime_state() -> dict[str, object]:
     }
 
 
-def collect_meta_runtime_state() -> dict[str, object]:
+def collect_meta_runtime_state(*, now: datetime | None = None) -> dict[str, object]:
     state_file = PROJECT_ROOT / "logs" / "meta-state.json"
     if not state_file.exists():
         return {"status": "missing", "state_file": str(state_file)}
@@ -413,11 +590,17 @@ def collect_meta_runtime_state() -> dict[str, object]:
     obligations = contract.get("obligations")
     if not isinstance(obligations, list):
         obligations = []
+    snapshot_at = latest.get("generated_at")
+    updated_at = parsed.get("updated_at") if isinstance(parsed, dict) else None
+    freshness = snapshot_freshness(snapshot_at or updated_at, now=now)
     return {
         "status": "ok",
         "state_file": str(state_file),
-        "updated_at": parsed.get("updated_at") if isinstance(parsed, dict) else None,
-        "snapshot_at": latest.get("generated_at"),
+        "updated_at": updated_at,
+        "snapshot_at": snapshot_at,
+        "age_seconds": freshness["age_seconds"],
+        "age_label": freshness["age_label"],
+        "stale": freshness["stale"],
         "overall": latest.get("overall"),
         "red_count": latest.get("red_count"),
         "yellow_count": latest.get("yellow_count"),

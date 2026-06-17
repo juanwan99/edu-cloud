@@ -1,14 +1,18 @@
 # NOW
 
-Last refreshed: 2026-06-17 09:31 Asia/Shanghai
-（P0C-3B：meta-check CI 出口语义修复 + backend CI 可观测性；前次 refresh 2026-06-16 06:35）
+Last refreshed: 2026-06-17 15:33 Asia/Shanghai
+（P0E-1：Guardian/Truthline 观测语义修复；前次 refresh 2026-06-17 09:31 P0C-3B）
 
-**Current task (P0C-3B, this window):** `scripts/meta-check` 新增 `--fail-on-blocking`
-（仅 `red_count>0` 或任一 `blocks_completion=true` 时 exit 1，non-blocking yellow
-如 `STALE_FACTS` 放行）；`--strict` 旧语义保留（任何非 green 即 exit 1，本地/人审用）。
-CI `governance` step（`.github/workflows/test.yml`）与 `scripts/codex-verify full`
-的 meta gate 已切到 `--fail-on-blocking`，让确定性流水线不再被时间敏感的 yellow 拖垮。
-backend 主 pytest 加 `--durations=25` + `timeout-minutes: 30` 可观测性。未 commit（待授权）。
+**Current task (P0E-1, this window):** 修复 Guardian/Truthline 观测语义误报。
+①docs/governance-only 的 HEAD 漂移（部署 hash trails HEAD 但区间只改 docs/治理/CI/
+测试/观测脚本）不再伪装成 `BUILD_DRIFT`/`BACKEND_DRIFT`/`PARALLEL_VERSION_DRIFT` 红灯——
+新增 `codex_support.classify_hash_drift`（runtime/docs_only/unknown，unknown fail-safe
+保持红），guardian 降级为 `*_DOCS` 非阻断 yellow，`truth-status.sh` 同算法保持
+`ALL ALIGNED` exit 0；真源/构建输入/依赖/deploy 变更仍红。②Claude 进程检测
+（`is_claude_cli_process`，按 argv[0] basename）不再把 `.claude` 路径/`claude-meta`
+仓库名/`yuanshou-claude` 包装命令误判为活跃 Claude（实测 10→1）。③`codex-context`
+对过期 `logs/meta-state.json` 加 age + `STALE` 标注，不把 2 天前 red 当当前事实。
+补 12 项治理测试（`tests/governance/test_codex_scripts.py`）。未 commit（待授权）。
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:

@@ -21,6 +21,7 @@ from typing import Any, Callable
 
 from codex_support import (
     PROJECT_ROOT,
+    classify_hash_drift,
     collect_artifacts,
     collect_db,
     collect_git,
@@ -193,6 +194,51 @@ def issues_from_artifacts(artifacts: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def hash_drift_issue(
+    code: str,
+    deployed: str,
+    reference: str,
+    *,
+    runtime_summary: str,
+    docs_summary: str,
+    command_hint: str,
+    source: str,
+    docs_command_hint: str | None = None,
+) -> dict[str, Any]:
+    """Build a drift issue whose severity reflects what actually changed.
+
+    A docs/governance-only difference between the deployed hash and the
+    reference hash is a non-blocking informational drift; a real source /
+    build-input / dependency / deploy change (or an unresolvable diff) stays a
+    blocking red runtime drift.
+    """
+    drift = classify_hash_drift(deployed, reference)
+    if drift.get("status") == "docs_only":
+        return issue(
+            f"{code}_DOCS",
+            "yellow",
+            docs_summary,
+            docs_command_hint or command_hint,
+            blocks_completion=False,
+            required_before="handoff",
+            source=source,
+        )
+    paths_obj = drift.get("paths")
+    paths = [str(path) for path in paths_obj] if isinstance(paths_obj, list) else []
+    if drift.get("status") == "runtime" and paths:
+        detail = f"; runtime files changed: {', '.join(paths[:5])}"
+    else:
+        detail = "; drift classification unavailable, treated as runtime"
+    return issue(
+        code,
+        "red",
+        runtime_summary + detail,
+        command_hint,
+        blocks_completion=True,
+        source=source,
+    )
+
+
 def issues_from_versions(versions: dict[str, Any], git_info: dict[str, Any]) -> list[dict[str, Any]]:
     issues: list[dict[str, Any]] = []
     head = str(git_info.get("head") or "")
@@ -212,34 +258,47 @@ def issues_from_versions(versions: dict[str, Any], git_info: dict[str, Any]) -> 
         )
     if head and head != "unknown" and dist_hash and dist_hash not in {"unknown", "unreadable"} and dist_hash != head:
         issues.append(
-            issue(
+            hash_drift_issue(
                 "BUILD_DRIFT",
-                "red",
-                f"frontend dist hash {dist_hash} does not match HEAD {head}",
-                "scripts/codex-verify frontend",
-                blocks_completion=True,
+                str(dist_hash),
+                head,
+                runtime_summary=f"frontend dist hash {dist_hash} does not match HEAD {head}",
+                docs_summary=(
+                    f"frontend dist hash {dist_hash} trails HEAD {head} by docs/governance-only "
+                    "commits; no build input changed, deployed bundle is functionally current"
+                ),
+                command_hint="scripts/codex-verify frontend",
                 source="codex_support.collect_versions",
             )
         )
     if dist_hash and nginx_hash and nginx_hash not in {"unknown", "unreadable"} and nginx_hash != dist_hash:
         issues.append(
-            issue(
+            hash_drift_issue(
                 "NGINX_DRIFT",
-                "red",
-                f"nginx version hash {nginx_hash} does not match local dist {dist_hash}",
-                "scripts/codex-verify frontend",
-                blocks_completion=True,
+                str(nginx_hash),
+                str(dist_hash),
+                runtime_summary=f"nginx version hash {nginx_hash} does not match local dist {dist_hash}",
+                docs_summary=(
+                    f"nginx version hash {nginx_hash} trails local dist {dist_hash} by "
+                    "docs/governance-only commits; served bundle is functionally current"
+                ),
+                command_hint="scripts/codex-verify frontend",
                 source="codex_support.collect_versions",
             )
         )
     if head and head != "unknown" and backend_hash and backend_hash not in {"unknown", "unreadable"} and backend_hash != head:
         issues.append(
-            issue(
+            hash_drift_issue(
                 "BACKEND_DRIFT",
-                "red",
-                f"backend hash {backend_hash} does not match HEAD {head}",
-                "sudo systemctl restart edu-cloud",
-                blocks_completion=True,
+                str(backend_hash),
+                head,
+                runtime_summary=f"backend hash {backend_hash} does not match HEAD {head}",
+                docs_summary=(
+                    f"backend hash {backend_hash} trails HEAD {head} by docs/governance-only "
+                    "commits; running backend is functionally current"
+                ),
+                command_hint="sudo systemctl restart edu-cloud",
+                docs_command_hint="git log --oneline " + f"{backend_hash}..{head}",
                 source="codex_support.collect_versions",
             )
         )
@@ -372,12 +431,17 @@ def issues_from_ports(ports: dict[str, Any], git_info: dict[str, Any]) -> list[d
         version_hash = item.get("version_hash")
         if head and version_hash and version_hash != head:
             issues.append(
-                issue(
+                hash_drift_issue(
                     "PARALLEL_VERSION_DRIFT",
-                    "red",
-                    f"backend on port {port} reports {version_hash}, source HEAD is {head}",
-                    f"inspect PID {item.get('pid')} and restart/stop the stale backend",
-                    blocks_completion=True,
+                    str(version_hash),
+                    head,
+                    runtime_summary=f"backend on port {port} reports {version_hash}, source HEAD is {head}",
+                    docs_summary=(
+                        f"backend on port {port} reports {version_hash}, trailing HEAD {head} by "
+                        "docs/governance-only commits; running code is functionally current"
+                    ),
+                    command_hint=f"inspect PID {item.get('pid')} and restart/stop the stale backend",
+                    docs_command_hint=f"git log --oneline {version_hash}..{head}",
                     source="codex_support.collect_ports",
                 )
             )

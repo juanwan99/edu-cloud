@@ -31,7 +31,7 @@ High-frequency checks:
   Guardian/watch processes
 - risky local artifacts vs active SQLite WAL/SHM runtime files
 - truth doctor health: ports, public binds, ghost processes, systemd state,
-  Claude process count, dist permissions, and DB drift
+  real Claude CLI session count, dist permissions, and DB drift
 - current `guardian.watch.v1` state freshness
 
 Network-backed checks, when enabled:
@@ -59,7 +59,9 @@ Stable issue codes for parallel-version accidents:
 - `PARALLEL_FRONTEND_DEV_SERVER`: an edu-cloud Vite dev server is running
   outside canonical port 8080.
 - `PARALLEL_VERSION_DRIFT`: a backend listener reports a git hash different
-  from source HEAD.
+  from source HEAD **and** the commits between them touch real runtime paths
+  (blocking red). A docs/governance-only trail downgrades to the non-blocking
+  `PARALLEL_VERSION_DRIFT_DOCS` instead (see Drift Classification below).
 - `PARALLEL_RUNTIME_DIRTY`: a backend listener reports `source_dirty=true`.
 - `DUPLICATE_WORKER_PROCESS`: more than one ARQ worker is present, or a worker
   is not owned by `edu-cloud-worker.service`.
@@ -73,6 +75,53 @@ In watch mode, Guardian also persists `backend_runtimes` in
 `logs/guardian-state.json` so it can compare the current API listener PID,
 reported hash, and boot time with the previous sample. This catches reload-style
 version changes that a single `--once` snapshot cannot prove by itself.
+
+## Drift Classification (docs/governance vs runtime)
+
+A deployed git hash that merely *trails* source HEAD is not automatically a
+runtime failure. `codex_support.classify_hash_drift(base, head)` diffs the two
+commits and classifies the gap:
+
+- `runtime` — at least one path under `RUNTIME_DRIFT_PREFIXES` (source,
+  frontend build inputs, dependencies, `deploy/`, the worker entrypoint) changed.
+  The deployed bundle/backend is genuinely stale; the drift stays a blocking red
+  `BUILD_DRIFT` / `NGINX_DRIFT` / `BACKEND_DRIFT` / `PARALLEL_VERSION_DRIFT`.
+- `docs_only` — the commits only changed documentation, governance, CI,
+  tests, or the observability scripts themselves. The deployed artifact is
+  functionally current, so Guardian emits the non-blocking yellow
+  `*_DOCS` variant (`BUILD_DRIFT_DOCS`, `NGINX_DRIFT_DOCS`, `BACKEND_DRIFT_DOCS`,
+  `PARALLEL_VERSION_DRIFT_DOCS`) instead of a red.
+- `unknown` — a hash is not resolvable in the local repo or the diff failed.
+  Classification cannot prove the gap is benign, so the drift stays red
+  (fail-safe; real drift detection is never weakened by the unknown branch).
+
+`scripts/truth-status.sh` applies the identical rule (its `RUNTIME_PREFIXES`
+array mirrors `RUNTIME_DRIFT_PREFIXES`): a docs-only trail at Build/Nginx/Backend
+prints a yellow warning and reports a `FUNCTIONALLY ALIGNED — deployed runtime
+trails HEAD only by docs/governance/test/observability commits` diagnosis
+(exit 0). The literal `ALL ALIGNED — ... versions match` line is reserved for an
+exact hash match, so the diagnosis never falsely claims equality. A real or
+unknown gap prints a red `BROKEN AT:` and exits non-zero.
+
+## Claude Session Counting
+
+`CLAUDE_SESSION_RISK` counts only genuine Claude Code CLI sessions.
+`codex_support.is_claude_cli_process` requires the command's `argv[0]` basename
+to be `claude` (an npm bin shim/symlink) or a `node`/`bun` launch of the
+claude-code `cli.js`. Commands that merely reference a `.claude` config path, the
+`claude-meta` git repo, or wrapper scripts such as `yuanshou-claude` /
+`codex-consult-claude` are not sessions and never inflate the count; stateless
+`--no-session-persistence` consult reviewers are also excluded.
+
+## Stale Meta Snapshot Labelling
+
+`scripts/codex-context` reads the persisted `logs/meta-state.json` snapshot. It
+is a point-in-time record, not a live daemon, so codex-context labels it with
+its age and a freshness verdict via `codex_support.snapshot_freshness`
+(`META_STATE_FRESH_SECONDS = 3600`). A snapshot older than the window — or one
+whose timestamp cannot be parsed — is marked `STALE — point-in-time snapshot, not
+current truth`, and its `overall` is annotated `run scripts/meta-check to refresh`
+so a stale red is never presented as the current verdict.
 
 Model checks:
 

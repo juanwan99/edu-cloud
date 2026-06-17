@@ -1236,3 +1236,323 @@ def test_ci_backend_job_has_pytest_observability():
     # Backend main suite must surface slow tests and cap its wall-clock runtime.
     assert "--durations=25" in text
     assert "timeout-minutes:" in text
+
+
+# ── P0E-1: Guardian/Truthline observability semantics ──────────────────────
+
+
+def test_classify_hash_drift_separates_docs_from_runtime(monkeypatch):
+    module = load_codex_support_module()
+
+    def docs_git(*args, timeout=10):
+        if args[0] == "cat-file":
+            return module.CommandResult(args=list(args), returncode=0, stdout="", stderr="")
+        if args[0] == "diff":
+            return module.CommandResult(
+                args=list(args),
+                returncode=0,
+                stdout="docs/context/NOW.md\nAGENTS.md\nscripts/codex-verify\n"
+                "tests/governance/test_codex_scripts.py\n.quality/known-pytest-failures.txt\n",
+                stderr="",
+            )
+        return module.CommandResult(args=list(args), returncode=1, stdout="", stderr="")
+
+    monkeypatch.setattr(module, "git", docs_git)
+    docs = module.classify_hash_drift("06c5483", "42b388e")
+    assert docs["status"] == "docs_only"
+    assert docs["paths"] == []
+
+    def runtime_git(*args, timeout=10):
+        if args[0] == "cat-file":
+            return module.CommandResult(args=list(args), returncode=0, stdout="", stderr="")
+        if args[0] == "diff":
+            return module.CommandResult(
+                args=list(args),
+                returncode=0,
+                stdout="src/edu_cloud/api/app.py\ndocs/context/NOW.md\nfrontend/src/main.js\n",
+                stderr="",
+            )
+        return module.CommandResult(args=list(args), returncode=1, stdout="", stderr="")
+
+    monkeypatch.setattr(module, "git", runtime_git)
+    runtime = module.classify_hash_drift("06c5483", "42b388e")
+    assert runtime["status"] == "runtime"
+    assert "src/edu_cloud/api/app.py" in runtime["paths"]
+    assert "frontend/src/main.js" in runtime["paths"]
+    assert "docs/context/NOW.md" not in runtime["paths"]
+
+
+def test_classify_hash_drift_unknown_when_ref_missing(monkeypatch):
+    module = load_codex_support_module()
+
+    def missing_git(*args, timeout=10):
+        # cat-file fails -> ref unresolvable -> conservative "unknown".
+        return module.CommandResult(args=list(args), returncode=1, stdout="", stderr="")
+
+    monkeypatch.setattr(module, "git", missing_git)
+    drift = module.classify_hash_drift("deadbee", "42b388e")
+    assert drift["status"] == "unknown"
+    # Equal hashes are trivially docs-only without touching git.
+    assert module.classify_hash_drift("42b388e", "42b388e")["status"] == "docs_only"
+
+
+def test_guardian_version_docs_only_drift_is_non_blocking_yellow(monkeypatch):
+    module = load_guardian_runtime_module()
+    monkeypatch.setattr(module, "classify_hash_drift", lambda base, head: {"status": "docs_only", "paths": []})
+
+    issues = module.issues_from_versions(
+        {"dist_hash": "06c5483", "backend_hash": "06c5483", "nginx_hash": "06c5483"},
+        {"head": "42b388e"},
+    )
+    codes = {issue["issue_code"] for issue in issues}
+    assert {"BUILD_DRIFT_DOCS", "BACKEND_DRIFT_DOCS"} <= codes
+    assert "BUILD_DRIFT" not in codes
+    assert "BACKEND_DRIFT" not in codes
+    assert all(issue["severity"] == "yellow" for issue in issues)
+    assert all(not issue["blocks_completion"] for issue in issues)
+
+
+def test_guardian_version_runtime_drift_stays_blocking_red(monkeypatch):
+    module = load_guardian_runtime_module()
+    monkeypatch.setattr(
+        module,
+        "classify_hash_drift",
+        lambda base, head: {"status": "runtime", "paths": ["src/edu_cloud/api/app.py"]},
+    )
+
+    issues = module.issues_from_versions(
+        {"dist_hash": "06c5483", "backend_hash": "06c5483"},
+        {"head": "42b388e"},
+    )
+    build = next(issue for issue in issues if issue["issue_code"] == "BUILD_DRIFT")
+    backend = next(issue for issue in issues if issue["issue_code"] == "BACKEND_DRIFT")
+    assert build["severity"] == "red" and build["blocks_completion"] is True
+    assert backend["severity"] == "red" and backend["blocks_completion"] is True
+    assert "src/edu_cloud/api/app.py" in build["summary"]
+
+
+def test_guardian_version_unknown_drift_stays_blocking_red(monkeypatch):
+    module = load_guardian_runtime_module()
+    monkeypatch.setattr(module, "classify_hash_drift", lambda base, head: {"status": "unknown", "paths": []})
+
+    issues = module.issues_from_versions({"backend_hash": "old999"}, {"head": "42b388e"})
+    backend = next(issue for issue in issues if issue["issue_code"] == "BACKEND_DRIFT")
+    assert backend["severity"] == "red" and backend["blocks_completion"] is True
+
+
+def test_guardian_parallel_version_docs_drift_is_non_blocking(monkeypatch):
+    module = load_guardian_runtime_module()
+    monkeypatch.setattr(module, "PROJECT_ROOT", PROJECT_ROOT)
+    monkeypatch.setattr(module, "classify_hash_drift", lambda base, head: {"status": "docs_only", "paths": []})
+
+    ports = {
+        "status": "ok",
+        "expected": {"9000": {"label": "edu-cloud API", "required": True, "present": True}},
+        "listeners": [
+            {
+                "port": 9000,
+                "bind": "127.0.0.1",
+                "pid": 100,
+                "service": "edu-cloud",
+                "command": "python -m uvicorn edu_cloud.api.app:create_app --port 9000",
+                "version_hash": "06c5483",
+                "version_source_dirty": False,
+            }
+        ],
+    }
+    issues = module.issues_from_ports(ports, {"head": "42b388e"})
+    codes = {issue["issue_code"] for issue in issues}
+    assert "PARALLEL_VERSION_DRIFT_DOCS" in codes
+    assert "PARALLEL_VERSION_DRIFT" not in codes
+    docs = next(issue for issue in issues if issue["issue_code"] == "PARALLEL_VERSION_DRIFT_DOCS")
+    assert docs["severity"] == "yellow"
+    assert docs["blocks_completion"] is False
+
+
+def test_is_claude_cli_process_only_matches_real_sessions():
+    module = load_codex_support_module()
+
+    # Real Claude Code CLI invocations.
+    assert module.is_claude_cli_process("/home/ops/.npm-global/bin/claude --dangerously-skip-permissions")
+    assert module.is_claude_cli_process("claude -p 'hello'")
+    assert module.is_claude_cli_process("node /opt/lib/@anthropic-ai/claude-code/cli.js")
+
+    # References / wrappers that merely contain the word "claude" must NOT count.
+    assert not module.is_claude_cli_process(
+        "bash -c cd /home/ops/yuanshou && readlink -f /home/ops/.claude/hooks"
+    )
+    assert not module.is_claude_cli_process(
+        "/usr/bin/ssh -o SendEnv=GIT_PROTOCOL git@github-yuanshou git-upload-pack 'juanwan99/claude-meta.git'"
+    )
+    assert not module.is_claude_cli_process(
+        "bash /home/ops/yuanshou/scripts/yuanshou-claude start --project edu-cloud --mode writer"
+    )
+    assert not module.is_claude_cli_process("rg -n pattern /home/ops/.claude/projects/x.jsonl")
+    assert not module.is_claude_cli_process("")
+
+
+def test_count_claude_cli_processes_excludes_references_and_consult(monkeypatch):
+    module = load_codex_support_module()
+    sample = "\n".join(
+        [
+            "39345 bash -c readlink -f /home/ops/.claude/hooks",
+            "39349 /usr/bin/ssh git@github-yuanshou juanwan99/claude-meta.git",
+            "2800620 bash /home/ops/yuanshou/scripts/yuanshou-claude start --project edu-cloud",
+            "2800666 /home/ops/.npm-global/bin/claude --dangerously-skip-permissions",
+            "2900001 claude -p review --no-session-persistence --permission-mode plan",
+        ]
+    )
+
+    def fake_run(args, timeout=10, cwd=None):
+        return module.CommandResult(args=args, returncode=0, stdout=sample + "\n", stderr="")
+
+    monkeypatch.setattr(module, "run", fake_run)
+    # Only the single real interactive Claude CLI counts; the consult reviewer
+    # (--no-session-persistence) and the .claude/claude-meta/yuanshou-claude
+    # references do not.
+    assert module.count_claude_cli_processes() == 1
+
+
+def test_truth_doctor_json_does_not_flag_claude_references_as_sessions():
+    # The live system frequently has many commands that merely reference a
+    # `.claude` path; truth-doctor must not raise CLAUDE_SESSION_RISK off them.
+    result = run_script("truth", "doctor", "--json")
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    claude_risks = [issue for issue in data["issues"] if issue["issue_code"] == "CLAUDE_SESSION_RISK"]
+    for risk in claude_risks:
+        # If raised at all it must reflect a real count >5, never the dozens of
+        # `.claude`/claude-meta/yuanshou-claude reference lines pgrep returns.
+        match = re.search(r"(\d+) Claude processes", risk["summary"])
+        assert match and int(match.group(1)) <= 50
+
+
+def test_collect_meta_runtime_state_marks_stale_snapshot(monkeypatch, tmp_path):
+    module = load_codex_support_module()
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "meta-state.json").write_text(
+        json.dumps(
+            {
+                "schema": "meta.state.v1",
+                "updated_at": "2026-06-15T14:37:13Z",
+                "latest_snapshot": {
+                    "generated_at": "2026-06-15T14:37:13Z",
+                    "overall": "red",
+                    "red_count": 4,
+                    "yellow_count": 1,
+                    "issues": [1, 2, 3, 4, 5],
+                    "task_contract": {"obligations": [{"code": "EVIDENCE_MATRIX"}]},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
+
+    # Two days later: a red snapshot must be reported but flagged stale, not as
+    # current truth.
+    stale = module.collect_meta_runtime_state(
+        now=datetime(2026, 6, 17, 14, 37, 13, tzinfo=timezone.utc)
+    )
+    assert stale["status"] == "ok"
+    assert stale["overall"] == "red"
+    assert stale["stale"] is True
+    assert stale["age_seconds"] > 3600
+    assert stale["age_label"] != "unknown"
+
+    # Five minutes after the snapshot it is still fresh.
+    fresh = module.collect_meta_runtime_state(
+        now=datetime(2026, 6, 15, 14, 42, 13, tzinfo=timezone.utc)
+    )
+    assert fresh["stale"] is False
+
+
+def test_codex_context_labels_meta_runtime_freshness():
+    result = run_script("codex-context", "--no-network")
+    assert result.returncode == 0, result.stderr
+    meta_section = result.stdout.split("Meta Runtime", 1)[1].split("Guardian Health", 1)[0]
+    if "state: ok" in meta_section:
+        # The persisted snapshot is always presented with an age and an explicit
+        # freshness verdict, never as bare current truth.
+        assert " ago, " in meta_section
+        assert ("fresh" in meta_section) or ("STALE" in meta_section)
+
+
+def test_truth_status_treats_docs_only_drift_as_aligned(tmp_path):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "frontend" / "src").mkdir(parents=True)
+    (project / "frontend" / "dist").mkdir(parents=True)
+    (project / "src").mkdir()
+    (project / "docs" / "context").mkdir(parents=True)
+    (project / "frontend" / "src" / "main.js").write_text("console.log('x')\n", encoding="utf-8")
+    (project / "frontend" / "index.html").write_text("<div></div>\n", encoding="utf-8")
+    (project / "frontend" / "package.json").write_text("{}\n", encoding="utf-8")
+    (project / "frontend" / "dist" / "index.html").write_text("<div></div>\n", encoding="utf-8")
+    (project / "docs" / "context" / "NOW.md").write_text("rev A\n", encoding="utf-8")
+
+    def git(*args):
+        subprocess.run(["git", *args], cwd=project, check=True, capture_output=True, text=True)
+
+    git("init")
+    git("add", ".")
+    subprocess.run(
+        ["git", "-c", "user.email=t@e.com", "-c", "user.name=T", "commit", "-m", "A"],
+        cwd=project, check=True, capture_output=True, text=True,
+    )
+    head_a = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"], cwd=project, capture_output=True, text=True
+    ).stdout.strip()
+
+    # The deployed build/backend/nginx were all fingerprinted at commit A.
+    (project / "frontend" / "dist" / "version.json").write_text(
+        json.dumps({"git_hash": head_a, "build_time": "2026-06-17T00:00:00Z", "source_dirty": False}) + "\n",
+        encoding="utf-8",
+    )
+
+    # HEAD advances by a docs-only commit -> no build input / source changed.
+    (project / "docs" / "context" / "NOW.md").write_text("rev B\n", encoding="utf-8")
+    git("add", ".")
+    subprocess.run(
+        ["git", "-c", "user.email=t@e.com", "-c", "user.name=T", "commit", "-m", "B docs only"],
+        cwd=project, check=True, capture_output=True, text=True,
+    )
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_curl = fake_bin / "curl"
+    fake_curl.write_text(
+        f"""#!/usr/bin/env bash
+args="$*"
+if [[ "$args" == *"-w"* ]]; then
+  printf "200"
+elif [[ "$args" == *"mcu.asia/version.json"* ]]; then
+  printf '{{"git_hash":"{head_a}"}}'
+elif [[ "$args" == *"127.0.0.1:9000"* ]]; then
+  printf '{{"git_hash":"{head_a}","boot_time":"test","pid":1}}'
+fi
+""",
+        encoding="utf-8",
+    )
+    fake_curl.chmod(0o755)
+    env = os.environ.copy()
+    env["PATH"] = f"{fake_bin}:{env['PATH']}"
+
+    result = subprocess.run(
+        [str(PROJECT_ROOT / "scripts" / "truth-status.sh"), str(project)],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    # A docs-only trail is not a break, but the diagnosis must not falsely claim
+    # the deployed hash matches HEAD; it reports FUNCTIONALLY ALIGNED instead.
+    assert "BROKEN AT:" not in result.stdout
+    assert "FUNCTIONALLY ALIGNED" in result.stdout
+    assert "trails HEAD only by docs/governance/test/observability commits" in result.stdout
+    assert "ALL ALIGNED — source, build, nginx, backend versions match" not in result.stdout
+    assert "docs/governance-only" in result.stdout

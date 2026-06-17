@@ -17,7 +17,50 @@ warn() { echo -e "  ${YELLOW}!${NC} $1"; }
 fail() { echo -e "  ${RED}✗${NC} $1"; }
 info() { echo -e "  ${CYAN}·${NC} $1"; }
 
+# Path prefixes whose change between a deployed hash and HEAD is a real runtime
+# drift (kept in sync with codex_support.RUNTIME_DRIFT_PREFIXES). Anything else
+# is documentation / governance only and a deployed artifact that merely trails
+# HEAD by such commits is still functionally current.
+RUNTIME_PREFIXES=(
+  "src/"
+  "pyproject.toml"
+  "uv.lock"
+  "alembic.ini"
+  "alembic/"
+  "frontend/src/"
+  "frontend/public/"
+  "frontend/index.html"
+  "frontend/package.json"
+  "frontend/package-lock.json"
+  "frontend/vite.config"
+  "frontend/vitest.config"
+  "deploy/"
+  "scripts/run-arq-worker"
+)
+
+# classify_drift <deployed_hash> <head_hash>
+# Echoes "runtime", "docs_only", or "unknown".
+classify_drift() {
+  local base="$1" head="$2"
+  [ "$base" = "$head" ] && { echo "docs_only"; return; }
+  git -C "$PROJECT_DIR" cat-file -e "${base}^{commit}" 2>/dev/null || { echo "unknown"; return; }
+  git -C "$PROJECT_DIR" cat-file -e "${head}^{commit}" 2>/dev/null || { echo "unknown"; return; }
+  local changed
+  changed=$(git -C "$PROJECT_DIR" diff --name-only "${base}..${head}" 2>/dev/null) || { echo "unknown"; return; }
+  local path pre
+  while IFS= read -r path; do
+    [ -z "$path" ] && continue
+    for pre in "${RUNTIME_PREFIXES[@]}"; do
+      case "$path" in
+        "$pre"*) echo "runtime"; return ;;
+      esac
+    done
+  done <<< "$changed"
+  echo "docs_only"
+}
+
 BROKEN_AT=""
+DOCS_ONLY_DRIFT=false
 
 echo -e "${BOLD}Truthline Status${NC}  $(date '+%H:%M:%S')"
 echo ""
@@ -61,8 +104,14 @@ if [ -f "$VERSION_JSON" ]; then
   elif [ "$BUILD_HASH" = "$GIT_HASH" ] && [ "$FRONTEND_DIRTY" = "false" ]; then
     ok "dist/ matches current source"
   elif [ "$BUILD_HASH" != "$GIT_HASH" ]; then
-    fail "dist/ built from $BUILD_HASH, source is $GIT_HASH"
-    [ -z "$BROKEN_AT" ] && BROKEN_AT="SOURCE → BUILD (git hash mismatch)"
+    BUILD_DRIFT_KIND=$(classify_drift "$BUILD_HASH" "$GIT_HASH")
+    if [ "$BUILD_DRIFT_KIND" = "docs_only" ]; then
+      warn "dist/ built from $BUILD_HASH; HEAD $GIT_HASH adds docs/governance-only commits (no build input changed)"
+      DOCS_ONLY_DRIFT=true
+    else
+      fail "dist/ built from $BUILD_HASH, source is $GIT_HASH"
+      [ -z "$BROKEN_AT" ] && BROKEN_AT="SOURCE → BUILD (git hash mismatch)"
+    fi
   elif [ "$FRONTEND_DIRTY" = "true" ]; then
     fail "dist/ built from clean $BUILD_HASH, but frontend/ has uncommitted changes"
     [ -z "$BROKEN_AT" ] && BROKEN_AT="SOURCE → BUILD (uncommitted frontend changes)"
@@ -101,8 +150,14 @@ if [ -f "$DIST_DIR/index.html" ]; then
     if [ "$REMOTE_HASH" = "$GIT_HASH" ] && [ "$FRONTEND_DIRTY" = "false" ]; then
       ok "nginx version matches source"
     elif [ "$REMOTE_HASH" != "$GIT_HASH" ]; then
-      fail "nginx serves build $REMOTE_HASH, source is $GIT_HASH"
-      [ -z "$BROKEN_AT" ] && BROKEN_AT="BUILD → NGINX (stale dist on nginx)"
+      NGINX_DRIFT_KIND=$(classify_drift "$REMOTE_HASH" "$GIT_HASH")
+      if [ "$NGINX_DRIFT_KIND" = "docs_only" ]; then
+        warn "nginx serves $REMOTE_HASH; HEAD $GIT_HASH adds docs/governance-only commits (served bundle functionally current)"
+        DOCS_ONLY_DRIFT=true
+      else
+        fail "nginx serves build $REMOTE_HASH, source is $GIT_HASH"
+        [ -z "$BROKEN_AT" ] && BROKEN_AT="BUILD → NGINX (stale dist on nginx)"
+      fi
     fi
   else
     warn "version.json not yet accessible via nginx (run build first)"
@@ -127,8 +182,14 @@ if [ -n "$BACKEND_JSON" ]; then
   elif [ "$BE_HASH" = "unknown" ]; then
     warn "backend /api/v1/version missing git_hash (upgrade needed)"
   else
-    fail "backend running $BE_HASH, source is $GIT_HASH"
-    [ -z "$BROKEN_AT" ] && BROKEN_AT="SOURCE → BACKEND (stale uvicorn, restart needed)"
+    BACKEND_DRIFT_KIND=$(classify_drift "$BE_HASH" "$GIT_HASH")
+    if [ "$BACKEND_DRIFT_KIND" = "docs_only" ]; then
+      warn "backend running $BE_HASH; HEAD $GIT_HASH adds docs/governance-only commits (running backend functionally current)"
+      DOCS_ONLY_DRIFT=true
+    else
+      fail "backend running $BE_HASH, source is $GIT_HASH"
+      [ -z "$BROKEN_AT" ] && BROKEN_AT="SOURCE → BACKEND (stale uvicorn, restart needed)"
+    fi
   fi
 else
   fail "backend unreachable at :9000"
@@ -138,10 +199,13 @@ echo ""
 
 # ── Diagnosis ──
 echo -e "${BOLD}[Diagnosis]${NC}"
-if [ -z "$BROKEN_AT" ]; then
-  echo -e "  ${GREEN}${BOLD}ALL ALIGNED${NC} — source, build, nginx, backend versions match"
-  exit 0
-else
+if [ -n "$BROKEN_AT" ]; then
   echo -e "  ${RED}${BOLD}BROKEN AT: $BROKEN_AT${NC}"
   exit 1
+elif [ "$DOCS_ONLY_DRIFT" = "true" ]; then
+  echo -e "  ${GREEN}${BOLD}FUNCTIONALLY ALIGNED${NC} — deployed runtime trails HEAD only by docs/governance/test/observability commits"
+  exit 0
+else
+  echo -e "  ${GREEN}${BOLD}ALL ALIGNED${NC} — source, build, nginx, backend versions match"
+  exit 0
 fi

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 PROJECT_DIR="${1:-.}"
 JSON_MODE=false
 if [ "${1:-}" = "--json" ]; then
@@ -23,14 +25,21 @@ fail() { echo -e "  ${RED}✗${NC} $1"; }
 ISSUES=0
 
 if [ "$JSON_MODE" = "true" ]; then
-  export PROJECT_DIR
+  export PROJECT_DIR SCRIPT_DIR
   python3 - <<'PY'
 import json
 import os
 import re
 import shutil
 import subprocess
+import sys
 from datetime import datetime
+
+sys.path.insert(0, os.environ.get("SCRIPT_DIR", "."))
+try:
+    from codex_support import count_claude_cli_processes
+except Exception:  # pragma: no cover - fall back to inline detection
+    count_claude_cli_processes = None
 
 
 project_dir = os.environ.get("PROJECT_DIR", ".")
@@ -178,17 +187,50 @@ def check_systemd():
                 )
 
 
-def check_claude_processes():
+def _inline_is_claude_cli(command):
+    command = (command or "").strip()
+    if not command:
+        return False
+    parts = command.split()
+    exe = os.path.basename(parts[0])
+    if exe == "claude":
+        return True
+    if exe in {"node", "nodejs", "bun", "deno"}:
+        for token in parts[1:]:
+            if token.startswith("-"):
+                continue
+            base = os.path.basename(token)
+            return base == "claude" or (token.endswith("cli.js") and "claude" in token)
+    return False
+
+
+def _inline_count_claude():
     result = run(["pgrep", "-af", "claude"])
+    if result.returncode not in (0, 1):
+        return 0
     count = 0
     for line in result.stdout.splitlines():
-        if "codex-consult-claude" in line:
+        stripped = line.strip()
+        if not stripped:
             continue
-        if "--no-session-persistence" in line:
+        pid_text, _, command = stripped.partition(" ")
+        if not pid_text.isdigit():
             continue
-        if "guardian-watch" in line:
+        if "--no-session-persistence" in command:
             continue
-        count += 1
+        if _inline_is_claude_cli(command):
+            count += 1
+    return count
+
+
+def check_claude_processes():
+    # Count only genuine Claude Code CLI sessions: a command that merely
+    # references a `.claude` path, the claude-meta repo, or a `yuanshou-claude`
+    # wrapper is not an active session and must not inflate the count.
+    if count_claude_cli_processes is not None:
+        count = count_claude_cli_processes()
+    else:
+        count = _inline_count_claude()
     if count > 5:
         add_issue(
             "CLAUDE_SESSION_RISK",
@@ -413,7 +455,7 @@ echo ""
 # ── 5. Claude Session Count ──
 echo -e "${BOLD}[Claude Sessions]${NC}"
 CLAUDE_COUNT=0
-CLAUDE_COUNT=$(pgrep -af 'claude' 2>/dev/null | grep -v 'codex-consult-claude' | grep -v -- '--no-session-persistence' | grep -v 'guardian-watch' | wc -l || true)
+CLAUDE_COUNT=$(python3 -c "import sys; sys.path.insert(0, '$SCRIPT_DIR'); from codex_support import count_claude_cli_processes as c; print(c())" 2>/dev/null || echo 0)
 if [ "$CLAUDE_COUNT" -le 5 ]; then
   ok "$CLAUDE_COUNT active Claude process(es)"
 else

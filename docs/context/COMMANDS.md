@@ -20,6 +20,12 @@ read-only counter-review, and the completion evidence contract. Guardian Core /
 守护核 covers dirty state, truthline, DB/migration gates, safety scanning,
 frontend/backend build-runtime consistency, and environment hygiene.
 
+The `Meta Runtime` section reads the persisted `logs/meta-state.json` snapshot.
+Because that file is a point-in-time record (not a live daemon), codex-context
+shows its age and a freshness verdict; a snapshot older than one hour is labelled
+`STALE — point-in-time snapshot, not current truth` and its `overall` is never
+presented as the current verdict. Run `scripts/meta-check` to refresh it.
+
 ## Meta Runtime
 
 One-shot task-contract check:
@@ -73,12 +79,21 @@ scripts/truth-status.sh /home/ops/projects/edu-cloud
 scripts/truth-doctor.sh /home/ops/projects/edu-cloud
 ```
 
-`truth status` checks source -> build -> nginx -> backend alignment. `truth doctor` checks ports, ghost processes, dist permissions, systemd state, Claude process count, and DB schema drift.
+`truth status` checks source -> build -> nginx -> backend alignment. `truth doctor` checks ports, ghost processes, dist permissions, systemd state, real Claude CLI session count, and DB schema drift.
 `truth doctor --json` emits Guardian Core issue/action data with schema
 `guardian.doctor.v1`.
 
 `scripts/truth-status.sh` exits 0 only when the diagnosis is aligned. Any
-`BROKEN AT:` diagnosis exits non-zero and must block completion evidence.
+`BROKEN AT:` diagnosis exits non-zero and must block completion evidence. A
+deployed hash that trails HEAD by **docs/governance-only** commits is not a
+break: Build/Nginx/Backend print a yellow `docs/governance-only` warning and the
+diagnosis reports `FUNCTIONALLY ALIGNED — deployed runtime trails HEAD only by
+docs/governance/test/observability commits` (exit 0). The literal `ALL ALIGNED`
+line is reserved for an exact hash match, so the diagnosis never overstates
+equality. A real source/build-input/dependency/deploy change (or an unresolvable
+hash) still reports `BROKEN AT:` and exits non-zero. The Claude session check counts only genuine Claude Code CLI processes,
+not commands that merely reference a `.claude` path or a `*-claude` wrapper.
+See `docs/context/GUARDIAN_RUNTIME.md` for the drift-classification rule.
 
 ## Guardian Runtime
 
