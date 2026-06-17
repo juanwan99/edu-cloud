@@ -69,7 +69,6 @@ edges:
 - from: analytics
   to: profile
   occurrences:
-  - src/edu_cloud/modules/analytics/insights_service.py:374
   - src/edu_cloud/modules/analytics/report_service.py:19
 - from: analytics
   to: scan
@@ -112,9 +111,9 @@ edges:
   - src/edu_cloud/modules/card/card_utils.py:11
   - src/edu_cloud/modules/card/card_utils.py:31
   - src/edu_cloud/modules/card/publish_service.py:10
-  - src/edu_cloud/modules/card/router.py:33
-  - src/edu_cloud/modules/card/router.py:252
-  - src/edu_cloud/modules/card/router.py:306
+  - src/edu_cloud/modules/card/router.py:34
+  - src/edu_cloud/modules/card/router.py:334
+  - src/edu_cloud/modules/card/router.py:388
 - from: conduct
   to: academic
   occurrences:
@@ -297,10 +296,6 @@ edges:
   occurrences:
   - src/edu_cloud/modules/portal/service.py:16
 - from: profile
-  to: analytics
-  occurrences:
-  - src/edu_cloud/modules/profile/router.py:141
-- from: profile
   to: knowledge_tree
   occurrences:
   - src/edu_cloud/modules/profile/service.py:6
@@ -327,12 +322,6 @@ cycles:
   - analytics
 - path:
   - analytics
-  - exam
-  - pipeline
-  - profile
-  - analytics
-- path:
-  - analytics
   - grading
   - card
   - exam
@@ -341,23 +330,8 @@ cycles:
 - path:
   - analytics
   - grading
-  - card
   - exam
   - pipeline
-  - profile
-  - analytics
-- path:
-  - analytics
-  - grading
-  - exam
-  - pipeline
-  - analytics
-- path:
-  - analytics
-  - grading
-  - exam
-  - pipeline
-  - profile
   - analytics
 - path:
   - analytics
@@ -371,25 +345,8 @@ cycles:
   - analytics
   - grading
   - scan
-  - card
   - exam
   - pipeline
-  - profile
-  - analytics
-- path:
-  - analytics
-  - grading
-  - scan
-  - exam
-  - pipeline
-  - analytics
-- path:
-  - analytics
-  - grading
-  - scan
-  - exam
-  - pipeline
-  - profile
   - analytics
 - path:
   - analytics
@@ -399,17 +356,6 @@ cycles:
   - analytics
 - path:
   - analytics
-  - knowledge
-  - exam
-  - pipeline
-  - profile
-  - analytics
-- path:
-  - analytics
-  - profile
-  - analytics
-- path:
-  - analytics
   - scan
   - card
   - exam
@@ -418,23 +364,8 @@ cycles:
 - path:
   - analytics
   - scan
-  - card
   - exam
   - pipeline
-  - profile
-  - analytics
-- path:
-  - analytics
-  - scan
-  - exam
-  - pipeline
-  - analytics
-- path:
-  - analytics
-  - scan
-  - exam
-  - pipeline
-  - profile
   - analytics
 - path:
   - bank

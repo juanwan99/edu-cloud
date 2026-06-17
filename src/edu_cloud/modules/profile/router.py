@@ -138,7 +138,7 @@ async def get_class_knowledge_weakness(
     )
 
 
-from edu_cloud.modules.analytics.insights_service import student_ai_diagnosis
+from edu_cloud.modules.profile.diagnosis_service import student_ai_diagnosis
 
 
 @router.get("/students/{student_id}/ai-diagnosis")

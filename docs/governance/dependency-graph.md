@@ -55,7 +55,6 @@ flowchart TD
   portal --> calendar
   portal --> homework
   profile --> knowledge_tree
-  profile --> analytics
   scan --> exam
   scan --> card
   scan --> student
