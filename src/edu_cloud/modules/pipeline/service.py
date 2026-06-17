@@ -6,7 +6,7 @@
 """
 import logging
 from collections import Counter, defaultdict
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -199,25 +199,38 @@ async def _compute_question_stats(
 async def _get_effective_scores_for_subject(
     db: AsyncSession, *, exam_id: str, subject_id: str, school_id: str,
 ) -> dict[str, list[tuple[str, float, float]]]:
-    from edu_cloud.modules.analytics import get_effective_scores
+    """本科目每个学生的有效分明细，pipeline 自有局部查询（不依赖 analytics）。
 
-    q_ids = await db.execute(
-        select(Question.id).where(
+    有效分 = COALESCE(GradingResult.final_score, StudentAnswer.score)，与本模块
+    `_get_effective_score` 同一权威规则；inner join Question 限定本科目题目（等价于
+    原 valid_question_ids 过滤），跳过缺考与无有效分的答题。
+    """
+    effective = func.coalesce(GradingResult.final_score, StudentAnswer.score)
+    rows = await db.execute(
+        select(
+            StudentAnswer.student_id,
+            StudentAnswer.question_id,
+            effective.label("effective_score"),
+            Question.max_score,
+        )
+        .join(Question, Question.id == StudentAnswer.question_id)
+        .outerjoin(GradingResult, GradingResult.answer_id == StudentAnswer.id)
+        .where(
+            StudentAnswer.subject_id == subject_id,
+            StudentAnswer.school_id == school_id,
+            StudentAnswer.is_absent.is_(False),
             Question.subject_id == subject_id,
             Question.school_id == school_id,
         )
     )
-    valid_question_ids = {row[0] for row in q_ids.all()}
 
     result: dict[str, list[tuple[str, float, float]]] = {}
-    for score in await get_effective_scores(db, subject_id, school_id):
-        if score["question_id"] not in valid_question_ids:
+    for row in rows.all():
+        if row.effective_score is None:
             continue
-        result.setdefault(score["student_id"], []).append((
-            score["question_id"],
-            score["effective_score"],
-            score["max_score"],
-        ))
+        result.setdefault(row.student_id, []).append(
+            (row.question_id, row.effective_score, row.max_score)
+        )
     return result
 
 
@@ -571,9 +584,11 @@ async def _update_adaptive_mastery(db: AsyncSession, *, exam_id: str, school_id:
 
 
 async def run_full_pipeline(db: AsyncSession, *, exam_id: str, school_id: str) -> dict:
-    """完整流水线：考试完成后一键执行所有数据生成。"""
-    from edu_cloud.modules.analytics.pipeline_service import compute_exam_analysis
+    """完整冷数据流水线：考试完成后一键执行 pipeline 自有的所有数据生成步骤。
 
+    考后分析预计算（analytics 模块的考后预聚合）已移出本模块，由模块外编排服务
+    `services.post_exam_pipeline.run_post_exam_pipeline` 串联调用（D-03B）。
+    """
     results = {
         "bank_questions": await populate_bank_questions(db, exam_id=exam_id, school_id=school_id),
         "error_books": await populate_error_books(db, exam_id=exam_id, school_id=school_id),
@@ -581,7 +596,6 @@ async def run_full_pipeline(db: AsyncSession, *, exam_id: str, school_id: str) -
         "knowledge_mastery": await update_knowledge_mastery(db, exam_id=exam_id, school_id=school_id),
         "error_patterns": await update_error_patterns(db, exam_id=exam_id, school_id=school_id),
         "adaptive_mastery": await _update_adaptive_mastery(db, exam_id=exam_id, school_id=school_id),
-        "exam_analysis": await compute_exam_analysis(db, exam_id=exam_id, school_id=school_id),
     }
     logger.info("run_full_pipeline: exam=%s, results=%s", exam_id, results)
     return results

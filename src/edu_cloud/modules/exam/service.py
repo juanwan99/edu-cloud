@@ -91,8 +91,8 @@ async def update_exam(
     # DF-001: 考试状态 -> completed 时自动触发数据流水线
     if status == "completed":
         try:
-            from edu_cloud.modules.pipeline.service import run_full_pipeline
-            results = await run_full_pipeline(db, exam_id=exam_id, school_id=school_id)
+            from edu_cloud.services.post_exam_pipeline import run_post_exam_pipeline
+            results = await run_post_exam_pipeline(db, exam_id=exam_id, school_id=school_id)
             logger.info("auto_pipeline completed: exam=%s, results=%s", exam_id, results)
         except Exception:
             logger.error("auto_pipeline failed: exam=%s", exam_id, exc_info=True)

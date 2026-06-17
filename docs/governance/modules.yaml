@@ -594,7 +594,6 @@ modules:
     events: []
   depends_on:
     modules:
-    - analytics
     - bank
     - adaptive
     - exam

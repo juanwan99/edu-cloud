@@ -152,7 +152,6 @@ edges:
   occurrences:
   - src/edu_cloud/modules/exam/publish_service.py:69
   - src/edu_cloud/modules/exam/publish_service.py:76
-  - src/edu_cloud/modules/exam/service.py:94
 - from: exam_import
   to: exam
   occurrences:
@@ -248,13 +247,8 @@ edges:
 - from: pipeline
   to: adaptive
   occurrences:
-  - src/edu_cloud/modules/pipeline/service.py:498
-  - src/edu_cloud/modules/pipeline/service.py:499
-- from: pipeline
-  to: analytics
-  occurrences:
-  - src/edu_cloud/modules/pipeline/service.py:202
-  - src/edu_cloud/modules/pipeline/service.py:575
+  - src/edu_cloud/modules/pipeline/service.py:511
+  - src/edu_cloud/modules/pipeline/service.py:512
 - from: pipeline
   to: bank
   occurrences:
@@ -315,58 +309,6 @@ edges:
   occurrences:
   - src/edu_cloud/modules/scan/pipeline_router.py:26
 cycles:
-- path:
-  - analytics
-  - exam
-  - pipeline
-  - analytics
-- path:
-  - analytics
-  - grading
-  - card
-  - exam
-  - pipeline
-  - analytics
-- path:
-  - analytics
-  - grading
-  - exam
-  - pipeline
-  - analytics
-- path:
-  - analytics
-  - grading
-  - scan
-  - card
-  - exam
-  - pipeline
-  - analytics
-- path:
-  - analytics
-  - grading
-  - scan
-  - exam
-  - pipeline
-  - analytics
-- path:
-  - analytics
-  - knowledge
-  - exam
-  - pipeline
-  - analytics
-- path:
-  - analytics
-  - scan
-  - card
-  - exam
-  - pipeline
-  - analytics
-- path:
-  - analytics
-  - scan
-  - exam
-  - pipeline
-  - analytics
 - path:
   - bank
   - exam

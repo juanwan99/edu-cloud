@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.database import get_db
 from edu_cloud.core.auth import get_current_user
 from edu_cloud.api.permissions import is_school_admin
-from edu_cloud.modules.pipeline.service import run_full_pipeline
+from edu_cloud.services.post_exam_pipeline import run_post_exam_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,6 @@ async def trigger_pipeline(
     if not is_school_admin(role):
         raise HTTPException(403, "仅管理员和校长可触发数据流水线")
 
-    results = await run_full_pipeline(db, exam_id=exam_id, school_id=role.school_id)
+    results = await run_post_exam_pipeline(db, exam_id=exam_id, school_id=role.school_id)
     logger.info("pipeline triggered: exam=%s, by=%s", exam_id, current["user"].username)
     return results

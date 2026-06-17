@@ -356,7 +356,7 @@ async def seed_demo_data(db: AsyncSession, school_code: str = "TEST01") -> dict:
         stats["total_answers"] += exam_answers
 
     # === 运行 data pipeline ===
-    from edu_cloud.modules.pipeline.service import run_full_pipeline
+    from edu_cloud.services.post_exam_pipeline import run_post_exam_pipeline
     pipeline_results = {}
     for exam_cfg in exams_config:
         exam_result = await db.execute(
@@ -364,7 +364,7 @@ async def seed_demo_data(db: AsyncSession, school_code: str = "TEST01") -> dict:
         )
         exam = exam_result.scalar_one_or_none()
         if exam:
-            pr = await run_full_pipeline(db, exam_id=exam.id, school_id=school.id)
+            pr = await run_post_exam_pipeline(db, exam_id=exam.id, school_id=school.id)
             pipeline_results[exam_cfg["name"]] = pr
 
     stats["pipeline"] = pipeline_results

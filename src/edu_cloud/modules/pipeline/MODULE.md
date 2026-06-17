@@ -24,7 +24,6 @@ exposes:
 
 depends_on:
   modules:
-    - analytics
     - bank
     - adaptive
     - exam
@@ -81,10 +80,11 @@ POST /api/v1/pipeline/run/{exam_id}   # 管理员权限
 
 ### 外部调用
 
-- `workers/grading.py`: AI 阅卷完成后批量调用 `run_full_pipeline`
-- `exam/service.py`: 考试状态变更为 completed 时触发
-- `exam/publish_service.py`: 发布前调用 `generate_exam_snapshots` 和 `populate_error_books` 冷数据
-- `data/import_real_exam.py`, `data/seed_demo.py`: 导入/种子时调用
+- 考后完整编排（冷数据 + analytics 预聚合）经模块外应用服务
+  `services.post_exam_pipeline.run_post_exam_pipeline` 串联，pipeline 不再直接依赖 analytics（D-03B）
+- `workers/grading.py`、`exam/service.py`（completed 触发）、`modules/pipeline/router.py`（手动 API）、
+  `data/seed_demo.py`：均通过上述编排服务调用，不直接调 `run_full_pipeline`
+- `exam/publish_service.py`: 发布前直接调用 `generate_exam_snapshots` 和 `populate_error_books` 冷数据单步
 
 ## 数据流
 
@@ -111,6 +111,7 @@ pipeline 读取多模块数据：
 
 ## 变更历史
 
+- 2026-06-17: D-03B 核心解耦——`run_full_pipeline` 去掉 analytics 考后预聚合调用、`_get_effective_scores_for_subject` 改 pipeline 自有局部有效分查询；考后编排上移至模块外 `services.post_exam_pipeline`，删除 `pipeline -> analytics` 依赖边及其参与的 8 个环
 - 2026-04-06: 接入 adaptive 模块 BKT 更新（`_update_adaptive_mastery`），失败降级为非阻塞（R5 finding）
 - 2026-03-29: 从 exam-ai 迁入，拆分 6 个独立 service 函数
 - 2026-03-16: 初始版本，含题库入库 + 错题收集 + 知识点掌握度

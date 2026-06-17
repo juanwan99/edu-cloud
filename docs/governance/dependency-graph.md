@@ -42,7 +42,6 @@ flowchart TD
   marking --> exam
   marking --> scan
   marking --> grading
-  pipeline --> analytics
   pipeline --> bank
   pipeline --> adaptive
   pipeline --> exam

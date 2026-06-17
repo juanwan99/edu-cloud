@@ -1366,8 +1366,10 @@ async def run_post_exam_pipeline(ctx: dict, exam_id: str, school_id: str) -> Non
     """考后流水线 arq 任务 — 调用 pipeline 全流程。"""
     logger.info("post_exam_pipeline START: exam=%s, school=%s", exam_id, school_id)
     from edu_cloud.database import async_session
-    from edu_cloud.modules.pipeline.service import run_full_pipeline
+    from edu_cloud.services.post_exam_pipeline import (
+        run_post_exam_pipeline as orchestrate_post_exam,
+    )
     async with async_session() as db:
-        results = await run_full_pipeline(db, exam_id=exam_id, school_id=school_id)
+        results = await orchestrate_post_exam(db, exam_id=exam_id, school_id=school_id)
         await db.commit()
     logger.info("post_exam_pipeline DONE: exam=%s, results=%s", exam_id, results)

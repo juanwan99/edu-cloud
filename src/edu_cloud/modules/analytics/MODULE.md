@@ -75,12 +75,13 @@ design_docs:
 
 ## 使用方式
 
-pipeline 触发 `compute_exam_analysis` 填充三张预计算表；前端通过 `/api/v1/analytics/*` 系列端点查询；AI Agent 通过 14 个工具函数提供自然语言分析能力。`get_effective_scores` 是有效分计算的公共入口（COALESCE GradingResult.final_score 和 StudentAnswer.score）。
+考后编排经模块外应用服务 `services.post_exam_pipeline.run_post_exam_pipeline` 调用 `compute_exam_analysis` 填充三张预计算表（D-03B：analytics 不再被 pipeline 模块直接 import）；前端通过 `/api/v1/analytics/*` 系列端点查询；AI Agent 通过 14 个工具函数提供自然语言分析能力。`get_effective_scores` 是有效分计算的公共入口（COALESCE GradingResult.final_score 和 StudentAnswer.score）。
 
 ## 数据流
 
 ```
-exam.published 事件 → pipeline.run_full_pipeline
+考试 completed → services.post_exam_pipeline.run_post_exam_pipeline
+    → pipeline.run_full_pipeline（冷数据）
     → analytics.compute_exam_analysis
         → 读 StudentAnswer + GradingResult + Question + Student
         → 写 ClassAnalysis / StudentAnalysis / StudentKnpMastery
