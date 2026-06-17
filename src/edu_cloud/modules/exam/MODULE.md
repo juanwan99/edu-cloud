@@ -42,8 +42,8 @@ exposes:
 depends_on:
   modules:
     - grading
-    - pipeline
-  services: []
+  services:
+    - exam_publish_pipeline
   ai_tools:
     - get_exam_list (exams.py)
     - get_exam_detail (exams.py)
@@ -68,7 +68,7 @@ design_docs: []
 
 ## 使用方式
 
-其他模块通过 import `edu_cloud.modules.exam.models` 引用 Exam/Subject/Question 表；外部通过 REST API `/api/v1/exams` 系列端点。ExamPublishService.publish 是成绩发布唯一入口，触发 pipeline 考后处理。
+其他模块通过 import `edu_cloud.modules.exam.models` 引用 Exam/Subject/Question 表；外部通过 REST API `/api/v1/exams` 系列端点。ExamPublishService.publish 是成绩发布唯一入口，发布后处理经模块外编排服务 `edu_cloud.services.exam_publish_pipeline` 委托 pipeline（exam 不直接 import pipeline，D-03C）。
 
 ## 数据流
 
@@ -76,5 +76,5 @@ design_docs: []
 前端创建考试 → Exam(draft)
         → Subject/Question 配置
         → scan 扫描 → grading 阅卷 → Exam(completed)
-        → ExamPublishService.publish → pipeline 考后计算 → Exam(published)
+        → ExamPublishService.publish → services.exam_publish_pipeline → pipeline 考后计算 → Exam(published)
 ```

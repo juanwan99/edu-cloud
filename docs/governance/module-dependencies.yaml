@@ -147,11 +147,6 @@ edges:
   to: grading
   occurrences:
   - src/edu_cloud/modules/exam/publish_service.py:8
-- from: exam
-  to: pipeline
-  occurrences:
-  - src/edu_cloud/modules/exam/publish_service.py:69
-  - src/edu_cloud/modules/exam/publish_service.py:76
 - from: exam_import
   to: exam
   occurrences:
@@ -310,11 +305,6 @@ edges:
   - src/edu_cloud/modules/scan/pipeline_router.py:26
 cycles:
 - path:
-  - bank
-  - exam
-  - pipeline
-  - bank
-- path:
   - card
   - exam
   - grading
@@ -326,55 +316,11 @@ cycles:
   - scan
   - card
 - path:
-  - card
-  - exam
-  - pipeline
-  - grading
-  - card
-- path:
-  - card
-  - exam
-  - pipeline
-  - grading
-  - scan
-  - card
-- path:
-  - card
-  - exam
-  - pipeline
-  - scan
-  - card
-- path:
   - exam
   - grading
   - exam
 - path:
   - exam
   - grading
-  - scan
-  - exam
-- path:
-  - exam
-  - pipeline
-  - exam
-- path:
-  - exam
-  - pipeline
-  - grading
-  - exam
-- path:
-  - exam
-  - pipeline
-  - grading
-  - scan
-  - exam
-- path:
-  - exam
-  - pipeline
-  - knowledge
-  - exam
-- path:
-  - exam
-  - pipeline
   - scan
   - exam

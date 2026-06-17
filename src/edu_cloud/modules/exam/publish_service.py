@@ -65,17 +65,18 @@ class ExamPublishService:
 
     @staticmethod
     async def _calculate_rankings(db, exam_id, school_id):
-        """排名计算 — 委托 pipeline 的 generate_exam_snapshots（含排名+知识点维度）。"""
-        from edu_cloud.modules.pipeline.service import generate_exam_snapshots
-        count = await generate_exam_snapshots(db, exam_id=exam_id, school_id=school_id)
-        logger.info("calculate_rankings: exam_id=%s, snapshots=%d", exam_id, count)
+        """排名计算 — 委托模块外编排服务 exam_publish_pipeline.publish_rankings。
+
+        exam 不再直接 import pipeline（D-03C）；跨模块调用集中在 services 层。
+        """
+        from edu_cloud.services.exam_publish_pipeline import publish_rankings
+        await publish_rankings(db, exam_id=exam_id, school_id=school_id)
 
     @staticmethod
     async def _update_error_books(db, exam_id, school_id):
-        """错题更新 — 委托 pipeline 的 populate_error_books。"""
-        from edu_cloud.modules.pipeline.service import populate_error_books
-        count = await populate_error_books(db, exam_id=exam_id, school_id=school_id)
-        logger.info("update_error_books: exam_id=%s, errors=%d", exam_id, count)
+        """错题更新 — 委托模块外编排服务 exam_publish_pipeline.publish_error_books。"""
+        from edu_cloud.services.exam_publish_pipeline import publish_error_books
+        await publish_error_books(db, exam_id=exam_id, school_id=school_id)
 
     @staticmethod
     async def archive(db: AsyncSession, *, exam_id: str, school_id: str) -> None:

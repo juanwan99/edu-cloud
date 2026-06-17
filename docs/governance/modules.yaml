@@ -320,8 +320,8 @@ modules:
   depends_on:
     modules:
     - grading
-    - pipeline
-    services: []
+    services:
+    - exam_publish_pipeline
     ai_tools:
     - get_exam_list (exams.py)
     - get_exam_detail (exams.py)

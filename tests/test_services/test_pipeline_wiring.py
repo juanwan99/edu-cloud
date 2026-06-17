@@ -1,30 +1,93 @@
-"""考后流水线接线测试 — 验证 stub 替换和 EventBus 集成。"""
+"""考后流水线接线测试 — 验证 stub 替换和 EventBus 集成。
+
+D-03C：exam 不再直接 import pipeline，发布后处理经模块外编排服务
+`edu_cloud.services.exam_publish_pipeline`。下面区分两层契约：
+- exam → service（`ExamPublishService` 委托编排服务）
+- service → pipeline（编排服务委托 pipeline owner 函数）
+另含静态守护：exam 模块源码不得出现直接 pipeline import。
+"""
+import ast
 import pytest
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 
+# ---- exam → 模块外编排服务（service-level 契约） ----
+
 @pytest.mark.asyncio
 async def test_publish_triggers_rankings(db):
-    """publish 后 _calculate_rankings 调用 generate_exam_snapshots。"""
+    """publish 后 _calculate_rankings 委托编排服务 publish_rankings。"""
     with patch(
-        "edu_cloud.modules.pipeline.service.generate_exam_snapshots",
+        "edu_cloud.services.exam_publish_pipeline.publish_rankings",
         new_callable=AsyncMock, return_value=5,
-    ) as mock_snap:
+    ) as mock_rank:
         from edu_cloud.modules.exam.publish_service import ExamPublishService
         await ExamPublishService._calculate_rankings(db, "exam1", "school1")
-        mock_snap.assert_called_once_with(db, exam_id="exam1", school_id="school1")
+        mock_rank.assert_called_once_with(db, exam_id="exam1", school_id="school1")
 
 
 @pytest.mark.asyncio
 async def test_publish_triggers_error_books(db):
-    """publish 后 _update_error_books 调用 populate_error_books。"""
+    """publish 后 _update_error_books 委托编排服务 publish_error_books。"""
     with patch(
-        "edu_cloud.modules.pipeline.service.populate_error_books",
+        "edu_cloud.services.exam_publish_pipeline.publish_error_books",
         new_callable=AsyncMock, return_value=3,
     ) as mock_eb:
         from edu_cloud.modules.exam.publish_service import ExamPublishService
         await ExamPublishService._update_error_books(db, "exam1", "school1")
         mock_eb.assert_called_once_with(db, exam_id="exam1", school_id="school1")
+
+
+# ---- 模块外编排服务 → pipeline owner（service-level 契约） ----
+
+@pytest.mark.asyncio
+async def test_service_publish_rankings_delegates_to_pipeline(db):
+    """编排服务 publish_rankings 委托 pipeline.generate_exam_snapshots 并回传计数。"""
+    with patch(
+        "edu_cloud.modules.pipeline.service.generate_exam_snapshots",
+        new_callable=AsyncMock, return_value=5,
+    ) as mock_snap:
+        from edu_cloud.services.exam_publish_pipeline import publish_rankings
+        count = await publish_rankings(db, exam_id="exam1", school_id="school1")
+        mock_snap.assert_called_once_with(db, exam_id="exam1", school_id="school1")
+        assert count == 5
+
+
+@pytest.mark.asyncio
+async def test_service_publish_error_books_delegates_to_pipeline(db):
+    """编排服务 publish_error_books 委托 pipeline.populate_error_books 并回传计数。"""
+    with patch(
+        "edu_cloud.modules.pipeline.service.populate_error_books",
+        new_callable=AsyncMock, return_value=3,
+    ) as mock_eb:
+        from edu_cloud.services.exam_publish_pipeline import publish_error_books
+        count = await publish_error_books(db, exam_id="exam1", school_id="school1")
+        mock_eb.assert_called_once_with(db, exam_id="exam1", school_id="school1")
+        assert count == 3
+
+
+# ---- 结构守护：exam 模块不得直接 import pipeline（D-03C 不变量） ----
+
+def test_exam_module_has_no_direct_pipeline_import():
+    """静态扫描 exam 模块源码，确认无 `edu_cloud.modules.pipeline` 直接 import。"""
+    exam_dir = Path(__file__).resolve().parents[2] / "src" / "edu_cloud" / "modules" / "exam"
+    offenders = []
+    for py in exam_dir.rglob("*.py"):
+        tree = ast.parse(py.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                if mod == "edu_cloud.modules.pipeline" or mod.startswith(
+                    "edu_cloud.modules.pipeline."
+                ):
+                    offenders.append(f"{py.name}:{node.lineno}")
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "edu_cloud.modules.pipeline" or alias.name.startswith(
+                        "edu_cloud.modules.pipeline."
+                    ):
+                        offenders.append(f"{py.name}:{node.lineno}")
+    assert not offenders, f"exam 模块仍直接 import pipeline: {offenders}"
 
 
 @pytest.mark.asyncio
