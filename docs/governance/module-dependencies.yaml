@@ -37,8 +37,8 @@ edges:
   to: exam
   occurrences:
   - src/edu_cloud/modules/analytics/ai_report_service.py:16
-  - src/edu_cloud/modules/analytics/analytics_report_router.py:52
-  - src/edu_cloud/modules/analytics/analytics_report_router.py:358
+  - src/edu_cloud/modules/analytics/analytics_report_router.py:53
+  - src/edu_cloud/modules/analytics/analytics_report_router.py:359
   - src/edu_cloud/modules/analytics/diagnosis_service.py:18
   - src/edu_cloud/modules/analytics/exporters.py:16
   - src/edu_cloud/modules/analytics/exporters.py:75
@@ -81,7 +81,7 @@ edges:
 - from: analytics
   to: student
   occurrences:
-  - src/edu_cloud/modules/analytics/analytics_report_router.py:310
+  - src/edu_cloud/modules/analytics/analytics_report_router.py:311
   - src/edu_cloud/modules/analytics/diagnosis_service.py:9
   - src/edu_cloud/modules/analytics/exporters.py:78
   - src/edu_cloud/modules/analytics/grade_service.py:14
@@ -89,10 +89,6 @@ edges:
   - src/edu_cloud/modules/analytics/pipeline_service.py:13
   - src/edu_cloud/modules/analytics/power_options_service.py:10
   - src/edu_cloud/modules/analytics/ranking_service.py:12
-- from: analytics
-  to: studio
-  occurrences:
-  - src/edu_cloud/modules/analytics/analytics_report_router.py:363
 - from: bank
   to: exam
   occurrences:

@@ -38,8 +38,8 @@ depends_on:
     - knowledge
     - knowledge_tree
     - profile
-    - studio
   services:
+    - analysis_report_documents
     - effective_scores
     - student_identity
   ai_tools:
@@ -77,7 +77,7 @@ design_docs:
 
 ## 使用方式
 
-考后编排经模块外应用服务 `services.post_exam_pipeline.run_post_exam_pipeline` 调用 `compute_exam_analysis` 填充三张预计算表（D-03B：analytics 不再被 pipeline 模块直接 import）；前端通过 `/api/v1/analytics/*` 系列端点查询；AI Agent 通过 14 个工具函数提供自然语言分析能力。`get_effective_scores` / `get_effective_scores_batch` 是有效分计算的公共入口（COALESCE GradingResult.final_score 和 StudentAnswer.score），权威实现位于模块外共享层 `services.effective_scores`，`analytics`（`__init__`）仅作向后兼容 re-export；跨模块模型 import（grading/scan/exam）与身份归一化随该读模型上移共享层，降低 analytics 跨模块耦合（D-03F）。学生身份归一化（UUID/学号/经验条码 → canonical 学生）的权威实现位于模块外共享层 `services.student_identity`，`analytics.identity` 仅作向后兼容 re-export；pipeline 与 analytics 共享同一 resolver，避免跨模块依赖（D-03B ask-fix）。
+考后编排经模块外应用服务 `services.post_exam_pipeline.run_post_exam_pipeline` 调用 `compute_exam_analysis` 填充三张预计算表（D-03B：analytics 不再被 pipeline 模块直接 import）；前端通过 `/api/v1/analytics/*` 系列端点查询；AI Agent 通过 14 个工具函数提供自然语言分析能力。`get_effective_scores` / `get_effective_scores_batch` 是有效分计算的公共入口（COALESCE GradingResult.final_score 和 StudentAnswer.score），权威实现位于模块外共享层 `services.effective_scores`，`analytics`（`__init__`）仅作向后兼容 re-export；跨模块模型 import（grading/scan/exam）与身份归一化随该读模型上移共享层，降低 analytics 跨模块耦合（D-03F）。学生身份归一化（UUID/学号/经验条码 → canonical 学生）的权威实现位于模块外共享层 `services.student_identity`，`analytics.identity` 仅作向后兼容 re-export；pipeline 与 analytics 共享同一 resolver，避免跨模块依赖（D-03B ask-fix）。分析报告文档创建（`type=analysis_report`，draft → reviewed → executed）经模块外编排服务 `services.analysis_report_documents.create_analysis_report_document` 调用 studio 文档状态机，`analytics_report_router` 不再直接 import studio 模块实现，拆掉 `analytics -> studio` 依赖边（D-03G）。
 
 ## 数据流
 

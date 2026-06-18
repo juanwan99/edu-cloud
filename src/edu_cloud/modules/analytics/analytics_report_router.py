@@ -23,6 +23,7 @@ from edu_cloud.modules.analytics.exporters import (
     render_student_subject_report_xlsx,
 )
 from edu_cloud.services.exceptions import NotFoundError, PermissionDeniedError
+from edu_cloud.services.analysis_report_documents import create_analysis_report_document
 from edu_cloud.modules.analytics.ranking_service import (
     student_rankings, critical_students, class_boxplot,
     class_knowledge, class_error_patterns,
@@ -360,10 +361,8 @@ async def export_report(
     exam = exam_result.scalar_one_or_none()
     title = body.get("title") or f"{exam.name if exam else '考试'}分析报告"
 
-    from edu_cloud.modules.studio.service import StudioService
-    svc = StudioService(db)
-    doc = await svc.create_document(
-        type="analysis_report",
+    doc = await create_analysis_report_document(
+        db,
         title=title,
         content_json={
             "report_type": "exam_analysis",
@@ -373,10 +372,6 @@ async def export_report(
         school_id=sid,
         created_by=user.id,
     )
-    # Studio 状态流转：draft → reviewed → executed
-    await svc.transition_status(doc.id, "reviewed", school_id=sid)
-    await svc.transition_status(doc.id, "executed", school_id=sid)
-    await db.commit()
 
     return {
         "document_id": doc.id,

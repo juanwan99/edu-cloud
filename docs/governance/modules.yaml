@@ -94,8 +94,8 @@ modules:
     - knowledge
     - knowledge_tree
     - profile
-    - studio
     services:
+    - analysis_report_documents
     - effective_scores
     - student_identity
     ai_tools:

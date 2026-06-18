@@ -13,7 +13,6 @@ flowchart TD
   analytics --> knowledge
   analytics --> knowledge_tree
   analytics --> profile
-  analytics --> studio
   bank --> exam
   bank --> student
   card --> exam
