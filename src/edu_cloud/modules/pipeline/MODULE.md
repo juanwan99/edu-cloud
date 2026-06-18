@@ -24,7 +24,6 @@ exposes:
 
 depends_on:
   modules:
-    - bank
     - exam
     - grading
     - knowledge
@@ -35,6 +34,7 @@ depends_on:
   services:
     - student_identity
     - post_exam_adaptive
+    - post_exam_bank_artifacts
   ai_tools: []
 
 created: 2026-03-16
@@ -48,7 +48,7 @@ design_docs:
 
 ## 职责
 
-考试发布后的数据流水线：读取 scan/grading 产出的学生答题和判分，聚合生成题库条目、错题本、考试快照、知识点掌握度、错误模式。自适应学习 BKT 更新已移出本模块，由模块外服务 `services.post_exam_adaptive` 承载（D-03E）。
+考试发布后的数据流水线：读取 scan/grading 产出的学生答题和判分，聚合生成题库条目、错题本、考试快照、知识点掌握度、错误模式。题库/错题本制品（`BankQuestion` / `StudentErrorBook`）的读写已移出本模块，由模块外服务 `services.post_exam_bank_artifacts` 承载（D-03H，`populate_bank_questions` / `populate_error_books` 经 pipeline.service re-export 保持导入兼容）；自适应学习 BKT 更新已移出本模块，由模块外服务 `services.post_exam_adaptive` 承载（D-03E）。
 
 ## 边界
 
@@ -103,9 +103,9 @@ pipeline 读取多模块数据：
          │
          ▼
 聚合写入：
-  ├─ bank.BankQuestion + StudentErrorBook (题库 + 错题本)
-  └─ profile.StudentExamSnapshot + StudentKnowledgeMastery + StudentErrorPattern
+  ├─ profile.StudentExamSnapshot + StudentKnowledgeMastery + StudentErrorPattern
 
+bank.BankQuestion + StudentErrorBook (题库 + 错题本) ◀── services.post_exam_bank_artifacts（模块外，D-03H）
 adaptive.AnswerLog + (BKT 更新 student_da_mastery) ◀── services.post_exam_adaptive（模块外，D-03E）
 ```
 
@@ -113,6 +113,7 @@ adaptive.AnswerLog + (BKT 更新 student_da_mastery) ◀── services.post_exa
 
 ## 变更历史
 
+- 2026-06-18（D-03H）: 题库条目 `BankQuestion` 与学生错题本 `StudentErrorBook` 两类制品的读写（原 `populate_bank_questions` / `populate_error_books` / `_compute_question_stats`，以及 `update_error_patterns` 的错题本读查询）上移至模块外服务 `services.post_exam_bank_artifacts`（调用期局部 import bank/exam/scan/grading/knowledge 模型 + pipeline `_get_effective_score` 权威有效分规则）——pipeline 模块不再直接 import `edu_cloud.modules.bank`，消除 `pipeline -> bank` 依赖边。基线 **49→48 edges、0 cycles 不变**（该边不参与任何环；bank 仍有 conduct/homework 等入边，不孤立）。pipeline MODULE.md `depends_on.modules` 删 bank，`depends_on.services` 登记 `post_exam_bank_artifacts`；`populate_bank_questions` / `populate_error_books` 经 pipeline.service re-export 保持公共导入兼容（既有调用点 exam/exam_import/编排服务与测试 patch 命名空间不变），`update_error_patterns` 经错题本读模型聚合、`run_full_pipeline` 返回契约与幂等行为不变。
 - 2026-06-18（D-03E）: adaptive BKT 掌握度更新（原 `_update_adaptive_mastery`）上移至模块外服务 `services.post_exam_adaptive.update_adaptive_mastery`，pipeline 不再直接 import `edu_cloud.modules.adaptive`，删除 `pipeline -> adaptive` 依赖边（51→50 edges、0 cycles 不变）。编排路径（`services.post_exam_pipeline`）与 `on_exam_published` event handler 改调该服务，`adaptive_mastery` 返回值、幂等、非阻塞降级与有效分权威规则不变；`run_full_pipeline` 自此只产 5 个冷数据步骤
 - 2026-06-17（D-03B ask-fix）: 修复 D-03B 引入的 canonical 身份回归——`_get_effective_scores_for_subject` 此前按 raw `StudentAnswer.student_id` 分组，同一学生的 UUID 答题与条码答题被拆成两个 `StudentExamSnapshot`；现复用模块外共享 resolver `services.student_identity.resolve_student_identities`（与 analytics `get_effective_scores` 同一归一化规则），按 `canonical_student_id` 聚合。pipeline 仍不 import analytics，跨模块依赖边不变
 - 2026-06-17: D-03B 核心解耦——`run_full_pipeline` 去掉 analytics 考后预聚合调用、`_get_effective_scores_for_subject` 改 pipeline 自有局部有效分查询；考后编排上移至模块外 `services.post_exam_pipeline`，删除 `pipeline -> analytics` 依赖边及其参与的 8 个环

@@ -4,7 +4,8 @@ from edu_cloud.models.exam import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import GradingResult, GradingTask
 from edu_cloud.modules.bank.models import BankQuestion, StudentErrorBook
-from edu_cloud.modules.pipeline.service import populate_bank_questions, populate_error_books, _get_effective_score, _compute_question_stats
+from edu_cloud.modules.pipeline.service import populate_bank_questions, populate_error_books, _get_effective_score
+from edu_cloud.services.post_exam_bank_artifacts import _compute_question_stats
 from sqlalchemy import select, func
 
 

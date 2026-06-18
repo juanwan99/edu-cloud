@@ -5,20 +5,26 @@
 有效分数：统一读取 GradingResult.final_score（权威单一源）
 """
 import logging
-from collections import Counter
 from sqlalchemy import select, func
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import GradingResult
-from edu_cloud.modules.bank.models import BankQuestion, StudentErrorBook
 from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
 from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern
 from edu_cloud.modules.student.models import Student
 from edu_cloud.services.student_identity import resolve_student_identities
+# 题库/错题本制品读写已上移模块外服务边界，pipeline 不再直接 import bank（D-03H）。
+# populate_bank_questions / populate_error_books 经此 re-export 保持 pipeline.service
+# 公共导入兼容（既有调用点与测试 patch 命名空间不变）。
+from edu_cloud.services.post_exam_bank_artifacts import (
+    populate_bank_questions,
+    populate_error_books,
+    list_error_book_students_for_subject,
+    list_error_book_entries_for_student,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,162 +45,6 @@ async def _get_effective_score(db: AsyncSession, answer_id: str) -> float | None
     if row.final_score is not None:
         return row.final_score
     return row.score
-
-
-async def populate_bank_questions(db: AsyncSession, *, exam_id: str, school_id: str) -> int:
-    """将考试的题目自动入库到 BankQuestion。返回新增数量。"""
-    subjects = await db.execute(
-        select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
-    )
-    subject_ids = [s.id for s in subjects.scalars().all()]
-    if not subject_ids:
-        return 0
-
-    questions = await db.execute(
-        select(Question).where(Question.subject_id.in_(subject_ids))
-    )
-    created = 0
-    for q in questions.scalars().all():
-        stats = await _compute_question_stats(db, question_id=q.id, school_id=school_id)
-
-        bq = BankQuestion(
-            school_id=school_id,
-            question_type=q.question_type,
-            max_score=q.max_score,
-            correct_answer=q.correct_answer,
-            source_exam_id=exam_id,
-            source_question_id=q.id,
-            difficulty=stats["difficulty"],
-            discrimination=stats["discrimination"],
-            sample_count=stats["sample_count"],
-            common_errors=stats["common_errors"],
-        )
-        nested = await db.begin_nested()
-        db.add(bq)
-        try:
-            await nested.commit()
-            created += 1
-        except IntegrityError:
-            await nested.rollback()
-            logger.debug("bank_question already exists: question_id=%s", q.id)
-
-    await db.commit()
-    logger.info("populate_bank_questions: exam=%s, created=%d", exam_id, created)
-    return created
-
-
-async def populate_error_books(db: AsyncSession, *, exam_id: str, school_id: str) -> int:
-    """收集错题到学生错题本。返回新增数量。"""
-    answers = await db.execute(
-        select(StudentAnswer, Question)
-        .join(Question, Question.id == StudentAnswer.question_id)
-        .where(
-            StudentAnswer.exam_id == exam_id,
-            StudentAnswer.school_id == school_id,
-            StudentAnswer.is_absent.is_(False),
-        )
-    )
-
-    created = 0
-    for sa, q in answers.all():
-        effective_score = await _get_effective_score(db, answer_id=sa.id)
-        if effective_score is None:
-            effective_score = sa.score or 0.0
-
-        if effective_score >= q.max_score:
-            continue
-
-        gr_result = await db.execute(
-            select(GradingResult).where(GradingResult.answer_id == sa.id)
-        )
-        gr = gr_result.scalar_one_or_none()
-
-        kp_result = await db.execute(
-            select(QuestionKnowledgePoint.concept_id)
-            .where(QuestionKnowledgePoint.question_id == q.id)
-        )
-        kp_ids = [row[0] for row in kp_result.all()]
-
-        bq_result = await db.execute(
-            select(BankQuestion.id).where(
-                BankQuestion.source_question_id == q.id,
-                BankQuestion.school_id == school_id,
-            )
-        )
-        bank_q_id = bq_result.scalar_one_or_none()
-
-        eb = StudentErrorBook(
-            school_id=school_id,
-            student_id=sa.student_id,
-            question_id=q.id,
-            bank_question_id=bank_q_id,
-            exam_id=exam_id,
-            student_answer_image=sa.image_path,
-            student_score=effective_score,
-            max_score=q.max_score,
-            correct_answer=q.correct_answer,
-            ai_feedback=gr.ai_feedback if gr else None,
-            knowledge_point_ids=kp_ids if kp_ids else None,
-            mastery_status="unmastered",
-            source="auto",
-        )
-        nested = await db.begin_nested()
-        db.add(eb)
-        try:
-            await nested.commit()
-            created += 1
-        except IntegrityError:
-            await nested.rollback()
-            logger.debug("error_book entry already exists: student=%s question=%s", sa.student_id, q.id)
-
-    await db.commit()
-    logger.info("populate_error_books: exam=%s, created=%d", exam_id, created)
-    return created
-
-
-async def _compute_question_stats(
-    db: AsyncSession, *, question_id: str, school_id: str,
-) -> dict:
-    answers = await db.execute(
-        select(StudentAnswer.score, StudentAnswer.detected_answer)
-        .where(
-            StudentAnswer.question_id == question_id,
-            StudentAnswer.school_id == school_id,
-            StudentAnswer.is_absent.is_(False),
-        )
-    )
-    rows = answers.all()
-    if not rows:
-        return {"difficulty": None, "discrimination": None, "sample_count": 0, "common_errors": None}
-
-    q_result = await db.execute(select(Question.max_score).where(Question.id == question_id))
-    max_score = q_result.scalar_one_or_none() or 1.0
-
-    scores = [float(row[0] or 0) for row in rows]
-    sample_count = len(scores)
-    difficulty = sum(scores) / (sample_count * max_score) if sample_count > 0 else None
-
-    discrimination = None
-    if sample_count >= 10:
-        sorted_scores = sorted(scores, reverse=True)
-        n27 = max(1, int(sample_count * 0.27))
-        high_group = sorted_scores[:n27]
-        low_group = sorted_scores[-n27:]
-        discrimination = (sum(high_group) / (n27 * max_score)) - (sum(low_group) / (n27 * max_score))
-
-    common_errors = None
-    detected_answers = [row[1] for row in rows if row[1] is not None]
-    if detected_answers:
-        counter = Counter(detected_answers)
-        total = sum(counter.values())
-        common_errors = {k: round(v / total, 3) for k, v in counter.most_common(5)}
-
-    return {
-        "difficulty": round(difficulty, 4) if difficulty is not None else None,
-        "discrimination": round(discrimination, 4) if discrimination is not None else None,
-        "sample_count": sample_count,
-        "common_errors": common_errors,
-    }
 
 
 async def _get_effective_scores_for_subject(
@@ -464,40 +314,26 @@ async def update_error_patterns(db: AsyncSession, *, exam_id: str, school_id: st
 
     updated = 0
     for subj in subjects.scalars().all():
-        this_exam_errors = await db.execute(
-            select(StudentErrorBook.student_id)
-            .join(Question, Question.id == StudentErrorBook.question_id)
-            .where(
-                StudentErrorBook.exam_id == exam_id,
-                StudentErrorBook.school_id == school_id,
-                Question.subject_id == subj.id,
-            )
-            .distinct()
+        # 错题本读模型经模块外服务边界获取，pipeline 不再直接 import bank（D-03H）；
+        # 错误模式聚合与 profile.StudentErrorPattern 落库仍归本模块。
+        affected_students = await list_error_book_students_for_subject(
+            db, exam_id=exam_id, school_id=school_id, subject_id=subj.id,
         )
-        affected_students = [r[0] for r in this_exam_errors.all()]
         if not affected_students:
             continue
 
         for stu_id in affected_students:
-            all_errors = await db.execute(
-                select(StudentErrorBook)
-                .join(Question, Question.id == StudentErrorBook.question_id)
-                .join(Subject, Subject.id == Question.subject_id)
-                .where(
-                    StudentErrorBook.student_id == stu_id,
-                    StudentErrorBook.school_id == school_id,
-                    Subject.code == subj.code,
-                )
+            error_entries = await list_error_book_entries_for_student(
+                db, student_id=stu_id, school_id=school_id, subject_code=subj.code,
             )
-            error_list = all_errors.scalars().all()
-            total_errors = len(error_list)
+            total_errors = len(error_entries)
 
             type_counts: dict[str, int] = {}
             exam_ids_set: set[str] = set()
-            for eb in error_list:
-                etype = eb.error_type or "未分类"
+            for error_type, eb_exam_id in error_entries:
+                etype = error_type or "未分类"
                 type_counts[etype] = type_counts.get(etype, 0) + 1
-                exam_ids_set.add(eb.exam_id)
+                exam_ids_set.add(eb_exam_id)
             distribution = {k: round(v / total_errors, 3) for k, v in type_counts.items()} if total_errors > 0 else {}
             exam_count = len(exam_ids_set)
 

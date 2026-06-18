@@ -596,7 +596,6 @@ modules:
     events: []
   depends_on:
     modules:
-    - bank
     - exam
     - grading
     - knowledge
@@ -607,6 +606,7 @@ modules:
     services:
     - student_identity
     - post_exam_adaptive
+    - post_exam_bank_artifacts
     ai_tools: []
   created: 2026-03-16
   last_reviewed: 2026-04-13

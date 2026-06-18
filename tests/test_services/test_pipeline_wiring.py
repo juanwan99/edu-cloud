@@ -90,6 +90,35 @@ def test_exam_module_has_no_direct_pipeline_import():
     assert not offenders, f"exam 模块仍直接 import pipeline: {offenders}"
 
 
+# ---- 结构守护：pipeline 模块不得直接 import bank（D-03H 不变量） ----
+
+def test_pipeline_module_has_no_direct_bank_import():
+    """静态扫描 pipeline 模块源码，确认无 `edu_cloud.modules.bank` 直接 import。
+
+    题库/错题本制品读写已上移模块外服务 `services.post_exam_bank_artifacts`
+    （populate_bank_questions / populate_error_books 经 pipeline.service re-export），
+    pipeline 模块自此不再直接依赖 bank，消除 `pipeline -> bank` 依赖边（D-03H）。
+    """
+    pipeline_dir = Path(__file__).resolve().parents[2] / "src" / "edu_cloud" / "modules" / "pipeline"
+    offenders = []
+    for py in pipeline_dir.rglob("*.py"):
+        tree = ast.parse(py.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                if mod == "edu_cloud.modules.bank" or mod.startswith(
+                    "edu_cloud.modules.bank."
+                ):
+                    offenders.append(f"{py.name}:{node.lineno}")
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name == "edu_cloud.modules.bank" or alias.name.startswith(
+                        "edu_cloud.modules.bank."
+                    ):
+                        offenders.append(f"{py.name}:{node.lineno}")
+    assert not offenders, f"pipeline 模块仍直接 import bank: {offenders}"
+
+
 @pytest.mark.asyncio
 async def test_event_bus_handler_registered():
     """exam.published 事件有 handler 注册。"""
