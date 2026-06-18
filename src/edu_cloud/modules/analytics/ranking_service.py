@@ -35,7 +35,7 @@ async def _get_student_scores(
     if not subj_ids:
         return []
 
-    from edu_cloud.modules.analytics import get_effective_scores_batch
+    from edu_cloud.services.effective_scores import get_effective_scores_batch
     student_totals: dict[str, float] = defaultdict(float)
     scores_by_subject = await get_effective_scores_batch(db, subj_ids, school_id, visible_class_ids)
     for sid in subj_ids:
@@ -181,7 +181,7 @@ async def critical_students(
     """临界生筛选：差 N 分及格/优秀。F005 修复：返回 worst_question。"""
     from edu_cloud.modules.analytics.segment_service import get_segment_config
     from edu_cloud.modules.analytics.service import _get_max_by_subject, _get_subjects
-    from edu_cloud.modules.analytics import get_effective_scores_batch as _batch_eff
+    from edu_cloud.services.effective_scores import get_effective_scores_batch as _batch_eff
 
     if class_id:
         if visible_class_ids is not None and class_id not in visible_class_ids:
@@ -302,7 +302,7 @@ async def class_knowledge(
 ) -> dict:
     """班级×知识点 掌握率热力图数据。"""
     from edu_cloud.modules.exam.models import Subject, Question
-    from edu_cloud.modules.analytics import get_effective_scores_batch as _batch_scores
+    from edu_cloud.services.effective_scores import get_effective_scores_batch as _batch_scores
 
     subj_q = select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
     if subject_id:

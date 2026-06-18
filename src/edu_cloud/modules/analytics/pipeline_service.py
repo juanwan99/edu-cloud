@@ -69,7 +69,7 @@ async def _load_effective_scores(
     db: AsyncSession, exam_id: str, subject_ids: list[str], school_id: str,
 ) -> dict[str, list[dict]]:
     """Returns {student_id: [{subject_id, question_id, score, max_score}, ...]}."""
-    from edu_cloud.modules.analytics import get_effective_scores_batch
+    from edu_cloud.services.effective_scores import get_effective_scores_batch
 
     by_student: dict[str, list[dict]] = defaultdict(list)
     rows_by_subject = await get_effective_scores_batch(db, subject_ids, school_id)

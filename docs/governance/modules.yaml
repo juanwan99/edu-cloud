@@ -96,6 +96,7 @@ modules:
     - profile
     - studio
     services:
+    - effective_scores
     - student_identity
     ai_tools:
     - get_exam_scores (analytics.py)

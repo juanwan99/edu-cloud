@@ -12,7 +12,7 @@ from edu_cloud.modules.analytics.service import (
     subject_question_analysis, _get_subjects, _get_max_by_subject,
     _verify_exam,
 )
-from edu_cloud.modules.analytics import get_effective_scores, get_effective_scores_batch
+from edu_cloud.services.effective_scores import get_effective_scores, get_effective_scores_batch
 from edu_cloud.modules.analytics.segment_service import get_segment_config, compute_segments
 from edu_cloud.modules.student.models import Class, Student
 from edu_cloud.models.agent_snapshot import ExamAnalysisSnapshot, ClassExamReport

@@ -132,3 +132,21 @@ async def test_exam_distribution_uses_default_segments(db, analytics_data):
     result = await exam_distribution(db, exam_id=exam_id, school_id=school_id)
     labels = [iv["label"] for iv in result["intervals"]]
     assert labels == DEFAULT_LABELS
+
+
+def test_effective_score_read_model_lives_in_shared_service():
+    """D-03F: effective-score read model authority is module-external shared service.
+
+    The analytics package (and the analytics.service module the AI tools import
+    from) only re-export the shared implementation, so the cross-module model
+    imports no longer live inside the analytics package.
+    """
+    import edu_cloud.modules.analytics as analytics_pkg
+    import edu_cloud.modules.analytics.service as analytics_service
+    from edu_cloud.services import effective_scores as shared
+
+    # Shared service is the authority for both public entry points.
+    assert analytics_pkg.get_effective_scores is shared.get_effective_scores
+    assert analytics_pkg.get_effective_scores_batch is shared.get_effective_scores_batch
+    # AI-tool import path (analytics.service.get_effective_scores) stays compatible.
+    assert analytics_service.get_effective_scores is shared.get_effective_scores

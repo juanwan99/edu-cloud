@@ -10,7 +10,7 @@ from edu_cloud.modules.analytics.segment_service import get_segment_config
 from edu_cloud.modules.analytics.service import (
     _verify_exam, _get_subjects, _get_max_by_subject,
 )
-from edu_cloud.modules.analytics import get_effective_scores_batch
+from edu_cloud.services.effective_scores import get_effective_scores_batch
 
 logger = logging.getLogger(__name__)
 

@@ -60,7 +60,7 @@ async def common_wrong_questions(
 
     subj_ids = [s.id for s in subjects]
 
-    from edu_cloud.modules.analytics import get_effective_scores_batch
+    from edu_cloud.services.effective_scores import get_effective_scores_batch
 
     scores_by_subject = await get_effective_scores_batch(
         db, [s.id for s in subjects], school_id, visible_class_ids,

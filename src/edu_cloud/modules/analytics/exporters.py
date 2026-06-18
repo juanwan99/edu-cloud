@@ -169,7 +169,7 @@ async def build_student_subject_report(
     question_lines.sort(key=lambda x: x["question_name"])
 
     # 班级均分对比（只看该 subject 的有效分）
-    from edu_cloud.modules.analytics import get_effective_scores
+    from edu_cloud.services.effective_scores import get_effective_scores
     all_scores = await get_effective_scores(db, subject_id, school_id)
     student_totals: dict[str, float] = {}
     for s in all_scores:

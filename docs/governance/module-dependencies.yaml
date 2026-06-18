@@ -36,7 +36,6 @@ edges:
 - from: analytics
   to: exam
   occurrences:
-  - src/edu_cloud/modules/analytics/__init__.py:7
   - src/edu_cloud/modules/analytics/ai_report_service.py:16
   - src/edu_cloud/modules/analytics/analytics_report_router.py:52
   - src/edu_cloud/modules/analytics/analytics_report_router.py:358
@@ -44,10 +43,10 @@ edges:
   - src/edu_cloud/modules/analytics/exporters.py:16
   - src/edu_cloud/modules/analytics/exporters.py:75
   - src/edu_cloud/modules/analytics/grade_service.py:13
+  - src/edu_cloud/modules/analytics/insights_service.py:9
 - from: analytics
   to: grading
   occurrences:
-  - src/edu_cloud/modules/analytics/__init__.py:5
   - src/edu_cloud/modules/analytics/ai_diagnosis_service.py:164
   - src/edu_cloud/modules/analytics/ai_diagnosis_service.py:165
   - src/edu_cloud/modules/analytics/ai_report_service.py:17
@@ -73,7 +72,6 @@ edges:
 - from: analytics
   to: scan
   occurrences:
-  - src/edu_cloud/modules/analytics/__init__.py:6
   - src/edu_cloud/modules/analytics/ai_report_service.py:19
   - src/edu_cloud/modules/analytics/exporters.py:76
   - src/edu_cloud/modules/analytics/grade_service.py:57
