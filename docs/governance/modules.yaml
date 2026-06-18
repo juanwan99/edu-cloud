@@ -596,7 +596,6 @@ modules:
   depends_on:
     modules:
     - bank
-    - adaptive
     - exam
     - grading
     - knowledge
@@ -606,6 +605,7 @@ modules:
     - student
     services:
     - student_identity
+    - post_exam_adaptive
     ai_tools: []
   created: 2026-03-16
   last_reviewed: 2026-04-13

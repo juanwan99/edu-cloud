@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, patch
 
 @pytest.mark.asyncio
 async def test_on_exam_published_calls_adaptive_mastery():
-    """on_exam_published 应调用 _update_adaptive_mastery。"""
-    with patch("edu_cloud.modules.pipeline.service._update_adaptive_mastery", new_callable=AsyncMock) as mock_adaptive, \
+    """on_exam_published 应调用模块外服务 update_adaptive_mastery（D-03E）。"""
+    with patch("edu_cloud.services.post_exam_adaptive.update_adaptive_mastery", new_callable=AsyncMock) as mock_adaptive, \
          patch("edu_cloud.modules.pipeline.service.update_knowledge_mastery", new_callable=AsyncMock, return_value=0), \
          patch("edu_cloud.modules.pipeline.service.update_error_patterns", new_callable=AsyncMock, return_value=0), \
          patch("edu_cloud.database.async_session") as mock_session_factory:

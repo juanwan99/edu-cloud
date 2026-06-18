@@ -110,7 +110,7 @@ async def test_event_handler_calls_mastery_and_patterns():
         "edu_cloud.modules.pipeline.service.update_error_patterns",
         new_callable=AsyncMock, return_value=5,
     ) as mock_p, patch(
-        "edu_cloud.modules.pipeline.service._update_adaptive_mastery",
+        "edu_cloud.services.post_exam_adaptive.update_adaptive_mastery",
         new_callable=AsyncMock, return_value=3,
     ) as mock_a, patch(
         "edu_cloud.database.async_session",

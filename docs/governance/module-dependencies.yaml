@@ -236,11 +236,6 @@ edges:
   - src/edu_cloud/modules/marking/router.py:16
   - src/edu_cloud/modules/marking/scorer.py:15
 - from: pipeline
-  to: adaptive
-  occurrences:
-  - src/edu_cloud/modules/pipeline/service.py:536
-  - src/edu_cloud/modules/pipeline/service.py:537
-- from: pipeline
   to: bank
   occurrences:
   - src/edu_cloud/modules/pipeline/service.py:16

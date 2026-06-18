@@ -5,7 +5,7 @@
 有效分数：统一读取 GradingResult.final_score（权威单一源）
 """
 import logging
-from collections import Counter, defaultdict
+from collections import Counter
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -527,92 +527,17 @@ async def update_error_patterns(db: AsyncSession, *, exam_id: str, school_id: st
     return updated
 
 
-async def _update_adaptive_mastery(db: AsyncSession, *, exam_id: str, school_id: str) -> int:
-    """将考试作答数据写入 adaptive 模块（answer_logs + BKT 更新）。
-
-    遍历 StudentAnswer 记录，对每道题调用 process_answer。
-    返回处理的答题数。
-    """
-    from edu_cloud.modules.adaptive.updater import process_answer
-    from edu_cloud.modules.adaptive.models import AnswerLog
-
-    # 查询本考试所有题目（含 max_score）
-    subjects = await db.execute(
-        select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)
-    )
-    subject_rows = subjects.scalars().all()
-    question_map: dict[str, float] = {}  # q_id → max_score
-    for subj in subject_rows:
-        qs = await db.execute(
-            select(Question.id, Question.max_score).where(Question.subject_id == subj.id)
-        )
-        for q_id, max_score in qs.all():
-            if max_score and max_score > 0:
-                question_map[q_id] = max_score
-
-    if not question_map:
-        return 0
-
-    # 通过 QuestionKnowledgePoint 关联表获取知识点（与已有 pipeline 一致）
-    kp_map: dict[str, list[str]] = defaultdict(list)
-    for q_id in question_map:
-        kps = await db.execute(
-            select(QuestionKnowledgePoint.concept_id).where(
-                QuestionKnowledgePoint.question_id == q_id
-            )
-        )
-        kp_map[q_id] = [row[0] for row in kps.all()]
-
-    count = 0
-    for q_id, max_score in question_map.items():
-        kp_ids = kp_map.get(q_id, [])
-
-        # 查询该题的非缺考学生作答
-        answers = await db.execute(
-            select(StudentAnswer).where(
-                StudentAnswer.question_id == q_id,
-                StudentAnswer.school_id == school_id,
-                StudentAnswer.is_absent == False,  # noqa: E712 — N001: 过滤缺考
-            )
-        )
-        for answer in answers.scalars().all():
-            # 幂等检查
-            existing = await db.execute(
-                select(AnswerLog).where(
-                    AnswerLog.school_id == school_id,
-                    AnswerLog.exam_id == exam_id,
-                    AnswerLog.student_id == answer.student_id,
-                    AnswerLog.question_id == q_id,
-                )
-            )
-            if existing.scalar_one_or_none() is not None:
-                continue
-
-            effective_score = await _get_effective_score(db, answer.id)
-            is_correct = (effective_score or 0) >= max_score * 0.6
-
-            await process_answer(
-                db,
-                student_id=answer.student_id,
-                question_id=q_id,
-                knowledge_point_ids=kp_ids,
-                correct=is_correct,
-                school_id=school_id,
-                exam_id=exam_id,
-                score_rate=effective_score / max_score if effective_score is not None else None,
-                source_type="exam",
-            )
-            count += 1
-
-    logger.info("_update_adaptive_mastery: exam=%s, processed=%d", exam_id, count)
-    return count
-
-
 async def run_full_pipeline(db: AsyncSession, *, exam_id: str, school_id: str) -> dict:
     """完整冷数据流水线：考试完成后一键执行 pipeline 自有的所有数据生成步骤。
 
-    考后分析预计算（analytics 模块的考后预聚合）已移出本模块，由模块外编排服务
-    `services.post_exam_pipeline.run_post_exam_pipeline` 串联调用（D-03B）。
+    跨模块的考后副作用已移出本模块，由模块外编排服务
+    `services.post_exam_pipeline.run_post_exam_pipeline` 串联补齐：
+    - analytics 考后预聚合 `exam_analysis`（D-03B）
+    - adaptive BKT 掌握度更新 `adaptive_mastery`（D-03E，经
+      `services.post_exam_adaptive.update_adaptive_mastery`，pipeline 不再 import adaptive）
+
+    因此 `run_full_pipeline` 只产 pipeline 自有冷数据各步骤，不含 `exam_analysis` /
+    `adaptive_mastery`。
     """
     results = {
         "bank_questions": await populate_bank_questions(db, exam_id=exam_id, school_id=school_id),
@@ -620,7 +545,6 @@ async def run_full_pipeline(db: AsyncSession, *, exam_id: str, school_id: str) -
         "exam_snapshots": await generate_exam_snapshots(db, exam_id=exam_id, school_id=school_id),
         "knowledge_mastery": await update_knowledge_mastery(db, exam_id=exam_id, school_id=school_id),
         "error_patterns": await update_error_patterns(db, exam_id=exam_id, school_id=school_id),
-        "adaptive_mastery": await _update_adaptive_mastery(db, exam_id=exam_id, school_id=school_id),
     }
     logger.info("run_full_pipeline: exam=%s, results=%s", exam_id, results)
     return results

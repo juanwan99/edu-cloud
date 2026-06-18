@@ -134,12 +134,17 @@ async def test_orchestrator_runs_cold_data_and_analytics(db: AsyncSession, exam_
 
 
 async def test_run_full_pipeline_excludes_exam_analysis(db: AsyncSession, exam_data):
-    """解耦后契约：pipeline 的 run_full_pipeline 只产冷数据，不含 exam_analysis。"""
+    """解耦后契约：pipeline 的 run_full_pipeline 只产冷数据。
+
+    不含 analytics 的 `exam_analysis`（D-03B），也不含 adaptive 的
+    `adaptive_mastery`（D-03E，已移至模块外服务）。
+    """
     results = await run_full_pipeline(
         db, exam_id=exam_data["exam_id"], school_id=exam_data["school_id"],
     )
     assert "exam_snapshots" in results
     assert "exam_analysis" not in results
+    assert "adaptive_mastery" not in results
 
     # analytics 预聚合表未被 run_full_pipeline 触碰
     ca = (await db.execute(
