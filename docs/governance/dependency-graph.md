@@ -39,13 +39,6 @@ flowchart TD
   marking --> exam
   marking --> scan
   marking --> grading
-  pipeline --> exam
-  pipeline --> grading
-  pipeline --> knowledge
-  pipeline --> knowledge_tree
-  pipeline --> profile
-  pipeline --> scan
-  pipeline --> student
   portal --> calendar
   portal --> homework
   profile --> knowledge_tree

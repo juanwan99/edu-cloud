@@ -595,18 +595,11 @@ modules:
     - update_error_patterns
     events: []
   depends_on:
-    modules:
-    - exam
-    - grading
-    - knowledge
-    - knowledge_tree
-    - profile
-    - scan
-    - student
+    modules: []
     services:
-    - student_identity
     - post_exam_adaptive
     - post_exam_bank_artifacts
+    - post_exam_cold_data
     ai_tools: []
   created: 2026-03-16
   last_reviewed: 2026-04-13

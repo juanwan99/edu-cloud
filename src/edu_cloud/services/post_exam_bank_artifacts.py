@@ -11,8 +11,9 @@
   既有调用点（pipeline `run_full_pipeline`、exam `publish_service`、exam_import、
   编排服务 `services.exam_publish_pipeline`）与测试 patch（`pipeline.service.*`
   命名空间）行为零变更。
-- 有效分沿用 pipeline 权威规则 `_get_effective_score`（调用期局部 import，避免
-  services → modules 的导入期循环耦合，与 `services.post_exam_adaptive` 同范式）。
+- 有效分沿用冷数据 owner 权威规则 `services.post_exam_cold_data._get_effective_score`
+  （调用期局部 import，避免 services 层导入期耦合，与 `services.post_exam_adaptive`
+  同范式；冷数据 owner 已上移模块外 services，D-03I）。
 - 错误模式聚合（`pipeline.service.update_error_patterns`）经
   `list_error_book_students_for_subject` / `list_error_book_entries_for_student`
   两个读模型获取错题本数据，聚合与落库（`profile.StudentErrorPattern`）仍归 pipeline。
@@ -78,15 +79,15 @@ async def populate_bank_questions(db: AsyncSession, *, exam_id: str, school_id: 
 async def populate_error_books(db: AsyncSession, *, exam_id: str, school_id: str) -> int:
     """收集错题到学生错题本。返回新增数量。
 
-    有效分沿用 pipeline 权威规则 `_get_effective_score`（调用期局部 import，避免
-    services → modules 的导入期循环耦合）。
+    有效分沿用冷数据 owner 权威规则 `services.post_exam_cold_data._get_effective_score`
+    （调用期局部 import，避免 services 层导入期耦合）。
     """
     from edu_cloud.modules.exam.models import Question
     from edu_cloud.modules.scan.models import StudentAnswer
     from edu_cloud.modules.grading.models import GradingResult
     from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
     from edu_cloud.modules.bank.models import BankQuestion, StudentErrorBook
-    from edu_cloud.modules.pipeline.service import _get_effective_score
+    from edu_cloud.services.post_exam_cold_data import _get_effective_score
 
     answers = await db.execute(
         select(StudentAnswer, Question)

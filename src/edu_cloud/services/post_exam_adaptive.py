@@ -2,12 +2,14 @@
 
 将考试作答写入 adaptive 模块（`answer_logs` + BKT 更新）的副作用从 pipeline 模块
 上移到模块外服务边界，使 pipeline 不再直接 import `edu_cloud.modules.adaptive`，
-拆掉 `pipeline -> adaptive` 依赖边（D-03E）。pipeline 仍是自身冷数据步骤的 owner，
-本服务只负责把考后作答桥接到 adaptive 的 BKT 更新。
+拆掉 `pipeline -> adaptive` 依赖边（D-03E）。冷数据 owner 已上移模块外
+`services.post_exam_cold_data`（D-03I），本服务只负责把考后作答桥接到 adaptive 的
+BKT 更新。
 
 对外契约保持不变：遍历非缺考作答，对每道有 max_score 的题幂等调用
 `adaptive.process_answer`（按 `AnswerLog` 存在性跳过重复），返回处理的答题数；
-有效分沿用 pipeline 权威规则 `_get_effective_score`。失败的非阻塞降级由调用方
+有效分沿用冷数据 owner 权威规则 `services.post_exam_cold_data._get_effective_score`
+（调用期局部 import，避免 services → modules 的导入期耦合）。失败的非阻塞降级由调用方
 （`pipeline.on_exam_published` event handler）负责，编排路径与历史一致按硬调用聚合。
 """
 import logging
@@ -32,7 +34,7 @@ async def update_adaptive_mastery(db: AsyncSession, *, exam_id: str, school_id: 
     from edu_cloud.modules.exam.models import Subject, Question
     from edu_cloud.modules.scan.models import StudentAnswer
     from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
-    from edu_cloud.modules.pipeline.service import _get_effective_score
+    from edu_cloud.services.post_exam_cold_data import _get_effective_score
 
     # 查询本考试所有题目（含 max_score）
     subjects = await db.execute(
