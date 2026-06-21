@@ -10,9 +10,13 @@ from datetime import datetime, timezone
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.exam.models import Subject, Question
-from edu_cloud.modules.grading.models import GradingAssignment, GradingResult
-from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.services.marking_workflow import (
+    GradingAssignment,
+    GradingResult,
+    Question,
+    StudentAnswer,
+    Subject,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +26,7 @@ def _build_ai_info(gr) -> dict | None:
     if gr.ai_score is None:
         return None
 
-    from edu_cloud.modules.grading.detail_flatten import flatten_llm_details, parse_raw_content
+    from edu_cloud.services.marking_workflow import flatten_llm_details, parse_raw_content
 
     ai_raw = gr.ai_raw_response if isinstance(gr.ai_raw_response, dict) else {}
     details = ai_raw.get("details")
@@ -67,7 +71,7 @@ async def get_subjects_with_progress(
     "已批改" = GradingResult.status == 'confirmed' 的答卷数。
     """
     if not school_id:
-        from edu_cloud.modules.exam.models import Exam
+        from edu_cloud.services.marking_workflow import Exam
         exam_school = (await db.execute(
             select(Exam.school_id).where(Exam.id == exam_id)
         )).scalar_one_or_none()

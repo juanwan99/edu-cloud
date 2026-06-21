@@ -183,28 +183,6 @@ edges:
   - src/edu_cloud/modules/knowledge_tree/service.py:14
   - src/edu_cloud/modules/knowledge_tree/sync_service.py:355
   - src/edu_cloud/modules/knowledge_tree/sync_service.py:382
-- from: marking
-  to: exam
-  occurrences:
-  - src/edu_cloud/modules/marking/exporter.py:9
-  - src/edu_cloud/modules/marking/importer.py:9
-  - src/edu_cloud/modules/marking/router.py:17
-  - src/edu_cloud/modules/marking/scorer.py:13
-  - src/edu_cloud/modules/marking/scorer.py:70
-- from: marking
-  to: grading
-  occurrences:
-  - src/edu_cloud/modules/marking/exporter.py:11
-  - src/edu_cloud/modules/marking/router.py:18
-  - src/edu_cloud/modules/marking/scorer.py:14
-  - src/edu_cloud/modules/marking/scorer.py:25
-- from: marking
-  to: scan
-  occurrences:
-  - src/edu_cloud/modules/marking/exporter.py:10
-  - src/edu_cloud/modules/marking/importer.py:10
-  - src/edu_cloud/modules/marking/router.py:16
-  - src/edu_cloud/modules/marking/scorer.py:15
 - from: portal
   to: calendar
   occurrences:

@@ -30,9 +30,6 @@ flowchart TD
   knowledge --> exam
   knowledge --> knowledge_tree
   knowledge_tree --> adaptive
-  marking --> exam
-  marking --> scan
-  marking --> grading
   portal --> calendar
   portal --> homework
   profile --> knowledge_tree

@@ -6,9 +6,12 @@ from collections import defaultdict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.exam.models import Subject, Question
-from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.grading.models import GradingResult
+from edu_cloud.services.marking_workflow import (
+    GradingResult,
+    Question,
+    StudentAnswer,
+    Subject,
+)
 
 logger = logging.getLogger(__name__)
 

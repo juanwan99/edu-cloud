@@ -13,9 +13,13 @@ from edu_cloud.core.permissions import Permission
 from edu_cloud.database import get_db
 from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
-from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.exam.models import Exam, Question, Subject
-from edu_cloud.modules.grading.models import GradingAssignment
+from edu_cloud.services.marking_workflow import (
+    Exam,
+    GradingAssignment,
+    Question,
+    StudentAnswer,
+    Subject,
+)
 from edu_cloud.api.permissions import get_visible_subject_codes, is_school_admin
 from edu_cloud.shared.path_safety import resolve_stored_file_path, resolve_user_input_path
 

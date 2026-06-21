@@ -407,3 +407,51 @@ async def test_export_csv(client, marking_setup):
     lines = resp.text.strip().split("\n")
     assert len(lines) >= 1
     assert "学生ID" in lines[0]
+
+
+# ---------- D-03K module boundary invariants ----------
+
+def test_marking_module_has_no_direct_exam_grading_scan_imports():
+    """D-03K 不变量：marking 模块不直接 import exam/grading/scan，跨模块数据访问
+    经模块外边界 services.marking_workflow 间接取用（与依赖守卫 EV-MARKING-BOUNDARY 同面）。"""
+    import re
+    from pathlib import Path
+
+    marking_dir = (
+        Path(__file__).resolve().parents[2]
+        / "src" / "edu_cloud" / "modules" / "marking"
+    )
+    pattern = re.compile(
+        r"(?:from|import)\s+edu_cloud\.modules\.(?:exam|grading|scan)\b"
+    )
+    offenders = []
+    for py in sorted(marking_dir.rglob("*.py")):
+        for lineno, line in enumerate(py.read_text(encoding="utf-8").splitlines(), 1):
+            if pattern.search(line):
+                offenders.append(f"{py.name}:{lineno}: {line.strip()}")
+    assert not offenders, (
+        "marking 不得直接 import exam/grading/scan，应改用 services.marking_workflow:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_marking_workflow_facade_reexports_owner_objects():
+    """D-03K 不变量：services.marking_workflow 是纯 re-export facade，对外符号与各 owner
+    模块同一对象（identity 等价），保证边界上移行为零变更。"""
+    from edu_cloud.services import marking_workflow
+    from edu_cloud.modules.exam.models import Exam, Question, Subject
+    from edu_cloud.modules.grading.detail_flatten import (
+        flatten_llm_details,
+        parse_raw_content,
+    )
+    from edu_cloud.modules.grading.models import GradingAssignment, GradingResult
+    from edu_cloud.modules.scan.models import StudentAnswer
+
+    assert marking_workflow.Exam is Exam
+    assert marking_workflow.Subject is Subject
+    assert marking_workflow.Question is Question
+    assert marking_workflow.StudentAnswer is StudentAnswer
+    assert marking_workflow.GradingAssignment is GradingAssignment
+    assert marking_workflow.GradingResult is GradingResult
+    assert marking_workflow.flatten_llm_details is flatten_llm_details
+    assert marking_workflow.parse_raw_content is parse_raw_content

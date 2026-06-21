@@ -21,15 +21,13 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - exam
-    - scan
-    - grading
-  services: []
+  modules: []
+  services:
+    - marking_workflow
   ai_tools: []
 
 created: 2026-03-16
-last_reviewed: 2026-04-27
+last_reviewed: 2026-06-21
 design_docs: []
 ---
 
@@ -95,6 +93,15 @@ GET /progress → 统计 GradingResult.status=='confirmed' 的数量
 
 ## 变更历史
 
+- 2026-06-21（D-03K）: 阅卷工作流对 `exam` / `grading` / `scan` 的跨模块 ORM 模型
+  （`Exam` / `Subject` / `Question` / `StudentAnswer` / `GradingAssignment` / `GradingResult`）
+  与 grading 详情解析助手（`flatten_llm_details` / `parse_raw_content`）访问上移至模块外服务
+  `services.marking_workflow`，marking（router/scorer/importer/exporter）不再直接 import
+  上述 3 个模块，一次拆掉 `marking -> {exam, grading, scan}` 3 条直接依赖边。基线
+  **35→32 edges、0 cycles 不变**（3 条边均不参与任何环；各目标模块仍有其它入边，不孤立）。
+  `depends_on.modules` 清零（3→0）、`depends_on.services` 登记 `marking_workflow`；service 为
+  纯 re-export facade（对外符号与 owner 模块同一对象），既有路由/打分/导入导出调用点与测试
+  行为零变更，新增结构守护单测固定「marking 无直接目标模块 import + facade 纯 re-export」不变量。
 - 2026-04-27: GET /next 增加 mode=ai_review 参数（浏览 AI 已阅答卷，仅管理员）
 - 2026-04-16: MarkingScore/MarkingAssignment 合并入 grading.GradingResult/GradingAssignment
 - 2026-03-16: 从 exam-ai 迁入 edu-cloud

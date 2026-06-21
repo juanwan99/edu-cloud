@@ -6,8 +6,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.exam.models import Exam, Subject, Question
-from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.services.marking_workflow import Exam, Question, StudentAnswer, Subject
 
 logger = logging.getLogger(__name__)
 

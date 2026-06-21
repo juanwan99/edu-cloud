@@ -515,14 +515,12 @@ modules:
     - get_progress
     events: []
   depends_on:
-    modules:
-    - exam
-    - scan
-    - grading
-    services: []
+    modules: []
+    services:
+    - marking_workflow
     ai_tools: []
   created: 2026-03-16
-  last_reviewed: 2026-04-27
+  last_reviewed: 2026-06-21
   design_docs: []
 - name: menu
   status: active
