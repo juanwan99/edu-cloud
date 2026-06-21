@@ -350,17 +350,12 @@ modules:
     - run_post_import_pipeline
     events: []
   depends_on:
-    modules:
-    - exam
-    - grading
-    - pipeline
-    - profile
-    - scan
-    - student
-    services: []
+    modules: []
+    services:
+    - exam_import_materialization
     ai_tools: []
   created: 2026-05-19
-  last_reviewed: 2026-06-04
+  last_reviewed: 2026-06-21
   design_docs:
   - docs/plans/archived/2026-05/2026-05-19-exam-import-pipeline-design.md
 - name: grading

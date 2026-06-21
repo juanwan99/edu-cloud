@@ -585,3 +585,42 @@ async def test_post_import_pipeline_totals_skips_error_books(db: AsyncSession):
         StudentErrorBook.exam_id == exam_id,
     ))).scalars().all()
     assert len(error_books) == 0
+
+
+# ── D-03J boundary / facade invariants ──────────────────────────
+
+
+def test_service_facade_has_no_direct_target_module_import():
+    """D-03J: exam_import.service is a pure facade — it must not directly import
+    exam / grading / pipeline / profile / scan / student. The write-chain owner
+    lives in services.exam_import_materialization."""
+    import re as _re
+    from pathlib import Path
+    from edu_cloud.modules.exam_import import service as svc
+
+    src = Path(svc.__file__).read_text(encoding="utf-8")
+    pattern = _re.compile(
+        r"(?:from|import)\s+edu_cloud\.modules\."
+        r"(?:exam|grading|pipeline|profile|scan|student)\b"
+    )
+    offending = [line for line in src.splitlines() if pattern.search(line)]
+    assert offending == [], (
+        f"exam_import.service still directly imports target modules: {offending}"
+    )
+
+
+def test_service_facade_reexports_from_materialization():
+    """D-03J: the public surface is re-exported from the module-external owner,
+    so existing callers (router) and test patch namespaces stay unchanged."""
+    from edu_cloud.modules.exam_import import service as svc
+
+    owner = "edu_cloud.services.exam_import_materialization"
+    for name in ("match_students", "commit_import", "run_post_import_pipeline"):
+        fn = getattr(svc, name)
+        assert fn.__module__ == owner, (
+            f"{name} should be owned by {owner}, got {fn.__module__}"
+        )
+    # data classes / helper re-exports remain importable from the facade
+    assert svc.MatchedStudent.__module__ == owner
+    assert svc.MatchResult.__module__ == owner
+    assert svc._normalize_class.__module__ == owner

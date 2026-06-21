@@ -23,18 +23,13 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - exam
-    - grading
-    - pipeline
-    - profile
-    - scan
-    - student
-  services: []
+  modules: []
+  services:
+    - exam_import_materialization
   ai_tools: []
 
 created: 2026-05-19
-last_reviewed: 2026-06-04
+last_reviewed: 2026-06-21
 design_docs:
   - docs/plans/archived/2026-05/2026-05-19-exam-import-pipeline-design.md
 ---
@@ -67,5 +62,11 @@ design_docs:
 
 ## 变更历史
 
+- 2026-06-21（D-03J）: 学生匹配 + 写入链 + 导入后流水线 owner 逻辑（`match_students` /
+  `commit_import` / `run_post_import_pipeline` 及私有 upsert 助手）上移至模块外服务
+  `services.exam_import_materialization`，exam_import 不再直接 import
+  `exam` / `grading` / `pipeline` / `profile` / `scan` / `student`，一次拆掉 6 条直接依赖边。
+  `service.py` 退化为纯 re-export facade，`depends_on.modules` 清零（6→0）、
+  `depends_on.services` 登记 `exam_import_materialization`；router 调用点与测试行为零变更。
 - 2026-06-04: 补齐 MODULE.md，登记表/路由/服务/依赖边界，纳入模块治理聚合。
 - 2026-05-19: 新增外部考试导入模块。
