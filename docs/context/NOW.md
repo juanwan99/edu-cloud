@@ -1,18 +1,19 @@
 # NOW
 
-Last refreshed: 2026-06-17 15:33 Asia/Shanghai
-（P0E-1：Guardian/Truthline 观测语义修复；前次 refresh 2026-06-17 09:31 P0C-3B）
+Last refreshed: 2026-06-21 20:54 Asia/Shanghai
+（runtime-sync 3413e70→9aa90fa，合同 `yc-20260621-db36ecc7`；前次 refresh 2026-06-17 15:33 P0E-1）
 
-**Current task (P0E-1, this window):** 修复 Guardian/Truthline 观测语义误报。
-①docs/governance-only 的 HEAD 漂移（部署 hash trails HEAD 但区间只改 docs/治理/CI/
-测试/观测脚本）不再伪装成 `BUILD_DRIFT`/`BACKEND_DRIFT`/`PARALLEL_VERSION_DRIFT` 红灯——
-新增 `codex_support.classify_hash_drift`（runtime/docs_only/unknown，unknown fail-safe
-保持红），guardian 降级为 `*_DOCS` 非阻断 yellow，`truth-status.sh` 同算法保持
-`ALL ALIGNED` exit 0；真源/构建输入/依赖/deploy 变更仍红。②Claude 进程检测
-（`is_claude_cli_process`，按 argv[0] basename）不再把 `.claude` 路径/`claude-meta`
-仓库名/`yuanshou-claude` 包装命令误判为活跃 Claude（实测 10→1）。③`codex-context`
-对过期 `logs/meta-state.json` 加 age + `STALE` 标注，不把 2 天前 red 当当前事实。
-补 12 项治理测试（`tests/governance/test_codex_scripts.py`）。未 commit（待授权）。
+**Current task (runtime-sync, this window · 合同 `yc-20260621-db36ecc7`):** 将部署运行态从
+`3413e70` 对齐到源 HEAD `9aa90fa`（D-03I pipeline cold-data owner 抽离落地）。重建
+`frontend/dist`（build git_hash `9aa90fa`，build time 2026-06-21T12:52:07Z）后经 systemd 重启
+后端与 worker。当前运行态（2026-06-21 20:52，**取代下方 Current Facts 中 2026-06-10 `c26379d`
+的运行态快照与 PID**）：`edu-cloud.service` active PID `1242687` boot 20:52:19；
+`edu-cloud-worker.service` active PID `1242700` boot 20:52:19（`.venv/bin/python
+scripts/run-arq-worker`）。验证：`scripts/truth-status.sh` **ALL ALIGNED**（源/build/nginx/
+backend 全 `9aa90fa`），`https://mcu.asia/` 返回 200、`version.json` git_hash `9aa90fa`；
+guardian-watch `red=0`（唯一 yellow=`RISKY_ARTIFACT` data/.db_migrate.lock+.codex，预存、非本
+窗引入）；EV-TARGETED-TEST `tests/test_services_exam/test_post_exam_cold_data.py` 3 passed
+（经 `.venv` 跑；系统 python3 缺 `slowapi` 仅环境偏差，非回归）。本段为 runtime-sync 版本收口留痕。
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
