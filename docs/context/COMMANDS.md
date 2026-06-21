@@ -144,15 +144,26 @@ Boundary:
 
 ```bash
 cd /home/ops/projects/edu-cloud/frontend
+npm ci --ignore-scripts
+npx vitest run
 npm run lint
 npm run build
+npm audit --audit-level=high
 ```
 
-Preferred completion gate:
+Preferred completion gate (mirrors GitHub Actions frontend job, then checks live
+frontend truthline when network is enabled):
 
 ```bash
 cd /home/ops/projects/edu-cloud
 scripts/codex-verify frontend
+```
+
+Post-push release gate:
+
+```bash
+cd /home/ops/projects/edu-cloud
+scripts/codex-verify github-ci --wait
 ```
 
 Rules:
@@ -161,9 +172,17 @@ Rules:
 - `localhost:*` is debug-only evidence.
 - `scripts/codex-verify frontend` refuses dirty frontend build inputs by default.
 - `--allow-dirty-build` is only for debug and must not be used for completion claims.
+- `scripts/codex-verify frontend` runs the same command set as the GitHub
+  frontend job: `npm ci --ignore-scripts`, `npx vitest run`, `npm run build`,
+  and `npm audit --audit-level=high`; `npm run build` still invokes the lint
+  prebuild hook.
 - The frontend gate validates local `frontend/dist/version.json` against HEAD
   and, with network enabled, validates `https://mcu.asia/version.json` against
   local dist.
+- `scripts/codex-verify github-ci --wait` is required after an authorized push
+  before claiming the branch is release-clean. It binds the GitHub Actions result
+  to the current branch and exact HEAD SHA, so an older green run cannot mask a
+  new red push.
 
 ## Backend
 

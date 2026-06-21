@@ -212,7 +212,7 @@ def test_codex_verify_help_lists_supported_modes():
     result = run_script("codex-verify", "--help")
 
     assert result.returncode == 0
-    for mode in ("frontend", "backend", "schema", "safety", "full"):
+    for mode in ("frontend", "github-ci", "backend", "schema", "safety", "full"):
         assert mode in result.stdout
 
 
@@ -1026,12 +1026,104 @@ def test_codex_verify_backend_profile_mirrors_ci_workflow():
         assert token in workflow, f"CI workflow missing backend profile token: {token!r}"
 
 
-def test_codex_verify_frontend_dry_run_lists_version_alignment_gate():
+def test_codex_verify_frontend_profile_mirrors_ci_workflow():
+    module = load_codex_verify_module()
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+    dry_run = run_script("codex-verify", "frontend", "--dry-run", "--allow-dirty-build")
+
+    assert dry_run.returncode == 0
+    for command in module.CI_FRONTEND_COMMANDS:
+        shell_command = module.shell_join(command)
+        workflow_command = f"cd frontend && {shell_command}"
+        assert workflow_command in workflow, f"CI workflow missing frontend command: {workflow_command!r}"
+        assert shell_command in dry_run.stdout, f"codex-verify frontend missing command: {shell_command!r}"
+
+
+def test_codex_verify_frontend_dry_run_lists_ci_and_version_alignment_gates():
     result = run_script("codex-verify", "frontend", "--dry-run", "--allow-dirty-build")
 
     assert result.returncode == 0
+    assert "npm ci --ignore-scripts" in result.stdout
+    assert "npx vitest run" in result.stdout
+    assert "npm audit --audit-level=high" in result.stdout
     assert "frontend version alignment" in result.stdout
     assert "https://mcu.asia/version.json" in result.stdout
+
+
+def test_codex_verify_github_ci_dry_run_binds_branch_and_head():
+    result = run_script("codex-verify", "github-ci", "--dry-run", "--branch", "feature/test", "--head", "abc123")
+
+    assert result.returncode == 0
+    assert "gh run list" in result.stdout
+    assert "--workflow Tests" in result.stdout
+    assert "--branch feature/test" in result.stdout
+    assert "match headSha == abc123" in result.stdout
+
+
+def test_github_ci_decision_is_fail_closed_for_missing_pending_and_failure():
+    module = load_codex_verify_module()
+
+    assert module.decide_github_ci_run([], "abc123") == ("missing", None)
+
+    pending = {"headSha": "abc123", "status": "in_progress", "conclusion": "", "databaseId": 1}
+    outcome, match = module.decide_github_ci_run([pending], "abc123")
+    assert outcome == "pending"
+    assert match == pending
+
+    failed = {"headSha": "abc123", "status": "completed", "conclusion": "failure", "databaseId": 2}
+    outcome, match = module.decide_github_ci_run([failed], "abc123")
+    assert outcome == "failure"
+    assert match == failed
+
+
+def test_github_ci_decision_requires_exact_head_success():
+    module = load_codex_verify_module()
+    old_green = {"headSha": "old456", "status": "completed", "conclusion": "success", "databaseId": 1}
+    current_green = {"headSha": "abc123", "status": "completed", "conclusion": "success", "databaseId": 2}
+
+    outcome, match = module.decide_github_ci_run([old_green, current_green], "abc123")
+
+    assert outcome == "success"
+    assert match == current_green
+
+
+def test_github_ci_run_loader_fails_closed_on_gh_and_json_errors(monkeypatch):
+    module = load_codex_verify_module()
+
+    class Result:
+        def __init__(self, returncode, stdout="", stderr=""):
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = stderr
+
+    monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs: Result(2, stderr="gh failed"))
+    rc, runs, error = module._load_github_runs(["gh", "run", "list"])
+    assert rc == 2
+    assert runs is None
+    assert "gh failed" in error
+
+    monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs: Result(0, stdout="not-json"))
+    rc, runs, error = module._load_github_runs(["gh", "run", "list"])
+    assert rc == 1
+    assert runs is None
+    assert "invalid gh JSON" in error
+
+    monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs: Result(0, stdout='{"not":"a-list"}'))
+    rc, runs, error = module._load_github_runs(["gh", "run", "list"])
+    assert rc == 1
+    assert runs is None
+    assert "expected a list" in error
+
+
+def test_frontend_audit_security_versions_are_persistently_pinned():
+    package_json = json.loads((PROJECT_ROOT / "frontend" / "package.json").read_text(encoding="utf-8"))
+    package_lock = json.loads((PROJECT_ROOT / "frontend" / "package-lock.json").read_text(encoding="utf-8"))
+
+    assert package_json["dependencies"]["dompurify"] == "^3.4.11"
+    assert package_json["overrides"]["undici"] == "7.28.0"
+    assert package_lock["packages"][""]["dependencies"]["dompurify"] == "^3.4.11"
+    assert package_lock["packages"]["node_modules/dompurify"]["version"] == "3.4.11"
+    assert package_lock["packages"]["node_modules/undici"]["version"] == "7.28.0"
 
 
 def test_frontend_version_alignment_reports_hash_and_dirty_errors():
@@ -1215,7 +1307,10 @@ def test_ci_governance_job_runs_codex_smoke_checks():
         "scripts/codex-verify safety --repo-wide",
         "scripts/codex-verify full --dry-run --schema --no-network",
         "python -m pytest tests/test_alembic_migration.py -q",
+        "cd frontend && npm ci --ignore-scripts",
+        "cd frontend && npx vitest run",
         "cd frontend && npm run build",
+        "cd frontend && npm audit --audit-level=high",
     ):
         assert command in text
 

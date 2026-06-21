@@ -38,6 +38,13 @@ CI_BACKEND_PROFILE: list[str] = [
     "not (test_alembic_migration or test_alembic_s1 or test_card_publish or test_grading_worker or test_objective_only_not_ready)",
 ]
 
+CI_FRONTEND_COMMANDS: list[list[str]] = [
+    ["npm", "ci", "--ignore-scripts"],
+    ["npx", "vitest", "run"],
+    ["npm", "run", "build"],
+    ["npm", "audit", "--audit-level=high"],
+]
+
 
 def shell_join(cmd: list[str]) -> str:
     return " ".join(shlex.quote(part) for part in cmd)
@@ -264,8 +271,7 @@ def verify_frontend(args: argparse.Namespace) -> int:
 
     frontend = PROJECT_ROOT / "frontend"
     commands: list[tuple[list[str], Path]] = [
-        (["npm", "run", "lint"], frontend),
-        (["npm", "run", "build"], frontend),
+        (cmd, frontend) for cmd in CI_FRONTEND_COMMANDS
     ]
     if not args.no_network:
         commands.extend([
@@ -276,6 +282,128 @@ def verify_frontend(args: argparse.Namespace) -> int:
     if rc != 0:
         return rc
     return verify_frontend_version_alignment(args)
+
+
+def _current_branch() -> str:
+    result = subprocess.run(
+        ["git", "branch", "--show-current"],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def _git_head_full() -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def decide_github_ci_run(runs: list[dict[str, object]], head: str) -> tuple[str, dict[str, object] | None]:
+    match = next((run for run in runs if str(run.get("headSha")) == head), None)
+    if not match:
+        return "missing", None
+    if str(match.get("status") or "") != "completed":
+        return "pending", match
+    if str(match.get("conclusion") or "") != "success":
+        return "failure", match
+    return "success", match
+
+
+def _load_github_runs(list_cmd: list[str]) -> tuple[int, list[dict[str, object]] | None, str]:
+    result = subprocess.run(list_cmd, cwd=PROJECT_ROOT, capture_output=True, text=True)
+    if result.returncode != 0:
+        return result.returncode, None, result.stderr.strip()
+    try:
+        parsed = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        return 1, None, f"invalid gh JSON: {exc}"
+    if not isinstance(parsed, list):
+        return 1, None, "invalid gh JSON: expected a list of workflow runs"
+    return 0, parsed, ""
+
+
+def verify_github_ci(args: argparse.Namespace) -> int:
+    branch = args.branch or _current_branch()
+    head = args.head or _git_head_full()
+    if not branch or not head:
+        print("GitHub CI verification failed: cannot resolve current branch or HEAD.")
+        return 1
+
+    repo = args.repo
+    workflow = args.workflow
+    list_cmd = [
+        "gh", "run", "list",
+        "--repo", repo,
+        "--workflow", workflow,
+        "--branch", branch,
+        "--limit", str(args.limit),
+        "--json", "databaseId,status,conclusion,headSha,url,displayTitle,createdAt",
+    ]
+    if args.dry_run:
+        print(f"+ {shell_join(list_cmd)}")
+        print(f"+ match headSha == {head}")
+        if args.wait:
+            print("+ gh run watch <run-id> --exit-status")
+        return 0
+
+    rc, runs, error = _load_github_runs(list_cmd)
+    if rc != 0 or runs is None:
+        print("GitHub CI verification failed: cannot list workflow runs.")
+        if error:
+            print(error)
+        return rc
+
+    outcome, match = decide_github_ci_run(runs, head)
+    if outcome == "missing":
+        print("GitHub CI verification failed: no workflow run found for current HEAD.")
+        print(f"  repo={repo} workflow={workflow} branch={branch} head={head}")
+        print("  Push the branch or wait for GitHub to create the Actions run, then retry.")
+        return 1
+
+    run_id = str((match or {}).get("databaseId") or "")
+    url = str((match or {}).get("url") or "")
+    if args.wait and outcome == "pending" and run_id:
+        watch_cmd = ["gh", "run", "watch", run_id, "--repo", repo, "--exit-status", "--interval", str(args.interval)]
+        rc = run_cmd(watch_cmd)
+        if rc != 0:
+            return rc
+        rc, refreshed_runs, error = _load_github_runs(list_cmd)
+        if rc != 0 or refreshed_runs is None:
+            print("GitHub CI verification failed: cannot refresh workflow run after watch.")
+            if error:
+                print(error)
+            return rc
+        outcome, match = decide_github_ci_run(refreshed_runs, head)
+        run_id = str((match or {}).get("databaseId") or run_id)
+        url = str((match or {}).get("url") or url)
+
+    if outcome == "missing":
+        print("GitHub CI verification failed: no workflow run found for current HEAD.")
+        print(f"  repo={repo} workflow={workflow} branch={branch} head={head}")
+        print("  Push the branch or wait for GitHub to create the Actions run, then retry.")
+        return 1
+    if outcome == "pending":
+        status = str((match or {}).get("status") or "")
+        print("GitHub CI verification pending:")
+        print(f"  run={run_id} status={status} url={url}")
+        print("  Re-run with --wait, or wait for completion and retry.")
+        return 1
+    if outcome == "failure":
+        conclusion = str((match or {}).get("conclusion") or "")
+        print("GitHub CI verification failed:")
+        print(f"  run={run_id} conclusion={conclusion} url={url}")
+        print(f"  inspect: gh run view {run_id} --repo {repo} --log-failed")
+        return 1
+
+    print("GitHub CI verification ok")
+    print(f"  run={run_id} conclusion=success url={url}")
+    return 0
 
 
 def verify_backend(args: argparse.Namespace) -> int:
@@ -343,11 +471,22 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run Codex completion verification.")
     sub = parser.add_subparsers(dest="mode", required=True)
 
-    frontend = sub.add_parser("frontend", help="lint, build, truth-status, mcu.asia version check")
+    frontend = sub.add_parser("frontend", help="CI-aligned frontend job plus truthline checks")
     frontend.add_argument("--dry-run", action="store_true", help="Print commands without running them.")
-    frontend.add_argument("--no-network", action="store_true", help="Skip mcu.asia/backend curl checks.")
+    frontend.add_argument("--no-network", action="store_true", help="Skip mcu.asia/backend curl checks; npm audit still mirrors GitHub CI.")
     frontend.add_argument("--allow-dirty-build", action="store_true", help="Allow dirty frontend build for debug-only evidence.")
     frontend.set_defaults(func=verify_frontend)
+
+    github_ci = sub.add_parser("github-ci", help="verify the GitHub Actions Tests run for the current HEAD")
+    github_ci.add_argument("--dry-run", action="store_true", help="Print commands without running them.")
+    github_ci.add_argument("--repo", default="juanwan99/edu-cloud", help="GitHub repo in owner/name form.")
+    github_ci.add_argument("--workflow", default="Tests", help="GitHub Actions workflow name.")
+    github_ci.add_argument("--branch", default=None, help="Branch to inspect; defaults to current branch.")
+    github_ci.add_argument("--head", default=None, help="Commit SHA to match; defaults to current HEAD.")
+    github_ci.add_argument("--limit", type=int, default=20, help="Number of recent workflow runs to inspect.")
+    github_ci.add_argument("--wait", action="store_true", help="Watch the matched run until GitHub reports success/failure.")
+    github_ci.add_argument("--interval", type=int, default=10, help="Polling interval for gh run watch.")
+    github_ci.set_defaults(func=verify_github_ci)
 
     backend = sub.add_parser("backend", help="run pytest_delta or targeted pytest args")
     backend.add_argument("--dry-run", action="store_true", help="Print commands without running them.")
