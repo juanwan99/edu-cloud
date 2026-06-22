@@ -1,23 +1,25 @@
 # NOW
 
-Last refreshed: 2026-06-22 21:16 Asia/Shanghai
+Last refreshed: 2026-06-22 22:45 Asia/Shanghai
 
 **Mainline goal (fixed):** complete the edu-cloud foundation so later module
 owners can develop in parallel without cross-module contamination.
 
 **Current phase goal (Phase B):** close the remaining HIGH-risk foundation
 evidence gaps after default-branch promotion. Fresh state: `master`,
-`origin/master`, `origin/feat/module-governance-repair`, and the working branch
-are aligned on `e52f86d6c3c4c8352f1155fd1cd3adabbfd7ae4f`; GitHub Actions exact
-HEAD run `27953800524` is green for `backend`, `frontend`, and `governance`.
-The frontend job includes full `npx vitest run` (`117` files / `2525` tests
-passed), `npm run build`, and `npm audit --audit-level=high`, closing R-H3.
-See `docs/reviews/2026-06-22-rh3-frontend-gating-regression-closeout.md`.
+`origin/master`, `origin/feat/module-governance-repair`, the ECS source tree,
+frontend build, nginx, backend, and worker are aligned on
+`f18a5076f697b636fc3d758a76d974b6eccebac9`. GitHub Actions exact-HEAD run
+`27958619284` is green for `backend`, `frontend`, and `governance`. R-H1 后半 is
+closed by worker runtime fingerprint + truthline/guardian enforcement; R-H2 and
+R-H3 were already closed by exact-HEAD CI/full frontend regression evidence. See
+`docs/reviews/2026-06-22-rh1-worker-runtime-fingerprint-closeout.md` and
+`docs/reviews/2026-06-22-rh3-frontend-gating-regression-closeout.md`.
 
-**Current external open item:** next HIGH-risk foundation item is R-H1 后半:
-guardian still lacks a worker version/boot freshness probe. D-02 L2 historical
-review-gap remains a separate historical-debt track, not a default-branch CI or
-frontend-gating blocker.
+**Current external open item:** no remaining Phase B HIGH runtime/CI evidence
+gap is open. The next mainline debt is D-02 L2 historical review-gap: 16 older
+commits still need independent review-gap handling. This is historical debt, not
+a current source/runtime/CI alignment blocker.
 
 Older dated sections below are retained as historical snapshots unless a newer
 dated paragraph explicitly supersedes them.
