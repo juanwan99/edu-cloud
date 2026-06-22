@@ -262,6 +262,31 @@ async def test_coze_confirmed_write_submits_tool_output_back_to_coze(monkeypatch
 
 
 @pytest.mark.asyncio
+async def test_coze_confirmed_required_action_does_not_execute_when_submit_is_disabled(monkeypatch):
+    run = _run(required_action_submit_enabled=False)
+    run._pending_confirmations["confirm-1"] = {
+        "tool_name": "generate_comment",
+        "arguments": {"student_number": "S001"},
+        "requested_at": __import__("time").monotonic(),
+        "timeout": 300.0,
+        "coze_conversation_id": "conv-1",
+        "coze_chat_id": "chat-1",
+        "coze_tool_call_id": "tool-call-1",
+        "prior_tool_outputs": [],
+    }
+    gateway = AsyncMock()
+    monkeypatch.setattr("edu_cloud.ai.providers.coze.execute_registered_tool", gateway)
+
+    events = [event async for event in run.resume_after_confirmation(approved_ids=["confirm-1"])]
+
+    assert [event.type for event in events] == ["error", "done"]
+    assert events[0].data["mode"] == "coze_required_action"
+    assert events[0].data["retryable"] is False
+    gateway.assert_not_awaited()
+    assert "confirm-1" in run._pending_confirmations
+
+
+@pytest.mark.asyncio
 async def test_coze_required_action_event_is_not_executed_when_submit_is_not_ready(monkeypatch):
     run = _run(required_action_submit_enabled=False)
     gateway = AsyncMock()

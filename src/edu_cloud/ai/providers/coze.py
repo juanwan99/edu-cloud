@@ -93,6 +93,15 @@ class CozeRun:
             arguments = pending["arguments"]
             assistant_parts: list[str] = []
             emitted_delta_ids: set[str] = set()
+            is_coze_required_action_confirmation = bool(
+                pending.get("coze_conversation_id")
+                and pending.get("coze_chat_id")
+                and pending.get("coze_tool_call_id")
+            )
+            if is_coze_required_action_confirmation and not self._required_action_submit_ready():
+                yield self._required_action_unavailable_event()
+                continue
+
             yield AgentEvent(type="tool_call", data={"tool": tool_name, "arguments": arguments})
             try:
                 result = await execute_registered_tool(
@@ -103,10 +112,7 @@ class CozeRun:
                 )
                 self._pending_confirmations.pop(confirmation_id, None)
                 yield AgentEvent(type="tool_result", data={"tool": tool_name, "result": result.get("result")})
-                if pending.get("coze_conversation_id") and pending.get("coze_chat_id") and pending.get("coze_tool_call_id"):
-                    if not self._required_action_submit_ready():
-                        yield self._required_action_unavailable_event()
-                        continue
+                if is_coze_required_action_confirmation:
                     tool_outputs = list(pending.get("prior_tool_outputs") or [])
                     tool_outputs.append({
                         "tool_call_id": pending["coze_tool_call_id"],
