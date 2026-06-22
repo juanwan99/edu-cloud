@@ -391,10 +391,13 @@ module middleware, authGuard, or `module-semantics.yaml`; no live runtime sync o
 deployment was performed in this source-only slice.
 
 Local evidence for D-08D: `npm run test -- src/pages/__tests__/DashboardPage.test.js`
-= 41 passed; `npm run lint` = 0 errors / 1 pre-existing `ChatPanel.vue v-html`
-warning; `npx vite build` passed. `npm run build` is not a valid Windows local
-completion command because the package script ends with Unix `chmod -R o+rX dist/`;
-Vite build itself is green. CI status for `e9a9d9da` is not confirmed locally:
+= 41 passed; follow-up build-script hardening (`375b64a2..HEAD`) makes
+`npm run build` cross-platform by keeping the Unix `chmod` inside the guarded
+Vite lifecycle; targeted frontend tests
+`src/__tests__/version-fingerprint.test.js` + `src/pages/__tests__/DashboardPage.test.js`
+= 47 passed; `npm run lint` = 0 errors / 1 pre-existing `ChatPanel.vue v-html`
+warning; `npm run build` passed on Windows local. CI status for `e9a9d9da` /
+the follow-up build-script commit is not confirmed locally:
 `gh` token is invalid, and the GitHub connector returned no legacy statuses and
 no PR-triggered workflow runs for the commit.
 

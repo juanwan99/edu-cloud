@@ -162,6 +162,7 @@ function fixDistPermissions() {
   return {
     name: 'fix-dist-permissions',
     closeBundle() {
+      if (process.platform === 'win32') return
       try {
         execSync('chmod -R o+rX dist/', { cwd: projectRoot })
       } catch {}

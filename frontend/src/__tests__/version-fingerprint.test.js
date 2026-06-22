@@ -25,6 +25,7 @@ describe('version fingerprint', () => {
 
 describe('frontend build delivery safety', () => {
   const viteConfig = readFileSync('vite.config.js', 'utf-8')
+  const packageJson = JSON.parse(readFileSync('package.json', 'utf-8'))
 
   it('backs up the currently served dist inside the existing Vite build lifecycle', () => {
     expect(viteConfig).toContain("name: 'backup-dist-before-build'")
@@ -32,5 +33,12 @@ describe('frontend build delivery safety', () => {
     expect(viteConfig).toContain('configResolved()')
     expect(viteConfig).toContain('FRONTEND_DIST_BACKUP_DIR')
     expect(viteConfig).toContain('backupDistBeforeBuild(),')
+  })
+
+  it('keeps npm build cross-platform and leaves chmod inside the Vite lifecycle', () => {
+    expect(packageJson.scripts.build).toBe('vite build')
+    expect(viteConfig).toContain("name: 'fix-dist-permissions'")
+    expect(viteConfig).toContain("if (process.platform === 'win32') return")
+    expect(viteConfig).toContain("execSync('chmod -R o+rX dist/'")
   })
 })
