@@ -51,6 +51,7 @@ RUNTIME_DRIFT_PREFIXES = (
 # state, not current truth: it predates likely working-tree changes and must be
 # labelled stale rather than presented as the live overall.
 META_STATE_FRESH_SECONDS = 3600
+WORKER_RUNTIME_STATE_ENV = "EDU_CLOUD_WORKER_RUNTIME_STATE"
 
 
 @dataclass
@@ -317,6 +318,24 @@ def collect_artifacts() -> dict[str, object]:
     }
 
 
+def worker_runtime_state_path() -> Path:
+    configured = os.environ.get(WORKER_RUNTIME_STATE_ENV)
+    return Path(configured) if configured else PROJECT_ROOT / "logs" / "worker-runtime.json"
+
+
+def read_worker_runtime_state(path: Path | None = None) -> dict[str, object]:
+    state_path = path or worker_runtime_state_path()
+    if not state_path.exists():
+        return {"status": "missing", "path": str(state_path)}
+    try:
+        parsed = json.loads(state_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"status": "unreadable", "path": str(state_path)}
+    if not isinstance(parsed, dict):
+        return {"status": "unreadable", "path": str(state_path)}
+    return {"status": "ok", "path": str(state_path), "payload": parsed}
+
+
 def collect_versions(no_network: bool = False) -> dict[str, object]:
     data: dict[str, object] = {"network": "skipped" if no_network else "enabled"}
     version_json = PROJECT_ROOT / "frontend" / "dist" / "version.json"
@@ -345,6 +364,22 @@ def collect_versions(no_network: bool = False) -> dict[str, object]:
             data["backend_boot_time"] = parsed.get("boot_time")
         except Exception:
             data["backend_hash"] = "unreadable"
+
+    service_pid = next((pid for pid, service in systemd_main_pids().items() if service == "edu-cloud-worker"), None)
+    if service_pid is not None:
+        data["worker_service_pid"] = service_pid
+    worker_state = read_worker_runtime_state()
+    data["worker_status"] = worker_state.get("status")
+    data["worker_status_path"] = worker_state.get("path")
+    payload = worker_state.get("payload")
+    if isinstance(payload, dict):
+        data["worker_hash"] = payload.get("git_hash")
+        data["worker_source_dirty"] = payload.get("source_dirty")
+        data["worker_pid"] = payload.get("pid")
+        data["worker_boot_time"] = payload.get("boot_time")
+        data["worker_recorded_at"] = payload.get("recorded_at")
+        if service_pid is not None and payload.get("pid") and str(payload.get("pid")) != str(service_pid):
+            data["worker_pid_mismatch"] = True
     return data
 
 
@@ -624,6 +659,8 @@ def safety_risks(no_network: bool = False) -> list[str]:
         risks.append("risky local artifacts present: " + ", ".join(artifacts["risky_paths"]))
     if versions.get("backend_source_dirty") is True:
         risks.append("running backend reports source_dirty=true")
+    if versions.get("worker_source_dirty") is True:
+        risks.append("running worker reports source_dirty=true")
     return risks
 
 

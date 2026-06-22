@@ -3,8 +3,12 @@ arq worker 入口。
 启动方式: arq edu_cloud.worker.WorkerSettings
 PM2: pm2 start arq -- edu_cloud.worker.WorkerSettings
 """
+import json
 import logging
-from datetime import datetime
+import os
+import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
 from arq import cron
 from arq.connections import RedisSettings
 from edu_cloud.config import settings
@@ -14,6 +18,76 @@ from edu_cloud.workers.grading import process_grading_task, run_post_exam_pipeli
 from edu_cloud.ai.prompts import SCHEDULED_PROMPTS
 
 logger = logging.getLogger(__name__)
+
+_WORKER_BOOT_TIME = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+_WORKER_RUNTIME_STATE_ENV = "EDU_CLOUD_WORKER_RUNTIME_STATE"
+_WORKER_SOURCE_PATHS = ("src/", "scripts/run-arq-worker", "pyproject.toml", "uv.lock")
+
+
+def _repo_root() -> Path:
+    try:
+        return Path(
+            subprocess.check_output(
+                ["git", "rev-parse", "--show-toplevel"],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+        )
+    except Exception:
+        return Path(__file__).resolve().parents[2]
+
+
+def _git_text(repo: Path, *args: str) -> str:
+    try:
+        return subprocess.check_output(
+            ["git", *args],
+            cwd=repo,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except Exception:
+        return "unknown"
+
+
+def _is_worker_source_dirty(repo: Path) -> bool:
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--quiet", "HEAD", "--", *_WORKER_SOURCE_PATHS],
+            cwd=repo,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=5,
+        )
+        return result.returncode != 0
+    except Exception:
+        return True
+
+
+def worker_runtime_fingerprint() -> dict[str, object]:
+    repo = _repo_root()
+    return {
+        "schema": "edu-cloud.worker-runtime.v1",
+        "service": "edu-cloud-worker",
+        "process": "worker",
+        "pid": os.getpid(),
+        "boot_time": _WORKER_BOOT_TIME,
+        "recorded_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "git_hash": _git_text(repo, "rev-parse", "--short", "HEAD"),
+        "source_dirty": _is_worker_source_dirty(repo),
+        "source_paths": list(_WORKER_SOURCE_PATHS),
+    }
+
+
+def record_worker_runtime_state(path: str | Path | None = None) -> dict[str, object]:
+    repo = _repo_root()
+    state_path = Path(path or os.environ.get(_WORKER_RUNTIME_STATE_ENV, repo / "logs" / "worker-runtime.json"))
+    payload = worker_runtime_fingerprint()
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = state_path.with_name(f".{state_path.name}.{os.getpid()}.tmp")
+    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    tmp_path.replace(state_path)
+    return {**payload, "state_path": str(state_path)}
 
 
 async def run_auto_draft(ctx):
@@ -103,6 +177,16 @@ async def on_worker_startup(ctx):
     from edu_cloud.config import settings
     setup_logging(process="worker")
     await run_startup_checks(settings)
+    try:
+        runtime = record_worker_runtime_state()
+        logger.info(
+            "arq worker runtime state recorded: git=%s pid=%s path=%s",
+            runtime.get("git_hash"),
+            runtime.get("pid"),
+            runtime.get("state_path"),
+        )
+    except Exception as exc:
+        logger.warning("failed to record arq worker runtime state: %s", exc)
     logger.info("arq worker started, all checks passed (process=worker)")
 
 

@@ -197,6 +197,69 @@ else
 fi
 echo ""
 
+# -- 5. Worker --
+echo -e "${BOLD}[Worker]${NC}"
+WORKER_STATE_JSON="$PROJECT_DIR/logs/worker-runtime.json"
+WORKER_UNIT_EXISTS=false
+WORKER_UNIT_SKIP_REASON="not installed"
+if systemctl list-unit-files edu-cloud-worker.service --no-legend 2>/dev/null | grep -q '^edu-cloud-worker\.service'; then
+  WORKER_UNIT_EXISTS=true
+  WORKER_UNIT_SKIP_REASON=""
+  WORKER_UNIT_PROJECT=$(systemctl show edu-cloud-worker -p WorkingDirectory --value 2>/dev/null || echo "")
+  if [ -n "$WORKER_UNIT_PROJECT" ]; then
+    RESOLVED_PROJECT=$(cd "$PROJECT_DIR" 2>/dev/null && pwd -P || echo "$PROJECT_DIR")
+    RESOLVED_WORKER_PROJECT=$(cd "$WORKER_UNIT_PROJECT" 2>/dev/null && pwd -P || echo "$WORKER_UNIT_PROJECT")
+    if [ "$RESOLVED_WORKER_PROJECT" != "$RESOLVED_PROJECT" ]; then
+      WORKER_UNIT_EXISTS=false
+      WORKER_UNIT_SKIP_REASON="unit belongs to $RESOLVED_WORKER_PROJECT"
+    fi
+  fi
+fi
+
+if [ "$WORKER_UNIT_EXISTS" = "true" ]; then
+  WORKER_ACTIVE=$(systemctl is-active edu-cloud-worker 2>/dev/null || true)
+  WORKER_PID=$(systemctl show edu-cloud-worker -p MainPID --value 2>/dev/null || echo "0")
+  if [ "$WORKER_ACTIVE" != "active" ] || [ -z "$WORKER_PID" ] || [ "$WORKER_PID" = "0" ]; then
+    fail "edu-cloud-worker.service is $WORKER_ACTIVE"
+    [ -z "$BROKEN_AT" ] && BROKEN_AT="WORKER (service not active)"
+  elif [ ! -f "$WORKER_STATE_JSON" ]; then
+    fail "worker runtime fingerprint missing: $WORKER_STATE_JSON"
+    [ -z "$BROKEN_AT" ] && BROKEN_AT="WORKER (missing runtime fingerprint)"
+  else
+    WORKER_HASH=$(python3 -c "import json; print(json.load(open('$WORKER_STATE_JSON')).get('git_hash','unknown'))" 2>/dev/null || echo "unreadable")
+    WORKER_BOOT=$(python3 -c "import json; print(json.load(open('$WORKER_STATE_JSON')).get('boot_time','unknown'))" 2>/dev/null || echo "unknown")
+    WORKER_RECORDED=$(python3 -c "import json; print(json.load(open('$WORKER_STATE_JSON')).get('recorded_at','unknown'))" 2>/dev/null || echo "unknown")
+    WORKER_STATE_PID=$(python3 -c "import json; print(json.load(open('$WORKER_STATE_JSON')).get('pid','unknown'))" 2>/dev/null || echo "unknown")
+    WORKER_DIRTY=$(python3 -c "import json; print(json.load(open('$WORKER_STATE_JSON')).get('source_dirty','unknown'))" 2>/dev/null || echo "unknown")
+    info "worker pid=$WORKER_STATE_PID service_pid=$WORKER_PID boot=$WORKER_BOOT recorded=$WORKER_RECORDED git=$WORKER_HASH"
+
+    if [ "$WORKER_STATE_PID" != "$WORKER_PID" ]; then
+      fail "worker fingerprint PID=$WORKER_STATE_PID does not match service PID=$WORKER_PID"
+      [ -z "$BROKEN_AT" ] && BROKEN_AT="WORKER (stale runtime fingerprint)"
+    elif [ "$WORKER_DIRTY" = "True" ] || [ "$WORKER_DIRTY" = "true" ]; then
+      fail "worker runtime was fingerprinted from dirty source"
+      [ -z "$BROKEN_AT" ] && BROKEN_AT="WORKER (source_dirty=true)"
+    elif [ "$WORKER_HASH" = "$GIT_HASH" ]; then
+      ok "worker git hash matches source"
+    elif [ "$WORKER_HASH" = "unknown" ] || [ "$WORKER_HASH" = "unreadable" ]; then
+      fail "worker runtime fingerprint missing git_hash"
+      [ -z "$BROKEN_AT" ] && BROKEN_AT="WORKER (missing git_hash)"
+    else
+      WORKER_DRIFT_KIND=$(classify_drift "$WORKER_HASH" "$GIT_HASH")
+      if [ "$WORKER_DRIFT_KIND" = "docs_only" ]; then
+        warn "worker running $WORKER_HASH; HEAD $GIT_HASH adds docs/governance-only commits (running worker functionally current)"
+        DOCS_ONLY_DRIFT=true
+      else
+        fail "worker running $WORKER_HASH, source is $GIT_HASH"
+        [ -z "$BROKEN_AT" ] && BROKEN_AT="SOURCE -> WORKER (stale worker, restart needed)"
+      fi
+    fi
+  fi
+else
+  warn "edu-cloud-worker.service skipped ($WORKER_UNIT_SKIP_REASON); skipping worker runtime fingerprint check"
+fi
+echo ""
+
 # ── Diagnosis ──
 echo -e "${BOLD}[Diagnosis]${NC}"
 if [ -n "$BROKEN_AT" ]; then
@@ -206,6 +269,6 @@ elif [ "$DOCS_ONLY_DRIFT" = "true" ]; then
   echo -e "  ${GREEN}${BOLD}FUNCTIONALLY ALIGNED${NC} — deployed runtime trails HEAD only by docs/governance/test/observability commits"
   exit 0
 else
-  echo -e "  ${GREEN}${BOLD}ALL ALIGNED${NC} — source, build, nginx, backend versions match"
+  echo -e "  ${GREEN}${BOLD}ALL ALIGNED${NC} - source, build, nginx, backend, worker versions match"
   exit 0
 fi

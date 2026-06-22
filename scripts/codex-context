@@ -61,7 +61,7 @@ def main() -> int:
     print()
 
     print("Truthline")
-    for key in ("dist_hash", "dist_source_dirty", "dist_build_time", "nginx_hash", "backend_hash", "backend_source_dirty", "backend_pid", "network"):
+    for key in ("dist_hash", "dist_source_dirty", "dist_build_time", "nginx_hash", "backend_hash", "backend_source_dirty", "backend_pid", "backend_boot_time", "worker_hash", "worker_source_dirty", "worker_pid", "worker_boot_time", "worker_status", "worker_service_pid", "network"):
         if key in versions:
             print_kv(key, versions[key])
     print()

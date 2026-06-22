@@ -245,6 +245,8 @@ def issues_from_versions(versions: dict[str, Any], git_info: dict[str, Any]) -> 
     dist_hash = versions.get("dist_hash")
     nginx_hash = versions.get("nginx_hash")
     backend_hash = versions.get("backend_hash")
+    worker_hash = versions.get("worker_hash")
+    worker_service_pid = versions.get("worker_service_pid")
     if versions.get("dist_source_dirty") is True:
         issues.append(
             issue(
@@ -313,6 +315,59 @@ def issues_from_versions(versions: dict[str, Any], git_info: dict[str, Any]) -> 
                 source="codex_support.collect_versions",
             )
         )
+
+    if worker_service_pid:
+        worker_status = versions.get("worker_status")
+        worker_path = versions.get("worker_status_path") or "logs/worker-runtime.json"
+        if worker_status != "ok" or not worker_hash or worker_hash in {"unknown", "unreadable"}:
+            issues.append(
+                issue(
+                    "WORKER_VERSION_MISSING",
+                    "red",
+                    f"edu-cloud-worker PID={worker_service_pid} has no readable runtime fingerprint at {worker_path}",
+                    "sudo systemctl restart edu-cloud-worker && scripts/truth-status.sh /home/ops/projects/edu-cloud",
+                    blocks_completion=True,
+                    source="codex_support.collect_versions",
+                )
+            )
+        elif versions.get("worker_pid_mismatch") is True:
+            issues.append(
+                issue(
+                    "WORKER_STATUS_STALE",
+                    "red",
+                    f"worker runtime fingerprint PID={versions.get('worker_pid')} does not match service PID={worker_service_pid}",
+                    "sudo systemctl restart edu-cloud-worker && scripts/truth-status.sh /home/ops/projects/edu-cloud",
+                    blocks_completion=True,
+                    source="codex_support.collect_versions",
+                )
+            )
+        elif head and head != "unknown" and worker_hash != head:
+            issues.append(
+                hash_drift_issue(
+                    "WORKER_DRIFT",
+                    str(worker_hash),
+                    head,
+                    runtime_summary=f"worker hash {worker_hash} does not match HEAD {head}",
+                    docs_summary=(
+                        f"worker hash {worker_hash} trails HEAD {head} by docs/governance-only "
+                        "commits; running worker is functionally current"
+                    ),
+                    command_hint="sudo systemctl restart edu-cloud-worker",
+                    docs_command_hint="git log --oneline " + f"{worker_hash}..{head}",
+                    source="codex_support.collect_versions",
+                )
+            )
+        if versions.get("worker_source_dirty") is True:
+            issues.append(
+                issue(
+                    "WORKER_RUNTIME_DIRTY",
+                    "red",
+                    "worker runtime fingerprint reports source_dirty=true",
+                    "git diff -- src/ scripts/run-arq-worker pyproject.toml uv.lock; sudo systemctl restart edu-cloud-worker after clean deploy",
+                    blocks_completion=True,
+                    source="codex_support.collect_versions",
+                )
+            )
     return issues
 
 
@@ -626,7 +681,7 @@ def issue_fingerprint(issues: list[dict[str, Any]]) -> str:
         summary = item.get("summary")
         if code == "WORKTREE_DIRTY":
             summary = "working tree dirty"
-        if code in {"GHOST_PROCESS", "DUPLICATE_WORKER_PROCESS", "DUPLICATE_GUARDIAN_PROCESS", "PORT_CONFLICT"}:
+        if code in {"GHOST_PROCESS", "DUPLICATE_WORKER_PROCESS", "DUPLICATE_GUARDIAN_PROCESS", "PORT_CONFLICT", "WORKER_VERSION_MISSING", "WORKER_STATUS_STALE"}:
             summary = re.sub(r"\bPID=\d+", "PID=<pid>", str(summary))
             summary = re.sub(r"\bPID \d+", "PID <pid>", str(summary))
             summary = re.sub(r"\bpid=\d+", "pid=<pid>", str(summary))

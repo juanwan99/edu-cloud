@@ -330,6 +330,41 @@ def test_codex_support_no_network_still_checks_local_backend(monkeypatch, tmp_pa
     assert not any("https://mcu.asia/version.json" in args for args in calls)
 
 
+def test_codex_support_collects_worker_runtime_fingerprint(monkeypatch, tmp_path):
+    module = load_codex_support_module()
+    state_path = tmp_path / "logs" / "worker-runtime.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text(
+        json.dumps({
+            "schema": "edu-cloud.worker-runtime.v1",
+            "service": "edu-cloud-worker",
+            "process": "worker",
+            "pid": 77,
+            "boot_time": "2026-06-22T00:00:00Z",
+            "recorded_at": "2026-06-22T00:00:01Z",
+            "git_hash": "abc123",
+            "source_dirty": False,
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    def fake_run(args, timeout=10, cwd=None):
+        if args[:3] == ["systemctl", "show", "edu-cloud-worker"]:
+            return module.CommandResult(args=args, returncode=0, stdout="77\n", stderr="")
+        return module.CommandResult(args=args, returncode=1, stdout="", stderr="")
+
+    monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(module, "run", fake_run)
+
+    versions = module.collect_versions(no_network=True)
+
+    assert versions["worker_status"] == "ok"
+    assert versions["worker_hash"] == "abc123"
+    assert versions["worker_pid"] == 77
+    assert versions["worker_service_pid"] == 77
+    assert versions["worker_boot_time"] == "2026-06-22T00:00:00Z"
+
+
 def test_guardian_runtime_flags_parallel_backend_and_duplicate_worker(monkeypatch, tmp_path):
     module = load_guardian_runtime_module()
 
@@ -1431,13 +1466,22 @@ def test_guardian_version_docs_only_drift_is_non_blocking_yellow(monkeypatch):
     monkeypatch.setattr(module, "classify_hash_drift", lambda base, head: {"status": "docs_only", "paths": []})
 
     issues = module.issues_from_versions(
-        {"dist_hash": "06c5483", "backend_hash": "06c5483", "nginx_hash": "06c5483"},
+        {
+            "dist_hash": "06c5483",
+            "backend_hash": "06c5483",
+            "nginx_hash": "06c5483",
+            "worker_service_pid": 77,
+            "worker_status": "ok",
+            "worker_hash": "06c5483",
+            "worker_pid": 77,
+        },
         {"head": "42b388e"},
     )
     codes = {issue["issue_code"] for issue in issues}
-    assert {"BUILD_DRIFT_DOCS", "BACKEND_DRIFT_DOCS"} <= codes
+    assert {"BUILD_DRIFT_DOCS", "BACKEND_DRIFT_DOCS", "WORKER_DRIFT_DOCS"} <= codes
     assert "BUILD_DRIFT" not in codes
     assert "BACKEND_DRIFT" not in codes
+    assert "WORKER_DRIFT" not in codes
     assert all(issue["severity"] == "yellow" for issue in issues)
     assert all(not issue["blocks_completion"] for issue in issues)
 
@@ -1468,6 +1512,55 @@ def test_guardian_version_unknown_drift_stays_blocking_red(monkeypatch):
     issues = module.issues_from_versions({"backend_hash": "old999"}, {"head": "42b388e"})
     backend = next(issue for issue in issues if issue["issue_code"] == "BACKEND_DRIFT")
     assert backend["severity"] == "red" and backend["blocks_completion"] is True
+
+
+def test_guardian_worker_fingerprint_missing_blocks_when_service_active():
+    module = load_guardian_runtime_module()
+
+    issues = module.issues_from_versions(
+        {"worker_service_pid": 77, "worker_status": "missing", "worker_status_path": "logs/worker-runtime.json"},
+        {"head": "42b388e"},
+    )
+
+    worker = next(issue for issue in issues if issue["issue_code"] == "WORKER_VERSION_MISSING")
+    assert worker["severity"] == "red"
+    assert worker["blocks_completion"] is True
+
+
+def test_guardian_worker_runtime_drift_stays_blocking_red(monkeypatch):
+    module = load_guardian_runtime_module()
+    monkeypatch.setattr(
+        module,
+        "classify_hash_drift",
+        lambda base, head: {"status": "runtime", "paths": ["src/edu_cloud/worker.py"]},
+    )
+
+    issues = module.issues_from_versions(
+        {"worker_service_pid": 77, "worker_status": "ok", "worker_hash": "old999", "worker_pid": 77},
+        {"head": "42b388e"},
+    )
+
+    worker = next(issue for issue in issues if issue["issue_code"] == "WORKER_DRIFT")
+    assert worker["severity"] == "red" and worker["blocks_completion"] is True
+    assert "src/edu_cloud/worker.py" in worker["summary"]
+
+
+def test_guardian_worker_stale_pid_blocks_completion():
+    module = load_guardian_runtime_module()
+
+    issues = module.issues_from_versions(
+        {
+            "worker_service_pid": 77,
+            "worker_status": "ok",
+            "worker_hash": "42b388e",
+            "worker_pid": 12,
+            "worker_pid_mismatch": True,
+        },
+        {"head": "42b388e"},
+    )
+
+    worker = next(issue for issue in issues if issue["issue_code"] == "WORKER_STATUS_STALE")
+    assert worker["severity"] == "red" and worker["blocks_completion"] is True
 
 
 def test_guardian_parallel_version_docs_drift_is_non_blocking(monkeypatch):
