@@ -352,7 +352,7 @@ async def sync_knowledge_on_startup(db: AsyncSession, knowledge_db_path: str | N
         return {"status": "not_found"}
 
     # 检查 4 类投影是否都已填充（部分初始化 → 重新同步）
-    from edu_cloud.modules.adaptive.models import DaCatalogSnapshot, DaKnowledgePointMap
+    from edu_cloud.services.knowledge_tree_workflow import DaCatalogSnapshot, DaKnowledgePointMap
     node_count = (await db.execute(select(func.count()).select_from(ConceptGraphNode))).scalar() or 0
     edge_count = (await db.execute(select(func.count()).select_from(ConceptGraphEdge))).scalar() or 0
     da_count = (await db.execute(select(func.count()).select_from(DaCatalogSnapshot))).scalar() or 0
@@ -379,7 +379,7 @@ async def sync_knowledge_on_startup(db: AsyncSession, knowledge_db_path: str | N
                 counts["edges"], counts["contains"], counts["maps"])
 
     # 2. DA 目录 + DA-KP 映射
-    from edu_cloud.modules.adaptive.sync import sync_da_catalog, sync_da_kp_map
+    from edu_cloud.services.knowledge_tree_workflow import sync_da_catalog, sync_da_kp_map
     da_count = await sync_da_catalog(str(path), db)
     kp_count = await sync_da_kp_map(str(path), db)
     logger.info("sync: DA catalog → PG (%d DAs, %d KP mappings)", da_count, kp_count)

@@ -19,14 +19,13 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - calendar
-    - student
-  services: []
+  modules: []
+  services:
+    - academic_workflow
   ai_tools: []
 
 created: 2026-04-24
-last_reviewed: 2026-04-24
+last_reviewed: 2026-06-22
 design_docs:
   - docs/plans/2026-04-24-academic-infrastructure-plan.md
 ---

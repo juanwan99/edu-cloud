@@ -8,7 +8,7 @@ from edu_cloud.database import get_db
 from edu_cloud.core.auth import get_current_user, require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.modules.academic import service
-from edu_cloud.modules.calendar import teaching_plan_service
+from edu_cloud.services.academic_workflow import teaching_plan_service
 
 router = APIRouter(prefix="/api/v1/academic", tags=["academic"])
 

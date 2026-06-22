@@ -27,16 +27,16 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - exam
-  services: []
+  modules: []
+  services:
+    - card_workflow
   ai_tools:
     - card_parse_answers (card_layout.py)
     - card_auto_layout (card_layout.py)
     - card_adjust_layout (card_layout.py)
 
 created: "2026-05-05"
-last_reviewed: "2026-05-05"
+last_reviewed: "2026-06-22"
 design_docs:
   - docs/plans/2026-04-11-f003-question-writeback-design.md
 ---

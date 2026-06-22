@@ -31,7 +31,7 @@ from edu_cloud.core.auth import require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.core.tenant import get_school_id
 from edu_cloud.config import settings
-from edu_cloud.modules.exam.models import Exam, Subject
+from edu_cloud.services.card_workflow import Exam, Subject
 from edu_cloud.modules.card.models import Template, CardSkeleton
 from edu_cloud.modules.card.export.barcode_gen import parse_student_excel, render_barcode_pdf
 from edu_cloud.modules.card.layout_helpers import is_biology_generic_pollution, strip_runtime_render_fields
@@ -331,7 +331,7 @@ async def _auto_create_questions(
     db: AsyncSession,
 ) -> list:
     """从 LLM 标准化结果自动创建 Question 记录（先删旧的）。"""
-    from edu_cloud.modules.exam.models import Question
+    from edu_cloud.services.card_workflow import Question
 
     await db.execute(
         delete(Question).where(
@@ -385,7 +385,7 @@ async def parse_answers(
     PDF:  渲染为图片 → 多模态 LLM（vision）直接输出结构化 JSON
     """
     import time
-    from edu_cloud.modules.exam.models import Question
+    from edu_cloud.services.card_workflow import Question
     from edu_cloud.modules.card.parser.word_parser import parse_word_answers, compute_weights_from_text
     from edu_cloud.modules.card.parser.answer_standardizer import standardize_answers, parse_pdf_answers
 

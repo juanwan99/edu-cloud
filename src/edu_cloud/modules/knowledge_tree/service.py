@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.modules.knowledge_tree.models import (
     ConceptGraphNode, ConceptGraphEdge, ConceptBigConceptMap, ConceptStats,
 )
-from edu_cloud.modules.adaptive.models import StudentDaMastery, DaKnowledgePointMap
+from edu_cloud.services.knowledge_tree_workflow import DaKnowledgePointMap, StudentDaMastery
 
 logger = logging.getLogger(__name__)
 

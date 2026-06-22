@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy.exc import IntegrityError
 from edu_cloud.core.state_machine import validate_transition
-from edu_cloud.modules.exam.models import Exam, Question, Subject
+from edu_cloud.services.card_workflow import Exam, Question, Subject
 from edu_cloud.modules.card.export.html_export import html_to_pdf, extract_skeleton
 
 logger = logging.getLogger(__name__)

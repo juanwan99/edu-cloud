@@ -28,7 +28,7 @@ async def download_answer_template(
     current: dict = Depends(require_permission(Permission.MANAGE_EXAMS)),
 ):
     """根据科目题目列表生成 Word 答案模板骨架，教师下载后填答案。"""
-    from edu_cloud.modules.exam.models import Question, Subject
+    from edu_cloud.services.card_workflow import Question, Subject
     from edu_cloud.modules.card.parser.word_parser import generate_word_template
     from fastapi.responses import Response
     import urllib.parse

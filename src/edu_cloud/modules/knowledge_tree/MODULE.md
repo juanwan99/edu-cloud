@@ -27,9 +27,9 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - adaptive
+  modules: []
   services:
+    - knowledge_tree_workflow
     - core.permissions
     - api.deps
   ai_tools:
@@ -38,7 +38,7 @@ depends_on:
     - get_question_knowledge_points
 
 created: "2026-05-05"
-last_reviewed: "2026-05-05"
+last_reviewed: "2026-06-22"
 design_docs:
   - docs/plans/2026-04-05-knowledge-tree-design.md
   - docs/plans/2026-04-09-knowledge-graph-restructure-design.md

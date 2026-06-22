@@ -16,13 +16,12 @@ modules:
     services: []
     events: []
   depends_on:
-    modules:
-    - calendar
-    - student
-    services: []
+    modules: []
+    services:
+    - academic_workflow
     ai_tools: []
   created: 2026-04-24
-  last_reviewed: 2026-04-24
+  last_reviewed: 2026-06-22
   design_docs:
   - docs/plans/2026-04-24-academic-infrastructure-plan.md
 - name: adaptive
@@ -207,15 +206,15 @@ modules:
     - AnswerParser (parser/answer_parser)
     events: []
   depends_on:
-    modules:
-    - exam
-    services: []
+    modules: []
+    services:
+    - card_workflow
     ai_tools:
     - card_parse_answers (card_layout.py)
     - card_auto_layout (card_layout.py)
     - card_adjust_layout (card_layout.py)
   created: '2026-05-05'
-  last_reviewed: '2026-05-05'
+  last_reviewed: '2026-06-22'
   design_docs:
   - docs/plans/2026-04-11-f003-question-writeback-design.md
 - name: conduct
@@ -470,9 +469,9 @@ modules:
     - sync_from_knowledge_db
     events: []
   depends_on:
-    modules:
-    - adaptive
+    modules: []
     services:
+    - knowledge_tree_workflow
     - core.permissions
     - api.deps
     ai_tools:
@@ -480,7 +479,7 @@ modules:
     - get_knowledge_tree
     - get_question_knowledge_points
   created: '2026-05-05'
-  last_reviewed: '2026-05-05'
+  last_reviewed: '2026-06-22'
   design_docs:
   - docs/plans/2026-04-05-knowledge-tree-design.md
   - docs/plans/2026-04-09-knowledge-graph-restructure-design.md

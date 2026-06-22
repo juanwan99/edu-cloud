@@ -17,7 +17,7 @@ from edu_cloud.core.auth import require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.core.tenant import get_school_id
 from edu_cloud.config import settings
-from edu_cloud.modules.exam.models import Exam, Subject
+from edu_cloud.services.card_workflow import Exam, Subject
 from edu_cloud.modules.card.models import Template
 from edu_cloud.modules.card.rendering.renderer import render_card_v2
 

@@ -25,14 +25,6 @@ modules:
 - student
 - studio
 edges:
-- from: academic
-  to: calendar
-  occurrences:
-  - src/edu_cloud/modules/academic/router.py:11
-- from: academic
-  to: student
-  occurrences:
-  - src/edu_cloud/modules/academic/service.py:239
 - from: analytics
   to: exam
   occurrences:
@@ -89,21 +81,4 @@ edges:
   - src/edu_cloud/modules/analytics/pipeline_service.py:13
   - src/edu_cloud/modules/analytics/power_options_service.py:10
   - src/edu_cloud/modules/analytics/ranking_service.py:12
-- from: card
-  to: exam
-  occurrences:
-  - src/edu_cloud/modules/card/card_export_router.py:20
-  - src/edu_cloud/modules/card/card_template_router.py:31
-  - src/edu_cloud/modules/card/card_utils.py:11
-  - src/edu_cloud/modules/card/card_utils.py:31
-  - src/edu_cloud/modules/card/publish_service.py:10
-  - src/edu_cloud/modules/card/router.py:34
-  - src/edu_cloud/modules/card/router.py:334
-  - src/edu_cloud/modules/card/router.py:388
-- from: knowledge_tree
-  to: adaptive
-  occurrences:
-  - src/edu_cloud/modules/knowledge_tree/service.py:14
-  - src/edu_cloud/modules/knowledge_tree/sync_service.py:355
-  - src/edu_cloud/modules/knowledge_tree/sync_service.py:382
 cycles: []

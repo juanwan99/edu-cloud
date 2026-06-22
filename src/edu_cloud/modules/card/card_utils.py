@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.card.models import CardSkeleton
-from edu_cloud.modules.exam.models import Subject
+from edu_cloud.services.card_workflow import Subject
 
 
 def _q_sort_key(q):
@@ -28,7 +28,7 @@ async def get_skeleton_data(
     if skeleton_row:
         return skeleton_row.skeleton_data
 
-    from edu_cloud.modules.exam.models import Question
+    from edu_cloud.services.card_workflow import Question
     from edu_cloud.modules.card.rendering.layout import build_skeleton_from_spec
 
     subj_stmt = select(Subject).where(Subject.code == subject_code)

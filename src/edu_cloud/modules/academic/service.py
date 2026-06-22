@@ -236,7 +236,7 @@ async def get_timetable_stats(
         return [{"subject_code": r[0], "count": r[1]} for r in rows]
 
     # School-wide summary: how many classes have timetables
-    from edu_cloud.modules.student.models import Class
+    from edu_cloud.services.academic_workflow import Class
 
     total_stmt = (
         select(func.count())

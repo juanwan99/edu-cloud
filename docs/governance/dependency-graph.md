@@ -4,8 +4,6 @@
 
 ```mermaid
 flowchart TD
-  academic --> calendar
-  academic --> student
   analytics --> exam
   analytics --> scan
   analytics --> grading
@@ -13,6 +11,4 @@ flowchart TD
   analytics --> knowledge
   analytics --> knowledge_tree
   analytics --> profile
-  card --> exam
-  knowledge_tree --> adaptive
 ```
