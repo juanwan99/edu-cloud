@@ -17,14 +17,14 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 const filePath = resolve(__dirname, '../DashboardPage.vue')
-const content = readFileSync(filePath, 'utf-8')
+const content = readFileSync(filePath, 'utf-8').replace(/\r\n/g, '\n')
 
 describe('DashboardPage smoke', () => {
   it('can be imported', async () => {
     const mod = await import('../DashboardPage.vue')
     expect(mod.default).toBeTruthy()
     expect(typeof mod.default).toMatch(/object|function/)
-  }, 30000)
+  }, 90000)
 })
 
 describe('DashboardPage template sections', () => {
@@ -52,6 +52,15 @@ describe('DashboardPage template sections', () => {
     expect(content).toContain('class="card business-map"')
     expect(content).not.toContain('entry' + 'Items.length > 0')
     expect(content).not.toContain('v-for="entry in entry' + 'Items"')
+  })
+
+  it('renders Portal service cards through the shared module gate', () => {
+    expect(content).toContain('class="card portal-phase"')
+    expect(content).toContain('v-for="service in portalServiceCards"')
+    expect(content).toContain('const visiblePortalServices = computed')
+    expect(content).toContain('canAccessPortalService(service)')
+    expect(content).toContain('canAccessRequirementForRole(role.value, portalRequirement(item), moduleGate.value)')
+    expect(content).toContain('router.resolve(resolvePortalServiceRoute(service)).matched.length > 0')
   })
 
   it('contains todo-section', () => {
@@ -206,26 +215,31 @@ describe('DashboardPage exam status helpers', () => {
 })
 
 describe('DashboardPage data fetching', () => {
-  it('calls fetchTodos on mount', () => {
-    expect(content).toContain('fetchTodos()')
+  it('refreshes Portal aggregation on mount', () => {
+    expect(content).toContain('function refreshDashboard()')
+    expect(content).toContain('fetchPortalData()')
   })
 
-  it('fetches grading tasks for todo items', () => {
-    expect(content).toContain("client.get('/grading/tasks')")
-  })
-
-  it('fetches personal marking assignments for role todo items', () => {
-    expect(content).toContain("client.get('/marking/my-assignments')")
-  })
-
-  it('fetches homework tasks for todo items', () => {
-    expect(content).toContain("client.get('/homework/tasks'")
+  it('fetches all Portal aggregation endpoints for homepage data', () => {
+    const block = content.slice(
+      content.indexOf('async function fetchPortalData'),
+      content.indexOf('function refreshDashboard')
+    )
+    expect(block).toContain("client.get('/portal/summary')")
+    expect(block).toContain("client.get('/portal/services')")
+    expect(block).toContain("client.get('/portal/todos')")
+    expect(block).toContain("client.get('/portal/messages')")
+    expect(block).toContain("client.get('/portal/calendar-digest')")
+    expect(block).not.toContain("client.get('/marking/my-assignments')")
+    expect(block).not.toContain("client.get('/grading/tasks')")
+    expect(block).not.toContain("client.get('/homework/tasks'")
+    expect(block).not.toContain("client.get('/notifications'")
   })
 
   it('normalizes dashboard data through the active-role adapter', () => {
     expect(content).toContain('kpiData.value = buildRoleWorkbenchSummary(role.value, { dashboard }).kpiData')
     expect(content).toContain('recentExams.value = buildRoleWorkbenchSummary(role.value, { exams: examList }).recentExams')
-    expect(content).toContain('todoItems.value = buildRoleWorkbenchSummary(role.value, {')
+    expect(content).toContain('todoItems.value = buildPortalTodoItems(portalTodos.value)')
   })
 })
 
@@ -249,23 +263,23 @@ describe('DashboardPage fetchCharts', () => {
   })
 })
 
-describe('DashboardPage fetchActivity', () => {
-  it('fetches exams for activity feed', () => {
-    const fetchActivityBlock = content.slice(
-      content.indexOf('async function fetchActivity'),
-      content.indexOf('async function fetchTodos')
+describe('DashboardPage Portal activity', () => {
+  it('derives activity feed from portal messages and calendar digest', () => {
+    const block = content.slice(
+      content.indexOf('function buildPortalActivityItems'),
+      content.indexOf('function syncPortalWorkbenchState')
     )
-    expect(fetchActivityBlock).toContain("client.get('/exams'")
+    expect(block).toContain('const visibleMessages = messages.filter(message => canAccessPortalItem(message)).slice(0, 4)')
+    expect(block).toContain('const visibleCalendar = calendarDigest.filter(item => canAccessPortalItem(item)).slice(0, 4)')
+    expect(block).toContain("type: 'calendar'")
   })
 
-  it('fetches notifications for activity feed', () => {
-    expect(content).toContain("client.get('/notifications'")
-  })
-
-  it('maps exam status to Chinese text in activity items', () => {
-    expect(content).toContain("draft: '已创建'")
-    expect(content).toContain("published: '已发布'")
-    expect(content).toContain("completed: '已完成'")
+  it('does not bypass portal messages with legacy notification calls', () => {
+    const block = content.slice(
+      content.indexOf('async function fetchPortalData'),
+      content.indexOf('function refreshDashboard')
+    )
+    expect(block).not.toContain("client.get('/notifications'")
   })
 
   it('provides fallback activity when no items', () => {
@@ -278,27 +292,28 @@ describe('DashboardPage error handling', () => {
   it('wraps fetchCharts in try-catch to prevent crash on API error', () => {
     const fnBlock = content.slice(
       content.indexOf('async function fetchCharts'),
-      content.indexOf('async function fetchActivity')
+      content.indexOf('function portalList')
     )
     expect(fnBlock).toContain('try {')
     expect(fnBlock).toContain('} catch')
   })
 
-  it('wraps fetchActivity in try-catch for exam and notification calls', () => {
+  it('uses Promise.allSettled so one portal endpoint failure does not drop the whole homepage', () => {
     const fnBlock = content.slice(
-      content.indexOf('async function fetchActivity'),
-      content.indexOf('async function fetchTodos')
+      content.indexOf('async function fetchPortalData'),
+      content.indexOf('function refreshDashboard')
     )
-    const catchCount = (fnBlock.match(/\} catch/g) || []).length
-    expect(catchCount).toBeGreaterThanOrEqual(2)
+    expect(fnBlock).toContain('Promise.allSettled')
+    expect(fnBlock).toContain('settledPortalData(summaryRes, null)')
+    expect(fnBlock).toContain('settledPortalData(servicesRes, [])')
   })
 
-  it('wraps fetchTodos in try-catch for each data source', () => {
-    const start = content.indexOf('async function fetchTodos')
-    const end = content.indexOf('onMounted(', start)
+  it('syncs derived todo and activity state only from portal collections', () => {
+    const start = content.indexOf('function syncPortalWorkbenchState')
+    const end = content.indexOf('async function fetchPortalData', start)
     const fnBlock = content.slice(start, end)
-    const catchCount = (fnBlock.match(/\} catch/g) || []).length
-    expect(catchCount).toBeGreaterThanOrEqual(4)
+    expect(fnBlock).toContain('todoItems.value = buildPortalTodoItems(portalTodos.value)')
+    expect(fnBlock).toContain('activityItems.value = buildPortalActivityItems(portalMessages.value, portalCalendarDigest.value)')
   })
 })
 

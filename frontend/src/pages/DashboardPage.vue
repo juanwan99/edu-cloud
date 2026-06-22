@@ -140,6 +140,39 @@
       </article>
     </section>
 
+    <section v-if="portalOverviewCards.length > 0 || portalServiceCards.length > 0" class="card portal-phase">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Portal 工作台</div>
+          <div class="card-sub">按当前身份、权限和学校模块开关聚合入口</div>
+        </div>
+        <n-tag v-if="portalSummary" type="info" size="small" round>{{ portalServiceCards.length }} 个服务</n-tag>
+      </div>
+      <div v-if="portalOverviewCards.length > 0" class="portal-summary-row">
+        <div
+          v-for="item in portalOverviewCards"
+          :key="item.key"
+          :class="['portal-summary-tile', `portal-summary-tile--${item.tone}`]"
+        >
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+        </div>
+      </div>
+      <div v-if="portalServiceCards.length > 0" class="portal-service-grid">
+        <router-link
+          v-for="service in portalServiceCards"
+          :key="service.id"
+          :to="service.route"
+          class="portal-service-link"
+        >
+          <span class="portal-service-link__module">{{ service.module_code }}</span>
+          <strong>{{ service.title }}</strong>
+          <small>{{ service.description }}</small>
+          <n-tag v-if="service.badgeCount != null" size="small" round>{{ service.badgeCount }}</n-tag>
+        </router-link>
+      </div>
+    </section>
+
     <section class="card business-map">
       <div class="card-head">
         <div>
@@ -331,9 +364,19 @@ const trendOption = ref(null)
 const activityItems = ref([])
 const recentExams = ref([])
 const todoItems = ref([])
+const portalSummary = ref(null)
+const portalServices = ref([])
+const portalTodos = ref([])
+const portalMessages = ref([])
+const portalCalendarDigest = ref([])
 const statToneSequence = ['yellow', 'purple', 'orange', 'ink']
 const progressToneSequence = ['yellow', 'purple', 'orange']
 const friendToneSequence = ['friend__avatar--yellow', 'friend__avatar--purple', 'friend__avatar--orange']
+const portalToneSequence = ['yellow', 'purple', 'orange', 'mint']
+const portalServiceRouteAliases = {
+  '/academic': '/academic/semesters',
+  '/grading': '/marking',
+}
 const kpiIconMap = {
   total_exams: 'exam',
   total_students: 'people',
@@ -363,6 +406,30 @@ const routeAccessRequirements = ROUTE_ACCESS_REQUIREMENTS
 function canAccessRoute(route) {
   const requirement = routeAccessRequirements[route]
   return requirement ? canAccess(requirement) : true
+}
+
+function portalRequirement(item) {
+  return {
+    permission: item?.permission,
+    moduleCode: item?.module_code || item?.moduleCode,
+  }
+}
+
+function resolvePortalServiceRoute(service) {
+  const route = service?.route || '/'
+  return portalServiceRouteAliases[route] || route
+}
+
+function hasMountedPortalRoute(service) {
+  return router.resolve(resolvePortalServiceRoute(service)).matched.length > 0
+}
+
+function canAccessPortalItem(item) {
+  return canAccessRequirementForRole(role.value, portalRequirement(item), moduleGate.value)
+}
+
+function canAccessPortalService(service) {
+  return service?.enabled !== false && hasMountedPortalRoute(service) && canAccessPortalItem(service)
 }
 
 const heroActions = computed(() => [
@@ -518,6 +585,43 @@ const secondaryBusinessGroups = computed(() =>
     .slice(0, 2),
 )
 
+const visiblePortalServices = computed(() =>
+  portalServices.value.filter(service => canAccessPortalService(service))
+)
+
+const portalOverviewCards = computed(() => {
+  const summary = portalSummary.value
+  if (!summary) return []
+  return [
+    { key: 'todos', label: '待办', value: summary.todo_count ?? 0, tone: 'yellow' },
+    { key: 'messages', label: '未读', value: summary.unread_message_count ?? 0, tone: 'purple' },
+    { key: 'calendar', label: '日程', value: summary.calendar_count ?? 0, tone: 'orange' },
+    { key: 'services', label: '服务', value: visiblePortalServices.value.length, tone: 'mint' },
+  ]
+})
+
+function portalServiceBadgeCount(service) {
+  const summary = portalSummary.value
+  if (!summary || !service?.badge_source) return null
+  const sourceMap = {
+    todo: 'todo_count',
+    message: 'unread_message_count',
+    calendar: 'calendar_count',
+  }
+  const key = sourceMap[service.badge_source]
+  if (!key) return null
+  const value = Number(summary[key])
+  return Number.isFinite(value) ? value : null
+}
+
+const portalServiceCards = computed(() =>
+  visiblePortalServices.value.map(service => ({
+    ...service,
+    route: resolvePortalServiceRoute(service),
+    badgeCount: portalServiceBadgeCount(service),
+  }))
+)
+
 const dashboardKpis = computed(() =>
   getRoleDashboardKpis(role.value).map((kpi, index) => ({
     ...kpi,
@@ -660,82 +764,97 @@ async function fetchCharts() {
   } catch { /* no exams */ }
 }
 
-async function fetchActivity() {
-  const items = []
-  try {
-    const { data: exams } = await client.get('/exams', { params: { limit: 5 } })
-    const examList = Array.isArray(exams) ? exams : (exams.items || [])
-    for (const e of examList.slice(0, 3)) {
-      const date = e.created_at ? new Date(e.created_at) : new Date()
-      const dateStr = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-      const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-      const statusText = { draft: '已创建', published: '已发布', completed: '已完成' }[e.status] || e.status
-      items.push({ time: `${dateStr} ${timeStr}`, text: `考试「${e.name}」${statusText}`, type: 'exam' })
-    }
-  } catch { /* no exams */ }
+function portalList(data) {
+  return Array.isArray(data) ? data : []
+}
 
-  try {
-    const { data: notifications } = await client.get('/notifications', { params: { since: 'week' } })
-    const list = Array.isArray(notifications) ? notifications : []
-    for (const n of list.slice(0, 3)) {
-      const date = n.created_at ? new Date(n.created_at) : new Date()
-      const dateStr = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-      const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-      items.push({ time: `${dateStr} ${timeStr}`, text: n.title || n.summary || '通知', type: 'info' })
-    }
-  } catch { /* no notifications */ }
+function settledPortalData(result, fallback) {
+  if (result.status !== 'fulfilled') return fallback
+  return result.value?.data ?? fallback
+}
+
+function portalItemTime(value) {
+  if (!value) return '今天'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  const dateStr = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  return `${dateStr} ${timeStr}`
+}
+
+function buildPortalTodoItems(todos) {
+  return todos
+    .filter(todo => canAccessPortalItem(todo))
+    .slice(0, 6)
+    .map((todo, index) => ({
+      label: todo.title || todo.summary || '待办',
+      route: todo.action_url || '/homework',
+      count: 1,
+      color: portalToneSequence[index % portalToneSequence.length],
+      tagType: todo.priority === 'high' ? 'error' : 'warning',
+    }))
+}
+
+function buildPortalActivityItems(messages, calendarDigest) {
+  const items = []
+  const visibleMessages = messages.filter(message => canAccessPortalItem(message)).slice(0, 4)
+  const visibleCalendar = calendarDigest.filter(item => canAccessPortalItem(item)).slice(0, 4)
+
+  for (const message of visibleMessages) {
+    items.push({
+      time: portalItemTime(message.created_at),
+      text: message.title || message.summary || '通知',
+      type: message.severity === 'warning' ? 'warning' : 'info',
+    })
+  }
+
+  for (const item of visibleCalendar) {
+    items.push({
+      time: portalItemTime(item.event_date),
+      text: item.title || '日程',
+      type: 'calendar',
+    })
+  }
 
   if (items.length === 0) {
     items.push({ time: '今天', text: '系统已就绪', type: 'system' })
   }
-  activityItems.value = items
+  return items.slice(0, 8)
 }
 
-async function fetchTodos() {
-  let markingAssignments = []
-  let gradingTasks = []
-  let examList = []
-  let homeworkTasks = []
+function syncPortalWorkbenchState() {
+  todoItems.value = buildPortalTodoItems(portalTodos.value)
+  activityItems.value = buildPortalActivityItems(portalMessages.value, portalCalendarDigest.value)
+}
 
-  try {
-    const { data } = await client.get('/marking/my-assignments')
-    markingAssignments = Array.isArray(data) ? data : (data.items || [])
-  } catch { /* personal marking assignments not accessible */ }
+async function fetchPortalData() {
+  const [summaryRes, servicesRes, todosRes, messagesRes, calendarRes] = await Promise.allSettled([
+    client.get('/portal/summary'),
+    client.get('/portal/services'),
+    client.get('/portal/todos'),
+    client.get('/portal/messages'),
+    client.get('/portal/calendar-digest'),
+  ])
 
-  try {
-    const { data: tasks } = await client.get('/grading/tasks')
-    gradingTasks = Array.isArray(tasks) ? tasks : (tasks.items || [])
-  } catch { /* grading tasks not accessible */ }
+  portalSummary.value = settledPortalData(summaryRes, null)
+  portalServices.value = portalList(settledPortalData(servicesRes, []))
+  portalTodos.value = portalList(settledPortalData(todosRes, []))
+  portalMessages.value = portalList(settledPortalData(messagesRes, []))
+  portalCalendarDigest.value = portalList(settledPortalData(calendarRes, []))
+  syncPortalWorkbenchState()
+}
 
-  try {
-    const { data: exams } = await client.get('/exams', { params: { limit: 50 } })
-    examList = Array.isArray(exams) ? exams : (exams.items || [])
-  } catch { /* exams not accessible */ }
-
-  try {
-    const { data: hwTasks } = await client.get('/homework/tasks', { params: { status: 'active' } })
-    homeworkTasks = Array.isArray(hwTasks) ? hwTasks : (hwTasks.items || [])
-  } catch { /* homework not accessible */ }
-
-  todoItems.value = buildRoleWorkbenchSummary(role.value, {
-    exams: examList,
-    markingAssignments,
-    gradingTasks,
-    homeworkTasks,
-  }).todoItems
+function refreshDashboard() {
+  fetchKpiData()
+  fetchCharts()
+  fetchPortalData()
 }
 
 onMounted(() => {
-  fetchKpiData()
-  fetchCharts()
-  fetchActivity()
-  fetchTodos()
+  refreshDashboard()
 })
 watch(() => auth.currentRoleIndex, () => {
-  fetchKpiData()
-  fetchCharts()
-  fetchActivity()
-  fetchTodos()
+  refreshDashboard()
 })
 
 function getKpiValue(kpi) {
@@ -1016,6 +1135,92 @@ function getKpiValue(kpi) {
 .report-action__badge--coral { background: var(--macaron-coral); color: #9f1239; }
 .report-action__badge--purple { background: var(--macaron-purple); color: #ffffff; }
 .report-action__badge--mint { background: var(--macaron-mint); color: #14532d; }
+
+.portal-phase {
+  margin-bottom: 24px;
+}
+
+.portal-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.portal-summary-tile {
+  min-height: 74px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 13px 15px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.portal-summary-tile span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.portal-summary-tile strong {
+  color: var(--color-text);
+  font-size: 24px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.portal-summary-tile--yellow { border-color: rgba(244, 218, 76, 0.45); }
+.portal-summary-tile--purple { border-color: rgba(126, 87, 194, 0.35); }
+.portal-summary-tile--orange { border-color: rgba(245, 158, 11, 0.36); }
+.portal-summary-tile--mint { border-color: rgba(16, 185, 129, 0.34); }
+
+.portal-service-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.portal-service-link {
+  min-height: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 15px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  color: inherit;
+  text-decoration: none;
+  background: var(--color-bg);
+  transition: var(--transition);
+}
+
+.portal-service-link:hover {
+  border-color: var(--color-border);
+  background: var(--color-bg-card);
+  transform: translateY(-1px);
+}
+
+.portal-service-link__module {
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.portal-service-link strong {
+  color: var(--color-text);
+  font-size: 15px;
+}
+
+.portal-service-link small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
 
 .business-map {
   margin-bottom: 24px;
@@ -1457,6 +1662,7 @@ function getKpiValue(kpi) {
 
   .role-context-strip,
   .workflow-strip,
+  .portal-summary-row,
   .business-map__grid {
     grid-template-columns: 1fr;
   }
