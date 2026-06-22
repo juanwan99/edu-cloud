@@ -1,24 +1,23 @@
 # NOW
 
-Last refreshed: 2026-06-22 16:34 Asia/Shanghai
+Last refreshed: 2026-06-22 21:16 Asia/Shanghai
 
 **Mainline goal (fixed):** complete the edu-cloud foundation so later module
 owners can develop in parallel without cross-module contamination.
 
-**Current phase goal (Phase A):** close D-08D Portal Phase 1 runtime/live/online
-evidence into the repo truth sources, verify the narrow docs-only scope, then
-commit and push. Fresh state: local source, origin, ECS source, frontend build,
-nginx, and backend runtime are aligned on
-`332862a0e3a621f7dd4ac8ae122b339867e3ec49`; `scripts/truth-status.sh` reports
-`ALL ALIGNED`; authenticated online Portal probes show all five
-`/api/v1/portal/*` aggregation endpoints return HTTP `200`, and disabled
-`teaching`/`research`/`study_analytics` modules do not leak from
-`/api/v1/portal/services` (`blocked_leaks=[]`). See
-`docs/reviews/2026-06-22-portal-d08d-runtime-closeout.md`.
+**Current phase goal (Phase B):** close the remaining HIGH-risk foundation
+evidence gaps after default-branch promotion. Fresh state: `master`,
+`origin/master`, `origin/feat/module-governance-repair`, and the working branch
+are aligned on `e52f86d6c3c4c8352f1155fd1cd3adabbfd7ae4f`; GitHub Actions exact
+HEAD run `27953800524` is green for `backend`, `frontend`, and `governance`.
+The frontend job includes full `npx vitest run` (`117` files / `2525` tests
+passed), `npm run build`, and `npm audit --audit-level=high`, closing R-H3.
+See `docs/reviews/2026-06-22-rh3-frontend-gating-regression-closeout.md`.
 
-**Current external open item:** GitHub Actions exact-HEAD visibility for
-`332862a0` remains unconfirmed and stays as Phase B / R-H2; it is not counted as
-green by inference.
+**Current external open item:** next HIGH-risk foundation item is R-H1 后半:
+guardian still lacks a worker version/boot freshness probe. D-02 L2 historical
+review-gap remains a separate historical-debt track, not a default-branch CI or
+frontend-gating blocker.
 
 Older dated sections below are retained as historical snapshots unless a newer
 dated paragraph explicitly supersedes them.
