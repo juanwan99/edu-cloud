@@ -374,8 +374,29 @@ Production R-H5 is green: 3 schools x 9 `SchoolModule` rows = 27 rows,
 `study_analytics` endpoints return HTTP 403 for a real school role; portal
 services return only enabled module codes (`exam`, `grading`, `homework`,
 `calendar`, `studio`, `conduct`) with `blocked_leaks=[]`. Status is now
-**pending-designer-signoff**, not executor self-unlock. Portal implementation
-must still wait for designer sign-off.
+**signed by designer/user in the 2026-06-22 Codex thread** (`签发 D-08C，进入
+D-08D Portal Phase 1`), so Portal implementation may proceed under the frozen
+first-cut scope.
+
+**D-08D Portal Phase 1 first cut (2026-06-22, local source commit `e9a9d9da`)**:
+homepage aggregation is wired in `frontend/src/pages/DashboardPage.vue`.
+The dashboard consumes all five existing `/api/v1/portal/*` endpoints
+(`/summary`, `/services`, `/todos`, `/messages`, `/calendar-digest`), derives
+homepage todo/activity state from Portal collections, and renders service links
+only after backend filtering plus frontend `moduleGateFromAuth`/permission
+recheck. Routes with no mounted frontend target are hidden, so
+`studio-frontend-entry-missing` remains registered and is not falsely closed.
+Frozen foundation boundaries were preserved: no change to `DEFAULT_ENABLED`,
+module middleware, authGuard, or `module-semantics.yaml`; no live runtime sync or
+deployment was performed in this source-only slice.
+
+Local evidence for D-08D: `npm run test -- src/pages/__tests__/DashboardPage.test.js`
+= 41 passed; `npm run lint` = 0 errors / 1 pre-existing `ChatPanel.vue v-html`
+warning; `npx vite build` passed. `npm run build` is not a valid Windows local
+completion command because the package script ends with Unix `chmod -R o+rX dist/`;
+Vite build itself is green. CI status for `e9a9d9da` is not confirmed locally:
+`gh` token is invalid, and the GitHub connector returned no legacy statuses and
+no PR-triggered workflow runs for the commit.
 
 ## Codex Migration State
 
