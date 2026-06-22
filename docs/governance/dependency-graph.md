@@ -21,9 +21,6 @@ flowchart TD
   conduct --> exam
   conduct --> profile
   conduct --> student
-  grading --> card
-  grading --> exam
-  grading --> scan
   homework --> exam
   homework --> scan
   homework --> bank

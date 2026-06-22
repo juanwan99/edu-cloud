@@ -137,24 +137,6 @@ edges:
   - src/edu_cloud/modules/conduct/permissions.py:98
   - src/edu_cloud/modules/conduct/report_service.py:16
   - src/edu_cloud/modules/conduct/rules_service.py:8
-- from: grading
-  to: card
-  occurrences:
-  - src/edu_cloud/modules/grading/grading_review_router.py:20
-  - src/edu_cloud/modules/grading/router.py:20
-- from: grading
-  to: exam
-  occurrences:
-  - src/edu_cloud/modules/grading/grading_review_router.py:16
-  - src/edu_cloud/modules/grading/grading_review_router.py:17
-  - src/edu_cloud/modules/grading/router.py:17
-  - src/edu_cloud/modules/grading/router.py:485
-- from: grading
-  to: scan
-  occurrences:
-  - src/edu_cloud/modules/grading/grading_review_router.py:19
-  - src/edu_cloud/modules/grading/grading_review_router.py:207
-  - src/edu_cloud/modules/grading/router.py:19
 - from: homework
   to: bank
   occurrences:

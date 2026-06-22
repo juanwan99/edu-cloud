@@ -14,10 +14,15 @@ from edu_cloud.core.permissions import Permission
 from edu_cloud.core.state_machine import validate_transition
 from edu_cloud.config import settings
 from edu_cloud.shared.path_safety import resolve_stored_file_path, resolve_user_input_path
-from edu_cloud.modules.exam.models import Exam, Question, Subject, QUESTION_TYPES_SUBJECTIVE
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
-from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.card.models import Template
+from edu_cloud.services.grading_workflow import (
+    Exam,
+    Question,
+    Subject,
+    QUESTION_TYPES_SUBJECTIVE,
+    StudentAnswer,
+    Template,
+)
 from edu_cloud.logging_config import business_event
 from datetime import datetime, timezone
 
@@ -482,7 +487,7 @@ async def grade_single_answer(
                 use_gemini_official=True,
             )
         else:
-            from edu_cloud.modules.exam.slot_selector import get_llm_config, SLOT_AI_GRADING
+            from edu_cloud.services.grading_workflow import get_llm_config, SLOT_AI_GRADING
             try:
                 llm_url, llm_key, llm_model = await get_llm_config(
                     db, slot=SLOT_AI_GRADING, school_id=school_id,

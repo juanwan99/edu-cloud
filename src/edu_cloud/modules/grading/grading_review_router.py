@@ -13,11 +13,17 @@ from edu_cloud.database import get_db
 from edu_cloud.core.auth import require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.config import settings
-from edu_cloud.modules.exam.models import Exam, Question, Subject, QUESTION_TYPES_SUBJECTIVE
-from edu_cloud.modules.exam.question_order import question_sort_key
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
-from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.card.models import Template
+from edu_cloud.services.grading_workflow import (
+    Exam,
+    Question,
+    Subject,
+    QUESTION_TYPES_SUBJECTIVE,
+    question_sort_key,
+    StudentAnswer,
+    Template,
+    pipeline_service,
+)
 from edu_cloud.logging_config import business_event
 
 logger = logging.getLogger(__name__)
@@ -203,8 +209,6 @@ async def get_dispatch_status(
     subjects = (await db.execute(
         select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == effective_school_id)
     )).scalars().all()
-
-    from edu_cloud.modules.scan import pipeline_service
 
     # 一次性扫描根目录，构建科目→图片数映射（兼容新旧存储布局）
     upload_root = Path(settings.UPLOAD_DIR).resolve()

@@ -25,15 +25,13 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - card
-    - exam
-    - scan
-  services: []
+  modules: []
+  services:
+    - grading_workflow
   ai_tools: []
 
 created: 2026-03-16
-last_reviewed: 2026-04-16
+last_reviewed: 2026-06-22
 design_docs:
   - docs/plans/2026-04-12-grading-dispatch-design.md
   - docs/plans/2026-03-16-ai-agent-design.md
