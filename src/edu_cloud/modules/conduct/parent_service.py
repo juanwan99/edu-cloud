@@ -14,7 +14,7 @@ from edu_cloud.models.user import User
 _DUMMY_HASH = bcrypt.hashpw(b"timing-defense", bcrypt.gensalt()).decode()
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.school import School
-from edu_cloud.modules.student.models import Class, Student
+from edu_cloud.services.conduct_workflow import Class, Student
 from edu_cloud.modules.conduct.models import (
     ConductClassConfig, ConductRecord, ConductRuleCategory, ConductRuleItem, StudentProfile,
 )
@@ -474,8 +474,7 @@ async def update_parent_profile(db: AsyncSession, user_id: str, data: dict) -> d
 async def get_child_exams(db: AsyncSession, user_id: str, student_id: str) -> list[dict]:
     """Get exams that the child participated in (from snapshots)."""
     await _verify_guardian_link(db, user_id, student_id)
-    from edu_cloud.modules.profile.models import StudentExamSnapshot
-    from edu_cloud.modules.exam.models import Exam
+    from edu_cloud.services.conduct_workflow import Exam, StudentExamSnapshot
 
     rows = (
         await db.execute(
@@ -512,8 +511,7 @@ async def get_child_scores(
 ) -> list[dict]:
     """Get child's exam score snapshots (all subjects, sorted by date desc)."""
     await _verify_guardian_link(db, user_id, student_id)
-    from edu_cloud.modules.profile.models import StudentExamSnapshot
-    from edu_cloud.modules.exam.models import Exam
+    from edu_cloud.services.conduct_workflow import Exam, StudentExamSnapshot
 
     rows = (
         await db.execute(
@@ -549,7 +547,7 @@ async def get_child_error_book(
 ) -> dict:
     """Get child's error book entries + stats."""
     link = await _verify_guardian_link(db, user_id, student_id)
-    from edu_cloud.modules.bank.service import get_student_error_book, get_error_book_stats
+    from edu_cloud.services.conduct_workflow import get_error_book_stats, get_student_error_book
 
     items = await get_student_error_book(
         db, student_id=student_id, school_id=link.school_id,

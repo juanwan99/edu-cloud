@@ -8,7 +8,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.conduct.models import ConductRecord
-from edu_cloud.modules.student.models import Student
+from edu_cloud.services.conduct_workflow import Student
 from edu_cloud.models.user import User
 
 logger = logging.getLogger(__name__)

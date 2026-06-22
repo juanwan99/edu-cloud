@@ -31,13 +31,9 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - academic
-    - bank
-    - exam
-    - profile
-    - student
+  modules: []
   services:
+    - conduct_workflow
     - ai.registry
     - ai.tool_context
     - core.permissions
@@ -55,7 +51,7 @@ depends_on:
     - draft_parent_notification
 
 created: 2026-04-12
-last_reviewed: 2026-04-14
+last_reviewed: 2026-06-22
 design_docs:
   - docs/plans/2026-04-12-conduct-module-design.md
   - docs/plans/2026-04-14-conduct-roadmap-design.md

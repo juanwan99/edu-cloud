@@ -7,7 +7,7 @@ from edu_cloud.core.auth import require_permission
 from edu_cloud.api.permissions import get_visible_class_ids
 from edu_cloud.core.permissions import Permission
 from edu_cloud.modules.conduct.models import ConductRuleCategory, ConductRuleItem
-from edu_cloud.modules.student.models import Student
+from edu_cloud.services.conduct_workflow import Student
 
 
 def require_view_conduct():
@@ -95,7 +95,7 @@ async def check_rule_item_class(
 
     Raises: HTTPException 404 (rule_item 不存在 或 不属于本班/本校)
     """
-    from edu_cloud.modules.student.models import Class
+    from edu_cloud.services.conduct_workflow import Class
     from sqlalchemy import or_
 
     # Look up the class's school_id for school-scope rule matching

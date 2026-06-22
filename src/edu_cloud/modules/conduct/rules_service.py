@@ -5,7 +5,7 @@ from sqlalchemy import select, delete, or_, case, literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.conduct.models import ConductRuleCategory, ConductRuleItem
-from edu_cloud.modules.student.models import Class
+from edu_cloud.services.conduct_workflow import Class
 from edu_cloud.services.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)

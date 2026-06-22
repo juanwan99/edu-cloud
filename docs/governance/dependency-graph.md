@@ -16,11 +16,6 @@ flowchart TD
   bank --> exam
   bank --> student
   card --> exam
-  conduct --> academic
-  conduct --> bank
-  conduct --> exam
-  conduct --> profile
-  conduct --> student
   knowledge --> exam
   knowledge --> knowledge_tree
   knowledge_tree --> adaptive

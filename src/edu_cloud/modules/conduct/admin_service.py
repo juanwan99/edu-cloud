@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.models.user import User
 from edu_cloud.models.guardian import GuardianStudentLink
-from edu_cloud.modules.student.models import Student, Class
+from edu_cloud.services.conduct_workflow import Class, Student
 from edu_cloud.modules.conduct.models import (
     ConductClassConfig, StudentProfile, ConductRecord,
     ConductRuleItem, ConductGroup, ConductGroupMember, ConductSemester,
@@ -629,7 +629,7 @@ async def create_semester(
     the existing platform Semester. is_current is NOT synced — the two carry
     independent meaning (class-scoped conduct period vs school-scoped current term).
     """
-    from edu_cloud.modules.academic.models import Semester
+    from edu_cloud.services.conduct_workflow import Semester
 
     cls = await db.get(Class, class_id)
     school_id = cls.school_id if cls else None

@@ -13,7 +13,7 @@ from edu_cloud.models.school import School
 from edu_cloud.modules.conduct.models import (
     ConductRecord, ConductRuleItem, ConductRuleCategory, ConductSemester,
 )
-from edu_cloud.modules.student.models import Student, Class
+from edu_cloud.services.conduct_workflow import Class, Student
 
 logger = logging.getLogger(__name__)
 
