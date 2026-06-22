@@ -137,19 +137,6 @@ edges:
   - src/edu_cloud/modules/conduct/permissions.py:98
   - src/edu_cloud/modules/conduct/report_service.py:16
   - src/edu_cloud/modules/conduct/rules_service.py:8
-- from: homework
-  to: bank
-  occurrences:
-  - src/edu_cloud/modules/homework/service.py:164
-  - src/edu_cloud/modules/homework/service.py:274
-- from: homework
-  to: exam
-  occurrences:
-  - src/edu_cloud/modules/homework/service.py:162
-- from: homework
-  to: scan
-  occurrences:
-  - src/edu_cloud/modules/homework/service.py:163
 - from: knowledge
   to: exam
   occurrences:

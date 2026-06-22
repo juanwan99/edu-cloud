@@ -412,15 +412,13 @@ modules:
     - HomeworkSubmissionService
     events: []
   depends_on:
-    modules:
-    - exam
-    - scan
-    - bank
-    services: []
+    modules: []
+    services:
+    - homework_workflow
     ai_tools:
     - ai/tools/homework.py
   created: '2026-05-05'
-  last_reviewed: '2026-05-05'
+  last_reviewed: '2026-06-22'
   design_docs: []
 - name: knowledge
   status: active

@@ -21,9 +21,6 @@ flowchart TD
   conduct --> exam
   conduct --> profile
   conduct --> student
-  homework --> exam
-  homework --> scan
-  homework --> bank
   knowledge --> exam
   knowledge --> knowledge_tree
   knowledge_tree --> adaptive

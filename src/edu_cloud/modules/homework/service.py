@@ -159,9 +159,13 @@ class HomeworkTaskService:
         3. 从题库中找同题型的练习题
         4. 自动构建 content JSON 并创建 HomeworkTask
         """
-        from edu_cloud.modules.exam.models import Exam, Subject, Question
-        from edu_cloud.modules.scan.models import StudentAnswer
-        from edu_cloud.modules.bank.models import BankQuestion
+        from edu_cloud.services.homework_workflow import (
+            BankQuestion,
+            Exam,
+            Question,
+            StudentAnswer,
+            Subject,
+        )
 
         # 验证考试存在且属于本校
         exam_result = await db.execute(
@@ -271,7 +275,7 @@ class HomeworkTaskService:
         db: AsyncSession, *, task_id: str, school_id: str,
     ) -> dict:
         """解析 task.content JSON 中的 question_ids，返回带完整题目信息的内容结构。"""
-        from edu_cloud.modules.bank.models import BankQuestion
+        from edu_cloud.services.homework_workflow import BankQuestion
 
         task = await HomeworkTaskService.get_task(db, task_id=task_id, school_id=school_id)
 
