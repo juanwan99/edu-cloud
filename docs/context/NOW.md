@@ -1,25 +1,29 @@
 # NOW
 
-Last refreshed: 2026-06-22 22:45 Asia/Shanghai
+Last refreshed: 2026-06-23 07:02 Asia/Shanghai
 
 **Mainline goal (fixed):** complete the edu-cloud foundation so later module
 owners can develop in parallel without cross-module contamination.
 
-**Current phase goal (Phase B):** close the remaining HIGH-risk foundation
-evidence gaps after default-branch promotion. Fresh state: `master`,
-`origin/master`, `origin/feat/module-governance-repair`, the ECS source tree,
-frontend build, nginx, backend, and worker are aligned on
-`f18a5076f697b636fc3d758a76d974b6eccebac9`. GitHub Actions exact-HEAD run
-`27958619284` is green for `backend`, `frontend`, and `governance`. R-H1 后半 is
-closed by worker runtime fingerprint + truthline/guardian enforcement; R-H2 and
-R-H3 were already closed by exact-HEAD CI/full frontend regression evidence. See
-`docs/reviews/2026-06-22-rh1-worker-runtime-fingerprint-closeout.md` and
-`docs/reviews/2026-06-22-rh3-frontend-gating-regression-closeout.md`.
+**Current phase goal (D-09S / D-09M):** keep the newly cleaned foundation
+truthline current and close the remaining medium-risk guard debt before broad
+parallel writing. Phase B HIGH runtime/CI evidence gaps are closed; D-03
+cross-module dependency debt is closed/gate-built; D-04 AI tool module semantics
+is closed/gate-built; D-08D Portal Phase 1 first cut is runtime/online closed.
+Fresh state: `feat/module-governance-repair`, `origin/master`,
+`origin/feat/module-governance-repair`, the ECS source tree, frontend build,
+nginx, backend, and worker are aligned on
+`4fe53fd44bf72971b01e3383d615282bd036b3df`. GitHub Actions exact-HEAD run
+`27967347661` is green for the `Tests` workflow. `scripts/codex-context`,
+`meta-check --fail-on-blocking`, Guardian, and truthline are green.
 
-**Current external open item:** no remaining Phase B HIGH runtime/CI evidence
-gap is open. The next mainline debt is D-02 L2 historical review-gap: 16 older
-commits still need independent review-gap handling. This is historical debt, not
-a current source/runtime/CI alignment blocker.
+**Current open items:** D-02 L2 historical review-gap remains open for 16 older
+commits (`3688f32..6b1bdd3`) but is historical debt, not a current source /
+runtime / CI blocker. D-06 `studio-frontend-entry-missing` remains open by
+design. D-09 still carries medium/low guard debt: R-M5/Q5 backup rotation,
+R-M6 delivery-chain guard hardening, R-M7 `/uploads` gating denominator, plus
+low-risk hygiene items. The next mainline slice is D-09S context truth refresh,
+then D-09M guard hardening.
 
 Older dated sections below are retained as historical snapshots unless a newer
 dated paragraph explicitly supersedes them.
@@ -38,44 +42,37 @@ scripts/truth doctor --json
 ## Current Facts
 
 - Branch: `feat/module-governance-repair`
-- Upstream: `origin/feat/module-governance-repair`（2026-06-12 实测 0/0 同步）
+- Upstream: `origin/feat/module-governance-repair` (2026-06-23 D-09S verified:
+  ahead=0, working tree clean, `origin/master` / `origin/feat/module-governance-repair`
+  / `origin/HEAD` all point at `4fe53fd`)
 - Production URL: `https://mcu.asia`
 - Backend API: `127.0.0.1:9000`
 - Frontend artifact path: `frontend/dist/`
 - Known pytest failures: single source `.quality/known-pytest-failures.txt`
   (CI-aligned profile == `.github/workflows/test.yml` backend job filter ==
   `scripts/codex-verify` `CI_BACKEND_PROFILE`; enforced no-new-failures by
-  `scripts/pytest_delta.py`). 不在 NOW.md 硬编码失败数；见 `docs/governance/debt-ledger.md` D-07。
-- Source HEAD (2026-06-10 20:37 re-verified): `c26379d` (coze required_action
-  fail-closed 收口). All runtime surfaces align on HEAD `c26379d` with
-  `source_dirty=false`: backend `/api/v1/version`, `frontend/dist/version.json`,
-  nginx `https://mcu.asia/version.json`. `scripts/truth-status.sh` reports
-  **ALL ALIGNED**, exit 0. 留痕补记：`6f90994 → c26379d` 的对齐（backend restart
-  19:05 + dist rebuild 19:12）发生在治理窗口外，已登记为 audit 风险 R-M2。
-- Backend process (2026-06-10, post-takeover): under **systemd**
-  `edu-cloud.service` = **active**, PID `4143044` (booted 2026-06-10 19:05:28),
-  runs HEAD `c26379d`, `source_dirty=false`, owns `127.0.0.1:9000`. The prior
-  orphan manual uvicorn PID `391900` (`ebf7934`) was stopped; no SERVICE_BYPASS /
-  GHOST_PROCESS / PORT_OWNER_MISMATCH (guardian-watch red=0).
-- DB doctor is **green** (2026-06-10): `HARD=0 WARN=0` ("No drift detected").
-  Migration `a1b2_chat_msgs → e1f2_import_sess` applied via `scripts/db_migrate`
-  (backup → dry-run → `db_doctor --strict` → real upgrade; pre-migration backup
-  `backups/edu_cloud_20260610_181416_pre_migrate.db`). `exam_import_sessions`
-  (16 cols) now exists; `alembic current = e1f2_import_sess (head)`.
-- `_audit_log` is NOT a stray leftover: it is an intentional **trigger-backed**
-  audit table (6330 rows of `old_data` snapshots for `grading_results` +
-  `student_answers`, plus a `_audit_log_cleanup` trigger). Disposition applied =
-  **KEEP + allowlist** in `scripts/db_doctor.py` (`ALLOWLIST_TABLES`), **never
-  drop** — dropping it destroys data and breaks 4 triggers.
-- Runtime services (2026-06-10): `edu-cloud.service` **active** (systemd-managed
-  backend, PID 4143044), `edu-cloud-worker.service` **active**（PID `189590`，
-  2026-06-10 20:45:48 重启对齐 HEAD `c26379d`——此前 PID `1941124` 自 2026-05-29
-  跑 12 天前旧代码，即 audit 风险 R-H1 的 stale 缺口；窗口内两次 restart 详见留痕；
-  合同 `yc-20260610-776deb92`，留痕
-  `docs/reviews/2026-06-10-worker-runtime-alignment.md`），
-  `edu-cloud-guardian.service` active. Backend is systemd-managed — do not
-  hand-launch a manual uvicorn. guardian 对 worker 仍无版本/boot 新鲜度门控
-  （R-H1 监控盲区部分，待后续批次）。
+  `scripts/pytest_delta.py`). Do not hard-code failure counts in NOW.md; see
+  `docs/governance/debt-ledger.md` D-07.
+- Source/runtime HEAD (2026-06-23 D-09S): `4fe53fd44bf72971b01e3383d615282bd036b3df`
+  (`fix(ai): fail closed coze confirmation resume`). `scripts/truth-status.sh`
+  reports **ALL ALIGNED**: source HEAD, `frontend/dist/version.json`, nginx
+  `https://mcu.asia/version.json`, backend `/api/v1/version`, and worker
+  runtime fingerprint all report `4fe53fd`; `source_dirty=false`.
+- Backend process (2026-06-23 D-09S): under **systemd**, `edu-cloud.service`
+  active, PID `1997855`, boot `2026-06-23 06:18:49`, git `4fe53fd`, owns
+  `127.0.0.1:9000`. No SERVICE_BYPASS / GHOST_PROCESS / PORT_OWNER_MISMATCH.
+- Worker process (2026-06-23 D-09S): `edu-cloud-worker.service` active,
+  service PID `1997856`, boot `2026-06-22T22:18:49Z`, runtime fingerprint git
+  `4fe53fd`, `worker_status=ok`, `worker_source_dirty=false`.
+- DB doctor is **green** (2026-06-23 D-09S): `db_doctor=ok`, `HARD=0 WARN=0`,
+  Alembic version `e1f2_import_sess`. `_audit_log` remains intentional
+  trigger-backed audit data and must stay allowlisted / never dropped.
+- Runtime services (2026-06-23 D-09S): backend, worker, and guardian are active;
+  Guardian Runtime overall green, red=0/yellow=0; Meta Runtime refreshed green,
+  red=0/yellow=0.
+- Historical 2026-06-10 recovery details below are retained for audit context;
+  they are superseded for volatile runtime/source facts by the 2026-06-23 D-09S
+  state above.
 - Foundation stability audit (2026-06-10, read-only,合同 `yc-20260610-b3099133`):
   `docs/reviews/2026-06-10-foundation-stability-audit.md` — 风险登记
   R-H1..R-L6；Portal Phase 1 准入判定：C3/R-H5 已于 2026-06-22 复验通过，
@@ -419,8 +416,40 @@ for `/summary`, `/services`, `/todos`, `/messages`, and `/calendar-digest`.
 `/services` returns `exam`, `grading`, `homework`, `calendar`, `studio`,
 `conduct`; disabled `teaching`/`research`/`study_analytics` do not leak
 (`blocked_leaks=[]`). Closeout state:
-`runtime-online-closed; external-ci-unknown`. Report:
+`runtime-online-closed; external-ci-closed-by-later-exact-head-runs`. The later
+GitHub Actions exact-HEAD checks are green, including current run `27967347661`
+at `4fe53fd`. Report:
 `docs/reviews/2026-06-22-portal-d08d-runtime-closeout.md`.
+
+## Governance Truth Update (2026-06-23 - D-09S Context Truth Refresh)
+
+D-09S refreshed the active context after the 2026-06-22 closeout chain. Fresh
+evidence shows the mainline is still correct and moving along the intended
+foundation path: `git status` clean at `4fe53fd`, exact-HEAD GitHub Actions
+`Tests` run `27967347661` success, `scripts/codex-context` green, Meta Runtime
+green, Guardian green, truthline `ALL ALIGNED`, and Yuanshou doctor READY with
+zero active/stale/unmanaged sessions.
+
+Progress calibration:
+- D-03 cross-module dependency debt is closed/gate-built: 55 edges / 30 cycles
+  -> 0 edges / 0 cycles, guarded by module dependency checks and boundary tests.
+- D-04 AI tool module-code semantics is closed/gate-built: ownership and
+  combination module requirements are now represented in the AI tool baseline.
+- D-08D Portal Phase 1 first cut is source/runtime/online closed; later exact
+  HEAD CI runs close the external CI evidence gap.
+- The project is ready for controlled small parallel work, but not broad
+  multi-writer parallelism until D-09 medium-risk guard debt is reduced.
+
+Next order:
+1. D-09M1: harden R-M6 delivery-chain guard so source/build/nginx/backend/worker
+   alignment is enforced as a commit/closeout gate, not only observed after the
+   fact.
+2. D-09M2: add `/uploads` / static-file surfaces into the module-gating
+   denominator or explicitly record why they are outside the controlled surface.
+3. D-09M3/Q5: design and implement backup rotation / recovery checks for the
+   564MB DB backup path.
+4. D-02 L2 review-gap remains a separate historical-debt track and must not
+   block the current foundation guard-hardening track.
 
 ## Codex Migration State
 
