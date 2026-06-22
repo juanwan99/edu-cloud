@@ -21,7 +21,7 @@ _ALL_ROLES = frozenset({
 
 
 @edu_tool(
-    name="query_artifact", module_code="exam", domain="system",
+    name="query_artifact", module_code=None, domain="system",
     allowed_roles=_ALL_ROLES, sensitivity="school",
 )
 async def query_artifact(
@@ -105,7 +105,7 @@ async def query_artifact(
 
 
 @edu_tool(
-    name="aggregate_artifact", module_code="exam", domain="system",
+    name="aggregate_artifact", module_code=None, domain="system",
     allowed_roles=_ALL_ROLES, sensitivity="school",
 )
 async def aggregate_artifact(

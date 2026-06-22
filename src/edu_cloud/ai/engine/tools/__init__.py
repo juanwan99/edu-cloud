@@ -60,7 +60,9 @@ def filter_tools_for_role(
             continue
         if meta.allowed_roles and role not in meta.allowed_roles:
             continue
-        if meta.module_code not in enabled_modules:
+        if meta.module_code and meta.module_code not in enabled_modules:
+            continue
+        if any(module_code not in enabled_modules for module_code in meta.requires_modules):
             continue
         if capabilities is not None and meta.requires_capabilities:
             if not all(capabilities.get(cap, False) for cap in meta.requires_capabilities):

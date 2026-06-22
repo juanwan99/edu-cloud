@@ -12,18 +12,20 @@ valid_module_codes:
 - teaching
 tool_count: 67
 module_counts:
+  null: 8
   conduct: 9
-  exam: 16
+  exam: 6
   grading: 3
   homework: 6
   research: 9
+  studio: 2
   study_analytics: 24
 domain_module_counts:
 - domain: action
   module_code: conduct
   count: 1
 - domain: action
-  module_code: exam
+  module_code: studio
   count: 2
 - domain: adaptive
   module_code: study_analytics
@@ -53,10 +55,10 @@ domain_module_counts:
   module_code: study_analytics
   count: 5
 - domain: student
-  module_code: exam
+  module_code: null
   count: 4
 - domain: system
-  module_code: exam
+  module_code: null
   count: 4
 tools:
 - name: add_conduct_points
@@ -64,333 +66,402 @@ tools:
   domain: conduct
   file: src/edu_cloud/ai/engine/tools/conduct.py
   line: 105
+  requires_modules: []
 - name: aggregate_artifact
-  module_code: exam
+  module_code: null
   domain: system
   file: src/edu_cloud/ai/engine/tools/artifact_query.py
   line: 107
+  requires_modules: []
 - name: analyze_student_behavior
   module_code: conduct
   domain: conduct
   file: src/edu_cloud/ai/engine/tools/conduct.py
   line: 178
+  requires_modules: []
 - name: assign_grading_task
   module_code: grading
   domain: exam
   file: src/edu_cloud/ai/engine/tools/grading_ops.py
   line: 39
+  requires_modules: []
 - name: assign_homework
   module_code: homework
   domain: homework
   file: src/edu_cloud/ai/engine/tools/homework.py
   line: 79
+  requires_modules: []
 - name: assign_remedial_homework
   module_code: homework
   domain: homework
   file: src/edu_cloud/ai/engine/tools/homework.py
   line: 110
+  requires_modules: []
 - name: card_adjust_layout
   module_code: exam
   domain: exam
   file: src/edu_cloud/ai/engine/tools/card_layout.py
   line: 61
+  requires_modules: []
 - name: card_auto_layout
   module_code: exam
   domain: exam
   file: src/edu_cloud/ai/engine/tools/card_layout.py
   line: 29
+  requires_modules: []
 - name: card_parse_answers
   module_code: exam
   domain: exam
   file: src/edu_cloud/ai/engine/tools/card_layout.py
   line: 21
+  requires_modules: []
 - name: compare_classes
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_compare.py
   line: 24
+  requires_modules: []
 - name: compare_exams
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_report.py
   line: 32
+  requires_modules: []
 - name: diagnose_and_recommend
   module_code: study_analytics
   domain: adaptive
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 35
+  requires_modules: []
 - name: draft_parent_notification
   module_code: conduct
   domain: action
   file: src/edu_cloud/ai/engine/tools/actions.py
-  line: 187
+  line: 188
+  requires_modules:
+  - studio
 - name: edit_knowledge_graph
   module_code: research
   domain: knowledge
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 173
+  requires_modules: []
 - name: generate_analysis_report
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_report.py
   line: 47
+  requires_modules: []
 - name: generate_comment
-  module_code: exam
+  module_code: studio
   domain: action
   file: src/edu_cloud/ai/engine/tools/actions.py
-  line: 131
+  line: 132
+  requires_modules: []
 - name: generate_report
-  module_code: exam
+  module_code: studio
   domain: action
   file: src/edu_cloud/ai/engine/tools/actions.py
   line: 43
+  requires_modules:
+  - exam
 - name: get_agent_tasks
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 204
+  requires_modules: []
 - name: get_class_behavior_insights
   module_code: conduct
   domain: conduct
   file: src/edu_cloud/ai/engine/tools/conduct.py
   line: 199
+  requires_modules: []
 - name: get_class_conduct_overview
   module_code: conduct
   domain: conduct
   file: src/edu_cloud/ai/engine/tools/conduct.py
   line: 136
+  requires_modules: []
 - name: get_class_knowledge_weakness
   module_code: study_analytics
   domain: profile
   file: src/edu_cloud/ai/engine/tools/profile.py
   line: 40
+  requires_modules: []
 - name: get_class_list
-  module_code: exam
+  module_code: null
   domain: student
   file: src/edu_cloud/ai/engine/tools/students.py
   line: 18
+  requires_modules: []
 - name: get_class_report
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 47
+  requires_modules: []
 - name: get_class_roster
-  module_code: exam
+  module_code: null
   domain: student
   file: src/edu_cloud/ai/engine/tools/students.py
   line: 42
+  requires_modules: []
 - name: get_class_scores
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_score.py
   line: 97
+  requires_modules: []
 - name: get_class_stats
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics.py
   line: 62
+  requires_modules: []
 - name: get_concept_info
   module_code: research
   domain: knowledge
   file: src/edu_cloud/ai/engine/tools/knowledge.py
   line: 34
+  requires_modules: []
 - name: get_conduct_rankings
   module_code: conduct
   domain: conduct
   file: src/edu_cloud/ai/engine/tools/conduct.py
   line: 42
+  requires_modules: []
 - name: get_conduct_records
   module_code: conduct
   domain: conduct
   file: src/edu_cloud/ai/engine/tools/conduct.py
   line: 67
+  requires_modules: []
 - name: get_conduct_rules
   module_code: conduct
   domain: conduct
   file: src/edu_cloud/ai/engine/tools/conduct.py
   line: 92
+  requires_modules: []
 - name: get_exam_detail
   module_code: exam
   domain: exam
   file: src/edu_cloud/ai/engine/tools/exams.py
   line: 33
+  requires_modules: []
 - name: get_exam_list
   module_code: exam
   domain: exam
   file: src/edu_cloud/ai/engine/tools/exams.py
   line: 18
+  requires_modules: []
 - name: get_exam_overview
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 71
+  requires_modules: []
 - name: get_exam_scores
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics.py
   line: 28
+  requires_modules: []
 - name: get_exam_summary
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_score.py
   line: 14
+  requires_modules: []
 - name: get_findings
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 187
+  requires_modules: []
 - name: get_grade_aggregates
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_compare.py
   line: 129
+  requires_modules: []
 - name: get_grading_progress
   module_code: grading
   domain: exam
   file: src/edu_cloud/ai/engine/tools/grading_ops.py
   line: 19
+  requires_modules: []
 - name: get_homework_stats
   module_code: homework
   domain: homework
   file: src/edu_cloud/ai/engine/tools/homework.py
   line: 44
+  requires_modules: []
 - name: get_knowledge_tree
   module_code: research
   domain: knowledge
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 136
+  requires_modules: []
 - name: get_quality_report
   module_code: grading
   domain: exam
   file: src/edu_cloud/ai/engine/tools/grading_ops.py
   line: 29
+  requires_modules: []
 - name: get_question_analysis
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_score.py
   line: 59
+  requires_modules: []
 - name: get_question_knowledge_points
   module_code: research
   domain: knowledge
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 154
+  requires_modules: []
 - name: get_question_stats
   module_code: research
   domain: bank
   file: src/edu_cloud/ai/engine/tools/bank.py
   line: 28
+  requires_modules: []
 - name: get_score_distribution
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_score.py
   line: 28
+  requires_modules: []
 - name: get_score_segments
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_report.py
   line: 18
+  requires_modules: []
 - name: get_student_conduct_summary
   module_code: conduct
   domain: conduct
   file: src/edu_cloud/ai/engine/tools/conduct.py
   line: 159
+  requires_modules: []
 - name: get_student_diagnosis
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 90
+  requires_modules: []
 - name: get_student_error_book
   module_code: research
   domain: bank
   file: src/edu_cloud/ai/engine/tools/bank.py
   line: 17
+  requires_modules: []
 - name: get_student_error_pattern
   module_code: study_analytics
   domain: profile
   file: src/edu_cloud/ai/engine/tools/profile.py
   line: 60
+  requires_modules: []
 - name: get_student_knowledge_map
   module_code: study_analytics
   domain: profile
   file: src/edu_cloud/ai/engine/tools/profile.py
   line: 29
+  requires_modules: []
 - name: get_student_learning_profile
   module_code: study_analytics
   domain: profile
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 109
+  requires_modules: []
 - name: get_student_profile
-  module_code: exam
+  module_code: null
   domain: student
   file: src/edu_cloud/ai/engine/tools/students.py
   line: 99
+  requires_modules: []
 - name: get_student_scores
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_score.py
   line: 73
+  requires_modules: []
 - name: get_student_trend
   module_code: study_analytics
   domain: profile
   file: src/edu_cloud/ai/engine/tools/profile.py
   line: 18
+  requires_modules: []
 - name: get_subject_questions
   module_code: exam
   domain: exam
   file: src/edu_cloud/ai/engine/tools/exams.py
   line: 50
+  requires_modules: []
 - name: get_submission_details
   module_code: homework
   domain: homework
   file: src/edu_cloud/ai/engine/tools/homework.py
   line: 60
+  requires_modules: []
 - name: list_homework_tasks
   module_code: homework
   domain: homework
   file: src/edu_cloud/ai/engine/tools/homework.py
   line: 24
+  requires_modules: []
 - name: memory_read
-  module_code: exam
+  module_code: null
   domain: system
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 221
+  requires_modules: []
 - name: memory_write
-  module_code: exam
+  module_code: null
   domain: system
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 237
+  requires_modules: []
 - name: query_artifact
-  module_code: exam
+  module_code: null
   domain: system
   file: src/edu_cloud/ai/engine/tools/artifact_query.py
   line: 23
+  requires_modules: []
 - name: rank_students
   module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_compare.py
   line: 76
+  requires_modules: []
 - name: recommend_remedial
   module_code: homework
   domain: homework
   file: src/edu_cloud/ai/engine/tools/homework.py
   line: 101
+  requires_modules: []
 - name: search_curriculum
   module_code: research
   domain: knowledge
   file: src/edu_cloud/ai/engine/tools/knowledge.py
   line: 18
+  requires_modules: []
 - name: search_gaokao
   module_code: research
   domain: knowledge
   file: src/edu_cloud/ai/engine/tools/knowledge.py
   line: 44
+  requires_modules: []
 - name: search_students
-  module_code: exam
+  module_code: null
   domain: student
   file: src/edu_cloud/ai/engine/tools/students.py
   line: 72
+  requires_modules: []
 - name: search_textbook
   module_code: research
   domain: knowledge
   file: src/edu_cloud/ai/engine/tools/knowledge.py
   line: 26
+  requires_modules: []

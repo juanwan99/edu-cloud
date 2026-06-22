@@ -41,8 +41,9 @@ def _build_section_content(section_key: str, data_summary: dict) -> str:
 
 
 @edu_tool(
-    name="generate_report", module_code="exam", domain="action",
+    name="generate_report", module_code="studio", domain="action",
     allowed_roles=_ACTION_ROLES, risk_level="medium", is_read_only=False, sensitivity="school",
+    requires_modules=frozenset({"exam"}),
 )
 async def generate_report(ctx: RunContext[AgentDeps], template: str, context: dict | None = None) -> str:
     """Generate a report draft from a template. Returns document ID for Studio editing."""
@@ -129,7 +130,7 @@ async def generate_report(ctx: RunContext[AgentDeps], template: str, context: di
 
 
 @edu_tool(
-    name="generate_comment", module_code="exam", domain="action",
+    name="generate_comment", module_code="studio", domain="action",
     allowed_roles=_ACTION_ROLES, risk_level="medium", is_read_only=False, sensitivity="student",
 )
 async def generate_comment(ctx: RunContext[AgentDeps], student_number: str) -> str:
@@ -187,6 +188,7 @@ _CONDUCT_ROLES = frozenset({
 @edu_tool(
     name="draft_parent_notification", module_code="conduct", domain="action",
     allowed_roles=_CONDUCT_ROLES, risk_level="high", is_read_only=False, sensitivity="student",
+    requires_modules=frozenset({"studio"}),
 )
 async def draft_parent_notification(
     ctx: RunContext[AgentDeps],

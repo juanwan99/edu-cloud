@@ -16,6 +16,7 @@ import yaml
 TOOLS_REL = Path("src/edu_cloud/ai/engine/tools")
 SCHOOL_SETTINGS_REL = Path("src/edu_cloud/models/school_settings.py")
 BASELINE_REL = Path("docs/governance/ai-tool-module-codes.yaml")
+INVALID_LITERAL = "<invalid-literal>"
 
 # Domains with unambiguous school-switch ownership. Student/action/system are
 # intentionally absent: they are cross-cutting or currently exempt/base domains
@@ -34,14 +35,19 @@ DOMAIN_EXPECTED_MODULE_CODE = {
 @dataclass(frozen=True)
 class ToolMeta:
     name: str
-    module_code: str
+    module_code: str | None
     domain: str
     file: str
     line: int
+    requires_modules: tuple[str, ...]
 
     @property
-    def key(self) -> tuple[str, str, str, str]:
-        return self.name, self.module_code, self.domain, self.file
+    def key(self) -> tuple[str, str, str, str, tuple[str, ...]]:
+        return self.name, _module_key(self.module_code), self.domain, self.file, self.requires_modules
+
+
+def _module_key(module_code: str | None) -> str:
+    return "__base__" if module_code is None else module_code
 
 
 def resolve_repo(repo_arg: str | None = None) -> Path:
@@ -64,6 +70,38 @@ def _literal_str(node: ast.AST | None) -> str | None:
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
     return None
+
+
+def _literal_module_code(node: ast.AST | None) -> str | None:
+    if node is None:
+        return None
+    if isinstance(node, ast.Constant):
+        if node.value is None:
+            return None
+        if isinstance(node.value, str):
+            return node.value
+    return INVALID_LITERAL
+
+
+def _literal_str_sequence(node: ast.AST | None) -> tuple[str, ...] | None:
+    if node is None:
+        return ()
+    if isinstance(node, ast.Call):
+        if isinstance(node.func, ast.Name) and node.func.id == "frozenset":
+            if not node.args:
+                return ()
+            if len(node.args) == 1:
+                return _literal_str_sequence(node.args[0])
+        return None
+    if not isinstance(node, (ast.Set, ast.List, ast.Tuple)):
+        return None
+    values = []
+    for item in node.elts:
+        value = _literal_str(item)
+        if value is None:
+            return None
+        values.append(value)
+    return tuple(sorted(values))
 
 
 def load_module_codes(repo: Path) -> set[str]:
@@ -114,12 +152,13 @@ def scan_tools(repo: Path) -> list[ToolMeta]:
                 name = _literal_str(_kw(call, "name"))
                 if name is None and call.args:
                     name = _literal_str(call.args[0])
-                module_code = _literal_str(_kw(call, "module_code"))
+                module_code = _literal_module_code(_kw(call, "module_code"))
                 domain = _literal_str(_kw(call, "domain")) or ""
+                requires_modules = _literal_str_sequence(_kw(call, "requires_modules"))
                 if name is None:
                     name = node.name
-                if module_code is None:
-                    module_code = ""
+                if requires_modules is None:
+                    requires_modules = (INVALID_LITERAL,)
                 result.append(
                     ToolMeta(
                         name=name,
@@ -127,6 +166,7 @@ def scan_tools(repo: Path) -> list[ToolMeta]:
                         domain=domain,
                         file=rel,
                         line=decorator.lineno,
+                        requires_modules=requires_modules,
                     )
                 )
     return sorted(result, key=lambda item: item.key)
@@ -142,10 +182,13 @@ def build_snapshot(repo: Path) -> dict[str, Any]:
         "generated_by": "scripts/governance/check_ai_tool_modules.py --update",
         "valid_module_codes": module_codes,
         "tool_count": len(tools),
-        "module_counts": dict(sorted(module_counts.items())),
+        "module_counts": dict(sorted(module_counts.items(), key=lambda item: _module_key(item[0]))),
         "domain_module_counts": [
             {"domain": domain, "module_code": module_code, "count": count}
-            for (domain, module_code), count in sorted(domain_module_counts.items())
+            for (domain, module_code), count in sorted(
+                domain_module_counts.items(),
+                key=lambda item: (item[0][0], _module_key(item[0][1])),
+            )
         ],
         "tools": [
             {
@@ -154,26 +197,42 @@ def build_snapshot(repo: Path) -> dict[str, Any]:
                 "domain": tool.domain,
                 "file": tool.file,
                 "line": tool.line,
+                "requires_modules": list(tool.requires_modules),
             }
             for tool in tools
         ],
     }
 
 
-def tool_key_set(snapshot: dict[str, Any]) -> set[tuple[str, str, str, str]]:
+def tool_key_set(snapshot: dict[str, Any]) -> set[tuple[str, str, str, str, tuple[str, ...]]]:
     return {
-        (item["name"], item["module_code"], item.get("domain") or "", item["file"])
+        (
+            item["name"],
+            _module_key(item.get("module_code")),
+            item.get("domain") or "",
+            item["file"],
+            tuple(sorted(item.get("requires_modules") or [])),
+        )
         for item in snapshot.get("tools", [])
     }
 
 
 def invalid_tools(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
     valid = set(snapshot.get("valid_module_codes") or [])
-    return [
-        item
-        for item in snapshot.get("tools", [])
-        if not item.get("module_code") or item.get("module_code") not in valid
-    ]
+    invalid: list[dict[str, Any]] = []
+    for item in snapshot.get("tools", []):
+        reasons = []
+        module_code = item.get("module_code")
+        if module_code is not None and module_code not in valid:
+            reasons.append(f"module_code={module_code!r}")
+        for module in item.get("requires_modules") or []:
+            if module not in valid:
+                reasons.append(f"requires_modules contains {module!r}")
+        if reasons:
+            copy = dict(item)
+            copy["_invalid_reasons"] = reasons
+            invalid.append(copy)
+    return invalid
 
 
 def semantic_mismatches(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
@@ -226,7 +285,9 @@ def write_baseline(repo: Path) -> None:
         for item in invalid:
             print(
                 f"  {item['file']}:{item['line']} {item['name']} "
-                f"module_code={item['module_code']!r}"
+                f"module_code={item.get('module_code')!r} "
+                f"requires_modules={item.get('requires_modules')!r} "
+                f"reasons={item.get('_invalid_reasons')!r}"
             )
         raise SystemExit(1)
     mismatches = semantic_mismatches(snapshot)
@@ -252,7 +313,9 @@ def check_baseline(repo: Path) -> int:
         for item in invalid:
             print(
                 f"  {item['file']}:{item['line']} {item['name']} "
-                f"module_code={item['module_code']!r}"
+                f"module_code={item.get('module_code')!r} "
+                f"requires_modules={item.get('requires_modules')!r} "
+                f"reasons={item.get('_invalid_reasons')!r}"
             )
         print(f"Valid codes: {current['valid_module_codes']}")
         return 1
@@ -269,10 +332,16 @@ def check_baseline(repo: Path) -> int:
         print("AI tool module baseline drifted:")
         for code in diff["module_codes_changed"]:
             print(f"  module code catalog changed: {code}")
-        for name, module_code, domain, file in diff["new_tools"]:
-            print(f"  new tool: {name} [{module_code}/{domain}] {file}")
-        for name, module_code, domain, file in diff["removed_tools"]:
-            print(f"  removed tool: {name} [{module_code}/{domain}] {file}")
+        for name, module_code, domain, file, requires_modules in diff["new_tools"]:
+            print(
+                f"  new tool: {name} [{module_code}/{domain}] "
+                f"requires_modules={list(requires_modules)} {file}"
+            )
+        for name, module_code, domain, file, requires_modules in diff["removed_tools"]:
+            print(
+                f"  removed tool: {name} [{module_code}/{domain}] "
+                f"requires_modules={list(requires_modules)} {file}"
+            )
         print("Review module ownership, then run:")
         print("  python scripts/governance/check_ai_tool_modules.py --update")
         return 1

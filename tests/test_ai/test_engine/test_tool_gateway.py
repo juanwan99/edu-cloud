@@ -133,6 +133,7 @@ def test_tool_gateway_describes_registered_tools():
 
     assert result["tools"][0]["name"] == "gateway_test_read"
     assert result["tools"][0]["is_read_only"] is True
+    assert result["tools"][0]["requires_modules"] == []
     assert result["tools"][0]["parameters"]["required"] == ["value"]
 
 

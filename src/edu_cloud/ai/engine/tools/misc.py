@@ -219,7 +219,7 @@ async def get_agent_tasks(ctx: RunContext[AgentDeps], status: str | None = None)
 # ── Memory ──
 
 @edu_tool(
-    name="memory_read", module_code="exam", domain="system",
+    name="memory_read", module_code=None, domain="system",
     allowed_roles=_TEACHER_ROLES, sensitivity="school",
     requires_capabilities=frozenset({("system", "read")}),
 )
@@ -235,7 +235,7 @@ async def memory_read(ctx: RunContext[AgentDeps], entity_type: str, entity_ids: 
 
 
 @edu_tool(
-    name="memory_write", module_code="exam", domain="system",
+    name="memory_write", module_code=None, domain="system",
     allowed_roles=_TEACHER_ROLES, risk_level="medium", is_read_only=False, sensitivity="school",
     requires_capabilities=frozenset({("system", "write")}),
 )

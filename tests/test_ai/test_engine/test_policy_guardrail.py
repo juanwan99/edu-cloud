@@ -32,14 +32,16 @@ def _meta(
     name: str = "test_tool",
     is_read_only: bool = True,
     allowed_roles: frozenset[str] = frozenset({"subject_teacher", "principal"}),
-    module_code: str = "exam",
+    module_code: str | None = "exam",
     requires_capabilities: frozenset[tuple[str, str]] = frozenset(),
+    requires_modules: frozenset[str] = frozenset(),
 ) -> EduToolMeta:
     return EduToolMeta(
         name=name, module_code=module_code, domain="test",
         risk_level="low", is_read_only=is_read_only,
         allowed_roles=allowed_roles,
         requires_capabilities=requires_capabilities,
+        requires_modules=requires_modules,
         sensitivity="school",
     )
 
@@ -58,7 +60,7 @@ def _guard(
     meta_list = metas or [_meta()]
     return PolicyToolGuardrail(
         role=role,
-        enabled_modules=enabled_modules or frozenset({"exam"}),
+        enabled_modules=frozenset({"exam"}) if enabled_modules is None else enabled_modules,
         capabilities=capabilities or {},
         data_scope=s,
         budget=b,
@@ -105,6 +107,30 @@ async def test_module_denies_disabled():
 async def test_module_allows_enabled():
     g = _guard(enabled_modules=frozenset({"exam"}))
     record = await g.before_tool(_meta(module_code="exam"), {})
+    assert not record.denied
+
+
+@pytest.mark.asyncio
+async def test_module_allows_base_tool_without_school_switch():
+    m = _meta(module_code=None)
+    g = _guard(enabled_modules=frozenset(), metas=[m])
+    record = await g.before_tool(m, {})
+    assert not record.denied
+
+
+@pytest.mark.asyncio
+async def test_module_denies_missing_required_module():
+    m = _meta(module_code="studio", requires_modules=frozenset({"exam"}))
+    g = _guard(enabled_modules=frozenset({"studio"}), metas=[m])
+    with pytest.raises(ToolDenied, match="module 'exam' not enabled"):
+        await g.before_tool(m, {})
+
+
+@pytest.mark.asyncio
+async def test_module_allows_required_modules_enabled():
+    m = _meta(module_code="studio", requires_modules=frozenset({"exam"}))
+    g = _guard(enabled_modules=frozenset({"studio", "exam"}), metas=[m])
+    record = await g.before_tool(m, {})
     assert not record.denied
 
 

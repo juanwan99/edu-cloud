@@ -128,6 +128,13 @@ class PolicyToolGuardrail:
                 f"module '{meta.module_code}' not enabled",
                 "module",
             )
+        for module_code in meta.requires_modules:
+            if module_code not in self._enabled_modules:
+                raise ToolDenied(
+                    meta.name,
+                    f"module '{module_code}' not enabled",
+                    "module",
+                )
 
     def _check_capability(self, meta: EduToolMeta) -> None:
         for cap in meta.requires_capabilities:

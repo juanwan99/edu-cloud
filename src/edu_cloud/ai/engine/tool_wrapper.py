@@ -39,12 +39,13 @@ def _safe_serialize_args(kwargs: dict) -> dict:
 def edu_tool(
     *,
     name: str,
-    module_code: str,
+    module_code: str | None = None,
     domain: str = "general",
     risk_level: Literal["low", "medium", "high", "critical"] = "low",
     is_read_only: bool = True,
     allowed_roles: frozenset[str] | None = None,
     requires_capabilities: frozenset[tuple[str, str]] | None = None,
+    requires_modules: frozenset[str] | None = None,
     sensitivity: Literal["public", "school", "class", "student", "pii"] = "school",
     artifact_policy: Literal["inline", "auto", "always"] = "auto",
 ) -> Callable:
@@ -65,6 +66,7 @@ def edu_tool(
         is_read_only=is_read_only,
         allowed_roles=allowed_roles or frozenset(),
         requires_capabilities=requires_capabilities or frozenset(),
+        requires_modules=requires_modules or frozenset(),
         sensitivity=sensitivity,
         artifact_policy=artifact_policy,
     )

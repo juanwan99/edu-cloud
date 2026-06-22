@@ -1,5 +1,4 @@
 """Sprint 3 — new tool registration + basic tests."""
-import pytest
 
 from edu_cloud.ai.engine.tool_wrapper import TOOL_META_REGISTRY
 
@@ -23,6 +22,7 @@ def test_draft_parent_notification_registered():
     assert meta is not None
     assert meta.name == "draft_parent_notification"
     assert meta.module_code == "conduct"
+    assert meta.requires_modules == frozenset({"studio"})
     assert meta.risk_level == "high"
     assert meta.is_read_only is False
     assert "draft_parent_notification" in TOOL_META_REGISTRY

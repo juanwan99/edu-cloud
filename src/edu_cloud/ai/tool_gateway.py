@@ -114,6 +114,7 @@ def describe_context_tools(context: Any) -> dict[str, Any]:
         tools.append({
             "name": meta.name,
             "module_code": meta.module_code,
+            "requires_modules": sorted(meta.requires_modules),
             "domain": meta.domain,
             "risk_level": meta.risk_level,
             "is_read_only": meta.is_read_only,

@@ -17,7 +17,7 @@ _STUDENT_ROLES = frozenset({
 
 @edu_tool(
     name="get_class_list",
-    module_code="exam",
+    module_code=None,
     domain="student",
     allowed_roles=_STUDENT_ROLES,
     sensitivity="school",
@@ -41,7 +41,7 @@ async def get_class_list(ctx: RunContext[AgentDeps], grade: str | None = None) -
 
 @edu_tool(
     name="get_class_roster",
-    module_code="exam",
+    module_code=None,
     domain="student",
     allowed_roles=_STUDENT_ROLES,
     sensitivity="student",
@@ -71,7 +71,7 @@ async def get_class_roster(ctx: RunContext[AgentDeps], class_id: str) -> str:
 
 @edu_tool(
     name="search_students",
-    module_code="exam",
+    module_code=None,
     domain="student",
     allowed_roles=_STUDENT_ROLES,
     sensitivity="student",
@@ -98,7 +98,7 @@ async def search_students(ctx: RunContext[AgentDeps], query_string: str) -> str:
 
 @edu_tool(
     name="get_student_profile",
-    module_code="exam",
+    module_code=None,
     domain="student",
     allowed_roles=_STUDENT_ROLES,
     sensitivity="student",
