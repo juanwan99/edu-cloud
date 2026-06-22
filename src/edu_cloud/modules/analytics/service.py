@@ -5,8 +5,8 @@ import statistics
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.exam.models import Exam, Subject, Question
-from edu_cloud.modules.student.models import Class, Student
+from edu_cloud.services.analytics_workflow import Exam, Question, Subject
+from edu_cloud.services.analytics_workflow import Class, Student
 from edu_cloud.services.effective_scores import get_effective_scores, get_effective_scores_batch
 from edu_cloud.services.exceptions import NotFoundError, PermissionDeniedError
 

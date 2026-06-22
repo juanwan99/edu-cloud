@@ -6,8 +6,8 @@ from collections import defaultdict
 from sqlalchemy import select, func, distinct, extract
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.exam.models import Exam, Subject, ExamResult
-from edu_cloud.modules.student.models import Class, Student
+from edu_cloud.services.analytics_workflow import Exam, ExamResult, Subject
+from edu_cloud.services.analytics_workflow import Class, Student
 
 
 async def get_power_options(

@@ -13,10 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.analytics.identity import resolve_student_identities
 from edu_cloud.modules.analytics.insights_service import _classify_error
-from edu_cloud.modules.exam.models import Exam, Subject, Question
-from edu_cloud.modules.grading.models import GradingPipelineLog, GradingResult
-from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
-from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.services.analytics_workflow import Exam, Question, Subject
+from edu_cloud.services.analytics_workflow import GradingPipelineLog, GradingResult
+from edu_cloud.services.analytics_workflow import QuestionKnowledgePoint
+from edu_cloud.services.analytics_workflow import StudentAnswer
 from edu_cloud.services.exceptions import NotFoundError
 
 LOW_CONFIDENCE_THRESHOLD = 0.6

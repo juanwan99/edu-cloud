@@ -10,8 +10,8 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.models.grade import Grade
-from edu_cloud.modules.exam.models import Exam, Subject, Question
-from edu_cloud.modules.student.models import Class, Student
+from edu_cloud.services.analytics_workflow import Exam, Question, Subject
+from edu_cloud.services.analytics_workflow import Class, Student
 from edu_cloud.services.effective_scores import get_effective_scores_batch
 from edu_cloud.modules.analytics.service import _verify_exam, _get_subjects, _get_max_by_subject
 from edu_cloud.modules.analytics.segment_service import get_segment_config, compute_segments
@@ -54,7 +54,7 @@ async def _get_grade_exams(
         return []
 
     # Find exams where students from these classes have data
-    from edu_cloud.modules.scan.models import StudentAnswer
+    from edu_cloud.services.analytics_workflow import StudentAnswer
     subq = (
         select(StudentAnswer.exam_id)
         .join(Student, Student.id == StudentAnswer.student_id)

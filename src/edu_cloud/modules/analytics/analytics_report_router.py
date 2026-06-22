@@ -50,7 +50,7 @@ async def _exam_school(db: AsyncSession, role, exam_id: str) -> str:
     """Cross-school roles (school_id=None) need the exam's own school_id."""
     if role.school_id is not None:
         return role.school_id
-    from edu_cloud.modules.exam.models import Exam as _E
+    from edu_cloud.services.analytics_workflow import Exam as _E
     row = (await db.execute(sa_select(_E.school_id).where(_E.id == exam_id))).scalar_one_or_none()
     if row is None:
         raise HTTPException(404, "Exam not found")
@@ -308,7 +308,7 @@ async def student_trend_api(
         # 非家长：按班级可见性校验
         vis_classes = get_visible_class_ids(role)
         if vis_classes is not None:
-            from edu_cloud.modules.student.models import Student
+            from edu_cloud.services.analytics_workflow import Student
             stu_result = await db.execute(
                 sa_select(Student.class_id).where(
                     Student.id == student_id, Student.school_id == role.school_id
@@ -356,7 +356,7 @@ async def export_report(
         visible_class_ids=get_visible_class_ids(role),
     )
 
-    from edu_cloud.modules.exam.models import Exam as ExamModel
+    from edu_cloud.services.analytics_workflow import Exam as ExamModel
     exam_result = await db.execute(sa_select(ExamModel).where(ExamModel.id == exam_ids[0]))
     exam = exam_result.scalar_one_or_none()
     title = body.get("title") or f"{exam.name if exam else '考试'}分析报告"

@@ -6,7 +6,7 @@ from collections import defaultdict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.exam.models import Exam
+from edu_cloud.services.analytics_workflow import Exam
 from edu_cloud.modules.analytics.service import (
     exam_summary, exam_distribution, grade_aggregates,
     subject_question_analysis, _get_subjects, _get_max_by_subject,
@@ -14,9 +14,9 @@ from edu_cloud.modules.analytics.service import (
 )
 from edu_cloud.services.effective_scores import get_effective_scores, get_effective_scores_batch
 from edu_cloud.modules.analytics.segment_service import get_segment_config, compute_segments
-from edu_cloud.modules.student.models import Class, Student
+from edu_cloud.services.analytics_workflow import Class, Student
 from edu_cloud.models.agent_snapshot import ExamAnalysisSnapshot, ClassExamReport
-from edu_cloud.modules.profile.models import StudentExamSnapshot
+from edu_cloud.services.analytics_workflow import StudentExamSnapshot
 from edu_cloud.services.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)

@@ -3,9 +3,9 @@ from __future__ import annotations
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.grading.models import GradingResult
-from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.student.models import Student
+from edu_cloud.services.analytics_workflow import GradingResult
+from edu_cloud.services.analytics_workflow import StudentAnswer
+from edu_cloud.services.analytics_workflow import Student
 
 
 async def convert_level_score(

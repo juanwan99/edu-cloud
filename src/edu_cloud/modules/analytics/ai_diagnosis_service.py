@@ -161,8 +161,8 @@ async def generate_diagnosis(
 ) -> DiagnosisOutput:
     """Call Gemini to generate a diagnosis from the snapshot."""
     from edu_cloud.config import settings
-    from edu_cloud.modules.grading.gemini_client import GeminiClient
-    from edu_cloud.modules.grading.json_parser import extract_json
+    from edu_cloud.services.analytics_workflow import GeminiClient
+    from edu_cloud.services.analytics_workflow import extract_json
 
     gemini_model = model or settings.GEMINI_MODEL
     client = GeminiClient(

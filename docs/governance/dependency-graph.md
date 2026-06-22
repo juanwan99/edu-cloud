@@ -4,11 +4,4 @@
 
 ```mermaid
 flowchart TD
-  analytics --> exam
-  analytics --> scan
-  analytics --> grading
-  analytics --> student
-  analytics --> knowledge
-  analytics --> knowledge_tree
-  analytics --> profile
 ```

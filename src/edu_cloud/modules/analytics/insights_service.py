@@ -6,9 +6,9 @@ from collections import Counter, defaultdict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.exam.models import Exam, Subject, Question
-from edu_cloud.modules.grading.models import GradingResult
-from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.services.analytics_workflow import Exam, Question, Subject
+from edu_cloud.services.analytics_workflow import GradingResult
+from edu_cloud.services.analytics_workflow import StudentAnswer
 from edu_cloud.modules.analytics.identity import resolve_student_identities
 from edu_cloud.services.exceptions import NotFoundError
 
@@ -360,5 +360,5 @@ async def exam_diagnosis(
 
 
 # 学生个体 AI 诊断（student_ai_diagnosis）已于 D-03A 迁回 profile 模块自有：
-# edu_cloud.modules.profile.diagnosis_service。该函数仅消费 profile 自有三表，
+# profile.diagnosis_service 仅消费 profile 自有三表，
 # 移出后消除 profile -> analytics 依赖边。analytics 不再持有该所有权。

@@ -6,12 +6,12 @@ from collections import Counter, defaultdict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.exam.models import Exam, Subject, Question
-from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.grading.models import GradingResult
-from edu_cloud.modules.student.models import Class, Student
-from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
-from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
+from edu_cloud.services.analytics_workflow import Exam, Question, Subject
+from edu_cloud.services.analytics_workflow import StudentAnswer
+from edu_cloud.services.analytics_workflow import GradingResult
+from edu_cloud.services.analytics_workflow import Class, Student
+from edu_cloud.services.analytics_workflow import QuestionKnowledgePoint
+from edu_cloud.services.analytics_workflow import ConceptGraphNode
 
 logger = logging.getLogger(__name__)
 
@@ -301,7 +301,7 @@ async def class_knowledge(
     visible_class_ids: list[str] | None = None,
 ) -> dict:
     """班级×知识点 掌握率热力图数据。"""
-    from edu_cloud.modules.exam.models import Subject, Question
+    from edu_cloud.services.analytics_workflow import Question, Subject
     from edu_cloud.services.effective_scores import get_effective_scores_batch as _batch_scores
 
     subj_q = select(Subject).where(Subject.exam_id == exam_id, Subject.school_id == school_id)

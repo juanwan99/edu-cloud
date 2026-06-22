@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.analytics import service as analytics_service
-from edu_cloud.modules.exam.models import Exam, Subject
+from edu_cloud.services.analytics_workflow import Exam, Subject
 from edu_cloud.services.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
@@ -72,10 +72,10 @@ async def build_student_subject_report(
     数据源：StudentAnswer + GradingResult.final_score（grading_results 优先，
     缺失时回落到 student_answers.score）+ Class.name + Question.
     """
-    from edu_cloud.modules.exam.models import Question
-    from edu_cloud.modules.scan.models import StudentAnswer
-    from edu_cloud.modules.grading.models import GradingResult
-    from edu_cloud.modules.student.models import Student, Class
+    from edu_cloud.services.analytics_workflow import Question
+    from edu_cloud.services.analytics_workflow import StudentAnswer
+    from edu_cloud.services.analytics_workflow import GradingResult
+    from edu_cloud.services.analytics_workflow import Class, Student
 
     exam = (await db.execute(
         select(Exam).where(Exam.id == exam_id, Exam.school_id == school_id)

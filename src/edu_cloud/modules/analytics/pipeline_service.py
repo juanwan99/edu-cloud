@@ -9,9 +9,9 @@ from collections import defaultdict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.exam.models import Subject, Question
-from edu_cloud.modules.student.models import Student
-from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+from edu_cloud.services.analytics_workflow import Question, Subject
+from edu_cloud.services.analytics_workflow import Student
+from edu_cloud.services.analytics_workflow import QuestionKnowledgePoint
 from edu_cloud.modules.analytics.models import ClassAnalysis, StudentAnalysis, StudentKnpMastery
 
 logger = logging.getLogger(__name__)

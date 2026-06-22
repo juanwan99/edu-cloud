@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.modules.analytics.models import StudentKnpMastery
-from edu_cloud.modules.student.models import Student
+from edu_cloud.services.analytics_workflow import Student
 
 UNMASTER_THRESHOLD = 0.6
 
@@ -15,8 +15,8 @@ async def _get_concept_ids_for_subject(
     db: AsyncSession, exam_id: str, school_id: str, subject_id: str,
 ) -> set[str]:
     """Return concept_ids linked to questions of the given subject via QKP."""
-    from edu_cloud.modules.exam.models import Subject, Question
-    from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
+    from edu_cloud.services.analytics_workflow import Question, Subject
+    from edu_cloud.services.analytics_workflow import QuestionKnowledgePoint
 
     subj = (await db.execute(
         select(Subject.id).where(

@@ -85,15 +85,9 @@ modules:
     - class_diagnosis
     events: []
   depends_on:
-    modules:
-    - exam
-    - scan
-    - grading
-    - student
-    - knowledge
-    - knowledge_tree
-    - profile
+    modules: []
     services:
+    - analytics_workflow
     - analysis_report_documents
     - effective_scores
     - student_identity
@@ -113,7 +107,7 @@ modules:
     - generate_analysis_report (analytics_report.py)
     - get_class_report (class_report_tool.py)
   created: '2026-05-05'
-  last_reviewed: '2026-05-05'
+  last_reviewed: '2026-06-22'
   design_docs:
   - docs/plans/2026-04-05-analytics-report-design.md
 - name: bank
