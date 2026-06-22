@@ -25,7 +25,7 @@ def _compute_stats(scores: list[float]) -> dict:
     }
 
 
-@edu_tool(name="get_exam_scores", module_code="exam", domain="analytics", allowed_roles=_CROSS_SCHOOL_ROLES, sensitivity="student")
+@edu_tool(name="get_exam_scores", module_code="study_analytics", domain="analytics", allowed_roles=_CROSS_SCHOOL_ROLES, sensitivity="student")
 async def get_exam_scores(ctx: RunContext[AgentDeps], exam_id: str) -> str:
     """Get student score list for an exam (with class info), ranked by total score."""
     from edu_cloud.models.exam import ExamResult
@@ -59,7 +59,7 @@ async def get_exam_scores(ctx: RunContext[AgentDeps], exam_id: str) -> str:
     return json.dumps({"exam_id": exam_id, "students": students_data, "stats": _compute_stats(scores)}, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_class_stats", module_code="exam", domain="analytics", allowed_roles=_CROSS_SCHOOL_ROLES, sensitivity="school")
+@edu_tool(name="get_class_stats", module_code="study_analytics", domain="analytics", allowed_roles=_CROSS_SCHOOL_ROLES, sensitivity="school")
 async def get_class_stats(ctx: RunContext[AgentDeps], exam_id: str, class_id: str) -> str:
     """Get class statistics for an exam (avg/max/min/median/count)."""
     from edu_cloud.models.exam import ExamResult

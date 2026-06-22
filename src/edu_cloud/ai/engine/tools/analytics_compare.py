@@ -21,7 +21,7 @@ async def _resolve_exam_subject(db, exam_subject_id, exam_id, school_id):
     return exam_id, None
 
 
-@edu_tool(name="compare_classes", module_code="exam", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="school")
+@edu_tool(name="compare_classes", module_code="study_analytics", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="school")
 async def compare_classes(
     ctx: RunContext[AgentDeps],
     class_ids: list[str],
@@ -73,7 +73,7 @@ async def compare_classes(
     return json.dumps(data, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="rank_students", module_code="exam", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="student")
+@edu_tool(name="rank_students", module_code="study_analytics", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="student")
 async def rank_students(
     ctx: RunContext[AgentDeps],
     exam_id: str | None = None,
@@ -126,7 +126,7 @@ async def rank_students(
     return json.dumps({"ranking": results}, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_grade_aggregates", module_code="exam", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="school")
+@edu_tool(name="get_grade_aggregates", module_code="study_analytics", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="school")
 async def get_grade_aggregates(
     ctx: RunContext[AgentDeps],
     exam_id: str | None = None,

@@ -15,7 +15,7 @@ _REPORT_ROLES = frozenset({
 _REPORT_WRITE_ROLES = frozenset({"platform_admin", "academic_director", "grade_leader"})
 
 
-@edu_tool(name="get_score_segments", module_code="exam", domain="analytics", allowed_roles=_REPORT_ROLES, sensitivity="school")
+@edu_tool(name="get_score_segments", module_code="study_analytics", domain="analytics", allowed_roles=_REPORT_ROLES, sensitivity="school")
 async def get_score_segments(ctx: RunContext[AgentDeps], exam_id: str, subject_code: str | None = None) -> str:
     """Get score segment distribution (fixed boundaries: 85/70/60)."""
     from edu_cloud.modules.analytics.service import exam_distribution
@@ -29,7 +29,7 @@ async def get_score_segments(ctx: RunContext[AgentDeps], exam_id: str, subject_c
     return json.dumps({"distribution": data}, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="compare_exams", module_code="exam", domain="analytics", allowed_roles=_REPORT_ROLES, sensitivity="school")
+@edu_tool(name="compare_exams", module_code="study_analytics", domain="analytics", allowed_roles=_REPORT_ROLES, sensitivity="school")
 async def compare_exams(ctx: RunContext[AgentDeps], exam_ids: list[str], dimension: str = "grade") -> str:
     """Compare multiple exams over time (grade/class/student trend)."""
     from edu_cloud.modules.analytics.report_service import get_grade_trend, get_class_trend, get_student_trend
@@ -45,7 +45,7 @@ async def compare_exams(ctx: RunContext[AgentDeps], exam_ids: list[str], dimensi
 
 
 @edu_tool(
-    name="generate_analysis_report", module_code="exam", domain="analytics",
+    name="generate_analysis_report", module_code="study_analytics", domain="analytics",
     allowed_roles=_REPORT_WRITE_ROLES, risk_level="medium", is_read_only=False, sensitivity="school",
 )
 async def generate_analysis_report(ctx: RunContext[AgentDeps], exam_ids: list[str], title: str = "成绩分析报告") -> str:

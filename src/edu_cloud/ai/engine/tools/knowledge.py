@@ -15,7 +15,7 @@ _KNOWLEDGE_ROLES = frozenset({
 })
 
 
-@edu_tool(name="search_curriculum", module_code="exam", domain="knowledge", allowed_roles=_KNOWLEDGE_ROLES, sensitivity="public")
+@edu_tool(name="search_curriculum", module_code="research", domain="knowledge", allowed_roles=_KNOWLEDGE_ROLES, sensitivity="public")
 async def search_curriculum(ctx: RunContext[AgentDeps], keyword: str) -> str:
     """Search curriculum standards by keyword."""
     from edu_cloud.ai.knowledge.store import knowledge_store
@@ -23,7 +23,7 @@ async def search_curriculum(ctx: RunContext[AgentDeps], keyword: str) -> str:
     return json.dumps({"results": results}, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="search_textbook", module_code="exam", domain="knowledge", allowed_roles=_KNOWLEDGE_ROLES, sensitivity="public")
+@edu_tool(name="search_textbook", module_code="research", domain="knowledge", allowed_roles=_KNOWLEDGE_ROLES, sensitivity="public")
 async def search_textbook(ctx: RunContext[AgentDeps], keyword: str) -> str:
     """Search textbook knowledge points by keyword."""
     from edu_cloud.ai.knowledge.store import knowledge_store
@@ -31,7 +31,7 @@ async def search_textbook(ctx: RunContext[AgentDeps], keyword: str) -> str:
     return json.dumps({"results": results}, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_concept_info", module_code="exam", domain="knowledge", allowed_roles=_KNOWLEDGE_ROLES, sensitivity="public")
+@edu_tool(name="get_concept_info", module_code="research", domain="knowledge", allowed_roles=_KNOWLEDGE_ROLES, sensitivity="public")
 async def get_concept_info(ctx: RunContext[AgentDeps], concept_name: str) -> str:
     """Get detailed information about a knowledge concept."""
     from edu_cloud.ai.knowledge.store import knowledge_store
@@ -41,7 +41,7 @@ async def get_concept_info(ctx: RunContext[AgentDeps], concept_name: str) -> str
     return json.dumps(concept, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="search_gaokao", module_code="exam", domain="knowledge", allowed_roles=_KNOWLEDGE_ROLES, sensitivity="public")
+@edu_tool(name="search_gaokao", module_code="research", domain="knowledge", allowed_roles=_KNOWLEDGE_ROLES, sensitivity="public")
 async def search_gaokao(ctx: RunContext[AgentDeps], year: str | None = None, region: str | None = None) -> str:
     """Search gaokao (college entrance exam) questions by year and region."""
     from edu_cloud.ai.knowledge.store import knowledge_store

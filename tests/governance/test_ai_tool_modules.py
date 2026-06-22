@@ -13,6 +13,7 @@ from check_ai_tool_modules import (  # noqa: E402
     compare,
     invalid_tools,
     scan_tools,
+    semantic_mismatches,
     write_baseline,
 )
 
@@ -89,3 +90,15 @@ def test_new_tool_fails_against_baseline(tmp_path):
 
     assert ("get_homework_stats", "homework", "homework", "src/edu_cloud/ai/engine/tools/sample.py") in diff["new_tools"]
     assert check_baseline(tmp_path) == 1
+
+
+def test_semantic_domain_mismatch_is_reported(tmp_path):
+    _school_settings(tmp_path)
+    _tool(tmp_path, "get_exam_summary", "exam", "analytics")
+
+    snapshot = build_snapshot(tmp_path)
+
+    mismatches = semantic_mismatches(snapshot)
+    assert len(mismatches) == 1
+    assert mismatches[0]["name"] == "get_exam_summary"
+    assert mismatches[0]["expected_module_code"] == "study_analytics"

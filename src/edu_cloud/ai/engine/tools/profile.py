@@ -15,7 +15,7 @@ _PROFILE_ROLES = frozenset({
 })
 
 
-@edu_tool(name="get_student_trend", module_code="exam", domain="profile", allowed_roles=_PROFILE_ROLES, sensitivity="student")
+@edu_tool(name="get_student_trend", module_code="study_analytics", domain="profile", allowed_roles=_PROFILE_ROLES, sensitivity="student")
 async def get_student_trend(ctx: RunContext[AgentDeps], student_id: str, subject_code: str | None = None) -> str:
     """Get a student's exam score trend over time."""
     from edu_cloud.modules.profile.service import get_student_trend as svc
@@ -26,7 +26,7 @@ async def get_student_trend(ctx: RunContext[AgentDeps], student_id: str, subject
     return json.dumps(data, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_student_knowledge_map", module_code="exam", domain="profile", allowed_roles=_PROFILE_ROLES, sensitivity="student")
+@edu_tool(name="get_student_knowledge_map", module_code="study_analytics", domain="profile", allowed_roles=_PROFILE_ROLES, sensitivity="student")
 async def get_student_knowledge_map(ctx: RunContext[AgentDeps], student_id: str, course_code: str | None = None) -> str:
     """Get a student's knowledge mastery map."""
     from edu_cloud.modules.profile.service import get_student_knowledge_map as svc
@@ -37,7 +37,7 @@ async def get_student_knowledge_map(ctx: RunContext[AgentDeps], student_id: str,
     return json.dumps(data, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_class_knowledge_weakness", module_code="exam", domain="profile", allowed_roles=_PROFILE_ROLES, sensitivity="student")
+@edu_tool(name="get_class_knowledge_weakness", module_code="study_analytics", domain="profile", allowed_roles=_PROFILE_ROLES, sensitivity="student")
 async def get_class_knowledge_weakness(
     ctx: RunContext[AgentDeps], class_id: str, course_code: str | None = None, top_n: int = 10,
 ) -> str:
@@ -57,7 +57,7 @@ async def get_class_knowledge_weakness(
     return json.dumps(data, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_student_error_pattern", module_code="exam", domain="profile", allowed_roles=_PROFILE_ROLES, sensitivity="student")
+@edu_tool(name="get_student_error_pattern", module_code="study_analytics", domain="profile", allowed_roles=_PROFILE_ROLES, sensitivity="student")
 async def get_student_error_pattern(ctx: RunContext[AgentDeps], student_id: str, subject_code: str | None = None) -> str:
     """Get a student's error pattern analysis."""
     from edu_cloud.modules.profile.service import get_student_error_pattern as svc

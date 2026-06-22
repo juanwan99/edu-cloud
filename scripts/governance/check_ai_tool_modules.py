@@ -17,6 +17,19 @@ TOOLS_REL = Path("src/edu_cloud/ai/engine/tools")
 SCHOOL_SETTINGS_REL = Path("src/edu_cloud/models/school_settings.py")
 BASELINE_REL = Path("docs/governance/ai-tool-module-codes.yaml")
 
+# Domains with unambiguous school-switch ownership. Student/action/system are
+# intentionally absent: they are cross-cutting or currently exempt/base domains
+# and need explicit product/governance decisions before being rebound.
+DOMAIN_EXPECTED_MODULE_CODE = {
+    "adaptive": "study_analytics",
+    "analytics": "study_analytics",
+    "bank": "research",
+    "conduct": "conduct",
+    "homework": "homework",
+    "knowledge": "research",
+    "profile": "study_analytics",
+}
+
 
 @dataclass(frozen=True)
 class ToolMeta:
@@ -163,6 +176,27 @@ def invalid_tools(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def semantic_mismatches(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
+    mismatches: list[dict[str, Any]] = []
+    for item in snapshot.get("tools", []):
+        domain = item.get("domain") or ""
+        expected = DOMAIN_EXPECTED_MODULE_CODE.get(domain)
+        if expected and item.get("module_code") != expected:
+            copy = dict(item)
+            copy["expected_module_code"] = expected
+            mismatches.append(copy)
+    return mismatches
+
+
+def _print_semantic_mismatches(mismatches: list[dict[str, Any]]) -> None:
+    for item in mismatches:
+        print(
+            f"  {item['file']}:{item['line']} {item['name']} "
+            f"domain={item.get('domain')!r} module_code={item.get('module_code')!r} "
+            f"expected={item['expected_module_code']!r}"
+        )
+
+
 def load_baseline(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(f"AI tool module baseline missing: {path}")
@@ -195,6 +229,11 @@ def write_baseline(repo: Path) -> None:
                 f"module_code={item['module_code']!r}"
             )
         raise SystemExit(1)
+    mismatches = semantic_mismatches(snapshot)
+    if mismatches:
+        print("Cannot write baseline; AI tool domain/module_code semantic mismatches:")
+        _print_semantic_mismatches(mismatches)
+        raise SystemExit(1)
     path.write_text(
         yaml.safe_dump(snapshot, allow_unicode=True, sort_keys=False),
         encoding="utf-8",
@@ -216,6 +255,12 @@ def check_baseline(repo: Path) -> int:
                 f"module_code={item['module_code']!r}"
             )
         print(f"Valid codes: {current['valid_module_codes']}")
+        return 1
+
+    mismatches = semantic_mismatches(current)
+    if mismatches:
+        print("AI tool domain/module_code semantic mismatches:")
+        _print_semantic_mismatches(mismatches)
         return 1
 
     baseline = load_baseline(repo / BASELINE_REL)

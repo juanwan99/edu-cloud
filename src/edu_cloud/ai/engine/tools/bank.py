@@ -14,7 +14,7 @@ _BANK_ROLES = frozenset({
 })
 
 
-@edu_tool(name="get_student_error_book", module_code="exam", domain="bank", allowed_roles=_BANK_ROLES, sensitivity="student")
+@edu_tool(name="get_student_error_book", module_code="research", domain="bank", allowed_roles=_BANK_ROLES, sensitivity="student")
 async def get_student_error_book(ctx: RunContext[AgentDeps], student_id: str, mastery_status: str | None = None) -> str:
     """Get a student's error book (wrong answers) with optional mastery filter."""
     from edu_cloud.modules.bank.service import get_student_error_book as svc, get_error_book_stats
@@ -25,7 +25,7 @@ async def get_student_error_book(ctx: RunContext[AgentDeps], student_id: str, ma
     return json.dumps({"errors": errors, "stats": stats}, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_question_stats", module_code="exam", domain="bank", allowed_roles=_BANK_ROLES, sensitivity="student")
+@edu_tool(name="get_question_stats", module_code="research", domain="bank", allowed_roles=_BANK_ROLES, sensitivity="student")
 async def get_question_stats(ctx: RunContext[AgentDeps], bank_question_id: str) -> str:
     """Get statistics for a question in the question bank."""
     from edu_cloud.modules.bank.service import get_bank_question

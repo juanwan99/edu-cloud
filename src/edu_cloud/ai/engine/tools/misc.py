@@ -32,7 +32,7 @@ _RESEARCH_ROLES = frozenset({
 
 # ── Adaptive ──
 
-@edu_tool(name="diagnose_and_recommend", module_code="exam", domain="adaptive", allowed_roles=_ALL_ROLES, sensitivity="student")
+@edu_tool(name="diagnose_and_recommend", module_code="study_analytics", domain="adaptive", allowed_roles=_ALL_ROLES, sensitivity="student")
 async def diagnose_and_recommend(ctx: RunContext[AgentDeps], student_id: str) -> str:
     """Run adaptive learning diagnosis and get learning recommendations."""
     from edu_cloud.modules.adaptive.service import diagnose_and_recommend as svc
@@ -44,7 +44,7 @@ async def diagnose_and_recommend(ctx: RunContext[AgentDeps], student_id: str) ->
 
 # ── Class Report ──
 
-@edu_tool(name="get_class_report", module_code="exam", domain="analytics", allowed_roles=_ALL_ROLES, sensitivity="school")
+@edu_tool(name="get_class_report", module_code="study_analytics", domain="analytics", allowed_roles=_ALL_ROLES, sensitivity="school")
 async def get_class_report(ctx: RunContext[AgentDeps], exam_id: str, class_id: str) -> str:
     """Get pre-computed class exam report."""
     from edu_cloud.models.agent_snapshot import ClassExamReport
@@ -68,7 +68,7 @@ async def get_class_report(ctx: RunContext[AgentDeps], exam_id: str, class_id: s
 
 # ── Exam Overview ──
 
-@edu_tool(name="get_exam_overview", module_code="exam", domain="analytics", allowed_roles=_ALL_ROLES, sensitivity="school")
+@edu_tool(name="get_exam_overview", module_code="study_analytics", domain="analytics", allowed_roles=_ALL_ROLES, sensitivity="school")
 async def get_exam_overview(ctx: RunContext[AgentDeps], exam_id: str) -> str:
     """Get pre-computed exam analysis snapshot."""
     from edu_cloud.models.agent_snapshot import ExamAnalysisSnapshot
@@ -87,7 +87,7 @@ async def get_exam_overview(ctx: RunContext[AgentDeps], exam_id: str) -> str:
 
 # ── Student Diagnosis ──
 
-@edu_tool(name="get_student_diagnosis", module_code="exam", domain="analytics", allowed_roles=_TEACHER_PLUS_PARENT, sensitivity="student")
+@edu_tool(name="get_student_diagnosis", module_code="study_analytics", domain="analytics", allowed_roles=_TEACHER_PLUS_PARENT, sensitivity="student")
 async def get_student_diagnosis(ctx: RunContext[AgentDeps], student_id: str, exam_id: str | None = None) -> str:
     """Get AI diagnosis snapshots for a student."""
     from edu_cloud.modules.profile.models import StudentExamSnapshot
@@ -106,7 +106,7 @@ async def get_student_diagnosis(ctx: RunContext[AgentDeps], student_id: str, exa
 
 # ── Student Learning Profile ──
 
-@edu_tool(name="get_student_learning_profile", module_code="exam", domain="profile", allowed_roles=_ALL_ROLES, sensitivity="student")
+@edu_tool(name="get_student_learning_profile", module_code="study_analytics", domain="profile", allowed_roles=_ALL_ROLES, sensitivity="student")
 async def get_student_learning_profile(ctx: RunContext[AgentDeps], student_id: str, subject_code: str | None = None) -> str:
     """Get composite student learning profile (snapshots + mastery)."""
     from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery
@@ -184,7 +184,7 @@ async def edit_knowledge_graph(ctx: RunContext[AgentDeps], operations: list[dict
 
 # ── Agent Findings ──
 
-@edu_tool(name="get_findings", module_code="exam", domain="analytics", allowed_roles=_ALL_ROLES, sensitivity="school")
+@edu_tool(name="get_findings", module_code="study_analytics", domain="analytics", allowed_roles=_ALL_ROLES, sensitivity="school")
 async def get_findings(ctx: RunContext[AgentDeps], status: str | None = None, severity: str | None = None) -> str:
     """Get agent patrol findings for this school."""
     from edu_cloud.models.agent_finding import AgentFinding
@@ -201,7 +201,7 @@ async def get_findings(ctx: RunContext[AgentDeps], status: str | None = None, se
     }, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_agent_tasks", module_code="exam", domain="analytics", allowed_roles=_ALL_ROLES, sensitivity="school")
+@edu_tool(name="get_agent_tasks", module_code="study_analytics", domain="analytics", allowed_roles=_ALL_ROLES, sensitivity="school")
 async def get_agent_tasks(ctx: RunContext[AgentDeps], status: str | None = None) -> str:
     """Get agent-generated tasks for this school."""
     from edu_cloud.models.agent_finding import AgentTask

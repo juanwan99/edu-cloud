@@ -11,7 +11,7 @@ from edu_cloud.ai.engine.tool_wrapper import edu_tool
 _ANALYTICS_ROLES = frozenset({"platform_admin", "academic_director", "grade_leader"})
 
 
-@edu_tool(name="get_exam_summary", module_code="exam", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="school")
+@edu_tool(name="get_exam_summary", module_code="study_analytics", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="school")
 async def get_exam_summary(ctx: RunContext[AgentDeps], exam_id: str) -> str:
     """Get exam overview: per-subject avg/max/min/score-rate."""
     from edu_cloud.modules.analytics.service import exam_summary
@@ -25,7 +25,7 @@ async def get_exam_summary(ctx: RunContext[AgentDeps], exam_id: str) -> str:
     return json.dumps(data, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_score_distribution", module_code="exam", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="school")
+@edu_tool(name="get_score_distribution", module_code="study_analytics", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="school")
 async def get_score_distribution(
     ctx: RunContext[AgentDeps],
     exam_id: str | None = None,
@@ -56,7 +56,7 @@ async def get_score_distribution(
     return json.dumps(data, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_question_analysis", module_code="exam", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="school")
+@edu_tool(name="get_question_analysis", module_code="study_analytics", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="school")
 async def get_question_analysis(ctx: RunContext[AgentDeps], subject_id: str) -> str:
     """Get per-question score-rate analysis for a subject."""
     from edu_cloud.modules.analytics.service import subject_question_analysis
@@ -70,7 +70,7 @@ async def get_question_analysis(ctx: RunContext[AgentDeps], subject_id: str) -> 
     return json.dumps(data, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_student_scores", module_code="exam", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="student")
+@edu_tool(name="get_student_scores", module_code="study_analytics", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="student")
 async def get_student_scores(ctx: RunContext[AgentDeps], exam_id: str, student_id: str) -> str:
     """Get a student's detailed per-subject per-question scores for an exam."""
     from edu_cloud.modules.student.service import get_student
@@ -94,7 +94,7 @@ async def get_student_scores(ctx: RunContext[AgentDeps], exam_id: str, student_i
     }, ensure_ascii=False, default=str)
 
 
-@edu_tool(name="get_class_scores", module_code="exam", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="student")
+@edu_tool(name="get_class_scores", module_code="study_analytics", domain="analytics", allowed_roles=_ANALYTICS_ROLES, sensitivity="student")
 async def get_class_scores(
     ctx: RunContext[AgentDeps],
     class_id: str,

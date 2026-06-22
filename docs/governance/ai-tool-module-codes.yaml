@@ -13,10 +13,11 @@ valid_module_codes:
 tool_count: 67
 module_counts:
   conduct: 9
-  exam: 46
+  exam: 16
   grading: 3
   homework: 6
-  research: 3
+  research: 9
+  study_analytics: 24
 domain_module_counts:
 - domain: action
   module_code: conduct
@@ -25,13 +26,13 @@ domain_module_counts:
   module_code: exam
   count: 2
 - domain: adaptive
-  module_code: exam
+  module_code: study_analytics
   count: 1
 - domain: analytics
-  module_code: exam
+  module_code: study_analytics
   count: 18
 - domain: bank
-  module_code: exam
+  module_code: research
   count: 2
 - domain: conduct
   module_code: conduct
@@ -46,13 +47,10 @@ domain_module_counts:
   module_code: homework
   count: 6
 - domain: knowledge
-  module_code: exam
-  count: 4
-- domain: knowledge
   module_code: research
-  count: 3
+  count: 7
 - domain: profile
-  module_code: exam
+  module_code: study_analytics
   count: 5
 - domain: student
   module_code: exam
@@ -107,17 +105,17 @@ tools:
   file: src/edu_cloud/ai/engine/tools/card_layout.py
   line: 21
 - name: compare_classes
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_compare.py
   line: 24
 - name: compare_exams
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_report.py
   line: 32
 - name: diagnose_and_recommend
-  module_code: exam
+  module_code: study_analytics
   domain: adaptive
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 35
@@ -132,7 +130,7 @@ tools:
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 173
 - name: generate_analysis_report
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_report.py
   line: 47
@@ -147,7 +145,7 @@ tools:
   file: src/edu_cloud/ai/engine/tools/actions.py
   line: 43
 - name: get_agent_tasks
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 204
@@ -162,7 +160,7 @@ tools:
   file: src/edu_cloud/ai/engine/tools/conduct.py
   line: 136
 - name: get_class_knowledge_weakness
-  module_code: exam
+  module_code: study_analytics
   domain: profile
   file: src/edu_cloud/ai/engine/tools/profile.py
   line: 40
@@ -172,7 +170,7 @@ tools:
   file: src/edu_cloud/ai/engine/tools/students.py
   line: 18
 - name: get_class_report
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 47
@@ -182,17 +180,17 @@ tools:
   file: src/edu_cloud/ai/engine/tools/students.py
   line: 42
 - name: get_class_scores
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_score.py
   line: 97
 - name: get_class_stats
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics.py
   line: 62
 - name: get_concept_info
-  module_code: exam
+  module_code: research
   domain: knowledge
   file: src/edu_cloud/ai/engine/tools/knowledge.py
   line: 34
@@ -222,27 +220,27 @@ tools:
   file: src/edu_cloud/ai/engine/tools/exams.py
   line: 18
 - name: get_exam_overview
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 71
 - name: get_exam_scores
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics.py
   line: 28
 - name: get_exam_summary
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_score.py
   line: 14
 - name: get_findings
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 187
 - name: get_grade_aggregates
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_compare.py
   line: 129
@@ -267,7 +265,7 @@ tools:
   file: src/edu_cloud/ai/engine/tools/grading_ops.py
   line: 29
 - name: get_question_analysis
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_score.py
   line: 59
@@ -277,17 +275,17 @@ tools:
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 154
 - name: get_question_stats
-  module_code: exam
+  module_code: research
   domain: bank
   file: src/edu_cloud/ai/engine/tools/bank.py
   line: 28
 - name: get_score_distribution
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_score.py
   line: 28
 - name: get_score_segments
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_report.py
   line: 18
@@ -297,27 +295,27 @@ tools:
   file: src/edu_cloud/ai/engine/tools/conduct.py
   line: 159
 - name: get_student_diagnosis
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 90
 - name: get_student_error_book
-  module_code: exam
+  module_code: research
   domain: bank
   file: src/edu_cloud/ai/engine/tools/bank.py
   line: 17
 - name: get_student_error_pattern
-  module_code: exam
+  module_code: study_analytics
   domain: profile
   file: src/edu_cloud/ai/engine/tools/profile.py
   line: 60
 - name: get_student_knowledge_map
-  module_code: exam
+  module_code: study_analytics
   domain: profile
   file: src/edu_cloud/ai/engine/tools/profile.py
   line: 29
 - name: get_student_learning_profile
-  module_code: exam
+  module_code: study_analytics
   domain: profile
   file: src/edu_cloud/ai/engine/tools/misc.py
   line: 109
@@ -327,12 +325,12 @@ tools:
   file: src/edu_cloud/ai/engine/tools/students.py
   line: 99
 - name: get_student_scores
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_score.py
   line: 73
 - name: get_student_trend
-  module_code: exam
+  module_code: study_analytics
   domain: profile
   file: src/edu_cloud/ai/engine/tools/profile.py
   line: 18
@@ -367,7 +365,7 @@ tools:
   file: src/edu_cloud/ai/engine/tools/artifact_query.py
   line: 23
 - name: rank_students
-  module_code: exam
+  module_code: study_analytics
   domain: analytics
   file: src/edu_cloud/ai/engine/tools/analytics_compare.py
   line: 76
@@ -377,12 +375,12 @@ tools:
   file: src/edu_cloud/ai/engine/tools/homework.py
   line: 101
 - name: search_curriculum
-  module_code: exam
+  module_code: research
   domain: knowledge
   file: src/edu_cloud/ai/engine/tools/knowledge.py
   line: 18
 - name: search_gaokao
-  module_code: exam
+  module_code: research
   domain: knowledge
   file: src/edu_cloud/ai/engine/tools/knowledge.py
   line: 44
@@ -392,7 +390,7 @@ tools:
   file: src/edu_cloud/ai/engine/tools/students.py
   line: 72
 - name: search_textbook
-  module_code: exam
+  module_code: research
   domain: knowledge
   file: src/edu_cloud/ai/engine/tools/knowledge.py
   line: 26
