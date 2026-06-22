@@ -328,6 +328,24 @@ def _load_github_runs(list_cmd: list[str]) -> tuple[int, list[dict[str, object]]
     return 0, parsed, ""
 
 
+def _print_github_auth_diagnostic() -> None:
+    result = subprocess.run(
+        ["gh", "auth", "status", "-h", "github.com"],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    output = "\n".join(part for part in (result.stdout.strip(), result.stderr.strip()) if part)
+    print("GitHub CLI authentication diagnostic:")
+    if output:
+        for line in output.splitlines():
+            print(f"  {line}")
+    else:
+        print("  gh auth status returned no diagnostic output.")
+    if result.returncode != 0:
+        print("  fix: run `gh auth login -h github.com` with repo/workflow access, then retry `python scripts/codex-verify github-ci --wait`.")
+
+
 def verify_github_ci(args: argparse.Namespace) -> int:
     branch = args.branch or _current_branch()
     head = args.head or _git_head_full()
@@ -357,6 +375,7 @@ def verify_github_ci(args: argparse.Namespace) -> int:
         print("GitHub CI verification failed: cannot list workflow runs.")
         if error:
             print(error)
+        _print_github_auth_diagnostic()
         return rc
 
     outcome, match = decide_github_ci_run(runs, head)

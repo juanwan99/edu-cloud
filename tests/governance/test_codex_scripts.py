@@ -1115,6 +1115,41 @@ def test_github_ci_run_loader_fails_closed_on_gh_and_json_errors(monkeypatch):
     assert "expected a list" in error
 
 
+def test_github_ci_verification_reports_auth_diagnostic_when_listing_fails(monkeypatch, capsys):
+    module = load_codex_verify_module()
+
+    class Args:
+        repo = "juanwan99/edu-cloud"
+        workflow = "Tests"
+        branch = "feature/test"
+        head = "abc123"
+        limit = 20
+        dry_run = False
+        wait = False
+        interval = 10
+
+    class Result:
+        returncode = 1
+        stdout = ""
+        stderr = "The token in default is invalid."
+
+    monkeypatch.setattr(
+        module,
+        "_load_github_runs",
+        lambda _cmd: (1, None, "HTTP 404: Not Found"),
+    )
+    monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs: Result())
+
+    rc = module.verify_github_ci(Args())
+
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "GitHub CI verification failed: cannot list workflow runs." in out
+    assert "GitHub CLI authentication diagnostic:" in out
+    assert "The token in default is invalid." in out
+    assert "gh auth login -h github.com" in out
+
+
 def test_frontend_audit_security_versions_are_persistently_pinned():
     package_json = json.loads((PROJECT_ROOT / "frontend" / "package.json").read_text(encoding="utf-8"))
     package_lock = json.loads((PROJECT_ROOT / "frontend" / "package-lock.json").read_text(encoding="utf-8"))
