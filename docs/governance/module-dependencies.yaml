@@ -195,19 +195,4 @@ edges:
   to: knowledge_tree
   occurrences:
   - src/edu_cloud/modules/profile/service.py:6
-- from: scan
-  to: card
-  occurrences:
-  - src/edu_cloud/modules/scan/cv_detect_router.py:16
-  - src/edu_cloud/modules/scan/pipeline_router.py:24
-- from: scan
-  to: exam
-  occurrences:
-  - src/edu_cloud/modules/scan/cv_detect_router.py:15
-  - src/edu_cloud/modules/scan/pipeline_router.py:23
-  - src/edu_cloud/modules/scan/router.py:14
-- from: scan
-  to: student
-  occurrences:
-  - src/edu_cloud/modules/scan/pipeline_router.py:26
 cycles: []

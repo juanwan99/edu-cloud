@@ -12,8 +12,7 @@ from edu_cloud.database import get_db
 from edu_cloud.core.auth import require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.core.tenant import get_school_id
-from edu_cloud.modules.exam.models import Question, Subject, QUESTION_TYPES_OBJECTIVE
-from edu_cloud.modules.card.models import Template
+from edu_cloud.services.scan_workflow import Question, Subject, QUESTION_TYPES_OBJECTIVE, Template
 from edu_cloud.config import settings
 from edu_cloud.modules.scan.auto_detect_cv import AutoDetectCVRequest, auto_detect_cv_regions
 

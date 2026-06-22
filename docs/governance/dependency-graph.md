@@ -33,7 +33,4 @@ flowchart TD
   portal --> calendar
   portal --> homework
   profile --> knowledge_tree
-  scan --> exam
-  scan --> card
-  scan --> student
 ```

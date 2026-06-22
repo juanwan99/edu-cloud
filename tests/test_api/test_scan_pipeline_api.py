@@ -417,3 +417,47 @@ class TestPipelineObjectiveOwnershipChain:
         all_qids = {q["id"] for group in qbg.values() for q in group}
         assert "q_own_geo" in all_qids
         assert "q_other_his" not in all_qids, "跨 subject 的 question 不得进入 questions_by_group"
+
+
+# ---------- D-03L module boundary invariants ----------
+
+def test_scan_module_has_no_direct_exam_card_student_imports():
+    """D-03L invariant: scan must use the scan_workflow facade for
+    exam/card/student data access instead of importing those modules directly.
+    """
+    import re
+    from pathlib import Path
+
+    scan_dir = (
+        Path(__file__).resolve().parents[2]
+        / "src" / "edu_cloud" / "modules" / "scan"
+    )
+    pattern = re.compile(
+        r"(?:from|import)\s+edu_cloud\.modules\.(?:exam|card|student)\b"
+    )
+    offenders = []
+    for py in sorted(scan_dir.rglob("*.py")):
+        for lineno, line in enumerate(py.read_text(encoding="utf-8").splitlines(), 1):
+            if pattern.search(line):
+                offenders.append(f"{py.name}:{lineno}: {line.strip()}")
+    assert not offenders, (
+        "scan must not import exam/card/student directly; use services.scan_workflow:\n"
+        + "\n".join(offenders)
+    )
+
+
+def test_scan_workflow_facade_reexports_owner_objects():
+    """D-03L invariant: scan_workflow is a pure re-export facade whose
+    exported symbols are exactly the owner-module objects.
+    """
+    from edu_cloud.services import scan_workflow
+    from edu_cloud.modules.card.models import Template
+    from edu_cloud.modules.exam.models import Exam, Question, QUESTION_TYPES_OBJECTIVE, Subject
+    from edu_cloud.modules.student.models import Student
+
+    assert scan_workflow.Exam is Exam
+    assert scan_workflow.Subject is Subject
+    assert scan_workflow.Question is Question
+    assert scan_workflow.QUESTION_TYPES_OBJECTIVE is QUESTION_TYPES_OBJECTIVE
+    assert scan_workflow.Template is Template
+    assert scan_workflow.Student is Student

@@ -20,10 +20,15 @@ import edu_cloud.database as db_mod
 from edu_cloud.core.auth import require_permission
 from edu_cloud.core.permissions import Permission
 from edu_cloud.core.tenant import get_school_id
-from edu_cloud.modules.exam.models import Exam, Subject, Question, QUESTION_TYPES_OBJECTIVE
-from edu_cloud.modules.card.models import Template
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.student.models import Student
+from edu_cloud.services.scan_workflow import (
+    Exam,
+    Subject,
+    Question,
+    QUESTION_TYPES_OBJECTIVE,
+    Template,
+    Student,
+)
 from edu_cloud.shared.storage import get_storage, StorageService
 from . import pipeline_service
 from .tpl_parser import parse_tpl_file
