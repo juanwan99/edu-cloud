@@ -1,19 +1,27 @@
 # NOW
 
-Last refreshed: 2026-06-21 20:54 Asia/Shanghai
-（runtime-sync 3413e70→9aa90fa，合同 `yc-20260621-db36ecc7`；前次 refresh 2026-06-17 15:33 P0E-1）
+Last refreshed: 2026-06-22 16:34 Asia/Shanghai
 
-**Current task (runtime-sync, this window · 合同 `yc-20260621-db36ecc7`):** 将部署运行态从
-`3413e70` 对齐到源 HEAD `9aa90fa`（D-03I pipeline cold-data owner 抽离落地）。重建
-`frontend/dist`（build git_hash `9aa90fa`，build time 2026-06-21T12:52:07Z）后经 systemd 重启
-后端与 worker。当前运行态（2026-06-21 20:52，**取代下方 Current Facts 中 2026-06-10 `c26379d`
-的运行态快照与 PID**）：`edu-cloud.service` active PID `1242687` boot 20:52:19；
-`edu-cloud-worker.service` active PID `1242700` boot 20:52:19（`.venv/bin/python
-scripts/run-arq-worker`）。验证：`scripts/truth-status.sh` **ALL ALIGNED**（源/build/nginx/
-backend 全 `9aa90fa`），`https://mcu.asia/` 返回 200、`version.json` git_hash `9aa90fa`；
-guardian-watch `red=0`（唯一 yellow=`RISKY_ARTIFACT` data/.db_migrate.lock+.codex，预存、非本
-窗引入）；EV-TARGETED-TEST `tests/test_services_exam/test_post_exam_cold_data.py` 3 passed
-（经 `.venv` 跑；系统 python3 缺 `slowapi` 仅环境偏差，非回归）。本段为 runtime-sync 版本收口留痕。
+**Mainline goal (fixed):** complete the edu-cloud foundation so later module
+owners can develop in parallel without cross-module contamination.
+
+**Current phase goal (Phase A):** close D-08D Portal Phase 1 runtime/live/online
+evidence into the repo truth sources, verify the narrow docs-only scope, then
+commit and push. Fresh state: local source, origin, ECS source, frontend build,
+nginx, and backend runtime are aligned on
+`332862a0e3a621f7dd4ac8ae122b339867e3ec49`; `scripts/truth-status.sh` reports
+`ALL ALIGNED`; authenticated online Portal probes show all five
+`/api/v1/portal/*` aggregation endpoints return HTTP `200`, and disabled
+`teaching`/`research`/`study_analytics` modules do not leak from
+`/api/v1/portal/services` (`blocked_leaks=[]`). See
+`docs/reviews/2026-06-22-portal-d08d-runtime-closeout.md`.
+
+**Current external open item:** GitHub Actions exact-HEAD visibility for
+`332862a0` remains unconfirmed and stays as Phase B / R-H2; it is not counted as
+green by inference.
+
+Older dated sections below are retained as historical snapshots unless a newer
+dated paragraph explicitly supersedes them.
 
 Use live commands for volatile values such as exact `HEAD`, ahead/behind count,
 and active grading-task progress:
@@ -353,7 +361,7 @@ WARN=0); ② deploy/runtime hash aligned to HEAD (**GREEN 2026-06-10**: backend+
 at HEAD `c26379d`, `source_dirty=false`, truth-status ALL ALIGNED; worker 面缺口
 R-H1 已闭合，worker PID 189590 于 20:45:48 重启对齐 — see
 `docs/reviews/2026-06-10-worker-runtime-alignment.md`); ③ online-verify module
-gating / portal services keep fail-closed (**still to re-confirm + designer sign-off**). First-cut scope: frontend homepage
+gating / portal services keep fail-closed (**GREEN 2026-06-22; D-08C signed by user/designer**). First-cut scope: frontend homepage
 aggregation + consume existing `/api/v1/portal/*` (5 endpoints live,
 `modules/portal/router.py:25-57`) + service cards gated by `moduleGateFromAuth`.
 Foundation frozen: do NOT change `DEFAULT_ENABLED` / module middleware / authGuard /
@@ -378,7 +386,7 @@ services return only enabled module codes (`exam`, `grading`, `homework`,
 D-08D Portal Phase 1`), so Portal implementation may proceed under the frozen
 first-cut scope.
 
-**D-08D Portal Phase 1 first cut (2026-06-22, local source commit `e9a9d9da`)**:
+**D-08D Portal Phase 1 first cut + runtime closeout (2026-06-22, source `e9a9d9da`, live `332862a0`)**:
 homepage aggregation is wired in `frontend/src/pages/DashboardPage.vue`.
 The dashboard consumes all five existing `/api/v1/portal/*` endpoints
 (`/summary`, `/services`, `/todos`, `/messages`, `/calendar-digest`), derives
@@ -387,8 +395,8 @@ only after backend filtering plus frontend `moduleGateFromAuth`/permission
 recheck. Routes with no mounted frontend target are hidden, so
 `studio-frontend-entry-missing` remains registered and is not falsely closed.
 Frozen foundation boundaries were preserved: no change to `DEFAULT_ENABLED`,
-module middleware, authGuard, or `module-semantics.yaml`; no live runtime sync or
-deployment was performed in this source-only slice.
+module middleware, authGuard, or `module-semantics.yaml`. The source slice was
+later live-synced and runtime-verified at `332862a0`.
 
 Local evidence for D-08D: `npm run test -- src/pages/__tests__/DashboardPage.test.js`
 = 41 passed; follow-up build-script hardening (`375b64a2..HEAD`) makes
@@ -400,6 +408,18 @@ warning; `npm run build` passed on Windows local. CI status for `e9a9d9da` /
 the follow-up build-script commit is not confirmed locally:
 `gh` token is invalid, and the GitHub connector returned no legacy statuses and
 no PR-triggered workflow runs for the commit.
+
+Runtime/online closeout for D-08D (2026-06-22): local source and upstream are
+both `332862a0e3a621f7dd4ac8ae122b339867e3ec49`; ECS source/build/nginx/backend
+are aligned on `332862a0` (`truth-status.sh` = `ALL ALIGNED`, frontend build
+time `2026-06-22T08:20:11.198Z`, backend PID `4175795` booted
+`2026-06-22 16:20:12`). Authenticated online Portal probes return HTTP `200`
+for `/summary`, `/services`, `/todos`, `/messages`, and `/calendar-digest`.
+`/services` returns `exam`, `grading`, `homework`, `calendar`, `studio`,
+`conduct`; disabled `teaching`/`research`/`study_analytics` do not leak
+(`blocked_leaks=[]`). Closeout state:
+`runtime-online-closed; external-ci-unknown`. Report:
+`docs/reviews/2026-06-22-portal-d08d-runtime-closeout.md`.
 
 ## Codex Migration State
 
