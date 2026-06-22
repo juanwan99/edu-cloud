@@ -14,7 +14,7 @@ def _apply_subject_filter(stmt, visible_subject_codes: list[str] | None):
     """L2: JOIN BankQuestion→Question→Subject to filter by visible subject codes."""
     if visible_subject_codes is None:
         return stmt
-    from edu_cloud.modules.exam.models import Question, Subject
+    from edu_cloud.services.bank_workflow import Question, Subject
     return (
         stmt
         .join(Question, BankQuestion.source_question_id == Question.id)

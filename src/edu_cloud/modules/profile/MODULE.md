@@ -25,16 +25,16 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - knowledge_tree
-  services: []
+  modules: []
+  services:
+    - profile_workflow
   ai_tools:
     - ai/tools/profile.py
     - ai/tools/student_diagnosis.py
     - ai/tools/student_profile_tool.py
 
 created: "2026-05-05"
-last_reviewed: "2026-06-17"
+last_reviewed: "2026-06-22"
 design_docs: []
 ---
 

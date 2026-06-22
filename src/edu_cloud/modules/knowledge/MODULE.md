@@ -24,15 +24,14 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - exam
-    - knowledge_tree
-  services: []
+  modules: []
+  services:
+    - knowledge_workflow
   ai_tools:
     - ai/tools/knowledge.py
 
 created: "2026-05-05"
-last_reviewed: "2026-05-05"
+last_reviewed: "2026-06-22"
 design_docs: []
 ---
 

@@ -12,8 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from edu_cloud.core.permissions import Permission
 from edu_cloud.models.school_settings import MODULE_CODES
-from edu_cloud.modules.calendar.service import CalendarService
-from edu_cloud.modules.homework.service import HomeworkTaskService
+from edu_cloud.services.portal_workflow import CalendarService, HomeworkTaskService
 from edu_cloud.services.school_settings_service import get_enabled_modules
 
 

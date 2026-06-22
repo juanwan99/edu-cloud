@@ -142,14 +142,13 @@ modules:
     - get_recommended_practice
     events: []
   depends_on:
-    modules:
-    - exam
-    - student
-    services: []
+    modules: []
+    services:
+    - bank_workflow
     ai_tools:
     - ai/tools/bank.py
   created: '2026-05-05'
-  last_reviewed: '2026-05-05'
+  last_reviewed: '2026-06-22'
   design_docs: []
 - name: calendar
   status: active
@@ -438,14 +437,13 @@ modules:
     - KnowledgeStore
     events: []
   depends_on:
-    modules:
-    - exam
-    - knowledge_tree
-    services: []
+    modules: []
+    services:
+    - knowledge_workflow
     ai_tools:
     - ai/tools/knowledge.py
   created: '2026-05-05'
-  last_reviewed: '2026-05-05'
+  last_reviewed: '2026-06-22'
   design_docs: []
 - name: knowledge_tree
   status: active
@@ -607,15 +605,14 @@ modules:
     - PortalAggregationService
     events: []
   depends_on:
-    modules:
-    - calendar
-    - homework
+    modules: []
     services:
+    - portal_workflow
     - school_settings_service
     - notifications_api
     ai_tools: []
   created: 2026-06-05
-  last_reviewed: 2026-06-05
+  last_reviewed: 2026-06-22
   design_docs:
   - docs/governance/portal-aggregation-contract.md
 - name: profile
@@ -641,15 +638,15 @@ modules:
     - student_ai_diagnosis
     events: []
   depends_on:
-    modules:
-    - knowledge_tree
-    services: []
+    modules: []
+    services:
+    - profile_workflow
     ai_tools:
     - ai/tools/profile.py
     - ai/tools/student_diagnosis.py
     - ai/tools/student_profile_tool.py
   created: '2026-05-05'
-  last_reviewed: '2026-06-17'
+  last_reviewed: '2026-06-22'
   design_docs: []
 - name: scan
   status: active

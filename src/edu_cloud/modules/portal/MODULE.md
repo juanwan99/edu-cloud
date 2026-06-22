@@ -18,16 +18,15 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - calendar
-    - homework
+  modules: []
   services:
+    - portal_workflow
     - school_settings_service
     - notifications_api
   ai_tools: []
 
 created: 2026-06-05
-last_reviewed: 2026-06-05
+last_reviewed: 2026-06-22
 design_docs:
   - docs/governance/portal-aggregation-contract.md
 ---

@@ -27,15 +27,14 @@ exposes:
   events: []
 
 depends_on:
-  modules:
-    - exam
-    - student
-  services: []
+  modules: []
+  services:
+    - bank_workflow
   ai_tools:
     - ai/tools/bank.py
 
 created: "2026-05-05"
-last_reviewed: "2026-05-05"
+last_reviewed: "2026-06-22"
 design_docs: []
 ---
 

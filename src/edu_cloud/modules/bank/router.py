@@ -65,7 +65,7 @@ async def _check_student_class_access(
 ) -> None:
     """L2: verify the student belongs to a class within the caller's visible scope."""
     from edu_cloud.api.permissions import get_visible_class_ids
-    from edu_cloud.modules.student.models import Student
+    from edu_cloud.services.bank_workflow import Student
     from fastapi import HTTPException
     from sqlalchemy import select
 

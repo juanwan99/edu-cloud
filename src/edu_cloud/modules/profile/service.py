@@ -3,7 +3,7 @@ import logging
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode
+from edu_cloud.services.profile_workflow import ConceptGraphNode
 from edu_cloud.modules.profile.models import StudentExamSnapshot, StudentKnowledgeMastery, StudentErrorPattern
 
 logger = logging.getLogger(__name__)

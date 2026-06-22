@@ -13,13 +13,6 @@ flowchart TD
   analytics --> knowledge
   analytics --> knowledge_tree
   analytics --> profile
-  bank --> exam
-  bank --> student
   card --> exam
-  knowledge --> exam
-  knowledge --> knowledge_tree
   knowledge_tree --> adaptive
-  portal --> calendar
-  portal --> homework
-  profile --> knowledge_tree
 ```

@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from edu_cloud.modules.knowledge_tree.models import ConceptGraphNode, ConceptGraphEdge
+from edu_cloud.services.knowledge_workflow import ConceptGraphEdge, ConceptGraphNode
 from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
 from edu_cloud.services.exceptions import ConflictError
 
@@ -54,7 +54,7 @@ async def link_question(
     is_primary: bool = True, school_id: str | None = None,
 ) -> QuestionKnowledgePoint:
     if school_id:
-        from edu_cloud.modules.exam.models import Question
+        from edu_cloud.services.knowledge_workflow import Question
         from fastapi import HTTPException
         q = (await db.execute(
             select(Question).where(
@@ -82,7 +82,7 @@ async def get_question_knowledge_points(
     db: AsyncSession, *, question_id: str, school_id: str | None = None,
 ) -> list[ConceptGraphNode]:
     if school_id:
-        from edu_cloud.modules.exam.models import Question
+        from edu_cloud.services.knowledge_workflow import Question
         from fastapi import HTTPException
         q = (await db.execute(
             select(Question).where(

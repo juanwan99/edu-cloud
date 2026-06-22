@@ -89,14 +89,6 @@ edges:
   - src/edu_cloud/modules/analytics/pipeline_service.py:13
   - src/edu_cloud/modules/analytics/power_options_service.py:10
   - src/edu_cloud/modules/analytics/ranking_service.py:12
-- from: bank
-  to: exam
-  occurrences:
-  - src/edu_cloud/modules/bank/service.py:17
-- from: bank
-  to: student
-  occurrences:
-  - src/edu_cloud/modules/bank/router.py:68
 - from: card
   to: exam
   occurrences:
@@ -108,31 +100,10 @@ edges:
   - src/edu_cloud/modules/card/router.py:34
   - src/edu_cloud/modules/card/router.py:334
   - src/edu_cloud/modules/card/router.py:388
-- from: knowledge
-  to: exam
-  occurrences:
-  - src/edu_cloud/modules/knowledge/service.py:57
-  - src/edu_cloud/modules/knowledge/service.py:85
-- from: knowledge
-  to: knowledge_tree
-  occurrences:
-  - src/edu_cloud/modules/knowledge/service.py:7
 - from: knowledge_tree
   to: adaptive
   occurrences:
   - src/edu_cloud/modules/knowledge_tree/service.py:14
   - src/edu_cloud/modules/knowledge_tree/sync_service.py:355
   - src/edu_cloud/modules/knowledge_tree/sync_service.py:382
-- from: portal
-  to: calendar
-  occurrences:
-  - src/edu_cloud/modules/portal/service.py:15
-- from: portal
-  to: homework
-  occurrences:
-  - src/edu_cloud/modules/portal/service.py:16
-- from: profile
-  to: knowledge_tree
-  occurrences:
-  - src/edu_cloud/modules/profile/service.py:6
 cycles: []
