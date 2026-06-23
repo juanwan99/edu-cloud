@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-06-23 09:29 Asia/Shanghai
+Last refreshed: 2026-06-23 10:02 Asia/Shanghai
 
 **Mainline goal (fixed):** complete the edu-cloud foundation so later module
 owners can develop in parallel without cross-module contamination.
@@ -11,11 +11,14 @@ parallel writing. Phase B HIGH runtime/CI evidence gaps are closed; D-03
 cross-module dependency debt is closed/gate-built; D-04 AI tool module semantics
 is closed/gate-built; D-08D Portal Phase 1 first cut is runtime/online closed.
 Fresh state: `feat/module-governance-repair`, `origin/master`,
-`origin/feat/module-governance-repair`, the ECS source tree, frontend build,
-nginx, backend, and worker are aligned on
-`4fe53fd44bf72971b01e3383d615282bd036b3df`. GitHub Actions exact-HEAD run
-`27967347661` is green for the `Tests` workflow. `scripts/codex-context`,
-`meta-check --fail-on-blocking`, Guardian, and truthline are green.
+`origin/feat/module-governance-repair`, and `origin/HEAD` all point at
+`a0836587ad857394686723cd5e660ab99f3ad08a`; the ECS source tree is clean and
+ahead=0. GitHub Actions exact-HEAD `Tests` runs are green on both active refs:
+branch run `27995965847` and master run `27995965877`. `scripts/codex-context`
+and `meta-check --fail-on-blocking` are green. Guardian/truthline are
+functionally aligned: runtime still reports `4fe53fd`, but the delta to
+`a083658` is docs/governance/test/observability-only, so no live runtime sync is
+required for this context refresh.
 
 **Current open items:** D-02 L2 historical review-gap remains open for 16 older
 commits (`3688f32..6b1bdd3`) but is historical debt, not a current source /
@@ -27,6 +30,15 @@ StaticFiles mounts are now discovered from the FastAPI app and must be declared
 in `module-semantics.yaml` with explicit `expect`, mount name, `module_gate`,
 and reason. Remaining D-09 work is R-M5/Q5 backup rotation/recovery plus
 low-risk hygiene.
+
+**Window working-memory anchor (2026-06-23 10:02):** keep only this active
+thread in working memory: mainline = edu-cloud foundation for clean parallel
+module development; closed = D-03 module dependency burn-down, D-04 AI tool
+semantics, D-08D Portal Phase 1 first cut, D-09M1 delivery drift guard, D-09M2
+static upload denominator; next = D-09M3/Q5 backup rotation and recovery guard.
+Treat older live-sync/push authorization chatter, D-03 burn-down details, D-08D
+runtime instructions, and any old Claude sid as historical unless reverified
+with fresh commands.
 
 Older dated sections below are retained as historical snapshots unless a newer
 dated paragraph explicitly supersedes them.
