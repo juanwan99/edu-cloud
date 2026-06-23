@@ -316,11 +316,14 @@ def test_derived_products_fresh_passes(tmp_path):
     assert g.check_derived_products_fresh(tmp_path, files) is None
 
 
-def test_derived_products_check_skipped_when_no_governance_dir(tmp_path):
-    """首次搭建：docs/governance/ 不存在 → 不 block。"""
+def test_derived_products_check_blocks_when_no_governance_dir(tmp_path):
+    """docs/governance/ 不存在时无法证明派生产物 freshness → block。"""
     _git_init_with_module(tmp_path, "alpha", include_module_md=True)
     files = ["src/edu_cloud/modules/alpha/MODULE.md"]
-    assert g.check_derived_products_fresh(tmp_path, files) is None
+    result = g.check_derived_products_fresh(tmp_path, files)
+    assert result is not None
+    assert result["decision"] == "block"
+    assert "docs/governance" in result["reason"]
 
 
 # --- G2-01 反退化: staged vs worktree 分叉（"只信 staged"） ---
@@ -336,6 +339,10 @@ def test_hook_entry_trusts_staged_blob_not_worktree_on_new_module(tmp_path):
     md = mdir / "MODULE.md"
     md.write_text(_valid_frontmatter("newmod"), encoding="utf-8")
     (mdir / "__init__.py").write_text("", encoding="utf-8")
+    out = tmp_path / "docs/governance"
+    out.mkdir(parents=True, exist_ok=True)
+    import aggregate_modules  # noqa: E402 — _setup_aggregate_script 已 setup
+    aggregate_modules.aggregate_all(tmp_path / "src/edu_cloud/modules", out)
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
     # staged 合法；在 worktree 改坏（未 git add）
     md.write_text("---\ninvalid: true\n---\n", encoding="utf-8")
@@ -424,6 +431,25 @@ def test_checkout_staged_index_returns_false_in_non_git_dir(tmp_path):
     snap.mkdir()
     # tmp_path 未 git init — 不在 git 工作树中
     assert g._checkout_staged_index(tmp_path, snap) is False
+
+
+def test_check_blocks_when_staged_snapshot_export_fails(monkeypatch, tmp_path):
+    """治理入口不能在 staged snapshot 不可用时退回读工作区。"""
+    _git_init(tmp_path)
+    (tmp_path / "src/edu_cloud/modules/newmod").mkdir(parents=True)
+    monkeypatch.setattr(g, "_checkout_staged_index", lambda repo, snap: False)
+
+    data = {"cwd": str(tmp_path), "tool_input": {"command": "git commit -m x"}}
+    staged_info = {
+        "files": ["src/edu_cloud/modules/newmod/__init__.py"],
+        "diff": _sample_diff("src/edu_cloud/modules/newmod/__init__.py", 1, 0),
+    }
+
+    result = g.check(data, MagicMock(), staged_info=staged_info)
+
+    assert result is not None
+    assert result["decision"] == "block"
+    assert "staged index" in result["reason"]
 
 
 def test_checkout_staged_index_returns_true_in_git_dir(tmp_path):

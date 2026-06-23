@@ -1,0 +1,42 @@
+schema: edu.execution-policy.v1
+updated: 2026-06-23
+owner: yuance
+
+ci_cost_control:
+  local_first_required: true
+  github_actions_role: post_push_external_final_gate
+  expensive_jobs:
+    - backend
+    - frontend
+  required_lightweight_job: governance
+  change_detection:
+    job: changes
+    fail_closed: true
+    initial_push_mode: explicit_diff_tree
+    no_shell_error_masking: true
+  concurrency:
+    cancel_in_progress: true
+  manual_rerun:
+    allowed_by_default: false
+    exception: root_cause_recorded_or_new_commit_preferred
+
+fallback_control:
+  silent_fallback: forbidden
+  unknown_evidence: fail_closed
+  staged_snapshot_source: git_index_only
+  worktree_as_staged_backup: forbidden
+  enforced_surfaces:
+    - .github/workflows/test.yml
+    - scripts/governance/check_execution_policy.py
+    - scripts/governance/module_governance_guard.py
+    - control/execution_policy.yaml
+  forbidden_patterns:
+    - "|| true"
+    - "continue-on-error: true"
+    - "snap = real_repo"
+
+review_policy:
+  high_risk_governance_change:
+    required: true
+    review_type: code_review
+    reviewer_must_be_non_author: true

@@ -26,16 +26,25 @@ jobs:
             base="${{ github.event.before }}"
             head="${{ github.sha }}"
             if [[ -z "$base" || "$base" =~ ^0+$ ]]; then
-              base="$(git rev-list --max-parents=0 "$head")"
+              git diff-tree --no-commit-id --name-only -r "$head" > changed-files.txt
+              initial_push=true
+            else
+              initial_push=false
             fi
           fi
-          if ! git cat-file -e "$base^{commit}" 2>/dev/null || ! git cat-file -e "$head^{commit}" 2>/dev/null; then
-            git fetch --no-tags --prune --depth=100 origin "$base" "$head" || true
-          fi
-          if git cat-file -e "$base^{commit}" 2>/dev/null && git cat-file -e "$head^{commit}" 2>/dev/null; then
+          if [[ "${initial_push:-false}" != "true" ]]; then
+            if ! git cat-file -e "$base^{commit}" 2>/dev/null || ! git cat-file -e "$head^{commit}" 2>/dev/null; then
+              git fetch --no-tags --prune --depth=100 origin "$base" "$head"
+            fi
+            if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+              echo "::error::Unable to resolve base commit $base for CI path filter"
+              exit 1
+            fi
+            if ! git cat-file -e "$head^{commit}" 2>/dev/null; then
+              echo "::error::Unable to resolve head commit $head for CI path filter"
+              exit 1
+            fi
             git diff --name-only "$base" "$head" > changed-files.txt
-          else
-            git diff-tree --no-commit-id --name-only -r "$head" > changed-files.txt
           fi
           python - <<'PY'
           from pathlib import Path
@@ -80,9 +89,10 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen --extra dev --python 3.11
       - run: uv run python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
-      - run: uv run python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py
+      - run: uv run python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_execution_policy.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py
+      - run: uv run python scripts/governance/check_execution_policy.py
       - run: uv run python -m pytest tests/governance/test_codex_scripts.py -q
-      - run: uv run python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_tenant_static.py -q
+      - run: uv run python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_execution_policy.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_tenant_static.py -q
       - run: uv run python scripts/governance/aggregate_modules.py --check
       - run: uv run python scripts/governance/check_ai_tool_modules.py
       - run: uv run python scripts/governance/check_module_dependencies.py --check
