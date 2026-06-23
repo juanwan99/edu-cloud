@@ -1970,3 +1970,26 @@ def test_b2b_reviewer_receipt_lane_policy_is_present_and_non_author():
     required_receipt_fields = lane["required_receipt_fields"]
     assert isinstance(required_receipt_fields, list)
     assert RUNTIME_REQUIRED_RECEIPT_FIELDS <= set(required_receipt_fields)
+
+
+def test_tests_workflow_has_cost_guardrails_for_expensive_jobs():
+    """Backend/frontend CI should not run for every docs/governance-only push."""
+    import yaml
+
+    workflow_path = PROJECT_ROOT / ".github" / "workflows" / "test.yml"
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(workflow_text)
+
+    assert workflow["concurrency"]["cancel-in-progress"] is True
+    assert workflow["jobs"]["changes"]["outputs"]["backend"]
+    assert workflow["jobs"]["changes"]["outputs"]["frontend"]
+
+    backend = workflow["jobs"]["backend"]
+    frontend = workflow["jobs"]["frontend"]
+
+    assert backend["needs"] == "changes"
+    assert frontend["needs"] == "changes"
+    assert backend["if"] == "needs.changes.outputs.backend == 'true'"
+    assert frontend["if"] == "needs.changes.outputs.frontend == 'true'"
+    assert '"Dockerfile"' in workflow_text
+    assert '"deploy/"' in workflow_text
