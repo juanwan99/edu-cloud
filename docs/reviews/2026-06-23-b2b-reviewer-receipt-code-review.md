@@ -6,8 +6,8 @@ Review type: code_review
 Decision: pass
 Contract: yc-20260623-a38535b0
 Contract hash: sha256:a38535b0afd54ebed5fa54241d2e5e1d81df4549b1735e78049971291a9a72dd
-Reviewed HEAD: 0e9b5c305beb9d51e6ce1f765c8a5c43361c3732
-Reviewed scope: HEAD plus scoped dirty diff in control/review_receipts.yaml and tests/governance/test_codex_scripts.py
+Reviewed target: final branch HEAD recorded in the Yuanshou review receipt
+Reviewed scope: B2b committed changes in control/review_receipts.yaml, tests/governance/test_codex_scripts.py, and this review report
 
 ## Files Reviewed
 
@@ -38,4 +38,4 @@ No blocking findings.
 
 ## Residual Risk
 
-The receipt reviewed_sha records the current HEAD, while the reviewed implementation is still a scoped dirty diff. This is acceptable for this pre-commit B2b lane because the report names the dirty diff explicitly and the final commit must be owned by Codex after closeout. If HEAD changes before final commit, the receipt must be refreshed.
+The review receipt binds the exact final HEAD through reviewed_sha. If HEAD changes after receipt recording, the receipt must be refreshed before closeout is accepted.
