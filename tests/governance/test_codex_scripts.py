@@ -85,6 +85,22 @@ def load_meta_runtime_module():
     return module
 
 
+def test_yuanshou_control_governance_policy_is_present_and_conservative():
+    import yaml
+
+    policy_path = PROJECT_ROOT / "control" / "governance.yaml"
+    data = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    governed = data["governed_paths"]
+    high_risk = set(governed["high_risk"])
+    low_risk = set(governed["low_risk"])
+
+    assert high_risk
+    assert isinstance(governed["low_risk"], list)
+    assert {".github/**", "src/**", "frontend/src/**", "scripts/**", "tests/**"} <= high_risk
+    assert {"docs/**", "README.md"} <= low_risk
+    assert not (high_risk & low_risk)
+
+
 def test_codex_context_no_network_outputs_project_sections():
     result = run_script("codex-context", "--no-network")
 

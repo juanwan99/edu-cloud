@@ -1,0 +1,32 @@
+# Minimal Yuanshou governance policy for edu-cloud.
+# Keep the first project lane conservative: source, runtime, CI, tests,
+# generated-data boundaries, and governance files are high risk by default.
+governed_paths:
+  high_risk:
+    - control/**
+    - .github/**
+    - src/**
+    - frontend/src/**
+    - frontend/public/**
+    - frontend/scripts/**
+    - frontend/e2e/**
+    - frontend/package.json
+    - frontend/package-lock.json
+    - frontend/vite.config.js
+    - frontend/tsconfig*.json
+    - scripts/**
+    - tests/**
+    - alembic/**
+    - deploy/**
+    - data/**
+    - storage/**
+    - uploads/**
+    - logs/**
+    - .env*
+    - Dockerfile
+    - docker-compose.yml
+    - pyproject.toml
+    - uv.lock
+  low_risk:
+    - docs/**
+    - README.md
