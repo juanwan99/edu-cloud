@@ -1,6 +1,6 @@
 # NOW
 
-Last refreshed: 2026-06-23 07:02 Asia/Shanghai
+Last refreshed: 2026-06-23 09:29 Asia/Shanghai
 
 **Mainline goal (fixed):** complete the edu-cloud foundation so later module
 owners can develop in parallel without cross-module contamination.
@@ -20,10 +20,13 @@ nginx, backend, and worker are aligned on
 **Current open items:** D-02 L2 historical review-gap remains open for 16 older
 commits (`3688f32..6b1bdd3`) but is historical debt, not a current source /
 runtime / CI blocker. D-06 `studio-frontend-entry-missing` remains open by
-design. D-09 still carries medium/low guard debt: R-M5/Q5 backup rotation,
-R-M6 delivery-chain guard hardening, R-M7 `/uploads` gating denominator, plus
-low-risk hygiene items. The next mainline slice is D-09S context truth refresh,
-then D-09M guard hardening.
+design. D-09M1/R-M6 delivery-chain guard hardening is closed/evidence-recorded
+at `4341271` with GitHub Actions `Tests` run `27994260544` green. D-09M2/R-M7
+`/uploads` static-file denominator is closed/gate-built in this source window:
+StaticFiles mounts are now discovered from the FastAPI app and must be declared
+in `module-semantics.yaml` with explicit `expect`, mount name, `module_gate`,
+and reason. Remaining D-09 work is R-M5/Q5 backup rotation/recovery plus
+low-risk hygiene.
 
 Older dated sections below are retained as historical snapshots unless a newer
 dated paragraph explicitly supersedes them.
@@ -441,13 +444,14 @@ Progress calibration:
   multi-writer parallelism until D-09 medium-risk guard debt is reduced.
 
 Next order:
-1. D-09M1: harden R-M6 delivery-chain guard so source/build/nginx/backend/worker
-   alignment is enforced as a commit/closeout gate, not only observed after the
-   fact.
-2. D-09M2: add `/uploads` / static-file surfaces into the module-gating
-   denominator or explicitly record why they are outside the controlled surface.
-3. D-09M3/Q5: design and implement backup rotation / recovery checks for the
-   564MB DB backup path.
+1. D-09M1/R-M6 is closed: delivery drift verification now fails closed on
+   unknown drift / HEAD drift / source dirty delivery states, and exact-HEAD CI
+   `27994260544` is green at `4341271`.
+2. D-09M2/R-M7 is closed in this source window: `/uploads` is registered as an
+   explicit `StaticFiles` denominator entry, and unregistered / stale / malformed
+   static mounts now fail `check_module_semantics.py --check`.
+3. D-09M3/Q5 is next: design and implement backup rotation / recovery checks for
+   the 564MB DB backup path.
 4. D-02 L2 review-gap remains a separate historical-debt track and must not
    block the current foundation guard-hardening track.
 

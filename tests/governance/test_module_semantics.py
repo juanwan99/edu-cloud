@@ -90,6 +90,49 @@ def test_backend_fixed_but_drift_retained_fails(truth):  # 反例 #18（R4 F-001
     assert any("/api/v1/synthetic" in e and "仍登记 drift" in e for e in errs), errs
 
 
+def test_static_mounts_pass_on_real(truth):
+    assert cms.check_static_mounts(truth, REPO) == []
+
+
+def test_static_mount_unregistered_fails(truth):
+    bad = copy.deepcopy(truth)
+    bad["static_mounts"] = {}
+    errs = cms._compare_static_mounts(bad, {"/uploads": {"name": "uploads"}})
+    assert any("/uploads" in e and "not declared" in e for e in errs), errs
+
+
+def test_static_mount_stale_truth_fails(truth):
+    bad = copy.deepcopy(truth)
+    bad["static_mounts"]["/ghost-static"] = {
+        "expect": "public_asset",
+        "name": "ghost",
+        "module_gate": "exempt",
+        "reason": "test stale declaration",
+    }
+    errs = cms._compare_static_mounts(bad, {"/uploads": {"name": "uploads"}})
+    assert any("/ghost-static" in e and "no such mount" in e for e in errs), errs
+
+
+def test_static_mount_requires_public_upload_expect(truth):
+    bad = copy.deepcopy(truth)
+    bad["static_mounts"]["/uploads"] = {
+        "expect": "public_asset",
+        "name": "uploads",
+        "module_gate": "exempt",
+        "reason": "test",
+    }
+    errs = cms._compare_static_mounts(bad, {"/uploads": {"name": "uploads"}})
+    assert any("expect=public_upload_asset" in e for e in errs), errs
+
+
+def test_static_mount_requires_explicit_exempt_reason(truth):
+    bad = copy.deepcopy(truth)
+    bad["static_mounts"]["/uploads"] = {"expect": "public_upload_asset", "name": "uploads"}
+    errs = cms._compare_static_mounts(bad, {"/uploads": {"name": "uploads"}})
+    assert any("module_gate=exempt" in e for e in errs), errs
+    assert any("declare a reason" in e for e in errs), errs
+
+
 def test_frontend_passes_on_real(truth):
     assert cms.check_frontend(truth, REPO) == []
 

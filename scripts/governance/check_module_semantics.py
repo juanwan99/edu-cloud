@@ -126,6 +126,52 @@ def check_backend(truth: dict, repo: Path) -> list[str]:
     return _compare_backend(truth, discovered)
 
 
+def discover_static_mounts(repo: Path) -> dict[str, dict[str, str]]:
+    """Discover non-API StaticFiles mounts that must be in the gate denominator."""
+    sys.path.insert(0, str(repo / "src"))
+    from starlette.routing import Mount
+    from starlette.staticfiles import StaticFiles
+    from edu_cloud.api.app import create_app
+
+    app = create_app()
+    mounts: dict[str, dict[str, str]] = {}
+    for route in app.routes:
+        if isinstance(route, Mount) and isinstance(getattr(route, "app", None), StaticFiles):
+            mounts[route.path] = {"name": str(getattr(route, "name", "") or "")}
+    return mounts
+
+
+def _compare_static_mounts(truth: dict, discovered: dict[str, dict[str, str]]) -> list[str]:
+    errs: list[str] = []
+    declared = truth.get("static_mounts", {}) or {}
+    for path, actual in discovered.items():
+        if path not in declared:
+            errs.append(
+                f"static mount {path} is not declared in static_mounts "
+                f"(actual=static:{actual.get('name')}, fail-closed)"
+            )
+            continue
+        spec = declared[path] or {}
+        if spec.get("name") != actual.get("name"):
+            errs.append(
+                f"static mount {path} name={actual.get('name')} does not match truth {spec.get('name')}"
+            )
+        if spec.get("expect") != "public_upload_asset":
+            errs.append(f"static mount {path} must declare expect=public_upload_asset")
+        if spec.get("module_gate") != "exempt":
+            errs.append(f"static mount {path} must declare module_gate=exempt")
+        if not str(spec.get("reason") or "").strip():
+            errs.append(f"static mount {path} must declare a reason")
+    for path in declared:
+        if path not in discovered:
+            errs.append(f"truth static_mounts declares {path} but app has no such mount")
+    return errs
+
+
+def check_static_mounts(truth: dict, repo: Path) -> list[str]:
+    return _compare_static_mounts(truth, discover_static_mounts(repo))
+
+
 # 引号字面量（F-002）：JS 中 route/moduleCode 既可单引号也可双引号，守卫两者都须识别，
 # 否则人工/格式化改成双引号后 frontend drift 与野值码会被漏检，流水线误报 clean。
 _Q = r"['\"]"          # 单或双引号定界符
@@ -402,7 +448,7 @@ def check_known_drift(truth: dict, repo: Path) -> list[str]:
     return errs
 
 
-CHECKS = [check_self_consistency, check_backend, check_frontend, check_frontend_drift, check_portal, check_known_drift]
+CHECKS = [check_self_consistency, check_backend, check_static_mounts, check_frontend, check_frontend_drift, check_portal, check_known_drift]
 
 
 def run_all(truth: dict, repo: Path) -> list[str]:

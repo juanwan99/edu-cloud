@@ -68,6 +68,16 @@ backend_routes:
   /api/v1/llm-config:       { expect: "exempt" }
   /api/v1/workspace:        { expect: "exempt" }
 
+# Non-API static mounts are outside school-module gating, but they are still part
+# of the controlled surface denominator: any new StaticFiles mount must be
+# explicitly registered here instead of silently bypassing module semantics.
+static_mounts:
+  /uploads:
+    expect: public_upload_asset
+    name: uploads
+    module_gate: exempt
+    reason: uploaded files are served as assets; module authorization is enforced at the API endpoints that create or reference them
+
 frontend_route_module:
   /exams: exam
   /exam-import: exam
