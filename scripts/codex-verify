@@ -10,7 +10,7 @@ import shlex
 import subprocess
 from pathlib import Path
 
-from codex_support import PROJECT_ROOT, dirty_paths
+from codex_support import PROJECT_ROOT, classify_hash_drift, dirty_paths
 
 
 FRONTEND_INPUTS = (
@@ -103,6 +103,31 @@ def _is_dirty_value(value: object) -> bool:
     return False
 
 
+def _hash_alignment_error(
+    subject: str,
+    actual: str,
+    expected: str,
+    *,
+    expected_label: str,
+) -> str | None:
+    if not actual:
+        return None
+    if not expected or expected == "unknown":
+        return f"{subject} {actual} cannot be verified because {expected_label} is unknown"
+    if actual == expected:
+        return None
+    drift = classify_hash_drift(actual, expected)
+    if drift.get("status") == "docs_only":
+        return None
+    paths_obj = drift.get("paths")
+    paths = [str(path) for path in paths_obj] if isinstance(paths_obj, list) else []
+    if drift.get("status") == "runtime" and paths:
+        detail = f"; runtime files changed: {', '.join(paths[:5])}"
+    else:
+        detail = "; drift classification unavailable, treated as runtime"
+    return f"{subject} {actual} does not match {expected_label} {expected}{detail}"
+
+
 def frontend_version_alignment_errors(
     local: dict[str, object] | None,
     remote: dict[str, object] | None,
@@ -116,8 +141,15 @@ def frontend_version_alignment_errors(
     local_hash = str(local.get("git_hash") or "")
     if not local_hash:
         errors.append("local dist/version.json missing git_hash")
-    elif head != "unknown" and local_hash != head:
-        errors.append(f"local dist/version.json git_hash {local_hash} does not match HEAD {head}")
+    else:
+        error = _hash_alignment_error(
+            "local dist/version.json git_hash",
+            local_hash,
+            head,
+            expected_label="HEAD",
+        )
+        if error:
+            errors.append(error)
 
     if _is_dirty_value(local.get("source_dirty")) and not allow_dirty_build:
         errors.append("local dist/version.json has source_dirty=true")
@@ -126,17 +158,26 @@ def frontend_version_alignment_errors(
         remote_hash = str(remote.get("git_hash") or "")
         if not remote_hash:
             errors.append("remote version.json missing git_hash")
-        elif local_hash and remote_hash != local_hash:
-            errors.append(f"remote version.json git_hash {remote_hash} does not match local dist {local_hash}")
+        elif local_hash:
+            error = _hash_alignment_error(
+                "remote version.json git_hash",
+                remote_hash,
+                local_hash,
+                expected_label="local dist",
+            )
+            if error:
+                errors.append(error)
+        if _is_dirty_value(remote.get("source_dirty")) and not allow_dirty_build:
+            errors.append("remote version.json has source_dirty=true")
 
     return errors
 
 
 def verify_frontend_version_alignment(args: argparse.Namespace) -> int:
     if args.dry_run:
-        target = "local frontend/dist/version.json git_hash == HEAD and source_dirty=false"
+        target = "local frontend/dist/version.json matches HEAD or docs/governance/test/observability-only drift; source_dirty=false"
         if not args.no_network:
-            target += "; remote https://mcu.asia/version.json git_hash == local dist"
+            target += "; remote https://mcu.asia/version.json matches local dist or docs/governance/test/observability-only drift"
         print(f"+ frontend version alignment: {target}")
         return 0
 

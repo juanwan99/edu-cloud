@@ -216,6 +216,102 @@ def test_codex_verify_help_lists_supported_modes():
         assert mode in result.stdout
 
 
+def test_frontend_version_alignment_allows_docs_only_dist_lag(monkeypatch):
+    module = load_codex_verify_module()
+    calls = []
+
+    def fake_classify(base, head):
+        calls.append((base, head))
+        return {"status": "docs_only", "paths": []}
+
+    monkeypatch.setattr(module, "classify_hash_drift", fake_classify)
+
+    errors = module.frontend_version_alignment_errors(
+        local={"git_hash": "old123", "source_dirty": False},
+        remote=None,
+        head="new999",
+    )
+
+    assert errors == []
+    assert calls == [("old123", "new999")]
+
+
+def test_frontend_version_alignment_allows_docs_only_remote_lag(monkeypatch):
+    module = load_codex_verify_module()
+    calls = []
+
+    def fake_classify(base, head):
+        calls.append((base, head))
+        return {"status": "docs_only", "paths": []}
+
+    monkeypatch.setattr(module, "classify_hash_drift", fake_classify)
+
+    errors = module.frontend_version_alignment_errors(
+        local={"git_hash": "new999", "source_dirty": False},
+        remote={"git_hash": "old123"},
+        head="new999",
+    )
+
+    assert errors == []
+    assert calls == [("old123", "new999")]
+
+
+def test_frontend_version_alignment_blocks_runtime_dist_lag(monkeypatch):
+    module = load_codex_verify_module()
+
+    monkeypatch.setattr(
+        module,
+        "classify_hash_drift",
+        lambda base, head: {"status": "runtime", "paths": ["frontend/src/App.tsx"]},
+    )
+
+    errors = module.frontend_version_alignment_errors(
+        local={"git_hash": "old123", "source_dirty": False},
+        remote=None,
+        head="new999",
+    )
+
+    assert errors == [
+        "local dist/version.json git_hash old123 does not match HEAD new999; "
+        "runtime files changed: frontend/src/App.tsx"
+    ]
+
+
+def test_frontend_version_alignment_blocks_unknown_head():
+    module = load_codex_verify_module()
+
+    errors = module.frontend_version_alignment_errors(
+        local={"git_hash": "old123", "source_dirty": False},
+        remote=None,
+        head="unknown",
+    )
+
+    assert errors == [
+        "local dist/version.json git_hash old123 cannot be verified because HEAD is unknown"
+    ]
+
+
+def test_frontend_version_alignment_blocks_unknown_classification(monkeypatch):
+    module = load_codex_verify_module()
+
+    monkeypatch.setattr(
+        module,
+        "classify_hash_drift",
+        lambda base, head: {"status": "unknown", "paths": []},
+    )
+
+    errors = module.frontend_version_alignment_errors(
+        local={"git_hash": "old123", "source_dirty": False},
+        remote=None,
+        head="new999",
+    )
+
+    assert errors == [
+        "local dist/version.json git_hash old123 does not match HEAD new999; "
+        "drift classification unavailable, treated as runtime"
+    ]
+
+
 def test_arq_worker_runner_and_systemd_template_are_present():
     runner = PROJECT_ROOT / "scripts" / "run-arq-worker"
     unit = PROJECT_ROOT / "deploy" / "systemd" / "edu-cloud-worker.service"
@@ -1082,6 +1178,7 @@ def test_codex_verify_frontend_dry_run_lists_ci_and_version_alignment_gates():
     assert "npx vitest run" in result.stdout
     assert "npm audit --audit-level=high" in result.stdout
     assert "frontend version alignment" in result.stdout
+    assert "docs/governance/test/observability-only drift" in result.stdout
     assert "https://mcu.asia/version.json" in result.stdout
 
 
@@ -1207,7 +1304,19 @@ def test_frontend_version_alignment_reports_hash_and_dirty_errors():
     )
 
     assert "local dist/version.json has source_dirty=true" in errors
-    assert "remote version.json git_hash def456 does not match local dist abc123" in errors
+    assert any(
+        error.startswith("remote version.json git_hash def456 does not match local dist abc123")
+        and "drift classification unavailable, treated as runtime" in error
+        for error in errors
+    )
+
+    remote_dirty_errors = module.frontend_version_alignment_errors(
+        local={"git_hash": "abc123", "source_dirty": False},
+        remote={"git_hash": "abc123", "source_dirty": True},
+        head="abc123",
+        allow_dirty_build=False,
+    )
+    assert remote_dirty_errors == ["remote version.json has source_dirty=true"]
 
 
 def test_truth_status_returns_nonzero_when_diagnosis_is_broken(tmp_path):
@@ -1417,7 +1526,8 @@ def test_classify_hash_drift_separates_docs_from_runtime(monkeypatch):
                 args=list(args),
                 returncode=0,
                 stdout="docs/context/NOW.md\nAGENTS.md\nscripts/codex-verify\n"
-                "tests/governance/test_codex_scripts.py\n.quality/known-pytest-failures.txt\n",
+                "tests/governance/test_codex_scripts.py\nfrontend/vitest.config.ts\n"
+                ".quality/known-pytest-failures.txt\n",
                 stderr="",
             )
         return module.CommandResult(args=list(args), returncode=1, stdout="", stderr="")

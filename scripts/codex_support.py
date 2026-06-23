@@ -42,7 +42,6 @@ RUNTIME_DRIFT_PREFIXES = (
     "frontend/package.json",
     "frontend/package-lock.json",
     "frontend/vite.config",
-    "frontend/vitest.config",
     "deploy/",
     "scripts/run-arq-worker",
 )

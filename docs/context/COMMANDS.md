@@ -178,7 +178,9 @@ Rules:
   prebuild hook.
 - The frontend gate validates local `frontend/dist/version.json` against HEAD
   and, with network enabled, validates `https://mcu.asia/version.json` against
-  local dist.
+  local dist. A hash that trails only docs/governance/test/observability commits
+  is non-blocking and traceable; source/build-input/dependency/deploy drift,
+  unknown refs, or `source_dirty=true` still fail the gate.
 - `scripts/codex-verify github-ci --wait` is required after an authorized push
   before claiming the branch is release-clean. It binds the GitHub Actions result
   to the current branch and exact HEAD SHA, so an older green run cannot mask a
