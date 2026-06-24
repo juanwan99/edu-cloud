@@ -14,7 +14,7 @@ git status --short --branch
 
 `codex-check` is read-only. Default mode reports risks and exits 0. Use `--strict` when a non-zero exit is wanted for automation.
 
-`scripts/codex-context` prints the 元守双核心 summary:
+`scripts/codex-context` prints the 双核治理 summary:
 Meta Core / 元控核 covers direction, facts, task boundaries, context, Claude
 read-only counter-review, and the completion evidence contract. Guardian Core /
 守护核 covers dirty state, truthline, DB/migration gates, safety scanning,
@@ -269,8 +269,8 @@ governance completion evidence and CI smoke.
 ## Claude Auxiliary Reviewer
 
 This wrapper is the **optional read-only auxiliary path** only. Governed write
-execution is a different channel: a Claude Code window opened via `yc start`
-with an active Yuanshou V2 contract (see `AGENTS.md` "Claude Channels" and
+execution is a different channel: a Claude Code window opened via Yuanqi task contract
+with an active Yuanqi task contract (see `AGENTS.md` "Claude Channels" and
 `docs/context/CLAUDE_AUX.md`). Do not conflate the two.
 
 Check auth:

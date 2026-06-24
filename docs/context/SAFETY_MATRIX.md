@@ -1,7 +1,7 @@
 # Safety Matrix
 
 Each row maps a valuable Claude-era rule to Codex-native enforcement. The `ID`
-column is the lightweight governance registry for 元守双核心.
+column is the lightweight governance registry for 双核治理.
 
 | ID | Risk | Source | Current Defense | Completion Evidence | Gap |
 |---|---|---|---|---|---|

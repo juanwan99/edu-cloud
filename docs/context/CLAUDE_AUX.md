@@ -6,8 +6,8 @@ repository read access and no write or command execution authority.
 
 It does **not** cover governed execution. Per the Q1 ruling
 (`docs/reviews/2026-06-12-w1-governance-acceptance.md`), Claude Code is the
-project's executor for write operations — but only inside a `yc start` window
-with an active Yuanshou V2 contract, where the V2 runtime machine-guards the
+project's executor for write operations — but only inside a Yuanqi task window
+with an active Yuanqi task contract, where the Yuanqi/GitHub-native gate machine-guards the
 write scope, evidence, and closeout. That execution channel and this read-only
 auxiliary channel are two different paths; do not conflate them.
 
@@ -16,7 +16,7 @@ auxiliary channel are two different paths; do not conflate them.
 - Codex/Yuance is the orchestrator at the planning/review/acceptance layer;
   it accepts or rejects findings and completion evidence.
 - Write operations belong to the governed Claude Code execution channel
-  (`yc start` + V2 contract), not to this auxiliary path.
+  (active Yuanqi task contract), not to this auxiliary path.
 - Claude output in this auxiliary channel is advisory until Codex verifies it.
 - Completion claims are accepted by Codex/the user, never declared by Claude.
 - `AGENTS.md` is authoritative.
@@ -82,13 +82,13 @@ The wrapper runs Claude from `/tmp/codex-claude-consult`, not the repo root. Thi
 - Update `docs/context/**` directly.
 
 (Write work belongs to the separate governed execution channel: a Claude Code
-window opened via `yc start` with an active V2 contract.)
+window opened via Yuanqi task contract with an active Yuanqi task contract.)
 
 ## Codex Must
 
 - Decide whether to accept Claude findings.
 - Route accepted code or doc changes into a governed Claude Code execution
-  window (`yc start` + V2 contract) instead of editing directly.
+  window (active Yuanqi task contract) instead of editing directly.
 - Define the contract's required evidence and verify the executor's
   Completion Return Packet against it.
 - Ensure `NOW.md` and `ACTIVE_INDEX.md` updates are scheduled (via a governed

@@ -106,7 +106,7 @@ def test_codex_context_no_network_outputs_project_sections():
 
     assert result.returncode == 0, result.stderr
     assert "Codex Context" in result.stdout
-    assert "元守双核心" in result.stdout
+    assert "双核治理" in result.stdout
     assert "Dual-Core Control Plane" not in result.stdout
     assert "Meta Core / 元控核" in result.stdout
     assert "Guardian Core / 守护核" in result.stdout
@@ -128,7 +128,7 @@ def test_dual_core_governance_model_is_active_context():
     agents = PROJECT_ROOT / "AGENTS.md"
 
     model_text = model.read_text(encoding="utf-8")
-    assert "元守双核心" in model_text
+    assert "双核治理" in model_text
     assert "EduCloud Dual-Core Control Plane" not in model_text
     assert "ECP-DualCore" not in model_text
     assert "Meta Core" in model_text
@@ -140,7 +140,7 @@ def test_dual_core_governance_model_is_active_context():
     assert "docs/context/GOVERNANCE_MODEL.md" in active_index.read_text(encoding="utf-8")
     assert "docs/context/META_RUNTIME.md" in active_index.read_text(encoding="utf-8")
     agents_text = agents.read_text(encoding="utf-8")
-    assert "元守双核心" in agents_text
+    assert "双核治理" in agents_text
     assert "EduCloud Dual-Core Control Plane" not in agents_text
     assert "Meta Core / 元控核" in agents_text
     assert "Guardian Core / 守护核" in agents_text
@@ -174,7 +174,7 @@ def test_dual_core_responsibilities_are_formally_scoped():
             assert term in text
 
 
-def test_yuanshou_name_has_no_old_active_doc_aliases():
+def test_legacy_governance_name_has_no_old_active_doc_aliases():
     active_docs = [
         PROJECT_ROOT / "AGENTS.md",
         PROJECT_ROOT / "docs" / "context" / "GOVERNANCE_MODEL.md",
@@ -186,7 +186,7 @@ def test_yuanshou_name_has_no_old_active_doc_aliases():
 
     for path in active_docs:
         normalized = " ".join(path.read_text(encoding="utf-8").split())
-        assert "元守双核心" in normalized or path.name == "SAFETY_MATRIX.md"
+        assert "双核治理" in normalized or path.name == "SAFETY_MATRIX.md"
         assert "EduCloud Dual-Core Control Plane" not in normalized
         assert "Dual-Core Control Plane" not in normalized
         assert "ECP-DualCore" not in normalized
@@ -1729,13 +1729,13 @@ def test_is_claude_cli_process_only_matches_real_sessions():
 
     # References / wrappers that merely contain the word "claude" must NOT count.
     assert not module.is_claude_cli_process(
-        "bash -c cd /home/ops/yuanshou && readlink -f /home/ops/.claude/hooks"
+        "bash -c cd /home/ops/legacy-governance && readlink -f /home/ops/.claude/hooks"
     )
     assert not module.is_claude_cli_process(
-        "/usr/bin/ssh -o SendEnv=GIT_PROTOCOL git@github-yuanshou git-upload-pack 'juanwan99/claude-meta.git'"
+        "/usr/bin/ssh -o SendEnv=GIT_PROTOCOL git@github-legacy-governance git-upload-pack 'juanwan99/claude-meta.git'"
     )
     assert not module.is_claude_cli_process(
-        "bash /home/ops/yuanshou/scripts/yuanshou-claude start --project edu-cloud --mode writer"
+        "bash /home/ops/legacy-governance/scripts/legacy_governance_claude start --project edu-cloud --mode writer"
     )
     assert not module.is_claude_cli_process("rg -n pattern /home/ops/.claude/projects/x.jsonl")
     assert not module.is_claude_cli_process("")
@@ -1746,8 +1746,8 @@ def test_count_claude_cli_processes_excludes_references_and_consult(monkeypatch)
     sample = "\n".join(
         [
             "39345 bash -c readlink -f /home/ops/.claude/hooks",
-            "39349 /usr/bin/ssh git@github-yuanshou juanwan99/claude-meta.git",
-            "2800620 bash /home/ops/yuanshou/scripts/yuanshou-claude start --project edu-cloud",
+            "39349 /usr/bin/ssh git@github-legacy-governance juanwan99/claude-meta.git",
+            "2800620 bash /home/ops/legacy-governance/scripts/legacy_governance_claude start --project edu-cloud",
             "2800666 /home/ops/.npm-global/bin/claude --dangerously-skip-permissions",
             "2900001 claude -p review --no-session-persistence --permission-mode plan",
         ]
@@ -1758,7 +1758,7 @@ def test_count_claude_cli_processes_excludes_references_and_consult(monkeypatch)
 
     monkeypatch.setattr(module, "run", fake_run)
     # Only the single real interactive Claude CLI counts; the consult reviewer
-    # (--no-session-persistence) and the .claude/claude-meta/yuanshou-claude
+    # (--no-session-persistence) and the .claude/claude-meta/legacy_governance_claude
     # references do not.
     assert module.count_claude_cli_processes() == 1
 
@@ -1772,7 +1772,7 @@ def test_truth_doctor_json_does_not_flag_claude_references_as_sessions():
     claude_risks = [issue for issue in data["issues"] if issue["issue_code"] == "CLAUDE_SESSION_RISK"]
     for risk in claude_risks:
         # If raised at all it must reflect a real count >5, never the dozens of
-        # `.claude`/claude-meta/yuanshou-claude reference lines pgrep returns.
+        # `.claude`/claude-meta/legacy_governance_claude reference lines pgrep returns.
         match = re.search(r"(\d+) Claude processes", risk["summary"])
         assert match and int(match.group(1)) <= 50
 

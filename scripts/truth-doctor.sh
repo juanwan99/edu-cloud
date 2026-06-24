@@ -225,7 +225,7 @@ def _inline_count_claude():
 
 def check_claude_processes():
     # Count only genuine Claude Code CLI sessions: a command that merely
-    # references a `.claude` path, the claude-meta repo, or a `yuanshou-claude`
+    # references a `.claude` path, the claude-meta repo, or a `legacy_governance_claude`
     # wrapper is not an active session and must not inflate the count.
     if count_claude_cli_processes is not None:
         count = count_claude_cli_processes()
