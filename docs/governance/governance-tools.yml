@@ -66,6 +66,14 @@ tools:
     why_insufficient: "Generic import checks do not verify that AI-tool module codes stay aligned with the governance baseline."
     test_command: "python scripts/governance/check_ai_tool_modules.py"
 
+  - path: "scripts/governance/check_doc_pollution.py"
+    owner: "Guardian Core"
+    authority_class: "active_doc_fact_drift_gate"
+    is_completion_evidence: true
+    writes_state: false
+    why_insufficient: "General module dependency checks report live edge and cycle counts but do not police active governance docs for stale D-03 pollution facts."
+    test_command: "uv run python scripts/governance/check_doc_pollution.py --check"
+
   - path: "scripts/governance/check_execution_policy.py"
     owner: "Guardian Core"
     authority_class: "execution_policy_gate"
