@@ -6,13 +6,13 @@ accidents.
 
 ## Current Baseline
 
-- Yuanshou V2 allows multiple windows at the operator layer only when project,
+- Yuanqi governance allows multiple windows at the operator layer only when project,
   worktree, and scope make the collision risk explicit.
 - Same worktree mutating writers are forbidden.
 - Different worktrees with overlapping scope are warned, not assumed safe.
 - `read_only` and reviewer sessions may coexist with writers.
 - `live_admin` is global-exclusive and blocks other mutating sessions.
-- Contract-bound writes still pass through the Yuanshou runtime lock. Treat
+- Contract-bound writes still pass through the Yuanqi scope gate. Treat
   code-write parallelism as controlled and serialized at risky boundaries, not
   free-form simultaneous editing.
 - edu-cloud module dependency baseline is currently 55 cross-module edges and
@@ -56,7 +56,7 @@ Before launching another execution window:
 4. Check current dirty files with `git status --short --branch`.
 5. Classify the task into one mode above.
 6. If mutating, use a separate worktree unless it is the only active writer.
-7. Give Yuanshou an exact `--scope` list and a V2 task contract.
+7. Declare the exact allowed and forbidden scope in the Yuanqi task contract.
 8. Record the Claude window as `sid:<short-id>` in user-facing notes.
 
 Do not start a mutating Claude window when the mode is unclear. Return to Codex
@@ -83,7 +83,7 @@ contract explicitly grants push authority.
 
 - One integrator owns final merge/push for a batch.
 - Central context files (`AGENTS.md`, `docs/context/**`) are updated through a
-  dedicated exclusive governed window (`yc start` + V2 contract) after Codex
+  dedicated exclusive governed window (active Yuanqi task contract) after Codex
   accepts the worker results; Codex does not edit them directly (Q1 ruling,
   `docs/reviews/2026-06-12-w1-governance-acceptance.md`).
 - A worker closeout must report `sid`, contract id/hash, changed files, commit

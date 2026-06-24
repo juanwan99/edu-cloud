@@ -13,8 +13,8 @@ Purpose: stable planning memory for how Codex leads edu-cloud.
   Contract / V2 Task Contract / Executor Packet), range review, and acceptance
   of completion evidence. Codex is **not** the default code-writing channel.
 - **Claude Code is the executor**: all write operations (code and docs) are
-  executed by Claude Code, and only inside a `yc start` window with an active
-  Yuanshou V2 contract. The V2 runtime machine-guards the write boundary,
+  executed by Claude Code, and only inside a Yuanqi task window with an active
+  Yuanqi Yuanqi task contract. The Yuanqi/GitHub-native gate machine-guards the write boundary,
   evidence coverage, and closeout; it does not judge plan quality.
 - Completion claims are accepted by Codex/the user from the executor's
   Completion Return Packet; the executor does not self-declare completion.
@@ -66,7 +66,7 @@ Before non-trivial edu-cloud work, Codex should:
 5. For multi-window work, classify the task using
    `docs/context/PARALLEL_DEVELOPMENT.md`.
 6. For mutating work, draft the V2 Task Contract + Executor Packet and
-   dispatch a governed Claude Code window (`yc start` + contract) instead of
+   dispatch a governed Claude Code window (Yuanqi task contract + contract) instead of
    editing directly.
 7. Accept or reject the executor's Completion Return Packet against the
    contract's required evidence before declaring the task complete.

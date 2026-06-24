@@ -1,7 +1,7 @@
 # Guardian Runtime
 
 This is the active runtime contract for Guardian Core / 守护核 inside
-元守双核心.
+元契治理双核.
 
 ## Evidence Basis
 
@@ -109,7 +109,7 @@ unknown gap prints a red `BROKEN AT:` and exits non-zero.
 `codex_support.is_claude_cli_process` requires the command's `argv[0]` basename
 to be `claude` (an npm bin shim/symlink) or a `node`/`bun` launch of the
 claude-code `cli.js`. Commands that merely reference a `.claude` config path, the
-`claude-meta` git repo, or wrapper scripts such as `yuanshou-claude` /
+`claude-meta` git repo, or wrapper scripts such as `legacy_governance_claude` /
 `codex-consult-claude` are not sessions and never inflate the count; stateless
 `--no-session-persistence` consult reviewers are also excluded.
 

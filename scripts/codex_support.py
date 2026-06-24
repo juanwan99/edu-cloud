@@ -158,7 +158,7 @@ def is_claude_cli_process(command: str) -> bool:
     symlink, or a node/bun launch of the claude-code ``cli.js`` entrypoint).
     Commands that merely *reference* Claude — a ``.claude`` config path in a
     grep/git argument, the ``claude-meta`` git repo, or wrapper scripts such as
-    ``yuanshou-claude`` / ``codex-consult-claude`` whose own ``argv[0]`` basename
+    ``legacy_governance_claude`` / ``codex-consult-claude`` whose own ``argv[0]`` basename
     is not ``claude`` — are not Claude sessions and must not be counted.
     """
     command = (command or "").strip()

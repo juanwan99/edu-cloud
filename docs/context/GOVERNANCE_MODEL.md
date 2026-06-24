@@ -1,14 +1,14 @@
-# 元守双核心
+# 元契治理双核
 
-The edu-cloud governance model is **元守双核心**.
+The edu-cloud governance model is **元契治理双核**.
 The name means a two-core system: 元 for Meta Core / 元控核, and 守 for
 Guardian Core / 守护核.
 
-Roles follow the Yuanshou V2 division (Q1 ruling 2026-06-12,
+Roles follow the Yuanqi governance division (Q1 ruling 2026-06-12,
 `docs/reviews/2026-06-12-w1-governance-acceptance.md`): Codex/Yuance plans,
 reviews, and accepts — it is not the default write channel; Claude Code is the
-governed executor and writes only inside `yc start` + active V2 contract
-windows; Yuanshou V2 machine-guards execution boundaries, evidence, and
+governed executor and writes only inside active Yuanqi task contract
+windows; Yuanqi/GitHub-native gates verify execution boundaries, evidence, and
 closeout. Claude additionally serves as an optional full-repository read-only
 reviewer through `scripts/codex-consult-claude`. In short, the model is
 Codex-led and Claude-assisted: Codex/Yuance owns direction, review, and
@@ -188,8 +188,8 @@ watcher every 15 seconds and enables rate-limited Claude review through
 
 - Codex/Yuance leads at the planning/review/acceptance layer; it drafts
   contracts and packets and accepts evidence. It is not the default editor.
-- Claude Code executes write operations, only inside `yc start` windows with
-  an active Yuanshou V2 contract; the V2 runtime enforces the write boundary,
+- Claude Code executes write operations, only inside Yuanqi task windows with
+  an active Yuanqi task contract; the Yuanqi/GitHub-native gate enforces the write boundary,
   evidence coverage, and closeout mechanically.
 - Through the optional read-only path `scripts/codex-consult-claude`, Claude
   may read the full repository and critique Meta Core decisions and Guardian

@@ -2,7 +2,7 @@
 
 This is the active Codex entrypoint. `CLAUDE.md` is historical/deep reference only.
 
-edu-cloud uses **元守双核心**:
+edu-cloud uses **元契治理双核**:
 
 - **Meta Core / 元控核**: owns direction, facts, task boundaries, context,
   Claude read-only counter-review, and the completion evidence contract.
@@ -14,7 +14,7 @@ edu-cloud uses **元守双核心**:
   `deploy/systemd/edu-cloud-guardian.service` when continuous monitoring is
   needed.
 
-The working model is the Yuanshou V2 division of roles (Q1 ruling 2026-06-12,
+The working model is the Yuanqi governance division of roles (Q1 ruling 2026-06-12,
 `docs/reviews/2026-06-12-w1-governance-acceptance.md`):
 
 - **Codex/Yuance（元策）** plans, reviews, and accepts: evidence gathering,
@@ -22,8 +22,8 @@ The working model is the Yuanshou V2 division of roles (Q1 ruling 2026-06-12,
   Executor Packet drafting, range review, and acceptance of completion
   evidence. Codex is **not** the default code-writing channel.
 - **Claude Code** is the governed executor: it performs the write operations,
-  but only inside a `yc start` window with an active Yuanshou V2 contract.
-- **Yuanshou V2** guards execution boundaries, evidence coverage, and
+  but only inside a Yuanqi task window with an active Yuanqi task contract.
+- **Yuanqi governance** guards execution boundaries, evidence coverage, and
   closeout. It does not judge plan quality.
 - Completion claims are accepted by Codex/the user from the executor's
   Completion Return Packet; Claude Code does not declare completion on its own.
@@ -34,7 +34,7 @@ Codex is the project steward for edu-cloud at the planning, review, and
 acceptance layer. Codex owns current facts, strategic direction, task
 planning, contract drafting, range review, and acceptance of completion
 evidence. Edits and other write operations are executed by Claude Code inside
-`yc start` + V2 contract windows; Codex does not edit by default. Claude may
+active Yuanqi task contract windows; Codex does not edit by default. Claude may
 additionally critique through the optional read-only auxiliary path
 (`scripts/codex-consult-claude`), which is distinct from the governed
 execution channel and does not make Claude the project authority.
@@ -123,9 +123,9 @@ scripts/codex-verify full --schema
 Claude has two distinct channels. Do not conflate them:
 
 1. **Governed execution（默认写通道）**: Claude Code executes write work inside
-   a `yc start` window with an active Yuanshou V2 contract —
+   a Yuanqi task window with an active Yuanqi task contract —
    `allowed_write_scope` / forbidden scope / evidence / closeout are
-   machine-enforced by the V2 runtime. The executor returns a Completion
+   machine-enforced by the Yuanqi/GitHub-native gate. The executor returns a Completion
    Return Packet; Codex/the user accepts or rejects it.
 2. **Read-only auxiliary review（可选只读辅助审查）**:
    `scripts/codex-consult-claude` invokes Claude as a Codex-invoked read-only
@@ -138,7 +138,7 @@ Claude has two distinct channels. Do not conflate them:
 
 ## Current Context Files
 
-- `docs/context/GOVERNANCE_MODEL.md`: 元守双核心 model.
+- `docs/context/GOVERNANCE_MODEL.md`: 元契治理双核 model.
 - `docs/context/CODEX_STEWARD.md`: Codex project stewardship and planning memory.
 - `docs/context/PARALLEL_DEVELOPMENT.md`: safe parallel development policy.
 - `docs/context/META_RUNTIME.md`: Meta Core task-contract runtime.

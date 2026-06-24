@@ -105,8 +105,8 @@ W1 read_only 验收记录（含全部细节与处置表）：
 `yc-20260612-899ea9ce`。
 
 - **Q1 角色裁定（设计者批准，真源已修订）**：Codex/Yuance（元策）= 规划、审查、
-  验收层，**不是默认写代码通道**；Claude Code = 执行者，写操作**仅在 `yc start` +
-  active Yuanshou V2 contract 内**；Yuanshou V2 = 运行边界/证据/closeout 守卫；
+  验收层，**不是默认写代码通道**；Claude Code = 执行者，写操作**仅在 Yuanqi task contract +
+  active Yuanqi task contract 内**；Yuanqi governance = 运行边界/证据/closeout 守卫；
   `scripts/codex-consult-claude` 保留为可选只读辅助审查路径（与执行通道不混淆）。
   完成声明由 Codex/用户验收，执行者不自行宣布。已修订：`AGENTS.md`、
   `docs/context/CODEX_STEWARD.md`、`docs/context/GOVERNANCE_MODEL.md`、
@@ -136,12 +136,12 @@ W1 read_only 验收记录（含全部细节与处置表）：
 ## Governance Truth Update (2026-06-13 · Q3 W2-后台账校准)
 
 Q3 read_only 调查 → docs-only 校准（合同 `yc-20260614-39eac63d`，承接 W1 验收 +
-W2 元守侧机械硬闸落地）。完整记录：`docs/reviews/2026-06-13-q3-foundation-debt-reconcile.md`。
+W2 旧治理侧机械硬闸落地）。完整记录：`docs/reviews/2026-06-13-q3-foundation-debt-reconcile.md`。
 
-- **D-01/D-02 拆两层（机械闸门 closed / 历史债 open）**：W2（元守侧 writer，yuanshou 仓）
+- **D-01/D-02 拆两层（机械闸门 closed / 历史债 open）**：W2（旧治理侧 writer，legacy-governance 仓）
   已落地两个机械硬闸并 live——运行态操作绑合同（洞 A）+ commit 绑 receipt（洞 B），
-  `tests/v2/test_runtime_ops.py`/`test_review_receipt.py`/`test_git_rules.py`/
-  `test_boundary_guard_hook.py` 合计 **96 passed**，`scripts/yc doctor` READY、
+  `tests/v2/test_runtime_ops.py`/`test_legacy_review_record.py`/`test_git_rules.py`/
+  `legacy boundary hook test` 合计 **96 passed**，`project doctor` READY、
   source=origin=live 对齐。台账 **D-01 → closed/gate-built；D-02 机械闸门 →
   closed/gate-built**。**关键口径**：机械闸门关闭（L1）只保证「此后不再发生」，
   **历史 review-gap（L2）是独立债项、仍 open**，不因闸门建成自动清零。
@@ -169,7 +169,7 @@ Any `BROKEN AT:` diagnosis exits non-zero and blocks completion evidence.
 
 ## Runtime Foundation Status (2026-06-10) — R1 EXECUTION WINDOW DONE
 
-The R1 takeover execution window (Yuanshou V2 contract `yc-20260610-a2979c86`)
+The R1 takeover execution window (Yuanqi Yuanqi task contract `yc-20260610-a2979c86`)
 ran the `docs/plans/2026-06-10-db-migration-design.md` runbook. All three standing
 blockers are now **CLEARED**; source/build/nginx/backend all aligned on HEAD
 `6f90994`:
@@ -442,7 +442,7 @@ D-09S refreshed the active context after the 2026-06-22 closeout chain. Fresh
 evidence shows the mainline is still correct and moving along the intended
 foundation path: `git status` clean at `4fe53fd`, exact-HEAD GitHub Actions
 `Tests` run `27967347661` success, `scripts/codex-context` green, Meta Runtime
-green, Guardian green, truthline `ALL ALIGNED`, and Yuanshou doctor READY with
+green, Guardian green, truthline `ALL ALIGNED`, and legacy retirement doctor READY with
 zero active/stale/unmanaged sessions.
 
 Progress calibration:
@@ -472,7 +472,7 @@ Next order:
 Codex-native migration layer is now committed:
 
 - `AGENTS.md`: active Codex entrypoint.
-- `docs/context/GOVERNANCE_MODEL.md`: 元守双核心 model.
+- `docs/context/GOVERNANCE_MODEL.md`: 元契治理双核 model.
 - `docs/context/META_RUNTIME.md`: Meta Core task-contract runtime.
 - `docs/context/**`: current facts, commands, lessons, safety matrix, active
   index, artifact policy, and Claude auxiliary protocol.
@@ -497,7 +497,7 @@ Codex-native migration layer is now committed:
   `deploy/systemd/edu-cloud-guardian.service`.
 - `.github/workflows/test.yml`: governance, backend, and frontend CI smoke.
 
-The governance model is formally **元守双核心**:
+The governance model is formally **元契治理双核**:
 
 - Meta Core / 元控核: owns direction, facts, task boundaries, context, Claude
   read-only counter-review, and the completion evidence contract.
