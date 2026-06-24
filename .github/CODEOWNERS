@@ -1,7 +1,37 @@
-# edu-cloud governance ownership - independent review (jopfea796-dotcom) required before merge.
-# Daily src/ and frontend/ changes are NOT gated here; they rely on scope gate + module_governance_guard.
+# edu-cloud governance ownership - independent review (jopfea796-dotcom) before merge.
+# Daily module dev (exam/grading/homework/marking/...) is NOT gated here; it relies
+# on scope gate + module_governance_guard. This file gates governance infrastructure
+# + exclusive scopes (high-risk parallel-collision areas).
+
+# --- Governance infrastructure ---
 /.github/ @jopfea796-dotcom
 /control/ @jopfea796-dotcom
 /scripts/governance/ @jopfea796-dotcom
 /tests/governance/ @jopfea796-dotcom
 /docs/governance/ @jopfea796-dotcom
+
+# --- Exclusive: central context & entrypoints ---
+/AGENTS.md @jopfea796-dotcom
+/docs/context/ @jopfea796-dotcom
+
+# --- Exclusive: DB migrations & schema ---
+/alembic/ @jopfea796-dotcom
+/scripts/db_migrate @jopfea796-dotcom
+/scripts/db_doctor.py @jopfea796-dotcom
+
+# --- Exclusive: auth / permission gates ---
+/src/edu_cloud/core/permissions.py @jopfea796-dotcom
+/frontend/src/router/ @jopfea796-dotcom
+/frontend/src/stores/auth.js @jopfea796-dotcom
+
+# --- Exclusive: runtime & deploy ---
+/deploy/ @jopfea796-dotcom
+/scripts/guardian_runtime.py @jopfea796-dotcom
+/scripts/meta_runtime.py @jopfea796-dotcom
+/scripts/run-arq-worker @jopfea796-dotcom
+
+# --- Exclusive: portal aggregation & shared foundation modules ---
+/src/edu_cloud/modules/portal/ @jopfea796-dotcom
+/src/edu_cloud/modules/student/ @jopfea796-dotcom
+/src/edu_cloud/modules/profile/ @jopfea796-dotcom
+/src/edu_cloud/modules/school/ @jopfea796-dotcom
