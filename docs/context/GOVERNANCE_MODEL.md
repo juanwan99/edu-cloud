@@ -1,8 +1,7 @@
-# 元契治理双核
+# 双核治理
 
-The edu-cloud governance model is **元契治理双核**.
-The name means a two-core system: 元 for Meta Core / 元控核, and 守 for
-Guardian Core / 守护核.
+The edu-cloud governance model is **双核治理**.
+The two cores are Meta Core / 元控核 and Guardian Core / 守护核.
 
 Roles follow the Yuanqi governance division (Q1 ruling 2026-06-12,
 `docs/reviews/2026-06-12-w1-governance-acceptance.md`): Codex/Yuance plans,

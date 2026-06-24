@@ -7,7 +7,7 @@ Use this index before reading historical `docs/plans/**`. Anything not listed he
 | Path | Status | Use |
 |---|---|---|
 | `AGENTS.md` | active | Codex entrypoint and hard rules |
-| `docs/context/GOVERNANCE_MODEL.md` | active | 元契治理双核 model |
+| `docs/context/GOVERNANCE_MODEL.md` | active | 双核治理 model |
 | `docs/context/CODEX_STEWARD.md` | active | Codex project stewardship and planning memory |
 | `docs/context/PARALLEL_DEVELOPMENT.md` | active | Safe parallel development modes, launch rules, and exclusive scopes |
 | `docs/context/META_RUNTIME.md` | active | Meta Core task-contract runtime |
