@@ -472,7 +472,7 @@ Next order:
 Codex-native migration layer is now committed:
 
 - `AGENTS.md`: active Codex entrypoint.
-- `docs/context/GOVERNANCE_MODEL.md`: 元契治理双核 model.
+- `docs/context/GOVERNANCE_MODEL.md`: 双核治理 model.
 - `docs/context/META_RUNTIME.md`: Meta Core task-contract runtime.
 - `docs/context/**`: current facts, commands, lessons, safety matrix, active
   index, artifact policy, and Claude auxiliary protocol.
@@ -497,7 +497,7 @@ Codex-native migration layer is now committed:
   `deploy/systemd/edu-cloud-guardian.service`.
 - `.github/workflows/test.yml`: governance, backend, and frontend CI smoke.
 
-The governance model is formally **元契治理双核**:
+The governance model is formally **双核治理**:
 
 - Meta Core / 元控核: owns direction, facts, task boundaries, context, Claude
   read-only counter-review, and the completion evidence contract.

@@ -2,7 +2,7 @@
 
 This is the active Codex entrypoint. `CLAUDE.md` is historical/deep reference only.
 
-edu-cloud uses **元契治理双核**:
+edu-cloud uses **双核治理**:
 
 - **Meta Core / 元控核**: owns direction, facts, task boundaries, context,
   Claude read-only counter-review, and the completion evidence contract.
@@ -138,7 +138,7 @@ Claude has two distinct channels. Do not conflate them:
 
 ## Current Context Files
 
-- `docs/context/GOVERNANCE_MODEL.md`: 元契治理双核 model.
+- `docs/context/GOVERNANCE_MODEL.md`: 双核治理 model.
 - `docs/context/CODEX_STEWARD.md`: Codex project stewardship and planning memory.
 - `docs/context/PARALLEL_DEVELOPMENT.md`: safe parallel development policy.
 - `docs/context/META_RUNTIME.md`: Meta Core task-contract runtime.

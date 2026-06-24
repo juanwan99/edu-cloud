@@ -15,8 +15,9 @@ accidents.
 - Contract-bound writes still pass through the Yuanqi scope gate. Treat
   code-write parallelism as controlled and serialized at risky boundaries, not
   free-form simultaneous editing.
-- edu-cloud module dependency baseline is currently 55 cross-module edges and
-  30 historical cycles. That is accepted debt, not a reason to add more.
+- edu-cloud module dependency baseline is currently 0 cross-module edges and 0 cycles
+  (the historical 55 edges / 30 cycles were cleared by D-03R on 2026-06-22; see
+  docs/governance/debt-ledger.md). Keep it at 0 — do not add new edges or cycles.
 
 ## Parallel Modes
 

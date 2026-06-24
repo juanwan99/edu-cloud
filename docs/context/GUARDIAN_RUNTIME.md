@@ -1,7 +1,7 @@
 # Guardian Runtime
 
 This is the active runtime contract for Guardian Core / 守护核 inside
-元契治理双核.
+双核治理.
 
 ## Evidence Basis
 

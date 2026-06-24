@@ -1,6 +1,6 @@
 # Meta Runtime
 
-This is the active runtime contract for Meta Core / 元控核 inside 元契治理双核.
+This is the active runtime contract for Meta Core / 元控核 inside 双核治理.
 
 ## Evidence Basis
 
