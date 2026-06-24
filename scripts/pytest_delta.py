@@ -3,12 +3,12 @@
 
 Runs pytest, compares against known-failures baseline.
 - New failures → exit 1 (block)
-- Known failures disappearing (fixed) → auto-remove from baseline
+- Known failures disappearing (fixed) → reported; baseline is read-only by default
 - All known failures still failing → exit 0 (pass)
 
 Usage:
-    python scripts/pytest_delta.py [--update-only] [pytest-args...]
-    --update-only: skip pytest run, just update baseline from last junit xml
+    python scripts/pytest_delta.py [--update-baseline|--prune-baseline] [pytest-args...]
+    --update-baseline / --prune-baseline: prune fixed known failures after a full run
 """
 import subprocess
 import sys
@@ -90,7 +90,12 @@ def _detect_collection_errors(stdout, stderr, rc):
 
 
 def main():
-    extra_args = [a for a in sys.argv[1:] if a != '--update-only']
+    baseline_write_flags = {'--update-baseline', '--prune-baseline'}
+    update_baseline = any(a in baseline_write_flags for a in sys.argv[1:])
+    extra_args = [
+        a for a in sys.argv[1:]
+        if a not in baseline_write_flags and a != '--update-only'
+    ]
     PARTIAL_FLAGS = ('--lf', '--ff', '-x', '--maxfail', '--ignore', '-k', '--last-failed')
     is_full_run = not extra_args or not any(
         any(a.startswith(f) for f in PARTIAL_FLAGS)
@@ -114,7 +119,7 @@ def main():
     new_failures = actual_failures - known
     fixed = (known - actual_failures) if is_full_run else set()
 
-    if fixed:
+    if fixed and update_baseline:
         known -= fixed
         save_baseline(known, removed=fixed)
 
@@ -130,9 +135,15 @@ def main():
     print(f"\n✅ No new failures.")
     print(f"   Known failures still present: {len(known & actual_failures)}")
     if fixed:
-        print(f"   Known failures fixed: {len(fixed)}")
+        if update_baseline:
+            print(f"   Known failures fixed: {len(fixed)}")
+        else:
+            print(
+                f"   Known failures fixed: {len(fixed)} "
+                "(baseline unchanged; pass --update-baseline or --prune-baseline to prune)"
+            )
     if not is_full_run:
-        print(f"   (partial run — known failures not auto-removed)")
+        print(f"   (partial run — baseline not pruned)")
     passed_line = [l for l in stdout.splitlines() if 'passed' in l]
     if passed_line:
         print(f"   {passed_line[-1].strip()}")
