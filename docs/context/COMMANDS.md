@@ -311,6 +311,7 @@ scripts/codex-verify full --schema
 
 ```bash
 python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
+python scripts/governance/check_execution_policy.py
 python -m pytest tests/governance/test_codex_scripts.py -q
 scripts/codex-check --no-network
 scripts/meta-check --json --fail-on-blocking

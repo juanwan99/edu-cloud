@@ -85,6 +85,22 @@ def load_meta_runtime_module():
     return module
 
 
+def test_control_governance_policy_is_present_and_conservative():
+    import yaml
+
+    policy_path = PROJECT_ROOT / "control" / "governance.yaml"
+    data = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
+    governed = data["governed_paths"]
+    high_risk = set(governed["high_risk"])
+    low_risk = set(governed["low_risk"])
+
+    assert high_risk
+    assert isinstance(governed["low_risk"], list)
+    assert {".github/**", "src/**", "frontend/src/**", "scripts/**", "tests/**"} <= high_risk
+    assert {"docs/**", "README.md"} <= low_risk
+    assert not (high_risk & low_risk)
+
+
 def test_codex_context_no_network_outputs_project_sections():
     result = run_script("codex-context", "--no-network")
 
@@ -1471,9 +1487,10 @@ def test_ci_governance_job_runs_codex_smoke_checks():
     assert "governance:" in text
     for command in (
         "python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker",
-        "python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py",
+        "python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_execution_policy.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py",
+        "python scripts/governance/check_execution_policy.py",
         "python -m pytest tests/governance/test_codex_scripts.py -q",
-        "python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_tenant_static.py -q",
+        "python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_execution_policy.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_tenant_static.py -q",
         "python scripts/governance/aggregate_modules.py --check",
         "python scripts/governance/check_ai_tool_modules.py",
         "python scripts/governance/check_module_dependencies.py --check",
@@ -1889,3 +1906,29 @@ fi
     assert "trails HEAD only by docs/governance/test/observability commits" in result.stdout
     assert "ALL ALIGNED — source, build, nginx, backend versions match" not in result.stdout
     assert "docs/governance-only" in result.stdout
+
+
+def test_tests_workflow_has_cost_guardrails_for_expensive_jobs():
+    """Backend/frontend CI should not run for every docs/governance-only push."""
+    import yaml
+
+    workflow_path = PROJECT_ROOT / ".github" / "workflows" / "test.yml"
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(workflow_text)
+
+    assert workflow["concurrency"]["cancel-in-progress"] is True
+    assert workflow["jobs"]["changes"]["outputs"]["backend"]
+    assert workflow["jobs"]["changes"]["outputs"]["frontend"]
+
+    backend = workflow["jobs"]["backend"]
+    frontend = workflow["jobs"]["frontend"]
+
+    assert backend["needs"] == "changes"
+    assert frontend["needs"] == "changes"
+    assert backend["if"] == "needs.changes.outputs.backend == 'true'"
+    assert frontend["if"] == "needs.changes.outputs.frontend == 'true'"
+    assert '"Dockerfile"' in workflow_text
+    assert '"deploy/"' in workflow_text
+    assert "|| true" not in workflow_text
+    assert "continue-on-error: true" not in workflow_text
+    assert "scripts/governance/check_execution_policy.py" in workflow_text

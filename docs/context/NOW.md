@@ -325,7 +325,7 @@ backend + studio/teaching frontend). Evidence: guard `--check` clean;
 governance+middleware 66 passed; conduct+exam_import 153 passed; meta-check green.
 codex-review status lives in the machine source of truth — gate
 `code_review_batch_07b` in `docs/plans/2026-06-04-module-governance-repair-gates.json`
-plus `.review-receipts.jsonl`. This doc states the *work*; the gate states the
+plus `legacy receipt log`. This doc states the *work*; the gate states the
 *review verdict* (do not narrate per-round verdicts here — that narration goes
 stale every round and re-triggers a scope_gap finding).
 

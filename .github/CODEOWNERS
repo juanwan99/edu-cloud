@@ -1,0 +1,7 @@
+# edu-cloud governance ownership - independent review (jopfea796-dotcom) required before merge.
+# Daily src/ and frontend/ changes are NOT gated here; they rely on scope gate + module_governance_guard.
+/.github/ @jopfea796-dotcom
+/control/ @jopfea796-dotcom
+/scripts/governance/ @jopfea796-dotcom
+/tests/governance/ @jopfea796-dotcom
+/docs/governance/ @jopfea796-dotcom

@@ -15,7 +15,7 @@ plan: /home/ops/projects/edu-cloud/docs/plans/2026-06-05-foundation-governance-m
 **project_dir**: /home/ops/projects/edu-cloud
 **effective_tier**: T3
 **gate_status**: 无 PASS gate（engine plan-review R5=FINDINGS，定稿于 R5 处置态）
-**last_verified_evidence**: engine_plan_review R5 verdict=FINDINGS @ 2026-06-05_103336（.review-receipts.jsonl）
+**last_verified_evidence**: engine_plan_review R5 verdict=FINDINGS @ 2026-06-05_103336（legacy receipt log）
 **subject_hash**: N/A
 **raw_output_hashes**: N/A
 **timestamp**: 2026-06-05 10:40:00

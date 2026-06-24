@@ -1,7 +1,80 @@
 name: Tests
 on: [push, pull_request]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+            head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"
+            head="${{ github.sha }}"
+            if [[ -z "$base" || "$base" =~ ^0+$ ]]; then
+              git diff-tree --no-commit-id --name-only -r "$head" > changed-files.txt
+              initial_push=true
+            else
+              initial_push=false
+            fi
+          fi
+          if [[ "${initial_push:-false}" != "true" ]]; then
+            if ! git cat-file -e "$base^{commit}" 2>/dev/null || ! git cat-file -e "$head^{commit}" 2>/dev/null; then
+              git fetch --no-tags --prune --depth=100 origin "$base" "$head"
+            fi
+            if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+              echo "::error::Unable to resolve base commit $base for CI path filter"
+              exit 1
+            fi
+            if ! git cat-file -e "$head^{commit}" 2>/dev/null; then
+              echo "::error::Unable to resolve head commit $head for CI path filter"
+              exit 1
+            fi
+            git diff --name-only "$base" "$head" > changed-files.txt
+          fi
+          python - <<'PY'
+          from pathlib import Path
+
+          files = [line.strip() for line in Path("changed-files.txt").read_text().splitlines() if line.strip()]
+          workflow = any(path.startswith(".github/workflows/") for path in files)
+          frontend = workflow or any(path.startswith("frontend/") for path in files)
+
+          backend = workflow
+          backend_roots = ("src/", "alembic/", "deploy/", "tests/test_")
+          backend_files = {
+              "Dockerfile",
+              "docker-compose.yml",
+              "docker-compose.yaml",
+              "pyproject.toml",
+              "uv.lock",
+              "tests/conftest.py",
+              "tests/governance/test_module_semantics.py",
+              "scripts/governance/check_module_semantics.py",
+          }
+          for path in files:
+              if path in backend_files or path.startswith(backend_roots):
+                  backend = True
+                  break
+
+          with Path(__import__("os").environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as fh:
+              fh.write(f"backend={str(backend).lower()}\n")
+              fh.write(f"frontend={str(frontend).lower()}\n")
+          PY
+
   governance:
     runs-on: ubuntu-latest
     env:
@@ -16,9 +89,10 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen --extra dev --python 3.11
       - run: uv run python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
-      - run: uv run python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py
+      - run: uv run python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_execution_policy.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py
+      - run: uv run python scripts/governance/check_execution_policy.py
       - run: uv run python -m pytest tests/governance/test_codex_scripts.py -q
-      - run: uv run python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_tenant_static.py -q
+      - run: uv run python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_execution_policy.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_tenant_static.py -q
       - run: uv run python scripts/governance/aggregate_modules.py --check
       - run: uv run python scripts/governance/check_ai_tool_modules.py
       - run: uv run python scripts/governance/check_module_dependencies.py --check
@@ -32,6 +106,8 @@ jobs:
       - run: uv run scripts/codex-verify full --dry-run --schema --no-network
 
   backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     env:
       UV_FROZEN: "1"
@@ -74,6 +150,8 @@ jobs:
       - run: uv run python scripts/governance/check_module_semantics.py --check
 
   frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

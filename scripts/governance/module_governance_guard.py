@@ -64,7 +64,7 @@ def _is_git_worktree(repo: Path) -> bool:
 
 
 def _checkout_staged_index(repo: Path, tmp_path: Path) -> bool:
-    """将 staged index 导出到 tmp_path，失败时返回 False 由调用方 fallback。"""
+    """将 staged index 导出到 tmp_path；失败必须由调用方阻断。"""
     try:
         # R2-NEW-01: 非 git 工作树先显式 fail；兼容 .git 为文件的 worktree。
         if not _is_git_worktree(repo):
@@ -302,19 +302,28 @@ def check_derived_products_fresh(
         return None
     try:
         agg = _import_aggregate_module(real_repo)
-    except Exception:
-        return None  # 首次搭建阶段 aggregate 尚未存在 → 静默（Task 3 之前）
+    except Exception as e:
+        return {
+            "decision": "block",
+            "reason": f"aggregate_modules 不可用，无法校验派生产物 freshness: {e}",
+        }
     out_dir = repo / "docs" / "governance"
     if not out_dir.exists():
-        return None  # 设施未就绪
+        return {
+            "decision": "block",
+            "reason": "docs/governance 不存在，无法校验派生产物 freshness。",
+        }
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         try:
             agg.aggregate_all(repo / MODULES_DIR, tmp_path)
-        except Exception:
-            return None  # aggregate 错误由其他 check 捕获
+        except Exception as e:
+            return {
+                "decision": "block",
+                "reason": f"派生产物重算失败，无法证明 freshness: {e}",
+            }
         stale: list[str] = []
         for name in ("modules.yaml", "dependency-graph.md", "debt-report.md"):
             fresh = (
@@ -413,7 +422,10 @@ def check(data: dict, session_state, staged_info: dict | None = None) -> dict | 
     with tempfile.TemporaryDirectory() as tmp:
         snap = Path(tmp)
         if not _checkout_staged_index(real_repo, snap):
-            snap = real_repo
+            return {
+                "decision": "block",
+                "reason": "无法导出 staged index，拒绝改用工作区证据执行模块治理检查。",
+            }
 
         try:
             all_modules = _load_all_module_frontmatters(snap)
