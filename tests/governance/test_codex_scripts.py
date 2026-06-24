@@ -914,7 +914,18 @@ def test_meta_runtime_detects_task_contract_drift(tmp_path):
         current_obligations=[{"code": "EVIDENCE_MATRIX", "summary": "evidence"}],
     )
 
-    assert any(issue["issue_code"] == "TASK_CONTRACT_DRIFT" for issue in issues)
+    drift = [issue for issue in issues if issue["issue_code"] == "TASK_CONTRACT_DRIFT"]
+    assert drift
+    assert "advisory state obligation" in drift[0]["summary"]
+    assert "baseline" not in drift[0]["summary"].lower()
+    assert "advisory state cache" in drift[0]["command_hint"]
+
+    missing_issues = module.check_task_contract_drift(
+        tmp_path / "missing-state.json", current_obligations=[]
+    )
+    assert missing_issues[0]["issue_code"] == "TASK_CONTRACT_DRIFT"
+    assert "advisory state cache" in missing_issues[0]["summary"]
+    assert "refresh advisory diagnostics" in missing_issues[0]["command_hint"]
 
 
 def test_meta_runtime_write_state_is_atomic_and_readable(tmp_path):
@@ -926,7 +937,12 @@ def test_meta_runtime_write_state_is_atomic_and_readable(tmp_path):
 
     parsed = json.loads(state_file.read_text(encoding="utf-8"))
     assert parsed["schema"] == "meta.state.v1"
+    authority = parsed["state_authority"]
+    assert authority["classification"] == "advisory_diagnostic_cache"
+    assert authority["trust_baseline"] is False
+    assert authority["completion_authority"] is False
     assert parsed["latest_snapshot"]["schema"] == "meta.core.v1"
+    assert parsed["latest_snapshot"]["state_authority"]["trust_baseline"] is False
     assert not (tmp_path / "meta-state.json.tmp").exists()
 
 
