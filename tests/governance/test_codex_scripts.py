@@ -1095,6 +1095,9 @@ def test_codex_consult_claude_system_prompt_preserves_codex_authority():
     assert "AGENTS.md is authoritative" in result.stdout
     assert "CLAUDE.md is historical" in result.stdout
     assert "Meta Core task contract" in result.stdout
+    assert "advisory diagnostic cache only" in result.stdout
+    assert "acceptance fact chain" in result.stdout
+    assert "completion authority" in result.stdout
     assert "Do not edit files" in result.stdout
 
 
@@ -1123,7 +1126,11 @@ def test_codex_consult_claude_injects_meta_state_obligations(monkeypatch, tmp_pa
 
     prompt = module.build_user_prompt("review", "check meta core")
 
-    assert "Current Meta Core task contract" in prompt
+    assert "Advisory Persisted State (diagnostic only)" in prompt
+    assert "not acceptance evidence" in prompt
+    assert "not completion authority" in prompt
+    assert "not a required task baseline" in prompt
+    assert "advisory obligations" in prompt
     assert "EVIDENCE_MATRIX" in prompt
     assert "CLAUDE_REVIEW" in prompt
 

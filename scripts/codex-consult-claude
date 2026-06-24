@@ -34,8 +34,9 @@ Codex is the orchestrator, editor, verifier, and source of completion claims.
 AGENTS.md is authoritative. docs/context/NOW.md is the current fact source.
 docs/context/ACTIVE_INDEX.md controls which historical docs are active.
 docs/context/META_RUNTIME.md defines the Meta Core task contract. If
-logs/meta-state.json exists, treat it as Codex's advisory snapshot of current
-task obligations.
+logs/meta-state.json exists, treat it as an advisory diagnostic cache only:
+it is not part of the acceptance fact chain, completion authority, or a
+required task baseline.
 CLAUDE.md is historical/deep reference, not the active entrypoint.
 
 You may read, grep, glob, and list files under the allowed repository.
@@ -50,22 +51,32 @@ skip verification. If you need command output, ask Codex to run the command.
 
 def meta_state_summary() -> str:
     state_file = PROJECT_ROOT / "logs" / "meta-state.json"
+    header = "Advisory Persisted State (diagnostic only): logs/meta-state.json"
+    authority = (
+        "authority: advisory context only; not acceptance evidence, "
+        "not completion authority, and not a required task baseline."
+    )
     if not state_file.exists():
-        return "Current Meta Core task contract: unavailable; logs/meta-state.json is missing."
+        return f"{header}\n- status: unavailable; logs/meta-state.json is missing.\n- {authority}"
     try:
         parsed = json.loads(state_file.read_text(encoding="utf-8"))
     except Exception:
-        return "Current Meta Core task contract: unavailable; logs/meta-state.json is unreadable."
+        return f"{header}\n- status: unavailable; logs/meta-state.json is unreadable.\n- {authority}"
     latest = parsed.get("latest_snapshot") if isinstance(parsed, dict) else {}
     contract = latest.get("task_contract") if isinstance(latest, dict) else {}
     obligations = contract.get("obligations") if isinstance(contract, dict) else []
     if not isinstance(obligations, list) or not obligations:
-        return f"Current Meta Core task contract: overall={latest.get('overall')}; obligations=none."
-    lines = [f"Current Meta Core task contract: overall={latest.get('overall')}"]
+        return f"{header}\n- {authority}\n- overall: {latest.get('overall')}\n- advisory obligations: none."
+    lines = [
+        header,
+        f"- {authority}",
+        f"- overall: {latest.get('overall')}",
+        "- advisory obligations:",
+    ]
     for item in obligations[:8]:
         if not isinstance(item, dict):
             continue
-        lines.append(f"- {item.get('code')}: {item.get('summary')}")
+        lines.append(f"  - {item.get('code')}: {item.get('summary')}")
     return "\n".join(lines)
 
 
