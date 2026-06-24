@@ -99,9 +99,24 @@ CI (`.github/workflows/test.yml` `governance` job) and `scripts/codex-verify
 full` both use `--fail-on-blocking`. The flags are independent; passing both
 applies the stricter result.
 
-## Completion Evidence
+## Completion Authority
 
-For Meta runtime changes, use:
+Completion is accepted from the external/current authority chain:
+
+- GitHub CI required check / governance gate
+- CODEOWNERS approval
+- live doctor current output (`scripts/truth-doctor.sh` and
+  `scripts/db_doctor.py --strict` when DB/schema is in scope)
+
+`scripts/meta-check --write-state` and `logs/meta-state.json` are task-state
+diagnostics. They can carry obligations and drift context, but persisted state is
+not a trust baseline and is not sufficient completion authority.
+
+`scripts/meta-check --fail-on-blocking` remains a CI-safe local/CI signal for
+blocking Meta issues; it does not replace the required check plus CODEOWNERS
+approval chain.
+
+For Meta runtime changes, attach current diagnostic output such as:
 
 ```bash
 .venv/bin/python -m pytest tests/governance/test_codex_scripts.py -q

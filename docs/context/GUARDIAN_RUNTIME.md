@@ -156,9 +156,21 @@ The runtime must never automatically:
 The JSONL stream rotates at 10MB with five retained backups. The systemd unit
 sets a modest CPU quota, memory cap, and `NoNewPrivileges=true`.
 
-## Completion Evidence
+## Completion Authority
 
-For Guardian runtime changes, use:
+Completion is accepted from the external/current authority chain:
+
+- GitHub CI required check / governance gate
+- CODEOWNERS approval
+- live doctor current output (`scripts/truth-doctor.sh` and
+  `scripts/db_doctor.py --strict` when DB/schema is in scope)
+
+`scripts/guardian-watch`, `systemctl is-active edu-cloud-guardian.service`, and
+`logs/guardian-state.json` are operational diagnostics. They are useful PR
+evidence, but they are not a trust baseline and are not sufficient completion
+authority.
+
+For Guardian runtime changes, attach current diagnostic output such as:
 
 ```bash
 .venv/bin/python -m pytest tests/governance/test_codex_scripts.py -q
