@@ -105,6 +105,7 @@ jobs:
       - run: uv run scripts/codex-consult-claude --dry-run review CI smoke
       - run: uv run scripts/codex-verify safety --repo-wide
       - run: uv run scripts/codex-verify full --dry-run --schema --no-network
+      - run: uv run python -m pytest tests/governance/test_governance_registry.py -q
 
   backend:
     needs: changes
