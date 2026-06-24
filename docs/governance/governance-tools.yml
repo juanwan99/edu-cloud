@@ -1,0 +1,147 @@
+# Registry for governance scripts that can block, diagnose, or produce
+# completion evidence. Add a row before introducing a new doctor, verify,
+# check, truth, meta, guardian, or codex gate.
+tools:
+  - path: "scripts/branch-check"
+    owner: "Guardian Core"
+    authority_class: "branch_coverage_gate"
+    is_completion_evidence: false
+    writes_state: true
+    why_insufficient: "Generic coverage tools do not encode edu-cloud's changed-line branch threshold and main-branch comparison policy."
+    test_command: "scripts/branch-check"
+
+  - path: "scripts/codex-check"
+    owner: "Meta Core"
+    authority_class: "codex_preflight_gate"
+    is_completion_evidence: false
+    writes_state: false
+    why_insufficient: "Generic git status checks do not combine edu-cloud branch, dirty-state, upstream, and safety-risk preflight facts."
+    test_command: "scripts/codex-check"
+
+  - path: "scripts/codex-consult-claude"
+    owner: "Meta Core"
+    authority_class: "read_only_aux_review_gate"
+    is_completion_evidence: false
+    writes_state: false
+    why_insufficient: "Generic model review tooling does not enforce the edu-cloud read-only Claude auxiliary boundary and dry-run contract."
+    test_command: "scripts/codex-consult-claude --dry-run review registry-smoke"
+
+  - path: "scripts/codex-context"
+    owner: "Meta Core"
+    authority_class: "context_snapshot_gate"
+    is_completion_evidence: false
+    writes_state: false
+    why_insufficient: "Generic context dumps do not assemble the project-specific active facts, governance documents, and safety warnings."
+    test_command: "scripts/codex-context --no-network"
+
+  - path: "scripts/codex-verify"
+    owner: "Meta Core"
+    authority_class: "completion_evidence_orchestrator"
+    is_completion_evidence: true
+    writes_state: false
+    why_insufficient: "Raw pytest, npm, and safety commands do not preserve the single edu-cloud completion evidence profile and known-failure policy."
+    test_command: "scripts/codex-verify --help"
+
+  - path: "scripts/db_doctor.py"
+    owner: "Guardian Core"
+    authority_class: "database_schema_drift_gate"
+    is_completion_evidence: true
+    writes_state: false
+    why_insufficient: "Alembic status alone does not compare the live SQLite schema, migration history, and strict drift rules used by edu-cloud."
+    test_command: "python scripts/db_doctor.py --strict"
+
+  - path: "scripts/db_migrate"
+    owner: "Guardian Core"
+    authority_class: "database_migration_gate"
+    is_completion_evidence: true
+    writes_state: true
+    why_insufficient: "Direct alembic commands bypass edu-cloud backup, drift-doctor, and migration safety sequencing."
+    test_command: "scripts/db_migrate --current"
+
+  - path: "scripts/governance/check_ai_tool_modules.py"
+    owner: "Guardian Core"
+    authority_class: "ai_tool_module_baseline_gate"
+    is_completion_evidence: false
+    writes_state: true
+    why_insufficient: "Generic import checks do not verify that AI-tool module codes stay aligned with the governance baseline."
+    test_command: "python scripts/governance/check_ai_tool_modules.py"
+
+  - path: "scripts/governance/check_execution_policy.py"
+    owner: "Guardian Core"
+    authority_class: "execution_policy_gate"
+    is_completion_evidence: false
+    writes_state: false
+    why_insufficient: "Generic YAML or workflow linting does not enforce edu-cloud execution policy links across policy docs, module guards, and CI."
+    test_command: "python scripts/governance/check_execution_policy.py"
+
+  - path: "scripts/governance/check_module_dependencies.py"
+    owner: "Guardian Core"
+    authority_class: "module_dependency_baseline_gate"
+    is_completion_evidence: false
+    writes_state: true
+    why_insufficient: "Generic dependency scanners do not compare edu-cloud module import edges, cycles, and MODULE.md declarations to the accepted baseline."
+    test_command: "python scripts/governance/check_module_dependencies.py --check"
+
+  - path: "scripts/governance/check_module_semantics.py"
+    owner: "Guardian Core"
+    authority_class: "module_semantics_gate"
+    is_completion_evidence: false
+    writes_state: false
+    why_insufficient: "Generic route or config tests do not validate edu-cloud's module truthline across backend routes, frontend gates, portal services, and known drift."
+    test_command: "python scripts/governance/check_module_semantics.py --check"
+
+  - path: "scripts/governance/check_permission_mirror.py"
+    owner: "Guardian Core"
+    authority_class: "permission_mirror_gate"
+    is_completion_evidence: false
+    writes_state: false
+    why_insufficient: "Generic permission tests do not compare frontend aliases with backend role definitions for edu-cloud mirror drift."
+    test_command: "python scripts/governance/check_permission_mirror.py"
+
+  - path: "scripts/guardian-watch"
+    owner: "Guardian Core"
+    authority_class: "realtime_guardian_runtime"
+    is_completion_evidence: false
+    writes_state: true
+    why_insufficient: "Generic watchers do not combine dirty-state, truthline, DB, safety, frontend/backend consistency, and environment hygiene checks."
+    test_command: "scripts/guardian-watch --once --no-network --no-model-review --no-jsonl"
+
+  - path: "scripts/meta-check"
+    owner: "Meta Core"
+    authority_class: "meta_runtime_gate"
+    is_completion_evidence: false
+    writes_state: true
+    why_insufficient: "Generic context checks do not enforce the edu-cloud task-bound Meta runtime contract or optional state handoff."
+    test_command: "scripts/meta-check --json --strict"
+
+  - path: "scripts/truth"
+    owner: "Guardian Core"
+    authority_class: "truthline_cli"
+    is_completion_evidence: false
+    writes_state: false
+    why_insufficient: "Generic shell entrypoints do not provide a stable edu-cloud truthline command surface for status and doctor operations."
+    test_command: "scripts/truth help"
+
+  - path: "scripts/truth-doctor.sh"
+    owner: "Guardian Core"
+    authority_class: "truthline_integrity_gate"
+    is_completion_evidence: false
+    writes_state: false
+    why_insufficient: "Generic file checks do not validate edu-cloud truthline integrity and drift-specific invariants."
+    test_command: "scripts/truth-doctor.sh --json"
+
+  - path: "scripts/truth-status.sh"
+    owner: "Guardian Core"
+    authority_class: "truthline_status_evidence"
+    is_completion_evidence: true
+    writes_state: false
+    why_insufficient: "Generic status commands do not assemble the production runtime, git, service, frontend artifact, and truthline facts required by edu-cloud."
+    test_command: "scripts/truth-status.sh"
+
+  - path: "scripts/yuanqi/registry_doctor.py"
+    owner: "Yuanqi Governance"
+    authority_class: "yuanqi_task_registry_gate"
+    is_completion_evidence: false
+    writes_state: false
+    why_insufficient: "Generic YAML validation does not detect stale active Yuanqi task locks while preserving the no-mutation registry boundary."
+    test_command: "python scripts/yuanqi/registry_doctor.py"
