@@ -96,6 +96,7 @@ jobs:
       - run: uv run python scripts/governance/aggregate_modules.py --check
       - run: uv run python scripts/governance/check_ai_tool_modules.py
       - run: uv run python scripts/governance/check_module_dependencies.py --check
+      - run: uv run python scripts/governance/check_doc_pollution.py --check
       - run: uv run python scripts/governance/check_permission_mirror.py
       - run: uv run python scripts/governance/module_governance_guard.py --git-hook-mode --repo "$(pwd)"
       - run: uv run scripts/codex-check --no-network
