@@ -114,7 +114,7 @@ C3 精确口径（审计 §七.2 已把数据态并入）：① 带凭据在 mcu
 
 ## 4. 偏离与异常清单（按严重度）
 
-1. **审查空窗**：`.review-receipts.jsonl`（92 条）最后一条 = 06-07 14:40 PASS@`3688f32`。**其后 13 个 commit 零 receipt**，含 coze provider（+2,946 行）和答题卡 canonical（+3,634 行）两个大功能。空窗自 06-09 始，早于 06-11 steward 新政——是执行偏离而非政策换轨。"治理链内提交全走 review（gates.json 硬拦截），链外功能提交全没走"说明该不该审目前靠流程自觉
+1. **审查空窗**：`legacy receipt log`（92 条）最后一条 = 06-07 14:40 PASS@`3688f32`。**其后 13 个 commit 零 receipt**，含 coze provider（+2,946 行）和答题卡 canonical（+3,634 行）两个大功能。空窗自 06-09 始，早于 06-11 steward 新政——是执行偏离而非政策换轨。"治理链内提交全走 review（gates.json 硬拦截），链外功能提交全没走"说明该不该审目前靠流程自觉
 2. **R-M3 死开关**：`AI_COZE_REQUIRED_ACTION_SUBMIT_ENABLED` 未声明进 config.py Settings（pydantic `extra="ignore"` 静默吞 env）→ 文档承诺的"显式开启"不可达。方向安全（永远 fail-closed）但开关无效。审计已登记，截至 HEAD 未修
 3. **测试基线三口径分裂**：CLAUDE.md 12 failed（05-19）/ `.quality/known-pytest-failures.txt` 26 条（05-06 后未刷新，`pytest_delta` 闸门未持续运转）/ NOW.md 22 条 env 失败（0.7E 全量实跑）。失败集合无单一真源（R-M4）
 4. **R-M2 模式复发**：06-11 21:18:49 push → 21:19:06 backend restart → 21:20:11 dist rebuild，紧跟提交且 repo 无留痕/合同记录——与审计批评的"治理窗口外运行态操作"（06-10 `6f90994→c26379d` 那次）同模式
@@ -225,7 +225,7 @@ C3 精确口径（审计 §七.2 已把数据态并入）：① 带凭据在 mcu
 - 进程取证：`ps -p 3832839` + 祖先链（本会话）；全量 claude 匹配进程表（孤儿 bash 实锤）
 - yc doctor 输出（NOT_READY，唯一 fail=unmanaged=1=本会话；recent events 含本会话 PROTECTED_NO_CONTRACT 事件）
 - 提交统计：`git log --since=2026-06-05`（59 commits 分类、按日分布）
-- 审查统计：`.review-receipts.jsonl` 92 条 verdict 分布（FINDINGS 64/PASS 7/BLOCKED 10/advisory 11）；空窗边界 = 06-07 14:40 PASS@3688f32
+- 审查统计：`legacy receipt log` 92 条 verdict 分布（FINDINGS 64/PASS 7/BLOCKED 10/advisory 11）；空窗边界 = 06-07 14:40 PASS@3688f32
 - 结构债：`docs/governance/foundation-boundaries.md`（55 边/30 环基线、modular monolith first、AI 工具 exam 46、权限 16 vs 11）
 - 状态真源：`docs/context/NOW.md`（06-10 20:42 刷新）、`docs/context/ACTIVE_INDEX.md`、`docs/plans/2026-06-07-phase09-portal-unlock-decision.md`、`docs/plans/2026-06-10-db-migration-design.md`、`docs/reviews/2026-06-10-foundation-stability-audit.md`（R-H1..R-L6）
 - 卫星仓：paper-seg `git log -- pip/`（init 入仓）+ 206 deleted 实测；answer-card-editor GeometrySpec 零命中 grep；modular-arch `git branch -r --contains 2cc0165` 为空（唯一副本）

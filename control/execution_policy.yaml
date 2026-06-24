@@ -1,6 +1,6 @@
 schema: edu.execution-policy.v1
 updated: 2026-06-23
-owner: yuance
+owner: edu-cloud-governance
 
 ci_cost_control:
   local_first_required: true

@@ -39,7 +39,7 @@ $ git diff --check                # （空——无空白/冲突标记）
 
 ### §B 最新 codex-review 机器真源（权威 verdict）
 
-`.review-receipts.jsonl` 末 5 条（机器真源，verdict 以此为准，不以叙述为准）：
+`legacy receipt log` 末 5 条（机器真源，verdict 以此为准，不以叙述为准）：
 
 | ts (UTC+8) | verdict | reviewed_sha | 说明 |
 |---|---|---|---|

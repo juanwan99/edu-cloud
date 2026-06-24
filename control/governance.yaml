@@ -1,4 +1,4 @@
-# Minimal Yuanshou governance policy for edu-cloud.
+# Minimal local governance policy for edu-cloud.
 # Keep the first project lane conservative: source, runtime, CI, tests,
 # generated-data boundaries, and governance files are high risk by default.
 governed_paths:

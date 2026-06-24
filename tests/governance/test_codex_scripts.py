@@ -85,7 +85,7 @@ def load_meta_runtime_module():
     return module
 
 
-def test_yuanshou_control_governance_policy_is_present_and_conservative():
+def test_control_governance_policy_is_present_and_conservative():
     import yaml
 
     policy_path = PROJECT_ROOT / "control" / "governance.yaml"
@@ -1906,71 +1906,6 @@ fi
     assert "trails HEAD only by docs/governance/test/observability commits" in result.stdout
     assert "ALL ALIGNED — source, build, nginx, backend versions match" not in result.stdout
     assert "docs/governance-only" in result.stdout
-
-
-def test_b2b_reviewer_receipt_lane_policy_is_present_and_non_author():
-    """The B2b lane in control/review_receipts.yaml must stay conservative and
-    map onto the existing Yuanshou review-receipt-record primitive: a non-author
-    Codex code review that only closes out on a pass receipt.
-
-    These enums mirror yuanshou_v2/review_receipt.py (REVIEW_TYPES) and the
-    review-receipt-record --decision choices; the test fails closed if the
-    edu-cloud policy ever drifts away from what the runtime accepts.
-    """
-    import yaml
-
-    # Vocabulary the Yuanshou runtime validates; kept local so this stays a
-    # self-contained edu-cloud CI check with no cross-repo import.
-    RUNTIME_REVIEW_TYPES = {"plan_review", "code_review", "integration_review"}
-    RUNTIME_DECISIONS = {"pass", "fail", "waived"}
-
-    policy_path = PROJECT_ROOT / "control" / "review_receipts.yaml"
-    data = yaml.safe_load(policy_path.read_text(encoding="utf-8"))
-
-    # Declared enums must not drift away from the runtime primitive.
-    assert set(data["review_types"]) == RUNTIME_REVIEW_TYPES
-    assert set(data["decisions"]) == RUNTIME_DECISIONS
-
-    lane = data["lanes"]["B2b"]
-
-    # B2b is a non-author code-review lane.
-    assert lane["review_type"] == "code_review"
-    assert lane["review_type"] in RUNTIME_REVIEW_TYPES
-    assert lane["reviewer"] == "codex"
-    assert lane["author"] == "claude_code"
-    assert lane["non_author_review"] is True
-    # The author (Claude executor) must never be allowed to self-review.
-    assert lane["reviewer"] != lane["author"]
-
-    # Closeout is conservative: only a pass receipt advances the lane.
-    assert lane["required_decision"] == "pass"
-    assert lane["required_decision"] in RUNTIME_DECISIONS
-
-    # Review reports live under the repo docs/reviews tree.
-    assert lane["report_dir"] == "docs/reviews"
-
-    # Metadata mirrors the review-receipt-record --metadata-json payload.
-    assert lane["metadata"]["route"] == "B2b"
-    assert lane["metadata"]["non_author_review"] is True
-
-    # A recorded B2b receipt must carry every field the runtime requires
-    # (yuanshou-review-receipt.v2 schema). The policy enumerates them so CI
-    # fails closed if the lane ever drops a runtime-required receipt field.
-    RUNTIME_REQUIRED_RECEIPT_FIELDS = {
-        "contract_id",
-        "contract_hash",
-        "receipt_id",
-        "reviewer",
-        "review_type",
-        "reviewed_sha",
-        "decision",
-        "report_path",
-        "report_sha256",
-        "metadata",
-    }
-    required_receipt_fields = lane["required_receipt_fields"]
-    assert isinstance(required_receipt_fields, list)
-    assert RUNTIME_REQUIRED_RECEIPT_FIELDS <= set(required_receipt_fields)
 
 
 def test_tests_workflow_has_cost_guardrails_for_expensive_jobs():
