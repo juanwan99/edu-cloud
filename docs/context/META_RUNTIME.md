@@ -34,8 +34,8 @@ task-contract plane. It checks:
   delivery-path sections
 - optional recent committed plan/design files include evidence and a concrete
   file or asset reference
-- optional drift checks preserve the baseline task obligations from
-  `logs/meta-state.json`
+- optional drift checks compare current obligations against advisory diagnostic
+  obligations from `logs/meta-state.json`
 - current task text implies explicit obligations such as evidence mining,
   Claude review, implementation verification, autonomy, and instruction
   decomposition
@@ -71,16 +71,19 @@ scripts/meta-check --task "current user task" --check-drift --baseline-state log
 scripts/meta-check --check-recent-plans
 ```
 
-`--check-drift` compares current obligations to the baseline state and reports
-`TASK_CONTRACT_DRIFT` if an obligation disappears. `--check-recent-plans`
-checks recently committed `docs/plans/**` and `docs/superpowers/plans/**` files
-for evidence sections that include a concrete file, file-line, or asset
-reference. If the git range cannot be resolved, it reports
-`PLAN_SCAN_INCONCLUSIVE` instead of silently skipping the check.
+`--check-drift` compares current obligations to the advisory state cache
+(the `--baseline-state` flag name is retained for compatibility) and reports
+`TASK_CONTRACT_DRIFT` if an obligation disappears from current task text. This
+is a diagnostic warning, not a trusted baseline or completion authority.
+`--check-recent-plans` checks recently committed `docs/plans/**` and
+`docs/superpowers/plans/**` files for evidence sections that include a concrete
+file, file-line, or asset reference. If the git range cannot be resolved, it
+reports `PLAN_SCAN_INCONCLUSIVE` instead of silently skipping the check.
 
-Task-obligation extraction is heuristic. Use stable task text when writing a
-baseline for `--check-drift`; if the user materially changes the task, write a
-new baseline rather than treating the drift warning as a failure.
+Task-obligation extraction is heuristic. Use stable task text when refreshing
+the advisory cache for drift diagnostics. If the user materially changes the
+task, refresh the advisory cache rather than treating the drift warning as a
+trusted baseline failure.
 
 ## Exit Modes
 

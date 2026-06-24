@@ -20,6 +20,16 @@ from codex_support import PROJECT_ROOT
 
 SCHEMA = "meta.core.v1"
 STATE_SCHEMA = "meta.state.v1"
+STATE_AUTHORITY = {
+    "classification": "advisory_diagnostic_cache",
+    "trust_baseline": False,
+    "completion_authority": False,
+    "obligation_authority": "heuristic_context_only",
+    "summary": (
+        "Persisted Meta state can support drift diagnosis but is not "
+        "acceptance evidence, completion authority, or a required task baseline."
+    ),
+}
 REQUIRED_META_LESSONS = ("L013", "L015", "L017", "L019", "L020", "L022")
 SHANGHAI_TZ = timezone(timedelta(hours=8))
 PLAN_REFERENCE_RE = re.compile(
@@ -430,7 +440,7 @@ def obligation_codes(obligations: list[dict[str, str]]) -> set[str]:
     return {str(item.get("code")) for item in obligations if item.get("code")}
 
 
-def baseline_obligations(path: Path) -> list[dict[str, str]]:
+def advisory_state_obligations(path: Path) -> list[dict[str, str]]:
     try:
         parsed = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
@@ -444,32 +454,32 @@ def baseline_obligations(path: Path) -> list[dict[str, str]]:
 
 
 def check_task_contract_drift(
-    baseline_path: Path,
+    state_path: Path,
     *,
     current_obligations: list[dict[str, str]],
 ) -> list[dict[str, Any]]:
-    baseline_codes = obligation_codes(baseline_obligations(baseline_path))
+    advisory_codes = obligation_codes(advisory_state_obligations(state_path))
     current_codes = obligation_codes(current_obligations)
-    if not baseline_codes:
+    if not advisory_codes:
         return [
             issue(
                 "TASK_CONTRACT_DRIFT",
                 "yellow",
-                f"baseline task contract is missing or has no obligations: {baseline_path}",
-                "run scripts/meta-check --task \"...\" --write-state before drift checks",
+                f"advisory state cache is missing or has no task obligations: {state_path}",
+                'run scripts/meta-check --task "..." --write-state to refresh advisory diagnostics when useful',
                 required_before="handoff",
                 source="task-drift",
             )
         ]
-    missing = sorted(baseline_codes - current_codes)
+    missing = sorted(advisory_codes - current_codes)
     if not missing:
         return []
     return [
         issue(
             "TASK_CONTRACT_DRIFT",
             "yellow",
-            "current task contract lost baseline obligation(s): " + ", ".join(missing),
-            "re-run scripts/meta-check with the full current user task or re-anchor the task contract",
+            "current task text no longer includes advisory state obligation(s): " + ", ".join(missing),
+            "re-run scripts/meta-check with the full current user task or refresh the advisory state cache",
             required_before="completion",
             source="task-drift",
         )
@@ -521,6 +531,7 @@ def build_snapshot(
         "schema": SCHEMA,
         "generated_at": utc_now(),
         "project": str(project_root),
+        "state_authority": STATE_AUTHORITY,
         "overall": overall,
         "red_count": red_count,
         "yellow_count": yellow_count,
@@ -551,7 +562,12 @@ def build_snapshot(
 
 def write_state(path: Path, snapshot: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"schema": STATE_SCHEMA, "updated_at": utc_now(), "latest_snapshot": snapshot}
+    payload = {
+        "schema": STATE_SCHEMA,
+        "updated_at": utc_now(),
+        "state_authority": STATE_AUTHORITY,
+        "latest_snapshot": snapshot,
+    }
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     tmp.replace(path)
@@ -617,10 +633,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--task", help="Current user task text for task-contract extraction.")
     parser.add_argument("--no-git", action="store_true", help="Skip changed plan/design evidence checks.")
     parser.add_argument("--check-recent-plans", action="store_true", help="Also check recent committed plan/design files.")
-    parser.add_argument("--check-drift", action="store_true", help="Compare current task obligations with a baseline state file.")
-    parser.add_argument("--baseline-state", type=Path, help="Baseline meta-state file for --check-drift.")
+    parser.add_argument("--check-drift", action="store_true", help="Compare current task obligations with an advisory state cache.")
+    parser.add_argument("--baseline-state", type=Path, help="Advisory meta-state file for --check-drift (legacy flag name).")
     parser.add_argument("--state-file", type=Path, default=PROJECT_ROOT / "logs" / "meta-state.json")
-    parser.add_argument("--write-state", action="store_true", help="Write latest state to logs/meta-state.json.")
+    parser.add_argument("--write-state", action="store_true", help="Write advisory diagnostic state to logs/meta-state.json.")
     return parser.parse_args(argv)
 
 
