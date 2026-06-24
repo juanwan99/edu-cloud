@@ -42,7 +42,7 @@ def main() -> int:
     print("双核治理")
     print_kv(
         "Meta Core / 元控核",
-        "direction, facts, task boundaries, context, Claude read-only counter-review, completion evidence contract",
+        "direction, facts, task boundaries, context, Claude read-only counter-review, completion evidence routing",
     )
     print_kv(
         "Guardian Core / 守护核",
@@ -66,7 +66,8 @@ def main() -> int:
             print_kv(key, versions[key])
     print()
 
-    print("Verification Baseline")
+    print("Verification Baseline (Reference)")
+    print_kv("authority", "local verification reference, not completion acceptance authority")
     print_kv("known_pytest_failures", count_known_failures())
     print_kv("db_doctor", db.get("status"))
     if db.get("status") == "ok":
@@ -83,15 +84,23 @@ def main() -> int:
         print("  - none detected")
     print()
 
-    print("Meta Runtime")
+    print("Completion Authority")
+    print_kv("required_check", "GitHub CI required check / governance gate")
+    print_kv("approval", "CODEOWNERS approval")
+    print_kv("live_doctor", "current scripts/truth-doctor.sh and scripts/db_doctor.py --strict output")
+    print_kv("state_snapshots", "diagnostic cache only; not a trust baseline")
+    print()
+
+    print("Meta Runtime Advisory")
+    print_kv("authority", "advisory task-state cache; not completion evidence")
     print_kv("state", meta_runtime.get("status"))
     if meta_runtime.get("status") == "ok":
         stale = bool(meta_runtime.get("stale"))
         age_label = meta_runtime.get("age_label") or "unknown"
-        freshness = "STALE — point-in-time snapshot, not current truth" if stale else "fresh"
+        freshness = "STALE — advisory snapshot, not completion authority/current truth" if stale else "fresh"
         print_kv("snapshot_at", f"{meta_runtime.get('snapshot_at')} ({age_label} ago, {freshness})")
         if stale:
-            print_kv("overall", f"{meta_runtime.get('overall')} (stale snapshot — run scripts/meta-check to refresh before trusting)")
+            print_kv("overall", f"{meta_runtime.get('overall')} (stale advisory snapshot — run scripts/meta-check for diagnostics)")
         else:
             print_kv("overall", meta_runtime.get("overall"))
         print_kv("issues", meta_runtime.get("issue_count"))
@@ -100,7 +109,8 @@ def main() -> int:
         print_kv("state_file", meta_runtime.get("state_file"))
     print()
 
-    print("Guardian Health")
+    print("Guardian Health Advisory")
+    print_kv("authority", "advisory diagnostics; completion authority is CI required check + CODEOWNERS + live doctor")
     print_kv("overall", guardian.get("overall", guardian.get("status")))
     print_kv("issues", guardian.get("issue_count", "unknown"))
     if guardian.get("status") == "ok":
@@ -109,14 +119,15 @@ def main() -> int:
                 continue
             code = issue.get("issue_code", "UNKNOWN")
             summary = issue.get("summary", "")
-            blocks = " blocks_completion" if issue.get("blocks_completion") else ""
-            print(f"  - {code}{blocks}: {summary}")
+            signal = " advisory_signal" if issue.get("blocks_completion") else ""
+            print(f"  - {code}{signal}: {summary}")
         if int(guardian.get("issue_count") or 0) > 5:
             print(f"  ... and {int(guardian.get('issue_count') or 0) - 5} more")
     print()
 
-    print("Guardian Runtime")
+    print("Guardian Runtime Advisory")
     print_kv("service", guardian_runtime.get("service"))
+    print_kv("authority", "advisory runtime cache; not completion evidence")
     print_kv("state", guardian_runtime.get("status"))
     if guardian_runtime.get("status") == "ok":
         print_kv("snapshot_at", guardian_runtime.get("snapshot_at"))
