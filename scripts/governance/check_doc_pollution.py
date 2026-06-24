@@ -34,7 +34,18 @@ STALE_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\b55\s*/\s*30\b"),
     re.compile(r"\b53\s*/\s*13\b"),
 )
-HISTORICAL_MARKERS = ("→", "->", "合同", "burn-down", "历史", "superseded", "已清零", "historical", "cleared")
+HISTORICAL_MARKERS = (
+    "历史",
+    "已清零",
+    "burn-down",
+    "峰值",
+    "合同快照",
+    "superseded",
+    "historical",
+    "cleared",
+    "→",
+    "->",
+)
 TOPIC_MARKERS = ("D-03", "跨模块依赖", "跨模块耦合", "edges", "cycles")
 
 
@@ -132,9 +143,7 @@ def has_topic_marker(text: str) -> bool:
 
 def has_historical_semantics(text: str) -> bool:
     lowered = text.lower()
-    if any(marker.lower() in lowered for marker in HISTORICAL_MARKERS):
-        return True
-    return bool(re.search(r"\b20\d{2}-\d{2}-\d{2}\b", text))
+    return any(marker.lower() in lowered for marker in HISTORICAL_MARKERS)
 
 
 def line_context(lines: Sequence[str], index: int) -> str:

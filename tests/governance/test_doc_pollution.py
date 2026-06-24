@@ -75,11 +75,34 @@ def test_active_doc_current_55_edges_fails(tmp_path: Path) -> None:
     assert any(failure.line == 1 for failure in failures)
 
 
+def test_active_doc_date_adjacent_current_55_edges_fails(tmp_path: Path) -> None:
+    write_active_doc(
+        tmp_path,
+        "docs/context/current.md",
+        "更新时间:2026-06-24 / D-03 当前事实:55 edges / 30 cycles。\n",
+    )
+
+    failures = guard.check_docs(tmp_path, source_counts=(0, 0))
+
+    assert any("known stale pollution" in failure.message for failure in failures)
+    assert any("current fact disagrees with source truth" in failure.message for failure in failures)
+
+
 def test_active_doc_historical_55_edges_passes(tmp_path: Path) -> None:
     write_active_doc(
         tmp_path,
         "docs/context/history.md",
         "D-03 historical burn-down: 55 edges / 30 cycles -> 0 edges / 0 cycles。\n",
+    )
+
+    assert guard.check_docs(tmp_path, source_counts=(0, 0)) == []
+
+
+def test_active_doc_date_adjacent_historical_55_edges_passes(tmp_path: Path) -> None:
+    write_active_doc(
+        tmp_path,
+        "docs/context/history.md",
+        "更新时间:2026-06-24 / D-03 历史峰值：55 edges / 30 cycles -> 0 edges / 0 cycles。\n",
     )
 
     assert guard.check_docs(tmp_path, source_counts=(0, 0)) == []
