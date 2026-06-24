@@ -15,8 +15,9 @@
 - Generated module dependency graph is still cyclic. The negative-delta gate is
   `docs/governance/module-dependencies.yaml`, checked by
   `scripts/governance/check_module_dependencies.py --check`.
-- Current actual cross-module import baseline: 55 edges and 30 historical
-  cycles. These are allowed as existing debt; new edges or new cycles are not.
+- Current actual cross-module import baseline: 0 edges and 0 cycles (the
+  historical 55 edges / 30 cycles were cleared by D-03R on 2026-06-22; see
+  debt-ledger.md). New edges or new cycles are not allowed.
 - Cross-domain governance debt (process + structural) is tracked in the
   **foundation debt ledger**: `docs/governance/debt-ledger.md` — single source
   for open R-H3/R-H4/R-H5 risks, the 55-edge/30-cycle burn-down, runtime
@@ -28,8 +29,8 @@
 
 - Target shape: modular monolith first. Split services or repos only after
   module contracts, ownership, and runtime boundaries are stable.
-- Existing 55 cross-module edges and 30 historical cycles are debt baseline,
-  not a design model. New work should reduce this baseline or leave it flat.
+- The historical 55 cross-module edges / 30 cycles have been cleared to 0/0
+  (D-03R). Keep the baseline flat at 0; do not add new edges or cycles.
 - Prefer module-owned APIs, service facades, domain events, or explicit
   contract files over direct imports into another module's internals.
 - Cross-module integration must be justified in the plan or evidence and paired
