@@ -11,6 +11,6 @@ exclusive_claims: []
 ports: {}
 prompt: reform-w4b1-strict-prompt.txt
 status: active
-created_at: \"2026-06-25T20:00:00+08:00\"
-expires_at: \"2026-06-26T08:00:00+08:00\"
-ttl: \"12h\"
+created_at: "2026-06-25T20:00:00+08:00"
+expires_at: "2026-06-26T08:00:00+08:00"
+ttl: "12h"
