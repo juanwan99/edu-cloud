@@ -2,7 +2,7 @@ task_id: yq-20260625-dualcore-b1a-01
 mode: integration_writer
 owner: codex
 allowed_paths:
-  - .github/workflows/test.yml
+  - scripts/codex-verify
   - tests/governance/test_codex_scripts.py
 exclusive_claims: []
 status: active
