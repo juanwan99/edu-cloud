@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import argparse
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
 from typing import Any
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.yuanqi.task_schema import load_and_validate
 
@@ -47,8 +52,18 @@ def scan(tasks_dir: str, now: str) -> dict:
     }
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint: warn about stale active locks without mutating registry."""
+    parser = argparse.ArgumentParser(
+        description="Inspect Yuanqi task registry for stale active locks."
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero when stale active tasks are found.",
+    )
+    args = parser.parse_args(argv)
+
     now = datetime.now(timezone.utc).isoformat()
     result = scan(DEFAULT_TASKS_DIR, now)
     stale = result["stale"]
@@ -62,6 +77,8 @@ def main() -> int:
                 f"expired at {task.get('expires_at', '<missing expires_at>')}"
             )
         print("No registry entries were changed; confirm manually before closing locks.")
+        if args.strict:
+            return 1
     else:
         print(
             "registry doctor: no stale locks "

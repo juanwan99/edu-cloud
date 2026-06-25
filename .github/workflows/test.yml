@@ -74,11 +74,16 @@ jobs:
               fh.write(f"backend={str(backend).lower()}\n")
               fh.write(f"frontend={str(frontend).lower()}\n")
           PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: changed-files
+          path: changed-files.txt
 
   governance:
     runs-on: ubuntu-latest
     env:
       UV_FROZEN: "1"
+      PYTHONPATH: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -106,6 +111,37 @@ jobs:
       - run: uv run scripts/codex-verify safety --repo-wide
       - run: uv run scripts/codex-verify full --dry-run --schema --no-network
       - run: uv run python -m pytest tests/governance/test_governance_registry.py -q
+
+  task-gate:
+    needs: changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      UV_FROZEN: "1"
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --extra dev --python 3.11
+      - name: Download changed files
+        uses: actions/download-artifact@v4
+        with:
+          name: changed-files
+      - name: Resolve Yuanqi task
+        run: uv run python scripts/yuanqi/resolve_pr_task.py --event "$GITHUB_EVENT_PATH" --head-ref "${{ github.head_ref }}" > task-id.txt
+      - name: Validate Yuanqi task schema
+        run: uv run python scripts/yuanqi/task_schema.py ".yuanqi/tasks/$(cat task-id.txt).yml"
+      - name: Check Yuanqi task overlap
+        run: uv run python scripts/yuanqi/overlap_gate.py --candidate ".yuanqi/tasks/$(cat task-id.txt).yml" --tasks-dir .yuanqi/tasks --pr "${{ github.event.pull_request.number }}" --head "${{ github.event.pull_request.head.sha }}"
+      - name: Check Yuanqi task scope
+        run: uv run python scripts/yuanqi/scope_gate.py --task ".yuanqi/tasks/$(cat task-id.txt).yml" --changed changed-files.txt
+      - name: Check Yuanqi registry staleness
+        run: uv run python scripts/yuanqi/registry_doctor.py --strict
 
   backend:
     needs: changes

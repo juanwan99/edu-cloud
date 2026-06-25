@@ -1,4 +1,6 @@
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
@@ -60,3 +62,48 @@ def test_validate_task_rejects_invalid_status():
     errors = validate_task(_valid_task(status="running"))
 
     assert "status must be one of: active, closed" in errors
+
+
+def test_task_schema_cli_accepts_valid_task(tmp_path):
+    task_path = tmp_path / "task.yml"
+    task_path.write_text(_yaml(_valid_task()), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, "scripts/yuanqi/task_schema.py", str(task_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+
+
+def test_task_schema_cli_rejects_invalid_task(tmp_path):
+    task = _valid_task(mode="writer")
+    task_path = tmp_path / "task.yml"
+    task_path.write_text(_yaml(task), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, "scripts/yuanqi/task_schema.py", str(task_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "mode must be one of" in result.stderr
+
+
+def _yaml(task):
+    lines = []
+    for key, value in task.items():
+        if isinstance(value, list):
+            if value:
+                lines.append(f"{key}:")
+                for item in value:
+                    lines.append(f"  - {item}")
+            else:
+                lines.append(f"{key}: []")
+        else:
+            lines.append(f'{key}: "{value}"')
+    return "\n".join(lines) + "\n"
