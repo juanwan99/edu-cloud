@@ -2,6 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIVE_FACT_COLLECTOR="${TRUTH_DOCTOR_LIVE_FACT_COLLECTOR:-$SCRIPT_DIR/governance/live_fact_collector.py}"
+LIVE_FACT_PYTHON="${TRUTH_DOCTOR_PYTHON:-python3}"
 
 PROJECT_DIR="${1:-.}"
 JSON_MODE=false
@@ -25,12 +27,11 @@ fail() { echo -e "  ${RED}✗${NC} $1"; }
 ISSUES=0
 
 if [ "$JSON_MODE" = "true" ]; then
-  export PROJECT_DIR SCRIPT_DIR
+  export PROJECT_DIR SCRIPT_DIR LIVE_FACT_COLLECTOR LIVE_FACT_PYTHON
   python3 - <<'PY'
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -43,8 +44,12 @@ except Exception:  # pragma: no cover - fall back to inline detection
 
 
 project_dir = os.environ.get("PROJECT_DIR", ".")
+live_fact_collector = os.environ.get("LIVE_FACT_COLLECTOR", "")
+live_fact_python = os.environ.get("LIVE_FACT_PYTHON", "python3")
 issues = []
-SYSTEMD_MAIN_PIDS = set()
+LIVE_FACT_SCHEMA = "governance.live_facts.v1"
+EXPECTED_PORTS = ((9000, "edu-cloud API"), (8080, "Vite dev server"), (8100, "llm-proxy"))
+GHOST_PATTERN = re.compile(r"vite.*--port|nuxt dev|uvicorn.*--reload|http\.server|arq.*worker", re.I)
 
 
 def run(args, timeout=5):
@@ -66,125 +71,207 @@ def add_issue(issue_code, severity, summary, blocks_completion=False, command_hi
     issues.append(issue)
 
 
-def parent_pid(pid):
-    result = run(["ps", "-p", str(pid), "-o", "ppid="])
-    return result.stdout.strip() if result.returncode == 0 else ""
-
-
-def collect_systemd_main_pids():
-    for svc in ("edu-cloud", "llm-proxy", "edu-cloud-worker"):
-        active = run(["systemctl", "is-active", svc]).stdout.strip()
-        if active != "active":
-            continue
-        result = run(["systemctl", "show", svc, "-p", "MainPID", "--value"])
-        pid = result.stdout.strip()
-        if pid and pid != "0":
-            SYSTEMD_MAIN_PIDS.add(pid)
-
-
-def is_systemd_main_pid(pid):
-    return str(pid) in SYSTEMD_MAIN_PIDS
-
-
-def check_port(port, label):
-    if not shutil.which("ss"):
-        return
-    result = run(["ss", "-tlnp", f"sport = :{port}"])
-    holders = [line for line in result.stdout.splitlines() if "LISTEN" in line]
-    if not holders:
-        if port == 9000:
-            add_issue(
-                "BACKEND_DOWN",
-                "red",
-                f"port {port} ({label}) has nobody listening",
-                True,
-                "systemctl restart edu-cloud",
-            )
-        return
-    if len(holders) > 1:
+def load_live_facts():
+    if not live_fact_collector or not os.path.exists(live_fact_collector):
         add_issue(
-            "PORT_CONFLICT",
-            "red" if port == 9000 else "yellow",
-            f"port {port} ({label}) has {len(holders)} listeners",
-            port == 9000,
-            f"ss -tlnp 'sport = :{port}'",
-            "handoff",
+            "LIVE_FACT_COLLECTOR_FAILED",
+            "red",
+            "live_fact_collector.py not found",
+            True,
+            "scripts/governance/live_fact_collector.py --project-root .",
+        )
+        return {}
+    result = run(
+        [live_fact_python, live_fact_collector, "--project-root", project_dir, "--indent", "0"],
+        timeout=30,
+    )
+    if result.returncode != 0:
+        add_issue(
+            "LIVE_FACT_COLLECTOR_FAILED",
+            "red",
+            "live_fact_collector failed to run",
+            True,
+            f"{live_fact_python} scripts/governance/live_fact_collector.py --project-root .",
+        )
+        return {}
+    try:
+        data = json.loads(result.stdout)
+    except Exception:
+        add_issue(
+            "LIVE_FACT_COLLECTOR_FAILED",
+            "red",
+            "live_fact_collector output unreadable",
+            True,
+            f"{live_fact_python} scripts/governance/live_fact_collector.py --project-root .",
+        )
+        return {}
+    if data.get("schema") != LIVE_FACT_SCHEMA:
+        add_issue(
+            "LIVE_FACT_COLLECTOR_FAILED",
+            "red",
+            "live_fact_collector schema mismatch",
+            True,
+            f"{live_fact_python} scripts/governance/live_fact_collector.py --project-root .",
+        )
+        return {}
+    return data
+
+
+def _port_listeners(facts, port):
+    listeners = facts.get("ports", {}).get("listeners", [])
+    result = []
+    for listener in listeners:
+        try:
+            listener_port = int(listener.get("port"))
+        except Exception:
+            continue
+        if listener_port == port:
+            result.append(listener)
+    return result
+
+
+def _listener_pid(listener):
+    pid = listener.get("pid")
+    return "" if pid in (None, "") else str(pid)
+
+
+def _listener_text(listener):
+    return " ".join(
+        str(listener.get(key) or "")
+        for key in ("process", "command", "raw")
+        if listener.get(key)
+    )
+
+
+def _is_public_listener(listener):
+    if listener.get("public_bind"):
+        return True
+    return str(listener.get("bind") or "") in {"0.0.0.0", "*", "[::]", "::"}
+
+
+def _is_orphan_listener(listener):
+    return str(listener.get("ppid") or "") == "1" and not listener.get("service")
+
+
+def _has_uvicorn_9000(facts):
+    for listener in _port_listeners(facts, 9000):
+        text = _listener_text(listener).lower()
+        if "uvicorn" in text:
+            return True
+    ghost = facts.get("ghost_processes", {})
+    for proc in ghost.get("suspects", []) + ghost.get("processes", []):
+        text = " ".join(str(proc.get(key) or "") for key in ("command", "raw")).lower()
+        if "uvicorn" in text and "9000" in text:
+            return True
+    return False
+
+
+def _dist_version_invalid(dist):
+    error = str(dist.get("version_error") or "").lower()
+    missing_errors = {"", "missing", "not-found", "not_found", "enoent"}
+    return dist.get("status") == "version_invalid" or bool(error and error not in missing_errors)
+
+
+def _service_active(service):
+    active = service.get("active")
+    if isinstance(active, bool):
+        return active
+    if isinstance(active, str) and active.lower() == "active":
+        return True
+    state = service.get("is_active") or service.get("active_state")
+    return str(state or "").lower() == "active"
+
+
+def check_live_ports(facts):
+    for port, label in EXPECTED_PORTS:
+        holders = _port_listeners(facts, port)
+        if not holders:
+            if port == 9000:
+                add_issue(
+                    "BACKEND_DOWN",
+                    "red",
+                    f"port {port} ({label}) has nobody listening",
+                    True,
+                    "systemctl restart edu-cloud",
+                )
+            continue
+        if len(holders) > 1:
+            add_issue(
+                "PORT_CONFLICT",
+                "red" if port == 9000 else "yellow",
+                f"port {port} ({label}) has {len(holders)} listeners",
+                port == 9000,
+                f"inspect port {port} listeners",
+                "handoff",
+            )
+        for holder in holders:
+            pid = _listener_pid(holder)
+            bind_addr = str(holder.get("bind") or "")
+            if _is_public_listener(holder):
+                add_issue(
+                    "PORT_DANGER",
+                    "red",
+                    f"port {port} ({label}) is bound to {bind_addr}",
+                    port in {9000, 8080},
+                    f"bind {label} to 127.0.0.1 or stop the public listener",
+                )
+            if pid and _is_orphan_listener(holder):
+                add_issue(
+                    "GHOST_PROCESS",
+                    "yellow",
+                    f"port {port} ({label}) listener PID={pid} is an orphan",
+                    False,
+                    f"inspect or stop PID {pid}",
+                    "session_end",
+                )
+
+
+def check_live_ghost_processes(facts):
+    for proc in facts.get("ghost_processes", {}).get("suspects", []):
+        pid = proc.get("pid")
+        command = str(proc.get("command") or proc.get("raw") or "")
+        match = GHOST_PATTERN.search(command)
+        add_issue(
+            "GHOST_PROCESS",
+            "yellow",
+            f"ghost PID={pid} ({(match.group(0) if match else 'unknown')[:40]}): {command[:120]}",
+            False,
+            f"inspect or stop PID {pid}",
+            "session_end",
         )
 
-    for holder in holders:
-        pid_match = re.search(r"pid=(\d+)", holder)
-        bind_addr = holder.split()[3].rsplit(":", 1)[0] if len(holder.split()) >= 4 else ""
-        if bind_addr in {"0.0.0.0", "*", "[::]"}:
-            add_issue(
-                "PORT_DANGER",
-                "red",
-                f"port {port} ({label}) is bound to {bind_addr}",
-                port in {9000, 8080},
-                f"bind {label} to 127.0.0.1 or stop the public listener",
-            )
-        if pid_match and parent_pid(pid_match.group(1)) == "1" and not is_systemd_main_pid(pid_match.group(1)):
-            add_issue(
-                "GHOST_PROCESS",
-                "yellow",
-                f"port {port} ({label}) listener PID={pid_match.group(1)} is an orphan",
-                False,
-                f"inspect or stop PID {pid_match.group(1)}",
-                "session_end",
-            )
 
-
-def check_ghost_processes():
-    result = run(["ps", "aux"])
-    pattern = re.compile(r"vite.*--port|nuxt dev|uvicorn.*--reload|http\.server|arq.*worker")
-    for line in result.stdout.splitlines():
-        match = pattern.search(line)
-        if not match or "grep" in line:
-            continue
-        parts = line.split(None, 10)
-        if len(parts) < 11:
-            continue
-        pid = parts[1]
-        if parent_pid(pid) == "1" and not is_systemd_main_pid(pid):
-            cmd = parts[10][:120]
-            add_issue(
-                "GHOST_PROCESS",
-                "yellow",
-                f"ghost PID={pid} ({match.group(0)[:40]}): {cmd}",
-                False,
-                f"inspect or stop PID {pid}",
-                "session_end",
-            )
-
-
-def check_dist():
-    dist_dir = os.path.join(project_dir, "frontend", "dist")
-    index = os.path.join(dist_dir, "index.html")
-    version = os.path.join(dist_dir, "version.json")
-    if not os.path.isdir(dist_dir):
+def check_live_dist(facts):
+    dist = facts.get("dist", {})
+    status = dist.get("status")
+    if status == "missing":
         add_issue("BUILD_DRIFT", "red", "frontend/dist directory not found", True, "cd frontend && npm run build")
         return
-    if not os.path.exists(index):
-        add_issue("BUILD_DRIFT", "red", "frontend/dist/index.html not found", True, "cd frontend && npm run build")
-    elif not os.access(index, os.R_OK):
+    if status == "unreadable" or dist.get("index_readable") is False:
         add_issue("BUILD_DRIFT", "red", "frontend/dist/index.html not readable", True, "fix dist permissions")
-    if not os.path.exists(version):
+        return
+    if dist.get("index_exists") is False:
+        add_issue("BUILD_DRIFT", "red", "frontend/dist/index.html not found", True, "cd frontend && npm run build")
+        return
+    if _dist_version_invalid(dist):
+        add_issue("BUILD_DRIFT", "yellow", "frontend/dist/version.json invalid", True, "cd frontend && npm run build")
+        return
+    if dist.get("version") is None:
         add_issue("BUILD_DRIFT", "yellow", "frontend/dist/version.json missing", True, "cd frontend && npm run build")
 
 
-def check_systemd():
-    for svc in ("edu-cloud", "llm-proxy"):
-        state = run(["systemctl", "is-active", svc]).stdout.strip()
-        if svc == "edu-cloud" and state != "active":
-            uvicorn = run(["pgrep", "-f", "uvicorn.*9000"])
-            if uvicorn.returncode == 0:
-                add_issue(
-                    "SERVICE_BYPASS",
-                    "yellow",
-                    "edu-cloud.service inactive while uvicorn :9000 is running manually",
-                    False,
-                    "restart edu-cloud through systemd or document manual debug mode",
-                    "session_end",
-                )
+def check_live_systemd(facts):
+    services = facts.get("systemd", {}).get("services", {})
+    edu_cloud = services.get("edu-cloud") or services.get("edu-cloud.service") or {}
+    if not _service_active(edu_cloud) and _has_uvicorn_9000(facts):
+        add_issue(
+            "SERVICE_BYPASS",
+            "yellow",
+            "edu-cloud.service inactive while uvicorn :9000 is running manually",
+            False,
+            "restart edu-cloud through systemd or document manual debug mode",
+            "session_end",
+        )
 
 
 def _inline_is_claude_cli(command):
@@ -264,12 +351,12 @@ def check_db():
         add_issue("DB_SCHEMA_DRIFT", "yellow", f"ORM-DB drift has {warn} warning(s)", False, f"{py} scripts/db_doctor.py --strict")
 
 
-collect_systemd_main_pids()
-for port, label in ((9000, "edu-cloud API"), (8080, "Vite dev server"), (8100, "llm-proxy")):
-    check_port(port, label)
-check_ghost_processes()
-check_dist()
-check_systemd()
+live_facts = load_live_facts()
+if live_facts:
+    check_live_ports(live_facts)
+    check_live_ghost_processes(live_facts)
+    check_live_dist(live_facts)
+    check_live_systemd(live_facts)
 check_claude_processes()
 check_db()
 
@@ -306,97 +393,259 @@ fi
 echo -e "${BOLD}Truthline Doctor${NC}  $(date '+%H:%M:%S')"
 echo ""
 
-# ── 1. Port Check ──
-echo -e "${BOLD}[Ports]${NC}"
+LIVE_FACT_JSON="$("$LIVE_FACT_PYTHON" "$LIVE_FACT_COLLECTOR" --project-root "$PROJECT_DIR" --indent 0 2>/dev/null || true)"
 
-check_port() {
-  local port=$1 label=$2
-  local holders count
-  holders=$(ss -tlnp "sport = :$port" 2>/dev/null | grep LISTEN || true)
-  if [ -z "$holders" ]; then
-    warn "port $port ($label): nobody listening"
-    return
+render_live_fact_phase() {
+  local phase=$1 render_output phase_issues
+  render_output=$(PHASE="$phase" LIVE_FACT_JSON="$LIVE_FACT_JSON" "$LIVE_FACT_PYTHON" - <<'PY'
+import json
+import os
+import re
+
+RED = "\033[0;31m"
+GREEN = "\033[0;32m"
+YELLOW = "\033[0;33m"
+NC = "\033[0m"
+BOLD = "\033[1m"
+SCHEMA = "governance.live_facts.v1"
+EXPECTED_PORTS = ((9000, "edu-cloud API"), (8080, "Vite dev server"), (8100, "llm-proxy"))
+SYSTEMD_SERVICES = ("edu-cloud", "llm-proxy", "edu-cloud-worker")
+GHOST_PATTERN = re.compile(r"vite.*--port|nuxt dev|uvicorn.*--reload|http\.server|arq.*worker", re.I)
+issues = 0
+
+
+def ok(msg):
+    print(f"  {GREEN}✓{NC} {msg}")
+
+
+def warn(msg):
+    print(f"  {YELLOW}!{NC} {msg}")
+
+
+def fail(msg):
+    print(f"  {RED}✗{NC} {msg}")
+
+
+def section(name):
+    print(f"{BOLD}[{name}]{NC}")
+
+
+def add_issue(count=1):
+    global issues
+    issues += count
+
+
+def parse_facts():
+    raw = os.environ.get("LIVE_FACT_JSON", "")
+    if not raw.strip():
+        return None, "live_fact_collector failed to run"
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return None, "live_fact_collector output unreadable"
+    if data.get("schema") != SCHEMA:
+        return None, "live_fact_collector schema mismatch"
+    return data, ""
+
+
+def port_listeners(facts, port):
+    listeners = facts.get("ports", {}).get("listeners", [])
+    result = []
+    for listener in listeners:
+        try:
+            listener_port = int(listener.get("port"))
+        except Exception:
+            continue
+        if listener_port == port:
+            result.append(listener)
+    return result
+
+
+def listener_pid(listener):
+    pid = listener.get("pid")
+    return "" if pid in (None, "") else str(pid)
+
+
+def listener_text(listener):
+    return " ".join(
+        str(listener.get(key) or "")
+        for key in ("process", "command", "raw")
+        if listener.get(key)
+    )
+
+
+def is_public_listener(listener):
+    if listener.get("public_bind"):
+        return True
+    return str(listener.get("bind") or "") in {"0.0.0.0", "*", "[::]", "::"}
+
+
+def is_orphan_listener(listener):
+    return str(listener.get("ppid") or "") == "1" and not listener.get("service")
+
+
+def has_uvicorn_9000(facts):
+    for listener in port_listeners(facts, 9000):
+        if "uvicorn" in listener_text(listener).lower():
+            return True
+    ghost = facts.get("ghost_processes", {})
+    for proc in ghost.get("suspects", []) + ghost.get("processes", []):
+        text = " ".join(str(proc.get(key) or "") for key in ("command", "raw")).lower()
+        if "uvicorn" in text and "9000" in text:
+            return True
+    return False
+
+
+def dist_version_invalid(dist):
+    error = str(dist.get("version_error") or "").lower()
+    missing_errors = {"", "missing", "not-found", "not_found", "enoent"}
+    return dist.get("status") == "version_invalid" or bool(error and error not in missing_errors)
+
+
+def service_active(service):
+    active = service.get("active")
+    if isinstance(active, bool):
+        return active
+    if isinstance(active, str) and active.lower() == "active":
+        return True
+    state = service.get("is_active") or service.get("active_state")
+    return str(state or "").lower() == "active"
+
+
+def service_state(service):
+    active = service.get("active")
+    if isinstance(active, str):
+        return active
+    state = service.get("is_active") or service.get("active_state")
+    if state:
+        return str(state)
+    if active is True:
+        return "active"
+    if active is False:
+        return "inactive"
+    return "not-found"
+
+
+def render_ports(facts):
+    section("Ports")
+    for port, label in EXPECTED_PORTS:
+        holders = port_listeners(facts, port)
+        if not holders:
+            warn(f"port {port} ({label}): nobody listening")
+            continue
+        if len(holders) > 1:
+            warn(f"port {port} ({label}): {len(holders)} listeners detected (possible conflict)")
+            add_issue()
+        for holder in holders:
+            pid = listener_pid(holder)
+            bind_addr = str(holder.get("bind") or "")
+            if not pid:
+                warn(f"port {port} ({label}): listening but PID unknown (no permission?)")
+                continue
+            if is_public_listener(holder):
+                fail(f"port {port} ({label}): PID={pid} bound to {bind_addr} (PUBLIC EXPOSURE)")
+                add_issue()
+            else:
+                ok(f"port {port} ({label}): PID={pid} on {bind_addr}")
+            if is_orphan_listener(holder):
+                warn(f"  PID={pid} is an orphan (PPID=1) — may be a ghost process")
+                add_issue()
+
+
+def render_ghosts(facts):
+    section("Ghost Processes")
+    suspects = facts.get("ghost_processes", {}).get("suspects", [])
+    if not suspects:
+        ok("no ghost dev processes found")
+        return
+    for proc in suspects:
+        pid = proc.get("pid")
+        command = str(proc.get("command") or proc.get("raw") or "")
+        match = GHOST_PATTERN.search(command)
+        start = proc.get("start") or "unknown"
+        warn(f"ghost PID={pid} ({(match.group(0) if match else 'unknown')[:40]}, since {start}): {command[:80]}")
+    fail(f"{len(suspects)} ghost process(es) detected (PPID=1 orphans)")
+    add_issue(len(suspects))
+
+
+def render_dist(facts):
+    section("dist/ Permissions")
+    dist = facts.get("dist", {})
+    status = dist.get("status")
+    if status == "missing":
+        fail("dist/ directory not found")
+        add_issue()
+        return
+    if status == "unreadable" or dist.get("index_readable") is False:
+        fail("dist/index.html not readable")
+        add_issue()
+    elif dist.get("index_exists") is False:
+        fail("dist/index.html not found")
+        add_issue()
+    else:
+        ok("dist/index.html readable")
+    if dist_version_invalid(dist):
+        warn("dist/version.json invalid (build truthline fingerprint unreadable)")
+        add_issue()
+    elif dist.get("version") is not None:
+        ok("dist/version.json exists")
+    else:
+        warn("dist/version.json missing (build without truthline fingerprint)")
+        add_issue()
+
+
+def render_systemd(facts):
+    section("systemd Services")
+    services = facts.get("systemd", {}).get("services", {})
+    for svc in SYSTEMD_SERVICES:
+        data = services.get(svc) or services.get(f"{svc}.service") or {}
+        state = service_state(data)
+        if service_active(data):
+            ok(f"{svc}.service: active")
+        else:
+            warn(f"{svc}.service: {state}")
+            if svc == "edu-cloud" and has_uvicorn_9000(facts):
+                warn("  → but uvicorn :9000 is running manually (systemd bypassed)")
+                add_issue()
+
+
+facts, error = parse_facts()
+phase = os.environ.get("PHASE")
+if error:
+    if phase == "ports_ghost":
+        section("Ports")
+        fail(error)
+        add_issue()
+        print()
+        section("Ghost Processes")
+        warn("live facts unavailable")
+    elif phase == "dist_systemd":
+        section("dist/ Permissions")
+        warn("live facts unavailable")
+        print()
+        section("systemd Services")
+        warn("live facts unavailable")
+else:
+    if phase == "ports_ghost":
+        render_ports(facts)
+        print()
+        render_ghosts(facts)
+    elif phase == "dist_systemd":
+        render_dist(facts)
+        print()
+        render_systemd(facts)
+print(f"__TRUTH_DOCTOR_ISSUES__={issues}")
+PY
+)
+  phase_issues=$(printf '%s\n' "$render_output" | sed -n 's/^__TRUTH_DOCTOR_ISSUES__=//p' | tail -1)
+  printf '%s\n' "$render_output" | sed '/^__TRUTH_DOCTOR_ISSUES__=/d'
+  if [[ "$phase_issues" =~ ^[0-9]+$ ]]; then
+    ISSUES=$((ISSUES+phase_issues))
   fi
-  count=$(printf '%s\n' "$holders" | sed '/^$/d' | wc -l)
-  if [ "$count" -gt 1 ]; then
-    warn "port $port ($label): $count listeners detected (possible conflict)"
-    ISSUES=$((ISSUES+1))
-  fi
-
-  while IFS= read -r holder; do
-    [ -z "$holder" ] && continue
-    local pid
-    pid=$(echo "$holder" | grep -oP 'pid=\K[0-9]+' | head -1 || true)
-    local bind_addr
-    bind_addr=$(echo "$holder" | awk '{print $4}' | sed 's/:.*//')
-
-    if [ -z "$pid" ]; then
-      warn "port $port ($label): listening but PID unknown (no permission?)"
-      continue
-    fi
-
-    if [ "$bind_addr" = "0.0.0.0" ] || [ "$bind_addr" = "*" ]; then
-      fail "port $port ($label): PID=$pid bound to 0.0.0.0 (PUBLIC EXPOSURE)"
-      ISSUES=$((ISSUES+1))
-    else
-      ok "port $port ($label): PID=$pid on $bind_addr"
-    fi
-
-    local ppid
-    ppid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ' || true)
-    systemd_main="no"
-    for svc in edu-cloud llm-proxy edu-cloud-worker; do
-      svc_pid=$(systemctl show "$svc" -p MainPID --value 2>/dev/null || true)
-      if [ -n "$svc_pid" ] && [ "$svc_pid" != "0" ] && [ "$svc_pid" = "$pid" ]; then
-        systemd_main="yes"
-      fi
-    done
-    if [ "$ppid" = "1" ] && [ "$systemd_main" != "yes" ]; then
-      warn "  PID=$pid is an orphan (PPID=1) — may be a ghost process"
-      ISSUES=$((ISSUES+1))
-    fi
-  done <<< "$holders"
 }
 
-check_port 9000 "edu-cloud API"
-check_port 8080 "Vite dev server"
-check_port 8100 "llm-proxy"
-echo ""
-
-# ── 2. Ghost Process Check ──
-echo -e "${BOLD}[Ghost Processes]${NC}"
-
-GHOST_PATTERNS='vite.*--port|nuxt dev|uvicorn.*--reload|http\.server|arq.*worker'
-GHOST_COUNT=0
-
-while IFS= read -r line; do
-  [ -z "$line" ] && continue
-  pid=$(echo "$line" | awk '{print $2}')
-  ppid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ')
-  start=$(ps -p "$pid" -o lstart= 2>/dev/null | xargs)
-  cmd=$(echo "$line" | awk '{for(i=11;i<=NF;i++) printf "%s ",$i; print ""}' | head -c 80)
-  match=$(echo "$line" | grep -oE "$GHOST_PATTERNS" | head -1 || true)
-
-  systemd_main="no"
-  for svc in edu-cloud llm-proxy edu-cloud-worker; do
-    svc_pid=$(systemctl show "$svc" -p MainPID --value 2>/dev/null || true)
-    if [ -n "$svc_pid" ] && [ "$svc_pid" != "0" ] && [ "$svc_pid" = "$pid" ]; then
-      systemd_main="yes"
-    fi
-  done
-
-  if [ "$ppid" = "1" ] && [ "$systemd_main" != "yes" ]; then
-    warn "ghost PID=$pid (${match:-unknown}, since $start): $cmd"
-    GHOST_COUNT=$((GHOST_COUNT+1))
-  fi
-done < <(ps aux | grep -E "$GHOST_PATTERNS" | grep -v grep || true)
-
-if [ "$GHOST_COUNT" -eq 0 ]; then
-  ok "no ghost dev processes found"
-else
-  fail "$GHOST_COUNT ghost process(es) detected (PPID=1 orphans)"
-  ISSUES=$((ISSUES+GHOST_COUNT))
-fi
+# ── 1-2. Shared live facts: ports and ghost processes ──
+render_live_fact_phase ports_ghost
 
 MCP_COUNT=0
 MCP_COUNT=$(pgrep -fc 'mcp-server-filesystem' 2>/dev/null) || MCP_COUNT=0
@@ -408,48 +657,8 @@ elif [ "$MCP_COUNT" -gt 0 ]; then
 fi
 echo ""
 
-# ── 3. dist/ Permission Check ──
-echo -e "${BOLD}[dist/ Permissions]${NC}"
-DIST_DIR="$PROJECT_DIR/frontend/dist"
-if [ -d "$DIST_DIR" ]; then
-  if sudo -n -u www-data test -r "$DIST_DIR/index.html" 2>/dev/null; then
-    ok "www-data can read dist/index.html"
-  elif [ -r "$DIST_DIR/index.html" ]; then
-    ok "dist/index.html readable (www-data check skipped — no sudo)"
-  else
-    fail "dist/index.html not readable"
-    ISSUES=$((ISSUES+1))
-  fi
-
-  if [ -f "$DIST_DIR/version.json" ]; then
-    ok "dist/version.json exists"
-  else
-    warn "dist/version.json missing (build without truthline fingerprint)"
-    ISSUES=$((ISSUES+1))
-  fi
-else
-  fail "dist/ directory not found"
-  ISSUES=$((ISSUES+1))
-fi
-echo ""
-
-# ── 4. systemd Service Check ──
-echo -e "${BOLD}[systemd Services]${NC}"
-for svc in edu-cloud llm-proxy edu-cloud-worker; do
-  if systemctl is-active --quiet "$svc" 2>/dev/null; then
-    ok "$svc.service: active"
-  else
-    STATE=$(systemctl is-active "$svc" 2>/dev/null || true)
-    STATE=${STATE:-not-found}
-    warn "$svc.service: $STATE"
-    if [ "$svc" = "edu-cloud" ]; then
-      if pgrep -f 'uvicorn.*9000' > /dev/null 2>&1; then
-        warn "  → but uvicorn :9000 is running manually (systemd bypassed)"
-        ISSUES=$((ISSUES+1))
-      fi
-    fi
-  fi
-done
+# ── 3-4. Shared live facts: dist and systemd ──
+render_live_fact_phase dist_systemd
 echo ""
 
 # ── 5. Claude Session Count ──
