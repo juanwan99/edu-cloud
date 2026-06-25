@@ -1509,7 +1509,7 @@ def test_ci_governance_job_runs_codex_smoke_checks():
 
     assert "governance:" in text
     for command in (
-        "python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker",
+        "python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker",
         "python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_execution_policy.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py",
         "python scripts/governance/check_execution_policy.py",
         "python -m pytest tests/governance/test_codex_scripts.py -q",
@@ -1520,7 +1520,6 @@ def test_ci_governance_job_runs_codex_smoke_checks():
         "python scripts/governance/check_permission_mirror.py",
         "python scripts/governance/module_governance_guard.py --git-hook-mode --repo \"$(pwd)\"",
         "scripts/codex-check --no-network",
-        "scripts/meta-check --json --fail-on-blocking",
         "scripts/codex-context --no-network",
         "scripts/codex-consult-claude --dry-run review CI smoke",
         "scripts/codex-verify safety --repo-wide",
@@ -1534,12 +1533,11 @@ def test_ci_governance_job_runs_codex_smoke_checks():
         assert command in text
 
 
-def test_ci_governance_job_uses_blocking_meta_gate_not_strict():
+def test_ci_governance_job_does_not_run_meta_check_gate():
     workflow = PROJECT_ROOT / ".github" / "workflows" / "test.yml"
     text = workflow.read_text(encoding="utf-8")
 
-    # CI must not be tripped by a time-sensitive non-blocking yellow snapshot.
-    assert "scripts/meta-check --json --fail-on-blocking" in text
+    assert "scripts/meta-check --json --fail-on-blocking" not in text
     assert "scripts/meta-check --json --strict" not in text
 
 
