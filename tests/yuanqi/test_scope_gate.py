@@ -1,3 +1,7 @@
+import os
+import subprocess
+import sys
+
 from scripts.yuanqi.scope_gate import scope_check
 
 
@@ -47,3 +51,45 @@ def test_changed_files_inside_exclusive_claim_paths_pass():
 
     assert ok is True
     assert violations == []
+
+
+def test_scope_gate_cli_rejects_out_of_scope_changed_file(tmp_path):
+    outside = "src/edu_cloud/modules/scan/x.py"
+    task_path = tmp_path / "task.yml"
+    changed_path = tmp_path / "changed-files.txt"
+    task_path.write_text(_yaml(_task()), encoding="utf-8")
+    changed_path.write_text(outside + "\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/yuanqi/scope_gate.py",
+            "--task",
+            str(task_path),
+            "--changed",
+            str(changed_path),
+        ],
+        capture_output=True,
+        env={**os.environ, "PYTHONPATH": os.getcwd()},
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "scope violations:" in result.stderr
+    assert outside in result.stderr
+
+
+def _yaml(task):
+    lines = []
+    for key, value in task.items():
+        if isinstance(value, list):
+            if value:
+                lines.append(f"{key}:")
+                for item in value:
+                    lines.append(f"  - {item}")
+            else:
+                lines.append(f"{key}: []")
+        else:
+            lines.append(f'{key}: "{value}"')
+    return "\n".join(lines) + "\n"
