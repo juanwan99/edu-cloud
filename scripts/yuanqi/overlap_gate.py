@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import argparse
 from fnmatch import fnmatchcase
+from pathlib import Path
+import sys
 from typing import Any
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from scripts.yuanqi.lock_map import expand_exclusive
+from scripts.yuanqi.task_schema import load_and_validate
 
 
 READ_ONLY_MODES = {"read_only_audit", "planning_only"}
@@ -146,3 +153,79 @@ def _is_glob(path: str) -> bool:
 
 def _dedupe(paths) -> list[str]:
     return sorted(dict.fromkeys(paths))
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entrypoint for checking one candidate task against active tasks."""
+    parser = argparse.ArgumentParser(
+        description="Check whether a Yuanqi task overlaps other active tasks."
+    )
+    parser.add_argument("--candidate", required=True, help="Candidate task YAML path.")
+    parser.add_argument("--tasks-dir", required=True, help="Yuanqi task registry dir.")
+    parser.add_argument("--pr", help="Pull request number for diagnostic output.")
+    parser.add_argument("--head", help="Head SHA for diagnostic output.")
+    args = parser.parse_args(argv)
+
+    candidate_path = Path(args.candidate)
+    try:
+        candidate, errors = load_and_validate(candidate_path)
+    except OSError as exc:
+        print(f"overlap gate error: {exc}", file=sys.stderr)
+        return 1
+
+    if errors:
+        for error in errors:
+            print(f"candidate schema error: {error}", file=sys.stderr)
+        return 1
+
+    active_tasks = []
+    for task_path in _task_paths(Path(args.tasks_dir)):
+        if task_path.resolve() == candidate_path.resolve():
+            continue
+        try:
+            task, task_errors = load_and_validate(task_path)
+        except OSError as exc:
+            print(f"overlap gate error in {task_path}: {exc}", file=sys.stderr)
+            return 1
+        if task_errors:
+            for error in task_errors:
+                print(f"task schema error in {task_path}: {error}", file=sys.stderr)
+            return 1
+        active_tasks.append(task)
+
+    decision, conflicts = check(candidate, active_tasks)
+    if decision == "allow":
+        return 0
+
+    context = []
+    if args.pr:
+        context.append(f"pr={args.pr}")
+    if args.head:
+        context.append(f"head={args.head}")
+    suffix = f" ({', '.join(context)})" if context else ""
+    print(f"overlap gate denied{suffix}:", file=sys.stderr)
+    for conflict in conflicts:
+        paths = ", ".join(conflict.get("paths", []))
+        print(f"- {conflict.get('task_id', '<unknown>')}: {paths}", file=sys.stderr)
+    return 1
+
+
+def _task_paths(tasks_dir: Path):
+    if not tasks_dir.exists():
+        return
+
+    candidates = sorted(
+        path
+        for suffix in ("*.yml", "*.yaml")
+        for path in tasks_dir.rglob(suffix)
+        if path.is_file()
+    )
+    for path in candidates:
+        relative = path.relative_to(tasks_dir)
+        if "examples" in relative.parts:
+            continue
+        yield path
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

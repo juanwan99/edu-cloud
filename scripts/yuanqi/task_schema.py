@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
+import sys
 from typing import Any
 
 import yaml
@@ -65,3 +67,30 @@ def load_and_validate(path) -> tuple[dict, list[str]]:
 
 def _non_empty_string(value: Any) -> bool:
     return isinstance(value, str) and value.strip() != ""
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entrypoint for validating a Yuanqi task registry file."""
+    parser = argparse.ArgumentParser(description="Validate a Yuanqi task YAML file.")
+    parser.add_argument("task", help="Path to the Yuanqi task YAML file.")
+    args = parser.parse_args(argv)
+
+    try:
+        _, errors = load_and_validate(args.task)
+    except OSError as exc:
+        print(f"task schema error: {exc}", file=sys.stderr)
+        return 1
+    except yaml.YAMLError as exc:
+        print(f"task schema error: {exc}", file=sys.stderr)
+        return 1
+
+    if errors:
+        for error in errors:
+            print(f"task schema error: {error}", file=sys.stderr)
+        return 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
