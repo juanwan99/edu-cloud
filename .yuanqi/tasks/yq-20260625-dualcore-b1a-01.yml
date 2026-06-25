@@ -1,0 +1,10 @@
+task_id: yq-20260625-dualcore-b1a-01
+mode: integration_writer
+owner: codex
+allowed_paths:
+  - .github/workflows/test.yml
+  - tests/governance/test_codex_scripts.py
+exclusive_claims: []
+status: active
+created_at: "2026-06-25T23:46:16+08:00"
+expires_at: "2026-06-26T23:46:16+08:00"
