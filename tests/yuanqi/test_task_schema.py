@@ -64,9 +64,51 @@ def test_validate_task_rejects_invalid_status():
     assert "status must be one of: active, closed" in errors
 
 
+def test_validate_task_rejects_unknown_fields():
+    errors = validate_task(_valid_task(evil_field="self-issued-pass"))
+
+    assert "unknown fields: evil_field" in errors
+
+
+def test_validate_task_rejects_human_waiver_field():
+    errors = validate_task(_valid_task(human_waiver=True))
+
+    assert "unknown fields: human_waiver" in errors
+
+
+def test_validate_task_rejects_control_plane_allowed_paths():
+    errors = validate_task(_valid_task(allowed_paths=[".yuanqi/tasks/**"]))
+
+    assert "allowed_paths contains forbidden control-plane path: .yuanqi/tasks/**" in errors
+
+
+@pytest.mark.parametrize(
+    "allowed_path",
+    [
+        "",
+        ".",
+        "*",
+        "**",
+        "./**",
+        "/",
+        "/src/edu_cloud/modules/grading",
+        "../outside",
+        "src/../outside",
+    ],
+)
+def test_validate_task_rejects_root_or_escaping_allowed_paths(allowed_path):
+    errors = validate_task(_valid_task(allowed_paths=[allowed_path]))
+
+    assert (
+        f"allowed_paths contains forbidden root or escaping path: {allowed_path}"
+        in errors
+    )
+
+
 def test_task_schema_cli_accepts_valid_task(tmp_path):
-    task_path = tmp_path / "task.yml"
-    task_path.write_text(_yaml(_valid_task()), encoding="utf-8")
+    task = _valid_task()
+    task_path = tmp_path / f"{task['task_id']}.yml"
+    task_path.write_text(_yaml(task), encoding="utf-8")
 
     result = subprocess.run(
         [sys.executable, "scripts/yuanqi/task_schema.py", str(task_path)],
@@ -80,7 +122,7 @@ def test_task_schema_cli_accepts_valid_task(tmp_path):
 
 def test_task_schema_cli_rejects_invalid_task(tmp_path):
     task = _valid_task(mode="writer")
-    task_path = tmp_path / "task.yml"
+    task_path = tmp_path / f"{task['task_id']}.yml"
     task_path.write_text(_yaml(task), encoding="utf-8")
 
     result = subprocess.run(
@@ -92,6 +134,21 @@ def test_task_schema_cli_rejects_invalid_task(tmp_path):
 
     assert result.returncode == 1
     assert "mode must be one of" in result.stderr
+
+
+def test_task_schema_cli_rejects_task_id_filename_mismatch(tmp_path):
+    task_path = tmp_path / "different-file.yml"
+    task_path.write_text(_yaml(_valid_task()), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, "scripts/yuanqi/task_schema.py", str(task_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "task_id must match filename stem" in result.stderr
 
 
 def _yaml(task):

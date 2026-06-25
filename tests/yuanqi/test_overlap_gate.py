@@ -41,6 +41,21 @@ def test_same_module_locks_deny():
     ]
 
 
+def test_human_waiver_field_does_not_bypass_overlap():
+    candidate = _task("candidate", "grading", human_waiver=True)
+    active = [_task("active-grading", "grading")]
+
+    decision, conflicts = check(candidate, active)
+
+    assert decision == "deny"
+    assert conflicts == [
+        {
+            "task_id": "active-grading",
+            "paths": ["src/edu_cloud/modules/grading/**"],
+        }
+    ]
+
+
 def test_shared_layer_changed_path_overlap_denies():
     shared_path = "src/edu_cloud/services/effective_scores.py"
     candidate = _task(
@@ -76,11 +91,19 @@ def test_empty_read_only_lockset_allows_against_writer():
     assert check(candidate, active) == ("allow", [])
 
 
+def test_task_registry_metadata_paths_do_not_create_business_overlap():
+    task_file = ".yuanqi/tasks/yq-20260624-candidate.yml"
+    candidate = _task("candidate", "grading", changed_paths=[task_file])
+    active = [_task("active-knowledge", "knowledge", changed_paths=[task_file])]
+
+    assert check(candidate, active) == ("allow", [])
+
+
 def test_overlap_gate_cli_allows_non_overlapping_tasks(tmp_path):
     candidate = _task("candidate-grading", "grading")
     active = _task("active-knowledge", "knowledge")
-    candidate_path = tmp_path / "candidate.yml"
-    active_path = tmp_path / "active.yml"
+    candidate_path = tmp_path / "candidate-grading.yml"
+    active_path = tmp_path / "active-knowledge.yml"
     candidate_path.write_text(_yaml(candidate), encoding="utf-8")
     active_path.write_text(_yaml(active), encoding="utf-8")
 
@@ -104,8 +127,8 @@ def test_overlap_gate_cli_allows_non_overlapping_tasks(tmp_path):
 def test_overlap_gate_cli_denies_overlapping_tasks(tmp_path):
     candidate = _task("candidate-grading", "grading")
     active = _task("active-grading", "grading")
-    candidate_path = tmp_path / "candidate.yml"
-    active_path = tmp_path / "active.yml"
+    candidate_path = tmp_path / "candidate-grading.yml"
+    active_path = tmp_path / "active-grading.yml"
     candidate_path.write_text(_yaml(candidate), encoding="utf-8")
     active_path.write_text(_yaml(active), encoding="utf-8")
 

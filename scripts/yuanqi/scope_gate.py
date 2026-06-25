@@ -8,6 +8,9 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from scripts.yuanqi.lock_map import expand_exclusive
 from scripts.yuanqi.task_schema import load_and_validate
 
@@ -18,7 +21,7 @@ def scope_check(changed_files: list[str], task: dict) -> tuple[bool, list[str]]:
     violations = [
         path
         for path in _normalize_all(changed_files)
-        if path and not _matches_any(path, allowed)
+        if path and not _is_own_task_file(path, task) and not _matches_any(path, allowed)
     ]
     return (False, violations) if violations else (True, [])
 
@@ -31,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--task", required=True, help="Path to Yuanqi task YAML")
     args = parser.parse_args(argv)
 
-    task, errors = load_and_validate(args.task)
+    task, errors = load_and_validate(args.task, require_filename=True)
     if errors:
         for error in errors:
             print(f"task schema error: {error}", file=sys.stderr)
@@ -62,6 +65,15 @@ def _read_changed_files(path: str) -> list[str]:
 
 def _matches_any(path: str, patterns: list[str]) -> bool:
     return any(fnmatchcase(path, pattern) for pattern in patterns)
+
+
+def _is_own_task_file(path: str, task: dict) -> bool:
+    task_id = task.get("task_id")
+    return (
+        isinstance(task_id, str)
+        and task_id.strip() != ""
+        and path == f".yuanqi/tasks/{task_id}.yml"
+    )
 
 
 def _string_list(value: Any) -> list[str]:
