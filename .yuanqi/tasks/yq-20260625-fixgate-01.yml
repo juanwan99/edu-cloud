@@ -2,16 +2,10 @@ task_id: yq-20260625-fixgate-01
 mode: integration_writer
 owner: codex
 allowed_paths:
-  - .github/workflows/test.yml
-  - .yuanqi/tasks/yq-20260625-fixgate-01.yml
-  - scripts/truth-doctor.sh
   - scripts/yuanqi/overlap_gate.py
-  - scripts/yuanqi/registry_doctor.py
-  - scripts/yuanqi/resolve_pr_task.py
+  - scripts/yuanqi/scope_gate.py
   - scripts/yuanqi/task_schema.py
-  - tests/governance/test_truth_doctor_collector_parity.py
   - tests/yuanqi/test_overlap_gate.py
-  - tests/yuanqi/test_resolve_pr_task.py
   - tests/yuanqi/test_scope_gate.py
   - tests/yuanqi/test_task_schema.py
 exclusive_claims: []

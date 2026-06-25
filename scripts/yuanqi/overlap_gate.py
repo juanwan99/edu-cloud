@@ -36,7 +36,7 @@ def check(candidate: dict, active_tasks: list[dict]) -> tuple[str, list]:
             continue
 
         hit = _glob_intersections(candidate_locks, other_locks)
-        if hit and not _has_human_waiver(candidate, task):
+        if hit:
             conflicts.append({"task_id": task.get("task_id"), "paths": hit})
 
     return ("deny", conflicts) if conflicts else ("allow", [])
@@ -52,7 +52,13 @@ def _lockset(task: dict) -> list[str]:
 
     if task.get("mode") in READ_ONLY_MODES and not paths:
         return []
-    return _dedupe(_normalize(path) for path in paths if path)
+    return _dedupe(
+        normalized
+        for path in paths
+        if path
+        for normalized in [_normalize(path)]
+        if normalized and not _is_task_metadata_path(normalized)
+    )
 
 
 def _glob_intersections(left: list[str], right: list[str]) -> list[str]:
@@ -114,24 +120,6 @@ def _more_specific(
     return min(first_pattern, second_pattern)
 
 
-def _has_human_waiver(candidate: dict, other: dict) -> bool:
-    other_id = other.get("task_id")
-    waiver = candidate.get("human_waiver")
-    if waiver is True or waiver == "human":
-        return True
-    if isinstance(waiver, dict):
-        targets = _string_list(waiver.get("task_ids") or waiver.get("tasks"))
-        return waiver.get("approved_by") == "human" and (
-            not targets or "*" in targets or other_id in targets
-        )
-
-    waivers = candidate.get("human_waivers")
-    if isinstance(waivers, list):
-        return "*" in waivers or other_id in waivers
-
-    return False
-
-
 def _string_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
@@ -145,6 +133,10 @@ def _normalize(path: str) -> str:
     if len(normalized) > 1 and normalized.endswith("/") and not normalized.endswith("/**"):
         normalized = normalized.rstrip("/")
     return normalized
+
+
+def _is_task_metadata_path(path: str) -> bool:
+    return path == ".yuanqi/tasks" or path.startswith(".yuanqi/tasks/")
 
 
 def _is_glob(path: str) -> bool:
@@ -168,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
 
     candidate_path = Path(args.candidate)
     try:
-        candidate, errors = load_and_validate(candidate_path)
+        candidate, errors = load_and_validate(candidate_path, require_filename=True)
     except OSError as exc:
         print(f"overlap gate error: {exc}", file=sys.stderr)
         return 1
@@ -183,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
         if task_path.resolve() == candidate_path.resolve():
             continue
         try:
-            task, task_errors = load_and_validate(task_path)
+            task, task_errors = load_and_validate(task_path, require_filename=True)
         except OSError as exc:
             print(f"overlap gate error in {task_path}: {exc}", file=sys.stderr)
             return 1
