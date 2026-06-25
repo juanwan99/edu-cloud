@@ -1482,7 +1482,7 @@ def test_codex_verify_full_schema_dry_run_lists_schema_gate_once():
     result = run_script("codex-verify", "full", "--dry-run", "--schema", "--no-network", "--allow-dirty-build")
 
     assert result.returncode == 0
-    assert "scripts/meta-check --fail-on-blocking" in result.stdout
+    assert "scripts/meta-check --fail-on-blocking" not in result.stdout
     assert "scripts/meta-check --strict" not in result.stdout
     assert result.stdout.count("scripts/db_doctor.py --strict") == 1
     assert "scripts/pytest_delta.py" in result.stdout
