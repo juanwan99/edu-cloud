@@ -179,6 +179,8 @@ def main(argv: list[str] | None = None) -> int:
         except OSError as exc:
             print(f"overlap gate error in {task_path}: {exc}", file=sys.stderr)
             return 1
+        if isinstance(task, dict) and task.get("status") == "closed":
+            continue
         if task_errors:
             for error in task_errors:
                 print(f"task schema error in {task_path}: {error}", file=sys.stderr)
