@@ -30,6 +30,7 @@ KNOWN_FIELDS = frozenset(
         "worktree",
         "allowed_paths",
         "exclusive_claims",
+        "registry_closeouts",
         "changed_paths",
         "ports",
         "status",
@@ -73,6 +74,16 @@ def validate_task(data: dict, *, filename_stem: str | None = None) -> list[str]:
 
     if not isinstance(data.get("exclusive_claims"), list):
         errors.append("exclusive_claims must be a list")
+
+    if "registry_closeouts" in data:
+        closeouts = data.get("registry_closeouts")
+        if not isinstance(closeouts, list):
+            errors.append("registry_closeouts must be a list")
+        else:
+            for item in closeouts:
+                if not _non_empty_string(item):
+                    errors.append("registry_closeouts entries must be non-empty strings")
+                    break
 
     if data.get("status") not in VALID_STATUSES:
         errors.append(f"status must be one of: {', '.join(VALID_STATUSES)}")
