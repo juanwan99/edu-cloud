@@ -49,7 +49,7 @@ class WatchConfig:
     state_file: Path = PROJECT_ROOT / "logs" / "guardian-state.json"
     jsonl_file: Path | None = PROJECT_ROOT / "logs" / "guardian-watch.jsonl"
     model_review: bool = False
-    model_review_backend: str = "claude"
+    model_review_backend: str = "off"
     model_review_interval: int = 3600
     model_review_dir: Path = PROJECT_ROOT / "logs"
     model_review_timeout: int = 300
@@ -866,11 +866,17 @@ def maybe_run_model_review(
         return {"status": "disabled"}
     if snapshot.get("overall") == "green":
         return {"status": "skipped", "reason": "green"}
-    if config.model_review_backend == "gpt" and not config.model_review_command:
+    if config.model_review_backend == "claude":
+        return {
+            "status": "disabled",
+            "reason": "claude_auxiliary_retired",
+            "hint": "use Yuanqi task evidence and human/GitHub review instead of the retired Claude auxiliary path",
+        }
+    if not config.model_review_command:
         return {
             "status": "failed",
-            "reason": "gpt_command_missing",
-            "hint": "pass --model-review-command with a read-only GPT review wrapper",
+            "reason": f"{config.model_review_backend}_command_missing",
+            "hint": "pass --model-review-command with a vetted read-only external review wrapper",
         }
 
     current_time = time.time() if now is None else now
@@ -887,16 +893,7 @@ def maybe_run_model_review(
         }
 
     prompt = model_review_prompt(snapshot)
-    if config.model_review_command:
-        cmd = [*shlex.split(config.model_review_command), prompt]
-    else:
-        cmd = [
-            str(PROJECT_ROOT / "scripts" / "codex-consult-claude"),
-            "--timeout",
-            str(config.model_review_timeout),
-            "risk",
-            prompt,
-        ]
+    cmd = [*shlex.split(config.model_review_command), prompt]
 
     config.model_review_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.fromtimestamp(current_time, timezone.utc).strftime("%Y%m%dT%H%M%SZ")
