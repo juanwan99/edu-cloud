@@ -1,0 +1,18 @@
+task_id: yq-20260625-fixgate-01
+mode: integration_writer
+owner: codex
+allowed_paths:
+  - .github/workflows/test.yml
+  - .yuanqi/tasks/yq-20260625-fixgate-01.yml
+  - scripts/yuanqi/overlap_gate.py
+  - scripts/yuanqi/registry_doctor.py
+  - scripts/yuanqi/resolve_pr_task.py
+  - scripts/yuanqi/task_schema.py
+  - tests/yuanqi/test_overlap_gate.py
+  - tests/yuanqi/test_resolve_pr_task.py
+  - tests/yuanqi/test_scope_gate.py
+  - tests/yuanqi/test_task_schema.py
+exclusive_claims: []
+status: active
+created_at: "2026-06-25T00:00:00+08:00"
+expires_at: "2026-06-26T00:00:00+08:00"
