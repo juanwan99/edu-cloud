@@ -53,9 +53,28 @@ def test_changed_files_inside_exclusive_claim_paths_pass():
     assert violations == []
 
 
+def test_own_task_file_is_control_plane_exception():
+    ok, violations = scope_check(
+        [".yuanqi/tasks/yq-20260624-scope.yml"],
+        _task(),
+    )
+
+    assert ok is True
+    assert violations == []
+
+
+def test_other_task_file_remains_out_of_scope():
+    outside = ".yuanqi/tasks/yq-20260624-other.yml"
+
+    ok, violations = scope_check([outside], _task())
+
+    assert ok is False
+    assert violations == [outside]
+
+
 def test_scope_gate_cli_rejects_out_of_scope_changed_file(tmp_path):
     outside = "src/edu_cloud/modules/scan/x.py"
-    task_path = tmp_path / "task.yml"
+    task_path = tmp_path / "yq-20260624-scope.yml"
     changed_path = tmp_path / "changed-files.txt"
     task_path.write_text(_yaml(_task()), encoding="utf-8")
     changed_path.write_text(outside + "\n", encoding="utf-8")
