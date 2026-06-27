@@ -1,9 +1,8 @@
 task_id: yq-20260627-governance-audit-f1f3
-mode: integration_writer
+mode: docs_local
 owner: claude
 allowed_paths:
   - docs/context/META_RUNTIME.md
-  - .github/workflows/test.yml
 exclusive_claims: []
 status: active
 created_at: "2026-06-27T16:50:00+08:00"
