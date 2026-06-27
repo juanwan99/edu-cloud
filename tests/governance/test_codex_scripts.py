@@ -634,7 +634,7 @@ def test_guardian_watch_once_json_outputs_runtime_schema():
     assert "issues" in payload
 
 
-def test_guardian_model_review_is_read_only_and_rate_limited(tmp_path):
+def test_guardian_claude_model_review_is_retired_and_does_not_call_runner(tmp_path):
     module = load_guardian_runtime_module()
     snapshot = {
         "schema": "guardian.watch.v1",
@@ -646,10 +646,41 @@ def test_guardian_model_review_is_read_only_and_rate_limited(tmp_path):
 
     def fake_runner(cmd, cwd=None, capture_output=True, text=True, timeout=300):
         calls.append(cmd)
-        return subprocess.CompletedProcess(cmd, 0, "readonly review", "")
+        return subprocess.CompletedProcess(cmd, 0, "review", "")
 
     config = module.WatchConfig(
         model_review=True,
+        model_review_backend="claude",
+        model_review_interval=3600,
+        model_review_dir=tmp_path,
+    )
+
+    result = module.maybe_run_model_review(snapshot, state, config, now=1000, runner=fake_runner)
+
+    assert result["status"] == "disabled"
+    assert result["reason"] == "claude_auxiliary_retired"
+    assert calls == []
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_guardian_external_model_review_requires_explicit_command_and_rate_limits(tmp_path):
+    module = load_guardian_runtime_module()
+    snapshot = {
+        "schema": "guardian.watch.v1",
+        "overall": "yellow",
+        "issues": [{"issue_code": "GHOST_PROCESS", "severity": "yellow", "summary": "ghost", "blocks_completion": False}],
+    }
+    state = {}
+    calls = []
+
+    def fake_runner(cmd, cwd=None, capture_output=True, text=True, timeout=300):
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, "external review", "")
+
+    config = module.WatchConfig(
+        model_review=True,
+        model_review_backend="gpt",
+        model_review_command="external-review --readonly",
         model_review_interval=3600,
         model_review_dir=tmp_path,
     )
@@ -661,11 +692,10 @@ def test_guardian_model_review_is_read_only_and_rate_limited(tmp_path):
     assert second["status"] == "skipped"
     assert len(calls) == 1
     command_text = " ".join(str(part) for part in calls[0])
-    assert "scripts/codex-consult-claude" in command_text
-    assert "risk" in command_text
-    assert "dangerously-skip-permissions" not in command_text
+    assert "external-review" in command_text
+    assert "--readonly" in command_text
+    assert "codex-consult-claude" not in command_text
     assert any(path.name.startswith("guardian-model-review-") for path in tmp_path.iterdir())
-
 
 def test_guardian_fingerprint_ignores_worktree_dirty_count_noise():
     module = load_guardian_runtime_module()
@@ -720,7 +750,8 @@ def test_meta_runtime_builds_snapshot_from_context():
     assert snapshot["overall"] in {"green", "yellow", "red"}
     assert "task_contract" in snapshot
     obligations = {item["code"] for item in snapshot["task_contract"]["obligations"]}
-    assert {"EVIDENCE_MATRIX", "CLAUDE_REVIEW", "IMPLEMENT_AND_VERIFY"} <= obligations
+    assert {"EVIDENCE_MATRIX", "INDEPENDENT_REVIEW_EVIDENCE", "IMPLEMENT_AND_VERIFY"} <= obligations
+    assert "CLAUDE_REVIEW" not in obligations
     assert any(check["name"] == "active_docs" for check in snapshot["checks"])
 
 
@@ -900,7 +931,7 @@ def test_meta_runtime_detects_task_contract_drift(tmp_path):
                     "task_contract": {
                         "obligations": [
                             {"code": "EVIDENCE_MATRIX", "summary": "evidence"},
-                            {"code": "CLAUDE_REVIEW", "summary": "review"},
+                            {"code": "INDEPENDENT_REVIEW_EVIDENCE", "summary": "review"},
                         ]
                     }
                 },
@@ -1077,79 +1108,18 @@ def test_frontend_dev_server_binds_loopback_by_default():
     assert "host: '0.0.0.0'" not in config
 
 
-def test_codex_consult_claude_help_lists_read_only_modes():
-    result = run_script("codex-consult-claude", "--help")
+def test_claude_auxiliary_is_not_active_ci_or_runtime_surface():
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+    guardian = (PROJECT_ROOT / "scripts" / "guardian_runtime.py").read_text(encoding="utf-8")
+    module = load_meta_runtime_module()
+    snapshot = module.build_snapshot(task="审查当前治理质量")
+    obligations = {item["code"] for item in snapshot["task_contract"]["obligations"]}
 
-    assert result.returncode == 0
-    assert "read-only Claude Code auxiliary reviewer" in result.stdout
-    for mode in ("review", "design", "history", "tests", "risk", "question"):
-        assert mode in result.stdout
-
-
-def test_codex_consult_claude_dry_run_is_read_only_and_stateless():
-    result = run_script("codex-consult-claude", "--dry-run", "review", "check migration gates")
-
-    assert result.returncode == 0, result.stderr
-    output = result.stdout
-    assert "claude -p" in output
-    assert "--no-session-persistence" in output
-    assert "--permission-mode plan" in output
-    assert "--tools Read,Grep,Glob,LS" in output
-    assert "--disallowedTools Bash,Edit,Write,MultiEdit,NotebookEdit" in output
-    assert "--add-dir " in output
-    assert str(PROJECT_ROOT) in output
-    assert "--continue" not in output
-    assert "--resume" not in output
-    assert "dangerously-skip-permissions" not in output
-
-
-def test_codex_consult_claude_system_prompt_preserves_codex_authority():
-    result = run_script("codex-consult-claude", "--print-system-prompt")
-
-    assert result.returncode == 0
-    assert "Codex is the orchestrator" in result.stdout
-    assert "AGENTS.md is authoritative" in result.stdout
-    assert "CLAUDE.md is historical" in result.stdout
-    assert "Meta Core task contract" in result.stdout
-    assert "advisory diagnostic cache only" in result.stdout
-    assert "acceptance fact chain" in result.stdout
-    assert "completion authority" in result.stdout
-    assert "Do not edit files" in result.stdout
-
-
-def test_codex_consult_claude_injects_meta_state_obligations(monkeypatch, tmp_path):
-    module = load_codex_consult_module()
-    logs = tmp_path / "logs"
-    logs.mkdir()
-    (logs / "meta-state.json").write_text(
-        json.dumps(
-            {
-                "schema": "meta.state.v1",
-                "latest_snapshot": {
-                    "overall": "green",
-                    "task_contract": {
-                        "obligations": [
-                            {"code": "EVIDENCE_MATRIX", "summary": "produce evidence-backed findings"},
-                            {"code": "CLAUDE_REVIEW", "summary": "run read-only review"},
-                        ]
-                    },
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
-
-    prompt = module.build_user_prompt("review", "check meta core")
-
-    assert "Advisory Persisted State (diagnostic only)" in prompt
-    assert "not acceptance evidence" in prompt
-    assert "not completion authority" in prompt
-    assert "not a required task baseline" in prompt
-    assert "advisory obligations" in prompt
-    assert "EVIDENCE_MATRIX" in prompt
-    assert "CLAUDE_REVIEW" in prompt
-
+    assert "scripts/codex-consult-claude" not in workflow
+    assert "codex-consult-claude" not in guardian
+    assert "CLAUDE_REVIEW" not in obligations
+    assert "INDEPENDENT_REVIEW_EVIDENCE" in obligations
+    assert any(check["name"] == "legacy_claude_auxiliary" for check in snapshot["checks"])
 
 def test_codex_verify_backend_target_args_are_marked_partial():
     result = run_script(
@@ -1509,8 +1479,9 @@ def test_ci_governance_job_runs_codex_smoke_checks():
 
     assert "governance:" in text
     for command in (
-        "python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker",
+        "python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-verify scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker",
         "python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_execution_policy.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py",
+        "python -m py_compile scripts/yuanqi/legacy_quarantine_gate.py",
         "python scripts/governance/check_execution_policy.py",
         "python -m pytest tests/governance/test_codex_scripts.py -q",
         "python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_execution_policy.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_tenant_static.py -q",
@@ -1521,9 +1492,9 @@ def test_ci_governance_job_runs_codex_smoke_checks():
         "python scripts/governance/module_governance_guard.py --git-hook-mode --repo \"$(pwd)\"",
         "scripts/codex-check --no-network",
         "scripts/codex-context --no-network",
-        "scripts/codex-consult-claude --dry-run review CI smoke",
         "scripts/codex-verify safety --repo-wide",
         "scripts/codex-verify full --dry-run --schema --no-network",
+        "python -m pytest tests/yuanqi -q",
         "python -m pytest tests/test_alembic_migration.py -q",
         "cd frontend && npm ci --ignore-scripts",
         "cd frontend && npx vitest run",

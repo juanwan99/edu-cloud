@@ -233,34 +233,33 @@ def check_meta_registration(project_root: Path = PROJECT_ROOT) -> list[dict[str,
     return issues
 
 
-def check_claude_boundary(project_root: Path = PROJECT_ROOT) -> list[dict[str, Any]]:
-    wrapper = project_root / "scripts" / "codex-consult-claude"
-    if not wrapper.exists():
-        return [
-            issue(
-                "CLAUDE_BOUNDARY_GAP",
-                "red",
-                "scripts/codex-consult-claude is missing",
-                "restore scripts/codex-consult-claude",
-                blocks_completion=True,
-                source="claude-boundary",
-            )
-        ]
-    text = wrapper.read_text(encoding="utf-8")
-    required = ("--no-session-persistence", "--permission-mode", "Read,Grep,Glob,LS", "Bash,Edit,Write")
-    missing = [term for term in required if term not in text]
-    if not missing:
-        return []
-    return [
-        issue(
-            "CLAUDE_BOUNDARY_GAP",
-            "red",
-            "Claude wrapper no longer proves read-only boundary: " + ", ".join(missing),
-            "scripts/codex-consult-claude --dry-run review boundary",
-            blocks_completion=True,
-            source="claude-boundary",
-        )
-    ]
+def check_legacy_claude_auxiliary_retired(project_root: Path = PROJECT_ROOT) -> list[dict[str, Any]]:
+    active_files = (
+        ".github/workflows/test.yml",
+        "scripts/guardian_runtime.py",
+        "deploy/systemd/edu-cloud-guardian.service",
+    )
+    forbidden = ("codex-consult-claude", "--model-review claude")
+    issues: list[dict[str, Any]] = []
+    for rel in active_files:
+        path = project_root / rel
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            for token in forbidden:
+                if token in line:
+                    issues.append(
+                        issue(
+                            "LEGACY_CLAUDE_AUX_ACTIVE",
+                            "red",
+                            f"retired Claude auxiliary path remains active in {rel}:{lineno}: {token}",
+                            "remove the retired auxiliary invocation or route review through Yuanqi evidence + human/GitHub review",
+                            blocks_completion=True,
+                            source="legacy-claude-auxiliary",
+                        )
+                    )
+    return issues
 
 
 def run_git_status(project_root: Path = PROJECT_ROOT) -> list[str]:
@@ -420,7 +419,7 @@ def task_obligations(task: str | None) -> list[dict[str, str]]:
     if re.search(r"实证|证据|深度|挖掘|evidence", task):
         obligations.append({"code": "EVIDENCE_MATRIX", "summary": "produce evidence-backed findings, not impressions"})
     if re.search(r"双模型|Claude|GPT|反审|审查|review", task, re.I):
-        obligations.append({"code": "CLAUDE_REVIEW", "summary": "run read-only auxiliary model review and keep Codex authority"})
+        obligations.append({"code": "INDEPENDENT_REVIEW_EVIDENCE", "summary": "capture independent review evidence without invoking retired Claude auxiliary runtime"})
     if re.search(r"升级|建设|实现|完成|强化|upgrade|implement", task, re.I):
         obligations.append({"code": "IMPLEMENT_AND_VERIFY", "summary": "implement with tests and fresh verification evidence"})
     if re.search(r"不要停|全部完成|主导|直至", task):
@@ -503,7 +502,7 @@ def build_snapshot(
         ("lesson_coverage", check_lesson_coverage),
         ("now_freshness", check_now_freshness),
         ("meta_registration", check_meta_registration),
-        ("claude_boundary", check_claude_boundary),
+        ("legacy_claude_auxiliary", check_legacy_claude_auxiliary_retired),
     ):
         issues = func(project_root)
         checks.append({"name": name, "status": "ok" if not issues else "issue", "issue_count": len(issues)})

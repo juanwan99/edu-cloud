@@ -93,8 +93,9 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --frozen --extra dev --python 3.11
-      - run: uv run python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
+      - run: uv run python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-verify scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
       - run: uv run python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_execution_policy.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py
+      - run: uv run python -m py_compile scripts/yuanqi/legacy_quarantine_gate.py
       - run: uv run python scripts/governance/check_execution_policy.py
       - run: uv run python -m pytest tests/governance/test_codex_scripts.py -q
       - run: uv run python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_execution_policy.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_tenant_static.py -q
@@ -102,14 +103,15 @@ jobs:
       - run: uv run python scripts/governance/check_ai_tool_modules.py
       - run: uv run python scripts/governance/check_module_dependencies.py --check
       - run: uv run python scripts/governance/check_doc_pollution.py --check
+      - run: uv run python scripts/yuanqi/legacy_quarantine_gate.py --check
       - run: uv run python scripts/governance/check_permission_mirror.py
       - run: uv run python scripts/governance/module_governance_guard.py --git-hook-mode --repo "$(pwd)"
       - run: uv run scripts/codex-check --no-network
       - run: uv run scripts/codex-context --no-network
-      - run: uv run scripts/codex-consult-claude --dry-run review CI smoke
       - run: uv run scripts/codex-verify safety --repo-wide
       - run: uv run scripts/codex-verify full --dry-run --schema --no-network
       - run: uv run python -m pytest tests/governance/test_governance_registry.py -q
+      - run: uv run python -m pytest tests/yuanqi -q
 
   task-gate:
     needs: changes

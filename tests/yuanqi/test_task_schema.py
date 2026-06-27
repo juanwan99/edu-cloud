@@ -81,6 +81,17 @@ def test_validate_task_rejects_control_plane_allowed_paths():
 
     assert "allowed_paths contains forbidden control-plane path: .yuanqi/tasks/**" in errors
 
+def test_validate_task_accepts_registry_closeouts_list():
+    errors = validate_task(_valid_task(registry_closeouts=["yq-20260625-old-task"]))
+
+    assert errors == []
+
+
+def test_validate_task_rejects_invalid_registry_closeouts():
+    errors = validate_task(_valid_task(registry_closeouts="yq-20260625-old-task"))
+
+    assert "registry_closeouts must be a list" in errors
+
 
 @pytest.mark.parametrize(
     "allowed_path",
