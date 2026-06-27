@@ -21,7 +21,10 @@ def scope_check(changed_files: list[str], task: dict) -> tuple[bool, list[str]]:
     violations = [
         path
         for path in _normalize_all(changed_files)
-        if path and not _is_own_task_file(path, task) and not _matches_any(path, allowed)
+        if path
+        and not _is_own_task_file(path, task)
+        and not _is_registry_closeout_file(path, task)
+        and not _matches_any(path, allowed)
     ]
     return (False, violations) if violations else (True, [])
 
@@ -74,6 +77,11 @@ def _is_own_task_file(path: str, task: dict) -> bool:
         and task_id.strip() != ""
         and path == f".yuanqi/tasks/{task_id}.yml"
     )
+
+
+def _is_registry_closeout_file(path: str, task: dict) -> bool:
+    closeouts = _string_list(task.get("registry_closeouts"))
+    return any(path == f".yuanqi/tasks/{task_id}.yml" for task_id in closeouts)
 
 
 def _string_list(value: Any) -> list[str]:

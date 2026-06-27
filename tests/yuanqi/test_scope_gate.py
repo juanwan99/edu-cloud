@@ -71,6 +71,29 @@ def test_other_task_file_remains_out_of_scope():
     assert ok is False
     assert violations == [outside]
 
+def test_declared_registry_closeout_task_file_is_control_plane_exception():
+    closeout = ".yuanqi/tasks/yq-20260624-closed.yml"
+
+    ok, violations = scope_check(
+        [closeout],
+        _task(registry_closeouts=["yq-20260624-closed"]),
+    )
+
+    assert ok is True
+    assert violations == []
+
+
+def test_unlisted_registry_closeout_task_file_remains_out_of_scope():
+    outside = ".yuanqi/tasks/yq-20260624-other.yml"
+
+    ok, violations = scope_check(
+        [outside],
+        _task(registry_closeouts=["yq-20260624-closed"]),
+    )
+
+    assert ok is False
+    assert violations == [outside]
+
 
 def test_scope_gate_cli_rejects_out_of_scope_changed_file(tmp_path):
     outside = "src/edu_cloud/modules/scan/x.py"

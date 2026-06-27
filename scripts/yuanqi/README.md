@@ -29,6 +29,7 @@ edge 基线已经为 0，不能作为并行锁判定依据。
 | `worktree` | 任务工作树绝对路径。 |
 | `allowed_paths` | 允许写入的路径 glob。`scope_gate` 用它拦截越界变更。 |
 | `exclusive_claims` | 独占声明，例如 `db_migration`、`permissions`、`runtime`、`central_docs`、`foundation`。 |
+| `registry_closeouts` | 可选。当前任务允许一并关闭的旧 task id 列表；只放行对应 `.yuanqi/tasks/<id>.yml`，用于清理已完成但未闭锁的 stale active lock。 |
 | `ports` | 任务占用端口映射；无端口时写 `{}`。 |
 | `status` | `active` 或 `closed`。只有 `active` 任务参与并行冲突检查。 |
 | `created_at` | 创建时间，使用带时区 ISO 字符串。 |
