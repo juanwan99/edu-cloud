@@ -1,0 +1,10 @@
+task_id: fix-governance-empty-run-f1-f3
+mode: integration_writer
+owner: claude
+allowed_paths:
+  - docs/context/META_RUNTIME.md
+  - .github/workflows/test.yml
+exclusive_claims: []
+status: active
+created_at: "2026-06-27T16:50:00+08:00"
+expires_at: "2026-06-28T16:50:00+08:00"
