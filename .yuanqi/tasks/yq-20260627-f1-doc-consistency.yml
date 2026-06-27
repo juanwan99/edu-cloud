@@ -1,0 +1,12 @@
+task_id: yq-20260627-f1-doc-consistency
+mode: docs_local
+owner: codex
+allowed_paths:
+  - docs/context/COMMANDS.md
+  - docs/context/META_RUNTIME.md
+  - docs/context/NOW.md
+  - docs/context/SAFETY_MATRIX.md
+exclusive_claims: []
+status: active
+created_at: "2026-06-27T12:50:00+08:00"
+expires_at: "2026-06-28T23:59:00+08:00"

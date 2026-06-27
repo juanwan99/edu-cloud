@@ -480,13 +480,12 @@ Codex-native migration layer is now committed:
 - `scripts/codex-check`: read-only start-of-work preflight.
 - `scripts/meta-check`: synchronous Meta Core runtime. It emits
   `meta.core.v1` snapshots and can write `logs/meta-state.json` for the latest
-  task contract. `scripts/codex-verify full` runs
-  `scripts/meta-check --fail-on-blocking` (CI-safe gate: only red/blocking issues
-  fail; non-blocking yellow passes) before backend/frontend gates. The legacy
-  `--strict` gate (any non-green fails) stays available for local/dev use. Deep
-  checks include `--check-drift` for
-  baseline obligation loss and `--check-recent-plans` for committed plan
-  evidence gaps.
+  task contract. PR #18 removed it from the GitHub Actions governance job, so it
+  is now local/manual only. `scripts/codex-verify full` invokes
+  `scripts/meta-check --fail-on-blocking` as a local/manual completion gate:
+  red/blocking issues fail, and non-blocking yellow signals pass. Deep checks
+  include `--check-drift` for baseline obligation loss and
+  `--check-recent-plans` for committed plan evidence gaps.
 - `scripts/codex-consult-claude`: read-only Claude Code auxiliary reviewer
   wrapper. It injects current `logs/meta-state.json` obligations into the review
   prompt when available.

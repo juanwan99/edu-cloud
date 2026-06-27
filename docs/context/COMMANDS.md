@@ -48,8 +48,8 @@ Exit gates:
 # including a non-blocking yellow such as a stale-but-recent NOW.md.
 scripts/meta-check --strict --task "current user task"
 
-# CI-safe: exit non-zero only for red or blocks_completion issues;
-# a non-blocking yellow exits zero. Used by CI and codex-verify full.
+# Blocking-only gate (local/manual): exit non-zero only for red or blocks_completion issues;
+# a non-blocking yellow exits zero. Used by codex-verify full (local only, not in CI since PR#18).
 scripts/meta-check --json --fail-on-blocking
 ```
 
