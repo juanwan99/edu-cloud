@@ -1,4 +1,4 @@
-task_id: fix-governance-empty-run-f1-f3
+task_id: yq-20260627-governance-audit-f1f3
 mode: integration_writer
 owner: claude
 allowed_paths:
