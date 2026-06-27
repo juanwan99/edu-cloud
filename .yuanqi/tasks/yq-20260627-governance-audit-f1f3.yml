@@ -4,6 +4,6 @@ owner: claude
 allowed_paths:
   - docs/context/META_RUNTIME.md
 exclusive_claims: []
-status: active
+status: closed
 created_at: "2026-06-27T16:50:00+08:00"
 expires_at: "2026-06-28T16:50:00+08:00"
