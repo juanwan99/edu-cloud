@@ -1,0 +1,9 @@
+task_id: yq-20260627-governance-audit-f1f3
+mode: docs_local
+owner: claude
+allowed_paths:
+  - docs/context/META_RUNTIME.md
+exclusive_claims: []
+status: active
+created_at: "2026-06-27T16:50:00+08:00"
+expires_at: "2026-06-28T16:50:00+08:00"

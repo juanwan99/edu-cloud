@@ -98,9 +98,9 @@ exits zero (report-only).
   Use it in deterministic pipelines so a stale-but-recent `NOW.md` does not fail
   CI on a clock. `NOW.md` past the 72h red threshold is blocking and still fails.
 
-CI (`.github/workflows/test.yml` `governance` job) and `scripts/codex-verify
-full` both use `--fail-on-blocking`. The flags are independent; passing both
-applies the stricter result.
+`scripts/meta-check` was removed from the CI `governance` job in PR #18
+(2026-06-25). It remains available for local and manual use. `scripts/codex-verify
+full` uses `--fail-on-blocking` independently.
 
 ## Completion Authority
 
@@ -115,7 +115,7 @@ Completion is accepted from the external/current authority chain:
 diagnostics. They can carry obligations and drift context, but persisted state is
 not a trust baseline and is not sufficient completion authority.
 
-`scripts/meta-check --fail-on-blocking` remains a CI-safe local/CI signal for
+`scripts/meta-check --fail-on-blocking` remains a local signal for
 blocking Meta issues; it does not replace the required check plus CODEOWNERS
 approval chain.
 
@@ -123,7 +123,7 @@ For Meta runtime changes, attach current diagnostic output such as:
 
 ```bash
 .venv/bin/python -m pytest tests/governance/test_codex_scripts.py -q
-scripts/meta-check --json --fail-on-blocking   # CI-safe gate (or --strict locally for full signal)
+scripts/meta-check --json --fail-on-blocking   # local gate (not in CI since PR #18; use --strict for full signal)
 scripts/codex-context --no-network
 scripts/codex-verify safety --repo-wide
 ```
