@@ -93,14 +93,15 @@ exits zero (report-only).
 - `--strict` (legacy, local/dev): exit non-zero for **any** non-green snapshot —
   red issues OR a non-blocking yellow (e.g. `STALE_FACTS` in the 24-72h window).
   Use it interactively when you want the full signal.
-- `--fail-on-blocking` (CI-safe): exit non-zero **only** when `red_count > 0` or
-  any issue carries `blocks_completion=true`; a non-blocking yellow exits zero.
-  Use it in deterministic pipelines so a stale-but-recent `NOW.md` does not fail
-  CI on a clock. `NOW.md` past the 72h red threshold is blocking and still fails.
+- `--fail-on-blocking` (local/manual blocking gate): exit non-zero **only** when
+  `red_count > 0` or any issue carries `blocks_completion=true`; a non-blocking
+  yellow exits zero. Use it for local/manual completion checks that must fail
+  real blockers without failing on advisory yellow signals. `NOW.md` past the
+  72h red threshold is blocking and still fails.
 
-`scripts/meta-check` was removed from the CI `governance` job in PR #18
-(2026-06-25). It remains available for local and manual use. `scripts/codex-verify
-full` uses `--fail-on-blocking` independently.
+PR #18 (2026-06-25) removed `scripts/meta-check` from the GitHub Actions
+governance job. The runtime is now local/manual only. `scripts/codex-verify full`
+uses `--fail-on-blocking` independently.
 
 ## Completion Authority
 
@@ -123,7 +124,7 @@ For Meta runtime changes, attach current diagnostic output such as:
 
 ```bash
 .venv/bin/python -m pytest tests/governance/test_codex_scripts.py -q
-scripts/meta-check --json --fail-on-blocking   # local gate (not in CI since PR #18; use --strict for full signal)
+scripts/meta-check --json --fail-on-blocking   # local/manual blocking gate
 scripts/codex-context --no-network
 scripts/codex-verify safety --repo-wide
 ```
