@@ -3,7 +3,6 @@ mode: exclusive
 owner: codex
 allowed_paths:
   - .github/workflows/test.yml
-  - .yuanqi/tasks/yq-20260627-f3-registry-doctor.yml
 exclusive_claims: []
 status: active
 created_at: "2026-06-27T12:50:00+08:00"
