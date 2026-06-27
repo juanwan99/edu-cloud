@@ -6,7 +6,6 @@ allowed_paths:
   - docs/context/META_RUNTIME.md
   - docs/context/NOW.md
   - docs/context/SAFETY_MATRIX.md
-  - .yuanqi/tasks/yq-20260627-f1-doc-consistency.yml
 exclusive_claims: []
 status: active
 created_at: "2026-06-27T12:50:00+08:00"
