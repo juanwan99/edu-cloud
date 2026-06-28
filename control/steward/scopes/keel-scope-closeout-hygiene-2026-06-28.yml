@@ -1,0 +1,30 @@
+schema: steward-pr-scope.v1
+scope_id: keel-scope-closeout-hygiene-2026-06-28
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-scope-closeout-hygiene-2026-06-28.yml
+  - control/steward/scopes/keel-calendar-delete-school-boundary-2026-06-28.yml
+  - control/steward/scopes/keel-call-site-invariants-ci-2026-06-28.yml
+  - control/steward/scopes/keel-runtime-compose-isolation-2026-06-28.yml
+  - control/steward/scopes/steward-edu-calendar-date-validation-2026-06-28.yml
+  - control/steward/scopes/steward-hard-gates-2026-06-28.yml
+  - control/steward/scopes/steward-p0-hardening-2026-06-28.yml
+  - control/steward/scopes/steward-p05-codeowners-2026-06-28.yml
+  - scripts/governance/steward_scope_gate.py
+  - tests/governance/test_steward_scope_gate.py
+forbidden_paths:
+  - cases/
+  - reports/
+  - artifacts/audit-office/
+  - .yuanqi/
+  - scripts/yuanqi/
+  - tests/yuanqi/
+  - src/edu_cloud/core/auth.py
+  - src/edu_cloud/core/permissions.py
+  - src/edu_cloud/core/tenant.py
+  - alembic/
+  - deploy/
+compatibility_paths: []
+status: active
+created_at: "2026-06-28T14:30:00+08:00"
+expires_at: "2026-07-05T23:59:00+08:00"

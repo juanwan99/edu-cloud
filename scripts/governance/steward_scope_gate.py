@@ -241,6 +241,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"scope schema error: {error}", file=sys.stderr)
         return 1
 
+    if scope.get("status") != "active":
+        print("scope status must be active for PR validation", file=sys.stderr)
+        return 1
+
     changed_files = _read_changed_files(args.changed)
     ok, violations = scope_check(changed_files, scope)
     if ok:
