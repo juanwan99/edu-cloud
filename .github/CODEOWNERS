@@ -6,6 +6,12 @@
 # --- Governance infrastructure ---
 /.github/ @jopfea796-dotcom
 /control/ @jopfea796-dotcom
+/conftest/ @jopfea796-dotcom
+/.semgrep/ @jopfea796-dotcom
+/.semgrepignore @jopfea796-dotcom
+/.gitleaks.toml @jopfea796-dotcom
+/pyproject.toml @jopfea796-dotcom
+/uv.lock @jopfea796-dotcom
 /scripts/governance/ @jopfea796-dotcom
 /tests/governance/ @jopfea796-dotcom
 /docs/governance/ @jopfea796-dotcom
@@ -15,6 +21,8 @@
 
 # --- Exclusive: central context & entrypoints ---
 /AGENTS.md @jopfea796-dotcom
+/CLAUDE.md @jopfea796-dotcom
+/.claude/ @jopfea796-dotcom
 /docs/context/ @jopfea796-dotcom
 
 # --- Exclusive: DB migrations & schema ---
@@ -23,7 +31,9 @@
 /scripts/db_doctor.py @jopfea796-dotcom
 
 # --- Exclusive: auth / permission gates ---
+/src/edu_cloud/core/auth.py @jopfea796-dotcom
 /src/edu_cloud/core/permissions.py @jopfea796-dotcom
+/src/edu_cloud/core/tenant.py @jopfea796-dotcom
 /frontend/src/router/ @jopfea796-dotcom
 /frontend/src/stores/auth.js @jopfea796-dotcom
 
