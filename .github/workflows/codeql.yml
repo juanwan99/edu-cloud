@@ -1,0 +1,106 @@
+name: steward codeql
+
+on:
+  pull_request:
+  merge_group:
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  analyze:
+    name: steward/codeql
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch baseline
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
+        run: git fetch --no-tags --depth=100 origin "$BASE_REF"
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript,python
+      - id: analyze
+        uses: github/codeql-action/analyze@v4
+        with:
+          upload: never
+          output: ${{ runner.temp }}/codeql-results
+      - name: Upload CodeQL SARIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: steward-codeql-sarif
+          path: ${{ runner.temp }}/codeql-results
+          if-no-files-found: error
+      - name: Fail on changed-file CodeQL findings
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
+          SARIF_DIR: ${{ runner.temp }}/codeql-results
+        shell: python
+        run: |
+          import json
+          import os
+          import pathlib
+          import subprocess
+          import sys
+          import urllib.parse
+
+          base_ref = os.environ["BASE_REF"]
+          workspace = pathlib.Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          sarif_dir = pathlib.Path(os.environ["SARIF_DIR"])
+
+          diff = subprocess.run(
+              ["git", "diff", "--name-only", f"origin/{base_ref}...HEAD"],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          changed = {line.strip().replace("\\", "/") for line in diff.stdout.splitlines() if line.strip()}
+
+          def normalized_uri(uri):
+              if not uri:
+                  return ""
+              if uri.startswith("file://"):
+                  uri = urllib.parse.urlparse(uri).path
+                  uri = urllib.parse.unquote(uri)
+              path = pathlib.Path(uri)
+              if path.is_absolute():
+                  try:
+                      path = path.resolve().relative_to(workspace)
+                  except ValueError:
+                      return uri.replace("\\", "/").lstrip("/")
+              text = str(path).replace("\\", "/")
+              while text.startswith("./"):
+                  text = text[2:]
+              return text
+
+          findings = []
+          for sarif_path in sarif_dir.rglob("*.sarif"):
+              data = json.loads(sarif_path.read_text(encoding="utf-8"))
+              for run in data.get("runs", []):
+                  for result in run.get("results", []):
+                      locations = result.get("locations") or []
+                      if not locations:
+                          continue
+                      artifact = (
+                          locations[0]
+                          .get("physicalLocation", {})
+                          .get("artifactLocation", {})
+                      )
+                      result_path = normalized_uri(artifact.get("uri", ""))
+                      if result_path not in changed:
+                          continue
+                      message = result.get("message", {}).get("text", "").splitlines()[0]
+                      findings.append((result_path, result.get("ruleId", "<unknown>"), message))
+
+          if findings:
+              print("CodeQL findings in files changed by this PR:")
+              for result_path, rule_id, message in findings:
+                  print(f"- {result_path}: {rule_id}: {message}")
+              sys.exit(1)
+
+          print("No CodeQL findings in files changed by this PR.")

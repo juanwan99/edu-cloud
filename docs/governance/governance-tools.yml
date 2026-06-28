@@ -106,6 +106,14 @@ tools:
     why_insufficient: "Generic permission tests do not compare frontend aliases with backend role definitions for edu-cloud mirror drift."
     test_command: "python scripts/governance/check_permission_mirror.py"
 
+  - path: "scripts/governance/steward_scope_gate.py"
+    owner: "Steward Governance"
+    authority_class: "neutral_pr_scope_gate"
+    is_completion_evidence: false
+    writes_state: false
+    why_insufficient: "Generic CI path filters do not bind PR changed files to an explicit neutral Steward scope contract."
+    test_command: "python scripts/governance/steward_scope_gate.py --help"
+
   - path: "scripts/guardian-watch"
     owner: "Guardian Core"
     authority_class: "realtime_guardian_runtime"

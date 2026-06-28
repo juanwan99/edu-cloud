@@ -1,0 +1,145 @@
+name: steward hard gates
+
+on:
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: steward-hard-gates-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-scope:
+    name: steward/pr-scope
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install validator dependencies
+        run: python -m pip install --upgrade pyyaml
+      - name: Collect changed files
+        run: |
+          set -euo pipefail
+          git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" > changed-files.txt
+      - name: Run neutral Steward PR scope gate
+        run: python scripts/governance/steward_scope_gate.py --event "$GITHUB_EVENT_PATH" --changed changed-files.txt --scopes-dir control/steward/scopes
+
+  schema-and-docs:
+    name: steward/schema-and-docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install validators
+        run: python -m pip install --upgrade check-jsonschema pyyaml
+      - name: Fetch baseline
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
+        run: git fetch --no-tags --depth=100 origin "$BASE_REF"
+      - name: Validate JSON schemas when present
+        run: |
+          set -euo pipefail
+          if [ -d schemas ]; then
+            find schemas -name '*.json' -print0 | xargs -0 -r python -m json.tool >/dev/null
+          fi
+      - name: Block process-heavy audit reports in target repo
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
+        shell: python
+        run: |
+          import os, pathlib, re, subprocess, sys
+          bad = []
+          pat = re.compile(r"(audit|investigation|action[-_ ]?plan|case|evidence|closeout|nightly)", re.I)
+          base_ref = os.environ["BASE_REF"]
+          result = subprocess.run(
+              ["git", "diff", "--name-only", f"origin/{base_ref}...HEAD"],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          for text_path in result.stdout.splitlines():
+              path = pathlib.Path(text_path)
+              if path.suffix.lower() != ".md":
+                  continue
+              if text_path.startswith(("docs/", "reports/", "cases/")) and pat.search(path.name):
+                  bad.append(text_path)
+          if bad:
+              print("Process-heavy audit documents must live in engineering-audit-office, not the target repo:")
+              for item in bad:
+                  print(f"- {item}")
+              sys.exit(1)
+
+  semgrep-governance:
+    name: steward/semgrep-governance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Semgrep
+        run: python -m pip install --upgrade semgrep
+      - name: Fetch baseline
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
+        run: git fetch --no-tags --depth=100 origin "$BASE_REF"
+      - name: Run steward Semgrep rules
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
+        run: semgrep scan --config .semgrep/steward-governance.yml --error --baseline-commit "origin/$BASE_REF"
+
+  gitleaks:
+    name: steward/gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  conftest-policy:
+    name: steward/conftest-policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install conftest
+        run: |
+          set -euo pipefail
+          curl -L https://github.com/open-policy-agent/conftest/releases/download/v0.55.0/conftest_0.55.0_Linux_x86_64.tar.gz -o conftest.tar.gz
+          mkdir -p /tmp/conftest-bin
+          tar xzf conftest.tar.gz -C /tmp/conftest-bin
+          sudo install -m 0755 /tmp/conftest-bin/conftest /usr/local/bin/conftest
+      - name: Fetch baseline
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
+        run: git fetch --no-tags --depth=100 origin "$BASE_REF"
+      - name: Run conftest when policies and yaml exist
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
+        run: |
+          set -euo pipefail
+          if [ -d conftest ]; then
+            mapfile -d '' files < <(git diff --name-only -z "origin/$BASE_REF...HEAD" -- '*.yml' '*.yaml')
+            if [ "${#files[@]}" -gt 0 ]; then
+              conftest test --policy conftest "${files[@]}"
+            fi
+          fi
