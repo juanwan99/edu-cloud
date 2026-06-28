@@ -4,12 +4,12 @@
 
 | 字段 | 值 |
 |------|-----|
-| Plan | `docs/superpowers/plans/2026-04-29-truthline-p0.md` |
+| Plan | retired historical plan |
 | Branch | `feat/truthline-p0` |
 | Commit range | `e3e9aab..2757430` (9 commits) |
 | Reviewer | GPT-5.4 via Codex MCP |
 | Round | R2 (full template) |
-| Handoff | `docs/plans/2026-04-29-truthline-p0-code-review-handoff.md` |
+| Handoff | retired historical handoff |
 | Raw output | `.codex-raw-code_review_r2-20260429-2144.log` |
 | Raw output hash | `94e16f262d1cd6fc6730724225e4d0eb6a718aa3f2f2396fc7636acd22c5835f` |
 

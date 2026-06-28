@@ -30,8 +30,7 @@ depends_on:
 
 created: 2026-05-19
 last_reviewed: 2026-06-21
-design_docs:
-  - docs/plans/archived/2026-05/2026-05-19-exam-import-pipeline-design.md
+design_docs: []
 ---
 
 # exam_import 模块

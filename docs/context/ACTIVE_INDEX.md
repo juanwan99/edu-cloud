@@ -58,12 +58,11 @@ Use this index before reading historical `docs/plans/**`. Anything not listed he
 | `docs/plans/2026-04-29-truthline-p0-handoff.md` | reference | Truthline context only; current command is `scripts/truth`. |
 | `docs/plans/2026-04-29-truthline-p0-review-report.md` | reference | Review evidence only. |
 | `docs/plans/2026-05-12-agent-optimization-design-v2.md` | reference | Pydantic AI engine design referenced by `2026-05-12-agent-pydantic-ai-handoff.md`; current code imports pydantic_ai. |
-| `docs/superpowers/plans/2026-05-24-role-workbench-optimization.md` | reference | Role-specific workbench optimization planning record. |
-| `docs/superpowers/plans/2026-05-24-formal-role-workbench-rollout.md` | reference | Formal rollout plan for active-role dashboard/sidebar behavior. |
 
 ## Historical
 
-- `docs/plans/archived/**`
+- The former `retired-archived-plan-history` tree was removed from the working tree on 2026-06-28; use git history for explicit historical evidence.
+- The former `retired-superpowers-history` tree was removed from the working tree on 2026-06-28; do not treat superpowers plans/specs as active inputs.
 - Pre-takeover plans marked `<!-- pre-takeover: archived for history, not active spec -->`
 - Windows-era handoff numbers, paths, and timelines
 - Old review logs not explicitly listed above
