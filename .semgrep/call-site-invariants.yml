@@ -1,9 +1,9 @@
 rules:
   - id: scan-endpoint-missing-tenant-check
     message: |
-      Scan 端点缺少 _check_scan_path_tenant() 调用。
-      pipeline_router.py 中所有处理用户路径的端点必须调用此函数验证租户归属。
-      如果此端点不处理用户路径（如纯状态查询），添加 # nosemgrep 并注明理由。
+      Scan endpoint is missing a _check_scan_path_tenant() call.
+      Endpoints in pipeline_router.py that handle user paths must verify tenant ownership.
+      If this endpoint does not handle user paths, add # nosemgrep with a reason.
     severity: ERROR
     languages: [python]
     patterns:
@@ -23,9 +23,9 @@ rules:
 
   - id: router-missing-school-id-filter
     message: |
-      Router 端点执行数据库查询但未包含 school_id 过滤。
-      多租户隔离要求所有数据查询必须限定 school_id 范围。
-      如果此端点不需要租户隔离（如 platform_admin 全局查询），添加 # nosemgrep 并注明理由。
+      Router endpoint executes a database query without a school_id filter.
+      Multi-tenant isolation requires data queries to stay inside a school_id boundary.
+      If this endpoint does not need tenant isolation, add # nosemgrep with a reason.
     severity: WARNING
     languages: [python]
     patterns:
@@ -34,16 +34,15 @@ rules:
           async def $FUNC(...):
               ...
       - pattern: $DB.execute($QUERY, ...)
-      - pattern-not: |
-          ... school_id ...
+      - pattern-not-regex: school_id
     paths:
       include:
         - "**/modules/*/router.py"
 
   - id: path-traversal-unvalidated-join
     message: |
-      os.path.join 或 Path() 中使用了可能来自用户输入的变量。
-      必须验证结果路径不会逃逸出预期目录（使用 resolve() + is_relative_to() 或等价检查）。
+      os.path.join or Path() uses a value that may come from user input.
+      Validate that the resolved path cannot escape the expected directory.
     severity: ERROR
     languages: [python]
     patterns:
