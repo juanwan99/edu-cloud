@@ -1,0 +1,24 @@
+schema: steward-pr-scope.v1
+scope_id: steward-hard-gates-2026-06-28
+owner: codex
+allowed_paths:
+  - .github/workflows/codeql.yml
+  - .github/workflows/steward-hard-gates.yml
+  - .github/workflows/test.yml
+  - .gitleaks.toml
+  - .semgrep/steward-governance.yml
+  - .semgrepignore
+  - conftest/steward_scope.rego
+  - control/steward/scopes/steward-hard-gates-2026-06-28.yml
+  - docs/governance/governance-tools.yml
+  - docs/governance/steward-hard-gates.md
+  - scripts/governance/steward_scope_gate.py
+  - tests/governance/test_steward_scope_gate.py
+forbidden_paths:
+  - .yuanqi/
+  - cases/
+  - reports/
+compatibility_paths: []
+status: active
+created_at: "2026-06-28T09:30:00+08:00"
+expires_at: "2026-07-05T23:59:00+08:00"

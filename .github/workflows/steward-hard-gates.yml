@@ -13,6 +13,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  pr-scope:
+    name: steward/pr-scope
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install validator dependencies
+        run: python -m pip install --upgrade pyyaml
+      - name: Collect changed files
+        run: |
+          set -euo pipefail
+          git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" > changed-files.txt
+      - name: Run neutral Steward PR scope gate
+        run: python scripts/governance/steward_scope_gate.py --event "$GITHUB_EVENT_PATH" --changed changed-files.txt --scopes-dir control/steward/scopes
+
   schema-and-docs:
     name: steward/schema-and-docs
     runs-on: ubuntu-latest
