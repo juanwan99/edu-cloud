@@ -246,6 +246,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     changed_files = _read_changed_files(args.changed)
+    scope_relpath = _normalize(str(Path(args.scopes_dir) / f"{scope_id}.yml"))
+    if scope_relpath not in _normalize_all(changed_files):
+        print("declared scope file must be changed in the PR", file=sys.stderr)
+        return 1
+
     ok, violations = scope_check(changed_files, scope)
     if ok:
         return 0

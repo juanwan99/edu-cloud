@@ -140,3 +140,37 @@ def test_cli_rejects_closed_scope(tmp_path: Path):
 
     assert result.returncode == 1
     assert "scope status must be active for PR validation" in result.stderr
+
+
+def test_cli_rejects_scope_file_not_changed(tmp_path: Path):
+    event = tmp_path / "event.json"
+    changed = tmp_path / "changed-files.txt"
+    scopes_dir = tmp_path / "scopes"
+    scopes_dir.mkdir()
+    (scopes_dir / "demo.yml").write_text(
+        yaml.safe_dump(_scope(), sort_keys=False),
+        encoding="utf-8",
+    )
+    event.write_text(
+        json.dumps({"pull_request": {"body": "Steward-Scope: demo\n"}}),
+        encoding="utf-8",
+    )
+    changed.write_text("docs/governance/steward-hard-gates.md\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/governance/steward_scope_gate.py",
+            "--event",
+            str(event),
+            "--changed",
+            str(changed),
+            "--scopes-dir",
+            str(scopes_dir),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "declared scope file must be changed in the PR" in result.stderr
