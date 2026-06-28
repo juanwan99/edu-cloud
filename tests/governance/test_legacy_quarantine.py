@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-from scripts.yuanqi.legacy_quarantine_gate import check_files
+from scripts.governance.check_legacy_quarantine import check_files
 
 
 def test_legacy_quarantine_flags_retired_consult_in_active_ci(tmp_path):
@@ -25,7 +25,7 @@ def test_legacy_quarantine_allows_retired_term_outside_active_execution_files(tm
 
 def test_legacy_quarantine_cli_passes_current_tree():
     result = subprocess.run(
-        [sys.executable, "scripts/yuanqi/legacy_quarantine_gate.py", "--check"],
+        [sys.executable, "scripts/governance/check_legacy_quarantine.py", "--check"],
         capture_output=True,
         text=True,
         check=False,

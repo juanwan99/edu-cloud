@@ -82,6 +82,14 @@ tools:
     why_insufficient: "Generic YAML or workflow linting does not enforce edu-cloud execution policy links across policy docs, module guards, and CI."
     test_command: "python scripts/governance/check_execution_policy.py"
 
+  - path: "scripts/governance/check_legacy_quarantine.py"
+    owner: "Steward Governance"
+    authority_class: "legacy_execution_quarantine_gate"
+    is_completion_evidence: false
+    writes_state: false
+    why_insufficient: "Generic grep checks do not distinguish historical Claude auxiliary references from active CI/runtime execution surfaces."
+    test_command: "python scripts/governance/check_legacy_quarantine.py --check"
+
   - path: "scripts/governance/check_module_dependencies.py"
     owner: "Guardian Core"
     authority_class: "module_dependency_baseline_gate"
@@ -153,11 +161,3 @@ tools:
     writes_state: false
     why_insufficient: "Generic status commands do not assemble the production runtime, git, service, frontend artifact, and truthline facts required by edu-cloud."
     test_command: "scripts/truth-status.sh"
-
-  - path: "scripts/yuanqi/registry_doctor.py"
-    owner: "Yuanqi Governance"
-    authority_class: "yuanqi_task_registry_gate"
-    is_completion_evidence: false
-    writes_state: false
-    why_insufficient: "Generic YAML validation does not detect stale active Yuanqi task locks while preserving the no-mutation registry boundary."
-    test_command: "python scripts/yuanqi/registry_doctor.py"
