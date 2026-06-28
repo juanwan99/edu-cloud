@@ -65,7 +65,7 @@ jobs:
           pat = re.compile(r"(audit|investigation|action[-_ ]?plan|case|evidence|closeout|nightly)", re.I)
           base_ref = os.environ["BASE_REF"]
           result = subprocess.run(
-              ["git", "diff", "--name-only", f"origin/{base_ref}...HEAD"],
+              ["git", "diff", "--name-only", "--diff-filter=ACMR", f"origin/{base_ref}...HEAD"],
               check=True,
               capture_output=True,
               text=True,

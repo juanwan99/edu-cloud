@@ -1,44 +1,37 @@
 # NOW
 
-Last refreshed: 2026-06-23 10:02 Asia/Shanghai
+Last refreshed: 2026-06-28 23:11 Asia/Shanghai
 
 **Mainline goal (fixed):** complete the edu-cloud foundation so later module
 owners can develop in parallel without cross-module contamination.
 
-**Current phase goal (D-09S / D-09M):** keep the newly cleaned foundation
-truthline current and close the remaining medium-risk guard debt before broad
-parallel writing. Phase B HIGH runtime/CI evidence gaps are closed; D-03
-cross-module dependency debt is closed/gate-built; D-04 AI tool module semantics
-is closed/gate-built; D-08D Portal Phase 1 first cut is runtime/online closed.
-Fresh state: `feat/module-governance-repair`, `origin/master`,
-`origin/feat/module-governance-repair`, and `origin/HEAD` all point at
-`a0836587ad857394686723cd5e660ab99f3ad08a`; the ECS source tree is clean and
-ahead=0. GitHub Actions exact-HEAD `Tests` runs are green on both active refs:
-branch run `27995965847` and master run `27995965877`. `scripts/codex-context`
-and `meta-check --fail-on-blocking` are green. Guardian/truthline are
-functionally aligned: runtime still reports `4fe53fd`, but the delta to
-`a083658` is docs/governance/test/observability-only, so no live runtime sync is
-required for this context refresh.
+**Current phase goal (Keel document hygiene):** remove retired historical
+planning material from the working tree so AI sessions stop treating old
+handoffs, archived plan trees, superpowers plans/specs, and gate JSON files as
+active instructions.
 
-**Current open items:** D-02 L2 historical review-gap remains open for 16 older
-commits (`3688f32..6b1bdd3`) but is historical debt, not a current source /
-runtime / CI blocker. D-06 `studio-frontend-entry-missing` remains open by
-design. D-09M1/R-M6 delivery-chain guard hardening is closed/evidence-recorded
-at `4341271` with GitHub Actions `Tests` run `27994260544` green. D-09M2/R-M7
-`/uploads` static-file denominator is closed/gate-built in this source window:
-StaticFiles mounts are now discovered from the FastAPI app and must be declared
-in `module-semantics.yaml` with explicit `expect`, mount name, `module_gate`,
-and reason. Remaining D-09 work is R-M5/Q5 backup rotation/recovery plus
-low-risk hygiene.
+**Fresh state (2026-06-28 23:11):** working tree branch
+`keel/doc-history-cleanup-2026-06-28` is based on
+`b7bf1d7b695d29fee7a920eb640179e46131e98b` (PR #32 merge). This cleanup has one
+new Keel scope, `keel-doc-history-cleanup-2026-06-28`. The staged delta has 546
+changed paths; 516 are deletions under the retired archived-plan and
+superpowers trees. Tracked Markdown files are now 162. Active source/docs scans
+no longer contain live references to those retired tree paths.
 
-**Window working-memory anchor (2026-06-23 10:02):** keep only this active
-thread in working memory: mainline = edu-cloud foundation for clean parallel
-module development; closed = D-03 module dependency burn-down, D-04 AI tool
-semantics, D-08D Portal Phase 1 first cut, D-09M1 delivery drift guard, D-09M2
-static upload denominator; next = D-09M3/Q5 backup rotation and recovery guard.
-Treat older live-sync/push authorization chatter, D-03 burn-down details, D-08D
-runtime instructions, and any old Claude sid as historical unless reverified
-with fresh commands.
+**Verification evidence (2026-06-28 23:11):** local scope gate passed for
+`Steward-Scope: keel-doc-history-cleanup-2026-06-28`; focused governance tests
+passed (`16 passed`) for scope gate, legacy quarantine, and the touched
+Meta-runtime plan-contract tests; `git diff --cached --check` is clean; changed
+text files have no UTF-8 BOM. Full `test_codex_scripts.py` remains a poor
+Windows-local oracle because it directly executes extensionless shell scripts;
+GitHub Linux CI remains merge authority.
+
+**Current open items:** after this cleanup PR, the next document lifecycle step
+is to add lightweight GitHub-native hygiene for active docs only: frontmatter
+schema for new/modified active Markdown, plus a scheduled stale-file issue
+workflow if needed. Production runtime, ECS services, DB state, and public URL
+facts were not reverified in this document-hygiene window; older runtime facts
+below are historical snapshots until live commands refresh them.
 
 Older dated sections below are retained as historical snapshots unless a newer
 dated paragraph explicitly supersedes them.
@@ -54,7 +47,7 @@ scripts/truth-status.sh /home/ops/projects/edu-cloud
 scripts/truth doctor --json
 ```
 
-## Current Facts
+## Historical Runtime Facts (2026-06-23 Snapshot)
 
 - Branch: `feat/module-governance-repair`
 - Upstream: `origin/feat/module-governance-repair` (2026-06-23 D-09S verified:
@@ -199,7 +192,9 @@ Runbook + rollback points: `docs/plans/2026-06-10-db-migration-design.md`.
 
 ## Current Role-Entry Work
 
-- Active plan: `docs/superpowers/plans/2026-05-26-role-entry-full-optimization.md`.
+- The former role-entry superpowers plan was removed from the working tree on
+  2026-06-28 as historical planning material; use git history only if a task
+  explicitly needs that evidence.
 - Product direction: permission remains the access-control truth; role-entry
   policy decides primary versus secondary UI visibility for the active identity.
 - Current known frontend test debt: the full Vitest suite still has historical

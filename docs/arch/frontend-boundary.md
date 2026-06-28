@@ -7,7 +7,7 @@
 
 > 原生效日期：2026-04-17
 > 适用范围：edu-cloud 仓库内 `frontend/`（生产主前端）+ `frontend-nuxt/`（haofenshu 复刻骨架，已退役）
-> 决策来源：2026-04-17 技术债清理 · Q3 = B 共存（`docs/plans/archived/2026-04/2026-04-17-tech-debt-cleanup-handoff.md`）
+> 决策来源：2026-04-17 技术债清理 · Q3 = B 共存（`retired-archived-plan-history`）
 > 相关规范：`docs/arch/module-template.md`、`docs/arch/orm-placement.md`
 
 本文档固化 edu-cloud 仓库内两个前端项目的业务边界，给出新需求的归属决策树，避免未来路由/权限重叠。

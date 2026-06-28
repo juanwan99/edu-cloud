@@ -14,9 +14,10 @@ evidence:
 - `~/.claude/LESSONS.md`: L013 records delivery-pipeline blindness; L016 records
   SQLite WAL copy data loss; L019 records repeated fix-loop drift; L021 records
   dirty working tree builds.
-- `docs/superpowers/plans/2026-04-29-guardian-meta-boundary-design.md`: Guardian
-  is a hygiene ledger, not an action-deny system; shared state should flow
-  through files, not hidden runtime coupling.
+- Historical Guardian/Meta boundary decisions are retained in git history only.
+  Current Guardian policy is defined by this file plus the active scripts below:
+  Guardian is a hygiene ledger, not an action-deny system; shared state should
+  flow through files, not hidden runtime coupling.
 - `scripts/truth-status.sh` and `scripts/truth-doctor.sh`: current truthline,
   ports, ghosts, systemd, Claude session, dist, and DB checks.
 

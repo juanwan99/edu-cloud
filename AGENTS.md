@@ -51,6 +51,8 @@ tests, CI, runtime checks, or file-level inspection.
 4. For governed PRs, create a new Keel scope file before changing protected
    governance or high-risk paths.
 5. Keep verification focused on the changed behavior.
+6. For Meta runtime freshness and task-boundary diagnostics, read
+   `docs/context/META_RUNTIME.md` and use `scripts/meta-check`.
 
 ## Hard Bans
 

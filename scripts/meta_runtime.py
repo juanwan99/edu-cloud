@@ -283,8 +283,8 @@ def run_git_status(project_root: Path = PROJECT_ROOT) -> list[str]:
 
 
 def check_plan_contract(path: Path, text: str) -> list[dict[str, Any]]:
-    rel = str(path)
-    if not (rel.startswith("docs/plans/") or rel.startswith("docs/superpowers/plans/")):
+    rel = path.as_posix()
+    if not rel.startswith("docs/plans/"):
         return []
     if path.suffix != ".md":
         return []
@@ -357,7 +357,6 @@ def recent_plan_paths_with_error(project_root: Path = PROJECT_ROOT, limit: int =
             range_spec,
             "--",
             "docs/plans/*.md",
-            "docs/superpowers/plans/*.md",
         ],
         cwd=project_root,
         capture_output=True,

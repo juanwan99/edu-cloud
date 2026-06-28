@@ -888,7 +888,7 @@ def test_meta_runtime_detects_plan_without_evidence():
     module = load_meta_runtime_module()
 
     issues = module.check_plan_contract(
-        Path("docs/superpowers/plans/demo-plan.md"),
+        Path("docs/plans/demo-plan.md"),
         "# Demo Implementation Plan\n\n**Goal:** Build it.\n\n**Architecture:** New thing.\n",
     )
 
@@ -899,7 +899,7 @@ def test_meta_runtime_detects_empty_evidence_section_without_file_reference():
     module = load_meta_runtime_module()
 
     issues = module.check_plan_contract(
-        Path("docs/superpowers/plans/demo-plan.md"),
+        Path("docs/plans/demo-plan.md"),
         "# Demo Implementation Plan\n\n## Evidence\n\nEvidence: TBD.\n",
     )
 
@@ -908,13 +908,13 @@ def test_meta_runtime_detects_empty_evidence_section_without_file_reference():
 
 def test_meta_runtime_checks_recent_committed_plan_contracts(tmp_path):
     module = load_meta_runtime_module()
-    plan = tmp_path / "docs" / "superpowers" / "plans" / "recent-plan.md"
+    plan = tmp_path / "docs" / "plans" / "recent-plan.md"
     plan.parent.mkdir(parents=True)
     plan.write_text("# Recent Plan\n\n## Architecture\n\nNew subsystem.\n", encoding="utf-8")
 
     issues = module.check_recent_plan_contracts(
         tmp_path,
-        recent_paths=["docs/superpowers/plans/recent-plan.md"],
+        recent_paths=["docs/plans/recent-plan.md"],
     )
 
     assert any(issue["issue_code"] == "PLAN_EVIDENCE_GAP" for issue in issues)
