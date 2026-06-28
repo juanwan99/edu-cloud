@@ -40,6 +40,16 @@ def test_resolve_scope_id_from_pr_body(tmp_path: Path):
     assert resolve_scope_id(str(event)) == "demo"
 
 
+def test_resolve_scope_id_accepts_utf8_bom_event(tmp_path: Path):
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps({"pull_request": {"body": "Steward-Scope: demo\n"}}),
+        encoding="utf-8-sig",
+    )
+
+    assert resolve_scope_id(str(event)) == "demo"
+
+
 def test_scope_check_accepts_declared_prefix():
     ok, violations = scope_check(["docs/governance/steward-hard-gates.md"], _scope())
 

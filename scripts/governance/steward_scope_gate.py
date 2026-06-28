@@ -36,7 +36,7 @@ FORBIDDEN_ROOT_OR_ESCAPE_PATHS = {"", ".", "*", "**", "/"}
 
 
 def resolve_scope_id(event_path: str) -> str | None:
-    event = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    event = json.loads(Path(event_path).read_text(encoding="utf-8-sig"))
     body = event.get("pull_request", {}).get("body") or ""
     if not isinstance(body, str):
         return None
