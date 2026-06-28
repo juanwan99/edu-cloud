@@ -268,10 +268,11 @@ governance completion evidence and CI smoke.
 
 ## Claude Auxiliary Reviewer
 
-This wrapper is the **optional read-only auxiliary path** only. Governed write
-execution is a different channel: a Claude Code window opened via Yuanqi task contract
-with an active Yuanqi task contract (see `AGENTS.md` "Claude Channels" and
-`docs/context/CLAUDE_AUX.md`). Do not conflate the two.
+This wrapper is the **optional read-only auxiliary path** only. Accepted write
+work is routed through normal Keel flow: separate worktree when useful, fresh
+scope file, `Steward-Scope: <scope_id>` in the PR body, GitHub required checks,
+CODEOWNER review, and human approval. Do not conflate read-only review with
+implementation authority.
 
 Check auth:
 

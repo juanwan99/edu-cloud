@@ -52,6 +52,16 @@ def test_resolve_scope_id_accepts_utf8_bom_event(tmp_path: Path):
     assert resolve_scope_id(str(event)) == "demo"
 
 
+def test_resolve_scope_id_accepts_utf8_bom_in_body(tmp_path: Path):
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps({"pull_request": {"body": "\ufeffSteward-Scope: demo\n"}}),
+        encoding="utf-8",
+    )
+
+    assert resolve_scope_id(str(event)) == "demo"
+
+
 def test_scope_check_accepts_declared_prefix():
     ok, violations = scope_check(["docs/governance/steward-hard-gates.md"], _scope())
 
@@ -79,6 +89,12 @@ def test_allowed_paths_rejects_legacy_yuanqi_path():
     errors = validate_scope(_scope(allowed_paths=[".yuanqi/tasks/demo.yml"]))
 
     assert "allowed_paths must not contain legacy Yuanqi path: .yuanqi/tasks/demo.yml" in errors
+
+
+def test_allowed_paths_has_small_count_limit():
+    errors = validate_scope(_scope(allowed_paths=[f"docs/path-{i}.md" for i in range(21)]))
+
+    assert "allowed_paths must contain at most 20 entries" in errors
 
 
 def test_cli_rejects_missing_steward_scope(tmp_path: Path):

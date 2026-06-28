@@ -18,8 +18,9 @@ from typing import Any
 import yaml
 
 
-SCOPE_DECLARATION = re.compile(r"^\s*Steward-Scope:\s*([A-Za-z0-9._-]+)\s*$")
+SCOPE_DECLARATION = re.compile(r"^\ufeff?\s*Steward-Scope:\s*([A-Za-z0-9._-]+)\s*$")
 MISSING_SCOPE_MESSAGE = "PR must declare Steward-Scope: <id>"
+MAX_ALLOWED_PATHS = 20
 VALID_STATUSES = {"active", "closed"}
 KNOWN_FIELDS = {
     "schema",
@@ -78,6 +79,8 @@ def validate_scope(data: dict, *, filename_stem: str | None = None) -> list[str]
     if not isinstance(allowed_paths, list):
         errors.append("allowed_paths must be a list")
     else:
+        if len(allowed_paths) > MAX_ALLOWED_PATHS:
+            errors.append(f"allowed_paths must contain at most {MAX_ALLOWED_PATHS} entries")
         errors.extend(_validate_path_list(allowed_paths, field="allowed_paths"))
 
     forbidden_paths = data.get("forbidden_paths", [])

@@ -1,47 +1,36 @@
-# 双核治理
+# Dual-Core Governance / 双核治理
 
-The edu-cloud governance model is **双核治理**.
-The two cores are Meta Core / 元控核 and Guardian Core / 守护核.
+edu-cloud uses Keel to keep AI-assisted work fast, bounded, and reviewable.
+The two responsibility centers are Meta Core and Guardian Core.
+This is Codex-led and Claude-assisted, with GitHub as the hard merge authority.
 
-Roles follow the Yuanqi governance division (Q1 ruling 2026-06-12,
-`docs/reviews/2026-06-12-w1-governance-acceptance.md`): Codex/Yuance plans,
-reviews, and accepts — it is not the default write channel; Claude Code is the
-governed executor and writes only inside active Yuanqi task contract
-windows; Yuanqi/GitHub-native gates verify execution boundaries, evidence, and
-closeout. Claude additionally serves as an optional full-repository read-only
-reviewer through `scripts/codex-consult-claude`. In short, the model is
-Codex-led and Claude-assisted: Codex/Yuance owns direction, review, and
-acceptance, while Claude Code is the governed executor and read-only
-counter-reviewer. Completion claims are accepted by Codex/the user, never
-self-declared by the executor.
+## Current Authority
 
-## Purpose
+- Codex leads planning, implementation help, review, hygiene, and acceptance
+  evidence.
+- Claude may assist as a planner, reviewer, or executor when explicitly used,
+  but no model accepts its own work as complete.
+- GitHub is the hard merge authority through required checks, CODEOWNERS, and
+  human approval.
+- Governed PRs declare `Steward-Scope: <scope_id>` and add one fresh scope file
+  under `control/steward/scopes/`.
 
-The governance layer keeps daily work aligned with the user's goal and prevents
-operational accidents. It is explicit, script-backed, and reviewable in git.
+The retired Yuanqi task-contract workflow is historical evidence only. Current
+work must not create Yuanqi task windows, `.yuanqi/tasks`, or `Yuanqi-Task:`
+markers.
 
-## Meta Core / 元控核
+## Meta Core
 
-Meta Core prevents task drift and execution drift. It owns direction, facts,
-task boundaries, context, Claude read-only counter-review, and the
-completion evidence contract.
+Meta Core prevents task drift and context drift. It owns:
 
-Meta Core also owns the long-term module-boundary direction: increase safe
-parallel development by reducing direct cross-module coupling, preferring
-module-owned APIs, facades, or events, and blocking new cycles unless the
-tradeoff is explicit.
-
-It answers:
-
-- What facts and documents are active now?
-- What is the task boundary?
-- Which historical docs are safe to read?
-- Does this task need Claude read-only counter-review?
-- What evidence is required before a completion claim?
-- Is this change following existing project assets instead of creating a parallel system?
-- Does this change preserve or improve module boundaries and future
-  parallel-development safety?
-- Which parallel-development mode is allowed for this task?
+- direction;
+- active facts and document indexing;
+- task boundaries and scope discipline;
+- context discipline;
+- Claude read-only counter-review;
+- completion evidence contract;
+- long-term module-boundary direction and coupling-reduction discipline;
+- parallel-work classification before launching extra windows.
 
 Primary files and tools:
 
@@ -60,62 +49,33 @@ Primary files and tools:
 - `scripts/meta_runtime.py`
 - `scripts/codex-consult-claude`
 
-Core capabilities:
+## Meta Runtime
 
-- Current-fact control
-- Active-document indexing
-- Scope and task-boundary discipline
-- Evidence requirements for decisions and completion claims
-- Asset inventory before new design or architecture work
-- Module-boundary direction and coupling-reduction discipline
-- Parallel-work classification before launching extra windows
-- Claude read-only counter-review
+`scripts/meta-check` is the synchronous Meta Core diagnostic runtime. It may
+observe, classify, write advisory state, and flag blockers. It must not edit
+files automatically, replace user instructions, or declare completion.
 
-## Meta Runtime / 元控运行时
+It checks that:
 
-`scripts/meta-check` is the executable Meta Core runtime. It is synchronous and
-task-bound: run it at task start, before broad design decisions, and before
-completion claims. It writes an optional latest state file at
-`logs/meta-state.json`.
+- active context documents exist and are indexed;
+- `docs/context/NOW.md` is fresh;
+- Meta runtime remains registered in active entrypoint docs;
+- Claude auxiliary review remains read-only and Codex-led;
+- changed or recent plan/design docs include evidence or delivery-path
+  references;
+- current user task text can be decomposed into explicit obligations.
 
-It guards:
+## Guardian Core
 
-- active context documents exist and are indexed
-- `docs/context/NOW.md` has a fresh current-facts timestamp
-- project lessons include structural Meta risks from past failures
-- Meta runtime remains registered in active entrypoint docs
-- Claude auxiliary review remains read-only and Codex-led
-- changed plan/design/handoff documents include evidence, existing-asset
-  inventory, or delivery-path sections
-- optional recent committed plan scans catch evidence gaps after a plan has
-  already been committed
-- optional drift checks compare the current task obligations against the
-  baseline `logs/meta-state.json`
-- current user task text is decomposed into obligations such as evidence
-  mining, read-only model review, implementation verification, autonomy, and
-  multi-step instruction handling
+Guardian Core prevents operational accidents. It owns:
 
-Authority boundaries:
-
-- It may observe, classify, write a task-contract snapshot, and block a
-  completion claim when red issues are present.
-- It must not edit files automatically, replace user instructions, or declare
-  completion.
-- It must not replace Guardian's continuous environment monitoring.
-
-## Guardian Core / 守护核
-
-Guardian Core prevents operational accidents. It owns dirty state, truthline,
-DB/migration gates, safety scanning, frontend/backend build-runtime consistency, and environment hygiene.
-
-It answers:
-
-- Is the working tree safe to build from?
-- Are source, dist, nginx, backend, and browser evidence aligned?
-- Are migration and SQLite rules being followed?
-- Are risky local artifacts present?
-- Are known pytest failures stable?
-- Is a fix-loop or repeated patch pattern emerging?
+- dirty state and risky artifact checks;
+- source/build/nginx/backend truthline;
+- DB/migration gates;
+- safety scanning;
+- frontend/backend build-runtime consistency;
+- process, port, and environment hygiene;
+- no-new-failure regression discipline.
 
 Primary files and tools:
 
@@ -131,83 +91,24 @@ Primary files and tools:
 - `scripts/db_doctor.py`
 - `scripts/db_migrate`
 - `scripts/pytest_delta.py`
-- `deploy/systemd/edu-cloud-guardian.service`
 - `.github/workflows/test.yml`
 
-Core capabilities:
+## Guardian Runtime
 
-- Start-of-work preflight
-- Completion verification gates
-- Dirty-build refusal
-- Source/build/nginx/backend truthline checks
-- Migration and SQLite guardrails
-- Changed-script safety scanning and repo-wide secret/SQLite-copy scanning
-- Structured rule mapping through Safety Matrix IDs
-- Realtime advisory snapshots in `logs/guardian-state.json`
-- Rate-limited read-only Claude risk review when the runtime sees persistent
-  yellow/red health
+`scripts/guardian-watch` is advisory runtime monitoring. It can run once for
+local inspection or continuously under systemd. It may observe, classify, and
+alert. It must not kill processes, delete files, run migrations, deploy, build,
+or clean git state automatically.
 
-## Guardian Runtime / 守护运行时
+## Completion Rule
 
-`scripts/guardian-watch` is the realtime Guardian Core runtime. It can run once
-for local inspection or continuously under systemd.
-
-It monitors:
-
-- git dirty/ahead state
-- truth doctor health: ports, public binds, ghost processes, systemd state,
-  Claude process count, dist permissions, and DB schema drift
-- frontend/backend truthline data from local dist, nginx, and backend version
-  endpoints when network checks are enabled
-- risky local artifacts vs active SQLite WAL/SHM runtime files
-- read-only model review state
-
-It writes:
-
-- latest state: `logs/guardian-state.json`
-- append-only event stream: `logs/guardian-watch.jsonl`
-- read-only model review reports: `logs/guardian-model-review-*.txt`
-
-Authority boundaries:
-
-- It may observe, classify, alert, and schedule read-only model review.
-- Claude review uses `scripts/codex-consult-claude`; GPT review requires an
-  explicit read-only command wrapper passed with `--model-review-command`.
-- It must not kill ARQ workers, backend services, Claude sessions, or port
-  listeners automatically.
-- It must not delete active SQLite DB/WAL/SHM files, dirty source files,
-  experiment data, backups, screenshots, `.env`, or `.secrets`.
-- It must not run git cleanup, migrations, builds, or deployment commands.
-
-The systemd template is `deploy/systemd/edu-cloud-guardian.service`. It runs the
-watcher every 15 seconds and enables rate-limited Claude review through
-`scripts/codex-consult-claude`.
-
-## Authority
-
-- Codex/Yuance leads at the planning/review/acceptance layer; it drafts
-  contracts and packets and accepts evidence. It is not the default editor.
-- Claude Code executes write operations, only inside Yuanqi task windows with
-  an active Yuanqi task contract; the Yuanqi/GitHub-native gate enforces the write boundary,
-  evidence coverage, and closeout mechanically.
-- Through the optional read-only path `scripts/codex-consult-claude`, Claude
-  may read the full repository and critique Meta Core decisions and Guardian
-  Core gaps; in that channel it may not write files, run Bash, run
-  migrations, or declare completion.
-- Completion claims require contract-bound verification evidence (the
-  contract's `required_evidence` + Completion Return Packet) and are accepted
-  by Codex/the user — the executor does not self-declare completion.
+Completion requires concrete evidence: local focused checks where useful,
+GitHub required checks, CODEOWNER/human review for protected areas, and any
+runtime evidence required by the task. The executor does not self-declare
+completion.
 
 ## Non-Goals
 
-Do not recreate the Claude hook runtime inside Codex. The following Claude-era
-mechanics stay historical unless a specific Codex-native need appears:
-
-- PreToolUse/PostToolUse/Stop hook lifecycle
-- Claude session compact/recovery machinery
-- L0 hook manifest signing
-- Hook budget management
-- Claude teams/inboxes
-
-Codex absorbs the useful rules, evidence discipline, and health checks, not the
-Claude runtime.
+Do not recreate retired Claude hook or Yuanqi task-contract machinery inside
+Keel. Keel keeps the useful rules, evidence discipline, scope boundaries, and
+health checks while relying on GitHub for hard merge enforcement.
