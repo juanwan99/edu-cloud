@@ -18,7 +18,7 @@ from typing import Any
 import yaml
 
 
-SCOPE_DECLARATION = re.compile(r"^\s*Steward-Scope:\s*([A-Za-z0-9._-]+)\s*$")
+SCOPE_DECLARATION = re.compile(r"^\ufeff?\s*Steward-Scope:\s*([A-Za-z0-9._-]+)\s*$")
 MISSING_SCOPE_MESSAGE = "PR must declare Steward-Scope: <id>"
 MAX_ALLOWED_PATHS = 20
 VALID_STATUSES = {"active", "closed"}

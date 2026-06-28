@@ -1,7 +1,8 @@
-# Dual-Core Governance
+# Dual-Core Governance / 双核治理
 
 edu-cloud uses Keel to keep AI-assisted work fast, bounded, and reviewable.
 The two responsibility centers are Meta Core and Guardian Core.
+This is Codex-led and Claude-assisted, with GitHub as the hard merge authority.
 
 ## Current Authority
 
@@ -22,10 +23,12 @@ markers.
 
 Meta Core prevents task drift and context drift. It owns:
 
+- direction;
 - active facts and document indexing;
 - task boundaries and scope discipline;
-- evidence requirements before completion claims;
-- optional read-only Claude counter-review;
+- context discipline;
+- Claude read-only counter-review;
+- completion evidence contract;
 - long-term module-boundary direction and coupling-reduction discipline;
 - parallel-work classification before launching extra windows.
 
@@ -68,7 +71,8 @@ Guardian Core prevents operational accidents. It owns:
 
 - dirty state and risky artifact checks;
 - source/build/nginx/backend truthline;
-- DB and migration guardrails;
+- DB/migration gates;
+- safety scanning;
 - frontend/backend build-runtime consistency;
 - process, port, and environment hygiene;
 - no-new-failure regression discipline.
