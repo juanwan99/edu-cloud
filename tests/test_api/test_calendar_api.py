@@ -59,6 +59,24 @@ async def test_create_event_invalid_date_returns_422(client, teacher_headers):
 
 
 @pytest.mark.asyncio
+async def test_list_events_invalid_start_returns_422(client, teacher_headers):
+    resp = await client.get(
+        "/api/v1/calendar/events?start=bad-date",
+        headers=teacher_headers,
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_list_events_invalid_end_returns_422(client, teacher_headers):
+    resp = await client.get(
+        "/api/v1/calendar/events?end=bad-date",
+        headers=teacher_headers,
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_deleted_event_not_in_list(client, teacher_headers):
     """R3-1: 软删除的事件不出现在列表中"""
     resp = await client.post("/api/v1/calendar/events", json={

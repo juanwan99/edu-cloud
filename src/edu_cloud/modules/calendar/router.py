@@ -45,14 +45,23 @@ async def list_events(
     current=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    start_date = _parse_query_date(start, "start") if start else None
+    end_date = _parse_query_date(end, "end") if end else None
     role = current["current_role"]
     svc = CalendarService(db)
     events = await svc.list_events(
         school_id=getattr(role, "school_id", ""),
-        start_date=date.fromisoformat(start) if start else None,
-        end_date=date.fromisoformat(end) if end else None,
+        start_date=start_date,
+        end_date=end_date,
     )
     return [_event_to_dict(e) for e in events]
+
+
+def _parse_query_date(value: str, field: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(422, f"Invalid {field} date: {value}")
 
 
 @router.delete("/events/{event_id}")
