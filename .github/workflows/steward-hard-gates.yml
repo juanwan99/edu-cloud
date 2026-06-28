@@ -99,6 +99,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Install conftest
         run: |
           set -euo pipefail
@@ -106,10 +108,18 @@ jobs:
           mkdir -p /tmp/conftest-bin
           tar xzf conftest.tar.gz -C /tmp/conftest-bin
           sudo install -m 0755 /tmp/conftest-bin/conftest /usr/local/bin/conftest
+      - name: Fetch baseline
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
+        run: git fetch --no-tags --depth=100 origin "$BASE_REF"
       - name: Run conftest when policies and yaml exist
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
         run: |
           set -euo pipefail
           if [ -d conftest ]; then
-            find . -path './.git' -prune -o \( -name '*.yml' -o -name '*.yaml' \) -print0 \
-              | xargs -0 -r conftest test --policy conftest
+            mapfile -d '' files < <(git diff --name-only -z "origin/$BASE_REF...HEAD" -- '*.yml' '*.yaml')
+            if [ "${#files[@]}" -gt 0 ]; then
+              conftest test --policy conftest "${files[@]}"
+            fi
           fi
