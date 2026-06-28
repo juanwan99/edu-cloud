@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from edu_cloud.models.calendar import CalendarEvent, NotificationRule
-from edu_cloud.services.exceptions import NotFoundError
+from edu_cloud.services.exceptions import NotFoundError, PermissionDeniedError
 
 
 class CalendarService:
@@ -58,8 +58,9 @@ class CalendarService:
 
     async def delete_event(self, event_id: str, school_id: str | None = None):
         event = await self.get_event(event_id)
-        if school_id and event.school_id != school_id:
-            from edu_cloud.services.exceptions import PermissionDeniedError
+        if not school_id:
+            raise PermissionDeniedError("School boundary required to delete calendar events")
+        if event.school_id != school_id:
             raise PermissionDeniedError("Cannot delete events from other schools")
         event.is_active = False
         await self.db.commit()
