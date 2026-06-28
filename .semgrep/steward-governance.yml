@@ -1,0 +1,57 @@
+rules:
+  - id: steward.python-except-pass
+    message: Do not silently swallow exceptions in governed code.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: |
+          try:
+            ...
+          except ...:
+            pass
+      - pattern: |
+          try:
+            ...
+          except ...:
+            return None
+
+  - id: steward.js-empty-catch
+    message: Empty catch blocks are silent downgrade risks.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern: |
+      try {
+        ...
+      } catch ($ERR) {
+      }
+
+  - id: steward.github-continue-on-error
+    message: Required checks must not use continue-on-error.
+    severity: ERROR
+    languages: [yaml]
+    pattern: "continue-on-error: true"
+
+  - id: steward.shell-ignore-failure
+    message: Do not use command || true in governed scripts.
+    severity: ERROR
+    languages: [generic]
+    pattern: "|| true"
+
+  - id: steward.pytest-skip
+    message: New skipped tests require explicit governance review.
+    severity: WARNING
+    languages: [python]
+    pattern-either:
+      - pattern: |
+          @pytest.mark.skip
+          def $TEST(...):
+            ...
+      - pattern: "pytest.skip(...)"
+
+  - id: steward.js-test-skip
+    message: New skipped tests require explicit governance review.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: "test.skip(...)"
+      - pattern: "it.skip(...)"
