@@ -14,7 +14,8 @@ deny[msg] {
 
 deny[msg] {
   input.schema == "audit-office-review-lineage.v1"
-  some review in input.reviews
+  some i
+  review := input.reviews[i]
   review.reviewer == "codex-cloud"
   review.type == "independent_audit"
   msg := "cloud Codex called by Claude cannot be independent audit"
