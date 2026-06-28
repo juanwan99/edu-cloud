@@ -174,3 +174,38 @@ def test_cli_rejects_scope_file_not_changed(tmp_path: Path):
 
     assert result.returncode == 1
     assert "declared scope file must be changed in the PR" in result.stderr
+
+
+def test_cli_rejects_scope_file_modified_instead_of_added(tmp_path: Path):
+    event = tmp_path / "event.json"
+    changed = tmp_path / "changed-files.txt"
+    scopes_dir = tmp_path / "scopes"
+    scopes_dir.mkdir()
+    scope_file = scopes_dir / "demo.yml"
+    scope_file.write_text(
+        yaml.safe_dump(_scope(), sort_keys=False),
+        encoding="utf-8",
+    )
+    event.write_text(
+        json.dumps({"pull_request": {"body": "Steward-Scope: demo\n"}}),
+        encoding="utf-8",
+    )
+    changed.write_text(f"M\t{scope_file}\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/governance/steward_scope_gate.py",
+            "--event",
+            str(event),
+            "--changed",
+            str(changed),
+            "--scopes-dir",
+            str(scopes_dir),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "declared scope file must be newly added in the PR" in result.stderr

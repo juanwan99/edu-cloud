@@ -148,7 +148,32 @@ def _validate_path_list(paths: list[Any], *, field: str) -> list[str]:
 
 
 def _read_changed_files(path: str) -> list[str]:
-    return Path(path).read_text(encoding="utf-8-sig").splitlines()
+    return [entry_path for _, entry_path in _read_changed_entries(path)]
+
+
+def _read_changed_entries(path: str) -> list[tuple[str | None, str]]:
+    entries: list[tuple[str | None, str]] = []
+    for line in Path(path).read_text(encoding="utf-8-sig").splitlines():
+        if not line.strip():
+            continue
+        parts = line.lstrip("\ufeff").split("\t")
+        if len(parts) >= 2 and _looks_like_name_status(parts[0]):
+            entries.append((parts[0][0], _normalize(parts[-1])))
+        else:
+            entries.append((None, _normalize(line)))
+    return entries
+
+
+def _looks_like_name_status(token: str) -> bool:
+    return bool(token) and token[0] in {"A", "C", "D", "M", "R", "T", "U", "X", "B"}
+
+
+def _scope_enforced_paths(changed_entries: list[tuple[str | None, str]]) -> list[str]:
+    return [
+        path
+        for status, path in changed_entries
+        if not (status == "D" and _is_legacy_yuanqi_path(path))
+    ]
 
 
 def _matches_any(path: str, patterns: list[str]) -> bool:
@@ -245,13 +270,17 @@ def main(argv: list[str] | None = None) -> int:
         print("scope status must be active for PR validation", file=sys.stderr)
         return 1
 
-    changed_files = _read_changed_files(args.changed)
+    changed_entries = _read_changed_entries(args.changed)
+    changed_files = [path for _, path in changed_entries]
     scope_relpath = _normalize(str(Path(args.scopes_dir) / f"{scope_id}.yml"))
     if scope_relpath not in _normalize_all(changed_files):
         print("declared scope file must be changed in the PR", file=sys.stderr)
         return 1
+    if not any(status == "A" and path == scope_relpath for status, path in changed_entries):
+        print("declared scope file must be newly added in the PR", file=sys.stderr)
+        return 1
 
-    ok, violations = scope_check(changed_files, scope)
+    ok, violations = scope_check(_scope_enforced_paths(changed_entries), scope)
     if ok:
         return 0
 
