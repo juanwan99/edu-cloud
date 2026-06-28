@@ -1,3 +1,10 @@
+---
+title: Safety Matrix
+owner: liang
+last_review_date: "2026-06-28"
+expiration_in_days: 30
+---
+
 # Safety Matrix
 
 Each row maps a valuable Claude-era rule to Codex-native enforcement. The `ID`

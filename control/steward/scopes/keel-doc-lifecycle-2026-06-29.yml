@@ -1,0 +1,37 @@
+schema: steward-pr-scope.v1
+scope_id: keel-doc-lifecycle-2026-06-29
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-doc-lifecycle-2026-06-29.yml
+  - AGENTS.md
+  - CLAUDE.md
+  - docs/context/ACTIVE_INDEX.md
+  - docs/context/NOW.md
+  - docs/context/CODEX_STEWARD.md
+  - docs/context/GOVERNANCE_MODEL.md
+  - docs/context/PARALLEL_DEVELOPMENT.md
+  - docs/context/COMMANDS.md
+  - docs/context/SAFETY_MATRIX.md
+  - docs/context/ARTIFACT_POLICY.md
+  - docs/context/CLAUDE_AUX.md
+  - docs/context/META_RUNTIME.md
+  - docs/context/GUARDIAN_RUNTIME.md
+  - docs/context/LESSONS.md
+  - frontmatter.schema.json
+  - .github/workflows/steward-hard-gates.yml
+forbidden_paths:
+  - .yuanqi/
+  - scripts/yuanqi/
+  - tests/yuanqi/
+  - cases/
+  - reports/
+  - artifacts/audit-office/
+  - src/edu_cloud/core/auth.py
+  - src/edu_cloud/core/permissions.py
+  - src/edu_cloud/core/tenant.py
+  - alembic/
+  - deploy/
+compatibility_paths: []
+status: active
+created_at: "2026-06-29T07:30:00+08:00"
+expires_at: "2026-07-06T23:59:00+08:00"

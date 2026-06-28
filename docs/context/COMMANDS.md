@@ -1,3 +1,10 @@
+---
+title: Command Manual
+owner: liang
+last_review_date: "2026-06-28"
+expiration_in_days: 30
+---
+
 # Command Manual
 
 Authoritative command reference for Codex work in `edu-cloud`.

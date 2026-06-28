@@ -1,3 +1,10 @@
+---
+title: Artifact Policy
+owner: liang
+last_review_date: "2026-06-28"
+expiration_in_days: 30
+---
+
 # Artifact Policy
 
 This policy prevents experimental files from polluting current engineering decisions.
