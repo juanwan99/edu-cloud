@@ -9,6 +9,9 @@
 /scripts/governance/ @jopfea796-dotcom
 /tests/governance/ @jopfea796-dotcom
 /docs/governance/ @jopfea796-dotcom
+/.yuanqi/ @jopfea796-dotcom
+/scripts/yuanqi/ @jopfea796-dotcom
+/tests/yuanqi/ @jopfea796-dotcom
 
 # --- Exclusive: central context & entrypoints ---
 /AGENTS.md @jopfea796-dotcom
