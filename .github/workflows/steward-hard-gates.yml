@@ -101,7 +101,12 @@ jobs:
       - name: Run steward Semgrep rules
         env:
           BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
-        run: semgrep scan --config .semgrep/steward-governance.yml --error --baseline-commit "origin/$BASE_REF"
+        run: |
+          semgrep scan \
+            --config .semgrep/steward-governance.yml \
+            --config .semgrep/call-site-invariants.yml \
+            --error \
+            --baseline-commit "origin/$BASE_REF"
 
   gitleaks:
     name: steward/gitleaks
