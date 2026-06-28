@@ -1,4 +1,28 @@
+from datetime import date
+
 import pytest
+from sqlalchemy import select
+
+from edu_cloud.models.user_role import UserRole
+from edu_cloud.modules.calendar.service import CalendarService
+from edu_cloud.services.exceptions import PermissionDeniedError
+
+
+async def _seed_calendar_event(db, seed_teacher, title="Boundary test"):
+    role = (
+        await db.execute(select(UserRole).where(UserRole.user_id == seed_teacher.id))
+    ).scalars().first()
+    assert role is not None
+
+    svc = CalendarService(db)
+    event = await svc.create_event(
+        type="exam",
+        title=title,
+        event_date=date(2026, 8, 1),
+        school_id=role.school_id,
+        created_by=seed_teacher.id,
+    )
+    return svc, event, role.school_id
 
 
 @pytest.mark.asyncio
@@ -90,3 +114,26 @@ async def test_deleted_event_not_in_list(client, teacher_headers):
     assert list_resp.status_code == 200
     ids = [e["id"] for e in list_resp.json()]
     assert event_id not in ids
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("missing_school_id", [None, ""])
+async def test_delete_event_requires_school_boundary(db, seed_teacher, missing_school_id):
+    svc, event, _school_id = await _seed_calendar_event(db, seed_teacher)
+
+    with pytest.raises(PermissionDeniedError, match="School boundary required"):
+        await svc.delete_event(event.id, school_id=missing_school_id)
+
+    persisted = await svc.get_event(event.id)
+    assert persisted.is_active is True
+
+
+@pytest.mark.asyncio
+async def test_delete_event_rejects_other_school(db, seed_teacher):
+    svc, event, school_id = await _seed_calendar_event(db, seed_teacher)
+
+    with pytest.raises(PermissionDeniedError, match="other schools"):
+        await svc.delete_event(event.id, school_id=f"{school_id}-other")
+
+    persisted = await svc.get_event(event.id)
+    assert persisted.is_active is True

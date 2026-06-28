@@ -74,7 +74,7 @@ async def test_delete_event(db):
         type="exam", title="删除测试", event_date=date(2026, 6, 1),
         school_id="s1", created_by="u1",
     )
-    await svc.delete_event(event.id)
+    await svc.delete_event(event.id, school_id="s1")
     events = await svc.list_events(school_id="s1")
     active = [e for e in events if e.is_active]
     assert len(active) == 0
