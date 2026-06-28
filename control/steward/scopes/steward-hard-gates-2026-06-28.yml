@@ -13,6 +13,7 @@ allowed_paths:
   - docs/governance/governance-tools.yml
   - docs/governance/steward-hard-gates.md
   - scripts/governance/steward_scope_gate.py
+  - tests/governance/test_codex_scripts.py
   - tests/governance/test_steward_scope_gate.py
 forbidden_paths:
   - .yuanqi/
