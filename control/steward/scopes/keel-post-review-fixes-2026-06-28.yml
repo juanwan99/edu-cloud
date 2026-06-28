@@ -1,0 +1,31 @@
+schema: steward-pr-scope.v1
+scope_id: keel-post-review-fixes-2026-06-28
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-post-review-fixes-2026-06-28.yml
+  - docs/context/CODEX_STEWARD.md
+  - docs/context/GOVERNANCE_MODEL.md
+  - docs/context/PARALLEL_DEVELOPMENT.md
+  - docs/context/CLAUDE_AUX.md
+  - docs/context/COMMANDS.md
+  - docs/context/ACTIVE_INDEX.md
+  - docs/context/NOW.md
+  - scripts/governance/steward_scope_gate.py
+  - tests/governance/test_steward_scope_gate.py
+forbidden_paths:
+  - .yuanqi/
+  - scripts/yuanqi/
+  - tests/yuanqi/
+  - cases/
+  - reports/
+  - artifacts/audit-office/
+  - src/edu_cloud/core/auth.py
+  - src/edu_cloud/core/permissions.py
+  - src/edu_cloud/core/tenant.py
+  - alembic/
+  - deploy/
+  - .github/workflows/
+compatibility_paths: []
+status: active
+created_at: "2026-06-28T23:45:00+08:00"
+expires_at: "2026-07-05T23:59:00+08:00"

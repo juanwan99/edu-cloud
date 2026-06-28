@@ -98,8 +98,9 @@ W1 read_only 验收记录（含全部细节与处置表）：
 `yc-20260612-899ea9ce`。
 
 - **Q1 角色裁定（设计者批准，真源已修订）**：Codex/Yuance（元策）= 规划、审查、
-  验收层，**不是默认写代码通道**；Claude Code = 执行者，写操作**仅在 Yuanqi task contract +
-  active Yuanqi task contract 内**；Yuanqi governance = 运行边界/证据/closeout 守卫；
+  验收层，**不是默认写代码通道**；Claude Code = 执行者。This snapshot's
+  old Yuanqi execution-channel language is historical and superseded by Keel:
+  fresh scope file, `Steward-Scope`, GitHub required checks, and human review.
   `scripts/codex-consult-claude` 保留为可选只读辅助审查路径（与执行通道不混淆）。
   完成声明由 Codex/用户验收，执行者不自行宣布。已修订：`AGENTS.md`、
   `docs/context/CODEX_STEWARD.md`、`docs/context/GOVERNANCE_MODEL.md`、
@@ -162,7 +163,7 @@ Any `BROKEN AT:` diagnosis exits non-zero and blocks completion evidence.
 
 ## Runtime Foundation Status (2026-06-10) — R1 EXECUTION WINDOW DONE
 
-The R1 takeover execution window (Yuanqi Yuanqi task contract `yc-20260610-a2979c86`)
+The R1 takeover execution window (retired historical contract `yc-20260610-a2979c86`)
 ran the `docs/plans/2026-06-10-db-migration-design.md` runbook. All three standing
 blockers are now **CLEARED**; source/build/nginx/backend all aligned on HEAD
 `6f90994`:
