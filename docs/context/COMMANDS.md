@@ -36,6 +36,10 @@ After merge, close the same scope with a closeout-only PR that changes only
 The default PR template contains `Steward-Scope: REQUIRED`. Replace `REQUIRED`
 with the exact scope id before opening or updating the PR.
 
+`steward/dispatch-review` enforces a fresh `keel/` branch from latest
+`origin/master`, a completed Dispatch Review checklist, and no retired
+`batch/*` branch reuse.
+
 ## Dispatch Review Preflight
 
 Before multi-worker, deletion/retirement, governance, central-context, or

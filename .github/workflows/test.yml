@@ -101,10 +101,10 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen --extra dev --python 3.11
       - run: uv run python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-verify scripts/run-arq-worker
-      - run: uv run python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_execution_policy.py scripts/governance/check_legacy_quarantine.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py scripts/governance/steward_scope_gate.py
+      - run: uv run python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_dispatch_review.py scripts/governance/check_execution_policy.py scripts/governance/check_legacy_quarantine.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py scripts/governance/steward_scope_gate.py
       - run: uv run python scripts/governance/check_execution_policy.py
       - run: uv run python -m pytest tests/governance/test_codex_scripts.py -q
-      - run: uv run python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_doc_pollution.py tests/governance/test_execution_policy.py tests/governance/test_legacy_quarantine.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_steward_scope_gate.py tests/governance/test_tenant_static.py -q
+      - run: uv run python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_dispatch_review_gate.py tests/governance/test_doc_pollution.py tests/governance/test_execution_policy.py tests/governance/test_legacy_quarantine.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_steward_scope_gate.py tests/governance/test_tenant_static.py -q
       - run: uv run python scripts/governance/aggregate_modules.py --check
       - run: uv run python scripts/governance/check_ai_tool_modules.py
       - run: uv run python scripts/governance/check_module_dependencies.py --check

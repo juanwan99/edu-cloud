@@ -59,6 +59,7 @@ Before launching another mutating window:
 5. Use a separate worktree unless it is the only active writer.
 6. Create a fresh Keel scope file with exact allowed and forbidden paths.
 7. Put `Steward-Scope: <scope_id>` in the PR body.
+8. Complete the Dispatch Review checklist before implementation begins.
 
 Do not start mutating work when the mode or scope is unclear. Re-anchor with
 the user instead.
