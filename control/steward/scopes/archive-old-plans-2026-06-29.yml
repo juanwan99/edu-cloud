@@ -1,0 +1,9 @@
+---
+id: archive-old-plans-2026-06-29
+status: open
+description: Archive 67 historical sprint plan files from docs/plans/ to docs/archive/plans/
+allowed_paths:
+  - docs/plans/**
+  - docs/archive/plans/**
+  - control/steward/scopes/archive-old-plans-2026-06-29.yml
+---
