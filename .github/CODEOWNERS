@@ -12,6 +12,12 @@
 /.gitleaks.toml @jopfea796-dotcom
 /pyproject.toml @jopfea796-dotcom
 /uv.lock @jopfea796-dotcom
+/Dockerfile @jopfea796-dotcom
+/docker-compose.yml @jopfea796-dotcom
+/alembic.ini @jopfea796-dotcom
+/frontmatter.schema.json @jopfea796-dotcom
+/.gitignore @jopfea796-dotcom
+/.env.example @jopfea796-dotcom
 /scripts/governance/ @jopfea796-dotcom
 /tests/governance/ @jopfea796-dotcom
 /docs/governance/ @jopfea796-dotcom
