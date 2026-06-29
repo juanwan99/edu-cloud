@@ -58,6 +58,7 @@ this index, source code, tests, CI, or current user instruction.
 | `docs/reviews/2026-06-22-rh3-frontend-gating-regression-closeout.md` | reference | Frontend gating regression evidence |
 | `.github/workflows/test.yml` | reference | Main CI workflow |
 | `.github/workflows/steward-hard-gates.yml` | reference | Keel hard-gate workflow |
+| `.github/workflows/doc-stale-sweep.yml` | reference | Scheduled Tier A active-doc stale issue workflow |
 
 ## Historical
 

@@ -1,0 +1,174 @@
+name: keel doc stale sweep
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 20 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: keel-doc-stale-sweep
+  cancel-in-progress: true
+
+jobs:
+  stale-docs:
+    name: keel/doc-stale-sweep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install parser
+        run: python -m pip install --upgrade pyyaml
+      - name: Scan active docs for expired review dates
+        id: scan
+        shell: python
+        run: |
+          import datetime as dt
+          import os
+          from pathlib import Path
+          import re
+          import yaml
+
+          root = Path(".")
+          index = root / "docs/context/ACTIVE_INDEX.md"
+          today = dt.date.today()
+
+          def active_paths(text):
+              if "## Active" not in text:
+                  return []
+              active = text.split("## Active", 1)[1].split("## Candidate Active Work", 1)[0]
+              paths = []
+              for line in active.splitlines():
+                  if not line.strip().startswith("|"):
+                      continue
+                  cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+                  if len(cells) < 2 or cells[0].lower() == "path" or set("".join(cells)) <= {"-", ":"}:
+                      continue
+                  path = cells[0].strip("`")
+                  status = cells[1].lower()
+                  if status == "active" and path.endswith(".md"):
+                      paths.append(path)
+              return paths
+
+          def frontmatter(path):
+              text = path.read_text(encoding="utf-8-sig")
+              match = re.match(r"^---\n(.*?)\n---\n", text, re.S)
+              if not match:
+                  raise ValueError("missing YAML frontmatter")
+              return yaml.safe_load(match.group(1)) or {}
+
+          def parse_date(value):
+              if isinstance(value, dt.datetime):
+                  return value.date()
+              if isinstance(value, dt.date):
+                  return value
+              return dt.date.fromisoformat(str(value))
+
+          stale = []
+          errors = []
+          for rel in active_paths(index.read_text(encoding="utf-8")):
+              path = root / rel
+              try:
+                  data = frontmatter(path)
+                  last_review = parse_date(data["last_review_date"])
+                  expiration = int(data["expiration_in_days"])
+                  due = last_review + dt.timedelta(days=expiration)
+                  if today >= due:
+                      stale.append((rel, last_review.isoformat(), expiration, due.isoformat()))
+              except Exception as exc:
+                  errors.append((rel, str(exc)))
+
+          lines = [
+              "# Keel Active Doc Stale Report",
+              "",
+              f"Generated: {today.isoformat()}",
+              "",
+              "Tier A checks only active docs listed in `docs/context/ACTIVE_INDEX.md`.",
+              "A doc is stale when `today >= last_review_date + expiration_in_days`.",
+              "",
+          ]
+
+          if errors:
+              lines.extend([
+                  "## Metadata Errors",
+                  "",
+                  "| Path | Error |",
+                  "|---|---|",
+              ])
+              for rel, error in errors:
+                  lines.append(f"| `{rel}` | {error} |")
+              lines.append("")
+
+          if stale:
+              lines.extend([
+                  "## Stale Active Docs",
+                  "",
+                  "| Path | Last review | Expiration days | Due |",
+                  "|---|---:|---:|---:|",
+              ])
+              for rel, last_review, expiration, due in stale:
+                  lines.append(f"| `{rel}` | {last_review} | {expiration} | {due} |")
+          else:
+              lines.extend([
+                  "## Stale Active Docs",
+                  "",
+                  "No stale active docs found.",
+              ])
+
+          Path("doc-stale-report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          output = Path(os.environ["GITHUB_OUTPUT"])
+          output.write_text(
+              f"stale_count={len(stale) + len(errors)}\n"
+              f"report_path=doc-stale-report.md\n",
+              encoding="utf-8",
+          )
+      - name: Create or close doc-stale issue
+        uses: actions/github-script@v7
+        env:
+          STALE_COUNT: ${{ steps.scan.outputs.stale_count }}
+        with:
+          script: |
+            const fs = require("fs");
+            const {owner, repo} = context.repo;
+            const title = "Keel active docs need review";
+            const label = "doc-stale";
+            const staleCount = Number(process.env.STALE_COUNT || "0");
+            const body = fs.readFileSync("doc-stale-report.md", "utf8");
+
+            try {
+              await github.rest.issues.createLabel({
+                owner, repo, name: label, color: "b60205",
+                description: "Active Keel docs whose review date has expired"
+              });
+            } catch (error) {
+              if (error.status !== 422) throw error;
+            }
+
+            const {data: issues} = await github.rest.issues.listForRepo({
+              owner, repo, state: "open", labels: label, per_page: 100
+            });
+            const existing = issues.find((issue) => issue.title === title);
+
+            if (staleCount > 0) {
+              if (existing) {
+                await github.rest.issues.update({owner, repo, issue_number: existing.number, body});
+                core.info(`Updated issue #${existing.number}.`);
+              } else {
+                const created = await github.rest.issues.create({owner, repo, title, body, labels: [label]});
+                core.info(`Created issue #${created.data.number}.`);
+              }
+            } else if (existing) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: existing.number,
+                body: "No stale active docs found in the latest scheduled sweep. Closing this issue."
+              });
+              await github.rest.issues.update({owner, repo, issue_number: existing.number, state: "closed"});
+              core.info(`Closed issue #${existing.number}.`);
+            } else {
+              core.info("No stale active docs found.");
+            }
