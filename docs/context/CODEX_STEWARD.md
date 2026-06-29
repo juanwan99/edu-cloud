@@ -68,6 +68,10 @@ Codex Dispatch Review is required before launching any multi-worker batch,
 deletion or retirement task, governance change, central-context change, or
 protected-path change.
 
+The `steward/dispatch-review` GitHub check makes this non-optional for PRs:
+it rejects stale branches, retired `batch/*` branch names, missing Dispatch
+Review evidence, and unchecked Dispatch Review checklist items.
+
 The dispatch review must produce:
 
 1. task mode and whether parallelism is allowed;

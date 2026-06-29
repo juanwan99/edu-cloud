@@ -27,6 +27,10 @@ or protected-path work, request Codex Dispatch Review. Do not split or launch
 mutating workers until that review defines task order, scope ids, allowed paths,
 forbidden paths, and verification commands.
 
+GitHub enforces this through `steward/dispatch-review`: governed PRs must use a
+fresh `keel/` branch based on latest `origin/master` and include a completed
+Dispatch Review checklist.
+
 ## Retired Material
 
 The old Yuanqi task-contract layer, superpowers plans/specs, archived plan tree,

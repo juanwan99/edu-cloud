@@ -33,6 +33,10 @@ or `tests/governance/**`, stop for Codex Dispatch Review. The review must define
 task order, scope ids, allowed paths, forbidden paths, and local verification
 commands before implementation starts.
 
+GitHub enforces this through `steward/dispatch-review`: governed PRs must use a
+fresh `keel/` branch based on latest `origin/master` and include a completed
+Dispatch Review checklist.
+
 The old Yuanqi task-contract workflow is retired from active use. Do not create
 or restore `.yuanqi/tasks`, `Yuanqi-Task:` PR markers, Yuanqi task windows, or
 Yuanqi registry/scope/overlap gates.
