@@ -123,20 +123,20 @@ tools:
     test_command: "python scripts/governance/steward_scope_gate.py --help"
 
   - path: "scripts/guardian-watch"
-    owner: "Guardian Core"
-    authority_class: "realtime_guardian_runtime"
+    owner: "Historical"
+    authority_class: "historical_guardian_runtime"
     is_completion_evidence: false
     writes_state: true
-    why_insufficient: "Generic watchers do not combine dirty-state, truthline, DB, safety, frontend/backend consistency, and environment hygiene checks."
-    test_command: "scripts/guardian-watch --once --no-network --no-model-review --no-jsonl"
+    why_insufficient: "Retired Guardian runtime is historical/advisory and is not a current Keel startup command or merge authority."
+    test_command: "historical only; do not run by default"
 
   - path: "scripts/meta-check"
-    owner: "Meta Core"
-    authority_class: "meta_runtime_gate"
+    owner: "Historical"
+    authority_class: "historical_meta_runtime"
     is_completion_evidence: false
     writes_state: true
-    why_insufficient: "Generic context checks do not enforce the edu-cloud task-bound Meta runtime contract or optional state handoff."
-    test_command: "scripts/meta-check --json --strict"
+    why_insufficient: "Retired Meta runtime is historical/advisory and is not a current Keel startup command or merge authority."
+    test_command: "historical only; do not run by default"
 
   - path: "scripts/truth"
     owner: "Guardian Core"

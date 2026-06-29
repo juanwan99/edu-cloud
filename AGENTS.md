@@ -1,7 +1,7 @@
 ---
 title: edu-cloud Agent Entry
 owner: liang
-last_review_date: "2026-06-28"
+last_review_date: "2026-06-29"
 expiration_in_days: 30
 ---
 
@@ -31,18 +31,18 @@ The old Yuanqi task-contract workflow is retired from active use. Do not create
 or restore `.yuanqi/tasks`, `Yuanqi-Task:` PR markers, Yuanqi task windows, or
 Yuanqi registry/scope/overlap gates.
 
-Historical documents may still mention Yuanqi. Treat those references as
-history unless a current Keel scope or a current user instruction explicitly
-revives a specific fact.
+Historical documents may still mention Yuanqi, Meta Runtime, or Guardian
+Runtime. Treat those references as history unless a current Keel scope or a
+current user instruction explicitly revives a specific fact.
 
 ## Roles
 
-Keel keeps the useful 双核治理 responsibility split without the retired Yuanqi
+Keel keeps the useful dual-core responsibility split without the retired Yuanqi
 task-contract machinery:
 
-- **Meta Core / 元控核** owns direction, facts, task boundaries, context,
+- **Meta Core** owns direction, facts, task boundaries, context,
   Claude read-only counter-review, and the completion evidence contract.
-- **Guardian Core / 守护核** owns dirty state, truthline, DB/migration gates,
+- **Guardian Core** owns dirty state, truthline, DB/migration gates,
   safety scanning, frontend/backend build-runtime consistency, and environment hygiene.
 
 This is Codex-led and Claude-assisted: Claude may plan, review, or implement
@@ -55,8 +55,8 @@ when explicitly used, but GitHub and human review remain the merge authority.
 - GitHub: hard gate for merge eligibility through required checks, CODEOWNERS,
   and review.
 
-No model accepts its own work as complete. Completion requires concrete evidence:
-tests, CI, runtime checks, or file-level inspection.
+No model accepts its own work as complete. Completion requires concrete
+evidence: tests, CI, runtime checks, or file-level inspection.
 
 ## Start Here
 
@@ -66,17 +66,19 @@ tests, CI, runtime checks, or file-level inspection.
 4. For governed PRs, create a new Keel scope file before changing protected
    governance or high-risk paths.
 5. Keep verification focused on the changed behavior.
-6. For Meta runtime freshness and task-boundary diagnostics, read
-   `docs/context/META_RUNTIME.md` and use `scripts/meta-check`.
+6. Treat `docs/context/META_RUNTIME.md`, `docs/context/GUARDIAN_RUNTIME.md`,
+   `scripts/meta-check`, and `scripts/guardian-watch` as historical/advisory
+   legacy material unless a current Keel scope explicitly names them.
 
 ## Hard Bans
 
-- Do not run `git reset --hard`, `git checkout -- .`, `git restore .`, `git clean -f`,
-  or equivalent destructive cleanup unless the user explicitly asks.
+- Do not run `git reset --hard`, `git checkout -- .`, `git restore .`,
+  `git clean -f`, or equivalent destructive cleanup unless the user explicitly
+  asks.
 - Do not direct-run `alembic upgrade` or `alembic downgrade` on the project DB.
   Use `scripts/db_migrate`.
-- Do not copy active SQLite databases with `cp` or `rsync`; use SQLite backup APIs
-  or project migration/backup tools.
+- Do not copy active SQLite databases with `cp` or `rsync`; use SQLite backup
+  APIs or project migration/backup tools.
 - Do not edit `.env` or `.secrets` unless the user explicitly asks.
 - Do not commit secrets, API keys, service-account JSON, WAL/SHM files,
   screenshots, local backups, or generated runtime artifacts.
@@ -101,5 +103,5 @@ scripts/codex-verify schema --dry-run
 ```
 
 For runtime isolation, use Docker Compose with a unique project name and ports
-for each parallel task. Stop the same Compose project with `docker compose down -v`
-when done.
+for each parallel task. Stop the same Compose project with `docker compose down
+-v` when done.

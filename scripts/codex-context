@@ -12,8 +12,6 @@ from codex_support import (
     collect_db,
     collect_git,
     collect_guardian_health,
-    collect_guardian_runtime_state,
-    collect_meta_runtime_state,
     collect_versions,
     count_known_failures,
     print_kv,
@@ -32,22 +30,21 @@ def main() -> int:
     artifacts = collect_artifacts()
     risks = safety_risks(no_network=args.no_network)
     guardian = collect_guardian_health()
-    meta_runtime = collect_meta_runtime_state()
-    guardian_runtime = collect_guardian_runtime_state()
 
     print(f"Codex Context  {datetime.now().isoformat(timespec='seconds')}")
     print_kv("project", PROJECT_ROOT, 0)
     print()
 
-    print("双核治理")
+    print("Keel Dual-Core Governance")
     print_kv(
-        "Meta Core / 元控核",
+        "Meta Core",
         "direction, facts, task boundaries, context, Claude read-only counter-review, completion evidence routing",
     )
     print_kv(
-        "Guardian Core / 守护核",
+        "Guardian Core",
         "dirty state, truthline, DB/migration gates, safety scanning, frontend/backend build-runtime consistency, environment hygiene",
     )
+    print_kv("merge_authority", "GitHub required checks + CODEOWNERS + human approval")
     print()
 
     print("Git")
@@ -61,7 +58,23 @@ def main() -> int:
     print()
 
     print("Truthline")
-    for key in ("dist_hash", "dist_source_dirty", "dist_build_time", "nginx_hash", "backend_hash", "backend_source_dirty", "backend_pid", "backend_boot_time", "worker_hash", "worker_source_dirty", "worker_pid", "worker_boot_time", "worker_status", "worker_service_pid", "network"):
+    for key in (
+        "dist_hash",
+        "dist_source_dirty",
+        "dist_build_time",
+        "nginx_hash",
+        "backend_hash",
+        "backend_source_dirty",
+        "backend_pid",
+        "backend_boot_time",
+        "worker_hash",
+        "worker_source_dirty",
+        "worker_pid",
+        "worker_boot_time",
+        "worker_status",
+        "worker_service_pid",
+        "network",
+    ):
         if key in versions:
             print_kv(key, versions[key])
     print()
@@ -87,26 +100,8 @@ def main() -> int:
     print("Completion Authority")
     print_kv("required_check", "GitHub CI required check / governance gate")
     print_kv("approval", "CODEOWNERS approval")
-    print_kv("live_doctor", "current scripts/truth-doctor.sh and scripts/db_doctor.py --strict output")
-    print_kv("state_snapshots", "diagnostic cache only; not a trust baseline")
-    print()
-
-    print("Meta Runtime Advisory")
-    print_kv("authority", "advisory task-state cache; not completion evidence")
-    print_kv("state", meta_runtime.get("status"))
-    if meta_runtime.get("status") == "ok":
-        stale = bool(meta_runtime.get("stale"))
-        age_label = meta_runtime.get("age_label") or "unknown"
-        freshness = "STALE — advisory snapshot, not completion authority/current truth" if stale else "fresh"
-        print_kv("snapshot_at", f"{meta_runtime.get('snapshot_at')} ({age_label} ago, {freshness})")
-        if stale:
-            print_kv("overall", f"{meta_runtime.get('overall')} (stale advisory snapshot — run scripts/meta-check for diagnostics)")
-        else:
-            print_kv("overall", meta_runtime.get("overall"))
-        print_kv("issues", meta_runtime.get("issue_count"))
-        print_kv("obligations", meta_runtime.get("obligation_count"))
-    else:
-        print_kv("state_file", meta_runtime.get("state_file"))
+    print_kv("live_doctor", "task-specific scripts/truth-doctor.sh and scripts/db_doctor.py --strict output")
+    print_kv("legacy_runtime", "Meta/Guardian runtime caches are historical/advisory, not startup requirements")
     print()
 
     print("Guardian Health Advisory")
@@ -123,22 +118,6 @@ def main() -> int:
             print(f"  - {code}{signal}: {summary}")
         if int(guardian.get("issue_count") or 0) > 5:
             print(f"  ... and {int(guardian.get('issue_count') or 0) - 5} more")
-    print()
-
-    print("Guardian Runtime Advisory")
-    print_kv("service", guardian_runtime.get("service"))
-    print_kv("authority", "advisory runtime cache; not completion evidence")
-    print_kv("state", guardian_runtime.get("status"))
-    if guardian_runtime.get("status") == "ok":
-        print_kv("snapshot_at", guardian_runtime.get("snapshot_at"))
-        print_kv("overall", guardian_runtime.get("overall"))
-        print_kv("issues", guardian_runtime.get("issue_count"))
-        print_kv("fingerprint", guardian_runtime.get("fingerprint"))
-        model_review = guardian_runtime.get("model_review")
-        if isinstance(model_review, dict):
-            print_kv("model_review", model_review.get("status"))
-    else:
-        print_kv("state_file", guardian_runtime.get("state_file"))
     print()
 
     print("Artifacts")

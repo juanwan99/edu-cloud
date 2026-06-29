@@ -1,7 +1,7 @@
 ---
 title: Active Document Index
 owner: liang
-last_review_date: "2026-06-28"
+last_review_date: "2026-06-29"
 expiration_in_days: 30
 ---
 
@@ -9,7 +9,7 @@ expiration_in_days: 30
 
 Read this file before reading `docs/**`. Anything not listed here is candidate,
 reference, or historical context and must not be treated as current instruction.
-The active governance model is Keel 双核治理, with GitHub as merge authority.
+The active governance model is Keel, with GitHub as merge authority.
 
 ## Active
 
@@ -26,8 +26,6 @@ The active governance model is Keel 双核治理, with GitHub as merge authority
 | `docs/context/SAFETY_MATRIX.md` | active | Risk-to-enforcement map |
 | `docs/context/ARTIFACT_POLICY.md` | active | Local artifact and backup policy |
 | `docs/context/CLAUDE_AUX.md` | active | Optional read-only Claude review protocol |
-| `docs/context/META_RUNTIME.md` | active | Meta Runtime contract |
-| `docs/context/GUARDIAN_RUNTIME.md` | active | Guardian Runtime contract |
 | `docs/context/LESSONS.md` | active | Project-specific lessons that still affect current behavior |
 
 ## Candidate Active Work
@@ -62,6 +60,12 @@ this index, source code, tests, CI, or current user instruction.
 
 ## Historical
 
+- `docs/context/META_RUNTIME.md` and `docs/context/GUARDIAN_RUNTIME.md` are
+  historical runtime-contract documents. Do not load them as current Keel
+  requirements unless a current scope explicitly names them.
+- `scripts/meta-check` and `scripts/guardian-watch` are historical/advisory
+  local runtime tools. They are not GitHub merge authority and are not default
+  startup commands.
 - Removed `docs/plans/archived/**` material is historical evidence only; use git
   history when explicit evidence is needed.
 - Removed `docs/superpowers/**` material is historical evidence only.

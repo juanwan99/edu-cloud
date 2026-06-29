@@ -1,20 +1,20 @@
 ---
-title: Dual-Core Governance
+title: Keel Governance Model
 owner: liang
-last_review_date: "2026-06-28"
+last_review_date: "2026-06-29"
 expiration_in_days: 30
 ---
 
-# Dual-Core Governance / 双核治理
+# Keel Governance Model
 
 edu-cloud uses Keel to keep AI-assisted work fast, bounded, and reviewable.
-The two responsibility centers are Meta Core and Guardian Core.
-This is Codex-led and Claude-assisted, with GitHub as the hard merge authority.
+Keel keeps a dual-core responsibility split, but GitHub is the hard merge
+authority.
 
 ## Current Authority
 
-- Codex leads planning, implementation help, review, hygiene, and acceptance
-  evidence.
+- Codex leads local stewardship, implementation help, review, hygiene, and
+  acceptance evidence.
 - Claude may assist as a planner, reviewer, or executor when explicitly used,
   but no model accepts its own work as complete.
 - GitHub is the hard merge authority through required checks, CODEOWNERS, and
@@ -39,38 +39,20 @@ Meta Core prevents task drift and context drift. It owns:
 - long-term module-boundary direction and coupling-reduction discipline;
 - parallel-work classification before launching extra windows.
 
-Primary files and tools:
+Primary current files and tools:
 
 - `AGENTS.md`
+- `docs/context/ACTIVE_INDEX.md`
 - `docs/context/CODEX_STEWARD.md`
 - `docs/context/PARALLEL_DEVELOPMENT.md`
 - `docs/context/NOW.md`
-- `docs/context/ACTIVE_INDEX.md`
 - `docs/context/COMMANDS.md`
 - `docs/context/LESSONS.md`
 - `docs/context/CLAUDE_AUX.md`
-- `docs/context/META_RUNTIME.md`
 - `docs/governance/foundation-boundaries.md`
+- `scripts/codex-check`
 - `scripts/codex-context`
-- `scripts/meta-check`
-- `scripts/meta_runtime.py`
 - `scripts/codex-consult-claude`
-
-## Meta Runtime
-
-`scripts/meta-check` is the synchronous Meta Core diagnostic runtime. It may
-observe, classify, write advisory state, and flag blockers. It must not edit
-files automatically, replace user instructions, or declare completion.
-
-It checks that:
-
-- active context documents exist and are indexed;
-- `docs/context/NOW.md` is fresh;
-- Meta runtime remains registered in active entrypoint docs;
-- Claude auxiliary review remains read-only and Codex-led;
-- changed or recent plan/design docs include evidence or delivery-path
-  references;
-- current user task text can be decomposed into explicit obligations.
 
 ## Guardian Core
 
@@ -84,28 +66,28 @@ Guardian Core prevents operational accidents. It owns:
 - process, port, and environment hygiene;
 - no-new-failure regression discipline.
 
-Primary files and tools:
+Primary current files and tools:
 
 - `docs/context/SAFETY_MATRIX.md`
 - `docs/context/ARTIFACT_POLICY.md`
-- `docs/context/GUARDIAN_RUNTIME.md`
-- `scripts/codex-check`
 - `scripts/codex-verify`
-- `scripts/guardian-watch`
-- `scripts/guardian_runtime.py`
-- `scripts/truth-status.sh`
-- `scripts/truth doctor`
 - `scripts/db_doctor.py`
 - `scripts/db_migrate`
+- `scripts/truth-status.sh`
+- `scripts/truth-doctor.sh`
 - `scripts/pytest_delta.py`
 - `.github/workflows/test.yml`
+- `.github/workflows/steward-hard-gates.yml`
+- `.github/workflows/doc-stale-sweep.yml`
 
-## Guardian Runtime
+## Historical Runtime Layer
 
-`scripts/guardian-watch` is advisory runtime monitoring. It can run once for
-local inspection or continuously under systemd. It may observe, classify, and
-alert. It must not kill processes, delete files, run migrations, deploy, build,
-or clean git state automatically.
+`docs/context/META_RUNTIME.md`, `docs/context/GUARDIAN_RUNTIME.md`,
+`scripts/meta-check`, `scripts/meta_runtime.py`, `scripts/guardian-watch`, and
+`scripts/guardian_runtime.py` are not active Keel startup requirements. They may
+remain as historical/advisory material while active references are retired, but
+they do not override AGENTS, ACTIVE_INDEX, source code, tests, CI, GitHub
+required checks, CODEOWNERS, or current user instructions.
 
 ## Completion Rule
 
@@ -116,6 +98,7 @@ completion.
 
 ## Non-Goals
 
-Do not recreate retired Claude hook or Yuanqi task-contract machinery inside
-Keel. Keel keeps the useful rules, evidence discipline, scope boundaries, and
-health checks while relying on GitHub for hard merge enforcement.
+Do not recreate retired Claude hook, Yuanqi task-contract, Meta Runtime, or
+Guardian Runtime machinery inside Keel. Keel keeps the useful rules, evidence
+discipline, scope boundaries, and health checks while relying on GitHub for hard
+merge enforcement.
