@@ -60,12 +60,6 @@ this index, source code, tests, CI, or current user instruction.
 
 ## Historical
 
-- `docs/context/META_RUNTIME.md` and `docs/context/GUARDIAN_RUNTIME.md` are
-  historical runtime-contract documents. Do not load them as current Keel
-  requirements unless a current scope explicitly names them.
-- `scripts/meta-check` and `scripts/guardian-watch` are historical/advisory
-  local runtime tools. They are not GitHub merge authority and are not default
-  startup commands.
 - Removed `docs/plans/archived/**` material is historical evidence only; use git
   history when explicit evidence is needed.
 - Removed `docs/superpowers/**` material is historical evidence only.

@@ -7,8 +7,7 @@ expiration_in_days: 30
 
 # Safety Matrix
 
-Each row maps an active risk to current Keel enforcement. Historical Meta
-Runtime and Guardian Runtime references are not current hard gates.
+Each row maps an active risk to current Keel enforcement.
 
 | ID | Risk | Current Defense | Completion Evidence | Gap |
 |---|---|---|---|---|
@@ -38,9 +37,3 @@ Runtime and Guardian Runtime references are not current hard gates.
 - Advisory local verifier: command reports risk for human judgment.
 - Documentation rule: active instruction, enforced by review and hygiene checks.
 
-## Historical Issue Codes
-
-Older documents may mention Meta/Guardian issue codes such as `BUILD_DRIFT`,
-`BACKEND_DRIFT`, `META_RUNTIME_UNREGISTERED`, or `TASK_CONTRACT_DRIFT`. Treat
-them as historical labels unless a current Keel scope explicitly reactivates the
-specific tool that emits them.

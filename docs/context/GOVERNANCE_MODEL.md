@@ -75,19 +75,9 @@ Primary current files and tools:
 - `scripts/db_migrate`
 - `scripts/truth-status.sh`
 - `scripts/truth-doctor.sh`
-- `scripts/pytest_delta.py`
 - `.github/workflows/test.yml`
 - `.github/workflows/steward-hard-gates.yml`
 - `.github/workflows/doc-stale-sweep.yml`
-
-## Historical Runtime Layer
-
-`docs/context/META_RUNTIME.md`, `docs/context/GUARDIAN_RUNTIME.md`,
-`scripts/meta-check`, `scripts/meta_runtime.py`, `scripts/guardian-watch`, and
-`scripts/guardian_runtime.py` are not active Keel startup requirements. They may
-remain as historical/advisory material while active references are retired, but
-they do not override AGENTS, ACTIVE_INDEX, source code, tests, CI, GitHub
-required checks, CODEOWNERS, or current user instructions.
 
 ## Completion Rule
 
@@ -98,7 +88,6 @@ completion.
 
 ## Non-Goals
 
-Do not recreate retired Claude hook, Yuanqi task-contract, Meta Runtime, or
-Guardian Runtime machinery inside Keel. Keel keeps the useful rules, evidence
-discipline, scope boundaries, and health checks while relying on GitHub for hard
-merge enforcement.
+Do not recreate retired Claude hook or Yuanqi task-contract machinery inside
+Keel. Keel keeps the useful rules, evidence discipline, scope boundaries, and
+health checks while relying on GitHub for hard merge enforcement.

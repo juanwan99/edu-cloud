@@ -31,9 +31,9 @@ The old Yuanqi task-contract workflow is retired from active use. Do not create
 or restore `.yuanqi/tasks`, `Yuanqi-Task:` PR markers, Yuanqi task windows, or
 Yuanqi registry/scope/overlap gates.
 
-Historical documents may still mention Yuanqi, Meta Runtime, or Guardian
-Runtime. Treat those references as history unless a current Keel scope or a
-current user instruction explicitly revives a specific fact.
+Historical documents may still mention Yuanqi. Treat those references as
+history unless a current Keel scope or a current user instruction explicitly
+revives a specific fact.
 
 ## Roles
 
@@ -66,9 +66,6 @@ evidence: tests, CI, runtime checks, or file-level inspection.
 4. For governed PRs, create a new Keel scope file before changing protected
    governance or high-risk paths.
 5. Keep verification focused on the changed behavior.
-6. Treat `docs/context/META_RUNTIME.md`, `docs/context/GUARDIAN_RUNTIME.md`,
-   `scripts/meta-check`, and `scripts/guardian-watch` as historical/advisory
-   legacy material unless a current Keel scope explicitly names them.
 
 ## Hard Bans
 
