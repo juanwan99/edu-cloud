@@ -31,7 +31,7 @@ jobs:
           set -euo pipefail
           git diff --name-status "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" > changed-files.txt
       - name: Run neutral Steward PR scope gate
-        run: python scripts/governance/steward_scope_gate.py --event "$GITHUB_EVENT_PATH" --changed changed-files.txt --scopes-dir control/steward/scopes
+        run: python scripts/governance/steward_scope_gate.py --event "$GITHUB_EVENT_PATH" --changed changed-files.txt --scopes-dir control/steward/scopes --base-ref "${{ github.event.pull_request.base.sha }}"
 
   schema-and-docs:
     name: steward/schema-and-docs
@@ -150,6 +150,6 @@ jobs:
           if [ -d conftest ]; then
             mapfile -d '' files < <(git diff --name-only --diff-filter=ACMR -z "origin/$BASE_REF...HEAD" -- '*.yml' '*.yaml')
             if [ "${#files[@]}" -gt 0 ]; then
-              conftest test --policy conftest "${files[@]}"
+              conftest test --all-namespaces --policy conftest "${files[@]}"
             fi
           fi

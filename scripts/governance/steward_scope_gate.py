@@ -13,6 +13,7 @@ from fnmatch import fnmatchcase
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 from typing import Any
 
@@ -184,6 +185,46 @@ def _read_changed_entries(path: str) -> list[tuple[str | None, str]]:
     return entries
 
 
+def _is_scope_closeout_shape(
+    changed_entries: list[tuple[str | None, str]], scope_relpath: str
+) -> bool:
+    return len(changed_entries) == 1 and changed_entries[0] == ("M", scope_relpath)
+
+
+def _scope_closeout_errors(head_scope: dict, base_scope: dict, scope_relpath: str) -> list[str]:
+    errors: list[str] = []
+    if base_scope.get("status") != "active":
+        errors.append("scope closeout base status must be active")
+    if head_scope.get("status") != "closed":
+        errors.append("scope closeout head status must be closed")
+
+    base_without_status = dict(base_scope)
+    head_without_status = dict(head_scope)
+    base_without_status.pop("status", None)
+    head_without_status.pop("status", None)
+    if base_without_status != head_without_status:
+        errors.append(f"scope closeout may only change status active -> closed: {scope_relpath}")
+    return errors
+
+
+def _load_base_scope(base_ref: str, scope_relpath: str) -> tuple[dict, str | None]:
+    result = subprocess.run(
+        ["git", "show", f"{base_ref}:{scope_relpath}"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    if result.returncode != 0:
+        return {}, result.stderr.strip() or f"unable to read {scope_relpath} at {base_ref}"
+    try:
+        data = yaml.safe_load(result.stdout) or {}
+    except yaml.YAMLError as exc:
+        return {}, str(exc)
+    if not isinstance(data, dict):
+        return {}, "base scope must be a mapping"
+    return data, None
+
+
 def _looks_like_name_status(token: str) -> bool:
     return bool(token) and token[0] in {"A", "C", "D", "M", "R", "T", "U", "X"}
 
@@ -262,6 +303,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--event", required=True, help="Path to GitHub pull_request event JSON")
     parser.add_argument("--changed", required=True, help="Path to changed-files.txt")
     parser.add_argument(
+        "--base-ref",
+        default="",
+        help="Base commit SHA/ref used to validate closeout-only scope PRs",
+    )
+    parser.add_argument(
         "--scopes-dir",
         default="control/steward/scopes",
         help="Directory containing steward-pr-scope YAML files",
@@ -293,13 +339,27 @@ def main(argv: list[str] | None = None) -> int:
             print(f"scope schema error: {error}", file=sys.stderr)
         return 1
 
-    if scope.get("status") != "active":
-        print("scope status must be active for PR validation", file=sys.stderr)
-        return 1
-
     changed_entries = _read_changed_entries(args.changed)
     changed_files = [path for _, path in changed_entries]
     scope_relpath = _normalize(str(Path(args.scopes_dir) / f"{scope_id}.yml"))
+    if scope.get("status") != "active":
+        if not _is_scope_closeout_shape(changed_entries, scope_relpath):
+            print("scope status must be active for PR validation", file=sys.stderr)
+            return 1
+        if not args.base_ref:
+            print("scope closeout error: --base-ref is required", file=sys.stderr)
+            return 1
+        base_scope, base_error = _load_base_scope(args.base_ref, scope_relpath)
+        if base_error:
+            print(f"scope closeout error: {base_error}", file=sys.stderr)
+            return 1
+        closeout_errors = _scope_closeout_errors(scope, base_scope, scope_relpath)
+        if closeout_errors:
+            for error in closeout_errors:
+                print(f"scope closeout error: {error}", file=sys.stderr)
+            return 1
+        return 0
+
     if scope_relpath not in _normalize_all(changed_files):
         print("declared scope file must be changed in the PR", file=sys.stderr)
         return 1

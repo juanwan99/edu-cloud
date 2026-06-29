@@ -10,7 +10,9 @@ from pathlib import Path
 import yaml
 
 from scripts.governance.steward_scope_gate import (
+    _is_scope_closeout_shape,
     _looks_like_name_status,
+    _scope_closeout_errors,
     resolve_scope_id,
     scope_check,
     validate_scope,
@@ -131,6 +133,39 @@ def test_scope_rejects_invalid_expires_at():
 
 def test_scope_status_parser_rejects_invalid_b_status():
     assert not _looks_like_name_status("B")
+
+
+def test_scope_closeout_shape_requires_only_modified_declared_scope():
+    scope_relpath = "control/steward/scopes/demo.yml"
+
+    assert _is_scope_closeout_shape([("M", scope_relpath)], scope_relpath)
+    assert not _is_scope_closeout_shape([("A", scope_relpath)], scope_relpath)
+    assert not _is_scope_closeout_shape(
+        [("M", scope_relpath), ("M", "scripts/governance/steward_scope_gate.py")],
+        scope_relpath,
+    )
+
+
+def test_scope_closeout_allows_only_status_active_to_closed():
+    scope_relpath = "control/steward/scopes/demo.yml"
+    errors = _scope_closeout_errors(
+        _scope(status="closed"),
+        _scope(status="active"),
+        scope_relpath,
+    )
+
+    assert errors == []
+
+
+def test_scope_closeout_rejects_other_field_changes():
+    scope_relpath = "control/steward/scopes/demo.yml"
+    errors = _scope_closeout_errors(
+        _scope(status="closed", allowed_paths=["docs/"]),
+        _scope(status="active"),
+        scope_relpath,
+    )
+
+    assert f"scope closeout may only change status active -> closed: {scope_relpath}" in errors
 
 
 def test_cli_rejects_missing_steward_scope(tmp_path: Path):

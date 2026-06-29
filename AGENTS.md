@@ -24,6 +24,8 @@ edu-cloud uses Keel for governed changes:
 3. Change only files allowed by that scope.
 4. Include `Steward-Scope: <scope_id>` in the PR body.
 5. Let GitHub required checks, CODEOWNERS, and human review decide.
+6. After merge, close the same scope with a closeout-only PR that changes only
+   `status: active` to `status: closed`.
 
 The old Yuanqi task-contract workflow is retired from active use. Do not create
 or restore `.yuanqi/tasks`, `Yuanqi-Task:` PR markers, Yuanqi task windows, or
