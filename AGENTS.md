@@ -33,9 +33,14 @@ or `tests/governance/**`, stop for Codex Dispatch Review. The review must define
 task order, scope ids, allowed paths, forbidden paths, and local verification
 commands before implementation starts.
 
+The PR body must include both `Steward-Scope: <scope_id>` and
+`Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>`. The CDR evidence is
+issued by the non-implementing steward/reviewer before implementation starts;
+workers must not invent, self-approve, or leave placeholder evidence.
+
 GitHub enforces this through `steward/dispatch-review`: governed PRs must use a
-fresh `keel/` branch based on latest `origin/master` and include a completed
-Dispatch Review checklist.
+fresh `keel/` branch based on latest `origin/master`, include non-placeholder
+CDR evidence, and include a completed Dispatch Review checklist.
 
 The old Yuanqi task-contract workflow is retired from active use. Do not create
 or restore `.yuanqi/tasks`, `Yuanqi-Task:` PR markers, Yuanqi task windows, or
@@ -80,7 +85,8 @@ evidence: tests, CI, runtime checks, or file-level inspection.
    `scripts/meta-check`, and `scripts/guardian-watch` as historical/advisory
    legacy material unless a current Keel scope explicitly names them.
 7. Do not open a PR until the body contains the exact `Steward-Scope: <scope_id>`
-   marker and the matching fresh scope file exists in the PR diff.
+   marker, the exact `Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>`
+   marker, and the matching fresh scope file exists in the PR diff.
 
 ## Hard Bans
 

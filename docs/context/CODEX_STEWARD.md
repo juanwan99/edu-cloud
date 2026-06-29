@@ -70,7 +70,8 @@ protected-path change.
 
 The `steward/dispatch-review` GitHub check makes this non-optional for PRs:
 it rejects stale branches, retired `batch/*` branch names, missing Dispatch
-Review evidence, and unchecked Dispatch Review checklist items.
+Review evidence, placeholder CDR evidence, and unchecked Dispatch Review
+checklist items.
 
 The dispatch review must produce:
 
@@ -79,6 +80,11 @@ The dispatch review must produce:
 3. one scope id per governed PR;
 4. exact `allowed_paths` and `forbidden_paths`;
 5. local verification commands each worker must run before pushing.
+
+The PR body must cite that review with
+`Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>`. The implementer must
+not invent this value; it comes from the non-implementing steward/reviewer before
+implementation starts.
 
 For file deletion or retirement, the review must include reachability evidence
 from `git grep` or equivalent across `scripts/`, `tests/`, `.github/workflows/`,

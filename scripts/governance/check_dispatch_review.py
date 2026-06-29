@@ -11,6 +11,11 @@ from typing import Any
 
 
 SCOPE_DECLARATION = re.compile(r"^\ufeff?\s*Steward-Scope:\s*([A-Za-z0-9._-]+)\s*$")
+REVIEW_DECLARATION = re.compile(r"^\ufeff?\s*Codex-Dispatch-Review:\s*(\S+)\s*$")
+CDR_ID = re.compile(r"^CDR-\d{4}-\d{2}-\d{2}-[a-z0-9][a-z0-9-]*[a-z0-9]$")
+GITHUB_COMMENT_URL = re.compile(
+    r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/(?:pull|issues)/\d+#issuecomment-\d+$"
+)
 SECTION_HEADING = re.compile(r"^##\s+Dispatch Review\s*$", re.MULTILINE)
 NEXT_HEADING = re.compile(r"^##\s+", re.MULTILINE)
 UNCHECKED_BOX = re.compile(r"(?m)^\s*[-*]\s+\[\s\]\s+")
@@ -23,10 +28,23 @@ def validate_event(event: dict[str, Any]) -> list[str]:
     head = pr.get("head") if isinstance(pr.get("head"), dict) else {}
     head_ref = head.get("ref") or ""
     scope_id = _resolve_scope_id(body)
+    review_evidence = _resolve_review_evidence(body)
     errors: list[str] = []
 
     if not scope_id:
         errors.append("PR body must declare Steward-Scope: <scope_id>")
+    elif scope_id == "REQUIRED":
+        errors.append("PR body must replace Steward-Scope: REQUIRED with the exact scope id")
+
+    if not review_evidence:
+        errors.append("PR body must declare Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>")
+    elif review_evidence == "REQUIRED":
+        errors.append("PR body must replace Codex-Dispatch-Review: REQUIRED with review evidence")
+    elif not _valid_review_evidence(review_evidence):
+        errors.append(
+            "Codex-Dispatch-Review must be a CDR-YYYY-MM-DD-<slug> id or a GitHub issue/PR comment URL"
+        )
+
     if head_ref.startswith("batch/"):
         errors.append("governed PR branches must not use retired batch/* names")
     if scope_id and not head_ref.startswith("keel/"):
@@ -42,7 +60,7 @@ def validate_event(event: dict[str, Any]) -> list[str]:
         errors.append("all Dispatch Review checklist items must be checked")
 
     required_phrases = [
-        "Codex Dispatch Review completed",
+        "Codex Dispatch Review evidence",
         "latest `origin/master`",
         "fresh scope file",
         "forbidden_paths",
@@ -61,6 +79,18 @@ def _resolve_scope_id(body: str) -> str | None:
         if match:
             return match.group(1)
     return None
+
+
+def _resolve_review_evidence(body: str) -> str | None:
+    for line in body.splitlines():
+        match = REVIEW_DECLARATION.match(line)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _valid_review_evidence(value: str) -> bool:
+    return bool(CDR_ID.match(value) or GITHUB_COMMENT_URL.match(value))
 
 
 def _dispatch_section(body: str) -> str | None:

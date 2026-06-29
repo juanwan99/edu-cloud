@@ -27,9 +27,13 @@ or protected-path work, request Codex Dispatch Review. Do not split or launch
 mutating workers until that review defines task order, scope ids, allowed paths,
 forbidden paths, and verification commands.
 
+When a governed PR is opened, include both `Steward-Scope: <scope_id>` and
+`Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>`. Claude/worker sessions
+must not invent CDR evidence or self-attest that Codex review happened.
+
 GitHub enforces this through `steward/dispatch-review`: governed PRs must use a
-fresh `keel/` branch based on latest `origin/master` and include a completed
-Dispatch Review checklist.
+fresh `keel/` branch based on latest `origin/master`, include non-placeholder
+CDR evidence, and include a completed Dispatch Review checklist.
 
 ## Retired Material
 
@@ -46,4 +50,6 @@ retired paths, old Windows-era handoffs, or deleted planning systems as active
 policy.
 
 Do not open a PR with `Steward-Scope: REQUIRED`; replace it with the exact active
-scope id and include the matching fresh scope file in the PR diff.
+scope id. Do not open a PR with `Codex-Dispatch-Review: REQUIRED`; replace it
+with review evidence issued before implementation. Include the matching fresh
+scope file in the PR diff.

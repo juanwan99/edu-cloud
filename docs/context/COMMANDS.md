@@ -28,6 +28,8 @@ git switch -c keel/<short-task>-YYYY-MM-DD
 # keep changed files inside allowed_paths
 # include this exact marker in the PR body:
 Steward-Scope: <scope_id>
+# include Codex/non-implementer review evidence issued before implementation:
+Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>
 ```
 
 After merge, close the same scope with a closeout-only PR that changes only
@@ -36,9 +38,12 @@ After merge, close the same scope with a closeout-only PR that changes only
 The default PR template contains `Steward-Scope: REQUIRED`. Replace `REQUIRED`
 with the exact scope id before opening or updating the PR.
 
+The default PR template also contains `Codex-Dispatch-Review: REQUIRED`.
+Replace it with the CDR id or GitHub comment URL issued before implementation.
+
 `steward/dispatch-review` enforces a fresh `keel/` branch from latest
-`origin/master`, a completed Dispatch Review checklist, and no retired
-`batch/*` branch reuse.
+`origin/master`, non-placeholder CDR evidence, a completed Dispatch Review
+checklist, and no retired `batch/*` branch reuse.
 
 ## Dispatch Review Preflight
 
