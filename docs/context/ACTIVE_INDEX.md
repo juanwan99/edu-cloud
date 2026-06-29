@@ -38,8 +38,8 @@ either promote it here or cite it as historical evidence.
 |---|---|---|
 | `docs/essay-scoring-handoff.md` | candidate-active | AI essay scoring and grading context; verify current code and data before use |
 | `docs/scan-calibration-handoff.md` | candidate-active | OMR calibration context; verify DB/templates/files before use |
-| `docs/plans/2026-06-10-db-migration-design.md` | candidate-active | DB migration design; live DB/service state must be reverified before execution |
-| `docs/plans/2026-06-10-runtime-foundation-recovery.md` | candidate-active | Runtime recovery investigation; volatile runtime facts are historical snapshots |
+| `docs/archive/plans/2026-06-10-db-migration-design.md` | candidate-active | DB migration design; live DB/service state must be reverified before execution |
+| `docs/archive/plans/2026-06-10-runtime-foundation-recovery.md` | candidate-active | Runtime recovery investigation; volatile runtime facts are historical snapshots |
 
 ## Reference
 
@@ -66,7 +66,7 @@ this index, source code, tests, CI, or current user instruction.
 - `scripts/meta-check` and `scripts/guardian-watch` are historical/advisory
   local runtime tools. They are not GitHub merge authority and are not default
   startup commands.
-- Removed `docs/plans/archived/**` material is historical evidence only; use git
+- Removed `docs/archive/plans/archived/**` material is historical evidence only; use git
   history when explicit evidence is needed.
 - Removed `docs/superpowers/**` material is historical evidence only.
 - Old Windows-era handoffs, old review logs, and Yuanqi task-contract references

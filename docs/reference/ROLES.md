@@ -8,7 +8,7 @@
 
 > 重构声明（2026-03-21）：edu-cloud 从联考后端升级为统一平台后，
 > 学校内角色由 edu-cloud 直接管理，不再由 exam-ai 管理。
-> exam-ai 退化为数据采集节点。详见 `docs/plans/2026-03-21-super-platform-design.md` §1。
+> exam-ai 退化为数据采集节点。详见 `docs/archive/plans/2026-03-21-super-platform-design.md` §1。
 
 | 角色 | 作用域 | 核心职责 | 说明 |
 |------|-------|---------|------|

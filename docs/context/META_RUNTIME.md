@@ -84,7 +84,7 @@ scripts/meta-check --check-recent-plans
 (the `--baseline-state` flag name is retained for compatibility) and reports
 `TASK_CONTRACT_DRIFT` if an obligation disappears from current task text. This
 is a diagnostic warning, not a trusted baseline or completion authority.
-`--check-recent-plans` checks recently committed active `docs/plans/**` files
+`--check-recent-plans` checks recently committed active `docs/archive/plans/**` files
 for evidence sections that include a concrete file, file-line, or asset reference.
 If the git range cannot be resolved, it
 reports `PLAN_SCAN_INCONCLUSIVE` instead of silently skipping the check.

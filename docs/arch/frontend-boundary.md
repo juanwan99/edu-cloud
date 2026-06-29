@@ -46,7 +46,7 @@
   - Vite `devProxy` `/api` → `http://localhost:9000`（`changeOrigin: true`）
 - **路由/页面规模**：`frontend-nuxt/pages/` 仅 3 个（`home.vue` + `index.vue` + `login.vue`，Batch 2 骨架阶段）
 - **测试规模**：`frontend-nuxt/tests/` 共 **4 spec 文件 / 24 tests**（Batch 2 R3 PASS 基线 `6ddb19c`）
-- **业务范围**：严格限定于好分数业务复刻（`docs/plans/2026-04-12-haofenshu-biz-replication-design.md`）。Phase 1 Batch 2 已完成登录 + 首页模块卡片网格；Batch 3 待启动（PowerFilter + 45 页面 stub）。**目标复刻范围**：8 模块 × 45 页面（学情看板、班级 Dashboard、作业、教学、教研、教务、基础信息、报告）。
+- **业务范围**：严格限定于好分数业务复刻（`docs/archive/plans/2026-04-12-haofenshu-biz-replication-design.md`）。Phase 1 Batch 2 已完成登录 + 首页模块卡片网格；Batch 3 待启动（PowerFilter + 45 页面 stub）。**目标复刻范围**：8 模块 × 45 页面（学情看板、班级 Dashboard、作业、教学、教研、教务、基础信息、报告）。
 
 ### 1.3 两前端与后端的构建/部署关系
 
@@ -63,7 +63,7 @@
 | 知识图谱可视化（G6 力导向图 + 教师工作台 Phase 2 / 2.5） | `frontend/` | G6 5.1.0 绑定 Naive UI，不迁 |
 | 答题卡编辑器（5 模块原生 JS + CardEditor.vue） | `frontend/` | 不迁 |
 | Studio 文档 / 校历 / 通知 / 学校管理 / 排课 | `frontend/` | 管理端集中 |
-| 好分数 8 模块 × 45 页面骨架复刻 | `frontend-nuxt/` | Phase 1 范围，设计文档 `docs/plans/2026-04-12-haofenshu-biz-replication-design.md` |
+| 好分数 8 模块 × 45 页面骨架复刻 | `frontend-nuxt/` | Phase 1 范围，设计文档 `docs/archive/plans/2026-04-12-haofenshu-biz-replication-design.md` |
 | 动态菜单（后端 `/api/v1/menus` 驱动） | `frontend-nuxt/` 优先 | `frontend/` 仍用 `sidebarConfig.js`（静态 JSON）；后端 `menu_configs` 主要服务 Nuxt 版 |
 
 **铁律**：同一业务功能不允许两前端各实现一次。新需求触发 §7 归属决策树。
@@ -190,7 +190,7 @@
      └─ 默认 frontend/（多数用户场景在主前端）
 ```
 
-**守门规则**：Phase 1/2 期间，好分数 Phase 1 计划（`docs/plans/2026-04-12-haofenshu-phase1-plan.md`）以外的新需求一律进 `frontend/`。Phase 2/3 启动时再评估是否扩展 Nuxt 范围。
+**守门规则**：Phase 1/2 期间，好分数 Phase 1 计划（`docs/archive/plans/2026-04-12-haofenshu-phase1-plan.md`）以外的新需求一律进 `frontend/`。Phase 2/3 启动时再评估是否扩展 Nuxt 范围。
 
 ## 8. 端口 / 部署约束
 

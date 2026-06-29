@@ -1,6 +1,6 @@
 # MODULE.md 模板（人读版）
 
-> 本文件是 edu-cloud 模块治理纲领（`docs/plans/2026-04-13-module-governance-design.md`）§2 的人读参考。
+> 本文件是 edu-cloud 模块治理纲领（`docs/archive/plans/2026-04-13-module-governance-design.md`）§2 的人读参考。
 > 每个 `src/edu_cloud/modules/<X>/` 下均应有一份 `MODULE.md`，frontmatter 为机读真源。
 
 ---
@@ -37,7 +37,7 @@ depends_on:
 created: 2026-04-12
 last_reviewed: 2026-04-13
 design_docs:
-  - docs/plans/2026-04-12-grading-dispatch-design.md
+  - docs/archive/plans/2026-04-12-grading-dispatch-design.md
 ---
 
 # grading 模块

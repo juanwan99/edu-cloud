@@ -77,7 +77,7 @@ ECS 连接成功，目标主机：
 ```text
 ## master...origin/master
 ?? docs/2026-06-04-project-deep-investigation.md
-?? docs/plans/2026-06-04-module-governance-repair-plan.md
+?? docs/archive/plans/2026-06-04-module-governance-repair-plan.md
 ```
 
 本报告创建前，远端已有两份未跟踪文档。本次未覆盖这些文件。

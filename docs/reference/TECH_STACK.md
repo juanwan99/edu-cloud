@@ -89,7 +89,7 @@ DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/edu_cloud
 
 ## 日志体系
 
-日志系统 v2（设计文档：`docs/plans/2026-05-05-logging-system-redesign.md`）：
+日志系统 v2（设计文档：`docs/archive/plans/2026-05-05-logging-system-redesign.md`）：
 - **进程分文件**：`logs/api/edu-api-*.jsonl`（API）+ `logs/worker/edu-worker-*.jsonl`（Worker）+ `logs/business/edu-biz-*.jsonl`（业务事件归档）
 - **统一 Schema**：每条含 v/ts/level/layer/event/trace_id/req_id/user_id/school_id/duration_ms/data
 - **全链路追踪**：trace_id 从前端→HTTP→arq Worker→LLM 调用全程传播

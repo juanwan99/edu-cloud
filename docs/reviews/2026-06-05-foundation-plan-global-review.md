@@ -1,6 +1,6 @@
 # 地基治理计划 全局深度审查（2026-06-05）
 
-> 审查对象：`docs/plans/2026-06-05-foundation-governance-plan.md`
+> 审查对象：`docs/archive/plans/2026-06-05-foundation-governance-plan.md`
 > 审查视角：全局架构高度 + 与在途任务（安全修复 / StudentAnswer 写入收敛）的合并定位
 > 审查人：Claude（会话续接 da78ddb4 → 安全修复线）
 > 性质：只读审查，不改任何代码/在途文件

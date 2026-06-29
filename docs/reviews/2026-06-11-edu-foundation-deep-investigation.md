@@ -227,6 +227,6 @@ C3 精确口径（审计 §七.2 已把数据态并入）：① 带凭据在 mcu
 - 提交统计：`git log --since=2026-06-05`（59 commits 分类、按日分布）
 - 审查统计：`legacy receipt log` 92 条 verdict 分布（FINDINGS 64/PASS 7/BLOCKED 10/advisory 11）；空窗边界 = 06-07 14:40 PASS@3688f32
 - 结构债：`docs/governance/foundation-boundaries.md`（55 边/30 环基线、modular monolith first、AI 工具 exam 46、权限 16 vs 11）
-- 状态真源：`docs/context/NOW.md`（06-10 20:42 刷新）、`docs/context/ACTIVE_INDEX.md`、`docs/plans/2026-06-07-phase09-portal-unlock-decision.md`、`docs/plans/2026-06-10-db-migration-design.md`、`docs/reviews/2026-06-10-foundation-stability-audit.md`（R-H1..R-L6）
+- 状态真源：`docs/context/NOW.md`（06-10 20:42 刷新）、`docs/context/ACTIVE_INDEX.md`、`docs/archive/plans/2026-06-07-phase09-portal-unlock-decision.md`、`docs/archive/plans/2026-06-10-db-migration-design.md`、`docs/reviews/2026-06-10-foundation-stability-audit.md`（R-H1..R-L6）
 - 卫星仓：paper-seg `git log -- pip/`（init 入仓）+ 206 deleted 实测；answer-card-editor GeometrySpec 零命中 grep；modular-arch `git branch -r --contains 2cc0165` 为空（唯一副本）
 - 测试基线：`.quality/known-pytest-failures.txt`（26 条，mtime 05-06）vs CLAUDE.md（12，05-19）vs NOW.md（22 env，0.7E）

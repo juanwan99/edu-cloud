@@ -30,8 +30,8 @@
 ### 文档产出
 | 文件 | 内容 |
 |------|------|
-| `docs/plans/2026-06-02-full-repair-plan.md` | **全量修复计划**（17 条 4 Phase，含依赖调查结论） |
-| `docs/plans/2026-06-02-audit-repair-plan.md` | 初版修复计划（已被 full-repair-plan 取代） |
+| `docs/archive/plans/2026-06-02-full-repair-plan.md` | **全量修复计划**（17 条 4 Phase，含依赖调查结论） |
+| `docs/archive/plans/2026-06-02-audit-repair-plan.md` | 初版修复计划（已被 full-repair-plan 取代） |
 | `docs/2026-06-02-deep-investigation-report.md` | 原始深度调查报告（20 条，未提交） |
 | `docs/2026-06-02-tech-debt-audit-report.md` | 技术债审计报告（未提交） |
 
@@ -48,7 +48,7 @@
 
 ## Must Preserve
 - 分支 `codex/role-permission-phase2` 上 04a8d19..d15cace 共 16 commits
-- `docs/plans/2026-06-02-full-repair-plan.md` 是全量修复计划的权威文档
+- `docs/archive/plans/2026-06-02-full-repair-plan.md` 是全量修复计划的权威文档
 - 安全修复经 Codex 5 轮审查（R1=3→R2=2→R3=3→R4=1→R5=1），所有 finding 已修复
 
 ## Must Not Change

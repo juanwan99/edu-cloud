@@ -52,7 +52,7 @@ Yuanqi registry/scope/overlap gates for current work.
 - `docs/context/NOW.md` is now a short current-state page. Older runtime and
   governance snapshots must be read from their source docs or git history only
   when explicitly needed.
-- `docs/plans/archived/**` and `docs/superpowers/**` were removed from the
+- `docs/archive/plans/archived/**` and `docs/superpowers/**` were removed from the
   working tree; use git history for explicit historical evidence.
 
 ## Open Follow-Ups

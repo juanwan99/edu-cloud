@@ -69,7 +69,7 @@
 ## 7. 关键证据指针（复核入口）
 
 - 完整报告：`/tmp/edu-deep-investigation-report-20260611.md`（附录含全部命令级证据索引）
-- 状态真源：`docs/context/NOW.md`（06-10 20:42 态）｜`docs/context/ACTIVE_INDEX.md`｜`docs/reviews/2026-06-10-foundation-stability-audit.md`（R-H1..R-L6）｜`docs/plans/2026-06-07-phase09-portal-unlock-decision.md`（C1/C2/C3+签发口径）｜`docs/plans/2026-06-10-db-migration-design.md`（runbook+回滚点）
+- 状态真源：`docs/context/NOW.md`（06-10 20:42 态）｜`docs/context/ACTIVE_INDEX.md`｜`docs/reviews/2026-06-10-foundation-stability-audit.md`（R-H1..R-L6）｜`docs/archive/plans/2026-06-07-phase09-portal-unlock-decision.md`（C1/C2/C3+签发口径）｜`docs/archive/plans/2026-06-10-db-migration-design.md`（runbook+回滚点）
 - 结构债真源：`docs/governance/foundation-boundaries.md`（55 边/30 环、modular monolith first、AI 工具 exam 46、权限 16 vs 11）｜`docs/governance/module-semantics.yaml`（known_drift=1）
-- 机器真源：`legacy receipt log`（92 条，空窗边界 06-07 14:40 PASS@3688f32）｜`docs/plans/2026-06-04-module-governance-repair-gates.json`（两 gate pass）
+- 机器真源：`legacy receipt log`（92 条，空窗边界 06-07 14:40 PASS@3688f32）｜`docs/archive/plans/2026-06-04-module-governance-repair-gates.json`（两 gate pass）
 - 本轮统计命令：`git log --since=2026-06-05`（59 提交分类/按日）｜`git log 3688f32..HEAD`（13 提交分解）｜receipt verdict 统计（64/7/10/11）

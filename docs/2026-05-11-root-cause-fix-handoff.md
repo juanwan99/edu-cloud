@@ -122,6 +122,6 @@ validate_transition("grading_task", "completed", "pending")   # raises StateErro
 ## 参考文档
 
 - 审查报告: `docs/2026-05-11-full-audit-report.md`（含跟踪清单）
-- 修复计划: `docs/plans/2026-05-11-root-cause-fix-plan.md`
+- 修复计划: `docs/archive/plans/2026-05-11-root-cause-fix-plan.md`
 - GPT 交叉审查: codex thread `019e15e7-c7ac-79a3-89af-025d488523a8`
 - GPT 策略讨论: codex thread `019e1605-d746-72b1-bece-7589805e2d5f`

@@ -1,6 +1,6 @@
 # exam-ai → edu-cloud takeover index
 
-> 本文档由 2026-04-24 edu-deep-scan 任务（`docs/plans/2026-04-24-edu-deep-scan-design.md`）产出。
+> 本文档由 2026-04-24 edu-deep-scan 任务（`docs/archive/plans/2026-04-24-edu-deep-scan-design.md`）产出。
 > 用户裁定 2026-04-25：`answer-card-editor` 最终整合进 **edu-cloud**（继承原 exam-ai 目标）；前端战略选 **迁移路线**（element-plus 替换 naive-ui，`frontend/` 退役）。
 
 ## 1. 简介
@@ -63,4 +63,4 @@ paper-seg 保持 8001；answer-card-editor 保持 8200。
 - `~/projects/edu-cloud/CLAUDE.md` §exam-ai 兼容端点（L677-692）
 - `~/projects/paper-seg/CLAUDE.md` §与 edu-cloud 的接口（/api 兼容层）
 - `~/projects/answer-card-editor/CLAUDE.md` §关联项目
-- `~/projects/edu-cloud/docs/plans/2026-04-24-edu-deep-scan-design.md` — 深度扫描 design（含 §13 codex 反馈 + §14 修正 + §15 用户裁定）
+- `~/projects/edu-cloud/docs/archive/plans/2026-04-24-edu-deep-scan-design.md` — 深度扫描 design（含 §13 codex 反馈 + §14 修正 + §15 用户裁定）

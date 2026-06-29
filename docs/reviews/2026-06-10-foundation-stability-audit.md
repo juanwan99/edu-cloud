@@ -13,7 +13,7 @@
 | 分支 / HEAD | `feat/module-governance-repair` / `c26379d`（working tree clean，upstream: none） |
 | 审计方法 | 主会话执行合同 9 项 required evidence 命令 + 6 维并行只读深挖（7 个子代理）+ 完整性批判抽查 |
 | 只读边界 | 未改 src/frontend/tests/alembic/scripts/DB/构建产物；未跑 migration/systemctl 变更/kill/build/deploy；未 commit/push |
-| 上游裁定 | `docs/plans/2026-06-07-phase08-acceptance-decision.md`（Phase 0.8 验收）、`docs/plans/2026-06-07-phase09-portal-unlock-decision.md`（Phase 0.9 CONDITIONAL UNLOCK） |
+| 上游裁定 | `docs/archive/plans/2026-06-07-phase08-acceptance-decision.md`（Phase 0.8 验收）、`docs/archive/plans/2026-06-07-phase09-portal-unlock-decision.md`（Phase 0.9 CONDITIONAL UNLOCK） |
 
 ## 摘要结论（TL;DR）
 
@@ -34,7 +34,7 @@
 ### 1.2 Phase 0.8 验收与 Phase 0.9 裁定（2026-06-07）
 
 - **Phase 0.8**（`56ccd03`）：源码地基 PASS（codex-review 对 `3688f32` 判 PASS/0 finding，receipt 绑定），但运行态两红（DB schema drift + truthline 未对齐）→ Portal **BLOCKED**，留 3 项待设计者裁定。
-- **Phase 0.9**（`a478b34`）：设计者（sid:a4e5781a）裁决 **Portal Phase 1 = CONDITIONAL UNLOCK**——解锁裁定成立，但实现开工被三条件硬门控：①DB doctor 红→绿 ②部署/运行态 hash 对齐 HEAD ③线上验证 module gating / portal services fail-closed；另有隐含第四前置：设计者开工签署（"executor does not self-unlock"，`docs/plans/2026-06-10-db-migration-design.md` Q5）。第一刀范围锁定：前端聚合首页 + 消费现有 `/api/v1/portal/*` 5 端点 + 服务卡片按 `moduleGateFromAuth` 门控；地基语义冻结（禁改 `DEFAULT_ENABLED` / module middleware / authGuard / module-semantics）。
+- **Phase 0.9**（`a478b34`）：设计者（sid:a4e5781a）裁决 **Portal Phase 1 = CONDITIONAL UNLOCK**——解锁裁定成立，但实现开工被三条件硬门控：①DB doctor 红→绿 ②部署/运行态 hash 对齐 HEAD ③线上验证 module gating / portal services fail-closed；另有隐含第四前置：设计者开工签署（"executor does not self-unlock"，`docs/archive/plans/2026-06-10-db-migration-design.md` Q5）。第一刀范围锁定：前端聚合首页 + 消费现有 `/api/v1/portal/*` 5 端点 + 服务卡片按 `moduleGateFromAuth` 门控；地基语义冻结（禁改 `DEFAULT_ENABLED` / module middleware / authGuard / module-semantics）。
 
 ### 1.3 R1 运行态清账（2026-06-10）
 
