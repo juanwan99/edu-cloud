@@ -1,36 +1,35 @@
 ---
 title: NOW
 owner: liang
-last_review_date: "2026-06-28"
+last_review_date: "2026-06-29"
 expiration_in_days: 7
 ---
 
 # NOW
 
-Last refreshed: 2026-06-29 07:30 Asia/Shanghai
+Last refreshed: 2026-06-29 08:05 Asia/Shanghai
 
 **Mainline goal (fixed):** complete the edu-cloud foundation so later module
 owners can develop in parallel without cross-module contamination.
 
 **Current phase goal (Keel document lifecycle):** make active documentation
-small, indexed, owner-tagged, and review-dated so Codex and Claude do not treat
-historical plans as current truth.
+small, indexed, owner-tagged, review-dated, and scheduled for stale review so
+Codex and Claude do not treat historical plans as current truth.
 
-**Fresh state (2026-06-29 07:30):** working tree branch
-`keel/doc-lifecycle-2026-06-29` is based on `origin/master` after PR #34
-(`744619308a63da2b1e1dc891e011ff2e6c9dcf10`). This work owns one new Keel scope,
-`keel-doc-lifecycle-2026-06-29`.
+**Fresh state (2026-06-29 08:05):** PR #35 merged the active-doc index and
+frontmatter gate at `53eeba7264f553f5055a70da82568104f3653328`. Current working
+tree branch `keel/doc-stale-sweep-2026-06-29` is based on that master and owns
+one new Keel scope, `keel-doc-stale-sweep-2026-06-29`.
 
-**Current implementation direction:** shrink `docs/context/ACTIVE_INDEX.md` to
-the active context set, point `AGENTS.md` and `CLAUDE.md` at that index, add
-frontmatter metadata to active context docs, and wire a PR-time
-`giantswarm/frontmatter-validator` check for changed active docs only.
+**Current implementation direction:** add a scheduled Tier A stale-doc sweep
+that opens or updates a single `doc-stale` issue when active docs are past
+`last_review_date + expiration_in_days`. It must not delete or archive docs.
 
-**Current open items:** scheduled stale-doc issue creation and
-`fiberplane/drift` pilots remain follow-up work after this PR proves the active
-surface is clean. Production runtime, ECS services, DB state, and public URL
-facts were not reverified in this document-lifecycle window; older runtime facts
-below are historical snapshots until live commands refresh them.
+**Current open items:** Tier B git-age `doc-maybe-stale` checks and
+`fiberplane/drift` pilots remain follow-up work after the Tier A issue workflow
+proves quiet. Production runtime, ECS services, DB state, and public URL facts
+were not reverified in this document-lifecycle window; older runtime facts below
+are historical snapshots until live commands refresh them.
 
 Older dated sections below are retained as historical snapshots unless a newer
 dated paragraph explicitly supersedes them.
