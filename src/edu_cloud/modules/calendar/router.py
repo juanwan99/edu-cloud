@@ -47,6 +47,8 @@ async def list_events(
 ):
     start_date = _parse_query_date(start, "start") if start else None
     end_date = _parse_query_date(end, "end") if end else None
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(422, "Invalid date range: start must be on or before end")
     role = current["current_role"]
     svc = CalendarService(db)
     events = await svc.list_events(

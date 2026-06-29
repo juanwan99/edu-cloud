@@ -1,9 +1,12 @@
+import asyncio
 from datetime import date
 
+from fastapi import HTTPException
 import pytest
 from sqlalchemy import select
 
 from edu_cloud.models.user_role import UserRole
+from edu_cloud.modules.calendar import router as calendar_router
 from edu_cloud.modules.calendar.service import CalendarService
 from edu_cloud.services.exceptions import PermissionDeniedError
 
@@ -98,6 +101,39 @@ async def test_list_events_invalid_end_returns_422(client, teacher_headers):
         headers=teacher_headers,
     )
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_list_events_start_after_end_returns_422(client, teacher_headers):
+    resp = await client.get(
+        "/api/v1/calendar/events?start=2026-08-02&end=2026-08-01",
+        headers=teacher_headers,
+    )
+    assert resp.status_code == 422
+
+
+def test_list_events_rejects_reversed_range_before_service(monkeypatch):
+    class Role:
+        school_id = "s1"
+
+    class UnexpectedCalendarService:
+        def __init__(self, db):
+            raise AssertionError("CalendarService should not be created")
+
+    monkeypatch.setattr(calendar_router, "CalendarService", UnexpectedCalendarService)
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            calendar_router.list_events(
+                start="2026-08-02",
+                end="2026-08-01",
+                current={"current_role": Role()},
+                db=None,
+            )
+        )
+
+    assert exc.value.status_code == 422
+    assert "start must be on or before end" in exc.value.detail
 
 
 @pytest.mark.asyncio
