@@ -1,7 +1,7 @@
 ---
 title: Parallel Development Policy
 owner: liang
-last_review_date: "2026-06-28"
+last_review_date: "2026-06-29"
 expiration_in_days: 30
 ---
 
@@ -63,6 +63,18 @@ Before launching another mutating window:
 Do not start mutating work when the mode or scope is unclear. Re-anchor with
 the user instead.
 
+Codex Dispatch Review is mandatory before launching:
+
+- two or more mutating workers;
+- deletion or retirement work;
+- `.github/**`, `control/**`, `docs/context/**`, `scripts/governance/**`, or
+  `tests/governance/**` changes;
+- runtime, deploy, auth, permission, DB, or module-boundary changes.
+
+The review decides whether work may run in parallel. If tasks share files,
+depend on each other, or change the same governance contract, use one integrator
+or strictly ordered PRs instead of parallel worker PRs.
+
 ## Integration Rules
 
 - One integrator owns final merge/push for a batch.
@@ -71,6 +83,8 @@ the user instead.
   and out-of-scope residue.
 - Parallel workers do not declare feature completion; completion requires
   evidence accepted by Codex/user and GitHub gates.
+- Deletion workers must report reachability evidence across scripts, tests,
+  workflows, active docs, and governance registries before removing files.
 
 ## Practical Default
 

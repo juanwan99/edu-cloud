@@ -1,7 +1,7 @@
 ---
 title: Claude Entry
 owner: liang
-last_review_date: "2026-06-28"
+last_review_date: "2026-06-29"
 expiration_in_days: 30
 ---
 
@@ -22,6 +22,11 @@ edu-cloud uses Keel:
 3. `Steward-Scope: <scope_id>` in the PR body.
 4. GitHub required checks, CODEOWNERS, and human review decide merge readiness.
 
+Before starting multi-worker, deletion/retirement, governance, central-context,
+or protected-path work, request Codex Dispatch Review. Do not split or launch
+mutating workers until that review defines task order, scope ids, allowed paths,
+forbidden paths, and verification commands.
+
 ## Retired Material
 
 The old Yuanqi task-contract layer, superpowers plans/specs, archived plan tree,
@@ -35,3 +40,6 @@ deleted historical documents must not be treated as current instructions.
 Read current source files and current indexed docs before acting. Do not revive
 retired paths, old Windows-era handoffs, or deleted planning systems as active
 policy.
+
+Do not open a PR with `Steward-Scope: REQUIRED`; replace it with the exact active
+scope id and include the matching fresh scope file in the PR diff.
