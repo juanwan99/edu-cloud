@@ -10,6 +10,7 @@ from pathlib import Path
 import yaml
 
 from scripts.governance.steward_scope_gate import (
+    _looks_like_name_status,
     resolve_scope_id,
     scope_check,
     validate_scope,
@@ -22,7 +23,7 @@ def _scope(**overrides):
         "scope_id": "demo",
         "owner": "codex",
         "allowed_paths": ["docs/governance/", "scripts/governance/steward_scope_gate.py"],
-        "forbidden_paths": [".yuanqi/"],
+        "forbidden_paths": [".yuanqi/", "scripts/yuanqi/", "tests/yuanqi/"],
         "compatibility_paths": [],
         "status": "active",
         "created_at": "2026-06-28T00:00:00+08:00",
@@ -91,10 +92,45 @@ def test_allowed_paths_rejects_legacy_yuanqi_path():
     assert "allowed_paths must not contain legacy Yuanqi path: .yuanqi/tasks/demo.yml" in errors
 
 
+def test_allowed_paths_rejects_legacy_yuanqi_script_path():
+    errors = validate_scope(_scope(allowed_paths=["scripts/yuanqi/check.py"]))
+
+    assert "allowed_paths must not contain legacy Yuanqi path: scripts/yuanqi/check.py" in errors
+
+
+def test_forbidden_paths_must_include_legacy_yuanqi_paths():
+    errors = validate_scope(_scope(forbidden_paths=[".yuanqi/"]))
+
+    assert "forbidden_paths must contain legacy Yuanqi path: scripts/yuanqi/" in errors
+    assert "forbidden_paths must contain legacy Yuanqi path: tests/yuanqi/" in errors
+
+
 def test_allowed_paths_has_small_count_limit():
     errors = validate_scope(_scope(allowed_paths=[f"docs/path-{i}.md" for i in range(21)]))
 
     assert "allowed_paths must contain at most 20 entries" in errors
+
+
+def test_owner_must_be_known():
+    errors = validate_scope(_scope(owner="mallory"))
+
+    assert "owner must be one of: claude, codex, liang" in errors
+
+
+def test_active_scope_rejects_expired_expires_at():
+    errors = validate_scope(_scope(expires_at="2020-01-01T00:00:00+00:00"))
+
+    assert "active scope expires_at must be in the future" in errors
+
+
+def test_scope_rejects_invalid_expires_at():
+    errors = validate_scope(_scope(expires_at="not-a-date"))
+
+    assert "expires_at must be an ISO 8601 datetime" in errors
+
+
+def test_scope_status_parser_rejects_invalid_b_status():
+    assert not _looks_like_name_status("B")
 
 
 def test_cli_rejects_missing_steward_scope(tmp_path: Path):

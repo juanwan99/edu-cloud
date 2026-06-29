@@ -8,6 +8,7 @@ declared scope.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 from fnmatch import fnmatchcase
 import json
 from pathlib import Path
@@ -22,6 +23,7 @@ SCOPE_DECLARATION = re.compile(r"^\ufeff?\s*Steward-Scope:\s*([A-Za-z0-9._-]+)\s
 MISSING_SCOPE_MESSAGE = "PR must declare Steward-Scope: <id>"
 MAX_ALLOWED_PATHS = 20
 VALID_STATUSES = {"active", "closed"}
+VALID_OWNERS = {"codex", "claude", "liang"}
 KNOWN_FIELDS = {
     "schema",
     "scope_id",
@@ -34,6 +36,7 @@ KNOWN_FIELDS = {
     "expires_at",
 }
 FORBIDDEN_ROOT_OR_ESCAPE_PATHS = {"", ".", "*", "**", "/"}
+LEGACY_YUANQI_PATHS = {".yuanqi", "scripts/yuanqi", "tests/yuanqi"}
 
 
 def resolve_scope_id(event_path: str) -> str | None:
@@ -74,6 +77,8 @@ def validate_scope(data: dict, *, filename_stem: str | None = None) -> list[str]
 
     if not _non_empty_string(data.get("owner")):
         errors.append("owner must be a non-empty string")
+    elif data["owner"] not in VALID_OWNERS:
+        errors.append(f"owner must be one of: {', '.join(sorted(VALID_OWNERS))}")
 
     allowed_paths = data.get("allowed_paths")
     if not isinstance(allowed_paths, list):
@@ -88,6 +93,10 @@ def validate_scope(data: dict, *, filename_stem: str | None = None) -> list[str]
         errors.append("forbidden_paths must be a list")
     else:
         errors.extend(_validate_path_list(forbidden_paths, field="forbidden_paths"))
+        normalized_forbidden_paths = set(_normalize_all(forbidden_paths))
+        for required_path in sorted(LEGACY_YUANQI_PATHS):
+            if required_path not in normalized_forbidden_paths:
+                errors.append(f"forbidden_paths must contain legacy Yuanqi path: {required_path}/")
 
     compatibility_paths = data.get("compatibility_paths", [])
     if not isinstance(compatibility_paths, list):
@@ -112,6 +121,14 @@ def validate_scope(data: dict, *, filename_stem: str | None = None) -> list[str]
 
     if not _non_empty_string(data.get("expires_at")):
         errors.append("expires_at must be a non-empty string")
+    else:
+        try:
+            expires_at = _parse_datetime(data["expires_at"])
+        except ValueError:
+            errors.append("expires_at must be an ISO 8601 datetime")
+        else:
+            if data.get("status") == "active" and expires_at <= datetime.now(timezone.utc):
+                errors.append("active scope expires_at must be in the future")
 
     return errors
 
@@ -168,7 +185,7 @@ def _read_changed_entries(path: str) -> list[tuple[str | None, str]]:
 
 
 def _looks_like_name_status(token: str) -> bool:
-    return bool(token) and token[0] in {"A", "C", "D", "M", "R", "T", "U", "X", "B"}
+    return bool(token) and token[0] in {"A", "C", "D", "M", "R", "T", "U", "X"}
 
 
 def _scope_enforced_paths(changed_entries: list[tuple[str | None, str]]) -> list[str]:
@@ -216,7 +233,7 @@ def _looks_like_windows_absolute(path: str) -> bool:
 
 
 def _is_legacy_yuanqi_path(normalized: str) -> bool:
-    return normalized == ".yuanqi" or normalized.startswith(".yuanqi/")
+    return any(normalized == path or normalized.startswith(path + "/") for path in LEGACY_YUANQI_PATHS)
 
 
 def _string_list(value: Any) -> list[str]:
@@ -227,6 +244,13 @@ def _string_list(value: Any) -> list[str]:
 
 def _non_empty_string(value: Any) -> bool:
     return isinstance(value, str) and value.strip() != ""
+
+
+def _parse_datetime(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _dedupe(paths) -> list[str]:

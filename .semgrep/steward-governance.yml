@@ -28,14 +28,18 @@ rules:
   - id: steward.github-continue-on-error
     message: Required checks must not use continue-on-error.
     severity: ERROR
-    languages: [yaml]
-    pattern: "continue-on-error: true"
+    languages: [generic]
+    pattern-regex: '(?m)^\s*-?\s*continue-on-error\s*:[^\S\r\n]*(?!(?:false|False|FALSE)\s*(?:#.*)?$)\S.*$'
 
   - id: steward.shell-ignore-failure
-    message: Do not use command || true in governed scripts.
+    message: Do not mask command failures in governed scripts.
     severity: ERROR
     languages: [generic]
-    pattern: "|| true"
+    pattern-either:
+      - pattern-regex: '\|\|\s*true\b'
+      - pattern-regex: '\|\|\s*:($|\s)'
+      - pattern-regex: '\|\|\s*exit\s+0\b'
+      - pattern-regex: '(^|\s)set\s+\+e($|\s)'
 
   - id: steward.pytest-skip
     message: New skipped tests require explicit governance review.

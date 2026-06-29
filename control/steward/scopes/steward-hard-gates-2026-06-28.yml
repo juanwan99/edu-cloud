@@ -17,6 +17,8 @@ allowed_paths:
   - tests/governance/test_steward_scope_gate.py
 forbidden_paths:
   - .yuanqi/
+  - scripts/yuanqi/
+  - tests/yuanqi/
   - cases/
   - reports/
 compatibility_paths: []
