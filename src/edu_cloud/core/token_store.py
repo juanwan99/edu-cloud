@@ -1,7 +1,7 @@
 """Token revocation store backed by Redis.
 
 Revoked JTIs are stored in a Redis SET with TTL matching token expiry.
-Fail-open: if Redis is unavailable, revocation checks are skipped.
+Production revocation checks fail closed if Redis is unavailable.
 """
 import logging
 from edu_cloud.config import settings
@@ -9,6 +9,11 @@ from edu_cloud.config import settings
 logger = logging.getLogger(__name__)
 
 _REVOKE_PREFIX = "revoked_jti:"
+
+
+def revocation_checks_fail_closed() -> bool:
+    """Production must not accept tokens when revocation state is unknown."""
+    return settings.ENVIRONMENT.strip().lower() == "production"
 
 
 async def _get_redis():
@@ -40,15 +45,26 @@ async def revoke_token(jti: str, ttl_seconds: int | None = None) -> bool:
 
 
 async def is_revoked(jti: str) -> bool:
-    """Check if a JTI has been revoked. Fail-open on Redis errors."""
+    """Check if a JTI has been revoked.
+
+    Development/test keeps the previous explicit fail-open behavior so local
+    work is not hard-blocked by Redis. Production fails closed: when revocation
+    state is unknown, the token is treated as revoked.
+    """
     r = await _get_redis()
     if r is None:
-        logger.warning("is_revoked: Redis unavailable, fail-open (jti=%s)", jti)
+        if revocation_checks_fail_closed():
+            logger.error("is_revoked: Redis unavailable, fail-closed (jti=%s)", jti)
+            return True
+        logger.warning("is_revoked: Redis unavailable, fail-open outside production (jti=%s)", jti)
         return False
     try:
         return await r.exists(f"{_REVOKE_PREFIX}{jti}") > 0
     except Exception as e:
-        logger.warning("is_revoked: Redis error, fail-open: %s (jti=%s)", e, jti)
+        if revocation_checks_fail_closed():
+            logger.error("is_revoked: Redis error, fail-closed: %s (jti=%s)", e, jti)
+            return True
+        logger.warning("is_revoked: Redis error, fail-open outside production: %s (jti=%s)", e, jti)
         return False
     finally:
         await r.aclose()

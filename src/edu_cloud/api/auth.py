@@ -195,15 +195,22 @@ async def switch_role(
 @router.post("/logout")
 async def logout(request: Request, current: dict = Depends(get_current_user)):
     """Revoke the current token."""
-    from edu_cloud.core.token_store import revoke_token
+    from edu_cloud.core.token_store import revoke_token, revocation_checks_fail_closed
     auth = request.headers.get("authorization", "")
     if auth.startswith("Bearer "):
         try:
             payload = decode_token(auth[7:])
             jti = payload.get("jti")
             if jti:
-                await revoke_token(jti)
+                revoked = await revoke_token(jti)
+                if not revoked and revocation_checks_fail_closed():
+                    logger.warning("logout: token revoke unavailable in fail-closed mode")
+                    raise HTTPException(503, "Token revocation unavailable")
                 return {"ok": True}
         except Exception as e:
+            if isinstance(e, HTTPException):
+                raise
             logger.warning("logout: token revoke failed: %s", e)
+            if revocation_checks_fail_closed():
+                raise HTTPException(503, "Token revocation unavailable")
     return {"ok": True}
