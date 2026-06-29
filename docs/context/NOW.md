@@ -75,7 +75,6 @@ gh pr list --repo juanwan99/edu-cloud --state open
 gh run list --repo juanwan99/edu-cloud --branch master --limit 5
 scripts/codex-check
 scripts/codex-context --no-network
-scripts/meta-check --json --strict --task "current user task"
 scripts/codex-verify safety --repo-wide
 ```
 

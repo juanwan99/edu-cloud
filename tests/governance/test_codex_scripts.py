@@ -17,8 +17,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def run_script(name: str, *args: str) -> subprocess.CompletedProcess[str]:
+    script = PROJECT_ROOT / "scripts" / name
+    command = [str(script), *args]
+    if os.name == "nt" and script.suffix != ".sh":
+        command = [sys.executable, str(script), *args]
     return subprocess.run(
-        [str(PROJECT_ROOT / "scripts" / name), *args],
+        command,
         cwd=PROJECT_ROOT,
         capture_output=True,
         text=True,
@@ -101,7 +105,7 @@ def test_control_governance_policy_is_present_and_conservative():
     assert not (high_risk & low_risk)
 
 
-def test_codex_context_no_network_outputs_project_sections():
+def legacy_codex_context_no_network_outputs_project_sections():
     result = run_script("codex-context", "--no-network")
 
     assert result.returncode == 0, result.stderr
@@ -122,7 +126,7 @@ def test_codex_context_no_network_outputs_project_sections():
     assert "Verification Baseline" in result.stdout
 
 
-def test_dual_core_governance_model_is_active_context():
+def legacy_dual_core_governance_model_is_active_context():
     model = PROJECT_ROOT / "docs" / "context" / "GOVERNANCE_MODEL.md"
     active_index = PROJECT_ROOT / "docs" / "context" / "ACTIVE_INDEX.md"
     agents = PROJECT_ROOT / "AGENTS.md"
@@ -174,7 +178,7 @@ def test_dual_core_responsibilities_are_formally_scoped():
             assert term in text
 
 
-def test_legacy_governance_name_has_no_old_active_doc_aliases():
+def legacy_governance_name_has_no_old_active_doc_aliases():
     active_docs = [
         PROJECT_ROOT / "AGENTS.md",
         PROJECT_ROOT / "docs" / "context" / "GOVERNANCE_MODEL.md",
@@ -189,6 +193,60 @@ def test_legacy_governance_name_has_no_old_active_doc_aliases():
         assert "双核治理" in normalized or path.name == "SAFETY_MATRIX.md"
         assert "EduCloud Dual-Core Control Plane" not in normalized
         assert "Dual-Core Control Plane" not in normalized
+        assert "ECP-DualCore" not in normalized
+
+
+def test_codex_context_no_network_outputs_current_keel_sections():
+    result = run_script("codex-context", "--no-network")
+
+    assert result.returncode == 0, result.stderr
+    assert "Codex Context" in result.stdout
+    assert "Keel Dual-Core Governance" in result.stdout
+    assert "Meta Core" in result.stdout
+    assert "Guardian Core" in result.stdout
+    assert "Claude read-only counter-review" in result.stdout
+    assert "frontend/backend build-runtime consistency" in result.stdout
+    assert "Git" in result.stdout
+    assert "Dirty Summary" in result.stdout
+    assert "Guardian Health" in result.stdout
+    assert "Verification Baseline" in result.stdout
+    assert "Meta Runtime Advisory" not in result.stdout
+    assert "Guardian Runtime Advisory" not in result.stdout
+
+
+def test_keel_governance_model_has_no_active_runtime_contracts():
+    model_text = (PROJECT_ROOT / "docs" / "context" / "GOVERNANCE_MODEL.md").read_text(encoding="utf-8")
+    active_text = (PROJECT_ROOT / "docs" / "context" / "ACTIVE_INDEX.md").read_text(encoding="utf-8")
+    agents_text = (PROJECT_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+
+    active_section = active_text.split("## Active", 1)[1].split("## Candidate Active Work", 1)[0]
+
+    assert "Keel Governance Model" in model_text
+    assert "Meta Core" in model_text
+    assert "Guardian Core" in model_text
+    assert "Historical Runtime Layer" in model_text
+    assert "docs/context/GOVERNANCE_MODEL.md" in active_section
+    assert "docs/context/META_RUNTIME.md" not in active_section
+    assert "docs/context/GUARDIAN_RUNTIME.md" not in active_section
+    assert "dual-core responsibility split" in agents_text
+    assert "Meta Core" in agents_text
+    assert "Guardian Core" in agents_text
+
+
+def test_active_docs_do_not_revive_legacy_governance_aliases():
+    active_docs = [
+        PROJECT_ROOT / "AGENTS.md",
+        PROJECT_ROOT / "docs" / "context" / "GOVERNANCE_MODEL.md",
+        PROJECT_ROOT / "docs" / "context" / "NOW.md",
+        PROJECT_ROOT / "docs" / "context" / "ACTIVE_INDEX.md",
+        PROJECT_ROOT / "docs" / "context" / "COMMANDS.md",
+        PROJECT_ROOT / "docs" / "context" / "SAFETY_MATRIX.md",
+    ]
+
+    for path in active_docs:
+        normalized = " ".join(path.read_text(encoding="utf-8").split())
+        assert "Keel" in normalized
+        assert "EduCloud Dual-Core Control Plane" not in normalized
         assert "ECP-DualCore" not in normalized
 
 
@@ -1090,7 +1148,7 @@ def test_meta_check_fail_on_blocking_flag_is_wired_into_cli():
     assert payload["schema"] == "meta.core.v1"
 
 
-def test_meta_runtime_contract_and_lessons_are_active():
+def legacy_meta_runtime_contract_and_lessons_are_active():
     lessons = (PROJECT_ROOT / "docs" / "context" / "LESSONS.md").read_text(encoding="utf-8")
     commands = (PROJECT_ROOT / "docs" / "context" / "COMMANDS.md").read_text(encoding="utf-8")
     model = (PROJECT_ROOT / "docs" / "context" / "GOVERNANCE_MODEL.md").read_text(encoding="utf-8")
@@ -1099,6 +1157,19 @@ def test_meta_runtime_contract_and_lessons_are_active():
         assert lesson in lessons
     assert "scripts/meta-check" in commands
     assert "docs/context/META_RUNTIME.md" in model
+
+
+def test_meta_lessons_are_carried_by_current_keel_docs():
+    lessons = (PROJECT_ROOT / "docs" / "context" / "LESSONS.md").read_text(encoding="utf-8")
+    commands = (PROJECT_ROOT / "docs" / "context" / "COMMANDS.md").read_text(encoding="utf-8")
+    model = (PROJECT_ROOT / "docs" / "context" / "GOVERNANCE_MODEL.md").read_text(encoding="utf-8")
+
+    for lesson in ("L017", "L019", "L022"):
+        assert lesson in lessons
+    assert "scripts/meta-check" not in commands
+    assert "Historical Runtime Layer" in model
+    assert "docs/context/META_RUNTIME.md" in model
+    assert "not active Keel startup requirements" in model
 
 
 def test_frontend_dev_server_binds_loopback_by_default():
@@ -1440,19 +1511,19 @@ def test_truth_doctor_json_does_not_flag_active_systemd_main_pid_as_ghost():
 def test_safety_matrix_has_numbered_dual_core_rules():
     text = (PROJECT_ROOT / "docs" / "context" / "SAFETY_MATRIX.md").read_text(encoding="utf-8")
 
-    assert "| ID | Risk | Source | Current Defense | Completion Evidence | Gap |" in text
+    assert "| ID | Risk | Current Defense | Completion Evidence | Gap |" in text
     for rule_id in ("S-001", "S-002", "S-011", "S-012", "S-013"):
         assert rule_id in text
-    assert "Fix-loop" in text
-    assert "Evidence-less decisions" in text
-    assert "Existing asset bypass" in text
+    assert "Completion without evidence" in text
+    assert "Artifact noise or backups tracked" in text
+    assert "Parallel work conflicts" in text
 
 
 def test_codex_verify_full_schema_dry_run_lists_schema_gate_once():
     result = run_script("codex-verify", "full", "--dry-run", "--schema", "--no-network", "--allow-dirty-build")
 
     assert result.returncode == 0
-    assert "scripts/meta-check --fail-on-blocking" in result.stdout
+    assert "scripts/meta-check --fail-on-blocking" not in result.stdout
     assert "scripts/meta-check --strict" not in result.stdout
     assert result.stdout.count("scripts/db_doctor.py --strict") == 1
     assert "scripts/pytest_delta.py" in result.stdout
@@ -1479,11 +1550,11 @@ def test_ci_governance_job_runs_codex_smoke_checks():
 
     assert "governance:" in text
     for command in (
-        "python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-verify scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker",
+        "python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-verify scripts/run-arq-worker",
         "python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_execution_policy.py scripts/governance/check_legacy_quarantine.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py scripts/governance/steward_scope_gate.py",
         "python scripts/governance/check_execution_policy.py",
         "python -m pytest tests/governance/test_codex_scripts.py -q",
-        "python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_execution_policy.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_steward_scope_gate.py tests/governance/test_tenant_static.py -q",
+        "python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_doc_pollution.py tests/governance/test_execution_policy.py tests/governance/test_legacy_quarantine.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_steward_scope_gate.py tests/governance/test_tenant_static.py -q",
         "python scripts/governance/aggregate_modules.py --check",
         "python scripts/governance/check_ai_tool_modules.py",
         "python scripts/governance/check_module_dependencies.py --check",
@@ -1808,7 +1879,7 @@ def test_collect_meta_runtime_state_marks_stale_snapshot(monkeypatch, tmp_path):
     assert fresh["stale"] is False
 
 
-def test_codex_context_labels_meta_runtime_freshness():
+def legacy_codex_context_labels_meta_runtime_freshness():
     result = run_script("codex-context", "--no-network")
     assert result.returncode == 0, result.stderr
     meta_section = result.stdout.split("Meta Runtime", 1)[1].split("Guardian Health", 1)[0]
@@ -1817,6 +1888,14 @@ def test_codex_context_labels_meta_runtime_freshness():
         # freshness verdict, never as bare current truth.
         assert " ago, " in meta_section
         assert ("fresh" in meta_section) or ("STALE" in meta_section)
+
+
+def test_codex_context_marks_runtime_caches_as_legacy():
+    result = run_script("codex-context", "--no-network")
+    assert result.returncode == 0, result.stderr
+    assert "legacy_runtime:" in result.stdout
+    assert "not startup requirements" in result.stdout
+    assert "Meta Runtime Advisory" not in result.stdout
 
 
 def test_truth_status_treats_docs_only_drift_as_aligned(tmp_path):

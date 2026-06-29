@@ -1,13 +1,15 @@
 ---
-title: Meta Runtime
+title: Historical Meta Runtime
 owner: liang
-last_review_date: "2026-06-28"
+last_review_date: "2026-06-29"
 expiration_in_days: 30
 ---
 
-# Meta Runtime
+# Historical Meta Runtime
 
-This is the active runtime contract for Meta Core / 元控核 inside 双核治理.
+This document is historical/advisory. It is not an active Keel startup
+requirement, merge gate, or completion authority. Current instructions live in
+`AGENTS.md`, `docs/context/ACTIVE_INDEX.md`, and the active Keel scope.
 
 ## Evidence Basis
 
@@ -123,15 +125,9 @@ Completion is accepted from the external/current authority chain:
 diagnostics. They can carry obligations and drift context, but persisted state is
 not a trust baseline and is not sufficient completion authority.
 
-`scripts/meta-check --fail-on-blocking` remains a local signal for
-blocking Meta issues; it does not replace the required check plus CODEOWNERS
-approval chain.
+Historically, the Meta runtime had a local blocking-signal mode. Current Keel
+startup and completion do not run it by default.
 
-For Meta runtime changes, attach current diagnostic output such as:
-
-```bash
-.venv/bin/python -m pytest tests/governance/test_codex_scripts.py -q
-scripts/meta-check --json --fail-on-blocking   # local/manual blocking gate
-scripts/codex-context --no-network
-scripts/codex-verify safety --repo-wide
-```
+If a future scope explicitly modifies this historical runtime, it must define
+fresh verification in that scope instead of relying on this archived command
+list.

@@ -1,197 +1,49 @@
 ---
 title: Command Manual
 owner: liang
-last_review_date: "2026-06-28"
+last_review_date: "2026-06-29"
 expiration_in_days: 30
 ---
 
 # Command Manual
 
-Authoritative command reference for Codex work in `edu-cloud`.
+Authoritative command reference for current Codex work in `edu-cloud`.
 
 ## Start Of Work
 
 ```bash
-cd /home/ops/projects/edu-cloud
 scripts/codex-check
-scripts/meta-check --task "current user task" --write-state
 scripts/codex-context --no-network
 git status --short --branch
 ```
 
-`codex-check` is read-only. Default mode reports risks and exits 0. Use `--strict` when a non-zero exit is wanted for automation.
+`scripts/codex-check` and `scripts/codex-context` are read-only. They do not
+replace reading the relevant source files before editing.
 
-`scripts/codex-context` prints the 双核治理 summary:
-Meta Core / 元控核 covers direction, facts, task boundaries, context, Claude
-read-only counter-review, and the completion evidence contract. Guardian Core /
-守护核 covers dirty state, truthline, DB/migration gates, safety scanning,
-frontend/backend build-runtime consistency, and environment hygiene.
-
-The `Meta Runtime` section reads the persisted `logs/meta-state.json` snapshot.
-Because that file is a point-in-time record (not a live daemon), codex-context
-shows its age and a freshness verdict; a snapshot older than one hour is labelled
-`STALE — point-in-time snapshot, not current truth` and its `overall` is never
-presented as the current verdict. Run `scripts/meta-check` to refresh it.
-
-## Meta Runtime
-
-One-shot task-contract check:
+## Keel PR Flow
 
 ```bash
-scripts/meta-check --task "current user task"
-scripts/meta-check --json --task "current user task"
+git switch -c keel/<short-task>-YYYY-MM-DD
+# create control/steward/scopes/<scope_id>.yml
+# keep changed files inside allowed_paths
+# include this exact marker in the PR body:
+Steward-Scope: <scope_id>
 ```
 
-Write the latest task-contract state for `scripts/codex-context`:
+After merge, close the same scope with a closeout-only PR that changes only
+`status: active` to `status: closed`.
+
+## Local Safety
 
 ```bash
-scripts/meta-check --task "current user task" --write-state
+scripts/codex-verify safety
+scripts/codex-verify safety --repo-wide
 ```
 
-Exit gates:
-
-```bash
-# Legacy strict (local/dev): any non-green snapshot exits non-zero,
-# including a non-blocking yellow such as a stale-but-recent NOW.md.
-scripts/meta-check --strict --task "current user task"
-
-# Blocking-only gate (local/manual): exit non-zero only for red or blocks_completion issues;
-# a non-blocking yellow exits zero. Used by codex-verify full (local only, not in CI since PR#18).
-scripts/meta-check --json --fail-on-blocking
-```
-
-Deep checks for long-running or design-heavy work:
-
-```bash
-scripts/meta-check --task "current user task" --write-state
-scripts/meta-check --task "current user task" --check-drift --baseline-state logs/meta-state.json
-scripts/meta-check --check-recent-plans
-```
-
-`scripts/meta-check` emits `meta.core.v1`. It checks active-context documents,
-`NOW.md` freshness, migrated Meta lessons, Meta runtime registration, Claude
-read-only boundaries, changed and recent plan/design/handoff evidence sections,
-baseline task-contract drift, and task obligations inferred from the current
-user instruction. It is synchronous and advisory: it may block completion when
-red issues exist, but it does not edit files, run migrations, build, deploy, or
-declare completion.
-
-## Truthline
-
-```bash
-scripts/truth status
-scripts/truth doctor
-scripts/truth doctor --json
-scripts/truth-status.sh /home/ops/projects/edu-cloud
-scripts/truth-doctor.sh /home/ops/projects/edu-cloud
-```
-
-`truth status` checks source -> build -> nginx -> backend alignment. `truth doctor` checks ports, ghost processes, dist permissions, systemd state, real Claude CLI session count, and DB schema drift.
-`truth doctor --json` emits Guardian Core issue/action data with schema
-`guardian.doctor.v1`.
-
-`scripts/truth-status.sh` exits 0 only when the diagnosis is aligned. Any
-`BROKEN AT:` diagnosis exits non-zero and must block completion evidence. A
-deployed hash that trails HEAD by **docs/governance-only** commits is not a
-break: Build/Nginx/Backend print a yellow `docs/governance-only` warning and the
-diagnosis reports `FUNCTIONALLY ALIGNED — deployed runtime trails HEAD only by
-docs/governance/test/observability commits` (exit 0). The literal `ALL ALIGNED`
-line is reserved for an exact hash match, so the diagnosis never overstates
-equality. A real source/build-input/dependency/deploy change (or an unresolvable
-hash) still reports `BROKEN AT:` and exits non-zero. The Claude session check counts only genuine Claude Code CLI processes,
-not commands that merely reference a `.claude` path or a `*-claude` wrapper.
-See `docs/context/GUARDIAN_RUNTIME.md` for the drift-classification rule.
-
-## Guardian Runtime
-
-One-shot local inspection:
-
-```bash
-scripts/guardian-watch --once --no-network --no-model-review
-scripts/guardian-watch --once --json --no-network --no-model-review
-```
-
-Continuous runtime:
-
-```bash
-scripts/guardian-watch --watch --interval 15 --model-review claude
-```
-
-Optional GPT review requires an explicit read-only local wrapper:
-
-```bash
-scripts/guardian-watch --watch --model-review gpt --model-review-command "path/to/read-only-gpt-review risk"
-```
-
-Systemd install/update path:
-
-```bash
-sudo cp deploy/systemd/edu-cloud-guardian.service /etc/systemd/system/edu-cloud-guardian.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now edu-cloud-guardian.service
-systemctl is-active edu-cloud-guardian.service
-```
-
-The runtime writes `logs/guardian-state.json`, `logs/guardian-watch.jsonl`, and
-rate-limited `logs/guardian-model-review-*.txt` reports. These are runtime logs
-and are intentionally ignored by git.
-
-Boundary:
-
-- It is advisory and continuous.
-- It does not auto-kill services, workers, port listeners, or Claude sessions.
-- It does not auto-delete DB/WAL/SHM, dirty source files, backups, screenshots,
-  experiment data, `.env`, or `.secrets`.
-- It can schedule Claude only through the read-only
-  `scripts/codex-consult-claude` wrapper.
-- GPT review is supported only through `--model-review-command`; no GPT command
-  is assumed safe by default.
-
-## Frontend
-
-```bash
-cd /home/ops/projects/edu-cloud/frontend
-npm ci --ignore-scripts
-npx vitest run
-npm run lint
-npm run build
-npm audit --audit-level=high
-```
-
-Preferred completion gate (mirrors GitHub Actions frontend job, then checks live
-frontend truthline when network is enabled):
-
-```bash
-cd /home/ops/projects/edu-cloud
-scripts/codex-verify frontend
-```
-
-Post-push release gate:
-
-```bash
-cd /home/ops/projects/edu-cloud
-scripts/codex-verify github-ci --wait
-```
-
-Rules:
-
-- `https://mcu.asia` is the only user-visible frontend verification URL.
-- `localhost:*` is debug-only evidence.
-- `scripts/codex-verify frontend` refuses dirty frontend build inputs by default.
-- `--allow-dirty-build` is only for debug and must not be used for completion claims.
-- `scripts/codex-verify frontend` runs the same command set as the GitHub
-  frontend job: `npm ci --ignore-scripts`, `npx vitest run`, `npm run build`,
-  and `npm audit --audit-level=high`; `npm run build` still invokes the lint
-  prebuild hook.
-- The frontend gate validates local `frontend/dist/version.json` against HEAD
-  and, with network enabled, validates `https://mcu.asia/version.json` against
-  local dist. A hash that trails only docs/governance/test/observability commits
-  is non-blocking and traceable; source/build-input/dependency/deploy drift,
-  unknown refs, or `source_dirty=true` still fail the gate.
-- `scripts/codex-verify github-ci --wait` is required after an authorized push
-  before claiming the branch is release-clean. It binds the GitHub Actions result
-  to the current branch and exact HEAD SHA, so an older green run cannot mask a
-  new red push.
+The safety scan checks changed script files for direct Alembic mutation,
+SQLite-copy shell commands, destructive git cleanup, probable API keys, and
+private key blocks. `--repo-wide` also scans non-ignored repo files for secrets
+and shell-level SQLite copy commands.
 
 ## Backend
 
@@ -204,27 +56,34 @@ Targeted pytest:
 No-new-failures gate:
 
 ```bash
-.venv/bin/python scripts/pytest_delta.py
 scripts/codex-verify backend
 ```
 
-`scripts/codex-verify backend` with no targets runs the **single CI-aligned
-profile** (`CI_BACKEND_PROFILE` in `scripts/codex-verify`), which mirrors the
-`.github/workflows/test.yml` backend job filter. This is the one source of truth
-for the backend completion baseline; do not hard-code pass/fail counts elsewhere.
-
-Pass extra pytest args through `codex-verify backend` after `--`:
+`scripts/codex-verify backend` with no targets runs the CI-aligned backend
+profile from `scripts/codex-verify`. Pass targeted pytest args after `--`:
 
 ```bash
 scripts/codex-verify backend -- tests/test_api/test_health.py -q
 ```
 
-Known failures baseline (the only place failure ids are tracked; refreshed by the
-no-new-failures gate, not by hand-edited counts in docs):
+## Frontend
 
 ```bash
-.quality/known-pytest-failures.txt
+cd frontend
+npm ci --ignore-scripts
+npx vitest run
+npm run build
+npm audit --audit-level=high
 ```
+
+Preferred completion gate:
+
+```bash
+scripts/codex-verify frontend
+```
+
+`localhost:*` is debug evidence only. User-visible completion evidence uses
+`https://mcu.asia` when the task requires live frontend verification.
 
 ## Schema And Migrations
 
@@ -249,60 +108,35 @@ Schema verification:
 scripts/codex-verify schema
 ```
 
-Rules:
+Do not run direct `alembic upgrade` or `alembic downgrade` on the project DB.
+Use `scripts/db_migrate`.
 
-- Do not run direct `alembic upgrade` or `alembic downgrade` on the project DB.
-- `scripts/db_migrate` performs lock -> backup -> dry-run -> doctor -> real upgrade -> doctor.
-- If code touches ORM models or Alembic versions, run `scripts/codex-verify schema`.
+## GitHub CI
 
-## Safety Scan
+Post-push check:
 
 ```bash
-scripts/codex-verify safety
-scripts/codex-verify safety --repo-wide
+scripts/codex-verify github-ci --wait
 ```
 
-The safety scan checks changed script files for:
-
-- direct `alembic upgrade/downgrade`
-- `cp` or `rsync` against `.db` files
-- destructive git cleanup commands
-- probable hardcoded API keys or private keys
-
-`--repo-wide` additionally scans all non-ignored repository files for probable
-API keys, private key blocks, and shell-level SQLite copy commands. Use it for
-governance completion evidence and CI smoke.
+This binds the GitHub Actions result to the current branch and exact HEAD SHA,
+so an older green run cannot mask a new red push.
 
 ## Claude Auxiliary Reviewer
 
-This wrapper is the **optional read-only auxiliary path** only. Accepted write
-work is routed through normal Keel flow: separate worktree when useful, fresh
-scope file, `Steward-Scope: <scope_id>` in the PR body, GitHub required checks,
-CODEOWNER review, and human approval. Do not conflate read-only review with
-implementation authority.
-
-Check auth:
+Claude is optional and read-only unless the user explicitly starts a separate
+implementation flow.
 
 ```bash
 scripts/codex-consult-claude --auth-status
-```
-
-Use Claude as a full-repo read-only reviewer:
-
-```bash
 scripts/codex-consult-claude review "review the current governance migration"
 scripts/codex-consult-claude design "critique this implementation plan"
-scripts/codex-consult-claude history "triage historical handoffs for active facts"
 scripts/codex-consult-claude tests "find missing regression tests"
 scripts/codex-consult-claude risk "look for migration/data/secret/delivery risks"
 ```
 
-Boundary:
-
-- Claude can read the repo with `Read`, `Grep`, `Glob`, and `LS`.
-- Claude cannot write files or run Bash.
-- Claude runs without session persistence.
-- Codex must apply changes and run verification.
+Codex must apply changes and run verification. Claude review is not merge
+authority.
 
 ## Full Verification
 
@@ -311,29 +145,30 @@ scripts/codex-verify full
 scripts/codex-verify full --schema
 ```
 
-`full` runs backend and frontend gates. `--schema` adds DB/Alembic verification.
+`full` runs safety, backend, and frontend gates. `--schema` adds DB/Alembic
+verification.
 
 ## CI Governance Job
 
-`.github/workflows/test.yml` includes a lightweight `governance` job that runs:
+`.github/workflows/test.yml` includes a lightweight `governance` job that runs
+the current Codex/Keel smoke checks:
 
 ```bash
-python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-consult-claude scripts/codex-verify scripts/meta_runtime.py scripts/meta-check scripts/guardian_runtime.py scripts/guardian-watch scripts/run-arq-worker
+python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-verify scripts/run-arq-worker
 python scripts/governance/check_execution_policy.py
 python -m pytest tests/governance/test_codex_scripts.py -q
+python scripts/governance/check_legacy_quarantine.py --check
+python scripts/governance/check_doc_pollution.py --check
+python scripts/governance/check_ai_tool_modules.py --check
+python scripts/governance/check_module_dependencies.py --check
+python scripts/governance/check_permission_mirror.py --check
+python scripts/governance/module_governance_guard.py --check
 scripts/codex-check --no-network
-scripts/meta-check --json --fail-on-blocking
 scripts/codex-context --no-network
-scripts/codex-consult-claude --dry-run review CI smoke
 scripts/codex-verify safety --repo-wide
 scripts/codex-verify full --dry-run --schema --no-network
 ```
 
-This CI job validates the Codex governance layer itself. It is intentionally smoke-level; task completion still needs the real mode-specific verification command.
-
-The existing CI backend/frontend jobs also include:
-
-```bash
-python -m pytest tests/test_alembic_migration.py -q
-cd frontend && npm run build
-```
+`steward-hard-gates.yml` runs `scripts/governance/steward_scope_gate.py` with
+the GitHub PR event and changed-file list. Task completion still needs the real
+mode-specific verification command and GitHub required checks.

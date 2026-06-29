@@ -1,14 +1,15 @@
 ---
-title: Guardian Runtime
+title: Historical Guardian Runtime
 owner: liang
-last_review_date: "2026-06-28"
+last_review_date: "2026-06-29"
 expiration_in_days: 30
 ---
 
-# Guardian Runtime
+# Historical Guardian Runtime
 
-This is the active runtime contract for Guardian Core / 守护核 inside
-双核治理.
+This document is historical/advisory. It is not an active Keel startup
+requirement, merge gate, or completion authority. Current instructions live in
+`AGENTS.md`, `docs/context/ACTIVE_INDEX.md`, and the active Keel scope.
 
 ## Evidence Basis
 
@@ -173,17 +174,10 @@ Completion is accepted from the external/current authority chain:
 - live doctor current output (`scripts/truth-doctor.sh` and
   `scripts/db_doctor.py --strict` when DB/schema is in scope)
 
-`scripts/guardian-watch`, `systemctl is-active edu-cloud-guardian.service`, and
-`logs/guardian-state.json` are operational diagnostics. They are useful PR
-evidence, but they are not a trust baseline and are not sufficient completion
-authority.
+Historically, `scripts/guardian-watch`, `systemctl is-active
+edu-cloud-guardian.service`, and `logs/guardian-state.json` were operational
+diagnostics. Current Keel startup and completion do not run them by default.
 
-For Guardian runtime changes, attach current diagnostic output such as:
-
-```bash
-.venv/bin/python -m pytest tests/governance/test_codex_scripts.py -q
-scripts/guardian-watch --once --json --no-network --no-model-review
-systemctl is-active edu-cloud-guardian.service
-scripts/codex-context --no-network
-scripts/codex-verify safety --repo-wide
-```
+If a future scope explicitly modifies this historical runtime, it must define
+fresh verification in that scope instead of relying on this archived command
+list.
