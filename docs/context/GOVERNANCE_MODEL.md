@@ -1,3 +1,10 @@
+---
+title: Dual-Core Governance
+owner: liang
+last_review_date: "2026-06-28"
+expiration_in_days: 30
+---
+
 # Dual-Core Governance / 双核治理
 
 edu-cloud uses Keel to keep AI-assisted work fast, bounded, and reviewable.

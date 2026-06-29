@@ -1,3 +1,10 @@
+---
+title: Migrated Lessons
+owner: liang
+last_review_date: "2026-06-28"
+expiration_in_days: 30
+---
+
 # Migrated Lessons
 
 Project-specific lessons migrated from the Claude system. This file records only lessons that affect current Codex behavior.

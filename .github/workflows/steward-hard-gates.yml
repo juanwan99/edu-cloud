@@ -55,6 +55,11 @@ jobs:
           if [ -d schemas ]; then
             find schemas -name '*.json' -print0 | xargs -0 -r python -m json.tool >/dev/null
           fi
+      - name: Validate active doc frontmatter when changed
+        uses: mheap/frontmatter-json-schema-action@v1.2.0
+        with:
+          paths: "AGENTS.md,CLAUDE.md,docs/context/*.md"
+          schema_path: frontmatter.schema.json
       - name: Block process-heavy audit reports in target repo
         env:
           BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}

@@ -1,6 +1,19 @@
+---
+title: edu-cloud Agent Entry
+owner: liang
+last_review_date: "2026-06-28"
+expiration_in_days: 30
+---
+
 # edu-cloud Agent Entry
 
 This is the active entrypoint for AI-assisted work in edu-cloud.
+
+## Active Document Index
+
+Before reading `docs/**`, read `docs/context/ACTIVE_INDEX.md`. It is the only
+canonical index for active, candidate-active, reference, and historical docs.
+Do not discover current instructions by scanning old plans or handoffs.
 
 ## Current Governance
 

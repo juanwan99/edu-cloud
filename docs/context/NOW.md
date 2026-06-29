@@ -1,36 +1,35 @@
+---
+title: NOW
+owner: liang
+last_review_date: "2026-06-28"
+expiration_in_days: 7
+---
+
 # NOW
 
-Last refreshed: 2026-06-28 23:11 Asia/Shanghai
+Last refreshed: 2026-06-29 07:30 Asia/Shanghai
 
 **Mainline goal (fixed):** complete the edu-cloud foundation so later module
 owners can develop in parallel without cross-module contamination.
 
-**Current phase goal (Keel document hygiene):** remove retired historical
-planning material from the working tree so AI sessions stop treating old
-handoffs, archived plan trees, superpowers plans/specs, and gate JSON files as
-active instructions.
+**Current phase goal (Keel document lifecycle):** make active documentation
+small, indexed, owner-tagged, and review-dated so Codex and Claude do not treat
+historical plans as current truth.
 
-**Fresh state (2026-06-28 23:11):** working tree branch
-`keel/doc-history-cleanup-2026-06-28` is based on
-`b7bf1d7b695d29fee7a920eb640179e46131e98b` (PR #32 merge). This cleanup has one
-new Keel scope, `keel-doc-history-cleanup-2026-06-28`. The staged delta has 546
-changed paths; 516 are deletions under the retired archived-plan and
-superpowers trees. Tracked Markdown files are now 162. Active source/docs scans
-no longer contain live references to those retired tree paths.
+**Fresh state (2026-06-29 07:30):** working tree branch
+`keel/doc-lifecycle-2026-06-29` is based on `origin/master` after PR #34
+(`744619308a63da2b1e1dc891e011ff2e6c9dcf10`). This work owns one new Keel scope,
+`keel-doc-lifecycle-2026-06-29`.
 
-**Verification evidence (2026-06-28 23:11):** local scope gate passed for
-`Steward-Scope: keel-doc-history-cleanup-2026-06-28`; focused governance tests
-passed (`16 passed`) for scope gate, legacy quarantine, and the touched
-Meta-runtime plan-contract tests; `git diff --cached --check` is clean; changed
-text files have no UTF-8 BOM. Full `test_codex_scripts.py` remains a poor
-Windows-local oracle because it directly executes extensionless shell scripts;
-GitHub Linux CI remains merge authority.
+**Current implementation direction:** shrink `docs/context/ACTIVE_INDEX.md` to
+the active context set, point `AGENTS.md` and `CLAUDE.md` at that index, add
+frontmatter metadata to active context docs, and wire a PR-time
+`giantswarm/frontmatter-validator` check for changed active docs only.
 
-**Current open items:** after this cleanup PR, the next document lifecycle step
-is to add lightweight GitHub-native hygiene for active docs only: frontmatter
-schema for new/modified active Markdown, plus a scheduled stale-file issue
-workflow if needed. Production runtime, ECS services, DB state, and public URL
-facts were not reverified in this document-hygiene window; older runtime facts
+**Current open items:** scheduled stale-doc issue creation and
+`fiberplane/drift` pilots remain follow-up work after this PR proves the active
+surface is clean. Production runtime, ECS services, DB state, and public URL
+facts were not reverified in this document-lifecycle window; older runtime facts
 below are historical snapshots until live commands refresh them.
 
 Older dated sections below are retained as historical snapshots unless a newer

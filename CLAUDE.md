@@ -1,6 +1,17 @@
+---
+title: Claude Entry
+owner: liang
+last_review_date: "2026-06-28"
+expiration_in_days: 30
+---
+
 # Claude Entry
 
 Use `AGENTS.md` as the active project entrypoint.
+
+Before reading project docs, use `docs/context/ACTIVE_INDEX.md` as the canonical
+document index. Do not discover active instructions by scanning historical
+plans, retired handoffs, or deleted governance systems.
 
 ## Current Governance
 

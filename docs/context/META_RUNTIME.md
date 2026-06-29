@@ -1,3 +1,10 @@
+---
+title: Meta Runtime
+owner: liang
+last_review_date: "2026-06-28"
+expiration_in_days: 30
+---
+
 # Meta Runtime
 
 This is the active runtime contract for Meta Core / 元控核 inside 双核治理.

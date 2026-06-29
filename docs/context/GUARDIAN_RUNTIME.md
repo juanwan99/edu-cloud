@@ -1,3 +1,10 @@
+---
+title: Guardian Runtime
+owner: liang
+last_review_date: "2026-06-28"
+expiration_in_days: 30
+---
+
 # Guardian Runtime
 
 This is the active runtime contract for Guardian Core / 守护核 inside

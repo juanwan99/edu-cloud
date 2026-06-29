@@ -1,3 +1,10 @@
+---
+title: Claude Auxiliary Model
+owner: liang
+last_review_date: "2026-06-28"
+expiration_in_days: 30
+---
+
 # Claude Auxiliary Model
 
 This file covers the optional read-only Claude review path
