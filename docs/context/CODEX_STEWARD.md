@@ -1,7 +1,7 @@
 ---
 title: Codex Stewardship
 owner: liang
-last_review_date: "2026-06-28"
+last_review_date: "2026-06-29"
 expiration_in_days: 30
 ---
 
@@ -61,3 +61,22 @@ Before non-trivial edu-cloud work:
 6. For governed PRs, create the Keel scope file before protected edits.
 7. Verify with focused local checks, then rely on GitHub required checks and
    human review for merge authority.
+
+## Dispatch Review
+
+Codex Dispatch Review is required before launching any multi-worker batch,
+deletion or retirement task, governance change, central-context change, or
+protected-path change.
+
+The dispatch review must produce:
+
+1. task mode and whether parallelism is allowed;
+2. dependency order between workers or PRs;
+3. one scope id per governed PR;
+4. exact `allowed_paths` and `forbidden_paths`;
+5. local verification commands each worker must run before pushing.
+
+For file deletion or retirement, the review must include reachability evidence
+from `git grep` or equivalent across `scripts/`, `tests/`, `.github/workflows/`,
+active docs, and governance registries. A file still referenced by those
+surfaces is not dead; first update or retire the contract that references it.

@@ -27,6 +27,12 @@ edu-cloud uses Keel for governed changes:
 6. After merge, close the same scope with a closeout-only PR that changes only
    `status: active` to `status: closed`.
 
+Before launching multiple mutating workers, deleting or retiring files, or
+touching `.github/**`, `control/**`, `docs/context/**`, `scripts/governance/**`,
+or `tests/governance/**`, stop for Codex Dispatch Review. The review must define
+task order, scope ids, allowed paths, forbidden paths, and local verification
+commands before implementation starts.
+
 The old Yuanqi task-contract workflow is retired from active use. Do not create
 or restore `.yuanqi/tasks`, `Yuanqi-Task:` PR markers, Yuanqi task windows, or
 Yuanqi registry/scope/overlap gates.
@@ -69,6 +75,8 @@ evidence: tests, CI, runtime checks, or file-level inspection.
 6. Treat `docs/context/META_RUNTIME.md`, `docs/context/GUARDIAN_RUNTIME.md`,
    `scripts/meta-check`, and `scripts/guardian-watch` as historical/advisory
    legacy material unless a current Keel scope explicitly names them.
+7. Do not open a PR until the body contains the exact `Steward-Scope: <scope_id>`
+   marker and the matching fresh scope file exists in the PR diff.
 
 ## Hard Bans
 

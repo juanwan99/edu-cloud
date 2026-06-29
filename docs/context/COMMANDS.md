@@ -33,6 +33,31 @@ Steward-Scope: <scope_id>
 After merge, close the same scope with a closeout-only PR that changes only
 `status: active` to `status: closed`.
 
+The default PR template contains `Steward-Scope: REQUIRED`. Replace `REQUIRED`
+with the exact scope id before opening or updating the PR.
+
+## Dispatch Review Preflight
+
+Before multi-worker, deletion/retirement, governance, central-context, or
+protected-path work, Codex must complete Dispatch Review:
+
+```bash
+git status --short --branch
+git diff --name-status origin/master...HEAD
+```
+
+For deletion or retirement work, collect reachability evidence before editing:
+
+```bash
+git grep -n "<filename-or-command>" -- .github scripts tests docs/context docs/governance
+git grep -n "<basename>" -- . ":!docs/archive"
+git show origin/master:.github/workflows/test.yml
+```
+
+If a file is still referenced by scripts, tests, workflows, active docs, or
+governance registries, do not delete it in that worker. First retire or update
+the referencing contract in a scoped PR.
+
 ## Local Safety
 
 ```bash
