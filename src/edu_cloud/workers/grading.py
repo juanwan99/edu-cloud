@@ -1096,7 +1096,7 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
                     llm_url, llm_key, llm_model = await get_llm_config(
                         db, slot=SLOT_AI_GRADING, school_id=task.school_id,
                     )
-                    logger.info("grading_task: task=%s, llm_config resolved from DB (model=%s)", task_id, llm_model)
+                    logger.info("grading_task: task=%s, llm_config resolved from DB", task_id)
                 except Exception as exc:
                     logger.error("grading_task: task=%s, llm_config lookup failed; fail closed", task_id)
                     raise RuntimeError("grading LLM config lookup failed") from exc
