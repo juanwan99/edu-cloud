@@ -6,6 +6,14 @@ from pydantic_settings import BaseSettings
 _logger = logging.getLogger(__name__)
 
 
+def normalize_environment(value: str | None) -> str:
+    return (value or "").strip().lower()
+
+
+def is_production_environment(value: str | None) -> bool:
+    return normalize_environment(value) == "production"
+
+
 class Settings(BaseSettings):
 
     # ── Environment ──────────────────────────────────────────────────
@@ -26,7 +34,7 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
         _INSECURE_KEYS = {"change-me", "change-me-in-production", "dev-secret-key-change-in-production"}
         if self.SECRET_KEY in _INSECURE_KEYS:
-            if self.ENVIRONMENT == "production":
+            if is_production_environment(self.ENVIRONMENT):
                 raise RuntimeError("SECRET_KEY is insecure — refusing to start in production")
             warnings.warn(
                 "SECRET_KEY is using an insecure default. Set SECRET_KEY in .env!",
@@ -34,7 +42,7 @@ class Settings(BaseSettings):
             )
             _logger.warning("SECRET_KEY is using insecure default value")
         if self.ENCRYPTION_KEY in {"change-me-in-production", "change-me"}:
-            if self.ENVIRONMENT == "production":
+            if is_production_environment(self.ENVIRONMENT):
                 raise RuntimeError("ENCRYPTION_KEY is insecure — refusing to start in production")
             _logger.warning("ENCRYPTION_KEY is using insecure default value")
 

@@ -8,14 +8,30 @@ from unittest.mock import AsyncMock, patch
 async def test_is_revoked_fail_open_outside_production_when_redis_unavailable():
     with patch("edu_cloud.core.token_store._get_redis", new_callable=AsyncMock, return_value=None):
         with patch("edu_cloud.core.token_store.settings.ENVIRONMENT", "development"):
-            with patch("edu_cloud.core.token_store.logger") as mock_logger:
-                from edu_cloud.core.token_store import is_revoked
+            with patch("edu_cloud.core.token_store._environment_is_explicitly_configured", return_value=True):
+                with patch("edu_cloud.core.token_store.logger") as mock_logger:
+                    from edu_cloud.core.token_store import is_revoked
 
-                result = await is_revoked("test-jti")
+                    result = await is_revoked("test-jti")
 
-                assert result is False
-                mock_logger.warning.assert_called_once()
-                assert "fail-open outside production" in str(mock_logger.warning.call_args).lower()
+                    assert result is False
+                    mock_logger.warning.assert_called_once()
+                    assert "fail-open outside production" in str(mock_logger.warning.call_args).lower()
+
+
+@pytest.mark.asyncio
+async def test_is_revoked_fail_closed_when_environment_is_defaulted():
+    with patch("edu_cloud.core.token_store._get_redis", new_callable=AsyncMock, return_value=None):
+        with patch("edu_cloud.core.token_store.settings.ENVIRONMENT", "development"):
+            with patch("edu_cloud.core.token_store._environment_is_explicitly_configured", return_value=False):
+                with patch("edu_cloud.core.token_store.logger") as mock_logger:
+                    from edu_cloud.core.token_store import is_revoked
+
+                    result = await is_revoked("test-jti")
+
+                    assert result is True
+                    mock_logger.error.assert_called_once()
+                    assert "fail-closed" in str(mock_logger.error.call_args).lower()
 
 
 @pytest.mark.asyncio
@@ -30,6 +46,21 @@ async def test_is_revoked_fail_closed_in_production_when_redis_unavailable():
                 assert result is True
                 mock_logger.error.assert_called_once()
                 assert "fail-closed" in str(mock_logger.error.call_args).lower()
+
+
+@pytest.mark.asyncio
+async def test_is_revoked_fail_closed_in_normalized_production():
+    with patch("edu_cloud.core.token_store._get_redis", new_callable=AsyncMock, return_value=None):
+        with patch("edu_cloud.core.token_store.settings.ENVIRONMENT", " Production "):
+            with patch("edu_cloud.core.token_store._environment_is_explicitly_configured", return_value=True):
+                with patch("edu_cloud.core.token_store.logger") as mock_logger:
+                    from edu_cloud.core.token_store import is_revoked
+
+                    result = await is_revoked("test-jti")
+
+                    assert result is True
+                    mock_logger.error.assert_called_once()
+                    assert "fail-closed" in str(mock_logger.error.call_args).lower()
 
 
 @pytest.mark.asyncio

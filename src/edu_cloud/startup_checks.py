@@ -2,6 +2,8 @@
 import logging
 import os
 
+from edu_cloud.config import normalize_environment
+
 logger = logging.getLogger("edu_cloud.startup")
 
 _INSECURE_DEFAULTS = {
@@ -15,9 +17,10 @@ def check_critical_secrets(settings) -> list[str]:
     """检查关键密钥是否使用了默认值。返回错误列表。"""
     errors = []
     env = getattr(settings, "ENVIRONMENT", "development")
+    normalized_env = normalize_environment(env)
     for attr, default_val in _INSECURE_DEFAULTS.items():
         if getattr(settings, attr, None) == default_val:
-            if env != "development":
+            if normalized_env != "development":
                 errors.append(
                     f"{attr} 使用了不安全的默认值（ENVIRONMENT={env}），必须在 .env 中覆盖"
                 )

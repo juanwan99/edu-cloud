@@ -1,4 +1,5 @@
 import os
+os.environ.setdefault("ENVIRONMENT", "test")
 os.environ["SKIP_STARTUP_CHECKS"] = "1"
 
 import pytest
