@@ -8,6 +8,8 @@ _DOMAIN_OCR_FIXES = {
     "受精精": "受精",
     "间隔隔": "间隔",
 }
+UNANSWERED_TEXT = "（未作答）"
+OCR_REVIEW_TEXT = "（无法辨识，需人工复核）"
 
 
 def validate_ocr_blanks(blanks: list[dict]) -> list[dict]:
@@ -24,9 +26,11 @@ def validate_ocr_blanks(blanks: list[dict]) -> list[dict]:
         text = blank.get("text", "")
         text = _clean_text(text)
 
-        # Skip if the OCR returned English commentary instead of student answer
         if _is_english_commentary(text):
-            blank = {**blank, "text": "（未作答）"}
+            blank = _mark_ocr_review_needed(
+                blank,
+                reason="ocr_english_commentary",
+            )
         else:
             blank = {**blank, "text": text}
 
@@ -40,7 +44,7 @@ def is_blank_answer(text: str) -> bool:
     if not text or not text.strip():
         return True
     normalized = text.strip()
-    blank_markers = {"（未作答）", "（无法辨识）", "[空]", "[?]", ""}
+    blank_markers = {UNANSWERED_TEXT, "[空]", "[?]", ""}
     return normalized in blank_markers
 
 
@@ -106,7 +110,20 @@ def recover_truncated_blanks(
             result.append({
                 "blankNo": blank_no,
                 "subQ": sub_q,
-                "text": "（未作答）",
+                "text": OCR_REVIEW_TEXT,
+                "needs_review": True,
+                "ocr_status": "needs_review",
+                "review_reason": "ocr_missing_blank",
             })
 
     return result
+
+
+def _mark_ocr_review_needed(blank: dict, *, reason: str) -> dict:
+    return {
+        **blank,
+        "text": OCR_REVIEW_TEXT,
+        "needs_review": True,
+        "ocr_status": "needs_review",
+        "review_reason": reason,
+    }
