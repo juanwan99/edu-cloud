@@ -99,8 +99,10 @@ async def test_grade_text_retries_short_details_when_expected_count_set(client):
                 "message": {
                     "content": (
                         '{"score": 8, "comment": "ok", "details": ['
-                        '{"blankNo": "1", "score": 4},'
-                        '{"blankNo": "2", "score": 4}'
+                        '{"subQuestion": "(1)", "blanks": ['
+                        '{"index": 1, "score": 4},'
+                        '{"index": 2, "score": 4}'
+                        "]}"
                         "]}"
                     )
                 }
