@@ -107,11 +107,12 @@ describe('createSSEProcessor (real import)', () => {
     expect(result.content).toBe('ok')
   })
 
-  it('ignores malformed JSON gracefully', () => {
+  it('reports malformed JSON while continuing later events', () => {
     const result = processChunks([
       'data: {broken json\ndata: {"type":"answer","data":{"content":"ok"}}\n',
     ])
     expect(result.content).toBe('ok')
+    expect(result.error).toBe('Received malformed AI stream event.')
   })
 
   it('handles multiple chunks with partial lines', () => {

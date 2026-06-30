@@ -39,7 +39,9 @@ export function createSSEProcessor(handlers = {}) {
       } else if (event.type === 'done') {
         handlers.onDone?.(event.data?.session_id, event.data || {})
       }
-    } catch { /* ignore malformed JSON */ }
+    } catch {
+      handlers.onError?.('Received malformed AI stream event.')
+    }
   }
 
   return {
