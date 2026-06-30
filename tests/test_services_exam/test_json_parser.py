@@ -37,8 +37,18 @@ def test_garbage_returns_none():
     assert extract_json("I cannot grade this image") is None
 
 
-def test_truncated_json():
+def test_truncated_json_returns_none():
     text = '{"score": 5, "details": [{"blank": "1"'
-    result = extract_json(text)
+    assert extract_json(text) is None
+
+
+def test_expected_details_count_rejects_short_valid_json():
+    text = '{"score": 5, "details": [{"blank": "1"}]}'
+    assert extract_json(text, expected_details_count=2) is None
+
+
+def test_expected_details_count_accepts_complete_valid_json():
+    text = '{"score": 5, "details": [{"blank": "1"}, {"blank": "2"}]}'
+    result = extract_json(text, expected_details_count=2)
     assert result is not None
     assert result["score"] == 5
