@@ -10,6 +10,7 @@ _DOMAIN_OCR_FIXES = {
 }
 UNANSWERED_TEXT = "（未作答）"
 OCR_REVIEW_TEXT = "（无法辨识，需人工复核）"
+OCR_REVIEW_NEEDED_ERROR = "OCR 结果无法可靠识别，需人工复核后再评分"
 
 
 def validate_ocr_blanks(blanks: list[dict]) -> list[dict]:
@@ -46,6 +47,34 @@ def is_blank_answer(text: str) -> bool:
     normalized = text.strip()
     blank_markers = {UNANSWERED_TEXT, "[空]", "[?]", ""}
     return normalized in blank_markers
+
+
+def has_ocr_review_needed(blanks: list[dict] | None) -> bool:
+    """Return True when OCR output must not be auto-graded."""
+    return any(
+        isinstance(blank, dict)
+        and (
+            blank.get("needs_review") is True
+            or blank.get("ocr_status") == "needs_review"
+        )
+        for blank in (blanks or [])
+    )
+
+
+def ocr_review_needed_message(blanks: list[dict] | None) -> str:
+    reasons = sorted({
+        str(blank.get("review_reason"))
+        for blank in (blanks or [])
+        if isinstance(blank, dict)
+        and (
+            blank.get("needs_review") is True
+            or blank.get("ocr_status") == "needs_review"
+        )
+        and blank.get("review_reason")
+    })
+    if not reasons:
+        return OCR_REVIEW_NEEDED_ERROR
+    return f"{OCR_REVIEW_NEEDED_ERROR} ({', '.join(reasons)})"
 
 
 def _clean_text(text: str) -> str:
