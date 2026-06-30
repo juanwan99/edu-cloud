@@ -145,6 +145,27 @@ async def test_process_grading_task_success(db_engine, db, grading_setup):
             assert r.status == "ai_done"
 
 
+async def test_process_grading_task_llm_config_lookup_failure_fails_closed(db_engine, db, grading_setup):
+    sf = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+    ctx = {"db_session_factory": sf}
+
+    with patch(
+        "edu_cloud.modules.exam.slot_selector.get_llm_config",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("slot db unavailable"),
+    ), patch("edu_cloud.workers.grading._create_llm_client") as mock_create_llm:
+        with pytest.raises(RuntimeError, match="grading LLM config lookup failed"):
+            await process_grading_task(ctx, grading_setup["task_id"])
+
+    mock_create_llm.assert_not_called()
+
+    async with sf() as session:
+        result = await session.execute(select(GradingTask).where(GradingTask.id == grading_setup["task_id"]))
+        task = result.scalar_one()
+        assert task.status == "failed"
+        assert task.error_log == ["worker crash: RuntimeError: grading LLM config lookup failed"]
+
+
 async def test_process_grading_task_partial_failure(db_engine, db, grading_setup):
     sf = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
     ctx = {"db_session_factory": sf}

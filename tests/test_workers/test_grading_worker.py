@@ -107,7 +107,7 @@ def _build_mock_db_session(execute_side_effects):
 
 
 @pytest.mark.asyncio
-@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, side_effect=Exception("no slot"))
+@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, return_value=("http://llm", "key", "model"))
 @patch("edu_cloud.workers.grading._create_llm_client")
 async def test_process_grading_task_no_subjective_questions(mock_create_llm, _mock_get_cfg):
     """No subjective questions → task completes immediately without LLM calls."""
@@ -149,7 +149,7 @@ async def test_process_grading_task_no_subjective_questions(mock_create_llm, _mo
 
 
 @pytest.mark.asyncio
-@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, side_effect=Exception("no slot"))
+@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, return_value=("http://llm", "key", "model"))
 @patch("edu_cloud.workers.grading._create_llm_client")
 async def test_process_grading_task_missing_rubric(mock_create_llm, _mock_get_cfg):
     """Answer exists but no rubric for question → task.failed incremented."""
