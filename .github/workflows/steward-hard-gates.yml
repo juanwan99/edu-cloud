@@ -2,6 +2,7 @@ name: steward hard gates
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review, converted_to_draft]
   merge_group:
 
 permissions:

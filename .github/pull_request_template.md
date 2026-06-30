@@ -23,6 +23,9 @@ Verdict: PENDING
 
 Raw Claude/manual review may be pasted to Codex; Codex will post the concise
 evidence comment and update this section.
+Before marking the PR ready to merge, set `Verdict: PASS` and replace the
+reviewer/evidence placeholder with the exact review comment or review URL.
+The approving GitHub review should also include that evidence URL in its body.
 
 - [ ] Review body/comment is non-empty and written by a non-author.
 - [ ] Reviewer checked the production call path, not only the touched function.

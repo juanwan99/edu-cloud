@@ -16,15 +16,25 @@ CDR_ID = re.compile(r"^CDR-\d{4}-\d{2}-\d{2}-[a-z0-9][a-z0-9-]*[a-z0-9]$")
 GITHUB_COMMENT_URL = re.compile(
     r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/(?:pull|issues)/\d+#issuecomment-\d+$"
 )
+GITHUB_REVIEW_URL = re.compile(
+    r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/\d+#pullrequestreview-\d+$"
+)
+GITHUB_DISCUSSION_URL = re.compile(
+    r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/\d+#discussion_r\d+$"
+)
 SECTION_HEADING = re.compile(r"^##\s+Dispatch Review\s*$", re.MULTILINE)
+INDEPENDENT_REVIEW_HEADING = re.compile(r"^##\s+Independent Review\s*$", re.MULTILINE)
 NEXT_HEADING = re.compile(r"^##\s+", re.MULTILINE)
 UNCHECKED_BOX = re.compile(r"(?m)^\s*[-*]\s+\[\s\]\s+")
+INDEPENDENT_VERDICT = re.compile(r"(?im)^[ \t]*Verdict:[ \t]*(\S+)[ \t]*$")
+INDEPENDENT_REVIEWER = re.compile(r"(?im)^[ \t]*Reviewer[ \t]*/[ \t]*evidence URL:[ \t]*(\S.*)$")
 
 
 def validate_event(event: dict[str, Any]) -> list[str]:
     pr = event.get("pull_request") or {}
     body_value = pr.get("body") or ""
     body = body_value if isinstance(body_value, str) else ""
+    is_draft = bool(pr.get("draft"))
     head = pr.get("head") if isinstance(pr.get("head"), dict) else {}
     head_ref = head.get("ref") or ""
     scope_id = _resolve_scope_id(body)
@@ -70,6 +80,26 @@ def validate_event(event: dict[str, Any]) -> list[str]:
     if missing:
         errors.append(f"Dispatch Review is missing required evidence: {', '.join(missing)}")
 
+    if not is_draft:
+        review_section = _section(body, INDEPENDENT_REVIEW_HEADING)
+        if review_section is None:
+            errors.append("PR body must include a ## Independent Review section")
+            return errors
+
+        reviewer_match = INDEPENDENT_REVIEWER.search(review_section)
+        reviewer_value = reviewer_match.group(1).strip() if reviewer_match else ""
+        if not reviewer_value or reviewer_value.upper() in {"PENDING", "REQUIRED"}:
+            errors.append("Independent Review must include a non-placeholder Reviewer / evidence URL")
+        elif not _valid_independent_review_evidence(reviewer_value):
+            errors.append(
+                "Independent Review evidence must be a GitHub PR comment, review, or review-thread URL"
+            )
+
+        verdict_match = INDEPENDENT_VERDICT.search(review_section)
+        verdict = verdict_match.group(1).strip().upper() if verdict_match else ""
+        if verdict != "PASS":
+            errors.append("Independent Review verdict must be PASS before merge")
+
     return errors
 
 
@@ -93,8 +123,20 @@ def _valid_review_evidence(value: str) -> bool:
     return bool(CDR_ID.match(value) or GITHUB_COMMENT_URL.match(value))
 
 
+def _valid_independent_review_evidence(value: str) -> bool:
+    return bool(
+        GITHUB_COMMENT_URL.match(value)
+        or GITHUB_REVIEW_URL.match(value)
+        or GITHUB_DISCUSSION_URL.match(value)
+    )
+
+
 def _dispatch_section(body: str) -> str | None:
-    match = SECTION_HEADING.search(body)
+    return _section(body, SECTION_HEADING)
+
+
+def _section(body: str, heading: re.Pattern[str]) -> str | None:
+    match = heading.search(body)
     if not match:
         return None
     start = match.end()

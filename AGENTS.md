@@ -45,6 +45,10 @@ CDR evidence, and include a completed Dispatch Review checklist.
 Dispatch Review is a pre-work boundary check. It is not the final code review.
 Before merge, every non-trivial PR needs Independent Review evidence in the PR
 conversation or review body. Empty approve reviews do not count as evidence.
+For non-draft governed PRs, `steward/dispatch-review` requires the PR body's
+Independent Review section to name the evidence URL and say `Verdict: PASS`;
+`PENDING`, `REQUIRED`, or empty evidence is not merge-ready. The approving
+GitHub review should include the same evidence URL in its body.
 
 Independent Review must be done by a non-author and must state:
 
