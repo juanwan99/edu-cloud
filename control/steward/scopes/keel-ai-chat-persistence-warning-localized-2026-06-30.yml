@@ -1,0 +1,20 @@
+schema: steward-pr-scope.v1
+scope_id: keel-ai-chat-persistence-warning-localized-2026-06-30
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-ai-chat-persistence-warning-localized-2026-06-30.yml
+  - frontend/src/stores/aiChat.js
+  - frontend/src/__tests__/aiChatStore.persistence.test.js
+forbidden_paths:
+  - .yuanqi/
+  - scripts/yuanqi/
+  - tests/yuanqi/
+  - src/edu_cloud/core/auth.py
+  - src/edu_cloud/core/permissions.py
+  - src/edu_cloud/core/tenant.py
+  - alembic/
+  - deploy/
+compatibility_paths: []
+status: active
+created_at: "2026-06-30T18:56:00+08:00"
+expires_at: "2026-07-07T23:59:00+08:00"

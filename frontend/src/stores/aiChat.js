@@ -4,6 +4,8 @@ import { useAuthStore } from './auth'
 import { createSSEProcessor } from '../utils/sseParser'
 import client from '../api/client'
 
+const CHAT_HISTORY_UNSAVED_MESSAGE = 'AI 已生成回复，但聊天记录未保存。请复制重要内容或稍后重试。'
+
 export const useAiChatStore = defineStore('aiChat', () => {
   const messages = ref([])
   const isLoading = ref(false)
@@ -125,7 +127,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
           if (sid) sessionId.value = sid
           if (data?.persistence?.status === 'failed') {
             assistantMsg.persistence = data.persistence
-            error.value = 'AI response generated, but chat history was not saved.'
+            error.value = CHAT_HISTORY_UNSAVED_MESSAGE
           }
         },
       })
@@ -179,7 +181,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
           if (sid) sessionId.value = sid
           if (data?.persistence?.status === 'failed') {
             if (lastMsg) lastMsg.persistence = data.persistence
-            error.value = 'AI response generated, but chat history was not saved.'
+            error.value = CHAT_HISTORY_UNSAVED_MESSAGE
           }
         },
       })
