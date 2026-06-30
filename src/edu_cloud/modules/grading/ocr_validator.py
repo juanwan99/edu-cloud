@@ -56,6 +56,7 @@ def has_ocr_review_needed(blanks: list[dict] | None) -> bool:
         and (
             blank.get("needs_review") is True
             or blank.get("ocr_status") == "needs_review"
+            or str(blank.get("text", "")).strip() == OCR_REVIEW_TEXT
         )
         for blank in (blanks or [])
     )
@@ -69,6 +70,7 @@ def ocr_review_needed_message(blanks: list[dict] | None) -> str:
         and (
             blank.get("needs_review") is True
             or blank.get("ocr_status") == "needs_review"
+            or str(blank.get("text", "")).strip() == OCR_REVIEW_TEXT
         )
         and blank.get("review_reason")
     })
