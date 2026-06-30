@@ -1,0 +1,23 @@
+schema: steward-pr-scope.v1
+scope_id: keel-window-role-boundary-2026-07-01
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-window-role-boundary-2026-07-01.yml
+  - AGENTS.md
+  - CLAUDE.md
+forbidden_paths:
+  - .github/
+  - .yuanqi/
+  - scripts/yuanqi/
+  - tests/yuanqi/
+  - scripts/
+  - tests/
+  - src/
+  - frontend/
+  - alembic/
+  - deploy/
+  - docs/
+compatibility_paths: []
+status: active
+created_at: "2026-07-01T00:00:00+08:00"
+expires_at: "2026-07-08T23:59:00+08:00"
