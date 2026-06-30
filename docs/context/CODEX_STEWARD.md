@@ -50,6 +50,10 @@ raw Claude App output, Codex must decide whether it is sufficient, extract the
 checked files/findings/verdict, post a concise PR comment, and update the PR
 body. If the raw review is missing a clear PASS/FAIL or the reviewed PR/commit,
 Codex asks for only that missing fact.
+For non-draft governed PRs, the PR body is the canonical merge-time evidence
+slot: `Reviewer / evidence URL` must point to the review evidence and `Verdict`
+must be `PASS`. The approving GitHub review should repeat that evidence URL in
+its body so the approval is traceable without reading the whole conversation.
 
 ## Keel Working Contract
 
@@ -151,3 +155,6 @@ incomplete.
 
 Empty GitHub approve bodies, self-authored checklist text, and PR body claims
 are not Independent Review evidence.
+For non-draft governed PRs, the `steward/dispatch-review` check rejects
+placeholder or non-PASS Independent Review body state. Draft PRs may keep
+`Verdict: PENDING` while implementation and review are still in progress.

@@ -96,6 +96,9 @@ or strictly ordered PRs instead of parallel worker PRs.
 - Empty approve reviews do not count as Independent Review. The review evidence
   must state checked files, checked call paths, production consumers for any new
   protection fields or parameters, verification evidence, and PASS/FAIL.
+- Before a governed PR leaves draft, the PR body must point to that evidence and
+  say `Verdict: PASS`; the approving GitHub review should include the same
+  evidence URL instead of an empty body.
 
 ## Practical Default
 
