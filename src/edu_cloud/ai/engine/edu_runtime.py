@@ -294,7 +294,7 @@ class EduAgentRuntime:
             pass
         elif isinstance(result_box["result"].output, str):
             assistant_text = result_box["result"].output
-        await self._persist_messages(user_message, assistant_text)
+        persistence = await self._persist_messages(user_message, assistant_text)
 
         yield AgentEvent(type="done", data={
             "run_id": self._run_id,
@@ -302,6 +302,7 @@ class EduAgentRuntime:
             "turns": self._deps.budget.used_tool_calls,
             "tokens": self._deps.budget.used_tokens,
             "elapsed_ms": elapsed_ms,
+            "persistence": persistence,
         })
 
     async def resume_after_confirmation(
@@ -414,8 +415,8 @@ class EduAgentRuntime:
         assistant_output: str | None,
         *,
         tool_calls: list[dict] | None = None,
-    ) -> None:
-        """Write user + assistant messages to DB (best-effort)."""
+    ) -> dict[str, str]:
+        """Write user + assistant messages to DB and report persistence status."""
         try:
             from edu_cloud.ai.models import AiChatMessage
             async with self._deps.db_sessionmaker() as db:
@@ -434,8 +435,10 @@ class EduAgentRuntime:
                         metadata_json=meta,
                     ))
                 await db.commit()
+            return {"status": "ok"}
         except Exception as exc:
             logger.warning("Failed to persist chat messages: %s", exc)
+            return {"status": "failed", "reason": "chat_history_unavailable"}
 
 
 def _classify_error(exc: Exception) -> tuple[str, bool]:
