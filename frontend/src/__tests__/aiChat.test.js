@@ -10,7 +10,7 @@ import { createSSEProcessor } from '../utils/sseParser.js'
 
 /** Helper: push chunks through a processor and collect results. */
 function processChunks(chunks) {
-  const result = { content: '', tools: [], error: null, sessionId: null }
+  const result = { content: '', tools: [], error: null, sessionId: null, doneData: null }
 
   const processor = createSSEProcessor({
     onAnswer(content) { result.content += content },
@@ -20,7 +20,10 @@ function processChunks(chunks) {
       if (t) t.status = 'done'
     },
     onError(msg) { result.error = msg },
-    onDone(sid) { result.sessionId = sid },
+    onDone(sid, data) {
+      result.sessionId = sid
+      result.doneData = data
+    },
   })
 
   for (const chunk of chunks) {
@@ -71,6 +74,17 @@ describe('createSSEProcessor (real import)', () => {
     expect(result.sessionId).toBe('sess-abc')
   })
 
+  it('passes done event metadata to caller', () => {
+    const result = processChunks([
+      'data: {"type":"done","data":{"session_id":"sess-abc","persistence":{"status":"failed","reason":"chat_history_unavailable"}}}\n',
+    ])
+    expect(result.sessionId).toBe('sess-abc')
+    expect(result.doneData.persistence).toEqual({
+      status: 'failed',
+      reason: 'chat_history_unavailable',
+    })
+  })
+
   it('handles answer with missing content gracefully', () => {
     const result = processChunks([
       'data: {"type":"answer","data":{}}\n',
@@ -93,11 +107,12 @@ describe('createSSEProcessor (real import)', () => {
     expect(result.content).toBe('ok')
   })
 
-  it('ignores malformed JSON gracefully', () => {
+  it('reports malformed JSON while continuing later events', () => {
     const result = processChunks([
       'data: {broken json\ndata: {"type":"answer","data":{"content":"ok"}}\n',
     ])
     expect(result.content).toBe('ok')
+    expect(result.error).toBe('Received malformed AI stream event.')
   })
 
   it('handles multiple chunks with partial lines', () => {

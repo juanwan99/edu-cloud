@@ -74,6 +74,7 @@ class CozeRun:
         denied_ids: list[str] | None = None,
         message_history: list[Any] | None = None,
     ) -> AsyncIterator[AgentEvent]:
+        persistence = {"status": "ok"}
         for confirmation_id in denied_ids or []:
             pending = self._pending_confirmations.pop(confirmation_id, None)
             if pending:
@@ -133,10 +134,10 @@ class CozeRun:
                         self._last_messages = [
                             {"role": "assistant", "content": assistant_text},
                         ]
-                        await self._persist_assistant_message(assistant_text)
+                        persistence = await self._persist_assistant_message(assistant_text)
                 else:
                     assistant_text = f"已执行 {tool_name}。"
-                    await self._persist_assistant_message(assistant_text)
+                    persistence = await self._persist_assistant_message(assistant_text)
                     yield AgentEvent(type="answer", data={"content": assistant_text})
             except Exception as exc:
                 logger.exception("Confirmed Coze tool execution failed: %s", exc)
@@ -146,6 +147,7 @@ class CozeRun:
             "run_id": self._run_id,
             "session_id": self._context.session_id,
             "provider": self.provider_name,
+            "persistence": persistence,
         })
 
     async def run(
@@ -173,7 +175,7 @@ class CozeRun:
             )
 
         assistant_text = "".join(assistant_parts).strip() or None
-        await self._persist_messages(user_message, assistant_text)
+        persistence = await self._persist_messages(user_message, assistant_text)
         self._last_messages = [
             {"role": "user", "content": user_message},
             {"role": "assistant", "content": assistant_text or ""},
@@ -182,6 +184,7 @@ class CozeRun:
             "run_id": self._run_id,
             "session_id": self._context.session_id,
             "provider": self.provider_name,
+            "persistence": persistence,
         })
 
     async def _stream_coze(self, user_message: str) -> AsyncIterator[tuple[str, dict[str, Any]]]:
@@ -491,7 +494,7 @@ class CozeRun:
             )]
         return [AgentEvent(type="tool_result", data={"tool": _tool_name_from_output(content)})]
 
-    async def _persist_messages(self, user_message: str, assistant_output: str | None) -> None:
+    async def _persist_messages(self, user_message: str, assistant_output: str | None) -> dict[str, str]:
         try:
             from edu_cloud.ai.models import AiChatMessage
             async with self._context.db_sessionmaker() as db:
@@ -504,12 +507,14 @@ class CozeRun:
                         metadata_json=json.dumps({"provider": self.provider_name}, ensure_ascii=False),
                     ))
                 await db.commit()
+            return {"status": "ok"}
         except Exception as exc:
             logger.warning("Failed to persist Coze chat messages: %s", exc)
+            return {"status": "failed", "reason": "chat_history_unavailable"}
 
-    async def _persist_assistant_message(self, assistant_output: str | None) -> None:
+    async def _persist_assistant_message(self, assistant_output: str | None) -> dict[str, str]:
         if not assistant_output:
-            return
+            return {"status": "ok"}
         try:
             from edu_cloud.ai.models import AiChatMessage
             async with self._context.db_sessionmaker() as db:
@@ -520,8 +525,10 @@ class CozeRun:
                     metadata_json=json.dumps({"provider": self.provider_name}, ensure_ascii=False),
                 ))
                 await db.commit()
+            return {"status": "ok"}
         except Exception as exc:
             logger.warning("Failed to persist Coze assistant message: %s", exc)
+            return {"status": "failed", "reason": "chat_history_unavailable"}
 
 
 class CozeProvider:

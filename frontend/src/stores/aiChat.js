@@ -121,7 +121,13 @@ export const useAiChatStore = defineStore('aiChat', () => {
           assistantMsg.confirmations.push(conf)
         },
         onError(msg) { error.value = msg },
-        onDone(sid) { if (sid) sessionId.value = sid },
+        onDone(sid, data) {
+          if (sid) sessionId.value = sid
+          if (data?.persistence?.status === 'failed') {
+            assistantMsg.persistence = data.persistence
+            error.value = 'AI response generated, but chat history was not saved.'
+          }
+        },
       })
 
       while (true) {
@@ -169,7 +175,13 @@ export const useAiChatStore = defineStore('aiChat', () => {
         onToolCall(tool) { if (lastMsg) { lastMsg.tools = lastMsg.tools || []; lastMsg.tools.push({ name: tool, status: 'running' }) } },
         onToolResult(tool) { if (lastMsg) { const t = (lastMsg.tools || []).find(x => x.name === tool && x.status === 'running'); if (t) t.status = 'done' } },
         onError(msg) { error.value = msg },
-        onDone(sid) { if (sid) sessionId.value = sid },
+        onDone(sid, data) {
+          if (sid) sessionId.value = sid
+          if (data?.persistence?.status === 'failed') {
+            if (lastMsg) lastMsg.persistence = data.persistence
+            error.value = 'AI response generated, but chat history was not saved.'
+          }
+        },
       })
 
       while (true) {
