@@ -570,7 +570,11 @@ async def _grade_single(
         plog["grading_model"] = "deepseek-v4-flash"
 
         t_grade = time.perf_counter()
-        grade_result = await ds_grading_llm.grade_text(prompt=grading_prompt, max_score=ad["question_max_score"])
+        grade_result = await ds_grading_llm.grade_text(
+            prompt=grading_prompt,
+            max_score=ad["question_max_score"],
+            expected_details_count=len(rubric_criteria),
+        )
         plog["grading_ms"] = int((time.perf_counter() - t_grade) * 1000)
 
         if grade_result.details and rubric_criteria:
@@ -845,7 +849,11 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
             plog["grading_model"] = "deepseek-v4-flash"
             plog["grading_prompt_type"] = "GRADING_TEXT"
             t_grade = time.perf_counter()
-            grade_result = await ds_grading_llm.grade_text(prompt=grading_prompt, max_score=ad["question_max_score"])
+            grade_result = await ds_grading_llm.grade_text(
+                prompt=grading_prompt,
+                max_score=ad["question_max_score"],
+                expected_details_count=len(rubric_criteria),
+            )
             plog["grading_ms"] = int((time.perf_counter() - t_grade) * 1000)
 
             if grade_result.details and rubric_criteria:

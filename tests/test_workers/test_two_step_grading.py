@@ -36,6 +36,7 @@ async def test_grade_single_two_step():
     assert plog["pipeline_type"] == "two_step"
     mock_llm.extract_text.assert_called_once()
     mock_ds_llm.grade_text.assert_called_once()
+    assert mock_ds_llm.grade_text.call_args.kwargs["expected_details_count"] == 1
 
 
 @pytest.mark.asyncio
@@ -116,6 +117,68 @@ async def test_gemini_batch_ocr_review_needed_blocks_text_grading():
     mock_llm.create_batch_job.assert_awaited_once()
     mock_llm.poll_batch_job.assert_awaited_once()
     mock_ds_llm.grade_text.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_gemini_batch_text_grading_passes_expected_details_count():
+    from edu_cloud.workers.grading import _process_gemini_batch
+
+    mock_llm = MagicMock()
+    mock_llm.model = "gemini-test"
+    mock_llm.create_batch_job = AsyncMock(return_value="ocr-job")
+    mock_llm.poll_batch_job = AsyncMock(return_value=[
+        {
+            "text": json.dumps(
+                {"blanks": [{"blankNo": "1-1", "subQ": "(1)", "text": "cell"}]},
+                ensure_ascii=False,
+            )
+        }
+    ])
+    mock_ds_llm = MagicMock()
+    mock_ds_llm.grade_text = AsyncMock(return_value=GradeResponse(
+        score=2,
+        max_score=2,
+        feedback="correct",
+        confidence=0.95,
+        raw_content='{"score": 2}',
+        details=[{"blankNo": "1-1", "score": 2}],
+    ))
+
+    ad = {
+        "answer_id": "a_batch", "question_id": "q1",
+        "question_name": "6", "question_max_score": 2,
+        "image_path": "/tmp/fake.png", "question_type": "essay",
+        "subject_code": "biology",
+    }
+    rubrics = {
+        "q1": [
+            {
+                "blankNo": "1-1",
+                "score": 2,
+                "standardAnswer": "cell",
+                "context": "ctx",
+                "judgingRules": "rules",
+            }
+        ]
+    }
+    large_b64 = base64.b64encode(b"x" * 6000).decode()
+
+    with patch("edu_cloud.workers.grading._read_image_b64", return_value=large_b64), \
+         patch("edu_cloud.modules.grading.image_utils.resize_image_for_llm", return_value=b"\x89PNG\r\n\x1a\n"):
+        results = await _process_gemini_batch(
+            mock_llm,
+            [ad],
+            rubrics,
+            "biology",
+            use_gemini_official=True,
+            ds_grading_llm=mock_ds_llm,
+        )
+
+    result, error, plog = results[0]
+    assert error is None
+    assert result["score"] == 2
+    assert plog["pipeline_type"] == "two_step"
+    assert mock_ds_llm.grade_text.call_args.kwargs["expected_details_count"] == 1
 
 
 @pytest.mark.asyncio

@@ -52,3 +52,29 @@ def test_expected_details_count_accepts_complete_valid_json():
     result = extract_json(text, expected_details_count=2)
     assert result is not None
     assert result["score"] == 5
+
+
+def test_expected_details_count_accepts_nested_details_by_blank_count():
+    text = (
+        '{"score": 5, "details": ['
+        '{"subQuestion": "(1)", "blanks": ['
+        '{"index": 1, "score": 2}, {"index": 2, "score": 3}'
+        "]}]}"
+    )
+    result = extract_json(text, expected_details_count=2)
+    assert result is not None
+    assert result["score"] == 5
+
+
+def test_expected_details_count_rejects_nested_details_missing_blank():
+    text = (
+        '{"score": 5, "details": ['
+        '{"subQuestion": "(1)", "blanks": [{"index": 1, "score": 2}]}'
+        "]}"
+    )
+    assert extract_json(text, expected_details_count=2) is None
+
+
+def test_expected_details_count_rejects_missing_details():
+    text = '{"score": 5, "comment": "missing details"}'
+    assert extract_json(text, expected_details_count=1) is None

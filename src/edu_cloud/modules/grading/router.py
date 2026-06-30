@@ -601,7 +601,11 @@ async def grade_single_answer(
                         "charStats": char_stats,
                     })
                     t_grade = _time.perf_counter()
-                    grade_result = await llm.grade_text(prompt=grading_prompt, max_score=question.max_score)
+                    grade_result = await llm.grade_text(
+                        prompt=grading_prompt,
+                        max_score=question.max_score,
+                        expected_details_count=len(rubric.criteria),
+                    )
                     plog["grading_ms"] = int((_time.perf_counter() - t_grade) * 1000)
                     result_data = {
                         "score": grade_result.score,

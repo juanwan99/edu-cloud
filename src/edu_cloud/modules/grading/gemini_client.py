@@ -335,6 +335,7 @@ class GeminiClient:
         *,
         cache_key: str | None = None,
         cache_prompt_prefix: str | None = None,
+        expected_details_count: int | None = None,
     ) -> GeminiGradeResponse:
         cached_content_name = None
         if cache_key and cache_prompt_prefix:
@@ -354,7 +355,7 @@ class GeminiClient:
             cached_content=cached_content_name,
         )
 
-        parsed = extract_json(text)
+        parsed = extract_json(text, expected_details_count=expected_details_count)
         if parsed is None or not isinstance(parsed, dict):
             raise RuntimeError(f"Failed to parse grading JSON: {text[:200]}")
 

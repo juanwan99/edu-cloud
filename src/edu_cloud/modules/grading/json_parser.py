@@ -12,6 +12,7 @@ result is worse than forcing the caller to retry or fail visibly.
 
 import json
 import re
+from copy import deepcopy
 
 
 def extract_json(
@@ -21,9 +22,9 @@ def extract_json(
 ) -> dict | list | None:
     """Extract a complete JSON object or array from LLM response text.
 
-    If expected_details_count is set and a parsed dict has a shorter details
-    list, return None so the caller can retry instead of accepting partial
-    grading output.
+    If expected_details_count is set and a parsed dict has fewer flattened
+    detail blanks than expected, return None so the caller can retry instead of
+    accepting partial grading output.
     """
     if not text or not text.strip():
         return None
@@ -116,8 +117,12 @@ def _is_incomplete(parsed: dict | list, expected_details_count: int | None) -> b
         return False
     details = parsed.get("details")
     if not isinstance(details, list):
-        return False
-    return len(details) < expected_details_count
+        return True
+
+    from edu_cloud.modules.grading.detail_flatten import flatten_llm_details
+
+    flattened = flatten_llm_details(deepcopy(details))
+    return len(flattened) < expected_details_count
 
 
 def _complete_or_none(

@@ -1,0 +1,27 @@
+schema: steward-pr-scope.v1
+scope_id: keel-grading-details-count-fail-closed-2026-06-30
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-grading-details-count-fail-closed-2026-06-30.yml
+  - src/edu_cloud/modules/grading/llm_client.py
+  - src/edu_cloud/modules/grading/gemini_client.py
+  - src/edu_cloud/modules/grading/json_parser.py
+  - src/edu_cloud/modules/grading/router.py
+  - src/edu_cloud/workers/grading.py
+  - tests/test_services_exam/test_json_parser.py
+  - tests/test_services_exam/test_llm_client_new.py
+  - tests/test_services_exam/test_grading_preview_ocr_review.py
+  - tests/test_workers/test_two_step_grading.py
+forbidden_paths:
+  - .yuanqi/
+  - scripts/yuanqi/
+  - tests/yuanqi/
+  - src/edu_cloud/core/auth.py
+  - src/edu_cloud/core/permissions.py
+  - src/edu_cloud/core/tenant.py
+  - alembic/
+  - deploy/
+compatibility_paths: []
+status: active
+created_at: "2026-06-30T15:51:18+08:00"
+expires_at: "2026-07-07T23:59:00+08:00"
