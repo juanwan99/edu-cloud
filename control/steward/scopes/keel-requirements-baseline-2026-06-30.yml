@@ -1,0 +1,21 @@
+schema: steward-pr-scope.v1
+scope_id: keel-requirements-baseline-2026-06-30
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-requirements-baseline-2026-06-30.yml
+  - docs/context/REQUIREMENTS_BASELINE.md
+  - docs/context/ACTIVE_INDEX.md
+  - docs/context/NOW.md
+forbidden_paths:
+  - .yuanqi/
+  - scripts/yuanqi/
+  - tests/yuanqi/
+  - src/edu_cloud/core/auth.py
+  - src/edu_cloud/core/permissions.py
+  - src/edu_cloud/core/tenant.py
+  - alembic/
+  - deploy/
+compatibility_paths: []
+status: active
+created_at: "2026-06-30T08:32:00+08:00"
+expires_at: "2026-07-07T23:59:00+08:00"
