@@ -45,6 +45,12 @@ If Claude budget is constrained, the user may run Claude App manually and paste
 the review report. That counts as Claude evidence only when the report includes
 the exact PR or diff range, checked files, findings, and PASS/FAIL.
 
+The user is not responsible for formatting review evidence. If the user pastes
+raw Claude App output, Codex must decide whether it is sufficient, extract the
+checked files/findings/verdict, post a concise PR comment, and update the PR
+body. If the raw review is missing a clear PASS/FAIL or the reviewed PR/commit,
+Codex asks for only that missing fact.
+
 ## Keel Working Contract
 
 For governed PRs:
@@ -126,6 +132,16 @@ Minimum evidence:
 3. files and call paths inspected;
 4. test and CI evidence inspected;
 5. explicit `PASS` or `FAIL`.
+
+Use the smallest review that protects quality:
+
+- Tier 1: docs-only, closeout-only, and low-risk hygiene PRs need CI plus Codex
+  evidence. Claude review is optional.
+- Tier 2: ordinary business fixes need one non-author review focused on the
+  production call path.
+- Tier 3: grading, auth, tenant/data isolation, runtime, migrations,
+  governance gates, deletion/retirement, and silent-downgrade fixes need Codex
+  review plus Claude App or `claude -p` review when budget allows.
 
 For any new protection field, status, parameter, fallback, or fail-closed flag,
 the review must name the production consumer. Examples: `needs_review`,

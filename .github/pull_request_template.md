@@ -21,6 +21,9 @@ Reviewer / evidence URL:
 
 Verdict: PENDING
 
+Raw Claude/manual review may be pasted to Codex; Codex will post the concise
+evidence comment and update this section.
+
 - [ ] Review body/comment is non-empty and written by a non-author.
 - [ ] Reviewer checked the production call path, not only the touched function.
 - [ ] New fields, flags, parameters, fallbacks, or fail-closed paths have named production consumers.

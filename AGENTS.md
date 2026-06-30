@@ -57,6 +57,8 @@ Independent Review must be done by a non-author and must state:
 Use Claude economically: Claude App manual review is acceptable evidence when
 the user runs it and pastes or links the report. `claude -p` is optional and
 reserved for high-risk review, not routine closeout or docs-only PRs.
+The user may paste raw Claude output; Codex is responsible for extracting and
+posting the standard PR review evidence.
 
 The old Yuanqi task-contract workflow is retired from active use. Do not create
 or restore `.yuanqi/tasks`, `Yuanqi-Task:` PR markers, Yuanqi task windows, or
