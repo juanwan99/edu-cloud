@@ -1,7 +1,7 @@
 ---
 title: edu-cloud Agent Entry
 owner: liang
-last_review_date: "2026-06-29"
+last_review_date: "2026-06-30"
 expiration_in_days: 30
 ---
 
@@ -41,6 +41,24 @@ workers must not invent, self-approve, or leave placeholder evidence.
 GitHub enforces this through `steward/dispatch-review`: governed PRs must use a
 fresh `keel/` branch based on latest `origin/master`, include non-placeholder
 CDR evidence, and include a completed Dispatch Review checklist.
+
+Dispatch Review is a pre-work boundary check. It is not the final code review.
+Before merge, every non-trivial PR needs Independent Review evidence in the PR
+conversation or review body. Empty approve reviews do not count as evidence.
+
+Independent Review must be done by a non-author and must state:
+
+- files and call paths inspected;
+- whether new fields, flags, parameters, or fail-closed paths have production
+  consumers;
+- tests or CI evidence checked;
+- residual risk and a clear `PASS` or `FAIL`.
+
+Use Claude economically: Claude App manual review is acceptable evidence when
+the user runs it and pastes or links the report. `claude -p` is optional and
+reserved for high-risk review, not routine closeout or docs-only PRs.
+The user may paste raw Claude output; Codex is responsible for extracting and
+posting the standard PR review evidence.
 
 The old Yuanqi task-contract workflow is retired from active use. Do not create
 or restore `.yuanqi/tasks`, `Yuanqi-Task:` PR markers, Yuanqi task windows, or

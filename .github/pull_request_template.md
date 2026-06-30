@@ -14,3 +14,18 @@ Codex-Dispatch-Review: REQUIRED
 - [ ] Added one fresh scope file under `control/steward/scopes/`.
 - [ ] Changed files stay inside scope `allowed_paths`; no `forbidden_paths` were touched.
 - [ ] For file deletion or retirement, reachability was checked across `scripts/`, `tests/`, `.github/workflows/`, active docs, and governance registries.
+
+## Independent Review
+
+Reviewer / evidence URL:
+
+Verdict: PENDING
+
+Raw Claude/manual review may be pasted to Codex; Codex will post the concise
+evidence comment and update this section.
+
+- [ ] Review body/comment is non-empty and written by a non-author.
+- [ ] Reviewer checked the production call path, not only the touched function.
+- [ ] New fields, flags, parameters, fallbacks, or fail-closed paths have named production consumers.
+- [ ] Tests cover the caller path or the PR explains why focused unit coverage is sufficient.
+- [ ] Residual risk is stated, with explicit PASS or FAIL.
