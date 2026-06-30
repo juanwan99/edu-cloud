@@ -1,7 +1,7 @@
 ---
 title: edu-cloud Agent Entry
 owner: liang
-last_review_date: "2026-06-30"
+last_review_date: "2026-07-01"
 expiration_in_days: 30
 ---
 
@@ -32,6 +32,12 @@ touching `.github/**`, `control/**`, `docs/context/**`, `scripts/governance/**`,
 or `tests/governance/**`, stop for Codex Dispatch Review. The review must define
 task order, scope ids, allowed paths, forbidden paths, and local verification
 commands before implementation starts.
+
+In multi-window mode, the steward thread is not the implementation thread. The
+steward thread owns intake, queue order, dispatch review, risk calls, and final
+evidence readback. A task thread owns one scoped implementation PR at a time.
+The same thread must not self-dispatch, implement, and then provide the
+Independent Review evidence for that PR.
 
 The PR body must include both `Steward-Scope: <scope_id>` and
 `Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>`. The CDR evidence is
@@ -85,8 +91,10 @@ task-contract machinery:
 This is Codex-led and Claude-assisted: Claude may plan, review, or implement
 when explicitly used, but GitHub and human review remain the merge authority.
 
-- Codex App: local steward, implementation helper, review assistant, and hygiene
-  auditor.
+- Codex steward thread: local steward, dispatch reviewer, final readback
+  reviewer, and hygiene auditor.
+- Codex implementation thread: scoped implementation helper only when the user
+  explicitly assigns that role for a specific PR.
 - Claude App: local planner/reviewer or implementation assistant when the user
   explicitly uses it.
 - GitHub: hard gate for merge eligibility through required checks, CODEOWNERS,
@@ -94,10 +102,13 @@ when explicitly used, but GitHub and human review remain the merge authority.
 
 No model accepts its own work as complete. Completion requires concrete
 evidence: tests, CI, runtime checks, or file-level inspection.
+If Liang explicitly authorizes the steward thread to implement an exception,
+state the role change before editing. That PR still needs non-author
+Independent Review evidence before it is merge-ready.
 
 ## Start Here
 
-1. Run `scripts/codex-check` when available.
+1. Run `python scripts/codex-check` when available.
 2. Inspect `git status --short --branch`.
 3. Read the relevant current source files before editing.
 4. For governed PRs, create a new Keel scope file before changing protected
@@ -133,13 +144,13 @@ checks for merge decisions.
 Common commands:
 
 ```bash
-scripts/codex-check
-scripts/codex-context --no-network
-scripts/codex-verify safety
-scripts/codex-verify safety --repo-wide
-scripts/codex-verify backend --dry-run
-scripts/codex-verify frontend --dry-run
-scripts/codex-verify schema --dry-run
+python scripts/codex-check
+python scripts/codex-context --no-network
+python scripts/codex-verify safety
+python scripts/codex-verify safety --repo-wide
+python scripts/codex-verify backend --dry-run
+python scripts/codex-verify frontend --dry-run
+python scripts/codex-verify schema --dry-run
 ```
 
 For runtime isolation, use Docker Compose with a unique project name and ports
