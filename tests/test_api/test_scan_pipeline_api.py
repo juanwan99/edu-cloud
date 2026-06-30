@@ -10,6 +10,8 @@ from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.modules.card.models import Template
 from edu_cloud.modules.exam.models import Exam, Subject, Question
+from edu_cloud.modules.scan.models import StudentAnswer
+from edu_cloud.modules.student.models import Student
 from edu_cloud.shared.auth import create_access_token
 
 
@@ -325,6 +327,131 @@ class TestPipelineFilenamePairing:
 
         assert ok is True
         assert info["reason"] == "paired_known_student_numbers"
+
+
+class TestPipelineIdentityFailClosed:
+    async def _start_and_run_identity_case(
+        self,
+        client,
+        scan_seed,
+        db,
+        tmp_path,
+        monkeypatch,
+        *,
+        file_stem: str,
+        raw_student_number: str,
+    ) -> dict:
+        from unittest.mock import patch
+        from edu_cloud.config import settings
+        from edu_cloud.modules.scan import pipeline_service
+
+        monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+        pipeline_service._queue.clear()
+        pipeline_service._progress.clear()
+
+        case_dir = tmp_path / "scan_s1" / "identity"
+        case_dir.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (200, 150), (240, 240, 240)).save(case_dir / f"{file_stem}A.png")
+
+        db.add(Question(
+            id="scan_identity_q1",
+            subject_id=scan_seed["subject_id"],
+            name="1",
+            question_type="essay",
+            max_score=10,
+            school_id="scan_s1",
+        ))
+        db.add(Template(
+            subject_id=scan_seed["subject_id"],
+            side="A",
+            image_width=200,
+            image_height=150,
+            anchors=[],
+            regions=[
+                {"id": "BC", "type": "barcode", "rect": {"x1": 0, "y1": 0, "x2": 20, "y2": 20}},
+                {
+                    "id": "R01",
+                    "type": "subjective",
+                    "rect": {"x1": 20, "y1": 20, "x2": 120, "y2": 100},
+                    "question_id": "scan_identity_q1",
+                },
+            ],
+            school_id="scan_s1",
+        ))
+        await db.commit()
+
+        def fake_process_one_image(*_args, **_kwargs):
+            return {
+                "file": f"{file_stem}A.png",
+                "student_id": raw_student_number,
+                "crops": [{"region_id": "R01", "path": f"/tmp/{file_stem}_R01.png"}],
+                "objective_results": [],
+                "errors": [],
+                "barcode_status": "fallback_none",
+            }
+
+        with patch.object(pipeline_service, "ensure_queue_running", lambda: None), \
+             patch.object(pipeline_service, "process_one_image", side_effect=fake_process_one_image):
+            resp = await client.post("/api/v1/scan/pipeline/start", json={
+                "subject_id": scan_seed["subject_id"],
+                "side": "A",
+                "image_dir": str(case_dir),
+            }, headers=scan_seed["headers"])
+            assert resp.status_code == 200, resp.text
+            results = await pipeline_service.run_queue()
+
+        assert len(results) == 1
+        return results[0]
+
+    async def test_start_skips_save_when_filename_student_number_not_in_roster(
+        self, client, scan_seed, db, tmp_path, monkeypatch
+    ):
+        result = await self._start_and_run_identity_case(
+            client,
+            scan_seed,
+            db,
+            tmp_path,
+            monkeypatch,
+            file_stem="UNKNOWN001",
+            raw_student_number="UNKNOWN001",
+        )
+
+        rows = (await db.execute(select(StudentAnswer))).scalars().all()
+        assert rows == []
+        assert result["processed"] == 0
+        assert result["failed"] == 1
+        assert result["unmatched_student_files"] == [{
+            "file": "UNKNOWN001A.png",
+            "student_number": "UNKNOWN001",
+        }]
+
+    async def test_start_saves_known_filename_student_number_as_student_uuid(
+        self, client, scan_seed, db, tmp_path, monkeypatch
+    ):
+        db.add(Student(
+            id="scan_student_1",
+            name="Student One",
+            student_number="KNOWN001",
+            school_id="scan_s1",
+        ))
+        await db.commit()
+
+        result = await self._start_and_run_identity_case(
+            client,
+            scan_seed,
+            db,
+            tmp_path,
+            monkeypatch,
+            file_stem="KNOWN001",
+            raw_student_number="KNOWN001",
+        )
+
+        rows = (await db.execute(select(StudentAnswer))).scalars().all()
+        assert len(rows) == 1
+        assert rows[0].student_id == "scan_student_1"
+        assert result["processed"] == 1
+        assert result["failed"] == 0
+        assert result["students"] == ["scan_student_1"]
 
 
 class TestImportTpl:
