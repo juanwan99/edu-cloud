@@ -7,7 +7,7 @@ expiration_in_days: 14
 
 # Requirements Baseline
 
-Last refreshed: 2026-06-30 08:32 Asia/Shanghai
+Last refreshed: 2026-06-30 21:05 Asia/Shanghai
 
 This is the current requirements and task-priority baseline for edu-cloud work
 under Keel. Older Claude/Codex reports, old plans, old handoffs, Yuanqi task
@@ -17,8 +17,9 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 ## Source Of Truth
 
 - Current repo: `juanwan99/edu-cloud`
-- Current master: `437ef6a974da907841822245def0416cd9ecd313`
+- Current master: `c6e8d8f4f710d84409952f68e1ff3a544a57bac0`
 - Current open PRs: none
+- Current Keel scopes: 34 closed, 0 active
 - Current module dependency gate: `0 edges, 0 cycles`
 - Current Keel authority: GitHub required checks, CODEOWNERS, human review, and
   fresh scope files under `control/steward/scopes/`
@@ -52,11 +53,15 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 - There are 36 non-archive `docs/plans/...` references; 25 of those still point
   to files that are neither live under `docs/plans/` nor present under
   `docs/archive/plans/`.
-- PR #57 closed the calendar query range validation pilot.
-- PR #58 closed the related calendar scope.
-- PR #59 made token revocation fail closed in production.
-- `keel-token-revocation-fail-closed-2026-06-30.yml` is still `status: active`
-  after PR #59 and needs a closeout PR.
+- PR #71/#73 made OCR review-needed answers fail visible across grading paths.
+- PR #75 made grading details-count validation fail closed for flat and nested
+  LLM detail formats.
+- PR #77 made token revocation fail closed in production with explicit
+  environment semantics.
+- PR #79 localized the AI chat persistence warning.
+- PR #81 hardened Independent Review evidence in PR bodies; PR #82 closed its
+  Keel scope.
+- All Keel scopes are currently closed; there is no P0 closeout backlog.
 - `scripts/pytest_delta.py`, `scripts/truth-doctor.sh`, truth tools,
   guardian/meta scripts, and their related tests/docs are not proven dead. Do
   not delete them without a fresh reachability review across scripts, CI, tests,
@@ -64,32 +69,36 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 
 ## Active Work Queue
 
-### P0 Keel Closeout
-
-Close `keel-token-revocation-fail-closed-2026-06-30.yml` after confirming PR
-#59 is merged and master CI is green.
-
-### P1 Silent Degradation
+### P0 Silent Degradation
 
 Fix these as separate, narrow PRs with fresh scopes and tests:
 
-1. `src/edu_cloud/ai/engine/edu_runtime.py`: `_persist_messages()` still treats
-   chat persistence as best-effort and only logs DB write failures.
-2. `src/edu_cloud/modules/grading/json_parser.py`: `_repair_truncated()` can
-   close incomplete JSON and return repaired grading output. It has an
-   incomplete-result guard, but the repair path is still a correctness risk.
-3. `src/edu_cloud/modules/grading/ocr_validator.py`: OCR English commentary and
-   missing blanks can become `unanswered` text. Prefer explicit review-needed or
-   unable-to-recognize states over silently treating uncertainty as no answer.
+1. `src/edu_cloud/api/ai.py`: `DataScopeBuilder` failure must not construct a
+   wider fallback scope. If AI visibility cannot be built, fail closed or return
+   a deny-all scope with explicit user-visible failure.
+2. `src/edu_cloud/api/ai.py`: daily chat limit lookup failures must not allow
+   unlimited chat. Make quota store/check failure visible and conservative.
+3. `src/edu_cloud/workers/grading.py` and
+   `src/edu_cloud/modules/grading/router.py`: grading LLM slot lookup exceptions
+   must not silently fall back to `.env`/default grading credentials.
 
-### P2 Visible But Still Risky
+### P1 Visible But Still Risky
 
-Investigate only after P1:
+Investigate and fix after the P0 items, unless the user explicitly promotes one
+to P0:
 
 - `src/edu_cloud/modules/scan/pipeline_service.py`: barcode fallback is now
-  counted and surfaced, but still continues with filename-derived identity.
+  counted and surfaced, but still continues with filename-derived identity and
+  can write official answers.
 - `src/edu_cloud/modules/scan/pipeline_service.py`: unknown student numbers are
-  marked anomaly and processing continues. Decide whether this should block.
+  marked anomaly and processing continues. Define a quarantine/failed-file
+  contract before changing persistence.
+- `src/edu_cloud/ai/engine/edu_runtime.py` and
+  `src/edu_cloud/ai/providers/coze.py`: chat persistence failure is visible to
+  the frontend but still allows the generated answer. Product decision needed:
+  acceptable warning state vs hard failure.
+- `src/edu_cloud/api/ai.py`: retryable provider errors can switch providers
+  without a user-visible provider-switched marker.
 - `src/edu_cloud/ai/workflow/engine.py`: failed steps stop a run, but downstream
   skipped steps are not explicitly recorded.
 - `src/edu_cloud/modules/grading/gemini_client.py`: cache creation failure falls
@@ -98,8 +107,12 @@ Investigate only after P1:
 ### P3 Hygiene
 
 - Resolve or intentionally document the 25 stale `docs/plans/...` references
-  when a touched active/reference doc needs them. Do not make this the main
+- Resolve or intentionally document stale `docs/plans/...` references when a
+  touched active/reference doc needs them. Latest sweep found 38 unique
+  non-archive plan references, 10 live and 28 missing. Do not make this the main
   product lane.
+- `docs/plans/compat-router-deprecation.md` is referenced by live code/tests but
+  is missing. Either add a small reference doc or repoint those references.
 - Revisit remaining `docs/plans/` files only through `ACTIVE_INDEX.md`
   promotion/reference decisions, not broad deletion.
 
@@ -109,6 +122,14 @@ The machine gate is currently clean: `0 edges, 0 cycles`. Continue to enforce
 no new module edges. Do not launch a broad facade refactor from old notes alone;
 do targeted boundary work only when a product task exposes a concrete dependency
 problem.
+
+Parallel-safe product slices should avoid shared hot spots:
+
+- Safe together: AI DataScope/API safety, scan parser/identity investigation,
+  calendar service/API work, grading prompt/rubric algorithm work.
+- Do not run together without an explicit coordinator: scan `StudentAnswer`
+  schema with grading worker/result changes; module gating/auth/tenant work with
+  new router/module-code work; two ORM migration/schema tasks.
 
 ## Superseded Baselines
 

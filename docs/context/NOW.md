@@ -7,7 +7,7 @@ expiration_in_days: 7
 
 # NOW
 
-Last refreshed: 2026-06-30 08:32 Asia/Shanghai
+Last refreshed: 2026-06-30 21:05 Asia/Shanghai
 
 ## Current Goal
 
@@ -17,22 +17,31 @@ only unless `ACTIVE_INDEX.md` or the baseline promotes them.
 
 ## Fresh State
 
-- Current master: `437ef6a974da907841822245def0416cd9ecd313`.
+- Current master: `c6e8d8f4f710d84409952f68e1ff3a544a57bac0`.
 - Current open PRs: none.
-- Recent merged work: #57 calendar range validation, #58 calendar scope
-  closeout, #59 token revocation fail-closed production behavior.
-- Latest master GitHub runs are green.
+- Recent merged work: #71/#73 OCR review-needed fail-visible hardening,
+  #75 grading details-count fail-closed, #77 token revocation explicit-env
+  fail-closed, #79 AI chat persistence warning localization, #81 independent
+  review evidence hardening, and #82 scope closeout.
+- Latest master GitHub run `28445858249` is green.
 - Module dependency gate is clean: `0 edges, 0 cycles`.
-- `keel-token-revocation-fail-closed-2026-06-30.yml` is still `status: active`
-  and needs a closeout PR.
+- Keel scope registry is closed: 34 closed scopes, 0 active scopes.
 
 ## Next Work Queue
 
-1. Close the #59 token revocation Keel scope.
-2. Fix P1 silent degradation in chat message persistence.
-3. Fix P1 grading JSON truncation repair behavior.
-4. Fix P1 OCR uncertainty being converted to `unanswered`.
-5. Keep module decoupling as a guardrail, not a broad refactor, until a concrete
+1. Fix CRITICAL silent degradation in AI `DataScopeBuilder` failure handling:
+   never fall back to a wider AI tool scope when class/grade visibility cannot
+   be built.
+2. Fix HIGH AI daily-limit fail-open behavior: quota storage/check failures
+   must become visible and conservative.
+3. Fix HIGH grading LLM slot lookup fallback: DB lookup exceptions must not
+   silently use `.env`/default grading credentials.
+4. Investigate and then fix HIGH scan identity fallback: barcode failure or
+   unmatched student identity must not silently write official `StudentAnswer`
+   rows.
+5. Refresh active-doc hygiene as needed; do not let stale plan facts become task
+   baselines.
+6. Keep module decoupling as a guardrail, not a broad refactor, until a concrete
    product task exposes a boundary problem.
 
 ## Keel Baseline
