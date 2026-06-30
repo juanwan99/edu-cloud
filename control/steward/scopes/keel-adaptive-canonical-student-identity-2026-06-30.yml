@@ -15,6 +15,6 @@ forbidden_paths:
   - alembic/
   - deploy/
 compatibility_paths: []
-status: open
+status: active
 created_at: "2026-06-30T22:08:19+08:00"
 expires_at: "2026-07-07T23:59:00+08:00"
