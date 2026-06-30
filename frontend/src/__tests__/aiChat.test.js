@@ -10,7 +10,7 @@ import { createSSEProcessor } from '../utils/sseParser.js'
 
 /** Helper: push chunks through a processor and collect results. */
 function processChunks(chunks) {
-  const result = { content: '', tools: [], error: null, sessionId: null }
+  const result = { content: '', tools: [], error: null, sessionId: null, doneData: null }
 
   const processor = createSSEProcessor({
     onAnswer(content) { result.content += content },
@@ -20,7 +20,10 @@ function processChunks(chunks) {
       if (t) t.status = 'done'
     },
     onError(msg) { result.error = msg },
-    onDone(sid) { result.sessionId = sid },
+    onDone(sid, data) {
+      result.sessionId = sid
+      result.doneData = data
+    },
   })
 
   for (const chunk of chunks) {
@@ -69,6 +72,17 @@ describe('createSSEProcessor (real import)', () => {
       'data: {"type":"done","data":{"session_id":"sess-abc"}}\n',
     ])
     expect(result.sessionId).toBe('sess-abc')
+  })
+
+  it('passes done event metadata to caller', () => {
+    const result = processChunks([
+      'data: {"type":"done","data":{"session_id":"sess-abc","persistence":{"status":"failed","reason":"chat_history_unavailable"}}}\n',
+    ])
+    expect(result.sessionId).toBe('sess-abc')
+    expect(result.doneData.persistence).toEqual({
+      status: 'failed',
+      reason: 'chat_history_unavailable',
+    })
   })
 
   it('handles answer with missing content gracefully', () => {

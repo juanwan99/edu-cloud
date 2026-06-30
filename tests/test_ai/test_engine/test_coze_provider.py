@@ -108,6 +108,31 @@ def test_coze_tool_response_confirmation_maps_to_frontend_event():
 
 
 @pytest.mark.asyncio
+async def test_coze_done_reports_persistence_failure(monkeypatch):
+    run = _run()
+
+    async def fake_stream(user_message):
+        yield (
+            "conversation.message.delta",
+            {"id": "answer-1", "type": "answer", "content": "hello"},
+        )
+
+    async def failed_persist(*args, **kwargs):
+        return {"status": "failed", "reason": "chat_history_unavailable"}
+
+    monkeypatch.setattr(run, "_stream_coze", fake_stream)
+    monkeypatch.setattr(run, "_persist_messages", failed_persist)
+
+    events = [event async for event in run.run("hi")]
+
+    done = next(event for event in events if event.type == "done")
+    assert done.data["persistence"] == {
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+    }
+
+
+@pytest.mark.asyncio
 async def test_coze_resume_after_confirmation_executes_gateway_tool(monkeypatch):
     run = _run()
     run._pending_confirmations["c1"] = {

@@ -105,6 +105,50 @@ async def test_queue_drain_handles_agent_error():
 
 
 @pytest.mark.asyncio
+async def test_done_event_reports_persistence_failure():
+    """A generated answer must not silently claim durable chat history."""
+    rt = _runtime()
+    rt.build_agent()
+
+    async def fake_agent_run(user_message, **kwargs):
+        result = MagicMock()
+        result.output = "Test answer"
+        result.usage = MagicMock(total_tokens=1)
+        result.all_messages = MagicMock(return_value=[])
+        return result
+
+    async def failed_persist(*args, **kwargs):
+        return {"status": "failed", "reason": "chat_history_unavailable"}
+
+    with patch.object(rt._agent, "run", side_effect=fake_agent_run), \
+         patch.object(rt, "_persist_messages", side_effect=failed_persist):
+        collected = []
+        async for ev in rt.run("hello"):
+            collected.append(ev)
+
+    done_ev = next(e for e in collected if e.type == "done")
+    assert done_ev.data["persistence"] == {
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+    }
+
+
+@pytest.mark.asyncio
+async def test_persist_messages_returns_failed_status_on_db_error():
+    session = AsyncMock()
+    session.__aenter__ = AsyncMock(return_value=session)
+    session.__aexit__ = AsyncMock(return_value=False)
+    session.add = MagicMock()
+    session.commit = AsyncMock(side_effect=RuntimeError("db down"))
+    maker = MagicMock(return_value=session)
+    rt = _runtime(db_sessionmaker=maker)
+
+    status = await rt._persist_messages("hello", "answer")
+
+    assert status == {"status": "failed", "reason": "chat_history_unavailable"}
+
+
+@pytest.mark.asyncio
 async def test_task_cancel_on_generator_close():
     """Explicit aclose() triggers cancel path and cleans up event_queue."""
     rt = _runtime()

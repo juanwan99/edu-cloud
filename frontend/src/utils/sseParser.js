@@ -37,7 +37,7 @@ export function createSSEProcessor(handlers = {}) {
       } else if (event.type === 'error') {
         handlers.onError?.(event.data?.message || 'Unknown error')
       } else if (event.type === 'done') {
-        handlers.onDone?.(event.data?.session_id)
+        handlers.onDone?.(event.data?.session_id, event.data || {})
       }
     } catch { /* ignore malformed JSON */ }
   }
