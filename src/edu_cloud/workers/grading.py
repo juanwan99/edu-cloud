@@ -18,6 +18,7 @@ from edu_cloud.modules.exam.models import Question, Subject, QUESTION_TYPES_SUBJ
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.grading.models import Rubric, GradingTask, GradingResult
 from edu_cloud.modules.grading.equivalence_guard import apply_equivalence_guard
+from edu_cloud.modules.grading.ocr_validator import has_ocr_review_needed, ocr_review_needed_message
 from edu_cloud.core.state_machine import validate_transition
 import edu_cloud.models.user  # noqa: F401 — FK resolution for grading_tasks.created_by
 import edu_cloud.models.school  # noqa: F401 — FK resolution for *.school_id
@@ -78,6 +79,19 @@ async def _read_image_b64(path: str) -> str:
 _grading_semaphore = asyncio.Semaphore(40)
 
 _ESSAY_CHAR_CAPS = [(20, 0), (150, 8), (200, 8), (350, 22), (450, 28), (500, 34)]
+
+
+def _ocr_review_needed_failure(answer_id: str, plog: dict, blanks: list[dict], t_start: float) -> dict:
+    message = ocr_review_needed_message(blanks)
+    plog["pipeline_type"] = "ocr_review_needed"
+    plog["is_blank"] = False
+    plog["grading_ms"] = 0
+    plog["score"] = None
+    plog["confidence"] = None
+    plog["error_type"] = "ocr_review_needed"
+    plog["error_message"] = message
+    plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
+    return {"answer_id": answer_id, "error": message, "code": "ocr_review_needed"}
 
 
 def _apply_essay_score_cap(score: float, char_count: int | None, question_type: str, max_score: float) -> float:
@@ -393,6 +407,11 @@ async def _grade_single(
             extracted_text = f"<student_answer>\n{_sanitized}\n</student_answer>"
             plog["ocr_text"] = _raw_text
             plog["ocr_blanks_count"] = len(blanks)
+
+        if has_ocr_review_needed(blanks):
+            error_dict = _ocr_review_needed_failure(answer_id, plog, blanks, t_start)
+            logger.warning("grading_task: OCR review needed, answer=%s", answer_id)
+            return None, error_dict, plog
 
         _BLANK_MARKERS = {"", "（未作答）", "(未作答)", "未作答", "（无法辨识）", "(无法辨识)", "无法辨识", "[空]", "[?]", "空白"}
         meaningful_blanks = [b for b in blanks if str(b.get("text", "")).strip().replace(" ", "") not in _BLANK_MARKERS]
@@ -781,6 +800,12 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
             extracted_text = f"<student_answer>\n{_sanitized}\n</student_answer>"
             plog["ocr_text"] = _raw_text
             plog["ocr_blanks_count"] = len(blanks)
+
+            if has_ocr_review_needed(blanks):
+                error_dict = _ocr_review_needed_failure(ad["answer_id"], plog, blanks, t_start)
+                logger.warning("batch_grading: OCR review needed, answer=%s", ad["answer_id"])
+                results[idx] = (None, error_dict, plog)
+                continue
 
             non_empty = [b for b in blanks if b.get("text", "").strip()]
             if not non_empty:

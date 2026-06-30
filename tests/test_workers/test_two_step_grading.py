@@ -36,6 +36,37 @@ async def test_grade_single_two_step():
 
 
 @pytest.mark.asyncio
+async def test_grade_single_ocr_review_needed_blocks_text_grading():
+    from edu_cloud.workers.grading import _grade_single
+
+    mock_llm = MagicMock()
+    mock_llm.extract_text = AsyncMock(return_value=[
+        {"blankNo": "1-1", "subQ": "(1)", "text": "The student wrote something illegible"},
+    ])
+    mock_ds_llm = MagicMock()
+    mock_ds_llm.grade_text = AsyncMock()
+
+    ad = {
+        "answer_id": "a_review", "question_id": "q1",
+        "question_name": "6", "question_max_score": 2,
+        "image_path": "/tmp/fake.png", "question_type": "essay",
+        "subject_code": "biology",
+    }
+    rubrics = {"q1": [{"blankNo": "1-1", "score": 2, "standardAnswer": "动物细胞", "context": "ctx", "judgingRules": "rules"}]}
+
+    with patch("edu_cloud.workers.grading._read_image_b64", return_value="A" * 10000):
+        result, error, plog = await _grade_single(mock_llm, ad, rubrics, ds_grading_llm=mock_ds_llm)
+
+    assert result is None
+    assert error["code"] == "ocr_review_needed"
+    assert error["answer_id"] == "a_review"
+    assert plog["pipeline_type"] == "ocr_review_needed"
+    assert plog["error_type"] == "ocr_review_needed"
+    mock_llm.extract_text.assert_called_once()
+    mock_ds_llm.grade_text.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_grade_single_blank_detection():
     """Small images (< 5KB base64 ~ 6800 chars) are treated as blank."""
     from edu_cloud.workers.grading import _grade_single

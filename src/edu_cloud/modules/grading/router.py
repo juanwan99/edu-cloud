@@ -552,13 +552,27 @@ async def grade_single_answer(
                     blanks = await llm.extract_text(images_b64=[image_b64], prompt=ocr_prompt)
                 plog["ocr_ms"] = int((_time.perf_counter() - t_ocr) * 1000)
 
-                from edu_cloud.modules.grading.ocr_validator import validate_ocr_blanks, recover_truncated_blanks
+                from edu_cloud.modules.grading.ocr_validator import (
+                    validate_ocr_blanks,
+                    recover_truncated_blanks,
+                    has_ocr_review_needed,
+                    ocr_review_needed_message,
+                )
                 blanks = validate_ocr_blanks(blanks)
                 blanks = recover_truncated_blanks(blanks, len(rubric.criteria))
 
                 extracted_text = "\n".join(f"{b.get('blankNo', '?')}: {b.get('text', '')}" for b in blanks)
                 plog["ocr_text"] = extracted_text
                 plog["ocr_blanks_count"] = len(blanks)
+
+                if has_ocr_review_needed(blanks):
+                    message = ocr_review_needed_message(blanks)
+                    plog["pipeline_type"] = "ocr_review_needed"
+                    plog["is_blank"] = False
+                    plog["grading_ms"] = 0
+                    plog["error_type"] = "ocr_review_needed"
+                    plog["error_message"] = message
+                    raise HTTPException(422, message)
 
                 # OCR-based blank detection: all blanks empty → 0 score
                 non_empty = [b for b in blanks if b.get("text", "").strip()]
@@ -601,6 +615,8 @@ async def grade_single_answer(
                     }
             plog["score"] = grade_result.score
             plog["confidence"] = grade_result.confidence
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error("grade_single: answer=%s failed: %s", req.answer_id, e, exc_info=True)
             plog["error_type"] = type(e).__name__

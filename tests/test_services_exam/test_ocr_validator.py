@@ -2,6 +2,8 @@ from edu_cloud.modules.grading.ocr_validator import (
     validate_ocr_blanks,
     is_blank_answer,
     recover_truncated_blanks,
+    has_ocr_review_needed,
+    ocr_review_needed_message,
 )
 
 
@@ -78,3 +80,25 @@ def test_recover_truncated_empty():
     assert len(result) == 3
     assert all(b["text"] == "（无法辨识，需人工复核）" for b in result)
     assert all(b["needs_review"] is True for b in result)
+
+
+def test_ocr_review_needed_helpers_detect_marked_blanks():
+    blanks = [
+        {"blankNo": "1-1", "text": "A"},
+        {
+            "blankNo": "1-2",
+            "text": "（无法辨识，需人工复核）",
+            "needs_review": True,
+            "ocr_status": "needs_review",
+            "review_reason": "ocr_missing_blank",
+        },
+    ]
+
+    assert has_ocr_review_needed(blanks) is True
+    assert "ocr_missing_blank" in ocr_review_needed_message(blanks)
+
+
+def test_ocr_review_needed_helpers_ignore_normal_blanks():
+    blanks = [{"blankNo": "1-1", "text": "动物细胞"}]
+
+    assert has_ocr_review_needed(blanks) is False
