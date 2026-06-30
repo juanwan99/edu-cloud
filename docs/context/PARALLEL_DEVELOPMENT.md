@@ -1,7 +1,7 @@
 ---
 title: Parallel Development Policy
 owner: liang
-last_review_date: "2026-06-29"
+last_review_date: "2026-06-30"
 expiration_in_days: 30
 ---
 
@@ -90,6 +90,12 @@ or strictly ordered PRs instead of parallel worker PRs.
   evidence accepted by Codex/user and GitHub gates.
 - Deletion workers must report reachability evidence across scripts, tests,
   workflows, active docs, and governance registries before removing files.
+- Independent reviewers do not push to the implementation branch. If the
+  reviewer must fix or rebase, they become a contributor and a fresh
+  non-author review is required.
+- Empty approve reviews do not count as Independent Review. The review evidence
+  must state checked files, checked call paths, production consumers for any new
+  protection fields or parameters, verification evidence, and PASS/FAIL.
 
 ## Practical Default
 

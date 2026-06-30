@@ -1,7 +1,7 @@
 ---
 title: Codex Stewardship
 owner: liang
-last_review_date: "2026-06-29"
+last_review_date: "2026-06-30"
 expiration_in_days: 30
 ---
 
@@ -21,6 +21,29 @@ Purpose: stable planning memory for how Codex leads edu-cloud under Keel.
 - `AGENTS.md` is the active project entrypoint.
 - `docs/context/ACTIVE_INDEX.md` controls which docs are active,
   candidate-active, reference, or historical.
+
+## Role Split
+
+Default operating mode:
+
+- Codex is the steward: keep the task queue, scope, evidence contract, PR
+  readiness, and final acceptance aligned.
+- Claude is auxiliary: use it for manual Claude App review, targeted `claude -p`
+  review, investigation, or implementation when explicitly assigned.
+- GitHub remains the hard gate; the user remains the only final merge authority.
+
+Do not spend Claude budget by default. Use this escalation ladder:
+
+1. Low-risk closeout or docs-only PR: Codex review plus GitHub gates is enough.
+2. Normal business fix: one non-author Independent Review with evidence in the
+   PR conversation or review body.
+3. High-risk work (grading, auth, tenant/data isolation, runtime, migrations,
+   governance gates, deletion/retirement): Codex review plus Claude manual App
+   review or `claude -p` if budget allows.
+
+If Claude budget is constrained, the user may run Claude App manually and paste
+the review report. That counts as Claude evidence only when the report includes
+the exact PR or diff range, checked files, findings, and PASS/FAIL.
 
 ## Keel Working Contract
 
@@ -90,3 +113,25 @@ For file deletion or retirement, the review must include reachability evidence
 from `git grep` or equivalent across `scripts/`, `tests/`, `.github/workflows/`,
 active docs, and governance registries. A file still referenced by those
 surfaces is not dead; first update or retire the contract that references it.
+
+## Independent Review
+
+Independent Review happens after implementation and before merge. It checks
+whether the code actually solves the problem on the production call path.
+
+Minimum evidence:
+
+1. reviewer identity or source (Codex, Claude App, `claude -p`, or human);
+2. commit, PR, or diff range reviewed;
+3. files and call paths inspected;
+4. test and CI evidence inspected;
+5. explicit `PASS` or `FAIL`.
+
+For any new protection field, status, parameter, fallback, or fail-closed flag,
+the review must name the production consumer. Examples: `needs_review`,
+`ocr_status`, `expected_details_count`, `review_required`, `fail_closed`.
+If there is no production consumer, the review must FAIL or mark the PR
+incomplete.
+
+Empty GitHub approve bodies, self-authored checklist text, and PR body claims
+are not Independent Review evidence.
