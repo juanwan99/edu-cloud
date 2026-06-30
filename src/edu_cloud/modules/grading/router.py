@@ -493,7 +493,7 @@ async def grade_single_answer(
                     db, slot=SLOT_AI_GRADING, school_id=school_id,
                 )
             except Exception as e:
-                logger.error("grade_single: get_llm_config failed; fail closed: %s", e, exc_info=True)
+                logger.error("grade_single: get_llm_config failed; fail closed")
                 raise HTTPException(503, "AI 阅卷 LLM 配置读取失败，请稍后重试") from e
             llm = _create_llm_client(api_url=llm_url, api_key=llm_key, model=llm_model)
 
