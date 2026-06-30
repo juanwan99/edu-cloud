@@ -102,3 +102,9 @@ def test_ocr_review_needed_helpers_ignore_normal_blanks():
     blanks = [{"blankNo": "1-1", "text": "动物细胞"}]
 
     assert has_ocr_review_needed(blanks) is False
+
+
+def test_ocr_review_needed_helpers_detect_placeholder_text_without_flags():
+    blanks = [{"blankNo": "1-1", "text": "（无法辨识，需人工复核）"}]
+
+    assert has_ocr_review_needed(blanks) is True
