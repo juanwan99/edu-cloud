@@ -1088,7 +1088,7 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
                 llm_url = None
                 llm_key = settings.GEMINI_API_KEY
                 llm_model = settings.GEMINI_MODEL
-                logger.info("grading_task: task=%s, using Gemini official API (mode=%s, model=%s)", task_id, task.grading_mode, llm_model)
+                logger.info("grading_task: task=%s, using Gemini official API (mode=%s)", task_id, task.grading_mode)
             else:
                 # Resolve LLM config: school override -> platform default -> explicit helper fallback.
                 from edu_cloud.modules.exam.slot_selector import get_llm_config, SLOT_AI_GRADING

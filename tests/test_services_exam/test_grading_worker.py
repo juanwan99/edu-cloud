@@ -92,14 +92,24 @@ async def test_process_grading_task_routes_question_type_to_llm(db_engine, db, g
     mock_client = AsyncMock()
     mock_client.model = "test-model"
     mock_client.grade = AsyncMock(side_effect=mock_grade_fn)
-    mock_client.extract_text = AsyncMock(return_value=[{"blankNo": "1-1", "subQ": "(1)", "text": "答案"}])
+    mock_client.extract_text = AsyncMock(return_value=[
+        {"blankNo": "1-1", "subQ": "(1)", "text": "answer one"},
+        {"blankNo": "1-2", "subQ": "(2)", "text": "answer two"},
+    ])
     mock_client.grade_text = AsyncMock(return_value=GradeResponse(score=5.0, max_score=10.0, feedback="ok", confidence=0.9))
     mock_client.close = AsyncMock()
 
     large_b64 = "A" * 10000  # > 6800 threshold to avoid blank detection
-    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64):
-        with patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client):
-            await process_grading_task(ctx, grading_setup["task_id"])
+    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64), \
+         patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client), \
+         patch("edu_cloud.workers.grading.settings") as mock_settings, \
+         patch("edu_cloud.modules.grading.llm_client.LLMClient", return_value=mock_client):
+        mock_settings.DEEPSEEK_API_KEY = "fake-key"
+        mock_settings.GEMINI_API_KEY = None
+        mock_settings.VERTEX_AI_PROJECT = None
+        mock_settings.GRADING_BATCH_SIZE = 20
+        mock_settings.GRADING_CONCURRENCY = 5
+        await process_grading_task(ctx, grading_setup["task_id"])
 
 
 async def test_process_grading_task_success(db_engine, db, grading_setup):
@@ -110,7 +120,10 @@ async def test_process_grading_task_success(db_engine, db, grading_setup):
     mock_client = AsyncMock()
     mock_client.model = "test-model"
     mock_client.grade = AsyncMock(return_value=mock_grade)
-    mock_client.extract_text = AsyncMock(return_value=[{"blankNo": "1-1", "subQ": "(1)", "text": "答案"}])
+    mock_client.extract_text = AsyncMock(return_value=[
+        {"blankNo": "1-1", "subQ": "(1)", "text": "answer one"},
+        {"blankNo": "1-2", "subQ": "(2)", "text": "answer two"},
+    ])
     mock_client.grade_text = AsyncMock(return_value=mock_grade)
     mock_client.close = AsyncMock()
 
@@ -177,7 +190,10 @@ async def test_process_grading_task_partial_failure(db_engine, db, grading_setup
         call_count += 1
         if call_count == 2:
             raise RuntimeError("LLM timeout")
-        return [{"blankNo": "1-1", "subQ": "(1)", "text": "答案"}]
+        return [
+            {"blankNo": "1-1", "subQ": "(1)", "text": "answer one"},
+            {"blankNo": "1-2", "subQ": "(2)", "text": "answer two"},
+        ]
 
     mock_grade = GradeResponse(score=7.0, max_score=10.0, feedback="ok", confidence=0.8, raw_content='{"score":7}')
     mock_client = AsyncMock()
@@ -188,9 +204,16 @@ async def test_process_grading_task_partial_failure(db_engine, db, grading_setup
     mock_client.close = AsyncMock()
 
     large_b64 = "A" * 10000
-    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64):
-        with patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client):
-            await process_grading_task(ctx, grading_setup["task_id"])
+    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64), \
+         patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client), \
+         patch("edu_cloud.workers.grading.settings") as mock_settings, \
+         patch("edu_cloud.modules.grading.llm_client.LLMClient", return_value=mock_client):
+        mock_settings.DEEPSEEK_API_KEY = "fake-key"
+        mock_settings.GEMINI_API_KEY = None
+        mock_settings.VERTEX_AI_PROJECT = None
+        mock_settings.GRADING_BATCH_SIZE = 20
+        mock_settings.GRADING_CONCURRENCY = 5
+        await process_grading_task(ctx, grading_setup["task_id"])
 
     async with sf() as session:
         result = await session.execute(select(GradingTask).where(GradingTask.id == grading_setup["task_id"]))
@@ -290,9 +313,16 @@ async def test_batch_concurrency_25_answers(db_engine, db, grading_setup_25):
     mock_client.close = AsyncMock()
 
     large_b64 = "A" * 10000
-    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64):
-        with patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client):
-            await process_grading_task(ctx, grading_setup_25["task_id"])
+    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64), \
+         patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client), \
+         patch("edu_cloud.workers.grading.settings") as mock_settings, \
+         patch("edu_cloud.modules.grading.llm_client.LLMClient", return_value=mock_client):
+        mock_settings.DEEPSEEK_API_KEY = "fake-key"
+        mock_settings.GEMINI_API_KEY = None
+        mock_settings.VERTEX_AI_PROJECT = None
+        mock_settings.GRADING_BATCH_SIZE = 20
+        mock_settings.GRADING_CONCURRENCY = 5
+        await process_grading_task(ctx, grading_setup_25["task_id"])
 
     async with sf() as session:
         result = await session.execute(
@@ -335,9 +365,16 @@ async def test_batch_partial_failure_in_batch(db_engine, db, grading_setup_25):
     mock_client.close = AsyncMock()
 
     large_b64 = "A" * 10000
-    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64):
-        with patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client):
-            await process_grading_task(ctx, grading_setup_25["task_id"])
+    with patch("edu_cloud.workers.grading._read_image_b64", new_callable=AsyncMock, return_value=large_b64), \
+         patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_client), \
+         patch("edu_cloud.workers.grading.settings") as mock_settings, \
+         patch("edu_cloud.modules.grading.llm_client.LLMClient", return_value=mock_client):
+        mock_settings.DEEPSEEK_API_KEY = "fake-key"
+        mock_settings.GEMINI_API_KEY = None
+        mock_settings.VERTEX_AI_PROJECT = None
+        mock_settings.GRADING_BATCH_SIZE = 20
+        mock_settings.GRADING_CONCURRENCY = 5
+        await process_grading_task(ctx, grading_setup_25["task_id"])
 
     async with sf() as session:
         result = await session.execute(

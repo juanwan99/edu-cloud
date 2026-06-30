@@ -23,8 +23,27 @@ def test_worker_settings_has_cron_jobs():
 async def test_run_post_exam_pipeline_stub():
     """Pipeline stub runs without error."""
     from edu_cloud.workers.grading import run_post_exam_pipeline
+
+    mock_db = AsyncMock()
+    session_cm = AsyncMock()
+    session_cm.__aenter__ = AsyncMock(return_value=mock_db)
+    session_cm.__aexit__ = AsyncMock(return_value=False)
+
     ctx = {}
-    await run_post_exam_pipeline(ctx, exam_id="test-exam", school_id="test-school")
+    with patch("edu_cloud.database.async_session", return_value=session_cm), \
+         patch(
+             "edu_cloud.services.post_exam_pipeline.run_post_exam_pipeline",
+             new_callable=AsyncMock,
+             return_value={"status": "ok"},
+         ) as mock_orchestrate:
+        await run_post_exam_pipeline(ctx, exam_id="test-exam", school_id="test-school")
+
+    mock_orchestrate.assert_awaited_once_with(
+        mock_db,
+        exam_id="test-exam",
+        school_id="test-school",
+    )
+    mock_db.commit.assert_awaited_once()
 
 
 def test_process_grading_task_is_importable():
