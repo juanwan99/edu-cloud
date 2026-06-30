@@ -292,39 +292,15 @@ async def ai_chat(
         except Exception as restore_exc:
             logger.warning("Cold restore failed: %s", restore_exc)
 
-    # ── Build DataScope (best-effort) ──
-    data_scope = None
+    # ── Build DataScope (fail-closed) ──
     try:
         from edu_cloud.ai.data_scope import DataScopeBuilder
         data_scope = await DataScopeBuilder(db).build(user.id, role_id=role_obj.id)
     except Exception as scope_exc:
-        logger.warning("DataScope build failed: %s", scope_exc)
-
-    if data_scope is None:
-        from edu_cloud.ai.data_scope import DataScope
-        fallback_class_ids = getattr(role_obj, "class_ids", None)
-        fallback_grade_ids = getattr(role_obj, "grade_ids", None)
-        if fallback_class_ids is None and fallback_grade_ids and school_id:
-            from edu_cloud.modules.student.models import Class
-            from sqlalchemy import select as _sel
-            _cls_result = await db.execute(
-                _sel(Class.id).where(Class.grade_id.in_(fallback_grade_ids), Class.school_id == school_id)
-            )
-            fallback_class_ids = list(_cls_result.scalars().all())
-        data_scope = DataScope(
-            user_id=str(user.id),
-            school_id=school_id or "",
-            role=role,
-            visible_class_ids=fallback_class_ids,
-            visible_subject_codes=getattr(role_obj, "subject_codes", None),
-            visible_grade_ids=fallback_grade_ids,
-            visible_student_ids=None,
-            district_ids=None,
-            can_write=False,
-            can_see_rankings=role != "parent",
-            can_cross_school=role in ("platform_admin", "district_admin"),
-            persona="teacher_assistant",
-            version=1,
+        logger.warning("DataScope build failed; failing closed: %s", scope_exc)
+        raise HTTPException(
+            status_code=503,
+            detail="AI data scope is temporarily unavailable",
         )
 
     # ── Load school config ──

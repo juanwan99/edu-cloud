@@ -175,6 +175,26 @@ async def test_ai_chat_sse_stream_via_http(client, teacher_headers):
         assert "id" not in tc_evt["data"]
 
 
+@pytest.mark.asyncio
+async def test_ai_chat_datascope_build_failure_fails_closed(client, teacher_headers):
+    """POST /api/v1/ai/chat must not create an agent run if DataScope cannot be built."""
+    create_agent_run = AsyncMock()
+
+    with patch(
+        "edu_cloud.ai.data_scope.DataScopeBuilder.build",
+        AsyncMock(side_effect=RuntimeError("datascope unavailable")),
+    ), patch("edu_cloud.ai.providers.create_agent_run", create_agent_run):
+        resp = await client.post(
+            "/api/v1/ai/chat",
+            json={"message": "list my class results"},
+            headers=teacher_headers,
+        )
+
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "AI data scope is temporarily unavailable"
+    create_agent_run.assert_not_awaited()
+
+
 def test_provider_history_is_isolated_by_runtime_type():
     from edu_cloud.api.ai import (
         _SessionState,
