@@ -10,10 +10,11 @@ from pathlib import Path
 from scripts.governance.check_dispatch_review import validate_event
 
 
-def _event(*, body: str, branch: str = "keel/demo-2026-06-29"):
+def _event(*, body: str, branch: str = "keel/demo-2026-06-29", draft: bool = False):
     return {
         "pull_request": {
             "body": body,
+            "draft": draft,
             "head": {"ref": branch},
         }
     }
@@ -32,6 +33,12 @@ Codex-Dispatch-Review: CDR-2026-06-29-demo
 - [x] Added one fresh scope file under `control/steward/scopes/`.
 - [x] Changed files stay inside scope `allowed_paths`; no `forbidden_paths` were touched.
 - [x] For file deletion or retirement, reachability was checked across `scripts/`, `tests/`, `.github/workflows/`, active docs, and governance registries.
+
+## Independent Review
+
+Reviewer / evidence URL: https://github.com/juanwan99/edu-cloud/pull/99#issuecomment-1234567890
+
+Verdict: PASS
 """
 
 
@@ -83,6 +90,62 @@ def test_missing_required_evidence_fails():
     errors = validate_event(_event(body=body))
 
     assert any("Codex Dispatch Review evidence" in error for error in errors)
+
+
+def test_missing_independent_review_section_fails():
+    body = _valid_body().replace(
+        "\n## Independent Review\n\nReviewer / evidence URL: https://github.com/juanwan99/edu-cloud/pull/99#issuecomment-1234567890\n\nVerdict: PASS\n",
+        "",
+    )
+
+    errors = validate_event(_event(body=body))
+
+    assert "PR body must include a ## Independent Review section" in errors
+
+
+def test_independent_review_pending_verdict_fails():
+    body = _valid_body().replace("Verdict: PASS", "Verdict: PENDING")
+
+    errors = validate_event(_event(body=body))
+
+    assert "Independent Review verdict must be PASS before merge" in errors
+
+
+def test_independent_review_missing_evidence_fails():
+    body = _valid_body().replace(
+        "Reviewer / evidence URL: https://github.com/juanwan99/edu-cloud/pull/99#issuecomment-1234567890",
+        "Reviewer / evidence URL:",
+    )
+
+    errors = validate_event(_event(body=body))
+
+    assert "Independent Review must include a non-placeholder Reviewer / evidence URL" in errors
+
+
+def test_independent_review_malformed_evidence_url_fails():
+    body = _valid_body().replace(
+        "Reviewer / evidence URL: https://github.com/juanwan99/edu-cloud/pull/99#issuecomment-1234567890",
+        "Reviewer / evidence URL: looked-good",
+    )
+
+    errors = validate_event(_event(body=body))
+
+    assert "Independent Review evidence must be a GitHub PR comment, review, or review-thread URL" in errors
+
+
+def test_independent_review_github_review_url_passes():
+    body = _valid_body().replace(
+        "Reviewer / evidence URL: https://github.com/juanwan99/edu-cloud/pull/99#issuecomment-1234567890",
+        "Reviewer / evidence URL: https://github.com/juanwan99/edu-cloud/pull/99#pullrequestreview-1234567890",
+    )
+
+    assert validate_event(_event(body=body)) == []
+
+
+def test_draft_pr_allows_pending_independent_review():
+    body = _valid_body().replace("Verdict: PASS", "Verdict: PENDING")
+
+    assert validate_event(_event(body=body, draft=True)) == []
 
 
 def test_scope_placeholder_fails():
