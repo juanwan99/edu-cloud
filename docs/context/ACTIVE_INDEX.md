@@ -1,7 +1,7 @@
 ---
 title: Active Document Index
 owner: liang
-last_review_date: "2026-06-29"
+last_review_date: "2026-06-30"
 expiration_in_days: 30
 ---
 
@@ -19,6 +19,7 @@ The active governance model is Keel, with GitHub as merge authority.
 | `CLAUDE.md` | active | Claude app entry shim pointing back to AGENTS and this index |
 | `docs/context/ACTIVE_INDEX.md` | active | Canonical current-doc index |
 | `docs/context/NOW.md` | active | Current volatile facts and near-term work |
+| `docs/context/REQUIREMENTS_BASELINE.md` | active | Current requirements and task-priority baseline |
 | `docs/context/CODEX_STEWARD.md` | active | Codex stewardship and completion discipline |
 | `docs/context/GOVERNANCE_MODEL.md` | active | Keel dual-core governance model |
 | `docs/context/PARALLEL_DEVELOPMENT.md` | active | Safe parallel work modes and exclusive scopes |
@@ -71,5 +72,7 @@ this index, source code, tests, CI, or current user instruction.
 - Removed `docs/superpowers/**` material is historical evidence only.
 - Old Windows-era handoffs, old review logs, and Yuanqi task-contract references
   are not current instructions.
+- Old Claude/Codex investigation summaries are not task baselines unless they
+  are reverified and promoted through `docs/context/REQUIREMENTS_BASELINE.md`.
 - If a task cites an old plan or handoff, first add it here with status
   `candidate-active` or `reference`, including why it is safe to read.
