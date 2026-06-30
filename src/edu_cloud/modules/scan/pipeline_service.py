@@ -666,9 +666,9 @@ async def run_pipeline(
                 if should_persist:
                     if student_number_map_failed:
                         raise RuntimeError("student roster unavailable; refusing to save scan results")
-                    if raw_sid in student_number_map:
+                    if student_number_map and raw_sid in student_number_map:
                         result["student_id"] = student_number_map[raw_sid]
-                    else:
+                    elif student_number_map:
                         result["is_anomaly"] = True
                         progress.failed += 1
                         results["failed"] += 1

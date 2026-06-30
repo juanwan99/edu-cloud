@@ -406,6 +406,14 @@ class TestPipelineIdentityFailClosed:
     async def test_start_skips_save_when_filename_student_number_not_in_roster(
         self, client, scan_seed, db, tmp_path, monkeypatch
     ):
+        db.add(Student(
+            id="scan_student_other",
+            name="Other Student",
+            student_number="OTHER001",
+            school_id="scan_s1",
+        ))
+        await db.commit()
+
         result = await self._start_and_run_identity_case(
             client,
             scan_seed,
@@ -424,6 +432,27 @@ class TestPipelineIdentityFailClosed:
             "file": "UNKNOWN001A.png",
             "student_number": "UNKNOWN001",
         }]
+
+    async def test_start_allows_explicit_filename_student_number_without_roster(
+        self, client, scan_seed, db, tmp_path, monkeypatch
+    ):
+        result = await self._start_and_run_identity_case(
+            client,
+            scan_seed,
+            db,
+            tmp_path,
+            monkeypatch,
+            file_stem="LEGACY001",
+            raw_student_number="LEGACY001",
+        )
+
+        rows = (await db.execute(select(StudentAnswer))).scalars().all()
+        assert len(rows) == 1
+        assert rows[0].student_id == "LEGACY001"
+        assert result["processed"] == 1
+        assert result["failed"] == 0
+        assert result["students"] == ["LEGACY001"]
+        assert result["unmatched_student_files"] == []
 
     async def test_start_saves_known_filename_student_number_as_student_uuid(
         self, client, scan_seed, db, tmp_path, monkeypatch
