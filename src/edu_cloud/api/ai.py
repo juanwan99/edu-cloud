@@ -297,11 +297,11 @@ async def ai_chat(
         from edu_cloud.ai.data_scope import DataScopeBuilder
         data_scope = await DataScopeBuilder(db).build(user.id, role_id=role_obj.id)
     except Exception as scope_exc:
-        logger.warning("DataScope build failed; failing closed: %s", scope_exc)
+        logger.warning("DataScope build failed; failing closed")
         raise HTTPException(
             status_code=503,
             detail="AI data scope is temporarily unavailable",
-        )
+        ) from scope_exc
 
     # ── Load school config ──
     enabled_modules: frozenset[str] = frozenset()
