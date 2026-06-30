@@ -123,6 +123,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       UV_FROZEN: "1"
+      ENVIRONMENT: test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

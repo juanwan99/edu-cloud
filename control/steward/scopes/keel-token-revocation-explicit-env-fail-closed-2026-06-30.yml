@@ -7,6 +7,8 @@ allowed_paths:
   - src/edu_cloud/core/token_store.py
   - src/edu_cloud/startup_checks.py
   - src/edu_cloud/api/app.py
+  - .github/workflows/test.yml
+  - tests/conftest.py
   - tests/test_core/test_token_store.py
   - tests/test_api/test_logout.py
   - tests/test_startup_checks.py
