@@ -271,6 +271,8 @@ class LLMClient:
         self,
         prompt: str,
         max_score: float,
+        *,
+        expected_details_count: int | None = None,
     ) -> GradeResponse:
         """Text-based grading (after OCR). No images, pure text prompt."""
         messages = [{"role": "user", "content": prompt}]
@@ -294,7 +296,7 @@ class LLMClient:
                     last_error = "Empty choices"
                     continue
                 content = choices[0]["message"]["content"]
-                parsed = extract_json(content)
+                parsed = extract_json(content, expected_details_count=expected_details_count)
                 if parsed is None or not isinstance(parsed, dict):
                     last_error = "Failed to parse JSON from grading response"
                     continue

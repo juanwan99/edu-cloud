@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
+from edu_cloud.modules.grading.llm_client import GradeResponse
 from edu_cloud.modules.grading.ocr_validator import OCR_REVIEW_TEXT
 
 
@@ -89,3 +90,72 @@ async def test_grade_single_preview_ocr_review_needed_returns_422(tmp_path, monk
     mock_llm.extract_text.assert_awaited_once()
     mock_llm.grade_text.assert_not_called()
     db.add.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_grade_single_preview_passes_expected_details_count(tmp_path, monkeypatch):
+    fake_pyzbar = ModuleType("pyzbar.pyzbar")
+    fake_pyzbar.decode = lambda *_args, **_kwargs: []
+    monkeypatch.setitem(sys.modules, "pyzbar", ModuleType("pyzbar"))
+    monkeypatch.setitem(sys.modules, "pyzbar.pyzbar", fake_pyzbar)
+
+    from edu_cloud.modules.grading.router import GradeSingleRequest, grade_single_answer
+
+    image_path = tmp_path / "answer.bin"
+    image_path.write_bytes(b"x" * 6000)
+
+    school_id = "school-1"
+    answer = SimpleNamespace(
+        id="answer-1",
+        question_id="question-1",
+        school_id=school_id,
+        image_path=str(image_path),
+        question_type="fill_blank",
+    )
+    question = SimpleNamespace(
+        id="question-1",
+        subject_id="subject-1",
+        school_id=school_id,
+        question_type="fill_blank",
+        max_score=2,
+    )
+    rubric = SimpleNamespace(
+        criteria=[{"blankNo": "1-1", "subQ": "(1)", "score": 2, "standardAnswer": "cell"}],
+    )
+    subject = SimpleNamespace(code="biology")
+    db = _FakeDB([answer, question, rubric, subject])
+
+    role = SimpleNamespace(
+        school_id=school_id,
+        role="school_admin",
+        subject_codes=None,
+        class_ids=None,
+        grade_ids=None,
+    )
+    current = {"current_role": role}
+
+    mock_llm = MagicMock()
+    mock_llm.model = "test-model"
+    mock_llm.extract_text = AsyncMock(return_value=[
+        {"blankNo": "1-1", "subQ": "(1)", "text": "cell"},
+    ])
+    mock_llm.grade_text = AsyncMock(return_value=GradeResponse(
+        score=2,
+        max_score=2,
+        feedback="correct",
+        confidence=0.95,
+        raw_content='{"score": 2}',
+        details=[{"blankNo": "1-1", "score": 2}],
+    ))
+    mock_llm.close = AsyncMock()
+
+    with patch("edu_cloud.modules.grading.router.resolve_stored_file_path", return_value=image_path), \
+         patch("edu_cloud.modules.grading.router.settings") as mock_settings, \
+         patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_llm):
+        mock_settings.GEMINI_API_KEY = None
+        mock_settings.VERTEX_AI_PROJECT = None
+
+        result = await grade_single_answer(GradeSingleRequest(answer_id="answer-1"), db=db, current=current)
+
+    assert result["score"] == 2
+    assert mock_llm.grade_text.call_args.kwargs["expected_details_count"] == 1
