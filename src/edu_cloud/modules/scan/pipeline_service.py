@@ -572,6 +572,16 @@ def process_one_image(
     }
 
 
+async def _load_student_number_map(school_id: str) -> dict[str, str]:
+    from sqlalchemy import text
+
+    async with db_mod.async_session() as db:
+        rows = (await db.execute(text(
+            "SELECT id, student_number FROM students WHERE school_id = :sid"
+        ), {"sid": school_id})).all()
+    return {r[1]: r[0] for r in rows if r[1]}
+
+
 async def run_pipeline(
     image_dir: str,
     template: dict,
@@ -584,6 +594,7 @@ async def run_pipeline(
     save_answer_fn=None,
     save_objective_fn=None,
     expected_barcode_pattern: str | None = None,
+    require_known_student_for_save: bool = False,
 ) -> dict:
     """异步运行批量切割流水线。
 
@@ -623,19 +634,20 @@ async def run_pipeline(
 
     # 预加载 student_number → student.id 映射
     should_persist = bool(save_answer_fn or save_objective_fn)
+    should_resolve_student = should_persist and require_known_student_for_save
     student_number_map = {}
     student_number_map_failed = False
-    try:
-        from sqlalchemy import select, text
-        async with db_mod.async_session() as db:
-            rows = (await db.execute(text(
-                "SELECT id, student_number FROM students WHERE school_id = :sid"
-            ), {"sid": school_id})).all()
-            student_number_map = {r[1]: r[0] for r in rows if r[1]}
-        logger.info("pipeline: loaded %d student_number mappings for school %s", len(student_number_map), school_id[:8])
-    except Exception as e:
-        student_number_map_failed = True
-        logger.warning("pipeline: failed to load student mappings: %s", e)
+    if should_resolve_student:
+        try:
+            student_number_map = await _load_student_number_map(school_id)
+            logger.info(
+                "pipeline: loaded %d student_number mappings for school %s",
+                len(student_number_map),
+                school_id[:8],
+            )
+        except Exception as e:
+            student_number_map_failed = True
+            logger.warning("pipeline: failed to load student mappings: %s", e)
 
     results = {
         "total": len(files),
@@ -663,12 +675,12 @@ async def run_pipeline(
 
                 # 条码/文件名 → 查学生表拿真实 UUID
                 raw_sid = result["student_id"]
-                if should_persist:
+                if should_resolve_student:
                     if student_number_map_failed:
                         raise RuntimeError("student roster unavailable; refusing to save scan results")
-                    if student_number_map and raw_sid in student_number_map:
+                    if raw_sid in student_number_map:
                         result["student_id"] = student_number_map[raw_sid]
-                    elif student_number_map:
+                    else:
                         result["is_anomaly"] = True
                         progress.failed += 1
                         results["failed"] += 1

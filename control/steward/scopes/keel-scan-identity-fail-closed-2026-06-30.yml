@@ -3,6 +3,7 @@ scope_id: keel-scan-identity-fail-closed-2026-06-30
 owner: codex
 allowed_paths:
   - control/steward/scopes/keel-scan-identity-fail-closed-2026-06-30.yml
+  - src/edu_cloud/modules/scan/pipeline_router.py
   - src/edu_cloud/modules/scan/pipeline_service.py
   - tests/test_api/test_scan_pipeline_api.py
 forbidden_paths:

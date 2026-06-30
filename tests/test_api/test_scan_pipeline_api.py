@@ -391,19 +391,19 @@ class TestPipelineIdentityFailClosed:
                 "barcode_status": "fallback_none",
             }
 
-        session_patch = patch.object(
-            pipeline_service.db_mod,
-            "async_session",
+        roster_patch = patch.object(
+            pipeline_service,
+            "_load_student_number_map",
             side_effect=RuntimeError("student roster query failed"),
         ) if roster_query_fails else patch.object(
-            pipeline_service.db_mod,
-            "async_session",
-            wraps=pipeline_service.db_mod.async_session,
+            pipeline_service,
+            "_load_student_number_map",
+            wraps=pipeline_service._load_student_number_map,
         )
 
         with patch.object(pipeline_service, "ensure_queue_running", lambda: None), \
              patch.object(pipeline_service, "process_one_image", side_effect=fake_process_one_image), \
-             session_patch:
+             roster_patch:
             resp = await client.post("/api/v1/scan/pipeline/start", json={
                 "subject_id": scan_seed["subject_id"],
                 "side": "A",
@@ -464,7 +464,7 @@ class TestPipelineIdentityFailClosed:
             "student_number": "UNKNOWN001",
         }]
 
-    async def test_start_allows_explicit_filename_student_number_without_roster(
+    async def test_start_skips_save_when_student_roster_is_empty(
         self, client, scan_seed, db, tmp_path, monkeypatch
     ):
         result = await self._start_and_run_identity_case(
@@ -478,12 +478,14 @@ class TestPipelineIdentityFailClosed:
         )
 
         rows = (await db.execute(select(StudentAnswer))).scalars().all()
-        assert len(rows) == 1
-        assert rows[0].student_id == "LEGACY001"
-        assert result["processed"] == 1
-        assert result["failed"] == 0
-        assert result["students"] == ["LEGACY001"]
-        assert result["unmatched_student_files"] == []
+        assert rows == []
+        assert result["processed"] == 0
+        assert result["failed"] == 1
+        assert result["students"] == []
+        assert result["unmatched_student_files"] == [{
+            "file": "LEGACY001A.png",
+            "student_number": "LEGACY001",
+        }]
 
     async def test_start_saves_known_filename_student_number_as_student_uuid(
         self, client, scan_seed, db, tmp_path, monkeypatch
