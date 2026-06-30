@@ -340,6 +340,7 @@ class TestPipelineIdentityFailClosed:
         *,
         file_stem: str,
         raw_student_number: str,
+        roster_query_fails: bool = False,
     ) -> dict:
         from unittest.mock import patch
         from edu_cloud.config import settings
@@ -390,8 +391,19 @@ class TestPipelineIdentityFailClosed:
                 "barcode_status": "fallback_none",
             }
 
+        session_patch = patch.object(
+            pipeline_service.db_mod,
+            "async_session",
+            side_effect=RuntimeError("student roster query failed"),
+        ) if roster_query_fails else patch.object(
+            pipeline_service.db_mod,
+            "async_session",
+            wraps=pipeline_service.db_mod.async_session,
+        )
+
         with patch.object(pipeline_service, "ensure_queue_running", lambda: None), \
-             patch.object(pipeline_service, "process_one_image", side_effect=fake_process_one_image):
+             patch.object(pipeline_service, "process_one_image", side_effect=fake_process_one_image), \
+             session_patch:
             resp = await client.post("/api/v1/scan/pipeline/start", json={
                 "subject_id": scan_seed["subject_id"],
                 "side": "A",
@@ -402,6 +414,25 @@ class TestPipelineIdentityFailClosed:
 
         assert len(results) == 1
         return results[0]
+
+    async def test_start_fails_closed_when_student_roster_query_fails(
+        self, client, scan_seed, db, tmp_path, monkeypatch
+    ):
+        result = await self._start_and_run_identity_case(
+            client,
+            scan_seed,
+            db,
+            tmp_path,
+            monkeypatch,
+            file_stem="ROSTERDOWN001",
+            raw_student_number="ROSTERDOWN001",
+            roster_query_fails=True,
+        )
+
+        rows = (await db.execute(select(StudentAnswer))).scalars().all()
+        assert rows == []
+        assert result["processed"] == 0
+        assert result["failed"] == 1
 
     async def test_start_skips_save_when_filename_student_number_not_in_roster(
         self, client, scan_seed, db, tmp_path, monkeypatch
