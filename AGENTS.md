@@ -108,7 +108,7 @@ Independent Review evidence before it is merge-ready.
 
 ## Start Here
 
-1. Run `scripts/codex-check` when available.
+1. Run `python scripts/codex-check` when available.
 2. Inspect `git status --short --branch`.
 3. Read the relevant current source files before editing.
 4. For governed PRs, create a new Keel scope file before changing protected
@@ -144,13 +144,13 @@ checks for merge decisions.
 Common commands:
 
 ```bash
-scripts/codex-check
-scripts/codex-context --no-network
-scripts/codex-verify safety
-scripts/codex-verify safety --repo-wide
-scripts/codex-verify backend --dry-run
-scripts/codex-verify frontend --dry-run
-scripts/codex-verify schema --dry-run
+python scripts/codex-check
+python scripts/codex-context --no-network
+python scripts/codex-verify safety
+python scripts/codex-verify safety --repo-wide
+python scripts/codex-verify backend --dry-run
+python scripts/codex-verify frontend --dry-run
+python scripts/codex-verify schema --dry-run
 ```
 
 For runtime isolation, use Docker Compose with a unique project name and ports
