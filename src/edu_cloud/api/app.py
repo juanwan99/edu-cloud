@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from edu_cloud.config import settings
+from edu_cloud.config import is_production_environment, settings
 from edu_cloud.services.exceptions import (
     NotFoundError, PermissionDeniedError, ValidationError as SvcValidationError,
     ConflictError, StateError,
@@ -216,7 +216,7 @@ def create_app() -> FastAPI:
     )
     logger.info("edu-cloud starting, boot_time=%s", _BOOT_TIME)
 
-    _is_prod = settings.ENVIRONMENT == "production"
+    _is_prod = is_production_environment(settings.ENVIRONMENT)
     app = FastAPI(
         title="edu-cloud",
         version="0.1.0",

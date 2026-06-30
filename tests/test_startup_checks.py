@@ -49,6 +49,15 @@ def test_insecure_defaults_omit_env_in_dev():
     assert all("ENVIRONMENT=" not in e for e in errors)
 
 
+def test_insecure_defaults_normalize_dev_env():
+    class DevSettings(FakeSettings):
+        ENVIRONMENT = " Development "
+
+    errors = check_critical_secrets(DevSettings())
+    assert len(errors) == 3
+    assert all("ENVIRONMENT=" not in e for e in errors)
+
+
 def test_insecure_defaults_no_env_attr_defaults_to_dev():
     """没有 ENVIRONMENT 属性时按 development 处理"""
     errors = check_critical_secrets(FakeSettings())

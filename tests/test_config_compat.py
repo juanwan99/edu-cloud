@@ -82,3 +82,18 @@ def test_settings_is_flat_class() -> None:
         assert attr in Settings.model_fields, (
             f"{attr} is not a direct model field -- possible illegal nesting"
         )
+
+
+def test_environment_normalization_helpers() -> None:
+    from edu_cloud.config import is_production_environment, normalize_environment
+
+    assert normalize_environment(" Production ") == "production"
+    assert is_production_environment(" Production ")
+    assert not is_production_environment("development")
+
+
+def test_spaced_production_refuses_insecure_defaults() -> None:
+    from edu_cloud.config import Settings
+
+    with pytest.raises(RuntimeError, match="SECRET_KEY is insecure"):
+        Settings(ENVIRONMENT=" Production ")

@@ -4,16 +4,27 @@ Revoked JTIs are stored in a Redis SET with TTL matching token expiry.
 Production revocation checks fail closed if Redis is unavailable.
 """
 import logging
-from edu_cloud.config import settings
+from edu_cloud.config import normalize_environment, settings
 
 logger = logging.getLogger(__name__)
 
 _REVOKE_PREFIX = "revoked_jti:"
+_FAIL_OPEN_ENVIRONMENTS = {"development", "dev", "local", "test", "testing"}
+
+
+def _environment_is_explicitly_configured() -> bool:
+    return "ENVIRONMENT" in getattr(settings, "model_fields_set", set())
 
 
 def revocation_checks_fail_closed() -> bool:
-    """Production must not accept tokens when revocation state is unknown."""
-    return settings.ENVIRONMENT.strip().lower() == "production"
+    """Do not accept tokens when revocation state is unknown.
+
+    Fail-open is reserved for explicitly configured local/dev/test environments.
+    A missing ENVIRONMENT must not silently inherit the default development
+    value and weaken production deployments.
+    """
+    env = normalize_environment(settings.ENVIRONMENT)
+    return not (_environment_is_explicitly_configured() and env in _FAIL_OPEN_ENVIRONMENTS)
 
 
 async def _get_redis():
