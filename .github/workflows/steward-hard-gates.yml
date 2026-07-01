@@ -30,17 +30,37 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
         run: git fetch --no-tags --depth=100 origin "$BASE_REF"
-      - name: Require fresh head branch
+      - name: Run Keel dispatch review gate
+        run: python scripts/governance/check_dispatch_review.py --event "$GITHUB_EVENT_PATH"
+      - name: Require fresh head branch for guarded lanes
         env:
           BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
         run: |
           set -euo pipefail
-          if ! git merge-base --is-ancestor "origin/$BASE_REF" HEAD; then
-            echo "PR head must contain latest origin/$BASE_REF. Rebase or recreate the worktree from current master before opening the PR."
+          lane="$(python - <<'PY'
+          import json
+          import os
+          import re
+
+          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8-sig") as fh:
+              event = json.load(fh)
+          body = (event.get("pull_request") or {}).get("body") or ""
+          match = re.search(r"(?im)^[ \t]*Integration-Lane:[ \t]*(\S+)[ \t]*$", body)
+          print(match.group(1).strip().lower() if match else "")
+          PY
+          )"
+          if [[ "$lane" == "independent" ]]; then
+            echo "Integration-Lane is independent; skipping dispatch-time freshness enforcement. GitHub strict required checks still decide merge-time freshness."
+            exit 0
+          fi
+          if [[ "$lane" != "guarded" && "$lane" != "exclusive" ]]; then
+            echo "Integration-Lane must be independent, guarded, or exclusive before freshness is evaluated."
             exit 1
           fi
-      - name: Run Keel dispatch review gate
-        run: python scripts/governance/check_dispatch_review.py --event "$GITHUB_EVENT_PATH"
+          if ! git merge-base --is-ancestor "origin/$BASE_REF" HEAD; then
+            echo "Guarded/exclusive PR head must contain latest origin/$BASE_REF before dispatch review passes. Rebase or recreate the worktree from current master."
+            exit 1
+          fi
 
   pr-scope:
     name: steward/pr-scope
