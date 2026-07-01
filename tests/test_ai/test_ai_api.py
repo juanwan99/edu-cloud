@@ -1,7 +1,7 @@
 import json
 import pytest
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 @pytest.mark.asyncio
@@ -173,6 +173,121 @@ async def test_ai_chat_sse_stream_via_http(client, teacher_headers):
         tc_evt = next(e for e in events if e["type"] == "tool_call")
         assert "tool" in tc_evt["data"]
         assert "id" not in tc_evt["data"]
+
+
+@pytest.mark.asyncio
+async def test_ai_confirmation_resume_persistence_failure_does_not_stream_answer_via_http(
+    client,
+    teacher_headers,
+    db_engine,
+):
+    from datetime import datetime
+
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from edu_cloud.ai.data_scope import DataScope
+    from edu_cloud.ai.engine.edu_runtime import (
+        EduAgentRuntime,
+        PERSISTENCE_FAILURE_CODE,
+        PERSISTENCE_FAILURE_MESSAGE,
+    )
+    from edu_cloud.ai.providers.current_pydantic import CurrentPydanticRun
+    from edu_cloud.api.ai import _SessionState, _sessions
+    from edu_cloud.shared.auth import decode_token
+
+    token = teacher_headers["Authorization"].split(" ")[1]
+    owner_id = str(decode_token(token)["sub"])
+    session_id = "pydantic-confirmation-persistence-failure-session"
+    session_factory = async_sessionmaker(
+        db_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    runtime = EduAgentRuntime(
+        db_sessionmaker=session_factory,
+        user_id=owner_id,
+        school_id="school-1",
+        role="subject_teacher",
+        data_scope=DataScope(
+            user_id=owner_id,
+            school_id="school-1",
+            role="subject_teacher",
+            visible_class_ids=["class-1"],
+            visible_subject_codes=["math"],
+            visible_grade_ids=None,
+            visible_student_ids=None,
+            district_ids=None,
+            can_write=True,
+            can_see_rankings=True,
+            can_cross_school=False,
+            persona="teacher_assistant",
+            version=1,
+            computed_at=datetime.now(),
+        ),
+        enabled_modules=frozenset({"exam"}),
+        capabilities={},
+        anonymizer=MagicMock(anonymize_text=MagicMock(side_effect=lambda value: value)),
+        memory=MagicMock(get_entity_memory=AsyncMock(return_value=None)),
+        session_id=session_id,
+        system_prompt="Test prompt",
+    )
+    runtime.build_agent()
+    runtime.deps.confirmations.request_confirmation("confirm-1", "update_score", {})
+    runtime._last_messages = ["pending-history"]
+
+    state = _SessionState(anonymizer=None, owner_id=owner_id)
+    state.history = ["pending-history"]
+    state.runtime = CurrentPydanticRun(runtime)
+    _sessions[session_id] = state
+
+    async def fake_resume_run(**kwargs):
+        assert kwargs["message_history"] == ["pending-history"]
+        result = MagicMock()
+        result.output = "Resumed answer"
+        result.all_messages = MagicMock(return_value=["resumed-history"])
+        return result
+
+    failed_persist = AsyncMock(return_value={
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+    })
+
+    try:
+        with patch.object(runtime.agent, "run", side_effect=fake_resume_run), \
+             patch.object(runtime, "_persist_messages", failed_persist):
+            resp = await client.post(
+                f"/api/v1/ai/runs/{runtime.run_id}/confirmations/confirm-1",
+                json={"decision": "approve"},
+                headers=teacher_headers,
+            )
+    finally:
+        _sessions.pop(session_id, None)
+
+    assert resp.status_code == 200
+    assert "text/event-stream" in resp.headers.get("content-type", "")
+
+    events = [
+        json.loads(line.strip()[6:])
+        for line in resp.text.strip().split("\n")
+        if line.strip().startswith("data: ")
+    ]
+    types = [event["type"] for event in events]
+
+    assert types == ["error", "done"]
+    failed_persist.assert_awaited_once_with(None, "Resumed answer")
+    assert state.history == ["pending-history"]
+
+    error_evt = events[0]
+    assert error_evt["data"]["message"] == PERSISTENCE_FAILURE_MESSAGE
+    assert error_evt["data"]["retryable"] is False
+    assert error_evt["data"]["code"] == PERSISTENCE_FAILURE_CODE
+    assert error_evt["data"]["blocking"] is True
+
+    done_evt = events[-1]
+    assert done_evt["data"]["status"] == "blocked"
+    assert done_evt["data"]["blocking_error"] == PERSISTENCE_FAILURE_CODE
+    assert done_evt["data"]["persistence"]["status"] == "failed"
 
 
 @pytest.mark.asyncio
