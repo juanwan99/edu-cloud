@@ -1083,22 +1083,23 @@ async def process_grading_task(ctx: dict, task_id: str, _trace_ctx: dict | None 
             task = result.scalar_one()
             logger.info("grading_task: task=%s, subject=%s, status→processing (CAS claimed)", task_id, task.subject_id)
 
-            # Resolve LLM config: school override → platform default → .env fallback
-            from edu_cloud.modules.exam.slot_selector import get_llm_config, SLOT_AI_GRADING
-            try:
-                llm_url, llm_key, llm_model = await get_llm_config(
-                    db, slot=SLOT_AI_GRADING, school_id=task.school_id,
-                )
-                logger.info("grading_task: task=%s, llm_config resolved from DB (model=%s)", task_id, llm_model)
-            except Exception:
-                llm_url, llm_key, llm_model = None, None, None
-                logger.warning("grading_task: task=%s, llm_config DB lookup failed, fallback to .env", task_id, exc_info=True)
-
             use_gemini = bool(settings.GEMINI_API_KEY or settings.VERTEX_AI_PROJECT)
             if use_gemini:
+                llm_url = None
                 llm_key = settings.GEMINI_API_KEY
                 llm_model = settings.GEMINI_MODEL
-                logger.info("grading_task: task=%s, using Gemini official API (mode=%s, model=%s)", task_id, task.grading_mode, llm_model)
+                logger.info("grading_task: task=%s, using Gemini official API (mode=%s)", task_id, task.grading_mode)
+            else:
+                # Resolve LLM config: school override -> platform default -> explicit helper fallback.
+                from edu_cloud.modules.exam.slot_selector import get_llm_config, SLOT_AI_GRADING
+                try:
+                    llm_url, llm_key, llm_model = await get_llm_config(
+                        db, slot=SLOT_AI_GRADING, school_id=task.school_id,
+                    )
+                    logger.info("grading_task: task=%s, llm_config resolved from DB", task_id)
+                except Exception as exc:
+                    logger.error("grading_task: task=%s, llm_config lookup failed; fail closed", task_id)
+                    raise RuntimeError("grading LLM config lookup failed") from exc
             llm = _create_llm_client(
                 api_url=llm_url, api_key=llm_key, model=llm_model,
                 use_gemini_official=bool(use_gemini),

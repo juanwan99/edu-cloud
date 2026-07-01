@@ -35,6 +35,7 @@ async def update_adaptive_mastery(db: AsyncSession, *, exam_id: str, school_id: 
     from edu_cloud.modules.scan.models import StudentAnswer
     from edu_cloud.modules.knowledge.models import QuestionKnowledgePoint
     from edu_cloud.services.post_exam_cold_data import _get_effective_score
+    from edu_cloud.services.student_identity import resolve_student_identities
 
     # 查询本考试所有题目（含 max_score）
     subjects = await db.execute(
@@ -75,13 +76,28 @@ async def update_adaptive_mastery(db: AsyncSession, *, exam_id: str, school_id: 
                 StudentAnswer.is_absent == False,  # noqa: E712 — N001: 过滤缺考
             )
         )
-        for answer in answers.scalars().all():
+        answer_rows = answers.scalars().all()
+        identities = await resolve_student_identities(
+            db,
+            school_id=school_id,
+            raw_student_ids=[answer.student_id for answer in answer_rows],
+        )
+
+        for answer in answer_rows:
+            raw_student_id = str(answer.student_id)
+            identity = identities.get(raw_student_id)
+            student_id = (
+                identity.canonical_student_id
+                if identity and identity.canonical_student_id
+                else raw_student_id
+            )
+
             # 幂等检查
             existing = await db.execute(
                 select(AnswerLog).where(
                     AnswerLog.school_id == school_id,
                     AnswerLog.exam_id == exam_id,
-                    AnswerLog.student_id == answer.student_id,
+                    AnswerLog.student_id == student_id,
                     AnswerLog.question_id == q_id,
                 )
             )
@@ -93,7 +109,7 @@ async def update_adaptive_mastery(db: AsyncSession, *, exam_id: str, school_id: 
 
             await process_answer(
                 db,
-                student_id=answer.student_id,
+                student_id=student_id,
                 question_id=q_id,
                 knowledge_point_ids=kp_ids,
                 correct=is_correct,

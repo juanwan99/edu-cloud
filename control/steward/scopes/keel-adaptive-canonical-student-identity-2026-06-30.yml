@@ -1,0 +1,20 @@
+schema: steward-pr-scope.v1
+scope_id: keel-adaptive-canonical-student-identity-2026-06-30
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-adaptive-canonical-student-identity-2026-06-30.yml
+  - src/edu_cloud/services/post_exam_adaptive.py
+  - tests/test_services_exam/test_adaptive_pipeline.py
+forbidden_paths:
+  - .yuanqi/
+  - scripts/yuanqi/
+  - tests/yuanqi/
+  - src/edu_cloud/core/auth.py
+  - src/edu_cloud/core/permissions.py
+  - src/edu_cloud/core/tenant.py
+  - alembic/
+  - deploy/
+compatibility_paths: []
+status: active
+created_at: "2026-06-30T22:08:19+08:00"
+expires_at: "2026-07-07T23:59:00+08:00"
