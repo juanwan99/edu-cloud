@@ -33,6 +33,22 @@ function loadAuthState() {
   }
 }
 
+/** Restore impersonation state from sessionStorage (returns null on failure) */
+function loadImpersonationState() {
+  try {
+    const raw = sessionStorage.getItem('impersonation')
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    try {
+      sessionStorage.removeItem('impersonation')
+    } catch (clearError) {
+      console.warn('Failed to clear cached impersonation state', clearError)
+    }
+    return null
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token') || '')
 
@@ -46,7 +62,7 @@ export const useAuthStore = defineStore('auth', () => {
   const modulesLoaded = ref(false)
 
   // Impersonation state — sessionStorage (关标签页即清)
-  const impersonation = ref(JSON.parse(sessionStorage.getItem('impersonation') || 'null'))
+  const impersonation = ref(loadImpersonationState())
 
   const isImpersonating = computed(() => !!impersonation.value)
 
