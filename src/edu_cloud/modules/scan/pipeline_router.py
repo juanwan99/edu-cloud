@@ -770,6 +770,7 @@ async def start_pipeline(
         subject_id=req.subject_id,
         school_id=school_id,
         side=req.side,
+        require_known_student_for_save=True,
     )
 
     pipeline_service.ensure_queue_running()

@@ -572,6 +572,16 @@ def process_one_image(
     }
 
 
+async def _load_student_number_map(school_id: str) -> dict[str, str]:
+    from sqlalchemy import text
+
+    async with db_mod.async_session() as db:
+        rows = (await db.execute(text(
+            "SELECT id, student_number FROM students WHERE school_id = :sid"
+        ), {"sid": school_id})).all()
+    return {r[1]: r[0] for r in rows if r[1]}
+
+
 async def run_pipeline(
     image_dir: str,
     template: dict,
@@ -584,6 +594,7 @@ async def run_pipeline(
     save_answer_fn=None,
     save_objective_fn=None,
     expected_barcode_pattern: str | None = None,
+    require_known_student_for_save: bool = False,
 ) -> dict:
     """异步运行批量切割流水线。
 
@@ -622,17 +633,21 @@ async def run_pipeline(
         expected_barcode_pattern = _infer_barcode_pattern(_barcode_map)
 
     # 预加载 student_number → student.id 映射
+    should_persist = bool(save_answer_fn or save_objective_fn)
+    should_resolve_student = should_persist and require_known_student_for_save
     student_number_map = {}
-    try:
-        from sqlalchemy import select, text
-        async with db_mod.async_session() as db:
-            rows = (await db.execute(text(
-                "SELECT id, student_number FROM students WHERE school_id = :sid"
-            ), {"sid": school_id})).all()
-            student_number_map = {r[1]: r[0] for r in rows if r[1]}
-        logger.info("pipeline: loaded %d student_number mappings for school %s", len(student_number_map), school_id[:8])
-    except Exception as e:
-        logger.warning("pipeline: failed to load student mappings: %s", e)
+    student_number_map_failed = False
+    if should_resolve_student:
+        try:
+            student_number_map = await _load_student_number_map(school_id)
+            logger.info(
+                "pipeline: loaded %d student_number mappings for school %s",
+                len(student_number_map),
+                school_id[:8],
+            )
+        except Exception as e:
+            student_number_map_failed = True
+            logger.warning("pipeline: failed to load student mappings: %s", e)
 
     results = {
         "total": len(files),
@@ -641,6 +656,7 @@ async def run_pipeline(
         "students": [],
         "barcode_failed": 0,
         "barcode_failed_files": [],
+        "unmatched_student_files": [],
     }
 
     try:
@@ -659,7 +675,39 @@ async def run_pipeline(
 
                 # 条码/文件名 → 查学生表拿真实 UUID
                 raw_sid = result["student_id"]
-                if raw_sid in student_number_map:
+                if should_resolve_student:
+                    if student_number_map_failed:
+                        raise RuntimeError("student roster unavailable; refusing to save scan results")
+                    if raw_sid in student_number_map:
+                        result["student_id"] = student_number_map[raw_sid]
+                    else:
+                        result["is_anomaly"] = True
+                        progress.failed += 1
+                        results["failed"] += 1
+                        unmatched_entry = {"file": f.name, "student_number": raw_sid}
+                        results["unmatched_student_files"].append(unmatched_entry)
+                        progress.warnings.append({
+                            "file": f.name,
+                            "message": f"student_number {raw_sid} not found in students table",
+                        })
+                        logger.warning(
+                            "pipeline: student_number %s not found in students table, file=%s; skipped save",
+                            raw_sid, f.name,
+                        )
+
+                        bc_status = result.get("barcode_status", "ok")
+                        if bc_status in ("fallback_exception", "fallback_none"):
+                            progress.barcode_failed += 1
+                            results["barcode_failed"] += 1
+                            fallback_entry = {
+                                "file": f.name,
+                                "fallback_student_id": raw_sid,
+                                "status": bc_status,
+                            }
+                            progress.barcode_failed_files.append(fallback_entry)
+                            results["barcode_failed_files"].append(fallback_entry)
+                        continue
+                elif raw_sid in student_number_map:
                     result["student_id"] = student_number_map[raw_sid]
                 elif student_number_map:
                     result["is_anomaly"] = True
