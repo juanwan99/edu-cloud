@@ -91,6 +91,40 @@ failure and waits. They do not push a fix unless the write license explicitly
 allowed CI self-fix for that scope or the steward/user issues a new targeted
 instruction.
 
+## Worker Profiles
+
+Worker profiles define what a helper window or Claude executor may do after the
+steward has assigned a scope. They do not replace Keel scopes, GitHub checks, or
+human approval.
+
+| Profile | Use for | Write authority | Shell/test authority |
+|---|---|---|---|
+| `read_only_reviewer` | Claude or Codex review, risk analysis, missing-test review | None | None |
+| `windows_no_shell_worker` | Native Windows implementation in an already scoped worktree | Only exact allowed paths from the startup packet | None; steward or CI runs tests |
+| `wsl2_sandbox_worker` | Future worker that needs shell or test authority | Exact allowed paths plus OS sandbox boundary | Only inside the approved sandbox profile |
+
+Native Windows no-shell workers use Claude file-tool permissions as a practical
+boundary, not an operating-system sandbox. The startup command must use an
+allowlist shape: `--permission-mode dontAsk`, explicit `--allowedTools` for
+`Read`, `Edit`, and `Write`, explicit path patterns for the assigned worktree
+and allowed write paths, and `--disallowedTools Bash`. Do not use
+`bypassPermissions` for workers. Do not use `acceptEdits` as the worker default.
+
+The steward must provide every mutating worker with a startup packet that names:
+
+- worktree path and branch;
+- scope id and integration lane;
+- allowed write paths;
+- read-only contract paths;
+- forbidden central paths;
+- whether draft PR creation is allowed;
+- whether CI self-fix is allowed;
+- stop condition.
+
+User discussion inside a worker window cannot widen the write boundary. If the
+task needs another path, shell access, test execution, or a lane change, the
+worker stops and asks the steward to re-dispatch.
+
 ## Exclusive Scopes
 
 Only one mutating window may touch these areas at a time:

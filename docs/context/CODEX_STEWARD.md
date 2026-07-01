@@ -1,7 +1,7 @@
 ---
 title: Codex Stewardship
 owner: liang
-last_review_date: "2026-07-01"
+last_review_date: "2026-07-02"
 expiration_in_days: 30
 ---
 
@@ -116,6 +116,26 @@ Every mutating batch must classify each governed PR into one integration lane:
 The steward owns lane assignment. Workers own only the scoped implementation
 they were assigned. If a worker discovers that the chosen lane is wrong, it
 stops and asks the steward to re-dispatch instead of widening scope.
+
+## Worker Dispatch Profiles
+
+Keel uses worker profiles to keep implementation attention away from the
+steward without giving workers open-ended authority.
+
+- `read_only_reviewer`: may inspect and report only. Existing
+  `scripts/codex-consult-claude` is the default wrapper for Claude review.
+- `windows_no_shell_worker`: may edit only the paths named in the startup
+  packet, using native Claude file-tool permissions. It must not receive shell
+  or local test authority. The steward or CI verifies.
+- `wsl2_sandbox_worker`: reserved for work that truly needs shell or test
+  authority. Do not claim native Windows no-shell mode is equivalent to this
+  operating-system boundary.
+
+For every mutating worker, Codex must issue a startup packet with the worktree,
+branch, scope id, lane, allowed write paths, read-only contract paths, forbidden
+central paths, test authority, draft PR permission, CI self-fix permission, and
+stop condition. Worker prompts may refine the implementation, but they do not
+override that packet. Boundary changes require a fresh steward dispatch.
 
 ## Working Memory
 

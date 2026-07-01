@@ -1,7 +1,7 @@
 ---
 title: Command Manual
 owner: liang
-last_review_date: "2026-06-29"
+last_review_date: "2026-07-02"
 expiration_in_days: 30
 ---
 
@@ -174,6 +174,32 @@ scripts/codex-consult-claude risk "look for migration/data/secret/delivery risks
 
 Codex must apply changes and run verification. Claude review is not merge
 authority.
+
+## Claude Worker Profiles
+
+Use Claude as an executor only after the steward issues a scoped startup packet.
+The default native Windows worker profile is no-shell and allowlist based:
+
+```powershell
+claude --safe-mode --no-session-persistence `
+  --permission-mode dontAsk `
+  --tools Read,Edit,Write `
+  --allowedTools "Read(C:\path\to\worktree\**)" `
+                 "Edit(C:\path\to\worktree\allowed\**)" `
+                 "Write(C:\path\to\worktree\allowed\**)" `
+  --disallowedTools Bash `
+  -p "<worker startup packet>"
+```
+
+Rules for this profile:
+
+- replace the paths with the exact worktree and allowed paths from the scope;
+- do not use `--dangerously-skip-permissions` or `bypassPermissions`;
+- do not make `acceptEdits` the worker default;
+- do not grant Bash or any shell-equivalent tool;
+- the worker does not run tests locally; Codex or CI runs verification;
+- if shell or test authority is required, use a WSL2/container sandbox profile
+  instead of the native Windows no-shell profile.
 
 ## Full Verification
 
