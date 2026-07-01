@@ -289,6 +289,7 @@ async def test_notification_reviewed_to_executed_blocked(client, teacher_headers
 async def test_notification_approved_to_executed_succeeds(client, teacher_headers, db):
     """TG-001: 通知文档从 approved 状态转到 executed 成功"""
     from edu_cloud.models.document import Document
+    from edu_cloud.models.notification import Notification
     from sqlalchemy import select
 
     # 创建通知文档
@@ -312,7 +313,26 @@ async def test_notification_approved_to_executed_succeeds(client, teacher_header
         headers=teacher_headers,
     )
     assert exec_resp.status_code == 200
-    assert exec_resp.json()["status"] == "executed"
+    data = exec_resp.json()
+    assert data["status"] == "executed"
+    assert data["execution_result"]["status"] == "pending"
+    assert data["execution_result"]["sent"] is False
+    assert data["execution_result"]["delivery_state"] == "not_configured"
+    assert data["execution_result"]["result"]["sent"] is False
+    assert data["execution_result"]["result"]["success"] == 0
+
+    await db.refresh(doc)
+    assert doc.execution_result["sent"] is False
+    assert doc.execution_result["delivery_state"] == "not_configured"
+
+    notifications = (await db.execute(
+        select(Notification).where(Notification.document_id == doc_id)
+    )).scalars().all()
+    assert len(notifications) == 1
+    assert notifications[0].channel == "stub"
+    assert notifications[0].status == "pending"
+    assert notifications[0].sent_at is None
+    assert notifications[0].result_summary["sent"] is False
 
 
 @pytest.mark.asyncio
