@@ -134,12 +134,28 @@ The dispatch review must produce:
 2. dependency order between workers or PRs;
 3. one scope id per governed PR;
 4. exact `allowed_paths` and `forbidden_paths`;
-5. local verification commands each worker must run before pushing.
+5. local verification commands each worker must run before pushing;
+6. the requested write license terms: which scopes may create draft PRs, whether
+   CI self-fix is allowed, and when workers must stop.
 
 The PR body must cite that review with
 `Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>`. The implementer must
 not invent this value; it comes from the non-implementing steward/reviewer before
 implementation starts.
+
+Dispatch Review decides that a task is bounded enough to write; it does not
+itself perform the user write approval. Before mutating workers start, the
+steward must present the batch and obtain a clear write license. The write
+license is required for branch creation, commits, pushes, draft PR creation, PR
+body edits, GitHub comments, review requests, ready-for-review transitions, and
+PR closure. If the user says "investigate", "plan", "review", or anything else
+that does not clearly approve writes, keep the work read-only.
+
+Default worker stop rule: after opening the first draft PR, stop and report. If
+CI, `steward/dispatch-review`, `steward/pr-scope`, semgrep, CodeQL, or frontend
+/ backend tests fail, the worker reports the failing check and waits. A fix push
+is allowed only when the write license explicitly included CI self-fix for that
+scope, or when the steward/user issues a targeted follow-up.
 
 For file deletion or retirement, the review must include reachability evidence
 from `git grep` or equivalent across `scripts/`, `tests/`, `.github/workflows/`,
@@ -168,6 +184,11 @@ Use the smallest review that protects quality:
 - Tier 3: grading, auth, tenant/data isolation, runtime, migrations,
   governance gates, deletion/retirement, and silent-downgrade fixes need Codex
   review plus Claude App or `claude -p` review when budget allows.
+
+When the user requires Claude deep review for the current program of work, treat
+Claude review as mandatory for every non-trivial governed PR before leaving
+draft. Claude review remains advisory evidence, not merge authority; GitHub
+checks and the user's approval remain the merge gate.
 
 For any new protection field, status, parameter, fallback, or fail-closed flag,
 the review must name the production consumer. Examples: `needs_review`,
