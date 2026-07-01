@@ -134,17 +134,22 @@ class CozeRun:
                         emitted_delta_ids,
                         assistant_parts,
                     ):
+                        if event.type == "answer":
+                            continue
                         yield event
                     if assistant_parts:
                         assistant_text = "".join(assistant_parts).strip()
-                        self._last_messages = [
-                            {"role": "assistant", "content": assistant_text},
-                        ]
                         persistence = await self._persist_assistant_message(assistant_text)
+                        if not _persistence_failed(persistence):
+                            self._last_messages = [
+                                {"role": "assistant", "content": assistant_text},
+                            ]
+                            yield AgentEvent(type="answer", data={"content": assistant_text})
                 else:
                     assistant_text = f"已执行 {tool_name}。"
                     persistence = await self._persist_assistant_message(assistant_text)
-                    yield AgentEvent(type="answer", data={"content": assistant_text})
+                    if not _persistence_failed(persistence):
+                        yield AgentEvent(type="answer", data={"content": assistant_text})
             except Exception as exc:
                 logger.exception("Confirmed Coze tool execution failed: %s", exc)
                 yield AgentEvent(type="error", data={"message": str(exc)})
@@ -181,6 +186,8 @@ class CozeRun:
                 emitted_delta_ids,
                 assistant_parts,
             ):
+                if item.type == "answer":
+                    continue
                 yield item
         except Exception as exc:
             logger.exception("Coze chat failed: %s", exc)
@@ -191,13 +198,16 @@ class CozeRun:
 
         assistant_text = "".join(assistant_parts).strip() or None
         persistence = await self._persist_messages(user_message, assistant_text)
-        self._last_messages = [
-            {"role": "user", "content": user_message},
-            {"role": "assistant", "content": assistant_text or ""},
-        ]
         persistence_failed = _persistence_failed(persistence)
         if persistence_failed:
             yield _persistence_failure_event(persistence)
+        else:
+            self._last_messages = [
+                {"role": "user", "content": user_message},
+                {"role": "assistant", "content": assistant_text or ""},
+            ]
+            if assistant_text:
+                yield AgentEvent(type="answer", data={"content": assistant_text})
 
         done_data = {
             "run_id": self._run_id,

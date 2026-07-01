@@ -235,6 +235,9 @@ class EduAgentRuntime:
 
         self._deps.event_queue = None
 
+        pending_answer: str | None = None
+        pending_last_messages: list[Any] | None = None
+
         if "error" in result_box:
             exc = result_box["error"]
             if isinstance(exc, BudgetExhausted):
@@ -280,8 +283,8 @@ class EduAgentRuntime:
                     )
                 self._last_messages = list(result.all_messages())
             else:
-                yield AgentEvent(type="answer", data={"content": result.output})
-                self._last_messages = list(result.all_messages())
+                pending_answer = result.output
+                pending_last_messages = list(result.all_messages())
 
             if result.usage:
                 self._deps.budget.debit_tokens(result.usage.total_tokens or 0)
@@ -304,6 +307,9 @@ class EduAgentRuntime:
         persistence_failed = _persistence_failed(persistence)
         if persistence_failed:
             yield _persistence_failure_event(persistence)
+        elif pending_answer is not None:
+            self._last_messages = pending_last_messages or []
+            yield AgentEvent(type="answer", data={"content": pending_answer})
 
         done_data = {
             "run_id": self._run_id,

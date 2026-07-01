@@ -335,7 +335,12 @@ async def test_ai_chat_uses_configured_coze_provider_via_http_sse(client, teache
         def stream(self, method, url, *, headers, json):
             return FakeStream(url, headers, json)
 
+    async def persist_ok(self, user_message, assistant_output):
+        captured["assistant_output"] = assistant_output
+        return {"status": "ok"}
+
     monkeypatch.setattr("edu_cloud.ai.providers.coze.httpx.AsyncClient", FakeClient)
+    monkeypatch.setattr("edu_cloud.ai.providers.coze.CozeRun._persist_messages", persist_ok)
 
     try:
         resp = await client.post(
@@ -355,6 +360,89 @@ async def test_ai_chat_uses_configured_coze_provider_via_http_sse(client, teache
     assert captured["url"] == "http://fake-coze/v3/chat"
     assert captured["headers"]["Authorization"] == "Bearer pat-test"
     assert captured["payload"]["bot_id"] == "bot-1"
+    assert captured["assistant_output"] == "coze answer"
     assert any(e["type"] == "answer" and e["data"]["content"] == "coze answer" for e in events)
     done_evt = next(e for e in events if e["type"] == "done")
     assert done_evt["data"]["provider"] == "coze"
+
+
+@pytest.mark.asyncio
+async def test_ai_chat_persistence_failure_does_not_stream_usable_answer(client, teacher_headers, monkeypatch):
+    from edu_cloud.api.ai import _sessions
+    from edu_cloud.config import settings
+    from edu_cloud.ai.providers.coze import PERSISTENCE_FAILURE_CODE
+
+    session_id = "coze-persistence-fail-closed-session"
+    monkeypatch.setattr(settings, "AI_COZE_ENABLED", True)
+    monkeypatch.setattr(settings, "AI_COZE_API_BASE", "http://fake-coze")
+    monkeypatch.setattr(settings, "AI_COZE_BOT_ID", "bot-1")
+    monkeypatch.setattr(settings, "AI_COZE_API_TOKEN", "pat-test")
+    monkeypatch.setattr(settings, "AI_COZE_TIMEOUT", 10)
+
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        async def aiter_lines(self):
+            yield "event: conversation.message.delta"
+            yield 'data: {"id":"msg-1","conversation_id":"conv-1","role":"assistant","type":"answer","content":"coze answer","content_type":"text","chat_id":"chat-1"}'
+            yield "event: done"
+            yield 'data: "[DONE]"'
+
+    class FakeStream:
+        async def __aenter__(self):
+            return FakeResponse()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        def stream(self, method, url, *, headers, json):
+            return FakeStream()
+
+    async def failed_persist(self, user_message, assistant_output):
+        captured["assistant_output"] = assistant_output
+        return {"status": "failed", "reason": "chat_history_unavailable"}
+
+    monkeypatch.setattr("edu_cloud.ai.providers.coze.httpx.AsyncClient", FakeClient)
+    monkeypatch.setattr("edu_cloud.ai.providers.coze.CozeRun._persist_messages", failed_persist)
+
+    try:
+        resp = await client.post(
+            "/api/v1/ai/chat",
+            json={"message": "ask coze", "session_id": session_id},
+            headers=teacher_headers,
+        )
+    finally:
+        _sessions.pop(session_id, None)
+
+    assert resp.status_code == 200
+    events = [
+        json.loads(line.strip()[6:])
+        for line in resp.text.strip().split("\n")
+        if line.strip().startswith("data: ")
+    ]
+    types = [e["type"] for e in events]
+
+    assert captured["assistant_output"] == "coze answer"
+    assert "answer" not in types
+    assert types[-2:] == ["error", "done"]
+    error_evt = next(e for e in events if e["type"] == "error")
+    assert error_evt["data"]["retryable"] is False
+    assert error_evt["data"]["code"] == PERSISTENCE_FAILURE_CODE
+    assert error_evt["data"]["blocking"] is True
+    done_evt = events[-1]
+    assert done_evt["data"]["status"] == "blocked"
+    assert done_evt["data"]["blocking_error"] == PERSISTENCE_FAILURE_CODE
+    assert done_evt["data"]["persistence"]["status"] == "failed"

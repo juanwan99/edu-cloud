@@ -132,6 +132,7 @@ async def test_done_event_reports_persistence_failure():
 
     types = [e.type for e in collected]
     assert types[-2:] == ["error", "done"]
+    assert "answer" not in types
 
     error_ev = next(e for e in collected if e.type == "error")
     assert error_ev.data["message"] == PERSISTENCE_FAILURE_MESSAGE

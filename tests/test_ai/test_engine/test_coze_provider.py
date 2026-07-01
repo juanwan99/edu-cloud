@@ -131,7 +131,7 @@ async def test_coze_done_reports_persistence_failure(monkeypatch):
 
     events = [event async for event in run.run("hi")]
 
-    assert [event.type for event in events][-2:] == ["error", "done"]
+    assert [event.type for event in events] == ["thinking", "error", "done"]
 
     error = next(event for event in events if event.type == "error")
     assert error.data["message"] == PERSISTENCE_FAILURE_MESSAGE
@@ -329,7 +329,7 @@ async def test_coze_resume_after_confirmation_blocks_on_assistant_persistence_fa
 
     events = [event async for event in run.resume_after_confirmation(approved_ids=["c1"])]
 
-    assert [event.type for event in events] == ["tool_call", "tool_result", "answer", "error", "done"]
+    assert [event.type for event in events] == ["tool_call", "tool_result", "error", "done"]
     error = events[-2]
     assert error.data["retryable"] is False
     assert error.data["code"] == PERSISTENCE_FAILURE_CODE
