@@ -20,6 +20,7 @@ Project-specific lessons migrated from the Claude system. This file records only
 | L020: concurrent writes can lose updates | Central context files are owned by the main session; do not have parallel workers edit them. Code parallelism requires explicit mode, worktree, scope, and integration owner. | `docs/context/PARALLEL_DEVELOPMENT.md`; for Codex migration, write `AGENTS.md` and `docs/context/**` from one session only. |
 | L021: dirty working tree build is a production accident | Do not build production frontend from dirty frontend inputs. | `scripts/codex-verify frontend` refuses dirty frontend inputs by default. |
 | L022: multi-step instruction loss and role drift need a hard carrier | Decompose complex user instructions into explicit obligations before execution and after context compaction. | `AGENTS.md`, `ACTIVE_INDEX.md`, the active Keel scope, and the final evidence summary carry obligations. |
+| L023: draft PRs are writes, not harmless notes | Draft status prevents accidental merge, but branch/commit/push/PR-body/comment activity still consumes CI, creates queue pressure, and can feel like autonomous execution. | Parallel implementation requires an explicit write license after Dispatch Review; red CI stops workers unless self-fix is explicitly licensed. |
 | Migration safety | Do not bypass `scripts/db_migrate`. | `alembic/env.py` guard plus `scripts/codex-verify schema`. |
 | Completion truth gate | Do not claim complete without fresh command evidence. | `scripts/codex-verify` is the completion evidence path. |
 
