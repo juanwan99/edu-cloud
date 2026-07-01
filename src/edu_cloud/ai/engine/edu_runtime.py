@@ -41,6 +41,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 LLM_PROXY_BASE = "http://localhost:8100/v1"
+PERSISTENCE_FAILURE_CODE = "ai_chat_persistence_failed"
+PERSISTENCE_FAILURE_REASON = "chat_history_unavailable"
+PERSISTENCE_FAILURE_MESSAGE = (
+    "AI chat history was not saved. Please retry before relying on this response."
+)
 
 _llm_clients: dict[str, AsyncOpenAI] = {}
 
@@ -230,6 +235,9 @@ class EduAgentRuntime:
 
         self._deps.event_queue = None
 
+        pending_answer: str | None = None
+        pending_last_messages: list[Any] | None = None
+
         if "error" in result_box:
             exc = result_box["error"]
             if isinstance(exc, BudgetExhausted):
@@ -275,8 +283,8 @@ class EduAgentRuntime:
                     )
                 self._last_messages = list(result.all_messages())
             else:
-                yield AgentEvent(type="answer", data={"content": result.output})
-                self._last_messages = list(result.all_messages())
+                pending_answer = result.output
+                pending_last_messages = list(result.all_messages())
 
             if result.usage:
                 self._deps.budget.debit_tokens(result.usage.total_tokens or 0)
@@ -296,14 +304,26 @@ class EduAgentRuntime:
             assistant_text = result_box["result"].output
         persistence = await self._persist_messages(user_message, assistant_text)
 
-        yield AgentEvent(type="done", data={
+        persistence_failed = _persistence_failed(persistence)
+        if persistence_failed:
+            yield _persistence_failure_event(persistence)
+        elif pending_answer is not None:
+            self._last_messages = pending_last_messages or []
+            yield AgentEvent(type="answer", data={"content": pending_answer})
+
+        done_data = {
             "run_id": self._run_id,
             "session_id": self._session_id,
             "turns": self._deps.budget.used_tool_calls,
             "tokens": self._deps.budget.used_tokens,
             "elapsed_ms": elapsed_ms,
             "persistence": persistence,
-        })
+        }
+        if persistence_failed:
+            done_data["status"] = "blocked"
+            done_data["blocking_error"] = PERSISTENCE_FAILURE_CODE
+
+        yield AgentEvent(type="done", data=done_data)
 
     async def resume_after_confirmation(
         self,
@@ -375,22 +395,43 @@ class EduAgentRuntime:
         self._deps.event_queue = None
         self._deferred_output = None
 
+        pending_answer: str | None = None
+        pending_last_messages: list[Any] | None = None
+
         if "error" in result_box:
             yield AgentEvent(type="error", data={"message": str(result_box["error"])})
         else:
             result = result_box.get("result")
             if result is not None and isinstance(result.output, str):
-                yield AgentEvent(type="answer", data={"content": result.output})
+                pending_answer = result.output
+                pending_last_messages = list(result.all_messages())
 
         self._deps.trace.flush()
         await self._deps.trace.flush_to_db(self._deps.db_sessionmaker, append_only=True)
         await self._deps.artifacts.flush_to_db(self._deps.db_sessionmaker)
         self._deps.confirmations.purge_resolved()
 
-        yield AgentEvent(type="done", data={
+        persistence = {"status": "ok"}
+        if pending_answer is not None:
+            persistence = await self._persist_messages(None, pending_answer)
+
+        persistence_failed = _persistence_failed(persistence)
+        if persistence_failed:
+            yield _persistence_failure_event(persistence)
+        elif pending_answer is not None:
+            self._last_messages = pending_last_messages or []
+            yield AgentEvent(type="answer", data={"content": pending_answer})
+
+        done_data = {
             "run_id": self._run_id,
             "session_id": self._session_id,
-        })
+            "persistence": persistence,
+        }
+        if persistence_failed:
+            done_data["status"] = "blocked"
+            done_data["blocking_error"] = PERSISTENCE_FAILURE_CODE
+
+        yield AgentEvent(type="done", data=done_data)
 
     @property
     def run_id(self) -> str:
@@ -411,20 +452,21 @@ class EduAgentRuntime:
 
     async def _persist_messages(
         self,
-        user_message: str,
+        user_message: str | None,
         assistant_output: str | None,
         *,
         tool_calls: list[dict] | None = None,
-    ) -> dict[str, str]:
+    ) -> dict[str, Any]:
         """Write user + assistant messages to DB and report persistence status."""
         try:
             from edu_cloud.ai.models import AiChatMessage
             async with self._deps.db_sessionmaker() as db:
-                db.add(AiChatMessage(
-                    session_id=self._session_id,
-                    role_in_chat="user",
-                    content=user_message,
-                ))
+                if user_message is not None:
+                    db.add(AiChatMessage(
+                        session_id=self._session_id,
+                        role_in_chat="user",
+                        content=user_message,
+                    ))
                 if assistant_output:
                     import json as _json
                     meta = _json.dumps({"tool_calls": tool_calls}, ensure_ascii=False) if tool_calls else None
@@ -438,7 +480,33 @@ class EduAgentRuntime:
             return {"status": "ok"}
         except Exception as exc:
             logger.warning("Failed to persist chat messages: %s", exc)
-            return {"status": "failed", "reason": "chat_history_unavailable"}
+            return _persistence_failure_payload()
+
+
+def _persistence_failure_payload() -> dict[str, Any]:
+    return {
+        "status": "failed",
+        "reason": PERSISTENCE_FAILURE_REASON,
+        "code": PERSISTENCE_FAILURE_CODE,
+        "message": PERSISTENCE_FAILURE_MESSAGE,
+        "retryable": False,
+        "blocking": True,
+    }
+
+
+def _persistence_failed(persistence: Any) -> bool:
+    return isinstance(persistence, dict) and persistence.get("status") == "failed"
+
+
+def _persistence_failure_event(persistence: dict[str, Any]) -> AgentEvent:
+    return AgentEvent(type="error", data={
+        "message": str(persistence.get("message") or PERSISTENCE_FAILURE_MESSAGE),
+        "retryable": False,
+        "code": PERSISTENCE_FAILURE_CODE,
+        "reason": str(persistence.get("reason") or PERSISTENCE_FAILURE_REASON),
+        "blocking": True,
+        "persistence": persistence,
+    })
 
 
 def _classify_error(exc: Exception) -> tuple[str, bool]:

@@ -1,0 +1,25 @@
+schema: steward-pr-scope.v1
+scope_id: keel-ai-chat-persistence-fail-closed-2026-07-01
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-ai-chat-persistence-fail-closed-2026-07-01.yml
+  - src/edu_cloud/ai/engine/edu_runtime.py
+  - src/edu_cloud/ai/providers/coze.py
+  - tests/test_ai/test_engine/test_sse_queue.py
+  - tests/test_ai/test_engine/test_coze_provider.py
+  - tests/test_ai/test_ai_api.py
+forbidden_paths:
+  - .yuanqi/
+  - scripts/yuanqi/
+  - tests/yuanqi/
+  - src/edu_cloud/core/auth.py
+  - src/edu_cloud/core/permissions.py
+  - src/edu_cloud/core/tenant.py
+  - alembic/
+  - deploy/
+  - frontend/
+  - .github/
+compatibility_paths: []
+status: active
+created_at: "2026-07-01T20:20:00+08:00"
+expires_at: "2026-07-08T23:59:00+08:00"
