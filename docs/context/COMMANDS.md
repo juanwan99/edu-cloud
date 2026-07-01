@@ -32,8 +32,11 @@ Steward-Scope: <scope_id>
 Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>
 ```
 
-After merge, close the same scope with a closeout-only PR that changes only
-`status: active` to `status: closed`.
+The scope file is a one-time authorization for that PR. Do not reuse it after
+merge. Its lifecycle boundary is the fresh scope file newly added in the PR and
+an `expires_at` that stays in the future while the scope is active. Closeout-only
+PRs remain supported for historical compatibility or explicit maintenance, but
+they are not the normal post-merge path.
 
 The default PR template contains `Steward-Scope: REQUIRED`. Replace `REQUIRED`
 with the exact scope id before opening or updating the PR.

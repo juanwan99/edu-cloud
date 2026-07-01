@@ -57,13 +57,21 @@ Before launching another mutating window:
    backend module work.
 4. Classify the task into one mode above.
 5. Use a separate worktree unless it is the only active writer.
-6. Create a fresh Keel scope file with exact allowed and forbidden paths.
+6. Create a fresh Keel scope file with exact allowed paths and any
+   task-specific forbidden paths.
 7. Put `Steward-Scope: <scope_id>` in the PR body.
 8. Put `Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>` in the PR body.
 9. Complete the Dispatch Review checklist before implementation begins.
 
 The CDR value must come from the non-implementing steward/reviewer before
 implementation starts. Workers must not self-issue or guess it.
+
+Fresh scope files are one-time PR authorizations; do not reuse them after merge.
+Their active lifecycle boundary is the newly added scope file plus a future
+`expires_at`. Closeout-only PRs remain a compatibility path, not the normal
+parallel-work lifecycle. Legacy Yuanqi paths are default forbidden by the gate,
+so workers should not copy `.yuanqi/`, `scripts/yuanqi/`, or `tests/yuanqi/`
+into every scope file.
 
 Do not start mutating work when the mode or scope is unclear. Re-anchor with
 the user instead.

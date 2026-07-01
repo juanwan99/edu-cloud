@@ -94,10 +94,6 @@ def validate_scope(data: dict, *, filename_stem: str | None = None) -> list[str]
         errors.append("forbidden_paths must be a list")
     else:
         errors.extend(_validate_path_list(forbidden_paths, field="forbidden_paths"))
-        normalized_forbidden_paths = set(_normalize_all(forbidden_paths))
-        for required_path in sorted(LEGACY_YUANQI_PATHS):
-            if required_path not in normalized_forbidden_paths:
-                errors.append(f"forbidden_paths must contain legacy Yuanqi path: {required_path}/")
 
     compatibility_paths = data.get("compatibility_paths", [])
     if not isinstance(compatibility_paths, list):
@@ -136,7 +132,7 @@ def validate_scope(data: dict, *, filename_stem: str | None = None) -> list[str]
 
 def scope_check(changed_files: list[str], scope: dict) -> tuple[bool, list[str]]:
     allowed = _allowed_scope(scope)
-    forbidden = _string_list(scope.get("forbidden_paths"))
+    forbidden = _forbidden_scope(scope)
     violations = [
         path
         for path in _normalize_all(changed_files)
@@ -151,6 +147,13 @@ def _allowed_scope(scope: dict) -> list[str]:
     for item in scope.get("compatibility_paths", []) or []:
         if isinstance(item, dict) and isinstance(item.get("path"), str):
             paths.append(item["path"])
+    return _dedupe(_normalize(path) for path in paths if path)
+
+
+def _forbidden_scope(scope: dict) -> list[str]:
+    paths: list[str] = []
+    paths.extend(_string_list(scope.get("forbidden_paths")))
+    paths.extend(sorted(LEGACY_YUANQI_PATHS))
     return _dedupe(_normalize(path) for path in paths if path)
 
 

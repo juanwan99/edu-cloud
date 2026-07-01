@@ -24,8 +24,19 @@ edu-cloud uses Keel for governed changes:
 3. Change only files allowed by that scope.
 4. Include `Steward-Scope: <scope_id>` in the PR body.
 5. Let GitHub required checks, CODEOWNERS, and human review decide.
-6. After merge, close the same scope with a closeout-only PR that changes only
-   `status: active` to `status: closed`.
+
+Each scope file is a one-time PR authorization. After its PR merges, do not
+reuse it for new work. The lifecycle boundary is the fresh scope file newly
+added in the PR plus an `expires_at` that remains in the future while the PR is
+active. Closeout-only PRs remain supported for historical compatibility and
+explicit maintenance, but they are not a routine post-merge step.
+
+Legacy Yuanqi paths are default forbidden paths consumed by the scope gate.
+Scope files do not need to hand-copy `.yuanqi/`, `scripts/yuanqi/`, or
+`tests/yuanqi/` into `forbidden_paths`. Adding or modifying those paths remains
+blocked, and `allowed_paths` must not name them. Deleting legacy Yuanqi files is
+exempt from changed-file scope enforcement so cleanup does not look like a
+revival risk.
 
 Before launching multiple mutating workers, deleting or retiring files, or
 touching `.github/**`, `control/**`, `docs/context/**`, `scripts/governance/**`,

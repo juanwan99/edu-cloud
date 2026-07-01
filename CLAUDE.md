@@ -22,6 +22,11 @@ edu-cloud uses Keel:
 3. `Steward-Scope: <scope_id>` in the PR body.
 4. GitHub required checks, CODEOWNERS, and human review decide merge readiness.
 
+The scope file is a one-time PR authorization: it must be newly added in the PR,
+its `expires_at` must stay in the future while active, and it must not be reused
+after merge. Closeout-only PRs remain a compatibility path, not a routine
+post-merge requirement.
+
 Before starting multi-worker, deletion/retirement, governance, central-context,
 or protected-path work, request Codex Dispatch Review. Do not split or launch
 mutating workers until that review defines task order, scope ids, allowed paths,

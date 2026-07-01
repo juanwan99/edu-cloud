@@ -66,9 +66,31 @@ For governed PRs:
 4. Put `Steward-Scope: <scope_id>` in the PR body.
 5. Let GitHub required checks and CODEOWNER review decide merge readiness.
 
+The scope file is a one-time PR authorization, not a durable task state that
+must be reset after merge. Do not reuse a merged scope file for new work. The
+active lifecycle boundary is the fresh scope file newly added in the PR plus an
+`expires_at` that remains in the future. Closeout-only PRs remain compatible for
+historical maintenance, but they are not the daily flow.
+
+Legacy Yuanqi paths are a gate-level default forbidden set. Scope files do not
+need to hand-copy `.yuanqi/`, `scripts/yuanqi/`, or `tests/yuanqi/` into
+`forbidden_paths`. Additions and modifications there stay blocked, and
+`allowed_paths` must not name them. Deletions of legacy Yuanqi files are exempt
+from changed-file enforcement so cleanup can proceed without being treated as a
+revival.
+
 The retired Yuanqi task-contract workflow is historical evidence only. Do not
 create Yuanqi task windows, `.yuanqi/tasks`, or `Yuanqi-Task:` PR markers unless
 the user explicitly revives a specific historical fact for analysis.
+
+## Scope Lifecycle RCA
+
+The ceremony came from storing lifecycle state in Git, running the same full
+gate shape for every PR, requiring global forbidden paths to be copied into each
+scope, and not asking which extra risk a new governance action actually closed.
+Keel keeps the useful boundary checks: a fresh scope file, future `expires_at`,
+default legacy Yuanqi quarantine in the gate, focused dispatch review, and
+GitHub review for merge authority.
 
 ## Working Memory
 

@@ -13,6 +13,7 @@ from scripts.governance.steward_scope_gate import (
     _is_scope_closeout_shape,
     _looks_like_name_status,
     _scope_closeout_errors,
+    _scope_enforced_paths,
     resolve_scope_id,
     scope_check,
     validate_scope,
@@ -100,11 +101,30 @@ def test_allowed_paths_rejects_legacy_yuanqi_script_path():
     assert "allowed_paths must not contain legacy Yuanqi path: scripts/yuanqi/check.py" in errors
 
 
-def test_forbidden_paths_must_include_legacy_yuanqi_paths():
+def test_validate_scope_accepts_missing_legacy_yuanqi_forbidden_paths():
     errors = validate_scope(_scope(forbidden_paths=[".yuanqi/"]))
 
-    assert "forbidden_paths must contain legacy Yuanqi path: scripts/yuanqi/" in errors
-    assert "forbidden_paths must contain legacy Yuanqi path: tests/yuanqi/" in errors
+    assert errors == []
+
+
+def test_scope_check_rejects_legacy_yuanqi_path_by_default_forbidden_scope():
+    scope = _scope(allowed_paths=["scripts/"], forbidden_paths=[])
+
+    ok, violations = scope_check(["scripts/yuanqi/foo.py"], scope)
+
+    assert not ok
+    assert violations == ["scripts/yuanqi/foo.py"]
+
+
+def test_scope_enforced_paths_exempts_legacy_yuanqi_deletions():
+    changed_entries = [
+        ("D", "scripts/yuanqi/foo.py"),
+        ("M", "scripts/governance/steward_scope_gate.py"),
+    ]
+
+    assert _scope_enforced_paths(changed_entries) == [
+        "scripts/governance/steward_scope_gate.py",
+    ]
 
 
 def test_allowed_paths_has_small_count_limit():
@@ -296,3 +316,51 @@ def test_cli_rejects_scope_file_modified_instead_of_added(tmp_path: Path):
 
     assert result.returncode == 1
     assert "declared scope file must be newly added in the PR" in result.stderr
+
+
+def test_cli_rejects_legacy_yuanqi_path_without_explicit_forbidden_path(tmp_path: Path):
+    repo_root = Path.cwd()
+    event = tmp_path / "event.json"
+    changed = tmp_path / "changed-files.txt"
+    scopes_dir = tmp_path / "control" / "steward" / "scopes"
+    scopes_dir.mkdir(parents=True)
+    scope_file = scopes_dir / "demo.yml"
+    scope_relpath = Path("control/steward/scopes/demo.yml")
+    scope_file.write_text(
+        yaml.safe_dump(
+            _scope(
+                allowed_paths=[str(scope_relpath), "scripts/"],
+                forbidden_paths=[],
+            ),
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    event.write_text(
+        json.dumps({"pull_request": {"body": "Steward-Scope: demo\n"}}),
+        encoding="utf-8",
+    )
+    changed.write_text(
+        f"A\t{scope_relpath}\nM\tscripts/yuanqi/foo.py\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(repo_root / "scripts/governance/steward_scope_gate.py"),
+            "--event",
+            str(event),
+            "--changed",
+            str(changed),
+            "--scopes-dir",
+            "control/steward/scopes",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 1
+    assert "scope violations:" in result.stderr
+    assert "scripts/yuanqi/foo.py" in result.stderr

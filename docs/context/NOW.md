@@ -7,7 +7,7 @@ expiration_in_days: 7
 
 # NOW
 
-Last refreshed: 2026-07-01 11:26 Asia/Shanghai
+Last refreshed: 2026-07-01 11:50 Asia/Shanghai
 
 ## Current Goal
 
@@ -17,11 +17,12 @@ only unless `ACTIVE_INDEX.md` or the baseline promotes them.
 
 ## Fresh State
 
-- Current master: `227137c2aec5b779667176edc730de818bae751e`.
+- Current master: `4352626c7bca03dd0396840a214ef6e2495c2f87`.
 - Current open PRs: none.
 - Recently closed stale PR: #83 was closed because its baseline was based on
   `c6e8d8f4` and was superseded by #84-#89.
 - Recent merged work:
+  - #93 refreshed active context after #92.
   - #92 made skipped workflow steps visible.
   - #91 refreshed active context after #90.
   - #90 refreshed the mainline baseline after #84-#89.
@@ -31,8 +32,8 @@ only unless `ACTIVE_INDEX.md` or the baseline promotes them.
   - #86 made scan persistence fail closed on unknown student identity.
   - #87 canonicalized adaptive mastery student identity.
   - #88 made answer-standardizer text-LLM fallback visible.
-- Latest master `Tests` run for #92 merge commit is `in_progress`:
-  run `28491163509`, head `227137c2aec5b779667176edc730de818bae751e`.
+- Latest master `Tests` run for #93 merge commit succeeded: run
+  `28491668618`, head `4352626c7bca03dd0396840a214ef6e2495c2f87`.
 - Module dependency gate is clean: `0 edges, 0 cycles`.
 - Current Keel scopes on `origin/master`: 34 closed, 9 active. This PR branch
   adds one active scope for its own review, so branch-local scope count is
@@ -49,8 +50,9 @@ only unless `ACTIVE_INDEX.md` or the baseline promotes them.
 
 ## Next Work Queue
 
-1. Close or retire the nine merged active Keel scopes in a separate scoped
-   closeout PR if the team wants active-scope count back to zero.
+1. Treat merged active Keel scopes as consumed PR authorizations. Do not chase
+   active-scope count back to zero as routine work; use closeout-only PRs only
+   for explicit historical compatibility or maintenance.
 2. Continue P1 silent-degradation work, but reverify each old candidate against
    current master before dispatch. Do not dispatch from stale baseline text.
 3. Start the document lifecycle cleanup lane with a fresh scope: keep
@@ -69,6 +71,12 @@ Current governed PR flow:
 4. include `Steward-Scope: <scope_id>` and real dispatch-review evidence in the
    PR body;
 5. let GitHub required checks, CODEOWNERS, and human review decide merge.
+
+The scope file is a one-time PR authorization. It must be newly added in the PR,
+must have a future `expires_at` while active, and must not be reused after merge.
+Legacy Yuanqi paths are default forbidden by the scope gate, so scopes do not
+hand-copy them into `forbidden_paths`; legacy Yuanqi deletions remain exempt as
+cleanup.
 
 The retired Yuanqi task-contract workflow is historical evidence only. Do not
 create `.yuanqi/tasks`, `Yuanqi-Task:` PR markers, Yuanqi task windows, or
