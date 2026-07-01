@@ -7,7 +7,7 @@ expiration_in_days: 7
 
 # NOW
 
-Last refreshed: 2026-07-01 10:17 Asia/Shanghai
+Last refreshed: 2026-07-01 11:26 Asia/Shanghai
 
 ## Current Goal
 
@@ -17,11 +17,13 @@ only unless `ACTIVE_INDEX.md` or the baseline promotes them.
 
 ## Fresh State
 
-- Current master: `851395ab63d5dc3499dca626fc389362efd059a5`.
-- Current open PRs: none. #90 merged at `2026-07-01T02:05:41Z`.
+- Current master: `227137c2aec5b779667176edc730de818bae751e`.
+- Current open PRs: none.
 - Recently closed stale PR: #83 was closed because its baseline was based on
   `c6e8d8f4` and was superseded by #84-#89.
 - Recent merged work:
+  - #92 made skipped workflow steps visible.
+  - #91 refreshed active context after #90.
   - #90 refreshed the mainline baseline after #84-#89.
   - #89 clarified Keel steward/task window role boundaries.
   - #84 made grading LLM config lookup errors fail closed.
@@ -29,23 +31,25 @@ only unless `ACTIVE_INDEX.md` or the baseline promotes them.
   - #86 made scan persistence fail closed on unknown student identity.
   - #87 canonicalized adaptive mastery student identity.
   - #88 made answer-standardizer text-LLM fallback visible.
-- Latest master `Tests` run for #90 merge commit succeeded:
-  run `28488542653`, head `851395ab63d5dc3499dca626fc389362efd059a5`.
+- Latest master `Tests` run for #92 merge commit is `in_progress`:
+  run `28491163509`, head `227137c2aec5b779667176edc730de818bae751e`.
 - Module dependency gate is clean: `0 edges, 0 cycles`.
-- Current Keel scopes on `origin/master`: 34 closed, 7 active. This PR branch
+- Current Keel scopes on `origin/master`: 34 closed, 9 active. This PR branch
   adds one active scope for its own review, so branch-local scope count is
-  34 closed and 8 active until merge. Master active scope files are:
-  `keel-grading-llm-config-fail-closed-2026-06-30.yml`,
-  `keel-ai-datascope-fail-closed-2026-06-30.yml`,
-  `keel-scan-identity-fail-closed-2026-06-30.yml`,
-  `keel-adaptive-canonical-student-identity-2026-06-30.yml`,
-  `keel-answer-standardizer-fail-visible-2026-06-30.yml`,
-  `keel-refresh-mainline-baseline-2026-07-01.yml`, and
+  34 closed and 10 active until merge. Master active scope files:
+  `keel-grading-llm-config-fail-closed-2026-06-30.yml`;
+  `keel-ai-datascope-fail-closed-2026-06-30.yml`;
+  `keel-scan-identity-fail-closed-2026-06-30.yml`;
+  `keel-adaptive-canonical-student-identity-2026-06-30.yml`;
+  `keel-answer-standardizer-fail-visible-2026-06-30.yml`;
+  `keel-refresh-active-context-after-pr90-2026-07-01.yml`;
+  `keel-refresh-mainline-baseline-2026-07-01.yml`;
+  `keel-workflow-skipped-steps-visible-2026-07-01.yml`;
   `keel-window-role-boundary-2026-07-01.yml`.
 
 ## Next Work Queue
 
-1. Close or retire the seven merged active Keel scopes in a separate scoped
+1. Close or retire the nine merged active Keel scopes in a separate scoped
    closeout PR if the team wants active-scope count back to zero.
 2. Continue P1 silent-degradation work, but reverify each old candidate against
    current master before dispatch. Do not dispatch from stale baseline text.
