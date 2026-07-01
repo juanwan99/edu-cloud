@@ -1,13 +1,13 @@
 ---
 title: NOW
 owner: liang
-last_review_date: "2026-06-30"
+last_review_date: "2026-07-01"
 expiration_in_days: 7
 ---
 
 # NOW
 
-Last refreshed: 2026-06-30 08:32 Asia/Shanghai
+Last refreshed: 2026-07-01 09:51 Asia/Shanghai
 
 ## Current Goal
 
@@ -17,21 +17,42 @@ only unless `ACTIVE_INDEX.md` or the baseline promotes them.
 
 ## Fresh State
 
-- Current master: `437ef6a974da907841822245def0416cd9ecd313`.
-- Current open PRs: none.
-- Recent merged work: #57 calendar range validation, #58 calendar scope
-  closeout, #59 token revocation fail-closed production behavior.
-- Latest master GitHub runs are green.
+- Current master: `2695793fd719dd728099ccb63b929e55ecbb79d2`.
+- Current open PRs: #90, this replacement baseline PR. Before #90 was opened,
+  there were no open PRs after stale #83 was closed.
+- Recently closed stale PR: #83 was closed because its baseline was based on
+  `c6e8d8f4` and was superseded by #84-#89.
+- Recent merged work:
+  - #89 clarified Keel steward/task window role boundaries.
+  - #84 made grading LLM config lookup errors fail closed.
+  - #85 made AI chat DataScope build failure fail closed.
+  - #86 made scan persistence fail closed on unknown student identity.
+  - #87 canonicalized adaptive mastery student identity.
+  - #88 made answer-standardizer text-LLM fallback visible.
+- Latest master `Tests` run for #88 is in progress at refresh time; PR-level
+  required checks were green before merge.
 - Module dependency gate is clean: `0 edges, 0 cycles`.
-- `keel-token-revocation-fail-closed-2026-06-30.yml` is still `status: active`
-  and needs a closeout PR.
+- Current Keel scopes on `origin/master`: 34 closed, 6 active. This PR branch
+  adds one active scope for its own review, so branch-local scope count is
+  34 closed and 7 active until merge. Master active scope files are:
+  `keel-grading-llm-config-fail-closed-2026-06-30.yml`,
+  `keel-ai-datascope-fail-closed-2026-06-30.yml`,
+  `keel-scan-identity-fail-closed-2026-06-30.yml`,
+  `keel-adaptive-canonical-student-identity-2026-06-30.yml`,
+  `keel-answer-standardizer-fail-visible-2026-06-30.yml`, and
+  `keel-window-role-boundary-2026-07-01.yml`.
 
 ## Next Work Queue
 
-1. Close the #59 token revocation Keel scope.
-2. Fix P1 silent degradation in chat message persistence.
-3. Fix P1 grading JSON truncation repair behavior.
-4. Fix P1 OCR uncertainty being converted to `unanswered`.
+1. Wait for the latest master `Tests` run for #88 to finish before making any
+   claim that current master is fully green.
+2. Close or retire the six merged active Keel scopes in a separate scoped
+   closeout PR if the team wants active-scope count back to zero.
+3. Continue P1 silent-degradation work, but reverify each old candidate against
+   current master before dispatch. Do not dispatch from stale baseline text.
+4. Start the document lifecycle cleanup lane with a fresh scope: keep
+   `ACTIVE_INDEX.md` small, update active-doc frontmatter, and avoid broad
+   historical-doc deletion without CODEOWNER review.
 5. Keep module decoupling as a guardrail, not a broad refactor, until a concrete
    product task exposes a boundary problem.
 

@@ -1,13 +1,13 @@
 ---
 title: Requirements Baseline
 owner: liang
-last_review_date: "2026-06-30"
+last_review_date: "2026-07-01"
 expiration_in_days: 14
 ---
 
 # Requirements Baseline
 
-Last refreshed: 2026-06-30 08:32 Asia/Shanghai
+Last refreshed: 2026-07-01 09:51 Asia/Shanghai
 
 This is the current requirements and task-priority baseline for edu-cloud work
 under Keel. Older Claude/Codex reports, old plans, old handoffs, Yuanqi task
@@ -17,8 +17,9 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 ## Source Of Truth
 
 - Current repo: `juanwan99/edu-cloud`
-- Current master: `437ef6a974da907841822245def0416cd9ecd313`
-- Current open PRs: none
+- Current master: `2695793fd719dd728099ccb63b929e55ecbb79d2`
+- Current open PRs: #90, this replacement baseline PR. Before #90 was opened,
+  there were no open PRs after stale #83 was closed.
 - Current module dependency gate: `0 edges, 0 cycles`
 - Current Keel authority: GitHub required checks, CODEOWNERS, human review, and
   fresh scope files under `control/steward/scopes/`
@@ -43,6 +44,20 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 
 ## Verified Current Facts
 
+- PR #83 was closed as stale after #84-#89 changed the baseline it described.
+- PR #89 merged the Keel window role-boundary clarification.
+- PR #84 merged grading LLM config lookup fail-closed behavior.
+- PR #85 merged AI DataScope build-failure fail-closed behavior.
+- PR #86 merged scan identity mismatch fail-closed behavior.
+- PR #87 merged canonical student identity for adaptive mastery.
+- PR #88 merged answer-standardizer text-LLM fallback visibility.
+- Current Keel scope files on `origin/master` are 34 closed and 6 active. This
+  PR branch adds one active scope for its own review, so branch-local scope
+  count is 34 closed and 7 active until merge. The master active files are the
+  merged #84-#89 scopes and should not be treated as reusable permission,
+  because PR scope validation requires a newly added scope file.
+- Latest master `Tests` run for #88 is still in progress at refresh time; do not
+  claim current master is fully green until that run completes.
 - PR #53 and #54 archived unreferenced old plans; `docs/archive/plans/` now has
   56 plan files.
 - `docs/plans/` currently has 13 non-placeholder files. Only
@@ -52,11 +67,6 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 - There are 36 non-archive `docs/plans/...` references; 25 of those still point
   to files that are neither live under `docs/plans/` nor present under
   `docs/archive/plans/`.
-- PR #57 closed the calendar query range validation pilot.
-- PR #58 closed the related calendar scope.
-- PR #59 made token revocation fail closed in production.
-- `keel-token-revocation-fail-closed-2026-06-30.yml` is still `status: active`
-  after PR #59 and needs a closeout PR.
 - `scripts/pytest_delta.py`, `scripts/truth-doctor.sh`, truth tools,
   guardian/meta scripts, and their related tests/docs are not proven dead. Do
   not delete them without a fresh reachability review across scripts, CI, tests,
@@ -64,14 +74,18 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 
 ## Active Work Queue
 
-### P0 Keel Closeout
+### P0 Keel Queue
 
-Close `keel-token-revocation-fail-closed-2026-06-30.yml` after confirming PR
-#59 is merged and master CI is green.
+1. Wait for current master `Tests` after #88 to finish before making a fully
+   green-mainline claim.
+2. If desired, close or retire the six merged active scope files from #84-#89 in
+   a dedicated scope-closeout PR. Do not bundle this with product behavior work.
 
 ### P1 Silent Degradation
 
-Fix these as separate, narrow PRs with fresh scopes and tests:
+The following old candidates must be reverified against current master before
+dispatch. Fix only confirmed issues as separate, narrow PRs with fresh scopes
+and tests:
 
 1. `src/edu_cloud/ai/engine/edu_runtime.py`: `_persist_messages()` still treats
    chat persistence as best-effort and only logs DB write failures.
@@ -84,7 +98,7 @@ Fix these as separate, narrow PRs with fresh scopes and tests:
 
 ### P2 Visible But Still Risky
 
-Investigate only after P1:
+Investigate only after P1 and reverify before dispatch:
 
 - `src/edu_cloud/modules/scan/pipeline_service.py`: barcode fallback is now
   counted and surfaced, but still continues with filename-derived identity.
@@ -97,6 +111,9 @@ Investigate only after P1:
 
 ### P3 Hygiene
 
+- Start document lifecycle cleanup as its own lane: keep `ACTIVE_INDEX.md`
+  authoritative, update active-doc review metadata, and reduce stale docs from
+  the default agent context.
 - Resolve or intentionally document the 25 stale `docs/plans/...` references
   when a touched active/reference doc needs them. Do not make this the main
   product lane.
