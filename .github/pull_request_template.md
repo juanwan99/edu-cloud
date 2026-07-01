@@ -13,8 +13,8 @@ Write-License: REQUIRED
 - [ ] Branch was created from latest `origin/master`; no stale worktree or branch was reused.
 - [ ] Replaced `REQUIRED` above with the exact scope id.
 - [ ] Replaced `Codex-Dispatch-Review: REQUIRED` above with a real CDR id or GitHub comment URL.
-- [ ] Declared `Integration-Lane` as `independent`, `guarded`, or `exclusive`.
-- [ ] Declared `Write-License` with draft PR permission, CI self-fix permission, and stop condition.
+- [ ] Replaced `Integration-Lane: REQUIRED` above with `independent`, `guarded`, or `exclusive`.
+- [ ] Replaced `Write-License: REQUIRED` above with actual draft PR permission, CI self-fix permission, and stop condition.
 - [ ] Added one fresh scope file under `control/steward/scopes/`.
 - [ ] Changed files stay inside scope `allowed_paths`; no `forbidden_paths` were touched.
 - [ ] For file deletion or retirement, reachability was checked across `scripts/`, `tests/`, `.github/workflows/`, active docs, and governance registries.

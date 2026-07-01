@@ -12,6 +12,8 @@ from typing import Any
 
 SCOPE_DECLARATION = re.compile(r"^\ufeff?\s*Steward-Scope:\s*([A-Za-z0-9._-]+)\s*$")
 REVIEW_DECLARATION = re.compile(r"^\ufeff?\s*Codex-Dispatch-Review:\s*(\S+)\s*$")
+LANE_DECLARATION = re.compile(r"^\ufeff?\s*Integration-Lane:\s*(\S+)\s*$")
+WRITE_LICENSE_DECLARATION = re.compile(r"^\ufeff?\s*Write-License:\s*(.*?)\s*$")
 CDR_ID = re.compile(r"^CDR-\d{4}-\d{2}-\d{2}-[a-z0-9][a-z0-9-]*[a-z0-9]$")
 GITHUB_COMMENT_URL = re.compile(
     r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/(?:pull|issues)/\d+#issuecomment-\d+$"
@@ -28,6 +30,8 @@ NEXT_HEADING = re.compile(r"^##\s+", re.MULTILINE)
 UNCHECKED_BOX = re.compile(r"(?m)^\s*[-*]\s+\[\s\]\s+")
 INDEPENDENT_VERDICT = re.compile(r"(?im)^[ \t]*Verdict:[ \t]*(\S+)[ \t]*$")
 INDEPENDENT_REVIEWER = re.compile(r"(?im)^[ \t]*Reviewer[ \t]*/[ \t]*evidence URL:[ \t]*(\S.*)$")
+PLACEHOLDER_VALUES = {"PENDING", "REQUIRED", "TBD", "TODO"}
+VALID_INTEGRATION_LANES = {"independent", "guarded", "exclusive"}
 
 
 def validate_event(event: dict[str, Any]) -> list[str]:
@@ -39,6 +43,8 @@ def validate_event(event: dict[str, Any]) -> list[str]:
     head_ref = head.get("ref") or ""
     scope_id = _resolve_scope_id(body)
     review_evidence = _resolve_review_evidence(body)
+    integration_lane = _resolve_integration_lane(body)
+    write_license = _resolve_write_license(body)
     errors: list[str] = []
 
     if not scope_id:
@@ -54,6 +60,20 @@ def validate_event(event: dict[str, Any]) -> list[str]:
         errors.append(
             "Codex-Dispatch-Review must be a CDR-YYYY-MM-DD-<slug> id or a GitHub issue/PR comment URL"
         )
+
+    if not integration_lane:
+        errors.append("PR body must declare Integration-Lane: independent|guarded|exclusive")
+    elif integration_lane.upper() in PLACEHOLDER_VALUES:
+        errors.append("PR body must replace Integration-Lane: REQUIRED with independent, guarded, or exclusive")
+    elif integration_lane.lower() not in VALID_INTEGRATION_LANES:
+        errors.append("Integration-Lane must be one of: independent, guarded, exclusive")
+
+    if write_license is None or not write_license.strip():
+        errors.append("PR body must declare Write-License with draft PR permission, CI self-fix permission, and stop condition")
+    elif write_license.strip().upper() in PLACEHOLDER_VALUES:
+        errors.append("PR body must replace Write-License: REQUIRED with the actual write license")
+    else:
+        errors.extend(_write_license_errors(write_license))
 
     if head_ref.startswith("batch/"):
         errors.append("governed PR branches must not use retired batch/* names")
@@ -117,6 +137,34 @@ def _resolve_review_evidence(body: str) -> str | None:
         if match:
             return match.group(1)
     return None
+
+
+def _resolve_integration_lane(body: str) -> str | None:
+    for line in body.splitlines():
+        match = LANE_DECLARATION.match(line)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _resolve_write_license(body: str) -> str | None:
+    for line in body.splitlines():
+        match = WRITE_LICENSE_DECLARATION.match(line)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _write_license_errors(value: str) -> list[str]:
+    normalized = value.lower()
+    errors: list[str] = []
+    if "draft" not in normalized:
+        errors.append("Write-License must state draft PR permission")
+    if "self-fix" not in normalized and "self fix" not in normalized:
+        errors.append("Write-License must state CI self-fix permission")
+    if "stop" not in normalized:
+        errors.append("Write-License must state stop condition")
+    return errors
 
 
 def _valid_review_evidence(value: str) -> bool:
