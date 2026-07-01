@@ -161,7 +161,14 @@ async def transition_document(
             school_id=doc.school_id,
             channel="stub",
         )
-        doc.execution_result = dispatch_result
+        notification_sent = bool(
+            dispatch_result.get("sent") and dispatch_result.get("channel") != "stub"
+        )
+        doc.execution_result = {
+            **dispatch_result,
+            "sent": notification_sent,
+            "delivery_state": dispatch_result.get("delivery_state", "not_configured"),
+        }
         doc.executed_at = datetime.now(timezone.utc)
 
     await db.commit()
@@ -178,6 +185,8 @@ def _doc_to_dict(doc) -> dict:
         "content_html": doc.content_html,
         "pdf_url": doc.pdf_url,
         "version": doc.version,
+        "executed_at": str(doc.executed_at) if doc.executed_at else None,
+        "execution_result": doc.execution_result,
         "created_at": str(doc.created_at) if doc.created_at else None,
     }
 
