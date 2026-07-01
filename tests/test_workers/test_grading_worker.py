@@ -23,8 +23,27 @@ def test_worker_settings_has_cron_jobs():
 async def test_run_post_exam_pipeline_stub():
     """Pipeline stub runs without error."""
     from edu_cloud.workers.grading import run_post_exam_pipeline
+
+    mock_db = AsyncMock()
+    session_cm = AsyncMock()
+    session_cm.__aenter__ = AsyncMock(return_value=mock_db)
+    session_cm.__aexit__ = AsyncMock(return_value=False)
+
     ctx = {}
-    await run_post_exam_pipeline(ctx, exam_id="test-exam", school_id="test-school")
+    with patch("edu_cloud.database.async_session", return_value=session_cm), \
+         patch(
+             "edu_cloud.services.post_exam_pipeline.run_post_exam_pipeline",
+             new_callable=AsyncMock,
+             return_value={"status": "ok"},
+         ) as mock_orchestrate:
+        await run_post_exam_pipeline(ctx, exam_id="test-exam", school_id="test-school")
+
+    mock_orchestrate.assert_awaited_once_with(
+        mock_db,
+        exam_id="test-exam",
+        school_id="test-school",
+    )
+    mock_db.commit.assert_awaited_once()
 
 
 def test_process_grading_task_is_importable():
@@ -107,7 +126,7 @@ def _build_mock_db_session(execute_side_effects):
 
 
 @pytest.mark.asyncio
-@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, side_effect=Exception("no slot"))
+@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, return_value=("http://llm", "key", "model"))
 @patch("edu_cloud.workers.grading._create_llm_client")
 async def test_process_grading_task_no_subjective_questions(mock_create_llm, _mock_get_cfg):
     """No subjective questions → task completes immediately without LLM calls."""
@@ -149,7 +168,49 @@ async def test_process_grading_task_no_subjective_questions(mock_create_llm, _mo
 
 
 @pytest.mark.asyncio
-@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, side_effect=Exception("no slot"))
+@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, side_effect=RuntimeError("slot db unavailable"))
+@patch("edu_cloud.workers.grading._create_llm_client")
+async def test_process_grading_task_gemini_official_skips_slot_lookup(mock_create_llm, mock_get_cfg):
+    """Gemini official mode does not need DB slot lookup, so unrelated slot failures should not block it."""
+    from edu_cloud.workers.grading import process_grading_task
+
+    task = _make_mock_task()
+    task.status = "processing"
+
+    cas_result = MagicMock()
+    cas_result.rowcount = 1
+    subject_result = MagicMock()
+    subject_result.scalar_one_or_none.return_value = None
+    execute_results = [
+        cas_result,
+        _make_scalar_one_result(task),
+        _make_scalars_all_result([]),
+        subject_result,
+    ]
+    ctx, db = _build_mock_db_session(execute_results)
+
+    mock_llm = AsyncMock()
+    mock_create_llm.return_value = mock_llm
+
+    with patch("edu_cloud.workers.grading.settings") as mock_settings:
+        mock_settings.GEMINI_API_KEY = "gemini-key"
+        mock_settings.VERTEX_AI_PROJECT = None
+        mock_settings.GEMINI_MODEL = "gemini-test"
+        mock_settings.DEEPSEEK_API_KEY = None
+        mock_settings.GRADING_BATCH_SIZE = 20
+        mock_settings.GRADING_CONCURRENCY = 5
+
+        await process_grading_task(ctx, "task-1")
+
+    mock_get_cfg.assert_not_called()
+    mock_create_llm.assert_called_once()
+    assert mock_create_llm.call_args.kwargs["use_gemini_official"] is True
+    assert task.status == "completed"
+    assert db.commit.await_count >= 2
+
+
+@pytest.mark.asyncio
+@patch("edu_cloud.modules.exam.slot_selector.get_llm_config", new_callable=AsyncMock, return_value=("http://llm", "key", "model"))
 @patch("edu_cloud.workers.grading._create_llm_client")
 async def test_process_grading_task_missing_rubric(mock_create_llm, _mock_get_cfg):
     """Answer exists but no rubric for question → task.failed incremented."""
