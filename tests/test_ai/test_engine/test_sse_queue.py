@@ -8,7 +8,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from edu_cloud.ai.data_scope import DataScope
-from edu_cloud.ai.engine.edu_runtime import EduAgentRuntime
+from edu_cloud.ai.engine.edu_runtime import (
+    EduAgentRuntime,
+    PERSISTENCE_FAILURE_CODE,
+    PERSISTENCE_FAILURE_MESSAGE,
+)
 from edu_cloud.ai.schemas import AgentEvent
 
 
@@ -106,7 +110,7 @@ async def test_queue_drain_handles_agent_error():
 
 @pytest.mark.asyncio
 async def test_done_event_reports_persistence_failure():
-    """A generated answer must not silently claim durable chat history."""
+    """A generated answer must surface chat persistence failure before done."""
     rt = _runtime()
     rt.build_agent()
 
@@ -126,11 +130,27 @@ async def test_done_event_reports_persistence_failure():
         async for ev in rt.run("hello"):
             collected.append(ev)
 
-    done_ev = next(e for e in collected if e.type == "done")
+    types = [e.type for e in collected]
+    assert types[-2:] == ["error", "done"]
+
+    error_ev = next(e for e in collected if e.type == "error")
+    assert error_ev.data["message"] == PERSISTENCE_FAILURE_MESSAGE
+    assert error_ev.data["retryable"] is False
+    assert error_ev.data["code"] == PERSISTENCE_FAILURE_CODE
+    assert error_ev.data["reason"] == "chat_history_unavailable"
+    assert error_ev.data["blocking"] is True
+    assert error_ev.data["persistence"] == {
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+    }
+
+    done_ev = collected[-1]
     assert done_ev.data["persistence"] == {
         "status": "failed",
         "reason": "chat_history_unavailable",
     }
+    assert done_ev.data["status"] == "blocked"
+    assert done_ev.data["blocking_error"] == PERSISTENCE_FAILURE_CODE
 
 
 @pytest.mark.asyncio
@@ -145,7 +165,14 @@ async def test_persist_messages_returns_failed_status_on_db_error():
 
     status = await rt._persist_messages("hello", "answer")
 
-    assert status == {"status": "failed", "reason": "chat_history_unavailable"}
+    assert status == {
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+        "code": PERSISTENCE_FAILURE_CODE,
+        "message": PERSISTENCE_FAILURE_MESSAGE,
+        "retryable": False,
+        "blocking": True,
+    }
 
 
 @pytest.mark.asyncio

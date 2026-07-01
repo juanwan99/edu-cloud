@@ -5,7 +5,13 @@ import pytest
 
 from edu_cloud.ai.providers.base import AgentProviderContext
 from edu_cloud.ai.engine.tool_wrapper import edu_tool
-from edu_cloud.ai.providers.coze import COZE_REQUIRED_ACTION_EVENTS, CozeProvider, CozeRun
+from edu_cloud.ai.providers.coze import (
+    COZE_REQUIRED_ACTION_EVENTS,
+    CozeProvider,
+    CozeRun,
+    PERSISTENCE_FAILURE_CODE,
+    PERSISTENCE_FAILURE_MESSAGE,
+)
 
 
 def _run(*, required_action_submit_enabled=False):
@@ -125,11 +131,26 @@ async def test_coze_done_reports_persistence_failure(monkeypatch):
 
     events = [event async for event in run.run("hi")]
 
-    done = next(event for event in events if event.type == "done")
+    assert [event.type for event in events][-2:] == ["error", "done"]
+
+    error = next(event for event in events if event.type == "error")
+    assert error.data["message"] == PERSISTENCE_FAILURE_MESSAGE
+    assert error.data["retryable"] is False
+    assert error.data["code"] == PERSISTENCE_FAILURE_CODE
+    assert error.data["reason"] == "chat_history_unavailable"
+    assert error.data["blocking"] is True
+    assert error.data["persistence"] == {
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+    }
+
+    done = events[-1]
     assert done.data["persistence"] == {
         "status": "failed",
         "reason": "chat_history_unavailable",
     }
+    assert done.data["status"] == "blocked"
+    assert done.data["blocking_error"] == PERSISTENCE_FAILURE_CODE
 
 
 @pytest.mark.asyncio
@@ -142,7 +163,9 @@ async def test_coze_resume_after_confirmation_executes_gateway_tool(monkeypatch)
         "timeout": 300.0,
     }
     gateway = AsyncMock(return_value={"status": "ok", "result": {"draft_id": "d1"}})
+    persist_assistant = AsyncMock(return_value={"status": "ok"})
     monkeypatch.setattr("edu_cloud.ai.providers.coze.execute_registered_tool", gateway)
+    monkeypatch.setattr(run, "_persist_assistant_message", persist_assistant)
 
     events = [
         event async for event in run.resume_after_confirmation(approved_ids=["c1"])
@@ -150,6 +173,7 @@ async def test_coze_resume_after_confirmation_executes_gateway_tool(monkeypatch)
 
     assert [event.type for event in events] == ["tool_call", "tool_result", "answer", "done"]
     gateway.assert_awaited_once()
+    persist_assistant.assert_awaited_once()
     assert "c1" not in run._pending_confirmations
 
 
@@ -271,7 +295,7 @@ async def test_coze_confirmed_write_submits_tool_output_back_to_coze(monkeypatch
         )
 
     monkeypatch.setattr(run, "_stream_coze_tool_outputs", fake_stream_tool_outputs)
-    persist_assistant = AsyncMock()
+    persist_assistant = AsyncMock(return_value={"status": "ok"})
     monkeypatch.setattr(run, "_persist_assistant_message", persist_assistant)
 
     events = [event async for event in run.resume_after_confirmation(approved_ids=["confirm-1"])]
@@ -284,6 +308,61 @@ async def test_coze_confirmed_write_submits_tool_output_back_to_coze(monkeypatch
     ]
     persist_assistant.assert_awaited_once_with("评语已生成")
     assert "confirm-1" not in run._pending_confirmations
+
+
+@pytest.mark.asyncio
+async def test_coze_resume_after_confirmation_blocks_on_assistant_persistence_failure(monkeypatch):
+    run = _run()
+    run._pending_confirmations["c1"] = {
+        "tool_name": "generate_comment",
+        "arguments": {"student_number": "S001"},
+        "requested_at": __import__("time").monotonic(),
+        "timeout": 300.0,
+    }
+    gateway = AsyncMock(return_value={"status": "ok", "result": {"draft_id": "d1"}})
+    failed_persist = AsyncMock(return_value={
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+    })
+    monkeypatch.setattr("edu_cloud.ai.providers.coze.execute_registered_tool", gateway)
+    monkeypatch.setattr(run, "_persist_assistant_message", failed_persist)
+
+    events = [event async for event in run.resume_after_confirmation(approved_ids=["c1"])]
+
+    assert [event.type for event in events] == ["tool_call", "tool_result", "answer", "error", "done"]
+    error = events[-2]
+    assert error.data["retryable"] is False
+    assert error.data["code"] == PERSISTENCE_FAILURE_CODE
+    assert error.data["blocking"] is True
+    assert error.data["persistence"] == {
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+    }
+    done = events[-1]
+    assert done.data["status"] == "blocked"
+    assert done.data["blocking_error"] == PERSISTENCE_FAILURE_CODE
+    assert done.data["persistence"] == {
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+    }
+    failed_persist.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_coze_persist_helpers_return_blocking_failure_on_db_error():
+    run = _run()
+
+    expected = {
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+        "code": PERSISTENCE_FAILURE_CODE,
+        "message": PERSISTENCE_FAILURE_MESSAGE,
+        "retryable": False,
+        "blocking": True,
+    }
+
+    assert await run._persist_messages("hi", "hello") == expected
+    assert await run._persist_assistant_message("hello") == expected
 
 
 @pytest.mark.asyncio

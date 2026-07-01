@@ -41,6 +41,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 LLM_PROXY_BASE = "http://localhost:8100/v1"
+PERSISTENCE_FAILURE_CODE = "ai_chat_persistence_failed"
+PERSISTENCE_FAILURE_REASON = "chat_history_unavailable"
+PERSISTENCE_FAILURE_MESSAGE = (
+    "AI chat history was not saved. Please retry before relying on this response."
+)
 
 _llm_clients: dict[str, AsyncOpenAI] = {}
 
@@ -296,14 +301,23 @@ class EduAgentRuntime:
             assistant_text = result_box["result"].output
         persistence = await self._persist_messages(user_message, assistant_text)
 
-        yield AgentEvent(type="done", data={
+        persistence_failed = _persistence_failed(persistence)
+        if persistence_failed:
+            yield _persistence_failure_event(persistence)
+
+        done_data = {
             "run_id": self._run_id,
             "session_id": self._session_id,
             "turns": self._deps.budget.used_tool_calls,
             "tokens": self._deps.budget.used_tokens,
             "elapsed_ms": elapsed_ms,
             "persistence": persistence,
-        })
+        }
+        if persistence_failed:
+            done_data["status"] = "blocked"
+            done_data["blocking_error"] = PERSISTENCE_FAILURE_CODE
+
+        yield AgentEvent(type="done", data=done_data)
 
     async def resume_after_confirmation(
         self,
@@ -415,7 +429,7 @@ class EduAgentRuntime:
         assistant_output: str | None,
         *,
         tool_calls: list[dict] | None = None,
-    ) -> dict[str, str]:
+    ) -> dict[str, Any]:
         """Write user + assistant messages to DB and report persistence status."""
         try:
             from edu_cloud.ai.models import AiChatMessage
@@ -438,7 +452,33 @@ class EduAgentRuntime:
             return {"status": "ok"}
         except Exception as exc:
             logger.warning("Failed to persist chat messages: %s", exc)
-            return {"status": "failed", "reason": "chat_history_unavailable"}
+            return _persistence_failure_payload()
+
+
+def _persistence_failure_payload() -> dict[str, Any]:
+    return {
+        "status": "failed",
+        "reason": PERSISTENCE_FAILURE_REASON,
+        "code": PERSISTENCE_FAILURE_CODE,
+        "message": PERSISTENCE_FAILURE_MESSAGE,
+        "retryable": False,
+        "blocking": True,
+    }
+
+
+def _persistence_failed(persistence: Any) -> bool:
+    return isinstance(persistence, dict) and persistence.get("status") == "failed"
+
+
+def _persistence_failure_event(persistence: dict[str, Any]) -> AgentEvent:
+    return AgentEvent(type="error", data={
+        "message": str(persistence.get("message") or PERSISTENCE_FAILURE_MESSAGE),
+        "retryable": False,
+        "code": PERSISTENCE_FAILURE_CODE,
+        "reason": str(persistence.get("reason") or PERSISTENCE_FAILURE_REASON),
+        "blocking": True,
+        "persistence": persistence,
+    })
 
 
 def _classify_error(exc: Exception) -> tuple[str, bool]:

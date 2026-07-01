@@ -19,6 +19,12 @@ from edu_cloud.ai.tool_gateway import describe_context_tools, execute_registered
 
 logger = logging.getLogger(__name__)
 
+PERSISTENCE_FAILURE_CODE = "ai_chat_persistence_failed"
+PERSISTENCE_FAILURE_REASON = "chat_history_unavailable"
+PERSISTENCE_FAILURE_MESSAGE = (
+    "AI chat history was not saved. Please retry before relying on this response."
+)
+
 DEFAULT_COZE_TOOL_ALLOWLIST = frozenset({
     "get_exam_list",
     "get_exam_summary",
@@ -143,12 +149,21 @@ class CozeRun:
                 logger.exception("Confirmed Coze tool execution failed: %s", exc)
                 yield AgentEvent(type="error", data={"message": str(exc)})
 
-        yield AgentEvent(type="done", data={
+        persistence_failed = _persistence_failed(persistence)
+        if persistence_failed:
+            yield _persistence_failure_event(persistence)
+
+        done_data = {
             "run_id": self._run_id,
             "session_id": self._context.session_id,
             "provider": self.provider_name,
             "persistence": persistence,
-        })
+        }
+        if persistence_failed:
+            done_data["status"] = "blocked"
+            done_data["blocking_error"] = PERSISTENCE_FAILURE_CODE
+
+        yield AgentEvent(type="done", data=done_data)
 
     async def run(
         self,
@@ -180,12 +195,21 @@ class CozeRun:
             {"role": "user", "content": user_message},
             {"role": "assistant", "content": assistant_text or ""},
         ]
-        yield AgentEvent(type="done", data={
+        persistence_failed = _persistence_failed(persistence)
+        if persistence_failed:
+            yield _persistence_failure_event(persistence)
+
+        done_data = {
             "run_id": self._run_id,
             "session_id": self._context.session_id,
             "provider": self.provider_name,
             "persistence": persistence,
-        })
+        }
+        if persistence_failed:
+            done_data["status"] = "blocked"
+            done_data["blocking_error"] = PERSISTENCE_FAILURE_CODE
+
+        yield AgentEvent(type="done", data=done_data)
 
     async def _stream_coze(self, user_message: str) -> AsyncIterator[tuple[str, dict[str, Any]]]:
         url = self._settings.AI_COZE_API_BASE.rstrip("/") + "/v3/chat"
@@ -494,7 +518,7 @@ class CozeRun:
             )]
         return [AgentEvent(type="tool_result", data={"tool": _tool_name_from_output(content)})]
 
-    async def _persist_messages(self, user_message: str, assistant_output: str | None) -> dict[str, str]:
+    async def _persist_messages(self, user_message: str, assistant_output: str | None) -> dict[str, Any]:
         try:
             from edu_cloud.ai.models import AiChatMessage
             async with self._context.db_sessionmaker() as db:
@@ -510,9 +534,9 @@ class CozeRun:
             return {"status": "ok"}
         except Exception as exc:
             logger.warning("Failed to persist Coze chat messages: %s", exc)
-            return {"status": "failed", "reason": "chat_history_unavailable"}
+            return _persistence_failure_payload()
 
-    async def _persist_assistant_message(self, assistant_output: str | None) -> dict[str, str]:
+    async def _persist_assistant_message(self, assistant_output: str | None) -> dict[str, Any]:
         if not assistant_output:
             return {"status": "ok"}
         try:
@@ -528,7 +552,33 @@ class CozeRun:
             return {"status": "ok"}
         except Exception as exc:
             logger.warning("Failed to persist Coze assistant message: %s", exc)
-            return {"status": "failed", "reason": "chat_history_unavailable"}
+            return _persistence_failure_payload()
+
+
+def _persistence_failure_payload() -> dict[str, Any]:
+    return {
+        "status": "failed",
+        "reason": PERSISTENCE_FAILURE_REASON,
+        "code": PERSISTENCE_FAILURE_CODE,
+        "message": PERSISTENCE_FAILURE_MESSAGE,
+        "retryable": False,
+        "blocking": True,
+    }
+
+
+def _persistence_failed(persistence: Any) -> bool:
+    return isinstance(persistence, dict) and persistence.get("status") == "failed"
+
+
+def _persistence_failure_event(persistence: dict[str, Any]) -> AgentEvent:
+    return AgentEvent(type="error", data={
+        "message": str(persistence.get("message") or PERSISTENCE_FAILURE_MESSAGE),
+        "retryable": False,
+        "code": PERSISTENCE_FAILURE_CODE,
+        "reason": str(persistence.get("reason") or PERSISTENCE_FAILURE_REASON),
+        "blocking": True,
+        "persistence": persistence,
+    })
 
 
 class CozeProvider:
