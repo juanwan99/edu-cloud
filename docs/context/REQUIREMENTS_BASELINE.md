@@ -82,8 +82,9 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 
 ### P0 Keel Queue
 
-1. If desired, close or retire the nine merged active scope files from #84-#92 in
-   a dedicated scope-closeout PR. Do not bundle this with product behavior work.
+1. Merged active scopes are consumed one-time authorizations. Do not chase
+   active count to zero routinely; use closeout-only PRs only for explicit
+   historical maintenance or compatibility.
 
 ### P1 Silent Degradation
 

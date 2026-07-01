@@ -10,6 +10,7 @@ allowed_paths:
   - docs/context/COMMANDS.md
   - docs/context/NOW.md
   - docs/context/PARALLEL_DEVELOPMENT.md
+  - docs/context/REQUIREMENTS_BASELINE.md
   - scripts/governance/steward_scope_gate.py
   - tests/governance/test_steward_scope_gate.py
 forbidden_paths:
