@@ -678,7 +678,32 @@ async def run_pipeline(
                 if should_resolve_student:
                     if student_number_map_failed:
                         raise RuntimeError("student roster unavailable; refusing to save scan results")
+                    bc_status = result.get("barcode_status", "ok")
                     if raw_sid in student_number_map:
+                        if barcode_region and bc_status in ("fallback_exception", "fallback_none"):
+                            progress.failed += 1
+                            results["failed"] += 1
+                            fallback_entry = {
+                                "file": f.name,
+                                "fallback_student_id": raw_sid,
+                                "status": bc_status,
+                            }
+                            progress.barcode_failed += 1
+                            results["barcode_failed"] += 1
+                            progress.barcode_failed_files.append(fallback_entry)
+                            results["barcode_failed_files"].append(fallback_entry)
+                            progress.warnings.append({
+                                "file": f.name,
+                                "message": (
+                                    f"barcode read failed with status {bc_status}; "
+                                    "refusing to save filename fallback result"
+                                ),
+                            })
+                            logger.warning(
+                                "pipeline: barcode fallback status=%s file=%s fallback_student_id=%s; skipped save",
+                                bc_status, f.name, raw_sid,
+                            )
+                            continue
                         result["student_id"] = student_number_map[raw_sid]
                     else:
                         result["is_anomaly"] = True
@@ -695,7 +720,6 @@ async def run_pipeline(
                             raw_sid, f.name,
                         )
 
-                        bc_status = result.get("barcode_status", "ok")
                         if bc_status in ("fallback_exception", "fallback_none"):
                             progress.barcode_failed += 1
                             results["barcode_failed"] += 1
