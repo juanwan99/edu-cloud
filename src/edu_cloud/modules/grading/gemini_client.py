@@ -377,6 +377,8 @@ class GeminiClient:
         images_b64: str | list[str],
         prompt: str,
         max_score: float,
+        *,
+        expected_details_count: int | None = None,
     ) -> GeminiGradeResponse:
         if isinstance(images_b64, str):
             images_b64 = [images_b64]
@@ -391,7 +393,7 @@ class GeminiClient:
         contents = [types.Content(role="user", parts=parts)]
         text = await self._generate(contents, method="grade_vision", max_tokens=4096)
 
-        parsed = extract_json(text)
+        parsed = extract_json(text, expected_details_count=expected_details_count)
         if parsed is None or not isinstance(parsed, dict):
             raise RuntimeError(f"Failed to parse vision grading JSON: {text[:200]}")
 

@@ -65,6 +65,8 @@ class LLMClient:
         images_b64: str | list[str],
         prompt: str,
         max_score: float,
+        *,
+        expected_details_count: int | None = None,
     ) -> GradeResponse:
         """Vision-direct grading: image + rubric prompt → score (no OCR step)."""
         if isinstance(images_b64, str):
@@ -110,16 +112,21 @@ class LLMClient:
                     continue
 
                 content = choices[0]["message"]["content"]
-                parsed = extract_json(content)
+                parsed = extract_json(content, expected_details_count=expected_details_count)
                 if parsed is None or not isinstance(parsed, dict):
                     last_error = "Failed to parse JSON from vision grading response"
                     continue
+                from edu_cloud.modules.grading.detail_flatten import flatten_llm_details
                 return GradeResponse(
                     score=min(max(parsed.get("score", 0), 0), max_score),
                     max_score=max_score,
                     feedback=parsed.get("comment", parsed.get("feedback", "")),
                     confidence=parsed.get("confidence", 0.0),
                     raw_content=content,
+                    details=flatten_llm_details(parsed.get("details")),
+                    deductions=parsed.get("deductions") or [],
+                    comment=parsed.get("comment", ""),
+                    recognized_text=parsed.get("llmRecognizedText", ""),
                 )
 
             except (httpx.TimeoutException, httpx.ConnectError) as e:
