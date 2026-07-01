@@ -126,6 +126,21 @@ describe('auth store impersonation', () => {
     expect(auth.token).toBe('original-token')
   })
 
+  it('ignores malformed cached impersonation during initialization', () => {
+    sessionStorage.setItem('impersonation', '{bad json')
+
+    setActivePinia(createPinia())
+    let freshAuth
+
+    expect(() => {
+      freshAuth = useAuthStore()
+    }).not.toThrow()
+
+    expect(freshAuth.isImpersonating).toBe(false)
+    expect(freshAuth.impersonation).toBeNull()
+    expect(sessionStorage.getItem('impersonation')).toBeNull()
+  })
+
   it('impersonation state persists in sessionStorage across reload', () => {
     const impState = {
       effectiveRole: 'principal',
