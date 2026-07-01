@@ -1,8 +1,8 @@
 schema: steward-pr-scope.v1
-scope_id: keel-lane-aware-freshness-2026-07-02
+scope_id: keel-governance-lane-aware-freshness-2026-07-02
 owner: codex
 allowed_paths:
-  - control/steward/scopes/keel-lane-aware-freshness-2026-07-02.yml
+  - control/steward/scopes/keel-governance-lane-aware-freshness-2026-07-02.yml
   - .github/workflows/steward-hard-gates.yml
   - docs/context/PARALLEL_DEVELOPMENT.md
 forbidden_paths:
