@@ -1,6 +1,8 @@
 """扫描流水线 API 测试。"""
 from io import BytesIO
 from pathlib import Path
+from types import ModuleType
+import sys
 
 import pytest
 from PIL import Image
@@ -13,6 +15,18 @@ from edu_cloud.modules.exam.models import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.student.models import Student
 from edu_cloud.shared.auth import create_access_token
+
+pytest_plugins = ("pytest_asyncio.plugin",)
+
+
+@pytest.fixture(autouse=True)
+def _stub_pyzbar_for_scan_pipeline_api(monkeypatch):
+    fake_pyzbar = ModuleType("pyzbar.pyzbar")
+    fake_pyzbar.decode = lambda *_args, **_kwargs: []
+    fake_package = ModuleType("pyzbar")
+    fake_package.pyzbar = fake_pyzbar
+    monkeypatch.setitem(sys.modules, "pyzbar", fake_package)
+    monkeypatch.setitem(sys.modules, "pyzbar.pyzbar", fake_pyzbar)
 
 
 @pytest.fixture
@@ -340,6 +354,7 @@ class TestPipelineIdentityFailClosed:
         *,
         file_stem: str,
         raw_student_number: str,
+        barcode_status: str = "fallback_none",
         roster_query_fails: bool = False,
     ) -> dict:
         from unittest.mock import patch
@@ -388,7 +403,7 @@ class TestPipelineIdentityFailClosed:
                 "crops": [{"region_id": "R01", "path": f"/tmp/{file_stem}_R01.png"}],
                 "objective_results": [],
                 "errors": [],
-                "barcode_status": "fallback_none",
+                "barcode_status": barcode_status,
             }
 
         roster_patch = patch.object(
@@ -487,7 +502,51 @@ class TestPipelineIdentityFailClosed:
             "student_number": "LEGACY001",
         }]
 
-    async def test_start_saves_known_filename_student_number_as_student_uuid(
+    async def test_start_skips_save_when_barcode_fallback_matches_known_student_number(
+        self, client, scan_seed, db, tmp_path, monkeypatch
+    ):
+        from edu_cloud.modules.scan import pipeline_service
+
+        db.add(Student(
+            id="scan_student_1",
+            name="Student One",
+            student_number="KNOWN001",
+            school_id="scan_s1",
+        ))
+        await db.commit()
+
+        result = await self._start_and_run_identity_case(
+            client,
+            scan_seed,
+            db,
+            tmp_path,
+            monkeypatch,
+            file_stem="KNOWN001",
+            raw_student_number="KNOWN001",
+            barcode_status="fallback_none",
+        )
+
+        rows = (await db.execute(select(StudentAnswer))).scalars().all()
+        assert rows == []
+        assert result["processed"] == 0
+        assert result["failed"] == 1
+        assert result["students"] == []
+        assert result["barcode_failed"] == 1
+        assert result["barcode_failed_files"] == [{
+            "file": "KNOWN001A.png",
+            "fallback_student_id": "KNOWN001",
+            "status": "fallback_none",
+        }]
+        progress = pipeline_service.get_progress()
+        assert progress["warnings"] == [{
+            "file": "KNOWN001A.png",
+            "message": (
+                "barcode read failed with status fallback_none; "
+                "refusing to save filename fallback result"
+            ),
+        }]
+
+    async def test_start_saves_known_explicit_filename_student_number_as_student_uuid(
         self, client, scan_seed, db, tmp_path, monkeypatch
     ):
         db.add(Student(
@@ -506,6 +565,7 @@ class TestPipelineIdentityFailClosed:
             monkeypatch,
             file_stem="KNOWN001",
             raw_student_number="KNOWN001",
+            barcode_status="filename_explicit",
         )
 
         rows = (await db.execute(select(StudentAnswer))).scalars().all()
