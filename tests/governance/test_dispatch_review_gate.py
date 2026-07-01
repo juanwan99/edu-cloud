@@ -23,6 +23,8 @@ def _event(*, body: str, branch: str = "keel/demo-2026-06-29", draft: bool = Fal
 def _valid_body() -> str:
     return """Steward-Scope: demo
 Codex-Dispatch-Review: CDR-2026-06-29-demo
+Integration-Lane: guarded
+Write-License: draft PR creation allowed; CI self-fix not allowed; stop after draft PR.
 
 ## Summary
 
@@ -193,6 +195,67 @@ def test_github_comment_url_evidence_passes():
     )
 
     assert validate_event(_event(body=body)) == []
+
+
+def test_missing_integration_lane_fails():
+    body = _valid_body().replace("Integration-Lane: guarded\n", "")
+
+    errors = validate_event(_event(body=body))
+
+    assert "PR body must declare Integration-Lane: independent|guarded|exclusive" in errors
+
+
+def test_integration_lane_placeholder_fails():
+    body = _valid_body().replace("Integration-Lane: guarded", "Integration-Lane: REQUIRED")
+
+    errors = validate_event(_event(body=body))
+
+    assert "PR body must replace Integration-Lane: REQUIRED with independent, guarded, or exclusive" in errors
+
+
+def test_malformed_integration_lane_fails():
+    body = _valid_body().replace("Integration-Lane: guarded", "Integration-Lane: parallel")
+
+    errors = validate_event(_event(body=body))
+
+    assert "Integration-Lane must be one of: independent, guarded, exclusive" in errors
+
+
+def test_missing_write_license_fails():
+    body = _valid_body().replace(
+        "Write-License: draft PR creation allowed; CI self-fix not allowed; stop after draft PR.\n",
+        "",
+    )
+
+    errors = validate_event(_event(body=body))
+
+    assert (
+        "PR body must declare Write-License with draft PR permission, CI self-fix permission, and stop condition"
+        in errors
+    )
+
+
+def test_write_license_placeholder_fails():
+    body = _valid_body().replace(
+        "Write-License: draft PR creation allowed; CI self-fix not allowed; stop after draft PR.",
+        "Write-License: REQUIRED",
+    )
+
+    errors = validate_event(_event(body=body))
+
+    assert "PR body must replace Write-License: REQUIRED with the actual write license" in errors
+
+
+def test_write_license_missing_terms_fails():
+    body = _valid_body().replace(
+        "Write-License: draft PR creation allowed; CI self-fix not allowed; stop after draft PR.",
+        "Write-License: draft PR creation allowed.",
+    )
+
+    errors = validate_event(_event(body=body))
+
+    assert "Write-License must state CI self-fix permission" in errors
+    assert "Write-License must state stop condition" in errors
 
 
 def test_cli_reports_errors(tmp_path: Path):
