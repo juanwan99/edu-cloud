@@ -1,7 +1,7 @@
 ---
 title: Claude Entry
 owner: liang
-last_review_date: "2026-06-29"
+last_review_date: "2026-07-01"
 expiration_in_days: 30
 ---
 
@@ -26,6 +26,11 @@ Before starting multi-worker, deletion/retirement, governance, central-context,
 or protected-path work, request Codex Dispatch Review. Do not split or launch
 mutating workers until that review defines task order, scope ids, allowed paths,
 forbidden paths, and verification commands.
+
+In multi-window mode, Codex steward and implementation roles are separate. The
+steward thread assigns boundaries, queue order, and evidence requirements; a
+task thread implements one scoped PR at a time. Do not treat a steward review as
+permission to self-dispatch, broaden scope, or self-attest completion.
 
 When a governed PR is opened, include both `Steward-Scope: <scope_id>` and
 `Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>`. Claude/worker sessions
