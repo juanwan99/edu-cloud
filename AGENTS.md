@@ -44,6 +44,20 @@ or `tests/governance/**`, stop for Codex Dispatch Review. The review must define
 task order, scope ids, allowed paths, forbidden paths, and local verification
 commands before implementation starts.
 
+Codex Dispatch Review is not, by itself, permission to write. A mutating batch
+also needs an explicit user-visible write license before any worker creates a
+branch, commits, pushes, opens a draft PR, edits a PR body, comments on GitHub,
+or marks a PR ready. The write license must name the approved scope ids and say
+whether workers may self-fix red CI. If the license is missing or ambiguous,
+Codex may continue read-only scouting only and must re-anchor with the user.
+
+Draft PRs are useful safety buffers, but they still count as writes. A worker
+may open a draft PR only when the write license explicitly allows draft PR
+creation for that scope. After the first push, any failing required check or
+scope/body gate stops the worker by default; a fix push requires either an
+explicit license that allows CI self-fix for that scope or a fresh steward/user
+instruction naming the failing check.
+
 In multi-window mode, the steward thread is not the implementation thread. The
 steward thread owns intake, queue order, dispatch review, risk calls, and final
 evidence readback. A task thread owns one scoped implementation PR at a time.

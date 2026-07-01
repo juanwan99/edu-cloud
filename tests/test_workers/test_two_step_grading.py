@@ -71,6 +71,51 @@ async def test_grade_single_ocr_review_needed_blocks_text_grading():
 
 
 @pytest.mark.asyncio
+async def test_grade_single_vision_direct_passes_expected_details_count():
+    from edu_cloud.workers.grading import _grade_single
+
+    mock_llm = MagicMock()
+    mock_llm.model = "vision-model"
+    mock_llm.grade_vision = AsyncMock(return_value=GradeResponse(
+        score=3,
+        max_score=4,
+        feedback="ok",
+        confidence=0.8,
+        raw_content='{"score": 3}',
+        details=[{"blankNo": "1", "score": 1}, {"blankNo": "2", "score": 2}],
+    ))
+
+    ad = {
+        "answer_id": "a_vision", "question_id": "q1",
+        "question_name": "6", "question_max_score": 4,
+        "image_path": "/tmp/fake.png", "question_type": "drawing",
+        "subject_code": "biology",
+        "use_vision": True,
+    }
+    rubrics = {"q1": [
+        {"blankNo": "1", "score": 2, "standardAnswer": "A"},
+        {"blankNo": "2", "score": 2, "standardAnswer": "B"},
+    ]}
+
+    def fake_get_prompt(_subject, prompt_type, _level):
+        if prompt_type == "GRADING_VISION":
+            return "vision prompt"
+        return None
+
+    with patch("edu_cloud.workers.grading._read_image_b64", return_value="A" * 10000), \
+         patch("edu_cloud.modules.grading.image_utils.is_blank_image_cv", return_value=False), \
+         patch("edu_cloud.modules.grading.prompts.get_prompt", side_effect=fake_get_prompt), \
+         patch("edu_cloud.modules.grading.prompts.render_prompt", return_value="rendered"):
+        result, error, plog = await _grade_single(mock_llm, ad, rubrics)
+
+    assert error is None
+    assert result["score"] == 3
+    assert result["details"] == mock_llm.grade_vision.return_value.details
+    assert plog["pipeline_type"] == "vision_direct_drawing"
+    assert mock_llm.grade_vision.call_args.kwargs["expected_details_count"] == 2
+
+
+@pytest.mark.asyncio
 async def test_gemini_batch_ocr_review_needed_blocks_text_grading():
     from edu_cloud.workers.grading import _process_gemini_batch
 
@@ -179,6 +224,66 @@ async def test_gemini_batch_text_grading_passes_expected_details_count():
     assert result["score"] == 2
     assert plog["pipeline_type"] == "two_step"
     assert mock_ds_llm.grade_text.call_args.kwargs["expected_details_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_gemini_batch_vision_phase2_rejects_short_details():
+    from edu_cloud.workers.grading import _process_gemini_batch
+
+    mock_llm = MagicMock()
+    mock_llm.model = "gemini-test"
+    mock_llm.create_batch_job = AsyncMock(return_value="vision-job")
+    mock_llm.poll_batch_job = AsyncMock(return_value=[
+        {
+            "text": json.dumps(
+                {
+                    "score": 3,
+                    "comment": "short",
+                    "confidence": 0.8,
+                    "details": [{"blankNo": "1", "score": 1}],
+                },
+                ensure_ascii=False,
+            )
+        }
+    ])
+
+    ad = {
+        "answer_id": "a_batch_vision", "question_id": "q1",
+        "question_name": "6", "question_max_score": 4,
+        "image_path": "/tmp/fake.png", "question_type": "drawing",
+        "subject_code": "biology",
+        "use_vision": True,
+    }
+    rubrics = {"q1": [
+        {"blankNo": "1", "score": 2, "standardAnswer": "A"},
+        {"blankNo": "2", "score": 2, "standardAnswer": "B"},
+    ]}
+    large_b64 = base64.b64encode(b"x" * 6000).decode()
+
+    def fake_get_prompt(_subject, prompt_type, _level):
+        if prompt_type == "GRADING_VISION":
+            return "vision prompt"
+        return None
+
+    with patch("edu_cloud.workers.grading._read_image_b64", return_value=large_b64), \
+         patch("edu_cloud.modules.grading.image_utils.resize_image_for_llm", return_value=b"\x89PNG\r\n\x1a\n"), \
+         patch("edu_cloud.modules.grading.prompts.get_prompt", side_effect=fake_get_prompt), \
+         patch("edu_cloud.modules.grading.prompts.render_prompt", return_value="rendered"):
+        results = await _process_gemini_batch(
+            mock_llm,
+            [ad],
+            rubrics,
+            "biology",
+            use_gemini_official=True,
+        )
+
+    result, error, plog = results[0]
+    assert result is None
+    assert error["answer_id"] == "a_batch_vision"
+    assert "Failed to parse" in error["error"]
+    assert plog["pipeline_type"] == "vision_direct_drawing"
+    assert plog["error_type"] == "parse_error"
+    assert plog["score"] is None
 
 
 @pytest.mark.asyncio

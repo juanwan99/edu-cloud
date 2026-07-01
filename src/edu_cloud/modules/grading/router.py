@@ -524,8 +524,19 @@ async def grade_single_answer(
                     images_b64=[image_b64],
                     prompt=_prompt,
                     max_score=question.max_score,
+                    expected_details_count=len(rubric.criteria),
                 )
                 plog["grading_ms"] = int((_time.perf_counter() - t_grade) * 1000)
+                result_data = {
+                    "score": grade_result.score,
+                    "max_score": grade_result.max_score,
+                    "feedback": grade_result.feedback,
+                    "confidence": grade_result.confidence,
+                    "raw_content": grade_result.raw_content,
+                    "details": grade_result.details,
+                    "deductions": grade_result.deductions,
+                    "comment": grade_result.comment,
+                }
             elif grading_prompt_tpl is None:
                 raise HTTPException(500, f"该科目（{subject_code}）缺少评分 prompt 配置，无法进行 AI 评分")
             else:
