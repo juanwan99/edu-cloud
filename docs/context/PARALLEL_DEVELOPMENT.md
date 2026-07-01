@@ -1,7 +1,7 @@
 ---
 title: Parallel Development Policy
 owner: liang
-last_review_date: "2026-06-30"
+last_review_date: "2026-07-01"
 expiration_in_days: 30
 ---
 
@@ -33,6 +33,26 @@ accidents.
 | `integration_writer` | Single | Merge, conflict resolution, cross-module wiring | One active integrator |
 | `exclusive` | Single | DB migration, permissions, module gates, authGuard, runtime, deploy | No parallel mutating windows |
 
+## Integration Lanes
+
+Parallel implementation and merge integration are separate decisions. A task may
+be safe to implement in parallel and still need guarded or exclusive integration
+before it leaves draft.
+
+| Lane | Use for | Parallel implementation | Integration rule |
+|---|---|---|---|
+| `independent` | Non-overlapping docs, frontend leaf work, isolated backend module changes outside shared contracts | Yes, normally up to three workers per batch | Do not rebase just to chase unrelated merges. Use scope, CI, Independent Review, and final master truthline evidence. |
+| `guarded` | Silent-downgrade cleanup, grading, auth-adjacent code, shared facades, module-boundary work | Yes, when paths do not overlap and the dispatch review names dependencies | Keep draft until required checks pass and Codex plus Claude or equivalent deep review have checked the production call path. Re-sync only when the reviewer or CI evidence needs it. |
+| `exclusive` | `.github/**`, rulesets, governance gates, central context, DB, runtime, deploy, auth core, permission core | No mutating parallel worker | One writer and one integration decision at a time. No unrelated PR may share the same protected contract. |
+
+The lane is declared in the PR body and in the Dispatch Review evidence. Lanes
+are not a new state file or scheduler; they are the steward's integration
+decision for that PR.
+
+GitHub Merge Queue remains the preferred mature merge-queue mechanism when the
+repository owner type and GitHub plan support it and all required checks report
+on `merge_group`. Until that is true, Keel must not build a replacement queue.
+
 ## Write License
 
 Parallelism has two separate approvals:
@@ -53,6 +73,7 @@ permission.
 A write license must name:
 
 - approved scope ids or PR titles;
+- the integration lane for each scope;
 - whether draft PR creation is allowed;
 - whether the worker may self-fix red CI after the first push;
 - the stop condition that returns control to the steward/user.
@@ -86,13 +107,14 @@ Before launching another mutating window:
 3. Run `python scripts/governance/check_module_dependencies.py --check` for
    backend module work.
 4. Classify the task into one mode above.
-5. Use a separate worktree unless it is the only active writer.
-6. Create a fresh Keel scope file with exact allowed paths and any
+5. Classify the integration lane as `independent`, `guarded`, or `exclusive`.
+6. Use a separate worktree unless it is the only active writer.
+7. Create a fresh Keel scope file with exact allowed paths and any
    task-specific forbidden paths.
-7. Put `Steward-Scope: <scope_id>` in the PR body.
-8. Put `Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>` in the PR body.
-9. Complete the Dispatch Review checklist before implementation begins.
-10. Obtain the write license before creating branches, commits, pushes, draft
+8. Put `Steward-Scope: <scope_id>` in the PR body.
+9. Put `Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>` in the PR body.
+10. Complete the Dispatch Review checklist before implementation begins.
+11. Obtain the write license before creating branches, commits, pushes, draft
     PRs, comments, PR-body edits, or ready-for-review transitions.
 
 The CDR value must come from the non-implementing steward/reviewer before
@@ -123,6 +145,12 @@ or strictly ordered PRs instead of parallel worker PRs.
 ## Integration Rules
 
 - One integrator owns final merge/push for a batch.
+- The steward may keep several `independent` PRs open at once when their changed
+  files and production call paths do not overlap.
+- `Guarded` PRs may be implemented in parallel, but they leave draft only after
+  required checks and the required deep review evidence are present.
+- `Exclusive` PRs reserve their protected contract until the PR is closed or
+  merged. Do not start another mutating PR against that contract.
 - Central context updates happen through exclusive governed PRs.
 - Workers report changed files, commit hash, verification, dirty/staged state,
   and out-of-scope residue.
@@ -145,6 +173,9 @@ or strictly ordered PRs instead of parallel worker PRs.
 - Before a governed PR leaves draft, the PR body must point to that evidence and
   say `Verdict: PASS`; the approving GitHub review should include the same
   evidence URL instead of an empty body.
+- A stale branch is not automatically a bug for an `independent` PR. It becomes
+  a blocker only when GitHub required checks, the reviewer, or the declared
+  integration lane requires a fresh base.
 
 ## Practical Default
 
@@ -160,6 +191,7 @@ Use this default for speed without drift:
 
 - one batch proposal listing all candidate scopes and write-license terms;
 - at most three non-overlapping mutating workers per batch;
+- declare one integration lane per worker before writes begin;
 - red CI stops workers unless the batch explicitly allows self-fix;
 - central context, governance infrastructure, auth/permission/runtime/DB, and
   cross-module integration remain single-writer;

@@ -1,7 +1,7 @@
 ---
 title: Codex Stewardship
 owner: liang
-last_review_date: "2026-06-30"
+last_review_date: "2026-07-01"
 expiration_in_days: 30
 ---
 
@@ -92,6 +92,31 @@ Keel keeps the useful boundary checks: a fresh scope file, future `expires_at`,
 default legacy Yuanqi quarantine in the gate, focused dispatch review, and
 GitHub review for merge authority.
 
+## Integration Lanes
+
+Keel does not build its own scheduler, merge train, or durable queue state.
+Reuse mature GitHub surfaces first: repository rulesets, required checks,
+CODEOWNERS, PR reviews, and GitHub Projects for lightweight visibility. GitHub
+Merge Queue is a candidate mature tool only when the repository owner type,
+GitHub plan, ruleset, and `merge_group` workflow support are all confirmed.
+
+Every mutating batch must classify each governed PR into one integration lane:
+
+- `independent`: non-overlapping work that can be implemented and reviewed in
+  parallel. It does not need to chase unrelated master merges unless GitHub
+  checks or review evidence require a refresh.
+- `guarded`: higher-risk work such as silent-downgrade cleanup, grading,
+  auth-adjacent changes, shared facades, and module-boundary changes. It may be
+  implemented in parallel only when paths and dependencies are explicit. It
+  remains draft until checks and deep review evidence are complete.
+- `exclusive`: governance gates, rulesets, workflows, central context, DB,
+  runtime, deploy, auth core, and permission core. Use one mutating writer and
+  one integration decision at a time.
+
+The steward owns lane assignment. Workers own only the scoped implementation
+they were assigned. If a worker discovers that the chosen lane is wrong, it
+stops and asks the steward to re-dispatch instead of widening scope.
+
 ## Working Memory
 
 - Current facts live in `docs/context/NOW.md`.
@@ -131,11 +156,12 @@ checklist items.
 The dispatch review must produce:
 
 1. task mode and whether parallelism is allowed;
-2. dependency order between workers or PRs;
-3. one scope id per governed PR;
-4. exact `allowed_paths` and `forbidden_paths`;
-5. local verification commands each worker must run before pushing;
-6. the requested write license terms: which scopes may create draft PRs, whether
+2. integration lane: `independent`, `guarded`, or `exclusive`;
+3. dependency order between workers or PRs;
+4. one scope id per governed PR;
+5. exact `allowed_paths` and `forbidden_paths`;
+6. local verification commands each worker must run before pushing;
+7. the requested write license terms: which scopes may create draft PRs, whether
    CI self-fix is allowed, and when workers must stop.
 
 The PR body must cite that review with
@@ -156,6 +182,16 @@ CI, `steward/dispatch-review`, `steward/pr-scope`, semgrep, CodeQL, or frontend
 / backend tests fail, the worker reports the failing check and waits. A fix push
 is allowed only when the write license explicitly included CI self-fix for that
 scope, or when the steward/user issues a targeted follow-up.
+
+Integration lane stop rules:
+
+- `independent`: stop after draft PR and required local evidence. The steward
+  may keep other independent PRs moving while checks run.
+- `guarded`: stop after draft PR, checks, and review package. Do not mark ready
+  until Codex and Claude or equivalent deep review have checked the production
+  path.
+- `exclusive`: stop after each write phase. Do not start another protected-path
+  PR until the current exclusive PR is closed, merged, or explicitly abandoned.
 
 For file deletion or retirement, the review must include reachability evidence
 from `git grep` or equivalent across `scripts/`, `tests/`, `.github/workflows/`,
