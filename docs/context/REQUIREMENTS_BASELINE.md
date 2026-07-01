@@ -7,7 +7,7 @@ expiration_in_days: 14
 
 # Requirements Baseline
 
-Last refreshed: 2026-07-01 09:51 Asia/Shanghai
+Last refreshed: 2026-07-01 10:17 Asia/Shanghai
 
 This is the current requirements and task-priority baseline for edu-cloud work
 under Keel. Older Claude/Codex reports, old plans, old handoffs, Yuanqi task
@@ -17,9 +17,8 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 ## Source Of Truth
 
 - Current repo: `juanwan99/edu-cloud`
-- Current master: `2695793fd719dd728099ccb63b929e55ecbb79d2`
-- Current open PRs: #90, this replacement baseline PR. Before #90 was opened,
-  there were no open PRs after stale #83 was closed.
+- Current master: `851395ab63d5dc3499dca626fc389362efd059a5`
+- Current open PRs: none. #90 merged at `2026-07-01T02:05:41Z`.
 - Current module dependency gate: `0 edges, 0 cycles`
 - Current Keel authority: GitHub required checks, CODEOWNERS, human review, and
   fresh scope files under `control/steward/scopes/`
@@ -45,19 +44,20 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 ## Verified Current Facts
 
 - PR #83 was closed as stale after #84-#89 changed the baseline it described.
+- PR #90 merged the replacement mainline baseline. Its post-merge master
+  `Tests` run `28488542653` succeeded for
+  `851395ab63d5dc3499dca626fc389362efd059a5`.
 - PR #89 merged the Keel window role-boundary clarification.
 - PR #84 merged grading LLM config lookup fail-closed behavior.
 - PR #85 merged AI DataScope build-failure fail-closed behavior.
 - PR #86 merged scan identity mismatch fail-closed behavior.
 - PR #87 merged canonical student identity for adaptive mastery.
 - PR #88 merged answer-standardizer text-LLM fallback visibility.
-- Current Keel scope files on `origin/master` are 34 closed and 6 active. This
+- Current Keel scope files on `origin/master` are 34 closed and 7 active. This
   PR branch adds one active scope for its own review, so branch-local scope
-  count is 34 closed and 7 active until merge. The master active files are the
-  merged #84-#89 scopes and should not be treated as reusable permission,
+  count is 34 closed and 8 active until merge. The master active files are the
+  merged #84-#90 scopes and should not be treated as reusable permission,
   because PR scope validation requires a newly added scope file.
-- Latest master `Tests` run for #88 is still in progress at refresh time; do not
-  claim current master is fully green until that run completes.
 - PR #53 and #54 archived unreferenced old plans; `docs/archive/plans/` now has
   56 plan files.
 - `docs/plans/` currently has 13 non-placeholder files. Only
@@ -76,9 +76,7 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 
 ### P0 Keel Queue
 
-1. Wait for current master `Tests` after #88 to finish before making a fully
-   green-mainline claim.
-2. If desired, close or retire the six merged active scope files from #84-#89 in
+1. If desired, close or retire the seven merged active scope files from #84-#90 in
    a dedicated scope-closeout PR. Do not bundle this with product behavior work.
 
 ### P1 Silent Degradation
