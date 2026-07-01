@@ -1,0 +1,25 @@
+schema: steward-pr-scope.v1
+scope_id: keel-deceremony-scope-lifecycle-2026-07-01
+owner: codex
+allowed_paths:
+  - AGENTS.md
+  - CLAUDE.md
+  - conftest/steward_scope.rego
+  - control/steward/scopes/keel-deceremony-scope-lifecycle-2026-07-01.yml
+  - docs/context/CODEX_STEWARD.md
+  - docs/context/COMMANDS.md
+  - docs/context/NOW.md
+  - docs/context/PARALLEL_DEVELOPMENT.md
+  - docs/context/REQUIREMENTS_BASELINE.md
+  - scripts/governance/steward_scope_gate.py
+  - tests/governance/test_steward_scope_gate.py
+forbidden_paths:
+  - src/edu_cloud/
+  - frontend/
+  - alembic/
+  - deploy/
+  - .github/workflows/
+compatibility_paths: []
+status: active
+created_at: "2026-07-01T11:50:00+08:00"
+expires_at: "2026-07-08T23:59:00+08:00"
