@@ -395,22 +395,43 @@ class EduAgentRuntime:
         self._deps.event_queue = None
         self._deferred_output = None
 
+        pending_answer: str | None = None
+        pending_last_messages: list[Any] | None = None
+
         if "error" in result_box:
             yield AgentEvent(type="error", data={"message": str(result_box["error"])})
         else:
             result = result_box.get("result")
             if result is not None and isinstance(result.output, str):
-                yield AgentEvent(type="answer", data={"content": result.output})
+                pending_answer = result.output
+                pending_last_messages = list(result.all_messages())
 
         self._deps.trace.flush()
         await self._deps.trace.flush_to_db(self._deps.db_sessionmaker, append_only=True)
         await self._deps.artifacts.flush_to_db(self._deps.db_sessionmaker)
         self._deps.confirmations.purge_resolved()
 
-        yield AgentEvent(type="done", data={
+        persistence = {"status": "ok"}
+        if pending_answer is not None:
+            persistence = await self._persist_messages(None, pending_answer)
+
+        persistence_failed = _persistence_failed(persistence)
+        if persistence_failed:
+            yield _persistence_failure_event(persistence)
+        elif pending_answer is not None:
+            self._last_messages = pending_last_messages or []
+            yield AgentEvent(type="answer", data={"content": pending_answer})
+
+        done_data = {
             "run_id": self._run_id,
             "session_id": self._session_id,
-        })
+            "persistence": persistence,
+        }
+        if persistence_failed:
+            done_data["status"] = "blocked"
+            done_data["blocking_error"] = PERSISTENCE_FAILURE_CODE
+
+        yield AgentEvent(type="done", data=done_data)
 
     @property
     def run_id(self) -> str:
@@ -431,7 +452,7 @@ class EduAgentRuntime:
 
     async def _persist_messages(
         self,
-        user_message: str,
+        user_message: str | None,
         assistant_output: str | None,
         *,
         tool_calls: list[dict] | None = None,
@@ -440,11 +461,12 @@ class EduAgentRuntime:
         try:
             from edu_cloud.ai.models import AiChatMessage
             async with self._deps.db_sessionmaker() as db:
-                db.add(AiChatMessage(
-                    session_id=self._session_id,
-                    role_in_chat="user",
-                    content=user_message,
-                ))
+                if user_message is not None:
+                    db.add(AiChatMessage(
+                        session_id=self._session_id,
+                        role_in_chat="user",
+                        content=user_message,
+                    ))
                 if assistant_output:
                     import json as _json
                     meta = _json.dumps({"tool_calls": tool_calls}, ensure_ascii=False) if tool_calls else None

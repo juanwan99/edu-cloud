@@ -177,6 +177,82 @@ async def test_persist_messages_returns_failed_status_on_db_error():
 
 
 @pytest.mark.asyncio
+async def test_resume_after_confirmation_blocks_answer_on_persistence_failure():
+    rt = _runtime()
+    rt.build_agent()
+    rt._last_messages = ["pending-history"]
+
+    async def fake_resume_run(**kwargs):
+        result = MagicMock()
+        result.output = "Resumed answer"
+        result.all_messages = MagicMock(return_value=["resumed-history"])
+        return result
+
+    persist = AsyncMock(return_value={
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+    })
+
+    with patch.object(rt._agent, "run", side_effect=fake_resume_run), \
+         patch.object(rt, "_persist_messages", persist):
+        collected = [
+            ev async for ev in rt.resume_after_confirmation(approved_ids=["confirm-1"])
+        ]
+
+    types = [event.type for event in collected]
+    assert types == ["error", "done"]
+    assert "answer" not in types
+    persist.assert_awaited_once_with(None, "Resumed answer")
+
+    error_ev = collected[0]
+    assert error_ev.data["message"] == PERSISTENCE_FAILURE_MESSAGE
+    assert error_ev.data["retryable"] is False
+    assert error_ev.data["code"] == PERSISTENCE_FAILURE_CODE
+    assert error_ev.data["blocking"] is True
+    assert error_ev.data["persistence"] == {
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+    }
+
+    done_ev = collected[-1]
+    assert done_ev.data["persistence"] == {
+        "status": "failed",
+        "reason": "chat_history_unavailable",
+    }
+    assert done_ev.data["status"] == "blocked"
+    assert done_ev.data["blocking_error"] == PERSISTENCE_FAILURE_CODE
+    assert rt.last_messages == ["pending-history"]
+
+
+@pytest.mark.asyncio
+async def test_resume_after_confirmation_emits_answer_after_persistence_success():
+    rt = _runtime()
+    rt.build_agent()
+    rt._last_messages = ["pending-history"]
+
+    async def fake_resume_run(**kwargs):
+        result = MagicMock()
+        result.output = "Resumed answer"
+        result.all_messages = MagicMock(return_value=["resumed-history"])
+        return result
+
+    persist = AsyncMock(return_value={"status": "ok"})
+
+    with patch.object(rt._agent, "run", side_effect=fake_resume_run), \
+         patch.object(rt, "_persist_messages", persist):
+        collected = [
+            ev async for ev in rt.resume_after_confirmation(approved_ids=["confirm-1"])
+        ]
+
+    assert [event.type for event in collected] == ["answer", "done"]
+    persist.assert_awaited_once_with(None, "Resumed answer")
+    assert collected[0].data["content"] == "Resumed answer"
+    assert collected[-1].data["persistence"] == {"status": "ok"}
+    assert "status" not in collected[-1].data
+    assert rt.last_messages == ["resumed-history"]
+
+
+@pytest.mark.asyncio
 async def test_task_cancel_on_generator_close():
     """Explicit aclose() triggers cancel path and cleans up event_queue."""
     rt = _runtime()
