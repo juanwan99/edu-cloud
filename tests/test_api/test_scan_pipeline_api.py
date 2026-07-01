@@ -16,9 +16,6 @@ from edu_cloud.modules.scan.models import StudentAnswer
 from edu_cloud.modules.student.models import Student
 from edu_cloud.shared.auth import create_access_token
 
-pytest_plugins = ("pytest_asyncio.plugin",)
-
-
 @pytest.fixture(autouse=True)
 def _stub_pyzbar_for_scan_pipeline_api(monkeypatch):
     fake_pyzbar = ModuleType("pyzbar.pyzbar")
