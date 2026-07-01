@@ -10,6 +10,10 @@ from edu_cloud.config import settings
 
 logger = logging.getLogger(__name__)
 
+LLM_DEGRADED_FALLBACK_CONFIDENCE = 0.35
+LLM_REQUEST_FAILED_WARNING = "llm_request_failed_fallback_heuristic"
+LLM_JSON_PARSE_FAILED_WARNING = "llm_json_parse_failed_fallback_heuristic"
+
 SYSTEM_PROMPT_TEMPLATE = """你是一个考试答案分析助手。分析以下从答案文件提取的内容，判断每道题的类型和结构。
 
 目标：为制作答题卡提供题目结构信息。
@@ -74,7 +78,7 @@ async def standardize_answers(parsed: list[dict]) -> list[dict]:
             data = resp.json()
     except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.ConnectError) as e:
         logger.error("LLM standardize_answers request failed: %s %s", type(e).__name__, e, exc_info=True)
-        return _fallback_heuristic(parsed)
+        return _fallback_heuristic_degraded(parsed, warning=LLM_REQUEST_FAILED_WARNING)
 
     content = data["choices"][0]["message"]["content"]
     content = _strip_markdown_fence(content)
@@ -82,7 +86,7 @@ async def standardize_answers(parsed: list[dict]) -> list[dict]:
     result = _parse_llm_json(content)
     if not result:
         logger.warning("LLM returned unparseable JSON, using fallback")
-        return _fallback_heuristic(parsed)
+        return _fallback_heuristic_degraded(parsed, warning=LLM_JSON_PARSE_FAILED_WARNING)
 
     logger.info("standardize_answers: %d questions standardized via LLM", len(result))
     _post_process(result)
@@ -239,6 +243,22 @@ def _post_process(result: list[dict]) -> None:
         q.setdefault("score", None)
         q.setdefault("warnings", [])
         q["confidence"] = compute_confidence(q)
+
+
+def _fallback_heuristic_degraded(parsed: list[dict], *, warning: str) -> list[dict]:
+    result = _fallback_heuristic(parsed)
+    for q in result:
+        q["confidence"] = min(
+            q.get("confidence", LLM_DEGRADED_FALLBACK_CONFIDENCE),
+            LLM_DEGRADED_FALLBACK_CONFIDENCE,
+        )
+        warnings = q.get("warnings")
+        if not isinstance(warnings, list):
+            warnings = []
+            q["warnings"] = warnings
+        if warning not in warnings:
+            warnings.append(warning)
+    return result
 
 
 def _fallback_heuristic(parsed: list[dict]) -> list[dict]:

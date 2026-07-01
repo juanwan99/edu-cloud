@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import patch, AsyncMock
 
+import httpx
+import edu_cloud.modules.card.parser.answer_standardizer as answer_standardizer
 from edu_cloud.modules.card.parser.answer_standardizer import (
     _fallback_heuristic, parse_pdf_answers, _get_llm_endpoint,
 )
@@ -98,6 +100,75 @@ def test_settings_has_llm_config():
     s = Settings(LLM_API_URL="http://x", LLM_API_KEY="k", LLM_MODEL="flash")
     assert hasattr(s, 'LLM_MODEL')
     assert isinstance(s.LLM_MODEL, str)
+
+
+@pytest.mark.asyncio
+async def test_standardize_answers_llm_request_failure_is_low_confidence(monkeypatch):
+    parsed = [{"number": 1, "answer_text": "A", "image_count": 0}]
+
+    class FailingAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, *args, **kwargs):
+            raise httpx.ConnectError("boom")
+
+    monkeypatch.setattr(
+        answer_standardizer,
+        "_get_llm_endpoint",
+        lambda settings, slot: ("http://llm.local/chat/completions", {}),
+    )
+    monkeypatch.setattr(answer_standardizer.httpx, "AsyncClient", FailingAsyncClient)
+
+    result = await answer_standardizer.standardize_answers(parsed)
+
+    assert result[0]["type"] == "single_choice"
+    assert result[0]["confidence"] == 0.35
+    assert "llm_request_failed_fallback_heuristic" in result[0]["warnings"]
+
+
+@pytest.mark.asyncio
+async def test_standardize_answers_unparseable_llm_json_is_low_confidence(monkeypatch):
+    parsed = [{"number": 13, "answer_text": "x=3", "image_count": 0}]
+
+    class Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"choices": [{"message": {"content": "not json"}}]}
+
+    class UnparseableAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, *args, **kwargs):
+            return Response()
+
+    monkeypatch.setattr(
+        answer_standardizer,
+        "_get_llm_endpoint",
+        lambda settings, slot: ("http://llm.local/chat/completions", {}),
+    )
+    monkeypatch.setattr(answer_standardizer.httpx, "AsyncClient", UnparseableAsyncClient)
+
+    result = await answer_standardizer.standardize_answers(parsed)
+
+    assert result[0]["type"] == "fill_in_blank"
+    assert result[0]["confidence"] == 0.35
+    assert "llm_json_parse_failed_fallback_heuristic" in result[0]["warnings"]
 
 
 def test_fallback_single_digit():
