@@ -7,7 +7,7 @@ expiration_in_days: 7
 
 # NOW
 
-Last refreshed: 2026-07-01 09:51 Asia/Shanghai
+Last refreshed: 2026-07-01 10:17 Asia/Shanghai
 
 ## Current Goal
 
@@ -17,43 +17,42 @@ only unless `ACTIVE_INDEX.md` or the baseline promotes them.
 
 ## Fresh State
 
-- Current master: `2695793fd719dd728099ccb63b929e55ecbb79d2`.
-- Current open PRs: #90, this replacement baseline PR. Before #90 was opened,
-  there were no open PRs after stale #83 was closed.
+- Current master: `851395ab63d5dc3499dca626fc389362efd059a5`.
+- Current open PRs: none. #90 merged at `2026-07-01T02:05:41Z`.
 - Recently closed stale PR: #83 was closed because its baseline was based on
   `c6e8d8f4` and was superseded by #84-#89.
 - Recent merged work:
+  - #90 refreshed the mainline baseline after #84-#89.
   - #89 clarified Keel steward/task window role boundaries.
   - #84 made grading LLM config lookup errors fail closed.
   - #85 made AI chat DataScope build failure fail closed.
   - #86 made scan persistence fail closed on unknown student identity.
   - #87 canonicalized adaptive mastery student identity.
   - #88 made answer-standardizer text-LLM fallback visible.
-- Latest master `Tests` run for #88 is in progress at refresh time; PR-level
-  required checks were green before merge.
+- Latest master `Tests` run for #90 merge commit succeeded:
+  run `28488542653`, head `851395ab63d5dc3499dca626fc389362efd059a5`.
 - Module dependency gate is clean: `0 edges, 0 cycles`.
-- Current Keel scopes on `origin/master`: 34 closed, 6 active. This PR branch
+- Current Keel scopes on `origin/master`: 34 closed, 7 active. This PR branch
   adds one active scope for its own review, so branch-local scope count is
-  34 closed and 7 active until merge. Master active scope files are:
+  34 closed and 8 active until merge. Master active scope files are:
   `keel-grading-llm-config-fail-closed-2026-06-30.yml`,
   `keel-ai-datascope-fail-closed-2026-06-30.yml`,
   `keel-scan-identity-fail-closed-2026-06-30.yml`,
   `keel-adaptive-canonical-student-identity-2026-06-30.yml`,
-  `keel-answer-standardizer-fail-visible-2026-06-30.yml`, and
+  `keel-answer-standardizer-fail-visible-2026-06-30.yml`,
+  `keel-refresh-mainline-baseline-2026-07-01.yml`, and
   `keel-window-role-boundary-2026-07-01.yml`.
 
 ## Next Work Queue
 
-1. Wait for the latest master `Tests` run for #88 to finish before making any
-   claim that current master is fully green.
-2. Close or retire the six merged active Keel scopes in a separate scoped
+1. Close or retire the seven merged active Keel scopes in a separate scoped
    closeout PR if the team wants active-scope count back to zero.
-3. Continue P1 silent-degradation work, but reverify each old candidate against
+2. Continue P1 silent-degradation work, but reverify each old candidate against
    current master before dispatch. Do not dispatch from stale baseline text.
-4. Start the document lifecycle cleanup lane with a fresh scope: keep
+3. Start the document lifecycle cleanup lane with a fresh scope: keep
    `ACTIVE_INDEX.md` small, update active-doc frontmatter, and avoid broad
    historical-doc deletion without CODEOWNER review.
-5. Keep module decoupling as a guardrail, not a broad refactor, until a concrete
+4. Keep module decoupling as a guardrail, not a broad refactor, until a concrete
    product task exposes a boundary problem.
 
 ## Keel Baseline
