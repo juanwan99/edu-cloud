@@ -1,7 +1,7 @@
 ---
 title: Parallel Development Policy
 owner: liang
-last_review_date: "2026-07-01"
+last_review_date: "2026-07-02"
 expiration_in_days: 30
 ---
 
@@ -48,6 +48,13 @@ before it leaves draft.
 The lane is declared in the PR body and in the Dispatch Review evidence. Lanes
 are not a new state file or scheduler; they are the steward's integration
 decision for that PR.
+
+Freshness is lane-aware. `independent` PRs do not fail the dispatch review
+solely because an unrelated `master` commit landed after their branch was
+created. `guarded` and `exclusive` PRs must contain the latest base branch before
+dispatch review passes. GitHub's strict required checks remain the merge-time
+freshness authority for every lane, so this only removes unnecessary
+implementation rebase churn; it does not create a parallel merge queue.
 
 GitHub Merge Queue remains the preferred mature merge-queue mechanism when the
 repository owner type and GitHub plan support it and all required checks report
@@ -176,6 +183,9 @@ or strictly ordered PRs instead of parallel worker PRs.
 - A stale branch is not automatically a bug for an `independent` PR. It becomes
   a blocker only when GitHub required checks, the reviewer, or the declared
   integration lane requires a fresh base.
+- A stale branch remains a blocker for `guarded` and `exclusive` PRs before
+  dispatch review passes, because those lanes touch protected behavior,
+  contracts, or integration decisions.
 
 ## Practical Default
 
