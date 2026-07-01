@@ -1,0 +1,22 @@
+schema: steward-pr-scope.v1
+scope_id: keel-refresh-mainline-baseline-2026-07-01
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-refresh-mainline-baseline-2026-07-01.yml
+  - docs/context/NOW.md
+  - docs/context/REQUIREMENTS_BASELINE.md
+forbidden_paths:
+  - .github/
+  - .yuanqi/
+  - scripts/yuanqi/
+  - tests/yuanqi/
+  - scripts/
+  - tests/
+  - src/
+  - frontend/
+  - alembic/
+  - deploy/
+compatibility_paths: []
+status: active
+created_at: "2026-07-01T09:51:00+08:00"
+expires_at: "2026-07-08T23:59:00+08:00"
