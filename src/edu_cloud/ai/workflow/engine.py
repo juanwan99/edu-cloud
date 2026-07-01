@@ -155,6 +155,12 @@ class WorkflowExecutor:
             if not success:
                 step_record.status = "failed"
                 step_record.error = last_error
+                await self._record_skipped_steps(
+                    run_id=run.id,
+                    workflow=workflow,
+                    failed_step_index=i,
+                    failed_step_name=step_def.name,
+                )
                 run.status = "failed"
                 run.last_error = last_error
                 await self._db.commit()
@@ -165,3 +171,23 @@ class WorkflowExecutor:
         run.completed_at = datetime.now(timezone.utc)
         await self._db.commit()
         return run
+
+    async def _record_skipped_steps(
+        self,
+        *,
+        run_id: str,
+        workflow: WorkflowDefinition,
+        failed_step_index: int,
+        failed_step_name: str,
+    ) -> None:
+        skip_reason = f"skipped because upstream step failed: {failed_step_name}"
+        for skipped_index in range(failed_step_index + 1, len(workflow.steps)):
+            skipped_def = workflow.steps[skipped_index]
+            self._db.add(WorkflowStep(
+                run_id=run_id,
+                step_index=skipped_index,
+                step_name=skipped_def.name,
+                status="skipped",
+                error=skip_reason,
+            ))
+        await self._db.flush()

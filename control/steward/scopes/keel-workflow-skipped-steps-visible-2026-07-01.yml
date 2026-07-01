@@ -1,0 +1,24 @@
+schema: steward-pr-scope.v1
+scope_id: keel-workflow-skipped-steps-visible-2026-07-01
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-workflow-skipped-steps-visible-2026-07-01.yml
+  - src/edu_cloud/ai/workflow/engine.py
+  - tests/test_ai/test_workflow_engine.py
+forbidden_paths:
+  - .github/
+  - .yuanqi/
+  - scripts/yuanqi/
+  - tests/yuanqi/
+  - scripts/
+  - src/edu_cloud/modules/
+  - src/edu_cloud/api/
+  - src/edu_cloud/models/
+  - frontend/
+  - alembic/
+  - deploy/
+  - docs/
+compatibility_paths: []
+status: active
+created_at: "2026-07-01T00:00:00+08:00"
+expires_at: "2026-07-08T23:59:00+08:00"

@@ -187,6 +187,57 @@ async def test_executor_fails_after_max_retries(db):
 
 
 @pytest.mark.asyncio
+async def test_executor_records_downstream_steps_skipped_after_failure(db):
+    """Downstream steps are visible as skipped when an upstream step fails."""
+    call_order = []
+
+    async def step_one(ctx: WorkflowContext) -> dict:
+        call_order.append("one")
+        return {"ok": True}
+
+    async def step_two(ctx: WorkflowContext) -> dict:
+        call_order.append("two")
+        raise RuntimeError("permanent downstream blocker")
+
+    async def step_three(ctx: WorkflowContext) -> dict:
+        call_order.append("three")
+        return {"should_not": "run"}
+
+    wf = WorkflowDefinition(
+        name="skip_visible_wf",
+        steps=[
+            StepDefinition(name="step_one", func=step_one),
+            StepDefinition(name="step_two", func=step_two),
+            StepDefinition(name="step_three", func=step_three),
+        ],
+        max_retries=1,
+    )
+
+    executor = WorkflowExecutor(db)
+    run = await executor.execute(wf, school_id="s1", trigger_type="auto", trigger_ref="skip_ref")
+
+    assert call_order == ["one", "two", "two"]
+    assert run.status == "failed"
+    assert run.current_step == 1
+    assert "permanent downstream blocker" in run.last_error
+
+    result = await db.execute(
+        select(WorkflowStep).where(WorkflowStep.run_id == run.id).order_by(WorkflowStep.step_index)
+    )
+    steps = result.scalars().all()
+
+    assert [(step.step_index, step.step_name, step.status) for step in steps] == [
+        (0, "step_one", "completed"),
+        (1, "step_two", "failed"),
+        (2, "step_three", "skipped"),
+    ]
+    assert steps[2].started_at is None
+    assert steps[2].completed_at is None
+    assert steps[2].output_summary is None
+    assert steps[2].error == "skipped because upstream step failed: step_two"
+
+
+@pytest.mark.asyncio
 async def test_executor_step_returning_none(db):
     """Steps returning None are recorded with empty dict output."""
 
