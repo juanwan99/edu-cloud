@@ -1,6 +1,6 @@
-"""LLM 路由层 — 按槽位号 + 学校 ID 获取 LLM 配置。
+"""LLM route selection by governed slot number and optional school ID.
 
-优先级：学校覆盖 > 平台默认 > .env fallback
+Priority: school override > platform default. Missing or disabled slots fail closed.
 """
 import logging
 from sqlalchemy import select
@@ -21,7 +21,6 @@ async def get_llm_config(
     查询顺序：
     1. 学校级覆盖（school_id + slot_number）
     2. 平台默认（school_id=NULL + slot_number）
-    3. .env fallback（LLM_API_URL/KEY/MODEL）
     """
     # 1. 学校级覆盖
     if school_id:
@@ -50,12 +49,7 @@ async def get_llm_config(
         logger.debug("llm_router: slot=%d → platform default (%s)", slot, config.model)
         return config.api_url, config.api_key, config.model
 
-    # 3. .env fallback
-    if settings.LLM_API_URL and settings.LLM_API_KEY:
-        logger.debug("llm_router: slot=%d → .env fallback (%s)", slot, settings.LLM_MODEL)
-        return settings.LLM_API_URL, settings.LLM_API_KEY, settings.LLM_MODEL
-
-    raise NotFoundError(f"LLM Slot {slot} 未配置，且 .env 中无 LLM_API_URL")
+    raise NotFoundError(f"LLM Slot {slot} has no enabled school or platform configuration")
 
 
 def get_llm_config_sync(*, slot: int) -> tuple[str, str, str]:

@@ -1,0 +1,19 @@
+schema: steward-pr-scope.v1
+scope_id: keel-llm-slot-env-fallback-fail-closed-2026-07-01
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-llm-slot-env-fallback-fail-closed-2026-07-01.yml
+  - src/edu_cloud/modules/exam/slot_selector.py
+  - tests/test_models/test_llm_slot.py
+forbidden_paths:
+  - src/edu_cloud/modules/grading/
+  - src/edu_cloud/workers/grading.py
+  - src/edu_cloud/api/ai.py
+  - frontend/
+  - docs/
+  - .github/
+  - scripts/governance/
+compatibility_paths: []
+status: active
+created_at: "2026-07-01T13:36:27+08:00"
+expires_at: "2026-07-08T23:59:00+08:00"
