@@ -59,10 +59,10 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 - PR #86 merged scan identity mismatch fail-closed behavior.
 - PR #87 merged canonical student identity for adaptive mastery.
 - PR #88 merged answer-standardizer text-LLM fallback visibility.
-- Current Keel scope files on `origin/master` are 34 closed and 9 active. This
+- Current Keel scope files on `origin/master` are 34 closed and 10 active. This
   PR branch adds one active scope for its own review, so branch-local scope
-  count is 34 closed and 10 active until merge. The master active files are the
-  merged #84-#92 scopes and should not be treated as reusable permission,
+  count is 34 closed and 11 active until merge. The master active files are the
+  merged #84-#93 scopes and should not be treated as reusable permission,
   because PR scope validation requires a newly added scope file.
 - PR #53 and #54 archived unreferenced old plans; `docs/archive/plans/` now has
   56 plan files.

@@ -35,15 +35,16 @@ only unless `ACTIVE_INDEX.md` or the baseline promotes them.
 - Latest master `Tests` run for #93 merge commit succeeded: run
   `28491668618`, head `4352626c7bca03dd0396840a214ef6e2495c2f87`.
 - Module dependency gate is clean: `0 edges, 0 cycles`.
-- Current Keel scopes on `origin/master`: 34 closed, 9 active. This PR branch
+- Current Keel scopes on `origin/master`: 34 closed, 10 active. This PR branch
   adds one active scope for its own review, so branch-local scope count is
-  34 closed and 10 active until merge. Master active scope files:
+  34 closed and 11 active until merge. Master active scope files:
   `keel-grading-llm-config-fail-closed-2026-06-30.yml`;
   `keel-ai-datascope-fail-closed-2026-06-30.yml`;
   `keel-scan-identity-fail-closed-2026-06-30.yml`;
   `keel-adaptive-canonical-student-identity-2026-06-30.yml`;
   `keel-answer-standardizer-fail-visible-2026-06-30.yml`;
   `keel-refresh-active-context-after-pr90-2026-07-01.yml`;
+  `keel-refresh-active-context-after-pr92-2026-07-01.yml`;
   `keel-refresh-mainline-baseline-2026-07-01.yml`;
   `keel-workflow-skipped-steps-visible-2026-07-01.yml`;
   `keel-window-role-boundary-2026-07-01.yml`.
