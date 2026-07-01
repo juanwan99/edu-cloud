@@ -31,6 +31,35 @@ def test_ref_item_minimal():
 
 
 @pytest.mark.asyncio
+async def test_ai_ref_resolver_delegates_exam_data_access(monkeypatch):
+    from edu_cloud.ai import ref_resolvers
+    from edu_cloud.services import ai_ref_resolvers as service_refs
+
+    calls = []
+
+    async def fake_resolve_exam(db, school_id, search, parent_id, limit):
+        calls.append((db, school_id, search, parent_id, limit))
+        return [
+            service_refs.RefRecord(
+                id="exam-1",
+                label="Exam 1",
+                subtitle="draft",
+                children_type="subject",
+            )
+        ]
+
+    monkeypatch.setattr(service_refs, "resolve_exam", fake_resolve_exam)
+    db = object()
+
+    items = await ref_resolvers.resolve_exam(db, "school-1", "Exam", None, 3)
+
+    assert calls == [(db, "school-1", "Exam", None, 3)]
+    assert [item.to_dict() for item in items] == [
+        {"id": "exam-1", "label": "Exam 1", "subtitle": "draft", "children_type": "subject"}
+    ]
+
+
+@pytest.mark.asyncio
 async def test_ref_types_endpoint(client: AsyncClient, admin_headers):
     resp = await client.get("/api/v1/ai/ref-types", headers=admin_headers)
     assert resp.status_code == 200
