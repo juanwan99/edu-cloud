@@ -18,7 +18,8 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 
 - Current repo: `juanwan99/edu-cloud`
 - Current master: `2695793fd719dd728099ccb63b929e55ecbb79d2`
-- Current open PRs: none
+- Current open PRs: #90, this replacement baseline PR. Before #90 was opened,
+  there were no open PRs after stale #83 was closed.
 - Current module dependency gate: `0 edges, 0 cycles`
 - Current Keel authority: GitHub required checks, CODEOWNERS, human review, and
   fresh scope files under `control/steward/scopes/`
@@ -50,7 +51,9 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 - PR #86 merged scan identity mismatch fail-closed behavior.
 - PR #87 merged canonical student identity for adaptive mastery.
 - PR #88 merged answer-standardizer text-LLM fallback visibility.
-- Current Keel scope files are 34 closed and 6 active. The active files are the
+- Current Keel scope files on `origin/master` are 34 closed and 6 active. This
+  PR branch adds one active scope for its own review, so branch-local scope
+  count is 34 closed and 7 active until merge. The master active files are the
   merged #84-#89 scopes and should not be treated as reusable permission,
   because PR scope validation requires a newly added scope file.
 - Latest master `Tests` run for #88 is still in progress at refresh time; do not

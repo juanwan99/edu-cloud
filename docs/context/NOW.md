@@ -18,7 +18,8 @@ only unless `ACTIVE_INDEX.md` or the baseline promotes them.
 ## Fresh State
 
 - Current master: `2695793fd719dd728099ccb63b929e55ecbb79d2`.
-- Current open PRs: none.
+- Current open PRs: #90, this replacement baseline PR. Before #90 was opened,
+  there were no open PRs after stale #83 was closed.
 - Recently closed stale PR: #83 was closed because its baseline was based on
   `c6e8d8f4` and was superseded by #84-#89.
 - Recent merged work:
@@ -31,7 +32,9 @@ only unless `ACTIVE_INDEX.md` or the baseline promotes them.
 - Latest master `Tests` run for #88 is in progress at refresh time; PR-level
   required checks were green before merge.
 - Module dependency gate is clean: `0 edges, 0 cycles`.
-- Current Keel scopes: 34 closed, 6 active. Active scope files are:
+- Current Keel scopes on `origin/master`: 34 closed, 6 active. This PR branch
+  adds one active scope for its own review, so branch-local scope count is
+  34 closed and 7 active until merge. Master active scope files are:
   `keel-grading-llm-config-fail-closed-2026-06-30.yml`,
   `keel-ai-datascope-fail-closed-2026-06-30.yml`,
   `keel-scan-identity-fail-closed-2026-06-30.yml`,
