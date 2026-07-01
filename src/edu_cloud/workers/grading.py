@@ -305,30 +305,19 @@ async def _grade_single(
                 images_b64=all_images_b64,
                 prompt=_vision_prompt,
                 max_score=ad["question_max_score"],
+                expected_details_count=len(rubric_criteria),
             )
             plog["grading_ms"] = int((time.perf_counter() - t_grade) * 1000)
             plog["score"] = grade_result.score
             plog["confidence"] = grade_result.confidence
             plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
 
-            _details = None
-            try:
-                import json as _json
-                _raw = _json.loads(grade_result.raw_content)
-                _details = _raw.get("details")
-            except Exception:
-                logger.warning(
-                    "Failed to parse grading raw_content for answer %s",
-                    ad.get("answer_id", "unknown"),
-                    exc_info=True,
-                )
-
             return {
                 "answer_id": answer_id, "question_id": question_id,
                 "score": grade_result.score, "max_score": grade_result.max_score,
                 "feedback": grade_result.feedback, "confidence": grade_result.confidence,
                 "raw_content": grade_result.raw_content,
-                "details": _details,
+                "details": grade_result.details,
             }, None, plog
 
         elif grading_prompt_tpl is None:
@@ -627,7 +616,7 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
 
     results = []  # [(result_dict|None, error_dict|None, plog)]
     # Phase 1 准备：分流 vision 直评 vs two-step OCR
-    vision_pending = []   # [(idx, ad, plog, contents, t_start)]
+    vision_pending = []   # [(idx, ad, plog, contents, rubric_criteria, t_start)]
     ocr_pending = []      # [(idx, ad, plog, ocr_contents, rubric_criteria, t_start)]
 
     for ad in answer_data:
@@ -710,7 +699,7 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
                 plog["grading_model"] = llm.model
                 idx = len(results)
                 results.append(None)
-                vision_pending.append((idx, ad, plog, contents, t_start))
+                vision_pending.append((idx, ad, plog, contents, rubric_criteria, t_start))
             elif grading_prompt_tpl is None:
                 plog["pipeline_type"] = "error"
                 plog["error_type"] = "no_prompt"
@@ -883,14 +872,14 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
         return [r for r in results if r is not None]
 
     logger.info("gemini_batch: phase2 grading submitting %d requests", len(grade_pending))
-    batch_reqs = [{"contents": contents} for _, _, _, contents, _ in grade_pending]
+    batch_reqs = [{"contents": contents} for _, _, _, contents, _, _ in grade_pending]
     t_batch = time.perf_counter()
     try:
         job_name = await llm.create_batch_job(batch_reqs)
         api_results = await llm.poll_batch_job(job_name, poll_interval=5, timeout=1200)
     except Exception as e:
         logger.error("gemini_batch: grading batch failed: %s", e)
-        for idx, ad, plog, _, t_start in grade_pending:
+        for idx, ad, plog, _, _, t_start in grade_pending:
             plog["error_type"] = "batch_failed"
             plog["error_message"] = str(e)
             plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
@@ -901,7 +890,7 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
     logger.info("gemini_batch: phase2 grading completed in %dms, got %d results", batch_ms, len(api_results))
 
     # Parse batch results
-    for i, (idx, ad, plog, _, t_start) in enumerate(grade_pending):
+    for i, (idx, ad, plog, _, rubric_criteria, t_start) in enumerate(grade_pending):
         if i >= len(api_results) or not api_results[i].get("text"):
             plog["error_type"] = "batch_no_result"
             plog["error_message"] = "No result from batch API"
@@ -913,7 +902,7 @@ async def _process_gemini_batch(llm, answer_data, rubrics_by_question, subject_c
         plog["grading_ms"] = batch_ms // len(grade_pending)
         plog["total_ms"] = int((time.perf_counter() - t_start) * 1000)
 
-        parsed = extract_json(text)
+        parsed = extract_json(text, expected_details_count=len(rubric_criteria))
         if not parsed or not isinstance(parsed, dict):
             plog["error_type"] = "parse_error"
             plog["error_message"] = f"Failed to parse: {text[:100]}"

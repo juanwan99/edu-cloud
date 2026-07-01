@@ -221,3 +221,85 @@ async def test_grade_single_preview_passes_expected_details_count(tmp_path, monk
 
     assert result["score"] == 2
     assert mock_llm.grade_text.call_args.kwargs["expected_details_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_grade_single_preview_vision_passes_expected_details_count(tmp_path, monkeypatch):
+    fake_pyzbar = ModuleType("pyzbar.pyzbar")
+    fake_pyzbar.decode = lambda *_args, **_kwargs: []
+    monkeypatch.setitem(sys.modules, "pyzbar", ModuleType("pyzbar"))
+    monkeypatch.setitem(sys.modules, "pyzbar.pyzbar", fake_pyzbar)
+
+    from edu_cloud.modules.grading.router import GradeSingleRequest, grade_single_answer
+
+    image_path = tmp_path / "answer.bin"
+    image_path.write_bytes(b"x" * 6000)
+
+    school_id = "school-1"
+    answer = SimpleNamespace(
+        id="answer-1",
+        question_id="question-1",
+        school_id=school_id,
+        image_path=str(image_path),
+        question_type="drawing",
+    )
+    question = SimpleNamespace(
+        id="question-1",
+        subject_id="subject-1",
+        school_id=school_id,
+        question_type="drawing",
+        max_score=4,
+    )
+    rubric = SimpleNamespace(
+        criteria=[
+            {"blankNo": "1", "score": 2, "standardAnswer": "A"},
+            {"blankNo": "2", "score": 2, "standardAnswer": "B"},
+        ],
+    )
+    subject = SimpleNamespace(code="biology")
+    db = _FakeDB([answer, question, rubric, subject])
+
+    role = SimpleNamespace(
+        school_id=school_id,
+        role="school_admin",
+        subject_codes=None,
+        class_ids=None,
+        grade_ids=None,
+    )
+    current = {"current_role": role}
+
+    mock_llm = MagicMock()
+    mock_llm.model = "test-model"
+    mock_llm.grade_vision = AsyncMock(return_value=GradeResponse(
+        score=3,
+        max_score=4,
+        feedback="ok",
+        confidence=0.8,
+        raw_content='{"score": 3}',
+        details=[{"blankNo": "1", "score": 1}, {"blankNo": "2", "score": 2}],
+    ))
+    mock_llm.close = AsyncMock()
+
+    def fake_get_prompt(_subject, prompt_type, _level):
+        if prompt_type == "GRADING_VISION":
+            return "vision prompt"
+        return None
+
+    with patch("edu_cloud.modules.grading.router.resolve_stored_file_path", return_value=image_path), \
+         patch("edu_cloud.modules.grading.router.settings") as mock_settings, \
+         patch("edu_cloud.services.grading_workflow.get_llm_config", new_callable=AsyncMock, return_value=("http://llm", "key", "model")), \
+         patch("edu_cloud.workers.grading._create_llm_client", return_value=mock_llm), \
+         patch("edu_cloud.modules.grading.prompts.get_prompt", side_effect=fake_get_prompt), \
+         patch("edu_cloud.modules.grading.prompts.render_prompt", return_value="rendered"):
+        mock_settings.GEMINI_API_KEY = None
+        mock_settings.VERTEX_AI_PROJECT = None
+
+        result = await grade_single_answer(
+            GradeSingleRequest(answer_id="answer-1", use_vision=True),
+            db=db,
+            current=current,
+        )
+
+    assert result["score"] == 3
+    assert result["details"] == mock_llm.grade_vision.return_value.details
+    assert mock_llm.grade_vision.call_args.kwargs["expected_details_count"] == 2

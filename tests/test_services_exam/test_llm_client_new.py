@@ -146,3 +146,78 @@ async def test_grade_text_fails_when_details_remain_short(client):
             max_score=10,
             expected_details_count=2,
         )
+
+
+@pytest.mark.asyncio
+async def test_grade_vision_retries_short_details_when_expected_count_set(client):
+    client.max_retries = 2
+    short_resp = MagicMock()
+    short_resp.status_code = 200
+    short_resp.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "content": (
+                        '{"score": 4, "comment": "short", '
+                        '"details": [{"blankNo": "1", "score": 2}]}'
+                    )
+                }
+            }
+        ]
+    }
+    complete_resp = MagicMock()
+    complete_resp.status_code = 200
+    complete_resp.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "content": (
+                        '{"score": 8, "comment": "ok", "details": ['
+                        '{"subQuestion": "(1)", "blanks": ['
+                        '{"index": 1, "score": 4},'
+                        '{"index": 2, "score": 4}'
+                        "]}]}"
+                    )
+                }
+            }
+        ]
+    }
+    client._http.post = AsyncMock(side_effect=[short_resp, complete_resp])
+
+    result = await client.grade_vision(
+        images_b64=["base64img"],
+        prompt="Grade this image",
+        max_score=10,
+        expected_details_count=2,
+    )
+
+    assert result.score == 8
+    assert len(result.details) == 2
+    assert client._http.post.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_grade_vision_fails_when_details_remain_short(client):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "content": (
+                        '{"score": 4, "comment": "short", '
+                        '"details": [{"blankNo": "1", "score": 2}]}'
+                    )
+                }
+            }
+        ]
+    }
+    client._http.post = AsyncMock(return_value=mock_resp)
+
+    with pytest.raises(RuntimeError, match="grade_vision failed"):
+        await client.grade_vision(
+            images_b64=["base64img"],
+            prompt="Grade this image",
+            max_score=10,
+            expected_details_count=2,
+        )
