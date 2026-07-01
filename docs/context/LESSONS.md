@@ -1,7 +1,7 @@
 ---
 title: Migrated Lessons
 owner: liang
-last_review_date: "2026-06-28"
+last_review_date: "2026-07-01"
 expiration_in_days: 30
 ---
 
@@ -21,6 +21,8 @@ Project-specific lessons migrated from the Claude system. This file records only
 | L021: dirty working tree build is a production accident | Do not build production frontend from dirty frontend inputs. | `scripts/codex-verify frontend` refuses dirty frontend inputs by default. |
 | L022: multi-step instruction loss and role drift need a hard carrier | Decompose complex user instructions into explicit obligations before execution and after context compaction. | `AGENTS.md`, `ACTIVE_INDEX.md`, the active Keel scope, and the final evidence summary carry obligations. |
 | L023: draft PRs are writes, not harmless notes | Draft status prevents accidental merge, but branch/commit/push/PR-body/comment activity still consumes CI, creates queue pressure, and can feel like autonomous execution. | Parallel implementation requires an explicit write license after Dispatch Review; red CI stops workers unless self-fix is explicitly licensed. |
+| L024: parallel workers can still serialize at integration | Separate implementation parallelism from merge integration. Classify every governed PR as `independent`, `guarded`, or `exclusive`. | `docs/context/PARALLEL_DEVELOPMENT.md` defines integration lanes; PRs declare the lane and write-license terms. |
+| L025: do not rebuild mature platform primitives | Use GitHub rulesets, required checks, PR reviews, CODEOWNERS, and Projects before adding Keel-specific schedulers or state files. | Merge Queue remains candidate-only until repo support and `merge_group` CI support are proven; Keel does not create a custom merge train. |
 | Migration safety | Do not bypass `scripts/db_migrate`. | `alembic/env.py` guard plus `scripts/codex-verify schema`. |
 | Completion truth gate | Do not claim complete without fresh command evidence. | `scripts/codex-verify` is the completion evidence path. |
 
