@@ -1,7 +1,9 @@
 """LLMSlot model + slot_selector tests."""
 import pytest
 from edu_cloud.models.llm_slot import LLMSlot
-from edu_cloud.modules.exam.slot_selector import get_llm_config
+from edu_cloud.config import settings
+from edu_cloud.modules.exam.slot_selector import get_llm_config, get_llm_config_sync
+from edu_cloud.services.exceptions import NotFoundError
 
 
 @pytest.mark.asyncio
@@ -37,7 +39,7 @@ async def test_fallback_to_platform_when_no_school_slot(db):
 
 @pytest.mark.asyncio
 async def test_disabled_slot_skipped(db):
-    """disabled slot 不返回，fallback 到 .env。"""
+    """Disabled governed slots fail closed instead of falling back to .env."""
     slot = LLMSlot(
         slot_number=1, api_url="http://disabled", api_key="dk", model="m-disabled",
         is_enabled=False,
@@ -45,18 +47,22 @@ async def test_disabled_slot_skipped(db):
     db.add(slot)
     await db.commit()
 
-    # Should fallback to .env (settings.LLM_API_URL is set in test env)
-    url, key, model = await get_llm_config(db, slot=1)
-    assert url != "http://disabled"
+    with pytest.raises(NotFoundError, match="no enabled school or platform configuration"):
+        await get_llm_config(db, slot=1)
 
 
 @pytest.mark.asyncio
-async def test_env_fallback_when_no_slots(db):
-    """数据库无任何 slot 时 fallback 到 .env。"""
-    from edu_cloud.config import settings
-    # settings has default LLM_API_URL set
-    url, key, model = await get_llm_config(db, slot=99)
+async def test_governed_lookup_fails_when_no_slots(db):
+    """Governed slot lookup must not bypass slot governance via .env defaults."""
+    with pytest.raises(NotFoundError, match="no enabled school or platform configuration"):
+        await get_llm_config(db, slot=99)
+
+
+def test_sync_helper_keeps_explicit_env_only_behavior():
+    """The sync helper is explicitly env-only and does not represent slot governance."""
+    url, key, model = get_llm_config_sync(slot=99)
     assert url == settings.LLM_API_URL
+    assert key == settings.LLM_API_KEY
     assert model == settings.LLM_MODEL
 
 

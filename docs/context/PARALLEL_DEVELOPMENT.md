@@ -33,6 +33,36 @@ accidents.
 | `integration_writer` | Single | Merge, conflict resolution, cross-module wiring | One active integrator |
 | `exclusive` | Single | DB migration, permissions, module gates, authGuard, runtime, deploy | No parallel mutating windows |
 
+## Write License
+
+Parallelism has two separate approvals:
+
+1. **Dispatch Review** defines whether work is safe to parallelize and records
+   scope ids, allowed paths, forbidden paths, dependency order, and verification
+   commands.
+2. **Write License** is the user-visible approval to perform writes for those
+   scopes.
+
+Without a write license, Codex and subagents may only do `read_only_audit` or
+`planning_only` work. The following all count as writes: creating a branch,
+committing, pushing, opening a draft PR, editing a PR body, posting a GitHub
+comment, requesting review, marking a PR ready, closing a PR, or modifying issue
+metadata. "Draft" reduces merge risk, but it is not a substitute for write
+permission.
+
+A write license must name:
+
+- approved scope ids or PR titles;
+- whether draft PR creation is allowed;
+- whether the worker may self-fix red CI after the first push;
+- the stop condition that returns control to the steward/user.
+
+Default stop condition: workers stop after opening the first draft PR. If any
+required check, PR-body gate, or scope gate fails, the worker reports the
+failure and waits. They do not push a fix unless the write license explicitly
+allowed CI self-fix for that scope or the steward/user issues a new targeted
+instruction.
+
 ## Exclusive Scopes
 
 Only one mutating window may touch these areas at a time:
@@ -62,6 +92,8 @@ Before launching another mutating window:
 7. Put `Steward-Scope: <scope_id>` in the PR body.
 8. Put `Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>` in the PR body.
 9. Complete the Dispatch Review checklist before implementation begins.
+10. Obtain the write license before creating branches, commits, pushes, draft
+    PRs, comments, PR-body edits, or ready-for-review transitions.
 
 The CDR value must come from the non-implementing steward/reviewer before
 implementation starts. Workers must not self-issue or guess it.
@@ -96,6 +128,12 @@ or strictly ordered PRs instead of parallel worker PRs.
   and out-of-scope residue.
 - Parallel workers do not declare feature completion; completion requires
   evidence accepted by Codex/user and GitHub gates.
+- Draft PR creation is not completion and is not merge readiness. Draft PRs are
+  queue items that wait for checks, Independent Review, Claude review when
+  required, and user approval.
+- Workers do not self-repair failing checks after their first push unless the
+  batch write license explicitly says that CI self-fix is allowed for that
+  scope. Otherwise the steward triages and asks for targeted authorization.
 - Deletion workers must report reachability evidence across scripts, tests,
   workflows, active docs, and governance registries before removing files.
 - Independent reviewers do not push to the implementation branch. If the
@@ -117,3 +155,13 @@ Use this default under time pressure:
 - one planning/documentation window;
 - optional isolated frontend-only writer when it does not touch auth/router,
   global stores, generated dist, or shared shell layout.
+
+Use this default for speed without drift:
+
+- one batch proposal listing all candidate scopes and write-license terms;
+- at most three non-overlapping mutating workers per batch;
+- red CI stops workers unless the batch explicitly allows self-fix;
+- central context, governance infrastructure, auth/permission/runtime/DB, and
+  cross-module integration remain single-writer;
+- Claude deep review is scheduled after checks pass and before a governed PR
+  leaves draft when the task is high risk or the user requires it.
