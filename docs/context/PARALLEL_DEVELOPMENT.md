@@ -117,6 +117,7 @@ The steward must provide every mutating worker with a startup packet that names:
 - allowed write paths;
 - read-only contract paths;
 - forbidden central paths;
+- test authority;
 - whether draft PR creation is allowed;
 - whether CI self-fix is allowed;
 - stop condition.
