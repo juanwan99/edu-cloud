@@ -1,0 +1,20 @@
+schema: steward-pr-scope.v1
+scope_id: keel-db-migrate-fail-loud-2026-07-02
+owner: codex
+allowed_paths:
+  - scripts/db_migrate
+  - tests/governance/test_db_migrate_fail_loud.py
+  - control/steward/scopes/keel-db-migrate-fail-loud-2026-07-02.yml
+forbidden_paths:
+  - src/
+  - frontend/
+  - docs/
+  - .github/
+  - deploy/
+  - alembic/
+  - AGENTS.md
+  - CLAUDE.md
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T14:00:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"

@@ -21,6 +21,7 @@ import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 LOCK_FILE = PROJECT_ROOT / "data" / ".db_migrate.lock"
@@ -31,13 +32,32 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 
 def get_db_path() -> str:
-    try:
-        from edu_cloud.config import settings
-        url = settings.DATABASE_URL
+    url = os.environ.get("DATABASE_URL", "")
+    if not url:
+        try:
+            from edu_cloud.config import settings
+            url = settings.DATABASE_URL
+        except Exception:
+            url = ""
+
+    if url:
+        scheme = urlparse(url).scheme
+        if scheme and not scheme.startswith("sqlite"):
+            if scheme.startswith("postgres"):
+                message = (
+                    "ERROR: DATABASE_URL uses PostgreSQL. scripts/db_migrate only supports "
+                    "SQLite backup safety today; pg_dump-backed PostgreSQL backup support "
+                    "is not implemented, so refusing to run."
+                )
+            else:
+                message = (
+                    f"ERROR: DATABASE_URL uses unsupported non-SQLite scheme '{scheme}'. "
+                    "scripts/db_migrate only supports SQLite backup safety today, so refusing to run."
+                )
+            print(message, file=sys.stderr)
+            sys.exit(1)
         if "sqlite" in url:
             return url.split("///")[-1]
-    except Exception:
-        pass
     return "edu_cloud.db"
 
 
