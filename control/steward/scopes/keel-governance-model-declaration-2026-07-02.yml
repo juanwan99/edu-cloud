@@ -1,0 +1,22 @@
+schema: steward-pr-scope.v1
+scope_id: keel-governance-model-declaration-2026-07-02
+owner: codex
+allowed_paths:
+  - .github/pull_request_template.md
+  - control/steward/scopes/keel-governance-model-declaration-2026-07-02.yml
+  - docs/context/CODEX_STEWARD.md
+  - scripts/governance/check_dispatch_review.py
+  - tests/governance/test_dispatch_review_gate.py
+forbidden_paths:
+  - .github/workflows/
+  - .github/CODEOWNERS
+  - AGENTS.md
+  - CLAUDE.md
+  - alembic/
+  - deploy/
+  - frontend/
+  - src/
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T19:20:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
