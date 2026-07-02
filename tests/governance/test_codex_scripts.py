@@ -1551,15 +1551,16 @@ def test_ci_governance_job_runs_codex_smoke_checks():
     assert "governance:" in text
     for command in (
         "python -m py_compile scripts/codex_support.py scripts/codex-context scripts/codex-check scripts/codex-verify scripts/run-arq-worker",
-        "python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_dispatch_review.py scripts/governance/check_execution_policy.py scripts/governance/check_legacy_quarantine.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/module_governance_guard.py scripts/governance/steward_scope_gate.py",
+        "python -m py_compile scripts/governance/aggregate_modules.py scripts/governance/check_ai_tool_modules.py scripts/governance/check_dispatch_review.py scripts/governance/check_execution_policy.py scripts/governance/check_legacy_quarantine.py scripts/governance/check_module_dependencies.py scripts/governance/check_permission_mirror.py scripts/governance/gen_worker_profile.py scripts/governance/module_governance_guard.py scripts/governance/steward_scope_gate.py",
         "python scripts/governance/check_execution_policy.py",
         "python -m pytest tests/governance/test_codex_scripts.py -q",
-        "python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_db_migrate_fail_loud.py tests/governance/test_dispatch_review_gate.py tests/governance/test_doc_pollution.py tests/governance/test_execution_policy.py tests/governance/test_legacy_quarantine.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_steward_scope_gate.py tests/governance/test_tenant_static.py -q",
+        "python -m pytest tests/governance/test_aggregate_modules.py tests/governance/test_ai_tool_modules.py tests/governance/test_db_migrate_fail_loud.py tests/governance/test_dispatch_review_gate.py tests/governance/test_doc_pollution.py tests/governance/test_execution_policy.py tests/governance/test_legacy_quarantine.py tests/governance/test_module_dependencies.py tests/governance/test_module_governance_guard.py tests/governance/test_permission_mirror.py tests/governance/test_portal_contract.py tests/governance/test_steward_scope_gate.py tests/governance/test_tenant_static.py tests/governance/test_worker_profiles.py -q",
         "python scripts/governance/aggregate_modules.py --check",
         "python scripts/governance/check_ai_tool_modules.py",
         "python scripts/governance/check_module_dependencies.py --check",
         "python scripts/governance/check_permission_mirror.py",
         "python scripts/governance/module_governance_guard.py --git-hook-mode --repo \"$(pwd)\"",
+        "python scripts/governance/gen_worker_profile.py --check",
         "scripts/codex-check --no-network",
         "scripts/codex-context --no-network",
         "scripts/codex-verify safety --repo-wide",

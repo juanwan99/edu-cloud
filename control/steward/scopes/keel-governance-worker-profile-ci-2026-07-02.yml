@@ -1,0 +1,22 @@
+schema: steward-pr-scope.v1
+scope_id: keel-governance-worker-profile-ci-2026-07-02
+owner: codex
+allowed_paths:
+  - .github/workflows/test.yml
+  - control/steward/scopes/keel-governance-worker-profile-ci-2026-07-02.yml
+  - tests/governance/test_codex_scripts.py
+forbidden_paths:
+  - .github/CODEOWNERS
+  - .github/pull_request_template.md
+  - AGENTS.md
+  - CLAUDE.md
+  - alembic/
+  - deploy/
+  - docs/
+  - frontend/
+  - scripts/
+  - src/
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T20:15:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
