@@ -7,15 +7,22 @@ import subprocess
 import sys
 from pathlib import Path
 
-from scripts.governance.check_dispatch_review import validate_event
+from scripts.governance.check_dispatch_review import (
+    resolve_integration_lane,
+    validate_event,
+    validate_event_with_warnings,
+)
 
 
 def _event(*, body: str, branch: str = "keel/demo-2026-06-29", draft: bool = False):
     return {
+        "repository": {"full_name": "juanwan99/edu-cloud"},
         "pull_request": {
+            "number": 99,
             "body": body,
             "draft": draft,
             "head": {"ref": branch},
+            "user": {"login": "juanwan99"},
         }
     }
 
@@ -46,6 +53,13 @@ Verdict: PASS
 
 def test_valid_dispatch_review_passes():
     assert validate_event(_event(body=_valid_body())) == []
+
+
+def test_integration_lane_parser_accepts_crlf_body():
+    event = _event(body=_valid_body().replace("\n", "\r\n"))
+
+    assert resolve_integration_lane(event) == "guarded"
+    assert validate_event(event) == []
 
 
 def test_missing_dispatch_review_section_fails():
@@ -148,6 +162,98 @@ def test_draft_pr_allows_pending_independent_review():
     body = _valid_body().replace("Verdict: PASS", "Verdict: PENDING")
 
     assert validate_event(_event(body=body, draft=True)) == []
+
+
+def test_draft_pr_skips_api_evidence_verification():
+    body = _valid_body().replace("Verdict: PASS", "Verdict: PENDING")
+
+    def fail_fetch(_url: str, _token: str | None):
+        raise AssertionError("draft PRs must not fetch review evidence")
+
+    errors, warnings = validate_event_with_warnings(
+        _event(body=body, draft=True),
+        verify_mode="warn",
+        fetch_comment=fail_fetch,
+    )
+
+    assert errors == []
+    assert warnings == []
+
+
+def test_independent_review_issue_comment_api_warning_passes_when_comment_matches():
+    def fetch_comment(url: str, token: str | None):
+        assert url == "https://api.github.com/repos/juanwan99/edu-cloud/issues/comments/1234567890"
+        assert token == "token"
+        return {
+            "issue_url": "https://api.github.com/repos/juanwan99/edu-cloud/issues/99",
+            "user": {"login": "jopfea796-dotcom"},
+            "body": ("review evidence " * 20) + "\nVerdict: PASS\n",
+        }
+
+    errors, warnings = validate_event_with_warnings(
+        _event(body=_valid_body()),
+        verify_mode="warn",
+        github_token="token",
+        fetch_comment=fetch_comment,
+    )
+
+    assert errors == []
+    assert warnings == []
+
+
+def test_independent_review_issue_comment_api_warns_on_wrong_pr_short_body_and_missing_pass():
+    def fetch_comment(_url: str, _token: str | None):
+        return {
+            "issue_url": "https://api.github.com/repos/juanwan99/edu-cloud/issues/100",
+            "user": {"login": "reviewer"},
+            "body": "looked good",
+        }
+
+    errors, warnings = validate_event_with_warnings(
+        _event(body=_valid_body()),
+        verify_mode="warn",
+        fetch_comment=fetch_comment,
+    )
+
+    assert errors == []
+    assert "review evidence comment does not belong to this pull request" in warnings
+    assert "review evidence comment body is shorter than 200 characters" in warnings
+    assert "review evidence comment body must include 'Verdict: PASS'" in warnings
+
+
+def test_independent_review_issue_comment_api_warns_when_comment_author_is_pr_author():
+    def fetch_comment(_url: str, _token: str | None):
+        return {
+            "issue_url": "https://api.github.com/repos/juanwan99/edu-cloud/issues/99",
+            "user": {"login": "juanwan99"},
+            "body": ("review evidence " * 20) + "\nVerdict: PASS\n",
+        }
+
+    _errors, warnings = validate_event_with_warnings(
+        _event(body=_valid_body()),
+        verify_mode="warn",
+        fetch_comment=fetch_comment,
+    )
+
+    assert "review evidence comment author is the pull request author" in warnings
+
+
+def test_independent_review_issue_comment_api_enforce_turns_warnings_into_errors():
+    def fetch_comment(_url: str, _token: str | None):
+        return {
+            "issue_url": "https://api.github.com/repos/juanwan99/edu-cloud/issues/99",
+            "user": {"login": "juanwan99"},
+            "body": "Verdict: PASS",
+        }
+
+    errors, warnings = validate_event_with_warnings(
+        _event(body=_valid_body()),
+        verify_mode="enforce",
+        fetch_comment=fetch_comment,
+    )
+
+    assert warnings == []
+    assert any(error.startswith("Independent Review evidence verification failed:") for error in errors)
 
 
 def test_scope_placeholder_fails():
@@ -270,3 +376,23 @@ def test_cli_reports_errors(tmp_path: Path):
 
     assert result.returncode == 1
     assert "dispatch review error" in result.stderr
+
+
+def test_cli_prints_integration_lane_from_crlf_body(tmp_path: Path):
+    event = tmp_path / "event.json"
+    event.write_text(json.dumps(_event(body=_valid_body().replace("\n", "\r\n"))), encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/governance/check_dispatch_review.py",
+            "--event",
+            str(event),
+            "--print-integration-lane",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.strip() == "guarded"

@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: read
   pull-requests: read
 
 concurrency:
@@ -31,24 +32,16 @@ jobs:
           BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
         run: git fetch --no-tags --depth=100 origin "$BASE_REF"
       - name: Run Keel dispatch review gate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          KEEL_REVIEW_VERIFY: warn
         run: python scripts/governance/check_dispatch_review.py --event "$GITHUB_EVENT_PATH"
       - name: Require fresh head branch for guarded lanes
         env:
           BASE_REF: ${{ github.base_ref || github.event.repository.default_branch || 'master' }}
         run: |
           set -euo pipefail
-          lane="$(python - <<'PY'
-          import json
-          import os
-          import re
-
-          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8-sig") as fh:
-              event = json.load(fh)
-          body = (event.get("pull_request") or {}).get("body") or ""
-          match = re.search(r"(?im)^[ \t]*Integration-Lane:[ \t]*(\S+)[ \t]*$", body)
-          print(match.group(1).strip().lower() if match else "")
-          PY
-          )"
+          lane="$(python scripts/governance/check_dispatch_review.py --event "$GITHUB_EVENT_PATH" --print-integration-lane)"
           if [[ "$lane" == "independent" ]]; then
             echo "Integration-Lane is independent; skipping dispatch-time freshness enforcement. GitHub strict required checks still decide merge-time freshness."
             exit 0
