@@ -257,3 +257,7 @@ are not Independent Review evidence.
 For non-draft governed PRs, the `steward/dispatch-review` check rejects
 placeholder or non-PASS Independent Review body state. Draft PRs may keep
 `Verdict: PENDING` while implementation and review are still in progress.
+The gate also performs warn-only GitHub API verification for issue-comment
+evidence: the comment should exist, belong to the same PR, be non-empty, and
+include `Verdict: PASS`. Warnings expose weak evidence without blocking merge
+until Keel explicitly moves the policy to enforcement.
