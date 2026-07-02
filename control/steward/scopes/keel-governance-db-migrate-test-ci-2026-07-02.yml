@@ -1,0 +1,22 @@
+schema: steward-pr-scope.v1
+scope_id: keel-governance-db-migrate-test-ci-2026-07-02
+owner: codex
+allowed_paths:
+  - .github/workflows/test.yml
+  - control/steward/scopes/keel-governance-db-migrate-test-ci-2026-07-02.yml
+forbidden_paths:
+  - src/
+  - frontend/
+  - docs/
+  - scripts/
+  - tests/
+  - .github/CODEOWNERS
+  - .github/pull_request_template.md
+  - deploy/
+  - alembic/
+  - AGENTS.md
+  - CLAUDE.md
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T15:35:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
