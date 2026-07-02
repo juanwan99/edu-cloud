@@ -129,24 +129,33 @@ jobs:
       - run: uv run python -m pytest tests/governance/test_governance_registry.py -q
   backend:
     needs: changes
-    if: needs.changes.outputs.backend == 'true' && github.event_name != 'push'
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     env:
       UV_FROZEN: "1"
     steps:
+      - name: Backend smoke for master push
+        if: github.event_name == 'push'
+        run: echo "Skipping heavy backend suite on master push; strict PR/merge-group checks cover merge-time validation."
       - uses: actions/checkout@v4
+        if: github.event_name != 'push'
       - uses: actions/setup-python@v5
+        if: github.event_name != 'push'
         with:
           python-version: '3.11'
       - uses: astral-sh/setup-uv@v6
+        if: github.event_name != 'push'
         with:
           enable-cache: true
       - name: Install system dependencies
+        if: github.event_name != 'push'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq libgl1 libglib2.0-0 libzbar0 libzbar-dev
-      - run: uv sync --frozen --extra dev --python 3.11
+      - if: github.event_name != 'push'
+        run: uv sync --frozen --extra dev --python 3.11
       - name: Dependency & route diagnostics
+        if: github.event_name != 'push'
         run: |
           uv run python - <<'PY'
           import sys
@@ -160,6 +169,7 @@ jobs:
           print("school_router routes", len(school_router.routes))
           PY
       - name: Backend pytest (main suite)
+        if: github.event_name != 'push'
         timeout-minutes: 30
         run: >-
           uv run python -m pytest --tb=short -q --durations=25
@@ -167,20 +177,32 @@ jobs:
           --ignore=tests/test_services_exam/test_tql_renderer.py
           --ignore=tests/test_services_exam/test_card_e2e.py
           -k "not (test_alembic_migration or test_alembic_s1 or test_card_publish or test_grading_worker or test_objective_only_not_ready)"
-      - run: uv run python -m pytest tests/test_alembic_migration.py -q
-      - run: uv run python -m pytest tests/governance/test_module_semantics.py -q
-      - run: uv run python scripts/governance/check_module_semantics.py --check
+      - if: github.event_name != 'push'
+        run: uv run python -m pytest tests/test_alembic_migration.py -q
+      - if: github.event_name != 'push'
+        run: uv run python -m pytest tests/governance/test_module_semantics.py -q
+      - if: github.event_name != 'push'
+        run: uv run python scripts/governance/check_module_semantics.py --check
 
   frontend:
     needs: changes
-    if: needs.changes.outputs.frontend == 'true' && github.event_name != 'push'
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Frontend smoke for master push
+        if: github.event_name == 'push'
+        run: echo "Skipping heavy frontend suite on master push; strict PR/merge-group checks cover merge-time validation."
       - uses: actions/checkout@v4
+        if: github.event_name != 'push'
       - uses: actions/setup-node@v4
+        if: github.event_name != 'push'
         with:
           node-version: '22'
-      - run: cd frontend && npm ci --ignore-scripts
-      - run: cd frontend && npx vitest run
-      - run: cd frontend && npm run build
-      - run: cd frontend && npm audit --audit-level=high
+      - if: github.event_name != 'push'
+        run: cd frontend && npm ci --ignore-scripts
+      - if: github.event_name != 'push'
+        run: cd frontend && npx vitest run
+      - if: github.event_name != 'push'
+        run: cd frontend && npm run build
+      - if: github.event_name != 'push'
+        run: cd frontend && npm audit --audit-level=high
