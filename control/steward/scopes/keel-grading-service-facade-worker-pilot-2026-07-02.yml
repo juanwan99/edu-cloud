@@ -1,0 +1,24 @@
+schema: steward-pr-scope.v1
+scope_id: keel-grading-service-facade-worker-pilot-2026-07-02
+owner: codex
+allowed_paths:
+  - src/edu_cloud/modules/grading/service.py
+  - tests/test_services/test_grading_service_facade.py
+  - control/steward/scopes/keel-grading-service-facade-worker-pilot-2026-07-02.yml
+forbidden_paths:
+  - .github/
+  - scripts/
+  - frontend/
+  - alembic/
+  - deploy/
+  - AGENTS.md
+  - CLAUDE.md
+  - docs/context/
+  - src/edu_cloud/ai/
+  - src/edu_cloud/modules/card/
+  - src/edu_cloud/modules/exam/
+  - src/edu_cloud/modules/scan/
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T08:30:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
