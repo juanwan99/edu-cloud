@@ -104,11 +104,26 @@ human approval.
 | `wsl2_sandbox_worker` | Future worker that needs shell or test authority | Exact allowed paths plus OS sandbox boundary | Only inside the approved sandbox profile |
 
 Native Windows no-shell workers use Claude file-tool permissions as a practical
-boundary, not an operating-system sandbox. The startup command must use an
-allowlist shape: `--permission-mode dontAsk`, explicit `--allowedTools` for
-`Read`, `Edit`, and `Write`, explicit path patterns for the assigned worktree
-and allowed write paths, and `--disallowedTools Bash`. Do not use
-`bypassPermissions` for workers. Do not use `acceptEdits` as the worker default.
+boundary, not an operating-system sandbox. Generated module profiles live under
+`control/steward/worker-profiles/` and are refreshed by
+`python scripts/governance/gen_worker_profile.py --write`; CI and local checks
+use `--check` to catch module/profile drift.
+
+The standard no-shell launch loads the generated settings profile with
+`--settings` and must not pass `--permission-mode`,
+`--dangerously-skip-permissions`, or
+`--allow-dangerously-skip-permissions`. The profile itself sets
+`defaultMode: dontAsk`, `disableBypassPermissionsMode: disable`, allows only
+`Read` plus writes to the assigned module/test paths, and denies Bash,
+PowerShell, `.claude/**`, sibling modules, and central protected paths. Do not
+use `bypassPermissions` for workers. Do not use `acceptEdits` as the worker
+default.
+
+Before the first real edit with a new profile, the steward must run a boundary
+probe through the worker: attempt one denied sibling-module write and one denied
+`.claude/**` write, then paste the denial output into the PR. A no-shell worker
+does not run shell commands, tests, or git; Codex, the steward, or CI performs
+verification outside that worker.
 
 The steward must provide every mutating worker with a startup packet that names:
 
