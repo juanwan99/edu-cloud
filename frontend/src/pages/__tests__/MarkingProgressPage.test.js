@@ -1,14 +1,15 @@
 /**
- * MarkingProgressPage source-text tests.
+ * MarkingProgressPage source-text and behavior tests.
  *
  * Validates:
  *  1. Component can be imported (smoke)
  *  2. Template contains key sections (toolbar, overall-card, subject-cards, table)
  *  3. API calls (getProgress, exportCsv, client.get /exams)
  *  4. State/data processing (remainingCount, subjectPercentage, questionColorBand, columns, autoRefresh)
- *  5. Error handling (try-catch in loadExams, loadProgress, handleExport)
+ *  5. Error handling (visible load errors, finally cleanup, export message)
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
@@ -19,12 +20,133 @@ const __dirname = dirname(__filename)
 const filePath = resolve(__dirname, '../MarkingProgressPage.vue')
 const content = readFileSync(filePath, 'utf-8')
 
+const mocks = vi.hoisted(() => ({
+  getProgress: vi.fn(),
+  exportCsv: vi.fn(),
+  clientGet: vi.fn(),
+  messageError: vi.fn(),
+  messageSuccess: vi.fn(),
+  messageWarning: vi.fn(),
+  messageInfo: vi.fn(),
+}))
+
+vi.mock('../../api/marking', () => ({
+  getProgress: (...args) => mocks.getProgress(...args),
+  exportCsv: (...args) => mocks.exportCsv(...args),
+}))
+
+vi.mock('../../api/client', () => ({
+  default: { get: (...args) => mocks.clientGet(...args) },
+}))
+
+vi.mock('naive-ui', () => {
+  const passthrough = (name) => ({ name, template: '<div><slot /><slot name="icon" /></div>' })
+  return {
+    useMessage: () => ({
+      error: mocks.messageError,
+      success: mocks.messageSuccess,
+      warning: mocks.messageWarning,
+      info: mocks.messageInfo,
+    }),
+    NAlert: {
+      name: 'NAlert',
+      props: ['type', 'bordered', 'closable'],
+      emits: ['close'],
+      template: '<div role="alert" class="n-alert-stub"><slot /></div>',
+    },
+    NButton: {
+      name: 'NButton',
+      props: ['loading', 'disabled', 'secondary', 'text'],
+      emits: ['click'],
+      template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot name="icon" /><slot /></button>',
+    },
+    NCard: passthrough('NCard'),
+    NDataTable: passthrough('NDataTable'),
+    NIcon: passthrough('NIcon'),
+    NProgress: passthrough('NProgress'),
+    NSelect: passthrough('NSelect'),
+    NSpin: passthrough('NSpin'),
+    NSwitch: passthrough('NSwitch'),
+  }
+})
+
+function progressPayload() {
+  return {
+    overall: { graded: 1, total: 2, percentage: 50 },
+    subjects: [],
+  }
+}
+
+function resetBehaviorMocks() {
+  for (const mock of Object.values(mocks)) {
+    mock.mockReset()
+  }
+  mocks.clientGet.mockResolvedValue({ data: [{ id: 'exam-1', name: 'Midterm' }] })
+  mocks.getProgress.mockResolvedValue({ data: progressPayload() })
+  mocks.exportCsv.mockResolvedValue({ data: 'csv' })
+}
+
+async function createBehaviorWrapper() {
+  const mod = await import('../MarkingProgressPage.vue')
+  return mount(mod.default, {
+    global: {
+      mocks: { $router: { push: vi.fn() } },
+      stubs: { ArrowLeft: true, RefreshCw: true },
+    },
+  })
+}
+
 describe('MarkingProgressPage smoke', () => {
   it('can be imported', async () => {
     const mod = await import('../MarkingProgressPage.vue')
     expect(mod.default).toBeTruthy()
     expect(typeof mod.default).toMatch(/object|function/)
-  }, 30000)
+  }, 60000)
+})
+
+describe('MarkingProgressPage load failure behavior', () => {
+  beforeEach(() => {
+    resetBehaviorMocks()
+  })
+
+  it('shows an alert and releases loading when progress load rejects', async () => {
+    mocks.getProgress.mockRejectedValueOnce(new Error('progress boom'))
+
+    const wrapper = await createBehaviorWrapper()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    const alert = wrapper.find('[role="alert"]')
+    expect(mocks.clientGet).toHaveBeenCalledWith('/exams')
+    expect(mocks.getProgress).toHaveBeenCalledWith('exam-1')
+    expect(wrapper.vm.loading).toBe(false)
+    expect(wrapper.vm.progress).toBe(null)
+    expect(alert.exists()).toBe(true)
+    expect(alert.text()).toContain('progress boom')
+    expect(mocks.messageError).toHaveBeenCalledWith(expect.stringContaining('progress boom'))
+  })
+
+  it('shows an alert and releases refreshing when manual refresh rejects', async () => {
+    const wrapper = await createBehaviorWrapper()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    mocks.getProgress.mockClear()
+    mocks.messageError.mockClear()
+    mocks.getProgress.mockRejectedValueOnce({
+      response: { data: { detail: 'refresh boom' } },
+    })
+
+    await wrapper.vm.manualRefresh()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    const alert = wrapper.find('[role="alert"]')
+    expect(mocks.getProgress).toHaveBeenCalledWith('exam-1')
+    expect(wrapper.vm.refreshing).toBe(false)
+    expect(alert.exists()).toBe(true)
+    expect(alert.text()).toContain('refresh boom')
+    expect(mocks.messageError).toHaveBeenCalledWith(expect.stringContaining('refresh boom'))
+  })
 })
 
 describe('MarkingProgressPage template sections', () => {
@@ -46,6 +168,14 @@ describe('MarkingProgressPage template sections', () => {
     expect(content).toContain('RefreshCw')
     expect(content).toContain("{ 'spin-icon': refreshing }")
     expect(content).toContain('刷新')
+  })
+
+  it('contains page-level visible load error alert', () => {
+    expect(content).toContain('<n-alert')
+    expect(content).toContain('v-if="loadError"')
+    expect(content).toContain('type="error"')
+    expect(content).toContain('role="alert"')
+    expect(content).toContain('{{ loadError }}')
   })
 
   it('contains auto-refresh toggle', () => {
@@ -92,8 +222,8 @@ describe('MarkingProgressPage API calls', () => {
   })
 
   it('auto-selects first exam', () => {
-    expect(content).toContain('selectedExamId.value = data[0].id')
-    expect(content).toContain('await loadProgress(data[0].id)')
+    expect(content).toContain('selectedExamId.value = exams[0].id')
+    expect(content).toContain('await loadProgress(exams[0].id)')
   })
 
   it('calls getProgress to load progress data', () => {
@@ -218,31 +348,64 @@ describe('MarkingProgressPage CSV export', () => {
 })
 
 describe('MarkingProgressPage error handling', () => {
-  it('wraps loadExams in try-catch', () => {
+  it('defines explicit load error messages', () => {
+    expect(content).toContain("const EXAMS_LOAD_ERROR = '考试列表加载失败，请稍后重试'")
+    expect(content).toContain("const PROGRESS_LOAD_ERROR = '阅卷进度加载失败，请稍后重试'")
+    expect(content).toContain("const PROGRESS_REFRESH_ERROR = '阅卷进度刷新失败，当前数据未更新'")
+    expect(content).toContain('const loadError = ref')
+  })
+
+  it('formats and displays load errors through page state and toast', () => {
+    expect(content).toContain('function formatLoadError(fallback, err)')
+    expect(content).toContain('err?.response?.data?.detail || err?.message')
+    expect(content).toContain('function showLoadError(text)')
+    expect(content).toContain('loadError.value = text')
+    expect(content).toContain('message.error(text)')
+    expect(content).toContain('function clearLoadError()')
+    expect(content).toContain("loadError.value = ''")
+  })
+
+  it('makes loadExams failure visible', () => {
     const fnBlock = content.slice(
       content.indexOf('async function loadExams'),
       content.indexOf('async function loadProgress')
     )
     expect(fnBlock).toContain('try {')
-    expect(fnBlock).toContain('} catch')
+    expect(fnBlock).toContain('} catch (err) {')
+    expect(fnBlock).toContain('examOptions.value = []')
+    expect(fnBlock).toContain('selectedExamId.value = null')
+    expect(fnBlock).toContain('progress.value = null')
+    expect(fnBlock).toContain('showLoadError(formatLoadError(EXAMS_LOAD_ERROR, err))')
+    expect(fnBlock).not.toContain('catch {}')
   })
 
-  it('wraps loadProgress in try-catch', () => {
+  it('makes loadProgress failure visible and clears stale data', () => {
     const fnBlock = content.slice(
       content.indexOf('async function loadProgress'),
       content.indexOf('async function manualRefresh')
     )
+    expect(fnBlock).toContain('progress.value = null')
     expect(fnBlock).toContain('try {')
-    expect(fnBlock).toContain('} catch')
+    expect(fnBlock).toContain('clearLoadError()')
+    expect(fnBlock).toContain('} catch (err) {')
+    expect(fnBlock).toContain('showLoadError(formatLoadError(PROGRESS_LOAD_ERROR, err))')
+    expect(fnBlock).toContain('} finally {')
+    expect(fnBlock).toContain('loading.value = false')
+    expect(fnBlock).not.toContain('catch {}')
   })
 
-  it('wraps manualRefresh in try-catch', () => {
+  it('makes manualRefresh failure visible and always resets refreshing', () => {
     const fnBlock = content.slice(
       content.indexOf('async function manualRefresh'),
       content.indexOf('function startPolling')
     )
     expect(fnBlock).toContain('try {')
-    expect(fnBlock).toContain('} catch')
+    expect(fnBlock).toContain('clearLoadError()')
+    expect(fnBlock).toContain('} catch (err) {')
+    expect(fnBlock).toContain('showLoadError(formatLoadError(PROGRESS_REFRESH_ERROR, err))')
+    expect(fnBlock).toContain('} finally {')
+    expect(fnBlock).toContain('refreshing.value = false')
+    expect(fnBlock).not.toContain('catch {}')
   })
 
   it('wraps handleExport in try-catch with error message', () => {
@@ -260,7 +423,10 @@ describe('MarkingProgressPage error handling', () => {
       content.indexOf('function stopPolling')
     )
     expect(pollBlock).toContain('try {')
-    expect(pollBlock).toContain('} catch')
+    expect(pollBlock).toContain('clearLoadError()')
+    expect(pollBlock).toContain('} catch (err) {')
+    expect(pollBlock).toContain('loadError.value = formatLoadError(PROGRESS_REFRESH_ERROR, err)')
+    expect(pollBlock).not.toContain('catch {}')
   })
 })
 

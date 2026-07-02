@@ -43,6 +43,18 @@
       </div>
     </div>
 
+    <n-alert
+      v-if="loadError"
+      class="progress-error"
+      type="error"
+      :bordered="false"
+      closable
+      role="alert"
+      @close="loadError = ''"
+    >
+      {{ loadError }}
+    </n-alert>
+
     <n-spin :show="loading">
       <!-- 总进度 -->
       <n-card v-if="progress" class="overall-card" size="small">
@@ -99,10 +111,14 @@
 
 <script setup>
 import { ref, h, computed, onMounted, onUnmounted, watch } from 'vue'
-import { NProgress, NIcon, useMessage } from 'naive-ui'
+import { NProgress, NIcon, NAlert, useMessage } from 'naive-ui'
 import { RefreshCw, ArrowLeft } from 'lucide-vue-next'
 import { getProgress, exportCsv } from '../api/marking'
 import client from '../api/client'
+
+const EXAMS_LOAD_ERROR = '考试列表加载失败，请稍后重试'
+const PROGRESS_LOAD_ERROR = '阅卷进度加载失败，请稍后重试'
+const PROGRESS_REFRESH_ERROR = '阅卷进度刷新失败，当前数据未更新'
 
 const message = useMessage()
 const loading = ref(false)
@@ -111,6 +127,7 @@ const exporting = ref(false)
 const selectedExamId = ref(null)
 const examOptions = ref([])
 const progress = ref(null)
+const loadError = ref('')
 const autoRefresh = ref(false)
 const lastUpdateTime = ref('')
 let pollTimer = null
@@ -192,26 +209,55 @@ function updateTimestamp() {
   lastUpdateTime.value = `上次更新: ${hh}:${mm}:${ss}`
 }
 
+function formatLoadError(fallback, err) {
+  const detail = err?.response?.data?.detail || err?.message
+  return detail ? `${fallback}: ${detail}` : fallback
+}
+
+function showLoadError(text) {
+  loadError.value = text
+  message.error(text)
+}
+
+function clearLoadError() {
+  loadError.value = ''
+}
+
 async function loadExams() {
   try {
     const { data } = await client.get('/exams')
-    examOptions.value = data.map(e => ({ label: e.name, value: e.id }))
-    if (data.length > 0) {
-      selectedExamId.value = data[0].id
-      await loadProgress(data[0].id)
+    const exams = data || []
+    examOptions.value = exams.map(e => ({ label: e.name, value: e.id }))
+    if (exams.length > 0) {
+      selectedExamId.value = exams[0].id
+      await loadProgress(exams[0].id)
+    } else {
+      selectedExamId.value = null
+      progress.value = null
+      clearLoadError()
     }
-  } catch {}
+  } catch (err) {
+    examOptions.value = []
+    selectedExamId.value = null
+    progress.value = null
+    showLoadError(formatLoadError(EXAMS_LOAD_ERROR, err))
+  }
 }
 
 async function loadProgress(examId) {
   if (!examId) return
   loading.value = true
+  progress.value = null
   try {
     const { data } = await getProgress(examId)
     progress.value = data
     updateTimestamp()
-  } catch {}
-  loading.value = false
+    clearLoadError()
+  } catch (err) {
+    showLoadError(formatLoadError(PROGRESS_LOAD_ERROR, err))
+  } finally {
+    loading.value = false
+  }
 }
 
 async function manualRefresh() {
@@ -221,8 +267,12 @@ async function manualRefresh() {
     const { data } = await getProgress(selectedExamId.value)
     progress.value = data
     updateTimestamp()
-  } catch {}
-  refreshing.value = false
+    clearLoadError()
+  } catch (err) {
+    showLoadError(formatLoadError(PROGRESS_REFRESH_ERROR, err))
+  } finally {
+    refreshing.value = false
+  }
 }
 
 function startPolling() {
@@ -233,7 +283,10 @@ function startPolling() {
       const { data } = await getProgress(selectedExamId.value)
       progress.value = data
       updateTimestamp()
-    } catch {}
+      clearLoadError()
+    } catch (err) {
+      loadError.value = formatLoadError(PROGRESS_REFRESH_ERROR, err)
+    }
   }, 30000)
 }
 
@@ -284,6 +337,10 @@ onUnmounted(() => {
   align-items: center;
   margin-bottom: var(--space-6);
   flex-wrap: wrap;
+}
+
+.progress-error {
+  margin-bottom: var(--space-4);
 }
 
 .auto-refresh-group {
