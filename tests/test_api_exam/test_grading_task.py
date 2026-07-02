@@ -5,7 +5,7 @@ from edu_cloud.models.user import User
 from edu_cloud.models.user_role import UserRole
 from edu_cloud.models.exam import Exam, Subject, Question
 from edu_cloud.modules.scan.models import StudentAnswer
-from edu_cloud.modules.grading.models import Rubric
+from edu_cloud.modules.grading.models import GradingTask, Rubric
 from edu_cloud.shared.auth import create_access_token
 
 
@@ -54,7 +54,7 @@ async def task_grading_setup(client, db):
         db.add(a)
     await db.commit()
 
-    return {"headers": headers, "subject_id": subject.id, "school_id": school.id}
+    return {"headers": headers, "subject_id": subject.id, "question_id": q.id, "school_id": school.id}
 
 
 async def test_create_grading_task(client, task_grading_setup):
@@ -69,6 +69,40 @@ async def test_create_grading_task(client, task_grading_setup):
     assert data["status"] == "pending"
     assert data["subject_id"] == task_grading_setup["subject_id"]
     assert "id" in data
+
+
+async def test_batch_grading_task_rejects_unreadable_running_question_ids(client, task_grading_setup, db):
+    """Bad legacy question_ids must not bypass the running-task overlap guard."""
+    from sqlalchemy import select as _select
+
+    existing = GradingTask(
+        subject_id=task_grading_setup["subject_id"],
+        question_ids="not-json",
+        school_id=task_grading_setup["school_id"],
+        status="processing",
+        created_by="legacy-user",
+    )
+    db.add(existing)
+    await db.commit()
+
+    with patch("edu_cloud.modules.grading.router.enqueue_grading_task", new_callable=AsyncMock) as enqueue:
+        resp = await client.post(
+            "/api/v1/grading/tasks",
+            json={
+                "subject_id": task_grading_setup["subject_id"],
+                "question_ids": [task_grading_setup["question_id"]],
+            },
+            headers=task_grading_setup["headers"],
+        )
+
+    assert resp.status_code == 409
+    assert "unreadable question_ids" in resp.json().get("detail", "")
+    enqueue.assert_not_called()
+
+    tasks = (await db.execute(
+        _select(GradingTask).where(GradingTask.subject_id == task_grading_setup["subject_id"])
+    )).scalars().all()
+    assert [task.id for task in tasks] == [existing.id]
 
 
 async def test_create_grading_task_invalid_subject(client, task_grading_setup):
