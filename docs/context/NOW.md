@@ -1,13 +1,13 @@
 ---
 title: NOW
 owner: liang
-last_review_date: "2026-07-01"
+last_review_date: "2026-07-02"
 expiration_in_days: 7
 ---
 
 # NOW
 
-Last refreshed: 2026-07-01 11:50 Asia/Shanghai
+Last refreshed: 2026-07-02 13:57 Asia/Shanghai
 
 ## Current Goal
 
@@ -15,39 +15,9 @@ Use `docs/context/REQUIREMENTS_BASELINE.md` as the current requirements and task
 baseline. Old session reports and old plan documents are historical evidence
 only unless `ACTIVE_INDEX.md` or the baseline promotes them.
 
-## Fresh State
+## Volatile Facts
 
-- Current master: `4352626c7bca03dd0396840a214ef6e2495c2f87`.
-- Current open PRs: none.
-- Recently closed stale PR: #83 was closed because its baseline was based on
-  `c6e8d8f4` and was superseded by #84-#89.
-- Recent merged work:
-  - #93 refreshed active context after #92.
-  - #92 made skipped workflow steps visible.
-  - #91 refreshed active context after #90.
-  - #90 refreshed the mainline baseline after #84-#89.
-  - #89 clarified Keel steward/task window role boundaries.
-  - #84 made grading LLM config lookup errors fail closed.
-  - #85 made AI chat DataScope build failure fail closed.
-  - #86 made scan persistence fail closed on unknown student identity.
-  - #87 canonicalized adaptive mastery student identity.
-  - #88 made answer-standardizer text-LLM fallback visible.
-- Latest master `Tests` run for #93 merge commit succeeded: run
-  `28491668618`, head `4352626c7bca03dd0396840a214ef6e2495c2f87`.
-- Module dependency gate is clean: `0 edges, 0 cycles`.
-- Current Keel scopes on `origin/master`: 34 closed, 10 active. This PR branch
-  adds one active scope for its own review, so branch-local scope count is
-  34 closed and 11 active until merge. Master active scope files:
-  `keel-grading-llm-config-fail-closed-2026-06-30.yml`;
-  `keel-ai-datascope-fail-closed-2026-06-30.yml`;
-  `keel-scan-identity-fail-closed-2026-06-30.yml`;
-  `keel-adaptive-canonical-student-identity-2026-06-30.yml`;
-  `keel-answer-standardizer-fail-visible-2026-06-30.yml`;
-  `keel-refresh-active-context-after-pr90-2026-07-01.yml`;
-  `keel-refresh-active-context-after-pr92-2026-07-01.yml`;
-  `keel-refresh-mainline-baseline-2026-07-01.yml`;
-  `keel-workflow-skipped-steps-visible-2026-07-01.yml`;
-  `keel-window-role-boundary-2026-07-01.yml`.
+Volatile facts such as the current master commit, open PRs, CI identifiers, latest check status, and active scope counts must be queried live with `git log`, `gh pr list`, `gh run list`, and the module dependency command below rather than copied into this file.
 
 ## Next Work Queue
 
