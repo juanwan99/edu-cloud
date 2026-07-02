@@ -1,0 +1,37 @@
+schema: steward-pr-scope.v1
+scope_id: keel-governance-worker-profiles-enforce-2026-07-02
+owner: codex
+allowed_paths:
+  - control/steward/worker-profiles/
+  - scripts/governance/gen_worker_profile.py
+  - tests/governance/test_worker_profiles.py
+  - docs/context/PARALLEL_DEVELOPMENT.md
+  - docs/context/COMMANDS.md
+  - control/steward/scopes/keel-governance-worker-profiles-enforce-2026-07-02.yml
+forbidden_paths:
+  - src/
+  - frontend/
+  - .github/
+  - deploy/
+  - alembic/
+  - conftest/
+  - AGENTS.md
+  - CLAUDE.md
+  - control/governance.yaml
+  - control/execution_policy.yaml
+  - scripts/codex-check
+  - scripts/codex-context
+  - scripts/codex-verify
+  - scripts/db_migrate
+  - scripts/db_doctor.py
+  - scripts/governance/steward_scope_gate.py
+  - scripts/governance/check_module_dependencies.py
+  - scripts/governance/check_dispatch_review.py
+  - scripts/governance/module_governance_guard.py
+  - tests/test_api/
+  - tests/test_services/
+  - tests/test_models/
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T12:00:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"

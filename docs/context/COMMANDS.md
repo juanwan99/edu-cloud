@@ -178,26 +178,41 @@ authority.
 ## Claude Worker Profiles
 
 Use Claude as an executor only after the steward issues a scoped startup packet.
-The default native Windows worker profile is no-shell and allowlist based:
+Generated module profiles are the permission source of truth:
+
+```bash
+python scripts/governance/gen_worker_profile.py --check
+python scripts/governance/gen_worker_profile.py --write
+```
+
+The default native Windows worker profile is no-shell and allowlist based.
+Standard startup loads the generated settings file and must not pass
+`--permission-mode`, `--dangerously-skip-permissions`, or
+`--allow-dangerously-skip-permissions`:
 
 ```powershell
 claude --safe-mode --no-session-persistence `
-  --permission-mode dontAsk `
+  --settings control\steward\worker-profiles\modules\grading.settings.json `
   --tools Read,Edit,Write `
-  --allowedTools "Read(C:\path\to\worktree\**)" `
-                 "Edit(C:\path\to\worktree\allowed\**)" `
-                 "Write(C:\path\to\worktree\allowed\**)" `
-  --disallowedTools Bash `
   -p "<worker startup packet>"
 ```
 
 Rules for this profile:
 
-- replace the paths with the exact worktree and allowed paths from the scope;
-- do not use `--dangerously-skip-permissions` or `bypassPermissions`;
+- select the exact module settings file from
+  `control/steward/worker-profiles/modules/`;
+- the settings file sets `defaultMode: dontAsk`,
+  `disableBypassPermissionsMode: disable`, `Read` plus exact module/test write
+  paths, and denies Bash, PowerShell, `.claude/**`, sibling modules, and central
+  protected paths;
+- do not use `--permission-mode`, `--dangerously-skip-permissions`,
+  `--allow-dangerously-skip-permissions`, or `bypassPermissions`;
 - do not make `acceptEdits` the worker default;
 - do not grant Bash or any shell-equivalent tool;
-- the worker does not run tests locally; Codex or CI runs verification;
+- before first real use of a profile, perform an out-of-bound write probe and
+  paste the deny output into the PR;
+- the worker does not run shell commands, tests, or git locally; Codex, the
+  steward, or CI runs verification and git operations;
 - if shell or test authority is required, use a WSL2/container sandbox profile
   instead of the native Windows no-shell profile.
 
