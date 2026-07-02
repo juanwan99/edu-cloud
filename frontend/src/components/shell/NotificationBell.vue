@@ -20,6 +20,9 @@
         <div v-if="loading" style="padding: var(--space-6); text-align: center;">
           <n-spin size="small" />
         </div>
+        <div v-else-if="loadError" class="notification-error">
+          {{ loadError }}
+        </div>
         <template v-else-if="notifications.length">
           <div
             v-for="n in notifications"
@@ -44,6 +47,7 @@ import { getNotifications } from '../../api/notifications.js'
 const notifications = ref([])
 const loading = ref(false)
 const unreadCount = ref(0)
+const loadError = ref('')
 
 function formatTime(ts) {
   if (!ts) return ''
@@ -57,6 +61,7 @@ function formatTime(ts) {
 
 async function loadNotifications() {
   loading.value = true
+  loadError.value = ''
   try {
     const { data } = await getNotifications({ since: 'week' })
     const list = Array.isArray(data) ? data : (data.items || [])
@@ -65,6 +70,7 @@ async function loadNotifications() {
   } catch {
     notifications.value = []
     unreadCount.value = 0
+    loadError.value = '通知加载失败，请稍后重试'
   } finally {
     loading.value = false
   }
@@ -159,6 +165,13 @@ onMounted(loadNotifications)
   padding: 24px 16px;
   text-align: center;
   color: var(--color-text-muted);
+  font-size: var(--fs-base);
+}
+
+.notification-error {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--color-danger, #c0392b);
   font-size: var(--fs-base);
 }
 </style>

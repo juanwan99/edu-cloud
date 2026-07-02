@@ -1,0 +1,20 @@
+schema: steward-pr-scope.v1
+scope_id: keel-notification-bell-fail-visible-2026-07-02
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-notification-bell-fail-visible-2026-07-02.yml
+  - frontend/src/__tests__/NotificationBell.test.js
+  - frontend/src/components/shell/NotificationBell.vue
+forbidden_paths:
+  - .github/
+  - AGENTS.md
+  - CLAUDE.md
+  - alembic/
+  - deploy/
+  - docs/
+  - scripts/
+  - src/
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T22:00:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
