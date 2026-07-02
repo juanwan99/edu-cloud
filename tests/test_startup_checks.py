@@ -92,16 +92,19 @@ async def test_run_startup_checks_skip_env_non_production(monkeypatch, skip_valu
 
 
 @pytest.mark.asyncio
-async def test_run_startup_checks_ignores_skip_env_in_production(monkeypatch, caplog):
+async def test_run_startup_checks_ignores_skip_env_in_production(monkeypatch):
     monkeypatch.setenv("SKIP_STARTUP_CHECKS", "yes")
 
     with patch("edu_cloud.startup_checks.check_database", new_callable=AsyncMock) as mock_database:
         with patch("edu_cloud.startup_checks.check_redis", new_callable=AsyncMock) as mock_redis:
             mock_database.return_value = []
             mock_redis.return_value = []
-            with caplog.at_level("WARNING", logger="edu_cloud.startup"):
+            with patch("edu_cloud.startup_checks.logger.warning") as mock_warning:
                 await run_startup_checks(ProductionSafeSettings())
 
     mock_database.assert_awaited_once()
     mock_redis.assert_awaited_once()
-    assert "SKIP_STARTUP_CHECKS=yes ignored in production" in caplog.text
+    mock_warning.assert_called_once_with(
+        "SKIP_STARTUP_CHECKS=%s ignored in production; startup checks will run",
+        "yes",
+    )

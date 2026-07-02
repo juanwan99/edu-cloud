@@ -46,7 +46,7 @@ async def test_worker_startup_skips_with_env(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_worker_startup_ignores_skip_env_in_production(monkeypatch, tmp_path, caplog):
+async def test_worker_startup_ignores_skip_env_in_production(monkeypatch, tmp_path):
     """production worker startup still runs startup checks when skip env is set."""
     import edu_cloud.config as config_module
 
@@ -60,11 +60,14 @@ async def test_worker_startup_ignores_skip_env_in_production(monkeypatch, tmp_pa
             mock_database.return_value = []
             mock_redis.return_value = []
             with patch("edu_cloud.logging_config.setup_logging"):
-                with caplog.at_level("WARNING", logger="edu_cloud.startup"):
+                with patch("edu_cloud.startup_checks.logger.warning") as mock_warning:
                     from edu_cloud.worker import on_worker_startup
                     await on_worker_startup({})
 
     mock_database.assert_awaited_once()
     mock_redis.assert_awaited_once()
-    assert "SKIP_STARTUP_CHECKS=1 ignored in production" in caplog.text
+    mock_warning.assert_called_once_with(
+        "SKIP_STARTUP_CHECKS=%s ignored in production; startup checks will run",
+        "1",
+    )
     assert json.loads(state_path.read_text(encoding="utf-8"))["service"] == "edu-cloud-worker"
