@@ -1,0 +1,48 @@
+schema: steward-pr-scope.v1
+scope_id: keel-governance-workflow-ownership-2026-07-02
+owner: codex
+allowed_paths:
+  - .github/CODEOWNERS
+  - control/steward/scopes/keel-governance-workflow-ownership-2026-07-02.yml
+  - docs/governance/modules.yaml
+  - scripts/governance/aggregate_modules.py
+  - scripts/governance/module_governance_guard.py
+  - src/edu_cloud/modules/academic/MODULE.md
+  - src/edu_cloud/modules/analytics/MODULE.md
+  - src/edu_cloud/modules/bank/MODULE.md
+  - src/edu_cloud/modules/card/MODULE.md
+  - src/edu_cloud/modules/conduct/MODULE.md
+  - src/edu_cloud/modules/grading/MODULE.md
+  - src/edu_cloud/modules/homework/MODULE.md
+  - src/edu_cloud/modules/knowledge/MODULE.md
+  - src/edu_cloud/modules/knowledge_tree/MODULE.md
+  - src/edu_cloud/modules/marking/MODULE.md
+  - src/edu_cloud/modules/portal/MODULE.md
+  - src/edu_cloud/modules/profile/MODULE.md
+  - src/edu_cloud/modules/scan/MODULE.md
+  - tests/governance/test_module_governance_guard.py
+forbidden_paths:
+  - .yuanqi/
+  - AGENTS.md
+  - CLAUDE.md
+  - alembic/
+  - deploy/
+  - docs/context/
+  - frontend/
+  - scripts/db_doctor.py
+  - scripts/db_migrate
+  - scripts/guardian_runtime.py
+  - scripts/meta_runtime.py
+  - scripts/run-arq-worker
+  - scripts/yuanqi/
+  - src/edu_cloud/api/
+  - src/edu_cloud/core/
+  - src/edu_cloud/models/
+  - src/edu_cloud/services/
+  - tests/test_api/
+  - tests/test_modules/
+  - tests/yuanqi/
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T18:00:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"

@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Any
 
 MODULES_DIR = "src/edu_cloud/modules"
+SERVICES_DIR = "src/edu_cloud/services"
+OWNS_SERVICES_FIELD = "owns_services"
 LARGE_MODIFY_THRESHOLD = 50
 EDU_CLOUD_MARKER = "edu-cloud"
 
@@ -43,6 +45,8 @@ def _dir_exists_in_head(repo: Path, rel_dir: str) -> bool:
             ["git", "-C", str(repo), "ls-tree", "-d", "HEAD", rel_dir],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
         return r.returncode == 0 and bool(r.stdout.strip())
@@ -56,6 +60,8 @@ def _is_git_worktree(repo: Path) -> bool:
             ["git", "-C", str(repo), "rev-parse", "--git-dir"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
         return r.returncode == 0 and bool(r.stdout.strip())
@@ -78,6 +84,8 @@ def _checkout_staged_index(repo: Path, tmp_path: Path) -> bool:
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=15,
         )
         return True
@@ -193,6 +201,7 @@ def check_ownership_conflicts(modules: list[dict[str, Any]]) -> dict | None:
         return None
     table_owner: dict[str, str] = {}
     route_owner: dict[str, str] = {}
+    service_owner: dict[str, str] = {}
     conflicts: list[str] = []
     for m in modules:
         name = m.get("name", "?")
@@ -208,6 +217,13 @@ def check_ownership_conflicts(modules: list[dict[str, Any]]) -> dict | None:
                 conflicts.append(f"route '{r}': {prev} vs {name}")
             else:
                 route_owner[r] = name
+        for raw_service in m.get(OWNS_SERVICES_FIELD) or []:
+            service = _normalize_owned_service_path(raw_service) or str(raw_service)
+            prev = service_owner.get(service)
+            if prev is not None and prev != name:
+                conflicts.append(f"service '{service}': {prev} vs {name}")
+            else:
+                service_owner[service] = name
     if conflicts:
         return {
             "decision": "block",
@@ -215,6 +231,121 @@ def check_ownership_conflicts(modules: list[dict[str, Any]]) -> dict | None:
             + "\n  - ".join(conflicts),
         }
     return None
+
+
+def _normalize_owned_service_path(value: Any) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    service = value.strip().replace("\\", "/")
+    while service.startswith("./"):
+        service = service[2:]
+    if service.startswith("edu_cloud/services/"):
+        service = f"src/{service}"
+    elif service.startswith("services/"):
+        service = f"{SERVICES_DIR}/{service[len('services/'):]}"
+    elif "/" not in service:
+        if service.startswith("edu_cloud.services."):
+            service = service[len("edu_cloud.services.") :]
+        elif service.startswith("services."):
+            service = service[len("services.") :]
+        service = service.replace(".", "/")
+        if not service.endswith(".py"):
+            service = f"{service}.py"
+        service = f"{SERVICES_DIR}/{service}"
+    elif not service.endswith(".py"):
+        service = f"{service}.py"
+    if not service.startswith(f"{SERVICES_DIR}/"):
+        return None
+    return service
+
+
+def _workflow_service_files(repo: Path) -> list[str]:
+    services_dir = repo / SERVICES_DIR
+    if not services_dir.exists():
+        return []
+    return sorted(
+        path.relative_to(repo).as_posix()
+        for path in services_dir.rglob("*_workflow.py")
+        if path.is_file()
+    )
+
+
+def _service_ownership_map(
+    modules: list[dict[str, Any]],
+) -> tuple[dict[str, list[str]], list[str]]:
+    owners: dict[str, list[str]] = {}
+    invalid: list[str] = []
+    for module in modules:
+        module_name = str(module.get("name") or "?")
+        raw_services = module.get(OWNS_SERVICES_FIELD) or []
+        if not isinstance(raw_services, list):
+            invalid.append(f"{module_name}: {OWNS_SERVICES_FIELD} must be a list")
+            continue
+        for raw_service in raw_services:
+            service = _normalize_owned_service_path(raw_service)
+            if service is None:
+                invalid.append(
+                    f"{module_name}: invalid {OWNS_SERVICES_FIELD} entry {raw_service!r}"
+                )
+                continue
+            owners.setdefault(service, []).append(module_name)
+    return owners, invalid
+
+
+def check_workflow_service_ownership(
+    repo: Path, modules: list[dict[str, Any]] | None = None
+) -> dict | None:
+    if _kill_switch():
+        return None
+    workflow_files = _workflow_service_files(repo)
+    if not workflow_files:
+        return None
+    if modules is None:
+        try:
+            modules = _load_all_module_frontmatters(repo)
+        except _LoaderError as e:
+            return {
+                "decision": "block",
+                "reason": (
+                    "MODULE.md 解析失败，无法执行 workflow ownership 检测: "
+                    f"{e}"
+                ),
+            }
+
+    owners, invalid = _service_ownership_map(modules)
+    missing = [path for path in workflow_files if len(owners.get(path, [])) == 0]
+    duplicate = [
+        f"{path}: {', '.join(owner_names)}"
+        for path, owner_names in sorted(owners.items())
+        if path in workflow_files and len(owner_names) > 1
+    ]
+    stale = [
+        path
+        for path in sorted(owners)
+        if path.endswith("_workflow.py") and path not in workflow_files
+    ]
+    if not (invalid or missing or duplicate or stale):
+        return None
+
+    sections: list[str] = []
+    if invalid:
+        sections.append("invalid owns_services:\n  - " + "\n  - ".join(invalid))
+    if missing:
+        sections.append("missing workflow owner:\n  - " + "\n  - ".join(missing))
+    if duplicate:
+        sections.append("duplicate workflow owner:\n  - " + "\n  - ".join(duplicate))
+    if stale:
+        sections.append(
+            "stale workflow owner declaration:\n  - " + "\n  - ".join(stale)
+        )
+    return {
+        "decision": "block",
+        "reason": (
+            "workflow service ownership must be exactly one module owner per "
+            "*_workflow.py\n"
+            + "\n".join(sections)
+        ),
+    }
 
 
 def check_touched_legacy(
@@ -438,6 +569,7 @@ def check(data: dict, session_state, staged_info: dict | None = None) -> dict | 
         for check_fn in (
             lambda: check_new_module(files, snap, real_repo=real_repo),
             lambda: check_ownership_conflicts(all_modules),
+            lambda: check_workflow_service_ownership(snap, all_modules),
             lambda: check_derived_products_fresh(snap, files, real_repo=real_repo),
             lambda: check_touched_legacy(files, diff, snap, real_repo=real_repo),
         ):
@@ -454,12 +586,14 @@ def _resolve_repo(path: str) -> Path:
             ["git", "-C", str(repo), "rev-parse", "--show-toplevel"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
         if r.returncode == 0 and r.stdout.strip():
             return Path(r.stdout.strip()).resolve()
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        pass
+        return repo
     return repo
 
 
@@ -469,6 +603,8 @@ def _git_text(repo: Path, args: list[str]) -> str:
             ["git", "-C", str(repo), *args],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=15,
         )
         if r.returncode != 0:
@@ -499,6 +635,27 @@ def _run_git_hook_mode(repo: Path) -> int:
     return 1
 
 
+def _run_repo_mode(repo: Path) -> int:
+    try:
+        all_modules = _load_all_module_frontmatters(repo)
+    except _LoaderError as e:
+        print(f"MODULE.md parse failed: {e}", file=sys.stderr)
+        return 1
+    for check_fn in (
+        lambda: check_ownership_conflicts(all_modules),
+        lambda: check_workflow_service_ownership(repo, all_modules),
+    ):
+        result = check_fn()
+        if result is not None:
+            print(
+                result.get("reason") or "module governance guard blocked repository",
+                file=sys.stderr,
+            )
+            return 1
+    print("module governance guard: ok")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Run edu-cloud module governance checks against staged files."
@@ -515,8 +672,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.git_hook_mode:
         return _run_git_hook_mode(repo)
 
-    parser.print_help()
-    return 0
+    return _run_repo_mode(repo)
 
 
 if __name__ == "__main__":

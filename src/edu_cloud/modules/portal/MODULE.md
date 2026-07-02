@@ -8,6 +8,8 @@ owns_tables: []
 
 owns_routes:
   - /api/v1/portal
+owns_services:
+  - src/edu_cloud/services/portal_workflow.py
 structure_pattern: standard
 max_router_loc: 120
 routers: [router.py]

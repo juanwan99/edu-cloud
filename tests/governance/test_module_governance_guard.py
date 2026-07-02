@@ -234,6 +234,58 @@ def test_same_module_duplicate_owns_not_conflict():
     assert g.check_ownership_conflicts(modules) is None
 
 
+def _write_workflow_service(repo: Path, name: str):
+    services_dir = repo / "src/edu_cloud/services"
+    services_dir.mkdir(parents=True, exist_ok=True)
+    (services_dir / f"{name}.py").write_text("# test workflow\n", encoding="utf-8")
+
+
+def test_workflow_service_missing_owner_blocks(tmp_path):
+    _write_workflow_service(tmp_path, "alpha_workflow")
+    modules = [{"name": "alpha", "owns_services": []}]
+
+    result = g.check_workflow_service_ownership(tmp_path, modules)
+
+    assert result is not None
+    assert result["decision"] == "block"
+    assert "missing workflow owner" in result["reason"]
+    assert "src/edu_cloud/services/alpha_workflow.py" in result["reason"]
+
+
+def test_workflow_service_duplicate_owner_blocks(tmp_path):
+    _write_workflow_service(tmp_path, "alpha_workflow")
+    modules = [
+        {
+            "name": "alpha",
+            "owns_services": ["src/edu_cloud/services/alpha_workflow.py"],
+        },
+        {
+            "name": "beta",
+            "owns_services": ["src/edu_cloud/services/alpha_workflow.py"],
+        },
+    ]
+
+    result = g.check_workflow_service_ownership(tmp_path, modules)
+
+    assert result is not None
+    assert result["decision"] == "block"
+    assert "duplicate workflow owner" in result["reason"]
+    assert "alpha, beta" in result["reason"]
+
+
+def test_workflow_service_single_owner_passes(tmp_path):
+    _write_workflow_service(tmp_path, "alpha_workflow")
+    modules = [{"name": "alpha", "owns_services": ["alpha_workflow"]}]
+
+    assert g.check_workflow_service_ownership(tmp_path, modules) is None
+
+
+def test_repository_workflow_service_ownership_passes():
+    repo = Path(__file__).resolve().parents[2]
+
+    assert g.check_workflow_service_ownership(repo) is None
+
+
 # --- 单元：check_touched_legacy（files + diff 契约 F006） ---
 def test_large_modification_without_module_md_blocks(tmp_path):
     _git_init_with_module(tmp_path, "legacy", include_module_md=False)

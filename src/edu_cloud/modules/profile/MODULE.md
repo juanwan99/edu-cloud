@@ -11,6 +11,8 @@ owns_tables:
 
 owns_routes:
   - /api/v1/profile
+owns_services:
+  - src/edu_cloud/services/profile_workflow.py
 structure_pattern: standard
 max_router_loc: 150
 routers: [router.py]

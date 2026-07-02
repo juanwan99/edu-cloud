@@ -13,6 +13,8 @@ owns_tables:
 
 owns_routes:
   - /api/v1/knowledge-tree
+owns_services:
+  - src/edu_cloud/services/knowledge_tree_workflow.py
 structure_pattern: standard
 max_router_loc: 200
 routers: [router.py]
