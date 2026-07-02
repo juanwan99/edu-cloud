@@ -18,6 +18,10 @@ class SafeSettings(FakeSettings):
     SEED_DEFAULT_PASSWORD = "strong-seed-pw-2026!"
 
 
+class ProductionSafeSettings(SafeSettings):
+    ENVIRONMENT = "production"
+
+
 def test_insecure_defaults_detected():
     errors = check_critical_secrets(FakeSettings())
     assert len(errors) == 3
@@ -72,7 +76,35 @@ async def test_run_startup_checks_fails_on_defaults(monkeypatch):
         await run_startup_checks(FakeSettings())
 
 
+@pytest.mark.parametrize("skip_value", ["1", "true", "yes"])
 @pytest.mark.asyncio
-async def test_run_startup_checks_skip_env(monkeypatch):
-    monkeypatch.setenv("SKIP_STARTUP_CHECKS", "1")
-    await run_startup_checks(FakeSettings())  # 不应抛出
+async def test_run_startup_checks_skip_env_non_production(monkeypatch, skip_value):
+    monkeypatch.setenv("SKIP_STARTUP_CHECKS", skip_value)
+
+    with patch("edu_cloud.startup_checks.check_critical_secrets") as mock_secrets:
+        with patch("edu_cloud.startup_checks.check_database", new_callable=AsyncMock) as mock_database:
+            with patch("edu_cloud.startup_checks.check_redis", new_callable=AsyncMock) as mock_redis:
+                await run_startup_checks(FakeSettings())  # 不应抛出
+
+    mock_secrets.assert_not_called()
+    mock_database.assert_not_awaited()
+    mock_redis.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_run_startup_checks_ignores_skip_env_in_production(monkeypatch):
+    monkeypatch.setenv("SKIP_STARTUP_CHECKS", "yes")
+
+    with patch("edu_cloud.startup_checks.check_database", new_callable=AsyncMock) as mock_database:
+        with patch("edu_cloud.startup_checks.check_redis", new_callable=AsyncMock) as mock_redis:
+            mock_database.return_value = []
+            mock_redis.return_value = []
+            with patch("edu_cloud.startup_checks.logger.warning") as mock_warning:
+                await run_startup_checks(ProductionSafeSettings())
+
+    mock_database.assert_awaited_once()
+    mock_redis.assert_awaited_once()
+    mock_warning.assert_called_once_with(
+        "SKIP_STARTUP_CHECKS=%s ignored in production; startup checks will run",
+        "yes",
+    )
