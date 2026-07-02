@@ -4,6 +4,9 @@ on:
     branches:
       - master
   pull_request:
+  merge_group:
+    types:
+      - checks_requested
 
 permissions:
   contents: read
@@ -26,7 +29,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          if [[ "${{ github.event_name }}" == "merge_group" ]]; then
+            {
+              echo ".github/workflows/test.yml"
+              echo "src/__merge_group_full_backend__"
+              echo "frontend/__merge_group_full_frontend__"
+            } > changed-files.txt
+            merge_group_full=true
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
             base="${{ github.event.pull_request.base.sha }}"
             head="${{ github.event.pull_request.head.sha }}"
           else
@@ -39,7 +49,7 @@ jobs:
               initial_push=false
             fi
           fi
-          if [[ "${initial_push:-false}" != "true" ]]; then
+          if [[ "${merge_group_full:-false}" != "true" && "${initial_push:-false}" != "true" ]]; then
             if ! git cat-file -e "$base^{commit}" 2>/dev/null || ! git cat-file -e "$head^{commit}" 2>/dev/null; then
               git fetch --no-tags --prune --depth=100 origin "$base" "$head"
             fi
@@ -119,7 +129,7 @@ jobs:
       - run: uv run python -m pytest tests/governance/test_governance_registry.py -q
   backend:
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: needs.changes.outputs.backend == 'true' && github.event_name != 'push'
     runs-on: ubuntu-latest
     env:
       UV_FROZEN: "1"
@@ -163,7 +173,7 @@ jobs:
 
   frontend:
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: needs.changes.outputs.frontend == 'true' && github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

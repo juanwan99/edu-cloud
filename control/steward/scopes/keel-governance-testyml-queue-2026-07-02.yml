@@ -1,0 +1,22 @@
+schema: steward-pr-scope.v1
+scope_id: keel-governance-testyml-queue-2026-07-02
+owner: codex
+allowed_paths:
+  - .github/workflows/test.yml
+  - control/steward/scopes/keel-governance-testyml-queue-2026-07-02.yml
+forbidden_paths:
+  - .github/CODEOWNERS
+  - .github/pull_request_template.md
+  - .github/workflows/steward-hard-gates.yml
+  - src/
+  - frontend/
+  - scripts/
+  - docs/
+  - deploy/
+  - alembic/
+  - AGENTS.md
+  - CLAUDE.md
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T12:35:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
