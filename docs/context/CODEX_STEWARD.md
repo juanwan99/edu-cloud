@@ -137,6 +137,19 @@ central paths, test authority, draft PR permission, CI self-fix permission, and
 stop condition. Worker prompts may refine the implementation, but they do not
 override that packet. Boundary changes require a fresh steward dispatch.
 
+## Governance Freeze Point
+
+After the Keel parallel-development buildout is complete, new governance PRs are
+allowed only for P0 defects, security or data-safety guards, broken required
+checks, and clearly scoped maintenance of existing guardrails. New process,
+review, or documentation requirements must state the extra real risk they close;
+otherwise they should be rejected as ceremony.
+
+The steward should track the weekly share of governance work versus product
+work. Sustained product focus is the target state: two consecutive weeks with
+governance work below 30% means the buildout is no longer the mainline and Keel
+has returned to background operations.
+
 ## Working Memory
 
 - Current facts live in `docs/context/NOW.md`.

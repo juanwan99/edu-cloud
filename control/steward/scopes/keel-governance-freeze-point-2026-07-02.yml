@@ -1,0 +1,20 @@
+schema: steward-pr-scope.v1
+scope_id: keel-governance-freeze-point-2026-07-02
+owner: codex
+allowed_paths:
+  - control/steward/scopes/keel-governance-freeze-point-2026-07-02.yml
+  - docs/context/CODEX_STEWARD.md
+forbidden_paths:
+  - .github/
+  - AGENTS.md
+  - CLAUDE.md
+  - alembic/
+  - deploy/
+  - frontend/
+  - scripts/
+  - src/
+  - tests/
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T19:45:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
