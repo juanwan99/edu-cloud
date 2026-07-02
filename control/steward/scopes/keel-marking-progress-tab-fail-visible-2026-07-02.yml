@@ -1,0 +1,24 @@
+schema: steward-pr-scope.v1
+scope_id: keel-marking-progress-tab-fail-visible-2026-07-02
+owner: codex
+allowed_paths:
+  - frontend/src/pages/grading-dispatch/MarkingProgressTab.vue
+  - frontend/src/pages/grading-dispatch/__tests__/MarkingProgressTab.test.js
+  - control/steward/scopes/keel-marking-progress-tab-fail-visible-2026-07-02.yml
+forbidden_paths:
+  - .github/
+  - scripts/
+  - src/
+  - docs/
+  - deploy/
+  - alembic/
+  - AGENTS.md
+  - CLAUDE.md
+  - frontend/src/pages/MarkingProgressPage.vue
+  - frontend/src/pages/__tests__/MarkingProgressPage.test.js
+  - frontend/src/components/shell/NotificationBell.vue
+  - frontend/src/__tests__/NotificationBell.test.js
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T00:00:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
