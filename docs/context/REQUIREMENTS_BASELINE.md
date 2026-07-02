@@ -1,13 +1,13 @@
 ---
 title: Requirements Baseline
 owner: liang
-last_review_date: "2026-07-01"
+last_review_date: "2026-07-02"
 expiration_in_days: 14
 ---
 
 # Requirements Baseline
 
-Last refreshed: 2026-07-01 11:26 Asia/Shanghai
+Stable guidance last reviewed: 2026-07-02.
 
 This is the current requirements and task-priority baseline for edu-cloud work
 under Keel. Older Claude/Codex reports, old plans, old handoffs, Yuanqi task
@@ -17,11 +17,13 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 ## Source Of Truth
 
 - Current repo: `juanwan99/edu-cloud`
-- Current master: `227137c2aec5b779667176edc730de818bae751e`
-- Current open PRs: none.
-- Current module dependency gate: `0 edges, 0 cycles`
 - Current Keel authority: GitHub required checks, CODEOWNERS, human review, and
   fresh scope files under `control/steward/scopes/`
+- Volatile repository facts such as the current master commit, open PRs, CI identifiers,
+  latest check status, and active scope counts must be checked live before
+  dispatch.
+- The module dependency gate must be checked live with
+  `python scripts/governance/check_module_dependencies.py --check`.
 
 ## User Requirements
 
@@ -44,26 +46,28 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 ## Verified Current Facts
 
 - PR #83 was closed as stale after #84-#89 changed the baseline it described.
-- PR #92 merged workflow skipped-steps visibility. Its master `Tests` run
-  `28491163509` is `in_progress` for
-  `227137c2aec5b779667176edc730de818bae751e`.
-- PR #91 merged the active-context refresh after #90. Its post-merge master
-  `Tests` run `28489224369` succeeded for
-  `0f726bfd38a0b68eec1abf0aa4fa1f195b242f4b`.
-- PR #90 merged the replacement mainline baseline. Its post-merge master
-  `Tests` run `28488542653` succeeded for
-  `851395ab63d5dc3499dca626fc389362efd059a5`.
+- PR #103 fixed AI chat persistence fail-closed behavior
+  (`59503c02` merge; implementation includes `7563f2d4`, `89569e97`,
+  `a31a0051`, and `be6607f8`).
+- PR #65 fixed truncated grading JSON fail-closed behavior (`e55a4506` merge;
+  implementation `520d709c`).
+- PR #66 marked uncertain OCR blanks for review-needed (`8e42491c` merge;
+  implementation `1f360a0e`).
+- PR #71 blocked grading for OCR review-needed answers (`8d5c0d3` merge;
+  implementation `ecf5c283`).
+- PR #96 fixed short vision grading details fail-closed behavior (`2ab66ea`
+  merge; implementation `1b1efa95`).
+- PR #92 merged workflow skipped-steps visibility.
+- PR #91 merged the active-context refresh after #90.
+- PR #90 merged the replacement mainline baseline.
 - PR #89 merged the Keel window role-boundary clarification.
 - PR #84 merged grading LLM config lookup fail-closed behavior.
 - PR #85 merged AI DataScope build-failure fail-closed behavior.
 - PR #86 merged scan identity mismatch fail-closed behavior.
 - PR #87 merged canonical student identity for adaptive mastery.
 - PR #88 merged answer-standardizer text-LLM fallback visibility.
-- Current Keel scope files on `origin/master` are 34 closed and 10 active. This
-  PR branch adds one active scope for its own review, so branch-local scope
-  count is 34 closed and 11 active until merge. The master active files are the
-  merged #84-#93 scopes and should not be treated as reusable permission,
-  because PR scope validation requires a newly added scope file.
+- Merged scope files must not be treated as reusable permission, because PR
+  scope validation requires a newly added scope file.
 - PR #53 and #54 archived unreferenced old plans; `docs/archive/plans/` now has
   56 plan files.
 - `docs/plans/` currently has 13 non-placeholder files. Only
@@ -88,18 +92,26 @@ this file or `docs/context/ACTIVE_INDEX.md` explicitly promotes them.
 
 ### P1 Silent Degradation
 
-The following old candidates must be reverified against current master before
-dispatch. Fix only confirmed issues as separate, narrow PRs with fresh scopes
-and tests:
+Current-master verification on 2026-07-02 removed the old P1 candidates below
+from the dispatch queue:
 
-1. `src/edu_cloud/ai/engine/edu_runtime.py`: `_persist_messages()` still treats
-   chat persistence as best-effort and only logs DB write failures.
-2. `src/edu_cloud/modules/grading/json_parser.py`: `_repair_truncated()` can
-   close incomplete JSON and return repaired grading output. It has an
-   incomplete-result guard, but the repair path is still a correctness risk.
+1. `src/edu_cloud/ai/engine/edu_runtime.py`: `_persist_messages()` persistence
+   failures are no longer best-effort only. PR #103 (`59503c02` merge) added
+   blocking `ai_chat_persistence_failed` handling; current SSE/API tests cover
+   the no-usable-answer path when persistence fails.
+2. `src/edu_cloud/modules/grading/json_parser.py`: truncated grading JSON is no
+   longer repaired into partial output. PR #65 (`e55a4506` merge,
+   implementation `520d709c`) removed the old repair behavior; current
+   `json_parser.py` documents that truncated JSON is intentionally not repaired,
+   and `test_truncated_json_returns_none` covers the behavior. PR #96
+   (`2ab66ea` merge) also closes short vision grading details.
 3. `src/edu_cloud/modules/grading/ocr_validator.py`: OCR English commentary and
-   missing blanks can become `unanswered` text. Prefer explicit review-needed or
-   unable-to-recognize states over silently treating uncertainty as no answer.
+   missing blanks are marked review-needed instead of `unanswered`. PR #66
+   (`8e42491c` merge) added review-needed marking, and PR #71 (`8d5c0d3`
+   merge) blocks grading paths from consuming review-needed OCR output.
+
+No confirmed P1 item remains open from the old list. Reverify any future P1
+candidate against current master before dispatch.
 
 ### P2 Visible But Still Risky
 

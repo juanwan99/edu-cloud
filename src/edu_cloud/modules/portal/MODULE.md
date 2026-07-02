@@ -1,6 +1,6 @@
 ---
 name: portal
-status: experimental
+status: active
 owner: backend
 layer: cross-cutting
 

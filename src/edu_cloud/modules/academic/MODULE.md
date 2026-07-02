@@ -1,6 +1,6 @@
 ---
 name: academic
-status: experimental
+status: active
 owner: backend
 layer: infrastructure
 
