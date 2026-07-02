@@ -7,6 +7,7 @@ allowed_paths:
   - .github/pull_request_template.md
   - src/edu_cloud/modules/portal/MODULE.md
   - src/edu_cloud/modules/academic/MODULE.md
+  - docs/governance/modules.yaml
   - control/steward/scopes/keel-docs-devolatilize-2026-07-02.yml
 forbidden_paths:
   - scripts/
