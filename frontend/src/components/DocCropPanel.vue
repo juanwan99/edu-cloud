@@ -149,6 +149,21 @@ const COLORS = [
 ]
 function palette(idx) { return COLORS[idx % COLORS.length] }
 
+const DOC_PAGES_LOAD_ERROR = 'Document pages could not be loaded'
+const DOC_PAGE_IMAGE_WARNING = 'Some document page previews could not be loaded; original URLs were kept'
+const DRAFT_SAVE_WARNING = 'Crop draft could not be saved locally'
+const DRAFT_RESTORE_WARNING = 'Saved crop draft could not be restored and was cleared'
+const DRAFT_CLEAR_WARNING = 'Saved crop draft could not be cleared locally'
+
+function errorDetail(error) {
+  return error?.response?.data?.detail || error?.message || ''
+}
+
+function withDetail(prefix, error) {
+  const detail = errorDetail(error)
+  return detail ? `${prefix}: ${detail}` : prefix
+}
+
 const fieldOptions = [
   { label: '题干', value: 'content' },
   { label: '答案', value: 'answer' },
@@ -202,17 +217,23 @@ async function loadExistingPages() {
     const res = await getDocPages(props.subjectId)
     const rawPages = res.data.pages || []
     if (!rawPages.length) return
+    let imageLoadFailed = false
     for (const pg of rawPages) {
       try {
         const resp = await client.get('/card/doc-page-image', {
           params: { path: pg.image_url }, responseType: 'blob', timeout: 30000,
         })
         pg.image_url = URL.createObjectURL(resp.data)
-      } catch {}
+      } catch {
+        imageLoadFailed = true
+      }
     }
     pages.value = rawPages
     currentPage.value = 0
-  } catch {}
+    if (imageLoadFailed) message.warning(DOC_PAGE_IMAGE_WARNING)
+  } catch (e) {
+    message.error(withDetail(DOC_PAGES_LOAD_ERROR, e))
+  }
 }
 
 const storageKey = computed(() => props.subjectId ? `doc-crop-${props.subjectId}` : '')
@@ -223,7 +244,11 @@ function saveCropsToStorage() {
     id: c.id, page: c.page, questionNum: c.questionNum,
     score: c.score, parentId: c.parentId, seq: c.seq, field: c.field, rect: c.rect,
   }))
-  try { localStorage.setItem(storageKey.value, JSON.stringify(data)) } catch {}
+  try {
+    localStorage.setItem(storageKey.value, JSON.stringify(data))
+  } catch (e) {
+    message.warning(withDetail(DRAFT_SAVE_WARNING, e))
+  }
 }
 
 function restoreCrops() {
@@ -231,7 +256,10 @@ function restoreCrops() {
   try {
     const raw = localStorage.getItem(storageKey.value)
     if (raw) crops.value = JSON.parse(raw)
-  } catch {}
+  } catch (e) {
+    localStorage.removeItem(storageKey.value)
+    message.warning(withDetail(DRAFT_RESTORE_WARNING, e))
+  }
 }
 
 async function handleUpload({ file }) {
@@ -485,7 +513,13 @@ async function handleSave() {
     }
     crops.value = []
     selectedId.value = null
-    if (storageKey.value) try { localStorage.removeItem(storageKey.value) } catch {}
+    if (storageKey.value) {
+      try {
+        localStorage.removeItem(storageKey.value)
+      } catch (e) {
+        message.warning(withDetail(DRAFT_CLEAR_WARNING, e))
+      }
+    }
     message.success(`已保存 ${results.length} 个区域，可继续标注`)
   } catch (e) {
     message.error('裁剪保存失败: ' + e.message)
