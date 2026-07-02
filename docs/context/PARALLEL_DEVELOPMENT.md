@@ -81,8 +81,11 @@ A write license must name:
 
 - approved scope ids or PR titles;
 - the integration lane for each scope;
+- review risk tier and review mode for each scope;
 - whether draft PR creation is allowed;
 - whether the worker may self-fix red CI after the first push;
+- whether Codex may run direct `claude -p` review and complete evidence/ready
+  closeout without asking the user to copy prompts manually;
 - the stop condition that returns control to the steward/user.
 
 Default stop condition: workers stop after opening the first draft PR. If any
@@ -129,6 +132,7 @@ The steward must provide every mutating worker with a startup packet that names:
 
 - worktree path and branch;
 - scope id and integration lane;
+- review risk tier and review mode;
 - allowed write paths;
 - read-only contract paths;
 - forbidden central paths;
@@ -165,13 +169,16 @@ Before launching another mutating window:
    backend module work.
 4. Classify the task into one mode above.
 5. Classify the integration lane as `independent`, `guarded`, or `exclusive`.
-6. Use a separate worktree unless it is the only active writer.
-7. Create a fresh Keel scope file with exact allowed paths and any
+6. Classify the review risk tier as `routine`, `medium`, or `high`, and declare
+   whether review uses direct `claude -p`, manual Claude App, Codex-only, or
+   owner decision.
+7. Use a separate worktree unless it is the only active writer.
+8. Create a fresh Keel scope file with exact allowed paths and any
    task-specific forbidden paths.
-8. Put `Steward-Scope: <scope_id>` in the PR body.
-9. Put `Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>` in the PR body.
-10. Complete the Dispatch Review checklist before implementation begins.
-11. Obtain the write license before creating branches, commits, pushes, draft
+9. Put `Steward-Scope: <scope_id>` in the PR body.
+10. Put `Codex-Dispatch-Review: <CDR-id-or-GitHub-comment-url>` in the PR body.
+11. Complete the Dispatch Review checklist before implementation begins.
+12. Obtain the write license before creating branches, commits, pushes, draft
     PRs, comments, PR-body edits, or ready-for-review transitions.
 
 The CDR value must come from the non-implementing steward/reviewer before
@@ -227,6 +234,16 @@ or strictly ordered PRs instead of parallel worker PRs.
 - Empty approve reviews do not count as Independent Review. The review evidence
   must state checked files, checked call paths, production consumers for any new
   protection fields or parameters, verification evidence, and PASS/FAIL.
+- For `routine` and `medium` PRs, direct
+  `claude --safe-mode --no-session-persistence -p ... --tools=""` is the
+  default review path when the write license allows it. The steward posts the
+  concise evidence comment and updates the PR body; the user should not have to
+  manually relay prompts unless Claude auth or output quality fails.
+- `high` PRs escalate to manual Claude App review or explicit owner decision
+  before ready. Examples include governance gates/workflows/rulesets, auth,
+  tenant/data isolation, grading final-score integrity, DB/deploy/secrets, LLM
+  fallback behavior, shared contracts, deletion/retirement, scope expansion,
+  repeated metadata anomalies, or a second red CI after an authorized repair.
 - Before a governed PR leaves draft, the PR body must point to that evidence and
   say `Verdict: PASS`; the approving GitHub review should include the same
   evidence URL instead of an empty body.
@@ -252,8 +269,10 @@ Use this default for speed without drift:
 - one batch proposal listing all candidate scopes and write-license terms;
 - at most three non-overlapping mutating workers per batch;
 - declare one integration lane per worker before writes begin;
+- declare review risk tier and review mode before writes begin;
 - red CI stops workers unless the batch explicitly allows self-fix;
 - central context, governance infrastructure, auth/permission/runtime/DB, and
   cross-module integration remain single-writer;
-- Claude deep review is scheduled after checks pass and before a governed PR
-  leaves draft when the task is high risk or the user requires it.
+- direct `claude -p` review is used by default for `routine` and `medium` PRs
+  after checks pass; high-risk PRs use manual Claude App review or owner
+  decision before leaving draft.

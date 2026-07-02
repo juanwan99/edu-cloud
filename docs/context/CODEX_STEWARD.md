@@ -32,24 +32,50 @@ Default operating mode:
   review, investigation, or implementation when explicitly assigned.
 - GitHub remains the hard gate; the user remains the only final merge authority.
 
-Do not spend Claude budget by default. Use this escalation ladder:
+Default review routing:
 
-1. Low-risk closeout or docs-only PR: Codex review plus GitHub gates is enough.
-2. Normal business fix: one non-author Independent Review with evidence in the
-   PR conversation or review body.
-3. High-risk work (grading, auth, tenant/data isolation, runtime, migrations,
-   governance gates, deletion/retirement): Codex review plus Claude manual App
-   review or `claude -p` if budget allows.
+1. `routine`: leaf frontend or page work, isolated docs/hygiene, and small
+   non-shared service fixes with no auth, DB, deploy, governance, secret,
+   schema, or cross-module contract impact. Codex may call
+   `claude --safe-mode --no-session-persistence -p ... --tools=""` directly
+   after checks pass and use the result as review evidence.
+2. `medium`: ordinary business fixes on a production path, silent-downgrade
+   cleanup, worker heartbeat misses followed by steward takeover, weak or
+   source-text-heavy tests, or material residual risk. Codex may still call
+   `claude -p` directly, but the prompt must include the PR number, head SHA,
+   changed files, CI, scope, production call path, and known residual risks.
+   Escalate if the answer does not clearly inspect the production path and end
+   with PASS or FAIL.
+3. `high`: governance gates, workflows, rulesets, CODEOWNERS, review-evidence
+   enforcement, auth, tenant or data isolation, grading final-score or student
+   identity integrity, migrations, live DB, deploy, secrets, LLM provider or
+   fallback behavior, shared facades/contracts, file deletion/retirement, scope
+   expansion, second red CI after the permitted repair, or repeated PR metadata
+   anomalies. Do not rely on quick `claude -p` alone; require manual Claude App
+   review or an explicit owner decision before ready.
 
-If Claude budget is constrained, the user may run Claude App manually and paste
-the review report. That counts as Claude evidence only when the report includes
-the exact PR or diff range, checked files, findings, and PASS/FAIL.
+Direct `claude -p` and manual Claude App review are substantively equivalent
+only when they review the same PR/head with the same evidence and produce
+checked files, findings, and PASS/FAIL. The difference is operational: direct
+`claude -p` is the default speed path; manual Claude is the escalation path for
+high-risk or ambiguous work.
+
+If Claude budget or authentication is constrained, the user may run Claude App
+manually and paste the review report. That counts as Claude evidence only when
+the report includes the exact PR or diff range, checked files, findings, and
+PASS/FAIL.
 
 The user is not responsible for formatting review evidence. If the user pastes
 raw Claude App output, Codex must decide whether it is sufficient, extract the
 checked files/findings/verdict, post a concise PR comment, and update the PR
 body. If the raw review is missing a clear PASS/FAIL or the reviewed PR/commit,
 Codex asks for only that missing fact.
+When the write license allows review closeout for a `routine` or `medium` PR,
+Codex should perform the direct `claude -p` review itself instead of asking the
+user to copy prompts between tools. Publishing the evidence comment, editing the
+PR body, and marking ready are still GitHub writes and require either a batch
+write license or a PR-specific closeout authorization. Codex still must not
+merge.
 For non-draft governed PRs, the PR body is the canonical merge-time evidence
 slot: `Reviewer / evidence URL` must point to the review evidence and `Verdict`
 must be `PASS`. The approving GitHub review should repeat that evidence URL in
@@ -190,11 +216,14 @@ The dispatch review must produce:
 
 1. task mode and whether parallelism is allowed;
 2. integration lane: `independent`, `guarded`, or `exclusive`;
-3. dependency order between workers or PRs;
-4. one scope id per governed PR;
-5. exact `allowed_paths` and `forbidden_paths`;
-6. local verification commands each worker must run before pushing;
-7. the requested write license terms: which scopes may create draft PRs, whether
+3. review risk tier: `routine`, `medium`, or `high`;
+4. review mode: direct `claude -p`, manual Claude App, Codex-only, or owner
+   decision;
+5. dependency order between workers or PRs;
+6. one scope id per governed PR;
+7. exact `allowed_paths` and `forbidden_paths`;
+8. local verification commands each worker must run before pushing;
+9. the requested write license terms: which scopes may create draft PRs, whether
    CI self-fix is allowed, and when workers must stop.
 
 The PR body must cite that review with
@@ -253,13 +282,15 @@ from the worker model unless the steward records an explicit exception.
 
 Use the smallest review that protects quality:
 
-- Tier 1: docs-only, closeout-only, and low-risk hygiene PRs need CI plus Codex
-  evidence. Claude review is optional.
-- Tier 2: ordinary business fixes need one non-author review focused on the
-  production call path.
-- Tier 3: grading, auth, tenant/data isolation, runtime, migrations,
-  governance gates, deletion/retirement, and silent-downgrade fixes need Codex
-  review plus Claude App or `claude -p` review when budget allows.
+- `routine` PRs need CI plus a concise non-author review. Direct `claude -p` is
+  preferred when it saves user time; Codex-only evidence is acceptable for truly
+  docs-only or closeout-only work.
+- `medium` PRs need production-call-path review. Direct `claude -p` is the
+  default, followed by Codex evidence formatting and PR-body update when the
+  write license allows closeout.
+- `high` PRs need Codex review plus manual Claude App review or explicit owner
+  decision before ready. Direct `claude -p` may be used as an extra probe, but
+  it is not the sole approval path.
 
 When the user requires Claude deep review for the current program of work, treat
 Claude review as mandatory for every non-trivial governed PR before leaving
