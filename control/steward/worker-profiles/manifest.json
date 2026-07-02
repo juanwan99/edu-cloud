@@ -1,0 +1,334 @@
+{
+  "generatedBy": "scripts/governance/gen_worker_profile.py",
+  "moduleCount": 23,
+  "modules": [
+    {
+      "name": "academic",
+      "settingsPath": "control/steward/worker-profiles/modules/academic.settings.json",
+      "source": "src/edu_cloud/modules/academic/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/academic/**",
+        "tests/test_modules/test_academic/**",
+        "tests/test_academic/**",
+        "tests/test_api_academic/**",
+        "tests/test_services_academic/**"
+      ]
+    },
+    {
+      "name": "adaptive",
+      "settingsPath": "control/steward/worker-profiles/modules/adaptive.settings.json",
+      "source": "src/edu_cloud/modules/adaptive/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/adaptive/**",
+        "tests/test_modules/test_adaptive/**",
+        "tests/test_adaptive/**",
+        "tests/test_api_adaptive/**",
+        "tests/test_services_adaptive/**"
+      ]
+    },
+    {
+      "name": "analytics",
+      "settingsPath": "control/steward/worker-profiles/modules/analytics.settings.json",
+      "source": "src/edu_cloud/modules/analytics/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/analytics/**",
+        "tests/test_modules/test_analytics/**",
+        "tests/test_analytics/**",
+        "tests/test_api_analytics/**",
+        "tests/test_services_analytics/**"
+      ]
+    },
+    {
+      "name": "bank",
+      "settingsPath": "control/steward/worker-profiles/modules/bank.settings.json",
+      "source": "src/edu_cloud/modules/bank/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/bank/**",
+        "tests/test_modules/test_bank/**",
+        "tests/test_bank/**",
+        "tests/test_api_bank/**",
+        "tests/test_services_bank/**"
+      ]
+    },
+    {
+      "name": "calendar",
+      "settingsPath": "control/steward/worker-profiles/modules/calendar.settings.json",
+      "source": "src/edu_cloud/modules/calendar/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/calendar/**",
+        "tests/test_modules/test_calendar/**",
+        "tests/test_calendar/**",
+        "tests/test_api_calendar/**",
+        "tests/test_services_calendar/**"
+      ]
+    },
+    {
+      "name": "card",
+      "settingsPath": "control/steward/worker-profiles/modules/card.settings.json",
+      "source": "src/edu_cloud/modules/card/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/card/**",
+        "tests/test_modules/test_card/**",
+        "tests/test_card/**",
+        "tests/test_api_card/**",
+        "tests/test_services_card/**"
+      ]
+    },
+    {
+      "name": "conduct",
+      "settingsPath": "control/steward/worker-profiles/modules/conduct.settings.json",
+      "source": "src/edu_cloud/modules/conduct/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/conduct/**",
+        "tests/test_modules/test_conduct/**",
+        "tests/test_conduct/**",
+        "tests/test_api_conduct/**",
+        "tests/test_services_conduct/**"
+      ]
+    },
+    {
+      "name": "exam",
+      "settingsPath": "control/steward/worker-profiles/modules/exam.settings.json",
+      "source": "src/edu_cloud/modules/exam/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/exam/**",
+        "tests/test_modules/test_exam/**",
+        "tests/test_exam/**",
+        "tests/test_api_exam/**",
+        "tests/test_services_exam/**"
+      ]
+    },
+    {
+      "name": "exam_import",
+      "settingsPath": "control/steward/worker-profiles/modules/exam_import.settings.json",
+      "source": "src/edu_cloud/modules/exam_import/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/exam_import/**",
+        "tests/test_modules/test_exam_import/**",
+        "tests/test_exam_import/**",
+        "tests/test_api_exam_import/**",
+        "tests/test_services_exam_import/**"
+      ]
+    },
+    {
+      "name": "grading",
+      "settingsPath": "control/steward/worker-profiles/modules/grading.settings.json",
+      "source": "src/edu_cloud/modules/grading/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/grading/**",
+        "tests/test_modules/test_grading/**",
+        "tests/test_grading/**",
+        "tests/test_api_grading/**",
+        "tests/test_services_grading/**"
+      ]
+    },
+    {
+      "name": "homework",
+      "settingsPath": "control/steward/worker-profiles/modules/homework.settings.json",
+      "source": "src/edu_cloud/modules/homework/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/homework/**",
+        "tests/test_modules/test_homework/**",
+        "tests/test_homework/**",
+        "tests/test_api_homework/**",
+        "tests/test_services_homework/**"
+      ]
+    },
+    {
+      "name": "knowledge",
+      "settingsPath": "control/steward/worker-profiles/modules/knowledge.settings.json",
+      "source": "src/edu_cloud/modules/knowledge/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/knowledge/**",
+        "tests/test_modules/test_knowledge/**",
+        "tests/test_knowledge/**",
+        "tests/test_api_knowledge/**",
+        "tests/test_services_knowledge/**"
+      ]
+    },
+    {
+      "name": "knowledge_tree",
+      "settingsPath": "control/steward/worker-profiles/modules/knowledge_tree.settings.json",
+      "source": "src/edu_cloud/modules/knowledge_tree/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/knowledge_tree/**",
+        "tests/test_modules/test_knowledge_tree/**",
+        "tests/test_knowledge_tree/**",
+        "tests/test_api_knowledge_tree/**",
+        "tests/test_services_knowledge_tree/**"
+      ]
+    },
+    {
+      "name": "marking",
+      "settingsPath": "control/steward/worker-profiles/modules/marking.settings.json",
+      "source": "src/edu_cloud/modules/marking/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/marking/**",
+        "tests/test_modules/test_marking/**",
+        "tests/test_marking/**",
+        "tests/test_api_marking/**",
+        "tests/test_services_marking/**"
+      ]
+    },
+    {
+      "name": "menu",
+      "settingsPath": "control/steward/worker-profiles/modules/menu.settings.json",
+      "source": "src/edu_cloud/modules/menu/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/menu/**",
+        "tests/test_modules/test_menu/**",
+        "tests/test_menu/**",
+        "tests/test_api_menu/**",
+        "tests/test_services_menu/**"
+      ]
+    },
+    {
+      "name": "paper",
+      "settingsPath": "control/steward/worker-profiles/modules/paper.settings.json",
+      "source": "src/edu_cloud/modules/paper/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/paper/**",
+        "tests/test_modules/test_paper/**",
+        "tests/test_paper/**",
+        "tests/test_api_paper/**",
+        "tests/test_services_paper/**"
+      ]
+    },
+    {
+      "name": "pipeline",
+      "settingsPath": "control/steward/worker-profiles/modules/pipeline.settings.json",
+      "source": "src/edu_cloud/modules/pipeline/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/pipeline/**",
+        "tests/test_modules/test_pipeline/**",
+        "tests/test_pipeline/**",
+        "tests/test_api_pipeline/**",
+        "tests/test_services_pipeline/**"
+      ]
+    },
+    {
+      "name": "portal",
+      "settingsPath": "control/steward/worker-profiles/modules/portal.settings.json",
+      "source": "src/edu_cloud/modules/portal/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/portal/**",
+        "tests/test_modules/test_portal/**",
+        "tests/test_portal/**",
+        "tests/test_api_portal/**",
+        "tests/test_services_portal/**"
+      ]
+    },
+    {
+      "name": "profile",
+      "settingsPath": "control/steward/worker-profiles/modules/profile.settings.json",
+      "source": "src/edu_cloud/modules/profile/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/profile/**",
+        "tests/test_modules/test_profile/**",
+        "tests/test_profile/**",
+        "tests/test_api_profile/**",
+        "tests/test_services_profile/**"
+      ]
+    },
+    {
+      "name": "scan",
+      "settingsPath": "control/steward/worker-profiles/modules/scan.settings.json",
+      "source": "src/edu_cloud/modules/scan/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/scan/**",
+        "tests/test_modules/test_scan/**",
+        "tests/test_scan/**",
+        "tests/test_api_scan/**",
+        "tests/test_services_scan/**"
+      ]
+    },
+    {
+      "name": "school",
+      "settingsPath": "control/steward/worker-profiles/modules/school.settings.json",
+      "source": "src/edu_cloud/modules/school/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/school/**",
+        "tests/test_modules/test_school/**",
+        "tests/test_school/**",
+        "tests/test_api_school/**",
+        "tests/test_services_school/**"
+      ]
+    },
+    {
+      "name": "student",
+      "settingsPath": "control/steward/worker-profiles/modules/student.settings.json",
+      "source": "src/edu_cloud/modules/student/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/student/**",
+        "tests/test_modules/test_student/**",
+        "tests/test_student/**",
+        "tests/test_api_student/**",
+        "tests/test_services_student/**"
+      ]
+    },
+    {
+      "name": "studio",
+      "settingsPath": "control/steward/worker-profiles/modules/studio.settings.json",
+      "source": "src/edu_cloud/modules/studio/MODULE.md",
+      "writePaths": [
+        "src/edu_cloud/modules/studio/**",
+        "tests/test_modules/test_studio/**",
+        "tests/test_studio/**",
+        "tests/test_api_studio/**",
+        "tests/test_services_studio/**"
+      ]
+    }
+  ],
+  "permissions": {
+    "centralDenyPaths": [
+      "src/edu_cloud/ai/**",
+      "src/edu_cloud/api/app.py",
+      "src/edu_cloud/api/router_registry.py",
+      "src/edu_cloud/core/**",
+      "src/edu_cloud/models/school_settings.py",
+      "alembic/**",
+      ".github/**",
+      "control/**",
+      "deploy/**",
+      "AGENTS.md",
+      "CLAUDE.md"
+    ],
+    "defaultMode": "dontAsk",
+    "disableBypassPermissionsMode": "disable",
+    "selfModifyDenyPaths": [
+      ".claude/**"
+    ],
+    "shellDeny": [
+      "Bash",
+      "PowerShell"
+    ]
+  },
+  "profile": "windows_no_shell_worker",
+  "schema": "keel-worker-profile-manifest.v1",
+  "startup": {
+    "forbiddenFlags": [
+      "--permission-mode",
+      "--dangerously-skip-permissions",
+      "--allow-dangerously-skip-permissions"
+    ],
+    "requiredFlags": [
+      "--safe-mode",
+      "--no-session-persistence",
+      "--settings"
+    ],
+    "toolSet": [
+      "Read",
+      "Edit",
+      "Write"
+    ]
+  },
+  "workerContract": {
+    "boundaryProbeEvidence": "Paste the denied out-of-scope write output into the PR.",
+    "laneDefault": "module_writer",
+    "mayRunGit": false,
+    "mayRunShell": false,
+    "mayRunTests": false,
+    "noShell": true,
+    "requiresBoundaryProbe": true
+  }
+}
