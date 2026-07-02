@@ -1,0 +1,23 @@
+schema: steward-pr-scope.v1
+scope_id: keel-backup-automation-2026-07-02
+owner: codex
+allowed_paths:
+  - deploy/backup/edu-cloud-backup.py
+  - deploy/backup/README.md
+  - deploy/systemd/edu-cloud-backup.service
+  - deploy/systemd/edu-cloud-backup.timer
+  - tests/governance/test_backup_automation.py
+  - control/steward/scopes/keel-backup-automation-2026-07-02.yml
+forbidden_paths:
+  - src/
+  - frontend/
+  - scripts/
+  - .github/
+  - docs/
+  - alembic/
+  - AGENTS.md
+  - CLAUDE.md
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T18:00:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
