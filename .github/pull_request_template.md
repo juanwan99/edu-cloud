@@ -2,6 +2,8 @@ Steward-Scope: REQUIRED
 Codex-Dispatch-Review: REQUIRED
 Integration-Lane: REQUIRED
 Write-License: REQUIRED
+Worker-Model: REQUIRED
+Reviewer-Model: REQUIRED
 
 ## Summary
 

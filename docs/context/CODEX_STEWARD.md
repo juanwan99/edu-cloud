@@ -231,6 +231,13 @@ Minimum evidence:
 4. test and CI evidence inspected;
 5. explicit `PASS` or `FAIL`.
 
+PR bodies should also declare `Worker-Model:` and `Reviewer-Model:` before a
+non-draft governed PR is marked ready. These fields are lightweight trace
+signals, not a multi-account ritual. During the warn period,
+`steward/dispatch-review` reports missing, placeholder, or identical model
+declarations as warnings only. If later enforced, the reviewer model must differ
+from the worker model unless the steward records an explicit exception.
+
 Use the smallest review that protects quality:
 
 - Tier 1: docs-only, closeout-only, and low-risk hygiene PRs need CI plus Codex

@@ -17,6 +17,8 @@ SCOPE_DECLARATION = re.compile(r"^\ufeff?\s*Steward-Scope:\s*([A-Za-z0-9._-]+)\s
 REVIEW_DECLARATION = re.compile(r"^\ufeff?\s*Codex-Dispatch-Review:\s*(\S+)\s*$")
 LANE_DECLARATION = re.compile(r"^\ufeff?\s*Integration-Lane:\s*(\S+)\s*$")
 WRITE_LICENSE_DECLARATION = re.compile(r"^\ufeff?\s*Write-License:\s*(.*?)\s*$")
+WORKER_MODEL_DECLARATION = re.compile(r"^\ufeff?\s*Worker-Model:\s*(.*?)\s*$")
+REVIEWER_MODEL_DECLARATION = re.compile(r"^\ufeff?\s*Reviewer-Model:\s*(.*?)\s*$")
 CDR_ID = re.compile(r"^CDR-\d{4}-\d{2}-\d{2}-[a-z0-9][a-z0-9-]*[a-z0-9]$")
 GITHUB_COMMENT_URL = re.compile(
     r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/(?:pull|issues)/\d+#issuecomment-\d+$"
@@ -66,6 +68,8 @@ def validate_event_with_warnings(
     review_evidence = _resolve_review_evidence(body)
     integration_lane = _resolve_integration_lane(body)
     write_license = _resolve_write_license(body)
+    worker_model = _resolve_declared_value(body, WORKER_MODEL_DECLARATION)
+    reviewer_model = _resolve_declared_value(body, REVIEWER_MODEL_DECLARATION)
     errors: list[str] = []
     warnings: list[str] = []
     verify_mode = _normalize_verify_mode(verify_mode)
@@ -152,6 +156,8 @@ def validate_event_with_warnings(
                     fetch_comment=fetch_comment,
                 )
             )
+        if verify_mode != "off":
+            warnings.extend(_model_declaration_warnings(worker_model, reviewer_model))
 
     if verify_mode == "enforce":
         errors.extend(f"Independent Review evidence verification failed: {warning}" for warning in warnings)
@@ -202,6 +208,31 @@ def _resolve_write_license(body: str) -> str | None:
         if match:
             return match.group(1)
     return None
+
+
+def _resolve_declared_value(body: str, pattern: re.Pattern[str]) -> str | None:
+    for line in body.splitlines():
+        match = pattern.match(line)
+        if match:
+            return match.group(1).strip()
+    return None
+
+
+def _model_declaration_warnings(worker_model: str | None, reviewer_model: str | None) -> list[str]:
+    warnings: list[str] = []
+    worker_model_valid = bool(worker_model) and worker_model.upper() not in PLACEHOLDER_VALUES
+    reviewer_model_valid = bool(reviewer_model) and reviewer_model.upper() not in PLACEHOLDER_VALUES
+    if not worker_model_valid:
+        warnings.append("Worker-Model declaration is missing or placeholder")
+    if not reviewer_model_valid:
+        warnings.append("Reviewer-Model declaration is missing or placeholder")
+    if (
+        worker_model_valid
+        and reviewer_model_valid
+        and worker_model.strip().lower() == reviewer_model.strip().lower()
+    ):
+        warnings.append("Worker-Model and Reviewer-Model should differ for independent review")
+    return warnings
 
 
 def _write_license_errors(value: str) -> list[str]:

@@ -32,6 +32,8 @@ def _valid_body() -> str:
 Codex-Dispatch-Review: CDR-2026-06-29-demo
 Integration-Lane: guarded
 Write-License: draft PR creation allowed; CI self-fix not allowed; stop after draft PR.
+Worker-Model: codex-gpt-5
+Reviewer-Model: claude-sonnet-4.5
 
 ## Summary
 
@@ -49,6 +51,14 @@ Reviewer / evidence URL: https://github.com/juanwan99/edu-cloud/pull/99#issuecom
 
 Verdict: PASS
 """
+
+
+def _matching_review_comment(_url: str, _token: str | None):
+    return {
+        "issue_url": "https://api.github.com/repos/juanwan99/edu-cloud/issues/99",
+        "user": {"login": "jopfea796-dotcom"},
+        "body": ("review evidence " * 20) + "\nVerdict: PASS\n",
+    }
 
 
 def test_valid_dispatch_review_passes():
@@ -198,11 +208,7 @@ def test_independent_review_issue_comment_api_warning_passes_when_comment_matche
     def fetch_comment(url: str, token: str | None):
         assert url == "https://api.github.com/repos/juanwan99/edu-cloud/issues/comments/1234567890"
         assert token == "token"
-        return {
-            "issue_url": "https://api.github.com/repos/juanwan99/edu-cloud/issues/99",
-            "user": {"login": "jopfea796-dotcom"},
-            "body": ("review evidence " * 20) + "\nVerdict: PASS\n",
-        }
+        return _matching_review_comment(url, token)
 
     errors, warnings = validate_event_with_warnings(
         _event(body=_valid_body()),
@@ -213,6 +219,41 @@ def test_independent_review_issue_comment_api_warning_passes_when_comment_matche
 
     assert errors == []
     assert warnings == []
+
+
+def test_model_declarations_warn_cases_without_blocking():
+    cases = [
+        (_valid_body(), False, []),
+        (
+            _valid_body().replace("Worker-Model: codex-gpt-5\nReviewer-Model: claude-sonnet-4.5\n", ""),
+            False,
+            [
+                "Worker-Model declaration is missing or placeholder",
+                "Reviewer-Model declaration is missing or placeholder",
+            ],
+        ),
+        (
+            _valid_body().replace("Reviewer-Model: claude-sonnet-4.5", "Reviewer-Model: codex-gpt-5"),
+            False,
+            ["Worker-Model and Reviewer-Model should differ for independent review"],
+        ),
+        (
+            _valid_body().replace("Worker-Model: codex-gpt-5\nReviewer-Model: claude-sonnet-4.5\n", ""),
+            True,
+            [],
+        ),
+    ]
+    for body, draft, expected_warnings in cases:
+        errors, warnings = validate_event_with_warnings(
+            _event(body=body, draft=draft),
+            verify_mode="warn",
+            fetch_comment=_matching_review_comment,
+        )
+        assert errors == []
+        for expected in expected_warnings:
+            assert expected in warnings
+        if not expected_warnings:
+            assert warnings == []
 
 
 def test_independent_review_issue_comment_api_warns_on_wrong_pr_short_body_and_missing_pass():
