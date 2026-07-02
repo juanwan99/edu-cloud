@@ -3,13 +3,13 @@ scope_id: keel-governance-db-migrate-test-ci-2026-07-02
 owner: codex
 allowed_paths:
   - .github/workflows/test.yml
+  - tests/governance/test_codex_scripts.py
   - control/steward/scopes/keel-governance-db-migrate-test-ci-2026-07-02.yml
 forbidden_paths:
   - src/
   - frontend/
   - docs/
   - scripts/
-  - tests/
   - .github/CODEOWNERS
   - .github/pull_request_template.md
   - deploy/
