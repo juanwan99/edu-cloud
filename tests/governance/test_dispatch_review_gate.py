@@ -180,6 +180,20 @@ def test_draft_pr_skips_api_evidence_verification():
     assert warnings == []
 
 
+def test_off_mode_skips_api_evidence_verification_for_non_draft_pr():
+    def fail_fetch(_url: str, _token: str | None):
+        raise AssertionError("off mode must not fetch review evidence")
+
+    errors, warnings = validate_event_with_warnings(
+        _event(body=_valid_body()),
+        verify_mode="off",
+        fetch_comment=fail_fetch,
+    )
+
+    assert errors == []
+    assert warnings == []
+
+
 def test_independent_review_issue_comment_api_warning_passes_when_comment_matches():
     def fetch_comment(url: str, token: str | None):
         assert url == "https://api.github.com/repos/juanwan99/edu-cloud/issues/comments/1234567890"

@@ -143,7 +143,7 @@ def validate_event_with_warnings(
         if verdict != "PASS":
             errors.append("Independent Review verdict must be PASS before merge")
 
-        if reviewer_value and _valid_independent_review_evidence(reviewer_value):
+        if verify_mode != "off" and reviewer_value and _valid_independent_review_evidence(reviewer_value):
             warnings.extend(
                 _independent_review_evidence_warnings(
                     event,

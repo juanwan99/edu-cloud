@@ -1,0 +1,20 @@
+schema: steward-pr-scope.v1
+scope_id: keel-governance-review-verify-off-mode-2026-07-02
+owner: codex
+allowed_paths:
+  - scripts/governance/check_dispatch_review.py
+  - tests/governance/test_dispatch_review_gate.py
+  - control/steward/scopes/keel-governance-review-verify-off-mode-2026-07-02.yml
+forbidden_paths:
+  - .github/
+  - src/
+  - frontend/
+  - docs/
+  - deploy/
+  - alembic/
+  - AGENTS.md
+  - CLAUDE.md
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T12:10:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
