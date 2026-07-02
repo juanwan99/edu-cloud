@@ -2,7 +2,7 @@
 import logging
 import os
 
-from edu_cloud.config import normalize_environment
+from edu_cloud.config import is_production_environment, normalize_environment
 
 logger = logging.getLogger("edu_cloud.startup")
 
@@ -61,9 +61,16 @@ async def check_redis(settings) -> list[str]:
 
 async def run_startup_checks(settings) -> None:
     """执行所有启动检查。失败则抛出 RuntimeError 阻断启动。"""
-    if os.getenv("SKIP_STARTUP_CHECKS", "").strip() in ("1", "true", "yes"):
-        logger.info("SKIP_STARTUP_CHECKS=1, 跳过启动检查")
-        return
+    skip_startup_checks = os.getenv("SKIP_STARTUP_CHECKS", "").strip()
+    if skip_startup_checks in ("1", "true", "yes"):
+        if is_production_environment(getattr(settings, "ENVIRONMENT", None)):
+            logger.warning(
+                "SKIP_STARTUP_CHECKS=%s ignored in production; startup checks will run",
+                skip_startup_checks,
+            )
+        else:
+            logger.info("SKIP_STARTUP_CHECKS=1, 跳过启动检查")
+            return
 
     errors = []
     errors.extend(check_critical_secrets(settings))
