@@ -593,7 +593,7 @@ def _resolve_repo(path: str) -> Path:
         if r.returncode == 0 and r.stdout.strip():
             return Path(r.stdout.strip()).resolve()
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        pass
+        return repo
     return repo
 
 
