@@ -1,0 +1,24 @@
+[Unit]
+Description=edu-cloud local database backup
+After=network-online.target
+Wants=network-online.target
+Documentation=file:/home/ops/projects/edu-cloud/deploy/backup/README.md
+
+[Service]
+Type=oneshot
+User=ops
+Group=ops
+WorkingDirectory=/home/ops/projects/edu-cloud
+EnvironmentFile=-/home/ops/projects/edu-cloud/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/ops/projects/edu-cloud/.venv/bin/python /home/ops/projects/edu-cloud/deploy/backup/edu-cloud-backup.py --target-dir /home/ops/backups/edu-cloud
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ops/backups/edu-cloud /home/ops/logs
+StandardOutput=append:/home/ops/logs/edu-cloud-backup.log
+StandardError=append:/home/ops/logs/edu-cloud-backup.log
+
+[Install]
+WantedBy=multi-user.target
