@@ -24,6 +24,18 @@
       </div>
     </div>
 
+    <n-alert
+      v-if="loadError"
+      class="progress-error"
+      type="error"
+      :bordered="false"
+      closable
+      role="alert"
+      @close="loadError = ''"
+    >
+      {{ loadError }}
+    </n-alert>
+
     <n-spin :show="loading">
       <n-card v-if="progress" class="overall-card" size="small">
         <div class="overall-stats">
@@ -70,16 +82,19 @@
         />
       </div>
 
-      <n-empty v-if="!progress && !loading" description="请先选择考试" />
+      <n-empty v-if="!progress && !loading && !loadError" description="请先选择考试" />
     </n-spin>
   </div>
 </template>
 
 <script setup>
 import { ref, h, computed, watch, onUnmounted } from 'vue'
-import { NProgress, NIcon, useMessage } from 'naive-ui'
+import { NProgress, NIcon, NAlert, useMessage } from 'naive-ui'
 import { RefreshCw } from 'lucide-vue-next'
 import { getProgress, exportCsv } from '../../api/marking'
+
+const PROGRESS_LOAD_ERROR = '阅卷进度加载失败，请稍后重试'
+const PROGRESS_REFRESH_ERROR = '阅卷进度刷新失败，当前数据未更新'
 
 const props = defineProps({
   examId: { type: [String, Number], default: null },
@@ -90,6 +105,7 @@ const loading = ref(false)
 const refreshing = ref(false)
 const exporting = ref(false)
 const progress = ref(null)
+const loadError = ref('')
 const autoRefresh = ref(false)
 const lastUpdateTime = ref('')
 let pollTimer = null
@@ -142,15 +158,34 @@ function updateTimestamp() {
   lastUpdateTime.value = `上次更新: ${hh}:${mm}:${ss}`
 }
 
+function formatProgressError(fallback, err) {
+  const detail = err?.response?.data?.detail || err?.message
+  return detail ? `${fallback}: ${detail}` : fallback
+}
+
+function showProgressError(text) {
+  loadError.value = text
+  message.error(text)
+}
+
+function clearProgressError() {
+  loadError.value = ''
+}
+
 async function loadProgress() {
   if (!props.examId) return
   loading.value = true
+  progress.value = null
   try {
     const { data } = await getProgress(props.examId)
     progress.value = data
     updateTimestamp()
-  } catch {}
-  loading.value = false
+    clearProgressError()
+  } catch (err) {
+    showProgressError(formatProgressError(PROGRESS_LOAD_ERROR, err))
+  } finally {
+    loading.value = false
+  }
 }
 
 async function manualRefresh() {
@@ -160,8 +195,12 @@ async function manualRefresh() {
     const { data } = await getProgress(props.examId)
     progress.value = data
     updateTimestamp()
-  } catch {}
-  refreshing.value = false
+    clearProgressError()
+  } catch (err) {
+    showProgressError(formatProgressError(PROGRESS_REFRESH_ERROR, err))
+  } finally {
+    refreshing.value = false
+  }
 }
 
 function startPolling() {
@@ -172,7 +211,10 @@ function startPolling() {
       const { data } = await getProgress(props.examId)
       progress.value = data
       updateTimestamp()
-    } catch {}
+      clearProgressError()
+    } catch (err) {
+      loadError.value = formatProgressError(PROGRESS_REFRESH_ERROR, err)
+    }
   }, 30000)
 }
 
@@ -188,6 +230,7 @@ watch(() => props.examId, (val) => {
     loadProgress()
     if (autoRefresh.value) startPolling()
   } else {
+    clearProgressError()
     stopPolling()
   }
 }, { immediate: true })
@@ -219,6 +262,7 @@ onUnmounted(() => stopPolling())
   margin-bottom: var(--space-4);
   flex-wrap: wrap;
 }
+.progress-error { margin-bottom: var(--space-4); }
 .auto-refresh-group {
   display: flex;
   align-items: center;
