@@ -1,0 +1,23 @@
+schema: steward-pr-scope.v1
+scope_id: keel-doc-crop-fail-visible-2026-07-02
+owner: codex
+allowed_paths:
+  - frontend/src/components/DocCropPanel.vue
+  - frontend/src/components/__tests__/DocCropPanel.test.js
+  - control/steward/scopes/keel-doc-crop-fail-visible-2026-07-02.yml
+forbidden_paths:
+  - .github/
+  - scripts/
+  - src/
+  - docs/
+  - deploy/
+  - alembic/
+  - AGENTS.md
+  - CLAUDE.md
+  - frontend/src/pages/MarkingProgressPage.vue
+  - frontend/src/pages/grading-dispatch/MarkingProgressTab.vue
+  - frontend/src/components/shell/NotificationBell.vue
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T23:30:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
