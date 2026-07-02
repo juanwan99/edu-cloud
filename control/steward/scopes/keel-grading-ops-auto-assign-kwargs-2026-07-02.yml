@@ -1,0 +1,24 @@
+schema: steward-pr-scope.v1
+scope_id: keel-grading-ops-auto-assign-kwargs-2026-07-02
+owner: codex
+allowed_paths:
+  - src/edu_cloud/ai/engine/tools/grading_ops.py
+  - tests/test_ai/test_engine/test_grading_ops_call_signatures.py
+  - control/steward/scopes/keel-grading-ops-auto-assign-kwargs-2026-07-02.yml
+forbidden_paths:
+  - .github/
+  - scripts/
+  - frontend/
+  - alembic/
+  - deploy/
+  - AGENTS.md
+  - CLAUDE.md
+  - docs/context/
+  - src/edu_cloud/modules/
+  - src/edu_cloud/modules/card/
+  - src/edu_cloud/modules/exam/
+  - src/edu_cloud/modules/scan/
+compatibility_paths: []
+status: active
+created_at: "2026-07-02T09:44:00+08:00"
+expires_at: "2026-07-09T23:59:00+08:00"
