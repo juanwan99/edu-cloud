@@ -13,6 +13,8 @@ owns_tables:
 
 owns_routes:
   - /api/v1/grading
+owns_services:
+  - src/edu_cloud/services/grading_workflow.py
 structure_pattern: multi-router
 max_router_loc: 1100
 routers: [router.py, assignment_router.py, quality_router.py, grading_review_router.py]

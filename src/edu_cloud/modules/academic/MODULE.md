@@ -10,6 +10,8 @@ owns_tables:
   - timetable_slots
 
 owns_routes: []
+owns_services:
+  - src/edu_cloud/services/academic_workflow.py
 structure_pattern: standard
 max_router_loc: 300
 routers: [router.py]

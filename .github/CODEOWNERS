@@ -51,3 +51,5 @@
 /src/edu_cloud/modules/student/ @jopfea796-dotcom
 /src/edu_cloud/modules/profile/ @jopfea796-dotcom
 /src/edu_cloud/modules/school/ @jopfea796-dotcom
+/src/edu_cloud/services/portal_workflow.py @jopfea796-dotcom
+/src/edu_cloud/services/profile_workflow.py @jopfea796-dotcom

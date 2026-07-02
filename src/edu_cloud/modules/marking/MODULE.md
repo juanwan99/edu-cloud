@@ -8,6 +8,8 @@ owns_tables: []
 
 owns_routes:
   - /api/v1/marking
+owns_services:
+  - src/edu_cloud/services/marking_workflow.py
 structure_pattern: standard
 max_router_loc: 600
 routers: [router.py]

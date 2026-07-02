@@ -10,6 +10,8 @@ owns_tables:
 
 owns_routes:
   - /api/v1/homework
+owns_services:
+  - src/edu_cloud/services/homework_workflow.py
 structure_pattern: standard
 max_router_loc: 300
 routers: [router.py]

@@ -49,6 +49,7 @@ VALID_STATUS = {"active", "deprecated", "experimental"}
 VALID_LAYER = {"business", "infrastructure", "cross-cutting"}
 VALID_STRUCTURE_PATTERN = {"standard", "multi-router", "service-only"}
 DERIVED_FILES = ("modules.yaml", "dependency-graph.md", "debt-report.md")
+OPTIONAL_LIST_FIELDS = ("owns_services",)
 
 
 class ModuleGovernanceError(ValueError):
@@ -110,6 +111,16 @@ def parse_module_md(md_path: Path) -> dict[str, Any]:
             raise ModuleGovernanceError(
                 f"{md_path}: routers must be a list"
             )
+    for field in OPTIONAL_LIST_FIELDS:
+        if field in meta and not isinstance(meta[field], list):
+            raise ModuleGovernanceError(
+                f"{md_path}: {field} must be a list"
+            )
+        for item in meta.get(field) or []:
+            if not isinstance(item, str) or not item.strip():
+                raise ModuleGovernanceError(
+                    f"{md_path}: {field} entries must be non-empty strings"
+                )
     return meta
 
 
@@ -120,6 +131,7 @@ def detect_conflicts(modules: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     table_owner: dict[str, str] = {}
     route_owner: dict[str, str] = {}
+    service_owner: dict[str, str] = {}
     conflicts: list[dict[str, Any]] = []
     for m in modules:
         name = m["name"]
@@ -145,6 +157,17 @@ def detect_conflicts(modules: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 )
             else:
                 route_owner[r] = name
+        for s in m.get("owns_services") or []:
+            if s in service_owner and service_owner[s] != name:
+                conflicts.append(
+                    {
+                        "kind": "duplicate_service",
+                        "value": s,
+                        "owners": [service_owner[s], name],
+                    }
+                )
+            else:
+                service_owner[s] = name
     return conflicts
 
 

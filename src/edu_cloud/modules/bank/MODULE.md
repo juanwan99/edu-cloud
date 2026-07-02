@@ -10,6 +10,8 @@ owns_tables:
 
 owns_routes:
   - /api/v1/bank
+owns_services:
+  - src/edu_cloud/services/bank_workflow.py
 structure_pattern: standard
 max_router_loc: 200
 routers: [router.py]
